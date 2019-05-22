@@ -45,7 +45,7 @@ TEST(workloads_metis, 58x58_mode_4_4_workloads_5)
     auto convOp = om.getOps("DPUTask");
     auto op = convOp[0];
 
-    ASSERT_EQ(op->get<int>("Metis_edge_cut"), 84);
+    ASSERT_EQ(op->get<int>("Metis_edge_cut"), 41);
     EXPECT_TRUE(op->get<bool>("Valid_workload"));
 }
 

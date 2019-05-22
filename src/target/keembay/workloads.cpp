@@ -649,9 +649,8 @@ std::vector<mv::Workload> mv::Workloads::polygonWorkloadSplit(const mv::pass::Pa
                 {
                     diff1 = abs(it->second - all_it->second);
                     save1 = *all_it;
-                    //to match POC, if the interesting point's X matches xmax of the workload, the split has to happen parellel to y. So updating the interesting 
-                    // point (no matter if it is closer to Ymin or Ymax), to have boolean as 'true' so that the point always is included in the right partition
-                    if ((it->second < all_it->second) || (it->first == workload.MaxX))
+                    //            // point (no matter if it is closer to Ymin or Ymax), to have boolean as 'true' so that the point always is included in the right partition
+                    if ((it->second < all_it->second))
                         intPoint1isAtstart = true;
                 }
             }
@@ -696,7 +695,7 @@ std::vector<mv::Workload> mv::Workloads::workloadSplitHelper(const mv::pass::Pas
     // split along X is needed, if the interesting point is on the workload Ymin or Ymax
     // split along Y is needed, if the interesting point is on the workload Xmin or Xmax
 
-    if (workload.MinX == interesting_point.first.first)
+    if ((workload.MinX == interesting_point.first.first) || (workload.MaxX == interesting_point.first.first))
     {
         if (interesting_point.second)
         {
@@ -719,26 +718,16 @@ std::vector<mv::Workload> mv::Workloads::workloadSplitHelper(const mv::pass::Pas
             }
         }
     }
-    else if (workload.MaxY > 0)
+    else if (workload.MaxY >= 0)
     {
         if (interesting_point.second)
         {
             for (auto it_all = workload.points.begin(); it_all != workload.points.end(); it_all++)
             {
-                if (interesting_point.first.first == workload.MaxX)
-                {
-                if (it_all->first > (interesting_point.first.first) - mpeMode.first)
-                    workload_partition_1.points.push_back(*it_all);
-                else
-                    workload_partition_2.points.push_back(*it_all);
-                }
-                else
-                {                
                 if (it_all->first >= (interesting_point.first.first))
                     workload_partition_1.points.push_back(*it_all);
                 else
                     workload_partition_2.points.push_back(*it_all);
-                }
             }
         }
         else if (not interesting_point.second)
@@ -752,6 +741,7 @@ std::vector<mv::Workload> mv::Workloads::workloadSplitHelper(const mv::pass::Pas
             }
         }
     }
+    
 
     workload_partition_1.setMinMaxAndVertices();
     workload_partition_2.setMinMaxAndVertices();
