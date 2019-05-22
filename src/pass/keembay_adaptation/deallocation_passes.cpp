@@ -2,10 +2,11 @@
 #include "meta/include/mcm/op_model.hpp"
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
+#include "include/mcm/base/exception/runtime_error.hpp"
 #include <algorithm>
 
-static void addDeallocationTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
-static void removeDeallocationTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
+static void addDeallocationTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
+static void removeDeallocationTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 
 namespace mv
 {
@@ -24,7 +25,7 @@ namespace mv
 }
 
 // Pass role: Add deallocation tasks for each Tensor
-void addDeallocationTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+void addDeallocationTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
 
     mv::OpModel om(model);
@@ -32,15 +33,7 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationMod
     mv::ControlModel cm(model);
 
     // Sorting ops in dataflow topological order. Will be needed later.
-    auto removeOps = [] (std::vector<mv::Data::OpListIterator>& list, const std::string& opType)
-    {
-        list.erase(std::remove_if(list.begin(), list.end(), [opType](mv::Data::OpListIterator it) { return it->getOpType() == opType;}), list.end());
-    };
-
     auto sortedOps = om.topologicalSort();
-    removeOps(sortedOps, "Constant");
-    removeOps(sortedOps, "ConstantInt");
-    removeOps(sortedOps, "ConstantDataElement");
 
     for(auto dataFlowIt = dm.flowBegin(); dataFlowIt != dm.flowEnd(); ++dataFlowIt)
     {
@@ -108,36 +101,18 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationMod
             }
 
             if(!found)
-                throw "MarcoYouScrewedUpException";
+                throw mv::RuntimeError(cm, "Something is wrong in deallocation pass");
 
             if(!cm.checkControlFlow(*chosenOp, deallocateInputOp))
                 cm.defineFlow(*chosenOp, deallocateInputOp);
 
-            // For DATA model the loop is slightly different
+            // This loop has to happen in both data and control model
             // DATA
             auto chosenOpData = *chosenOp;
-            std::vector<mv::Data::OpListIterator> dataSons;
             for(auto son = chosenOpData.leftmostChild(); son != om.opEnd(); ++son)
-                dataSons.push_back(son);
-
-            if(dataSons.size() == 1)
-                cm.defineFlow(deallocateInputOp, dataSons[0]);
-            else
-            {
-                unsigned maxIndex = 0;
-                unsigned maxIndexPosition = 0;
-                for(unsigned i = 0; i < dataSons.size(); ++i)
-                {
-                    auto son = dataSons[i];
-                    auto index = std::distance(sortedOps.begin(), std::find(sortedOps.begin(), sortedOps.end(), son));
-                    if(index > maxIndex)
-                    {
-                        maxIndex = index;
-                        maxIndexPosition = i;
-                    }
-                }
-                cm.defineFlow(deallocateInputOp, dataSons[maxIndexPosition]);
-            }
+                if(!cm.checkControlFlow(deallocateInputOp, son))
+                    if(son->getOpType() != "Deallocate")
+                        cm.defineFlow(deallocateInputOp, son);
 
             // CONTROL
             auto chosenOpControl = cm.switchContext(*chosenOp);
@@ -163,7 +138,7 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationMod
 // Pass role: Remove deallocation tasks for each Tensor
 
 // Data flows should not be propagated, control flows yes
-void removeDeallocationTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+void removeDeallocationTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
     mv::OpModel om(model);
     mv::DataModel dm(model);
