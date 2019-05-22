@@ -40,12 +40,12 @@ namespace mv
     /*KOALA Edge Description*/
     struct edgeDescription {
         
-        int memoryRequirement;
+        uint64_t memoryRequirement;
         std::string name;
-        int flow;
+        uint64_t flow;
         int length;
 
-        edgeDescription(int m = 0, std::string aname = "", int f = 0, int l = 1) : 
+        edgeDescription(uint64_t m = 0, std::string aname = "", uint64_t f = 0, int l = 1) : 
         memoryRequirement(m), name(aname), flow(f), length(l) { }
     };
 
@@ -74,7 +74,7 @@ namespace mv
         void convertMcMGraphToKoalaGraph(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
         void performPartialSerialisation(const mv::pass::PassEntry& pass, std::vector<koalaGraph::PEdge> cutEdges);
         std::pair<int,std::vector<koalaGraph::PEdge>> calculateMaxTopologicalCut(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
-        int calculateFMax(mv::ComputationModel& model);
+        uint64_t calculateFMax(mv::ComputationModel& model);
         void insertpartialSerialisationEdgesInMcmGraph(mv::ComputationModel& model);
           
         std::string getLogID() const override;

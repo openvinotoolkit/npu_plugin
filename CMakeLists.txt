@@ -288,6 +288,8 @@ SET(pass
     "${PROJECT_SOURCE_DIR}/src/pass/pass_registry.cpp"
 
     "${PROJECT_SOURCE_DIR}/src/pass/initialization/global_config_params_pass.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/initialization/compute_memory.cpp"
+
     "${PROJECT_SOURCE_DIR}/src/pass/initialization/assign_unique_op_id.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/initialization/create_source_structure.cpp"
     

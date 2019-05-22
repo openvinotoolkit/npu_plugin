@@ -19,6 +19,8 @@ TEST(insert_barrier_tasks, serial_path)
     unit.loadTargetDescriptor(mv::Target::ma2490);
     
     unit.compilationDescriptor().remove("finalize","MaxTopologicalCutAndPartialSerialisation");
+    unit.compilationDescriptor().remove("serialize");
+
     unit.compilationDescriptor().addToGroup("root","GlobalParamsReset","Singular", false);
     unit.initialize();
     unit.run();
@@ -546,7 +548,7 @@ TEST(insert_barrier_tasks, dynamic_index_assignment)
     mv::Attribute option = optString;
     auto& compDesc = unit.compilationDescriptor();
     compDesc.setPassArg("GlobalConfigParams", "barrier_index_assignment", option);
-    compDesc.setPassArg("AddDMATasks", "weights_prefetch", 2);
+    compDesc.setPassArg("AddWeightsDMATasks", "weights_prefetch", 2);
 
     unit.compilationDescriptor().remove("finalize","MaxTopologicalCutAndPartialSerialisation");
     //unit.compilationDescriptor().remove("serialize");
@@ -615,13 +617,13 @@ TEST(insert_barrier_tasks, weights_prefetch)
     auto& compDesc = unit.compilationDescriptor();
     compDesc.setPassArg("GlobalConfigParams", "barrier_index_assignment", option);
 
-    int dma_dependency = compDesc.getPassArg("dma","Singular","AddDMATasks","weights_prefetch");
+    int dma_dependency = compDesc.getPassArg("dma","Singular","AddWeightsDMATasks","weights_prefetch");
     EXPECT_EQ(2, dma_dependency);     // default prefetch is 2
     int numChecks = 1;
 
     int prefetchTestVal = 3;
-    compDesc.setPassArg("AddDMATasks", "weights_prefetch", prefetchTestVal);
-    dma_dependency = compDesc.getPassArg("dma","Singular","AddDMATasks","weights_prefetch");
+    compDesc.setPassArg("AddWeightsDMATasks", "weights_prefetch", prefetchTestVal);
+    dma_dependency = compDesc.getPassArg("dma","Singular","AddWeightsDMATasks","weights_prefetch");
     EXPECT_EQ(prefetchTestVal, dma_dependency);
     numChecks++;
 
@@ -708,10 +710,10 @@ static void RunTest(mv::CompilationUnit& unit, std::vector<int>& barrierOpIndice
 
     // Effectively disable weights prefetch for this test by setting the prefetch number
     // to a large number
-    unit.compilationDescriptor().setPassArg("AddDMATasks", "weights_prefetch", 200);
+    unit.compilationDescriptor().setPassArg("AddWeightsDMATasks", "weights_prefetch", 200);
 
-    unit.compilationDescriptor().remove("finalize","MaxTopologicalCutAndPartialSerialisation");
     unit.compilationDescriptor().remove("finalize","GenerateWorkloads");
+    unit.compilationDescriptor().remove("finalize","MaxTopologicalCutAndPartialSerialisation");
     unit.compilationDescriptor().remove("serialize","GenerateBlobKeembay");
 
     // Clean up barrier indices after run (since we'll be creating and running multiple networks)

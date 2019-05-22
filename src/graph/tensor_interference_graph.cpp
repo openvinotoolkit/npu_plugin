@@ -4,6 +4,8 @@
 #include <fstream>
 #include <iostream>
 #include "include/mcm/base/exception/argument_error.hpp"
+#include "include/mcm/computation/model/control_model.hpp"
+
 
 mv::TensorInterferenceGraph::TensorInterferenceGraph(const mv::TensorInterferenceGraph& g) : graph<TensorInterferenceGraphNode, int>()
 {
@@ -105,15 +107,16 @@ bool mv::TensorInterferenceGraph::checkNodeInterference_(mv::ComputationModel& m
             sourceNodeNames.insert(opIterator->getName());
         if (isTensorInTopNames_(opIterator->getInputTensor(), model, tensor2) && isSinkNode_(opIterator))
             sinkNodeNames.insert(opIterator->getName());
+    }
 
-        //Check if there's a path from any node in sink to any node in source, if yes return true
-        for (std::set<std::string>::const_iterator src = sinkNodeNames.begin( ); src != sinkNodeNames.end( ); ++src)
+    mv::ControlModel cm(om);
+    //Check if there's a path from any node in sink to any node in source, if yes return true
+    for (std::set<std::string>::const_iterator src = sinkNodeNames.begin( ); src != sinkNodeNames.end( ); ++src)
+    {
+        for (std::set<std::string>::const_iterator target = sourceNodeNames.begin( ); target != sourceNodeNames.end( ); ++target)
         {
-            for (std::set<std::string>::const_iterator target = sourceNodeNames.begin( ); target != sourceNodeNames.end( ); ++target)
-            {
-                if (om.pathExists(om.getOp(*src), om.getOp(*target)))
-                    return true;
-            }
+            if (cm.pathExists(cm.switchContext(om.getOp(*src)), cm.switchContext(om.getOp(*target))))
+                return true;
         }
 
     }

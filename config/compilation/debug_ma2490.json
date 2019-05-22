@@ -10,10 +10,8 @@
                 "Number_of_DPUs" : 5,
                 "Number_of_Clusters" : 1,
                 "UpaShaves": 1,
-                "NCE2Mask": 1,
-                "NNCMXPerSlice": 3604480,
-                "NNCMXSliceAmount": 1,
                 "DDRScratch": 4096,
+                "MemoryHack": true,
                 "CMX_memory_overflow_safety_factor" : 0.925,
                 "nWorkloads" : 5,
                 "MPE_mode" : "Matrix",
@@ -106,13 +104,15 @@
                     }
                 ]
             },
+            "ComputeMemory",
             "AssignUniqueOpId",
             {
                 "name": "GenerateDot",
                 "output": "original_model.dot",
                 "scope": "OpControlModel",
                 "content": "full",
-                "html": true
+                "html": true,
+                "convert": false
             },
             {
                 "name": "CreateSourceStructure",
@@ -134,7 +134,8 @@
                 "output": "adapt_model.dot",
                 "scope": "OpControlModel",
                 "content": "full",
-                "html": true
+                "html": true,
+                "convert": false
             }
         ]
     },
@@ -152,7 +153,8 @@
                 "output": "keembay_adapt_model.dot",
                 "scope": "OpControlModel",
                 "content": "full",
-                "html": true
+                "html": true,
+                "convert": false
             },
             "GenerateWeightsTables",
             {
@@ -160,7 +162,8 @@
                 "output": "keembay_WeightsTable_model.dot",
                 "scope": "OpControlModel",
                 "content": "full",
-                "html": true
+                "html": true,
+                "convert": false
             },
             "GenerateEltWiseConstants",
             {
@@ -168,23 +171,25 @@
                 "output": "keembay_EltWiseConstants_model.dot",
                 "scope": "OpControlModel",
                 "content": "full",
-                "html": true
+                "html": true,
+                "convert": false
             }
         ]
     },
     "dma": {
         "Singular" : [
             {
-                "name":"AddDMATasks",
+                "name":"AddWeightsDMATasks",
                 "weights_prefetch": 2
             },
-            "AddFinalDMATask",
+            "AddInitialAndFinalDMATask",
             {
                 "name": "GenerateDot",
                 "output": "dma_model.dot",
                 "scope": "OpControlModel",
                 "content": "full",
-                "html": true
+                "html": true,
+                "convert": false
             },
             "AddDeallocationTasks",
             {
@@ -192,14 +197,16 @@
                 "output": "deallocation_model_data.dot",
                 "scope": "OpModel",
                 "content": "full",
-                "html": true
+                "html": true,
+                "convert": false
             },
             {
                 "name": "GenerateDot",
                 "output": "deallocation_model_control.dot",
                 "scope": "ControlModel",
                 "content": "full",
-                "html": true
+                "html": true,
+                "convert": false
             }
         ]
     },
@@ -211,7 +218,8 @@
                 "output": "DmaControlFlows_model.dot",
                 "scope": "ControlModel",
                 "content": "full",
-                "html": true
+                "html": true,
+                "convert": false
             },
             "InputOutputControlFlows",
             {
@@ -219,18 +227,20 @@
                 "output": "InputOutputControlFlows_model.dot",
                 "scope": "ControlModel",
                 "content": "full",
-                "html": true
+                "html": true,
+                "convert": false
             },
             {
-                "name" : "TransitiveReduction",
-                "filter" : "PositiveMemory"
+                "name": "TransitiveReduction",
+                "filter": "PositiveMemory"
             },
             {
                 "name": "GenerateDot",
                 "output": "TransitiveReduction.dot",
                 "scope": "ControlModel",
                 "content": "full",
-                "html": true
+                "html": true,
+                "convert": false
             }
         ]
     },
@@ -242,7 +252,8 @@
                 "output": "MaxTopologicalCutAndPartialSerialisation.dot",
                 "scope": "ControlModel",
                 "content": "full",
-                "html": true
+                "html": true,
+                "convert": false
             },
             {
                 "name": "GenerateWorkloads",
@@ -270,14 +281,7 @@
             "AllocatePopulatedTensorsKeemBay",
             "AllocateUnpopulatedTensorsKeemBay",
             "TensorGraphColoring",
-            "PopulateWeightsTables",
-            {
-                "name": "GenerateDot",
-                "output": "final_model.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            }
+            "PopulateWeightsTables"
         ]
     },
     "validate": {
@@ -289,7 +293,7 @@
         "Singular": [
             {
                 "name": "GenerateBlobKeembay",
-                "output": "output/vpu2.blob"
+                "output": "output/blob.bin"
             }
         ]
     },

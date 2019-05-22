@@ -39,6 +39,7 @@ TEST(store_split_strategy, parse_strategy)
     compDesc.setPassArg("GlobalConfigParams", "split_strategy", strategyList);
 
     unit.compilationDescriptor().remove("finalize","MaxTopologicalCutAndPartialSerialisation");
+    unit.compilationDescriptor().remove("serialize");
     unit.initialize();
     unit.run();
 

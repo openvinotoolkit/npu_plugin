@@ -149,6 +149,11 @@ namespace mv
             return shape_.totalSize();
         }
 
+        inline unsigned sizeBytes() const
+        {
+            return shape_.totalSize() * (getDType().getSizeInBits()/8);
+        }
+
         inline std::vector<std::size_t> indToSub(unsigned index) const
         {
             return indToSub_(getShape(), index);
