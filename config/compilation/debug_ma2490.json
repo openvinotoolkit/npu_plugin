@@ -221,7 +221,10 @@
                 "content": "full",
                 "html": true
             },
-            "TransitiveReduction",
+            {
+                "name" : "TransitiveReduction",
+                "filter" : "PositiveMemory"
+            },
             {
                 "name": "GenerateDot",
                 "output": "TransitiveReduction.dot",
@@ -248,7 +251,10 @@
                 "_comment": "Supported CostFunctions are: balanced | criticalpath | minmax | greedy. Supported TensorSplitAlgorithms are Metis, Rectangle, Z-Tiling"
             },
             "RemoveDeallocationTasks",
-            "TransitiveReduction",
+            {
+                "name" : "TransitiveReduction",
+                "filter" : "Fakefilter"
+            },
             {
                 "name" : "InsertBarrierTasks",
                 "barrier_reuse_window" : 0
@@ -256,7 +262,10 @@
             "AddBarrierRefs",
             "UpdateBarrierProducerConsumerCounts",
             "ArrangeKeembayExecution",
-            "TransitiveReduction",
+            {
+                "name" : "TransitiveReduction",
+                "filter" : "Fakefilter"
+            },
             "AllocateInputOutputTensorsKeemBay",
             "AllocatePopulatedTensorsKeemBay",
             "AllocateUnpopulatedTensorsKeemBay",
