@@ -345,7 +345,18 @@ static void addDataFlowBarriers(mv::OpModel& om, std::vector<mv::Barrier>& barri
             for (auto tensorIn = inputTensors.begin(); tensorIn != inputTensors.end(); tensorIn++)
             {
                 auto sourceOp = om.getSourceOp(*tensorIn);
-                producers.insert(sourceOp->getName());
+                if (sourceOp->getOpType() == "Concat")
+                {
+                    //TO take the inputs from the source Op of concat
+                    auto concatInputTensors = sourceOp->getInputTensor();
+                    for (auto tensorIn2 = concatInputTensors.begin(); tensorIn2 != concatInputTensors.end(); tensorIn2++)
+                    {
+                        auto sourceOpConcat = om.getSourceOp(*tensorIn2);
+                        producers.insert(sourceOpConcat->getName());
+                    }
+                }
+                else
+                    producers.insert(sourceOp->getName());
             }
 
             auto outputTensors = opIt->getOutputTensor();
