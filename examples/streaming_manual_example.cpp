@@ -13,7 +13,7 @@
 // and de-allocation tasks for the temporary CMX buffers.
 #define KERNEL_SIZE 128
 #define ORIG_OUTPUT_CHANNELS 64
-#define NUM_SPLITS 8
+#define NUM_SPLITS 16
 #define OUTPUT_CHANNELS (ORIG_OUTPUT_CHANNELS/NUM_SPLITS)
 int main()
 {
@@ -34,7 +34,7 @@ int main()
     for (size_t i=0; i < NUM_SPLITS; i++)
     {
         std::vector<int64_t> weightsData = mv::utils::generateSequence<int64_t>(KERNEL_SIZE*KERNEL_SIZE*3*OUTPUT_CHANNELS);
-        auto weights = om.constantInt(weightsData, {KERNEL_SIZE, KERNEL_SIZE, 3, OUTPUT_CHANNELS}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{}, {}, {}, {}}, "weightsss"+i);
+        auto weights = om.constantInt(weightsData, {KERNEL_SIZE, KERNEL_SIZE, 3, OUTPUT_CHANNELS}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{}, {}, {}, {}}, "weightsssweightsss"+i);
         std::string name = "conv_"+std::to_string(i);
         convs[i] = om.conv(input, weights, {1, 1}, {0, 0, 0, 0}, 1, 1, {{},{},{},{}}, name);
     }

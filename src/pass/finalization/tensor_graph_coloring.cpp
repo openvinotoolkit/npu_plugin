@@ -519,7 +519,7 @@ void tensorGraphColoringFnc(const mv::pass::PassEntry& pass, mv::ComputationMode
     //printASOrder(agOrder, "DDR_BSS");
 
     bestFitMemoryAllocation(model, agOrder, ddr_bss_g, memsize);
-    //ddr_bss_g.drawGraph("ddr_bss_memory");
+    ddr_bss_g.drawGraph("ddr_bss_memory");
 
     mv::TensorInterferenceGraph ddr_heap_g(model, alignment,
             [](const mv::Data::TensorIterator& t) -> bool
@@ -536,7 +536,7 @@ void tensorGraphColoringFnc(const mv::pass::PassEntry& pass, mv::ComputationMode
     agOrder = aggressiveSimplify(ddr_heap_g, memsize, mv::OrderingStrategy::IG_LARGEST_NEIGHBORS_FIRST);
     //printASOrder(agOrder, "DDR_HEAP");
     bestFitMemoryAllocation(model, agOrder, ddr_heap_g, memsize);
-    //ddr_heap_g.drawGraph("ddr_heap_memory");
+    ddr_heap_g.drawGraph("ddr_heap_memory");
 
     mv::TensorInterferenceGraph nncmx_g(model, alignment, nullptr, nullptr, false, true);
     auto availableNNCMX = memDefs.find("VPU_CMX_NN")->second.size;
@@ -556,7 +556,7 @@ void tensorGraphColoringFnc(const mv::pass::PassEntry& pass, mv::ComputationMode
     agOrder = aggressiveSimplify(nncmx_g, memsize, mv::OrderingStrategy::IG_LARGEST_NEIGHBORS_FIRST);
     //printASOrder(agOrder, "NNCMX");
     bestFitMemoryAllocation(model, agOrder, nncmx_g, memsize);
-    //nncmx_g.drawGraph("nncmx_memory");
+    nncmx_g.drawGraph("nncmx_memory");
 
     pass.log(mv::Logger::MessageType::Debug, "Graph Coloring Ended");
 }

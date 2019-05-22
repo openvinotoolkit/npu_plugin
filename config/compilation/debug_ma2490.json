@@ -207,7 +207,7 @@
             "TransitiveReduction",
             {
                 "name" : "InsertBarrierTasks",
-                "barrier_reuse_window" : 0
+                "barrier_reuse_window" : 5
             },
             "AddBarrierRefs",
             "UpdateBarrierProducerConsumerCounts",

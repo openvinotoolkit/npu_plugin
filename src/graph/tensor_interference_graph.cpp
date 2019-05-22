@@ -21,6 +21,7 @@ mv::TensorInterferenceGraph::TensorInterferenceGraph(const mv::TensorInterferenc
     }
 }
 
+//TODO this needs to be updated to use the memory allocator master buffers.
 std::string mv::TensorInterferenceGraph::getTensorTopMaster_(const mv::Data::TensorIterator& t, mv::ComputationModel& model)
 {
     mv::DataModel dm(model);
