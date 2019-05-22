@@ -50,7 +50,6 @@ bool isTensorInCMX(mv::Data::TensorIterator tensor, mv::BaseOpModel& opModel)
         return true;
 }
 
-// TODO: Add input DMA
 // Pass role: Add initial and final DMA Task CMX2DDR (if needed)
 void addInitialAndFinalDMATaskFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
