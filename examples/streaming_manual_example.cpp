@@ -11,17 +11,20 @@
 // which replaces all convolution operations with DPU tasks,
 // and adds appropriate DMA tasks (for DDR-to-CMX and back),
 // and de-allocation tasks for the temporary CMX buffers.
-#define KERNEL_SIZE 128
-#define ORIG_OUTPUT_CHANNELS 64
-#define NUM_SPLITS 16
-#define OUTPUT_CHANNELS (ORIG_OUTPUT_CHANNELS/NUM_SPLITS)
+
+const int KERNEL_SIZE = 128;
+const int ORIG_OUTPUT_CHANNELS = 64;
+const int INPUT_CHANNELS = 3;
+const int NUM_SPLITS = 4;
+const int OUTPUT_CHANNELS = ORIG_OUTPUT_CHANNELS / NUM_SPLITS;
+
 int main()
 {
     //mv::Logger::setVerboseLevel(mv::VerboseLevel::Debug);
     mv::CompilationUnit unit("testModel");
     mv::OpModel& om = unit.model();
 
-    auto input = om.input({164, 164, 3, 1}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{},{},{},{}}, "input#3");
+    auto input = om.input({164, 164, INPUT_CHANNELS, 1}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{},{},{},{}}, "input#3");
     //original weights
     //std::vector<int64_t> weightsData = mv::utils::generateSequence<int64_t>(KERNEL_SIZE*KERNEL_SIZE*3*OUTPUT_CHANNELS);
     //auto weights = om.constantInt(weightsData, {KERNEL_SIZE, KERNEL_SIZE, 3, OUTPUT_CHANNELS}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{}, {}, {}, {}}, "weights");
@@ -29,14 +32,15 @@ int main()
     //auto output = om.output(conv);
 
     //spliting into 2 weights and 2 conv
+    std::vector<mv::Data::TensorIterator> weights(NUM_SPLITS);
     std::vector<mv::Data::TensorIterator> convs(NUM_SPLITS);
+    std::vector<std::vector<int64_t>> weightsData(NUM_SPLITS);
 
     for (size_t i=0; i < NUM_SPLITS; i++)
     {
-        std::vector<int64_t> weightsData = mv::utils::generateSequence<int64_t>(KERNEL_SIZE*KERNEL_SIZE*3*OUTPUT_CHANNELS);
-        auto weights = om.constantInt(weightsData, {KERNEL_SIZE, KERNEL_SIZE, 3, OUTPUT_CHANNELS}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{}, {}, {}, {}}, "weightsssweightsss"+i);
-        std::string name = "conv_"+std::to_string(i);
-        convs[i] = om.conv(input, weights, {1, 1}, {0, 0, 0, 0}, 1, 1, {{},{},{},{}}, name);
+        weightsData[i] = mv::utils::generateSequence<int64_t>(KERNEL_SIZE*KERNEL_SIZE*INPUT_CHANNELS*OUTPUT_CHANNELS);
+        weights[i] = om.constantInt(weightsData[i], {KERNEL_SIZE, KERNEL_SIZE, INPUT_CHANNELS, OUTPUT_CHANNELS}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{}, {}, {}, {}});
+        convs[i] = om.conv(input, weights[i], {1, 1}, {0, 0, 0, 0}, 1, 1, {{},{},{},{}});
     }
     auto concat = om.concat(convs);
     auto output = om.output(concat);

@@ -17,6 +17,7 @@ namespace mv
         .defineArg(json::JSONType::String, "scope")
         .defineArg(json::JSONType::String, "content")
         .defineArg(json::JSONType::Bool, "html")
+        .defineArg(json::JSONType::Bool, "convert")
         .setDescription(
             "Generates the DOT representation of computation model"
         );
@@ -35,6 +36,11 @@ void generateDotFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
 
     if (!passDesc.hasAttr("output") || passDesc.get<std::string>("output").empty())
         throw ArgumentError(model, "output", "", "Unspecified output name for generate dot pass");
+
+    bool convert = false;
+
+    if (passDesc.hasAttr("convert"))
+        convert = passDesc.get<bool>("convert");
 
     //std::string outputScope = compDesc["GenerateDot"]["scope"].get<std::string>();
 
@@ -294,4 +300,6 @@ void generateDotFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
     ostream << "}\n";
     ostream.close();
 
+    if(convert)
+        system(("dot -Tpng " + outputFile + " -o " + outputFile+".png").c_str());
 }

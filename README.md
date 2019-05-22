@@ -12,10 +12,13 @@ export MCM_HOME=~/mcmCompiler
 export MDK_HOME=~/mdk 
 ```
 
-You must have Metis C++ library and header installed. Metis can be found at the following link:
+You must have Metis C++ library and header installed. Recommendation is to install Metis using apt-get.
 
+sudo apt-get install metis
+
+Note: apt-get brings binaries. Metis can be built from source but GKLIB in metis uses GKRAND from C Compiler which can differ from OS to OS. 
+FYI..Metis can be found at the following link:
 http://glaros.dtc.umn.edu/gkhome/fetch/sw/metis/metis-5.1.0.tar.gz
-
 To build METIS, follow the instructions in the file metis-5.1.0/Install.txt. 
 
 ## Building

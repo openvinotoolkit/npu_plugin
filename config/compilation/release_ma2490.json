@@ -25,7 +25,8 @@
             {
                 "name": "GenerateWorkloads",
                 "costfunction": "balanced",
-                "_comment": "Supported cost functions are: balanced | criticalpath | minmax | greedy"
+                "TensorSplitAlgorithms": "Metis,Rectangle,Z-Tiling",
+                "_comment": "Supported CostFunctions are: balanced | criticalpath | minmax | greedy. Supported TensorSplitAlgorithms are Metis, Rectangle, Z-Tiling"
             },
             "ArrangeKeembayExecution",
             "AllocatePopulatedTensors",

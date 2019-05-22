@@ -490,6 +490,7 @@ void tensorGraphColoringFnc(const mv::pass::PassEntry& pass, mv::ComputationMode
     mv::OpModel om(model);
 
     auto memDefs = target.memoryDefs();
+    auto globalConfigParams = model.getGlobalConfigParams();
 
     pass.log(mv::Logger::MessageType::Debug, "MemoryDefs ");
     for (auto i = memDefs.begin(); i != memDefs.end(); i++)
@@ -539,19 +540,8 @@ void tensorGraphColoringFnc(const mv::pass::PassEntry& pass, mv::ComputationMode
     ddr_heap_g.drawGraph("ddr_heap_memory");
 
     mv::TensorInterferenceGraph nncmx_g(model, alignment, nullptr, nullptr, false, true);
-    auto availableNNCMX = memDefs.find("VPU_CMX_NN")->second.size;
 
-    /*Get the number of clusters that the VPU supports*/
-    auto nceDefs = target.nceDefs();
-    auto numberOfVPUClusters = nceDefs.find("Clusters")->second.totalNumber;
-
-    /*Get the CMX safety factor*/
-    std::shared_ptr<mv::Element> returnedParams = model.getGlobalConfigParams();
-    double cmxSafetyFactor = returnedParams->get<double>("CMX_memory_overflow_safety_factor");
-
-    /*Note available CMX memory is 3760128 /number of supported VPU clusters (always 4)*/
-    memsize = (availableNNCMX / numberOfVPUClusters) * cmxSafetyFactor;
-
+    memsize = globalConfigParams->get<unsigned>("cmx");
     alignment = 16; //memDefs.find("VPU_CMX_NN")->second.alignment;//TODO for now POC uses 16 for all memory
     agOrder = aggressiveSimplify(nncmx_g, memsize, mv::OrderingStrategy::IG_LARGEST_NEIGHBORS_FIRST);
     //printASOrder(agOrder, "NNCMX");

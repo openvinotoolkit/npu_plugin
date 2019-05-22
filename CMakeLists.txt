@@ -288,6 +288,8 @@ SET(pass
     "${PROJECT_SOURCE_DIR}/src/pass/pass_registry.cpp"
 
     "${PROJECT_SOURCE_DIR}/src/pass/initialization/global_config_params_pass.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/initialization/compute_memory.cpp"
+
     "${PROJECT_SOURCE_DIR}/src/pass/initialization/assign_unique_op_id.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/initialization/create_source_structure.cpp"
     
@@ -307,6 +309,7 @@ SET(pass
     "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/deallocation_passes.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/assign_unique_task_id.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/store_tensor_split_strategy.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/store_workload_strategy.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/sparsity/sparsity_maps.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/sparsity/weights_tables.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/sparsity/eltwise_ops.cpp"
@@ -402,6 +405,7 @@ else()
         add_library(cm SHARED ${base} ${logger} ${pass} ${compiler})
         add_library(corebase SHARED ${base} ${logger})
         add_library(model SHARED ${model})
+        
 
         IF(CMAKE_CROSSCOMPILING)
             #Flatbuffers and Metis not x-compiled yet

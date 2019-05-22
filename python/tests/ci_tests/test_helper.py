@@ -22,8 +22,8 @@ NZOO_ROOT = os.environ["NZOO_ROOT"]
 POC_ROOT = MDK_ROOT+'/projects/Fathom/'
 
 # which runtime do you want to use? (PoC/Production)
-#APP_ROOT = MDK_ROOT + "/testApps/keembay/tapeout_so/tc_keembay_ma2490/ts_nce_bm_blob/"
-APP_ROOT = MDK_ROOT + "/testApps/components/NeuralNet/008_demo_ncelib_LNN/conv_3l_16wi/"
+#APP_ROOT = MDK_ROOT + "/testApps/keembay/tapeout_so/tc_keembay_ma2490/ts_nce_bm_blob/"  # PoC Runtime
+APP_ROOT = MDK_ROOT + "/testApps/components/NeuralNet/008_demo_ncelib_LNN/mytest/" # Prod Runtime
 
 PWD = os.path.dirname(os.path.realpath(__file__)) + "/"
 CWD = os.getcwd() + "/"
@@ -122,7 +122,7 @@ def compile_graphFile(model, nClusters, nDPU, strategyFile, cmx=4*918, emulator=
             self.verbose=False
             self.class_test_threshold=0.2
             self.kmb=True
-            self.blob_name="vpu2.blob"
+            self.blob_name= "vpu2.blob"
             self.outputs_name=None
             self.outputs_location=CWD+"output/"
             self.channel_swap=None
@@ -160,15 +160,19 @@ def compile_graphFile(model, nClusters, nDPU, strategyFile, cmx=4*918, emulator=
     genGraph = "out"
 
     graphFile = out_folder+"vpu2.blob"   # Ideally returned from Fathom
+    if (cpp==True):
+        graphFile_mcm = out_folder+"blob.bin"
     sim_result = out_folder+"expected_result_sim.dat"   # Ideally returned from Fathom
     # sim_result = out_folder+"../Fathom_simulation.npy"
     fw_result = out_folder+"../Fathom_expected.npy"
 
     if emulator:
-        checkExists(sim_result, FAIL_COMPILER)
-    checkExists(graphFile, FAIL_COMPILER)
-
-    return graphFile, sim_result, fw_result
+        checkExists(sim_result, 4)
+    checkExists(graphFile)
+    if (cpp==True):
+        return graphFile, sim_result, fw_result, graphFile_mcm
+    else:
+        return graphFile, sim_result, fw_result
 
 def execute_network(gf):
     print(header("Execute Network")) 
@@ -177,7 +181,7 @@ def execute_network(gf):
     from shutil import copyfile
 
     # clean generated files
-    generated_files = ["vpu2.blob", "input.dat", "NCE2Task_network_out.bin", "output.dat", "expected_result_sim.dat"]
+    generated_files = ["blob.bin", "vpu2.blob", "input.dat", "NCE2Task_network_out.bin", "output.dat", "expected_result_sim.dat"]
     for file in generated_files:
         try:
             os.remove(APP_ROOT + file)
@@ -190,7 +194,7 @@ def execute_network(gf):
         rmtree(APP_ROOT + "output", ignore_errors=True)
     except Exception:
         pass
-    
+
     print("Copy:", gf, "to", APP_ROOT + "vpu2.blob")
     copyfile(gf, APP_ROOT + "vpu2.blob")
     print("Copy:", CWD+"output/input.dat", "to", APP_ROOT + "input.dat")
@@ -222,7 +226,62 @@ def execute_network(gf):
     result_file = APP_ROOT + "NCE2Task_network_out.bin"
     result_file_alt = [APP_ROOT + "NCE2Task0_out.bin", APP_ROOT + "output.dat"]  # Prod runtime uses "output.dat"
 
-    result_file = checkExists(result_file, FAIL_RUNTIME, aliases=result_file_alt)
+    result_file = checkExists(result_file, 3, aliases=result_file_alt)
+
+    return result_file
+
+def execute_network_mcm(gf):
+    print(header("Execute Network")) 
+    checkExists(gf, 4)
+
+    from shutil import copyfile
+
+    # clean generated files
+    generated_files = ["vpu2.blob", "input.dat", "NCE2Task_network_out.bin", "output.dat", "expected_result_sim.dat"]
+    for file in generated_files:
+        try:
+            os.remove(APP_ROOT + file)
+        except FileNotFoundError:
+            pass
+
+    # directories - rmdir only deletes empty directories, it won't delete recursively
+    try:
+        from shutil import rmtree
+        rmtree(APP_ROOT + "output", ignore_errors=True)
+    except Exception:
+        pass
+
+    print("Copy:", gf, "to", APP_ROOT + "blob.bin")
+    copyfile(gf, APP_ROOT + "blob.bin")
+    print("Copy:", CWD+"output/input.dat", "to", APP_ROOT + "input.dat")
+    copyfile(CWD+"output/input.dat", APP_ROOT + "input.dat")
+    print("Copy:", CWD + "output/expected_result_sim.dat", "to", APP_ROOT + "expected_result_sim.dat")
+    copyfile(CWD + "output/expected_result_sim.dat", APP_ROOT + "expected_result_sim.dat")
+
+    moviSimPort=os.getenv('MOVISIM_PORT','30001')
+    mvToolsV=os.getenv('MV_TOOLS_VERSION','Latest_195458')
+
+    sPort = " srvPort=" + moviSimPort
+    sIP = ""
+    fpga = os.getenv('FPGA', 'None')
+    print("FPGA: \'", fpga,"\'", type(fpga))
+    if fpga != 'None' and fpga is not None:
+        sIP=' srvIP=iirfpga' + str(os.getenv('FPGA')) + ".ir.intel.com"
+        sPort=""
+
+    command = "make run MV_SOC_REV=ma2490 MV_TOOLS_VERSION="+mvToolsV+" GRAPH_BIN=blob.bin GRAPH_BIN_PATH=. "+sPort + sIP 
+
+    print(">>>>>>>>>>>>", command)
+    code = subprocess.run(command, shell=True, stderr=subprocess.STDOUT, cwd=APP_ROOT)
+
+    if code.returncode != 0:
+        print("Execution Failure")
+        exit(code.returncode)
+
+    result_file = APP_ROOT + "NCE2Task_network_out.bin"
+    result_file_alt = [APP_ROOT + "NCE2Task0_out.bin", APP_ROOT + "output.dat"]  # Prod runtime uses "output.dat"
+
+    result_file = checkExists(result_file, 3, aliases=result_file_alt)
 
     return result_file
 
@@ -255,8 +314,8 @@ def validate_files(ref, test):
     print("CRC RESULT: ", crc(test))
 
     if crc(ref) == crc(test):
-        sys.exit(RESULT_SUCCESS)
+        # sys.exit(0)
+        return 0
     else:
-        sys.exit(FAIL_VALIDATION)
-
-    return result
+        return 5
+        # sys.exit(5)
