@@ -32,7 +32,15 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationMod
     mv::ControlModel cm(model);
 
     // Sorting ops in dataflow topological order. Will be needed later.
+    auto removeOps = [] (std::vector<mv::Data::OpListIterator>& list, const std::string& opType)
+    {
+        list.erase(std::remove_if(list.begin(), list.end(), [opType](mv::Data::OpListIterator it) { return it->getOpType() == opType;}), list.end());
+    };
+
     auto sortedOps = om.topologicalSort();
+    removeOps(sortedOps, "Constant");
+    removeOps(sortedOps, "ConstantInt");
+    removeOps(sortedOps, "ConstantDataElement");
 
     for(auto dataFlowIt = dm.flowBegin(); dataFlowIt != dm.flowEnd(); ++dataFlowIt)
     {
@@ -105,13 +113,31 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationMod
             if(!cm.checkControlFlow(*chosenOp, deallocateInputOp))
                 cm.defineFlow(*chosenOp, deallocateInputOp);
 
-            // This loop has to happen in both data and control model
+            // For DATA model the loop is slightly different
             // DATA
             auto chosenOpData = *chosenOp;
+            std::vector<mv::Data::OpListIterator> dataSons;
             for(auto son = chosenOpData.leftmostChild(); son != om.opEnd(); ++son)
-                if(!cm.checkControlFlow(deallocateInputOp, son))
-                    if(son->getOpType() != "Deallocate")
-                        cm.defineFlow(deallocateInputOp, son);
+                dataSons.push_back(son);
+
+            if(dataSons.size() == 1)
+                cm.defineFlow(deallocateInputOp, dataSons[0]);
+            else
+            {
+                unsigned maxIndex = 0;
+                unsigned maxIndexPosition = 0;
+                for(unsigned i = 0; i < dataSons.size(); ++i)
+                {
+                    auto son = dataSons[i];
+                    auto index = std::distance(sortedOps.begin(), std::find(sortedOps.begin(), sortedOps.end(), son));
+                    if(index > maxIndex)
+                    {
+                        maxIndex = index;
+                        maxIndexPosition = i;
+                    }
+                }
+                cm.defineFlow(deallocateInputOp, dataSons[maxIndexPosition]);
+            }
 
             // CONTROL
             auto chosenOpControl = cm.switchContext(*chosenOp);
