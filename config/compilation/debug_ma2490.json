@@ -266,6 +266,10 @@
                 "name" : "TransitiveReduction",
                 "filter" : "Fakefilter"
             },
+            {
+                "name" : "InsertBarrierTasks",
+                "barrier_reuse_window" : 0
+            },
             "AddBarrierRefs",
             "UpdateBarrierProducerConsumerCounts",
             "ArrangeKeembayExecution",
@@ -277,26 +281,7 @@
             "AllocatePopulatedTensorsKeemBay",
             "AllocateUnpopulatedTensorsKeemBay",
             "TensorGraphColoring",
-            "PopulateWeightsTables",
-            "RemoveDeallocationTasks",
-            {
-                "name": "TransitiveReduction",
-                "filter": "FakeFilter"
-            },
-            {
-                "name" : "InsertBarrierTasks",
-                "barrier_reuse_window" : 0
-            },
-            "AddBarrierRefs",
-            "UpdateBarrierProducerConsumerCounts",
-            {
-                "name": "GenerateDot",
-                "output": "final_model.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true,
-                "convert": false
-            }
+            "PopulateWeightsTables"
         ]
     },
     "validate": {
