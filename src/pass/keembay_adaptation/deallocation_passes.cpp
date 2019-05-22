@@ -118,7 +118,8 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationMod
             auto chosenOpData = *chosenOp;
             std::vector<mv::Data::OpListIterator> dataSons;
             for(auto son = chosenOpData.leftmostChild(); son != om.opEnd(); ++son)
-                dataSons.push_back(son);
+                if(son->getOpType() != "Deallocate")
+                    dataSons.push_back(son);
 
             if(dataSons.size() == 1)
                 cm.defineFlow(deallocateInputOp, dataSons[0]);
