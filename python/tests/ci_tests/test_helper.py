@@ -37,7 +37,7 @@ def generate_model(csv_file, network=False):
         def __init__(self, f, network):
             self.input_file=os.path.abspath(f)
             self.network=network
-            self.simplify=True
+            self.simplify=False
             self.output_name="graph"
 
     a = arg(csv_file, network)
