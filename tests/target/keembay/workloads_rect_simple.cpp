@@ -70,7 +70,8 @@ TEST_P(workloads_rect_simple, forms)
     bool split_over_w = true;
     bool split_symmetric = false;
     ASSERT_EQ(METIS_OK, workloads.partitionTensorWithRectangleHeuristic(modes, n_wls,
-                                   split_over_h, split_over_w, split_symmetric, pass));
+                                         split_over_h, split_over_w, split_symmetric,
+                                         mv::WorkloadSplitMode::HW, pass));
 
     int n_workloads = 0;
     EXPECT_GE(n_wls, n_workloads = workloads.nWorkloads());
@@ -91,7 +92,7 @@ TEST_P(workloads_rect_simple, forms)
 }
 
 static const mv::DPUModeList dpu_mode_1x1 = {{1, 1}};
-static const mv::DPUModeList dpu_mode_poc = {{4, 4}, {16, 1}}; // {height, width}
+static const mv::DPUModeList dpu_mode_poc = {{4, 4}, {1, 16}}; // {height, width}
 
 static Form form4d({mv::Shape({112, 112, 3, 8}), mv::Order("NCHW")});
 static Form form3d({mv::Shape({ 73,  37, 3}),     mv::Order("CHW")});

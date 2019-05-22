@@ -109,7 +109,8 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                     bool split_over_w = true;
                     bool split_symmetric = false;
                     auto res = workloads.partitionTensorWithRectangleHeuristic(dpu_mode_poc, nWorkloads,
-                                                      split_over_h, split_over_w, split_symmetric, pass);
+                                                            split_over_h, split_over_w, split_symmetric,
+                                                            mv::WorkloadSplitMode::HW, pass);
                     if (res == 1)
                         workloads.populateWorkloadsFromPartitions(nWorkloads, pass, MPEMode);
                     else
