@@ -22,6 +22,11 @@ TEST(MaxTopologicalCut, lessThanCMXMemory)
     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/debug_ma2490.json";
     unit.loadCompilationDescriptor(compDescPath);
     unit.loadTargetDescriptor(mv::Target::ma2490);
+
+    unit.compilationDescriptor().remove("finalize","GenerateWorkloads");
+    unit.compilationDescriptor().remove("serialize","GenerateBlobKeembay");
+    unit.compilationDescriptor().setPassArg("GlobalConfigParams", "MemoryHack", false);
+
     unit.initialize();
     unit.run();
 
