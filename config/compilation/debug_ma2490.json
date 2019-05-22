@@ -142,7 +142,7 @@
                 "scope": "OpControlModel",
                 "content": "full",
                 "html": true,
-                "convert": true
+                "convert": false
             },
             {
                 "name": "CreateSourceStructure",
@@ -165,7 +165,7 @@
                 "scope": "OpControlModel",
                 "content": "full",
                 "html": true,
-                "convert": true
+                "convert": false
             }
         ]
     },
@@ -184,7 +184,7 @@
                 "scope": "OpControlModel",
                 "content": "full",
                 "html": true,
-                "convert": true
+                "convert": false
             },
             "GenerateWeightsTables",
             {
@@ -193,7 +193,7 @@
                 "scope": "OpControlModel",
                 "content": "full",
                 "html": true,
-                "convert": true
+                "convert": false
             },
             "GenerateEltWiseConstants",
             {
@@ -202,7 +202,7 @@
                 "scope": "OpControlModel",
                 "content": "full",
                 "html": true,
-                "convert": true
+                "convert": false
             }
         ]
     },
@@ -219,7 +219,7 @@
                 "scope": "OpControlModel",
                 "content": "full",
                 "html": true,
-                "convert": true
+                "convert": false
             },
             "AddDeallocationTasks",
             {
@@ -228,7 +228,7 @@
                 "scope": "OpModel",
                 "content": "full",
                 "html": true,
-                "convert": true
+                "convert": false
             },
             {
                 "name": "GenerateDot",
@@ -236,7 +236,7 @@
                 "scope": "ControlModel",
                 "content": "full",
                 "html": true,
-                "convert": true
+                "convert": false
             }
         ]
     },
@@ -249,7 +249,7 @@
                 "scope": "ControlModel",
                 "content": "full",
                 "html": true,
-                "convert": true
+                "convert": false
             },
             "InputOutputControlFlows",
             {
@@ -258,7 +258,7 @@
                 "scope": "ControlModel",
                 "content": "full",
                 "html": true,
-                "convert": true
+                "convert": false
             },
             {
                 "name": "TransitiveReduction",
@@ -270,7 +270,7 @@
                 "scope": "ControlModel",
                 "content": "full",
                 "html": true,
-                "convert": true
+                "convert": false
             }
         ]
     },
@@ -283,7 +283,7 @@
                 "scope": "ControlModel",
                 "content": "full",
                 "html": true,
-                "convert": true
+                "convert": false
             },
             {
                 "name": "GenerateWorkloads",
@@ -319,7 +319,7 @@
                 "scope": "OpControlModel",
                 "content": "full",
                 "html": true,
-                "convert": true
+                "convert": false
             }
         ]
     },

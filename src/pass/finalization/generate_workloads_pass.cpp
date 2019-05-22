@@ -96,7 +96,8 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
         std::runtime_error("Exiting, set the MPE mode in the compilation descriptor");	
 
      /*MPE mode*/	
-    if(mpeMode == "Matrix") { 	
+    if(mpeMode == "Matrix")
+    {
         MPEMode.first = 4;	
         MPEMode.second = 4; 	
     }	
@@ -114,11 +115,13 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
             {
                 pass.log(mv::Logger::MessageType::Debug, "Found DPU task " + opIt->getName() + " of type " + opIt->get<std::string>("taskOp"));
                 
-                if(opIt->get<std::string>("WorkloadStrategy_MPE_mode") == "Matrix") {
+                if(opIt->get<std::string>("WorkloadStrategy_MPE_mode") == "Matrix")
+                {
                     MPEMode.first = 4;	
                     MPEMode.second = 4; 	
                 }
-                if(opIt->get<std::string>("WorkloadStrategy_MPE_mode") == "Vector") {
+                if(opIt->get<std::string>("WorkloadStrategy_MPE_mode") == "Vector")
+                {
                     MPEMode.first = 1;	
                     MPEMode.second = 16; 	
                 }	
