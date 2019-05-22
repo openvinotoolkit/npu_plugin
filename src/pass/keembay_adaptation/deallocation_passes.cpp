@@ -121,24 +121,19 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationMod
                 if(son->getOpType() != "Deallocate")
                     dataSons.push_back(son);
 
-            if(dataSons.size() == 1)
-                cm.defineFlow(deallocateInputOp, dataSons[0]);
-            else
+            unsigned maxIndex = 0;
+            unsigned maxIndexPosition = 0;
+            for(unsigned i = 0; i < dataSons.size(); ++i)
             {
-                unsigned maxIndex = 0;
-                unsigned maxIndexPosition = 0;
-                for(unsigned i = 0; i < dataSons.size(); ++i)
+                auto son = dataSons[i];
+                auto index = std::distance(sortedOps.begin(), std::find(sortedOps.begin(), sortedOps.end(), son));
+                if(index > maxIndex)
                 {
-                    auto son = dataSons[i];
-                    auto index = std::distance(sortedOps.begin(), std::find(sortedOps.begin(), sortedOps.end(), son));
-                    if(index > maxIndex)
-                    {
-                        maxIndex = index;
-                        maxIndexPosition = i;
-                    }
+                    maxIndex = index;
+                    maxIndexPosition = i;
                 }
-                cm.defineFlow(deallocateInputOp, dataSons[maxIndexPosition]);
             }
+            cm.defineFlow(deallocateInputOp, dataSons[maxIndexPosition]);
 
             // CONTROL
             auto chosenOpControl = cm.switchContext(*chosenOp);
