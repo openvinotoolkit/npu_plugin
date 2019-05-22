@@ -711,6 +711,8 @@ static void RunTest(mv::CompilationUnit& unit, std::vector<int>& barrierOpIndice
     unit.compilationDescriptor().setPassArg("AddDMATasks", "weights_prefetch", 200);
 
     unit.compilationDescriptor().remove("finalize","MaxTopologicalCutAndPartialSerialisation");
+    unit.compilationDescriptor().remove("finalize","GenerateWorkloads");
+    unit.compilationDescriptor().remove("serialize","GenerateBlobKeembay");
 
     // Clean up barrier indices after run (since we'll be creating and running multiple networks)
     unit.compilationDescriptor().addToGroup("root","GlobalParamsReset","Singular", false);
