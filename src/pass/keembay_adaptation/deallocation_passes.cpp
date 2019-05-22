@@ -2,6 +2,7 @@
 #include "meta/include/mcm/op_model.hpp"
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
+#include "include/mcm/base/exception/runtime_error.hpp"
 #include <algorithm>
 
 static void addDeallocationTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
@@ -100,7 +101,7 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationMod
             }
 
             if(!found)
-                throw "MarcoYouScrewedUpException";
+                throw mv::RuntimeError(cm, "Something is wrong in deallocation pass");
 
             if(!cm.checkControlFlow(*chosenOp, deallocateInputOp))
                 cm.defineFlow(*chosenOp, deallocateInputOp);

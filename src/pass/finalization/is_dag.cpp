@@ -2,6 +2,7 @@
 #include "meta/include/mcm/op_model.hpp"
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
+#include "include/mcm/base/exception/runtime_error.hpp"
 
 static void isDagFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 
@@ -22,12 +23,13 @@ namespace mv
 
 }
 
+//NOTE: do not use this pass!!!
 void isDagFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
 
     pass.log(mv::Logger::MessageType::Debug, "Starting IsDag pass");
     mv::ControlModel cm(model);
     if(!cm.isDag())
-        throw "Is not DAG anymore!";
+        throw mv::RuntimeError(cm, "Is not DAG anymore!");
     pass.log(mv::Logger::MessageType::Debug, "Ended IsDag pass");
 }
