@@ -13,7 +13,7 @@
                 "DDRScratch": 4096,
                 "MemoryHack": true,
                 "CMX_memory_overflow_safety_factor" : 0.925,
-                "nWorkloads" : 5,
+                "nWorkloads" : 4,
                 "MPE_mode" : "Matrix",
                 "split_strategy" :
                 [
@@ -287,7 +287,15 @@
                 "name" : "TransitiveReduction",
                 "filter" : "Fakefilter"
             },
-            "PopulateWeightsTables"
+            "PopulateWeightsTables",
+            {
+                "name": "GenerateDot",
+                "output": "final_model.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true,
+                "convert": false
+            }
         ]
     },
     "validate": {
@@ -299,7 +307,8 @@
         "Singular": [
             {
                 "name": "GenerateBlobKeembay",
-                "output": "output/blob.bin"
+                "output": "output/vpu2.blob",
+                "convert": true
             }
         ]
     },

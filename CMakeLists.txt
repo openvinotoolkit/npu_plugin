@@ -39,6 +39,7 @@ else()
     message(STATUS "Metis not found!")
 endif(METIS_FOUND)
 
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 # find_package(Flatbuffers)
 # if(FLATBUFFERS_FOUND)
