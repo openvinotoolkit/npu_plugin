@@ -42,7 +42,12 @@ void generateDotFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
     if (passDesc.hasAttr("convert"))
         convert = passDesc.get<bool>("convert");
 
-    //std::string outputScope = compDesc["GenerateDot"]["scope"].get<std::string>();
+    bool verbose = false;
+    if (passDesc.hasAttr("verbose"))
+    {
+        std::cout << "Requesting verbose dot output" << std::endl;
+        verbose = passDesc.get<bool>("verbose");
+    }
 
     std::string outputScope = passDesc.get<std::string>("scope");
 
@@ -75,7 +80,8 @@ void generateDotFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
 
         for (auto opIt = opModel.getInput(); opIt != opModel.opEnd(); ++opIt)
         {
-            if (!(outputScope == "ControlModel" || outputScope == "ExecOpModel" || outputScope == "ExecOpControlModel") || (opIt->hasTypeTrait("executable") || opIt->getOpType() == "Input" || opIt->getOpType() == "Output"))
+            if (!(outputScope == "ControlModel" || outputScope == "ExecOpModel" || outputScope == "ExecOpControlModel")
+                || (opIt->hasTypeTrait("executable") || opIt->getOpType() == "Input" || opIt->getOpType() == "Output"))
             {
                 std::string nodeDef = "\t\"" + opIt->getName() + "\" [shape=box,";
 
@@ -91,12 +97,27 @@ void generateDotFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
 
                 if (htmlLike)
                 {
-                    nodeDef += " label=<<TABLE BORDER=\"0\" CELLPADDING=\"0\" CELLSPACING=\"0\"><TR><TD ALIGN=\"CENTER\" COLSPAN=\"2\"><FONT POINT-SIZE=\"14.0\"><B>" + opIt->getName() + "</B></FONT></TD></TR>";
+                    nodeDef += " label=<<TABLE BORDER=\"0\" CELLPADDING=\"0\" CELLSPACING=\"0\">\
+                                <TR><TD ALIGN=\"CENTER\" COLSPAN=\"2\"><FONT POINT-SIZE=\"14.0\"><B>" \
+                                + opIt->getName()
+                                + "</B></FONT></TD></TR>";
                     if (contentLevel == "full")
                     {
                         std::vector<std::string> attrKeys(opIt->attrsKeys());
-                        for (auto attrIt = attrKeys.begin(); attrIt != attrKeys.end(); ++attrIt)
-                            nodeDef += "<TR><TD ALIGN=\"LEFT\"><FONT POINT-SIZE=\"11.0\">" + *attrIt + ": </FONT></TD> <TD ALIGN=\"RIGHT\"><FONT POINT-SIZE=\"11.0\">" + opIt->get(*attrIt).toString() + "</FONT></TD></TR>";
+                        for (auto attrIt = attrKeys.begin(); attrIt != attrKeys.end(); ++attrIt)\
+                        {
+                            nodeDef += "<TR><TD ALIGN=\"LEFT\"><FONT POINT-SIZE=\"11.0\">"
+                                        + *attrIt
+                                        + ": </FONT></TD> <TD ALIGN=\"RIGHT\"><FONT POINT-SIZE=\"11.0\">";
+
+                            bool largeData = (opIt->get(*attrIt)).hasTrait("large");
+                            if (verbose && largeData)
+                                nodeDef += opIt->get(*attrIt).toLongString();
+                            else
+                                nodeDef += opIt->get(*attrIt).toString();
+
+                            nodeDef += "</FONT></TD></TR>";
+                        }
                     }
                     else
                     {

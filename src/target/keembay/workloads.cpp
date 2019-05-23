@@ -64,6 +64,14 @@ const std::vector<mv::Workload>& mv::Workloads::getWorkloads() const
 
 std::string mv::Workloads::toString() const
 {
+    // TODO: check with John as to what would constitute abbreviated
+    // workload information.
+    std::string output = "{}";
+    return output;
+}
+
+std::string mv::Workloads::toLongString() const
+{
     std::string output = "{";
     
     for (std::size_t i = 0; i < this->nWorkloads(); ++i) {
