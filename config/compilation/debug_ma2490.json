@@ -301,7 +301,7 @@
         "Singular": [
             {
                 "name": "GenerateBlobKeembay",
-                "output": "output/blob.bin"
+                "output": "output/vpu2.blob"
             }
         ]
     },
