@@ -24,7 +24,7 @@ TEST(workloads_metis, res3a_branch2c)
      auto input = om.input({28, 28, 128, 1}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{},{},{},{}}, "input#3");
     std::vector<int64_t> weightsData = mv::utils::generateSequence<int64_t>(1*1*128*512);
     auto weights = om.constantInt(weightsData, {1, 1, 128, 512}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{}, {}, {}, {}}, "res3a_branch2c_weights");
-    auto conv = om.conv(input, weights, {1, 1}, {0, 0, 0, 0}, 1, 1, {{},{},{},{}}, "res3a_branch2c");
+    auto conv = om.conv(input, weights, {1, 1}, {0, 0, 0, 0}, 1, 1, {{},{},{},{}}, "res3a_branch2c#4");
     om.output(conv);
 
     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/debug_ma2490.json";
@@ -57,7 +57,7 @@ TEST(workloads_metis, res2a_branch2a)
     auto input = om.input({56, 56, 64, 1}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{},{},{},{}}, "input#3");
     std::vector<int64_t> weightsData = mv::utils::generateSequence<int64_t>(1*1*64*64);
     auto weights = om.constantInt(weightsData, {1, 1, 64, 64}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{}, {}, {}, {}}, "res2a_branch2a_weights");
-    auto conv = om.conv(input, weights, {1, 1}, {0, 0, 0, 0}, 1, 1, {{},{},{},{}}, "res2a_branch2a");
+    auto conv = om.conv(input, weights, {1, 1}, {0, 0, 0, 0}, 1, 1, {{},{},{},{}}, "res2a_branch2a#4");
     om.output(conv);
 
     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/debug_ma2490.json";
@@ -90,7 +90,7 @@ TEST(workloads_metis, res4a_branch2b)
     auto input = om.input({14, 14, 1024, 1}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{},{},{},{}}, "input#3");
     std::vector<int64_t> weightsData = mv::utils::generateSequence<int64_t>(1*1*1024*256);
     auto weights = om.constantInt(weightsData, {1, 1, 1024, 256}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{}, {}, {}, {}}, "res4a_branch2b_weights");
-    auto conv = om.conv(input, weights, {1, 1}, {0, 0, 0, 0}, 1, 1, {{},{},{},{}}, "res4a_branch2b");
+    auto conv = om.conv(input, weights, {1, 1}, {0, 0, 0, 0}, 1, 1, {{},{},{},{}}, "res4a_branch2b#4");
 
     om.output(conv);
 
@@ -124,7 +124,7 @@ TEST(workloads_metis, res5a_branch2a)
     auto input = om.input({7, 7, 100, 1}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{},{},{},{}}, "input#3");
     std::vector<int64_t> weightsData = mv::utils::generateSequence<int64_t>(1*1*100*512);
     auto weights = om.constantInt(weightsData, {1, 1, 100, 512}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{}, {}, {}, {}}, "res5a_branch2a_weights");
-    auto conv = om.conv(input, weights, {1, 1}, {0, 0, 0, 0}, 1, 1, {{},{},{},{}}, "res5a_branch2a");
+    auto conv = om.conv(input, weights, {1, 1}, {0, 0, 0, 0}, 1, 1, {{},{},{},{}}, "res5a_branch2a#4");
 
     om.output(conv);
 

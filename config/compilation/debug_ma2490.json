@@ -61,73 +61,43 @@
                 "workload_strategy" :
                 [
                     {
-                        "name_filter" : "res1",
+                        "name_filter" : "res2a_branch2a#4",
                         "cluster_filter" : 0,
                         "nWorkloads" : 45,
                         "mpe_mode" : "Matrix"
                     },
                     {
-                        "name_filter" : "res2a_branch2a",
+                        "name_filter" : "res2a_branch2b#4",
                         "cluster_filter" : 0,
                         "nWorkloads" : 45,
                         "mpe_mode" : "Matrix"
                     },
                     {
-                        "name_filter" : "res2a_branch2b",
+                        "name_filter" : "res3a_branch1#4",
                         "cluster_filter" : 0,
                         "nWorkloads" : 49,
                         "mpe_mode" : "Matrix"
                     },
                     {
-                        "name_filter" : "res2a_branch2c",
+                        "name_filter" : "res3a_branch2c#4",
                         "cluster_filter" : 0,
                         "nWorkloads" : 49,
                         "mpe_mode" : "Matrix"
                     },
                     {
-                        "name_filter" : "res3a_branch2c",
-                        "cluster_filter" : 0,
-                        "nWorkloads" : 49,
-                        "mpe_mode" : "Matrix"
-                    },
-                    {
-                        "name_filter" : "res4a_branch2a",
+                        "name_filter" : "res4a_branch2a#4",
                         "cluster_filter" : 0,
                         "nWorkloads" : 8,
                         "mpe_mode" : "Vector"
                     },
                     {
-                        "name_filter" : "res4a_branch2b",
+                        "name_filter" : "res4a_branch2b#4",
                         "cluster_filter" : 0,
                         "nWorkloads" : 8,
                         "mpe_mode" : "Vector"
                     },
                     {
-                        "name_filter" : "res4a_branch2b_alt",
-                        "cluster_filter" : 0,
-                        "nWorkloads" : 8,
-                        "mpe_mode" : "Vector"
-                    },
-                    {
-                        "name_filter" : "res5a_branch2a",
-                        "cluster_filter" : 0,
-                        "nWorkloads" : 4,
-                        "mpe_mode" : "Matrix"
-                    },
-                    {
-                        "name_filter" : "res5c_branch2a",
-                        "cluster_filter" : 0,
-                        "nWorkloads" : 4,
-                        "mpe_mode" : "Matrix"
-                    },
-                    {
-                        "name_filter" : "res5c_branch2b",
-                        "cluster_filter" : 0,
-                        "nWorkloads" : 4,
-                        "mpe_mode" : "Matrix"
-                    },
-                    {
-                        "name_filter" : "res5c_branch2c",
+                        "name_filter" : "res5a_branch2a#4",
                         "cluster_filter" : 0,
                         "nWorkloads" : 4,
                         "mpe_mode" : "Matrix"
@@ -291,21 +261,10 @@
                 "TensorSplitAlgorithms": "Metis",
                 "_comment": "Supported CostFunctions are: balanced | criticalpath | minmax | greedy. Supported TensorSplitAlgorithms are Metis, Rectangle, Z-Tiling"
             },
-
-            "ArrangeKeembayExecution",
-            {
-                "name": "TransitiveReduction",
-                "filter": "PositiveMemory"
-            },
-            "AllocateInputOutputTensorsKeemBay",
-            "AllocatePopulatedTensorsKeemBay",
-            "AllocateUnpopulatedTensorsKeemBay",
-            "TensorGraphColoring",
-            "PopulateWeightsTables",
             "RemoveDeallocationTasks",
             {
-                "name": "TransitiveReduction",
-                "filter": "PositiveMemory"
+                "name" : "TransitiveReduction",
+                "filter" : "Fakefilter"
             },
             {
                 "name" : "InsertBarrierTasks",
@@ -313,14 +272,16 @@
             },
             "AddBarrierRefs",
             "UpdateBarrierProducerConsumerCounts",
+            "ArrangeKeembayExecution",
             {
-                "name": "GenerateDot",
-                "output": "final_model.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true,
-                "convert": false
-            }
+                "name" : "TransitiveReduction",
+                "filter" : "Fakefilter"
+            },
+            "AllocateInputOutputTensorsKeemBay",
+            "AllocatePopulatedTensorsKeemBay",
+            "AllocateUnpopulatedTensorsKeemBay",
+            "TensorGraphColoring",
+            "PopulateWeightsTables"
         ]
     },
     "validate": {
@@ -332,7 +293,7 @@
         "Singular": [
             {
                 "name": "GenerateBlobKeembay",
-                "output": "output/vpu2.blob"
+                "output": "output/blob.bin"
             }
         ]
     },
