@@ -26,7 +26,7 @@ TEST(ops, concat)
     ASSERT_EQ(concatOp->getOpType(), "Concat");
     ASSERT_EQ(concatOp->inputSlots(), 3);
     ASSERT_EQ(concatOp->outputSlots(), 1);
-    ASSERT_EQ(concatOp->attrsCount(), 3);
+    ASSERT_EQ(concatOp->attrsCount(), 4);
     ASSERT_TRUE(concatOp->hasAttr("axis"));
     ASSERT_EQ(concatOp->get("axis").get<std::string>(), "C");
     ASSERT_TRUE(concatOp->hasTypeTrait("executable"));

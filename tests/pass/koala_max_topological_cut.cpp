@@ -22,17 +22,22 @@ TEST(MaxTopologicalCut, lessThanCMXMemory)
     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/debug_ma2490.json";
     unit.loadCompilationDescriptor(compDescPath);
     unit.loadTargetDescriptor(mv::Target::ma2490);
+
+    unit.compilationDescriptor().remove("finalize","GenerateWorkloads");
+    unit.compilationDescriptor().remove("serialize","GenerateBlobKeembay");
+    unit.compilationDescriptor().setPassArg("GlobalConfigParams", "MemoryHack", false);
+
     unit.initialize();
     unit.run();
 
     mv::ControlModel cm(om);
 
     auto output = cm.getOutput();
-    int maxTopologicalCutValue;
+    uint64_t maxTopologicalCutValue;
 
     /*Get the max topological cut value*/
     if(output->hasAttr("MaxTopologicalCutValue"))
-        maxTopologicalCutValue = output->get<int>("MaxTopologicalCutValue");
+        maxTopologicalCutValue = output->get<uint64_t>("MaxTopologicalCutValue");
 
     /*The max topological cut of the equivalent network in the PoC compiler is 492032*/
     ASSERT_EQ(maxTopologicalCutValue, 492032);
@@ -67,17 +72,25 @@ TEST(MaxTopologicalCut, greaterThanCMXMemory)
     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/debug_ma2490.json";
     unit.loadCompilationDescriptor(compDescPath);
     unit.loadTargetDescriptor(mv::Target::ma2490);
+
+    unit.compilationDescriptor().remove("finalize","GenerateWorkloads");
+    unit.compilationDescriptor().remove("serialize","GenerateBlobKeembay");
+    unit.compilationDescriptor().setPassArg("GlobalConfigParams", "MemoryHack", false);
+    unit.compilationDescriptor().remove("finalize", "TensorGraphColoring");
+    unit.compilationDescriptor().remove("finalize", "PopulateWeightsTables");
+
+
     unit.initialize();
     unit.run();
 
     mv::ControlModel cm(om);
 
     auto output = cm.getOutput();
-    int maxTopologicalCutValue;
+    uint64_t maxTopologicalCutValue;
     
     /*Get the max topological cut value*/
     if(output->hasAttr("MaxTopologicalCutValue"))
-        maxTopologicalCutValue = output->get<int>("MaxTopologicalCutValue");
+        maxTopologicalCutValue = output->get<uint64_t>("MaxTopologicalCutValue");
 
     ASSERT_EQ(maxTopologicalCutValue, 688320);
 

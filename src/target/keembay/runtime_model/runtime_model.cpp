@@ -260,6 +260,8 @@ std::unique_ptr<MVCNN::SummaryHeaderT> mv::RuntimeModel::buildSummaryHeaderT(Com
 
     std::unique_ptr<MVCNN::SummaryHeaderT> toBuild = std::unique_ptr<MVCNN::SummaryHeaderT>(new MVCNN::SummaryHeaderT());
 
+    auto globalConfigurationParameters = cm.getGlobalConfigParams();
+
     toBuild->version = std::move(originalHeader->version);
     toBuild->original_structure = std::move(originalHeader->original_structure);
     toBuild->resources = std::move(originalHeader->resources);
@@ -282,7 +284,7 @@ std::unique_ptr<MVCNN::SummaryHeaderT> mv::RuntimeModel::buildSummaryHeaderT(Com
 
     toBuild->options = std::vector<MVCNN::ExecutionFlag>();
     //toBuild->options.push_back(MVCNN::ExecutionFlag_Compiled_For_VPU3);
-    if(compilationDescriptor.get<std::string>("barrier_index_assignment") == "Dynamic")
+    if(globalConfigurationParameters->get<std::string>("barrier_index_assignment") == "Dynamic")
         toBuild->options.push_back(MVCNN::ExecutionFlag_DynamicBarriers);
 
     toBuild->layer_count = originalHeader->layer_count;
@@ -303,17 +305,19 @@ std::unique_ptr<MVCNN::VersionT> mv::RuntimeModel::buildVersionT(ComputationMode
     return toBuild;
 }
 
-std::unique_ptr<MVCNN::ResourcesT> mv::RuntimeModel::buildResourcesT(ComputationModel&, mv::Element& compilationDescriptor)
+std::unique_ptr<MVCNN::ResourcesT> mv::RuntimeModel::buildResourcesT(ComputationModel& cm, mv::Element& compilationDescriptor)
 {
     std::unique_ptr<MVCNN::ResourcesT> toBuild = std::unique_ptr<MVCNN::ResourcesT>(new MVCNN::ResourcesT());
 
-    setIfPresent<uint32_t, int>(toBuild->upa_shaves, compilationDescriptor , "ResourcesUpaShaves");
-    setIfPresent<int8_t, int>(toBuild->nce1_blocks, compilationDescriptor, "ResourcesNCE1Mask");
-    setIfPresent<uint32_t, int>(toBuild->nce2_blocks, compilationDescriptor, "ResourcesNCE2Mask");
-    setIfPresent<uint32_t, int>(toBuild->upa_shared_cmx, compilationDescriptor, "ResourcesUPASharedCMX");
-    setIfPresent<uint32_t, int>(toBuild->nn_cmx_per_slice, compilationDescriptor, "ResourcesNNCMXPerSlice");
-    setIfPresent<uint32_t, int>(toBuild->nn_cmx_slice_amount, compilationDescriptor, "ResourcesNNCMXSliceAmount");
-    setIfPresent<uint32_t, int>(toBuild->ddr_scratch, compilationDescriptor, "ResourcesDDRScratch");
+    auto globalConfigurationParams = cm.getGlobalConfigParams();
+
+    setIfPresent<uint32_t, int>(toBuild->upa_shaves, *globalConfigurationParams , "UpaShaves");
+    setIfPresent<int8_t, int>(toBuild->nce1_blocks, *globalConfigurationParams, "NCE1Mask");
+    setIfPresent<uint32_t, int>(toBuild->nce2_blocks, *globalConfigurationParams, "Number_of_DPUs");
+    setIfPresent<uint32_t, int>(toBuild->upa_shared_cmx, *globalConfigurationParams, "UPASharedCMX");
+    setIfPresent<uint32_t, unsigned>(toBuild->nn_cmx_per_slice, *globalConfigurationParams, "cmx");
+    setIfPresent<uint32_t, unsigned>(toBuild->nn_cmx_slice_amount, *globalConfigurationParams, "clusters");
+    setIfPresent<uint32_t, int>(toBuild->ddr_scratch, *globalConfigurationParams, "DDRScratch");
 
     return toBuild;
 }
@@ -711,13 +715,15 @@ void mv::RuntimeModel::buildGraphFile(ComputationModel& cm, mv::Element& compila
 {
     mv::OpModel om(cm);
 
+    auto globalConfigurationParameters = cm.getGlobalConfigParams();
+
     graphFile_.header = buildSummaryHeaderT(cm, compilationDescriptor, std::move(graphFile_.header));
 
     // TASKS
     graphFile_.task_lists = buildTaskListT(cm, compilationDescriptor);
 
     // Barrier Table must be build only on dynamic scheduling
-    if(compilationDescriptor.get<std::string>("barrier_index_assignment") == "Dynamic")
+    if(globalConfigurationParameters->get<std::string>("barrier_index_assignment") == "Dynamic")
         graphFile_.barrier_table = buildBarrierTable(cm, compilationDescriptor);
 
     // Binary Data
