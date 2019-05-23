@@ -70,7 +70,7 @@ TEST(insert_barrier_tasks, parallel_paths)
     }
 
     int numChecks = 0;
-    size_t expected_num_barriers = 5;
+    size_t expected_num_barriers = 4; // (3 + 1 barrier for prefetch)
     ASSERT_EQ(barrierOps.size(), expected_num_barriers);
     numChecks++;
 
@@ -170,7 +170,7 @@ TEST(insert_barrier_tasks, single_control_edge)
     }
 
     int numChecks = 0;
-    size_t expected_num_barriers = 7;
+    size_t expected_num_barriers = 6;
     ASSERT_EQ(barrierOps.size(), expected_num_barriers);
     numChecks++;
 
@@ -277,7 +277,7 @@ TEST(insert_barrier_tasks, multiple_control_edges)
     }
 
     int numChecks = 0;
-    size_t expected_num_barriers = 7;
+    size_t expected_num_barriers = 6;
     ASSERT_EQ(barrierOps.size(), expected_num_barriers);
     numChecks++;
 
@@ -388,7 +388,7 @@ TEST(insert_barrier_tasks, dealloc_edge)
     }
 
     int numChecks = 0;
-    size_t expected_num_barriers = 7;
+    size_t expected_num_barriers = 6;
     ASSERT_EQ(barrierOps.size(), expected_num_barriers);
     numChecks++;
 
@@ -493,7 +493,7 @@ TEST(insert_barrier_tasks, static_index_assignment)
             barrierOpIndices.push_back(op->get<mv::Barrier>("Barrier").getIndex());
     }
 
-    size_t expected_num_barriers = 16;
+    size_t expected_num_barriers = 15;
     EXPECT_EQ(barrierOpIndices.size(), expected_num_barriers);
 
     // The barrier interference graph coloring algorithm (a.k.a. static index 
@@ -569,7 +569,7 @@ TEST(insert_barrier_tasks, dynamic_index_assignment)
             barrierOpIndices.push_back(op->get<mv::Barrier>("Barrier").getIndex());
     }
 
-    size_t expected_num_barriers = 16;
+    size_t expected_num_barriers = 15;
     EXPECT_EQ(barrierOpIndices.size(), expected_num_barriers);
 
     EXPECT_TRUE(std::is_sorted(barrierOpIndices.begin(), barrierOpIndices.end()));
@@ -586,20 +586,16 @@ TEST(insert_barrier_tasks, weights_prefetch)
     std::vector<double> weightsData = mv::utils::generateSequence<double>(3*3*3*16);
     auto weights1 = om.constant(weightsData, {3, 3, 3, 16}, mv::DType("Float16"), mv::Order("NCWH"));
     auto conv1 = om.conv(input, weights1, {1, 1}, {1, 1, 1, 1});
-    auto pool1 = om.maxPool(conv1, {2, 2}, {2, 2}, {0, 0, 0, 0});
-    auto pool2 = om.maxPool(conv1, {4, 4}, {2, 2}, {1, 1, 1, 1});
-
     std::vector<double> weights3Data = mv::utils::generateSequence<double>(3*3*16*16);
+
     auto weights2 = om.constant(weights3Data, {3, 3, 16, 16}, mv::DType("Float16"), mv::Order("NCWH"));
-    auto conv2 = om.conv(pool1, weights2, {1, 1}, {1, 1, 1, 1});
+    auto conv2 = om.conv(conv1, weights2, {1, 1}, {1, 1, 1, 1});
 
     auto weights3 = om.constant(weights3Data, {3, 3, 16, 16}, mv::DType("Float16"), mv::Order("NCWH"));
-    auto conv3 = om.conv(pool2, weights3, {1, 1}, {1, 1, 1, 1});
-
-    auto add1 = om.add(conv2, conv3);
+    auto conv3 = om.conv(conv2, weights3, {1, 1}, {1, 1, 1, 1});
 
     auto weights4 = om.constant(weights3Data, {3, 3, 16, 16}, mv::DType("Float16"), mv::Order("NCWH"));
-    auto conv4 = om.conv(add1, weights4, {1, 1}, {1, 1, 1, 1});
+    auto conv4 = om.conv(conv3, weights4, {1, 1}, {1, 1, 1, 1});
 
     auto weights5 = om.constant(weights3Data, {3, 3, 16, 16}, mv::DType("Float16"), mv::Order("NCWH"));
     auto conv5 = om.conv(conv4, weights5, {1, 1}, {1, 1, 1, 1});
@@ -646,8 +642,12 @@ TEST(insert_barrier_tasks, weights_prefetch)
             barrierOpIndices.push_back(op->get<mv::Barrier>("Barrier").getIndex());
     }
 
-    // With weights prefetch = 3 for this network, we expect 15 barriers.
-    size_t expected_num_barriers = 15;
+    // With weights prefetch = 3 for this network, we expect 6 + 1 + (6 - (3+1)) barriers.
+    // 6 ahead of the DPUTasks
+    // 1 ahead of the DMATask
+    // # total ops - (prefetch_val + 1) --> weights must be fetched after the prefetch_val-1 op
+    // finishes executing.
+    size_t expected_num_barriers = 9;
     EXPECT_EQ(barrierOpIndices.size(), expected_num_barriers);
 
 }

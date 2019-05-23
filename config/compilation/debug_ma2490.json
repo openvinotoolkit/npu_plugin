@@ -281,7 +281,15 @@
             "AllocatePopulatedTensorsKeemBay",
             "AllocateUnpopulatedTensorsKeemBay",
             "TensorGraphColoring",
-            "PopulateWeightsTables"
+            "PopulateWeightsTables",
+            {
+                "name": "GenerateDot",
+                "output": "final_model.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true,
+                "convert": false
+            }
         ]
     },
     "validate": {
