@@ -13,6 +13,7 @@
 #include <metis.h>
 #include <climits>
 #include <math.h>
+#include <cmath>
 
 namespace mv
 {
@@ -295,8 +296,10 @@ namespace mv
                                                         std::pair<std::pair<int16_t, int16_t>,bool>& interesting_point, 
                                                         std::pair <idx_t,idx_t>& mpeMode);
         std::size_t nWorkloads() const;
+        std::set<int> getNWorkloads(mv::Data::TensorIterator tensor);
         void addWorkload(mv::Workload workload);
         const std::vector<mv::Workload>& getWorkloads() const;
+        std::vector<int> getWorkloadSplitPool(mv::Data::TensorIterator tensor, int nDPUxCluster, int maxSplits = 50);
 
         void generateExecutionCycles(std::vector<mv::Data::TensorIterator>& outputTensor, int nDPUxCluster, CostFunctions costFunction);
         std::vector<float> getExecutionCycles() const;

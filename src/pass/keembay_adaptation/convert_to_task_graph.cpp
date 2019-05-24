@@ -27,18 +27,6 @@ void storeSplitStrategy(mv::OpModel& om, mv::Data::OpListIterator& opIt, mv::Dat
         om.addAttr(dxxOp, "splitStrategy", opIt->get<std::string>("splitStrategy"));
 }
 
-void storeWorkloadMpeStrategy(mv::OpModel& om, mv::Data::OpListIterator& opIt, mv::Data::OpListIterator& dxxOp)
-{
-    if (opIt->hasAttr("WorkloadStrategy_MPE_mode"))
-        om.addAttr(dxxOp, "WorkloadStrategy_MPE_mode", opIt->get<std::string>("WorkloadStrategy_MPE_mode"));
-}
-
-void storeWorkloadNumStrategy(mv::OpModel& om, mv::Data::OpListIterator& opIt, mv::Data::OpListIterator& dxxOp)
-{
-    if (opIt->hasAttr("WorkloadStrategy_nWorkloads"))
-        om.addAttr(dxxOp, "WorkloadStrategy_nWorkloads", opIt->get<int>("WorkloadStrategy_nWorkloads"));
-}
-
 void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
     mv::OpModel om(model);
@@ -110,9 +98,6 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             dpuConvOp->set<mv::PPETask>("PPETask", ppeTask);
 
             storeSplitStrategy(om, opIt, dpuConvOp);
-            storeWorkloadMpeStrategy(om, opIt, dpuConvOp);
-            storeWorkloadNumStrategy(om, opIt, dpuConvOp);
-
             adaptOutputDataFlow(om, opIt, dpuConv);
         }
         else if (opType == "MaxPool")
