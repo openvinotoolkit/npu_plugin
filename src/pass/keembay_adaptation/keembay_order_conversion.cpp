@@ -45,7 +45,7 @@ void kmbOrderConversion(const mv::pass::PassEntry& pass, mv::ComputationModel& m
                 // For Normal convolution, weights have to be in ColMajor order (see document Order.ods)
                 if(taskOp == "Conv")
                 {
-                    mv::Order targetOrder("NWHC");
+                    mv::Order targetOrder("NHWC");
                     dpuTask->getInputTensor(1)->setOrder(targetOrder);
                 }
             }
