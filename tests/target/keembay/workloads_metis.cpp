@@ -46,7 +46,6 @@ TEST(workloads_metis, 45x45_mode_4_4_workloads_5)
     auto convOp = om.getOps("DPUTask");
     auto op = convOp[0];
 
-    
     EXPECT_TRUE(op->get<bool>("Valid_workload"));
 
 }
@@ -81,7 +80,6 @@ TEST(workloads_metis, 70x70_mode_4_4_workloads_5)
     auto convOp = om.getOps("DPUTask");
     auto op = convOp[0];
 
-    
     EXPECT_TRUE(op->get<bool>("Valid_workload"));
 
 }
@@ -115,7 +113,6 @@ TEST(workloads_metis, 66x66_mode_4_4_workloads_5)
     auto convOp = om.getOps("DPUTask");
     auto op = convOp[0];
 
-    
     EXPECT_TRUE(op->get<bool>("Valid_workload"));
 
 }
@@ -150,7 +147,6 @@ TEST(workloads_metis, 62x62_mode_4_4_workloads_5)
     auto convOp = om.getOps("DPUTask");
     auto op = convOp[0];
 
-    ASSERT_EQ(op->get<int>("Metis_edge_cut"), 49);
     EXPECT_TRUE(op->get<bool>("Valid_workload"));
 
 }
@@ -186,7 +182,6 @@ TEST(workloads_metis, 58x58_mode_4_4_workloads_5)
     auto convOp = om.getOps("DPUTask");
     auto op = convOp[0];
 
-    ASSERT_EQ(op->get<int>("Metis_edge_cut"), 41);
     EXPECT_TRUE(op->get<bool>("Valid_workload"));
 }
 

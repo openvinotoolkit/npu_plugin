@@ -464,8 +464,8 @@ std::vector<int> mv::Workloads::getWorkloadSplitPool(mv::Data::TensorIterator te
     std::vector<int> splitPool;
  
     /*maxSplitsXY*/
-    int xDim = tensor->get<mv::Shape>("shape")[0];
-    int yDim = tensor->get<mv::Shape>("shape")[1];
+    double xDim = tensor->get<mv::Shape>("shape")[0];
+    double yDim = tensor->get<mv::Shape>("shape")[1];
     int maxSplitsXY = ceil(xDim/4) * ceil(yDim/4);
 
     /*maxSplitsZ*/
@@ -485,13 +485,19 @@ std::vector<int> mv::Workloads::getWorkloadSplitPool(mv::Data::TensorIterator te
     // }
 
     /*DpuMul splits*/
-    for(int i = nDPUxCluster; i <= (maxSplits - nDPUxCluster) ; i+=nDPUxCluster) 
-        splitPool.push_back(i);
+    // for(int i = nDPUxCluster; i <= (maxSplits - nDPUxCluster) ; i+=nDPUxCluster) 
+    //     splitPool.push_back(i);
     
     /*XY splits*/
-    // for(int i = 0; i < (int)ceil(log2(maxSplitsXY)); i ++) 
-    //     if(((maxSplitsXY%(int)std::pow(2,i)) == 0) && (maxSplitsXY/(std::pow(2,i)) < maxSplits)) 
-    //         splitPool.push_back(maxSplitsXY/std::pow(2,i));
+    for(int i = 0; i < (int)ceil(log2(maxSplitsXY)); i ++) 
+        if(((maxSplitsXY%(int)std::pow(2,i)) == 0) && (maxSplitsXY/(std::pow(2,i)) < maxSplits)) 
+            splitPool.push_back(maxSplitsXY/std::pow(2,i));
+    
+    sort(splitPool.begin(), splitPool.end());
+
+    /*If the split pool is empty then make the default number of workloads be 4*/
+    if(splitPool.empty())
+        splitPool.push_back(4);
         
     return splitPool;
 }

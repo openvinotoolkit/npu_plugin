@@ -96,7 +96,6 @@
     "keembay_adapt": {
         "Singular": [
             "StoreLayerSplitStrategy",
-            "StoreWorkloadStrategy",
             "ConvertOpsToTasks",
             "ComputeTensorsQuantParams",
             "KMBOrderConversion",
