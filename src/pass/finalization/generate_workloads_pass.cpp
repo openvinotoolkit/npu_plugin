@@ -69,28 +69,27 @@ int partitionTensorWithMETIS(const std::shared_ptr<mv::MetisGraphStructure>& met
 
 void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element& passDesc, mv::json::Object &)
 {
-
     pass.log(mv::Logger::MessageType::Debug, "Starting workload generation pass");
 
-    std::shared_ptr<mv::Element> globalParams = model.getGlobalConfigParams();
-    if (globalParams->hasAttr("Number_of_DPUs")) 
-        int nDPU = globalParams->get<int>("Number_of_DPUs");
-    if (globalParams->hasAttr("Number_of_Clusters")) 
-        int nClusters = globalParams->get<int>("Number_of_Clusters");
-    
     int nWorkloads;
+    int nDPU;
+    int nClusters;
     std::pair <int,int> MPEMode;
     std::string mpeMode;
     mv::OpModel om(model);
+    
+    /*Get nDPUs and nClsuters from gloabl compilation descriptor*/ 
+    std::shared_ptr<mv::Element> globalParams = model.getGlobalConfigParams();
+    if (globalParams->hasAttr("Number_of_DPUs")) 
+        nDPU = globalParams->get<int>("Number_of_DPUs");
+    if (globalParams->hasAttr("Number_of_Clusters")) 
+        nClusters = globalParams->get<int>("Number_of_Clusters");
 
-    /*The global mpe mode and number of workloads must be set for unit tests that don't have layer names matching resnet50 layer names*/
-    /*Get nWorkloads and mpe_mode from compilation descriptor*/	
-    if (globalParams->hasAttr("nWorkloads")) 	
-        nWorkloads = globalParams->get<int>("nWorkloads");	
-    else	
-        std::runtime_error("Exiting, set the number of workloads and MPE mode in the compilation descriptor");	
-
-     if (globalParams->hasAttr("MPE_mode")) 	
+    /*DPUs per cluster*/    
+    int nDPUxCluster = nDPU / nClusters;
+    
+    /*The global mpe mode must be set*/
+    if (globalParams->hasAttr("MPE_mode")) 	
         mpeMode  = globalParams->get<std::string>("MPE_mode");	
     else	
         std::runtime_error("Exiting, set the MPE mode in the compilation descriptor");	
@@ -111,28 +110,17 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
     {
         if (opIt->getOpType() == "DPUTask")
         {
-            if (opIt->hasAttr("WorkloadStrategy_MPE_mode"))
-            {
-                pass.log(mv::Logger::MessageType::Debug, "Found DPU task " + opIt->getName() + " of type " + opIt->get<std::string>("taskOp"));
-                
-                if(opIt->get<std::string>("WorkloadStrategy_MPE_mode") == "Matrix")
-                {
-                    MPEMode.first = 4;	
-                    MPEMode.second = 4; 	
-                }
-                if(opIt->get<std::string>("WorkloadStrategy_MPE_mode") == "Vector")
-                {
-                    MPEMode.first = 1;	
-                    MPEMode.second = 16; 	
-                }	
-                
-                nWorkloads = opIt->get<int>("WorkloadStrategy_nWorkloads");
-            }
-
-            /*Create workload*/
+            pass.log(mv::Logger::MessageType::Debug, "Found DPU task " + opIt->getName() + " of type " + opIt->get<std::string>("taskOp"));
+                 
+            /*Create workload instance*/
             mv::Workloads workloads(opIt->getName(), opIt->getOutputTensor()[0]->getShape(), MPEMode);
 
+            /*Get the worklaods algorithm*/
             std::vector<std::string> algorithms = workloads.getTensorSplitAlgorithms(passDesc);
+            
+            /*Generate the split pool and select the first one*/
+            auto nWorkloadsSplitPool = workloads.getWorkloadSplitPool(opIt->getOutputTensor()[0], nDPUxCluster);
+            nWorkloads = nWorkloadsSplitPool[0];
 
             pass.log(mv::Logger::MessageType::Debug, "Number of workloads is:" + std::to_string(nWorkloads));
 
@@ -161,12 +149,7 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                 }
                 else if (algorithm == "Rectangle")
                 {
-                    // /*Partition tensor into workloads with Rectangle*/
-                    // auto res = workloads.partitionTensorWithRectangleHeuristic(dpu_mode_poc, nWorkloads, pass);
-                    // if (res == 1)
-                    //     workloads.populateWorkloadsFromPartitions(nWorkloads, pass, MPEMode);
-                    // else
-                    //     pass.log(mv::Logger::MessageType::Warning, "Error partitioning tensor into workloads using Rectangle!");
+                    /*Partition tensor into workloads with Rectangle*/
                 }
                 else if (algorithm == "Z-Tiling")
                 {

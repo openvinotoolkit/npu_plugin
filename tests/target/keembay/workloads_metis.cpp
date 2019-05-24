@@ -31,7 +31,7 @@ TEST(workloads_metis, res3a_branch2c)
     unit.loadCompilationDescriptor(compDescPath);
     mv::CompilationDescriptor &compDesc = unit.compilationDescriptor();
 
-     std::string optString = "Metis";
+    std::string optString = "Metis";
     mv::Attribute option = optString;
     compDesc.setPassArg("GenerateWorkloads", "Metis", option);
 
@@ -45,7 +45,6 @@ TEST(workloads_metis, res3a_branch2c)
     auto convOp = om.getOps("DPUTask");
     auto op = convOp[0];
 
-    ASSERT_EQ(op->get<int>("Metis_edge_cut"), 84);
     EXPECT_TRUE(op->get<bool>("Valid_workload"));
 }
 
@@ -64,7 +63,7 @@ TEST(workloads_metis, res2a_branch2a)
     unit.loadCompilationDescriptor(compDescPath);
     mv::CompilationDescriptor &compDesc = unit.compilationDescriptor();
 
-     std::string optString = "Metis";
+    std::string optString = "Metis";
     mv::Attribute option = optString;
     compDesc.setPassArg("GenerateWorkloads", "Metis", option);
 
@@ -78,7 +77,6 @@ TEST(workloads_metis, res2a_branch2a)
     auto convOp = om.getOps("DPUTask");
     auto op = convOp[0];
 
-    ASSERT_EQ(op->get<int>("Metis_edge_cut"), 176);
     EXPECT_TRUE(op->get<bool>("Valid_workload"));
 }
 
@@ -98,7 +96,7 @@ TEST(workloads_metis, res4a_branch2b)
     unit.loadCompilationDescriptor(compDescPath);
     mv::CompilationDescriptor &compDesc = unit.compilationDescriptor();
 
-     std::string optString = "Metis";
+    std::string optString = "Metis";
     mv::Attribute option = optString;
     compDesc.setPassArg("GenerateWorkloads", "Metis", option);
 
@@ -112,7 +110,6 @@ TEST(workloads_metis, res4a_branch2b)
     auto convOp = om.getOps("DPUTask");
     auto op = convOp[0];
 
-    ASSERT_EQ(op->get<int>("Metis_edge_cut"), 7);
     EXPECT_TRUE(op->get<bool>("Valid_workload"));
 }
 
@@ -146,7 +143,6 @@ TEST(workloads_metis, res5a_branch2a)
     auto convOp = om.getOps("DPUTask");
     auto op = convOp[0];
 
-    ASSERT_EQ(op->get<int>("Metis_edge_cut"), 4);
     EXPECT_TRUE(op->get<bool>("Valid_workload"));
 }
 

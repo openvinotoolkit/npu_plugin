@@ -38,7 +38,6 @@ bool mv::Workloads::operator < (const mv::Workloads& other) const
         return lhs_avg < rhs_avg;
 }
 
-
 const mv::Workload& mv::Workloads::operator[](int nworkload) const
 {
 
@@ -452,6 +451,49 @@ void mv::Workloads::generateMetisGraph(void) {
 idx_t mv::Workloads::getNWorkloads(const mv::Shape& tensorShape, int nDPUxCluster) {
     
     return round(nDPUxCluster/2)*2; 
+}
+
+/**
+ * @brief Generate a pool of possible workload number for a tensor
+ * @param A tensor
+ * @param Maximum number or workloads
+ * @return A pool of possible splits (possible workloads)
+ */
+std::vector<int> mv::Workloads::getWorkloadSplitPool(mv::Data::TensorIterator tensor, int nDPUxCluster, int maxSplits)
+{
+    std::vector<int> splitPool;
+ 
+    /*maxSplitsXY*/
+    int xDim = tensor->get<mv::Shape>("shape")[0];
+    int yDim = tensor->get<mv::Shape>("shape")[1];
+    int maxSplitsXY = ceil(xDim/4) * ceil(yDim/4);
+
+    /*maxSplitsZ*/
+    int maxSplitsZ = ceil(tensor->get<mv::Shape>("shape")[2]/16);
+
+    /*Z splits*/
+    /*Switched off Z splits until supported*/
+    // if((maxSplitsZ < maxSplits) && (maxSplitsZ >1))
+    // {
+    //     splitPool.push_back(maxSplitsZ);
+    //     do
+    //     {
+    //         maxSplitsZ = maxSplitsZ >> 1;
+    //         splitPool.push_back(maxSplitsZ);
+    //     }
+    //     while ((maxSplitsZ >> 1) > 1);
+    // }
+
+    /*DpuMul splits*/
+    for(int i = nDPUxCluster; i <= (maxSplits - nDPUxCluster) ; i+=nDPUxCluster) 
+        splitPool.push_back(i);
+    
+    /*XY splits*/
+    // for(int i = 0; i < (int)ceil(log2(maxSplitsXY)); i ++) 
+    //     if(((maxSplitsXY%(int)std::pow(2,i)) == 0) && (maxSplitsXY/(std::pow(2,i)) < maxSplits)) 
+    //         splitPool.push_back(maxSplitsXY/std::pow(2,i));
+        
+    return splitPool;
 }
 
 
