@@ -98,12 +98,15 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
     if(mpeMode == "Matrix")
     {
         MPEMode.first = 4;	
-        MPEMode.second = 4; 	
+        MPEMode.second = 4; 
+        pass.log(mv::Logger::MessageType::Debug, "MPE mode is Matrix");
+	
     }	
     else if (mpeMode == "Vector")	
     {	
         MPEMode.first = 1;	
         MPEMode.second = 16; 	
+        pass.log(mv::Logger::MessageType::Debug, "MPE mode is Vector");
     }	
 
     for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt)
@@ -123,6 +126,7 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
             nWorkloads = nWorkloadsSplitPool[0];
 
             pass.log(mv::Logger::MessageType::Debug, "Number of workloads is:" + std::to_string(nWorkloads));
+            pass.log(mv::Logger::MessageType::Debug, "Output size is: " + opIt->getOutputTensor()[0]->getShape().toString());
 
             /*Partition tensor into workloads*/
             for (std::string algorithm : algorithms)
