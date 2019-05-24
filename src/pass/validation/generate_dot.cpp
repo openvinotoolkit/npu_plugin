@@ -103,7 +103,8 @@ void generateDotFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
                                         + *attrIt
                                         + ": </FONT></TD> <TD ALIGN=\"RIGHT\"><FONT POINT-SIZE=\"11.0\">";
 
-                            bool largeData = (opIt->get(*attrIt)).hasTrait("large");
+                            auto attrTypeID = opIt->get(*attrIt).getTypeID();
+                            bool largeData = mv::attr::AttributeRegistry::hasTypeTrait(attrTypeID, "large");
                             if (verbose && largeData)
                                 nodeDef += opIt->get(*attrIt).toLongString();
                             else
