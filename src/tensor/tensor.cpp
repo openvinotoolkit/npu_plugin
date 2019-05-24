@@ -279,7 +279,11 @@ void mv::Tensor::populate(const std::vector<int64_t>& data, Order order)
 
 int mv::Tensor::computeMemoryRequirement() const
 {
-    return (shape_.totalSize() * get<DType>("dType").getSizeInBits() / 8);
+    int alignment = 16;
+    int memoryRequirment = shape_.totalSize() * get<DType>("dType").getSizeInBits() / 8;
+    auto alignedMemeoryRequirement = ((memoryRequirment + alignment - 1) /16) * alignment;
+
+    return alignedMemeoryRequirement;
 }
 
 void mv::Tensor::unpopulate()
