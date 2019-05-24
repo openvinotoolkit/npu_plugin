@@ -41,10 +41,7 @@ void generateDotFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
 
     bool verbose = false;
     if (passDesc.hasAttr("verbose"))
-    {
-        std::cout << "Requesting verbose dot output" << std::endl;
         verbose = passDesc.get<bool>("verbose");
-    }
 
     std::string outputScope = passDesc.get<std::string>("scope");
 
