@@ -40,21 +40,24 @@ int main()
     std::vector<int64_t> biasWeightsData0 = read_weights_from_file<int64_t>(path + "/examples/data//res2a_branch2a_bias#2.dat");
     std::size_t biasSizePerSplit = biasWeightsData0.size()/NUM_SPLITS;
     std::size_t weightsSizePerSplit = weightsData0.size()/NUM_SPLITS;
+    std::string name_suffix = "";
     for (size_t i=0; i < NUM_SPLITS; i++)
     {
         weightsData[i].reserve(weightsSizePerSplit);
         auto itrBegin = weightsData0.begin() + i * weightsSizePerSplit;
         auto itrEnd = itrBegin + weightsSizePerSplit;
         std::copy(itrBegin, itrEnd, back_inserter(weightsData[i]));
-        weights[i] = om.constantInt(weightsData[i],{1,1,64,64/NUM_SPLITS}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{128},{0.0028483974747359753},{-0.3647209107875824},{0.3616204559803009}}, "res2a_branch2a_weights#1" + std::to_string(i));
-        convs[i] = om.conv(input0, weights[i],  {1, 1}, {0, 0, 0, 0}, 1, 1, {{128},{0.007843137718737125},{-1.003921627998352},{0.9960784316062927}}, "res2a_branch2a#4" + std::to_string(i));
+        if (NUM_SPLITS > 1)
+            name_suffix = std::to_string(i);
+        weights[i] = om.constantInt(weightsData[i],{1,1,64,64/NUM_SPLITS}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{129},{0.002591547090560198},{-0.3342282176017761},{0.3266163170337677}}, "res2a_branch2a_weights#1" + name_suffix);
+        convs[i] = om.conv(input0, weights[i],  {1, 1}, {0, 0, 0, 0}, 1, 1, {{128},{0.007843137718737125},{-1.003921627998352},{0.9960784316062927}}, "res2a_branch2a#4" + name_suffix);
 
         biasData[i].reserve(biasSizePerSplit);
         itrBegin = biasWeightsData0.begin() + i * biasSizePerSplit;
         itrEnd = itrBegin + biasSizePerSplit;
         std::copy(itrBegin, itrEnd, back_inserter(biasData[i]));
-        biases[i] = om.constantInt(biasData[i],{64/NUM_SPLITS}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{2.2340373106999323e-05},{-inf},{inf}}, "res2a_branch2a_bias#2" + std::to_string(i));
-        biasesOp[i] = om.bias(convs[i], biases[i], {{128},{0.007843137718737125},{-1.003921627998352},{0.9960784316062927}});
+        biases[i] = om.constantInt(biasData[i],{64/NUM_SPLITS}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{2.0325860532466322e-05},{-inf},{inf}}, "res2a_branch2a_bias#2weights" + name_suffix);
+        biasesOp[i] = om.bias(convs[i], biases[i], {{128},{0.007843137718737125},{-1.003921627998352},{0.9960784316062927}},  "res2a_branch2a_bias#2" + name_suffix);
     }
 
     if (NUM_SPLITS > 1)
