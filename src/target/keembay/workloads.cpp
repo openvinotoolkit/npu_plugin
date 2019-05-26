@@ -1460,6 +1460,7 @@ int mv::Workloads::partitionTensorWithRectangleHeuristic(const mv::DPUModeList& 
                                                                    bool         split_over_h,
                                                                    bool         split_over_w,
                                                                    bool         split_symmetric,
+                                                         const mv::WorkloadSplitMode& split_mode,
                                                          const mv::pass::PassEntry &pass)
 {
     pass.log(mv::Logger::MessageType::Debug, "RectangleHeuristic: layer=" + layerName_);
@@ -1475,15 +1476,30 @@ int mv::Workloads::partitionTensorWithRectangleHeuristic(const mv::DPUModeList& 
     W = tensorShape_[0];
     H = tensorShape_[1];
     C = tensorShape_.ndims() >= 3 ? tensorShape_[2] : 0;
+    pass.log(mv::Logger::MessageType::Debug, "RectangleHeuristic: height=" + std::to_string(H)
+                                                              + ", width=" + std::to_string(W));
 
-    //
-    // FIXME: POC compiler associates W, H with X, Y (I guess must be Y, X instead of X, Y)
-    //
     WorkloadShape original_shape;
+    original_shape.H = H; // height,aka Y
     original_shape.W = W; // width, aka X
-    original_shape.H = H; // height,    Y
-    pass.log(mv::Logger::MessageType::Debug, "RectangleHeuristic: original_height=" + std::to_string(original_shape.H)
-                                                             + ", original_width="  + std::to_string(original_shape.W));
+
+    // enable splitting over Z
+    if (split_mode == mv::WorkloadSplitMode::HC)
+    {
+        original_shape.W = C;
+    }
+    if (split_mode == mv::WorkloadSplitMode::WC)
+    {
+        original_shape.H = C;
+    }
+    if (original_shape.H == 0 || original_shape.W == 0)
+    {
+        pass.log(mv::Logger::MessageType::Error,
+                 "RectangleHeuristic: invalid shape: W=" + std::to_string(original_shape.W) +
+                                                  ", H=" + std::to_string(original_shape.H));
+        return METIS_ERROR;
+    }
+
     auto best_padding = selectPadding(original_shape, mode_list);
     auto& reduced_shape = best_padding.reduced;
     pass.log(mv::Logger::MessageType::Debug, "RectangleHeuristic: reduced_height=" + std::to_string(reduced_shape.H)
@@ -1506,10 +1522,17 @@ int mv::Workloads::partitionTensorWithRectangleHeuristic(const mv::DPUModeList& 
     SplitSliceList& slice_list = slicing_variant.slice_list;
     pass.log(mv::Logger::MessageType::Debug, "RectangleHeuristic: slices=" + std::to_string(slice_list.size()));
 
-    //
-    // FIXME: see details inside code of generateWorkloadsFromSlices()
-    //
-    workloads_ = generateWorkloadsFromSlices(slice_list, best_padding, C);
+    unsigned Z = C;
+    if (split_mode == mv::WorkloadSplitMode::HC)
+    {
+        Z = W;
+    }
+    if (split_mode == mv::WorkloadSplitMode::WC)
+    {
+        Z = H;
+    }
+
+    workloads_ = generateWorkloadsFromSlices(slice_list, best_padding, Z);
     pass.log(mv::Logger::MessageType::Debug, "RectangleHeuristic: done");
 
     return METIS_OK;

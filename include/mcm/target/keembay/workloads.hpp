@@ -249,6 +249,8 @@ namespace mv
     struct DPUMode { unsigned H, W; }; // NB: do not mess with MPE_Mode
     using  DPUModeList = std::vector<mv::DPUMode>;
 
+    enum class WorkloadSplitMode { HW=1, HC, WC };
+
     class Workloads : public LogSender
     {
 
@@ -276,6 +278,7 @@ namespace mv
                                                             bool         split_over_h,
                                                             bool         split_over_w,
                                                             bool         split_symmetric,
+                                                  const mv::WorkloadSplitMode& split_mode,
                                                   const mv::pass::PassEntry& pass);
 
         idx_t getNWorkloads(const mv::Shape& tensorShape, int nDPUxCluster);
