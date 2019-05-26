@@ -241,7 +241,8 @@
                 "scope": "OpControlModel",
                 "content": "full",
                 "html": true,
-                "convert": false
+                "convert": false,
+                "verbose" : false
             }
         ]
     },

@@ -322,6 +322,7 @@ namespace mv
         const Workload& operator[](int nworkload) const;
         std::string getLogID() const override;
         std::string toString() const;
+        std::string toLongString() const;
     };
 }
 
