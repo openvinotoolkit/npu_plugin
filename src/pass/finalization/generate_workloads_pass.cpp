@@ -148,7 +148,7 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                         pass.log(mv::Logger::MessageType::Warning, "Error partitioning tensor into workloads using METIS");
 
                     if(!workloads.validateWorkloads(opIt->getOutputTensor()[0]->getShape())) 
-                        throw std::runtime_error("Invalid workloads have been generated, the individual workloads do not sum the output tensor size");
+                        throw std::runtime_error("Invalid workloads have been generated using METIS, the individual workloads do not sum the output tensor size");
 
                     opIt->set<bool>("Valid_workload", true);
                 }
@@ -161,14 +161,17 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                     auto res = workloads.partitionTensorWithRectangleHeuristic(dpu_mode_poc, nWorkloads,
                                                             split_over_h, split_over_w, split_symmetric,
                                                             mv::WorkloadSplitMode::HW, pass);
-                    if (res == 1)
-                        workloads.populateWorkloadsFromPartitions(nWorkloads, pass, MPEMode);
-                    else
-                        pass.log(mv::Logger::MessageType::Warning, "Error partitioning tensor into workloads using Rectangle!");
+                    if (!res)
+                        pass.log(mv::Logger::MessageType::Warning, "Error partitioning tensor into workloads using Rectangle heuristic");
+                    
+                    if(!workloads.validateWorkloads(opIt->getOutputTensor()[0]->getShape())) 
+                        throw std::runtime_error("Invalid workloads have been generated using rectangle heurisitc, the individual workloads do not sum the output tensor size");
+
+                    opIt->set<bool>("Valid_workload", true);
                 }
                 else if (algorithm == "Z-Tiling")
                 {
-                    //Partition tensor into workloads with Rectangle
+                    //Partition tensor into workloads with Z-tiling
                 }
             }
 
