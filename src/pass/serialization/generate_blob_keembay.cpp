@@ -29,10 +29,4 @@ void generateBlobKeembayFcn(const mv::pass::PassEntry&, mv::ComputationModel& mo
     auto output = passDesc.get<std::string>("output");
 
     rm.serialize(output);
-
-    if(passDesc.hasAttr("convert") && passDesc.get<bool>("convert"))
-    {
-        std::string flatbufferCommand("flatc -t $MCM_HOME/schema/graphfile/src/schema/graphfile.fbs --strict-json --defaults-json -- " + output);
-        system(flatbufferCommand.c_str());
-    }
 }

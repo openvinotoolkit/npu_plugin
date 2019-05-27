@@ -359,6 +359,11 @@ SET(pass
     "${PROJECT_SOURCE_DIR}/src/target/keembay/runtime_model/runtime_model.cpp"
 )
 
+SET(syscalls
+   "${PROJECT_SOURCE_DIR}/src/pass/syscalls/convert_dot.cpp"
+   "${PROJECT_SOURCE_DIR}/src/pass/syscalls/convert_flatbuffer.cpp"
+)
+
 IF(CMAKE_CROSSCOMPILING)
     message(STATUS "Cross-compiling, assumes meta/ files already generated...")
     add_library(metamodel SHARED
@@ -403,7 +408,7 @@ else()
         add_subdirectory(tests)
         add_subdirectory(contrib/googletest)
     else()
-        add_library(cm SHARED ${base} ${logger} ${pass} ${compiler})
+        add_library(cm SHARED ${base} ${logger} ${pass} ${compiler} ${syscalls})
         add_library(corebase SHARED ${base} ${logger})
         add_library(model SHARED ${model})
         

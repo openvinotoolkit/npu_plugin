@@ -113,11 +113,6 @@ static void drawBIG(BarrierInterferenceGraph& g, std::string outputFile)
     }
     ostream << "}\n";
     ostream.close();
-
-    std::string pngFile = outputFile.substr(0, outputFile.find(".dot")) + ".png";
-
-    std::string systemCmd = "dot -Tpng " + outputFile + " -o " + pngFile;
-    system(systemCmd.c_str());
 }
 
 static void addEdge(const mv::Barrier& b1, const mv::Barrier& b2, BarrierInterferenceGraph& big)
