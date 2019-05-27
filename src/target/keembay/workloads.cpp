@@ -44,7 +44,6 @@ bool mv::Workloads::operator < (const mv::Workloads& other) const
         return lhs_avg < rhs_avg;
 }
 
-
 const mv::Workload& mv::Workloads::operator[](int nworkload) const
 {
 
@@ -70,6 +69,14 @@ const std::vector<mv::Workload>& mv::Workloads::getWorkloads() const
 }
 
 std::string mv::Workloads::toString() const
+{
+    // TODO: check with John as to what would constitute abbreviated
+    // workload information.
+    std::string output = "{}";
+    return output;
+}
+
+std::string mv::Workloads::toLongString() const
 {
     std::string output = "{";
     
@@ -454,40 +461,59 @@ void mv::Workloads::generateMetisGraph(void) {
     }
 } 
 
-int mv::Workloads::partitionTensorWithMETIS(idx_t nWorkloads, const mv::pass::PassEntry& pass) 
-{
-    METIS_SetDefaultOptions(metisGraph_->options);
-
-    pass.log(mv::Logger::MessageType::Debug, "The adjancy data for METIS is ");
-    for(int i =0; i < 2*metisGraph_->m_numberTensorEdges; i++) 
-        pass.log(mv::Logger::MessageType::Debug, std::to_string(metisGraph_->adjncy[i]));
-    
-    pass.log(mv::Logger::MessageType::Debug, "The xadj data for METIS is ");
-    for(int i =0; i < (metisGraph_->m_numberTensorVertices + 1); i++) 
-        pass.log(mv::Logger::MessageType::Debug, std::to_string(metisGraph_->xadj[i]));
-    
-    pass.log(mv::Logger::MessageType::Debug, "The vwgt data for METIS is ");
-    for(int i =0; i < (metisGraph_->m_numberTensorVertices); i++) 
-        pass.log(mv::Logger::MessageType::Debug, std::to_string(metisGraph_->vwgt[i]));
-    
-    /*METIS call*/
-    int res = METIS_PartGraphRecursive(&metisGraph_->m_numberTensorVertices,&metisGraph_->nWeights, metisGraph_->xadj.get(), metisGraph_->adjncy.get(),
-                    metisGraph_->vwgt.get(), NULL, NULL, &nWorkloads, NULL,
-				    NULL, metisGraph_->options, &metisGraph_->objval, metisGraph_->part.get());
-
-    pass.log(mv::Logger::MessageType::Debug, "Value of the objective function that was minimized by METIS (should be same as PoC compiler) is: " + std::to_string(metisGraph_->objval));
-
-    /*Print node partition*/
-    for(int part_i = 0; part_i < metisGraph_->m_numberTensorVertices; part_i++) 
-            pass.log(mv::Logger::MessageType::Debug, "Node " + std::to_string(part_i) + " is in partition " + std::to_string(metisGraph_->part[part_i]));  
-    
-    return res;
-}
-
 /*TODO update*/
 idx_t mv::Workloads::getNWorkloads(const mv::Shape& tensorShape, int nDPUxCluster) {
     
     return round(nDPUxCluster/2)*2; 
+}
+
+/**
+ * @brief Generate a pool of possible workload number for a tensor
+ * @param A tensor
+ * @param Maximum number or workloads
+ * @return A pool of possible splits (possible workloads)
+ */
+std::vector<int> mv::Workloads::getWorkloadSplitPool(mv::Data::TensorIterator tensor, int nDPUxCluster, int maxSplits)
+{
+    std::vector<int> splitPool;
+ 
+    /*maxSplitsXY*/
+    double xDim = tensor->get<mv::Shape>("shape")[0];
+    double yDim = tensor->get<mv::Shape>("shape")[1];
+    int maxSplitsXY = ceil(xDim/4) * ceil(yDim/4);
+
+    /*maxSplitsZ*/
+    int maxSplitsZ = ceil(tensor->get<mv::Shape>("shape")[2]/16);
+
+    /*Z splits*/
+    /*Switched off Z splits until supported*/
+    // if((maxSplitsZ < maxSplits) && (maxSplitsZ >1))
+    // {
+    //     splitPool.push_back(maxSplitsZ);
+    //     do
+    //     {
+    //         maxSplitsZ = maxSplitsZ >> 1;
+    //         splitPool.push_back(maxSplitsZ);
+    //     }
+    //     while ((maxSplitsZ >> 1) > 1);
+    // }
+
+    /*DpuMul splits*/
+    // for(int i = nDPUxCluster; i <= (maxSplits - nDPUxCluster) ; i+=nDPUxCluster) 
+    //     splitPool.push_back(i);
+    
+    /*XY splits*/
+    for(int i = 0; i < (int)ceil(log2(maxSplitsXY)); i ++) 
+        if(((maxSplitsXY%(int)std::pow(2,i)) == 0) && (maxSplitsXY/(std::pow(2,i)) < maxSplits)) 
+            splitPool.push_back(maxSplitsXY/std::pow(2,i));
+    
+    sort(splitPool.begin(), splitPool.end());
+
+    /*If the split pool is empty then make the default number of workloads be 4*/
+    if(splitPool.empty())
+        splitPool.push_back(4);
+        
+    return splitPool;
 }
 
 
@@ -577,20 +603,25 @@ void mv::Workloads::populateWorkloadsFromPartitions(idx_t nWorkloads, const mv::
         workloads_[workload].vertices.push_back(std::make_pair(wl_min_x, wl_max_y));
         workloads_[workload].vertices.push_back(std::make_pair(wl_max_x, wl_min_y));
         workloads_[workload].vertices.push_back(std::make_pair(wl_max_x, wl_max_y));
+        workloads_[workload].MinZ = 0;
+        workloads_[workload].MaxZ = tensorShape_[2]-1;
+        
+        /*These should be set in the polygon logic*/
+        if (mpeMode_.first == 4)
+            workloads_[workload].MPEMode = mv::MPE_Mode::Matrix;
+        else
+            workloads_[workload].MPEMode = mv::MPE_Mode::Vector;
 
         //add to the 'listOfworkloadLists' vector, the returned list of workloads from the polygonworkloadsplit function       
         listOfworkloadLists.push_back(mv::Workloads::polygonWorkloadSplit(pass, workloads_[workload], workloads_, mpeMode));
 
     }
 
-    //clearing the workloads as they may have shaped like polygons (not rectangles)
     workloads_.clear();
-
-    //adding the rectangle workloads into workloads_ list
-    for (auto listIt = listOfworkloadLists.begin(); listIt != listOfworkloadLists.end(); listIt++)
-    {
-        for (auto it = listIt->begin(); it != listIt->end(); it++)
-        {
+  
+    /*adding the rectangle workloads into workloads_ list*/
+    for (auto listIt = listOfworkloadLists.begin(); listIt != listOfworkloadLists.end(); listIt++) {
+        for (auto it = listIt->begin(); it != listIt->end(); it++) {
             /*These should be set in the polygon logic*/
             if (mpeMode_.first == 4)
                 it->MPEMode = mv::MPE_Mode::Matrix;
@@ -603,6 +634,7 @@ void mv::Workloads::populateWorkloadsFromPartitions(idx_t nWorkloads, const mv::
             workloads_.push_back(*it);
         }
     }
+
     
     for(int workload = 0; workload < workloads_.size(); workload++) { 
 
@@ -621,9 +653,9 @@ std::vector<mv::Workload> mv::Workloads::polygonWorkloadSplit(const mv::pass::Pa
 {
 
     /*------------------------------------------------------------------------------------------------------------
-        1. check if the area of the rectangle and number of elements match, if matches, then the polygon is a rectangle
-        2. If isn't equal, missing part of the rectangle could be at the vertex or/and along the edges.Note, current status is supporting only the 'points not in workload'
+        1.Missing part of the rectangle could be at the vertex or/and along the edges.Note, current status is supporting only the 'points not in workload'
         being at the vertices. Need to support the case where the missing points may be on the perimeter but not the edge
+        2. If there are no points in the 'points not in the workload', it means the workload is already a rectangle.
         3. get the list of 'interesting points' - these points are the ones that are 1) closest to the missing vertices or/and 2) the inner points
         on the (cut) edge. Below is a possible metis partition with AD edge of the rectangle ABCD that has A1A2 cut out and A3D cut out. The interesting points are at the corners
         which are A1, A2, A3, and C1. Current implementation is only supporting missing point at vertex, so D (and A3,C1) but not A1,A2.
@@ -643,32 +675,21 @@ std::vector<mv::Workload> mv::Workloads::polygonWorkloadSplit(const mv::pass::Pa
     //NB: Interesting points has a boolen value. This value indicates whether the point is at the end of a partition or at the beginning. If starting,
     // then the point has to be included in the partition
     std::vector<std::pair<std::pair<int16_t, int16_t>, bool>> interesting_points;
-    // check if the area is equal to the number of points
-    if (4 * workload.pointsTotal() == workload.area())
+    // find if any vertices are missing
+    for (auto it = begin(workload.vertices); it != end(workload.vertices); ++it)
     {
-        //scale and clip code
-        /*
-        workload.MinX = std::min(workload.MinX, static_cast<xyz_type>(tensorShape_[0]));
-        workload.MaxX = std::min(workload.MaxX, static_cast<xyz_type>(static_cast<xyz_type>(tensorShape_[0]) - static_cast<xyz_type>(mpeMode.first)));
-        workload.MinY = std::min(workload.MinX, static_cast<xyz_type>(tensorShape_[1]));
-        workload.MaxY = std::min(workload.MaxX, static_cast<xyz_type>(static_cast<xyz_type>(tensorShape_[1]) - static_cast<xyz_type>(mpeMode.second)));
-        workload.setVertices();
-        */
-        workloadFromAreaCheck.push_back(workload);
-        return workloadFromAreaCheck;
-    }
-    else if (4 * workload.pointsTotal() != workload.area())
-    {
-        // find interesting points
-        for (auto it = begin(workload.vertices); it != end(workload.vertices); ++it)
+        if (std::find(workload.points.begin(), workload.points.end(), std::make_pair(it->first, it->second)) == workload.points.end())
         {
-            if (std::find(workload.points.begin(), workload.points.end(), std::make_pair(it->first, it->second)) == workload.points.end())
             {
-                {
-                    points_not_in_wl.push_back(*it);
-                }
+                points_not_in_wl.push_back(*it);
             }
         }
+    }
+    if (points_not_in_wl.empty())
+    {
+        workloadFromAreaCheck.push_back(workload);
+        return workloadFromAreaCheck;
+        
     }
     // interesting points calculation
     int16_t diff1, diff2;
@@ -690,9 +711,8 @@ std::vector<mv::Workload> mv::Workloads::polygonWorkloadSplit(const mv::pass::Pa
                 {
                     diff1 = abs(it->second - all_it->second);
                     save1 = *all_it;
-                    //to match POC, if the interesting point's X matches xmax of the workload, the split has to happen parellel to y. So updating the interesting 
-                    // point (no matter if it is closer to Ymin or Ymax), to have boolean as 'true' so that the point always is included in the right partition
-                    if ((it->second < all_it->second) || (it->first == workload.MaxX))
+                    //            // point (no matter if it is closer to Ymin or Ymax), to have boolean as 'true' so that the point always is included in the right partition
+                    if ((it->second < all_it->second))
                         intPoint1isAtstart = true;
                 }
             }
@@ -723,6 +743,7 @@ std::vector<mv::Workload> mv::Workloads::polygonWorkloadSplit(const mv::pass::Pa
             templistSize = workloadFromAreaCheck.size();
         }
     }
+
     return finalWorkloadList;
 }
 
@@ -736,7 +757,7 @@ std::vector<mv::Workload> mv::Workloads::workloadSplitHelper(const mv::pass::Pas
     // split along X is needed, if the interesting point is on the workload Ymin or Ymax
     // split along Y is needed, if the interesting point is on the workload Xmin or Xmax
 
-    if (workload.MinX == interesting_point.first.first)
+    if ((workload.MinX == interesting_point.first.first) || (workload.MaxX == interesting_point.first.first))
     {
         if (interesting_point.second)
         {
@@ -759,26 +780,16 @@ std::vector<mv::Workload> mv::Workloads::workloadSplitHelper(const mv::pass::Pas
             }
         }
     }
-    else if (workload.MaxY > 0)
+    else if (workload.MaxY >= 0)
     {
         if (interesting_point.second)
         {
             for (auto it_all = workload.points.begin(); it_all != workload.points.end(); it_all++)
             {
-                if (interesting_point.first.first == workload.MaxX)
-                {
-                if (it_all->first > (interesting_point.first.first) - mpeMode.first)
-                    workload_partition_1.points.push_back(*it_all);
-                else
-                    workload_partition_2.points.push_back(*it_all);
-                }
-                else
-                {                
                 if (it_all->first >= (interesting_point.first.first))
                     workload_partition_1.points.push_back(*it_all);
                 else
                     workload_partition_2.points.push_back(*it_all);
-                }
             }
         }
         else if (not interesting_point.second)
@@ -792,6 +803,7 @@ std::vector<mv::Workload> mv::Workloads::workloadSplitHelper(const mv::pass::Pas
             }
         }
     }
+    
 
     workload_partition_1.setMinMaxAndVertices();
     workload_partition_2.setMinMaxAndVertices();
@@ -1055,11 +1067,11 @@ bool mv::Workloads::validateWorkloads(const mv::Shape& shape)
     }
 
     // Check 2: No intersection between workloads.
-    // if (!this->noOverlap())
-    // {
-    //     this->log(mv::Logger::MessageType::Debug, "METIS partition failed because of overlap of paritions");
-    //     return false;
-    // }
+    if (!this->noOverlap())
+    {
+        this->log(mv::Logger::MessageType::Debug, "METIS partition failed because of overlap of paritions");
+        return false;
+    }
 
     return true;
 }

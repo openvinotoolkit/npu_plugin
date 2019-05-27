@@ -1,5 +1,6 @@
 #include "gtest/gtest.h"
 #include "include/mcm/computation/model/control_model.hpp"
+#include "include/mcm/compiler/compilation_unit.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
 #include "meta/include/mcm/op_model.hpp"
 #include "include/mcm/utils/data_generator.hpp"
@@ -8,149 +9,125 @@
 
 TEST(quantization, case_conv)
 {
+    double inf = std::numeric_limits<double>::infinity();
+
     //Test based on res2a_branch2a/quantized_model.tflite modeil in POC
-    mv::OpModel om("testModel");
-    mv::QuantizationParams inputQuantParams({128}, {0.00784314}, {0}, {1});
-    auto input = om.input({56, 56, 64, 1}, mv::DType("UInt8"), mv::Order("NWHC"), inputQuantParams);
-
-//    input->set<mv::QuantizationParams>("quantParams", inputQuantParams);
-    auto testShape = input->getShape();
-    //EC: output defs are deduced from inputs
-
-    mv::QuantizationParams weightsQuantParams({120}, {0.0028294341}, {0}, {1});
-    mv::QuantizationParams biasQuantParams({0}, {2.219164e-05}, {0}, {1});
+    mv::CompilationUnit unit("testModel");
+    mv::OpModel& om = unit.model();
+    auto input0 = om.input({56,56,64,1}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{128},{0.007843137718737125},{-1.0},{1.0}}, "input#3");
 
     std::vector<int64_t> weightsData = mv::utils::generateSequence<int64_t>(64*64);
-    auto weights = om.constantInt(weightsData, {1, 1, 64, 64}, mv::DType("UInt8"), mv::Order(mv::Order::getColMajorID(4)), weightsQuantParams, "weights");
-//    weights->set<mv::QuantizationParams>("quantParams", weightsQuantParams);
-    auto conv = om.conv(input, weights, {1, 1}, {0, 0, 0, 0}, 1, 1, inputQuantParams);
-    auto convOp = om.getSourceOp(conv);
-    std::vector<int64_t> biasesData = {
-        13559,  17916,  18802,   2546,   2108,  -6720,  11957,   6745,   7859,   4116,
-         3767,  11175,    559,  14635,  10865,  -5677,   6943,    996,   -427,  -3778,
-         8863,   6461,   7315,  10601,  -2944,  12207,  -2114,  -1911,   1976,  -2687,
-        19133,  -4836,   6276,   -841,  14684,  13039,  -5271,  13416, -12849, -13113,
-         4303,  15551,   3331,    108,   7871,   2019,   5212,   8503,  -3542,   2456,
-         7652,   8379,  -9771,   -866,  -8929,   3194, -12861,  -2842,   3623,   8634,
-         1904,    778,   3990,   6220
-    };
-    mv::DataModel dm(om);
-    auto biasTensor = dm.defineTensor("biasdata", {64}, mv::DType("Int32"), mv::Order(mv::Order::getColMajorID(1)), biasesData);
-    biasTensor->set<mv::QuantizationParams>("quantParams", biasQuantParams);
+    auto weights0 = om.constantInt(weightsData,{1,1,64,64}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{117},{0.002597350161522627},{-0.3044497072696686},{0.3578746020793915}}, "res2a_branch2a_weights#1");
+    //    weights->set<mv::QuantizationParams>("quantParams", weightsQuantParams);
+    auto conv0 = om.conv(input0, weights0, {1, 1}, {0, 0, 0, 0}, 1, 1, {{128},{0.007843137718737125},{-1.003921627998352},{0.9960784316062927}}, "res2a_branch2a#4");
 
-    mv::Element dummyPassDesc("dummyPassDesc");
-    mv::json::Object compOutput;
-    mv::TargetDescriptor desc;
+    std::vector<int64_t> biasWeightsData0 = {000,-1702,000,000,000,16226,7740,14930,000,000,2931,-4815,000,000,3235,000,15412,7743,5898,3870,000,000,11536,000,-9447,-6232,-3706,14845,-4487,-3621,17741,1963,-9524,5490,000,000,000,000,-4179,000,000,16772,5611,000,000,000,-2581,693,000,8228,000,9119,000,-26908,12922,4479,000,-10064,000,000,000,7896,1087,2877};
+    auto biasWeights0 = om.constantInt(biasWeightsData0,{64}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{2.0371373466332443e-05},{-inf},{inf}}, "res2a_branch2a_bias#2");
+    auto bias_c0 = om.bias(conv0, biasWeights0, {{128},{0.007843137718737125},{-1.003921627998352},{0.9960784316062927}});
 
-    desc.setTarget(mv::Target::ma2490);
+    om.output(bias_c0);
 
-    mv::pass::PassRegistry::instance().find("AssignUniqueOpId")->run(om, desc, dummyPassDesc, compOutput);
-    mv::pass::PassRegistry::instance().find("ConvertOpsToTasks")->run(om, desc, dummyPassDesc, compOutput);
-    for(auto dpuTask = om.opBegin(); dpuTask != om.opEnd(); ++dpuTask)
-    {
-        if(dpuTask->getOpType() == "DPUTask")
-        {
-          //these two workarounds should be handled internally:
-          // 1. defining quantization params when generating output tensor
-          // 2. bias attribute should be passed from op to it's dputask
-          om.addAttr(dpuTask, "bias", biasTensor->getName());
-        }
-    }
+    std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/debug_ma2490.json";
+    unit.loadCompilationDescriptor(compDescPath);
+    mv::CompilationDescriptor &compDesc = unit.compilationDescriptor();
+    compDesc.setPassArg("GenerateDot", "scope", std::string("ControlModel"));
+    compDesc.setPassArg("GlobalConfigParams", "MemoryHack", false);
+    compDesc.setPassArg("GlobalConfigParams", "MemoryHack", false);
 
-    mv::pass::PassRegistry::instance().find("ComputeTensorsQuantParams")->run(om, desc, dummyPassDesc, compOutput);
-    mv::pass::PassRegistry::instance().find("GenerateWeightsTables")->run(om, desc, dummyPassDesc, compOutput);
+    unit.loadTargetDescriptor(mv::Target::ma2490);
+    unit.initialize();
+    unit.run();
 
     //ref data is based on result on POC test res2a_branch2a/quantized_model.tflite
-    std::vector<double> refData = {
-      0 , 0 , 1555502848 , 58797,
-      0 , 0 , 1555502848 , 63154,
-      0 , 0 , 1555502848 , 64040,
-      0 , 0 , 1555502848 , 47784,
-      0 , 0 , 1555502848 , 47346,
-      0 , 0 , 1555502848 , 38518,
-      0 , 0 , 1555502848 , 57195,
-      0 , 0 , 1555502848 , 51983,
-      0 , 0 , 1555502848 , 53097,
-      0 , 0 , 1555502848 , 49354,
-      0 , 0 , 1555502848 , 49005,
-      0 , 0 , 1555502848 , 56413,
-      0 , 0 , 1555502848 , 45797,
-      0 , 0 , 1555502848 , 59873,
-      0 , 0 , 1555502848 , 56103,
-      0 , 0 , 1555502848 , 39561,
-      0 , 0 , 1555502848 , 52181,
-      0 , 0 , 1555502848 , 46234,
-      0 , 0 , 1555502848 , 44811,
-      0 , 0 , 1555502848 , 41460,
-      0 , 0 , 1555502848 , 54101,
-      0 , 0 , 1555502848 , 51699,
-      0 , 0 , 1555502848 , 52553,
-      0 , 0 , 1555502848 , 55839,
-      0 , 0 , 1555502848 , 42294,
-      0 , 0 , 1555502848 , 57445,
-      0 , 0 , 1555502848 , 43124,
-      0 , 0 , 1555502848 , 43327,
-      0 , 0 , 1555502848 , 47214,
-      0 , 0 , 1555502848 , 42551,
-      0 , 0 , 1555502848 , 64371,
-      0 , 0 , 1555502848 , 40402,
-      0 , 0 , 1555502848 , 51514,
-      0 , 0 , 1555502848 , 44397,
-      0 , 0 , 1555502848 , 59922,
-      0 , 0 , 1555502848 , 58277,
-      0 , 0 , 1555502848 , 39967,
-      0 , 0 , 1555502848 , 58654,
-      0 , 0 , 1555502848 , 32389,
-      0 , 0 , 1555502848 , 32125,
-      0 , 0 , 1555502848 , 49541,
-      0 , 0 , 1555502848 , 60789,
-      0 , 0 , 1555502848 , 48569,
-      0 , 0 , 1555502848 , 45346,
-      0 , 0 , 1555502848 , 53109,
-      0 , 0 , 1555502848 , 47257,
-      0 , 0 , 1555502848 , 50450,
-      0 , 0 , 1555502848 , 53741,
-      0 , 0 , 1555502848 , 41696,
-      0 , 0 , 1555502848 , 47694,
-      0 , 0 , 1555502848 , 52890,
-      0 , 0 , 1555502848 , 53617,
-      0 , 0 , 1555502848 , 35467,
-      0 , 0 , 1555502848 , 44372,
-      0 , 0 , 1555502848 , 36309,
-      0 , 0 , 1555502848 , 48432,
-      0 , 0 , 1555502848 , 32377,
-      0 , 0 , 1555502848 , 42396,
-      0 , 0 , 1555502848 , 48861,
-      0 , 0 , 1555502848 , 53872,
-      0 , 0 , 1555502848 , 47142,
-      0 , 0 , 1555502848 , 46016,
-      0 , 0 , 1555502848 , 49228,
-      0 , 0 , 1555502848 , 51458
+    std::vector<int64_t> refData = {
+        401408,16777215, 1427920640,49280,
+        401472,16777215, 1427920640,47578,
+        401536,16777215, 1427920640,49280,
+        401600,16777215, 1427920640,49280,
+        401664,16777215, 1427920640,49280,
+        401728,16777215, 1427920640,65506,
+        401792,16777215, 1427920640,57020,
+        401856,16777215, 1427920640,64210,
+        401920,16777215, 1427920640,49280,
+        401984,16777215, 1427920640,49280,
+        402048,16777215, 1427920640,52211,
+        402112,16777215, 1427920640,44465,
+        402176,16777215, 1427920640,49280,
+        402240,16777215, 1427920640,49280,
+        402304,16777215, 1427920640,52515,
+        402368,16777215, 1427920640,49280,
+        402432,16777215, 1427920640,64692,
+        402496,16777215, 1427920640,57023,
+        402560,16777215, 1427920640,55178,
+        402624,16777215, 1427920640,53150,
+        402688,16777215, 1427920640,49280,
+        402752,16777215, 1427920640,49280,
+        402816,16777215, 1427920640,60816,
+        402880,16777215, 1427920640,49280,
+        402944,16777215, 1427920640,39833,
+        403008,16777215, 1427920640,43048,
+        403072,16777215, 1427920640,45574,
+        403136,16777215, 1427920640,64125,
+        403200,16777215, 1427920640,44793,
+        403264,16777215, 1427920640,45659,
+        403328,16777215, 1427920640,67021,
+        403392,16777215, 1427920640,51243,
+        403456,16777215, 1427920640,39756,
+        403520,16777215, 1427920640,54770,
+        403584,16777215, 1427920640,49280,
+        403648,16777215, 1427920640,49280,
+        403712,16777215, 1427920640,49280,
+        403776,16777215, 1427920640,49280,
+        403840,16777215, 1427920640,45101,
+        403904,16777215, 1427920640,49280,
+        403968,16777215, 1427920640,49280,
+        404032,16777215, 1427920640,66052,
+        404096,16777215, 1427920640,54891,
+        404160,16777215, 1427920640,49280,
+        404224,16777215, 1427920640,49280,
+        404288,16777215, 1427920640,49280,
+        404352,16777215, 1427920640,46699,
+        404416,16777215, 1427920640,49973,
+        404480,16777215, 1427920640,49280,
+        404544,16777215, 1427920640,57508,
+        404608,16777215, 1427920640,49280,
+        404672,16777215, 1427920640,58399,
+        404736,16777215, 1427920640,49280,
+        404800,16777215, 1427920640,22372,
+        404864,16777215, 1427920640,62202,
+        404928,16777215, 1427920640,53759,
+        404992,16777215, 1427920640,49280,
+        405056,16777215, 1427920640,39216,
+        405120,16777215, 1427920640,49280,
+        405184,16777215, 1427920640,49280,
+        405248,16777215, 1427920640,49280,
+        405312,16777215, 1427920640,57176,
+        405376,16777215, 1427920640,50367,
+        405440,16777215, 1427920640,52157
     };
 
     for(auto dpuTask = om.opBegin(); dpuTask != om.opEnd(); ++dpuTask)
     {
         if(dpuTask->getOpType() == "DPUTask")
         {
-          auto weightTableName = dpuTask->getName()+"WeightsTable:0";
-          auto inputs = dpuTask->getInputTensor();
-          for (auto itr=inputs.begin(); itr != inputs.end(); itr++)
-          {
-            //if (itr-> dpuTask->getName()+"WeightsTable"
-            if ((*itr)->getName() == weightTableName)
+            auto weightTableName = "DMA"+dpuTask->getName()+"WeightsTable:0";
+            auto inputs = dpuTask->getInputTensor();
+            for (auto itr=inputs.begin(); itr != inputs.end(); itr++)
             {
-
-              auto resData = (*itr)->getIntData();
-              for (unsigned i = 0; i < resData.size(); i+=4)
-              {
-                //this test only checks what is filled in populateWeightsTablesActivationAndBias function
-                //data_ptr and sparsity_ptr are not set in reference received from POC compiler
-                ASSERT_FLOAT_EQ(resData[i+2], refData[i+2]);
-                ASSERT_FLOAT_EQ(resData[i+3], refData[i+3]);
-              }
+                //if (itr-> dpuTask->getName()+"WeightsTable"
+                if ((*itr)->getName() == weightTableName)
+                {
+                    auto weightsTableOp = om.getSourceOp(*itr);
+                    weightsTableOp = weightsTableOp.leftmostParent();
+                    auto weightsTable = weightsTableOp->getOutputTensor(0);
+                    auto resData = weightsTable->getIntData();
+                    for (unsigned i = 0; i < resData.size(); i+=4)
+                    {
+                        ASSERT_EQ(resData[i+2], refData[i+2]);
+                        ASSERT_EQ(resData[i+3], refData[i+3]);
+                    }
+                }
             }
-          }
-
         }
     }
 }

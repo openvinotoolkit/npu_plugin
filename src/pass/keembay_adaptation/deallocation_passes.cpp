@@ -2,10 +2,11 @@
 #include "meta/include/mcm/op_model.hpp"
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
+#include "include/mcm/base/exception/runtime_error.hpp"
 #include <algorithm>
 
-static void addDeallocationTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
-static void removeDeallocationTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
+static void addDeallocationTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
+static void removeDeallocationTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 
 namespace mv
 {
@@ -24,7 +25,7 @@ namespace mv
 }
 
 // Pass role: Add deallocation tasks for each Tensor
-void addDeallocationTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+void addDeallocationTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
 
     mv::OpModel om(model);
@@ -88,17 +89,38 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationMod
                 sinkOperations.push_back(df.sink());
             }
 
+            bool found = false;
             auto chosenOp = sortedOps.rbegin();
             for(; chosenOp != sortedOps.rend(); ++chosenOp)
+            {
                 if(std::find(sinkOperations.begin(), sinkOperations.end(), *chosenOp) != sinkOperations.end())
+                {
+                    found = true;
                     break;
+                }
+            }
+
+            if(!found)
+                throw mv::RuntimeError(cm, "Something is wrong in deallocation pass");
 
             if(!cm.checkControlFlow(*chosenOp, deallocateInputOp))
                 cm.defineFlow(*chosenOp, deallocateInputOp);
-            for(auto son = chosenOp->leftmostChild(); son != om.opEnd(); ++son)
+
+            // This loop has to happen in both data and control model
+            // DATA
+            auto chosenOpData = *chosenOp;
+            for(auto son = chosenOpData.leftmostChild(); son != om.opEnd(); ++son)
                 if(!cm.checkControlFlow(deallocateInputOp, son))
                     if(son->getOpType() != "Deallocate")
                         cm.defineFlow(deallocateInputOp, son);
+
+            // CONTROL
+            auto chosenOpControl = cm.switchContext(*chosenOp);
+            auto deallocateInputOpControl = cm.switchContext(deallocateInputOp);
+            for(auto son = chosenOpControl.leftmostChild(); son != cm.opEnd(); ++son)
+                if(!cm.checkControlFlow(deallocateInputOpControl, son))
+                    if(son->getOpType() != "Deallocate")
+                        cm.defineFlow(deallocateInputOpControl, son);
 
         }
     }
@@ -116,7 +138,7 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationMod
 // Pass role: Remove deallocation tasks for each Tensor
 
 // Data flows should not be propagated, control flows yes
-void removeDeallocationTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+void removeDeallocationTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
     mv::OpModel om(model);
     mv::DataModel dm(model);

@@ -4,11 +4,15 @@
             {
                 "name" : "GlobalConfigParams",
                 "_comment" : "Stores common params accross multiple passes. Access through the Computation Model.",
+                "recorded_model": false,
+                "weights_form": "None",
                 "barrier_index_assignment" : "Static",
                 "Number_of_DPUs" : 5,
                 "Number_of_Clusters" : 1,
+                "UpaShaves": 1,
+                "DDRScratch": 4096,
+                "MemoryHack": true,
                 "CMX_memory_overflow_safety_factor" : 0.925,
-                "nWorkloads" : 5,
                 "MPE_mode" : "Matrix",
                 "split_strategy" :
                 [
@@ -52,101 +56,23 @@
                         "cluster_filter" : 0,
                         "strategy" : "SplitOverH"
                     }
-                ],
-                "workload_strategy" :
-                [
-                    {
-                        "name_filter" : "res1",
-                        "cluster_filter" : 0,
-                        "nWorkloads" : 45,
-                        "mpe_mode" : "(4,4,16)"
-                    },
-                    {
-                        "name_filter" : "res2a_branch2a",
-                        "cluster_filter" : 0,
-                        "nWorkloads" : 49,
-                        "mpe_mode" : "(4,4,16)"
-                    },
-                    {
-                        "name_filter" : "res2a_branch2b",
-                        "cluster_filter" : 0,
-                        "nWorkloads" : 49,
-                        "mpe_mode" : "(4,4,16)"
-                    },
-                    {
-                        "name_filter" : "res2a_branch2c",
-                        "cluster_filter" : 0,
-                        "nWorkloads" : 49,
-                        "mpe_mode" : "(4,4,16)"
-                    },
-                    {
-                        "name_filter" : "res3a_branch2c",
-                        "cluster_filter" : 0,
-                        "nWorkloads" : 5,
-                        "mpe_mode" : "(4,4,16)"
-                    },
-                    {
-                        "name_filter" : "res4a_branch2a",
-                        "cluster_filter" : 0,
-                        "nWorkloads" : 8,
-                        "mpe_mode" : "(1,16,16)"
-                    },
-                    {
-                        "name_filter" : "res4a_branch2b",
-                        "cluster_filter" : 0,
-                        "nWorkloads" : 8,
-                        "mpe_mode" : "(1,16,16)"
-                    },
-                    {
-                        "name_filter" : "res4a_branch2b_alt",
-                        "cluster_filter" : 0,
-                        "nWorkloads" : 8,
-                        "mpe_mode" : "(1,16,16)"
-                    },
-                    {
-                        "name_filter" : "res5a_branch2a",
-                        "cluster_filter" : 0,
-                        "nWorkloads" : 4,
-                        "mpe_mode" : "(4,4,16)"
-                    },
-                    {
-                        "name_filter" : "res5c_branch2a",
-                        "cluster_filter" : 0,
-                        "nWorkloads" : 4,
-                        "mpe_mode" : "(4,4,16)"
-                    },
-                    {
-                        "name_filter" : "res5c_branch2b",
-                        "cluster_filter" : 0,
-                        "nWorkloads" : 4,
-                        "mpe_mode" : "(4,4,16)"
-                    },
-                    {
-                        "name_filter" : "res5c_branch2c",
-                        "cluster_filter" : 0,
-                        "nWorkloads" : 4,
-                        "mpe_mode" : "(4,4,16)"
-                    }
                 ]
             },
+            "ComputeMemory",
             "AssignUniqueOpId",
             {
                 "name": "GenerateDot",
                 "output": "original_model.dot",
                 "scope": "OpControlModel",
                 "content": "full",
-                "html": true
+                "html": true,
+                "convert": false
             },
             {
                 "name": "CreateSourceStructure",
                 "VersionMajor": 3,
                 "VersionMinor": 10,
-                "VersionHash": "c1b3a9075e52694726edc996124c04b9268cf4cf",
-                "ResourcesUpaShaves": 1,
-                "ResourcesNCE2Mask": 1,
-                "ResourcesNNCMXPerSlice": 4096,
-                "ResourcesNNCMXSliceAmount": 1,
-                "ResourcesDDRScratch": 4096
+                "VersionHash": "c1b3a9075e52694726edc996124c04b9268cf4cf"
             }
         ]
     },
@@ -162,14 +88,14 @@
                 "output": "adapt_model.dot",
                 "scope": "OpControlModel",
                 "content": "full",
-                "html": true
+                "html": true,
+                "convert": false
             }
         ]
     },
     "keembay_adapt": {
         "Singular": [
             "StoreLayerSplitStrategy",
-            "StoreWorkloadStrategy",
             "ConvertOpsToTasks",
             "ComputeTensorsQuantParams",
             "KMBOrderConversion",
@@ -180,7 +106,8 @@
                 "output": "keembay_adapt_model.dot",
                 "scope": "OpControlModel",
                 "content": "full",
-                "html": true
+                "html": true,
+                "convert": false
             },
             "GenerateWeightsTables",
             {
@@ -188,23 +115,34 @@
                 "output": "keembay_WeightsTable_model.dot",
                 "scope": "OpControlModel",
                 "content": "full",
-                "html": true
+                "html": true,
+                "convert": false
+            },
+            "GenerateEltWiseConstants",
+            {
+                "name": "GenerateDot",
+                "output": "keembay_EltWiseConstants_model.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true,
+                "convert": false
             }
         ]
     },
     "dma": {
         "Singular" : [
             {
-                "name":"AddDMATasks",
+                "name":"AddWeightsDMATasks",
                 "weights_prefetch": 2
             },
-            "AddFinalDMATask",
+            "AddInitialAndFinalDMATask",
             {
                 "name": "GenerateDot",
                 "output": "dma_model.dot",
                 "scope": "OpControlModel",
                 "content": "full",
-                "html": true
+                "html": true,
+                "convert": false
             },
             "AddDeallocationTasks",
             {
@@ -212,14 +150,16 @@
                 "output": "deallocation_model_data.dot",
                 "scope": "OpModel",
                 "content": "full",
-                "html": true
+                "html": true,
+                "convert": false
             },
             {
                 "name": "GenerateDot",
                 "output": "deallocation_model_control.dot",
                 "scope": "ControlModel",
                 "content": "full",
-                "html": true
+                "html": true,
+                "convert": false
             }
         ]
     },
@@ -231,7 +171,8 @@
                 "output": "DmaControlFlows_model.dot",
                 "scope": "ControlModel",
                 "content": "full",
-                "html": true
+                "html": true,
+                "convert": false
             },
             "InputOutputControlFlows",
             {
@@ -239,15 +180,20 @@
                 "output": "InputOutputControlFlows_model.dot",
                 "scope": "ControlModel",
                 "content": "full",
-                "html": true
+                "html": true,
+                "convert": false
             },
-            "TransitiveReduction",
+            {
+                "name": "TransitiveReduction",
+                "filter": "PositiveMemory"
+            },
             {
                 "name": "GenerateDot",
                 "output": "TransitiveReduction.dot",
                 "scope": "ControlModel",
                 "content": "full",
-                "html": true
+                "html": true,
+                "convert": false
             }
         ]
     },
@@ -259,7 +205,8 @@
                 "output": "MaxTopologicalCutAndPartialSerialisation.dot",
                 "scope": "ControlModel",
                 "content": "full",
-                "html": true
+                "html": true,
+                "convert": false
             },
             {
                 "name": "GenerateWorkloads",
@@ -267,26 +214,35 @@
                 "TensorSplitAlgorithms": "Metis",
                 "_comment": "Supported CostFunctions are: balanced | criticalpath | minmax | greedy. Supported TensorSplitAlgorithms are Metis, Rectangle, Z-Tiling"
             },
-            "RemoveDeallocationTasks",
-            "TransitiveReduction",
-            {
-                "name":"InsertBarrierTasks",
-                "barrier_index_assignment": "Static"
-            },
-            "AddBarrierRefs",
-            "UpdateBarrierProducerConsumerCounts",
             "ArrangeKeembayExecution",
-            "TransitiveReduction",
             "AllocateInputOutputTensorsKeemBay",
             "AllocatePopulatedTensorsKeemBay",
             "AllocateUnpopulatedTensorsKeemBay",
             "TensorGraphColoring",
+            "RemoveDeallocationTasks",
+            {
+                "name" : "TransitiveReduction",
+                "filter" : "Fakefilter"
+            },
+            {
+                "name" : "InsertBarrierTasks",
+                "barrier_reuse_window" : 0
+            },
+            "AddBarrierRefs",
+            "UpdateBarrierProducerConsumerCounts",
+            {
+                "name" : "TransitiveReduction",
+                "filter" : "Fakefilter"
+            },
+            "PopulateWeightsTables",
             {
                 "name": "GenerateDot",
                 "output": "final_model.dot",
                 "scope": "OpControlModel",
                 "content": "full",
-                "html": true
+                "html": true,
+                "convert": false,
+                "verbose" : false
             }
         ]
     },
@@ -299,8 +255,8 @@
         "Singular": [
             {
                 "name": "GenerateBlobKeembay",
-                "output": "blob.bin",
-                "barrier_index_assignment": "Static"
+                "output": "output/vpu2.blob",
+                "convert": true
             }
         ]
     },

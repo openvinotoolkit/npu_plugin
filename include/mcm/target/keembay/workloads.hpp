@@ -13,6 +13,7 @@
 #include <metis.h>
 #include <climits>
 #include <math.h>
+#include <cmath>
 
 namespace mv
 {
@@ -148,9 +149,16 @@ namespace mv
                     /*Second row where node number is odd i.e. 1,3,5... */
                     if ((nodeIndex%2 != 0) && (nodeIndex <= ((m_xDim*2)-1))) {
                         
-                        min_x = min_x;
-                        min_y = min_y + n_elem_y;
-
+                        /*For 7x7 tensor mode 4x4*/
+                        if(m_yDim <= 2) {
+                            min_x = min_x;
+                            min_y = min_y + n_elem_y + 1;
+                        }
+                        else {
+                            min_x = min_x;
+                            min_y = min_y + n_elem_y;
+                        }
+                        
                         assert(nodeIndex < m_numberTensorVertices);
                         node_coords[nodeIndex] = mv::Rectangle(min_x, min_y, n_elem_x, n_elem_y);
 
@@ -270,7 +278,6 @@ namespace mv
       
         void generateMetisGraph(void);
         std::shared_ptr<mv::MetisGraphStructure> getMetisGraph();
-        int partitionTensorWithMETIS(idx_t nWorkloads, const mv::pass::PassEntry& pass);
 
         /*returns: METIS_OK(=1), or METIS_ERROR*/
         int partitionTensorWithRectangleHeuristic(const mv::DPUModeList& modes,
@@ -297,8 +304,10 @@ namespace mv
                                                         std::pair<std::pair<int16_t, int16_t>,bool>& interesting_point, 
                                                         std::pair <idx_t,idx_t>& mpeMode);
         std::size_t nWorkloads() const;
+        std::set<int> getNWorkloads(mv::Data::TensorIterator tensor);
         void addWorkload(mv::Workload workload);
         const std::vector<mv::Workload>& getWorkloads() const;
+        std::vector<int> getWorkloadSplitPool(mv::Data::TensorIterator tensor, int nDPUxCluster, int maxSplits = 50);
 
         void generateExecutionCycles(std::vector<mv::Data::TensorIterator>& outputTensor, int nDPUxCluster, CostFunctions costFunction);
         std::vector<float> getExecutionCycles() const;
@@ -321,6 +330,7 @@ namespace mv
         const Workload& operator[](int nworkload) const;
         std::string getLogID() const override;
         std::string toString() const;
+        std::string toLongString() const;
     };
 }
 

@@ -149,15 +149,16 @@ void  mv::KoalaGraphScheduler::convertMcMGraphToKoalaGraph(const mv::pass::PassE
                                              Koala::Directed));
         }
     }
+    //std::cout << std::to_string(this->getGraph().getVertNo()) << std::to_string(this->getGraph().getEdgeNo()) << std::endl;
     pass.log(mv::Logger::MessageType::Debug, "KOALA graph has " + std::to_string(this->getGraph().getVertNo()) + " vertices and " + std::to_string(this->getGraph().getEdgeNo()) + " edges");
 }
 
-int mv::KoalaGraphScheduler::calculateFMax(mv::ComputationModel& model) {
+uint64_t mv::KoalaGraphScheduler::calculateFMax(mv::ComputationModel& model) {
 
     mv::ControlModel cm(model);
 
     /*Compute Fmax - (defined as sum of memory requirments + 1)*/
-    int Fmax = 0;
+    uint64_t Fmax = 0;
     for (auto flowIt = cm.flowBegin(); flowIt != cm.flowEnd(); ++flowIt) {
         if(flowIt->hasAttr("MemoryRequirement")) {
             Fmax += flowIt->get<int>("MemoryRequirement");
@@ -169,6 +170,7 @@ int mv::KoalaGraphScheduler::calculateFMax(mv::ComputationModel& model) {
 
 void mv::KoalaGraphScheduler::insertpartialSerialisationEdgesInMcmGraph(mv::ComputationModel& model) {
 
+    std::set<std::pair<std::string, std::string>> addedEdges;
     for (const auto& edge : partialSerialisationEdgesAdded_) {
         
         std::string edgeSourceName = edge->getEnd1()->info.name;
@@ -192,10 +194,13 @@ void mv::KoalaGraphScheduler::insertpartialSerialisationEdgesInMcmGraph(mv::Comp
             if(opItSink->getName() == edgeSinkName) 
                 mcmSinkNodeIterator = opItSink;
         }
-        
-        /*Add the edge to graph*/
-        auto partialSerialisationEdge = cm.defineFlow(mcmSourceNodeIterator, mcmSinkNodeIterator);
-        partialSerialisationEdge->set<bool>("PartialSerialisationEdge", true);
+        auto inserted = addedEdges.insert(std::make_pair(edgeSourceName, edgeSinkName));
+        if (inserted.second)
+        {
+            /*Add the edge to graph*/
+            auto partialSerialisationEdge = cm.defineFlow(mcmSourceNodeIterator, mcmSinkNodeIterator);
+            partialSerialisationEdge->set<bool>("PartialSerialisationEdge", true);
+        }
     }
 }
 
@@ -326,7 +331,7 @@ std::pair<int,std::vector<mv::koalaGraph::PEdge>> mv::KoalaGraphScheduler::calcu
     mv::ControlModel cm(model);
 
     /* Calculate Fmax - Defined as sum of memory requirments + 1)*/
-    int Fmax = this->calculateFMax(model); 
+    auto Fmax = this->calculateFMax(model); 
     
     /*Perform the max topological cut algorithm here*/
 
@@ -407,7 +412,7 @@ std::pair<int,std::vector<mv::koalaGraph::PEdge>> mv::KoalaGraphScheduler::calcu
 
     /* Perform Min cut on the graph, see this example: http://koala.os.niwa.gda.pl/api/examples/flow/example_Flow.html*/
     /* Set edge capacities (flow attribute of the edge ) and costs (=1)*/
-	Koala::AssocArray< koalaGraph::PEdge, Koala::Flow::EdgeLabs<int,int>> cap;
+	Koala::AssocArray< koalaGraph::PEdge, Koala::Flow::EdgeLabs<uint64_t,int>> cap;
 
     for (int i = 0; i < numberofEdges; i++) {
         cap[this->edges_[i]].capac = this->edges_[i]->info.flow; 
@@ -416,7 +421,7 @@ std::pair<int,std::vector<mv::koalaGraph::PEdge>> mv::KoalaGraphScheduler::calcu
 
     /*store the cut edges*/
     std::vector<koalaGraph::PEdge> cutEdges;
-    int maxTopologicalCutValue = 0;
+    uint64_t maxTopologicalCutValue = 0;
 
     /*compute minimal cut*/
     Koala::Flow::minEdgeCut(this->getGraph(), cap, (*lookUpKoalaSourceNode(true, this->vertices_)), (*lookUpKoalaSinkNode(true, this->vertices_)), Koala::Flow::outCut(blackHole, std::back_inserter(cutEdges)));
@@ -426,7 +431,7 @@ std::pair<int,std::vector<mv::koalaGraph::PEdge>> mv::KoalaGraphScheduler::calcu
 
     /*Add Max topological cut value as attribute to output node*/
     auto output = cm.getOutput();
-    output->set<int>("MaxTopologicalCutValue", maxTopologicalCutValue); 
+    output->set<uint64_t>("MaxTopologicalCutValue", maxTopologicalCutValue); 
 
     pass.log(mv::Logger::MessageType::Debug, "The maximum peak memory of the graph is " + std::to_string(maxTopologicalCutValue) + " bytes");
 
