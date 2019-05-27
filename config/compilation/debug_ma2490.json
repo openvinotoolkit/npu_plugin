@@ -11,7 +11,7 @@
                 "Number_of_Clusters" : 1,
                 "UpaShaves": 1,
                 "DDRScratch": 4096,
-                "MemoryHack": true,
+                "MemoryHack": false,
                 "CMX_memory_overflow_safety_factor" : 0.925,
                 "nWorkloads" : 5,
                 "MPE_mode" : "Matrix",

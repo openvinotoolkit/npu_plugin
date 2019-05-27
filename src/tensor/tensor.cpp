@@ -279,10 +279,7 @@ void mv::Tensor::populate(const std::vector<int64_t>& data, Order order)
 
 int mv::Tensor::computeMemoryRequirement() const
 {
-    /*memory requirment aligned to 16*/
-    int memoryRequirment = shape_.totalSize() * get<DType>("dType").getSizeInBits() / 8;
-
-    return (((memoryRequirment + 16 - 1) /16) * 16);
+    return (shape_.totalSize() * get<DType>("dType").getSizeInBits() / 8);
 }
 
 void mv::Tensor::unpopulate()
