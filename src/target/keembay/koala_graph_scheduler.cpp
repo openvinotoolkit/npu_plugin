@@ -136,15 +136,15 @@ void  mv::KoalaGraphScheduler::convertMcMGraphToKoalaGraph(const mv::pass::PassE
 
             /*If the control flow has a memoryRequirment attribute add it to the KOALA edge*/
             if(flowIt->hasAttr("MemoryRequirement"))
-                this->edges_.push_back(this->getGraph().addEdge(*std::find_if(vertices_.begin(), vertices_.end(), [&sourceName, this](koalaGraph::PVertex const& vertices_) {return sourceName == vertices_->info.name;}), 
-                                             *std::find_if(vertices_.begin(), vertices_.end(), [&sinkName, this](koalaGraph::PVertex const& vertices) {return sinkName == vertices->info.name;}), 
+                this->edges_.push_back(this->getGraph().addEdge(*std::find_if(vertices_.begin(), vertices_.end(), [&sourceName](koalaGraph::PVertex const& vertex) {return sourceName == vertex->info.name;}), 
+                                             *std::find_if(vertices_.begin(), vertices_.end(), [&sinkName](koalaGraph::PVertex const& vertice) {return sinkName == vertice->info.name;}), 
                                              edgeDescription(flowIt->get<int>("MemoryRequirement"),flowIt->getName()), 
                                              Koala::Directed));
                                              
             /*Otherwsise the memory requirment is 0*/
             else
-                this->edges_.push_back(this->getGraph().addEdge(*std::find_if(vertices_.begin(), vertices_.end(), [&sourceName, this](koalaGraph::PVertex const& vertices_) {return sourceName == vertices_->info.name;}), 
-                                             *std::find_if(vertices_.begin(), vertices_.end(), [&sinkName, this](koalaGraph::PVertex const& vertices) {return sinkName == vertices->info.name;}), 
+                this->edges_.push_back(this->getGraph().addEdge(*std::find_if(vertices_.begin(), vertices_.end(), [&sourceName](koalaGraph::PVertex const& vertex) {return sourceName == vertex->info.name;}), 
+                                             *std::find_if(vertices_.begin(), vertices_.end(), [&sinkName](koalaGraph::PVertex const& vertex) {return sinkName == vertex->info.name;}), 
                                              edgeDescription(0,flowIt->getName()), 
                                              Koala::Directed));
         }
@@ -287,8 +287,8 @@ void mv::KoalaGraphScheduler::performPartialSerialisation(const mv::pass::PassEn
 
         pass.log(mv::Logger::MessageType::Debug, "Adding partial serialisation edge to KOALA graph from: " + sourceName + " --> " + sinkName );
 
-        auto newEdge = this->getGraph().addEdge(*std::find_if(vertices_.begin(), vertices_.end(), [&sourceName](koalaGraph::PVertex const& v) {return sourceName == v->info.name;}), 
-                                             *std::find_if(vertices_.begin(), vertices_.end(), [&sinkName](koalaGraph::PVertex const& v) {return sinkName == v->info.name;}), 
+        auto newEdge = this->getGraph().addEdge(*std::find_if(vertices_.begin(), vertices_.end(), [&sourceName](koalaGraph::PVertex const& vertex) {return sourceName == vertex->info.name;}), 
+                                             *std::find_if(vertices_.begin(), vertices_.end(), [&sinkName](koalaGraph::PVertex const& vertex) {return sinkName == vertex->info.name;}), 
                                              edgeDescription(0,"PS_edge_"+sinkName+sourceName), 
                                              Koala::Directed);
         /*get number of vertices*/
