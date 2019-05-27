@@ -1,45 +1,41 @@
+//This file is the parsed network which is created through python.
 #include "include/mcm/compiler/compilation_unit.hpp"
 #include "include/mcm/utils/data_generator.hpp"
 #include "include/mcm/utils/serializer/Fp16Convert.h"
 #include "meta/include/mcm/op_model.hpp"
 #include "include/mcm/utils/hardware_tests.hpp"
 
-#include <iostream>
-#include <fstream>
+#include "iostream"
+#include "fstream"
 
 int main()
 {
-    mv::CompilationUnit unit("testModel");
-    mv::CompositionalModel& test_cm = unit.model();
+    std::string path = std::getenv("MDK_HOME");
+    double inf = std::numeric_limits<double>::infinity();
 
-    auto input1 = test_cm.input({225, 225, 3}, mv::DType("Float16"), mv::Order("CHW"));
-    auto pool1 = test_cm.maxPool(input1, {3, 3}, {2, 2}, {1, 1, 1, 1});
-    auto output = test_cm.output(pool1);
+    mv::CompilationUnit unit("parserModel");
+    mv::OpModel& om = unit.model();
+    auto input0 = om.input({14,14,1024,1}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{128},{0.007843137718737125},{-1.0},{1.0}}, "input#1");
 
-    std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/debug_ma2480.json";
+    auto pool0 = om.maxPool(input0, {3, 3}, {2, 2}, {0, 1, 0, 1}, true, "", "floor", {{128},{0.007843137718737125},{-1.003921627998352},{0.9960784316062927}}, "res_pool4#2");
+
+    om.output(pool0);
+
+    std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/debug_ma2490.json";
     unit.loadCompilationDescriptor(compDescPath);
-    mv::CompilationDescriptor &compDesc = unit.compilationDescriptor();
 
-    std::string outputName = "wddm_pool1";
-    mv::Attribute blobNameAttr(outputName + ".blob");
-    compDesc.setPassArg("GenerateBlob", "fileName", blobNameAttr);
-    compDesc.setPassArg("GenerateBlob", "enableFileOutput", true);
-    compDesc.setPassArg("GenerateBlob", "enableRAMOutput", false);
-
-    compDesc.setPassArg("GenerateDot", "output", std::string(outputName + ".dot"));
-    compDesc.setPassArg("GenerateDot", "scope", std::string("OpControlModel"));
-    compDesc.setPassArg("GenerateDot", "content", std::string("full"));
-    compDesc.setPassArg("GenerateDot", "html", true);
-
-    compDesc.setPassArg("MarkHardwareOperations", "disableHardware", true);
-
-    // compDesc.setPassArg("GenerateCaffe", "outputPrototxt", std::string(outputName + ".prototxt"));
-    // compDesc.setPassArg("GenerateCaffe", "outputCaffeModel", std::string(outputName + ".caffemodel"));
-
-
-    unit.loadTargetDescriptor(mv::Target::ma2480);
+    unit.loadTargetDescriptor(mv::Target::ma2490);
     unit.initialize();
+    unit.run();
 
-    auto returnValue = mv::HWTest(unit, outputName, true);
-    printReport(returnValue, std::cout);
+    system("dot -Tpng original_model.dot -o original_model.png");
+    system("dot -Tpng adapt_model.dot -o adapt_model.png");
+    system("dot -Tpng keembay_adapt_model.dot -o keembay_adapt_model.png");
+    system("dot -Tpng dma_model.dot -o dma_model.png");
+    system("dot -Tpng final_model.dot -o final_model.png");
+    system("dot -Tpng TransitiveReduction.dot -o TransitiveReduction.png");
+    system("dot -Tpng deallocation_model_data.dot -o deallocation_model_data.png");
+    system("dot -Tpng DmaControlFlows_model.dot -o DmaControlFlows_model.png");
+    system("dot -Tpng InputOutputControlFlows_model.dot -o InputOutputControlFlows_model.png");
+    system("flatc -t ../../schema/graphfile/src/schema/graphfile.fbs -- blob.bin");
 }
