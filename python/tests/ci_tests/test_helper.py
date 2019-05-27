@@ -23,7 +23,7 @@ POC_ROOT = MDK_ROOT+'/projects/Fathom/'
 
 # which runtime do you want to use? (PoC/Production)
 #APP_ROOT = MDK_ROOT + "/testApps/keembay/tapeout_so/tc_keembay_ma2490/ts_nce_bm_blob/"  # PoC Runtime
-APP_ROOT = MDK_ROOT + "/testApps/components/NeuralNet/008_demo_ncelib_LNN/mytest/" # Prod Runtime
+APP_ROOT = MDK_ROOT + "/testApps/components/NeuralNet/008_demo_ncelib_LNN/conv_3l_16wi/" # Prod Runtime
 
 PWD = os.path.dirname(os.path.realpath(__file__)) + "/"
 CWD = os.getcwd() + "/"
