@@ -405,9 +405,6 @@ std::pair<int,std::vector<mv::koalaGraph::PEdge>> mv::KoalaGraphScheduler::calcu
         shortestPathEdges.clear();
     }
 
-    for (int i = 0; i < numberofEdges; i++) 
-        pass.log(mv::Logger::MessageType::Debug, "Flow is " + std::to_string(this->edges_[i]->info.flow));
-
     /*Subtract Memory attribute of edge from the Flow attribute of the edge*/
     for (int i = 0; i < numberofEdges; i++)
 		this->edges_[i]->info.flow = this->edges_[i]->info.flow - this->edges_[i]->info.memoryRequirement;
