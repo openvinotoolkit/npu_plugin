@@ -2,6 +2,7 @@
 #include "meta/include/mcm/op_model.hpp"
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
+#include "include/mcm/utils/custom_math.hpp"
 
 static void inputOutputControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 static void dmaControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
@@ -55,7 +56,7 @@ void inputOutputControlFlowsFcn(const mv::pass::PassEntry& pass, mv::Computation
         auto flowIt = cm.defineFlow(lastOpBeforeLastDma, lastDMAOp);
         auto outputTensor = flowIt.source()->getOutputTensor(0);
 
-        flowIt->set<int>("MemoryRequirement", outputTensor->computeMemoryRequirement());
+        flowIt->set<int>("MemoryRequirement", mv::round_up(outputTensor->computeMemoryRequirement(),16));
         flowIt->set<bool>("PositiveMemory", true); 
 
     }

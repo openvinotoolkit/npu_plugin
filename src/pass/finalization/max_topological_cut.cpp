@@ -25,33 +25,41 @@ namespace mv
 
 void maxTopologicalCutAndPartialSerialisationPass(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element&, mv::json::Object&)
 {
+    
     int networkMemoryRequirement;
-    int percentageMemory; 
+    double percentageMemory; 
     mv::KoalaGraphScheduler flowGraph;
-    
-    /*Convert to MCM graph to KOALA graph*/
-    flowGraph.convertMcMGraphToKoalaGraph(pass, model);
+    bool memoryHack = false;
 
-    /*Calculate max topological cut and get the cut edges*/
-    auto maxTopologicalCut = flowGraph.calculateMaxTopologicalCut(pass, model);
-   
     auto returnedParams = model.getGlobalConfigParams();
-    auto cmxMemory = returnedParams->get<unsigned>("cmx");
+    memoryHack = returnedParams->get<bool>("MemoryHack");
 
-    networkMemoryRequirement = maxTopologicalCut.first / 1024;
-    percentageMemory = (maxTopologicalCut.first / cmxMemory) * 100;
+    if(!memoryHack) {
+        
+        /*Convert to MCM graph to KOALA graph*/
+        flowGraph.convertMcMGraphToKoalaGraph(pass, model);
 
-    pass.log(mv::Logger::MessageType::Info, "The network requires " + std::to_string(networkMemoryRequirement) + " kB of available CMX memory " + std::to_string(percentageMemory) + "%");
-    
-    /*Repeat partial serialisation until max topological cut is less than CMX memory*/
-    while (maxTopologicalCut.first > cmxMemory)
-    {
-        flowGraph.performPartialSerialisation(pass, maxTopologicalCut.second);
-        maxTopologicalCut = flowGraph.calculateMaxTopologicalCut(pass, model);
+        /*Calculate max topological cut and get the cut edges*/
+        auto maxTopologicalCut = flowGraph.calculateMaxTopologicalCut(pass, model);
+   
+        double cmxMemory = returnedParams->get<unsigned>("cmx");
+
         networkMemoryRequirement = maxTopologicalCut.first / 1024;
-        percentageMemory = (maxTopologicalCut.first / cmxMemory) * 100;
+        percentageMemory = (maxTopologicalCut.first / cmxMemory) * 100.00;
+
         pass.log(mv::Logger::MessageType::Info, "The network requires " + std::to_string(networkMemoryRequirement) + " kB of available CMX memory " + std::to_string(percentageMemory) + "%");
+    
+        /*Repeat partial serialisation until max topological cut is less than CMX memory*/
+        while (maxTopologicalCut.first > cmxMemory)
+        {
+            flowGraph.performPartialSerialisation(pass, maxTopologicalCut.second);
+            maxTopologicalCut = flowGraph.calculateMaxTopologicalCut(pass, model);
+            networkMemoryRequirement = maxTopologicalCut.first / 1024;
+            percentageMemory = (maxTopologicalCut.first / cmxMemory) * 100;
+            pass.log(mv::Logger::MessageType::Info, "The network requires " + std::to_string(networkMemoryRequirement) + " kB of available CMX memory " + std::to_string(percentageMemory) + "%");
+        }
+    
+        /*Add the partial serialisaion edges to the mcmGraph*/
+        flowGraph.insertpartialSerialisationEdgesInMcmGraph(model);
     }
-    /*Add the partial serialisaion edges to the mcmGraph*/
-    flowGraph.insertpartialSerialisationEdgesInMcmGraph(model);
 }
