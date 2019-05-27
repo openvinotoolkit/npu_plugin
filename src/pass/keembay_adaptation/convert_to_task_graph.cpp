@@ -9,7 +9,6 @@ static const std::array<unsigned short, 2> FAKE_KERNEL = {1,1};
 static const std::array<unsigned short, 2> FAKE_STRIDE = {1,1};
 
 static void convertOpsToTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
-void adaptOutputDataFlow(mv::OpModel& om, mv::Data::OpListIterator& opIt, mv::Data::TensorIterator& dpuTask);
 
 namespace mv
 {
@@ -24,10 +23,31 @@ namespace mv
     }
 }
 
-void storeSplitStrategy(mv::OpModel& om, mv::Data::OpListIterator& opIt, mv::Data::OpListIterator& dxxOp)
+std::vector<std::pair<mv::Data::OpListIterator,size_t>> getOutputDataFlow(mv::OpModel& om, mv::Data::OpListIterator &opIt)
 {
-    if (opIt->hasAttr("splitStrategy"))
-        om.addAttr(dxxOp, "splitStrategy", opIt->get<std::string>("splitStrategy"));
+    std::vector<std::pair<mv::Data::OpListIterator,size_t>> toReturn;
+
+    for(auto output = opIt.leftmostOutput(); output != om.flowEnd(); ++output)
+    {
+        auto consumer = output.sink();
+        auto slot = output->get<size_t>("sinkInput");
+        toReturn.push_back(std::make_pair(consumer, slot));
+    }
+
+    auto backup = opIt;
+    ++opIt;
+    om.removeOp(backup);
+
+    return toReturn;
+}
+
+void setOutputDataFlow(mv::OpModel& om, mv::Data::TensorIterator &dpuTaskOutputTensor, const std::vector<std::pair<mv::Data::OpListIterator,size_t>>& outDataFlows)
+{
+    for(auto& flowPair: outDataFlows)
+    {
+        flowPair.first->setInputTensor(dpuTaskOutputTensor, flowPair.second, false);
+        om.defineFlow(dpuTaskOutputTensor, flowPair.first, flowPair.second);
+    }
 }
 
 void storeWorkloadMpeStrategy(mv::OpModel& om, mv::Data::OpListIterator& opIt, mv::Data::OpListIterator& dxxOp)
@@ -78,26 +98,45 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             auto name = opIt->getName();
             auto quantParams = opIt->get<mv::QuantizationParams>("quantParams");
 
-            unsigned group=1;
+            std::string biasName, splitStrategy, workloadStrategyMPEMode;
+            int workloadStrategyNWorkloads = -1;
+
+            unsigned group = 1;
             if (opType == "Conv")
                 group = opIt->get<unsigned>("group");
 
+            if (opIt->hasAttr("bias"))
+                biasName = opIt->get<std::string>("bias");
+
+            if(opIt->hasAttr("splitStrategy"))
+                splitStrategy = opIt->get<std::string>("splitStrategy");
+
+            if (opIt->hasAttr("WorkloadStrategy_nWorkloads"))
+                workloadStrategyMPEMode = opIt->get<std::string>("WorkloadStrategy_MPE_mode");
+
+            if (opIt->hasAttr("WorkloadStrategy_nWorkloads"))
+                workloadStrategyNWorkloads = opIt->get<int>("WorkloadStrategy_nWorkloads");
+
+            auto outputDataFlows = getOutputDataFlow(om, opIt);
+
             mv::Data::TensorIterator dpuConv;
             if(opType == "Conv")
-                dpuConv = om.dPUTaskConv({input, kernel}, strides, padding, dilationFactor, group, quantParams, "DPU_" + name);
+                dpuConv = om.dPUTaskConv({input, kernel}, strides, padding, dilationFactor, group, quantParams, name);
             else
-                dpuConv = om.dPUTaskDepthwiseConv({input, kernel}, strides, padding, dilationFactor, quantParams, "DPU_" + name);
+                dpuConv = om.dPUTaskDepthwiseConv({input, kernel}, strides, padding, dilationFactor, quantParams, name);
 
             auto dpuConvOp = om.getSourceOp(dpuConv);
             dpuConvOp->set<unsigned>("opId", opId);
             dpuConvOp->set<bool>("hasWeights", true);
 
-            if (opIt->hasAttr("bias"))
-            {
-                auto biasTensor = dm.getTensor(opIt->get<std::string>("bias"));
-                auto name_b = biasTensor->getName();
-                om.addAttr(dpuConvOp, "bias", name_b);
-            }
+            if(!biasName.empty())
+               dpuConvOp->set<std::string>("bias", biasName);
+            if(!splitStrategy.empty())
+               dpuConvOp->set<std::string>("splitStrategy", splitStrategy);
+            if(!workloadStrategyMPEMode.empty())
+                dpuConvOp->set<std::string>("WorkloadStrategy_MPE_mode", workloadStrategyMPEMode);
+            if(workloadStrategyNWorkloads != -1)
+                dpuConvOp->set<int>("WorkloadStrategy_nWorkloads", workloadStrategyNWorkloads);
 
             if(opType == "Conv")
             {
@@ -108,10 +147,7 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
                 }
             }
 
-            storeSplitStrategy(om, opIt, dpuConvOp);
-            storeWorkloadMpeStrategy(om, opIt, dpuConvOp);
-            storeWorkloadNumStrategy(om, opIt, dpuConvOp);
-            adaptOutputDataFlow(om, opIt, dpuConv);
+            setOutputDataFlow(om, dpuConv, outputDataFlows);
         }
         else if (opType == "MaxPool")
         {
@@ -127,15 +163,23 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             auto name = opIt->getName();
             auto quantParams = opIt->get<mv::QuantizationParams>("quantParams");
 
+            std::string splitStrategy;
+
+            if(opIt->hasAttr("splitStrategy"))
+                splitStrategy = opIt->get<std::string>("splitStrategy");
+
+            auto outputDataFlows = getOutputDataFlow(om, opIt);
+
             auto dpuPool = om.dPUTaskMaxPool({input}, kernelSize, strides, padding,
-                               exclude_pad, auto_pad, rounding_type, quantParams, "DPU_" + name);
+                               exclude_pad, auto_pad, rounding_type, quantParams, name);
             auto dpuPoolOp = om.getSourceOp(dpuPool);
             dpuPoolOp->set<unsigned>("opId", opId);
             dpuPoolOp->set<bool>("hasWeights", false);
 
-            storeSplitStrategy(om, opIt, dpuPoolOp);
+            if(!splitStrategy.empty())
+               dpuPoolOp->set<std::string>("splitStrategy", splitStrategy);
 
-            adaptOutputDataFlow(om, opIt, dpuPool);
+            setOutputDataFlow(om, dpuPool, outputDataFlows);
         }
         else if (opType == "Add" || opType == "Subtract" || opType == "Multiply")
         {
@@ -150,8 +194,15 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
 
             auto opId = opIt->get<unsigned>("opId");
 
+            std::string splitStrategy;
+
+            if(opIt->hasAttr("splitStrategy"))
+                splitStrategy = opIt->get<std::string>("splitStrategy");
+
+            auto outputDataFlows = getOutputDataFlow(om, opIt);
+
             auto dpuElementWiseFunctor = (dpuTaskMap.at(opType));
-            auto dpuElementWise = dpuElementWiseFunctor(inputs, quantParams, "DPU_"+name);
+            auto dpuElementWise = dpuElementWiseFunctor(inputs, quantParams, name);
             auto dpuElementWiseOp = om.getSourceOp(dpuElementWise);
             dpuElementWiseOp->set<unsigned>("opId", opId);
             dpuElementWiseOp->set<bool>("hasWeights", false);
@@ -164,26 +215,14 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             auto ppeTask = mv::PPETask(ppeFixedFunction);
             dpuElementWiseOp->set<mv::PPETask>("PPETask", ppeTask);
 
-            storeSplitStrategy(om, opIt, dpuElementWiseOp);
+            if(!splitStrategy.empty())
+               dpuElementWiseOp->set<std::string>("splitStrategy", splitStrategy);
 
-            adaptOutputDataFlow(om, opIt, dpuElementWise);
+            setOutputDataFlow(om, dpuElementWise, outputDataFlows);
         }
         else
             ++opIt;
     }
 }
 
-void adaptOutputDataFlow(mv::OpModel& om, mv::Data::OpListIterator &opIt, mv::Data::TensorIterator &dpuTask)
-{
-    for(auto output = opIt.leftmostOutput(); output != om.flowEnd(); ++output)
-    {
-        auto consumer = output.sink();
-        auto slot = output->get<size_t>("sinkInput");
-        consumer->setInputTensor(dpuTask, slot, false);
-        om.defineFlow(dpuTask, consumer, slot);
-    }
 
-    auto backup = opIt;
-    ++opIt;
-    om.removeOp(backup);
-}
