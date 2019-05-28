@@ -62,7 +62,8 @@ int main()
 
     if (NUM_SPLITS > 1)
     {
-        auto concat = om.concat(biasesOp, "C", {{128},{0.007843137718737125},{-1.003921627998352},{0.9960784316062927}});
+        //TODO need to quantize this layer but since it's not a DPU task for now I am passing the shift/mult
+        auto concat = om.concat(biasesOp, "C", {{128},{0.007843137718737125},{-1.003921627998352},{0.9960784316062927}, {23}, {21739}});
         auto output = om.output(concat);
     }
     else
@@ -86,5 +87,5 @@ int main()
     system("dot -Tpng deallocation_model_data.dot -o deallocation_model_data.png");
     system("dot -Tpng DmaControlFlows_model.dot -o DmaControlFlows_model.png");
     system("dot -Tpng InputOutputControlFlows_model.dot -o InputOutputControlFlows_model.png");
-    system("flatc -t ../../schema/graphfile/src/schema/graphfile.fbs -- blob.bin");
+    //system("flatc -t ../../schema/graphfile/src/schema/graphfile.fbs -- output/vpu2.blob");
 }
