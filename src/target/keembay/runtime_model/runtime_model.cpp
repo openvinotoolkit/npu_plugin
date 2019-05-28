@@ -595,22 +595,32 @@ bool mv::RuntimeModel::hardwareBugDepthwise(Control::OpListIterator opIt)
 
 void mv::RuntimeModel::getWorkloadPadding(Control::OpListIterator opIt, Workload &workload)
 {
-    auto padding = opIt->get<std::array<unsigned short, 4>>("padding");
-    auto outputWidth = opIt->getOutputTensor(0)->getShape()[mv::IO_WIDTH_DIMENSION];
-    auto outputHeight = opIt->getOutputTensor(0)->getShape()[mv::IO_HEIGHT_DIMENSION];
-    if (hardwareBugDepthwise(opIt))
+    if (opIt->get<std::string>("taskOp") == "Add" || opIt->get<std::string>("taskOp") == "Subtract" || opIt->get<std::string>("taskOp") == "Multiply")
     {
-        workload.padLeft = (workload.MinX == 0) ? padding[0] : 0;
-        workload.padTop = (workload.MinY == 0) ? padding[2] : 0;
-        workload.padRight = ((workload.MaxX + 1) == outputWidth) ? padding[1] : 0;
-        workload.padBottom = ((workload.MaxY + 1) == outputHeight) ? padding[3] : 0;
+        workload.padLeft = 0;
+        workload.padTop = 0;
+        workload.padRight = 0;
+        workload.padBottom = 0;
     }
     else
     {
-        workload.padLeft = padding[0];
-        workload.padTop = padding[2];
-        workload.padRight = padding[1];
-        workload.padBottom = padding[3];
+        auto padding = opIt->get<std::array<unsigned short, 4>>("padding");
+        auto outputWidth = opIt->getOutputTensor(0)->getShape()[mv::IO_WIDTH_DIMENSION];
+        auto outputHeight = opIt->getOutputTensor(0)->getShape()[mv::IO_HEIGHT_DIMENSION];
+        if (hardwareBugDepthwise(opIt))
+        {
+            workload.padLeft = (workload.MinX == 0) ? padding[0] : 0;
+            workload.padTop = (workload.MinY == 0) ? padding[2] : 0;
+            workload.padRight = ((workload.MaxX + 1) == outputWidth) ? padding[1] : 0;
+            workload.padBottom = ((workload.MaxY + 1) == outputHeight) ? padding[3] : 0;
+        }
+        else
+        {
+            workload.padLeft = padding[0];
+            workload.padTop = padding[2];
+            workload.padRight = padding[1];
+            workload.padBottom = padding[3];
+        }
     }
     return;
 }

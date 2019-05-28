@@ -83,7 +83,9 @@ void populateWeightsTablesSparsityPointers(mv::Tensor& weightsTableData, mv::Dat
                   weightsTableData(i+1) = offset;
         }
     }
-    else if(dpuTaskOp->get<std::string>("taskOp") == "ChannelMajorConvolution" || dpuTaskOp->get<std::string>("taskOp") == "DepthwiseConv"  || dpuTaskOp->get<std::string>("taskOp") == "MaxPool")
+    else if(dpuTaskOp->get<std::string>("taskOp") == "ChannelMajorConvolution" ||
+            dpuTaskOp->get<std::string>("taskOp") == "DepthwiseConv"  ||
+            dpuTaskOp->get<std::string>("taskOp") == "MaxPool")
     {
         // We have fake sparsity here! Yuppi!
         auto activationWindow = dpuTaskOp->getInputTensor(dpuTaskOp->inputSlots() - 2);

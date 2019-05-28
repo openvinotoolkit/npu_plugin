@@ -1,33 +1,29 @@
+//This file is the parsed network which is created through python.
 #include "include/mcm/compiler/compilation_unit.hpp"
 #include "include/mcm/utils/data_generator.hpp"
 #include "include/mcm/utils/serializer/Fp16Convert.h"
 #include "meta/include/mcm/op_model.hpp"
 #include "include/mcm/utils/hardware_tests.hpp"
 
-#include <iostream>
-#include <fstream>
-
-// This example demonstrates the DPUConvolution pass:
-// which replaces all convolution operations with DPU tasks,
-// and adds appropriate DMA tasks (for DDR-to-CMX and back),
-// and de-allocation tasks for the temporary CMX buffers.
+#include "iostream"
+#include "fstream"
 
 int main()
 {
-    mv::CompilationUnit unit("testModel");
+    std::string path = std::getenv("MDK_HOME");
+    double inf = std::numeric_limits<double>::infinity();
+
+    mv::CompilationUnit unit("parserModel");
     mv::OpModel& om = unit.model();
+    auto input0 = om.input({20,20,20,1}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{128},{0.007843137718737125},{-1.0},{1.0}}, "input#3");
 
-    auto input = om.input({224, 224, 3}, mv::DType("Float16"), mv::Order("CHW"));
-    std::vector<double> weightsData = mv::utils::generateSequence<double>(3*3*3*16);
-    auto weights1 = om.constant(weightsData, {3, 3, 3, 16}, mv::DType("Float16"), mv::Order("NCWH"));
-    auto conv1 = om.conv(input, weights1, {1, 1}, {1, 1, 1, 1});
+    auto pool0 = om.maxPool(input0, {1, 1}, {1, 1}, {0, 0, 0, 0}, true, "", "floor", {{128},{0.007843137718737125},{-1.003921627998352},{0.9960784316062927}}, "pool/max_pool#4");
 
-    std::vector<double> weights2Data = mv::utils::generateSequence<double>(3*3*3*16);
-    auto weights2 = om.constant(weights2Data, {3, 3, 3, 16}, mv::DType("Float16"), mv::Order("NCWH"));
-    auto conv2 = om.conv(input, weights2, {1, 1}, {1, 1, 1, 1});
+    auto pool1 = om.maxPool(input0, {1, 1}, {1, 1}, {0, 0, 0, 0}, true, "", "floor", {{128},{0.007843137718737125},{-1.003921627998352},{0.9960784316062927}}, "pool_1/max_pool#5");
 
-    auto add1 = om.add(conv1, conv2);
-    om.output(add1);
+    auto eltwise0 = om.add(pool0,pool1, {{128},{0.007843137718737125},{-1.003921627998352},{0.9960784316062927}}, "eltwise_1#6");
+
+    om.output(eltwise0);
 
     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/debug_ma2490.json";
     unit.loadCompilationDescriptor(compDescPath);
@@ -40,12 +36,10 @@ int main()
     system("dot -Tpng adapt_model.dot -o adapt_model.png");
     system("dot -Tpng keembay_adapt_model.dot -o keembay_adapt_model.png");
     system("dot -Tpng dma_model.dot -o dma_model.png");
+    system("dot -Tpng final_model.dot -o final_model.png");
     system("dot -Tpng TransitiveReduction.dot -o TransitiveReduction.png");
     system("dot -Tpng deallocation_model_data.dot -o deallocation_model_data.png");
-    system("dot -Tpng deallocation_model_control.dot -o deallocation_model_control.png");
-    system("dot -Tpng DeallocationControlFlows_model.dot -o DeallocationControlFlows_model.png");
     system("dot -Tpng DmaControlFlows_model.dot -o DmaControlFlows_model.png");
     system("dot -Tpng InputOutputControlFlows_model.dot -o InputOutputControlFlows_model.png");
-    system("dot -Tpng final_model.dot -o final_model.png");
     system("flatc -t ../../schema/graphfile/src/schema/graphfile.fbs -- blob.bin");
 }
