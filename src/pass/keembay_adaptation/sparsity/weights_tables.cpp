@@ -198,7 +198,7 @@ static void generateWeightsTablesFcn(const mv::pass::PassEntry& , mv::Computatio
             {
                 std::string opName = dpuTaskOp->getName();
 
-                std::string kernelWeightsTableName(mv::demangleName(opName) + "_weights_table");
+                std::string kernelWeightsTableName(mv::demanglePOCName(opName) + "_weights_table");
                 auto output = dpuTaskOp->getOutputTensor(0);
                 auto outputChannels = output->getShape()[mv::IO_CHANNEL_DIMENSION];
 

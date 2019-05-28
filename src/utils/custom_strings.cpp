@@ -9,7 +9,7 @@ std::string mv::deleteTillEndIfPatternFound(const std::string& input, const std:
     return toReturn;
 }
 
-std::string mv::demangleName(const std::string &mangledName)
+std::string mv::demanglePOCName(const std::string &mangledName)
 {
     return deleteTillEndIfPatternFound(mangledName, "#");
 }

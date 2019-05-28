@@ -221,7 +221,7 @@ static void generateSparsityMapsFcn(const mv::pass::PassEntry& pass, mv::Computa
 
                 std::string opName = dpuTask->getName();
 
-                std::string sparsityMapName(mv::demangleName(opName) + "_sparse_dw");
+                std::string sparsityMapName(mv::demanglePOCName(opName) + "_sparse_dw");
                 auto fakeSparsityMap = createFakeSparsityMap(om, dpuTask, sparsityMapName, sparsityShape, sparsityTensor.getIntData());
                 fakeSparsityMap->set<int>("channelLength", channelLenght);
 

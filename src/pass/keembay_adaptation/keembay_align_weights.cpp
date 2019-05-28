@@ -93,7 +93,7 @@ void alignTaskWeightsFcn(const mv::pass::PassEntry& , mv::ComputationModel& mode
                     ++j;
             }
 
-            auto newKernel = om.constantDataElement(newData, newShape, kernel->getDType(), mv::Order("NHWC"), quantParams, "AlignContainer_"+mv::demangleName(kernelOp->getName()));
+            auto newKernel = om.constantDataElement(newData, newShape, kernel->getDType(), mv::Order("NHWC"), quantParams, "AlignContainer_"+mv::demanglePOCName(kernelOp->getName()));
 
             om.getSourceOp(newKernel)->set<unsigned>("opId", opId);
             om.removeOp(kernelOp);
