@@ -571,8 +571,12 @@ TEST(insert_barrier_tasks, dynamic_index_assignment)
 
     size_t expected_num_barriers = 15;
     EXPECT_EQ(barrierOpIndices.size(), expected_num_barriers);
+    EXPECT_TRUE(barrierOpIndices[0] == 0);
 
-    EXPECT_TRUE(std::is_sorted(barrierOpIndices.begin(), barrierOpIndices.end()));
+    for (size_t i = 1; i < barrierOpIndices.size(); ++i)
+    {
+        EXPECT_EQ(barrierOpIndices[i], barrierOpIndices[i-1] + 1);
+    }
 }
 
 

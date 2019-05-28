@@ -58,12 +58,12 @@ void storeLayerSplitStrategyFcn(const mv::pass::PassEntry& pass, mv::Computation
             storeStrategy(opIt, numClusters, strategyList);
     }
 
-    pass.log(mv::Logger::MessageType::Warning, "----splitting strategies for individual layers----");
+    pass.log(mv::Logger::MessageType::Info, "----splitting strategies for individual layers----");
     for (auto opIt = om.opBegin(); opIt != om.opEnd(); ++opIt)
     {
         if (opIt->hasAttr("splitStrategy"))
         {
-            pass.log(mv::Logger::MessageType::Warning, "op: " + opIt->getName() +
+            pass.log(mv::Logger::MessageType::Info, "op: " + opIt->getName() +
                         " | strategy = " + opIt->get<std::string>("splitStrategy"));
         }
     }

@@ -29,7 +29,9 @@ namespace mv
 
         int getGroup() const;
         int getIndex() const;
+
         int getID() const;
+        void setID(int id);
 
         int getNumProducers() const;
         int getNumConsumers() const;
