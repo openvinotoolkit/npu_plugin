@@ -77,6 +77,8 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             if (opIt->hasAttr("WorkloadStrategy_nWorkloads"))
                 workloadStrategyNWorkloads = opIt->get<int>("WorkloadStrategy_nWorkloads");
 
+            std::array<unsigned short, 2> kernelSize = {kernel->getShape()[mv::KERNEL_WIDTH], kernel->getShape()[mv::KERNEL_HEIGHT]};
+
             auto outputDataFlows = mv::getOutputDataFlow(om, opIt);
 
             mv::Data::TensorIterator dpuConv;
@@ -88,6 +90,8 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             auto dpuConvOp = om.getSourceOp(dpuConv);
             dpuConvOp->set<unsigned>("opId", opId);
             dpuConvOp->set<bool>("hasWeights", true);
+            dpuConvOp->set<std::array<unsigned short, 2>>("kSize", kernelSize);
+
 
             if(!biasName.empty())
                dpuConvOp->set<std::string>("bias", biasName);
