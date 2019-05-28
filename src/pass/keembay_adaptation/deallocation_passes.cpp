@@ -58,7 +58,7 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
         auto inputOpName = inputOp->getName();
         auto inputTensor = dataFlowIt->getTensor();
 
-        std::string deallocationName(mv::deleteTillEndIfPatternFound(inputOpName, "_"));
+        std::string deallocationName(inputOpName);
         deallocationName += "_DEALLOC";
 
         // Each tensor must be deallocated once
@@ -133,7 +133,7 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
     auto lastDMAOp = outputOp.leftmostParent();
     auto lastOpBeforeLastDma = lastDMAOp.leftmostParent();
 
-    auto lastDeallocation = om.getOp(mv::deleteTillEndIfPatternFound(lastOpBeforeLastDma->getName(), "_")+"_DEALLOC");
+    auto lastDeallocation = om.getOp(lastOpBeforeLastDma->getName()+"_DEALLOC");
     om.removeOp(lastDeallocation);
 }
 
