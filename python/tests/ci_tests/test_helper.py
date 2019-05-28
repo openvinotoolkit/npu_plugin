@@ -21,7 +21,10 @@ FAIL_VALIDATION = 5  # Correctness Error
 MDK_ROOT = os.environ["MDK_HOME"]
 NZOO_ROOT = os.environ["NZOO_ROOT"]
 POC_ROOT = MDK_ROOT+'/projects/Fathom/'
-APP_ROOT = MDK_ROOT + "/testApps/keembay/tapeout_so/tc_keembay_ma2490/ts_nce_bm_blob/"
+
+# which runtime do you want to use? (PoC/Production)
+#APP_ROOT = MDK_ROOT + "/testApps/keembay/tapeout_so/tc_keembay_ma2490/ts_nce_bm_blob/"  # PoC Runtime
+APP_ROOT = MDK_ROOT + "/testApps/components/NeuralNet/008_demo_ncelib_LNN/conv_3l_16wi/" # Prod Runtime
 
 PWD = os.path.dirname(os.path.realpath(__file__)) + "/"
 CWD = os.getcwd() + "/"
@@ -64,7 +67,7 @@ def generate_model(csv_file, network=False, simplify=False, overwrite=True):
             print("Did not detect string with prefix 'FILE' from .py")
             sys.exit(7) # Unsupported
 
-    a = arg(csv_file, network, simplify=False)
+    a = arg(csv_file, network, simplify=simplify)
     if overwrite:
         model = genModel(a)
     else:
