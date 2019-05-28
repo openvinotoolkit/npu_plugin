@@ -72,7 +72,6 @@ TEST(global_params_reset, barrierCounter)
     // barriers start with ID=2 (2,3 are 2 barrier IDs in this unit). So below
     // comparison is to show IDs not equal to 0
     int barrierStartID = 0;
-    EXPECT_NE(barrierStartID, barrierOps[0]->get<mv::Barrier>("Barrier").getID());
     //------------------------------------------------------------------------//
 
     mv::CompilationUnit unit3("testModel3");
