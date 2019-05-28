@@ -581,21 +581,57 @@ MVCNN::MPE_Mode mv::RuntimeModel::convertMPEMode(mv::MPE_Mode mpe)
     }
 }
 
-std::unique_ptr<MVCNN::NCEVariantFieldsT> mv::RuntimeModel::buildNCEVariantFieldsT(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt, Workload workload)
+bool mv::RuntimeModel::hardwareBugDepthwise(Control::OpListIterator opIt)
+{
+    auto type = opIt->get<std::string>("taskOp");
+    auto splitStrategy = opIt->get<std::string>("splitStrategy");
+    auto padding = opIt->get<std::array<unsigned short, 4>>("padding");
+    auto kernelSize = opIt->get<std::array<unsigned short, 2>>("kSize");
+    return ((type == "DepthwiseConv") &&
+        (splitStrategy == "SplitOverH") &&
+        (padding[0] % 2 == 1) &&
+        (kernelSize[mv::KERNEL_HEIGHT] > 1));
+}
+
+void mv::RuntimeModel::getWorkloadPadding(Control::OpListIterator opIt, Workload &workload)
+{
+    auto padding = opIt->get<std::array<unsigned short, 4>>("padding");
+    auto outputWidth = opIt->getOutputTensor(0)->getShape()[mv::IO_WIDTH_DIMENSION];
+    auto outputHeight = opIt->getOutputTensor(0)->getShape()[mv::IO_HEIGHT_DIMENSION];
+    if (hardwareBugDepthwise(opIt))
+    {
+        workload.padLeft = (workload.MinX == 0) ? padding[0] : 0;
+        workload.padTop = (workload.MinY == 0) ? padding[2] : 0;
+        workload.padRight = ((workload.MaxX + 1) == outputWidth) ? padding[1] : 0;
+        workload.padBottom = ((workload.MaxY + 1) == outputHeight) ? padding[3] : 0;
+    }
+    else
+    {
+        workload.padLeft = padding[0];
+        workload.padTop = padding[2];
+        workload.padRight = padding[1];
+        workload.padBottom = padding[3];
+    }
+    return;
+}
+
+std::unique_ptr<MVCNN::NCEVariantFieldsT> mv::RuntimeModel::buildNCEVariantFieldsT(ComputationModel& , mv::Element &compilationDescriptor, Control::OpListIterator opIt, Workload workload)
 {
     std::unique_ptr<MVCNN::NCEVariantFieldsT> toBuild = std::unique_ptr<MVCNN::NCEVariantFieldsT>(new MVCNN::NCEVariantFieldsT());
 
     toBuild->mpe_mode = convertMPEMode(workload.MPEMode);
-    toBuild->padLeft = workload.padLeft;
-    toBuild->padRight = workload.padRight;
-    toBuild->padTop = workload.padTop;
-    toBuild->padBottom = workload.padBottom;
     toBuild->workload_start_X = workload.MinX;
     toBuild->workload_start_Y = workload.MinY;
     toBuild->workload_start_Z = workload.MinZ;
     toBuild->workload_end_X = workload.MaxX;
     toBuild->workload_end_Y = workload.MaxY;
     toBuild->workload_end_Z = workload.MaxZ;
+    //Padding should be computed for every cluster
+    getWorkloadPadding(opIt, workload);
+    toBuild->padLeft = workload.padLeft;
+    toBuild->padRight = workload.padRight;
+    toBuild->padTop = workload.padTop;
+    toBuild->padBottom = workload.padBottom;
     return toBuild;
 }
 
