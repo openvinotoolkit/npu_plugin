@@ -593,22 +593,29 @@ bool mv::RuntimeModel::hardwareBugDepthwise(Control::OpListIterator opIt)
         (kernelSize[mv::KERNEL_HEIGHT] > 1));
 }
 
-std::array <unsigned short, 4> mv::RuntimeModel::getWorkloadPadding(Control::OpListIterator opIt, Workload workload)
+void mv::RuntimeModel::getWorkloadPadding(Control::OpListIterator opIt, Workload &workload)
 {
     auto padding = opIt->get<std::array<unsigned short, 4>>("padding");
     auto outputWidth = opIt->getOutputTensor(0)->getShape()[mv::IO_WIDTH_DIMENSION];
     auto outputHeight = opIt->getOutputTensor(0)->getShape()[mv::IO_HEIGHT_DIMENSION];
     if (hardwareBugDepthwise(opIt))
     {
-        padding[0] = (workload.MinX == 0) ? padding[0] : 0;
-        padding[2] = (workload.MinY == 0) ? padding[2] : 0;
-        padding[1] = ((workload.MaxX + 1) == outputWidth) ? padding[1] : 0;
-        padding[3] = ((workload.MaxY + 1) == outputHeight) ? padding[3] : 0;
+        workload.padLeft = (workload.MinX == 0) ? padding[0] : 0;
+        workload.padTop = (workload.MinY == 0) ? padding[2] : 0;
+        workload.padRight = ((workload.MaxX + 1) == outputWidth) ? padding[1] : 0;
+        workload.padBottom = ((workload.MaxY + 1) == outputHeight) ? padding[3] : 0;
     }
-    return padding;
+    else
+    {
+        workload.padLeft = padding[0];
+        workload.padTop = padding[2];
+        workload.padRight = padding[1];
+        workload.padBottom = padding[3];
+    }
+    return;
 }
 
-std::unique_ptr<MVCNN::NCEVariantFieldsT> mv::RuntimeModel::buildNCEVariantFieldsT(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt, Workload workload)
+std::unique_ptr<MVCNN::NCEVariantFieldsT> mv::RuntimeModel::buildNCEVariantFieldsT(ComputationModel& , mv::Element &compilationDescriptor, Control::OpListIterator opIt, Workload workload)
 {
     std::unique_ptr<MVCNN::NCEVariantFieldsT> toBuild = std::unique_ptr<MVCNN::NCEVariantFieldsT>(new MVCNN::NCEVariantFieldsT());
 
@@ -620,11 +627,11 @@ std::unique_ptr<MVCNN::NCEVariantFieldsT> mv::RuntimeModel::buildNCEVariantField
     toBuild->workload_end_Y = workload.MaxY;
     toBuild->workload_end_Z = workload.MaxZ;
     //Padding should be computed for every cluster
-    std::array <unsigned short, 4> workloadPadding = getWorkloadPadding(opIt, workload);
-    toBuild->padLeft = workloadPadding[0];
-    toBuild->padRight = workloadPadding[1];
-    toBuild->padTop = workloadPadding[2];
-    toBuild->padBottom = workloadPadding[3];
+    getWorkloadPadding(opIt, workload);
+    toBuild->padLeft = workload.padLeft;
+    toBuild->padRight = workload.padRight;
+    toBuild->padTop = workload.padTop;
+    toBuild->padBottom = workload.padBottom;
     return toBuild;
 }
 
