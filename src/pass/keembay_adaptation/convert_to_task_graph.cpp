@@ -5,6 +5,7 @@
 #include "include/mcm/target/keembay/ppe_task.hpp"
 #include "include/mcm/tensor/quantization_params.hpp"
 #include "include/mcm/utils/custom_strings.hpp"
+#include "include/mcm/pass/pass_utils.hpp"
 
 static const std::array<unsigned short, 2> FAKE_KERNEL = {1,1};
 static const std::array<unsigned short, 2> FAKE_STRIDE = {1,1};
@@ -24,51 +25,9 @@ namespace mv
     }
 }
 
-std::vector<std::pair<mv::Data::OpListIterator,size_t>> getOutputDataFlow(mv::OpModel& om, mv::Data::OpListIterator &opIt)
-{
-    std::vector<std::pair<mv::Data::OpListIterator,size_t>> toReturn;
-
-    for(auto output = opIt.leftmostOutput(); output != om.flowEnd(); ++output)
-    {
-        auto consumer = output.sink();
-        auto slot = output->get<size_t>("sinkInput");
-        toReturn.push_back(std::make_pair(consumer, slot));
-    }
-
-    auto backup = opIt;
-    ++opIt;
-    om.removeOp(backup);
-
-    return toReturn;
-}
-
-void setOutputDataFlow(mv::OpModel& om, mv::Data::TensorIterator &dpuTaskOutputTensor, const std::vector<std::pair<mv::Data::OpListIterator,size_t>>& outDataFlows)
-{
-    for(auto& flowPair: outDataFlows)
-    {
-        flowPair.first->setInputTensor(dpuTaskOutputTensor, flowPair.second, false);
-        om.defineFlow(dpuTaskOutputTensor, flowPair.first, flowPair.second);
-    }
-}
-
-void storeWorkloadMpeStrategy(mv::OpModel& om, mv::Data::OpListIterator& opIt, mv::Data::OpListIterator& dxxOp)
-{
-    if (opIt->hasAttr("WorkloadStrategy_MPE_mode"))
-        om.addAttr(dxxOp, "WorkloadStrategy_MPE_mode", opIt->get<std::string>("WorkloadStrategy_MPE_mode"));
-}
-
-void storeWorkloadNumStrategy(mv::OpModel& om, mv::Data::OpListIterator& opIt, mv::Data::OpListIterator& dxxOp)
-{
-    if (opIt->hasAttr("WorkloadStrategy_nWorkloads"))
-        om.addAttr(dxxOp, "WorkloadStrategy_nWorkloads", opIt->get<int>("WorkloadStrategy_nWorkloads"));
-}
-
 void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
     mv::OpModel om(model);
-    mv::DataModel dm(model);
-
-    mv::ControlModel cm(model);
 
     auto addFcn = [&om](std::vector< mv::Data::TensorIterator >& vec, const mv::QuantizationParams& quantParams, const std::string& s){ return om.dPUTaskAdd(vec,quantParams,s);};
     auto subFcn = [&om](std::vector< mv::Data::TensorIterator >& vec, const mv::QuantizationParams& quantParams, const std::string& s){ return om.dPUTaskSubtract(vec,quantParams,s);};
@@ -118,7 +77,7 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             if (opIt->hasAttr("WorkloadStrategy_nWorkloads"))
                 workloadStrategyNWorkloads = opIt->get<int>("WorkloadStrategy_nWorkloads");
 
-            auto outputDataFlows = getOutputDataFlow(om, opIt);
+            auto outputDataFlows = mv::getOutputDataFlow(om, opIt);
 
             mv::Data::TensorIterator dpuConv;
             if(opType == "Conv")
@@ -169,7 +128,7 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             if(opIt->hasAttr("splitStrategy"))
                 splitStrategy = opIt->get<std::string>("splitStrategy");
 
-            auto outputDataFlows = getOutputDataFlow(om, opIt);
+            auto outputDataFlows = mv::getOutputDataFlow(om, opIt);
 
             auto dpuPool = om.dPUTaskMaxPool({input}, kernelSize, strides, padding,
                                exclude_pad, auto_pad, rounding_type, quantParams, mv::demanglePOCName(name));
@@ -200,7 +159,7 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             if(opIt->hasAttr("splitStrategy"))
                 splitStrategy = opIt->get<std::string>("splitStrategy");
 
-            auto outputDataFlows = getOutputDataFlow(om, opIt);
+            auto outputDataFlows = mv::getOutputDataFlow(om, opIt);
 
             auto dpuElementWiseFunctor = (dpuTaskMap.at(opType));
             auto dpuElementWise = dpuElementWiseFunctor(inputs, quantParams, mv::demanglePOCName(name));
@@ -219,7 +178,7 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             if(!splitStrategy.empty())
                dpuElementWiseOp->set<std::string>("splitStrategy", splitStrategy);
 
-            setOutputDataFlow(om, dpuElementWise, outputDataFlows);
+            mv::setOutputDataFlow(om, dpuElementWise, outputDataFlows);
         }
         else
             ++opIt;
