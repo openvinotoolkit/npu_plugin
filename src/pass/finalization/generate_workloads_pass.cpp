@@ -87,7 +87,8 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
 
     /*DPUs per cluster*/    
     int nDPUxCluster = nDPU / nClusters;
-    static const mv::DPUModeList dpu_mode_poc = {{4, 4}, {16, 1}};
+    //static const mv::DPUModeList dpu_mode_poc = {{4, 4}, {16, 1}};
+    static const mv::DPUModeList dpu_mode_poc = {{4, 4}};
     
     /*The global mpe mode must be set*/
     if (globalParams->hasAttr("MPE_mode")) 	
@@ -125,6 +126,7 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
             /*Generate the split pool and select the first one*/
             auto nWorkloadsSplitPool = workloads.getWorkloadSplitPool(opIt->getOutputTensor()[0], nDPUxCluster);
             nWorkloads = nWorkloadsSplitPool[0];
+            nWorkloads = 4;
 
             pass.log(mv::Logger::MessageType::Debug, "Number of workloads is:" + std::to_string(nWorkloads));
             pass.log(mv::Logger::MessageType::Debug, "Output size is: " + opIt->getOutputTensor()[0]->getShape().toString());

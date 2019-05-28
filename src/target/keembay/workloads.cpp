@@ -1428,7 +1428,7 @@ namespace mv {
     }
 
     using  WorkloadList = std::vector<Workload>;
-    static WorkloadList generateWorkloadsFromSlices(const SplitSliceList& slice_list,
+    static WorkloadList generateWorkloadsFromSlices(const mv::DPUModeList& mode_list, const SplitSliceList& slice_list,
                                                     const PaddingVariant& padding,
                                                     unsigned Z=0)
     {
@@ -1456,6 +1456,12 @@ namespace mv {
             workload.MinZ = 0;
             workload.MaxZ = Z ? Z - 1: 0;
 
+            //
+            if(mode_list[0].H == 4)
+                workload.MPEMode = mv::MPE_Mode::Matrix;
+            else
+                workload.MPEMode = mv::MPE_Mode::Vector;
+           
             // FIXME: setup workload id
             // FIXME: adjust workloads padding
             workload_list.push_back(workload);
@@ -1544,7 +1550,7 @@ int mv::Workloads::partitionTensorWithRectangleHeuristic(const mv::DPUModeList& 
         Z = H;
     }
 
-    workloads_ = generateWorkloadsFromSlices(slice_list, best_padding, Z);
+    workloads_ = generateWorkloadsFromSlices(mode_list, slice_list, best_padding, Z);
     pass.log(mv::Logger::MessageType::Debug, "RectangleHeuristic: done");
 
     return METIS_OK;
