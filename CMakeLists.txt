@@ -252,6 +252,7 @@ SET(base
     "${PROJECT_SOURCE_DIR}/src/utils/serializer/file_buffer.cpp"
     "${PROJECT_SOURCE_DIR}/src/utils/env_loader.cpp"
     "${PROJECT_SOURCE_DIR}/src/utils/custom_math.cpp"
+    "${PROJECT_SOURCE_DIR}/src/utils/custom_strings.cpp"
 
 )
 

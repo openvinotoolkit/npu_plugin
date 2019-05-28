@@ -4,6 +4,7 @@
 #include "meta/include/mcm/op_model.hpp"
 #include "include/mcm/utils/data_generator.hpp"
 #include "include/mcm/tensor/quantization_params.hpp"
+#include "include/mcm/utils/custom_strings.hpp"
 #include <math.h>
 
 static void generateSparsityMapsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
@@ -220,7 +221,7 @@ static void generateSparsityMapsFcn(const mv::pass::PassEntry& pass, mv::Computa
 
                 std::string opName = dpuTask->getName();
 
-                std::string sparsityMapName(opName + "SparsityMap");
+                std::string sparsityMapName(mv::demangleName(opName) + "_sparse_dw");
                 auto fakeSparsityMap = createFakeSparsityMap(om, dpuTask, sparsityMapName, sparsityShape, sparsityTensor.getIntData());
                 fakeSparsityMap->set<int>("channelLength", channelLenght);
 

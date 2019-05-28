@@ -3,6 +3,7 @@
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/utils/custom_math.hpp"
+#include "include/mcm/utils/custom_strings.hpp"
 
 static void alignTaskWeightsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 
@@ -92,7 +93,7 @@ void alignTaskWeightsFcn(const mv::pass::PassEntry& , mv::ComputationModel& mode
                     ++j;
             }
 
-            auto newKernel = om.constantDataElement(newData, newShape, kernel->getDType(), mv::Order("NHWC"), quantParams,"Aligned"+kernelOp->getName());
+            auto newKernel = om.constantDataElement(newData, newShape, kernel->getDType(), mv::Order("NHWC"), quantParams, "AlignContainer_"+mv::demangleName(kernelOp->getName()));
 
             om.getSourceOp(newKernel)->set<unsigned>("opId", opId);
             om.removeOp(kernelOp);
