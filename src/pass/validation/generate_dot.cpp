@@ -44,8 +44,8 @@ void generateDotFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
         throw ArgumentError(model, "scope", outputScope, "Invalid model scope");
 
     std::string contentLevel = passDesc.get<std::string>("content");
-    if (contentLevel != "full" && outputScope != "name")
-        throw ArgumentError(model, "content", contentLevel, "Invalid content scope");
+//    if (contentLevel != "full" && outputScope != "name")
+//        throw ArgumentError(model, "content", contentLevel, "Invalid content scope");
 
     bool htmlLike = passDesc.get("html");
 
@@ -201,21 +201,24 @@ void generateDotFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
                     std::string edgeDef = "\t\"" + opIt->getName() + "\" -> \"" + controlIt.sink()->getName() + "\"";
                     if (htmlLike)
                     {
-                        edgeDef += " [penwidth=2.0, style=dashed label=<<TABLE BORDER=\"0\" \
+                        if(contentLevel != "full")
+                            edgeDef += " [penwidth=2.0, style=dashed]";
+                        else
+                        {
+                            edgeDef += " [penwidth=2.0, style=dashed label=<<TABLE BORDER=\"0\" \
                                     CELLPADDING=\"0\" CELLSPACING=\"0\"><TR><TD ALIGN=\"CENTER\" \
                                     COLSPAN=\"2\"><FONT POINT-SIZE=\"14.0\"><B>"
                                     + controlIt->getName()
                                     + "</B></FONT></TD></TR>";
-                        if (contentLevel == "full")
-                        {
                             std::vector<std::string> attrKeys(controlIt->attrsKeys());
                             for (auto attrIt = attrKeys.begin(); attrIt != attrKeys.end(); ++attrIt)
                                 edgeDef += "<TR><TD ALIGN=\"LEFT\"><FONT POINT-SIZE=\"11.0\">"
                                             + *attrIt
                                             + ": </FONT></TD> <TD ALIGN=\"RIGHT\"><FONT POINT-SIZE=\"11.0\">"
                                             + controlIt->get(*attrIt).toString() + "</FONT></TD></TR>";
+
+                            edgeDef += "</TABLE>>];";
                         }
-                        edgeDef += "</TABLE>>];";
                     }
                     else
                     {
