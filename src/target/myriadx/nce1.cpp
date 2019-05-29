@@ -138,13 +138,14 @@ bool mv::Nce1::check_min_lines_constraint_(mv::ConvolutionParameters param)
 
 bool mv::Nce1::check_coefficient_size_constraint(unsigned kernel_width, unsigned kernel_height, unsigned input_channels, unsigned output_channel_performed)
 {
-    unsigned coeff_size = kernel_width * kernel_height * input_channels * computeActualOutputChannels(output_channel_performed) * input_data_size;
+    unsigned coeff_size = kernel_width * kernel_height * input_channels * round_up(output_channel_performed,8) * input_data_size;
     return coeff_size > coefficients_storage_dimension;
 }
 
-bool mv::Nce1::check_coefficient_size_constraint_(mv::ConvolutionParameters param, unsigned output_channel_performed)
+bool mv::Nce1::check_coefficient_size_constraint_(mv::ConvolutionParameters param, unsigned mode)
 {
-    return check_coefficient_size_constraint(param.kernel_width, param.kernel_height, param.input_channels, output_channel_performed);
+    auto actual_oc = std::min(param.output_channels, nce1_dpe/dpe_x_output_channel.at(mode));
+    return check_coefficient_size_constraint(param.kernel_width, param.kernel_height, param.input_channels, actual_oc);
 }
 
 bool mv::Nce1::check_coefficient_line_constraint(unsigned input_channels, unsigned kernel_width, unsigned kernel_height, int mode)
@@ -172,10 +173,11 @@ bool mv::Nce1::check_channels_per_ram_block_(mv::ConvolutionParameters param, in
 mv::ModeSelectionDistance mv::Nce1::split_by_input_channel(mv::ConvolutionParameters param, unsigned actual_output_channels, int mode, bool support_split_over_c)
 {
     ModeSelectionDistance to_return;
+    actual_output_channels = std::min(param.output_channels,(unsigned int)(nce1_dpe)/dpe_x_output_channel.at(mode));
 
     unsigned min_lines = computeMinLinesForConvolution(param);
     // maximum ic that I can process without conflicting with min line constraint
-    unsigned max_ic_minlines = floor((double)(data_storage_dimension)/(min_lines * input_data_size * param.input_width));
+    unsigned max_ic_minlines = floor((double)(data_storage_dimension)/(min_lines * input_data_size * round_up(param.input_width, 16)));
     // maximum ic that I can process without conflicting with coefficient line per block constraint
     unsigned max_ic_ramblock = floor((double)(nce1_dpe)/(param.kernel_width*param.kernel_height)*dpe_x_output_channel.at(mode));
 
@@ -201,7 +203,7 @@ mv::ModeSelectionDistance mv::Nce1::split_by_input_channel(mv::ConvolutionParame
     }
 
     // n of input split required (padded to next pow of 2: WHY? Firmware)
-    unsigned n_split_c = computeActualInputChannelSplits(param.input_channels/max_ic);
+    unsigned n_split_c = param.input_channels/max_ic;
     unsigned actual_ic_per_split = ceil_division(param.input_channels, n_split_c);
 
     if((n_split_c < 2) || (actual_ic_per_split % ramBlocks) || (!support_split_over_c))
@@ -214,7 +216,7 @@ mv::ModeSelectionDistance mv::Nce1::split_by_input_channel(mv::ConvolutionParame
     }
 
     ConvolutionParameters new_param(param);
-    param.input_channels = actual_ic_per_split;
+    new_param.input_channels = actual_ic_per_split;
 
     if (check_coefficient_size_constraint_(new_param, mode) ||
         check_channels_per_ram_block_(new_param, mode)  ||
@@ -235,7 +237,7 @@ mv::ModeSelectionDistance mv::Nce1::split_by_input_channel(mv::ConvolutionParame
         cost += param.kernel_width * param.kernel_height * param.output_width * param.output_height * ic / dpe_x_output_channel.at(mode);
     }
     // add the cost of summation over input channels
-    cost += (n_split_c - 1) * (actual_output_channels * param.output_width*param.output_height + split_by_input_channel_overhead);
+    cost += (n_split_c - 1) * (actual_output_channels * new_param.output_width*new_param.output_height + split_by_input_channel_overhead);
     to_return.cost = cost;
     to_return.split_performed = mv::NCE1Splits::InputChannel;
     to_return.num_splits = n_split_c;
@@ -337,7 +339,7 @@ mv::ModeSelectionDistance mv::Nce1::computeModeCost(const mv::ModeSelectionNode 
     parameters.input_width = computeActualInputWidth(parameters.input_width);
 
     bool need_split_by_width_or_input_channel = check_min_lines_constraint_(parameters);
-    bool need_split_by_input_channel = check_coefficient_size_constraint_(parameters, output_channel_performed) | check_coefficient_line_constraint_(parameters, mode);
+    bool need_split_by_input_channel = check_coefficient_size_constraint_(parameters, mode) || check_coefficient_line_constraint_(parameters, mode);
 
     if(need_split_by_width_or_input_channel)
     {
