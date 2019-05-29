@@ -38,7 +38,6 @@ bool mv::Workloads::operator < (const mv::Workloads& other) const
         return lhs_avg < rhs_avg;
 }
 
-
 const mv::Workload& mv::Workloads::operator[](int nworkload) const
 {
 
@@ -64,6 +63,14 @@ const std::vector<mv::Workload>& mv::Workloads::getWorkloads() const
 }
 
 std::string mv::Workloads::toString() const
+{
+    // TODO: check with John as to what would constitute abbreviated
+    // workload information.
+    std::string output = "{}";
+    return output;
+}
+
+std::string mv::Workloads::toLongString() const
 {
     std::string output = "{";
     
@@ -454,6 +461,55 @@ idx_t mv::Workloads::getNWorkloads(const mv::Shape& tensorShape, int nDPUxCluste
     return round(nDPUxCluster/2)*2; 
 }
 
+/**
+ * @brief Generate a pool of possible workload number for a tensor
+ * @param A tensor
+ * @param Maximum number or workloads
+ * @return A pool of possible splits (possible workloads)
+ */
+std::vector<int> mv::Workloads::getWorkloadSplitPool(mv::Data::TensorIterator tensor, int nDPUxCluster, int maxSplits)
+{
+    std::vector<int> splitPool;
+ 
+    /*maxSplitsXY*/
+    double xDim = tensor->get<mv::Shape>("shape")[0];
+    double yDim = tensor->get<mv::Shape>("shape")[1];
+    int maxSplitsXY = ceil(xDim/4) * ceil(yDim/4);
+
+    /*maxSplitsZ*/
+    int maxSplitsZ = ceil(tensor->get<mv::Shape>("shape")[2]/16);
+
+    /*Z splits*/
+    /*Switched off Z splits until supported*/
+    // if((maxSplitsZ < maxSplits) && (maxSplitsZ >1))
+    // {
+    //     splitPool.push_back(maxSplitsZ);
+    //     do
+    //     {
+    //         maxSplitsZ = maxSplitsZ >> 1;
+    //         splitPool.push_back(maxSplitsZ);
+    //     }
+    //     while ((maxSplitsZ >> 1) > 1);
+    // }
+
+    /*DpuMul splits*/
+    // for(int i = nDPUxCluster; i <= (maxSplits - nDPUxCluster) ; i+=nDPUxCluster) 
+    //     splitPool.push_back(i);
+    
+    /*XY splits*/
+    for(int i = 0; i < (int)ceil(log2(maxSplitsXY)); i ++) 
+        if(((maxSplitsXY%(int)std::pow(2,i)) == 0) && (maxSplitsXY/(std::pow(2,i)) < maxSplits)) 
+            splitPool.push_back(maxSplitsXY/std::pow(2,i));
+    
+    sort(splitPool.begin(), splitPool.end());
+
+    /*If the split pool is empty then make the default number of workloads be 4*/
+    if(splitPool.empty())
+        splitPool.push_back(4);
+        
+    return splitPool;
+}
+
 
 void mv::Workloads::populateWorkloadsFromPartitions(idx_t nWorkloads, const mv::pass::PassEntry& pass, std::pair <idx_t,idx_t>& mpeMode) 
 {
@@ -649,9 +705,8 @@ std::vector<mv::Workload> mv::Workloads::polygonWorkloadSplit(const mv::pass::Pa
                 {
                     diff1 = abs(it->second - all_it->second);
                     save1 = *all_it;
-                    //to match POC, if the interesting point's X matches xmax of the workload, the split has to happen parellel to y. So updating the interesting 
-                    // point (no matter if it is closer to Ymin or Ymax), to have boolean as 'true' so that the point always is included in the right partition
-                    if ((it->second < all_it->second) || (it->first == workload.MaxX))
+                    //            // point (no matter if it is closer to Ymin or Ymax), to have boolean as 'true' so that the point always is included in the right partition
+                    if ((it->second < all_it->second))
                         intPoint1isAtstart = true;
                 }
             }
@@ -696,7 +751,7 @@ std::vector<mv::Workload> mv::Workloads::workloadSplitHelper(const mv::pass::Pas
     // split along X is needed, if the interesting point is on the workload Ymin or Ymax
     // split along Y is needed, if the interesting point is on the workload Xmin or Xmax
 
-    if (workload.MinX == interesting_point.first.first)
+    if ((workload.MinX == interesting_point.first.first) || (workload.MaxX == interesting_point.first.first))
     {
         if (interesting_point.second)
         {
@@ -719,26 +774,16 @@ std::vector<mv::Workload> mv::Workloads::workloadSplitHelper(const mv::pass::Pas
             }
         }
     }
-    else if (workload.MaxY > 0)
+    else if (workload.MaxY >= 0)
     {
         if (interesting_point.second)
         {
             for (auto it_all = workload.points.begin(); it_all != workload.points.end(); it_all++)
             {
-                if (interesting_point.first.first == workload.MaxX)
-                {
-                if (it_all->first > (interesting_point.first.first) - mpeMode.first)
-                    workload_partition_1.points.push_back(*it_all);
-                else
-                    workload_partition_2.points.push_back(*it_all);
-                }
-                else
-                {                
                 if (it_all->first >= (interesting_point.first.first))
                     workload_partition_1.points.push_back(*it_all);
                 else
                     workload_partition_2.points.push_back(*it_all);
-                }
             }
         }
         else if (not interesting_point.second)
@@ -752,6 +797,7 @@ std::vector<mv::Workload> mv::Workloads::workloadSplitHelper(const mv::pass::Pas
             }
         }
     }
+    
 
     workload_partition_1.setMinMaxAndVertices();
     workload_partition_2.setMinMaxAndVertices();
@@ -1007,19 +1053,19 @@ bool mv::Workloads::validateWorkloads(const mv::Shape& shape)
     }
 
     // Check for same vertices for each of the X, Y and X dimensions. This is done by comparing the shape of the inputTensor and min max of (all) workloads
-    // if (!equalShapes(this->getShapefromMinMax(), shape))
-    // {
-    //     this->log(mv::Logger::MessageType::Warning, "METIS partition failed because vertices/bounds different between Original Tensor " + 
-    //                                  shape.toString() + " and Partitioned Tensor " + this->getShapefromMinMax().toString());
-    //     return false;
-    // }
+    if (!equalShapes(this->getShapefromMinMax(), shape))
+    {
+        this->log(mv::Logger::MessageType::Warning, "METIS partition failed because vertices/bounds different between Original Tensor " + 
+                                     shape.toString() + " and Partitioned Tensor " + this->getShapefromMinMax().toString());
+        return false;
+    }
 
     // Check 2: No intersection between workloads.
-    // if (!this->noOverlap())
-    // {
-    //     this->log(mv::Logger::MessageType::Debug, "METIS partition failed because of overlap of paritions");
-    //     return false;
-    // }
+    if (!this->noOverlap())
+    {
+        this->log(mv::Logger::MessageType::Debug, "METIS partition failed because of overlap of paritions");
+        return false;
+    }
 
     return true;
 }

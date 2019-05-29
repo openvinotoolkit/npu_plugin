@@ -81,6 +81,11 @@ int mv::Barrier::getID() const
     return barrierID_;
 }
 
+void mv::Barrier::setID(int id)
+{
+    barrierID_ = id;
+}
+
 int mv::Barrier::getIndex() const
 {
     return index_;

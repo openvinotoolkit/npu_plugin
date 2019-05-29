@@ -540,6 +540,16 @@ static void insertBarriersIntoControlFlowGraph(mv::ComputationModel& model, cons
     }
 }
 
+void resetBarrierIDs(std::vector<mv::Barrier>& barriers)
+{
+    int id = 0;
+    for (auto& barrier: barriers)
+    {
+        barrier.setID(id);
+        id++;
+    }
+}
+
 void insertBarrierTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::json::Object&)
 {
     mv::OpModel om(model);
@@ -550,6 +560,8 @@ void insertBarrierTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
     addBarriers(model, barriers);
 
     combineRedundantBarriers(pass, barriers);
+
+    resetBarrierIDs(barriers);
 
     setBarrierGroupAndIndex(pass, om, barriers, passDesc);
 
