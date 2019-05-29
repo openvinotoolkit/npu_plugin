@@ -3,6 +3,7 @@
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/target/target_descriptor.hpp"
 #include "include/mcm/target/myriadx/nce1_utils.hpp"
+#include "include/mcm/utils/custom_math.hpp"
 #include <numeric>
 
 static void generateBlobFcn(const mv::pass::PassEntry&, mv::ComputationModel&, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
