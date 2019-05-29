@@ -83,8 +83,15 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
     int nWorkloads;
     int nDPU;
     int nClusters;
+    bool metisValidWorkload = false;
+    int attempsforValidateWorkloads = 0;
     std::pair <int,int> MPEMode;
     std::string mpeMode;
+    std::vector<mv::Workloads> workloadsVector;
+    int workloadsVectorIndex = 0;
+    int metisResult;
+    std::shared_ptr<mv::MetisGraphStructure> metisGraph;
+
     mv::OpModel om(model);
     
     /*Get nDPUs and nClsuters from gloabl compilation descriptor*/ 
@@ -125,15 +132,14 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
             pass.log(mv::Logger::MessageType::Debug, "Found DPU task " + opIt->getName() + " of type " + opIt->get<std::string>("taskOp"));
                  
             /*Create workload instance*/
-            mv::Workloads workloads(opIt->getName(), opIt->getOutputTensor()[0]->getShape(), MPEMode);
+            workloadsVector.push_back(mv::Workloads(opIt->getName(), opIt->getOutputTensor()[0]->getShape(), MPEMode));
 
             /*Get the worklaods algorithm*/
-            std::vector<std::string> algorithms = workloads.getTensorSplitAlgorithms(passDesc);
+            std::vector<std::string> algorithms = workloadsVector.at(workloadsVectorIndex).getTensorSplitAlgorithms(passDesc);
             
             /*Generate the split pool and select the first one*/
-            auto nWorkloadsSplitPool = workloads.getWorkloadSplitPool(opIt->getOutputTensor()[0], nDPUxCluster);
+            auto nWorkloadsSplitPool = workloadsVector.at(workloadsVectorIndex).getWorkloadSplitPool(opIt->getOutputTensor()[0], nDPUxCluster);
             nWorkloads = nWorkloadsSplitPool[0];
-            nWorkloads = 1;
 
             pass.log(mv::Logger::MessageType::Debug, "Number of workloads is:" + std::to_string(nWorkloads));
             pass.log(mv::Logger::MessageType::Debug, "Output size is: " + opIt->getOutputTensor()[0]->getShape().toString());
@@ -144,48 +150,55 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                 if (algorithm == "Metis")
                 {
                     /*Populate Metis adjacency structure and partition tensor*/
-                    workloads.generateMetisGraph();
-                    auto metisGraph = workloads.getMetisGraph();
-                    auto res = partitionTensorWithMETIS(metisGraph, nWorkloads, pass);
+                    workloadsVector.at(workloadsVectorIndex).generateMetisGraph();
+                    metisGraph = workloadsVector.at(workloadsVectorIndex).getMetisGraph();
+                    metisResult = partitionTensorWithMETIS(metisGraph, nWorkloads, pass);
 
                     /*Store METIS optimization value as attrbute for unit testing*/
                     opIt->set<int>("Metis_edge_cut", metisGraph->objval);
 
-                    if (res == 1)
-                        workloads.populateWorkloadsFromPartitions(nWorkloads, pass, MPEMode);
+                    if (metisResult == 1)
+                        workloadsVector.at(workloadsVectorIndex).populateWorkloadsFromPartitions(nWorkloads, pass, MPEMode);
                     else
                         pass.log(mv::Logger::MessageType::Warning, "Error partitioning tensor into workloads using METIS");
 
-                    if(!workloads.validateWorkloads(opIt->getOutputTensor()[0]->getShape())) {
+                    if(!workloadsVector.at(workloadsVectorIndex).validateWorkloads(opIt->getOutputTensor()[0]->getShape())) {
 
-                        pass.log(mv::Logger::MessageType::Warning, "A volume mismatch error occcured during METIS workload validation \
-                                                                    METIS likely retured a U-Shaped partiton, which we do not currently support \
-                                                                    Retrying to generate workloads using METIS with a different number of workloads \
-                                                                    This is probably not an optimal number of workloads");
+                        pass.log(mv::Logger::MessageType::Warning,"A volume mismatch error occcured during METIS workload validation.");
+                        pass.log(mv::Logger::MessageType::Warning,"METIS likely retured a U-Shaped partiton, which we do not currently support.");
+                        pass.log(mv::Logger::MessageType::Warning,"Retrying to generate workloads using METIS, increasing the number of workloads by 1.");
+                        pass.log(mv::Logger::MessageType::Warning,"This is probably not an optimal number of workloads.");
+                        pass.log(mv::Logger::MessageType::Warning,"In future, if this happens we will switch to using Rectangle Heuristic algorithm.");
                         
-                        /*Create new workload instance*/
-                        mv::Workloads workloads(opIt->getName(), opIt->getOutputTensor()[0]->getShape(), MPEMode);
+                        while((!metisValidWorkload) &&(attempsforValidateWorkloads < 5)) {
                         
-                        /*Take the next workload number in the pool*/
-                        nWorkloads = nWorkloadsSplitPool[1]; 
+                            /*Create a new workload instance*/
+                            workloadsVector.push_back(mv::Workloads(opIt->getName(), opIt->getOutputTensor()[0]->getShape(), MPEMode));
+                            workloadsVectorIndex++;
+                        
+                            /*Increase nWorkloads by 1*/
+                            nWorkloads++;
+                            attempsforValidateWorkloads++; 
 
-                        /*Populate Metis adjacency structure and partition tensor*/
-                        workloads.generateMetisGraph();
-                        auto metisGraph = workloads.getMetisGraph();
-                        auto res = partitionTensorWithMETIS(metisGraph, nWorkloads, pass);
+                            /*Populate Metis adjacency structure and partition tensor*/
+                            workloadsVector.at(workloadsVectorIndex).generateMetisGraph();
+                            metisGraph = workloadsVector.at(workloadsVectorIndex).getMetisGraph();
+                            metisResult = partitionTensorWithMETIS(metisGraph, nWorkloads, pass);
 
-                        /*Store METIS optimization value as attrbute for unit testing*/
-                        opIt->set<int>("Metis_edge_cut", metisGraph->objval);
+                            /*Store METIS optimization value as attrbute for unit testing*/
+                            opIt->set<int>("Metis_edge_cut", metisGraph->objval);
 
-                        if (res == 1)
-                            workloads.populateWorkloadsFromPartitions(nWorkloads, pass, MPEMode);
-                        else
-                            pass.log(mv::Logger::MessageType::Warning, "Error partitioning tensor into workloads using METIS");
+                            if (metisResult == 1)
+                                workloadsVector.at(workloadsVectorIndex).populateWorkloadsFromPartitions(nWorkloads, pass, MPEMode);
+                            else
+                                pass.log(mv::Logger::MessageType::Warning, "Error partitioning tensor into workloads using METIS");
 
-                        if(!workloads.validateWorkloads(opIt->getOutputTensor()[0]->getShape())) 
-                            throw std::runtime_error("Invalid workloads have been generated from the METIS partition after two attempts, \ 
-                                                        this is proboably due to U-shaped partions, \
-                                                        in future if this happens we will switch to using Rectangle Heurisitc algorithm");
+                            if(workloadsVector.at(workloadsVectorIndex).validateWorkloads(opIt->getOutputTensor()[0]->getShape())) 
+                                metisValidWorkload = true;
+                        }
+
+                         if(!workloadsVector.at(workloadsVectorIndex).validateWorkloads(opIt->getOutputTensor()[0]->getShape())) 
+                                throw std::runtime_error("Invalid workloads have been generated from METIS partitions after five attempts, exiting.");
                     }
 
                     /*Set valid workload attribute to true*/
@@ -201,7 +214,7 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                 }
             }
 
-            opIt->set<mv::Workloads>("Workloads", workloads);
+            opIt->set<mv::Workloads>("Workloads", workloadsVector.at(workloadsVectorIndex));
         }
     }
     pass.log(mv::Logger::MessageType::Debug, "Exiting workload generation pass");
