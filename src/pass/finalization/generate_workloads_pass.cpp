@@ -63,6 +63,15 @@ int partitionTensorWithMETIS(const std::shared_ptr<mv::MetisGraphStructure>& met
     for(int part_i = 0; part_i < metisGraph->m_numberTensorVertices; part_i++) 
             pass.log(mv::Logger::MessageType::Debug, "Node " + std::to_string(part_i) + " is in partition " + std::to_string(metisGraph->part[part_i]));  
     
+    /* The METIS numbering convention for partitions starts at 0, for number of partitions > 1. i.e. nodes are assinged to partions labelled 0 -> (number partitions -1) 
+     * However, the METIS numbering convention for partitions starts at 1, for number of partitions exactly = 1. i.e. nodes are assinged to partions labelled 1
+     * Need to test for this condition here, as it impacts the idexing of logic that calculate the workload coordinates MinX, MaxX, MinY, MaxY
+     * Here, if nWorkloads is 1, then we change the METIS numbering convention to start at 0 so that it is the same as the 'normal' convention.
+     */
+    if(nWorkloads == 1) 
+        for (int i=0; i < metisGraph->m_numberTensorVertices; i++) 
+            metisGraph->part[i] = 0; 
+
     return res;
 }
 
@@ -124,6 +133,7 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
             /*Generate the split pool and select the first one*/
             auto nWorkloadsSplitPool = workloads.getWorkloadSplitPool(opIt->getOutputTensor()[0], nDPUxCluster);
             nWorkloads = nWorkloadsSplitPool[0];
+            nWorkloads = 1;
 
             pass.log(mv::Logger::MessageType::Debug, "Number of workloads is:" + std::to_string(nWorkloads));
             pass.log(mv::Logger::MessageType::Debug, "Output size is: " + opIt->getOutputTensor()[0]->getShape().toString());
@@ -146,9 +156,39 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                     else
                         pass.log(mv::Logger::MessageType::Warning, "Error partitioning tensor into workloads using METIS");
 
-                    if(!workloads.validateWorkloads(opIt->getOutputTensor()[0]->getShape())) 
-                        throw std::runtime_error("Invalid workloads have been generated, the individual workloads do not sum the output tensor size");
+                    if(!workloads.validateWorkloads(opIt->getOutputTensor()[0]->getShape())) {
 
+                        pass.log(mv::Logger::MessageType::Warning, "A volume mismatch error occcured during METIS workload validation \
+                                                                    METIS likely retured a U-Shaped partiton, which we do not currently support \
+                                                                    Retrying to generate workloads using METIS with a different number of workloads \
+                                                                    This is probably not an optimal number of workloads");
+                        
+                        /*Create new workload instance*/
+                        mv::Workloads workloads(opIt->getName(), opIt->getOutputTensor()[0]->getShape(), MPEMode);
+                        
+                        /*Take the next workload number in the pool*/
+                        nWorkloads = nWorkloadsSplitPool[1]; 
+
+                        /*Populate Metis adjacency structure and partition tensor*/
+                        workloads.generateMetisGraph();
+                        auto metisGraph = workloads.getMetisGraph();
+                        auto res = partitionTensorWithMETIS(metisGraph, nWorkloads, pass);
+
+                        /*Store METIS optimization value as attrbute for unit testing*/
+                        opIt->set<int>("Metis_edge_cut", metisGraph->objval);
+
+                        if (res == 1)
+                            workloads.populateWorkloadsFromPartitions(nWorkloads, pass, MPEMode);
+                        else
+                            pass.log(mv::Logger::MessageType::Warning, "Error partitioning tensor into workloads using METIS");
+
+                        if(!workloads.validateWorkloads(opIt->getOutputTensor()[0]->getShape())) 
+                            throw std::runtime_error("Invalid workloads have been generated from the METIS partition after two attempts, \ 
+                                                        this is proboably due to U-shaped partions, \
+                                                        in future if this happens we will switch to using Rectangle Heurisitc algorithm");
+                    }
+
+                    /*Set valid workload attribute to true*/
                     opIt->set<bool>("Valid_workload", true);
                 }
                 else if (algorithm == "Rectangle")
