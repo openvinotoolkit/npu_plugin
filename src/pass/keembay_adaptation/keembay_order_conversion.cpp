@@ -31,9 +31,9 @@ void kmbOrderConversion(const mv::pass::PassEntry& pass, mv::ComputationModel& m
                 // ChannelMajorConvolution is the only operation that requires input tensor in OUR ColMajor
                 dpuTask->getInputTensor(0)->setOrder(mv::Order(mv::Order::getColMajorID(4)));
 
-                // We also need to set weights shape to ColMajorPlanar (see document Order.ods)
-                // This is probably wrong
-                dpuTask->getInputTensor(1)->setOrder(mv::Order(mv::Order::getColMajorPlanarID(4)));
+                // We also need to set weights shape to RowMajor (see document Order.ods)
+                mv::Order targetOrder(mv::Order::getRowMajorID(4));
+                dpuTask->getInputTensor(1)->setOrder(targetOrder);
                 dpuTask->getOutputTensor(0)->setOrder(mv::Order(mv::Order::getZMajorID(4)));
 
             }
@@ -42,7 +42,6 @@ void kmbOrderConversion(const mv::pass::PassEntry& pass, mv::ComputationModel& m
                 // All DPU tasks except ChannelMajor convolution (handled above) act with input tensor in ZMajor
                 dpuTask->getInputTensor(0)->setOrder(mv::Order(mv::Order::getZMajorID(4)));
 
-                // For Normal convolution, weights have to be in ColMajor order (see document Order.ods)
                 if(taskOp == "Conv")
                 {
                     mv::Order targetOrder("NHWC");
