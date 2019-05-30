@@ -14,7 +14,6 @@
                 "MemoryHack": true,
                 "CMX_memory_overflow_safety_factor" : 0.925,
                 "MPE_mode" : "Matrix",
-                "nWorkloads" : 5,
                 "split_strategy" :
                 [
                     {
