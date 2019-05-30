@@ -37,7 +37,7 @@ if (MSVC)
 
     add_executable(hw_convolution hw_convolution.cpp $<TARGET_OBJECTS:cm> $<TARGET_OBJECTS:corebase> $<TARGET_OBJECTS:metamodel> $<TARGET_OBJECTS:model>)
 
-    add_executable(dpu_conv_example dpu_conv_example.cpp $<TARGET_OBJECTS:cm> $<TARGET_OBJECTS:corebase> $<TARGET_OBJECTS:metamodel> $<TARGET_OBJECTS:model>)
+    add_executable(z_major_convolution z_major_convolution.cpp $<TARGET_OBJECTS:cm> $<TARGET_OBJECTS:corebase> $<TARGET_OBJECTS:metamodel> $<TARGET_OBJECTS:model>)
 
     add_executable(streaming_manual_example streaming_manual_example.cpp $<TARGET_OBJECTS:cm> $<TARGET_OBJECTS:corebase> $<TARGET_OBJECTS:metamodel> $<TARGET_OBJECTS:model>)
     add_executable(streaming_manual_res2abranch2a_example streaming_manual_res2abranch2a_example.cpp $<TARGET_OBJECTS:cm> $<TARGET_OBJECTS:corebase> $<TARGET_OBJECTS:metamodel> $<TARGET_OBJECTS:model>)
@@ -104,11 +104,14 @@ else()
     add_executable(standalone_prelu standalone_prelu.cpp)
     target_link_libraries(standalone_prelu cm)
 
-    add_executable(hw_convolution hw_convolution.cpp)
-    target_link_libraries(hw_convolution cm)
+    add_executable(hw_convolution_mx hw_convolution_mx.cpp)
+    target_link_libraries(hw_convolution_mx cm)
 
-    add_executable(dpu_conv_example dpu_conv_example.cpp)
-    target_link_libraries(dpu_conv_example cm)
+    add_executable(z_major_convolution z_major_convolution.cpp)
+    target_link_libraries(z_major_convolution cm)
+
+    add_executable(channel_major_convolution channel_major_convolution.cpp)
+    target_link_libraries(channel_major_convolution cm)
 
     add_executable(streaming_manual_example streaming_manual_example.cpp)
     target_link_libraries(streaming_manual_example cm)

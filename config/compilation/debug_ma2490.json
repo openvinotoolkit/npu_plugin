@@ -7,7 +7,7 @@
                 "recorded_model": false,
                 "weights_form": "None",
                 "barrier_index_assignment" : "Static",
-                "Number_of_DPUs" : 5,
+                "Number_of_DPUs" : 1,
                 "Number_of_Clusters" : 1,
                 "UpaShaves": 1,
                 "DDRScratch": 4096,
@@ -65,8 +65,11 @@
                 "output": "original_model.dot",
                 "scope": "OpControlModel",
                 "content": "full",
-                "html": true,
-                "convert": false
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "original_model.dot"
             },
             {
                 "name": "CreateSourceStructure",
@@ -88,8 +91,11 @@
                 "output": "adapt_model.dot",
                 "scope": "OpControlModel",
                 "content": "full",
-                "html": true,
-                "convert": false
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "adapt_model.dot"
             }
         ]
     },
@@ -106,8 +112,11 @@
                 "output": "keembay_adapt_model.dot",
                 "scope": "OpControlModel",
                 "content": "full",
-                "html": true,
-                "convert": false
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "keembay_adapt_model.dot"
             },
             "GenerateWeightsTables",
             {
@@ -115,8 +124,11 @@
                 "output": "keembay_WeightsTable_model.dot",
                 "scope": "OpControlModel",
                 "content": "full",
-                "html": true,
-                "convert": false
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "keembay_WeightsTable_model.dot"
             },
             "GenerateEltWiseConstants",
             {
@@ -124,8 +136,11 @@
                 "output": "keembay_EltWiseConstants_model.dot",
                 "scope": "OpControlModel",
                 "content": "full",
-                "html": true,
-                "convert": false
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "keembay_EltWiseConstants_model.dot"
             }
         ]
     },
@@ -141,25 +156,23 @@
                 "output": "dma_model.dot",
                 "scope": "OpControlModel",
                 "content": "full",
-                "html": true,
-                "convert": false
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "dma_model.dot"
             },
             "AddDeallocationTasks",
             {
                 "name": "GenerateDot",
-                "output": "deallocation_model_data.dot",
-                "scope": "OpModel",
+                "output": "deallocation_model.dot",
+                "scope": "OpControlModel",
                 "content": "full",
-                "html": true,
-                "convert": false
+                "html": true
             },
             {
-                "name": "GenerateDot",
-                "output": "deallocation_model_control.dot",
-                "scope": "ControlModel",
-                "content": "full",
-                "html": true,
-                "convert": false
+                "name": "ConvertDot",
+                "input": "deallocation_model.dot"
             }
         ]
     },
@@ -171,8 +184,11 @@
                 "output": "DmaControlFlows_model.dot",
                 "scope": "ControlModel",
                 "content": "full",
-                "html": true,
-                "convert": false
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "DmaControlFlows_model.dot"
             },
             "InputOutputControlFlows",
             {
@@ -180,8 +196,11 @@
                 "output": "InputOutputControlFlows_model.dot",
                 "scope": "ControlModel",
                 "content": "full",
-                "html": true,
-                "convert": false
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "InputOutputControlFlows_model.dot"
             },
             {
                 "name": "TransitiveReduction",
@@ -192,8 +211,11 @@
                 "output": "TransitiveReduction.dot",
                 "scope": "ControlModel",
                 "content": "full",
-                "html": true,
-                "convert": false
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "TransitiveReduction.dot"
             }
         ]
     },
@@ -205,8 +227,7 @@
                 "output": "MaxTopologicalCutAndPartialSerialisation.dot",
                 "scope": "ControlModel",
                 "content": "full",
-                "html": true,
-                "convert": false
+                "html": true
             },
             {
                 "name": "GenerateWorkloads",
@@ -240,9 +261,11 @@
                 "output": "final_model.dot",
                 "scope": "OpControlModel",
                 "content": "full",
-                "html": true,
-                "convert": false,
-                "verbose" : false
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "final_model.dot"
             }
         ]
     },
@@ -255,9 +278,13 @@
         "Singular": [
             {
                 "name": "GenerateBlobKeembay",
-                "output": "output/vpu2.blob",
-                "convert": true
+                "output": "output/vpu2.blob"
+            },
+            {
+                "name": "ConvertFlatbuffer",
+                "input": "output/vpu2.blob"
             }
+
         ]
     },
     "root": {

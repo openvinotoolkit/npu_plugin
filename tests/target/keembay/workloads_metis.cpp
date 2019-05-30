@@ -16,7 +16,6 @@
 #include <string>
 #include <unordered_set>
 
-
 TEST(workloads_metis, 45x45_mode_4_4_workloads_5)
 {
     mv::CompilationUnit unit("45x45_mode_4_4_workloads_5");
