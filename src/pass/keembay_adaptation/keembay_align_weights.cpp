@@ -69,14 +69,18 @@ void alignTaskWeightsFcn(const mv::pass::PassEntry& , mv::ComputationModel& mode
             if(kernel->hasAttr("quantParams"))
                 quantParams = kernel->get<mv::QuantizationParams>("quantParams");
 
+            auto inputChannels = kernelShape[mv::KERNEL_INPUT_CHANNELS];
+            auto kernelWidth = kernelShape[mv::KERNEL_WIDTH];
+            auto kernelHeight = kernelShape[mv::KERNEL_HEIGHT];
+
             //Initializions are done assuming regular convolution and then eventually modified for depthwise
             auto outputChannels = kernelShape[mv::KERNEL_OUTPUT_CHANNELS];
             if(dpuTaskType == "DepthwiseConv")
-                outputChannels = kernelShape[mv::KERNEL_INPUT_CHANNELS];
+                outputChannels = inputChannels;
 
-            auto weightSetDimension = kernelShape[mv::KERNEL_WIDTH]*kernelShape[mv::KERNEL_HEIGHT]*kernelShape[mv::KERNEL_INPUT_CHANNELS];
+            auto weightSetDimension = kernelWidth * kernelHeight * inputChannels;
             if(dpuTaskType == "DepthwiseConv")
-                weightSetDimension = kernelShape[mv::KERNEL_WIDTH]*kernelShape[mv::KERNEL_HEIGHT];
+                weightSetDimension = kernelWidth * kernelHeight;
             auto weightSetDimensionPadded = mv::round_up(weightSetDimension, 16);
             auto paddingDifference = weightSetDimensionPadded - weightSetDimension;
 
@@ -106,13 +110,13 @@ void alignTaskWeightsFcn(const mv::pass::PassEntry& , mv::ComputationModel& mode
 
             mv::setOutputDataFlow(om, newKernel, outputDataFlows);
 
-//            for(auto toUpdateIt = toUpdate.begin(); toUpdateIt != toUpdate.end(); ++toUpdateIt)
-//            {
-//                (*toUpdateIt)->set<std::array<unsigned short, 2>>("kSize", {kernelShape[mv::KERNEL_WIDTH], kernelShape[mv::KERNEL_HEIGHT]});
-//                (*toUpdateIt)->set<unsigned>("inputChannels", kernelShape[mv::KERNEL_INPUT_CHANNELS]);
-//                (*toUpdateIt)->set<unsigned>("outputChannels", outputChannels);
-//                (*toUpdateIt)->set<mv::QuantizationParams>("quantParams", quantParams);
-//            }
+            for(auto& flowPair: outputDataFlows)
+            {
+                flowPair.first->set<std::array<unsigned short, 2>>("kSize", {kernelWidth, kernelHeight});
+                flowPair.first->set<unsigned>("inputChannels", inputChannels);
+                flowPair.first->set<unsigned>("outputChannels", outputChannels);
+                flowPair.first->set<mv::QuantizationParams>("quantParams", quantParams);
+            }
         }
     }
 }
