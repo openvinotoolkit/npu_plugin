@@ -108,9 +108,6 @@ else()
     add_executable(dpu_conv_example dpu_conv_example.cpp)
     target_link_libraries(dpu_conv_example cm)
 
-    add_executable(dpu_conv_workload_test dpu_conv_workload_test.cpp)
-    target_link_libraries(dpu_conv_workload_test cm)
-
     add_executable(streaming_manual_example streaming_manual_example.cpp)
     target_link_libraries(streaming_manual_example cm)
 
