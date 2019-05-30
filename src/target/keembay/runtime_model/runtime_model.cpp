@@ -532,6 +532,16 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
         toBuild->kernel_strideW = kernelStride[0];
         toBuild->kernel_strideH = kernelStride[1];
     }
+
+    if (opIt->hasAttr("padding"))
+    {
+        auto kernelPadding = opIt->get<std::array<unsigned short, 4>>("padding");
+        toBuild->kernel_padLeft = kernelPadding[0];
+        toBuild->kernel_padRight = kernelPadding[1];
+        toBuild->kernel_padTop = kernelPadding[2];
+        toBuild->kernel_padBottom = kernelPadding[3];
+    }
+
     toBuild->input_data = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(0));
     toBuild->parent_input_tensor = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(0));
     toBuild->output_data = buildTensorReferenceT(cm, compilationDescriptor, opIt->getOutputTensor(0));

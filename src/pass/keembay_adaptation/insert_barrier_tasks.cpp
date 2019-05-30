@@ -113,11 +113,6 @@ static void drawBIG(BarrierInterferenceGraph& g, std::string outputFile)
     }
     ostream << "}\n";
     ostream.close();
-
-    std::string pngFile = outputFile.substr(0, outputFile.find(".dot")) + ".png";
-
-    std::string systemCmd = "dot -Tpng " + outputFile + " -o " + pngFile;
-    system(systemCmd.c_str());
 }
 
 static void addEdge(const mv::Barrier& b1, const mv::Barrier& b2, BarrierInterferenceGraph& big)
@@ -530,6 +525,16 @@ static void insertBarriersIntoControlFlowGraph(mv::ComputationModel& model, cons
     }
 }
 
+void resetBarrierIDs(std::vector<mv::Barrier>& barriers)
+{
+    int id = 0;
+    for (auto& barrier: barriers)
+    {
+        barrier.setID(id);
+        id++;
+    }
+}
+
 void insertBarrierTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::json::Object&)
 {
     mv::OpModel om(model);
@@ -540,6 +545,8 @@ void insertBarrierTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
     addBarriers(model, barriers);
 
     combineRedundantBarriers(pass, barriers);
+
+    resetBarrierIDs(barriers);
 
     setBarrierGroupAndIndex(pass, om, barriers, passDesc);
 

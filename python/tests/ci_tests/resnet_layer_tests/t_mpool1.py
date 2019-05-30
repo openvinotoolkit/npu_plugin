@@ -11,6 +11,6 @@ sch_folder = "POC_config_csvs/"
 root_file = "mpool1"
 
 model = generate_model(net_folder+root_file+"_MIG.csv")
-graphfile, _ , f_result = compile_graphFile(model, 4, 4, sch_folder+"ResNet50_POC.csv", emulator=False)
+graphfile, s_result , f_result = compile_graphFile(model, 4, 4, sch_folder+"ResNet50_POC.csv")
 t_result = execute_network(graphfile)
-validate_files(f_result, t_result)
+validate_files(s_result, t_result)

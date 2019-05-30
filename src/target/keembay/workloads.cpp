@@ -514,7 +514,7 @@ std::vector<int> mv::Workloads::getWorkloadSplitPool(mv::Data::TensorIterator te
 void mv::Workloads::populateWorkloadsFromPartitions(idx_t nWorkloads, const mv::pass::PassEntry& pass, std::pair <idx_t,idx_t>& mpeMode) 
 {
     std::vector<std::vector<mv::Workload>> listOfworkloadLists;
-                
+
     for(int workload = 0; workload < nWorkloads; workload++) { 
         
         workloads_.push_back(mv::Workload()); /*Add each workload (struct) to vector of workloads*/
@@ -535,7 +535,7 @@ void mv::Workloads::populateWorkloadsFromPartitions(idx_t nWorkloads, const mv::
         wl_min_y = std::numeric_limits<xyz_type>::max();
         wl_max_x = -1;
         wl_max_y = -1;
-
+       
         for (int i=0; i < metisGraph_->m_numberTensorVertices; i++) {
 
             if (metisGraph_->part[i] == workload) {
