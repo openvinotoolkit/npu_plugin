@@ -195,6 +195,8 @@ static void generateSparsityMapsFcn(const mv::pass::PassEntry& pass, mv::Computa
                     ndims = {16, NumberOfRowsSparistyBytes, 1, outputChannels};
                 }
 
+                int channelLenght = bitpattern.size();
+
                 //populate sparsity
                 pass.log(mv::Logger::MessageType::Debug, " perChannelSize = " + std::to_string(perChannelSparsity.size()) );
                 for (size_t i = 0; i < bitpattern.size(); i++)
@@ -220,7 +222,7 @@ static void generateSparsityMapsFcn(const mv::pass::PassEntry& pass, mv::Computa
 
                 std::string sparsityMapName(opName + "SparsityMap");
                 auto fakeSparsityMap = createFakeSparsityMap(om, dpuTask, sparsityMapName, sparsityShape, sparsityTensor.getIntData());
-                fakeSparsityMap->set<int>("channelLength", perChannelSparsity.size());
+                fakeSparsityMap->set<int>("channelLength", channelLenght);
 
                 dpuTask->set<bool>("fakeSparsity", true);
             }

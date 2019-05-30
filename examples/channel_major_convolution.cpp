@@ -27,17 +27,17 @@ int main()
 
     mv::CompilationUnit unit("parserModel");
     mv::OpModel& om = unit.model();
-    auto input0 = om.input({32,32,16,1}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{128},{0.007843137718737125},{-1.0},{1.0}}, "input#3");
+    auto input0 = om.input({32,32,3,1}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{128},{0.007843137718737125},{-1.0},{1.0}}, "input#3");
 
-    std::vector<int64_t> weightsData0 = mv::utils::generateSequence<int64_t> (3*3*16*1);
-    auto weights0 = om.constantInt(weightsData0,{3,3,16,1}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{123},{0.002290877280756831},{-0.28270426392555237},{0.30146944522857666}}, "test_weights#1");
-    auto depthConv0 = om.depthwiseConv(input0, weights0, {1, 1}, {0, 0, 0, 0}, 1, {{128},{0.007843137718737125},{-1.003921627998352},{0.9960784316062927}}, "test#4");
+    std::vector<int64_t> weightsData0 = mv::utils::generateSequence<int64_t> (3*3*3*16);
+    auto weights0 = om.constantInt(weightsData0,{3,3,3,16}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{137},{0.0024162360932677984},{-0.33215922117233276},{0.28398096561431885}}, "test_channel_major_convolution_weights#1");
+    auto conv0 = om.conv(input0, weights0, {1, 1}, {1, 1, 1, 1}, 1, 1, {{128},{0.007843137718737125},{-1.003921627998352},{0.9960784316062927}}, "test_channel_major_convolution#4");
 
     std::vector<int64_t> biasWeightsData0 = mv::utils::generateSequence<int64_t> (16);
-    auto biasWeights0 = om.constantInt(biasWeightsData0,{16}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{1.796766446204856e-05},{-inf},{inf}}, "test_bias#2");
-    auto bias_cd0 = om.bias(depthConv0, biasWeights0, {{128},{0.007843137718737125},{-1.003921627998352},{0.9960784316062927}});
+    auto biasWeights0 = om.constantInt(biasWeightsData0,{16}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{1.8950870071421377e-05},{-inf},{inf}}, "test_channel_major_convolution_bias#2");
+    auto bias_c0 = om.bias(conv0, biasWeights0, {{128},{0.007843137718737125},{-1.003921627998352},{0.9960784316062927}});
 
-    om.output(bias_cd0);
+    om.output(bias_c0);
 
     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/debug_ma2490.json";
     unit.loadCompilationDescriptor(compDescPath);
