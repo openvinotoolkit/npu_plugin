@@ -135,8 +135,8 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
     int nDPUxCluster = nDPU / nClusters;
     
     /*The global mpe mode and number of workloads must be set for unit tests that don't have layer names matching resnet50 layer names*/
-    if (globalParams->hasAttr("MPE_mode")) 	
-        mpeMode  = globalParams->get<std::string>("MPE_mode");	
+    if (globalParams->hasAttr("mpe_mode")) 	
+        mpeMode  = globalParams->get<std::string>("mpe_mode");	
     else	
         std::runtime_error("Exiting, set the MPE mode in the compilation descriptor"); 
 
