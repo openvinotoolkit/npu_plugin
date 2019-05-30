@@ -191,7 +191,7 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
 
                     pass.log(mv::Logger::MessageType::Debug, "Output size is: " + opIt->getOutputTensor()[0]->getShape().toString());
 
-                     /*Create workload instance*/
+                    /*Create workload instance*/
                     workloadsVector.push_back(mv::Workloads(opIt->getName(), opIt->getOutputTensor()[0]->getShape(), MPEMode));
 
                     if(opIt->hasAttr("WorkloadStrategy_nWorkloads")) {
@@ -253,8 +253,8 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                                 metisValidWorkload = true;
                         }
 
-                         if(!workloadsVector.at(workloadsVectorIndex).validateWorkloads(opIt->getOutputTensor()[0]->getShape())) 
-                                throw std::runtime_error("Invalid workloads have been generated from METIS partitions after five attempts, exiting.");
+                        if(!workloadsVector.at(workloadsVectorIndex).validateWorkloads(opIt->getOutputTensor()[0]->getShape())) 
+                            throw std::runtime_error("Invalid workloads have been generated from METIS partitions after five attempts, exiting.");
                     }
 
                     /*Set valid workload attribute to true*/
