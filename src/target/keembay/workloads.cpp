@@ -841,37 +841,6 @@ mv::CostFunctions mv::Workloads::getCostFunction(mv::Element& passDesc) const
     return costFunction;
 }
 
-/** 
- * @brief Returns the supported Tensor Split Algorithms to be used
- */
-std::vector<std::string> mv::Workloads::getTensorSplitAlgorithms(mv::Element& passDesc) const
-{
-    /*parse TensorSplitAlgorithms from Compilation Descriptor*/
-    std::vector<std::string> algorithms = {"Metis", "Rectangle", "Z-Tiling"}; //default
-    if (passDesc.hasAttr("TensorSplitAlgorithms")) 
-    {
-        algorithms.clear();
-        std::string sAlgorithms = passDesc.get<std::string>("TensorSplitAlgorithms");
-        std::stringstream ss(sAlgorithms);
-        while( ss.good() )
-        {
-            std::string tempStr;
-            std::getline(ss, tempStr, ',');
-            if (tempStr=="Metis" || tempStr=="Rectangle" || tempStr=="Z-Tiling")
-                algorithms.push_back(tempStr);
-            else
-                this->log(mv::Logger::MessageType::Warning, "Could not parse the TensorSplitAlgorithms type (only \"Metis, Rectangle, Z-Tiling\" currently supported).");
-        }
-    }
-    else 
-        this->log(mv::Logger::MessageType::Info, "No TensorSplitAlgorithms specified in descriptor, using  \"Metis, Rectangle, Z-Tiling\"...");
-    
-    //if parsing problem, return all 3
-    if (algorithms.size() == 0)
-        algorithms = {"Metis", "Rectangle", "Z-Tiling"};
-    return algorithms;
-}
-
 std::vector<float> mv::Workloads::getExecutionCycles() const
 {
     return executionCycles_;
