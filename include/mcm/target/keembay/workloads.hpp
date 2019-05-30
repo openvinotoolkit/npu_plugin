@@ -310,7 +310,6 @@ namespace mv
         bool validateWorkloads(const mv::Shape& shape);
 
         mv::CostFunctions getCostFunction(mv::Element& passDesc) const;
-        std::vector<std::string> getTensorSplitAlgorithms(mv::Element& passDesc) const;
 
         double getAllWorkloadsVolume() const;
         bool noOverlap() const;

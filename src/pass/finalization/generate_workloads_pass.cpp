@@ -75,6 +75,36 @@ int partitionTensorWithMETIS(const std::shared_ptr<mv::MetisGraphStructure>& met
     return res;
 }
 
+/** 
+ * @brief Returns the supported Tensor Split Algorithms to be used
+ */
+std::vector<std::string> getTensorSplitAlgorithms(mv::Element& passDesc, const mv::pass::PassEntry& pass)
+{
+    /*parse TensorSplitAlgorithms from Compilation Descriptor*/
+    std::vector<std::string> algorithms = {"Metis", "Rectangle", "Z-Tiling"}; //default
+    if (passDesc.hasAttr("TensorSplitAlgorithms")) 
+    {
+        algorithms.clear();
+        std::string sAlgorithms = passDesc.get<std::string>("TensorSplitAlgorithms");
+        std::stringstream ss(sAlgorithms);
+        while( ss.good() )
+        {
+            std::string tempStr;
+            std::getline(ss, tempStr, ',');
+            if (tempStr=="Metis" || tempStr=="Rectangle" || tempStr=="Z-Tiling")
+                algorithms.push_back(tempStr);
+            else
+                pass.log(mv::Logger::MessageType::Warning, "Could not parse the TensorSplitAlgorithms type (only \"Metis, Rectangle, Z-Tiling\" currently supported).");
+        }
+    }
+    else 
+        pass.log(mv::Logger::MessageType::Info, "No TensorSplitAlgorithms specified in descriptor, using  \"Metis, Rectangle, Z-Tiling\"...");
+    
+    //if parsing problem, return all 3
+    if (algorithms.size() == 0)
+        algorithms = {"Metis", "Rectangle", "Z-Tiling"};
+    return algorithms;
+}
 
 void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element& passDesc, mv::json::Object &)
 {
@@ -104,51 +134,72 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
     /*DPUs per cluster*/    
     int nDPUxCluster = nDPU / nClusters;
     
-    /*The global mpe mode must be set*/
-    if (globalParams->hasAttr("MPE_mode")) 	
-        mpeMode  = globalParams->get<std::string>("MPE_mode");	
+    /*The global mpe mode and number of workloads must be set for unit tests that don't have layer names matching resnet50 layer names*/
+    if (globalParams->hasAttr("mpe_mode")) 	
+        mpeMode  = globalParams->get<std::string>("mpe_mode");	
     else	
-        std::runtime_error("Exiting, set the MPE mode in the compilation descriptor");	
+        std::runtime_error("Exiting, set the MPE mode in the compilation descriptor"); 
 
-     /*MPE mode*/	
+     /*Set MPE mode from global*/	
     if(mpeMode == "Matrix")
     {
         MPEMode.first = 4;	
         MPEMode.second = 4; 
-        pass.log(mv::Logger::MessageType::Debug, "MPE mode is Matrix");
+        pass.log(mv::Logger::MessageType::Debug, "Global MPE mode is Matrix");
 	
     }	
     else if (mpeMode == "Vector")	
     {	
         MPEMode.first = 1;	
         MPEMode.second = 16; 	
-        pass.log(mv::Logger::MessageType::Debug, "MPE mode is Vector");
+        pass.log(mv::Logger::MessageType::Debug, "Global MPE mode is Vector");
     }	
+
+    /*Get the worklaods algorithm*/
+    std::vector<std::string> algorithms = getTensorSplitAlgorithms(passDesc, pass);
 
     for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt)
     {
         if (opIt->getOpType() == "DPUTask")
         {
             pass.log(mv::Logger::MessageType::Debug, "Found DPU task " + opIt->getName() + " of type " + opIt->get<std::string>("taskOp"));
-                 
-            /*Create workload instance*/
-            workloadsVector.push_back(mv::Workloads(opIt->getName(), opIt->getOutputTensor()[0]->getShape(), MPEMode));
-
-            /*Get the worklaods algorithm*/
-            std::vector<std::string> algorithms = workloadsVector.at(workloadsVectorIndex).getTensorSplitAlgorithms(passDesc);
-            
-            /*Generate the split pool and select the first one*/
-            auto nWorkloadsSplitPool = workloadsVector.at(workloadsVectorIndex).getWorkloadSplitPool(opIt->getOutputTensor()[0], nDPUxCluster);
-            nWorkloads = nWorkloadsSplitPool[0];
-
-            pass.log(mv::Logger::MessageType::Debug, "Number of workloads is:" + std::to_string(nWorkloads));
-            pass.log(mv::Logger::MessageType::Debug, "Output size is: " + opIt->getOutputTensor()[0]->getShape().toString());
 
             /*Partition tensor into workloads*/
             for (std::string algorithm : algorithms)
             {
                 if (algorithm == "Metis")
                 {
+                    if(opIt->hasAttr("WorkloadStrategy_MPE_mode")) {
+                        if(opIt->get<std::string>("WorkloadStrategy_MPE_mode") == "Matrix") {
+                            MPEMode.first = 4;	
+                            MPEMode.second = 4;
+                            pass.log(mv::Logger::MessageType::Debug, "This layer has a workload strategy, using MPE mode Matrix"); 	
+                        }
+                        if(opIt->get<std::string>("WorkloadStrategy_MPE_mode") == "Vector") {
+                        MPEMode.first = 1;	
+                        MPEMode.second = 16;
+                        pass.log(mv::Logger::MessageType::Debug, "This layer has a workload srategy, using MPE mode Vector"); 	
+                        }
+                    }
+                    else
+                        pass.log(mv::Logger::MessageType::Debug, "This layer does not have workload strategy using the gloabl MPE mode");
+
+                    pass.log(mv::Logger::MessageType::Debug, "Output size is: " + opIt->getOutputTensor()[0]->getShape().toString());
+
+                    /*Create workload instance*/
+                    workloadsVector.push_back(mv::Workloads(opIt->getName(), opIt->getOutputTensor()[0]->getShape(), MPEMode));
+
+                    if(opIt->hasAttr("WorkloadStrategy_nWorkloads")) {
+                        nWorkloads = opIt->get<int>("WorkloadStrategy_nWorkloads");
+                        pass.log(mv::Logger::MessageType::Debug, "This layer has number of workloads in the workload strategy using : "+ std::to_string(nWorkloads));
+                    }
+                    else {
+                        /*Generate the split pool and select the first one*/
+                        auto nWorkloadsSplitPool = workloadsVector.at(workloadsVectorIndex).getWorkloadSplitPool(opIt->getOutputTensor()[0], nDPUxCluster);
+                        nWorkloads = nWorkloadsSplitPool[0];
+                        pass.log(mv::Logger::MessageType::Debug, "This layer does not have number of workloads in the workload strategy using from the split pool is: " + std::to_string(nWorkloads));
+                    }
+
                     /*Populate Metis adjacency structure and partition tensor*/
                     workloadsVector.at(workloadsVectorIndex).generateMetisGraph();
                     metisGraph = workloadsVector.at(workloadsVectorIndex).getMetisGraph();
@@ -197,12 +248,13 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                                 metisValidWorkload = true;
                         }
 
-                         if(!workloadsVector.at(workloadsVectorIndex).validateWorkloads(opIt->getOutputTensor()[0]->getShape())) 
-                                throw std::runtime_error("Invalid workloads have been generated from METIS partitions after five attempts, exiting.");
+                        if(!workloadsVector.at(workloadsVectorIndex).validateWorkloads(opIt->getOutputTensor()[0]->getShape())) 
+                            throw std::runtime_error("Invalid workloads have been generated from METIS partitions after five attempts, exiting.");
                     }
 
                     /*Set valid workload attribute to true*/
                     opIt->set<bool>("Valid_workload", true);
+                    
                 }
                 else if (algorithm == "Rectangle")
                 {
@@ -215,6 +267,7 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
             }
 
             opIt->set<mv::Workloads>("Workloads", workloadsVector.at(workloadsVectorIndex));
+            workloadsVectorIndex++;
         }
     }
     pass.log(mv::Logger::MessageType::Debug, "Exiting workload generation pass");
