@@ -516,7 +516,6 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
         toBuild->ppe_task = buildPPETaskT(cm, compilationDescriptor, opIt->get<PPETask>("PPETask"));
     // TODO
     // std::vector<std::unique_ptr<NNTensorTaskT>> nnshv_task;
-    // mpe_frequent_mode: MPE_Mode;
     // split_over_h: bool = false;
 
     if (opIt->hasAttr("kSize"))
@@ -559,8 +558,11 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
         toBuild->activation_window_channel_length = activationWindowTensorIterator->get<int>("channelLength");
     }
 
-    auto weightsTableTensorIterator = opIt->getInputTensor(num_inputs - 1);
-    toBuild->weights_table = buildTensorReferenceT(cm, compilationDescriptor, weightsTableTensorIterator);
+    if(toBuild->dpu_task_type != MVCNN::DPULayerType_ELTWISE)
+    {
+        auto weightsTableTensorIterator = opIt->getInputTensor(num_inputs - 1);
+        toBuild->weights_table = buildTensorReferenceT(cm, compilationDescriptor, weightsTableTensorIterator);
+    }
 
     switch (toBuild->dpu_task_type)
     {
