@@ -73,6 +73,12 @@ int main()
 
     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/debug_ma2490.json";
     unit.loadCompilationDescriptor(compDescPath);
+    auto& compDesc = unit.compilationDescriptor();
+
+    std::string barrierStrategy = "Dynamic";
+    compDesc.setPassArg("GlobalConfigParams", "barrier_index_assignment", barrierStrategy);
+    auto ndpu = 1;
+    compDesc.setPassArg("GlobalConfigParams", "Number_of_DPUs", ndpu);
 
     unit.loadTargetDescriptor(mv::Target::ma2490);
     unit.initialize();
