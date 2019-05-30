@@ -13,7 +13,7 @@
                 "DDRScratch": 4096,
                 "MemoryHack": true,
                 "CMX_memory_overflow_safety_factor" : 0.925,
-                "MPE_mode" : "Matrix",
+                "MPE_mode" : "Vector",
                 "split_strategy" :
                 [
                     {

@@ -154,7 +154,6 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
         MPEMode.second = 16; 	
         pass.log(mv::Logger::MessageType::Debug, "Global MPE mode is Vector");
     }	
-    pass.log(mv::Logger::MessageType::Debug, "The global number of workloads is: " + std::to_string(nWorkloads));
 
     /*Get the worklaods algorithm*/
     std::vector<std::string> algorithms = getTensorSplitAlgorithms(passDesc, pass);
@@ -182,6 +181,8 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                         pass.log(mv::Logger::MessageType::Debug, "This layer has a workload srategy, using MPE mode Vector"); 	
                         }
                     }
+                    else
+                        pass.log(mv::Logger::MessageType::Debug, "This layer does not have workload strategy using the gloabl MPE mode");
 
                     pass.log(mv::Logger::MessageType::Debug, "Output size is: " + opIt->getOutputTensor()[0]->getShape().toString());
 
@@ -253,6 +254,7 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
 
                     /*Set valid workload attribute to true*/
                     opIt->set<bool>("Valid_workload", true);
+                    
                 }
                 else if (algorithm == "Rectangle")
                 {
@@ -265,6 +267,7 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
             }
 
             opIt->set<mv::Workloads>("Workloads", workloadsVector.at(workloadsVectorIndex));
+            workloadsVectorIndex++;
         }
     }
     pass.log(mv::Logger::MessageType::Debug, "Exiting workload generation pass");
