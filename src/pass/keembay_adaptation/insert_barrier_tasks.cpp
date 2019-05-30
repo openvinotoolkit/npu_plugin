@@ -503,7 +503,12 @@ static void insertBarriersIntoControlFlowGraph(mv::ComputationModel& model, cons
 
     for (auto& barrier: barriers)
     {
-        std::string barrierName("BarrierTask_" + std::to_string(barrier.getID()));
+        // Start BarrierTask name with ~ --> this has the highest ascii value of
+        // all the characters we're likely to use & hence this won't come in
+        // the way of any lexicographical topological sorting that occurs after
+        // barrier insertion (the control model topological sort uses task names
+        // for sorting purposes).
+        std::string barrierName("~BarrierTask_" + std::to_string(barrier.getID()));
         om.barrierTask(barrier, barrierName);
 
         // Add control flows to insert this barrier to the control flow graph
