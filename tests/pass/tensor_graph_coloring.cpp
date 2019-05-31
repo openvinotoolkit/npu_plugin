@@ -6,6 +6,7 @@
 #include "include/mcm/tensor/math.hpp"
 #include "include/mcm/utils/data_generator.hpp"
 #include "include/mcm/pass/pass_registry.hpp"
+#include "include/mcm/utils/custom_strings.hpp"
 
 TEST(graph_coloring, single_conv)
 {
@@ -35,20 +36,20 @@ TEST(graph_coloring, single_conv)
     // where everything is connected, the order will not matter (all have the same neighbors weight)
     // so the addresses here are not matching with POC.
     //CMX
-    refTensorSizeAddress["DMAAlignedConstantInt_0:0"] = std::make_pair(10240, 557056);
-    refTensorSizeAddress["DMADPU_Conv_0SparsityMap:0"] = std::make_pair(4096, 552960);
-    refTensorSizeAddress["DMADPU_Conv_0WeightsTable:0"] = std::make_pair(1024, 551936);
-    refTensorSizeAddress["DMAInput_0:0"] = std::make_pair(75264, 476672);
-    refTensorSizeAddress["DPU_Conv_0:0"] = std::make_pair(476672, 0);
+    refTensorSizeAddress[mv::createDMATaskDDR2CMXName(mv::createAlignConstantName("ConstantInt_0"))+":0"] = std::make_pair(10240, 557056);
+    refTensorSizeAddress[mv::createDMATaskDDR2CMXName(mv::createSparsityMapName(mv::createDPUTaskName("Conv_0")))+":0"] = std::make_pair(4096, 552960);
+    refTensorSizeAddress[mv::createDMATaskDDR2CMXName(mv::createWeightTableName(mv::createDPUTaskName("Conv_0")))+":0"] = std::make_pair(1024, 551936);
+    refTensorSizeAddress[mv::createDMATaskDDR2CMXName("Input_0")+":0"] = std::make_pair(75264, 476672);
+    refTensorSizeAddress[mv::createDPUTaskName("Conv_0")+":0"] = std::make_pair(476672, 0);
 
     //BSS
-    refTensorSizeAddress["AlignedConstantInt_0:0"  ] = std::make_pair(10240,  5120);
-    refTensorSizeAddress["DPU_Conv_0SparsityMap:0" ] = std::make_pair(4096, 1024);
-    refTensorSizeAddress["DPU_Conv_0WeightsTable:0"] = std::make_pair(1024, 0);
+    refTensorSizeAddress[mv::createAlignConstantName("ConstantInt_0")+":0"] = std::make_pair(10240,  5120);
+    refTensorSizeAddress[mv::createSparsityMapName(mv::createDPUTaskName("Conv_0"))+":0"] = std::make_pair(4096, 1024);
+    refTensorSizeAddress[mv::createWeightTableName(mv::createDPUTaskName("Conv_0"))+":0"] = std::make_pair(1024, 0);
 
     //TODO HEAP, not yet fully implemented on POC
-    refTensorSizeAddress["DMADPU_Conv_0:0" ] = std::make_pair(476672, 0);
-    refTensorSizeAddress["Input_0:0"    ] = std::make_pair(75264, 476672);
+    refTensorSizeAddress[mv::createDMATaskCMX2DDRName(mv::createDPUTaskName("Conv_0"))+":0"] = std::make_pair(476672, 0);
+    refTensorSizeAddress["Input_0:0"] = std::make_pair(75264, 476672);
 
     mv::DataModel dm(om);
     for (auto itr = refTensorSizeAddress.begin(); itr != refTensorSizeAddress.end(); itr++)
