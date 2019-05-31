@@ -36,7 +36,7 @@ TEST(sparsity, case_cm)
     auto convOp = om.getOps("DPUTask")[0];
     if(convOp->hasAttr("fakeSparsity"))
         std::cout << "SparsityAdded" << std::endl;
-    auto resData = om.getOp(mv::createSparsityMapName(convOp->getName()))->getOutputTensor(0)->getIntData();
+    auto resData = om.getOp(mv::createFakeSparsityMapName(convOp->getName()))->getOutputTensor(0)->getIntData();
 
     std::ifstream outputfile(mv::utils::projectRootPath() + std::string("/tests/data/res1_sparsity_map.bin"), std::ios::binary );
 
@@ -88,7 +88,7 @@ TEST(sparsity, case_hwPooling)
     auto convOp = om.getOps("DPUTask")[0];
     if(convOp->hasAttr("fakeSparsity"))
         std::cout << "SparsityAdded" << std::endl;
-    auto resData = om.getOp(mv::createSparsityMapName(convOp->getName()))->getOutputTensor(0)->getIntData();
+    auto resData = om.getOp(mv::createFakeSparsityMapName(convOp->getName()))->getOutputTensor(0)->getIntData();
 
     std::ifstream outputfile(mv::utils::projectRootPath() + std::string("/tests/data/res5c_sparsity_map.bin"), std::ios::binary );
 

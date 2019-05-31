@@ -14,9 +14,19 @@ std::string mv::demanglePOCName(const std::string &mangledName)
     return deleteTillEndIfPatternFound(mangledName, "#");
 }
 
-std::string mv::createSparsityMapName(const std::string& opName)
+std::string mv::createFakeSparsityMapName(const std::string& opName)
 {
     return demanglePOCName(opName) + "_sparse_dw";
+}
+
+std::string mv::createSparsityMapName(const std::string& tensorName)
+{
+    return tensorName + "_sm";
+}
+
+std::string mv::createStorageElementName(const std::string& tensorName)
+{
+    return tensorName + "_se";
 }
 
 std::string mv::createWeightTableName(const std::string& opName)
