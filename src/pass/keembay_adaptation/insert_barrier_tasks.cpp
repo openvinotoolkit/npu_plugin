@@ -578,7 +578,7 @@ void removeExtraProducers(const mv::pass::PassEntry& pass,
                 {
                     if (cm.pathExists(cm.switchContext(om.getOp(p1)), cm.switchContext(om.getOp(p2))))
                     {
-                        pass.log(mv::Logger::MessageType::Warning,
+                        pass.log(mv::Logger::MessageType::Info,
                             "path exists between " + p1 + " and " + p2 +
                             "..., removing " + p2 + " from barrier's producer list");
                         toRemove.push_back(p1);
