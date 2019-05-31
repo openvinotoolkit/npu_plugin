@@ -555,6 +555,43 @@ void resetBarrierIDs(std::vector<mv::Barrier>& barriers)
     }
 }
 
+void removeExtraProducers(const mv::pass::PassEntry& pass,
+                            mv::ComputationModel& model,
+                            std::vector<mv::Barrier>& barriers)
+{
+    // For each barrier, examine whether a given producer is a valid one.
+    // A producer is invalid if it is downstream of another producer to
+    // this barrier & it has a barrier in front of it.
+
+    mv::OpModel om(model);
+    mv::ControlModel cm(model);
+
+    for (auto& barrier: barriers)
+    {
+        auto producers = barrier.getProducers();
+        std::vector<std::string> toRemove;
+        for (auto p1: producers)
+        {
+            for (auto p2: producers)
+            {
+                if (p1 != p2)
+                {
+                    if (cm.pathExists(cm.switchContext(om.getOp(p1)), cm.switchContext(om.getOp(p2))))
+                    {
+                        pass.log(mv::Logger::MessageType::Warning,
+                            "path exists between " + p1 + " and " + p2 +
+                            "..., removing " + p2 + " from barrier's producer list");
+                        toRemove.push_back(p1);
+                    }
+                }
+            }
+        }
+
+        for (auto p: toRemove)
+            barrier.removeProducer(p);
+    }
+}
+
 void insertBarrierTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::json::Object&)
 {
     mv::OpModel om(model);
@@ -565,6 +602,10 @@ void insertBarrierTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
     addBarriers(model, barriers);
 
     combineRedundantBarriers(pass, barriers);
+
+    // remove extraneous producers
+    // XXX: Q: Do any extraneous consumers need to be removed as well?
+    removeExtraProducers(pass, model, barriers);
 
     resetBarrierIDs(barriers);
 
