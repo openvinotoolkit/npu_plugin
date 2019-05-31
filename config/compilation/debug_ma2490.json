@@ -294,11 +294,11 @@
         "Singular": [
             {
                 "name": "GenerateBlobKeembay",
-                "output": "output/vpu2.blob"
+                "output": "output/mcm.blob"
             },
             {
                 "name": "ConvertFlatbuffer",
-                "input": "output/vpu2.blob"
+                "input": "output/mcm.blob"
             }
 
         ]
