@@ -20,7 +20,8 @@ namespace mv
 // This pass aligns weights for Convolutions that will be executed as DPUTasks
 // Pass main assumption is that we are working on the task graph, no DMA involved yet
 // Another assumption is that if a tensor of weights is involved in more than one OP
-// Then either all these ops are DPUTasks or neither of them.
+// Then either all these ops are DPUTasks or neither of them. Another assumption is
+// that all the dpu tasks are the same operation
 
 void alignTaskWeightsFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
@@ -40,12 +41,17 @@ void alignTaskWeightsFcn(const mv::pass::PassEntry& , mv::ComputationModel& mode
 
         std::vector<mv::Data::OpListIterator> toUpdate;
         bool hasAtLeastOneDPUTask = false;
+        std::string dpuTaskType;
         for(auto opIt = kernelOp.leftmostChild(); opIt != om.opEnd(); ++opIt)
         {
             if(opIt->getOpType() == "DPUTask")
             {
                 hasAtLeastOneDPUTask = true;
                 toUpdate.push_back(opIt);
+                if(dpuTaskType.empty())
+                    dpuTaskType = opIt->get<std::string>("taskOp");
+                else if(dpuTaskType != opIt->get<std::string>("taskOp"))
+                    throw "Assumption violated!";
             }
             else if(hasAtLeastOneDPUTask)
                 throw "Assumption violated!";
@@ -54,22 +60,30 @@ void alignTaskWeightsFcn(const mv::pass::PassEntry& , mv::ComputationModel& mode
         if(hasAtLeastOneDPUTask)
         {
             auto kernel = kernelOp->getOutputTensor(0);
-            auto opIt = kernelOp.leftmostChild();
             auto kernelShape = kernel->getShape();
             mv::QuantizationParams quantParams = {{},{},{},{}};
             if(kernel->hasAttr("quantParams"))
                 quantParams = kernel->get<mv::QuantizationParams>("quantParams");
+
+            //Initializions are done assuming regular convolution and then eventually modified for depthwise
+            auto outputChannels = kernelShape[mv::KERNEL_OUTPUT_CHANNELS];
+            if(dpuTaskType == "DepthwiseConv")
+                outputChannels = kernelShape[mv::KERNEL_INPUT_CHANNELS];
+
             auto weightSetDimension = kernelShape[mv::KERNEL_WIDTH]*kernelShape[mv::KERNEL_HEIGHT]*kernelShape[mv::KERNEL_INPUT_CHANNELS];
+            if(dpuTaskType == "DepthwiseConv")
+                weightSetDimension = kernelShape[mv::KERNEL_WIDTH]*kernelShape[mv::KERNEL_HEIGHT];
             auto weightSetDimensionPadded = mv::round_up(weightSetDimension, 16);
             auto paddingDifference = weightSetDimensionPadded - weightSetDimension;
-            mv::Shape newShape({weightSetDimensionPadded, 1, 1, kernelShape[mv::KERNEL_OUTPUT_CHANNELS]});
+
+            mv::Shape newShape({weightSetDimensionPadded, 1, 1, outputChannels});
 
             //NOTE: This three lines have to be corrected
             auto oldData = kernel->getData();
 
             std::vector<mv::DataElement> newData(newShape.totalSize(), 0);
             unsigned i = 0, j = 0;
-            for(unsigned oc = 0; oc < kernelShape[mv::KERNEL_OUTPUT_CHANNELS]; ++oc)
+            for(unsigned oc = 0; oc < outputChannels; ++oc)
             {
                 for(unsigned ws = 0; ws < weightSetDimension; ++ws)
                     newData[j++] = oldData[i++];
@@ -86,6 +100,7 @@ void alignTaskWeightsFcn(const mv::pass::PassEntry& , mv::ComputationModel& mode
             {
                 (*toUpdateIt)->set<std::array<unsigned short, 2>>("kSize", {kernelShape[mv::KERNEL_WIDTH], kernelShape[mv::KERNEL_HEIGHT]});
                 (*toUpdateIt)->set<unsigned>("inputChannels", kernelShape[mv::KERNEL_INPUT_CHANNELS]);
+                (*toUpdateIt)->set<unsigned>("outputChannels", outputChannels);
                 (*toUpdateIt)->setInputTensor(newKernel, 1, false);
                 (*toUpdateIt)->set<mv::QuantizationParams>("quantParams", quantParams);
                 om.defineFlow(newKernel, (*toUpdateIt), 1);
