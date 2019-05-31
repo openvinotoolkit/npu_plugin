@@ -5,6 +5,7 @@
 #include "include/mcm/target/myriadx/nce1_utils.hpp"
 #include "include/mcm/utils/custom_math.hpp"
 #include <numeric>
+#include <cmath>
 
 static void generateBlobFcn(const mv::pass::PassEntry&, mv::ComputationModel&, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 static void PopulateSerialFieldsFcn(const mv::pass::PassEntry&, mv::ComputationModel&, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
