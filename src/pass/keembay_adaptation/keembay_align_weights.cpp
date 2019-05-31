@@ -99,10 +99,9 @@ void alignTaskWeightsFcn(const mv::pass::PassEntry& , mv::ComputationModel& mode
                     ++j;
             }
 
-            std::string newKernelName;
+            std::string newKernelName = mv::demanglePOCName(kernelName);
             if(paddingDifference != 0)
-                newKernelName += "AlignContainer_";
-            newKernelName += mv::demanglePOCName(kernelName);
+                newKernelName = mv::createAlignConstantName(kernelName);
             auto outputDataFlows = mv::getOutputDataFlow(om, kernelOp);
             auto newKernel = om.constantDataElement(newData, newShape, kernelDType, mv::Order("NHWC"), quantParams, newKernelName);
             auto newKernelOp = om.getSourceOp(newKernel);

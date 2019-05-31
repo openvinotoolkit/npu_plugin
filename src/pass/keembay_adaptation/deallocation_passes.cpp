@@ -58,8 +58,7 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
         auto inputOpName = inputOp->getName();
         auto inputTensor = dataFlowIt->getTensor();
 
-        std::string deallocationName(inputOpName);
-        deallocationName += "_DEALLOC";
+        std::string deallocationName(mv::createDeallocationName(inputOpName));
 
         // Each tensor must be deallocated once
         if(!om.checkOp(deallocationName))

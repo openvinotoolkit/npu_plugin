@@ -83,9 +83,9 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
 
             mv::Data::TensorIterator dpuConv;
             if(opType == "Conv")
-                dpuConv = om.dPUTaskConv({input, kernel}, strides, padding, dilationFactor, group, quantParams, mv::demanglePOCName(name));
+                dpuConv = om.dPUTaskConv({input, kernel}, strides, padding, dilationFactor, group, quantParams, mv::createDPUTaskName(name));
             else
-                dpuConv = om.dPUTaskDepthwiseConv({input, kernel}, strides, padding, dilationFactor, quantParams, mv::demanglePOCName(name));
+                dpuConv = om.dPUTaskDepthwiseConv({input, kernel}, strides, padding, dilationFactor, quantParams, mv::createDPUTaskName(name));
 
             auto dpuConvOp = om.getSourceOp(dpuConv);
             dpuConvOp->set<unsigned>("opId", opId);
@@ -135,7 +135,7 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             auto outputDataFlows = mv::getOutputDataFlow(om, opIt);
 
             auto dpuPool = om.dPUTaskMaxPool({input}, kernelSize, strides, padding,
-                               exclude_pad, auto_pad, rounding_type, quantParams, mv::demanglePOCName(name));
+                               exclude_pad, auto_pad, rounding_type, quantParams, mv::createDPUTaskName(name));
             auto dpuPoolOp = om.getSourceOp(dpuPool);
             dpuPoolOp->set<unsigned>("opId", opId);
             dpuPoolOp->set<bool>("hasWeights", false);
@@ -166,7 +166,7 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             auto outputDataFlows = mv::getOutputDataFlow(om, opIt);
 
             auto dpuElementWiseFunctor = (dpuTaskMap.at(opType));
-            auto dpuElementWise = dpuElementWiseFunctor(inputs, quantParams, mv::demanglePOCName(name));
+            auto dpuElementWise = dpuElementWiseFunctor(inputs, quantParams, mv::createDPUTaskName(name));
             auto dpuElementWiseOp = om.getSourceOp(dpuElementWise);
             dpuElementWiseOp->set<unsigned>("opId", opId);
             dpuElementWiseOp->set<bool>("hasWeights", false);
