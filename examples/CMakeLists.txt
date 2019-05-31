@@ -122,9 +122,6 @@ else()
     add_executable(streaming_manual_tinyyolo_conv7_example streaming_manual_tinyyolo_conv7_example.cpp)
     target_link_libraries(streaming_manual_tinyyolo_conv7_example cm)
 
-    add_executable(zconv_example zconv_example.cpp)
-    target_link_libraries(zconv_example cm)
-
     add_executable(dpu_task_example dpu_task_example.cpp)
     target_link_libraries(dpu_task_example cm)
 
