@@ -257,6 +257,8 @@ namespace mv
     struct DPUMode { unsigned H, W; }; // NB: do not mess with MPE_Mode
     using  DPUModeList = std::vector<mv::DPUMode>;
 
+    enum class WorkloadSplitMode { HW=1, HC, WC };
+
     class Workloads : public LogSender
     {
 
@@ -270,6 +272,7 @@ namespace mv
         std::vector<int> generateMetisGraphNodeNumbers(void);
 
     public:
+        Workloads(const std::string& name, const mv::Shape& tensorShape);
         Workloads(const std::string& name, const mv::Shape& tensorShape, std::pair <idx_t,idx_t>& mpeMode);
         ~Workloads();
       
@@ -277,7 +280,12 @@ namespace mv
         std::shared_ptr<mv::MetisGraphStructure> getMetisGraph();
 
         /*returns: METIS_OK(=1), or METIS_ERROR*/
-        int partitionTensorWithRectangleHeuristic(const DPUModeList& modes, idx_t nWorkloads,
+        int partitionTensorWithRectangleHeuristic(const mv::DPUModeList& modes,
+                                                            idx_t        nWorkloads,
+                                                            bool         split_over_h,
+                                                            bool         split_over_w,
+                                                            bool         split_symmetric,
+                                                  const mv::WorkloadSplitMode& split_mode,
                                                   const mv::pass::PassEntry& pass);
 
         idx_t getNWorkloads(const mv::Shape& tensorShape, int nDPUxCluster);
