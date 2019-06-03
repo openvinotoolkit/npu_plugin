@@ -62,13 +62,13 @@
                     {
                         "name_filter" : "res4a_branch2a#4",
                         "cluster_filter" : 0,
-                        "nWorkloads" : 8,
+                        "nWorkloads" : 1,
                         "mpe_mode" : "Vector"
                     },
                     {
                         "name_filter" : "res4a_branch2b#4",
                         "cluster_filter" : 0,
-                        "nWorkloads" : 8,
+                        "nWorkloads" : 1,
                         "mpe_mode" : "Vector"
                     }
                 ]
