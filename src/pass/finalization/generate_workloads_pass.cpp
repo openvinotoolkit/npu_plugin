@@ -36,6 +36,29 @@ namespace mv
  * which represents a tensor to be partitioned. These will be required when we port METIS to to MCMcompiler.   
  * 
 */ 
+
+int countNumberOfWorkloadsMetisReturned(int arr[], int n) 
+{ 
+    // First sort the array so that all 
+    // occurrences become consecutive 
+    std::sort(arr, arr + n); 
+  
+    // Traverse the sorted array 
+    int res = 0; 
+    for (int i = 0; i < n; i++) { 
+  
+        // Move the index ahead while 
+        // there are duplicates 
+        while (i < n - 1 && arr[i] == arr[i + 1]) 
+            i++; 
+  
+        res++; 
+    } 
+  
+    return res; 
+} 
+
+
 int partitionTensorWithMETIS(const std::shared_ptr<mv::MetisGraphStructure>& metisGraph, idx_t nWorkloads, const mv::pass::PassEntry& pass) 
 {
     METIS_SetDefaultOptions(metisGraph->options);
@@ -71,6 +94,13 @@ int partitionTensorWithMETIS(const std::shared_ptr<mv::MetisGraphStructure>& met
     if(nWorkloads == 1) 
         for (int i=0; i < metisGraph->m_numberTensorVertices; i++) 
             metisGraph->part[i] = 0; 
+
+    
+    /*Check if METIS returned fewer than the requested number of partitions - this is an error condition*/
+    int numberOfMetisPartitions = countNumberOfWorkloadsMetisReturned(metisGraph->part.get(), metisGraph->m_numberTensorVertices);
+
+    if(numberOfMetisPartitions < nWorkloads)
+        throw std::runtime_error("METIS returned less partitions (workloads) than requested - this is an error condition");
 
     return res;
 }

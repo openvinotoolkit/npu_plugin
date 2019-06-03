@@ -56,6 +56,21 @@
                         "cluster_filter" : 0,
                         "strategy" : "SplitOverH"
                     }
+                ],
+                "workload_strategy" :
+                [
+                    {
+                        "name_filter" : "res4a_branch2a#4",
+                        "cluster_filter" : 0,
+                        "nWorkloads" : 8,
+                        "mpe_mode" : "Vector"
+                    },
+                    {
+                        "name_filter" : "res4a_branch2b#4",
+                        "cluster_filter" : 0,
+                        "nWorkloads" : 8,
+                        "mpe_mode" : "Vector"
+                    }
                 ]
             },
             "ComputeMemory",
@@ -102,6 +117,7 @@
     "keembay_adapt": {
         "Singular": [
             "StoreLayerSplitStrategy",
+            "StoreWorkloadStrategy",
             "ConvertOpsToTasks",
             "ComputeTensorsQuantParams",
             "KMBOrderConversion",
