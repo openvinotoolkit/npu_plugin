@@ -27,8 +27,8 @@ add_subdirectory(thirdparty)
 #FIXME remove kmb_plugin folder?
 add_subdirectory(src)
 
-#enable_testing()
+enable_testing()
 
-#if(ENABLE_TESTS)
-#    add_subdirectory(tests)
-#endif()
+if(ENABLE_TESTS)
+    add_subdirectory(tests)
+endif()
