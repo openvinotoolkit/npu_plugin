@@ -6,7 +6,7 @@
                 "_comment" : "Stores common params accross multiple passes. Access through the Computation Model.",
                 "recorded_model": false,
                 "weights_form": "None",
-                "barrier_index_assignment" : "Static",
+                "barrier_index_assignment" : "Dynamic",
                 "Number_of_DPUs" : 1,
                 "Number_of_Clusters" : 1,
                 "UpaShaves": 1,
@@ -62,13 +62,13 @@
                     {
                         "name_filter" : "res4a_branch2a#4",
                         "cluster_filter" : 0,
-                        "nWorkloads" : 8,
+                        "nWorkloads" : 1,
                         "mpe_mode" : "Vector"
                     },
                     {
                         "name_filter" : "res4a_branch2b#4",
                         "cluster_filter" : 0,
-                        "nWorkloads" : 8,
+                        "nWorkloads" : 1,
                         "mpe_mode" : "Vector"
                     }
                 ]
@@ -294,11 +294,11 @@
         "Singular": [
             {
                 "name": "GenerateBlobKeembay",
-                "output": "output/vpu2.blob"
+                "output": "output/mcm.blob"
             },
             {
                 "name": "ConvertFlatbuffer",
-                "input": "output/vpu2.blob"
+                "input": "output/mcm.blob"
             }
 
         ]
