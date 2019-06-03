@@ -104,6 +104,9 @@ ie_add_plugin(NAME ${TARGET_NAME}
               SOURCES ${SOURCES}
               VERSION_DEFINES_FOR kmb_plugin.cpp)
 
+ie_register_plugins(MAIN_TARGET ${TARGET_NAME}
+                    POSSIBLE_PLUGINS ${TARGET_NAME})
+
 if (MCM_COMPILER_INTERNAL_BUILD)
     add_dependencies(${TARGET_NAME} mcmCompiler)
 endif()
