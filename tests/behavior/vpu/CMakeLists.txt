@@ -15,19 +15,6 @@ function(enable_vpu TARGET_NAME FLAG_NAME PLUGIN_NAME)
             ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/plugin_tests/*.cpp
             )
 
-    if (ENABLE_MYRIAD)
-        file(GLOB VPU_TESTS vpu_tests/*.cpp)
-        if (NOT ENABLE_MYRIAD_NO_BOOT)
-            list(REMOVE_ITEM VPU_TESTS ${CMAKE_CURRENT_SOURCE_DIR}/vpu_tests/vpu_boot_tests.cpp)
-        endif()
-        list(APPEND TEST_SRC ${VPU_TESTS})
-    endif()
-
-
-    list(APPEND DEPENDENCIES
-            ${PLUGIN_NAME}
-            vpu_copy_firmware)
-
     source_group("src" FILES ${TEST_SRC})
     source_group("include" FILES ${TEST_INCLUDE})
 
@@ -46,30 +33,8 @@ function(enable_vpu TARGET_NAME FLAG_NAME PLUGIN_NAME)
     target_include_directories(${TARGET_NAME} PRIVATE
             ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/plugin_tests)
 
-    if (ENABLE_MYRIAD)
-        target_include_directories(${TARGET_NAME} PRIVATE
-                ${CMAKE_SOURCE_DIR}/thirdparty/movidius
-                ${CMAKE_SOURCE_DIR}/thirdparty/movidius/mvnc/include
-                ${CMAKE_SOURCE_DIR}/thirdparty/movidius/XLink/shared
-                ${CMAKE_SOURCE_DIR}/thirdparty/movidius/WinPthread
-                ${CMAKE_SOURCE_DIR}/thirdparty/movidius/watchdog)
-        target_link_libraries(${TARGET_NAME} PRIVATE mvnc)
-    endif()
-
     add_test(NAME ${TARGET_NAME}
             COMMAND ${TARGET_NAME})
-
-    add_dependencies(${TARGET_NAME} ${DEPENDENCIES})
 endfunction(enable_vpu)
 
-if (ENABLE_MYRIAD)
-    set(MYRIAD_TARGET_NAME MyriadBehaviorTests)
-    enable_vpu(${MYRIAD_TARGET_NAME} USE_MYRIAD myriadPlugin)
-endif()
-
-if (ENABLE_HDDL)
-    enable_vpu(HddlBehaviorTests USE_HDDL HDDLPlugin)
-endif()
-
-
-    enable_vpu(KmbBehaviorTests USE_KMB kmbPlugin)
+enable_vpu(KmbBehaviorTests USE_KMB kmbPlugin)

@@ -28,8 +28,4 @@ add_subdirectory(
 # Build plugins
 #
 
-set(plugin_target "")
-
-if(ENABLE_KMB)
-    add_subdirectory(kmb_plugin)
-endif()
+add_subdirectory(kmb_plugin)
