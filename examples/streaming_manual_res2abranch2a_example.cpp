@@ -8,17 +8,19 @@
 #include <fstream>
 //recorded from res2a_branch2a, and then split
 const int NUM_SPLITS = 2;
-template <typename T> std::vector<T> read_weights_from_file(std::string input_file)
+
+template <typename T1, typename T2> std::vector<T1> read_weights_from_file(std::string input_file)
 {
-    std::ifstream file;
-    T inputString;
-    std::vector<T> data;
-    file.open(input_file);
-    while(file>>inputString)
+    std::ifstream file(input_file, std::ifstream::binary);
+    T2 inputString;
+    std::vector<T2> data;
+    while(file.read(reinterpret_cast<char*>(&inputString), sizeof(T2)))
         data.push_back(inputString);
     file.close();
-    return data;
+    std::vector<T1> return_data(data.begin(), data.end());
+    return return_data;
 }
+
 
 int main()
 {
@@ -29,7 +31,7 @@ int main()
     mv::OpModel& om = unit.model();
     auto input0 = om.input({56,56,64,1}, mv::DType("UInt8"), mv::Order::getZMajorID(4),  {{128},{0.007843137718737125},{-1.0},{1.0}}, "input#3");
 
-    std::vector<int64_t> weightsData0 = read_weights_from_file<int64_t>(path + "/examples/data/res2a_branch2a_weights#1.dat");
+    std::vector<int64_t> weightsData0 = read_weights_from_file<int64_t, uint8_t>(path + "/examples/data/res2a_branch2a_weights#1.dat");
     std::vector<mv::Data::TensorIterator> weights(NUM_SPLITS);
     std::vector<mv::Data::TensorIterator> convs(NUM_SPLITS);
     std::vector<std::vector<int64_t>> weightsData(NUM_SPLITS);
@@ -37,7 +39,7 @@ int main()
     std::vector<mv::Data::TensorIterator> biases(NUM_SPLITS);
     std::vector<mv::Data::TensorIterator> biasesOp(NUM_SPLITS);
 
-    std::vector<int64_t> biasWeightsData0 = read_weights_from_file<int64_t>(path + "/examples/data//res2a_branch2a_bias#2.dat");
+    std::vector<int64_t> biasWeightsData0 = read_weights_from_file<int64_t, uint32_t>(path + "/examples/data//res2a_branch2a_bias#2.dat");
     std::size_t biasSizePerSplit = biasWeightsData0.size()/NUM_SPLITS;
     std::size_t weightsSizePerSplit = weightsData0.size()/NUM_SPLITS;
     std::string name_suffix = "";
@@ -49,21 +51,21 @@ int main()
         std::copy(itrBegin, itrEnd, back_inserter(weightsData[i]));
         if (NUM_SPLITS > 1)
             name_suffix = std::to_string(i);
-        weights[i] = om.constantInt(weightsData[i],{1,1,64,64/NUM_SPLITS}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{130},{0.0029303126502782106},{-0.38163304328918457},{0.3655967116355896}}, "res2a_branch2a_weights#1" + name_suffix);
+        weights[i] = om.constantInt(weightsData[i],{1,1,64,64/NUM_SPLITS}, mv::DType("UInt8"), mv::Order::getZMajorID(4),  {{134},{0.0029520050156861544},{-0.3958435356616974},{0.35691773891448975}}, "res2a_branch2a_weights#1" + name_suffix);
         convs[i] = om.conv(input0, weights[i],  {1, 1}, {0, 0, 0, 0}, 1, 1,  {{128},{0.007843137718737125},{-1.003921627998352},{0.9960784316062927}}, "res2a_branch2a#4" + name_suffix);
 
         biasData[i].reserve(biasSizePerSplit);
         itrBegin = biasWeightsData0.begin() + i * biasSizePerSplit;
         itrEnd = itrBegin + biasSizePerSplit;
         std::copy(itrBegin, itrEnd, back_inserter(biasData[i]));
-        biases[i] = om.constantInt(biasData[i],{64/NUM_SPLITS}, mv::DType("UInt8"), mv::Order::getColMajorID(1),  {{0},{2.298284562129993e-05},{-inf},{inf}}, "res2a_branch2a_bias#2weights" + name_suffix);
+        biases[i] = om.constantInt(biasData[i],{64/NUM_SPLITS}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{2.3152981157181785e-05},{-inf},{inf}}, "res2a_branch2a_bias#2weights" + name_suffix);
         biasesOp[i] = om.bias(convs[i], biases[i], {{128},{0.007843137718737125},{-1.003921627998352},{0.9960784316062927}},  "res2a_branch2a_bias#2" + name_suffix);
     }
 
     if (NUM_SPLITS > 1)
     {
         //TODO need to quantize this layer but since it's not a DPU task for now I am passing the shift/mult
-        auto concat = om.concat(biasesOp, "C", {{128},{0.007843137718737125},{-1.003921627998352},{0.9960784316062927}, {23}, {24581}});
+        auto concat = om.concat(biasesOp, "C", {{128},{0.007843137718737125},{-1.003921627998352},{0.9960784316062927}, {23}, {24763}});
         auto output = om.output(concat);
     }
     else
