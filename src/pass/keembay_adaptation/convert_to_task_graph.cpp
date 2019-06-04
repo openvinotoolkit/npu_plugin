@@ -5,8 +5,8 @@
 #include "include/mcm/target/keembay/ppe_task.hpp"
 #include "include/mcm/tensor/quantization_params.hpp"
 
-static std::array<unsigned short, 2> FAKE_KERNEL = {1,1};
-static std::array<unsigned short, 2> FAKE_STRIDE = {1,1};
+static const std::array<unsigned short, 2> FAKE_KERNEL = {1,1};
+static const std::array<unsigned short, 2> FAKE_STRIDE = {1,1};
 
 static void convertOpsToTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 void adaptOutputDataFlow(mv::OpModel& om, mv::Data::OpListIterator& opIt, mv::Data::TensorIterator& dpuTask);
@@ -37,11 +37,11 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
 
     mv::ControlModel cm(model);
 
-    auto addFcn = [&om](std::vector< mv::Data::TensorIterator >& vec, const std::array<unsigned short, 2> kernel, const std::array<unsigned short, 2> stride, const mv::QuantizationParams& quantParams, const std::string& s){ return om.dPUTaskAdd(vec,quantParams,s);};
-    auto subFcn = [&om](std::vector< mv::Data::TensorIterator >& vec, const std::array<unsigned short, 2> kernel, const std::array<unsigned short, 2> stride, const mv::QuantizationParams& quantParams, const std::string& s){ return om.dPUTaskSubtract(vec,quantParams,s);};
-    auto multFcn = [&om](std::vector< mv::Data::TensorIterator >& vec, const std::array<unsigned short, 2> kernel, const std::array<unsigned short, 2> stride, const mv::QuantizationParams& quantParams, const std::string& s){ return om.dPUTaskMultiply(vec,quantParams,s);};
+    auto addFcn = [&om](std::vector< mv::Data::TensorIterator >& vec, const mv::QuantizationParams& quantParams, const std::string& s){ return om.dPUTaskAdd(vec,quantParams,s);};
+    auto subFcn = [&om](std::vector< mv::Data::TensorIterator >& vec, const mv::QuantizationParams& quantParams, const std::string& s){ return om.dPUTaskSubtract(vec,quantParams,s);};
+    auto multFcn = [&om](std::vector< mv::Data::TensorIterator >& vec, const mv::QuantizationParams& quantParams, const std::string& s){ return om.dPUTaskMultiply(vec,quantParams,s);};
 
-    auto dpuTaskMap = std::map<std::string, std::function<mv::Data::TensorIterator (std::vector< mv::Data::TensorIterator >&, const std::array<unsigned short, 2>&, const std::array<unsigned short, 2>&, const mv::QuantizationParams&, const std::string&)>>
+    auto dpuTaskMap = std::map<std::string, std::function<mv::Data::TensorIterator (std::vector< mv::Data::TensorIterator >&, const mv::QuantizationParams&, const std::string&)>>
                                                {{"Add", addFcn},
                                                {"Subtract", subFcn},
                                                {"Multiply", multFcn}};
@@ -137,7 +137,7 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             auto opId = opIt->get<unsigned>("opId");
 
             auto dpuElementWiseFunctor = (dpuTaskMap.at(opType));
-            auto dpuElementWise = dpuElementWiseFunctor(inputs, FAKE_KERNEL, FAKE_STRIDE, quantParams, "DPU_"+name);
+            auto dpuElementWise = dpuElementWiseFunctor(inputs, quantParams, "DPU_"+name);
             auto dpuElementWiseOp = om.getSourceOp(dpuElementWise);
             dpuElementWiseOp->set<unsigned>("opId", opId);
             dpuElementWiseOp->set<bool>("hasWeights", false);
