@@ -364,6 +364,7 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
 
                 validWorkload:
                     pass.log(mv::Logger::MessageType::Debug, "Valid workload created");
+                    workloadsVectorIndex++;
             }
 
            
