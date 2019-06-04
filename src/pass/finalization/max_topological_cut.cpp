@@ -34,7 +34,8 @@ void maxTopologicalCutAndPartialSerialisationPass(const mv::pass::PassEntry& pas
     auto returnedParams = model.getGlobalConfigParams();
     memoryHack = returnedParams->get<bool>("MemoryHack");
 
-    if(!memoryHack) {
+    if(!memoryHack)
+    {
         
         /*Convert to MCM graph to KOALA graph*/
         flowGraph.convertMcMGraphToKoalaGraph(pass, model);

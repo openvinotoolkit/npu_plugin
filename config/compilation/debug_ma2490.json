@@ -226,12 +226,23 @@
                 "name": "GenerateDot",
                 "output": "TransitiveReduction.dot",
                 "scope": "ControlModel",
-                "content": "full",
+                "content": "nonfull",
                 "html": true
             },
             {
                 "name": "ConvertDot",
                 "input": "TransitiveReduction.dot"
+            },
+            {
+                "name": "GenerateDot",
+                "output": "TransitiveReductionFull.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "TransitiveReductionFull.dot"
             }
         ]
     },

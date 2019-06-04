@@ -596,12 +596,10 @@ MVCNN::MPE_Mode mv::RuntimeModel::convertMPEMode(mv::MPE_Mode mpe)
 
 bool mv::RuntimeModel::hardwareBugDepthwise(Control::OpListIterator opIt)
 {
-    auto type = opIt->get<std::string>("taskOp");
     auto splitStrategy = opIt->get<std::string>("splitStrategy");
     auto padding = opIt->get<std::array<unsigned short, 4>>("padding");
     auto kernelSize = opIt->get<std::array<unsigned short, 2>>("kSize");
-    return ((type == "DepthwiseConv") &&
-        (splitStrategy == "SplitOverH") &&
+    return ((splitStrategy == "SplitOverH") &&
         (padding[0] % 2 == 1) &&
         (kernelSize[mv::KERNEL_HEIGHT] > 1));
 }

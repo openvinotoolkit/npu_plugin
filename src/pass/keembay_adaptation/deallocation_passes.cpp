@@ -3,6 +3,7 @@
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/base/exception/runtime_error.hpp"
+#include "include/mcm/utils/custom_strings.hpp"
 #include <algorithm>
 
 static void addDeallocationTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
@@ -57,7 +58,7 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
         auto inputOpName = inputOp->getName();
         auto inputTensor = dataFlowIt->getTensor();
 
-        std::string deallocationName("Deallocate"+inputOpName);
+        std::string deallocationName(mv::createDeallocationName(inputOpName));
 
         // Each tensor must be deallocated once
         if(!om.checkOp(deallocationName))
@@ -131,7 +132,7 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
     auto lastDMAOp = outputOp.leftmostParent();
     auto lastOpBeforeLastDma = lastDMAOp.leftmostParent();
 
-    auto lastDeallocation = om.getOp("Deallocate"+lastOpBeforeLastDma->getName());
+    auto lastDeallocation = om.getOp(lastOpBeforeLastDma->getName()+"_DEALLOC");
     om.removeOp(lastDeallocation);
 }
 
