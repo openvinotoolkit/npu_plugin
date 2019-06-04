@@ -31,7 +31,8 @@ void storeWorkloadStrategy(mv::Data::OpListIterator& it, int numClusters, std::v
         if (std::regex_match(it->getName(), exp))
         {
             if (cluster_filter == 0 || cluster_filter == numClusters) {
-                it->set<int>("WorkloadStrategy_nWorkloads", s.get<int>("nWorkloads"));
+                if(s.hasAttr("nWorkloads"))
+                    it->set<int>("WorkloadStrategy_nWorkloads", s.get<int>("nWorkloads"));
                 it->set<std::string>("WorkloadStrategy_MPE_mode", s.get<std::string>("mpe_mode"));
             }
         }
