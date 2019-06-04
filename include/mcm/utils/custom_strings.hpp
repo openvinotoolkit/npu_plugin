@@ -16,6 +16,7 @@ namespace mv
     std::string createDMATaskCMX2DDRName(const std::string& opName);
     std::string createDMATaskDDR2CMXName(const std::string& opName);
     std::string createAlignConstantName(const std::string& opName);
+    std::string createBarrierName(const std::string& opName, unsigned barrierID);
 
 }
 

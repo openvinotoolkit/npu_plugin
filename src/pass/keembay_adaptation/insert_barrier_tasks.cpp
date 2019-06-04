@@ -15,6 +15,7 @@
 #include "../contrib/koala/coloring/vertex.h"
 #include "../contrib/koala/io/graphml.h"
 #include "include/mcm/logger/logger.hpp"
+#include "include/mcm/utils/custom_strings.hpp"
 
 
 #define MAX_AVAILABLE_BARRIERS 8
@@ -503,12 +504,8 @@ static void insertBarriersIntoControlFlowGraph(mv::ComputationModel& model, cons
 
     for (auto& barrier: barriers)
     {
-        // Start BarrierTask name with ~ --> this has the highest ascii value of
-        // all the characters we're likely to use & hence this won't come in
-        // the way of any lexicographical topological sorting that occurs after
-        // barrier insertion (the control model topological sort uses task names
-        // for sorting purposes).
-        std::string barrierName("~BarrierTask_" + std::to_string(barrier.getID()));
+        //Following POC convention for the moment, reversable in any moment :)
+        std::string barrierName(mv::createBarrierName(barrier.getConsumers().begin(), barrier.getID()));
         om.barrierTask(barrier, barrierName);
 
         // Add control flows to insert this barrier to the control flow graph

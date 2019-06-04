@@ -21,12 +21,12 @@ std::string mv::createFakeSparsityMapName(const std::string& opName)
 
 std::string mv::createSparsityMapName(const std::string& tensorName)
 {
-    return tensorName + "_sm";
+    return demanglePOCName(tensorName) + "_sm";
 }
 
 std::string mv::createStorageElementName(const std::string& tensorName)
 {
-    return tensorName + "_se";
+    return demanglePOCName(tensorName) + "_se";
 }
 
 std::string mv::createWeightTableName(const std::string& opName)
@@ -58,4 +58,10 @@ std::string mv::createAlignConstantName(const std::string& opName)
 {
     return "AlignContainer_" + demanglePOCName(opName);
 }
+
+std::string mv::createBarrierName(const std::string& opName, unsigned barrierID)
+{
+    return demanglePOCName(opName) + "_" + std::to_string(barrierID) + "_Barrier";
+}
+
 
