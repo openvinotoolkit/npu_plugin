@@ -5,6 +5,9 @@
 #include "include/mcm/target/keembay/ppe_task.hpp"
 #include "include/mcm/tensor/quantization_params.hpp"
 
+static const std::array<unsigned short, 2> FAKE_KERNEL = {1,1};
+static const std::array<unsigned short, 2> FAKE_STRIDE = {1,1};
+
 static void convertOpsToTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 void adaptOutputDataFlow(mv::OpModel& om, mv::Data::OpListIterator& opIt, mv::Data::TensorIterator& dpuTask);
 
@@ -142,6 +145,7 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             inputs.push_back(input1);
             inputs.push_back(input2);
             auto name = opIt->getName();
+
             auto quantParams = opIt->get<mv::QuantizationParams>("quantParams");
 
             auto opId = opIt->get<unsigned>("opId");
@@ -151,6 +155,8 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             auto dpuElementWiseOp = om.getSourceOp(dpuElementWise);
             dpuElementWiseOp->set<unsigned>("opId", opId);
             dpuElementWiseOp->set<bool>("hasWeights", false);
+            dpuElementWiseOp->set<std::array<unsigned short, 2>>("kSize", FAKE_KERNEL);
+            dpuElementWiseOp->set<std::array<unsigned short, 2>>("stride", FAKE_STRIDE);
 
             auto ppeLayerType = mv::PPELayerType(opType);
             auto ppeFixedFunction = mv::PPEFixedFunction();

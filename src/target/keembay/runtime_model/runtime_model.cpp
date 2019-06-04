@@ -516,7 +516,6 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
         toBuild->ppe_task = buildPPETaskT(cm, compilationDescriptor, opIt->get<PPETask>("PPETask"));
     // TODO
     // std::vector<std::unique_ptr<NNTensorTaskT>> nnshv_task;
-    // mpe_frequent_mode: MPE_Mode;
     // split_over_h: bool = false;
 
     if (opIt->hasAttr("kSize"))
@@ -559,8 +558,11 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
         toBuild->activation_window_channel_length = activationWindowTensorIterator->get<int>("channelLength");
     }
 
-    auto weightsTableTensorIterator = opIt->getInputTensor(num_inputs - 1);
-    toBuild->weights_table = buildTensorReferenceT(cm, compilationDescriptor, weightsTableTensorIterator);
+    if(toBuild->dpu_task_type != MVCNN::DPULayerType_ELTWISE)
+    {
+        auto weightsTableTensorIterator = opIt->getInputTensor(num_inputs - 1);
+        toBuild->weights_table = buildTensorReferenceT(cm, compilationDescriptor, weightsTableTensorIterator);
+    }
 
     switch (toBuild->dpu_task_type)
     {
@@ -568,6 +570,7 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
         case MVCNN::DPULayerType_DWCONV:
         case MVCNN::DPULayerType_CMCONV:
         case MVCNN::DPULayerType_FCL:
+        case MVCNN::DPULayerType_ELTWISE:
             //std::unique_ptr<TensorReferenceT> parent_weights_tensor;
             toBuild->weights_data = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(1));
             break;
@@ -605,34 +608,34 @@ bool mv::RuntimeModel::hardwareBugDepthwise(Control::OpListIterator opIt)
 
 void mv::RuntimeModel::getWorkloadPadding(Control::OpListIterator opIt, Workload &workload)
 {
-   if (opIt->get<std::string>("taskOp") == "Add" || opIt->get<std::string>("taskOp") == "Subtract" || opIt->get<std::string>("taskOp") == "Multiply")
-   {
-       workload.padLeft = 0;
-       workload.padTop = 0;
-       workload.padRight = 0;
-       workload.padBottom = 0;
-   }
-   else
-   {
-       auto padding = opIt->get<std::array<unsigned short, 4>>("padding");
-       auto outputWidth = opIt->getOutputTensor(0)->getShape()[mv::IO_WIDTH_DIMENSION];
-       auto outputHeight = opIt->getOutputTensor(0)->getShape()[mv::IO_HEIGHT_DIMENSION];
-       if (hardwareBugDepthwise(opIt))
-       {
-           workload.padLeft = (workload.MinX == 0) ? padding[0] : 0;
-           workload.padTop = (workload.MinY == 0) ? padding[2] : 0;
-           workload.padRight = ((workload.MaxX + 1) == outputWidth) ? padding[1] : 0;
-           workload.padBottom = ((workload.MaxY + 1) == outputHeight) ? padding[3] : 0;
-       }
-       else
-       {
-           workload.padLeft = padding[0];
-           workload.padTop = padding[2];
-           workload.padRight = padding[1];
-           workload.padBottom = padding[3];
-       }
-   }
-   return;
+    if (opIt->get<std::string>("taskOp") == "Add" || opIt->get<std::string>("taskOp") == "Subtract" || opIt->get<std::string>("taskOp") == "Multiply")
+    {
+        workload.padLeft = 0;
+        workload.padTop = 0;
+        workload.padRight = 0;
+        workload.padBottom = 0;
+    }
+    else
+    {
+        auto padding = opIt->get<std::array<unsigned short, 4>>("padding");
+        auto outputWidth = opIt->getOutputTensor(0)->getShape()[mv::IO_WIDTH_DIMENSION];
+        auto outputHeight = opIt->getOutputTensor(0)->getShape()[mv::IO_HEIGHT_DIMENSION];
+        if (hardwareBugDepthwise(opIt))
+        {
+            workload.padLeft = (workload.MinX == 0) ? padding[0] : 0;
+            workload.padTop = (workload.MinY == 0) ? padding[2] : 0;
+            workload.padRight = ((workload.MaxX + 1) == outputWidth) ? padding[1] : 0;
+            workload.padBottom = ((workload.MaxY + 1) == outputHeight) ? padding[3] : 0;
+        }
+        else
+        {
+            workload.padLeft = padding[0];
+            workload.padTop = padding[2];
+            workload.padRight = padding[1];
+            workload.padBottom = padding[3];
+        }
+    }
+    return;
 }
 
 std::unique_ptr<MVCNN::NCEVariantFieldsT> mv::RuntimeModel::buildNCEVariantFieldsT(ComputationModel& , mv::Element &compilationDescriptor, Control::OpListIterator opIt, Workload workload)
