@@ -72,7 +72,7 @@ void alignTo16ChannelsFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
                     auto weightsTensorDType = weightsTensor->getDType();
                     auto weightsTensorWidth = weightsTensorShape[mv::KERNEL_WIDTH];
                     auto weightsTensorHeight = weightsTensorShape[mv::KERNEL_HEIGHT];
-                    auto weightsTensorQuantizationParams = weightsTensor->get<mv::QuantizationParams>("quantizationParams");
+                    auto weightsTensorQuantizationParams = weightsTensor->get<mv::QuantizationParams>("quantParams");
 
                     auto newShape = mv::Shape({weightsTensorWidth, weightsTensorHeight, weightsTensorInputChannelsPadded, weightsTensorOutputChannelsPadded});
                     int64_t zeroPoint = 0;
@@ -107,7 +107,7 @@ void alignTo16ChannelsFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
 
                 if(biasTensorSizePadded != biasTensorSize)
                 {
-                    auto biasTensorQuantizationParams = biasTensor->get<mv::QuantizationParams>("quantizationParams");
+                    auto biasTensorQuantizationParams = biasTensor->get<mv::QuantizationParams>("quantParams");
                     int64_t zeroPoint = 0;
                     if(biasTensor->isQuantized())
                         zeroPoint = biasTensorQuantizationParams.getZeroPoint()[0];
@@ -115,7 +115,7 @@ void alignTo16ChannelsFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
                     auto newData = std::vector<mv::DataElement>(biasTensorSizePadded, mv::DataElement(biasTensorDType.isDoubleType(), zeroPoint));
                     auto newBiasTensor = dm.defineTensor(mv::createAlignConstantName(biasTensorName), {biasTensorSizePadded}, biasTensorDType, mv::Order("W"), newData);
                     if(biasTensor->isQuantized())
-                        newBiasTensor->set<mv::QuantizationParams>("quantizationParams", biasTensorQuantizationParams);
+                        newBiasTensor->set<mv::QuantizationParams>("quantParams", biasTensorQuantizationParams);
 
                     for(unsigned i = 0; i < biasTensorSize; ++i)
                         newBiasTensor->at({i}) = biasTensor->at({i});
