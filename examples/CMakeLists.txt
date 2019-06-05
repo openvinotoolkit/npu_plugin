@@ -57,6 +57,7 @@ if (MSVC)
 
     add_executable(barrier_dependency_example barrier_dependency_example.cpp $<TARGET_OBJECTS:cm> $<TARGET_OBJECTS:corebase> $<TARGET_OBJECTS:metamodel> $<TARGET_OBJECTS:model>)
 
+    add_executable(slice_conv slice_conv.cpp  $<TARGET_OBJECTS:cm> $<TARGET_OBJECTS:corebase> $<TARGET_OBJECTS:metamodel> $<TARGET_OBJECTS:model>)
 else()
    
     add_executable(average_to_depthwise average_to_depthwise.cpp)
@@ -154,6 +155,9 @@ else()
 
     add_executable(dilationExample dilatedExample.cpp)
     target_link_libraries(dilationExample cm)
+
+    add_executable(slice_conv slice_conv.cpp)
+    target_link_libraries(slice_conv cm)
 
     if(VALIDATION)
     add_executable(caffe_files_generator caffe_files_generator.cpp)
