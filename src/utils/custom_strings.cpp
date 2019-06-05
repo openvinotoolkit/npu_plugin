@@ -16,52 +16,52 @@ std::string mv::demanglePOCName(const std::string &mangledName)
 
 std::string mv::createFakeSparsityMapName(const std::string& opName)
 {
-    return demanglePOCName(opName) + "_sparse_dw";
+    return opName + "_sparse_dw";
 }
 
 std::string mv::createSparsityMapName(const std::string& tensorName)
 {
-    return demanglePOCName(tensorName) + "_sm";
+    return tensorName + "_sm";
 }
 
 std::string mv::createStorageElementName(const std::string& tensorName)
 {
-    return demanglePOCName(tensorName) + "_se";
+    return tensorName + "_se";
 }
 
 std::string mv::createWeightTableName(const std::string& opName)
 {
-    return demanglePOCName(opName) + "_weights_table";
+    return opName + "_weights_table";
 }
 
 std::string mv::createDPUTaskName(const std::string& opName)
 {
-    return demanglePOCName(opName);
+    return opName;
 }
 
 std::string mv::createDeallocationName(const std::string& opName)
 {
-    return demanglePOCName(opName) + "_DEALLOC";
+    return opName + "_DEALLOC";
 }
 
 std::string mv::createDMATaskCMX2DDRName(const std::string& opName)
 {
-    return demanglePOCName(opName) + "_CMX2DDR";
+    return opName + "_CMX2DDR";
 }
 
 std::string mv::createDMATaskDDR2CMXName(const std::string& opName)
 {
-    return demanglePOCName(opName) + "_DDR2CMX";
+    return opName + "_DDR2CMX";
 }
 
 std::string mv::createAlignConstantName(const std::string& opName)
 {
-    return "AlignContainer_" + demanglePOCName(opName);
+    return "AlignContainer_" + opName;
 }
 
 std::string mv::createBarrierName(const std::string& opName, unsigned barrierID)
 {
-    return demanglePOCName(opName) + "_" + std::to_string(barrierID) + "_Barrier";
+    return opName + "_" + std::to_string(barrierID) + "_Barrier";
 }
 
 
