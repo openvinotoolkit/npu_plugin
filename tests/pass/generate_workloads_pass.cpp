@@ -419,13 +419,12 @@ TEST(generate_workloads_pass, ReadCostFunctionParse)
 /** Creates a 1 x Workloads instance*/
 mv::Workloads GenerateTestWorkloads_modelA1(mv::Data::TensorIterator& inputTensor, mv::MPE_Mode mode)
 {
-    std::pair <int,int> MPEMode (4, 4);
+    mv::DPUMode dpu_mode = {4,4};
     if (mode == mv::Vector)
     {
-        MPEMode.first = 1; 
-        MPEMode.second = 16; 
+        dpu_mode = {1, 16};
     }
-    mv::Workloads workloads("ModelA", inputTensor->getShape() , MPEMode);
+    mv::Workloads workloads("ModelA", inputTensor->getShape() , dpu_mode);
     
     //0
     mv::Workload workload;
@@ -450,14 +449,13 @@ mv::Workloads GenerateTestWorkloads_modelA1(mv::Data::TensorIterator& inputTenso
 /** Creates a 2 x Workloads instance*/
 mv::Workloads GenerateTestWorkloads_modelA2(mv::Data::TensorIterator& inputTensor, mv::MPE_Mode mode)
 {
-    std::pair <int,int> MPEMode (4, 4);
+    mv::DPUMode dpu_mode = {4,4};
     if (mode == mv::Vector)
     {
-        MPEMode.first = 1; 
-        MPEMode.second = 16; 
+        dpu_mode = {1, 16};
     }
-    mv::Workloads workloads("ModelA", inputTensor->getShape(), MPEMode);
-    
+    mv::Workloads workloads("ModelA", inputTensor->getShape() , dpu_mode);
+
     //0
     mv::Workload workload;
     workload.workloadID = 0;
@@ -498,13 +496,12 @@ mv::Workloads GenerateTestWorkloads_modelA2(mv::Data::TensorIterator& inputTenso
 /** Creates a 4 x Workloads instance*/
 mv::Workloads GenerateTestWorkloads_modelA4(mv::Data::TensorIterator& inputTensor, mv::MPE_Mode mode)
 {
-    std::pair <int,int> MPEMode (4, 4);
+    mv::DPUMode dpu_mode = {4,4};
     if (mode == mv::Vector)
     {
-        MPEMode.first = 1; 
-        MPEMode.second = 16; 
+        dpu_mode = {1, 16};
     }
-    mv::Workloads workloads("ModelA", inputTensor->getShape() , MPEMode);
+    mv::Workloads workloads("ModelA", inputTensor->getShape() , dpu_mode);
     
     //0
     mv::Workload workload0;
@@ -580,13 +577,12 @@ mv::Workloads GenerateTestWorkloads_modelA4(mv::Data::TensorIterator& inputTenso
 /** Creates a 1 Workloads instance (model B)*/
 mv::Workloads GenerateTestWorkloads_modelB1(mv::Data::TensorIterator& inputTensor, mv::MPE_Mode mode)
 {
-    std::pair <int,int> MPEMode (4, 4);
+    mv::DPUMode dpu_mode = {4,4};
     if (mode == mv::Vector)
     {
-        MPEMode.first = 1; 
-        MPEMode.second = 16; 
+        dpu_mode = {1, 16};
     }
-    mv::Workloads workloads("ModelB", inputTensor->getShape() , MPEMode);
+    mv::Workloads workloads("ModelB", inputTensor->getShape() , dpu_mode);
     
     //0
     mv::Workload workload;
@@ -611,13 +607,12 @@ mv::Workloads GenerateTestWorkloads_modelB1(mv::Data::TensorIterator& inputTenso
 /** Creates a 2 Workloads instance (model B)*/
 mv::Workloads GenerateTestWorkloads_modelB2(mv::Data::TensorIterator& inputTensor, mv::MPE_Mode mode)
 {
-    std::pair <int,int> MPEMode (4, 4);
+    mv::DPUMode dpu_mode = {4,4};
     if (mode == mv::Vector)
     {
-        MPEMode.first = 1; 
-        MPEMode.second = 16; 
+        dpu_mode = {1, 16};
     }
-    mv::Workloads workloads("ModelB", inputTensor->getShape() , MPEMode);
+    mv::Workloads workloads("ModelB", inputTensor->getShape() , dpu_mode);
     
     //0
     mv::Workload workload;
@@ -659,13 +654,12 @@ mv::Workloads GenerateTestWorkloads_modelB2(mv::Data::TensorIterator& inputTenso
 /** Creates a 4 Workloads instance (model B)*/
 mv::Workloads GenerateTestWorkloads_modelB4(mv::Data::TensorIterator& inputTensor, mv::MPE_Mode mode)
 {
-    std::pair <int,int> MPEMode (4, 4);
+    mv::DPUMode dpu_mode = {4,4};
     if (mode == mv::Vector)
     {
-        MPEMode.first = 1; 
-        MPEMode.second = 16; 
+        dpu_mode = {1, 16};
     }
-    mv::Workloads workloads("ModelB", inputTensor->getShape() , MPEMode);
+    mv::Workloads workloads("ModelB", inputTensor->getShape() , dpu_mode);
     
     //0
     mv::Workload workload0;

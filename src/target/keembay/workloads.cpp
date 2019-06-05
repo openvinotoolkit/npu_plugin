@@ -14,8 +14,8 @@ mv::Workloads::Workloads(const std::string& name, const mv::Shape& tensorShape):
 {
 }
 
-mv::Workloads::Workloads(const std::string& name, const mv::Shape& tensorShape, std::pair <int,int>& mpeMode):
-    layerName_(name), tensorShape_(tensorShape), mpeMode_(mpeMode),
+mv::Workloads::Workloads(const std::string& name, const mv::Shape& tensorShape, mv::DPUMode& mpeMode):
+    layerName_(name), tensorShape_(tensorShape),
     metisGraph_(new MetisGraphStructure(tensorShape, mpeMode))
 {
 }
@@ -514,7 +514,7 @@ std::vector<int> mv::Workloads::getWorkloadSplitPool(mv::Data::TensorIterator te
 }
 
 
-void mv::Workloads::populateWorkloadsFromPartitions(idx_t nWorkloads, const mv::pass::PassEntry& pass, std::pair <idx_t,idx_t>& mpeMode) 
+void mv::Workloads::populateWorkloadsFromPartitions(idx_t nWorkloads, const mv::pass::PassEntry& pass, mv::DPUMode& mpe_mode) 
 {
     std::vector<std::vector<mv::Workload>> listOfworkloadLists;
 
@@ -604,13 +604,13 @@ void mv::Workloads::populateWorkloadsFromPartitions(idx_t nWorkloads, const mv::
         workloads_[workload].MaxZ = tensorShape_[2]-1;
         
         /*These should be set in the polygon logic*/
-        if (mpeMode_.first == 4)
+        if (mpe_mode.H == 4)
             workloads_[workload].MPEMode = mv::MPE_Mode::Matrix;
         else
             workloads_[workload].MPEMode = mv::MPE_Mode::Vector;
 
         //add to the 'listOfworkloadLists' vector, the returned list of workloads from the polygonworkloadsplit function       
-        listOfworkloadLists.push_back(mv::Workloads::polygonWorkloadSplit(pass, workloads_[workload], workloads_, mpeMode));
+        listOfworkloadLists.push_back(mv::Workloads::polygonWorkloadSplit(pass, workloads_[workload], workloads_, mpe_mode));
 
     }
 
@@ -620,7 +620,7 @@ void mv::Workloads::populateWorkloadsFromPartitions(idx_t nWorkloads, const mv::
     for (auto listIt = listOfworkloadLists.begin(); listIt != listOfworkloadLists.end(); listIt++) {
         for (auto it = listIt->begin(); it != listIt->end(); it++) {
             /*These should be set in the polygon logic*/
-            if (mpeMode_.first == 4)
+            if (mpe_mode.H == 4)
                 it->MPEMode = mv::MPE_Mode::Matrix;
             else
                 it->MPEMode = mv::MPE_Mode::Vector;
@@ -646,7 +646,7 @@ void mv::Workloads::populateWorkloadsFromPartitions(idx_t nWorkloads, const mv::
     }
 }
 
-std::vector<mv::Workload> mv::Workloads::polygonWorkloadSplit(const mv::pass::PassEntry &pass, mv::Workload &workload, std::vector<mv::Workload> &workloads_, std::pair<idx_t, idx_t> &mpeMode)
+std::vector<mv::Workload> mv::Workloads::polygonWorkloadSplit(const mv::pass::PassEntry &pass, mv::Workload &workload, std::vector<mv::Workload> &workloads_, mv::DPUMode &mpe_mode)
 {
 
     /*------------------------------------------------------------------------------------------------------------
@@ -733,7 +733,7 @@ std::vector<mv::Workload> mv::Workloads::polygonWorkloadSplit(const mv::pass::Pa
     idx_t templistSize = INT16_MAX;
     for (auto int_it = interesting_points.begin(); int_it != interesting_points.end(); int_it++)
     {
-        workloadFromAreaCheck = mv::Workloads::workloadSplitHelper(pass, workload, *int_it, mpeMode);
+        workloadFromAreaCheck = mv::Workloads::workloadSplitHelper(pass, workload, *int_it, mpe_mode);
         if (templistSize > workloadFromAreaCheck.size())
         {
             finalWorkloadList = workloadFromAreaCheck;
@@ -744,7 +744,7 @@ std::vector<mv::Workload> mv::Workloads::polygonWorkloadSplit(const mv::pass::Pa
     return finalWorkloadList;
 }
 
-std::vector<mv::Workload> mv::Workloads::workloadSplitHelper(const mv::pass::PassEntry &pass, mv::Workload &workload, std::pair<std::pair<int16_t, int16_t>, bool> &interesting_point, std::pair<idx_t, idx_t> &mpeMode)
+std::vector<mv::Workload> mv::Workloads::workloadSplitHelper(const mv::pass::PassEntry &pass, mv::Workload &workload, std::pair<std::pair<int16_t, int16_t>, bool> &interesting_point, mv::DPUMode &mpe_mode)
 {
     mv::Workload workload_partition_1, workload_partition_2;
     workload_partition_1.points.clear();
@@ -811,8 +811,8 @@ std::vector<mv::Workload> mv::Workloads::workloadSplitHelper(const mv::pass::Pas
     // Add a 'throw exception' condition below
     if (workload_partition_1.pointsTotal() == 0 || workload_partition_2.pointsTotal() == 0)
         throw mv::RuntimeError(pass, "Inside workload splitter into rectangles. workload parition with zero points can't exist");
-    final1 = mv::Workloads::polygonWorkloadSplit(pass, workload_partition_2, workloads_, mpeMode);
-    finalWorkloadList = mv::Workloads::polygonWorkloadSplit(pass, workload_partition_1, workloads_, mpeMode);
+    final1 = mv::Workloads::polygonWorkloadSplit(pass, workload_partition_2, workloads_, mpe_mode);
+    finalWorkloadList = mv::Workloads::polygonWorkloadSplit(pass, workload_partition_1, workloads_, mpe_mode);
     finalWorkloadList.insert(finalWorkloadList.end(), final1.begin(), final1.end());
 
     return finalWorkloadList;

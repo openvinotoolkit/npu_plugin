@@ -136,11 +136,11 @@ std::vector<std::string> getTensorSplitAlgorithms(mv::Element& passDesc, const m
     return algorithms;
 }
 
-std::pair<int, std::pair<int, int>> getGlobalCompilationDescriptorConf(const mv::pass::PassEntry& pass, mv::ComputationModel& model) {
+std::pair<int, mv::DPUMode> getGlobalCompilationDescriptorConf(const mv::pass::PassEntry& pass, mv::ComputationModel& model) {
 
     int nDPU;
     int nClusters;
-    std::pair <int, std::pair<int, int>> globalConfigs;
+    std::pair <int, mv::DPUMode> globalConfigs;
     std::string mpeModeString;
     int nDPUxCluster;
    
@@ -166,15 +166,15 @@ std::pair<int, std::pair<int, int>> getGlobalCompilationDescriptorConf(const mv:
      /*Set MPE mode from global*/	
     if(mpeModeString == "Matrix")
     {
-        globalConfigs.second.first = 4;	
-        globalConfigs.second.second = 4; 
+        globalConfigs.second.H = 4;
+        globalConfigs.second.W = 4;
         pass.log(mv::Logger::MessageType::Debug, "Global MPE mode is Matrix");
 	
     }	
     else if (mpeModeString == "Vector")	
     {	
-        globalConfigs.second.first = 1;	
-        globalConfigs.second.second = 16; 	
+        globalConfigs.second.H = 1;
+        globalConfigs.second.W = 16;	
         pass.log(mv::Logger::MessageType::Debug, "Global MPE mode is Vector");
     }	
 
@@ -189,20 +189,18 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
     int metisResult;
     int nDPUxCluster;
     std::shared_ptr<mv::MetisGraphStructure> metisGraph;
-    std::pair<int,int> mpeMode;
     mv::OpModel om(model);
     std::vector<mv::Workloads> workloadsVector;
     int workloadsVectorIndex = 0;
-    mv::DPUModeList dpu_mode_poc;
+    mv::DPUModeList dpu_mode;
         
     /* Get Compilation Descriptor configurations
      * nDPU/Cluster 
      * MPE mode
     */
     auto globalConfigs = getGlobalCompilationDescriptorConf(pass, model);
-    mpeMode.first = globalConfigs.second.first;
-    mpeMode.second = globalConfigs.second.second;
     nDPUxCluster = globalConfigs.first;
+    dpu_mode.push_back(globalConfigs.second);
 
     /*Get the worklaods algorithm*/
     std::vector<std::string> algorithms = getTensorSplitAlgorithms(passDesc, pass);
@@ -221,13 +219,11 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                     /*Check if there is a custom workload strategy (mpe mode) in compilation descriptor for this layer*/
                     if(opIt->hasAttr("WorkloadStrategy_MPE_mode")) {
                         if(opIt->get<std::string>("WorkloadStrategy_MPE_mode") == "Matrix") {
-                            mpeMode.first = 4;	
-                            mpeMode.second = 4;
+                            dpu_mode = {{4, 4}};
                             pass.log(mv::Logger::MessageType::Debug, "This layer has a workload strategy, using MPE mode Matrix"); 	
                         }
                         if(opIt->get<std::string>("WorkloadStrategy_MPE_mode") == "Vector") {
-                            mpeMode.first = 1;	
-                            mpeMode.second = 16;
+                            dpu_mode = {{1, 16}};
                             pass.log(mv::Logger::MessageType::Debug, "This layer has a workload srategy, using MPE mode Vector"); 	
                         }
                     }
@@ -237,14 +233,16 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                     pass.log(mv::Logger::MessageType::Debug, "Output size is: " + opIt->getOutputTensor()[0]->getShape().toString());
 
                     /*Create workload instance*/
-                    workloadsVector.emplace_back(mv::Workloads(opIt->getName(), opIt->getOutputTensor()[0]->getShape(), mpeMode));
+                    workloadsVector.emplace_back(mv::Workloads(opIt->getName(), opIt->getOutputTensor()[0]->getShape(), dpu_mode[0]));
 
                     if(opIt->hasAttr("WorkloadStrategy_nWorkloads")) {
                         nWorkloads = opIt->get<int>("WorkloadStrategy_nWorkloads");
                         pass.log(mv::Logger::MessageType::Debug, "This layer has number of workloads in the workload strategy using : "+ std::to_string(nWorkloads));
                     }
                     else {
-                        /*Generate the split pool and select the first one*/
+                        /*Generate the split pool and select the first one
+
+                        */
                         auto nWorkloadsSplitPool = workloadsVector.at(workloadsVectorIndex).getWorkloadSplitPool(opIt->getOutputTensor()[0], nDPUxCluster);
                         nWorkloads = nWorkloadsSplitPool[0];
                         pass.log(mv::Logger::MessageType::Debug, "This layer does not have number of workloads in the workload strategy using from the split pool is: " + std::to_string(nWorkloads));
@@ -259,7 +257,7 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                     opIt->set<int>("Metis_edge_cut", metisGraph->objval);
 
                     if (metisResult == 1)
-                        workloadsVector.at(workloadsVectorIndex).populateWorkloadsFromPartitions(nWorkloads, pass, mpeMode);
+                        workloadsVector.at(workloadsVectorIndex).populateWorkloadsFromPartitions(nWorkloads, pass, dpu_mode[0]);
                     else
                         throw std::runtime_error("Error partitioning tensor into workloads using METIS");
 
@@ -275,12 +273,7 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                         bool split_over_w = true;
                         bool split_symmetric = false;
 
-                        if(mpeMode.first == 4) 
-                            dpu_mode_poc = {{4, 4}};
-                        else if(mpeMode.first == 1)
-                            dpu_mode_poc = {{1, 16}};
-
-                        auto res = workloadsVector.at(workloadsVectorIndex).partitionTensorWithRectangleHeuristic(dpu_mode_poc, nWorkloads,
+                        auto res = workloadsVector.at(workloadsVectorIndex).partitionTensorWithRectangleHeuristic(dpu_mode, nWorkloads,
                                                             split_over_h, split_over_w, split_symmetric,
                                                             mv::WorkloadSplitMode::HW, pass);
                         if (!res)
@@ -307,13 +300,11 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                     /*Check if there is a custom workload strategy (mpe mode) in compilation descriptor for this layer*/
                     if(opIt->hasAttr("WorkloadStrategy_MPE_mode")) {
                         if(opIt->get<std::string>("WorkloadStrategy_MPE_mode") == "Matrix") {
-                            mpeMode.first = 4;	
-                            mpeMode.second = 4;
+                            dpu_mode = {{4, 4}};
                             pass.log(mv::Logger::MessageType::Debug, "This layer has a workload strategy, using MPE mode Matrix"); 	
                         }
                         if(opIt->get<std::string>("WorkloadStrategy_MPE_mode") == "Vector") {
-                            mpeMode.first = 1;	
-                            mpeMode.second = 16;
+                            dpu_mode = {{1, 16}};
                             pass.log(mv::Logger::MessageType::Debug, "This layer has a workload srategy, using MPE mode Vector"); 	
                         }
                     }
@@ -340,12 +331,7 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                     bool split_over_w = true;
                     bool split_symmetric = false;
 
-                    if(mpeMode.first == 4) 
-                        dpu_mode_poc = {{4, 4}};
-                    else if(mpeMode.first == 1)
-                        dpu_mode_poc = {{1, 16}};
-
-                    auto res = workloadsVector.at(workloadsVectorIndex).partitionTensorWithRectangleHeuristic(dpu_mode_poc, nWorkloads,
+                    auto res = workloadsVector.at(workloadsVectorIndex).partitionTensorWithRectangleHeuristic(dpu_mode, nWorkloads,
                                                             split_over_h, split_over_w, split_symmetric,
                                                             mv::WorkloadSplitMode::HW, pass);
                     if (!res)
