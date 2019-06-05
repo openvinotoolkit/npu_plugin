@@ -35,7 +35,7 @@ void alignTo16ChannelsFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
         auto opIt = *vecIt;
 
         auto taskOp = opIt->get<std::string>("taskOp");
-        if(taskOp != "ChanelMajorConvolution")
+        if(taskOp != "ChannelMajorConvolution")
         {
             auto inputTensor = opIt->getInputTensor(0);
             auto outputTensor = opIt->getOutputTensor(0);
@@ -71,6 +71,8 @@ void alignTo16ChannelsFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
                 auto weightsTensorInputChannelsPadded = mv::round_up(weightsTensorInputChannels, pad);
 
                 auto weightsTensorOutputChannels = weightsTensorShape[mv::KERNEL_OUTPUT_CHANNELS];
+                if(taskOp == "DepthwiseConvolution")
+                    weightsTensorOutputChannels = weightsTensorShape[mv::KERNEL_INPUT_CHANNELS];
                 auto weightsTensorOutputChannelsPadded = mv::round_up(weightsTensorOutputChannels, pad);
 
                 if(weightsTensorInputChannelsPadded != weightsTensorInputChannels ||
@@ -82,7 +84,9 @@ void alignTo16ChannelsFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
                     auto weightsTensorHeight = weightsTensorShape[mv::KERNEL_HEIGHT];
                     auto weightsTensorQuantizationParams = weightsTensor->get<mv::QuantizationParams>("quantParams");
 
-                    auto newShape = mv::Shape({weightsTensorWidth, weightsTensorHeight, weightsTensorInputChannelsPadded, weightsTensorOutputChannelsPadded});
+                    mv::Shape newShape = mv::Shape({weightsTensorWidth, weightsTensorHeight, weightsTensorInputChannelsPadded, weightsTensorOutputChannelsPadded});
+                    if(taskOp == "DepthwiseConvolution")
+                        newShape = mv::Shape({weightsTensorWidth, weightsTensorHeight, weightsTensorInputChannelsPadded, 1});
                     int64_t zeroPoint = 0;
 
                     if(weightsTensor->isQuantized())
@@ -92,11 +96,12 @@ void alignTo16ChannelsFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
                     auto constantOp = om.getSourceOp(weightsTensor);
                     auto outFlows = mv::getOutputDataFlow(om, constantOp, false);
 
+                    //DO NOT CHANGE THE LIMITS OF THE LOOP! THERE IS A REASON WHY IT'S DONE LIKE THIS AND NOT USING THE AUXILIARY VARIABLES
                     mv::Data::TensorIterator newKernel = om.constantDataElement(newData, newShape, weightsTensorDType, weightsTensorOrder, weightsTensorQuantizationParams, mv::createAlignConstantName(constantOp->getName()));
-                    for(unsigned oc = 0; oc < weightsTensorOutputChannels; ++oc)
-                        for(unsigned ic = 0; ic < weightsTensorInputChannels; ++ic)
-                            for(unsigned kw = 0; kw < weightsTensorWidth; ++kw)
-                                for(unsigned kh = 0; kh < weightsTensorHeight; ++kh)
+                    for(unsigned oc = 0; oc < weightsTensorShape[mv::KERNEL_OUTPUT_CHANNELS]; ++oc)
+                        for(unsigned ic = 0; ic < weightsTensorShape[mv::KERNEL_INPUT_CHANNELS]; ++ic)
+                            for(unsigned kw = 0; kw < weightsTensorShape[mv::KERNEL_WIDTH]; ++kw)
+                                for(unsigned kh = 0; kh < weightsTensorShape[mv::KERNEL_HEIGHT]; ++kh)
                                     newKernel->at({kw,kh,ic,oc}) = weightsTensor->at({kw,kh,ic,oc});
 
                     om.getSourceOp(newKernel)->set<unsigned>("opId", constantOp->get<unsigned>("opId"));
