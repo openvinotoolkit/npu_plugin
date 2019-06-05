@@ -50,7 +50,7 @@ namespace mv
 
     // NOTE: This graph non member function works only on DAGs
     template <typename T_node, typename T_edge>
-    std::vector<typename graph<T_node, T_edge>::node_list_iterator> topologicalSort(graph<T_node, T_edge>& g)
+    std::vector<typename graph<T_node, T_edge>::node_list_iterator> topologicalSort(graph<T_node, T_edge>& g, typename graph<T_node, T_edge>::node_list_iterator initialNode)
     {
         std::vector<typename graph<T_node, T_edge>::node_list_iterator> toReturn;
 
@@ -61,6 +61,8 @@ namespace mv
         for(auto node = g.node_begin(); node != g.node_end(); ++node)
             unmarkedNodes.insert(node);
 
+        visit(initialNode, unmarkedNodes, toReturn, g);
+
         while(!unmarkedNodes.empty())
         {
             auto toVisit = unmarkedNodes.begin();
@@ -69,6 +71,13 @@ namespace mv
 
         std::reverse(toReturn.begin(), toReturn.end());
         return toReturn;
+    }
+
+    // NOTE: This graph non member function works only on DAGs
+    template <typename T_node, typename T_edge>
+    std::vector<typename graph<T_node, T_edge>::node_list_iterator> topologicalSort(graph<T_node, T_edge>& g)
+    {
+        return topologicalSort(g, g.node_begin());
     }
 }
 
