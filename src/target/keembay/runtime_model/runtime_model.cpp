@@ -752,7 +752,7 @@ std::vector<std::unique_ptr<MVCNN::BarrierT>> mv::RuntimeModel::buildBarrierTabl
     std::sort(
         barrierTasks.begin(),
         barrierTasks.end(),
-        [](const mv::Data::OpListIterator& a, const mv::Data::OpListIterator& b) -> bool { return a->getName() < b->getName(); }
+        [](const mv::Data::OpListIterator& a, const mv::Data::OpListIterator& b) -> bool { return a->get<mv::Barrier>("Barrier").getIndex() < b->get<mv::Barrier>("Barrier").getIndex(); }
         );
 
     unsigned n = barrierTasks.size();
