@@ -52,10 +52,18 @@ void alignTo16ChannelsFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             inputTensor->setShape(newInputTensorShape);
             outputTensor->setShape(newOutputTensorShape);
 
-            // For populated tensor this is not as easy as simply change the shape. We have to create a new operation.
-            // Luckly, we have the utilities to do so :)
-            if(opIt->hasAttr("hasWeights") && opIt->get<bool>("hasWeights"))
+            if(taskOp == "Add" || taskOp == "Subtract" || taskOp == "Multiply")
             {
+                auto inputTensor2 = opIt->getInputTensor(1);
+                auto inputTensor2Shape = inputTensor2->getShape();
+                auto inputChannels2Padded = mv::round_up(inputTensor2Shape[mv::IO_CHANNEL_DIMENSION], pad);
+                auto newInputTensor2Shape = mv::Shape({inputTensorShape[mv::IO_WIDTH_DIMENSION], inputTensorShape[mv::IO_HEIGHT_DIMENSION], inputChannels2Padded, inputTensorShape[mv::IO_BATCH_DIMENSION]});
+                inputTensor2->setShape(newInputTensor2Shape);
+            }
+            else if(opIt->hasAttr("hasWeights") && opIt->get<bool>("hasWeights"))
+            {
+                // For populated tensor this is not as easy as simply change the shape. We have to create a new operation.
+                // Luckly, we have the utilities to do so :)
                 auto weightsTensor = opIt->getInputTensor(1);
                 auto weightsTensorShape = weightsTensor->getShape();
 
