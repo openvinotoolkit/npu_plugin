@@ -59,6 +59,11 @@ std::string mv::createAlignConstantName(const std::string& opName)
     return opName + "_ALIGNED";
 }
 
+std::string mv::createAlignWeightSetConstantName(const std::string& opName)
+{
+    return "AlignContainer_" + opName;
+}
+
 std::string mv::createBarrierName(const std::string& opName, unsigned barrierID)
 {
     return opName + "_" + std::to_string(barrierID) + "_Barrier";
