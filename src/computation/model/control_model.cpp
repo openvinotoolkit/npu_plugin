@@ -265,7 +265,7 @@ void mv::ControlModel::transitiveReduction(const std::string& edgeAttribute)
 
 bool mv::ControlModel::isDag()
 {
-    mv::isDAG(controlGraph_);
+    return mv::isDAG(controlGraph_);
 }
 
 void mv::ControlModel::undefineFlow(Control::FlowListIterator flow)
