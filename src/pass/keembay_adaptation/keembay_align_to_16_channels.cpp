@@ -91,6 +91,8 @@ void alignTo16ChannelsFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
                                 for(unsigned kh = 0; kh < weightsTensorHeight; ++kh)
                                     newKernel->at({kw,kh,ic,oc}) = weightsTensor->at({kw,kh,ic,oc});
 
+                    om.getSourceOp(newKernel)->set<unsigned>("opId", constantOp->get<unsigned>("opId"));
+
                     om.removeOp(constantOp);
                     mv::setOutputDataFlow(om, newKernel, outFlows);
                 }
@@ -121,6 +123,8 @@ void alignTo16ChannelsFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
                         newBiasTensor->at({i}) = biasTensor->at({i});
 
                     dm.undefineTensor(biasTensorName);
+                    opIt->erase("bias");
+                    opIt->set<std::string>("bias", newBiasTensor->getName());
                 }
             }
         }
