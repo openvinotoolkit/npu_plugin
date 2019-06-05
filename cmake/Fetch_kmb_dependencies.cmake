@@ -13,7 +13,7 @@ function (fetch_mcmCompiler)
         else()
             set(branch_name "master")
         endif()
-        set(MCM_BASE_DIR ${IE_MAIN_SOURCE_DIR}/thirdparty/movidius/mcmCompiler)
+        set(MCM_BASE_DIR ${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/thirdparty/movidius/mcmCompiler)
         if (NOT DEFINED ENV{MCM_HOME})
             message( "\nMCM_HOME environment variable must be defined")
             message( "most likely by:")
@@ -43,6 +43,6 @@ function (fetch_vpual)
         # kmbPlugin doesn't build under Windows yet
         execute_process(
             COMMAND bash -c "./vpualHost_clone_repo.sh ${branch_name}"
-            WORKING_DIRECTORY ${IE_MAIN_SOURCE_DIR}/thirdparty/movidius
+            WORKING_DIRECTORY ${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/thirdparty/movidius
             )
 endfunction(fetch_vpual)

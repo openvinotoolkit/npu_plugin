@@ -20,7 +20,7 @@ include(Fetch_kmb_dependencies)
 
 set(TARGET_NAME "kmbPlugin")
 
-set(VPUAL_DEFAULT_BASE "${IE_MAIN_SOURCE_DIR}/thirdparty/movidius/vpualHost")
+set(VPUAL_DEFAULT_BASE "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/thirdparty/movidius/vpualHost")
 
     if (DEFINED MCM_COMPILER_PATHS_FINDING)
         unset(MCM_COMPILER_INTERNAL_BUILD CACHE)
@@ -54,7 +54,7 @@ set(VPUAL_DEFAULT_BASE "${IE_MAIN_SOURCE_DIR}/thirdparty/movidius/vpualHost")
 
     if(NOT MCM_COMPILER_INCLUDE_PATH OR NOT MCM_COMPILER_LIBRARY OR
        NOT FLATBUFFERRS_INCLUDE_PATH OR NOT MCM_SCHEMA_INCLUDE_PATH)
-        set(MCM_BASE_DIR ${IE_MAIN_SOURCE_DIR}/thirdparty/movidius/mcmCompiler)
+        set(MCM_BASE_DIR ${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/thirdparty/movidius/mcmCompiler)
         message(STATUS "Build mcmCompiler inside the IE tree")
 
         file(STRINGS mcmcompiler_hash.txt MCM_COMPILER_HASH)
@@ -71,11 +71,11 @@ set(VPUAL_DEFAULT_BASE "${IE_MAIN_SOURCE_DIR}/thirdparty/movidius/vpualHost")
     endif()
 
     if (NOT DEFINED ENV{VPUAL_HOME})
-        if(NOT EXISTS "${IE_MAIN_SOURCE_DIR}/thirdparty/movidius/vpualHost")
+        if(NOT EXISTS "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/thirdparty/movidius/vpualHost")
             file(STRINGS vpual_hash.txt VPUAL_HASH)
             fetch_vpual(${VPUAL_HASH})
         endif()
-        set(vpual_home "${IE_MAIN_SOURCE_DIR}/thirdparty/movidius/vpualHost")
+        set(vpual_home "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/thirdparty/movidius/vpualHost")
     else()
         set(vpual_home $ENV{VPUAL_HOME})
     endif()

@@ -6,6 +6,8 @@ cmake_minimum_required (VERSION 3.3)
 
 project(InferenceEngineKMBPlugin)
 
+set(IE_MAIN_KMB_PLUGIN_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
+
 #
 # Find Inference Engine Developer package
 #
