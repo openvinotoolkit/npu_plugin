@@ -95,8 +95,9 @@ void allocatePopulatedTensorsFcnKeemBay(const mv::pass::PassEntry& pass, mv::Com
     auto stageIt = cm.getStage(0);
 
     unsigned i = 0;
-    for(auto opIterator = om.opBegin(); opIterator != om.opEnd(); ++opIterator)
+    for(auto tensorIt = om.tensorBegin(); tensorIt != om.tensorEnd(); ++tensorIt)
     {
+        auto opIterator = om.getSourceOp(tensorIt);
         std::string opType = opIterator->getOpType();
         if (opType == "Constant" || opType == "ConstantInt" || opType == "ConstantDataElement" || opType == "WeightsTable" || opType == "SparsityMap")
         {
