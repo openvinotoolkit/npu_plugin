@@ -785,13 +785,14 @@ void mv::RuntimeModel::buildGraphFile(ComputationModel& cm, mv::Element& compila
 
     // Binary Data
     graphFile_.binary_data = std::vector<std::unique_ptr<MVCNN::BinaryDataT>>();
-    for(auto tensorIt = om.tensorBegin(); tensorIt != om.tensorEnd(); ++tensorIt)
+    for(auto opIterator = om.opBegin(); opIterator != om.opEnd(); ++opIterator)
     {
-        auto allocators = tensorIt->get<std::set<std::string>>("allocators");
-        if (allocators.count("GraphFile") != 0)
+        std::string opType = opIterator->getOpType();
+        if (opType == "Constant" || opType == "ConstantInt" || opType == "ConstantDataElement" || opType == "WeightsTable" || opType == "SparsityMap")
         {
+            auto tIt = opIterator->getOutputTensor(0);
             //std::cout << "Serializing to binary data section " << tensorIt->getName() << std::endl;
-            graphFile_.binary_data.push_back(buildBinaryDataT(cm, compilationDescriptor, *tensorIt));
+            graphFile_.binary_data.push_back(buildBinaryDataT(cm, compilationDescriptor, *tIt));
         }
     }
 
