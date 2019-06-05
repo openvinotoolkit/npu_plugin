@@ -56,7 +56,7 @@ std::string mv::createDMATaskDDR2CMXName(const std::string& opName)
 
 std::string mv::createAlignConstantName(const std::string& opName)
 {
-    return "AlignContainer_" + opName;
+    return opName + "_ALIGNED";
 }
 
 std::string mv::createBarrierName(const std::string& opName, unsigned barrierID)
