@@ -71,7 +71,7 @@ void alignTo16ChannelsFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
                 auto weightsTensorInputChannelsPadded = mv::round_up(weightsTensorInputChannels, pad);
 
                 auto weightsTensorOutputChannels = weightsTensorShape[mv::KERNEL_OUTPUT_CHANNELS];
-                if(taskOp == "DepthwiseConvolution")
+                if(taskOp == "DepthwiseConv")
                     weightsTensorOutputChannels = weightsTensorShape[mv::KERNEL_INPUT_CHANNELS];
                 auto weightsTensorOutputChannelsPadded = mv::round_up(weightsTensorOutputChannels, pad);
 
@@ -85,7 +85,7 @@ void alignTo16ChannelsFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
                     auto weightsTensorQuantizationParams = weightsTensor->get<mv::QuantizationParams>("quantParams");
 
                     mv::Shape newShape = mv::Shape({weightsTensorWidth, weightsTensorHeight, weightsTensorInputChannelsPadded, weightsTensorOutputChannelsPadded});
-                    if(taskOp == "DepthwiseConvolution")
+                    if(taskOp == "DepthwiseConv")
                         newShape = mv::Shape({weightsTensorWidth, weightsTensorHeight, weightsTensorInputChannelsPadded, 1});
                     int64_t zeroPoint = 0;
 
