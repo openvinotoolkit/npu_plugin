@@ -18,8 +18,6 @@
 # Build common part
 #
 
-add_subdirectory(graph_transformer)
-
 add_subdirectory(
     "${IE_MAIN_SOURCE_DIR}/thirdparty/movidius"
     "${CMAKE_CURRENT_BINARY_DIR}/thirdparty/movidius")

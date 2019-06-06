@@ -135,7 +135,7 @@ SET_TARGET_PROPERTIES( ${VPUAL_LIBRARY} PROPERTIES C_VISIBILITY_PRESET default )
 
 target_link_libraries(${TARGET_NAME}
     PRIVATE
-  ${INTEL_ITT_LIBS} IE::inference_engine vpu_graph_transformer ${MCM_COMPILER_LIBRARY} ${VPUAL_LIBRARY})
+  ${INTEL_ITT_LIBS} IE::inference_engine IE::vpu_graph_transformer ${MCM_COMPILER_LIBRARY} ${VPUAL_LIBRARY})
 
 if (MCM_COMPILER_PATHS_FINDING)
     unset(MCM_COMPILER_INTERNAL_BUILD CACHE)
