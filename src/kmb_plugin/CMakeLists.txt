@@ -115,6 +115,7 @@ target_include_directories(${TARGET_NAME}
     PRIVATE
         "${CMAKE_CURRENT_SOURCE_DIR}"
     SYSTEM PRIVATE
+        "${CMAKE_SOURCE_DIR}/include"
         "${IE_MAIN_SOURCE_DIR}/include"
         "${IE_MAIN_SOURCE_DIR}/src/inference_engine"
         "${MCM_COMPILER_INCLUDE_PATH}"

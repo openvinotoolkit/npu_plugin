@@ -58,9 +58,10 @@
 #include <description_buffer.hpp>
 #include <xml_parse_utils.h>
 
-#include <vpu/parsed_config.hpp>
+#include <vpu/kmb_plugin_config.hpp>
 #include <vpu/compile_env.hpp>
 #include <vpu/frontend/stage_builder.hpp>
+
 #include "kmb_parser.hpp"
 
 #if defined(_WIN32)

@@ -29,8 +29,6 @@
 #include <tuple>
 #include "tests_common.hpp"
 #include "single_layer_common.hpp"
-#include <vpu/vpu_plugin_config.hpp>
-#include <vpu/private_plugin_config.hpp>
 #include "vpu_layers_tests.hpp"
 
 class kmbLayersTests_nightly : public vpuLayersTests {
@@ -63,4 +61,3 @@ template<class T>
 class kmbLayerTestBaseWithParam: public kmbLayersTests_nightly,
                            public testing::WithParamInterface<T> {
 };
-

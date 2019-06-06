@@ -14,12 +14,13 @@
 // stated in the License.
 //
 
-#include "kmb_layers_tests.hpp"
-
 #include <thread>
 #include <chrono>
 #include <iostream>
 
+#include <vpu/kmb_plugin_config.hpp>
+
+#include "kmb_layers_tests.hpp"
 #include "plugin_cache.hpp"
 
 using namespace InferenceEngine;

@@ -18,7 +18,7 @@
 #include <map>
 #include <unordered_map>
 #include <unordered_set>
-#include <vpu/vpu_plugin_config.hpp>
+#include <vpu/kmb_plugin_config.hpp>
 #include <cpp_interfaces/exception2status.hpp>
 
 #include "kmb_config.h"

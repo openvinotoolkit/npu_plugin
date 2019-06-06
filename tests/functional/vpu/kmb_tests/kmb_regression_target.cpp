@@ -20,7 +20,7 @@
 #include <regression_tests.hpp>
 #include <string>
 #include <inference_engine/precision_utils.h>
-#include <vpu/vpu_plugin_config.hpp>
+#include <vpu/kmb_plugin_config.hpp>
 #include <vpu/private_plugin_config.hpp>
 
 #include <ie_icnn_network_stats.hpp>

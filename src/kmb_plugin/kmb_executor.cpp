@@ -26,7 +26,7 @@
 #include <ie_common.h>
 #include <thread>
 
-#include <vpu/vpu_plugin_config.hpp>
+#include <vpu/kmb_plugin_config.hpp>
 #include <vpu/utils/extra.hpp>
 #include <vpu/utils/logger.hpp>
 
@@ -221,4 +221,3 @@ void KmbExecutor::deallocateGraph(DevicePtr &device, GraphDesc &graphDesc) {
     /* gg.NNDeallocateGraph(graphId); */
     return;
 }
-
