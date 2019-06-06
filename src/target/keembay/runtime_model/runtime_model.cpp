@@ -548,8 +548,29 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
     toBuild->input_data = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(0));
     toBuild->parent_input_tensor = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(0));
     toBuild->output_data = buildTensorReferenceT(cm, compilationDescriptor, opIt->getOutputTensor(0));
-    toBuild->parent_output_tensor = buildTensorReferenceT(cm, compilationDescriptor, opIt->getOutputTensor(0));
-
+    toBuild->parent_output_tensor = buildTensorReferenceT(cm, compilationDescriptor, opIt->getOutputTensor(0)); //TODO need to fix to actual parent
+    if (toBuild->parent_output_tensor->leading_offset != 0 || toBuild->parent_output_tensor->trailing_offset != 0)
+    {
+        toBuild->parent_output_tensor->dimensions[1] = 2*toBuild->parent_output_tensor->dimensions[1];
+        toBuild->parent_output_tensor->strides[0] = 1;
+        toBuild->parent_output_tensor->strides[1] = 200704;
+        toBuild->parent_output_tensor->strides[2] = 1;
+        toBuild->parent_output_tensor->strides[3] = 3584;
+        toBuild->output_data->strides[0] = 1;
+        toBuild->output_data->strides[1] = 200704;
+        toBuild->output_data->strides[2] = 1;
+        toBuild->output_data->strides[3] = 3584;
+        toBuild->output_data->strides[4] = 64;
+    }
+    if (toBuild->parent_output_tensor->leading_offset != 0)
+    {
+        //toBuild->output_data->leading_offset = toBuild->parent_output_tensor->leading_offset/2;
+        //toBuild->output_data->data->data_index = toBuild->output_data->data->data_index + toBuild->parent_output_tensor->leading_offset;
+    }
+    if (toBuild->parent_output_tensor->trailing_offset != 0)
+    {
+        //toBuild->output_data->trailing_offset = toBuild->parent_output_tensor->trailing_offset/2;
+    }
     unsigned num_inputs = opIt->getInputTensor().size();
 
     //OP inputs == n ->
