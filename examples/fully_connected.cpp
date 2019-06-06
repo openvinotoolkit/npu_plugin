@@ -10,40 +10,27 @@
 //NOTE: Does not work just for input size mismatch, op is actually ok
 int main()
 {
+    double inf = std::numeric_limits<double>::infinity();
+
     mv::CompilationUnit unit("FullyConnected");
-    mv::CompositionalModel& test_cm = unit.model();
-    auto input = test_cm.input({8, 8, 16, 1}, mv::DType("Float16"), mv::Order("NCHW"));
+    mv::CompositionalModel& om = unit.model();
 
-    std::vector<double> weightsData = mv::utils::generateSequence<double>(input->getShape().totalSize() * 100u);
-    auto weights1 = test_cm.constant(weightsData, {input->getShape().totalSize(), 100}, mv::DType("Float16"), mv::Order(mv::Order::getColMajorID(2)));
-    auto fullyConnected = test_cm.fullyConnected(input, weights1);
-    auto output = test_cm.output(fullyConnected);
+    auto input = om.input({1, 1, 2048, 1}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{128},{0.007843137718737125},{-1.0},{1.0}});
+    std::vector<int64_t> weightsData = mv::utils::generateSequence<int64_t>(2048*1000);
+    auto weights = om.constantInt(weightsData, {2048,1000}, mv::DType("UInt8"),  mv::Order("WH"), {{132},{0.0038084},{-0.49236152},{0.4787797}});
+    auto fullyConnected = om.fullyConnected(input, weights, {{128},{0.00784314},{-1.00392163},{0.99607843}});
 
-    std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/debug_ma2480.json";
+    std::vector<int64_t> biasWeightsData = mv::utils::generateSequence<int64_t>(1000);
+    auto biasWeights = om.constantInt(biasWeightsData, {1000}, mv::DType("UInt8"), mv::Order::getColMajorID(1),{{128},{0.007843137718737125},{-1.003921627998352},{0.9960784316062927}});
+
+    auto bias = om.bias(fullyConnected, biasWeights, {{0},{2.98697796e-05},{-inf},{inf}});
+    auto output = om.output(bias);
+
+    std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/debug_ma2490.json";
     unit.loadCompilationDescriptor(compDescPath);
     mv::CompilationDescriptor &compDesc = unit.compilationDescriptor();
 
-    std::string outputName = "FullyConnected";
-    mv::Attribute blobNameAttr(outputName + ".blob");
-    compDesc.setPassArg("GenerateBlob", "fileName", blobNameAttr);
-    compDesc.setPassArg("GenerateBlob", "enableFileOutput", true);
-    compDesc.setPassArg("GenerateBlob", "enableRAMOutput", false);
-
-    compDesc.setPassArg("GenerateDot", "output", std::string(outputName + ".dot"));
-    compDesc.setPassArg("GenerateDot", "scope", std::string("OpControlModel"));
-    compDesc.setPassArg("GenerateDot", "content", std::string("full"));
-    compDesc.setPassArg("GenerateDot", "html", true);
-
-    compDesc.setPassArg("MarkHardwareOperations", "disableHardware", true);
-
-    compDesc.remove("adapt", "FullyConnectedAsConv2D");
-
-    // compDesc.setPassArg("GenerateCaffe", "outputPrototxt", std::string(outputName + ".prototxt"));
-    // compDesc.setPassArg("GenerateCaffe", "outputCaffeModel", std::string(outputName + ".caffemodel"));
-
-    unit.loadTargetDescriptor(mv::Target::ma2480);
+    unit.loadTargetDescriptor(mv::Target::ma2490);
     unit.initialize();
-
-    auto returnValue = mv::HWTest(unit, outputName, true);
-    printReport(returnValue, std::cout);
+    unit.run();
 }
