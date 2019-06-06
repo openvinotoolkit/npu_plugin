@@ -83,7 +83,7 @@ namespace mv
 
             mv::Shape outputShape({W, H, C, N});
 
-            if (args.at("quantParams").get<mv::QuantizationParams>().isEmpty() == true)
+            if (args.at("quantParams").get<mv::QuantizationParams>().isEmpty())
                 outputs.push_back(mv::Tensor(":0", outputShape, inputs[0]->getDType(), inputs[0]->getOrder()));
             else
                 outputs.push_back(mv::Tensor(":0", outputShape, inputs[0]->getDType(), inputs[0]->getOrder(), args.at("quantParams").get<mv::QuantizationParams>()));

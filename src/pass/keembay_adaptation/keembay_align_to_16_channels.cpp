@@ -82,22 +82,26 @@ void alignTo16ChannelsFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
                     auto weightsTensorDType = weightsTensor->getDType();
                     auto weightsTensorWidth = weightsTensorShape[mv::KERNEL_WIDTH];
                     auto weightsTensorHeight = weightsTensorShape[mv::KERNEL_HEIGHT];
-                    auto weightsTensorQuantizationParams = weightsTensor->get<mv::QuantizationParams>("quantParams");
+
 
                     mv::Shape newShape = mv::Shape({weightsTensorWidth, weightsTensorHeight, weightsTensorInputChannelsPadded, weightsTensorOutputChannelsPadded});
                     if(taskOp == "DepthwiseConv")
                         newShape = mv::Shape({weightsTensorWidth, weightsTensorHeight, weightsTensorInputChannelsPadded, 1});
                     int64_t zeroPoint = 0;
+                    mv::QuantizationParams weightsTensorQuantizationParams({},{},{},{});
 
                     if(weightsTensor->isQuantized())
+                    {
+                        weightsTensorQuantizationParams = weightsTensor->get<mv::QuantizationParams>("quantParams");
                         zeroPoint = weightsTensorQuantizationParams.getZeroPoint()[0];
+                    }
 
                     auto newData = std::vector<mv::DataElement>(newShape.totalSize(), mv::DataElement(weightsTensorDType.isDoubleType(), zeroPoint));
                     auto constantOp = om.getSourceOp(weightsTensor);
                     auto outFlows = mv::getOutputDataFlow(om, constantOp, false);
+                    mv::Data::TensorIterator newKernel = om.constantDataElement(newData, newShape, weightsTensorDType, weightsTensorOrder, weightsTensorQuantizationParams, mv::createAlignConstantName(constantOp->getName()));
 
                     //DO NOT CHANGE THE LIMITS OF THE LOOP! THERE IS A REASON WHY IT'S DONE LIKE THIS AND NOT USING THE AUXILIARY VARIABLES
-                    mv::Data::TensorIterator newKernel = om.constantDataElement(newData, newShape, weightsTensorDType, weightsTensorOrder, weightsTensorQuantizationParams, mv::createAlignConstantName(constantOp->getName()));
                     for(unsigned oc = 0; oc < weightsTensorShape[mv::KERNEL_OUTPUT_CHANNELS]; ++oc)
                         for(unsigned ic = 0; ic < weightsTensorShape[mv::KERNEL_INPUT_CHANNELS]; ++ic)
                             for(unsigned kw = 0; kw < weightsTensorShape[mv::KERNEL_WIDTH]; ++kw)
