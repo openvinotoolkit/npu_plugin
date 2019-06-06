@@ -174,7 +174,7 @@ mv::Data::FlowListIterator mv::BaseOpModel::defineFlow(Data::OpListIterator sour
 std::vector<mv::Data::OpListIterator> mv::BaseOpModel::topologicalSort()
 {
     // Necessary for correct iterator casting
-    auto topologicalSortResult = mv::topologicalSort(dataGraph_);
+    auto topologicalSortResult = mv::topologicalSort(dataGraph_, getInput());
     std::vector<mv::Data::OpListIterator> toReturn(topologicalSortResult.begin(), topologicalSortResult.end());
     return toReturn;
 }
