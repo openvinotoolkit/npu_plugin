@@ -55,17 +55,21 @@ set(VPUAL_DEFAULT_BASE "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/thirdparty/movidius/vpu
     if(NOT MCM_COMPILER_INCLUDE_PATH OR NOT MCM_COMPILER_LIBRARY OR
        NOT FLATBUFFERRS_INCLUDE_PATH OR NOT MCM_SCHEMA_INCLUDE_PATH)
         set(MCM_BASE_DIR ${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/thirdparty/movidius/mcmCompiler)
-        message(STATUS "Build mcmCompiler inside the IE tree")
-
-        file(STRINGS mcmcompiler_hash.txt MCM_COMPILER_HASH)
-
-        fetch_mcmCompiler(${MCM_COMPILER_HASH})
+        
+        ExternalProject_Add(
+            mcmCompiler
+            PREFIX ${MCM_BASE_DIR}
+            SOURCE_DIR ${MCM_BASE_DIR}
+            BINARY_DIR ${MCM_BASE_DIR}/build
+            STAMP_DIR ${MCM_BASE_DIR}/stamp
+            INSTALL_COMMAND ""
+        )
 
         set(MCM_COMPILER_INTERNAL_BUILD TRUE)
-        set(MCM_COMPILER_INCLUDE_PATH "${MCM_BASE_DIR}/src/mcmCompiler")
-        set(MCM_COMPILER_LIBRARY "${MCM_BASE_DIR}/src/mcmCompiler-build/lib/${CMAKE_SHARED_LIBRARY_PREFIX}cm${CMAKE_SHARED_LIBRARY_SUFFIX}")
-        set(FLATBUFFERRS_INCLUDE_PATH "${MCM_BASE_DIR}/src/mcmCompiler/schema/graphfile/flatbuffers/include/")
-        set(MCM_SCHEMA_INCLUDE_PATH "${MCM_BASE_DIR}/src/mcmCompiler/meta/schema/graphfile")
+        set(MCM_COMPILER_INCLUDE_PATH "${MCM_BASE_DIR}")
+        set(MCM_COMPILER_LIBRARY "${MCM_BASE_DIR}/build/lib/${CMAKE_SHARED_LIBRARY_PREFIX}cm${CMAKE_SHARED_LIBRARY_SUFFIX}")
+        set(FLATBUFFERRS_INCLUDE_PATH "${MCM_BASE_DIR}/schema/graphfile/flatbuffers/include/")
+        set(MCM_SCHEMA_INCLUDE_PATH "${MCM_BASE_DIR}/meta/schema/graphfile")
     else()
         message(STATUS "mcmCompiler is outside the IE tree")
     endif()

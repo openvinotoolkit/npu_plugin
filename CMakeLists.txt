@@ -24,10 +24,7 @@ include(${CMAKE_ROOT}/Modules/ExternalProject.cmake)
 # Build rules
 #
 
-#FIXMIE remove movidius?
-add_subdirectory(thirdparty)
-#FIXME remove kmb_plugin folder?
-add_subdirectory(src)
+add_subdirectory(src/kmb_plugin)
 
 enable_testing()
 
