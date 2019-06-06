@@ -248,15 +248,14 @@ void averageAsDepthWise(const mv::pass::PassEntry& pass, mv::ComputationModel& m
                 depthwise_conv = om.depthwiseConv(sourceTensor, weights, stride, padding, 1, emptyQuantParams, name + "_DepthwiseConv");
             }
 
-            auto depthwise_conv_op = om.getSourceOp(depthwise_conv);
+            auto depthwiseConvOp = om.getSourceOp(depthwise_conv);
             auto weightsOp = om.getSourceOp(weights);
-            auto weights_tensor = depthwise_conv_op->getInputTensor(1);
 
             if(opIt->hasAttr("opId"))
             {
                 unsigned currentOpId = opIt->get<unsigned>("opId");
                 weightsOp->set<unsigned>("opId", currentOpId);
-                depthwise_conv_op->set<unsigned>("opId", currentOpId);
+                depthwiseConvOp->set<unsigned>("opId", currentOpId);
             }
             pass.log(Logger::MessageType::Info, "Replaced AveragePool op " + opIt->getName() + " with " + depthwise_conv->getName());
 
