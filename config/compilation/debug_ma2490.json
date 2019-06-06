@@ -98,11 +98,11 @@
     "adapt": {
         "Singular": [
             "AverageAsDepthWise",
-            "FullyConnectedAsConv2D",
             "FuseBatchNorm",
             "FuseBias",
             "FuseRelu",
             "FuseScale",
+            "FullyConnectedAsConv2D",
             {
                 "name": "GenerateDot",
                 "output": "adapt_model.dot",
