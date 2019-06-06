@@ -72,8 +72,7 @@ set(VPUAL_DEFAULT_BASE "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/thirdparty/movidius/vpu
 
     if (NOT DEFINED ENV{VPUAL_HOME})
         if(NOT EXISTS "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/thirdparty/movidius/vpualHost")
-            file(STRINGS vpual_hash.txt VPUAL_HASH)
-            fetch_vpual(${VPUAL_HASH})
+            message(FATAL_ERROR "vpualHost is not found. Please use: git submodule update --init --recursive to get it")
         endif()
         set(vpual_home "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/thirdparty/movidius/vpualHost")
     else()

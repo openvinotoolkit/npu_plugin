@@ -31,18 +31,3 @@ function (fetch_mcmCompiler)
             LOG_CONFIGURE 1
         )
 endfunction(fetch_mcmCompiler)
-
-function (fetch_vpual)
-
-        list(LENGTH ARGV args)
-        if (args EQUAL 1)
-            list(GET ARGV 0 branch_name)
-        else()
-            set(branch_name "master")
-        endif()
-        # kmbPlugin doesn't build under Windows yet
-        execute_process(
-            COMMAND bash -c "./vpualHost_clone_repo.sh ${branch_name}"
-            WORKING_DIRECTORY ${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/thirdparty/movidius
-            )
-endfunction(fetch_vpual)
