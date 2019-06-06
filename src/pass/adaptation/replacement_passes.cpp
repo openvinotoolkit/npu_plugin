@@ -83,12 +83,19 @@ void fullyConnectedAsConv2DFcn(const mv::pass::PassEntry& pass, mv::ComputationM
             auto sourceTensor = parentOpIt->getOutputTensor(0);
             auto weightsData = opIt->getInputTensor(1)->getData();
             auto inputShape = sourceTensor->getShape();
+            mv::QuantizationParams weightsTensorQuantizationParams = {{},{},{},{}};
+            mv::QuantizationParams outputTensorQuantizationParams = {{},{},{},{}};
 
+            if (opIt->getInputTensor(1)->isQuantized())
+            {
+                weightsTensorQuantizationParams = opIt->getInputTensor(1)->get<mv::QuantizationParams>("quantParams");
+                outputTensorQuantizationParams = opIt->getOutputTensor(0)->get<mv::QuantizationParams>("quantParams");
+            }
             auto weights = om.constantDataElement(weightsData, {inputShape[mv::IO_WIDTH_DIMENSION], inputShape[mv::IO_HEIGHT_DIMENSION], inputShape[mv::IO_CHANNEL_DIMENSION],
-                opIt->getOutputTensor(0)->getShape()[mv::IO_HEIGHT_DIMENSION]}, sourceTensor->getDType(),
-                Order(Order::getRowMajorID(4)),{{},{},{},{}}, opIt->getName() + "_weights");
+            opIt->getInputTensor(1)->getShape()[mv::IO_HEIGHT_DIMENSION]}, sourceTensor->getDType(),
+            mv::Order::getZMajorID(4),weightsTensorQuantizationParams, opIt->getName() + "_weights");
 
-            auto conv2D = om.conv(sourceTensor, weights, {1, 1}, {0, 0, 0, 0}, 1);
+            auto conv2D = om.conv(sourceTensor, weights, {1, 1}, {0, 0, 0, 0}, 1, 1, outputTensorQuantizationParams);
             pass.log(Logger::MessageType::Info, "Replaced FullyConnected op " + opIt->getName() + " with " + conv2D->getName());
 
             if (opIt->hasAttr("bias"))
@@ -96,6 +103,16 @@ void fullyConnectedAsConv2DFcn(const mv::pass::PassEntry& pass, mv::ComputationM
                 auto biasTensorName = opIt->get<std::string>("bias");
                 om.addAttr(om.getSourceOp(conv2D), "bias", biasTensorName);
                 pass.log(Logger::MessageType::Info, "Moved Bias attribute of FullyConnected op " + opIt->getName() + " to " + conv2D->getName());
+            }
+
+            auto convOp = om.getSourceOp(conv2D);
+            auto weightsOp = om.getSourceOp(weights);
+
+            if(opIt->hasAttr("opId"))
+            {
+                unsigned currentOpId = opIt->get<unsigned>("opId");
+                weightsOp->set<unsigned>("opId", currentOpId);
+                convOp->set<unsigned>("opId", currentOpId);
             }
 
             opIt = linkNewOperationsReplacement(parentOpIt, conv2D, om, opIt);
