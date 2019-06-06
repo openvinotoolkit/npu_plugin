@@ -69,4 +69,9 @@ std::string mv::createBarrierName(const std::string& opName, unsigned barrierID)
     return opName + "_" + std::to_string(barrierID) + "_Barrier";
 }
 
+std::string mv::createBiasName(const std::string& opName)
+{
+    return opName + "_bias";
+}
+
 

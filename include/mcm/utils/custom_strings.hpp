@@ -18,6 +18,7 @@ namespace mv
     std::string createAlignConstantName(const std::string& opName);
     std::string createAlignWeightSetConstantName(const std::string& opName);
     std::string createBarrierName(const std::string& opName, unsigned barrierID);
+    std::string createBiasName(const std::string& opName);
 
 }
 
