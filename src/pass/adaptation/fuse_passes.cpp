@@ -116,7 +116,7 @@ void fuseBiasFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, m
                 }
                 else
                 {
-                    std::string biasTensorName = mv::demanglePOCName(parentOpIt->getName()) + "_bias";
+                    std::string biasTensorName = parentOpIt->getName() + "_bias";
                     mv::Data::TensorIterator biasTensor;
 
                     if (bias.hasAttr("quantParams"))
