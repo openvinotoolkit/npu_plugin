@@ -34,12 +34,10 @@ namespace mv
             std::vector<Tensor>&)> outputDefFcn =
             [](const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>& args, std::vector<Tensor>& outputs)
         {
-            std::string inputOrder = inputs[0]->getOrder().toString();
-            inputOrder.erase(std::remove_if(inputOrder.begin(), inputOrder.end(), [](unsigned char x){return (x != 'H') && (x != 'W');}), inputOrder.end());
             if (args.at("quantParams").get<mv::QuantizationParams>().isEmpty() == true)
-                outputs.push_back(mv::Tensor(":0",{1, inputs[1]->getShape()[1]}, inputs[0]->getDType(), Order(inputOrder)));
+                outputs.push_back(mv::Tensor(":0",{1, 1, inputs[1]->getShape()[KERNEL_HEIGHT], 1}, inputs[0]->getDType(), inputs[0]->getOrder()));
             else
-                outputs.push_back(mv::Tensor(":0",{1, inputs[1]->getShape()[1]}, inputs[0]->getDType(), Order(inputOrder), args.at("quantParams").get<mv::QuantizationParams>()));
+                outputs.push_back(mv::Tensor(":0",{1, 1, inputs[1]->getShape()[KERNEL_HEIGHT], 1}, inputs[0]->getDType(), inputs[0]->getOrder(), args.at("quantParams").get<mv::QuantizationParams>()));
         };
     
         MV_REGISTER_OP(FullyConnected)
