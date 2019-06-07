@@ -16,6 +16,21 @@ namespace mv
     }
 }
 
+static std::map<const std::string,mv::DmaDirectionEnum> dmaDirectionStrings =
+{
+//    {mv::DmaDirectionEnum::CMX2DDR, "CMX2DDR"},
+//    {mv::DmaDirectionEnum::DDR2CMX, "DDR2CMX"},
+//    {mv::DmaDirectionEnum::CMX2UPA, "CMX2UPA"},
+//    {mv::DmaDirectionEnum::UPA2CMX, "UPA2CMX"},
+      {"CMX2DDR",mv::DmaDirectionEnum::CMX2DDR},
+      {"DDR2CMX",mv::DmaDirectionEnum::DDR2CMX},
+      {"CMX2UPA",mv::DmaDirectionEnum::CMX2UPA},
+      {"UPA2CMX",mv::DmaDirectionEnum::UPA2CMX},
+      {"INPUT2CMX",mv::DmaDirectionEnum::DDR2CMX},
+      {"CMX2OUTPUT",mv::DmaDirectionEnum::CMX2DDR},
+      {"INPUT2DDR",mv::DmaDirectionEnum::DDR2DDR},
+      {"DDR2OUTPUT",mv::DmaDirectionEnum::DDR2DDR}
+};
 
 void resolevImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::json::Object&)
 {
@@ -61,54 +76,103 @@ void resolevImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::Computati
 
         int ctr =  0;
         std::cout << "compensating for " << opIt->getName() << std::endl;
-        for (mv::Data::FlowSiblingIterator sourceFlow(opIt.leftmostInput()); sourceFlow != om.flowEnd() ; ++ sourceFlow)
+        std::vector<mv::Data::FlowSiblingIterator> flowsToRemove;
+
+        if(implicitFlow.getCompensationDirection() == mv::ImplicitFlow::INPUT)
         {
-            auto inputTensor = sourceFlow->getTensor();
-            std::cout << "doing iTensor " << inputTensor->getName() << std::endl;
+            for (mv::Data::FlowSiblingIterator sourceFlow(opIt.leftmostInput()); sourceFlow != om.flowEnd() ; ++ sourceFlow)
+            {
+                auto inputTensor = sourceFlow->getTensor();
+                auto inputLocation = inputTensor->get<mv::Tensor::MemoryLocation>("Location");
+                std::cout << "\tdoing iTensor " << inputTensor->getName() << std::endl;
+                if( inputLocation != outputLocation)
+                {
+                    std::cout << "\t\t"<<inputTensor->getName() << "is in " << inputLocation.print() << " and " << outputTensor->getName() << " is in " << outputLocation.print() << std::endl;
+
+                    //TODO:: PRONE TO ERRORS! corelate with Class Direction
+                    const std::string directionString = inputLocation.print() + "2" + outputLocation.print();
+
+                    std::cout << "\t\tadding DMA of " << directionString << std::endl;
+                    auto compensatorOutput = om.dMATask(inputTensor,
+                                                    dmaDirectionStrings[directionString],
+                                                    {{},{},{},{}},
+                                                    opIt->getName() + "_copy" + std::to_string(ctr));
+
+                    compensatorOutput->set<mv::Tensor::MemoryLocation>("Location",outputLocation);
+                    auto sinkIdx = sourceFlow->get<std::size_t>("sourceOutput");
+                    std::cout << "\t\tsetting " << compensatorOutput->getName() << " to " << outputLocation.print() << std::endl;
+                    std::cout << "\t\tgot sinkIdx " << sinkIdx << std::endl;
+
+                    opIt->setInputTensor(compensatorOutput,sinkIdx);
+                    om.defineFlow(compensatorOutput ,opIt,sinkIdx );
+                    flowsToRemove.push_back(sourceFlow);
+                    ctr++;
+                }
+            }
+            for ( int flowIdx = 0; flowIdx < flowsToRemove.size() ; flowIdx++)
+            {
+                om.undefineFlow(flowsToRemove[flowIdx]);
+            }
+
+            opIt->get<mv::ImplicitFlow>("ImplicitFlow").resolve();
+
+        }
+        else if (implicitFlow.getCompensationDirection() == mv::ImplicitFlow::OUTPTU)
+        {
+            //TODO:: REVIEW :: normally if the ImplicitFlow trait of the tensor is to compensate on output
+            // it should not have multiple inputs;
+
+            auto inputTensors = opIt->getInputTensor();
+
+            if( inputTensors.size() > 1)
+                throw mv::AttributeError("resolevImplicitOperationsFcn", " tensor " + opIt->getName() +
+                                            " of type " + opIt->getOpType() +
+                                            " has multiple inputs but has Implicit Compensation set to OUTPUT");
+
+            auto inputTensor = inputTensors[0];
             auto inputLocation = inputTensor->get<mv::Tensor::MemoryLocation>("Location");
 
             if( inputLocation != outputLocation)
             {
-                std::cout << inputTensor->getName() << "is in " << inputLocation.print() << " and " << outputTensor->getName() << " is in " << outputLocation.print() << std::endl;
-                mv::Data::TensorIterator compensatorInput;
-                mv::Data::TensorIterator compensatorOutput;
-                mv::Tensor::MemoryLocation newLocation;
+                std::cout << "\tdoing iTensor " << inputTensor->getName() << std::endl;
+                std::cout << "\t\t"<<inputTensor->getName() << "is in " << inputLocation.print() << " and " << outputTensor->getName() << " is in " << outputLocation.print() << std::endl;
 
-                if(implicitFlow.getCompensationDirection() == mv::ImplicitFlow::INPUT)
-                {
-                    compensatorInput = inputTensor;
-                }
-                else if (implicitFlow.getCompensationDirection() == mv::ImplicitFlow::OUTPTU)
-                {
-                    compensatorInput = outputTensor;
-                }
 
-                //TODO:: PRONE TO ERRORS! corelate with Direction
-                const std::string direction = inputLocation.print() + "2" + outputLocation.print();
-                compensatorOutput = om.dMATask(compensatorInput,
-                                                mv::DmaDirection(direction),
-                                                {{},{},{},{}},
-                                                opIt->getName() + "_copy" + std::to_string(ctr));
+                const std::string directionString = inputLocation.print() + "2" + outputLocation.print();
 
-                if(implicitFlow.getCompensationDirection() == mv::ImplicitFlow::INPUT)
+                std::vector<mv::Data::OpListIterator> opsToLink;
+                std::vector<std::size_t> inputSlots;
+                for (mv::Data::FlowSiblingIterator sinkFlow(opIt.leftmostOutput()); sinkFlow != om.flowEnd(); ++sinkFlow)
                 {
-                    compensatorOutput->set<mv::Tensor::MemoryLocation>("Location",outputLocation);
-                    auto sinkIdx = sourceFlow->get<std::size_t>("sourceOutput");
-                    std::cout << "got sinkIdx " <<sinkIdx << std::endl;
-
-                    opIt->setInputTensor(compensatorOutput,sinkIdx);
-                    om.defineFlow(compensatorOutput ,opIt,sinkIdx );
-                }
-                else if (implicitFlow.getCompensationDirection() == mv::ImplicitFlow::OUTPTU)
-                {
-                    compensatorInput->set<mv::Tensor::MemoryLocation>("Location",inputLocation);
-                    //TODO:: here, all the child ops of the slice, need to have their inputTensor
-                    // set to be the compensationOutput tensor (the output of the DMA )
+                    opsToLink.push_back(sinkFlow.sink());
+                    inputSlots.push_back(sinkFlow->get<std::size_t>("sinkInput"));
+                    flowsToRemove.push_back(sinkFlow);
+                    std::cout << "\t\tgot sinkIdx " << sinkFlow->get<std::size_t>("sinkInput") << std::endl;
                 }
 
-                ctr++;
+                auto compensatorOutput = om.dMATask(outputTensor,
+                                                        dmaDirectionStrings[directionString],
+                                                        {{},{},{},{}},
+                                                        opIt->getName() + "_copy" + std::to_string(ctr));
+
+                std::cout << "\t\tsetting " << compensatorOutput->getName() << " to " << outputLocation.print() << std::endl;
+
+                compensatorOutput->set<mv::Tensor::MemoryLocation>("Location",outputLocation);
+                outputTensor->set<mv::Tensor::MemoryLocation>("Location",inputLocation);
+
+                for ( int flowIdx = 0; flowIdx < flowsToRemove.size() ; flowIdx++)
+                {
+                    om.undefineFlow(flowsToRemove[flowIdx]);
+                }
+                for( unsigned op = 0 ; op < opsToLink.size(); ++op)
+                {
+                    std::cout << "\t\tsetting "<< opsToLink[op]->getName() << "to have input " << compensatorOutput->getName() << std::endl;
+                    opsToLink[op]->setInputTensor(compensatorOutput,inputSlots[op]);
+                    om.defineFlow(compensatorOutput,opsToLink[op],inputSlots[op]);
+                }
 
             }
+            opIt->get<mv::ImplicitFlow>("ImplicitFlow").resolve();
         }
     }
 
