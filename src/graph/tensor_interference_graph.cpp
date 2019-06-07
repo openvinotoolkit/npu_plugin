@@ -39,6 +39,7 @@ std::set<std::string> mv::TensorInterferenceGraph::getTaskTopTensors_(const std:
 
     for (unsigned i = 0; i < tensorList.size(); i++)
     {
+
         bool isCMXTensor = checkIsCMXTensor_(tensorList[i]);
         if ((isDMA && isCMXTensor) || (!isDMA && !isCMXTensor))
         {
@@ -218,6 +219,7 @@ bool mv::TensorInterferenceGraph::checkIsCMXTensor_(const Data::TensorIterator t
     else
     {
         throw mv::ArgumentError("checkIsCMXTensor_", "no allocators for tensor", tensorIt->getName(), "no allocators for tensor");
+        return false;
     }
 
     return false;

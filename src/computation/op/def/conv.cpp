@@ -33,11 +33,11 @@ namespace mv
                 return {false, 1};
             }
 
-            if (inputs[0]->getShape()[IO_CHANNEL_DIMENSION] != inputs[1]->getShape()[KERNEL_INPUT_CHANNELS])
-            {
-                errMsg = "Does not match the channel dimension of input " + std::to_string(inputs[0]->getShape()[KERNEL_INPUT_CHANNELS]);
-                return {false, 1};
-            }
+//            if (inputs[0]->getShape()[IO_CHANNEL_DIMENSION] != inputs[1]->getShape()[KERNEL_INPUT_CHANNELS])
+//            {
+//                errMsg = "Does not match the channel dimension of input " + std::to_string(inputs[0]->getShape()[KERNEL_INPUT_CHANNELS]);
+//                return {false, 1};
+//            }
 
             auto padding = args.at("padding").get<std::array<unsigned short, 4>>();
 

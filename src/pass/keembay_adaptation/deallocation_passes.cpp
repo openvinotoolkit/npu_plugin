@@ -53,7 +53,6 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
             inputOp->getOpType() == "WeightsTable" || inputOp->getOpType() == "SparsityMap")
             continue;
 
-        auto opId = inputOp->get<unsigned>("opId");
         auto inputOpName = inputOp->getName();
         auto inputTensor = dataFlowIt->getTensor();
 
@@ -77,7 +76,6 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
 
             flowIt->set<int>("MemoryRequirement", outputTensor->computeMemoryRequirement());
             flowIt->set<bool>("PositiveMemory", true);
-            deallocateInputOp->set<unsigned>("opId", opId);
 
             // Control flows for the newly created operation must be attached now.
             // Checking all the ops that have this tensor as input
