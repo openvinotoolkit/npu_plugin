@@ -544,34 +544,49 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
         toBuild->kernel_padTop = kernelPadding[2];
         toBuild->kernel_padBottom = kernelPadding[3];
     }
+    //input
+    mv::DataModel dm(cm);
+    mv::ControlModel controlModel(cm);
+    auto inputTensor = opIt->getInputTensor(0);
+    auto tensorAllocatorName = inputTensor->get<std::set<std::string>>("allocators").begin();
+    auto tensorAllocator = dm.getAllocator(*tensorAllocatorName);
+    mv::Data::BufferIterator tensorBufferIt = tensorAllocator.getBuffer(0, inputTensor); // 0 is the only stage for now, but this will probably change in the future
+    mv::Control::StageIterator stg = controlModel.getStage(0);
+    toBuild->input_data = buildTensorReferenceT(cm, compilationDescriptor, inputTensor);
 
-    toBuild->input_data = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(0));
-    toBuild->parent_input_tensor = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(0));
-    toBuild->output_data = buildTensorReferenceT(cm, compilationDescriptor, opIt->getOutputTensor(0));
-    toBuild->parent_output_tensor = buildTensorReferenceT(cm, compilationDescriptor, opIt->getOutputTensor(0)); //TODO need to fix to actual parent
-    if (toBuild->parent_output_tensor->leading_offset != 0 || toBuild->parent_output_tensor->trailing_offset != 0)
+    if (tensorBufferIt->getMaster() != dm.bufferEnd(*tensorAllocatorName, stg))
     {
-        toBuild->parent_output_tensor->dimensions[1] = 2*toBuild->parent_output_tensor->dimensions[1];
-        toBuild->parent_output_tensor->strides[0] = 1;
-        toBuild->parent_output_tensor->strides[1] = 200704;
-        toBuild->parent_output_tensor->strides[2] = 1;
-        toBuild->parent_output_tensor->strides[3] = 3584;
-        toBuild->parent_output_tensor->strides[4] = 64;
-        toBuild->output_data->strides[0] = 1;
-        toBuild->output_data->strides[1] = 200704;
-        toBuild->output_data->strides[2] = 1;
-        toBuild->output_data->strides[3] = 3584;
-        toBuild->output_data->strides[4] = 64;
+        auto masterBuffer = tensorBufferIt->getMaster(); //TODO: or do we need the top one?
+        auto masterTensor = (*masterBuffer)->getData();
+        toBuild->parent_input_tensor = buildTensorReferenceT(cm, compilationDescriptor, masterTensor);
+        toBuild->input_data->strides = toBuild->parent_input_tensor->strides;
     }
-    if (toBuild->parent_output_tensor->leading_offset != 0)
+    else
     {
-        toBuild->output_data->leading_offset = toBuild->parent_output_tensor->leading_offset/2;
-        toBuild->output_data->data->data_index = toBuild->output_data->data->data_index + toBuild->parent_output_tensor->leading_offset/2;
+        toBuild->parent_input_tensor = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(0));
     }
-    if (toBuild->parent_output_tensor->trailing_offset != 0)
+
+    //output
+    auto outputTensor = opIt->getOutputTensor(0);
+    tensorAllocatorName = outputTensor->get<std::set<std::string>>("allocators").begin();
+    tensorAllocator = dm.getAllocator(*tensorAllocatorName);
+    tensorBufferIt = tensorAllocator.getBuffer(0, outputTensor); // 0 is the only stage for now, but this will probably change in the future
+    toBuild->output_data = buildTensorReferenceT(cm, compilationDescriptor, outputTensor);
+
+    if (tensorBufferIt->getMaster() != dm.bufferEnd(*tensorAllocatorName, stg))
     {
-        toBuild->output_data->trailing_offset = toBuild->parent_output_tensor->trailing_offset/2;
+        auto masterBuffer = tensorBufferIt->getMaster(); //TODO: or do we need the top one?
+        auto masterTensor = (*masterBuffer)->getData();
+        toBuild->parent_output_tensor = buildTensorReferenceT(cm, compilationDescriptor, masterTensor);
+        toBuild->output_data->strides = toBuild->parent_output_tensor->strides;
     }
+    else
+    {
+        toBuild->parent_output_tensor = buildTensorReferenceT(cm, compilationDescriptor, opIt->getOutputTensor(0));
+    }
+
+    toBuild->output_data->data->data_index += toBuild->output_data->leading_offset/2;
+
     unsigned num_inputs = opIt->getInputTensor().size();
 
     //OP inputs == n ->
