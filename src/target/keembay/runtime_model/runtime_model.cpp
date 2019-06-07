@@ -205,7 +205,10 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     }
     else
     {
-        toBuild->data->data_index = t->getAddress();
+        if (t->hasAttr("address"))
+            toBuild->data->data_index = t->getAddress();
+        else
+            toBuild->data->data_index = tensorBufferIt->getOffset();
     }
     toBuild->locale = convertAllocatorToMemoryLocale(*tensorAllocatorName);
 
@@ -540,11 +543,48 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
         toBuild->kernel_padTop = kernelPadding[2];
         toBuild->kernel_padBottom = kernelPadding[3];
     }
+    //input
+    mv::DataModel dm(cm);
+    mv::ControlModel controlModel(cm);
+    auto inputTensor = opIt->getInputTensor(0);
+    auto tensorAllocatorName = inputTensor->get<std::set<std::string>>("allocators").begin();
+    auto tensorAllocator = dm.getAllocator(*tensorAllocatorName);
+    mv::Data::BufferIterator tensorBufferIt = tensorAllocator.getBuffer(0, inputTensor); // 0 is the only stage for now, but this will probably change in the future
+    mv::Control::StageIterator stg = controlModel.getStage(0);
+    toBuild->input_data = buildTensorReferenceT(cm, compilationDescriptor, inputTensor);
 
-    toBuild->input_data = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(0));
-    toBuild->parent_input_tensor = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(0));
-    toBuild->output_data = buildTensorReferenceT(cm, compilationDescriptor, opIt->getOutputTensor(0));
-    toBuild->parent_output_tensor = buildTensorReferenceT(cm, compilationDescriptor, opIt->getOutputTensor(0));
+    if (tensorBufferIt->getMaster() != dm.bufferEnd(*tensorAllocatorName, stg))
+    {
+        auto masterBuffer = tensorBufferIt->getMaster(); //TODO: or do we need the top one?
+        auto masterTensor = (*masterBuffer)->getData();
+        toBuild->parent_input_tensor = buildTensorReferenceT(cm, compilationDescriptor, masterTensor);
+        toBuild->input_data->strides = toBuild->parent_input_tensor->strides;
+    }
+    else
+    {
+        toBuild->parent_input_tensor = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(0));
+    }
+
+    //output
+    auto outputTensor = opIt->getOutputTensor(0);
+    tensorAllocatorName = outputTensor->get<std::set<std::string>>("allocators").begin();
+    tensorAllocator = dm.getAllocator(*tensorAllocatorName);
+    tensorBufferIt = tensorAllocator.getBuffer(0, outputTensor); // 0 is the only stage for now, but this will probably change in the future
+    toBuild->output_data = buildTensorReferenceT(cm, compilationDescriptor, outputTensor);
+
+    if (tensorBufferIt->getMaster() != dm.bufferEnd(*tensorAllocatorName, stg))
+    {
+        auto masterBuffer = tensorBufferIt->getMaster(); //TODO: or do we need the top one?
+        auto masterTensor = (*masterBuffer)->getData();
+        toBuild->parent_output_tensor = buildTensorReferenceT(cm, compilationDescriptor, masterTensor);
+        toBuild->output_data->strides = toBuild->parent_output_tensor->strides;
+    }
+    else
+    {
+        toBuild->parent_output_tensor = buildTensorReferenceT(cm, compilationDescriptor, opIt->getOutputTensor(0));
+    }
+
+    toBuild->output_data->data->data_index += toBuild->output_data->leading_offset/2;
 
     unsigned num_inputs = opIt->getInputTensor().size();
 

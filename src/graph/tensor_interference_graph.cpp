@@ -21,14 +21,15 @@ mv::TensorInterferenceGraph::TensorInterferenceGraph(const mv::TensorInterferenc
     }
 }
 
+//TODO this needs to be updated to use the memory allocator master buffers.
 std::string mv::TensorInterferenceGraph::getTensorTopMaster_(const mv::Data::TensorIterator& t, mv::ComputationModel& model)
 {
-    if (t->hasAttr("master"))
-    {
-        auto master = model.getTensor(t->get<std::string>("master"));
-        return getTensorTopMaster_(master, model);
-    }
-    return t->getName();
+    mv::DataModel dm(model);
+    auto tensorAllocatorName = t->get<std::set<std::string>>("allocators").begin();
+    auto tensorAllocator = dm.getAllocator(*tensorAllocatorName);
+    mv::Data::BufferIterator tensorBufferIt = tensorAllocator.getBuffer(0, t); // 0 is the only stage for now, but this will probably change in the future
+    auto masterTensor = tensorAllocator.getTopMasterBuffer(tensorBufferIt);
+    return (*masterTensor)->getData()->getName();
 }
 
 std::set<std::string> mv::TensorInterferenceGraph::getTaskTopTensors_(const std::vector<mv::Data::TensorIterator>& tensorList,
@@ -233,7 +234,7 @@ void mv::TensorInterferenceGraph::genIntereferenceGraph_(mv::ComputationModel& m
     int nodeId = 0;
 
     mv::OpModel om(model);
-
+     std::set<std::pair<std::string, std::string>> addedEdges;
     //Collect all input/output tensor names
     for(auto opIterator = om.opBegin(); opIterator != om.opEnd(); ++opIterator)
     {
@@ -277,10 +278,14 @@ void mv::TensorInterferenceGraph::genIntereferenceGraph_(mv::ComputationModel& m
                     {
                         auto nj = this->node_find(*target);
                         auto directed_nj = directed_g.node_find(*target);
-                        this->edge_insert(ni, nj, 2*nodeId);
-                        this->edge_insert(nj, ni, 2*nodeId+1); //since we are directed graph need to create a->b and b->a
-                        directed_g.edge_insert(directed_ni, directed_nj, nodeId);
-                        nodeId++;
+                        auto inserted = addedEdges.insert(std::make_pair(*src, *target));
+                        if (inserted.second)
+                        {
+                            this->edge_insert(ni, nj, 2*nodeId);
+                            this->edge_insert(nj, ni, 2*nodeId+1); //since we are directed graph need to create a->b and b->a
+                            directed_g.edge_insert(directed_ni, directed_nj, nodeId);
+                            nodeId++;
+                        }
                     }
                 }
             }
