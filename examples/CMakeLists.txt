@@ -58,6 +58,8 @@ if (MSVC)
     add_executable(barrier_dependency_example barrier_dependency_example.cpp $<TARGET_OBJECTS:cm> $<TARGET_OBJECTS:corebase> $<TARGET_OBJECTS:metamodel> $<TARGET_OBJECTS:model>)
 
     add_executable(slice_conv slice_conv.cpp  $<TARGET_OBJECTS:cm> $<TARGET_OBJECTS:corebase> $<TARGET_OBJECTS:metamodel> $<TARGET_OBJECTS:model>)
+
+    add_executable(slice_concat slice_concat.cpp  $<TARGET_OBJECTS:cm> $<TARGET_OBJECTS:corebase> $<TARGET_OBJECTS:metamodel> $<TARGET_OBJECTS:model>)
 else()
    
     add_executable(average_to_depthwise average_to_depthwise.cpp)
@@ -159,6 +161,9 @@ else()
     add_executable(slice_conv slice_conv.cpp)
     target_link_libraries(slice_conv cm)
 
+    add_executable(slice_concat slice_concat.cpp)
+    target_link_libraries(slice_concat cm)
+    
     if(VALIDATION)
     add_executable(caffe_files_generator caffe_files_generator.cpp)
     target_link_libraries(caffe_files_generator cm ${Caffe_LIBRARIES} ${Boost_FILESYSTEM_LIBRARY} ${Boost_SYSTEM_LIBRARY} ${Boost_REGEX_LIBRARY} ${PROTOBUF_LIBRARY})

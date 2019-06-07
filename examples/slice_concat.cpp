@@ -7,6 +7,12 @@
 #include <iostream>
 #include <fstream>
 
+#define CONFIG_SLICE_BRANCHES 2
+
+#define CONFIG_INPUT_WIDTH 64
+#define CONFIG_INPUT_HEIGHT 64
+#define CONFIG_INPUT_CHANNELS 32
+
 template <typename T> std::vector<T> read_weights_from_file(std::string input_file)
 {
     std::ifstream file;
@@ -21,39 +27,53 @@ template <typename T> std::vector<T> read_weights_from_file(std::string input_fi
 
 int main()
 {
-    mv::Logger::setVerboseLevel(mv::VerboseLevel::Warning);
-    mv::Logger::setVerboseLevel(mv::VerboseLevel::Info);
+//    mv::Logger::setVerboseLevel(mv::VerboseLevel::Warning);
+//    mv::Logger::setVerboseLevel(mv::VerboseLevel::Info);
     mv::CompilationUnit unit("parserModel");
     mv::OpModel& om = unit.model();
 
     const mv::QuantizationParams& emptyQuantParams= {{}, {}, {}, {}};
 
-    auto input = om.input({32,16,16,1},
+    auto input = om.input({CONFIG_INPUT_WIDTH,CONFIG_INPUT_HEIGHT,CONFIG_INPUT_CHANNELS,1},
                             mv::DType("UInt8"),
                             mv::Order::getZMajorID(4),
                             emptyQuantParams,
                             "input");
 
-    auto slice0 = om.slice(input,
-                            {0,0,0,0},
-                            {16,16,16,1},
-                            emptyQuantParams,
-                            "slice0_cmx");
-    auto slice1 = om.slice(input,
-                            {16,0,0,0},
-                            {16,16,16,1},
-                            emptyQuantParams,
-                            "slice1_cmx");
-    std::vector<int64_t> weightsData = mv::utils::generateSequence<int64_t>(16*16);
-    auto weights = om.constantInt(weightsData,{1,1,16,16},mv::DType("UInt8"),mv::Order::getZMajorID(4),emptyQuantParams,"weights");
-    auto conv0 = om.conv(slice0,weights,{1,1},{0,0,0,0},1,1,emptyQuantParams,"conv0");
-    auto conv1 = om.conv(slice1,weights,{1,1},{0,0,0,0},1,1,emptyQuantParams,"conv1");
+    std::vector<mv::Data::TensorIterator> slices0(CONFIG_SLICE_BRANCHES);
+    std::vector<mv::Data::TensorIterator> slices1(CONFIG_SLICE_BRANCHES);
 
-    std::vector<mv::Data::TensorIterator> convs(2);
+    size_t newHeight = CONFIG_INPUT_HEIGHT / CONFIG_SLICE_BRANCHES;
+    size_t newWidth = CONFIG_INPUT_WIDTH / CONFIG_SLICE_BRANCHES;
+    size_t startCoord = 0;
 
-    convs[0] = conv0;
-    convs[1] = conv1;
-    auto concat = om.concat(convs,"W",emptyQuantParams,"concat");
+    for( int branch = 0; branch < CONFIG_SLICE_BRANCHES ; branch++)
+    {
+        auto slice = om.slice(input,
+                                {0,startCoord,0,0},
+                                {CONFIG_INPUT_WIDTH,newHeight,CONFIG_INPUT_CHANNELS,1},
+                                emptyQuantParams,
+                                "slice0_" + std::to_string(branch) + "_cmx_");
+        slices0[branch] = slice;
+        startCoord += newHeight;
+    }
+
+
+    auto concat0 = om.concat(slices0,"H",emptyQuantParams,"concat0_ddr_");
+
+    startCoord = 0;
+    for( int branch = 0; branch < CONFIG_SLICE_BRANCHES ; branch++)
+    {
+        auto slice = om.slice(concat0,
+                                {startCoord,0,0,0},
+                                {newWidth,CONFIG_INPUT_HEIGHT,CONFIG_INPUT_CHANNELS,1},
+                                emptyQuantParams,
+                                "slice1_" + std::to_string(branch) + "_cmx_");
+        slices1[branch] = slice;
+        startCoord += newWidth;
+    }
+
+    auto concat = om.concat(slices1,"W",emptyQuantParams,"concat1_ddr_");
     auto output = om.output(concat);
 
     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/debug_ma2490_streaming.json";
