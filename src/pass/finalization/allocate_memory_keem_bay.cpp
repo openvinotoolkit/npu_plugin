@@ -153,7 +153,7 @@ void allocateUnpopulatedTensorsFcnKeemBay(const mv::pass::PassEntry& pass, mv::C
         {
             // Allocate Output
             auto outputTensor = opIterator->getOutputTensor(0);
-            if (outputTensor->hasAttr("allocator"))
+            if (outputTensor->hasAttr("allocators"))
                 dm.deallocateTensor("VPU_CMX_NN", stageIt, outputTensor);
 
             auto outputBuffer = dm.allocateTensor("VPU_CMX_NN", stageIt, outputTensor);
@@ -195,7 +195,7 @@ void allocateUnpopulatedTensorsFcnKeemBay(const mv::pass::PassEntry& pass, mv::C
                 // Note: This is probably not a good long term solution as we may have
                 // requirements from two different connections, this approach only resolves one.
                 // Probably restrictions on a tensor should be attributes of that tensor.
-                if (!inputTensor->hasAttr("allocator"))
+                if (!inputTensor->hasAttr("allocators"))
                     dm.allocateTensor("VPU_CMX_NN", stageIt, inputTensor);
 
                 std::vector<std::size_t> lhs_padding(inputTensor->getShape().ndims());

@@ -71,8 +71,23 @@
                         "nWorkloads" : 1,
                         "mpe_mode" : "Vector"
                     }
+                ],
+                "streaming_strategy" :
+                [
+                    {
+                        "name_filter" : "Conv_0",
+                        "weight_splits" : 2
+                    }
+                ],
+                "schedule_helper_edges" :
+                [
+                    {
+                        "edge_source" : "Conv_0_0",
+                        "edge_sink" : "AlignedConv_0_1wts"
+                    }
                 ]
             },
+            "StreamingOpFission",
             "ComputeMemory",
             "AssignUniqueOpId",
             {
@@ -251,6 +266,7 @@
     },
     "finalize": {
         "Singular": [
+            "ScheduleHelper",
             "MaxTopologicalCutAndPartialSerialisation",
             {
                 "name": "GenerateDot",
