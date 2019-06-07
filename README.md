@@ -10,7 +10,8 @@ KMBPlugin for Inference Engine
 * cmake -DENABLE_TESTS=ON -DENABLE_BEH_TESTS=ON -DENABLE_FUNCTIONAL_TESTS=ON ..
 * make -j8
 * cd $KMB_PLUGIN_HOME
-* export MCM_HOME=$KMB_PLUGIN_HOME/thirdparty/movidius/mcmCompiler/src/mcmCompiler
+* git submodule update --init --recursive
+* export MCM_HOME=$KMB_PLUGIN_HOME/thirdparty/movidius/mcmCompiler
 * mkdir $KMB_PLUGIN_HOME/build
 * cd $KMB_PLUGIN_HOME/build
 * cmake -DInferenceEngineDeveloperPackage_DIR=$DLDT_HOME/inference-engine/build ..
