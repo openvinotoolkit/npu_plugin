@@ -319,7 +319,7 @@ void mv::TensorInterferenceGraph::drawGraph(std::string outputFileName)
 {
     std::ofstream ostream;
 
-    ostream.open(outputFileName + ".dot", std::ios::trunc | std::ios::out);
+    ostream.open(outputFileName, std::ios::trunc | std::ios::out);
     ostream << "graph G {\n\tgraph [splines=spline]\n";
 
     for (auto it = this->node_begin(); it != this->node_end(); ++it)
@@ -351,8 +351,6 @@ void mv::TensorInterferenceGraph::drawGraph(std::string outputFileName)
     }
     ostream << "}\n";
     ostream.close();
-    std::string dotToPngCmd = "dot -Tpng " + outputFileName +".dot" + " -o " + outputFileName + ".png";
-    system(dotToPngCmd.c_str());
 }
 
 void mv::TensorInterferenceGraph::printGraph(std::string name)

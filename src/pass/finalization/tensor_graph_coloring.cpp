@@ -8,7 +8,7 @@
 #include <limits.h>
 
 
-static void tensorGraphColoringFnc(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
+static void tensorGraphColoringFnc(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&passDesc, mv::json::Object&);
 
 namespace mv
 {
@@ -483,7 +483,7 @@ void bestFitMemoryAllocation(mv::ComputationModel& model, std::queue<std::string
 
 }
 
-void tensorGraphColoringFnc(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element&, mv::json::Object&)
+void tensorGraphColoringFnc(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element& passDesc, mv::json::Object&)
 {
     pass.log(mv::Logger::MessageType::Debug, "Graph Coloring Started");
 
@@ -546,7 +546,8 @@ void tensorGraphColoringFnc(const mv::pass::PassEntry& pass, mv::ComputationMode
     agOrder = aggressiveSimplify(nncmx_g, memsize, mv::OrderingStrategy::IG_LARGEST_NEIGHBORS_FIRST);
     //printASOrder(agOrder, "NNCMX");
     bestFitMemoryAllocation(model, agOrder, nncmx_g, memsize);
-    //nncmx_g.drawGraph("nncmx_memory");
+    if(passDesc.hasAttr("output"))
+        nncmx_g.drawGraph(passDesc.get<std::string>("output"));
 
     pass.log(mv::Logger::MessageType::Debug, "Graph Coloring Ended");
 }

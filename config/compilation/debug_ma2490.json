@@ -269,7 +269,14 @@
             "AllocateInputOutputTensorsKeemBay",
             "AllocatePopulatedTensorsKeemBay",
             "AllocateUnpopulatedTensorsKeemBay",
-            "TensorGraphColoring",
+            {
+                "name": "TensorGraphColoring",
+                "output": "nnCmx.dot"
+            },
+            {
+                "name": "ConvertDot",
+                "input": "nnCmx.dot"
+            },
             "RemoveDeallocationTasks",
             {
                 "name" : "TransitiveReduction",
