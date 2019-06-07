@@ -20,6 +20,71 @@ namespace mv
 
     class Tensor : public Element
     {
+    public:
+        //TODO :: find better place for it !!
+        class MemoryLocation {
+        public:
+            enum Location {
+                CMX = 0,
+                DDR = 1,
+                INPUT = 2,
+                OUTPUT = 3,
+                VIRTUAL = 4,
+                DEFAULT = 5
+            };
+        private:
+            Location location_;
+            static std::map<std::string,Location> createNamingMap() {
+                    return {{"CMX",CMX},
+                            {"DDR",DDR},
+                            {"INPUT",INPUT},
+                            {"OUTPUT",OUTPUT},
+                            {"VIRTUAL",VIRTUAL},
+                            {"DEFAULT",DEFAULT}
+                    };
+            }
+            static std::map<std::string,Location> namingMap;
+
+        public:
+            MemoryLocation(const std::string& location) { location_ = namingMap[location]; }
+            MemoryLocation(const Location location) { location_ = location; };
+            MemoryLocation() { location_ = VIRTUAL; };
+
+            void operator=(const Location location) { location_ = location;}
+            void operator=(std::string& location) { location_ = namingMap[location];}
+            void operator=(const MemoryLocation& location) {location_ = location.location_;}
+
+            bool operator==(const Location other) { return (location_ == other); }
+            bool operator==(std::string& other) { return (location_ == namingMap[other]);}
+            bool operator==(const MemoryLocation& other) { return (location_ == other.location_);}
+
+            bool operator!=(const Location other) {return  (location_ != other); }
+            bool operator!=(std::string& other) {return ( location_ != namingMap[other]);}
+            bool operator!=(const MemoryLocation& other) { return (location_ != other.location_);}
+
+            void set(std::string &location) { location_ = namingMap[location]; }
+            void set(const Location location) { location_ = location; }
+            void set(const MemoryLocation& location) { location_ = location.location_; };
+
+            //TODO: make it pretty-er
+            const std::string print() {
+                for( auto it = namingMap.begin(); it != namingMap.end(); ++it )
+                {
+                    if(it->second == location_)
+                        return it->first;
+                }
+                //should never get here!?;
+                return "CMX";
+            } ;
+
+//            std::ostream& operator<<(std::ostream& out, const MemoryLocation& location) {
+//                out << print();
+//                return print();
+//            };
+
+        };
+
+
     private:
         std::vector<DataElement> data_;
 
