@@ -509,11 +509,11 @@ void tensorGraphColoringFnc(const mv::pass::PassEntry& pass, mv::ComputationMode
     mv::TensorInterferenceGraph ddr_bss_g(model, alignment,
             [](const mv::Data::TensorIterator& t) -> bool
             {
-                return (t->isPopulated());
+                return (t->get<mv::Tensor::MemoryLocation>("Location") == mv::Tensor::MemoryLocation::DDR);
             },
             [](const mv::Data::OpListIterator& t) -> bool
             {
-                return (t->getOpType() == "DMATask");
+                return true;
             },
             true);
     auto agOrder = aggressiveSimplify(ddr_bss_g, memsize, mv::OrderingStrategy::IG_LARGEST_NEIGHBORS_FIRST);
