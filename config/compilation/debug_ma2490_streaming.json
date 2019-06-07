@@ -149,6 +149,14 @@
                 "weights_prefetch": 2
             },
             "resolveImplicitOperations",
+            {
+                "name": "GenerateDot",
+                "output": "implicit_operations_model.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true,
+                "convert": false
+            },
             "AddDeallocationTasks",
             {
                 "name": "GenerateDot",
