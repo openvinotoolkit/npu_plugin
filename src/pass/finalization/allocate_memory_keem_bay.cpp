@@ -62,17 +62,30 @@ void allocateInputOutputTensorsKeemBay(const mv::pass::PassEntry& pass, mv::Comp
     mv::OpModel om(dm);
     auto stageIt = cm.getStage(0);
 
-    auto inputOp = om.getInput();
-    auto inTensor = inputOp->getOutputTensor(0);
+//    auto inputOp = om.getInput();
+//    auto inTensor = inputOp->getOutputTensor(0);
+//
+//    if (!inTensor->isPopulated() && (! inTensor->hasAttr("allocators")))
+//        dm.allocateTensor("ProgrammableInput", stageIt, inTensor);
+//
+//    auto outputOp = om.getOutput();
+//    auto outTensor = outputOp->getInputTensor(0);
+//
+//    if (!outTensor->isPopulated() && (! outTensor->hasAttr("allocators")))
+//        dm.allocateTensor("ProgrammableOutput", stageIt, outTensor);
 
-    if (!inTensor->isPopulated() && (! inTensor->hasAttr("allocators")))
-        dm.allocateTensor("ProgrammableInput", stageIt, inTensor);
-
-    auto outputOp = om.getOutput();
-    auto outTensor = outputOp->getInputTensor(0);
-
-    if (!outTensor->isPopulated() && (! outTensor->hasAttr("allocators")))
-        dm.allocateTensor("ProgrammableOutput", stageIt, outTensor);
+    for(auto tensorIterator = om.tensorBegin(); tensorIterator != om.tensorEnd(); ++tensorIterator)
+    {
+        auto location = tensorIterator->get<mv::Tensor::MemoryLocation>("Location");
+        if(location == mv::Tensor::MemoryLocation::INPUT)
+        {
+            dm.allocateTensor("ProgrammableInput",stageIt,tensorIterator);
+        }
+        else if(location == mv::Tensor::MemoryLocation::OUTPUT)
+        {
+            dm.allocateTensor("ProgrammableOutput",stageIt,tensorIterator);
+        }
+    }
 }
 
 //Populated Tensors are stored in:
