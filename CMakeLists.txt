@@ -15,9 +15,6 @@ set(IE_MAIN_KMB_PLUGIN_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 find_package(InferenceEngineDeveloperPackage REQUIRED)
 
 # resolving dependencies for the current project
-#include(dependencies)
-#FIXME: needed for graph_transformer
-include(ie_parallel)
 include(${CMAKE_ROOT}/Modules/ExternalProject.cmake)
 
 #
