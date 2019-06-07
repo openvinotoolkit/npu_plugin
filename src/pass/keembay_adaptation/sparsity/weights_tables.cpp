@@ -8,7 +8,8 @@
 #include <math.h>
 
 static void generateWeightsTablesFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
-static void populateWeightsTablesFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
+static void populateWeightsTablesPointersFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
+static void populateWeightsTablesQuantizationFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 
 namespace mv
 {
@@ -21,8 +22,14 @@ namespace mv
             "Generates weights tables for the Tasks that need them"
         );
 
-        MV_REGISTER_PASS(PopulateWeightsTables)
-        .setFunc(populateWeightsTablesFcn)
+        MV_REGISTER_PASS(PopulateWeightsTablesPointers)
+        .setFunc(populateWeightsTablesPointersFcn)
+        .setDescription(
+            "Populate WeightsTables"
+        );
+
+        MV_REGISTER_PASS(PopulateWeightsTablesQuantization)
+        .setFunc(populateWeightsTablesQuantizationFcn)
         .setDescription(
             "Populate WeightsTables"
         );
@@ -154,7 +161,28 @@ void populateWeightsTablesActivationAndBias(mv::Tensor& weightsTableData, mv::Da
     }
 }
 
-static void populateWeightsTablesFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+static void populateWeightsTablesQuantizationFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+{
+    mv::OpModel om(model);
+
+    for(auto dpuTaskOp = om.opBegin(); dpuTaskOp != om.opEnd(); ++dpuTaskOp)
+    {
+        if(dpuTaskOp->getOpType() == "DPUTask")
+        {
+            if((dpuTaskOp->get<std::string>("taskOp") == "Conv") ||
+               (dpuTaskOp->get<std::string>("taskOp") == "ChannelMajorConvolution") ||
+               (dpuTaskOp->get<std::string>("taskOp") == "MaxPool") ||
+               (dpuTaskOp->get<std::string>("taskOp") == "DepthwiseConv"))
+            {
+                // This pass is executed when there are not DMA Tasks yet, no hack needed
+                auto weightsTable = dpuTaskOp->getInputTensor(dpuTaskOp->inputSlots()-1);
+                populateWeightsTablesActivationAndBias(*weightsTable, dpuTaskOp, model);
+            }
+        }
+    }
+}
+
+static void populateWeightsTablesPointersFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
     mv::OpModel om(model);
 
@@ -175,7 +203,6 @@ static void populateWeightsTablesFcn(const mv::pass::PassEntry& , mv::Computatio
 
                 populateWeightsTablesDataPointers(*weightsTable, dpuTaskOp, model);
                 populateWeightsTablesSparsityPointers(*weightsTable, dpuTaskOp, model);
-                populateWeightsTablesActivationAndBias(*weightsTable, dpuTaskOp, model);
             }
         }
     }

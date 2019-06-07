@@ -150,6 +150,7 @@
                 "input": "keembay_WeightsTable_model.dot"
             },
             "GenerateEltWiseConstants",
+            "PopulateWeightsTablesQuantization",
             {
                 "name": "GenerateDot",
                 "output": "keembay_EltWiseConstants_model.dot",
@@ -292,7 +293,7 @@
                 "name" : "TransitiveReduction",
                 "filter" : "Fakefilter"
             },
-            "PopulateWeightsTables",
+            "PopulateWeightsTablesPointers",
             {
                 "name": "GenerateDot",
                 "output": "final_model.dot",
