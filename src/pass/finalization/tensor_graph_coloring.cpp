@@ -202,6 +202,27 @@ std::list<std::string> getColoredNeighbors(mv::TensorInterferenceGraph& g, mv::T
     return coloredNeighbors;
 }
 
+std::vector<std::pair<size_t, size_t>> mergeIntervals(std::vector<std::pair<size_t, size_t>> intervals)
+{
+    size_t m = 0;
+
+    for (size_t i = 1; i < intervals.size(); i++)
+    {
+        if (intervals[i].first > intervals[m].second)
+        {
+            m++;
+            intervals[m] = intervals[i];
+        }
+        else
+        {
+            intervals[m].second = std::max(intervals[i].second, intervals[m].second);
+        }
+
+    }
+    std::vector<std::pair<size_t, size_t>> mergedIntervals(intervals.begin(), intervals.begin() + m + 1);
+    return mergedIntervals;
+}
+
 std::vector<std::pair<size_t, size_t>> calculateGaps(std::list<std::string>& coloredNeighbors, mv::TensorInterferenceGraph& g, long long memorySize, bool addRightMost = true)
 {
     std::vector<std::pair<size_t, size_t>> gaps;
@@ -230,6 +251,9 @@ std::vector<std::pair<size_t, size_t>> calculateGaps(std::list<std::string>& col
                 return (a.second <= b.second);
             return false;
         });
+
+    //merge intervals
+    intervals = std::move(mergeIntervals(intervals));
 
     size_t currentAddress = 0;
     size_t gap;
