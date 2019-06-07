@@ -477,7 +477,7 @@ bool mv::MemoryAllocator::deallocate(Data::TensorIterator tensor, std::size_t st
 
         entries_[stageIdx].erase(it);
         placeBuffers_(stageIdx);
-        tensor->erase("allocator");
+        tensor->erase("allocators");
         return true;
 
     }
