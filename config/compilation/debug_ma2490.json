@@ -268,8 +268,8 @@
             },
             "ArrangeKeembayExecution",
             "AllocateInputOutputTensorsKeemBay",
-            "AllocatePopulatedTensorsKeemBay",
-            "AllocateUnpopulatedTensorsKeemBay",
+            "AllocateGraphfileTensorsKeemBay",
+            "AllocateCMXTensorsKeemBay",
             {
                 "name": "TensorGraphColoring",
                 "output": "nnCmx.dot"

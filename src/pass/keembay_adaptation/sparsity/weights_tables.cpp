@@ -40,6 +40,7 @@ namespace mv
 void populateWeightsTablesDataPointers(mv::Tensor& weightsTableData, mv::Data::OpListIterator dpuTaskOp, mv::ComputationModel& model)
 {
     mv::OpModel om(model);
+    mv::DataModel dm(model);
 
     if(dpuTaskOp->get<std::string>("taskOp") == "Conv")
     {
@@ -50,7 +51,10 @@ void populateWeightsTablesDataPointers(mv::Tensor& weightsTableData, mv::Data::O
         }
         else
         {
-            long int offset = weights->getAddress();
+            auto tensorAllocatorName = weights->get<std::set<std::string>>("allocators").begin();
+            auto tensorAllocator = dm.getAllocator(*tensorAllocatorName);
+            mv::Data::BufferIterator tensorBufferIt = tensorAllocator.getBuffer(0, weights); // 0 is the only stage for now, but this will probably change in the future
+            long int offset = tensorBufferIt->getOffset();
             long int increment = weights->getShape()[0];
             for (size_t i = 0; i < weightsTableData.size(); i+=4, offset +=increment)
                   weightsTableData(i) = offset;
@@ -59,8 +63,11 @@ void populateWeightsTablesDataPointers(mv::Tensor& weightsTableData, mv::Data::O
     else if(dpuTaskOp->get<std::string>("taskOp") == "ChannelMajorConvolution" || dpuTaskOp->get<std::string>("taskOp") == "DepthwiseConv")
     {
         auto weights = dpuTaskOp->getInputTensor(1);
-        long int offset = weights->getAddress(); // NOTE: Implementation defined
-        long int increment = weights->getShape()[0]; //WS dimension
+        auto tensorAllocatorName = weights->get<std::set<std::string>>("allocators").begin();
+        auto tensorAllocator = dm.getAllocator(*tensorAllocatorName);
+        mv::Data::BufferIterator tensorBufferIt = tensorAllocator.getBuffer(0, weights); // 0 is the only stage for now, but this will probably change in the future
+        long int offset = tensorBufferIt->getOffset();
+        long int increment = weights->getShape()[0];
         for (size_t i = 0; i < weightsTableData.size(); i+=4, offset +=increment)
               weightsTableData(i) = offset;
     }
@@ -71,6 +78,7 @@ void populateWeightsTablesDataPointers(mv::Tensor& weightsTableData, mv::Data::O
 void populateWeightsTablesSparsityPointers(mv::Tensor& weightsTableData, mv::Data::OpListIterator dpuTaskOp, mv::ComputationModel& model)
 {
     mv::OpModel om(model);
+    mv::DataModel dm(model);
 
     auto output = dpuTaskOp->getOutputTensor(0);
     auto input = dpuTaskOp->getInputTensor(0);
@@ -100,7 +108,10 @@ void populateWeightsTablesSparsityPointers(mv::Tensor& weightsTableData, mv::Dat
         auto activationWindowSizeInWords = activationWindow->getShape().totalSize();
         auto activationWindowSizeInBytes = activationWindowSizeInWords * activationWindow->getDType().getSizeInBits() / 8;
         auto activationWindowBytesPerOutputChannel = activationWindowSizeInBytes / outputChannels;
-        long int offset = activationWindow->getAddress(); // NOTE: Implementation defined
+        auto tensorAllocatorName = activationWindow->get<std::set<std::string>>("allocators").begin();
+        auto tensorAllocator = dm.getAllocator(*tensorAllocatorName);
+        mv::Data::BufferIterator tensorBufferIt = tensorAllocator.getBuffer(0, activationWindow); // 0 is the only stage for now, but this will probably change in the future
+        long int offset = tensorBufferIt->getOffset();
         long int increment = activationWindowBytesPerOutputChannel;
         for (size_t i = 0; i < weightsTableData.size(); i+=4, offset +=increment)
               weightsTableData(i+1) = offset;

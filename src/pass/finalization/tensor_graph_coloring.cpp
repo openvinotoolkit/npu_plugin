@@ -528,46 +528,46 @@ void tensorGraphColoringFnc(const mv::pass::PassEntry& pass, mv::ComputationMode
            std::cout << "\t\t DMA direction" << opIterator->get<mv::DmaDirection>("direction");
         std::cout << std::endl;
     }*/
-    auto memsize = memDefs.find("VPU_DDR_BSS")->second.size;
-    auto alignment = 16; //memDefs.find("VPU_DDR_BSS")->second.alignment; //TODO for now POC uses 16 for all memory
-    mv::TensorInterferenceGraph ddr_bss_g(model, alignment,
-            [](const mv::Data::TensorIterator& t) -> bool
-            {
-                return (t->isPopulated());
-            },
-            [](const mv::Data::OpListIterator& t) -> bool
-            {
-                return (t->getOpType() == "DMATask");
-            },
-            true);
-    auto agOrder = aggressiveSimplify(ddr_bss_g, memsize, mv::OrderingStrategy::IG_LARGEST_NEIGHBORS_FIRST);
-    //printASOrder(agOrder, "DDR_BSS");
+//    auto memsize = memDefs.find("VPU_DDR_BSS")->second.size;
+//    auto alignment = 16; //memDefs.find("VPU_DDR_BSS")->second.alignment; //TODO for now POC uses 16 for all memory
+//    mv::TensorInterferenceGraph ddr_bss_g(model, alignment,
+//            [](const mv::Data::TensorIterator& t) -> bool
+//            {
+//                return (t->isPopulated());
+//            },
+//            [](const mv::Data::OpListIterator& t) -> bool
+//            {
+//                return (t->getOpType() == "DMATask");
+//            },
+//            true);
+//    auto agOrder = aggressiveSimplify(ddr_bss_g, memsize, mv::OrderingStrategy::IG_LARGEST_NEIGHBORS_FIRST);
+//    //printASOrder(agOrder, "DDR_BSS");
 
-    bestFitMemoryAllocation(model, agOrder, ddr_bss_g, memsize);
-    //ddr_bss_g.drawGraph("ddr_bss_memory");
+//    bestFitMemoryAllocation(model, agOrder, ddr_bss_g, memsize);
+//    //ddr_bss_g.drawGraph("ddr_bss_memory");
 
-    mv::TensorInterferenceGraph ddr_heap_g(model, alignment,
-            [](const mv::Data::TensorIterator& t) -> bool
-            {
-                return (!t->isPopulated());
-            },
-            [](const mv::Data::OpListIterator& t) -> bool
-            {
-                return (t->getOpType() == "DMATask");
-            },
-            false);
-    memsize = memDefs.find("VPU_DDR_Heap")->second.size;
-    alignment = 16; //memDefs.find("VPU_DDR_Heap")->second.alignment;//TODO for now POC uses 16 for all memory
-    agOrder = aggressiveSimplify(ddr_heap_g, memsize, mv::OrderingStrategy::IG_LARGEST_NEIGHBORS_FIRST);
-    //printASOrder(agOrder, "DDR_HEAP");
-    bestFitMemoryAllocation(model, agOrder, ddr_heap_g, memsize);
-    //ddr_heap_g.drawGraph("ddr_heap_memory");
+//    mv::TensorInterferenceGraph ddr_heap_g(model, alignment,
+//            [](const mv::Data::TensorIterator& t) -> bool
+//            {
+//                return (!t->isPopulated());
+//            },
+//            [](const mv::Data::OpListIterator& t) -> bool
+//            {
+//                return (t->getOpType() == "DMATask");
+//            },
+//            false);
+//    memsize = memDefs.find("VPU_DDR_Heap")->second.size;
+//    alignment = 16; //memDefs.find("VPU_DDR_Heap")->second.alignment;//TODO for now POC uses 16 for all memory
+//    agOrder = aggressiveSimplify(ddr_heap_g, memsize, mv::OrderingStrategy::IG_LARGEST_NEIGHBORS_FIRST);
+//    //printASOrder(agOrder, "DDR_HEAP");
+//    bestFitMemoryAllocation(model, agOrder, ddr_heap_g, memsize);
+//    //ddr_heap_g.drawGraph("ddr_heap_memory");
 
+    auto alignment = 16; //memDefs.find("VPU_CMX_NN")->second.alignment;//TODO for now POC uses 16 for all memory
     mv::TensorInterferenceGraph nncmx_g(model, alignment, nullptr, nullptr, false, true);
 
-    memsize = globalConfigParams->get<unsigned>("cmx");
-    alignment = 16; //memDefs.find("VPU_CMX_NN")->second.alignment;//TODO for now POC uses 16 for all memory
-    agOrder = aggressiveSimplify(nncmx_g, memsize, mv::OrderingStrategy::IG_LARGEST_NEIGHBORS_FIRST);
+    auto memsize = globalConfigParams->get<unsigned>("cmx");
+    auto agOrder = aggressiveSimplify(nncmx_g, memsize, mv::OrderingStrategy::IG_LARGEST_NEIGHBORS_FIRST);
     //printASOrder(agOrder, "NNCMX");
     bestFitMemoryAllocation(model, agOrder, nncmx_g, memsize);
     if(passDesc.hasAttr("output"))
