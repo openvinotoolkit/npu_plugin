@@ -14,92 +14,87 @@
 # stated in the License.
 #
 
-set(plugin_target "kmbPlugin")
-
-include(Fetch_kmb_dependencies)
-
 set(TARGET_NAME "kmbPlugin")
 
 set(VPUAL_DEFAULT_BASE "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/thirdparty/movidius/vpualHost")
 
-    if (DEFINED MCM_COMPILER_PATHS_FINDING)
-        unset(MCM_COMPILER_INTERNAL_BUILD CACHE)
-        unset(MCM_COMPILER_INCLUDE_PATH CACHE)
-        unset(MCM_COMPILER_LIBRARY CACHE)
-        unset(FLATBUFFERRS_INCLUDE_PATH CACHE)
-        unset(MCM_SCHEMA_INCLUDE_PATH CACHE)
+if (DEFINED MCM_COMPILER_PATHS_FINDING)
+    unset(MCM_COMPILER_INTERNAL_BUILD CACHE)
+    unset(MCM_COMPILER_INCLUDE_PATH CACHE)
+    unset(MCM_COMPILER_LIBRARY CACHE)
+    unset(FLATBUFFERRS_INCLUDE_PATH CACHE)
+    unset(MCM_SCHEMA_INCLUDE_PATH CACHE)
+endif()
+
+if (DEFINED MCM_COMPILER_INCLUDE_PATH)
+    set(MCM_COMPILER_PATHS_FINDING TRUE)
+endif()
+find_path(MCM_COMPILER_INCLUDE_PATH "include/mcm/compiler/compilation_unit.hpp"
+    PATHS ENV MCM_HOME)
+find_path(FLATBUFFERRS_INCLUDE_PATH "flatbuffers/base.h"
+    PATHS ENV MCM_HOME
+    PATH_SUFFIXES "schema/graphfile/flatbuffers/include")
+find_path(MCM_SCHEMA_INCLUDE_PATH "graphfile_generated.h"
+    PATHS ENV MCM_HOME
+    PATH_SUFFIXES "meta/schema/graphfile")
+find_library(MCM_COMPILER_LIBRARY cm
+    PATHS ENV MCM_HOME
+    HINTS "$ENV{MCM_HOME}-build/lib" "$ENV{MCM_HOME}/build/lib")
+
+message(STATUS "MCM_COMPILER_INCLUDE_PATH: ${MCM_COMPILER_INCLUDE_PATH}")
+message(STATUS "MCM_COMPILER_LIBRARY: ${MCM_COMPILER_LIBRARY}")
+message(STATUS "FLATBUFFERRS_INCLUDE_PATH: ${FLATBUFFERRS_INCLUDE_PATH}")
+message(STATUS "MCM_SCHEMA_INCLUDE_PATH: ${MCM_SCHEMA_INCLUDE_PATH}")
+message(STATUS "MCM_HOME: ${MCM_HOME}")
+message(STATUS "env MCM_HOME: $ENV{MCM_HOME}")
+
+if(NOT MCM_COMPILER_INCLUDE_PATH OR NOT MCM_COMPILER_LIBRARY OR
+   NOT FLATBUFFERRS_INCLUDE_PATH OR NOT MCM_SCHEMA_INCLUDE_PATH)
+    set(MCM_BASE_DIR ${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/thirdparty/movidius/mcmCompiler)
+
+    ExternalProject_Add(
+        mcmCompiler
+        PREFIX ${MCM_BASE_DIR}
+        SOURCE_DIR ${MCM_BASE_DIR}
+        BINARY_DIR ${MCM_BASE_DIR}/build
+        STAMP_DIR ${MCM_BASE_DIR}/stamp
+        INSTALL_COMMAND ""
+    )
+
+    set(MCM_COMPILER_INTERNAL_BUILD TRUE)
+    set(MCM_COMPILER_INCLUDE_PATH "${MCM_BASE_DIR}")
+    set(MCM_COMPILER_LIBRARY "${MCM_BASE_DIR}/build/lib/${CMAKE_SHARED_LIBRARY_PREFIX}cm${CMAKE_SHARED_LIBRARY_SUFFIX}")
+    set(FLATBUFFERRS_INCLUDE_PATH "${MCM_BASE_DIR}/schema/graphfile/flatbuffers/include/")
+    set(MCM_SCHEMA_INCLUDE_PATH "${MCM_BASE_DIR}/meta/schema/graphfile")
+else()
+    message(STATUS "mcmCompiler is outside the IE tree")
+endif()
+
+if (NOT DEFINED ENV{VPUAL_HOME})
+    if(NOT EXISTS "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/thirdparty/movidius/vpualHost")
+        message(FATAL_ERROR "vpualHost is not found. Please use: git submodule update --init --recursive to get it")
     endif()
+    set(vpual_home "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/thirdparty/movidius/vpualHost")
+else()
+    set(vpual_home $ENV{VPUAL_HOME})
+endif()
 
-    if (DEFINED MCM_COMPILER_INCLUDE_PATH)
-        set(MCM_COMPILER_PATHS_FINDING TRUE)
-    endif()
-    find_path(MCM_COMPILER_INCLUDE_PATH "include/mcm/compiler/compilation_unit.hpp"
-        PATHS ENV MCM_HOME)
-    find_path(FLATBUFFERRS_INCLUDE_PATH "flatbuffers/base.h"
-        PATHS ENV MCM_HOME
-        PATH_SUFFIXES "schema/graphfile/flatbuffers/include")
-    find_path(MCM_SCHEMA_INCLUDE_PATH "graphfile_generated.h"
-        PATHS ENV MCM_HOME
-        PATH_SUFFIXES "meta/schema/graphfile")
-    find_library(MCM_COMPILER_LIBRARY cm
-        PATHS ENV MCM_HOME
-        HINTS "$ENV{MCM_HOME}-build/lib" "$ENV{MCM_HOME}/build/lib")
-
-        message(STATUS "MCM_COMPILER_INCLUDE_PATH: ${MCM_COMPILER_INCLUDE_PATH}")
-        message(STATUS "MCM_COMPILER_LIBRARY: ${MCM_COMPILER_LIBRARY}")
-        message(STATUS "FLATBUFFERRS_INCLUDE_PATH: ${FLATBUFFERRS_INCLUDE_PATH}")
-        message(STATUS "MCM_SCHEMA_INCLUDE_PATH: ${MCM_SCHEMA_INCLUDE_PATH}")
-        message(STATUS "MCM_HOME: ${MCM_HOME}")
-        message(STATUS "env MCM_HOME: $ENV{MCM_HOME}")
-
-    if(NOT MCM_COMPILER_INCLUDE_PATH OR NOT MCM_COMPILER_LIBRARY OR
-       NOT FLATBUFFERRS_INCLUDE_PATH OR NOT MCM_SCHEMA_INCLUDE_PATH)
-        set(MCM_BASE_DIR ${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/thirdparty/movidius/mcmCompiler)
-        
-        ExternalProject_Add(
-            mcmCompiler
-            PREFIX ${MCM_BASE_DIR}
-            SOURCE_DIR ${MCM_BASE_DIR}
-            BINARY_DIR ${MCM_BASE_DIR}/build
-            STAMP_DIR ${MCM_BASE_DIR}/stamp
-            INSTALL_COMMAND ""
-        )
-
-        set(MCM_COMPILER_INTERNAL_BUILD TRUE)
-        set(MCM_COMPILER_INCLUDE_PATH "${MCM_BASE_DIR}")
-        set(MCM_COMPILER_LIBRARY "${MCM_BASE_DIR}/build/lib/${CMAKE_SHARED_LIBRARY_PREFIX}cm${CMAKE_SHARED_LIBRARY_SUFFIX}")
-        set(FLATBUFFERRS_INCLUDE_PATH "${MCM_BASE_DIR}/schema/graphfile/flatbuffers/include/")
-        set(MCM_SCHEMA_INCLUDE_PATH "${MCM_BASE_DIR}/meta/schema/graphfile")
-    else()
-        message(STATUS "mcmCompiler is outside the IE tree")
-    endif()
-
-    if (NOT DEFINED ENV{VPUAL_HOME})
-        if(NOT EXISTS "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/thirdparty/movidius/vpualHost")
-            message(FATAL_ERROR "vpualHost is not found. Please use: git submodule update --init --recursive to get it")
-        endif()
-        set(vpual_home "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/thirdparty/movidius/vpualHost")
-    else()
-        set(vpual_home $ENV{VPUAL_HOME})
-    endif()
-
-    add_definitions(-D__PC__)
-    add_definitions(-DUSE_USB_VSC)
+add_definitions(-D__PC__)
+add_definitions(-DUSE_USB_VSC)
 
 #       It works only if XLink for myriad/HDDL plugins excluded
 #        include(${vpual_home}/host/source/FLIC/FLIC.cmake)
 #        include(${vpual_home}/host/source/SIPP/SIPP.cmake)
 #        set(VPUAL_LIBRARY VpualDispatcher RemoteFlic XLink sipp_custom)
 #       Attempt to have two XLinks simultaneously
-    include(vpualPrivateCmake/FLIC.cmake)
-    include(vpualPrivateCmake/SIPP.cmake)
-    set(VPUAL_LIBRARY RemoteFlic VpualDispatcher XLink2 sipp_custom)
+include(vpualPrivateCmake/FLIC.cmake)
+include(vpualPrivateCmake/SIPP.cmake)
+set(VPUAL_LIBRARY RemoteFlic VpualDispatcher XLink2 sipp_custom)
 
-    include_directories(
-        ${REMOTE_FLIC_INCLUDE_DIRECTORIES}
-        ${SIPP_INCLUDE_DIRECTORIES}
-    )
-
+include_directories(
+    ${REMOTE_FLIC_INCLUDE_DIRECTORIES}
+    ${SIPP_INCLUDE_DIRECTORIES}
+)
 
 file(GLOB_RECURSE SOURCES *.cpp *.hpp *.h)
 
@@ -118,7 +113,7 @@ target_include_directories(${TARGET_NAME}
     PRIVATE
         "${CMAKE_CURRENT_SOURCE_DIR}"
     SYSTEM PRIVATE
-        "${CMAKE_SOURCE_DIR}/include"
+        "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/include"
         "${IE_MAIN_SOURCE_DIR}/include"
         "${IE_MAIN_SOURCE_DIR}/src/inference_engine"
         "${MCM_COMPILER_INCLUDE_PATH}"
@@ -127,18 +122,18 @@ target_include_directories(${TARGET_NAME}
         )
 
 # TODO: enable some day and fix all warnings
- if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-    SET_TARGET_PROPERTIES( ${VPUAL_LIBRARY} PROPERTIES COMPILE_OPTIONS "-Wno-error")
- endif()
- #FIXME:
- SET_TARGET_PROPERTIES( ${TARGET_NAME} PROPERTIES COMPILE_OPTIONS "-Wno-error")
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    set_target_properties(${VPUAL_LIBRARY} PROPERTIES COMPILE_OPTIONS "-Wno-error")
+endif()
 
-SET_TARGET_PROPERTIES( ${VPUAL_LIBRARY} PROPERTIES CXX_VISIBILITY_PRESET default )
-SET_TARGET_PROPERTIES( ${VPUAL_LIBRARY} PROPERTIES C_VISIBILITY_PRESET default )
+# TODO: enable some day and fix all warnings
+set_target_properties(${TARGET_NAME} PROPERTIES COMPILE_OPTIONS "-Wno-error")
+set_target_properties(${VPUAL_LIBRARY} PROPERTIES CXX_VISIBILITY_PRESET default )
+set_target_properties(${VPUAL_LIBRARY} PROPERTIES C_VISIBILITY_PRESET default )
 
 target_link_libraries(${TARGET_NAME}
     PRIVATE
-  ${INTEL_ITT_LIBS} IE::inference_engine IE::vpu_graph_transformer ${MCM_COMPILER_LIBRARY} ${VPUAL_LIBRARY})
+        ${INTEL_ITT_LIBS} IE::inference_engine IE::vpu_graph_transformer ${MCM_COMPILER_LIBRARY} ${VPUAL_LIBRARY})
 
 if (MCM_COMPILER_PATHS_FINDING)
     unset(MCM_COMPILER_INTERNAL_BUILD CACHE)
