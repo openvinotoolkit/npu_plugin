@@ -77,6 +77,8 @@ void resolevImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::Computati
         int ctr =  0;
         std::cout << "compensating for " << opIt->getName() << std::endl;
         std::vector<mv::Data::FlowSiblingIterator> flowsToRemove;
+        std::vector<mv::Data::TensorIterator> compensationOutputs;
+        std::vector<std::size_t> sinkIndexes;
 
         if(implicitFlow.getCompensationDirection() == mv::ImplicitFlow::INPUT)
         {
@@ -99,19 +101,26 @@ void resolevImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::Computati
                                                     opIt->getName() + "_copy" + std::to_string(ctr));
 
                     compensatorOutput->set<mv::Tensor::MemoryLocation>("Location",outputLocation);
-                    auto sinkIdx = sourceFlow->get<std::size_t>("sourceOutput");
+                    auto sinkIdx = sourceFlow->get<std::size_t>("sinkInput");
                     std::cout << "\t\tsetting " << compensatorOutput->getName() << " to " << outputLocation.print() << std::endl;
                     std::cout << "\t\tgot sinkIdx " << sinkIdx << std::endl;
 
-                    opIt->setInputTensor(compensatorOutput,sinkIdx);
-                    om.defineFlow(compensatorOutput ,opIt,sinkIdx );
+
+//                    opIt->setInputTensor(compensatorOutput,sinkIdx);
+//                    om.defineFlow(compensatorOutput ,opIt,sinkIdx );
+
                     flowsToRemove.push_back(sourceFlow);
+                    compensationOutputs.push_back(compensatorOutput);
+                    sinkIndexes.push_back(sinkIdx);
+
                     ctr++;
                 }
             }
             for ( int flowIdx = 0; flowIdx < flowsToRemove.size() ; flowIdx++)
             {
+                opIt->setInputTensor(compensationOutputs[flowIdx],sinkIndexes[flowIdx]);
                 om.undefineFlow(flowsToRemove[flowIdx]);
+                om.defineFlow(compensationOutputs[flowIdx],opIt,sinkIndexes[flowIdx]);
             }
 
             opIt->get<mv::ImplicitFlow>("ImplicitFlow").resolve();
@@ -147,7 +156,7 @@ void resolevImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::Computati
                     opsToLink.push_back(sinkFlow.sink());
                     inputSlots.push_back(sinkFlow->get<std::size_t>("sinkInput"));
                     flowsToRemove.push_back(sinkFlow);
-                    std::cout << "\t\tgot sinkIdx " << sinkFlow->get<std::size_t>("sinkInput") << std::endl;
+                    std::cout << "\t\tgot sinkIdx of output "<< sinkFlow->getName() << " the " << sinkFlow->get<std::size_t>("sinkInput") << std::endl;
                 }
 
                 auto compensatorOutput = om.dMATask(outputTensor,
