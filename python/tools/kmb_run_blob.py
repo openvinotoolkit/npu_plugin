@@ -5,6 +5,15 @@ import subprocess
 import json
 from shutil import copyfile
 
+# Instructions
+# required environmental variables are:
+#   $GRAPHFILE path to the graphfile repo
+#   $MDK_HOME path to your mdk repo
+# you must have Flatbuffers installed and the flatc binary in your path
+# No validation currently in this version.
+# Requires a valid FPGA booking
+
+
 # Internal Defines
 MDK_ROOT = os.environ["MDK_HOME"]
 APP_ROOT = MDK_ROOT + "/testApps/components/NeuralNet/008_demo_ncelib_LNN/conv_3l_16wi/" # Prod Runtime
@@ -14,7 +23,6 @@ CWD = os.getcwd() + "/"
 def generate_input(args):
     print("Generating input file...")
     blob_path = args.blob
-    fpga = args.fpga
 
     # convert blob to json to read the input layer shape
     subprocess.run(
@@ -28,7 +36,7 @@ def generate_input(args):
     # create random input image
     print("inputTensorShape ", inputTensorShape)
     np.random.seed(19)
-    input_image = np.random.uniform(0, 1, inputTensorShape).astype(np.int32)
+    input_image = np.random.uniform(0, 1, inputTensorShape).astype(np.int32)  # <-- input shape datatype
     np.save('input.npy', input_image)
 
     # flatten file and save as input.dat
@@ -36,7 +44,7 @@ def generate_input(args):
     fp.write((input_image.flatten()).astype(input_image.dtype).data)
     fp.close()
 
-def execute_network(gf):
+def execute_network(args):
     print("Executing Network...")
 
     # clean generated files
