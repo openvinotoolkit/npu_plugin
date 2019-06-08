@@ -231,6 +231,7 @@
             "AllocateInputOutputTensorsKeemBay",
             "AllocatePopulatedTensorsKeemBay",
             "AllocateUnpopulatedTensorsKeemBay",
+            "ReAllocateImplicitOperationsKeemBay",
             "TensorGraphColoring",
             "RemoveDeallocationTasks",
             {
