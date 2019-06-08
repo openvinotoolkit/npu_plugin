@@ -31,6 +31,11 @@ def generate_input(args):
     input_image = np.random.uniform(0, 1, inputTensorShape).astype(np.float16)
     np.save('input.npy', input_image)
 
+    # flatten file and save as input.dat
+    fp = open("{}/{}.dat".format(CWD, "input"), 'wb')
+    fp.write((input_image.flatten()).astype(input_image.dtype).data)
+    fp.close()
+
 def execute_network(gf):
     print("Executing Network...")
 
@@ -61,15 +66,6 @@ def execute_network(gf):
     if code.returncode != 0:
         print("Execution Failure")
         exit(code.returncode)
-
-    exit()
-    result_file = APP_ROOT + "NCE2Task_network_out.bin"
-    result_file_alt = [APP_ROOT + "NCE2Task0_out.bin", APP_ROOT + "output.dat"]  # Prod runtime uses "output.dat"
-
-    result_file = checkExists(result_file, FAIL_RUNTIME, aliases=result_file_alt)
-
-    return result_file
-
 
 if __name__ == "__main__":
     # parse command line arguments
