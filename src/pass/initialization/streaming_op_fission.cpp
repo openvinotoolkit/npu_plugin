@@ -59,12 +59,7 @@ void streamingOpFissionFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
         auto OpAttrStride = opToFracture->get("stride");
         auto OpAttrQPs = opToFracture->get("quantParams");
 
-        // get reconnect points for subgraph
-// TODO handle Bias or scale input
         auto parentTensor = opToFracture->getInputTensor(0);
-        mv::Data::FlowSiblingIterator sinkFlow(opToFracture.leftmostOutput());
-        auto childOpIt = sinkFlow.sink();
-        std::cout << "IN STREAMING PASS: childop is " << childOpIt->getName() << std::endl ;
    
         // gather original weights attributes
         auto originalWtsTensor = opToFracture->getInputTensor(1);
@@ -137,9 +132,7 @@ void streamingOpFissionFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
         auto subGraphOut = om.concat(opsToJoin);
 //       auto subGraphOut = om.concat(opsToJoin,"C", {{128},{0.007843137718737125},{-1.003921627998352},{0.9960784316062927}, {23}, {24581}});
 
-        // connect output of subgraph to childiren of fractured op
-        //     create lists of children ops, and the input slot used into each
-
+        // Create lists of children ops, and the input slot used into each
         std::vector<mv::Data::OpListIterator> opsToLink;
         std::vector<std::size_t> inputSlots;
         for (mv::Data::FlowSiblingIterator sinkFlow(opToFracture.leftmostOutput()); sinkFlow != om.flowEnd(); ++sinkFlow)
@@ -147,11 +140,7 @@ void streamingOpFissionFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
             opsToLink.push_back(sinkFlow.sink());
             inputSlots.push_back(sinkFlow->get<std::size_t>("sinkInput"));
         }
-/*
-        std::size_t childInputIndex = 0 ;
-        childOpIt->setInputTensor(subGraphOut, childInputIndex, false);
-        om.defineFlow(subGraphOut, childOpIt, childInputIndex);
-*/  
+  
         // remove original fractured op and the constant tensors input to it
         while(opToFracture.parentsSize() > 1)
         {

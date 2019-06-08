@@ -348,7 +348,7 @@ void getBarrierForOpModelOp(mv::OpModel& om, const mv::Data::OpListIterator& opI
                             std::vector<mv::Barrier>& barriers)
 {
     auto opType = opIt->getOpType();
-    bool isDPUTask = opType == "DPUTask";
+    bool isDPUTask = ((opType == "DPUTask")||(opType=="Bias"));
     bool isDMAToCMXTask = (opType == "DMATask"
                         && opIt->get<mv::DmaDirection>("direction") == mv::DmaDirectionEnum::CMX2DDR);
 
@@ -396,7 +396,7 @@ void getBarrierForControlModelOp(mv::ControlModel& cm, mv::Control::OpListIterat
         for (auto parentOp = opIt.leftmostParent(); parentOp != cm.opEnd(); ++parentOp)
         {
             auto parentOpType = parentOp->getOpType();
-            if ((parentOpType == "DPUTask") || (parentOpType == "DMATask" ))
+            if ((parentOpType == "DPUTask") || (parentOpType == "DMATask" ) || (parentOpType == "BIAS"))
             {
                 auto sinkOpName = opIt->getName();
                 auto sourceOpName = parentOp->getName();
