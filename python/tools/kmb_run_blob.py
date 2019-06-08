@@ -28,7 +28,7 @@ def generate_input(args):
     # create random input image
     print("inputTensorShape ", inputTensorShape)
     np.random.seed(19)
-    input_image = np.random.uniform(0, 1, inputTensorShape).astype(np.float16)
+    input_image = np.random.uniform(0, 1, inputTensorShape).astype(np.int32)
     np.save('input.npy', input_image)
 
     # flatten file and save as input.dat
