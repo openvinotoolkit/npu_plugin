@@ -38,7 +38,7 @@ TEST(streaming_pass, op_fission_conv0)
     auto barrierOps = om.getOps("BarrierTask");
 
     int numChecks = 0;
-    size_t expected_num_barriers = 3;
+    size_t expected_num_barriers = 5;
     EXPECT_EQ(barrierOps.size(), expected_num_barriers);
     numChecks++;
 
@@ -58,9 +58,9 @@ TEST(streaming_pass, op_fission_multiple_outputs)
     std::vector<int64_t> weightsData = mv::utils::generateSequence<int64_t>((1*1*1*16), 0 , 1 );
     auto weight0 = om.constantInt(weightsData, {1,1,16,1}, mv::DType("UInt8"), mv::Order("NHWC"));
     auto weight2 = om.constantInt(weightsData, {1,1,16,1}, mv::DType("UInt8"), mv::Order("NHWC"));
-    auto conv0 = om.conv(input, weights4, {1, 1}, {0, 0, 0, 0}); // one barrier, #0
-    auto conv1 = om.conv(conv0, weight0, {1, 1}, {0, 0, 0, 0}); // REUSE barrier 0
-    auto conv2 = om.conv(conv0, weight2, {1, 1}, {0, 0, 0, 0}); // one barrier, #1
+    auto conv0 = om.conv(input, weights4, {1, 1}, {0, 0, 0, 0});
+    auto conv1 = om.conv(conv0, weight0, {1, 1}, {0, 0, 0, 0});
+    auto conv2 = om.conv(conv0, weight2, {1, 1}, {0, 0, 0, 0});
 
     auto add1 = om.add(conv1, conv2);   // one barrier, #2
 
@@ -90,7 +90,7 @@ TEST(streaming_pass, op_fission_multiple_outputs)
     auto barrierOps = om.getOps("BarrierTask");
 
     int numChecks = 0;
-    size_t expected_num_barriers = 3;
+    size_t expected_num_barriers = 8;
     EXPECT_EQ(barrierOps.size(), expected_num_barriers);
     numChecks++;
 

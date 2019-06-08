@@ -137,6 +137,21 @@ void streamingOpFissionFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
         auto subGraphOut = om.concat(opsToJoin);
 //       auto subGraphOut = om.concat(opsToJoin,"C", {{128},{0.007843137718737125},{-1.003921627998352},{0.9960784316062927}, {23}, {24581}});
 
+        // connect output of subgraph to childiren of fractured op
+        //     create lists of children ops, and the input slot used into each
+
+        std::vector<mv::Data::OpListIterator> opsToLink;
+        std::vector<std::size_t> inputSlots;
+        for (mv::Data::FlowSiblingIterator sinkFlow(opToFracture.leftmostOutput()); sinkFlow != om.flowEnd(); ++sinkFlow)
+        {
+            opsToLink.push_back(sinkFlow.sink());
+            inputSlots.push_back(sinkFlow->get<std::size_t>("sinkInput"));
+        }
+/*
+        std::size_t childInputIndex = 0 ;
+        childOpIt->setInputTensor(subGraphOut, childInputIndex, false);
+        om.defineFlow(subGraphOut, childOpIt, childInputIndex);
+*/  
         // remove original fractured op and the constant tensors input to it
         while(opToFracture.parentsSize() > 1)
         {
@@ -145,12 +160,15 @@ void streamingOpFissionFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
             om.removeOp(paramOp);
         }
         om.removeOp(opToFracture);
-  
-        // connect output of subgraph to child of fractured op
-        std::size_t childInputIndex = 0 ;
-        childOpIt->setInputTensor(subGraphOut, childInputIndex, false);
-        om.defineFlow(subGraphOut, childOpIt, childInputIndex);
-        std::cout << "IN STREAMING PASS: input 0 of  " << childOpIt->getName() << " is " << childOpIt->getInputTensor(0)->getName() << std::endl ;
+    
+        // reconnect subgraph output to children
+        for (unsigned j = 0; j < opsToLink.size(); ++j)
+        {
+            opsToLink[j]->setInputTensor(subGraphOut, inputSlots[j]);
+            om.defineFlow(subGraphOut, opsToLink[j], inputSlots[j]);
+            std::cout << "IN STREAMING PASS: new input " <<  inputSlots[j] << " of " << opsToLink[j]->getName() << " is " << opsToLink[j]->getInputTensor(0)->getName() << std::endl ;
+        }
+
     }
     std::cout << "EXIT STREAMING PASS" << std::endl ;
 }
