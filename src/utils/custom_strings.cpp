@@ -66,7 +66,7 @@ std::string mv::createAlignWeightSetConstantName(const std::string& opName)
 
 std::string mv::createBarrierName(const std::string& opName, unsigned barrierID)
 {
-    return opName + "_" + std::to_string(barrierID) + "_Barrier";
+    return "~" + opName + "_" + std::to_string(barrierID) + "_Barrier";
 }
 
 std::string mv::createBiasName(const std::string& opName)
