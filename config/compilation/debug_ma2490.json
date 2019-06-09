@@ -150,6 +150,7 @@
                 "input": "keembay_WeightsTable_model.dot"
             },
             "GenerateEltWiseConstants",
+            "PopulateWeightsTablesQuantization",
             {
                 "name": "GenerateDot",
                 "output": "keembay_EltWiseConstants_model.dot",
@@ -267,9 +268,16 @@
             },
             "ArrangeKeembayExecution",
             "AllocateInputOutputTensorsKeemBay",
-            "AllocatePopulatedTensorsKeemBay",
-            "AllocateUnpopulatedTensorsKeemBay",
-            "TensorGraphColoring",
+            "AllocateGraphfileTensorsKeemBay",
+            "AllocateCMXTensorsKeemBay",
+            {
+                "name": "TensorGraphColoring",
+                "output": "nnCmx.dot"
+            },
+            {
+                "name": "ConvertDot",
+                "input": "nnCmx.dot"
+            },
             "RemoveDeallocationTasks",
             {
                 "name" : "TransitiveReduction",
@@ -285,7 +293,7 @@
                 "name" : "TransitiveReduction",
                 "filter" : "Fakefilter"
             },
-            "PopulateWeightsTables",
+            "PopulateWeightsTablesPointers",
             {
                 "name": "GenerateDot",
                 "output": "final_model.dot",

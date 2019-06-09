@@ -3,8 +3,8 @@
 #include "include/mcm/computation/model/data_model.hpp"
 #include "meta/include/mcm/op_model.hpp"
 
-static void allocatePopulatedTensorsFcnKeemBay(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
-static void allocateUnpopulatedTensorsFcnKeemBay(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
+static void allocateGraphfileTensorsFcnKeemBay(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
+static void allocateCMXTensorsFcnKeemBay(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 static void allocateInputOutputTensorsKeemBay(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 
 // static void allocateForImplicitConcat();
@@ -22,15 +22,14 @@ namespace mv
             "Perform allocation of all input and output tensors using memory allocator"
         );
 
-        MV_REGISTER_PASS(AllocatePopulatedTensorsKeemBay)
-        .setFunc(allocatePopulatedTensorsFcnKeemBay)
+        MV_REGISTER_PASS(AllocateGraphfileTensorsKeemBay)
+        .setFunc(allocateGraphfileTensorsFcnKeemBay)
         .setDescription(
             "Perform allocation of all populated tensors using memory allocator"
         );
 
-        MV_REGISTER_PASS(AllocateUnpopulatedTensorsKeemBay)
-        .setFunc(allocateUnpopulatedTensorsFcnKeemBay
-        )
+        MV_REGISTER_PASS(AllocateCMXTensorsKeemBay)
+        .setFunc(allocateCMXTensorsFcnKeemBay)
         .setDescription(
             "Perform allocation of all unpopulated tensors using memory allocator"
         );
@@ -78,7 +77,7 @@ void allocateInputOutputTensorsKeemBay(const mv::pass::PassEntry& pass, mv::Comp
 //Populated Tensors are stored in:
 // 1) GraphFile
 //
-void allocatePopulatedTensorsFcnKeemBay(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+void allocateGraphfileTensorsFcnKeemBay(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
     pass.log(mv::Logger::MessageType::Debug, "Allocating populated tensors");
 
@@ -111,7 +110,7 @@ void allocatePopulatedTensorsFcnKeemBay(const mv::pass::PassEntry& pass, mv::Com
  * 1) VPU_CMX_NN
  * 2) VPU_DDR_BSS
 */
-void allocateUnpopulatedTensorsFcnKeemBay(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+void allocateCMXTensorsFcnKeemBay(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
 
     pass.log(mv::Logger::MessageType::Debug, "Allocating unpopulated tensors");
