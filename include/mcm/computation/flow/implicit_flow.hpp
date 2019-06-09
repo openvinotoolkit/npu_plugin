@@ -12,8 +12,8 @@ namespace mv
     public:
         enum Direction
         {
-            INPUT = 0,
-            OUTPTU = 1,
+            INPUT_IN_OUTPUT = 0,
+            OUTPUT_IN_INPUT = 1,
             MIXED = 3,
             UNSPECIFIED = 4
         };

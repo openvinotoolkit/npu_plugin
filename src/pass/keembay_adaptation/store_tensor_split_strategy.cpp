@@ -76,7 +76,10 @@ void storeLayerSplitStrategyFcn(const mv::pass::PassEntry& pass, mv::Computation
     }
 }
 
-void storeTensorPlacementFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&,mv::json::Object&)
+void storeTensorPlacementFcn(const mv::pass::PassEntry& pass,
+                                mv::ComputationModel& model,
+                                mv::TargetDescriptor&,
+                                mv::Element&,mv::json::Object&)
 {
     auto globalParams = model.getGlobalConfigParams();
 
@@ -112,7 +115,8 @@ void storeTensorPlacementFcn(const mv::pass::PassEntry& pass, mv::ComputationMod
                 found = true;
                 mv::Tensor::MemoryLocation location(memLocation);
                 tensorIt->set<mv::Tensor::MemoryLocation>("Location",location);
-                pass.log(mv::Logger::MessageType::Info,"setting tensor " + tensorIt->getName() + " as " + location.print());
+                pass.log(mv::Logger::MessageType::Info,"setting tensor " +
+                            tensorIt->getName() + " as " + location.print());
             }
         }
 
@@ -130,7 +134,8 @@ void storeTensorPlacementFcn(const mv::pass::PassEntry& pass, mv::ComputationMod
     {
         if(tensor->get<mv::Tensor::MemoryLocation>("Location") != mv::Tensor::MemoryLocation::DEFAULT)
         {
-            pass.log(mv::Logger::MessageType::Warning,"Found OutputTensor " + tensor->getName() + " description location in JSON. Will override with OUTPUT");
+            pass.log(mv::Logger::MessageType::Warning,"Found OutputTensor " +
+                        tensor->getName() + " description location in JSON. Will override with OUTPUT");
         }
         tensor->set<mv::Tensor::MemoryLocation>("Location",mv::Tensor::MemoryLocation::OUTPUT);
     }

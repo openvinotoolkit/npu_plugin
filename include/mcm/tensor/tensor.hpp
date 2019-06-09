@@ -21,8 +21,8 @@ namespace mv
     class Tensor : public Element
     {
     public:
-        //TODO :: find better place for it !!
         class MemoryLocation {
+        //TODO :: find better place for it !!
         public:
             enum Location {
                 CMX = 0,
