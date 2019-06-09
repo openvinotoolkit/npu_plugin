@@ -574,6 +574,37 @@ void removeExtraProducers(const mv::pass::PassEntry& pass,
     }
 }
 
+void hackBarrierIndicesToFitNewTopologicalSortOrder(mv::ComputationModel& model, const mv::Element& passDesc)
+{
+    mv::ControlModel cm(model);
+
+    auto globalConfigParams = model.getGlobalConfigParams();
+    std::string indexAssignment = globalConfigParams->get<std::string>("barrier_index_assignment");
+
+    if (indexAssignment == "Dynamic")
+    {
+        auto topologicallySortedOps = cm.topologicalSort();
+
+        int id = 0;
+        for (auto op: topologicallySortedOps)
+        {
+            if (op->getOpType() == "BarrierTask")
+            {
+                auto& barrier = op->get<mv::Barrier>("Barrier");
+                barrier.setID(id);
+                barrier.setIndex(id);
+                auto name = op->getName();
+                auto pos1 = name.find_last_of("_");
+                auto pos2 = name.find_last_of("_", pos1-1);
+
+                auto newName = name.substr(0, pos2);
+                op->setName(newName + "_" + std::to_string(id) + "_Barrier");
+                id++;
+            }
+        }
+    }
+}
+
 void insertBarrierTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::json::Object&)
 {
     mv::OpModel om(model);
@@ -594,6 +625,11 @@ void insertBarrierTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
     setBarrierGroupAndIndex(pass, om, barriers, passDesc);
 
     insertBarriersIntoControlFlowGraph(model, passDesc, barriers);
+
+    // Temporary hack to fix the barrier indices to be in the correct order
+    // again for dynamic indexing.
+    // TODO: See if this is needed for static indexing as well
+    hackBarrierIndicesToFitNewTopologicalSortOrder(model, passDesc);
 }
 
 static void updateCountsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
