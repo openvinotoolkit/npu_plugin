@@ -163,6 +163,12 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
 
 void adaptOutputDataFlow(mv::OpModel& om, mv::Data::OpListIterator &opIt, mv::Data::TensorIterator &dpuTask)
 {
+    //TODO:: need some kind of method to generically inherit all new tensor attributes from the old tensor
+    {
+        auto outputTensor = opIt->getOutputTensor(0);
+        dpuTask->set<mv::Tensor::MemoryLocation>("Location",outputTensor->get<mv::Tensor::MemoryLocation>("Location"));
+    }
+
     for(auto output = opIt.leftmostOutput(); output != om.flowEnd(); ++output)
     {
         auto consumer = output.sink();
