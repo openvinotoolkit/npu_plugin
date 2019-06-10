@@ -588,10 +588,6 @@ void setBarrierIndicesAccordingToTopologicalSortOrder(mv::ComputationModel& mode
     {
         auto topologicallySortedOps = cm.schedulingSort();
 
-        std::cout << "Topological sorting when adjusting indices" << std::endl;
-        for(auto& sortedOp : topologicallySortedOps)
-            std::cout << sortedOp->getName() << std::endl;
-
         int id = 0;
         for (auto op: topologicallySortedOps)
         {

@@ -365,10 +365,6 @@ std::vector<std::unique_ptr<MVCNN::TaskListT>> mv::RuntimeModel::buildTaskListT(
 
     auto topologicallySortedOps = controlModel.schedulingSort();
 
-    std::cout << "Topological sorting when serializing" << std::endl;
-    for(auto& sortedOp : topologicallySortedOps)
-        std::cout << sortedOp->getName() << std::endl;
-
     int initialId = 1;
 
     for(auto vecIt = topologicallySortedOps.begin(); vecIt != topologicallySortedOps.end(); ++vecIt)
