@@ -51,6 +51,7 @@ using BIGKoala = Koala::Graph <BigKVertexInfo, BigKEdgeInfo>;
 
 static void insertBarrierTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 static void updateCountsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
+static void adjustBarrierIndicesFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 
 namespace mv
 {
@@ -63,6 +64,11 @@ namespace mv
         .setDescription(
             "This pass inserts barrier tasks into the compute graph"
         );
+
+        MV_REGISTER_PASS(AdjustBarrierIndices)
+        .setFunc(adjustBarrierIndicesFcn)
+        .setDescription(
+            "This pass adjustes barriers ID according to topological sort. This pass has to be executed before AddBarrierRefs");
 
         MV_REGISTER_PASS(UpdateBarrierProducerConsumerCounts)
         .setFunc(updateCountsFcn)
@@ -424,6 +430,8 @@ static void addBarriers(mv::ComputationModel& model, std::vector<mv::Barrier>& b
     mv::OpModel om(model);
     mv::ControlModel cm(model);
 
+    // NOTE: This topological sort might actually be redundant since
+    // barriers ID are set in a separate pass
     auto sortedCtrlOps = cm.topologicalSort();
 
     for (auto ctrlOp: sortedCtrlOps)
@@ -442,16 +450,16 @@ static void setBarrierGroupAndIndex(const mv::pass::PassEntry& pass, mv::OpModel
     auto globalConfigurationParameters = om.getGlobalConfigParams();
     std::string indexAssignment = globalConfigurationParameters->get<std::string>("barrier_index_assignment");
 
-    if (passDesc.hasAttr("barrier_index_assignment"))
-        indexAssignment = passDesc.get<std::string>("barrier_index_assignment");
-    
     int barrierReuseWindow = 0;
     if (passDesc.hasAttr("barrier_reuse_window"))
         barrierReuseWindow = passDesc.get<int>("barrier_reuse_window");
 
     BarrierInterferenceGraph big = generateBarrierInterferenceGraph(om, barriers, indexAssignment, barrierReuseWindow);
-    drawBIG(big, "big.dot");
+    if(passDesc.hasAttr("outputBIG"))
+        drawBIG(big, passDesc.get<std::string>("outputBIG"));
 
+
+    // Must be always done to verify we can execute a graph with only MAX_AVAILABLE_BARRIERS
     BIGKoala bigK;
     std::vector<BIGKoala::PVertex> koalaVertices;
     convertToKoalaGraph(pass, big, bigK, koalaVertices);
@@ -465,15 +473,15 @@ static void setBarrierGroupAndIndex(const mv::pass::PassEntry& pass, mv::OpModel
                 std::to_string(MAX_AVAILABLE_BARRIERS) +
                 " barriers; more graph serialization required.");
 
-    for (int i = 0; i < bigK.getVertNo(); i++)
-    {
-        pass.log(mv::Logger::MessageType::Info,
-            "bId = " + std::to_string(koalaVertices[i]->info.barrierId)
-            + " : color = " + std::to_string(colors[koalaVertices[i]]));
-    }
-
     if (indexAssignment == "Static")
     {
+        for (int i = 0; i < bigK.getVertNo(); i++)
+        {
+            pass.log(mv::Logger::MessageType::Info,
+                "bId = " + std::to_string(koalaVertices[i]->info.barrierId)
+                + " : color = " + std::to_string(colors[koalaVertices[i]]));
+        }
+
         // assign colors to indices
         for (auto& b: barriers)
         {
@@ -482,11 +490,6 @@ static void setBarrierGroupAndIndex(const mv::pass::PassEntry& pass, mv::OpModel
 
             b.setIndex(colors[*koalaVertex]);
         }
-    }
-    else
-    {
-        for (auto& barrier: barriers)
-            barrier.setIndex(barrier.getID());
     }
 }
 
@@ -574,7 +577,7 @@ void removeExtraProducers(const mv::pass::PassEntry& pass,
     }
 }
 
-void hackBarrierIndicesToFitNewTopologicalSortOrder(mv::ComputationModel& model, const mv::Element& passDesc)
+void setBarrierIndicesAccordingToTopologicalSortOrder(mv::ComputationModel& model, const mv::Element& passDesc)
 {
     mv::ControlModel cm(model);
 
@@ -593,22 +596,25 @@ void hackBarrierIndicesToFitNewTopologicalSortOrder(mv::ComputationModel& model,
                 auto& barrier = op->get<mv::Barrier>("Barrier");
                 barrier.setID(id);
                 barrier.setIndex(id);
-                auto name = op->getName();
-                auto pos1 = name.find_last_of("_");
-                auto pos2 = name.find_last_of("_", pos1-1);
-
-                auto newName = name.substr(0, pos2);
-                op->setName(newName + "_" + std::to_string(id) + "_Barrier");
                 id++;
             }
         }
     }
 }
 
-void insertBarrierTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::json::Object&)
+//This pass has to be executed before "AddBarrierRefs",
+static void adjustBarrierIndicesFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::json::Object&)
+{
+    auto globalConfigParams = model.getGlobalConfigParams();
+
+    std::string indexAssignment = globalConfigParams->get<std::string>("barrier_index_assignment");
+    if(indexAssignment == "Dynamic")
+        setBarrierIndicesAccordingToTopologicalSortOrder(model, passDesc);
+}
+
+static void insertBarrierTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::json::Object&)
 {
     mv::OpModel om(model);
-    mv::ControlModel cm(model);
 
     std::vector<mv::Barrier> barriers;
 
@@ -625,11 +631,6 @@ void insertBarrierTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
     setBarrierGroupAndIndex(pass, om, barriers, passDesc);
 
     insertBarriersIntoControlFlowGraph(model, passDesc, barriers);
-
-    // Temporary hack to fix the barrier indices to be in the correct order
-    // again for dynamic indexing.
-    // TODO: See if this is needed for static indexing as well
-    hackBarrierIndicesToFitNewTopologicalSortOrder(model, passDesc);
 }
 
 static void updateCountsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
