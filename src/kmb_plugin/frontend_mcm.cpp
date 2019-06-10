@@ -164,8 +164,6 @@ std::set<std::string> FrontEndMcm::checkSupportedLayers(const ie::ICNNNetwork& n
 
 ie::CNNNetwork FrontEndMcm::detectNetworkBatch(
         const ie::ICNNNetwork& origNetwork) {
-    VPU_PROFILE(detectNetworkBatch);
-
     // Keep original network.
     IE_SUPPRESS_DEPRECATED_START
     return ie::CNNNetwork(const_cast<ie::ICNNNetwork*>(&origNetwork));
@@ -173,8 +171,6 @@ ie::CNNNetwork FrontEndMcm::detectNetworkBatch(
 }
 
 void FrontEndMcm::parseInputData() {
-    VPU_PROFILE(parseInputData);
-
     const auto& env = CompileEnv::get();
     env.log->debug("Try to parse network input");
 

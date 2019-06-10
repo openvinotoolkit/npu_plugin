@@ -72,16 +72,6 @@ namespace vpu {
 
 namespace KmbPlugin {
 
-//
-// CompileEnv
-//
-
-namespace  {
-
-thread_local CompileEnv g_compileEnv;
-
-}  // namespace
-
 void compileMcm(
         const ie::ICNNNetwork& network,
         const KmbConfig& config,
