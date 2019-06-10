@@ -205,10 +205,8 @@ mv::Control::FlowListIterator mv::ControlModel::defineFlow(Data::OpListIterator 
 
 std::vector<mv::Control::OpListIterator> mv::ControlModel::topologicalSort()
 {
-    auto cheatNode = getFirst();
-
     // Necessary for correct iterator casting
-    auto topologicalSortResult = mv::topologicalSort(controlGraph_, cheatNode);
+    auto topologicalSortResult = mv::topologicalSort(controlGraph_);
     std::vector<mv::Control::OpListIterator> toReturn(topologicalSortResult.begin(), topologicalSortResult.end());
     return toReturn;
 }
