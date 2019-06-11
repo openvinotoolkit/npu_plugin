@@ -358,7 +358,7 @@
             {
                 "name": "GenerateDot",
                 "output": "final_model.dot",
-                "scope": "OpControlModel",
+                "scope": "ControlModel",
                 "content": "full",
                 "html": true
             },
