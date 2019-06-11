@@ -168,7 +168,7 @@
         "Singular" : [
             {
                 "name":"AddWeightsDMATasks",
-                "weights_prefetch": 2
+                "weights_prefetch": 1
             },
             "AddInitialAndFinalDMATask",
             {
