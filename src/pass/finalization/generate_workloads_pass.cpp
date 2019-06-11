@@ -182,10 +182,10 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
     /*get number of DPUs per cluster*/
     auto nDPUxCluster = getGlobalCompilationDescriptorConf(pass, model);
 
-    for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt)
-    {
-        if (opIt->getOpType() == "DPUTask")
-        {
+    for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt) {
+
+        if (opIt->getOpType() == "DPUTask") {
+
             pass.log(mv::Logger::MessageType::Debug, "Found DPU task " + opIt->getName() + " of type " + opIt->get<std::string>("taskOp"));
 
             pass.log(mv::Logger::MessageType::Debug, "Output tensor size is: " + opIt->getOutputTensor()[0]->getShape().toString());
@@ -225,10 +225,14 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                             if ((metisResult.first == 1) && (metisResult.second == nWorkloads))
                                 workloadsVector.at(workloadsVectorIndex).populateWorkloadsFromPartitions(nWorkloads, pass, mode);
                             else {
+                                
                                 pass.log(mv::Logger::MessageType::Debug,"Error partitioning tensor into workloads using METIS");
+                                
                                 /*Remove the original workload created with metis*/
                                 workloadsVector.erase(workloadsVector.begin() + workloadsVectorIndex);
                                 metisFail = true;
+                                
+                                /*Now try with Rectangle Heuristic*/
                                 goto Rectangle;
                             }
 
@@ -239,89 +243,97 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                                 /*Remove the original workload created with metis*/
                                 workloadsVector.erase(workloadsVector.begin() + workloadsVectorIndex);
                                 metisFail = true;
+
+                                /*Now try with Rectangle Heuristic*/
                                 goto Rectangle;
                             }
                             else {
                                 workloadsVectorIndex++;
                                 metisFail = false;
                             }
-                    }
+                        }
                 
-                    else if (algorithm == "Rectangle") {
-                        /*Gstd::vector<mv::Workloads> workloadsVector;o here if METIS fails*/
-                        Rectangle:
+                        else if (algorithm == "Rectangle") {
+                        
+                            /*Go here if METIS fails*/
+                            Rectangle:
 
-                        workloadsVector.emplace_back(mv::Workloads(opIt->getName(), opIt->getOutputTensor()[0]->getShape()));
+                            /*Create workload instance*/
+                            workloadsVector.emplace_back(mv::Workloads(opIt->getName(), opIt->getOutputTensor()[0]->getShape()));
 
-                        /*Partition tensor into workloads with Rectangle*/
-                        bool split_over_h = true;
-                        bool split_over_w = true;
-                        bool split_symmetric = false;
+                            /*Partition tensor into workloads with Rectangle*/
+                            bool split_over_h = true;
+                            bool split_over_w = true;
+                            bool split_symmetric = false;
 
-                        auto res = workloadsVector.at(workloadsVectorIndex).partitionTensorWithRectangleHeuristic(dpu_mode, nWorkloads,
+                            auto res = workloadsVector.at(workloadsVectorIndex).partitionTensorWithRectangleHeuristic(dpu_mode, nWorkloads,
                                                             split_over_h, split_over_w, split_symmetric,
                                                             mv::WorkloadSplitMode::HW, pass);
                    
-                        if ((res != 1) && (metisFail)) {
-                            workloadsVector.erase(workloadsVector.begin() + (workloadsVectorIndex+1));
-                            rectangleFail = true;
-                        }
-                        else if (res != 1) {
-                            workloadsVector.erase(workloadsVector.begin() + (workloadsVectorIndex));
-                            rectangleFail = true;
-                        }
+                            if ((res != 1) && (metisFail)) {
+                                workloadsVector.erase(workloadsVector.begin() + (workloadsVectorIndex+1));
+                                rectangleFail = true;
+                            }
+                            else if (res != 1) {
+                                workloadsVector.erase(workloadsVector.begin() + (workloadsVectorIndex));
+                                rectangleFail = true;
+                            }
 
-                        if((!rectangleFail) && (metisFail)) {
-                            if((!workloadsVector.at(workloadsVectorIndex).validateWorkloads(opIt->getOutputTensor()[0]->getShape()))) {
+                            if((!rectangleFail) && (metisFail)) {
+                                if((!workloadsVector.at(workloadsVectorIndex).validateWorkloads(opIt->getOutputTensor()[0]->getShape()))) {
+                                    pass.log(mv::Logger::MessageType::Debug, "Unable to produce valid workloads using Rectangle");
+                                    workloadsVector.erase(workloadsVector.begin() + workloadsVectorIndex);
+                                }
+                            }
+
+                            if((rectangleFail) && (metisFail)) {
                                 pass.log(mv::Logger::MessageType::Debug, "Unable to produce valid workloads using Rectangle");
                                 workloadsVector.erase(workloadsVector.begin() + workloadsVectorIndex);
                             }
-                        }
 
-                        if((rectangleFail) && (metisFail)) {
-                            pass.log(mv::Logger::MessageType::Debug, "Unable to produce valid workloads using Rectangle");
-                            workloadsVector.erase(workloadsVector.begin() + workloadsVectorIndex);
-                        }
-
-                    
-                        if(!rectangleFail) {
-                            rectangleFail = false;
-                            metisFail = false;
-                        }
+                            if(!rectangleFail) {
+                                rectangleFail = false;
+                                metisFail = false;
+                            }
                         
                     }
                 
-                else if (algorithm == "Z-Tiling")
+                    else if (algorithm == "Z-Tiling")
                     {
                     //Partition tensor into workloads with Z-tiling
                     }
 
-                validWorkload:
                     pass.log(mv::Logger::MessageType::Debug, "Valid workload created");
                     workloadsVectorIndex++;
-            }
+                }
 
+            }
         }
 
-        mv::Workloads::generateExecutionCycles(workloadsVector, nDPUxCluster, costFuntion);
+            /*Calculate execution cycles for each workload*/
+            mv::Workloads::generateExecutionCycles(workloadsVector, nDPUxCluster, costFuntion);
 
-        for (auto wl : workloadsVector) 
-            std::cout << "Cost (Min) " << wl.getExecutionCycles()[0] << "Cost (Max) " << wl.getExecutionCycles()[1] << std::endl;
+            /*Print the execution cycles*/
+            for (auto wl : workloadsVector) 
+                pass.log(mv::Logger::MessageType::Debug, "Cost (Min)" + std::to_string(wl.getExecutionCycles()[0]) + " Cost (Max)" + std::to_string(wl.getExecutionCycles()[1]));
 
-        /*Pick the workload with minimum execution time*/
-        auto optimalWorkload = std::min_element(workloadsVector.begin(), workloadsVector.end(),
-         [] (mv::Workloads const& lhs, mv::Workloads const& rhs) {
-             return lhs.getExecutionCycles()[0] < rhs.getExecutionCycles()[0];
-          });
+            /*Pick the workload with minimum execution time*/
+            auto optimalWorkload = std::min_element(workloadsVector.begin(), workloadsVector.end(),
+                [] (mv::Workloads const& lhs, mv::Workloads const& rhs) 
+                {
+                    return lhs.getExecutionCycles()[0] < rhs.getExecutionCycles()[0];
+                });
+        
+                /*Get the index of the most optimial workload*/
+            auto optimalWorkloadIndex = std::distance(workloadsVector.begin(), optimalWorkload);
 
-        auto optimalWorkloadIndex = std::distance(workloadsVector.begin(), optimalWorkload);
+            pass.log(mv::Logger::MessageType::Debug, "Selecting workload at index " + std::to_string(optimalWorkloadIndex) + " as the most optimal one");
 
-        pass.log(mv::Logger::MessageType::Debug, "Selecting workload at index " + std::to_string(optimalWorkloadIndex) + " as the most optimal one");
-
-        opIt->set<mv::Workloads>("Workloads", workloadsVector.at(optimalWorkloadIndex ));
-    }
+            /*Setting most optimal workload*/
+            opIt->set<mv::Workloads>("Workloads", workloadsVector.at(optimalWorkloadIndex ));
     
-    pass.log(mv::Logger::MessageType::Debug, "Exiting workload generation pass");
-}
-    }}  
+            pass.log(mv::Logger::MessageType::Debug, "Exiting workload generation pass");
+        }
+    }
+}  
 
