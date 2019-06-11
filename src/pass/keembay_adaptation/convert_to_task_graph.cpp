@@ -184,6 +184,7 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
 
             mv::setOutputDataFlow(om, dpuElementWise, outputDataFlows);
         }
+        //TODO: Fully connected
         else
             ++opIt;
     }

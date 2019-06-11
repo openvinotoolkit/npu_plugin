@@ -89,8 +89,9 @@
             {
                 "name": "CreateSourceStructure",
                 "VersionMajor": 3,
-                "VersionMinor": 10,
-                "VersionHash": "c1b3a9075e52694726edc996124c04b9268cf4cf"
+                "VersionMinor": 11,
+                "VersionPatch": 0,
+                "VersionHash": "9aa43159420c77d8cf765393954ac2fbb372ab02"
             }
         ]
     },
@@ -101,6 +102,7 @@
             "FuseBias",
             "FuseRelu",
             "FuseScale",
+            "FullyConnectedAsConv2D",
             {
                 "name": "GenerateDot",
                 "output": "adapt_model.dot",
@@ -119,6 +121,7 @@
             "StoreLayerSplitStrategy",
             "StoreWorkloadStrategy",
             "ConvertOpsToTasks",
+            "AlignTo16Channels",
             "ComputeTensorsQuantParams",
             "KMBOrderConversion",
             "AlignTaskWeights",
@@ -147,6 +150,7 @@
                 "input": "keembay_WeightsTable_model.dot"
             },
             "GenerateEltWiseConstants",
+            "PopulateWeightsTablesQuantization",
             {
                 "name": "GenerateDot",
                 "output": "keembay_EltWiseConstants_model.dot",
@@ -264,9 +268,16 @@
             },
             "ArrangeKeembayExecution",
             "AllocateInputOutputTensorsKeemBay",
-            "AllocatePopulatedTensorsKeemBay",
-            "AllocateUnpopulatedTensorsKeemBay",
-            "TensorGraphColoring",
+            "AllocateGraphfileTensorsKeemBay",
+            "AllocateCMXTensorsKeemBay",
+            {
+                "name": "TensorGraphColoring",
+                "output": "nnCmx.dot"
+            },
+            {
+                "name": "ConvertDot",
+                "input": "nnCmx.dot"
+            },
             "RemoveDeallocationTasks",
             {
                 "name" : "TransitiveReduction",
@@ -282,7 +293,7 @@
                 "name" : "TransitiveReduction",
                 "filter" : "Fakefilter"
             },
-            "PopulateWeightsTables",
+            "PopulateWeightsTablesPointers",
             {
                 "name": "GenerateDot",
                 "output": "final_model.dot",

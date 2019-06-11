@@ -205,8 +205,10 @@ mv::Control::FlowListIterator mv::ControlModel::defineFlow(Data::OpListIterator 
 
 std::vector<mv::Control::OpListIterator> mv::ControlModel::topologicalSort()
 {
+    auto cheatNode = getFirst();
+
     // Necessary for correct iterator casting
-    auto topologicalSortResult = mv::topologicalSort(controlGraph_);
+    auto topologicalSortResult = mv::topologicalSort(controlGraph_, cheatNode);
     std::vector<mv::Control::OpListIterator> toReturn(topologicalSortResult.begin(), topologicalSortResult.end());
     return toReturn;
 }
@@ -265,7 +267,7 @@ void mv::ControlModel::transitiveReduction(const std::string& edgeAttribute)
 
 bool mv::ControlModel::isDag()
 {
-    mv::isDAG(controlGraph_);
+    return mv::isDAG(controlGraph_);
 }
 
 void mv::ControlModel::undefineFlow(Control::FlowListIterator flow)

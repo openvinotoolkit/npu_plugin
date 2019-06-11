@@ -8,7 +8,8 @@
 #include <math.h>
 
 static void generateWeightsTablesFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
-static void populateWeightsTablesFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
+static void populateWeightsTablesPointersFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
+static void populateWeightsTablesQuantizationFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 
 namespace mv
 {
@@ -21,8 +22,14 @@ namespace mv
             "Generates weights tables for the Tasks that need them"
         );
 
-        MV_REGISTER_PASS(PopulateWeightsTables)
-        .setFunc(populateWeightsTablesFcn)
+        MV_REGISTER_PASS(PopulateWeightsTablesPointers)
+        .setFunc(populateWeightsTablesPointersFcn)
+        .setDescription(
+            "Populate WeightsTables"
+        );
+
+        MV_REGISTER_PASS(PopulateWeightsTablesQuantization)
+        .setFunc(populateWeightsTablesQuantizationFcn)
         .setDescription(
             "Populate WeightsTables"
         );
@@ -33,6 +40,7 @@ namespace mv
 void populateWeightsTablesDataPointers(mv::Tensor& weightsTableData, mv::Data::OpListIterator dpuTaskOp, mv::ComputationModel& model)
 {
     mv::OpModel om(model);
+    mv::DataModel dm(model);
 
     if(dpuTaskOp->get<std::string>("taskOp") == "Conv")
     {
@@ -43,7 +51,10 @@ void populateWeightsTablesDataPointers(mv::Tensor& weightsTableData, mv::Data::O
         }
         else
         {
-            long int offset = weights->getAddress();
+            auto tensorAllocatorName = weights->get<std::set<std::string>>("allocators").begin();
+            auto tensorAllocator = dm.getAllocator(*tensorAllocatorName);
+            mv::Data::BufferIterator tensorBufferIt = tensorAllocator.getBuffer(0, weights); // 0 is the only stage for now, but this will probably change in the future
+            long int offset = tensorBufferIt->getOffset();
             long int increment = weights->getShape()[0];
             for (size_t i = 0; i < weightsTableData.size(); i+=4, offset +=increment)
                   weightsTableData(i) = offset;
@@ -52,8 +63,11 @@ void populateWeightsTablesDataPointers(mv::Tensor& weightsTableData, mv::Data::O
     else if(dpuTaskOp->get<std::string>("taskOp") == "ChannelMajorConvolution" || dpuTaskOp->get<std::string>("taskOp") == "DepthwiseConv")
     {
         auto weights = dpuTaskOp->getInputTensor(1);
-        long int offset = weights->getAddress(); // NOTE: Implementation defined
-        long int increment = weights->getShape()[0]; //WS dimension
+        auto tensorAllocatorName = weights->get<std::set<std::string>>("allocators").begin();
+        auto tensorAllocator = dm.getAllocator(*tensorAllocatorName);
+        mv::Data::BufferIterator tensorBufferIt = tensorAllocator.getBuffer(0, weights); // 0 is the only stage for now, but this will probably change in the future
+        long int offset = tensorBufferIt->getOffset();
+        long int increment = weights->getShape()[0];
         for (size_t i = 0; i < weightsTableData.size(); i+=4, offset +=increment)
               weightsTableData(i) = offset;
     }
@@ -64,6 +78,7 @@ void populateWeightsTablesDataPointers(mv::Tensor& weightsTableData, mv::Data::O
 void populateWeightsTablesSparsityPointers(mv::Tensor& weightsTableData, mv::Data::OpListIterator dpuTaskOp, mv::ComputationModel& model)
 {
     mv::OpModel om(model);
+    mv::DataModel dm(model);
 
     auto output = dpuTaskOp->getOutputTensor(0);
     auto input = dpuTaskOp->getInputTensor(0);
@@ -93,7 +108,10 @@ void populateWeightsTablesSparsityPointers(mv::Tensor& weightsTableData, mv::Dat
         auto activationWindowSizeInWords = activationWindow->getShape().totalSize();
         auto activationWindowSizeInBytes = activationWindowSizeInWords * activationWindow->getDType().getSizeInBits() / 8;
         auto activationWindowBytesPerOutputChannel = activationWindowSizeInBytes / outputChannels;
-        long int offset = activationWindow->getAddress(); // NOTE: Implementation defined
+        auto tensorAllocatorName = activationWindow->get<std::set<std::string>>("allocators").begin();
+        auto tensorAllocator = dm.getAllocator(*tensorAllocatorName);
+        mv::Data::BufferIterator tensorBufferIt = tensorAllocator.getBuffer(0, activationWindow); // 0 is the only stage for now, but this will probably change in the future
+        long int offset = tensorBufferIt->getOffset();
         long int increment = activationWindowBytesPerOutputChannel;
         for (size_t i = 0; i < weightsTableData.size(); i+=4, offset +=increment)
               weightsTableData(i+1) = offset;
@@ -154,7 +172,28 @@ void populateWeightsTablesActivationAndBias(mv::Tensor& weightsTableData, mv::Da
     }
 }
 
-static void populateWeightsTablesFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+static void populateWeightsTablesQuantizationFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+{
+    mv::OpModel om(model);
+
+    for(auto dpuTaskOp = om.opBegin(); dpuTaskOp != om.opEnd(); ++dpuTaskOp)
+    {
+        if(dpuTaskOp->getOpType() == "DPUTask")
+        {
+            if((dpuTaskOp->get<std::string>("taskOp") == "Conv") ||
+               (dpuTaskOp->get<std::string>("taskOp") == "ChannelMajorConvolution") ||
+               (dpuTaskOp->get<std::string>("taskOp") == "MaxPool") ||
+               (dpuTaskOp->get<std::string>("taskOp") == "DepthwiseConv"))
+            {
+                // This pass is executed when there are not DMA Tasks yet, no hack needed
+                auto weightsTable = dpuTaskOp->getInputTensor(dpuTaskOp->inputSlots()-1);
+                populateWeightsTablesActivationAndBias(*weightsTable, dpuTaskOp, model);
+            }
+        }
+    }
+}
+
+static void populateWeightsTablesPointersFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
     mv::OpModel om(model);
 
@@ -175,7 +214,6 @@ static void populateWeightsTablesFcn(const mv::pass::PassEntry& , mv::Computatio
 
                 populateWeightsTablesDataPointers(*weightsTable, dpuTaskOp, model);
                 populateWeightsTablesSparsityPointers(*weightsTable, dpuTaskOp, model);
-                populateWeightsTablesActivationAndBias(*weightsTable, dpuTaskOp, model);
             }
         }
     }
