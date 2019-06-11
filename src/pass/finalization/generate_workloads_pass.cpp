@@ -275,13 +275,14 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                                 rectangleFail = true;
                             }
                             else if (res != 1) {
+                                pass.log(mv::Logger::MessageType::Debug, "Unable to produce valid workloads using Rectangle only");
                                 workloadsVector.erase(workloadsVector.begin() + (workloadsVectorIndex));
                                 rectangleFail = true;
                             }
 
                             if((!rectangleFail) && (metisFail)) {
                                 if((!workloadsVector.at(workloadsVectorIndex).validateWorkloads(opIt->getOutputTensor()[0]->getShape()))) {
-                                    pass.log(mv::Logger::MessageType::Debug, "Unable to produce valid workloads using Rectangle");
+                                    pass.log(mv::Logger::MessageType::Debug, "Unable to produce valid workloads using Rectangle and METIS");
                                     workloadsVector.erase(workloadsVector.begin() + workloadsVectorIndex);
                                 }
                             }
@@ -294,6 +295,9 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                             if(!rectangleFail) {
                                 rectangleFail = false;
                                 metisFail = false;
+                                
+                                pass.log(mv::Logger::MessageType::Debug, "Valid workload created");
+                                workloadsVectorIndex++;
                             }
                         
                     }
@@ -303,8 +307,7 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                     //Partition tensor into workloads with Z-tiling
                     }
 
-                    pass.log(mv::Logger::MessageType::Debug, "Valid workload created");
-                    workloadsVectorIndex++;
+                   
                 }
 
             }
