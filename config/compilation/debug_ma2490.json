@@ -168,7 +168,7 @@
         "Singular" : [
             {
                 "name":"AddWeightsDMATasks",
-                "weights_prefetch": 2
+                "weights_prefetch": 1
             },
             "AddInitialAndFinalDMATask",
             {
@@ -221,37 +221,37 @@
             {
                 "name": "ConvertDot",
                 "input": "InputOutputControlFlows_model.dot"
-            },
+            }
+        ]
+    },
+    "finalize": {
+        "Singular": [
             {
                 "name": "TransitiveReduction",
                 "filter": "PositiveMemory"
             },
             {
                 "name": "GenerateDot",
-                "output": "TransitiveReduction.dot",
+                "output": "TransitiveReductionBeforeMaxCut.dot",
                 "scope": "ControlModel",
                 "content": "nonfull",
                 "html": true
             },
             {
-                "name": "ConvertDot",
-                "input": "TransitiveReduction.dot"
-            },
-            {
                 "name": "GenerateDot",
-                "output": "TransitiveReductionFull.dot",
+                "output": "TransitiveReductionBeforeMaxCutFull.dot",
                 "scope": "ControlModel",
                 "content": "full",
                 "html": true
             },
             {
                 "name": "ConvertDot",
-                "input": "TransitiveReductionFull.dot"
-            }
-        ]
-    },
-    "finalize": {
-        "Singular": [
+                "input": "TransitiveReductionBeforeMaxCut.dot"
+            },
+            {
+                "name": "ConvertDot",
+                "input": "TransitiveReductionBeforeMaxCutFull.dot"
+            },
             "MaxTopologicalCutAndPartialSerialisation",
             {
                 "name": "GenerateDot",
@@ -259,6 +259,21 @@
                 "scope": "ControlModel",
                 "content": "full",
                 "html": true
+            },
+            {
+                "name" : "TransitiveReduction",
+                "filter" : "Fakefilter"
+            },
+            {
+                "name": "GenerateDot",
+                "output": "TransitiveReductionAfterMaxCut.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "TransitiveReductionAfterMaxCut.dot"
             },
             {
                 "name": "GenerateWorkloads",
@@ -280,19 +295,65 @@
             },
             "RemoveDeallocationTasks",
             {
-                "name" : "TransitiveReduction",
-                "filter" : "Fakefilter"
+                "name": "GenerateDot",
+                "output": "DeallocationTasksRemoved.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "DeallocationTasksRemoved.dot"
             },
             {
                 "name" : "InsertBarrierTasks",
+                "outputBIG": "BarrierInterferenceGraph.dot",
                 "barrier_reuse_window" : 0
             },
-            "AddBarrierRefs",
-            "UpdateBarrierProducerConsumerCounts",
+            {
+                "name": "ConvertDot",
+                "input": "BarrierInterferenceGraph.dot"
+            },
+            {
+                "name": "GenerateDot",
+                "output": "BarriersInserted.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "BarriersInserted.dot"
+            },
             {
                 "name" : "TransitiveReduction",
                 "filter" : "Fakefilter"
             },
+            {
+                "name": "GenerateDot",
+                "output": "BarriersInsertedTransitiveReductionApplied.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "BarriersInsertedTransitiveReductionApplied.dot"
+            },
+            {
+                "name": "GenerateDot",
+                "output": "BarriersInsertedCorrectedIndices.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "BarriersInsertedCorrectedIndices.dot"
+            },
+            "AdjustBarrierIndices",
+            "AddBarrierRefs",
+            "UpdateBarrierProducerConsumerCounts",
             "PopulateWeightsTablesPointers",
             {
                 "name": "GenerateDot",
@@ -304,6 +365,17 @@
             {
                 "name": "ConvertDot",
                 "input": "final_model.dot"
+            },
+            {
+                "name": "GenerateDot",
+                "output": "serial_model.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "serial_model.dot"
             }
         ]
     },

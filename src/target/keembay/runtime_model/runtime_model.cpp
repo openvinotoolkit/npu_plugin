@@ -363,7 +363,7 @@ std::vector<std::unique_ptr<MVCNN::TaskListT>> mv::RuntimeModel::buildTaskListT(
     toBuild[1] = std::unique_ptr<MVCNN::TaskListT>(new MVCNN::TaskListT());
     toBuild[2] = std::unique_ptr<MVCNN::TaskListT>(new MVCNN::TaskListT());
 
-    auto topologicallySortedOps = controlModel.topologicalSort();
+    auto topologicallySortedOps = controlModel.schedulingSort();
 
     int initialId = 1;
 
@@ -387,6 +387,8 @@ std::vector<std::unique_ptr<MVCNN::TaskListT>> mv::RuntimeModel::buildTaskListT(
                 (*listToUse)->content.push_back(std::move(task));
         }
     }
+
+
 
     return toBuild;
 }

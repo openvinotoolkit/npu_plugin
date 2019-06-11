@@ -32,6 +32,7 @@ namespace mv
         void removeGroupElement(Control::OpListIterator element, GroupIterator group);
         void removeGroupElement(Control::FlowListIterator element, GroupIterator group);
         std::vector<Control::OpListIterator> topologicalSort();
+        std::vector<Control::OpListIterator> schedulingSort();
         void transitiveReduction(const std::string& edgeAttribute = "");
         bool isDag();
         std::vector<Control::FlowListIterator> criticalPath(Control::OpListIterator sourceOp, Control::OpListIterator sinkOp, const std::string& nodeAttribute = "", const std::string& edgeAttribute = "");
