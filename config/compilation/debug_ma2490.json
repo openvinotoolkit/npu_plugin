@@ -87,7 +87,6 @@
                     }
                 ]
             },
-            "StreamingOpFission",
             "ComputeMemory",
             "AssignUniqueOpId",
             {
@@ -118,6 +117,7 @@
             "FuseRelu",
             "FuseScale",
             "FullyConnectedAsConv2D",
+            "StreamingOpFission",
             {
                 "name": "GenerateDot",
                 "output": "adapt_model.dot",
@@ -266,7 +266,6 @@
     },
     "finalize": {
         "Singular": [
-            "ScheduleHelper",
             "MaxTopologicalCutAndPartialSerialisation",
             {
                 "name": "GenerateDot",
