@@ -15,7 +15,7 @@ set(IE_MAIN_KMB_PLUGIN_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 find_package(InferenceEngineDeveloperPackage REQUIRED)
 
 # resolving dependencies for the current project
-include(${CMAKE_ROOT}/Modules/ExternalProject.cmake)
+include(ExternalProject)
 
 #
 # Build rules
