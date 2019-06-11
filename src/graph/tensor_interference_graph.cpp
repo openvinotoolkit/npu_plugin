@@ -305,8 +305,7 @@ void mv::TensorInterferenceGraph::genIntereferenceGraph_(mv::ComputationModel& m
         {
             auto nj = this->node_find(*target);
             auto directed_nj = directed_g.node_find(*target);
-            if (source != target && !checkNodesAreNeighbors_(ni, nj) && !mv::pathExists(directed_g, directed_ni, directed_nj) &&
-                !mv::pathExists(directed_g, directed_nj, directed_ni))
+            if (source != target && !checkNodesAreNeighbors_(ni, nj))
             {
                 if (!checkNodeInterference_(model, *source, *target) && !checkNodeInterference_(model, *target, *source))
                 {
@@ -324,7 +323,7 @@ void mv::TensorInterferenceGraph::drawGraph(std::string outputFileName)
 {
     std::ofstream ostream;
 
-    ostream.open(outputFileName + ".dot", std::ios::trunc | std::ios::out);
+    ostream.open(outputFileName, std::ios::trunc | std::ios::out);
     ostream << "graph G {\n\tgraph [splines=spline]\n";
 
     for (auto it = this->node_begin(); it != this->node_end(); ++it)
@@ -356,8 +355,6 @@ void mv::TensorInterferenceGraph::drawGraph(std::string outputFileName)
     }
     ostream << "}\n";
     ostream.close();
-    std::string dotToPngCmd = "dot -Tpng " + outputFileName +".dot" + " -o " + outputFileName + ".png";
-    system(dotToPngCmd.c_str());
 }
 
 void mv::TensorInterferenceGraph::printGraph(std::string name)

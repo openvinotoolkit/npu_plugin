@@ -128,6 +128,9 @@ else()
     add_executable(dpu_conv_3_conv dpu_conv_3_conv.cpp)
     target_link_libraries(dpu_conv_3_conv cm)
 
+    add_executable(fault_dpu_conv_3_conv fault_dpu_conv_3_conv.cpp)
+    target_link_libraries(fault_dpu_conv_3_conv cm)
+    
     add_executable(dpu_conv_2_conv dpu_conv_2_conv.cpp)
     target_link_libraries(dpu_conv_2_conv cm)
 
