@@ -358,13 +358,24 @@
             {
                 "name": "GenerateDot",
                 "output": "final_model.dot",
-                "scope": "ControlModel",
+                "scope": "OpControlModel",
                 "content": "full",
                 "html": true
             },
             {
                 "name": "ConvertDot",
                 "input": "final_model.dot"
+            },
+            {
+                "name": "GenerateDot",
+                "output": "serial_model.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "serial_model.dot"
             }
         ]
     },
