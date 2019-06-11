@@ -594,7 +594,6 @@ void setBarrierIndicesAccordingToTopologicalSortOrder(mv::ComputationModel& mode
             if (op->getOpType() == "BarrierTask")
             {
                 auto& barrier = op->get<mv::Barrier>("Barrier");
-                barrier.setID(id);
                 barrier.setIndex(id);
                 id++;
             }
