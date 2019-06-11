@@ -268,6 +268,11 @@ namespace mv
         std::vector<float> executionCycles_;
         std::shared_ptr<MetisGraphStructure> metisGraph_;
 
+        float critical_workload = 0;
+        float workload_sum = 0;
+        float min_range = 0;
+        float max_range = 0;
+
         std::vector<int> generateMetisGraphNodeNumbers(void);
 
     public:
@@ -302,13 +307,14 @@ namespace mv
                                                         mv::Workload& workload, 
                                                         std::pair<std::pair<int16_t, int16_t>,bool>& interesting_point, 
                                                        mv::DPUMode& mpeMode);
-        std::size_t nWorkloads() const;
+       std::size_t nWorkloads() const;
         std::set<int> getNWorkloads(mv::Data::TensorIterator tensor);
         void addWorkload(mv::Workload workload);
         const std::vector<mv::Workload>& getWorkloads() const;
-        std::vector<int> getWorkloadSplitPool(mv::Data::TensorIterator tensor, int nDPUxCluster, int maxSplits = 50);
+        static const std::vector<int> getWorkloadSplitPool(mv::Data::TensorIterator tensor, int nDPUxCluster, int maxSplits = 50);
 
-        void generateExecutionCycles(std::vector<mv::Data::TensorIterator>& outputTensor, int nDPUxCluster, CostFunctions costFunction);
+        //void generateExecutionCycles(std::vector<mv::Data::TensorIterator>& outputTensor, int nDPUxCluster, CostFunctions costFunction);
+        static void generateExecutionCycles(std::vector<mv::Workloads>& workloadsVector, int nDPUxCluster, CostFunctions costFunction);
         std::vector<float> getExecutionCycles() const;
         void setExecutionCycles(std::vector<float> val);
         static float greedyTaskAssignment(int nProcessors, std::vector<float>& workloadCosts);
@@ -316,7 +322,7 @@ namespace mv
         bool validateWorkloads(std::vector<mv::Data::TensorIterator>& inputTensor);
         bool validateWorkloads(const mv::Shape& shape);
 
-        mv::CostFunctions getCostFunction(mv::Element& passDesc) const;
+        static mv::CostFunctions getCostFunction(mv::Element& passDesc, const mv::pass::PassEntry& pass);
 
         double getAllWorkloadsVolume() const;
         bool noOverlap() const;

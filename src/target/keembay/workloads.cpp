@@ -470,7 +470,7 @@ idx_t mv::Workloads::getNWorkloads(const mv::Shape& tensorShape, int nDPUxCluste
  * @param Maximum number or workloads
  * @return A pool of possible splits (possible workloads)
  */
-std::vector<int> mv::Workloads::getWorkloadSplitPool(mv::Data::TensorIterator tensor, int nDPUxCluster, int maxSplits)
+const std::vector<int> mv::Workloads::getWorkloadSplitPool(mv::Data::TensorIterator tensor, int nDPUxCluster, int maxSplits)
 {
     std::vector<int> splitPool;
  
@@ -504,7 +504,11 @@ std::vector<int> mv::Workloads::getWorkloadSplitPool(mv::Data::TensorIterator te
         if(((maxSplitsXY%(int)std::pow(2,i)) == 0) && (maxSplitsXY/(std::pow(2,i)) < maxSplits)) 
             splitPool.push_back(maxSplitsXY/std::pow(2,i));
     
+    /*sort*/
     sort(splitPool.begin(), splitPool.end());
+    
+    /*Erase duplicates*/
+    splitPool.erase(std::unique( splitPool.begin(), splitPool.end() ), splitPool.end());
 
     /*If the split pool is empty then make the default number of workloads be 4*/
     if(splitPool.empty())
@@ -821,7 +825,7 @@ std::vector<mv::Workload> mv::Workloads::workloadSplitHelper(const mv::pass::Pas
   /** 
     * @brief Returns the cost function to use for execution cycles
     */
-mv::CostFunctions mv::Workloads::getCostFunction(mv::Element& passDesc) const
+mv::CostFunctions mv::Workloads::getCostFunction(mv::Element& passDesc, const mv::pass::PassEntry& pass)
 {
     /*parse CostFunction from Comp Descriptor*/
     mv::CostFunctions costFunction = mv::CostFunctions::Balanced; //default
@@ -837,10 +841,10 @@ mv::CostFunctions mv::Workloads::getCostFunction(mv::Element& passDesc) const
         else if (sCostFunction == "greedy")
             costFunction = mv::CostFunctions::Greedy;
         else 
-            this->log(mv::Logger::MessageType::Warning, "Could not parse the Cost Function type (only \"balanced | criticalpath | minmax | greedy\" currently supported). Using \"Balanced\"...");
+            pass.log(mv::Logger::MessageType::Warning, "Could not parse the Cost Function type (only \"balanced | criticalpath | minmax | greedy\" currently supported). Using \"Balanced\"...");
     }
     else 
-        this->log(mv::Logger::MessageType::Info, "No Cost Function specified in descriptor, using \"Balanced\"...");
+        pass.log(mv::Logger::MessageType::Info, "No Cost Function specified in descriptor, using \"Balanced\"...");
     return costFunction;
 }
 
@@ -854,74 +858,162 @@ void mv::Workloads::setExecutionCycles(std::vector<float> val)
     executionCycles_ = val;
 }
 
-void mv::Workloads::generateExecutionCycles(std::vector<mv::Data::TensorIterator>& outputTensor, int nDPUxCluster, CostFunctions costFunction)
+// void mv::Workloads::generateExecutionCycles(std::vector<mv::Data::TensorIterator>& outputTensor, int nDPUxCluster, CostFunctions costFunction)
+// {
+//     // notes from POC compiler:  Execution time is bounded by
+//     //      sum(WL)/DPU <= T <= max(WL_max)*(P-1)/P
+//     if (nDPUxCluster < 1)
+//         throw mv::ArgumentError("Generate Workloads Pass", "nDPUxCluster", std::to_string(nDPUxCluster), "Invalid number of DPUs");
+
+//     std::vector<float> workloadsExecutionCycles;
+//     if (validateWorkloads(outputTensor))
+//     {   
+//         for(std::vector<mv::Workload>::iterator itWL = workloads_.begin(); itWL != workloads_.end(); ++itWL) 
+//         {
+//             std::pair <int,int> mpeMode (4, 4);
+//             if(itWL->MPEMode != mv::Matrix)
+//                 mpeMode = {1,16};
+//             float height = itWL->MaxY - itWL->MinY; // + mpeMode.first;
+//             float width = itWL->MaxX - itWL->MinX; // + mpeMode.second;
+
+//             float sumExeCycles = ceil(outputTensor[0]->getShape()[2]/16.0) * ceil(height / mpeMode.first) * ceil(width / mpeMode.second);
+//             workloadsExecutionCycles.push_back(sumExeCycles);
+//         }
+//     }
+//     else
+//     {   //workload not schedulable
+//         workloadsExecutionCycles = {INFINITY};
+//     }
+    
+//     float critical_wl = *std::max_element(workloadsExecutionCycles.begin(), workloadsExecutionCycles.end());
+//     //float lower_wl = *std::min_element(workloadsExecutionCycles.begin(), workloads_execution_cycles.end());
+
+//     float wl_sum = float(0);
+//     for (auto& cycles : workloadsExecutionCycles)
+//         wl_sum += cycles;
+
+//     float min_range = wl_sum/nDPUxCluster;
+//     float max_range = wl_sum/nDPUxCluster + critical_wl;
+
+//     if (costFunction == CostFunctions::Balanced)
+//     {
+//         float balancing = float(0.0);
+//         if (!std::isinf(wl_sum))
+//             balancing = wl_sum/(ceil(wl_sum/nDPUxCluster) * nDPUxCluster);
+
+//         executionCycles_ = {-balancing, -balancing};
+//     }
+//     else if(costFunction == CostFunctions::MinMaxWorkloads)
+//         executionCycles_ = {min_range, max_range};
+
+//     else if(costFunction == CostFunctions::CriticalPath)
+//     {
+//         if (nDPUxCluster == 1)
+//             executionCycles_ = {min_range, min_range};
+//         else
+//             executionCycles_ = {max_range, max_range};
+//     }
+
+//     else if(costFunction == CostFunctions::Greedy)
+//     {
+//         if (std::isinf(wl_sum))
+//             executionCycles_ = {INFINITY, INFINITY};
+//         else
+//         {
+//             float greedy = greedyTaskAssignment(nDPUxCluster, workloadsExecutionCycles);
+//             executionCycles_ = {greedy, greedy};
+//         }
+//     }
+//     else
+//         throw mv::ArgumentError("Generate Workloads Pass", "costFunction", "unknown", "Unsupported cost function");
+// }
+
+void mv::Workloads::generateExecutionCycles(std::vector<mv::Workloads>& workloadsVector, int nDPUxCluster, CostFunctions costFunction)
 {
-    // notes from POC compiler:  Execution time is bounded by
-    //      sum(WL)/DPU <= T <= max(WL_max)*(P-1)/P
+    std::vector<float> workloadsExecutionCycles;
+
+    /* Execution time is bounded by
+     * sum(WL)/DPU <= T <= max(WL_max)*(P-1)/P
+    */     
+
     if (nDPUxCluster < 1)
         throw mv::ArgumentError("Generate Workloads Pass", "nDPUxCluster", std::to_string(nDPUxCluster), "Invalid number of DPUs");
 
-    std::vector<float> workloadsExecutionCycles;
-    if (validateWorkloads(outputTensor))
-    {   
-        for(std::vector<mv::Workload>::iterator itWL = workloads_.begin(); itWL != workloads_.end(); ++itWL) 
-        {
+    /*For each workload object*/
+    for(auto itWorklaods = workloadsVector.begin(); itWorklaods != workloadsVector.end(); itWorklaods++) {
+        
+        workloadsExecutionCycles.clear();
+        
+        /*For each of the individual workloads*/
+        for(auto itworkload = itWorklaods->workloads_.begin(); itworkload != itWorklaods->workloads_.end(); ++itworkload) {
+            
             std::pair <int,int> mpeMode (4, 4);
-            if(itWL->MPEMode != mv::Matrix)
-                mpeMode = {1,16};
-            float height = itWL->MaxY - itWL->MinY; // + mpeMode.first;
-            float width = itWL->MaxX - itWL->MinX; // + mpeMode.second;
 
-            float sumExeCycles = ceil(outputTensor[0]->getShape()[2]/16.0) * ceil(height / mpeMode.first) * ceil(width / mpeMode.second);
+            if(itworkload->MPEMode != mv::Matrix)
+                mpeMode = {1,16};
+
+            float height = (itworkload->MaxY+1) - itworkload->MinY; // + mpeMode.first;
+            float width = (itworkload->MaxX+1) - itworkload->MinX; // + mpeMode.second;
+
+            std::cout << itWorklaods->tensorShape_[2] << std::endl;
+            std::cout << height << std::endl;
+            std::cout << width << std::endl;
+            float sumExeCycles = ceil(itWorklaods->tensorShape_[2]/16.0) * ceil(height / mpeMode.first) * ceil(width / mpeMode.second);
             workloadsExecutionCycles.push_back(sumExeCycles);
         }
-    }
-    else
-    {   //workload not schedulable
-        workloadsExecutionCycles = {INFINITY};
-    }
-    
-    float critical_wl = *std::max_element(workloadsExecutionCycles.begin(), workloadsExecutionCycles.end());
-    //float lower_wl = *std::min_element(workloadsExecutionCycles.begin(), workloads_execution_cycles.end());
 
-    float wl_sum = float(0);
-    for (auto& cycles : workloadsExecutionCycles)
-        wl_sum += cycles;
+        /*Critical workload*/
+        itWorklaods->critical_workload = *std::max_element(workloadsExecutionCycles.begin(), workloadsExecutionCycles.end());
 
-    float min_range = wl_sum/nDPUxCluster;
-    float max_range = wl_sum/nDPUxCluster + critical_wl;
+        /*Workload sum*/
+        for (auto& cycles : workloadsExecutionCycles)
+            itWorklaods->workload_sum += cycles;
 
-    if (costFunction == CostFunctions::Balanced)
-    {
-        float balancing = float(0.0);
-        if (!std::isinf(wl_sum))
-            balancing = wl_sum/(ceil(wl_sum/nDPUxCluster) * nDPUxCluster);
+        float min_range = itWorklaods->workload_sum/nDPUxCluster;
+        float max_range = itWorklaods->workload_sum/nDPUxCluster + itWorklaods->critical_workload;
 
-        executionCycles_ = {-balancing, -balancing};
-    }
-    else if(costFunction == CostFunctions::MinMaxWorkloads)
-        executionCycles_ = {min_range, max_range};
+        /*Cost function*/
+        if(costFunction == CostFunctions::CriticalPath) {
 
-    else if(costFunction == CostFunctions::CriticalPath)
-    {
         if (nDPUxCluster == 1)
-            executionCycles_ = {min_range, min_range};
+            itWorklaods->executionCycles_ = {min_range, min_range};
         else
-            executionCycles_ = {max_range, max_range};
-    }
-
-    else if(costFunction == CostFunctions::Greedy)
-    {
-        if (std::isinf(wl_sum))
-            executionCycles_ = {INFINITY, INFINITY};
-        else
-        {
-            float greedy = greedyTaskAssignment(nDPUxCluster, workloadsExecutionCycles);
-            executionCycles_ = {greedy, greedy};
+            itWorklaods->executionCycles_ = {max_range, max_range};
         }
     }
-    else
-        throw mv::ArgumentError("Generate Workloads Pass", "costFunction", "unknown", "Unsupported cost function");
+    
+
+    // if (costFunction == CostFunctions::Balanced)
+    // {
+    //     float balancing = float(0.0);
+    //     if (!std::isinf(wl_sum))
+    //         balancing = wl_sum/(ceil(wl_sum/nDPUxCluster) * nDPUxCluster);
+
+    //     executionCycles_ = {-balancing, -balancing};
+    // }
+    // else if(costFunction == CostFunctions::MinMaxWorkloads)
+    //     executionCycles_ = {min_range, max_range};
+
+    // if(costFunction == CostFunctions::CriticalPath)
+    // {
+    //     if (nDPUxCluster == 1)
+    //         itWorklaods->executionCycles_ = {min_range, min_range};
+    //     else
+    //         executionCycles_ = {max_range, max_range};
+    // }
+
+    // else if(costFunction == CostFunctions::Greedy)
+    // {
+    //     if (std::isinf(wl_sum))
+    //         executionCycles_ = {INFINITY, INFINITY};
+    //     else
+    //     {
+    //         float greedy = greedyTaskAssignment(nDPUxCluster, workloadsExecutionCycles);
+    //         executionCycles_ = {greedy, greedy};
+    //     }
+    // }
+    // else
+    //     throw mv::ArgumentError("Generate Workloads Pass", "costFunction", "unknown", "Unsupported cost function");
 }
 
 
