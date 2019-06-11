@@ -186,16 +186,11 @@ void streamingOpFissionFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
             opsToLink.push_back(sinkFlow.sink());
             inputSlots.push_back(sinkFlow->get<std::size_t>("sinkInput"));
         }
-  
+
         // remove original fractured op and the constant tensors input to it
-        while(opToFracture.parentsSize() > 1)
-        {
-            auto paramOp = opToFracture.leftmostParent();
-            ++paramOp;
-            om.removeOp(paramOp);
-        }
+        om.removeOp(om.getSourceOp(originalWtsTensor));
         om.removeOp(opToFracture);
-    
+
         // reconnect subgraph output to children
         for (unsigned j = 0; j < opsToLink.size(); ++j)
         {
