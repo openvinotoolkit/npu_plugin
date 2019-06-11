@@ -625,8 +625,13 @@ static void insertBarrierTasksFcn(const mv::pass::PassEntry& pass, mv::Computati
     // XXX: Q: Do any extraneous consumers need to be removed as well?
     removeExtraProducers(pass, model, barriers);
 
+    // Optional pass
     resetBarrierIDs(barriers);
 
+    // Sets just the index, as group is not used right now
+    // Runs barrier graph coloring to see if we can execute
+    // are current parallel scheduling with 8 barriers
+    // or we need to serialize more
     setBarrierGroupAndIndex(pass, om, barriers, passDesc);
 
     insertBarriersIntoControlFlowGraph(model, passDesc, barriers);
