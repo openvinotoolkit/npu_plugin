@@ -211,6 +211,11 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
         {
             pass.log(mv::Logger::MessageType::Debug, "Found DPU task " + opIt->getName() + " of type " + opIt->get<std::string>("taskOp"));
 
+            /*For Deptwise convolution, Max pooling and CM convolution MPE mode must be (1,16)*/
+            if((opIt->getOpType() == "DepthwiseConv") || (opIt->getOpType() == "MaxPool") || (opIt->getOpType() == "ChannelMajorConvolution")){
+                dpu_mode = {{1, 16}};
+            }
+
             /*Fore each of the lagorithms specified*/
             for (std::string algorithm : algorithms)
             {
