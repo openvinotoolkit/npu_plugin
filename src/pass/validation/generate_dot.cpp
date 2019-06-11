@@ -81,6 +81,8 @@ void generateDotFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
                 }
                 if(opIt->getOpType() == "Deallocate")
                     nodeDef += " style=filled, fillcolor=orange,";
+                if(opIt->getOpType() == "BarrierTask")
+                    nodeDef += " style=filled, fillcolor=cyan,";
 
                 if (htmlLike)
                 {
