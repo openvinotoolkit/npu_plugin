@@ -27,8 +27,9 @@ function(enable_vpu TARGET_NAME FLAG_NAME PLUGIN_NAME)
             INSTANTIATE_TESTS=1
             ${FLAG_NAME}=1)
 
-    target_link_libraries(${TARGET_NAME} PRIVATE
-    IE::IEBehaviorSharedTests)
+    target_link_libraries(${TARGET_NAME}
+        PRIVATE
+      IE::IEBehaviorSharedTests IE::inference_engine_console_core IE::helpers)
 
     target_include_directories(${TARGET_NAME}
         PRIVATE
