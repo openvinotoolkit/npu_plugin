@@ -109,11 +109,13 @@ void storeTensorPlacementFcn(const mv::pass::PassEntry& pass,
         {
             std::string& nameFilter = s.get<std::string>("name_filter");
             std::string& memLocation = s.get<std::string>("mem_location");
+            bool forced = s.hasAttr("force");
+
             std::regex exp(nameFilter);
             if (std::regex_match(tensorIt->getName(),exp))
             {
                 found = true;
-                mv::Tensor::MemoryLocation location(memLocation);
+                mv::Tensor::MemoryLocation location(memLocation,forced);
                 tensorIt->set<mv::Tensor::MemoryLocation>("Location",location);
                 pass.log(mv::Logger::MessageType::Info,"setting tensor " +
                             tensorIt->getName() + " as " + location.print());
@@ -132,11 +134,22 @@ void storeTensorPlacementFcn(const mv::pass::PassEntry& pass,
 
     for ( auto tensor : outputTensors)
     {
-        if(tensor->get<mv::Tensor::MemoryLocation>("Location") != mv::Tensor::MemoryLocation::DEFAULT)
+        if(!tensor->get<mv::Tensor::MemoryLocation>("Location").isDefault())
         {
             pass.log(mv::Logger::MessageType::Warning,"Found OutputTensor " +
                         tensor->getName() + " description location in JSON. Will override with OUTPUT");
         }
         tensor->set<mv::Tensor::MemoryLocation>("Location",mv::Tensor::MemoryLocation::OUTPUT);
+    }
+
+    //if JSON wants us to override default location for tensors:
+    if(globalParams->hasAttr("default_tensor_placement"))
+    {
+        std::string& defaultPlace = globalParams->get<std::string>("default_tensor_placement");
+        for (auto tensorIt = om.tensorBegin() ; tensorIt != om.tensorEnd() ; ++tensorIt)
+        {
+            if(tensorIt->get<mv::Tensor::MemoryLocation>("Location").isDefault())
+                tensorIt->get<mv::Tensor::MemoryLocation>("Location").relocate(defaultPlace);
+        }
     }
 }

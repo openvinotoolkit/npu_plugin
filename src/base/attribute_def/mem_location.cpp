@@ -10,7 +10,7 @@ namespace mv
     {
         static mv::json::Value toJSON(const Attribute& a)
         {
-            auto elem = a.get<Tensor::MemoryLocation>();
+            auto& elem = a.get<Tensor::MemoryLocation>();
             return json::Value(elem.print());
         }
 
@@ -26,7 +26,7 @@ namespace mv
 
         static std::string toString(const Attribute& a)
         {
-            auto elem = a.get<Tensor::MemoryLocation>();
+            auto& elem = a.get<Tensor::MemoryLocation>();
             return elem.print();
         }
 

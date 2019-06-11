@@ -92,6 +92,7 @@ void resolvevImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::Computat
 
                 if( inputLocation != outputLocation)
                 {
+                    //TODO:: QUant params inherited for concat
                     //TODO:: PRONE TO ERRORS! correlate with Class Direction
                     const std::string directionString = inputLocation.print() + "2" + outputLocation.print();
                     auto compensatorOutput = om.dMATask(inputTensor,
@@ -160,7 +161,15 @@ void resolvevImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::Computat
                 pass.log(mv::Logger::MessageType::Info,"Adding new DMA OP: # " + compensatorOutput->getName() +
                                                             " as output to # " + opIt->getName());
 
+                // TODO: NOTE: I should be using the relocate function.... but that may fail in case the "output" of slice is forced.
+                //Technically, for compensation I should not be adding "new dma" to the slice "outputTensor" but rather
+                //but a new tensor as the Slice output and DMA between them. But the API is not really friendly for this
+                //case so the "forced" attribute will be inherited by the output of the DMA itself....
+
                 compensatorOutput->set<mv::Tensor::MemoryLocation>("Location",outputLocation);
+                if(outputTensor->get<mv::Tensor::MemoryLocation>("Location").isForced())
+                    compensatorOutput->get<mv::Tensor::MemoryLocation>("Location").force();
+
                 outputTensor->set<mv::Tensor::MemoryLocation>("Location",inputLocation);
 
                 for ( unsigned flowIdx = 0; flowIdx < flowsToRemove.size() ; flowIdx++)

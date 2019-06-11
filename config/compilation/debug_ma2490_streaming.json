@@ -57,6 +57,7 @@
                         "strategy" : "SplitOverH"
                     }
                 ],
+                
                 "tensor_placement_override" : 
                 [
                     {
@@ -66,9 +67,17 @@
                     {
                         "name_filter" : ".*_cmx_.*",
                         "mem_location" : "CMX"
-                      }
-                ]
-
+                    },
+                    {
+                        "name_filter" : ".*_input_.*",
+                        "mem_location" : "INPUT"
+                    },
+                    {
+                        "name_filter" : ".*_output_.*",
+                        "mem_location" : "OUTPUT"
+                    }
+                ],
+                "default_tensor_placement" : "DDR"
             },
             "ComputeMemory",
             "AssignUniqueOpId",
@@ -144,11 +153,11 @@
     },
     "dma": {
         "Singular" : [
+            "resolveImplicitOperations", 
             {
                 "name":"AddWeightsDMATasks",
                 "weights_prefetch": 2
             },
-            "resolveImplicitOperations",
             {
                 "name": "GenerateDot",
                 "output": "implicit_operations_model.dot",
