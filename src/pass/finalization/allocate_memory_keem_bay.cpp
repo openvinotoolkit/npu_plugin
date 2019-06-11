@@ -160,8 +160,7 @@ void allocateUnpopulatedTensorsFcnKeemBay(const mv::pass::PassEntry& pass, mv::C
 
             // Allocate Inputs inside of that output
             unsigned valid_inputs = opIterator->inputSlots();
-            unsigned int channel_index = mv::IO_CHANNEL_DIMENSION;
-
+            auto concat_axis_index = mv::Shape::getAxis(opIterator->get<std::string>("axis"));
             std::vector<unsigned> running_concat_offset_LHS;
             auto prev_offset = 0;
             auto offset = 0;
@@ -169,7 +168,7 @@ void allocateUnpopulatedTensorsFcnKeemBay(const mv::pass::PassEntry& pass, mv::C
                 running_concat_offset_LHS.push_back(prev_offset + offset);
                 prev_offset = prev_offset + offset;
                 // Calculate for next tensor
-                offset = opIterator->getInputTensor(i)->getShape()[channel_index];
+                offset = opIterator->getInputTensor(i)->getShape()[concat_axis_index];
             }
 
             std::vector<unsigned> running_concat_offset_RHS;
@@ -206,8 +205,8 @@ void allocateUnpopulatedTensorsFcnKeemBay(const mv::pass::PassEntry& pass, mv::C
                 auto lhs = running_concat_offset_LHS[i];
                 auto rhs = running_concat_offset_RHS[i];
 
-                lhs_padding.at(channel_index) = lhs;
-                rhs_padding.at(channel_index) = rhs;
+                lhs_padding.at(concat_axis_index) = lhs;
+                rhs_padding.at(concat_axis_index) = rhs;
 
                 auto ExistingBuffer = dm.getBuffer("VPU_CMX_NN", stageIt, inputTensor);
 
