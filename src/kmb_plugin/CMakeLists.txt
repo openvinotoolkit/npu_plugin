@@ -100,7 +100,8 @@ file(GLOB_RECURSE SOURCES *.cpp *.hpp *.h)
 
 ie_add_plugin(NAME ${TARGET_NAME}
               SOURCES ${SOURCES}
-              VERSION_DEFINES_FOR kmb_plugin.cpp)
+              VERSION_DEFINES_FOR kmb_plugin.cpp
+            DEVICE_NAME KMB)
 
 ie_register_plugins(MAIN_TARGET ${TARGET_NAME}
                     POSSIBLE_PLUGINS ${TARGET_NAME})
