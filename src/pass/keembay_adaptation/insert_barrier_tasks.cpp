@@ -434,15 +434,10 @@ static void addBarriers(mv::ComputationModel& model, std::vector<mv::Barrier>& b
     // barriers ID are set in a separate pass
     auto sortedCtrlOps = cm.topologicalSort();
 
+    // Add control flow barriers, the only one needed now and forever
     for (auto ctrlOp: sortedCtrlOps)
-    {
-        // Add control flow barriers
         getBarrierForControlModelOp(cm, ctrlOp, barriers);
 
-        // Look for any data dependencies that may need barriers
-        auto opModelOp = om.switchContext(ctrlOp);
-        getBarrierForOpModelOp(om, opModelOp, barriers);
-    }
 }
 
 static void setBarrierGroupAndIndex(const mv::pass::PassEntry& pass, mv::OpModel& om, std::vector<mv::Barrier>& barriers, mv::Element& passDesc)
