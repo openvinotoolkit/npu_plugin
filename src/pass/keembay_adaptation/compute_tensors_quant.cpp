@@ -133,7 +133,7 @@ void computeTensorsQuantParams(const mv::pass::PassEntry&, mv::ComputationModel&
                          bias->populate(data);
 
                      }
-                     else
+                     else if (taskOp != "Concat")
                      {
                          mv::Order order(mv::Order::getColMajorID(1));
                          const std::string biasTensorName = opIt->getName() + "_bias";
