@@ -230,36 +230,22 @@ static void generateSparsityMapsFcn(const mv::pass::PassEntry& pass, mv::Computa
         }
         if (!fakeSparsity && enableRealSparsity)
         {
-            if (dpuTask->getOpType() == "DPUTask" &&
-                dpuTask->inputSlots() > 1 &&
-                dpuTask->getInputTensor(0)->getOrder().isZMajor())
-            {
-                auto weights = dpuTask->getInputTensor(1);
-                weights->setOrder(mv::Order("NHWC"));
-                weights->setSparse();
-                if (weights->isPopulated()) //that's always true
-                {
-                    //SparsityMap will be saved as attribute
-                    auto smInternalTensor = weights->getSparsityMap();
-                    auto sparsityMap = om.constantInt(smInternalTensor->getIntData(), smInternalTensor->getShape(), smInternalTensor->getDType(),
-                                                      smInternalTensor->getOrder(), {{},{},{},{}}, smInternalTensor->getName());
-                    om.getSourceOp(sparsityMap)->set<unsigned>("opId", dpuTask->get<unsigned>("opId"));
-                    unsigned newSize = dpuTask->addInputTensor(sparsityMap);
-                    om.defineFlow(sparsityMap, dpuTask, newSize - 1);
-                    dpuTask->set<std::string>("sparsityMap", sparsityMap->getName());
-                }
-            }
-            unsigned n = dpuTask->getInputTensor().size();
-            for (unsigned i = 0; i < n; ++i)
-                if (dpuTask->getInputTensor(i)->getOrder().isZMajor() &&
-                    !(i == 1 && dpuTask->getInputTensor(i)->isPopulated())) //only weights are popualted, and we dont want to cover them here
-                        dpuTask->getInputTensor(i)->setSparse();
+            //Here only in the case of ZMajorConvolution and sparsity is active
+            auto weights = dpuTask->getInputTensor(1);
+            weights->setOrder(mv::Order("NHWC"));
+            weights->setSparse();
 
-            n = dpuTask->getOutputTensor().size();
-            for (unsigned i = 0; i < n; ++i)
-                if (dpuTask->getOutputTensor(i)->getOrder().isZMajor() &&
-                    !(dpuTask->getInputTensor().size() == 0 && dpuTask->getOutputTensor(i)->isPopulated()))//not a weight constant, for weights they will be spare only for HW Ops
-                    dpuTask->getOutputTensor(i)->setSparse();
+            //SparsityMap will be saved as attribute
+            auto smInternalTensor = weights->getSparsityMap();
+            auto sparsityMap = om.constantInt(smInternalTensor->getIntData(), smInternalTensor->getShape(), smInternalTensor->getDType(),
+                                              smInternalTensor->getOrder(), {{},{},{},{}}, smInternalTensor->getName());
+            om.getSourceOp(sparsityMap)->set<unsigned>("opId", dpuTask->get<unsigned>("opId"));
+            unsigned newSize = dpuTask->addInputTensor(sparsityMap);
+            om.defineFlow(sparsityMap, dpuTask, newSize - 1);
+            dpuTask->set<std::string>("sparsityMap", sparsityMap->getName());
+
+            dpuTask->getInputTensor(0)->setSparse();
+            dpuTask->getOutputTensor(0)->setSparse();
         }
     }
 }
