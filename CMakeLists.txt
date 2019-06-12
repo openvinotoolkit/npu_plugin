@@ -39,6 +39,13 @@ else()
     message(STATUS "Metis not found!")
 endif(METIS_FOUND)
 
+find_package(LEMON)
+if(LEMON_FOUND)
+    include_directories(${LEMON_INCLUDE_DIR})
+else()
+    message(STATUS "LEMON not found!")
+endif(LEMON_FOUND)
+
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 # find_package(Flatbuffers)
@@ -271,6 +278,7 @@ SET(model
     "${PROJECT_SOURCE_DIR}/src/target/myriadx/nce1.cpp"
     "${PROJECT_SOURCE_DIR}/src/target/myriadx/nce1_utils.cpp" 
     "${PROJECT_SOURCE_DIR}/src/target/keembay/koala_graph_scheduler.cpp"   
+    "${PROJECT_SOURCE_DIR}/src/target/keembay/lemon_graph_scheduler.cpp"   
 )
 
 SET(logger
