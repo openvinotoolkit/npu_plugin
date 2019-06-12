@@ -342,9 +342,16 @@ std::vector<long unsigned int> packToInt64(const std::vector<T>& origData, mv::D
 std::unique_ptr<MVCNN::BinaryDataT> mv::RuntimeModel::buildBinaryDataT(ComputationModel&, mv::Element&, mv::Tensor& t)
 {
     std::unique_ptr<MVCNN::BinaryDataT> toBuild = std::unique_ptr<MVCNN::BinaryDataT>(new MVCNN::BinaryDataT());
+    if (t.isSparse())
+    {
+        toBuild->data = packToInt64(t.getDataPacked(), t.getDType());
+    }
+    else
+    {
+        toBuild->data = packToInt64(t.getData(), t.getDType());
+        toBuild->length = t.getShape().totalSize();
+    }
 
-    toBuild->data = packToInt64(t.getData(), t.getDType());
-    toBuild->length = t.getShape().totalSize();
     toBuild->underlying_type = convertDtype(t.getDType());
 
     return toBuild;
