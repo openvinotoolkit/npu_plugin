@@ -7,7 +7,7 @@
                 "recorded_model": true,
                 "weights_form": "None",
                 "barrier_index_assignment" : "Dynamic",
-                "Number_of_DPUs" : 5,
+                "Number_of_DPUs" : 2,
                 "Number_of_Clusters" : 1,
                 "UpaShaves": 1,
                 "DDRScratch": 4096,
