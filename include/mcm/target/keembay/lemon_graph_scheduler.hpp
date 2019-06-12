@@ -27,14 +27,38 @@
 
 namespace mv
 {
+    /*Lemon Node info*/
+    struct nodeDescription {
+        
+        std::string name;
+        int cost; //Required for optimal partial serialisation (minimises increase in the critical path)
+        bool sourceNode;
+        bool sinkNode;
+
+        nodeDescription(std::string aname = "", int cost = 0, bool sourcenode = false, bool sinknode = false) : 
+            name(aname), cost(cost), sourceNode(sourcenode), sinkNode(sinknode) { }  
+        
+    };
+
+    /*Lemon Edge info*/
+    struct edgeDescription {
+        
+        uint64_t memoryRequirement;
+        std::string name;
+        uint64_t flow;
+        int length;
+
+        edgeDescription(uint64_t m = 0, std::string aname = "", uint64_t f = 0, int l = 1) : 
+            memoryRequirement(m), name(aname), flow(f), length(l) { }
+    };
+
     class LemonGraphScheduler : public LogSender
     {
         lemon::ListDigraph* graph_;
 
-        /*KOALA vertices and edges iterators*/
-        //std::vector<koalaGraph::PVertex> vertices_;  
-        //std::vector<koalaGraph::PEdge> edges_;
-        
+        lemon::ListDigraph::NodeMap<nodeDescription> nodes_;
+        lemon::ListDigraph::ArcMap<edgeDescription> edges_;
+
         /*New edges added to the graph from partial serialisation, these will be added to the McM graph*/
         //std::vector<koalaGraph::PEdge> partialSerialisationEdgesAdded_;
 
@@ -47,14 +71,14 @@ namespace mv
         ~LemonGraphScheduler();
         lemon::ListDigraph& getGraph();
 
-        //void convertMcMGraphToLemonGraph(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
+        void convertMcMGraphToLemonGraph(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
         
         //void performPartialSerialisation(const mv::pass::PassEntry& pass, std::vector<koalaGraph::PEdge> cutEdges);
         //std::pair<int,std::vector<koalaGraph::PEdge>> calculateMaxTopologicalCut(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
         //uint64_t calculateFMax(mv::ComputationModel& model);
         //void insertpartialSerialisationEdgesInMcmGraph(mv::ComputationModel& model);
           
-        //std::string getLogID() const override;
+        std::string getLogID() const override;
 
     };
 }

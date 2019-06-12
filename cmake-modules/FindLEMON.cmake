@@ -1,5 +1,6 @@
 ###########################################################
 #                  Find Lemon Library
+# https://lemon.cs.elte.hu/trac/lemon
 #----------------------------------------------------------
 
 FIND_PATH(LEMON_DIR list_graph.h
