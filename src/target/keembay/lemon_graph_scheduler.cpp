@@ -38,7 +38,8 @@ void  mv::LemonGraphScheduler::convertMcMGraphToLemonGraph(const mv::pass::PassE
            if ((opIt->getOpType() == "DMATask") && (opIt->get<mv::DmaDirection>("direction") == mv::CMX2DDR)) {
                pass.log(mv::Logger::MessageType::Debug, "Adding vertex to Lemon graph: " + opIt->getName());
 
-               this->graph_.addNode(nodeDescription(opIt->getName(),0, false, true));
+               lemon::ListDigraph::Node currentNode = this->graph_.addNode();
+               this->nodes_[currentNode] = nodeDescription(opIt->getName(),0, false, true);
                nodeAdded = true;
            }
            
@@ -46,13 +47,15 @@ void  mv::LemonGraphScheduler::convertMcMGraphToLemonGraph(const mv::pass::PassE
            if (opIt->getOpType() == "Input") 
            { 
                pass.log(mv::Logger::MessageType::Debug, "Adding vertex to Lemon graph: " + opIt->getName());
-               this->graph_.addNode(nodeDescription(opIt->getName(),0, true, false)));
+               lemon::ListDigraph::Node currentNode = this->graph_.addNode();
+               this->nodes_[currentNode] = nodeDescription(opIt->getName(),0, true, false);
                nodeAdded = true;
            }
            else if (!nodeAdded) 
            {   /*All other nodes between source and sink node*/
                pass.log(mv::Logger::MessageType::Debug, "Adding vertex to Lemon graph: " + opIt->getName());
-               this->graph_.addNode(nodeDescription(opIt->getName(),0, false, false)));
+               lemon::ListDigraph::Node currentNode = this->graph_.addNode();
+               this->nodes_[currentNode] = nodeDescription(opIt->getName(),0, false, false));
                nodeAdded = true;
            }
        }
@@ -63,35 +66,40 @@ void  mv::LemonGraphScheduler::convertMcMGraphToLemonGraph(const mv::pass::PassE
     */
     for (auto flowIt = cm.flowBegin(); flowIt != cm.flowEnd(); ++flowIt) 
     {    
-        /* 1. Don't add the edge going to Ouput in the MCM graph to the KOALA graph
+        /* 1. Don't add the edge going to Ouput in the MCM graph to the Lemon graph
          * 2. Don't add edge coming from a ConstantInt operation (Sparsity Map and Weights Table) */
         if (flowIt.sink()->getOpType() != "Output" && flowIt.source()->getOpType() != "ConstantInt" &&
-            flowIt.source()->getOpType() != "WeightsTable" && flowIt.source()->getOpType() != "SparsityMap") 
+                flowIt.source()->getOpType() != "WeightsTable" && flowIt.source()->getOpType() != "SparsityMap") 
         {
             auto sourceName = flowIt.source()->getName();
             auto sinkName  = flowIt.sink()->getName();
-            if(flowIt->hasAttr("MemoryRequirement"))
-                pass.log(mv::Logger::MessageType::Debug, "Adding edge to Lemon graph from: " + sourceName + " --> " + sinkName + " with memory requirement " + std::to_string(flowIt->get<int>("MemoryRequirement")));
-            else
-                pass.log(mv::Logger::MessageType::Debug, "Adding edge to Lemon graph from: " + sourceName + " --> " + sinkName + " with memory requirement " + std::to_string(0));
 
-            /*If the control flow has a memoryRequirment attribute add it to the Lemon edge*/
+            /*If the control flow has a memoryRequirment attribute add it to edges*/
+            int memReq = 0;
             if(flowIt->hasAttr("MemoryRequirement"))
-                this->edges_.push_back(this->getGraph().addEdge(*std::find_if(vertices_.begin(), vertices_.end(), [&sourceName](koalaGraph::PVertex const& vertex) {return sourceName == vertex->info.name;}), 
-                                             *std::find_if(vertices_.begin(), vertices_.end(), [&sinkName](koalaGraph::PVertex const& vertice) {return sinkName == vertice->info.name;}), 
-                                             edgeDescription(flowIt->get<int>("MemoryRequirement"),flowIt->getName()), 
-                                             Koala::Directed));
-                                             
-            /*Otherwsise the memory requirment is 0*/
-            else
-                this->edges_.push_back(this->getGraph().addEdge(*std::find_if(vertices_.begin(), vertices_.end(), [&sourceName](koalaGraph::PVertex const& vertex) {return sourceName == vertex->info.name;}), 
-                                             *std::find_if(vertices_.begin(), vertices_.end(), [&sinkName](koalaGraph::PVertex const& vertex) {return sinkName == vertex->info.name;}), 
-                                             edgeDescription(0,flowIt->getName()), 
-                                             Koala::Directed));
+                memReq = flowIt->get<int>("MemoryRequirement")
+            
+            pass.log(mv::Logger::MessageType::Debug, "Adding edge to Lemon graph from: " + sourceName + " --> " + sinkName + " with memory requirement " + std::to_string(memReq));
+
+            // this->edges_.push_back(this->getGraph().addEdge(
+            //                 *std::find_if(vertices_.begin(), vertices_.end(), [&sourceName](koalaGraph::PVertex const& vertex) {return sourceName == vertex->info.name;}), 
+            //                 *std::find_if(vertices_.begin(), vertices_.end(), [&sinkName](koalaGraph::PVertex const& vertice) {return sinkName == vertice->info.name;}), 
+            //                 edgeDescription(flowIt->get<int>("MemoryRequirement"),flowIt->getName()), 
+            //                 Koala::Directed));
+            
+            lemon::ListDigraph::Node sourceNode, sinkNode;
+            for (lemon::ListDigraph::NodeIt n(this->graph_; n != lemon::INVALID; ++n)
+            {
+                nodeDescription desc = this->nodes_[n];
+                if (sourceName == desc.name) 
+                    sourceNode = n;
+                else if (sinkName == desc.name)
+                    sinkNode = n;
+            }
+            lemon::ListDigraph::Arc tmpEdge = this->graph_->addArc(sourceNode, sinkNode);
+            this->edges_[tmpEdge] = edgeDescription(memReq, flowIt->getName());
         }
     }
-    //std::cout << std::to_string(this->getGraph().getVertNo()) << std::to_string(this->getGraph().getEdgeNo()) << std::endl;
-    pass.log(mv::Logger::MessageType::Debug, "KOALA graph has " + std::to_string(this->getGraph().getVertNo()) + " vertices and " + std::to_string(this->getGraph().getEdgeNo()) + " edges");
 }
 
 // /**
