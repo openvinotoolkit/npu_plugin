@@ -39,16 +39,14 @@ namespace mv
 
 int countNumberOfWorkloadsMetisReturned(int arr[], int n) 
 { 
-    // First sort the array so that all 
-    // occurrences become consecutive 
+    /*First sort the array so that all occurrences become consecutive*/
     std::sort(arr, arr + n); 
   
-    // Traverse the sorted array 
+    /*Traverse the sorted array*/ 
     int res = 0; 
     for (int i = 0; i < n; i++) { 
   
-        // Move the index ahead while 
-        // there are duplicates 
+        /*Move the index ahead while there are duplicates */
         while (i < n - 1 && arr[i] == arr[i + 1]) 
             i++; 
   
@@ -61,10 +59,8 @@ int countNumberOfWorkloadsMetisReturned(int arr[], int n)
 
 std::pair<int,int> partitionTensorWithMETIS(const std::shared_ptr<mv::MetisGraphStructure>& metisGraph, idx_t nWorkloads, const mv::pass::PassEntry& pass) 
 {
-    std::pair<int, int> metisResults;
-
-    METIS_SetDefaultOptions(metisGraph->options);
-
+    /*METIS Debug Data*/
+    /*
     pass.log(mv::Logger::MessageType::Debug, "The adjancy data for METIS is ");
     for(int i =0; i < 2*metisGraph->m_numberTensorEdges; i++) 
         pass.log(mv::Logger::MessageType::Debug, std::to_string(metisGraph->adjncy[i]));
@@ -76,8 +72,10 @@ std::pair<int,int> partitionTensorWithMETIS(const std::shared_ptr<mv::MetisGraph
     pass.log(mv::Logger::MessageType::Debug, "The vwgt data for METIS is ");
     for(int i =0; i < (metisGraph->m_numberTensorVertices); i++) 
         pass.log(mv::Logger::MessageType::Debug, std::to_string(metisGraph->vwgt[i]));
+    */
     
     /*METIS call*/
+    METIS_SetDefaultOptions(metisGraph->options);
     int res = METIS_PartGraphRecursive(&metisGraph->m_numberTensorVertices,&metisGraph->nWeights, metisGraph->xadj.get(), metisGraph->adjncy.get(),
                     metisGraph->vwgt.get(), NULL, NULL, &nWorkloads, NULL,
 				    NULL, metisGraph->options, &metisGraph->objval, metisGraph->part.get());
@@ -85,8 +83,10 @@ std::pair<int,int> partitionTensorWithMETIS(const std::shared_ptr<mv::MetisGraph
     pass.log(mv::Logger::MessageType::Debug, "Value of the objective function that was minimized by METIS (should be same as PoC compiler) is: " + std::to_string(metisGraph->objval));
 
     /*Print node partition*/
+    /*
     for(int part_i = 0; part_i < metisGraph->m_numberTensorVertices; part_i++) 
-            pass.log(mv::Logger::MessageType::Debug, "Node " + std::to_string(part_i) + " is in partition " + std::to_string(metisGraph->part[part_i]));  
+            pass.log(mv::Logger::MessageType::Debug, "Node " + std::to_string(part_i) + " is in partition " + std::to_string(metisGraph->part[part_i])); 
+    */ 
     
     /* The METIS numbering convention for partitions starts at 0, for number of partitions > 1. i.e. nodes are assinged to partions labelled 0 -> (number partitions -1) 
      * However, the METIS numbering convention for partitions starts at 1, for number of partitions exactly = 1. i.e. nodes are assinged to partions labelled 1
@@ -100,10 +100,7 @@ std::pair<int,int> partitionTensorWithMETIS(const std::shared_ptr<mv::MetisGraph
      /*Check if METIS returned fewer than the requested number of partitions - this is an error condition*/
     int numberOfMetisPartitions = countNumberOfWorkloadsMetisReturned(metisGraph->part.get(), metisGraph->m_numberTensorVertices);
 
-    metisResults.first = res;
-    metisResults.second = numberOfMetisPartitions; 
-
-    return metisResults;
+    return {res, numberOfMetisPartitions};
 }
 
 /** 
@@ -141,19 +138,16 @@ int getGlobalCompilationDescriptorConf(const mv::pass::PassEntry& pass, mv::Comp
 
     int nDPU;
     int nClusters;
-    std::pair <int, std::pair<int, int>> globalConfigs;
-    std::string mpeModeString;
-    int nDPUxCluster;
    
     /*Get nDPUs and nClsuters from gloabl compilation descriptor*/ 
     std::shared_ptr<mv::Element> globalParams = model.getGlobalConfigParams();
     if (globalParams->hasAttr("Number_of_DPUs")) 
-        nDPU = globalParams->get<int>("Number_of_DPUs");
+        auto nDPU = globalParams->get<int>("Number_of_DPUs");
     if (globalParams->hasAttr("Number_of_Clusters")) 
         nClusters = globalParams->get<int>("Number_of_Clusters");
 
     /*DPUs per cluster*/  
-    nDPUxCluster =  nDPU / nClusters;
+    auto nDPUxCluster =  nDPU / nClusters;
 
     pass.log(mv::Logger::MessageType::Debug, "Number of DPUs per cluster is: " + std::to_string(nDPUxCluster));
 
@@ -163,13 +157,16 @@ int getGlobalCompilationDescriptorConf(const mv::pass::PassEntry& pass, mv::Comp
 void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element& passDesc, mv::json::Object &)
 {
     pass.log(mv::Logger::MessageType::Debug, "Starting workload generation pass");
-
-    mv::DPUModeList dpu_mode;
-    std::pair<int,int> metisResult;
-    std::shared_ptr<mv::MetisGraphStructure> metisGraph;
     mv::OpModel om(model);
+
+    mv::DPUModeList dpuMode; /*One DPU mode*/
+    mv::DPUModeLists dpuModeLists; /*Both DPU modes*/
+    
+    std::shared_ptr<mv::MetisGraphStructure> metisGraph;
     std::vector<mv::Workloads> workloadsVector;
+
     int workloadsVectorIndex = 0;
+    int optimalWorkloadIndex = 0;
     bool metisFail = false;
     bool rectangleFail = false;
     
@@ -192,14 +189,17 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
         
             /*For Deptwise convolution, Max pooling and CM convolution MPE mode must be (1,16)*/
             if((opIt->get<std::string>("taskOp") == "DepthwiseConv") || (opIt->get<std::string>("taskOp") == "MaxPool") || (opIt->get<std::string>("taskOp") == "ChannelMajorConvolution")) {
-                dpu_mode = {{1, 16}};
+                dpuModeLists = {{{1, 16}}};
             }
             else
-                dpu_mode = {{4,4},{1, 16}};
+                dpuModeLists = {{{4,4},{1, 16}}};
 
+            /*Generate the number of workloads split pool*/
             auto nWorkloadsSplitPool = mv::Workloads::getWorkloadSplitPool(opIt->getOutputTensor()[0], nDPUxCluster, 50);
 
-            for (auto mode : dpu_mode) {
+
+            /* For each dpu mode and for each workload, attempt to partition with METIS and/or Rectangle and create worklaods*/ 
+            for (auto dpuMode : dpuModeLists) {
 
                 for(auto nWorkloads : nWorkloadsSplitPool) {
 
@@ -211,19 +211,19 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                         if (algorithm == "Metis") {
                             
                             /*Create workload instance*/
-                            workloadsVector.emplace_back(mv::Workloads(opIt->getName(), opIt->getOutputTensor()[0]->getShape(), dpu_mode[0]));
+                            workloadsVector.emplace_back(mv::Workloads(opIt->getName(), opIt->getOutputTensor()[0]->getShape(), dpuMode[0]));
 
                             /*Populate Metis adjacency structure and partition tensor*/
                             workloadsVector.at(workloadsVectorIndex).generateMetisGraph();
                             metisGraph = workloadsVector.at(workloadsVectorIndex).getMetisGraph();
-                            metisResult = partitionTensorWithMETIS(metisGraph, nWorkloads, pass);
+                            auto metisResult = partitionTensorWithMETIS(metisGraph, nWorkloads, pass);
 
                             /*Store METIS optimization value as attrbute for unit testing and for comparison with POC compiler*/
                             opIt->set<int>("Metis_edge_cut", metisGraph->objval);
 
                             /*Check that Metis returned the exact number of partitions requested. Sometimes it will return less*/
                             if ((metisResult.first == 1) && (metisResult.second == nWorkloads))
-                                workloadsVector.at(workloadsVectorIndex).populateWorkloadsFromPartitions(nWorkloads, pass, mode);
+                                workloadsVector.at(workloadsVectorIndex).populateWorkloadsFromPartitions(nWorkloads, pass, dpuMode[0]);
                             else {
                                 
                                 pass.log(mv::Logger::MessageType::Debug,"Error partitioning tensor into workloads using METIS");
@@ -253,7 +253,7 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                             }
                         }
                 
-                        else if (algorithm == "Rectangle") {
+                        if (algorithm == "Rectangle") {
                         
                             /*Go here if METIS fails*/
                             Rectangle:
@@ -262,44 +262,35 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                             workloadsVector.emplace_back(mv::Workloads(opIt->getName(), opIt->getOutputTensor()[0]->getShape()));
 
                             /*Partition tensor into workloads with Rectangle*/
+                            rectangleFail = false;
                             bool split_over_h = true;
                             bool split_over_w = true;
                             bool split_symmetric = false;
 
-                            auto res = workloadsVector.at(workloadsVectorIndex).partitionTensorWithRectangleHeuristic(dpu_mode, nWorkloads,
+                            auto rectangleResult = workloadsVector.at(workloadsVectorIndex).partitionTensorWithRectangleHeuristic(dpuMode, nWorkloads,
                                                             split_over_h, split_over_w, split_symmetric,
                                                             mv::WorkloadSplitMode::HW, pass);
-                   
-                            if ((res != 1) && (metisFail)) {
-                                workloadsVector.erase(workloadsVector.begin() + (workloadsVectorIndex+1));
-                                rectangleFail = true;
-                            }
-                            else if (res != 1) {
-                                pass.log(mv::Logger::MessageType::Debug, "Unable to produce valid workloads using Rectangle only");
+
+                            if (rectangleResult != 1) {
+                                pass.log(mv::Logger::MessageType::Debug, "Error using Rectangle to tile the output tensor, erasing this workload instance");
                                 workloadsVector.erase(workloadsVector.begin() + (workloadsVectorIndex));
                                 rectangleFail = true;
                             }
 
-                            if((!rectangleFail) && (metisFail)) {
-                                if((!workloadsVector.at(workloadsVectorIndex).validateWorkloads(opIt->getOutputTensor()[0]->getShape()))) {
-                                    pass.log(mv::Logger::MessageType::Debug, "Unable to produce valid workloads using Rectangle and METIS");
-                                    workloadsVector.erase(workloadsVector.begin() + workloadsVectorIndex);
-                                }
-                            }
-
-                            if((rectangleFail) && (metisFail)) {
-                                pass.log(mv::Logger::MessageType::Debug, "Unable to produce valid workloads using Rectangle");
-                                workloadsVector.erase(workloadsVector.begin() + workloadsVectorIndex);
-                            }
-
                             if(!rectangleFail) {
-                                rectangleFail = false;
-                                metisFail = false;
-                                
-                                pass.log(mv::Logger::MessageType::Debug, "Valid workload created");
-                                workloadsVectorIndex++;
-                            }
-                        
+
+                                if((!workloadsVector.at(workloadsVectorIndex).validateWorkloads(opIt->getOutputTensor()[0]->getShape()))) {
+                                    pass.log(mv::Logger::MessageType::Debug, "Error producing valid workloads from Rectangle partitions,erasing this workload instance ");
+                                    workloadsVector.erase(workloadsVector.begin() + workloadsVectorIndex);
+                                    rectangleFail = true;
+                                }
+
+                                if(!rectangleFail) {
+                                    rectangleFail = false;
+                                    pass.log(mv::Logger::MessageType::Debug, "Valid workload created using Rectangle");
+                                    workloadsVectorIndex++;
+                                }
+                            }               
                     }
                 
                     else if (algorithm == "Z-Tiling")
@@ -313,12 +304,15 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
             }
         }
 
-            /*Calculate execution cycles for each workload*/
+            /*Calculate execution cycles for each valid workload*/
             mv::Workloads::generateExecutionCycles(workloadsVector, nDPUxCluster, costFuntion);
 
             /*Print the execution cycles*/
-            for (auto wl : workloadsVector) 
-                pass.log(mv::Logger::MessageType::Debug, "Cost (Min)" + std::to_string(wl.getExecutionCycles()[0]) + " Cost (Max)" + std::to_string(wl.getExecutionCycles()[1]));
+            int index = 0;
+            for (auto wl : workloadsVector) {
+                pass.log(mv::Logger::MessageType::Debug, "Index " + std::to_string(index) + " (Min) " + std::to_string(wl.getExecutionCycles()[0]) + " Cost (Max)" + std::to_string(wl.getExecutionCycles()[1]));
+                index++;
+            }
 
             /*Pick the workload with minimum execution time*/
             auto optimalWorkload = std::min_element(workloadsVector.begin(), workloadsVector.end(),
@@ -327,16 +321,21 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                     return lhs.getExecutionCycles()[0] < rhs.getExecutionCycles()[0];
                 });
         
-                /*Get the index of the most optimial workload*/
-            auto optimalWorkloadIndex = std::distance(workloadsVector.begin(), optimalWorkload);
+            /*Get the index of the most optimial workload*/
+            optimalWorkloadIndex = std::distance(workloadsVector.begin(), optimalWorkload);
 
             pass.log(mv::Logger::MessageType::Debug, "Selecting workload at index " + std::to_string(optimalWorkloadIndex) + " as the most optimal one");
 
-            /*Setting most optimal workload*/
-            opIt->set<mv::Workloads>("Workloads", workloadsVector.at(optimalWorkloadIndex ));
+            /*Set the most optimal workload as attribute of the op*/
+            opIt->set<mv::Workloads>("Workloads", workloadsVector.at(optimalWorkloadIndex));
+
+            /*Reset workloads vector and indices for the next layer*/
+            workloadsVector.clear();
+            workloadsVectorIndex = 0;
+            optimalWorkloadIndex = 0;
     
-            pass.log(mv::Logger::MessageType::Debug, "Exiting workload generation pass");
         }
     }
+    pass.log(mv::Logger::MessageType::Debug, "Exiting workload generation pass");
 }  
 

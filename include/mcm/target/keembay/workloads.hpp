@@ -36,6 +36,7 @@ namespace mv
 
     struct DPUMode { unsigned H, W; }; // NB: do not mess with MPE_Mode
     using  DPUModeList = std::vector<mv::DPUMode>;
+    using  DPUModeLists = std::vector<mv::DPUModeList>;
 
     /* The POC compiler generates a lattic structure of the tensor shape with the nodes numbered in this order
      * Example for tensor size 16x16

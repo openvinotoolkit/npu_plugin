@@ -4,10 +4,10 @@
             {
                 "name" : "GlobalConfigParams",
                 "_comment" : "Stores common params accross multiple passes. Access through the Computation Model.",
-                "recorded_model": false,
+                "recorded_model": true,
                 "weights_form": "None",
                 "barrier_index_assignment" : "Dynamic",
-                "Number_of_DPUs" : 1,
+                "Number_of_DPUs" : 5,
                 "Number_of_Clusters" : 1,
                 "UpaShaves": 1,
                 "DDRScratch": 4096,
@@ -263,7 +263,7 @@
             {
                 "name": "GenerateWorkloads",
                 "costfunction": "criticalpath",
-                "TensorSplitAlgorithms": "Rectangle",
+                "TensorSplitAlgorithms": "Metis, Rectangle",
                 "_comment": "Supported CostFunctions are: balanced | criticalpath | minmax | greedy. Supported TensorSplitAlgorithms are Metis, Rectangle, Z-Tiling"
             },
             "ArrangeKeembayExecution",

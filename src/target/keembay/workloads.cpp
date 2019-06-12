@@ -810,11 +810,15 @@ std::vector<mv::Workload> mv::Workloads::workloadSplitHelper(const mv::pass::Pas
     workload_partition_2.setMinMaxAndVertices();
     std::vector<mv::Workload> final1;
     std::vector<mv::Workload> finalWorkloadList;
+    
     // add what happens if the partitions are empty --- same as POC. This can be tricky as the size of hte vector in points total
     // may be the max number of elements allowed for that vector type
     // Add a 'throw exception' condition below
-    if (workload_partition_1.pointsTotal() == 0 || workload_partition_2.pointsTotal() == 0)
-        throw mv::RuntimeError(pass, "Inside workload splitter into rectangles. workload parition with zero points can't exist");
+    if (workload_partition_1.pointsTotal() == 0 || workload_partition_2.pointsTotal() == 0) {
+        pass.log(mv::Logger::MessageType::Warning, "Inside workload splitter into rectangles. workload parition with zero points can't exist, this should produce invalid workloads");
+        return finalWorkloadList;
+    }
+    
     final1 = mv::Workloads::polygonWorkloadSplit(pass, workload_partition_2, workloads_, mpe_mode);
     finalWorkloadList = mv::Workloads::polygonWorkloadSplit(pass, workload_partition_1, workloads_, mpe_mode);
     finalWorkloadList.insert(finalWorkloadList.end(), final1.begin(), final1.end());
@@ -930,21 +934,22 @@ void mv::Workloads::setExecutionCycles(std::vector<float> val)
 
 void mv::Workloads::generateExecutionCycles(std::vector<mv::Workloads>& workloadsVector, int nDPUxCluster, CostFunctions costFunction)
 {
-    std::vector<float> workloadsExecutionCycles;
-
     /* Execution time is bounded by
      * sum(WL)/DPU <= T <= max(WL_max)*(P-1)/P
-    */     
+    */
+
+    /*Individual workload execution cycles*/
+    std::vector<float> workloadsExecutionCycles;
 
     if (nDPUxCluster < 1)
         throw mv::ArgumentError("Generate Workloads Pass", "nDPUxCluster", std::to_string(nDPUxCluster), "Invalid number of DPUs");
 
-    /*For each workload object*/
+    /*For each workload instance*/
     for(auto itWorklaods = workloadsVector.begin(); itWorklaods != workloadsVector.end(); itWorklaods++) {
         
         workloadsExecutionCycles.clear();
         
-        /*For each of the individual workloads*/
+        /*Calculate the cost for each of the individual workloads (rectangles) */
         for(auto itworkload = itWorklaods->workloads_.begin(); itworkload != itWorklaods->workloads_.end(); ++itworkload) {
             
             std::pair <int,int> mpeMode (4, 4);
@@ -955,9 +960,6 @@ void mv::Workloads::generateExecutionCycles(std::vector<mv::Workloads>& workload
             float height = (itworkload->MaxY+1) - itworkload->MinY; // + mpeMode.first;
             float width = (itworkload->MaxX+1) - itworkload->MinX; // + mpeMode.second;
 
-            std::cout << itWorklaods->tensorShape_[2] << std::endl;
-            std::cout << height << std::endl;
-            std::cout << width << std::endl;
             float sumExeCycles = ceil(itWorklaods->tensorShape_[2]/16.0) * ceil(height / mpeMode.first) * ceil(width / mpeMode.second);
             workloadsExecutionCycles.push_back(sumExeCycles);
         }
@@ -975,6 +977,7 @@ void mv::Workloads::generateExecutionCycles(std::vector<mv::Workloads>& workload
         /*Cost function*/
         if(costFunction == CostFunctions::CriticalPath) {
 
+        /*Store the excutions cycles in the object*/
         if (nDPUxCluster == 1)
             itWorklaods->executionCycles_ = {min_range, min_range};
         else
@@ -1610,6 +1613,7 @@ int mv::Workloads::partitionTensorWithRectangleHeuristic(const mv::DPUModeList& 
 
     workloads_ = generateWorkloadsFromSlices(mode_list, slice_list, best_padding, Z);
     pass.log(mv::Logger::MessageType::Debug, "RectangleHeuristic: done");
+
 
     return METIS_OK;
 }
