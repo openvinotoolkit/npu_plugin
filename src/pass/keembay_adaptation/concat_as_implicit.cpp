@@ -32,13 +32,11 @@ void concatAsImplicitFcn(const mv::pass::PassEntry& , mv::ComputationModel& mode
         auto axis = concat->get<std::string>("axis");
         auto name = concat->getName();
         mv::QuantizationParams quantParams = {{}, {}, {}, {}};
-        if(concat->hasAttr("quantizationParams"))
-            quantParams = concat->get<mv::QuantizationParams>("quantizationParams");
+        if(concat->hasAttr("quantParams"))
+            quantParams = concat->get<mv::QuantizationParams>("quantParams");
 
         auto outputFlows = mv::getOutputDataFlow(om, concat);
         auto implicitConcat = om.implicitConcat(inputs, axis, quantParams, name);
         mv::setOutputDataFlow(om, implicitConcat, outputFlows);
     }
 }
-
-
