@@ -279,6 +279,13 @@ void mv::Tensor::populate(const std::vector<int64_t>& data, Order order)
     populate(data);
 }
 
+//TODO: this should use for Sparse data computeTotalSize
+//why in deallocation pass this is not rounded up to 16?? bug?if not just let this call computeTotalSize
+// and whoever is calling doesn't need to roundup again since it's already rounded up
+// There are 2 diffenent uses we need to define:
+// 1.  memory buffer size (which in case of sparse & !populaetd will include not only the
+//     tensor but also the storageelement and sparsitymap)
+// 2.  size of the data for serialization: in case of spare totalSize is not good as it doesn't take into account packing of fata
 int mv::Tensor::computeMemoryRequirement() const
 {
     return (shape_.totalSize() * get<DType>("dType").getSizeInBits() / 8);
