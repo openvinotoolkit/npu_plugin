@@ -13,7 +13,7 @@ FIND_PATH(LEMON_DIR list_graph.h
 ##----------------------------------------------------
 IF(EXISTS "${LEMON_DIR}" AND NOT "${LEMON_DIR}" STREQUAL "")
   SET(LEMON_FOUND TRUE)
-  # Remove /lemon from path (math.h cannot be exposed all time)
+#   # Remove /lemon from path (math.h cannot be exposed all time)
   GET_FILENAME_COMPONENT(LEMON_INCLUDE_DIRS "${LEMON_DIR}" PATH)
   SET(LEMON_DIR "${LEMON_DIR}" CACHE PATH "" FORCE)
   MARK_AS_ADVANCED(LEMON_DIR)
@@ -37,18 +37,18 @@ IF(EXISTS "${LEMON_DIR}" AND NOT "${LEMON_DIR}" STREQUAL "")
     LEMON_VERSION "${LEMON_VERSION_FILE_CONTENTS}")
     STRING(REGEX REPLACE "#define LEMON_VERSION \"([0-9.]+)\"" "\\1"
     LEMON_VERSION "${LEMON_VERSION}")
-  ENDIF (NOT EXISTS ${LEMON_VERSION_FILE})
+ENDIF (NOT EXISTS ${LEMON_VERSION_FILE})
   
-  SET(LEMON_INCLUDE_DIR ${LEMON_DIR})
+  # SET(LEMON_INCLUDE_DIR ${LEMON_DIR})
 
-  FIND_LIBRARY(LEMON_LIBRARY NAMES Lemon lemon emon)
+  FIND_LIBRARY(LEMON_LIBRARY NAMES Lemon lemon emon libemon)
 
   # locate Lemon libraries
   IF(DEFINED LEMON_LIBRARY)
     SET(LEMON_LIBRARIES ${LEMON_LIBRARY})
   ENDIF()
 
-  MESSAGE(STATUS "Lemon ${LEMON_VERSION} found (include: ${LEMON_DIR})")
+  MESSAGE(STATUS "Found Lemon ${LEMON_VERSION} (include: ${LEMON_DIR})")
 ELSE()
   MESSAGE(FATAL_ERROR "You are attempting to build without Lemon. "
           "Please use cmake variable -DLEMON_INCLUDE_DIR_HINTS:STRING=\"PATH\" "

@@ -47,14 +47,14 @@ namespace mv
         ~LemonGraphScheduler();
         lemon::ListDigraph& getGraph();
 
-        void convertMcMGraphToLemonGraph(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
+        //void convertMcMGraphToLemonGraph(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
         
         //void performPartialSerialisation(const mv::pass::PassEntry& pass, std::vector<koalaGraph::PEdge> cutEdges);
         //std::pair<int,std::vector<koalaGraph::PEdge>> calculateMaxTopologicalCut(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
         //uint64_t calculateFMax(mv::ComputationModel& model);
         //void insertpartialSerialisationEdgesInMcmGraph(mv::ComputationModel& model);
           
-        std::string getLogID() const override;
+        //std::string getLogID() const override;
 
     };
 }

@@ -427,7 +427,7 @@ else()
             #Flatbuffers and Metis not x-compiled yet
             target_link_libraries(cm corebase metamodel)
         ELSE()
-            target_link_libraries(cm corebase metamodel flatbuffers metis)
+            target_link_libraries(cm corebase metamodel flatbuffers metis libemon.a)
             add_dependencies(cm generate-comp-api)
             add_dependencies(model generate-comp-api)
             add_dependencies(cm generate-graphfile-headers)
