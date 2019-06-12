@@ -143,13 +143,13 @@ static void generateSparsityMapsFcn(const mv::pass::PassEntry& pass, mv::Computa
         {
             std::string taskOp = dpuTask->get<std::string>("taskOp");
             pass.log(mv::Logger::MessageType::Debug, " taskOp "  + dpuTask->get<std::string>("taskOp"));
-            bool isConv = taskOp == "ChannelMajorConvolution";
+            bool isChannelMajorConv = taskOp == "ChannelMajorConvolution";
             bool isPooling = taskOp == "MaxPool";
             bool isDepthWiseConv = taskOp == "DepthwiseConv";
 
             //for max pooling and deptwise convolution and channel-major convolution we need to generate sparsity data
             //even if those layers does not support sparsity.
-            if (isPooling || isDepthWiseConv || isConv)
+            if (isPooling || isDepthWiseConv || isChannelMajorConv)
             {
                 fakeSparsity = true;
                 uint16_t kernelW, kernelH;
