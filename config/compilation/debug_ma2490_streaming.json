@@ -95,7 +95,8 @@
                 "VersionMajor": 3,
                 "VersionMinor": 10,
                 "VersionHash": "c1b3a9075e52694726edc996124c04b9268cf4cf"
-            }
+            },
+            "StoreTensorPlacement"
         ]
     },
     "adapt": {
@@ -130,7 +131,6 @@
     "keembay_adapt": {
         "Singular": [
             "StoreLayerSplitStrategy",
-            "StoreTensorPlacement",
             "ConvertOpsToTasks",
             "ComputeTensorsQuantParams",
             "KMBOrderConversion",

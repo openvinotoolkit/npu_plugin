@@ -95,6 +95,7 @@ mv::Data::TensorIterator solveSpatialTiling(mv::OpModel& om,mv::Data::OpListIter
     //solve SOW/H location
     //TODO:: stop hardcoding index....
     auto inputTensor = op->getInputTensor(0);
+    auto kernelTensor = op->getInputTensor(1);
     auto outputTensor = op->getOutputTensor(0);
 
     auto number_of_spltis = tiling.childTiles().size();
@@ -146,7 +147,7 @@ mv::Data::TensorIterator solveSpatialTiling(mv::OpModel& om,mv::Data::OpListIter
             currentPad = middle_pad;
 
         auto conv = om.conv(slice,
-                                op->getInputTensor(1),
+                                kernelTensor,
                                 kernelStride,
                                 currentPad,
                                 op->get<unsigned>("dilationFactor"),
@@ -154,10 +155,15 @@ mv::Data::TensorIterator solveSpatialTiling(mv::OpModel& om,mv::Data::OpListIter
                                 op->get<mv::QuantizationParams>("quantParams"),
                                 op->getName() + "_split_" + std::to_string(split));
 
-        om.getSourceOp(conv)->set<bool>("splitted",true);
+        auto newOp = om.getSourceOp(conv);
+
+        newOp->set<bool>("splitted",true);//TODO::temporary hack. To remove once the iteration conditions are updated
+        newOp->set<unsigned>("opId",op->get<unsigned>("opId"));
 
         slices[split] = slice;
         convs[split] = conv;
+
+//        om.defineFlow(kernelTensor,newOp,1); //TODO:: review.
     }
 
     // decide on the location of the I/O Tensors of the conv;
@@ -172,16 +178,19 @@ mv::Data::TensorIterator solveSpatialTiling(mv::OpModel& om,mv::Data::OpListIter
         mv::Tensor::MemoryLocation outputLocation;
         if(childTiles[split].childTiles().size() > 1)
         {
+            //has chidren. Inherit
+            inputLocation.relocate(inputTensor->get<mv::Tensor::MemoryLocation>("Location"));
+            outputLocation.relocate(outputTensor->get<mv::Tensor::MemoryLocation>("Location"));
+
+        }
+        else
+        {
             //no more children.
             //todo:: Expose in JSON config the "Default stream location"
             inputLocation.relocate(mv::Tensor::MemoryLocation::CMX);
             outputLocation.relocate(mv::Tensor::MemoryLocation::CMX);
             inputLocation.force();
             outputLocation.force();
-        }
-        {
-            inputLocation.relocate(inputTensor->get<mv::Tensor::MemoryLocation>("Location"));
-            outputLocation.relocate(outputTensor->get<mv::Tensor::MemoryLocation>("Location"));
         }
         slices[split]->set<mv::Tensor::MemoryLocation>("Location",inputLocation);
         convs[split]->set<mv::Tensor::MemoryLocation>("Location",outputLocation);
@@ -208,6 +217,7 @@ mv::Data::TensorIterator solveSpatialTiling(mv::OpModel& om,mv::Data::OpListIter
                     op->get<mv::QuantizationParams>("quantParams"),
                     op->getName() + "_concat_");
 
+    concat->set<mv::Tensor::MemoryLocation>("Location",outputTensor->get<mv::Tensor::MemoryLocation>("Location"));
     return concat;
 }
 
@@ -311,13 +321,6 @@ void streamingTilingFcn(const mv::pass::PassEntry& pass,
             {
                 opsToLink.push_back(sinkFlow.sink());
                 inputSlots.push_back(sinkFlow->get<std::size_t>("sinkInput"));
-            }
-
-            while(opIt.parentsSize() > 1)
-            {
-                auto paramOp = opIt.leftmostParent();
-                ++paramOp;
-                om.removeOp(paramOp);
             }
 
             om.removeOp(opIt);
