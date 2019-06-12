@@ -208,6 +208,7 @@ SET(base
     "${PROJECT_SOURCE_DIR}/src/target/keembay/tasks/def/placeholder_task.cpp"
     "${PROJECT_SOURCE_DIR}/src/target/keembay/tasks/def/sparsity_map.cpp"
     "${PROJECT_SOURCE_DIR}/src/target/keembay/tasks/def/weights_table.cpp"
+    "${PROJECT_SOURCE_DIR}/src/target/keembay/tasks/def/implicit_concat.cpp"
 
 
     "${PROJECT_SOURCE_DIR}/src/tensor/dtype/dtype_def/bin.cpp"

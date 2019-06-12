@@ -1,0 +1,44 @@
+#include "include/mcm/pass/pass_registry.hpp"
+#include "meta/include/mcm/op_model.hpp"
+#include "include/mcm/computation/model/control_model.hpp"
+#include "include/mcm/computation/model/data_model.hpp"
+#include "include/mcm/target/keembay/ppe_task.hpp"
+#include "include/mcm/tensor/quantization_params.hpp"
+#include "include/mcm/utils/custom_strings.hpp"
+#include "include/mcm/pass/pass_utils.hpp"
+
+static void concatAsImplicitFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
+
+namespace mv
+{
+    namespace pass
+    {
+        MV_REGISTER_PASS(ConcatAsImplicit)
+            .setFunc(concatAsImplicitFcn)
+            .setDescription(
+                "Replaces all concats with implicits concats");
+    }
+}
+
+void concatAsImplicitFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+{
+    mv::OpModel om(model);
+
+    auto concats = om.getOps("Concat");
+
+    for(auto& concat: concats)
+    {
+        auto inputs = concat->getInputTensor();
+        auto axis = concat->get<std::string>("axis");
+        auto name = concat->getName();
+        mv::QuantizationParams quantParams = {{}, {}, {}, {}};
+        if(concat->hasAttr("quantizationParams"))
+            quantParams = concat->get<mv::QuantizationParams>("quantizationParams");
+
+        auto outputFlows = mv::getOutputDataFlow(om, concat);
+        auto implicitConcat = om.implicitConcat(inputs, axis, quantParams, name);
+        mv::setOutputDataFlow(om, implicitConcat, outputFlows);
+    }
+}
+
+
