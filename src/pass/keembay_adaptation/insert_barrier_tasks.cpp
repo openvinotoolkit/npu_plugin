@@ -444,15 +444,10 @@ static void addBarriers(mv::ComputationModel& model, std::vector<mv::Barrier>& b
     // barriers ID are set in a separate pass
     auto sortedCtrlOps = cm.topologicalSort();
 
+    // Add control flow barriers, the only one needed now and forever
     for (auto ctrlOp: sortedCtrlOps)
-    {
-        // Add control flow barriers
         getBarrierForControlModelOp(cm, ctrlOp, barriers);
 
-        // Look for any data dependencies that may need barriers
-        auto opModelOp = om.switchContext(ctrlOp);
-        getBarrierForOpModelOp(om, opModelOp, barriers);
-    }
 }
 
 static void setBarrierGroupAndIndex(const mv::pass::PassEntry& pass, mv::OpModel& om, std::vector<mv::Barrier>& barriers, mv::Element& passDesc)
@@ -596,7 +591,7 @@ void setBarrierIndicesAccordingToTopologicalSortOrder(mv::ComputationModel& mode
 
     if (indexAssignment == "Dynamic")
     {
-        auto topologicallySortedOps = cm.topologicalSort();
+        auto topologicallySortedOps = cm.schedulingSort();
 
         int id = 0;
         for (auto op: topologicallySortedOps)
@@ -604,7 +599,6 @@ void setBarrierIndicesAccordingToTopologicalSortOrder(mv::ComputationModel& mode
             if (op->getOpType() == "BarrierTask")
             {
                 auto& barrier = op->get<mv::Barrier>("Barrier");
-                barrier.setID(id);
                 barrier.setIndex(id);
                 id++;
             }
@@ -636,8 +630,13 @@ static void insertBarrierTasksFcn(const mv::pass::PassEntry& pass, mv::Computati
     // XXX: Q: Do any extraneous consumers need to be removed as well?
     removeExtraProducers(pass, model, barriers);
 
+    // Optional pass
     resetBarrierIDs(barriers);
 
+    // Sets just the index, as group is not used right now
+    // Runs barrier graph coloring to see if we can execute
+    // are current parallel scheduling with 8 barriers
+    // or we need to serialize more
     setBarrierGroupAndIndex(pass, om, barriers, passDesc);
 
     insertBarriersIntoControlFlowGraph(model, passDesc, barriers);

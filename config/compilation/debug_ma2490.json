@@ -183,7 +183,7 @@
         "Singular" : [
             {
                 "name":"AddWeightsDMATasks",
-                "weights_prefetch": 2
+                "weights_prefetch": 1
             },
             "AddInitialAndFinalDMATask",
             {
@@ -380,6 +380,17 @@
             {
                 "name": "ConvertDot",
                 "input": "final_model.dot"
+            },
+            {
+                "name": "GenerateDot",
+                "output": "serial_model.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "serial_model.dot"
             }
         ]
     },

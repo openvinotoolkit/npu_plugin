@@ -67,7 +67,7 @@ std::string mv::createAlignWeightSetConstantName(const std::string& opName)
 //Barrier ID HAS TO BE USED!!! It is unique because of the static counter in the barrier class
 std::string mv::createBarrierName(const std::string& opName, unsigned barrierID)
 {
-    return "~" + opName + "_Barrier_" + std::to_string(barrierID);
+    return opName + "_Barrier_" + std::to_string(barrierID);
 }
 
 std::string mv::createBiasName(const std::string& opName)
