@@ -76,6 +76,9 @@ void dmaControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& m
         for(auto outputDataFlow = op.leftmostOutput(); outputDataFlow != dm.flowEnd(); ++outputDataFlow)
         {
             auto sink = outputDataFlow.sink();
+            if(!sink->hasTypeTrait("executable"))
+                continue;
+
             if(!cm.checkControlFlow(op, sink))
                 cm.defineFlow(op, sink);
         }
