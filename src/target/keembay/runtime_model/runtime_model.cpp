@@ -168,7 +168,6 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     auto tensorAllocator = dm.getAllocator(*tensorAllocatorName);
     mv::Data::BufferIterator tensorBufferIt = tensorAllocator.getBuffer(0, t); // 0 is the only stage for now, but this will probably change in the future
 
-    // TODO: Have to be rearranged according to the order
     auto underlyingTensor = tensorBufferIt->getData();
 
     std::vector<uint32_t> dimensions = underlyingTensor->getShape();
@@ -191,21 +190,22 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     if (*tensorAllocatorName == "GraphFile")
     {
         toBuild->data->data_index = t->get<unsigned>("graphFileIndex");
-        // UNSUPPORTED FOR NOW
-        // toBuild->sparsity_index
+        // No need to set sparsity_index for tensor stored in graphfile
     }
     else if(*tensorAllocatorName == "ProgrammableInput" || *tensorAllocatorName == "ProgrammableOutput")
     {
-        //toBuild->data->data_index = tensorBufferIt->getOffset();
-
-        //HOTFIX until we know what to do with graph coloring
         toBuild->data->data_index = 0;
-        // UNSUPPORTED FOR NOW
-        // toBuild->sparsity_index
+        // No need to set sparsity_index for input/output tensor of the network
     }
     else
     {
         toBuild->data->data_index = tensorBufferIt->getOffset();
+        if(t->isSparse())
+        {
+            toBuild->data->sparsity_index = t->getSparsityMap()->getAddress();
+            if(!t->isPopulated())
+                toBuild->data->storage_element_index = t->getStorageElement()->getAddress();
+        }
     }
     toBuild->locale = convertAllocatorToMemoryLocale(*tensorAllocatorName);
 
