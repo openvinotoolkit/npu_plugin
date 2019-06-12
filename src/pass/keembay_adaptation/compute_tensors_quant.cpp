@@ -44,7 +44,7 @@ void computeTensorsQuantParams(const mv::pass::PassEntry&, mv::ComputationModel&
              }
              bool isElementWise = (taskOp == "Add" || taskOp == "Subtract" || taskOp == "Multiply");
              bool isConv = (taskOp == "Conv" || taskOp == "DepthwiseConv" || taskOp == "ChannelMajorConvolution");
-             if (isConv || taskOp == "MaxPool" || taskOp == "Concat" ||  isElementWise)
+             if (isConv || taskOp == "MaxPool" || taskOp == "ImplicitConcat" ||  isElementWise)
              {
                  auto output = opIt->getOutputTensor(0);
                  auto input = opIt->getInputTensor(0);

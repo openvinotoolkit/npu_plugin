@@ -148,7 +148,7 @@ void allocateCMXTensorsFcnKeemBay(const mv::pass::PassEntry& pass, mv::Computati
 
         else if (opType == "Constant" || opType == "ConstantInt" || opType == "ConstantDataElement")
             continue;
-        else if (opType == "Concat")
+        else if (opType == "ImplicitConcat")
         {
             // Allocate Output
             auto outputTensor = opIterator->getOutputTensor(0);
