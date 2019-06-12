@@ -115,15 +115,13 @@ void addWeightsDMATasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
     mv::ControlModel cm(model);
     mv::DataModel dm(model);
 
-    auto removeOps = [] (std::vector<mv::Data::OpListIterator>& list, const std::string& opType)
+    auto removeOps = [] (std::vector<mv::Data::OpListIterator>& list, const std::string& opTrait)
     {
-        list.erase(std::remove_if(list.begin(), list.end(), [opType](mv::Data::OpListIterator it) { return it->getOpType() == opType;}), list.end());
+        list.erase(std::remove_if(list.begin(), list.end(), [opTrait](mv::Data::OpListIterator it) { return !it->hasTypeTrait(opTrait);}), list.end());
     };
 
     auto sortedOps = om.topologicalSort();
-    removeOps(sortedOps, "Constant");
-    removeOps(sortedOps, "ConstantInt");
-    removeOps(sortedOps, "ConstantDataElement");
+    removeOps(sortedOps, "executable");
 
     // How self.nn_cmx_memory is computed
     //    cmxSize = 4194304;
