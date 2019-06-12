@@ -3,6 +3,7 @@
 #include "include/mcm/algorithms/transitive_reduction.hpp"
 #include "include/mcm/algorithms/critical_path.hpp"
 #include "include/mcm/algorithms/path_exists.hpp"
+#include "include/mcm/algorithms/scheduling_sort.hpp"
 
 mv::ControlModel::ControlModel(ComputationModel &other) :
 ComputationModel(other)
@@ -205,14 +206,19 @@ mv::Control::FlowListIterator mv::ControlModel::defineFlow(Data::OpListIterator 
 
 std::vector<mv::Control::OpListIterator> mv::ControlModel::topologicalSort()
 {
-    auto cheatNode = getFirst();
-
     // Necessary for correct iterator casting
-    auto topologicalSortResult = mv::topologicalSort(controlGraph_, cheatNode);
+    auto topologicalSortResult = mv::topologicalSort(controlGraph_);
     std::vector<mv::Control::OpListIterator> toReturn(topologicalSortResult.begin(), topologicalSortResult.end());
     return toReturn;
 }
 
+std::vector<mv::Control::OpListIterator> mv::ControlModel::schedulingSort()
+{
+    // Necessary for correct iterator casting
+    auto schedulingSortResult = mv::schedulingSort(controlGraph_, getFirst());
+    std::vector<mv::Control::OpListIterator> toReturn(schedulingSortResult.begin(), schedulingSortResult.end());
+    return toReturn;
+}
 
 struct OpItComparator
 {
