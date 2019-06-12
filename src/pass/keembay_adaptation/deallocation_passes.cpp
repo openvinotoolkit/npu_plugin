@@ -156,15 +156,6 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
 
         }
     }
-
-    // Remove deallocation for last operation
-
-    auto outputOp = om.getOutput();
-    auto lastDMAOp = outputOp.leftmostParent();
-    auto lastOpBeforeLastDma = lastDMAOp.leftmostParent();
-
-    auto lastDeallocation = om.getOp(lastOpBeforeLastDma->getName()+"_DEALLOC");
-    om.removeOp(lastDeallocation);
 }
 
 // Pass role: Remove deallocation tasks for each Tensor
@@ -199,6 +190,10 @@ void removeDeallocationTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel
             auto cmCtlFlow = cm.switchContext(ctlFlow);
             for (auto parentOp = cmCtlFlow.leftmostParent(); parentOp != cm.opEnd(); ++parentOp)
             {
+                // Implicit operations that go to dealloc shall not propagate control flow
+                if(!parentOp->hasTypeTrait("executable"))
+                    continue;
+
                 for (auto childOp = cmCtlFlow.leftmostChild(); childOp != cm.opEnd(); ++childOp)
                 {
                     auto childOpName = childOp->getName();
