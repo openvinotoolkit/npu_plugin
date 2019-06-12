@@ -96,6 +96,11 @@ namespace mv
                 return relocate( namingMap[newPlace]);
             }
 
+            bool relocate(MemoryLocation& newPlace)
+            {
+                return relocate(newPlace.location_);
+            }
+
             //TODO: make it pretty-er
             const std::string print() const {
                 for( auto it = namingMap.begin(); it != namingMap.end(); ++it )

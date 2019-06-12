@@ -63,6 +63,8 @@ if (MSVC)
 
     add_executable(conv_multiSplit conv_multiSplit.cpp  $<TARGET_OBJECTS:cm> $<TARGET_OBJECTS:corebase> $<TARGET_OBJECTS:metamodel> $<TARGET_OBJECTS:model>)
 
+    add_executable(manual_group_conv manual_group_conv.cpp  $<TARGET_OBJECTS:cm> $<TARGET_OBJECTS:corebase> $<TARGET_OBJECTS:metamodel> $<TARGET_OBJECTS:model>)
+
 else()
    
     add_executable(average_to_depthwise average_to_depthwise.cpp)
@@ -169,6 +171,9 @@ else()
 
     add_executable(conv_multiSplit conv_multiSplit.cpp)
     target_link_libraries(conv_multiSplit cm)
+
+    add_executable(manual_group_conv manual_group_conv.cpp)
+    target_link_libraries(manual_group_conv cm)
 
     if(VALIDATION)
     add_executable(caffe_files_generator caffe_files_generator.cpp)
