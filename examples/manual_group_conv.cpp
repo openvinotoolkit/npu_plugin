@@ -45,13 +45,13 @@ int main()
                             emptyQuantParams,
                             "slice_group1_input_");
 
-    std::vector<int64_t> weightsData = mv::utils::generateSequence<int64_t>(32*32);
+    std::vector<int64_t> weightsData = mv::utils::generateSequence<int64_t>(32*32*3*3);
 
-    auto weights0 = om.constantInt(weightsData,{1,1,32,32},mv::DType("UInt8"),mv::Order::getZMajorID(4),emptyQuantParams,"weights0");
-    auto weights1 = om.constantInt(weightsData,{1,1,32,32},mv::DType("UInt8"),mv::Order::getZMajorID(4),emptyQuantParams,"weights1");
+    auto weights0 = om.constantInt(weightsData,{3,3,32,32},mv::DType("UInt8"),mv::Order::getZMajorID(4),emptyQuantParams,"weights0");
+    auto weights1 = om.constantInt(weightsData,{3,3,32,32},mv::DType("UInt8"),mv::Order::getZMajorID(4),emptyQuantParams,"weights1");
 
-    auto conv0 = om.conv(slice0,weights0,{1,1},{0,0,0,0},1,1,emptyQuantParams,"conv0_ddr_");
-    auto conv1 = om.conv(slice1,weights1,{1,1},{0,0,0,0},1,1,emptyQuantParams,"conv1_ddr_");
+    auto conv0 = om.conv(slice0,weights0,{1,1},{1,1,1,1},1,1,emptyQuantParams,"conv0_ddr_");
+    auto conv1 = om.conv(slice1,weights1,{1,1},{1,1,1,1},1,1,emptyQuantParams,"conv1_ddr_");
 
     std::vector<mv::Data::TensorIterator> convs(2);
     convs[0] = conv0;

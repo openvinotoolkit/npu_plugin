@@ -256,10 +256,12 @@ void generateSpatialTiling(mv::Data::OpListIterator op,Tiling& tiling)
         else
             startCoord += kernelStep;
 
-        if(split == (numberOfSplits-1))
-            tileSize[axisToSplit] = remainderSize;
+        if(split == 0)
+            tileSize[axisToSplit] = (newSize + kernelStep);
+        else if( split == (numberOfSplits-1) )
+            tileSize[axisToSplit] = (remainderSize + kernelStep);
         else
-            tileSize[axisToSplit] = newSize;
+            tileSize[axisToSplit] = newSize + (2 * kernelStep);
 
         Tiling newTile(tileStart,tileSize);
         tiling.setChildTile(newTile,split);
