@@ -12,7 +12,7 @@
                 "UpaShaves": 1,
                 "DDRScratch": 4096,
                 "MemoryHack": true,
-                "nWorkloads": 5,
+                "nWorkloads": 0,
                 "CMX_memory_overflow_safety_factor" : 0.925,
                 "split_strategy" :
                 [
