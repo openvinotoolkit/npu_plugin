@@ -124,6 +124,7 @@ internalOrder_(Order(Order::getRowMajorID(other.shape_.ndims())))
         sparsityMap_ = std::make_shared<Tensor>(*other.sparsityMap_);
         storageElement_ = std::make_shared<Tensor>(*other.storageElement_);
         noneZeroElements_ = other.noneZeroElements_;
+        kernelDataOffsets_ = other.kernelDataOffsets_;
     }
 }
 
@@ -294,7 +295,10 @@ void mv::Tensor::unpopulate()
 
     //sparsity map tensor need to unpopulate as well
     if (isSparse())
+    {
         sparsityMap_->unpopulate();
+        kernelDataOffsets_.clear();
+    }
 
     log(Logger::MessageType::Debug, "Unpopulated");
 }
@@ -613,6 +617,13 @@ std::vector<mv::DataElement> mv::Tensor::getData()
     }
 
     return orderedData;
+}
+
+std::vector<int64_t> mv::Tensor::getKernelDataOffsets()
+{
+    if (isSparse() && kernelDataOffsets_.empty()) //getDataPacked hasn't been called
+        auto temp = getDataPacked();
+    return kernelDataOffsets_;
 }
 
 std::vector<mv::DataElement> mv::Tensor::getDataPacked()

@@ -86,6 +86,8 @@ namespace mv
 
         std::vector<DataElement> getData();
         std::vector<DataElement> getDataPacked();
+        std::vector<int64_t> getKernelDataOffsets();
+
         std::vector<double> getDoubleData();
         std::vector<int64_t> getIntData();
         void setDType(DType dType);
@@ -181,7 +183,6 @@ namespace mv
         BinaryData toBinary();
         std::vector<unsigned> computeNumericStrides() const;
         std::size_t computeTotalSize(unsigned int alignment = 16) const;
-
     };
 
 }
