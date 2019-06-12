@@ -134,10 +134,11 @@ std::vector<std::string> getTensorSplitAlgorithms(mv::Element& passDesc, const m
     return algorithms;
 }
 
-int getGlobalCompilationDescriptorConf(const mv::pass::PassEntry& pass, mv::ComputationModel& model) {
+std::pair<int,int> getGlobalCompilationDescriptorConf(const mv::pass::PassEntry& pass, mv::ComputationModel& model) {
 
     int nDPU;
     int nClusters;
+    int nWorkloads = 0;
    
     /*Get nDPUs and nClsuters from gloabl compilation descriptor*/ 
     std::shared_ptr<mv::Element> globalParams = model.getGlobalConfigParams();
@@ -145,13 +146,15 @@ int getGlobalCompilationDescriptorConf(const mv::pass::PassEntry& pass, mv::Comp
         auto nDPU = globalParams->get<int>("Number_of_DPUs");
     if (globalParams->hasAttr("Number_of_Clusters")) 
         nClusters = globalParams->get<int>("Number_of_Clusters");
-
+    if (globalParams->hasAttr("nWorkloads")) 
+        nWorkloads= globalParams->get<int>("nWorkloads");
+    
     /*DPUs per cluster*/  
     auto nDPUxCluster =  nDPU / nClusters;
 
     pass.log(mv::Logger::MessageType::Debug, "Number of DPUs per cluster is: " + std::to_string(nDPUxCluster));
 
-    return nDPUxCluster;
+    return {nDPUxCluster, nWorkloads};
 }
 
 void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element& passDesc, mv::json::Object &)
@@ -169,15 +172,18 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
     int optimalWorkloadIndex = 0;
     bool metisFail = false;
     bool rectangleFail = false;
+    std::pair<int,int> metisResult = {0,0};
     
     /*Get the worklaods algorithm*/
     std::vector<std::string> algorithms = getTensorSplitAlgorithms(passDesc, pass);
 
     /*get cost function*/
     auto costFuntion = mv::Workloads::getCostFunction(passDesc, pass);
-
+    
     /*get number of DPUs per cluster*/
-    auto nDPUxCluster = getGlobalCompilationDescriptorConf(pass, model);
+    auto compilationConfigs = getGlobalCompilationDescriptorConf(pass, model);
+    auto nDPUxCluster = compilationConfigs.first;
+    auto nWorkloadsCompilationDescriptor = compilationConfigs.second;
 
     for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt) {
 
@@ -216,7 +222,11 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                             /*Populate Metis adjacency structure and partition tensor*/
                             workloadsVector.at(workloadsVectorIndex).generateMetisGraph();
                             metisGraph = workloadsVector.at(workloadsVectorIndex).getMetisGraph();
-                            auto metisResult = partitionTensorWithMETIS(metisGraph, nWorkloads, pass);
+
+                            if(nWorkloadsCompilationDescriptor)
+                                metisResult = partitionTensorWithMETIS(metisGraph, nWorkloadsCompilationDescriptor, pass);
+                            else
+                                metisResult = partitionTensorWithMETIS(metisGraph, nWorkloads, pass);
 
                             /*Store METIS optimization value as attrbute for unit testing and for comparison with POC compiler*/
                             opIt->set<int>("Metis_edge_cut", metisGraph->objval);
@@ -266,8 +276,14 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                             bool split_over_h = true;
                             bool split_over_w = true;
                             bool split_symmetric = false;
+                            int rectangleResult = 0;
 
-                            auto rectangleResult = workloadsVector.at(workloadsVectorIndex).partitionTensorWithRectangleHeuristic(dpuMode, nWorkloads,
+                            if(nWorkloadsCompilationDescriptor)
+                                rectangleResult = workloadsVector.at(workloadsVectorIndex).partitionTensorWithRectangleHeuristic(dpuMode, nWorkloadsCompilationDescriptor,
+                                                            split_over_h, split_over_w, split_symmetric,
+                                                            mv::WorkloadSplitMode::HW, pass);
+                            else
+                                rectangleResult = workloadsVector.at(workloadsVectorIndex).partitionTensorWithRectangleHeuristic(dpuMode, nWorkloads,
                                                             split_over_h, split_over_w, split_symmetric,
                                                             mv::WorkloadSplitMode::HW, pass);
 
