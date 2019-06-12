@@ -50,8 +50,8 @@ int main()
     auto weights0 = om.constantInt(weightsData,{1,1,32,32},mv::DType("UInt8"),mv::Order::getZMajorID(4),emptyQuantParams,"weights0");
     auto weights1 = om.constantInt(weightsData,{1,1,32,32},mv::DType("UInt8"),mv::Order::getZMajorID(4),emptyQuantParams,"weights1");
 
-    auto conv0 = om.conv(slice0,weights0,{1,1},{0,0,0,0},1,1,emptyQuantParams,"conv0");
-    auto conv1 = om.conv(slice1,weights1,{1,1},{0,0,0,0},1,1,emptyQuantParams,"conv1");
+    auto conv0 = om.conv(slice0,weights0,{1,1},{0,0,0,0},1,1,emptyQuantParams,"conv0_ddr_");
+    auto conv1 = om.conv(slice1,weights1,{1,1},{0,0,0,0},1,1,emptyQuantParams,"conv1_ddr_");
 
     std::vector<mv::Data::TensorIterator> convs(2);
     convs[0] = conv0;
