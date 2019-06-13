@@ -78,13 +78,6 @@
                         "name_filter" : "Conv_0",
                         "weight_splits" : 4
                     }
-                ],
-                "schedule_helper_edges" :
-                [
-                    {
-                        "edge_source" : "Conv_0_0",
-                        "edge_sink" : "Conv_0_1_weights_table_DDR2CMX"
-                    }
                 ]
             },
             "ComputeMemory",
