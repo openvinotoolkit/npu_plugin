@@ -132,6 +132,7 @@
             "ConvertOpsToTasks",
             "AlignTo16Channels",
             "ComputeTensorsQuantParams",
+            "UpdateConcatQuantizationParams",
             "KMBOrderConversion",
             "AlignTaskWeights",
             "GenerateSparsityMaps",

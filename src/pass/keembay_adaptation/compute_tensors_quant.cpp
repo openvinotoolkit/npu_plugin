@@ -32,19 +32,12 @@ void computeTensorsQuantParams(const mv::pass::PassEntry&, mv::ComputationModel&
     {
          std::string opType = opIt->getOpType();
          std::string taskOp;
-         if ((opIt->getOpType() ==  "DPUTask")||(opIt->getOpType() ==  "Concat"))
+         if (opIt->getOpType() ==  "DPUTask")
          {
-             if (opIt->getOpType() ==  "Concat")
-             {
-                taskOp = "Concat";
-             }
-             else
-             {
-                taskOp = opIt->get<std::string>("taskOp");
-             }
+             taskOp = opIt->get<std::string>("taskOp");
              bool isElementWise = (taskOp == "Add" || taskOp == "Subtract" || taskOp == "Multiply");
              bool isConv = (taskOp == "Conv" || taskOp == "DepthwiseConv" || taskOp == "ChannelMajorConvolution");
-             if (isConv || taskOp == "MaxPool" || taskOp == "ImplicitConcat" ||  isElementWise)
+             if (isConv || taskOp == "MaxPool" ||  isElementWise)
              {
                  auto output = opIt->getOutputTensor(0);
                  auto input = opIt->getInputTensor(0);
@@ -133,7 +126,7 @@ void computeTensorsQuantParams(const mv::pass::PassEntry&, mv::ComputationModel&
                          bias->populate(data);
 
                      }
-                     else if (taskOp != "Concat")
+                     else
                      {
                          mv::Order order(mv::Order::getColMajorID(1));
                          const std::string biasTensorName = opIt->getName() + "_bias";
