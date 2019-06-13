@@ -129,7 +129,10 @@
             "UpdateConcatQuantizationParams",
             "KMBOrderConversion",
             "AlignTaskWeights",
-            "GenerateSparsityMaps",
+            {
+                "name": "GenerateSparsityMaps",
+                "enableRealSparsity": false
+            },
             {
                 "name": "GenerateDot",
                 "output": "keembay_adapt_model.dot",

@@ -33,61 +33,6 @@ mv::Data::TensorIterator createFakeSparsityMap(mv::OpModel om, mv::Data::OpListI
     return sparsityMap;
 }
 
-
-//mv::Data::TensorIterator createSparsityMap(mv::OpModel om, mv::Data::OpListIterator dpuTaskOp, mv::Data::TensorIterator tensor)
-//{
-//    mv::ControlModel cm(om);
-
-//    auto tensorShape = tensor->getShape();
-//    std::string tensorName = tensor->getName();
-//    tensorName.pop_back(); tensorName.pop_back(); //Necessary for .dot files
-
-//    std::string sparsityMapName(tensorName+"SparsityMap");
-//    auto sparsityMap = om.constantInt(mv::Shape({tensorShape[0], tensorShape[1], tensorShape[-1]}), mv::DType("Int32"), mv::Order(mv::Order::getRowMajorID(3)), sparsityMapName);
-//    tensor->set<bool>("sparse", true);
-
-//    if(tensor->isPopulated())
-//    {
-//        auto data = tensor->getData();
-//        auto nonZeroElements = 0;
-//        //default all zeropoints to zero
-//        std::vector<unsigned> zeroPoint = tensor->getZeroPointsPerChannel();
-//        std::vector<double> sparsityMapData(sparsityMap->getShape().totalSize());
-//        std::vector<size_t> sub(tensorShape.ndims());
-//        uint8_t map;
-
-//        auto internalOrder = tensor->getInternalOrder();
-//        auto order = tensor->getOrder();
-
-//        for (size_t t = 0; t < tensorShape.totalSize(); t += 8)
-//        {
-//            map = 0;
-//            for (size_t i = 0; i < 8; i++)
-//            {
-//                sub = order.indToSub(tensorShape, t+i);
-//                if (sub[2] < tensorShape[2] && data[internalOrder.subToInd(tensorShape, sub)] != zeroPoint[sub[3]])
-//                {
-//                    map += 1 << i;
-//                    nonZeroElements++;
-//                }
-//            }
-//            sparsityMapData[t/8] = map;
-//        }
-//        sparsityMap->populate(sparsityMapData);
-
-//        //BUG: Why does this give segfault?
-//        sparsityMap = om.dMATask(sparsityMap, mv::DmaDirectionEnum::DDR2CMX);
-//    }
-
-//    dpuTaskOp->addInputTensor(sparsityMap);
-//    om.defineFlow(sparsityMap, dpuTaskOp, dpuTaskOp->inputSlots());
-//    std::string deallocationTaskName = sparsityMapName+"Deallocate";
-//    om.deallocate(sparsityMap,deallocationTaskName);
-//    cm.defineFlow(dpuTaskOp, om.getOp(deallocationTaskName));
-
-//    return sparsityMap;
-//}
-
 uint16_t getWindowSize(uint16_t kx, uint16_t sx)
 {
     //Find max mpe where if calc window <= 32
@@ -129,12 +74,10 @@ std::vector<int8_t> createBitPattern(uint16_t kernelW, uint16_t kernelH, uint16_
 static void generateSparsityMapsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::json::Object&)
 {
     mv::OpModel om(model);
-    mv::DataModel dm(model);
 
     bool enableRealSparsity = false;
     if (passDesc.hasAttr("enableRealSparsity"))
-        if (passDesc.get<bool>("enableRealSparsity"))
-            enableRealSparsity = true;
+        enableRealSparsity = passDesc.get<bool>("enableRealSparsity");
 
     for(auto dpuTask = om.opBegin(); dpuTask != om.opEnd(); ++dpuTask)
     {
