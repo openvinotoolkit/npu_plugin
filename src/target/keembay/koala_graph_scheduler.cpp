@@ -84,13 +84,14 @@ void  mv::KoalaGraphScheduler::convertMcMGraphToKoalaGraph(const mv::pass::PassE
         * For all other tasks in the ControlModel view of the MCM graph create a corresponding node in the KOALA graph.
        */
        if (opIt->getOpType() != "ConstantDataElement" && opIt->getOpType() != "Output" && opIt->getOpType() != "ConstantInt" &&
-            opIt->getOpType() != "WeightsTable" && opIt->getOpType() != "SparsityMap") {
+            opIt->getOpType() != "Constant")
+       {
 
            bool nodeAdded = false;
            /*Add node to KOALA graph*/
            /*Check if the node is a DMA task CMX to DDR (this is the sink node in KOALA graph and we need to keep track of it)*/
-           if ((opIt->getOpType() == "DMATask") && (opIt->get<mv::DmaDirection>("direction") == mv::CMX2DDR)) {
-
+           if (opIt->hasAttr("lastDMAOp") && opIt->get<bool>("lastDMAOp"))
+           {
                pass.log(mv::Logger::MessageType::Debug, "Adding vertex to KOALA graph: " + opIt->getName());
 
                this->vertices_.push_back(this->getGraph().addVert(nodeDescription(opIt->getName(),0, false, true)));
@@ -98,7 +99,8 @@ void  mv::KoalaGraphScheduler::convertMcMGraphToKoalaGraph(const mv::pass::PassE
            }
            
            /*Keep track of the source node i.e. input*/
-           if (opIt->getOpType() == "Input") { 
+           if (opIt->getOpType() == "Input")
+           {
                pass.log(mv::Logger::MessageType::Debug, "Adding vertex to KOALA graph: " + opIt->getName());
                this->vertices_.push_back(this->getGraph().addVert(nodeDescription(opIt->getName(),0, true, false)));
                nodeAdded = true;
@@ -124,7 +126,7 @@ void  mv::KoalaGraphScheduler::convertMcMGraphToKoalaGraph(const mv::pass::PassE
         */
 
         if (flowIt.sink()->getOpType() != "Output" && flowIt.source()->getOpType() != "ConstantInt" &&
-            flowIt.source()->getOpType() != "WeightsTable" && flowIt.source()->getOpType() != "SparsityMap") {
+            flowIt.source()->getOpType() != "ConstantDataElement" && flowIt.source()->getOpType() != "Constant") {
 
             auto sourceName = flowIt.source()->getName();
             auto sinkName  = flowIt.sink()->getName();
