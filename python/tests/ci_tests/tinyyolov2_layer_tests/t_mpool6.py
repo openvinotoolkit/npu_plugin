@@ -5,14 +5,13 @@ sys.path.append("..")
 
 from test_helper import *
 
-# skip()
+skip()
 
 net_folder = "network_csvs/"
 sch_folder = "POC_config_csvs/"
 root_file = "cong_mpool5"
 
 model = generate_model(net_folder+root_file+"_MIG.csv")
-_, s_result, _ = compile_graphFile(model, 1, 1, sch_folder+"simple_POC.csv", cmx=MAX_UINT32)
-graphfile, _, _ = compile_graphFile(model, 4, 4, sch_folder+"SOK_POC.csv", emulator=False)
+graphfile , s_result, _ = compile_graphFile(model, 4, 4, sch_folder+"SOK_POC.csv")
 t_result = execute_network(graphfile)
 validate_files(s_result, t_result)

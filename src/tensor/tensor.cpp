@@ -1,6 +1,7 @@
 #include "include/mcm/tensor/tensor.hpp"
 #include "include/mcm/tensor/math.hpp"
 #include "include/mcm/utils/custom_math.hpp"
+#include "include/mcm/utils/custom_strings.hpp"
 
 std::map<std::string,mv::Tensor::MemoryLocation::Location> mv::Tensor::MemoryLocation::namingMap = mv::Tensor::MemoryLocation::createNamingMap();
 
@@ -429,7 +430,7 @@ void mv::Tensor::setSparse()
     auto shape = getShape();
     size_t N = shape[-1];;
 
-    storageElement_  = std::make_shared<Tensor>(getName() + "_se", mv::Shape({shape[0], shape[1], 1, N}), mv::DType("Int32"), order);
+    storageElement_  = std::make_shared<Tensor>(createStorageElementName(getName()), mv::Shape({shape[0], shape[1], 1, N}), mv::DType("Int32"), order);
 
     set<bool>("sparse", true);
 
@@ -442,7 +443,7 @@ void mv::Tensor::setSparse()
         auto paddedDim = mv::round_up(static_cast<std::size_t>(std::ceil(shape[0] / 8.0)), 16);
         mapShape = {paddedDim, 1, 1, N};
     }
-    sparsityMap_ = std::make_shared<Tensor>(getName() + "_sm", mapShape, mv::DType("UInt8"), Order("NCHW"));
+    sparsityMap_ = std::make_shared<Tensor>(createSparsityMapName(getName()), mapShape, mv::DType("UInt8"), Order("NCHW"));
     noneZeroElements_ = 0;
 
     //populate sparsity map

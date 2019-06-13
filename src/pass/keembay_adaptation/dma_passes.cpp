@@ -2,6 +2,7 @@
 #include "meta/include/mcm/op_model.hpp"
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
+#include "include/mcm/utils/custom_strings.hpp"
 
 static void addWeightsDMATasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::json::Object&);
 static void addInitialAndFinalDMATaskFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
@@ -68,7 +69,7 @@ void addInitialAndFinalDMATaskFcn(const mv::pass::PassEntry& , mv::ComputationMo
     {
         auto flows = inputTensor->get<std::set<std::string>>("flows");
 
-        auto inputTensorDma = om.dMATask(inputTensor, mv::DmaDirectionEnum::DDR2CMX,quantParams, "DMA"+inputOp->getName());
+        auto inputTensorDma = om.dMATask(inputTensor, mv::DmaDirectionEnum::DDR2CMX,quantParams, mv::createDMATaskDDR2CMXName(inputOp->getName()));
         auto inputTensorDmaOp = om.getSourceOp(inputTensorDma);
         inputTensorDmaOp->set<unsigned>("opId", opId);
 
@@ -95,8 +96,9 @@ void addInitialAndFinalDMATaskFcn(const mv::pass::PassEntry& , mv::ComputationMo
         quantParams = input->get<mv::QuantizationParams>("quantParams");
     if(isTensorInCMX(input, om))
     {
-        auto newInput = om.dMATask(input, mv::DmaDirectionEnum::CMX2DDR, quantParams, "DMA"+inputOp->getName());
+        auto newInput = om.dMATask(input, mv::DmaDirectionEnum::CMX2DDR, quantParams, mv::createDMATaskCMX2DDRName(inputOp->getName()));
         auto newInputOp = om.getSourceOp(newInput);
+        newInputOp->set<bool>("lastDMAOp", true);
         newInputOp->set<unsigned>("opId", opId);
         auto backup = opIt;
         om.removeOp(backup);
@@ -114,15 +116,13 @@ void addWeightsDMATasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
     mv::ControlModel cm(model);
     mv::DataModel dm(model);
 
-    auto removeOps = [] (std::vector<mv::Data::OpListIterator>& list, const std::string& opType)
+    auto removeOps = [] (std::vector<mv::Data::OpListIterator>& list, const std::string& opTrait)
     {
-        list.erase(std::remove_if(list.begin(), list.end(), [opType](mv::Data::OpListIterator it) { return it->getOpType() == opType;}), list.end());
+        list.erase(std::remove_if(list.begin(), list.end(), [opTrait](mv::Data::OpListIterator it) { return !it->hasTypeTrait(opTrait);}), list.end());
     };
 
     auto sortedOps = om.topologicalSort();
-    removeOps(sortedOps, "Constant");
-    removeOps(sortedOps, "ConstantInt");
-    removeOps(sortedOps, "ConstantDataElement");
+    removeOps(sortedOps, "executable");
 
     // How self.nn_cmx_memory is computed
     //    cmxSize = 4194304;
@@ -170,7 +170,8 @@ void addWeightsDMATasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
                 {
                     auto flows = inputTensor->get<std::set<std::string>>("flows");
 
-                    auto inputTensorDma = om.dMATask(inputTensor, mv::DmaDirectionEnum::DDR2CMX,quantParams, "DMA"+inputOp->getName());
+
+                    auto inputTensorDma = om.dMATask(inputTensor, mv::DmaDirectionEnum::DDR2CMX,quantParams, mv::createDMATaskDDR2CMXName(inputOp->getName()));
                     auto inputTensorDmaOp = om.getSourceOp(inputTensorDma);
                     inputTensorDmaOp->set<unsigned>("opId", opId);
 
@@ -201,7 +202,9 @@ void addWeightsDMATasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
 
                     auto index = std::distance(sortedOps.begin(), std::find(sortedOps.begin(), sortedOps.end(), opIt));
                     if(index <= dma_dependency)
+                    {
                         cm.defineFlow(om.getInput(), inputTensorDmaOp);
+                    }
                     else
                     {
                         cm.defineFlow(sortedOps[index - dma_dependency], inputTensorDmaOp);

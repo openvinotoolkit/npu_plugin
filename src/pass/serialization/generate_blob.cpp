@@ -3,7 +3,10 @@
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/target/target_descriptor.hpp"
 #include "include/mcm/target/myriadx/nce1_utils.hpp"
+#include "include/mcm/utils/custom_math.hpp"
+#include <cmath>
 #include <numeric>
+#include <cmath>
 
 static void generateBlobFcn(const mv::pass::PassEntry&, mv::ComputationModel&, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 static void PopulateSerialFieldsFcn(const mv::pass::PassEntry&, mv::ComputationModel&, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
@@ -126,7 +129,14 @@ void fillMXDescriptors(mv::ControlModel cm, mv::DataModel dm, unsigned fp16_size
         radixY = opIt->get<std::array<unsigned short, 2>>("kSize")[1];
     }
 
-    opIt->set<unsigned>("SerialID", 33);    // To be moved?
+// below code adds IDs for conv/pooling and FC
+    if (hwOp == mv::NCE1HWOps::Convolution)
+        opIt->set<unsigned>("SerialID", 33);
+    else if ((hwOp == mv::NCE1HWOps::AveragePooling) || (hwOp == mv::NCE1HWOps::MaxPooling))
+        opIt->set<unsigned>("SerialID", 34);
+    else if (hwOp == mv::NCE1HWOps::FullyConnected)
+        opIt->set<unsigned>("SerialID", 33);
+
 
     opIt->set<unsigned>("streamingMask", streamingMask );
 
@@ -143,8 +153,14 @@ void fillMXDescriptors(mv::ControlModel cm, mv::DataModel dm, unsigned fp16_size
     opIt->set<unsigned>("overwriteInput", 0); // Not Supported...
     opIt->set<unsigned>("CMXSize", cmxSize);  // Magic Number...
     opIt->set<unsigned>("reluSHVAcc", 0); // Not Supported...
+    if (splits_over_iC > 1)
+        if(opIt->hasAttr("postOpType") && opIt->get<std::string>("postOpType") == "ReLu")
+            opIt->set<unsigned>("reluSHVAcc", 1);
     opIt->set<unsigned>("shvNegSlope", 0); // Not Supported...
     opIt->set<unsigned>("shvPosSlope", 1065353216); // Magic Number...
+       // New fields in blob format in release_R6_181129_1401 vs wddm_vpu_pre_alpha or cpp_api_NORELUELTFUSION
+    opIt->set<unsigned>("reluXOnShaveAccumulation", 0); // Not Supported...
+    opIt->set<unsigned>("x_of_relux", 0); // Not Supported...
     opIt->set<unsigned>("desc_count", desc_count);
 
     std::vector<unsigned> desc;
@@ -214,19 +230,43 @@ void fillMXDescriptors(mv::ControlModel cm, mv::DataModel dm, unsigned fp16_size
                     descriptors[i].padType = 0;   // Zero Padding
                 else if(hwOp == mv::NCE1HWOps::FullyConnected)
                     descriptors[i].padType = 0;   // Zero Padding
-                else
-                    descriptors[i].padType = 15;   // ??? Padding
+                if ((hwOp == mv::NCE1HWOps::AveragePooling) || (hwOp == mv::NCE1HWOps::MaxPooling)) 
+		{
+                    auto inputSize = input->getShape();
+                    auto outputSize = output->getShape();
+                    int kernelDimX = radixX;
+                    int kernelDimY = radixY;
+                    auto kernelStride = stride;
+                    int valid_out_x = std::ceil((float)(inputSize[0] - kernelDimX + 1) / (float)kernelStride);
+                    int valid_out_y = std::ceil((float)(inputSize[1] - kernelDimY + 1) / (float)kernelStride);
+                    int pad_along_x = (outputSize[0] - 1) * kernelStride + kernelDimX - inputSize[0];
+                    int pad_along_y = (outputSize[1] - 1) * kernelStride + kernelDimY - inputSize[1];
+
+                    auto padEnable = (outputSize[0] != valid_out_x || outputSize[1] != valid_out_y);
+                    auto pad_left = pad_along_x / 2;
+                    auto pad_right = pad_along_x - pad_left;
+                    auto pad_top = pad_along_y / 2;
+                    auto pad_bottom = pad_along_y - pad_top;
+                    if (padEnable) {
+                        descriptors[i].padType = (pad_left > 0) ? 0x08 : 0x00;
+                        descriptors[i].padType |= (pad_right > 0) ? 0x04 : 0x00;
+                        descriptors[i].padType |= (pad_top > 0) ? 0x02 : 0x00;
+                        descriptors[i].padType |= (pad_bottom > 0) ? 0x01 : 0x00;
+                    }
+                }
+
 
                 descriptors[i].inputWidth = input->getShape()[0] -1;
 
                 unsigned int current_height;
-                current_height = input_lines_processed[i];
+       
+                current_height = input_lines_processed[h];
 
                 descriptors[i].inputHeight =  current_height - 1;
 
                 if(hwOp == mv::NCE1HWOps::Convolution)
                 {
-                    descriptors[i].outputChannels = output->getShape()[2] -1;
+                    descriptors[i].outputChannels = outputChannelPerformed[oc] - 1;
                     descriptors[i].inputChannels = inputChannelsPadded -1;
                 }
                 else if(hwOp == mv::NCE1HWOps::FullyConnected)
@@ -244,19 +284,89 @@ void fillMXDescriptors(mv::ControlModel cm, mv::DataModel dm, unsigned fp16_size
                 descriptors[i].Line0.mode = DPUmodeVector[oc];
                 descriptors[i].Line0.it = 0;  // Interrupt Trigger
                 descriptors[i].Line0.disInt = 0;  // 0 - Interrupts Enabled, 1 - Interrupts disabled.
-                descriptors[i].chPerRamBlock = chPerRamBlock[ic] - 1;        // Input Channels per Ram Block
+                descriptors[i].chPerRamBlock = chPerRamBlock[oc] - 1;        // Input Channels per Ram Block
 
 
                 // Myriad X Compensation Fields
-                descriptors[i].topOutputJunk = topJunk[i];
-                descriptors[i].bottomOutputJunk = bottomJunk[i];
+                descriptors[i].topOutputJunk = topJunk[h];
+                descriptors[i].bottomOutputJunk = bottomJunk[h];
 
-                descriptors[i].localLs =  localLS;
+ 
+ // Calculate localLineStride, channel stride, lines per ch 
+                // TODO: verify this works for all cases
+                auto inputDimX = input->getShape()[0];
+                auto inputDimY = input_lines_processed[h];
+                auto inputDimZ = inputChannelsPadded;
+                // TODO: verify this works for all cases
+                if ((hwOp == mv::NCE1HWOps::AveragePooling) || (hwOp == mv::NCE1HWOps::MaxPooling)) {
+                    inputDimZ = outputChannelPerformed[i];
+                }
+                auto noOfBlocks = 1 << DPUmodeVector[oc];
+                auto sizeOfBlock = (128 * 1024) >> DPUmodeVector[oc];
+                auto bytesPerPixel = fp16_size;
+                auto pixelsPerCMXLine = 128 / (bytesPerPixel * 8);
 
+                auto localLineStride = (inputDimX + (pixelsPerCMXLine - 1)) / pixelsPerCMXLine;
+                descriptors[i].localLs = localLineStride;
+
+
+                // Calculate localChanStride
+                auto chanPerBlock = inputDimZ / noOfBlocks;
+                if (chanPerBlock == 0)
+                    chanPerBlock = 1;
+                auto availableBytesPerChan = sizeOfBlock / chanPerBlock;
+                auto bytesPerLine = localLineStride * pixelsPerCMXLine * bytesPerPixel;
+                auto linesPerChan = availableBytesPerChan / bytesPerLine;
+
+                if (linesPerChan > inputDimY) {
+                    linesPerChan = inputDimY;
+                }
+                auto localChanStride = linesPerChan * localLineStride;
+                descriptors[i].localCs = localChanStride;
+
+                // Calculate linesPerCh
+                if (hwOp == mv::NCE1HWOps::Convolution) {
+                    //if(self.poolEn == 1)      // not used in WDDM
+                    //  minLines = self.kerDimY + self.poolKerDimY
+                    //else
+                    minLines[oc] = std::min((int)radixY+1,(int)linesPerChan);
+                }
+                else if ((hwOp == mv::NCE1HWOps::AveragePooling) || (hwOp == mv::NCE1HWOps::MaxPooling)) {
+                    if (inputDimX / stride <= 4)
+                        minLines[oc] = radixY + 2 * stride + 3;
+                    else {
+                        minLines[oc] = radixY + 1;
+                        minLines[oc] = radixY + stride + 2;
+                    }
+                    descriptors[i].minLines = minLines[oc];
+                }
+
+                descriptors[i].linesPerCh = linesPerChan - 1;
+                //---------------------------------------------------------------------------------- code from Python compiler
                 descriptors[i].linesPerCh = std::min(LPC[oc] - 1, input_lines_processed[h] - 1);
                 descriptors[i].localCs = (descriptors[i].linesPerCh + 1) * descriptors[i].localLs;
 
-                descriptors[i].rud = 0;   // Re-Use bit
+     
+                // python compiler calculates rud. 
+                //---------------------------------------------
+                                // Calculate rud
+                if ((hwOp == mv::NCE1HWOps::Convolution) || (hwOp == mv::NCE1HWOps::FullyConnected)) {
+     
+                    auto scheduledInputDimZ = inputChannelsPadded / splits_over_iC;
+
+                       if (((mv::round_up(input->getShape()[0], 8)) * input->getShape()[1] * scheduledInputDimZ * bytesPerPixel) < 128 * 1024) { 
+                        auto tileIndex = oc;
+                        if (tileIndex == 0) {
+                            descriptors[i].rud = 0;
+                        }
+
+                        else if (DPUmodeVector[tileIndex - 1] != DPUmodeVector[tileIndex])
+                            descriptors[i].rud = 0;
+                        else
+                            descriptors[i].rud = 1;
+                    }
+                }
+
                 descriptors[i].minLines = minLines[ic] - 1;     // Minimum lines of data required to carry out function
 
                 descriptors[i].coeffLpb = (descriptors[i].chPerRamBlock+1) * (descriptors[i].kernelWidth+1) * (descriptors[i].kernelHeight+1) - 1;
@@ -265,10 +375,11 @@ void fillMXDescriptors(mv::ControlModel cm, mv::DataModel dm, unsigned fp16_size
 
                 // Myriad X - Splitting groups
                 descriptors[i].sohGroup = h;
-                descriptors[i].sodGroup = 0;
+                descriptors[i].sodGroup = ic;
 
                 // Fused ReLU
-                if(opIt->hasAttr("postOpType") && opIt->get<std::string>("postOpType") == "ReLu")
+               
+                if(opIt->hasAttr("postOpType") && opIt->get<std::string>("postOpType") == "ReLu" && opIt->get<unsigned>("reluSHVAcc") == 0)
                 {
                     descriptors[i].t0 = 0;
                     descriptors[i].a0 = 0;
@@ -312,6 +423,20 @@ void fillMXDescriptors(mv::ControlModel cm, mv::DataModel dm, unsigned fp16_size
                     descriptors[i].poolKernelHeight = radixY - 1;
                     descriptors[i].poolKernelWidth = radixX - 1;
                 }
+
+                // this is needed for wddm but no harm in being here
+                                // Calculate Line 7: 1/AV
+                if (descriptors[i].reluxEn) {
+                    auto x_of_relux = 0;
+                    descriptors[i].avgPoolX = x_of_relux;   // Not Supported...;
+                }
+                else if (descriptors[i].poolEn && descriptors[i].poolType == 1) {
+                    float chemicalX = 1.0 / ((float)(radixX * radixY));
+                    mv_num_convert cvtr;
+                    uint16_t fp16_val = cvtr.fp32_to_fp16(chemicalX);
+                    descriptors[i].avgPoolX = fp16_val;
+                }
+                //------------------------------------------------------
 
                 // Reserved fields of the hw descriptor. Leave as zero or live in eternal fear.
                 descriptors[i].Line0.rsvd1 = 0;
@@ -357,7 +482,20 @@ void fillMXDescriptors(mv::ControlModel cm, mv::DataModel dm, unsigned fp16_size
                  */
 
                 if(hwOp == mv::NCE1HWOps::Convolution)
-                    descriptors[i].dataBaseAddr = fp16_size * input_width * input_line_start[h] * inputChannelsPadded;
+                {
+                    auto inputStride_2 = inputBlobTensor.strideZ;
+                    auto inputStartIndex = input_line_start[h];
+                    auto inputDimZ = inputChannelsPadded;
+                    auto scheduledInputDimZ = inputDimZ;
+                    auto sodIndex = descriptors[i].sodGroup;
+                    auto split_by_input_sz = sodIndex * scheduledInputDimZ * inputStride_2;
+                    auto split_by_height_sz = (scheduledInputDimZ * splits_over_iC) * inputStride_2 * inputStartIndex;
+                    std::cout << "split_by_input_sz: " << sodIndex << "," << scheduledInputDimZ << "," << inputStride_2 << std::endl;
+                    std::cout << "split_by_height_size: " << scheduledInputDimZ  << "," <<  splits_over_iC << "," <<  inputStride_2  << "," <<  inputStartIndex;
+                    auto offset = split_by_input_sz + split_by_height_sz;
+                    descriptors[i].dataBaseAddr = offset;
+                }
+
                 else if(hwOp == mv::NCE1HWOps::FullyConnected)
                 {
                     //TODO
@@ -375,15 +513,47 @@ void fillMXDescriptors(mv::ControlModel cm, mv::DataModel dm, unsigned fp16_size
                 descriptors[i].biasBaseAddr = 0;
                 descriptors[i].scaleBaseAddr = 0;
 
+                if ((hwOp == mv::NCE1HWOps::Convolution) || (hwOp == mv::NCE1HWOps::FullyConnected)) {
+
+                    // Update taps base address
+                    // https://github.com/movidius/mdk/blob/release_R6_181129_1401/projects/Fathom/src2/Controllers/HwCompiler.py
+               
+                    auto sodIndex = descriptors[i].sodGroup;
+                    //auto bytesPerPixel = fp16_size;
+                    auto scheduledOutputDimZ = output->getShape()[2];
+                    auto scheduledInputDimZ = inputChannelsPadded;
+                    auto taps_processed = output_channels_performed_so_far;
+
+                    auto taps_total = mv::round_up(scheduledOutputDimZ, 8);
+                    auto split_by_input_taps_sz = bytesPerPixel * taps_total * scheduledInputDimZ * radixY * radixX;
+                    std::cout << "split_by_input_taps_sz: " << split_by_input_taps_sz << std::endl;
+                    std::cout << "descriptors[i].coeffBaseAddr: " << sodIndex << "," << split_by_input_taps_sz << "," << bytesPerPixel << "," << taps_processed << "," << scheduledInputDimZ << "," << radixY << "," << radixX << std::endl;
+                    descriptors[i].coeffBaseAddr = sodIndex * split_by_input_taps_sz + bytesPerPixel * taps_processed * scheduledInputDimZ *  radixY * radixX;
+
+                    // Update bias base address
+                    if (sodIndex == 0 && opIt->hasAttr("bias"))
+                        descriptors[i].biasBaseAddr = output_channels_performed_so_far * bytesPerPixel;
+                }
+
+                // Update output base address
+                // Note: only interleaved supported right now
+                auto offset = output_line_start[h] * output->getShape()[2] * outputBlobTensor.strideZ + output_channels_performed_so_far * outputBlobTensor.strideZ;
+                descriptors[i].outBaseAddr = offset;
+                
+                // Note: scale tensor patching is handled by FW
+//-----------------------------------------------------------------------------------------------
                 //HACK FOR CONCAT
+                /* commenting this out as this seems causing tinyyolo4th conv to fail. 
                 if(hwOp == mv::NCE1HWOps::Convolution)
-                    descriptors[i].outBaseAddr = outputBlobTensor.strideZ * output_line_start[h] * output_channels; //outputBlobTensor.strideZ should be fp16_size * outputWidthPadded
+                    descriptors[i].outBaseAddr = outputBlobTensor.strideZ * output_line_start[h] * output_channels; //output:427
+                    BlobTensor.strideZ should be fp16_size * outputWidthPadded
                 else if(hwOp == mv::NCE1HWOps::FullyConnected)
                 {
                     //TODO
                 }
                 else
                     descriptors[i].outBaseAddr = (fp16_size * outputWidthPadded * output_channels_performed_so_far) + (outputChannelsPadded * fp16_size * outputWidthPadded * output_line_start[h]);
+                */
 
                 //Only case handled for now
                 if( output->getOrder().isRowInterleaved() )
@@ -601,7 +771,7 @@ void PopulateSerialFieldsFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
         }
         else if(opIt->getOpType() == "Sigmoid")
         {
-            opIt->set<unsigned>("SerialID", 19);
+            opIt->set<unsigned>("SerialID", 20);
         }
         else if(opIt->getOpType() == "Tanh")
         {

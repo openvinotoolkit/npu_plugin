@@ -97,7 +97,7 @@ bool mv::TensorInterferenceGraph::isSinkNode_(mv::Data::OpListIterator& opIterat
     return false;
 }
 
-bool mv::TensorInterferenceGraph::checkNodeInterference_(mv::ComputationModel& model, const std::string& tensor1, const std::string& tensor2)
+bool mv::TensorInterferenceGraph::checkNodesDontInterfere_(mv::ComputationModel& model, const std::string& tensor1, const std::string& tensor2)
 {
     //returns true if tensor2 is already deallocated when tesnor1 is allocated
     mv::OpModel om(model);
@@ -307,10 +307,9 @@ void mv::TensorInterferenceGraph::genIntereferenceGraph_(mv::ComputationModel& m
         {
             auto nj = this->node_find(*target);
             auto directed_nj = directed_g.node_find(*target);
-            if (source != target && !checkNodesAreNeighbors_(ni, nj) && !mv::pathExists(directed_g, directed_ni, directed_nj) &&
-                !mv::pathExists(directed_g, directed_nj, directed_ni))
+            if (source != target && !checkNodesAreNeighbors_(ni, nj))
             {
-                if (!checkNodeInterference_(model, *source, *target) && !checkNodeInterference_(model, *target, *source))
+                if (!checkNodesDontInterfere_(model, *source, *target) && !checkNodesDontInterfere_(model, *target, *source))
                 {
                     this->edge_insert(ni, nj, 2*nodeId);
                     this->edge_insert(nj, ni, 2*nodeId+1);
@@ -326,7 +325,7 @@ void mv::TensorInterferenceGraph::drawGraph(std::string outputFileName)
 {
     std::ofstream ostream;
 
-    ostream.open(outputFileName + ".dot", std::ios::trunc | std::ios::out);
+    ostream.open(outputFileName, std::ios::trunc | std::ios::out);
     ostream << "graph G {\n\tgraph [splines=spline]\n";
 
     for (auto it = this->node_begin(); it != this->node_end(); ++it)
@@ -358,8 +357,6 @@ void mv::TensorInterferenceGraph::drawGraph(std::string outputFileName)
     }
     ostream << "}\n";
     ostream.close();
-    std::string dotToPngCmd = "dot -Tpng " + outputFileName +".dot" + " -o " + outputFileName + ".png";
-    system(dotToPngCmd.c_str());
 }
 
 void mv::TensorInterferenceGraph::printGraph(std::string name)

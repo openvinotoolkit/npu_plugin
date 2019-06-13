@@ -4,13 +4,19 @@
 #include <algorithm> 
 #include <metis.h>
 #include <sstream>
-mv::Workloads::Workloads(const std::string& name, const mv::Shape& tensorShape, std::pair <int,int>& mpeMode):
-layerName_(name), tensorShape_(tensorShape), metisGraph_(new MetisGraphStructure(tensorShape, mpeMode)), mpeMode_(mpeMode)
-{
-    
-}
 
 mv::Workloads::~Workloads()
+{
+}
+
+mv::Workloads::Workloads(const std::string& name, const mv::Shape& tensorShape):
+    layerName_(name), tensorShape_(tensorShape)
+{
+}
+
+mv::Workloads::Workloads(const std::string& name, const mv::Shape& tensorShape, std::pair <int,int>& mpeMode):
+    layerName_(name), tensorShape_(tensorShape), mpeMode_(mpeMode),
+    metisGraph_(new MetisGraphStructure(tensorShape, mpeMode))
 {
 }
 
@@ -64,10 +70,7 @@ const std::vector<mv::Workload>& mv::Workloads::getWorkloads() const
 
 std::string mv::Workloads::toString() const
 {
-    // TODO: check with John as to what would constitute abbreviated
-    // workload information.
-    std::string output = "{}";
-    return output;
+    return std::to_string(this->nWorkloads());
 }
 
 std::string mv::Workloads::toLongString() const
@@ -493,8 +496,8 @@ std::vector<int> mv::Workloads::getWorkloadSplitPool(mv::Data::TensorIterator te
     // }
 
     /*DpuMul splits*/
-    // for(int i = nDPUxCluster; i <= (maxSplits - nDPUxCluster) ; i+=nDPUxCluster) 
-    //     splitPool.push_back(i);
+    for(int i = nDPUxCluster; i <= (maxSplits - nDPUxCluster) ; i+=nDPUxCluster)
+        splitPool.push_back(i);
     
     /*XY splits*/
     for(int i = 0; i < (int)ceil(log2(maxSplitsXY)); i ++) 
@@ -514,7 +517,7 @@ std::vector<int> mv::Workloads::getWorkloadSplitPool(mv::Data::TensorIterator te
 void mv::Workloads::populateWorkloadsFromPartitions(idx_t nWorkloads, const mv::pass::PassEntry& pass, std::pair <idx_t,idx_t>& mpeMode) 
 {
     std::vector<std::vector<mv::Workload>> listOfworkloadLists;
-                
+
     for(int workload = 0; workload < nWorkloads; workload++) { 
         
         workloads_.push_back(mv::Workload()); /*Add each workload (struct) to vector of workloads*/
@@ -535,7 +538,7 @@ void mv::Workloads::populateWorkloadsFromPartitions(idx_t nWorkloads, const mv::
         wl_min_y = std::numeric_limits<xyz_type>::max();
         wl_max_x = -1;
         wl_max_y = -1;
-
+       
         for (int i=0; i < metisGraph_->m_numberTensorVertices; i++) {
 
             if (metisGraph_->part[i] == workload) {
@@ -841,37 +844,6 @@ mv::CostFunctions mv::Workloads::getCostFunction(mv::Element& passDesc) const
     return costFunction;
 }
 
-/** 
- * @brief Returns the supported Tensor Split Algorithms to be used
- */
-std::vector<std::string> mv::Workloads::getTensorSplitAlgorithms(mv::Element& passDesc) const
-{
-    /*parse TensorSplitAlgorithms from Compilation Descriptor*/
-    std::vector<std::string> algorithms = {"Metis", "Rectangle", "Z-Tiling"}; //default
-    if (passDesc.hasAttr("TensorSplitAlgorithms")) 
-    {
-        algorithms.clear();
-        std::string sAlgorithms = passDesc.get<std::string>("TensorSplitAlgorithms");
-        std::stringstream ss(sAlgorithms);
-        while( ss.good() )
-        {
-            std::string tempStr;
-            std::getline(ss, tempStr, ',');
-            if (tempStr=="Metis" || tempStr=="Rectangle" || tempStr=="Z-Tiling")
-                algorithms.push_back(tempStr);
-            else
-                this->log(mv::Logger::MessageType::Warning, "Could not parse the TensorSplitAlgorithms type (only \"Metis, Rectangle, Z-Tiling\" currently supported).");
-        }
-    }
-    else 
-        this->log(mv::Logger::MessageType::Info, "No TensorSplitAlgorithms specified in descriptor, using  \"Metis, Rectangle, Z-Tiling\"...");
-    
-    //if parsing problem, return all 3
-    if (algorithms.size() == 0)
-        algorithms = {"Metis", "Rectangle", "Z-Tiling"};
-    return algorithms;
-}
-
 std::vector<float> mv::Workloads::getExecutionCycles() const
 {
     return executionCycles_;
@@ -1038,7 +1010,7 @@ bool mv::Workloads::validateWorkloads(const mv::Shape& shape)
     // Using size_t variable (nWorkloads) below, you may see a warning. Casting to double or int is unnecessary
     if (workloads_.size()  == 0)
     {
-        this->log(mv::Logger::MessageType::Debug, "METIS partition failed because of total number of the partitions <=0");
+        this->log(mv::Logger::MessageType::Debug, "Partition failed because of total number of the partitions <=0");
         return false;
     }
 
@@ -1097,6 +1069,7 @@ namespace mv {
     {
         double         efficiency;
         WorkloadShape  original;
+        WorkloadShape  padded;
         WorkloadShape  reduced;
         mv::DPUMode    mode;
     };
@@ -1136,17 +1109,13 @@ namespace mv {
                 WorkloadShape reduced;
                 reduced.H = padded.H / mode.H;
                 reduced.W = padded.W / mode.W;
-                best_variant = {efficiency, original, reduced, mode};
+                best_variant = {efficiency, original, padded, reduced, mode};
             }
         }
 
         return best_variant;
     }
 
-    static bool split_over_h = true;
-    static bool split_over_w = true;
-
-    static bool split_symmetric = false;
 
     using SplitFactors = std::pair<unsigned, unsigned>;
     using SplitFactorsList = std::vector<SplitFactors>;
@@ -1171,7 +1140,8 @@ namespace mv {
     // lower estimate is better
     // w, h -- tensor shape
     // x, y -- split factors
-    static double estimateSplitBalance(unsigned W, unsigned H, unsigned X, unsigned Y)
+    static double estimateSplitBalance(unsigned W, unsigned H, unsigned X, unsigned Y,
+                                       bool split_over_h, bool split_over_w)
     {
         // FIXME: POC maps W, H to X, Y (I guess it must map W, H to Y, X)
         if (!split_over_h && Y > 1)
@@ -1180,7 +1150,7 @@ namespace mv {
             return INFINITY;
         if (H < Y || W < X)
             return INFINITY;
-        return (W/X)*H + (H/Y)*W;
+        return (W%X)*H + (H%Y)*W;
     }
 
     struct SplitVariant
@@ -1189,7 +1159,8 @@ namespace mv {
         double cost_estimate;
     };
 
-    static SplitVariant getBestSplitSymmetric(unsigned W, unsigned H, unsigned N)
+    static SplitVariant getBestSplitSymmetric(unsigned W, unsigned H, unsigned N,
+                                              bool split_over_h, bool split_over_w)
     {
         SplitVariant best_variant;
         best_variant.cost_estimate = INFINITY;
@@ -1200,14 +1171,14 @@ namespace mv {
             auto X = std::get<0>(f);
             auto Y = std::get<1>(f);
 
-            double cost0 = estimateSplitBalance(W, H, X, Y);
+            double cost0 = estimateSplitBalance(W, H, X, Y, split_over_h, split_over_w);
             if (best_variant.cost_estimate > cost0)
             {
                 best_variant.cost_estimate = cost0;
                 best_variant.factors = std::make_pair(X, Y);
             }
 
-            double cost1 = estimateSplitBalance(W, H, Y, X);
+            double cost1 = estimateSplitBalance(W, H, Y, X, split_over_h, split_over_w);
             if (best_variant.cost_estimate > cost1)
             {
                 best_variant.cost_estimate = cost1;
@@ -1232,9 +1203,10 @@ namespace mv {
         double      cost_estimate;
     };
 
-    static SplitSliceVariant splitSliceSymmetric(unsigned W, unsigned H, unsigned N)
+    static SplitSliceVariant splitSliceSymmetric(unsigned W, unsigned H, unsigned N,
+                                                 bool split_over_h, bool split_over_w)
     {
-        SplitVariant best_variant = getBestSplitSymmetric(W, H, N);
+        SplitVariant best_variant = getBestSplitSymmetric(W, H, N, split_over_h, split_over_w);
         double& cost_estimate = best_variant.cost_estimate;
         SplitFactors& factors = best_variant.factors;
         unsigned X = std::get<0>(factors);
@@ -1273,7 +1245,8 @@ namespace mv {
         char mode;
     };
 
-    static SplitVariantNonSymmetric getBestSplitNonSymmetric(unsigned W, unsigned H, unsigned N)
+    static SplitVariantNonSymmetric getBestSplitNonSymmetric(unsigned W, unsigned H, unsigned N,
+                                                             bool split_over_h, bool split_over_w)
     {
         SplitVariantNonSymmetric best_variant;
         best_variant.cost_estimate = INFINITY; // worst
@@ -1297,8 +1270,8 @@ namespace mv {
 
             if (H >= W)
             {
-                double cost0 = estimateSplitBalance(    a3, H,   1, K+1)
-                             + estimateSplitBalance(W - a3, H, P-1, K);
+                double cost0 = estimateSplitBalance(    a3, H,   1, K+1, split_over_h, split_over_w)
+                             + estimateSplitBalance(W - a3, H, P-1, K  , split_over_h, split_over_w);
                 if (best_variant.cost_estimate > cost0)
                 {
                     best_variant.cost_estimate = cost0;
@@ -1308,8 +1281,8 @@ namespace mv {
                     best_variant.mode = 'H';
                 }
 
-                double cost1 = estimateSplitBalance(W,     a1, K+1, 1)
-                             + estimateSplitBalance(W, H - a1, K  , P-1);
+                double cost1 = estimateSplitBalance(W,     a1, K+1, 1  , split_over_h, split_over_w)
+                             + estimateSplitBalance(W, H - a1, K  , P-1, split_over_h, split_over_w);
                 if (best_variant.cost_estimate > cost1)
                 {
                     best_variant.cost_estimate = cost1;
@@ -1321,8 +1294,8 @@ namespace mv {
             }
             else // if H < W
             {
-                double cost2 = estimateSplitBalance(    a1, H,   1, K+1)
-                             + estimateSplitBalance(W - a1, H, P-1, K);
+                double cost2 = estimateSplitBalance(    a1, H,   1, K+1, split_over_h, split_over_w)
+                             + estimateSplitBalance(W - a1, H, P-1, K  , split_over_h, split_over_w);
                 if (best_variant.cost_estimate > cost2)
                 {
                     best_variant.cost_estimate = cost2;
@@ -1332,8 +1305,8 @@ namespace mv {
                     best_variant.mode = 'H';
                 }
 
-                double cost3 = estimateSplitBalance(W,     a3, K+1, 1)
-                             + estimateSplitBalance(W, H - a3, K  , P-1);
+                double cost3 = estimateSplitBalance(W,     a3, K+1, 1  , split_over_h, split_over_w)
+                             + estimateSplitBalance(W, H - a3, K  , P-1, split_over_h, split_over_w);
                 if (best_variant.cost_estimate > cost3)
                 {
                     best_variant.cost_estimate = cost3;
@@ -1348,9 +1321,11 @@ namespace mv {
         return best_variant;
     }
 
-    static SplitSliceVariant splitSliceNonSymmetric(unsigned W, unsigned H, unsigned N)
+    static SplitSliceVariant splitSliceNonSymmetric(unsigned W, unsigned H, unsigned N,
+                                                    bool split_over_h, bool split_over_w)
     {
-        SplitVariantNonSymmetric best_split = getBestSplitNonSymmetric(W, H, N);
+        SplitVariantNonSymmetric best_split = getBestSplitNonSymmetric(W, H, N,
+                                                    split_over_h, split_over_w);
         double& cost_estimate = best_split.cost_estimate;
         SplitFactors& factors = best_split.factors;
         unsigned X = std::get<0>(factors);
@@ -1383,7 +1358,7 @@ namespace mv {
                 slice_list.push_back(slice);
             }
             x_start = xss;
-            Y -= 1;
+            X -= 1;
         }
         else // if mode == 'W'
         {
@@ -1397,7 +1372,7 @@ namespace mv {
                 slice_list.push_back(slice);
             }
             y_start = yss;
-            X -= 1;
+            Y -= 1;
         }
 
         unsigned x_size = std::ceil(static_cast<double>(W - x_start) / X);
@@ -1419,15 +1394,15 @@ namespace mv {
     }
 
     using  WorkloadList = std::vector<Workload>;
-    static WorkloadList generateWorkloadsFromSlices(const SplitSliceList& slice_list,
+    static WorkloadList generateWorkloadsFromSlices(const mv::DPUModeList& mode_list, const SplitSliceList& slice_list,
                                                     const PaddingVariant& padding,
                                                     unsigned Z=0)
     {
         WorkloadList workload_list;
 
         // FIXME: probably map W, H to Y, X (POC maps to X, Y)
-        unsigned x_coef = std::ceil(static_cast<double>(padding.original.W) / padding.reduced.W);
-        unsigned y_coef = std::ceil(static_cast<double>(padding.original.H) / padding.reduced.H);
+        unsigned x_coef = std::ceil(static_cast<double>(padding.padded.W) / padding.reduced.W);
+        unsigned y_coef = std::ceil(static_cast<double>(padding.padded.H) / padding.reduced.H);
 
         for (auto slice : slice_list)
         {
@@ -1447,6 +1422,12 @@ namespace mv {
             workload.MinZ = 0;
             workload.MaxZ = Z ? Z - 1: 0;
 
+            //
+            if(mode_list[0].H == 4)
+                workload.MPEMode = mv::MPE_Mode::Matrix;
+            else
+                workload.MPEMode = mv::MPE_Mode::Vector;
+           
             // FIXME: setup workload id
             // FIXME: adjust workloads padding
             workload_list.push_back(workload);
@@ -1459,7 +1440,12 @@ namespace mv {
 
 
 int mv::Workloads::partitionTensorWithRectangleHeuristic(const mv::DPUModeList& mode_list,
-                                        idx_t nWorkloads, const mv::pass::PassEntry &pass)
+                                                                   idx_t        nWorkloads,
+                                                                   bool         split_over_h,
+                                                                   bool         split_over_w,
+                                                                   bool         split_symmetric,
+                                                         const mv::WorkloadSplitMode& split_mode,
+                                                         const mv::pass::PassEntry &pass)
 {
     pass.log(mv::Logger::MessageType::Debug, "RectangleHeuristic: layer=" + layerName_);
 
@@ -1474,24 +1460,41 @@ int mv::Workloads::partitionTensorWithRectangleHeuristic(const mv::DPUModeList& 
     W = tensorShape_[0];
     H = tensorShape_[1];
     C = tensorShape_.ndims() >= 3 ? tensorShape_[2] : 0;
+    pass.log(mv::Logger::MessageType::Debug, "RectangleHeuristic: height=" + std::to_string(H)
+                                                              + ", width=" + std::to_string(W));
 
-    //
-    // FIXME: POC compiler associates W, H with X, Y (I guess must be Y, X instead of X, Y)
-    //
     WorkloadShape original_shape;
+    original_shape.H = H; // height,aka Y
     original_shape.W = W; // width, aka X
-    original_shape.H = H; // height,    Y
-    pass.log(mv::Logger::MessageType::Debug, "RectangleHeuristic: original_height=" + std::to_string(original_shape.H)
-                                                             + ", original_width="  + std::to_string(original_shape.W));
+
+    // enable splitting over Z
+    if (split_mode == mv::WorkloadSplitMode::HC)
+    {
+        original_shape.W = C;
+    }
+    if (split_mode == mv::WorkloadSplitMode::WC)
+    {
+        original_shape.H = C;
+    }
+    if (original_shape.H == 0 || original_shape.W == 0)
+    {
+        pass.log(mv::Logger::MessageType::Error,
+                 "RectangleHeuristic: invalid shape: W=" + std::to_string(original_shape.W) +
+                                                  ", H=" + std::to_string(original_shape.H));
+        return METIS_ERROR;
+    }
+
     auto best_padding = selectPadding(original_shape, mode_list);
     auto& reduced_shape = best_padding.reduced;
     pass.log(mv::Logger::MessageType::Debug, "RectangleHeuristic: reduced_height=" + std::to_string(reduced_shape.H)
                                                              + ", reduced_width="  + std::to_string(reduced_shape.W));
 
-    SplitSliceVariant slicing_variant = splitSliceSymmetric(reduced_shape.W, reduced_shape.H, nWorkloads);
+    SplitSliceVariant slicing_variant = splitSliceSymmetric(reduced_shape.W, reduced_shape.H, nWorkloads,
+                                                            split_over_h, split_over_w);
     if (!split_symmetric)
     {
-        SplitSliceVariant slicing_variant_2 = splitSliceNonSymmetric(reduced_shape.W, reduced_shape.H, nWorkloads);
+        SplitSliceVariant slicing_variant_2 = splitSliceNonSymmetric(reduced_shape.W, reduced_shape.H, nWorkloads,
+                                                                     split_over_h, split_over_w);
         if (slicing_variant.cost_estimate > slicing_variant_2.cost_estimate)
             slicing_variant = slicing_variant_2;
     }
@@ -1503,10 +1506,17 @@ int mv::Workloads::partitionTensorWithRectangleHeuristic(const mv::DPUModeList& 
     SplitSliceList& slice_list = slicing_variant.slice_list;
     pass.log(mv::Logger::MessageType::Debug, "RectangleHeuristic: slices=" + std::to_string(slice_list.size()));
 
-    //
-    // FIXME: see details inside code of generateWorkloadsFromSlices()
-    //
-    workloads_ = generateWorkloadsFromSlices(slice_list, best_padding, C);
+    unsigned Z = C;
+    if (split_mode == mv::WorkloadSplitMode::HC)
+    {
+        Z = W;
+    }
+    if (split_mode == mv::WorkloadSplitMode::WC)
+    {
+        Z = H;
+    }
+
+    workloads_ = generateWorkloadsFromSlices(mode_list, slice_list, best_padding, Z);
     pass.log(mv::Logger::MessageType::Debug, "RectangleHeuristic: done");
 
     return METIS_OK;

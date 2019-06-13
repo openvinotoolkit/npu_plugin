@@ -40,7 +40,7 @@ static void generateEltWiseConstantsFcn(const mv::pass::PassEntry& , mv::Computa
                 {
                     std::string opName = eltWiseDpuTaskOp->getName();
 
-                    std::string name(opName + "QuantizationCostant");
+                    std::string name(opName + "_bias");
                     auto output = eltWiseDpuTaskOp->getOutputTensor(0);
                     auto outputChannels = output->getShape()[mv::IO_CHANNEL_DIMENSION];
 

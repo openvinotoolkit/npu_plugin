@@ -4,6 +4,7 @@
 #include "meta/include/mcm/op_model.hpp"
 #include "include/mcm/utils/data_generator.hpp"
 #include "include/mcm/tensor/quantization_params.hpp"
+#include "include/mcm/utils/custom_strings.hpp"
 #include <math.h>
 
 static void generateSparsityMapsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
@@ -195,6 +196,8 @@ static void generateSparsityMapsFcn(const mv::pass::PassEntry& pass, mv::Computa
                     ndims = {16, NumberOfRowsSparistyBytes, 1, outputChannels};
                 }
 
+                int channelLenght = bitpattern.size();
+
                 //populate sparsity
                 pass.log(mv::Logger::MessageType::Debug, " perChannelSize = " + std::to_string(perChannelSparsity.size()) );
                 for (size_t i = 0; i < bitpattern.size(); i++)
@@ -218,9 +221,8 @@ static void generateSparsityMapsFcn(const mv::pass::PassEntry& pass, mv::Computa
 
                 std::string opName = dpuTask->getName();
 
-                std::string sparsityMapName(opName + "SparsityMap");
-                auto fakeSparsityMap = createFakeSparsityMap(om, dpuTask, sparsityMapName, sparsityShape, sparsityTensor.getIntData());
-                fakeSparsityMap->set<int>("channelLength", perChannelSparsity.size());
+                auto fakeSparsityMap = createFakeSparsityMap(om, dpuTask, mv::createFakeSparsityMapName(opName), sparsityShape, sparsityTensor.getIntData());
+                fakeSparsityMap->set<int>("channelLength", channelLenght);
 
                 dpuTask->set<bool>("fakeSparsity", true);
             }

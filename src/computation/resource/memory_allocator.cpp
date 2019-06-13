@@ -493,7 +493,7 @@ void mv::MemoryAllocator::deallocateAll(std::size_t stageIdx)
         throw IndexError(*this, stageIdx, "Deallocation of all tensors for an undefined stage");
 
     for (auto it = entries_[stageIdx].begin(); it != entries_[stageIdx].end(); ++it)
-        (*it)->getData()->erase("allocator");
+        (*it)->getData()->erase("allocators");
 
     entries_[stageIdx].clear();
 

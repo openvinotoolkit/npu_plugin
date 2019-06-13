@@ -2,6 +2,7 @@
 #include "meta/include/mcm/op_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/tensor/math.hpp"
+#include "include/mcm/utils/custom_strings.hpp"
 
 static void fuseBatchNormFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 static void fuseBiasFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
@@ -115,7 +116,7 @@ void fuseBiasFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, m
                 }
                 else
                 {
-                    std::string biasTensorName = parentOpIt->getName() + "_bias";
+                    std::string biasTensorName = mv::createBiasName(parentOpIt->getName());
                     mv::Data::TensorIterator biasTensor;
 
                     if (bias.hasAttr("quantParams"))

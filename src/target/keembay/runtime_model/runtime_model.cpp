@@ -205,10 +205,7 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     }
     else
     {
-        if (t->hasAttr("address"))
-            toBuild->data->data_index = t->getAddress();
-        else
-            toBuild->data->data_index = tensorBufferIt->getOffset();
+        toBuild->data->data_index = tensorBufferIt->getOffset();
     }
     toBuild->locale = convertAllocatorToMemoryLocale(*tensorAllocatorName);
 
@@ -366,7 +363,7 @@ std::vector<std::unique_ptr<MVCNN::TaskListT>> mv::RuntimeModel::buildTaskListT(
     toBuild[1] = std::unique_ptr<MVCNN::TaskListT>(new MVCNN::TaskListT());
     toBuild[2] = std::unique_ptr<MVCNN::TaskListT>(new MVCNN::TaskListT());
 
-    auto topologicallySortedOps = controlModel.topologicalSort();
+    auto topologicallySortedOps = controlModel.schedulingSort();
 
     int initialId = 1;
 
@@ -390,6 +387,8 @@ std::vector<std::unique_ptr<MVCNN::TaskListT>> mv::RuntimeModel::buildTaskListT(
                 (*listToUse)->content.push_back(std::move(task));
         }
     }
+
+
 
     return toBuild;
 }
@@ -519,7 +518,6 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
         toBuild->ppe_task = buildPPETaskT(cm, compilationDescriptor, opIt->get<PPETask>("PPETask"));
     // TODO
     // std::vector<std::unique_ptr<NNTensorTaskT>> nnshv_task;
-    // mpe_frequent_mode: MPE_Mode;
     // split_over_h: bool = false;
 
     if (opIt->hasAttr("kSize"))
@@ -535,10 +533,57 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
         toBuild->kernel_strideW = kernelStride[0];
         toBuild->kernel_strideH = kernelStride[1];
     }
-    toBuild->input_data = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(0));
-    toBuild->parent_input_tensor = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(0));
-    toBuild->output_data = buildTensorReferenceT(cm, compilationDescriptor, opIt->getOutputTensor(0));
-    toBuild->parent_output_tensor = buildTensorReferenceT(cm, compilationDescriptor, opIt->getOutputTensor(0));
+
+    if (opIt->hasAttr("padding"))
+    {
+        auto kernelPadding = opIt->get<std::array<unsigned short, 4>>("padding");
+        toBuild->kernel_padLeft = kernelPadding[0];
+        toBuild->kernel_padRight = kernelPadding[1];
+        toBuild->kernel_padTop = kernelPadding[2];
+        toBuild->kernel_padBottom = kernelPadding[3];
+    }
+    //input
+    mv::DataModel dm(cm);
+    mv::ControlModel controlModel(cm);
+    auto inputTensor = opIt->getInputTensor(0);
+    auto tensorAllocatorName = inputTensor->get<std::set<std::string>>("allocators").begin();
+    auto tensorAllocator = dm.getAllocator(*tensorAllocatorName);
+    mv::Data::BufferIterator tensorBufferIt = tensorAllocator.getBuffer(0, inputTensor); // 0 is the only stage for now, but this will probably change in the future
+    mv::Control::StageIterator stg = controlModel.getStage(0);
+    toBuild->input_data = buildTensorReferenceT(cm, compilationDescriptor, inputTensor);
+
+    if (tensorBufferIt->getMaster() != dm.bufferEnd(*tensorAllocatorName, stg))
+    {
+        auto masterBuffer = tensorBufferIt->getMaster(); //TODO: or do we need the top one?
+        auto masterTensor = (*masterBuffer)->getData();
+        toBuild->parent_input_tensor = buildTensorReferenceT(cm, compilationDescriptor, masterTensor);
+        toBuild->input_data->strides = toBuild->parent_input_tensor->strides;
+    }
+    else
+    {
+        toBuild->parent_input_tensor = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(0));
+    }
+
+    //output
+    auto outputTensor = opIt->getOutputTensor(0);
+    tensorAllocatorName = outputTensor->get<std::set<std::string>>("allocators").begin();
+    tensorAllocator = dm.getAllocator(*tensorAllocatorName);
+    tensorBufferIt = tensorAllocator.getBuffer(0, outputTensor); // 0 is the only stage for now, but this will probably change in the future
+    toBuild->output_data = buildTensorReferenceT(cm, compilationDescriptor, outputTensor);
+
+    if (tensorBufferIt->getMaster() != dm.bufferEnd(*tensorAllocatorName, stg))
+    {
+        auto masterBuffer = tensorBufferIt->getMaster(); //TODO: or do we need the top one?
+        auto masterTensor = (*masterBuffer)->getData();
+        toBuild->parent_output_tensor = buildTensorReferenceT(cm, compilationDescriptor, masterTensor);
+        toBuild->output_data->strides = toBuild->parent_output_tensor->strides;
+    }
+    else
+    {
+        toBuild->parent_output_tensor = buildTensorReferenceT(cm, compilationDescriptor, opIt->getOutputTensor(0));
+    }
+
+    toBuild->output_data->data->data_index += toBuild->output_data->leading_offset/2;
 
     unsigned num_inputs = opIt->getInputTensor().size();
 
@@ -552,8 +597,11 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
         toBuild->activation_window_channel_length = activationWindowTensorIterator->get<int>("channelLength");
     }
 
-    auto weightsTableTensorIterator = opIt->getInputTensor(num_inputs - 1);
-    toBuild->weights_table = buildTensorReferenceT(cm, compilationDescriptor, weightsTableTensorIterator);
+    if(toBuild->dpu_task_type != MVCNN::DPULayerType_ELTWISE)
+    {
+        auto weightsTableTensorIterator = opIt->getInputTensor(num_inputs - 1);
+        toBuild->weights_table = buildTensorReferenceT(cm, compilationDescriptor, weightsTableTensorIterator);
+    }
 
     switch (toBuild->dpu_task_type)
     {
@@ -561,6 +609,7 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
         case MVCNN::DPULayerType_DWCONV:
         case MVCNN::DPULayerType_CMCONV:
         case MVCNN::DPULayerType_FCL:
+        case MVCNN::DPULayerType_ELTWISE:
             //std::unique_ptr<TensorReferenceT> parent_weights_tensor;
             toBuild->weights_data = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(1));
             break;
@@ -586,34 +635,42 @@ MVCNN::MPE_Mode mv::RuntimeModel::convertMPEMode(mv::MPE_Mode mpe)
 
 bool mv::RuntimeModel::hardwareBugDepthwise(Control::OpListIterator opIt)
 {
-    auto type = opIt->get<std::string>("taskOp");
     auto splitStrategy = opIt->get<std::string>("splitStrategy");
     auto padding = opIt->get<std::array<unsigned short, 4>>("padding");
     auto kernelSize = opIt->get<std::array<unsigned short, 2>>("kSize");
-    return ((type == "DepthwiseConv") &&
-        (splitStrategy == "SplitOverH") &&
+    return ((splitStrategy == "SplitOverH") &&
         (padding[0] % 2 == 1) &&
         (kernelSize[mv::KERNEL_HEIGHT] > 1));
 }
 
 void mv::RuntimeModel::getWorkloadPadding(Control::OpListIterator opIt, Workload &workload)
 {
-    auto padding = opIt->get<std::array<unsigned short, 4>>("padding");
-    auto outputWidth = opIt->getOutputTensor(0)->getShape()[mv::IO_WIDTH_DIMENSION];
-    auto outputHeight = opIt->getOutputTensor(0)->getShape()[mv::IO_HEIGHT_DIMENSION];
-    if (hardwareBugDepthwise(opIt))
+    if (opIt->get<std::string>("taskOp") == "Add" || opIt->get<std::string>("taskOp") == "Subtract" || opIt->get<std::string>("taskOp") == "Multiply")
     {
-        workload.padLeft = (workload.MinX == 0) ? padding[0] : 0;
-        workload.padTop = (workload.MinY == 0) ? padding[2] : 0;
-        workload.padRight = ((workload.MaxX + 1) == outputWidth) ? padding[1] : 0;
-        workload.padBottom = ((workload.MaxY + 1) == outputHeight) ? padding[3] : 0;
+        workload.padLeft = 0;
+        workload.padTop = 0;
+        workload.padRight = 0;
+        workload.padBottom = 0;
     }
     else
     {
-        workload.padLeft = padding[0];
-        workload.padTop = padding[2];
-        workload.padRight = padding[1];
-        workload.padBottom = padding[3];
+        auto padding = opIt->get<std::array<unsigned short, 4>>("padding");
+        auto outputWidth = opIt->getOutputTensor(0)->getShape()[mv::IO_WIDTH_DIMENSION];
+        auto outputHeight = opIt->getOutputTensor(0)->getShape()[mv::IO_HEIGHT_DIMENSION];
+        if (hardwareBugDepthwise(opIt))
+        {
+            workload.padLeft = (workload.MinX == 0) ? padding[0] : 0;
+            workload.padTop = (workload.MinY == 0) ? padding[2] : 0;
+            workload.padRight = ((workload.MaxX + 1) == outputWidth) ? padding[1] : 0;
+            workload.padBottom = ((workload.MaxY + 1) == outputHeight) ? padding[3] : 0;
+        }
+        else
+        {
+            workload.padLeft = padding[0];
+            workload.padTop = padding[2];
+            workload.padRight = padding[1];
+            workload.padBottom = padding[3];
+        }
     }
     return;
 }
@@ -734,7 +791,7 @@ std::vector<std::unique_ptr<MVCNN::BarrierT>> mv::RuntimeModel::buildBarrierTabl
     std::sort(
         barrierTasks.begin(),
         barrierTasks.end(),
-        [](const mv::Data::OpListIterator& a, const mv::Data::OpListIterator& b) -> bool { return a->getName() < b->getName(); }
+        [](const mv::Data::OpListIterator& a, const mv::Data::OpListIterator& b) -> bool { return a->get<mv::Barrier>("Barrier").getIndex() < b->get<mv::Barrier>("Barrier").getIndex(); }
         );
 
     unsigned n = barrierTasks.size();
@@ -767,13 +824,14 @@ void mv::RuntimeModel::buildGraphFile(ComputationModel& cm, mv::Element& compila
 
     // Binary Data
     graphFile_.binary_data = std::vector<std::unique_ptr<MVCNN::BinaryDataT>>();
-    for(auto tensorIt = om.tensorBegin(); tensorIt != om.tensorEnd(); ++tensorIt)
+    for(auto opIterator = om.opBegin(); opIterator != om.opEnd(); ++opIterator)
     {
-        auto allocators = tensorIt->get<std::set<std::string>>("allocators");
-        if (allocators.count("GraphFile") != 0)
+        std::string opType = opIterator->getOpType();
+        if (opType == "Constant" || opType == "ConstantInt" || opType == "ConstantDataElement" || opType == "WeightsTable" || opType == "SparsityMap")
         {
+            auto tIt = opIterator->getOutputTensor(0);
             //std::cout << "Serializing to binary data section " << tensorIt->getName() << std::endl;
-            graphFile_.binary_data.push_back(buildBinaryDataT(cm, compilationDescriptor, *tensorIt));
+            graphFile_.binary_data.push_back(buildBinaryDataT(cm, compilationDescriptor, *tIt));
         }
     }
 

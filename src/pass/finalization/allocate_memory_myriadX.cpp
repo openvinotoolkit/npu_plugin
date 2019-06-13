@@ -50,11 +50,11 @@ void allocateInputOutputTensors(const mv::pass::PassEntry&, mv::ComputationModel
     DataModel dm(model);
 
     if (!dm.hasAllocator("ProgrammableInput")){
-        throw ArgumentError(dm, "allocator", "ProgrammableInput", "Computation model does not have ProgrammableInput specified");
+        throw ArgumentError(dm, "allocators", "ProgrammableInput", "Computation model does not have ProgrammableInput specified");
     }
 
     if (!dm.hasAllocator("ProgrammableOutput")){
-        throw ArgumentError(dm, "allocator", "ProgrammableOutput", "Computation model does not have ProgrammableOutput specified");
+        throw ArgumentError(dm, "allocators", "ProgrammableOutput", "Computation model does not have ProgrammableOutput specified");
     }
 
     if (cm.stageSize() == 0){
@@ -73,7 +73,7 @@ void allocateInputOutputTensors(const mv::pass::PassEntry&, mv::ComputationModel
         {
             auto inTensor = opIterator->getInputTensor(x);
             if (!inTensor->isPopulated() &&
-                (! inTensor->hasAttr("allocator")) &&
+                (! inTensor->hasAttr("allocators")) &&
                 (inTensor->hasAttr("modelInput") && inTensor->get<bool>("modelInput")))
             {
                 auto buf = dm.allocateTensor("ProgrammableInput", stageIt, inTensor);
@@ -98,7 +98,7 @@ void allocateInputOutputTensors(const mv::pass::PassEntry&, mv::ComputationModel
 
             auto outTensor = opIterator->getOutputTensor(x);
             if (!outTensor->isPopulated() &&
-                (! outTensor->hasAttr("allocator")) &&
+                (! outTensor->hasAttr("allocators")) &&
                 (outTensor->hasAttr("modelOutput") && outTensor->get<bool>("modelOutput"))
                 )
             {
@@ -142,7 +142,7 @@ void allocatePopulatedTensorsFcn(const mv::pass::PassEntry&, mv::ComputationMode
     DataModel dm(model);
 
     if (!dm.hasAllocator("ConstantMemory"))
-        throw ArgumentError(dm, "allocator", "ConstantMemory", "Computation model does not have ConstantMemory specified");
+        throw ArgumentError(dm, "allocators", "ConstantMemory", "Computation model does not have ConstantMemory specified");
 
     if (cm.stageSize() == 0)
         throw ArgumentError(cm, "stages count", "0", "Computation model does not have stages specified");
@@ -197,7 +197,7 @@ void allocateUnpopulatedTensorsFcn(const mv::pass::PassEntry&, mv::ComputationMo
     DataModel dm(model);
 
     if (!dm.hasAllocator("IntermediateMemory")){
-        throw ArgumentError(dm, "allocator", "IntermediateMemory", "Computation model does not have IntermediateMemory specified");
+        throw ArgumentError(dm, "allocators", "IntermediateMemory", "Computation model does not have IntermediateMemory specified");
     }
 
     if (cm.stageSize() == 0){
@@ -216,7 +216,7 @@ void allocateUnpopulatedTensorsFcn(const mv::pass::PassEntry&, mv::ComputationMo
         {
             // Allocate Output
             auto outputTensor = opIterator->getOutputTensor(0);
-            if (outputTensor->hasAttr("allocator"))
+            if (outputTensor->hasAttr("allocators"))
                 dm.deallocateTensor("IntermediateMemory", stageIt, outputTensor);
 
             auto outputBuffer = dm.allocateTensor("IntermediateMemory", stageIt, outputTensor);
@@ -230,6 +230,7 @@ void allocateUnpopulatedTensorsFcn(const mv::pass::PassEntry&, mv::ComputationMo
             // TODO: Request this from the order - What element is axis at.
             // Currently only working for channels.
             // auto inOrder = opIterator->getInputTensor(0)->getOrder();
+	    // channel_index = 2;
             channel_index = mv::IO_CHANNEL_DIMENSION;
 
             std::vector<unsigned> running_concat_offset_LHS;
@@ -266,7 +267,7 @@ void allocateUnpopulatedTensorsFcn(const mv::pass::PassEntry&, mv::ComputationMo
                 // Note: This is probably not a good long term solution as we may have
                 // requirements from two different connections, this approach only resolves one.
                 // Probably restrictions on a tensor should be attributes of that tensor.
-                if (!inputTensor->hasAttr("allocator"))
+                if (!inputTensor->hasAttr("allocators"))
                     dm.allocateTensor("IntermediateMemory", stageIt, inputTensor);
 
                 std::vector<std::size_t> lhs_padding(inputTensor->getShape().ndims());
@@ -302,7 +303,7 @@ void allocateUnpopulatedTensorsFcn(const mv::pass::PassEntry&, mv::ComputationMo
             std::cout << "Input" << std::endl;
             auto outTensor = opIterator->getOutputTensor(0);
             outTensor->set<bool>("modelInput", true);
-            if(outTensor->hasAttr("allocator"))
+            if(outTensor->hasAttr("allocators"))
             {
                 std::cout << "Deallocate Input" << std::endl;
                 dm.deallocateTensor("IntermediateMemory", stageIt, outTensor);
@@ -314,7 +315,7 @@ void allocateUnpopulatedTensorsFcn(const mv::pass::PassEntry&, mv::ComputationMo
             std::cout << "Output" << std::endl;
             auto inTensor = opIterator->getInputTensor(0);
             inTensor->set<bool>("modelOutput", true);
-            if(inTensor->hasAttr("allocator"))
+            if(inTensor->hasAttr("allocators"))
             {
                 std::cout << "Deallocate Output" << std::endl;
                 dm.deallocateTensor("IntermediateMemory", stageIt, inTensor);
@@ -333,7 +334,7 @@ void allocateUnpopulatedTensorsFcn(const mv::pass::PassEntry&, mv::ComputationMo
                 auto inTensor = opIterator->getInputTensor(x);
 
                 if (!inTensor->isPopulated() &&
-                    (! inTensor->hasAttr("allocator")) &&
+                    (! inTensor->hasAttr("allocators")) &&
                     (! inTensor->hasAttr("modelInput") || ! inTensor->get<bool>("modelInput")) &&
                     (! inTensor->hasAttr("modelOutput") || ! inTensor->get<bool>("modelOutput"))
                     )
@@ -366,7 +367,7 @@ void allocateUnpopulatedTensorsFcn(const mv::pass::PassEntry&, mv::ComputationMo
 
                 auto outTensor = opIterator->getOutputTensor(x);
                 if (!outTensor->isPopulated() &&
-                    (! outTensor->hasAttr("allocator")) &&
+                    (! outTensor->hasAttr("allocators")) &&
                     (! outTensor->hasAttr("modelInput") || ! outTensor->get<bool>("modelInput")) &&
                     (! outTensor->hasAttr("modelOutput") || ! outTensor->get<bool>("modelOutput"))
                     )
@@ -390,6 +391,35 @@ void allocateUnpopulatedTensorsFcn(const mv::pass::PassEntry&, mv::ComputationMo
 
                         }
 
+            
+                        // Else, check if next op needs NCE padding & grab that!
+                        // Without this, the NCE Op's input strides (& therefore HW descriptors) are wrong
+                        else {
+                            auto opIterator_backup = opIterator;
+                            ++opIterator;
+                            //std::cout << "Incrementing opIterator to: " << opIterator->getName() << std::endl;
+                            if (opIterator->hasAttr("NCE1_Compatible"))
+                            {
+
+                                 if (opIterator->get<int>("NCE1_Compatible"))
+                                {
+
+                                     if (outTensor->hasAttr("NCE1_Paddings"))
+                                    {
+                                         std::cout << "Padding for hardware" << std::endl;
+                                        auto paddings = outTensor->get<std::vector<std::size_t>>("NCE1_Paddings");
+                                        dm.padRight("IntermediateMemory", buf, paddings);
+
+                                     }
+
+                                 }
+
+                             }
+
+                             opIterator = opIterator_backup;
+                            //std::cout << "Changing opIterator back to: " << opIterator->getName() << std::endl;
+                        }
+                        
                     }
 
                 }

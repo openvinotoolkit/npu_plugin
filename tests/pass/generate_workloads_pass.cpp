@@ -263,97 +263,97 @@ TEST(generate_workloads_pass, validateB2)
     ASSERT_TRUE(result);
 } */
 
-TEST(generate_workloads_pass, ReadTensorSplitAlgorithms)
-{
-    //Setup Comp Descriptor
-    mv::CompilationUnit unit("testModel");
-    unit.loadTargetDescriptor(mv::Target::ma2490);
-    std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/debug_ma2490.json";
-    unit.loadCompilationDescriptor(compDescPath);
-    mv::Element testPassDesc("GenerateWorkloads");
-    testPassDesc.set("TensorSplitAlgorithms", std::string("Metis,Rectangle,Z-Tiling"));
+// TEST(generate_workloads_pass, ReadTensorSplitAlgorithms)
+// {
+//     //Setup Comp Descriptor
+//     mv::CompilationUnit unit("testModel");
+//     unit.loadTargetDescriptor(mv::Target::ma2490);
+//     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/debug_ma2490.json";
+//     unit.loadCompilationDescriptor(compDescPath);
+//     mv::Element testPassDesc("GenerateWorkloads");
+//     testPassDesc.set("TensorSplitAlgorithms", std::string("Metis,Rectangle,Z-Tiling"));
 
-    //Setup Workloads object
-    mv::OpModel om("testModel");
-    auto input = om.input({56, 56, 64, 1}, mv::DType("Float16"), mv::Order("NCHW"));
-    std::vector<double> weightsData = mv::utils::generateSequence<double>(1*1*64*64);
-    auto weights = om.constant(weightsData, {1, 1, 64, 64}, mv::DType("Float16"), mv::Order("NCWH"));
-    auto conv = om.conv(input, weights, {1, 1}, {0, 0, 0, 0});
-    om.output(conv);
+//     //Setup Workloads object
+//     mv::OpModel om("testModel");
+//     auto input = om.input({56, 56, 64, 1}, mv::DType("Float16"), mv::Order("NCHW"));
+//     std::vector<double> weightsData = mv::utils::generateSequence<double>(1*1*64*64);
+//     auto weights = om.constant(weightsData, {1, 1, 64, 64}, mv::DType("Float16"), mv::Order("NCWH"));
+//     auto conv = om.conv(input, weights, {1, 1}, {0, 0, 0, 0});
+//     om.output(conv);
 
-    mv::DataModel dm(om);
-    auto resData = dm.getTensor("Conv_0:0");
+//     mv::DataModel dm(om);
+//     auto resData = dm.getTensor("Conv_0:0");
 
-    std::vector<mv::Data::TensorIterator> vectorTensors = {resData};
-    mv::Workloads workloads = GenerateTestWorkloads_modelB1(resData, mv::MPE_Mode::Matrix);
+//     std::vector<mv::Data::TensorIterator> vectorTensors = {resData};
+//     mv::Workloads workloads = GenerateTestWorkloads_modelB1(resData, mv::MPE_Mode::Matrix);
 
-    std::vector<std::string>actual_results = workloads.getTensorSplitAlgorithms(testPassDesc);
+//     std::vector<std::string>actual_results = workloads.getTensorSplitAlgorithms(testPassDesc);
     
-    ASSERT_EQ(actual_results[0], "Metis");
-    ASSERT_EQ(actual_results[1], "Rectangle");
-    ASSERT_EQ(actual_results[2], "Z-Tiling");
-}
+//     ASSERT_EQ(actual_results[0], "Metis");
+//     ASSERT_EQ(actual_results[1], "Rectangle");
+//     ASSERT_EQ(actual_results[2], "Z-Tiling");
+// }
 
-TEST(generate_workloads_pass, ReadTensorSplitAlgorithmsDefault)
-{
-    //Setup Comp Descriptor
-    mv::CompilationUnit unit("testModel");
-    unit.loadTargetDescriptor(mv::Target::ma2490);
-    std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/debug_ma2490.json";
-    unit.loadCompilationDescriptor(compDescPath);
-    mv::Element testPassDesc("GenerateWorkloads");
-    testPassDesc.set("TensorSplitAlgorithms", std::string(""));
+// TEST(generate_workloads_pass, ReadTensorSplitAlgorithmsDefault)
+// {
+//     //Setup Comp Descriptor
+//     mv::CompilationUnit unit("testModel");
+//     unit.loadTargetDescriptor(mv::Target::ma2490);
+//     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/debug_ma2490.json";
+//     unit.loadCompilationDescriptor(compDescPath);
+//     mv::Element testPassDesc("GenerateWorkloads");
+//     testPassDesc.set("TensorSplitAlgorithms", std::string(""));
 
-    //Setup Workloads object
-    mv::OpModel om("testModel");
-    auto input = om.input({56, 56, 64, 1}, mv::DType("Float16"), mv::Order("NCHW"));
-    std::vector<double> weightsData = mv::utils::generateSequence<double>(1*1*64*64);
-    auto weights = om.constant(weightsData, {1, 1, 64, 64}, mv::DType("Float16"), mv::Order("NCWH"));
-    auto conv = om.conv(input, weights, {1, 1}, {0, 0, 0, 0});
-    om.output(conv);
+//     //Setup Workloads object
+//     mv::OpModel om("testModel");
+//     auto input = om.input({56, 56, 64, 1}, mv::DType("Float16"), mv::Order("NCHW"));
+//     std::vector<double> weightsData = mv::utils::generateSequence<double>(1*1*64*64);
+//     auto weights = om.constant(weightsData, {1, 1, 64, 64}, mv::DType("Float16"), mv::Order("NCWH"));
+//     auto conv = om.conv(input, weights, {1, 1}, {0, 0, 0, 0});
+//     om.output(conv);
 
-    mv::DataModel dm(om);
-    auto resData = dm.getTensor("Conv_0:0");
+//     mv::DataModel dm(om);
+//     auto resData = dm.getTensor("Conv_0:0");
 
-    std::vector<mv::Data::TensorIterator> vectorTensors = {resData};
-    mv::Workloads workloads = GenerateTestWorkloads_modelB1(resData, mv::MPE_Mode::Matrix);
+//     std::vector<mv::Data::TensorIterator> vectorTensors = {resData};
+//     mv::Workloads workloads = GenerateTestWorkloads_modelB1(resData, mv::MPE_Mode::Matrix);
 
-    std::vector<std::string>actual_results = workloads.getTensorSplitAlgorithms(testPassDesc);
+//     std::vector<std::string>actual_results = workloads.getTensorSplitAlgorithms(testPassDesc);
     
-    ASSERT_EQ(actual_results[0], "Metis");
-    ASSERT_EQ(actual_results[1], "Rectangle");
-    ASSERT_EQ(actual_results[2], "Z-Tiling");
-}
+//     ASSERT_EQ(actual_results[0], "Metis");
+//     ASSERT_EQ(actual_results[1], "Rectangle");
+//     ASSERT_EQ(actual_results[2], "Z-Tiling");
+// }
 
-TEST(generate_workloads_pass, ReadTensorSplitAlgorithmsOne)
-{
-    //Setup Comp Descriptor
-    mv::CompilationUnit unit("testModel");
-    unit.loadTargetDescriptor(mv::Target::ma2490);
-    std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/debug_ma2490.json";
-    unit.loadCompilationDescriptor(compDescPath);
-    mv::Element testPassDesc("GenerateWorkloads");
-    testPassDesc.set("TensorSplitAlgorithms", std::string("Rectangle"));
+// TEST(generate_workloads_pass, ReadTensorSplitAlgorithmsOne)
+// {
+//     //Setup Comp Descriptor
+//     mv::CompilationUnit unit("testModel");
+//     unit.loadTargetDescriptor(mv::Target::ma2490);
+//     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/debug_ma2490.json";
+//     unit.loadCompilationDescriptor(compDescPath);
+//     mv::Element testPassDesc("GenerateWorkloads");
+//     testPassDesc.set("TensorSplitAlgorithms", std::string("Rectangle"));
 
-    //Setup Workloads object
-    mv::OpModel om("testModel");
-    auto input = om.input({56, 56, 64, 1}, mv::DType("Float16"), mv::Order("NCHW"));
-    std::vector<double> weightsData = mv::utils::generateSequence<double>(1*1*64*64);
-    auto weights = om.constant(weightsData, {1, 1, 64, 64}, mv::DType("Float16"), mv::Order("NCWH"));
-    auto conv = om.conv(input, weights, {1, 1}, {0, 0, 0, 0});
-    om.output(conv);
+//     //Setup Workloads object
+//     mv::OpModel om("testModel");
+//     auto input = om.input({56, 56, 64, 1}, mv::DType("Float16"), mv::Order("NCHW"));
+//     std::vector<double> weightsData = mv::utils::generateSequence<double>(1*1*64*64);
+//     auto weights = om.constant(weightsData, {1, 1, 64, 64}, mv::DType("Float16"), mv::Order("NCWH"));
+//     auto conv = om.conv(input, weights, {1, 1}, {0, 0, 0, 0});
+//     om.output(conv);
 
-    mv::DataModel dm(om);
-    auto resData = dm.getTensor("Conv_0:0");
+//     mv::DataModel dm(om);
+//     auto resData = dm.getTensor("Conv_0:0");
 
-    std::vector<mv::Data::TensorIterator> vectorTensors = {resData};
-    mv::Workloads workloads = GenerateTestWorkloads_modelB1(resData, mv::MPE_Mode::Matrix);
+//     std::vector<mv::Data::TensorIterator> vectorTensors = {resData};
+//     mv::Workloads workloads = GenerateTestWorkloads_modelB1(resData, mv::MPE_Mode::Matrix);
 
-    std::vector<std::string>actual_results = workloads.getTensorSplitAlgorithms(testPassDesc);
+//     std::vector<std::string>actual_results = workloads.getTensorSplitAlgorithms(testPassDesc);
     
-    ASSERT_EQ(actual_results.size(), 1);
-    ASSERT_EQ(actual_results[0], "Rectangle");
-}
+//     ASSERT_EQ(actual_results.size(), 1);
+//     ASSERT_EQ(actual_results[0], "Rectangle");
+// }
 
 TEST(generate_workloads_pass, ReadCostFunctions)
 {
