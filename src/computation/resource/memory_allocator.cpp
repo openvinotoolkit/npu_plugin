@@ -55,6 +55,8 @@ mv::MemoryAllocator::MemoryBuffer& mv::MemoryAllocator::MemoryBuffer::operator=(
 void mv::MemoryAllocator::MemoryBuffer::setOffset(std::size_t offset_)
 {
     offset = offset_;
+    for (auto itSlave = slaveBuffers.begin(); itSlave != slaveBuffers.end(); ++itSlave)
+        (**itSlave)->offset = offset;
 }
 
 std::size_t mv::MemoryAllocator::MemoryBuffer::getOffset() const
@@ -392,6 +394,13 @@ mv::MemoryAllocator::BufferIterator mv::MemoryAllocator::allocate(Data::TensorIt
     return slaveBuffer;
 
 }
+mv::MemoryAllocator::BufferIterator mv::MemoryAllocator::getTopMasterBuffer(mv::MemoryAllocator::BufferIterator t)
+{
+    auto mt = (*t)->masterBuffer;
+    if (*mt != *bufferEnd((*t)->stage))
+        return getTopMasterBuffer(mt);
+    return t;
+}
 
 mv::MemoryAllocator::BufferIterator mv::MemoryAllocator::move(BufferIterator slaveBuffer, BufferIterator masterBuffer, 
     const std::vector<std::size_t>& leftPadding, const std::vector<std::size_t>& rightPadding)
@@ -468,7 +477,7 @@ bool mv::MemoryAllocator::deallocate(Data::TensorIterator tensor, std::size_t st
 
         entries_[stageIdx].erase(it);
         placeBuffers_(stageIdx);
-        tensor->erase("allocator");
+        tensor->erase("allocators");
         return true;
 
     }
@@ -484,7 +493,7 @@ void mv::MemoryAllocator::deallocateAll(std::size_t stageIdx)
         throw IndexError(*this, stageIdx, "Deallocation of all tensors for an undefined stage");
 
     for (auto it = entries_[stageIdx].begin(); it != entries_[stageIdx].end(); ++it)
-        (*it)->getData()->erase("allocator");
+        (*it)->getData()->erase("allocators");
 
     entries_[stageIdx].clear();
 
