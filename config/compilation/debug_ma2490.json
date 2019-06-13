@@ -148,6 +148,7 @@
                 "content": "full",
                 "html": true
             },
+            "StrategyLayersToTensors",
             {
                 "name": "ConvertDot",
                 "input": "keembay_WeightsTable_model.dot"
