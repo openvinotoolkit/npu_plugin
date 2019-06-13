@@ -6,6 +6,12 @@ cmake_minimum_required (VERSION 3.3)
 
 project(InferenceEngineKMBPlugin)
 
+####################################
+## All next project will use C++11
+set (CMAKE_CXX_STANDARD 11)
+set (CMAKE_CXX_STANDARD_REQUIRED ON)
+####################################
+
 set(IE_MAIN_KMB_PLUGIN_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 
 #
