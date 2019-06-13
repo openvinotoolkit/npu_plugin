@@ -29,8 +29,7 @@ include(ExternalProject)
 
 add_subdirectory(src/kmb_plugin)
 
-enable_testing()
-
 if(ENABLE_TESTS)
+    enable_testing()
     add_subdirectory(tests)
 endif()
