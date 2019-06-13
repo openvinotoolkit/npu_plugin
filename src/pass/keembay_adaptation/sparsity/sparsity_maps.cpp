@@ -81,7 +81,6 @@ static void generateSparsityMapsFcn(const mv::pass::PassEntry& pass, mv::Computa
 
     for(auto dpuTask = om.opBegin(); dpuTask != om.opEnd(); ++dpuTask)
     {
-        bool fakeSparsity = false;
         if(dpuTask->getOpType() == "DPUTask")
         {
             std::string taskOp = dpuTask->get<std::string>("taskOp");
@@ -94,7 +93,6 @@ static void generateSparsityMapsFcn(const mv::pass::PassEntry& pass, mv::Computa
             //even if those layers does not support sparsity.
             if (isPooling || isDepthWiseConv || isChannelMajorConv)
             {
-                fakeSparsity = true;
                 uint16_t kernelW, kernelH;
 
                 auto strides = dpuTask->get<std::array<unsigned short, 2>>("stride");
@@ -169,26 +167,27 @@ static void generateSparsityMapsFcn(const mv::pass::PassEntry& pass, mv::Computa
 
                 dpuTask->set<bool>("fakeSparsity", true);
             }
+            else if(enableRealSparsity)
+            {
+                //Here only in the case of ZMajorConvolution and sparsity is active
+                auto weights = dpuTask->getInputTensor(1);
+                weights->setOrder(mv::Order("NHWC"));
+                weights->setSparse();
+
+                //SparsityMap will be saved as attribute
+                auto smInternalTensor = weights->getSparsityMap();
+                auto sparsityMap = om.constantInt(smInternalTensor->getIntData(), smInternalTensor->getShape(), smInternalTensor->getDType(),
+                                                  smInternalTensor->getOrder(), {{},{},{},{}}, smInternalTensor->getName());
+                om.getSourceOp(sparsityMap)->set<unsigned>("opId", dpuTask->get<unsigned>("opId"));
+                unsigned newSize = dpuTask->addInputTensor(sparsityMap);
+                om.defineFlow(sparsityMap, dpuTask, newSize - 1);
+                dpuTask->set<std::string>("sparsityMap", sparsityMap->getName());
+
+                dpuTask->getInputTensor(0)->setSparse();
+                dpuTask->getOutputTensor(0)->setSparse();
+            }
 
         }
-        if (!fakeSparsity && enableRealSparsity)
-        {
-            //Here only in the case of ZMajorConvolution and sparsity is active
-            auto weights = dpuTask->getInputTensor(1);
-            weights->setOrder(mv::Order("NHWC"));
-            weights->setSparse();
 
-            //SparsityMap will be saved as attribute
-            auto smInternalTensor = weights->getSparsityMap();
-            auto sparsityMap = om.constantInt(smInternalTensor->getIntData(), smInternalTensor->getShape(), smInternalTensor->getDType(),
-                                              smInternalTensor->getOrder(), {{},{},{},{}}, smInternalTensor->getName());
-            om.getSourceOp(sparsityMap)->set<unsigned>("opId", dpuTask->get<unsigned>("opId"));
-            unsigned newSize = dpuTask->addInputTensor(sparsityMap);
-            om.defineFlow(sparsityMap, dpuTask, newSize - 1);
-            dpuTask->set<std::string>("sparsityMap", sparsityMap->getName());
-
-            dpuTask->getInputTensor(0)->setSparse();
-            dpuTask->getOutputTensor(0)->setSparse();
-        }
     }
 }
