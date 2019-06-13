@@ -312,7 +312,7 @@ namespace mv
         std::set<int> getNWorkloads(mv::Data::TensorIterator tensor);
         void addWorkload(mv::Workload workload);
         const std::vector<mv::Workload>& getWorkloads() const;
-        static const std::vector<int> getWorkloadSplitPool(mv::Data::TensorIterator tensor, int nDPUxCluster, int maxSplits = 50);
+        static const std::vector<int> getWorkloadSplitPool(mv::Data::TensorIterator tensor, int nDPUxCluster, int maxSplits = 50, int dpuModes);
 
         //void generateExecutionCycles(std::vector<mv::Data::TensorIterator>& outputTensor, int nDPUxCluster, CostFunctions costFunction);
         static void generateExecutionCycles(std::vector<mv::Workloads>& workloadsVector, int nDPUxCluster, CostFunctions costFunction);

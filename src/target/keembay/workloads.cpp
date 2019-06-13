@@ -470,14 +470,22 @@ idx_t mv::Workloads::getNWorkloads(const mv::Shape& tensorShape, int nDPUxCluste
  * @param Maximum number or workloads
  * @return A pool of possible splits (possible workloads)
  */
-const std::vector<int> mv::Workloads::getWorkloadSplitPool(mv::Data::TensorIterator tensor, int nDPUxCluster, int maxSplits)
+const std::vector<int> mv::Workloads::getWorkloadSplitPool(mv::Data::TensorIterator tensor, int nDPUxCluster, int maxSplits, int numberDpuModes)
 {
     std::vector<int> splitPool;
  
     /*maxSplitsXY*/
     double xDim = tensor->get<mv::Shape>("shape")[0];
     double yDim = tensor->get<mv::Shape>("shape")[1];
+    
     int maxSplitsXY = ceil(xDim/4) * ceil(yDim/4);
+    // int maxSplitsXY;
+
+    // for(int i = 0; i < numberDpuModes; i++) {
+
+    //     for 
+    // maxSplitsXY = ceil(xDim/4) * ceil(yDim/4);
+    // }
 
     /*maxSplitsZ*/
     int maxSplitsZ = ceil(tensor->get<mv::Shape>("shape")[2]/16);
@@ -496,8 +504,8 @@ const std::vector<int> mv::Workloads::getWorkloadSplitPool(mv::Data::TensorItera
     // }
 
     /*DpuMul splits*/
-    for(int i = nDPUxCluster; i <= (maxSplits - nDPUxCluster) ; i+=nDPUxCluster)
-        splitPool.push_back(i);
+    // for(int i = nDPUxCluster; i <= (maxSplits - nDPUxCluster) ; i+=nDPUxCluster)
+    //     splitPool.push_back(i);
     
     /*XY splits*/
     for(int i = 0; i < (int)ceil(log2(maxSplitsXY)); i ++) 

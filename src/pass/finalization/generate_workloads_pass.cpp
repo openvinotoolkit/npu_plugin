@@ -136,14 +136,14 @@ std::vector<std::string> getTensorSplitAlgorithms(mv::Element& passDesc, const m
 
 std::pair<int,int> getGlobalCompilationDescriptorConf(const mv::pass::PassEntry& pass, mv::ComputationModel& model) {
 
-    int nDPU;
-    int nClusters;
+    int nDPU = 1;
+    int nClusters = 1;
     int nWorkloads = 0;
    
     /*Get nDPUs and nClsuters from gloabl compilation descriptor*/ 
     std::shared_ptr<mv::Element> globalParams = model.getGlobalConfigParams();
     if (globalParams->hasAttr("Number_of_DPUs")) 
-        auto nDPU = globalParams->get<int>("Number_of_DPUs");
+        nDPU = globalParams->get<int>("Number_of_DPUs");
     if (globalParams->hasAttr("Number_of_Clusters")) 
         nClusters = globalParams->get<int>("Number_of_Clusters");
     if (globalParams->hasAttr("nWorkloads")) 
@@ -201,7 +201,7 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                 dpuModeLists = {{{4,4},{1, 16}}};
 
             /*Generate the number of workloads split pool*/
-            auto nWorkloadsSplitPool = mv::Workloads::getWorkloadSplitPool(opIt->getOutputTensor()[0], nDPUxCluster, 50);
+            auto nWorkloadsSplitPool = mv::Workloads::getWorkloadSplitPool(opIt->getOutputTensor()[0], nDPUxCluster, 50, dpuModeLists.size());
 
 
             /* For each dpu mode and for each workload, attempt to partition with METIS and/or Rectangle and create worklaods*/ 
