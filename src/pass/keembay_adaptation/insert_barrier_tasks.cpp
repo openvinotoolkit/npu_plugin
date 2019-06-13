@@ -350,48 +350,6 @@ static void combineRedundantBarriers(const mv::pass::PassEntry& pass, std::vecto
     barriers.erase(newEnd, barriers.end());
 }
 
-void getBarrierForOpModelOp(mv::OpModel& om, const mv::Data::OpListIterator& opIt,
-                            std::vector<mv::Barrier>& barriers)
-{
-    auto opType = opIt->getOpType();
-    bool isDPUTask = ((opType == "DPUTask")||(opType=="Bias"));
-    bool isDMAToCMXTask = (opType == "DMATask"
-                        && opIt->get<mv::DmaDirection>("direction") == mv::DmaDirectionEnum::CMX2DDR);
-
-    if (isDPUTask || isDMAToCMXTask)
-    {
-        std::unordered_set<std::string> producers;
-        std::unordered_set<std::string> consumers;
-
-        auto inputTensors = opIt->getInputTensor();
-        for (auto tensorIn = inputTensors.begin(); tensorIn != inputTensors.end(); tensorIn++)
-        {
-            auto sourceOp = om.getSourceOp(*tensorIn);
-            if (sourceOp->getOpType() == "Concat")
-            {
-                //TO take the inputs from the source Op of concat
-                auto concatInputTensors = sourceOp->getInputTensor();
-                for (auto tensorIn2 = concatInputTensors.begin(); tensorIn2 != concatInputTensors.end(); tensorIn2++)
-                {
-                    auto sourceOpConcat = om.getSourceOp(*tensorIn2);
-                    producers.insert(sourceOpConcat->getName());
-                }
-            }
-            else
-                producers.insert(sourceOp->getName());
-        }
-
-        auto outputTensors = opIt->getOutputTensor();
-        for (auto tensorOut = outputTensors.begin(); tensorOut != outputTensors.end(); tensorOut++)
-        {
-            auto destOp = om.getSourceOp(*tensorOut);
-            consumers.insert(destOp->getName());
-        }
-
-        barriers.push_back(mv::Barrier(producers, consumers));
-    }
-}
-
 void getBarrierForControlModelOp(mv::ControlModel& cm, mv::Control::OpListIterator& opIt,
                                 std::vector<mv::Barrier>& barriers)
 {
