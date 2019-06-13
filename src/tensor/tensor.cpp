@@ -1051,8 +1051,8 @@ void mv::Tensor::splitAcrossClusters(std::vector<mv::Workload> workloads, bool s
         for (auto wlItr = workloads.begin(); wlItr != workloads.end(); wlItr++)
         {
             size_t idx = wlItr - workloads.begin();
-            auto width = wlItr->MaxX - wlItr->MinX + wlItr->padLeft + wlItr->padRight;
-            auto height = wlItr->MaxY - wlItr->MinY + wlItr->padBottom + wlItr->padTop;
+            auto width = wlItr->MaxX - wlItr->MinX + 1;
+            auto height = wlItr->MaxY - wlItr->MinY + 1;
             if (splitOverH)
             {
                 subTensors_.push_back(std::make_shared<mv::Tensor>(getName() + "sub" + std::to_string(idx),
@@ -1093,8 +1093,8 @@ void mv::Tensor::splitAcrossClusters(std::vector<mv::Workload> workloads, bool s
         for (auto wlItr = workloads.begin(); wlItr != workloads.end(); wlItr++)
         {
             size_t idx = wlItr - workloads.begin();
-            auto width = wlItr->MaxX - wlItr->MinX + wlItr->padLeft + wlItr->padRight;
-            auto height = wlItr->MaxY - wlItr->MinY + wlItr->padBottom + wlItr->padTop;
+            auto width = wlItr->MaxX - wlItr->MinX + 1;
+            auto height = wlItr->MaxY - wlItr->MinY + 1;
             if (splitOverH)
             {
                 mv::Shape newShape = { static_cast<size_t>(width), static_cast<size_t>(height) ,shape[2], shape[3]};

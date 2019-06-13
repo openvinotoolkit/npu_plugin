@@ -1236,9 +1236,10 @@ TEST(tensor, splitOverH)
 
     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/debug_ma2490.json";
     unit.loadCompilationDescriptor(compDescPath);
-    //mv::CompilationDescriptor &compDesc = unit.compilationDescriptor();
+    mv::CompilationDescriptor &compDesc = unit.compilationDescriptor();
     //compDesc.setPassArg("GenerateDot", "scope", std::string("ControlModel"));
-
+    compDesc.setPassArg("GenerateSparsityMaps", "enableRealSparsity", true);
+    compDesc.remove("serialize");
     unit.loadTargetDescriptor(mv::Target::ma2490);
     unit.initialize();
     unit.run();
@@ -1276,16 +1277,19 @@ TEST(tensor, splitOverH)
     //2 : bottom left [0] :  28  bl[1]  0  height  14  width  56
     //3 : bottom left [0] :  42  bl[1]  0  height  14  width  56
     mv::Workload temp;
-    temp.bottomLeftX = 0;
-    temp.bottomLeftY = 0;
-    temp.width = 56;
-    temp.height = 14;
+    temp.MinX  = 0;
+    temp.MinY  = 0;
+    temp.MaxX = 55;
+    temp.MaxY = 13;
     unpopulated_wl.push_back(temp);
-    temp.bottomLeftY += 14; //14
+    temp.MinY += 14; //14
+    temp.MaxY += 14; //27
     unpopulated_wl.push_back(temp);
-    temp.bottomLeftY += 14; //28
+    temp.MinY += 14; //28
+    temp.MaxY += 14; //41
     unpopulated_wl.push_back(temp);
-    temp.bottomLeftY += 14; //42
+    temp.MinY += 14; //36
+    temp.MaxY += 14; //55
     unpopulated_wl.push_back(temp);
 
     input->splitAcrossClusters(unpopulated_wl, true, false);
@@ -1327,10 +1331,10 @@ TEST(tensor, splitOverH)
      subtensor  2  : shape  (64, 1, 1, 64)  offset  (0, 0, 0, 0)
      subtensor  3  : shape  (64, 1, 1, 64)  offset  (0, 0, 0, 0)
     */
-    temp.bottomLeftX = 0;
-    temp.bottomLeftY = 0;
-    temp.width = 64;
-    temp.height = 1;
+    temp.MinX = 0;
+    temp.MinY = 0;
+    temp.MaxX = 64;
+    temp.MaxY = 1;
     std::vector<mv::Workload> weights_wl(4, temp);
 
     weightRes->splitAcrossClusters(weights_wl, true, false);
@@ -1349,14 +1353,14 @@ TEST(tensor, splitOverH)
      subtensor  2  : shape  (64, 1, 1, 4)  offset  (0, 0, 0, 0)
      subtensor  3  : shape  (64, 1, 1, 4)  offset  (0, 0, 0, 0)
     */
-    temp.bottomLeftX = 0;
-    temp.bottomLeftY = 0;
-    temp.width = 4;
-    temp.height = 1;
+    temp.MinX = 0;
+    temp.MinY = 0;
+    temp.MaxX = 4;
+    temp.MaxY = 1;
     std::vector<mv::Workload> weights_table_wl(4, temp);
     weightTableRes->splitAcrossClusters(weights_table_wl, true, false);
 
-    std::vector<mv::Shape> refShapesWeightsTable(4, mv::Shape({64, 1, 1, 4}));//TODO why order  is not the opposite??
+    std::vector<mv::Shape> refShapesWeightsTable(4, mv::Shape({4, 1, 1, 64}));
     std::vector<std::vector<std::size_t>> refOffsetsWeightsTable(4, {0,0,0,0});
     checkSubtensor(*weightTableRes, refShapesWeightsTable, refOffsetsWeightsTable);
 
@@ -1371,14 +1375,13 @@ TEST(tensor, splitOverH)
      subtensor  3  : shape  (64, 1, 1, 16)  offset  (0, 0, 0, 0)
     */
 
-    temp.bottomLeftX = 0;
-    temp.bottomLeftY = 0;
-    temp.width = 16;
-    temp.height = 1;
+    temp.MinX = 0;
+    temp.MinY = 0;
+    temp.MaxX = 16;
+    temp.MaxY = 1;
     std::vector<mv::Workload> weights_sm_wl(4, temp);
     weightSparsityMapRes->splitAcrossClusters(weights_sm_wl, true, false);
-
-    std::vector<mv::Shape> refShapesWeightsSM(4, mv::Shape({64, 1, 1, 16})); //TODO why do we get SM shape 64,1,1,64??
+    std::vector<mv::Shape> refShapesWeightsSM(4, mv::Shape({16, 1, 1, 64}));
     std::vector<std::vector<std::size_t>> refOffsetsWeightsSM(4, {0,0,0,0});
     checkSubtensor(*weightSparsityMapRes, refShapesWeightsSM, refOffsetsWeightsSM);
 

@@ -14,7 +14,7 @@
 #include "include/mcm/base/exception/argument_error.hpp"
 #include "include/mcm/base/exception/value_error.hpp"
 #include "include/mcm/tensor/quantization_params.hpp"
-#include "include/mcm/target/keembay/workloads.hpp"
+#include "include/mcm/target/keembay/workload_struct.hpp"
 
 namespace mv
 {
