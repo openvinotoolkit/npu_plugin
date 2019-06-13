@@ -174,7 +174,7 @@
             {
                 "name": "GenerateDot",
                 "output": "implicit_operations_model.dot",
-                "scope": "OpControlModel",
+                "scope": "OpModel",
                 "content": "full",
                 "html": true,
                 "convert": false
