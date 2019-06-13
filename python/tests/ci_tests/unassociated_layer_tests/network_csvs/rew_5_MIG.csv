@@ -1,0 +1,2 @@
+Network,Name,Op,Input Tensor,Output Tensor,Kernels,Stride,Dtype,ReLU,Sparsity
+Resnet 50, rew_1, EltwiseAdd, 56x56x256, 56x56x256, 1x1,1,UINT8,No,0.5

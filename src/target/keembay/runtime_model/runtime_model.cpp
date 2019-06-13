@@ -114,10 +114,10 @@ std::unique_ptr<MVCNN::GraphNodeT> mv::RuntimeModel::buildGraphNodeT(mv::Computa
     toBuild->thisID = op->get<unsigned>("opId");
 
     for (auto nextChildOp = op.leftmostChild(); nextChildOp != opModel.opEnd(); ++nextChildOp)
-        toBuild->sourceID.push_back(nextChildOp->get<unsigned>("opId"));
+        toBuild->sinkID.push_back(nextChildOp->get<unsigned>("opId"));
 
     for (auto nextParentOp = op.leftmostParent(); nextParentOp != opModel.opEnd(); ++nextParentOp)
-        toBuild->sinkID.push_back(nextParentOp->get<unsigned>("opId"));
+        toBuild->sourceID.push_back(nextParentOp->get<unsigned>("opId"));
 
     return toBuild;
 }
@@ -132,15 +132,33 @@ std::unique_ptr<MVCNN::SourceStructureT> mv::RuntimeModel::buildSourceStructureT
     toBuild->nodes = std::vector<std::unique_ptr<MVCNN::GraphNodeT>>(opModel.opsCount());
     unsigned i = 0;
 
-    auto ops = opModel.topologicalSort();
-    for(auto opIt = ops.begin(); opIt != ops.end(); ++opIt)
-        toBuild->nodes[i++] = buildGraphNodeT(cm, compilationDescriptor, *opIt);
+    //auto ops = opModel.topologicalSort();
+    for(auto opIt = opModel.opBegin(); opIt != opModel.opEnd(); ++opIt)
+        toBuild->nodes[i++] = buildGraphNodeT(cm, compilationDescriptor, opIt);
 
     return toBuild;
 }
 
+std::vector<unsigned> mv::RuntimeModel::reduceQuantVector_(std::vector<unsigned> inVec)
+{
+    if (inVec.size() > 1)
+    {
+        auto firstVal = inVec[0];
+        auto onlyOneValue = true;
+        for (size_t i = 1; i < inVec.size(); i++)
+            if (firstVal != inVec[i])
+                onlyOneValue = false;
+        if (onlyOneValue)
+        {
+            inVec.clear();
+            inVec.push_back(firstVal);
+        }
+    }
+    return inVec;
+}
+
 std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT(mv::ComputationModel& cm, mv::Element&, mv::Data::TensorIterator t)
-{    
+{
     mv::DataModel dm(cm);
     std::unique_ptr<MVCNN::TensorReferenceT> toBuild = std::unique_ptr<MVCNN::TensorReferenceT>(new MVCNN::TensorReferenceT());
 
@@ -170,18 +188,24 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     toBuild->trailing_offset = strides[strides.size()-1] + tensorBufferIt->getPostAlign();
 
     toBuild->data = std::unique_ptr<MVCNN::IndirectDataReferenceT>(new MVCNN::IndirectDataReferenceT());
-    auto allocators = t->get<std::set<std::string>>("allocators");
-    if (allocators.count("GraphFile") != 0)
+    if (*tensorAllocatorName == "GraphFile")
     {
         toBuild->data->data_index = t->get<unsigned>("graphFileIndex");
+        // UNSUPPORTED FOR NOW
+        // toBuild->sparsity_index
+    }
+    else if(*tensorAllocatorName == "ProgrammableInput" || *tensorAllocatorName == "ProgrammableOutput")
+    {
+        //toBuild->data->data_index = tensorBufferIt->getOffset();
+
+        //HOTFIX until we know what to do with graph coloring
+        toBuild->data->data_index = 0;
         // UNSUPPORTED FOR NOW
         // toBuild->sparsity_index
     }
     else
     {
         toBuild->data->data_index = tensorBufferIt->getOffset();
-        // UNSUPPORTED FOR NOW
-        // toBuild->sparsity_index
     }
     toBuild->locale = convertAllocatorToMemoryLocale(*tensorAllocatorName);
 
@@ -198,8 +222,18 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
         auto quantizationParams = t->get<mv::QuantizationParams>("quantParams");
         auto quantZero = quantizationParams.getZeroPoint();
         toBuild->quant_zero = std::vector<unsigned char>(quantZero.begin(), quantZero.end());
-        auto quantScale = quantizationParams.getScale();
+        std::vector<unsigned> quantScale = {};
+        if (quantizationParams.hasAttr("mult"))
+            quantScale = quantizationParams.getMult();
+
+        quantScale = reduceQuantVector_(quantScale);
         toBuild->quant_scale = std::vector<unsigned short int>(quantScale.begin(), quantScale.end());
+        std::vector<unsigned> quantShift;
+        if (quantizationParams.hasAttr("shift"))
+            quantShift = quantizationParams.getShift();
+        quantShift = reduceQuantVector_(quantShift);
+        toBuild->quant_shift = std::vector<unsigned char>(quantShift.begin(), quantShift.end());
+
     }
 
     return toBuild;
@@ -226,6 +260,8 @@ std::unique_ptr<MVCNN::SummaryHeaderT> mv::RuntimeModel::buildSummaryHeaderT(Com
 
     std::unique_ptr<MVCNN::SummaryHeaderT> toBuild = std::unique_ptr<MVCNN::SummaryHeaderT>(new MVCNN::SummaryHeaderT());
 
+    auto globalConfigurationParameters = cm.getGlobalConfigParams();
+
     toBuild->version = std::move(originalHeader->version);
     toBuild->original_structure = std::move(originalHeader->original_structure);
     toBuild->resources = std::move(originalHeader->resources);
@@ -248,7 +284,7 @@ std::unique_ptr<MVCNN::SummaryHeaderT> mv::RuntimeModel::buildSummaryHeaderT(Com
 
     toBuild->options = std::vector<MVCNN::ExecutionFlag>();
     //toBuild->options.push_back(MVCNN::ExecutionFlag_Compiled_For_VPU3);
-    if(compilationDescriptor.get<std::string>("barrier_index_assignment") == "Dynamic")
+    if(globalConfigurationParameters->get<std::string>("barrier_index_assignment") == "Dynamic")
         toBuild->options.push_back(MVCNN::ExecutionFlag_DynamicBarriers);
 
     toBuild->layer_count = originalHeader->layer_count;
@@ -269,36 +305,45 @@ std::unique_ptr<MVCNN::VersionT> mv::RuntimeModel::buildVersionT(ComputationMode
     return toBuild;
 }
 
-std::unique_ptr<MVCNN::ResourcesT> mv::RuntimeModel::buildResourcesT(ComputationModel&, mv::Element& compilationDescriptor)
+std::unique_ptr<MVCNN::ResourcesT> mv::RuntimeModel::buildResourcesT(ComputationModel& cm, mv::Element& compilationDescriptor)
 {
     std::unique_ptr<MVCNN::ResourcesT> toBuild = std::unique_ptr<MVCNN::ResourcesT>(new MVCNN::ResourcesT());
 
-    setIfPresent<uint32_t, int>(toBuild->upa_shaves, compilationDescriptor , "ResourcesUpaShaves");
-    setIfPresent<int8_t, int>(toBuild->nce1_blocks, compilationDescriptor, "ResourcesNCE1Mask");
-    setIfPresent<uint32_t, int>(toBuild->nce2_blocks, compilationDescriptor, "ResourcesNCE2Mask");
-    setIfPresent<uint32_t, int>(toBuild->upa_shared_cmx, compilationDescriptor, "ResourcesUPASharedCMX");
-    setIfPresent<uint32_t, int>(toBuild->nn_cmx_per_slice, compilationDescriptor, "ResourcesNNCMXPerSlice");
-    setIfPresent<uint32_t, int>(toBuild->nn_cmx_slice_amount, compilationDescriptor, "ResourcesNNCMXSliceAmount");
-    setIfPresent<uint32_t, int>(toBuild->ddr_scratch, compilationDescriptor, "ResourcesDDRScratch");
+    auto globalConfigurationParams = cm.getGlobalConfigParams();
+
+    setIfPresent<uint32_t, int>(toBuild->upa_shaves, *globalConfigurationParams , "UpaShaves");
+    setIfPresent<int8_t, int>(toBuild->nce1_blocks, *globalConfigurationParams, "NCE1Mask");
+    setIfPresent<uint32_t, int>(toBuild->nce2_blocks, *globalConfigurationParams, "Number_of_DPUs");
+    setIfPresent<uint32_t, int>(toBuild->upa_shared_cmx, *globalConfigurationParams, "UPASharedCMX");
+    setIfPresent<uint32_t, unsigned>(toBuild->nn_cmx_per_slice, *globalConfigurationParams, "cmx");
+    setIfPresent<uint32_t, unsigned>(toBuild->nn_cmx_slice_amount, *globalConfigurationParams, "clusters");
+    setIfPresent<uint32_t, int>(toBuild->ddr_scratch, *globalConfigurationParams, "DDRScratch");
 
     return toBuild;
+}
+
+template <typename T>
+std::vector<long unsigned int> packToInt64(const std::vector<T>& origData, mv::DType dtype)
+{
+    unsigned dataSize = origData.size();
+    unsigned origDataSize = dtype.getSizeInBits();
+    unsigned nElementToPack = 64 / origDataSize;
+    unsigned finalLength = dataSize / nElementToPack;
+
+    std::vector<long unsigned int> toReturn(finalLength, 0);
+
+    for(unsigned i = 0; i < finalLength; ++i)
+        for(unsigned j = 0; j < nElementToPack; ++j)
+            toReturn[i] ^= origData[i*nElementToPack + j] << (j * origDataSize);
+
+    return toReturn;
 }
 
 std::unique_ptr<MVCNN::BinaryDataT> mv::RuntimeModel::buildBinaryDataT(ComputationModel&, mv::Element&, mv::Tensor& t)
 {
     std::unique_ptr<MVCNN::BinaryDataT> toBuild = std::unique_ptr<MVCNN::BinaryDataT>(new MVCNN::BinaryDataT());
 
-    // NEW approach
-    if (t.isDoubleType())
-    {
-        auto tensorData = t.getDoubleData();
-        toBuild->data = std::vector<long unsigned int>(tensorData.begin(), tensorData.end());
-    }
-    else
-    {
-        auto tensorData = t.getIntData();
-        toBuild->data = std::vector<long unsigned int>(tensorData.begin(), tensorData.end());
-    }
+    toBuild->data = packToInt64(t.getData(), t.getDType());
     toBuild->length = t.getShape().totalSize();
     toBuild->underlying_type = convertDtype(t.getDType());
 
@@ -318,111 +363,113 @@ std::vector<std::unique_ptr<MVCNN::TaskListT>> mv::RuntimeModel::buildTaskListT(
     toBuild[1] = std::unique_ptr<MVCNN::TaskListT>(new MVCNN::TaskListT());
     toBuild[2] = std::unique_ptr<MVCNN::TaskListT>(new MVCNN::TaskListT());
 
-    auto topologicallySortedOps = controlModel.topologicalSort();
+    auto topologicallySortedOps = controlModel.schedulingSort();
+
+    int initialId = 1;
 
     for(auto vecIt = topologicallySortedOps.begin(); vecIt != topologicallySortedOps.end(); ++vecIt)
     {
         auto opIt = *vecIt;
+        std::unique_ptr<MVCNN::TaskListT> * listToUse;
         std::string opType = opIt->getOpType();
         //Only Tasks in TaskLists
         if(opType.find("Task") != std::string::npos)
         {
             if(opType.find("DPU") != std::string::npos)
-                toBuild[0]->content.push_back(buildTaskT(cm, compilationDescriptor, opIt));
-            if(opType.find("DMA") != std::string::npos)
-                toBuild[1]->content.push_back(buildTaskT(cm, compilationDescriptor, opIt));
-            if(opType.find("Controller") != std::string::npos)
-                toBuild[2]->content.push_back(buildTaskT(cm, compilationDescriptor, opIt));
+                listToUse = &toBuild[0];
+            else if(opType.find("DMA") != std::string::npos)
+                listToUse = &toBuild[1];
+            else if(opType.find("BarrierTask") != std::string::npos)
+                listToUse = &toBuild[2];
+
+            auto tasks = buildTaskT(cm, compilationDescriptor, opIt, initialId);
+            for(auto& task: tasks)
+                (*listToUse)->content.push_back(std::move(task));
         }
     }
+
+
 
     return toBuild;
 }
 
-void mv::RuntimeModel::buildBarrierTaskT(ComputationModel& cm, Element& compilationDescriptor, Control::OpListIterator opIt, MVCNN::ControllerTaskT* toBuild)
+std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildBarrierTaskT(ComputationModel& cm, Element& compilationDescriptor, Control::OpListIterator opIt)
 {
-    toBuild->task.type = MVCNN::ControllerSubTask_BarrierConfigurationTask;
+    std::vector<std::unique_ptr<MVCNN::TaskT>> toReturn = std::vector<std::unique_ptr<MVCNN::TaskT>>(1);
 
-    auto tmp = new MVCNN::BarrierConfigurationTaskT();
-    tmp->target = buildBarrierT(cm, compilationDescriptor, opIt);
-    toBuild->task.value = tmp;
+    toReturn[0] = std::unique_ptr<MVCNN::TaskT>(new MVCNN::TaskT());
+    toReturn[0]->task.type = MVCNN::SpecificTask_ControllerTask;
+
+    auto controllerTask = new MVCNN::ControllerTaskT();
+    controllerTask->task.type = MVCNN::ControllerSubTask_BarrierConfigurationTask;
+
+    auto barrierConfigurationTask = new MVCNN::BarrierConfigurationTaskT();
+    barrierConfigurationTask->target = buildBarrierT(cm, compilationDescriptor, opIt);
+
+    controllerTask->task.value = barrierConfigurationTask;
+    toReturn[0]->task.value = controllerTask;
+
+   return toReturn;
 }
 
-void mv::RuntimeModel::buildSpecificTaskUnion(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt, MVCNN::SpecificTaskUnion& specificTask)
+std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildSpecificTaskUnion(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt, int& nodeID)
 {
+    std::vector<std::unique_ptr<MVCNN::TaskT>> toBuild = std::vector<std::unique_ptr<MVCNN::TaskT>>();
     std::string taskType(opIt->getOpType());
 
     //NOTE: This if conditions of this big switch statements are not definitive and could change in the future
     if(taskType == "MvTensorTask")
-    {
-        specificTask.type = MVCNN::SpecificTask_MvTensorTask;
-        specificTask.value = new MVCNN::MvTensorTaskT();
-        buildMvTensorTaskT(cm, compilationDescriptor, opIt, reinterpret_cast<MVCNN::MvTensorTaskT*>(specificTask.value));
-    }
+        toBuild = buildMvTensorTaskT(cm, compilationDescriptor, opIt);
     else if(taskType == "UPADMATask")
-    {
-        specificTask.type = MVCNN::SpecificTask_UPADMATask;
-        specificTask.value = new MVCNN::UPADMATaskT();
-        buildUPADMATaskT(cm, compilationDescriptor, opIt, reinterpret_cast<MVCNN::UPADMATaskT*>(specificTask.value));
-    }
+        toBuild = buildUPADMATaskT(cm, compilationDescriptor, opIt);
     else if(taskType == "DMATask")
-    {
-        specificTask.type = MVCNN::SpecificTask_NNDMATask;
-        specificTask.value = new MVCNN::NNDMATaskT();
-        buildNNDMATaskT(cm, compilationDescriptor, opIt, reinterpret_cast<MVCNN::NNDMATaskT*>(specificTask.value));
-    }
+        toBuild = buildNNDMATaskT(cm, compilationDescriptor, opIt);
     else if(taskType == "NCE1Task")
-    {
-        specificTask.type = MVCNN::SpecificTask_NCE1Task;
-        specificTask.value = new MVCNN::NCE1TaskT();
-        buildNCE1TaskT(cm, compilationDescriptor, opIt, reinterpret_cast<MVCNN::NCE1TaskT*>(specificTask.value));
-    }
+        toBuild = buildNCE1TaskT(cm, compilationDescriptor, opIt);
     else if(taskType == "DPUTask")
-    {
-        specificTask.type = MVCNN::SpecificTask_NCE2Task;
-        specificTask.value = new MVCNN::NCE2TaskT();
-        buildNCE2TaskT(cm, compilationDescriptor, opIt, reinterpret_cast<MVCNN::NCE2TaskT*>(specificTask.value));
-    }
+        toBuild = buildNCE2TaskT(cm, compilationDescriptor, opIt);
     else if(taskType == "NNTensorTask")
-    {
-        specificTask.type = MVCNN::SpecificTask_NNTensorTask;
-        specificTask.value = new MVCNN::NNTensorTaskT();
-        buildNNTensorTaskT(cm, compilationDescriptor, opIt, reinterpret_cast<MVCNN::NNTensorTaskT*>(specificTask.value));
-    }
+        toBuild = buildNNTensorTaskT(cm, compilationDescriptor, opIt);
     else if(taskType == "ControllerTask")
-    {
-        specificTask.type = MVCNN::SpecificTask_ControllerTask;
-        specificTask.value = new MVCNN::ControllerTaskT();
-        buildControllerTaskT(cm, compilationDescriptor, opIt, reinterpret_cast<MVCNN::ControllerTaskT*>(specificTask.value));
-    }
+        toBuild = buildControllerTaskT(cm, compilationDescriptor, opIt);
     else if(taskType == "BarrierTask")
-    {
-        specificTask.type = MVCNN::SpecificTask_ControllerTask;
-        specificTask.value = new MVCNN::ControllerTaskT();
-        buildBarrierTaskT(cm, compilationDescriptor, opIt, reinterpret_cast<MVCNN::ControllerTaskT*>(specificTask.value));
-    }
+        toBuild = buildBarrierTaskT(cm, compilationDescriptor, opIt);
+
+    return toBuild;
 }
 
-void mv::RuntimeModel::buildMvTensorTaskT(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt, MVCNN::MvTensorTaskT* toBuild)
+std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildMvTensorTaskT(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt)
 {
 
 }
 
-void mv::RuntimeModel::buildUPADMATaskT(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt, MVCNN::UPADMATaskT* toBuild)
+std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildUPADMATaskT(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt)
 {
-    toBuild->src = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(0));
-    toBuild->dst = buildTensorReferenceT(cm, compilationDescriptor, opIt->getOutputTensor(0));
+    std::vector<std::unique_ptr<MVCNN::TaskT>> toReturn = std::vector<std::unique_ptr<MVCNN::TaskT>>(1);
+    toReturn[0] = std::unique_ptr<MVCNN::TaskT>(new MVCNN::TaskT());
+    toReturn[0]->task.type = MVCNN::SpecificTask_UPADMATask;
+    auto tmp = new MVCNN::UPADMATaskT();
+    tmp->src = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(0));
+    tmp->dst = buildTensorReferenceT(cm, compilationDescriptor, opIt->getOutputTensor(0));
+    toReturn[0]->task.value = tmp;
+    return toReturn;
 }
 
-void mv::RuntimeModel::buildNNDMATaskT(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt, MVCNN::NNDMATaskT* toBuild)
+std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt)
 {
-    toBuild->src = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(0));
-    toBuild->dst = buildTensorReferenceT(cm, compilationDescriptor, opIt->getOutputTensor(0));
+    std::vector<std::unique_ptr<MVCNN::TaskT>> toReturn = std::vector<std::unique_ptr<MVCNN::TaskT>>(1);
+    toReturn[0] = std::unique_ptr<MVCNN::TaskT>(new MVCNN::TaskT());
+    toReturn[0]->task.type = MVCNN::SpecificTask_NNDMATask;
+    auto tmp = new MVCNN::NNDMATaskT();
+    tmp->src = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(0));
+    tmp->dst = buildTensorReferenceT(cm, compilationDescriptor, opIt->getOutputTensor(0));
     if(opIt->hasAttr("Compression"))
-        toBuild->compression = opIt->get<bool>("Compression");
+        tmp->compression =  opIt->get<bool>("Compression");
+    toReturn[0]->task.value = tmp;
+    return toReturn;
 }
 
-void mv::RuntimeModel::buildNCE1TaskT(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt, MVCNN::NCE1TaskT* toBuild)
+std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNCE1TaskT(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt)
 {
 
 }
@@ -471,7 +518,6 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
         toBuild->ppe_task = buildPPETaskT(cm, compilationDescriptor, opIt->get<PPETask>("PPETask"));
     // TODO
     // std::vector<std::unique_ptr<NNTensorTaskT>> nnshv_task;
-    // mpe_frequent_mode: MPE_Mode;
     // split_over_h: bool = false;
 
     if (opIt->hasAttr("kSize"))
@@ -487,8 +533,20 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
         toBuild->kernel_strideW = kernelStride[0];
         toBuild->kernel_strideH = kernelStride[1];
     }
+
+    if (opIt->hasAttr("padding"))
+    {
+        auto kernelPadding = opIt->get<std::array<unsigned short, 4>>("padding");
+        toBuild->kernel_padLeft = kernelPadding[0];
+        toBuild->kernel_padRight = kernelPadding[1];
+        toBuild->kernel_padTop = kernelPadding[2];
+        toBuild->kernel_padBottom = kernelPadding[3];
+    }
+
     toBuild->input_data = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(0));
+    toBuild->parent_input_tensor = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(0));
     toBuild->output_data = buildTensorReferenceT(cm, compilationDescriptor, opIt->getOutputTensor(0));
+    toBuild->parent_output_tensor = buildTensorReferenceT(cm, compilationDescriptor, opIt->getOutputTensor(0));
 
     unsigned num_inputs = opIt->getInputTensor().size();
 
@@ -502,8 +560,11 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
         toBuild->activation_window_channel_length = activationWindowTensorIterator->get<int>("channelLength");
     }
 
-    auto weightsTableTensorIterator = opIt->getInputTensor(num_inputs - 1);
-    toBuild->weights_table = buildTensorReferenceT(cm, compilationDescriptor, weightsTableTensorIterator);
+    if(toBuild->dpu_task_type != MVCNN::DPULayerType_ELTWISE)
+    {
+        auto weightsTableTensorIterator = opIt->getInputTensor(num_inputs - 1);
+        toBuild->weights_table = buildTensorReferenceT(cm, compilationDescriptor, weightsTableTensorIterator);
+    }
 
     switch (toBuild->dpu_task_type)
     {
@@ -511,6 +572,8 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
         case MVCNN::DPULayerType_DWCONV:
         case MVCNN::DPULayerType_CMCONV:
         case MVCNN::DPULayerType_FCL:
+        case MVCNN::DPULayerType_ELTWISE:
+            //std::unique_ptr<TensorReferenceT> parent_weights_tensor;
             toBuild->weights_data = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(1));
             break;
         default:
@@ -533,21 +596,65 @@ MVCNN::MPE_Mode mv::RuntimeModel::convertMPEMode(mv::MPE_Mode mpe)
     }
 }
 
-std::unique_ptr<MVCNN::NCEVariantFieldsT> mv::RuntimeModel::buildNCEVariantFieldsT(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt, Workload workload)
+bool mv::RuntimeModel::hardwareBugDepthwise(Control::OpListIterator opIt)
+{
+    auto splitStrategy = opIt->get<std::string>("splitStrategy");
+    auto padding = opIt->get<std::array<unsigned short, 4>>("padding");
+    auto kernelSize = opIt->get<std::array<unsigned short, 2>>("kSize");
+    return ((splitStrategy == "SplitOverH") &&
+        (padding[0] % 2 == 1) &&
+        (kernelSize[mv::KERNEL_HEIGHT] > 1));
+}
+
+void mv::RuntimeModel::getWorkloadPadding(Control::OpListIterator opIt, Workload &workload)
+{
+    if (opIt->get<std::string>("taskOp") == "Add" || opIt->get<std::string>("taskOp") == "Subtract" || opIt->get<std::string>("taskOp") == "Multiply")
+    {
+        workload.padLeft = 0;
+        workload.padTop = 0;
+        workload.padRight = 0;
+        workload.padBottom = 0;
+    }
+    else
+    {
+        auto padding = opIt->get<std::array<unsigned short, 4>>("padding");
+        auto outputWidth = opIt->getOutputTensor(0)->getShape()[mv::IO_WIDTH_DIMENSION];
+        auto outputHeight = opIt->getOutputTensor(0)->getShape()[mv::IO_HEIGHT_DIMENSION];
+        if (hardwareBugDepthwise(opIt))
+        {
+            workload.padLeft = (workload.MinX == 0) ? padding[0] : 0;
+            workload.padTop = (workload.MinY == 0) ? padding[2] : 0;
+            workload.padRight = ((workload.MaxX + 1) == outputWidth) ? padding[1] : 0;
+            workload.padBottom = ((workload.MaxY + 1) == outputHeight) ? padding[3] : 0;
+        }
+        else
+        {
+            workload.padLeft = padding[0];
+            workload.padTop = padding[2];
+            workload.padRight = padding[1];
+            workload.padBottom = padding[3];
+        }
+    }
+    return;
+}
+
+std::unique_ptr<MVCNN::NCEVariantFieldsT> mv::RuntimeModel::buildNCEVariantFieldsT(ComputationModel& , mv::Element &compilationDescriptor, Control::OpListIterator opIt, Workload workload)
 {
     std::unique_ptr<MVCNN::NCEVariantFieldsT> toBuild = std::unique_ptr<MVCNN::NCEVariantFieldsT>(new MVCNN::NCEVariantFieldsT());
 
     toBuild->mpe_mode = convertMPEMode(workload.MPEMode);
-    toBuild->padLeft = workload.padLeft;
-    toBuild->padRight = workload.padRight;
-    toBuild->padTop = workload.padTop;
-    toBuild->padBottom = workload.padBottom;
     toBuild->workload_start_X = workload.MinX;
     toBuild->workload_start_Y = workload.MinY;
     toBuild->workload_start_Z = workload.MinZ;
     toBuild->workload_end_X = workload.MaxX;
     toBuild->workload_end_Y = workload.MaxY;
     toBuild->workload_end_Z = workload.MaxZ;
+    //Padding should be computed for every cluster
+    getWorkloadPadding(opIt, workload);
+    toBuild->padLeft = workload.padLeft;
+    toBuild->padRight = workload.padRight;
+    toBuild->padTop = workload.padTop;
+    toBuild->padBottom = workload.padBottom;
     return toBuild;
 }
 
@@ -562,18 +669,38 @@ std::vector<std::unique_ptr<MVCNN::NCEVariantFieldsT>> mv::RuntimeModel::buildNC
     return toBuild;
 }
 
-void mv::RuntimeModel::buildNCE2TaskT(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt, MVCNN::NCE2TaskT* toBuild)
+std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNCE2TaskT(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt)
 {
-    toBuild->invariant = buildNCEInvariantFieldsT(cm, compilationDescriptor, opIt);
+    std::vector<std::unique_ptr<MVCNN::TaskT>> toReturn = std::vector<std::unique_ptr<MVCNN::TaskT>>(1);
+
+    toReturn[0] = std::unique_ptr<MVCNN::TaskT>(new MVCNN::TaskT());
+    toReturn[0]->task.type = MVCNN::SpecificTask_NCE2Task;
+    auto toBuild = new MVCNN::NCE2TaskT();
     toBuild->variant = buildNCEVariantFieldsTVector(cm, compilationDescriptor, opIt);
+    toBuild->invariant = buildNCEInvariantFieldsT(cm, compilationDescriptor, opIt);
+
+    auto hash = [](const MVCNN::MPE_Mode &g){ return static_cast<std::size_t>(g); };
+    auto comp = [](const MVCNN::MPE_Mode &l, const MVCNN::MPE_Mode &r){ return l == r; };
+
+    std::unordered_map<MVCNN::MPE_Mode, unsigned, decltype(hash), decltype(comp)> frequencyCounter(4, hash, comp);
+    for(auto& variantField : toBuild->variant)
+        ++frequencyCounter[variantField->mpe_mode];
+
+    unsigned maxFrequency = 0;
+    for(auto& frequencyCouple : frequencyCounter)
+        if(frequencyCouple.second > maxFrequency)
+            toBuild->invariant->mpe_frequent_mode = frequencyCouple.first;
+
+    toReturn[0]->task.value = toBuild;
+    return toReturn;
 }
 
-void mv::RuntimeModel::buildNNTensorTaskT(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt, MVCNN::NNTensorTaskT* toBuild)
+std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNTensorTaskT(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt)
 {
 
 }
 
-void mv::RuntimeModel::buildControllerTaskT(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt, MVCNN::ControllerTaskT* toBuild)
+std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildControllerTaskT(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt)
 {
 
 }
@@ -588,22 +715,25 @@ std::unique_ptr<MVCNN::BarrierReferenceT> mv::RuntimeModel::buildBarrierReferenc
     return toBuild;
 }
 
-std::unique_ptr<MVCNN::TaskT> mv::RuntimeModel::buildTaskT(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt)
+std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildTaskT(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt, int& nodeID)
 {
-    std::unique_ptr<MVCNN::TaskT> toBuild = std::unique_ptr<MVCNN::TaskT>(new MVCNN::TaskT());
 
-    toBuild->nodeID = opIt->get<unsigned>("taskId");
-    toBuild->name = opIt->getName();
+    std::vector<std::unique_ptr<MVCNN::TaskT>> vecToBuild = buildSpecificTaskUnion(cm, compilationDescriptor, opIt, nodeID);
 
-    // NOTE: This might change in the future
-    if(opIt->hasAttr("opId"))
-        toBuild->sourceTaskIDs = {opIt->get<unsigned>("opId")};
+    for(auto& toBuild: vecToBuild)
+    {
+        toBuild->nodeID = nodeID++;
+        toBuild->name = opIt->getName();
 
-    if(opIt->hasAttr("BarrierDeps"))
-        toBuild->associated_barriers = buildBarrierReferenceT(cm, compilationDescriptor, opIt->get<mv::BarrierDependencies>("BarrierDeps"));
+        // NOTE: This might change in the future
+        if(opIt->hasAttr("opId"))
+            toBuild->sourceTaskIDs = {opIt->get<unsigned>("opId")};
 
-    buildSpecificTaskUnion(cm, compilationDescriptor, opIt, toBuild->task);
-    return toBuild;
+        if(opIt->hasAttr("BarrierDeps"))
+            toBuild->associated_barriers = buildBarrierReferenceT(cm, compilationDescriptor, opIt->get<mv::BarrierDependencies>("BarrierDeps"));
+    }
+
+    return vecToBuild;
 }
 
 std::unique_ptr<MVCNN::BarrierT> mv::RuntimeModel::buildBarrierT(mv::ComputationModel& cm, mv::Element& compilationDescriptor, mv::Control::OpListIterator opIt)
@@ -624,7 +754,7 @@ std::vector<std::unique_ptr<MVCNN::BarrierT>> mv::RuntimeModel::buildBarrierTabl
     std::sort(
         barrierTasks.begin(),
         barrierTasks.end(),
-        [](const mv::Data::OpListIterator& a, const mv::Data::OpListIterator& b) -> bool { return a->getName() < b->getName(); }
+        [](const mv::Data::OpListIterator& a, const mv::Data::OpListIterator& b) -> bool { return a->get<mv::Barrier>("Barrier").getIndex() < b->get<mv::Barrier>("Barrier").getIndex(); }
         );
 
     unsigned n = barrierTasks.size();
@@ -644,22 +774,28 @@ void mv::RuntimeModel::buildGraphFile(ComputationModel& cm, mv::Element& compila
 {
     mv::OpModel om(cm);
 
+    auto globalConfigurationParameters = cm.getGlobalConfigParams();
+
     graphFile_.header = buildSummaryHeaderT(cm, compilationDescriptor, std::move(graphFile_.header));
 
     // TASKS
     graphFile_.task_lists = buildTaskListT(cm, compilationDescriptor);
 
     // Barrier Table must be build only on dynamic scheduling
-    if(compilationDescriptor.get<std::string>("barrier_index_assignment") == "Dynamic")
+    if(globalConfigurationParameters->get<std::string>("barrier_index_assignment") == "Dynamic")
         graphFile_.barrier_table = buildBarrierTable(cm, compilationDescriptor);
 
     // Binary Data
     graphFile_.binary_data = std::vector<std::unique_ptr<MVCNN::BinaryDataT>>();
-    for(auto tensorIt = om.tensorBegin(); tensorIt != om.tensorEnd(); ++tensorIt)
+    for(auto opIterator = om.opBegin(); opIterator != om.opEnd(); ++opIterator)
     {
-        auto allocators = tensorIt->get<std::set<std::string>>("allocators");
-        if (allocators.count("GraphFile") != 0)
-            graphFile_.binary_data.push_back(buildBinaryDataT(cm, compilationDescriptor, *tensorIt));
+        std::string opType = opIterator->getOpType();
+        if (opType == "Constant" || opType == "ConstantInt" || opType == "ConstantDataElement" || opType == "WeightsTable" || opType == "SparsityMap")
+        {
+            auto tIt = opIterator->getOutputTensor(0);
+            //std::cout << "Serializing to binary data section " << tensorIt->getName() << std::endl;
+            graphFile_.binary_data.push_back(buildBinaryDataT(cm, compilationDescriptor, *tIt));
+        }
     }
 
 }

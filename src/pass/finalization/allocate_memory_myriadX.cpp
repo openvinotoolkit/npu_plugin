@@ -230,6 +230,7 @@ void allocateUnpopulatedTensorsFcn(const mv::pass::PassEntry&, mv::ComputationMo
             // TODO: Request this from the order - What element is axis at.
             // Currently only working for channels.
             // auto inOrder = opIterator->getInputTensor(0)->getOrder();
+	    // channel_index = 2;
             channel_index = mv::IO_CHANNEL_DIMENSION;
 
             std::vector<unsigned> running_concat_offset_LHS;
@@ -390,6 +391,35 @@ void allocateUnpopulatedTensorsFcn(const mv::pass::PassEntry&, mv::ComputationMo
 
                         }
 
+            
+                        // Else, check if next op needs NCE padding & grab that!
+                        // Without this, the NCE Op's input strides (& therefore HW descriptors) are wrong
+                        else {
+                            auto opIterator_backup = opIterator;
+                            ++opIterator;
+                            //std::cout << "Incrementing opIterator to: " << opIterator->getName() << std::endl;
+                            if (opIterator->hasAttr("NCE1_Compatible"))
+                            {
+
+                                 if (opIterator->get<int>("NCE1_Compatible"))
+                                {
+
+                                     if (outTensor->hasAttr("NCE1_Paddings"))
+                                    {
+                                         std::cout << "Padding for hardware" << std::endl;
+                                        auto paddings = outTensor->get<std::vector<std::size_t>>("NCE1_Paddings");
+                                        dm.padRight("IntermediateMemory", buf, paddings);
+
+                                     }
+
+                                 }
+
+                             }
+
+                             opIterator = opIterator_backup;
+                            //std::cout << "Changing opIterator back to: " << opIterator->getName() << std::endl;
+                        }
+                        
                     }
 
                 }

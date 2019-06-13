@@ -3,6 +3,7 @@
 #include "include/mcm/algorithms/transitive_reduction.hpp"
 #include "include/mcm/algorithms/critical_path.hpp"
 #include "include/mcm/algorithms/path_exists.hpp"
+#include "include/mcm/algorithms/scheduling_sort.hpp"
 
 mv::ControlModel::ControlModel(ComputationModel &other) :
 ComputationModel(other)
@@ -211,6 +212,13 @@ std::vector<mv::Control::OpListIterator> mv::ControlModel::topologicalSort()
     return toReturn;
 }
 
+std::vector<mv::Control::OpListIterator> mv::ControlModel::schedulingSort()
+{
+    // Necessary for correct iterator casting
+    auto schedulingSortResult = mv::schedulingSort(controlGraph_, getFirst());
+    std::vector<mv::Control::OpListIterator> toReturn(schedulingSortResult.begin(), schedulingSortResult.end());
+    return toReturn;
+}
 
 struct OpItComparator
 {
@@ -260,12 +268,12 @@ void mv::ControlModel::transitiveReduction(const std::string& edgeAttribute)
         for(auto edgeIt = flowBegin(); edgeIt != flowEnd(); ++edgeIt)
             if(edgeIt->hasAttr(edgeAttribute))
                 toSave.insert(edgeIt);
-    mv::transitiveReduction<Op, ControlFlow, EdgeItComparator>(controlGraph_, toSave);
+    mv::transitiveReduction<Op, ControlFlow, EdgeItComparator, OpItComparator>(controlGraph_, toSave);
 }
 
 bool mv::ControlModel::isDag()
 {
-    mv::isDAG(controlGraph_);
+    return mv::isDAG(controlGraph_);
 }
 
 void mv::ControlModel::undefineFlow(Control::FlowListIterator flow)

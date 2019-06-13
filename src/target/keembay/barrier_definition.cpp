@@ -81,6 +81,11 @@ int mv::Barrier::getID() const
     return barrierID_;
 }
 
+void mv::Barrier::setID(int id)
+{
+    barrierID_ = id;
+}
+
 int mv::Barrier::getIndex() const
 {
     return index_;
@@ -169,6 +174,29 @@ std::string mv::Barrier::toString() const
     output += "index: " + std::to_string(index_) + " | ";
     output += "nProd: " + std::to_string(numProducers_) + " | ";
     output += "nCons: " + std::to_string(numConsumers_) + "\n";
+
+    return output;
+}
+
+std::string mv::Barrier::toLongString() const
+{
+    std::string output = "";
+
+    output += "group: " + std::to_string(group_) + " | ";
+    output += "index: " + std::to_string(index_) + " | ";
+    output += "nProd: " + std::to_string(numProducers_) + " | ";
+    output += "nCons: " + std::to_string(numConsumers_) + "\n";
+    output += "producers = ";
+    for (auto prod: producers_)
+        output += prod + ", ";
+
+    output += "\n";
+
+    output += "consumers = ";
+    for (auto cons: consumers_)
+        output += cons + ", ";
+
+    output += "\n";
 
     return output;
 }

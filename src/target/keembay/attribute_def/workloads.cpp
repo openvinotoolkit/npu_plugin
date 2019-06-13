@@ -22,14 +22,20 @@ namespace mv
 
     static std::string toString(const Attribute& a)
     {
-       return "Workloads:" + a.get<Workloads>().toString();
+       return a.get<Workloads>().toString();
+    }
+
+    static std::string toLongString(const Attribute& a)
+    {
+        return a.get<Workloads>().toLongString();
     }
 
     MV_REGISTER_ATTR(Workloads)
         .setToJSONFunc(toJSON)
         .setFromJSONFunc(fromJSON)
-        .setToStringFunc(toString);
-
+        .setToStringFunc(toString)
+        .setToLongStringFunc(toLongString)
+        .setTypeTrait("large");
     }
 
 }

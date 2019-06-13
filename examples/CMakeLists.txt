@@ -37,7 +37,9 @@ if (MSVC)
 
     add_executable(hw_convolution hw_convolution.cpp $<TARGET_OBJECTS:cm> $<TARGET_OBJECTS:corebase> $<TARGET_OBJECTS:metamodel> $<TARGET_OBJECTS:model>)
 
-    add_executable(dpu_conv_example dpu_conv_example.cpp $<TARGET_OBJECTS:cm> $<TARGET_OBJECTS:corebase> $<TARGET_OBJECTS:metamodel> $<TARGET_OBJECTS:model>)
+    add_executable(z_major_convolution z_major_convolution.cpp $<TARGET_OBJECTS:cm> $<TARGET_OBJECTS:corebase> $<TARGET_OBJECTS:metamodel> $<TARGET_OBJECTS:model>)
+
+    add_executable(streaming_manual_example streaming_manual_example.cpp $<TARGET_OBJECTS:cm> $<TARGET_OBJECTS:corebase> $<TARGET_OBJECTS:metamodel> $<TARGET_OBJECTS:model>)
 
     add_executable(dpu_task_example dpu_task_example.cpp $<TARGET_OBJECTS:cm> $<TARGET_OBJECTS:corebase> $<TARGET_OBJECTS:metamodel> $<TARGET_OBJECTS:model>)
 
@@ -54,7 +56,7 @@ if (MSVC)
     add_executable(barrier_dependency_example barrier_dependency_example.cpp $<TARGET_OBJECTS:cm> $<TARGET_OBJECTS:corebase> $<TARGET_OBJECTS:metamodel> $<TARGET_OBJECTS:model>)
 
 else()
-
+   
     add_executable(average_to_depthwise average_to_depthwise.cpp)
     target_link_libraries(average_to_depthwise cm)
 
@@ -100,20 +102,26 @@ else()
     add_executable(standalone_prelu standalone_prelu.cpp)
     target_link_libraries(standalone_prelu cm)
 
-    add_executable(hw_convolution hw_convolution.cpp)
-    target_link_libraries(hw_convolution cm)
+    add_executable(hw_convolution_mx hw_convolution_mx.cpp)
+    target_link_libraries(hw_convolution_mx cm)
 
-    add_executable(dpu_conv_example dpu_conv_example.cpp)
-    target_link_libraries(dpu_conv_example cm)
+    add_executable(z_major_convolution z_major_convolution.cpp)
+    target_link_libraries(z_major_convolution cm)
 
-    add_executable(zconv_example zconv_example.cpp)
-    target_link_libraries(zconv_example cm)
+    add_executable(channel_major_convolution channel_major_convolution.cpp)
+    target_link_libraries(channel_major_convolution cm)
+
+    add_executable(streaming_manual_example streaming_manual_example.cpp)
+    target_link_libraries(streaming_manual_example cm)
 
     add_executable(dpu_task_example dpu_task_example.cpp)
     target_link_libraries(dpu_task_example cm)
 
     add_executable(dpu_conv_3_conv dpu_conv_3_conv.cpp)
     target_link_libraries(dpu_conv_3_conv cm)
+
+    add_executable(fault_dpu_conv_3_conv fault_dpu_conv_3_conv.cpp)
+    target_link_libraries(fault_dpu_conv_3_conv cm)
     
     add_executable(dpu_conv_2_conv dpu_conv_2_conv.cpp)
     target_link_libraries(dpu_conv_2_conv cm)
@@ -141,9 +149,6 @@ else()
 
     add_executable(dilationExample dilatedExample.cpp)
     target_link_libraries(dilationExample cm)
-
-    add_executable(runtime_model runtime_model.cpp)
-    target_link_libraries(runtime_model cm)
 
     if(VALIDATION)
     add_executable(caffe_files_generator caffe_files_generator.cpp)

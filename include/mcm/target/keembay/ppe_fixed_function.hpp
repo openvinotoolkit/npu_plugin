@@ -14,7 +14,7 @@ namespace mv
             int highClamp_;
             std::vector<PPELayerType> layers_;
         public:
-            PPEFixedFunction(int low_clamp = -2147483648, int high_clamp = 2147483647);
+            PPEFixedFunction(int lowClamp = -2147483648, int highClamp = 2147483647);
 
             int getLowClamp() const;
             int getHighClamp() const ;

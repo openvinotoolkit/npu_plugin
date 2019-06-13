@@ -16,21 +16,65 @@ namespace mv
         size_t height;
         bool isColored;
 
-        TensorInterferenceGraphNode(std::string name_) : name(name_), weight(0), neighborsWeight(0), address(0), isColored(false) {
+        TensorInterferenceGraphNode() :
+            name(""),
+            weight(0),
+            neighborsWeight(0),
+            address(0),
+            height(0),
+            isColored(false)
+        {
+        }
 
+        TensorInterferenceGraphNode(std::string name_) :
+            name(name_),
+            weight(0),
+            neighborsWeight(0),
+            address(0),
+            height(0),
+            isColored(false)
+        {
         }
 
         TensorInterferenceGraphNode(const mv::TensorInterferenceGraphNode& rhs) {
             name = rhs.name;
             weight = rhs.weight;
             neighborsWeight = rhs.neighborsWeight;
+            height = rhs.height;
             address = rhs.address;
             isColored = rhs.isColored;
+        }
+
+        TensorInterferenceGraphNode(mv::TensorInterferenceGraphNode&& rhs) noexcept : TensorInterferenceGraphNode{}
+        {
+            swap(rhs);
         }
 
         bool operator==(const mv::TensorInterferenceGraphNode& rhs) const
         {
             return (name == rhs.name);
+        }
+
+        TensorInterferenceGraphNode& operator=(TensorInterferenceGraphNode rhs)
+        {
+            swap(rhs);
+            return *this;
+        }
+
+        void swap(TensorInterferenceGraphNode& rhs)
+        {
+            name.swap(rhs.name);
+            std::swap(weight, rhs.weight);
+            std::swap(height, rhs.height);
+            std::swap(neighborsWeight, rhs.neighborsWeight);
+            std::swap(address, rhs.address);
+            std::swap(isColored, rhs.isColored);
+        }
+        void print() const
+        {
+            std::cout << " name " << name << " address " << address << " weight "
+                << weight << " neightborsWeight " << neighborsWeight << " height "
+                << height << " isColored " << isColored << std::endl;
         }
     };
     class TensorInterferenceGraph;

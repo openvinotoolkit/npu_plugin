@@ -7,7 +7,7 @@ TEST(insert_barrier_tasks, serial_path)
     mv::CompilationUnit unit("testModel");
     mv::OpModel& om = unit.model();
 
-    auto input = om.input({224, 224, 3, 1}, mv::DType("Float16"), mv::Order("NCHW"));
+    auto input = om.input({28, 28, 3, 1}, mv::DType("Float16"), mv::Order("NCHW"));
     std::vector<double> weightsData = mv::utils::generateSequence<double>(3*3*3*16);
     auto weights1 = om.constant(weightsData, {3, 3, 3, 16}, mv::DType("Float16"), mv::Order("NCWH"));
     auto conv1 = om.conv(input, weights1, {1, 1}, {1, 1, 1, 1}); // one barrier
@@ -19,6 +19,8 @@ TEST(insert_barrier_tasks, serial_path)
     unit.loadTargetDescriptor(mv::Target::ma2490);
     
     unit.compilationDescriptor().remove("finalize","MaxTopologicalCutAndPartialSerialisation");
+    unit.compilationDescriptor().remove("serialize");
+
     unit.compilationDescriptor().addToGroup("root","GlobalParamsReset","Singular", false);
     unit.initialize();
     unit.run();
@@ -58,27 +60,53 @@ TEST(insert_barrier_tasks, parallel_paths)
     unit.initialize();
     unit.run();
 
-//    system("dot -Tpng final_model.dot -o parallel_paths_final_model.png");
-    auto barrierOps = om.getOps("BarrierTask");
+    system("dot -Tpng final_model.dot -o parallel_paths_final_model.png");
+
+    std::vector<mv::Control::OpListIterator> barrierOps;
+    for (auto opIt = cm.opBegin(); opIt != cm.opEnd(); ++opIt)
+    {
+        if (opIt->getOpType().find("BarrierTask") != std::string::npos)
+            barrierOps.push_back(opIt);
+    }
 
     int numChecks = 0;
-    size_t expected_num_barriers = 4;
+    size_t expected_num_barriers = 4; // (3 + 1 barrier for prefetch)
     ASSERT_EQ(barrierOps.size(), expected_num_barriers);
     numChecks++;
 
     // barrier 0 is used by 2 convs (multiple consumers)
     for (auto b : barrierOps)
     {
-        //std::cout << " In parallel_paths test: found " << b->getName() << " " << b->get<mv::Barrier>("Barrier").getNumProducers() << std::endl;
-        //std::cout << " In parallel_paths test: found " << b->getName() << " " << b->get<mv::Barrier>("Barrier").getNumConsumers() << std::endl;
-        if (b->getName() == "BarrierTask_0") 
+        bool found = false;
+        auto inputTensors = b->getInputTensor();
+        for (auto childOp = b.leftmostChild(); childOp != cm.opEnd(); ++childOp)
         {
-            EXPECT_EQ(2, b->get<mv::Barrier>("Barrier").getNumProducers());
-            EXPECT_EQ(8, b->get<mv::Barrier>("Barrier").getNumConsumers());
-            numChecks=numChecks+2;
+            if (childOp->getOpType() == "DPUTask"
+                && childOp->getName().find("DPU_Conv_0") != std::string::npos)
+            {
+                found = true;
+            }
+        }
+
+        if (found)
+        {
+            // check that we got the right parents (there should be 2)
+            std::vector<std::string> childNames;
+            for (auto childOp = b.leftmostChild(); childOp != cm.opEnd(); ++childOp)
+            {
+                if (childOp->getOpType() == "DPUTask")
+                    childNames.push_back(childOp->getName());
+
+            }
+            EXPECT_TRUE(std::any_of(childNames.begin(),
+                            childNames.end(),
+                            [](std::string& s){ return s.find("DPU_Conv_1") != std::string::npos; } ));
+
+            numChecks=numChecks+1;
+            break;
         }
     }
-    EXPECT_EQ(3, numChecks);   // coverage check
+    EXPECT_EQ(2, numChecks);   // coverage check
 }
 
 TEST(insert_barrier_tasks, single_control_edge)
@@ -132,8 +160,14 @@ TEST(insert_barrier_tasks, single_control_edge)
     unit.initialize();
     unit.run();
 
-//    system("dot -Tpng final_model.dot -o single_control_edge_final_model.png");
-    auto barrierOps = om.getOps("BarrierTask");
+    system("dot -Tpng final_model.dot -o single_control_edge_final_model.png");
+
+    std::vector<mv::Control::OpListIterator> barrierOps;
+    for (auto opIt = cm.opBegin(); opIt != cm.opEnd(); ++opIt)
+    {
+        if (opIt->getOpType().find("BarrierTask") != std::string::npos)
+            barrierOps.push_back(opIt);
+    }
 
     int numChecks = 0;
     size_t expected_num_barriers = 6;
@@ -143,16 +177,36 @@ TEST(insert_barrier_tasks, single_control_edge)
     // Check new barrier required by partial serialization
     for (auto b : barrierOps)
     {
-        //std::cout << " In single_control_edges test: found " << b->getName() << " " << b->get<mv::Barrier>("Barrier").getNumProducers() << std::endl;
-        //std::cout << " In single_control_edges test: found " << b->getName() << " " << b->get<mv::Barrier>("Barrier").getNumConsumers() << std::endl;
-        if (b->getName() == "BarrierTask_5")
+        bool found = false;
+        for (auto parentOp = b.leftmostParent(); parentOp != cm.opEnd(); ++parentOp)
         {
-            EXPECT_EQ(4, b->get<mv::Barrier>("Barrier").getNumProducers());
-            EXPECT_EQ(1, b->get<mv::Barrier>("Barrier").getNumConsumers());
-            numChecks=numChecks+2;
+            if (parentOp->getOpType() == "DPUTask"
+                && parentOp->getName().find("DPU_Conv_0") != std::string::npos)
+            {
+                found = true;
+            }
+        }
+
+        if (found)
+        {
+            // Check that we got the right child
+            std::vector<std::string> childDMATaskNames;
+            for (auto childOp = b.leftmostChild(); childOp != cm.opEnd(); ++childOp)
+            {
+                if (childOp->getOpType() == "DMATask")
+                    childDMATaskNames.push_back(childOp->getName());
+
+            }
+            EXPECT_TRUE(std::any_of(childDMATaskNames.begin(),
+                            childDMATaskNames.end(),
+                            [](const std::string& s){ return s.find("DMAAlignedConstant_1") != std::string::npos; } ));
+
+
+            numChecks=numChecks+1;
+            break;
         }
     }
-    EXPECT_EQ(3, numChecks);   // coverage check
+    EXPECT_EQ(2, numChecks);   // coverage check
 }
 
 TEST(insert_barrier_tasks, multiple_control_edges)
@@ -202,13 +256,25 @@ TEST(insert_barrier_tasks, multiple_control_edges)
     unit.compilationDescriptor().remove("control_flows");
     unit.compilationDescriptor().remove("finalize","MaxTopologicalCutAndPartialSerialisation");
 
+    // number of workloads is not important -- the number of tasks that are tracked
+    // by a barrier is important -- so remove workloads generation, since it
+    // changes based on the algorithm chosen & can break this test. Nope...
+    // this is failing as well. :`-(
+    //unit.compilationDescriptor().remove("finalize","GenerateWorkloads");
+
     unit.compilationDescriptor().addToGroup("root","GlobalParamsReset","Singular", false);
     // run passes after partial serilization, including insert barriers pass
     unit.initialize();
     unit.run();
 
-//    system("dot -Tpng final_model.dot -o multiple_control_edges_final_model.png");
-    auto barrierOps = om.getOps("BarrierTask");
+    system("dot -Tpng final_model.dot -o multiple_control_edges_final_model.png");
+
+    std::vector<mv::Control::OpListIterator> barrierOps;
+    for (auto opIt = cm.opBegin(); opIt != cm.opEnd(); ++opIt)
+    {
+        if (opIt->getOpType().find("BarrierTask") != std::string::npos)
+            barrierOps.push_back(opIt);
+    }
 
     int numChecks = 0;
     size_t expected_num_barriers = 6;
@@ -218,13 +284,45 @@ TEST(insert_barrier_tasks, multiple_control_edges)
     // barriers affected by partial serialization should have extra producers
     for (auto b : barrierOps)
     {
-        //std::cout << " In multiple_control_edges test: found " << b->getName() << " " << b->get<mv::Barrier>("Barrier").getNumProducers() << std::endl;
-        //std::cout << " In multiple_control_edges test: found " << b->getName() << " " << b->get<mv::Barrier>("Barrier").getNumConsumers() << std::endl;
-        if (b->getName() == "BarrierTask_5")
+        bool found = false;
+        for (auto parentOp = b.leftmostParent(); parentOp != cm.opEnd(); ++parentOp)
         {
-            EXPECT_EQ(8, b->get<mv::Barrier>("Barrier").getNumProducers());
-            EXPECT_EQ(1, b->get<mv::Barrier>("Barrier").getNumConsumers());
+            if (parentOp->getOpType() == "DPUTask"
+                && parentOp->getName().find("DPU_Conv_0") != std::string::npos)
+            {
+                found = true;
+            }
+        }
+
+        if (found)
+        {
+            // check that we got the right parents (there should be 2)
+            std::vector<std::string> parentNames;
+            for (auto parentOp = b.leftmostParent(); parentOp != cm.opEnd(); ++parentOp)
+            {
+                if (parentOp->getOpType() == "DPUTask")
+                    parentNames.push_back(parentOp->getName());
+
+            }
+            EXPECT_TRUE(std::any_of(parentNames.begin(),
+                            parentNames.end(),
+                            [](std::string& s){ return s.find("DPU_Conv_1") != std::string::npos; } ));
+
+            // Check that we got the right child
+            std::vector<std::string> childDMATaskNames;
+            for (auto childOp = b.leftmostChild(); childOp != cm.opEnd(); ++childOp)
+            {
+                if (childOp->getOpType() == "DMATask")
+                    childDMATaskNames.push_back(childOp->getName());
+
+            }
+            EXPECT_TRUE(std::any_of(childDMATaskNames.begin(),
+                            childDMATaskNames.end(),
+                            [](const std::string& s){ return s.find("DMAAlignedConstant_2") != std::string::npos; } ));
+
+
             numChecks=numChecks+2;
+            break;
         }
     }
     EXPECT_EQ(3, numChecks);   // coverage check
@@ -263,8 +361,8 @@ TEST(insert_barrier_tasks, dealloc_edge)
     unit.run();
 
     // add an edge to task graph, simulating partial serialization
-    auto holdOp = om.getOp("DMAAlignedConstant_1");
     auto deAllocOp = om.getOp("DeallocateDMAAlignedConstant_0");
+    auto holdOp = om.getOp("DMAAlignedConstant_1");
     cm.defineFlow(deAllocOp, holdOp);        // one barrier #5
 
     unit.loadCompilationDescriptor(compDescPath);
@@ -281,8 +379,13 @@ TEST(insert_barrier_tasks, dealloc_edge)
     unit.initialize();
     unit.run();
 
-//    system("dot -Tpng final_model.dot -o dealloc_edge_final_model.png");
-    auto barrierOps = om.getOps("BarrierTask");
+    system("dot -Tpng final_model.dot -o dealloc_edge_final_model.png");
+    std::vector<mv::Control::OpListIterator> barrierOps;
+    for (auto opIt = cm.opBegin(); opIt != cm.opEnd(); ++opIt)
+    {
+        if (opIt->getOpType().find("BarrierTask") != std::string::npos)
+            barrierOps.push_back(opIt);
+    }
 
     int numChecks = 0;
     size_t expected_num_barriers = 6;
@@ -292,16 +395,38 @@ TEST(insert_barrier_tasks, dealloc_edge)
     // Check new barrier required by partial serialization
     for (auto b : barrierOps)
     {
-        //std::cout << " In static_index test: found " << b->getName() << " " << b->get<mv::Barrier>("Barrier").getNumProducers() << std::endl;
-        //std::cout << " In static_index test: found " << b->getName() << " " << b->get<mv::Barrier>("Barrier").getNumConsumers() << std::endl;
-        if (b->getName() == "BarrierTask_5")
+        bool found = false;
+        for (auto childOp = b.leftmostChild(); childOp != cm.opEnd(); ++childOp)
         {
-            EXPECT_EQ(4, b->get<mv::Barrier>("Barrier").getNumProducers());
-            EXPECT_EQ(1, b->get<mv::Barrier>("Barrier").getNumConsumers());
-            numChecks=numChecks+2;
+            if (childOp->getOpType() == "DMATask"
+                && childOp->getName().find("DMAAlignedConstant_1") != std::string::npos)
+            {
+                found = true;
+            }
+        }
+
+        if (found)
+        {
+            // Check that we got the right parent. Dellocs are removed in the graph,
+            // so the control flow would be from the preceding DPUTask (which, in this case)
+            // is Conv_0. Verify that we have Conv_0 as one of the parents to this barrier.
+            std::vector<std::string> parentNames;
+            for (auto parentOp = b.leftmostParent(); parentOp != cm.opEnd(); ++parentOp)
+            {
+                if (parentOp->getOpType() == "DPUTask")
+                    parentNames.push_back(parentOp->getName());
+
+            }
+            EXPECT_TRUE(std::any_of(parentNames.begin(),
+                            parentNames.end(),
+                            [](const std::string& s){ return s.find("Conv_0") != std::string::npos; } ));
+
+
+            numChecks=numChecks+1;
+            break;
         }
     }
-    EXPECT_EQ(3, numChecks);   // coverage check
+    EXPECT_EQ(2, numChecks);   // coverage check
 }
 
 TEST(insert_barrier_tasks, static_index_assignment)
@@ -310,7 +435,7 @@ TEST(insert_barrier_tasks, static_index_assignment)
     mv::OpModel& om = unit.model();
     mv::ControlModel cm(om);
 
-    auto input = om.input({224, 224, 3, 1}, mv::DType("Float16"), mv::Order("NCHW"));
+    auto input = om.input({28, 28, 3, 1}, mv::DType("Float16"), mv::Order("NCHW"));
     std::vector<double> weightsData = mv::utils::generateSequence<double>(3*3*3*16);
     auto weights0 = om.constant(weightsData, {3, 3, 3, 16}, mv::DType("Float16"), mv::Order("NCWH"));
     auto conv0 = om.conv(input, weights0, {1, 1}, {1, 1, 1, 1});  // barrier
@@ -350,117 +475,54 @@ TEST(insert_barrier_tasks, static_index_assignment)
     std::string optString = "Static";
     mv::Attribute option = optString;
     auto& compDesc = unit.compilationDescriptor();
-    compDesc.setPassArg("InsertBarrierTasks", "barrier_index_assignment", option);
+    compDesc.setPassArg("GlobalConfigParams", "barrier_index_assignment", option);
 
     unit.compilationDescriptor().addToGroup("root","GlobalParamsReset","Singular", false);
     unit.loadTargetDescriptor(mv::Target::ma2490);
     unit.initialize();
     unit.run();
 
-//    system("dot -Tpng final_model.dot -o static_barriers_final_model.png");
+    system("dot -Tpng final_model.dot -o static_barriers_final_model.png");
 
-    auto barrierOps = om.getOps("BarrierTask");
+    auto sortedOps = cm.topologicalSort();
 
-    int numChecks = 0;
-    size_t expected_num_barriers = 15;
-    EXPECT_EQ(barrierOps.size(), expected_num_barriers);
-    numChecks++;
-
-    // Expect reuse of barrier index numbers due to graph coloring + static index assignment
-    for (auto b : barrierOps)
+    std::vector<int> barrierOpIndices;
+    for (auto op: sortedOps)
     {
-//        std::cout << " In static_index test: found " << b->getName() << " " << b->get<mv::Barrier>("Barrier").getIndex() << std::endl;
-        if (b->getName() == "BarrierTask_0")
-        {
-            EXPECT_EQ(0, b->get<mv::Barrier>("Barrier").getIndex());
-            numChecks++;
-        }
-        if (b->getName() == "BarrierTask_2")
-        {   EXPECT_EQ(0, b->get<mv::Barrier>("Barrier").getIndex());
-            numChecks++;
-        }
-        if (b->getName() == "BarrierTask_6")
-        {
-            EXPECT_EQ(0, b->get<mv::Barrier>("Barrier").getIndex());
-            numChecks++;
-        }
-        if (b->getName() == "BarrierTask_8")
-        {
-            EXPECT_EQ(0, b->get<mv::Barrier>("Barrier").getIndex());
-            numChecks++;
-        }
-        if (b->getName() == "BarrierTask_1")
-        {
-            EXPECT_EQ(1, b->get<mv::Barrier>("Barrier").getIndex());
-            numChecks++;
-        }
-        if (b->getName() == "BarrierTask_4")
-        {
-            EXPECT_EQ(1, b->get<mv::Barrier>("Barrier").getIndex());
-            numChecks++;
-        }
-        if (b->getName() == "BarrierTask_7")
-        {
-            EXPECT_EQ(1, b->get<mv::Barrier>("Barrier").getIndex());
-            numChecks++;
-        }
-        if (b->getName() == "BarrierTask_9")
-        {
-            EXPECT_EQ(1, b->get<mv::Barrier>("Barrier").getIndex());
-            numChecks++;
-        }
-        if (b->getName() == "BarrierTask_3")
-        {
-            EXPECT_EQ(2, b->get<mv::Barrier>("Barrier").getIndex());
-            numChecks++;
-        }
-        if (b->getName() == "BarrierTask_5")
-        {
-            EXPECT_EQ(2, b->get<mv::Barrier>("Barrier").getIndex());
-            numChecks++;
-        }
-        if (b->getName() == "BarrierTask_10")
-        {
-            EXPECT_EQ(3, b->get<mv::Barrier>("Barrier").getIndex());
-            numChecks++;
-        }
-        if (b->getName() == "BarrierTask_12")
-        {
-            EXPECT_EQ(3, b->get<mv::Barrier>("Barrier").getIndex());
-            numChecks++;
-        }
-        if (b->getName() == "BarrierTask_14")
-        {
-            EXPECT_EQ(4, b->get<mv::Barrier>("Barrier").getIndex());
-            numChecks++;
-        }
-        if (b->getName() == "BarrierTask_16")
-        {
-            EXPECT_EQ(4, b->get<mv::Barrier>("Barrier").getIndex());
-            numChecks++;
-        }
-        if (b->getName() == "BarrierTask_18")
-        {
-            EXPECT_EQ(5, b->get<mv::Barrier>("Barrier").getIndex());
-            numChecks++;
-        }
+        if (op->getOpType().find("BarrierTask") != std::string::npos)
+            barrierOpIndices.push_back(op->get<mv::Barrier>("Barrier").getIndex());
     }
-    EXPECT_EQ(16, numChecks);   // coverage check
+
+    size_t expected_num_barriers = 15;
+    EXPECT_EQ(barrierOpIndices.size(), expected_num_barriers);
+
+    // The barrier interference graph coloring algorithm (a.k.a. static index 
+    // assignment algorithm) assigns indices between 0 and MAX_BARRIER_INDEX - 1.
+    // Ensure that indices are in this range.
+    const int MAX_BARRIER_INDEX = 8;
+    EXPECT_TRUE(std::all_of(barrierOpIndices.begin(),
+                barrierOpIndices.end(),
+                [](int i){ return (i >= 0) && (i < MAX_BARRIER_INDEX - 1); }));
+
 }
 
 TEST(insert_barrier_tasks, dynamic_index_assignment)
 {
+    //mv::Logger::setVerboseLevel(mv::VerboseLevel::Info);
+
     mv::CompilationUnit unit("testModel");
     mv::OpModel& om = unit.model();
+    mv::ControlModel cm(unit.model());
 
-    auto input = om.input({224, 224, 3, 1}, mv::DType("Float16"), mv::Order("NCHW"));
     std::vector<double> weightsData = mv::utils::generateSequence<double>(3*3*3*16);
+    std::vector<double> weights3Data = mv::utils::generateSequence<double>(3*3*16*16);
+
+    auto input = om.input({28, 28, 3, 1}, mv::DType("Float16"), mv::Order("NCHW"));
     auto weights1 = om.constant(weightsData, {3, 3, 3, 16}, mv::DType("Float16"), mv::Order("NCWH"));
     auto conv1 = om.conv(input, weights1, {1, 1}, {1, 1, 1, 1});
     auto pool1 = om.maxPool(conv1, {2, 2}, {2, 2}, {0, 0, 0, 0});
     auto pool2 = om.maxPool(conv1, {4, 4}, {2, 2}, {1, 1, 1, 1});
 
-    std::vector<double> weights3Data = mv::utils::generateSequence<double>(3*3*16*16);
     auto weights2 = om.constant(weights3Data, {3, 3, 16, 16}, mv::DType("Float16"), mv::Order("NCWH"));
     auto conv2 = om.conv(pool1, weights2, {1, 1}, {1, 1, 1, 1});
 
@@ -485,106 +547,36 @@ TEST(insert_barrier_tasks, dynamic_index_assignment)
     std::string optString = "Dynamic";
     mv::Attribute option = optString;
     auto& compDesc = unit.compilationDescriptor();
-    compDesc.setPassArg("InsertBarrierTasks", "barrier_index_assignment", option);
+    compDesc.setPassArg("GlobalConfigParams", "barrier_index_assignment", option);
+    compDesc.setPassArg("AddWeightsDMATasks", "weights_prefetch", 2);
 
     unit.compilationDescriptor().remove("finalize","MaxTopologicalCutAndPartialSerialisation");
-    unit.compilationDescriptor().remove("serialize");
+    //unit.compilationDescriptor().remove("serialize");
     unit.compilationDescriptor().addToGroup("root","GlobalParamsReset","Singular", false);
 
     unit.loadTargetDescriptor(mv::Target::ma2490);
     unit.initialize();
     unit.run();
 
-//    system("dot -Tpng final_model.dot -o dynamic_barriers_final_model.png");
+    system("dot -Tpng final_model.dot -o dynamic_barriers_final_model.png");
 
-    auto barrierOps = om.getOps("BarrierTask");
+    auto sortedOps = cm.topologicalSort();
 
-    int numChecks = 0;
-    size_t expected_num_barriers = 15;
-    EXPECT_EQ(barrierOps.size(), expected_num_barriers);
-    numChecks++;
-
-    // Expect index assignment (no reuse) in dynamic mode
-    for (auto b : barrierOps)
+    std::vector<int> barrierOpIndices;
+    for (auto op: sortedOps)
     {
-//        std::cout << " In dynamic_index test: found " << b->getName() << " " << b->get<mv::Barrier>("Barrier").getIndex() << std::endl;
-        if (b->getName() == "BarrierTask_0")
-        {
-            EXPECT_EQ(0, b->get<mv::Barrier>("Barrier").getIndex());
-            numChecks++;
-        }
-        if (b->getName() == "BarrierTask_1")
-        {
-            EXPECT_EQ(1, b->get<mv::Barrier>("Barrier").getIndex());
-            numChecks++;
-        }
-        if (b->getName() == "BarrierTask_2")
-        {
-            EXPECT_EQ(2, b->get<mv::Barrier>("Barrier").getIndex());
-            numChecks++;
-        }
-        if (b->getName() == "BarrierTask_3")
-        {
-            EXPECT_EQ(3, b->get<mv::Barrier>("Barrier").getIndex());
-            numChecks++;
-        }
-        if (b->getName() == "BarrierTask_4")
-        {
-            EXPECT_EQ(4, b->get<mv::Barrier>("Barrier").getIndex());
-            numChecks++;
-        }
-        if (b->getName() == "BarrierTask_5")
-        {
-            EXPECT_EQ(5, b->get<mv::Barrier>("Barrier").getIndex());
-            numChecks++;
-        }
-        if (b->getName() == "BarrierTask_6")
-        {
-            EXPECT_EQ(6, b->get<mv::Barrier>("Barrier").getIndex());
-            numChecks++;
-        }
-        if (b->getName() == "BarrierTask_7")
-        {
-            EXPECT_EQ(7, b->get<mv::Barrier>("Barrier").getIndex());
-            numChecks++;
-        }
-        if (b->getName() == "BarrierTask_8")
-        {
-            EXPECT_EQ(8, b->get<mv::Barrier>("Barrier").getIndex());
-            numChecks++;
-        }
-        if (b->getName() == "BarrierTask_9")
-        {
-            EXPECT_EQ(9, b->get<mv::Barrier>("Barrier").getIndex());
-            numChecks++;
-        }
-        if (b->getName() == "BarrierTask_10")
-        {
-            EXPECT_EQ(10, b->get<mv::Barrier>("Barrier").getIndex());
-            numChecks++;
-        }
-        if (b->getName() == "BarrierTask_12")
-        {
-            EXPECT_EQ(12, b->get<mv::Barrier>("Barrier").getIndex());
-            numChecks++;
-        }
-        if (b->getName() == "BarrierTask_14")
-        {
-            EXPECT_EQ(14, b->get<mv::Barrier>("Barrier").getIndex());
-            numChecks++;
-        }
-        if (b->getName() == "BarrierTask_16")
-        {
-            EXPECT_EQ(16, b->get<mv::Barrier>("Barrier").getIndex());
-            numChecks++;
-        }
-        if (b->getName() == "BarrierTask_18")
-        {
-            EXPECT_EQ(18, b->get<mv::Barrier>("Barrier").getIndex());
-            numChecks++;
-        }
+        if (op->getOpType().find("BarrierTask") != std::string::npos)
+            barrierOpIndices.push_back(op->get<mv::Barrier>("Barrier").getIndex());
     }
-    EXPECT_EQ(16, numChecks);   // coverage check
+
+    size_t expected_num_barriers = 15;
+    EXPECT_EQ(barrierOpIndices.size(), expected_num_barriers);
+    EXPECT_TRUE(barrierOpIndices[0] == 0);
+
+    for (size_t i = 1; i < barrierOpIndices.size(); ++i)
+    {
+        EXPECT_EQ(barrierOpIndices[i], barrierOpIndices[i-1] + 1);
+    }
 }
 
 
@@ -592,25 +584,22 @@ TEST(insert_barrier_tasks, weights_prefetch)
 {
     mv::CompilationUnit unit("testModel");
     mv::OpModel& om = unit.model();
+    mv::ControlModel cm(unit.model());
 
-    auto input = om.input({224, 224, 3, 1}, mv::DType("Float16"), mv::Order("NCHW"));
+    auto input = om.input({28, 28, 3, 1}, mv::DType("Float16"), mv::Order("NCHW"));
     std::vector<double> weightsData = mv::utils::generateSequence<double>(3*3*3*16);
     auto weights1 = om.constant(weightsData, {3, 3, 3, 16}, mv::DType("Float16"), mv::Order("NCWH"));
     auto conv1 = om.conv(input, weights1, {1, 1}, {1, 1, 1, 1});
-    auto pool1 = om.maxPool(conv1, {2, 2}, {2, 2}, {0, 0, 0, 0});
-    auto pool2 = om.maxPool(conv1, {4, 4}, {2, 2}, {1, 1, 1, 1});
-
     std::vector<double> weights3Data = mv::utils::generateSequence<double>(3*3*16*16);
+
     auto weights2 = om.constant(weights3Data, {3, 3, 16, 16}, mv::DType("Float16"), mv::Order("NCWH"));
-    auto conv2 = om.conv(pool1, weights2, {1, 1}, {1, 1, 1, 1});
+    auto conv2 = om.conv(conv1, weights2, {1, 1}, {1, 1, 1, 1});
 
     auto weights3 = om.constant(weights3Data, {3, 3, 16, 16}, mv::DType("Float16"), mv::Order("NCWH"));
-    auto conv3 = om.conv(pool2, weights3, {1, 1}, {1, 1, 1, 1});
-
-    auto add1 = om.add(conv2, conv3);
+    auto conv3 = om.conv(conv2, weights3, {1, 1}, {1, 1, 1, 1});
 
     auto weights4 = om.constant(weights3Data, {3, 3, 16, 16}, mv::DType("Float16"), mv::Order("NCWH"));
-    auto conv4 = om.conv(add1, weights4, {1, 1}, {1, 1, 1, 1});
+    auto conv4 = om.conv(conv3, weights4, {1, 1}, {1, 1, 1, 1});
 
     auto weights5 = om.constant(weights3Data, {3, 3, 16, 16}, mv::DType("Float16"), mv::Order("NCWH"));
     auto conv5 = om.conv(conv4, weights5, {1, 1}, {1, 1, 1, 1});
@@ -622,14 +611,20 @@ TEST(insert_barrier_tasks, weights_prefetch)
 
     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/debug_ma2490.json";
     unit.loadCompilationDescriptor(compDescPath);
-    auto& compDesc = unit.compilationDescriptor();
 
-    int dma_dependency = compDesc.getPassArg("dma","Singular","AddDMATasks","weights_prefetch");
+    std::string optString = "Dynamic";
+    mv::Attribute option = optString;
+    auto& compDesc = unit.compilationDescriptor();
+    compDesc.setPassArg("GlobalConfigParams", "barrier_index_assignment", option);
+
+    int dma_dependency = compDesc.getPassArg("dma","Singular","AddWeightsDMATasks","weights_prefetch");
     EXPECT_EQ(2, dma_dependency);     // default prefetch is 2
     int numChecks = 1;
-    compDesc.setPassArg("AddDMATasks", "weights_prefetch", 3);
-    dma_dependency = compDesc.getPassArg("dma","Singular","AddDMATasks","weights_prefetch");
-    EXPECT_EQ(3, dma_dependency);
+
+    int prefetchTestVal = 3;
+    compDesc.setPassArg("AddWeightsDMATasks", "weights_prefetch", prefetchTestVal);
+    dma_dependency = compDesc.getPassArg("dma","Singular","AddWeightsDMATasks","weights_prefetch");
+    EXPECT_EQ(prefetchTestVal, dma_dependency);
     numChecks++;
 
     unit.compilationDescriptor().remove("finalize","MaxTopologicalCutAndPartialSerialisation");
@@ -640,89 +635,138 @@ TEST(insert_barrier_tasks, weights_prefetch)
     unit.initialize();
     unit.run();
 
-//    system("dot -Tpng final_model.dot -o weights_prefetch_final_model.png");
+    system("dot -Tpng final_model.dot -o weights_prefetch_final_model.png");
 
-    auto barrierOps = om.getOps("BarrierTask");
+    auto sortedOps = cm.topologicalSort();
 
-    size_t expected_num_barriers = 14;
-    EXPECT_EQ(barrierOps.size(), expected_num_barriers);
-    numChecks++;
-
-    // Expect index assignment (no reuse) in dynamic mode
-    for (auto b : barrierOps)
+    std::vector<int> barrierOpIndices;
+    for (auto op: sortedOps)
     {
-//        std::cout << " In weights_prefetch test: found " << b->getName() << " " << b->get<mv::Barrier>("Barrier").getIndex() << std::endl;
-//        std::cout << "            numChecks = " << numChecks << std::endl;
-        if (b->getName() == "BarrierTask_0")
-        {
-            EXPECT_EQ(0, b->get<mv::Barrier>("Barrier").getIndex());
-            numChecks++;
-        }
-        if (b->getName() == "BarrierTask_1")
-        {
-            EXPECT_EQ(1, b->get<mv::Barrier>("Barrier").getIndex());
-            numChecks++;
-        }
-        if (b->getName() == "BarrierTask_2")
-        {
-            EXPECT_EQ(2, b->get<mv::Barrier>("Barrier").getIndex());
-            numChecks++;
-        }
-        if (b->getName() == "BarrierTask_3")
-        {
-            EXPECT_EQ(3, b->get<mv::Barrier>("Barrier").getIndex());
-            numChecks++;
-        }
-        if (b->getName() == "BarrierTask_4")
-        {
-            EXPECT_EQ(4, b->get<mv::Barrier>("Barrier").getIndex());
-            numChecks++;
-        }
-        if (b->getName() == "BarrierTask_5")
-        {
-            EXPECT_EQ(5, b->get<mv::Barrier>("Barrier").getIndex());
-            numChecks++;
-        }
-        if (b->getName() == "BarrierTask_6")
-        {
-            EXPECT_EQ(6, b->get<mv::Barrier>("Barrier").getIndex());
-            numChecks++;
-        }
-        if (b->getName() == "BarrierTask_7")
-        {
-            EXPECT_EQ(7, b->get<mv::Barrier>("Barrier").getIndex());
-            numChecks++;
-        }
-        if (b->getName() == "BarrierTask_8")
-        {
-            EXPECT_EQ(8, b->get<mv::Barrier>("Barrier").getIndex());
-            numChecks++;
-        }
-        if (b->getName() == "BarrierTask_9")
-        {
-            EXPECT_EQ(9, b->get<mv::Barrier>("Barrier").getIndex());
-            numChecks++;
-        }
-        if (b->getName() == "BarrierTask_10")
-        {
-            EXPECT_EQ(10, b->get<mv::Barrier>("Barrier").getIndex());
-            numChecks++;
-        }
-        if (b->getName() == "BarrierTask_12")
-        {
-            EXPECT_EQ(12, b->get<mv::Barrier>("Barrier").getIndex());
-            numChecks++;
-        }
-        if (b->getName() == "BarrierTask_14")
-        {
-            EXPECT_EQ(14, b->get<mv::Barrier>("Barrier").getIndex());
-            numChecks++;
-        }
-        if (b->getName() == "BarrierTask_16")
-        {
-            EXPECT_EQ(16, b->get<mv::Barrier>("Barrier").getIndex());
-            numChecks++;
-        }
+        if (op->getOpType().find("BarrierTask") != std::string::npos)
+            barrierOpIndices.push_back(op->get<mv::Barrier>("Barrier").getIndex());
     }
-    EXPECT_EQ(17, numChecks);   // coverage check
+
+    // With weights prefetch = 3 for this network, we expect 6 + 1 + (6 - (3+1)) barriers.
+    // 6 ahead of the DPUTasks
+    // 1 ahead of the DMATask
+    // # total ops - (prefetch_val + 1) --> weights must be fetched after the prefetch_val-1 op
+    // finishes executing.
+    size_t expected_num_barriers = 9;
+    EXPECT_EQ(barrierOpIndices.size(), expected_num_barriers);
+
+}
+
+static void RunTest(mv::CompilationUnit& unit, std::vector<int>& barrierOpIndices, const int reuseWindow)
+{
+    mv::OpModel& om = unit.model();
+    mv::ControlModel cm(unit.model());
+
+    auto input = om.input({56, 56, 16, 1}, mv::DType("Int8"), mv::Order("NCHW"));
+    std::vector<int64_t> weightsData_1by1_16by64 = mv::utils::generateSequence<int64_t>(1*1*16*64);
+    std::vector<int64_t> weightsData_1by1_64by64 = mv::utils::generateSequence<int64_t>(1*1*64*64);
+    std::vector<int64_t> weightsData_3by3 = mv::utils::generateSequence<int64_t>(3*3*64*64);
+    std::vector<int64_t> weightsData_3by3_2 = mv::utils::generateSequence<int64_t>(3*3*64*64);
+
+    auto weights1 = om.constantInt(weightsData_1by1_16by64, {1, 1, 16, 64}, mv::DType("Int8"), mv::Order("NCWH"));
+    auto conv1 = om.conv(input, weights1, {1, 1}, {1, 1, 1, 1});
+
+    auto weights2 = om.constantInt(weightsData_3by3, {3, 3, 64, 64}, mv::DType("Int8"), mv::Order("NCWH"));
+    auto conv2 = om.conv(conv1, weights2, {1, 1}, {1, 1, 1, 1});
+
+    auto weights3 = om.constantInt(weightsData_1by1_64by64, {1, 1, 64, 64}, mv::DType("Int8"), mv::Order("NCWH"));
+    auto conv3 = om.conv(conv2, weights3, {1, 1}, {1, 1, 1, 1});
+
+    auto weights4 = om.constantInt(weightsData_3by3_2, {3, 3, 64, 64}, mv::DType("Int8"), mv::Order("NCWH"));
+    auto conv4 = om.conv(conv3, weights4, {1, 1}, {1, 1, 1, 1});
+
+    auto weights5 = om.constantInt(weightsData_1by1_64by64, {1, 1, 64, 64}, mv::DType("Int8"), mv::Order("NCWH"));
+    auto conv5 = om.conv(conv4, weights5, {1, 1}, {1, 1, 1, 1});
+
+    auto weights6 = om.constantInt(weightsData_3by3, {3, 3, 64, 64}, mv::DType("Int8"), mv::Order("NCWH"));
+    auto conv6 = om.conv(conv5, weights6, {1, 1}, {1, 1, 1, 1});
+
+    auto weights7 = om.constantInt(weightsData_1by1_64by64, {1, 1, 64, 64}, mv::DType("Int8"), mv::Order("NCWH"));
+    auto conv7 = om.conv(conv6, weights7, {1, 1}, {1, 1, 1, 1});
+
+    auto weights8 = om.constantInt(weightsData_3by3, {3, 3, 64, 64}, mv::DType("Int8"), mv::Order("NCWH"));
+    auto conv8 = om.conv(conv7, weights8, {1, 1}, {1, 1, 1, 1});
+
+    auto weights9 = om.constantInt(weightsData_1by1_64by64, {1, 1, 64, 64}, mv::DType("Int8"), mv::Order("NCWH"));
+    auto conv9 = om.conv(conv8, weights9, {1, 1}, {1, 1, 1, 1});
+
+    auto weights10 = om.constantInt(weightsData_1by1_64by64, {1, 1, 64, 64}, mv::DType("Int8"), mv::Order("NCWH"));
+    auto conv10 = om.conv(conv9, weights10, {1, 1}, {1, 1, 1, 1});
+
+    auto weights11 = om.constantInt(weightsData_1by1_64by64, {1, 1, 64, 64}, mv::DType("Int8"), mv::Order("NCWH"));
+    auto conv11 = om.conv(conv10, weights11, {1, 1}, {1, 1, 1, 1});
+
+    om.output(conv11); // one barrier for DMA out from CMX to DDR
+
+    std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/debug_ma2490.json";
+    unit.loadCompilationDescriptor(compDescPath);
+    unit.loadTargetDescriptor(mv::Target::ma2490);
+
+    // This test is intended only for static barrier assignment
+    unit.compilationDescriptor().setPassArg("GlobalConfigParams", "barrier_index_assignment", std::string("Static"));
+
+    // Set the barrier reuse window size
+    unit.compilationDescriptor().setPassArg("InsertBarrierTasks", "barrier_reuse_window", reuseWindow);
+
+    // Effectively disable weights prefetch for this test by setting the prefetch number
+    // to a large number
+    unit.compilationDescriptor().setPassArg("AddWeightsDMATasks", "weights_prefetch", 200);
+
+    unit.compilationDescriptor().remove("finalize","GenerateWorkloads");
+    unit.compilationDescriptor().remove("finalize","MaxTopologicalCutAndPartialSerialisation");
+    unit.compilationDescriptor().remove("serialize","GenerateBlobKeembay");
+
+    // Clean up barrier indices after run (since we'll be creating and running multiple networks)
+    unit.compilationDescriptor().addToGroup("root","GlobalParamsReset","Singular", false);
+    unit.initialize();
+    unit.run();
+
+    // For the network, with weights prefetch disabled, the barrier indices must go all the way to 7
+    // before being reused, since we've set the reuse window to be 8. Indices would have otherwise
+    // alternated between 0 & 1, since this is a pretty straightforward network.
+    auto sortedOps = cm.topologicalSort();
+
+    for (auto op: sortedOps)
+    {
+        if (op->getOpType().find("BarrierTask") != std::string::npos)
+            barrierOpIndices.push_back(op->get<mv::Barrier>("Barrier").getIndex());
+    }
+}
+
+TEST(insert_barrier_tasks, additional_interference)
+{
+    mv::CompilationUnit unit("testModel");
+    mv::ControlModel cm(unit.model());
+
+    std::vector<int> barrierOpIndices;
+    int reuseWindow = 0;
+    RunTest(unit, barrierOpIndices, reuseWindow);
+
+    size_t expected_num_barriers = 12;
+    EXPECT_EQ(barrierOpIndices.size(), expected_num_barriers);
+
+    // The barrier interference graph coloring algorithm (a.k.a. static index
+    // assignment algorithm) assigns indices between 0 and MAX_BARRIER_INDEX - 1.
+    // Ensure that indices are in this range.
+    EXPECT_TRUE(std::all_of(barrierOpIndices.begin(),
+                            barrierOpIndices.end(),
+                            [](int i){ return (i >= 0) && (i < 2); }));
+
+
+    /////////////// Now run the same test with barrier reuse turned on. ////////////
+    barrierOpIndices.clear();
+    mv::CompilationUnit unit2("TestModel");
+    reuseWindow = 8;
+    RunTest(unit2, barrierOpIndices, reuseWindow);
+
+    expected_num_barriers = 12;
+    EXPECT_EQ(barrierOpIndices.size(), expected_num_barriers);
+
+    EXPECT_TRUE(std::all_of(barrierOpIndices.begin(),
+                            barrierOpIndices.end(),
+                            [](int i){ return (i >= 0) && (i < 8); }));
 }

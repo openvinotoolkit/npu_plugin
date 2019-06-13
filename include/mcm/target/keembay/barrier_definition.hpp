@@ -29,7 +29,9 @@ namespace mv
 
         int getGroup() const;
         int getIndex() const;
+
         int getID() const;
+        void setID(int id);
 
         int getNumProducers() const;
         int getNumConsumers() const;
@@ -64,6 +66,7 @@ namespace mv
 
         std::string getLogID() const override;
         std::string toString() const;
+        std::string toLongString() const;
 
         static void reset();
     };

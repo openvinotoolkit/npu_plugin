@@ -26,5 +26,7 @@ void generateBlobKeembayFcn(const mv::pass::PassEntry&, mv::ComputationModel& mo
     if (!passDesc.hasAttr("output"))
         return;
 
-    rm.serialize(passDesc.get<std::string>("output"));
+    auto output = passDesc.get<std::string>("output");
+
+    rm.serialize(output);
 }

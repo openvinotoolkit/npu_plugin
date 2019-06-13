@@ -170,7 +170,7 @@ std::pair<mv::JSONTextParser::JSONSymbol, std::string> mv::JSONTextParser::lexer
             content += bufferStr_.substr(0, found);
             bufferStr_.erase(0, found + 1);
 
-            found = content.find_first_of("\\/\b\f\n\r\t");
+            found = content.find_first_of("\\\b\f\n\r\t");
             if (found != std::string::npos)
                 return {JSONSymbol::Invalid, content};
             

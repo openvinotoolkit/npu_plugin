@@ -1320,7 +1320,7 @@ bool GraphMLGraph::writeGraph(const Graph &graph, InfoVertex infoVert, InfoEdge 
 	for(Vert vert = graph.getVert(); vert;
 		vert = graph.getVertNext(vert))
 	{
-		sprintf(adress, "n%08X", (int)vert);
+		sprintf(adress, "n%08X", reinterpret_cast<uintptr_t>(vert));
 		TiXmlElement *xmlVert = new TiXmlElement( "node" );
 		xmlVert->SetAttribute("id", adress);
 		this->xml->LinkEndChild(xmlVert);
@@ -1343,7 +1343,7 @@ bool GraphMLGraph::writeGraph(const Graph &graph, InfoVertex infoVert, InfoEdge 
 	for(Edge edge = graph.getEdge(); edge;
 		edge = graph.getEdgeNext(edge))
 	{
-		sprintf(adress, "e%08X", (int)edge);
+		sprintf(adress, "e%08X", reinterpret_cast<uintptr_t>(edge));
 		TiXmlElement *xmlEdge = new TiXmlElement( "edge" );
 		xmlEdge->SetAttribute("id", adress);
 
@@ -1362,9 +1362,9 @@ bool GraphMLGraph::writeGraph(const Graph &graph, InfoVertex infoVert, InfoEdge 
 		}
 
 		std::pair<Vert,Vert> verts = graph.getEdgeEnds(edge);
-		sprintf(adress, "n%08X", (int)verts.first);
+		sprintf(adress, "n%08X", reinterpret_cast<uintptr_t>(verts.first));
 		xmlEdge->SetAttribute("source", adress);
-		sprintf(adress, "n%08X", (int)verts.second);
+		sprintf(adress, "n%08X", reinterpret_cast<uintptr_t>(verts.second));
 		xmlEdge->SetAttribute("target", adress);
 		if(graph.getType(edge) == Directed)
 			xmlEdge->SetAttribute("directed", "true");
