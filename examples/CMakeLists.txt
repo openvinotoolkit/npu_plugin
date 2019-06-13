@@ -39,10 +39,6 @@ if (MSVC)
 
     add_executable(z_major_convolution z_major_convolution.cpp $<TARGET_OBJECTS:cm> $<TARGET_OBJECTS:corebase> $<TARGET_OBJECTS:metamodel> $<TARGET_OBJECTS:model>)
 
-    add_executable(streaming_manual_example streaming_manual_example.cpp $<TARGET_OBJECTS:cm> $<TARGET_OBJECTS:corebase> $<TARGET_OBJECTS:metamodel> $<TARGET_OBJECTS:model>)
-    add_executable(streaming_manual_res2abranch2a_example streaming_manual_res2abranch2a_example.cpp $<TARGET_OBJECTS:cm> $<TARGET_OBJECTS:corebase> $<TARGET_OBJECTS:metamodel> $<TARGET_OBJECTS:model>)
-    add_executable(streaming_manual_tinyyolo_conv7_example streaming_manual_tinyyolo_conv7_example.cpp $<TARGET_OBJECTS:cm> $<TARGET_OBJECTS:corebase> $<TARGET_OBJECTS:metamodel> $<TARGET_OBJECTS:model>)
-
     add_executable(dpu_task_example dpu_task_example.cpp $<TARGET_OBJECTS:cm> $<TARGET_OBJECTS:corebase> $<TARGET_OBJECTS:metamodel> $<TARGET_OBJECTS:model>)
 
     add_executable(barrier_task_api barrier_task_api.cpp $<TARGET_OBJECTS:cm> $<TARGET_OBJECTS:corebase> $<TARGET_OBJECTS:metamodel> $<TARGET_OBJECTS:model>)
@@ -112,15 +108,6 @@ else()
 
     add_executable(channel_major_convolution channel_major_convolution.cpp)
     target_link_libraries(channel_major_convolution cm)
-
-    add_executable(streaming_manual_example streaming_manual_example.cpp)
-    target_link_libraries(streaming_manual_example cm)
-
-    add_executable(streaming_manual_res2abranch2a_example streaming_manual_res2abranch2a_example.cpp)
-    target_link_libraries(streaming_manual_res2abranch2a_example cm)
-
-    add_executable(streaming_manual_tinyyolo_conv7_example streaming_manual_tinyyolo_conv7_example.cpp)
-    target_link_libraries(streaming_manual_tinyyolo_conv7_example cm)
 
     add_executable(manual_yolo_example manual_yolo_example.cpp)
     target_link_libraries(manual_yolo_example cm)
