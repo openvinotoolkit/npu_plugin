@@ -309,6 +309,21 @@
                 "input": "DeallocationTasksRemoved.dot"
             },
             {
+                "name" : "TransitiveReduction",
+                "filter" : "Fakefilter"
+            },
+            {
+                "name": "GenerateDot",
+                "output": "DeallocationTasksRemovedAndTransitiveReduction.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "DeallocationTasksRemovedAndTransitiveReduction.dot"
+            },
+            {
                 "name" : "InsertBarrierTasks",
                 "outputBIG": "BarrierInterferenceGraph.dot",
                 "barrier_reuse_window" : 0
