@@ -344,9 +344,8 @@ std::unique_ptr<MVCNN::BinaryDataT> mv::RuntimeModel::buildBinaryDataT(Computati
     std::unique_ptr<MVCNN::BinaryDataT> toBuild = std::unique_ptr<MVCNN::BinaryDataT>(new MVCNN::BinaryDataT());
     if (t.isSparse())
     {
-        auto packedData = t.getDataPacked();
-        toBuild->data = packToInt64(packedData, t.getDType());
-        toBuild->length = packedData.size();
+        toBuild->data = packToInt64(t.getDataPacked(), t.getDType());
+        toBuild->length = t.dataPackedSize();
     }
     else
     {

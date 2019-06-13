@@ -152,6 +152,11 @@ namespace mv
             return shape_.totalSize();
         }
 
+        inline unsigned dataPackedSize() const
+        {
+            return noneZeroElements_;
+        }
+
         inline unsigned sizeBytes() const
         {
             return shape_.totalSize() * (getDType().getSizeInBits()/8);
