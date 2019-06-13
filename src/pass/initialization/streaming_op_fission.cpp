@@ -32,8 +32,8 @@ namespace mv
 
 void streamingOpFissionFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::json::Object&)
 {
+    pass.log(mv::Logger::MessageType::Info, "STREAMING PASS entering pass");
 
-    std::cout << "STREAMING PASS entering pass" << std::endl;
     // original graph
     mv::OpModel om(model);
     mv::ControlModel cm(model);
@@ -43,7 +43,6 @@ void streamingOpFissionFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
     auto globalParams = model.getGlobalConfigParams();
     if (!globalParams->hasAttr("streaming_strategy"))
     {
-        std::cout << "STREAMING PASS EXITING: no strategy defined in JSON" << std::endl;
         pass.log(mv::Logger::MessageType::Info, "No custom streaming strategy provided");
         return;
     }
@@ -61,7 +60,8 @@ void streamingOpFissionFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
         auto opToFracture = om.getOp(nodeName);
         auto opType = opToFracture->getOpType();
         unsigned currentOpId = opToFracture->get<unsigned>("opId");
-        std::cout << "IN STREAMING PASS: splitting op " << nodeName << " into " << numWtSplits << std::endl ;
+        pass.log(mv::Logger::MessageType::Info, "Streaming Pass: splitting Op " + nodeName + " into " + std::to_string(numWtSplits));
+
         auto OpAttrDF = opToFracture->get("dilationFactor");
         auto OpAttrGrp = opToFracture->get("group");
         auto OpAttrPad = opToFracture->get("padding");
@@ -69,7 +69,7 @@ void streamingOpFissionFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
         auto OpAttrQPs = opToFracture->get("quantParams");
 
         auto parentTensor = opToFracture->getInputTensor(0);
-   
+
         // gather original weights attributes
         auto originalWtsTensor = opToFracture->getInputTensor(1);
         auto originalWeights = originalWtsTensor->getData();
@@ -89,7 +89,7 @@ void streamingOpFissionFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
         size_t biasEndIndex = 0;
         size_t numKernelsPerSplit = mv::ceil_division(numKernels, numWtSplits);
         size_t remainingKernels = numKernels;
-        for (size_t wi=0; wi<numWtSplits; wi++)
+        for (size_t wi=0; wi < numWtSplits; wi++)
         {
             size_t subWtSize = originalWeights.size();
 
@@ -106,7 +106,9 @@ void streamingOpFissionFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
             {
                 endIndex = originalWeights.size();
             }
-            std::cout << "In STREAMING PASS: wtssize beg,end = " << subWtSize << "   " << startIndex << "," << endIndex << std::endl ;
+
+            pass.log(mv::Logger::MessageType::Info, "Streaming Pass: wtssize beg,end = " + std::to_string(subWtSize) + " " + std::to_string(startIndex) + " , " +  std::to_string(endIndex));
+
             std::vector<mv::DataElement>::const_iterator first = originalWeights.begin() + startIndex;
             std::vector<mv::DataElement>::const_iterator last = originalWeights.begin() + endIndex;
             std::vector<mv::DataElement> subWt(first, last);
@@ -196,9 +198,9 @@ void streamingOpFissionFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
         {
             opsToLink[j]->setInputTensor(subGraphOut, inputSlots[j]);
             om.defineFlow(subGraphOut, opsToLink[j], inputSlots[j]);
-            std::cout << "IN STREAMING PASS: new input " <<  inputSlots[j] << " of " << opsToLink[j]->getName() << " is " << opsToLink[j]->getInputTensor(0)->getName() << std::endl ;
+            //std::cout << "IN STREAMING PASS: new input " <<  inputSlots[j] << " of " << opsToLink[j]->getName() << " is " << opsToLink[j]->getInputTensor(0)->getName() << std::endl ;
         }
 
     }
-    std::cout << "EXIT STREAMING PASS" << std::endl ;
+    pass.log(mv::Logger::MessageType::Info, "STREAMING PASS done");
 }
