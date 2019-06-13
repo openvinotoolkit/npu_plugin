@@ -21,7 +21,8 @@ KMBPlugin for Inference Engine
 * cmake -DInferenceEngineDeveloperPackage_DIR=$DLDT_HOME/inference-engine/build ..
 * make -j8
 
-## How run tests
+## How to run tests
+* export MCM_HOME=$KMB_PLUGIN_HOME/thirdparty/movidius/mcmCompiler
 * cd $DLDT_HOME/inference-engine/bin/intel64/Release/
 * ./KmbBehaviorTests --gtest_filter=\*Behavior\*orrectLib\*kmb\*
-* ./KmbFunctionalTests --gtest_filter=\*KmbParsingTest\*
+* ./KmbFunctionalTests
