@@ -30,7 +30,7 @@ namespace mv
 
 }
 
-void streamingOpFissionFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::json::Object&)
+void streamingOpFissionFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
     pass.log(mv::Logger::MessageType::Info, "STREAMING PASS entering pass");
 
@@ -52,6 +52,11 @@ void streamingOpFissionFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
     for (auto s: strategyList)
     {
         std::string nodeName = s.get<std::string>("name_filter") ;
+        if (!om.checkOp(nodeName))
+        {
+            pass.log(mv::Logger::MessageType::Error, nodeName + " is not present in model, skipping streaming");
+            continue;
+        }
         // TODO add heuristic to determine numsplits if no json
         // TODO is the ops only for Conv? If not then we need cases for each Op
         // or functions per Op type to allow copying passing its attribute on

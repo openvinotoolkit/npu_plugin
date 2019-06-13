@@ -71,13 +71,6 @@
                         "nWorkloads" : 1,
                         "mpe_mode" : "Vector"
                     }
-                ],
-                "streaming_strategy" :
-                [
-                    {
-                        "name_filter" : "Conv_0",
-                        "weight_splits" : 4
-                    }
                 ]
             },
             "ComputeMemory",
