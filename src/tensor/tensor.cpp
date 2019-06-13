@@ -1051,6 +1051,8 @@ void mv::Tensor::splitAcrossClusters(std::vector<mv::Workload> workloads, bool s
         for (auto wlItr = workloads.begin(); wlItr != workloads.end(); wlItr++)
         {
             size_t idx = wlItr - workloads.begin();
+            auto width = wlItr->MaxX - wlItr->MinX + wlItr->padLeft + wlItr->padRight;
+            auto height = wlItr->MaxY - wlItr->MinY + wlItr->padBottom + wlItr->padTop;
             if (splitOverH)
             {
                 subTensors_.push_back(std::make_shared<mv::Tensor>(getName() + "sub" + std::to_string(idx),
@@ -1058,11 +1060,11 @@ void mv::Tensor::splitAcrossClusters(std::vector<mv::Workload> workloads, bool s
             }
             else
             {
-                mv::Shape newShape = { shape[0], shape[1] , static_cast<size_t>(wlItr->width), static_cast<size_t>(wlItr->height)};
+                mv::Shape newShape = { shape[0], shape[1] , static_cast<size_t>(width), static_cast<size_t>(height)};
                 auto order = getOrder();
                 std::vector<mv::DataElement> splittedData(newShape.totalSize(), mv::DataElement(this->isDoubleType()));
-                size_t nOffset = static_cast<size_t>(wlItr->bottomLeftY);
-                size_t cOffset = static_cast<size_t>(wlItr->bottomLeftX);
+                size_t nOffset = static_cast<size_t>(wlItr->MinY);
+                size_t cOffset = static_cast<size_t>(wlItr->MinX);
                 for (size_t n = 0; n < newShape[3]; n++)
                     for (size_t c = 0; c < newShape[2]; c++)
                         for (size_t h = 0; h < newShape[1]; h++)
@@ -1075,7 +1077,7 @@ void mv::Tensor::splitAcrossClusters(std::vector<mv::Workload> workloads, bool s
                     newShape, getDType(), order, splittedData));
             }
             std::vector<std::size_t> offset = {0 , 0,
-                static_cast<size_t>(wlItr->bottomLeftX), static_cast<size_t>(wlItr->bottomLeftY)};
+                static_cast<size_t>(wlItr->MinX), static_cast<size_t>(wlItr->MinY)};
             subTensors_[idx]->set<std::vector<std::size_t>>("offset", offset);
 
             if (hasAttr("quantizationParams"))
@@ -1091,20 +1093,23 @@ void mv::Tensor::splitAcrossClusters(std::vector<mv::Workload> workloads, bool s
         for (auto wlItr = workloads.begin(); wlItr != workloads.end(); wlItr++)
         {
             size_t idx = wlItr - workloads.begin();
+            auto width = wlItr->MaxX - wlItr->MinX + wlItr->padLeft + wlItr->padRight;
+            auto height = wlItr->MaxY - wlItr->MinY + wlItr->padBottom + wlItr->padTop;
             if (splitOverH)
             {
-                mv::Shape newShape = { static_cast<size_t>(wlItr->width), static_cast<size_t>(wlItr->height) ,shape[2], shape[3]};
+                mv::Shape newShape = { static_cast<size_t>(width), static_cast<size_t>(height) ,shape[2], shape[3]};
                 subTensors_.push_back(std::make_shared<mv::Tensor>(getName() + "sub" + std::to_string(idx), newShape, getDType(), getOrder()));
-                std::vector<std::size_t> offset = {static_cast<size_t>(wlItr->bottomLeftX), static_cast<size_t>(wlItr->bottomLeftY), 0 , 0};
+                std::vector<std::size_t> offset = {static_cast<size_t>(wlItr->MinX), static_cast<size_t>(wlItr->MinY), 0 , 0};
                 subTensors_[idx]->set<std::vector<std::size_t>>("offset", offset);
             }
             else
             {
-                mv::Shape newShape = { shape[0], shape[1] , static_cast<size_t>(wlItr->width), static_cast<size_t>(wlItr->height)};
+                mv::Shape newShape = { shape[0], shape[1] , static_cast<size_t>(width), static_cast<size_t>(height)};
                 subTensors_.push_back(std::make_shared<mv::Tensor>(getName() + "sub" + std::to_string(idx), newShape, getDType(), getOrder()));
-                std::vector<std::size_t> offset =  {0 , 0, static_cast<size_t>(wlItr->bottomLeftX), static_cast<size_t>(wlItr->bottomLeftY)};
+                std::vector<std::size_t> offset =  {0 , 0, static_cast<size_t>(wlItr->MinX), static_cast<size_t>(wlItr->MinY)};
                 subTensors_[idx]->set<std::vector<std::size_t>>("offset", offset);
             }
+
             if (hasAttr("quantizationParams"))
                 subTensors_[idx]->set<mv::QuantizationParams>("quantizationParams", get<mv::QuantizationParams>("quantizationParams"));
             if (isSparse())
