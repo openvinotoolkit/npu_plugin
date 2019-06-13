@@ -31,9 +31,10 @@ void computeTensorsQuantParams(const mv::pass::PassEntry&, mv::ComputationModel&
     for(auto opIt = om.opBegin(); opIt != om.opEnd(); ++opIt)
     {
          std::string opType = opIt->getOpType();
+         std::string taskOp;
          if (opIt->getOpType() ==  "DPUTask")
          {
-             std::string taskOp = opIt->get<std::string>("taskOp");
+             taskOp = opIt->get<std::string>("taskOp");
              bool isElementWise = (taskOp == "Add" || taskOp == "Subtract" || taskOp == "Multiply");
              bool isConv = (taskOp == "Conv" || taskOp == "DepthwiseConv" || taskOp == "ChannelMajorConvolution");
              if (isConv || taskOp == "MaxPool" ||  isElementWise)
