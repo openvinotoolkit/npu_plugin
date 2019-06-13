@@ -160,6 +160,8 @@ std::vector<unsigned> mv::RuntimeModel::reduceQuantVector_(std::vector<unsigned>
 std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT(mv::ComputationModel& cm, mv::Element&, mv::Data::TensorIterator t)
 {
     mv::DataModel dm(cm);
+    mv::OpModel om(cm);
+
     std::unique_ptr<MVCNN::TensorReferenceT> toBuild = std::unique_ptr<MVCNN::TensorReferenceT>(new MVCNN::TensorReferenceT());
 
     toBuild->name = t->getName();
@@ -202,9 +204,17 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
         toBuild->data->data_index = tensorBufferIt->getOffset();
         if(t->isSparse())
         {
-            toBuild->data->sparsity_index = t->getSparsityMap()->getAddress();
+            // TODO: needs fixes
             if(!t->isPopulated())
+            {
+                toBuild->data->sparsity_index = t->getSparsityMap()->getAddress();
                 toBuild->data->storage_element_index = t->getStorageElement()->getAddress();
+            }
+            else
+            {
+                //auto spawningOp = om.getSourceOp(t);
+                //toBuild->data->sparsity_index = spawningOp->getInputTensor(spawningOp->inputSlots() - 2)->getAddress();
+            }
         }
     }
     toBuild->locale = convertAllocatorToMemoryLocale(*tensorAllocatorName);
