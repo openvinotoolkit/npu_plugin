@@ -15,6 +15,7 @@
 #
 
 set(TARGET_NAME "kmbPlugin")
+set(CMAKE_CXX_STANDARD 11)
 
 set(VPUAL_DEFAULT_BASE "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/thirdparty/movidius/vpualHost")
 
