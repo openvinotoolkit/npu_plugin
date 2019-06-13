@@ -360,7 +360,7 @@ void getBarrierForControlModelOp(mv::ControlModel& cm, mv::Control::OpListIterat
         for (auto parentOp = opIt.leftmostParent(); parentOp != cm.opEnd(); ++parentOp)
         {
             auto parentOpType = parentOp->getOpType();
-            if ((parentOpType == "DPUTask") || (parentOpType == "DMATask" ) || (parentOpType == "BIAS"))
+            if ((parentOpType == "DPUTask") || (parentOpType == "DMATask" ))
             {
                 auto sinkOpName = opIt->getName();
                 auto sourceOpName = parentOp->getName();
