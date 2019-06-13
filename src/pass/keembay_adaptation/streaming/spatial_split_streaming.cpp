@@ -88,7 +88,25 @@ public:
     };
 };
 
+mv::Data::TensorIterator solveChannelTiling(mv::OpModel& om,mv::Data::OpListIterator op,Tiling& tiling);
+mv::Data::TensorIterator solveSpatialTiling(mv::OpModel& om,mv::Data::OpListIterator op,Tiling& tiling);
 
+std::function<mv::Data::TensorIterator(mv::OpModel&,mv::Data::OpListIterator,Tiling&)> convSpatialTiling = solveSpatialTiling;
+std::function<mv::Data::TensorIterator(mv::OpModel&,mv::Data::OpListIterator,Tiling&)> convOutChannelTiling = solveChannelTiling;
+
+std::map<std::string, std::function<mv::Data::TensorIterator(mv::OpModel&,mv::Data::OpListIterator,Tiling&)>> streamSplit =
+{
+    {"W",solveSpatialTiling},
+    {"H",solveSpatialTiling},
+    {"C",solveChannelTiling} //TBD: for other operations that conv.
+};
+
+
+mv::Data::TensorIterator solveChannelTiling(mv::OpModel& om,mv::Data::OpListIterator op,Tiling& tiling)
+{
+    //TODO:: write the function
+    return op->getOutputTensor(0);
+}
 
 mv::Data::TensorIterator solveSpatialTiling(mv::OpModel& om,mv::Data::OpListIterator op,Tiling& tiling)
 {
@@ -182,6 +200,8 @@ mv::Data::TensorIterator solveSpatialTiling(mv::OpModel& om,mv::Data::OpListIter
             inputLocation.relocate(inputTensor->get<mv::Tensor::MemoryLocation>("Location"));
             outputLocation.relocate(outputTensor->get<mv::Tensor::MemoryLocation>("Location"));
 
+            // std::cout << "More children. Inheriting " << slices[split]->getName() << " to " << inputLocation.print() << " from " << inputTensor->getName() <<  std::endl;
+            // std::cout << "More children. Inheriting " << convs[split]->getName() << " to " << outputLocation.print() << " from " << outputTensor->getName() <<  std::endl;
         }
         else
         {
@@ -191,6 +211,9 @@ mv::Data::TensorIterator solveSpatialTiling(mv::OpModel& om,mv::Data::OpListIter
             outputLocation.relocate(mv::Tensor::MemoryLocation::CMX);
             inputLocation.force();
             outputLocation.force();
+
+            // std::cout << "No more children deciding " << slices[split]->getName() << " to " << inputLocation.print() << std::endl;
+            // std::cout << "No more children deciding " << convs[split]->getName() << " to " << outputLocation.print() << std::endl;
         }
         slices[split]->set<mv::Tensor::MemoryLocation>("Location",inputLocation);
         convs[split]->set<mv::Tensor::MemoryLocation>("Location",outputLocation);
@@ -202,7 +225,9 @@ mv::Data::TensorIterator solveSpatialTiling(mv::OpModel& om,mv::Data::OpListIter
         mv::Data::TensorIterator out;
         if(childTiles[split].childTiles().size() > 1)
         {
-            out = solveSpatialTiling(om,om.getSourceOp(convs[split]),childTiles[split]);
+            // std::cout << "recurs doing " << convs[split]->getName() << std::endl;
+            // out = solveSpatialTiling(om,om.getSourceOp(convs[split]),childTiles[split]);
+            out = (streamSplit[childTiles[split].getAxis()])(om,om.getSourceOp(convs[split]),childTiles[split]);
             om.removeOp( om.getSourceOp(convs[split]));
         }
         else
@@ -218,6 +243,7 @@ mv::Data::TensorIterator solveSpatialTiling(mv::OpModel& om,mv::Data::OpListIter
                     op->getName() + "_concat_");
 
     concat->set<mv::Tensor::MemoryLocation>("Location",outputTensor->get<mv::Tensor::MemoryLocation>("Location"));
+
     return concat;
 }
 
@@ -269,7 +295,6 @@ void generateSpatialTiling(mv::Data::OpListIterator op,Tiling& tiling)
 
 }
 
-
 void streamingTilingFcn(const mv::pass::PassEntry& pass,
                                 mv::ComputationModel& model,
                                 mv::TargetDescriptor& target,
@@ -282,7 +307,7 @@ void streamingTilingFcn(const mv::pass::PassEntry& pass,
 
     for(auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt)
     {
-        std::cout<< "splitDoing " << opIt->getName() << std::endl;
+//        std::cout<< "splitDoing " << opIt->getName() << std::endl;
         std::string opType = opIt->getOpType();
         if( opType=="Conv" && !opIt->hasAttr("splitted"))
         {
@@ -314,9 +339,10 @@ void streamingTilingFcn(const mv::pass::PassEntry& pass,
             //######################################################################################################
 
 
-            auto result = solveSpatialTiling(om,opIt,masterTile);
+            // auto result = solveSpatialTiling(om,opIt,masterTile);
+            auto result = (streamSplit[masterTile.getAxis()])(om,opIt,masterTile);
 
-            //Important: do not change the order of this ops
+            // Important: do not change the order of this ops
             std::vector<mv::Data::OpListIterator> opsToLink;
             std::vector<std::size_t> inputSlots;
             for (mv::Data::FlowSiblingIterator sinkFlow(opIt.leftmostOutput()); sinkFlow != om.flowEnd(); ++sinkFlow)
@@ -333,10 +359,12 @@ void streamingTilingFcn(const mv::pass::PassEntry& pass,
                 om.defineFlow(result, opsToLink[j], inputSlots[j]);
             }
 
+            //TODO:: If the OpIt is set to the parentOpIt the iteration will  start from the beginning, and will
+            // also include the "newly splitted" layers. But we deleted the original op, so we can't increment that.
+            // is there a way to go to the "original next op" ? Currently there is a trait called "splitted" added,
+            // and we check for that, so we do not split again.....
             opIt = parentOpIt;
-            std::cout<< "nextOneShouldBe" << opIt->getName() << std::endl;
-
+//            std::cout<< "nextOneShouldBe" << opIt->getName() << std::endl;
         }
     }
-
 }
