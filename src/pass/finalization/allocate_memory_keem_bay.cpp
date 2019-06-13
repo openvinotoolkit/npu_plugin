@@ -48,11 +48,11 @@ void allocateInputOutputTensorsKeemBay(const mv::pass::PassEntry& pass, mv::Comp
     mv::DataModel dm(model);
 
     if (!dm.hasAllocator("ProgrammableInput"))
-        throw mv::ArgumentError(dm, "allocator", "ProgrammableInput", "Computation model does not have ProgrammableInput specified");
+        throw mv::ArgumentError(dm, "allocators", "ProgrammableInput", "Computation model does not have ProgrammableInput specified");
 
 
     if (!dm.hasAllocator("ProgrammableOutput"))
-        throw mv::ArgumentError(dm, "allocator", "ProgrammableOutput", "Computation model does not have ProgrammableOutput specified");
+        throw mv::ArgumentError(dm, "allocators", "ProgrammableOutput", "Computation model does not have ProgrammableOutput specified");
 
 
     if (cm.stageSize() == 0)
@@ -84,9 +84,9 @@ void allocateGraphfileTensorsFcnKeemBay(const mv::pass::PassEntry& pass, mv::Com
     mv::ControlModel cm(model);
     mv::DataModel dm(model);
     mv::OpModel om(model);
-    
+
     if (!dm.hasAllocator("GraphFile"))
-         throw mv::ArgumentError(dm, "allocator", "GraphFile", "Computation model does not have GraphFile allocator specified");
+         throw mv::ArgumentError(dm, "allocators", "GraphFile", "Computation model does not have GraphFile allocator specified");
 
     if (cm.stageSize() == 0)
          throw mv::ArgumentError(cm, "stages count", "0", "Computation model does not have stages specified");
@@ -119,10 +119,10 @@ void allocateCMXTensorsFcnKeemBay(const mv::pass::PassEntry& pass, mv::Computati
     mv::DataModel dm(model);
 
     if (!dm.hasAllocator("VPU_CMX_NN"))
-        throw mv::ArgumentError(dm, "allocator", "VPU_CMX_NN", "Computation model does not have VPU_CMX_NN specified");
+        throw mv::ArgumentError(dm, "allocators", "VPU_CMX_NN", "Computation model does not have VPU_CMX_NN specified");
 
     if (!dm.hasAllocator("VPU_DDR_BSS"))
-        throw mv::ArgumentError(dm, "allocator", "VPU_DDR_BSS", "Computation model does not have VPU_DDR_BSS specified");
+        throw mv::ArgumentError(dm, "allocators", "VPU_DDR_BSS", "Computation model does not have VPU_DDR_BSS specified");
 
     if (cm.stageSize() == 0)
         throw mv::ArgumentError(cm , "stages count", "0", "Computation model does not have stages specified");
