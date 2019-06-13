@@ -16,7 +16,7 @@ namespace mv
         MV_REGISTER_PASS(StoreLayerSplitStrategy)
         .setFunc(storeLayerSplitStrategyFcn)
         .setDescription(
-            "This pass applies tensor splitting strategies."
+            "This pass applies layer splitting strategies."
         );
     }
 }
@@ -54,7 +54,7 @@ void storeLayerSplitStrategyFcn(const mv::pass::PassEntry& pass, mv::Computation
     for (auto opIt = om.opBegin(); opIt != om.opEnd(); ++opIt)
     {
         auto opType = opIt->getOpType();
-        if (!(opType == "Input" || opType == "Output"))
+        if (!(opType == "Output"))
             storeStrategy(opIt, numClusters, strategyList);
     }
 
