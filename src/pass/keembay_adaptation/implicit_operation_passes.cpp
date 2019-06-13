@@ -76,6 +76,7 @@ void resolvevImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::Computat
         auto outputTensor = opIt->getOutputTensor(0);
 
         auto outputLocation  = outputTensor->get<mv::Tensor::MemoryLocation>("Location");
+        auto quantParams = opIt->get<mv::QuantizationParams>("quantParams");
 
         int ctr =  0;
         std::vector<mv::Data::FlowSiblingIterator> flowsToRemove;
@@ -97,7 +98,7 @@ void resolvevImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::Computat
                     const std::string directionString = inputLocation.print() + "2" + outputLocation.print();
                     auto compensatorOutput = om.dMATask(inputTensor,
                                                     dmaDirectionStrings[directionString],
-                                                    {{},{},{},{}},
+                                                    quantParams ,
                                                     opIt->getName() + "_copy" + std::to_string(ctr));
 
                     compensatorOutput->set<mv::Tensor::MemoryLocation>("Location",outputLocation);
@@ -155,7 +156,7 @@ void resolvevImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::Computat
 
                 auto compensatorOutput = om.dMATask(outputTensor,
                                                         dmaDirectionStrings[directionString],
-                                                        {{},{},{},{}},
+                                                        quantParams,
                                                         opIt->getName() + "_copy" + std::to_string(ctr));
 
                 pass.log(mv::Logger::MessageType::Info,"Adding new DMA OP: # " + compensatorOutput->getName() +
