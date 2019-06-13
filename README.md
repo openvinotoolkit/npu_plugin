@@ -14,8 +14,7 @@ KMBPlugin for Inference Engine
 * git submodule update
 * export MCM_HOME=$KMB_PLUGIN_HOME/thirdparty/movidius/mcmCompiler
 * cd $MCM_HOME
-* git submodule init
-* git submodule update
+* git submodule update --init --recursive
 * mkdir $KMB_PLUGIN_HOME/build
 * cd $KMB_PLUGIN_HOME/build
 * cmake -DInferenceEngineDeveloperPackage_DIR=$DLDT_HOME/inference-engine/build ..
