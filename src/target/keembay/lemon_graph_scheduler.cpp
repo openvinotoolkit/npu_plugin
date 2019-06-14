@@ -1,7 +1,10 @@
 #include "include/mcm/target/keembay/lemon_graph_scheduler.hpp"
 #include "include/mcm/base/exception/argument_error.hpp"
 
-mv::LemonGraphScheduler::LemonGraphScheduler(): nodes_(*graph_), edges_(*graph_)
+#include "lemon/dijkstra.h"
+#include <lemon/preflow.h>
+
+mv::LemonGraphScheduler::LemonGraphScheduler(): nodes_(*graph_), edges_(*graph_), edgesMemory_(*graph_), sourceNode_(lemon::INVALID), sinkNode_(lemon::INVALID), edgeCount_(0)
 {  }
 
 mv::LemonGraphScheduler::~LemonGraphScheduler()
@@ -19,8 +22,8 @@ lemon::ListDigraph& mv::LemonGraphScheduler::getGraph()
  * @param pass  - pass object
  * @param model - McM computation model
  */
-void  mv::LemonGraphScheduler::convertMcMGraphToLemonGraph(const mv::pass::PassEntry& pass, mv::ComputationModel& model) {
-
+void  mv::LemonGraphScheduler::convertMcMGraphToLemonGraph(const mv::pass::PassEntry& pass, mv::ComputationModel& model) 
+{
     mv::ControlModel cm(model);
     mv::DataModel dm(model);
 
@@ -32,33 +35,35 @@ void  mv::LemonGraphScheduler::convertMcMGraphToLemonGraph(const mv::pass::PassE
         if (opIt->getOpType() != "ConstantDataElement" && opIt->getOpType() != "Output" && opIt->getOpType() != "ConstantInt" &&
             opIt->getOpType() != "WeightsTable" && opIt->getOpType() != "SparsityMap") {
 
-           bool nodeAdded = false;
-           /*Add node to Lemon graph*/
-           /*Check if node is a DMA task "CMX to DDR" (this is the sink node in Lemon graph and we need to keep track of it) */
-           if ((opIt->getOpType() == "DMATask") && (opIt->get<mv::DmaDirection>("direction") == mv::CMX2DDR)) {
-               pass.log(mv::Logger::MessageType::Debug, "Adding vertex to Lemon graph: " + opIt->getName());
+            /*Add node to Lemon graph*/
+            bool nodeAdded = false;
+            /*Check if node is a DMA task "CMX to DDR" (this is the sink node in Lemon graph and we need to keep track of it) */
+            if ((opIt->getOpType() == "DMATask") && (opIt->get<mv::DmaDirection>("direction") == mv::CMX2DDR)) {
+                pass.log(mv::Logger::MessageType::Debug, "Adding vertex to Lemon graph: " + opIt->getName());
 
-               lemon::ListDigraph::Node currentNode = this->graph_.addNode();
-               this->nodes_[currentNode] = nodeDescription(opIt->getName(),0, false, true);
-               nodeAdded = true;
-           }
-           
-           /*Keep track of the source node i.e. input*/
-           if (opIt->getOpType() == "Input") 
-           { 
-               pass.log(mv::Logger::MessageType::Debug, "Adding vertex to Lemon graph: " + opIt->getName());
-               lemon::ListDigraph::Node currentNode = this->graph_.addNode();
-               this->nodes_[currentNode] = nodeDescription(opIt->getName(),0, true, false);
-               nodeAdded = true;
-           }
-           else if (!nodeAdded) 
-           {   /*All other nodes between source and sink node*/
-               pass.log(mv::Logger::MessageType::Debug, "Adding vertex to Lemon graph: " + opIt->getName());
-               lemon::ListDigraph::Node currentNode = this->graph_.addNode();
-               this->nodes_[currentNode] = nodeDescription(opIt->getName(),0, false, false));
-               nodeAdded = true;
-           }
-       }
+                lemon::ListDigraph::Node currentNode = getGraph().addNode();
+                this->nodes_[currentNode] = nodeDescription(opIt->getName(),0, false, true);
+                sinkNode_ = currentNode;
+                nodeAdded = true;
+            }
+
+            /*Keep track of the source node i.e. input*/
+            if (opIt->getOpType() == "Input") 
+            { 
+                pass.log(mv::Logger::MessageType::Debug, "Adding vertex to Lemon graph: " + opIt->getName());
+                lemon::ListDigraph::Node currentNode = getGraph().addNode();
+                this->nodes_[currentNode] = nodeDescription(opIt->getName(),0, true, false);
+                sourceNode_ = currentNode;
+                nodeAdded = true;
+            }
+            else if (!nodeAdded) 
+            {   /*All other nodes between source and sink node*/
+                pass.log(mv::Logger::MessageType::Debug, "Adding vertex to Lemon graph: " + opIt->getName());
+                lemon::ListDigraph::Node currentNode = getGraph().addNode();
+                this->nodes_[currentNode] = nodeDescription(opIt->getName(),0, false, false);
+                nodeAdded = true;
+            }
+        }
     }
     
     /* Add the edges to the Lemon graph store attributes on the edges to perform the max topoloigcal cut algorithm.
@@ -75,22 +80,15 @@ void  mv::LemonGraphScheduler::convertMcMGraphToLemonGraph(const mv::pass::PassE
             auto sinkName  = flowIt.sink()->getName();
 
             /*If the control flow has a memoryRequirment attribute add it to edges*/
-            int memReq = 0;
+            uint64_t memReq = 0;
             if(flowIt->hasAttr("MemoryRequirement"))
-                memReq = flowIt->get<int>("MemoryRequirement")
+                memReq = flowIt->get<int>("MemoryRequirement");
             
             pass.log(mv::Logger::MessageType::Debug, "Adding edge to Lemon graph from: " + sourceName + " --> " + sinkName + " with memory requirement " + std::to_string(memReq));
-
-            // this->edges_.push_back(this->getGraph().addEdge(
-            //                 *std::find_if(vertices_.begin(), vertices_.end(), [&sourceName](koalaGraph::PVertex const& vertex) {return sourceName == vertex->info.name;}), 
-            //                 *std::find_if(vertices_.begin(), vertices_.end(), [&sinkName](koalaGraph::PVertex const& vertice) {return sinkName == vertice->info.name;}), 
-            //                 edgeDescription(flowIt->get<int>("MemoryRequirement"),flowIt->getName()), 
-            //                 Koala::Directed));
-            
             lemon::ListDigraph::Node sourceNode, sinkNode;
-            for (lemon::ListDigraph::NodeIt n(this->graph_; n != lemon::INVALID; ++n)
+            for (lemon::ListDigraph::NodeIt n(*this->graph_); n != lemon::INVALID; ++n)
             {
-                nodeDescription desc = this->nodes_[n];
+                mv::nodeDescription desc = this->nodes_[n];
                 if (sourceName == desc.name) 
                     sourceNode = n;
                 else if (sinkName == desc.name)
@@ -98,8 +96,136 @@ void  mv::LemonGraphScheduler::convertMcMGraphToLemonGraph(const mv::pass::PassE
             }
             lemon::ListDigraph::Arc tmpEdge = this->graph_->addArc(sourceNode, sinkNode);
             this->edges_[tmpEdge] = edgeDescription(memReq, flowIt->getName());
+            this->edgesMemory_[tmpEdge] = memReq;
+            edgeCount_++;
         }
     }
+    pass.log(mv::Logger::MessageType::Debug, "Lemon graph has " + std::to_string(lemon::countNodes(*this->graph_)) + " nodes and " + std::to_string(lemon::countArcs(*this->graph_)) + " edges");
+}
+
+uint64_t mv::LemonGraphScheduler::calculateFMax(mv::ComputationModel& model) 
+{
+    mv::ControlModel cm(model);
+    /*Compute Fmax - (defined as sum of memory requirments + 1)*/
+    uint64_t Fmax = 0;
+    for (auto flowIt = cm.flowBegin(); flowIt != cm.flowEnd(); ++flowIt) {
+        if(flowIt->hasAttr("MemoryRequirement")) {
+            Fmax += flowIt->get<int>("MemoryRequirement");
+        }
+    }
+    Fmax += 1; /*add 1 to Fmax as per algorithm*/
+    return Fmax;
+}
+
+std::pair<int, std::vector<mv::edgeDescription>> mv::LemonGraphScheduler::calculateMaxTopologicalCut(const mv::pass::PassEntry& pass, mv::ComputationModel& model) 
+{
+    mv::ControlModel cm(model);
+
+    /* Calculate Fmax - Defined as sum of memory requirments + 1)*/
+    auto Fmax = this->calculateFMax(model); 
+    
+    /*Perform the max topological cut algorithm here*/
+
+    /*See the shortest path KOALA example here: http://koala.os.niwa.gda.pl/api/examples/weights/dijkstra_h/dijkstra_h.html*/
+    // Koala::AssocArray <koalaGraph::PEdge, Koala::DijkstraHeap::EdgeLabs<int>> edgeMap;              /*input container*/
+    // Koala::AssocArray <koalaGraph::PVertex, Koala::DijkstraHeap::VertLabs<int,koalaGraph>> vertMap; /*output container*/
+
+    /* Construct the graph demand: circle over the edge and add a flow equal to Fmax on a shorest path containing that node */
+
+    /*containter to store the edges on shorest paths*/
+    //std::vector <koalaGraph::PEdge> shortestPathEdges;
+    std::vector <mv::edgeDescription> shortestPathEdges;
+    
+    // koalaGraph::PEdge LOCALARRAY(edges, this->getGraph().getEdgeNo());
+    // int numberofEdges = this->getGraph().getEdges(edges);
+ 
+    /*For each edge
+     * Find the shortest path from source node (Input) to the edge's source node and
+     * Find the shortest path from the edge's sink node to the graph sink node (DMA task CMX to DDR) */
+
+    //for (int i = 0; i < this->edgeCount_; i++) 
+    for (lemon::ListDigraph::ArcIt thisArc(*this->graph_); thisArc != lemon::INVALID; ++thisArc)
+    {   
+        /*get the source and sink node of this edge*/    
+        lemon::ListDigraph::Node northNode = getGraph().source(thisArc);
+        lemon::ListDigraph::Node southNode = getGraph().target(thisArc);
+        pass.log(mv::Logger::MessageType::Debug, "Source Node " + this->nodes_[northNode].name);
+        pass.log(mv::Logger::MessageType::Debug, "Sink Node " + this->nodes_[southNode].name);
+
+        // >>>>>>>>>>>>>>>>>>>>> Source -> Node <<<<<<<<<<<<<<<<<<<<<<<<<<
+        /*Find the shortest path from the "input" node of graph to the source node of this edge*/
+        lemon::Dijkstra<lemon::ListDigraph, lemon::ListDigraph::ArcMap<uint64_t>> dijkstraSourceToNode(*this->graph_, this->edgesMemory_);
+        dijkstraSourceToNode.run(this->sourceNode_, northNode);
+
+        //std::vector<lemon::ListDigraph::Node> shortestPath;
+        for (lemon::ListDigraph::Node currentNode = northNode; currentNode != this->sourceNode_; currentNode = dijkstraSourceToNode.predNode(currentNode))
+        {   //walk the shortest path route
+            if (currentNode != lemon::INVALID && dijkstraSourceToNode.reached(currentNode))
+            {
+                //shortestPath.push_back(currentNode);
+                lemon::ListDigraph::Arc predarc = dijkstraSourceToNode.predArc(currentNode);
+                this->edges_[predarc].flow += Fmax;
+            }
+        }
+        this->edges_[thisArc].flow += Fmax;
+        // shortestPath.push_back(this->sourceNode_);
+        // uint64_t cost = dijkstra.dist(northNode);
+
+        // >>>>>>>>>>>>>>>>>>>>> Node -> Sink <<<<<<<<<<<<<<<<<<<<<<<<<<
+        /*Find the shortest path from the sink node of this edge to the sink node of graph (DMA task CMX to DDR)*/
+        lemon::Dijkstra<lemon::ListDigraph, lemon::ListDigraph::ArcMap<uint64_t>> dijkstraNodeToSink(*this->graph_, this->edgesMemory_);
+        dijkstraNodeToSink.run(southNode, this->sinkNode_);
+
+        for (lemon::ListDigraph::Node currentNode = southNode; currentNode != this->sinkNode_; currentNode = dijkstraNodeToSink.predNode(currentNode))
+        {   //walk the shortest path route
+            if (currentNode != lemon::INVALID && dijkstraNodeToSink.reached(currentNode))
+            {
+                lemon::ListDigraph::Arc predarc = dijkstraNodeToSink.predArc(currentNode);
+                this->edges_[predarc].flow += Fmax;
+            }
+        }
+    }
+
+    /*Subtract Memory attribute of edge from the Flow attribute of the edge*/
+    for (lemon::ListDigraph::ArcIt thisArc(*this->graph_); thisArc != lemon::INVALID; ++thisArc)
+        this->edges_[thisArc].flow -= this->edges_[thisArc].memoryRequirement;
+   
+
+    /* Perform Min cut on the graph, see this example: http://koala.os.niwa.gda.pl/api/examples/flow/example_Flow.html*/
+    /* Set edge capacities (flow attribute of the edge ) and costs (=1)*/
+    lemon::ListDigraph::NodeMap<mv::edgeDescription> cut(*this->graph_);
+    lemon::Preflow<lemon::ListDigraph> preflow(*this->graph_, this->edgesMemory_, this->sourceNode_, this->sinkNode_);
+
+    preflow.run();
+    auto val = preflow.flowValue();
+    preflow.minCutMap(cut);
+
+
+    //
+	Koala::AssocArray< koalaGraph::PEdge, Koala::Flow::EdgeLabs<uint64_t,int>> cap;
+
+    for (int i = 0; i < numberofEdges; i++) {
+        cap[this->edges_[i]].capac = this->edges_[i]->info.flow; 
+        cap[this->edges_[i]].cost = 1;
+    }
+
+    /*store the cut edges*/
+    std::vector<koalaGraph::PEdge> cutEdges;
+    uint64_t maxTopologicalCutValue = 0;
+
+    /*compute minimal cut*/
+    Koala::Flow::minEdgeCut(this->getGraph(), cap, (*lookUpKoalaSourceNode(true, this->vertices_)), (*lookUpKoalaSinkNode(true, this->vertices_)), Koala::Flow::outCut(blackHole, std::back_inserter(cutEdges)));
+    
+    for (std::size_t i = 0; i < cutEdges.size(); i++)
+        maxTopologicalCutValue += cutEdges[i]->info.memoryRequirement;
+
+    /*Add Max topological cut value as attribute to output node*/
+    auto output = cm.getOutput();
+    output->set<uint64_t>("MaxTopologicalCutValue", maxTopologicalCutValue); 
+
+    pass.log(mv::Logger::MessageType::Debug, "The maximum peak memory of the graph is " + std::to_string(maxTopologicalCutValue) + " bytes");
+
+    return std::make_pair(maxTopologicalCutValue, cutEdges);
 }
 
 // /**
@@ -109,8 +235,8 @@ void  mv::LemonGraphScheduler::convertMcMGraphToLemonGraph(const mv::pass::PassE
 //  * @return An iterator to a KOALA vertex iterator 
 //  */
 
-// std::vector<mv::koalaGraph::PVertex>::const_iterator mv::KoalaGraphScheduler::lookUpKoalaSinkNode(bool sinknode, const std::vector<koalaGraph::PVertex>& koalaVertices) {
- 
+// std::vector<mv::koalaGraph::PVertex>::const_iterator mv::KoalaGraphScheduler::lookUpKoalaSinkNode(bool sinknode, const std::vector<koalaGraph::PVertex>& koalaVertices) 
+//{
 //     for(auto iter = koalaVertices.begin(); iter != koalaVertices.end(); ++iter) {
 //         if((*iter)->info.sinkNode == sinknode) 
 //             return iter; 
@@ -124,9 +250,8 @@ void  mv::LemonGraphScheduler::convertMcMGraphToLemonGraph(const mv::pass::PassE
 //  * @param koalaVertices - vector of KOALA vertices iterators
 //  * @return An iterator to a KOALA vertex iterator
 //  */
-
-// std::vector<mv::koalaGraph::PVertex>::const_iterator mv::KoalaGraphScheduler::lookUpKoalaSourceNode(bool sourcenode, const std::vector<koalaGraph::PVertex>& koalaVertices) {
-    
+// std::vector<mv::koalaGraph::PVertex>::const_iterator mv::KoalaGraphScheduler::lookUpKoalaSourceNode(bool sourcenode, const std::vector<koalaGraph::PVertex>& koalaVertices) 
+//{    
 //     for(auto iter = koalaVertices.begin(); iter != koalaVertices.end(); ++iter) {
 //         if((*iter)->info.sourceNode == sourcenode) 
 //             return iter;
@@ -140,9 +265,8 @@ void  mv::LemonGraphScheduler::convertMcMGraphToLemonGraph(const mv::pass::PassE
 //  * @param koalaEdges - vector of KOALA edges iterators
 //  * @return An iterator to a KOALA vertex iterator
 //  */
-
-// std::vector<mv::koalaGraph::PEdge>::const_iterator mv::KoalaGraphScheduler::lookUpKoalaEdgebyName(std::string edgeName, const std::vector<koalaGraph::PEdge>& koalaEdges) {
-    
+// std::vector<mv::koalaGraph::PEdge>::const_iterator mv::KoalaGraphScheduler::lookUpKoalaEdgebyName(std::string edgeName, const std::vector<koalaGraph::PEdge>& koalaEdges) 
+//{
 //     for(auto iter = koalaEdges.begin(); iter != koalaEdges.end(); ++iter) {
 //         if((*iter)->info.name == edgeName) 
 //             return iter;
@@ -150,110 +274,6 @@ void  mv::LemonGraphScheduler::convertMcMGraphToLemonGraph(const mv::pass::PassE
 //     throw std::runtime_error("Could not find edge by name in the Koala graph, exit");
 // }
 
-// /**
-//  * @brief Convert McM graph (control model view) to KOALA graph and store the data required to perform the max topoloigcal cut algorithm on the KOALA graph edges
-//  * @param pass  - pass object
-//  * @param model - McM computation model
-//  */
-// void  mv::KoalaGraphScheduler::convertMcMGraphToKoalaGraph(const mv::pass::PassEntry& pass, mv::ComputationModel& model) {
-
-//     mv::ControlModel cm(model);
-//     mv::DataModel dm(model);
-
-//     /* For each task in the ControlModel view of the MCM graph
-//      * create a corresponding node (task) in the KOALA graph.
-//      * Add all the nodes to the KOALA graph first and then add the edges.
-//     */
-//     for (auto opIt = cm.getFirst(); opIt != cm.opEnd(); ++opIt)
-//     {
-
-//        /* We do not require MCM constant operations and MCM ouput operation in the KOALA graph. The sink node in the KOALA graph is the DMATask CMX2DDR.
-//         * For all other tasks in the ControlModel view of the MCM graph create a corresponding node in the KOALA graph.
-//        */
-//        if (opIt->getOpType() != "ConstantDataElement" && opIt->getOpType() != "Output" && opIt->getOpType() != "ConstantInt" &&
-//             opIt->getOpType() != "WeightsTable" && opIt->getOpType() != "SparsityMap") {
-
-//            bool nodeAdded = false;
-//            /*Add node to KOALA graph*/
-//            /*Check if the node is a DMA task CMX to DDR (this is the sink node in KOALA graph and we need to keep track of it)*/
-//            if ((opIt->getOpType() == "DMATask") && (opIt->get<mv::DmaDirection>("direction") == mv::CMX2DDR)) {
-
-//                pass.log(mv::Logger::MessageType::Debug, "Adding vertex to KOALA graph: " + opIt->getName());
-
-//                this->vertices_.push_back(this->getGraph().addVert(nodeDescription(opIt->getName(),0, false, true)));
-//                nodeAdded = true;
-//            }
-           
-//            /*Keep track of the source node i.e. input*/
-//            if (opIt->getOpType() == "Input") { 
-//                pass.log(mv::Logger::MessageType::Debug, "Adding vertex to KOALA graph: " + opIt->getName());
-//                this->vertices_.push_back(this->getGraph().addVert(nodeDescription(opIt->getName(),0, true, false)));
-//                nodeAdded = true;
-//            }
-//            /*All other nodes between source and sink node*/
-//            else if (!nodeAdded) {
-               
-//                pass.log(mv::Logger::MessageType::Debug, "Adding vertex to KOALA graph: " + opIt->getName());
-
-//                this->vertices_.push_back(this->getGraph().addVert(nodeDescription(opIt->getName(),0, false,false)));
-//                nodeAdded = true;
-//            }
-//        }
-//     }
-    
-//     /* Add the edges to the KOALA graph store attributes on the edges to perform the max topoloigcal cut algorithm.
-//      * Iterate over the the control flow edges in the MCMgraph.  
-//     */
-//     for (auto flowIt = cm.flowBegin(); flowIt != cm.flowEnd(); ++flowIt) {
-        
-//         /* 1. Don't add the edge going to Ouput in the MCM graph to the KOALA graph
-//          * 2. Don't add edge coming from a ConstantInt operation (Sparsity Map and Weights Table)
-//         */
-
-//         if (flowIt.sink()->getOpType() != "Output" && flowIt.source()->getOpType() != "ConstantInt" &&
-//             flowIt.source()->getOpType() != "WeightsTable" && flowIt.source()->getOpType() != "SparsityMap") {
-
-//             auto sourceName = flowIt.source()->getName();
-//             auto sinkName  = flowIt.sink()->getName();
-
-//             if(flowIt->hasAttr("MemoryRequirement"))
-//                 pass.log(mv::Logger::MessageType::Debug, "Adding edge to KOALA graph from: " + sourceName + " --> " + sinkName + " with memory requirement " + std::to_string(flowIt->get<int>("MemoryRequirement")));
-//             else
-//                 pass.log(mv::Logger::MessageType::Debug, "Adding edge to KOALA graph from: " + sourceName + " --> " + sinkName + " with memory requirement " + std::to_string(0));
-
-//             /*If the control flow has a memoryRequirment attribute add it to the KOALA edge*/
-//             if(flowIt->hasAttr("MemoryRequirement"))
-//                 this->edges_.push_back(this->getGraph().addEdge(*std::find_if(vertices_.begin(), vertices_.end(), [&sourceName](koalaGraph::PVertex const& vertex) {return sourceName == vertex->info.name;}), 
-//                                              *std::find_if(vertices_.begin(), vertices_.end(), [&sinkName](koalaGraph::PVertex const& vertice) {return sinkName == vertice->info.name;}), 
-//                                              edgeDescription(flowIt->get<int>("MemoryRequirement"),flowIt->getName()), 
-//                                              Koala::Directed));
-                                             
-//             /*Otherwsise the memory requirment is 0*/
-//             else
-//                 this->edges_.push_back(this->getGraph().addEdge(*std::find_if(vertices_.begin(), vertices_.end(), [&sourceName](koalaGraph::PVertex const& vertex) {return sourceName == vertex->info.name;}), 
-//                                              *std::find_if(vertices_.begin(), vertices_.end(), [&sinkName](koalaGraph::PVertex const& vertex) {return sinkName == vertex->info.name;}), 
-//                                              edgeDescription(0,flowIt->getName()), 
-//                                              Koala::Directed));
-//         }
-//     }
-//     //std::cout << std::to_string(this->getGraph().getVertNo()) << std::to_string(this->getGraph().getEdgeNo()) << std::endl;
-//     pass.log(mv::Logger::MessageType::Debug, "KOALA graph has " + std::to_string(this->getGraph().getVertNo()) + " vertices and " + std::to_string(this->getGraph().getEdgeNo()) + " edges");
-// }
-
-// uint64_t mv::KoalaGraphScheduler::calculateFMax(mv::ComputationModel& model) {
-
-//     mv::ControlModel cm(model);
-
-//     /*Compute Fmax - (defined as sum of memory requirments + 1)*/
-//     uint64_t Fmax = 0;
-//     for (auto flowIt = cm.flowBegin(); flowIt != cm.flowEnd(); ++flowIt) {
-//         if(flowIt->hasAttr("MemoryRequirement")) {
-//             Fmax += flowIt->get<int>("MemoryRequirement");
-//         }
-//     }
-//     Fmax += 1; /*add 1 to Fmax as per algorithm*/
-//     return Fmax;
-// }
 
 // void mv::KoalaGraphScheduler::insertpartialSerialisationEdgesInMcmGraph(mv::ComputationModel& model) {
 
@@ -406,22 +426,21 @@ void  mv::LemonGraphScheduler::convertMcMGraphToLemonGraph(const mv::pass::PassE
 //     throw std::runtime_error("The maximum peak memory requirment of the graph exceeds CMX and the partial serialisation algorithm is unable to reduce parallelism, exiting now, this is normal behaviour");
 // }
 
-// /*
-//  * See Max topological cut algorithm description in this paper:
-//  * 
-//  * L. Marchal, H. Nagy, B. Simon and F. Vivien, "Parallel Scheduling of DAGs under Memory Constraints," 
-//  * 2018 IEEE International Parallel and Distributed Processing Symposium (IPDPS), Vancouver, BC, 2018, pp. 204-213.
-//  * doi: 10.1109/IPDPS.2018.00030 
-// */ 
-// std::pair<int,std::vector<mv::koalaGraph::PEdge>> mv::KoalaGraphScheduler::calculateMaxTopologicalCut(const mv::pass::PassEntry& pass, mv::ComputationModel& model) {
-
+/*
+ * See Max topological cut algorithm description in this paper:
+ * 
+ * L. Marchal, H. Nagy, B. Simon and F. Vivien, "Parallel Scheduling of DAGs under Memory Constraints," 
+ * 2018 IEEE International Parallel and Distributed Processing Symposium (IPDPS), Vancouver, BC, 2018, pp. 204-213.
+ * doi: 10.1109/IPDPS.2018.00030 
+*/ 
+// std::pair<int, std::vector<edgeDescription>> mv::LemonGraphScheduler::calculateMaxTopologicalCutOld(const mv::pass::PassEntry& pass, mv::ComputationModel& model) 
+// {
 //     mv::ControlModel cm(model);
 
 //     /* Calculate Fmax - Defined as sum of memory requirments + 1)*/
 //     auto Fmax = this->calculateFMax(model); 
     
 //     /*Perform the max topological cut algorithm here*/
-
 //     /*See the shortest path KOALA example here: http://koala.os.niwa.gda.pl/api/examples/weights/dijkstra_h/dijkstra_h.html*/
 
 //     Koala::AssocArray <koalaGraph::PEdge, Koala::DijkstraHeap::EdgeLabs<int>> edgeMap; /*input container*/
@@ -437,12 +456,11 @@ void  mv::LemonGraphScheduler::convertMcMGraphToLemonGraph(const mv::pass::PassE
 //     int numberofEdges = this->getGraph().getEdges(edges);
  
 //     /*For each edge
-//      *
 //      * Find the shortest path from source node (Input) to the edges source node and
 //      * Find the shortest path from the edges sink node to the sink node (DMA task CMX to DDR) 
 //     */
-//     for (int i = 0; i < numberofEdges; i++) {
-
+//     for (int i = 0; i < numberofEdges; i++) 
+//     {
 //         /*get the source and sink node of the edge*/
 //         pass.log(mv::Logger::MessageType::Debug, "Source Node " + this->getGraph().getEdgeEnds(this->edges_[i]).first->info.name);
 //         pass.log(mv::Logger::MessageType::Debug, "Sink Node " + this->getGraph().getEdgeEnds(this->edges_[i]).second->info.name);

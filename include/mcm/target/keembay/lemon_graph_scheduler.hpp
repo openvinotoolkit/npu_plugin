@@ -58,6 +58,11 @@ namespace mv
 
         lemon::ListDigraph::NodeMap<nodeDescription> nodes_;
         lemon::ListDigraph::ArcMap<edgeDescription> edges_;
+        lemon::ListDigraph::ArcMap<uint64_t> edgesMemory_;
+
+        lemon::ListDigraph::Node sourceNode_;
+        lemon::ListDigraph::Node sinkNode_;
+        int edgeCount_;
 
         /*New edges added to the graph from partial serialisation, these will be added to the McM graph*/
         //std::vector<koalaGraph::PEdge> partialSerialisationEdgesAdded_;
@@ -74,8 +79,9 @@ namespace mv
         void convertMcMGraphToLemonGraph(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
         
         //void performPartialSerialisation(const mv::pass::PassEntry& pass, std::vector<koalaGraph::PEdge> cutEdges);
-        //std::pair<int,std::vector<koalaGraph::PEdge>> calculateMaxTopologicalCut(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
-        //uint64_t calculateFMax(mv::ComputationModel& model);
+        std::pair<int, std::vector<edgeDescription>> calculateMaxTopologicalCut(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
+        //std::pair<int, std::vector<edgeDescription>> calculateMaxTopologicalCutOld(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
+        uint64_t calculateFMax(mv::ComputationModel& model);
         //void insertpartialSerialisationEdgesInMcmGraph(mv::ComputationModel& model);
           
         std::string getLogID() const override;
