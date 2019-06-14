@@ -84,7 +84,7 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
             auto flowIt = cm.defineFlow(inputOp, deallocateInputOp);
             auto outputTensor = flowIt.source()->getOutputTensor(0);
 
-            flowIt->set<int>("MemoryRequirement", outputTensor->computeMemoryRequirement());
+            flowIt->set<int>("MemoryRequirement", outputTensor->computeTotalSize());
             flowIt->set<bool>("PositiveMemory", true);
 
             // Control flows for the newly created operation must be attached now.
