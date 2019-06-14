@@ -12,3 +12,5 @@ if (ENABLE_BEH_TESTS)
     disable_deprecated_warnings()
     add_subdirectory(behavior)
 endif()
+
+add_subdirectory(unit)
