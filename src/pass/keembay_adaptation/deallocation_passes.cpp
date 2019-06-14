@@ -50,11 +50,19 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
             continue;
 
         // Constant tensors shall not be deallocated (will be DMAed, then those will be deallocated)
+        // NOTE: This check must remain as is, can't be replaced by hasTypeTrait("executable") check
+        // e.g. concat's output tensor needs deallocation even if it's not executable
         if(inputOp->getOpType() == "Constant" || inputOp->getOpType() == "ConstantInt" || inputOp->getOpType() == "ConstantDataElement" ||
             inputOp->getOpType() == "WeightsTable" || inputOp->getOpType() == "SparsityMap")
             continue;
 
-        auto opId = inputOp->get<unsigned>("opId");
+        // Tensors that are input of a concat shall not be deallocated: they will be allocated into a bigger tensor
+        // (the output of concat op) and that will be deallocated
+
+        // ADDITIONAL NOTE/TODO: This check by itself is not sufficient if a tensor is input of both an implicit and an explicit operation
+        if(!outputOp->hasTypeTrait("executable"))
+            continue;
+
         auto inputOpName = inputOp->getName();
         auto inputTensor = dataFlowIt->getTensor();
 
@@ -78,7 +86,6 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
 
             flowIt->set<int>("MemoryRequirement", outputTensor->computeMemoryRequirement());
             flowIt->set<bool>("PositiveMemory", true);
-            deallocateInputOp->set<unsigned>("opId", opId);
 
             // Control flows for the newly created operation must be attached now.
             // Checking all the ops that have this tensor as input
@@ -111,29 +118,44 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
             // DATA
             auto chosenOpData = *chosenOp;
             for(auto son = chosenOpData.leftmostChild(); son != om.opEnd(); ++son)
-                if(!cm.checkControlFlow(deallocateInputOp, son))
+            {
+                if(!son->hasTypeTrait("executable"))
+                {
+                    // Concat is brutally skipped - No need to check in control model
+                    // since there will NEVER BE a control flow connected to a concat
+                    // NOTE/TODO: We have to go down recursively for the concat of concats case
+                    // For now we stop at the first level.
+
+                    for(auto nephew = son.leftmostChild(); nephew != om.opEnd(); ++nephew)
+                        if(!cm.checkControlFlow(deallocateInputOp, nephew))
+                            cm.defineFlow(deallocateInputOp, nephew);
+                }
+
+                else if(!cm.checkControlFlow(deallocateInputOp, son))
+                {
                     if(son->getOpType() != "Deallocate")
+                    {
                         cm.defineFlow(deallocateInputOp, son);
+                    }
+                }
+            }
 
             // CONTROL
             auto chosenOpControl = cm.switchContext(*chosenOp);
             auto deallocateInputOpControl = cm.switchContext(deallocateInputOp);
             for(auto son = chosenOpControl.leftmostChild(); son != cm.opEnd(); ++son)
+            {
                 if(!cm.checkControlFlow(deallocateInputOpControl, son))
+                {
                     if(son->getOpType() != "Deallocate")
+                    {
                         cm.defineFlow(deallocateInputOpControl, son);
+                    }
+                }
+            }
 
         }
     }
-
-    // Remove deallocation for last operation
-
-    auto outputOp = om.getOutput();
-    auto lastDMAOp = outputOp.leftmostParent();
-    auto lastOpBeforeLastDma = lastDMAOp.leftmostParent();
-
-    auto lastDeallocation = om.getOp(lastOpBeforeLastDma->getName()+"_DEALLOC");
-    om.removeOp(lastDeallocation);
 }
 
 // Pass role: Remove deallocation tasks for each Tensor
@@ -168,6 +190,10 @@ void removeDeallocationTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel
             auto cmCtlFlow = cm.switchContext(ctlFlow);
             for (auto parentOp = cmCtlFlow.leftmostParent(); parentOp != cm.opEnd(); ++parentOp)
             {
+                // Implicit operations that go to dealloc shall not propagate control flow
+                if(!parentOp->hasTypeTrait("executable"))
+                    continue;
+
                 for (auto childOp = cmCtlFlow.leftmostChild(); childOp != cm.opEnd(); ++childOp)
                 {
                     auto childOpName = childOp->getName();
