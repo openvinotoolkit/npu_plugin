@@ -5,9 +5,12 @@
 #include "include/mcm/utils/custom_math.hpp"
 #include "include/mcm/utils/custom_strings.hpp"
 #include "include/mcm/pass/pass_utils.hpp"
+#include "include/mcm/target/keembay/workload_struct.hpp"
+#include "include/mcm/target/keembay/workloads.hpp"
+#include "include/mcm/target/keembay/rectangle.hpp"
 
 static void splittingAcrossClusters(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
-static void getWorkGen(const mv::Data::TensorIterator& tensor, const int nClusters);
+static void getWorkGen(const std::vector<mv::Data::TensorIterator> &tensors, const int nClusters, const mv::pass::PassEntry& pass);
 
 namespace mv
 {
@@ -21,7 +24,7 @@ namespace mv
     }
 }
 
-void splittingAcrossClusters(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+void splittingAcrossClusters(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
     mv::OpModel om(model);
     std::vector <mv::Data::TensorIterator> tensors;
@@ -44,24 +47,35 @@ void splittingAcrossClusters(const mv::pass::PassEntry& , mv::ComputationModel& 
         }
      }
 
-    for (std::vector<mv::Data::TensorIterator>::iterator tensor = tensors.begin(); tensor != tensors.end(); ++tensor)
-    {
-        getWorkGen(*tensor, numClusters);
-    }
+    getWorkGen(tensors, numClusters, pass);
     return;
 }
 
-void getWorkGen(const mv::Data::TensorIterator& tensor, const int nClusters)
+void getWorkGen(const std::vector <mv::Data::TensorIterator>& tensors, const int nClusters, const mv::pass::PassEntry& pass)
 {
-    if (tensor->get<std::string>("splitStrategy") == "SplitOverH")
+    for (auto tensor = tensors.begin(); tensor != tensors.end(); ++tensor)
     {
-        if(!tensor->isPopulated())
+        if ((*tensor)->get<std::string>("splitStrategy") == "SplitOverH")
         {
-            int nWorkloads = nClusters;
-        }
-        else
-        {
-            int nWorkloads = 1;
+            mv::Workloads Tensor((*tensor)->getName(), (*tensor)->getShape());
+            int success;
+            std::vector<mv::Workload> subTensors;
+            if(!(*tensor)->isPopulated())
+            {
+                int nWorkloads = nClusters;
+                success = Tensor.partitionTensorWithRectangleHeuristic({{1,16}}, nWorkloads, true, false, true, mv::WorkloadSplitMode::HW, pass);
+                subTensors = Tensor.getWorkloads();
+            }
+            else
+            {
+                success = Tensor.partitionTensorWithRectangleHeuristic({{1,16}}, 1, true, false, true, mv::WorkloadSplitMode::HW, pass);
+                subTensors = Tensor.getWorkloads();
+                std::vector<mv::Workload> newSubTensors;
+                for (int i = 0; i < nClusters; i++)
+                    newSubTensors.push_back(subTensors[i]);
+                subTensors = newSubTensors;
+            }
+            (*tensor)->splitAcrossClusters(subTensors, true, false);
         }
     }
     return;
