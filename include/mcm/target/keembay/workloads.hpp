@@ -14,6 +14,8 @@
 #include <climits>
 #include <math.h>
 #include <cmath>
+#include <vector>
+#include <numeric>
 
 namespace mv
 {
@@ -266,7 +268,9 @@ namespace mv
         std::vector<Workload> workloads_;
         std::string layerName_;
         mv::Shape tensorShape_;
-        std::vector<float> executionCycles_;
+        std::vector<float> executionCycles_; //Min & Max execution cycles
+        float meanExecutionCycles_ = 0;
+
         std::shared_ptr<MetisGraphStructure> metisGraph_;
 
         float critical_workload = 0;
@@ -312,11 +316,12 @@ namespace mv
         std::set<int> getNWorkloads(mv::Data::TensorIterator tensor);
         void addWorkload(mv::Workload workload);
         const std::vector<mv::Workload>& getWorkloads() const;
-        static const std::vector<int> getWorkloadSplitPool(mv::Data::TensorIterator tensor, int nDPUxCluster, int maxSplits = 50, int dpuModes);
+        static const std::vector<int> getWorkloadSplitPool(mv::Data::TensorIterator tensor, int nDPUxCluster, mv::DPUModeLists dpuModeLists, int maxSplits = 50);
 
         //void generateExecutionCycles(std::vector<mv::Data::TensorIterator>& outputTensor, int nDPUxCluster, CostFunctions costFunction);
         static void generateExecutionCycles(std::vector<mv::Workloads>& workloadsVector, int nDPUxCluster, CostFunctions costFunction);
         std::vector<float> getExecutionCycles() const;
+        float getMeanExecutionCycles() const;
         void setExecutionCycles(std::vector<float> val);
         static float greedyTaskAssignment(int nProcessors, std::vector<float>& workloadCosts);
 

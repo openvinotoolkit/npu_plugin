@@ -470,23 +470,19 @@ idx_t mv::Workloads::getNWorkloads(const mv::Shape& tensorShape, int nDPUxCluste
  * @param Maximum number or workloads
  * @return A pool of possible splits (possible workloads)
  */
-const std::vector<int> mv::Workloads::getWorkloadSplitPool(mv::Data::TensorIterator tensor, int nDPUxCluster, int maxSplits, int numberDpuModes)
+const std::vector<int> mv::Workloads::getWorkloadSplitPool(mv::Data::TensorIterator tensor, int nDPUxCluster, mv::DPUModeLists dpuModeLists, int maxSplits)
 {
-    std::vector<int> splitPool;
+    std::vector<int> splitPool = {1};
+    std::vector<int> maxSplitsXY;
  
     /*maxSplitsXY*/
     double xDim = tensor->get<mv::Shape>("shape")[0];
     double yDim = tensor->get<mv::Shape>("shape")[1];
     
-    int maxSplitsXY = ceil(xDim/4) * ceil(yDim/4);
-    // int maxSplitsXY;
-
-    // for(int i = 0; i < numberDpuModes; i++) {
-
-    //     for 
-    // maxSplitsXY = ceil(xDim/4) * ceil(yDim/4);
-    // }
-
+    std::cout << dpuModeLists[0].size() << std::endl;
+    for(int i = 0; i < dpuModeLists[0].size(); i++) 
+        maxSplitsXY.push_back(ceil((xDim/dpuModeLists[0][i].H)  * ceil(yDim/dpuModeLists[0][i].W)));
+    
     /*maxSplitsZ*/
     int maxSplitsZ = ceil(tensor->get<mv::Shape>("shape")[2]/16);
 
@@ -504,13 +500,15 @@ const std::vector<int> mv::Workloads::getWorkloadSplitPool(mv::Data::TensorItera
     // }
 
     /*DpuMul splits*/
-    // for(int i = nDPUxCluster; i <= (maxSplits - nDPUxCluster) ; i+=nDPUxCluster)
-    //     splitPool.push_back(i);
+    for(int i = nDPUxCluster; i <= (maxSplits - nDPUxCluster) ; i+=nDPUxCluster)
+        splitPool.push_back(i);
     
     /*XY splits*/
-    for(int i = 0; i < (int)ceil(log2(maxSplitsXY)); i ++) 
-        if(((maxSplitsXY%(int)std::pow(2,i)) == 0) && (maxSplitsXY/(std::pow(2,i)) < maxSplits)) 
-            splitPool.push_back(maxSplitsXY/std::pow(2,i));
+    for(int i = 0; i < dpuModeLists[0].size(); i++) {
+        for(int j = 0; j < (int)ceil(log2(maxSplitsXY[i])); j++) 
+            if(((maxSplitsXY[i]%(int)std::pow(2,j)) == 0) && (maxSplitsXY[i]/(std::pow(2,j)) <= maxSplits)) 
+            splitPool.push_back(maxSplitsXY[i]/std::pow(2,j));
+    }
     
     /*sort*/
     sort(splitPool.begin(), splitPool.end());
@@ -865,6 +863,11 @@ std::vector<float> mv::Workloads::getExecutionCycles() const
     return executionCycles_;
 }
 
+float mv::Workloads::getMeanExecutionCycles() const
+{
+    return meanExecutionCycles_;
+}
+
 void mv::Workloads::setExecutionCycles(std::vector<float> val)
 {
     executionCycles_ = val;
@@ -991,6 +994,9 @@ void mv::Workloads::generateExecutionCycles(std::vector<mv::Workloads>& workload
         else
             itWorklaods->executionCycles_ = {max_range, max_range};
         }
+
+        /*Calculate the mean of execution cycles*/
+        itWorklaods->meanExecutionCycles_ = std::accumulate(itWorklaods->executionCycles_.begin(), itWorklaods->executionCycles_.end(), 0.0) / itWorklaods->executionCycles_.size();  
     }
     
 

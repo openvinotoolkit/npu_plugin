@@ -201,7 +201,7 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                 dpuModeLists = {{{4,4},{1, 16}}};
 
             /*Generate the number of workloads split pool*/
-            auto nWorkloadsSplitPool = mv::Workloads::getWorkloadSplitPool(opIt->getOutputTensor()[0], nDPUxCluster, 50, dpuModeLists.size());
+            auto nWorkloadsSplitPool = mv::Workloads::getWorkloadSplitPool(opIt->getOutputTensor()[0], nDPUxCluster, dpuModeLists, 50);
 
 
             /* For each dpu mode and for each workload, attempt to partition with METIS and/or Rectangle and create worklaods*/ 
@@ -330,11 +330,11 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                 index++;
             }
 
-            /*Pick the workload with minimum execution time*/
+            /*Pick the workload with minimum (should be mean) execution time*/
             auto optimalWorkload = std::min_element(workloadsVector.begin(), workloadsVector.end(),
                 [] (mv::Workloads const& lhs, mv::Workloads const& rhs) 
                 {
-                    return lhs.getExecutionCycles()[0] < rhs.getExecutionCycles()[0];
+                    return lhs.getMeanExecutionCycles() < rhs.getMeanExecutionCycles();
                 });
         
             /*Get the index of the most optimial workload*/
