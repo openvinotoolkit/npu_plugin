@@ -305,6 +305,7 @@ void streamingTilingFcn(const mv::pass::PassEntry& pass,
     mv::ControlModel cm(model);
     mv::DataModel dm(model);
 
+    std::cout<< "SPATIAL_STREAMING PASS: entered" << std::endl ;
     for(auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt)
     {
 //        std::cout<< "splitDoing " << opIt->getName() << std::endl;
@@ -318,7 +319,7 @@ void streamingTilingFcn(const mv::pass::PassEntry& pass,
             //TODO:: check with POC if the schedule accounts for the overlaps and inputStrides
             //TODO:: also consider dilation factor
 
-            int numberOfSplits = passDesc.get<int>("numberOfSplits");
+            int numberOfSplits = 2;
 
             mv::Shape startingCorner( {0,0,0,0});
             auto masterSize = opIt->getInputTensor(0)->getShape();

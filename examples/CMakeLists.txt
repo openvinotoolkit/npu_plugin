@@ -59,6 +59,8 @@ if (MSVC)
 
     add_executable(conv_multiSplit conv_multiSplit.cpp  $<TARGET_OBJECTS:cm> $<TARGET_OBJECTS:corebase> $<TARGET_OBJECTS:metamodel> $<TARGET_OBJECTS:model>)
 
+    add_executable(conv_multi_pass conv_multi_pass.cpp  $<TARGET_OBJECTS:cm> $<TARGET_OBJECTS:corebase> $<TARGET_OBJECTS:metamodel> $<TARGET_OBJECTS:model>)
+
     add_executable(manual_group_conv manual_group_conv.cpp  $<TARGET_OBJECTS:cm> $<TARGET_OBJECTS:corebase> $<TARGET_OBJECTS:metamodel> $<TARGET_OBJECTS:model>)
 
 else()
@@ -164,6 +166,9 @@ else()
 
     add_executable(conv_multiSplit conv_multiSplit.cpp)
     target_link_libraries(conv_multiSplit cm)
+
+    add_executable(conv_multi_pass conv_multi_pass.cpp)
+    target_link_libraries(conv_multi_pass cm)
 
     add_executable(manual_group_conv manual_group_conv.cpp)
     target_link_libraries(manual_group_conv cm)

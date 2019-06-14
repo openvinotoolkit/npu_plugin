@@ -326,16 +326,12 @@ SET(pass
     "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/sparsity/sparsity_maps.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/sparsity/weights_tables.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/sparsity/eltwise_ops.cpp"
-<<<<<<< HEAD
-    "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/streaming/spatial_split_streaming.cpp"
-=======
     "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/keembay_align_to_16_channels.cpp"
->>>>>>> VPUNND-1334-streaming-pass-data-out
+    "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/streaming/spatial_split_streaming.cpp"
 
     "${PROJECT_SOURCE_DIR}/src/pass/finalization/max_topological_cut.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/finalization/align_data_order.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/finalization/allocate_memory_keem_bay.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/finalization/allocate_memory_myriadX.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/finalization/arrange_execution.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/finalization/format_mx_weights.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/finalization/fuse_relu_mx.cpp"

@@ -56,21 +56,6 @@
                         "cluster_filter" : 0,
                         "strategy" : "SplitOverH"
                     }
-                ],
-                "workload_strategy" :
-                [
-                    {
-                        "name_filter" : "res4a_branch2a#4",
-                        "cluster_filter" : 0,
-                        "nWorkloads" : 1,
-                        "mpe_mode" : "Vector"
-                    },
-                    {
-                        "name_filter" : "res4a_branch2b#4",
-                        "cluster_filter" : 0,
-                        "nWorkloads" : 1,
-                        "mpe_mode" : "Vector"
-                    }
                 ]
             },
             "ComputeMemory",
@@ -80,18 +65,14 @@
                 "output": "original_model.dot",
                 "scope": "OpControlModel",
                 "content": "full",
-                "html": true
-            },
-            {
-                "name": "ConvertDot",
-                "input": "original_model.dot"
+                "html": true,
+                "convert": false
             },
             {
                 "name": "CreateSourceStructure",
                 "VersionMajor": 3,
-                "VersionMinor": 11,
-                "VersionPatch": 0,
-                "VersionHash": "9aa43159420c77d8cf765393954ac2fbb372ab02"
+                "VersionMinor": 10,
+                "VersionHash": "c1b3a9075e52694726edc996124c04b9268cf4cf"
             }
         ]
     },
@@ -102,18 +83,14 @@
             "FuseBias",
             "FuseRelu",
             "FuseScale",
-            "FullyConnectedAsConv2D",
-            "StreamingOpFission",
+            "streamingTiling",
             {
                 "name": "GenerateDot",
                 "output": "adapt_model.dot",
                 "scope": "OpControlModel",
                 "content": "full",
-                "html": true
-            },
-            {
-                "name": "ConvertDot",
-                "input": "adapt_model.dot"
+                "html": true,
+                "convert": false
             }
         ]
     },
