@@ -21,15 +21,11 @@ namespace mv
             std::vector<Tensor>&)> outputDefFcn =
             [](const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>&args, std::vector<Tensor>& outputs)
         {
-
             if (args.at("quantParams").get<mv::QuantizationParams>().isEmpty())
-            {
                 outputs.push_back(mv::Tensor(":0", inputs[0]->getShape(), inputs[0]->getDType(), inputs[0]->getOrder()));
-            }
             else
-            {
                 outputs.push_back(mv::Tensor(":0", inputs[0]->getShape(), inputs[0]->getDType(), inputs[0]->getOrder(), args.at("quantParams").get<mv::QuantizationParams>()));
-            }
+
             if (inputs[0]->isPopulated())
                 outputs[0].populate(inputs[0]->getData());
             if (inputs[0]->isSparse())
