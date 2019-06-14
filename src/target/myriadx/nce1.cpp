@@ -127,7 +127,7 @@ std::vector<mv::ModeSelectionNode> mv::Nce1::generateNeighboursComingFromValidMo
 bool mv::Nce1::check_min_lines_constraint(unsigned kernel_height, unsigned stride_vertical, unsigned input_width, unsigned input_channels)
 {
     unsigned min_lines = computeMinLinesForConvolution(kernel_height, stride_vertical);
-    unsigned space_required = min_lines * input_width * input_data_size * input_channels;
+    unsigned space_required = min_lines * round_up(input_width, 16) * input_data_size * input_channels;
     return space_required > data_storage_dimension;
 }
 
@@ -305,6 +305,7 @@ mv::ModeSelectionDistance mv::Nce1::split_by_width(mv::ConvolutionParameters par
 
 mv::ModeSelectionDistance mv::Nce1::computeModeCost(const mv::ModeSelectionNode a, const mv::ModeSelectionNode b)
 {
+    // Note: while calculating cost, fathom uses unrounded width and channel values whereas MCM uses rounded. This has to be fixed.
     ModeSelectionDistance to_return;
 
     int split_over_output_channel_overhead = 0;
@@ -344,7 +345,8 @@ mv::ModeSelectionDistance mv::Nce1::computeModeCost(const mv::ModeSelectionNode 
     if(need_split_by_width_or_input_channel)
     {
         ModeSelectionDistance splitted_by_input_channel = split_by_input_channel(parameters, b.remaining_output_channels, mode);
-        ModeSelectionDistance splitted_by_width = split_by_width(parameters, mode);
+        // split_by_width is needed for cases with width ~2k and is not seen in any of the common networks. So the split_by_width is defaulted to 'false'
+        ModeSelectionDistance splitted_by_width = split_by_width(parameters, mode, false);
         if(splitted_by_input_channel < splitted_by_width)
             to_return = splitted_by_input_channel;
         else
@@ -354,7 +356,7 @@ mv::ModeSelectionDistance mv::Nce1::computeModeCost(const mv::ModeSelectionNode 
         to_return = split_by_input_channel(parameters, b.remaining_output_channels, mode);
     else
     {
-        to_return.cost = parameters.kernel_width * parameters.kernel_height * parameters.input_width * parameters.input_height * parameters.input_channels / dpe_x_output_channel.at(mode);
+        to_return.cost = parameters.kernel_width * parameters.kernel_height * parameters.output_width * parameters.output_height * parameters.input_channels / dpe_x_output_channel.at(mode);
         to_return.split_performed = NCE1Splits::NoSplit;
         to_return.num_splits = 1;
         if(check_channels_per_ram_block_(parameters, mode))
@@ -574,7 +576,7 @@ unsigned mv::Nce1::computeMaxOutputLinesConvolution(unsigned width, unsigned out
 unsigned mv::Nce1::computeMaxOutputLinesPooling(unsigned width, unsigned output_channel_performed, std::array<unsigned short, 4> padding, std::array<unsigned short, 2> kernel)
 {
     unsigned max_output_lines = computeMaxOutputLinesConvolution(width, output_channel_performed);
-    //Padding order: Up, down, left, right
+    //Padding order: left, right, up, down
     bool pad_enabled = *std::max_element(padding.begin(), padding.end()) > 0;
     if(!pad_enabled)
         return max_output_lines;
@@ -582,9 +584,9 @@ unsigned mv::Nce1::computeMaxOutputLinesPooling(unsigned width, unsigned output_
     //True row adaptation B0
     unsigned max_size;
     unsigned kernel_height = kernel[1];
-    if(padding[1]) //pad_bottom
+    if(padding[3]) //pad_bottom
         max_size = max_size_true_adaptation_B0_pad_bottom;
-    else if(padding[2] || padding[3]) //pad left or right
+    else if(padding[0] || padding[1]) //pad left or right
         max_size = max_size_true_adaptation_B0_pad_left_right;
     else //pad top?
         max_size = round_up(width, 16) * (max_output_lines - 1 + kernel_height - 1);
