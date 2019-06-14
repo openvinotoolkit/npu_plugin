@@ -72,7 +72,10 @@ void getWorkGen(const std::vector <mv::Data::TensorIterator>& tensors, const int
                 subTensors = Tensor.getWorkloads();
                 std::vector<mv::Workload> newSubTensors;
                 for (int i = 0; i < nClusters; i++)
-                    newSubTensors.push_back(subTensors[i]);
+                {
+                    for (unsigned int j =0; j < subTensors.size(); j++)
+                        newSubTensors.push_back(subTensors[j]);
+                }
                 subTensors = newSubTensors;
             }
             (*tensor)->splitAcrossClusters(subTensors, true, false);
