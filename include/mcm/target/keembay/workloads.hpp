@@ -36,7 +36,7 @@ namespace mv
         MinMaxWorkloads
     };
 
-    struct DPUMode { unsigned H, W; }; // NB: do not mess with MPE_Mode
+    struct DPUMode { unsigned H, W; };
     using  DPUModeList = std::vector<mv::DPUMode>;
     using  DPUModeLists = std::vector<mv::DPUModeList>;
 
