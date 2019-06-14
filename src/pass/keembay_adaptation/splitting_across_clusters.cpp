@@ -63,7 +63,7 @@ void getWorkGen(const std::vector <mv::Data::TensorIterator>& tensors, const int
             if(!(*tensor)->isPopulated())
             {
                 int nWorkloads = nClusters;
-                success = Tensor.partitionTensorWithRectangleHeuristic({{4,4}}, nWorkloads, true, false, true, mv::WorkloadSplitMode::HW, pass);
+                success = Tensor.partitionTensorWithRectangleHeuristic({{1,1}}, nWorkloads, true, false, true, mv::WorkloadSplitMode::HW, pass);
                 subTensors = Tensor.getWorkloads();
             }
             else
