@@ -84,7 +84,17 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
             auto flowIt = cm.defineFlow(inputOp, deallocateInputOp);
             auto outputTensor = flowIt.source()->getOutputTensor(0);
 
-            flowIt->set<int>("MemoryRequirement", outputTensor->computeMemoryRequirement());
+            //TODO make it general for all implicit ops
+            if (flowIt.source()->getOpType() == "ImplicitConcat")
+            {
+                //consider size of small tensor not master tensor
+                flowIt->set<int>("MemoryRequirement", outputTensor->getClusterSize(16,true));
+            }
+            else
+            {
+                flowIt->set<int>("MemoryRequirement", outputTensor->getClusterSize(16,false));
+            }
+
             flowIt->set<bool>("PositiveMemory", true);
 
             // Control flows for the newly created operation must be attached now.
