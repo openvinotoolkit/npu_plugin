@@ -926,42 +926,34 @@ void mv::Workloads::generateExecutionCycles(std::vector<mv::Workloads>& workload
             itWorklaods->executionCycles_ = {max_range, max_range};
         }
 
+        else if (costFunction == CostFunctions::Balanced)
+        {
+            float balancing = float(0.0);
+            if (!std::isinf(itWorklaods->workload_sum))
+                balancing = itWorklaods->workload_sum/(ceil(itWorklaods->workload_sum/nDPUxCluster) * nDPUxCluster);
+
+            itWorklaods->executionCycles_ = {-balancing, -balancing};
+        }
+        
+        else if (costFunction == CostFunctions::MinMaxWorkloads)
+            itWorklaods->executionCycles_ = {min_range, max_range};
+
+        else if (costFunction == CostFunctions::Greedy)
+        {
+            if (std::isinf(itWorklaods->workload_sum))
+                itWorklaods->executionCycles_ = {INFINITY, INFINITY};
+            else
+            {
+                float greedy = greedyTaskAssignment(nDPUxCluster, workloadsExecutionCycles);
+                itWorklaods->executionCycles_ = {greedy, greedy};
+            }
+        }
+        else
+            throw mv::ArgumentError("Generate Workloads Pass", "costFunction", "unknown", "Unsupported cost function");
+        
         /*Calculate the mean of execution cycles*/
         itWorklaods->meanExecutionCycles_ = std::accumulate(itWorklaods->executionCycles_.begin(), itWorklaods->executionCycles_.end(), 0.0) / itWorklaods->executionCycles_.size();  
     }
-    
-
-    // if (costFunction == CostFunctions::Balanced)
-    // {
-    //     float balancing = float(0.0);
-    //     if (!std::isinf(wl_sum))
-    //         balancing = wl_sum/(ceil(wl_sum/nDPUxCluster) * nDPUxCluster);
-
-    //     executionCycles_ = {-balancing, -balancing};
-    // }
-    // else if(costFunction == CostFunctions::MinMaxWorkloads)
-    //     executionCycles_ = {min_range, max_range};
-
-    // if(costFunction == CostFunctions::CriticalPath)
-    // {
-    //     if (nDPUxCluster == 1)
-    //         itWorklaods->executionCycles_ = {min_range, min_range};
-    //     else
-    //         executionCycles_ = {max_range, max_range};
-    // }
-
-    // else if(costFunction == CostFunctions::Greedy)
-    // {
-    //     if (std::isinf(wl_sum))
-    //         executionCycles_ = {INFINITY, INFINITY};
-    //     else
-    //     {
-    //         float greedy = greedyTaskAssignment(nDPUxCluster, workloadsExecutionCycles);
-    //         executionCycles_ = {greedy, greedy};
-    //     }
-    // }
-    // else
-    //     throw mv::ArgumentError("Generate Workloads Pass", "costFunction", "unknown", "Unsupported cost function");
 }
 
 

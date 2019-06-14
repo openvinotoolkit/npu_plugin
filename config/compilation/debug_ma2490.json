@@ -7,12 +7,12 @@
                 "recorded_model": false,
                 "weights_form": "None",
                 "barrier_index_assignment" : "Dynamic",
-                "Number_of_DPUs" : 1,
+                "Number_of_DPUs" : 5,
                 "Number_of_Clusters" : 1,
                 "UpaShaves": 1,
                 "DDRScratch": 4096,
                 "MemoryHack": true,
-                "nWorkloads": 1,
+                "nWorkloads": 0,
                 "CMX_memory_overflow_safety_factor" : 0.925,
                 "split_strategy" :
                 [
