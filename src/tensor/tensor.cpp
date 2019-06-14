@@ -957,19 +957,24 @@ std::vector<unsigned> mv::Tensor::computeNumericStrides() const
     return getOrder().computeByteStrides(getShape(), getDType().getSizeInBits() / 8);
 }
 
-std::size_t mv::Tensor::getClusterSize(bool isBase) const
+std::size_t mv::Tensor::getClusterSize(unsigned int alignment, bool isBase) const
 {
-    std::size_t res = computeTotalSize(isBase);
+    std::size_t res;
     if (isBroadcasted())
     {
         res = 0;
         for (size_t tIdx = 0; tIdx < subTensors_.size(); tIdx++)
         {
-            auto size = subTensors_[tIdx]->computeTotalSize(isBase);
+            auto size = subTensors_[tIdx]->computeTotalSize(alignment, isBase);
             if (size > res)
                 res = size;
         }
     }
+    else
+    {
+        res = computeTotalSize(alignment, isBase);
+    }
+
     return res;
 }
 
