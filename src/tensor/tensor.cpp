@@ -423,7 +423,8 @@ void mv::Tensor::setSparse()
     auto shape = getShape();
     size_t N = shape[-1];;
 
-    storageElement_  = std::make_shared<Tensor>(createStorageElementName(getName()), mv::Shape({shape[0], shape[1], 1, N}), mv::DType("Int32"), order);
+    if(!isPopulated())
+        storageElement_  = std::make_shared<Tensor>(createStorageElementName(getName()), mv::Shape({shape[0], shape[1], 1, N}), mv::DType("Int32"), order);
 
     set<bool>("sparse", true);
 
