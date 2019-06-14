@@ -53,10 +53,9 @@ void splittingAcrossClusters(const mv::pass::PassEntry& , mv::ComputationModel& 
 
 void getWorkGen(const mv::Data::TensorIterator& tensor, const int nClusters)
 {
-    switch (tensor->get<std::string>("splitStrategy"))
+    if (tensor->get<std::string>("splitStrategy") == "SplitOverH")
     {
-        case "SplitOverH":
-        if(!inputTensor->isPopulated())
+        if(!tensor->isPopulated())
         {
             int nWorkloads = nClusters;
         }
@@ -64,8 +63,6 @@ void getWorkGen(const mv::Data::TensorIterator& tensor, const int nClusters)
         {
             int nWorkloads = 1;
         }
-        break;
-        default;
     }
     return;
 }
