@@ -181,7 +181,7 @@ static void generateSparsityMapsFcn(const mv::pass::PassEntry& pass, mv::Computa
                 om.getSourceOp(sparsityMap)->set<unsigned>("opId", dpuTask->get<unsigned>("opId"));
                 unsigned newSize = dpuTask->addInputTensor(sparsityMap);
                 om.defineFlow(sparsityMap, dpuTask, newSize - 1);
-                dpuTask->set<std::string>("sparsityMap", sparsityMap->getName());
+                weights->set<std::string>("sparsityMap", sparsityMap->getName());
 
                 dpuTask->getInputTensor(0)->setSparse();
                 dpuTask->getOutputTensor(0)->setSparse();

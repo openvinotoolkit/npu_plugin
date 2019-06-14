@@ -202,18 +202,17 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     else
     {
         toBuild->data->data_index = tensorBufferIt->getOffset();
+
+        // VERY IMPORTANT NOTE: Sparsity with DDR/CMX streaming is not clear at this point
+        // but I'm sure that this code will need modifications when streaming kicks in.
         if(t->isSparse())
         {
-            // TODO: needs fixes
-            if(!t->isPopulated())
+            if(t->isPopulated())
+                toBuild->data->sparsity_index = om.getOp(t->get<std::string>("sparsityMap"))->getOutputTensor(0)->getAddress();
+            else
             {
                 toBuild->data->sparsity_index = t->getSparsityMap()->getAddress();
                 toBuild->data->storage_element_index = t->getStorageElement()->getAddress();
-            }
-            else
-            {
-                //auto spawningOp = om.getSourceOp(t);
-                //toBuild->data->sparsity_index = spawningOp->getInputTensor(spawningOp->inputSlots() - 2)->getAddress();
             }
         }
     }
