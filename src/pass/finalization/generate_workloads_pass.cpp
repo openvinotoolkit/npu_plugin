@@ -307,12 +307,12 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                     /*Check if there is a custom workload strategy (mpe mode) in compilation descriptor for this layer*/
                     if(opIt->hasAttr("WorkloadStrategy_MPE_mode")) {
                         if(opIt->get<std::string>("WorkloadStrategy_MPE_mode") == "Matrix") {
-                            mpeMode.first = 4;	
+                            mpeMode.first = 4;
                             mpeMode.second = 4;
                             pass.log(mv::Logger::MessageType::Debug, "This layer has a workload strategy, using MPE mode Matrix"); 	
                         }
                         if(opIt->get<std::string>("WorkloadStrategy_MPE_mode") == "Vector") {
-                            mpeMode.first = 1;	
+                            mpeMode.first = 1;
                             mpeMode.second = 16;
                             pass.log(mv::Logger::MessageType::Debug, "This layer has a workload srategy, using MPE mode Vector"); 	
                         }
