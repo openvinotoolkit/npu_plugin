@@ -48,28 +48,6 @@ internalOrder_(Order(Order::getRowMajorID(shape.ndims())))
         blocks_[i] = data_.begin() + i * blockSize_;
 }
 
-mv::Tensor::Tensor(const std::string &name, const Shape &shape, DType dType, Order order, const mv::QuantizationParams &quantParams, bool flag):
-Element(name),
-blockSize_(shape[-1]),
-blocks_(shape.totalSize() / blockSize_),
-shape_(shape),
-internalOrder_(Order(Order::getRowMajorID(shape.ndims())))
-{
-
-    log(Logger::MessageType::Debug, "Initialized");
-    if(order.size() != shape.ndims())
-        throw OrderError(*this, "Order and shape size are mismatching " + std::to_string(order.size()) + " vs " + std::to_string(shape.ndims()));
-    set<Shape>("shape", shape_);
-    set<Order>("order", order);
-    set<DType>("dType", dType);
-    set<mv::QuantizationParams>("quantParams", quantParams);
-    set<bool>("populated", flag);
-
-    data_ = std::vector<DataElement>(shape.totalSize(), DataElement(isDoubleType()));
-    for (std::size_t i = 0; i < blocks_.size(); ++i)
-        blocks_[i] = data_.begin() + i * blockSize_;
-}
-
 mv::Tensor::Tensor(const std::string &name, const Shape &shape, DType dType, Order order, const std::vector<double>& data) :
 Tensor(name, shape, dType, order)
 {
@@ -77,7 +55,7 @@ Tensor(name, shape, dType, order)
 }
 
 mv::Tensor::Tensor(const std::string &name, const Shape &shape, DType dType, Order order, const std::vector<double>& data, const mv::QuantizationParams &quantParams) :
-Tensor(name, shape, dType, order, quantParams, true)
+Tensor(name, shape, dType, order, quantParams)
 {
     populate(data, order);
 }
@@ -89,7 +67,7 @@ Tensor(name, shape, dType, order)
 }
 
 mv::Tensor::Tensor(const std::string &name, const Shape &shape, DType dType, Order order, const std::vector<int64_t>& data, const mv::QuantizationParams &quantParams) :
-Tensor(name, shape, dType, order, quantParams, true)
+Tensor(name, shape, dType, order, quantParams)
 {
     populate(data, order);
 }
@@ -101,7 +79,7 @@ Tensor(name, shape, dType, order)
 }
 
 mv::Tensor::Tensor(const std::string &name, const Shape &shape, DType dType, Order order, const std::vector<mv::DataElement>& data, const mv::QuantizationParams &quantParams):
-Tensor(name, shape, dType, order, quantParams, true)
+Tensor(name, shape, dType, order, quantParams)
 {
     populate(data, order);
 }
@@ -979,19 +957,24 @@ std::vector<unsigned> mv::Tensor::computeNumericStrides() const
     return getOrder().computeByteStrides(getShape(), getDType().getSizeInBits() / 8);
 }
 
-std::size_t mv::Tensor::getClusterSize(bool isBase) const
+std::size_t mv::Tensor::getClusterSize(unsigned int alignment, bool isBase) const
 {
-    std::size_t res = computeTotalSize(isBase);
+    std::size_t res;
     if (isBroadcasted())
     {
         res = 0;
         for (size_t tIdx = 0; tIdx < subTensors_.size(); tIdx++)
         {
-            auto size = subTensors_[tIdx]->computeTotalSize(isBase);
+            auto size = subTensors_[tIdx]->computeTotalSize(alignment, isBase);
             if (size > res)
                 res = size;
         }
     }
+    else
+    {
+        res = computeTotalSize(alignment, isBase);
+    }
+
     return res;
 }
 

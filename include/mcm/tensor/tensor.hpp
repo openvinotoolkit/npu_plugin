@@ -50,7 +50,6 @@ namespace mv
 
         Tensor(const std::string& name, const Shape& shape, DType dType, Order order);
         Tensor(const std::string& name, const Shape& shape, DType dType, Order order, const mv::QuantizationParams& quantParams);
-        Tensor(const std::string& name, const Shape& shape, DType dType, Order order, const mv::QuantizationParams& quantParams, bool flag);
         Tensor(const std::string& name, const Shape& shape, DType dType, Order order, const std::vector<double>& data);
         Tensor(const std::string& name, const Shape& shape, DType dType, Order order, const std::vector<double>& data, const mv::QuantizationParams& quantParams);
         Tensor(const std::string& name, const Shape& shape, DType dType, Order order, const std::vector<int64_t>& data);
@@ -191,7 +190,7 @@ namespace mv
         BinaryData toBinary();
         std::vector<unsigned> computeNumericStrides() const;
         std::size_t computeTotalSize(unsigned int alignment = 16, bool base = false) const;
-        std::size_t getClusterSize(bool base = false) const;
+        std::size_t getClusterSize(unsigned int alignment = 16, bool base = false) const;
         void splitAcrossClusters(std::vector<Workload>, bool splitOverH, bool multicast);
 
     };
