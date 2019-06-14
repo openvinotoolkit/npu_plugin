@@ -3,6 +3,7 @@
 
 #include "lemon/dijkstra.h"
 #include <lemon/preflow.h>
+#include <lemon/hao_orlin.h>
 
 mv::LemonGraphScheduler::LemonGraphScheduler(): nodes_(*graph_), edges_(*graph_), edgesMemory_(*graph_), sourceNode_(lemon::INVALID), sinkNode_(lemon::INVALID), edgeCount_(0)
 {  }
@@ -187,45 +188,97 @@ std::pair<int, std::vector<mv::edgeDescription>> mv::LemonGraphScheduler::calcul
     }
 
     /*Subtract Memory attribute of edge from the Flow attribute of the edge*/
+    lemon::ListDigraph::ArcMap<uint64_t> edgesFlow(*this->graph_);
     for (lemon::ListDigraph::ArcIt thisArc(*this->graph_); thisArc != lemon::INVALID; ++thisArc)
+    {
         this->edges_[thisArc].flow -= this->edges_[thisArc].memoryRequirement;
+        edgesFlow[thisArc] = this->edges_[thisArc].flow;
+    }
    
-
     /* Perform Min cut on the graph, see this example: http://koala.os.niwa.gda.pl/api/examples/flow/example_Flow.html*/
-    /* Set edge capacities (flow attribute of the edge ) and costs (=1)*/
-    lemon::ListDigraph::NodeMap<mv::edgeDescription> cut(*this->graph_);
-    lemon::Preflow<lemon::ListDigraph> preflow(*this->graph_, this->edgesMemory_, this->sourceNode_, this->sinkNode_);
-
+    /* Set edge capacities (flow attribute of the edge ) and costs (=1)*/   
+    lemon::ListDigraph::NodeMap<mv::edgeDescription> cutEdges(*this->graph_);
+    lemon::Preflow<lemon::ListDigraph, lemon::ListDigraph::ArcMap<uint64_t>> preflow(*this->graph_, edgesFlow, this->sourceNode_, this->sinkNode_);
     preflow.run();
-    auto val = preflow.flowValue();
-    preflow.minCutMap(cut);
+    //auto val = preflow.flowValue();
+    preflow.minCutMap(cutEdges);
 
+    uint64_t maxTopologicalCutValue = 0;
+    // for (lemon::ListDigraph::ArcIt flowArc(*this->graph_); flowArc != lemon::INVALID; ++flowArc)
+    // {
+    //     maxTopologicalCutValue += cutEdges[i]->info.memoryRequirement;
+    // }
 
-    //
-	Koala::AssocArray< koalaGraph::PEdge, Koala::Flow::EdgeLabs<uint64_t,int>> cap;
-
-    for (int i = 0; i < numberofEdges; i++) {
-        cap[this->edges_[i]].capac = this->edges_[i]->info.flow; 
-        cap[this->edges_[i]].cost = 1;
+    for(lemon::ListDigraph::ArcIt e(*this->graph_); e!=lemon::INVALID; ++e) 
+    {
+        bool bTarget = cutEdges[getGraph().target(e)];
+        if (cutEdges[getGraph().source(e)] && !(cutEdges[getGraph().target(e)])) 
+            maxTopologicalCutValue += edgesFlow[e];
     }
 
+
+	// Koala::AssocArray< koalaGraph::PEdge, Koala::Flow::EdgeLabs<uint64_t,int>> cap;
+    // for (int i = 0; i < numberofEdges; i++) {
+    //     cap[this->edges_[i]].capac = this->edges_[i]->info.flow; 
+    //     cap[this->edges_[i]].cost = 1;
+    // }
+
     /*store the cut edges*/
-    std::vector<koalaGraph::PEdge> cutEdges;
-    uint64_t maxTopologicalCutValue = 0;
+    // std::vector<koalaGraph::PEdge> cutEdges;
+    // uint64_t maxTopologicalCutValue = 0;
 
     /*compute minimal cut*/
-    Koala::Flow::minEdgeCut(this->getGraph(), cap, (*lookUpKoalaSourceNode(true, this->vertices_)), (*lookUpKoalaSinkNode(true, this->vertices_)), Koala::Flow::outCut(blackHole, std::back_inserter(cutEdges)));
+    //Koala::Flow::minEdgeCut(this->getGraph(), cap, (*lookUpKoalaSourceNode(true, this->vertices_)), (*lookUpKoalaSinkNode(true, this->vertices_)), Koala::Flow::outCut(blackHole, std::back_inserter(cutEdges)));
+    // PType preflow_test(g, cap, s, t);
+    // preflow_test.run();
+    // CutMap min_cut(g);
+    // preflow_test.minCutMap(min_cut);
+    // int min_cut_value = cutValue(g, min_cut, cap);
+  
+    // for (std::size_t i = 0; i < cutEdges.size(); i++)
+    //     maxTopologicalCutValue += cutEdges[i]->info.memoryRequirement;
     
-    for (std::size_t i = 0; i < cutEdges.size(); i++)
-        maxTopologicalCutValue += cutEdges[i]->info.memoryRequirement;
-
+    
     /*Add Max topological cut value as attribute to output node*/
     auto output = cm.getOutput();
     output->set<uint64_t>("MaxTopologicalCutValue", maxTopologicalCutValue); 
 
     pass.log(mv::Logger::MessageType::Debug, "The maximum peak memory of the graph is " + std::to_string(maxTopologicalCutValue) + " bytes");
-
     return std::make_pair(maxTopologicalCutValue, cutEdges);
+}
+
+int cutValue (const lemon::ListDigraph& g, const lemon::ListDigraph::NodeMap<bool>& cut, const lemon::ListDigraph::ArcMap<int>& cap) 
+{
+    int c=0;
+    for(lemon::ListDigraph::ArcIt e(g); e!=lemon::INVALID; ++e) 
+    {
+        if (cut[g.source(e)] && !cut[g.target(e)]) 
+        c+=cap[e];
+    }
+    return c;
+}
+
+
+bool checkFlow(const lemon::ListDigraph& g, const lemon::ListDigraph::ArcMap<int>& flow, const lemon::ListDigraph::ArcMap<int>& cap, lemon::ListDigraph::Node s, lemon::ListDigraph::Node t) 
+{
+    for (lemon::ListDigraph::ArcIt e(g); e != lemon::INVALID; ++e) {
+        if (flow[e] < 0 || flow[e] > cap[e]) return false;
+    }
+
+    for (lemon::ListDigraph::NodeIt n(g); n != lemon::INVALID; ++n) {
+        if (n == s || n == t) 
+            continue;
+        int sum = 0;
+        for (lemon::ListDigraph::OutArcIt e(g, n); e != lemon::INVALID; ++e) {
+            sum += flow[e];
+        }
+        for (lemon::ListDigraph::InArcIt e(g, n); e != lemon::INVALID; ++e) {
+            sum -= flow[e];
+        }
+        if (sum != 0) 
+            return false;
+    }
+    return true;
 }
 
 // /**
