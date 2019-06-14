@@ -186,9 +186,9 @@ void addWeightsDMATasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
                     }
 
                     //NOTE: This will change with multicluster
-                    long unsigned inputTensorDmaDimension = inputTensorDma->sizeBytes();
+                    long unsigned inputTensorDmaDimension = inputTensorDma->computeTotalSize();
                     for(unsigned j = 0; j < inputOutputTensors; ++j)
-                        inputTensorDmaDimension += opIt->getInputTensor(j)->sizeBytes();
+                        inputTensorDmaDimension += opIt->getInputTensor(j)->computeTotalSize();
 
                     int partsPerCMX = std::max((unsigned long)1, cmxSize/inputTensorDmaDimension);
                     if (partsPerCMX < (_dma_dependency + 1))
