@@ -59,21 +59,7 @@ int countNumberOfWorkloadsMetisReturned(int arr[], int n)
 
 std::pair<int,int> partitionTensorWithMETIS(const std::shared_ptr<mv::MetisGraphStructure>& metisGraph, idx_t nWorkloads, const mv::pass::PassEntry& pass) 
 {
-    /*METIS Debug Data*/
-    /*
-    pass.log(mv::Logger::MessageType::Debug, "The adjancy data for METIS is ");
-    for(int i =0; i < 2*metisGraph->m_numberTensorEdges; i++) 
-        pass.log(mv::Logger::MessageType::Debug, std::to_string(metisGraph->adjncy[i]));
-    
-    pass.log(mv::Logger::MessageType::Debug, "The xadj data for METIS is ");
-    for(int i =0; i < (metisGraph->m_numberTensorVertices + 1); i++) 
-        pass.log(mv::Logger::MessageType::Debug, std::to_string(metisGraph->xadj[i]));
-    
-    pass.log(mv::Logger::MessageType::Debug, "The vwgt data for METIS is ");
-    for(int i =0; i < (metisGraph->m_numberTensorVertices); i++) 
-        pass.log(mv::Logger::MessageType::Debug, std::to_string(metisGraph->vwgt[i]));
-    */
-    
+     
     /*METIS call*/
     METIS_SetDefaultOptions(metisGraph->options);
     int res = METIS_PartGraphRecursive(&metisGraph->m_numberTensorVertices,&metisGraph->nWeights, metisGraph->xadj.get(), metisGraph->adjncy.get(),
@@ -81,13 +67,7 @@ std::pair<int,int> partitionTensorWithMETIS(const std::shared_ptr<mv::MetisGraph
 				    NULL, metisGraph->options, &metisGraph->objval, metisGraph->part.get());
 
     pass.log(mv::Logger::MessageType::Debug, "Value of the objective function that was minimized by METIS (should be same as PoC compiler) is: " + std::to_string(metisGraph->objval));
-
-    /*Print node partition*/
-    /*
-    for(int part_i = 0; part_i < metisGraph->m_numberTensorVertices; part_i++) 
-            pass.log(mv::Logger::MessageType::Debug, "Node " + std::to_string(part_i) + " is in partition " + std::to_string(metisGraph->part[part_i])); 
-    */ 
-    
+   
     /* The METIS numbering convention for partitions starts at 0, for number of partitions > 1. i.e. nodes are assinged to partions labelled 0 -> (number partitions -1) 
      * However, the METIS numbering convention for partitions starts at 1, for number of partitions exactly = 1. i.e. nodes are assinged to partions labelled 1
      * Need to test for this condition here, as it impacts the idexing of logic that calculate the workload coordinates MinX, MaxX, MinY, MaxY
