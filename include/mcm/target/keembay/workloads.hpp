@@ -10,6 +10,7 @@
 #include "include/mcm/base/exception/index_error.hpp"
 #include "include/mcm/tensor/shape.hpp"
 #include "include/mcm/target/keembay/rectangle.hpp"
+#include "include/mcm/target/keembay/workload_struct.hpp"
 #include <metis.h>
 #include <climits>
 #include <math.h>
@@ -17,15 +18,9 @@
 
 namespace mv
 {
-    enum MPE_Mode
-    {
-        Vector,
-        Matrix
-    };
-
-    /** 
-    * @brief Cost Function types to be used when evaluating execution cycles of a workload 
-    */ 
+    /**
+    * @brief Cost Function types to be used when evaluating execution cycles of a workload
+    */
     enum class CostFunctions
     {
         Balanced,
@@ -202,56 +197,6 @@ namespace mv
     {
         int16_t x = 0;
         int16_t y = 0;
-    };
-
-    struct Workload
-    {
-        MPE_Mode MPEMode;
-        int16_t MaxX = 0;
-        int16_t MaxY = 0;
-        int16_t MaxZ = 0;
-        int16_t MinX = 0;
-        int16_t MinY = 0;
-        int16_t MinZ = 0;
-        int16_t padLeft = 0; //Are workload paddings different from full tensor padding?
-        int16_t padRight = 0;
-        int16_t padTop = 0;
-        int16_t padBottom = 0;
-        int32_t clusterID = 0;
-        int8_t workloadID = 0;  
-        int16_t area()
-        {
-          return (MaxX - MinX + 1) * (MaxY - MinY + 1);
-        }
-        std::vector<std::pair<int16_t, int16_t>> points;        
-        int16_t pointsTotal()
-        {
-         return points.size();
-        }
-        std::vector<std::pair<int16_t, int16_t>> vertices;        
-
-        void setVertices()
-        {
-            vertices.push_back(std::make_pair(MinX,MinY));
-            vertices.push_back(std::make_pair(MinX,MaxY));
-            vertices.push_back(std::make_pair(MaxX,MinY));
-            vertices.push_back(std::make_pair(MaxX,MaxY));
-        }
-        void setMinMaxAndVertices()
-        {
-            MinX = INT16_MAX;
-            MaxX = 0;
-            MinY = INT16_MAX;
-            MaxY = 0;
-            for(auto it = points.begin(); it != points.end(); it++)
-            {
-                MinX = std::min(MinX,it->first);
-                MaxX = std::max(MaxX, it->first);
-                MinY = std::min(MinY,it->second);
-                MaxY = std::max(MaxY, it->second);
-            }
-            setVertices();
-        }
     };
 
     struct DPUMode { unsigned H, W; }; // NB: do not mess with MPE_Mode
