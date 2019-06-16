@@ -3,8 +3,14 @@
 #include "include/mcm/utils/serializer/Fp16Convert.h"
 #include "meta/include/mcm/op_model.hpp"
 #include "include/mcm/utils/hardware_tests.hpp"
-#include "iostream"
-#include "fstream"
+
+#include <iostream>
+#include <fstream>
+
+// This example demonstrates the DPUConvolution pass:
+// which replaces all convolution operations with DPU tasks,
+// and adds appropriate DMA tasks (for DDR-to-CMX and back),
+// and de-allocation tasks for the temporary CMX buffers.
 
 int main()
 {
