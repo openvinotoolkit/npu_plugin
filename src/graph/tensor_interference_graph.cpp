@@ -159,11 +159,19 @@ std::size_t  mv::TensorInterferenceGraph::getNeighborsWeight_(std::string& inode
     return totalWeights;
 }
 
-void  mv::TensorInterferenceGraph::addWeightsToInterferenceGraph_(mv::ComputationModel& model, std::size_t alignment)
+void  mv::TensorInterferenceGraph::addWeightsToInterferenceGraph_(mv::ComputationModel& model, bool isDma, std::size_t alignment)
 {
     for (mv::TensorInterferenceGraph::node_dfs_iterator it = this->node_begin(); it != this->node_end(); ++it)
     {
-        (*it).weight = model.getTensor((*it).name)->computeTotalSize(alignment);
+        if (isDma)
+        {
+            //In case of DMA we take the Max size of all clusters to allocate in each slice, in case of broadcasting
+            (*it).weight = model.getTensor((*it).name)->getClusterSize(alignment);
+        }
+        else //HEAP/BSS
+        {
+            (*it).weight = model.getTensor((*it).name)->computeTotalSize(alignment);
+        }
     }
     for (mv::TensorInterferenceGraph::node_dfs_iterator it = this->node_begin(); it != this->node_end(); ++it)
     {
@@ -183,7 +191,7 @@ mv::TensorInterferenceGraph::TensorInterferenceGraph(mv::ComputationModel& model
     {
         genIntereferenceGraph_(model , tensorFilter, taskFilter, isDMA);
     }
-    addWeightsToInterferenceGraph_(model, alignment);
+    addWeightsToInterferenceGraph_(model, isDMA, alignment);
 }
 
 

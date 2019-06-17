@@ -10,6 +10,7 @@
 #include "include/mcm/base/exception/index_error.hpp"
 #include "include/mcm/tensor/shape.hpp"
 #include "include/mcm/target/keembay/rectangle.hpp"
+#include "include/mcm/target/keembay/workload_struct.hpp"
 #include <metis.h>
 #include <climits>
 #include <math.h>
@@ -19,15 +20,9 @@
 
 namespace mv
 {
-    enum MPE_Mode
-    {
-        Vector,
-        Matrix
-    };
-
-    /** 
-    * @brief Cost Function types to be used when evaluating execution cycles of a workload 
-    */ 
+    /**
+    * @brief Cost Function types to be used when evaluating execution cycles of a workload
+    */
     enum class CostFunctions
     {
         Balanced,
@@ -210,6 +205,7 @@ namespace mv
         int16_t y = 0;
     };
 
+<<<<<<< HEAD
     struct Workload
     {
         MPE_Mode MPEMode;
@@ -259,6 +255,10 @@ namespace mv
             setVertices();
         }
     };
+=======
+    struct DPUMode { unsigned H, W; }; // NB: do not mess with MPE_Mode
+    using  DPUModeList = std::vector<mv::DPUMode>;
+>>>>>>> origin/VPUNND-919
 
     enum class WorkloadSplitMode { HW=1, HC, WC };
 

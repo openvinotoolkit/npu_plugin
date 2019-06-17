@@ -2,6 +2,7 @@
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
 #include "meta/include/mcm/op_model.hpp"
+#include <sys/stat.h>
 
 void convertDotFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&, mv::TargetDescriptor&, mv::Element& passDesc, mv::json::Object&);
 
@@ -22,8 +23,12 @@ namespace mv
 
 }
 
-void convertDotFcn(const mv::pass::PassEntry&, mv::ComputationModel&, mv::TargetDescriptor&, mv::Element& passDesc, mv::json::Object&)
+void convertDotFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&, mv::TargetDescriptor&, mv::Element& passDesc, mv::json::Object&)
 {
     std::string outputFile = passDesc.get<std::string>("input");
-    system(("dot -Tsvg " + outputFile + " -o " + outputFile+".svg").c_str());
+    struct stat buffer;
+    if (stat (outputFile.c_str(), &buffer) == 0)
+        system(("dot -Tsvg " + outputFile + " -o " + outputFile+".svg").c_str());
+    else
+        pass.log(mv::Logger::MessageType::Error, outputFile + " not found");
 }

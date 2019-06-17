@@ -94,7 +94,7 @@ namespace mv
             bool isSinkNode_(Data::OpListIterator& opIterator);
             void genIntereferenceGraph_(ComputationModel& model , const TensorIteratorFilter& tensorFilter,const OpIteratorFilter& taskFilter, bool isDMA);
             std::set<std::string> getTensorNames_(ComputationModel& model, const TensorIteratorFilter& tensorFilter, const OpIteratorFilter& taskFilter, bool isDMA);
-            void addWeightsToInterferenceGraph_(ComputationModel& model, std::size_t alignment);
+            void addWeightsToInterferenceGraph_(ComputationModel& model, bool isDma, std::size_t alignment);
             std::size_t  getNeighborsWeight_(std::string& node);
             void buildCompleteGraph_(std::set<std::string> tensorNames);
             bool checkIsCMXTensor_(const Data::TensorIterator tensorIt);

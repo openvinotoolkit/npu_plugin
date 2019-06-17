@@ -14,6 +14,7 @@
 #include "include/mcm/base/exception/argument_error.hpp"
 #include "include/mcm/base/exception/value_error.hpp"
 #include "include/mcm/tensor/quantization_params.hpp"
+#include "include/mcm/target/keembay/workload_struct.hpp"
 
 namespace mv
 {
@@ -30,6 +31,7 @@ namespace mv
         Order internalOrder_;
         std::shared_ptr<Tensor> sparsityMap_;
         std::shared_ptr<Tensor> storageElement_;
+        std::vector<std::shared_ptr<Tensor>> subTensors_;
         size_t noneZeroElements_;
 
         bool elementWiseChecks_(const Tensor& other);
@@ -40,13 +42,14 @@ namespace mv
         std::vector<std::size_t> indToSub_(const Shape& s, unsigned index) const;
         unsigned subToInd_(const Shape& s, const std::vector<std::size_t>& sub) const;
         void populateSparsityMapTensor_();
+        void setSubtensorsOrder_(Order order);
+
     public:
         //NOTE: Is this method operating on I/O tensors, Weight tensors or both
         std::vector<int64_t> getZeroPointsPerChannel();
 
         Tensor(const std::string& name, const Shape& shape, DType dType, Order order);
         Tensor(const std::string& name, const Shape& shape, DType dType, Order order, const mv::QuantizationParams& quantParams);
-        Tensor(const std::string& name, const Shape& shape, DType dType, Order order, const mv::QuantizationParams& quantParams, bool flag);
         Tensor(const std::string& name, const Shape& shape, DType dType, Order order, const std::vector<double>& data);
         Tensor(const std::string& name, const Shape& shape, DType dType, Order order, const std::vector<double>& data, const mv::QuantizationParams& quantParams);
         Tensor(const std::string& name, const Shape& shape, DType dType, Order order, const std::vector<int64_t>& data);
@@ -89,7 +92,7 @@ namespace mv
         std::vector<int64_t> getIntData();
         void setDType(DType dType);
         DType getDType() const;
-        void setOrder(Order order);
+        void setOrder(Order order, bool updateSubtensors = false);
         Order getOrder() const;
         const Order& getInternalOrder() const;
         void setShape(const Shape& shape);
@@ -134,6 +137,12 @@ namespace mv
             return false;
         }
 
+        inline bool isBroadcasted() const
+        {
+            if (hasAttr("broadcasted"))
+                return get<bool>("broadcasted");
+            return true; //by default is true
+        }
         inline Shape& getShape()
         {
             return shape_;
@@ -170,7 +179,8 @@ namespace mv
 
         std::shared_ptr<Tensor> getSparsityMap() const;
         std::shared_ptr<Tensor> getStorageElement() const;
-
+        const Tensor& getSubTensor(uint8_t cluster);
+        const Tensor& broadcastSubtensor(uint8_t cluster);
 
         Tensor& operator=(const Tensor& other);
 
@@ -179,7 +189,9 @@ namespace mv
 
         BinaryData toBinary();
         std::vector<unsigned> computeNumericStrides() const;
-        std::size_t computeTotalSize(unsigned int alignment = 16) const;
+        std::size_t computeTotalSize(unsigned int alignment = 16, bool base = false) const;
+        std::size_t getClusterSize(unsigned int alignment = 16, bool base = false) const;
+        void splitAcrossClusters(std::vector<Workload>, bool splitOverH, bool multicast);
 
     };
 
