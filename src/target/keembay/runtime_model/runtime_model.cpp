@@ -208,7 +208,12 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
         if(t->isSparse())
         {
             if(t->isPopulated())
-                toBuild->data->sparsity_index = om.getOp(t->get<std::string>("sparsityMap"))->getOutputTensor(0)->getAddress();
+            {
+                auto sparsityMapOp = om.getOp(t->getSparsityMap()->getName());
+                sparsityMapOp = sparsityMapOp.leftmostChild();
+                auto sparsityMapTensor = sparsityMapOp->getOutputTensor(0);
+                toBuild->data->sparsity_index = sparsityMapTensor->getAddress();
+            }
             else
             {
                 toBuild->data->sparsity_index = t->getSparsityMap()->getAddress();
