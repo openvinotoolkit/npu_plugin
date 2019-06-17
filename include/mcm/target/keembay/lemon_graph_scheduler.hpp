@@ -86,7 +86,7 @@ namespace mv
         std::pair<int, std::vector<edgeDescription>> calculateMaxTopologicalCut(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
         //std::pair<int, std::vector<edgeDescription>> calculateMaxTopologicalCutOld(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
         uint64_t calculateFMax(mv::ComputationModel& model);
-        //void insertpartialSerialisationEdgesInMcmGraph(mv::ComputationModel& model);
+        void insertpartialSerialisationEdgesInMcmGraph(mv::ComputationModel& model);
           
         std::string getLogID() const override;
 
