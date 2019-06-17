@@ -5,17 +5,17 @@
 #include <lemon/preflow.h>
 #include <lemon/connectivity.h>
 
-mv::LemonGraphScheduler::LemonGraphScheduler(): nodes_(*graph_), edges_(*graph_), edgesMemory_(*graph_), graphSourceNode_(lemon::INVALID), graphSinkNode_(lemon::INVALID)
+mv::LemonGraphScheduler::LemonGraphScheduler(): nodes_(graph_), edges_(graph_), edgesMemory_(graph_), graphSourceNode_(lemon::INVALID), graphSinkNode_(lemon::INVALID)
 {  }
 
 mv::LemonGraphScheduler::~LemonGraphScheduler()
 {
-    delete graph_;
+    //delete graph_;
 }
 
 lemon::ListDigraph& mv::LemonGraphScheduler::getGraph()
 {
-    return *graph_;
+    return graph_;
 }
 
 /**
@@ -33,8 +33,7 @@ void  mv::LemonGraphScheduler::convertMcMGraphToLemonGraph(const mv::pass::PassE
     {
        /* We do not require MCM constant operations and MCM ouput operation in the Lemon graph. The sink node in the Lemon graph is the DMATask "CMX2DDR".
         * For all other tasks in the ControlModel view of the MCM graph create a corresponding node in the Lemon graph. */
-        if (opIt->getOpType() != "ConstantDataElement" && opIt->getOpType() != "Output" && opIt->getOpType() != "ConstantInt" &&
-            opIt->getOpType() != "Constant")
+        if (opIt->getOpType() != "ConstantDataElement" && opIt->getOpType() != "Output" && opIt->getOpType() != "ConstantInt" && opIt->getOpType() != "Constant")
         {
             /*Add node to Lemon graph*/
             bool nodeAdded = false;
@@ -43,8 +42,8 @@ void  mv::LemonGraphScheduler::convertMcMGraphToLemonGraph(const mv::pass::PassE
             {
                 pass.log(mv::Logger::MessageType::Debug, "Adding vertex to Lemon graph: " + opIt->getName());
 
-                lemon::ListDigraph::Node currentNode = getGraph().addNode();
-                this->nodes_[currentNode] = nodeDescription(this->graph_->id(currentNode), opIt->getName(),0, false, true);
+                lemon::ListDigraph::Node currentNode = this->graph_.addNode();
+                this->nodes_[currentNode] = nodeDescription(this->graph_.id(currentNode), opIt->getName(),0, false, true);
                 this->graphSinkNode_ = currentNode;
                 nodeAdded = true;
             }
@@ -52,16 +51,16 @@ void  mv::LemonGraphScheduler::convertMcMGraphToLemonGraph(const mv::pass::PassE
             if (opIt->getOpType() == "Input") 
             { 
                 pass.log(mv::Logger::MessageType::Debug, "Adding vertex to Lemon graph: " + opIt->getName());
-                lemon::ListDigraph::Node currentNode = getGraph().addNode();
-                this->nodes_[currentNode] = nodeDescription(this->graph_->id(currentNode), opIt->getName(),0, true, false);
+                lemon::ListDigraph::Node currentNode = this->graph_.addNode();
+                this->nodes_[currentNode] = nodeDescription(this->graph_.id(currentNode), opIt->getName(),0, true, false);
                 this->graphSourceNode_ = currentNode;
                 nodeAdded = true;
             }
             else if (!nodeAdded) 
             {   /*All other nodes between source and sink node*/
                 pass.log(mv::Logger::MessageType::Debug, "Adding vertex to Lemon graph: " + opIt->getName());
-                lemon::ListDigraph::Node currentNode = getGraph().addNode();
-                this->nodes_[currentNode] = nodeDescription(this->graph_->id(currentNode), opIt->getName(),0, false, false);
+                lemon::ListDigraph::Node currentNode = this->graph_.addNode();
+                this->nodes_[currentNode] = nodeDescription(this->graph_.id(currentNode), opIt->getName(),0, false, false);
                 nodeAdded = true;
             }
         }
@@ -87,7 +86,7 @@ void  mv::LemonGraphScheduler::convertMcMGraphToLemonGraph(const mv::pass::PassE
             
             pass.log(mv::Logger::MessageType::Debug, "Adding edge to Lemon graph from: " + sourceName + " --> " + sinkName + " with memory requirement " + std::to_string(memReq));
             lemon::ListDigraph::Node sourceNode, sinkNode;
-            for (lemon::ListDigraph::NodeIt n(*this->graph_); n != lemon::INVALID; ++n)
+            for (lemon::ListDigraph::NodeIt n(this->graph_); n != lemon::INVALID; ++n)
             {
                 mv::nodeDescription desc = this->nodes_[n];
                 if (sourceName == desc.name) 
@@ -95,12 +94,12 @@ void  mv::LemonGraphScheduler::convertMcMGraphToLemonGraph(const mv::pass::PassE
                 else if (sinkName == desc.name)
                     sinkNode = n;
             }
-            lemon::ListDigraph::Arc tmpEdge = this->graph_->addArc(sourceNode, sinkNode);
-            this->edges_[tmpEdge] = edgeDescription(this->graph_->id(tmpEdge), memReq, flowIt->getName());
+            lemon::ListDigraph::Arc tmpEdge = this->graph_.addArc(sourceNode, sinkNode);
+            this->edges_[tmpEdge] = edgeDescription(this->graph_.id(tmpEdge), memReq, flowIt->getName());
             this->edgesMemory_[tmpEdge] = memReq;
         }
     }
-    pass.log(mv::Logger::MessageType::Debug, "Lemon graph has " + std::to_string(lemon::countNodes(*this->graph_)) + " nodes and " + std::to_string(lemon::countArcs(*this->graph_)) + " edges");
+    pass.log(mv::Logger::MessageType::Debug, "Lemon graph has " + std::to_string(lemon::countNodes(this->graph_)) + " nodes and " + std::to_string(lemon::countArcs(this->graph_)) + " edges");
 }
 
 uint64_t mv::LemonGraphScheduler::calculateFMax(mv::ComputationModel& model) 
@@ -129,39 +128,44 @@ std::pair<int, std::vector<mv::edgeDescription>> mv::LemonGraphScheduler::calcul
     /*For each edge
      * Find the shortest path from source node (Input) to the edge's source node and
      * Find the shortest path from the edge's sink node to the graph sink node (DMA task CMX to DDR) */
-    for (lemon::ListDigraph::ArcIt thisArc(*this->graph_); thisArc != lemon::INVALID; ++thisArc)
+    for (lemon::ListDigraph::ArcIt thisArc(this->graph_); thisArc != lemon::INVALID; ++thisArc)
     {   
         /*get the source and sink node of this edge*/    
-        lemon::ListDigraph::Node northNode = getGraph().source(thisArc);
-        lemon::ListDigraph::Node southNode = getGraph().target(thisArc);
-        pass.log(mv::Logger::MessageType::Debug, "Source Node " + this->nodes_[northNode].name);
-        pass.log(mv::Logger::MessageType::Debug, "Sink Node " + this->nodes_[southNode].name);
+        lemon::ListDigraph::Node northNode = this->graph_.source(thisArc);
+        lemon::ListDigraph::Node southNode = this->graph_.target(thisArc);
+        pass.log(mv::Logger::MessageType::Debug, ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
+        pass.log(mv::Logger::MessageType::Debug, "North Node " + this->nodes_[northNode].name);
+        pass.log(mv::Logger::MessageType::Debug, "South Node " + this->nodes_[southNode].name);
 
         // >>>>>>>>>>>>>>>>>>>>> Source -> this Node <<<<<<<<<<<<<<<<<<<<<<<<<<
         /*Find the shortest path from the "input" node of graph to the source node of this edge*/
-        lemon::Dijkstra<lemon::ListDigraph, lemon::ListDigraph::ArcMap<uint64_t>> dijkstraSourceToNode(*this->graph_, this->edgesMemory_);
+        lemon::Dijkstra<lemon::ListDigraph, lemon::ListDigraph::ArcMap<uint64_t>> dijkstraSourceToNode(this->graph_, this->edgesMemory_);
         dijkstraSourceToNode.run(this->graphSourceNode_, northNode);
 
+        pass.log(mv::Logger::MessageType::Debug, "<<<Dystra: Source -> Node>>> ");
         for (lemon::ListDigraph::Node currentNode = northNode; currentNode != this->graphSourceNode_; currentNode = dijkstraSourceToNode.predNode(currentNode))
         {   //walk the shortest path route
             if (currentNode != lemon::INVALID && dijkstraSourceToNode.reached(currentNode))
             {
                 lemon::ListDigraph::Arc predarc = dijkstraSourceToNode.predArc(currentNode);
                 this->edges_[predarc].flow += Fmax;
+                pass.log(mv::Logger::MessageType::Debug, "currentNode: " + this->nodes_[currentNode].name + " : " + std::to_string(this->edges_[predarc].flow));
             }
         }
 
         // >>>>>>>>>>>>>>>>>>>>> this Node -> Sink <<<<<<<<<<<<<<<<<<<<<<<<<<
         /*Find the shortest path from the sink node of this edge to the sink node of graph (DMA task CMX to DDR)*/
-        lemon::Dijkstra<lemon::ListDigraph, lemon::ListDigraph::ArcMap<uint64_t>> dijkstraNodeToSink(*this->graph_, this->edgesMemory_);
+        lemon::Dijkstra<lemon::ListDigraph, lemon::ListDigraph::ArcMap<uint64_t>> dijkstraNodeToSink(this->graph_, this->edgesMemory_);
         dijkstraNodeToSink.run(southNode, this->graphSinkNode_);
 
-        for (lemon::ListDigraph::Node currentNode = southNode; currentNode != this->graphSinkNode_; currentNode = dijkstraNodeToSink.predNode(currentNode))
+        pass.log(mv::Logger::MessageType::Debug, "<<<Dystra: Node -> Sink>>> ");
+        for (lemon::ListDigraph::Node currentNode = this->graphSinkNode_; currentNode != southNode; currentNode = dijkstraNodeToSink.predNode(currentNode))
         {   //walk the shortest path route
             if (currentNode != lemon::INVALID && dijkstraNodeToSink.reached(currentNode))
             {
                 lemon::ListDigraph::Arc predarc = dijkstraNodeToSink.predArc(currentNode);
                 this->edges_[predarc].flow += Fmax;
+                pass.log(mv::Logger::MessageType::Debug, "currentNode: " + this->nodes_[currentNode].name  + " : " + std::to_string(this->edges_[predarc].flow));
             }
         }
         /*The above calculation stops at source node of the edge so doesn't include the edge in question - add Fmax to this edge*/
@@ -169,8 +173,8 @@ std::pair<int, std::vector<mv::edgeDescription>> mv::LemonGraphScheduler::calcul
     }
 
     /*Subtract Memory attribute of edge from the Flow attribute of the edge*/
-    lemon::ListDigraph::ArcMap<uint64_t> edgesFlow(*this->graph_);
-    for (lemon::ListDigraph::ArcIt thisArc(*this->graph_); thisArc != lemon::INVALID; ++thisArc)
+    lemon::ListDigraph::ArcMap<uint64_t> edgesFlow(this->graph_);
+    for (lemon::ListDigraph::ArcIt thisArc(this->graph_); thisArc != lemon::INVALID; ++thisArc)
     {
         this->edges_[thisArc].flow -= this->edges_[thisArc].memoryRequirement;
         edgesFlow[thisArc] = this->edges_[thisArc].flow;
@@ -179,18 +183,18 @@ std::pair<int, std::vector<mv::edgeDescription>> mv::LemonGraphScheduler::calcul
     // Perform Min cut on the graph, see this example: https://gist.github.com/huanyud/45f98d8bf8d6df66d3e7ab3e9a85af90
     // Edge capacities = flow attribute of the edge
     // cut edges contains all, but marked True/False if actually part of cut
-    lemon::ListDigraph::NodeMap<bool> cutEdges(*this->graph_);
-    lemon::Preflow<lemon::ListDigraph, lemon::ListDigraph::ArcMap<uint64_t>> preflow(*this->graph_, edgesFlow, this->graphSourceNode_, this->graphSinkNode_);
+    lemon::ListDigraph::NodeMap<bool> cutEdges(this->graph_);
+    lemon::Preflow<lemon::ListDigraph, lemon::ListDigraph::ArcMap<uint64_t>> preflow(this->graph_, edgesFlow, this->graphSourceNode_, this->graphSinkNode_);
     preflow.run();
     preflow.minCutMap(cutEdges);
 
     uint64_t maxTopologicalCutValue = 0;
     std::vector<mv::edgeDescription> cutEdgesOnly;
-    for(lemon::ListDigraph::ArcIt e(*this->graph_); e!=lemon::INVALID; ++e)
+    for(lemon::ListDigraph::ArcIt e(this->graph_); e!=lemon::INVALID; ++e)
     {
-        if (cutEdges[getGraph().source(e)] && !(cutEdges[getGraph().target(e)])) 
+        if (cutEdges[this->graph_.source(e)] && !(cutEdges[this->graph_.target(e)])) 
         {
-            int id = this->graph_->id(e);
+            int id = this->graph_.id(e);
             maxTopologicalCutValue += edgesFlow[e];
             this->edges_[e].id = id;
             cutEdgesOnly.push_back(this->edges_[e]);
@@ -209,9 +213,9 @@ void mv::LemonGraphScheduler::insertpartialSerialisationEdgesInMcmGraph(mv::Comp
     std::set<std::pair<std::string, std::string>> addedEdges;
     for (const auto& edge : partialSerialisationEdgesAdded_) 
     {
-        lemon::ListDigraph::Arc tmpArc = this->graph_->arcFromId(edge.id);
-        lemon::ListDigraph::Node edgeSourceNode = this->graph_->source(tmpArc);
-        lemon::ListDigraph::Node edgeSinkNode = this->graph_->target(tmpArc);
+        lemon::ListDigraph::Arc tmpArc = this->graph_.arcFromId(edge.id);
+        lemon::ListDigraph::Node edgeSourceNode = this->graph_.source(tmpArc);
+        lemon::ListDigraph::Node edgeSinkNode = this->graph_.target(tmpArc);
 
         std::string edgeSourceName = this->nodes_[edgeSourceNode].name;
         std::string edgeSinkName = this->nodes_[edgeSinkNode].name;
@@ -269,9 +273,9 @@ void mv::LemonGraphScheduler::performPartialSerialisation(const mv::pass::PassEn
     /*Get the source and sink of each cut edge*/
     for (const auto& edge : cutEdges) 
     {
-        lemon::ListDigraph::Arc thisArc = this->graph_->arcFromId(edge.id);
-        lemon::ListDigraph::Node sourceNode = this->graph_->source(thisArc);
-        lemon::ListDigraph::Node targetNode = this->graph_->target(thisArc);
+        lemon::ListDigraph::Arc thisArc = this->graph_.arcFromId(edge.id);
+        lemon::ListDigraph::Node sourceNode = this->graph_.source(thisArc);
+        lemon::ListDigraph::Node targetNode = this->graph_.target(thisArc);
 
         sources.push_back(this->nodes_[sourceNode]);
         sinks.push_back(this->nodes_[targetNode]);
@@ -307,17 +311,17 @@ void mv::LemonGraphScheduler::performPartialSerialisation(const mv::pass::PassEn
         auto sinkName  = possibleEdge.first.name;
         pass.log(mv::Logger::MessageType::Debug, "Adding partial serialisation edge to Lemon graph from: " + sourceName + " --> " + sinkName );
        
-        lemon::ListDigraph::Node tmpSourceNode = this->graph_->nodeFromId(possibleEdge.second.id);
-        lemon::ListDigraph::Node tmpTargetNode = this->graph_->nodeFromId(possibleEdge.first.id);
-        lemon::ListDigraph::Arc newArc = this->graph_->addArc(tmpSourceNode, tmpTargetNode);
-        mv::edgeDescription newDesc = edgeDescription(this->graph_->id(newArc), 0, "PS_edge_"+sinkName+sourceName);
+        lemon::ListDigraph::Node tmpSourceNode = this->graph_.nodeFromId(possibleEdge.second.id);
+        lemon::ListDigraph::Node tmpTargetNode = this->graph_.nodeFromId(possibleEdge.first.id);
+        lemon::ListDigraph::Arc newArc = this->graph_.addArc(tmpSourceNode, tmpTargetNode);
+        mv::edgeDescription newDesc = edgeDescription(this->graph_.id(newArc), 0, "PS_edge_"+sinkName+sourceName);
         this->edges_[newArc] = newDesc;
 
-        lemon::ListDigraph::NodeMap<mv::nodeDescription> order(*this->graph_);
-        lemon::topologicalSort(*this->graph_, order);
+        lemon::ListDigraph::NodeMap<mv::nodeDescription> order(this->graph_);
+        lemon::topologicalSort(this->graph_, order);
 
         /*Check if graph still direccted DAG*/
-        if (lemon::dag(*this->graph_))
+        if (lemon::dag(this->graph_))
         {   /*keep track of the edges added as these edges will be added to mcmGraph*/
             pass.log(mv::Logger::MessageType::Debug, "Graph still DAG after adding partial serialisation edge, recalulating max topological cut value...");
             partialSerialisationEdgesAdded_.push_back(newDesc);
@@ -325,7 +329,7 @@ void mv::LemonGraphScheduler::performPartialSerialisation(const mv::pass::PassEn
         }
         else {
             pass.log(mv::Logger::MessageType::Debug, "Removing partial serialisation edge as graph is no longer a DAG, from: " + sourceName + " --> " + sinkName );
-            this->graph_->erase(newArc);
+            this->graph_.erase(newArc);
         }
     }
     throw std::runtime_error("The maximum peak memory requirment of the graph exceeds CMX and the partial serialisation algorithm is unable to reduce parallelism, exiting now, this is normal behaviour");

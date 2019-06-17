@@ -278,7 +278,7 @@ SET(model
     "${PROJECT_SOURCE_DIR}/src/computation/resource/stage.cpp"
     "${PROJECT_SOURCE_DIR}/src/target/myriadx/nce1.cpp"
     "${PROJECT_SOURCE_DIR}/src/target/myriadx/nce1_utils.cpp" 
-    "${PROJECT_SOURCE_DIR}/src/target/keembay/koala_graph_scheduler.cpp"   
+    # "${PROJECT_SOURCE_DIR}/src/target/keembay/koala_graph_scheduler.cpp"   
     "${PROJECT_SOURCE_DIR}/src/target/keembay/lemon_graph_scheduler.cpp"   
 )
 
@@ -434,7 +434,7 @@ else()
             #Flatbuffers and Metis not x-compiled yet
             target_link_libraries(cm corebase metamodel)
         ELSE()
-            target_link_libraries(cm corebase metamodel flatbuffers metis libemon.a)
+            target_link_libraries(cm corebase metamodel flatbuffers metis emon)
             add_dependencies(cm generate-comp-api)
             add_dependencies(model generate-comp-api)
             add_dependencies(cm generate-graphfile-headers)

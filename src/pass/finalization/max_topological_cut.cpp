@@ -2,7 +2,8 @@
 #include "meta/include/mcm/op_model.hpp"
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
-#include "include/mcm/target/keembay/koala_graph_scheduler.hpp"
+//#include "include/mcm/target/keembay/koala_graph_scheduler.hpp"
+#include "include/mcm/target/keembay/lemon_graph_scheduler.hpp"
 #include <iostream>
 
 static void maxTopologicalCutAndPartialSerialisationPass(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
@@ -19,7 +20,6 @@ namespace mv
             "Perform the max topological cut algorithm and partial serialisation (if required) to schedule the DAG."
         );
     }
-
 }
 
 
@@ -28,14 +28,16 @@ void maxTopologicalCutAndPartialSerialisationPass(const mv::pass::PassEntry& pas
     
     int networkMemoryRequirement;
     double percentageMemory; 
-    mv::KoalaGraphScheduler flowGraph;
+    //mv::KoalaGraphScheduler flowGraph;
+    mv::LemonGraphScheduler flowGraph;
     bool memoryHack = false;
 
     auto returnedParams = model.getGlobalConfigParams();
     memoryHack = returnedParams->get<bool>("MemoryHack");
 
     /*Convert to MCM graph to KOALA graph*/
-    flowGraph.convertMcMGraphToKoalaGraph(pass, model);
+    //flowGraph.convertMcMGraphToKoalaGraph(pass, model);
+    flowGraph.convertMcMGraphToLemonGraph(pass, model);
 
     /*Calculate max topological cut and get the cut edges*/
     auto maxTopologicalCut = flowGraph.calculateMaxTopologicalCut(pass, model);

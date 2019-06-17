@@ -13,17 +13,7 @@
 #include "include/mcm/base/exception/index_error.hpp"
 #include "include/mcm/pass/pass_registry.hpp"
 #include "include/mcm/base/exception/runtime_error.hpp"
-
 #include <lemon/list_graph.h>
-
-// #include "../../../../contrib/koala/graph/graph.h"
-// #include "../../../../contrib/koala/algorithm/conflow.h"
-// #include "../../../../contrib/koala/algorithm/weights.h"
-// #include "../../../../contrib/koala/io/graphml.h"
-// #include "../../../../contrib/koala/io/text.h"
-// #include "../../../../contrib/koala/io/parsetgml.h"
-// #include "../../../../contrib/koala/classes/create.h"
-
 
 namespace mv
 {
@@ -36,9 +26,8 @@ namespace mv
         bool sourceNode;
         bool sinkNode;
 
-        nodeDescription(int id=0, std::string aname = "", int cost = 0, bool sourcenode = false, bool sinknode = false) : 
-            id(id), name(aname), cost(cost), sourceNode(sourcenode), sinkNode(sinknode) { }  
-        
+        nodeDescription(int id=0, std::string aname = "", int cost = 0, bool sourcenode = false, bool sinknode = false) :
+            id(id), name(aname), cost(cost), sourceNode(sourcenode), sinkNode(sinknode) { }
     };
 
     /*Lemon Edge info*/
@@ -56,7 +45,7 @@ namespace mv
 
     class LemonGraphScheduler : public LogSender
     {
-        lemon::ListDigraph* graph_;
+        lemon::ListDigraph graph_;
 
         lemon::ListDigraph::NodeMap<nodeDescription> nodes_;
         lemon::ListDigraph::ArcMap<edgeDescription> edges_;
