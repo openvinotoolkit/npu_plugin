@@ -34,12 +34,13 @@ void  mv::LemonGraphScheduler::convertMcMGraphToLemonGraph(const mv::pass::PassE
        /* We do not require MCM constant operations and MCM ouput operation in the Lemon graph. The sink node in the Lemon graph is the DMATask "CMX2DDR".
         * For all other tasks in the ControlModel view of the MCM graph create a corresponding node in the Lemon graph. */
         if (opIt->getOpType() != "ConstantDataElement" && opIt->getOpType() != "Output" && opIt->getOpType() != "ConstantInt" &&
-            opIt->getOpType() != "WeightsTable" && opIt->getOpType() != "SparsityMap") {
-
+            opIt->getOpType() != "Constant")
+        {
             /*Add node to Lemon graph*/
             bool nodeAdded = false;
             /*Check if node is a DMA task "CMX to DDR" (this is the sink node in Lemon graph and we need to keep track of it) */
-            if ((opIt->getOpType() == "DMATask") && (opIt->get<mv::DmaDirection>("direction") == mv::CMX2DDR)) {
+            if (opIt->hasAttr("lastDMAOp") && opIt->get<bool>("lastDMAOp"))
+            {
                 pass.log(mv::Logger::MessageType::Debug, "Adding vertex to Lemon graph: " + opIt->getName());
 
                 lemon::ListDigraph::Node currentNode = getGraph().addNode();
@@ -47,7 +48,6 @@ void  mv::LemonGraphScheduler::convertMcMGraphToLemonGraph(const mv::pass::PassE
                 this->graphSinkNode_ = currentNode;
                 nodeAdded = true;
             }
-
             /*Keep track of the source node i.e. input*/
             if (opIt->getOpType() == "Input") 
             { 
@@ -75,7 +75,7 @@ void  mv::LemonGraphScheduler::convertMcMGraphToLemonGraph(const mv::pass::PassE
         /* 1. Don't add the edge going to Ouput in the MCM graph to the Lemon graph
          * 2. Don't add edge coming from a ConstantInt operation (Sparsity Map and Weights Table) */
         if (flowIt.sink()->getOpType() != "Output" && flowIt.source()->getOpType() != "ConstantInt" &&
-                flowIt.source()->getOpType() != "WeightsTable" && flowIt.source()->getOpType() != "SparsityMap") 
+            flowIt.source()->getOpType() != "ConstantDataElement" && flowIt.source()->getOpType() != "Constant")
         {
             auto sourceName = flowIt.source()->getName();
             auto sinkName  = flowIt.sink()->getName();
