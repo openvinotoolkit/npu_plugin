@@ -29,7 +29,10 @@ namespace mv
             if (inputs[0]->isPopulated())
                 outputs[0].populate(inputs[0]->getData());
             if (inputs[0]->isSparse())
-                outputs[0].setSparse();
+            {
+                //Sparsity map shallow copy
+                outputs[0].setSparse(inputs[0]->getSparsityMap(), inputs[0]->getStorageElement());
+            }
             if (inputs[0]->hasAttr("channelLength"))
                 outputs[0].set<int>("channelLength", inputs[0]->get<int>("channelLength"));
         };
