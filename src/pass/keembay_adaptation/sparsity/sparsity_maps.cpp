@@ -9,6 +9,7 @@
 #include <math.h>
 
 static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
+static void generateSparsityMapsUnpopulatedTensorsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 
 namespace mv
 {
@@ -19,6 +20,12 @@ namespace mv
         .setFunc(generateSparsityMapsPopulatedTensorsFcn)
         .setDescription(
             "Generates sparsity maps for populated tensors."
+        );
+
+        MV_REGISTER_PASS(GenerateSparsityMapsUnpopulatedTensors)
+        .setFunc(generateSparsityMapsUnpopulatedTensorsFcn)
+        .setDescription(
+            "Generates sparsity maps for unpopulated tensors."
         );
 
     }
@@ -218,7 +225,14 @@ static void generateSparsityMapsUnpopulatedTensorsFcn(const mv::pass::PassEntry&
         {
             if(dpuTask->getOpType() == "DPUTask")
             {
+                std::string taskOp = dpuTask->get<std::string>("taskOp");
+                bool isZMajorConv = taskOp == "Conv";
 
+                if(isZMajorConv)
+                {
+                    dpuTask->getInputTensor(0)->setSparse();
+                    dpuTask->getOutputTensor(0)->setSparse();
+                }
             }
         }
     }
