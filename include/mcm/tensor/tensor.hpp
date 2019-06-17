@@ -101,6 +101,14 @@ namespace mv
                 return relocate(newPlace.location_);
             }
 
+            std::string toString() const
+            {
+                for( auto it = namingMap.begin(); it != namingMap.end(); ++it )
+                {
+                    if(it->second == location_)
+                        return it->first;
+                }
+            }
             //TODO: make it pretty-er
             const std::string print() const {
                 for( auto it = namingMap.begin(); it != namingMap.end(); ++it )
