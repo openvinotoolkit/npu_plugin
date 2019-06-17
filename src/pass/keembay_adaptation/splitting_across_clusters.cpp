@@ -9,8 +9,12 @@
 #include "include/mcm/target/keembay/workloads.hpp"
 #include "include/mcm/target/keembay/rectangle.hpp"
 
+#define UNUSED(expr) do {(void)(expr);} while (0)
+static const mv::DPUModeList TENSOR_MPE = {{1,1}};
+
+
 static void splittingAcrossClusters(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
-static void getWorkGen(const std::vector<mv::Data::TensorIterator> &tensors, const int nClusters, const mv::pass::PassEntry& pass);
+static void subTensorsGen(const std::vector<mv::Data::TensorIterator> &tensors, const int nClusters, const mv::pass::PassEntry& pass);
 
 namespace mv
 {
@@ -47,11 +51,11 @@ void splittingAcrossClusters(const mv::pass::PassEntry& pass, mv::ComputationMod
         }
      }
 
-    getWorkGen(tensors, numClusters, pass);
+    subTensorsGen(tensors, numClusters, pass);
     return;
 }
 
-void getWorkGen(const std::vector <mv::Data::TensorIterator>& tensors, const int nClusters, const mv::pass::PassEntry& pass)
+void subTensorsGen(const std::vector <mv::Data::TensorIterator>& tensors, const int nClusters, const mv::pass::PassEntry& pass)
 {
     for (auto tensor = tensors.begin(); tensor != tensors.end(); ++tensor)
     {
@@ -59,16 +63,17 @@ void getWorkGen(const std::vector <mv::Data::TensorIterator>& tensors, const int
         {
             mv::Workloads Tensor((*tensor)->getName(), (*tensor)->getShape());
             int success;
+            UNUSED(success);
             std::vector<mv::Workload> subTensors;
             if(!(*tensor)->isPopulated())
             {
                 int nWorkloads = nClusters;
-                success = Tensor.partitionTensorWithRectangleHeuristic({{1,1}}, nWorkloads, true, false, true, mv::WorkloadSplitMode::HW, pass);
+                success = Tensor.partitionTensorWithRectangleHeuristic(TENSOR_MPE, nWorkloads, true, false, true, mv::WorkloadSplitMode::HW, pass);
                 subTensors = Tensor.getWorkloads();
             }
             else
             {
-                success = Tensor.partitionTensorWithRectangleHeuristic({{4,4}}, 1, true, false, true, mv::WorkloadSplitMode::HW, pass);
+                success = Tensor.partitionTensorWithRectangleHeuristic(TENSOR_MPE, 1, true, false, true, mv::WorkloadSplitMode::HW, pass);
                 subTensors = Tensor.getWorkloads();
                 std::vector<mv::Workload> newSubTensors;
                 for (int i = 0; i < nClusters; i++)
