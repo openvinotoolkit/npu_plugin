@@ -205,66 +205,11 @@ namespace mv
         int16_t y = 0;
     };
 
-<<<<<<< HEAD
-    struct Workload
-    {
-        MPE_Mode MPEMode;
-        int16_t MaxX = 0;
-        int16_t MaxY = 0;
-        int16_t MaxZ = 0;
-        int16_t MinX = 0;
-        int16_t MinY = 0;
-        int16_t MinZ = 0;
-        int16_t padLeft = 0; //Are workload paddings different from full tensor padding?
-        int16_t padRight = 0;
-        int16_t padTop = 0;
-        int16_t padBottom = 0;
-        int32_t clusterID = 0;
-        int8_t workloadID = 0;  
-        int16_t area()
-        {
-          return (MaxX - MinX + 1) * (MaxY - MinY + 1);
-        }
-        std::vector<std::pair<int16_t, int16_t>> points;        
-        int16_t pointsTotal()
-        {
-         return points.size();
-        }
-        std::vector<std::pair<int16_t, int16_t>> vertices;        
-
-        void setVertices()
-        {
-            vertices.push_back(std::make_pair(MinX,MinY));
-            vertices.push_back(std::make_pair(MinX,MaxY));
-            vertices.push_back(std::make_pair(MaxX,MinY));
-            vertices.push_back(std::make_pair(MaxX,MaxY));
-        }
-        void setMinMaxAndVertices()
-        {
-            MinX = INT16_MAX;
-            MaxX = 0;
-            MinY = INT16_MAX;
-            MaxY = 0;
-            for(auto it = points.begin(); it != points.end(); it++)
-            {
-                MinX = std::min(MinX,it->first);
-                MaxX = std::max(MaxX, it->first);
-                MinY = std::min(MinY,it->second);
-                MaxY = std::max(MaxY, it->second);
-            }
-            setVertices();
-        }
-    };
-=======
-    struct DPUMode { unsigned H, W; }; // NB: do not mess with MPE_Mode
-    using  DPUModeList = std::vector<mv::DPUMode>;
->>>>>>> origin/VPUNND-919
-
     enum class WorkloadSplitMode { HW=1, HC, WC };
 
     class Workloads : public LogSender
     {
-
+        
         std::vector<Workload> workloads_;
         std::string layerName_;
         mv::Shape tensorShape_;
@@ -287,6 +232,7 @@ namespace mv
       
         void generateMetisGraph(void);
         std::shared_ptr<mv::MetisGraphStructure> getMetisGraph();
+        int8_t clusterID = 0;
 
         /*returns: METIS_OK(=1), or METIS_ERROR*/
         int partitionTensorWithRectangleHeuristic(const mv::DPUModeList& modes,
@@ -296,8 +242,6 @@ namespace mv
                                                             bool         split_symmetric,
                                                   const mv::WorkloadSplitMode& split_mode,
                                                   const mv::pass::PassEntry& pass);
-
-        idx_t getNWorkloads(const mv::Shape& tensorShape, int nDPUxCluster);
 
         void populateWorkloadsFromPartitions(idx_t nWorkloads, 
                                             const mv::pass::PassEntry& pass, 
@@ -312,11 +256,11 @@ namespace mv
                                                         mv::Workload& workload, 
                                                         std::pair<std::pair<int16_t, int16_t>,bool>& interesting_point, 
                                                        mv::DPUMode& mpeMode);
-       std::size_t nWorkloads() const;
+        std::size_t nWorkloads() const;
         std::set<int> getNWorkloads(mv::Data::TensorIterator tensor);
         void addWorkload(mv::Workload workload);
         const std::vector<mv::Workload>& getWorkloads() const;
-        static const std::vector<int> getWorkloadSplitPool(mv::Data::TensorIterator tensor, int nDPUxCluster, mv::DPUModeLists dpuModeLists, int maxSplits = 50);
+        static const std::vector<int> getWorkloadSplitPool(mv::Tensor& tensor, int nDPUxCluster, mv::DPUModeLists dpuModeLists, int maxSplits = 50);
 
         //void generateExecutionCycles(std::vector<mv::Data::TensorIterator>& outputTensor, int nDPUxCluster, CostFunctions costFunction);
         static void generateExecutionCycles(std::vector<mv::Workloads>& workloadsVector, int nDPUxCluster, CostFunctions costFunction);

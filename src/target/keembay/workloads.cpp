@@ -458,33 +458,27 @@ void mv::Workloads::generateMetisGraph(void) {
     }
 } 
 
-/*TODO update*/
-idx_t mv::Workloads::getNWorkloads(const mv::Shape& tensorShape, int nDPUxCluster) {
-    
-    return round(nDPUxCluster/2)*2; 
-}
-
 /**
  * @brief Generate a pool of possible workload number for a tensor
  * @param A tensor
  * @param Maximum number or workloads
  * @return A pool of possible splits (possible workloads)
  */
-const std::vector<int> mv::Workloads::getWorkloadSplitPool(mv::Data::TensorIterator tensor, int nDPUxCluster, mv::DPUModeLists dpuModeLists, int maxSplits)
+const std::vector<int> mv::Workloads::getWorkloadSplitPool(mv::Tensor& tensor, int nDPUxCluster, mv::DPUModeLists dpuModeLists, int maxSplits)
 {
     std::vector<int> splitPool = {1};
     std::vector<int> maxSplitsXY;
  
     /*maxSplitsXY*/
-    double xDim = tensor->get<mv::Shape>("shape")[0];
-    double yDim = tensor->get<mv::Shape>("shape")[1];
+    double xDim = tensor.getShape()[0];
+    double yDim = tensor.getShape()[1];
     
     std::cout << dpuModeLists[0].size() << std::endl;
     for(int i = 0; i < dpuModeLists[0].size(); i++) 
         maxSplitsXY.push_back(ceil((xDim/dpuModeLists[0][i].H)  * ceil(yDim/dpuModeLists[0][i].W)));
     
     /*maxSplitsZ*/
-    int maxSplitsZ = ceil(tensor->get<mv::Shape>("shape")[2]/16);
+    int maxSplitsZ = ceil(tensor.getShape()[2]/16);
 
     /*Z splits*/
     /*Switched off Z splits until supported*/
