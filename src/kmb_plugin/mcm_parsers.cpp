@@ -746,13 +746,75 @@ void FrontEndMcm::parseReorgYolo(
     VPU_THROW_EXCEPTION << "ReorgYolo layer is not supported by kmbPlugin";
 }
 
+
+
+
+
+
+
+
 void FrontEndMcm::parseBias(
         const mv::OpModel& modelMcm,
         const ie::CNNLayerPtr& layer,
         const McmNodeVector& inputs) {
+//    const auto& env = CompileEnv::get();
+//    env.log->debug("Parsing Bias layer %s", layer->name);
+//    VPU_THROW_EXCEPTION << "Bias layer is not supported by kmbPlugin";
+
     const auto& env = CompileEnv::get();
-    env.log->debug("Parsing Bias layer %s", layer->name);
-    VPU_THROW_EXCEPTION << "Bias layer is not supported by kmbPlugin";
+
+    IE_ASSERT(inputs.size() == 2);
+
+    auto biasLayer = std::dynamic_pointer_cast<ie::ScaleShiftLayer>(layer);
+//    IE_ASSERT(layer != nullptr);
+//    IE_ASSERT(layer->_weights != nullptr);
+//
+//    if (layer->_broadcast != 0) {
+//        VPU_THROW_EXCEPTION <<
+//            "Layer " << layer->name << " doesn't support broadcast param";
+//    }
+
+    auto input = inputs[0];
+//    auto biases = inputs[1];
+//    auto output = outputs[0];
+
+//    auto input = inputs[0];
+//
+//    int weightsSize = input->desc().dim(Dim::C);
+//    auto weightsData = packBlobToVector<double>(layer->_weights, weightsSize);
+//
+//    mv::Shape weightsShape = { static_cast<std::size_t>(input->desc().dim(Dim::C))};
+//    auto mvWeights = _modelMcm.constant(
+//            weightsData,
+//            weightsShape,
+//            mv::DType("Float16"), mv::Order("W"));
+
+    env.log->debug("ScaleShift(Bias) orig: '%s' from '%s' ", biasLayer->name, input->getMcmNode()->getName());
+//    auto mvScale = _modelMcm.scale(input->getMcmNode(), mvWeights, {{}, {}, {}, {}}, layer->name);
+//    auto mvScaleShift = mvScale;
+//
+//    env.log->debug("ScaleShift orig: '%s' Scale part (%s) added to mcmModel", layer->name, mvScaleShift->getName());
+//
+//    if (layer->_biases != nullptr) {
+        mv::Shape biasShape = { static_cast<std::size_t>(input->desc().dim(Dim::C))};
+        int biasesSize = input->desc().dim(Dim::C);
+        auto biasData = packBlobToVector<double>(biasLayer->_biases, biasesSize);
+
+        auto mvBiasValues = _modelMcm.constant(
+                biasData,
+                biasShape,
+                mv::DType("Float16"), mv::Order("W"));
+        auto mvBias = _modelMcm.bias(input->getMcmNode(), mvBiasValues, {{}, {}, {}, {}}, biasLayer->name + ":bias");
+//        env.log->debug("ScaleShift orig: '%s' Bias part (%s) added to mcmModel", biasLayer->name, mvBias->getName());
+//    }
+
+    auto layerOutput = biasLayer->outData[0];
+    IE_ASSERT(layerOutput != nullptr);
+
+    auto bias = std::make_shared<McmNodeObject>(mvBias, DataDesc(layerOutput->getTensorDesc()));
+    _nodes.push_back(bias);
+    bindData(bias, layerOutput);
+    env.log->debug("parsed to mcmModel as '%s'", mvBias->getName());
 }
 
 void FrontEndMcm::parseCTCDecoder(
