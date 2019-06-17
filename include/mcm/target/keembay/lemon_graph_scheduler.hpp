@@ -28,28 +28,30 @@
 namespace mv
 {
     /*Lemon Node info*/
-    struct nodeDescription {
-        
+    struct nodeDescription 
+    {
+        int id; 
         std::string name;
         int cost; //Required for optimal partial serialisation (minimises increase in the critical path)
         bool sourceNode;
         bool sinkNode;
 
-        nodeDescription(std::string aname = "", int cost = 0, bool sourcenode = false, bool sinknode = false) : 
-            name(aname), cost(cost), sourceNode(sourcenode), sinkNode(sinknode) { }  
+        nodeDescription(int id, std::string aname = "", int cost = 0, bool sourcenode = false, bool sinknode = false) : 
+            id(id), name(aname), cost(cost), sourceNode(sourcenode), sinkNode(sinknode) { }  
         
     };
 
     /*Lemon Edge info*/
-    struct edgeDescription {
-        
+    struct edgeDescription 
+    {
+        int id;    
         uint64_t memoryRequirement;
         std::string name;
         uint64_t flow;
         int length;
 
-        edgeDescription(uint64_t m = 0, std::string aname = "", uint64_t f = 0, int l = 1) : 
-            memoryRequirement(m), name(aname), flow(f), length(l) { }
+        edgeDescription(int id, uint64_t m = 0, std::string aname = "", uint64_t f = 0, int l = 1) : 
+            id(id), memoryRequirement(m), name(aname), flow(f), length(l) { }
     };
 
     class LemonGraphScheduler : public LogSender
@@ -66,6 +68,7 @@ namespace mv
 
         /*New edges added to the graph from partial serialisation, these will be added to the McM graph*/
         //std::vector<koalaGraph::PEdge> partialSerialisationEdgesAdded_;
+        std::vector<mv::edgeDescription> partialSerialisationEdgesAdded_;
 
         //std::vector<koalaGraph::PEdge>::const_iterator lookUpKoalaEdgebyName(std::string edgeName, const std::vector<koalaGraph::PEdge>& koalaEdges);
         //std::vector<mv::koalaGraph::PVertex>::const_iterator lookUpKoalaSinkNode(bool sinknode, const std::vector<koalaGraph::PVertex>& koalaVertices);
@@ -79,6 +82,7 @@ namespace mv
         void convertMcMGraphToLemonGraph(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
         
         //void performPartialSerialisation(const mv::pass::PassEntry& pass, std::vector<koalaGraph::PEdge> cutEdges);
+        void performPartialSerialisation(const mv::pass::PassEntry& pass, std::vector<mv::edgeDescription> cutEdges);
         std::pair<int, std::vector<edgeDescription>> calculateMaxTopologicalCut(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
         //std::pair<int, std::vector<edgeDescription>> calculateMaxTopologicalCutOld(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
         uint64_t calculateFMax(mv::ComputationModel& model);
