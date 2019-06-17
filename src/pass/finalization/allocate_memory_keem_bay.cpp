@@ -140,8 +140,27 @@ static mv::Data::BufferIterator allocateUnpopulatedTensor(const mv::pass::PassEn
     }
     else if (logicalLocation == mv::Tensor::MemoryLocation::DEFAULT)
     {
-        pass.log(mv::Logger::MessageType::Warning, "Tensor " + tensorIt->getName() + " in default location. Allocating to DDR_BSS as safety");
-        return dm.allocateTensor("VPU_DDR_BSS",stageIt, tensorIt);
+        auto globalParams = dm.getGlobalConfigParams();
+        std::string memoryLocation;
+        if (globalParams->hasAttr("default_tensor_placement"))
+        {
+            mv::Tensor::MemoryLocation defaultPlace = mv::Tensor::MemoryLocation(globalParams->get<std::string>("default_tensor_placement"));
+            if( defaultPlace == mv::Tensor::MemoryLocation::CMX)
+            {
+                memoryLocation = "VPU_CMX_NN";
+            }
+            else if(defaultPlace == mv::Tensor::MemoryLocation::DDR)
+            {
+                memoryLocation = "VPU_DDR_BSS";
+            }
+            pass.log(mv::Logger::MessageType::Warning, "Tensor " + tensorIt->getName() + " in default location. Allocating to " + memoryLocation + " as specified in json");
+        }
+        else
+        {
+            memoryLocation = "VPU_DDR_BSS";
+            pass.log(mv::Logger::MessageType::Warning, "Tensor " + tensorIt->getName() + " in default location. Allocating to DDR_BSS as safety");
+        }
+        return dm.allocateTensor(memoryLocation, stageIt, tensorIt);
     }
     else
     {
