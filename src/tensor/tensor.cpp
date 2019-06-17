@@ -117,14 +117,15 @@ internalOrder_(Order(Order::getRowMajorID(other.shape_.ndims())))
     for (std::size_t i = 0; i < blocks_.size(); ++i)
         blocks_[i] = data_.begin() + i * blockSize_;
 
-    if (isPopulated())
+    if (other.isPopulated())
         data_ = other.data_;
     if (other.isSparse())
     {
         sparsityMap_ = std::make_shared<Tensor>(*other.sparsityMap_);
-        storageElement_ = std::make_shared<Tensor>(*other.storageElement_);
         noneZeroElements_ = other.noneZeroElements_;
         kernelDataOffsets_ = other.kernelDataOffsets_;
+        if(!other.isPopulated())
+            storageElement_ = std::make_shared<Tensor>(*other.storageElement_);
     }
 }
 
