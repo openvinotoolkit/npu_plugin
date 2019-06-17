@@ -128,6 +128,7 @@ target_include_directories(${TARGET_NAME}
         "${FLATBUFFERRS_INCLUDE_PATH}"
         "${MCM_SCHEMA_INCLUDE_PATH}"
         "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/thirdparty/vsi_cmodel/vpusmm/"
+        "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/thirdparty/vsi_cmodel/"
         )
 
 # TODO: enable some day and fix all warnings
@@ -174,6 +175,7 @@ if(ENABLE_TESTS)
             "${FLATBUFFERRS_INCLUDE_PATH}"
             "${MCM_SCHEMA_INCLUDE_PATH}"
             "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/thirdparty/vsi_cmodel/vpusmm/"
+            "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/thirdparty/vsi_cmodel/"
             )
     target_link_libraries(${TARGET_NAME}_test_static
             PUBLIC

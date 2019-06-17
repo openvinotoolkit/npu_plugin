@@ -16,9 +16,14 @@
 
 #include <vpusmm.h>
 #include <sys/mman.h>
+#include <dma-buf.h>
+#include <sys/ioctl.h>
+#include <unistd.h>
+
 
 #include "kmb_allocator.h"
 
+#include <iostream>
 
 void *vpu::KmbPlugin::KmbAllocator::lock(void *handle, InferenceEngine::LockOp) noexcept {
     return nullptr;
@@ -28,11 +33,21 @@ void vpu::KmbPlugin::KmbAllocator::unlock(void *handle) noexcept {
 }
 
 void *vpu::KmbPlugin::KmbAllocator::alloc(size_t size) noexcept {
-    auto fd = vpusmm_alloc_dmabuf(size, VPUSMMType::VPUSMMTYPE_COHERENT);
-    void *out = mmap(nullptr, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+    long pageSize = getpagesize();
+    size_t realSize = size + (size % pageSize ? (pageSize - size % pageSize) : 0);
+
+    auto fd = vpusmm_alloc_dmabuf(realSize, VPUSMMType::VPUSMMTYPE_COHERENT);
+
+    void *out = (char *)mmap(nullptr, realSize, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+
+    if (out == MAP_FAILED)
+        return nullptr;
+
+    _allocatedMemory[out] = size;
+
     return out;
 }
 
 bool vpu::KmbPlugin::KmbAllocator::free(void *handle) noexcept {
-    return false;
+    return true;
 }

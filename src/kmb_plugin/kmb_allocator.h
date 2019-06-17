@@ -17,6 +17,7 @@
 #pragma once
 
 #include <ie_allocator.hpp>
+#include <unordered_map>
 
 namespace vpu {
 namespace KmbPlugin {
@@ -32,6 +33,9 @@ public:
     bool   free(void* handle) noexcept override;
 
     void Release() noexcept override { }
+
+private:
+    std::unordered_map<void *, size_t> _allocatedMemory;
 };
 
 

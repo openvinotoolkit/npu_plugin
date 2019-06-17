@@ -15,6 +15,9 @@
 //
 
 #include <gtest/gtest.h>
+#include <unistd.h>
+#include <cstring>
+
 #include "kmb_allocator.h"
 
 using namespace testing;
@@ -24,9 +27,45 @@ class kmbAllocatorUnitTests : public ::testing::Test {
 
 };
 
-TEST(kmbAllocatorUnitTests, canAllocateMemory) {
+TEST(kmbAllocatorUnitTests, canAllocatePageSizeAlignedMemorySegment) {
+    KmbAllocator allocator;
+
+    long pageSize = getpagesize();
+
+    size_t alignedSize = 2 * pageSize;
+    ASSERT_NE(allocator.alloc(alignedSize), nullptr);
+}
+
+TEST(kmbAllocatorUnitTests, canAllocateNotPageSizeAlignedMemorySegment) {
+    KmbAllocator allocator;
+
+    long pageSize = getpagesize();
+
+    size_t notAlignedSize = 2 * pageSize - 1;
+    ASSERT_NE(allocator.alloc(notAlignedSize), nullptr);
+}
+
+TEST(kmbAllocatorUnitTests, canFreeMemory) {
     KmbAllocator allocator;
 
     size_t size = 10;
-    ASSERT_NE(allocator.alloc(size), nullptr);
+    auto data = allocator.alloc(size);
+    ASSERT_NE(data, nullptr);
+
+    ASSERT_TRUE(allocator.free(data));
+}
+
+TEST(kmbAllocatorUnitTests, canWriteToAllocatedMemory) {
+    KmbAllocator allocator;
+
+    size_t size = 10;
+    char *data = reinterpret_cast<char *>(allocator.alloc(size));
+    ASSERT_NE(data, nullptr);
+
+    const int MAGIC_NUMBER = 0x13;
+    std::memset(data, MAGIC_NUMBER, size);
+
+    std::vector<char> actual(size);
+    std::memcpy(actual.data(), data, size);
+    ASSERT_TRUE(std::count(actual.begin(), actual.end(), MAGIC_NUMBER) == size);
 }
