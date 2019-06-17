@@ -102,7 +102,9 @@ public:
     }
 
 private:
+#ifdef ENABLE_MCM_COMPILER
     std::shared_ptr<mv::CompilationUnit> pCompiler;
+#endif
     Logger::Ptr _log;
     KmbExecutorPtr _executor;
     std::vector<char> _graphBlob;

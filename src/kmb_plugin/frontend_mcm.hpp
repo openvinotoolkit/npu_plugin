@@ -32,6 +32,7 @@
 #include <vpu/utils/enums.hpp>
 #include <vpu/frontend/parse_network.hpp>
 
+#ifdef ENABLE_MCM_COMPILER
 #include "include/mcm/compiler/compilation_unit.hpp"
 #include "include/mcm/utils/data_generator.hpp"
 #include "include/mcm/utils/serializer/Fp16Convert.h"
@@ -197,3 +198,4 @@ private:
 }  // namespace KmbPlugin
 
 }  // namespace vpu
+#endif

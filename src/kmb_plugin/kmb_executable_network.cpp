@@ -29,21 +29,12 @@ namespace KmbPlugin {
 ExecutableNetwork::ExecutableNetwork(ICNNNetwork &network, std::vector<DevicePtr> &devicePool,
                                      const std::map<std::string, std::string> &config) {
     _config = std::make_shared<KmbConfig>(config);
-//    _config->hostLogLevel = LogLevel::Debug;
-//    _config->deviceLogLevel = LogLevel::Debug;
 
     _log = std::make_shared<Logger>("KmbPlugin", _config->hostLogLevel, consoleOutput());
 
-    _executor = std::make_shared<KmbExecutor>(_config->forceReset, _config->deviceLogLevel, _log);
-#if 0  // there is no KMB device yet
-    _device = _executor->openDevice(devicePool, _config);
+    _executor = std::make_shared<KmbExecutor>(_config->forceReset, _config->deviceLogLevel, _log, _config);
 
-    // ignore hardware optimization config for MYRIAD2, it is always disabled
-    if (_device->_platform == MYRIAD_2) {
-        _config->compileConfig.hwOptimization = false;
-    }
-#endif
-
+#ifdef ENABLE_MCM_COMPILER
     pCompiler = std::make_shared<mv::CompilationUnit>(network.getName());  // unit("testModel");
 
     if (pCompiler == nullptr) {
@@ -56,46 +47,11 @@ ExecutableNetwork::ExecutableNetwork(ICNNNetwork &network, std::vector<DevicePtr
         THROW_IE_EXCEPTION << "Plugin doesn't support Tensor Iterator in pure form. "
                               "None TI optimization pattern has been applied successfully";
 
-#if 1
     compileMcm(
         network,
         *(_config),
         *pCompiler,
         std::make_shared<Logger>("GraphCompiler", _config->hostLogLevel, consoleOutput()));
-#else
-    auto compiledGraph = compileNetwork(
-        network,
-        static_cast<Platform>(_device->_platform),
-        _config->compileConfig,
-        std::make_shared<Logger>("GraphCompiler", _config->hostLogLevel, consoleOutput()));
-
-    char networkName[1024] = {};
-    network.getName(networkName, sizeof(networkName));
-
-    _graphBlob = std::move(compiledGraph->blob);
-    _stagesMetaData = std::move(compiledGraph->stagesMeta);
-
-    _inputInfo  = std::move(compiledGraph->inputInfo);
-    _outputInfo = std::move(compiledGraph->outputInfo);
-
-    if (!_device->isBooted()) {
-        return;
-    }
-
-    char networkName[1024] = {};
-    network.getName(networkName, sizeof(networkName));
-    _executor->allocateGraph(_device, _graphDesc, _graphBlob, compiledGraph->blobHeader, compiledGraph->numActiveStages, networkName);
-    if (_config->exclusiveAsyncRequests) {
-        ExecutorManager *executorManager = ExecutorManager::getInstance();
-        _taskExecutor = executorManager->getExecutor(
-                TargetDeviceInfo::name(TargetDevice::eKMB));
-    }
-
-    for (size_t i = 0; i < _maxTaskExecutorGetResultCount; i++) {
-        std::stringstream idStream;
-        idStream << networkName << "_TaskExecutorGetResult" << i;
-        _taskExecutorGetResultIds.emplace(idStream.str());
-    }
 #endif
 }
 
@@ -106,52 +62,37 @@ ExecutableNetwork::ExecutableNetwork(const std::string &blobFilename,
 
     _log = std::make_shared<Logger>("KmbPlugin", _config->hostLogLevel, consoleOutput());
 
-    _executor = std::make_shared<KmbExecutor>(_config->forceReset, _config->deviceLogLevel, _log);
-#if 0
-    _device = _executor->openDevice(devicePool, _config);
-
-    // ignore hardware optimization config for MYRIAD2, it is always disabled
-    if (_device->_platform == MYRIAD_2) {
-        _config->compileConfig.hwOptimization = false;
-    }
-#endif
+    _executor = std::make_shared<KmbExecutor>(_config->forceReset, _config->deviceLogLevel, _log, _config);
     std::ifstream blobFile(blobFilename, std::ios::binary);
     std::ostringstream blobContentStream;
     blobContentStream << blobFile.rdbuf();
     const std::string& blobContentString = blobContentStream.str();
-
-#if 0
-    if (!_device->isBooted()) {
-        return;
-    }
-#endif
+    std::copy(blobContentString.begin(), blobContentString.end(), std::back_inserter(_graphBlob));
 
     // TODO: better name
-    char networkName[1024] = "importedNetwork";
+    const char networkName[1024] = "importedNetwork";
 
+#ifdef ENABLE_MCM_COMPILER
     KmbBlob blobReader(blobContentString.data(), blobContentString.size());
 
     this->_networkInputs  = blobReader.getNetworkInputs();
     this->_networkOutputs = blobReader.getNetworkOutputs();
     std::size_t numStages = blobReader.getStageCount();
-    auto blobHeader = blobReader.getHeader();
-
 
     _inputInfo  = blobReader.getInputInfo();
     _outputInfo = blobReader.getOutputInfo();
-
-    _executor->allocateGraph(_device,
-                             _graphDesc,
-                             _graphBlob,
-                             blobHeader,
-                             numStages,
-                             networkName);
 
     _stagesMetaData.resize(numStages);
     for (auto &meta : _stagesMetaData) {
         meta.stageName = meta.stageType = meta.layerName = meta.layerType = "UNKNOWN";
         meta.status = InferenceEngineProfileInfo::LayerStatus::EXECUTED;
     }
+#endif
+
+    _executor->allocateGraph(_device,
+                             _graphDesc,
+                             _graphBlob,
+                             &networkName[0]);
 
     if (_config->exclusiveAsyncRequests) {
         ExecutorManager *executorManager = ExecutorManager::getInstance();

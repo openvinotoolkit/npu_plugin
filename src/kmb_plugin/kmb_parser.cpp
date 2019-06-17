@@ -58,15 +58,18 @@
 #include <description_buffer.hpp>
 #include <xml_parse_utils.h>
 
-#include <vpu/kmb_plugin_config.hpp>
+#include <vpu/parsed_config.hpp>
 #include <vpu/compile_env.hpp>
 #include <vpu/frontend/stage_builder.hpp>
-
 #include "kmb_parser.hpp"
+
+#include <vpu/kmb_plugin_config.hpp>
 
 #if defined(_WIN32)
 #define mkdir(dir, mode) _mkdir(dir)
 #endif
+
+#ifdef ENABLE_MCM_COMPILER
 
 namespace vpu {
 
@@ -200,3 +203,4 @@ std::set<std::string> getSupportedLayersMcm(
 }  // namespace KmbPlugin
 
 }  // namespace vpu
+#endif

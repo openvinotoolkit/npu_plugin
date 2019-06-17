@@ -25,6 +25,7 @@ using namespace InferenceEngine;
 typedef std::tuple<tensor_test_params, std::string, std::string, std::string, param_size, param_size, param_size, param_size> pooling_test_params;
 typedef kmbLayerTestBaseWithParam< pooling_test_params > kmbLayersTestsPoolingParams;
 
+#ifdef ENABLE_MCM_COMPILER
 TEST_F(kmbLayersTests_nightly, TestsPoolingAfterConvolution) {
     const std::string model = R"V0G0N(
     <net batch="1" name="POOLING_TEST" version="2">
@@ -254,3 +255,4 @@ static const pooling_test_params paramsTable[] = {
 INSTANTIATE_TEST_CASE_P(loadNetworkNoThrow, kmbLayersTestsPoolingParams,
     ::testing::ValuesIn(paramsTable)
 );
+#endif

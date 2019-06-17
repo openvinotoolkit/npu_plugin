@@ -21,6 +21,9 @@
 #include <cpp_interfaces/base/ie_plugin_base.hpp>
 #include <cpp_interfaces/impl/ie_executable_network_internal.hpp>
 
+#include <vpu/kmb_plugin_config.hpp>
+#include <vpu/parsed_config.hpp>
+
 #include "kmb_plugin.h"
 
 using namespace InferenceEngine;
@@ -83,6 +86,7 @@ void Engine::QueryNetwork(const ICNNNetwork& network, QueryNetworkResult& res) c
 
 void Engine::QueryNetwork(const ICNNNetwork& network, const std::map<std::string, std::string>& config,
                           QueryNetworkResult& res) const {
+#ifdef ENABLE_MCM_COMPILER
     std::shared_ptr<mv::CompilationUnit> tmpCompiler =
             std::make_shared<mv::CompilationUnit>(network.getName());
     if (tmpCompiler == nullptr) {
@@ -103,6 +107,7 @@ void Engine::QueryNetwork(const ICNNNetwork& network, const std::map<std::string
     IE_SUPPRESS_DEPRECATED_START
     res.supportedLayers.insert(layerNames.begin(), layerNames.end());
     IE_SUPPRESS_DEPRECATED_END
+#endif
 }
 
 Engine::Engine() {
@@ -110,12 +115,14 @@ Engine::Engine() {
 
     KmbConfig config;
     _config = config.getDefaultConfig();
+#ifdef ENABLE_MCM_COMPILER
     std::shared_ptr<mv::CompilationUnit> tmpCompiler =
             std::make_shared<mv::CompilationUnit>("testModel");
     if (tmpCompiler == nullptr) {
         THROW_IE_EXCEPTION << "CompilationUnit have not been created.\n"
                        << "Supported format: FP32 and FP16.";
     }
+#endif
 }
 
 // TODO: ImportNetwork and LoadNetwork handle the config parameter in different ways.

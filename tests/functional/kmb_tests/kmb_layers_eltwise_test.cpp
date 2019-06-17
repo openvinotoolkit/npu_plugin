@@ -22,6 +22,7 @@
 
 using namespace InferenceEngine;
 
+#ifdef ENABLE_MCM_COMPILER
 TEST_F(kmbLayersTests_nightly, TestsEltwiseAfterScaleShift) {
     // MCM compiler does not support multiple Input layers
     // ScaleShift result is used as the second input to Eltwise
@@ -218,3 +219,4 @@ TEST_F(kmbLayersTests_nightly, TestsEltwiseAfterScaleShiftWithLargeWeight) {
     ASSERT_NO_THROW(st = myriadPluginPtr->LoadNetwork(_exeNetwork, network, config, &_resp));
     ASSERT_EQ(StatusCode::OK, st) << " response:" << _resp.msg;
 }
+#endif

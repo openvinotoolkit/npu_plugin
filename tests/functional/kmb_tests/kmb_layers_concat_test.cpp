@@ -22,6 +22,7 @@
 
 using namespace InferenceEngine;
 
+#ifdef ENABLE_MCM_COMPILER
 TEST_F(kmbLayersTests_nightly, TestsConcatenationAfterSoftmax) {
     // MCM compiler does not support multiple Input layers
     // SoftMax result is used as the second input to Concat
@@ -113,3 +114,4 @@ TEST_F(kmbLayersTests_nightly, TestsConcatenationAfterSoftmax) {
     ASSERT_NO_THROW(st = myriadPluginPtr->LoadNetwork(_exeNetwork, network, config, &_resp));
     ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
 }
+#endif

@@ -27,6 +27,11 @@ include(ExternalProject)
 # Build rules
 #
 
+# Enable MCM compiler by default
+if(NOT DEFINED ENABLE_MCM_COMPILER)
+    set(ENABLE_MCM_COMPILER ON)
+endif()
+
 add_subdirectory(src/kmb_plugin)
 
 if(ENABLE_TESTS)

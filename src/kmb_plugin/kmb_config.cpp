@@ -33,6 +33,7 @@ KmbConfig::KmbConfig(const std::map<std::string, std::string> &config, ConfigMod
 std::map<std::string, std::string> KmbConfig::getDefaultConfig() const {
     auto defaultVpuConfig = ParsedConfig::getDefaultConfig();
     std::map<std::string, std::string> kmbSpecific = {
+            {VPU_KMB_CONFIG_KEY(KMB_EXECUTOR),                      CONFIG_VALUE(YES)},
             {VPU_KMB_CONFIG_KEY(MCM_TARGET_DESCRIPTOR_PATH),        "config/target"},
             {VPU_KMB_CONFIG_KEY(MCM_TARGET_DESCRIPTOR),             "ma2490"},
             {VPU_KMB_CONFIG_KEY(MCM_COMPILATION_DESCRIPTOR_PATH),   "config/compilation"},
@@ -54,6 +55,7 @@ void KmbConfig::checkInvalidValues(const std::map<std::string, std::string> &con
 
 std::unordered_set<std::string> KmbConfig::getCompileOptions() const {
     std::unordered_set<std::string> compileOptions = {
+            VPU_KMB_CONFIG_KEY(KMB_EXECUTOR),
             VPU_KMB_CONFIG_KEY(MCM_TARGET_DESCRIPTOR_PATH),
             VPU_KMB_CONFIG_KEY(MCM_TARGET_DESCRIPTOR),
             VPU_KMB_CONFIG_KEY(MCM_COMPILATION_DESCRIPTOR_PATH),
