@@ -3,9 +3,9 @@
 
 #include "lemon/dijkstra.h"
 #include <lemon/preflow.h>
-#include <lemon/hao_orlin.h>
+#include <lemon/connectivity.h>
 
-mv::LemonGraphScheduler::LemonGraphScheduler(): nodes_(*graph_), edges_(*graph_), edgesMemory_(*graph_), sourceNode_(lemon::INVALID), sinkNode_(lemon::INVALID), edgeCount_(0)
+mv::LemonGraphScheduler::LemonGraphScheduler(): nodes_(*graph_), edges_(*graph_), edgesMemory_(*graph_), graphSourceNode_(lemon::INVALID), graphSinkNode_(lemon::INVALID)
 {  }
 
 mv::LemonGraphScheduler::~LemonGraphScheduler()
@@ -44,7 +44,7 @@ void  mv::LemonGraphScheduler::convertMcMGraphToLemonGraph(const mv::pass::PassE
 
                 lemon::ListDigraph::Node currentNode = getGraph().addNode();
                 this->nodes_[currentNode] = nodeDescription(this->graph_->id(currentNode), opIt->getName(),0, false, true);
-                sinkNode_ = currentNode;
+                this->graphSinkNode_ = currentNode;
                 nodeAdded = true;
             }
 
@@ -54,7 +54,7 @@ void  mv::LemonGraphScheduler::convertMcMGraphToLemonGraph(const mv::pass::PassE
                 pass.log(mv::Logger::MessageType::Debug, "Adding vertex to Lemon graph: " + opIt->getName());
                 lemon::ListDigraph::Node currentNode = getGraph().addNode();
                 this->nodes_[currentNode] = nodeDescription(this->graph_->id(currentNode), opIt->getName(),0, true, false);
-                sourceNode_ = currentNode;
+                this->graphSourceNode_ = currentNode;
                 nodeAdded = true;
             }
             else if (!nodeAdded) 
@@ -98,7 +98,6 @@ void  mv::LemonGraphScheduler::convertMcMGraphToLemonGraph(const mv::pass::PassE
             lemon::ListDigraph::Arc tmpEdge = this->graph_->addArc(sourceNode, sinkNode);
             this->edges_[tmpEdge] = edgeDescription(this->graph_->id(tmpEdge), memReq, flowIt->getName());
             this->edgesMemory_[tmpEdge] = memReq;
-            edgeCount_++;
         }
     }
     pass.log(mv::Logger::MessageType::Debug, "Lemon graph has " + std::to_string(lemon::countNodes(*this->graph_)) + " nodes and " + std::to_string(lemon::countArcs(*this->graph_)) + " edges");
@@ -141,9 +140,9 @@ std::pair<int, std::vector<mv::edgeDescription>> mv::LemonGraphScheduler::calcul
         // >>>>>>>>>>>>>>>>>>>>> Source -> this Node <<<<<<<<<<<<<<<<<<<<<<<<<<
         /*Find the shortest path from the "input" node of graph to the source node of this edge*/
         lemon::Dijkstra<lemon::ListDigraph, lemon::ListDigraph::ArcMap<uint64_t>> dijkstraSourceToNode(*this->graph_, this->edgesMemory_);
-        dijkstraSourceToNode.run(this->sourceNode_, northNode);
+        dijkstraSourceToNode.run(this->graphSourceNode_, northNode);
 
-        for (lemon::ListDigraph::Node currentNode = northNode; currentNode != this->sourceNode_; currentNode = dijkstraSourceToNode.predNode(currentNode))
+        for (lemon::ListDigraph::Node currentNode = northNode; currentNode != this->graphSourceNode_; currentNode = dijkstraSourceToNode.predNode(currentNode))
         {   //walk the shortest path route
             if (currentNode != lemon::INVALID && dijkstraSourceToNode.reached(currentNode))
             {
@@ -155,9 +154,9 @@ std::pair<int, std::vector<mv::edgeDescription>> mv::LemonGraphScheduler::calcul
         // >>>>>>>>>>>>>>>>>>>>> this Node -> Sink <<<<<<<<<<<<<<<<<<<<<<<<<<
         /*Find the shortest path from the sink node of this edge to the sink node of graph (DMA task CMX to DDR)*/
         lemon::Dijkstra<lemon::ListDigraph, lemon::ListDigraph::ArcMap<uint64_t>> dijkstraNodeToSink(*this->graph_, this->edgesMemory_);
-        dijkstraNodeToSink.run(southNode, this->sinkNode_);
+        dijkstraNodeToSink.run(southNode, this->graphSinkNode_);
 
-        for (lemon::ListDigraph::Node currentNode = southNode; currentNode != this->sinkNode_; currentNode = dijkstraNodeToSink.predNode(currentNode))
+        for (lemon::ListDigraph::Node currentNode = southNode; currentNode != this->graphSinkNode_; currentNode = dijkstraNodeToSink.predNode(currentNode))
         {   //walk the shortest path route
             if (currentNode != lemon::INVALID && dijkstraNodeToSink.reached(currentNode))
             {
@@ -181,7 +180,7 @@ std::pair<int, std::vector<mv::edgeDescription>> mv::LemonGraphScheduler::calcul
     // Edge capacities = flow attribute of the edge
     // cut edges contains all, but marked True/False if actually part of cut
     lemon::ListDigraph::NodeMap<bool> cutEdges(*this->graph_);
-    lemon::Preflow<lemon::ListDigraph, lemon::ListDigraph::ArcMap<uint64_t>> preflow(*this->graph_, edgesFlow, this->sourceNode_, this->sinkNode_);
+    lemon::Preflow<lemon::ListDigraph, lemon::ListDigraph::ArcMap<uint64_t>> preflow(*this->graph_, edgesFlow, this->graphSourceNode_, this->graphSinkNode_);
     preflow.run();
     preflow.minCutMap(cutEdges);
 
@@ -205,42 +204,39 @@ std::pair<int, std::vector<mv::edgeDescription>> mv::LemonGraphScheduler::calcul
     return std::make_pair(maxTopologicalCutValue, cutEdgesOnly);
 }
 
-//void mv::KoalaGraphScheduler::insertpartialSerialisationEdgesInMcmGraph(mv::ComputationModel& model) {
-// void mv::LemonGraphScheduler::insertpartialSerialisationEdgesInMcmGraph(mv::ComputationModel& model)
-// {
-//     std::set<std::pair<std::string, std::string>> addedEdges;
-//     for (const auto& edge : partialSerialisationEdgesAdded_) {
-        
-//         std::string edgeSourceName = edge->getEnd1()->info.name;
-//         std::string edgeSinkName = edge->getEnd2()->info.name;
+void mv::LemonGraphScheduler::insertpartialSerialisationEdgesInMcmGraph(mv::ComputationModel& model)
+{
+    std::set<std::pair<std::string, std::string>> addedEdges;
+    for (const auto& edge : partialSerialisationEdgesAdded_) 
+    {
+        lemon::ListDigraph::Arc tmpArc = this->graph_->arcFromId(edge.id);
+        lemon::ListDigraph::Node edgeSourceNode = this->graph_->source(tmpArc);
+        lemon::ListDigraph::Node edgeSinkNode = this->graph_->target(tmpArc);
 
-//         mv::ControlModel cm(model);
+        std::string edgeSourceName = this->nodes_[edgeSourceNode].name;
+        std::string edgeSinkName = this->nodes_[edgeSinkNode].name;
 
-//         mv::Control::OpListIterator mcmSourceNodeIterator;
-//         mv::Control::OpListIterator mcmSinkNodeIterator;
+        mv::ControlModel cm(model);
+        mv::Control::OpListIterator mcmSourceNodeIterator;
+        mv::Control::OpListIterator mcmSinkNodeIterator;
 
-//         /*Find the McM iterator for the source node*/
-//         for (auto opItSource = cm.getFirst(); opItSource != cm.opEnd(); ++opItSource) {
-            
-//             if(opItSource->getName() == edgeSourceName) 
-//                 mcmSourceNodeIterator = opItSource;
-//         }
+        /*Find the McM iterator for the source and sink node*/
+        for (auto opItSource = cm.getFirst(); opItSource != cm.opEnd(); ++opItSource) 
+        {    
+            if(opItSource->getName() == edgeSourceName) 
+                mcmSourceNodeIterator = opItSource;
+            if(opItSource->getName() == edgeSinkName) 
+                mcmSinkNodeIterator = opItSource;
+        }
 
-//         /*Find the McM iterator for the sink node*/
-//         for (auto opItSink = cm.getFirst(); opItSink != cm.opEnd(); ++opItSink) {
-            
-//             if(opItSink->getName() == edgeSinkName) 
-//                 mcmSinkNodeIterator = opItSink;
-//         }
-//         auto inserted = addedEdges.insert(std::make_pair(edgeSourceName, edgeSinkName));
-//         if (inserted.second)
-//         {
-//             /*Add the edge to graph*/
-//             auto partialSerialisationEdge = cm.defineFlow(mcmSourceNodeIterator, mcmSinkNodeIterator);
-//             partialSerialisationEdge->set<bool>("PartialSerialisationEdge", true);
-//         }
-//     }
-// }
+        auto inserted = addedEdges.insert(std::make_pair(edgeSourceName, edgeSinkName));
+        if (inserted.second)
+        {   /*Add the edge to graph*/
+            auto partialSerialisationEdge = cm.defineFlow(mcmSourceNodeIterator, mcmSinkNodeIterator);
+            partialSerialisationEdge->set<bool>("PartialSerialisationEdge", true);
+        }
+    }
+}
 
 // /**
 //  * @brief Perform partial serilisation of KOALA graph to reduce maximum peak memory
@@ -288,9 +284,10 @@ void mv::LemonGraphScheduler::performPartialSerialisation(const mv::pass::PassEn
         for (const auto& sourcenode : sources) 
         {
             bool found = false;
-            for(int i = 0; i < cutEdgesSourceSink.size(); i++) 
+            //for(int i = 0; i < cutEdgesSourceSink.size(); i++) 
+            for(auto cutEdgeSourceSink : cutEdgesSourceSink) 
             {   /* Check if new potential partial serialisation edge is an original cut set edge, if it is then do not add it to the pool */
-                if((cutEdgesSourceSink[i].first.name == sourcenode.name) && (cutEdgesSourceSink[i].second.name == sinknode.name)) 
+                if((cutEdgeSourceSink.first.name == sourcenode.name) && (cutEdgeSourceSink.second.name == sinknode.name)) 
                 {
                     found = true;
                     break;
@@ -304,7 +301,6 @@ void mv::LemonGraphScheduler::performPartialSerialisation(const mv::pass::PassEn
     /* Attempt to add each edge to edge in the graph and check if it is still a DAG*/
     /* It is still a DAG then recalculate max topological cut*/
     /* Note in future here is where the optimal edge should be selected such that it minimises the increase in the critical path of the graph*/
-    //for(std::size_t i = 0; i < possibleEdges.size(); i++) 
     for (const auto& possibleEdge : possibleEdges)
     {
         auto sourceName = possibleEdge.second.name;
@@ -313,31 +309,23 @@ void mv::LemonGraphScheduler::performPartialSerialisation(const mv::pass::PassEn
        
         lemon::ListDigraph::Node tmpSourceNode = this->graph_->nodeFromId(possibleEdge.second.id);
         lemon::ListDigraph::Node tmpTargetNode = this->graph_->nodeFromId(possibleEdge.first.id);
-        lemon::ListDigraph::Arc tmpArc = this->graph_->addArc(tmpSourceNode, tmpTargetNode);
-        this->edges_[tmpArc] = edgeDescription(this->graph_->id(tmpArc), 0, "PS_edge_"+sinkName+sourceName);
+        lemon::ListDigraph::Arc newArc = this->graph_->addArc(tmpSourceNode, tmpTargetNode);
+        mv::edgeDescription newDesc = edgeDescription(this->graph_->id(newArc), 0, "PS_edge_"+sinkName+sourceName);
+        this->edges_[newArc] = newDesc;
 
-        /*get number of vertices*/
-        int n = this->getGraph().getVertNo();
-	    koalaGraph::PVertex LOCALARRAY(tabV, n);
-		
-        /* Get topological order*/
-	    Koala::DAGAlgs::topOrd(this->getGraph(), tabV); 
-		
-        /*Check if it is a DAG*/
-	    bool isDag = Koala::DAGAlgs::isDAG(this->getGraph(), tabV, tabV + n);
-        if(isDag) {
-            pass.log(mv::Logger::MessageType::Debug, "The graph is still a DAG after adding partial serialisation edge, recalulating max topological cut value");
-            
-            /*add edge iterator to the vector of KOALA edge iterators*/
-            edges_.push_back(newEdge); 
+        lemon::ListDigraph::NodeMap<mv::nodeDescription> order(*this->graph_);
+        lemon::topologicalSort(*this->graph_, order);
 
-            /*keep track of the edges added as these edges will be added to mcmGraph*/
-            partialSerialisationEdgesAdded_.push_back(newEdge);
+        /*Check if graph still direccted DAG*/
+        if (lemon::dag(*this->graph_))
+        {   /*keep track of the edges added as these edges will be added to mcmGraph*/
+            pass.log(mv::Logger::MessageType::Debug, "Graph still DAG after adding partial serialisation edge, recalulating max topological cut value...");
+            partialSerialisationEdgesAdded_.push_back(newDesc);
             return;
         }
         else {
             pass.log(mv::Logger::MessageType::Debug, "Removing partial serialisation edge as graph is no longer a DAG, from: " + sourceName + " --> " + sinkName );
-            this->getGraph().delEdge(newEdge);
+            this->graph_->erase(newArc);
         }
     }
     throw std::runtime_error("The maximum peak memory requirment of the graph exceeds CMX and the partial serialisation algorithm is unable to reduce parallelism, exiting now, this is normal behaviour");

@@ -36,7 +36,7 @@ namespace mv
         bool sourceNode;
         bool sinkNode;
 
-        nodeDescription(int id, std::string aname = "", int cost = 0, bool sourcenode = false, bool sinknode = false) : 
+        nodeDescription(int id=0, std::string aname = "", int cost = 0, bool sourcenode = false, bool sinknode = false) : 
             id(id), name(aname), cost(cost), sourceNode(sourcenode), sinkNode(sinknode) { }  
         
     };
@@ -50,7 +50,7 @@ namespace mv
         uint64_t flow;
         int length;
 
-        edgeDescription(int id, uint64_t m = 0, std::string aname = "", uint64_t f = 0, int l = 1) : 
+        edgeDescription(int id=0, uint64_t m = 0, std::string aname = "", uint64_t f = 0, int l = 1) : 
             id(id), memoryRequirement(m), name(aname), flow(f), length(l) { }
     };
 
@@ -62,17 +62,11 @@ namespace mv
         lemon::ListDigraph::ArcMap<edgeDescription> edges_;
         lemon::ListDigraph::ArcMap<uint64_t> edgesMemory_;
 
-        lemon::ListDigraph::Node sourceNode_;
-        lemon::ListDigraph::Node sinkNode_;
-        int edgeCount_;
+        lemon::ListDigraph::Node graphSourceNode_;
+        lemon::ListDigraph::Node graphSinkNode_;
 
         /*New edges added to the graph from partial serialisation, these will be added to the McM graph*/
-        //std::vector<koalaGraph::PEdge> partialSerialisationEdgesAdded_;
         std::vector<mv::edgeDescription> partialSerialisationEdgesAdded_;
-
-        //std::vector<koalaGraph::PEdge>::const_iterator lookUpKoalaEdgebyName(std::string edgeName, const std::vector<koalaGraph::PEdge>& koalaEdges);
-        //std::vector<mv::koalaGraph::PVertex>::const_iterator lookUpKoalaSinkNode(bool sinknode, const std::vector<koalaGraph::PVertex>& koalaVertices);
-        //std::vector<mv::koalaGraph::PVertex>::const_iterator lookUpKoalaSourceNode(bool sourcenode, const std::vector<koalaGraph::PVertex>& koalaVertices);
            
     public:
         LemonGraphScheduler();
@@ -81,15 +75,12 @@ namespace mv
 
         void convertMcMGraphToLemonGraph(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
         
-        //void performPartialSerialisation(const mv::pass::PassEntry& pass, std::vector<koalaGraph::PEdge> cutEdges);
         void performPartialSerialisation(const mv::pass::PassEntry& pass, std::vector<mv::edgeDescription> cutEdges);
         std::pair<int, std::vector<edgeDescription>> calculateMaxTopologicalCut(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
-        //std::pair<int, std::vector<edgeDescription>> calculateMaxTopologicalCutOld(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
         uint64_t calculateFMax(mv::ComputationModel& model);
-        //void insertpartialSerialisationEdgesInMcmGraph(mv::ComputationModel& model);
+        void insertpartialSerialisationEdgesInMcmGraph(mv::ComputationModel& model);
           
         std::string getLogID() const override;
-
     };
 }
 
