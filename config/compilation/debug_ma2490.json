@@ -5,6 +5,7 @@
                 "name" : "GlobalConfigParams",
                 "_comment" : "Stores common params accross multiple passes. Access through the Computation Model.",
                 "recorded_model": false,
+                "verbose": "Info",
                 "weights_form": "None",
                 "barrier_index_assignment" : "Dynamic",
                 "Number_of_DPUs" : 1,
@@ -103,6 +104,7 @@
             "FuseRelu",
             "FuseScale",
             "FullyConnectedAsConv2D",
+            "StreamingOpFission",
             {
                 "name": "GenerateDot",
                 "output": "adapt_model.dot",
@@ -118,11 +120,13 @@
     },
     "keembay_adapt": {
         "Singular": [
+            "ConcatAsImplicit",
             "StoreLayerSplitStrategy",
             "StoreWorkloadStrategy",
             "ConvertOpsToTasks",
             "AlignTo16Channels",
             "ComputeTensorsQuantParams",
+            "UpdateConcatQuantizationParams",
             "KMBOrderConversion",
             "AlignTaskWeights",
             "GenerateSparsityMaps",
@@ -304,6 +308,21 @@
             {
                 "name": "ConvertDot",
                 "input": "DeallocationTasksRemoved.dot"
+            },
+            {
+                "name" : "TransitiveReduction",
+                "filter" : "Fakefilter"
+            },
+            {
+                "name": "GenerateDot",
+                "output": "DeallocationTasksRemovedAndTransitiveReduction.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "DeallocationTasksRemovedAndTransitiveReduction.dot"
             },
             {
                 "name" : "InsertBarrierTasks",
