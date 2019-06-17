@@ -118,7 +118,7 @@ void storeTensorPlacementFcn(const mv::pass::PassEntry& pass,
                 mv::Tensor::MemoryLocation location(memLocation,forced);
                 tensorIt->set<mv::Tensor::MemoryLocation>("Location",location);
                 pass.log(mv::Logger::MessageType::Info,"setting tensor " +
-                            tensorIt->getName() + " as " + location.print());
+                            tensorIt->getName() + " as " + location.toString());
             }
         }
 

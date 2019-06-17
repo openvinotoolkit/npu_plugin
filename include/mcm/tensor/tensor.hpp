@@ -21,7 +21,7 @@ namespace mv
     class Tensor : public Element
     {
     public:
-        class MemoryLocation {
+        class MemoryLocation  : public LogSender {
         //TODO :: find better place for it !!
         public:
             enum Location {
@@ -108,23 +108,13 @@ namespace mv
                     if(it->second == location_)
                         return it->first;
                 }
+                throw ValueError(*this, "Memory location cannot be found in Map!!");
             }
-            //TODO: make it pretty-er
-            const std::string print() const {
-                for( auto it = namingMap.begin(); it != namingMap.end(); ++it )
-                {
-                    if(it->second == location_)
-                        return it->first;
-                }
-                //should never get here!?;
-                return "CMX";
-            } ;
 
-//            std::ostream& operator<<(std::ostream& out, const MemoryLocation& location) {
-//                out << print();
-//                return print();
-//            };
-
+            virtual std::string getLogID() const override
+            {
+                return "MemoryLocation";
+            }
         };
 
 

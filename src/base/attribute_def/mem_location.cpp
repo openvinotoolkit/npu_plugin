@@ -11,7 +11,7 @@ namespace mv
         static mv::json::Value toJSON(const Attribute& a)
         {
             auto& elem = a.get<Tensor::MemoryLocation>();
-            return json::Value(elem.print());
+            return json::Value(elem.toString());
         }
 
         static Attribute fromJSON(const json::Value& v)
@@ -27,7 +27,7 @@ namespace mv
         static std::string toString(const Attribute& a)
         {
             auto& elem = a.get<Tensor::MemoryLocation>();
-            return elem.print();
+            return elem.toString();
         }
 
         MV_REGISTER_ATTR(Tensor::MemoryLocation)

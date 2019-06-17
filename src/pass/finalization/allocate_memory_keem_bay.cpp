@@ -144,7 +144,7 @@ static mv::Data::BufferIterator allocateUnpopulatedTensor(const mv::pass::PassEn
     }
     else
     {
-        throw mv::AttributeError("Location:" , ": attempting to allocate unpopulated tensor to location " + logicalLocation.print());
+        throw mv::AttributeError("Location:" , ": attempting to allocate unpopulated tensor to location " + logicalLocation.toString());
     }
 }
 
@@ -363,7 +363,7 @@ void allocateImplicitOperationsFcnKeemBay(const mv::pass::PassEntry& pass,
                 }
                 else
                 {
-                    outputBuffer = dm.getBuffer(location2Allocator[outputLocation.print()],stageIt,outputTensor);
+                    outputBuffer = dm.getBuffer(location2Allocator[outputLocation.toString()],stageIt,outputTensor);
                 }
 
                 auto inputSlots = opIterator->inputSlots();
@@ -404,7 +404,7 @@ void allocateImplicitOperationsFcnKeemBay(const mv::pass::PassEntry& pass,
                     }
                     else
                     {
-                        inputBuffer = dm.getBuffer(location2Allocator[inputLocation.print()],stageIt,inputTensor);
+                        inputBuffer = dm.getBuffer(location2Allocator[inputLocation.toString()],stageIt,inputTensor);
                     }
 
                     std::vector<std::size_t> lhs_padding(inputTensor->getShape().ndims());
@@ -418,7 +418,7 @@ void allocateImplicitOperationsFcnKeemBay(const mv::pass::PassEntry& pass,
                     lhs_padding.at(axis) = lhs;
                     rhs_padding.at(axis) = rhs;
 
-                    auto NewBuffer = dm.moveTensor(location2Allocator[inputLocation.print()],
+                    auto NewBuffer = dm.moveTensor(location2Allocator[inputLocation.toString()],
                                                     inputBuffer, outputBuffer,
                                                     lhs_padding, rhs_padding);
                 }
@@ -440,7 +440,7 @@ void allocateImplicitOperationsFcnKeemBay(const mv::pass::PassEntry& pass,
                 }
                 else
                 {
-                    inputBuffer = dm.getBuffer(location2Allocator[inputLocation.print()],stageIt,inputTensor);
+                    inputBuffer = dm.getBuffer(location2Allocator[inputLocation.toString()],stageIt,inputTensor);
                 }
 
                 if( !outputTensor->hasAttr("allocators"))
@@ -451,7 +451,7 @@ void allocateImplicitOperationsFcnKeemBay(const mv::pass::PassEntry& pass,
                 }
                 else
                 {
-                    outputBuffer = dm.getBuffer(location2Allocator[outputLocation.print()],stageIt,outputTensor);
+                    outputBuffer = dm.getBuffer(location2Allocator[outputLocation.toString()],stageIt,outputTensor);
                 }
 
                 auto ndims = inputTensor->getShape().ndims();
@@ -468,7 +468,7 @@ void allocateImplicitOperationsFcnKeemBay(const mv::pass::PassEntry& pass,
                     rhs_padding[i] = inputShape[i] - (begin[i] + size[i]);
                 }
 
-                auto NewBuffer = dm.moveTensor(location2Allocator[inputLocation.print()],
+                auto NewBuffer = dm.moveTensor(location2Allocator[inputLocation.toString()],
                                                 outputBuffer, inputBuffer,
                                                 lhs_padding, rhs_padding);
             }

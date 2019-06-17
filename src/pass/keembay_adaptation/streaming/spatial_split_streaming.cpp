@@ -200,8 +200,8 @@ mv::Data::TensorIterator solveSpatialTiling(mv::OpModel& om,mv::Data::OpListIter
             inputLocation.relocate(inputTensor->get<mv::Tensor::MemoryLocation>("Location"));
             outputLocation.relocate(outputTensor->get<mv::Tensor::MemoryLocation>("Location"));
 
-            // std::cout << "More children. Inheriting " << slices[split]->getName() << " to " << inputLocation.print() << " from " << inputTensor->getName() <<  std::endl;
-            // std::cout << "More children. Inheriting " << convs[split]->getName() << " to " << outputLocation.print() << " from " << outputTensor->getName() <<  std::endl;
+            // std::cout << "More children. Inheriting " << slices[split]->getName() << " to " << inputLocation.toString() << " from " << inputTensor->getName() <<  std::endl;
+            // std::cout << "More children. Inheriting " << convs[split]->getName() << " to " << outputLocation.toString() << " from " << outputTensor->getName() <<  std::endl;
         }
         else
         {
@@ -212,8 +212,8 @@ mv::Data::TensorIterator solveSpatialTiling(mv::OpModel& om,mv::Data::OpListIter
             inputLocation.force();
             outputLocation.force();
 
-            // std::cout << "No more children deciding " << slices[split]->getName() << " to " << inputLocation.print() << std::endl;
-            // std::cout << "No more children deciding " << convs[split]->getName() << " to " << outputLocation.print() << std::endl;
+            // std::cout << "No more children deciding " << slices[split]->getName() << " to " << inputLocation.toString() << std::endl;
+            // std::cout << "No more children deciding " << convs[split]->getName() << " to " << outputLocation.toString() << std::endl;
         }
         slices[split]->set<mv::Tensor::MemoryLocation>("Location",inputLocation);
         convs[split]->set<mv::Tensor::MemoryLocation>("Location",outputLocation);

@@ -95,7 +95,7 @@ void resolvevImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::Computat
                 {
                     //TODO:: QUant params inherited for concat
                     //TODO:: PRONE TO ERRORS! correlate with Class Direction
-                    const std::string directionString = inputLocation.print() + "2" + outputLocation.print();
+                    const std::string directionString = inputLocation.toString() + "2" + outputLocation.toString();
                     auto compensatorOutput = om.dMATask(inputTensor,
                                                     dmaDirectionStrings[directionString],
                                                     quantParams ,
@@ -141,7 +141,7 @@ void resolvevImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::Computat
             if( inputLocation != outputLocation)
             {
 
-                const std::string directionString = inputLocation.print() + "2" + outputLocation.print();
+                const std::string directionString = inputLocation.toString() + "2" + outputLocation.toString();
 
                 std::vector<mv::Data::OpListIterator> opsToLink;
                 std::vector<std::size_t> inputSlots;
