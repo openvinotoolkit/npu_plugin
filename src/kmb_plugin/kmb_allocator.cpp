@@ -14,4 +14,25 @@
 // stated in the License.
 //
 
+#include <vpusmm.h>
+#include <sys/mman.h>
+
 #include "kmb_allocator.h"
+
+
+void *vpu::KmbPlugin::KmbAllocator::lock(void *handle, InferenceEngine::LockOp) noexcept {
+    return nullptr;
+}
+
+void vpu::KmbPlugin::KmbAllocator::unlock(void *handle) noexcept {
+}
+
+void *vpu::KmbPlugin::KmbAllocator::alloc(size_t size) noexcept {
+    auto fd = vpusmm_alloc_dmabuf(size, VPUSMMType::VPUSMMTYPE_COHERENT);
+    void *out = mmap(nullptr, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+    return out;
+}
+
+bool vpu::KmbPlugin::KmbAllocator::free(void *handle) noexcept {
+    return false;
+}

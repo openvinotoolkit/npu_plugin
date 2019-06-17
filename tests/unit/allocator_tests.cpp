@@ -15,13 +15,18 @@
 //
 
 #include <gtest/gtest.h>
+#include "kmb_allocator.h"
 
 using namespace testing;
+using namespace vpu::KmbPlugin;
 
-class kmbUnitTests : public ::testing::Test {
+class kmbAllocatorUnitTests : public ::testing::Test {
 
 };
 
-TEST(kmbUnitTests, placeholder) {
+TEST(kmbAllocatorUnitTests, canAllocateMemory) {
+    KmbAllocator allocator;
 
+    size_t size = 10;
+    ASSERT_NE(allocator.alloc(size), nullptr);
 }
