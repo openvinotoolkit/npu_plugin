@@ -155,3 +155,29 @@ if (MCM_COMPILER_PATHS_FINDING)
     unset(FLATBUFFERRS_INCLUDE_PATH CACHE)
     unset(MCM_SCHEMA_INCLUDE_PATH CACHE)
 endif()
+
+if(ENABLE_TESTS)
+    add_library(${TARGET_NAME}_test_static STATIC ${SOURCES})
+
+    if (MCM_COMPILER_INTERNAL_BUILD)
+        add_dependencies(${TARGET_NAME}_test_static mcmCompiler)
+    endif()
+
+    target_include_directories(${TARGET_NAME}_test_static
+        PUBLIC
+            "${CMAKE_CURRENT_SOURCE_DIR}"
+        SYSTEM PRIVATE
+            "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/include"
+            "${IE_MAIN_SOURCE_DIR}/include"
+            "${IE_MAIN_SOURCE_DIR}/src/inference_engine"
+            "${MCM_COMPILER_INCLUDE_PATH}"
+            "${FLATBUFFERRS_INCLUDE_PATH}"
+            "${MCM_SCHEMA_INCLUDE_PATH}"
+            "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/thirdparty/vsi_cmodel/vpusmm/"
+            )
+    target_link_libraries(${TARGET_NAME}_test_static
+            PUBLIC
+                ${VPUSMM_LIBRARY} IE::inference_engine
+            PRIVATE
+                ${INTEL_ITT_LIBS} IE::vpu_graph_transformer ${MCM_COMPILER_LIBRARY} ${VPUAL_LIBRARY})
+endif()
