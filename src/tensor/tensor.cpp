@@ -398,7 +398,7 @@ void mv::Tensor::setAddress(int64_t address)
     }
 }
 
-void mv::Tensor::setSparse()
+bool mv::Tensor::setSparse()
 {
     mv::Order order =  getOrder();
     if (!order.isZMajor())
@@ -408,8 +408,7 @@ void mv::Tensor::setSparse()
         throw ArgumentError(*this, "Order", order.toString() , " Sparsity requires order of size >= 3");
 
     if(hasAttr("sparse") && get<bool>("sparse") == true)
-    //    throw ArgumentError(*this, "Sparsity == ", "true" , " Sparsity for this tensor has already been set");
-        return;
+        return false;
 
     set<bool>("sparse", true);
 
@@ -423,6 +422,9 @@ void mv::Tensor::setSparse()
     auto shape = getShape();
     size_t N = shape[-1];;
 
+    // Storage Element has to be created only in the case of unpopulated tensor
+    // since populated tensors hav ethe storage element information in the
+    // weights table.
     if(!isPopulated())
         storageElement_  = std::make_shared<Tensor>(createStorageElementName(getName()), mv::Shape({shape[0], shape[1], 1, N}), mv::DType("Int32"), order);
 
@@ -443,6 +445,8 @@ void mv::Tensor::setSparse()
     //populate sparsity map
     if (isPopulated())
         populateSparsityMapTensor_();
+
+    return true;
 }
 
 void mv::Tensor::bindData(Tensor& other, const std::vector<std::size_t>& leftPadding, const std::vector<std::size_t> &rightPadding)

@@ -13,6 +13,7 @@
                 "UpaShaves": 1,
                 "DDRScratch": 4096,
                 "MemoryHack": true,
+                "Sparsity": true,
                 "CMX_memory_overflow_safety_factor" : 0.925,
                 "mpe_mode" : "Matrix",
                 "split_strategy" :

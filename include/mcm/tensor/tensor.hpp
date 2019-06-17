@@ -66,7 +66,8 @@ namespace mv
 
         void unpopulate();
 
-        void setSparse();
+        // Returns true if the tensor was not sparse and sparsity was set, false otherwise
+        bool setSparse();
         /**
          * @brief Binds the data (values vector) of this tensor (slave) to the given master tensor. After this operation data accessed
          * from this tensor will be actually read/written to the master tensor. Using the leftPadding and rightPadding it is possible
