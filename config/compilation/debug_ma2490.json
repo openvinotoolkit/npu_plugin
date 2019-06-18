@@ -134,6 +134,8 @@
                 "content": "full",
                 "html": true
             },
+            "StrategyLayersToTensors",
+            "SplittingAcrossClusters",
             {
                 "name": "ConvertDot",
                 "input": "output/dots/keembay_WeightsTable_model.dot"

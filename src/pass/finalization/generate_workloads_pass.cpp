@@ -184,10 +184,12 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                 dpuModes = {{4,4},{1, 16}};
 
             /*For multi-clustering we work on subtensors*/
-            for(clusterNumber = 0; clusterNumber < nClusters; clusterNumber++) {
+            for(uint8_t clusterNumber = 0; clusterNumber < nClusters; clusterNumber++) {
                 
                 /*get the subtensor*/
                 auto subTensor = opIt->getOutputTensor()[0]->getSubTensor(clusterNumber);
+
+                pass.log(mv::Logger::MessageType::Info, "The subtensor for cluster 0 shape is: " + subTensor.getShape().toString());
 
                 /*Generate the number of workloads split pool*/
                 if(nWorkloadsCompilationDescriptor)
@@ -354,8 +356,14 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                 /*set the clusterID field of the most optimial workload*/
                 workloadsVector.at(optimalWorkloadIndex).populateClusterID(clusterNumber);
 
+                pass.log(mv::Logger::MessageType::Info, "The subtensor for cluster 0 shape is: " + subTensor.getShape().toString());
+
                 /*Apply the SOH offset to the most optimial workload*/
-                workloadsVector.at(optimalWorkloadIndex).add_xy_offset(subTensor.getShape());
+                if(opIt->getOutputTensor()[0]->get<std::string>("splitStrategy") == "SplitOverH") {
+
+                    auto subTensorOffset = subTensor.get<std::vector<std::size_t>>("offset");
+                    workloadsVector.at(optimalWorkloadIndex).add_xy_offset(subTensorOffset);
+                }
                 
                 /*Set the most optimal workload as attribute of the op*/
                 opIt->set<mv::Workloads>("Workloads" + std::to_string(clusterNumber), workloadsVector.at(optimalWorkloadIndex));
