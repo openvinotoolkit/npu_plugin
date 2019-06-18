@@ -485,7 +485,6 @@ bool mv::Tensor::setSparse(std::shared_ptr<mv::Tensor> sparsityMap, std::shared_
     noneZeroElements_ = countNonZeroElements();
 
     return true;
->>>>>>> master
 }
 
 void mv::Tensor::bindData(Tensor& other, const std::vector<std::size_t>& leftPadding, const std::vector<std::size_t> &rightPadding)
