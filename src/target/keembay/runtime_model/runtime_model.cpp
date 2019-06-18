@@ -203,18 +203,13 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     {
         toBuild->data->data_index = tensorBufferIt->getOffset();
 
-        // VERY IMPORTANT NOTE: Sparsity with DDR/CMX streaming is not clear at this point
-        // but I'm sure that this code will need modifications when streaming kicks in.
+        // VERY IMPORTANT NOTE: Sparsity index is not used by populated tensors
+        // as populated tensor represent weights, and all the information we need
+        // about sparsity is contained in the weights table. This was confirmed
+        // after a chat with Levi
         if(t->isSparse())
         {
-            if(t->isPopulated())
-            {
-                auto sparsityMapOp = om.getOp(t->getSparsityMap()->getName());
-                sparsityMapOp = sparsityMapOp.leftmostChild();
-                auto sparsityMapTensor = sparsityMapOp->getOutputTensor(0);
-                toBuild->data->sparsity_index = sparsityMapTensor->getAddress();
-            }
-            else
+            if(!t->isPopulated())
             {
                 toBuild->data->sparsity_index = t->getSparsityMap()->getAddress();
                 toBuild->data->storage_element_index = t->getStorageElement()->getAddress();
