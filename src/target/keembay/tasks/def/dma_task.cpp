@@ -41,6 +41,11 @@ namespace mv
                 mv::Tensor::MemoryLocation outputLocation("CMX");
                 outputs[0].set<mv::Tensor::MemoryLocation>("Location", outputLocation);
             }
+            else if (args.at("direction").get<mv::DmaDirection>() == mv::DmaDirectionEnum::CMX2DDR)
+            {
+                mv::Tensor::MemoryLocation outputLocation("DDR");
+                outputs[0].set<mv::Tensor::MemoryLocation>("Location", outputLocation);
+            }
         };
 
         MV_REGISTER_OP(DMATask)
