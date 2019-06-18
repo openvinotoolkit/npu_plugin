@@ -113,7 +113,8 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
                     dpuConvOp->set<std::string>("taskOp", "ChannelMajorConvolution");
                 }
             }
-            dpuConv->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
+
+            //dpuConv->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
             setOutputDataFlow(om, dpuConv, outputDataFlows);
         }
         else if (opType == "MaxPool")
@@ -147,7 +148,7 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
 
             if(!splitStrategy.empty())
                dpuPoolOp->set<std::string>("splitStrategy", splitStrategy);
-            dpuPool->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
+            //dpuPool->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
             setOutputDataFlow(om, dpuPool, outputDataFlows);
         }
         else if (opType == "Add" || opType == "Subtract" || opType == "Multiply")
@@ -189,7 +190,7 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             if(!splitStrategy.empty())
                dpuElementWiseOp->set<std::string>("splitStrategy", splitStrategy);
 
-            dpuElementWiseOp->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
+            //dpuElementWiseOp->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
             mv::setOutputDataFlow(om, dpuElementWise, outputDataFlows);
         }
         //TODO: Fully connected
