@@ -31,11 +31,8 @@ namespace mv
         Order internalOrder_;
         std::shared_ptr<Tensor> sparsityMap_;
         std::shared_ptr<Tensor> storageElement_;
-<<<<<<< HEAD
         std::vector<std::shared_ptr<Tensor>> subTensors_;
-=======
         std::vector<int64_t> kernelDataOffsets_;
->>>>>>> master
         size_t noneZeroElements_;
 
         bool elementWiseChecks_(const Tensor& other);
