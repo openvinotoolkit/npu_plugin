@@ -31,7 +31,11 @@ namespace mv
         Order internalOrder_;
         std::shared_ptr<Tensor> sparsityMap_;
         std::shared_ptr<Tensor> storageElement_;
+<<<<<<< HEAD
         std::vector<std::shared_ptr<Tensor>> subTensors_;
+=======
+        std::vector<int64_t> kernelDataOffsets_;
+>>>>>>> master
         size_t noneZeroElements_;
 
         bool elementWiseChecks_(const Tensor& other);
@@ -45,8 +49,7 @@ namespace mv
         void setSubtensorsOrder_(Order order);
 
     public:
-        //NOTE: Is this method operating on I/O tensors, Weight tensors or both
-        std::vector<int64_t> getZeroPointsPerChannel();
+        std::vector<int64_t> getZeroPointsPerChannel() const;
 
         Tensor(const std::string& name, const Shape& shape, DType dType, Order order);
         Tensor(const std::string& name, const Shape& shape, DType dType, Order order, const mv::QuantizationParams& quantParams);
@@ -68,7 +71,10 @@ namespace mv
 
         void unpopulate();
 
-        void setSparse();
+        // Returns true if the tensor was not sparse and sparsity was set, false otherwise
+        bool setSparse();
+
+        bool setSparse(std::shared_ptr<Tensor> sparsityMap, std::shared_ptr<Tensor> storageElement);
         /**
          * @brief Binds the data (values vector) of this tensor (slave) to the given master tensor. After this operation data accessed
          * from this tensor will be actually read/written to the master tensor. Using the leftPadding and rightPadding it is possible
@@ -88,6 +94,8 @@ namespace mv
 
         std::vector<DataElement> getData();
         std::vector<DataElement> getDataPacked();
+        std::vector<int64_t> getKernelDataOffsets();
+
         std::vector<double> getDoubleData();
         std::vector<int64_t> getIntData();
         void setDType(DType dType);
@@ -107,8 +115,6 @@ namespace mv
         void divide(const Tensor& other);
         void divide(double val);
         void sqrt();
-
-        int computeMemoryRequirement() const;
 
         DataElement& at(const std::vector<std::size_t>& sub);
         const DataElement& at(const std::vector<std::size_t>& sub) const;
@@ -158,9 +164,9 @@ namespace mv
             return shape_.totalSize();
         }
 
-        inline unsigned sizeBytes() const
+        inline unsigned dataPackedSize() const
         {
-            return shape_.totalSize() * (getDType().getSizeInBits()/8);
+            return noneZeroElements_;
         }
 
         inline std::vector<std::size_t> indToSub(unsigned index) const
@@ -181,6 +187,7 @@ namespace mv
         std::shared_ptr<Tensor> getStorageElement() const;
         const Tensor& getSubTensor(uint8_t cluster);
         const Tensor& broadcastSubtensor(uint8_t cluster);
+        unsigned countNonZeroElements() const;
 
         Tensor& operator=(const Tensor& other);
 
