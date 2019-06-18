@@ -98,7 +98,6 @@ void addInitialAndFinalDMATaskFcn(const mv::pass::PassEntry& , mv::ComputationMo
     {
         auto newInput = om.dMATask(input, mv::DmaDirectionEnum::CMX2DDR, quantParams, mv::createDMATaskCMX2DDRName(inputOp->getName()));
         auto newInputOp = om.getSourceOp(newInput);
-        newInputOp->set<bool>("lastDMAOp", true);
         newInputOp->set<unsigned>("opId", opId);
         auto backup = opIt;
         om.removeOp(backup);
