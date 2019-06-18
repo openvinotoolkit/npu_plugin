@@ -103,7 +103,7 @@ std::map<std::string, std::function<mv::Data::TensorIterator(mv::OpModel&,mv::Da
 
 struct opStreamingSplitDef
 {
-    std::string dim ;
+    std::string axis ;
     size_t numSplits ;
 };
 
@@ -112,30 +112,25 @@ static void setStreamingStrategy(mv::ComputationModel& model,std::map<std::strin
     mv::OpModel om(model);
     mv::ControlModel cm(model);
 
-    opStreamingSplitDef op1Split1;
-    opStreamingSplitDef op1Split2;
-    opStreamingSplitDef op1Split3;
-    opStreamingSplitDef op2Split1;
-    opStreamingSplitDef op2Split2;
-    op1Split1.dim = "L" ;
-    op1Split1.numSplits = 2 ;
-    op1Split2.dim = "M" ;
-    op1Split2.numSplits = 4 ;
-    op1Split3.dim = "J" ;
-    op1Split3.numSplits = 3 ;
-    op2Split1.dim = "N" ;
-    op2Split1.numSplits = 8 ;
-    op2Split2.dim = "P" ;
-    op2Split2.numSplits = 16 ;
-    
     std::vector<opStreamingSplitDef> op1Splits;
     std::vector<opStreamingSplitDef> op2Splits;
-
-    op1Splits.push_back(op1Split1);
-    op1Splits.push_back(op1Split2);
-    op1Splits.push_back(op1Split3);
-    op2Splits.push_back(op2Split1);
-    op2Splits.push_back(op2Split2);
+    opStreamingSplitDef opxSplitx;
+    opxSplitx.axis= "H" ;
+    opxSplitx.numSplits = 2 ;
+    op1Splits.push_back(opxSplitx);
+    opxSplitx.axis = "W" ;
+    opxSplitx.numSplits = 4 ;
+    op1Splits.push_back(opxSplitx);
+    opxSplitx.axis = "H" ;
+    opxSplitx.numSplits = 2 ;
+    op1Splits.push_back(opxSplitx);
+    opxSplitx.axis = "H" ;
+    opxSplitx.numSplits = 2 ;
+    op2Splits.push_back(opxSplitx);
+    opxSplitx.axis = "W" ;
+    opxSplitx.numSplits = 2 ;
+    op2Splits.push_back(opxSplitx);
+    
     thisGraphStrategy.insert(std::pair<std::string, std::vector<opStreamingSplitDef>>("conv0_cmx_",op1Splits));
     thisGraphStrategy.insert(std::pair<std::string, std::vector<opStreamingSplitDef>>("conv1_cmx_",op2Splits));
 }
@@ -287,8 +282,9 @@ mv::Data::TensorIterator solveSpatialTiling(mv::OpModel& om,mv::Data::OpListIter
 
 void generateSpatialTiling(mv::Data::OpListIterator op,Tiling& tiling, std::vector<opStreamingSplitDef> opStrategy, int nesting)
 {
-    std::cout<< "  In generateSpatialTiling, op " << op->getName() << " nesting = " << nesting << std::endl ;
+    std::cout<< "  In generateSpatialTiling, op " << op->getName() << " nesting = " << nesting ;
     auto numberOfSplits = tiling.childTiles().size();
+    std::cout<< " numsplits = " << numberOfSplits << std::endl ;
     auto weightTensor = op->getInputTensor(1);
 
     auto inputShape = tiling.getSize();
@@ -338,8 +334,9 @@ void generateSpatialTiling(mv::Data::OpListIterator op,Tiling& tiling, std::vect
     {
         for( auto& tile : tiling.childTiles())
         {
-            tile.setAxis("W");
-            tile.resizeNumberOfTiles(numberOfSplits);
+//            tile.setAxis("W");
+            tile.setAxis( opStrategy[nesting].axis );
+            tile.resizeNumberOfTiles(opStrategy[nesting].numSplits) ;
             generateSpatialTiling(op,tile,opStrategy,nesting);
         }
     }
