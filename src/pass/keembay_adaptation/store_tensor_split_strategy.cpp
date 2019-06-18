@@ -99,7 +99,8 @@ void storeTensorPlacementFcn(const mv::pass::PassEntry& pass,
 
         if( parentOp->getOpType() == "Input")
         {
-            tensorIt->set<mv::Tensor::MemoryLocation>("Location",mv::Tensor::MemoryLocation("INPUT"));
+            //mark location forced so any adaptation pass will inheret it
+            tensorIt->set<mv::Tensor::MemoryLocation>("Location",mv::Tensor::MemoryLocation("INPUT", true));
             pass.log(mv::Logger::MessageType::Info, "setting tensor " + tensorIt->getName() + " as INPUT");
             continue;
         }
@@ -139,7 +140,10 @@ void storeTensorPlacementFcn(const mv::pass::PassEntry& pass,
             pass.log(mv::Logger::MessageType::Warning,"Found OutputTensor " +
                         tensor->getName() + " description location in JSON. Will override with OUTPUT");
         }
-        tensor->set<mv::Tensor::MemoryLocation>("Location",mv::Tensor::MemoryLocation::OUTPUT);
+        pass.log(mv::Logger::MessageType::Warning,"Found OutputTensor " +
+                        tensor->getName() + " current location is " + tensor->get<mv::Tensor::MemoryLocation>("Location").toString() + " override with OUTPUT");
+        //mark location forced so any adaptation pass will inheret it
+        tensor->set<mv::Tensor::MemoryLocation>("Location",mv::Tensor::MemoryLocation("OUTPUT", true));
     }
 
     //if JSON wants us to override default location for tensors:
