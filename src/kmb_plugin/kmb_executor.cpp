@@ -23,14 +23,11 @@
 #include <utility>
 #include <cstring>
 
-
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <chrono>
 #include <stdio.h>
 #include <unistd.h>
-
-
 
 #include <mvnc.h>
 #include <ie_common.h>
