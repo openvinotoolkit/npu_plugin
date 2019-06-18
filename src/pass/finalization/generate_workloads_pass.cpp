@@ -355,7 +355,7 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                 workloadsVector.at(optimalWorkloadIndex).populateClusterID(clusterNumber);
 
                 /*Apply the SOH offset to the most optimial workload*/
-                workloadsVector.at(optimalWorkloadIndex).populateClusterID(clusterNumber);
+                workloadsVector.at(optimalWorkloadIndex).add_xy_offset(subTensor.getShape());
                 
                 /*Set the most optimal workload as attribute of the op*/
                 opIt->set<mv::Workloads>("Workloads" + std::to_string(clusterNumber), workloadsVector.at(optimalWorkloadIndex));
