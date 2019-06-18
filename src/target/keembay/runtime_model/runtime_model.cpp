@@ -512,8 +512,8 @@ std::unique_ptr<MVCNN::PPETaskT> mv::RuntimeModel::buildPPETaskT()
 {
     std::unique_ptr<MVCNN::PPETaskT> toBuild = std::unique_ptr<MVCNN::PPETaskT>(new MVCNN::PPETaskT());
     toBuild->fixed_function = std::unique_ptr<MVCNN::PPEFixedFunctionT>(new MVCNN::PPEFixedFunctionT());
-    toBuild->fixed_function->Clamp_High = 0;
-    toBuild->fixed_function->Clamp_Low = 0;
+    toBuild->fixed_function->Clamp_High = 2147483647;
+    toBuild->fixed_function->Clamp_Low = -2147483648;
     toBuild->fixed_function->Ops = std::vector<MVCNN::PPELayerType>();
     toBuild->fixed_function->Ops.reserve(3);
 
