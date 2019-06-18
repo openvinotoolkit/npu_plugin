@@ -133,6 +133,9 @@ namespace mv
                                                         mv::Workload& workload, 
                                                         std::pair<std::pair<int16_t, int16_t>,bool>& interesting_point, 
                                                         mv::DPUMode& mpeMode);
+
+        const std::vector<mv::Workload>& add_xy_offset(const Shape& tensorShape);
+        const std::vector<mv::Workload>& populateClusterID(int clusterID);
         std::size_t nWorkloads() const;
         void addWorkload(mv::Workload workload);
         const std::vector<mv::Workload>& getWorkloads() const;

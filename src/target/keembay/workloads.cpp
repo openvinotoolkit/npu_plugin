@@ -1560,3 +1560,23 @@ const std::vector<mv::Workload>& mv::Workloads::overlap_and_clip(std::array<unsi
     }
     return const_cast<std::vector<Workload>&>(workloads_);
 }
+
+const std::vector<mv::Workload>& mv::Workloads::add_xy_offset(const Shape &tensorShape)
+{
+    for (auto workload = workloads_.begin(); workload != workloads_.end(); workload++)
+    {
+        workload->MinY = workload->MinY + tensorShape[IO_HEIGHT_DIMENSION];
+        workload->MinX = workload->MinX + tensorShape[IO_WIDTH_DIMENSION];
+        workload->MaxY = workload->MaxY + tensorShape[IO_HEIGHT_DIMENSION];
+        workload->MaxX = workload->MaxX + tensorShape[IO_WIDTH_DIMENSION];
+    }
+    return const_cast<std::vector<Workload>&>(workloads_);
+}
+
+const std::vector<mv::Workload>& mv::Workloads::populateClusterID(int clusterID)
+{
+    for (auto workload = workloads_.begin(); workload != workloads_.end(); workload++)
+        workload->clusterID = clusterID;
+       
+    return const_cast<std::vector<Workload>&>(workloads_);
+}

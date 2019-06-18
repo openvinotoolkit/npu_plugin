@@ -351,12 +351,12 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
 
                 pass.log(mv::Logger::MessageType::Info, "Selecting workload at index " + std::to_string(optimalWorkloadIndex) + " as the most optimal workload for subtensor number " + std::to_string(clusterNumber));
 
+                /*set the clusterID field of the most optimial workload*/
+                workloadsVector.at(optimalWorkloadIndex).populateClusterID(clusterNumber);
 
-                auto workloads = workloadsVector.at(optimalWorkloadIndex).getWorkloads();
-
-                for(int i = 0; i < workloads.size(); i++) 
-                    workloads[i].clusterID = clusterNumber;
-                    
+                /*Apply the SOH offset to the most optimial workload*/
+                workloadsVector.at(optimalWorkloadIndex).populateClusterID(clusterNumber);
+                
                 /*Set the most optimal workload as attribute of the op*/
                 opIt->set<mv::Workloads>("Workloads" + std::to_string(clusterNumber), workloadsVector.at(optimalWorkloadIndex));
                 opIt->set<bool>("Valid_workload", true);
