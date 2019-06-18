@@ -12,6 +12,7 @@ namespace mv
         std::string projectRootPath();
         std::string mdkRootPath();
         bool fileExists(const std::string& fileName);
+        void validatePath(const std::string& filename);
 
     }
 

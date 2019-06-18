@@ -888,11 +888,14 @@ char * mv::RuntimeModel::serialize(int& bufferSize)
     return buffer;
 }
 
-void mv::RuntimeModel::serialize(const std::string& path)
+void mv::RuntimeModel::serialize(const std::string& filename)
 {
     int bufferSize;
     char * dataBuffer = serialize(bufferSize);
-    flatbuffers::SaveFile(path.c_str(), dataBuffer, bufferSize, true);
+    if (flatbuffers::SaveFile((filename).c_str(), dataBuffer, bufferSize, true))
+        Logger::log(mv::Logger::MessageType::Info, "RuntimeModel", "File successfully written to: " + filename);
+    else 
+        Logger::log(mv::Logger::MessageType::Error, "RuntimeModel", "File was not created. Check configuration");
     delete [] dataBuffer;
 }
 
