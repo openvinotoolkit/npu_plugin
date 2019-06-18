@@ -15,7 +15,7 @@ namespace mv
 {
     namespace pass
     {
-        MV_REGISTER_PASS(streamingTiling)
+        MV_REGISTER_PASS(StreamingTiling)
                 .setFunc(streamingTilingFcn)
                 .setDescription(
                         "splits only over H for DDR streaming");
@@ -101,6 +101,44 @@ std::map<std::string, std::function<mv::Data::TensorIterator(mv::OpModel&,mv::Da
     {"C",solveChannelTiling} //TBD: for other operations that conv.
 };
 
+struct opStreamingSplitDef
+{
+    std::string dim ;
+    size_t numSplits ;
+};
+
+static void setStreamingStrategy(mv::ComputationModel& model,std::map<std::string, std::vector<opStreamingSplitDef>>& thisGraphStrategy)
+{
+    mv::OpModel om(model);
+    mv::ControlModel cm(model);
+
+    opStreamingSplitDef op1Split1;
+    opStreamingSplitDef op1Split2;
+    opStreamingSplitDef op1Split3;
+    opStreamingSplitDef op2Split1;
+    opStreamingSplitDef op2Split2;
+    op1Split1.dim = "L" ;
+    op1Split1.numSplits = 2 ;
+    op1Split2.dim = "M" ;
+    op1Split2.numSplits = 4 ;
+    op1Split3.dim = "J" ;
+    op1Split3.numSplits = 3 ;
+    op2Split1.dim = "N" ;
+    op2Split1.numSplits = 8 ;
+    op2Split2.dim = "P" ;
+    op2Split2.numSplits = 16 ;
+    
+    std::vector<opStreamingSplitDef> op1Splits;
+    std::vector<opStreamingSplitDef> op2Splits;
+
+    op1Splits.push_back(op1Split1);
+    op1Splits.push_back(op1Split2);
+    op1Splits.push_back(op1Split3);
+    op2Splits.push_back(op2Split1);
+    op2Splits.push_back(op2Split2);
+    thisGraphStrategy.insert(std::pair<std::string, std::vector<opStreamingSplitDef>>("conv0_cmx_",op1Splits));
+    thisGraphStrategy.insert(std::pair<std::string, std::vector<opStreamingSplitDef>>("conv1_cmx_",op2Splits));
+}
 
 mv::Data::TensorIterator solveChannelTiling(mv::OpModel& om,mv::Data::OpListIterator op,Tiling& tiling)
 {
@@ -247,8 +285,9 @@ mv::Data::TensorIterator solveSpatialTiling(mv::OpModel& om,mv::Data::OpListIter
     return concat;
 }
 
-void generateSpatialTiling(mv::Data::OpListIterator op,Tiling& tiling)
+void generateSpatialTiling(mv::Data::OpListIterator op,Tiling& tiling, std::vector<opStreamingSplitDef> opStrategy, int nesting)
 {
+    std::cout<< "  In generateSpatialTiling, op " << op->getName() << " nesting = " << nesting << std::endl ;
     auto numberOfSplits = tiling.childTiles().size();
     auto weightTensor = op->getInputTensor(1);
 
@@ -291,8 +330,19 @@ void generateSpatialTiling(mv::Data::OpListIterator op,Tiling& tiling)
 
         Tiling newTile(tileStart,tileSize);
         tiling.setChildTile(newTile,split);
-    }
 
+    }
+    
+    nesting++;
+    if (nesting<opStrategy.size() )
+    {
+        for( auto& tile : tiling.childTiles())
+        {
+            tile.setAxis("W");
+            tile.resizeNumberOfTiles(numberOfSplits);
+            generateSpatialTiling(op,tile,opStrategy,nesting);
+        }
+    }
 }
 
 void streamingTilingFcn(const mv::pass::PassEntry& pass,
@@ -305,10 +355,25 @@ void streamingTilingFcn(const mv::pass::PassEntry& pass,
     mv::ControlModel cm(model);
     mv::DataModel dm(model);
 
+    std::map<std::string, std::vector<opStreamingSplitDef>> thisGraphStrategy;
+    setStreamingStrategy(model, thisGraphStrategy);
+    std::vector<opStreamingSplitDef> thisOpStrategy;
+
     std::cout<< "SPATIAL_STREAMING PASS: entered" << std::endl ;
     for(auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt)
     {
-//        std::cout<< "splitDoing " << opIt->getName() << std::endl;
+        std::string masterOpName = opIt->getName();
+        std::cout<< "  checking " << masterOpName << std::endl;
+        if (thisGraphStrategy.count(masterOpName)<1)
+        {
+            std::cout<< "  no streaming strategy for " << masterOpName << std::endl;
+        }
+        else
+        {
+            thisOpStrategy = thisGraphStrategy[masterOpName];
+            std::cout<< "  streaming nesting depth is " << thisOpStrategy.size() << std::endl;
+        }
+        
         std::string opType = opIt->getOpType();
         if( opType=="Conv" && !opIt->hasAttr("splitted"))
         {
@@ -325,15 +390,15 @@ void streamingTilingFcn(const mv::pass::PassEntry& pass,
             auto masterSize = opIt->getInputTensor(0)->getShape();
 
             Tiling masterTile(startingCorner,masterSize,"H",numberOfSplits);
-            generateSpatialTiling(opIt,masterTile);
-
+            generateSpatialTiling(opIt,masterTile,thisOpStrategy,0);
+/*
             for( auto& tile : masterTile.childTiles())
             {
                 tile.setAxis("W");
                 tile.resizeNumberOfTiles(numberOfSplits);
                 generateSpatialTiling(opIt,tile);
             }
-
+*/
             auto sourceTensor = opIt->getInputTensor(0);
             auto parentOpIt = om.getSourceOp(sourceTensor);
 

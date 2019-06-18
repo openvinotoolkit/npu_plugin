@@ -83,7 +83,7 @@
             "FuseBias",
             "FuseRelu",
             "FuseScale",
-            "streamingTiling",
+            "StreamingTiling",
             {
                 "name": "GenerateDot",
                 "output": "adapt_model.dot",
