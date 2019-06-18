@@ -45,8 +45,11 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
     while (opIt != om.opEnd())
     {
         std::string opType = opIt->getOpType();
+
         if (opType == "Conv" || opType == "DepthwiseConv")
         {
+            auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
+
             auto input = opIt->getInputTensor(0);
             auto kernel = opIt->getInputTensor(1);
             auto opId = opIt->get<unsigned>("opId");
@@ -110,11 +113,13 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
                     dpuConvOp->set<std::string>("taskOp", "ChannelMajorConvolution");
                 }
             }
-
+            dpuConv->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
             setOutputDataFlow(om, dpuConv, outputDataFlows);
         }
         else if (opType == "MaxPool")
         {
+            auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
+
             auto input = opIt->getInputTensor(0);
             auto opId = opIt->get<unsigned>("opId");
 
@@ -142,11 +147,13 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
 
             if(!splitStrategy.empty())
                dpuPoolOp->set<std::string>("splitStrategy", splitStrategy);
-
+            dpuPool->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
             setOutputDataFlow(om, dpuPool, outputDataFlows);
         }
         else if (opType == "Add" || opType == "Subtract" || opType == "Multiply")
         {
+            auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
+
             auto input1 = opIt->getInputTensor(0);
             auto input2 = opIt->getInputTensor(1);
             std::vector<mv::Data::TensorIterator> inputs;
@@ -182,6 +189,7 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             if(!splitStrategy.empty())
                dpuElementWiseOp->set<std::string>("splitStrategy", splitStrategy);
 
+            dpuElementWiseOp->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
             mv::setOutputDataFlow(om, dpuElementWise, outputDataFlows);
         }
         //TODO: Fully connected
