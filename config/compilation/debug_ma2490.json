@@ -236,6 +236,7 @@
                 "name": "TransitiveReduction",
                 "filter": "PositiveMemory"
             },
+            "MarkLastNodeForMaxTopologicalCut",
             {
                 "name": "GenerateDot",
                 "output": "TransitiveReductionBeforeMaxCut.dot",

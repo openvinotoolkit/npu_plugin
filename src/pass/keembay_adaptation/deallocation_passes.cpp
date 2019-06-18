@@ -119,7 +119,7 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
             auto chosenOpData = *chosenOp;
             for(auto son = chosenOpData.leftmostChild(); son != om.opEnd(); ++son)
             {
-                if(!son->hasTypeTrait("executable"))
+                if(!son->hasTypeTrait("executable") && son->getOpType() != "Output")
                 {
                     // Concat is brutally skipped - No need to check in control model
                     // since there will NEVER BE a control flow connected to a concat
@@ -134,9 +134,8 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
                 else if(!cm.checkControlFlow(deallocateInputOp, son))
                 {
                     if(son->getOpType() != "Deallocate")
-                    {
                         cm.defineFlow(deallocateInputOp, son);
-                    }
+
                 }
             }
 
@@ -148,9 +147,7 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
                 if(!cm.checkControlFlow(deallocateInputOpControl, son))
                 {
                     if(son->getOpType() != "Deallocate")
-                    {
                         cm.defineFlow(deallocateInputOpControl, son);
-                    }
                 }
             }
 
