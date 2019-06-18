@@ -107,11 +107,48 @@ struct opStreamingSplitDef
     size_t numSplits ;
 };
 
-static void setStreamingStrategy(mv::ComputationModel& model,std::map<std::string, std::vector<opStreamingSplitDef>>& thisGraphStrategy)
+static void setStreamingStrategy(const mv::pass::PassEntry& pass, mv::ComputationModel& model,std::map<std::string, std::vector<opStreamingSplitDef>>& thisGraphStrategy)
 {
     mv::OpModel om(model);
     mv::ControlModel cm(model);
 
+    // get ops to split and number of splits from descriptor
+    auto globalParams = model.getGlobalConfigParams();
+    if (!globalParams->hasAttr("streaming_strategy"))
+    {
+        std::cout << "STREAMING PASS EXITING: no strategy defined in JSON" << std::endl;
+        pass.log(mv::Logger::MessageType::Info, "No custom streaming strategy provided");
+        return;
+    }
+    auto strategyList = globalParams->get<std::vector<mv::Element>>("streaming_strategy");
+
+    // each s refers to the name of an op, from the JSON strategy list
+    for (auto s: strategyList)
+    {
+        std::vector<opStreamingSplitDef> opxSplits;
+
+        std::string nodeName = s.get<std::string>("name_filter") ;
+        auto splitList = s.get<std::vector<mv::Element>>("splits");
+        for (int i=0; i<splitList.size(); i++)
+        {
+            if (splitList[i].hasAttr("H"))
+            {
+                opStreamingSplitDef opxSplitx;
+                opxSplitx.axis= "H";
+                opxSplitx.numSplits= splitList[i].get<int>("H");
+                opxSplits.push_back(opxSplitx);
+            }
+            else if (splitList[i].hasAttr("W"))
+            {
+                opStreamingSplitDef opxSplitx;
+                opxSplitx.axis= "W";
+                opxSplitx.numSplits= splitList[i].get<int>("W");
+                opxSplits.push_back(opxSplitx);
+            }
+        }
+        thisGraphStrategy.insert(std::pair<std::string, std::vector<opStreamingSplitDef>>(nodeName,opxSplits));
+    }
+/*
     std::vector<opStreamingSplitDef> op1Splits;
     std::vector<opStreamingSplitDef> op2Splits;
     opStreamingSplitDef opxSplitx;
@@ -133,6 +170,8 @@ static void setStreamingStrategy(mv::ComputationModel& model,std::map<std::strin
     
     thisGraphStrategy.insert(std::pair<std::string, std::vector<opStreamingSplitDef>>("conv0_cmx_",op1Splits));
     thisGraphStrategy.insert(std::pair<std::string, std::vector<opStreamingSplitDef>>("conv1_cmx_",op2Splits));
+*/
+
 }
 
 mv::Data::TensorIterator solveChannelTiling(mv::OpModel& om,mv::Data::OpListIterator op,Tiling& tiling)
@@ -252,7 +291,6 @@ mv::Data::TensorIterator solveSpatialTiling(mv::OpModel& om,mv::Data::OpListIter
         convs[split]->set<mv::Tensor::MemoryLocation>("Location",outputLocation);
     }
 
-
     for(unsigned split = 0; split < number_of_spltis; split++)
     {
         mv::Data::TensorIterator out;
@@ -353,7 +391,7 @@ void streamingTilingFcn(const mv::pass::PassEntry& pass,
     mv::DataModel dm(model);
 
     std::map<std::string, std::vector<opStreamingSplitDef>> thisGraphStrategy;
-    setStreamingStrategy(model, thisGraphStrategy);
+    setStreamingStrategy(pass, model, thisGraphStrategy);
     std::vector<opStreamingSplitDef> thisOpStrategy;
 
     std::cout<< "SPATIAL_STREAMING PASS: entered" << std::endl ;
@@ -381,21 +419,15 @@ void streamingTilingFcn(const mv::pass::PassEntry& pass,
             //TODO:: check with POC if the schedule accounts for the overlaps and inputStrides
             //TODO:: also consider dilation factor
 
-            int numberOfSplits = 2;
+            int numberOfSplits = thisOpStrategy[0].numSplits ;
+            std::string axisToSplit = thisOpStrategy[0].axis ;
 
             mv::Shape startingCorner( {0,0,0,0});
             auto masterSize = opIt->getInputTensor(0)->getShape();
 
-            Tiling masterTile(startingCorner,masterSize,"H",numberOfSplits);
+            Tiling masterTile(startingCorner,masterSize,axisToSplit,numberOfSplits);
             generateSpatialTiling(opIt,masterTile,thisOpStrategy,0);
-/*
-            for( auto& tile : masterTile.childTiles())
-            {
-                tile.setAxis("W");
-                tile.resizeNumberOfTiles(numberOfSplits);
-                generateSpatialTiling(opIt,tile);
-            }
-*/
+
             auto sourceTensor = opIt->getInputTensor(0);
             auto parentOpIt = om.getSourceOp(sourceTensor);
 
@@ -405,7 +437,7 @@ void streamingTilingFcn(const mv::pass::PassEntry& pass,
             // auto result = solveSpatialTiling(om,opIt,masterTile);
             auto result = (streamSplit[masterTile.getAxis()])(om,opIt,masterTile);
 
-            // Important: do not change the order of this ops
+            // reconnect children to subgraph
             std::vector<mv::Data::OpListIterator> opsToLink;
             std::vector<std::size_t> inputSlots;
             for (mv::Data::FlowSiblingIterator sinkFlow(opIt.leftmostOutput()); sinkFlow != om.flowEnd(); ++sinkFlow)
