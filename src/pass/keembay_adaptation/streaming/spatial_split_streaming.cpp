@@ -32,27 +32,27 @@ private:
 
 public:
 
-    Tiling() :start_({0,0,0,0}),size_({0,0,0,0}),axis_(""),childTiles_(0) {};
-    Tiling( mv::Shape& start,mv::Shape& size)
-            : start_(start),size_(size),axis_(""),childTiles_(0)
+    Tiling() :start_({0,0,0,0}), size_({0,0,0,0}), axis_(""), childTiles_(0) {};
+    Tiling( mv::Shape& start, mv::Shape& size)
+            : start_(start), size_(size), axis_(""), childTiles_(0)
     {
     };
 
-    Tiling( std::string& axis,std::size_t tiles)
-            : start_({0,0,0,0}),size_({0,0,0,0}),axis_(axis),childTiles_(tiles)
+    Tiling( std::string& axis, std::size_t tiles)
+            : start_({0,0,0,0}), size_({0,0,0,0}), axis_(axis), childTiles_(tiles)
     {
 
     }
-    Tiling( mv::Shape& start,mv::Shape& size, std::string axis,std::size_t childTiles)
-            : start_(start),size_(size),axis_(axis),childTiles_(childTiles)
+    Tiling( mv::Shape& start, mv::Shape& size, std::string axis, std::size_t childTiles)
+            : start_(start), size_(size), axis_(axis), childTiles_(childTiles)
     {
     }
 
     Tiling& operator=(const Tiling& other)
     {
-        start_=other.start_;
-        size_ =other.size_;
-        axis_ =other.axis_;
+        start_= other.start_;
+        size_ = other.size_;
+        axis_ = other.axis_;
         childTiles_ = other.childTiles_;
         return *this;
     }
@@ -67,20 +67,20 @@ public:
     void setSize(mv::Shape size) { size_ = size; };
 
     std::vector<Tiling>& childTiles() { return childTiles_; };
-    void setChildTile( Tiling& tile,unsigned index ) { childTiles_[index] = tile; };
+    void setChildTile(Tiling& tile, unsigned index) { childTiles_[index] = tile; };
 
     void resizeNumberOfTiles(std::size_t children) { childTiles_.resize(children); } ;
 
     //TODO::build proper stream out of this
     void printOut(unsigned depth) const
     {
-        for(unsigned tab =0; tab<depth; tab++)
+        for (unsigned tab = 0; tab < depth; tab++)
             std::cout<<"\t";
         std::cout << "Master : " << size_.toString()  << std::endl;
 
-        for(unsigned tab =0; tab<depth; tab++)
+        for (unsigned tab = 0; tab < depth; tab++)
             std::cout<<"\t";
-        for( auto& tile : childTiles_)
+        for (auto& tile : childTiles_)
         {
             std::cout << "\tChild: ";
             tile.printOut(depth+1);\
@@ -88,13 +88,13 @@ public:
     };
 };
 
-mv::Data::TensorIterator solveChannelTiling(mv::OpModel& om,mv::Data::OpListIterator op,Tiling& tiling);
-mv::Data::TensorIterator solveSpatialTiling(mv::OpModel& om,mv::Data::OpListIterator op,Tiling& tiling);
+mv::Data::TensorIterator solveChannelTiling(mv::OpModel& om, mv::Data::OpListIterator op, Tiling& tiling);
+mv::Data::TensorIterator solveSpatialTiling(mv::OpModel& om, mv::Data::OpListIterator op, Tiling& tiling);
 
-std::function<mv::Data::TensorIterator(mv::OpModel&,mv::Data::OpListIterator,Tiling&)> convSpatialTiling = solveSpatialTiling;
-std::function<mv::Data::TensorIterator(mv::OpModel&,mv::Data::OpListIterator,Tiling&)> convOutChannelTiling = solveChannelTiling;
+std::function<mv::Data::TensorIterator(mv::OpModel&, mv::Data::OpListIterator, Tiling&)> convSpatialTiling = solveSpatialTiling;
+std::function<mv::Data::TensorIterator(mv::OpModel&, mv::Data::OpListIterator, Tiling&)> convOutChannelTiling = solveChannelTiling;
 
-std::map<std::string, std::function<mv::Data::TensorIterator(mv::OpModel&,mv::Data::OpListIterator,Tiling&)>> streamSplit =
+std::map<std::string, std::function<mv::Data::TensorIterator(mv::OpModel&, mv::Data::OpListIterator, Tiling&)>> streamSplit =
 {
     {"W",solveSpatialTiling},
     {"H",solveSpatialTiling},
@@ -102,13 +102,13 @@ std::map<std::string, std::function<mv::Data::TensorIterator(mv::OpModel&,mv::Da
 };
 
 
-mv::Data::TensorIterator solveChannelTiling(mv::OpModel& om,mv::Data::OpListIterator op,Tiling& tiling)
+mv::Data::TensorIterator solveChannelTiling(mv::OpModel& om, mv::Data::OpListIterator op, Tiling& tiling)
 {
     //TODO:: write the function
     return op->getOutputTensor(0);
 }
 
-mv::Data::TensorIterator solveSpatialTiling(mv::OpModel& om,mv::Data::OpListIterator op,Tiling& tiling)
+mv::Data::TensorIterator solveSpatialTiling(mv::OpModel& om, mv::Data::OpListIterator op, Tiling& tiling)
 {
     //solve SOW/H location
     //TODO:: stop hardcoding index....
@@ -135,14 +135,14 @@ mv::Data::TensorIterator solveSpatialTiling(mv::OpModel& om,mv::Data::OpListIter
     auto endPad = padding;
     auto currentPad = padding;
 
-    std::array<unsigned short,4> middle_pad = {0,0,0,0};
+    std::array<unsigned short, 4> middle_pad = {0,0,0,0};
 
-    if(axisToSplit == mv::Shape::getAxis("W"))
+    if (axisToSplit == mv::Shape::getAxis("W"))
     {
         startPad[1] = 0;
         endPad[0] = 0;
     }
-    else if(axisToSplit == mv::Shape::getAxis("H"))
+    else if (axisToSplit == mv::Shape::getAxis("H"))
     {
         startPad[3] = 0;
         endPad[2] = 0;
@@ -157,9 +157,9 @@ mv::Data::TensorIterator solveSpatialTiling(mv::OpModel& om,mv::Data::OpListIter
                                 op->get<mv::QuantizationParams>("quantParams"),
                                 op->getName() + "_slice_" + std::to_string(split));
 
-        if(split == 0)
+        if (split == 0)
             currentPad = startPad;
-        else if(split == (number_of_spltis -1))
+        else if (split == (number_of_spltis -1))
             currentPad = endPad;
         else
             currentPad = middle_pad;
@@ -175,8 +175,8 @@ mv::Data::TensorIterator solveSpatialTiling(mv::OpModel& om,mv::Data::OpListIter
 
         auto newOp = om.getSourceOp(conv);
 
-        newOp->set<bool>("splitted",true);//TODO::temporary hack. To remove once the iteration conditions are updated
-        newOp->set<unsigned>("opId",op->get<unsigned>("opId"));
+        newOp->set<bool>("splitted", true);//TODO::temporary hack. To remove once the iteration conditions are updated
+        newOp->set<unsigned>("opId", op->get<unsigned>("opId"));
 
         slices[split] = slice;
         convs[split] = conv;
@@ -190,11 +190,11 @@ mv::Data::TensorIterator solveSpatialTiling(mv::OpModel& om,mv::Data::OpListIter
     // the respective schedule inside the graph.
     // If we are not the last split, we will basically, inherit the location our parent inputTensor;
 
-    for(unsigned split = 0 ; split < number_of_spltis; split++)
+    for (unsigned split = 0 ; split < number_of_spltis; split++)
     {
         mv::Tensor::MemoryLocation inputLocation;
         mv::Tensor::MemoryLocation outputLocation;
-        if(childTiles[split].childTiles().size() > 1)
+        if (childTiles[split].childTiles().size() > 1)
         {
             //has chidren. Inherit
             inputLocation.relocate(inputTensor->get<mv::Tensor::MemoryLocation>("Location"));
@@ -215,20 +215,20 @@ mv::Data::TensorIterator solveSpatialTiling(mv::OpModel& om,mv::Data::OpListIter
             // std::cout << "No more children deciding " << slices[split]->getName() << " to " << inputLocation.toString() << std::endl;
             // std::cout << "No more children deciding " << convs[split]->getName() << " to " << outputLocation.toString() << std::endl;
         }
-        slices[split]->set<mv::Tensor::MemoryLocation>("Location",inputLocation);
-        convs[split]->set<mv::Tensor::MemoryLocation>("Location",outputLocation);
+        slices[split]->set<mv::Tensor::MemoryLocation>("Location", inputLocation);
+        convs[split]->set<mv::Tensor::MemoryLocation>("Location", outputLocation);
     }
 
 
-    for(unsigned split = 0; split < number_of_spltis; split++)
+    for (unsigned split = 0; split < number_of_spltis; split++)
     {
         mv::Data::TensorIterator out;
-        if(childTiles[split].childTiles().size() > 1)
+        if (childTiles[split].childTiles().size() > 1)
         {
             // std::cout << "recurs doing " << convs[split]->getName() << std::endl;
             // out = solveSpatialTiling(om,om.getSourceOp(convs[split]),childTiles[split]);
-            out = (streamSplit[childTiles[split].getAxis()])(om,om.getSourceOp(convs[split]),childTiles[split]);
-            om.removeOp( om.getSourceOp(convs[split]));
+            out = (streamSplit[childTiles[split].getAxis()])(om, om.getSourceOp(convs[split]), childTiles[split]);
+            om.removeOp(om.getSourceOp(convs[split]));
         }
         else
         {
@@ -242,12 +242,12 @@ mv::Data::TensorIterator solveSpatialTiling(mv::OpModel& om,mv::Data::OpListIter
                     op->get<mv::QuantizationParams>("quantParams"),
                     op->getName() + "_concat_");
 
-    concat->set<mv::Tensor::MemoryLocation>("Location",outputTensor->get<mv::Tensor::MemoryLocation>("Location"));
+    concat->set<mv::Tensor::MemoryLocation>("Location", outputTensor->get<mv::Tensor::MemoryLocation>("Location"));
 
     return concat;
 }
 
-void generateSpatialTiling(mv::Data::OpListIterator op,Tiling& tiling)
+void generateSpatialTiling(mv::Data::OpListIterator op, Tiling& tiling)
 {
     auto numberOfSplits = tiling.childTiles().size();
     auto weightTensor = op->getInputTensor(1);
@@ -257,10 +257,10 @@ void generateSpatialTiling(mv::Data::OpListIterator op,Tiling& tiling)
 
     auto axisToSplit =  mv::Shape::getAxis(tiling.getAxis());
     int newSize = ceil( ((double)inputShape[axisToSplit]) / ((double)numberOfSplits));
-    int remainderSize = inputShape[axisToSplit] - (newSize*(numberOfSplits -1));
+    int remainderSize = inputShape[axisToSplit] - (newSize * (numberOfSplits -1));
 
     //todo:: check for original weights not the aligned one
-    auto kernelDin = ( axisToSplit == mv::Shape::getAxis("W")) ? mv::KERNEL_WIDTH : mv::KERNEL_HEIGHT;
+    auto kernelDin = (axisToSplit == mv::Shape::getAxis("W")) ? mv::KERNEL_WIDTH : mv::KERNEL_HEIGHT;
     auto kernelSize = weightsShape[kernelDin];
     unsigned kernelStep = kernelSize / 2; //TODO:: Check with HW and also with Dilation
 
@@ -270,27 +270,27 @@ void generateSpatialTiling(mv::Data::OpListIterator op,Tiling& tiling)
 
     unsigned startCoord = 0;
 
-    for(auto split = 0; split < numberOfSplits; split++)
+    for (auto split = 0; split < numberOfSplits; split++)
     {
         mv::Shape tileStart({0,0,0,0});
         mv::Shape tileSize = inputShape;
 
         tileStart[axisToSplit] = startCoord;
 
-        if(split == 0)
+        if (split == 0)
             startCoord += (newSize - kernelStep);
         else
             startCoord += kernelStep;
 
-        if(split == 0)
+        if (split == 0)
             tileSize[axisToSplit] = (newSize + kernelStep);
-        else if( split == (numberOfSplits-1) )
+        else if (split == (numberOfSplits-1))
             tileSize[axisToSplit] = (remainderSize + kernelStep);
         else
             tileSize[axisToSplit] = newSize + (2 * kernelStep);
 
-        Tiling newTile(tileStart,tileSize);
-        tiling.setChildTile(newTile,split);
+        Tiling newTile(tileStart, tileSize);
+        tiling.setChildTile(newTile, split);
     }
 
 }
@@ -305,12 +305,12 @@ void streamingTilingFcn(const mv::pass::PassEntry& pass,
     mv::ControlModel cm(model);
     mv::DataModel dm(model);
 
-    std::cout<< "SPATIAL_STREAMING PASS: entered" << std::endl ;
-    for(auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt)
+    std::cout<< "SPATIAL_STREAMING PASS: entered" << std::endl;
+    for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt)
     {
 //        std::cout<< "splitDoing " << opIt->getName() << std::endl;
         std::string opType = opIt->getOpType();
-        if( opType=="Conv" && !opIt->hasAttr("splitted"))
+        if (opType == "Conv" && !opIt->hasAttr("splitted"))
         {
             //TODO:: get this as param or something!
             //the startingTile is the "big tensor". (currently any conv will be split based on one JSON specifier)
@@ -321,17 +321,17 @@ void streamingTilingFcn(const mv::pass::PassEntry& pass,
 
             int numberOfSplits = 2;
 
-            mv::Shape startingCorner( {0,0,0,0});
+            mv::Shape startingCorner({0,0,0,0});
             auto masterSize = opIt->getInputTensor(0)->getShape();
 
-            Tiling masterTile(startingCorner,masterSize,"H",numberOfSplits);
-            generateSpatialTiling(opIt,masterTile);
+            Tiling masterTile(startingCorner,masterSize, "H", numberOfSplits);
+            generateSpatialTiling(opIt, masterTile);
 
-            for( auto& tile : masterTile.childTiles())
+            for (auto& tile : masterTile.childTiles())
             {
                 tile.setAxis("W");
                 tile.resizeNumberOfTiles(numberOfSplits);
-                generateSpatialTiling(opIt,tile);
+                generateSpatialTiling(opIt, tile);
             }
 
             auto sourceTensor = opIt->getInputTensor(0);
@@ -341,7 +341,7 @@ void streamingTilingFcn(const mv::pass::PassEntry& pass,
 
 
             // auto result = solveSpatialTiling(om,opIt,masterTile);
-            auto result = (streamSplit[masterTile.getAxis()])(om,opIt,masterTile);
+            auto result = (streamSplit[masterTile.getAxis()])(om, opIt, masterTile);
 
             // Important: do not change the order of this ops
             std::vector<mv::Data::OpListIterator> opsToLink;
