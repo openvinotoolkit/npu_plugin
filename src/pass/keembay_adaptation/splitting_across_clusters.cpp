@@ -10,11 +10,18 @@
 #include "include/mcm/target/keembay/rectangle.hpp"
 
 #define UNUSED(expr) do {(void)(expr);} while (0)
-static const mv::DPUModeList TENSOR_MPE = {{1,1}};
 
+static const std::vector<mv::DPUModeList> TENSOR_MPE {{{1,1}}, {{16,1}}, {{1,16}}};
 
-static void splittingAcrossClusters(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
-static void subTensorsGen(const std::vector<mv::Data::TensorIterator> &tensors, const int nClusters, const mv::pass::PassEntry& pass);
+static void splittingAcrossClusters(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&,
+                                    mv::Element&, mv::json::Object&);
+static void subTensorsGen(mv::ComputationModel& model, const std::vector<mv::Data::TensorIterator> &tensors, const int nClusters,
+                          const mv::pass::PassEntry& pass);
+static void unpopulatedSplitOverH(const int nWorkloads, std::vector<mv::Workload> &subTensors, mv::Workloads &Tensor,
+                                  const mv::pass::PassEntry& pass, int &success);
+static void populatedSplitOverH(const int nClusters, std::vector<mv::Workload> &subTensors, mv::Workloads& Tensor,
+                                const mv::pass::PassEntry& pass, int &success);
+static std::vector<mv::Data::OpListIterator> findSinkLayers(mv::DataModel &dataModel, const mv::Data::TensorIterator& tensor);
 
 namespace mv
 {
@@ -28,7 +35,8 @@ namespace mv
     }
 }
 
-void splittingAcrossClusters(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+void splittingAcrossClusters(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&,
+                             mv::json::Object&)
 {
     mv::OpModel om(model);
     std::vector <mv::Data::TensorIterator> tensors;
@@ -51,40 +59,94 @@ void splittingAcrossClusters(const mv::pass::PassEntry& pass, mv::ComputationMod
         }
      }
 
-    subTensorsGen(tensors, numClusters, pass);
+    subTensorsGen(model, tensors, numClusters, pass);
     return;
 }
 
-void subTensorsGen(const std::vector <mv::Data::TensorIterator>& tensors, const int nClusters, const mv::pass::PassEntry& pass)
+void subTensorsGen(mv::ComputationModel& model, const std::vector <mv::Data::TensorIterator>& tensors, const int nClusters,
+                   const mv::pass::PassEntry& pass)
 {
+    mv::DataModel dm(model);
     for (auto tensor = tensors.begin(); tensor != tensors.end(); ++tensor)
     {
+        int success;
+        UNUSED(success);
+        int nWorkloads = 0;
+        mv::Workloads Tensor((*tensor)->getName(), (*tensor)->getShape());
+        std::vector<mv::Workload> subTensors;
         if ((*tensor)->get<std::string>("splitStrategy") == "SplitOverH")
         {
-            mv::Workloads Tensor((*tensor)->getName(), (*tensor)->getShape());
-            int success;
-            UNUSED(success);
-            std::vector<mv::Workload> subTensors;
+            if(!(*tensor)->isPopulated())
+                unpopulatedSplitOverH(nClusters, subTensors, Tensor, pass, success);
+            else
+                populatedSplitOverH(nClusters, subTensors, Tensor, pass, success);
+            (*tensor)->splitAcrossClusters(subTensors, true, false);
+        }
+        else if ((*tensor)->get<std::string>("splitStrategy") == "SplitOverK")
+        {
+         //Split overK needs tesing in rectangular heuristic
+            if(!(*tensor)->isPopulated())
+                success = Tensor.partitionTensorWithRectangleHeuristic(TENSOR_MPE[2], nWorkloads, false, true, true,
+                        mv::WorkloadSplitMode::HW, pass);
+            else
+                success = Tensor.partitionTensorWithRectangleHeuristic(TENSOR_MPE[1], nWorkloads, true, false, true,
+                        mv::WorkloadSplitMode::HW, pass);
+            subTensors = Tensor.getWorkloads();
+            (*tensor)->splitAcrossClusters(subTensors, false, false);
+        }
+        else if ((*tensor)->get<std::string>("splitStrategy") == "SplitOverHOverlapped")
+        {
             if(!(*tensor)->isPopulated())
             {
-                int nWorkloads = nClusters;
-                success = Tensor.partitionTensorWithRectangleHeuristic(TENSOR_MPE, nWorkloads, true, false, true, mv::WorkloadSplitMode::HW, pass);
-                subTensors = Tensor.getWorkloads();
+                unpopulatedSplitOverH(nClusters, subTensors, Tensor, pass, success);
+                std::vector<mv::Data::OpListIterator> sinkOperators = findSinkLayers(dm, *tensor);
+                //The sink ops should have the same padding
+                std::array <unsigned short, 4> padding = {0, 0, sinkOperators[0]->get<std::array<unsigned short, 4>>("padding")[2],
+                                                       sinkOperators[0]->get<std::array<unsigned short, 4>>("padding")[3]};
+                //Rectangular Heuristc: The workload has only one rectangle in its list, itself
+                subTensors = Tensor.overlap_and_clip(padding, (*tensor)->getShape());
             }
             else
-            {
-                success = Tensor.partitionTensorWithRectangleHeuristic(TENSOR_MPE, 1, true, false, true, mv::WorkloadSplitMode::HW, pass);
-                subTensors = Tensor.getWorkloads();
-                std::vector<mv::Workload> newSubTensors;
-                for (int i = 0; i < nClusters; i++)
-                {
-                    for (unsigned int j =0; j < subTensors.size(); j++)
-                        newSubTensors.push_back(subTensors[j]);
-                }
-                subTensors = newSubTensors;
-            }
+                populatedSplitOverH(nClusters, subTensors, Tensor, pass, success);
             (*tensor)->splitAcrossClusters(subTensors, true, false);
         }
     }
     return;
+}
+
+static void unpopulatedSplitOverH(const int nWorkloads, std::vector<mv::Workload> &subTensors, mv::Workloads& Tensor,
+                                  const mv::pass::PassEntry& pass, int &success)
+{
+    success = Tensor.partitionTensorWithRectangleHeuristic(TENSOR_MPE[0], nWorkloads, true, false, true,
+            mv::WorkloadSplitMode::HW, pass);
+    subTensors = Tensor.getWorkloads();
+    return;
+}
+
+static void populatedSplitOverH(const int nClusters, std::vector<mv::Workload> &subTensors, mv::Workloads& Tensor,
+                                          const mv::pass::PassEntry& pass, int &success)
+{
+    success = Tensor.partitionTensorWithRectangleHeuristic(TENSOR_MPE[0], 1, true, false, true,
+            mv::WorkloadSplitMode::HW, pass);
+    subTensors = Tensor.getWorkloads();
+    std::vector<mv::Workload> newSubTensors;
+    for (int i = 0; i < nClusters; i++)
+    {
+        for (unsigned int j =0; j < subTensors.size(); j++)
+            newSubTensors.push_back(subTensors[j]);
+    }
+    subTensors = newSubTensors;
+    return;
+}
+
+static std::vector<mv::Data::OpListIterator> findSinkLayers(mv::DataModel &dataModel, const mv::Data::TensorIterator &tensor)
+{
+    std::vector<mv::Data::OpListIterator> sinkOperations;
+    auto flowsNames = (tensor)->get<std::set<std::string>>("flows");
+    for(auto flowName : flowsNames)
+    {
+        auto df = dataModel.getDataFlow(flowName);
+        sinkOperations.push_back(df.sink());
+    }
+    return sinkOperations;
 }

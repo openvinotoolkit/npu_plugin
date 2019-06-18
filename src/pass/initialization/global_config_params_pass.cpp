@@ -23,4 +23,22 @@ static void GlobalConfigParamsFcn(const mv::pass::PassEntry& pass, mv::Computati
 {
     //set the global params to be this pass's compilation descriptor element
     model.setGlobalConfigParams(compilationDescriptor);
+
+    if (compilationDescriptor.hasAttr("verbose"))
+    {
+        auto verboseSetting = compilationDescriptor.get<std::string>("verbose");
+        if (verboseSetting == "Error")
+            mv::Logger::setVerboseLevel(mv::VerboseLevel::Error);
+        else if (verboseSetting == "Warning")
+            mv::Logger::setVerboseLevel(mv::VerboseLevel::Warning);
+        else if (verboseSetting == "Info")
+            mv::Logger::setVerboseLevel(mv::VerboseLevel::Info);
+        else if (verboseSetting == "Debug")
+            mv::Logger::setVerboseLevel(mv::VerboseLevel::Debug);
+        else
+            throw mv::ArgumentError(pass, "CompilationDescriptor:GlobalConfigParams:verbose",
+                verboseSetting, "Illegal value, legal values - Error, Warning, Info, Debug");
+                
+    }
+
 }

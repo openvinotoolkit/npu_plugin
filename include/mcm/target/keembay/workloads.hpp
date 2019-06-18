@@ -160,6 +160,7 @@ namespace mv
         std::string getLogID() const override;
         std::string toString() const;
         std::string toLongString() const;
+        const std::vector<mv::Workload>& overlap_and_clip(std::array <unsigned short, 4>& padding, const Shape& tensorShape);
     };
 }
 

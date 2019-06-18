@@ -138,7 +138,7 @@ std::tuple<int,int, int> getGlobalCompilationDescriptorConf(const mv::pass::Pass
     return {nDPUxCluster, nWorkloads, nClusters};
 }
 
-void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element& passDesc, mv::json::Object &)
+void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& , mv::Element& passDesc, mv::json::Object &)
 {
     pass.log(mv::Logger::MessageType::Debug, "Starting workload generation pass");
     mv::OpModel om(model);
@@ -356,7 +356,7 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
 
                 for(int i = 0; i < workloads.size(); i++) 
                     workloads[i].clusterID = clusterNumber;
-                
+                    
                 /*Set the most optimal workload as attribute of the op*/
                 opIt->set<mv::Workloads>("Workloads" + std::to_string(clusterNumber), workloadsVector.at(optimalWorkloadIndex));
                 opIt->set<bool>("Valid_workload", true);

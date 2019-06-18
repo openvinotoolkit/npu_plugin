@@ -16,7 +16,7 @@
 #include "../contrib/koala/io/graphml.h"
 #include "include/mcm/logger/logger.hpp"
 #include "include/mcm/utils/custom_strings.hpp"
-
+#include "include/mcm/utils/env_loader.hpp"
 
 #define MAX_AVAILABLE_BARRIERS 8
 
@@ -86,6 +86,8 @@ using BarrierInterferenceGraph = mv::graph<mv::Barrier, int>;
 static void drawBIG(BarrierInterferenceGraph& g, std::string outputFile)
 {
     std::ofstream ostream;
+
+    mv::utils::validatePath(outputFile);
 
     ostream.open(outputFile, std::ios::trunc | std::ios::out);
     ostream << "strict graph G {\n\tgraph [splines=spline]\n";

@@ -1548,3 +1548,15 @@ int mv::Workloads::partitionTensorWithRectangleHeuristic(const mv::DPUModeList& 
 
     return METIS_OK;
 }
+
+const std::vector<mv::Workload>& mv::Workloads::overlap_and_clip(std::array<unsigned short, 4> &padding, const Shape &tensorShape)
+{
+    for (auto workload = workloads_.begin(); workload != workloads_.end(); workload++)
+    {
+        workload->MinY = std::max((workload->MinY - padding[3]), 0);
+        workload->MinX = std::min((workload->MinX - padding[0]), 0);
+        workload->MaxY = std::min((workload->MaxY - padding[2]), int (tensorShape[IO_HEIGHT_DIMENSION] - 1));
+        workload->MaxX = std::max((workload->MaxX - padding[1]), int(tensorShape[IO_WIDTH_DIMENSION] - 1));
+    }
+    return const_cast<std::vector<Workload>&>(workloads_);
+}
