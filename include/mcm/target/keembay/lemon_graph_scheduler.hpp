@@ -50,6 +50,7 @@ namespace mv
         lemon::ListDigraph::NodeMap<nodeDescription> nodes_;
         lemon::ListDigraph::ArcMap<edgeDescription> edges_;
         lemon::ListDigraph::ArcMap<uint64_t> edgesMemory_;
+        lemon::ListDigraph::ArcMap<int> edgesLength_;
 
         lemon::ListDigraph::Node graphSourceNode_;
         lemon::ListDigraph::Node graphSinkNode_;
