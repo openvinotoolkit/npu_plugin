@@ -365,7 +365,7 @@ std::vector<std::unique_ptr<MVCNN::TaskListT>> mv::RuntimeModel::buildTaskListT(
 
     auto topologicallySortedOps = controlModel.schedulingSort();
 
-    int initialId = 1;
+    int initialId = 0;
 
     for(auto vecIt = topologicallySortedOps.begin(); vecIt != topologicallySortedOps.end(); ++vecIt)
     {
@@ -508,6 +508,19 @@ std::unique_ptr<MVCNN::PPETaskT> mv::RuntimeModel::buildPPETaskT(ComputationMode
     return toBuild;
 }
 
+std::unique_ptr<MVCNN::PPETaskT> mv::RuntimeModel::buildPPETaskT()
+{
+    std::unique_ptr<MVCNN::PPETaskT> toBuild = std::unique_ptr<MVCNN::PPETaskT>(new MVCNN::PPETaskT());
+    toBuild->fixed_function = std::unique_ptr<MVCNN::PPEFixedFunctionT>(new MVCNN::PPEFixedFunctionT());
+    toBuild->fixed_function->Clamp_High = 2147483647;
+    toBuild->fixed_function->Clamp_Low = -2147483648;
+    toBuild->fixed_function->Ops = std::vector<MVCNN::PPELayerType>();
+    toBuild->fixed_function->Ops.reserve(3);
+
+    return toBuild;
+}
+
+
 std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantFieldsT(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt)
 {
     std::unique_ptr<MVCNN::NCEInvariantFieldsT> toBuild = std::unique_ptr<MVCNN::NCEInvariantFieldsT>(new MVCNN::NCEInvariantFieldsT());
@@ -516,6 +529,8 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
 
     if(opIt->hasAttr("PPETask"))
         toBuild->ppe_task = buildPPETaskT(cm, compilationDescriptor, opIt->get<PPETask>("PPETask"));
+    else
+        toBuild->ppe_task = buildPPETaskT();
     // TODO
     // std::vector<std::unique_ptr<NNTensorTaskT>> nnshv_task;
     // split_over_h: bool = false;
@@ -752,6 +767,12 @@ std::unique_ptr<MVCNN::BarrierReferenceT> mv::RuntimeModel::buildBarrierReferenc
     return toBuild;
 }
 
+std::unique_ptr<MVCNN::BarrierReferenceT> mv::RuntimeModel::buildBarrierReferenceT()
+{
+    std::unique_ptr<MVCNN::BarrierReferenceT> toBuild = std::unique_ptr<MVCNN::BarrierReferenceT>(new MVCNN::BarrierReferenceT());
+    return toBuild;
+}
+
 std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildTaskT(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt, int& nodeID)
 {
 
@@ -768,6 +789,8 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildTaskT(Computat
 
         if(opIt->hasAttr("BarrierDeps"))
             toBuild->associated_barriers = buildBarrierReferenceT(cm, compilationDescriptor, opIt->get<mv::BarrierDependencies>("BarrierDeps"));
+        else
+            toBuild->associated_barriers = buildBarrierReferenceT();
     }
 
     return vecToBuild;

@@ -11,7 +11,7 @@ add_custom_command(
         ${CMAKE_SOURCE_DIR}/meta/schema/graphfile/graphfile_generated.h
 
     COMMAND
-        ${flatc_path} -o ${CMAKE_SOURCE_DIR}/meta/schema/graphfile ${fbs_files} --cpp --gen-object-api
+        ${flatc_path} -o ${CMAKE_SOURCE_DIR}/meta/schema/graphfile ${fbs_files} --cpp --gen-object-api --force-empty
     VERBATIM
 )
 
