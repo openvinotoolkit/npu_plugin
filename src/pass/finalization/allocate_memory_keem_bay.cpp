@@ -84,11 +84,11 @@ void allocateInputOutputTensorsKeemBay(const mv::pass::PassEntry& pass, mv::Comp
         auto location = tensorIterator->get<mv::Tensor::MemoryLocation>("Location");
         if(location == mv::Tensor::MemoryLocation::INPUT)
         {
-            dm.allocateTensor("ProgrammableInput",stageIt,tensorIterator);
+            dm.allocateTensor("ProgrammableInput", stageIt, tensorIterator);
         }
         else if(location == mv::Tensor::MemoryLocation::OUTPUT)
         {
-            dm.allocateTensor("ProgrammableOutput",stageIt,tensorIterator);
+            dm.allocateTensor("ProgrammableOutput", stageIt, tensorIterator);
         }
     }
 }
