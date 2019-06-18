@@ -199,6 +199,7 @@ SET(base
     "${PROJECT_SOURCE_DIR}/src/target/keembay/attribute_def/barrier_deps.cpp"
     "${PROJECT_SOURCE_DIR}/src/target/keembay/attribute_def/dma_direction.cpp"
     "${PROJECT_SOURCE_DIR}/src/target/keembay/attribute_def/workloads.cpp"
+    "${PROJECT_SOURCE_DIR}/src/target/keembay/metisGraphStructure.cpp"
     "${PROJECT_SOURCE_DIR}/src/target/keembay/attribute_def/ppe_task.cpp"
     "${PROJECT_SOURCE_DIR}/src/target/keembay/attribute_def/ppe_fixed_function.cpp"
     "${PROJECT_SOURCE_DIR}/src/target/keembay/tasks/def/barrier_task.cpp"
