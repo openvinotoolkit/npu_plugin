@@ -56,6 +56,25 @@
                         "cluster_filter" : 0,
                         "strategy" : "SplitOverH"
                     }
+                ],
+                "streaming_strategy" :
+                [
+                    {
+                        "name_filter" : "conv0_cmx_",
+                        "output_location" : "CMX",
+                        "splits" : [
+                            {"H" : 2},
+                            {"W" : 2},
+                            {"H" : 2}
+                        ]
+                    },
+                    {
+                        "name_filter" : "conv1_cmx_",
+                        "output_location" : "CMX",
+                        "splits" : [
+                            {"H" : 4}
+                        ]
+                    }
                 ]
             },
             "ComputeMemory",
@@ -84,7 +103,7 @@
             "FuseRelu",
             "FuseScale",
             "FullyConnectedAsConv2D",
-            "streamingTiling",
+            "StreamingTiling",
             {
                 "name": "GenerateDot",
                 "output": "adapt_model.dot",

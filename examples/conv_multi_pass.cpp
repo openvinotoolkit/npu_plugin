@@ -22,7 +22,7 @@ template <typename T> std::vector<T> read_weights_from_file(std::string input_fi
 int main()
 {
 //    mv::Logger::setVerboseLevel(mv::VerboseLevel::Warning);
-    mv::Logger::setVerboseLevel(mv::VerboseLevel::Info);
+//    mv::Logger::setVerboseLevel(mv::VerboseLevel::Info);
     mv::CompilationUnit unit("parserModel");
     mv::OpModel& om = unit.model();
 
