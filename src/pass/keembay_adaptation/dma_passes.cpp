@@ -186,30 +186,22 @@ void addWeightsDMATasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
                     }
 
                     //NOTE: This will change with multicluster
-                    long unsigned inputTensorDmaDimension = inputTensorDma->sizeBytes();
+                    long unsigned inputTensorDmaDimension = inputTensorDma->computeTotalSize();
                     for(unsigned j = 0; j < inputOutputTensors; ++j)
-                        inputTensorDmaDimension += opIt->getInputTensor(j)->sizeBytes();
+                        inputTensorDmaDimension += opIt->getInputTensor(j)->computeTotalSize();
 
                     int partsPerCMX = std::max((unsigned long)1, cmxSize/inputTensorDmaDimension);
                     if (partsPerCMX < (_dma_dependency + 1))
-                    {
                         dma_dependency = partsPerCMX;
-                        pass.log(mv::Logger::MessageType::Warning, "Overriding weights prefetch parameter due to large tensor DMA"+inputOp->getName()+" : using " + std::to_string(partsPerCMX) + " vs " + std::to_string(_dma_dependency+1));
-                    }
                     else
                         dma_dependency =  _dma_dependency + 1 ;
 
 
                     auto index = std::distance(sortedOps.begin(), std::find(sortedOps.begin(), sortedOps.end(), opIt));
                     if(index <= dma_dependency)
-                    {
                         cm.defineFlow(om.getInput(), inputTensorDmaOp);
-                    }
                     else
-                    {
                         cm.defineFlow(sortedOps[index - dma_dependency], inputTensorDmaOp);
-                        inputTensor = inputTensorDma;
-                    }
                 }
             }
         }

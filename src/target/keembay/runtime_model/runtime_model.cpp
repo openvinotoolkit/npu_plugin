@@ -160,6 +160,8 @@ std::vector<unsigned> mv::RuntimeModel::reduceQuantVector_(std::vector<unsigned>
 std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT(mv::ComputationModel& cm, mv::Element&, mv::Data::TensorIterator t)
 {
     mv::DataModel dm(cm);
+    mv::OpModel om(cm);
+
     std::unique_ptr<MVCNN::TensorReferenceT> toBuild = std::unique_ptr<MVCNN::TensorReferenceT>(new MVCNN::TensorReferenceT());
 
     toBuild->name = t->getName();
@@ -168,7 +170,6 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     auto tensorAllocator = dm.getAllocator(*tensorAllocatorName);
     mv::Data::BufferIterator tensorBufferIt = tensorAllocator.getBuffer(0, t); // 0 is the only stage for now, but this will probably change in the future
 
-    // TODO: Have to be rearranged according to the order
     auto underlyingTensor = tensorBufferIt->getData();
 
     std::vector<uint32_t> dimensions = underlyingTensor->getShape();
@@ -191,21 +192,29 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     if (*tensorAllocatorName == "GraphFile")
     {
         toBuild->data->data_index = t->get<unsigned>("graphFileIndex");
-        // UNSUPPORTED FOR NOW
-        // toBuild->sparsity_index
+        // No need to set sparsity_index for tensor stored in graphfile
     }
     else if(*tensorAllocatorName == "ProgrammableInput" || *tensorAllocatorName == "ProgrammableOutput")
     {
-        //toBuild->data->data_index = tensorBufferIt->getOffset();
-
-        //HOTFIX until we know what to do with graph coloring
         toBuild->data->data_index = 0;
-        // UNSUPPORTED FOR NOW
-        // toBuild->sparsity_index
+        // No need to set sparsity_index for input/output tensor of the network
     }
     else
     {
         toBuild->data->data_index = tensorBufferIt->getOffset();
+
+        // VERY IMPORTANT NOTE: Sparsity index is not used by populated tensors
+        // as populated tensor represent weights, and all the information we need
+        // about sparsity is contained in the weights table. This was confirmed
+        // after a chat with Levi
+        if(t->isSparse())
+        {
+            if(!t->isPopulated())
+            {
+                toBuild->data->sparsity_index = t->getSparsityMap()->getAddress();
+                toBuild->data->storage_element_index = t->getStorageElement()->getAddress();
+            }
+        }
     }
     toBuild->locale = convertAllocatorToMemoryLocale(*tensorAllocatorName);
 
@@ -342,9 +351,17 @@ std::vector<long unsigned int> packToInt64(const std::vector<T>& origData, mv::D
 std::unique_ptr<MVCNN::BinaryDataT> mv::RuntimeModel::buildBinaryDataT(ComputationModel&, mv::Element&, mv::Tensor& t)
 {
     std::unique_ptr<MVCNN::BinaryDataT> toBuild = std::unique_ptr<MVCNN::BinaryDataT>(new MVCNN::BinaryDataT());
+    if (t.isSparse())
+    {
+        toBuild->data = packToInt64(t.getDataPacked(), t.getDType());
+        toBuild->length = t.dataPackedSize();
+    }
+    else
+    {
+        toBuild->data = packToInt64(t.getData(), t.getDType());
+        toBuild->length = t.getShape().totalSize();
+    }
 
-    toBuild->data = packToInt64(t.getData(), t.getDType());
-    toBuild->length = t.getShape().totalSize();
     toBuild->underlying_type = convertDtype(t.getDType());
 
     return toBuild;

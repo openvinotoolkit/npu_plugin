@@ -13,6 +13,7 @@
                 "UpaShaves": 1,
                 "DDRScratch": 4096,
                 "MemoryHack": true,
+                "Sparsity": true,
                 "CMX_memory_overflow_safety_factor" : 0.925,
                 "mpe_mode" : "Matrix",
                 "split_strategy" :
@@ -129,7 +130,7 @@
             "UpdateConcatQuantizationParams",
             "KMBOrderConversion",
             "AlignTaskWeights",
-            "GenerateSparsityMaps",
+            "GenerateSparsityMapsPopulatedTensors",
             {
                 "name": "GenerateDot",
                 "output": "keembay_adapt_model.dot",
@@ -230,6 +231,7 @@
     },
     "finalize": {
         "Singular": [
+            "GenerateSparsityMapsUnpopulatedTensors",
             {
                 "name": "TransitiveReduction",
                 "filter": "PositiveMemory"

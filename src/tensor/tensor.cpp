@@ -117,13 +117,15 @@ internalOrder_(Order(Order::getRowMajorID(other.shape_.ndims())))
     for (std::size_t i = 0; i < blocks_.size(); ++i)
         blocks_[i] = data_.begin() + i * blockSize_;
 
-    if (isPopulated())
+    if (other.isPopulated())
         data_ = other.data_;
     if (other.isSparse())
     {
         sparsityMap_ = std::make_shared<Tensor>(*other.sparsityMap_);
-        storageElement_ = std::make_shared<Tensor>(*other.storageElement_);
         noneZeroElements_ = other.noneZeroElements_;
+        kernelDataOffsets_ = other.kernelDataOffsets_;
+        if(!other.isPopulated())
+            storageElement_ = std::make_shared<Tensor>(*other.storageElement_);
     }
 }
 
@@ -278,11 +280,6 @@ void mv::Tensor::populate(const std::vector<int64_t>& data, Order order)
     populate(data);
 }
 
-int mv::Tensor::computeMemoryRequirement() const
-{
-    return (shape_.totalSize() * get<DType>("dType").getSizeInBits() / 8);
-}
-
 void mv::Tensor::unpopulate()
 {
     if (!isPopulated())
@@ -294,7 +291,10 @@ void mv::Tensor::unpopulate()
 
     //sparsity map tensor need to unpopulate as well
     if (isSparse())
+    {
         sparsityMap_->unpopulate();
+        kernelDataOffsets_.clear();
+    }
 
     log(Logger::MessageType::Debug, "Unpopulated");
 }
@@ -313,8 +313,7 @@ std::shared_ptr<mv::Tensor> mv::Tensor::getStorageElement() const
     return storageElement_;
 }
 
-// NOTE: Read NOTE in header fileq
-std::vector<int64_t> mv::Tensor::getZeroPointsPerChannel()
+std::vector<int64_t> mv::Tensor::getZeroPointsPerChannel() const
 {
     //default all zeropoints to zero
     std::vector<int64_t> zeroPoint(getShape()[mv::KERNEL_OUTPUT_CHANNELS]);
@@ -332,6 +331,22 @@ const mv::Order& mv::Tensor::getInternalOrder() const
     return internalOrder_;
 }
 
+unsigned mv::Tensor::countNonZeroElements() const
+{
+    std::vector<int64_t> zeroPoint = getZeroPointsPerChannel();
+
+    int channelIndex = mv::KERNEL_OUTPUT_CHANNELS;
+    unsigned nonZeroElements = 0;
+
+    for (size_t t = 0; t < shape_.totalSize(); t++)
+    {
+        auto sub = getOrder().indToSub(shape_, t);
+        if (static_cast<int64_t>(data_[internalOrder_.subToInd(shape_, sub)]) != zeroPoint[sub[channelIndex]])
+            nonZeroElements++;
+    }
+    return nonZeroElements;
+}
+
 void mv::Tensor::populateSparsityMapTensor_()
 {
     auto shape = getShape();
@@ -343,8 +358,7 @@ void mv::Tensor::populateSparsityMapTensor_()
     std::size_t sparsityMapIdx = 0;
     size_t n = 0;
     int shift = 0;
-    int channelIndex = 3;
-    auto order = getOrder();
+    int channelIndex = mv::KERNEL_OUTPUT_CHANNELS;
 
     for (size_t t = 0; t < shape.totalSize(); t++)
     {
@@ -399,7 +413,7 @@ void mv::Tensor::setAddress(int64_t address)
     }
 }
 
-void mv::Tensor::setSparse()
+bool mv::Tensor::setSparse()
 {
     mv::Order order =  getOrder();
     if (!order.isZMajor())
@@ -409,8 +423,7 @@ void mv::Tensor::setSparse()
         throw ArgumentError(*this, "Order", order.toString() , " Sparsity requires order of size >= 3");
 
     if(hasAttr("sparse") && get<bool>("sparse") == true)
-    //    throw ArgumentError(*this, "Sparsity == ", "true" , " Sparsity for this tensor has already been set");
-        return;
+        return false;
 
     set<bool>("sparse", true);
 
@@ -418,15 +431,8 @@ void mv::Tensor::setSparse()
     // sparse then get the specific attributes by name and call toBinary
     // this will avoid duplicate of tensors, but it will not allow iterator to go over them.
 
-    //Storage Element Tensor
-    //se are filled by the DPU @ runtime
-    //We just create an unpopulated tensor at this stage.
     auto shape = getShape();
     size_t N = shape[-1];;
-
-    storageElement_  = std::make_shared<Tensor>(createStorageElementName(getName()), mv::Shape({shape[0], shape[1], 1, N}), mv::DType("Int32"), order);
-
-    set<bool>("sparse", true);
 
     //Sparsity map
     //we choose layout as internal layout, no need to reorder
@@ -443,6 +449,35 @@ void mv::Tensor::setSparse()
     //populate sparsity map
     if (isPopulated())
         populateSparsityMapTensor_();
+    else
+        storageElement_  = std::make_shared<Tensor>(createStorageElementName(getName()), mv::Shape({shape[0], shape[1], 1, N}), mv::DType("Int32"), order);
+
+
+    return true;
+}
+
+bool mv::Tensor::setSparse(std::shared_ptr<mv::Tensor> sparsityMap, std::shared_ptr<mv::Tensor> storageElement)
+{
+    mv::Order order =  getOrder();
+    if (!order.isZMajor())
+        throw ArgumentError(*this, "Order", order.toString() , " Sparsity requires ZMajor layout (NHWC)");
+
+    if (order.size() < 3)
+        throw ArgumentError(*this, "Order", order.toString() , " Sparsity requires order of size >= 3");
+
+    if(hasAttr("sparse") && get<bool>("sparse") == true)
+        return false;
+
+    set<bool>("sparse", true);
+
+    if(!isPopulated())
+        storageElement_  = storageElement;
+
+
+    sparsityMap_ = sparsityMap;
+    noneZeroElements_ = countNonZeroElements();
+
+    return true;
 }
 
 void mv::Tensor::bindData(Tensor& other, const std::vector<std::size_t>& leftPadding, const std::vector<std::size_t> &rightPadding)
@@ -615,6 +650,13 @@ std::vector<mv::DataElement> mv::Tensor::getData()
     return orderedData;
 }
 
+std::vector<int64_t> mv::Tensor::getKernelDataOffsets()
+{
+    if (isSparse() && kernelDataOffsets_.empty()) //getDataPacked hasn't been called
+        auto temp = getDataPacked();
+    return kernelDataOffsets_;
+}
+
 std::vector<mv::DataElement> mv::Tensor::getDataPacked()
 {
     if (!isPopulated())
@@ -625,15 +667,24 @@ std::vector<mv::DataElement> mv::Tensor::getDataPacked()
     std::vector<int64_t> zeroPoint = getZeroPointsPerChannel();
     std::vector<DataElement> orderedDataPacked;
     double datai;
-    size_t outputChannelSize = shape.totalSize() / shape[mv::KERNEL_OUTPUT_CHANNELS];
-    for (std::size_t i = 0; i < data_.size(); ++i)
+    size_t outputChannels = shape[mv::KERNEL_OUTPUT_CHANNELS];
+    size_t outputChannelSize = shape.totalSize() / outputChannels;
+    kernelDataOffsets_.resize(outputChannels);
+    size_t offset = 0;
+    for (std::size_t k = 0; k < outputChannels; ++k)
     {
-        sub = getOrder().indToSub(getShape(), i);
-        datai = data_[internalOrder_.subToInd(getShape(), sub)];
-        if (!isSparse() || datai != zeroPoint[sub[mv::KERNEL_OUTPUT_CHANNELS]]) //zero point per output channel
-            orderedDataPacked.push_back(DataElement(isDoubleType(), datai));
+        kernelDataOffsets_[k] = offset;
+        size_t prevNumOfElements = orderedDataPacked.size();
+        for (std::size_t i = 0; i < outputChannelSize; i++)
+        {
+            sub = getOrder().indToSub(getShape(), i + k*outputChannelSize);
+            datai = data_[internalOrder_.subToInd(getShape(), sub)];
+            //skip zero values if sparse
+            if (!isSparse() || datai != zeroPoint[sub[mv::KERNEL_OUTPUT_CHANNELS]])
+                orderedDataPacked.push_back(DataElement(isDoubleType(), datai));
+        }
         //Add padding if needed
-        if (isSparse() && ((i+1) % outputChannelSize) == 0) //we reached the end of the outputchannel
+        if (isSparse())
         {
             auto size = orderedDataPacked.size() * std::ceil(getDType().getSizeInBits()/8.0);
             auto padsize = mv::round_up(size, 16) - size;
@@ -641,6 +692,9 @@ std::vector<mv::DataElement> mv::Tensor::getDataPacked()
             for (std::size_t j = 0; j < padsize; ++j)
                 orderedDataPacked.push_back(DataElement(isDoubleType(), zeroPointVal));
         }
+
+        size_t numberOfElementsInKernel = orderedDataPacked.size() - prevNumOfElements; //include padding
+        offset += numberOfElementsInKernel * std::ceil(getDType().getSizeInBits()/8.0);
     }
     return orderedDataPacked;
 }
