@@ -5,6 +5,7 @@
                 "name" : "GlobalConfigParams",
                 "_comment" : "Stores common params accross multiple passes. Access through the Computation Model.",
                 "recorded_model": false,
+                "verbose": "Info",
                 "weights_form": "None",
                 "barrier_index_assignment" : "Dynamic",
                 "Number_of_DPUs" : 1,
@@ -12,6 +13,7 @@
                 "UpaShaves": 1,
                 "DDRScratch": 4096,
                 "MemoryHack": true,
+                "Sparsity": false,
                 "CMX_memory_overflow_safety_factor" : 0.925,
                 "mpe_mode" : "Matrix",
                 "split_strategy" :
@@ -81,11 +83,14 @@
             "AssignUniqueOpId",
             {
                 "name": "GenerateDot",
-                "output": "original_model.dot",
+                "output": "output/dots/original_model.dot",
                 "scope": "OpControlModel",
                 "content": "full",
-                "html": true,
-                "convert": false
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/original_model.dot"
             },
             {
                 "name": "CreateSourceStructure",
@@ -107,11 +112,14 @@
             "StreamingTiling",
             {
                 "name": "GenerateDot",
-                "output": "adapt_model.dot",
+                "output": "output/dots/adapt_model.dot",
                 "scope": "OpControlModel",
                 "content": "full",
-                "html": true,
-                "convert": false
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/adapt_model.dot"
             }
         ]
     },
@@ -126,42 +134,42 @@
             "UpdateConcatQuantizationParams",
             "KMBOrderConversion",
             "AlignTaskWeights",
-            "GenerateSparsityMaps",
+            "GenerateSparsityMapsPopulatedTensors",
             {
                 "name": "GenerateDot",
-                "output": "keembay_adapt_model.dot",
+                "output": "output/dots/keembay_adapt_model.dot",
                 "scope": "OpControlModel",
                 "content": "full",
                 "html": true
             },
             {
                 "name": "ConvertDot",
-                "input": "keembay_adapt_model.dot"
+                "input": "output/dots/keembay_adapt_model.dot"
             },
             "GenerateWeightsTables",
             {
                 "name": "GenerateDot",
-                "output": "keembay_WeightsTable_model.dot",
+                "output": "output/dots/keembay_WeightsTable_model.dot",
                 "scope": "OpControlModel",
                 "content": "full",
                 "html": true
             },
             {
                 "name": "ConvertDot",
-                "input": "keembay_WeightsTable_model.dot"
+                "input": "output/dots/keembay_WeightsTable_model.dot"
             },
             "GenerateEltWiseConstants",
             "PopulateWeightsTablesQuantization",
             {
                 "name": "GenerateDot",
-                "output": "keembay_EltWiseConstants_model.dot",
+                "output": "output/dots/keembay_EltWiseConstants_model.dot",
                 "scope": "OpControlModel",
                 "content": "full",
                 "html": true
             },
             {
                 "name": "ConvertDot",
-                "input": "keembay_EltWiseConstants_model.dot"
+                "input": "output/dots/keembay_EltWiseConstants_model.dot"
             }
         ]
     },
@@ -182,26 +190,26 @@
             },
             {
                 "name": "GenerateDot",
-                "output": "dma_model.dot",
+                "output": "output/dots/dma_model.dot",
                 "scope": "OpControlModel",
                 "content": "full",
                 "html": true
             },
             {
                 "name": "ConvertDot",
-                "input": "dma_model.dot"
+                "input": "output/dots/dma_model.dot"
             },
             "AddDeallocationTasks",
             {
                 "name": "GenerateDot",
-                "output": "deallocation_model.dot",
+                "output": "output/dots/deallocation_model.dot",
                 "scope": "OpControlModel",
                 "content": "full",
                 "html": true
             },
             {
                 "name": "ConvertDot",
-                "input": "deallocation_model.dot"
+                "input": "output/dots/deallocation_model.dot"
             }
         ]
     },
@@ -210,61 +218,63 @@
             "DmaControlFlows",
             {
                 "name": "GenerateDot",
-                "output": "DmaControlFlows_model.dot",
+                "output": "output/dots/DmaControlFlows_model.dot",
                 "scope": "ControlModel",
                 "content": "full",
                 "html": true
             },
             {
                 "name": "ConvertDot",
-                "input": "DmaControlFlows_model.dot"
+                "input": "output/dots/DmaControlFlows_model.dot"
             },
             "InputOutputControlFlows",
             {
                 "name": "GenerateDot",
-                "output": "InputOutputControlFlows_model.dot",
+                "output": "output/dots/InputOutputControlFlows_model.dot",
                 "scope": "ControlModel",
                 "content": "full",
                 "html": true
             },
             {
                 "name": "ConvertDot",
-                "input": "InputOutputControlFlows_model.dot"
+                "input": "output/dots/InputOutputControlFlows_model.dot"
             }
         ]
     },
     "finalize": {
         "Singular": [
+            "GenerateSparsityMapsUnpopulatedTensors",
             {
                 "name": "TransitiveReduction",
                 "filter": "PositiveMemory"
             },
+            "MarkLastNodeForMaxTopologicalCut",
             {
                 "name": "GenerateDot",
-                "output": "TransitiveReductionBeforeMaxCut.dot",
+                "output": "output/dots/TransitiveReductionBeforeMaxCut.dot",
                 "scope": "ControlModel",
                 "content": "nonfull",
                 "html": true
             },
             {
                 "name": "GenerateDot",
-                "output": "TransitiveReductionBeforeMaxCutFull.dot",
+                "output": "output/dots/TransitiveReductionBeforeMaxCutFull.dot",
                 "scope": "ControlModel",
                 "content": "full",
                 "html": true
             },
             {
                 "name": "ConvertDot",
-                "input": "TransitiveReductionBeforeMaxCut.dot"
+                "input": "output/dots/TransitiveReductionBeforeMaxCut.dot"
             },
             {
                 "name": "ConvertDot",
-                "input": "TransitiveReductionBeforeMaxCutFull.dot"
+                "input": "output/dots/TransitiveReductionBeforeMaxCutFull.dot"
             },
             "MaxTopologicalCutAndPartialSerialisation",
             {
                 "name": "GenerateDot",
-                "output": "MaxTopologicalCutAndPartialSerialisation.dot",
+                "output": "output/dots/MaxTopologicalCutAndPartialSerialisation.dot",
                 "scope": "ControlModel",
                 "content": "full",
                 "html": true
@@ -275,14 +285,14 @@
             },
             {
                 "name": "GenerateDot",
-                "output": "TransitiveReductionAfterMaxCut.dot",
+                "output": "output/dots/TransitiveReductionAfterMaxCut.dot",
                 "scope": "ControlModel",
                 "content": "full",
                 "html": true
             },
             {
                 "name": "ConvertDot",
-                "input": "TransitiveReductionAfterMaxCut.dot"
+                "input": "output/dots/TransitiveReductionAfterMaxCut.dot"
             },
             {
                 "name": "GenerateWorkloads",
@@ -296,23 +306,23 @@
             "AllocateCMXTensorsKeemBay",
             {
                 "name": "TensorGraphColoring",
-                "output": "nnCmx.dot"
+                "output": "output/dots/nnCmx.dot"
             },
             {
                 "name": "ConvertDot",
-                "input": "nnCmx.dot"
+                "input": "output/dots/nnCmx.dot"
             },
             "RemoveDeallocationTasks",
             {
                 "name": "GenerateDot",
-                "output": "DeallocationTasksRemoved.dot",
+                "output": "output/dots/DeallocationTasksRemoved.dot",
                 "scope": "ControlModel",
                 "content": "full",
                 "html": true
             },
             {
                 "name": "ConvertDot",
-                "input": "DeallocationTasksRemoved.dot"
+                "input": "output/dots/DeallocationTasksRemoved.dot"
             },
             {
                 "name" : "TransitiveReduction",
@@ -320,34 +330,34 @@
             },
             {
                 "name": "GenerateDot",
-                "output": "DeallocationTasksRemovedAndTransitiveReduction.dot",
+                "output": "output/dots/DeallocationTasksRemovedAndTransitiveReduction.dot",
                 "scope": "ControlModel",
                 "content": "full",
                 "html": true
             },
             {
                 "name": "ConvertDot",
-                "input": "DeallocationTasksRemovedAndTransitiveReduction.dot"
+                "input": "output/dots/DeallocationTasksRemovedAndTransitiveReduction.dot"
             },
             {
                 "name" : "InsertBarrierTasks",
-                "outputBIG": "BarrierInterferenceGraph.dot",
+                "outputBIG": "output/dots/BarrierInterferenceGraph.dot",
                 "barrier_reuse_window" : 0
             },
             {
                 "name": "ConvertDot",
-                "input": "BarrierInterferenceGraph.dot"
+                "input": "output/dots/BarrierInterferenceGraph.dot"
             },
             {
                 "name": "GenerateDot",
-                "output": "BarriersInserted.dot",
+                "output": "output/dots/BarriersInserted.dot",
                 "scope": "ControlModel",
                 "content": "full",
                 "html": true
             },
             {
                 "name": "ConvertDot",
-                "input": "BarriersInserted.dot"
+                "input": "output/dots/BarriersInserted.dot"
             },
             {
                 "name" : "TransitiveReduction",
@@ -355,51 +365,51 @@
             },
             {
                 "name": "GenerateDot",
-                "output": "BarriersInsertedTransitiveReductionApplied.dot",
+                "output": "output/dots/BarriersInsertedTransitiveReductionApplied.dot",
                 "scope": "ControlModel",
                 "content": "full",
                 "html": true
             },
             {
                 "name": "ConvertDot",
-                "input": "BarriersInsertedTransitiveReductionApplied.dot"
-            },
-            {
-                "name": "GenerateDot",
-                "output": "BarriersInsertedCorrectedIndices.dot",
-                "scope": "ControlModel",
-                "content": "full",
-                "html": true
-            },
-            {
-                "name": "ConvertDot",
-                "input": "BarriersInsertedCorrectedIndices.dot"
+                "input": "output/dots/BarriersInsertedTransitiveReductionApplied.dot"
             },
             "AdjustBarrierIndices",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/BarriersInsertedCorrectedIndices.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/BarriersInsertedCorrectedIndices.dot"
+            },
             "AddBarrierRefs",
             "UpdateBarrierProducerConsumerCounts",
             "PopulateWeightsTablesPointers",
             {
                 "name": "GenerateDot",
-                "output": "final_model.dot",
+                "output": "output/dots/final_model.dot",
                 "scope": "OpControlModel",
                 "content": "full",
                 "html": true
             },
             {
                 "name": "ConvertDot",
-                "input": "final_model.dot"
+                "input": "output/dots/final_model.dot"
             },
             {
                 "name": "GenerateDot",
-                "output": "serial_model.dot",
+                "output": "output/dots/serial_model.dot",
                 "scope": "ControlModel",
                 "content": "full",
                 "html": true
             },
             {
                 "name": "ConvertDot",
-                "input": "serial_model.dot"
+                "input": "output/dots/serial_model.dot"
             }
         ]
     },
