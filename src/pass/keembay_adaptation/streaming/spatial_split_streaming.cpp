@@ -367,8 +367,6 @@ void generateSpatialTiling(mv::Data::OpListIterator op,Tiling& tiling, std::vect
         tiling.setChildTile(newTile, split);
     }
 
-    }
-    
     nesting++;
     if (nesting<opStrategy.size() )
     {
@@ -401,6 +399,7 @@ void streamingTilingFcn(const mv::pass::PassEntry& pass,
     {
         std::string masterOpName = opIt->getName();
         std::cout<< "  checking " << masterOpName << std::endl;
+        bool opHasSplittingStrategy = false;
         if (thisGraphStrategy.count(masterOpName)<1)
         {
             std::cout<< "  no streaming strategy for " << masterOpName << std::endl;
@@ -409,10 +408,11 @@ void streamingTilingFcn(const mv::pass::PassEntry& pass,
         {
             thisOpStrategy = thisGraphStrategy[masterOpName];
             std::cout<< "  streaming nesting depth is " << thisOpStrategy.size() << std::endl;
+            opHasSplittingStrategy = true;
         }
-        
+
         std::string opType = opIt->getOpType();
-        if (opType == "Conv" && !opIt->hasAttr("splitted"))
+        if (opType == "Conv" && !opIt->hasAttr("splitted") && opHasSplittingStrategy)
         {
             //TODO:: get this as param or something!
             //the startingTile is the "big tensor". (currently any conv will be split based on one JSON specifier)
