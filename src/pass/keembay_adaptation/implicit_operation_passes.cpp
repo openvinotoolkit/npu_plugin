@@ -39,14 +39,14 @@ void resolveImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::Computati
 
         //TODO::the following attributes need to come either from JSON config or from OP definition
         auto opType = opIt->getOpType();
-        if(opType == "Concat")
-            opIt->set<mv::ImplicitFlow>("ImplicitFlow",mv::ImplicitFlow(mv::ImplicitFlow::INPUT_IN_OUTPUT));
-        if(opType == "Slice")
-            opIt->set<mv::ImplicitFlow>("ImplicitFlow",mv::ImplicitFlow(mv::ImplicitFlow::OUTPUT_IN_INPUT));
-        if(opType == "Copy")
-            opIt->set<mv::ImplicitFlow>("ImplicitFlow",mv::ImplicitFlow(mv::ImplicitFlow::INPUT_IN_OUTPUT));
+        if (opType == "Concat" || opType == "ImplicitConcat")
+            opIt->set<mv::ImplicitFlow>("ImplicitFlow", mv::ImplicitFlow(mv::ImplicitFlow::INPUT_IN_OUTPUT));
+        if (opType == "Slice")
+            opIt->set<mv::ImplicitFlow>("ImplicitFlow", mv::ImplicitFlow(mv::ImplicitFlow::OUTPUT_IN_INPUT));
+        if (opType == "Copy")
+            opIt->set<mv::ImplicitFlow>("ImplicitFlow", mv::ImplicitFlow(mv::ImplicitFlow::INPUT_IN_OUTPUT));
 
-        if(!opIt->hasAttr("ImplicitFlow"))
+        if (!opIt->hasAttr("ImplicitFlow"))
             continue;
 
         auto implicitFlow = opIt->get<mv::ImplicitFlow>("ImplicitFlow");
@@ -54,10 +54,10 @@ void resolveImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::Computati
         // The attribute is defined at leyer definition... But someone (like JSON)
         // may override the decision if it get's a candidate or not.
         // If it's not a candidate skip
-        if( !implicitFlow.isCandidate())
+        if (!implicitFlow.isCandidate())
              continue;
 
-        if( implicitFlow.isImplicit())
+        if (implicitFlow.isImplicit())
         {
             //From design perspective, no pass should decide implictness before this pass
             pass.log(mv::Logger::MessageType::Warning, "found OP " + opIt->getName() + " already decided as implicit. Skipping");
@@ -83,7 +83,7 @@ void resolveImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::Computati
         std::vector<mv::Data::TensorIterator> compensationOutputs;
         std::vector<std::size_t> sinkIndexes;
 
-        if(implicitFlow.getCompensationDirection() == mv::ImplicitFlow::INPUT_IN_OUTPUT)
+        if (implicitFlow.getCompensationDirection() == mv::ImplicitFlow::INPUT_IN_OUTPUT)
         {
             auto sourceFlowStart = opIt.leftmostInput();
             for (mv::Data::FlowSiblingIterator sourceFlow(sourceFlowStart); sourceFlow != om.flowEnd() ; ++ sourceFlow)
@@ -93,7 +93,7 @@ void resolveImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::Computati
                 pass.log(mv::Logger::MessageType::Info, "Input tensor " + inputTensor->getName() + " location " + inputLocation.toString());
                 pass.log(mv::Logger::MessageType::Info, "Output tensor " + outputTensor->getName() + " location " + outputLocation.toString());
 
-                if( inputLocation != outputLocation)
+                if (inputLocation != outputLocation)
                 {
                     //TODO:: QUant params inherited for concat
                     //TODO:: PRONE TO ERRORS! correlate with Class Direction
@@ -115,13 +115,13 @@ void resolveImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::Computati
                     ctr++;
                 }
             }
-            for ( unsigned flowIdx = 0; flowIdx < flowsToRemove.size() ; flowIdx++)
+            for (unsigned flowIdx = 0; flowIdx < flowsToRemove.size() ; flowIdx++)
             {
                 pass.log(mv::Logger::MessageType::Info,"Setting # " + compensationOutputs[flowIdx]->getName() +
                                                         " # as input at slotIdx: " + std::to_string(sinkIndexes[flowIdx]));
                 opIt->setInputTensor(compensationOutputs[flowIdx],sinkIndexes[flowIdx]);
                 om.undefineFlow(flowsToRemove[flowIdx]);
-                om.defineFlow(compensationOutputs[flowIdx],opIt,sinkIndexes[flowIdx]);
+                om.defineFlow(compensationOutputs[flowIdx], opIt, sinkIndexes[flowIdx]);
             }
 
             opIt->get<mv::ImplicitFlow>("ImplicitFlow").resolve();
@@ -132,7 +132,7 @@ void resolveImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::Computati
             //TODO:: REVIEW :: normally if the ImplicitFlow trait of the tensor is to compensate on output
             // it should not have multiple inputs;
 
-            if( inputTensors.size() > 1)
+            if(inputTensors.size() > 1)
                 throw mv::AttributeError("resolevImplicitOperationsFcn", " tensor " + opIt->getName() +
                                             " of type " + opIt->getOpType() +
                                             " has multiple inputs but has Implicit Compensation set to OUTPUT");
@@ -142,7 +142,7 @@ void resolveImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::Computati
             pass.log(mv::Logger::MessageType::Info, "Input tensor " + inputTensor->getName() + " location " + inputLocation.toString());
             pass.log(mv::Logger::MessageType::Info, "Output tensor " + outputTensor->getName() + " location " + outputLocation.toString());
 
-            if( inputLocation != outputLocation)
+            if(inputLocation != outputLocation)
             {
 
                 const std::string directionString = inputLocation.toString() + "2" + outputLocation.toString();
@@ -171,24 +171,24 @@ void resolveImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::Computati
                 //but a new tensor as the Slice output and DMA between them. But the API is not really friendly for this
                 //case so the "forced" attribute will be inherited by the output of the DMA itself....
 
-                compensatorOutput->set<mv::Tensor::MemoryLocation>("Location",outputLocation);
+                compensatorOutput->set<mv::Tensor::MemoryLocation>("Location", outputLocation);
                 if(outputTensor->get<mv::Tensor::MemoryLocation>("Location").isForced())
                     compensatorOutput->get<mv::Tensor::MemoryLocation>("Location").force();
 
-                outputTensor->set<mv::Tensor::MemoryLocation>("Location",inputLocation);
+                outputTensor->set<mv::Tensor::MemoryLocation>("Location", inputLocation);
 
-                for ( unsigned flowIdx = 0; flowIdx < flowsToRemove.size() ; flowIdx++)
+                for (unsigned flowIdx = 0; flowIdx < flowsToRemove.size(); flowIdx++)
                 {
                     om.undefineFlow(flowsToRemove[flowIdx]);
                 }
-                for( unsigned op = 0 ; op < opsToLink.size(); ++op)
+                for(unsigned op = 0 ; op < opsToLink.size(); ++op)
                 {
                     pass.log(mv::Logger::MessageType::Info," Setting # " + compensatorOutput->getName() +
                                                                 "# as input to: # " + opsToLink[op]->getName() +
                                                                 "# at slotIdx: " + std::to_string(inputSlots[op]));
 
-                    opsToLink[op]->setInputTensor(compensatorOutput,inputSlots[op]);
-                    om.defineFlow(compensatorOutput,opsToLink[op],inputSlots[op]);
+                    opsToLink[op]->setInputTensor(compensatorOutput, inputSlots[op]);
+                    om.defineFlow(compensatorOutput,opsToLink[op], inputSlots[op]);
                 }
 
             }
