@@ -22,23 +22,28 @@ namespace mv
 
 void strategyLayersToTensors(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
+    auto globalParams = model.getGlobalConfigParams();
     mv::OpModel om(model);
+    auto numClusters = globalParams->get("Number_of_Clusters");
 
-    for(auto layer = om.opBegin(); layer != om.opEnd(); ++layer)
+    if(int(numClusters) > 1)
     {
-        std::string opType = layer->getOpType();
-        if (opType == "DPUTask" || opType == "Input")
+        for(auto layer = om.opBegin(); layer != om.opEnd(); ++layer)
         {
-            auto opStrategy = layer->get<std::string>("splitStrategy");
-            auto outputTensor = layer->getOutputTensor(0);
-            outputTensor->set<std::string>("splitStrategy", opStrategy);
-            unsigned n = layer->inputSlots();
-            for(unsigned i = 1; i < n; ++i)
+            std::string opType = layer->getOpType();
+            if (opType == "DPUTask" || opType == "Input")
             {
-                auto inputTensor = layer->getInputTensor(i);
-                inputTensor->set<std::string>("splitStrategy", opStrategy);
+                auto opStrategy = layer->get<std::string>("splitStrategy");
+                auto outputTensor = layer->getOutputTensor(0);
+                outputTensor->set<std::string>("splitStrategy", opStrategy);
+                unsigned n = layer->inputSlots();
+                for(unsigned i = 1; i < n; ++i)
+                {
+                    auto inputTensor = layer->getInputTensor(i);
+                    inputTensor->set<std::string>("splitStrategy", opStrategy);
+                }
             }
-        }
-     }
+         }
+    }
     return;
 }
