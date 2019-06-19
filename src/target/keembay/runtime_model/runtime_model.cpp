@@ -157,7 +157,7 @@ std::vector<unsigned> mv::RuntimeModel::reduceQuantVector_(std::vector<unsigned>
     return inVec;
 }
 
-std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT(mv::ComputationModel& cm, mv::Element&, mv::Data::TensorIterator t)
+std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT(mv::ComputationModel& cm, mv::Element&, mv::Data::TensorIterator t, unsigned clusterId)
 {
     mv::DataModel dm(cm);
     mv::OpModel om(cm);
@@ -192,16 +192,34 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     if (*tensorAllocatorName == "GraphFile")
     {
         toBuild->data->data_index = t->get<unsigned>("graphFileIndex");
+
+        //No slice for tensors stored in graphfile
+        toBuild->locale_index = std::vector<unsigned int>(1,0);
         // No need to set sparsity_index for tensor stored in graphfile
     }
     else if(*tensorAllocatorName == "ProgrammableInput" || *tensorAllocatorName == "ProgrammableOutput")
     {
+
+        //FUUUUUUUUUUUUUUUCK, WE DON'T HAVE ADDRESSES FOR PROGRAMMABLE INPUT/OUTPUT
         toBuild->data->data_index = 0;
+
+        //No slice for tensors in ProgrammableInput/ProgrammableOutput
+        toBuild->locale_index = std::vector<unsigned int>(1,0);
         // No need to set sparsity_index for input/output tensor of the network
     }
     else
     {
         toBuild->data->data_index = tensorBufferIt->getOffset();
+
+        //NOTE/TODO: What if multicast.
+        if(t->isBroadcasted())
+        {
+            std::vector<unsigned int> locale_index = {0, 1, 2, 3};
+            toBuild->locale_index = locale_index;
+        }
+        else
+            toBuild->locale_index = std::vector<unsigned int>(1, clusterId);
+
 
         // VERY IMPORTANT NOTE: Sparsity index is not used by populated tensors
         // as populated tensor represent weights, and all the information we need
