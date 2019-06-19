@@ -94,10 +94,10 @@ namespace mv
 
         std::shared_ptr<MetisGraphStructure> metisGraph_;
 
-        float critical_workload = 0;
-        float workload_sum = 0;
-        float min_range = 0;
-        float max_range = 0;
+        float critical_workload_ = 0;
+        float workload_sum_ = 0;
+        float min_range_ = 0;
+        float max_range_ = 0;
 
         std::vector<int> generateMetisGraphNodeNumbers(void);
 
@@ -118,8 +118,6 @@ namespace mv
                                                   const mv::WorkloadSplitMode& split_mode,
                                                   const mv::pass::PassEntry& pass);
 
-        idx_t getNWorkloads(const mv::Shape& tensorShape, int nDPUxCluster);
-
         void populateWorkloadsFromPartitions(idx_t nWorkloads, 
                                             const mv::pass::PassEntry& pass, 
                                             mv::DPUMode& mpeMode);
@@ -136,6 +134,7 @@ namespace mv
 
         const std::vector<mv::Workload>& add_xy_offset(std::vector<std::size_t>& offset);
         const std::vector<mv::Workload>& populateClusterID(int clusterID);
+
         std::size_t nWorkloads() const;
         void addWorkload(mv::Workload workload);
         const std::vector<mv::Workload>& getWorkloads() const;
@@ -147,7 +146,7 @@ namespace mv
         void setExecutionCycles(std::vector<float> val);
         static float greedyTaskAssignment(int nProcessors, std::vector<float>& workloadCosts);
 
-        bool validateWorkloads(std::vector<mv::Data::TensorIterator>& inputTensor);
+        //bool validateWorkloads(std::vector<mv::Data::TensorIterator>& inputTensor);
         bool validateWorkloads(const mv::Shape& shape);
 
         static mv::CostFunctions getCostFunction(mv::Element& passDesc, const mv::pass::PassEntry& pass);

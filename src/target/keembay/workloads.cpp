@@ -901,14 +901,14 @@ void mv::Workloads::generateExecutionCycles(std::vector<mv::Workloads>& workload
         }
 
         /*Critical workload*/
-        itWorklaods->critical_workload = *std::max_element(workloadsExecutionCycles.begin(), workloadsExecutionCycles.end());
+        itWorklaods->critical_workload_ = *std::max_element(workloadsExecutionCycles.begin(), workloadsExecutionCycles.end());
 
         /*Workload sum*/
         for (auto& cycles : workloadsExecutionCycles)
-            itWorklaods->workload_sum += cycles;
+            itWorklaods->workload_sum_ += cycles;
 
-        float min_range = itWorklaods->workload_sum/nDPUxCluster;
-        float max_range = itWorklaods->workload_sum/nDPUxCluster + itWorklaods->critical_workload;
+        float min_range = itWorklaods->workload_sum_/nDPUxCluster;
+        float max_range = itWorklaods->workload_sum_/nDPUxCluster + itWorklaods->critical_workload_;
 
         /*Cost function*/
         if(costFunction == CostFunctions::CriticalPath) {
@@ -923,8 +923,8 @@ void mv::Workloads::generateExecutionCycles(std::vector<mv::Workloads>& workload
         else if (costFunction == CostFunctions::Balanced)
         {
             float balancing = float(0.0);
-            if (!std::isinf(itWorklaods->workload_sum))
-                balancing = itWorklaods->workload_sum/(ceil(itWorklaods->workload_sum/nDPUxCluster) * nDPUxCluster);
+            if (!std::isinf(itWorklaods->workload_sum_))
+                balancing = itWorklaods->workload_sum_/(ceil(itWorklaods->workload_sum_/nDPUxCluster) * nDPUxCluster);
 
             itWorklaods->executionCycles_ = {-balancing, -balancing};
         }
@@ -934,7 +934,7 @@ void mv::Workloads::generateExecutionCycles(std::vector<mv::Workloads>& workload
 
         else if (costFunction == CostFunctions::Greedy)
         {
-            if (std::isinf(itWorklaods->workload_sum))
+            if (std::isinf(itWorklaods->workload_sum_))
                 itWorklaods->executionCycles_ = {INFINITY, INFINITY};
             else
             {
@@ -973,12 +973,6 @@ float mv::Workloads::greedyTaskAssignment(int nProcessors, std::vector<float>& w
     for (int i=0; i<nProcessors-1; ++i)
         exeCycles.pop();
     return exeCycles.top();
-}
-
-
-bool mv::Workloads::validateWorkloads(std::vector<mv::Data::TensorIterator>& inputTensor)
-{
-    return validateWorkloads(inputTensor[0]->getShape());
 }
 
 // Consider shapes equal if all dimensions equal but maybe 'N',

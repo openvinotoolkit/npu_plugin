@@ -143,8 +143,7 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
     pass.log(mv::Logger::MessageType::Info, "Starting workload generation pass");
     mv::OpModel om(model);
 
-    mv::DPUModeList dpuModes; 
-    
+    mv::DPUModeList dpuModes;  
     std::shared_ptr<mv::MetisGraphStructure> metisGraph;
     std::vector<mv::Workloads> workloadsVector;
     std::vector<int> nWorkloadsSplitPool;
@@ -154,7 +153,7 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
     bool metisFail = false;
     bool rectangleFail = false;
     std::pair<int,int> metisResult = {0,0};
-    int clusterNumber = 0;
+    uint8_t clusterNumber = 0;
     
     /*Get the worklaods algorithm*/
     std::vector<std::string> algorithms = getTensorSplitAlgorithms(passDesc, pass);
@@ -184,12 +183,12 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                 dpuModes = {{4,4},{1, 16}};
 
             /*For multi-clustering we work on subtensors*/
-            for(uint8_t clusterNumber = 0; clusterNumber < nClusters; clusterNumber++) {
+            for(clusterNumber = 0; clusterNumber < nClusters; clusterNumber++) {
                 
                 /*get the subtensor*/
                 auto subTensor = opIt->getOutputTensor()[0]->getSubTensor(clusterNumber);
 
-                pass.log(mv::Logger::MessageType::Info, "The subtensor for cluster 0 shape is: " + subTensor.getShape().toString());
+                pass.log(mv::Logger::MessageType::Info, "The shape of subtensor for cluster " + std::to_string(clusterNumber) + "is: " + subTensor.getShape().toString());
 
                 /*Generate the number of workloads split pool*/
                 if(nWorkloadsCompilationDescriptor)
@@ -202,7 +201,7 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                     int deptwiseSOHworkloadNumbers[5] = {2, 4, 6, 8, 10};
                     nWorkloadsSplitPool.insert(nWorkloadsSplitPool.end(), deptwiseSOHworkloadNumbers, deptwiseSOHworkloadNumbers+5);
 
-                    /*Erase duplicates*/
+                    /*Erase duplicate workload numbers from the split pool*/
                     nWorkloadsSplitPool.erase(std::unique(nWorkloadsSplitPool.begin(), nWorkloadsSplitPool.end()), nWorkloadsSplitPool.end());
                 }
 
@@ -360,7 +359,6 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
 
                 /*Apply the SOH offset to the most optimial workload*/
                 if(opIt->getOutputTensor()[0]->get<std::string>("splitStrategy") == "SplitOverH") {
-
                     auto subTensorOffset = subTensor.get<std::vector<std::size_t>>("offset");
                     workloadsVector.at(optimalWorkloadIndex).add_xy_offset(subTensorOffset);
                 }
