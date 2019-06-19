@@ -67,8 +67,7 @@ void  mv::LemonGraphScheduler::convertMcMGraphToLemonGraph(const mv::pass::PassE
     }
     
     /* Add the edges to the Lemon graph store attributes on the edges to perform the max topoloigcal cut algorithm.
-     * Iterate over the the control flow edges in the MCMgraph.  
-    */
+     * Iterate over the the control flow edges in the MCMgraph.  */
     for (auto flowIt = cm.flowBegin(); flowIt != cm.flowEnd(); ++flowIt) 
     {    
         /* 1. Don't add the edge going to Ouput in the MCM graph to the Lemon graph
@@ -145,19 +144,10 @@ std::pair<int, std::vector<mv::edgeDescription>> mv::LemonGraphScheduler::calcul
         dijkstraSourceToNode.run(this->graphSourceNode_, northNode);
 
         pass.log(mv::Logger::MessageType::Debug, "<<< Dystra: Source (" + this->nodes_[this->graphSourceNode_].name + ") -> Node (" + this->nodes_[northNode].name + ") >>> ");
-        
-        // lemon::ListDigraph::Arc currentArc = dijkstraSourceToNode.predArc(northNode);
-        // while (currentArc != lemon::INVALID)
-        // {
-        //     currentArc = dijkstraSourceToNode.predArc();
-        // }
-        
-        pass.log(mv::Logger::MessageType::Debug, "Queue size: " + std::to_string(dijkstraSourceToNode.queueSize()));
         for (lemon::ListDigraph::Node currentNode = northNode; currentNode != this->graphSourceNode_; currentNode = dijkstraSourceToNode.predNode(currentNode))
         {   //walk the shortest path route
             if (currentNode != lemon::INVALID && dijkstraSourceToNode.reached(currentNode))
             {
-                //pass.log(mv::Logger::MessageType::Debug, "currentNode: " + this->nodes_[currentNode].name);
                 lemon::ListDigraph::Arc predarc = dijkstraSourceToNode.predArc(currentNode);
                 this->edges_[predarc].flow += Fmax;
                 pass.log(mv::Logger::MessageType::Debug, "currentEdge: " + this->edges_[predarc].name + " : " + std::to_string(this->edges_[predarc].flow));
@@ -172,41 +162,31 @@ std::pair<int, std::vector<mv::edgeDescription>> mv::LemonGraphScheduler::calcul
 
         pass.log(mv::Logger::MessageType::Debug, "<<<Dystra: Node -> Sink>>> ");
         pass.log(mv::Logger::MessageType::Debug, "<<< Dystra: Node (" + this->nodes_[southNode].name + ") -> Sink (" + this->nodes_[this->graphSinkNode_].name + ") >>> ");
-        
-        pass.log(mv::Logger::MessageType::Debug, "Queue size: " + std::to_string(dijkstraNodeToSink.queueSize()));
-        if (dijkstraNodeToSink.queueSize() > 0)
-        {   
-            for (lemon::ListDigraph::Node currentNode = this->graphSinkNode_; currentNode != southNode; currentNode = dijkstraNodeToSink.predNode(currentNode))
-            {   
-                //walk the shortest path route
-                if (currentNode != lemon::INVALID && dijkstraNodeToSink.reached(currentNode))
-                {
-                    //pass.log(mv::Logger::MessageType::Debug, "currentNode: " + this->nodes_[currentNode].name);
-                    lemon::ListDigraph::Arc predarc = dijkstraNodeToSink.predArc(currentNode);
-                    this->edges_[predarc].flow += Fmax;
-                    pass.log(mv::Logger::MessageType::Debug, "currentEdge: " + this->edges_[predarc].name + " : " + std::to_string(this->edges_[predarc].flow));
-                }
+        for (lemon::ListDigraph::Node currentNode = this->graphSinkNode_; currentNode != southNode; currentNode = dijkstraNodeToSink.predNode(currentNode))
+        {   //walk the shortest path route
+            if (currentNode != lemon::INVALID && dijkstraNodeToSink.reached(currentNode))
+            {
+                lemon::ListDigraph::Arc predarc = dijkstraNodeToSink.predArc(currentNode);
+                this->edges_[predarc].flow += Fmax;
+                pass.log(mv::Logger::MessageType::Debug, "currentEdge: " + this->edges_[predarc].name + " : " + std::to_string(this->edges_[predarc].flow));
             }
         }
-        else
-            pass.log(mv::Logger::MessageType::Debug, "Ignoring Node: " + this->nodes_[southNode].name);
-        
-        /*The above calculation stops at source node of the edge so doesn't include the edge in question - add Fmax to this edge*/
+        /*Above calculation stops at source node of the edge so doesn't include this edge - add Fmax to this edge */
         this->edges_[thisArc].flow += Fmax;
     }
-    pass.log(mv::Logger::MessageType::Debug, "Printing all flow values: ");
+    //pass.log(mv::Logger::MessageType::Debug, "Printing all flow values: ");
     /*Subtract Memory attribute of edge from the Flow attribute of the edge*/
     lemon::ListDigraph::ArcMap<uint64_t> edgesFlow(this->graph_);
     for (lemon::ListDigraph::ArcIt thisArc(this->graph_); thisArc != lemon::INVALID; ++thisArc)
     {
         this->edges_[thisArc].flow -= this->edges_[thisArc].memoryRequirement;
         edgesFlow[thisArc] = this->edges_[thisArc].flow;
-        pass.log(mv::Logger::MessageType::Debug, this->edges_[thisArc].name + ": flow: " + std::to_string(this->edges_[thisArc].flow) + " mem: " + std::to_string(this->edges_[thisArc].memoryRequirement));
+        //pass.log(mv::Logger::MessageType::Debug, this->edges_[thisArc].name + ": flow: " + std::to_string(this->edges_[thisArc].flow) + " mem: " + std::to_string(this->edges_[thisArc].memoryRequirement));
     }
    
-    // Perform Min cut on the graph, see this example: https://gist.github.com/huanyud/45f98d8bf8d6df66d3e7ab3e9a85af90
+    // Perform Min cut on the graph, example: https://gist.github.com/huanyud/45f98d8bf8d6df66d3e7ab3e9a85af90
     // Edge capacities = flow attribute of the edge
-    // cut edges contains all, but marked True/False if actually part of cut
+    // cutEdges contains all edges, but marked True/False if actually part of cut
     lemon::ListDigraph::NodeMap<bool> cutEdges(this->graph_);
     lemon::Preflow<lemon::ListDigraph, lemon::ListDigraph::ArcMap<uint64_t>> preflow(this->graph_, edgesFlow, this->graphSourceNode_, this->graphSinkNode_);
     preflow.run();
@@ -219,7 +199,7 @@ std::pair<int, std::vector<mv::edgeDescription>> mv::LemonGraphScheduler::calcul
         if (cutEdges[this->graph_.source(e)] && !(cutEdges[this->graph_.target(e)])) 
         {
             int id = this->graph_.id(e);
-            maxTopologicalCutValue += edgesFlow[e];
+            maxTopologicalCutValue += this->edgesMemory_[e];
             this->edges_[e].id = id;
             cutEdgesOnly.push_back(this->edges_[e]);
         }
