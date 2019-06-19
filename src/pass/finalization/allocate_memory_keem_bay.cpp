@@ -453,8 +453,9 @@ void allocateImplicitOperationsFcnKeemBay(const mv::pass::PassEntry& pass,
                 mv::Data::BufferIterator outputBuffer;
 
                 if (!inputTensor->hasAttr("allocators"))
-                {    inputBuffer = allocateUnpopulatedTensor(pass,dm,stageIt,inputTensor);
-                    pass.log(mv::Logger::MessageType::Warning, "Tensor " + outputTensor->getName() + ""
+                {
+                    inputBuffer = allocateUnpopulatedTensor(pass, dm, stageIt, inputTensor);
+                    pass.log(mv::Logger::MessageType::Warning, "Tensor " + inputTensor->getName() + ""
                             " Has no allocator. Will attempt to allocate based on logical location");
                 }
                 else
@@ -462,11 +463,11 @@ void allocateImplicitOperationsFcnKeemBay(const mv::pass::PassEntry& pass,
                     inputBuffer = dm.getBuffer(location2Allocator[inputLocation.toString()],stageIt,inputTensor);
                 }
 
-                if( !outputTensor->hasAttr("allocators"))
+                if(!outputTensor->hasAttr("allocators"))
                 {
                     pass.log(mv::Logger::MessageType::Warning, "Tensor " + outputTensor->getName() +
                             " Has no allocator. Will attempt to allocate based on logical location");
-                    outputBuffer = allocateUnpopulatedTensor(pass,dm,stageIt,outputTensor);
+                    outputBuffer = allocateUnpopulatedTensor(pass, dm, stageIt, outputTensor);
                 }
                 else
                 {
