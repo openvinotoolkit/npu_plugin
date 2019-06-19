@@ -49,7 +49,7 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
         if (opType == "Conv" || opType == "DepthwiseConv")
         {
             auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
-            auto inputMemoryLocation = opIt->getInputTensor(1)->get<mv::Tensor::MemoryLocation>("Location");
+            auto inputMemoryLocation = opIt->getInputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
 
             auto input = opIt->getInputTensor(0);
             auto kernel = opIt->getInputTensor(1);
