@@ -4,6 +4,7 @@
 #include "lemon/dijkstra.h"
 #include <lemon/preflow.h>
 #include <lemon/connectivity.h>
+#include <lemon/graph_to_eps.h>
 
 mv::LemonGraphScheduler::LemonGraphScheduler(): nodes_(graph_), edges_(graph_), edgesMemory_(graph_), edgesLength_(graph_), graphSourceNode_(lemon::INVALID), graphSinkNode_(lemon::INVALID)
 {  }
@@ -101,6 +102,17 @@ void  mv::LemonGraphScheduler::convertMcMGraphToLemonGraph(const mv::pass::PassE
     }
     pass.log(mv::Logger::MessageType::Debug, "Lemon graph has " + std::to_string(lemon::countNodes(this->graph_)) + " nodes and " + std::to_string(lemon::countArcs(this->graph_)) + " edges");
     pass.log(mv::Logger::MessageType::Debug, "Source: " + this->nodes_[this->graphSourceNode_].name + " | Sink: " + this->nodes_[this->graphSinkNode_].name);
+
+    lemon::graphToEps(this->graph_).scale(10).nodeScale(2).arcWidthScale(.4).run();
+
+    //art graph
+    lemon::Palette palette;
+    lemon::Palette paletteW(true);
+
+    lemon::graphToEps(this->graph_,"graph_to_eps_demo_out_1_pure.eps").coords(this->nodes_).
+        title("Sample .eps figure").
+        copyright("(C) 2003-2009 LEMON Project").
+        run();
 }
 
 uint64_t mv::LemonGraphScheduler::calculateFMax(mv::ComputationModel& model) 
@@ -157,7 +169,7 @@ std::pair<int, std::vector<mv::edgeDescription>> mv::LemonGraphScheduler::calcul
         {   //walk the shortest path route
             if (currentNode != lemon::INVALID && dijkstraSourceToNode.reached(currentNode))
             {
-                pass.log(mv::Logger::MessageType::Debug, "currentNode: " + this->nodes_[currentNode].name);
+                //pass.log(mv::Logger::MessageType::Debug, "currentNode: " + this->nodes_[currentNode].name);
                 lemon::ListDigraph::Arc predarc = dijkstraSourceToNode.predArc(currentNode);
                 this->edges_[predarc].flow += Fmax;
                 pass.log(mv::Logger::MessageType::Debug, "currentEdge: " + this->edges_[predarc].name + " : " + std::to_string(this->edges_[predarc].flow));
@@ -181,7 +193,7 @@ std::pair<int, std::vector<mv::edgeDescription>> mv::LemonGraphScheduler::calcul
                 //walk the shortest path route
                 if (currentNode != lemon::INVALID && dijkstraNodeToSink.reached(currentNode))
                 {
-                    pass.log(mv::Logger::MessageType::Debug, "currentNode: " + this->nodes_[currentNode].name);
+                    //pass.log(mv::Logger::MessageType::Debug, "currentNode: " + this->nodes_[currentNode].name);
                     lemon::ListDigraph::Arc predarc = dijkstraNodeToSink.predArc(currentNode);
                     this->edges_[predarc].flow += Fmax;
                     pass.log(mv::Logger::MessageType::Debug, "currentEdge: " + this->edges_[predarc].name + " : " + std::to_string(this->edges_[predarc].flow));
@@ -201,7 +213,7 @@ std::pair<int, std::vector<mv::edgeDescription>> mv::LemonGraphScheduler::calcul
     {
         this->edges_[thisArc].flow -= this->edges_[thisArc].memoryRequirement;
         edgesFlow[thisArc] = this->edges_[thisArc].flow;
-        pass.log(mv::Logger::MessageType::Debug, this->edges_[thisArc].name + ": " + std::to_string(this->edges_[thisArc].flow));
+        pass.log(mv::Logger::MessageType::Debug, this->edges_[thisArc].name + ": flow: " + std::to_string(this->edges_[thisArc].flow) + " mem: " + std::to_string(this->edges_[thisArc].memoryRequirement));
     }
    
     // Perform Min cut on the graph, see this example: https://gist.github.com/huanyud/45f98d8bf8d6df66d3e7ab3e9a85af90

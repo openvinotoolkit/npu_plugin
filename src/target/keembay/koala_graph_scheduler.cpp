@@ -77,6 +77,7 @@ void  mv::KoalaGraphScheduler::convertMcMGraphToKoalaGraph(const mv::pass::PassE
      * create a corresponding node (task) in the KOALA graph.
      * Add all the nodes to the KOALA graph first and then add the edges.
     */
+    std::string sname, tname;
     for (auto opIt = cm.getFirst(); opIt != cm.opEnd(); ++opIt)
     {
 
@@ -96,6 +97,7 @@ void  mv::KoalaGraphScheduler::convertMcMGraphToKoalaGraph(const mv::pass::PassE
 
                this->vertices_.push_back(this->getGraph().addVert(nodeDescription(opIt->getName(),0, false, true)));
                nodeAdded = true;
+               tname = opIt->getName();
            }
            
            /*Keep track of the source node i.e. input*/
@@ -104,6 +106,7 @@ void  mv::KoalaGraphScheduler::convertMcMGraphToKoalaGraph(const mv::pass::PassE
                pass.log(mv::Logger::MessageType::Debug, "Adding vertex to KOALA graph: " + opIt->getName());
                this->vertices_.push_back(this->getGraph().addVert(nodeDescription(opIt->getName(),0, true, false)));
                nodeAdded = true;
+               sname = opIt->getName();
            }
            /*All other nodes between source and sink node*/
            else if (!nodeAdded) {
@@ -153,6 +156,7 @@ void  mv::KoalaGraphScheduler::convertMcMGraphToKoalaGraph(const mv::pass::PassE
     }
     //std::cout << std::to_string(this->getGraph().getVertNo()) << std::to_string(this->getGraph().getEdgeNo()) << std::endl;
     pass.log(mv::Logger::MessageType::Debug, "KOALA graph has " + std::to_string(this->getGraph().getVertNo()) + " vertices and " + std::to_string(this->getGraph().getEdgeNo()) + " edges");
+    pass.log(mv::Logger::MessageType::Debug, "Source: " + sname + " | Sink: " + tname);
 }
 
 uint64_t mv::KoalaGraphScheduler::calculateFMax(mv::ComputationModel& model) {
@@ -334,6 +338,7 @@ std::pair<int,std::vector<mv::koalaGraph::PEdge>> mv::KoalaGraphScheduler::calcu
 
     /* Calculate Fmax - Defined as sum of memory requirments + 1)*/
     auto Fmax = this->calculateFMax(model); 
+    pass.log(mv::Logger::MessageType::Debug, "FMax: " + std::to_string(Fmax));
     
     /*Perform the max topological cut algorithm here*/
 
@@ -356,11 +361,13 @@ std::pair<int,std::vector<mv::koalaGraph::PEdge>> mv::KoalaGraphScheduler::calcu
      * Find the shortest path from source node (Input) to the edges source node and
      * Find the shortest path from the edges sink node to the sink node (DMA task CMX to DDR) 
     */
-    for (int i = 0; i < numberofEdges; i++) {
+    //for (int i = 0; i < numberofEdges; i++) {
+    for (int i = numberofEdges-1; i >=0 ; --i) {
 
         /*get the source and sink node of the edge*/
-        pass.log(mv::Logger::MessageType::Debug, "Source Node " + this->getGraph().getEdgeEnds(this->edges_[i]).first->info.name);
-        pass.log(mv::Logger::MessageType::Debug, "Sink Node " + this->getGraph().getEdgeEnds(this->edges_[i]).second->info.name);
+        pass.log(mv::Logger::MessageType::Debug, ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
+        pass.log(mv::Logger::MessageType::Debug, "North Node " + this->getGraph().getEdgeEnds(this->edges_[i]).first->info.name);
+        pass.log(mv::Logger::MessageType::Debug, "South Node " + this->getGraph().getEdgeEnds(this->edges_[i]).second->info.name);
 
         /*Find the shortest path from the input node to the source node of the edge*/
         Koala::DijkstraHeap::PathLengths <int> resInputToSource = Koala::DijkstraHeap::findPath(this->getGraph(), 
@@ -368,9 +375,8 @@ std::pair<int,std::vector<mv::koalaGraph::PEdge>> mv::KoalaGraphScheduler::calcu
                                                                                                 (*lookUpKoalaSourceNode(true, this->vertices_)),
                                                                                                 this->getGraph().getEdgeEnds(this->edges_[i]).first, 
                                                                                                 Koala::DijkstraHeap::outPath(blackHole, back_inserter(shortestPathEdges)));
-
+        
         pass.log(mv::Logger::MessageType::Debug, "Number of edges on the path from Input to source node of the current edge is " + std::to_string(resInputToSource.edgeNo));
-
 	    for (int k = 0; k < resInputToSource.edgeNo; k++) {
 
             pass.log(mv::Logger::MessageType::Debug, shortestPathEdges[k]->info.name);
@@ -378,6 +384,7 @@ std::pair<int,std::vector<mv::koalaGraph::PEdge>> mv::KoalaGraphScheduler::calcu
             /*Add Fmax to the flow attribute of the edge*/
             auto edge = lookUpKoalaEdgebyName(shortestPathEdges[k]->info.name, this->edges_);
             (*edge)->info.flow +=Fmax;
+            pass.log(mv::Logger::MessageType::Debug, std::to_string(shortestPathEdges[k]->info.flow));
 	    }
 
         /*The above calculation stops at source node of the edge so doesn't include the edge in question - add Fmax to this edge*/
@@ -402,14 +409,19 @@ std::pair<int,std::vector<mv::koalaGraph::PEdge>> mv::KoalaGraphScheduler::calcu
             /*Add Fmax to the flow attribute of the edge*/
             auto edge = lookUpKoalaEdgebyName(shortestPathEdges[j]->info.name, this->edges_);
             (*edge)->info.flow +=Fmax;
+            pass.log(mv::Logger::MessageType::Debug, std::to_string(shortestPathEdges[j]->info.flow));
 	    }
         /*Clear the container used to store the the edges on shorest paths*/
         shortestPathEdges.clear();
     }
 
     /*Subtract Memory attribute of edge from the Flow attribute of the edge*/
+    pass.log(mv::Logger::MessageType::Debug, "Printing all flow values: ");
     for (int i = 0; i < numberofEdges; i++)
+    {
 		this->edges_[i]->info.flow = this->edges_[i]->info.flow - this->edges_[i]->info.memoryRequirement;
+        pass.log(mv::Logger::MessageType::Debug, this->edges_[i]->info.name + ": flow: " + std::to_string(this->edges_[i]->info.flow) + " mem: " + std::to_string(this->edges_[i]->info.memoryRequirement));
+    }
     
 
     /* Perform Min cut on the graph, see this example: http://koala.os.niwa.gda.pl/api/examples/flow/example_Flow.html*/
