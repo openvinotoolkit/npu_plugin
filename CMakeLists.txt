@@ -156,6 +156,7 @@ SET(base
     "${PROJECT_SOURCE_DIR}/src/computation/op/def/bias.cpp"
     "${PROJECT_SOURCE_DIR}/src/computation/op/def/clamp.cpp"
     "${PROJECT_SOURCE_DIR}/src/computation/op/def/concat.cpp"
+    "${PROJECT_SOURCE_DIR}/src/computation/op/def/copy.cpp"
     "${PROJECT_SOURCE_DIR}/src/computation/op/def/constant.cpp"
     "${PROJECT_SOURCE_DIR}/src/computation/op/def/conv.cpp"
     "${PROJECT_SOURCE_DIR}/src/computation/op/def/conversion.cpp"
