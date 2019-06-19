@@ -98,7 +98,8 @@
                 "VersionMinor": 11,
                 "VersionPatch": 0,
                 "VersionHash": "9aa43159420c77d8cf765393954ac2fbb372ab02"
-            }
+            },
+            "StoreTensorPlacement"
         ]
     },
     "adapt": {
@@ -175,14 +176,17 @@
     },
     "dma": {
         "Singular" : [
-            "resolveImplicitOperations",
+            "ResolveImplicitOperations",
             {
                 "name": "GenerateDot",
-                "output": "implicit_operations_model.dot",
+                "output": "output/dots/implicit_operations_model.dot",
                 "scope": "OpModel",
                 "content": "full",
-                "html": true,
-                "convert": false
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/implicit_operations_model.dot"
             },
             {
                 "name":"AddWeightsDMATasks",
@@ -303,6 +307,7 @@
             "ArrangeKeembayExecution",
             "AllocateInputOutputTensorsKeemBay",
             "AllocateGraphfileTensorsKeemBay",
+            "ReAllocateImplicitOperationsKeemBay",
             "AllocateCMXTensorsKeemBay",
             {
                 "name": "TensorGraphColoring",
