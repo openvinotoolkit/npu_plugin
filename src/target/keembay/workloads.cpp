@@ -65,7 +65,7 @@ std::size_t mv::Workloads::nWorkloads() const
 
 const std::vector<mv::Workload>& mv::Workloads::getWorkloads() const
 {
-    return const_cast<std::vector<Workload>&>(workloads_);
+    return workloads_;
 }
 
 std::string mv::Workloads::toString() const
@@ -1552,10 +1552,10 @@ const std::vector<mv::Workload>& mv::Workloads::overlap_and_clip(std::array<unsi
         workload->MaxY = std::min((workload->MaxY - padding[2]), int (tensorShape[IO_HEIGHT_DIMENSION] - 1));
         workload->MaxX = std::max((workload->MaxX - padding[1]), int(tensorShape[IO_WIDTH_DIMENSION] - 1));
     }
-    return const_cast<std::vector<Workload>&>(workloads_);
+    return workloads_;
 }
 
-const std::vector<mv::Workload>& mv::Workloads::add_xy_offset(std::vector<std::size_t>& offset)
+void mv::Workloads::add_xy_offset(std::vector<std::size_t>& offset)
 {
     for (auto workload = workloads_.begin(); workload != workloads_.end(); workload++)
     {
@@ -1564,13 +1564,12 @@ const std::vector<mv::Workload>& mv::Workloads::add_xy_offset(std::vector<std::s
         workload->MaxY = workload->MaxY + offset[IO_HEIGHT_DIMENSION];
         workload->MaxX = workload->MaxX + offset[IO_WIDTH_DIMENSION];
     }
-    return const_cast<std::vector<Workload>&>(workloads_);
+ 
 }
 
-const std::vector<mv::Workload>& mv::Workloads::populateClusterID(int clusterID)
+void mv::Workloads::populateClusterID(int clusterID)
 {
     for (auto workload = workloads_.begin(); workload != workloads_.end(); workload++)
         workload->clusterID = clusterID;
-       
-    return const_cast<std::vector<Workload>&>(workloads_);
 }
+

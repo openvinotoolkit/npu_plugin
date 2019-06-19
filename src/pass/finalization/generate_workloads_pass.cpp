@@ -358,7 +358,7 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                 pass.log(mv::Logger::MessageType::Info, "The subtensor for cluster 0 shape is: " + subTensor.getShape().toString());
 
                 /*Apply the SOH offset to the most optimial workload*/
-                if(opIt->getOutputTensor()[0]->get<std::string>("splitStrategy") == "SplitOverH") {
+                if((opIt->getOutputTensor()[0]->hasAttr("splitStrategy")) && (nClusters > 1)) {
                     auto subTensorOffset = subTensor.get<std::vector<std::size_t>>("offset");
                     workloadsVector.at(optimalWorkloadIndex).add_xy_offset(subTensorOffset);
                 }

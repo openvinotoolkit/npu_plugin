@@ -132,8 +132,8 @@ namespace mv
                                                         std::pair<std::pair<int16_t, int16_t>,bool>& interesting_point, 
                                                         mv::DPUMode& mpeMode);
 
-        const std::vector<mv::Workload>& add_xy_offset(std::vector<std::size_t>& offset);
-        const std::vector<mv::Workload>& populateClusterID(int clusterID);
+        void add_xy_offset(std::vector<std::size_t>& offset);
+        void populateClusterID(int clusterID);
 
         std::size_t nWorkloads() const;
         void addWorkload(mv::Workload workload);
@@ -146,7 +146,6 @@ namespace mv
         void setExecutionCycles(std::vector<float> val);
         static float greedyTaskAssignment(int nProcessors, std::vector<float>& workloadCosts);
 
-        //bool validateWorkloads(std::vector<mv::Data::TensorIterator>& inputTensor);
         bool validateWorkloads(const mv::Shape& shape);
 
         static mv::CostFunctions getCostFunction(mv::Element& passDesc, const mv::pass::PassEntry& pass);
