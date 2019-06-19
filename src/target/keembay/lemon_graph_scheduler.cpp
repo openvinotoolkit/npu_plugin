@@ -4,7 +4,6 @@
 #include "lemon/dijkstra.h"
 #include <lemon/preflow.h>
 #include <lemon/connectivity.h>
-#include <lemon/graph_to_eps.h>
 
 mv::LemonGraphScheduler::LemonGraphScheduler(): nodes_(graph_), edges_(graph_), edgesMemory_(graph_), edgesLength_(graph_), graphSourceNode_(lemon::INVALID), graphSinkNode_(lemon::INVALID)
 {  }
@@ -102,17 +101,6 @@ void  mv::LemonGraphScheduler::convertMcMGraphToLemonGraph(const mv::pass::PassE
     }
     pass.log(mv::Logger::MessageType::Debug, "Lemon graph has " + std::to_string(lemon::countNodes(this->graph_)) + " nodes and " + std::to_string(lemon::countArcs(this->graph_)) + " edges");
     pass.log(mv::Logger::MessageType::Debug, "Source: " + this->nodes_[this->graphSourceNode_].name + " | Sink: " + this->nodes_[this->graphSinkNode_].name);
-
-    lemon::graphToEps(this->graph_).scale(10).nodeScale(2).arcWidthScale(.4).run();
-
-    //art graph
-    lemon::Palette palette;
-    lemon::Palette paletteW(true);
-
-    lemon::graphToEps(this->graph_,"graph_to_eps_demo_out_1_pure.eps").coords(this->nodes_).
-        title("Sample .eps figure").
-        copyright("(C) 2003-2009 LEMON Project").
-        run();
 }
 
 uint64_t mv::LemonGraphScheduler::calculateFMax(mv::ComputationModel& model) 
