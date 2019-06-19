@@ -57,26 +57,6 @@
                         "strategy" : "SplitOverH"
                     }
                 ],
-
-                "tensor_placement_override" : 
-                [
-                    {
-                        "name_filter" : ".*_ddr_.*",
-                        "mem_location" : "DDR"
-                    },
-                    {
-                        "name_filter" : ".*_cmx_.*",
-                        "mem_location" : "CMX"
-                    },
-                    {
-                        "name_filter" : ".*_input_.*",
-                        "mem_location" : "INPUT"
-                    },
-                    {
-                        "name_filter" : ".*_output_.*",
-                        "mem_location" : "OUTPUT"
-                    }
-                ],
                 "streaming_strategy" :
                 [
                     {
@@ -95,8 +75,7 @@
                             {"H" : 4}
                         ]
                     }
-                ],
-                "default_tensor_placement" : "DDR"
+                ]
             },
             "ComputeMemory",
             "AssignUniqueOpId",
@@ -119,7 +98,6 @@
     },
     "adapt": {
         "Singular": [
-            "StoreTensorPlacement",
             "AverageAsDepthWise",
             "FuseBatchNorm",
             "FuseBias",
