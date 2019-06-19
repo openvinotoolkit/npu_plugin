@@ -18,6 +18,8 @@
 #include <unistd.h>
 #include <cstring>
 
+#include <ie_blob.h>
+
 #include "kmb_allocator.h"
 
 using namespace testing;
@@ -55,15 +57,18 @@ TEST(kmbAllocatorUnitTests, canFreeMemory) {
     ASSERT_TRUE(allocator.free(data));
 }
 
-TEST(kmbAllocatorUnitTests, canWriteToAllocatedMemory) {
+TEST(kmbAllocatorUnitTests, canWriteAndReadAllocatedMemory) {
     KmbAllocator allocator;
 
     size_t size = 10;
-    char *data = reinterpret_cast<char *>(allocator.alloc(size));
+    void *data = allocator.alloc(size);
     ASSERT_NE(data, nullptr);
 
+    // this memory should be accessible for manipulations
+    char *lockedData = reinterpret_cast<char *>(allocator.lock(data, InferenceEngine::LockOp::LOCK_FOR_WRITE));
+
     const int MAGIC_NUMBER = 0x13;
-    std::memset(data, MAGIC_NUMBER, size);
+    std::memset(lockedData, MAGIC_NUMBER, size);
 
     std::vector<char> actual(size);
     std::memcpy(actual.data(), data, size);
@@ -87,4 +92,25 @@ TEST(kmbAllocatorUnitTests, cannotDoDoubleFree) {
 
     ASSERT_TRUE(allocator.free(data));
     ASSERT_FALSE(allocator.free(data));
+}
+
+TEST(kmbAllocatorUnitTests, canCreateBlobBasedOnAllocator) {
+    const std::shared_ptr<InferenceEngine::IAllocator> customAllocator(new KmbAllocator());
+
+    const InferenceEngine::TensorDesc tensorDesc(InferenceEngine::Precision::U8, {1, 1, 1, 1}, InferenceEngine::Layout::NCHW);
+    auto blob = InferenceEngine::make_shared_blob<uint8_t>(tensorDesc, customAllocator);
+
+    ASSERT_NE(blob, nullptr);
+}
+
+TEST(kmbAllocatorUnitTests, canWriteToBlobMemory) {
+    const std::shared_ptr<InferenceEngine::IAllocator> customAllocator(new KmbAllocator());
+
+    const InferenceEngine::TensorDesc tensorDesc(InferenceEngine::Precision::U8, {1, 1, 1, 1}, InferenceEngine::Layout::NCHW);
+    auto blob = InferenceEngine::make_shared_blob<uint8_t>(tensorDesc, customAllocator);
+
+    ASSERT_NE(blob, nullptr);
+
+    blob->allocate();
+    blob->buffer().as<uint8_t *>()[0] = 0;
 }

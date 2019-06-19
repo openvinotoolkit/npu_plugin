@@ -26,10 +26,13 @@
 #include <iostream>
 
 void *vpu::KmbPlugin::KmbAllocator::lock(void *handle, InferenceEngine::LockOp) noexcept {
-    return nullptr;
+    if (_allocatedMemory.find(handle) == _allocatedMemory.end())
+        return nullptr;
+
+    return handle;
 }
 
-void vpu::KmbPlugin::KmbAllocator::unlock(void *handle) noexcept {
+void vpu::KmbPlugin::KmbAllocator::unlock(void *) noexcept {
 }
 
 void *vpu::KmbPlugin::KmbAllocator::alloc(size_t size) noexcept {

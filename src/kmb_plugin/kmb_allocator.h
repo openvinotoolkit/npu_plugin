@@ -22,7 +22,7 @@
 namespace vpu {
 namespace KmbPlugin {
 
-class KmbAllocator : InferenceEngine::IAllocator {
+class KmbAllocator : public InferenceEngine::IAllocator {
 public:
     void * lock(void * handle, InferenceEngine::LockOp)  noexcept override;
 
