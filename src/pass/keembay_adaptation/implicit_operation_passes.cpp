@@ -4,14 +4,14 @@
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/computation/flow/implicit_flow.hpp"
 
-static void resolvevImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
+static void resolveImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 
 namespace mv
 {
     namespace pass
     {
         MV_REGISTER_PASS(resolveImplicitOperations)
-                .setFunc(resolvevImplicitOperationsFcn)
+                .setFunc(resolveImplicitOperationsFcn)
                 .setDescription("loops over all the candidate implicit operations and will try to add DMA to them");
     }
 }
@@ -30,7 +30,7 @@ static std::map<const std::string,mv::DmaDirectionEnum> dmaDirectionStrings =
       {"DDR2OUTPUT",mv::DmaDirectionEnum::DDR2DDR}
 };
 
-void resolvevImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::json::Object&)
+void resolveImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::json::Object&)
 {
     mv::OpModel om(model);
 
