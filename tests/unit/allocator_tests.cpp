@@ -69,3 +69,22 @@ TEST(kmbAllocatorUnitTests, canWriteToAllocatedMemory) {
     std::memcpy(actual.data(), data, size);
     ASSERT_TRUE(std::count(actual.begin(), actual.end(), MAGIC_NUMBER) == size);
 }
+
+TEST(kmbAllocatorUnitTests, cannotFreeInvalidAddressMemory) {
+    KmbAllocator allocator;
+
+    auto data = nullptr;
+
+    ASSERT_FALSE(allocator.free(data));
+}
+
+TEST(kmbAllocatorUnitTests, cannotDoDoubleFree) {
+    KmbAllocator allocator;
+
+    size_t size = 10;
+    auto data = allocator.alloc(size);
+    ASSERT_NE(data, nullptr);
+
+    ASSERT_TRUE(allocator.free(data));
+    ASSERT_FALSE(allocator.free(data));
+}

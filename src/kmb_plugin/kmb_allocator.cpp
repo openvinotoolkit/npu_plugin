@@ -38,16 +38,35 @@ void *vpu::KmbPlugin::KmbAllocator::alloc(size_t size) noexcept {
 
     auto fd = vpusmm_alloc_dmabuf(realSize, VPUSMMType::VPUSMMTYPE_COHERENT);
 
-    void *out = (char *)mmap(nullptr, realSize, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+    void *out = mmap(nullptr, realSize, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
 
     if (out == MAP_FAILED)
         return nullptr;
 
-    _allocatedMemory[out] = size;
+    MemoryDescriptor memDesc = {
+            realSize, //  size
+            fd,       //  file descriptor
+    };
+    _allocatedMemory[out] = memDesc;
 
     return out;
 }
 
 bool vpu::KmbPlugin::KmbAllocator::free(void *handle) noexcept {
+    auto memoryIt = _allocatedMemory.find(handle);
+    if (memoryIt == _allocatedMemory.end()) {
+        return false;
+    }
+
+    auto memoryDesc = memoryIt->second;
+
+    auto out = munmap(handle, memoryDesc.size);
+    if (out == -1) {
+        return false;
+    }
+    close(memoryDesc.fd);
+
+    _allocatedMemory.erase(handle);
+
     return true;
 }
