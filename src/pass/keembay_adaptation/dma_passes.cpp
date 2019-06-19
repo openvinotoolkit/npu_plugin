@@ -165,7 +165,6 @@ void addWeightsDMATasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
                 {
                     auto flows = inputTensor->get<std::set<std::string>>("flows");
 
-
                     auto inputTensorDma = om.dMATask(inputTensor, mv::DmaDirectionEnum::DDR2CMX,quantParams, mv::createDMATaskDDR2CMXName(inputOp->getName()));
                     auto inputTensorDmaOp = om.getSourceOp(inputTensorDma);
                     inputTensorDmaOp->set<unsigned>("opId", opId);
@@ -180,10 +179,9 @@ void addWeightsDMATasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
                         om.defineFlow(inputTensorDmaOp, 0, sink, idx);
                     }
 
-                    //NOTE: This will change with multicluster
-                    long unsigned inputTensorDmaDimension = inputTensorDma->computeTotalSize();
+                    long unsigned inputTensorDmaDimension = inputTensorDma->getClusterSize(16, false);
                     for(unsigned j = 0; j < inputOutputTensors; ++j)
-                        inputTensorDmaDimension += opIt->getInputTensor(j)->computeTotalSize();
+                        inputTensorDmaDimension += opIt->getInputTensor(j)->getClusterSize(16, false);
 
                     int partsPerCMX = std::max((unsigned long)1, cmxSize/inputTensorDmaDimension);
                     if (partsPerCMX < (_dma_dependency + 1))
