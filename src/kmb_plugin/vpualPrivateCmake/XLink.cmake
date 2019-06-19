@@ -1,6 +1,7 @@
 set(XLINK_BASE ${vpual_home}/host/source/XLink)
 
 set(XLINK_INCLUDE_DIRECTORIES
+    ${XLINK_BASE}/include
     ${XLINK_BASE}/pc
     ${XLINK_BASE}/shared
     ${XLINK_BASE}/swCommon/include
@@ -13,18 +14,12 @@ set(XLINK_INCLUDE_DIRECTORIES
 )
 
 set(XLINK_SOURCES
-    ${XLINK_BASE}/pc/XLinkPlatform.c
-    ${XLINK_BASE}/pc/usb_boot.c
-    ${XLINK_BASE}/shared/XLink.c
-    ${XLINK_BASE}/shared/XLinkDispatcher.c
-    ${XLINK_BASE}/swCommon/src/swcFifo.c
-    ${XLINK_BASE}/pcUsbTool/fastmemDevice.cpp
-    ${XLINK_BASE}/pcUsbTool/common/vsc/fastmemUsb.cpp
-    ${XLINK_BASE}/pcUsbTool/linux/uvc/fastmemV4L.cpp
+    ${XLINK_BASE}/src/XLinkUAPI.c
 )
 
 set(XLINK_PUBLIC_HEADERS
     ${XLINK_BASE}/shared/XLink.h
+    ${XLINK_BASE}/include/XLinkUAPI.h
     ${XLINK_BASE}/shared/XLinkPublicDefines.h
 )
 

@@ -24,6 +24,7 @@ using namespace InferenceEngine;
 
 typedef kmbLayerTestBaseWithParam< tensor_test_params > kmbLayersTestsReLUParams;
 
+#ifdef ENABLE_MCM_COMPILER
 TEST_F(kmbLayersTests_nightly, TestsReLUAfterConvolution) {
     const std::string model = R"V0G0N(
     <net batch="1" name="RELU_TEST" version="2">
@@ -246,3 +247,4 @@ static const tensor_test_params paramsTable[] = {
 INSTANTIATE_TEST_CASE_P(loadNetworkNoThrow, kmbLayersTestsReLUParams,
     ::testing::ValuesIn(paramsTable)
 );
+#endif

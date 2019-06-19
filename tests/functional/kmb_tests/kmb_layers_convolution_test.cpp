@@ -22,6 +22,7 @@
 
 using namespace InferenceEngine;
 
+#ifdef ENABLE_MCM_COMPILER
 TEST_F(kmbLayersTests_nightly, TestsConvolutionAfterScaleShift) {
     const std::string model = R"V0G0N(
     <net batch="1" name="CONVOLUTION_TEST" version="2">
@@ -187,3 +188,4 @@ TEST_F(kmbLayersTests_nightly, TestsConvolutionOnly) {
     ASSERT_NO_THROW(st = myriadPluginPtr->LoadNetwork(_exeNetwork, network, config, &_resp));
     ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
 }
+#endif

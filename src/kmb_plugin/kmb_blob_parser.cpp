@@ -23,6 +23,8 @@
 
 #include <vpu/utils/extra.hpp>
 
+#ifdef ENABLE_MCM_COMPILER
+
 namespace vpu {
 namespace KmbPlugin {
 
@@ -159,3 +161,4 @@ KmbBlob::KmbBlob(const void* data, size_t size) {
 
 }  // namespace KmbPlugin
 }  // namespace vpu
+#endif

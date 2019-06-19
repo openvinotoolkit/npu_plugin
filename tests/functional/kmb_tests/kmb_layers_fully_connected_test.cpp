@@ -23,6 +23,7 @@ using namespace InferenceEngine;
 typedef std::tuple<tensor_test_params, tensor_test_params, size_t> fully_connected_test_params;
 typedef kmbLayerTestBaseWithParam< fully_connected_test_params > kmbLayersTestsFullyConnectedParams;
 
+#ifdef ENABLE_MCM_COMPILER
 TEST_P(kmbLayersTestsFullyConnectedParams, TestsFullyConnected) {
     auto param = GetParam();
     tensor_test_params inputTensor = std::get<0>(param);
@@ -70,3 +71,4 @@ static const fully_connected_test_params paramsTable[] = {
 INSTANTIATE_TEST_CASE_P(loadNetworkNoThrow, kmbLayersTestsFullyConnectedParams,
     ::testing::ValuesIn(paramsTable)
 );
+#endif

@@ -3,6 +3,13 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+if (ENABLE_MCM_COMPILER)
+    MESSAGE(STATUS "*** Enabling MCM compiler for functional tests ***")
+    add_definitions(-DENABLE_MCM_COMPILER)
+else()
+    MESSAGE(STATUS "*** Disabling MCM compiler for functional tests ***")
+endif()
+
 file(GLOB VPU_TEST_INCLUDES
         ${CMAKE_CURRENT_SOURCE_DIR}/base/*.h
         ${CMAKE_CURRENT_SOURCE_DIR}/base/*.hpp

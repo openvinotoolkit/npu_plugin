@@ -36,6 +36,7 @@
 #include <frontend_mcm.hpp>
 #include <kmb_config.h>
 
+#ifdef ENABLE_MCM_COMPILER
 #include "include/mcm/compiler/compilation_unit.hpp"
 #include "include/mcm/utils/data_generator.hpp"
 #include "include/mcm/utils/serializer/Fp16Convert.h"
@@ -101,3 +102,4 @@ const int BLOB_VERSION_MINOR = 0;
 }  // namespace KmbPlugin
 
 }  // namespace vpu
+#endif

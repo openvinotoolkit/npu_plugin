@@ -10,6 +10,7 @@ set(VPUAL_DISPATCHER_INCLUDE_DIRECTORIES
 set(VPUAL_DISPATCHER_SOURCES
     ${VPUAL_DISPATCHER_BASE}/source/VpualDispatcher.cpp
     ${VPUAL_DISPATCHER_BASE}/source/VpualMessage.cpp
+    ${VPUAL_DISPATCHER_BASE}/source/cma_allocation_helper.cpp
 )
 
 set(VPUAL_DISPATCHER_PUBLIC_HEADERS

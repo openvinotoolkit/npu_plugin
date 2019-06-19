@@ -183,6 +183,7 @@ inline void VpuNoRegressionWithCompilation::loadNetworkWrapper(std::map<std::str
     ASSERT_EQ(StatusCode::OK, sts) << response.msg;
 }
 
+#ifdef ENABLE_MCM_COMPILER
 TEST_P(KmbNoRegressionCompilationOnly, KmbParsingTest) {
     _config[VPU_KMB_CONFIG_KEY(MCM_PARSING_ONLY)] = CONFIG_VALUE(YES);
 
@@ -213,3 +214,4 @@ INSTANTIATE_TEST_CASE_P(
         Combine(Values("kmbPlugin"),
                 ValuesIn(compilation_parameters_kmb)),
                 KmbNoRegressionCompilationOnly::getTestCaseName);
+#endif

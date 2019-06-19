@@ -30,9 +30,10 @@
 #include <vpu/compile_env.hpp>
 #include "ie_blob.h"
 
-#include "include/mcm/tensor/quantization_params.hpp"
-
 #include <precision_utils.h>
+
+#ifdef ENABLE_MCM_COMPILER
+#include "include/mcm/tensor/quantization_params.hpp"
 
 namespace vpu {
 
@@ -1002,3 +1003,4 @@ void FrontEndMcm::checkNetwork(const ie::CNNNetwork& network) {
 }  // namespace KmbPlugin
 
 }  // namespace vpu
+#endif

@@ -26,48 +26,55 @@ if (DEFINED MCM_COMPILER_PATHS_FINDING)
     unset(MCM_SCHEMA_INCLUDE_PATH CACHE)
 endif()
 
-if (DEFINED MCM_COMPILER_INCLUDE_PATH)
-    set(MCM_COMPILER_PATHS_FINDING TRUE)
-endif()
-find_path(MCM_COMPILER_INCLUDE_PATH "include/mcm/compiler/compilation_unit.hpp"
-    PATHS ENV MCM_HOME)
-find_path(FLATBUFFERRS_INCLUDE_PATH "flatbuffers/base.h"
-    PATHS ENV MCM_HOME
-    PATH_SUFFIXES "schema/graphfile/flatbuffers/include")
-find_path(MCM_SCHEMA_INCLUDE_PATH "graphfile_generated.h"
-    PATHS ENV MCM_HOME
-    PATH_SUFFIXES "meta/schema/graphfile")
-find_library(MCM_COMPILER_LIBRARY cm
-    PATHS ENV MCM_HOME
-    HINTS "$ENV{MCM_HOME}-build/lib" "$ENV{MCM_HOME}/build/lib")
+if (ENABLE_MCM_COMPILER)
+    MESSAGE(STATUS "************ Enabling MCM compiler ************")
+    add_definitions(-DENABLE_MCM_COMPILER)
 
-message(STATUS "MCM_COMPILER_INCLUDE_PATH: ${MCM_COMPILER_INCLUDE_PATH}")
-message(STATUS "MCM_COMPILER_LIBRARY: ${MCM_COMPILER_LIBRARY}")
-message(STATUS "FLATBUFFERRS_INCLUDE_PATH: ${FLATBUFFERRS_INCLUDE_PATH}")
-message(STATUS "MCM_SCHEMA_INCLUDE_PATH: ${MCM_SCHEMA_INCLUDE_PATH}")
-message(STATUS "MCM_HOME: ${MCM_HOME}")
-message(STATUS "env MCM_HOME: $ENV{MCM_HOME}")
+    if (DEFINED MCM_COMPILER_INCLUDE_PATH)
+        set(MCM_COMPILER_PATHS_FINDING TRUE)
+    endif()
+    find_path(MCM_COMPILER_INCLUDE_PATH "include/mcm/compiler/compilation_unit.hpp"
+        PATHS ENV MCM_HOME)
+    find_path(FLATBUFFERRS_INCLUDE_PATH "flatbuffers/base.h"
+        PATHS ENV MCM_HOME
+        PATH_SUFFIXES "schema/graphfile/flatbuffers/include")
+    find_path(MCM_SCHEMA_INCLUDE_PATH "graphfile_generated.h"
+        PATHS ENV MCM_HOME
+        PATH_SUFFIXES "meta/schema/graphfile")
+    find_library(MCM_COMPILER_LIBRARY cm
+        PATHS ENV MCM_HOME
+        HINTS "$ENV{MCM_HOME}-build/lib" "$ENV{MCM_HOME}/build/lib")
 
-if(NOT MCM_COMPILER_INCLUDE_PATH OR NOT MCM_COMPILER_LIBRARY OR
-   NOT FLATBUFFERRS_INCLUDE_PATH OR NOT MCM_SCHEMA_INCLUDE_PATH)
-    set(MCM_BASE_DIR ${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/thirdparty/movidius/mcmCompiler)
+    message(STATUS "MCM_COMPILER_INCLUDE_PATH: ${MCM_COMPILER_INCLUDE_PATH}")
+    message(STATUS "MCM_COMPILER_LIBRARY: ${MCM_COMPILER_LIBRARY}")
+    message(STATUS "FLATBUFFERRS_INCLUDE_PATH: ${FLATBUFFERRS_INCLUDE_PATH}")
+    message(STATUS "MCM_SCHEMA_INCLUDE_PATH: ${MCM_SCHEMA_INCLUDE_PATH}")
+    message(STATUS "MCM_HOME: ${MCM_HOME}")
+    message(STATUS "env MCM_HOME: $ENV{MCM_HOME}")
 
-    ExternalProject_Add(
-        mcmCompiler
-        PREFIX ${MCM_BASE_DIR}
-        SOURCE_DIR ${MCM_BASE_DIR}
-        BINARY_DIR ${MCM_BASE_DIR}/build
-        STAMP_DIR ${MCM_BASE_DIR}/stamp
-        INSTALL_COMMAND ""
-    )
+    if(NOT MCM_COMPILER_INCLUDE_PATH OR NOT MCM_COMPILER_LIBRARY OR
+       NOT FLATBUFFERRS_INCLUDE_PATH OR NOT MCM_SCHEMA_INCLUDE_PATH)
+        set(MCM_BASE_DIR ${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/thirdparty/movidius/mcmCompiler)
 
-    set(MCM_COMPILER_INTERNAL_BUILD TRUE)
-    set(MCM_COMPILER_INCLUDE_PATH "${MCM_BASE_DIR}")
-    set(MCM_COMPILER_LIBRARY "${MCM_BASE_DIR}/build/lib/${CMAKE_SHARED_LIBRARY_PREFIX}cm${CMAKE_SHARED_LIBRARY_SUFFIX}")
-    set(FLATBUFFERRS_INCLUDE_PATH "${MCM_BASE_DIR}/schema/graphfile/flatbuffers/include/")
-    set(MCM_SCHEMA_INCLUDE_PATH "${MCM_BASE_DIR}/meta/schema/graphfile")
+        ExternalProject_Add(
+            mcmCompiler
+            PREFIX ${MCM_BASE_DIR}
+            SOURCE_DIR ${MCM_BASE_DIR}
+            BINARY_DIR ${MCM_BASE_DIR}/build
+            STAMP_DIR ${MCM_BASE_DIR}/stamp
+            INSTALL_COMMAND ""
+        )
+
+        set(MCM_COMPILER_INTERNAL_BUILD TRUE)
+        set(MCM_COMPILER_INCLUDE_PATH "${MCM_BASE_DIR}")
+        set(MCM_COMPILER_LIBRARY "${MCM_BASE_DIR}/build/lib/${CMAKE_SHARED_LIBRARY_PREFIX}cm${CMAKE_SHARED_LIBRARY_SUFFIX}")
+        set(FLATBUFFERRS_INCLUDE_PATH "${MCM_BASE_DIR}/schema/graphfile/flatbuffers/include/")
+        set(MCM_SCHEMA_INCLUDE_PATH "${MCM_BASE_DIR}/meta/schema/graphfile")
+    else()
+        message(STATUS "mcmCompiler is outside the IE tree")
+    endif()
 else()
-    message(STATUS "mcmCompiler is outside the IE tree")
+    MESSAGE(STATUS "************ Disabling MCM compiler ************")
 endif()
 
 if (NOT DEFINED ENV{VPUAL_HOME})

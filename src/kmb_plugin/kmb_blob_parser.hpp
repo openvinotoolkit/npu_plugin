@@ -21,6 +21,7 @@
 #include <ie_icnn_network.hpp>
 #include <vpu/graph_transformer.hpp>
 
+#ifdef ENABLE_MCM_COMPILER
 #include "graphfile_generated.h"
 
 namespace vpu {
@@ -58,3 +59,4 @@ private:
 
 }  // namespace KmbPlugin
 }  // namespace vpu
+#endif
