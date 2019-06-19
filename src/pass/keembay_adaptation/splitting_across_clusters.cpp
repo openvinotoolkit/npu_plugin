@@ -42,26 +42,27 @@ void splittingAcrossClusters(const mv::pass::PassEntry& pass, mv::ComputationMod
     auto globalParams = model.getGlobalConfigParams();
     auto numClusters = globalParams->get("Number_of_Clusters");
 
-    if (int(numClusters) > 1)
+//    if (int(numClusters) > 1)
+//    {
+    // Splitting in every case, makes life simpler :)
+    std::vector <mv::Data::TensorIterator> tensors;
+    for(auto layer = om.opBegin(); layer != om.opEnd(); ++layer)
     {
-        std::vector <mv::Data::TensorIterator> tensors;
-        for(auto layer = om.opBegin(); layer != om.opEnd(); ++layer)
+        std::string opType = layer->getOpType();
+        if (opType == "DPUTask")
         {
-            std::string opType = layer->getOpType();
-            if (opType == "DPUTask")
+            auto outputTensor = layer->getOutputTensor(0);
+            tensors.push_back(outputTensor);
+            unsigned n = layer->inputSlots();
+            for(unsigned i = 0; i < n; ++i)
             {
-                auto outputTensor = layer->getOutputTensor(0);
-                tensors.push_back(outputTensor);
-                unsigned n = layer->inputSlots();
-                for(unsigned i = 0; i < n; ++i)
-                {
-                    auto inputTensor = layer->getInputTensor(i);
-                    tensors.push_back(inputTensor);
-                }
+                auto inputTensor = layer->getInputTensor(i);
+                tensors.push_back(inputTensor);
             }
         }
-        subTensorsGen(model, tensors, numClusters, pass);
     }
+    subTensorsGen(model, tensors, numClusters, pass);
+//    }
     return;
 }
 
