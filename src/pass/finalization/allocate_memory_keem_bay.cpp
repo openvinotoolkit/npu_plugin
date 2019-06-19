@@ -206,9 +206,12 @@ void allocateCMXTensorsFcnKeemBay(const mv::pass::PassEntry& pass, mv::Computati
 
         }
 
-        else if (opType == "Constant" || opType == "ConstantInt" || opType == "ConstantDataElement")
+        else if (opType == "Constant" || opType == "ConstantInt" || opType == "ConstantDataElement" || opIterator->hasAttr("ImplicitFlow"))
+        {
+            pass.log(mv::Logger::MessageType::Debug, "Skipping allocation of opType " + opType);
             continue;
-        else if (opType == "ImplicitConcat")
+        }
+        /*else if (opType == "ImplicitConcat")
         {
             // Allocate Output
             auto outputTensor = opIterator->getOutputTensor(0);
@@ -283,7 +286,7 @@ void allocateCMXTensorsFcnKeemBay(const mv::pass::PassEntry& pass, mv::Computati
                 auto NewBuffer = dm.moveTensor("VPU_CMX_NN", ExistingBuffer, outputBuffer, lhs_padding, rhs_padding);
 
             }
-        }
+        }*/
         /*
             For each input and output, allocate if it has not already been done.
             Don't allocate for I/O layers as they are already accounted for.
@@ -353,7 +356,7 @@ void allocateImplicitOperationsFcnKeemBay(const mv::pass::PassEntry& pass,
     for(auto opIterator = om.opBegin(); opIterator != om.opEnd(); ++opIterator)
     {
 
-        if(! opIterator->hasAttr("ImplicitFlow"))
+        if(!opIterator->hasAttr("ImplicitFlow"))
             continue;
         std::string opType = opIterator->getOpType();
         auto implicitFlow = opIterator->get<mv::ImplicitFlow>("ImplicitFlow");
