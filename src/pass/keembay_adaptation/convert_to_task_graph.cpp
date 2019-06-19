@@ -138,11 +138,14 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
                 auto dpuCopyIn = om.copy(input,quantParams,dpuConv->getName() + "_copyIn");
                 auto dpuOp = om.getSourceOp(dpuConv);
 
-                dpuOp->setInputTensor(dpuCopyIn,0);
-                om.defineFlow(dpuCopyIn,dpuOp,0);
+                auto inputFlow  = dpuOp.leftmostInput();
 
+                dpuOp->setInputTensor(dpuCopyIn, 0);
+                om.undefineFlow(inputFlow);
+                om.defineFlow(dpuCopyIn,dpuOp,0);
                 dpuCopyIn->set<mv::Tensor::MemoryLocation>("Location",mv::Tensor::MemoryLocation::CMX);
             }
+
         }
         else if (opType == "MaxPool")
         {
