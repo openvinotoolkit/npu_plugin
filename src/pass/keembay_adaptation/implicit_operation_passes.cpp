@@ -44,6 +44,8 @@ void resolvevImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::Computat
                 opIt->set<mv::ImplicitFlow>("ImplicitFlow",mv::ImplicitFlow(mv::ImplicitFlow::INPUT_IN_OUTPUT));
             if(opType == "Slice")
                 opIt->set<mv::ImplicitFlow>("ImplicitFlow",mv::ImplicitFlow(mv::ImplicitFlow::OUTPUT_IN_INPUT));
+            if(opType == "Copy")
+                opIt->set<mv::ImplicitFlow>("ImplicitFlow",mv::ImplicitFlow(mv::ImplicitFlow::INPUT_IN_OUTPUT));
         }
 
         if( !opIt->hasAttr("ImplicitFlow") )
