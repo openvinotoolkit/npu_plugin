@@ -1456,7 +1456,7 @@ namespace mv {
         return workload_list;
     }
 
-} // namespace mv
+} // namespace mv[]
 
 
 int mv::Workloads::partitionTensorWithRectangleHeuristic(const mv::DPUModeList& mode_list,
