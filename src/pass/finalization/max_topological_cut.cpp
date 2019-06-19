@@ -7,12 +7,19 @@
 #include <iostream>
 
 static void maxTopologicalCutAndPartialSerialisationPass(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
+static void markLastNodeForMaxTopologicalCutFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element&, mv::json::Object&);
 
 namespace mv
 {
 
     namespace pass
     {
+
+        MV_REGISTER_PASS(MarkLastNodeForMaxTopologicalCut)
+        .setFunc(markLastNodeForMaxTopologicalCutFcn)
+        .setDescription(
+            "Perform the max topological cut algorithm and partial serialisation (if required) to schedule the DAG."
+        );
 
         MV_REGISTER_PASS(MaxTopologicalCutAndPartialSerialisation)
         .setFunc(maxTopologicalCutAndPartialSerialisationPass)
@@ -21,11 +28,19 @@ namespace mv
         );
     }
 }
+void markLastNodeForMaxTopologicalCutFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element&, mv::json::Object&)
+{
+
+    mv::ControlModel cm(model);
+    mv::OpModel om(model);
+    auto output = cm.switchContext(om.getOutput());
+    auto sinkNode = output.leftmostParent();
+    sinkNode->set<bool>("lastDMAOp", true);
+}
 
 
 void maxTopologicalCutAndPartialSerialisationPass(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element&, mv::json::Object&)
 {
-    
     int networkMemoryRequirement;
     double percentageMemory; 
     //mv::KoalaGraphScheduler flowGraph;

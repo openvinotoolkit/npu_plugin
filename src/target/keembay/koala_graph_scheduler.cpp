@@ -41,7 +41,8 @@ std::vector<mv::koalaGraph::PVertex>::const_iterator mv::KoalaGraphScheduler::lo
 
 std::vector<mv::koalaGraph::PVertex>::const_iterator mv::KoalaGraphScheduler::lookUpKoalaSourceNode(bool sourcenode, const std::vector<koalaGraph::PVertex>& koalaVertices) {
     
-    for(auto iter = koalaVertices.begin(); iter != koalaVertices.end(); ++iter) {
+    for(auto iter = koalaVertices.begin(); iter != koalaVertices.end(); ++iter)
+    {
         if((*iter)->info.sourceNode == sourcenode) 
             return iter;
     }
@@ -57,7 +58,8 @@ std::vector<mv::koalaGraph::PVertex>::const_iterator mv::KoalaGraphScheduler::lo
 
 std::vector<mv::koalaGraph::PEdge>::const_iterator mv::KoalaGraphScheduler::lookUpKoalaEdgebyName(std::string edgeName, const std::vector<koalaGraph::PEdge>& koalaEdges) {
     
-    for(auto iter = koalaEdges.begin(); iter != koalaEdges.end(); ++iter) {
+    for(auto iter = koalaEdges.begin(); iter != koalaEdges.end(); ++iter)
+    {
         if((*iter)->info.name == edgeName) 
             return iter;
     }
@@ -109,8 +111,8 @@ void  mv::KoalaGraphScheduler::convertMcMGraphToKoalaGraph(const mv::pass::PassE
                sname = opIt->getName();
            }
            /*All other nodes between source and sink node*/
-           else if (!nodeAdded) {
-               
+           else if (!nodeAdded)
+           {
                pass.log(mv::Logger::MessageType::Debug, "Adding vertex to KOALA graph: " + opIt->getName());
 
                this->vertices_.push_back(this->getGraph().addVert(nodeDescription(opIt->getName(),0, false,false)));
@@ -129,7 +131,8 @@ void  mv::KoalaGraphScheduler::convertMcMGraphToKoalaGraph(const mv::pass::PassE
         */
 
         if (flowIt.sink()->getOpType() != "Output" && flowIt.source()->getOpType() != "ConstantInt" &&
-            flowIt.source()->getOpType() != "ConstantDataElement" && flowIt.source()->getOpType() != "Constant") {
+            flowIt.source()->getOpType() != "ConstantDataElement" && flowIt.source()->getOpType() != "Constant")
+        {
 
             auto sourceName = flowIt.source()->getName();
             auto sinkName  = flowIt.sink()->getName();
@@ -165,10 +168,10 @@ uint64_t mv::KoalaGraphScheduler::calculateFMax(mv::ComputationModel& model) {
 
     /*Compute Fmax - (defined as sum of memory requirments + 1)*/
     uint64_t Fmax = 0;
-    for (auto flowIt = cm.flowBegin(); flowIt != cm.flowEnd(); ++flowIt) {
-        if(flowIt->hasAttr("MemoryRequirement")) {
+    for (auto flowIt = cm.flowBegin(); flowIt != cm.flowEnd(); ++flowIt)
+    {
+        if(flowIt->hasAttr("MemoryRequirement"))
             Fmax += flowIt->get<int>("MemoryRequirement");
-        }
     }
     Fmax += 1; /*add 1 to Fmax as per algorithm*/
     return Fmax;
@@ -177,8 +180,8 @@ uint64_t mv::KoalaGraphScheduler::calculateFMax(mv::ComputationModel& model) {
 void mv::KoalaGraphScheduler::insertpartialSerialisationEdgesInMcmGraph(mv::ComputationModel& model) {
 
     std::set<std::pair<std::string, std::string>> addedEdges;
-    for (const auto& edge : partialSerialisationEdgesAdded_) {
-        
+    for (const auto& edge : partialSerialisationEdgesAdded_)
+    {
         std::string edgeSourceName = edge->getEnd1()->info.name;
         std::string edgeSinkName = edge->getEnd2()->info.name;
 
@@ -188,15 +191,15 @@ void mv::KoalaGraphScheduler::insertpartialSerialisationEdgesInMcmGraph(mv::Comp
         mv::Control::OpListIterator mcmSinkNodeIterator;
 
         /*Find the McM iterator for the source node*/
-        for (auto opItSource = cm.getFirst(); opItSource != cm.opEnd(); ++opItSource) {
-            
+        for (auto opItSource = cm.getFirst(); opItSource != cm.opEnd(); ++opItSource)
+        {
             if(opItSource->getName() == edgeSourceName) 
                 mcmSourceNodeIterator = opItSource;
         }
 
         /*Find the McM iterator for the sink node*/
-        for (auto opItSink = cm.getFirst(); opItSink != cm.opEnd(); ++opItSink) {
-            
+        for (auto opItSink = cm.getFirst(); opItSink != cm.opEnd(); ++opItSink)
+        {
             if(opItSink->getName() == edgeSinkName) 
                 mcmSinkNodeIterator = opItSink;
         }
@@ -243,34 +246,46 @@ void mv::KoalaGraphScheduler::performPartialSerialisation(const mv::pass::PassEn
         cutEdgesSourceSink.push_back(std::make_pair(edge->getEnd1(), edge->getEnd2()));
     
     /*Get cut edges sources*/
-    for (const auto& edge : cutEdges) {
-        if(std::find(sources.begin(), sources.end(), edge->getEnd1()) != sources.end()) {   
+    for (const auto& edge : cutEdges)
+    {
+        if(std::find(sources.begin(), sources.end(), edge->getEnd1()) != sources.end())
+        {
             /* sources already contains the edge source node */
-        } else {
+        }
+        else
+        {
             /* add edge source node to sources */
             sources.push_back(edge->getEnd1());
         }   
     }
 
     /*Get cut edges sinks*/
-    for (const auto& edge : cutEdges) {
-        if(std::find(sinks.begin(), sinks.end(), edge->getEnd2()) != sinks.end()) {   
+    for (const auto& edge : cutEdges)
+    {
+        if(std::find(sinks.begin(), sinks.end(), edge->getEnd2()) != sinks.end())
+        {
             /* sources already contains the edge sink node */
-        } else {
+        }
+        else
+        {
             /* add edge sink node to sources */
             sinks.push_back(edge->getEnd2());
         }   
     }
 
     /*Create pool of possible partial serialisation edges but not including original cutset edges*/
-    for (const auto& sinknode : sinks) {
-        for (const auto& sourcenode : sources) {
+    for (const auto& sinknode : sinks)
+    {
+        for (const auto& sourcenode : sources)
+        {
             bool found = false;
 
-            for(int i = 0; i < cutEdgesSourceSink.size(); i++) {
+            for(int i = 0; i < cutEdgesSourceSink.size(); i++)
+            {
                 
                 /*Check if new potential partial serialisation edge is an original cut set edge, if it is then do not add it to the pool*/
-                if((cutEdgesSourceSink[i].first->info.name == sourcenode->info.name) && (cutEdgesSourceSink[i].second->info.name == sinknode->info.name)) {
+                if((cutEdgesSourceSink[i].first->info.name == sourcenode->info.name) && (cutEdgesSourceSink[i].second->info.name == sinknode->info.name))
+                {
                      found = true;
                      break;
                 }
@@ -286,7 +301,8 @@ void mv::KoalaGraphScheduler::performPartialSerialisation(const mv::pass::PassEn
     /* Note in future here is where the optimal edge should be selected such that it minimises the increase in the critical path of the graph*/
 
   
-    for(std::size_t i = 0; i < possibleEdges.size(); i++) {
+    for(std::size_t i = 0; i < possibleEdges.size(); i++)
+    {
 
         auto sourceName = possibleEdges[i].second->info.name;
         auto sinkName  = possibleEdges[i].first->info.name;
@@ -307,7 +323,8 @@ void mv::KoalaGraphScheduler::performPartialSerialisation(const mv::pass::PassEn
         /*Check if it is a DAG*/
 	    bool isDag = Koala::DAGAlgs::isDAG(this->getGraph(), tabV, tabV + n);
 
-        if(isDag) {
+        if(isDag)
+        {
             pass.log(mv::Logger::MessageType::Debug, "The graph is still a DAG after adding partial serialisation edge, recalulating max topological cut value");
             
             /*add edge iterator to the vector of KOALA edge iterators*/
@@ -317,7 +334,8 @@ void mv::KoalaGraphScheduler::performPartialSerialisation(const mv::pass::PassEn
             partialSerialisationEdgesAdded_.push_back(newEdge);
             return;
         }
-        else {
+        else
+        {
             pass.log(mv::Logger::MessageType::Debug, "Removing partial serialisation edge as graph is no longer a DAG, from: " + sourceName + " --> " + sinkName );
             this->getGraph().delEdge(newEdge);
         }

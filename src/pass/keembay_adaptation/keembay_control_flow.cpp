@@ -42,24 +42,11 @@ void inputOutputControlFlowsFcn(const mv::pass::PassEntry& pass, mv::Computation
 
     auto outputOp = om.getOutput();
     auto lastDMAOp = outputOp.leftmostParent();
-    auto lastOpBeforeLastDma = lastDMAOp.leftmostParent();
 
     if(!cm.checkControlFlow(lastDMAOp, outputOp))
         cm.defineFlow(lastDMAOp, outputOp);
-//    if(!cm.checkControlFlow(lastOpBeforeLastDma, lastDMAOp))
-//    {
-//        /*
-//          Add the memory requirment of the DPU task -> DMA CMX2DDR direction (last DPU task) by adding a "MemoryRequirment" attribute to the flow in the MCM task graph.
-//          The memory requirment is defined as the output tensor (N*W*H*C) * dataType.
-//          This is required for the max topological cut pass.
-//        */
-//        auto flowIt = cm.defineFlow(lastOpBeforeLastDma, lastDMAOp);
-//        auto outputTensor = flowIt.source()->getOutputTensor(0);
 
-//        flowIt->set<int>("MemoryRequirement", mv::round_up(outputTensor->computeMemoryRequirement(),16));
-//        flowIt->set<bool>("PositiveMemory", true);
-
-//    }
+    // Adding the memory requirement here is not required anymore since we have explicit dealloc for last op as well.
 }
 
 // This pass adds control flows relative to a DMA Task.

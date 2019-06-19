@@ -2,6 +2,7 @@
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
 #include "meta/include/mcm/op_model.hpp"
+#include "include/mcm/utils/env_loader.hpp"
 
 void generateDotFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::json::Object&);
 
@@ -51,6 +52,8 @@ void generateDotFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
 
     std::ofstream ostream;
     std::string outputFile = passDesc.get<std::string>("output");
+
+    mv::utils::validatePath(outputFile);
 
     ostream.open(outputFile, std::ios::trunc | std::ios::out);
     if (!ostream.is_open())

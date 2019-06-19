@@ -47,7 +47,13 @@ void populateWeightsTablesDataPointers(mv::Tensor& weightsTableData, mv::Data::O
         auto weights = dpuTaskOp->getInputTensor(1);
         if(weights->isSparse())
         {
-            // TODO: Not handling at the moment
+            auto tensorAllocatorName = weights->get<std::set<std::string>>("allocators").begin();
+            auto tensorAllocator = dm.getAllocator(*tensorAllocatorName);
+            mv::Data::BufferIterator tensorBufferIt = tensorAllocator.getBuffer(0, weights); // 0 is the only stage for now, but this will probably change in the future
+            long int offset = tensorBufferIt->getOffset();
+            auto increments = weights->getKernelDataOffsets();
+            for (size_t i = 0; i < weightsTableData.size(); i+=4, offset += increments[i])
+                  weightsTableData(i) = offset;
         }
         else
         {
@@ -81,7 +87,6 @@ void populateWeightsTablesSparsityPointers(mv::Tensor& weightsTableData, mv::Dat
     mv::DataModel dm(model);
 
     auto output = dpuTaskOp->getOutputTensor(0);
-    auto input = dpuTaskOp->getInputTensor(0);
     unsigned outputChannels = output->getShape()[mv::IO_CHANNEL_DIMENSION];
 
     if(dpuTaskOp->get<std::string>("taskOp") == "Conv")
@@ -89,7 +94,14 @@ void populateWeightsTablesSparsityPointers(mv::Tensor& weightsTableData, mv::Dat
         auto weights = dpuTaskOp->getInputTensor(1);
         if(weights->isSparse())
         {
-            // TODO: Not handling at the moment
+            auto weightsSparsityMap = dpuTaskOp->getInputTensor(dpuTaskOp->inputSlots() - 2);
+            long int offset = weightsSparsityMap->getAddress();
+            auto sparsityMapSizeInWords = weightsSparsityMap->getShape().totalSize();
+            auto sparsityMapSizeInBytes = sparsityMapSizeInWords * weightsSparsityMap->getDType().getSizeInBits() / 8;
+            auto sparsityMapBytesPerOutputChannel = sparsityMapSizeInBytes / outputChannels;
+            long int increment = sparsityMapBytesPerOutputChannel;
+            for (size_t i = 0; i < weightsTableData.size(); i+=4, offset +=increment)
+                  weightsTableData(i+1) = offset;
         }
         // Nothing to do here if is a dense ZMajor convolution
         else
