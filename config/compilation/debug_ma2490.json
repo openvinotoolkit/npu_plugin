@@ -167,11 +167,19 @@
     },
     "dma": {
         "Singular" : [
+            "resolveImplicitOperations",
+            {
+                "name": "GenerateDot",
+                "output": "implicit_operations_model.dot",
+                "scope": "OpModel",
+                "content": "full",
+                "html": true,
+                "convert": false
+            },
             {
                 "name":"AddWeightsDMATasks",
                 "weights_prefetch": 1
             },
-            "AddInitialAndFinalDMATask",
             {
                 "name": "GenerateDot",
                 "output": "dma_model.dot",

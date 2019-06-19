@@ -49,6 +49,7 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
         if (opType == "Conv" || opType == "DepthwiseConv")
         {
             auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
+            auto inputMemoryLocation = opIt->getInputTensor(1)->get<mv::Tensor::MemoryLocation>("Location");
 
             auto input = opIt->getInputTensor(0);
             auto kernel = opIt->getInputTensor(1);
@@ -114,8 +115,34 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
                 }
             }
 
-            //dpuConv->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
-            setOutputDataFlow(om, dpuConv, outputDataFlows);
+            //This pass as it is now, makes a decision, so that the output of the DPU conv has to be in CMX, assuming
+            //that previous passes did the appropriate checks for it.
+            //Todo: do we want to actually make this decision here? or to have a separate pass, to check for all
+            // "heuristically known" layers that need to be really forced to NNCMX (like any DPU task)
+
+            if(outputMemoryLocation == mv::Tensor::MemoryLocation::CMX)
+            {
+                dpuConv->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
+                setOutputDataFlow(om, dpuConv, outputDataFlows);
+            }
+            else
+            {
+                auto dpuCopyOut = om.copy(dpuConv,quantParams,dpuConv->getName() + "_copyOut");
+                dpuConv->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::CMX);
+                dpuCopyOut->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
+                setOutputDataFlow(om, dpuCopyOut, outputDataFlows);
+            }
+
+            if(inputMemoryLocation != mv::Tensor::MemoryLocation::CMX)
+            {
+                auto dpuCopyIn = om.copy(input,quantParams,dpuConv->getName() + "_copyIn");
+                auto dpuOp = om.getSourceOp(dpuConv);
+
+                dpuOp->setInputTensor(dpuCopyIn,0);
+                om.defineFlow(dpuCopyIn,dpuOp,0);
+
+                dpuCopyIn->set<mv::Tensor::MemoryLocation>("Location",mv::Tensor::MemoryLocation::CMX);
+            }
         }
         else if (opType == "MaxPool")
         {
