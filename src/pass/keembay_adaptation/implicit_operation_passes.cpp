@@ -10,7 +10,7 @@ namespace mv
 {
     namespace pass
     {
-        MV_REGISTER_PASS(resolveImplicitOperations)
+        MV_REGISTER_PASS(ResolveImplicitOperations)
                 .setFunc(resolveImplicitOperationsFcn)
                 .setDescription("loops over all the candidate implicit operations and will try to add DMA to them");
     }
@@ -38,17 +38,15 @@ void resolveImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::Computati
     {
 
         //TODO::the following attributes need to come either from JSON config or from OP definition
-        {
-            auto opType = opIt->getOpType();
-            if(opType == "Concat")
-                opIt->set<mv::ImplicitFlow>("ImplicitFlow",mv::ImplicitFlow(mv::ImplicitFlow::INPUT_IN_OUTPUT));
-            if(opType == "Slice")
-                opIt->set<mv::ImplicitFlow>("ImplicitFlow",mv::ImplicitFlow(mv::ImplicitFlow::OUTPUT_IN_INPUT));
-            if(opType == "Copy")
-                opIt->set<mv::ImplicitFlow>("ImplicitFlow",mv::ImplicitFlow(mv::ImplicitFlow::INPUT_IN_OUTPUT));
-        }
+        auto opType = opIt->getOpType();
+        if(opType == "Concat")
+            opIt->set<mv::ImplicitFlow>("ImplicitFlow",mv::ImplicitFlow(mv::ImplicitFlow::INPUT_IN_OUTPUT));
+        if(opType == "Slice")
+            opIt->set<mv::ImplicitFlow>("ImplicitFlow",mv::ImplicitFlow(mv::ImplicitFlow::OUTPUT_IN_INPUT));
+        if(opType == "Copy")
+            opIt->set<mv::ImplicitFlow>("ImplicitFlow",mv::ImplicitFlow(mv::ImplicitFlow::INPUT_IN_OUTPUT));
 
-        if( !opIt->hasAttr("ImplicitFlow") )
+        if(!opIt->hasAttr("ImplicitFlow"))
             continue;
 
         auto implicitFlow = opIt->get<mv::ImplicitFlow>("ImplicitFlow");
@@ -66,7 +64,7 @@ void resolveImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::Computati
             continue;
         }
 
-        pass.log(mv::Logger::MessageType::Info,"Solving: # " + opIt->getName() + " #");
+        pass.log(mv::Logger::MessageType::Info, "Solving: # " + opIt->getName() + " #");
 
         //currently this phase will assume that memory locality is the only solution for implicitness.
         //TODO:: if other conditions appear, then structure them separately
@@ -92,6 +90,8 @@ void resolveImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::Computati
             {
                 auto inputTensor = sourceFlow->getTensor();
                 auto inputLocation = inputTensor->get<mv::Tensor::MemoryLocation>("Location");
+                pass.log(mv::Logger::MessageType::Info, "Input tensor " + inputTensor->getName() + " location " + inputLocation.toString());
+                pass.log(mv::Logger::MessageType::Info, "Output tensor " + outputTensor->getName() + " location " + outputLocation.toString());
 
                 if( inputLocation != outputLocation)
                 {
@@ -103,10 +103,10 @@ void resolveImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::Computati
                                                     quantParams ,
                                                     opIt->getName() + "_copy" + std::to_string(ctr));
 
-                    compensatorOutput->set<mv::Tensor::MemoryLocation>("Location",outputLocation);
+                    compensatorOutput->set<mv::Tensor::MemoryLocation>("Location", outputLocation);
                     auto sinkIdx = sourceFlow->get<std::size_t>("sinkInput");
 
-                    pass.log(mv::Logger::MessageType::Info, "Adding new DMA OP: # " + compensatorOutput->getName()+
+                    pass.log(mv::Logger::MessageType::Info, "Adding new DMA OP: # " + compensatorOutput->getName() +
                                                                 " # after tensor: # " + inputTensor->getName() + " #");
                     flowsToRemove.push_back(sourceFlow);
                     compensationOutputs.push_back(compensatorOutput);
@@ -139,6 +139,8 @@ void resolveImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::Computati
 
             auto inputTensor = inputTensors[0];
             auto inputLocation = inputTensor->get<mv::Tensor::MemoryLocation>("Location");
+            pass.log(mv::Logger::MessageType::Info, "Input tensor " + inputTensor->getName() + " location " + inputLocation.toString());
+            pass.log(mv::Logger::MessageType::Info, "Output tensor " + outputTensor->getName() + " location " + outputLocation.toString());
 
             if( inputLocation != outputLocation)
             {
