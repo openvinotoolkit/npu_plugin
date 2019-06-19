@@ -1010,6 +1010,8 @@ std::vector<unsigned> mv::Tensor::computeNumericStrides() const
     return getOrder().computeByteStrides(getShape(), getDType().getSizeInBits() / 8);
 }
 
+
+//isBase == true for implicit operations.
 std::size_t mv::Tensor::getClusterSize(unsigned int alignment, bool isBase) const
 {
     std::size_t res;
