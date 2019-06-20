@@ -35,8 +35,11 @@ void concatAsImplicitFcn(const mv::pass::PassEntry& , mv::ComputationModel& mode
         if(concat->hasAttr("quantParams"))
             quantParams = concat->get<mv::QuantizationParams>("quantParams");
 
+        auto opId = concat->get<unsigned>("opId");
         auto outputFlows = mv::getOutputDataFlow(om, concat);
         auto implicitConcat = om.implicitConcat(inputs, axis, quantParams, name);
+        om.getSourceOp(implicitConcat)->set<unsigned>("opId", opId);
+
         mv::setOutputDataFlow(om, implicitConcat, outputFlows);
     }
 }

@@ -187,7 +187,7 @@ mv::Data::TensorIterator solveSpatialTiling(mv::OpModel& om, mv::Data::OpListIte
     auto inputTensor = op->getInputTensor(0);
     auto kernelTensor = op->getInputTensor(1);
     auto outputTensor = op->getOutputTensor(0);
-
+    auto opId = op->get<unsigned>("opId");
     auto number_of_spltis = tiling.childTiles().size();
     auto axisToSplit =  mv::Shape::getAxis(tiling.getAxis());
     auto childTiles = tiling.childTiles();
@@ -228,6 +228,7 @@ mv::Data::TensorIterator solveSpatialTiling(mv::OpModel& om, mv::Data::OpListIte
                                 childTiles[split].getSize(),
                                 op->get<mv::QuantizationParams>("quantParams"),
                                 op->getName() + "_slice_" + std::to_string(split));
+        om.getSourceOp(slice)->set<unsigned>("opId", opId);
 
         if (split == 0)
             currentPad = startPad;
@@ -248,7 +249,7 @@ mv::Data::TensorIterator solveSpatialTiling(mv::OpModel& om, mv::Data::OpListIte
         auto newOp = om.getSourceOp(conv);
 
         newOp->set<bool>("splitted", true);//TODO::temporary hack. To remove once the iteration conditions are updated
-        newOp->set<unsigned>("opId", op->get<unsigned>("opId"));
+        newOp->set<unsigned>("opId", opId);
 
         slices[split] = slice;
         convs[split] = conv;
@@ -313,6 +314,7 @@ mv::Data::TensorIterator solveSpatialTiling(mv::OpModel& om, mv::Data::OpListIte
                     tiling.getAxis(),
                     op->get<mv::QuantizationParams>("quantParams"),
                     op->getName() + "_concat_");
+    om.getSourceOp(concat)->set<unsigned>("opId", opId);
 
     concat->set<mv::Tensor::MemoryLocation>("Location", outputTensor->get<mv::Tensor::MemoryLocation>("Location"));
 

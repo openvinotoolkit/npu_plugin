@@ -108,6 +108,8 @@ void resolveImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::Computati
 
                     pass.log(mv::Logger::MessageType::Info, "Adding new DMA OP: # " + compensatorOutput->getName() +
                                                                 " # after tensor: # " + inputTensor->getName() + " #");
+                    om.getSourceOp(compensatorOutput)->set<unsigned>("opId", opIt->get<unsigned>("opId"));
+
                     flowsToRemove.push_back(sourceFlow);
                     compensationOutputs.push_back(compensatorOutput);
                     sinkIndexes.push_back(sinkIdx);
@@ -165,6 +167,7 @@ void resolveImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::Computati
 
                 pass.log(mv::Logger::MessageType::Info,"Adding new DMA OP: # " + compensatorOutput->getName() +
                                                             " as output to # " + opIt->getName());
+                om.getSourceOp(compensatorOutput)->set<unsigned>("opId", opIt->get<unsigned>("opId"));
 
                 // TODO: NOTE: I should be using the relocate function.... but that may fail in case the "output" of slice is forced.
                 //Technically, for compensation I should not be adding "new dma" to the slice "outputTensor" but rather

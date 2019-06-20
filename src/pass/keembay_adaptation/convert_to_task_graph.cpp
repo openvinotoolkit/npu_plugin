@@ -127,23 +127,26 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             }
             else
             {
-                auto dpuCopyOut = om.copy(dpuConv,quantParams,dpuConv->getName() + "_copyOut");
+                auto dpuCopyOut = om.copy(dpuConv, quantParams, dpuConv->getName() + "_copyOut");
                 dpuConv->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::CMX);
                 dpuCopyOut->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
+                om.getSourceOp(dpuCopyOut)->set<unsigned>("opId", om.getSourceOp(dpuConv)->get<unsigned>("opId"));
                 setOutputDataFlow(om, dpuCopyOut, outputDataFlows);
             }
 
             if(inputMemoryLocation != mv::Tensor::MemoryLocation::CMX)
             {
-                auto dpuCopyIn = om.copy(input,quantParams,dpuConv->getName() + "_copyIn");
+                auto dpuCopyIn = om.copy(input, quantParams, dpuConv->getName() + "_copyIn");
+                om.getSourceOp(dpuCopyIn)->set<unsigned>("opId", om.getSourceOp(dpuConv)->get<unsigned>("opId"));
+
                 auto dpuOp = om.getSourceOp(dpuConv);
 
                 auto inputFlow  = dpuOp.leftmostInput();
 
                 dpuOp->setInputTensor(dpuCopyIn, 0);
                 om.undefineFlow(inputFlow);
-                om.defineFlow(dpuCopyIn,dpuOp,0);
-                dpuCopyIn->set<mv::Tensor::MemoryLocation>("Location",mv::Tensor::MemoryLocation::CMX);
+                om.defineFlow(dpuCopyIn, dpuOp, 0);
+                dpuCopyIn->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::CMX);
             }
 
         }
