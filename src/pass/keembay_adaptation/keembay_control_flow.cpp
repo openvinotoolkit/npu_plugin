@@ -36,9 +36,16 @@ void inputOutputControlFlowsFcn(const mv::pass::PassEntry& pass, mv::Computation
     mv::ControlModel cm(model);
 
     auto inputOp = om.getInput();
-    auto nextOp = inputOp.leftmostChild();
-    if(!cm.checkControlFlow(inputOp, nextOp))
-        cm.defineFlow(inputOp, nextOp);
+
+    //auto nextOp = inputOp.leftmostChild();
+    for (auto nextOp = inputOp.leftmostChild(); nextOp != om.opEnd(); ++nextOp)
+    {
+        if(!nextOp->hasTypeTrait("executable"))
+                continue;
+
+        if(!cm.checkControlFlow(inputOp, nextOp))
+            cm.defineFlow(inputOp, nextOp);
+    }
 
     auto outputOp = om.getOutput();
     auto lastDMAOp = outputOp.leftmostParent();
