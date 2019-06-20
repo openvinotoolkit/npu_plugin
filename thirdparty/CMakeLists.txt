@@ -14,9 +14,16 @@
 # stated in the License.
 #
 
-set(TARGET_NAME vpusmm)
-
-add_custom_target(${TARGET_NAME}
+add_custom_target(vpusmm_target
         COMMAND make libvpusmm.so
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/vsi_cmodel/vpusmm
+        VERBATIM
         )
+
+add_library(vpusmm SHARED IMPORTED GLOBAL)
+
+add_dependencies(vpusmm vpusmm_target)
+set_target_properties(vpusmm
+        PROPERTIES
+        IMPORTED_LOCATION ${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/thirdparty/vsi_cmodel/vpusmm/libvpusmm.so
+        IMPORTED_NO_SONAME 1)

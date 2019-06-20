@@ -32,7 +32,7 @@ void *vpu::KmbPlugin::KmbAllocator::lock(void *handle, InferenceEngine::LockOp) 
     return handle;
 }
 
-void vpu::KmbPlugin::KmbAllocator::unlock(void *) noexcept {
+void vpu::KmbPlugin::KmbAllocator::unlock(void *handle) noexcept {
 }
 
 void *vpu::KmbPlugin::KmbAllocator::alloc(size_t size) noexcept {
@@ -47,8 +47,8 @@ void *vpu::KmbPlugin::KmbAllocator::alloc(size_t size) noexcept {
         return nullptr;
 
     MemoryDescriptor memDesc = {
-            realSize, //  size
-            fd,       //  file descriptor
+            realSize,  // size
+            fd,        // file descriptor
     };
     _allocatedMemory[out] = memDesc;
 

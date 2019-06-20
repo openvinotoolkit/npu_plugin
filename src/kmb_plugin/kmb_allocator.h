@@ -38,10 +38,8 @@ private:
     struct MemoryDescriptor {
         size_t size;
         int fd;
-
     };
     std::unordered_map<void *, MemoryDescriptor> _allocatedMemory;
-
 };
 
 

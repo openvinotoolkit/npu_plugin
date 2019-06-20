@@ -141,12 +141,9 @@ set_target_properties(${TARGET_NAME} PROPERTIES COMPILE_OPTIONS "-Wno-error")
 set_target_properties(${VPUAL_LIBRARY} PROPERTIES CXX_VISIBILITY_PRESET default )
 set_target_properties(${VPUAL_LIBRARY} PROPERTIES C_VISIBILITY_PRESET default )
 
-find_library(VPUSMM_LIBRARY vpusmm
-        PATHS ${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/thirdparty/vsi_cmodel/vpusmm)
-
 target_link_libraries(${TARGET_NAME}
     PRIVATE
-        ${INTEL_ITT_LIBS} IE::vpu_graph_transformer ${VPUSMM_LIBRARY} IE::inference_engine ${MCM_COMPILER_LIBRARY} ${VPUAL_LIBRARY})
+        ${INTEL_ITT_LIBS} IE::vpu_graph_transformer vpusmm IE::inference_engine ${MCM_COMPILER_LIBRARY} ${VPUAL_LIBRARY})
 
 if (MCM_COMPILER_PATHS_FINDING)
     unset(MCM_COMPILER_INTERNAL_BUILD CACHE)
@@ -179,7 +176,7 @@ if(ENABLE_TESTS)
             )
     target_link_libraries(${TARGET_NAME}_test_static
             PUBLIC
-                ${VPUSMM_LIBRARY} IE::inference_engine
+                vpusmm IE::inference_engine
             PRIVATE
                 ${INTEL_ITT_LIBS} IE::vpu_graph_transformer ${MCM_COMPILER_LIBRARY} ${VPUAL_LIBRARY})
 endif()
