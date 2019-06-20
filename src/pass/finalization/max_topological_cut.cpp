@@ -39,7 +39,7 @@ void markLastNodeForMaxTopologicalCutFcn(const mv::pass::PassEntry& pass, mv::Co
 }
 
 
-void maxTopologicalCutAndPartialSerialisationPass(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element&, mv::json::Object&)
+void maxTopologicalCutAndPartialSerialisationPass(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element&, mv::json::Object& compOutput)
 {
     int networkMemoryRequirement;
     double percentageMemory; 
@@ -56,7 +56,14 @@ void maxTopologicalCutAndPartialSerialisationPass(const mv::pass::PassEntry& pas
 
     /*Calculate max topological cut and get the cut edges*/
     auto maxTopologicalCut = flowGraph.calculateMaxTopologicalCut(pass, model);
-
+    
+    long long tmp = maxTopologicalCut.first;
+    compOutput["maxTopologicalCut"] = tmp; //maxTopologicalCut.first;
+    compOutput["test_value"] = true;
+    mv::DataModel dm(model);
+    auto outflow = dm.getOutputFlow();
+    outflow->set<uint64_t>("MaxTopologicalCutValue", maxTopologicalCut.first);
+    
     double cmxMemory = returnedParams->get<unsigned>("cmx");
 
     networkMemoryRequirement = maxTopologicalCut.first / 1024;

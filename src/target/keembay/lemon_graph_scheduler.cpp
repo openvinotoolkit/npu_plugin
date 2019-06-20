@@ -206,9 +206,9 @@ std::pair<int, std::vector<mv::edgeDescription>> mv::LemonGraphScheduler::calcul
     }
     
     /*Add Max topological cut value as attribute to output node*/
-    auto output = cm.getOutput();
-    output->set<uint64_t>("MaxTopologicalCutValue", maxTopologicalCutValue); 
     pass.log(mv::Logger::MessageType::Debug, "The maximum peak memory of the graph is " + std::to_string(maxTopologicalCutValue) + " bytes");
+    auto output = cm.getOutput();
+    output->set<uint64_t>("MaxTopologicalCutValue", maxTopologicalCutValue);
     return std::make_pair(maxTopologicalCutValue, cutEdgesOnly);
 }
 
