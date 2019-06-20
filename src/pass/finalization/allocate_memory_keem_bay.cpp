@@ -369,7 +369,7 @@ void allocateImplicitOperationsFcnKeemBay(const mv::pass::PassEntry& pass,
             //  basically need to get from tha leyer attributes some shcema of how and what coordinates to
             //  put buffer into eg  axis: 'W" ->[0-10][10-20][30-40] etc,....
 
-            if(opType == "Concat")
+            if(opType == "Concat" || opType == "ImplicitConcat")
             //this means that the Input tensors should be in the Output Tensor
             {
                 auto outputTensor = opIterator->getOutputTensor(0);

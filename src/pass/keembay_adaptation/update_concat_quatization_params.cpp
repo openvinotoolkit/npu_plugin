@@ -24,7 +24,7 @@ void updateConcatQuantizationParamsFcn(const mv::pass::PassEntry& , mv::Computat
     {
          std::string opType = opIt->getOpType();
 
-        if (opIt->getOpType() ==  "ImplicitConcat")
+        if (opIt->getOpType() ==  "ImplicitConcat" || opIt->getOpType() ==  "Copy" || opIt->getOpType() ==  "Slice")
         {
             auto input = opIt->getInputTensor(0);
             auto output = opIt->getOutputTensor(0);
