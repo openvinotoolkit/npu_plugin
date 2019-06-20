@@ -171,7 +171,8 @@
             {
                 "name": "ConvertDot",
                 "input": "output/dots/keembay_EltWiseConstants_model.dot"
-            }
+            },
+            "RemoveBiasTensors"
         ]
     },
     "dma": {
