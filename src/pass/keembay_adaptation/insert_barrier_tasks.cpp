@@ -81,7 +81,7 @@ static void drawBIG(BarrierInterferenceGraph& g, std::string outputFile)
     for (auto it = g.node_begin(); it != g.node_end(); ++it)
     {
         std::string vIdx = std::to_string((*it).getID());
-        std::unordered_set<std::string> consumers = (*it).getConsumers();
+        std::set<std::string> consumers = (*it).getConsumers();
         std::string consumerStr = "";
         for (auto s: consumers)
         {
@@ -174,7 +174,7 @@ static void drawBigK(const BIGKoala& bigK)
     Koala::IO::GraphML gml;
     Koala::IO::GraphMLGraph *gmlg;
 
-    //Koala::IO::writeGraphText(bigK, std::cout, Koala::IO::RG_VertexLists);
+    //Koala::IO::writeGraphText(bigK, //std::cout, Koala::IO::RG_VertexLists);
     
     gmlg = gml.createGraph("BIGKoala");
     gmlg->writeGraph(bigK, Koala::IO::gmlIntField(&BigKVertexInfo::barrierId, "barrierId"),
@@ -210,10 +210,14 @@ generateBarrierInterferenceGraph(mv::OpModel& om,
         {
             for (auto& b2: barriers)
             {
+                if (b1 == b2)
+                    continue;
+
                 auto b1It = big.node_find(b1);
                 auto b2It = big.node_find(b2);
-                auto concurrentBarrier = std::find(b2.getProducers().begin(), b2.getProducers().end(), c);
-                if (concurrentBarrier != b2.getProducers().end())
+                auto prod_b2 = b2.getProducers();
+                auto concurrentBarrier = std::find(prod_b2.begin(), prod_b2.end(), c);
+                if (concurrentBarrier != prod_b2.end())
                 {
                     // b1's consumer is the same as b2's producer, so add an edge
                     if (!mv::edgeExists(big, b1It, b2It) && !mv::edgeExists(big, b2It, b1It))
@@ -368,8 +372,8 @@ void getBarrierForControlModelOp(mv::ControlModel& cm, mv::Control::OpListIterat
                 }
                 else
                 {
-                    std::unordered_set<std::string> producers;
-                    std::unordered_set<std::string> consumers;
+                    std::set<std::string> producers;
+                    std::set<std::string> consumers;
                     producers.insert(sourceOpName);
                     consumers.insert(sinkOpName);
                     struct mv::Barrier new_barrier(producers, consumers);
