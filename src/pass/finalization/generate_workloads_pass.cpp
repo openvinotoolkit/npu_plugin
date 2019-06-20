@@ -129,9 +129,12 @@ std::tuple<int,int, int> getGlobalCompilationDescriptorConf(const mv::pass::Pass
         nClusters = globalParams->get<int>("Number_of_Clusters");
     if (globalParams->hasAttr("nWorkloads")) 
         nWorkloads= globalParams->get<int>("nWorkloads");
+
+    if(nDPU < nClusters)
+        throw std::runtime_error("The number of DPUs cannot be less than the number of clusters!, exiting");
     
     /*DPUs per cluster*/  
-    auto nDPUxCluster =  nDPU / nClusters;
+    int nDPUxCluster =  ceil(nDPU / nClusters);
 
     pass.log(mv::Logger::MessageType::Info, "Number of DPUs per cluster is: " + std::to_string(nDPUxCluster));
 

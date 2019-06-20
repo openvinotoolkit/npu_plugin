@@ -458,15 +458,6 @@ void mv::Workloads::generateMetisGraph(void) {
     }
 }
 
-<<<<<<< HEAD
-=======
-/*TODO update*/
-idx_t mv::Workloads::getNWorkloads(const mv::Shape& tensorShape, int nDPUxCluster) {
-
-    return round(nDPUxCluster/2)*2;
-}
-
->>>>>>> SplitOverH
 /**
  * @brief Generate a pool of possible workload number for a tensor
  * @param A tensor
@@ -475,14 +466,9 @@ idx_t mv::Workloads::getNWorkloads(const mv::Shape& tensorShape, int nDPUxCluste
  */
 const std::vector<int> mv::Workloads::getWorkloadSplitPool(const Tensor& tensor, int nDPUxCluster, mv::DPUModeList dpuModeList, int maxSplits)
 {
-<<<<<<< HEAD
     std::vector<int> splitPool = {1};
     std::vector<int> maxSplitsXY;
  
-=======
-    std::vector<int> splitPool;
-
->>>>>>> SplitOverH
     /*maxSplitsXY*/
     double xDim = tensor.getShape()[0];
     double yDim = tensor.getShape()[1];
@@ -512,7 +498,6 @@ const std::vector<int> mv::Workloads::getWorkloadSplitPool(const Tensor& tensor,
         splitPool.push_back(i);
 
     /*XY splits*/
-<<<<<<< HEAD
     for(std::size_t i = 0; i < dpuModeList.size(); i++) {
         for(int j = 0; j < (int)ceil(log2(maxSplitsXY[i])); j++) 
             if(((maxSplitsXY[i]%(int)std::pow(2,j)) == 0) && (maxSplitsXY[i]/(std::pow(2,j)) <= maxSplits)) 
@@ -520,12 +505,6 @@ const std::vector<int> mv::Workloads::getWorkloadSplitPool(const Tensor& tensor,
     }
     
     /*sort*/
-=======
-    for(int i = 0; i < (int)ceil(log2(maxSplitsXY)); i ++)
-        if(((maxSplitsXY%(int)std::pow(2,i)) == 0) && (maxSplitsXY/(std::pow(2,i)) < maxSplits))
-            splitPool.push_back(maxSplitsXY/std::pow(2,i));
-
->>>>>>> SplitOverH
     sort(splitPool.begin(), splitPool.end());
     
     /*Erase duplicates*/
@@ -539,11 +518,7 @@ const std::vector<int> mv::Workloads::getWorkloadSplitPool(const Tensor& tensor,
 }
 
 
-<<<<<<< HEAD
 void mv::Workloads::populateWorkloadsFromPartitions(idx_t nWorkloads, const mv::pass::PassEntry& pass, mv::DPUMode& mpe_mode) 
-=======
-void mv::Workloads::populateWorkloadsFromPartitions(idx_t nWorkloads, const mv::pass::PassEntry& pass, std::pair <idx_t,idx_t>& mpeMode)
->>>>>>> SplitOverH
 {
     std::vector<std::vector<mv::Workload>> listOfworkloadLists;
 
@@ -638,13 +613,8 @@ void mv::Workloads::populateWorkloadsFromPartitions(idx_t nWorkloads, const mv::
         else
             workloads_[workload].MPEMode = mv::MPE_Mode::Vector;
 
-<<<<<<< HEAD
         //add to the 'listOfworkloadLists' vector, the returned list of workloads from the polygonworkloadsplit function       
         listOfworkloadLists.push_back(mv::Workloads::polygonWorkloadSplit(pass, workloads_[workload], workloads_, mpe_mode));
-=======
-        //add to the 'listOfworkloadLists' vector, the returned list of workloads from the polygonworkloadsplit function
-        listOfworkloadLists.push_back(mv::Workloads::polygonWorkloadSplit(pass, workloads_[workload], workloads_, mpeMode));
->>>>>>> SplitOverH
 
     }
 
@@ -874,19 +844,11 @@ mv::CostFunctions mv::Workloads::getCostFunction(mv::Element& passDesc, const mv
             costFunction = mv::CostFunctions::MinMaxWorkloads;
         else if (sCostFunction == "greedy")
             costFunction = mv::CostFunctions::Greedy;
-<<<<<<< HEAD
         else 
             pass.log(mv::Logger::MessageType::Warning, "Could not parse the Cost Function type (only \"balanced | criticalpath | minmax | greedy\" currently supported). Using \"Balanced\"...");
     }
     else 
         pass.log(mv::Logger::MessageType::Info, "No Cost Function specified in descriptor, using \"Balanced\"...");
-=======
-        else
-            this->log(mv::Logger::MessageType::Warning, "Could not parse the Cost Function type (only \"balanced | criticalpath | minmax | greedy\" currently supported). Using \"Balanced\"...");
-    }
-    else
-        this->log(mv::Logger::MessageType::Info, "No Cost Function specified in descriptor, using \"Balanced\"...");
->>>>>>> SplitOverH
     return costFunction;
 }
 
@@ -918,7 +880,6 @@ void mv::Workloads::generateExecutionCycles(std::vector<mv::Workloads>& workload
     if (nDPUxCluster < 1)
         throw mv::ArgumentError("Generate Workloads Pass", "nDPUxCluster", std::to_string(nDPUxCluster), "Invalid number of DPUs");
 
-<<<<<<< HEAD
     /*For each workload instance*/
     for(auto itWorklaods = workloadsVector.begin(); itWorklaods != workloadsVector.end(); itWorklaods++) {
         
@@ -927,13 +888,6 @@ void mv::Workloads::generateExecutionCycles(std::vector<mv::Workloads>& workload
         /*Calculate the cost for each of the individual workloads (rectangles) */
         for(auto itworkload = itWorklaods->workloads_.begin(); itworkload != itWorklaods->workloads_.end(); ++itworkload) {
             
-=======
-    std::vector<float> workloadsExecutionCycles;
-    if (validateWorkloads(outputTensor))
-    {
-        for(std::vector<mv::Workload>::iterator itWL = workloads_.begin(); itWL != workloads_.end(); ++itWL)
-        {
->>>>>>> SplitOverH
             std::pair <int,int> mpeMode (4, 4);
 
             if(itworkload->MPEMode != mv::Matrix)
@@ -945,17 +899,6 @@ void mv::Workloads::generateExecutionCycles(std::vector<mv::Workloads>& workload
             float sumExeCycles = ceil(itWorklaods->tensorShape_[2]/16.0) * ceil(height / mpeMode.first) * ceil(width / mpeMode.second);
             workloadsExecutionCycles.push_back(sumExeCycles);
         }
-<<<<<<< HEAD
-=======
-    }
-    else
-    {   //workload not schedulable
-        workloadsExecutionCycles = {INFINITY};
-    }
-
-    float critical_wl = *std::max_element(workloadsExecutionCycles.begin(), workloadsExecutionCycles.end());
-    //float lower_wl = *std::min_element(workloadsExecutionCycles.begin(), workloads_execution_cycles.end());
->>>>>>> SplitOverH
 
         /*Critical workload*/
         itWorklaods->critical_workload_ = *std::max_element(workloadsExecutionCycles.begin(), workloadsExecutionCycles.end());
