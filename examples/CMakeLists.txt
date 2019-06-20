@@ -173,6 +173,9 @@ else()
     add_executable(manual_group_conv manual_group_conv.cpp)
     target_link_libraries(manual_group_conv cm)
 
+    add_executable(mcmNetwork mcmNetwork.cpp)
+    target_link_libraries(mcmNetwork cm)
+
     if(VALIDATION)
     add_executable(caffe_files_generator caffe_files_generator.cpp)
     target_link_libraries(caffe_files_generator cm ${Caffe_LIBRARIES} ${Boost_FILESYSTEM_LIBRARY} ${Boost_SYSTEM_LIBRARY} ${Boost_REGEX_LIBRARY} ${PROTOBUF_LIBRARY})
