@@ -243,6 +243,18 @@
                 "name": "ConvertDot",
                 "input": "output/dots/InputOutputControlFlows_model.dot"
             }
+            "SolveHangingDMAs",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/Hanging_dma_solved.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/Hanging_dma_solved.dot"
+            }
         ]
     },
     "finalize": {
