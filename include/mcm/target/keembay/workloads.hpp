@@ -31,17 +31,17 @@ namespace mv
 
     /* The POC compiler generates a lattic structure of the tensor shape with the nodes numbered in this order
      * Example for tensor size 16x16
-     * 
+     *
      *         axis numbering
-     *     
-     *         0    4     8    12     
-     *        
+     *
+     *         0    4     8    12
+     *
      *    0    0----2-----4----6 //Even numbers
-     *         |    |     |    | 
+     *         |    |     |    |
      *    4    1----3-----5----7 //Odd numbers
-     *         |    |     |    | 
+     *         |    |     |    |
      *    8    10---11----12---13 // Incrementing numbers
-     *         |    |     |    | 
+     *         |    |     |    |
      *    12   15---16----17---18
      */
 
@@ -71,13 +71,13 @@ namespace mv
         MetisGraphStructure(mv::Shape outputTensor, std::pair <int,int> MPEMode) {
 
             /*Shape of output tensor x-y*/
-            tensorXDim = outputTensor[0]; 
+            tensorXDim = outputTensor[0];
             tensorYDim = outputTensor[1];
 
             /*Number of vertices and edges in METIS lattic graph of tensor*/
             m_numberTensorVertices = ceil(tensorXDim / MPEMode.first)  * ceil(tensorYDim / MPEMode.second);
             m_numberTensorEdges = (2 * ceil(tensorXDim / MPEMode.first) * ceil(tensorYDim / MPEMode.second)) - ceil(tensorXDim / MPEMode.first) - ceil(tensorYDim / MPEMode.second);
-        
+
             /*X-Y dimension of METIS lattic graph*/
             m_xDim = ceil((tensorXDim / MPEMode.second));
             m_yDim = ceil((tensorYDim / MPEMode.first));
@@ -89,16 +89,16 @@ namespace mv
             vwgt.reset(new idx_t[m_numberTensorVertices* nWeights]);
 
             node_coords.reset(new mv::Rectangle [m_numberTensorVertices]);
-        
+
             /* (1) This section gnerates weights for the METIS vertices
              * Description page 23 Metis manual
-             * 
+             *
              * This is required when the tensor dimensions are not a multiple of 4 for MPE mode (4,4) or 16 for MPE mode (1,16)
              * When tensor size is not a multiple of the MPE dimensions a full DPUs will be fully utilised (i.e. < 256 multiplication operations)
              * Therefore we assign nodes different weights when partitioning
-             * 
-             * (2) We populate (x,y) coordinates for the individual lattic nodes here with the rectangle class. 
-             * 
+             *
+             * (2) We populate (x,y) coordinates for the individual lattic nodes here with the rectangle class.
+             *
             */
 
             int nodeIndex = 0; /* This corresponds to the numbering format in the lattic structure*/
@@ -107,30 +107,30 @@ namespace mv
             /* Here we populate the the coordiantes of the nodes in the lattic*/
             /* We need to handle the first two rows of the lattic first, see node numbering in the lattic example above*/
             for(int j=0; j < 1; j++) {
-            
+
                 if ((j+1 < m_yDim) || (!fmod(tensorYDim,MPEMode.first)))
-                    n_elem_y = MPEMode.first;                 
-                else 
-                    n_elem_y = (int)tensorYDim%MPEMode.first; 
-                
+                    n_elem_y = MPEMode.first;
+                else
+                    n_elem_y = (int)tensorYDim%MPEMode.first;
+
                 /*This loops over the the first two rows 1,2,3,4 .... etc*/
                 for(int k=0; k < (m_xDim*2); k++) {
 
                     int min_x;
                     int min_y;
-                    
-                    if((k%2 != 0) && (m_yDim <= 2)) 
+
+                    if((k%2 != 0) && (m_yDim <= 2))
                         n_elem_y = (int)tensorYDim%MPEMode.first;
                     else
-                        n_elem_y = MPEMode.first; 
-                    
+                        n_elem_y = MPEMode.first;
+
                     if ((k < (m_xDim*2)-2) || (!fmod(tensorXDim,MPEMode.second)))
                         n_elem_x = MPEMode.second;
-                    else 
+                    else
                         n_elem_x = (int)tensorXDim%MPEMode.second;
-                    
+
                     /*First row where node number is even i.e. 2,4,6... */
-                    if ((nodeIndex%2 == 0) && (nodeIndex <= ((m_xDim*2)-2)))  { 
+                    if ((nodeIndex%2 == 0) && (nodeIndex <= ((m_xDim*2)-2)))  {
 
                         min_x = (k/2) * MPEMode.second;
                         min_y = j * MPEMode.first;
@@ -143,7 +143,7 @@ namespace mv
                     }
                     /*Second row where node number is odd i.e. 1,3,5... */
                     if ((nodeIndex%2 != 0) && (nodeIndex <= ((m_xDim*2)-1))) {
-                        
+
                         /*For 7x7 tensor mode 4x4*/
                         if(m_yDim <= 2) {
                             min_x = min_x;
@@ -153,29 +153,29 @@ namespace mv
                             min_x = min_x;
                             min_y = min_y + n_elem_y;
                         }
-                        
+
                         assert(nodeIndex < m_numberTensorVertices);
                         node_coords[nodeIndex] = mv::Rectangle(min_x, min_y, n_elem_x, n_elem_y);
 
                         assert(nodeIndex < m_numberTensorVertices * nWeights);
                         vwgt[nodeIndex] = n_elem_x * n_elem_y; /* Populate METIS weight*/
-                    }        
+                    }
                     nodeIndex++;
                 }
 }
             /* Now deal with the remaining rows after the first 2 rows*/
-            for(int j=2; j < m_yDim; j++) { 
-            
+            for(int j=2; j < m_yDim; j++) {
+
                 if ((j+1 < m_yDim) || (!fmod(tensorYDim,MPEMode.first)))
-                    n_elem_y = MPEMode.first;                 
-                else 
-                    n_elem_y = (int)tensorYDim%MPEMode.first; 
-                            
+                    n_elem_y = MPEMode.first;
+                else
+                    n_elem_y = (int)tensorYDim%MPEMode.first;
+
                 for(int k=0; k < m_xDim; k++) {
 
                     if ((k+1 < m_xDim) || (!fmod(tensorXDim,MPEMode.second)))
                         n_elem_x = MPEMode.second;
-                    else 
+                    else
                         n_elem_x = (int)tensorXDim%MPEMode.second;
 
                     assert(nodeIndex < m_numberTensorVertices * nWeights);
@@ -186,7 +186,7 @@ namespace mv
 
                     assert(nodeIndex < m_numberTensorVertices);
                     node_coords[nodeIndex] = mv::Rectangle(min_x, min_y, n_elem_x, n_elem_y);
-                 
+
                     nodeIndex++;
                 }
             }
@@ -202,7 +202,7 @@ namespace mv
     struct DPUMode { unsigned H, W; }; // NB: do not mess with MPE_Mode
     using  DPUModeList = std::vector<mv::DPUMode>;
 
-    enum class WorkloadSplitMode { HW=1, HC, WC };
+    enum class WorkloadSplitMode { HW=1, HC, WC , NC, C, H};
 
     class Workloads : public LogSender
     {
@@ -220,7 +220,7 @@ namespace mv
         Workloads(const std::string& name, const mv::Shape& tensorShape);
         Workloads(const std::string& name, const mv::Shape& tensorShape, std::pair <idx_t,idx_t>& mpeMode);
         ~Workloads();
-      
+
         void generateMetisGraph(void);
         std::shared_ptr<mv::MetisGraphStructure> getMetisGraph();
 
@@ -235,18 +235,18 @@ namespace mv
 
         idx_t getNWorkloads(const mv::Shape& tensorShape, int nDPUxCluster);
 
-        void populateWorkloadsFromPartitions(idx_t nWorkloads, 
-                                            const mv::pass::PassEntry& pass, 
+        void populateWorkloadsFromPartitions(idx_t nWorkloads,
+                                            const mv::pass::PassEntry& pass,
                                             std::pair <idx_t,idx_t>& mpeMode);
 
-        std::vector<mv::Workload> polygonWorkloadSplit(const mv::pass::PassEntry& pass, 
-                                                        mv::Workload& workload, 
-                                                        std::vector<mv::Workload>& workloads, 
+        std::vector<mv::Workload> polygonWorkloadSplit(const mv::pass::PassEntry& pass,
+                                                        mv::Workload& workload,
+                                                        std::vector<mv::Workload>& workloads,
                                                         std::pair <idx_t,idx_t>& mpeMode);
-        
-        std::vector<mv::Workload> workloadSplitHelper(const mv::pass::PassEntry& pass, 
-                                                        mv::Workload& workload, 
-                                                        std::pair<std::pair<int16_t, int16_t>,bool>& interesting_point, 
+
+        std::vector<mv::Workload> workloadSplitHelper(const mv::pass::PassEntry& pass,
+                                                        mv::Workload& workload,
+                                                        std::pair<std::pair<int16_t, int16_t>,bool>& interesting_point,
                                                         std::pair <idx_t,idx_t>& mpeMode);
         std::size_t nWorkloads() const;
         std::set<int> getNWorkloads(mv::Data::TensorIterator tensor);
@@ -270,7 +270,7 @@ namespace mv
 
         Workload& operator[](int nworkload);
         bool operator < (const mv::Workloads& other) const;
-        
+
         const Workload& operator[](int nworkload) const;
         std::string getLogID() const override;
         std::string toString() const;
@@ -279,4 +279,4 @@ namespace mv
     };
 }
 
-#endif 
+#endif

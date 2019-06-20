@@ -1470,7 +1470,7 @@ int mv::Workloads::partitionTensorWithRectangleHeuristic(const mv::DPUModeList& 
     original_shape.W = W; // width, aka X
 
     // enable splitting over Z
-    if (split_mode == mv::WorkloadSplitMode::HC || split_mode == mv::WorkloadSplitMode::C)
+    if (split_mode == mv::WorkloadSplitMode::HC)
     {
         original_shape.W = C;
     }
@@ -1478,7 +1478,7 @@ int mv::Workloads::partitionTensorWithRectangleHeuristic(const mv::DPUModeList& 
     {
         original_shape.H = C;
     }
-    else if (split_mode == mv::WorkloadSplitMode::NC)
+    else if (split_mode == mv::WorkloadSplitMode::NC || split_mode == mv::WorkloadSplitMode::C)
     {
         original_shape.H = N;
         original_shape.W = C;
