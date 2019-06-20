@@ -248,6 +248,12 @@ mv::Data::TensorIterator solveSpatialTiling(mv::OpModel& om, mv::Data::OpListIte
 
         auto newOp = om.getSourceOp(conv);
 
+        if (op->hasAttr("bias"))
+        {
+            auto biasTensorName = op->get<std::string>("bias");
+            om.addAttr(newOp, "bias", biasTensorName);
+        }
+
         newOp->set<bool>("splitted", true);//TODO::temporary hack. To remove once the iteration conditions are updated
         newOp->set<unsigned>("opId", opId);
 
