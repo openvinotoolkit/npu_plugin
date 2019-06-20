@@ -218,6 +218,7 @@
                 "html": true,
                 "convert": false
             },
+            "SolveHangingDMAs",
             {
                 "name": "TransitiveReduction",
                 "filter": "PositiveMemory"
