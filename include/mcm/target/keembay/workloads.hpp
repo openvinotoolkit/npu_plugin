@@ -36,17 +36,17 @@ namespace mv
 
     /* The POC compiler generates a lattic structure of the tensor shape with the nodes numbered in this order
      * Example for tensor size 16x16
-     * 
+     *
      *         axis numbering
-     *     
-     *         0    4     8    12     
-     *        
+     *
+     *         0    4     8    12
+     *
      *    0    0----2-----4----6 //Even numbers
-     *         |    |     |    | 
+     *         |    |     |    |
      *    4    1----3-----5----7 //Odd numbers
-     *         |    |     |    | 
+     *         |    |     |    |
      *    8    10---11----12---13 // Incrementing numbers
-     *         |    |     |    | 
+     *         |    |     |    |
      *    12   15---16----17---18
      */
 
@@ -81,7 +81,7 @@ namespace mv
         int16_t y = 0;
     };
 
-    enum class WorkloadSplitMode { HW=1, HC, WC };
+    enum class WorkloadSplitMode { HW=1, HC, WC , NC, C, H};
 
     class Workloads : public LogSender
     {
@@ -105,7 +105,7 @@ namespace mv
         Workloads(const std::string& name, const mv::Shape& tensorShape);
         Workloads(const std::string& name, const mv::Shape& tensorShape, mv::DPUMode& mpeMode);
         ~Workloads();
-      
+
         void generateMetisGraph(void);
         std::shared_ptr<mv::MetisGraphStructure> getMetisGraph();
 
@@ -156,7 +156,7 @@ namespace mv
 
         Workload& operator[](int nworkload);
         bool operator < (const mv::Workloads& other) const;
-        
+
         const Workload& operator[](int nworkload) const;
         std::string getLogID() const override;
         std::string toString() const;
@@ -165,4 +165,4 @@ namespace mv
     };
 }
 
-#endif 
+#endif

@@ -1,7 +1,7 @@
 #include "include/mcm/target/keembay/workloads.hpp"
 #include "include/mcm/base/exception/argument_error.hpp"
 #include "include/mcm/utils/data_generator.hpp"
-#include <algorithm> 
+#include <algorithm>
 #include <metis.h>
 #include <sstream>
 
@@ -33,7 +33,7 @@ mv::Workload& mv::Workloads::operator[](int nworkload)
 bool mv::Workloads::operator < (const mv::Workloads& other) const
 {
     /* Sort the workloads based on mean Execution cycles then workloads count */
-    
+
     //mean of higher/lower execution cycles
     float lhs_avg = (executionCycles_[0] + executionCycles_[1]) / 2;
     float rhs_avg = (other.getExecutionCycles()[0] + other.getExecutionCycles()[1]) / 2;
@@ -76,7 +76,7 @@ std::string mv::Workloads::toString() const
 std::string mv::Workloads::toLongString() const
 {
     std::string output = "{";
-    
+
     for (std::size_t i = 0; i < this->nWorkloads(); ++i) {
         output += "MinX " + std::to_string(this->workloads_[i].MinX) + ", ";
         output += "MaxX " + std::to_string(this->workloads_[i].MaxX) + ", ";
@@ -130,11 +130,11 @@ bool mv::Workloads::noOverlap() const
                               this->workloads_[j].MinY > this->workloads_[i].MaxY ||
                               this->workloads_[i].MinZ > this->workloads_[j].MaxZ ||
                               this->workloads_[j].MinZ > this->workloads_[i].MaxZ);
-            
+
             }
 
         }
-        return noIntersect; 
+        return noIntersect;
 }
 
 mv::Shape mv::Workloads::getShapefromMinMax() const
@@ -160,13 +160,13 @@ mv::Shape mv::Workloads::getShapefromMinMax() const
 
 /*
  * @brief Generates a vector of node numbers to be used to create the METIS adjacency structure.
- *        The sequence of nodes is per graph below. Note the order of the first 2 two rows. 
- * @return A vector of node numbers 
+ *        The sequence of nodes is per graph below. Note the order of the first 2 two rows.
+ * @return A vector of node numbers
  */
 
 /* The POC compiler generates a lattic structure of the tensor shape with the nodes numbered in this order
    * Example for tensor size 16x16
-   * 
+   *
    *   0----2-----4----6------8
    *   |    |     |    |      |
    *   1----3-----5----7------9
@@ -181,29 +181,29 @@ std::vector<int> mv::Workloads::generateMetisGraphNodeNumbers(void) {
     std::vector<int> nodeNumbers  = mv::utils::generateSequence<int>(metisGraph_->m_numberTensorVertices);
 
     for(int i = 1; i < metisGraph_->m_xDim; i++) {
-        nodeNumbers[i] = nodeNumbers[i-1] + 2; 
+        nodeNumbers[i] = nodeNumbers[i-1] + 2;
     }
 
     nodeNumbers[metisGraph_->m_xDim] = 1;
     for(int k = metisGraph_->m_xDim + 1; k < (metisGraph_->m_xDim * 2); k++) {
-        nodeNumbers[k] = nodeNumbers[k-1] + 2; 
+        nodeNumbers[k] = nodeNumbers[k-1] + 2;
     }
 
     return nodeNumbers;
 }
 
 /*
- * @brief Creates a METIS adjacency structure of a graph as per 23/45 METIS manual. 
- * @brief Representing the lattic structure of the tensor shape (in the X-Y corrdinate) 
+ * @brief Creates a METIS adjacency structure of a graph as per 23/45 METIS manual.
+ * @brief Representing the lattic structure of the tensor shape (in the X-Y corrdinate)
  * @param metisGraph - a struct containing necessary parameters to pass to METIS
  * @return None
- * 
+ *
  */
 
  /* The POC compiler generates a lattic structure of the tensor shape with the nodes numbered in this order
     McM compiler impliments the same numbering approach to ensure correctness
    * Example for tensor size 16x16
-   * 
+   *
      * 0----2-----4----6-----8
      * |    |     |    |     |
      * 1----3-----5----7-----9
@@ -219,7 +219,7 @@ void mv::Workloads::generateMetisGraph(void) {
     /*If the lattice structure has more than 1 column the node numbering will be like this the lattic graph above (first row even, second row odd)*/
 
     if((metisGraph_->m_xDim > 1) && (metisGraph_->m_yDim > 1)) {
-    
+
         /*Generate sequence of node numberes for the lattic structure of the tensor shape*/
         auto nodeNumbers  = this->generateMetisGraphNodeNumbers();
 
@@ -233,17 +233,17 @@ void mv::Workloads::generateMetisGraph(void) {
 
         for (std::vector<int>::iterator it = nodeNumbers.begin(); it != (nodeNumbers.begin()+(metisGraph_->m_xDim * 2)); std::advance(it,increment)) {
 
-            /*Top left node, i.e. 0*/ 
+            /*Top left node, i.e. 0*/
             if((*it%metisGraph_->m_xDim == 0) && (*it == 0)) {
 
                 metisGraph_->xadj[xadjIndex] = adjncyIndex;
                 xadjIndex++;
-                metisGraph_->adjncy[adjncyIndex] = nodeNumbers[*it + metisGraph_->m_xDim]; 
+                metisGraph_->adjncy[adjncyIndex] = nodeNumbers[*it + metisGraph_->m_xDim];
                 adjncyIndex++;
                 metisGraph_->adjncy[adjncyIndex] = nodeNumbers[*it + 1];
                 adjncyIndex++;
         }
-   
+
         /*Top right node, i.e 8 in the example graph*/
         if(*it == ((metisGraph_->m_xDim * 2) - 2)) {
 
@@ -251,7 +251,7 @@ void mv::Workloads::generateMetisGraph(void) {
             xadjIndex++;
             metisGraph_->adjncy[adjncyIndex] = *it - 2;
             adjncyIndex++;
-            metisGraph_->adjncy[adjncyIndex] = *it + 1; 
+            metisGraph_->adjncy[adjncyIndex] = *it + 1;
             adjncyIndex++;
         }
 
@@ -264,7 +264,7 @@ void mv::Workloads::generateMetisGraph(void) {
             adjncyIndex++;
             metisGraph_->adjncy[adjncyIndex] = *it + 1;
             adjncyIndex++;
-            metisGraph_->adjncy[adjncyIndex] = *it + 2; 
+            metisGraph_->adjncy[adjncyIndex] = *it + 2;
             adjncyIndex++;
         }
 
@@ -273,16 +273,16 @@ void mv::Workloads::generateMetisGraph(void) {
 
             metisGraph_->xadj[xadjIndex] = adjncyIndex;
             xadjIndex++;
-            metisGraph_->adjncy[adjncyIndex] = *it - 2; 
+            metisGraph_->adjncy[adjncyIndex] = *it - 2;
             adjncyIndex++;
             metisGraph_->adjncy[adjncyIndex] = *it - 1;
             adjncyIndex++;
             metisGraph_->adjncy[adjncyIndex] = nodeNumbers[std::distance(nodeNumbers.begin(), it) + metisGraph_->m_xDim];
             adjncyIndex++;
-            metisGraph_->adjncy[adjncyIndex] = *it + 2; 
+            metisGraph_->adjncy[adjncyIndex] = *it + 2;
             adjncyIndex++;
         }
-        
+
         /*second row first node i.e. 1*/
         if((*it == 1)) {
 
@@ -290,11 +290,11 @@ void mv::Workloads::generateMetisGraph(void) {
             xadjIndex++;
             metisGraph_->adjncy[adjncyIndex] = *it - 1;
             adjncyIndex++;
-            if(metisGraph_->m_yDim > 2 ) { /*if number lattic has more than 2 rows. Only a 7x7 tensor will have only 2 rows*/ 
+            if(metisGraph_->m_yDim > 2 ) { /*if number lattic has more than 2 rows. Only a 7x7 tensor will have only 2 rows*/
                 metisGraph_->adjncy[adjncyIndex] = nodeNumbers[(metisGraph_->m_xDim * 2)];
                 adjncyIndex++;
             }
-            metisGraph_->adjncy[adjncyIndex] = *it + 2; 
+            metisGraph_->adjncy[adjncyIndex] = *it + 2;
             adjncyIndex++;
         }
 
@@ -307,7 +307,7 @@ void mv::Workloads::generateMetisGraph(void) {
             adjncyIndex++;
             metisGraph_->adjncy[adjncyIndex] = *it - 1;
             adjncyIndex++;
-            if(metisGraph_->m_yDim > 2 ) { /*if number lattic has more than 2 rows. Only a 7x7 tensor will have only 2 rows*/ 
+            if(metisGraph_->m_yDim > 2 ) { /*if number lattic has more than 2 rows. Only a 7x7 tensor will have only 2 rows*/
                 metisGraph_->adjncy[adjncyIndex] = nodeNumbers[std::distance(nodeNumbers.begin(), it) + metisGraph_->m_xDim];
                 adjncyIndex++;
             }
@@ -325,7 +325,7 @@ void mv::Workloads::generateMetisGraph(void) {
             increment = metisGraph_->m_xDim-1;
             increment = -increment;
         }
-        /*If on the last node of the second row then we're done, break*/ 
+        /*If on the last node of the second row then we're done, break*/
         if(*it == (metisGraph_->m_xDim * 2)-1)
             break;
         }
@@ -335,14 +335,14 @@ void mv::Workloads::generateMetisGraph(void) {
         */
         for (std::vector<int>::iterator it = (nodeNumbers.begin()+(metisGraph_->m_xDim * 2)); it != nodeNumbers.end(); it++) {
 
-            /*Intermediate node left side*/ 
+            /*Intermediate node left side*/
             if((*it%metisGraph_->m_xDim == 0) && ((*it + metisGraph_->m_xDim) < ((int)nodeNumbers.size() -1)) && ((*it) != 0)) {
 
                 metisGraph_->xadj[xadjIndex] = adjncyIndex;
                 xadjIndex++;
                 metisGraph_->adjncy[adjncyIndex] = nodeNumbers[*it - metisGraph_->m_xDim];
                 adjncyIndex++;
-                metisGraph_->adjncy[adjncyIndex] = nodeNumbers[*it + metisGraph_->m_xDim]; 
+                metisGraph_->adjncy[adjncyIndex] = nodeNumbers[*it + metisGraph_->m_xDim];
                 adjncyIndex++;
                 metisGraph_->adjncy[adjncyIndex] = nodeNumbers[*it + 1];
                 adjncyIndex++;
@@ -368,7 +368,7 @@ void mv::Workloads::generateMetisGraph(void) {
                 adjncyIndex++;
                 metisGraph_->adjncy[adjncyIndex] = nodeNumbers[*it - 1];
                 adjncyIndex++;
-                metisGraph_->adjncy[adjncyIndex] = nodeNumbers[*it + metisGraph_->m_xDim]; 
+                metisGraph_->adjncy[adjncyIndex] = nodeNumbers[*it + metisGraph_->m_xDim];
                 adjncyIndex++;
             }
 
@@ -377,19 +377,19 @@ void mv::Workloads::generateMetisGraph(void) {
 
                 metisGraph_->xadj[xadjIndex] = adjncyIndex;
                 xadjIndex++;
-                metisGraph_->adjncy[adjncyIndex] = nodeNumbers[*it - metisGraph_->m_xDim]; 
+                metisGraph_->adjncy[adjncyIndex] = nodeNumbers[*it - metisGraph_->m_xDim];
                 adjncyIndex++;
                 metisGraph_->adjncy[adjncyIndex] = nodeNumbers[*it - 1];
                 adjncyIndex++;
                 metisGraph_->xadj[xadjIndex] = adjncyIndex;
             }
-        
+
             /*Middle nodes bottom row*/
             if(((*it)%metisGraph_->m_xDim != 0) && ((*it) > ((int)nodeNumbers.size()-1) - metisGraph_->m_xDim) && ((*it) != ((int)nodeNumbers.size()-1))) {
 
                 metisGraph_->xadj[xadjIndex] = adjncyIndex;
                 xadjIndex++;
-                metisGraph_->adjncy[adjncyIndex] = nodeNumbers[*it - metisGraph_->m_xDim]; 
+                metisGraph_->adjncy[adjncyIndex] = nodeNumbers[*it - metisGraph_->m_xDim];
                 adjncyIndex++;
                 metisGraph_->adjncy[adjncyIndex] = nodeNumbers[*it - 1];
                 adjncyIndex++;
@@ -402,11 +402,11 @@ void mv::Workloads::generateMetisGraph(void) {
 
                 metisGraph_->xadj[xadjIndex] = adjncyIndex;
                 xadjIndex++;
-                metisGraph_->adjncy[adjncyIndex] = nodeNumbers[*it - metisGraph_->m_xDim]; 
+                metisGraph_->adjncy[adjncyIndex] = nodeNumbers[*it - metisGraph_->m_xDim];
                 adjncyIndex++;
                 metisGraph_->adjncy[adjncyIndex] = nodeNumbers[*it - 1];
                 adjncyIndex++;
-                metisGraph_->adjncy[adjncyIndex] = nodeNumbers[*it + metisGraph_->m_xDim]; 
+                metisGraph_->adjncy[adjncyIndex] = nodeNumbers[*it + metisGraph_->m_xDim];
                 adjncyIndex++;
                 metisGraph_->adjncy[adjncyIndex] = nodeNumbers[*it + 1];
                 adjncyIndex++;
@@ -416,15 +416,15 @@ void mv::Workloads::generateMetisGraph(void) {
     /*There is only one column in the lattic and node are numbered in order like this*/
     /*
      * 0
-     * | 
+     * |
      * 1
-     * |    
+     * |
      * 2
-     * |   
+     * |
      * 3
      */
     else {
-        
+
         /*Nodes in the graph*/
         std::vector<int> nodeNumbers  = mv::utils::generateSequence<int>(metisGraph_->m_numberTensorVertices);
         int adjncyIndex = 0;
@@ -441,23 +441,32 @@ void mv::Workloads::generateMetisGraph(void) {
             if((*it) == metisGraph_->m_yDim-1) {
                 metisGraph_->xadj[xadjIndex] = adjncyIndex;
                 xadjIndex++;
-                metisGraph_->adjncy[adjncyIndex] = metisGraph_->m_yDim-2; 
+                metisGraph_->adjncy[adjncyIndex] = metisGraph_->m_yDim-2;
                 adjncyIndex++;
                 metisGraph_->xadj[xadjIndex] = adjncyIndex;
             }
             if(((*it) > 0) && ((*it) < metisGraph_->m_yDim-1)) {
                 metisGraph_->xadj[xadjIndex] = adjncyIndex;
                 xadjIndex++;
-                metisGraph_->adjncy[adjncyIndex] = *it -1; 
+                metisGraph_->adjncy[adjncyIndex] = *it -1;
                 adjncyIndex++;
-                metisGraph_->adjncy[adjncyIndex] = *it + 1; 
-                adjncyIndex++;            
+                metisGraph_->adjncy[adjncyIndex] = *it + 1;
+                adjncyIndex++;
             }
 
         }
     }
-} 
+}
 
+<<<<<<< HEAD
+=======
+/*TODO update*/
+idx_t mv::Workloads::getNWorkloads(const mv::Shape& tensorShape, int nDPUxCluster) {
+
+    return round(nDPUxCluster/2)*2;
+}
+
+>>>>>>> SplitOverH
 /**
  * @brief Generate a pool of possible workload number for a tensor
  * @param A tensor
@@ -466,9 +475,14 @@ void mv::Workloads::generateMetisGraph(void) {
  */
 const std::vector<int> mv::Workloads::getWorkloadSplitPool(const Tensor& tensor, int nDPUxCluster, mv::DPUModeList dpuModeList, int maxSplits)
 {
+<<<<<<< HEAD
     std::vector<int> splitPool = {1};
     std::vector<int> maxSplitsXY;
  
+=======
+    std::vector<int> splitPool;
+
+>>>>>>> SplitOverH
     /*maxSplitsXY*/
     double xDim = tensor.getShape()[0];
     double yDim = tensor.getShape()[1];
@@ -496,8 +510,9 @@ const std::vector<int> mv::Workloads::getWorkloadSplitPool(const Tensor& tensor,
     /*DpuMul splits*/
     for(int i = nDPUxCluster; i <= (maxSplits - nDPUxCluster) ; i+=nDPUxCluster)
         splitPool.push_back(i);
-    
+
     /*XY splits*/
+<<<<<<< HEAD
     for(std::size_t i = 0; i < dpuModeList.size(); i++) {
         for(int j = 0; j < (int)ceil(log2(maxSplitsXY[i])); j++) 
             if(((maxSplitsXY[i]%(int)std::pow(2,j)) == 0) && (maxSplitsXY[i]/(std::pow(2,j)) <= maxSplits)) 
@@ -505,6 +520,12 @@ const std::vector<int> mv::Workloads::getWorkloadSplitPool(const Tensor& tensor,
     }
     
     /*sort*/
+=======
+    for(int i = 0; i < (int)ceil(log2(maxSplitsXY)); i ++)
+        if(((maxSplitsXY%(int)std::pow(2,i)) == 0) && (maxSplitsXY/(std::pow(2,i)) < maxSplits))
+            splitPool.push_back(maxSplitsXY/std::pow(2,i));
+
+>>>>>>> SplitOverH
     sort(splitPool.begin(), splitPool.end());
     
     /*Erase duplicates*/
@@ -513,21 +534,25 @@ const std::vector<int> mv::Workloads::getWorkloadSplitPool(const Tensor& tensor,
     /*If the split pool is empty then make the default number of workloads be 4*/
     if(splitPool.empty())
         splitPool.push_back(4);
-        
+
     return splitPool;
 }
 
 
+<<<<<<< HEAD
 void mv::Workloads::populateWorkloadsFromPartitions(idx_t nWorkloads, const mv::pass::PassEntry& pass, mv::DPUMode& mpe_mode) 
+=======
+void mv::Workloads::populateWorkloadsFromPartitions(idx_t nWorkloads, const mv::pass::PassEntry& pass, std::pair <idx_t,idx_t>& mpeMode)
+>>>>>>> SplitOverH
 {
     std::vector<std::vector<mv::Workload>> listOfworkloadLists;
 
-    for(int workload = 0; workload < nWorkloads; workload++) { 
-        
+    for(int workload = 0; workload < nWorkloads; workload++) {
+
         workloads_.push_back(mv::Workload()); /*Add each workload (struct) to vector of workloads*/
-                                
-       /* Converting the paritions returned by METIS 
-        * into tensor coordinates and populating these fields of workload 
+
+       /* Converting the paritions returned by METIS
+        * into tensor coordinates and populating these fields of workload
         */
 
         using xyz_type = decltype(mv::Workload::MinX);
@@ -542,7 +567,7 @@ void mv::Workloads::populateWorkloadsFromPartitions(idx_t nWorkloads, const mv::
         wl_min_y = std::numeric_limits<xyz_type>::max();
         wl_max_x = -1;
         wl_max_y = -1;
-       
+
         for (int i=0; i < metisGraph_->m_numberTensorVertices; i++) {
 
             if (metisGraph_->part[i] == workload) {
@@ -551,7 +576,7 @@ void mv::Workloads::populateWorkloadsFromPartitions(idx_t nWorkloads, const mv::
                 int max_x = metisGraph_->node_coords[i].max_x();
                 int min_y = metisGraph_->node_coords[i].min_y();
                 int max_y = metisGraph_->node_coords[i].max_y();
-                                
+
                 //points vector below in workloads stores all the points belonging to the workload.
                 //Note: Each rectangle of mpeMode shape is stored with only 4 co-ordinates, the vertices
                 //so, 16 elements are inside the mpeMode rectangle (4X4 or 16x1), represented by a rectangle of 4 vertices
@@ -572,26 +597,26 @@ void mv::Workloads::populateWorkloadsFromPartitions(idx_t nWorkloads, const mv::
         }
 
         /*At the edge of the x dimension*/
-        if(wl_max_x == metisGraph_->tensorXDim) 
+        if(wl_max_x == metisGraph_->tensorXDim)
             wl_max_x = wl_max_x - 1;
-        
+
         /*At the edge of the y dimension*/
         if(wl_max_y == metisGraph_->tensorYDim)
             wl_max_y = wl_max_y - 1;
-        
+
         /*Now Need to detect if the workload border is in the middle of tensor, if so then subtract n_elem_x or n_elem_y */
 
         /*Workload border in the middle of the tensor therefore subtract 1 from x dimension*/
         if((wl_max_x < metisGraph_->tensorXDim) && (wl_max_x <  (metisGraph_->tensorXDim-1)))
             wl_max_x = wl_max_x - 1;
-        
+
         /*Workload border in the middle of the tensor therefore subtract 1 from max_y and add 1 to min_y (think bottom left)*/
-        if((wl_max_y < metisGraph_->tensorYDim) && (wl_max_y <  (metisGraph_->tensorYDim-1)) && (wl_max_y !=  (metisGraph_->tensorYDim-1)) && (wl_min_y !=  0)) { 
+        if((wl_max_y < metisGraph_->tensorYDim) && (wl_max_y <  (metisGraph_->tensorYDim-1)) && (wl_max_y !=  (metisGraph_->tensorYDim-1)) && (wl_min_y !=  0)) {
              wl_max_y = wl_max_y - 1;
         }
 
         /*Workload border in the middle of the tensor therefore subtract 1 from max_y and no need to change min_y as it is already 0 (think top left)*/
-        if((wl_max_y < metisGraph_->tensorYDim) && (wl_max_y <  (metisGraph_->tensorYDim-1)) && (wl_max_y !=  (metisGraph_->tensorYDim-1)) && (wl_min_y ==  0)) { 
+        if((wl_max_y < metisGraph_->tensorYDim) && (wl_max_y <  (metisGraph_->tensorYDim-1)) && (wl_max_y !=  (metisGraph_->tensorYDim-1)) && (wl_min_y ==  0)) {
              wl_max_y = wl_max_y - 1;
         }
 
@@ -606,20 +631,25 @@ void mv::Workloads::populateWorkloadsFromPartitions(idx_t nWorkloads, const mv::
         workloads_[workload].vertices.push_back(std::make_pair(wl_max_x, wl_max_y));
         workloads_[workload].MinZ = 0;
         workloads_[workload].MaxZ = tensorShape_[2]-1;
-        
+
         /*These should be set in the polygon logic*/
         if (mpe_mode.H == 4)
             workloads_[workload].MPEMode = mv::MPE_Mode::Matrix;
         else
             workloads_[workload].MPEMode = mv::MPE_Mode::Vector;
 
+<<<<<<< HEAD
         //add to the 'listOfworkloadLists' vector, the returned list of workloads from the polygonworkloadsplit function       
         listOfworkloadLists.push_back(mv::Workloads::polygonWorkloadSplit(pass, workloads_[workload], workloads_, mpe_mode));
+=======
+        //add to the 'listOfworkloadLists' vector, the returned list of workloads from the polygonworkloadsplit function
+        listOfworkloadLists.push_back(mv::Workloads::polygonWorkloadSplit(pass, workloads_[workload], workloads_, mpeMode));
+>>>>>>> SplitOverH
 
     }
 
     workloads_.clear();
-  
+
     /*adding the rectangle workloads into workloads_ list*/
     for (auto listIt = listOfworkloadLists.begin(); listIt != listOfworkloadLists.end(); listIt++) {
         for (auto it = listIt->begin(); it != listIt->end(); it++) {
@@ -636,8 +666,8 @@ void mv::Workloads::populateWorkloadsFromPartitions(idx_t nWorkloads, const mv::
         }
     }
 
-    
-    for(int workload = 0; workload < workloads_.size(); workload++) { 
+
+    for(int workload = 0; workload < workloads_.size(); workload++) {
 
         pass.log(mv::Logger::MessageType::Debug, "\nworkload: " + std::to_string(workload));
         pass.log(mv::Logger::MessageType::Debug, " max_x: " + std::to_string(workloads_[workload].MaxX));
@@ -690,7 +720,7 @@ std::vector<mv::Workload> mv::Workloads::polygonWorkloadSplit(const mv::pass::Pa
     {
         workloadFromAreaCheck.push_back(workload);
         return workloadFromAreaCheck;
-        
+
     }
     // interesting points calculation
     int16_t diff1, diff2;
@@ -804,7 +834,7 @@ std::vector<mv::Workload> mv::Workloads::workloadSplitHelper(const mv::pass::Pas
             }
         }
     }
-    
+
 
     workload_partition_1.setMinMaxAndVertices();
     workload_partition_2.setMinMaxAndVertices();
@@ -826,14 +856,14 @@ std::vector<mv::Workload> mv::Workloads::workloadSplitHelper(const mv::pass::Pas
     return finalWorkloadList;
 }
 
-  /** 
+  /**
     * @brief Returns the cost function to use for execution cycles
     */
 mv::CostFunctions mv::Workloads::getCostFunction(mv::Element& passDesc, const mv::pass::PassEntry& pass)
 {
     /*parse CostFunction from Comp Descriptor*/
     mv::CostFunctions costFunction = mv::CostFunctions::Balanced; //default
-    if (passDesc.hasAttr("costfunction")) 
+    if (passDesc.hasAttr("costfunction"))
     {
         std::string sCostFunction = passDesc.get<std::string>("costfunction");
         if (sCostFunction == "balanced")
@@ -844,11 +874,19 @@ mv::CostFunctions mv::Workloads::getCostFunction(mv::Element& passDesc, const mv
             costFunction = mv::CostFunctions::MinMaxWorkloads;
         else if (sCostFunction == "greedy")
             costFunction = mv::CostFunctions::Greedy;
+<<<<<<< HEAD
         else 
             pass.log(mv::Logger::MessageType::Warning, "Could not parse the Cost Function type (only \"balanced | criticalpath | minmax | greedy\" currently supported). Using \"Balanced\"...");
     }
     else 
         pass.log(mv::Logger::MessageType::Info, "No Cost Function specified in descriptor, using \"Balanced\"...");
+=======
+        else
+            this->log(mv::Logger::MessageType::Warning, "Could not parse the Cost Function type (only \"balanced | criticalpath | minmax | greedy\" currently supported). Using \"Balanced\"...");
+    }
+    else
+        this->log(mv::Logger::MessageType::Info, "No Cost Function specified in descriptor, using \"Balanced\"...");
+>>>>>>> SplitOverH
     return costFunction;
 }
 
@@ -880,6 +918,7 @@ void mv::Workloads::generateExecutionCycles(std::vector<mv::Workloads>& workload
     if (nDPUxCluster < 1)
         throw mv::ArgumentError("Generate Workloads Pass", "nDPUxCluster", std::to_string(nDPUxCluster), "Invalid number of DPUs");
 
+<<<<<<< HEAD
     /*For each workload instance*/
     for(auto itWorklaods = workloadsVector.begin(); itWorklaods != workloadsVector.end(); itWorklaods++) {
         
@@ -888,6 +927,13 @@ void mv::Workloads::generateExecutionCycles(std::vector<mv::Workloads>& workload
         /*Calculate the cost for each of the individual workloads (rectangles) */
         for(auto itworkload = itWorklaods->workloads_.begin(); itworkload != itWorklaods->workloads_.end(); ++itworkload) {
             
+=======
+    std::vector<float> workloadsExecutionCycles;
+    if (validateWorkloads(outputTensor))
+    {
+        for(std::vector<mv::Workload>::iterator itWL = workloads_.begin(); itWL != workloads_.end(); ++itWL)
+        {
+>>>>>>> SplitOverH
             std::pair <int,int> mpeMode (4, 4);
 
             if(itworkload->MPEMode != mv::Matrix)
@@ -899,6 +945,17 @@ void mv::Workloads::generateExecutionCycles(std::vector<mv::Workloads>& workload
             float sumExeCycles = ceil(itWorklaods->tensorShape_[2]/16.0) * ceil(height / mpeMode.first) * ceil(width / mpeMode.second);
             workloadsExecutionCycles.push_back(sumExeCycles);
         }
+<<<<<<< HEAD
+=======
+    }
+    else
+    {   //workload not schedulable
+        workloadsExecutionCycles = {INFINITY};
+    }
+
+    float critical_wl = *std::max_element(workloadsExecutionCycles.begin(), workloadsExecutionCycles.end());
+    //float lower_wl = *std::min_element(workloadsExecutionCycles.begin(), workloads_execution_cycles.end());
+>>>>>>> SplitOverH
 
         /*Critical workload*/
         itWorklaods->critical_workload_ = *std::max_element(workloadsExecutionCycles.begin(), workloadsExecutionCycles.end());
@@ -961,14 +1018,14 @@ float mv::Workloads::greedyTaskAssignment(int nProcessors, std::vector<float>& w
     std::priority_queue<int, std::vector<int>, std::greater<int> > exeCycles; //ascending sizes
     for (int i=0; i<nProcessors; ++i)
         exeCycles.push(0);
-    
+
     for (size_t idxWorkload=0; idxWorkload<workloadCosts.size(); ++idxWorkload)
     {
         int smallestTime = exeCycles.top();
         exeCycles.pop();
         exeCycles.push(smallestTime + workloadCosts[idxWorkload]);
     }
-    
+
     //return max value (ie, last value) in queue
     for (int i=0; i<nProcessors-1; ++i)
         exeCycles.pop();
@@ -1039,7 +1096,7 @@ bool mv::Workloads::validateWorkloads(const mv::Shape& shape)
     std::size_t totalVol = getTensorSize(shape); // shape.totalSize() is wrong here as it counts 'N' (batch) dimension
     if (vol != totalVol)
     {
-        this->log(mv::Logger::MessageType::Warning, "METIS partition failed because of volume differences. Original Tensor: " + 
+        this->log(mv::Logger::MessageType::Warning, "METIS partition failed because of volume differences. Original Tensor: " +
                     std::to_string(shape.totalSize()) + " Partitioned Tensor: " + std::to_string(this->getAllWorkloadsVolume()));
         return false;
     }
@@ -1047,7 +1104,7 @@ bool mv::Workloads::validateWorkloads(const mv::Shape& shape)
     // Check for same vertices for each of the X, Y and X dimensions. This is done by comparing the shape of the inputTensor and min max of (all) workloads
     if (!equalShapes(this->getShapefromMinMax(), shape))
     {
-        this->log(mv::Logger::MessageType::Warning, "METIS partition failed because vertices/bounds different between Original Tensor " + 
+        this->log(mv::Logger::MessageType::Warning, "METIS partition failed because vertices/bounds different between Original Tensor " +
                                      shape.toString() + " and Partitioned Tensor " + this->getShapefromMinMax().toString());
         return false;
     }
@@ -1431,6 +1488,7 @@ namespace mv {
             unsigned x_max = slice.x1 * x_coef;
             unsigned y_max = slice.y1 * y_coef;
 
+
             Workload workload;
 
             workload.MinX = x_min;
@@ -1447,7 +1505,7 @@ namespace mv {
                 workload.MPEMode = mv::MPE_Mode::Matrix;
             else
                 workload.MPEMode = mv::MPE_Mode::Vector;
-           
+
             // FIXME: setup workload id
             // FIXME: adjust workloads padding
             workload_list.push_back(workload);
@@ -1471,15 +1529,16 @@ int mv::Workloads::partitionTensorWithRectangleHeuristic(const mv::DPUModeList& 
 
     // FIXME: need to know tensor order to find its dimensions: width, height,...
     // HACK: assume tensor order is "NCHW", so width=shape[0] and height=shape[1]
-    unsigned C, H, W;
-    if (tensorShape_.ndims() < 2) {
+    unsigned C, H, W, N;
+    if (tensorShape_.ndims() < 4) {
         pass.log(mv::Logger::MessageType::Error,
                  "RectangleHeuristic: too few tensor ndims=" + std::to_string(tensorShape_.ndims()));
         return METIS_ERROR;
     }
-    W = tensorShape_[0];
-    H = tensorShape_[1];
-    C = tensorShape_.ndims() >= 3 ? tensorShape_[2] : 0;
+    W = tensorShape_[IO_WIDTH_DIMENSION];
+    H = tensorShape_[IO_HEIGHT_DIMENSION];
+    C = tensorShape_[IO_CHANNEL_DIMENSION];
+    N = tensorShape_[IO_BATCH_DIMENSION];
     pass.log(mv::Logger::MessageType::Debug, "RectangleHeuristic: height=" + std::to_string(H)
                                                               + ", width=" + std::to_string(W));
 
@@ -1492,9 +1551,14 @@ int mv::Workloads::partitionTensorWithRectangleHeuristic(const mv::DPUModeList& 
     {
         original_shape.W = C;
     }
-    if (split_mode == mv::WorkloadSplitMode::WC)
+    else if (split_mode == mv::WorkloadSplitMode::WC)
     {
         original_shape.H = C;
+    }
+    else if (split_mode == mv::WorkloadSplitMode::NC || split_mode == mv::WorkloadSplitMode::C)
+    {
+        original_shape.H = N;
+        original_shape.W = C;
     }
     if (original_shape.H == 0 || original_shape.W == 0)
     {
@@ -1527,14 +1591,19 @@ int mv::Workloads::partitionTensorWithRectangleHeuristic(const mv::DPUModeList& 
     pass.log(mv::Logger::MessageType::Debug, "RectangleHeuristic: slices=" + std::to_string(slice_list.size()));
 
     unsigned Z = C;
-    if (split_mode == mv::WorkloadSplitMode::HC)
+    if (split_mode == mv::WorkloadSplitMode::HC || split_mode == mv::WorkloadSplitMode::C)
     {
         Z = W;
     }
-    if (split_mode == mv::WorkloadSplitMode::WC)
+    else if (split_mode == mv::WorkloadSplitMode::WC)
     {
         Z = H;
     }
+    else if (split_mode == mv::WorkloadSplitMode::NC)
+    {
+        Z = W;
+    }
+
 
     workloads_ = generateWorkloadsFromSlices(mode_list, slice_list, best_padding, Z);
     pass.log(mv::Logger::MessageType::Debug, "RectangleHeuristic: done");
