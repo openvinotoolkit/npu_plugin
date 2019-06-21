@@ -54,7 +54,9 @@ public:
 
     ~ExecutableNetwork() {
         try {
-            _executor->deallocateGraph();
+            if (_executor) {
+                _executor->deallocateGraph();
+            }
         }
         catch (...) {
             std::cerr << "ERROR ~ExecutableNetwork():\n"
