@@ -35,7 +35,7 @@ void setDpuTasksMemoryLocationFcn(const mv::pass::PassEntry& , mv::ComputationMo
             auto taskOp = opIt->get<std::string>("taskOp");
             if (taskOp == "ChannelMajorConvolution" ||
                 taskOp == "DepthwiseConv"  ||
-                taskOp == "MaxPool")
+                taskOp == "MaxPool" || taskOp == "Conv")
             {
                 auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
                 auto inputMemoryLocation = opIt->getInputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
