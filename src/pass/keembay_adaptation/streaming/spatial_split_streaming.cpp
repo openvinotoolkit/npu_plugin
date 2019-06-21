@@ -672,7 +672,12 @@ void streamingTilingFcn(const mv::pass::PassEntry& pass,
 
     for (auto s: thisGraphStrategy)
     {
-        std::string nodeName = s.first ;
+        std::string nodeName = s.first;
+        if (!om.checkOp(nodeName))
+        {
+            pass.log(mv::Logger::MessageType::Error, nodeName + " is not present in model, skipping streaming");
+            continue;
+        }
         auto opIt =  om.getOp(nodeName);
 
         std::string masterOpName = opIt->getName();
