@@ -58,8 +58,7 @@ void maxTopologicalCutAndPartialSerialisationPass(const mv::pass::PassEntry& pas
     auto maxTopologicalCut = flowGraph.calculateMaxTopologicalCut(pass, model);
     
     long long tmp = maxTopologicalCut.first;
-    compOutput["maxTopologicalCut"] = tmp; //maxTopologicalCut.first;
-    compOutput["test_value"] = true;
+    compOutput["maxTopologicalCut"] = tmp;
     mv::DataModel dm(model);
     auto outflow = dm.getOutputFlow();
     outflow->set<uint64_t>("MaxTopologicalCutValue", maxTopologicalCut.first);

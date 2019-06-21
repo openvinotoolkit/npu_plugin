@@ -379,8 +379,7 @@ std::pair<int,std::vector<mv::koalaGraph::PEdge>> mv::KoalaGraphScheduler::calcu
      * Find the shortest path from source node (Input) to the edges source node and
      * Find the shortest path from the edges sink node to the sink node (DMA task CMX to DDR) 
     */
-    //for (int i = 0; i < numberofEdges; i++) {
-    for (int i = numberofEdges-1; i >=0 ; --i) {
+    for (int i = 0; i < numberofEdges; i++) {
 
         /*get the source and sink node of the edge*/
         pass.log(mv::Logger::MessageType::Debug, ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
@@ -462,10 +461,9 @@ std::pair<int,std::vector<mv::koalaGraph::PEdge>> mv::KoalaGraphScheduler::calcu
         maxTopologicalCutValue += cutEdges[i]->info.memoryRequirement;
 
     /*Add Max topological cut value as attribute to output node*/
+    pass.log(mv::Logger::MessageType::Debug, "The maximum peak memory of the graph is " + std::to_string(maxTopologicalCutValue) + " bytes");
     auto output = cm.getOutput();
     output->set<uint64_t>("MaxTopologicalCutValue", maxTopologicalCutValue); 
-
-    pass.log(mv::Logger::MessageType::Debug, "The maximum peak memory of the graph is " + std::to_string(maxTopologicalCutValue) + " bytes");
 
     return std::make_pair(maxTopologicalCutValue, cutEdges);
 }
