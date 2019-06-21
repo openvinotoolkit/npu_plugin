@@ -108,39 +108,9 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
 
 
 
-            //This pass as it is now, makes a decision, so that the output of the DPU conv has to be in CMX, assuming
-            //that previous passes did the appropriate checks for it.
-            //Todo: do we want to actually make this decision here? or to have a separate pass, to check for all
-            // "heuristically known" layers that need to be really forced to NNCMX (like any DPU task)
 
-            if(outputMemoryLocation == mv::Tensor::MemoryLocation::CMX)
-            {
-                dpuConv->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
-                setOutputDataFlow(om, dpuConv, outputDataFlows);
-            }
-            else
-            {
-                auto dpuCopyOut = om.copy(dpuConv, quantParams, dpuConv->getName() + "_copyOut");
-                setOutputDataFlow(om, dpuCopyOut, outputDataFlows);
-                dpuConv->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::CMX);
-                dpuCopyOut->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
-                om.getSourceOp(dpuCopyOut)->set<unsigned>("opId", om.getSourceOp(dpuConv)->get<unsigned>("opId"));
-            }
-
-            if(inputMemoryLocation != mv::Tensor::MemoryLocation::CMX)
-            {
-                auto dpuCopyIn = om.copy(input, quantParams, dpuConv->getName() + "_copyIn");
-                om.getSourceOp(dpuCopyIn)->set<unsigned>("opId", om.getSourceOp(dpuConv)->get<unsigned>("opId"));
-
-                auto dpuOp = om.getSourceOp(dpuConv);
-
-                auto inputFlow  = dpuOp.leftmostInput();
-
-                dpuOp->setInputTensor(dpuCopyIn, 0);
-                om.undefineFlow(inputFlow);
-                om.defineFlow(dpuCopyIn, dpuOp, 0);
-                dpuCopyIn->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::CMX);
-            }
+            dpuConv->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
+            setOutputDataFlow(om, dpuConv, outputDataFlows);
 
             if(opType == "Conv")
             {
@@ -185,34 +155,8 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             if(!splitStrategy.empty())
                dpuPoolOp->set<std::string>("splitStrategy", splitStrategy);
 
-            if(outputMemoryLocation == mv::Tensor::MemoryLocation::CMX)
-            {
-                dpuPool->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
-                setOutputDataFlow(om, dpuPool, outputDataFlows);
-            }
-            else
-            {
-                auto dpuCopyOut = om.copy(dpuPool, quantParams, dpuPool->getName() + "_copyOut");
-                om.getSourceOp(dpuCopyOut)->set<unsigned>("opId", om.getSourceOp(dpuPool)->get<unsigned>("opId"));
-                setOutputDataFlow(om, dpuCopyOut, outputDataFlows);
-                dpuPoolOp->getOutputTensor(0)->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::CMX);
-                dpuCopyOut->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
-            }
-
-            if(inputMemoryLocation != mv::Tensor::MemoryLocation::CMX)
-            {
-                auto dpuCopyIn = om.copy(input, quantParams, dpuPool->getName() + "_copyIn");
-                om.getSourceOp(dpuCopyIn)->set<unsigned>("opId", om.getSourceOp(dpuPool)->get<unsigned>("opId"));
-
-                auto dpuOp = om.getSourceOp(dpuPool);
-
-                auto inputFlow  = dpuOp.leftmostInput();
-
-                dpuOp->setInputTensor(dpuCopyIn, 0);
-                om.undefineFlow(inputFlow);
-                om.defineFlow(dpuCopyIn, dpuOp, 0);
-                dpuCopyIn->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::CMX);
-            }
+            dpuPool->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
+            setOutputDataFlow(om, dpuPool, outputDataFlows);
         }
         else if (opType == "Add" || opType == "Subtract" || opType == "Multiply")
         {
