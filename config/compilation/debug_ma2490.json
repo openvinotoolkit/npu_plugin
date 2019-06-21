@@ -132,10 +132,7 @@
             "ConvertOpsToTasks",
             "AlignTo16Channels",
             "ComputeTensorsQuantParams",
-            "UpdateConcatQuantizationParams",
             "KMBOrderConversion",
-            "AlignTaskWeights",
-            "GenerateSparsityMapsPopulatedTensors",
             {
                 "name": "GenerateDot",
                 "output": "output/dots/keembay_adapt_model.dot",
@@ -147,6 +144,10 @@
                 "name": "ConvertDot",
                 "input": "output/dots/keembay_adapt_model.dot"
             },
+            "SetDpuTasksMemoryLocation",
+            "UpdateConcatQuantizationParams",
+            "AlignTaskWeights",
+            "GenerateSparsityMapsPopulatedTensors",
             "GenerateWeightsTables",
             {
                 "name": "GenerateDot",
