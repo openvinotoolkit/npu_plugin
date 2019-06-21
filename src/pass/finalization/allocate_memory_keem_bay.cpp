@@ -499,6 +499,8 @@ void allocateImplicitOperationsFcnKeemBay(const mv::pass::PassEntry& pass,
                 auto NewBuffer = dm.moveTensor(location2Allocator[inputLocation.toString()],
                                                 outputBuffer, inputBuffer,
                                                 lhs_padding, rhs_padding);
+                if (inputLocation == mv::Tensor::MemoryLocation::BLOB) //the parent should have already been allocated
+                    outputTensor->set<unsigned>("graphFileIndex", inputTensor->get<unsigned>("graphFileIndex"));
             }
             else if (opType == "Copy")
             {
