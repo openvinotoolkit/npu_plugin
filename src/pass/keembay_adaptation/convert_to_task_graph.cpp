@@ -106,14 +106,7 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             if(workloadStrategyNWorkloads != -1)
                 dpuConvOp->set<int>("WorkloadStrategy_nWorkloads", workloadStrategyNWorkloads);
 
-            if(opType == "Conv")
-            {
-                if(kernel->getShape()[mv::KERNEL_INPUT_CHANNELS] < 16)
-                {
-                    dpuConvOp->erase("taskOp");
-                    dpuConvOp->set<std::string>("taskOp", "ChannelMajorConvolution");
-                }
-            }
+
 
             //This pass as it is now, makes a decision, so that the output of the DPU conv has to be in CMX, assuming
             //that previous passes did the appropriate checks for it.
@@ -128,10 +121,10 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             else
             {
                 auto dpuCopyOut = om.copy(dpuConv, quantParams, dpuConv->getName() + "_copyOut");
+                setOutputDataFlow(om, dpuCopyOut, outputDataFlows);
                 dpuConv->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::CMX);
                 dpuCopyOut->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
                 om.getSourceOp(dpuCopyOut)->set<unsigned>("opId", om.getSourceOp(dpuConv)->get<unsigned>("opId"));
-                setOutputDataFlow(om, dpuCopyOut, outputDataFlows);
             }
 
             if(inputMemoryLocation != mv::Tensor::MemoryLocation::CMX)
@@ -149,10 +142,20 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
                 dpuCopyIn->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::CMX);
             }
 
+            if(opType == "Conv")
+            {
+                if(kernel->getShape()[mv::KERNEL_INPUT_CHANNELS] < 16)
+                {
+                    dpuConvOp->erase("taskOp");
+                    dpuConvOp->set<std::string>("taskOp", "ChannelMajorConvolution");
+                }
+            }
+
         }
         else if (opType == "MaxPool")
         {
             auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
+            auto inputMemoryLocation = opIt->getInputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
 
             auto input = opIt->getInputTensor(0);
             auto opId = opIt->get<unsigned>("opId");
@@ -181,8 +184,35 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
 
             if(!splitStrategy.empty())
                dpuPoolOp->set<std::string>("splitStrategy", splitStrategy);
-            //dpuPool->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
-            setOutputDataFlow(om, dpuPool, outputDataFlows);
+
+            if(outputMemoryLocation == mv::Tensor::MemoryLocation::CMX)
+            {
+                dpuPool->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
+                setOutputDataFlow(om, dpuPool, outputDataFlows);
+            }
+            else
+            {
+                auto dpuCopyOut = om.copy(dpuPool, quantParams, dpuPool->getName() + "_copyOut");
+                om.getSourceOp(dpuCopyOut)->set<unsigned>("opId", om.getSourceOp(dpuPool)->get<unsigned>("opId"));
+                setOutputDataFlow(om, dpuCopyOut, outputDataFlows);
+                dpuPoolOp->getOutputTensor(0)->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::CMX);
+                dpuCopyOut->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
+            }
+
+            if(inputMemoryLocation != mv::Tensor::MemoryLocation::CMX)
+            {
+                auto dpuCopyIn = om.copy(input, quantParams, dpuPool->getName() + "_copyIn");
+                om.getSourceOp(dpuCopyIn)->set<unsigned>("opId", om.getSourceOp(dpuPool)->get<unsigned>("opId"));
+
+                auto dpuOp = om.getSourceOp(dpuPool);
+
+                auto inputFlow  = dpuOp.leftmostInput();
+
+                dpuOp->setInputTensor(dpuCopyIn, 0);
+                om.undefineFlow(inputFlow);
+                om.defineFlow(dpuCopyIn, dpuOp, 0);
+                dpuCopyIn->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::CMX);
+            }
         }
         else if (opType == "Add" || opType == "Subtract" || opType == "Multiply")
         {
