@@ -195,7 +195,7 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     }
     else if(*tensorAllocatorName == "ProgrammableInput" || *tensorAllocatorName == "ProgrammableOutput")
     {
-        if (!t.hasSubTensors())
+        if (!t.hasSubTensors() && t.hasAttr("offset"))
         {
             mv::Shape s(t.get<std::vector<std::size_t>>("offset"));
 
@@ -525,7 +525,7 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
     else
     {
         //Multiple DMAs, yuppi!
-        unsigned numTasks = cm.getGlobalConfigParams()->get<unsigned>("Number_of_Clusters");
+        unsigned numTasks = cm.getGlobalConfigParams()->get<int>("Number_of_Clusters");
         std::vector<std::unique_ptr<MVCNN::TaskT>> toReturn = std::vector<std::unique_ptr<MVCNN::TaskT>>(numTasks);
         for(unsigned i = 0; i < numTasks; ++i)
         {
@@ -537,8 +537,9 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
             if(opIt->hasAttr("Compression"))
                 tmp->compression =  opIt->get<bool>("Compression");
             toReturn[i]->task.value = tmp;
-            return toReturn;
         }
+        return toReturn;
+
     }
 }
 
@@ -863,8 +864,8 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildTaskT(Computat
 
     for(auto& toBuild: vecToBuild)
     {
-        toBuild->nodeID = nodeID++;
         toBuild->name = opIt->getName();
+        toBuild->nodeID = nodeID++;
 
         // NOTE: This might change in the future
         if(opIt->hasAttr("opId"))

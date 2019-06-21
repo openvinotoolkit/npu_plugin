@@ -47,6 +47,8 @@ void allocateInputOutputTensorsKeemBay(const mv::pass::PassEntry& pass, mv::Comp
     mv::ControlModel cm(model);
     mv::DataModel dm(model);
 
+    unsigned numSubTensors = model.getGlobalConfigParams()->get<int>("Number_of_Clusters");
+
     if (!dm.hasAllocator("ProgrammableInput"))
         throw mv::ArgumentError(dm, "allocators", "ProgrammableInput", "Computation model does not have ProgrammableInput specified");
 
@@ -65,13 +67,34 @@ void allocateInputOutputTensorsKeemBay(const mv::pass::PassEntry& pass, mv::Comp
     auto inTensor = inputOp->getOutputTensor(0);
 
     if (!inTensor->isPopulated() && (! inTensor->hasAttr("allocators")))
+    {
         dm.allocateTensor("ProgrammableInput", stageIt, inTensor);
-
+        if (inTensor->hasSubTensors())
+        {
+            for (unsigned idx = 0; idx < numSubTensors; idx++)
+            {
+                std::set<std::string> allocatorName;
+                allocatorName.insert("ProgrammableInput");
+                inTensor->getSubTensor(idx).set<std::set<std::string>>("allocators", allocatorName);
+            }
+        }
+    }
     auto outputOp = om.getOutput();
     auto outTensor = outputOp->getInputTensor(0);
 
     if (!outTensor->isPopulated() && (! outTensor->hasAttr("allocators")))
+    {
         dm.allocateTensor("ProgrammableOutput", stageIt, outTensor);
+        if (outTensor->hasSubTensors())
+        {
+            for (unsigned idx = 0; idx < numSubTensors; idx++)
+            {
+                std::set<std::string> allocatorName;
+                allocatorName.insert("ProgrammableOutput");
+                inTensor->getSubTensor(idx).set<std::set<std::string>>("allocators", allocatorName);
+            }
+        }
+    }
 }
 
 //Populated Tensors are stored in:
@@ -84,6 +107,7 @@ void allocateGraphfileTensorsFcnKeemBay(const mv::pass::PassEntry& pass, mv::Com
     mv::ControlModel cm(model);
     mv::DataModel dm(model);
     mv::OpModel om(model);
+    unsigned numSubTensors = model.getGlobalConfigParams()->get<int>("Number_of_Clusters");
 
     if (!dm.hasAllocator("GraphFile"))
          throw mv::ArgumentError(dm, "allocators", "GraphFile", "Computation model does not have GraphFile allocator specified");
@@ -102,6 +126,15 @@ void allocateGraphfileTensorsFcnKeemBay(const mv::pass::PassEntry& pass, mv::Com
             auto tIt = opIterator->getOutputTensor(0);
             dm.allocateTensor("GraphFile", stageIt, tIt);
             tIt->set<unsigned>("graphFileIndex", i++);
+            if (tIt->hasSubTensors())
+            {
+                for (unsigned idx = 0; idx < numSubTensors; idx++)
+                {
+                    std::set<std::string> allocatorName;
+                    allocatorName.insert("GraphFile");
+                    tIt->getSubTensor(idx).set<std::set<std::string>>("allocators", allocatorName);
+                }
+            }
         }
     }
 }
@@ -117,6 +150,8 @@ void allocateCMXTensorsFcnKeemBay(const mv::pass::PassEntry& pass, mv::Computati
 
     mv::ControlModel cm(model);
     mv::DataModel dm(model);
+
+    unsigned numSubTensors = model.getGlobalConfigParams()->get<int>("Number_of_Clusters");
 
     if (!dm.hasAllocator("VPU_CMX_NN"))
         throw mv::ArgumentError(dm, "allocators", "VPU_CMX_NN", "Computation model does not have VPU_CMX_NN specified");
@@ -242,6 +277,15 @@ void allocateCMXTensorsFcnKeemBay(const mv::pass::PassEntry& pass, mv::Computati
                     )
                 {
                     dm.allocateTensor("VPU_CMX_NN", stageIt, inTensor);
+                    if (inTensor->hasSubTensors())
+                    {
+                        for (unsigned idx = 0; idx < numSubTensors; idx++)
+                        {
+                            std::set<std::string> allocatorName;
+                            allocatorName.insert("VPU_CMX_NN");
+                            inTensor->getSubTensor(idx).set<std::set<std::string>>("allocators", allocatorName);
+                        }
+                    }
                 }
             }
             for (unsigned x = 0; x < opIterator->outputSlots(); ++x)
@@ -256,6 +300,15 @@ void allocateCMXTensorsFcnKeemBay(const mv::pass::PassEntry& pass, mv::Computati
                     )
                 {
                     dm.allocateTensor("VPU_CMX_NN", stageIt, outTensor);
+                    if (outTensor->hasSubTensors())
+                    {
+                        for (unsigned idx = 0; idx < numSubTensors; idx++)
+                        {
+                            std::set<std::string> allocatorName;
+                            allocatorName.insert("VPU_CMX_NN");
+                            outTensor->getSubTensor(idx).set<std::set<std::string>>("allocators", allocatorName);
+                        }
+                    }
                 }
             }
         }

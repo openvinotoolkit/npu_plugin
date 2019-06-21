@@ -287,7 +287,7 @@ void mv::Tensor::unpopulate()
     log(Logger::MessageType::Debug, "Unpopulated");
 }
 
-const mv::Tensor& mv::Tensor::getSubTensor(uint8_t cluster)
+mv::Tensor& mv::Tensor::getSubTensor(uint8_t cluster)
 {
     if (cluster < subTensors_.size() && !isBroadcasted())
         return *subTensors_[cluster];

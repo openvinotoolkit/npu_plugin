@@ -189,7 +189,7 @@ namespace mv
 
         std::shared_ptr<Tensor> getSparsityMap() const;
         std::shared_ptr<Tensor> getStorageElement() const;
-        const Tensor& getSubTensor(uint8_t cluster);
+        Tensor &getSubTensor(uint8_t cluster);
         const Tensor& broadcastSubtensor(uint8_t cluster);
         unsigned countNonZeroElements() const;
 
