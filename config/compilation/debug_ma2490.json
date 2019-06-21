@@ -62,11 +62,9 @@
                 "streaming_strategy" :
                 [
                     {
-                        "name_filter" : "conv0_cmx_",
+                        "name_filter" : "pool0_cmx_",
                         "output_location" : "CMX",
                         "splits" : [
-                            {"H" : 2},
-                            {"W" : 2},
                             {"H" : 2}
                         ]
                     },
@@ -74,7 +72,14 @@
                         "name_filter" : "conv1_cmx_",
                         "output_location" : "CMX",
                         "splits" : [
-                            {"H" : 4}
+                            {"K" : 4}
+                        ]
+                    },
+                    {
+                        "name_filter" : "conv2_cmx_",
+                        "output_location" : "CMX",
+                        "splits" : [
+                            {"K" : 2}
                         ]
                     }
                 ]
@@ -244,7 +249,7 @@
             {
                 "name": "ConvertDot",
                 "input": "output/dots/InputOutputControlFlows_model.dot"
-            }
+            },
             "SolveHangingDMAs",
             {
                 "name": "GenerateDot",

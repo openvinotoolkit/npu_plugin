@@ -4,6 +4,7 @@
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
 #include "meta/include/mcm/op_model.hpp"
+#include "include/mcm/utils/custom_strings.hpp"
 
 static void streamingTilingFcn(const mv::pass::PassEntry& pass,
                                         mv::ComputationModel& model,
@@ -88,17 +89,17 @@ public:
     };
 };
 
-mv::Data::TensorIterator solveChannelTiling(mv::OpModel& om, mv::Data::OpListIterator op, Tiling& tiling);
-mv::Data::TensorIterator solveSpatialTiling(mv::OpModel& om, mv::Data::OpListIterator op, Tiling& tiling);
+mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model, mv::Data::OpListIterator op, Tiling& tiling);
+mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model, mv::Data::OpListIterator op, Tiling& tiling);
 
 std::function<mv::Data::TensorIterator(mv::OpModel&, mv::Data::OpListIterator, Tiling&)> convSpatialTiling = solveSpatialTiling;
-std::function<mv::Data::TensorIterator(mv::OpModel&, mv::Data::OpListIterator, Tiling&)> convOutChannelTiling = solveChannelTiling;
+std::function<mv::Data::TensorIterator(mv::OpModel&, mv::Data::OpListIterator, Tiling&)> convOutChannelTiling = solveWeightsTiling;
 
 std::map<std::string, std::function<mv::Data::TensorIterator(mv::OpModel&, mv::Data::OpListIterator, Tiling&)>> streamSplit =
 {
     {"W",solveSpatialTiling},
     {"H",solveSpatialTiling},
-    {"C",solveChannelTiling} //TBD: for other operations that conv.
+    {"K",solveWeightsTiling} //TBD: for other operations that conv.
 };
 
 struct opStreamingSplitDef
@@ -116,7 +117,7 @@ static void setStreamingStrategy(const mv::pass::PassEntry& pass, mv::Computatio
     auto globalParams = model.getGlobalConfigParams();
     if (!globalParams->hasAttr("streaming_strategy"))
     {
-        std::cout << "STREAMING PASS EXITING: no strategy defined in JSON" << std::endl;
+        std::cout << "SET STREAMING STRATEGY EXITING: no strategy defined in JSON" << std::endl;
         pass.log(mv::Logger::MessageType::Info, "No custom streaming strategy provided");
         return;
     }
@@ -131,18 +132,23 @@ static void setStreamingStrategy(const mv::pass::PassEntry& pass, mv::Computatio
         auto splitList = s.get<std::vector<mv::Element>>("splits");
         for (int i=0; i<splitList.size(); i++)
         {
+            opStreamingSplitDef opxSplitx;
             if (splitList[i].hasAttr("H"))
             {
-                opStreamingSplitDef opxSplitx;
                 opxSplitx.axis= "H";
                 opxSplitx.numSplits= splitList[i].get<int>("H");
                 opxSplits.push_back(opxSplitx);
             }
             else if (splitList[i].hasAttr("W"))
             {
-                opStreamingSplitDef opxSplitx;
                 opxSplitx.axis= "W";
                 opxSplitx.numSplits= splitList[i].get<int>("W");
+                opxSplits.push_back(opxSplitx);
+            }
+            else if (splitList[i].hasAttr("K"))
+            {
+                opxSplitx.axis= "K";
+                opxSplitx.numSplits= splitList[i].get<int>("K");
                 opxSplits.push_back(opxSplitx);
             }
         }
@@ -174,27 +180,185 @@ static void setStreamingStrategy(const mv::pass::PassEntry& pass, mv::Computatio
 
 }
 
-mv::Data::TensorIterator solveChannelTiling(mv::OpModel& om,mv::Data::OpListIterator op,Tiling& tiling)
+mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model, mv::Data::OpListIterator op,Tiling& tiling)
 {
-    //TODO:: write the function
-    return op->getOutputTensor(0);
+    std::cout<< "  In solveWeightsTiling " << std::endl ;
+
+    mv::OpModel om(model);
+    mv::DataModel dm(model);
+
+    //solve SOW/H location
+    //TODO:: stop hardcoding index....
+    auto inputTensor = op->getInputTensor(0);
+    auto kernelTensor = op->getInputTensor(1);
+    auto outputTensor = op->getOutputTensor(0);
+
+    auto opId = op->get<unsigned>("opId");
+    auto number_of_splits = tiling.childTiles().size();
+    auto axisToSplit =  mv::Shape::getAxis(tiling.getAxis());
+    auto childTiles = tiling.childTiles();
+
+    std::vector<mv::Data::TensorIterator> slices(number_of_splits);
+    std::vector<mv::Data::TensorIterator> convs(number_of_splits);
+    std::vector<mv::Data::TensorIterator> final_outputs(number_of_splits);
+
+    auto kernelStride = op->get<std::array<unsigned short, 2>>("stride");
+
+    size_t biasStartIndex = 0;
+    size_t biasEndIndex = 0;
+    for (unsigned split = 0; split < number_of_splits; split++)
+    {
+        mv::Data::TensorIterator slice;
+        if (kernelTensor->hasAttr("quantParams"))
+        {            
+            slice = om.slice(kernelTensor,
+                            childTiles[split].getStartCoord(),
+                            childTiles[split].getSize(),
+                            kernelTensor->get<mv::QuantizationParams>("quantParams"),
+                            kernelTensor->getName() + "_slice_" + std::to_string(split));
+        }
+        else
+        {
+            slice = om.slice(kernelTensor,
+                            childTiles[split].getStartCoord(),
+                            childTiles[split].getSize(),
+                            {{}, {}, {}, {}},
+                            kernelTensor->getName() + "_slice_" + std::to_string(split));
+        }
+        om.getSourceOp(slice)->set<unsigned>("opId", opId);
+
+        auto conv = om.conv(inputTensor,
+                                slice,
+                                op->get("stride"),
+                                op->get("padding"),
+                                op->get<unsigned>("dilationFactor"),
+                                op->get<unsigned>("group"),
+                                op->get<mv::QuantizationParams>("quantParams"),
+                                op->getName() + "_split_" + std::to_string(split));
+
+        if (op->hasAttr("bias"))
+        {
+            biasStartIndex = biasEndIndex;
+            biasEndIndex = biasStartIndex + tiling.getSize()[axisToSplit];
+
+            auto biasTensorName = op->get<std::string>("bias");
+            auto originalBiasTensor = dm.getTensor(biasTensorName);
+            auto oiginalBiasData = originalBiasTensor->getData();
+            if ( biasEndIndex > oiginalBiasData.size())
+            {
+                biasEndIndex = oiginalBiasData.size();
+            }
+            std::vector<mv::DataElement>::const_iterator biasFirst = oiginalBiasData.begin() + biasStartIndex;
+            std::vector<mv::DataElement>::const_iterator biasLast = oiginalBiasData.begin() + biasEndIndex;                std::vector<mv::DataElement> subBiasData(biasFirst, biasLast);
+
+            std::string newBiasTensorName = mv::createBiasName(op->getName() + "_split_" + std::to_string(split));
+            mv::Data::TensorIterator biasTensor;
+
+            mv::Data::TensorIterator biasTensorX;
+            if (originalBiasTensor->hasAttr("quantParams"))
+            {
+                auto biasAttrQPs = originalBiasTensor->get("quantParams");
+                biasTensorX = dm.defineTensor(mv::Tensor(newBiasTensorName, {tiling.getSize()[axisToSplit]}, originalBiasTensor->getDType(), originalBiasTensor->getOrder(), subBiasData, biasAttrQPs ));
+            }
+            else
+            {
+                biasTensorX = dm.defineTensor(mv::Tensor(newBiasTensorName, {tiling.getSize()[axisToSplit]}, originalBiasTensor->getDType(), originalBiasTensor->getOrder(), subBiasData));
+            }
+
+            om.addAttr(om.getSourceOp(conv), "bias", biasTensorX->getName());
+        }
+
+        auto newOp = om.getSourceOp(conv);
+
+        newOp->set<bool>("splitted",true);//TODO::temporary hack. To remove once the iteration conditions are updated
+        newOp->set<unsigned>("opId",opId);
+
+        slices[split] = slice;
+        convs[split] = conv;
+
+    }
+
+    // decide on the location of the I/O Tensors of the conv;
+    // basically, for each operation, if we are the last inside the recursive splitting schema, then we can make the
+    // assumption that we are fitting into CMX. The check is assumed to be made by the scheduler. This pass only implements
+    // the respective schedule inside the graph.
+    // If we are not the last split, we will basically, inherit the location our parent inputTensor;
+
+    for(unsigned split = 0 ; split < number_of_splits; split++)
+    {
+        mv::Tensor::MemoryLocation inputLocation;
+        mv::Tensor::MemoryLocation outputLocation;
+        if(childTiles[split].childTiles().size() > 1)
+        {
+            //has children. Inherit
+            inputLocation.relocate(inputTensor->get<mv::Tensor::MemoryLocation>("Location"));
+            outputLocation.relocate(outputTensor->get<mv::Tensor::MemoryLocation>("Location"));
+
+            // std::cout << "More children. Inheriting " << slices[split]->getName() << " to " << inputLocation.print() << " from " << inputTensor->getName() <<  std::endl;
+            // std::cout << "More children. Inheriting " << convs[split]->getName() << " to " << outputLocation.print() << " from " << outputTensor->getName() <<  std::endl;
+        }
+        else
+        {
+            //no more children.
+            //todo:: Expose in JSON config the "Default stream location"
+            inputLocation.relocate(mv::Tensor::MemoryLocation::CMX);
+            outputLocation.relocate(mv::Tensor::MemoryLocation::CMX);
+            inputLocation.force();
+            outputLocation.force();
+
+            // std::cout << "No more children deciding " << slices[split]->getName() << " to " << inputLocation.print() << std::endl;
+            // std::cout << "No more children deciding " << convs[split]->getName() << " to " << outputLocation.print() << std::endl;
+        }
+        slices[split]->set<mv::Tensor::MemoryLocation>("Location",inputLocation);
+        convs[split]->set<mv::Tensor::MemoryLocation>("Location",outputLocation);
+    }
+
+    for(unsigned split = 0; split < number_of_splits; split++)
+    {
+        mv::Data::TensorIterator out;
+        if(childTiles[split].childTiles().size() > 1)
+        {
+            // std::cout << "recurs doing " << convs[split]->getName() << std::endl;
+            // out = solveSpatialTiling(om,om.getSourceOp(convs[split]),childTiles[split]);
+            out = (streamSplit[childTiles[split].getAxis()])(om,om.getSourceOp(convs[split]),childTiles[split]);
+            om.removeOp( om.getSourceOp(convs[split]));
+        }
+        else
+        {
+            out = convs[split];
+        }
+        final_outputs[split] = out;
+    }
+
+    auto concat = om.concat(final_outputs,
+                    "C",
+//                    tiling.getAxis(),
+                    op->get<mv::QuantizationParams>("quantParams"),
+                    op->getName() + "concat_");
+    om.getSourceOp(concat)->set<unsigned>("opId", opId);
+
+    concat->set<mv::Tensor::MemoryLocation>("Location",outputTensor->get<mv::Tensor::MemoryLocation>("Location"));
+
+    return concat;
 }
 
-mv::Data::TensorIterator solveSpatialTiling(mv::OpModel& om, mv::Data::OpListIterator op, Tiling& tiling)
+mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model, mv::Data::OpListIterator op, Tiling& tiling)
 {
+    mv::OpModel om(model);
+
     //solve SOW/H location
     //TODO:: stop hardcoding index....
     auto inputTensor = op->getInputTensor(0);
     auto outputTensor = op->getOutputTensor(0);
     auto opId = op->get<unsigned>("opId");
-    auto number_of_spltis = tiling.childTiles().size();
+    auto number_of_splits = tiling.childTiles().size();
     auto axisToSplit =  mv::Shape::getAxis(tiling.getAxis());
     auto childTiles = tiling.childTiles();
 
-    std::vector<mv::Shape> spatial_indexes(number_of_spltis);
-    std::vector<mv::Data::TensorIterator> slices(number_of_spltis);
-    std::vector<mv::Data::TensorIterator> convs(number_of_spltis);
-    std::vector<mv::Data::TensorIterator> final_outputs(number_of_spltis);
+    std::vector<mv::Shape> spatial_indexes(number_of_splits);
+    std::vector<mv::Data::TensorIterator> slices(number_of_splits);
+    std::vector<mv::Data::TensorIterator> convs(number_of_splits);
+    std::vector<mv::Data::TensorIterator> final_outputs(number_of_splits);
 
     auto kernelStride = op->get<std::array<unsigned short, 2>>("stride");
 
@@ -219,7 +383,7 @@ mv::Data::TensorIterator solveSpatialTiling(mv::OpModel& om, mv::Data::OpListIte
         endPad[2] = 0;
     }
 
-    for (unsigned split = 0; split < number_of_spltis; split++)
+    for (unsigned split = 0; split < number_of_splits; split++)
     {
 
         auto slice = om.slice(inputTensor,
@@ -231,7 +395,7 @@ mv::Data::TensorIterator solveSpatialTiling(mv::OpModel& om, mv::Data::OpListIte
 
         if (split == 0)
             currentPad = startPad;
-        else if (split == (number_of_spltis -1))
+        else if (split == (number_of_splits -1))
             currentPad = endPad;
         else
             currentPad = middle_pad;
@@ -285,7 +449,7 @@ mv::Data::TensorIterator solveSpatialTiling(mv::OpModel& om, mv::Data::OpListIte
     // the respective schedule inside the graph.
     // If we are not the last split, we will basically, inherit the location our parent inputTensor;
 
-    for (unsigned split = 0 ; split < number_of_spltis; split++)
+    for (unsigned split = 0 ; split < number_of_splits; split++)
     {
         mv::Tensor::MemoryLocation inputLocation;
         mv::Tensor::MemoryLocation outputLocation;
@@ -315,7 +479,7 @@ mv::Data::TensorIterator solveSpatialTiling(mv::OpModel& om, mv::Data::OpListIte
     }
 
 
-    for (unsigned split = 0; split < number_of_spltis; split++)
+    for (unsigned split = 0; split < number_of_splits; split++)
     {
         mv::Data::TensorIterator out;
         if (childTiles[split].childTiles().size() > 1)
@@ -335,7 +499,7 @@ mv::Data::TensorIterator solveSpatialTiling(mv::OpModel& om, mv::Data::OpListIte
     auto concat = om.concat(final_outputs,
                     tiling.getAxis(),
                     op->get<mv::QuantizationParams>("quantParams"),
-                    op->getName() + "_concat_");
+                    op->getName() + "concat_");
     om.getSourceOp(concat)->set<unsigned>("opId", opId);
 
     concat->set<mv::Tensor::MemoryLocation>("Location", outputTensor->get<mv::Tensor::MemoryLocation>("Location"));
@@ -438,10 +602,54 @@ void generateSpatialTiling(mv::Data::OpListIterator op,Tiling& tiling, std::vect
     {
         for( auto& tile : tiling.childTiles())
         {
-//            tile.setAxis("W");
             tile.setAxis( opStrategy[nesting].axis );
             tile.resizeNumberOfTiles(opStrategy[nesting].numSplits) ;
             generateSpatialTiling(op,tile,opStrategy,nesting);
+        }
+    }
+}
+
+void generateWeightsTiling(mv::Data::OpListIterator op,Tiling& tiling, std::vector<opStreamingSplitDef> opStrategy, int nesting)
+{
+    std::cout<< "  In generateWeightsTiling, op " << op->getName() << " nesting = " << nesting ;
+    auto numberOfSplits = tiling.childTiles().size();
+    std::cout<< " numsplits = " << numberOfSplits << std::endl ;
+
+    auto parentTileShape = tiling.getSize();
+
+    auto axisToSplit =  mv::Shape::getAxis(tiling.getAxis());
+    int newSize = ceil( ((double)parentTileShape[axisToSplit]) / ((double)numberOfSplits));
+    int remainderSize = parentTileShape[axisToSplit] - (newSize*(numberOfSplits -1));
+
+    unsigned startCoord = 0;
+
+    for(auto split = 0; split < numberOfSplits; split++)
+    {
+        mv::Shape tileStart({0,0,0,0});
+        mv::Shape tileSize = parentTileShape;
+
+        tileStart[axisToSplit] = startCoord;
+
+        startCoord += newSize;
+
+        if( split == (numberOfSplits-1) )
+            tileSize[axisToSplit] = remainderSize;
+        else
+            tileSize[axisToSplit] = newSize;
+
+        Tiling newTile(tileStart,tileSize);
+        tiling.setChildTile(newTile,split);
+
+    }
+    
+    nesting++;
+    if (nesting<opStrategy.size() )
+    {
+        for( auto& tile : tiling.childTiles())
+        {
+            tile.setAxis( opStrategy[nesting].axis );
+            tile.resizeNumberOfTiles(opStrategy[nesting].numSplits) ;
+            generateWeightsTiling(op,tile,opStrategy,nesting);
         }
     }
 }
@@ -460,9 +668,13 @@ void streamingTilingFcn(const mv::pass::PassEntry& pass,
     setStreamingStrategy(pass, model, thisGraphStrategy);
     std::vector<opStreamingSplitDef> thisOpStrategy;
 
-    std::cout<< "SPATIAL_STREAMING PASS: entered" << std::endl ;
-    for(auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt)
+    std::cout<< "STREAMING PASS: entered" << std::endl ;
+
+    for (auto s: thisGraphStrategy)
     {
+        std::string nodeName = s.first ;
+        auto opIt =  om.getOp(nodeName);
+
         std::string masterOpName = opIt->getName();
         std::cout<< "  checking " << masterOpName << std::endl;
         bool opHasSplittingStrategy = false;
@@ -490,19 +702,24 @@ void streamingTilingFcn(const mv::pass::PassEntry& pass,
             int numberOfSplits = thisOpStrategy[0].numSplits ;
             std::string axisToSplit = thisOpStrategy[0].axis ;
 
-            mv::Shape startingCorner({0,0,0,0});
-            auto masterSize = opIt->getInputTensor(0)->getShape();
-
-            Tiling masterTile(startingCorner,masterSize,axisToSplit,numberOfSplits);
-            generateSpatialTiling(opIt,masterTile,thisOpStrategy,0);
+            Tiling masterTile(axisToSplit,numberOfSplits);
+            mv::Shape masterSize;
+            if (axisToSplit=="K")
+            {
+                masterTile.setSize(opIt->getInputTensor(1)->getShape());
+                generateWeightsTiling(opIt,masterTile,thisOpStrategy,0);
+            }
+            else
+            {
+                masterTile.setSize(opIt->getInputTensor(0)->getShape());
+                generateSpatialTiling(opIt,masterTile,thisOpStrategy,0);
+            }
 
             auto sourceTensor = opIt->getInputTensor(0);
             auto parentOpIt = om.getSourceOp(sourceTensor);
 
             //######################################################################################################
 
-
-            // auto result = solveSpatialTiling(om,opIt,masterTile);
             auto result = (streamSplit[masterTile.getAxis()])(om, opIt, masterTile);
 
             // reconnect children to subgraph
@@ -516,18 +733,14 @@ void streamingTilingFcn(const mv::pass::PassEntry& pass,
 
             om.removeOp(opIt);
 
+            std::cout<< "   connecting "<< result->getName() <<" to " << opsToLink[0]->getName() << " input slot " <<  inputSlots[0] << std::endl ;
             for (unsigned j = 0; j < opsToLink.size(); ++j)
             {
                 opsToLink[j]->setInputTensor(result, inputSlots[j]);
                 om.defineFlow(result, opsToLink[j], inputSlots[j]);
             }
 
-            //TODO:: If the OpIt is set to the parentOpIt the iteration will  start from the beginning, and will
-            // also include the "newly splitted" layers. But we deleted the original op, so we can't increment that.
-            // is there a way to go to the "original next op" ? Currently there is a trait called "splitted" added,
-            // and we check for that, so we do not split again.....
-            opIt = parentOpIt;
-//            std::cout<< "nextOneShouldBe" << opIt->getName() << std::endl;
         }
     }
+    std::cout<< "STREAMING PASS: exit" << std::endl ;
 }
