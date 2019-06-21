@@ -357,8 +357,6 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                                     workloadsVectorIndex++;
                                 }
                             } 
-                            
-
                         }
                     }
 
@@ -398,8 +396,16 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                 }
                 
                 /*Set the most optimal workload as attribute of the op*/
+                
+                //TODO update this when serialisation for multi-clustering has been done. Workload names need to change.
+                if(nClusters > 1) {
                 opIt->set<mv::Workloads>("Workloads" + std::to_string(clusterNumber), workloadsVector.at(optimalWorkloadIndex));
                 opIt->set<bool>("Valid_workload", true);
+                }
+                else {
+                    opIt->set<mv::Workloads>("Workloads", workloadsVector.at(optimalWorkloadIndex));
+                    opIt->set<bool>("Valid_workload", true);
+                }
 
                 /*Reset workloads vector, splitpool and indices for the next sub tensor layer*/
                 workloadsVector.clear();
