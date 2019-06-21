@@ -204,6 +204,8 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     else
     {
         toBuild->data->data_index = tensorBufferIt->getOffset();
+        if (toBuild->leading_offset)
+            toBuild->data->data_index += toBuild->leading_offset/2;
 
         // VERY IMPORTANT NOTE: Sparsity index is not used by populated tensors
         // as populated tensor represent weights, and all the information we need
