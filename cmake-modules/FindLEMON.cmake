@@ -14,7 +14,7 @@ FIND_PATH(LEMON_DIR list_graph.h
 ##----------------------------------------------------
 IF(EXISTS "${LEMON_DIR}" AND NOT "${LEMON_DIR}" STREQUAL "")
   SET(LEMON_FOUND TRUE)
-#   # Remove /lemon from path (math.h cannot be exposed all time)
+  # Remove /lemon from path (math.h cannot be exposed all time)
   GET_FILENAME_COMPONENT(LEMON_INCLUDE_DIRS "${LEMON_DIR}" PATH)
   SET(LEMON_DIR "${LEMON_DIR}" CACHE PATH "" FORCE)
   MARK_AS_ADVANCED(LEMON_DIR)
@@ -38,7 +38,7 @@ IF(EXISTS "${LEMON_DIR}" AND NOT "${LEMON_DIR}" STREQUAL "")
     LEMON_VERSION "${LEMON_VERSION_FILE_CONTENTS}")
     STRING(REGEX REPLACE "#define LEMON_VERSION \"([0-9.]+)\"" "\\1"
     LEMON_VERSION "${LEMON_VERSION}")
-ENDIF (NOT EXISTS ${LEMON_VERSION_FILE})
+  ENDIF (NOT EXISTS ${LEMON_VERSION_FILE})
   
   # SET(LEMON_INCLUDE_DIR ${LEMON_DIR})
 
@@ -51,10 +51,53 @@ ENDIF (NOT EXISTS ${LEMON_VERSION_FILE})
 
   MESSAGE(STATUS "Found Lemon ${LEMON_VERSION} (include: ${LEMON_DIR})")
 ELSE()
-  MESSAGE(FATAL_ERROR "You are attempting to build without Lemon. "
-          "Please use cmake variable -DLEMON_INCLUDE_DIR_HINTS:STRING=\"PATH\" "
-          "or LEMON_INCLUDE_DIR_HINTS env. variable to a valid Lemon path. "
-          "Or install last Lemon version.")
+
+  find_package(Hg)
+  if(NOT HG_FOUND)
+    message( FATAL_ERROR "Mercurial client requred (hg) to download Lemon sources. Exiting...")
+  endif()
+
+  include(ExternalProject)
+  set(LEMON_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/contrib/lemon)
+  ExternalProject_Add(
+      lemon
+      HG_REPOSITORY     http://lemon.cs.elte.hu/hg/lemon 
+      HG_TAG            "r1.3.1"
+      SOURCE_DIR        ${LEMON_SOURCE_DIR}
+      BUILD_COMMAND     ${MAKE}
+      INSTALL_COMMAND   make install
+      VERBATIM
+      #CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${EXTERNAL_INSTALL_LOCATION}
+  )
+  # install(DIRECTORY ${sphinxbase_DESTDIR}/ DESTINATION "/")
+
+  # MESSAGE(FATAL_ERROR "You are attempting to build without Lemon. "
+  #         "Please use cmake variable -DLEMON_INCLUDE_DIR_HINTS:STRING=\"PATH\" "
+  #         "or LEMON_INCLUDE_DIR_HINTS env. variable to a valid Lemon path. "
+  #         "Or install last Lemon version.")
   package_report_not_found(LEMON "Lemon cannot be found")
 ENDIF()
 ##====================================================
+
+#>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+# https://stackoverflow.com/questions/35934112/installing-an-externalproject-with-cmake
+# It is better to use binary directory for download or build 3d-party project 
+# set(sphinxbase_SOURCE_DIR ${CMAKE_CURRENT_BINARY_DIR}/lib/sphinxbase)
+# # This will be used as DESTDIR on subproject's `make install`.
+# set(sphinxbase_DESTDIR ${CMAKE_CURRENT_BINARY_DIR}/lib/sphinxbase_install)
+
+# ExternalProject_Add(
+#     sphinxbase
+#     GIT_REPOSITORY      "https://github.com/cmusphinx/sphinxbase.git"
+#     GIT_TAG             "e34b1c632392276101ed16e8a05862e43f038a7c"
+#     SOURCE_DIR          ${sphinxbase_SOURCE_DIR}
+#     # Specify installation prefix for configure.sh (autogen.sh).
+#     CONFIGURE_COMMAND   ./autogen.sh --prefix=${CMAKE_INSTALL_PREFIX}
+#     BUILD_COMMAND       ${MAKE}
+#     UPDATE_COMMAND      ""
+#     # Fake installation: copy installed files into DESTDIR.
+#     INSTALL_COMMAND     make DESTDIR=${sphinxbase_DESTDIR} install
+#     ...
+# )
+# Actually install subproject.
+# install(DIRECTORY ${sphinxbase_DESTDIR}/ DESTINATION "/")
