@@ -238,8 +238,9 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model, mv::Dat
 
         if (op->hasAttr("bias"))
         {
+            auto tileSize = childTiles[split].getSize()[axisToSplit];
             biasStartIndex = biasEndIndex;
-            biasEndIndex = biasStartIndex + tiling.getSize()[axisToSplit];
+            biasEndIndex = biasStartIndex + tileSize;
 
             auto biasTensorName = op->get<std::string>("bias");
             auto originalBiasTensor = dm.getTensor(biasTensorName);
@@ -249,7 +250,8 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model, mv::Dat
                 biasEndIndex = oiginalBiasData.size();
             }
             std::vector<mv::DataElement>::const_iterator biasFirst = oiginalBiasData.begin() + biasStartIndex;
-            std::vector<mv::DataElement>::const_iterator biasLast = oiginalBiasData.begin() + biasEndIndex;                std::vector<mv::DataElement> subBiasData(biasFirst, biasLast);
+            std::vector<mv::DataElement>::const_iterator biasLast = oiginalBiasData.begin() + biasEndIndex;
+            std::vector<mv::DataElement> subBiasData(biasFirst, biasLast);
 
             std::string newBiasTensorName = mv::createBiasName(op->getName() + "_split_" + std::to_string(split));
             mv::Data::TensorIterator biasTensor;
@@ -258,11 +260,11 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model, mv::Dat
             if (originalBiasTensor->hasAttr("quantParams"))
             {
                 auto biasAttrQPs = originalBiasTensor->get("quantParams");
-                biasTensorX = dm.defineTensor(mv::Tensor(newBiasTensorName, {tiling.getSize()[axisToSplit]}, originalBiasTensor->getDType(), originalBiasTensor->getOrder(), subBiasData, biasAttrQPs ));
+                biasTensorX = dm.defineTensor(mv::Tensor(newBiasTensorName, {tileSize}, originalBiasTensor->getDType(), originalBiasTensor->getOrder(), subBiasData, biasAttrQPs ));
             }
             else
             {
-                biasTensorX = dm.defineTensor(mv::Tensor(newBiasTensorName, {tiling.getSize()[axisToSplit]}, originalBiasTensor->getDType(), originalBiasTensor->getOrder(), subBiasData));
+                biasTensorX = dm.defineTensor(mv::Tensor(newBiasTensorName, {tileSize}, originalBiasTensor->getDType(), originalBiasTensor->getOrder(), subBiasData));
             }
 
             om.addAttr(om.getSourceOp(conv), "bias", biasTensorX->getName());
