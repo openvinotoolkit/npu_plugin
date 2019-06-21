@@ -343,6 +343,18 @@ mv::Data::TensorIterator solveSpatialTiling(mv::OpModel& om, mv::Data::OpListIte
     return concat;
 }
 
+static inline int inferInputSize( int outputSize, int padding_start, int padding_end,int kernel_size,int kernel_stride)
+{
+    int inputSize =  ((outputSize -1) * kernel_stride)  -padding_start - padding_end + kernel_size;
+    return inputSize;
+}
+
+static inline int inferOutputSize( int inputSize, int padding_start, int padding_end,int kernel_size, int kernel_stride)
+{
+    int outputSize = ( inputSize + padding_start + padding_end - kernel_size) / kernel_stride + 1;
+    return outputSize;
+}
+
 void generateSpatialTiling(mv::Data::OpListIterator op,Tiling& tiling, std::vector<opStreamingSplitDef> opStrategy, int nesting)
 {
     std::cout<< "  In generateSpatialTiling, op " << op->getName() << " nesting = " << nesting ;
@@ -352,8 +364,11 @@ void generateSpatialTiling(mv::Data::OpListIterator op,Tiling& tiling, std::vect
     auto inputShape = tiling.getSize();
 
     auto axisToSplit =  mv::Shape::getAxis(tiling.getAxis());
-    int newSize = ceil( ((double)inputShape[axisToSplit]) / ((double)numberOfSplits));
-    int remainderSize = inputShape[axisToSplit] - (newSize * (numberOfSplits -1));
+
+//    int newOutputSize = ceil( ((double)inputShape[axisToSplit]) / ((double)numberOfSplits));
+//    int remainderSize = inputShape[axisToSplit] - (newSize * (numberOfSplits -1));
+
+//    int newOutputSize =  (double) inferOutputSize(inputShape[axisToSplit])
 
     //todo:: check for original weights not the aligned one
     size_t kernelSize;
@@ -375,8 +390,26 @@ void generateSpatialTiling(mv::Data::OpListIterator op,Tiling& tiling, std::vect
     auto kernelAxis = (axisToSplit == mv::Shape::getAxis("W")) ? 0 : 1;
     auto kernelStride = op->get<std::array<unsigned short, 2>>("stride")[kernelAxis];
 
-    unsigned startCoord = 0;
+    auto padding = op->get<std::array<unsigned short, 4>>("padding");
+    int padStart,padEnd;
 
+    if (axisToSplit == mv::Shape::getAxis("W"))
+    {
+        padStart = padding[0];
+        padEnd = padding[1];
+    }
+    else if (axisToSplit == mv::Shape::getAxis("H"))
+    {
+        padStart = padding[2];
+        padEnd = padding[3];
+    }
+
+
+    int outputSize =  inferOutputSize(inputShape[axisToSplit],padStart,padEnd,kernelSize,kernelStride);
+    int newOutputSize = ceil( (double)(outputSize) / (double)numberOfSplits);
+    int remainderOutputSize = outputSize - ( newOutputSize *(numberOfSplits -1));
+
+    unsigned startCoord = 0;
     for (auto split = 0; split < numberOfSplits; split++)
     {
         mv::Shape tileStart({0,0,0,0});
@@ -385,16 +418,16 @@ void generateSpatialTiling(mv::Data::OpListIterator op,Tiling& tiling, std::vect
         tileStart[axisToSplit] = startCoord;
 
         if (split == 0)
-            startCoord += (newSize - kernelStep);
+            tileSize[axisToSplit] = inferInputSize(newOutputSize,padStart,0,kernelSize,kernelStride);
+        else if (split == (numberOfSplits-1))
+            tileSize[axisToSplit] = inferInputSize(remainderOutputSize,0,padEnd,kernelSize,kernelStride);
         else
-            startCoord += kernelStep;
+            tileSize[axisToSplit] = inferInputSize(remainderOutputSize,0,0,kernelSize,kernelStride);
 
         if (split == 0)
-            tileSize[axisToSplit] = (newSize + kernelStep);
-        else if (split == (numberOfSplits-1))
-            tileSize[axisToSplit] = (remainderSize + kernelStep);
+            startCoord += tileSize[axisToSplit] - (inferInputSize(newOutputSize,0,0,kernelSize,kernelStride) - tileSize[axisToSplit]);
         else
-            tileSize[axisToSplit] = newSize + (2 * kernelStep);
+            startCoord += tileSize[axisToSplit];
 
         Tiling newTile(tileStart, tileSize);
         tiling.setChildTile(newTile, split);
