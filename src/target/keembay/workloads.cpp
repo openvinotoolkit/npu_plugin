@@ -1585,3 +1585,49 @@ void mv::Workloads::populateClusterID(int clusterID)
         workload->clusterID = clusterID;
 }
 
+int mv::Workloads::partitionTensorWithZsplit(const mv::DPUModeList& mode_list, idx_t nWorkloads, const mv::pass::PassEntry &pass)
+{
+    pass.log(mv::Logger::MessageType::Debug, "Zsplit: layer=" + layerName_);
+    unsigned C, H, W;
+    if (tensorShape_.ndims() < 2) {
+        pass.log(mv::Logger::MessageType::Error,
+                 "Zsplit: too few tensor ndims=" + std::to_string(tensorShape_.ndims()));
+        return METIS_ERROR;
+    }
+
+    W = tensorShape_[0];
+    H = tensorShape_[1];
+    C = tensorShape_.ndims() >= 3 ? tensorShape_[2] : 0;
+
+    //max Z calculation
+    idx_t max_channels_per_WL = divRoundUp(C,nWorkloads);
+    if (max_channels_per_WL < 16)
+        return 0;
+
+    WorkloadShape original_shape;
+    original_shape.W = W; // width, aka X
+    original_shape.H = H; // height,    Y
+    auto best_padding = selectPadding(original_shape, mode_list); //best mode determination is not needed for Ztiling. But shouldn't the mode details be needed how the execution is made?
+    // split the output channels into per workload
+    idx_t output_channels = 0;
+    for (idx_t idx = 0; idx < nWorkloads; idx++)
+    {
+        Workload workload;
+        output_channels = std::min<idx_t>(max_channels_per_WL, C - idx*max_channels_per_WL);
+
+        workload.MinX = 0;
+        workload.MinY = 0;
+        workload.MaxX = W-1; 
+        workload.MaxY = H-1; 
+        workload.MinZ = idx*max_channels_per_WL;
+        workload.MaxZ = workload.MinZ + output_channels -1;
+
+        workloads_.push_back(workload);
+
+    }
+
+    pass.log(mv::Logger::MessageType::Debug, "Number of workloads with Zsplit =" + std::to_string(workloads_.size()));
+    pass.log(mv::Logger::MessageType::Debug, "Zsplit: done");
+
+    return METIS_OK;
+}

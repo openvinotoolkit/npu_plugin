@@ -326,13 +326,44 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                 
                         else if (algorithm == "Z-Tiling")
                         {
-                        //Partition tensor into workloads with Z-tiling
+                            /*Create workload instance*/
+                            workloadsVector.emplace_back(mv::Workloads(opIt->getName(), subTensor.getShape()));
+
+                            bool ztilingFail = false;
+                            int ztilingResult = 0;
+
+                            if(nWorkloadsCompilationDescriptor)
+                                ztilingResult = workloadsVector.at(workloadsVectorIndex).partitionTensorWithZsplit(dpuModes, nWorkloadsCompilationDescriptor, pass);
+                            else
+                                ztilingResult = workloadsVector.at(workloadsVectorIndex).partitionTensorWithZsplit(dpuModes, nWorkloads, pass);
+
+                            if (ztilingResult != 1) {
+                                pass.log(mv::Logger::MessageType::Info, "Error using Ztiling to tile the output tensor, erasing this workload instance");
+                                workloadsVector.erase(workloadsVector.begin() + (workloadsVectorIndex));
+                                ztilingFail = true;
+                            }
+
+                            if(!ztilingFail) {
+
+                                if((!workloadsVector.at(workloadsVectorIndex).validateWorkloads(subTensor.getShape()))) {
+                                    pass.log(mv::Logger::MessageType::Info, "Error producing valid workloads from Ztiling partitions,erasing this workload instance ");
+                                    workloadsVector.erase(workloadsVector.begin() + workloadsVectorIndex);
+                                    ztilingFail = true;
+                                }
+
+                                if(!rectangleFail) {
+                                    rectangleFail = false;
+                                    pass.log(mv::Logger::MessageType::Info, "Valid workload created using Rectangle");
+                                    workloadsVectorIndex++;
+                                }
+                            } 
+                            
+
                         }
                     }
 
                 }
-            
-
+                        
                 /*Calculate execution cycles for each valid workload for this particular subtensor*/
                 mv::Workloads::generateExecutionCycles(workloadsVector, nDPUxCluster, costFuntion);
 

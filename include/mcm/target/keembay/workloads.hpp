@@ -117,7 +117,10 @@ namespace mv
                                                             bool         split_symmetric,
                                                   const mv::WorkloadSplitMode& split_mode,
                                                   const mv::pass::PassEntry& pass);
-
+                                                  
+        // returns: METIS_OK(=1), or METIS_ERROR
+        int partitionTensorWithZsplit(const mv::DPUModeList& modes, idx_t nWorkloads, const mv::pass::PassEntry& pass);
+        
         void populateWorkloadsFromPartitions(idx_t nWorkloads, 
                                             const mv::pass::PassEntry& pass, 
                                             mv::DPUMode& mpeMode);
