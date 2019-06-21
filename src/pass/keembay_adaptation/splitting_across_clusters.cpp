@@ -42,9 +42,6 @@ void splittingAcrossClusters(const mv::pass::PassEntry& pass, mv::ComputationMod
     auto globalParams = model.getGlobalConfigParams();
     auto numClusters = globalParams->get("Number_of_Clusters");
 
-//    if (int(numClusters) > 1)
-//    {
-    // Splitting in every case, makes life simpler :)
     std::vector <mv::Data::TensorIterator> tensors;
     for(auto layer = om.opBegin(); layer != om.opEnd(); ++layer)
     {
@@ -62,7 +59,6 @@ void splittingAcrossClusters(const mv::pass::PassEntry& pass, mv::ComputationMod
         }
     }
     subTensorsGen(model, tensors, numClusters, pass);
-//    }
     return;
 }
 
@@ -77,13 +73,21 @@ void subTensorsGen(mv::ComputationModel& model, const std::vector <mv::Data::Ten
         int nWorkloads = nClusters;
         mv::Workloads Tensor(tensor->getName(), tensor->getShape());
         std::vector<mv::Workload> subTensors;
+        if (nClusters == 1)
+        {
+            success = Tensor.partitionTensorWithRectangleHeuristic(TENSOR_MPE[0], nClusters, false, false, true,
+                    mv::WorkloadSplitMode::HW, pass);
+            subTensors = Tensor.getWorkloads();
+            tensor->splitAcrossClusters(subTensors, false, false, true);
+            continue;
+        }
         if (tensor->get<std::string>("splitStrategy") == "SplitOverH")
         {
             if(!tensor->isPopulated())
                 unpopulatedSplitOverH(nClusters, subTensors, Tensor, pass, success);
             else
                 populatedSplitOverH(nClusters, subTensors, Tensor, pass, success);
-            tensor->splitAcrossClusters(subTensors, true, false);
+            tensor->splitAcrossClusters(subTensors, true, false, false);
         }
         else if (tensor->get<std::string>("splitStrategy") == "SplitOverHOverlapped")
         {
@@ -99,7 +103,7 @@ void subTensorsGen(mv::ComputationModel& model, const std::vector <mv::Data::Ten
             }
             else
                 populatedSplitOverH(nClusters, subTensors, Tensor, pass, success);
-            tensor->splitAcrossClusters(subTensors, true, false);
+            tensor->splitAcrossClusters(subTensors, true, false, false);
         }
         else if (tensor->get<std::string>("splitStrategy") == "SplitOverK")
         {
@@ -110,19 +114,19 @@ void subTensorsGen(mv::ComputationModel& model, const std::vector <mv::Data::Ten
                 success = Tensor.partitionTensorWithRectangleHeuristic(TENSOR_MPE[1], nWorkloads, true, false, true,
                         mv::WorkloadSplitMode::NC, pass);
             subTensors = Tensor.getWorkloads();
-            tensor->splitAcrossClusters(subTensors, false, false);
+            tensor->splitAcrossClusters(subTensors, false, false, false);
         }
         else if (tensor->get<std::string>("splitStrategy") == "HKSwitch")
         {
             if(!tensor->isPopulated())
             {
                 unpopulatedSplitOverH(nClusters, subTensors, Tensor, pass, success);
-                tensor->splitAcrossClusters(subTensors, true, true);
+                tensor->splitAcrossClusters(subTensors, true, true, false);
             }
             else
             {
                 populatedSplitOverH(nClusters, subTensors, Tensor, pass, success);
-                tensor->splitAcrossClusters(subTensors, true, false);
+                tensor->splitAcrossClusters(subTensors, true, false, false);
             }
         }
     }

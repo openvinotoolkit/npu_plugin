@@ -122,6 +122,13 @@ namespace mv
         DataElement& operator()(const std::vector<std::size_t>& sub);
         const DataElement& operator()(const std::vector<std::size_t>& sub) const;
 
+        inline bool hasSubTensors() const
+        {
+            bool flag = false;
+            if (subTensors_.size() > 1)
+                flag = true;
+            return flag;
+        }
         inline bool isQuantized() const
         {
             return hasAttr("quantParams") &&
@@ -195,7 +202,7 @@ namespace mv
         std::vector<unsigned> computeNumericStrides() const;
         std::size_t computeTotalSize(unsigned int alignment = 16, bool base = false) const;
         std::size_t getClusterSize(unsigned int alignment = 16, bool base = false) const;
-        void splitAcrossClusters(std::vector<Workload>, bool splitOverH, bool multicast);
+        void splitAcrossClusters(std::vector<Workload>, bool splitOverH, bool multicast, bool subTensorWholeTensor);
 
     };
 

@@ -162,6 +162,8 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     mv::DataModel dm(cm);
     mv::OpModel om(cm);
 
+    unsigned numClusters = cm.getGlobalConfigParams()->get<int>("Number_of_Clusters");
+
     std::unique_ptr<MVCNN::TensorReferenceT> toBuild = std::unique_ptr<MVCNN::TensorReferenceT>(new MVCNN::TensorReferenceT());
 
     toBuild->name = t.getName();
@@ -193,12 +195,17 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     }
     else if(*tensorAllocatorName == "ProgrammableInput" || *tensorAllocatorName == "ProgrammableOutput")
     {
-        mv::Shape s(t.get<std::vector<std::size_t>>("offset"));
+        if (!t.hasSubTensors())
+        {
+            mv::Shape s(t.get<std::vector<std::size_t>>("offset"));
 
-        // NOTE: This probably has to be done also when DDR kicks in
-        // as CMX is the only memory with the cluster/slice approach
-        toBuild->data->data_index = 0 + s.totalSize()*t.getDType().getSizeInBits()/8;
-
+            // NOTE: This probably has to be done also when DDR kicks in
+            // as CMX is the only memory with the cluster/slice approach
+            toBuild->data->data_index = 0 + s.totalSize()*t.getDType().getSizeInBits()/8;
+        }
+        //Input/Output of Network
+        else
+            toBuild->data->data_index = 0;
         //No slice for tensors in ProgrammableInput/ProgrammableOutput
         toBuild->locale_index = std::vector<unsigned int>(1,0);
         // No need to set sparsity_index for input/output tensor of the network
@@ -210,7 +217,11 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
         //NOTE/TODO: What if multicast.
         if(t.isBroadcasted())
         {
-            std::vector<unsigned int> locale_index = {0, 1, 2, 3};
+            std::vector<unsigned int> locale_index;
+            for (unsigned idx = 0; idx < numClusters; idx++)
+            {
+                locale_index.push_back(idx);
+            }
             toBuild->locale_index = locale_index;
         }
         else
@@ -231,10 +242,6 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
         }
     }
     toBuild->locale = convertAllocatorToMemoryLocale(*tensorAllocatorName);
-
-    // NOTE: Will probably change in the future
-    toBuild->locale_index = std::vector<unsigned int>(1,0);
-
     toBuild->data_dtype = convertDtype(t.getDType());
 
     // could also be t->hasAttr("quantizationParameters")
@@ -291,10 +298,10 @@ std::unique_ptr<MVCNN::SummaryHeaderT> mv::RuntimeModel::buildSummaryHeaderT(Com
 
     // Just one input for now
     toBuild->net_input = std::vector<std::unique_ptr<MVCNN::TensorReferenceT>>(1);
-    toBuild->net_input[0] = buildTensorReferenceT(cm, compilationDescriptor, *om.getInput()->getOutputTensor(0));
+    toBuild->net_input[0] = buildTensorReferenceT(cm, compilationDescriptor, *om.getInput()->getOutputTensor(0), 0);
 
     toBuild->net_output = std::vector<std::unique_ptr<MVCNN::TensorReferenceT>>(1);
-    toBuild->net_output[0] = buildTensorReferenceT(cm, compilationDescriptor, *om.getOutput()->getInputTensor(0));
+    toBuild->net_output[0] = buildTensorReferenceT(cm, compilationDescriptor, *om.getOutput()->getInputTensor(0), 0);
 
     auto taskCount = [](mv::OpModel m)
     {
@@ -491,7 +498,6 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
     //Need to handle the cases differently depending on the DMA direction.
     auto direction = opIt->get<mv::DmaDirection>("direction");
 
-
     bool destinationIsBroadcasted = opIt->getOutputTensor(0)->isBroadcasted();
     bool sourceIsBroadCasted = opIt->getInputTensor(0)->isBroadcasted();
 
@@ -503,13 +509,14 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
 
     if(broadcastCheck)
     {
+        //SOH WEIGHTS, WEIGHTS TABLE
         // 1 DMA to multiple slices -  multiple slices to 1 place
         std::vector<std::unique_ptr<MVCNN::TaskT>> toReturn = std::vector<std::unique_ptr<MVCNN::TaskT>>(1);
         toReturn[0] = std::unique_ptr<MVCNN::TaskT>(new MVCNN::TaskT());
         toReturn[0]->task.type = MVCNN::SpecificTask_NNDMATask;
         auto tmp = new MVCNN::NNDMATaskT();
-        tmp->src = buildTensorReferenceT(cm, compilationDescriptor, *opIt->getInputTensor(0));
-        tmp->dst = buildTensorReferenceT(cm, compilationDescriptor, *opIt->getOutputTensor(0));
+        tmp->src = buildTensorReferenceT(cm, compilationDescriptor, *opIt->getInputTensor(0), 0);
+        tmp->dst = buildTensorReferenceT(cm, compilationDescriptor, *opIt->getOutputTensor(0), 0);
         if(opIt->hasAttr("Compression"))
             tmp->compression =  opIt->get<bool>("Compression");
         toReturn[0]->task.value = tmp;
@@ -587,7 +594,7 @@ std::unique_ptr<MVCNN::PPETaskT> mv::RuntimeModel::buildPPETaskT()
 }
 
 
-std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantFieldsT(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt)
+std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantFieldsT(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt, int clusterId)
 {
     std::unique_ptr<MVCNN::NCEInvariantFieldsT> toBuild = std::unique_ptr<MVCNN::NCEInvariantFieldsT>(new MVCNN::NCEInvariantFieldsT());
 
@@ -626,12 +633,14 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
     //input
     mv::DataModel dm(cm);
     mv::ControlModel controlModel(cm);
-    auto inputTensor = opIt->getInputTensor(0);
-    auto tensorAllocatorName = inputTensor->get<std::set<std::string>>("allocators").begin();
+
+    auto parentInputTensor = opIt->getInputTensor(0);
+    auto inputTensor = opIt->getInputTensor(0)->getSubTensor(clusterId);
+    auto tensorAllocatorName = parentInputTensor->get<std::set<std::string>>("allocators").begin();
     auto tensorAllocator = dm.getAllocator(*tensorAllocatorName);
-    mv::Data::BufferIterator tensorBufferIt = tensorAllocator.getBuffer(0, inputTensor); // 0 is the only stage for now, but this will probably change in the future
+    mv::Data::BufferIterator tensorBufferIt = tensorAllocator.getBuffer(0, parentInputTensor); // 0 is the only stage for now, but this will probably change in the future
     mv::Control::StageIterator stg = controlModel.getStage(0);
-    toBuild->input_data = buildTensorReferenceT(cm, compilationDescriptor, *inputTensor);
+    toBuild->input_data = buildTensorReferenceT(cm, compilationDescriptor, inputTensor, clusterId);
 
     if (tensorBufferIt->getMaster() != dm.bufferEnd(*tensorAllocatorName, stg))
     {
@@ -642,15 +651,16 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
     }
     else
     {
-        toBuild->parent_input_tensor = buildTensorReferenceT(cm, compilationDescriptor, *opIt->getInputTensor(0));
+        toBuild->parent_input_tensor = buildTensorReferenceT(cm, compilationDescriptor, *opIt->getInputTensor(0), 0);
     }
 
     //output
-    auto outputTensor = opIt->getOutputTensor(0);
-    tensorAllocatorName = outputTensor->get<std::set<std::string>>("allocators").begin();
+    auto parentOutputTensor = opIt->getOutputTensor(0);
+    auto outputTensor = opIt->getOutputTensor(0)->getSubTensor(clusterId);
+    tensorAllocatorName = parentOutputTensor->get<std::set<std::string>>("allocators").begin();
     tensorAllocator = dm.getAllocator(*tensorAllocatorName);
-    tensorBufferIt = tensorAllocator.getBuffer(0, outputTensor); // 0 is the only stage for now, but this will probably change in the future
-    toBuild->output_data = buildTensorReferenceT(cm, compilationDescriptor, *outputTensor);
+    tensorBufferIt = tensorAllocator.getBuffer(0, parentOutputTensor); // 0 is the only stage for now, but this will probably change in the future
+    toBuild->output_data = buildTensorReferenceT(cm, compilationDescriptor, outputTensor, clusterId);
 
     if (tensorBufferIt->getMaster() != dm.bufferEnd(*tensorAllocatorName, stg))
     {
@@ -661,7 +671,7 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
     }
     else
     {
-        toBuild->parent_output_tensor = buildTensorReferenceT(cm, compilationDescriptor, *opIt->getOutputTensor(0));
+        toBuild->parent_output_tensor = buildTensorReferenceT(cm, compilationDescriptor, *opIt->getOutputTensor(0), 0);
     }
 
     toBuild->output_data->data->data_index += toBuild->output_data->leading_offset/2;
@@ -674,14 +684,14 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
     if(opIt->hasAttr("fakeSparsity"))
     {
         auto activationWindowTensorIterator = opIt->getInputTensor(num_inputs - 2);
-        toBuild->activation_window = buildTensorReferenceT(cm, compilationDescriptor, *activationWindowTensorIterator);
+        toBuild->activation_window = buildTensorReferenceT(cm, compilationDescriptor, *activationWindowTensorIterator, clusterId);
         toBuild->activation_window_channel_length = activationWindowTensorIterator->get<int>("channelLength");
     }
 
     if(toBuild->dpu_task_type != MVCNN::DPULayerType_ELTWISE)
     {
         auto weightsTableTensorIterator = opIt->getInputTensor(num_inputs - 1);
-        toBuild->weights_table = buildTensorReferenceT(cm, compilationDescriptor, *weightsTableTensorIterator);
+        toBuild->weights_table = buildTensorReferenceT(cm, compilationDescriptor, *weightsTableTensorIterator, clusterId);
     }
 
     switch (toBuild->dpu_task_type)
@@ -692,7 +702,7 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
         case MVCNN::DPULayerType_FCL:
         case MVCNN::DPULayerType_ELTWISE:
             //std::unique_ptr<TensorReferenceT> parent_weights_tensor;
-            toBuild->weights_data = buildTensorReferenceT(cm, compilationDescriptor, *opIt->getInputTensor(1));
+            toBuild->weights_data = buildTensorReferenceT(cm, compilationDescriptor, *opIt->getInputTensor(1), clusterId);
             break;
         default:
             break;
@@ -790,9 +800,8 @@ std::vector<std::unique_ptr<MVCNN::NCEVariantFieldsT>> mv::RuntimeModel::buildNC
 std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNCE2TaskT(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt)
 {
     auto strategy = opIt->get<std::string>("splitStrategy");
-    unsigned numTask = 1;
-    if(strategy == "SplitOverK" || strategy == "SplitOverH" || strategy == "SplitOverHOverlapped")
-        numTask = cm.getGlobalConfigParams()->get("Number_of_Clusters");
+    unsigned numTask = 0;
+    numTask = cm.getGlobalConfigParams()->get<int>("Number_of_Clusters");
 
     std::vector<std::unique_ptr<MVCNN::TaskT>> toReturn = std::vector<std::unique_ptr<MVCNN::TaskT>>(numTask);
 
@@ -802,7 +811,7 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNCE2TaskT(Comp
         toReturn[i]->task.type = MVCNN::SpecificTask_NCE2Task;
         auto toBuild = new MVCNN::NCE2TaskT();
         toBuild->variant = buildNCEVariantFieldsTVector(cm, compilationDescriptor, opIt);
-        toBuild->invariant = buildNCEInvariantFieldsT(cm, compilationDescriptor, opIt);
+        toBuild->invariant = buildNCEInvariantFieldsT(cm, compilationDescriptor, opIt, numTask);
 
         auto hash = [](const MVCNN::MPE_Mode &g){ return static_cast<std::size_t>(g); };
         auto comp = [](const MVCNN::MPE_Mode &l, const MVCNN::MPE_Mode &r){ return l == r; };

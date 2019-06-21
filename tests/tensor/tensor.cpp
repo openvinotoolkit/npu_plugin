@@ -1292,8 +1292,8 @@ TEST(tensor, splitOverH)
     temp.MaxY += 14; //55
     unpopulated_wl.push_back(temp);
 
-    input->splitAcrossClusters(unpopulated_wl, true, false);
-    outputRes->splitAcrossClusters(unpopulated_wl, true, false);
+    input->splitAcrossClusters(unpopulated_wl, true, false, false);
+    outputRes->splitAcrossClusters(unpopulated_wl, true, false, false);
 
     //reference
     //subtensor  0  : shape  (1, 64, 14, 56)  offset  (0, 0, 0, 0)
@@ -1337,7 +1337,7 @@ TEST(tensor, splitOverH)
     temp.MaxY = 1;
     std::vector<mv::Workload> weights_wl(4, temp);
 
-    weightRes->splitAcrossClusters(weights_wl, true, false);
+    weightRes->splitAcrossClusters(weights_wl, true, false, false);
 
     std::vector<mv::Shape> refShapesWeights(4, mv::Shape({64, 1, 1, 64}));
     std::vector<std::vector<std::size_t>> refOffsetsWeights(4, {0,0,0,0});
@@ -1358,7 +1358,7 @@ TEST(tensor, splitOverH)
     temp.MaxX = 4;
     temp.MaxY = 1;
     std::vector<mv::Workload> weights_table_wl(4, temp);
-    weightTableRes->splitAcrossClusters(weights_table_wl, true, false);
+    weightTableRes->splitAcrossClusters(weights_table_wl, true, false, false);
 
     std::vector<mv::Shape> refShapesWeightsTable(4, mv::Shape({4, 1, 1, 64}));
     std::vector<std::vector<std::size_t>> refOffsetsWeightsTable(4, {0,0,0,0});
@@ -1380,7 +1380,7 @@ TEST(tensor, splitOverH)
     temp.MaxX = 16;
     temp.MaxY = 1;
     std::vector<mv::Workload> weights_sm_wl(4, temp);
-    weightSparsityMapRes->splitAcrossClusters(weights_sm_wl, true, false);
+    weightSparsityMapRes->splitAcrossClusters(weights_sm_wl, true, false, false);
     std::vector<mv::Shape> refShapesWeightsSM(4, mv::Shape({16, 1, 1, 64}));
     std::vector<std::vector<std::size_t>> refOffsetsWeightsSM(4, {0,0,0,0});
     checkSubtensor(*weightSparsityMapRes, refShapesWeightsSM, refOffsetsWeightsSM);
@@ -1464,7 +1464,7 @@ TEST(tensor, splitOverK)
     temp.MinX += 16;
     temp.MaxX += 16;
     unpopulated_wl.push_back(temp);
-    input->splitAcrossClusters(unpopulated_wl, false, false);
+    input->splitAcrossClusters(unpopulated_wl, false, false, false);
 
     /*
     Spliting res2a_branch2a split_over_h = False multicast False
@@ -1475,7 +1475,7 @@ TEST(tensor, splitOverK)
     wl[3] bl[0] 0 bl[1] 48 width 16 height 1
     */
 
-    outputRes->splitAcrossClusters(unpopulated_wl, false, false);
+    outputRes->splitAcrossClusters(unpopulated_wl, false, false, false);
 
     //reference
     /*
@@ -1533,7 +1533,7 @@ TEST(tensor, splitOverK)
     temp.MaxY += 16;
     weights_wl.push_back(temp);
 
-    weightRes->splitAcrossClusters(weights_wl, false, false);
+    weightRes->splitAcrossClusters(weights_wl, false, false, false);
     std::vector<mv::Shape> refShapesWeights(4, mv::Shape({64, 1, 1, 16}));
     std::vector<std::vector<std::size_t>> refOffsetsWeights;
     refOffsetsWeights.push_back({0,0,0,0});
@@ -1554,7 +1554,7 @@ TEST(tensor, splitOverK)
         subtensor 2 shape  (16, 1, 1, 4)  offset  (32, 0, 0, 0)
         subtensor 3 shape  (16, 1, 1, 4)  offset  (48, 0, 0, 0)
     */
-    weightTableRes->splitAcrossClusters(weights_wl, false, false);
+    weightTableRes->splitAcrossClusters(weights_wl, false, false, false);
     std::vector<mv::Shape> refShapesWeightsTable(4, mv::Shape({4, 1, 1, 16}));
     checkSubtensor(*weightTableRes, refShapesWeightsTable, refOffsetsWeights);
 
