@@ -16,8 +16,6 @@
 
 set(TARGET_NAME "kmbPlugin")
 
-#set(VPUAL_DEFAULT_BASE "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/thirdparty/movidius/vpualHost")
-
 if (DEFINED MCM_COMPILER_PATHS_FINDING)
     unset(MCM_COMPILER_INTERNAL_BUILD CACHE)
     unset(MCM_COMPILER_INCLUDE_PATH CACHE)
@@ -111,7 +109,6 @@ if (ENABLE_VPUAL)
     endif()
     
     # TODO: enable some day and fix all warnings
-#    set_target_properties(${TARGET_NAME} PROPERTIES COMPILE_OPTIONS "-Wno-error")
     set_target_properties(${VPUAL_LIBRARY} PROPERTIES CXX_VISIBILITY_PRESET default )
     set_target_properties(${VPUAL_LIBRARY} PROPERTIES C_VISIBILITY_PRESET default )
 endif()

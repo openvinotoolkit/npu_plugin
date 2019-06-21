@@ -76,6 +76,8 @@ public:
     void queueInference(void *input_data, size_t input_bytes, void *result_data, size_t result_bytes);
 
     void getResult(void *result_data, unsigned int result_bytes);
+
+    const std::shared_ptr<KmbConfig>& _config;
 };
 
 typedef std::shared_ptr<KmbExecutor> KmbExecutorPtr;
