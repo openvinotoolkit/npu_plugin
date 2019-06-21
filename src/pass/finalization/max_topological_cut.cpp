@@ -2,7 +2,6 @@
 #include "meta/include/mcm/op_model.hpp"
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
-//#include "include/mcm/target/keembay/koala_graph_scheduler.hpp"
 #include "include/mcm/target/keembay/lemon_graph_scheduler.hpp"
 #include <iostream>
 
@@ -43,15 +42,13 @@ void maxTopologicalCutAndPartialSerialisationPass(const mv::pass::PassEntry& pas
 {
     int networkMemoryRequirement;
     double percentageMemory; 
-    //mv::KoalaGraphScheduler flowGraph;
     mv::LemonGraphScheduler flowGraph;
     bool memoryHack = false;
 
     auto returnedParams = model.getGlobalConfigParams();
     memoryHack = returnedParams->get<bool>("MemoryHack");
 
-    /*Convert to MCM graph to KOALA graph*/
-    //flowGraph.convertMcMGraphToKoalaGraph(pass, model);
+    /*Convert to MCM graph to Lemon graph*/
     flowGraph.convertMcMGraphToLemonGraph(pass, model);
 
     /*Calculate max topological cut and get the cut edges*/
