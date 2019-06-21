@@ -13,6 +13,8 @@ namespace mv
             std::string&) -> std::pair<bool, std::size_t>
         {
             auto opIt = args.at("taskOp").get<std::string>();
+            if (opIt == "ChannelMajorConvolution")
+                opIt = "Conv";
             std::string errMsg;
 
             //Necessary, otherwise check on attributes fails
@@ -20,13 +22,14 @@ namespace mv
             argsBackup.erase("taskOp");
             return mv::op::OpRegistry::checkInputs(opIt, inputs, argsBackup, errMsg);
         };
-                
-        static std::function<void(const std::vector<Data::TensorIterator>&, const std::map<std::string, Attribute>&, 
+
+        static std::function<void(const std::vector<Data::TensorIterator>&, const std::map<std::string, Attribute>&,
             std::vector<Tensor>&)> outputDefFcn =
             [](const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>& args, std::vector<Tensor>& outputs)
         {
             auto opIt = args.at("taskOp").get<std::string>();
-
+            if (opIt == "ChannelMajorConvolution")
+                opIt = "Conv";
             mv::op::OpRegistry::getOutputsDef(opIt, inputs, args, outputs);
         };
 
