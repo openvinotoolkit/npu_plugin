@@ -41,12 +41,12 @@ void streamingOpFissionFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
 
     // get ops to split and number of splits from descriptor
     auto globalParams = model.getGlobalConfigParams();
-    if (!globalParams->hasAttr("streaming_strategy"))
+    if (!globalParams->hasAttr("opFission_streaming_strategy"))
     {
         pass.log(mv::Logger::MessageType::Info, "No custom streaming strategy provided");
         return;
     }
-    auto strategyList = globalParams->get<std::vector<mv::Element>>("streaming_strategy");
+    auto strategyList = globalParams->get<std::vector<mv::Element>>("opFission_streaming_strategy");
 
     // each s refers to an op
     for (auto s: strategyList)

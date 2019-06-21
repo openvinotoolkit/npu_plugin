@@ -82,6 +82,17 @@
                             {"K" : 2}
                         ]
                     }
+                ],
+                "disable_opFission_streaming_strategy" :
+                [
+                    {
+                        "name_filter" : "conv1_cmx_",
+                        "weight_splits" : 2
+                    },
+                    {
+                        "name_filter" : "conv2_cmx_",
+                        "weight_splits" : 4
+                    }
                 ]
             },
             "ComputeMemory",
@@ -116,6 +127,7 @@
             "FuseScale",
             "FullyConnectedAsConv2D",
             "StreamingTiling",
+            "StreamingOpFission",
             {
                 "name": "GenerateDot",
                 "output": "output/dots/adapt_model.dot",
