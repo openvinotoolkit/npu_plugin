@@ -68,7 +68,7 @@ using namespace std;
 
 #define POOL_SIZE (4 * TENSOR_MAX_SIZE + 1024)
 
-KmbExecutor::KmbExecutor(bool forceReset, const LogLevel& vpuLogLevel, const Logger::Ptr& log, const std::shared_ptr<KmbConfig>& config)
+KmbExecutor::KmbExecutor(const Logger::Ptr& log, const std::shared_ptr<KmbConfig>& config)
             : _log(log), _config(config) {
     auto parsedConfig = _config->getParsedConfig();
     if (parsedConfig[VPU_KMB_CONFIG_KEY(KMB_EXECUTOR)] == "NO") {
@@ -90,10 +90,7 @@ KmbExecutor::KmbExecutor(bool forceReset, const LogLevel& vpuLogLevel, const Log
     pipe = make_shared<Pipeline>();
 }
 
-void KmbExecutor::allocateGraph(DevicePtr &device,
-                                GraphDesc &graphDesc,
-                                const std::vector<char> &graphFileContent,
-                                const char* networkName) {
+void KmbExecutor::allocateGraph(const std::vector<char> &graphFileContent, const char* networkName) {
     auto parsedConfig = _config->getParsedConfig();
     if (parsedConfig[VPU_KMB_CONFIG_KEY(KMB_EXECUTOR)] == "NO") {
         return;
@@ -222,7 +219,7 @@ void KmbExecutor::allocateGraph(DevicePtr &device,
     std::cout << "Fin" << std::endl;
 }
 
-void KmbExecutor::queueInference(GraphDesc &graphDesc, void *input_data, size_t input_bytes,
+void KmbExecutor::queueInference(void *input_data, size_t input_bytes,
                     void *result_data, size_t result_bytes) {
     auto parsedConfig = _config->getParsedConfig();
     if (parsedConfig[VPU_KMB_CONFIG_KEY(KMB_EXECUTOR)] == "NO") {
@@ -234,7 +231,7 @@ void KmbExecutor::queueInference(GraphDesc &graphDesc, void *input_data, size_t 
     return;
 }
 
-void KmbExecutor::getResult(GraphDesc &graphDesc, void *result_data, unsigned int result_bytes) {
+void KmbExecutor::getResult(void *result_data, unsigned int result_bytes) {
     auto parsedConfig = _config->getParsedConfig();
     if (parsedConfig[VPU_KMB_CONFIG_KEY(KMB_EXECUTOR)] == "NO") {
         return;
@@ -277,7 +274,7 @@ void KmbExecutor::getResult(GraphDesc &graphDesc, void *result_data, unsigned in
     return;
 }
 
-void KmbExecutor::deallocateGraph(DevicePtr &device, GraphDesc &graphDesc) {
+void KmbExecutor::deallocateGraph() {
     auto parsedConfig = _config->getParsedConfig();
     if (parsedConfig[VPU_KMB_CONFIG_KEY(KMB_EXECUTOR)] == "NO") {
         return;

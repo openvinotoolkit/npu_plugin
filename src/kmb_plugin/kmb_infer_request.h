@@ -43,15 +43,13 @@ class KmbInferRequest : public InferenceEngine::InferRequestInternal {
     const DataInfo _inputInfo;
     const DataInfo _outputInfo;
 
-    GraphDesc _graphDesc;
     std::vector<uint8_t> resultBuffer;
     std::vector<uint8_t> inputBuffer;
 
 public:
     typedef std::shared_ptr<KmbInferRequest> Ptr;
 
-    explicit KmbInferRequest(GraphDesc &_graphDesc,
-                                InferenceEngine::InputsDataMap networkInputs,
+    explicit KmbInferRequest(InferenceEngine::InputsDataMap networkInputs,
                                 InferenceEngine::OutputsDataMap networkOutputs,
                                 DataInfo& inputInfo,
                                 DataInfo& outputInfo,

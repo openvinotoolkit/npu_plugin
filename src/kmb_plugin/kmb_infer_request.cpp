@@ -33,8 +33,7 @@ using namespace InferenceEngine;
 
 #define MEMCPY(dst, src, bytes) std::copy_n((src), (bytes), (dst))
 
-KmbInferRequest::KmbInferRequest(GraphDesc &graphDesc,
-                                        InferenceEngine::InputsDataMap networkInputs,
+KmbInferRequest::KmbInferRequest(InferenceEngine::InputsDataMap networkInputs,
                                         InferenceEngine::OutputsDataMap networkOutputs,
                                         DataInfo& inputInfo,
                                         DataInfo& outputInfo,
@@ -44,8 +43,7 @@ KmbInferRequest::KmbInferRequest(GraphDesc &graphDesc,
                                         const KmbExecutorPtr &executor) :
         InferRequestInternal(networkInputs, networkOutputs), _executor(executor),
         _log(log), _stagesMetaData(blobMetaData), _config(kmbConfig),
-        _inputInfo(inputInfo), _outputInfo(outputInfo),
-        _graphDesc(graphDesc) {
+        _inputInfo(inputInfo), _outputInfo(outputInfo) {
     _deviceLayout = NCHW;
 
     if (_config->compileConfig.forceLayout == ComputeLayout::NCHW)
@@ -174,11 +172,11 @@ void KmbInferRequest::InferAsync() {
         inputPtr = tmpBlob->buffer();
     }
 
-    _executor->queueInference(_graphDesc, inputPtr, inputSize, nullptr, 0);
+    _executor->queueInference(inputPtr, inputSize, nullptr, 0);
 }
 
 void KmbInferRequest::GetResult() {
-    _executor->getResult(_graphDesc, resultBuffer.data(), resultBuffer.size());
+    _executor->getResult(resultBuffer.data(), resultBuffer.size());
 
     for (auto pp : _outputs) {
         const auto offset_it = _outputInfo.offset.find(pp.first);

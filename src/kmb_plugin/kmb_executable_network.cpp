@@ -26,13 +26,12 @@ using namespace InferenceEngine;
 namespace vpu {
 namespace KmbPlugin {
 
-ExecutableNetwork::ExecutableNetwork(ICNNNetwork &network, std::vector<DevicePtr> &devicePool,
-                                     const std::map<std::string, std::string> &config) {
+ExecutableNetwork::ExecutableNetwork(ICNNNetwork &network, const std::map<std::string, std::string> &config) {
     _config = std::make_shared<KmbConfig>(config);
 
     _log = std::make_shared<Logger>("KmbPlugin", _config->hostLogLevel, consoleOutput());
 
-    _executor = std::make_shared<KmbExecutor>(_config->forceReset, _config->deviceLogLevel, _log, _config);
+    _executor = std::make_shared<KmbExecutor>(_log, _config);
 
 #ifdef ENABLE_MCM_COMPILER
     pCompiler = std::make_shared<mv::CompilationUnit>(network.getName());  // unit("testModel");
@@ -55,14 +54,12 @@ ExecutableNetwork::ExecutableNetwork(ICNNNetwork &network, std::vector<DevicePtr
 #endif
 }
 
-ExecutableNetwork::ExecutableNetwork(const std::string &blobFilename,
-                           std::vector<DevicePtr> &devicePool,
-                           const std::map<std::string, std::string> &config) {
+ExecutableNetwork::ExecutableNetwork(const std::string &blobFilename, const std::map<std::string, std::string> &config) {
     _config = std::make_shared<KmbConfig>(config, ConfigMode::RUNTIME_MODE);
 
     _log = std::make_shared<Logger>("KmbPlugin", _config->hostLogLevel, consoleOutput());
 
-    _executor = std::make_shared<KmbExecutor>(_config->forceReset, _config->deviceLogLevel, _log, _config);
+    _executor = std::make_shared<KmbExecutor>(_log, _config);
     std::ifstream blobFile(blobFilename, std::ios::binary);
     std::ostringstream blobContentStream;
     blobContentStream << blobFile.rdbuf();
@@ -89,10 +86,7 @@ ExecutableNetwork::ExecutableNetwork(const std::string &blobFilename,
     }
 #endif
 
-    _executor->allocateGraph(_device,
-                             _graphDesc,
-                             _graphBlob,
-                             &networkName[0]);
+    _executor->allocateGraph(_graphBlob, &networkName[0]);
 
     if (_config->exclusiveAsyncRequests) {
         ExecutorManager *executorManager = ExecutorManager::getInstance();
