@@ -146,7 +146,7 @@ void resolveImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::Computati
             {
                 pass.log(mv::Logger::MessageType::Info,"Setting # " + compensationOutputs[flowIdx]->getName() +
                                                         " # as input at slotIdx: " + std::to_string(sinkIndexes[flowIdx]));
-                opIt->setInputTensor(compensationOutputs[flowIdx],sinkIndexes[flowIdx]);
+                opIt->setInputTensor(compensationOutputs[flowIdx],sinkIndexes[flowIdx], false);
                 om.undefineFlow(flowsToRemove[flowIdx]);
                 om.defineFlow(compensationOutputs[flowIdx], opIt, sinkIndexes[flowIdx]);
             }
@@ -215,7 +215,7 @@ void resolveImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::Computati
                                                                 "# as input to: # " + opsToLink[op]->getName() +
                                                                 "# at slotIdx: " + std::to_string(inputSlots[op]));
 
-                    opsToLink[op]->setInputTensor(compensatorOutput, inputSlots[op]);
+                    opsToLink[op]->setInputTensor(compensatorOutput, inputSlots[op], false);
                     om.defineFlow(compensatorOutput,opsToLink[op], inputSlots[op]);
                 }
 
