@@ -185,7 +185,6 @@ mv::Data::TensorIterator solveSpatialTiling(mv::OpModel& om, mv::Data::OpListIte
     //solve SOW/H location
     //TODO:: stop hardcoding index....
     auto inputTensor = op->getInputTensor(0);
-    auto kernelTensor = op->getInputTensor(1);
     auto outputTensor = op->getOutputTensor(0);
     auto opId = op->get<unsigned>("opId");
     auto number_of_spltis = tiling.childTiles().size();
@@ -237,16 +236,33 @@ mv::Data::TensorIterator solveSpatialTiling(mv::OpModel& om, mv::Data::OpListIte
         else
             currentPad = middle_pad;
 
-        auto conv = om.conv(slice,
-                                kernelTensor,
+        mv::Data::TensorIterator newTensor;
+        std::string opType = op->getOpType();
+        if (opType=="MaxPool")
+        {
+            newTensor = om.maxPool(slice,
+                                op->get<std::array<unsigned short, 2UL>>("kSize"),
+                                kernelStride,
+                                currentPad,
+                                op->get<const bool>("exclude_pad"),
+                                op->get<std::string>("auto_pad"),
+                                op->get<std::string>("rounding_type"),
+                                op->get<mv::QuantizationParams>("quantParams"),
+                                op->getName() + "_split_" + std::to_string(split));
+        }
+        else
+        {
+            newTensor = om.conv(slice,
+                                op->getInputTensor(1),
                                 kernelStride,
                                 currentPad,
                                 op->get<unsigned>("dilationFactor"),
                                 op->get<unsigned>("group"),
                                 op->get<mv::QuantizationParams>("quantParams"),
                                 op->getName() + "_split_" + std::to_string(split));
+        }
 
-        auto newOp = om.getSourceOp(conv);
+        auto newOp = om.getSourceOp(newTensor);
 
         if (op->hasAttr("bias"))
         {
@@ -258,7 +274,7 @@ mv::Data::TensorIterator solveSpatialTiling(mv::OpModel& om, mv::Data::OpListIte
         newOp->set<unsigned>("opId", opId);
 
         slices[split] = slice;
-        convs[split] = conv;
+        convs[split] = newTensor;
 
 //        om.defineFlow(kernelTensor,newOp,1); //TODO:: review.
     }
@@ -332,18 +348,27 @@ void generateSpatialTiling(mv::Data::OpListIterator op,Tiling& tiling, std::vect
     std::cout<< "  In generateSpatialTiling, op " << op->getName() << " nesting = " << nesting ;
     auto numberOfSplits = tiling.childTiles().size();
     std::cout<< " numsplits = " << numberOfSplits << std::endl ;
-    auto weightTensor = op->getInputTensor(1);
 
     auto inputShape = tiling.getSize();
-    auto weightsShape = weightTensor->getShape();
 
     auto axisToSplit =  mv::Shape::getAxis(tiling.getAxis());
     int newSize = ceil( ((double)inputShape[axisToSplit]) / ((double)numberOfSplits));
     int remainderSize = inputShape[axisToSplit] - (newSize * (numberOfSplits -1));
 
     //todo:: check for original weights not the aligned one
-    auto kernelDin = (axisToSplit == mv::Shape::getAxis("W")) ? mv::KERNEL_WIDTH : mv::KERNEL_HEIGHT;
-    auto kernelSize = weightsShape[kernelDin];
+    size_t kernelSize;
+    std::string opType = op->getOpType();
+    if (opType == "Conv")
+    {
+        auto weightTensor = op->getInputTensor(1);
+        auto weightsShape = weightTensor->getShape();
+        auto kernelDin = (axisToSplit == mv::Shape::getAxis("W")) ? mv::KERNEL_WIDTH : mv::KERNEL_HEIGHT;
+        kernelSize = weightsShape[kernelDin];
+    }
+    else
+    {
+        kernelSize = op->get<std::array<unsigned short, 2UL>>("kSize")[0];
+    }
     unsigned kernelStep = kernelSize / 2; //TODO:: Check with HW and also with Dilation
 
     //todo:: is there any macro for kernel w/h order?
@@ -420,7 +445,7 @@ void streamingTilingFcn(const mv::pass::PassEntry& pass,
         }
 
         std::string opType = opIt->getOpType();
-        if (opType == "Conv" && !opIt->hasAttr("splitted") && opHasSplittingStrategy)
+        if ((opType == "Conv" ||(opType=="MaxPool")) && !opIt->hasAttr("splitted") && opHasSplittingStrategy)
         {
             //TODO:: get this as param or something!
             //the startingTile is the "big tensor". (currently any conv will be split based on one JSON specifier)
