@@ -307,7 +307,8 @@ void mv::TensorInterferenceGraph::genIntereferenceGraph_(mv::ComputationModel& m
         {
             auto nj = this->node_find(*target);
             auto directed_nj = directed_g.node_find(*target);
-            if (source != target && !checkNodesAreNeighbors_(ni, nj))
+            if (source != target && !checkNodesAreNeighbors_(ni, nj) && (mv::pathExists(directed_g, directed_ni, directed_nj) ||
+                mv::pathExists(directed_g, directed_nj, directed_ni)) )
             {
                 if (!checkNodesDontInterfere_(model, *source, *target) && !checkNodesDontInterfere_(model, *target, *source))
                 {
