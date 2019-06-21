@@ -137,6 +137,10 @@ static mv::Data::BufferIterator allocateUnpopulatedTensor(const mv::pass::PassEn
     {
         return dm.allocateTensor("VPU_DDR_Heap",stageIt, tensorIt);
     }
+    else if(logicalLocation == mv::Tensor::MemoryLocation::BLOB)
+    {
+        return dm.allocateTensor("GraphFile",stageIt, tensorIt);
+    }
     else if (logicalLocation == mv::Tensor::MemoryLocation::DEFAULT)
     {
         auto globalParams = dm.getGlobalConfigParams();
@@ -335,7 +339,8 @@ static std::map<std::string,std::string> location2Allocator =
         { "DDR", "VPU_DDR_Heap"},
         { "INPUT", "ProgrammableInput"},
         { "OUTPUT", "ProgrammableOutput"},
-        { "DEFAULT", "VPU_DDR_BSS"}
+        { "DEFAULT", "VPU_DDR_BSS"},
+        { "BLOB", "GraphFile"}
 };
 
 void allocateImplicitOperationsFcnKeemBay(const mv::pass::PassEntry& pass,

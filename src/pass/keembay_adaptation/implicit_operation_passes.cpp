@@ -27,6 +27,7 @@ static std::map<const std::string,mv::DmaDirectionEnum> dmaDirectionStrings =
 {
       {"CMX2DDR",mv::DmaDirectionEnum::CMX2DDR},
       {"DDR2CMX",mv::DmaDirectionEnum::DDR2CMX},
+      {"BLOB2CMX",mv::DmaDirectionEnum::DDR2CMX},
       {"CMX2UPA",mv::DmaDirectionEnum::CMX2UPA},
       {"UPA2CMX",mv::DmaDirectionEnum::UPA2CMX},
       {"INPUT2CMX",mv::DmaDirectionEnum::DDR2CMX},

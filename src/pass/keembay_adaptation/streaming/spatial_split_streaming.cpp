@@ -279,7 +279,7 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model, mv::Dat
         convs[split] = conv;
 
     }
-
+    kernelTensor->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::BLOB);
     // decide on the location of the I/O Tensors of the conv;
     // basically, for each operation, if we are the last inside the recursive splitting schema, then we can make the
     // assumption that we are fitting into CMX. The check is assumed to be made by the scheduler. This pass only implements
@@ -311,8 +311,8 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model, mv::Dat
             // std::cout << "No more children deciding " << slices[split]->getName() << " to " << inputLocation.print() << std::endl;
             // std::cout << "No more children deciding " << convs[split]->getName() << " to " << outputLocation.print() << std::endl;
         }
-        slices[split]->set<mv::Tensor::MemoryLocation>("Location",inputLocation);
-        convs[split]->set<mv::Tensor::MemoryLocation>("Location",outputLocation);
+        slices[split]->set<mv::Tensor::MemoryLocation>("Location", inputLocation);
+        convs[split]->set<mv::Tensor::MemoryLocation>("Location", outputLocation);
     }
 
     for(unsigned split = 0; split < number_of_splits; split++)
@@ -697,7 +697,7 @@ void streamingTilingFcn(const mv::pass::PassEntry& pass,
         }
 
         std::string opType = opIt->getOpType();
-        if ((opType == "Conv" ||(opType=="MaxPool")) && !opIt->hasAttr("splitted") && opHasSplittingStrategy)
+        if ((opType == "Conv" || (opType == "MaxPool")) && !opIt->hasAttr("splitted") && opHasSplittingStrategy)
         {
             //TODO:: get this as param or something!
             //the startingTile is the "big tensor". (currently any conv will be split based on one JSON specifier)
@@ -709,9 +709,9 @@ void streamingTilingFcn(const mv::pass::PassEntry& pass,
             int numberOfSplits = thisOpStrategy[0].numSplits ;
             std::string axisToSplit = thisOpStrategy[0].axis ;
 
-            Tiling masterTile(axisToSplit,numberOfSplits);
+            Tiling masterTile(axisToSplit, numberOfSplits);
             mv::Shape masterSize;
-            if (axisToSplit=="K")
+            if (axisToSplit == "K")
             {
                 masterTile.setSize(opIt->getInputTensor(1)->getShape());
                 generateWeightsTiling(opIt,masterTile,thisOpStrategy,0);
