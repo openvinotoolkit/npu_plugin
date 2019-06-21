@@ -135,7 +135,7 @@ static mv::Data::BufferIterator allocateUnpopulatedTensor(const mv::pass::PassEn
     }
     else if(logicalLocation == mv::Tensor::MemoryLocation::DDR)
     {
-        return dm.allocateTensor("VPU_DDR_BSS",stageIt, tensorIt);
+        return dm.allocateTensor("VPU_DDR_Heap",stageIt, tensorIt);
     }
     else if (logicalLocation == mv::Tensor::MemoryLocation::DEFAULT)
     {
@@ -150,13 +150,13 @@ static mv::Data::BufferIterator allocateUnpopulatedTensor(const mv::pass::PassEn
             }
             else if(defaultPlace == mv::Tensor::MemoryLocation::DDR)
             {
-                memoryLocation = "VPU_DDR_BSS";
+                memoryLocation = "VPU_DDR_Heap";
             }
             pass.log(mv::Logger::MessageType::Warning, "Tensor " + tensorIt->getName() + " in default location. Allocating to " + memoryLocation + " as specified in json");
         }
         else
         {
-            memoryLocation = "VPU_DDR_BSS";
+            memoryLocation = "VPU_DDR_Heap";
             pass.log(mv::Logger::MessageType::Warning, "Tensor " + tensorIt->getName() + " in default location. Allocating to DDR_BSS as safety");
         }
         return dm.allocateTensor(memoryLocation, stageIt, tensorIt);
@@ -332,7 +332,7 @@ void allocateCMXTensorsFcnKeemBay(const mv::pass::PassEntry& pass, mv::Computati
 static std::map<std::string,std::string> location2Allocator =
 {
         { "CMX", "VPU_CMX_NN" },
-        { "DDR", "VPU_DDR_BSS"},
+        { "DDR", "VPU_DDR_Heap"},
         { "INPUT", "ProgrammableInput"},
         { "OUTPUT", "ProgrammableOutput"},
         { "DEFAULT", "VPU_DDR_BSS"}
