@@ -34,11 +34,12 @@ void concatAsImplicitFcn(const mv::pass::PassEntry& , mv::ComputationModel& mode
         mv::QuantizationParams quantParams = {{}, {}, {}, {}};
         if(concat->hasAttr("quantParams"))
             quantParams = concat->get<mv::QuantizationParams>("quantParams");
-
+        auto outputLocation = concat->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
         auto opId = concat->get<unsigned>("opId");
         auto outputFlows = mv::getOutputDataFlow(om, concat);
         auto implicitConcat = om.implicitConcat(inputs, axis, quantParams, name);
         om.getSourceOp(implicitConcat)->set<unsigned>("opId", opId);
+        implicitConcat->set<mv::Tensor::MemoryLocation>("Location", outputLocation);
 
         mv::setOutputDataFlow(om, implicitConcat, outputFlows);
     }
