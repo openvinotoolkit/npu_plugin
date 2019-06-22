@@ -495,7 +495,7 @@ void bestFitMemoryAllocation(mv::ComputationModel& model, std::queue<std::string
 
     mv::DataModel dm(model);
     //set address in tensors
-    for (mv::TensorInterferenceGraph::node_dfs_iterator it = g.node_begin(); it != g.node_end(); ++it)
+    for (mv::TensorInterferenceGraph::node_list_iterator it = g.node_begin(); it != g.node_end(); ++it)
     {
         auto t = model.getTensor((*it).name);
         t->setAddress((*it).address); //still needed to set sparsityMap and storageElement addresses

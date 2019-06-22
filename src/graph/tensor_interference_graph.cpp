@@ -166,7 +166,7 @@ void  mv::TensorInterferenceGraph::addWeightsToInterferenceGraph_(mv::Computatio
     {
         (*it).weight = model.getTensor((*it).name)->computeTotalSize(alignment);
     }
-    for (mv::TensorInterferenceGraph::node_dfs_iterator it = this->node_begin(); it != this->node_end(); ++it)
+    for (mv::TensorInterferenceGraph::node_list_iterator it = this->node_begin(); it != this->node_end(); ++it)
     {
         (*it).neighborsWeight = getNeighborsWeight_((*it).name) + (*it).weight;
     }
