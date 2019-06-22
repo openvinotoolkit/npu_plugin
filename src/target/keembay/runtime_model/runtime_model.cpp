@@ -496,8 +496,13 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
     {
         auto masterBuffer = tensorBufferIt->getMaster(); //TODO: or do we need the top one?
         auto masterTensor = (*masterBuffer)->getData();
-        auto parent_tensor = buildTensorReferenceT(cm, compilationDescriptor, masterTensor);
-        tmp->src->strides = parent_tensor->strides;
+
+        auto numericStrides = masterTensor->computeNumericStrides();
+        numericStrides.push_back(masterTensor->getDType().getSizeInBits() / 8);
+
+        //Because according to graphfile order is given as NCHW, which is exactly the reverse of our shape assumption WHCN
+        std::reverse(numericStrides.begin(), numericStrides.end());
+        tmp->src->strides = numericStrides;
     }
 
     auto outputTensor = opIt->getOutputTensor(0);
@@ -512,8 +517,12 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
     {
         auto masterBuffer = tensorBufferIt->getMaster(); //TODO: or do we need the top one?
         auto masterTensor = (*masterBuffer)->getData();
-        auto parent_tensor = buildTensorReferenceT(cm, compilationDescriptor, masterTensor);
-        tmp->dst->strides = parent_tensor->strides;
+        auto numericStrides = masterTensor->computeNumericStrides();
+        numericStrides.push_back(masterTensor->getDType().getSizeInBits() / 8);
+
+        //Because according to graphfile order is given as NCHW, which is exactly the reverse of our shape assumption WHCN
+        std::reverse(numericStrides.begin(), numericStrides.end());
+        tmp->dst->strides = numericStrides;
     }
 
     if(opIt->hasAttr("Compression"))
