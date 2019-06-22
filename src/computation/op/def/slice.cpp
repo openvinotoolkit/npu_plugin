@@ -51,8 +51,7 @@ namespace mv
             if(args.at("quantParams").get<mv::QuantizationParams>().isEmpty() == true)
                 outputs.push_back(mv::Tensor(":0",args.at("size").get<mv::Shape>(),inputs[0]->getDType(),inputs[0]->getOrder()));
             else
-                outputs.push_back(mv::Tensor(":0",args.at("size").get<mv::Shape>(),inputs[0]->getDType(), inputs[0]->getOrder(),
-                            args.at("data").get<std::vector<double>>(), args.at("quantParams").get<mv::QuantizationParams>()));
+                outputs.push_back(mv::Tensor(":0",args.at("size").get<mv::Shape>(),inputs[0]->getDType(), inputs[0]->getOrder(), args.at("quantParams").get<mv::QuantizationParams>()));
 
             if (inputs[0]->isPopulated())
                 outputs[0].populate(inputs[0]->getData());
