@@ -482,16 +482,16 @@ const std::vector<int> mv::Workloads::getWorkloadSplitPool(const Tensor& tensor,
 
     /*Z splits*/
     /*Switched off Z splits until supported*/
-    // if((maxSplitsZ < maxSplits) && (maxSplitsZ >1))
-    // {
-    //     splitPool.push_back(maxSplitsZ);
-    //     do
-    //     {
-    //         maxSplitsZ = maxSplitsZ >> 1;
-    //         splitPool.push_back(maxSplitsZ);
-    //     }
-    //     while ((maxSplitsZ >> 1) > 1);
-    // }
+    if((maxSplitsZ < maxSplits) && (maxSplitsZ >1))
+    {
+        splitPool.push_back(maxSplitsZ);
+        do
+        {
+            maxSplitsZ = maxSplitsZ >> 1;
+            splitPool.push_back(maxSplitsZ);
+        }
+        while ((maxSplitsZ >> 1) > 1);
+    }
 
     /*DpuMul splits*/
     for(int i = nDPUxCluster; i <= (maxSplits - nDPUxCluster) ; i+=nDPUxCluster)
