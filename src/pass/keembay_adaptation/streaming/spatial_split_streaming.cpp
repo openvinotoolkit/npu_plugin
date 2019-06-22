@@ -190,8 +190,40 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model, mv::Dat
     //solve SOW/H location
     //TODO:: stop hardcoding index....
     auto inputTensor = op->getInputTensor(0);
+    auto inputTensor2Conv = inputTensor ;
     auto kernelTensor = op->getInputTensor(1);
     auto outputTensor = op->getOutputTensor(0);
+
+    //add DMA from DDR to CMX, if needed
+    
+    auto inputOp = om.getSourceOp(inputTensor);
+
+    auto DMAOpId = inputOp->get<unsigned>("opId");
+
+    mv::QuantizationParams quantParams = {{},{},{},{}};
+    if(inputTensor->hasAttr("quantParams"))
+        quantParams = inputTensor->get<mv::QuantizationParams>("quantParams");
+
+    if(inputTensor->hasAttr("Location"))
+    {
+        std::cout<< "  location of input tensor is " << inputTensor->get<mv::Tensor::MemoryLocation>("Location").toString() <<  std::endl ; 
+    }
+    else
+    {
+        std::cout<< "  No location attritbute on input tensor to original conv " << std::endl ; 
+    }
+    
+    if (inputTensor->get<mv::Tensor::MemoryLocation>("Location").toString() != "CMX")
+    {
+        std::cout<< "  adding DMA2CMX on input " <<  std::endl ; 
+
+        auto flows = inputTensor->get<std::set<std::string>>("flows");
+
+        auto inputTensorDma = om.dMATask(inputTensor, mv::DmaDirectionEnum::DDR2CMX, quantParams, mv::createDMATaskDDR2CMXName(inputOp->getName()));
+        auto inputTensorDmaOp = om.getSourceOp(inputTensorDma);
+        inputTensorDmaOp->set<unsigned>("opId", DMAOpId);
+        inputTensor2Conv = inputTensorDma ;
+    }
 
     auto opId = op->get<unsigned>("opId");
     auto number_of_splits = tiling.childTiles().size();
@@ -227,7 +259,7 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model, mv::Dat
         }
         om.getSourceOp(slice)->set<unsigned>("opId", opId);
 
-        auto conv = om.conv(inputTensor,
+        auto conv = om.conv(inputTensor2Conv,
                                 slice,
                                 op->get("stride"),
                                 op->get("padding"),
