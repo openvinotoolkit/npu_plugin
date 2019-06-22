@@ -4,7 +4,7 @@
             {
                 "name" : "GlobalConfigParams",
                 "_comment" : "Stores common params accross multiple passes. Access through the Computation Model.",
-                "recorded_model": false,
+                "recorded_model": true,
                 "verbose": "Info",
                 "weights_form": "None",
                 "barrier_index_assignment" : "Dynamic",
@@ -59,13 +59,34 @@
                         "strategy" : "SplitOverH"
                     }
                 ],
+                "tensor_placement_override" :
+                [
+                    {
+                        "name_filter" : ".*_ddr_.*",
+                        "mem_location" : "DDR"
+                    },
+                    {
+                        "name_filter" : ".*_cmx_.*",
+                        "mem_location" : "CMX"
+                    },
+                    {
+                        "name_filter" : ".*_input_.*",
+                        "mem_location" : "INPUT"
+                    },
+                    {
+                        "name_filter" : ".*_output_.*",
+                        "mem_location" : "OUTPUT"
+                    }
+                ],
+                "default_tensor_placement" : "DDR",
                 "streaming_strategy" :
                 [
                     {
-                        "name_filter" : "pool0_cmx_",
+                        "name_filter" : "conv0_cmx_",
                         "output_location" : "CMX",
                         "splits" : [
-                            {"H" : 2}
+                            {"H" : 2},
+                            {"W" : 2}
                         ]
                     },
                     {
@@ -76,10 +97,31 @@
                         ]
                     },
                     {
-                        "name_filter" : "conv2_cmx_",
+                        "name_filter" : "res2a_branch2a#4",
                         "output_location" : "CMX",
                         "splits" : [
+                        {"H" : 2}
+                        ]
+                    },
+                    {
+                        "name_filter" : "pool1/max_pool#6",
+                        "output_location" : "CMX",
+                        "splits" : [
+                            {"H" : 2}
+                        ]
+                    },
+                    {
+                        "name_filter" : "conv7/conv7#4",
+                        "output_location" : "DDR",
+                        "splits" : [
                             {"K" : 2}
+                        ]
+                    },
+                    {
+                        "name_filter" : "conv8/conv8#4",
+                        "output_location" : "DDR",
+                        "splits" : [
+                            {"K" : 16}
                         ]
                     }
                 ],
@@ -126,8 +168,6 @@
             "FuseRelu",
             "FuseScale",
             "FullyConnectedAsConv2D",
-            "StreamingTiling",
-            "StreamingOpFission",
             {
                 "name": "GenerateDot",
                 "output": "output/dots/adapt_model.dot",
@@ -138,6 +178,18 @@
             {
                 "name": "ConvertDot",
                 "input": "output/dots/adapt_model.dot"
+            },
+            "StreamingTiling",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/tiling_model.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/tiling_model.dot"
             }
         ]
     },
@@ -199,7 +251,7 @@
             {
                 "name": "GenerateDot",
                 "output": "output/dots/implicit_operations_model.dot",
-                "scope": "OpModel",
+                "scope": "OpControlModel",
                 "content": "full",
                 "html": true
             },
@@ -226,7 +278,7 @@
             {
                 "name": "GenerateDot",
                 "output": "output/dots/deallocation_model.dot",
-                "scope": "OpControlModel",
+                "scope": "OpModel",
                 "content": "full",
                 "html": true
             },
@@ -274,11 +326,23 @@
                 "name": "ConvertDot",
                 "input": "output/dots/Hanging_dma_solved.dot"
             }
+
         ]
     },
     "finalize": {
         "Singular": [
             "GenerateSparsityMapsUnpopulatedTensors",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/sparsitymaps_unpopulatedtensor.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/sparsitymaps_unpopulatedtensor.dot"
+            },
             {
                 "name": "TransitiveReduction",
                 "filter": "PositiveMemory"
@@ -340,6 +404,17 @@
             "AllocateGraphfileTensorsKeemBay",
             "ReAllocateImplicitOperationsKeemBay",
             "AllocateCMXTensorsKeemBay",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/BeforeGraphColoring.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/BeforeGraphColoring.dot"
+            },
             {
                 "name": "TensorGraphColoring",
                 "output": "output/dots/nnCmx.dot"

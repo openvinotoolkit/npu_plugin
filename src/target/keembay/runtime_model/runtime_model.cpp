@@ -478,12 +478,44 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildUPADMATaskT(Co
 
 std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt)
 {
+    mv::DataModel dm(cm);
+    mv::ControlModel controlModel(cm);
+
     std::vector<std::unique_ptr<MVCNN::TaskT>> toReturn = std::vector<std::unique_ptr<MVCNN::TaskT>>(1);
     toReturn[0] = std::unique_ptr<MVCNN::TaskT>(new MVCNN::TaskT());
     toReturn[0]->task.type = MVCNN::SpecificTask_NNDMATask;
     auto tmp = new MVCNN::NNDMATaskT();
-    tmp->src = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(0));
-    tmp->dst = buildTensorReferenceT(cm, compilationDescriptor, opIt->getOutputTensor(0));
+    auto inputTensor = opIt->getInputTensor(0);
+    tmp->src = buildTensorReferenceT(cm, compilationDescriptor, inputTensor);
+    auto tensorAllocatorName = inputTensor->get<std::set<std::string>>("allocators").begin();
+    auto tensorAllocator = dm.getAllocator(*tensorAllocatorName);
+    mv::Data::BufferIterator tensorBufferIt = tensorAllocator.getBuffer(0, inputTensor);
+    mv::Control::StageIterator stg = controlModel.getStage(0);
+
+    if (tensorBufferIt->getMaster() != dm.bufferEnd(*tensorAllocatorName, stg))
+    {
+        auto masterBuffer = tensorBufferIt->getMaster(); //TODO: or do we need the top one?
+        auto masterTensor = (*masterBuffer)->getData();
+        auto parent_tensor = buildTensorReferenceT(cm, compilationDescriptor, masterTensor);
+        tmp->src->strides = parent_tensor->strides;
+    }
+
+    auto outputTensor = opIt->getOutputTensor(0);
+
+    tmp->dst = buildTensorReferenceT(cm, compilationDescriptor, outputTensor);
+    tensorAllocatorName = outputTensor->get<std::set<std::string>>("allocators").begin();
+    tensorAllocator = dm.getAllocator(*tensorAllocatorName);
+    tensorBufferIt = tensorAllocator.getBuffer(0, outputTensor);
+    stg = controlModel.getStage(0);
+
+    if (tensorBufferIt->getMaster() != dm.bufferEnd(*tensorAllocatorName, stg))
+    {
+        auto masterBuffer = tensorBufferIt->getMaster(); //TODO: or do we need the top one?
+        auto masterTensor = (*masterBuffer)->getData();
+        auto parent_tensor = buildTensorReferenceT(cm, compilationDescriptor, masterTensor);
+        tmp->dst->strides = parent_tensor->strides;
+    }
+
     if(opIt->hasAttr("Compression"))
         tmp->compression =  opIt->get<bool>("Compression");
     toReturn[0]->task.value = tmp;
