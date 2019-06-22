@@ -54,7 +54,10 @@ namespace mv
                 outputs.push_back(mv::Tensor(":0",args.at("size").get<mv::Shape>(),inputs[0]->getDType(), inputs[0]->getOrder(), args.at("quantParams").get<mv::QuantizationParams>()));
 
             if (inputs[0]->isPopulated())
-                outputs[0].populate(inputs[0]->getData());
+            {
+                std::vector<mv::DataElement> temp(args.at("size").get<mv::Shape>().totalSize(), mv::DataElement(0));
+                outputs[0].populate(temp);
+            }
         };
 
         MV_REGISTER_OP(Slice)
