@@ -36,24 +36,17 @@ void alignTaskWeightsFcn(const mv::pass::PassEntry& , mv::ComputationModel& mode
     constants.insert(constants.end(), std::make_move_iterator(constantInts.begin()), std::make_move_iterator(constantInts.end()));
     constants.insert(constants.end(), std::make_move_iterator(constantsDataElements.begin()), std::make_move_iterator(constantsDataElements.end()));
 
-    std::vector<mv::Data::OpListIterator> sliceOps;
-    for (auto opIt = om.opBegin(); opIt != om.opEnd(); ++opIt)
-    {
-        if (opIt->getOpType() == "Slice" && opIt->getInputTensor(0)->isPopulated())
-        {
-            sliceOps.push_back(opIt);
-        }
-    }
-
-    constants.insert(constants.end(), std::make_move_iterator(sliceOps.begin()), std::make_move_iterator(sliceOps.end()));
 
     for(auto vecIt = constants.begin(); vecIt != constants.end(); ++vecIt)
     {
         auto kernelOp = *vecIt;
         auto opId = kernelOp->get<unsigned>("opId");
 
+        std::cout << "Aligning constant " << kernelOp->getName() << std::endl;
+
         std::vector<mv::Data::OpListIterator> toUpdate;
         bool hasAtLeastOneDPUTask = false;
+        bool hasSliceOp = false;
         std::string dpuTaskType;
         for(auto opIt = kernelOp.leftmostChild(); opIt != om.opEnd(); ++opIt)
         {
@@ -66,11 +59,15 @@ void alignTaskWeightsFcn(const mv::pass::PassEntry& , mv::ComputationModel& mode
                 else if(dpuTaskType != opIt->get<std::string>("taskOp"))
                     throw "Assumption violated!";
             }
+            if (opIt->getOpType() == "Slice")
+            {
+                hasSliceOp = true;
+            }
             else if(hasAtLeastOneDPUTask)
                 throw "Assumption violated!";
         }
 
-        if(hasAtLeastOneDPUTask)
+        if(hasAtLeastOneDPUTask || hasSliceOp)
         {
             auto kernel = kernelOp->getOutputTensor(0);
             auto kernelShape = kernel->getShape();
