@@ -123,6 +123,27 @@
                         "splits" : [
                             {"K" : 16}
                         ]
+                    },
+                    {
+                        "name_filter" : "max_pool#36",
+                        "output_location" : "CMX",
+                        "splits" : [
+                            {"H" : 2}
+                        ]
+                    },
+                    {
+                        "name_filter" : "relu_6#47",
+                        "output_location" : "CMX",
+                        "splits" : [
+                            {"K" : 4}
+                        ]
+                    },
+                    {
+                        "name_filter" : "relu_7#48",
+                        "output_location" : "CMX",
+                        "splits" : [
+                            {"K" : 8}
+                        ]
                     }
                 ],
                 "disable_opFission_streaming_strategy" :
@@ -312,7 +333,7 @@
             {
                 "name": "GenerateDot",
                 "output": "output/dots/deallocation_model.dot",
-                "scope": "OpModel",
+                "scope": "OpControlModel",
                 "content": "full",
                 "html": true
             },
@@ -392,7 +413,7 @@
             {
                 "name": "GenerateDot",
                 "output": "output/dots/TransitiveReductionBeforeMaxCutFull.dot",
-                "scope": "ControlModel",
+                "scope": "OpControlModel",
                 "content": "full",
                 "html": true
             },
