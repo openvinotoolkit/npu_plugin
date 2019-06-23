@@ -139,12 +139,12 @@
                 "schedule_helper_edges" :
                 [
                     {
-                        "edge_source" : "conv7/conv7#4_split_0_DEALLOC",
-                        "edge_sink" : "conv7/conv7#4_split_1_weights_table_DDR2CMX"
+                        "edge_source" : "conv7/conv7#4_split_1_DEALLOC",
+                        "edge_sink" : "conv7/conv7#4_split_0_weights_table_DDR2CMX"
                     },
                     {
-                        "edge_source" : "conv7/conv7#4_split_0_DEALLOC",
-                        "edge_sink" : "conv7/conv7_weights#1:0_slice_1_Aligned_copy0"
+                        "edge_source" : "conv7/conv7#4_split_1_DEALLOC",
+                        "edge_sink" : "conv7/conv7_weights#1:0_slice_0_Aligned_copy0"
                     }
                 ]
             },
@@ -407,6 +407,17 @@
             {
                 "name" : "TransitiveReduction",
                 "filter" : "Fakefilter"
+            },
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/TransitiveReductionBeforeScheduleHelper.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/TransitiveReductionBeforeScheduleHelper.dot"
             },
             "ScheduleHelper",
             {
