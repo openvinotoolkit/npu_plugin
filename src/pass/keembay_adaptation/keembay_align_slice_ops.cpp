@@ -76,6 +76,8 @@ void alignSliceOpsFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, 
         mv::setOutputDataFlow(om, newSlice, outputDataFlows);
 
         newSlice->set<mv::Shape>("OriginalShape", outputShape);
+        newSlice->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
+
         for(auto& flowPair: outputDataFlows)
         {
             flowPair.first->set<std::array<unsigned short, 2>>("kSize", {outputWidth, outputHeight});
