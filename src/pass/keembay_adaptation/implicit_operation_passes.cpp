@@ -123,11 +123,13 @@ void resolveImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::Computati
                 {
                     //TODO:: QUant params inherited for concat
                     //TODO:: PRONE TO ERRORS! correlate with Class Direction
+                    auto inQuantParams = inputTensor->get<mv::QuantizationParams>("quantParams");
                     const std::string directionString = inputLocation.toString() + "2" + outputLocation.toString();
                     auto compensatorOutput = om.dMATask(inputTensor,
                                                     dmaDirectionStrings[directionString],
-                                                    quantParams ,
+                                                    inQuantParams,
                                                     opIt->getName() + "_copy" + std::to_string(ctr));
+                    compensatorOutput->get<mv::QuantizationParams>("quantParams").quantize(inQuantParams.getShift(), inQuantParams.getMult());
 
                     compensatorOutput->set<mv::Tensor::MemoryLocation>("Location", outputLocation);
                     auto sinkIdx = sourceFlow->get<std::size_t>("sinkInput");
