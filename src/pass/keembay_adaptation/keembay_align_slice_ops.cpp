@@ -27,6 +27,13 @@ void alignSliceOpsFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, 
 
     for(auto op: sliceOps)
     {
+
+        if (!op->getInputTensor(0)->isPopulated())
+        {
+            std::cout << "input tensor not populated for slice of op " << op->getName() << "...not aligning" << std::endl;
+            continue;
+        }
+
         auto opId = op->get<unsigned>("opId");
 
         std::cout << "Aligning sliceOp " << op->getName() << std::endl;
