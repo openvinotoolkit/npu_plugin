@@ -59,7 +59,7 @@ void alignTaskWeightsFcn(const mv::pass::PassEntry& , mv::ComputationModel& mode
                 else if(dpuTaskType != opIt->get<std::string>("taskOp"))
                     throw "Assumption violated!";
             }
-            if (opIt->getOpType() == "Slice")
+            else if (opIt->getOpType() == "Slice")
             {
                 hasSliceOp = true;
             }
