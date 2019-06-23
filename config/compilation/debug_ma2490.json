@@ -135,6 +135,17 @@
                         "name_filter" : "conv2_cmx_",
                         "weight_splits" : 4
                     }
+                ],
+                "schedule_helper_edges" :
+                [
+                    {
+                        "edge_source" : "conv7/conv7#4_split_0_DEALLOC",
+                        "edge_sink" : "conv7/conv7#4_split_1_weights_table_DDR2CMX"
+                    },
+                    {
+                        "edge_source" : "conv7/conv7#4_split_0_DEALLOC",
+                        "edge_sink" : "conv7/conv7_weights#1:0_slice_1_Aligned_copy0"
+                    }
                 ]
             },
             "ComputeMemory",
@@ -198,7 +209,29 @@
             "ConcatAsImplicit",
             "StoreLayerSplitStrategy",
             "StoreWorkloadStrategy",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/BeforeOpsToTasks.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/BeforeOpsToTasks.dot"
+            },
             "ConvertOpsToTasks",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/AfterOpsToTasks.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/AfterOpsToTasks.dot"
+            },
             "AlignTo16Channels",
             "ComputeTensorsQuantParams",
             "KMBOrderConversion",
@@ -216,6 +249,7 @@
             "SetDpuTasksMemoryLocation",
             "UpdateConcatQuantizationParams",
             "AlignTaskWeights",
+            "AlignSliceOps",
             "GenerateSparsityMapsPopulatedTensors",
             "GenerateWeightsTables",
             {
@@ -370,6 +404,22 @@
                 "name": "ConvertDot",
                 "input": "output/dots/TransitiveReductionBeforeMaxCutFull.dot"
             },
+            {
+                "name" : "TransitiveReduction",
+                "filter" : "Fakefilter"
+            },
+            "ScheduleHelper",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/AfterScheduleHelper.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/AfterScheduleHelper.dot"
+            },
             "MaxTopologicalCutAndPartialSerialisation",
             {
                 "name": "GenerateDot",
@@ -414,6 +464,17 @@
             {
                 "name": "ConvertDot",
                 "input": "output/dots/BeforeGraphColoring.dot"
+            },
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/BeforeGraphColoringControl.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/BeforeGraphColoringControl.dot"
             },
             {
                 "name": "TensorGraphColoring",
