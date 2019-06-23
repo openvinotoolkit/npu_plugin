@@ -80,6 +80,7 @@ void alignTaskWeightsFcn(const mv::pass::PassEntry& , mv::ComputationModel& mode
             auto inputChannels = kernelShape[mv::KERNEL_INPUT_CHANNELS];
             auto kernelWidth = kernelShape[mv::KERNEL_WIDTH];
             auto kernelHeight = kernelShape[mv::KERNEL_HEIGHT];
+            auto oldWeightLocation = kernel->get<mv::Tensor::MemoryLocation>("Location");
 
             //Initializions are done assuming regular convolution and then eventually modified for depthwise
             auto outputChannels = kernelShape[mv::KERNEL_OUTPUT_CHANNELS];
@@ -114,6 +115,12 @@ void alignTaskWeightsFcn(const mv::pass::PassEntry& , mv::ComputationModel& mode
             auto newKernel = om.constantDataElement(newData, newShape, kernelDType, mv::Order("NHWC"), quantParams, newKernelName);
             auto newKernelOp = om.getSourceOp(newKernel);
             newKernelOp->set<unsigned>("opId", opId);
+
+            if (hasSliceOp)
+            {
+                //std::cout << "old weights location = " << oldWeightLocation.toString() << std::endl;
+                newKernel->set<mv::Tensor::MemoryLocation>("Location", oldWeightLocation);
+            }
 
             mv::setOutputDataFlow(om, newKernel, outputDataFlows);
 
