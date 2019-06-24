@@ -91,7 +91,7 @@ void allocateInputOutputTensorsKeemBay(const mv::pass::PassEntry& pass, mv::Comp
             {
                 std::set<std::string> allocatorName;
                 allocatorName.insert("ProgrammableOutput");
-                inTensor->getSubTensor(idx).set<std::set<std::string>>("allocators", allocatorName);
+                outTensor->getSubTensor(idx).set<std::set<std::string>>("allocators", allocatorName);
             }
         }
     }
@@ -172,13 +172,26 @@ void allocateCMXTensorsFcnKeemBay(const mv::pass::PassEntry& pass, mv::Computati
         {
             auto outTensor = opIterator->getOutputTensor(0);
             outTensor->set<bool>("modelInput", true); /*Assign tensor attribute  modelInput"*/
+            if (outTensor->hasSubTensors())
+            {
+                for (unsigned idx = 0; idx < numSubTensors; idx++)
+                {
+                    outTensor->getSubTensor(idx).set<bool>("modelInput", true);
+                }
+            }
         }
 
         else if (opType == "Output")
         {
             auto inTensor = opIterator->getInputTensor(0);
             inTensor->set<bool>("modelOutput", true); /*Assign tensor attribute  modelOutput"*/
-
+            if (inTensor->hasSubTensors())
+            {
+                for (unsigned idx = 0; idx < numSubTensors; idx++)
+                {
+                    inTensor->getSubTensor(idx).set<bool>("modelOutput", true);
+                }
+            }
         }
 
         else if (opType == "Constant" || opType == "ConstantInt" || opType == "ConstantDataElement")
