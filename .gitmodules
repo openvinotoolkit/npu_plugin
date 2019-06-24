@@ -4,6 +4,3 @@
 [submodule "thirdparty/movidius/mcmCompiler"]
 	path = thirdparty/movidius/mcmCompiler
 	url = git@github.com:movidius/mcmCompiler.git
-[submodule "thirdparty/vsi_cmodel"]
-	path = thirdparty/vsi_cmodel
-	url = ssh://git@gitlab.devtools.intel.com:29418/kmb_hddl/vsi_cmodel.git
