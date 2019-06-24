@@ -1081,7 +1081,7 @@ std::size_t mv::Tensor::computeTotalSize(unsigned int alignment, bool isBase) co
     return res;
 }
 
-void mv::Tensor::splitAcrossClusters(std::vector<mv::Workload> workloads, bool splitOverH, bool multicast, bool subTensorWholeTensor)
+void mv::Tensor::splitAcrossClusters(std::vector<mv::Workload> workloads, bool splitOverH, bool multicast)
 {
     if (isPopulated())
     {
@@ -1091,7 +1091,7 @@ void mv::Tensor::splitAcrossClusters(std::vector<mv::Workload> workloads, bool s
             size_t idx = wlItr - workloads.begin();
             auto width = wlItr->MaxX - wlItr->MinX + 1;
             auto height = wlItr->MaxY - wlItr->MinY + 1;
-            if (splitOverH || subTensorWholeTensor)
+            if (splitOverH)
             {
                 subTensors_.push_back(std::make_shared<mv::Tensor>(getName() + "sub" + std::to_string(idx),
                     getShape(), getDType(), getOrder(), getData()));
@@ -1133,18 +1133,18 @@ void mv::Tensor::splitAcrossClusters(std::vector<mv::Workload> workloads, bool s
             size_t idx = wlItr - workloads.begin();
             auto width = wlItr->MaxX - wlItr->MinX + 1;
             auto height = wlItr->MaxY - wlItr->MinY + 1;
-            if (!splitOverH || subTensorWholeTensor)
-            {
-                mv::Shape newShape = { shape[0], shape[1] , static_cast<size_t>(width), static_cast<size_t>(height)};
-                subTensors_.push_back(std::make_shared<mv::Tensor>(getName() + "sub" + std::to_string(idx), newShape, getDType(), getOrder()));
-                std::vector<std::size_t> offset =  {0 , 0, static_cast<size_t>(wlItr->MinX), static_cast<size_t>(wlItr->MinY)};
-                subTensors_[idx]->set<std::vector<std::size_t>>("offset", offset);
-            }
-            else
+            if (splitOverH)
             {
                 mv::Shape newShape = { static_cast<size_t>(width), static_cast<size_t>(height) ,shape[2], shape[3]};
                 subTensors_.push_back(std::make_shared<mv::Tensor>(getName() + "sub" + std::to_string(idx), newShape, getDType(), getOrder()));
                 std::vector<std::size_t> offset = {static_cast<size_t>(wlItr->MinX), static_cast<size_t>(wlItr->MinY), 0 , 0};
+                subTensors_[idx]->set<std::vector<std::size_t>>("offset", offset);
+            }
+            else
+            {
+                mv::Shape newShape = { shape[0], shape[1] , static_cast<size_t>(width), static_cast<size_t>(height)};
+                subTensors_.push_back(std::make_shared<mv::Tensor>(getName() + "sub" + std::to_string(idx), newShape, getDType(), getOrder()));
+                std::vector<std::size_t> offset =  {0 , 0, static_cast<size_t>(wlItr->MinX), static_cast<size_t>(wlItr->MinY)};
                 subTensors_[idx]->set<std::vector<std::size_t>>("offset", offset);
             }
 

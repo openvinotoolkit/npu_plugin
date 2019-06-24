@@ -23,23 +23,49 @@ namespace mv
 void strategyLayersToTensors(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
     auto globalParams = model.getGlobalConfigParams();
-    mv::OpModel om(model);
+    unsigned numClusters = globalParams->get<int>("Number_of_Clusters");
 
-    for(auto layer = om.opBegin(); layer != om.opEnd(); ++layer)
+    mv::OpModel om(model);
+    //One cluster means no need for splitting
+    if (numClusters > 1)
     {
-        std::string opType = layer->getOpType();
-        if (opType == "DPUTask" || opType == "Input")
+        for(auto layer = om.opBegin(); layer != om.opEnd(); ++layer)
         {
-            auto opStrategy = layer->get<std::string>("splitStrategy");
-            auto outputTensor = layer->getOutputTensor(0);
-            outputTensor->set<std::string>("splitStrategy", opStrategy);
-            unsigned n = layer->inputSlots();
-            for(unsigned i = 1; i < n; ++i)
+            std::string opType = layer->getOpType();
+            if (opType == "DPUTask" || opType == "Input")
             {
-                auto inputTensor = layer->getInputTensor(i);
-                inputTensor->set<std::string>("splitStrategy", opStrategy);
+                auto opStrategy = layer->get<std::string>("splitStrategy");
+                auto outputTensor = layer->getOutputTensor(0);
+                outputTensor->set<std::string>("splitStrategy", opStrategy);
+                unsigned n = layer->inputSlots();
+                for(unsigned i = 0; i < n; ++i)
+                {
+                    auto inputTensor = layer->getInputTensor(i);
+                    inputTensor->set<std::string>("splitStrategy", opStrategy);
+                }
+            }
+         }
+        for(auto layer = om.opBegin(); layer != om.opEnd(); ++layer)
+        {
+            std::string opType = layer->getOpType();
+            if (opType == "DMATask")
+            {
+                auto outputTensor = layer->getOutputTensor(0);
+                if (outputTensor->hasAttr("splitStrategy"))
+                {
+                    auto outputTensorStrategy = outputTensor->get<std::string>("splitStrategy");
+                    auto inputTensor = layer->getInputTensor(0);
+                    inputTensor->set<std::string>("splitStrategy", outputTensorStrategy);
+                }
+                //last DMA CMX2DDR for Output
+                else
+                {
+                    auto inputTensor = layer->getInputTensor(0);
+                    auto inputTensorStrategy = inputTensor->get<std::string>("splitStrategy");
+                    outputTensor->set<std::string>("splitStrategy", inputTensorStrategy);
+                }
             }
         }
-     }
+    }
     return;
 }
