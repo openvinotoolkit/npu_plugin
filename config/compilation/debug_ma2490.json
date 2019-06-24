@@ -135,14 +135,14 @@
                         "name_filter" : "relu_6#47",
                         "output_location" : "CMX",
                         "splits" : [
-                            {"K" : 4}
+                            {"K" : 8}
                         ]
                     },
                     {
                         "name_filter" : "relu_7#48",
                         "output_location" : "CMX",
                         "splits" : [
-                            {"K" : 8}
+                            {"K" : 16}
                         ]
                     }
                 ],
@@ -160,12 +160,186 @@
                 "schedule_helper_edges" :
                 [
                     {
-                        "edge_source" : "conv7/conv7#4_split_1_DEALLOC",
-                        "edge_sink" : "conv7/conv7#4_split_0_weights_table_DDR2CMX"
+                        "edge_source" : "max_pool#36_split_0_DEALLOC",
+                        "edge_sink" : "max_pool#36_slice_1_copy0"
                     },
                     {
-                        "edge_source" : "conv7/conv7#4_split_1_DEALLOC",
-                        "edge_sink" : "conv7/conv7_weights#1:0_slice_0_Aligned_copy0"
+                        "edge_source" : "max_pool#36_split_0_DEALLOC",
+                        "edge_sink" : "max_pool#36_split_1_weights_table_DDR2CMX"
+                    },
+                    {
+                        "edge_source" : "max_pool#36_split_0_DEALLOC",
+                        "edge_sink" : "max_pool#36_split_1_sparse_dw_DDR2CMX"
+                    },
+                    {
+                        "edge_source" : "relu_6#47_split_0_DEALLOC",
+                        "edge_sink" : "relu_6#47_split_1_weights_table_DDR2CMX"
+                    },
+                    {
+                        "edge_source" : "relu_6#47_split_0_DEALLOC",
+                        "edge_sink" : "relu_6_weights#25:0_slice_1_Aligned_copy0"
+                    },
+                    {
+                        "edge_source" : "relu_6#47_split_1_DEALLOC",
+                        "edge_sink" : "relu_6#47_split_2_weights_table_DDR2CMX"
+                    },
+                    {
+                        "edge_source" : "relu_6#47_split_1_DEALLOC",
+                        "edge_sink" : "relu_6_weights#25:0_slice_2_Aligned_copy0"
+                    },
+                    {
+                        "edge_source" : "relu_6#47_split_2_DEALLOC",
+                        "edge_sink" : "relu_6#47_split_3_weights_table_DDR2CMX"
+                    },
+                    {
+                        "edge_source" : "relu_6#47_split_2_DEALLOC",
+                        "edge_sink" : "relu_6_weights#25:0_slice_3_Aligned_copy0"
+                    },
+                    {
+                        "edge_source" : "relu_6#47_split_4_DEALLOC",
+                        "edge_sink" : "relu_6#47_split_5_weights_table_DDR2CMX"
+                    },
+                    {
+                        "edge_source" : "relu_6#47_split_4_DEALLOC",
+                        "edge_sink" : "relu_6_weights#25:0_slice_5_Aligned_copy0"
+                    },
+                    {
+                        "edge_source" : "relu_6#47_split_5_DEALLOC",
+                        "edge_sink" : "relu_6#47_split_6_weights_table_DDR2CMX"
+                    },
+                    {
+                        "edge_source" : "relu_6#47_split_5_DEALLOC",
+                        "edge_sink" : "relu_6_weights#25:0_slice_6_Aligned_copy0"
+                    },
+                    {
+                        "edge_source" : "relu_6#47_split_6_DEALLOC",
+                        "edge_sink" : "relu_6#47_split_7_weights_table_DDR2CMX"
+                    },
+                    {
+                        "edge_source" : "relu_6#47_split_6_DEALLOC",
+                        "edge_sink" : "relu_6_weights#25:0_slice_7_Aligned_copy0"
+                    },
+
+
+                    {
+                        "edge_source" : "relu_7#48_split_0_DEALLOC",
+                        "edge_sink" : "relu_7#48_split_1_weights_table_DDR2CMX"
+                    },
+                    {
+                        "edge_source" : "relu_7#48_split_0_DEALLOC",
+                        "edge_sink" : "relu_7_weights#28:0_slice_1_Aligned_copy0"
+                    },
+                    {
+                        "edge_source" : "relu_7#48_split_1_DEALLOC",
+                        "edge_sink" : "relu_7#48_split_2_weights_table_DDR2CMX"
+                    },
+                    {
+                        "edge_source" : "relu_7#48_split_1_DEALLOC",
+                        "edge_sink" : "relu_7_weights#28:0_slice_2_Aligned_copy0"
+                    },
+                    {
+                        "edge_source" : "relu_7#48_split_2_DEALLOC",
+                        "edge_sink" : "relu_7#48_split_3_weights_table_DDR2CMX"
+                    },
+                    {
+                        "edge_source" : "relu_7#48_split_2_DEALLOC",
+                        "edge_sink" : "relu_7_weights#28:0_slice_3_Aligned_copy0"
+                    },
+                    {
+                        "edge_source" : "relu_7#48_split_3_DEALLOC",
+                        "edge_sink" : "relu_7#48_split_4_weights_table_DDR2CMX"
+                    },
+                    {
+                        "edge_source" : "relu_7#48_split_3_DEALLOC",
+                        "edge_sink" : "relu_7_weights#28:0_slice_4_Aligned_copy0"
+                    },
+                    {
+                        "edge_source" : "relu_7#48_split_4_DEALLOC",
+                        "edge_sink" : "relu_7#48_split_5_weights_table_DDR2CMX"
+                    },
+                    {
+                        "edge_source" : "relu_7#48_split_4_DEALLOC",
+                        "edge_sink" : "relu_7_weights#28:0_slice_5_Aligned_copy0"
+                    },
+                    {
+                        "edge_source" : "relu_7#48_split_5_DEALLOC",
+                        "edge_sink" : "relu_7#48_split_6_weights_table_DDR2CMX"
+                    },
+                    {
+                        "edge_source" : "relu_7#48_split_5_DEALLOC",
+                        "edge_sink" : "relu_7_weights#28:0_slice_6_Aligned_copy0"
+                    },
+                    {
+                        "edge_source" : "relu_7#48_split_6_DEALLOC",
+                        "edge_sink" : "relu_7#48_split_7_weights_table_DDR2CMX"
+                    },
+                    {
+                        "edge_source" : "relu_7#48_split_6_DEALLOC",
+                        "edge_sink" : "relu_7_weights#28:0_slice_7_Aligned_copy0"
+                    },
+                    {
+                        "edge_source" : "relu_7#48_split_7_DEALLOC",
+                        "edge_sink" : "relu_7#48_split_8_weights_table_DDR2CMX"
+                    },
+                    {
+                        "edge_source" : "relu_7#48_split_7_DEALLOC",
+                        "edge_sink" : "relu_7_weights#28:0_slice_8_Aligned_copy0"
+                    },
+                    {
+                        "edge_source" : "relu_7#48_split_8_DEALLOC",
+                        "edge_sink" : "relu_7#48_split_9_weights_table_DDR2CMX"
+                    },
+                    {
+                        "edge_source" : "relu_7#48_split_8_DEALLOC",
+                        "edge_sink" : "relu_7_weights#28:0_slice_9_Aligned_copy0"
+                    },
+                    {
+                        "edge_source" : "relu_7#48_split_9_DEALLOC",
+                        "edge_sink" : "relu_7#48_split_10_weights_table_DDR2CMX"
+                    },
+                    {
+                        "edge_source" : "relu_7#48_split_9_DEALLOC",
+                        "edge_sink" : "relu_7_weights#28:0_slice_10_Aligned_copy0"
+                    },
+                    {
+                        "edge_source" : "relu_7#48_split_10_DEALLOC",
+                        "edge_sink" : "relu_7#48_split_11_weights_table_DDR2CMX"
+                    },
+                    {
+                        "edge_source" : "relu_7#48_split_10_DEALLOC",
+                        "edge_sink" : "relu_7_weights#28:0_slice_11_Aligned_copy0"
+                    },
+                    {
+                        "edge_source" : "relu_7#48_split_11_DEALLOC",
+                        "edge_sink" : "relu_7#48_split_12_weights_table_DDR2CMX"
+                    },
+                    {
+                        "edge_source" : "relu_7#48_split_11_DEALLOC",
+                        "edge_sink" : "relu_7_weights#28:0_slice_12_Aligned_copy0"
+                    },
+                    {
+                        "edge_source" : "relu_7#48_split_12_DEALLOC",
+                        "edge_sink" : "relu_7#48_split_13_weights_table_DDR2CMX"
+                    },
+                    {
+                        "edge_source" : "relu_7#48_split_12_DEALLOC",
+                        "edge_sink" : "relu_7_weights#28:0_slice_13_Aligned_copy0"
+                    },
+                    {
+                        "edge_source" : "relu_7#48_split_13_DEALLOC",
+                        "edge_sink" : "relu_7#48_split_14_weights_table_DDR2CMX"
+                    },
+                    {
+                        "edge_source" : "relu_7#48_split_13_DEALLOC",
+                        "edge_sink" : "relu_7_weights#28:0_slice_14_Aligned_copy0"
+                    },
+                    {
+                        "edge_source" : "relu_7#48_split_14_DEALLOC",
+                        "edge_sink" : "relu_7#48_split_15_weights_table_DDR2CMX"
+                    },
+                    {
+                        "edge_source" : "relu_7#48_split_14_DEALLOC",
+                        "edge_sink" : "relu_7_weights#28:0_slice_15_Aligned_copy0"
                     }
                 ]
             },
