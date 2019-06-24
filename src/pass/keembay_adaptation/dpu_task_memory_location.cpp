@@ -60,9 +60,12 @@ void setDpuTasksMemoryLocationFcn(const mv::pass::PassEntry& , mv::ComputationMo
                     output->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::CMX);
 
 //                    auto dpuCopyOut = om.copy(output, output->get<mv::QuantizationParams>("quantParams"), opIt->getName() + "_copyOut");
-                    auto dpuCopyOut = om.dMATask(output,mv::DmaDirectionEnum::CMX2DDR,output->get<mv::QuantizationParams>("quantParams"),opIt->getName() + "_copyOut");
+                    auto outputQuantParams = output->get<mv::QuantizationParams>("quantParams");
+                    auto dpuCopyOut = om.dMATask(output, mv::DmaDirectionEnum::CMX2DDR, outputQuantParams,opIt->getName() + "_copyOut");
+                    auto dpuCopyOutOp = om.getSourceOp(dpuCopyOut);
+                    dpuCopyOutOp->set<unsigned>("opId", opIt->get<unsigned>("opId"));
+                    dpuCopyOutOp->getOutputTensor(0)->get<mv::QuantizationParams>("quantParams").quantize(outputQuantParams.getShift(), outputQuantParams.getMult());
 
-                    om.getSourceOp(dpuCopyOut)->set<unsigned>("opId", opIt->get<unsigned>("opId"));
                     setOutputDataFlow(om, dpuCopyOut, outputDataFlows);
                     dpuCopyOut->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
                 }
@@ -71,10 +74,12 @@ void setDpuTasksMemoryLocationFcn(const mv::pass::PassEntry& , mv::ComputationMo
                 {
                     auto input = opIt->getInputTensor(0);
 //                    auto dpuCopyIn = om.copy(input, input->get<mv::QuantizationParams>("quantParams"), opIt->getName() + "_copyIn");
-                    auto dpuCopyIn = om.dMATask(input,mv::DmaDirectionEnum::DDR2CMX,input->get<mv::QuantizationParams>("quantParams"),opIt->getName() + "_copyIn");
+                    auto inputQuantParams = input->get<mv::QuantizationParams>("quantParams");
+                    auto dpuCopyIn = om.dMATask(input, mv::DmaDirectionEnum::DDR2CMX, inputQuantParams, opIt->getName() + "_copyIn");
                     auto dpuCopyInOp = om.getSourceOp(dpuCopyIn);
+                    dpuCopyInOp->getOutputTensor(0)->get<mv::QuantizationParams>("quantParams").quantize(inputQuantParams.getShift(), inputQuantParams.getMult());
 
-                    om.getSourceOp(dpuCopyIn)->set<unsigned>("opId", opIt->get<unsigned>("opId"));
+                    dpuCopyInOp->set<unsigned>("opId", opIt->get<unsigned>("opId"));
 
                     auto flows = input->get<std::set<std::string>>("flows");
 

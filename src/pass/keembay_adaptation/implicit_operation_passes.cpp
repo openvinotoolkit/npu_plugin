@@ -188,10 +188,12 @@ void resolveImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::Computati
                     flowsToRemove.push_back(sinkFlow);
                 }
 
+                auto outQuantParams = outputTensor->get<mv::QuantizationParams>("quantParams");
                 auto compensatorOutput = om.dMATask(outputTensor,
                                                         dmaDirectionStrings[directionString],
-                                                        quantParams,
+                                                        outQuantParams,
                                                         opIt->getName() + "_copy" + std::to_string(ctr));
+                compensatorOutput->get<mv::QuantizationParams>("quantParams").quantize(outQuantParams.getShift(), outQuantParams.getMult());
 
                 pass.log(mv::Logger::MessageType::Info,"Adding new DMA OP: # " + compensatorOutput->getName() +
                                                             " as output to # " + opIt->getName());
