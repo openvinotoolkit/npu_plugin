@@ -157,6 +157,19 @@ void compileMcm(
     IE_ASSERT(unit.loadTargetDescriptor(targetPath));
     IE_ASSERT(unit.initialize());
 
+    if (parsedConfig[CONFIG_KEY(LOG_LEVEL)] == CONFIG_VALUE(LOG_NONE)) {
+        compDesc.setPassArg("GlobalConfigParams", "verbose", std::string("Error"));
+    }
+    if (parsedConfig[CONFIG_KEY(LOG_LEVEL)] == CONFIG_VALUE(LOG_WARNING)) {
+        compDesc.setPassArg("GlobalConfigParams", "verbose", std::string("Warning"));
+    }
+    if (parsedConfig[CONFIG_KEY(LOG_LEVEL)] == CONFIG_VALUE(LOG_INFO)) {
+        compDesc.setPassArg("GlobalConfigParams", "verbose", std::string("Info"));
+    }
+    if (parsedConfig[CONFIG_KEY(LOG_LEVEL)] == CONFIG_VALUE(LOG_DEBUG)) {
+        compDesc.setPassArg("GlobalConfigParams", "verbose", std::string("Debug"));
+    }
+
     // C++ exception if fails
     auto result = unit.run();
 
