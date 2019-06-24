@@ -24,6 +24,7 @@ namespace mv
 void setDpuTasksMemoryLocationFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
     mv::OpModel om(model);
+    mv::DataModel dm(model);
 
     auto opIt = om.getInput();
     while (opIt != om.opEnd())
@@ -71,14 +72,26 @@ void setDpuTasksMemoryLocationFcn(const mv::pass::PassEntry& , mv::ComputationMo
                     auto input = opIt->getInputTensor(0);
 //                    auto dpuCopyIn = om.copy(input, input->get<mv::QuantizationParams>("quantParams"), opIt->getName() + "_copyIn");
                     auto dpuCopyIn = om.dMATask(input,mv::DmaDirectionEnum::DDR2CMX,input->get<mv::QuantizationParams>("quantParams"),opIt->getName() + "_copyIn");
+                    auto dpuCopyInOp = om.getSourceOp(dpuCopyIn);
 
                     om.getSourceOp(dpuCopyIn)->set<unsigned>("opId", opIt->get<unsigned>("opId"));
 
-                    auto inputFlow  = opIt.leftmostInput();
+                    auto flows = input->get<std::set<std::string>>("flows");
 
-                    opIt->setInputTensor(dpuCopyIn, 0, false);
-                    om.undefineFlow(inputFlow);
-                    om.defineFlow(dpuCopyIn, opIt, 0);
+                    for(auto flowStr: flows)
+                    {
+                        auto backupFlow = dm.getDataFlow(flowStr);
+                        auto idx = backupFlow->get<std::size_t>("sinkInput");
+                        if (idx == 0)
+                        {
+                            auto sink = backupFlow.sink();
+                            om.undefineFlow(backupFlow);
+                            sink->setInputTensor(dpuCopyIn, idx, false);
+                            om.defineFlow(dpuCopyInOp, 0, sink, idx);
+                            break;
+                        }
+                    }
+
                     dpuCopyIn->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::CMX);
                 }
             }
