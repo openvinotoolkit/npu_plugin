@@ -197,10 +197,10 @@ void addWeightsDMATasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
 
 
                     auto index = std::distance(sortedOps.begin(), std::find(sortedOps.begin(), sortedOps.end(), opIt));
-                    //if(index <= dma_dependency)
-                    cm.defineFlow(om.getInput(), inputTensorDmaOp);
-                    //else
-                    //    cm.defineFlow(sortedOps[index - dma_dependency], inputTensorDmaOp);
+                    if(index <= dma_dependency)
+                        cm.defineFlow(om.getInput(), inputTensorDmaOp);
+                    else
+                        cm.defineFlow(sortedOps[index - dma_dependency], inputTensorDmaOp);
                 }
             }
         }
