@@ -44,9 +44,6 @@ public:
                       const std::map<std::string, std::string>& config, InferenceEngine::QueryNetworkResult& res) const override;
 
     InferenceEngine::IExecutableNetwork::Ptr ImportNetwork(const std::string &modelFileName, const std::map<std::string, std::string> &config) override;
-
-private:
-    std::vector<DevicePtr> _devicePool;
 };
 
 }  // namespace KmbPlugin

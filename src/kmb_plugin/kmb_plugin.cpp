@@ -69,7 +69,7 @@ ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(const ICore * /*core*/
         configCopy[entry.first] = entry.second;
     }
 
-    return std::make_shared<ExecutableNetwork>(network, _devicePool, configCopy);
+    return std::make_shared<ExecutableNetwork>(network, configCopy);
 }
 
 void Engine::SetConfig(const std::map<std::string, std::string> &userConfig) {
@@ -138,7 +138,7 @@ IExecutableNetwork::Ptr Engine::ImportNetwork(const std::string &modelFileName, 
     IExecutableNetwork::Ptr executableNetwork;
     // Use config provided by an user ignoring default config
     executableNetwork.reset(new ExecutableNetworkBase<ExecutableNetworkInternal>(
-                                std::make_shared<ExecutableNetwork>(modelFileName, _devicePool, config)),
+                                std::make_shared<ExecutableNetwork>(modelFileName, config)),
                                 [](InferenceEngine::details::IRelease *p) {p->Release();});
 
     return executableNetwork;

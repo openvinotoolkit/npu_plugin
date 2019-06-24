@@ -46,17 +46,15 @@ public:
     typedef std::shared_ptr<ExecutableNetwork> Ptr;
 
     explicit ExecutableNetwork(InferenceEngine::ICNNNetwork &network,
-                               std::vector<DevicePtr> &devicePool,
                                const std::map<std::string, std::string> &config);
 
 
     explicit ExecutableNetwork(const std::string &blobFilename,
-                               std::vector<DevicePtr> &devicePool,
                                const std::map<std::string, std::string> &config);
 
     ~ExecutableNetwork() {
         try {
-            _executor->deallocateGraph(_device, _graphDesc);
+            _executor->deallocateGraph();
         }
         catch (...) {
             std::cerr << "ERROR ~ExecutableNetwork():\n"
@@ -66,13 +64,13 @@ public:
 
     InferenceEngine::InferRequestInternal::Ptr CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
                                                                       InferenceEngine::OutputsDataMap networkOutputs) override {
-        return std::make_shared<KmbInferRequest>(_graphDesc, networkInputs, networkOutputs,
+        return std::make_shared<KmbInferRequest>(networkInputs, networkOutputs,
                                                     _inputInfo, _outputInfo,
                                                     _stagesMetaData, _config, _log, _executor);
     }
 
     void CreateInferRequest(InferenceEngine::IInferRequest::Ptr &asyncRequest) override {
-        auto syncRequestImpl = std::make_shared<KmbInferRequest>(_graphDesc, _networkInputs, _networkOutputs,
+        auto syncRequestImpl = std::make_shared<KmbInferRequest>(_networkInputs, _networkOutputs,
                                                                     _inputInfo, _outputInfo,
                                                                     _stagesMetaData, _config, _log,
                                                                     _executor);
@@ -108,8 +106,6 @@ private:
     Logger::Ptr _log;
     KmbExecutorPtr _executor;
     std::vector<char> _graphBlob;
-    GraphDesc _graphDesc;
-    DevicePtr _device;
     std::vector<StageMetaInfo> _stagesMetaData;
     std::shared_ptr<KmbConfig> _config;
 
