@@ -16,7 +16,6 @@
 
 #include <vpusmm.h>
 #include <sys/mman.h>
-#include <dma-buf.h>
 #include <sys/ioctl.h>
 #include <unistd.h>
 
