@@ -839,7 +839,11 @@
             "initialize",
             "validate",
             "adapt",
-            "keembay_adapt"
+            "keembay_adapt",
+            "dma",
+            "control_flows",
+            "finalize",
+            "serialize"
         ],
         "Recurrent": [
             "validate"
