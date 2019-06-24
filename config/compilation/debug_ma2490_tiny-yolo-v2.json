@@ -445,18 +445,6 @@
                 "name": "ConvertDot",
                 "input": "output/dots/keembay_adapt_model.dot"
             },
-            "SetDpuTasksMemoryLocation",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/dpu_tasks_location.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/dpu_tasks_location.dot"
-            },
             "UpdateConcatQuantizationParams",
             {
                 "name": "GenerateDot",
@@ -468,6 +456,18 @@
             {
                 "name": "ConvertDot",
                 "input": "output/dots/update_concat_quantization.dot"
+            },
+            "SetDpuTasksMemoryLocation",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/dpu_tasks_location.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/dpu_tasks_location.dot"
             },
             "AlignTaskWeights",
             {

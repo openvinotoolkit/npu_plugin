@@ -441,8 +441,8 @@
                 "name": "ConvertDot",
                 "input": "output/dots/keembay_adapt_model.dot"
             },
-            "SetDpuTasksMemoryLocation",
             "UpdateConcatQuantizationParams",
+            "SetDpuTasksMemoryLocation",
             "AlignTaskWeights",
             "AlignSliceOps",
             "GenerateSparsityMapsPopulatedTensors",
