@@ -58,7 +58,7 @@ void alignSliceOpsFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, 
         auto outputHeight = outputShape[mv::KERNEL_HEIGHT];
 
         auto outputChannels = outputShape[mv::KERNEL_OUTPUT_CHANNELS];
-        auto weightSetDimension = outputWidth * outputHeight * outputChannels;
+        auto weightSetDimension = outputWidth * outputHeight * inputChannels;
 
         // Not sure if this will work for slice...
         auto weightSetDimensionPadded = mv::round_up(weightSetDimension, 16);
