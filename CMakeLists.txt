@@ -32,6 +32,11 @@ if(NOT DEFINED ENABLE_MCM_COMPILER)
     set(ENABLE_MCM_COMPILER ON)
 endif()
 
+# Disable vpualHost by default
+if(NOT DEFINED ENABLE_VPUAL)
+    set(ENABLE_VPUAL OFF)
+endif()
+
 add_subdirectory(src/kmb_plugin)
 
 if(ENABLE_TESTS)

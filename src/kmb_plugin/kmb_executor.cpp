@@ -40,8 +40,6 @@
 #include "kmb_executor.h"
 #include "kmb_config.h"
 
-#include <mvMacros.h>
-
 #ifndef _WIN32
 # include <libgen.h>
 # include <dlfcn.h>
@@ -72,6 +70,7 @@ KmbExecutor::KmbExecutor(const Logger::Ptr& log, const std::shared_ptr<KmbConfig
         return;
     }
 
+#ifdef ENABLE_VPUAL
     HeapAlloc = make_shared<HeapAllocator>();
     nnPl = make_shared<NNFlicPlg>();
     gg = make_shared<GraphManagerPlg>();
@@ -85,6 +84,7 @@ KmbExecutor::KmbExecutor(const Logger::Ptr& log, const std::shared_ptr<KmbConfig
     output_tensor = make_shared<CmaData>();
     BHandle = make_shared<BlobHandle_t>();
     pipe = make_shared<Pipeline>();
+#endif
 }
 
 void KmbExecutor::allocateGraph(const std::vector<char> &graphFileContent, const char* networkName) {
@@ -93,6 +93,7 @@ void KmbExecutor::allocateGraph(const std::vector<char> &graphFileContent, const
         return;
     }
 
+#ifdef ENABLE_VPUAL
     int graphId_main = 1;
     int nThreads = 4;
     int nShaves = 16;
@@ -214,6 +215,7 @@ void KmbExecutor::allocateGraph(const std::vector<char> &graphFileContent, const
     std::cout << "Started FLIC pipeline..." << std::endl;
 
     std::cout << "Fin" << std::endl;
+#endif
 }
 
 void KmbExecutor::queueInference(void *input_data, size_t input_bytes,
@@ -222,9 +224,12 @@ void KmbExecutor::queueInference(void *input_data, size_t input_bytes,
     if (parsedConfig[VPU_KMB_CONFIG_KEY(KMB_EXECUTOR)] == "NO") {
         return;
     }
+
+#ifdef ENABLE_VPUAL
     std::memcpy(input_tensor->buf, input_data, input_bytes);
     std::cout << "KmbExecutor::queueInference: memcpy done" << std::endl;
     plgTensorInput_->Push(input_tensor->phys_addr, input_bytes);
+#endif
     return;
 }
 
@@ -236,6 +241,7 @@ void KmbExecutor::getResult(void *result_data, unsigned int result_bytes) {
     uint32_t len = 0;
     uint32_t pAddr = 0;
 
+#ifdef ENABLE_VPUAL
     plgTensorOutput_->Pull(&pAddr, &len);
 
     std::cout << "Output tensor returned of length: " << std::dec << len << std::endl;
@@ -267,7 +273,7 @@ void KmbExecutor::getResult(void *result_data, unsigned int result_bytes) {
     std::memcpy(result_data, data, len);
     std::cout << "KmbExecutor::getResult memcpy finished" << std::endl;
 #endif
-
+#endif
     return;
 }
 
@@ -276,8 +282,10 @@ void KmbExecutor::deallocateGraph() {
     if (parsedConfig[VPU_KMB_CONFIG_KEY(KMB_EXECUTOR)] == "NO") {
         return;
     }
+#ifdef ENABLE_VPUAL
     pipe->Stop();
     pipe->Delete();
+#endif
 
     return;
 }

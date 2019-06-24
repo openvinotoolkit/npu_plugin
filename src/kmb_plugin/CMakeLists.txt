@@ -16,8 +16,6 @@
 
 set(TARGET_NAME "kmbPlugin")
 
-set(VPUAL_DEFAULT_BASE "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/thirdparty/movidius/vpualHost")
-
 if (DEFINED MCM_COMPILER_PATHS_FINDING)
     unset(MCM_COMPILER_INTERNAL_BUILD CACHE)
     unset(MCM_COMPILER_INCLUDE_PATH CACHE)
@@ -77,31 +75,43 @@ else()
     MESSAGE(STATUS "************ Disabling MCM compiler ************")
 endif()
 
-if (NOT DEFINED ENV{VPUAL_HOME})
-    if(NOT EXISTS "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/thirdparty/movidius/vpualHost")
-        message(FATAL_ERROR "vpualHost is not found. Please use: git submodule update --init --recursive to get it")
+if (ENABLE_VPUAL)
+    add_definitions(-DENABLE_VPUAL)
+    if (NOT DEFINED ENV{VPUAL_HOME})
+        if(NOT EXISTS "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/thirdparty/movidius/vpualHost")
+            message(FATAL_ERROR "vpualHost is not found. Please use: git submodule update --init --recursive to get it")
+        endif()
+        set(vpual_home "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/thirdparty/movidius/vpualHost")
+    else()
+        set(vpual_home $ENV{VPUAL_HOME})
     endif()
-    set(vpual_home "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/thirdparty/movidius/vpualHost")
-else()
-    set(vpual_home $ENV{VPUAL_HOME})
+    
+    add_definitions(-D__PC__)
+    add_definitions(-DUSE_USB_VSC)
+    
+    #       It works only if XLink for myriad/HDDL plugins excluded
+    #        include(${vpual_home}/host/source/FLIC/FLIC.cmake)
+    #        include(${vpual_home}/host/source/SIPP/SIPP.cmake)
+    #        set(VPUAL_LIBRARY VpualDispatcher RemoteFlic XLink sipp_custom)
+    #       Attempt to have two XLinks simultaneously
+    include(vpualPrivateCmake/FLIC.cmake)
+    include(vpualPrivateCmake/SIPP.cmake)
+    set(VPUAL_LIBRARY RemoteFlic VpualDispatcher XLink2 sipp_custom)
+    
+    include_directories(
+        ${REMOTE_FLIC_INCLUDE_DIRECTORIES}
+        ${SIPP_INCLUDE_DIRECTORIES}
+    )
+
+    # TODO: enable some day and fix all warnings
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+        set_target_properties(${VPUAL_LIBRARY} PROPERTIES COMPILE_OPTIONS "-Wno-error")
+    endif()
+    
+    # TODO: enable some day and fix all warnings
+    set_target_properties(${VPUAL_LIBRARY} PROPERTIES CXX_VISIBILITY_PRESET default )
+    set_target_properties(${VPUAL_LIBRARY} PROPERTIES C_VISIBILITY_PRESET default )
 endif()
-
-add_definitions(-D__PC__)
-add_definitions(-DUSE_USB_VSC)
-
-#       It works only if XLink for myriad/HDDL plugins excluded
-#        include(${vpual_home}/host/source/FLIC/FLIC.cmake)
-#        include(${vpual_home}/host/source/SIPP/SIPP.cmake)
-#        set(VPUAL_LIBRARY VpualDispatcher RemoteFlic XLink sipp_custom)
-#       Attempt to have two XLinks simultaneously
-include(vpualPrivateCmake/FLIC.cmake)
-include(vpualPrivateCmake/SIPP.cmake)
-set(VPUAL_LIBRARY RemoteFlic VpualDispatcher XLink2 sipp_custom)
-
-include_directories(
-    ${REMOTE_FLIC_INCLUDE_DIRECTORIES}
-    ${SIPP_INCLUDE_DIRECTORIES}
-)
 
 file(GLOB_RECURSE SOURCES *.cpp *.hpp *.h)
 
@@ -128,16 +138,6 @@ target_include_directories(${TARGET_NAME}
         "${FLATBUFFERRS_INCLUDE_PATH}"
         "${MCM_SCHEMA_INCLUDE_PATH}"
         )
-
-# TODO: enable some day and fix all warnings
-if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-    set_target_properties(${VPUAL_LIBRARY} PROPERTIES COMPILE_OPTIONS "-Wno-error")
-endif()
-
-# TODO: enable some day and fix all warnings
-set_target_properties(${TARGET_NAME} PROPERTIES COMPILE_OPTIONS "-Wno-error")
-set_target_properties(${VPUAL_LIBRARY} PROPERTIES CXX_VISIBILITY_PRESET default )
-set_target_properties(${VPUAL_LIBRARY} PROPERTIES C_VISIBILITY_PRESET default )
 
 target_link_libraries(${TARGET_NAME}
     PRIVATE

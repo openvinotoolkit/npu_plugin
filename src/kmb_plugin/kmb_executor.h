@@ -23,7 +23,7 @@
 #include <iomanip>
 #include <utility>
 
-#include <mvnc.h>
+#ifdef ENABLE_VPUAL
 #include <GraphManagerPlg.h>
 #include <PlgStreamResult.h>
 #include <PlgTensorSource.h>
@@ -31,19 +31,20 @@
 #include <NNFlicPlg.h>
 #include <Pool.h>
 #include <cma_allocation_helper.h>
+#include <MemAllocator.h>
+#include <mvMacros.h>
+#endif
 
 #include <kmb_config.h>
 #include "kmb_blob_parser.hpp"
 
-#include <MemAllocator.h>
-
 namespace vpu {
 namespace KmbPlugin {
-
 
 class KmbExecutor {
     Logger::Ptr _log;
     unsigned int _numStages = 0;
+#ifdef ENABLE_VPUAL
     std::shared_ptr<GraphManagerPlg> gg;
     std::shared_ptr<PlgTensorSource> plgTensorInput_;
     std::shared_ptr<PlgStreamResult> plgTensorOutput_;
@@ -62,6 +63,7 @@ class KmbExecutor {
     std::shared_ptr<Pipeline> pipe;
 
     const std::shared_ptr<KmbConfig>& _config;
+#endif
 
 public:
     KmbExecutor(const Logger::Ptr& log, const std::shared_ptr<KmbConfig>& config);
@@ -74,6 +76,8 @@ public:
     void queueInference(void *input_data, size_t input_bytes, void *result_data, size_t result_bytes);
 
     void getResult(void *result_data, unsigned int result_bytes);
+
+    const std::shared_ptr<KmbConfig>& _config;
 };
 
 typedef std::shared_ptr<KmbExecutor> KmbExecutorPtr;
