@@ -95,6 +95,23 @@ std::vector<ResultType> packBlobToVector(
     return blobData;
 }
 
+mv::QuantizationParams createQuantParams(const ie::CNNLayerPtr& layer, std::string bName) {
+    mv::QuantizationParams quantParams = {{}, {}, {}, {}};
+    ie::Blob::Ptr scaleBlob;
+    auto blob = layer->blobs.find(bName);
+
+    if (blob != layer->blobs.end()) {
+        scaleBlob = blob->second;
+        auto scale = packBlobToVector<double>(scaleBlob, scaleBlob->size());
+        quantParams = {{mv::utils::generateSequence<int64_t>(scale.size(), 0, 0)},
+                              {scale},
+                              {mv::utils::generateSequence<double>(scale.size(), 0, 0)},
+                              {mv::utils::generateSequence<double>(scale.size(), 6, 0)}};
+    }
+
+    return quantParams;
+}
+
 void FrontEndMcm::parseArgMax(
         const mv::OpModel& modelMcm,
         const ie::CNNLayerPtr& layer,
@@ -140,20 +157,36 @@ void FrontEndMcm::parseConvolution(
 
     int groupSize = convLayer->_group;
 
-    if (layer->blobs["weights"]->getTensorDesc().getPrecision() == InferenceEngine::Precision::I8 &&
-        layer->blobs["w-scale"] != nullptr) {
+    // Quantization parameters
+    mv::QuantizationParams inputQuantParams   = {{}, {}, {}, {}};
+    mv::QuantizationParams weightsQuantParams = {{}, {}, {}, {}};
+    mv::QuantizationParams outputQuantParams  = {{}, {}, {}, {}};
+
+    if (layer->precision == ie::Precision::I8) {
+        // Quantized layer
+        ie::Blob::Ptr wScaleBlob, oiScaleBlob;
+        IE_ASSERT(layer->blobs["w-scale"] != nullptr);
+        IE_ASSERT(layer->blobs["weights"] != nullptr);
+        IE_ASSERT(layer->blobs["weights"]->getTensorDesc().getPrecision() == ie::Precision::I8);
+        weightsQuantParams = createQuantParams(layer, "w-scale");
+
+        // Output quantization scale
+        auto ois = layer->blobs.find("oi-scale");
+        if ((layer->outData[0]->getPrecision() == ie::Precision::I8 || layer->outData[0]->getPrecision() == ie::Precision::U8)
+                && ois == layer->blobs.end()) {
+            THROW_IE_EXCEPTION << "Internal error of graph quantization - mismatch of intermediate scales and next layer type for convolution "
+                    << layer->name;
+        } else {
+            outputQuantParams  = createQuantParams(layer, "oi-scale");
+        }
+
         is_quantized = true;
     }
 
     auto layerOutput = layer->outData[0];
     IE_ASSERT(layerOutput != nullptr);
-
     DataDesc outDesc(layerOutput->getTensorDesc());
-
     mv::Data::TensorIterator mvConv;
-    // input should be already quantized
-    const mv::QuantizationParams inputQuantParams = {{}, {}, {}, {}};
-
     mv::Data::TensorIterator mvWeights;
 
     env.log->debug("Convolution orig: '%s' from '%s' ", convLayer->name, input->getMcmNode()->getName());
@@ -162,24 +195,16 @@ void FrontEndMcm::parseConvolution(
                              static_cast<std::size_t>(kernelSizeY),
                              static_cast<std::size_t>(input->desc().dim(Dim::C)),
                              1lu};
+        int weightsSize = kernelSizeX * kernelSizeY * input->desc().dim(Dim::C);
         if (is_quantized) {
             // TODO: create per layer test
-            int weightsSize = kernelSizeX * kernelSizeY * input->desc().dim(Dim::C);
             auto weightsData = packBlobToVector<int64_t>(layer->blobs["weights"], weightsSize);
             mvWeights = _modelMcm.constantInt(weightsData,
                                               weightsShape,
                                               mv::DType("Int8"),
                                               mv::Order(mv::Order::getColMajorID(4)));
-            // extract and set quantization params
-            auto wscale = packBlobToVector<double>(layer->blobs["w-scale"], layer->blobs["w-scale"]->size());
-            mv::QuantizationParams weightsQuantParams(
-                    mv::utils::generateSequence<int64_t>(wscale.size(), 0, 0),
-                    wscale,
-                    mv::utils::generateSequence<double>(wscale.size(), 0, 0),
-                    mv::utils::generateSequence<double>(wscale.size(), 1, 0));
-            mvWeights->set<mv::QuantizationParams>("quantizationParams", weightsQuantParams);
+            mvWeights->set<mv::QuantizationParams>("quantParams", weightsQuantParams);
         } else {
-            int weightsSize = kernelSizeX * kernelSizeY * input->desc().dim(Dim::C);
             auto weightsData = packBlobToVector<double>(layer->blobs["weights"], weightsSize);
             mvWeights = _modelMcm.constant(weightsData,
                                            weightsShape,
@@ -203,24 +228,15 @@ void FrontEndMcm::parseConvolution(
                              static_cast<std::size_t>(kernelSizeY),
                              static_cast<std::size_t>(input->desc().dim(Dim::C)),
                              static_cast<std::size_t>(outDesc.dim(Dim::C)) / groupSize};
-
+        int weightsSize = kernelSizeX * kernelSizeY * input->desc().dim(Dim::C) * outDesc.dim(Dim::C) / groupSize;
         if (is_quantized) {
-            int weightsSize = kernelSizeX * kernelSizeY * input->desc().dim(Dim::C) * outDesc.dim(Dim::C) / groupSize;
             auto weightsData = packBlobToVector<int64_t>(layer->blobs["weights"], weightsSize);
             mvWeights = _modelMcm.constantInt(weightsData,
                                               weightsShape,
                                               mv::DType("Int8"),
                                               mv::Order("NCWH"));
-            // extract and set quantization params
-            auto wscale = packBlobToVector<double>(layer->blobs["w-scale"], layer->blobs["w-scale"]->size());
-            mv::QuantizationParams weightsQuantParams(
-                    mv::utils::generateSequence<int64_t>(wscale.size(), 0, 0),
-                    wscale,
-                    mv::utils::generateSequence<double>(wscale.size(), 0, 0),
-                    mv::utils::generateSequence<double>(wscale.size(), 1, 0));
-            mvWeights->set<mv::QuantizationParams>("quantizationParams", weightsQuantParams);
+            mvWeights->set<mv::QuantizationParams>("quantParams", weightsQuantParams);
         } else {
-            int weightsSize = kernelSizeX * kernelSizeY * input->desc().dim(Dim::C) * outDesc.dim(Dim::C) / groupSize;
             auto weightsData = packBlobToVector<double>(layer->blobs["weights"], weightsSize);
             mvWeights = _modelMcm.constant(weightsData,
                                            weightsShape,
@@ -241,11 +257,21 @@ void FrontEndMcm::parseConvolution(
                                 inputQuantParams,
                                 convLayer->name);
     }
+    if (is_quantized) {
+        mvConv->set<mv::QuantizationParams>("quantParams", outputQuantParams);
+    }
 
     auto conv = std::make_shared<McmNodeObject>(mvConv, outDesc);
 
     _nodes.push_back(conv);
+
     bindData(conv, layerOutput);
+
+    // handle biases
+    auto bias = layer->blobs.find("biases");
+    if (bias != layer->blobs.end()) {
+        env.log->debug("TODO: Shall handle bias of convolution layer");
+    }
 
     env.log->debug("parsed to mcmModel as '%s'", mvConv->getName());
 }
@@ -316,36 +342,81 @@ void FrontEndMcm::parsePooling(
 
 void FrontEndMcm::parseFullyConnected(
         const mv::OpModel& modelMcm,
-        const ie::CNNLayerPtr& _layer,
+        const ie::CNNLayerPtr& layer,
         const McmNodeVector& inputs) {
     const auto& env = CompileEnv::get();
 
     IE_ASSERT(inputs.size() == 1);
 
-    auto layer = std::dynamic_pointer_cast<ie::FullyConnectedLayer>(_layer);
+    auto FClayer = std::dynamic_pointer_cast<ie::FullyConnectedLayer>(layer);
     IE_ASSERT(layer != nullptr);
+
+    // Quantization parameters
+    mv::QuantizationParams inputQuantParams   = {{}, {}, {}, {}};
+    mv::QuantizationParams weightsQuantParams = {{}, {}, {}, {}};
+    mv::QuantizationParams outputQuantParams  = {{}, {}, {}, {}};
+
+    bool is_quantized = false;
+    if (layer->precision == ie::Precision::I8) {
+        // Quantized layer
+        ie::Blob::Ptr wScaleBlob, oiScaleBlob;
+
+        IE_ASSERT(layer->blobs["weights"] != nullptr);
+        IE_ASSERT(layer->blobs["weights"]->getTensorDesc().getPrecision() == ie::Precision::I8);
+
+        IE_ASSERT(layer->blobs["w-scale"] != nullptr);
+        weightsQuantParams = createQuantParams(layer, "w-scale");
+
+        // Output quantization scale
+        auto ois = layer->blobs.find("oi-scale");
+        if ((layer->outData[0]->getPrecision() == ie::Precision::I8 || layer->outData[0]->getPrecision() == ie::Precision::U8)
+                && ois == layer->blobs.end()) {
+            THROW_IE_EXCEPTION << "Internal error of graph quantization - mismatch of intermediate scales and next layer type for convolution "
+                    << layer->name;
+        } else {
+            outputQuantParams  = createQuantParams(layer, "oi-scale");
+        }
+
+        is_quantized = true;
+    }
 
     auto input = inputs[0];
 
     //
     // Create const datas
     //
+
+    mv::Data::TensorIterator mvWeights;
     int weightsSize = input->desc().dim(Dim::W, 1) *
-                      input->desc().dim(Dim::H, 1) *
-                      input->desc().dim(Dim::C) *
-                      static_cast<int>(layer->_out_num);
-    std::vector<double> weightsData = packBlobToVector<double>(layer->blobs["weights"], weightsSize);
+                                      input->desc().dim(Dim::H, 1) *
+                                      input->desc().dim(Dim::C) *
+                                      static_cast<int>(FClayer->_out_num);
+    if (is_quantized) {
+        std::vector<int64_t> weightsData = packBlobToVector<int64_t>(FClayer->blobs["weights"], weightsSize);
+        mvWeights = _modelMcm.constantInt(weightsData,
+                                              {inputs[0]->getMcmNode()->getShape().totalSize(), static_cast<std::size_t>(FClayer->_out_num)},
+                                               mv::DType("Int8"), mv::Order(mv::Order::getColMajorID(2)));
 
-    auto mvWeights = _modelMcm.constant(weightsData,
-            {inputs[0]->getMcmNode()->getShape().totalSize(), static_cast<std::size_t>(layer->_out_num)},
-            mv::DType("Float16"), mv::Order(mv::Order::getColMajorID(2)));
+        mvWeights->set<mv::QuantizationParams>("quantParams", weightsQuantParams);
+    } else {
+        std::vector<double> weightsData = packBlobToVector<double>(FClayer->blobs["weights"], weightsSize);
 
-    auto layerOutput = layer->outData[0];
+        mvWeights = _modelMcm.constant(weightsData,
+                                           {inputs[0]->getMcmNode()->getShape().totalSize(), static_cast<std::size_t>(FClayer->_out_num)},
+                                            mv::DType("Float16"), mv::Order(mv::Order::getColMajorID(2)));
+    }
+
+    auto layerOutput = FClayer->outData[0];
     IE_ASSERT(layerOutput != nullptr);
 
     env.log->debug("FullyConnected orig: '%s' from '%s'",
-            layer->name, input->getMcmNode()->getName());
-    auto mvFullyConnected = _modelMcm.fullyConnected(input->getMcmNode(), mvWeights, {{}, {}, {}, {}}, layer->name);
+            FClayer->name, input->getMcmNode()->getName());
+    auto mvFullyConnected = _modelMcm.fullyConnected(input->getMcmNode(), mvWeights, inputQuantParams, FClayer->name);
+
+    if (is_quantized) {
+        mvFullyConnected->set<mv::QuantizationParams>("quantParams", outputQuantParams);
+    }
+
     auto fullyConnected = std::make_shared<McmNodeObject>(mvFullyConnected, DataDesc(layerOutput->getTensorDesc()));
 
     _nodes.push_back(fullyConnected);
@@ -398,23 +469,23 @@ void FrontEndMcm::parseReLU(
 
 void FrontEndMcm::parseSoftMax(
         const mv::OpModel& modelMcm,
-        const ie::CNNLayerPtr& _layer,
+        const ie::CNNLayerPtr& layer,
         const McmNodeVector& inputs) {
     const auto& env = CompileEnv::get();
 
     IE_ASSERT(inputs.size() == 1);
 
-    auto layer = std::dynamic_pointer_cast<ie::SoftMaxLayer>(_layer);
-    IE_ASSERT(layer != nullptr);
+    auto softMaxLayer = std::dynamic_pointer_cast<ie::SoftMaxLayer>(layer);
+    IE_ASSERT(softMaxLayer != nullptr);
 
-    IE_ASSERT(layer->axis < inputs[0]->desc().numDims());
+    IE_ASSERT(softMaxLayer->axis < inputs[0]->desc().numDims());
 
-    env.log->debug("Softmax orig: '%s' from '%s'", layer->name, inputs[0]->getMcmNode()->getName());
+    env.log->debug("Softmax orig: '%s' from '%s'", softMaxLayer->name, inputs[0]->getMcmNode()->getName());
     std::string mcmAxis;
-    mcmAxis = mcmAxis + DIM_NAMES[layer->axis];
-    auto mvSoftmax = _modelMcm.softmax(inputs[0]->getMcmNode(), mcmAxis, {{}, {}, {}, {}}, layer->name);
+    mcmAxis = mcmAxis + DIM_NAMES[softMaxLayer->axis];
+    auto mvSoftmax = _modelMcm.softmax(inputs[0]->getMcmNode(), mcmAxis, {{}, {}, {}, {}}, softMaxLayer->name);
 
-    auto layerOutput = _layer->outData[0];
+    auto layerOutput = softMaxLayer->outData[0];
     IE_ASSERT(layerOutput != nullptr);
 
     auto softmax = std::make_shared<McmNodeObject>(mvSoftmax, DataDesc(layerOutput->getTensorDesc()));
@@ -482,25 +553,25 @@ void FrontEndMcm::parsePower(
 
 void FrontEndMcm::parseScale(
         const mv::OpModel& modelMcm,
-        const ie::CNNLayerPtr& _layer,
+        const ie::CNNLayerPtr& layer,
         const McmNodeVector& inputs) {
     const auto& env = CompileEnv::get();
 
     IE_ASSERT(inputs.size() == 1);
 
-    auto layer = std::dynamic_pointer_cast<ie::ScaleShiftLayer>(_layer);
-    IE_ASSERT(layer != nullptr);
-    IE_ASSERT(layer->_weights != nullptr);
+    auto scaleLayer = std::dynamic_pointer_cast<ie::ScaleShiftLayer>(layer);
+    IE_ASSERT(scaleLayer != nullptr);
+    IE_ASSERT(scaleLayer->_weights != nullptr);
 
-    if (layer->_broadcast != 0) {
+    if (scaleLayer->_broadcast != 0) {
         VPU_THROW_EXCEPTION <<
-            "Layer " << layer->name << " doesn't support broadcast param";
+            "Layer " << scaleLayer->name << " doesn't support broadcast param";
     }
 
     auto input = inputs[0];
 
     int weightsSize = input->desc().dim(Dim::C);
-    auto weightsData = packBlobToVector<double>(layer->_weights, weightsSize);
+    auto weightsData = packBlobToVector<double>(scaleLayer->_weights, weightsSize);
 
     mv::Shape weightsShape = { static_cast<std::size_t>(input->desc().dim(Dim::C))};
     auto mvWeights = _modelMcm.constant(
@@ -508,25 +579,25 @@ void FrontEndMcm::parseScale(
             weightsShape,
             mv::DType("Float16"), mv::Order("W"));
 
-    env.log->debug("ScaleShift orig: '%s' from '%s' ", layer->name, input->getMcmNode()->getName());
-    auto mvScale = _modelMcm.scale(input->getMcmNode(), mvWeights, {{}, {}, {}, {}}, layer->name);
+    env.log->debug("ScaleShift orig: '%s' from '%s' ", scaleLayer->name, input->getMcmNode()->getName());
+    auto mvScale = _modelMcm.scale(input->getMcmNode(), mvWeights, {{}, {}, {}, {}}, scaleLayer->name);
     auto mvScaleShift = mvScale;
 
-    env.log->debug("ScaleShift orig: '%s' Scale part (%s) added to mcmModel", layer->name, mvScaleShift->getName());
+    env.log->debug("ScaleShift orig: '%s' Scale part (%s) added to mcmModel", scaleLayer->name, mvScaleShift->getName());
 
-    if (layer->_biases != nullptr) {
+    if (scaleLayer->_biases != nullptr) {
         int biasesSize = input->desc().dim(Dim::C);
-        auto biasData = packBlobToVector<double>(layer->_biases, biasesSize);
+        auto biasData = packBlobToVector<double>(scaleLayer->_biases, biasesSize);
 
         auto mvBias = _modelMcm.constant(
                 weightsData,
                 weightsShape,
                 mv::DType("Float16"), mv::Order("W"));
-        mvScaleShift = _modelMcm.bias(mvScale, mvBias, {{}, {}, {}, {}}, layer->name + ":bias");
-        env.log->debug("ScaleShift orig: '%s' Bias part (%s) added to mcmModel", layer->name, mvScaleShift->getName());
+        mvScaleShift = _modelMcm.bias(mvScale, mvBias, {{}, {}, {}, {}}, scaleLayer->name + ":bias");
+        env.log->debug("ScaleShift orig: '%s' Bias part (%s) added to mcmModel", scaleLayer->name, mvScaleShift->getName());
     }
 
-    auto layerOutput = layer->outData[0];
+    auto layerOutput = scaleLayer->outData[0];
     IE_ASSERT(layerOutput != nullptr);
 
     auto scaleShift = std::make_shared<McmNodeObject>(mvScaleShift, DataDesc(layerOutput->getTensorDesc()));
@@ -540,6 +611,7 @@ void FrontEndMcm::parsePermute(
         const ie::CNNLayerPtr& layer,
         const McmNodeVector& inputs) {
     const auto& env = CompileEnv::get();
+
     IE_ASSERT(inputs.size() == 1);
 
     auto ieOrder = layer->GetParamAsInts("order");
@@ -578,6 +650,7 @@ void FrontEndMcm::parseEltwise(
         const ie::CNNLayerPtr& layer,
         const McmNodeVector& inputs) {
     const auto& env = CompileEnv::get();
+
     if (inputs.size() != 2) {
         VPU_THROW_EXCEPTION << "Eltwise with 2 inputs is only supported by kmbPlugin";
     }
@@ -588,6 +661,25 @@ void FrontEndMcm::parseEltwise(
     auto stageType = StageType::None;
     auto addCoefficient0 = 1.0f;
     auto addCoefficient1 = 1.0f;
+
+    // Quantization parameters
+    mv::QuantizationParams secondInputQuantParams  = {{}, {}, {}, {}};
+
+    if (layer->precision == ie::Precision::I8) {
+        // Quantized layer
+        ie::Blob::Ptr eScaleBlob;
+        IE_ASSERT(layer->blobs["eltwise-sum-scale"] != nullptr);
+
+        auto es = layer->blobs.find("eltwise-sum-scale");
+        if ((layer->outData[0]->getPrecision() == ie::Precision::I8 || layer->outData[0]->getPrecision() == ie::Precision::U8)
+                && es == layer->blobs.end()) {
+            THROW_IE_EXCEPTION << "Internal error of graph quantization - mismatch of intermediate scales and next layer type for convolution "
+                    << layer->name;
+        }
+
+        secondInputQuantParams  = createQuantParams(layer, "eltwise-sum-scale");
+    }
+
     switch (eltwiseLayer->_operation) {
     case ie::EltwiseLayer::eOperation::Sum:
     case ie::EltwiseLayer::eOperation::Sub:
@@ -620,12 +712,12 @@ void FrontEndMcm::parseEltwise(
             eltwiseLayer->name, inputs[0]->getMcmNode()->getName(), inputs[1]->getMcmNode()->getName());
     mv::Data::TensorIterator mvEltwise;
     if (addCoefficient0 == 1.0f && addCoefficient1 == 1.0f) {
-        mvEltwise = _modelMcm.add(inputs[0]->getMcmNode(), inputs[1]->getMcmNode(), {{}, {}, {}, {}}, eltwiseLayer->name);
+        mvEltwise = _modelMcm.add(inputs[0]->getMcmNode(), inputs[1]->getMcmNode(), secondInputQuantParams, eltwiseLayer->name);
     } else {
         if (addCoefficient0 == 1.0f && addCoefficient1 == -1.0f) {
-            mvEltwise = _modelMcm.subtract(inputs[0]->getMcmNode(), inputs[1]->getMcmNode(), {{}, {}, {}, {}}, eltwiseLayer->name);
+            mvEltwise = _modelMcm.subtract(inputs[0]->getMcmNode(), inputs[1]->getMcmNode(), secondInputQuantParams, eltwiseLayer->name);
         } else {
-            mvEltwise = _modelMcm.subtract(inputs[1]->getMcmNode(), inputs[0]->getMcmNode(), {{}, {}, {}, {}}, eltwiseLayer->name);
+            mvEltwise = _modelMcm.subtract(inputs[1]->getMcmNode(), inputs[0]->getMcmNode(), secondInputQuantParams, eltwiseLayer->name);
         }
     }
 
@@ -808,19 +900,19 @@ void FrontEndMcm::parseInterp(
 
 void FrontEndMcm::parseClamp(
         const mv::OpModel& modelMcm,
-        const ie::CNNLayerPtr& _layer,
+        const ie::CNNLayerPtr& layer,
         const McmNodeVector& inputs) {
     const auto& env = CompileEnv::get();
 
     IE_ASSERT(inputs.size() == 1);
 
-    auto layer = std::dynamic_pointer_cast<ie::ClampLayer>(_layer);
-    IE_ASSERT(layer != nullptr);
+    auto clampLayer = std::dynamic_pointer_cast<ie::ClampLayer>(layer);
+    IE_ASSERT(clampLayer != nullptr);
 
-    env.log->debug("Clamp orig: '%s' from '%s'", layer->name, inputs[0]->getMcmNode()->getName());
-    auto mvClamp = _modelMcm.clamp(inputs[0]->getMcmNode(), layer->min_value, layer->max_value, layer->name);
+    env.log->debug("Clamp orig: '%s' from '%s'", clampLayer->name, inputs[0]->getMcmNode()->getName());
+    auto mvClamp = _modelMcm.clamp(inputs[0]->getMcmNode(), clampLayer->min_value, clampLayer->max_value, clampLayer->name);
 
-    auto layerOutput = layer->outData[0];
+    auto layerOutput = clampLayer->outData[0];
     IE_ASSERT(layerOutput != nullptr);
 
     auto clamp = std::make_shared<McmNodeObject>(mvClamp, DataDesc(layerOutput->getTensorDesc()));
@@ -948,27 +1040,28 @@ void FrontEndMcm::parseReshape(
 
 void FrontEndMcm::parseConcat(
         const mv::OpModel& modelMcm,
-        const ie::CNNLayerPtr& _layer,
+        const ie::CNNLayerPtr& layer,
         const McmNodeVector& inputs) {
     const auto& env = CompileEnv::get();
+
     IE_ASSERT(!inputs.empty());
 
-    auto layer = std::dynamic_pointer_cast<ie::ConcatLayer>(_layer);
-    IE_ASSERT(layer != nullptr);
-    IE_ASSERT(layer->_axis < inputs[0]->desc().numDims());
+    auto clampLayer = std::dynamic_pointer_cast<ie::ConcatLayer>(layer);
+    IE_ASSERT(clampLayer != nullptr);
+    IE_ASSERT(clampLayer->_axis < inputs[0]->desc().numDims());
 
     std::string mcmAxis;
-    mcmAxis = mcmAxis + DIM_NAMES[layer->_axis];
+    mcmAxis = mcmAxis + DIM_NAMES[clampLayer->_axis];
     std::vector<mv::Data::TensorIterator> concatInputs;
 
     for (size_t i = 0; i < inputs.size(); ++i) {
         concatInputs.push_back(inputs[i]->getMcmNode());
     }
 
-    env.log->debug("Concat orig: '%s' from '%s'", layer->name, inputs[0]->getMcmNode()->getName());
-    auto mvConcat = _modelMcm.concat(concatInputs, mcmAxis, {{}, {}, {}, {}}, layer->name + ":step0");
+    env.log->debug("Concat orig: '%s' from '%s'", clampLayer->name, inputs[0]->getMcmNode()->getName());
+    auto mvConcat = _modelMcm.concat(concatInputs, mcmAxis, {{}, {}, {}, {}}, clampLayer->name + ":step0");
 
-    auto layerOutput = layer->outData[0];
+    auto layerOutput = clampLayer->outData[0];
     IE_ASSERT(layerOutput != nullptr);
 
     auto concat = std::make_shared<McmNodeObject>(mvConcat, DataDesc(layerOutput->getTensorDesc()));
