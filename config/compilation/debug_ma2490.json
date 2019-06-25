@@ -119,6 +119,7 @@
     },
     "keembay_adapt": {
         "Singular": [
+            "ConcatAsImplicit",
             "StoreLayerSplitStrategy",
             "StoreWorkloadStrategy",
             {
