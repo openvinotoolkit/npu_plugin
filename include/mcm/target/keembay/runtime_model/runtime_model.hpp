@@ -54,7 +54,7 @@ namespace mv
             static MVCNN::PPELayerType convertPPELayerType(PPELayerTypeEnum ppe);
 
             static std::unique_ptr<MVCNN::TensorReferenceT> buildTensorReferenceT(ComputationModel &cm, Element&, Data::TensorIterator t);
-            static std::unique_ptr<MVCNN::TensorReferenceT> buildTensorReferenceT(ComputationModel &cm, Element&, const mv::Tensor& t, unsigned clusterId = 0);
+            static std::unique_ptr<MVCNN::TensorReferenceT> buildTensorReferenceT(ComputationModel &cm, Element&, Data::TensorIterator t, unsigned clusterId);
             static std::unique_ptr<MVCNN::GraphNodeT> buildGraphNodeT(ComputationModel &cm, Element&, Data::OpListIterator op);
             static std::unique_ptr<MVCNN::SourceStructureT> buildSourceStructureT(ComputationModel &cm, Element& compilationDescriptor);
             static std::unique_ptr<MVCNN::SummaryHeaderT> buildSummaryHeaderT(ComputationModel& cm, Element& compilationDescriptor, std::unique_ptr<MVCNN::SummaryHeaderT> originalHeader);
@@ -86,6 +86,7 @@ namespace mv
             static std::unique_ptr<MVCNN::NCEInvariantFieldsT> buildNCEInvariantFieldsT(ComputationModel& cm, Element& compilationDescriptor, Control::OpListIterator opIt, int numClusters);
             static std::unique_ptr<MVCNN::NCEInvariantFieldsT> buildNCEInvariantFieldsT(ComputationModel& cm, Element& compilationDescriptor, Control::OpListIterator opIt);
             static std::vector<std::unique_ptr<MVCNN::NCEVariantFieldsT> > buildNCEVariantFieldsTVector(ComputationModel& cm, Element& compilationDescriptor, Control::OpListIterator opIt);
+            static std::vector<std::unique_ptr<MVCNN::NCEVariantFieldsT>> buildNCEVariantFieldsTVector(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt, unsigned numTask);
             static std::unique_ptr<MVCNN::NCEVariantFieldsT> buildNCEVariantFieldsT(ComputationModel& cm, Element& compilationDescriptor, Control::OpListIterator opIt, Workload workload);
             static void getWorkloadPadding(Control::OpListIterator opIt, Workload &workload);
             static bool hardwareBugDepthwise(Control::OpListIterator opIt);

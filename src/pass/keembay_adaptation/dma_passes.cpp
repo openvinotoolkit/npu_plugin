@@ -187,15 +187,12 @@ void addWeightsDMATasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
                         sink->setInputTensor(inputTensorDma, idx, false);
                         om.defineFlow(inputTensorDmaOp, 0, sink, idx);
                     }
+
+                    // TODO: Maybe it should be changed using subtensor information
                     long unsigned inputTensorDmaDimension = inputTensorDma->computeTotalSize();
-                    if (numClusters > 1)
-                        inputTensorDmaDimension = inputTensorDma->getClusterSize(16, false);
                     for(unsigned j = 0; j < inputOutputTensors; ++j)
-                    {
                         inputTensorDmaDimension += opIt->getInputTensor(j)->computeTotalSize();
-                        if (numClusters > 1)
-                            inputTensorDmaDimension += opIt->getInputTensor(j)->getClusterSize(16, false);
-                    }
+
                     int partsPerCMX = std::max((unsigned long)1, cmxSize/inputTensorDmaDimension);
                     if (partsPerCMX < (_dma_dependency + 1))
                         dma_dependency = partsPerCMX;

@@ -150,8 +150,6 @@
                 "content": "full",
                 "html": true
             },
-            "StrategyLayersToTensors",
-            "SplittingAcrossClusters",
             {
                 "name": "ConvertDot",
                 "input": "output/dots/keembay_WeightsTable_model.dot"
@@ -189,6 +187,8 @@
                 "name": "ConvertDot",
                 "input": "output/dots/dma_model.dot"
             },
+            "StrategyLayersToTensors",
+            "SplittingAcrossClusters",
             "AddDeallocationTasks",
             {
                 "name": "GenerateDot",
