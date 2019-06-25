@@ -32,7 +32,7 @@ void strategyLayersToTensors(const mv::pass::PassEntry& , mv::ComputationModel& 
         for(auto layer = om.opBegin(); layer != om.opEnd(); ++layer)
         {
             std::string opType = layer->getOpType();
-            if (opType == "DPUTask" || opType == "Input")
+            if (opType == "DPUTask")
             {
                 auto opStrategy = layer->get<std::string>("splitStrategy");
                 auto outputTensor = layer->getOutputTensor(0);
@@ -64,6 +64,12 @@ void strategyLayersToTensors(const mv::pass::PassEntry& , mv::ComputationModel& 
                     auto inputTensorStrategy = inputTensor->get<std::string>("splitStrategy");
                     outputTensor->set<std::string>("splitStrategy", inputTensorStrategy);
                 }
+            }
+            else if (opType == "Input")
+            {
+                auto opStrategy = layer->get<std::string>("splitStrategy");
+                auto outputTensor = layer->getOutputTensor(0);
+                outputTensor->set<std::string>("splitStrategy", opStrategy);
             }
         }
     }
