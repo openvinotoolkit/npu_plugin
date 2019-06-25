@@ -1175,12 +1175,74 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildTaskT(Computat
     return vecToBuild;
 }
 
-std::unique_ptr<MVCNN::BarrierT> mv::RuntimeModel::buildBarrierT(mv::ComputationModel& , mv::Element& , mv::Control::OpListIterator opIt)
+unsigned mv::RuntimeModel::countProducerConsumerTasks(mv::ComputationModel& cm, mv::Control::OpListIterator opIt)
 {
+    std::string taskType = opIt->getOpType();
+    unsigned toReturn = 0;
+    unsigned numClusters = cm.getGlobalConfigParams()->get<int>("Number_of_Clusters");
+    if(taskType == "DPUTask")
+    {
+        if(opIt->hasAttr("splitStrategy"))
+        {
+            std::string strategy = opIt->get<std::string>("splitStrategy");
+            if(strategy != "Clustering")
+            {
+                for(unsigned i = 0; i < numClusters; ++i)
+                {
+                    if (opIt->hasAttr("Workloads" + std::to_string(i)))
+                    {
+                        auto& workloads = opIt->get<mv::Workloads>("Workloads" + std::to_string(i));
+                        toReturn += workloads.nWorkloads();
+                    }
+                    else
+                        toReturn = numClusters;
+                }
+            }
+        }
+        else
+        {
+            if (opIt->hasAttr("Workloads"))
+            {
+                auto& workloads = opIt->get<mv::Workloads>("Workloads");
+                toReturn = workloads.nWorkloads();
+            }
+            else
+                toReturn = 1;
+        }
+    }
+    else if(taskType == "DMATask")
+    {
+        if(numClusters > 1)
+        {
+            bool sourceIsBroadCasted = opIt->getInputTensor(0)->isBroadcasted();
+            if(!sourceIsBroadCasted)
+                toReturn = numClusters;
+            else
+                toReturn = 1;
+        }
+        else
+            toReturn = 1;
+    }
+    return toReturn;
+}
+
+std::unique_ptr<MVCNN::BarrierT> mv::RuntimeModel::buildBarrierT(mv::ComputationModel& model, mv::Element& , mv::Control::OpListIterator opIt)
+{
+    mv::ControlModel cm(model);
+
     std::unique_ptr<MVCNN::BarrierT> toBuild = std::unique_ptr<MVCNN::BarrierT>(new MVCNN::BarrierT());
-    toBuild->barrier_id = opIt->get<mv::Barrier>("Barrier").getIndex();
-    toBuild->consumer_count = opIt->get<mv::Barrier>("Barrier").getNumConsumers();
-    toBuild->producer_count = opIt->get<mv::Barrier>("Barrier").getNumProducers();
+    auto barrier = opIt->get<mv::Barrier>("Barrier");
+
+    toBuild->barrier_id = barrier.getIndex();
+    toBuild->consumer_count = 0;
+    toBuild->producer_count = 0;
+
+    for(auto producer = opIt.leftmostParent(); producer != cm.opEnd(); ++producer)
+        toBuild->producer_count += countProducerConsumerTasks(model, producer);
+
+    for(auto consumer = opIt.leftmostChild(); consumer != cm.opEnd(); ++consumer)
+        toBuild->consumer_count += countProducerConsumerTasks(model, consumer);
+
     return toBuild;
 }
 

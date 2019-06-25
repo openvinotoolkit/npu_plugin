@@ -94,6 +94,9 @@ namespace mv
             static std::unique_ptr<MVCNN::PPETaskT> buildPPETaskT();
             static std::unique_ptr<MVCNN::PPEFixedFunctionT> buildPPEFixedFunctionT(ComputationModel&, Element&, const PPEFixedFunction &ppeFixedFunction);
 
+            // UTILS
+            static unsigned countProducerConsumerTasks(mv::ComputationModel& cm, mv::Control::OpListIterator opIt);
+
             void serialize(const std::string& path);
             char * serialize(int& bufferSize);
             void deserialize(const std::string& path);
