@@ -215,82 +215,6 @@ void allocateCMXTensorsFcnKeemBay(const mv::pass::PassEntry& pass, mv::Computati
             pass.log(mv::Logger::MessageType::Debug, "Skipping allocation of opType " + opType);
             continue;
         }
-        /*else if (opType == "ImplicitConcat")
-        {
-            // Allocate Output
-            auto outputTensor = opIterator->getOutputTensor(0);
-            if (outputTensor->hasAttr("allocators"))
-                dm.deallocateTensor("VPU_CMX_NN", stageIt, outputTensor);
-
-            auto outputBuffer = dm.allocateTensor("VPU_CMX_NN", stageIt, outputTensor);
-
-            // Allocate Inputs inside of that output
-            unsigned valid_inputs = opIterator->inputSlots();
-            auto concat_axis_index = mv::Shape::getAxis(opIterator->get<std::string>("axis"));
-            std::vector<unsigned> running_concat_offset_LHS;
-            auto prev_offset = 0;
-            auto offset = 0;
-            for(unsigned i = 0; i != valid_inputs; i++){
-                running_concat_offset_LHS.push_back(prev_offset + offset);
-                prev_offset = prev_offset + offset;
-                // Calculate for next tensor
-                offset = opIterator->getInputTensor(i)->getShape()[concat_axis_index];
-            }
-
-            std::vector<unsigned> running_concat_offset_RHS;
-            std::copy(running_concat_offset_LHS.begin(),
-                    running_concat_offset_LHS.end(),
-                    back_inserter(running_concat_offset_RHS));
-            std::reverse(std::begin(running_concat_offset_RHS), std::end(running_concat_offset_RHS));
-
-            //std::cout << "running_concat_offset_LHS: ";
-            //for(auto i : running_concat_offset_LHS)
-            //    std::cout << i<< ",";
-            //std::cout << std::endl;
-            //std::cout << "running_concat_offset_RHS: ";
-            //for(auto i : running_concat_offset_RHS)
-            //    std::cout << i<< ",";
-            //std::cout << std::endl;
-            //std::cout << "Output Tensor Shape: " << outputTensor->getShape().toString() << std::endl;
-
-            for(unsigned i = 0; i != valid_inputs; i++){
-                auto inputTensor = opIterator->getInputTensor(i);
-
-                // If already allocated from a previous pass, deallocate.
-                // Note: This is probably not a good long term solution as we may have
-                // requirements from two different connections, this approach only resolves one.
-                // Probably restrictions on a tensor should be attributes of that tensor.
-                if (!inputTensor->hasAttr("allocators"))
-                    dm.allocateTensor("VPU_CMX_NN", stageIt, inputTensor);
-
-                std::vector<std::size_t> lhs_padding(inputTensor->getShape().ndims());
-                std::vector<std::size_t> rhs_padding(inputTensor->getShape().ndims());
-
-
-                // This code assumes all tensors are of equal size. TODO: Assertions
-                auto lhs = running_concat_offset_LHS[i];
-                auto rhs = running_concat_offset_RHS[i];
-
-                lhs_padding.at(concat_axis_index) = lhs;
-                rhs_padding.at(concat_axis_index) = rhs;
-
-                auto ExistingBuffer = dm.getBuffer("VPU_CMX_NN", stageIt, inputTensor);
-
-
-                //std::cout << "Tensor Shape: " << inputTensor->getShape().toString() << std::endl;
-                //std::cout << "\t\tLeft Padding: ";
-                //for(auto i : lhs_padding)
-                //    std::cout << i<< ",";
-                //std::cout << std::endl;
-                //std::cout << "\t\tRight Padding: ";
-                //for(auto i : rhs_padding)
-                //    std::cout << i<< ",";
-                //std::cout << std::endl;
-
-                auto NewBuffer = dm.moveTensor("VPU_CMX_NN", ExistingBuffer, outputBuffer, lhs_padding, rhs_padding);
-
-            }
-        }*/
         /*
             For each input and output, allocate if it has not already been done.
             Don't allocate for I/O layers as they are already accounted for.
@@ -374,7 +298,7 @@ void allocateImplicitOperationsFcnKeemBay(const mv::pass::PassEntry& pass,
             //  basically need to get from tha leyer attributes some shcema of how and what coordinates to
             //  put buffer into eg  axis: 'W" ->[0-10][10-20][30-40] etc,....
 
-            if(opType == "Concat" || opType == "ImplicitConcat")
+            if(opType == "Concat")
             //this means that the Input tensors should be in the Output Tensor
             {
                 auto outputTensor = opIterator->getOutputTensor(0);
