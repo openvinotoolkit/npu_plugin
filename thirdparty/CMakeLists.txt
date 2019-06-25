@@ -17,3 +17,8 @@
 find_library(VPUSMM_LIBRARY
         NAMES vpusmm
         HINTS ${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/thirdparty/vsi_cmodel/vpusmm/)
+
+if (ENABLE_TESTS AND ENABLE_VPUAL)
+    add_subdirectory(tests/integration)
+endif()
+
