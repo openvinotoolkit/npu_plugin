@@ -15,6 +15,7 @@
 //
 
 #include <gtest/gtest.h>
+#include <gtest/gtest-param-test.h>
 #include <unistd.h>
 #include <cstring>
 #include <fstream>
@@ -24,7 +25,6 @@
 #include "kmb_allocator.h"
 
 
-using namespace testing;
 using namespace vpu::KmbPlugin;
 
 class kmbAllocatorUnitTests : public ::testing::Test {
@@ -43,32 +43,6 @@ protected:
 
     bool isVPUSMMDriverFound = false;
 };
-
-TEST_F(kmbAllocatorUnitTests, canAllocatePageSizeAlignedMemorySegment) {
-    if (!isVPUSMMDriverFound) {
-        SKIP() << "vpusmm_driver not found. Please install before running tests";
-    }
-
-    KmbAllocator allocator;
-
-    long pageSize = getpagesize();
-
-    size_t alignedSize = 2 * pageSize;
-    ASSERT_NE(allocator.alloc(alignedSize), nullptr);
-}
-
-TEST_F(kmbAllocatorUnitTests, canAllocateNotPageSizeAlignedMemorySegment) {
-    if (!isVPUSMMDriverFound) {
-        SKIP() << "vpusmm_driver not found. Please install before running tests";
-    }
-
-    KmbAllocator allocator;
-
-    long pageSize = getpagesize();
-
-    size_t notAlignedSize = 2 * pageSize - 1;
-    ASSERT_NE(allocator.alloc(notAlignedSize), nullptr);
-}
 
 TEST_F(kmbAllocatorUnitTests, canFreeMemory) {
     if (!isVPUSMMDriverFound) {
@@ -150,7 +124,7 @@ TEST_F(kmbAllocatorUnitTests, canWriteToBlobMemory) {
     if (!isVPUSMMDriverFound) {
         SKIP() << "vpusmm_driver not found. Please install before running tests";
     }
-    
+
     const std::shared_ptr<InferenceEngine::IAllocator> customAllocator(new KmbAllocator());
 
     const InferenceEngine::TensorDesc tensorDesc(InferenceEngine::Precision::U8, {1, 1, 1, 1}, InferenceEngine::Layout::NCHW);
@@ -161,3 +135,40 @@ TEST_F(kmbAllocatorUnitTests, canWriteToBlobMemory) {
     blob->allocate();
     blob->buffer().as<uint8_t *>()[0] = 0;
 }
+
+
+class kmbAllocatorDifferentSizeUnitTests : public kmbAllocatorUnitTests,
+                                           public ::testing::WithParamInterface<bool > {
+public:
+    struct PrintToStringParamName
+    {
+        template <class ParamType>
+        std::string operator()(testing::TestParamInfo<ParamType> const& info ) const
+        {
+            auto isAlignedAllocation = static_cast<bool>(info.param);
+            return isAlignedAllocation ? "isAlignedAllocation=true" : "isAlignedAllocation=false";
+        }
+    };
+protected:
+    long pageSize = getpagesize();
+};
+
+TEST_P(kmbAllocatorDifferentSizeUnitTests, canAllocate) {
+    if (!isVPUSMMDriverFound) {
+        SKIP() << "vpusmm_driver not found. Please install before running tests";
+    }
+    auto isAlignedAllocation = GetParam();
+
+    KmbAllocator allocator;
+
+    size_t alignedSize = 2 * pageSize;
+    size_t size = alignedSize;
+    if (!isAlignedAllocation) {
+        size -= 1;
+    }
+    ASSERT_NE(allocator.alloc(size), nullptr);
+}
+
+INSTANTIATE_TEST_CASE_P(unit,
+        kmbAllocatorDifferentSizeUnitTests,
+        ::testing::Values(true, false), kmbAllocatorDifferentSizeUnitTests::PrintToStringParamName());
