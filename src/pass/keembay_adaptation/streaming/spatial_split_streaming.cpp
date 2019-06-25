@@ -182,8 +182,6 @@ static void setStreamingStrategy(const mv::pass::PassEntry& pass, mv::Computatio
 
 mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model, mv::Data::OpListIterator op,Tiling& tiling)
 {
-    std::cout<< "  In solveWeightsTiling " << std::endl ;
-
     mv::OpModel om(model);
     mv::DataModel dm(model);
 
@@ -555,18 +553,13 @@ static inline int inferOutputSize( int inputSize, int padding_start, int padding
 
 void generateSpatialTiling(mv::Data::OpListIterator op,Tiling& tiling, std::vector<opStreamingSplitDef> opStrategy, int nesting)
 {
-    std::cout<< "  In generateSpatialTiling, op " << op->getName() << " nesting = " << nesting ;
+    //std::cout<< "  In generateSpatialTiling, op " << op->getName() << " nesting = " << nesting ;
     auto numberOfSplits = tiling.childTiles().size();
-    std::cout<< " numsplits = " << numberOfSplits << std::endl ;
+    //std::cout<< " numsplits = " << numberOfSplits << std::endl ;
 
     auto inputShape = tiling.getSize();
 
     auto axisToSplit =  mv::Shape::getAxis(tiling.getAxis());
-
-//    int newOutputSize = ceil( ((double)inputShape[axisToSplit]) / ((double)numberOfSplits));
-//    int remainderSize = inputShape[axisToSplit] - (newSize * (numberOfSplits -1));
-
-//    int newOutputSize =  (double) inferOutputSize(inputShape[axisToSplit])
 
     //todo:: check for original weights not the aligned one
     size_t kernelSize;
@@ -645,9 +638,7 @@ void generateSpatialTiling(mv::Data::OpListIterator op,Tiling& tiling, std::vect
 
 void generateWeightsTiling(mv::Data::OpListIterator op,Tiling& tiling, std::vector<opStreamingSplitDef> opStrategy, int nesting)
 {
-    std::cout<< "  In generateWeightsTiling, op " << op->getName() << " nesting = " << nesting ;
     auto numberOfSplits = tiling.childTiles().size();
-    std::cout<< " numsplits = " << numberOfSplits << std::endl ;
 
     auto parentTileShape = tiling.getSize();
 
@@ -702,7 +693,7 @@ void streamingTilingFcn(const mv::pass::PassEntry& pass,
     setStreamingStrategy(pass, model, thisGraphStrategy);
     std::vector<opStreamingSplitDef> thisOpStrategy;
 
-    std::cout<< "STREAMING PASS: entered" << std::endl ;
+    //std::cout<< "STREAMING PASS: entered" << std::endl ;
 
     for (auto s: thisGraphStrategy)
     {
@@ -715,7 +706,6 @@ void streamingTilingFcn(const mv::pass::PassEntry& pass,
         auto opIt =  om.getOp(nodeName);
 
         std::string masterOpName = opIt->getName();
-        std::cout<< "  checking " << masterOpName << std::endl;
         bool opHasSplittingStrategy = false;
         if (thisGraphStrategy.count(masterOpName)<1)
         {
@@ -781,5 +771,5 @@ void streamingTilingFcn(const mv::pass::PassEntry& pass,
 
         }
     }
-    std::cout<< "STREAMING PASS: exit" << std::endl ;
+    //std::cout<< "STREAMING PASS: exit" << std::endl ;
 }
