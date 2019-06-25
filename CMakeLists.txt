@@ -27,6 +27,8 @@ include(ExternalProject)
 # Build rules
 #
 
+add_subdirectory(thirdparty)
+
 # Enable MCM compiler by default
 if(NOT DEFINED ENABLE_MCM_COMPILER)
     set(ENABLE_MCM_COMPILER ON)
