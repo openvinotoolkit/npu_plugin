@@ -4,20 +4,20 @@
 #include "include/mcm/utils/custom_strings.hpp"
 #include "include/mcm/pass/pass_utils.hpp"
 
-static void updateConcatQuantizationParamsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
+static void updateImplicitLayersQuantizationParamsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 
 namespace mv
 {
     namespace pass
     {
-        MV_REGISTER_PASS(UpdateConcatQuantizationParams)
-            .setFunc(updateConcatQuantizationParamsFcn)
+        MV_REGISTER_PASS(UpdateImplicitLayersQuantizationParams)
+            .setFunc(updateImplicitLayersQuantizationParamsFcn)
             .setDescription(
-                "Update Quantization Params for Concat output after input layers have been quantized");
+                "Update Quantization Params for Implicit Layers output after input layers have been quantized");
     }
 }
 
-void updateConcatQuantizationParamsFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+void updateImplicitLayersQuantizationParamsFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
     mv::OpModel om(model);
     for(auto opIt = om.opBegin(); opIt != om.opEnd(); ++opIt)

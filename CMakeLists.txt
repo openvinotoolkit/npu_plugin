@@ -309,7 +309,7 @@ SET(pass
     "${PROJECT_SOURCE_DIR}/src/pass/adaptation/replacement_passes.cpp"
 
     "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/concat_as_implicit.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/update_concat_quatization_params.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/update_implicit_layers_quatization_params.cpp"
 
 
     "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/keembay_align_weights.cpp"

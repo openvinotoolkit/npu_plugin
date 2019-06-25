@@ -328,7 +328,7 @@
                 "name": "ConvertDot",
                 "input": "output/dots/keembay_adapt_model.dot"
             },
-            "UpdateConcatQuantizationParams",
+            "UpdateImplicitLayersQuantizationParams",
             "SetDpuTasksMemoryLocation",
             "AlignTaskWeights",
             "AlignSliceOps",
