@@ -247,11 +247,12 @@ void fillMXDescriptors(mv::ControlModel cm, mv::DataModel dm, unsigned fp16_size
                     auto pad_right = pad_along_x - pad_left;
                     auto pad_top = pad_along_y / 2;
                     auto pad_bottom = pad_along_y - pad_top;
+                    descriptors[i].padEn = padEnable;
                     if (padEnable) {
                         descriptors[i].padType = (pad_left > 0) ? 0x08 : 0x00;
-                        descriptors[i].padType |= (pad_right > 0) ? 0x04 : 0x00;
-                        descriptors[i].padType |= (pad_top > 0) ? 0x02 : 0x00;
-                        descriptors[i].padType |= (pad_bottom > 0) ? 0x01 : 0x00;
+                        descriptors[i].padType |= (pad_right > 0) ? 0x01 : 0x00;
+                        descriptors[i].padType |= (pad_top > 0) ? 0x04 : 0x00;
+                        descriptors[i].padType |= (pad_bottom > 0) ? 0x02 : 0x00;
                     }
                 }
 
