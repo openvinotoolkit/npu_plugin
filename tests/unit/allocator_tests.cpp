@@ -17,19 +17,38 @@
 #include <gtest/gtest.h>
 #include <unistd.h>
 #include <cstring>
+#include <fstream>
 
 #include <ie_blob.h>
 
 #include "kmb_allocator.h"
 
+
 using namespace testing;
 using namespace vpu::KmbPlugin;
 
 class kmbAllocatorUnitTests : public ::testing::Test {
+protected:
+    void SetUp() override {
+        std::ifstream modulesLoaded("/proc/modules");
+        std::string line;
+        while (std::getline(modulesLoaded, line))
+        {
+            if (line.find("vpusmm_driver") != std::string::npos) {
+                isVPUSMMDriverFound = true;
+                break;
+            }
+        }
+    }
 
+    bool isVPUSMMDriverFound = false;
 };
 
-TEST(kmbAllocatorUnitTests, canAllocatePageSizeAlignedMemorySegment) {
+TEST_F(kmbAllocatorUnitTests, canAllocatePageSizeAlignedMemorySegment) {
+    if (!isVPUSMMDriverFound) {
+        SKIP() << "vpusmm_driver not found. Please install before running tests";
+    }
+
     KmbAllocator allocator;
 
     long pageSize = getpagesize();
@@ -38,7 +57,11 @@ TEST(kmbAllocatorUnitTests, canAllocatePageSizeAlignedMemorySegment) {
     ASSERT_NE(allocator.alloc(alignedSize), nullptr);
 }
 
-TEST(kmbAllocatorUnitTests, canAllocateNotPageSizeAlignedMemorySegment) {
+TEST_F(kmbAllocatorUnitTests, canAllocateNotPageSizeAlignedMemorySegment) {
+    if (!isVPUSMMDriverFound) {
+        SKIP() << "vpusmm_driver not found. Please install before running tests";
+    }
+
     KmbAllocator allocator;
 
     long pageSize = getpagesize();
@@ -47,7 +70,11 @@ TEST(kmbAllocatorUnitTests, canAllocateNotPageSizeAlignedMemorySegment) {
     ASSERT_NE(allocator.alloc(notAlignedSize), nullptr);
 }
 
-TEST(kmbAllocatorUnitTests, canFreeMemory) {
+TEST_F(kmbAllocatorUnitTests, canFreeMemory) {
+    if (!isVPUSMMDriverFound) {
+        SKIP() << "vpusmm_driver not found. Please install before running tests";
+    }
+
     KmbAllocator allocator;
 
     size_t size = 10;
@@ -57,7 +84,11 @@ TEST(kmbAllocatorUnitTests, canFreeMemory) {
     ASSERT_TRUE(allocator.free(data));
 }
 
-TEST(kmbAllocatorUnitTests, canWriteAndReadAllocatedMemory) {
+TEST_F(kmbAllocatorUnitTests, canWriteAndReadAllocatedMemory) {
+    if (!isVPUSMMDriverFound) {
+        SKIP() << "vpusmm_driver not found. Please install before running tests";
+    }
+
     KmbAllocator allocator;
 
     size_t size = 10;
@@ -75,7 +106,11 @@ TEST(kmbAllocatorUnitTests, canWriteAndReadAllocatedMemory) {
     ASSERT_TRUE(std::count(actual.begin(), actual.end(), MAGIC_NUMBER) == size);
 }
 
-TEST(kmbAllocatorUnitTests, cannotFreeInvalidAddressMemory) {
+TEST_F(kmbAllocatorUnitTests, cannotFreeInvalidAddressMemory) {
+    if (!isVPUSMMDriverFound) {
+        SKIP() << "vpusmm_driver not found. Please install before running tests";
+    }
+
     KmbAllocator allocator;
 
     auto data = nullptr;
@@ -83,7 +118,11 @@ TEST(kmbAllocatorUnitTests, cannotFreeInvalidAddressMemory) {
     ASSERT_FALSE(allocator.free(data));
 }
 
-TEST(kmbAllocatorUnitTests, cannotDoDoubleFree) {
+TEST_F(kmbAllocatorUnitTests, cannotDoDoubleFree) {
+    if (!isVPUSMMDriverFound) {
+        SKIP() << "vpusmm_driver not found. Please install before running tests";
+    }
+
     KmbAllocator allocator;
 
     size_t size = 10;
@@ -94,7 +133,11 @@ TEST(kmbAllocatorUnitTests, cannotDoDoubleFree) {
     ASSERT_FALSE(allocator.free(data));
 }
 
-TEST(kmbAllocatorUnitTests, canCreateBlobBasedOnAllocator) {
+TEST_F(kmbAllocatorUnitTests, canCreateBlobBasedOnAllocator) {
+    if (!isVPUSMMDriverFound) {
+        SKIP() << "vpusmm_driver not found. Please install before running tests";
+    }
+
     const std::shared_ptr<InferenceEngine::IAllocator> customAllocator(new KmbAllocator());
 
     const InferenceEngine::TensorDesc tensorDesc(InferenceEngine::Precision::U8, {1, 1, 1, 1}, InferenceEngine::Layout::NCHW);
@@ -103,7 +146,11 @@ TEST(kmbAllocatorUnitTests, canCreateBlobBasedOnAllocator) {
     ASSERT_NE(blob, nullptr);
 }
 
-TEST(kmbAllocatorUnitTests, canWriteToBlobMemory) {
+TEST_F(kmbAllocatorUnitTests, canWriteToBlobMemory) {
+    if (!isVPUSMMDriverFound) {
+        SKIP() << "vpusmm_driver not found. Please install before running tests";
+    }
+    
     const std::shared_ptr<InferenceEngine::IAllocator> customAllocator(new KmbAllocator());
 
     const InferenceEngine::TensorDesc tensorDesc(InferenceEngine::Precision::U8, {1, 1, 1, 1}, InferenceEngine::Layout::NCHW);
