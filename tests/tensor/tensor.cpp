@@ -1068,7 +1068,7 @@ TEST(tensor, sparsity)
                 channelTracker++;
                 if (data_res[counter*8+k] == 122)
                     ASSERT_TRUE((static_cast<uint8_t>(res[i]) & (1<<k)) == 0);
-                if (data_res[counter*8+k] != 122)
+                else if (data_res[counter*8+k] != 122)
                     ASSERT_TRUE((static_cast<uint8_t>(res[i]) & (1<<k)) != 0);
             }
         }

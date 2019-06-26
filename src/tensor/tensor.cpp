@@ -287,9 +287,9 @@ void mv::Tensor::unpopulate()
     log(Logger::MessageType::Debug, "Unpopulated");
 }
 
-const mv::Tensor& mv::Tensor::getSubTensor(uint8_t cluster)
+mv::Tensor& mv::Tensor::getSubTensor(uint8_t cluster)
 {
-    if (cluster < subTensors_.size() && !isBroadcasted())
+    if (cluster < subTensors_.size())
         return *subTensors_[cluster];
     return *this;
 }
@@ -1010,10 +1010,12 @@ std::vector<unsigned> mv::Tensor::computeNumericStrides() const
     return getOrder().computeByteStrides(getShape(), getDType().getSizeInBits() / 8);
 }
 
+
+//isBase == true for implicit operations.
 std::size_t mv::Tensor::getClusterSize(unsigned int alignment, bool isBase) const
 {
     std::size_t res;
-    if (isBroadcasted())
+    if (!isBroadcasted())
     {
         res = 0;
         for (size_t tIdx = 0; tIdx < subTensors_.size(); tIdx++)

@@ -9,7 +9,7 @@ namespace mv
         static std::function<std::pair<bool, std::size_t>(const std::vector<Data::TensorIterator>&,
             const std::map<std::string, Attribute>&, std::string&)> inputCheckFcn =
             [](const std::vector<Data::TensorIterator>&, const std::map<std::string, Attribute>&,
-            std::string& errMsg) -> std::pair<bool, std::size_t>
+            std::string& ) -> std::pair<bool, std::size_t>
         {
 
             return {true, 0};

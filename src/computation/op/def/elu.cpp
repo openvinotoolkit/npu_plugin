@@ -1,4 +1,5 @@
 #include "include/mcm/computation/op/op_registry.hpp"
+#include "include/mcm/utils/warning_manager.hpp"
 
 namespace mv
 {
@@ -20,14 +21,7 @@ namespace mv
             }
             
             auto alpha = args.at("alpha").get<unsigned>();
-
-            if (alpha < 0)
-            {
-                errMsg = "Invalid value for the alpha parameter - must be a positive numnber";
-                    
-                return {false, 0};
-            }
-
+            UNUSED(alpha);
             return {true, 0};
         };
                 

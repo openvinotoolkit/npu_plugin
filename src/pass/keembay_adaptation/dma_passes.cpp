@@ -3,6 +3,8 @@
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/utils/custom_strings.hpp"
+#include "include/mcm/utils/warning_manager.hpp"
+
 
 static void addWeightsDMATasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::json::Object&);
 static void addInitialAndFinalDMATaskFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
@@ -111,6 +113,8 @@ void addInitialAndFinalDMATaskFcn(const mv::pass::PassEntry& , mv::ComputationMo
 // Pass role: Add DMA Task DDR2CMX where needed for weights tensors input of DPUTasks.
 void addWeightsDMATasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element& passDesc, mv::json::Object&)
 {
+    UNUSED(pass);
+    UNUSED(target);
     mv::OpModel om(model);
     mv::ControlModel cm(model);
     mv::DataModel dm(model);
@@ -139,6 +143,7 @@ void addWeightsDMATasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
 
     auto globalConfigParams = model.getGlobalConfigParams();
     auto cmxSize = globalConfigParams->get<unsigned>("cmx");
+    unsigned numClusters = globalConfigParams->get<int>("Number_of_Clusters");
 
     int _dma_dependency = passDesc.get<int>("weights_prefetch");
     int dma_dependency;
@@ -169,7 +174,6 @@ void addWeightsDMATasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
                 {
                     auto flows = inputTensor->get<std::set<std::string>>("flows");
 
-
                     auto inputTensorDma = om.dMATask(inputTensor, mv::DmaDirectionEnum::DDR2CMX,quantParams, mv::createDMATaskDDR2CMXName(inputOp->getName()));
                     auto inputTensorDmaOp = om.getSourceOp(inputTensorDma);
                     inputTensorDmaOp->set<unsigned>("opId", opId);
@@ -184,7 +188,7 @@ void addWeightsDMATasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
                         om.defineFlow(inputTensorDmaOp, 0, sink, idx);
                     }
 
-                    //NOTE: This will change with multicluster
+                    // TODO: Maybe it should be changed using subtensor information
                     long unsigned inputTensorDmaDimension = inputTensorDma->computeTotalSize();
                     for(unsigned j = 0; j < inputOutputTensors; ++j)
                         inputTensorDmaDimension += opIt->getInputTensor(j)->computeTotalSize();
