@@ -50,8 +50,8 @@ static std::vector<InferenceEngine::SizeVector> s_biasDims = {
     {{1, 32, 10, 10}},
     {{1, 8,  4, 4}}
 };
-#endif
 
 INSTANTIATE_TEST_CASE_P(accuracy, kmbLayersTestsBias_nightly,
         ::testing::ValuesIn(s_biasDims));
 
+#endif

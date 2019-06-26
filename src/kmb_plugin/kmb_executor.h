@@ -61,8 +61,6 @@ class KmbExecutor {
     std::shared_ptr<PlgPool<TensorMsg>> plgPoolB;
 
     std::shared_ptr<Pipeline> pipe;
-
-    const std::shared_ptr<KmbConfig>& _config;
 #endif
 
 public:

@@ -1,0 +1,70 @@
+#
+# Copyright 2019 Intel Corporation.
+#
+# This software and the related documents are Intel copyrighted materials,
+# and your use of them is governed by the express license under which they
+# were provided to you (End User License Agreement for the Intel(R) Software
+# Development Products (Version May 2017)). Unless the License provides
+# otherwise, you may not use, modify, copy, publish, distribute, disclose or
+# transmit this software or the related documents without Intel's prior
+# written permission.
+#
+# This software and the related documents are provided as is, with no
+# express or implied warranties, other than those that are expressly
+# stated in the License.
+#
+
+set(VPUAL_HOST_ROOT_DIR "${PROJECT_SOURCE_DIR}/thirdparty/movidius/vpualHost")
+set(NN_COMMON_INCLUDE_DIR "${VPUAL_HOST_ROOT_DIR}/host/source/NN/common/include")
+set(DISPATCHER_INCLUDE_DIR "${VPUAL_HOST_ROOT_DIR}/host/source/Dispatcher/include")
+set(FLIC_TOP_INCLUDE_DIR "${VPUAL_HOST_ROOT_DIR}/host/source/FLIC/top/include")
+set(NN_FLIC_INCLUDE_DIR "${VPUAL_HOST_ROOT_DIR}/host/source/NN/NNFlicPlg/include")
+set(GRAPH_MANAGER_INCLUDE_DIR "${VPUAL_HOST_ROOT_DIR}/host/source/NN/GraphManagerPlg/include")
+set(TENSOR_PLG_INCLUDE_DIR "${VPUAL_HOST_ROOT_DIR}/host/source/NN/TensorPlg/include")
+set(VPUSMM_INCLUDE_DIR "${PROJECT_SOURCE_DIR}/thirdparty/vsi_cmodel/vpusmm")
+
+file(GLOB TEST_INCLUDE
+        ${CMAKE_CURRENT_SOURCE_DIR}/*.h)
+
+file(GLOB TEST_SRC
+        ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
+
+if(NOT DEFINED INTEGRATION_TESTS_ENABLE_IE)
+    set(INTEGRATION_TESTS_ENABLE_IE ON)
+endif()
+
+function(addVpuTest TARGET_NAME PLUGIN_NAME)
+    add_executable(${TARGET_NAME} ${TEST_INCLUDE} ${TEST_SRC})
+
+    set(VPUAL_LIBRARIES RemoteFlic VpualDispatcher XLink2 sipp_custom)
+
+    target_include_directories(${TARGET_NAME}
+        PRIVATE
+            ${NN_COMMON_INCLUDE_DIR}
+            ${DISPATCHER_INCLUDE_DIR}
+            ${FLIC_TOP_INCLUDE_DIR}
+            ${NN_FLIC_INCLUDE_DIR}
+            ${GRAPH_MANAGER_INCLUDE_DIR}
+            ${TENSOR_PLG_INCLUDE_DIR}
+            ${VPUSMM_INCLUDE_DIR})
+
+    if (INTEGRATION_TESTS_ENABLE_IE)
+        add_definitions(-DINTEGRATION_TESTS_ENABLE_IE)
+        target_link_libraries(${TARGET_NAME} PRIVATE IE::gtest IE::gtest_main IE::helpers ${VPUAL_LIBRARIES} ${VPUSMM_LIBRARY})
+    else()
+        find_package(GTest REQUIRED)
+        if (NOT INTEGRATION_TESTS_BLOB_FILE OR NOT INTEGRATION_TESTS_INPUT_FILE)
+            message(FATAL_ERROR "IE is disabled, but INTEGRATION_TESTS_BLOB_FILE or INTEGRATION_TESTS_INPUT_FILE are undefined")
+        endif()
+        add_definitions(
+            -DINTEGRATION_TESTS_BLOB_FILE="${INTEGRATION_TESTS_BLOB_FILE}"
+            -DINTEGRATION_TESTS_INPUT_FILE="${INTEGRATION_TESTS_INPUT_FILE}"
+        )
+        target_link_libraries(${TARGET_NAME} PRIVATE ${GTEST_LIBRARIES} ${VPUAL_LIBRARIES} ${VPUSMM_LIBRARY})
+    endif()
+
+    add_test(NAME ${TARGET_NAME} COMMAND ${TARGET_NAME})
+    set_property(TEST ${TARGET_NAME} PROPERTY LABELS VPU ${PLUGIN_NAME})
+endfunction()
+
+addVpuTest(KmbIntegrationTests kmbPlugin)
