@@ -96,7 +96,13 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             if(!biasName.empty())
                dpuConvOp->set<std::string>("bias", biasName);
             if(!splitStrategy.empty())
+            {
                dpuConvOp->set<std::string>("splitStrategy", splitStrategy);
+               if (splitStrategy == "SplitOverK" || splitStrategy == "HKSwitch")
+                    dpuConvOp->set<bool>("multiCast", true);
+               else
+                   dpuConvOp->set<bool>("multiCast", false);
+            }
             if(!workloadStrategyMPEMode.empty())
                 dpuConvOp->set<std::string>("WorkloadStrategy_MPE_mode", workloadStrategyMPEMode);
             if(workloadStrategyNWorkloads != -1)
