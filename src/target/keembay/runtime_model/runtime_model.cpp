@@ -1074,7 +1074,7 @@ std::vector<std::unique_ptr<MVCNN::NCEVariantFieldsT>> mv::RuntimeModel::buildNC
 {
     UNUSED(numTask);
     //NOTE: After John's branch is merged, workloads should be get using "Workloads" + std::to_string(numTask)
-    auto workloads = opIt->get<mv::Workloads>("Workloads").getWorkloads();
+    auto workloads = opIt->get<mv::Workloads>("Workloads" + std::to_string(numTask)).getWorkloads();
     unsigned n = workloads.size();
     std::vector<std::unique_ptr<MVCNN::NCEVariantFieldsT>> toBuild = std::vector<std::unique_ptr<MVCNN::NCEVariantFieldsT>>(n);
     for(unsigned i = 0; i < n; ++i)
