@@ -160,7 +160,7 @@ std::vector<unsigned> mv::RuntimeModel::reduceQuantVector_(std::vector<unsigned>
 
 
 //build tensorReference for Tensors - 1 cluster case
-std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT(mv::ComputationModel& cm, mv::Element&, mv::Data::TensorIterator t)
+std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT(mv::ComputationModel& , mv::Element&, mv::Data::TensorIterator t)
 {
     std::unique_ptr<MVCNN::TensorReferenceT> toBuild = std::unique_ptr<MVCNN::TensorReferenceT>(new MVCNN::TensorReferenceT());
 
@@ -638,8 +638,8 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
         toReturn[0] = std::unique_ptr<MVCNN::TaskT>(new MVCNN::TaskT());
         toReturn[0]->task.type = MVCNN::SpecificTask_NNDMATask;
         auto tmp = new MVCNN::NNDMATaskT();
-        tmp->src = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(0), 0);
-        tmp->dst = buildTensorReferenceT(cm, compilationDescriptor, opIt->getOutputTensor(0), 0);
+        tmp->src = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(0));
+        tmp->dst = buildTensorReferenceT(cm, compilationDescriptor, opIt->getOutputTensor(0));
 
         std::vector<unsigned int> locale_index;
         for (unsigned idx = 0; idx < numTasks; idx++)
@@ -886,7 +886,18 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
     auto tensorAllocator = dm.getAllocator(*tensorAllocatorName);
     mv::Data::BufferIterator tensorBufferIt = tensorAllocator.getBuffer(0, parentInputTensor); // 0 is the only stage for now, but this will probably change in the future
     mv::Control::StageIterator stg = controlModel.getStage(0);
-    toBuild->input_data = buildTensorReferenceT(cm, compilationDescriptor, parentInputTensor, clusterId);
+    if (opIt->hasAttr("multiCast"))
+    {
+        if (opIt->get<bool>("multiCast"))
+        {
+            toBuild->input_data = buildTensorReferenceT(cm, compilationDescriptor, parentInputTensor);
+            std::vector<unsigned int> locale_index;
+            locale_index.push_back(clusterId);
+            toBuild->input_data->locale_index = locale_index;
+        }
+        else
+            toBuild->input_data = buildTensorReferenceT(cm, compilationDescriptor, parentInputTensor, clusterId);
+    }
 
     // This should not be here! This should be in buildTensorReferenceT
     if (tensorBufferIt->getMaster() != dm.bufferEnd(*tensorAllocatorName, stg))
@@ -907,7 +918,22 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
     tensorAllocator = dm.getAllocator(*tensorAllocatorName);
     tensorBufferIt = tensorAllocator.getBuffer(0, parentOutputTensor); // 0 is the only stage for now, but this will probably change in the future
     toBuild->output_data = buildTensorReferenceT(cm, compilationDescriptor, parentOutputTensor, clusterId);
-
+    if (opIt->hasAttr("multiCast"))
+    {
+        if (opIt->get<bool>("multiCast"))
+        {
+            unsigned numTasks = cm.getGlobalConfigParams()->get<int>("Number_of_Clusters");
+            toBuild->output_data = buildTensorReferenceT(cm, compilationDescriptor, parentOutputTensor, clusterId);
+            std::vector<unsigned int> locale_index;
+            for (unsigned idx = 0; idx < numTasks; idx++)
+                locale_index.push_back(idx);
+            toBuild->output_data->locale_index = locale_index;
+            auto numericStrides = parentOutputTensor->computeNumericStrides();
+            numericStrides.push_back(parentOutputTensor->getDType().getSizeInBits() / 8);
+            std::reverse(numericStrides.begin(), numericStrides.end());
+            toBuild->output_data->strides = numericStrides;
+        }
+    }
     if (tensorBufferIt->getMaster() != dm.bufferEnd(*tensorAllocatorName, stg))
     {
         auto masterBuffer = tensorBufferIt->getMaster(); //TODO: or do we need the top one?
@@ -1046,6 +1072,7 @@ std::vector<std::unique_ptr<MVCNN::NCEVariantFieldsT>> mv::RuntimeModel::buildNC
 
 std::vector<std::unique_ptr<MVCNN::NCEVariantFieldsT>> mv::RuntimeModel::buildNCEVariantFieldsTVector(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt, unsigned numTask)
 {
+    UNUSED(numTask);
     //NOTE: After John's branch is merged, workloads should be get using "Workloads" + std::to_string(numTask)
     auto workloads = opIt->get<mv::Workloads>("Workloads").getWorkloads();
     unsigned n = workloads.size();
