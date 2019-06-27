@@ -117,7 +117,6 @@ static void setStreamingStrategy(const mv::pass::PassEntry& pass, mv::Computatio
     auto globalParams = model.getGlobalConfigParams();
     if (!globalParams->hasAttr("streaming_strategy"))
     {
-        std::cout << "SET STREAMING STRATEGY EXITING: no strategy defined in JSON" << std::endl;
         pass.log(mv::Logger::MessageType::Info, "No custom streaming strategy provided");
         return;
     }
@@ -202,18 +201,18 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model, mv::Dat
     if(inputTensor->hasAttr("quantParams"))
         quantParams = inputTensor->get<mv::QuantizationParams>("quantParams");
 
-    if(inputTensor->hasAttr("Location"))
-    {
-        std::cout<< "  location of input tensor is " << inputTensor->get<mv::Tensor::MemoryLocation>("Location").toString() <<  std::endl ; 
-    }
-    else
-    {
-        std::cout<< "  No location attritbute on input tensor to original conv " << std::endl ; 
-    }
-    
+    //if(inputTensor->hasAttr("Location"))
+    //{
+    //    std::cout<< "  location of input tensor is " << inputTensor->get<mv::Tensor::MemoryLocation>("Location").toString() <<  std::endl ;
+    //}
+    //else
+    //{
+    //    std::cout<< "  No location attritbute on input tensor to original conv " << std::endl ;
+    //}
+
     if (inputTensor->get<mv::Tensor::MemoryLocation>("Location").toString() != "CMX")
     {
-        std::cout<< "  adding DMA2CMX on input " <<  std::endl ; 
+        //std::cout<< "  adding DMA2CMX on input " <<  std::endl ;
 
         auto flows = inputTensor->get<std::set<std::string>>("flows");
 
@@ -709,12 +708,12 @@ void streamingTilingFcn(const mv::pass::PassEntry& pass,
         bool opHasSplittingStrategy = false;
         if (thisGraphStrategy.count(masterOpName)<1)
         {
-            std::cout<< "  no streaming strategy for " << masterOpName << std::endl;
+            pass.log(mv::Logger::MessageType::Info, "  no streaming strategy for " + masterOpName);
         }
         else
         {
             thisOpStrategy = thisGraphStrategy[masterOpName];
-            std::cout<< "  streaming nesting depth is " << thisOpStrategy.size() << std::endl;
+            pass.log(mv::Logger::MessageType::Info, "  streaming nesting depth is " + thisOpStrategy.size());
             opHasSplittingStrategy = true;
         }
 
@@ -762,7 +761,7 @@ void streamingTilingFcn(const mv::pass::PassEntry& pass,
 
             om.removeOp(opIt);
 
-            std::cout<< "   connecting "<< result->getName() <<" to " << opsToLink[0]->getName() << " input slot " <<  inputSlots[0] << std::endl ;
+            //std::cout<< "   connecting "<< result->getName() <<" to " << opsToLink[0]->getName() << " input slot " <<  inputSlots[0] << std::endl ;
             for (unsigned j = 0; j < opsToLink.size(); ++j)
             {
                 opsToLink[j]->setInputTensor(result, inputSlots[j]);
