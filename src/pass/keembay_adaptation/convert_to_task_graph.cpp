@@ -197,7 +197,8 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             if(!splitStrategy.empty())
                dpuElementWiseOp->set<std::string>("splitStrategy", splitStrategy);
 
-            //dpuElementWiseOp->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
+            dpuElementWise->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
+
             mv::setOutputDataFlow(om, dpuElementWise, outputDataFlows);
         }
         //TODO: Fully connected

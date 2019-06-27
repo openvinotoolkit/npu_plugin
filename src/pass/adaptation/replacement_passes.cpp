@@ -76,6 +76,7 @@ void fullyConnectedAsConv2DFcn(const mv::pass::PassEntry& pass, mv::ComputationM
 
         if (opIt->getOpType() == "FullyConnected")
         {
+            auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
 
             pass.log(Logger::MessageType::Debug, "Found FullyConnected op " + opIt->getName());
 
@@ -116,7 +117,7 @@ void fullyConnectedAsConv2DFcn(const mv::pass::PassEntry& pass, mv::ComputationM
             }
 
             opIt = linkNewOperationsReplacement(parentOpIt, conv2D, om, opIt);
-
+            conv2D->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
         }
 
     }
@@ -131,6 +132,8 @@ void standaloneActivationAsPostOpsFcn(const mv::pass::PassEntry& pass, mv::Compu
     for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt)
     {
         std::string opType(opIt->getOpType());
+        auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
+
         if(!targetDescriptor.opSupported(opType) && targetDescriptor.opSupportedAsPostOp(opType))
         {
             pass.log(Logger::MessageType::Debug, "Found " + opType + " - " + opIt->getName());
@@ -170,6 +173,7 @@ void standaloneActivationAsPostOpsFcn(const mv::pass::PassEntry& pass, mv::Compu
 
 
             opIt = linkNewOperationsReplacement(parentOpIt, sourceTensor, om, opIt);
+            sourceTensor->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
         }
     }
 }
@@ -188,6 +192,8 @@ void averageAsDepthWise(const mv::pass::PassEntry& pass, mv::ComputationModel& m
             pass.log(Logger::MessageType::Debug, "Found AveragePool op " + opIt->getName());
 
             auto sourceTensor = opIt->getInputTensor(0);
+            auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
+
             auto parentOpIt = om.getSourceOp(sourceTensor);
 
             auto inputShape = sourceTensor->getShape();
@@ -258,7 +264,7 @@ void averageAsDepthWise(const mv::pass::PassEntry& pass, mv::ComputationModel& m
                 depthwiseConvOp->set<unsigned>("opId", currentOpId);
             }
             pass.log(Logger::MessageType::Info, "Replaced AveragePool op " + opIt->getName() + " with " + depthwise_conv->getName());
-
+            depthwise_conv->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
             opIt = linkNewOperationsReplacement(parentOpIt, depthwise_conv, om, opIt);
 
         }
