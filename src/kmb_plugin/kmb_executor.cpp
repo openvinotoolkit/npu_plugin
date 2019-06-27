@@ -66,7 +66,8 @@ using namespace std;
 
 #define POOL_SIZE (4 * TENSOR_MAX_SIZE + 1024)
 
-MyCmaData::~MyCmaData() {
+#ifdef ENABLE_VPUAL
+KmbCmaData::~KmbCmaData() {
     if (fd >= 0) {
         vpusmm_unimport_dmabuf(fd);
         munmap(buf, size);
@@ -74,7 +75,7 @@ MyCmaData::~MyCmaData() {
     }
 }
 
-const int MyCmaData::pageSize = getpagesize();
+const int KmbCmaData::pageSize = getpagesize();
 
 static uint32_t calculateRequiredSize(uint32_t blobSize, int pageSize) {
     uint32_t blobSizeRem = blobSize % pageSize;
@@ -85,7 +86,7 @@ static uint32_t calculateRequiredSize(uint32_t blobSize, int pageSize) {
     return requiredSize;
 }
 
-int MyCmaData::Create(uint32_t requested_size) {
+int KmbCmaData::Create(uint32_t requested_size) {
     const int page_size = getPageSize();
 
     size = calculateRequiredSize(requested_size, page_size);
@@ -112,6 +113,7 @@ int MyCmaData::Create(uint32_t requested_size) {
 
     return 0;
 }
+#endif
 
 KmbExecutor::KmbExecutor(const Logger::Ptr& log, const std::shared_ptr<KmbConfig>& config)
             : _log(log), _config(config) {
@@ -121,7 +123,6 @@ KmbExecutor::KmbExecutor(const Logger::Ptr& log, const std::shared_ptr<KmbConfig
     }
 
 #ifdef ENABLE_VPUAL
-    HeapAlloc = make_shared<HeapAllocator>();
     nnPl = make_shared<NNFlicPlg>();
     gg = make_shared<GraphManagerPlg>();
     plgTensorInput_ = make_shared<PlgTensorSource>();
@@ -129,9 +130,9 @@ KmbExecutor::KmbExecutor(const Logger::Ptr& log, const std::shared_ptr<KmbConfig
     plgPoolA = make_shared<PlgPool<TensorMsg>>();
     plgPoolB = make_shared<PlgPool<TensorMsg>>();
 
-    blob_file = make_shared<MyCmaData>();
-    input_tensor = make_shared<MyCmaData>();
-    output_tensor = make_shared<MyCmaData>();
+    blob_file = make_shared<KmbCmaData>();
+    input_tensor = make_shared<KmbCmaData>();
+    output_tensor = make_shared<KmbCmaData>();
     BHandle = make_shared<BlobHandle_t>();
     pipe = make_shared<Pipeline>();
 #endif
@@ -180,11 +181,11 @@ void KmbExecutor::allocateGraph(const std::vector<char> &graphFileContent, const
     GraphStatus status = gg->NNGraphCheckAvailable(graphId_main);
     if (Success == status) {
         std::cout << "Blob available!" << std::endl;
-        status = gg->NNGraphAllocateExistingBlob(&(*BHandle));
+        status = gg->NNGraphAllocateExistingBlob(BHandle.get());
         std::cout << "Allocated existing blob with status: " << status << std::endl;
     } else if (No_GraphId_Found == status) {
         std::cout << "Blob not found." << std::endl;
-        status = gg->NNGraphAllocate(&(*BHandle));
+        status = gg->NNGraphAllocate(BHandle.get());
         std::cout << "Allocated new blob with status: " << status << std::endl;
     } else {
         std::cerr << "Error checking graph availability: " << status << std::endl;
@@ -206,7 +207,7 @@ void KmbExecutor::allocateGraph(const std::vector<char> &graphFileContent, const
     nnPl->SetNumberOfThreads(nThreads);
     nnPl->SetNumberOfShaves(nShaves);
 
-    nnPl->Create(&(*BHandle));
+    nnPl->Create(BHandle.get());
 
     std::cout << "NN Plugin Create finished..." << std::endl;
 
@@ -236,14 +237,54 @@ void KmbExecutor::allocateGraph(const std::vector<char> &graphFileContent, const
     std::cout << "Output: ";
     tensor_deserializer(descOut);
 
+    std::cout << "KmbExecutor::allocateGraph: calling input_tensor->Create" << std::endl;
+    if (input_tensor->Create(descIn.totalSize)) {
+        std::cout << "KmbExecutor::allocateGraph: Error getting CMA " << std::endl;
+        return;
+    }
+    std::cout << "KmbExecutor::allocateGraph: calling output_tensor->Create" << std::endl;
+    if (output_tensor->Create(descOut.totalSize)) {
+        std::cout << "KmbExecutor::allocateGraph: Error getting CMA " << std::endl;
+        return;
+    }
+
+    InferenceEngine::SizeVector inputDims({descIn.n, descIn.c, descIn.h, descIn.w});
+    InferenceEngine::Layout inputLayout = InferenceEngine::Layout::NCHW;
+    // TODO: add proper precision handling
+    InferenceEngine::Precision inputPrecision = InferenceEngine::Precision::FP16;
+    InferenceEngine::TensorDesc inputDesc(inputPrecision, inputDims, inputLayout);
+    InferenceEngine::Data inputData("input", inputDesc);
+
+    InferenceEngine::InputInfo inputInfo;
+    inputInfo.setInputData(std::make_shared<InferenceEngine::Data>(inputData));
+    m_networkInputs[inputInfo.name()] = std::make_shared<InferenceEngine::InputInfo>(inputInfo);
+    m_inputInfo.totalSize = 1;
+    if (descIn.channelsStride > 0) {
+        m_inputInfo.totalSize = descIn.channelsStride;
+    }
+
+    InferenceEngine::SizeVector outputDims({descOut.n, descOut.c, descOut.h, descOut.w});
+    InferenceEngine::Layout outputLayout = InferenceEngine::Layout::NCHW;
+    InferenceEngine::Precision outputPrecision = InferenceEngine::Precision::FP16;
+    InferenceEngine::TensorDesc outputDesc(outputPrecision, outputDims, outputLayout);
+    InferenceEngine::Data outputData("output", outputDesc);
+
+    m_networkOutputs[outputData.getName()] = std::make_shared<InferenceEngine::Data>(outputData);
+    m_outputInfo.totalSize = 1;
+    if (descOut.channelsStride > 0) {
+        m_outputInfo.totalSize = descOut.channelsStride;
+    }
+
+    const unsigned int sizeOfFrames = 32;
     const unsigned int shavel2CacheLineSize = 64;
     unsigned int outputTensorSize = ROUND_UP(descOut.totalSize, shavel2CacheLineSize);
+    RgnAlloc.Create(output_tensor->phys_addr, POOL_SIZE);
 
     // TODO - These
     std::cout << "Starting input output tensor plugin along with memory pool create..." << std::endl;
-    plgPoolA->Create(&(*HeapAlloc), 1, 32);
+    plgPoolA->Create(&RgnAlloc, 1, sizeOfFrames);
     std::cout << "read memory pool finished..." << std::endl;
-    plgPoolB->Create(&(*HeapAlloc), 1, outputTensorSize);
+    plgPoolB->Create(&RgnAlloc, 1, outputTensorSize);
     std::cout << "write memory pool finished..." << std::endl;
     plgTensorInput_->Create(descIn.totalSize, XLINK_INPUT_CHANNEL, descIn);
     std::cout << "input tensor plugin finished..." << std::endl;
@@ -253,11 +294,11 @@ void KmbExecutor::allocateGraph(const std::vector<char> &graphFileContent, const
 
     // Add the plugins to the pipeline:
 
-    pipe->Add(&(*plgPoolA));
-    pipe->Add(&(*plgPoolB));
-    pipe->Add(&(*plgTensorInput_));
-    pipe->Add(&(*plgTensorOutput_));
-    pipe->Add(&(*nnPl));
+    pipe->Add(plgPoolA.get());
+    pipe->Add(plgPoolB.get());
+    pipe->Add(plgTensorInput_.get());
+    pipe->Add(plgTensorOutput_.get());
+    pipe->Add(nnPl.get());
 
     std::cout << "Added Plugins to Pipeline..." << std::endl;
 
@@ -285,16 +326,6 @@ void KmbExecutor::queueInference(void *input_data, size_t input_bytes,
     }
 
 #ifdef ENABLE_VPUAL
-    std::cout << "KmbExecutor::queueInference: calling input_tensor->Create" << std::endl;
-    if (input_tensor->Create(input_bytes)) {
-        std::cout << "KmbExecutor::queueInference: Error getting CMA " << std::endl;
-        return;
-    }
-    std::cout << "KmbExecutor::queueInference: calling output_tensor->Create" << std::endl;
-    if (output_tensor->Create(input_bytes)) {
-        std::cout << "KmbExecutor::queueInference: Error getting CMA " << std::endl;
-        return;
-    }
     std::cout << "KmbExecutor::queueInference: memcpy started" << std::endl;
     std::memcpy(input_tensor->buf, input_data, input_bytes);
     std::cout << "KmbExecutor::queueInference: memcpy done" << std::endl;
@@ -322,7 +353,6 @@ void KmbExecutor::getResult(void *result_data, unsigned int result_bytes) {
 
     // write to file
     // Open output file
-/*
     auto out_file = open("output.dat", O_WRONLY | O_CREAT, 0664);
     if (out_file <= 0) {
         std::cout << "Error opening output file" << std::endl;
@@ -334,17 +364,11 @@ void KmbExecutor::getResult(void *result_data, unsigned int result_bytes) {
     }
 
     close(out_file);
-*/
     // Write tensor output to result_data.
     if (len > result_bytes) {
         std::cout << "Error: result_data buffer size less then output length." << std::endl;
     }
     std::cout << "KmbExecutor::getResult memcpy started" << std::endl;
-    std::cout << "Result dump:" << std::hex << std::endl;
-    for (int pos = 0; pos < len; pos++) {
-        std::cout << "0x" << static_cast<unsigned int>(data[pos]) << std::endl;
-    }
-    std::cout << std::dec << std::endl << "Result dump finished" << std::endl;
     std::memcpy(result_data, data, len);
     std::cout << "KmbExecutor::getResult memcpy finished" << std::endl;
 #endif
@@ -359,6 +383,7 @@ void KmbExecutor::deallocateGraph() {
 #ifdef ENABLE_VPUAL
     pipe->Stop();
     pipe->Delete();
+    RgnAlloc.Delete();
 #endif
 
     return;
