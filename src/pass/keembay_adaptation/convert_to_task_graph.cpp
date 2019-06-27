@@ -28,6 +28,7 @@ namespace mv
 void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
     mv::OpModel om(model);
+    mv::ControlModel cm(model);
 
     auto addFcn = [&om](std::vector< mv::Data::TensorIterator >& vec, const mv::QuantizationParams& quantParams, const std::string& s){ return om.dPUTaskAdd(vec,quantParams,s);};
     auto subFcn = [&om](std::vector< mv::Data::TensorIterator >& vec, const mv::QuantizationParams& quantParams, const std::string& s){ return om.dPUTaskSubtract(vec,quantParams,s);};
@@ -83,6 +84,13 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
 
             std::array<unsigned short, 2> kernelSize = {kernel->getShape()[mv::KERNEL_WIDTH], kernel->getShape()[mv::KERNEL_HEIGHT]};
 
+            std::vector<mv::Control::OpChildIterator> outputControlFlows;
+            for (auto childOp = cm.switchContext(opIt).leftmostChild(); childOp != cm.opEnd(); ++childOp)
+            {
+                outputControlFlows.push_back(childOp);
+                std::cout << "FOUND CHILD " << childOp->getName() << " of " << opIt->getName() << std::endl;
+            }
+
             auto outputDataFlows = mv::getOutputDataFlow(om, opIt);
 
             mv::Data::TensorIterator dpuConv;
@@ -111,6 +119,11 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
 
             dpuConv->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
             setOutputDataFlow(om, dpuConv, outputDataFlows);
+            for (auto cc : outputControlFlows)
+            {
+                cm.defineFlow(dpuConvOp,om.switchContext(cc));
+                std::cout << "ADDED CONTROL FLOW from " << dpuConvOp->getName() << " to " << cc->getName() << std::endl;
+            }
 
             if(opType == "Conv")
             {

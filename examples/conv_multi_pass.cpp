@@ -51,21 +51,22 @@ int main()
                                     "weights1");
 
     std::vector<int64_t> weightsData2 = mv::utils::generateSequence<int64_t>(64*64);
-    auto weights2 = om.constantInt(weightsData1,
+  /*   auto weights2 = om.constantInt(weightsData1,
                                     {1,1,64,64},
                                     mv::DType("UInt8"),
                                     mv::Order::getZMajorID(4),
                                     emptyQuantParams,
                                     "weights2");
-
+*/
     auto pool0 = om.maxPool(input,{1,1},{1,1},{0,0,0,0},true,"","floor",emptyQuantParams,"pool0_cmx_");
     auto conv0 = om.conv(pool0,weights0,{1,1},{0,0,0,0},1,1,emptyQuantParams,"conv0_cmx_");
     auto conv1 = om.conv(conv0,weights1,{1,1},{0,0,0,0},1,1,emptyQuantParams,"conv1_cmx_");
-    auto conv2 = om.conv(conv1,weights2,{1,1},{0,0,0,0},1,1,emptyQuantParams,"conv2_cmx_");
-    auto output = om.output(conv2);
+   // auto conv2 = om.conv(conv1,weights2,{1,1},{0,0,0,0},1,1,emptyQuantParams,"conv2_cmx_");
+    auto output = om.output(conv1);
 
 //    std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/debug_ma2490_streaming.json";
-    std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/debug_ma2490.json";
+//    std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/debug_ma2490.json";
+    std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/debug_ma2490_tiny-yolo-v2-SS.json";
     unit.loadCompilationDescriptor(compDescPath);
     auto& compDesc = unit.compilationDescriptor();
 /*

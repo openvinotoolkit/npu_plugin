@@ -186,6 +186,7 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model, mv::Dat
 
     mv::OpModel om(model);
     mv::DataModel dm(model);
+    mv::ControlModel cm(model);
 
     //solve SOW/H location
     //TODO:: stop hardcoding index....
@@ -309,6 +310,8 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model, mv::Dat
 
         slices[split] = slice;
         convs[split] = conv;
+        if(split>0)
+            cm.defineFlow(om.getSourceOp(convs[split-1]), om.getSourceOp(slice));
 
     }
     kernelTensor->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::BLOB);

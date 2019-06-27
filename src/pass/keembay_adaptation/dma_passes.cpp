@@ -184,6 +184,13 @@ void addWeightsDMATasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
                         om.defineFlow(inputTensorDmaOp, 0, sink, idx);
                     }
 
+                    auto ctlFlow = cm.switchContext(inputOp);
+                    for (auto parentOp = ctlFlow.leftmostParent(); parentOp != cm.opEnd(); ++parentOp)
+                    {
+                        cm.defineFlow(om.switchContext(parentOp),inputTensorDmaOp);
+                        std::cout << "ADDED CONTROL FLOW from " << parentOp->getName() << " to " << inputTensorDmaOp->getName() << std::endl;
+                    }
+
                     //NOTE: This will change with multicluster
                     long unsigned inputTensorDmaDimension = inputTensorDma->computeTotalSize();
                     for(unsigned j = 0; j < inputOutputTensors; ++j)

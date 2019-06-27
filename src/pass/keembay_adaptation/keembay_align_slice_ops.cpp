@@ -22,6 +22,7 @@ namespace mv
 void alignSliceOpsFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
     mv::OpModel om(model);
+    mv::ControlModel cm(model);
 
     auto sliceOps = om.getOps("Slice");
 
@@ -75,12 +76,26 @@ void alignSliceOpsFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, 
         std::string newOutputName = outputName;
         if(paddingDifference != 0)
             newOutputName = mv::createAlignWeightSetConstantName(outputName);
+
+        auto ctlFlow = cm.switchContext(op);
+        std::vector<mv::Control::OpListIterator> inputControlFlows;
+        for (auto parentOp = ctlFlow.leftmostParent(); parentOp != cm.opEnd(); ++parentOp)
+        {
+            inputControlFlows.push_back(parentOp);
+            std::cout << "FOUND slice parent " << parentOp->getName() << " of " << op->getName() << std::endl;
+        }
+
         auto outputDataFlows = mv::getOutputDataFlow(om, op);
 
         auto newOp = om.getSourceOp(newSlice);
         newOp->set<unsigned>("opId", opId);
 
         mv::setOutputDataFlow(om, newSlice, outputDataFlows);
+        for (auto cp : inputControlFlows)
+        {
+            cm.defineFlow(om.switchContext(cp),om.getSourceOp(newSlice));
+            std::cout << "ADDED CONTROL FLOW from " << cp->getName() << " to " << om.getSourceOp(newSlice)->getName() << std::endl;
+        }
 
         newSlice->set<mv::Shape>("OriginalShape", outputShape);
         newSlice->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
