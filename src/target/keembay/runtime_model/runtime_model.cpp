@@ -3,6 +3,7 @@
 #include "contrib/flatbuffers/include/flatbuffers/util.h"
 #include "include/mcm/base/exception/argument_error.hpp"
 #include "include/mcm/utils/warning_manager.hpp"
+#include "include/mcm/utils/custom_math.hpp"
 #include <fstream>
 #include <iostream>
 
@@ -160,23 +161,33 @@ std::vector<unsigned> mv::RuntimeModel::reduceQuantVector_(std::vector<unsigned>
 
 
 //build tensorReference for Tensors - 1 cluster case
-std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT(mv::ComputationModel& , mv::Element&, mv::Data::TensorIterator t)
+std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT(mv::ComputationModel& model, mv::Element&, mv::Data::TensorIterator t)
 {
+    auto globalConfigParams = model.getGlobalConfigParams();
+    int pad = globalConfigParams->hasAttr("VPU2ChannelPadding") ? globalConfigParams->get<int>("VPU2ChannelPadding") : 16;
+
     std::unique_ptr<MVCNN::TensorReferenceT> toBuild = std::unique_ptr<MVCNN::TensorReferenceT>(new MVCNN::TensorReferenceT());
 
     toBuild->name = t->getName();
 
     auto tensorAllocatorName = t->get<std::set<std::string>>("allocators").begin();
 
-    std::vector<uint32_t> dimensions = t->getShape();
+    std::vector<std::size_t> dimensions = t->getShape();
     auto numericStrides = t->computeNumericStrides();
     numericStrides.push_back(t->getDType().getSizeInBits() / 8);
+
+    if (t->hasAttr("alignment"))
+    {
+        auto outputChannelsPadded = mv::round_up(dimensions[mv::IO_CHANNEL_DIMENSION], pad);
+        dimensions = {dimensions[mv::IO_WIDTH_DIMENSION], dimensions[mv::IO_HEIGHT_DIMENSION], outputChannelsPadded, dimensions[mv::IO_BATCH_DIMENSION]};
+        numericStrides = t->getOrder().computeByteStrides(mv::Shape(dimensions), t->getDType().getSizeInBits() / 8);
+    }
 
     //Because according to graphfile order is given as NCHW, which is exactly the reverse of our shape assumption WHCN
     std::reverse(dimensions.begin(), dimensions.end());
     std::reverse(numericStrides.begin(), numericStrides.end());
 
-    toBuild->dimensions = dimensions;
+    toBuild->dimensions = std::vector<uint32_t>(dimensions.begin(), dimensions.end());
     toBuild->strides = numericStrides; // NOTE: Maybe directly bufferIt->computeStrides() in the future?
 
     toBuild->leading_offset = 0;
@@ -788,6 +799,8 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
 
     //output
     auto outputTensor = opIt->getOutputTensor(0);
+    if (opIt->hasAttr("alignment"))
+        outputTensor->set<bool>("alignment", true);
     tensorAllocatorName = outputTensor->get<std::set<std::string>>("allocators").begin();
     tensorAllocator = dm.getAllocator(*tensorAllocatorName);
     tensorBufferIt = tensorAllocator.getBuffer(0, outputTensor); // 0 is the only stage for now, but this will probably change in the future
