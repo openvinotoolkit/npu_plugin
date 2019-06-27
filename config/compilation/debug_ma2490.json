@@ -8,7 +8,7 @@
                 "verbose": "Debug",
                 "weights_form": "None",
                 "barrier_index_assignment" : "Dynamic",
-                "Number_of_DPUs" : 2,
+                "Number_of_DPUs" : 1,
                 "Number_of_Clusters" : 2,
                 "UpaShaves": 1,
                 "DDRScratch": 4096,
