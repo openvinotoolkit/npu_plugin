@@ -125,6 +125,7 @@
             "StoreLayerSplitStrategy",
             "StoreWorkloadStrategy",
             "ConvertOpsToTasks",
+            "AlignTo16Channels",
             "ComputeTensorsQuantParams",
             "UpdateConcatQuantizationParams",
             "KMBOrderConversion",

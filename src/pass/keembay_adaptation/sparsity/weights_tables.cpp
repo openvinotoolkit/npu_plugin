@@ -250,7 +250,7 @@ static void generateWeightsTablesFcn(const mv::pass::PassEntry& , mv::Computatio
 
                 std::string kernelWeightsTableName(mv::createWeightTableName(opName));
                 auto output = dpuTaskOp->getOutputTensor(0);
-                auto outputChannels = output->getShape()[mv::IO_CHANNEL_DIMENSION];
+                auto outputChannels = dpuTaskOp->getInputTensor(1)->getShape()[mv::KERNEL_OUTPUT_CHANNELS];
 
                 // per channel layout:
                 // 3 -> bias

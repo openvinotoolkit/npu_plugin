@@ -161,11 +161,8 @@ std::vector<unsigned> mv::RuntimeModel::reduceQuantVector_(std::vector<unsigned>
 
 
 //build tensorReference for Tensors - 1 cluster case
-std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT(mv::ComputationModel& model, mv::Element&, mv::Data::TensorIterator t)
+std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT(mv::ComputationModel&, mv::Element&, mv::Data::TensorIterator t)
 {
-    auto globalConfigParams = model.getGlobalConfigParams();
-    int pad = globalConfigParams->hasAttr("VPU2ChannelPadding") ? globalConfigParams->get<int>("VPU2ChannelPadding") : 16;
-
     std::unique_ptr<MVCNN::TensorReferenceT> toBuild = std::unique_ptr<MVCNN::TensorReferenceT>(new MVCNN::TensorReferenceT());
 
     toBuild->name = t->getName();
@@ -175,13 +172,6 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     std::vector<std::size_t> dimensions = t->getShape();
     auto numericStrides = t->computeNumericStrides();
     numericStrides.push_back(t->getDType().getSizeInBits() / 8);
-
-    if (t->hasAttr("alignment"))
-    {
-        auto outputChannelsPadded = mv::round_up(dimensions[mv::IO_CHANNEL_DIMENSION], pad);
-        dimensions = {dimensions[mv::IO_WIDTH_DIMENSION], dimensions[mv::IO_HEIGHT_DIMENSION], outputChannelsPadded, dimensions[mv::IO_BATCH_DIMENSION]};
-        numericStrides = t->getOrder().computeByteStrides(mv::Shape(dimensions), t->getDType().getSizeInBits() / 8);
-    }
 
     //Because according to graphfile order is given as NCHW, which is exactly the reverse of our shape assumption WHCN
     std::reverse(dimensions.begin(), dimensions.end());
@@ -450,7 +440,9 @@ std::unique_ptr<MVCNN::ResourcesT> mv::RuntimeModel::buildResourcesT(Computation
     setIfPresent<int8_t, int>(toBuild->nce1_blocks, *globalConfigurationParams, "NCE1Mask");
     setIfPresent<uint32_t, int>(toBuild->nce2_blocks, *globalConfigurationParams, "Number_of_DPUs");
     setIfPresent<uint32_t, int>(toBuild->upa_shared_cmx, *globalConfigurationParams, "UPASharedCMX");
-    setIfPresent<uint32_t, unsigned>(toBuild->nn_cmx_per_slice, *globalConfigurationParams, "cmx");
+    uint32_t nn_cmx_per_slice;
+    setIfPresent<uint32_t, unsigned>(nn_cmx_per_slice, *globalConfigurationParams, "cmx");
+    toBuild->nn_cmx_per_slice = nn_cmx_per_slice/1024;
     setIfPresent<uint32_t, unsigned>(toBuild->nn_cmx_slice_amount, *globalConfigurationParams, "clusters");
     setIfPresent<uint32_t, int>(toBuild->ddr_scratch, *globalConfigurationParams, "DDRScratch");
 
@@ -626,6 +618,20 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
     toReturn[0]->task.type = MVCNN::SpecificTask_NNDMATask;
     auto tmp = new MVCNN::NNDMATaskT();
     tmp->src = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(0));
+    if (opIt->getInputTensor(0)->hasAttr("alignment"))
+    {
+        auto globalConfigParams = cm.getGlobalConfigParams();
+        int pad = globalConfigParams->hasAttr("VPU2ChannelPadding") ? globalConfigParams->get<int>("VPU2ChannelPadding") : 16;
+        std::vector<std::size_t> dimensions = opIt->getInputTensor(0)->getShape();
+        auto outputChannelsPadded = mv::round_up(dimensions[mv::IO_CHANNEL_DIMENSION], pad);
+        dimensions = {dimensions[mv::IO_WIDTH_DIMENSION], dimensions[mv::IO_HEIGHT_DIMENSION], outputChannelsPadded, dimensions[mv::IO_BATCH_DIMENSION]};
+        auto numericStrides = opIt->getInputTensor(0)->getOrder().computeByteStrides(mv::Shape(dimensions), opIt->getInputTensor(0)->getDType().getSizeInBits() / 8);
+        numericStrides.push_back(opIt->getInputTensor(0)->getDType().getSizeInBits() / 8);
+        std::reverse(dimensions.begin(), dimensions.end());
+        std::reverse(numericStrides.begin(), numericStrides.end());
+        tmp->src->strides = numericStrides; // NOTE: Maybe directly bufferIt->computeStrides() in the future?
+    }
+
     tmp->dst = buildTensorReferenceT(cm, compilationDescriptor, opIt->getOutputTensor(0));
     if(opIt->hasAttr("Compression"))
         tmp->compression =  opIt->get<bool>("Compression");
@@ -799,8 +805,6 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
 
     //output
     auto outputTensor = opIt->getOutputTensor(0);
-    if (opIt->hasAttr("alignment"))
-        outputTensor->set<bool>("alignment", true);
     tensorAllocatorName = outputTensor->get<std::set<std::string>>("allocators").begin();
     tensorAllocator = dm.getAllocator(*tensorAllocatorName);
     tensorBufferIt = tensorAllocator.getBuffer(0, outputTensor); // 0 is the only stage for now, but this will probably change in the future
@@ -816,6 +820,25 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
     else
     {
         toBuild->parent_output_tensor = buildTensorReferenceT(cm, compilationDescriptor, opIt->getOutputTensor(0));
+    }
+
+    if (opIt->hasAttr("alignment"))
+    {
+        outputTensor->set<bool>("alignment", true);
+        auto globalConfigParams = cm.getGlobalConfigParams();
+        int pad = globalConfigParams->hasAttr("VPU2ChannelPadding") ? globalConfigParams->get<int>("VPU2ChannelPadding") : 16;
+        std::vector<std::size_t> dimensions = outputTensor->getShape();
+        auto outputChannelsPadded = mv::round_up(dimensions[mv::IO_CHANNEL_DIMENSION], pad);
+        dimensions = {dimensions[mv::IO_WIDTH_DIMENSION], dimensions[mv::IO_HEIGHT_DIMENSION], outputChannelsPadded, dimensions[mv::IO_BATCH_DIMENSION]};
+        auto numericStrides = outputTensor->getOrder().computeByteStrides(mv::Shape(dimensions), outputTensor->getDType().getSizeInBits() / 8);
+        numericStrides.push_back(outputTensor->getDType().getSizeInBits() / 8);
+        std::reverse(dimensions.begin(), dimensions.end());
+        std::reverse(numericStrides.begin(), numericStrides.end());
+
+        toBuild->output_data->dimensions = std::vector<uint32_t>(dimensions.begin(), dimensions.end());
+        toBuild->output_data->strides = numericStrides; // NOTE: Maybe directly bufferIt->computeStrides() in the future?
+        toBuild->parent_output_tensor->dimensions = toBuild->output_data->dimensions;
+        toBuild->parent_output_tensor->strides = toBuild->output_data->strides;
     }
 
     toBuild->output_data->data->data_index += toBuild->output_data->leading_offset/2;
