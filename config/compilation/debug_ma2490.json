@@ -39,6 +39,76 @@
                         "strategy" : "SplitOverH"
                     },
                     {
+                        "name_filter" : ".*res2b.*",
+                        "cluster_filter" : 0,
+                        "strategy" : "SplitOverH"
+                    },
+                    {
+                        "name_filter" : ".*res2c.*",
+                        "cluster_filter" : 0,
+                        "strategy" : "SplitOverH"
+                    },
+                    {
+                        "name_filter" : ".*res3a.*",
+                        "cluster_filter" : 0,
+                        "strategy" : "SplitOverH"
+                    },
+                    {
+                        "name_filter" : ".*res3b.*",
+                        "cluster_filter" : 0,
+                        "strategy" : "SplitOverH"
+                    },
+                    {
+                        "name_filter" : ".*res3c.*",
+                        "cluster_filter" : 0,
+                        "strategy" : "SplitOverH"
+                    },
+                    {
+                        "name_filter" : ".*res3d.*",
+                        "cluster_filter" : 0,
+                        "strategy" : "SplitOverH"
+                    },
+                    {
+                        "name_filter" : ".*res4a.*",
+                        "cluster_filter" : 0,
+                        "strategy" : "SplitOverH"
+                    },
+                    {
+                        "name_filter" : ".*res4b.*",
+                        "cluster_filter" : 0,
+                        "strategy" : "SplitOverH"
+                    },
+                    {
+                        "name_filter" : ".*res4c.*",
+                        "cluster_filter" : 0,
+                        "strategy" : "SplitOverH"
+                    },
+                    {
+                        "name_filter" : ".*res4d.*",
+                        "cluster_filter" : 0,
+                        "strategy" : "SplitOverH"
+                    },
+                    {
+                        "name_filter" : ".*res4f.*",
+                        "cluster_filter" : 0,
+                        "strategy" : "SplitOverH"
+                    },
+                    {
+                        "name_filter" : ".*res5a.*",
+                        "cluster_filter" : 0,
+                        "strategy" : "SplitOverH"
+                    },
+                    {
+                        "name_filter" : ".*res5b.*",
+                        "cluster_filter" : 0,
+                        "strategy" : "SplitOverH"
+                    },
+                    {
+                        "name_filter" : ".*res5c.*",
+                        "cluster_filter" : 0,
+                        "strategy" : "SplitOverH"
+                    },
+                    {
                         "name_filter" : ".*conv1.*",
                         "cluster_filter" : 0,
                         "strategy" : "SplitOverH"
