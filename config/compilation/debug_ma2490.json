@@ -148,6 +148,11 @@
             "AlignTo16Channels",
             "ComputeTensorsQuantParams",
             "KMBOrderConversion",
+            "UpdateImplicitLayersQuantizationParams",
+            "SetDpuTasksMemoryLocation",
+            "AlignTaskWeights",
+            "AlignSliceOps",
+            "GenerateSparsityMapsPopulatedTensors",
             {
                 "name": "GenerateDot",
                 "output": "output/dots/keembay_adapt_model.dot",
@@ -159,11 +164,6 @@
                 "name": "ConvertDot",
                 "input": "output/dots/keembay_adapt_model.dot"
             },
-            "UpdateImplicitLayersQuantizationParams",
-            "SetDpuTasksMemoryLocation",
-            "AlignTaskWeights",
-            "AlignSliceOps",
-            "GenerateSparsityMapsPopulatedTensors",
             "GenerateWeightsTables",
             {
                 "name": "GenerateDot",
@@ -208,7 +208,7 @@
             },
             {
                 "name":"AddWeightsDMATasks",
-                "weights_prefetch": 1
+                "weights_prefetch": 0
             },
             {
                 "name": "GenerateDot",
