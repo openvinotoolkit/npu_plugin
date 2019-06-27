@@ -40,6 +40,9 @@
 #include "kmb_executor.h"
 #include "kmb_config.h"
 
+#include <sys/mman.h>
+#include "vpusmm.h"
+
 #ifndef _WIN32
 # include <libgen.h>
 # include <dlfcn.h>
@@ -63,6 +66,53 @@ using namespace std;
 
 #define POOL_SIZE (4 * TENSOR_MAX_SIZE + 1024)
 
+MyCmaData::~MyCmaData() {
+    if (fd >= 0) {
+        vpusmm_unimport_dmabuf(fd);
+        munmap(buf, size);
+        close(fd);
+    }
+}
+
+const int MyCmaData::pageSize = getpagesize();
+
+static uint32_t calculateRequiredSize(uint32_t blobSize, int pageSize) {
+    uint32_t blobSizeRem = blobSize % pageSize;
+    uint32_t requiredSize = (blobSize / pageSize) * pageSize;
+    if (blobSizeRem) {
+        requiredSize += pageSize;
+    }
+    return requiredSize;
+}
+
+int MyCmaData::Create(uint32_t requested_size) {
+    const int page_size = getPageSize();
+
+    size = calculateRequiredSize(requested_size, page_size);
+    fd = vpusmm_alloc_dmabuf(size, VPUSMMTYPE_NON_COHERENT);
+    if (fd < 0) {
+        int error_num = errno;
+        std::cout << "vpusmm_alloc_dmabuf failed with " << error_num << std::endl;
+        return -1;
+    }
+
+    phys_addr = vpusmm_import_dmabuf(fd, DMA_BIDIRECTIONAL);
+    if (phys_addr == 0) {
+        int error_num = errno;
+        std::cout << "vpusmm_import_dmabuf failed with " << error_num << std::endl;
+        return -2;
+    }
+
+    buf = static_cast<unsigned char *>(mmap(nullptr, size, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0));
+    if (buf == MAP_FAILED) {
+        int error_num = errno;
+        std::cout << "mmap failed with " << error_num << std::endl;
+        return -3;
+    }
+
+    return 0;
+}
+
 KmbExecutor::KmbExecutor(const Logger::Ptr& log, const std::shared_ptr<KmbConfig>& config)
             : _log(log), _config(config) {
     auto parsedConfig = _config->getParsedConfig();
@@ -79,9 +129,9 @@ KmbExecutor::KmbExecutor(const Logger::Ptr& log, const std::shared_ptr<KmbConfig
     plgPoolA = make_shared<PlgPool<TensorMsg>>();
     plgPoolB = make_shared<PlgPool<TensorMsg>>();
 
-    blob_file = make_shared<CmaData>();
-    input_tensor = make_shared<CmaData>();
-    output_tensor = make_shared<CmaData>();
+    blob_file = make_shared<MyCmaData>();
+    input_tensor = make_shared<MyCmaData>();
+    output_tensor = make_shared<MyCmaData>();
     BHandle = make_shared<BlobHandle_t>();
     pipe = make_shared<Pipeline>();
 #endif
@@ -109,15 +159,7 @@ void KmbExecutor::allocateGraph(const std::vector<char> &graphFileContent, const
     // Try and get some CMA allocations.
     // ########################################################################
 
-    if (blob_file->Create("udmabuf0")) {
-        std::cout << "Error getting CMA " << std::endl;
-        return;
-    }
-    if (input_tensor->Create("udmabuf1")) {
-        std::cout << "Error getting CMA " << std::endl;
-        return;
-    }
-    if (output_tensor->Create("udmabuf2")) {
+    if (blob_file->Create(graphFileContent.size())) {
         std::cout << "Error getting CMA " << std::endl;
         return;
     }
@@ -174,8 +216,25 @@ void KmbExecutor::allocateGraph(const std::vector<char> &graphFileContent, const
         return;
     }
 
+    auto tensor_deserializer = [](const flicTensorDescriptor_t & descriptor)->void {
+        std::cout << "{";
+        std::cout << "n: " << descriptor.n << ", ";
+        std::cout << "c: " << descriptor.c << ", ";
+        std::cout << "h: " << descriptor.h << ", ";
+        std::cout << "w: " << descriptor.w << ", ";
+        std::cout << "totalSize: " << descriptor.totalSize << ", ";
+        std::cout << "widthStride: " << descriptor.widthStride << ", ";
+        std::cout << "heightStride: " << descriptor.heightStride << ", ";
+        std::cout << "channelsStride: " << descriptor.channelsStride << "}" << std::endl;
+    };
+
     flicTensorDescriptor_t descOut = nnPl->GetOutputTensorDescriptor(0);
     flicTensorDescriptor_t  descIn = nnPl->GetInputTensorDescriptor(0);
+    std::cout << "Deserializing descriptors:" << std::endl;
+    std::cout << "Input: ";
+    tensor_deserializer(descIn);
+    std::cout << "Output: ";
+    tensor_deserializer(descOut);
 
     const unsigned int shavel2CacheLineSize = 64;
     unsigned int outputTensorSize = ROUND_UP(descOut.totalSize, shavel2CacheLineSize);
@@ -226,6 +285,17 @@ void KmbExecutor::queueInference(void *input_data, size_t input_bytes,
     }
 
 #ifdef ENABLE_VPUAL
+    std::cout << "KmbExecutor::queueInference: calling input_tensor->Create" << std::endl;
+    if (input_tensor->Create(input_bytes)) {
+        std::cout << "KmbExecutor::queueInference: Error getting CMA " << std::endl;
+        return;
+    }
+    std::cout << "KmbExecutor::queueInference: calling output_tensor->Create" << std::endl;
+    if (output_tensor->Create(input_bytes)) {
+        std::cout << "KmbExecutor::queueInference: Error getting CMA " << std::endl;
+        return;
+    }
+    std::cout << "KmbExecutor::queueInference: memcpy started" << std::endl;
     std::memcpy(input_tensor->buf, input_data, input_bytes);
     std::cout << "KmbExecutor::queueInference: memcpy done" << std::endl;
     plgTensorInput_->Push(input_tensor->phys_addr, input_bytes);
@@ -252,6 +322,7 @@ void KmbExecutor::getResult(void *result_data, unsigned int result_bytes) {
 
     // write to file
     // Open output file
+/*
     auto out_file = open("output.dat", O_WRONLY | O_CREAT, 0664);
     if (out_file <= 0) {
         std::cout << "Error opening output file" << std::endl;
@@ -263,16 +334,19 @@ void KmbExecutor::getResult(void *result_data, unsigned int result_bytes) {
     }
 
     close(out_file);
-    // TODO: remove '#if 0' when it is possible to read the actual output from VPU
-#if 0
+*/
     // Write tensor output to result_data.
     if (len > result_bytes) {
         std::cout << "Error: result_data buffer size less then output length." << std::endl;
     }
     std::cout << "KmbExecutor::getResult memcpy started" << std::endl;
+    std::cout << "Result dump:" << std::hex << std::endl;
+    for (int pos = 0; pos < len; pos++) {
+        std::cout << "0x" << static_cast<unsigned int>(data[pos]) << std::endl;
+    }
+    std::cout << std::dec << std::endl << "Result dump finished" << std::endl;
     std::memcpy(result_data, data, len);
     std::cout << "KmbExecutor::getResult memcpy finished" << std::endl;
-#endif
 #endif
     return;
 }
