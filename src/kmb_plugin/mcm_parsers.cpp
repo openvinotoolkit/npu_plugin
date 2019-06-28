@@ -97,6 +97,7 @@ std::vector<ResultType> packBlobToVector(
 
 mv::QuantizationParams createQuantParams(const ie::CNNLayerPtr& layer, std::string bName) {
     mv::QuantizationParams quantParams = {{}, {}, {}, {}};
+    double inf = std::numeric_limits<double>::infinity();
     ie::Blob::Ptr scaleBlob;
     auto blob = layer->blobs.find(bName);
 
@@ -104,12 +105,72 @@ mv::QuantizationParams createQuantParams(const ie::CNNLayerPtr& layer, std::stri
         scaleBlob = blob->second;
         auto scale = packBlobToVector<double>(scaleBlob, scaleBlob->size());
         quantParams = {{mv::utils::generateSequence<int64_t>(scale.size(), 0, 0)},
-                              {scale},
-                              {mv::utils::generateSequence<double>(scale.size(), 0, 0)},
-                              {mv::utils::generateSequence<double>(scale.size(), 6, 0)}};
+                       {scale},
+                       {mv::utils::generateSequence<double>(scale.size(), -inf, 0)},
+                       {mv::utils::generateSequence<double>(scale.size(), inf, 0)}};
     }
 
     return quantParams;
+}
+
+void getOutputScale(const ie::CNNLayerPtr& layer, mv::QuantizationParams &quantParams) {
+    std::vector<double> oiScaleData, wScaleData;
+    IE_ASSERT(layer->blobs["weights"] != nullptr);
+    IE_ASSERT(layer->blobs["weights"]->getTensorDesc().getPrecision() == ie::Precision::I8);
+    // quantized layer shall contain mandatory dequantize scale and optional requantize scale
+    // extract dequantize scale
+    IE_ASSERT(layer->blobs["w-scale"] != nullptr);
+    auto blob = layer->blobs.find("w-scale");
+    if (blob != layer->blobs.end()) {
+        wScaleData = packBlobToVector<double>(blob->second, blob->second->size());
+    }
+    // placeholder for resulted output scale
+    std::vector<double> oScaleDataVector(wScaleData.size(), 0);
+    if (layer->outData[0]->getPrecision() == ie::Precision::I8 ||
+        layer->outData[0]->getPrecision() == ie::Precision::U8) {
+        // next layer is quantized therefore extract requantize scale oi-scale
+        // resulted scale will be w-scale/oi-scale
+        blob = layer->blobs.find("oi-scale");
+        if (blob != layer->blobs.end()) {
+            oiScaleData = packBlobToVector<double>(blob->second, blob->second->size());
+        }
+        for (size_t c = 0; c < wScaleData.size(); c++) {
+            oScaleDataVector[c] = (wScaleData[c] / oiScaleData[c]);
+        }
+    } else {
+        oScaleDataVector = wScaleData;
+    }
+    double inf = std::numeric_limits<double>::infinity();
+    quantParams =  {{mv::utils::generateSequence<int64_t>(oScaleDataVector.size(), 0, 0)},
+                    {oScaleDataVector},
+                    {mv::utils::generateSequence<double>(oScaleDataVector.size(), -inf, 0)},
+                    {mv::utils::generateSequence<double>(oScaleDataVector.size(), inf, 0)}};
+
+    return;
+}
+
+mv::DType convert_data_type(ie::Precision iePrecision) {
+    mv::DType mvType;
+    switch (iePrecision) {
+    case ie::Precision::I8:
+        mvType = mv::DType("Int8");
+        break;
+    case ie::Precision::U8:
+        mvType = mv::DType("UInt8");
+        break;
+    case ie::Precision::I32:
+        mvType = mv::DType("Int32");
+        break;
+    case ie::Precision::FP16:
+        mvType = mv::DType("Float16");
+        break;
+    case ie::Precision::FP32:
+        mvType = mv::DType("Float32");
+        break;
+    default:
+        VPU_THROW_EXCEPTION << "Data type handling is not implemented" << iePrecision.name();
+    }
+    return mvType;
 }
 
 void FrontEndMcm::parseArgMax(
@@ -133,7 +194,6 @@ void FrontEndMcm::parseConvolution(
     //
     // Extract parameters
     //
-
     auto convLayer = std::dynamic_pointer_cast<ie::ConvolutionLayer>(layer);
     IE_ASSERT(convLayer != nullptr);
 
@@ -152,38 +212,27 @@ void FrontEndMcm::parseConvolution(
     int dilationX = convLayer->_dilation_x;
     int dilationY = convLayer->_dilation_y;
     if (dilationX != dilationY) {
-        VPU_THROW_EXCEPTION << "kmb Convolution supports only eqiual dilationX and dilationY";
+        VPU_THROW_EXCEPTION << "kmb Convolution supports only equal dilationX and dilationY";
     }
 
     int groupSize = convLayer->_group;
 
     // Quantization parameters
-    mv::QuantizationParams inputQuantParams   = {{}, {}, {}, {}};
     mv::QuantizationParams weightsQuantParams = {{}, {}, {}, {}};
+    mv::QuantizationParams inputQuantParams   = {{}, {}, {}, {}};
     mv::QuantizationParams outputQuantParams  = {{}, {}, {}, {}};
 
     if (layer->precision == ie::Precision::I8) {
         // Quantized layer
-        ie::Blob::Ptr wScaleBlob, oiScaleBlob;
-        IE_ASSERT(layer->blobs["w-scale"] != nullptr);
-        IE_ASSERT(layer->blobs["weights"] != nullptr);
-        IE_ASSERT(layer->blobs["weights"]->getTensorDesc().getPrecision() == ie::Precision::I8);
-        weightsQuantParams = createQuantParams(layer, "w-scale");
-
-        // Output quantization scale
-        auto ois = layer->blobs.find("oi-scale");
-        if ((layer->outData[0]->getPrecision() == ie::Precision::I8 || layer->outData[0]->getPrecision() == ie::Precision::U8)
-                && ois == layer->blobs.end()) {
-            THROW_IE_EXCEPTION << "Internal error of graph quantization - mismatch of intermediate scales and next layer type for convolution "
-                    << layer->name;
-        } else {
-            outputQuantParams  = createQuantParams(layer, "oi-scale");
-        }
-
+        double inf = std::numeric_limits<double>::infinity();
+        inputQuantParams   = {{0}, {1}, {-inf}, {inf}};
+        weightsQuantParams = {{0}, {1}, {-inf}, {inf}};
+        getOutputScale(layer, outputQuantParams);
         is_quantized = true;
     }
 
     auto layerOutput = layer->outData[0];
+
     IE_ASSERT(layerOutput != nullptr);
     DataDesc outDesc(layerOutput->getTensorDesc());
     mv::Data::TensorIterator mvConv;
@@ -260,6 +309,7 @@ void FrontEndMcm::parseConvolution(
     if (is_quantized) {
         mvConv->set<mv::QuantizationParams>("quantParams", outputQuantParams);
     }
+    mvConv->set<mv::DType>("dType", convert_data_type(layer->outData[0]->getPrecision()));
 
     auto conv = std::make_shared<McmNodeObject>(mvConv, outDesc);
 
@@ -330,6 +380,8 @@ void FrontEndMcm::parsePooling(
             poolLayer->name);
     }
 
+    mvPooling->set<mv::DType>("dType", convert_data_type(layer->outData[0]->getPrecision()));
+
     auto layerOutput = layer->outData[0];
     IE_ASSERT(layerOutput != nullptr);
 
@@ -351,32 +403,18 @@ void FrontEndMcm::parseFullyConnected(
     auto FClayer = std::dynamic_pointer_cast<ie::FullyConnectedLayer>(layer);
     IE_ASSERT(layer != nullptr);
 
+    bool is_quantized = false;
     // Quantization parameters
-    mv::QuantizationParams inputQuantParams   = {{}, {}, {}, {}};
     mv::QuantizationParams weightsQuantParams = {{}, {}, {}, {}};
+    mv::QuantizationParams inputQuantParams   = {{}, {}, {}, {}};
     mv::QuantizationParams outputQuantParams  = {{}, {}, {}, {}};
 
-    bool is_quantized = false;
     if (layer->precision == ie::Precision::I8) {
         // Quantized layer
-        ie::Blob::Ptr wScaleBlob, oiScaleBlob;
-
-        IE_ASSERT(layer->blobs["weights"] != nullptr);
-        IE_ASSERT(layer->blobs["weights"]->getTensorDesc().getPrecision() == ie::Precision::I8);
-
-        IE_ASSERT(layer->blobs["w-scale"] != nullptr);
-        weightsQuantParams = createQuantParams(layer, "w-scale");
-
-        // Output quantization scale
-        auto ois = layer->blobs.find("oi-scale");
-        if ((layer->outData[0]->getPrecision() == ie::Precision::I8 || layer->outData[0]->getPrecision() == ie::Precision::U8)
-                && ois == layer->blobs.end()) {
-            THROW_IE_EXCEPTION << "Internal error of graph quantization - mismatch of intermediate scales and next layer type for convolution "
-                    << layer->name;
-        } else {
-            outputQuantParams  = createQuantParams(layer, "oi-scale");
-        }
-
+        double inf = std::numeric_limits<double>::infinity();
+        inputQuantParams   = {{0}, {1}, {-inf}, {inf}};
+        weightsQuantParams = {{0}, {1}, {-inf}, {inf}};
+        getOutputScale(layer, outputQuantParams);
         is_quantized = true;
     }
 
@@ -416,6 +454,7 @@ void FrontEndMcm::parseFullyConnected(
     if (is_quantized) {
         mvFullyConnected->set<mv::QuantizationParams>("quantParams", outputQuantParams);
     }
+    mvFullyConnected->set<mv::DType>("dType", convert_data_type(layer->outData[0]->getPrecision()));
 
     auto fullyConnected = std::make_shared<McmNodeObject>(mvFullyConnected, DataDesc(layerOutput->getTensorDesc()));
 
@@ -600,6 +639,8 @@ void FrontEndMcm::parseScale(
     auto layerOutput = scaleLayer->outData[0];
     IE_ASSERT(layerOutput != nullptr);
 
+    mvScaleShift->set<mv::DType>("dType", convert_data_type(layer->outData[0]->getPrecision()));
+
     auto scaleShift = std::make_shared<McmNodeObject>(mvScaleShift, DataDesc(layerOutput->getTensorDesc()));
     _nodes.push_back(scaleShift);
     bindData(scaleShift, layerOutput);
@@ -720,6 +761,8 @@ void FrontEndMcm::parseEltwise(
             mvEltwise = _modelMcm.subtract(inputs[1]->getMcmNode(), inputs[0]->getMcmNode(), secondInputQuantParams, eltwiseLayer->name);
         }
     }
+
+    mvEltwise->set<mv::DType>("dType", convert_data_type(layer->outData[0]->getPrecision()));
 
     auto layerOutput = layer->outData[0];
     IE_ASSERT(layerOutput != nullptr);
