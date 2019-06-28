@@ -268,6 +268,7 @@ static void generateWeightsTablesFcn(const mv::pass::PassEntry& , mv::Computatio
 {
     mv::OpModel om(model);
     mv::DataModel dm(model);
+    mv::ControlModel cm(model);
 
     for(auto dpuTaskOp = om.opBegin(); dpuTaskOp != om.opEnd(); ++dpuTaskOp)
     {
@@ -298,6 +299,16 @@ static void generateWeightsTablesFcn(const mv::pass::PassEntry& , mv::Computatio
                 om.getSourceOp(weightTable)->set<unsigned>("opId", dpuTaskOp->get<unsigned>("opId"));
                 unsigned newSize = dpuTaskOp->addInputTensor(weightTable);
                 om.defineFlow(weightTable, dpuTaskOp, newSize - 1);
+
+                auto ctlFlow = cm.switchContext(om.getSourceOp(dpuTaskOp->getInputTensor(1)));
+                if (auto parentOptest = ctlFlow.leftmostParent() == cm.opEnd())
+                    std::cout << "NO PARENT FOUND for " << ctlFlow->getName() << std::endl;
+                for (auto parentOp = ctlFlow.leftmostParent(); parentOp != cm.opEnd(); ++parentOp)
+                {
+                    cm.defineFlow(om.switchContext(parentOp),om.getSourceOp(weightTable));
+                    std::cout << "ADDED CONTROL FLOW from " << parentOp->getName() << " to " << weightTable->getName() << std::endl;
+                }
+
             }
         }
     }

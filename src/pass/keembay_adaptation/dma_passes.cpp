@@ -185,6 +185,8 @@ void addWeightsDMATasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
                     }
 
                     auto ctlFlow = cm.switchContext(inputOp);
+                    if (auto parentOptest = ctlFlow.leftmostParent() == cm.opEnd())
+                        std::cout << "NO PARENT FOUND for " << ctlFlow->getName() << std::endl;
                     for (auto parentOp = ctlFlow.leftmostParent(); parentOp != cm.opEnd(); ++parentOp)
                     {
                         cm.defineFlow(om.switchContext(parentOp),inputTensorDmaOp);

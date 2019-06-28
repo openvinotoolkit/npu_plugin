@@ -89,7 +89,7 @@
                         "name_filter" : "conv0_cmx_",
                         "output_location" : "CMX",
                         "splits" : [
-                            {"K" : 2}
+                            {"K" : 4}
                         ]
                     },
                     {
@@ -537,7 +537,7 @@
             },
             {
                 "name":"AddWeightsDMATasks",
-                "weights_prefetch": 2
+                "weights_prefetch": 11
             },
             {
                 "name": "GenerateDot",

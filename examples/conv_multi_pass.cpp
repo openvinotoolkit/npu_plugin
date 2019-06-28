@@ -76,6 +76,7 @@ int main()
     compDesc.setPassArg("GlobalConfigParams", "Number_of_DPUs", ndpu);
 */
     unit.loadTargetDescriptor(mv::Target::ma2490);
+    unit.compilationDescriptor().remove("finalize","MaxTopologicalCutAndPartialSerialisation");
     unit.initialize();
     std::cout << "CONV_MULTI_PASS EXAMPLE: calling unit run" << std::endl ;
     unit.run();

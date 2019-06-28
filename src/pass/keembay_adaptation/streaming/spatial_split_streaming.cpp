@@ -216,7 +216,7 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model, mv::Dat
     
     if (inputTensor->get<mv::Tensor::MemoryLocation>("Location").toString() != "CMX")
     {
-        std::cout<< "  adding DMA2CMX on input " <<  std::endl ; 
+        std::cout<< "  adding DMA2CMX on data input " <<  std::endl ; 
 
         auto flows = inputTensor->get<std::set<std::string>>("flows");
 
@@ -310,8 +310,13 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model, mv::Dat
 
         slices[split] = slice;
         convs[split] = conv;
-        if(split>0)
+
+        bool enableSerialStreaming = true;
+        if ((split>0)&&(enableSerialStreaming))
             cm.defineFlow(om.getSourceOp(convs[split-1]), om.getSourceOp(slice));
+//        else
+//            cm.defineFlow(om.getInput(), om.getSourceOp(slice));
+
 
     }
     kernelTensor->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::BLOB);
