@@ -1074,7 +1074,7 @@ void mv::RuntimeModel::getWorkloadPadding(Control::OpListIterator opIt, Workload
     return;
 }
 
-std::unique_ptr<MVCNN::NCEVariantFieldsT> mv::RuntimeModel::buildNCEVariantFieldsT(ComputationModel& , mv::Element &compilationDescriptor, Control::OpListIterator opIt, Workload workload)
+std::unique_ptr<MVCNN::NCEVariantFieldsT> mv::RuntimeModel::buildNCEVariantFieldsT(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt, Workload workload)
 {
     UNUSED (compilationDescriptor);
     std::unique_ptr<MVCNN::NCEVariantFieldsT> toBuild = std::unique_ptr<MVCNN::NCEVariantFieldsT>(new MVCNN::NCEVariantFieldsT());
@@ -1092,6 +1092,14 @@ std::unique_ptr<MVCNN::NCEVariantFieldsT> mv::RuntimeModel::buildNCEVariantField
     toBuild->padRight = workload.padRight;
     toBuild->padTop = workload.padTop;
     toBuild->padBottom = workload.padBottom;
+    if (opIt->hasAttr("alignment"))
+    {
+        auto globalConfigParams = cm.getGlobalConfigParams();
+        int pad = globalConfigParams->hasAttr("VPU2ChannelPadding") ? globalConfigParams->get<int>("VPU2ChannelPadding") : 16;
+        std::vector<std::size_t> dimensions = opIt->getOutputTensor(0)->getShape();
+        auto outputChannelsPadded = mv::round_up(dimensions[mv::IO_CHANNEL_DIMENSION], pad);
+        toBuild->workload_end_Z = outputChannelsPadded - 1;
+    }
     return toBuild;
 }
 
@@ -1260,6 +1268,11 @@ unsigned mv::RuntimeModel::countProducerConsumerTasks(mv::ComputationModel& cm, 
                     else
                         toReturn = numClusters;
                 }
+            }
+            else
+            {
+                auto& workloads = opIt->get<mv::Workloads>("Workloads");
+                toReturn = workloads.nWorkloads();
             }
         }
         else
