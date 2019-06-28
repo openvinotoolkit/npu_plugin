@@ -23,16 +23,11 @@
 #include <vpu/parsed_config.hpp>
 #include <vpu/private_plugin_config.hpp>
 
-#include <mvnc.h>
-
 namespace vpu {
 namespace KmbPlugin {
 
 struct KmbConfig final : ParsedConfig {
-//    std::map<std::string, std::string> mcmCompilerConfig;
-
     bool forceReset = false;
-    ncDevicePlatform_t platform = ANY_PLATFORM;
     int watchdogInterval = 1000;
 
     explicit KmbConfig(const std::map<std::string, std::string> &config = std::map<std::string, std::string>(),
