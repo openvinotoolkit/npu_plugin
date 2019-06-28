@@ -3,6 +3,7 @@
 #include "contrib/flatbuffers/include/flatbuffers/util.h"
 #include "include/mcm/base/exception/argument_error.hpp"
 #include "include/mcm/utils/warning_manager.hpp"
+#include "include/mcm/utils/custom_math.hpp"
 #include <fstream>
 #include <iostream>
 
@@ -160,7 +161,7 @@ std::vector<unsigned> mv::RuntimeModel::reduceQuantVector_(std::vector<unsigned>
 
 
 //build tensorReference for Tensors - 1 cluster case
-std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT(mv::ComputationModel& , mv::Element&, mv::Data::TensorIterator t)
+std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT(mv::ComputationModel&, mv::Element&, mv::Data::TensorIterator t)
 {
     std::unique_ptr<MVCNN::TensorReferenceT> toBuild = std::unique_ptr<MVCNN::TensorReferenceT>(new MVCNN::TensorReferenceT());
 
@@ -168,7 +169,7 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
 
     auto tensorAllocatorName = t->get<std::set<std::string>>("allocators").begin();
 
-    std::vector<uint32_t> dimensions = t->getShape();
+    std::vector<std::size_t> dimensions = t->getShape();
     auto numericStrides = t->computeNumericStrides();
     numericStrides.push_back(t->getDType().getSizeInBits() / 8);
 
@@ -176,7 +177,7 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     std::reverse(dimensions.begin(), dimensions.end());
     std::reverse(numericStrides.begin(), numericStrides.end());
 
-    toBuild->dimensions = dimensions;
+    toBuild->dimensions = std::vector<uint32_t>(dimensions.begin(), dimensions.end());
     toBuild->strides = numericStrides; // NOTE: Maybe directly bufferIt->computeStrides() in the future?
 
     toBuild->leading_offset = 0;
@@ -617,6 +618,20 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
     toReturn[0]->task.type = MVCNN::SpecificTask_NNDMATask;
     auto tmp = new MVCNN::NNDMATaskT();
     tmp->src = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(0));
+    if (opIt->getInputTensor(0)->hasAttr("alignment"))
+    {
+        auto globalConfigParams = cm.getGlobalConfigParams();
+        int pad = globalConfigParams->hasAttr("VPU2ChannelPadding") ? globalConfigParams->get<int>("VPU2ChannelPadding") : 16;
+        std::vector<std::size_t> dimensions = opIt->getInputTensor(0)->getShape();
+        auto outputChannelsPadded = mv::round_up(dimensions[mv::IO_CHANNEL_DIMENSION], pad);
+        dimensions = {dimensions[mv::IO_WIDTH_DIMENSION], dimensions[mv::IO_HEIGHT_DIMENSION], outputChannelsPadded, dimensions[mv::IO_BATCH_DIMENSION]};
+        auto numericStrides = opIt->getInputTensor(0)->getOrder().computeByteStrides(mv::Shape(dimensions), opIt->getInputTensor(0)->getDType().getSizeInBits() / 8);
+        numericStrides.push_back(opIt->getInputTensor(0)->getDType().getSizeInBits() / 8);
+        std::reverse(dimensions.begin(), dimensions.end());
+        std::reverse(numericStrides.begin(), numericStrides.end());
+        tmp->src->strides = numericStrides; // NOTE: Maybe directly bufferIt->computeStrides() in the future?
+    }
+
     tmp->dst = buildTensorReferenceT(cm, compilationDescriptor, opIt->getOutputTensor(0));
     if(opIt->hasAttr("Compression"))
         tmp->compression =  opIt->get<bool>("Compression");
@@ -788,6 +803,24 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
         toBuild->parent_input_tensor = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(0));
     }
 
+    if (inputTensor->hasAttr("alignment"))
+    {
+        auto globalConfigParams = cm.getGlobalConfigParams();
+        int pad = globalConfigParams->hasAttr("VPU2ChannelPadding") ? globalConfigParams->get<int>("VPU2ChannelPadding") : 16;
+        std::vector<std::size_t> dimensions = inputTensor->getShape();
+        auto inputChannelsPadded = mv::round_up(dimensions[mv::IO_CHANNEL_DIMENSION], pad);
+        dimensions = {dimensions[mv::IO_WIDTH_DIMENSION], dimensions[mv::IO_HEIGHT_DIMENSION], inputChannelsPadded, dimensions[mv::IO_BATCH_DIMENSION]};
+        auto numericStrides = inputTensor->getOrder().computeByteStrides(mv::Shape(dimensions), inputTensor->getDType().getSizeInBits() / 8);
+        numericStrides.push_back(inputTensor->getDType().getSizeInBits() / 8);
+        std::reverse(dimensions.begin(), dimensions.end());
+        std::reverse(numericStrides.begin(), numericStrides.end());
+
+        toBuild->input_data->dimensions = std::vector<uint32_t>(dimensions.begin(), dimensions.end());
+        toBuild->input_data->strides = numericStrides; // NOTE: Maybe directly bufferIt->computeStrides() in the future?
+        toBuild->parent_input_tensor->dimensions = toBuild->input_data->dimensions;
+        toBuild->parent_input_tensor->strides = toBuild->input_data->strides;
+    }
+
     //output
     auto outputTensor = opIt->getOutputTensor(0);
     tensorAllocatorName = outputTensor->get<std::set<std::string>>("allocators").begin();
@@ -805,6 +838,24 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
     else
     {
         toBuild->parent_output_tensor = buildTensorReferenceT(cm, compilationDescriptor, opIt->getOutputTensor(0));
+    }
+
+    if (outputTensor->hasAttr("alignment"))
+    {
+        auto globalConfigParams = cm.getGlobalConfigParams();
+        int pad = globalConfigParams->hasAttr("VPU2ChannelPadding") ? globalConfigParams->get<int>("VPU2ChannelPadding") : 16;
+        std::vector<std::size_t> dimensions = outputTensor->getShape();
+        auto outputChannelsPadded = mv::round_up(dimensions[mv::IO_CHANNEL_DIMENSION], pad);
+        dimensions = {dimensions[mv::IO_WIDTH_DIMENSION], dimensions[mv::IO_HEIGHT_DIMENSION], outputChannelsPadded, dimensions[mv::IO_BATCH_DIMENSION]};
+        auto numericStrides = outputTensor->getOrder().computeByteStrides(mv::Shape(dimensions), outputTensor->getDType().getSizeInBits() / 8);
+        numericStrides.push_back(outputTensor->getDType().getSizeInBits() / 8);
+        std::reverse(dimensions.begin(), dimensions.end());
+        std::reverse(numericStrides.begin(), numericStrides.end());
+
+        toBuild->output_data->dimensions = std::vector<uint32_t>(dimensions.begin(), dimensions.end());
+        toBuild->output_data->strides = numericStrides; // NOTE: Maybe directly bufferIt->computeStrides() in the future?
+        toBuild->parent_output_tensor->dimensions = toBuild->output_data->dimensions;
+        toBuild->parent_output_tensor->strides = toBuild->output_data->strides;
     }
 
     toBuild->output_data->data->data_index += toBuild->output_data->leading_offset/2;
@@ -1040,7 +1091,7 @@ void mv::RuntimeModel::getWorkloadPadding(Control::OpListIterator opIt, Workload
     return;
 }
 
-std::unique_ptr<MVCNN::NCEVariantFieldsT> mv::RuntimeModel::buildNCEVariantFieldsT(ComputationModel& , mv::Element &compilationDescriptor, Control::OpListIterator opIt, Workload workload)
+std::unique_ptr<MVCNN::NCEVariantFieldsT> mv::RuntimeModel::buildNCEVariantFieldsT(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt, Workload workload)
 {
     UNUSED (compilationDescriptor);
     std::unique_ptr<MVCNN::NCEVariantFieldsT> toBuild = std::unique_ptr<MVCNN::NCEVariantFieldsT>(new MVCNN::NCEVariantFieldsT());
@@ -1058,6 +1109,14 @@ std::unique_ptr<MVCNN::NCEVariantFieldsT> mv::RuntimeModel::buildNCEVariantField
     toBuild->padRight = workload.padRight;
     toBuild->padTop = workload.padTop;
     toBuild->padBottom = workload.padBottom;
+    if (opIt->hasAttr("alignment"))
+    {
+        auto globalConfigParams = cm.getGlobalConfigParams();
+        int pad = globalConfigParams->hasAttr("VPU2ChannelPadding") ? globalConfigParams->get<int>("VPU2ChannelPadding") : 16;
+        std::vector<std::size_t> dimensions = opIt->getOutputTensor(0)->getShape();
+        auto outputChannelsPadded = mv::round_up(dimensions[mv::IO_CHANNEL_DIMENSION], pad);
+        toBuild->workload_end_Z = outputChannelsPadded - 1;
+    }
     return toBuild;
 }
 
@@ -1226,6 +1285,11 @@ unsigned mv::RuntimeModel::countProducerConsumerTasks(mv::ComputationModel& cm, 
                     else
                         toReturn = numClusters;
                 }
+            }
+            else
+            {
+                auto& workloads = opIt->get<mv::Workloads>("Workloads");
+                toReturn = workloads.nWorkloads();
             }
         }
         else
