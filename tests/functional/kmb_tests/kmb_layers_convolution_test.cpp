@@ -17,78 +17,20 @@
 #include <vpu/kmb_plugin_config.hpp>
 
 #include "kmb_layers_tests.hpp"
+#include "kmb_xml_tests.hpp"
+
+#include <ie_icnn_network_stats.hpp>
+#include <cnn_network_int8_normalizer.hpp>
+#include <ie_util_internal.hpp>
 
 #define ERROR_BOUND (.1f)
 
 using namespace InferenceEngine;
+using namespace InferenceEngine::details;
 
 #ifdef ENABLE_MCM_COMPILER
 TEST_F(kmbLayersTests_nightly, TestsConvolutionAfterScaleShift) {
-    const std::string model = R"V0G0N(
-    <net batch="1" name="CONVOLUTION_TEST" version="2">
-        <layers>
-            <layer id="0" name="input" precision="FP16" type="Input">
-                <output>
-                    <port id="0">
-                        <dim>1</dim>
-                        <dim>3</dim>
-                        <dim>224</dim>
-                        <dim>224</dim>
-                    </port>
-                </output>
-            </layer>
-            <layer id="1" name="scale_shift1" precision="FP16" type="ScaleShift">
-                <input>
-                    <port id="0">
-                        <dim>1</dim>
-                        <dim>3</dim>
-                        <dim>224</dim>
-                        <dim>224</dim>
-                    </port>
-                </input>
-                <output>
-                    <port id="1">
-                        <dim>1</dim>
-                        <dim>3</dim>
-                        <dim>224</dim>
-                        <dim>224</dim>
-                    </port>
-                </output>
-                <blobs>
-                    <weights offset="0" size="6"/>
-                    <biases offset="6" size="6"/>
-                </blobs>
-            </layer>
-            <layer id="2" name="conv_test1" precision="FP16" type="Convolution">
-                <data dilations="1,1" group="1" kernel="7,7" output="64" pads_begin="3,3" pads_end="3,3" strides="2,2"/>
-                <input>
-                    <port id="0">
-                        <dim>1</dim>
-                        <dim>3</dim>
-                        <dim>224</dim>
-                        <dim>224</dim>
-                    </port>
-                </input>
-                <output>
-                    <port id="1">
-                        <dim>1</dim>
-                        <dim>64</dim>
-                        <dim>112</dim>
-                        <dim>112</dim>
-                    </port>
-                </output>
-                <blobs>
-                    <weights offset="12" size="18816"/>
-                    <biases offset="18828" size="128"/>
-                </blobs>
-            </layer>
-        </layers>
-        <edges>
-            <edge from-layer="0" from-port="0" to-layer="1" to-port="0"/>
-            <edge from-layer="1" from-port="1" to-layer="2" to-port="0"/>
-        </edges>
-    </net>
-        )V0G0N";
+    const std::string model = conv_after_scale_shift;
 
     ASSERT_NO_THROW(_net_reader.ReadNetwork(model.data(), model.length()));
     ASSERT_TRUE(_net_reader.isParseSuccess());
@@ -117,49 +59,167 @@ TEST_F(kmbLayersTests_nightly, TestsConvolutionAfterScaleShift) {
     ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
 }
 
+TEST_F(kmbLayersTests_nightly, TestsConvolutionAfterScaleShiftNoBias) {
+    std::string model = conv_after_scale_shift;
+    REPLACE_WITH_STR(model, "<biases offset=\"6\" size=\"6\"/>", " ");
+    REPLACE_WITH_STR(model, "<biases offset=\"18828\" size=\"128\"/>", " ");
+
+    ASSERT_NO_THROW(_net_reader.ReadNetwork(model.data(), model.length()));
+    ASSERT_TRUE(_net_reader.isParseSuccess());
+
+    std::size_t weightSize = 6 + 18816;
+    std::size_t biasSize = 6 + 128;
+    TBlob<uint8_t>::Ptr weightsBlob(GenWeights(weightSize + biasSize));
+    ASSERT_NO_THROW(_net_reader.SetWeights(weightsBlob));
+
+    CNNNetwork network = _net_reader.getNetwork();
+
+    _inputsInfo = network.getInputsInfo();
+    _inputsInfo["input"]->setInputPrecision(Precision::FP16);
+
+    _outputsInfo = network.getOutputsInfo();
+    _outputsInfo["conv_test1"]->setPrecision(Precision::FP16);
+
+    std::map<std::string, std::string> config;
+    config[VPU_KMB_CONFIG_KEY(MCM_PARSING_ONLY)] = CONFIG_VALUE(NO);
+    config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_BLOB)] = CONFIG_VALUE(YES);
+    config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_DOT)] = CONFIG_VALUE(YES);
+    config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_JSON)] = CONFIG_VALUE(YES);
+
+    StatusCode st;
+    ASSERT_NO_THROW(st = myriadPluginPtr->LoadNetwork(_exeNetwork, network, config, &_resp));
+    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
+}
+
+TEST_F(kmbLayersTests_nightly, TestsQuantizedConvolutionAfterScaleShift) {
+    const std::string model = full_quant_model;
+
+    ASSERT_NO_THROW(_net_reader.ReadNetwork(model.data(), model.length()));
+    ASSERT_TRUE(_net_reader.isParseSuccess());
+
+    StatusCode sts;
+    InferenceEngine::ResponseDesc response;
+    std::map<std::string, std::string> config;
+    IExecutableNetwork::Ptr exeNetwork;
+    details::CNNNetworkImplPtr clonedNetwork;
+    CNNNetworkInt8Normalizer cnnorm;
+
+    config[VPU_KMB_CONFIG_KEY(MCM_PARSING_ONLY)] = CONFIG_VALUE(NO);
+    config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_BLOB)] = CONFIG_VALUE(YES);
+    config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_DOT)] = CONFIG_VALUE(YES);
+    config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_JSON)] = CONFIG_VALUE(YES);
+    config[VPU_CONFIG_KEY(ALLOW_FP32_MODELS)] = CONFIG_VALUE(YES);
+
+    std::size_t weightSize = 147456 + 65536;
+    std::size_t biasSize = 256 + 1024;
+    TBlob<uint8_t>::Ptr weightsBlob(GenWeights(weightSize + biasSize));
+    ASSERT_NO_THROW(_net_reader.SetWeights(weightsBlob));
+
+    CNNNetwork network = _net_reader.getNetwork();
+
+    _inputsInfo = network.getInputsInfo();
+    _inputsInfo["input"]->setInputPrecision(Precision::FP32);
+
+    _outputsInfo = network.getOutputsInfo();
+    _outputsInfo["conv2"]->setPrecision(Precision::FP32);
+
+    ICNNNetworkStats* pstats = nullptr;
+    StatusCode s = ((ICNNNetwork&)network).getStats(&pstats, nullptr);
+
+    ASSERT_EQ(StatusCode::OK, s);
+
+    if (!pstats->isEmpty()) {
+        clonedNetwork = cloneNet(network);
+        cnnorm.NormalizeNetwork(*clonedNetwork, *pstats);
+        sts = myriadPluginPtr->LoadNetwork(_exeNetwork, *clonedNetwork, config, &response);
+    }
+
+    ASSERT_EQ(StatusCode::OK, sts) << _resp.msg;
+}
+
+TEST_F(kmbLayersTests_nightly, TestsQuantizedConvolutionAfterScaleShiftNoBias) {
+    std::string model = full_quant_model;
+
+    REPLACE_WITH_STR(model, "<biases offset=\"147456\" size=\"256\"/>", " ");
+    REPLACE_WITH_STR(model, "<biases offset=\"213248\" size=\"1024\"/>", " ");
+
+    ASSERT_NO_THROW(_net_reader.ReadNetwork(model.data(), model.length()));
+    ASSERT_TRUE(_net_reader.isParseSuccess());
+
+    StatusCode sts;
+    InferenceEngine::ResponseDesc response;
+    std::map<std::string, std::string> config;
+    IExecutableNetwork::Ptr exeNetwork;
+    details::CNNNetworkImplPtr clonedNetwork;
+    CNNNetworkInt8Normalizer cnnorm;
+
+    config[VPU_KMB_CONFIG_KEY(MCM_PARSING_ONLY)] = CONFIG_VALUE(NO);
+    config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_BLOB)] = CONFIG_VALUE(YES);
+    config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_DOT)] = CONFIG_VALUE(YES);
+    config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_JSON)] = CONFIG_VALUE(YES);
+    config[VPU_CONFIG_KEY(ALLOW_FP32_MODELS)] = CONFIG_VALUE(YES);
+
+    std::size_t weightSize = 147456 + 65536;
+    std::size_t biasSize = 256 + 1024;
+    TBlob<uint8_t>::Ptr weightsBlob(GenWeights(weightSize + biasSize));
+    ASSERT_NO_THROW(_net_reader.SetWeights(weightsBlob));
+
+    CNNNetwork network = _net_reader.getNetwork();
+
+    _inputsInfo = network.getInputsInfo();
+    _inputsInfo["input"]->setInputPrecision(Precision::FP32);
+
+    _outputsInfo = network.getOutputsInfo();
+    _outputsInfo["conv2"]->setPrecision(Precision::FP32);
+
+    ICNNNetworkStats* pstats = nullptr;
+    StatusCode s = ((ICNNNetwork&)network).getStats(&pstats, nullptr);
+
+    ASSERT_EQ(StatusCode::OK, s);
+
+    if (!pstats->isEmpty()) {
+        clonedNetwork = cloneNet(network);
+        cnnorm.NormalizeNetwork(*clonedNetwork, *pstats);
+        sts = myriadPluginPtr->LoadNetwork(_exeNetwork, *clonedNetwork, config, &response);
+    }
+
+    ASSERT_EQ(StatusCode::OK, sts) << _resp.msg;
+}
+
 TEST_F(kmbLayersTests_nightly, TestsConvolutionOnly) {
-    const std::string model = R"V0G0N(
-    <net batch="1" name="CONVOLUTION_TEST" version="2">
-        <layers>
-            <layer id="0" name="input" precision="FP16" type="Input">
-                <output>
-                    <port id="0">
-                        <dim>1</dim>
-                        <dim>3</dim>
-                        <dim>224</dim>
-                        <dim>224</dim>
-                    </port>
-                </output>
-            </layer>
-            <layer id="2" name="conv_test1" precision="FP16" type="Convolution">
-                <data dilations="1,1" group="1" kernel="7,7" output="64" pads_begin="3,3" pads_end="3,3" strides="2,2"/>
-                <input>
-                    <port id="0">
-                        <dim>1</dim>
-                        <dim>3</dim>
-                        <dim>224</dim>
-                        <dim>224</dim>
-                    </port>
-                </input>
-                <output>
-                    <port id="1">
-                        <dim>1</dim>
-                        <dim>64</dim>
-                        <dim>112</dim>
-                        <dim>112</dim>
-                    </port>
-                </output>
-                <blobs>
-                    <weights offset="0" size="18816"/>
-                    <biases offset="18816" size="128"/>
-                </blobs>
-            </layer>
-        </layers>
-        <edges>
-            <edge from-layer="0" from-port="0" to-layer="2" to-port="0"/>
-        </edges>
-    </net>
-        )V0G0N";
+    const std::string model = convolution_only;
+
+    ASSERT_NO_THROW(_net_reader.ReadNetwork(model.data(), model.length()));
+    ASSERT_TRUE(_net_reader.isParseSuccess());
+
+    std::size_t weightSize = 18816;
+    std::size_t biasSize = 128;
+    TBlob<uint8_t>::Ptr weightsBlob(GenWeights(weightSize + biasSize));
+    ASSERT_NO_THROW(_net_reader.SetWeights(weightsBlob));
+
+    CNNNetwork network = _net_reader.getNetwork();
+
+    _inputsInfo = network.getInputsInfo();
+    _inputsInfo["input"]->setInputPrecision(Precision::FP16);
+
+    _outputsInfo = network.getOutputsInfo();
+    _outputsInfo["conv_test1"]->setPrecision(Precision::FP16);
+
+    std::map<std::string, std::string> config;
+    // LoadNetwork results in the following message when MCM_PARSING_ONLY is set to 'NO':
+    // The maximum peak memory requirment of the graph exceeds CMX and the partial serialisation algorithm is unable
+    // to reduce parallelism, exiting now, this is normal behaviour
+    // TODO disable 'parse only' and find out why it happens
+    config[VPU_KMB_CONFIG_KEY(MCM_PARSING_ONLY)] = CONFIG_VALUE(YES);
+
+    StatusCode st;
+    ASSERT_NO_THROW(st = myriadPluginPtr->LoadNetwork(_exeNetwork, network, config, &_resp));
+    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
+}
+
+TEST_F(kmbLayersTests_nightly, TestsConvolutionOnlyNoBias) {
+    std::string model = convolution_only;
+    REPLACE_WITH_STR(model, "<biases offset=\"18816\" size=\"128\"/>", " ");
 
     ASSERT_NO_THROW(_net_reader.ReadNetwork(model.data(), model.length()));
     ASSERT_TRUE(_net_reader.isParseSuccess());
