@@ -448,7 +448,7 @@ std::pair<int,std::vector<mv::koalaGraph::PEdge>> mv::KoalaGraphScheduler::calcu
 
     /*store the cut edges*/
     std::vector<koalaGraph::PEdge> cutEdges;
-    uint64_t maxTopologicalCutValue = 0;    
+    uint64_t maxTopologicalCutValue = 0;   
 
     /*compute minimal cut*/
     Koala::Flow::minEdgeCut(this->getGraph(), cap, (*lookUpKoalaSourceNode(true, this->vertices_)), (*lookUpKoalaSinkNode(true, this->vertices_)), Koala::Flow::outCut(blackHole, std::back_inserter(cutEdges)));
