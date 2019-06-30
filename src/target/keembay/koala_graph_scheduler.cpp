@@ -131,7 +131,7 @@ void  mv::KoalaGraphScheduler::convertMcMGraphToKoalaGraph(const mv::pass::PassE
     */
     for (auto flowIt = cm.flowBegin(); flowIt != cm.flowEnd(); ++flowIt) {
         
-        /* 1. Don't add the edge going to Ouput in the MCM graph to the KOALA graph
+        /* 1. Don't add the edge going to Ouput 
          * 2. Don't add edge coming from a ConstantInt operation (Sparsity Map and Weights Table)
         */
        
@@ -141,8 +141,6 @@ void  mv::KoalaGraphScheduler::convertMcMGraphToKoalaGraph(const mv::pass::PassE
 
             auto sourceName = flowIt.source()->getName();
             auto sinkName  = flowIt.sink()->getName();
-
-            std::cout << flowIt.sink()->getName() << std::endl;
 
             if(flowIt->hasAttr("MemoryRequirement"))
                 pass.log(mv::Logger::MessageType::Debug, "Adding edge to KOALA graph from: " + sourceName + " --> " + sinkName + " with memory requirement " + std::to_string(flowIt->get<int>("MemoryRequirement")));
