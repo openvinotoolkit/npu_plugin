@@ -113,9 +113,6 @@ else()
     add_executable(hw_convolution_mx hw_convolution_mx.cpp)
     target_link_libraries(hw_convolution_mx cm)
 
-    add_executable(max_cut_conv7_yolo max_cut_conv7_yolo.cpp)
-    target_link_libraries(max_cut_conv7_yolo cm)
-
     add_executable(z_major_convolution z_major_convolution.cpp)
     target_link_libraries(z_major_convolution cm)
 
