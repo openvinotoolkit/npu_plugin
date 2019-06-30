@@ -5,7 +5,7 @@
                 "name" : "GlobalConfigParams",
                 "_comment" : "Stores common params accross multiple passes. Access through the Computation Model.",
                 "recorded_model": true,
-                "verbose": "Debug",
+                "verbose": "Info",
                 "weights_form": "None",
                 "barrier_index_assignment" : "Dynamic",
                 "Number_of_DPUs" : 1,
@@ -117,7 +117,7 @@
                         "name_filter" : "conv7/conv7#4",
                         "output_location" : "DDR",
                         "splits" : [
-                            {"K" : 1}
+                            {"K" : 2}
                         ]
                     },
                     {
@@ -614,7 +614,7 @@
             {
                 "name": "GenerateDot",
                 "output": "output/dots/TransitiveReductionBeforeMaxCut.dot",
-                "scope": "ControlModel",
+                "scope": "OpControlModel",
                 "content": "nonfull",
                 "html": true
             },
@@ -632,10 +632,6 @@
             {
                 "name": "ConvertDot",
                 "input": "output/dots/TransitiveReductionBeforeMaxCutFull.dot"
-            },
-            {
-                "name" : "TransitiveReduction",
-                "filter" : "PositiveMemory"
             },
             "MaxTopologicalCutAndPartialSerialisation",
             {
