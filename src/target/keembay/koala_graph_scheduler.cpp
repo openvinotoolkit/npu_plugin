@@ -74,6 +74,7 @@ void  mv::KoalaGraphScheduler::convertMcMGraphToKoalaGraph(const mv::pass::PassE
 
     mv::ControlModel cm(model);
     mv::DataModel dm(model);
+    bool outputNodeAdded = false; 
 
     /* For each task in the ControlModel view of the MCM graph
      * create a corresponding node (task) in the KOALA graph.
@@ -93,7 +94,7 @@ void  mv::KoalaGraphScheduler::convertMcMGraphToKoalaGraph(const mv::pass::PassE
 
        */
     
-        if (opIt->getOpType() == "Input" || opIt->getOpType() == "DPUTask" || opIt->getOpType() == "DMATask" || 
+        if (opIt->getOpType() == "Input" || opIt->getOpType() == "Ouput" || opIt->getOpType() == "DPUTask" || opIt->getOpType() == "DMATask" || 
             opIt->getOpType() == "ImplicitConcat" || opIt->getOpType() == "Deallocate") {
         
             bool nodeAdded = false;
@@ -102,6 +103,9 @@ void  mv::KoalaGraphScheduler::convertMcMGraphToKoalaGraph(const mv::pass::PassE
            /*Check if the node is a DMA task CMX to DDR (this is the sink node in KOALA graph and we need to keep track of it)*/
            if (opIt->hasAttr("lastOpKoala") && opIt->get<bool>("lastOpKoala"))
            {
+               if (opIt->getOpType() == "Ouput")
+                    outputNodeAdded = true;
+
                pass.log(mv::Logger::MessageType::Debug, "Adding vertex to KOALA graph: " + opIt->getName());
 
                this->vertices_.push_back(this->getGraph().addVert(nodeDescription(opIt->getName(),0, false, true)));
@@ -135,12 +139,15 @@ void  mv::KoalaGraphScheduler::convertMcMGraphToKoalaGraph(const mv::pass::PassE
          * 2. Don't add edge coming from a ConstantInt operation (Sparsity Map and Weights Table)
         */
        
-        if (flowIt.sink()->getOpType() != "Output" && flowIt.source()->getOpType() != "ConstantInt" && flowIt.sink()->getOpType() != "ConstantInt" 
+        if (flowIt.source()->getOpType() != "ConstantInt" && flowIt.sink()->getOpType() != "ConstantInt" 
             && flowIt.sink()->getOpType() != "Slice" && flowIt.source()->getOpType() != "ConstantDataElement" && flowIt.source()->getOpType() != "Constant")
         {
-
             auto sourceName = flowIt.source()->getName();
             auto sinkName  = flowIt.sink()->getName();
+
+            /*If mcm output node was not added then we should not add control edges for it*/
+            if((!outputNodeAdded) && (flowIt.sink()->getOpType() == "Output"))
+                goto outputControlEdgesNotRequired;
 
             if(flowIt->hasAttr("MemoryRequirement"))
                 pass.log(mv::Logger::MessageType::Debug, "Adding edge to KOALA graph from: " + sourceName + " --> " + sinkName + " with memory requirement " + std::to_string(flowIt->get<int>("MemoryRequirement")));
@@ -160,6 +167,9 @@ void  mv::KoalaGraphScheduler::convertMcMGraphToKoalaGraph(const mv::pass::PassE
                                              *std::find_if(vertices_.begin(), vertices_.end(), [&sinkName](koalaGraph::PVertex const& vertex) {return sinkName == vertex->info.name;}), 
                                              edgeDescription(0,flowIt->getName()), 
                                              Koala::Directed));
+            
+            outputControlEdgesNotRequired:
+                pass.log(mv::Logger::MessageType::Debug, "Skipping this edge as MCM output node was not added to the graph");
         }
     }
     pass.log(mv::Logger::MessageType::Debug, "KOALA graph has " + std::to_string(this->getGraph().getVertNo()) + " vertices and " + std::to_string(this->getGraph().getEdgeNo()) + " edges");
@@ -395,8 +405,13 @@ std::pair<int,std::vector<mv::koalaGraph::PEdge>> mv::KoalaGraphScheduler::calcu
                                                                                                 Koala::DijkstraHeap::outPath(blackHole, back_inserter(shortestPathEdges)));
 
         pass.log(mv::Logger::MessageType::Debug, "Number of edges on the path from Input to source node of the current edge is " + std::to_string(resInputToSource.edgeNo));
-
-	    for (int k = 0; k < resInputToSource.edgeNo; k++) {
+        
+        if (resInputToSource.edgeNo < 0) {
+            //throw std::runtime_error("There is no path between Input and " + this->edges_[i]->info.name + " edges as missing from the koala graph, exiting");
+            goto missingEdgeserror;
+        }
+	    
+        for (int k = 0; k < resInputToSource.edgeNo; k++) {
 
             pass.log(mv::Logger::MessageType::Debug, shortestPathEdges[k]->info.name);
 
@@ -405,8 +420,11 @@ std::pair<int,std::vector<mv::koalaGraph::PEdge>> mv::KoalaGraphScheduler::calcu
             (*edge)->info.flow +=Fmax;
 	    }
 
+        
         /*The above calculation stops at source node of the edge so doesn't include the edge in question - add Fmax to this edge*/
         this->edges_[i]->info.flow +=Fmax;
+        
+        missingEdgeserror:
 
         /*Clear the container used to store the the edges on shorest paths*/
         shortestPathEdges.clear(); 
@@ -420,7 +438,12 @@ std::pair<int,std::vector<mv::koalaGraph::PEdge>> mv::KoalaGraphScheduler::calcu
 
         pass.log(mv::Logger::MessageType::Debug, "Number of edges on the path from the sink node of the current edge to the ouput node is " + std::to_string(resSinkToOuput.edgeNo));
 
-	    for (int j = 0; j < resSinkToOuput.edgeNo; j++) {
+        if (resSinkToOuput.edgeNo < 0){
+            //throw std::runtime_error("There is no path between " + this->edges_[i]->info.name + " and the sink node of the graph, edges as missing from the koala graph, exiting");
+            goto missingEdgeserror1;
+        }
+
+        for (int j = 0; j < resSinkToOuput.edgeNo; j++) {
 		    
             pass.log(mv::Logger::MessageType::Debug, shortestPathEdges[j]->info.name);
 
@@ -430,6 +453,8 @@ std::pair<int,std::vector<mv::koalaGraph::PEdge>> mv::KoalaGraphScheduler::calcu
 	    }
         /*Clear the container used to store the the edges on shorest paths*/
         shortestPathEdges.clear();
+        missingEdgeserror1:
+            pass.log(mv::Logger::MessageType::Debug, "Error!!! EDGES ARE MISSING");
     }
 
     /*Subtract Memory attribute of edge from the Flow attribute of the edge*/

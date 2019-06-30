@@ -33,8 +33,15 @@ void markLastNodeForMaxTopologicalCutFcn(const mv::pass::PassEntry& pass, mv::Co
 
     mv::ControlModel cm(model);
     mv::OpModel om(model);
+    mv::Control::OpListIterator sinkNode;
     auto output = cm.switchContext(om.getOutput());
-    auto sinkNode = output.leftmostParent();
+
+    /* We need to be able to identify the sink node for Max cut in Koala. */
+    if(output.parentsSize() > 1)
+        sinkNode = output;
+    else
+        sinkNode = output.leftmostParent();
+    
     sinkNode->set<bool>("lastOpKoala", true);
 }
 
