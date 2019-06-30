@@ -206,8 +206,19 @@ void generateDotFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
                     std::string edgeDef = "\t\"" + opIt->getName() + "\" -> \"" + controlIt.sink()->getName() + "\"";
                     if (htmlLike)
                     {
-                        if(contentLevel != "full")
-                            edgeDef += " [penwidth=2.0, style=dashed]";
+                        if(contentLevel != "full") {
+                            if(controlIt->hasAttr("MemoryRequirement")) {
+
+                                edgeDef += " [penwidth=2.0, style=dashed label=<<TABLE BORDER=\"0\" \
+                                CELLPADDING=\"0\" CELLSPACING=\"0\"><TR><TD ALIGN=\"CENTER\" \
+                                COLSPAN=\"2\"><FONT POINT-SIZE=\"14.0\"><B>"
+                                + std::to_string(controlIt->get<int>("MemoryRequirement"))
+                                + "</B></FONT></TD></TR>";
+                                edgeDef += "</TABLE>>];";
+                            }
+                            else
+                                edgeDef += " [penwidth=2.0, style=dashed]";
+                        }
                         else
                         {
                             edgeDef += " [penwidth=2.0, style=dashed label=<<TABLE BORDER=\"0\" \

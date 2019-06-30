@@ -82,17 +82,25 @@ void  mv::KoalaGraphScheduler::convertMcMGraphToKoalaGraph(const mv::pass::PassE
     for (auto opIt = cm.getFirst(); opIt != cm.opEnd(); ++opIt)
     {
 
-       /* We do not require MCM constant operations and MCM ouput operation in the KOALA graph. The sink node in the KOALA graph is the DMATask CMX2DDR.
-        * For all other tasks in the ControlModel view of the MCM graph create a corresponding node in the KOALA graph.
-       */
-       if (opIt->getOpType() != "ConstantDataElement" && opIt->getOpType() != "Output" && opIt->getOpType() != "ConstantInt" &&
-            opIt->getOpType() != "Constant")
-       {
+       /* We do not require MCM operations in the KOALA graph. The purpose is to schedule operation in CMX therefore,
+          we only need these operations and their control edges
 
-           bool nodeAdded = false;
+       - Input
+       - DPUTask
+       - DMATask
+       - ImplicitConcat
+       - Dealloc
+
+       */
+    
+        if (opIt->getOpType() == "Input" || opIt->getOpType() == "DPUTask" || opIt->getOpType() == "DMATask" || 
+            opIt->getOpType() == "ImplicitConcat" || opIt->getOpType() == "Deallocate") {
+        
+            bool nodeAdded = false;
+
            /*Add node to KOALA graph*/
            /*Check if the node is a DMA task CMX to DDR (this is the sink node in KOALA graph and we need to keep track of it)*/
-           if (opIt->hasAttr("lastDMAOp") && opIt->get<bool>("lastDMAOp"))
+           if (opIt->hasAttr("lastOpKoala") && opIt->get<bool>("lastOpKoala"))
            {
                pass.log(mv::Logger::MessageType::Debug, "Adding vertex to KOALA graph: " + opIt->getName());
 
@@ -126,13 +134,15 @@ void  mv::KoalaGraphScheduler::convertMcMGraphToKoalaGraph(const mv::pass::PassE
         /* 1. Don't add the edge going to Ouput in the MCM graph to the KOALA graph
          * 2. Don't add edge coming from a ConstantInt operation (Sparsity Map and Weights Table)
         */
-
-        if (flowIt.sink()->getOpType() != "Output" && flowIt.source()->getOpType() != "ConstantInt" &&
-            flowIt.source()->getOpType() != "ConstantDataElement" && flowIt.source()->getOpType() != "Constant")
+       
+        if (flowIt.sink()->getOpType() != "Output" && flowIt.source()->getOpType() != "ConstantInt" && flowIt.sink()->getOpType() != "ConstantInt" 
+            && flowIt.sink()->getOpType() != "Slice" && flowIt.source()->getOpType() != "ConstantDataElement" && flowIt.source()->getOpType() != "Constant")
         {
 
             auto sourceName = flowIt.source()->getName();
             auto sinkName  = flowIt.sink()->getName();
+
+            std::cout << flowIt.sink()->getName() << std::endl;
 
             if(flowIt->hasAttr("MemoryRequirement"))
                 pass.log(mv::Logger::MessageType::Debug, "Adding edge to KOALA graph from: " + sourceName + " --> " + sinkName + " with memory requirement " + std::to_string(flowIt->get<int>("MemoryRequirement")));
@@ -154,7 +164,6 @@ void  mv::KoalaGraphScheduler::convertMcMGraphToKoalaGraph(const mv::pass::PassE
                                              Koala::Directed));
         }
     }
-    //std::cout << std::to_string(this->getGraph().getVertNo()) << std::to_string(this->getGraph().getEdgeNo()) << std::endl;
     pass.log(mv::Logger::MessageType::Debug, "KOALA graph has " + std::to_string(this->getGraph().getVertNo()) + " vertices and " + std::to_string(this->getGraph().getEdgeNo()) + " edges");
 }
 
@@ -441,7 +450,7 @@ std::pair<int,std::vector<mv::koalaGraph::PEdge>> mv::KoalaGraphScheduler::calcu
 
     /*store the cut edges*/
     std::vector<koalaGraph::PEdge> cutEdges;
-    uint64_t maxTopologicalCutValue = 0;
+    uint64_t maxTopologicalCutValue = 0;    
 
     /*compute minimal cut*/
     Koala::Flow::minEdgeCut(this->getGraph(), cap, (*lookUpKoalaSourceNode(true, this->vertices_)), (*lookUpKoalaSinkNode(true, this->vertices_)), Koala::Flow::outCut(blackHole, std::back_inserter(cutEdges)));
