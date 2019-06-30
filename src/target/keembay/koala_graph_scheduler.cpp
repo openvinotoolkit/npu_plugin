@@ -408,7 +408,7 @@ std::pair<int,std::vector<mv::koalaGraph::PEdge>> mv::KoalaGraphScheduler::calcu
         
         if (resInputToSource.edgeNo < 0) {
             //throw std::runtime_error("There is no path between Input and " + this->edges_[i]->info.name + " edges as missing from the koala graph, exiting");
-            goto missingEdgeserror;
+            goto missingEdgeserror0;
         }
 	    
         for (int k = 0; k < resInputToSource.edgeNo; k++) {
@@ -424,7 +424,7 @@ std::pair<int,std::vector<mv::koalaGraph::PEdge>> mv::KoalaGraphScheduler::calcu
         /*The above calculation stops at source node of the edge so doesn't include the edge in question - add Fmax to this edge*/
         this->edges_[i]->info.flow +=Fmax;
         
-        missingEdgeserror:
+        missingEdgeserror0:
 
         /*Clear the container used to store the the edges on shorest paths*/
         shortestPathEdges.clear(); 
