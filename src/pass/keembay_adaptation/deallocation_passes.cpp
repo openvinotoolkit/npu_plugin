@@ -55,9 +55,10 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
         if(inputOp->getOpType() == "Constant" || inputOp->getOpType() == "ConstantInt" || inputOp->getOpType() == "ConstantDataElement" ||
             inputOp->getOpType() == "WeightsTable" || inputOp->getOpType() == "SparsityMap")
             continue;
-
+        
         if (inputOp->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location") == mv::Tensor::MemoryLocation::BLOB)
             continue;
+
         // Tensors that are input of a concat shall not be deallocated: they will be allocated into a bigger tensor
         // (the output of concat op) and that will be deallocated
 
@@ -86,8 +87,11 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
             auto flowIt = cm.defineFlow(inputOp, deallocateInputOp);
             auto outputTensor = flowIt.source()->getOutputTensor(0);
 
-            flowIt->set<int>("MemoryRequirement", outputTensor->computeTotalSize());
-            flowIt->set<bool>("PositiveMemory", true);
+            /* Concat memory requirment should be 0 */
+            if(flowIt.source()->getOpType() != "ImplicitConcat") {
+                flowIt->set<int>("MemoryRequirement", outputTensor->computeTotalSize());
+                flowIt->set<bool>("PositiveMemory", true);
+            }
 
             // Control flows for the newly created operation must be attached now.
             // Checking all the ops that have this tensor as input

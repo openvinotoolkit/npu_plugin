@@ -87,7 +87,7 @@
                 [
                     {
                         "name_filter" : "conv0_cmx_",
-                        "output_location" : "CMX",
+                        "output_location" : "DDR",
                         "splits" : [
                             {"K" : 4}
                         ]
@@ -614,14 +614,14 @@
             {
                 "name": "GenerateDot",
                 "output": "output/dots/TransitiveReductionBeforeMaxCut.dot",
-                "scope": "OpControlModel",
+                "scope": "ControlModel",
                 "content": "nonfull",
                 "html": true
             },
             {
                 "name": "GenerateDot",
                 "output": "output/dots/TransitiveReductionBeforeMaxCutFull.dot",
-                "scope": "OpControlModel",
+                "scope": "OpModel",
                 "content": "full",
                 "html": true
             },
