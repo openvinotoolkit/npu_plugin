@@ -51,7 +51,6 @@ using BIGKoala = Koala::Graph <BigKVertexInfo, BigKEdgeInfo>;
 
 static void insertBarrierTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 static void updateCountsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
-static void adjustBarrierIndicesFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 
 namespace mv
 {
@@ -64,11 +63,6 @@ namespace mv
         .setDescription(
             "This pass inserts barrier tasks into the compute graph"
         );
-
-        MV_REGISTER_PASS(AdjustBarrierIndices)
-        .setFunc(adjustBarrierIndicesFcn)
-        .setDescription(
-            "This pass adjustes barriers ID according to topological sort. This pass has to be executed before AddBarrierRefs");
 
         MV_REGISTER_PASS(UpdateBarrierProducerConsumerCounts)
         .setFunc(updateCountsFcn)
@@ -540,40 +534,6 @@ void removeExtraProducers(const mv::pass::PassEntry& pass,
         for (auto p: toRemove)
             barrier.removeProducer(p);
     }
-}
-
-void setBarrierIndicesAccordingToTopologicalSortOrder(mv::ComputationModel& model, const mv::Element& passDesc)
-{
-    mv::ControlModel cm(model);
-
-    auto globalConfigParams = model.getGlobalConfigParams();
-    std::string indexAssignment = globalConfigParams->get<std::string>("barrier_index_assignment");
-
-    if (indexAssignment == "Dynamic")
-    {
-        auto topologicallySortedOps = cm.schedulingSort();
-
-        int id = 0;
-        for (auto op: topologicallySortedOps)
-        {
-            if (op->getOpType() == "BarrierTask")
-            {
-                auto& barrier = op->get<mv::Barrier>("Barrier");
-                barrier.setIndex(id);
-                id++;
-            }
-        }
-    }
-}
-
-//This pass has to be executed before "AddBarrierRefs",
-static void adjustBarrierIndicesFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::json::Object&)
-{
-    auto globalConfigParams = model.getGlobalConfigParams();
-
-    std::string indexAssignment = globalConfigParams->get<std::string>("barrier_index_assignment");
-    if(indexAssignment == "Dynamic")
-        setBarrierIndicesAccordingToTopologicalSortOrder(model, passDesc);
 }
 
 static void insertBarrierTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::json::Object&)

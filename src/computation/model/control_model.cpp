@@ -214,10 +214,19 @@ std::vector<mv::Control::OpListIterator> mv::ControlModel::topologicalSort()
 
 std::vector<mv::Control::OpListIterator> mv::ControlModel::schedulingSort()
 {
-    // Necessary for correct iterator casting
-    auto schedulingSortResult = mv::schedulingSort(controlGraph_, getFirst());
-    std::vector<mv::Control::OpListIterator> toReturn(schedulingSortResult.begin(), schedulingSortResult.end());
-    return toReturn;
+    std::vector<mv::Control::OpListIterator> toSort;
+    for(auto opIt = opBegin(); opIt != opEnd(); ++opIt)
+        if(opIt->hasAttr("schedulingNumber"))
+            toSort.push_back(opIt);
+
+    std::sort(toSort.begin(), toSort.end(), [](mv::Control::OpListIterator a, mv::Control::OpListIterator b){
+        unsigned schedulingNumberA = a->get<unsigned>("schedulingNumber");
+        unsigned schedulingNumberB = b->get<unsigned>("schedulingNumber");
+
+        return schedulingNumberA < schedulingNumberB;
+    });
+
+    return toSort;
 }
 
 struct OpItComparator
