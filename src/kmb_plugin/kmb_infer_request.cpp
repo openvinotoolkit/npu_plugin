@@ -51,6 +51,7 @@ KmbInferRequest::KmbInferRequest(InferenceEngine::InputsDataMap networkInputs,
     if (_config->compileConfig.forceLayout == ComputeLayout::NHWC)
         _deviceLayout = NHWC;
     // allocate inputs
+    IE_ASSERT(_networkInputs.size() == 1) << "Do not support more than 1 input";
     for (auto &networkInput : _networkInputs) {
         // TODO: use TensorDesc instead of deprecated methods
         SizeVector dims      = networkInput.second->getTensorDesc().getDims();
@@ -67,14 +68,15 @@ KmbInferRequest::KmbInferRequest(InferenceEngine::InputsDataMap networkInputs,
         Blob::Ptr inputBlob = make_blob_with_precision(TensorDesc(
             precision,
             dims,
-            layout));
+            layout), executor->input_tensor->buf);
+
 
         // allocate the input blob
         // TODO We are allocating temporary input buffer of enough size. Wrap this buffer in blobs
-        inputBlob->allocate();
         _inputs[networkInput.first] = inputBlob;
     }
     // allocate outputs
+    IE_ASSERT(_networkOutputs.size() == 1) << "Do not support more than 1 output";
     for (auto &networkOutput : _networkOutputs) {
         SizeVector dims      = networkOutput.second->getTensorDesc().getDims();
         Precision  precision = networkOutput.second->getTensorDesc().getPrecision();
@@ -90,7 +92,7 @@ KmbInferRequest::KmbInferRequest(InferenceEngine::InputsDataMap networkInputs,
         Blob::Ptr outputBlob = make_blob_with_precision(TensorDesc(
             precision,
             dims,
-            layout));
+            layout), executor->output_tensor->buf);
 
         // allocate the output blob
         outputBlob->allocate();
