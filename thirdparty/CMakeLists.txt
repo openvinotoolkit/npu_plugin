@@ -14,9 +14,17 @@
 # stated in the License.
 #
 
-find_library(VPUSMM_LIBRARY
+if(${CMAKE_SYSTEM_PROCESSOR} STREQUAL "aarch64")
+    find_library(VPUSMM_LIBRARY
         NAMES vpusmm
-        HINTS ${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/thirdparty/vsi_cmodel/vpusmm/)
+        HINTS ${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/thirdparty/vsi_cmodel/vpusmm/arm)
+elseif(${CMAKE_SYSTEM_PROCESSOR} STREQUAL "x86_64")
+    find_library(VPUSMM_LIBRARY
+            NAMES vpusmm
+            HINTS ${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/thirdparty/vsi_cmodel/vpusmm/x86_64)
+else()
+    message(FATAL_ERROR "Unsupported architecture")
+endif()
 
 if (ENABLE_TESTS AND ENABLE_VPUAL)
     add_subdirectory(tests/integration)
