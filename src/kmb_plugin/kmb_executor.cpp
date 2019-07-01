@@ -40,6 +40,9 @@
 #include "kmb_executor.h"
 #include "kmb_config.h"
 
+#include <sys/mman.h>
+#include "vpusmm.h"
+
 #ifndef _WIN32
 # include <libgen.h>
 # include <dlfcn.h>
@@ -63,6 +66,55 @@ using namespace std;
 
 #define POOL_SIZE (4 * TENSOR_MAX_SIZE + 1024)
 
+#ifdef ENABLE_VPUAL
+KmbCmaData::~KmbCmaData() {
+    if (fd >= 0) {
+        vpusmm_unimport_dmabuf(fd);
+        munmap(buf, size);
+        close(fd);
+    }
+}
+
+const int KmbCmaData::pageSize = getpagesize();
+
+static uint32_t calculateRequiredSize(uint32_t blobSize, int pageSize) {
+    uint32_t blobSizeRem = blobSize % pageSize;
+    uint32_t requiredSize = (blobSize / pageSize) * pageSize;
+    if (blobSizeRem) {
+        requiredSize += pageSize;
+    }
+    return requiredSize;
+}
+
+int KmbCmaData::Create(uint32_t requested_size) {
+    const int page_size = getPageSize();
+
+    size = calculateRequiredSize(requested_size, page_size);
+    fd = vpusmm_alloc_dmabuf(size, VPUSMMTYPE_NON_COHERENT);
+    if (fd < 0) {
+        int error_num = errno;
+        std::cout << "vpusmm_alloc_dmabuf failed with " << error_num << std::endl;
+        return -1;
+    }
+
+    phys_addr = vpusmm_import_dmabuf(fd, DMA_BIDIRECTIONAL);
+    if (phys_addr == 0) {
+        int error_num = errno;
+        std::cout << "vpusmm_import_dmabuf failed with " << error_num << std::endl;
+        return -2;
+    }
+
+    buf = static_cast<unsigned char *>(mmap(nullptr, size, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0));
+    if (buf == MAP_FAILED) {
+        int error_num = errno;
+        std::cout << "mmap failed with " << error_num << std::endl;
+        return -3;
+    }
+
+    return 0;
+}
+#endif
+
 KmbExecutor::KmbExecutor(const Logger::Ptr& log, const std::shared_ptr<KmbConfig>& config)
             : _log(log), _config(config) {
     auto parsedConfig = _config->getParsedConfig();
@@ -71,7 +123,6 @@ KmbExecutor::KmbExecutor(const Logger::Ptr& log, const std::shared_ptr<KmbConfig
     }
 
 #ifdef ENABLE_VPUAL
-    HeapAlloc = make_shared<HeapAllocator>();
     nnPl = make_shared<NNFlicPlg>();
     gg = make_shared<GraphManagerPlg>();
     plgTensorInput_ = make_shared<PlgTensorSource>();
@@ -79,9 +130,9 @@ KmbExecutor::KmbExecutor(const Logger::Ptr& log, const std::shared_ptr<KmbConfig
     plgPoolA = make_shared<PlgPool<TensorMsg>>();
     plgPoolB = make_shared<PlgPool<TensorMsg>>();
 
-    blob_file = make_shared<CmaData>();
-    input_tensor = make_shared<CmaData>();
-    output_tensor = make_shared<CmaData>();
+    blob_file = make_shared<KmbCmaData>();
+    input_tensor = make_shared<KmbCmaData>();
+    output_tensor = make_shared<KmbCmaData>();
     BHandle = make_shared<BlobHandle_t>();
     pipe = make_shared<Pipeline>();
 #endif
@@ -109,15 +160,7 @@ void KmbExecutor::allocateGraph(const std::vector<char> &graphFileContent, const
     // Try and get some CMA allocations.
     // ########################################################################
 
-    if (blob_file->Create("udmabuf0")) {
-        std::cout << "Error getting CMA " << std::endl;
-        return;
-    }
-    if (input_tensor->Create("udmabuf1")) {
-        std::cout << "Error getting CMA " << std::endl;
-        return;
-    }
-    if (output_tensor->Create("udmabuf2")) {
+    if (blob_file->Create(graphFileContent.size())) {
         std::cout << "Error getting CMA " << std::endl;
         return;
     }
@@ -138,11 +181,11 @@ void KmbExecutor::allocateGraph(const std::vector<char> &graphFileContent, const
     GraphStatus status = gg->NNGraphCheckAvailable(graphId_main);
     if (Success == status) {
         std::cout << "Blob available!" << std::endl;
-        status = gg->NNGraphAllocateExistingBlob(&(*BHandle));
+        status = gg->NNGraphAllocateExistingBlob(BHandle.get());
         std::cout << "Allocated existing blob with status: " << status << std::endl;
     } else if (No_GraphId_Found == status) {
         std::cout << "Blob not found." << std::endl;
-        status = gg->NNGraphAllocate(&(*BHandle));
+        status = gg->NNGraphAllocate(BHandle.get());
         std::cout << "Allocated new blob with status: " << status << std::endl;
     } else {
         std::cerr << "Error checking graph availability: " << status << std::endl;
@@ -164,7 +207,7 @@ void KmbExecutor::allocateGraph(const std::vector<char> &graphFileContent, const
     nnPl->SetNumberOfThreads(nThreads);
     nnPl->SetNumberOfShaves(nShaves);
 
-    nnPl->Create(&(*BHandle));
+    nnPl->Create(BHandle.get());
 
     std::cout << "NN Plugin Create finished..." << std::endl;
 
@@ -174,17 +217,74 @@ void KmbExecutor::allocateGraph(const std::vector<char> &graphFileContent, const
         return;
     }
 
+    auto tensor_deserializer = [](const flicTensorDescriptor_t & descriptor)->void {
+        std::cout << "{";
+        std::cout << "n: " << descriptor.n << ", ";
+        std::cout << "c: " << descriptor.c << ", ";
+        std::cout << "h: " << descriptor.h << ", ";
+        std::cout << "w: " << descriptor.w << ", ";
+        std::cout << "totalSize: " << descriptor.totalSize << ", ";
+        std::cout << "widthStride: " << descriptor.widthStride << ", ";
+        std::cout << "heightStride: " << descriptor.heightStride << ", ";
+        std::cout << "channelsStride: " << descriptor.channelsStride << "}" << std::endl;
+    };
+
     flicTensorDescriptor_t descOut = nnPl->GetOutputTensorDescriptor(0);
     flicTensorDescriptor_t  descIn = nnPl->GetInputTensorDescriptor(0);
+    std::cout << "Deserializing descriptors:" << std::endl;
+    std::cout << "Input: ";
+    tensor_deserializer(descIn);
+    std::cout << "Output: ";
+    tensor_deserializer(descOut);
 
+    std::cout << "KmbExecutor::allocateGraph: calling input_tensor->Create" << std::endl;
+    if (input_tensor->Create(descIn.totalSize)) {
+        std::cout << "KmbExecutor::allocateGraph: Error getting CMA " << std::endl;
+        return;
+    }
+    std::cout << "KmbExecutor::allocateGraph: calling output_tensor->Create" << std::endl;
+    if (output_tensor->Create(descOut.totalSize)) {
+        std::cout << "KmbExecutor::allocateGraph: Error getting CMA " << std::endl;
+        return;
+    }
+
+    InferenceEngine::SizeVector inputDims({descIn.n, descIn.c, descIn.h, descIn.w});
+    InferenceEngine::Layout inputLayout = InferenceEngine::Layout::NCHW;
+    // TODO: add proper precision handling
+    InferenceEngine::Precision inputPrecision = InferenceEngine::Precision::FP16;
+    InferenceEngine::TensorDesc inputDesc(inputPrecision, inputDims, inputLayout);
+    InferenceEngine::Data inputData("input", inputDesc);
+
+    InferenceEngine::InputInfo inputInfo;
+    inputInfo.setInputData(std::make_shared<InferenceEngine::Data>(inputData));
+    m_networkInputs[inputInfo.name()] = std::make_shared<InferenceEngine::InputInfo>(inputInfo);
+    m_inputInfo.totalSize = 1;
+    if (descIn.channelsStride > 0) {
+        m_inputInfo.totalSize = descIn.channelsStride;
+    }
+
+    InferenceEngine::SizeVector outputDims({descOut.n, descOut.c, descOut.h, descOut.w});
+    InferenceEngine::Layout outputLayout = InferenceEngine::Layout::NCHW;
+    InferenceEngine::Precision outputPrecision = InferenceEngine::Precision::FP16;
+    InferenceEngine::TensorDesc outputDesc(outputPrecision, outputDims, outputLayout);
+    InferenceEngine::Data outputData("output", outputDesc);
+
+    m_networkOutputs[outputData.getName()] = std::make_shared<InferenceEngine::Data>(outputData);
+    m_outputInfo.totalSize = 1;
+    if (descOut.channelsStride > 0) {
+        m_outputInfo.totalSize = descOut.channelsStride;
+    }
+
+    const unsigned int sizeOfFrames = 32;
     const unsigned int shavel2CacheLineSize = 64;
     unsigned int outputTensorSize = ROUND_UP(descOut.totalSize, shavel2CacheLineSize);
+    RgnAlloc.Create(output_tensor->phys_addr, POOL_SIZE);
 
     // TODO - These
     std::cout << "Starting input output tensor plugin along with memory pool create..." << std::endl;
-    plgPoolA->Create(&(*HeapAlloc), 1, 32);
+    plgPoolA->Create(&RgnAlloc, 1, sizeOfFrames);
     std::cout << "read memory pool finished..." << std::endl;
-    plgPoolB->Create(&(*HeapAlloc), 1, outputTensorSize);
+    plgPoolB->Create(&RgnAlloc, 1, outputTensorSize);
     std::cout << "write memory pool finished..." << std::endl;
     plgTensorInput_->Create(descIn.totalSize, XLINK_INPUT_CHANNEL, descIn);
     std::cout << "input tensor plugin finished..." << std::endl;
@@ -194,11 +294,11 @@ void KmbExecutor::allocateGraph(const std::vector<char> &graphFileContent, const
 
     // Add the plugins to the pipeline:
 
-    pipe->Add(&(*plgPoolA));
-    pipe->Add(&(*plgPoolB));
-    pipe->Add(&(*plgTensorInput_));
-    pipe->Add(&(*plgTensorOutput_));
-    pipe->Add(&(*nnPl));
+    pipe->Add(plgPoolA.get());
+    pipe->Add(plgPoolB.get());
+    pipe->Add(plgTensorInput_.get());
+    pipe->Add(plgTensorOutput_.get());
+    pipe->Add(nnPl.get());
 
     std::cout << "Added Plugins to Pipeline..." << std::endl;
 
@@ -226,6 +326,7 @@ void KmbExecutor::queueInference(void *input_data, size_t input_bytes,
     }
 
 #ifdef ENABLE_VPUAL
+    std::cout << "KmbExecutor::queueInference: memcpy started" << std::endl;
     std::memcpy(input_tensor->buf, input_data, input_bytes);
     std::cout << "KmbExecutor::queueInference: memcpy done" << std::endl;
     plgTensorInput_->Push(input_tensor->phys_addr, input_bytes);
@@ -263,8 +364,6 @@ void KmbExecutor::getResult(void *result_data, unsigned int result_bytes) {
     }
 
     close(out_file);
-    // TODO: remove '#if 0' when it is possible to read the actual output from VPU
-#if 0
     // Write tensor output to result_data.
     if (len > result_bytes) {
         std::cout << "Error: result_data buffer size less then output length." << std::endl;
@@ -272,7 +371,6 @@ void KmbExecutor::getResult(void *result_data, unsigned int result_bytes) {
     std::cout << "KmbExecutor::getResult memcpy started" << std::endl;
     std::memcpy(result_data, data, len);
     std::cout << "KmbExecutor::getResult memcpy finished" << std::endl;
-#endif
 #endif
     return;
 }
@@ -285,6 +383,7 @@ void KmbExecutor::deallocateGraph() {
 #ifdef ENABLE_VPUAL
     pipe->Stop();
     pipe->Delete();
+    RgnAlloc.Delete();
 #endif
 
     return;

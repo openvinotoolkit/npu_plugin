@@ -41,6 +41,20 @@
 namespace vpu {
 namespace KmbPlugin {
 
+#ifdef ENABLE_VPUAL
+struct KmbCmaData {
+    int fd;
+    unsigned char * buf;
+    unsigned long phys_addr;
+    unsigned int size;
+    int Create(uint32_t requested_size);
+    KmbCmaData() : fd(-1), buf(nullptr), phys_addr(0), size(0) {}
+    ~KmbCmaData();
+    static const int pageSize;
+    static const int getPageSize() { return pageSize; }
+};
+#endif
+
 class KmbExecutor {
     Logger::Ptr _log;
     unsigned int _numStages = 0;
@@ -48,13 +62,12 @@ class KmbExecutor {
     std::shared_ptr<GraphManagerPlg> gg;
     std::shared_ptr<PlgTensorSource> plgTensorInput_;
     std::shared_ptr<PlgStreamResult> plgTensorOutput_;
-    std::shared_ptr<HeapAllocator> HeapAlloc;
 
     std::shared_ptr<NNFlicPlg> nnPl;
 
-    std::shared_ptr<CmaData> blob_file;
-    std::shared_ptr<CmaData> input_tensor;
-    std::shared_ptr<CmaData> output_tensor;
+    std::shared_ptr<KmbCmaData> blob_file;
+    std::shared_ptr<KmbCmaData> input_tensor;
+    std::shared_ptr<KmbCmaData> output_tensor;
     std::shared_ptr<BlobHandle_t> BHandle;
 
     std::shared_ptr<PlgPool<TensorMsg>> plgPoolA;
@@ -62,6 +75,13 @@ class KmbExecutor {
 
     std::shared_ptr<Pipeline> pipe;
 #endif
+
+private:
+    InferenceEngine::InputsDataMap  m_networkInputs;
+    InferenceEngine::OutputsDataMap m_networkOutputs;
+
+    DataInfo m_inputInfo;
+    DataInfo m_outputInfo;
 
 public:
     KmbExecutor(const Logger::Ptr& log, const std::shared_ptr<KmbConfig>& config);
@@ -74,6 +94,12 @@ public:
     void queueInference(void *input_data, size_t input_bytes, void *result_data, size_t result_bytes);
 
     void getResult(void *result_data, unsigned int result_bytes);
+
+    const InferenceEngine::InputsDataMap& getNetworkInputs() const { return m_networkInputs; }
+    const InferenceEngine::OutputsDataMap& getNetworkOutputs() const { return m_networkOutputs; }
+
+    const DataInfo& getInputInfo()  const { return m_inputInfo; }
+    const DataInfo& getOutputInfo() const { return m_outputInfo; }
 
     const std::shared_ptr<KmbConfig>& _config;
 };
