@@ -34,7 +34,7 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
     mv::ControlModel cm(model);
 
     // Sorting ops in dataflow topological order. Will be needed later.
-    auto sortedOps = om.topologicalSort();
+    auto sortedOps = cm.topologicalSort();
 
     for(auto dataFlowIt = dm.flowBegin(); dataFlowIt != dm.flowEnd(); ++dataFlowIt)
     {
@@ -78,20 +78,43 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
             // Otherwise deallocation will appear as well
             auto flowsNames = inputTensor->get<std::set<std::string>>("flows");
 
-            // Creating deallocation operation for the tensor and attaching it through a dataflow
-            // to the operation that created it
-            om.deallocate(inputTensor, deallocationName);
-            auto deallocateInputOp = om.getOp(deallocationName);
+            mv::Data::OpListIterator deallocateInputOp;
 
-            // Attaching also through a ControlFlow
-            auto flowIt = cm.defineFlow(inputOp, deallocateInputOp);
-            auto outputTensor = flowIt.source()->getOutputTensor(0);
+            if(outputOp->getOpType() == "DMATask" && outputOp->get<mv::DmaDirection>("direction") == mv::CMX2DDR)
+                deallocateInputOp = outputOp;
+            else
+            {
+                // Creating deallocation operation for the tensor and attaching it through a dataflow
+                // to the operation that created it
+                om.deallocate(inputTensor, deallocationName);
+                deallocateInputOp = om.getOp(deallocationName);
+            }
 
             /* Concat memory requirment should be 0 */
-            if(flowIt.source()->getOpType() != "ImplicitConcat") {
+            if(dataFlowIt.source()->getOpType() != "ImplicitConcat") 
+            {
+                 // Attaching also through a ControlFlow
+                auto flowIt = cm.defineFlow(inputOp, deallocateInputOp);
+                auto outputTensor = flowIt.source()->getOutputTensor(0);
                 flowIt->set<int>("MemoryRequirement", outputTensor->computeTotalSize());
                 flowIt->set<bool>("PositiveMemory", true);
             }
+            else
+            {
+                // For concat, we don't need a single control flow going to the concat
+                // to the dealloc, but multiple control flows going from each of the concats
+                // inputs to the dealloc
+                auto concatOp = dataFlowIt.source();
+                for(auto concatInput = concatOp.leftmostParent(); concatInput != om.opEnd(); ++concatInput)
+                {
+                     // Attaching also through a ControlFlow
+                    auto flowIt = cm.defineFlow(concatInput, deallocateInputOp);
+                    auto outputTensor = flowIt.source()->getOutputTensor(0);
+                    flowIt->set<int>("MemoryRequirement", outputTensor->computeTotalSize());
+                    flowIt->set<bool>("PositiveMemory", true);
+                }
+            }
+            
 
             // Control flows for the newly created operation must be attached now.
             // Checking all the ops that have this tensor as input
@@ -107,7 +130,7 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
             auto chosenOp = sortedOps.rbegin();
             for(; chosenOp != sortedOps.rend(); ++chosenOp)
             {
-                if(std::find(sinkOperations.begin(), sinkOperations.end(), *chosenOp) != sinkOperations.end())
+                if(std::find(sinkOperations.begin(), sinkOperations.end(), om.switchContext(*chosenOp)) != sinkOperations.end())
                 {
                     found = true;
                     break;
@@ -117,12 +140,12 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
             if(!found)
                 throw mv::RuntimeError(cm, "Something is wrong in deallocation pass");
 
-            if(!cm.checkControlFlow(*chosenOp, deallocateInputOp))
-                cm.defineFlow(*chosenOp, deallocateInputOp);
+            if(!cm.checkControlFlow(om.switchContext(*chosenOp), deallocateInputOp))
+                cm.defineFlow(om.switchContext(*chosenOp), deallocateInputOp);
 
             // This loop has to happen in both data and control model
             // DATA
-            auto chosenOpData = *chosenOp;
+            auto chosenOpData = om.switchContext(*chosenOp);
             for(auto son = chosenOpData.leftmostChild(); son != om.opEnd(); ++son)
             {
                 if(!son->hasTypeTrait("executable") && son->getOpType() != "Output")
@@ -146,7 +169,7 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
             }
 
             // CONTROL
-            auto chosenOpControl = cm.switchContext(*chosenOp);
+            auto chosenOpControl = *chosenOp;
             auto deallocateInputOpControl = cm.switchContext(deallocateInputOp);
             for(auto son = chosenOpControl.leftmostChild(); son != cm.opEnd(); ++son)
             {

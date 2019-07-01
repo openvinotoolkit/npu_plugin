@@ -232,13 +232,17 @@ void resolveImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::Computati
                 auto parentOptest = ctlFlow.leftmostParent();
                 if (parentOptest == cm.opEnd())
                 {
+                    
                     std::cout << "NO PARENT FOUND for " << ctlFlow->getName() << std::endl;
                     cm.defineFlow(om.getInput(), om.getSourceOp(compensatorOutput));
+                    
                 }
                 for (auto parentOp = ctlFlow.leftmostParent(); parentOp != cm.opEnd(); ++parentOp)
                 {
+                    
                     cm.defineFlow(om.switchContext(parentOp), om.getSourceOp(compensatorOutput));
                     std::cout << "ADDED CONTROL FLOW from " << parentOp->getName() << " to " << compensatorOutput->getName() << std::endl;
+                    
                 }
 
             }

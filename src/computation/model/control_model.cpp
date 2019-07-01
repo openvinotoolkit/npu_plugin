@@ -294,6 +294,14 @@ std::string mv::ControlModel::getLogID() const
 
 bool mv::ControlModel::checkControlFlow(mv::Control::OpListIterator source, mv::Control::OpListIterator sink)
 {
+    // Extra check to verify we are not adding a self-edge
+    if(source == sink)
+        return true;
+
+    // Extra check to enforce constraint: the target of a control flow cannot be non executable
+    if((!sink->hasTypeTrait("executable")) && (sink->getOpType() != "Output"))
+        return true;
+
     bool found = false;
     for(auto childOp = source.leftmostChild(); childOp != opEnd(); ++childOp)
     {

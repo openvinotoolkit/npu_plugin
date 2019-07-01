@@ -41,7 +41,7 @@ void inputOutputControlFlowsFcn(const mv::pass::PassEntry& pass, mv::Computation
     for (auto nextOp = inputOp.leftmostChild(); nextOp != om.opEnd(); ++nextOp)
     {
         if(!nextOp->hasTypeTrait("executable"))
-                continue;
+            continue;
 
         if(!cm.checkControlFlow(inputOp, nextOp))
             cm.defineFlow(inputOp, nextOp);
