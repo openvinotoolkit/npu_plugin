@@ -263,6 +263,7 @@ void generateSchedulingFcn(const mv::pass::PassEntry&, mv::ComputationModel& mod
 void barrierIndexAssignmentFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
     mv::ControlModel cm(model);
+    mv::OpModel om(model);
 
     auto globalConfigParams = model.getGlobalConfigParams();
     std::string indexAssignment = globalConfigParams->get<std::string>("barrier_index_assignment");
@@ -274,11 +275,12 @@ void barrierIndexAssignmentFcn(const mv::pass::PassEntry&, mv::ComputationModel&
         int id = 0;
         for (auto op: sortedOps)
         {
-            if (op->getOpType() == "BarrierTask")
+            auto barriers = getBarriersNeeded(om.switchContext(op));
+            for(auto& barrier : barriers)
             {
-                auto& barrier = op->get<mv::Barrier>("Barrier");
-                barrier.setIndex(id);
-                id++;
+                auto barrierTask = model.getOp(barrier);
+                auto& physicalBarrier = barrierTask->get<mv::Barrier>("Barrier");
+                physicalBarrier.setIndex(id++);
             }
         }
     }
