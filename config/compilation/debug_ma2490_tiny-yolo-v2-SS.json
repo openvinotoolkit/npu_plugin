@@ -5,7 +5,7 @@
                 "name" : "GlobalConfigParams",
                 "_comment" : "Stores common params accross multiple passes. Access through the Computation Model.",
                 "recorded_model": true,
-                "verbose": "Debug",
+                "verbose": "Info",
                 "weights_form": "None",
                 "barrier_index_assignment" : "Dynamic",
                 "Number_of_DPUs" : 1,
@@ -87,7 +87,7 @@
                 [
                     {
                         "name_filter" : "conv0_cmx_",
-                        "output_location" : "DDR",
+                        "output_location" : "CMX",
                         "splits" : [
                             {"K" : 4}
                         ]
@@ -617,7 +617,7 @@
             {
                 "name": "GenerateDot",
                 "output": "output/dots/TransitiveReductionBeforeMaxCut.dot",
-                "scope": "ControlModel",
+                "scope": "OpControlModel",
                 "content": "nonfull",
                 "html": true
             },
