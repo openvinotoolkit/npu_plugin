@@ -66,8 +66,6 @@ class KmbExecutor {
     std::shared_ptr<NNFlicPlg> nnPl;
 
     std::shared_ptr<KmbCmaData> blob_file;
-    std::shared_ptr<KmbCmaData> input_tensor;
-    std::shared_ptr<KmbCmaData> output_tensor;
     std::shared_ptr<BlobHandle_t> BHandle;
 
     std::shared_ptr<PlgPool<TensorMsg>> plgPoolA;
@@ -75,8 +73,7 @@ class KmbExecutor {
 
     std::shared_ptr<Pipeline> pipe;
 #endif
-
-private:
+    
     InferenceEngine::InputsDataMap  m_networkInputs;
     InferenceEngine::OutputsDataMap m_networkOutputs;
 
@@ -84,6 +81,8 @@ private:
     DataInfo m_outputInfo;
 
 public:
+    std::shared_ptr<KmbCmaData> input_tensor;
+    std::shared_ptr<KmbCmaData> output_tensor;
     KmbExecutor(const Logger::Ptr& log, const std::shared_ptr<KmbConfig>& config);
     ~KmbExecutor() = default;
 
