@@ -148,6 +148,9 @@ else()
     add_executable(dilationExample dilatedExample.cpp)
     target_link_libraries(dilationExample cm)
 
+    add_executable(sparse_res2a2b sparsity_res2a_res2b.cpp)
+    target_link_libraries(sparse_res2a2b cm)
+
     if(VALIDATION)
     add_executable(caffe_files_generator caffe_files_generator.cpp)
     target_link_libraries(caffe_files_generator cm ${Caffe_LIBRARIES} ${Boost_FILESYSTEM_LIBRARY} ${Boost_SYSTEM_LIBRARY} ${Boost_REGEX_LIBRARY} ${PROTOBUF_LIBRARY})
