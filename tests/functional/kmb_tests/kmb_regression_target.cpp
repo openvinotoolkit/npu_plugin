@@ -54,12 +54,13 @@ protected:
     std::string path_to_weights_;
 };
 
-using CompilationTestParam = WithParamInterface<std::tuple<std::string, CompilationParameter>>;
+using Compile = bool;
+using CompilationTestParam = WithParamInterface<std::tuple<std::string, CompilationParameter, Compile>>;
 
 class VpuNoRegressionWithCompilation : public Regression::RegressionTests,
                                        public CompilationTestParam {
 public:
-    using TestParam = WithParamInterface<std::tuple<std::string, CompilationParameter>>;
+    using TestParam = WithParamInterface<std::tuple<std::string, CompilationParameter, Compile>>;
 
     // Operations
     static std::string getTestCaseName(TestParamInfo <CompilationTestParam::ParamType> param);
@@ -83,7 +84,8 @@ std::string VpuNoRegressionWithCompilation::getTestCaseName(
         TestParamInfo <CompilationTestParam::ParamType> param) {
     return std::string("Main_") +
            get<0>(param.param) +
-           std::string("_") + get<1>(param.param).name();
+           std::string("_") + get<1>(param.param).name() +
+           ((get<2>(param.param)) ? std::string("_Compilation") : std::string("_Parsing"));
 }
 
 void VpuNoRegressionWithCompilation::SetUp() {
@@ -128,25 +130,25 @@ inline std::string CompilationParameter::pathToWeights() const {
 
 std::vector<CompilationParameter> compilation_parameters_kmb =
 {
-    CompilationParameter{"mobilenet_v2_1.0_224_quant_frozen_69.62",
+    CompilationParameter{"mobilenet_v2_1.0_224_INT8_frozen_69.62",
                        "/KMB_models/INT8/mobilenet_v2_1.0_224_quant_frozen_69.62/mobilenet_v2_1.xml",
                        "/KMB_models/INT8/mobilenet_v2_1.0_224_quant_frozen_69.62/mobilenet_v2_1.bin"},
-    CompilationParameter{"inception_v1_224_quant_frozen_69.8",
+    CompilationParameter{"inception_v1_224_INT8_frozen_69.8",
                        "/KMB_models/INT8/inception_v1_224_quant_frozen_69.8/inception_v1_224_quant_frozen_no_preprocess.xml",
                        "/KMB_models/INT8/inception_v1_224_quant_frozen_69.8/inception_v1_224_quant_frozen_no_preprocess.bin"},
-    CompilationParameter{"inception_v3_quant_frozen_77.64",
+    CompilationParameter{"inception_v3_INT8_frozen_77.64",
                        "/KMB_models/INT8/inception_v3_quant_frozen_77.64/inception_v3_quant_frozen_no_preprocess.xml",
                        "/KMB_models/INT8/inception_v3_quant_frozen_77.64/inception_v3_quant_frozen_no_preprocess.bin"},
-    CompilationParameter{"resnet50_int8_68.04",
+    CompilationParameter{"resnet50_INT8_68.04",
                         "/KMB_models/INT8/resnet50_int8_68.04/resnet50_int8_no_preprocess.xml",
                         "/KMB_models/INT8/resnet50_int8_68.04/resnet50_int8_no_preprocess.bin"},
-    CompilationParameter{"resnet_v1_50_75.19",
+    CompilationParameter{"resnet_v1_50_75.19_FP16",
                          "/KMB_models/FP16/resnet_v1_50_75.19/resnet50_v1_fp16.xml",
                          "/KMB_models/FP16/resnet_v1_50_75.19/resnet50_v1_fp16.bin"},
-    CompilationParameter{"mobilenet_v2_1.0_224_frozen_71.74",
+    CompilationParameter{"mobilenet_v2_1.0_224_frozen_71.74_FP16",
                          "/KMB_models/FP16/mobilenet_v2_1.0_224_frozen_71.74/mobilenet_v2_1_no_preprocess.xml",
                          "/KMB_models/FP16/mobilenet_v2_1.0_224_frozen_71.74/mobilenet_v2_1_no_preprocess.bin"},
-    CompilationParameter{"inception_v3_74.19",
+    CompilationParameter{"inception_v3_74.19_FP16",
                          "/KMB_models/FP16/inception_v3_74.19/inception_v3_no_preprocess.xml",
                          "/KMB_models/FP16/inception_v3_74.19/inception_v3_no_preprocess.bin"},
 };
@@ -184,34 +186,37 @@ inline void VpuNoRegressionWithCompilation::loadNetworkWrapper(std::map<std::str
 }
 
 #ifdef ENABLE_MCM_COMPILER
-TEST_P(KmbNoRegressionCompilationOnly, KmbParsingTest) {
-    _config[VPU_KMB_CONFIG_KEY(MCM_PARSING_ONLY)] = CONFIG_VALUE(YES);
-
-    loadNetworkWrapper(_config);
-}
-
-TEST_P(KmbNoRegressionCompilationOnly, DISABLED_KmbNetworkCompileTest) {
+TEST_P(KmbNoRegressionCompilationOnly, IE2MCM) {
+    auto toCompile = get<2>(TestParam::GetParam());
     std::map<std::string, std::string> config(_config);
-
-    config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_JSON)] = CONFIG_VALUE(YES);
-    config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_DOT)]  = CONFIG_VALUE(YES);
-    config[VPU_KMB_CONFIG_KEY(MCM_PARSING_ONLY)]  = CONFIG_VALUE(NO);
-    const ::testing::TestInfo* const test_info =
-            ::testing::UnitTest::GetInstance()->current_test_info();
-    config[VPU_KMB_CONFIG_KEY(MCM_COMPILATION_RESULTS_PATH)] = test_info->test_case_name();
-    config[VPU_KMB_CONFIG_KEY(MCM_COMPILATION_RESULTS)] = test_info->name();
-    std::string& tmpPath = config[VPU_KMB_CONFIG_KEY(MCM_COMPILATION_RESULTS_PATH)];
-    std::replace(tmpPath.begin(), tmpPath.end(), '/', '_');
-    std::string& tmpName = config[VPU_KMB_CONFIG_KEY(MCM_COMPILATION_RESULTS)];
-    std::replace(tmpName.begin(), tmpName.end(), '/', '_');
+    if (toCompile) {
+        config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_JSON)] = CONFIG_VALUE(YES);
+        config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_DOT)]  = CONFIG_VALUE(YES);
+        config[VPU_KMB_CONFIG_KEY(MCM_PARSING_ONLY)]  = CONFIG_VALUE(NO);
+        const ::testing::TestInfo* const test_info =
+                ::testing::UnitTest::GetInstance()->current_test_info();
+        config[VPU_KMB_CONFIG_KEY(MCM_COMPILATION_RESULTS_PATH)] = test_info->test_case_name();
+        config[VPU_KMB_CONFIG_KEY(MCM_COMPILATION_RESULTS)] = test_info->name();
+    } else {
+        config[VPU_KMB_CONFIG_KEY(MCM_PARSING_ONLY)] = CONFIG_VALUE(YES);
+    }
 
     loadNetworkWrapper(config);
 }
 
 INSTANTIATE_TEST_CASE_P(
-        KmbParsingTest_smoke_nightly,
+        KmbParsingOnlyTest_smoke_nightly,
         KmbNoRegressionCompilationOnly,
         Combine(Values("kmbPlugin"),
-                ValuesIn(compilation_parameters_kmb)),
+                ValuesIn(compilation_parameters_kmb),
+                Values<Compile>(false)),
+                KmbNoRegressionCompilationOnly::getTestCaseName);
+
+INSTANTIATE_TEST_CASE_P(
+        DISABLED_KmbCompilationTest_smoke_nightly,
+        KmbNoRegressionCompilationOnly,
+        Combine(Values("kmbPlugin"),
+                ValuesIn(compilation_parameters_kmb),
+                Values<Compile>(true)),
                 KmbNoRegressionCompilationOnly::getTestCaseName);
 #endif
