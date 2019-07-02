@@ -88,6 +88,14 @@ std::vector<ResultType> packBlobToVector(
             ResultType val = blobDataI8[pos];
             blobData[pos] = val;
         }
+    } else if (blobPrecision == ie::Precision::I32) {
+        const int32_t* blobDataI32 = blobPtr->cbuffer().as<const int32_t*>();
+        IE_ASSERT(blobDataI32 != nullptr);
+
+        for (int pos = 0; pos < expectedSize; pos++) {
+            ResultType val = blobDataI32[pos];
+            blobData[pos] = val;
+        }
     } else {
         THROW_IE_EXCEPTION << "precision '" << blobPrecision << "' is not supported";
     }
@@ -271,6 +279,7 @@ void FrontEndMcm::parseConvolution(
                 mvBiases = _modelMcm.constantInt(
                     biasesData,
                     biasesShape,
+                    // TODO: Biases data type should be discussed with mcmCompiler team
                     mv::DType("UInt8"), mv::Order::getColMajorID(1));
                 mvBiases->set<mv::QuantizationParams>("quantParams", weightsQuantParams);
             }
@@ -318,6 +327,7 @@ void FrontEndMcm::parseConvolution(
                 mvBiases = _modelMcm.constantInt(
                     biasesData,
                     biasesShape,
+                    // TODO: Biases data type should be discussed with mcmCompiler team
                     mv::DType("UInt8"), mv::Order::getColMajorID(1));
                 mvBiases->set<mv::QuantizationParams>("quantParams", weightsQuantParams);
             }
@@ -494,6 +504,7 @@ void FrontEndMcm::parseFullyConnected(
             mvBiases = _modelMcm.constantInt(
                 biasesData,
                 biasesShape,
+                // TODO: Biases data type should be discussed with mcmCompiler team
                 mv::DType("UInt8"), mv::Order::getColMajorID(1));
             mvBiases->set<mv::QuantizationParams>("quantParams", weightsQuantParams);
         }
