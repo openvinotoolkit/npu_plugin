@@ -35,6 +35,11 @@ void kmbOrderConversion(const mv::pass::PassEntry& pass, mv::ComputationModel& m
                 mv::Order targetOrder(mv::Order::getColMajorID(4));
                 dpuTask->getInputTensor(1)->setOrder(targetOrder);
                 dpuTask->getOutputTensor(0)->setOrder(mv::Order(mv::Order::getZMajorID(4)));
+                if (om.getSourceOp(dpuTask->getInputTensor(1))->getOpType() == "Slice")
+                {
+                    auto kernelImplicitOp = om.getSourceOp(dpuTask->getInputTensor(1));
+                    kernelImplicitOp->getInputTensor(0)->setOrder(targetOrder);
+                }
 
             }
             else
@@ -46,6 +51,11 @@ void kmbOrderConversion(const mv::pass::PassEntry& pass, mv::ComputationModel& m
                 {
                     mv::Order targetOrder("NHWC");
                     dpuTask->getInputTensor(1)->setOrder(targetOrder);
+                    if (om.getSourceOp(dpuTask->getInputTensor(1))->getOpType() == "Slice")
+                    {
+                        auto kernelImplicitOp = om.getSourceOp(dpuTask->getInputTensor(1));
+                        kernelImplicitOp->getInputTensor(0)->setOrder(targetOrder);
+                    }
                 }
             }
         }

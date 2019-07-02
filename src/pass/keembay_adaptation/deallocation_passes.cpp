@@ -56,6 +56,8 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
             inputOp->getOpType() == "WeightsTable" || inputOp->getOpType() == "SparsityMap")
             continue;
 
+        if (inputOp->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location") == mv::Tensor::MemoryLocation::BLOB)
+            continue;
         // Tensors that are input of a concat shall not be deallocated: they will be allocated into a bigger tensor
         // (the output of concat op) and that will be deallocated
 

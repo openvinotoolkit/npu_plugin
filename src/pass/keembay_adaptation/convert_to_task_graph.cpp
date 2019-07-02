@@ -45,8 +45,12 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
     while (opIt != om.opEnd())
     {
         std::string opType = opIt->getOpType();
+
         if (opType == "Conv" || opType == "DepthwiseConv")
         {
+            auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
+            auto inputMemoryLocation = opIt->getInputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
+
             auto input = opIt->getInputTensor(0);
             auto kernel = opIt->getInputTensor(1);
             auto opId = opIt->get<unsigned>("opId");
@@ -102,6 +106,12 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             if(workloadStrategyNWorkloads != -1)
                 dpuConvOp->set<int>("WorkloadStrategy_nWorkloads", workloadStrategyNWorkloads);
 
+
+
+
+            dpuConv->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
+            setOutputDataFlow(om, dpuConv, outputDataFlows);
+
             if(opType == "Conv")
             {
                 if(kernel->getShape()[mv::KERNEL_INPUT_CHANNELS] < 16)
@@ -111,10 +121,12 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
                 }
             }
 
-            setOutputDataFlow(om, dpuConv, outputDataFlows);
         }
         else if (opType == "MaxPool")
         {
+            auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
+            auto inputMemoryLocation = opIt->getInputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
+
             auto input = opIt->getInputTensor(0);
             auto opId = opIt->get<unsigned>("opId");
 
@@ -143,10 +155,13 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             if(!splitStrategy.empty())
                dpuPoolOp->set<std::string>("splitStrategy", splitStrategy);
 
+            dpuPool->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
             setOutputDataFlow(om, dpuPool, outputDataFlows);
         }
         else if (opType == "Add" || opType == "Subtract" || opType == "Multiply")
         {
+            auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
+
             auto input1 = opIt->getInputTensor(0);
             auto input2 = opIt->getInputTensor(1);
             std::vector<mv::Data::TensorIterator> inputs;
@@ -181,6 +196,8 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
 
             if(!splitStrategy.empty())
                dpuElementWiseOp->set<std::string>("splitStrategy", splitStrategy);
+
+            dpuElementWise->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
 
             mv::setOutputDataFlow(om, dpuElementWise, outputDataFlows);
         }

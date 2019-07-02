@@ -5,13 +5,13 @@
                 "name" : "GlobalConfigParams",
                 "_comment" : "Stores common params accross multiple passes. Access through the Computation Model.",
                 "recorded_model": true,
-                "verbose": "Warning",
+                "verbose": "Info",
                 "weights_form": "None",
                 "barrier_index_assignment" : "Dynamic",
                 "Number_of_DPUs" : 1,
                 "Number_of_Clusters" : 1,
                 "UpaShaves": 1,
-                "DDRScratch": 1048576,
+                "DDRScratch": 14680064,
                 "MemoryHack": true,
                 "Sparsity": false,
                 "CMX_memory_overflow_safety_factor" : 0.925,
@@ -59,7 +59,165 @@
                         "strategy" : "SplitOverH"
                     }
                 ],
-                "default_tensor_placement" : "CMX"
+                "tensor_placement_override" :
+                [
+                    {
+                        "name_filter" : ".*_ddr_.*",
+                        "mem_location" : "DDR"
+                    },
+                    {
+                        "name_filter" : ".*_cmx_.*",
+                        "mem_location" : "CMX"
+                    },
+                    {
+                        "name_filter" : ".*_input_.*",
+                        "mem_location" : "INPUT"
+                    },
+                    {
+                        "name_filter" : ".*_output_.*",
+                        "mem_location" : "OUTPUT"
+                    },
+
+                    {
+                        "name_filter" : ".*weights.*",
+                        "mem_location" : "BLOB"
+                    }
+                ],
+                "default_tensor_placement" : "DDR",
+                "streaming_strategy" :
+                [
+                    {
+                        "name_filter" : "conv0_cmx_",
+                        "output_location" : "CMX",
+                        "splits" : [
+                            {"H" : 2},
+                            {"W" : 2}
+                        ]
+                    },
+                    {
+                        "name_filter" : "conv1_cmx_",
+                        "output_location" : "CMX",
+                        "splits" : [
+                            {"K" : 4}
+                        ]
+                    },
+                    {
+                        "name_filter" : "res2a_branch2a#4",
+                        "output_location" : "CMX",
+                        "splits" : [
+                        {"H" : 2}
+                        ]
+                    },
+                    {
+                        "name_filter" : "pool1/max_pool#6",
+                        "output_location" : "CMX",
+                        "splits" : [
+                            {"H" : 2}
+                        ]
+                    },
+                    {
+                        "name_filter" : "conv7#46",
+                        "output_location" : "DDR",
+                        "splits" : [
+                            {"K" : 4}
+                        ]
+                    },
+                    {
+                        "name_filter" : "conv8#47",
+                        "output_location" : "DDR",
+                        "splits" : [
+                            {"K" : 8}
+                        ]
+                    },
+                    {
+                        "name_filter" : "pool1/max_pool#35",
+                        "output_location" : "CMX",
+                        "splits" : [
+                            {"H" : 2}
+                        ]
+                    },
+                    {
+                        "name_filter" : "relu_6#47",
+                        "output_location" : "CMX",
+                        "splits" : [
+                            {"K" : 4}
+                        ]
+                    },
+                    {
+                        "name_filter" : "relu_7#48",
+                        "output_location" : "CMX",
+                        "splits" : [
+                            {"K" : 8}
+                        ]
+                    }
+                ],
+                "schedule_helper_edges" :
+                [
+                    {
+                        "edge_source" : "pool1/max_pool#35_split_0_DEALLOC",
+                        "edge_sink" : "pool1/max_pool#35_slice_1_copy0"
+                    },
+                    {
+                        "edge_source" : "pool1/max_pool#35_split_0_DEALLOC",
+                        "edge_sink" : "pool1/max_pool#35_split_1_weights_table_DDR2CMX"
+                    },
+                    {
+                        "edge_source" : "pool1/max_pool#35_split_0_DEALLOC",
+                        "edge_sink" : "pool1/max_pool#35_split_1_sparse_dw_DDR2CMX"
+                    },
+
+
+                    {
+                        "edge_source" : "pool6/max_pool#45_DEALLOC",
+                        "edge_sink" : "conv7_weights#25:0_slice_3_Aligned_copy0"
+                    },
+                    {
+                        "edge_source" : "conv7#46_split_3_DEALLOC",
+                        "edge_sink" : "conv7_weights#25:0_slice_2_Aligned_copy0"
+                    },
+                    {
+                        "edge_source" : "conv7#46_split_2_DEALLOC",
+                        "edge_sink" : "conv7_weights#25:0_slice_1_Aligned_copy0"
+                    },
+                    {
+                        "edge_source" : "conv7#46_split_1_DEALLOC",
+                        "edge_sink" : "conv7_weights#25:0_slice_0_Aligned_copy0"
+                    },
+                    {
+                        "edge_source" : "conv7#46_split_0_DEALLOC",
+                        "edge_sink" : "conv8_weights#28:0_slice_7_Aligned_copy0"
+                    },
+                    {
+                        "edge_source" : "conv8#47_split_7_DEALLOC",
+                        "edge_sink" : "conv8_weights#28:0_slice_6_Aligned_copy0"
+                    },
+                    {
+                        "edge_source" : "conv8#47_split_6_DEALLOC",
+                        "edge_sink" : "conv8_weights#28:0_slice_5_Aligned_copy0"
+                    },
+                    {
+                        "edge_source" : "conv8#47_split_5_DEALLOC",
+                        "edge_sink" : "conv8_weights#28:0_slice_4_Aligned_copy0"
+                    },
+
+                    {
+                        "edge_source" : "conv8#47_split_4_DEALLOC",
+                        "edge_sink" : "conv8_weights#28:0_slice_3_Aligned_copy0"
+                    },
+                    {
+                        "edge_source" : "conv8#47_split_3_DEALLOC",
+                        "edge_sink" : "conv8_weights#28:0_slice_2_Aligned_copy0"
+                    },
+
+                    {
+                        "edge_source" : "conv8#47_split_2_DEALLOC",
+                        "edge_sink" : "conv8_weights#28:0_slice_1_Aligned_copy0"
+                    },
+                    {
+                        "edge_source" : "conv8#47_split_1_DEALLOC",
+                        "edge_sink" : "conv8_weights#28:0_slice_0_Aligned_copy0"
+                    }
+                ]
             },
             "ComputeMemory",
             "AssignUniqueOpId",
@@ -148,11 +306,6 @@
             "AlignTo16Channels",
             "ComputeTensorsQuantParams",
             "KMBOrderConversion",
-            "UpdateImplicitLayersQuantizationParams",
-            "SetDpuTasksMemoryLocation",
-            "AlignTaskWeights",
-            "AlignSliceOps",
-            "GenerateSparsityMapsPopulatedTensors",
             {
                 "name": "GenerateDot",
                 "output": "output/dots/keembay_adapt_model.dot",
@@ -164,6 +317,11 @@
                 "name": "ConvertDot",
                 "input": "output/dots/keembay_adapt_model.dot"
             },
+            "UpdateImplicitLayersQuantizationParams",
+            "SetDpuTasksMemoryLocation",
+            "AlignTaskWeights",
+            "AlignSliceOps",
+            "GenerateSparsityMapsPopulatedTensors",
             "GenerateWeightsTables",
             {
                 "name": "GenerateDot",
@@ -304,32 +462,21 @@
                 "name": "ConvertDot",
                 "input": "output/dots/TransitiveReductionBeforeMaxCutFull.dot"
             },
-            {
-                "name" : "TransitiveReduction",
-                "filter" : "Fakefilter"
-            },
+            "ScheduleHelper",
             {
                 "name": "GenerateDot",
-                "output": "output/dots/TransitiveReductionBeforeScheduleHelper.dot",
+                "output": "output/dots/AfterScheduleHelper.dot",
                 "scope": "OpControlModel",
                 "content": "full",
                 "html": true
             },
             {
                 "name": "ConvertDot",
-                "input": "output/dots/TransitiveReductionBeforeScheduleHelper.dot"
-            },
-            "ScheduleHelper",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/AfterScheduleHelper.dot",
-                "scope": "ControlModel",
-                "content": "full",
-                "html": true
-            },
-            {
-                "name": "ConvertDot",
                 "input": "output/dots/AfterScheduleHelper.dot"
+            },
+            {
+                "name" : "TransitiveReduction",
+                "filter" : "Fakefilter"
             },
             "MaxTopologicalCutAndPartialSerialisation",
             {

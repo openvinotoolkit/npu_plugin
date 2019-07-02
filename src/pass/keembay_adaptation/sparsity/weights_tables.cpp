@@ -10,6 +10,7 @@
 static void generateWeightsTablesFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 static void populateWeightsTablesPointersFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 static void populateWeightsTablesQuantizationFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
+static void removeBiasTensorsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 
 namespace mv
 {
@@ -32,6 +33,12 @@ namespace mv
         .setFunc(populateWeightsTablesQuantizationFcn)
         .setDescription(
             "Populate WeightsTables"
+        );
+
+        MV_REGISTER_PASS(RemoveBiasTensors)
+        .setFunc(removeBiasTensorsFcn)
+        .setDescription(
+            "remove bias tensors after been adding to all weight tables"
         );
 
     }
@@ -176,12 +183,6 @@ void populateWeightsTablesActivationAndBias(mv::Tensor& weightsTableData, mv::Da
         if (hasBias)
             weightsTableData(i+3) = biasData[i/4];
     }
-
-    if (hasBias)
-    {
-        dm.undefineTensor(bias);
-        dpuTaskOp->erase("bias");
-    }
 }
 
 static void populateWeightsTablesQuantizationFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
@@ -202,6 +203,37 @@ static void populateWeightsTablesQuantizationFcn(const mv::pass::PassEntry& , mv
                 populateWeightsTablesActivationAndBias(*weightsTable, dpuTaskOp, model);
             }
         }
+    }
+}
+
+static void removeBiasTensorsFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+{
+    mv::OpModel om(model);
+    mv::DataModel dm(model);
+    std::set<std::string> biasNamesToRemove;
+    for(auto dpuTaskOp = om.opBegin(); dpuTaskOp != om.opEnd(); ++dpuTaskOp)
+    {
+        if(dpuTaskOp->getOpType() == "DPUTask")
+        {
+            if((dpuTaskOp->get<std::string>("taskOp") == "Conv") ||
+               (dpuTaskOp->get<std::string>("taskOp") == "ChannelMajorConvolution") ||
+               (dpuTaskOp->get<std::string>("taskOp") == "MaxPool") ||
+               (dpuTaskOp->get<std::string>("taskOp") == "DepthwiseConv"))
+            {
+                bool hasBias = dpuTaskOp->hasAttr("bias");
+                if (hasBias)
+                {
+                    auto bias = dm.getTensor(dpuTaskOp->get<std::string>("bias"));
+                    biasNamesToRemove.insert(bias->getName());
+                    dpuTaskOp->erase("bias");
+                }
+            }
+        }
+    }
+    for(auto biasName = biasNamesToRemove.begin(); biasName != biasNamesToRemove.end(); ++biasName)
+    {
+        auto bias = dm.getTensor(*biasName);
+        dm.undefineTensor(bias);
     }
 }
 

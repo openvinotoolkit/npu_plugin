@@ -39,6 +39,7 @@ std::set<std::string> mv::TensorInterferenceGraph::getTaskTopTensors_(const std:
 
     for (unsigned i = 0; i < tensorList.size(); i++)
     {
+
         bool isCMXTensor = checkIsCMXTensor_(tensorList[i]);
         if ((isDMA && isCMXTensor) || (!isDMA && !isCMXTensor))
         {
@@ -96,20 +97,10 @@ bool mv::TensorInterferenceGraph::isSinkNode_(mv::Data::OpListIterator& opIterat
     return false;
 }
 
-bool mv::TensorInterferenceGraph::checkNodesDontInterfere_(mv::ComputationModel& model, const std::string& tensor1, const std::string& tensor2)
+bool mv::TensorInterferenceGraph::checkNodesDontInterfere_(mv::ComputationModel& model, const std::string& tensor1, const std::string& tensor2, std::set<std::string>& sourceNodeNames, std::set<std::string>& sinkNodeNames)
 {
     //returns true if tensor2 is already deallocated when tesnor1 is allocated
     mv::OpModel om(model);
-    std::set<std::string> sourceNodeNames;
-    std::set<std::string> sinkNodeNames;
-    for(auto opIterator = om.opBegin(); opIterator != om.opEnd(); ++opIterator)
-    {
-        if (isTensorInTopNames_(opIterator->getOutputTensor(), model, tensor1))
-            sourceNodeNames.insert(opIterator->getName());
-        if (isTensorInTopNames_(opIterator->getInputTensor(), model, tensor2) && isSinkNode_(opIterator))
-            sinkNodeNames.insert(opIterator->getName());
-    }
-
     mv::ControlModel cm(om);
     //Check if there's a path from any node in sink to any node in source, if yes return true
     for (std::set<std::string>::const_iterator src = sinkNodeNames.begin( ); src != sinkNodeNames.end( ); ++src)
@@ -161,11 +152,11 @@ std::size_t  mv::TensorInterferenceGraph::getNeighborsWeight_(std::string& inode
 
 void  mv::TensorInterferenceGraph::addWeightsToInterferenceGraph_(mv::ComputationModel& model, std::size_t alignment)
 {
-    for (mv::TensorInterferenceGraph::node_dfs_iterator it = this->node_begin(); it != this->node_end(); ++it)
+    for (mv::TensorInterferenceGraph::node_list_iterator it = this->node_begin(); it != this->node_end(); ++it)
     {
         (*it).weight = model.getTensor((*it).name)->computeTotalSize(alignment);
     }
-    for (mv::TensorInterferenceGraph::node_dfs_iterator it = this->node_begin(); it != this->node_end(); ++it)
+    for (mv::TensorInterferenceGraph::node_list_iterator it = this->node_begin(); it != this->node_end(); ++it)
     {
         (*it).neighborsWeight = getNeighborsWeight_((*it).name) + (*it).weight;
     }
@@ -218,6 +209,7 @@ bool mv::TensorInterferenceGraph::checkIsCMXTensor_(const Data::TensorIterator t
     else
     {
         throw mv::ArgumentError("checkIsCMXTensor_", "no allocators for tensor", tensorIt->getName(), "no allocators for tensor");
+        return false;
     }
 
     return false;
@@ -296,6 +288,23 @@ void mv::TensorInterferenceGraph::genIntereferenceGraph_(mv::ComputationModel& m
     //for each 2 nodes, if they are not yet connected (neighbors) in the undirected graph
     // and dont have a path from one to the other in the directed graph, then check if they
     // exist in memory at the same time
+    std::map<std::string, std::set<std::string>> sourceNodesMap;
+    std::map<std::string, std::set<std::string>> sinkNodesMap;
+    for (std::set<std::string>::const_iterator source = nodeNames.begin( ); source != nodeNames.end( ); ++source)
+    {
+        std::set<std::string> sourceNodeNames;
+        std::set<std::string> sinkNodeNames;
+        for(auto opIterator = om.opBegin(); opIterator != om.opEnd(); ++opIterator)
+        {
+            if (isTensorInTopNames_(opIterator->getOutputTensor(), model, *source))
+                sourceNodeNames.insert(opIterator->getName());
+            if (isTensorInTopNames_(opIterator->getInputTensor(), model, *source) && isSinkNode_(opIterator))
+                sinkNodeNames.insert(opIterator->getName());
+        }
+        sourceNodesMap.insert(std::pair<std::string,std::set<std::string>>(*source, sourceNodeNames));
+        sinkNodesMap.insert(std::pair<std::string,std::set<std::string>>(*source, sinkNodeNames));
+    }
+
     for (std::set<std::string>::const_iterator source = nodeNames.begin( ); source != nodeNames.end( ); ++source)
     {
         auto ni = this->node_find(*source);
@@ -305,9 +314,9 @@ void mv::TensorInterferenceGraph::genIntereferenceGraph_(mv::ComputationModel& m
         {
             auto nj = this->node_find(*target);
             auto directed_nj = directed_g.node_find(*target);
-            if (source != target && !checkNodesAreNeighbors_(ni, nj))
+            if (source != target && !checkNodesAreNeighbors_(ni, nj) && mv::pathExists(*this, ni, nj) )
             {
-                if (!checkNodesDontInterfere_(model, *source, *target) && !checkNodesDontInterfere_(model, *target, *source))
+                if (!checkNodesDontInterfere_(model, *source, *target, sourceNodesMap[*source], sinkNodesMap[*target]) && !checkNodesDontInterfere_(model, *target, *source, sourceNodesMap[*target], sinkNodesMap[*source]))
                 {
                     this->edge_insert(ni, nj, 2*nodeId);
                     this->edge_insert(nj, ni, 2*nodeId+1);

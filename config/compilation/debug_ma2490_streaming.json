@@ -1,0 +1,315 @@
+{
+    "initialize": {
+        "Singular": [
+            {
+                "name" : "GlobalConfigParams",
+                "_comment" : "Stores common params accross multiple passes. Access through the Computation Model.",
+                "recorded_model": false,
+                "weights_form": "None",
+                "barrier_index_assignment" : "Static",
+                "Number_of_DPUs" : 5,
+                "Number_of_Clusters" : 1,
+                "UpaShaves": 1,
+                "DDRScratch": 4096,
+                "MemoryHack": true,
+                "CMX_memory_overflow_safety_factor" : 0.925,
+                "MPE_mode" : "Matrix",
+                "split_strategy" :
+                [
+                    {
+                        "name_filter" : ".*",
+                        "cluster_filter" : 0,
+                        "strategy" : "SplitOverK"
+                    },
+                    {
+                        "name_filter" : ".*",
+                        "cluster_filter" : 1,
+                        "strategy" : "Clustering"
+                    },
+                    {
+                        "name_filter" : ".*input.*",
+                        "cluster_filter" : 0,
+                        "strategy" : "SplitOverH"
+                    },
+                    {
+                        "name_filter" : ".*res2a.*",
+                        "cluster_filter" : 0,
+                        "strategy" : "SplitOverH"
+                    },
+                    {
+                        "name_filter" : ".*conv1.*",
+                        "cluster_filter" : 0,
+                        "strategy" : "SplitOverH"
+                    },
+                    {
+                        "name_filter" : ".*pool1.*",
+                        "cluster_filter" : 0,
+                        "strategy" : "SplitOverH"
+                    },
+                    {
+                        "name_filter" : ".*res2.*",
+                        "cluster_filter" : 0,
+                        "strategy" : "SplitOverH"
+                    },
+                    {
+                        "name_filter" : ".*res3.*",
+                        "cluster_filter" : 0,
+                        "strategy" : "SplitOverH"
+                    }
+                ],
+                
+                "tensor_placement_override" : 
+                [
+                    {
+                        "name_filter" : ".*_ddr_.*",
+                        "mem_location" : "DDR"
+                    },
+                    {
+                        "name_filter" : ".*_cmx_.*",
+                        "mem_location" : "CMX"
+                    },
+                    {
+                        "name_filter" : ".*_input_.*",
+                        "mem_location" : "INPUT"
+                    },
+                    {
+                        "name_filter" : ".*_output_.*",
+                        "mem_location" : "OUTPUT"
+                    }
+                ],
+
+                "default_tensor_placement" : "DDR"
+            },
+            "ComputeMemory",
+            "AssignUniqueOpId",
+            {
+                "name": "GenerateDot",
+                "output": "original_model.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true,
+                "convert": false
+            },
+            {
+                "name": "CreateSourceStructure",
+                "VersionMajor": 3,
+                "VersionMinor": 10,
+                "VersionHash": "c1b3a9075e52694726edc996124c04b9268cf4cf"
+            },
+            "StoreTensorPlacement"
+        ]
+    },
+    "adapt": {
+        "Singular": [
+            "AverageAsDepthWise",
+            "FuseBatchNorm",
+            "FuseBias",
+            "FuseRelu",
+            "FuseScale",
+            {
+                "name": "GenerateDot",
+                "output": "adapt_model.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true,
+                "convert": false
+            },
+            {
+                "name" : "streamingTiling",
+                "numberOfSplits" : 2
+            },
+            {
+                "name": "GenerateDot",
+                "output": "streaming_tiling.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true,
+                "convert": false
+            }
+        ]
+    },
+    "keembay_adapt": {
+        "Singular": [
+            "StoreLayerSplitStrategy",
+            "ConvertOpsToTasks",
+            "ComputeTensorsQuantParams",
+            "KMBOrderConversion",
+            "AlignTaskWeights",
+            "GenerateSparsityMaps",
+            {
+                "name": "GenerateDot",
+                "output": "keembay_adapt_model.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true,
+                "convert": false
+            },
+            "GenerateWeightsTables",
+            {
+                "name": "GenerateDot",
+                "output": "keembay_WeightsTable_model.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true,
+                "convert": false
+            },
+            "GenerateEltWiseConstants",
+            {
+                "name": "GenerateDot",
+                "output": "keembay_EltWiseConstants_model.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true,
+                "convert": false
+            }
+        ]
+    },
+    "dma": {
+        "Singular" : [
+            "resolveImplicitOperations", 
+            {
+                "name":"AddWeightsDMATasks",
+                "weights_prefetch": 2
+            },
+            {
+                "name": "GenerateDot",
+                "output": "implicit_operations_model.dot",
+                "scope": "OpModel",
+                "content": "full",
+                "html": true,
+                "convert": false
+            },
+            "AddDeallocationTasks",
+            {
+                "name": "GenerateDot",
+                "output": "deallocation_model_data.dot",
+                "scope": "OpModel",
+                "content": "full",
+                "html": true,
+                "convert": false
+            },
+            {
+                "name": "GenerateDot",
+                "output": "deallocation_model_control.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true,
+                "convert": false
+            }
+        ]
+    },
+    "control_flows":{
+        "Singular" : [
+            "DmaControlFlows",
+            {
+                "name": "GenerateDot",
+                "output": "DmaControlFlows_model.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true,
+                "convert": false
+            },
+            "InputOutputControlFlows",
+            {
+                "name": "GenerateDot",
+                "output": "InputOutputControlFlows_model.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true,
+                "convert": false
+            },
+            "SolveHangingDMAs",
+            {
+                "name": "TransitiveReduction",
+                "filter": "PositiveMemory"
+            },
+            {
+                "name": "GenerateDot",
+                "output": "TransitiveReduction.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true,
+                "convert": false
+            }
+        ]
+    },
+    "finalize": {
+        "Singular": [
+            "MaxTopologicalCutAndPartialSerialisation",
+            {
+                "name": "GenerateDot",
+                "output": "MaxTopologicalCutAndPartialSerialisation.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true,
+                "convert": false
+            },
+            {
+                "name": "GenerateWorkloads",
+                "costfunction": "criticalpath",
+                "TensorSplitAlgorithms": "Metis",
+                "_comment": "Supported CostFunctions are: balanced | criticalpath | minmax | greedy. Supported TensorSplitAlgorithms are Metis, Rectangle, Z-Tiling"
+            },
+            "ArrangeKeembayExecution",
+            "AllocateInputOutputTensorsKeemBay",
+            "AllocatePopulatedTensorsKeemBay",
+            "AllocateUnpopulatedTensorsKeemBay",
+            "ReAllocateImplicitOperationsKeemBay",
+            "TensorGraphColoring",
+            "RemoveDeallocationTasks",
+            {
+                "name" : "TransitiveReduction",
+                "filter" : "Fakefilter"
+            },
+            {
+                "name" : "InsertBarrierTasks",
+                "barrier_reuse_window" : 0
+            },
+            "AddBarrierRefs",
+            "UpdateBarrierProducerConsumerCounts",
+            {
+                "name" : "TransitiveReduction",
+                "filter" : "Fakefilter"
+            },
+            "PopulateWeightsTables",
+            {
+                "name": "GenerateDot",
+                "output": "final_model.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true,
+                "convert": false,
+                "verbose" : false
+            }
+        ]
+    },
+    "validate": {
+        "Singular": [
+            "CheckTensors"
+        ]
+    },
+    "serialize": {
+        "Singular": [
+            {
+                "name": "GenerateBlobKeembay",
+                "output": "output/vpu2.blob",
+                "convert": true
+            }
+        ]
+    },
+    "root": {
+        "Singular": [
+            "initialize",
+            "validate",
+            "adapt",
+            "keembay_adapt",
+            "dma",
+            "control_flows",
+            "finalize",
+            "serialize"
+        ],
+        "Recurrent": [
+            "validate"
+        ]
+    }
+}

@@ -33,6 +33,7 @@ namespace mv
         Shape(std::vector<std::size_t> dims);
         Shape(std::size_t ndims);
         Shape(const Shape& other);
+        Shape();
 
         std::size_t ndims() const;
         std::size_t totalSize() const;

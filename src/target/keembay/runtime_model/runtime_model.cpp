@@ -185,9 +185,9 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
 
     // NOTE: not sure anymore about this
     auto strides = tensorBufferIt->getStrides();
-    toBuild->leading_offset = strides[0];
+    toBuild->leading_offset = strides[0]/2; //for some reason we get double the value, for now take the proper one.
     toBuild->trailing_offset = strides[strides.size()-1] + tensorBufferIt->getPostAlign();
-
+    toBuild->trailing_offset = toBuild->trailing_offset / 2;
     toBuild->data = std::unique_ptr<MVCNN::IndirectDataReferenceT>(new MVCNN::IndirectDataReferenceT());
     if (*tensorAllocatorName == "GraphFile")
     {
@@ -197,11 +197,15 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     else if(*tensorAllocatorName == "ProgrammableInput" || *tensorAllocatorName == "ProgrammableOutput")
     {
         toBuild->data->data_index = 0;
+        if (toBuild->leading_offset)
+            toBuild->data->data_index += toBuild->leading_offset;
         // No need to set sparsity_index for input/output tensor of the network
     }
     else
     {
         toBuild->data->data_index = tensorBufferIt->getOffset();
+        if (toBuild->leading_offset)
+            toBuild->data->data_index += toBuild->leading_offset;
 
         // VERY IMPORTANT NOTE: Sparsity index is not used by populated tensors
         // as populated tensor represent weights, and all the information we need
@@ -474,12 +478,53 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildUPADMATaskT(Co
 
 std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt)
 {
+    mv::DataModel dm(cm);
+    mv::ControlModel controlModel(cm);
+
     std::vector<std::unique_ptr<MVCNN::TaskT>> toReturn = std::vector<std::unique_ptr<MVCNN::TaskT>>(1);
     toReturn[0] = std::unique_ptr<MVCNN::TaskT>(new MVCNN::TaskT());
     toReturn[0]->task.type = MVCNN::SpecificTask_NNDMATask;
     auto tmp = new MVCNN::NNDMATaskT();
-    tmp->src = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(0));
-    tmp->dst = buildTensorReferenceT(cm, compilationDescriptor, opIt->getOutputTensor(0));
+    auto inputTensor = opIt->getInputTensor(0);
+    tmp->src = buildTensorReferenceT(cm, compilationDescriptor, inputTensor);
+    auto tensorAllocatorName = inputTensor->get<std::set<std::string>>("allocators").begin();
+    auto tensorAllocator = dm.getAllocator(*tensorAllocatorName);
+    mv::Data::BufferIterator tensorBufferIt = tensorAllocator.getBuffer(0, inputTensor);
+    mv::Control::StageIterator stg = controlModel.getStage(0);
+
+    if (tensorBufferIt->getMaster() != dm.bufferEnd(*tensorAllocatorName, stg))
+    {
+        auto masterBuffer = tensorBufferIt->getMaster(); //TODO: or do we need the top one?
+        auto masterTensor = (*masterBuffer)->getData();
+
+        auto numericStrides = masterTensor->computeNumericStrides();
+        numericStrides.push_back(masterTensor->getDType().getSizeInBits() / 8);
+
+        //Because according to graphfile order is given as NCHW, which is exactly the reverse of our shape assumption WHCN
+        std::reverse(numericStrides.begin(), numericStrides.end());
+        tmp->src->strides = numericStrides;
+    }
+
+    auto outputTensor = opIt->getOutputTensor(0);
+
+    tmp->dst = buildTensorReferenceT(cm, compilationDescriptor, outputTensor);
+    tensorAllocatorName = outputTensor->get<std::set<std::string>>("allocators").begin();
+    tensorAllocator = dm.getAllocator(*tensorAllocatorName);
+    tensorBufferIt = tensorAllocator.getBuffer(0, outputTensor);
+    stg = controlModel.getStage(0);
+
+    if (tensorBufferIt->getMaster() != dm.bufferEnd(*tensorAllocatorName, stg))
+    {
+        auto masterBuffer = tensorBufferIt->getMaster(); //TODO: or do we need the top one?
+        auto masterTensor = (*masterBuffer)->getData();
+        auto numericStrides = masterTensor->computeNumericStrides();
+        numericStrides.push_back(masterTensor->getDType().getSizeInBits() / 8);
+
+        //Because according to graphfile order is given as NCHW, which is exactly the reverse of our shape assumption WHCN
+        std::reverse(numericStrides.begin(), numericStrides.end());
+        tmp->dst->strides = numericStrides;
+    }
+
     if(opIt->hasAttr("Compression"))
         tmp->compression =  opIt->get<bool>("Compression");
     toReturn[0]->task.value = tmp;
@@ -615,7 +660,7 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
         toBuild->parent_output_tensor = buildTensorReferenceT(cm, compilationDescriptor, opIt->getOutputTensor(0));
     }
 
-    toBuild->output_data->data->data_index += toBuild->output_data->leading_offset/2;
+    toBuild->output_data->data->data_index += toBuild->output_data->leading_offset;
 
     unsigned num_inputs = opIt->getInputTensor().size();
 

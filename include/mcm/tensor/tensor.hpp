@@ -20,6 +20,104 @@ namespace mv
 
     class Tensor : public Element
     {
+    public:
+        class MemoryLocation  : public LogSender {
+        //TODO :: find better place for it !!
+        public:
+            enum Location {
+                CMX = 0,
+                UPA =1,
+                DDR = 2,
+                INPUT = 3,
+                OUTPUT = 4,
+                BLOB = 5,
+                VIRTUAL = 6,
+                DEFAULT = 7
+            };
+        private:
+            Location location_;
+            bool forced_;
+            //bool relocatable need this?
+
+            static std::map<std::string,Location> createNamingMap() {
+                    return {{"CMX",CMX},
+                            {"UPA",UPA},
+                            {"DDR",DDR},
+                            {"INPUT",INPUT},
+                            {"OUTPUT",OUTPUT},
+                            {"BLOB",BLOB},
+                            {"VIRTUAL",VIRTUAL},
+                            {"DEFAULT",DEFAULT}
+                    };
+            }
+            static std::map<std::string,Location> namingMap;
+
+        public:
+            MemoryLocation(const std::string& location) : location_(namingMap[location]),forced_(false) {};
+            MemoryLocation(const Location location) : location_(location),forced_(false) {};
+            MemoryLocation() : location_(DEFAULT),forced_(false) {};
+
+            MemoryLocation(const std::string& location, bool forced) : location_(namingMap[location]),forced_(forced) {};
+            MemoryLocation(const Location location, bool forced) : location_(location),forced_(forced) {};
+
+//            MemoryLocation(MemoryLocation& location) = delete;
+            void operator=(const MemoryLocation& location) = delete;
+            void operator=(MemoryLocation& location) = delete;
+
+            bool operator==(const Location other) { return (location_ == other); }
+            bool operator==(std::string& other) { return (location_ == namingMap[other]);}
+            bool operator==(const MemoryLocation& other) { return (location_ == other.location_);}
+
+            bool operator!=(const Location other) {return  (location_ != other); }
+            bool operator!=(std::string& other) {return ( location_ != namingMap[other]);}
+            bool operator!=(const MemoryLocation& other) { return (location_ != other.location_);}
+
+            void force() { forced_ = true;}
+            bool isDefault() { return (location_ == DEFAULT); }
+            bool isForced() {return forced_;};
+
+//            void set(std::string &location) { location_ = namingMap[location]; }
+//            void set(const Location location) { location_ = location; }
+//            void set(const MemoryLocation& location) { location_ = location.location_; };
+            bool relocate(Location newPlace){
+                if(forced_)
+                {
+                    return false;
+                }
+                else
+                {
+                    location_ = newPlace;
+                    return true;
+                }
+            }
+
+            bool relocate(std::string& newPlace)
+            {
+                return relocate( namingMap[newPlace]);
+            }
+
+            bool relocate(MemoryLocation& newPlace)
+            {
+                return relocate(newPlace.location_);
+            }
+
+            std::string toString() const
+            {
+                for( auto it = namingMap.begin(); it != namingMap.end(); ++it )
+                {
+                    if(it->second == location_)
+                        return it->first;
+                }
+                throw ValueError(*this, "Memory location cannot be found in Map!!");
+            }
+
+            virtual std::string getLogID() const override
+            {
+                return "MemoryLocation";
+            }
+        };
+
+
     private:
         std::vector<DataElement> data_;
 

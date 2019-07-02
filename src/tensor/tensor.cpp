@@ -3,6 +3,9 @@
 #include "include/mcm/utils/custom_math.hpp"
 #include "include/mcm/utils/custom_strings.hpp"
 
+std::map<std::string,mv::Tensor::MemoryLocation::Location> mv::Tensor::MemoryLocation::namingMap = mv::Tensor::MemoryLocation::createNamingMap();
+
+
 mv::Tensor::Tensor(const std::string &name, const Shape &shape, DType dType, Order order):
 Element(name),
 blockSize_(shape[-1]),
@@ -18,6 +21,7 @@ internalOrder_(Order(Order::getRowMajorID(shape.ndims())))
     set<Order>("order", order);
     set<DType>("dType", dType);
     set<bool>("populated", false);
+    set<MemoryLocation>("Location",MemoryLocation::DEFAULT);
 
     data_ = std::vector<DataElement>(shape.totalSize(), DataElement(isDoubleType()));
     for (std::size_t i = 0; i < blocks_.size(); ++i)
@@ -40,6 +44,7 @@ internalOrder_(Order(Order::getRowMajorID(shape.ndims())))
     set<DType>("dType", dType);
     set<mv::QuantizationParams>("quantParams", quantParams);
     set<bool>("populated", false);
+    set<MemoryLocation>("Location",MemoryLocation::DEFAULT);
 
     data_ = std::vector<DataElement>(shape.totalSize(), DataElement(isDoubleType()));
     for (std::size_t i = 0; i < blocks_.size(); ++i)
@@ -62,6 +67,7 @@ internalOrder_(Order(Order::getRowMajorID(shape.ndims())))
     set<DType>("dType", dType);
     set<mv::QuantizationParams>("quantParams", quantParams);
     set<bool>("populated", flag);
+    set<MemoryLocation>("Location",MemoryLocation::DEFAULT);
 
     data_ = std::vector<DataElement>(shape.totalSize(), DataElement(isDoubleType()));
     for (std::size_t i = 0; i < blocks_.size(); ++i)

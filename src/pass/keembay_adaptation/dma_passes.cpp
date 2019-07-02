@@ -69,7 +69,7 @@ void addInitialAndFinalDMATaskFcn(const mv::pass::PassEntry& , mv::ComputationMo
     {
         auto flows = inputTensor->get<std::set<std::string>>("flows");
 
-        auto inputTensorDma = om.dMATask(inputTensor, mv::DmaDirectionEnum::DDR2CMX,quantParams, mv::createDMATaskDDR2CMXName(inputOp->getName()));
+        auto inputTensorDma = om.dMATask(inputTensor, mv::DmaDirectionEnum::DDR2CMX, quantParams, mv::createDMATaskDDR2CMXName(inputOp->getName()));
         auto inputTensorDmaOp = om.getSourceOp(inputTensorDma);
         inputTensorDmaOp->set<unsigned>("opId", opId);
 
@@ -170,7 +170,7 @@ void addWeightsDMATasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
                     auto flows = inputTensor->get<std::set<std::string>>("flows");
 
 
-                    auto inputTensorDma = om.dMATask(inputTensor, mv::DmaDirectionEnum::DDR2CMX,quantParams, mv::createDMATaskDDR2CMXName(inputOp->getName()));
+                    auto inputTensorDma = om.dMATask(inputTensor, mv::DmaDirectionEnum::DDR2CMX, quantParams, mv::createDMATaskDDR2CMXName(inputOp->getName()));
                     auto inputTensorDmaOp = om.getSourceOp(inputTensorDma);
                     inputTensorDmaOp->set<unsigned>("opId", opId);
 
@@ -206,4 +206,3 @@ void addWeightsDMATasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
         }
     }
 }
-

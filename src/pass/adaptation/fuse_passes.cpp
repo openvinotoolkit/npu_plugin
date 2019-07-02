@@ -107,6 +107,7 @@ void fuseBiasFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, m
             {
 
                 auto bias = *opIt->getInputTensor(1);
+                auto biasOutputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
 
                 if (parentOpIt->hasAttr("bias"))
                 {
@@ -132,6 +133,10 @@ void fuseBiasFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, m
                 auto sourceTensor = parentOpIt->getOutputTensor(0);
 
                 opIt = linkNewOperationsFuse(parentOpIt, sourceTensor, om, opIt);
+                if (biasOutputMemoryLocation.isForced())
+                {
+                    opIt->getOutputTensor(0)->set<mv::Tensor::MemoryLocation>("Location", biasOutputMemoryLocation);
+                }
             }
 
         }
@@ -155,7 +160,8 @@ void fuseScaleFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, 
             pass.log(Logger::MessageType::Debug, "Found Scale op " + opIt->getName());
 
             auto parentOpIt = om.getSourceOp(opIt->getInputTensor(0));
-            
+            auto scaleOutputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
+
             if (parentOpIt->getOpType() == "Conv")
             {
 
@@ -176,6 +182,10 @@ void fuseScaleFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, 
                 auto sourceTensor = parentOpIt->getOutputTensor(0);
 
                 opIt = linkNewOperationsFuse(parentOpIt, sourceTensor, om, opIt);
+                if (scaleOutputMemoryLocation.isForced())
+                {
+                    opIt->getOutputTensor(0)->set<mv::Tensor::MemoryLocation>("Location", scaleOutputMemoryLocation);
+                }
             }
 
         }
@@ -195,6 +205,7 @@ void fuseReluFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, m
 
         if (opIt->getOpType() == "Relu")
         {
+            auto reluOutputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
 
             pass.log(Logger::MessageType::Debug, "Found ReLU op " + opIt->getName());
 
@@ -206,6 +217,10 @@ void fuseReluFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, m
             auto sourceTensor = parentOpIt->getOutputTensor(0);
 
             opIt = linkNewOperationsFuse(parentOpIt, sourceTensor, om, opIt);
+            if (reluOutputMemoryLocation.isForced())
+            {
+                opIt->getOutputTensor(0)->set<mv::Tensor::MemoryLocation>("Location", reluOutputMemoryLocation);
+            }
         }
 
     }
@@ -224,6 +239,7 @@ void fuseBatchNormFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mod
         if (opIt->getOpType() == "BatchNormalization")
         {
             pass.log(Logger::MessageType::Debug, "Found BatchNorm op " + opIt->getName());
+            auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
 
             auto batchNormName = opIt->getName();
             auto parentOpIt = om.getSourceOp(opIt->getInputTensor(0));
@@ -280,6 +296,10 @@ void fuseBatchNormFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mod
                 " with " + om.getSourceOp(sourceTensor)->getName());
 
             opIt = linkNewOperationsFuse(parentOpIt, sourceTensor, om, opIt);
+            if (outputMemoryLocation.isForced())
+            {
+                opIt->getOutputTensor(0)->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
+            }
         }
 
     }
