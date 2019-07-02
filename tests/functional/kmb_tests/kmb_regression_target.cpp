@@ -220,3 +220,31 @@ INSTANTIATE_TEST_CASE_P(
                 Values<Compile>(true)),
                 KmbNoRegressionCompilationOnly::getTestCaseName);
 #endif
+
+
+class VpuNoRegressionInference : public Regression::RegressionTests {
+public:
+    std::string getPluginName() const override {
+        return pluginName;
+    }
+
+    std::string getDeviceName() const override {
+        return "";
+    }
+protected:
+    std::string pluginName = "kmbPlugin";
+};
+
+TEST_F(VpuNoRegressionInference, canDoInferenceOnImportedBlob) {
+    std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/TwoFramesConvolution/conv.blob";
+
+    Core ie;
+    InferenceEngine::IExecutableNetwork::Ptr importedNetworkPtr = ie.ImportNetwork(modelFilePath, modelFilePath, {});
+    ASSERT_NE(nullptr, importedNetworkPtr);
+
+    InferenceEngine::IInferRequest::Ptr inferRequest;
+    ResponseDesc resp;
+    ASSERT_EQ(StatusCode::OK, importedNetworkPtr->CreateInferRequest(inferRequest, &resp)) << resp.msg;
+
+    ASSERT_EQ(StatusCode::OK, inferRequest->Infer(&resp)) << resp.msg;
+}
