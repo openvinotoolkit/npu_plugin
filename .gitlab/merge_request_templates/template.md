@@ -1,4 +1,4 @@
-Desciption
+Description:
 
 (Please add a few words why your merge request is useful)
 
