@@ -65,10 +65,17 @@ KmbInferRequest::KmbInferRequest(InferenceEngine::InputsDataMap networkInputs,
             THROW_IE_EXCEPTION << PARAMETER_MISMATCH_str << "Unsupported input precision: "
                                    << precision << "! Supported precisions: FP32, FP16, U8, I8";
         }
+#ifdef ENABLE_VPUAL
         Blob::Ptr inputBlob = make_blob_with_precision(TensorDesc(
             precision,
             dims,
             layout), executor->input_tensor->buf);
+#else
+        Blob::Ptr inputBlob = make_blob_with_precision(TensorDesc(
+            precision,
+            dims,
+            layout));
+#endif
 
 
         // allocate the input blob
@@ -89,10 +96,17 @@ KmbInferRequest::KmbInferRequest(InferenceEngine::InputsDataMap networkInputs,
             THROW_IE_EXCEPTION << PARAMETER_MISMATCH_str << "Unsupported output precision: "
                                 << precision << "! Supported precisions: FP32, FP16, U8, I8";
         }
+#ifdef ENABLE_VPUAL
         Blob::Ptr outputBlob = make_blob_with_precision(TensorDesc(
             precision,
             dims,
             layout), executor->output_tensor->buf);
+#else
+        Blob::Ptr outputBlob = make_blob_with_precision(TensorDesc(
+            precision,
+            dims,
+            layout));
+#endif
 
         // allocate the output blob
         outputBlob->allocate();

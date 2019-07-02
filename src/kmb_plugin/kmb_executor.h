@@ -73,7 +73,6 @@ class KmbExecutor {
 
     std::shared_ptr<Pipeline> pipe;
 #endif
-    
     InferenceEngine::InputsDataMap  m_networkInputs;
     InferenceEngine::OutputsDataMap m_networkOutputs;
 
@@ -81,8 +80,10 @@ class KmbExecutor {
     DataInfo m_outputInfo;
 
 public:
+#ifdef ENABLE_VPUAL
     std::shared_ptr<KmbCmaData> input_tensor;
     std::shared_ptr<KmbCmaData> output_tensor;
+#endif
     KmbExecutor(const Logger::Ptr& log, const std::shared_ptr<KmbConfig>& config);
     ~KmbExecutor() = default;
 
