@@ -34,10 +34,13 @@ public:
 
     void Release() noexcept override { }
 
+    unsigned long getPhysicalAddress(void *handle) noexcept;
+
 private:
     struct MemoryDescriptor {
         size_t size;
         int fd;
+        unsigned long physAddr;
     };
     std::unordered_map<void *, MemoryDescriptor> _allocatedMemory;
 };

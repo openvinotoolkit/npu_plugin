@@ -24,43 +24,50 @@
 
 #include <iostream>
 
-void *vpu::KmbPlugin::KmbAllocator::lock(void *handle, InferenceEngine::LockOp) noexcept {
+using namespace vpu::KmbPlugin;
+
+void *KmbAllocator::lock(void *handle, InferenceEngine::LockOp) noexcept {
     if (_allocatedMemory.find(handle) == _allocatedMemory.end())
         return nullptr;
 
     return handle;
 }
 
-void vpu::KmbPlugin::KmbAllocator::unlock(void *handle) noexcept {
+void KmbAllocator::unlock(void *handle) noexcept {
 }
 
-void *vpu::KmbPlugin::KmbAllocator::alloc(size_t size) noexcept {
+void *KmbAllocator::alloc(size_t size) noexcept {
     long pageSize = getpagesize();
     size_t realSize = size + (size % pageSize ? (pageSize - size % pageSize) : 0);
 
     auto fd = vpusmm_alloc_dmabuf(realSize, VPUSMMType::VPUSMMTYPE_COHERENT);
 
-    void *out = mmap(nullptr, realSize, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+    auto physAddr = vpusmm_import_dmabuf(fd, DMA_BIDIRECTIONAL);
 
-    if (out == MAP_FAILED)
+    void *virtAddr = mmap(nullptr, realSize, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+
+    if (virtAddr == MAP_FAILED)
         return nullptr;
 
     MemoryDescriptor memDesc = {
             realSize,  // size
             fd,        // file descriptor
+            physAddr   // physical address
     };
-    _allocatedMemory[out] = memDesc;
+    _allocatedMemory[virtAddr] = memDesc;
 
-    return out;
+    return virtAddr;
 }
 
-bool vpu::KmbPlugin::KmbAllocator::free(void *handle) noexcept {
+bool KmbAllocator::free(void *handle) noexcept {
     auto memoryIt = _allocatedMemory.find(handle);
     if (memoryIt == _allocatedMemory.end()) {
         return false;
     }
 
     auto memoryDesc = memoryIt->second;
+
+    vpusmm_unimport_dmabuf(memoryDesc.fd);
 
     auto out = munmap(handle, memoryDesc.size);
     if (out == -1) {
@@ -71,4 +78,14 @@ bool vpu::KmbPlugin::KmbAllocator::free(void *handle) noexcept {
     _allocatedMemory.erase(handle);
 
     return true;
+}
+
+unsigned long KmbAllocator::getPhysicalAddress(void *handle) noexcept {
+    auto memoryIt = _allocatedMemory.find(handle);
+    if (memoryIt == _allocatedMemory.end()) {
+        return 0;
+    }
+
+    auto memoryDesc = memoryIt->second;
+    return memoryDesc.physAddr;
 }

@@ -65,21 +65,13 @@ KmbInferRequest::KmbInferRequest(InferenceEngine::InputsDataMap networkInputs,
             THROW_IE_EXCEPTION << PARAMETER_MISMATCH_str << "Unsupported input precision: "
                                    << precision << "! Supported precisions: FP32, FP16, U8, I8";
         }
-#ifdef ENABLE_VPUAL
+
         Blob::Ptr inputBlob = make_blob_with_precision(TensorDesc(
             precision,
             dims,
-            layout), executor->input_tensor->buf);
-#else
-        Blob::Ptr inputBlob = make_blob_with_precision(TensorDesc(
-            precision,
-            dims,
-            layout));
-#endif
+            layout), executor->getAllocator());
+        inputBlob->allocate();
 
-
-        // allocate the input blob
-        // TODO We are allocating temporary input buffer of enough size. Wrap this buffer in blobs
         _inputs[networkInput.first] = inputBlob;
     }
     // allocate outputs
@@ -96,25 +88,15 @@ KmbInferRequest::KmbInferRequest(InferenceEngine::InputsDataMap networkInputs,
             THROW_IE_EXCEPTION << PARAMETER_MISMATCH_str << "Unsupported output precision: "
                                 << precision << "! Supported precisions: FP32, FP16, U8, I8";
         }
-#ifdef ENABLE_VPUAL
-        Blob::Ptr outputBlob = make_blob_with_precision(TensorDesc(
-            precision,
-            dims,
-            layout), executor->output_tensor->buf);
-#else
-        Blob::Ptr outputBlob = make_blob_with_precision(TensorDesc(
-            precision,
-            dims,
-            layout));
-#endif
 
-        // allocate the output blob
+        Blob::Ptr outputBlob = make_blob_with_precision(TensorDesc(
+            precision,
+            dims,
+            layout), executor->getAllocator());
+
         outputBlob->allocate();
         _outputs[networkOutput.first] = outputBlob;
     }
-
-    inputBuffer .resize(inputInfo.totalSize);
-    resultBuffer.resize(outputInfo.totalSize);
 
     if (_networkOutputs.empty() || _networkInputs.empty()) {
         THROW_IE_EXCEPTION << "Internal error: no information about network's output/input";
@@ -148,72 +130,28 @@ void KmbInferRequest::InferAsync() {
     // execute input pre-processing
     execDataPreprocessing(_inputs, true);  // "true" stands for serial preprocessing in case of OpenMP
 
-    Blob::Ptr tmpBlob;
+    auto dataName = _networkInputs.begin()->first;
+    auto foundInputBlob = _inputs.find(dataName);
+    if (foundInputBlob == _inputs.end())
+        THROW_IE_EXCEPTION << "Error: input [" << dataName << "] is not provided.";
 
-    void* inputPtr = nullptr;
+    void* inputPtr = _inputs.begin()->second->buffer();
     size_t inputSize = _inputInfo.totalSize;
-
-    if (_inputs.size() > 1) {
-        for (auto&& input : _inputs) {
-            auto inputBlob = input.second;
-            size_t byteSize = inputBlob->byteSize();
-            Layout layout = inputBlob->getTensorDesc().getLayout();
-            if (layout != _deviceLayout && (layout == NCHW || layout == NHWC)) {
-                // TODO copyBlob allocates new memory, but we already have allocated buffer of enough size
-                inputBlob = copyBlob(inputBlob, _deviceLayout);
-            }
-
-            const auto input_offset_it = _inputInfo.offset.find(input.first);
-            if (input_offset_it != _inputInfo.offset.end()) {
-                size_t required_buff_size = checked_cast<size_t>(input_offset_it->second) + byteSize;
-                IE_ASSERT(required_buff_size <= inputBuffer.size());
-                MEMCPY(&inputBuffer[input_offset_it->second], inputBlob->buffer().as<uint8_t*>(), byteSize);
-            }
-        }
-
-        inputPtr = inputBuffer.data();
-    } else {
-        auto dataName = _networkInputs.begin()->first;
-        auto foundInputBlob = _inputs.find(dataName);
-        if (foundInputBlob == _inputs.end())
-            THROW_IE_EXCEPTION << "Error: input [" << dataName << "] is not provided.";
-
-        tmpBlob = foundInputBlob->second;
-        Layout layout = tmpBlob->getTensorDesc().getLayout();
-        if (layout != _deviceLayout && (layout == NCHW || layout == NHWC)) {
-            // TODO copyBlob allocates new memory, but we already have allocated buffer of enough size
-            tmpBlob = copyBlob(tmpBlob, _deviceLayout);
-        }
-
-        inputPtr = tmpBlob->buffer();
-    }
 
     _executor->queueInference(inputPtr, inputSize, nullptr, 0);
 }
 
 void KmbInferRequest::GetResult() {
-    _executor->getResult(resultBuffer.data(), resultBuffer.size());
+    auto dataName = _networkOutputs.begin()->first;
+    auto foundInputBlob = _outputs.find(dataName);
+    if (foundInputBlob == _outputs.end())
+        THROW_IE_EXCEPTION << "Error: output [" << dataName << "] is not provided.";
 
-    for (auto pp : _outputs) {
-        const auto offset_it = _outputInfo.offset.find(pp.first);
+    void* outputPtr = _outputs.begin()->second->buffer();
+    size_t outputSize = _outputInfo.totalSize;
 
-        if (offset_it !=  _outputInfo.offset.end()) {
-            size_t resultOffset = checked_cast<size_t>(offset_it->second);
-            if (resultOffset > resultBuffer.size()) {
-                THROW_IE_EXCEPTION << "unexpected result data size";
-            }
 
-            auto outputBlob = pp.second;
-            auto outDesc = outputBlob->getTensorDesc();
-
-            // TODO: TensorDesc doesn't update internal BlockingDesc and strides when setLayout is called
-            auto vpuLayout = (outDesc.getLayout() == NCHW || outDesc.getLayout() == NHWC) ? _deviceLayout : outDesc.getLayout();
-            ie::TensorDesc tempTensorDesc(outDesc.getPrecision(), outDesc.getDims(), vpuLayout);
-            auto tmpBlob = make_blob_with_precision(tempTensorDesc, resultBuffer.data() + resultOffset);
-
-            copyBlob(tmpBlob, outputBlob);
-        }
-    }
+    _executor->getResult(outputPtr, outputSize);
 }
 
 void KmbInferRequest::GetPerformanceCounts(std::map<std::string, InferenceEngineProfileInfo> &perfMap) const {

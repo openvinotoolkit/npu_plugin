@@ -37,6 +37,7 @@
 
 #include <kmb_config.h>
 #include "kmb_blob_parser.hpp"
+#include "kmb_allocator.h"
 
 namespace vpu {
 namespace KmbPlugin {
@@ -78,12 +79,13 @@ class KmbExecutor {
 
     DataInfo m_inputInfo;
     DataInfo m_outputInfo;
+    std::shared_ptr<KmbAllocator> allocator;
 
 public:
 #ifdef ENABLE_VPUAL
-    std::shared_ptr<KmbCmaData> input_tensor;
     std::shared_ptr<KmbCmaData> output_tensor;
 #endif
+
     KmbExecutor(const Logger::Ptr& log, const std::shared_ptr<KmbConfig>& config);
     ~KmbExecutor() = default;
 
@@ -102,6 +104,8 @@ public:
     const DataInfo& getOutputInfo() const { return m_outputInfo; }
 
     const std::shared_ptr<KmbConfig>& _config;
+
+    std::shared_ptr<InferenceEngine::IAllocator> getAllocator();
 };
 
 typedef std::shared_ptr<KmbExecutor> KmbExecutorPtr;

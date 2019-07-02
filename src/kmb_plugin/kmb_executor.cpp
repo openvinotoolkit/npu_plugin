@@ -131,11 +131,11 @@ KmbExecutor::KmbExecutor(const Logger::Ptr& log, const std::shared_ptr<KmbConfig
     plgPoolB = make_shared<PlgPool<TensorMsg>>();
 
     blob_file = make_shared<KmbCmaData>();
-    input_tensor = make_shared<KmbCmaData>();
     output_tensor = make_shared<KmbCmaData>();
     BHandle = make_shared<BlobHandle_t>();
     pipe = make_shared<Pipeline>();
 #endif
+    allocator = make_shared<KmbAllocator>();
 }
 
 void KmbExecutor::allocateGraph(const std::vector<char> &graphFileContent, const char* networkName) {
@@ -237,11 +237,6 @@ void KmbExecutor::allocateGraph(const std::vector<char> &graphFileContent, const
     std::cout << "Output: ";
     tensor_deserializer(descOut);
 
-    std::cout << "KmbExecutor::allocateGraph: calling input_tensor->Create" << std::endl;
-    if (input_tensor->Create(descIn.totalSize)) {
-        std::cout << "KmbExecutor::allocateGraph: Error getting CMA " << std::endl;
-        return;
-    }
     std::cout << "KmbExecutor::allocateGraph: calling output_tensor->Create" << std::endl;
     if (output_tensor->Create(descOut.totalSize)) {
         std::cout << "KmbExecutor::allocateGraph: Error getting CMA " << std::endl;
@@ -320,10 +315,8 @@ void KmbExecutor::queueInference(void *input_data, size_t input_bytes,
     }
 
 #ifdef ENABLE_VPUAL
-    std::cout << "KmbExecutor::queueInference: memcpy started" << std::endl;
-    std::memcpy(input_tensor->buf, input_data, input_bytes);
-    std::cout << "KmbExecutor::queueInference: memcpy done" << std::endl;
-    plgTensorInput_->Push(input_tensor->phys_addr, input_bytes);
+    auto physAddr = allocator->getPhysicalAddress(input_data);
+    plgTensorInput_->Push(physAddr, input_bytes);
 #endif
     return;
 }
@@ -381,5 +374,9 @@ void KmbExecutor::deallocateGraph() {
 #endif
 
     return;
+}
+
+std::shared_ptr<InferenceEngine::IAllocator> KmbExecutor::getAllocator() {
+    return allocator;
 }
 

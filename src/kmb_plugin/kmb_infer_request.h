@@ -43,9 +43,6 @@ class KmbInferRequest : public InferenceEngine::InferRequestInternal {
     const DataInfo _inputInfo;
     const DataInfo _outputInfo;
 
-    std::vector<uint8_t> resultBuffer;
-    std::vector<uint8_t> inputBuffer;
-
 public:
     typedef std::shared_ptr<KmbInferRequest> Ptr;
 
