@@ -114,17 +114,17 @@
                         ]
                     },
                     {
-                        "name_filter" : "conv7/conv7#4",
+                        "name_filter" : "conv7#7",
                         "output_location" : "DDR",
                         "splits" : [
-                            {"K" : 2}
+                            {"K" : 8}
                         ]
                     },
                     {
-                        "name_filter" : "conv8/conv8#4",
+                        "name_filter" : "conv8/conv8#8",
                         "output_location" : "DDR",
                         "splits" : [
-                            {"K" : 16}
+                            {"K" : 4}
                         ]
                     },
                     {
@@ -557,28 +557,17 @@
     "control_flows":{
         "Singular" : [
             "DmaControlFlows",
+            "DpuControlFlows",
             {
                 "name": "GenerateDot",
                 "output": "output/dots/DmaControlFlows_model.dot",
-                "scope": "OpControlModel",
+                "scope": "ControlModel",
                 "content": "full",
                 "html": true
             },
             {
                 "name": "ConvertDot",
                 "input": "output/dots/DmaControlFlows_model.dot"
-            },
-            "InputOutputControlFlows",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/InputOutputControlFlows_model.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/InputOutputControlFlows_model.dot"
             },
             "AddDeallocationTasks",
             {
@@ -617,7 +606,7 @@
             {
                 "name": "GenerateDot",
                 "output": "output/dots/TransitiveReductionBeforeMaxCut.dot",
-                "scope": "OpControlModel",
+                "scope": "ControlModel",
                 "content": "nonfull",
                 "html": true
             },

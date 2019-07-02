@@ -313,7 +313,7 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model, mv::Dat
 
         bool enableSerialStreaming = true;
         if ((split>0)&&(enableSerialStreaming))
-            cm.defineFlow(om.getSourceOp(convs[split-1]), om.getSourceOp(slice));
+            cm.defineFlow(om.getSourceOp(convs[split-1]), om.getSourceOp(convs[split]));
 //        else
 //            cm.defineFlow(om.getInput(), om.getSourceOp(slice));
 

@@ -55,10 +55,12 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
         if(inputOp->getOpType() == "Constant" || inputOp->getOpType() == "ConstantInt" || inputOp->getOpType() == "ConstantDataElement" ||
             inputOp->getOpType() == "WeightsTable" || inputOp->getOpType() == "SparsityMap")
             continue;
-        
-        if (inputOp->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location") == mv::Tensor::MemoryLocation::BLOB)
-            continue;
 
+        auto inputTensor = dataFlowIt->getTensor();
+        
+        if (inputTensor->get<mv::Tensor::MemoryLocation>("Location") != mv::Tensor::MemoryLocation::CMX)
+            continue;
+        
         // Tensors that are input of a concat shall not be deallocated: they will be allocated into a bigger tensor
         // (the output of concat op) and that will be deallocated
 
@@ -67,7 +69,6 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
             continue;
 
         auto inputOpName = inputOp->getName();
-        auto inputTensor = dataFlowIt->getTensor();
 
         std::string deallocationName(mv::createDeallocationName(inputOpName));
 
@@ -93,11 +94,16 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
             /* Concat memory requirment should be 0 */
             if(dataFlowIt.source()->getOpType() != "ImplicitConcat") 
             {
-                 // Attaching also through a ControlFlow
-                auto flowIt = cm.defineFlow(inputOp, deallocateInputOp);
-                auto outputTensor = flowIt.source()->getOutputTensor(0);
-                flowIt->set<int>("MemoryRequirement", outputTensor->computeTotalSize());
-                flowIt->set<bool>("PositiveMemory", true);
+                // Attaching also through a ControlFlow
+                if(cm.isFlowAllowed(inputOp, deallocateInputOp))
+                {
+                    mv::Control::FlowListIterator flowIt = cm.checkControlFlow(inputOp, deallocateInputOp);
+                    if(flowIt == cm.flowEnd())
+                        flowIt = cm.defineFlow(inputOp, deallocateInputOp);
+                    auto outputTensor = flowIt.source()->getOutputTensor(0);
+                    flowIt->set<int>("MemoryRequirement", outputTensor->computeTotalSize());
+                    flowIt->set<bool>("PositiveMemory", true);
+                }
             }
             else
             {
@@ -108,10 +114,15 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
                 for(auto concatInput = concatOp.leftmostParent(); concatInput != om.opEnd(); ++concatInput)
                 {
                      // Attaching also through a ControlFlow
-                    auto flowIt = cm.defineFlow(concatInput, deallocateInputOp);
-                    auto outputTensor = flowIt.source()->getOutputTensor(0);
-                    flowIt->set<int>("MemoryRequirement", outputTensor->computeTotalSize());
-                    flowIt->set<bool>("PositiveMemory", true);
+                    if(cm.isFlowAllowed(concatInput, deallocateInputOp))
+                    {
+                        mv::Control::FlowListIterator flowIt = cm.checkControlFlow(concatInput, deallocateInputOp);
+                        if(flowIt == cm.flowEnd())
+                            flowIt = cm.defineFlow(concatInput, deallocateInputOp);
+                        auto outputTensor = flowIt.source()->getOutputTensor(0);
+                        flowIt->set<int>("MemoryRequirement", outputTensor->computeTotalSize());
+                        flowIt->set<bool>("PositiveMemory", true);
+                    }
                 }
             }
             
@@ -140,7 +151,8 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
             if(!found)
                 throw mv::RuntimeError(cm, "Something is wrong in deallocation pass");
 
-            if(!cm.checkControlFlow(om.switchContext(*chosenOp), deallocateInputOp))
+
+            if(cm.isFlowAllowedAndNonExisting(om.switchContext(*chosenOp), deallocateInputOp))
                 cm.defineFlow(om.switchContext(*chosenOp), deallocateInputOp);
 
             // This loop has to happen in both data and control model
@@ -156,11 +168,11 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
                     // For now we stop at the first level.
 
                     for(auto nephew = son.leftmostChild(); nephew != om.opEnd(); ++nephew)
-                        if(!cm.checkControlFlow(deallocateInputOp, nephew))
+                        if(cm.isFlowAllowedAndNonExisting(deallocateInputOp, nephew))
                             cm.defineFlow(deallocateInputOp, nephew);
                 }
 
-                else if(!cm.checkControlFlow(deallocateInputOp, son))
+                else if(cm.isFlowAllowedAndNonExisting(deallocateInputOp, son))
                 {
                     if(son->getOpType() != "Deallocate")
                         cm.defineFlow(deallocateInputOp, son);
@@ -173,7 +185,7 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
             auto deallocateInputOpControl = cm.switchContext(deallocateInputOp);
             for(auto son = chosenOpControl.leftmostChild(); son != cm.opEnd(); ++son)
             {
-                if(!cm.checkControlFlow(deallocateInputOpControl, son))
+                if(cm.isFlowAllowedAndNonExisting(deallocateInputOpControl, son))
                 {
                     if(son->getOpType() != "Deallocate")
                         cm.defineFlow(deallocateInputOpControl, son);

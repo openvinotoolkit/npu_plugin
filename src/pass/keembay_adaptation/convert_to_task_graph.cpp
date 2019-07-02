@@ -84,13 +84,8 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
 
             std::array<unsigned short, 2> kernelSize = {kernel->getShape()[mv::KERNEL_WIDTH], kernel->getShape()[mv::KERNEL_HEIGHT]};
 
-            std::vector<mv::Control::OpChildIterator> outputControlFlows;
-            for (auto childOp = cm.switchContext(opIt).leftmostChild(); childOp != cm.opEnd(); ++childOp)
-            {
-                outputControlFlows.push_back(childOp);
-                std::cout << "FOUND CHILD " << childOp->getName() << " of " << opIt->getName() << std::endl;
-            }
-
+            auto inputControlFlows = mv::getInputControlFlow(cm, cm.switchContext(opIt));
+            auto outputControlFlows = mv::getOutputControlFlow(cm, cm.switchContext(opIt));
             auto outputDataFlows = mv::getOutputDataFlow(om, opIt);
 
             mv::Data::TensorIterator dpuConv;
@@ -115,10 +110,10 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
                 dpuConvOp->set<int>("WorkloadStrategy_nWorkloads", workloadStrategyNWorkloads);
 
 
-
-
             dpuConv->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
             setOutputDataFlow(om, dpuConv, outputDataFlows);
+            setInputControlFlow(cm, cm.switchContext(dpuConvOp), inputControlFlows);
+            setOutputControlFlow(cm, cm.switchContext(dpuConvOp), outputControlFlows);
             for (auto cc : outputControlFlows)
             {
                 cm.defineFlow(dpuConvOp,om.switchContext(cc));
