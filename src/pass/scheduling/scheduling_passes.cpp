@@ -2,8 +2,8 @@
 #include "include/mcm/deployer/serializer.hpp"
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/target/target_descriptor.hpp"
-#include "include/mcm/target/myriadx/nce1_utils.hpp"
 #include "include/mcm/utils/custom_math.hpp"
+#include "include/mcm/target/keembay/workloads.hpp"
 #include <cmath>
 #include <numeric>
 #include <cmath>
@@ -11,7 +11,8 @@
 static void generateSchedulingFcn(const mv::pass::PassEntry&, mv::ComputationModel&, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 static void barrierIndexAssignmentFcn(const mv::pass::PassEntry&, mv::ComputationModel&, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 static void updateBarrierRefsFcn(const mv::pass::PassEntry&, mv::ComputationModel&, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
-static void updateBarrierRefsIdsFcn(const mv::pass::PassEntry&, mv::ComputationModel&, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
+static void storeBarriersNamesInTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel&, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
+static void updateCountsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 
 namespace mv
 {
@@ -21,25 +22,32 @@ namespace mv
         MV_REGISTER_PASS(GenerateExecutionSchedule)
         .setFunc(generateSchedulingFcn)
         .setDescription(
-            "Gathers fields for serialization"
+            "Generates a schedule for the computational model"
         );
 
         MV_REGISTER_PASS(BarrierIndexAssignment)
         .setFunc(barrierIndexAssignmentFcn)
         .setDescription(
-            "Generates an executable blob file"
+            "Assigns a dynamic index to the barrier if a schedule has been produced"
         );
 
         MV_REGISTER_PASS(UpdateBarrierRefs)
         .setFunc(updateBarrierRefsFcn)
         .setDescription(
-            "Generates an executable blob file"
+            "Updates the barrier refs on tasks using indices produced by BarrierIndexAssignment pass"
         );
 
-        MV_REGISTER_PASS(UpdateBarrierRefsIds)
-        .setFunc(updateBarrierRefsIdsFcn)
+        MV_REGISTER_PASS(StoreBarriersNamesInTasks)
+        .setFunc(storeBarriersNamesInTasksFcn)
         .setDescription(
-            "Generates an executable blob file"
+            "For each task barrier produced and consumed are stored as strings"
+        );
+
+        MV_REGISTER_PASS(UpdateBarrierProducerConsumerCounts)
+        .setFunc(updateCountsFcn)
+        .setDescription(
+            "This pass updates producer and consumer counts in barriers based on workloads in producer and consumer \
+            DxxTasks in the compute graph"
         );
 
     }
@@ -286,7 +294,7 @@ void barrierIndexAssignmentFcn(const mv::pass::PassEntry&, mv::ComputationModel&
     }
 }
 
-void updateBarrierRefsIdsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+void storeBarriersNamesInTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
     mv::OpModel om(model);
 
@@ -349,6 +357,56 @@ void updateBarrierRefsFcn(const mv::pass::PassEntry&, mv::ComputationModel& mode
 
             auto& barrierRef = consumerOp->get<mv::BarrierDependencies>("BarrierDeps");
             barrierRef.setWaitBarrier(barrier.getIndex());
+        }
+    }
+}
+
+// NEEDS TO BE UPDATED WHEN MERGING WITH MULTICLUSTER
+void updateCountsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+{
+    mv::OpModel om(model);
+
+    auto barrierTasks = om.getOps("BarrierTask");
+
+    for (auto bt: barrierTasks)
+    {
+        auto& barrier = bt->get<mv::Barrier>("Barrier");
+
+        for (auto producer: barrier.getProducers())
+        {
+            auto producerOp = om.getOp(producer);
+            if (producerOp->hasAttr("Workloads"))
+            {
+                auto& workloads = producerOp->get<mv::Workloads>("Workloads");
+                int count = barrier.getNumProducers();
+                count += workloads.nWorkloads();
+                barrier.setNumProducers(count);
+            }
+            else
+            {
+                int count = barrier.getNumProducers();
+                count += 1;
+                barrier.setNumProducers(count);
+            }
+        }
+
+        for (auto consumer: barrier.getConsumers())
+        {
+            auto consumerOp = om.getOp(consumer);
+
+            if (consumerOp->hasAttr("Workloads"))
+            {
+                auto& workloads = consumerOp->get<mv::Workloads>("Workloads");
+                int count = barrier.getNumConsumers();
+                count += workloads.nWorkloads();
+                barrier.setNumConsumers(count);
+            }
+            else
+            {
+                int count = barrier.getNumConsumers();
+                count += 1;
+                barrier.setNumConsumers(count);
+            }
         }
     }
 }

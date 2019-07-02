@@ -457,7 +457,6 @@
                 "name": "ConvertDot",
                 "input": "output/dots/BarriersInsertedTransitiveReductionApplied.dot"
             },
-            "UpdateBarrierRefsIds",
             "PopulateWeightsTablesPointers",
             {
                 "name": "GenerateDot",
@@ -490,14 +489,15 @@
     },
     "scheduling": {
         "Singular": [
+            "StoreBarriersNamesInTasks",
             "GenerateExecutionSchedule",
             "BarrierIndexAssignment",
-            "UpdateBarrierRefs"
+            "UpdateBarrierRefs",
+            "UpdateBarrierProducerConsumerCounts"
         ]
     },
     "serialize": {
         "Singular": [
-            "UpdateBarrierProducerConsumerCounts",
             {
                 "name": "GenerateBlobKeembay",
                 "output": "output/mcm.blob"
