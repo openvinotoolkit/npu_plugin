@@ -456,6 +456,7 @@ void FrontEndMcm::parseFullyConnected(
     IE_ASSERT(layer != nullptr);
 
     bool is_quantized = false;
+    bool with_bias = false;
     // Quantization parameters
     mv::QuantizationParams weightsQuantParams = {{}, {}, {}, {}};
     mv::QuantizationParams inputQuantParams   = {{}, {}, {}, {}};
