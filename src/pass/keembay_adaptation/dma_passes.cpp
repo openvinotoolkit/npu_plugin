@@ -143,7 +143,6 @@ void addWeightsDMATasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
 
     auto globalConfigParams = model.getGlobalConfigParams();
     auto cmxSize = globalConfigParams->get<unsigned>("cmx");
-    unsigned numClusters = globalConfigParams->get<int>("Number_of_Clusters");
 
     int _dma_dependency = passDesc.get<int>("weights_prefetch");
     int dma_dependency;

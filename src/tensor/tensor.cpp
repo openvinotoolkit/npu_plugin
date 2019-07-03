@@ -294,13 +294,6 @@ mv::Tensor& mv::Tensor::getSubTensor(uint8_t cluster)
     return *this;
 }
 
-const mv::Tensor& mv::Tensor::broadcastSubtensor(uint8_t cluster)
-{
-    if (cluster < subTensors_.size())
-        return *subTensors_[cluster];
-    return *this;
-}
-
 std::shared_ptr<mv::Tensor> mv::Tensor::getSparsityMap() const
 {
     if (!isSparse())

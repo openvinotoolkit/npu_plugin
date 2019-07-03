@@ -1202,7 +1202,7 @@ void checkSubtensor(mv::Tensor& inTensor, std::vector<mv::Shape>& refShapes, std
     std::cout << "checkingSubtensor for  " << inTensor.getName() << " shape " << inTensor.getShape().toString() << std::endl;
     while (!done)
     {
-        auto t = inTensor.broadcastSubtensor(subtensorsCount);
+        auto t = inTensor.getSubTensor(subtensorsCount);
         if (t.getName() == inTensor.getName())
         {
             done = true;
