@@ -26,7 +26,8 @@ typedef std::tuple<tensor_test_params, std::string, std::string, std::string, pa
 typedef kmbLayerTestBaseWithParam< pooling_test_params > kmbLayersTestsPoolingParams;
 
 #ifdef ENABLE_MCM_COMPILER
-TEST_F(kmbLayersTests_nightly, TestsPoolingAfterConvolution) {
+TEST_F(kmbLayersTests_nightly, DISABLED_TestsPoolingAfterConvolution) {
+    // TODO: mcmCompiler compilation fails (Convolution with bias): Segmentation fault. Jira: VPUNND-1474
     const std::string model = R"V0G0N(
     <net batch="1" name="POOLING_TEST" version="2">
         <layers>
