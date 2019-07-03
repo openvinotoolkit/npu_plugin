@@ -115,13 +115,20 @@ void addWeightsDMATasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
     mv::ControlModel cm(model);
     mv::DataModel dm(model);
 
-    auto removeOps = [] (std::vector<mv::Data::OpListIterator>& list, const std::string& opTrait)
+    auto removeOpsBasedOnTypeTrait = [] (std::vector<mv::Data::OpListIterator>& list, const std::string& opTrait)
     {
         list.erase(std::remove_if(list.begin(), list.end(), [opTrait](mv::Data::OpListIterator it) { return !it->hasTypeTrait(opTrait);}), list.end());
     };
 
+    auto removeOpsBasedOnOpType = [] (std::vector<mv::Data::OpListIterator>& list, const std::string& opType)
+    {
+        list.erase(std::remove_if(list.begin(), list.end(), [opType](mv::Data::OpListIterator it) { return it->getOpType() == opType;}), list.end());
+    };
+
     auto sortedOps = om.topologicalSort();
-    removeOps(sortedOps, "executable");
+    removeOpsBasedOnTypeTrait(sortedOps, "executable");
+    removeOpsBasedOnOpType(sortedOps, "DMATask");
+    removeOpsBasedOnOpType(sortedOps, "Output");
 
     // How self.nn_cmx_memory is computed
     //    cmxSize = 4194304;
@@ -209,7 +216,10 @@ void addWeightsDMATasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
                     if(index <= dma_dependency)
                         cm.defineFlow(om.getInput(), inputTensorDmaOp);
                     else
+                    {
+                        std::cout << "NOT ATTACHING TO INPUT" << std::endl;
                         cm.defineFlow(sortedOps[index - dma_dependency], inputTensorDmaOp);
+                    }
                 }
             }
         }

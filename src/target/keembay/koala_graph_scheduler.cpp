@@ -83,7 +83,7 @@ void  mv::KoalaGraphScheduler::convertMcMGraphToKoalaGraph(const mv::pass::PassE
     for (auto opIt = cm.getFirst(); opIt != cm.opEnd(); ++opIt)
     {
 
-       /* We do not require MCM operations in the KOALA graph. The purpose is to schedule operation in CMX therefore,
+       /* We do not require all MCM operations in the KOALA graph. The purpose is to schedule operation in CMX therefore,
           we only need these operations and their control edges
 
        - Input
@@ -91,77 +91,68 @@ void  mv::KoalaGraphScheduler::convertMcMGraphToKoalaGraph(const mv::pass::PassE
        - DMATask
        - ImplicitConcat
        - Dealloc
+       -Ouput
 
        */
-    
-        if (opIt->getOpType() == "Input" || opIt->getOpType() == "DPUTask" || opIt->getOpType() == "DMATask" || 
-            opIt->getOpType() == "Deallocate") {
         
-            bool nodeAdded = false;
+        bool nodeAdded = false;
 
-           /*Add node to KOALA graph*/
-           /*Check if the node is a DMA task CMX to DDR (this is the sink node in KOALA graph and we need to keep track of it)*/
-           if (opIt->hasAttr("lastOpKoala") && opIt->get<bool>("lastOpKoala"))
-           {
-               pass.log(mv::Logger::MessageType::Debug, "Adding vertex to KOALA graph: " + opIt->getName());
+        /*Add node to KOALA graph*/
+        /*Check if the node is a DMA task CMX to DDR (this is the sink node in KOALA graph and we need to keep track of it)*/
+        if (opIt->hasAttr("lastOpKoala") && opIt->get<bool>("lastOpKoala"))
+        {
+            pass.log(mv::Logger::MessageType::Debug, "Adding vertex to KOALA graph: " + opIt->getName());
 
-               this->vertices_.push_back(this->getGraph().addVert(nodeDescription(opIt->getName(),0, false, true)));
-               nodeAdded = true;
-           }
-           
-           /*Keep track of the source node i.e. input*/
-           if (opIt->getOpType() == "Input")
-           {
-               pass.log(mv::Logger::MessageType::Debug, "Adding vertex to KOALA graph: " + opIt->getName());
-               this->vertices_.push_back(this->getGraph().addVert(nodeDescription(opIt->getName(),0, true, false)));
-               nodeAdded = true;
-           }
-           /*All other nodes between source and sink node*/
-           else if (!nodeAdded)
-           {
-               pass.log(mv::Logger::MessageType::Debug, "Adding vertex to KOALA graph: " + opIt->getName());
+            this->vertices_.push_back(this->getGraph().addVert(nodeDescription(opIt->getName(),0, false, true)));
+            nodeAdded = true;
+        }
+        
+        /*Keep track of the source node i.e. input*/
+        if (opIt->getOpType() == "Input")
+        {
+            pass.log(mv::Logger::MessageType::Debug, "Adding vertex to KOALA graph: " + opIt->getName());
+            this->vertices_.push_back(this->getGraph().addVert(nodeDescription(opIt->getName(),0, true, false)));
+            nodeAdded = true;
+        }
+        /*All other nodes between source and sink node*/
+        else if (!nodeAdded)
+        {
+            pass.log(mv::Logger::MessageType::Debug, "Adding vertex to KOALA graph: " + opIt->getName());
 
-               this->vertices_.push_back(this->getGraph().addVert(nodeDescription(opIt->getName(),0, false,false)));
-               nodeAdded = true;
-           }
-       }
+            this->vertices_.push_back(this->getGraph().addVert(nodeDescription(opIt->getName(),0, false,false)));
+            nodeAdded = true;
+        }
     }
+    
     
     /* Add the edges to the KOALA graph store attributes on the edges to perform the max topoloigcal cut algorithm.
      * Iterate over the the control flow edges in the MCMgraph.  
     */
     for (auto flowIt = cm.flowBegin(); flowIt != cm.flowEnd(); ++flowIt) {
-        
-        /* 1. Don't add the edge going to Ouput 
-         * 2. Don't add edge coming from a ConstantInt operation (Sparsity Map and Weights Table)
-        */
-       
-        if (flowIt.sink()->getOpType() != "Output" && flowIt.source()->getOpType() != "ConstantInt" && flowIt.sink()->getOpType() != "ConstantInt" 
-            && flowIt.sink()->getOpType() != "Slice" && flowIt.source()->getOpType() != "ConstantDataElement" && flowIt.source()->getOpType() != "Constant")
-        {
-            auto sourceName = flowIt.source()->getName();
-            auto sinkName  = flowIt.sink()->getName();
+    
+        auto sourceName = flowIt.source()->getName();
+        auto sinkName  = flowIt.sink()->getName();
 
-            if(flowIt->hasAttr("MemoryRequirement"))
-                pass.log(mv::Logger::MessageType::Debug, "Adding edge to KOALA graph from: " + sourceName + " --> " + sinkName + " with memory requirement " + std::to_string(flowIt->get<int>("MemoryRequirement")));
-            else
-                pass.log(mv::Logger::MessageType::Debug, "Adding edge to KOALA graph from: " + sourceName + " --> " + sinkName + " with memory requirement " + std::to_string(0));
+        if(flowIt->hasAttr("MemoryRequirement"))
+            pass.log(mv::Logger::MessageType::Debug, "Adding edge to KOALA graph from: " + sourceName + " --> " + sinkName + " with memory requirement " + std::to_string(flowIt->get<int>("MemoryRequirement")));
+        else
+            pass.log(mv::Logger::MessageType::Debug, "Adding edge to KOALA graph from: " + sourceName + " --> " + sinkName + " with memory requirement " + std::to_string(0));
 
-            /*If the control flow has a memoryRequirment attribute add it to the KOALA edge*/
-            if(flowIt->hasAttr("MemoryRequirement"))
-                this->edges_.push_back(this->getGraph().addEdge(*std::find_if(vertices_.begin(), vertices_.end(), [&sourceName](koalaGraph::PVertex const& vertex) {return sourceName == vertex->info.name;}), 
-                                             *std::find_if(vertices_.begin(), vertices_.end(), [&sinkName](koalaGraph::PVertex const& vertice) {return sinkName == vertice->info.name;}), 
-                                             edgeDescription(flowIt->get<int>("MemoryRequirement"),flowIt->getName()), 
-                                             Koala::Directed));
-                                             
-            /*Otherwsise the memory requirment is 0*/
-            else
-                this->edges_.push_back(this->getGraph().addEdge(*std::find_if(vertices_.begin(), vertices_.end(), [&sourceName](koalaGraph::PVertex const& vertex) {return sourceName == vertex->info.name;}), 
-                                             *std::find_if(vertices_.begin(), vertices_.end(), [&sinkName](koalaGraph::PVertex const& vertex) {return sinkName == vertex->info.name;}), 
-                                             edgeDescription(0,flowIt->getName()), 
-                                             Koala::Directed));
-        }
+        /*If the control flow has a memoryRequirment attribute add it to the KOALA edge*/
+        if(flowIt->hasAttr("MemoryRequirement"))
+            this->edges_.push_back(this->getGraph().addEdge(*std::find_if(vertices_.begin(), vertices_.end(), [&sourceName](koalaGraph::PVertex const& vertex) {return sourceName == vertex->info.name;}), 
+                                            *std::find_if(vertices_.begin(), vertices_.end(), [&sinkName](koalaGraph::PVertex const& vertice) {return sinkName == vertice->info.name;}), 
+                                            edgeDescription(flowIt->get<int>("MemoryRequirement"),flowIt->getName()), 
+                                            Koala::Directed));
+                                            
+        /*Otherwsise the memory requirment is 0*/
+        else
+            this->edges_.push_back(this->getGraph().addEdge(*std::find_if(vertices_.begin(), vertices_.end(), [&sourceName](koalaGraph::PVertex const& vertex) {return sourceName == vertex->info.name;}), 
+                                            *std::find_if(vertices_.begin(), vertices_.end(), [&sinkName](koalaGraph::PVertex const& vertex) {return sinkName == vertex->info.name;}), 
+                                            edgeDescription(0,flowIt->getName()), 
+                                            Koala::Directed));
     }
+
     pass.log(mv::Logger::MessageType::Debug, "KOALA graph has " + std::to_string(this->getGraph().getVertNo()) + " vertices and " + std::to_string(this->getGraph().getEdgeNo()) + " edges");
 }
 
@@ -177,6 +168,7 @@ uint64_t mv::KoalaGraphScheduler::calculateFMax(mv::ComputationModel& model) {
             Fmax += flowIt->get<int>("MemoryRequirement");
     }
     Fmax += 1; /*add 1 to Fmax as per algorithm*/
+    
     return Fmax;
 }
 
@@ -359,6 +351,7 @@ std::pair<int,std::vector<mv::koalaGraph::PEdge>> mv::KoalaGraphScheduler::calcu
 
     /* Calculate Fmax - Defined as sum of memory requirments + 1)*/
     auto Fmax = this->calculateFMax(model); 
+    pass.log(mv::Logger::MessageType::Debug, "Fmax " + std::to_string(Fmax));
     
     /*Perform the max topological cut algorithm here*/
 
@@ -375,6 +368,9 @@ std::pair<int,std::vector<mv::koalaGraph::PEdge>> mv::KoalaGraphScheduler::calcu
     std::vector <koalaGraph::PEdge> shortestPathEdges;
     koalaGraph::PEdge LOCALARRAY(edges, this->getGraph().getEdgeNo());
     int numberofEdges = this->getGraph().getEdges(edges);
+
+    pass.log(mv::Logger::MessageType::Debug, "Number of Koala " + std::to_string(numberofEdges));
+
  
     /*For each edge
      *
