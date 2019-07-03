@@ -222,6 +222,7 @@ INSTANTIATE_TEST_CASE_P(
 #endif
 
 
+#ifdef ENABLE_VPUAL
 class VpuNoRegressionInference : public Regression::RegressionTests {
 public:
     std::string getPluginName() const override {
@@ -248,3 +249,4 @@ TEST_F(VpuNoRegressionInference, canDoInferenceOnImportedBlob) {
 
     ASSERT_EQ(StatusCode::OK, inferRequest->Infer(&resp)) << resp.msg;
 }
+#endif
