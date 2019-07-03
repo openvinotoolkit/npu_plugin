@@ -26,7 +26,7 @@ typedef kmbLayerTestBaseWithParam< tensor_test_params > kmbLayersTestsReLUParams
 
 #ifdef ENABLE_MCM_COMPILER
 TEST_F(kmbLayersTests_nightly, DISABLED_TestsReLUAfterConvolution) {
-    // TODO: mcmCompiler compilation fails (Convolution with bias): Segmentation fault
+    // TODO: mcmCompiler compilation fails (Convolution with bias): Segmentation fault. Jira: VPUNND-1474
     const std::string model = R"V0G0N(
     <net batch="1" name="RELU_TEST" version="2">
         <layers>

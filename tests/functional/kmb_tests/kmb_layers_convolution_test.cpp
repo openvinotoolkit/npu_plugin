@@ -30,7 +30,7 @@ using namespace InferenceEngine::details;
 
 #ifdef ENABLE_MCM_COMPILER
 TEST_F(kmbLayersTests_nightly, DISABLED_TestsConvolutionAfterScaleShift) {
-    // TODO: tests fails. mcmCompiler compilation (Convolution with bias): Segmentation fault
+    // TODO: tests fails. mcmCompiler compilation (Convolution with bias): Segmentation fault. Jira: VPUNND-1474
     const std::string model = conv_after_scale_shift;
 
     ASSERT_NO_THROW(_net_reader.ReadNetwork(model.data(), model.length()));
@@ -93,7 +93,7 @@ TEST_F(kmbLayersTests_nightly, TestsConvolutionAfterScaleShiftNoBias) {
 }
 
 TEST_F(kmbLayersTests_nightly, DISABLED_TestsQuantizedConvolutionAfterScaleShift) {
-    // TODO: Test fails. mcmCompiler can not compile the network (Convolution with bias)
+    // TODO: Test fails. mcmCompiler can not compile the network (Convolution with bias). Jira: VPUNND-1474
     const std::string model = full_quant_model;
 
     ASSERT_NO_THROW(_net_reader.ReadNetwork(model.data(), model.length()));

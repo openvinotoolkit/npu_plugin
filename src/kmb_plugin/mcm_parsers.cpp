@@ -247,7 +247,7 @@ void FrontEndMcm::parseConvolution(
     if (bias != layer->blobs.end()) {
         with_bias = true;
         biasBlob = bias->second;
-        biasesShape[0] = static_cast<std::size_t>(biasBlob->size());
+        biasesShape[0] = biasBlob->size();
     }
 
     env.log->debug("Convolution orig: '%s' from '%s' ", convLayer->name, input->getMcmNode()->getName());
@@ -476,7 +476,7 @@ void FrontEndMcm::parseFullyConnected(
     if (bias != layer->blobs.end()) {
         with_bias = true;
         biasBlob = bias->second;
-        biasesShape[0] = static_cast<std::size_t>(biasBlob->size());
+        biasesShape[0] = biasBlob->size();
     }
 
     mv::Data::TensorIterator mvWeights;
@@ -529,7 +529,7 @@ void FrontEndMcm::parseFullyConnected(
     if (with_bias) {
         auto mvFCOnly = mvFullyConnected;
         mvFullyConnected = _modelMcm.bias(mvFCOnly, mvBiases, outputQuantParams, FClayer->name + ":bias");
-        env.log->debug("conv orig: '%s' Bias part (%s) added to mcmModel", FClayer->name, mvFCOnly->getName());
+        env.log->debug("FullyConnected orig: '%s' Bias part (%s) added to mcmModel", FClayer->name, mvFullyConnected->getName());
     }
 
     mvFullyConnected->set<mv::DType>("dType", convert_data_type(layer->outData[0]->getPrecision()));

@@ -214,6 +214,7 @@ INSTANTIATE_TEST_CASE_P(
 
 INSTANTIATE_TEST_CASE_P(
         DISABLED_KmbCompilationTest_smoke_nightly,
+        // TODO: mcmCompiler can not compile top 6 KeemBay target networks. Jira: VPUNND-1412, VPUNND-1415, VPUNND-1416, VPUNND-1417, VPUNND-1418
         KmbNoRegressionCompilationOnly,
         Combine(Values("kmbPlugin"),
                 ValuesIn(compilation_parameters_kmb),
@@ -250,3 +251,4 @@ TEST_F(VpuNoRegressionInference, canDoInferenceOnImportedBlob) {
     ASSERT_EQ(StatusCode::OK, inferRequest->Infer(&resp)) << resp.msg;
 }
 #endif
+
