@@ -649,26 +649,47 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
 
     if(sourceIsBroadCasted)
     {
-        //SOH WEIGHTS, WEIGHTS TABLE
-        // 1 DMA to multiple slices -  multiple slices to 1 place
-        std::vector<std::unique_ptr<MVCNN::TaskT>> toReturn = std::vector<std::unique_ptr<MVCNN::TaskT>>(1);
-        toReturn[0] = std::unique_ptr<MVCNN::TaskT>(new MVCNN::TaskT());
-        toReturn[0]->task.type = MVCNN::SpecificTask_NNDMATask;
-        auto tmp = new MVCNN::NNDMATaskT();
-        tmp->src = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(0));
-        tmp->dst = buildTensorReferenceT(cm, compilationDescriptor, opIt->getOutputTensor(0));
+        //NOTE: Multicast flag works on nce2tasks for going the whole output tensor on every cluster,
+        //POC's logic with replicating 4 times the same DMA seems not correct, even for mutiple layers to me,
+        //however letting this on comments.
+//        if (opIt->getInputTensor(0)->hasAttr("multiCast"))
+//        {
+//            std::vector<std::unique_ptr<MVCNN::TaskT>> toReturn = std::vector<std::unique_ptr<MVCNN::TaskT>>(numTasks);
+//            for(unsigned i = 0; i < numTasks; ++i)
+//            {
+//                toReturn[i] = std::unique_ptr<MVCNN::TaskT>(new MVCNN::TaskT());
+//                toReturn[i]->task.type = MVCNN::SpecificTask_NNDMATask;
+//                auto tmp = new MVCNN::NNDMATaskT();
+//                tmp->src = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(0));
+//                tmp->dst = buildTensorReferenceT(cm, compilationDescriptor, opIt->getOutputTensor(0));
+//                if(opIt->hasAttr("Compression"))
+//                    tmp->compression =  opIt->get<bool>("Compression");
+//                toReturn[i]->task.value = tmp;
+//            }
+//            return toReturn;
+//        }
+//        else
+//        {
+            // 1 DMA to multiple slices -  multiple slices to 1 place
+            std::vector<std::unique_ptr<MVCNN::TaskT>> toReturn = std::vector<std::unique_ptr<MVCNN::TaskT>>(1);
+            toReturn[0] = std::unique_ptr<MVCNN::TaskT>(new MVCNN::TaskT());
+            toReturn[0]->task.type = MVCNN::SpecificTask_NNDMATask;
+            auto tmp = new MVCNN::NNDMATaskT();
+            tmp->src = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(0));
+            tmp->dst = buildTensorReferenceT(cm, compilationDescriptor, opIt->getOutputTensor(0));
 
-        std::vector<unsigned int> locale_index;
-        for (unsigned idx = 0; idx < numTasks; idx++)
-            locale_index.push_back(idx);
+            std::vector<unsigned int> locale_index;
+            for (unsigned idx = numTasks; idx > 0; idx--)
+                locale_index.push_back(idx - 1);
 
-        if(direction == mv::DDR2CMX)
-            tmp->dst->locale_index = locale_index;
+            if(direction == mv::DDR2CMX)
+                tmp->dst->locale_index = locale_index;
 
-        if(opIt->hasAttr("Compression"))
-            tmp->compression =  opIt->get<bool>("Compression");
-        toReturn[0]->task.value = tmp;
-        return toReturn;
+            if(opIt->hasAttr("Compression"))
+                tmp->compression =  opIt->get<bool>("Compression");
+            toReturn[0]->task.value = tmp;
+            return toReturn;
+//        }
     }
     else
     {
@@ -899,6 +920,7 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
 // Multicluster version
 std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantFieldsT(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt, int clusterId)
 {
+
     std::unique_ptr<MVCNN::NCEInvariantFieldsT> toBuild = std::unique_ptr<MVCNN::NCEInvariantFieldsT>(new MVCNN::NCEInvariantFieldsT());
 
     toBuild->dpu_task_type = convertTaskOp(opIt->get<std::string>("taskOp"));
@@ -978,8 +1000,8 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
             unsigned numTasks = cm.getGlobalConfigParams()->get<int>("Number_of_Clusters");
             toBuild->output_data = buildTensorReferenceT(cm, compilationDescriptor, parentOutputTensor, clusterId);
             std::vector<unsigned int> locale_index;
-            for (unsigned idx = 0; idx < numTasks; idx++)
-                locale_index.push_back(idx);
+            for (unsigned idx = numTasks; idx > 0; idx--)
+                locale_index.push_back(idx-1);
             toBuild->output_data->locale_index = locale_index;
             auto numericStrides = parentOutputTensor->computeNumericStrides();
             numericStrides.push_back(parentOutputTensor->getDType().getSizeInBits() / 8);
@@ -1000,7 +1022,13 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
     }
 
     toBuild->output_data->data->data_index += toBuild->output_data->leading_offset/2;
-
+    if (opIt->hasAttr("multiCast"))
+    {
+        if (opIt->get<bool>("multiCast"))
+        {
+            toBuild->output_data->data->data_index += clusterId * opIt->getOutputTensor(0)->getSubTensor(clusterId).getShape()[IO_CHANNEL_DIMENSION];
+        }
+    }
     unsigned num_inputs = opIt->getInputTensor().size();
 
     //OP inputs == n ->
@@ -1134,7 +1162,6 @@ std::vector<std::unique_ptr<MVCNN::NCEVariantFieldsT>> mv::RuntimeModel::buildNC
 std::vector<std::unique_ptr<MVCNN::NCEVariantFieldsT>> mv::RuntimeModel::buildNCEVariantFieldsTVector(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt, unsigned numTask)
 {
     UNUSED(numTask);
-    //NOTE: After John's branch is merged, workloads should be get using "Workloads" + std::to_string(numTask)
     auto workloads = opIt->get<mv::Workloads>("Workloads" + std::to_string(numTask)).getWorkloads();
     unsigned n = workloads.size();
     std::vector<std::unique_ptr<MVCNN::NCEVariantFieldsT>> toBuild = std::vector<std::unique_ptr<MVCNN::NCEVariantFieldsT>>(n);
@@ -1310,6 +1337,9 @@ unsigned mv::RuntimeModel::countProducerConsumerTasks(mv::ComputationModel& cm, 
             bool sourceIsBroadCasted = opIt->getInputTensor(0)->isBroadcasted();
             if(!sourceIsBroadCasted)
                 toReturn = numClusters;
+//Look at the coments on buildNNDMATaskT for multiCluster is case of Multiclustering
+//            else if (opIt->getInputTensor(0)->hasAttr("multiCast"))
+//                toReturn = numClusters;
             else
                 toReturn = 1;
         }
