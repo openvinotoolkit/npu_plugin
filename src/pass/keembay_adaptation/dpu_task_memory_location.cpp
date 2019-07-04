@@ -44,22 +44,16 @@ void setDpuTasksMemoryLocationFcn(const mv::pass::PassEntry& , mv::ComputationMo
                 if(outputMemoryLocation != mv::Tensor::MemoryLocation::CMX)
                 {
                     auto output = opIt->getOutputTensor(0);
-                    auto outputOrder = output->getOrder().toString();
-
                     auto outputDataFlows = mv::getOutputDataFlow(om, opIt, false);
 
                     std::vector<mv::Data::FlowListIterator> flows;
                     for(auto outputFlow = opIt.leftmostOutput(); outputFlow != om.flowEnd(); ++outputFlow)
-                    {
                         flows.push_back(outputFlow);
-                    }
 
                     for (auto flow : flows)
                         om.undefineFlow(flow);
 
                     output->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::CMX);
-
-//                    auto dpuCopyOut = om.copy(output, output->get<mv::QuantizationParams>("quantParams"), opIt->getName() + "_copyOut");
 
                     mv::QuantizationParams outputQuantParams = {{},{},{},{}};
                     if (output->hasAttr("quantParams"))
@@ -77,7 +71,6 @@ void setDpuTasksMemoryLocationFcn(const mv::pass::PassEntry& , mv::ComputationMo
                 if(inputMemoryLocation != mv::Tensor::MemoryLocation::CMX)
                 {
                     auto input = opIt->getInputTensor(0);
-//                    auto dpuCopyIn = om.copy(input, input->get<mv::QuantizationParams>("quantParams"), opIt->getName() + "_copyIn");
                     mv::QuantizationParams inputQuantParams = {{},{},{},{}};
                     if(input->hasAttr("quantParams"))
                         inputQuantParams = input->get<mv::QuantizationParams>("quantParams");

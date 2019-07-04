@@ -112,43 +112,7 @@ void addInitialAndFinalDMATaskFcn(const mv::pass::PassEntry& , mv::ComputationMo
 void addWeightsDMATasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element& passDesc, mv::json::Object&)
 {
     mv::OpModel om(model);
-    mv::ControlModel cm(model);
     mv::DataModel dm(model);
-
-    auto removeOpsBasedOnTypeTrait = [] (std::vector<mv::Data::OpListIterator>& list, const std::string& opTrait)
-    {
-        list.erase(std::remove_if(list.begin(), list.end(), [opTrait](mv::Data::OpListIterator it) { return !it->hasTypeTrait(opTrait);}), list.end());
-    };
-
-    auto removeOpsBasedOnOpType = [] (std::vector<mv::Data::OpListIterator>& list, const std::string& opType)
-    {
-        list.erase(std::remove_if(list.begin(), list.end(), [opType](mv::Data::OpListIterator it) { return it->getOpType() == opType;}), list.end());
-    };
-
-    auto sortedOps = om.topologicalSort();
-    removeOpsBasedOnTypeTrait(sortedOps, "executable");
-    removeOpsBasedOnOpType(sortedOps, "DMATask");
-    removeOpsBasedOnOpType(sortedOps, "Output");
-
-    // How self.nn_cmx_memory is computed
-    //    cmxSize = 4194304;
-    //    4194304 / 4 (cluster) = 1048576;
-    //    0.9 (safety_factor) * 1048576 = 943718.4
-    //
-    //dma_dependency = std::min(std::max(1, self.nn_cmx_memory/param.cluster_size), dma_dependency);
-    //    This is the weights prefetch number. It specifies how early to start the inbound DMA for weights.
-    //    The units are number of ops preceeding current conv in the topographically sorted ops list.
-    //    If the weights tensor is very large (eg > 1/2 of CMX) then the specified prefetch parameter (eg 2)
-    //    would be reduced. This assumes that the only fit partial serialization would find for such a
-    //    big weights tensor would be to start the DMA right before it is needed. For smaller tensors, the
-    //    user-specified prefetch number will be used. The prefetch edge added is for partial serialization.
-    //
-
-    auto globalConfigParams = model.getGlobalConfigParams();
-    auto cmxSize = globalConfigParams->get<unsigned>("cmx");
-
-    int _dma_dependency = passDesc.get<int>("weights_prefetch");
-    int dma_dependency;
 
     // Pass main assumption is that we are working on the original graph, just with the Ops converted to DPUTasks
     // We don't need to perform eliminations in this pass, we can use a for loop to iterate among operations
@@ -189,36 +153,6 @@ void addWeightsDMATasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
                         om.undefineFlow(backupFlow);
                         sink->setInputTensor(inputTensorDma, idx, false);
                         om.defineFlow(inputTensorDmaOp, 0, sink, idx);
-                    }
-
-                    auto ctlFlow = cm.switchContext(inputOp);
-                    if (auto parentOptest = ctlFlow.leftmostParent() == cm.opEnd())
-                        std::cout << "NO PARENT FOUND for " << ctlFlow->getName() << std::endl;
-                    for (auto parentOp = ctlFlow.leftmostParent(); parentOp != cm.opEnd(); ++parentOp)
-                    {
-                        cm.defineFlow(om.switchContext(parentOp),inputTensorDmaOp);
-                        std::cout << "ADDED CONTROL FLOW from " << parentOp->getName() << " to " << inputTensorDmaOp->getName() << std::endl;
-                    }
-
-                    //NOTE: This will change with multicluster
-                    long unsigned inputTensorDmaDimension = inputTensorDma->computeTotalSize();
-                    for(unsigned j = 0; j < inputOutputTensors; ++j)
-                        inputTensorDmaDimension += opIt->getInputTensor(j)->computeTotalSize();
-
-                    int partsPerCMX = std::max((unsigned long)1, cmxSize/inputTensorDmaDimension);
-                    if (partsPerCMX < (_dma_dependency + 1))
-                        dma_dependency = partsPerCMX;
-                    else
-                        dma_dependency =  _dma_dependency + 1 ;
-
-
-                    auto index = std::distance(sortedOps.begin(), std::find(sortedOps.begin(), sortedOps.end(), opIt));
-                    if(index <= dma_dependency)
-                        cm.defineFlow(om.getInput(), inputTensorDmaOp);
-                    else
-                    {
-                        std::cout << "NOT ATTACHING TO INPUT" << std::endl;
-                        cm.defineFlow(sortedOps[index - dma_dependency], inputTensorDmaOp);
                     }
                 }
             }

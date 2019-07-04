@@ -99,7 +99,6 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             dpuConvOp->set<bool>("hasWeights", true);
             dpuConvOp->set<std::array<unsigned short, 2>>("kSize", kernelSize);
 
-
             if(!biasName.empty())
                dpuConvOp->set<std::string>("bias", biasName);
             if(!splitStrategy.empty())
@@ -109,16 +108,10 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             if(workloadStrategyNWorkloads != -1)
                 dpuConvOp->set<int>("WorkloadStrategy_nWorkloads", workloadStrategyNWorkloads);
 
-
             dpuConv->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
             setOutputDataFlow(om, dpuConv, outputDataFlows);
             setInputControlFlow(cm, cm.switchContext(dpuConvOp), inputControlFlows);
             setOutputControlFlow(cm, cm.switchContext(dpuConvOp), outputControlFlows);
-            for (auto cc : outputControlFlows)
-            {
-                cm.defineFlow(dpuConvOp,om.switchContext(cc));
-                std::cout << "ADDED CONTROL FLOW from " << dpuConvOp->getName() << " to " << cc->getName() << std::endl;
-            }
 
             if(opType == "Conv")
             {

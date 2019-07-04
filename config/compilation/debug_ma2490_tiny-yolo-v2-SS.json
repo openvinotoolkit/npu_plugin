@@ -535,14 +535,11 @@
                 "name": "ConvertDot",
                 "input": "output/dots/implicit_operations_model.dot"
             },
-            {
-                "name":"AddWeightsDMATasks",
-                "weights_prefetch": 11
-            },
+            "AddWeightsDMATasks",
             {
                 "name": "GenerateDot",
                 "output": "output/dots/dma_model.dot",
-                "scope": "OpControlModel",
+                "scope": "ControlModel",
                 "content": "full",
                 "html": true
             },
@@ -561,13 +558,37 @@
             {
                 "name": "GenerateDot",
                 "output": "output/dots/DmaControlFlows_model.dot",
-                "scope": "OpControlModel",
+                "scope": "ControlModel",
                 "content": "full",
                 "html": true
             },
             {
                 "name": "ConvertDot",
                 "input": "output/dots/DmaControlFlows_model.dot"
+            },
+            "TransitiveReduction",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/DmaControlFlows_model_transitive_reduction.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/DmaControlFlows_model_transitive_reduction.dot"
+            },
+            "HangingDmaControlFlows",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/NoHangingDmas.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/NoHangingDmas.dot"
             },
             "AddDeallocationTasks",
             {
@@ -633,10 +654,7 @@
                 "content": "full",
                 "html": true
             },
-            {
-                "name" : "TransitiveReduction",
-                "filter" : "Fakefilter"
-            },
+            "TransitiveReduction",
             {
                 "name": "GenerateDot",
                 "output": "output/dots/TransitiveReductionAfterMaxCut.dot",
@@ -701,10 +719,7 @@
                 "name": "ConvertDot",
                 "input": "output/dots/DeallocationTasksRemoved.dot"
             },
-            {
-                "name" : "TransitiveReduction",
-                "filter" : "Fakefilter"
-            },
+            "TransitiveReduction",
             {
                 "name": "GenerateDot",
                 "output": "output/dots/DeallocationTasksRemovedAndTransitiveReduction.dot",
@@ -736,10 +751,7 @@
                 "name": "ConvertDot",
                 "input": "output/dots/BarriersInserted.dot"
             },
-            {
-                "name" : "TransitiveReduction",
-                "filter" : "Fakefilter"
-            },
+            "TransitiveReduction",
             {
                 "name": "GenerateDot",
                 "output": "output/dots/BarriersInsertedTransitiveReductionApplied.dot",

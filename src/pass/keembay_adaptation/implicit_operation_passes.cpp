@@ -14,10 +14,6 @@ namespace mv
         MV_REGISTER_PASS(ResolveImplicitOperations)
                 .setFunc(resolveImplicitOperationsFcn)
                 .setDescription("loops over all the candidate implicit operations and will try to add DMA to them");
-
-        MV_REGISTER_PASS(SolveHangingDMAs)
-                .setFunc(solveHangingDMAsFcn)
-                .setDescription("loops over all the candidate implicit operations and will try to add DMA to them");
     }
 }
 
@@ -35,26 +31,6 @@ static std::map<const std::string,mv::DmaDirectionEnum> dmaDirectionStrings =
       {"INPUT2DDR",mv::DmaDirectionEnum::DDR2DDR},
       {"DDR2OUTPUT",mv::DmaDirectionEnum::DDR2DDR}
 };
-
-
-void solveHangingDMAsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::json::Object&)
-{
-    mv::OpModel om(model);
-    mv::ControlModel cm(model);
-
-
-    //NOTE: Seems like a hack, but actually the only case where this can happen
-    // is for initial dma of input/weights if they are slices.
-
-    //For weights, weights prefetch could be applied, but this is techinically correct
-    auto dmas = om.getOps("DMATask");
-    for(auto& dma: dmas)
-    {
-        auto controlDma = cm.switchContext(dma);
-        if(controlDma.inputsSize() == 0)
-            cm.defineFlow(om.getInput(), dma);
-    }
-}
 
 void resolveImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::json::Object&)
 {
@@ -227,24 +203,6 @@ void resolveImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::Computati
                     opsToLink[op]->setInputTensor(compensatorOutput, inputSlots[op], false);
                     om.defineFlow(compensatorOutput,opsToLink[op], inputSlots[op]);
                 }
-
-                auto ctlFlow = cm.switchContext(opIt);
-                auto parentOptest = ctlFlow.leftmostParent();
-                if (parentOptest == cm.opEnd())
-                {
-                    
-                    std::cout << "NO PARENT FOUND for " << ctlFlow->getName() << std::endl;
-                    cm.defineFlow(om.getInput(), om.getSourceOp(compensatorOutput));
-                    
-                }
-                for (auto parentOp = ctlFlow.leftmostParent(); parentOp != cm.opEnd(); ++parentOp)
-                {
-                    
-                    cm.defineFlow(om.switchContext(parentOp), om.getSourceOp(compensatorOutput));
-                    std::cout << "ADDED CONTROL FLOW from " << parentOp->getName() << " to " << compensatorOutput->getName() << std::endl;
-                    
-                }
-
             }
             opIt->get<mv::ImplicitFlow>("ImplicitFlow").resolve();
         }

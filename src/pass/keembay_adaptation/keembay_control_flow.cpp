@@ -7,20 +7,23 @@
 static void inputOutputControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 static void dmaControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 static void dpuControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
+static void hangingDmaControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&passDesc, mv::json::Object&);
+
 
 namespace mv
 {
 
     namespace pass
     {
-        MV_REGISTER_PASS(DmaControlFlows)
-        .setFunc(dmaControlFlowsFcn)
+
+        MV_REGISTER_PASS(HangingDmaControlFlows)
+        .setFunc(hangingDmaControlFlowsFcn)
         .setDescription(
             ""
         );
 
-        MV_REGISTER_PASS(InputOutputControlFlows)
-        .setFunc(inputOutputControlFlowsFcn)
+        MV_REGISTER_PASS(DmaControlFlows)
+        .setFunc(dmaControlFlowsFcn)
         .setDescription(
             ""
         );
@@ -32,49 +35,89 @@ namespace mv
         );
 
     }
-
 }
 
 
-// This pass adds Input and Output control flows of a network.
-void inputOutputControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+// This pass handles all the hanging DMAs into the graph using the prefetch logic
+void hangingDmaControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::json::Object&)
 {
+    //dma_dependency = std::min(std::max(1, self.nn_cmx_memory/param.cluster_size), dma_dependency);
+    //    This is the weights prefetch number. It specifies how early to start the inbound DMA for weights.
+    //    The units are number of ops preceeding current conv in the topographically sorted ops list.
+    //    If the weights tensor is very large (eg > 1/2 of CMX) then the specified prefetch parameter (eg 2)
+    //    would be reduced. This assumes that the only fit partial serialization would find for such a
+    //    big weights tensor would be to start the DMA right before it is needed. For smaller tensors, the
+    //    user-specified prefetch number will be used. The prefetch edge added is for partial serialization.
+    //
+
     mv::OpModel om(model);
     mv::ControlModel cm(model);
 
-    auto inputOp = om.getInput();
+    auto globalConfigParams = model.getGlobalConfigParams();
+    auto cmxSize = globalConfigParams->get<unsigned>("cmx");
 
-    //auto nextOp = inputOp.leftmostChild();
-    for (auto nextOp = inputOp.leftmostChild(); nextOp != om.opEnd(); ++nextOp)
+    int _dma_dependency = 0;
+    if(passDesc.hasAttr("weights_prefetch"))
+        _dma_dependency = passDesc.get<int>("weights_prefetch");
+    int dma_dependency;
+
+    auto removeOpsBasedOnOpType = [] (std::vector<mv::Control::OpListIterator>& list, const std::string& opType)
     {
-        if(!nextOp->hasTypeTrait("executable"))
-            continue;
+        list.erase(std::remove_if(list.begin(), list.end(), [opType](mv::Control::OpListIterator it) { return it->getOpType() == opType;}), list.end());
+    };
 
-        if(cm.isFlowAllowedAndNonExisting(inputOp, nextOp))
-            cm.defineFlow(inputOp, nextOp);
-    }
+    auto sortedOps = cm.topologicalSort();
+    removeOpsBasedOnOpType(sortedOps, "DMATask");
+    removeOpsBasedOnOpType(sortedOps, "Output");
 
-    auto outputOp = om.getOutput();
-    auto lastDMAOp = outputOp.leftmostParent();
+    // Simple strategy for _dma_dependency == 0
+    // Check all the siblings of the hanging dma
+    // If one has a parent, attach to the same parent
 
-    //handling one level of implicit ops first
-    for (auto prevOp = outputOp.leftmostParent(); prevOp != om.opEnd(); ++prevOp)
+    // There is always a sibling with at least one parent,
+    // this is ensured by the previous passes (DmaControlFlows and DpuControlFlows)
+    if(_dma_dependency == 0)
     {
-        if(!prevOp->hasTypeTrait("executable"))
+        auto dmas = om.getOps("DMATask");
+        for(auto dma : dmas)
         {
-            for (auto parent = prevOp.leftmostParent(); parent != om.opEnd(); ++parent)
+            auto dmaControl = cm.switchContext(dma);
+            if(dmaControl.inputsSize() == 0)
             {
-                if(cm.isFlowAllowedAndNonExisting(parent, outputOp) ) 
-                    cm.defineFlow(parent, outputOp);
-                
+                //Collect siblings
+                std::vector<mv::Control::OpListIterator> siblings;
+                for(auto son = dmaControl.leftmostChild(); son != cm.opEnd(); ++son)
+                    for(auto sibling = son.leftmostParent(); sibling != cm.opEnd(); ++ sibling)
+                        siblings.push_back(sibling);
+
+                for(auto& sibling : siblings)
+                    if(sibling.inputsSize() > 0)
+                        if(cm.isFlowAllowedAndNonExisting(sibling.leftmostParent(), dmaControl))
+                            cm.defineFlow(sibling.leftmostParent(), dmaControl);
             }
-            
         }
-        else if(cm.isFlowAllowedAndNonExisting(prevOp, outputOp)) 
-            cm.defineFlow(prevOp, outputOp);
-        
     }
 
+    //NOTE: This will change with multicluster
+//    long unsigned inputTensorDmaDimension = inputTensorDma->computeTotalSize();
+//    for(unsigned j = 0; j < inputOutputTensors; ++j)
+//        inputTensorDmaDimension += opIt->getInputTensor(j)->computeTotalSize();
+
+//    int partsPerCMX = std::max((unsigned long)1, cmxSize/inputTensorDmaDimension);
+//    if (partsPerCMX < (_dma_dependency + 1))
+//        dma_dependency = partsPerCMX;
+//    else
+//        dma_dependency =  _dma_dependency + 1 ;
+
+
+//    auto index = std::distance(sortedOps.begin(), std::find(sortedOps.begin(), sortedOps.end(), opIt));
+//    if(index <= dma_dependency)
+//        cm.defineFlow(om.getInput(), inputTensorDmaOp);
+//    else
+//    {
+//        std::cout << "NOT ATTACHING TO INPUT" << std::endl;
+//        cm.defineFlow(sortedOps[index - dma_dependency], inputTensorDmaOp);
+//    }
 }
 
 // This pass adds control flows relative to a DMA Task.
@@ -113,10 +156,6 @@ void dmaControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& m
         {
             auto source = inputDataFlow.source();
 
-            // For inputs, an extra check is needed when they are not executable
-            // As we can't go one level up from constants (as they have no input)
-            // For outputs this check is not needed because all implicit 
-            // operations have at least one output (except output itself that is handled separetely)
             if(!source->hasTypeTrait("executable"))
             {   
                 for (auto parent = source.leftmostParent(); parent != om.opEnd(); ++parent)
@@ -140,8 +179,7 @@ void dpuControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& m
     auto dpuTask = om.getOps("DPUTask");
     for(auto op : dpuTask)
     {
-
-        //OUTPUT DATA FLOWS OF THE DMA TASK
+        //OUTPUT DATA FLOWS OF THE DPU TASK
         for(auto outputDataFlow = op.leftmostOutput(); outputDataFlow != dm.flowEnd(); ++outputDataFlow)
         {
             auto sink = outputDataFlow.sink();
@@ -157,15 +195,11 @@ void dpuControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& m
                 cm.defineFlow(op, sink);
         };
 
-        // INPUT DATA FLOWS OF THE DMA TASK
+        // INPUT DATA FLOWS OF THE DPU TASK
         for(auto inputDataFlow = op.leftmostInput(); inputDataFlow != dm.flowEnd(); ++inputDataFlow)
         {
             auto source = inputDataFlow.source();
 
-            // For inputs, an extra check is needed when they are not executable
-            // As we can't go one level up from constants (as they have no input)
-            // For outputs this check is not needed because all implicit 
-            // operations have at least one output (except output itself that is handled separetely)
             if(!source->hasTypeTrait("executable"))
             {   
                 for (auto parent = source.leftmostParent(); parent != om.opEnd(); ++parent)

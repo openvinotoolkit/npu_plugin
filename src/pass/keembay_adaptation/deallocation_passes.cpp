@@ -25,6 +25,39 @@ namespace mv
     }
 }
 
+void insertDeallocationControlFlows(mv::OpModel& om, mv::Data::OpListIterator deallocateInputOp, mv::Control::OpListIterator chosenOp)
+{
+    mv::ControlModel cm(om);
+
+    if(cm.isFlowAllowedAndNonExisting(om.switchContext(chosenOp), deallocateInputOp))
+        cm.defineFlow(om.switchContext(chosenOp), deallocateInputOp);
+
+    // CONTROL
+    auto chosenOpControl = chosenOp;
+    auto deallocateInputOpControl = cm.switchContext(deallocateInputOp);
+    for(auto son = chosenOpControl.leftmostChild(); son != cm.opEnd(); ++son)
+    {
+        if(cm.isFlowAllowedAndNonExisting(deallocateInputOpControl, son))
+        {
+            if(son->getOpType() != "Deallocate")
+                cm.defineFlow(deallocateInputOpControl, son);
+        }
+    }
+}
+
+bool thereIsDependency(mv::ControlModel& cm, const std::vector<mv::Data::OpListIterator>& sinkOperations)
+{
+    // To check if there is dependency, we have to check the existence of a control flow between each pair
+    // of operations
+    unsigned n = sinkOperations.size();
+    for(unsigned i = 0; i < n - 1; ++i)
+        for(unsigned j = i + 1; j < n; ++j)
+            if(cm.checkControlFlow(sinkOperations[i], sinkOperations[j]) != cm.flowEnd())
+                return true;
+    return false;
+}
+
+
 // Pass role: Add deallocation tasks for each Tensor
 void addDeallocationTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
@@ -63,24 +96,33 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
         
         // Tensors that are input of a concat shall not be deallocated: they will be allocated into a bigger tensor
         // (the output of concat op) and that will be deallocated
-
         // ADDITIONAL NOTE/TODO: This check by itself is not sufficient if a tensor is input of both an implicit and an explicit operation
         if(!outputOp->hasTypeTrait("executable"))
             continue;
 
-        auto inputOpName = inputOp->getName();
+        auto inputTensor = dataFlowIt->getTensor();
+        
+        // Last check, possible thanks to MemoryLocation definition: In general, tensors that are not in CMX shall not be deallocated
+        // Probably this check covers most of the previous checks
+        // But one in life can never be too sure
+        if (inputTensor->get<mv::Tensor::MemoryLocation>("Location") != mv::Tensor::MemoryLocation::CMX)
+            continue;
 
-        std::string deallocationName(mv::createDeallocationName(inputOpName));
-
-        // Each tensor must be deallocated once
-        if(!om.checkOp(deallocationName))
+        // Arrived at this point, we know that the tensor has to be deallocated. We just have to check
+        // if it was previously deallocated or not.
+        if(!inputTensor->hasAttr("deallocated"))
         {
+            inputTensor->set<bool>("deallocated", true);
+            auto inputOpName = inputOp->getName();
+            std::string deallocationName(mv::createDeallocationName(inputOpName));
+
             // Flows names must be taken before the insertion of deallocation ops
             // Otherwise deallocation will appear as well
             auto flowsNames = inputTensor->get<std::set<std::string>>("flows");
 
             mv::Data::OpListIterator deallocateInputOp;
 
+            // If the tensor is going to DDR, no need for explicit deallocation
             if(outputOp->getOpType() == "DMATask" && outputOp->get<mv::DmaDirection>("direction") == mv::CMX2DDR)
                 deallocateInputOp = outputOp;
             else
@@ -91,12 +133,20 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
                 deallocateInputOp = om.getOp(deallocationName);
             }
 
-            /* Concat memory requirment should be 0 */
-            if(dataFlowIt.source()->getOpType() != "ImplicitConcat") 
+            // Now that we have created/set the pointer to/ the deallocation op, we have to attach
+            // the control flows to it such that it respects the properties of a dataflow graph
+            // described here:
+
+            //https://ieeexplore.ieee.org/document/8425174
+
+            // We start with the control flow that carries the memory requirement.
+            // For all cases but Implicit Concat, the rule is pretty simple: There is one control flow
+            // coincident with the data flow that carries the memory requirement
+            if(inputOp->getOpType() != "ImplicitConcat")
             {
-                // Attaching also through a ControlFlow
                 if(cm.isFlowAllowed(inputOp, deallocateInputOp))
                 {
+                    // Check if the flow already exists, otherwise creating it
                     mv::Control::FlowListIterator flowIt = cm.checkControlFlow(inputOp, deallocateInputOp);
                     if(flowIt == cm.flowEnd())
                         flowIt = cm.defineFlow(inputOp, deallocateInputOp);
@@ -126,10 +176,10 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
                 }
             }
             
+            // Now it's time to define the control flow with 0 as memory requirement
+            // Which in our case is no memory requirement at all.
 
-            // Control flows for the newly created operation must be attached now.
             // Checking all the ops that have this tensor as input
-
             std::vector<mv::Data::OpListIterator> sinkOperations;
             for(auto flowName : flowsNames)
             {
@@ -137,61 +187,39 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
                 sinkOperations.push_back(df.sink());
             }
 
-            bool found = false;
-            auto chosenOp = sortedOps.rbegin();
-            for(; chosenOp != sortedOps.rend(); ++chosenOp)
+            // If there is just one operation, the solution is pretty easy: attach this operation to the dealloc
+            // and the dealloc to the next operation coming in control flow model
+            if(sinkOperations.size() == 1)
             {
-                if(std::find(sinkOperations.begin(), sinkOperations.end(), om.switchContext(*chosenOp)) != sinkOperations.end())
+                auto chosenOp = cm.switchContext(*sinkOperations.begin());
+                insertDeallocationControlFlows(om, deallocateInputOp, chosenOp);
+            }
+            else
+            {
+                // If there are more operations, things get tricky
+                // We have to ask ourselves: Is there a scheduling dependency existing
+                // between these operations?
+
+                // Two hypothesis are considered here:
+                // 1) There is, and it involves all operations. In this case, the dealloc op shall be attached
+                // only to the last operation in topological sort order. This case is similar to sinkOperations.size() == 1
+                // 2) There isn't among any of them. In this case the dealloc task shall be attached to all of the involved operations
+                // TODO: Probably there is the necessity of implementing the hybrid hypothesis
+
+                if(thereIsDependency(cm, sinkOperations))
                 {
-                    found = true;
-                    break;
+                    auto chosenOp = sortedOps.rbegin();
+                    for(; chosenOp != sortedOps.rend(); ++chosenOp)
+                        if(std::find(sinkOperations.begin(), sinkOperations.end(), om.switchContext(*chosenOp)) != sinkOperations.end())
+                            break;
+                    insertDeallocationControlFlows(om, deallocateInputOp, *chosenOp);
+                }
+                else
+                {
+                    for(auto& chosenOp : sinkOperations)
+                        insertDeallocationControlFlows(om, deallocateInputOp, cm.switchContext(chosenOp));
                 }
             }
-
-            if(!found)
-                throw mv::RuntimeError(cm, "Something is wrong in deallocation pass");
-
-
-            if(cm.isFlowAllowedAndNonExisting(om.switchContext(*chosenOp), deallocateInputOp))
-                cm.defineFlow(om.switchContext(*chosenOp), deallocateInputOp);
-
-            // This loop has to happen in both data and control model
-            // DATA
-            auto chosenOpData = om.switchContext(*chosenOp);
-            for(auto son = chosenOpData.leftmostChild(); son != om.opEnd(); ++son)
-            {
-                if(!son->hasTypeTrait("executable") && son->getOpType() != "Output")
-                {
-                    // Concat is brutally skipped - No need to check in control model
-                    // since there will NEVER BE a control flow connected to a concat
-                    // NOTE/TODO: We have to go down recursively for the concat of concats case
-                    // For now we stop at the first level.
-
-                    for(auto nephew = son.leftmostChild(); nephew != om.opEnd(); ++nephew)
-                        if(cm.isFlowAllowedAndNonExisting(deallocateInputOp, nephew))
-                            cm.defineFlow(deallocateInputOp, nephew);
-                }
-
-                else if(cm.isFlowAllowedAndNonExisting(deallocateInputOp, son))
-                {
-                    if(son->getOpType() != "Deallocate")
-                        cm.defineFlow(deallocateInputOp, son);
-
-                }
-            }
-
-            // CONTROL
-            auto chosenOpControl = *chosenOp;
-            auto deallocateInputOpControl = cm.switchContext(deallocateInputOp);
-            for(auto son = chosenOpControl.leftmostChild(); son != cm.opEnd(); ++son)
-            {
-                if(cm.isFlowAllowedAndNonExisting(deallocateInputOpControl, son))
-                {
-                    if(son->getOpType() != "Deallocate")
-                        cm.defineFlow(deallocateInputOpControl, son);
-                }
-            }
-
         }
     }
 }
