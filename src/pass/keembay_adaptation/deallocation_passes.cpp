@@ -52,7 +52,7 @@ bool thereIsDependency(mv::ControlModel& cm, const std::vector<mv::Data::OpListI
     unsigned n = sinkOperations.size();
     for(unsigned i = 0; i < n - 1; ++i)
         for(unsigned j = i + 1; j < n; ++j)
-            if(cm.pathExists(sinkOperations[i], sinkOperations[j]))
+            if(cm.pathExists(cm.switchContext(sinkOperations[i]), cm.switchContext(sinkOperations[j])))
                 return true;
     return false;
 }
