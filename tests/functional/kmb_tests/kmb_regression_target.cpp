@@ -130,25 +130,50 @@ inline std::string CompilationParameter::pathToWeights() const {
 
 std::vector<CompilationParameter> compilation_parameters_kmb =
 {
-    CompilationParameter{"mobilenet_v2_1.0_224_INT8_frozen_69.62",
-                       "/KMB_models/INT8/mobilenet_v2_1.0_224_quant_frozen_69.62/mobilenet_v2_1.xml",
-                       "/KMB_models/INT8/mobilenet_v2_1.0_224_quant_frozen_69.62/mobilenet_v2_1.bin"},
-    CompilationParameter{"inception_v1_224_INT8_frozen_69.8",
-                       "/KMB_models/INT8/inception_v1_224_quant_frozen_69.8/inception_v1_224_quant_frozen_no_preprocess.xml",
-                       "/KMB_models/INT8/inception_v1_224_quant_frozen_69.8/inception_v1_224_quant_frozen_no_preprocess.bin"},
-    CompilationParameter{"inception_v3_INT8_frozen_77.64",
-                       "/KMB_models/INT8/inception_v3_quant_frozen_77.64/inception_v3_quant_frozen_no_preprocess.xml",
-                       "/KMB_models/INT8/inception_v3_quant_frozen_77.64/inception_v3_quant_frozen_no_preprocess.bin"},
-    CompilationParameter{"resnet50_INT8_68.04",
-                        "/KMB_models/INT8/resnet50_int8_68.04/resnet50_int8_no_preprocess.xml",
-                        "/KMB_models/INT8/resnet50_int8_68.04/resnet50_int8_no_preprocess.bin"},
-    CompilationParameter{"resnet_v1_50_75.19_FP16",
+    CompilationParameter{"squeezenet_v1_1-int8",
+                         "/KMB_models/INT8/squeezenetv1.1-int8-onnx-0001/squeezenetv1.1-int8.xml",
+                         "/KMB_models/INT8/squeezenetv1.1-int8-onnx-0001/squeezenetv1.1-int8.bin"},
+
+#if 0
+// TODO: SSD512 network can not be parsed into mcmCompiler OpModel due to unsupported layers.
+// Jira:
+//  Feature VPUNND-1468
+//     Normalize layer support
+//  Feature VPUNND-1467
+//     PriorBox layer support
+//  Feature VPUNND-1466
+//     Gather layer support
+//  Feature VPUNND-1465
+//     DetectionOutput layer support
+//  Feature VPUNND-1464
+//     Unsqueeze layer support
+//  Feature VPUNND-1463
+//     Squeeze layer support
+    CompilationParameter{"SSD512_int8_onnx_0001",
+                         "/KMB_models/INT8/SSD512-int8-onnx-0001/SSD512-int8-onnx-0001.xml",
+                         "/KMB_models/INT8/SSD512-int8-onnx-0001/SSD512-int8-onnx-0001.bin"},
+#endif
+
+    CompilationParameter{"resnet_50_int8_tf_0001",
+                         "/KMB_models/INT8/resnet-50-int8-tf-0001/resnet50-int8.xml",
+                         "/KMB_models/INT8/resnet-50-int8-tf-0001/resnet50-int8.bin"},
+    CompilationParameter{"mobilenetv2_int8_tf_0001",
+                         "/KMB_models/INT8/mobilenetv2-int8-tf-0001/mobilenetv2-int8.xml",
+                         "/KMB_models/INT8/mobilenetv2-int8-tf-0001/mobilenetv2-int8.bin"},
+    CompilationParameter{"inceptionv3_int8_tf_0001",
+                         "/KMB_models/INT8/inceptionv3-int8-tf-0001/inceptionv3-int8.xml",
+                         "/KMB_models/INT8/inceptionv3-int8-tf-0001/inceptionv3-int8.bin"},
+    CompilationParameter{"inceptionv1_int8_tf_0001",
+                         "/KMB_models/INT8/inceptionv1-int8-tf-0001/inceptionv1-int8-tf-0001.xml",
+                         "/KMB_models/INT8/inceptionv1-int8-tf-0001/inceptionv1-int8-tf-0001.bin"},
+
+    CompilationParameter{"resnet_v1_50_75.19_fp16",
                          "/KMB_models/FP16/resnet_v1_50_75.19/resnet50_v1_fp16.xml",
                          "/KMB_models/FP16/resnet_v1_50_75.19/resnet50_v1_fp16.bin"},
-    CompilationParameter{"mobilenet_v2_1.0_224_frozen_71.74_FP16",
+    CompilationParameter{"mobilenet_v2_1.0_224_frozen_71.74_fp16",
                          "/KMB_models/FP16/mobilenet_v2_1.0_224_frozen_71.74/mobilenet_v2_1_no_preprocess.xml",
                          "/KMB_models/FP16/mobilenet_v2_1.0_224_frozen_71.74/mobilenet_v2_1_no_preprocess.bin"},
-    CompilationParameter{"inception_v3_74.19_FP16",
+    CompilationParameter{"inception_v3_74.19_fp16",
                          "/KMB_models/FP16/inception_v3_74.19/inception_v3_no_preprocess.xml",
                          "/KMB_models/FP16/inception_v3_74.19/inception_v3_no_preprocess.bin"},
 };
