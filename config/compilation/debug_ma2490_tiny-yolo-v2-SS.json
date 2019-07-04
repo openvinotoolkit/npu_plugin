@@ -594,7 +594,7 @@
             {
                 "name": "GenerateDot",
                 "output": "output/dots/deallocation_model.dot",
-                "scope": "OpControlModel",
+                "scope": "ControlModel",
                 "content": "full",
                 "html": true
             },
@@ -611,7 +611,7 @@
             {
                 "name": "GenerateDot",
                 "output": "output/dots/sparsitymaps_unpopulatedtensor.dot",
-                "scope": "OpControlModel",
+                "scope": "ControlModel",
                 "content": "full",
                 "html": true
             },
@@ -634,7 +634,7 @@
             {
                 "name": "GenerateDot",
                 "output": "output/dots/TransitiveReductionBeforeMaxCutFull.dot",
-                "scope": "OpControlModel",
+                "scope": "ControlModel",
                 "content": "full",
                 "html": true
             },
@@ -680,7 +680,7 @@
             {
                 "name": "GenerateDot",
                 "output": "output/dots/BeforeGraphColoring.dot",
-                "scope": "OpControlModel",
+                "scope": "ControlModel",
                 "content": "full",
                 "html": true
             },
@@ -711,7 +711,7 @@
             {
                 "name": "GenerateDot",
                 "output": "output/dots/DeallocationTasksRemoved.dot",
-                "scope": "OpControlModel",
+                "scope": "ControlModel",
                 "content": "full",
                 "html": true
             },
@@ -723,7 +723,7 @@
             {
                 "name": "GenerateDot",
                 "output": "output/dots/DeallocationTasksRemovedAndTransitiveReduction.dot",
-                "scope": "OpControlModel",
+                "scope": "ControlModel",
                 "content": "full",
                 "html": true
             },
@@ -743,7 +743,7 @@
             {
                 "name": "GenerateDot",
                 "output": "output/dots/BarriersInserted.dot",
-                "scope": "OpControlModel",
+                "scope": "ControlModel",
                 "content": "full",
                 "html": true
             },
@@ -755,7 +755,7 @@
             {
                 "name": "GenerateDot",
                 "output": "output/dots/BarriersInsertedTransitiveReductionApplied.dot",
-                "scope": "OpControlModel",
+                "scope": "ControlModel",
                 "content": "full",
                 "html": true
             },
@@ -767,7 +767,7 @@
             {
                 "name": "GenerateDot",
                 "output": "output/dots/BarriersInsertedCorrectedIndices.dot",
-                "scope": "OpControlModel",
+                "scope": "ControlModel",
                 "content": "full",
                 "html": true
             },
@@ -781,7 +781,7 @@
             {
                 "name": "GenerateDot",
                 "output": "output/dots/final_model.dot",
-                "scope": "OpControlModel",
+                "scope": "ControlModel",
                 "content": "full",
                 "html": true
             },
@@ -792,7 +792,7 @@
             {
                 "name": "GenerateDot",
                 "output": "output/dots/serial_model.dot",
-                "scope": "OpControlModel",
+                "scope": "ControlModel",
                 "content": "full",
                 "html": true
             },

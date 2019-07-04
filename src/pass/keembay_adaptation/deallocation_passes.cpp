@@ -99,8 +99,6 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
         // ADDITIONAL NOTE/TODO: This check by itself is not sufficient if a tensor is input of both an implicit and an explicit operation
         if(!outputOp->hasTypeTrait("executable"))
             continue;
-
-        auto inputTensor = dataFlowIt->getTensor();
         
         // Last check, possible thanks to MemoryLocation definition: In general, tensors that are not in CMX shall not be deallocated
         // Probably this check covers most of the previous checks

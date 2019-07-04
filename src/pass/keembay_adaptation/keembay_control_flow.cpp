@@ -76,6 +76,9 @@ void hangingDmaControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationM
 
     // There is always a sibling with at least one parent,
     // this is ensured by the previous passes (DmaControlFlows and DpuControlFlows)
+
+    std::vector<std::pair<mv::Control::OpListIterator, mv::Control::OpListIterator>> flowsToAdd;
+
     if(_dma_dependency == 0)
     {
         auto dmas = om.getOps("DMATask");
@@ -92,10 +95,21 @@ void hangingDmaControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationM
 
                 for(auto& sibling : siblings)
                     if(sibling.inputsSize() > 0)
-                        if(cm.isFlowAllowedAndNonExisting(sibling.leftmostParent(), dmaControl))
-                            cm.defineFlow(sibling.leftmostParent(), dmaControl);
+                    {
+                        if(sibling.leftmostParent()->getOpType() == "Input")
+                            flowsToAdd.push_back(std::make_pair(sibling.leftmostParent(), dmaControl));
+                        else
+                            flowsToAdd.push_back(std::make_pair(sibling, dmaControl));
+                    }
+
+
             }
         }
+
+        for(auto& flowToAdd : flowsToAdd)
+            if(cm.isFlowAllowedAndNonExisting(flowToAdd.first, flowToAdd.second))
+                cm.defineFlow(flowToAdd.first, flowToAdd.second);
+
     }
 
     //NOTE: This will change with multicluster
