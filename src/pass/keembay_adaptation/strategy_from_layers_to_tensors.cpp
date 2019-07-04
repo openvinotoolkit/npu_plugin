@@ -38,13 +38,23 @@ void strategyLayersToTensors(const mv::pass::PassEntry& , mv::ComputationModel& 
                 auto outputTensor = layer->getOutputTensor(0);
                 outputTensor->set<std::string>("splitStrategy", opStrategy);
                 unsigned n = layer->inputSlots();
-                for(unsigned i = 0; i < n; ++i)
+                for(unsigned i = 1; i < n; ++i)
                 {
                     auto inputTensor = layer->getInputTensor(i);
                     inputTensor->set<std::string>("splitStrategy", opStrategy);
                 }
             }
          }
+        for(auto layer = om.opBegin(); layer != om.opEnd(); ++layer)
+        {
+            std::string opType = layer->getOpType();
+            if (opType == "Input")
+            {
+                auto opStrategy = layer->get<std::string>("splitStrategy");
+                auto outputTensor = layer->getOutputTensor(0);
+                outputTensor->set<std::string>("splitStrategy", opStrategy);
+            }
+        }
         for(auto layer = om.opBegin(); layer != om.opEnd(); ++layer)
         {
             std::string opType = layer->getOpType();
@@ -64,12 +74,6 @@ void strategyLayersToTensors(const mv::pass::PassEntry& , mv::ComputationModel& 
                     auto inputTensorStrategy = inputTensor->get<std::string>("splitStrategy");
                     outputTensor->set<std::string>("splitStrategy", inputTensorStrategy);
                 }
-            }
-            else if (opType == "Input")
-            {
-                auto opStrategy = layer->get<std::string>("splitStrategy");
-                auto outputTensor = layer->getOutputTensor(0);
-                outputTensor->set<std::string>("splitStrategy", opStrategy);
             }
         }
     }

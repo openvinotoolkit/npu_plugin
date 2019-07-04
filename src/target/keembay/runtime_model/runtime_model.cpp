@@ -1119,6 +1119,62 @@ void mv::RuntimeModel::getWorkloadPadding(Control::OpListIterator opIt, Workload
     return;
 }
 
+void mv::RuntimeModel::getWorkloadPadding(Control::OpListIterator opIt, Workload &workload, unsigned clusterId)
+{
+    if (opIt->get<std::string>("taskOp") == "Add" || opIt->get<std::string>("taskOp") == "Subtract" || opIt->get<std::string>("taskOp") == "Multiply")
+    {
+        workload.padLeft = 0;
+        workload.padTop = 0;
+        workload.padRight = 0;
+        workload.padBottom = 0;
+    }
+    else
+    {
+        auto padding = getPadding(opIt, clusterId);
+        auto outputWidth = opIt->getOutputTensor(0)->getShape()[mv::IO_WIDTH_DIMENSION];
+        auto outputHeight = opIt->getOutputTensor(0)->getShape()[mv::IO_HEIGHT_DIMENSION];
+        if (hardwareBugDepthwise(opIt))
+        {
+            workload.padLeft = (workload.MinX == 0) ? padding[0] : 0;
+            workload.padTop = (workload.MinY == 0) ? padding[2] : 0;
+            workload.padRight = ((workload.MaxX + unsigned(1)) == outputWidth) ? padding[1] : 0;
+            workload.padBottom = ((workload.MaxY + unsigned(1)) == outputHeight) ? padding[3] : 0;
+        }
+        else
+        {
+            workload.padLeft = padding[0];
+            workload.padTop = padding[2];
+            workload.padRight = padding[1];
+            workload.padBottom = padding[3];
+        }
+    }
+    return;
+}
+
+std::array <unsigned short, 4>  mv::RuntimeModel::getPadding(Control::OpListIterator opIt, unsigned clusterId)
+{
+    std::array <unsigned short, 4> padding = opIt->get<std::array<unsigned short, 4>>("padding");
+    auto subTensor = opIt->getOutputTensor(0)->getSubTensor(clusterId);
+    std::vector<std::size_t> offset = subTensor.get<std::vector<std::size_t>>("offset");
+
+    //NOTE:Padding up
+    if (offset[1] != 0)
+        padding[2] = 0;
+
+    //NOTE:Padding left
+    if (offset[0] != 0)
+        padding[0] = 0;
+
+    //NOTE:Padding down
+    if (subTensor.getShape()[IO_HEIGHT_DIMENSION] + offset[1] != opIt->getOutputTensor(0)->getShape()[IO_HEIGHT_DIMENSION])
+        padding[3] = 0;
+
+    if (subTensor.getShape()[IO_WIDTH_DIMENSION] + offset[0] != opIt->getOutputTensor(0)->getShape()[IO_WIDTH_DIMENSION])
+        padding[1] = 0;
+
+    return padding;
+}
+
 std::unique_ptr<MVCNN::NCEVariantFieldsT> mv::RuntimeModel::buildNCEVariantFieldsT(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt, Workload workload)
 {
     UNUSED (compilationDescriptor);
@@ -1148,6 +1204,28 @@ std::unique_ptr<MVCNN::NCEVariantFieldsT> mv::RuntimeModel::buildNCEVariantField
     return toBuild;
 }
 
+std::unique_ptr<MVCNN::NCEVariantFieldsT> mv::RuntimeModel::buildNCEVariantFieldsT(ComputationModel& , mv::Element &compilationDescriptor, Control::OpListIterator opIt, Workload workload, unsigned clusterId)
+{
+    UNUSED (compilationDescriptor);
+    std::unique_ptr<MVCNN::NCEVariantFieldsT> toBuild = std::unique_ptr<MVCNN::NCEVariantFieldsT>(new MVCNN::NCEVariantFieldsT());
+
+    toBuild->mpe_mode = convertMPEMode(workload.MPEMode);
+    toBuild->workload_start_X = workload.MinX;
+    toBuild->workload_start_Y = workload.MinY;
+    toBuild->workload_start_Z = workload.MinZ;
+    toBuild->workload_end_X = workload.MaxX;
+    toBuild->workload_end_Y = workload.MaxY;
+    toBuild->workload_end_Z = workload.MaxZ;
+    //Padding should be computed for every cluster
+    getWorkloadPadding(opIt, workload, clusterId);
+    toBuild->padLeft = workload.padLeft;
+    toBuild->padRight = workload.padRight;
+    toBuild->padTop = workload.padTop;
+    toBuild->padBottom = workload.padBottom;
+
+    return toBuild;
+}
+
 std::vector<std::unique_ptr<MVCNN::NCEVariantFieldsT>> mv::RuntimeModel::buildNCEVariantFieldsTVector(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt)
 {
     auto workloads = opIt->get<mv::Workloads>("Workloads").getWorkloads();
@@ -1161,12 +1239,11 @@ std::vector<std::unique_ptr<MVCNN::NCEVariantFieldsT>> mv::RuntimeModel::buildNC
 
 std::vector<std::unique_ptr<MVCNN::NCEVariantFieldsT>> mv::RuntimeModel::buildNCEVariantFieldsTVector(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt, unsigned numTask)
 {
-    UNUSED(numTask);
     auto workloads = opIt->get<mv::Workloads>("Workloads" + std::to_string(numTask)).getWorkloads();
     unsigned n = workloads.size();
     std::vector<std::unique_ptr<MVCNN::NCEVariantFieldsT>> toBuild = std::vector<std::unique_ptr<MVCNN::NCEVariantFieldsT>>(n);
     for(unsigned i = 0; i < n; ++i)
-        toBuild[i] = buildNCEVariantFieldsT(cm, compilationDescriptor, opIt, workloads[i]);
+        toBuild[i] = buildNCEVariantFieldsT(cm, compilationDescriptor, opIt, workloads[i], numTask);
 
     return toBuild;
 }

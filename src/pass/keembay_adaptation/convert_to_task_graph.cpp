@@ -147,7 +147,13 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             dpuPoolOp->set<bool>("hasWeights", false);
 
             if(!splitStrategy.empty())
+            {
                dpuPoolOp->set<std::string>("splitStrategy", splitStrategy);
+               if (splitStrategy == "SplitOverK" || splitStrategy == "HKSwitch")
+                    dpuPoolOp->set<bool>("multiCast", true);
+                else
+                   dpuPoolOp->set<bool>("multiCast", false);
+            }
 
             setOutputDataFlow(om, dpuPool, outputDataFlows);
         }
@@ -186,7 +192,13 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             dpuElementWiseOp->set<mv::PPETask>("PPETask", ppeTask);
 
             if(!splitStrategy.empty())
+            {
                dpuElementWiseOp->set<std::string>("splitStrategy", splitStrategy);
+               if (splitStrategy == "SplitOverK" || splitStrategy == "HKSwitch")
+                    dpuElementWiseOp->set<bool>("multiCast", true);
+                else
+                   dpuElementWiseOp->set<bool>("multiCast", false);
+            }
 
             mv::setOutputDataFlow(om, dpuElementWise, outputDataFlows);
         }

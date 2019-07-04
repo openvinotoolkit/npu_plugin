@@ -101,6 +101,8 @@ void subTensorsGen(mv::ComputationModel& model, const std::vector <mv::Data::Ten
             {
                 unpopulatedSplitOverH(nClusters, subTensors, Tensor, pass, success);
                 std::vector<mv::Data::OpListIterator> sinkOperators = findSinkLayers(dm, tensor);
+                if (sinkOperators[0]->getOpType() == "DMATask")
+                    sinkOperators = findSinkLayers(dm, sinkOperators[0]->getOutputTensor(0));
                 //The sink ops should have the same padding
                 std::array <unsigned short, 4> padding = {0, 0, sinkOperators[0]->get<std::array<unsigned short, 4>>("padding")[2],
                                                        sinkOperators[0]->get<std::array<unsigned short, 4>>("padding")[3]};

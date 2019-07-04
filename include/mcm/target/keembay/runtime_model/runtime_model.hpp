@@ -88,7 +88,10 @@ namespace mv
             static std::vector<std::unique_ptr<MVCNN::NCEVariantFieldsT> > buildNCEVariantFieldsTVector(ComputationModel& cm, Element& compilationDescriptor, Control::OpListIterator opIt);
             static std::vector<std::unique_ptr<MVCNN::NCEVariantFieldsT>> buildNCEVariantFieldsTVector(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt, unsigned numTask);
             static std::unique_ptr<MVCNN::NCEVariantFieldsT> buildNCEVariantFieldsT(ComputationModel& cm, Element& compilationDescriptor, Control::OpListIterator opIt, Workload workload);
+            static std::unique_ptr<MVCNN::NCEVariantFieldsT> buildNCEVariantFieldsT(ComputationModel& cm, Element& compilationDescriptor, Control::OpListIterator opIt, Workload workload, unsigned clusterId);
             static void getWorkloadPadding(Control::OpListIterator opIt, Workload &workload);
+            static void getWorkloadPadding(Control::OpListIterator opIt, Workload &workload, unsigned clusterId);
+            static std::array <unsigned short, 4> getPadding(Control::OpListIterator opIt, unsigned clusterId);
             static bool hardwareBugDepthwise(Control::OpListIterator opIt);
             static std::unique_ptr<MVCNN::PPETaskT> buildPPETaskT(ComputationModel& cm, Element& compilationDescriptor, const PPETask &ppeTask);
             static std::unique_ptr<MVCNN::PPETaskT> buildPPETaskT();
