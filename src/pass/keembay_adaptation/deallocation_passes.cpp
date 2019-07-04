@@ -47,12 +47,12 @@ void insertDeallocationControlFlows(mv::OpModel& om, mv::Data::OpListIterator de
 
 bool thereIsDependency(mv::ControlModel& cm, const std::vector<mv::Data::OpListIterator>& sinkOperations)
 {
-    // To check if there is dependency, we have to check the existence of a control flow between each pair
+    // To check if there is dependency, we have to check the existence of a control flow path between each pair
     // of operations
     unsigned n = sinkOperations.size();
     for(unsigned i = 0; i < n - 1; ++i)
         for(unsigned j = i + 1; j < n; ++j)
-            if(cm.checkControlFlow(sinkOperations[i], sinkOperations[j]) != cm.flowEnd())
+            if(cm.pathExists(sinkOperations[i], sinkOperations[j]))
                 return true;
     return false;
 }
