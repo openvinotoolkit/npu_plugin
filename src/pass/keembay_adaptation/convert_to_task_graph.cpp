@@ -97,8 +97,9 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
                dpuConvOp->set<std::string>("bias", biasName);
             if(!splitStrategy.empty())
             {
+                //NOTE:Convolution can not be HWSwitch
                dpuConvOp->set<std::string>("splitStrategy", splitStrategy);
-               if (splitStrategy == "SplitOverK" || splitStrategy == "HKSwitch")
+               if (splitStrategy == "SplitOverK")
                     dpuConvOp->set<bool>("multiCast", true);
                 else
                    dpuConvOp->set<bool>("multiCast", false);
@@ -134,7 +135,6 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             auto quantParams = opIt->get<mv::QuantizationParams>("quantParams");
 
             std::string splitStrategy;
-
             if(opIt->hasAttr("splitStrategy"))
                 splitStrategy = opIt->get<std::string>("splitStrategy");
 
@@ -148,8 +148,9 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
 
             if(!splitStrategy.empty())
             {
+                //NOTE:Pooling can not be SplitOverK
                dpuPoolOp->set<std::string>("splitStrategy", splitStrategy);
-               if (splitStrategy == "SplitOverK" || splitStrategy == "HKSwitch")
+               if (splitStrategy == "HKSwitch")
                     dpuPoolOp->set<bool>("multiCast", true);
                 else
                    dpuPoolOp->set<bool>("multiCast", false);
@@ -193,8 +194,9 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
 
             if(!splitStrategy.empty())
             {
+                //NOTE:Pooling can not be SplitOverK
                dpuElementWiseOp->set<std::string>("splitStrategy", splitStrategy);
-               if (splitStrategy == "SplitOverK" || splitStrategy == "HKSwitch")
+               if (splitStrategy == "HKSwitch")
                     dpuElementWiseOp->set<bool>("multiCast", true);
                 else
                    dpuElementWiseOp->set<bool>("multiCast", false);
