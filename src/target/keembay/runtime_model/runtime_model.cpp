@@ -393,23 +393,30 @@ std::vector<std::unique_ptr<MVCNN::TaskListT>> mv::RuntimeModel::buildTaskListT(
         auto opIt = *vecIt;
         std::unique_ptr<MVCNN::TaskListT> * listToUse;
         std::string opType = opIt->getOpType();
-        //Only Tasks in TaskLists
-        if(opType.find("Task") != std::string::npos)
-        {
-            if(opType.find("DPU") != std::string::npos)
-                listToUse = &toBuild[0];
-            else if(opType.find("DMA") != std::string::npos)
-                listToUse = &toBuild[1];
-            else if(opType.find("BarrierTask") != std::string::npos)
-                listToUse = &toBuild[2];
-
-            auto tasks = buildTaskT(cm, compilationDescriptor, opIt, initialId);
-            for(auto& task: tasks)
-                (*listToUse)->content.push_back(std::move(task));
-        }
+        if(opType.find("DPU") != std::string::npos)
+            listToUse = &toBuild[0];
+        else if(opType.find("DMA") != std::string::npos)
+            listToUse = &toBuild[1];
+        auto tasks = buildTaskT(cm, compilationDescriptor, opIt, initialId);
+        for(auto& task: tasks)
+            (*listToUse)->content.push_back(std::move(task));
     }
 
+    //Barrier task list has to be built in the correct order
+    auto barrierTasks = om.getOps("BarrierTask");
+    std::sort(
+        barrierTasks.begin(),
+        barrierTasks.end(),
+        [](const mv::Data::OpListIterator& a, const mv::Data::OpListIterator& b) -> bool { return a->get<mv::Barrier>("Barrier").getIndex() < b->get<mv::Barrier>("Barrier").getIndex(); }
+        );
 
+    unsigned n = barrierTasks.size();
+    for(unsigned i = 0; i < n; ++i)
+    {
+        auto tasks = buildTaskT(cm, compilationDescriptor, controlModel.switchContext(barrierTasks[i]), initialId);
+        for(auto& task: tasks)
+            toBuild[2]->content.push_back(std::move(task));
+    }
 
     return toBuild;
 }

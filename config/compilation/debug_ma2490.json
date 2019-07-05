@@ -457,20 +457,6 @@
                 "name": "ConvertDot",
                 "input": "output/dots/BarriersInsertedTransitiveReductionApplied.dot"
             },
-            "AdjustBarrierIndices",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/BarriersInsertedCorrectedIndices.dot",
-                "scope": "ControlModel",
-                "content": "full",
-                "html": true
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/BarriersInsertedCorrectedIndices.dot"
-            },
-            "AddBarrierRefs",
-            "UpdateBarrierProducerConsumerCounts",
             "PopulateWeightsTablesPointers",
             {
                 "name": "GenerateDot",
@@ -501,6 +487,15 @@
             "CheckTensors"
         ]
     },
+    "scheduling": {
+        "Singular": [
+            "StoreBarriersNamesInTasks",
+            "GenerateExecutionSchedule",
+            "BarrierIndexAssignment",
+            "UpdateBarrierRefs",
+            "UpdateBarrierProducerConsumerCounts"
+        ]
+    },
     "serialize": {
         "Singular": [
             {
@@ -523,6 +518,7 @@
             "dma",
             "control_flows",
             "finalize",
+            "scheduling",
             "serialize"
         ],
         "Recurrent": [
