@@ -44,18 +44,9 @@ void hangingDmaControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationM
     mv::OpModel om(model);
     mv::ControlModel cm(model);
 
-    auto globalConfigParams = model.getGlobalConfigParams();
-    auto cmxSize = globalConfigParams->get<unsigned>("cmx");
-
     int _dma_dependency = 0;
     if(passDesc.hasAttr("weights_prefetch"))
         _dma_dependency = passDesc.get<int>("weights_prefetch");
-    int dma_dependency;
-
-    auto removeOpsBasedOnOpType = [] (std::vector<mv::Control::OpListIterator>& list, const std::string& opType)
-    {
-        list.erase(std::remove_if(list.begin(), list.end(), [opType](mv::Control::OpListIterator it) { return it->getOpType() == opType;}), list.end());
-    };
 
     auto sortedOps = cm.topologicalSort();
 
@@ -68,12 +59,12 @@ void hangingDmaControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationM
 
     // There is always a sibling with at least one parent,
     // this is ensured by the previous passes (DmaControlFlows and DpuControlFlows)
+    auto dmas = om.getOps("DMATask");
 
     std::vector<std::pair<mv::Control::OpListIterator, mv::Control::OpListIterator>> flowsToAdd;
 
     if(_dma_dependency == 0)
     {
-        auto dmas = om.getOps("DMATask");
         for(auto dma : dmas)
         {
             auto dmaControl = cm.switchContext(dma);
@@ -118,12 +109,23 @@ void hangingDmaControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationM
                 }
             }
         }
-
-        for(auto& flowToAdd : flowsToAdd)
-            if(cm.isFlowAllowedAndNonExisting(flowToAdd.first, flowToAdd.second))
-                cm.defineFlow(flowToAdd.first, flowToAdd.second);
-
     }
+    else
+    {
+        //TODO:Implement hybrid strategies
+        //Super aggressive prefetching: attach everything to Input
+        for(auto dma : dmas)
+        {
+            auto dmaControl = cm.switchContext(dma);
+            if(dmaControl.inputsSize() == 0)
+                flowsToAdd.push_back(std::make_pair(cm.getFirst(), dmaControl));
+
+        }
+    }
+
+    for(auto& flowToAdd : flowsToAdd)
+        if(cm.isFlowAllowedAndNonExisting(flowToAdd.first, flowToAdd.second))
+            cm.defineFlow(flowToAdd.first, flowToAdd.second);
 
     //NOTE: This will change with multicluster
 //    long unsigned inputTensorDmaDimension = inputTensorDma->computeTotalSize();

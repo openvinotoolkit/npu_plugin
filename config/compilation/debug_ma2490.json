@@ -250,6 +250,7 @@
                 "name": "ConvertDot",
                 "input": "output/dots/implicit_operations_model.dot"
             },
+            "AddFinalDMATask",
             "AddWeightsDMATasks",
             {
                 "name": "GenerateDot",
@@ -292,7 +293,10 @@
                 "name": "ConvertDot",
                 "input": "output/dots/TaskControlFlows_model_transitive_reduction.dot"
             },
-            "HangingDmaControlFlows",
+            {
+                "name": "HangingDmaControlFlows",
+                "weights_prefetch": 2
+            },
             {
                 "name": "GenerateDot",
                 "output": "output/dots/NoHangingDmas.dot",

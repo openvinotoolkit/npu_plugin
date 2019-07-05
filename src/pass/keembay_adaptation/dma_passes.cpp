@@ -5,7 +5,7 @@
 #include "include/mcm/utils/custom_strings.hpp"
 
 static void addWeightsDMATasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::json::Object&);
-static void addInitialAndFinalDMATaskFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
+static void addFinalDMATaskFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 
 namespace mv
 {
@@ -16,8 +16,8 @@ namespace mv
             .setDescription(
                "Add Weights DMA Tasks where needed in the Task graph");
 
-        MV_REGISTER_PASS(AddInitialAndFinalDMATask)
-            .setFunc(addInitialAndFinalDMATaskFcn)
+        MV_REGISTER_PASS(AddFinalDMATask)
+            .setFunc(addFinalDMATaskFcn)
             .setDescription(
                "Add initial and final DMA task in the Task graph");
     }
@@ -52,46 +52,19 @@ bool isTensorInCMX(mv::Data::TensorIterator tensor, mv::BaseOpModel& opModel)
 }
 
 // Pass role: Add initial and final DMA Task CMX2DDR (if needed)
-void addInitialAndFinalDMATaskFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+void addFinalDMATaskFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
     mv::OpModel om(model);
     mv::DataModel dm(model);
 
-    // INPUT
-    auto inputOp = om.getInput();
-    auto inputTensor = inputOp->getOutputTensor(0);
-
-    auto opId = inputOp->get<unsigned>("opId");
-    mv::QuantizationParams quantParams = {{},{},{},{}};
-    if(inputTensor->hasAttr("quantParams"))
-        quantParams = inputTensor->get<mv::QuantizationParams>("quantParams");
-    if(!isTensorInCMX(inputTensor, om))
-    {
-        auto flows = inputTensor->get<std::set<std::string>>("flows");
-
-        auto inputTensorDma = om.dMATask(inputTensor, mv::DmaDirectionEnum::DDR2CMX, quantParams, mv::createDMATaskDDR2CMXName(inputOp->getName()));
-        auto inputTensorDmaOp = om.getSourceOp(inputTensorDma);
-        inputTensorDmaOp->set<unsigned>("opId", opId);
-
-        for(auto flowStr: flows)
-        {
-            auto backupFlow = dm.getDataFlow(flowStr);
-            auto idx = backupFlow->get<std::size_t>("sinkInput");
-            auto sink = backupFlow.sink();
-            om.undefineFlow(backupFlow);
-            sink->setInputTensor(inputTensorDma, idx, false);
-            om.defineFlow(inputTensorDmaOp, 0, sink, idx);
-        }
-    }
-
     // OUTPUT
     auto opIt = om.getOutput();
     auto input = opIt->getInputTensor(0);
-    inputOp = om.getSourceOp(input);
+    auto inputOp = om.getSourceOp(input);
 
-    opId = opIt->get<unsigned>("opId");
+    auto opId = opIt->get<unsigned>("opId");
     std::string oldOutputName(opIt->getName());
-    quantParams = {{},{},{},{}};
+    mv::QuantizationParams quantParams = {{},{},{},{}};
     if(input->hasAttr("quantParams"))
         quantParams = input->get<mv::QuantizationParams>("quantParams");
     if(isTensorInCMX(input, om))
