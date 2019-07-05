@@ -29,11 +29,6 @@
                         "strategy" : "Clustering"
                     },
                     {
-                        "name_filter" : ".*input.*",
-                        "cluster_filter" : 0,
-                        "strategy" : "SplitOverHOverlapped"
-                    },
-                    {
                         "name_filter" : ".*res2a.*",
                         "cluster_filter" : 0,
                         "strategy" : "SplitOverH"
@@ -65,6 +60,11 @@
                     },
                     {
                         "name_filter" : ".*res3d.*",
+                        "cluster_filter" : 0,
+                        "strategy" : "SplitOverH"
+                    },
+                    {
+                        "name_filter" : ".*mpool.*",
                         "cluster_filter" : 0,
                         "strategy" : "SplitOverH"
                     },
@@ -111,10 +111,10 @@
                     {
                         "name_filter" : ".*conv.*",
                         "cluster_filter" : 0,
-                        "strategy" : "SplitOverH"
+                        "strategy" : "SplitOverK"
                     },
                     {
-                        "name_filter" : ".*conv2.*",
+                        "name_filter" : ".*conv0.*",
                         "cluster_filter" : 0,
                         "strategy" : "SplitOverH"
                     },
@@ -129,9 +129,10 @@
                         "strategy" : "SplitOverH"
                     },
                     {
-                        "name_filter" : ".*res3.*",
+                        "name_filter" : ".*james2x2pool.*",
                         "cluster_filter" : 0,
                         "strategy" : "SplitOverH"
+                    },
                     {
                         "name_filter" : ".*pool/max_pool#4.*",
                         "cluster_filter" : 0,
