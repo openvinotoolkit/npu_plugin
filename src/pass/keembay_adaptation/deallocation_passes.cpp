@@ -224,6 +224,16 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
             }
         }
     }
+
+    // If we forced the deallocation of CMX2DDR, the last DMA for output can potentially be deallocated.
+    // We have to get rid of it
+    if(forceDeallocationForCMX2DDR)
+    {
+        auto output = cm.switchContext(om.getOutput());
+        for(auto outputParent = output.leftmostParent(); outputParent != cm.opEnd(); ++outputParent)
+            if(outputParent->getOpType() == "Deallocate")
+                om.removeOp(om.switchContext(outputParent));
+    }
 }
 
 // Pass role: Remove deallocation tasks for each Tensor
