@@ -445,7 +445,7 @@
                 "name": "ConvertDot",
                 "input": "output/dots/keembay_adapt_model.dot"
             },
-            "UpdateConcatQuantizationParams",
+            "UpdateImplicitLayersQuantizationParams",
             {
                 "name": "GenerateDot",
                 "output": "output/dots/update_concat_quantization.dot",

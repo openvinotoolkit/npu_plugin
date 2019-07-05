@@ -79,7 +79,6 @@ void resolveImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::Computati
         auto outputTensor = opIt->getOutputTensor(0);
 
         auto outputLocation  = outputTensor->get<mv::Tensor::MemoryLocation>("Location");
-        auto quantParams = opIt->get<mv::QuantizationParams>("quantParams");
 
         int ctr =  0;
         std::vector<mv::Data::FlowSiblingIterator> flowsToRemove;
@@ -100,7 +99,9 @@ void resolveImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::Computati
                 {
                     //TODO:: QUant params inherited for concat
                     //TODO:: PRONE TO ERRORS! correlate with Class Direction
-                    auto inQuantParams = inputTensor->get<mv::QuantizationParams>("quantParams");
+                    mv::QuantizationParams inQuantParams = {{},{},{},{}};
+                    if(inputTensor->hasAttr("quantParams"))
+                        inQuantParams = inputTensor->get<mv::QuantizationParams>("quantParams");
                     const std::string directionString = inputLocation.toString() + "2" + outputLocation.toString();
                     auto compensatorOutput = om.dMATask(inputTensor,
                                                     dmaDirectionStrings[directionString],
@@ -164,8 +165,9 @@ void resolveImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::Computati
                     inputSlots.push_back(sinkFlow->get<std::size_t>("sinkInput"));
                     flowsToRemove.push_back(sinkFlow);
                 }
+
                 mv::QuantizationParams outQuantParams = {{},{},{},{}};
-                if (outputTensor->hasAttr("quantParams"))
+                if(outputTensor->hasAttr("quantParams"))
                     outQuantParams = outputTensor->get<mv::QuantizationParams>("quantParams");
                 auto compensatorOutput = om.dMATask(outputTensor,
                                                         dmaDirectionStrings[directionString],

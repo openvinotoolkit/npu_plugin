@@ -564,12 +564,16 @@ void tensorGraphColoringFnc(const mv::pass::PassEntry& pass, mv::ComputationMode
 //    //ddr_heap_g.drawGraph("ddr_heap_memory");
 
     auto alignment = 16; //memDefs.find("VPU_CMX_NN")->second.alignment;//TODO for now POC uses 16 for all memory
+    pass.log(mv::Logger::MessageType::Info, " generating cmx TIG");
     mv::TensorInterferenceGraph nncmx_g(model, alignment, nullptr, nullptr, false, true);
 
     auto memsize = globalConfigParams->get<unsigned>("cmx");
+    pass.log(mv::Logger::MessageType::Info, " Calling AggressiveSimplify");
     auto agOrder = aggressiveSimplify(nncmx_g, memsize, mv::OrderingStrategy::IG_LARGEST_NEIGHBORS_FIRST);
     //printASOrder(agOrder, "NNCMX");
+    pass.log(mv::Logger::MessageType::Info, " Calling bestFitMemoryAllocation");
     bestFitMemoryAllocation(model, agOrder, nncmx_g, memsize);
+    pass.log(mv::Logger::MessageType::Info, " Calling DrawGraph");
     if(passDesc.hasAttr("output"))
         nncmx_g.drawGraph(passDesc.get<std::string>("output"));
 

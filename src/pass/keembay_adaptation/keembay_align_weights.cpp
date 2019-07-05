@@ -42,8 +42,6 @@ void alignTaskWeightsFcn(const mv::pass::PassEntry& , mv::ComputationModel& mode
         auto kernelOp = *vecIt;
         auto opId = kernelOp->get<unsigned>("opId");
 
-        std::cout << "Aligning constant " << kernelOp->getName() << std::endl;
-
         std::vector<mv::Data::OpListIterator> toUpdate;
         bool hasAtLeastOneDPUTask = false;
         bool hasSliceOp = false;

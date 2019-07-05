@@ -151,17 +151,6 @@
                         ]
                     }
                 ],
-                "disable_opFission_streaming_strategy" :
-                [
-                    {
-                        "name_filter" : "conv1_cmx_",
-                        "weight_splits" : 2
-                    },
-                    {
-                        "name_filter" : "conv2_cmx_",
-                        "weight_splits" : 4
-                    }
-                ],
                 "schedule_helper_edges" :
                 [
                     {
@@ -328,7 +317,7 @@
                 "name": "ConvertDot",
                 "input": "output/dots/keembay_adapt_model.dot"
             },
-            "UpdateConcatQuantizationParams",
+            "UpdateImplicitLayersQuantizationParams",
             "SetDpuTasksMemoryLocation",
             "AlignTaskWeights",
             "AlignSliceOps",

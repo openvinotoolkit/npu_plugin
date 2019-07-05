@@ -48,10 +48,10 @@ mv::ConvolutionParameters mv::fillKernel2DOperationParameters(mv::Data::OpListIt
     to_return.stride_horizontal = strides[1];
 
     auto paddings = opIterator->get<std::array<unsigned short, 4>>("padding");
-    to_return.pad_x_up = paddings[0];
-    to_return.pad_x_down = paddings[1];
-    to_return.pad_y_left = paddings[2];
-    to_return.pad_y_right = paddings[3];
+    to_return.pad_x_up = paddings[2];
+    to_return.pad_x_down = paddings[3];
+    to_return.pad_y_left = paddings[0];
+    to_return.pad_y_right = paddings[1];
 
     return to_return;
 }

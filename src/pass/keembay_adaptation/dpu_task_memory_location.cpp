@@ -88,7 +88,7 @@ void setDpuTasksMemoryLocationFcn(const mv::pass::PassEntry& , mv::ComputationMo
                     {
                         auto backupFlow = dm.getDataFlow(flowStr);
                         auto idx = backupFlow->get<std::size_t>("sinkInput");
-                        if (idx == 0)
+                        if (backupFlow.sink()->getName() == opIt->getName())
                         {
                             auto sink = backupFlow.sink();
                             om.undefineFlow(backupFlow);

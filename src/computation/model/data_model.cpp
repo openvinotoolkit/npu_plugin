@@ -179,7 +179,6 @@ mv::Data::BufferIterator mv::DataModel::allocateTensor(const std::string& alloca
     Data::TensorIterator& tensor)
 {
 
-    std::cout << "allocating " << tensor->getName() << " to " << allocatorName << std::endl;
     if (memoryAllocators_->find(allocatorName) == memoryAllocators_->end())
         throw ArgumentError(*this, "allocatorName", allocatorName, "Undefined allocator");
 

@@ -117,7 +117,6 @@ static void setStreamingStrategy(const mv::pass::PassEntry& pass, mv::Computatio
     auto globalParams = model.getGlobalConfigParams();
     if (!globalParams->hasAttr("streaming_strategy"))
     {
-        std::cout << "SET STREAMING STRATEGY EXITING: no strategy defined in JSON" << std::endl;
         pass.log(mv::Logger::MessageType::Info, "No custom streaming strategy provided");
         return;
     }
@@ -182,8 +181,6 @@ static void setStreamingStrategy(const mv::pass::PassEntry& pass, mv::Computatio
 
 mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model, mv::Data::OpListIterator op,Tiling& tiling)
 {
-    std::cout<< "  In solveWeightsTiling " << std::endl ;
-
     mv::OpModel om(model);
     mv::DataModel dm(model);
     mv::ControlModel cm(model);
@@ -205,18 +202,18 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model, mv::Dat
     if(inputTensor->hasAttr("quantParams"))
         quantParams = inputTensor->get<mv::QuantizationParams>("quantParams");
 
-    if(inputTensor->hasAttr("Location"))
-    {
-        std::cout<< "  location of input tensor is " << inputTensor->get<mv::Tensor::MemoryLocation>("Location").toString() <<  std::endl ; 
-    }
-    else
-    {
-        std::cout<< "  No location attritbute on input tensor to original conv " << std::endl ; 
-    }
-    
+    //if(inputTensor->hasAttr("Location"))
+    //{
+    //    std::cout<< "  location of input tensor is " << inputTensor->get<mv::Tensor::MemoryLocation>("Location").toString() <<  std::endl ;
+    //}
+    //else
+    //{
+    //    std::cout<< "  No location attritbute on input tensor to original conv " << std::endl ;
+    //}
+
     if (inputTensor->get<mv::Tensor::MemoryLocation>("Location").toString() != "CMX")
     {
-        std::cout<< "  adding DMA2CMX on data input " <<  std::endl ; 
+        //std::cout<< "  adding DMA2CMX on input " <<  std::endl ;
 
         auto flows = inputTensor->get<std::set<std::string>>("flows");
 
@@ -559,18 +556,13 @@ static inline int inferOutputSize( int inputSize, int padding_start, int padding
 
 void generateSpatialTiling(mv::Data::OpListIterator op,Tiling& tiling, std::vector<opStreamingSplitDef> opStrategy, int nesting)
 {
-    std::cout<< "  In generateSpatialTiling, op " << op->getName() << " nesting = " << nesting ;
+    //std::cout<< "  In generateSpatialTiling, op " << op->getName() << " nesting = " << nesting ;
     auto numberOfSplits = tiling.childTiles().size();
-    std::cout<< " numsplits = " << numberOfSplits << std::endl ;
+    //std::cout<< " numsplits = " << numberOfSplits << std::endl ;
 
     auto inputShape = tiling.getSize();
 
     auto axisToSplit =  mv::Shape::getAxis(tiling.getAxis());
-
-//    int newOutputSize = ceil( ((double)inputShape[axisToSplit]) / ((double)numberOfSplits));
-//    int remainderSize = inputShape[axisToSplit] - (newSize * (numberOfSplits -1));
-
-//    int newOutputSize =  (double) inferOutputSize(inputShape[axisToSplit])
 
     //todo:: check for original weights not the aligned one
     size_t kernelSize;
@@ -649,9 +641,7 @@ void generateSpatialTiling(mv::Data::OpListIterator op,Tiling& tiling, std::vect
 
 void generateWeightsTiling(mv::Data::OpListIterator op,Tiling& tiling, std::vector<opStreamingSplitDef> opStrategy, int nesting)
 {
-    std::cout<< "  In generateWeightsTiling, op " << op->getName() << " nesting = " << nesting ;
     auto numberOfSplits = tiling.childTiles().size();
-    std::cout<< " numsplits = " << numberOfSplits << std::endl ;
 
     auto parentTileShape = tiling.getSize();
 
@@ -706,7 +696,7 @@ void streamingTilingFcn(const mv::pass::PassEntry& pass,
     setStreamingStrategy(pass, model, thisGraphStrategy);
     std::vector<opStreamingSplitDef> thisOpStrategy;
 
-    std::cout<< "STREAMING PASS: entered" << std::endl ;
+    //std::cout<< "STREAMING PASS: entered" << std::endl ;
 
     for (auto s: thisGraphStrategy)
     {
@@ -719,16 +709,15 @@ void streamingTilingFcn(const mv::pass::PassEntry& pass,
         auto opIt =  om.getOp(nodeName);
 
         std::string masterOpName = opIt->getName();
-        std::cout<< "  checking " << masterOpName << std::endl;
         bool opHasSplittingStrategy = false;
         if (thisGraphStrategy.count(masterOpName)<1)
         {
-            std::cout<< "  no streaming strategy for " << masterOpName << std::endl;
+            pass.log(mv::Logger::MessageType::Info, "  no streaming strategy for " + masterOpName);
         }
         else
         {
             thisOpStrategy = thisGraphStrategy[masterOpName];
-            std::cout<< "  streaming nesting depth is " << thisOpStrategy.size() << std::endl;
+            pass.log(mv::Logger::MessageType::Info, "  streaming nesting depth is " + thisOpStrategy.size());
             opHasSplittingStrategy = true;
         }
 
@@ -776,7 +765,7 @@ void streamingTilingFcn(const mv::pass::PassEntry& pass,
 
             om.removeOp(opIt);
 
-            std::cout<< "   connecting "<< result->getName() <<" to " << opsToLink[0]->getName() << " input slot " <<  inputSlots[0] << std::endl ;
+            //std::cout<< "   connecting "<< result->getName() <<" to " << opsToLink[0]->getName() << " input slot " <<  inputSlots[0] << std::endl ;
             for (unsigned j = 0; j < opsToLink.size(); ++j)
             {
                 opsToLink[j]->setInputTensor(result, inputSlots[j]);
@@ -785,5 +774,5 @@ void streamingTilingFcn(const mv::pass::PassEntry& pass,
 
         }
     }
-    std::cout<< "STREAMING PASS: exit" << std::endl ;
+    //std::cout<< "STREAMING PASS: exit" << std::endl ;
 }
