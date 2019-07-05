@@ -288,7 +288,9 @@ void barrierIndexAssignmentFcn(const mv::pass::PassEntry&, mv::ComputationModel&
             {
                 auto barrierTask = model.getOp(barrier);
                 auto& physicalBarrier = barrierTask->get<mv::Barrier>("Barrier");
-                physicalBarrier.setIndex(id++);
+                //If the index was not set before
+                if(physicalBarrier.getIndex() == -1)
+                    physicalBarrier.setIndex(id++);
             }
         }
     }
