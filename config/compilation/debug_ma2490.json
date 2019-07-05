@@ -125,7 +125,7 @@
             {
                 "name": "GenerateDot",
                 "output": "output/dots/BeforeOpsToTasks.dot",
-                "scope": "ControlModel",
+                "scope": "OpControlModel",
                 "content": "full",
                 "html": true
             },
@@ -137,7 +137,7 @@
             {
                 "name": "GenerateDot",
                 "output": "output/dots/AfterOpsToTasks.dot",
-                "scope": "ControlModel",
+                "scope": "OpControlModel",
                 "content": "full",
                 "html": true
             },
@@ -148,11 +148,6 @@
             "AlignTo16Channels",
             "ComputeTensorsQuantParams",
             "KMBOrderConversion",
-            "UpdateImplicitLayersQuantizationParams",
-            "SetDpuTasksMemoryLocation",
-            "AlignTaskWeights",
-            "AlignSliceOps",
-            "GenerateSparsityMapsPopulatedTensors",
             {
                 "name": "GenerateDot",
                 "output": "output/dots/keembay_adapt_model.dot",
@@ -164,6 +159,55 @@
                 "name": "ConvertDot",
                 "input": "output/dots/keembay_adapt_model.dot"
             },
+            "UpdateImplicitLayersQuantizationParams",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/update_concat_quantization.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/update_concat_quantization.dot"
+            },
+            "SetDpuTasksMemoryLocation",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/dpu_tasks_location.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/dpu_tasks_location.dot"
+            },
+            "AlignTaskWeights",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/align_task_weights.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/align_task_weights.dot"
+            },
+            "AlignSliceOps",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/align_slice_ops.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/align_slice_ops.dot"
+            },
+            "GenerateSparsityMapsPopulatedTensors",
             "GenerateWeightsTables",
             {
                 "name": "GenerateDot",
@@ -206,26 +250,65 @@
                 "name": "ConvertDot",
                 "input": "output/dots/implicit_operations_model.dot"
             },
-            {
-                "name":"AddWeightsDMATasks",
-                "weights_prefetch": 0
-            },
+            "AddWeightsDMATasks",
             {
                 "name": "GenerateDot",
                 "output": "output/dots/dma_model.dot",
-                "scope": "OpControlModel",
+                "scope": "ControlModel",
                 "content": "full",
                 "html": true
             },
             {
                 "name": "ConvertDot",
                 "input": "output/dots/dma_model.dot"
+            }
+
+
+        ]
+    },
+    "control_flows":{
+        "Singular" : [
+            "TaskControlFlows",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/TaskControlFlows_model.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/TaskControlFlows_model.dot"
+            },
+            "TransitiveReduction",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/TaskControlFlows_model_transitive_reduction.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/TaskControlFlows_model_transitive_reduction.dot"
+            },
+            "HangingDmaControlFlows",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/NoHangingDmas.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/NoHangingDmas.dot"
             },
             "AddDeallocationTasks",
             {
                 "name": "GenerateDot",
                 "output": "output/dots/deallocation_model.dot",
-                "scope": "OpControlModel",
+                "scope": "ControlModel",
                 "content": "full",
                 "html": true
             },
@@ -233,34 +316,7 @@
                 "name": "ConvertDot",
                 "input": "output/dots/deallocation_model.dot"
             }
-        ]
-    },
-    "control_flows":{
-        "Singular" : [
-            "DmaControlFlows",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/DmaControlFlows_model.dot",
-                "scope": "ControlModel",
-                "content": "full",
-                "html": true
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/DmaControlFlows_model.dot"
-            },
-            "InputOutputControlFlows",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/InputOutputControlFlows_model.dot",
-                "scope": "ControlModel",
-                "content": "full",
-                "html": true
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/InputOutputControlFlows_model.dot"
-            }
+
         ]
     },
     "finalize": {
@@ -292,7 +348,7 @@
             {
                 "name": "GenerateDot",
                 "output": "output/dots/TransitiveReductionBeforeMaxCutFull.dot",
-                "scope": "OpControlModel",
+                "scope": "ControlModel",
                 "content": "full",
                 "html": true
             },
@@ -304,33 +360,6 @@
                 "name": "ConvertDot",
                 "input": "output/dots/TransitiveReductionBeforeMaxCutFull.dot"
             },
-            {
-                "name" : "TransitiveReduction",
-                "filter" : "Fakefilter"
-            },
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/TransitiveReductionBeforeScheduleHelper.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/TransitiveReductionBeforeScheduleHelper.dot"
-            },
-            "ScheduleHelper",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/AfterScheduleHelper.dot",
-                "scope": "ControlModel",
-                "content": "full",
-                "html": true
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/AfterScheduleHelper.dot"
-            },
             "MaxTopologicalCutAndPartialSerialisation",
             {
                 "name": "GenerateDot",
@@ -339,10 +368,7 @@
                 "content": "full",
                 "html": true
             },
-            {
-                "name" : "TransitiveReduction",
-                "filter" : "Fakefilter"
-            },
+            "TransitiveReduction",
             {
                 "name": "GenerateDot",
                 "output": "output/dots/TransitiveReductionAfterMaxCut.dot",
@@ -368,7 +394,7 @@
             {
                 "name": "GenerateDot",
                 "output": "output/dots/BeforeGraphColoring.dot",
-                "scope": "OpControlModel",
+                "scope": "ControlModel",
                 "content": "full",
                 "html": true
             },
@@ -407,10 +433,7 @@
                 "name": "ConvertDot",
                 "input": "output/dots/DeallocationTasksRemoved.dot"
             },
-            {
-                "name" : "TransitiveReduction",
-                "filter" : "Fakefilter"
-            },
+            "TransitiveReduction",
             {
                 "name": "GenerateDot",
                 "output": "output/dots/DeallocationTasksRemovedAndTransitiveReduction.dot",
@@ -442,10 +465,7 @@
                 "name": "ConvertDot",
                 "input": "output/dots/BarriersInserted.dot"
             },
-            {
-                "name" : "TransitiveReduction",
-                "filter" : "Fakefilter"
-            },
+            "TransitiveReduction",
             {
                 "name": "GenerateDot",
                 "output": "output/dots/BarriersInsertedTransitiveReductionApplied.dot",
@@ -461,14 +481,23 @@
             {
                 "name": "GenerateDot",
                 "output": "output/dots/final_model.dot",
-                "scope": "OpControlModel",
+                "scope": "ControlModel",
                 "content": "full",
                 "html": true
             },
             {
                 "name": "ConvertDot",
                 "input": "output/dots/final_model.dot"
-            },
+            }
+        ]
+    },
+    "scheduling": {
+        "Singular": [
+            "StoreBarriersNamesInTasks",
+            "GenerateExecutionSchedule",
+            "BarrierIndexAssignment",
+            "UpdateBarrierRefs",
+            "UpdateBarrierProducerConsumerCounts",
             {
                 "name": "GenerateDot",
                 "output": "output/dots/serial_model.dot",
@@ -485,15 +514,6 @@
     "validate": {
         "Singular": [
             "CheckTensors"
-        ]
-    },
-    "scheduling": {
-        "Singular": [
-            "StoreBarriersNamesInTasks",
-            "GenerateExecutionSchedule",
-            "BarrierIndexAssignment",
-            "UpdateBarrierRefs",
-            "UpdateBarrierProducerConsumerCounts"
         ]
     },
     "serialize": {
