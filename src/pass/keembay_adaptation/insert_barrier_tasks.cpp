@@ -401,31 +401,31 @@ static void setBarrierGroupAndIndex(const mv::pass::PassEntry& pass, mv::OpModel
     auto globalConfigurationParameters = om.getGlobalConfigParams();
     std::string indexAssignment = globalConfigurationParameters->get<std::string>("barrier_index_assignment");
 
-    int barrierReuseWindow = 0;
-    if (passDesc.hasAttr("barrier_reuse_window"))
-        barrierReuseWindow = passDesc.get<int>("barrier_reuse_window");
-
-    BarrierInterferenceGraph big = generateBarrierInterferenceGraph(om, barriers, indexAssignment, barrierReuseWindow);
-    if(passDesc.hasAttr("outputBIG"))
-        drawBIG(big, passDesc.get<std::string>("outputBIG"));
-
-
-    // Must be always done to verify we can execute a graph with only MAX_AVAILABLE_BARRIERS
-    BIGKoala bigK;
-    std::vector<BIGKoala::PVertex> koalaVertices;
-    convertToKoalaGraph(pass, big, bigK, koalaVertices);
-    drawBigK(bigK);
-
-    AssocArray<BIGKoala::PVertex, int> colors;
-    int numColors = colorKoalaGraph(bigK, koalaVertices, colors) + 1;
-    if (numColors > MAX_AVAILABLE_BARRIERS)
-        throw mv::RuntimeError(om,
-                "Cannot execute graph with " +
-                std::to_string(MAX_AVAILABLE_BARRIERS) +
-                " barriers; more graph serialization required.");
-
     if (indexAssignment == "Static")
     {
+        int barrierReuseWindow = 0;
+        if (passDesc.hasAttr("barrier_reuse_window"))
+            barrierReuseWindow = passDesc.get<int>("barrier_reuse_window");
+
+        BarrierInterferenceGraph big = generateBarrierInterferenceGraph(om, barriers, indexAssignment, barrierReuseWindow);
+        if(passDesc.hasAttr("outputBIG"))
+            drawBIG(big, passDesc.get<std::string>("outputBIG"));
+
+
+        // Must be always done to verify we can execute a graph with only MAX_AVAILABLE_BARRIERS
+        BIGKoala bigK;
+        std::vector<BIGKoala::PVertex> koalaVertices;
+        convertToKoalaGraph(pass, big, bigK, koalaVertices);
+        drawBigK(bigK);
+
+        AssocArray<BIGKoala::PVertex, int> colors;
+        int numColors = colorKoalaGraph(bigK, koalaVertices, colors) + 1;
+        if (numColors > MAX_AVAILABLE_BARRIERS)
+            throw mv::RuntimeError(om,
+                    "Cannot execute graph with " +
+                    std::to_string(MAX_AVAILABLE_BARRIERS) +
+                    " barriers; more graph serialization required.");
+            
         for (int i = 0; i < bigK.getVertNo(); i++)
         {
             pass.log(mv::Logger::MessageType::Info,
@@ -543,13 +543,13 @@ static void insertBarrierTasksFcn(const mv::pass::PassEntry& pass, mv::Computati
     removeExtraProducers(pass, model, barriers);
 
     // Optional pass
-    resetBarrierIDs(barriers);
+    //resetBarrierIDs(barriers);
 
     // Sets just the index, as group is not used right now
     // Runs barrier graph coloring to see if we can execute
     // are current parallel scheduling with 8 barriers
     // or we need to serialize more
-    setBarrierGroupAndIndex(pass, om, barriers, passDesc);
+    //setBarrierGroupAndIndex(pass, om, barriers, passDesc);
 
     insertBarriersIntoControlFlowGraph(model, passDesc, barriers);
 }

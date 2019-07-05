@@ -5,7 +5,7 @@
                 "name" : "GlobalConfigParams",
                 "_comment" : "Stores common params accross multiple passes. Access through the Computation Model.",
                 "recorded_model": true,
-                "verbose": "Debug",
+                "verbose": "Error",
                 "weights_form": "None",
                 "barrier_index_assignment" : "Dynamic",
                 "Number_of_DPUs" : 1,
@@ -117,7 +117,7 @@
                         "name_filter" : "conv7#7",
                         "output_location" : "DDR",
                         "splits" : [
-                            {"K" : 2}
+                            {"K" : 8}
                         ]
                     },
                     {
@@ -762,20 +762,6 @@
                 "name": "ConvertDot",
                 "input": "output/dots/BarriersInsertedTransitiveReductionApplied.dot"
             },
-            "AdjustBarrierIndices",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/BarriersInsertedCorrectedIndices.dot",
-                "scope": "ControlModel",
-                "content": "full",
-                "html": true
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/BarriersInsertedCorrectedIndices.dot"
-            },
-            "AddBarrierRefs",
-            "UpdateBarrierProducerConsumerCounts",
             "PopulateWeightsTablesPointers",
             {
                 "name": "GenerateDot",
@@ -787,7 +773,16 @@
             {
                 "name": "ConvertDot",
                 "input": "output/dots/final_model.dot"
-            },
+            }
+        ]
+    },
+    "scheduling": {
+        "Singular": [
+            "StoreBarriersNamesInTasks",
+            "GenerateExecutionSchedule",
+            "BarrierIndexAssignment",
+            "UpdateBarrierRefs",
+            "UpdateBarrierProducerConsumerCounts",
             {
                 "name": "GenerateDot",
                 "output": "output/dots/serial_model.dot",
@@ -828,6 +823,7 @@
             "dma",
             "control_flows",
             "finalize",
+            "scheduling",
             "serialize"
         ],
         "Recurrent": [
