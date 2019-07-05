@@ -6,7 +6,7 @@
 #include "include/mcm/utils/custom_strings.hpp"
 #include <algorithm>
 
-static void addDeallocationTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
+static void addDeallocationTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&passDesc, mv::json::Object&);
 static void removeDeallocationTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 
 namespace mv
@@ -59,12 +59,15 @@ bool thereIsDependency(mv::ControlModel& cm, const std::vector<mv::Data::OpListI
 
 
 // Pass role: Add deallocation tasks for each Tensor
-void addDeallocationTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+void addDeallocationTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::json::Object&)
 {
-
     mv::OpModel om(model);
     mv::DataModel dm(model);
     mv::ControlModel cm(model);
+
+    bool forceDeallocationForCMX2DDR = false;
+    if(passDesc.hasAttr("DeallocationForCMX2DDR"))
+        forceDeallocationForCMX2DDR = passDesc.get<bool>("ForceDeallocationForCMX2DDR");
 
     // Sorting ops in dataflow topological order. Will be needed later.
     auto sortedOps = cm.topologicalSort();
@@ -103,8 +106,8 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
         // Last check, possible thanks to MemoryLocation definition: In general, tensors that are not in CMX shall not be deallocated
         // Probably this check covers most of the previous checks
         // But one in life can never be too sure
-        if (inputTensor->get<mv::Tensor::MemoryLocation>("Location") != mv::Tensor::MemoryLocation::CMX)
-            continue;
+        //if (inputTensor->get<mv::Tensor::MemoryLocation>("Location") != mv::Tensor::MemoryLocation::CMX)
+            //continue;
 
         // Arrived at this point, we know that the tensor has to be deallocated. We just have to check
         // if it was previously deallocated or not.
@@ -120,8 +123,11 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
 
             mv::Data::OpListIterator deallocateInputOp;
 
-            // If the tensor is going to DDR, no need for explicit deallocation
-            if(outputOp->getOpType() == "DMATask" && outputOp->get<mv::DmaDirection>("direction") == mv::CMX2DDR)
+            // NOTE: According to POC, if a tensor is going to DDR there no need for explicit deallocation.
+            // But are we sure about this? I think only dealloc for the last CMX2DDR has to be avoided, and not in general
+            // and the recents failures of graph coloring when maxcut gives the green light seems to support this theory.
+            // Putting the flag to experiment until things are more clear
+            if(!forceDeallocationForCMX2DDR && outputOp->getOpType() == "DMATask" && outputOp->get<mv::DmaDirection>("direction") == mv::CMX2DDR)
                 deallocateInputOp = outputOp;
             else
             {
@@ -199,10 +205,8 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
                 // between these operations?
 
                 // Two hypothesis are considered here:
-                // 1) There is, and it involves all operations. In this case, the dealloc op shall be attached
-                // only to the last operation in topological sort order. This case is similar to sinkOperations.size() == 1
+                // 1) There is. In this case, the dealloc op shall be attached only to the last operation in topological sort order. This case is similar to sinkOperations.size() == 1
                 // 2) There isn't among any of them. In this case the dealloc task shall be attached to all of the involved operations
-                // TODO: Probably there is the necessity of implementing the hybrid hypothesis
 
                 if(thereIsDependency(cm, sinkOperations))
                 {
