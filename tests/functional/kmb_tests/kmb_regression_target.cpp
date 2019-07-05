@@ -55,16 +55,17 @@ protected:
 };
 
 using Compile = bool;
-using CompilationTestParam = WithParamInterface<std::tuple<std::string, CompilationParameter, Compile>>;
+using Timeout = int;
+using CompilationTestParam = WithParamInterface<std::tuple<std::string, CompilationParameter, Compile, Timeout>>;
 
 class VpuNoRegressionWithCompilation : public Regression::RegressionTests,
                                        public CompilationTestParam {
 public:
-    using TestParam = WithParamInterface<std::tuple<std::string, CompilationParameter, Compile>>;
+    using TestParam = WithParamInterface<std::tuple<std::string, CompilationParameter, Compile, Timeout>>;
 
     // Operations
     static std::string getTestCaseName(TestParamInfo <CompilationTestParam::ParamType> param);
-    inline void loadNetworkWrapper(std::map<std::string, std::string> config);
+    inline void loadNetworkWrapper(std::map<std::string, std::string> config, InferenceEngine::StatusCode* st = nullptr);
 
     // Accessors
     std::string getPluginName() const override ;
@@ -130,7 +131,7 @@ inline std::string CompilationParameter::pathToWeights() const {
 
 std::vector<CompilationParameter> compilation_parameters_kmb =
 {
-    CompilationParameter{"squeezenet_v1_1-int8",
+    CompilationParameter{"squeezenetv1_1_int8_onnx_0001",
                          "/KMB_models/INT8/squeezenetv1.1-int8-onnx-0001/squeezenetv1.1-int8.xml",
                          "/KMB_models/INT8/squeezenetv1.1-int8-onnx-0001/squeezenetv1.1-int8.bin"},
 
@@ -180,7 +181,7 @@ std::vector<CompilationParameter> compilation_parameters_kmb =
 
 }
 
-inline void VpuNoRegressionWithCompilation::loadNetworkWrapper(std::map<std::string, std::string> config) {
+inline void VpuNoRegressionWithCompilation::loadNetworkWrapper(std::map<std::string, std::string> config, InferenceEngine::StatusCode* st) {
     StatusCode sts;
     InferenceEngine::ResponseDesc response;
     HeteroPluginPtr plugin(make_plugin_name(pluginName));
@@ -207,12 +208,23 @@ inline void VpuNoRegressionWithCompilation::loadNetworkWrapper(std::map<std::str
         sts = plugin->LoadNetwork(exeNetwork, network, config, &response);
     }
 
-    ASSERT_EQ(StatusCode::OK, sts) << response.msg;
+    if (st) {
+        *st = sts;
+        EXPECT_EQ(StatusCode::OK, sts) << response.msg;
+    } else {
+        ASSERT_EQ(StatusCode::OK, sts) << response.msg;
+    }
+}
+
+void cleanPendingSignals(sigset_t& sigset, siginfo_t& info) {
+    timespec timeout = {0, 100000000}; // 100 milliseconds
+    while (-1 != sigtimedwait(&sigset, &info, &timeout));
 }
 
 #ifdef ENABLE_MCM_COMPILER
 TEST_P(KmbNoRegressionCompilationOnly, IE2MCM) {
     auto toCompile = get<2>(TestParam::GetParam());
+    int tm         = get<3>(TestParam::GetParam());
     std::map<std::string, std::string> config(_config);
     if (toCompile) {
         config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_JSON)] = CONFIG_VALUE(YES);
@@ -226,7 +238,42 @@ TEST_P(KmbNoRegressionCompilationOnly, IE2MCM) {
         config[VPU_KMB_CONFIG_KEY(MCM_PARSING_ONLY)] = CONFIG_VALUE(YES);
     }
 
-    loadNetworkWrapper(config);
+    if (tm == 0) { // without timeout
+        loadNetworkWrapper(config);
+    } else {
+        sigset_t sigset;
+        sigemptyset(&sigset);
+        sigaddset(&sigset, SIGCHLD);
+        sigprocmask(SIG_BLOCK, &sigset, nullptr);
+
+        int chPid = -1;
+        chPid = fork();
+        if (!chPid) {
+            InferenceEngine::StatusCode st = InferenceEngine::StatusCode::GENERAL_ERROR;
+            loadNetworkWrapper(config, &st);
+            exit(st);
+        } else {
+            // Wait for the child to terminate or timeout.
+            timespec timeout = {tm, 0};
+            siginfo_t info;
+            int signo = 10;
+            signo = sigtimedwait(&sigset, &info, &timeout);
+            if(-1 == signo) {
+                if(EAGAIN == errno) { // Timed out.
+                    kill(chPid, SIGKILL);
+                    usleep(2000000); // waiting for signals to clean for the next test (2 sec)
+                    cleanPendingSignals(sigset, info);
+                    ASSERT_TRUE(false) << "TEST FAILED: TIMEOUT: " << tm << " s";
+                } else {
+                    cleanPendingSignals(sigset, info);
+                    ASSERT_TRUE(false) << "TEST FAILED: UEXPECTED SIGNAL CATCHED: sigtimedwait responce: " << signo << " errno: " << errno;
+                }
+            } else { // The child has terminated.
+                cleanPendingSignals(sigset, info);
+                ASSERT_EQ(StatusCode::OK, info.si_status);
+            }
+        }
+    }
 }
 
 INSTANTIATE_TEST_CASE_P(
@@ -234,7 +281,8 @@ INSTANTIATE_TEST_CASE_P(
         KmbNoRegressionCompilationOnly,
         Combine(Values("kmbPlugin"),
                 ValuesIn(compilation_parameters_kmb),
-                Values<Compile>(false)),
+                Values<Compile>(false),
+                Values<Timeout>(60)),
                 KmbNoRegressionCompilationOnly::getTestCaseName);
 
 INSTANTIATE_TEST_CASE_P(
@@ -243,7 +291,8 @@ INSTANTIATE_TEST_CASE_P(
         KmbNoRegressionCompilationOnly,
         Combine(Values("kmbPlugin"),
                 ValuesIn(compilation_parameters_kmb),
-                Values<Compile>(true)),
+                Values<Compile>(true),
+                Values<Timeout>(600)),
                 KmbNoRegressionCompilationOnly::getTestCaseName);
 #endif
 
