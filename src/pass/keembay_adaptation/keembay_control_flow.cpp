@@ -4,11 +4,8 @@
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/utils/custom_math.hpp"
 
-static void inputOutputControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
-static void dmaControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
-static void dpuControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
+static void taskControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 static void hangingDmaControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&passDesc, mv::json::Object&);
-
 
 namespace mv
 {
@@ -22,14 +19,8 @@ namespace mv
             ""
         );
 
-        MV_REGISTER_PASS(DmaControlFlows)
-        .setFunc(dmaControlFlowsFcn)
-        .setDescription(
-            ""
-        );
-
-        MV_REGISTER_PASS(DpuControlFlows)
-        .setFunc(dpuControlFlowsFcn)
+        MV_REGISTER_PASS(TaskControlFlows)
+        .setFunc(taskControlFlowsFcn)
         .setDescription(
             ""
         );
@@ -67,12 +58,13 @@ void hangingDmaControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationM
     };
 
     auto sortedOps = cm.topologicalSort();
-    removeOpsBasedOnOpType(sortedOps, "DMATask");
-    removeOpsBasedOnOpType(sortedOps, "Output");
 
     // Simple strategy for _dma_dependency == 0
     // Check all the siblings of the hanging dma
     // If one has a parent, attach to the same parent
+    // attach to the parent or to the sibling itself
+
+    // As a general rule, we don't want to attach hanging dmas to other dmas
 
     // There is always a sibling with at least one parent,
     // this is ensured by the previous passes (DmaControlFlows and DpuControlFlows)
@@ -93,16 +85,37 @@ void hangingDmaControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationM
                     for(auto sibling = son.leftmostParent(); sibling != cm.opEnd(); ++ sibling)
                         siblings.push_back(sibling);
 
+                bool allSiblingsAreDMA = true;
+                std::vector<mv::Control::OpListIterator> dmaSiblings;
                 for(auto& sibling : siblings)
+                {
                     if(sibling.inputsSize() > 0)
                     {
-                        if(sibling.leftmostParent()->getOpType() == "Input")
-                            flowsToAdd.push_back(std::make_pair(sibling.leftmostParent(), dmaControl));
-                        else
+                        if(sibling->getOpType() != "DMATask")
+                        {
                             flowsToAdd.push_back(std::make_pair(sibling, dmaControl));
+                            allSiblingsAreDMA = false;
+                        }
+                        else
+                            dmaSiblings.push_back(sibling);
                     }
+                }
 
-
+                if(allSiblingsAreDMA)
+                {
+                    for(auto& dmaSibling : dmaSiblings)
+                    {
+                        for(auto positionInTopologicalSort = std::find(sortedOps.rbegin(), sortedOps.rend(), dmaSibling); positionInTopologicalSort != sortedOps.rend(); ++positionInTopologicalSort)
+                        {
+                            auto preceedingOp = *positionInTopologicalSort;
+                            if(preceedingOp->getOpType() != "DMATask")
+                            {
+                                flowsToAdd.push_back(std::make_pair(preceedingOp, dmaControl));
+                                break;
+                            }
+                        }
+                    }
+                }
             }
         }
 
@@ -134,19 +147,26 @@ void hangingDmaControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationM
 //    }
 }
 
-// This pass adds control flows relative to a DMA Task.
+// This pass adds control flows relative to Task.
 // Rationale: Each DMA Task should be connected via a ControlFlow to the same operations he is connected via a DataFlow
 // But implicit operations (e.g. Constants, Concat, Slice etc) must be skipped and/or avoided
 
 // NOTE: For now, only one level of implicit operations is handled. In the future we will need a recursive procedure
-void dmaControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+void taskControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
     mv::OpModel om(model);
     mv::ControlModel cm(model);
     mv::DataModel dm(model);
 
-    auto dmaOps = om.getOps("DMATask");
-    for(auto op : dmaOps)
+    auto dmaTasks = om.getOps("DMATask");
+    auto dpuTasks = om.getOps("DPUTask");
+
+    std::vector<mv::Data::OpListIterator> tasks;
+    tasks.reserve(dmaTasks.size() + dpuTasks.size());
+    tasks.insert(tasks.end(), dmaTasks.begin(), dmaTasks.end());
+    tasks.insert(tasks.end(), dpuTasks.begin(), dpuTasks.end());
+
+    for(auto op : tasks)
     {
 
         //OUTPUT DATA FLOWS OF THE DMA TASK
@@ -183,50 +203,3 @@ void dmaControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& m
         }
     }
 }
-
-void dpuControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
-{
-    mv::OpModel om(model);
-    mv::ControlModel cm(model);
-    mv::DataModel dm(model);
-
-    auto dpuTask = om.getOps("DPUTask");
-    for(auto op : dpuTask)
-    {
-        //OUTPUT DATA FLOWS OF THE DPU TASK
-        for(auto outputDataFlow = op.leftmostOutput(); outputDataFlow != dm.flowEnd(); ++outputDataFlow)
-        {
-            auto sink = outputDataFlow.sink();
-            if(!sink->hasTypeTrait("executable"))
-            {
-                for (auto nephew = sink.leftmostChild(); nephew != om.opEnd(); ++nephew)
-                {
-                    if(cm.isFlowAllowedAndNonExisting(op, nephew)) 
-                        cm.defineFlow(op, nephew);
-                }
-            }
-            else if(cm.isFlowAllowedAndNonExisting(op, sink))
-                cm.defineFlow(op, sink);
-        };
-
-        // INPUT DATA FLOWS OF THE DPU TASK
-        for(auto inputDataFlow = op.leftmostInput(); inputDataFlow != dm.flowEnd(); ++inputDataFlow)
-        {
-            auto source = inputDataFlow.source();
-
-            if(!source->hasTypeTrait("executable"))
-            {   
-                for (auto parent = source.leftmostParent(); parent != om.opEnd(); ++parent)
-                {
-                    if(cm.isFlowAllowedAndNonExisting(parent, op)) 
-                        cm.defineFlow(parent, op);
-                }
-            }
-            else if(cm.isFlowAllowedAndNonExisting(source, op))
-                cm.defineFlow(source, op);
-        }
-    }
-    
-}
-
-

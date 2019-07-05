@@ -553,30 +553,29 @@
     },
     "control_flows":{
         "Singular" : [
-            "DmaControlFlows",
-            "DpuControlFlows",
+            "TaskControlFlows",
             {
                 "name": "GenerateDot",
-                "output": "output/dots/DmaControlFlows_model.dot",
+                "output": "output/dots/TaskControlFlows_model.dot",
                 "scope": "ControlModel",
                 "content": "full",
                 "html": true
             },
             {
                 "name": "ConvertDot",
-                "input": "output/dots/DmaControlFlows_model.dot"
+                "input": "output/dots/TaskControlFlows_model.dot"
             },
             "TransitiveReduction",
             {
                 "name": "GenerateDot",
-                "output": "output/dots/DmaControlFlows_model_transitive_reduction.dot",
+                "output": "output/dots/TaskControlFlows_model_transitive_reduction.dot",
                 "scope": "ControlModel",
                 "content": "full",
                 "html": true
             },
             {
                 "name": "ConvertDot",
-                "input": "output/dots/DmaControlFlows_model_transitive_reduction.dot"
+                "input": "output/dots/TaskControlFlows_model_transitive_reduction.dot"
             },
             "HangingDmaControlFlows",
             {
