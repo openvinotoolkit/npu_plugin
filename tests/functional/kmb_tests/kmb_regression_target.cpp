@@ -55,7 +55,7 @@ protected:
 };
 
 using Compile = bool;
-using Timeout = int;
+using Timeout = double;
 using CompilationTestParam = WithParamInterface<std::tuple<std::string, CompilationParameter, Compile, Timeout>>;
 
 class VpuNoRegressionWithCompilation : public Regression::RegressionTests,
@@ -219,7 +219,7 @@ inline void VpuNoRegressionWithCompilation::loadNetworkWrapper(std::map<std::str
 #ifdef ENABLE_MCM_COMPILER
 TEST_P(KmbNoRegressionCompilationOnly, IE2MCM) {
     auto toCompile = get<2>(TestParam::GetParam());
-    int tm         = get<3>(TestParam::GetParam());
+    double tm      = get<3>(TestParam::GetParam());
     std::map<std::string, std::string> config(_config);
     if (toCompile) {
         config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_JSON)] = CONFIG_VALUE(YES);
@@ -251,7 +251,7 @@ INSTANTIATE_TEST_CASE_P(
         Combine(Values("kmbPlugin"),
                 ValuesIn(compilation_parameters_kmb),
                 Values<Compile>(false),
-                Values<Timeout>(60)),
+                Values<Timeout>(60.)),
                 KmbNoRegressionCompilationOnly::getTestCaseName);
 
 INSTANTIATE_TEST_CASE_P(
@@ -261,7 +261,7 @@ INSTANTIATE_TEST_CASE_P(
         Combine(Values("kmbPlugin"),
                 ValuesIn(compilation_parameters_kmb),
                 Values<Compile>(true),
-                Values<Timeout>(600)),
+                Values<Timeout>(600.)),
                 KmbNoRegressionCompilationOnly::getTestCaseName);
 #endif
 

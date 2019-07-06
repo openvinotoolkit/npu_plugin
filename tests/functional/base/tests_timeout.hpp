@@ -28,16 +28,25 @@ namespace TestsTimeout
 
 enum RunStatus {
     OK = 0,
-    TIMEOUT = 1,
-    UEXPECTED = 10,
-    UNKNOWN = 100
+    TIMEOUT = -1001,
+    FORK_FAILURE = -1002,
+    EXECUTION_FAILURE = -1003,
+    UNEXPECTED = -1004,
+    UNKNOWN = -1005
 };
 
-void cleanPendingSignals(sigset_t& sigset, siginfo_t& info, int millySecCleanPendingTimeout = 100);
-
+/*
+ * Uses parent/child processes interaction and signals
+ * and supposes that signals are not used by the testing (target) function
+ * Supposes that tests are not executed in parallel (several tests in different threads)
+ */
 int runWithTimeout (
-        const std::function<void(int&)>& runFunc,
+        const std::function<void(int& childExitStatus)>& runFunc,  // Lambda wrapper of target (tested with timeout) function
+        // Places in childExitStatus one of the negative values from RunStatus enum if corresponding reason occurs
+        // or some another (positive) value that can be interpreted by particular test itself.
+        // See the example KmbNoRegressionCompilationOnly test in tests/functional/kmb_tests/kmb_regression_target.cpp
         std::string& statusMessage,
-        int secRunTimeout, int millySecKillSignalWait = 2000, int millySecCleanPendingTimeout = 100);
+        // Timeout in seconds. Run without timeout if dSecRunTimeout == 0,
+        double dSecRunTimeout);
 
 } // namespace TestsTimeout
