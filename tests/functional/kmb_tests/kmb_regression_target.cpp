@@ -14,11 +14,10 @@
 // stated in the License.
 //
 
-#include <thread>
-#include <chrono>
+#include "tests_timeout.hpp"
+
 #include <gtest/gtest.h>
 #include <regression_tests.hpp>
-#include <string>
 #include <inference_engine/precision_utils.h>
 #include <vpu/kmb_plugin_config.hpp>
 #include <vpu/private_plugin_config.hpp>
@@ -31,6 +30,7 @@ using namespace ::testing;
 using namespace InferenceEngine;
 using namespace Regression::Matchers;
 using namespace InferenceEngine::details;
+using namespace TestsTimeout;
 
 namespace
 {
@@ -216,11 +216,6 @@ inline void VpuNoRegressionWithCompilation::loadNetworkWrapper(std::map<std::str
     }
 }
 
-void cleanPendingSignals(sigset_t& sigset, siginfo_t& info) {
-    timespec timeout = {0, 100000000}; // 100 milliseconds
-    while (-1 != sigtimedwait(&sigset, &info, &timeout));
-}
-
 #ifdef ENABLE_MCM_COMPILER
 TEST_P(KmbNoRegressionCompilationOnly, IE2MCM) {
     auto toCompile = get<2>(TestParam::GetParam());
@@ -238,42 +233,16 @@ TEST_P(KmbNoRegressionCompilationOnly, IE2MCM) {
         config[VPU_KMB_CONFIG_KEY(MCM_PARSING_ONLY)] = CONFIG_VALUE(YES);
     }
 
-    if (tm == 0) { // without timeout
-        loadNetworkWrapper(config);
-    } else {
-        sigset_t sigset;
-        sigemptyset(&sigset);
-        sigaddset(&sigset, SIGCHLD);
-        sigprocmask(SIG_BLOCK, &sigset, nullptr);
+    std::string statusMessage;
+    int runStatus = runWithTimeout (
+            [&](int& status) {
+                InferenceEngine::StatusCode st = InferenceEngine::StatusCode::GENERAL_ERROR;
+                loadNetworkWrapper(config, &st);
+                status = st;
+            },
+            statusMessage, tm);
 
-        int chPid = -1;
-        chPid = fork();
-        if (!chPid) {
-            InferenceEngine::StatusCode st = InferenceEngine::StatusCode::GENERAL_ERROR;
-            loadNetworkWrapper(config, &st);
-            exit(st);
-        } else {
-            // Wait for the child to terminate or timeout.
-            timespec timeout = {tm, 0};
-            siginfo_t info;
-            int signo = 10;
-            signo = sigtimedwait(&sigset, &info, &timeout);
-            if(-1 == signo) {
-                if(EAGAIN == errno) { // Timed out.
-                    kill(chPid, SIGKILL);
-                    usleep(2000000); // waiting for signals to clean for the next test (2 sec)
-                    cleanPendingSignals(sigset, info);
-                    ASSERT_TRUE(false) << "TEST FAILED: TIMEOUT: " << tm << " s";
-                } else {
-                    cleanPendingSignals(sigset, info);
-                    ASSERT_TRUE(false) << "TEST FAILED: UEXPECTED SIGNAL CATCHED: sigtimedwait responce: " << signo << " errno: " << errno;
-                }
-            } else { // The child has terminated.
-                cleanPendingSignals(sigset, info);
-                ASSERT_EQ(StatusCode::OK, info.si_status);
-            }
-        }
-    }
+    ASSERT_EQ(RunStatus::OK, runStatus) << statusMessage;
 }
 
 INSTANTIATE_TEST_CASE_P(
