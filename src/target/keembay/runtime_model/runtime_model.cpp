@@ -184,10 +184,10 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     toBuild->strides = numericStrides; // NOTE: Maybe directly bufferIt->computeStrides() in the future?
 
     // NOTE: not sure anymore about this
-    auto strides = tensorBufferIt->getStrides();
-    toBuild->leading_offset = strides[0]/2; //for some reason we get double the value, for now take the proper one.
-    toBuild->trailing_offset = strides[strides.size()-1] + tensorBufferIt->getPostAlign();
-    toBuild->trailing_offset = toBuild->trailing_offset / 2;
+//    auto strides = tensorBufferIt->getStrides();
+//    toBuild->leading_offset = strides[0]/2; //for some reason we get double the value, for now take the proper one.
+//    toBuild->trailing_offset = strides[strides.size()-1] + tensorBufferIt->getPostAlign();
+//    toBuild->trailing_offset = toBuild->trailing_offset / 2;
     toBuild->data = std::unique_ptr<MVCNN::IndirectDataReferenceT>(new MVCNN::IndirectDataReferenceT());
     if (*tensorAllocatorName == "GraphFile")
     {
@@ -667,7 +667,8 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
         toBuild->parent_output_tensor = buildTensorReferenceT(cm, compilationDescriptor, opIt->getOutputTensor(0));
     }
 
-    toBuild->output_data->data->data_index += toBuild->output_data->leading_offset;
+    // NOTE: Remember to ask Eman why this is done
+    // toBuild->output_data->data->data_index += toBuild->output_data->leading_offset;
 
     unsigned num_inputs = opIt->getInputTensor().size();
 
