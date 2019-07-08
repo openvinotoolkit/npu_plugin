@@ -200,8 +200,10 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     else if(*tensorAllocatorName == "ProgrammableInput" || *tensorAllocatorName == "ProgrammableOutput")
     {
         toBuild->data->data_index = 0;
-        if (toBuild->leading_offset)
-            toBuild->data->data_index += toBuild->leading_offset;
+        auto strides = tensorBufferIt->getStrides();
+        auto leading_offset = strides[0]/2;
+        if (leading_offset)
+            toBuild->data->data_index += leading_offset;
         // No need to set sparsity_index for input/output tensor of the network
     }
     else
