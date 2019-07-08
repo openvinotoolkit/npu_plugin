@@ -50,27 +50,34 @@ void hangingDmaControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationM
 
     auto sortedOps = cm.topologicalSort();
 
-    // Simple strategy for _dma_dependency == 0
-    // Check all the siblings of the hanging dma
-    // If one has a parent, attach to the same parent
-    // attach to the parent or to the sibling itself
 
-    // As a general rule, we don't want to attach hanging dmas to other dmas
-
-    // There is always a sibling with at least one parent,
-    // this is ensured by the previous passes (DmaControlFlows and DpuControlFlows)
     auto dmas = om.getOps("DMATask");
 
     std::vector<std::pair<mv::Control::OpListIterator, mv::Control::OpListIterator>> flowsToAdd;
 
     if(_dma_dependency == 0)
     {
+        // Simple strategy for _dma_dependency == 0
+        // Check all the siblings of the hanging dma
+        // If one has a parent, attach to the same parent
+        // attach to the parent or to the sibling itself
+
+        // As a general rule, we don't want to attach hanging dmas to other dmas
+
+        // There is always a sibling with at least one parent,
+        // this is ensured by the previous passes (DmaControlFlows and DpuControlFlows)
+
+        // Problem with this approach: Let's say we are trying to attach control flows
+        // for a dma involved into a dpu task in parallel branch
+
+        // The current approach attachs the control flow to the sibling, thus forbing
+        // real parallelism. How to solve this?
         for(auto dma : dmas)
         {
             auto dmaControl = cm.switchContext(dma);
             if(dmaControl.inputsSize() == 0)
             {
-                //Collect siblings
+                //Collect siblings, nodes that share our same parent
                 std::vector<mv::Control::OpListIterator> siblings;
                 for(auto son = dmaControl.leftmostChild(); son != cm.opEnd(); ++son)
                     for(auto sibling = son.leftmostParent(); sibling != cm.opEnd(); ++ sibling)
