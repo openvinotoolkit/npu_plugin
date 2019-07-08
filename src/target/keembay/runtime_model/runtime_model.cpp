@@ -191,11 +191,6 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     toBuild->dimensions = dimensions;
     toBuild->strides = numericStrides; // NOTE: Maybe directly bufferIt->computeStrides() in the future?
 
-    // NOTE: not sure anymore about this
-//    auto strides = tensorBufferIt->getStrides();
-//    toBuild->leading_offset = strides[0]/2; //for some reason we get double the value, for now take the proper one.
-//    toBuild->trailing_offset = strides[strides.size()-1] + tensorBufferIt->getPostAlign();
-//    toBuild->trailing_offset = toBuild->trailing_offset / 2;
     toBuild->data = std::unique_ptr<MVCNN::IndirectDataReferenceT>(new MVCNN::IndirectDataReferenceT());
     if (*tensorAllocatorName == "GraphFile")
     {
@@ -211,9 +206,12 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     }
     else
     {
+        auto strides = tensorBufferIt->getStrides();
+        auto leading_offset = strides[0]/2; //for some reason we get double the value, for now take the proper one.
+
+        // This part is for concat
         toBuild->data->data_index = tensorBufferIt->getOffset();
-        if (toBuild->leading_offset)
-            toBuild->data->data_index += toBuild->leading_offset;
+        toBuild->data->data_index += leading_offset;
 
         // VERY IMPORTANT NOTE: Sparsity index is not used by populated tensors
         // as populated tensor represent weights, and all the information we need
