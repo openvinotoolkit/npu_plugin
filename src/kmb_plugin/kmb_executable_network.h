@@ -76,7 +76,7 @@ public:
         syncRequestImpl->setPointerToExecutableNetworkInternal(shared_from_this());
         auto taskExecutorGetResult = getNextTaskExecutor();
         auto asyncTreadSafeImpl = std::make_shared<KmbAsyncInferRequest>(
-                syncRequestImpl, _taskExecutor, taskExecutorGetResult, _taskSynchronizer, _callbackExecutor, _logger);
+                syncRequestImpl, _taskExecutor, taskExecutorGetResult, _callbackExecutor, _logger);
         asyncRequest.reset(new InferenceEngine::InferRequestBase<InferenceEngine::AsyncInferRequestThreadSafeDefault>(
                            asyncTreadSafeImpl),
                            [](InferenceEngine::IInferRequest *p) { p->Release(); });

@@ -27,11 +27,8 @@ public:
     KmbAsyncInferRequest(const KmbInferRequest::Ptr &request,
                          const InferenceEngine::ITaskExecutor::Ptr &taskExecutorStart,
                          const InferenceEngine::ITaskExecutor::Ptr &taskExecutorGetResult,
-                         const InferenceEngine::TaskSynchronizer::Ptr &taskSynchronizer,
                          const InferenceEngine::ITaskExecutor::Ptr &callbackExecutor,
                          const Logger::Ptr &log);
-
-    InferenceEngine::StagedTask::Ptr createAsyncRequestTask() override;
 
     ~KmbAsyncInferRequest();
 private:
