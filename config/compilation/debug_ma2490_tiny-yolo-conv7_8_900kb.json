@@ -533,7 +533,7 @@
             {
                 "name": "GenerateDot",
                 "output": "output/dots/TaskControlFlows_model.dot",
-                "scope": "OpControlModel",
+                "scope": "ControlModel",
                 "content": "full",
                 "html": true
             },
@@ -564,6 +564,18 @@
             {
                 "name": "ConvertDot",
                 "input": "output/dots/NoHangingDmas.dot"
+            },
+            "cmx2DDRControlFlows",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/cmx2DDRControlFlows.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/cmx2DDRControlFlows.dot"
             },
             "AddDeallocationTasks",
             {
