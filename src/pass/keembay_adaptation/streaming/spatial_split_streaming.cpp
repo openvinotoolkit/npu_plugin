@@ -399,19 +399,22 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model, mv::Dat
     auto padding = op->get<std::array<unsigned short, 4>>("padding");
     auto startPad = padding;
     auto endPad = padding;
+    auto middlePad = padding;
     auto currentPad = padding;
-
-    std::array<unsigned short, 4> middle_pad = {0,0,0,0};
 
     if (axisToSplit == mv::Shape::getAxis("W"))
     {
         startPad[1] = 0;
         endPad[0] = 0;
+        middlePad[0] = 0;
+        middlePad[1] = 0;
     }
     else if (axisToSplit == mv::Shape::getAxis("H"))
     {
         startPad[3] = 0;
         endPad[2] = 0;
+        middlePad[2] = 0;
+        middlePad[3] = 0;
     }
 
     for (unsigned split = 0; split < number_of_splits; split++)
@@ -429,7 +432,7 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model, mv::Dat
         else if (split == (number_of_splits -1))
             currentPad = endPad;
         else
-            currentPad = middle_pad;
+            currentPad = middlePad;
 
         mv::Data::TensorIterator newTensor;
         std::string opType = op->getOpType();
