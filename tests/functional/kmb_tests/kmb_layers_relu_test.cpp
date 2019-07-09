@@ -124,7 +124,7 @@ TEST_F(kmbLayersTests_nightly, DISABLED_TestsReLUAfterConvolution) {
     auto network = _net_reader.getNetwork();
 
     _inputsInfo = network.getInputsInfo();
-    _inputsInfo["input"]->setInputPrecision(Precision::FP16);
+    _inputsInfo["input"]->setPrecision(Precision::FP16);
 
     _outputsInfo = network.getOutputsInfo();
     _outputsInfo["relu_test"]->setPrecision(Precision::FP16);
@@ -185,7 +185,7 @@ TEST_F(kmbLayersTests_nightly, TestsReLUOnly) {
     auto network = _net_reader.getNetwork();
 
     _inputsInfo = network.getInputsInfo();
-    _inputsInfo["input"]->setInputPrecision(Precision::FP16);
+    _inputsInfo["input"]->setPrecision(Precision::FP16);
 
     _outputsInfo = network.getOutputsInfo();
     _outputsInfo["relu_test"]->setPrecision(Precision::FP16);
@@ -225,7 +225,7 @@ TEST_P(kmbLayersTestsReLUParams, TestsReLUNetInit) {
     InferenceEngine::ICNNNetwork &network = _net_reader.getNetwork();
     ASSERT_NO_THROW(network.getInputsInfo(_inputsInfo));
     for (auto in = _inputsInfo.begin(); in != _inputsInfo.end(); in++) {
-        in->second->setInputPrecision(InferenceEngine::Precision::FP16);
+        in->second->setPrecision(InferenceEngine::Precision::FP16);
     }
     ASSERT_NO_THROW(network.getOutputsInfo(_outputsInfo));
     for (auto outputInfo : _outputsInfo) {

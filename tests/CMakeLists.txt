@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-disable_deprecated_warnings()
+#disable_deprecated_warnings()
 
 if (ENABLE_FUNCTIONAL_TESTS)
     add_subdirectory(functional)

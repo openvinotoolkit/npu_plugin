@@ -242,6 +242,7 @@ protected:
     IN_OUT_desc                              _outputTensors;
     InferenceEngine::Blob::Ptr               _refBlob;
     std::string                              _layerName;
+    genData                                  _genDataCallback0 = nullptr;
     genData                                  _genDataCallback = GenRandomData;
 protected:
 
@@ -272,7 +273,10 @@ protected:
             genInputOutput(obj, inDim, outDim);
             obj.weights_size = weights_size;
             obj.bias_size = biases_size;
-            InferenceEngine::TBlob<uint8_t> *weights = new InferenceEngine::TBlob<uint8_t>(InferenceEngine::Precision::U8, InferenceEngine::C, {(weights_size + biases_size) * sizeof(uint16_t)});
+            InferenceEngine::TBlob<uint8_t> *weights = new InferenceEngine::TBlob<uint8_t>({InferenceEngine::Precision::U8, 
+                                                                                            {(weights_size + biases_size) * sizeof(uint16_t)}, 
+                                                                                            InferenceEngine::C});
+
             weights->allocate();
             obj.weights_ptr = InferenceEngine::TBlob<uint8_t>::Ptr(weights);
             obj.weights = weights->data().as<uint16_t *>();
@@ -316,29 +320,31 @@ protected:
         void genInputOutput(callbackObject& obj,
                             const IN_OUT_desc& inDim,
                             const IN_OUT_desc& outDim) {
-            auto outW = swapLayout(outDim);
+            auto outW = outDim[0];
             if (callbacks.empty()) {
-                auto newW = swapLayout(inDim);
+                auto newW = inDim[0];
                 InferenceEngine::Layout inputLayout = getLayout(inDim);
                 if(inDim[0].size() == 4) {
                     inputLayout = InferenceEngine::NHWC;
                 }
-                obj.input = InferenceEngine::make_shared_blob<uint16_t, const InferenceEngine::SizeVector>(InferenceEngine::Precision::FP16, inputLayout, newW);
+
+                obj.input = InferenceEngine::make_shared_blob<uint16_t>({InferenceEngine::Precision::FP16, newW, inputLayout});
                 obj.input->allocate();
             }else {
                 auto val = callbacks.back();
-                ASSERT_EQ(inDim[0].size(), val.output->dims().size());
+                ASSERT_EQ(inDim[0].size(), val.output->getTensorDesc().getDims().size());
                 obj.input = val.output;
-                auto inW = swapLayout(inDim);
+                auto inW = inDim[0];
                 for (size_t i = 0; i < outDim[0].size(); ++i) {
-                    ASSERT_EQ(inW[i], val.output->dims()[i]);
+                    ASSERT_EQ(inW[i], val.output->getTensorDesc().getDims()[i]);
                 }
             }
             InferenceEngine::Layout outLayout = getLayout(outDim);
             if(outDim[0].size() == 4) {
                 outLayout = InferenceEngine::NHWC;
             }
-            obj.output = InferenceEngine::make_shared_blob<uint16_t, const InferenceEngine::SizeVector>(InferenceEngine::Precision::FP16, outLayout, outW);
+
+            obj.output = InferenceEngine::make_shared_blob<uint16_t>({InferenceEngine::Precision::FP16, outW, outLayout});
             obj.output->allocate();
         }
         void operator()() {

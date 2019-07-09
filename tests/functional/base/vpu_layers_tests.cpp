@@ -9,6 +9,7 @@
 #include <iostream>
 
 #include "plugin_cache.hpp"
+#include "ie_memcpy.h"
 
 using namespace InferenceEngine;
 
@@ -58,21 +59,24 @@ void get_ndims(const InferenceEngine::Blob::Ptr blob,
                int32_t &dimz,
                int32_t &dimn) {
     ASSERT_NE(blob, nullptr);
-    if (blob->dims().size() == 2) {
+    auto dims = blob->getTensorDesc().getDims();
+    std::reverse(dims.begin(), dims.end());
+
+    if (dims.size() == 2) {
         dimn = 1;
         dimz = 1;
-        dimy = blob->dims()[1];
-        dimx = blob->dims()[0];
-    } else if (blob->dims().size() == 3) {
-        dimx = blob->dims()[0];
-        dimy = blob->dims()[1];
-        dimz = blob->dims()[2];
+        dimy = dims[1];
+        dimx = dims[0];
+    } else if (dims.size() == 3) {
+        dimx = dims[0];
+        dimy = dims[1];
+        dimz = dims[2];
         dimn = 1;
-    } else if (blob->dims().size() == 4) {
-        dimx = blob->dims()[0];
-        dimy = blob->dims()[1];
-        dimz = blob->dims()[2];
-        dimn = blob->dims()[3];
+    } else if (dims.size() == 4) {
+        dimx = dims[0];
+        dimy = dims[1];
+        dimz = dims[2];
+        dimn = dims[3];
     }
 }
 
@@ -84,16 +88,19 @@ void get_dims(const InferenceEngine::Blob::Ptr blob,
     ASSERT_NE(blob, nullptr);
     dimn = 1;
     dimz = 1;
-    if (blob->dims().size() > 3) {
-        dimn = blob->dims()[3];
+    auto dims = blob->getTensorDesc().getDims();
+    std::reverse(dims.begin(), dims.end());
+
+    if (dims.size() > 3) {
+        dimn = dims[3];
     }
-    if (blob->dims().size() > 2) {
-        dimz = blob->dims()[2];
+    if (dims.size() > 2) {
+        dimz = dims[2];
     }
-    if (blob->dims().size() > 1) {
-        dimy = blob->dims()[1];
+    if (dims.size() > 1) {
+        dimy = dims[1];
     }
-    dimx = blob->dims()[0];
+    dimx = dims[0];
 }
 
 void get_dims(const InferenceEngine::Blob::Ptr blob,
@@ -111,27 +118,9 @@ void get_dims(const InferenceEngine::SizeVector& input_dims,
     IW = 0;
     IH = 0;
     IC = 0;
-    switch (input_dims.size()) {
-        case 2:
-            /* Fully connected tests */
-            IW = 1;
-            IC = 1;
-            IC = input_dims[1];
-            break;
-        case 3:
-            IW = input_dims[2];
-            IH = input_dims[1];
-            IC = input_dims[0];
-            break;
-        case 4:
-            IW = input_dims[3];
-            IH = input_dims[2];
-            IC = input_dims[1];
-            break;
-        default:
-            FAIL() << "Unsupported input dimension.";
-            break;
-    }
+    int32_t stub = 0;
+
+    get_dims(input_dims, IW, IH, IC, stub);
 }
 
 void get_dims(const InferenceEngine::SizeVector& input_dims,
@@ -270,7 +259,7 @@ void vpuLayersTests::TearDown() {
         if (auto value_param = test_info->value_param()) {
             std::cout << "[ VALUE    ] \t" << value_param << std::endl;
         }
-        
+
         if (auto dumpModelsPath = std::getenv("IE_VPU_DUMP_LAYER_TESTS_MODELS_DIRECTORY")) {
             std::string testName = test_info->name();
             std::replace(testName.begin(), testName.end(), '/', '_');
@@ -520,34 +509,33 @@ void vpuLayersTests::genXML(const std::string& layer_type,
 
 void vpuLayersTests::genInputBlobs(Precision precision)
 {
+    auto genDataCallback = (_genDataCallback0 != nullptr) ? _genDataCallback0 : _genDataCallback;
     for (auto inpt : _inputsInfo) {
-        InferenceEngine::SizeVector inputDims = inpt.second->getDims();
+        InferenceEngine::SizeVector inputDims = inpt.second->getTensorDesc().getDims();
         Blob::Ptr inputBlob = nullptr;
         Layout netLayout = inpt.second->getTensorDesc().getLayout();
         // work only with NHWC layout if size of the input dimensions == NHWC
         Layout layout = netLayout == NHWC || netLayout == NCHW? NHWC : netLayout;
         switch (precision) {
         case Precision::U8:
-            inputBlob = InferenceEngine::make_shared_blob<uint8_t, const InferenceEngine::SizeVector>
-                                                          (Precision::U8, layout, inputDims);
+            inputBlob = InferenceEngine::make_shared_blob<uint8_t>({Precision::U8, inputDims, layout});
             break;
         case Precision::FP16:
-            inputBlob = InferenceEngine::make_shared_blob<ie_fp16, const InferenceEngine::SizeVector>
-                                                          (Precision::FP16, layout, inputDims);
+            inputBlob = InferenceEngine::make_shared_blob<ie_fp16>({Precision::FP16, inputDims, layout});
             break;
         case Precision::FP32:
-            inputBlob = InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>
-                                                          (Precision::FP32, layout, inputDims);
+            inputBlob = InferenceEngine::make_shared_blob<float>({Precision::FP32, inputDims, layout});
             break;
         default:
             THROW_IE_EXCEPTION << "Unsupported precision for input. Supported U8, FP16, FP32";
         }
         inputBlob->allocate();
-        ASSERT_NE(_genDataCallback, nullptr);
-        _genDataCallback(inputBlob);
+        ASSERT_NE(genDataCallback, nullptr);
+        genDataCallback(inputBlob);
         InferenceEngine::StatusCode st = _inferRequest->SetBlob(inpt.first.c_str(), inputBlob, &_resp);
         ASSERT_EQ((int) InferenceEngine::StatusCode::OK, st) << _resp.msg;
         _inputMap[inpt.first] = inputBlob;
+        genDataCallback = _genDataCallback;
     }
 }
 
@@ -559,19 +547,17 @@ void GenRandomData(InferenceEngine::Blob::Ptr blob)
 void vpuLayersTests::genOutputBlobs(Precision precision)
 {
     for (auto outpt : _outputsInfo) {
-        InferenceEngine::SizeVector outputDims = outpt.second->dims;
+        InferenceEngine::SizeVector outputDims = outpt.second->getTensorDesc().getDims();
         Blob::Ptr outputBlob = nullptr;
         Layout netLayout = outpt.second->getTensorDesc().getLayout();
         // work only with NHWC layout if size of the input dimensions == NHWC
         Layout layout = netLayout == NHWC || netLayout == NCHW? NHWC : netLayout;
         switch (precision) {
         case Precision::FP16:
-            outputBlob = InferenceEngine::make_shared_blob<ie_fp16, const InferenceEngine::SizeVector>
-                                                          (Precision::FP16, layout, outputDims);
+            outputBlob = InferenceEngine::make_shared_blob<ie_fp16>({Precision::FP16, outputDims, layout});
             break;
         case Precision::FP32:
-            outputBlob = InferenceEngine::make_shared_blob<float, const InferenceEngine::SizeVector>
-                                                          (Precision::FP32, layout, outputDims);
+            outputBlob = InferenceEngine::make_shared_blob<float>({Precision::FP32, outputDims, layout});
             break;
         default:
             THROW_IE_EXCEPTION << "Unsupported precision for output. Supported FP16, FP32";
@@ -590,7 +576,7 @@ void vpuLayersTests::setup(InferenceEngine::Precision outputPrecision,
     InferenceEngine::ICNNNetwork &network = _net_reader.getNetwork();
     ASSERT_NO_THROW(network.getInputsInfo(_inputsInfo));
     for (auto in = _inputsInfo.begin(); in != _inputsInfo.end(); in++) {
-        in->second->setInputPrecision(inputPrecision);
+        in->second->setPrecision(inputPrecision);
     }
     ASSERT_NO_THROW(network.getOutputsInfo(_outputsInfo));
     for (auto outputInfo : _outputsInfo) {
@@ -607,6 +593,7 @@ void vpuLayersTests::setup(InferenceEngine::Precision outputPrecision,
     config[CONFIG_KEY(LOG_LEVEL)] = CONFIG_VALUE(LOG_INFO);
 #endif
     config[CONFIG_KEY(PERF_COUNT)] = CONFIG_VALUE(YES);
+    config[VPU_CONFIG_KEY(PERF_REPORT_MODE)] = VPU_CONFIG_VALUE(PER_STAGE);
 
     InferenceEngine::StatusCode st = InferenceEngine::StatusCode::GENERAL_ERROR;
     ASSERT_NO_THROW(st = myriadPluginPtr->LoadNetwork(_exeNetwork, network, config, &_resp));
@@ -624,8 +611,7 @@ void vpuLayersTests::setup(InferenceEngine::Precision outputPrecision,
         Layout netLayout = _outputsInfo.begin()->second->getTensorDesc().getLayout();
         // work only with NHWC layout if size of the input dimensions == NHWC
         Layout layout = netLayout == NHWC || netLayout == NCHW? NHWC : netLayout;
-            _refBlob = InferenceEngine::make_shared_blob<ie_fp16, const InferenceEngine::SizeVector>
-                                                          (Precision::FP16, layout, _outputMap.begin()->second->dims());
+            _refBlob = InferenceEngine::make_shared_blob<ie_fp16>({Precision::FP16, _outputMap.begin()->second->getTensorDesc().getDims(), layout});
         _refBlob->allocate();
     }
 }
@@ -703,7 +689,7 @@ bool fromBinaryFile(std::string input_binary, InferenceEngine::Blob::Ptr blob) {
     size_t count = blob->size();
     bool status = false;
     if(in.good()) {
-        if (blob->precision() == InferenceEngine::Precision::FP16) {
+        if (blob->getTensorDesc().getPrecision() == InferenceEngine::Precision::FP16) {
             ie_fp16 *blobRawDataFP16 = blob->buffer().as<ie_fp16 *>();
             if(sizeFile == count * sizeof(float)) {
                 for (size_t i = 0; i < count; i++) {
@@ -720,7 +706,7 @@ bool fromBinaryFile(std::string input_binary, InferenceEngine::Blob::Ptr blob) {
                 }
                 status = true;
             }
-        }else if (blob->precision() == InferenceEngine::Precision::FP32) {
+        }else if (blob->getTensorDesc().getPrecision() == InferenceEngine::Precision::FP32) {
             float *blobRawData = blob->buffer();
             if(sizeFile == count * sizeof(float)) {
                 in.read(reinterpret_cast<char *>(blobRawData), count * sizeof(float));
@@ -757,7 +743,7 @@ void vpuLayersTests::SetFirstInputToRange(float start, float finish)
 void vpuLayersTests::SetInputInOrder()
 {
     ASSERT_NE(_inputsInfo.size(), 0);
-    InferenceEngine::SizeVector inputDims = _inputsInfo.begin()->second->getDims();
+    InferenceEngine::SizeVector inputDims = _inputsInfo.begin()->second->getTensorDesc().getDims();
     auto inputBlob = _inputMap[_inputsInfo.begin()->first];
     ASSERT_NE(inputBlob, nullptr);
     uint16_t *inputBlobRawDataFp16 = inputBlob->buffer().as<uint16_t*>();
@@ -785,18 +771,21 @@ void vpuLayersTests::SetInputInOrderReverse() {
 
 void vpuLayersTests::checkBlobs(InferenceEngine::Blob::Ptr actual, InferenceEngine::Blob::Ptr expected)
 {
-    ASSERT_NE(actual->dims().size(), 0);
-    ASSERT_EQ(actual->dims().size(), expected->dims().size());
-    for (size_t i = 0; i < actual->dims().size(); i++) {
-        ASSERT_EQ(actual->dims()[i], expected->dims()[i]);
+    const auto& actual_dims = actual->getTensorDesc().getDims();
+    const auto& expected_dims = expected->getTensorDesc().getDims();
+
+    ASSERT_NE(actual_dims.size(), 0);
+    ASSERT_EQ(actual_dims.size(), expected_dims.size());
+    for (size_t i = 0; i < actual_dims.size(); i++) {
+        ASSERT_EQ(actual_dims[i], expected_dims[i]);
     }
     float *actualData = dynamic_cast<InferenceEngine::TBlob<float> *>(&(*actual))->data();
     ASSERT_NE(actualData, nullptr);
     float *expectedData = dynamic_cast<InferenceEngine::TBlob<float> *>(&(*expected))->data();
     ASSERT_NE(expectedData, nullptr);
-    size_t countElems = actual->dims()[0];
-    for (size_t i = 1; i < actual->dims().size(); i++) {
-        countElems *= actual->dims()[i];
+    size_t countElems = actual_dims[0];
+    for (size_t i = 1; i < actual_dims.size(); i++) {
+        countElems *= actual_dims[i];
     }
     for (size_t i = 0; i < countElems; i++) {
         ASSERT_FLOAT_EQ(actualData[i], expectedData[i]);
@@ -808,7 +797,7 @@ InferenceEngine::TBlob<uint8_t>* vpuLayersTests::GenWeights(size_t sz, float min
     // TODO: pass seed as parameter
 
     float scale  = (max_val - min_val) / RAND_MAX;
-    InferenceEngine::TBlob<uint8_t> *weights = new InferenceEngine::TBlob<uint8_t>(InferenceEngine::Precision::U8, InferenceEngine::C, {(sz) * sizeof(uint16_t)});
+    InferenceEngine::TBlob<uint8_t> *weights = new InferenceEngine::TBlob<uint8_t>({InferenceEngine::Precision::U8, {(sz) * sizeof(uint16_t)}, InferenceEngine::C});
     weights->allocate();
     uint16_t *inputBlobRawDataFp16 = weights->data().as<uint16_t *>();
     size_t indx = 0;
@@ -869,7 +858,7 @@ void vpuLayersTests::genNetwork(bool useHWOpt, int version) {
     }
     InferenceEngine::TBlob<uint8_t>::Ptr weights_ptr;
     if (real_offset) {
-        InferenceEngine::TBlob<uint8_t> *weights = new InferenceEngine::TBlob<uint8_t>(InferenceEngine::Precision::U8, InferenceEngine::C, {(real_offset) * sizeof(uint16_t)});
+        InferenceEngine::TBlob<uint8_t> *weights = new InferenceEngine::TBlob<uint8_t>({InferenceEngine::Precision::U8, {(real_offset) * sizeof(uint16_t)}, InferenceEngine::C});
         ASSERT_NE(weights, nullptr);
         weights->allocate();
         weights_ptr = InferenceEngine::TBlob<uint8_t>::Ptr(weights);
@@ -891,39 +880,26 @@ void vpuLayersTests::genNetwork(bool useHWOpt, int version) {
         }
     }
     counter = 0;
-    std::string input_dim4 =
+    std::string input_dim_prefix =
 R"V0G0N(
         <layer id="0" name="input" precision="FP16" type="input">
             <output>
                 <port id="1">
-                    <dim>_DIM_0_</dim>
-                    <dim>_DIM_1_</dim>
-                    <dim>_DIM_2_</dim>
-                    <dim>_DIM_3_</dim>
-                </port>
-            </output>
-        </layer>)V0G0N";
-    std::string input_dim3 =
+)V0G0N";
+    std::string input_dim_postfix =
 R"V0G0N(
-        <layer id="0" name="input" precision="FP16" type="input">
-            <output>
-                <port id="1">
-                    <dim>_DIM_0_</dim>
-                    <dim>_DIM_1_</dim>
-                    <dim>_DIM_2_</dim>
                 </port>
             </output>
         </layer>)V0G0N";
 
     auto bgn = _testNet.begin();
-    ASSERT_TRUE(!(bgn->inDim.size() != 1 ||
-        bgn->inDim[0].size() < 2 ||
-        bgn->inDim[0].size() > 4));
-
-    std::string& strt = input_dim4;
-    if (bgn->inDim[0].size() == 3) {
-        strt = input_dim3;
+    std::string& strt = input_dim_prefix;
+    for (int iter = 0; iter < bgn->inDim[0].size(); iter++) {
+        strt += std::string("<dim>_DIM_") + std::to_string(iter) + std::string("_</dim>\n");
     }
+
+    strt += input_dim_postfix;
+    
     for (auto val : bgn->inDim[0]) {
         std::string ind = "_DIM_" + std::to_string(counter) + "_";
         REPLACE_WITH_NUM(strt, ind.c_str(), val);
@@ -1010,7 +986,7 @@ void vpuLayersTests::ReferenceGraph() {
     uint16_t *inputBlobRawDataFp16 = realInput->buffer();
     uint16_t *refBlobRawDataFp16 = referenceInput->buffer();
     ASSERT_NE(inputBlobRawDataFp16, nullptr);
-    std::memcpy(refBlobRawDataFp16, inputBlobRawDataFp16, count * sizeof(uint16_t));
+    ie_memcpy(refBlobRawDataFp16, realInput->byteSize(), inputBlobRawDataFp16, count * sizeof(uint16_t));
     InferenceEngine::ICNNNetwork &network = _net_reader.getNetwork();
     for (size_t ind = 0; ind < _testNet.size(); ++ind) {
         if (_testNet[ind].fillWeights != nullptr) {
@@ -1027,7 +1003,7 @@ void vpuLayersTests::ReferenceGraph() {
                 auto weightsBlob = it->second;
                 auto weigths_sz = weightsBlob->size();
                 uint16_t *inputWeightsDataFp16 = weightsBlob->buffer();
-                std::memcpy(refLayer.weights, inputWeightsDataFp16, weigths_sz * sizeof(uint16_t));
+                ie_memcpy(refLayer.weights, refLayer.weights_size * sizeof(uint16_t), inputWeightsDataFp16, weigths_sz * sizeof(uint16_t));
             } else {
                 auto layerWithWeights = std::dynamic_pointer_cast<InferenceEngine::WeightableLayer>(layer);
                 size_t weigths_sz = 0;
@@ -1035,14 +1011,14 @@ void vpuLayersTests::ReferenceGraph() {
                     weigths_sz = layerWithWeights->_weights->size();
                     ASSERT_EQ(weigths_sz, refLayer.weights_size);
                     uint16_t *inputWeightsDataFp16 = layerWithWeights->_weights->buffer();
-                    std::memcpy(refLayer.weights, inputWeightsDataFp16, weigths_sz * sizeof(uint16_t));
+                    ie_memcpy(refLayer.weights, refLayer.weights_size * sizeof(uint16_t), inputWeightsDataFp16, weigths_sz * sizeof(uint16_t));
                 }
                 size_t bias_sz = 0;
                 if (layerWithWeights->_biases) {
                     bias_sz = layerWithWeights->_biases->size();
                     ASSERT_EQ(bias_sz, refLayer.bias_size);
                     uint16_t *refBiasDataFp16 = layerWithWeights->_biases->buffer();
-                    std::memcpy(&refLayer.weights[weigths_sz], refBiasDataFp16, bias_sz * sizeof(uint16_t));
+                    ie_memcpy(&refLayer.weights[weigths_sz], refLayer.bias_size * sizeof(uint16_t), refBiasDataFp16, bias_sz * sizeof(uint16_t));
                 }
             }
         }
