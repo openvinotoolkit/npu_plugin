@@ -65,8 +65,7 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
     mv::DataModel dm(model);
     mv::ControlModel cm(model);
 
-    // Keeping this flag just for experimentation purposes, but it should really be true
-    bool forceDeallocationForCMX2DDR = true;
+    bool forceDeallocationForCMX2DDR = false;
     if(passDesc.hasAttr("DeallocationForCMX2DDR"))
         forceDeallocationForCMX2DDR = passDesc.get<bool>("ForceDeallocationForCMX2DDR");
 
@@ -85,13 +84,6 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
         // Input tensor shall not be deallocated (will be DMAed, then that will be deallocated)
         if(inputOp->getOpType() == "Input")
             continue;
-
-        // If we are forcing deallocation for CMX2DDR, we have to take some extra care
-        // To not deallocate tensors that are eventually going to output
-        if(forceDeallocationForCMX2DDR)
-            if(outputOp->getOpType() == "DMATask" && outputOp->get<mv::DmaDirection>("direction") == mv::CMX2DDR)
-                if(cm.checkControlFlow(cm.switchContext(outputOp), cm.getLast()) != cm.flowEnd())
-                    continue;
 
         // Constant tensors shall not be deallocated (will be DMAed, then those will be deallocated)
         // NOTE: This check must remain as is, can't be replaced by hasTypeTrait("executable") check
@@ -231,6 +223,16 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
                 }
             }
         }
+    }
+
+    // If we forced the deallocation of CMX2DDR, the last DMA for output can potentially be deallocated.
+    // We have to get rid of it
+    if(forceDeallocationForCMX2DDR)
+    {
+        auto output = cm.switchContext(om.getOutput());
+        for(auto outputParent = output.leftmostParent(); outputParent != cm.opEnd(); ++outputParent)
+            if(outputParent->getOpType() == "Deallocate")
+                om.removeOp(om.switchContext(outputParent));
     }
 }
 
