@@ -530,11 +530,9 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model, mv::Dat
         final_outputs[split] = out;
     }
     //debug
-    std::vector<mv::Shape> final_outputs_deb(4);
-    final_outputs_deb[0] = final_outputs[0]->getShape();
-    final_outputs_deb[1] = final_outputs[1]->getShape();
-    final_outputs_deb[2] = final_outputs[2]->getShape();
-    final_outputs_deb[3] = final_outputs[3]->getShape();
+    std::vector<mv::Shape> final_outputs_deb(number_of_splits);
+    for (int i=0; i < number_of_splits; ++i)
+        final_outputs_deb[i] = final_outputs[i]->getShape();
 
     auto concat = om.concat(final_outputs,
                     tiling.getAxis(),

@@ -97,7 +97,7 @@
                         "splits" : [ {"H" : 2} ]
                     },
                     {
-                        "name_filter" : "conv2#36_ERRORS",
+                        "name_filter" : "conv2#36",
                         "output_location" : "CMX",
                         "splits" : [ {"H" : 4} ]
                     },
