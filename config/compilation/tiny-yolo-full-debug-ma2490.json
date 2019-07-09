@@ -5,14 +5,14 @@
                 "name" : "GlobalConfigParams",
                 "_comment" : "Stores common params accross multiple passes. Access through the Computation Model.",
                 "recorded_model": true,
-                "verbose": "Info",
+                "verbose": "Debug",
                 "weights_form": "None",
                 "barrier_index_assignment" : "Dynamic",
                 "Number_of_DPUs" : 1,
                 "Number_of_Clusters" : 1,
                 "UpaShaves": 1,
                 "DDRScratch": 33554432,
-                "MemoryHack": true,
+                "MemoryHack": false,
                 "Sparsity": false,
                 "CMX_memory_overflow_safety_factor" : 0.925,
                 "mpe_mode" : "Matrix",
@@ -94,10 +94,10 @@
                     {
                         "name_filter" : "pool1/max_pool#35",
                         "output_location" : "CMX",
-                        "splits" : [ {"H" : 4} ]
+                        "splits" : [ {"H" : 2} ]
                     },
                     {
-                        "name_filter" : "conv2#36",
+                        "name_filter" : "conv2#36_ERRORS",
                         "output_location" : "CMX",
                         "splits" : [ {"H" : 4} ]
                     },
@@ -118,12 +118,12 @@
                     },
                     {
                         "name_filter" : "conv7#46",
-                        "output_location" : "CMX",
+                        "output_location" : "DDR",
                         "splits" : [ {"K" : 8} ]
                     },
                     {
                         "name_filter" : "conv8#47",
-                        "output_location" : "CMX",
+                        "output_location" : "DDR",
                         "splits" : [ {"K" : 16} ]
                     },
                     {

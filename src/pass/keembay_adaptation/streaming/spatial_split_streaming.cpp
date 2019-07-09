@@ -526,6 +526,12 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model, mv::Dat
         }
         final_outputs[split] = out;
     }
+    //debug
+    std::vector<mv::Shape> final_outputs_deb(4);
+    final_outputs_deb[0] = final_outputs[0]->getShape();
+    final_outputs_deb[1] = final_outputs[1]->getShape();
+    final_outputs_deb[2] = final_outputs[2]->getShape();
+    final_outputs_deb[3] = final_outputs[3]->getShape();
 
     auto concat = om.concat(final_outputs,
                     tiling.getAxis(),
@@ -615,9 +621,15 @@ void generateSpatialTiling(mv::Data::OpListIterator op,Tiling& tiling, std::vect
             tileSize[axisToSplit] = inferInputSize(remainderOutputSize,0,0,kernelSize,kernelStride);
 
         if (split == 0)
-            startCoord += tileSize[axisToSplit] - (inferInputSize(newOutputSize,0,0,kernelSize,kernelStride) - tileSize[axisToSplit]);
+        {
+            //startCoord += tileSize[axisToSplit] - (inferInputSize(newOutputSize,0,0,kernelSize,kernelStride) - tileSize[axisToSplit]);
+            startCoord += newOutputSize - (inferInputSize(newOutputSize,0,0,kernelSize,kernelStride) - tileSize[axisToSplit]);
+        }
         else
-            startCoord += tileSize[axisToSplit];
+        {
+            //startCoord += tileSize[axisToSplit];
+            startCoord += newOutputSize;
+        }
 
         Tiling newTile(tileStart, tileSize);
         tiling.setChildTile(newTile, split);
