@@ -195,6 +195,10 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     if (*tensorAllocatorName == "GraphFile")
     {
         toBuild->data->data_index = t->get<unsigned>("graphFileIndex");
+        auto strides = tensorBufferIt->getStrides();
+        toBuild->leading_offset = strides[0]/2; //for some reason we get double the value, for now take the proper one.
+        toBuild->trailing_offset = strides[strides.size()-1] + tensorBufferIt->getPostAlign();
+        toBuild->trailing_offset = toBuild->trailing_offset / 2;
         // No need to set sparsity_index for tensor stored in graphfile
     }
     else if(*tensorAllocatorName == "ProgrammableInput" || *tensorAllocatorName == "ProgrammableOutput")
