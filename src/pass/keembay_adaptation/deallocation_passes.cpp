@@ -65,7 +65,7 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
     mv::DataModel dm(model);
     mv::ControlModel cm(model);
 
-    bool forceDeallocationForCMX2DDR = false;
+    bool forceDeallocationForCMX2DDR = true;
     if(passDesc.hasAttr("DeallocationForCMX2DDR"))
         forceDeallocationForCMX2DDR = passDesc.get<bool>("ForceDeallocationForCMX2DDR");
 
