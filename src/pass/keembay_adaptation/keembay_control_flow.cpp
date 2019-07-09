@@ -6,6 +6,7 @@
 
 static void taskControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 static void hangingDmaControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&passDesc, mv::json::Object&);
+static void cmx2DDRControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&passDesc, mv::json::Object&);
 
 namespace mv
 {
@@ -25,9 +26,47 @@ namespace mv
             ""
         );
 
+        MV_REGISTER_PASS(cmx2DDRControlFlows)
+        .setFunc(cmx2DDRControlFlowsFcn)
+        .setDescription(
+            ""
+        );
+
     }
 }
 
+void cmx2DDRControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&passDesc, mv::json::Object&)
+{
+    mv::OpModel om(model);
+    mv::ControlModel cm(model);
+
+    auto dmas = om.getOps("DMATask");
+
+    std::vector<std::pair<mv::Control::OpListIterator, mv::Control::OpListIterator>> flowsToAdd;
+
+    for(auto& dma : dmas)
+    {
+        if(dma->get<mv::DmaDirection>("direction") == mv::CMX2DDR)
+        {
+            auto controlDma = cm.switchContext(dma);
+            for(auto parent = controlDma.leftmostParent(); parent != cm.opEnd(); ++parent)
+            {
+                for(auto sibling = parent.leftmostChild(); sibling != cm.opEnd(); ++sibling)
+                {
+                    flowsToAdd.push_back(std::make_pair(controlDma, sibling));
+                }
+            }
+        }
+    }
+
+    for(auto& flow : flowsToAdd)
+    {
+        if(cm.isFlowAllowedAndNonExisting(flow.first, flow.second))
+            cm.defineFlow(flow.first, flow.second);    
+    }
+
+
+}
 
 // This pass handles all the hanging DMAs into the graph using the prefetch logic
 void hangingDmaControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::json::Object&)
@@ -61,6 +100,7 @@ void hangingDmaControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationM
         // Check all the siblings of the hanging dma
         // If one has a parent, attach to the same parent
         // attach to the parent or to the sibling itself
+    auto sortedOps = cm.topologicalSort();
 
         // As a general rule, we don't want to attach hanging dmas to other dmas
 
