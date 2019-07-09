@@ -35,6 +35,7 @@ namespace mv
     }
 }
 
+// NOTE: This pass makes sense only when prefetch == 0
 void cmx2DDRControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&passDesc, mv::json::Object&)
 {
     mv::OpModel om(model);
@@ -50,35 +51,19 @@ void cmx2DDRControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
         {
             auto controlDma = cm.switchContext(dma);
             for(auto parent = controlDma.leftmostParent(); parent != cm.opEnd(); ++parent)
-            {
                 for(auto sibling = parent.leftmostChild(); sibling != cm.opEnd(); ++sibling)
-                {
                     flowsToAdd.push_back(std::make_pair(controlDma, sibling));
-                }
-            }
         }
     }
 
     for(auto& flow : flowsToAdd)
-    {
         if(cm.isFlowAllowedAndNonExisting(flow.first, flow.second))
             cm.defineFlow(flow.first, flow.second);    
-    }
-
-
 }
 
 // This pass handles all the hanging DMAs into the graph using the prefetch logic
 void hangingDmaControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::json::Object&)
 {
-    //dma_dependency = std::min(std::max(1, self.nn_cmx_memory/param.cluster_size), dma_dependency);
-    //    This is the weights prefetch number. It specifies how early to start the inbound DMA for weights.
-    //    The units are number of ops preceeding current conv in the topographically sorted ops list.
-    //    If the weights tensor is very large (eg > 1/2 of CMX) then the specified prefetch parameter (eg 2)
-    //    would be reduced. This assumes that the only fit partial serialization would find for such a
-    //    big weights tensor would be to start the DMA right before it is needed. For smaller tensors, the
-    //    user-specified prefetch number will be used. The prefetch edge added is for partial serialization.
-    //
 
     mv::OpModel om(model);
     mv::ControlModel cm(model);
@@ -88,7 +73,6 @@ void hangingDmaControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationM
         _dma_dependency = passDesc.get<int>("weights_prefetch");
 
     auto sortedOps = cm.topologicalSort();
-
 
     auto dmas = om.getOps("DMATask");
 
@@ -100,7 +84,6 @@ void hangingDmaControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationM
         // Check all the siblings of the hanging dma
         // If one has a parent, attach to the same parent
         // attach to the parent or to the sibling itself
-    auto sortedOps = cm.topologicalSort();
 
         // As a general rule, we don't want to attach hanging dmas to other dmas
 
@@ -108,9 +91,8 @@ void hangingDmaControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationM
         // this is ensured by the previous passes (DmaControlFlows and DpuControlFlows)
 
         // Problem with this approach: Let's say we are trying to attach control flows
-        // for a dma involved into a dpu task in parallel branch
-
-        // The current approach attachs the control flow to the sibling, thus forbing
+        // for a dma involved into a dpu task in parallel branch:
+        // The current approach attachs the control flow to the sibling, thus forbidding
         // real parallelism. How to solve this?
         for(auto dma : dmas)
         {
@@ -157,43 +139,24 @@ void hangingDmaControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationM
             }
         }
     }
-    else
-    {
-        //TODO:Implement hybrid strategies
-        //Super aggressive prefetching: attach everything to Input
-        for(auto dma : dmas)
-        {
-            auto dmaControl = cm.switchContext(dma);
-            if(dmaControl.inputsSize() == 0)
-                flowsToAdd.push_back(std::make_pair(cm.getFirst(), dmaControl));
 
-        }
+    // Super aggressive prefetching: attach everything to Input:
+    // Rationale: maxcut + partial serialization will solve all the problems of the world
+
+    // This part is done in any case, regardless of the prefetching chosen, since transitive reduction will eventually eliminate the
+    // extra control flows
+    for(auto dma : dmas)
+    {
+        auto dmaControl = cm.switchContext(dma);
+        if(dmaControl.inputsSize() == 0)
+            flowsToAdd.push_back(std::make_pair(cm.getFirst(), dmaControl));
     }
+
+    //TODO:Implement hybrid strategies
 
     for(auto& flowToAdd : flowsToAdd)
         if(cm.isFlowAllowedAndNonExisting(flowToAdd.first, flowToAdd.second))
             cm.defineFlow(flowToAdd.first, flowToAdd.second);
-
-    //NOTE: This will change with multicluster
-//    long unsigned inputTensorDmaDimension = inputTensorDma->computeTotalSize();
-//    for(unsigned j = 0; j < inputOutputTensors; ++j)
-//        inputTensorDmaDimension += opIt->getInputTensor(j)->computeTotalSize();
-
-//    int partsPerCMX = std::max((unsigned long)1, cmxSize/inputTensorDmaDimension);
-//    if (partsPerCMX < (_dma_dependency + 1))
-//        dma_dependency = partsPerCMX;
-//    else
-//        dma_dependency =  _dma_dependency + 1 ;
-
-
-//    auto index = std::distance(sortedOps.begin(), std::find(sortedOps.begin(), sortedOps.end(), opIt));
-//    if(index <= dma_dependency)
-//        cm.defineFlow(om.getInput(), inputTensorDmaOp);
-//    else
-//    {
-//        std::cout << "NOT ATTACHING TO INPUT" << std::endl;
-//        cm.defineFlow(sortedOps[index - dma_dependency], inputTensorDmaOp);
-//    }
 }
 
 // This pass adds control flows relative to Task.

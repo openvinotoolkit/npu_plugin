@@ -561,6 +561,7 @@
                 "content": "full",
                 "html": true
             },
+            "TransitiveReduction",
             {
                 "name": "ConvertDot",
                 "input": "output/dots/NoHangingDmas.dot"
