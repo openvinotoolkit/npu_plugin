@@ -403,19 +403,22 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model, mv::Dat
     auto padding = op->get<std::array<unsigned short, 4>>("padding");
     auto startPad = padding;
     auto endPad = padding;
+    auto middlePad = padding;
     auto currentPad = padding;
-
-    std::array<unsigned short, 4> middle_pad = {0,0,0,0};
 
     if (axisToSplit == mv::Shape::getAxis("W"))
     {
         startPad[1] = 0;
         endPad[0] = 0;
+        middlePad[0] = 0;
+        middlePad[1] = 0;
     }
     else if (axisToSplit == mv::Shape::getAxis("H"))
     {
         startPad[3] = 0;
         endPad[2] = 0;
+        middlePad[2] = 0;
+        middlePad[3] = 0;
     }
 
     for (unsigned split = 0; split < number_of_splits; split++)
@@ -433,7 +436,7 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model, mv::Dat
         else if (split == (number_of_splits -1))
             currentPad = endPad;
         else
-            currentPad = middle_pad;
+            currentPad = middlePad;
 
         mv::Data::TensorIterator newTensor;
         std::string opType = op->getOpType();
@@ -530,6 +533,10 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model, mv::Dat
         }
         final_outputs[split] = out;
     }
+    //debug
+    std::vector<mv::Shape> final_outputs_deb(number_of_splits);
+    for (int i=0; i < number_of_splits; ++i)
+        final_outputs_deb[i] = final_outputs[i]->getShape();
 
     auto concat = om.concat(final_outputs,
                     tiling.getAxis(),
@@ -619,9 +626,15 @@ void generateSpatialTiling(mv::Data::OpListIterator op,Tiling& tiling, std::vect
             tileSize[axisToSplit] = inferInputSize(remainderOutputSize,0,0,kernelSize,kernelStride);
 
         if (split == 0)
-            startCoord += tileSize[axisToSplit] - (inferInputSize(newOutputSize,0,0,kernelSize,kernelStride) - tileSize[axisToSplit]);
+        {
+            //startCoord += tileSize[axisToSplit] - (inferInputSize(newOutputSize,0,0,kernelSize,kernelStride) - tileSize[axisToSplit]);
+            startCoord += newOutputSize - (inferInputSize(newOutputSize,0,0,kernelSize,kernelStride) - tileSize[axisToSplit]);
+        }
         else
-            startCoord += tileSize[axisToSplit];
+        {
+            //startCoord += tileSize[axisToSplit];
+            startCoord += newOutputSize;
+        }
 
         Tiling newTile(tileStart, tileSize);
         tiling.setChildTile(newTile, split);
