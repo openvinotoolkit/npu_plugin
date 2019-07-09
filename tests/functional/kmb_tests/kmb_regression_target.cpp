@@ -27,6 +27,8 @@
 #include <cnn_network_int8_normalizer.hpp>
 #include <ie_util_internal.hpp>
 
+#include <vpu_layers_tests.hpp>
+
 using namespace ::testing;
 using namespace InferenceEngine;
 using namespace Regression::Matchers;
@@ -266,7 +268,7 @@ TEST_F(VpuNoRegressionInference, canDoInferenceOnImportedBlob) {
     std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/TwoFramesConvolution/conv.blob";
 
     Core ie;
-    InferenceEngine::IExecutableNetwork::Ptr importedNetworkPtr = ie.ImportNetwork(modelFilePath, modelFilePath, {});
+    InferenceEngine::IExecutableNetwork::Ptr importedNetworkPtr = ie.ImportNetwork(modelFilePath, "KMB", {});
     ASSERT_NE(nullptr, importedNetworkPtr);
 
     InferenceEngine::IInferRequest::Ptr inferRequest;
@@ -275,5 +277,50 @@ TEST_F(VpuNoRegressionInference, canDoInferenceOnImportedBlob) {
 
     ASSERT_EQ(StatusCode::OK, inferRequest->Infer(&resp)) << resp.msg;
 }
-#endif
 
+using VpuInferAndCompareTests = vpuLayersTests;
+
+TEST_F(VpuInferAndCompareTests, compareInferenceOutputWithReference) {
+    std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/SingleConvolutionFP16/SingleConv.blob";
+
+    Core ie;
+    InferenceEngine::IExecutableNetwork::Ptr importedNetworkPtr = ie.ImportNetwork(modelFilePath, "KMB", {});
+    ASSERT_NE(nullptr, importedNetworkPtr);
+
+    InferenceEngine::IInferRequest::Ptr inferRequest;
+    ResponseDesc resp;
+    ASSERT_EQ(StatusCode::OK, importedNetworkPtr->CreateInferRequest(inferRequest, &resp)) << resp.msg;
+
+    ConstInputsDataMap inputInfo;
+    importedNetworkPtr->GetInputsInfo(inputInfo, &resp);
+
+    std::string inputFilePath = ModelsPath() + "/KMB_models/BLOBS/SingleConvolutionFP16/input.bin";
+    for (auto & item : inputInfo) {
+        Blob::Ptr inputBlob;
+        inferRequest->GetBlob(item.first.c_str(), inputBlob, &resp);
+        ASSERT_TRUE(fromBinaryFile(inputFilePath, inputBlob));
+    }
+
+    ASSERT_EQ(StatusCode::OK, inferRequest->Infer(&resp)) << resp.msg;
+
+    ConstOutputsDataMap outputInfo;
+    importedNetworkPtr->GetOutputsInfo(outputInfo, &resp);
+
+    for (auto & item : outputInfo) {
+        Blob::Ptr outputBlob;
+        inferRequest->GetBlob(item.first.c_str(), outputBlob, &resp);
+
+        TensorDesc outputBlobTensorDesc = outputBlob->getTensorDesc();
+        Blob::Ptr referenceOutputBlob = make_blob_with_precision(TensorDesc(
+            outputBlobTensorDesc.getPrecision(),
+            outputBlobTensorDesc.getDims(),
+            outputBlobTensorDesc.getLayout()));
+        referenceOutputBlob->allocate();
+
+        std::string referenceOutputFilePath = ModelsPath() + "/KMB_models/BLOBS/SingleConvolutionFP16/output.bin";
+        ASSERT_TRUE(fromBinaryFile(referenceOutputFilePath, referenceOutputBlob));
+
+        Compare(referenceOutputBlob, outputBlob, 0.125f);
+    }
+}
+#endif
