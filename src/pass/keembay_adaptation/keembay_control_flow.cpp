@@ -178,7 +178,7 @@ void layerNumberingFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mo
 // Rationale: Each DMA Task should be connected via a ControlFlow to the same operations he is connected via a DataFlow
 // But implicit operations (e.g. Constants, Concat, Slice etc) must be skipped and/or avoided
 
-// NOTE: For now, only one level of implicit operations is handled. In the future we will need a recursive procedure
+// NOTE: For now, only max two level of implicit operations is handled. In the future we will need a recursive procedure
 void taskControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
     mv::OpModel om(model);
@@ -197,19 +197,27 @@ void taskControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& 
     {
 
         //OUTPUT DATA FLOWS OF THE DMA TASK
-        for(auto outputDataFlow = op.leftmostOutput(); outputDataFlow != dm.flowEnd(); ++outputDataFlow)
+        for(auto son = op.leftmostChild(); son != om.opEnd(); ++son)
         {
-            auto sink = outputDataFlow.sink();
-            if(!sink->hasTypeTrait("executable"))
+            if(!son->hasTypeTrait("executable"))
             {
-                for (auto nephew = sink.leftmostChild(); nephew != om.opEnd(); ++nephew)
+                for (auto nephew = son.leftmostChild(); nephew != om.opEnd(); ++nephew)
                 {
-                    if(cm.isFlowAllowedAndNonExisting(op, nephew)) 
+                    // This hack is horrible and should be substituted with a recursive procedure ASAP
+                    if(!nephew->hasTypeTrait("executable"))
+                    {
+                        for(auto protoNephew = nephew.leftmostChild(); protoNephew != om.opEnd(); ++protoNephew)
+                        {
+                            if(cm.isFlowAllowedAndNonExisting(op, protoNephew))
+                                cm.defineFlow(op, protoNephew);
+                        }
+                    }
+                    else if(cm.isFlowAllowedAndNonExisting(op, nephew)) 
                         cm.defineFlow(op, nephew);
                 }
             }
-            else if(cm.isFlowAllowedAndNonExisting(op, sink))
-                cm.defineFlow(op, sink);
+            else if(cm.isFlowAllowedAndNonExisting(op, son))
+                cm.defineFlow(op, son);
         };
 
         // INPUT DATA FLOWS OF THE DMA TASK

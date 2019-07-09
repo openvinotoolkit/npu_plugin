@@ -80,10 +80,6 @@
                     {
                         "name_filter" : ".*weights.*",
                         "mem_location" : "BLOB"
-                    },
-                    {
-                        "name_filter" : ".*conv7#7.*",
-                        "mem_location" : "CMX"
                     }
                                    
                 ],
@@ -92,27 +88,50 @@
                 "streaming_strategy" :
                 [
                     {
-                        "name_filter" : "conv0_cmx_",
+                        "name_filter" : "conv1#34",
                         "output_location" : "CMX",
-                        "splits" : [
-                            {"K" : 4}
-                        ]
+                        "splits" : [ {"H" : 4} ]
                     },
                     {
-                        "name_filter" : "conv7#7",
-                        "output_location" : "DDR",
-                        "splits" : [
-                            {"K" : 8}
-                        ]
+                        "name_filter" : "pool1/max_pool#35",
+                        "output_location" : "CMX",
+                        "splits" : [ {"H" : 2} ]
                     },
                     {
-                        "name_filter" : "conv8/conv8#8",
+                        "name_filter" : "conv2#36",
+                        "output_location" : "CMX",
+                        "splits" : [ {"H" : 4} ]
+                    },
+                    {
+                        "name_filter" : "pool2/max_pool#37",
+                        "output_location" : "CMX",
+                        "splits" : [ {"H" : 2} ]
+                    },
+                    {
+                        "name_filter" : "conv3#38",
+                        "output_location" : "CMX",
+                        "splits" : [ {"H" : 2} ]
+                    },
+                    {
+                        "name_filter" : "conv6#44",
+                        "output_location" : "CMX",
+                        "splits" : [ {"K" : 2} ]
+                    },
+                    {
+                        "name_filter" : "conv7#46",
                         "output_location" : "DDR",
-                        "splits" : [
-                            {"K" : 16}
-                        ]
+                        "splits" : [ {"K" : 8} ]
+                    },
+                    {
+                        "name_filter" : "conv8#47",
+                        "output_location" : "DDR",
+                        "splits" : [ {"K" : 16} ]
+                    },
+                    {
+                        "name_filter" : "conv9#48",
+                        "output_location" : "CMX",
+                        "splits" : [ {"K" : 2} ]
                     }
-                    
                 ],
                 "disable_opFission_streaming_strategy" :
                 [
