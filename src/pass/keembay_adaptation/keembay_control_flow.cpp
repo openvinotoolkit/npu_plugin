@@ -7,6 +7,7 @@
 static void taskControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 static void hangingDmaControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&passDesc, mv::json::Object&);
 static void cmx2DDRControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&passDesc, mv::json::Object&);
+static void layerNumberingFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&passDesc, mv::json::Object&);
 
 namespace mv
 {
@@ -32,10 +33,17 @@ namespace mv
             ""
         );
 
+        MV_REGISTER_PASS(LayerNumbering)
+        .setFunc(layerNumberingFcn)
+        .setDescription(
+            ""
+        );
+
     }
 }
 
-// NOTE: This pass makes sense only when prefetch == 0
+// NOTE: This pass makes sense only when hanging dmas have been solved
+// and assign layer number has been rerun
 void cmx2DDRControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&passDesc, mv::json::Object&)
 {
     mv::OpModel om(model);
@@ -62,101 +70,108 @@ void cmx2DDRControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
 }
 
 // This pass handles all the hanging DMAs into the graph using the prefetch logic
+// Weights prefetch controls how many levels before we want to start to load weights
+// Minimum (and most conservative approach) is 1
+
+// ASSUMPTION: This pass happens after the pass that assigns a layer number to each layer already in the control model
 void hangingDmaControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::json::Object&)
 {
 
     mv::OpModel om(model);
     mv::ControlModel cm(model);
 
-    int _dma_dependency = 0;
+    auto sortedOps = cm.topologicalSort();
+
+    int _dma_dependency = 1;
     if(passDesc.hasAttr("weights_prefetch"))
         _dma_dependency = passDesc.get<int>("weights_prefetch");
-
-    auto sortedOps = cm.topologicalSort();
 
     auto dmas = om.getOps("DMATask");
 
     std::vector<std::pair<mv::Control::OpListIterator, mv::Control::OpListIterator>> flowsToAdd;
 
-    if(_dma_dependency == 0)
+    for(auto& dmaOp: dmas)
     {
-        // Simple strategy for _dma_dependency == 0
-        // Check all the siblings of the hanging dma
-        // If one has a parent, attach to the same parent
-        // attach to the parent or to the sibling itself
-
-        // As a general rule, we don't want to attach hanging dmas to other dmas
-
-        // There is always a sibling with at least one parent,
-        // this is ensured by the previous passes (DmaControlFlows and DpuControlFlows)
-
-        // Problem with this approach: Let's say we are trying to attach control flows
-        // for a dma involved into a dpu task in parallel branch:
-        // The current approach attachs the control flow to the sibling, thus forbidding
-        // real parallelism. How to solve this?
-        for(auto dma : dmas)
+        auto dma = cm.switchContext(dmaOp);
+        // Check if it's hanging, otherwise we don't need to do anything
+        if(dma.inputsSize() == 0)
         {
-            auto dmaControl = cm.switchContext(dma);
-            if(dmaControl.inputsSize() == 0)
+            // At this point (see assumption above) each DMA has at least one output control flow
+            // We take the minimum layer number required by operations using this data
+
+            // HACK: Horrible hack because apparentely we have problem in assigning iterators
+            unsigned sonWithMinimumLayerInvolvedIndex = 0;
+            unsigned minimumLayerInvolved = dma.leftmostChild()->get<unsigned>("layerNumber");
+
+            unsigned i = 0;
+            for(auto son = dma.leftmostChild(); son != cm.opEnd(); ++son)
             {
-                //Collect siblings, nodes that share our same parent
-                std::vector<mv::Control::OpListIterator> siblings;
-                for(auto son = dmaControl.leftmostChild(); son != cm.opEnd(); ++son)
-                    for(auto sibling = son.leftmostParent(); sibling != cm.opEnd(); ++ sibling)
-                        siblings.push_back(sibling);
-
-                bool allSiblingsAreDMA = true;
-                std::vector<mv::Control::OpListIterator> dmaSiblings;
-                for(auto& sibling : siblings)
+                unsigned currentMinimumLayerInvolved = son->get<unsigned>("layerNumber");
+                if(currentMinimumLayerInvolved < minimumLayerInvolved)
                 {
-                    if(sibling.inputsSize() > 0)
-                    {
-                        if(sibling->getOpType() != "DMATask")
-                        {
-                            flowsToAdd.push_back(std::make_pair(sibling, dmaControl));
-                            allSiblingsAreDMA = false;
-                        }
-                        else
-                            dmaSiblings.push_back(sibling);
-                    }
+                    minimumLayerInvolved = currentMinimumLayerInvolved;
+                    sonWithMinimumLayerInvolvedIndex = i;
                 }
+                ++i;
+            }
 
-                if(allSiblingsAreDMA)
-                {
-                    for(auto& dmaSibling : dmaSiblings)
-                    {
-                        for(auto positionInTopologicalSort = std::find(sortedOps.rbegin(), sortedOps.rend(), dmaSibling); positionInTopologicalSort != sortedOps.rend(); ++positionInTopologicalSort)
-                        {
-                            auto preceedingOp = *positionInTopologicalSort;
-                            if(preceedingOp->getOpType() != "DMATask")
-                            {
-                                flowsToAdd.push_back(std::make_pair(preceedingOp, dmaControl));
-                                break;
-                            }
-                        }
-                    }
-                }
+            auto sonWithMinimumLayerInvolved = dma.leftmostChild();
+            for(unsigned j = 0; j < sonWithMinimumLayerInvolvedIndex; ++j)
+                ++sonWithMinimumLayerInvolved;
+
+            // Now based on the prefetch we have to start from the sonWithMinimumLayerInvolved and go back prefetch layers
+            for(auto positionInTopologicalSort = std::find(sortedOps.rbegin(), sortedOps.rend(), sonWithMinimumLayerInvolved); positionInTopologicalSort != sortedOps.rend(); ++positionInTopologicalSort)
+            {
+                auto preceedingOp = *positionInTopologicalSort;
+
+                unsigned preceedingOpLayerNumber = preceedingOp->get<unsigned>("layerNumber");
+
+                // Two conditions must be true to build the control flow preceedingOp -> dma
+                // 1) The difference in terms of layersNumber has to be EXACTLY _dma_dependency
+                // 2) There has to be a dependency between preceedingOp and the sonWithMinimumLayerInvolved (preeceding op could be on a parallel branch)
+                if(minimumLayerInvolved - preceedingOpLayerNumber == _dma_dependency && cm.pathExists(preceedingOp, sonWithMinimumLayerInvolved))
+                    flowsToAdd.push_back(std::make_pair(preceedingOp, dma));
+
             }
         }
     }
 
-    // Super aggressive prefetching: attach everything to Input:
-    // Rationale: maxcut + partial serialization will solve all the problems of the world
-
-    // This part is done in any case, regardless of the prefetching chosen, since transitive reduction will eventually eliminate the
-    // extra control flows
-    for(auto dma : dmas)
-    {
-        auto dmaControl = cm.switchContext(dma);
-        if(dmaControl.inputsSize() == 0)
-            flowsToAdd.push_back(std::make_pair(cm.getFirst(), dmaControl));
-    }
-
-    //TODO:Implement hybrid strategies
-
     for(auto& flowToAdd : flowsToAdd)
         if(cm.isFlowAllowedAndNonExisting(flowToAdd.first, flowToAdd.second))
             cm.defineFlow(flowToAdd.first, flowToAdd.second);
+}
+
+void assignLayerNumber(mv::ControlModel& cm, const std::unordered_set<std::string>& opNames, unsigned indexToAssign)
+{
+    if(opNames.empty())
+        return;
+
+    std::unordered_set<std::string> nextIteration;
+    for(auto& opName: opNames)
+    {
+        auto op = cm.switchContext(cm.getOp(opName));
+        op->set<unsigned>("layerNumber", indexToAssign);
+        for(auto son = op.leftmostChild(); son != cm.opEnd(); ++son)
+            nextIteration.insert(son->getName());
+    }
+
+    assignLayerNumber(cm, nextIteration, ++indexToAssign);
+}
+
+
+// This pass adds a numeric index that stands for layer to each op
+// It will be useful to solve hanging DMA's with a proper prefetch routine
+// And possibly also to handle CMX2DDR output flows
+
+// ASSUMPTION: We need task control flows and transitive reduction to be run before this pass
+void layerNumberingFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+{
+    mv::ControlModel cm(model);
+
+    unsigned initialLayerIndex = 0;
+    std::unordered_set<std::string> firstIteration;
+    firstIteration.insert(cm.getFirst()->getName());
+    assignLayerNumber(cm, firstIteration, initialLayerIndex);
 }
 
 // This pass adds control flows relative to Task.

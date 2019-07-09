@@ -542,6 +542,7 @@
                 "input": "output/dots/TaskControlFlows_model.dot"
             },
             "TransitiveReduction",
+            "LayerNumbering",
             {
                 "name": "GenerateDot",
                 "output": "output/dots/TaskControlFlows_model_transitive_reduction.dot",
@@ -554,6 +555,8 @@
                 "input": "output/dots/TaskControlFlows_model_transitive_reduction.dot"
             },
             "HangingDmaControlFlows",
+            "TransitiveReduction",
+            "LayerNumbering",
             {
                 "name": "GenerateDot",
                 "output": "output/dots/NoHangingDmas.dot",
@@ -561,7 +564,6 @@
                 "content": "full",
                 "html": true
             },
-            "TransitiveReduction",
             {
                 "name": "ConvertDot",
                 "input": "output/dots/NoHangingDmas.dot"
