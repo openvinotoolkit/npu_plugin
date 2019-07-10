@@ -31,12 +31,6 @@ using namespace vpu::KmbPlugin;
 
 ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(const ICore * /*core*/, ICNNNetwork &network,
                                                           const std::map<std::string, std::string> &config) {
-    if (network.getPrecision() != Precision::FP16 &&
-        network.getPrecision() != Precision::FP32) {
-        THROW_IE_EXCEPTION << "The plugin does not support networks with " << network.getPrecision() << " format.\n"
-                           << "Supported format: FP32 and FP16.";
-    }
-
     InputsDataMap networkInputs;
     OutputsDataMap networkOutputs;
 
