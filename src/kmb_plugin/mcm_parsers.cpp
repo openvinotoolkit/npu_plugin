@@ -889,13 +889,23 @@ void FrontEndMcm::parseReshape(
 
     auto layerOutput = layer->outData[0];
     IE_ASSERT(layerOutput != nullptr);
-
     DataDesc vpuDesc(layerOutput->getTensorDesc());
 
-    mv::Shape newShape = {static_cast<std::size_t>(vpuDesc.dim(Dim::W, 1)),
-                            static_cast<std::size_t>(vpuDesc.dim(Dim::H, 1)),
-                            static_cast<std::size_t>(vpuDesc.dim(Dim::C, 1)),
-                            static_cast<std::size_t>(vpuDesc.dim(Dim::N, 1))};
+    // Translates dims to 16 element vector with -1 on the places of non-existing dims
+    auto dimVector = vpuDesc.dims().toVector(-1);
+
+    // Just to get maxElement, the last valuable dim number
+    // because mcmCompiler supports only "dense" layouts
+    // for example NC should be represented as NCHW with dims NC11
+    auto perm = vpuDesc.dimsOrder().toPermutation();
+    auto maxElement = static_cast<int>(*(std::max_element(perm.begin(), perm.end()))) + 1;
+
+    // Formation of a newShape, "dense" shape with 1, substituted in the places of non-existent measurements
+    // TODO: Tests on parsing/compilation of different cases of reshape should be added: Jira: CVS-20409
+    mv::Shape newShape(maxElement);
+    for (int i = 0; i < maxElement; i++) {
+        newShape[i] = (dimVector[i] > 0) ? dimVector[i] : 1;
+    }
 
     env.log->debug("Reshape orig: '%s' from '%s'", layer->name, inputs[0]->getMcmNode()->getName());
     auto mvReshape = _modelMcm.reshape(inputs[0]->getMcmNode(), newShape, "", layer->name);

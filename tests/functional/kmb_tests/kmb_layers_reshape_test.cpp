@@ -48,6 +48,7 @@ TEST_P(kmbLayersTestsReshapeParams, TestsReshape) {
     );
 }
 
+// TODO: Add more tests on compilation reshape, squeeze, unsqueeze: Jira: CVS-20409
 static const reshape_test_params paramsTable[] = {
     std::make_tuple<tensor_test_params, tensor_test_params>(
         {1, 1, 1, 1000},  // input tensor
