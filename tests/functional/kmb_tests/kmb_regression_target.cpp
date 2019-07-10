@@ -14,11 +14,10 @@
 // stated in the License.
 //
 
-#include <thread>
-#include <chrono>
+#include "tests_timeout.hpp"
+
 #include <gtest/gtest.h>
 #include <regression_tests.hpp>
-#include <string>
 #include <inference_engine/precision_utils.h>
 #include <vpu/kmb_plugin_config.hpp>
 #include <vpu/private_plugin_config.hpp>
@@ -33,6 +32,7 @@ using namespace ::testing;
 using namespace InferenceEngine;
 using namespace Regression::Matchers;
 using namespace InferenceEngine::details;
+using namespace TestsTimeout;
 
 namespace
 {
@@ -57,16 +57,17 @@ protected:
 };
 
 using Compile = bool;
-using CompilationTestParam = WithParamInterface<std::tuple<std::string, CompilationParameter, Compile>>;
+using Timeout = double;
+using CompilationTestParam = WithParamInterface<std::tuple<std::string, CompilationParameter, Compile, Timeout>>;
 
 class VpuNoRegressionWithCompilation : public Regression::RegressionTests,
                                        public CompilationTestParam {
 public:
-    using TestParam = WithParamInterface<std::tuple<std::string, CompilationParameter, Compile>>;
+    using TestParam = WithParamInterface<std::tuple<std::string, CompilationParameter, Compile, Timeout>>;
 
     // Operations
     static std::string getTestCaseName(TestParamInfo <CompilationTestParam::ParamType> param);
-    inline void loadNetworkWrapper(std::map<std::string, std::string> config);
+    inline void loadNetworkWrapper(std::map<std::string, std::string> config, InferenceEngine::StatusCode* st = nullptr);
 
     // Accessors
     std::string getPluginName() const override ;
@@ -132,7 +133,7 @@ inline std::string CompilationParameter::pathToWeights() const {
 
 std::vector<CompilationParameter> compilation_parameters_kmb =
 {
-    CompilationParameter{"squeezenet_v1_1-int8",
+    CompilationParameter{"squeezenetv1_1_int8_onnx_0001",
                          "/KMB_models/INT8/squeezenetv1.1-int8-onnx-0001/squeezenetv1.1-int8.xml",
                          "/KMB_models/INT8/squeezenetv1.1-int8-onnx-0001/squeezenetv1.1-int8.bin"},
 
@@ -182,7 +183,7 @@ std::vector<CompilationParameter> compilation_parameters_kmb =
 
 }
 
-inline void VpuNoRegressionWithCompilation::loadNetworkWrapper(std::map<std::string, std::string> config) {
+inline void VpuNoRegressionWithCompilation::loadNetworkWrapper(std::map<std::string, std::string> config, InferenceEngine::StatusCode* st) {
     StatusCode sts;
     InferenceEngine::ResponseDesc response;
     HeteroPluginPtr plugin(make_plugin_name(pluginName));
@@ -209,12 +210,18 @@ inline void VpuNoRegressionWithCompilation::loadNetworkWrapper(std::map<std::str
         sts = plugin->LoadNetwork(exeNetwork, network, config, &response);
     }
 
-    ASSERT_EQ(StatusCode::OK, sts) << response.msg;
+    if (st) {
+        *st = sts;
+        EXPECT_EQ(StatusCode::OK, sts) << response.msg;
+    } else {
+        ASSERT_EQ(StatusCode::OK, sts) << response.msg;
+    }
 }
 
 #ifdef ENABLE_MCM_COMPILER
 TEST_P(KmbNoRegressionCompilationOnly, IE2MCM) {
     auto toCompile = get<2>(TestParam::GetParam());
+    double tm      = get<3>(TestParam::GetParam());
     std::map<std::string, std::string> config(_config);
     if (toCompile) {
         config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_JSON)] = CONFIG_VALUE(YES);
@@ -228,7 +235,16 @@ TEST_P(KmbNoRegressionCompilationOnly, IE2MCM) {
         config[VPU_KMB_CONFIG_KEY(MCM_PARSING_ONLY)] = CONFIG_VALUE(YES);
     }
 
-    loadNetworkWrapper(config);
+    std::string statusMessage;
+    int runStatus = runWithTimeout (
+            [&](int& status) {
+                InferenceEngine::StatusCode st = InferenceEngine::StatusCode::GENERAL_ERROR;
+                loadNetworkWrapper(config, &st);
+                status = st;
+            },
+            statusMessage, tm);
+
+    ASSERT_EQ(RunStatus::OK, runStatus) << statusMessage;
 }
 
 INSTANTIATE_TEST_CASE_P(
@@ -236,7 +252,8 @@ INSTANTIATE_TEST_CASE_P(
         KmbNoRegressionCompilationOnly,
         Combine(Values("kmbPlugin"),
                 ValuesIn(compilation_parameters_kmb),
-                Values<Compile>(false)),
+                Values<Compile>(false),
+                Values<Timeout>(60.)),
                 KmbNoRegressionCompilationOnly::getTestCaseName);
 
 INSTANTIATE_TEST_CASE_P(
@@ -245,7 +262,8 @@ INSTANTIATE_TEST_CASE_P(
         KmbNoRegressionCompilationOnly,
         Combine(Values("kmbPlugin"),
                 ValuesIn(compilation_parameters_kmb),
-                Values<Compile>(true)),
+                Values<Compile>(true),
+                Values<Timeout>(600.)),
                 KmbNoRegressionCompilationOnly::getTestCaseName);
 #endif
 
