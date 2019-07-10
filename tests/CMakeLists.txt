@@ -9,7 +9,7 @@ if (ENABLE_FUNCTIONAL_TESTS)
 endif()
 
 if (ENABLE_BEH_TESTS)
-    disable_deprecated_warnings()
+#    disable_deprecated_warnings()
     add_subdirectory(behavior)
 endif()
 
