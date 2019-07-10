@@ -158,7 +158,8 @@ void generateDotFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
                             {
                                 std::vector<std::string> attrKeys(dataIt->getTensor()->attrsKeys());
                                 for (auto attrIt = attrKeys.begin(); attrIt != attrKeys.end(); ++attrIt)
-                                    edgeDef += "<TR><TD ALIGN=\"LEFT\"><FONT POINT-SIZE=\"11.0\">"
+                                    if (*attrIt != "flows")
+                                        edgeDef += "<TR><TD ALIGN=\"LEFT\"><FONT POINT-SIZE=\"11.0\">"
                                                 + *attrIt
                                                 + ": </FONT></TD> <TD ALIGN=\"RIGHT\"><FONT POINT-SIZE=\"11.0\">"
                                                 + dataIt->getTensor()->get(*attrIt).toString()
@@ -179,7 +180,8 @@ void generateDotFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
                             {
                                 std::vector<std::string> attrKeys(dataIt->getTensor()->attrsKeys());
                                 for (auto attrIt = attrKeys.begin(); attrIt != attrKeys.end(); ++attrIt)
-                                    edgeDef += *attrIt + ": " + dataIt->getTensor()->get(*attrIt).toString() + "\\n";
+                                    if (*attrIt != "flows")
+                                        edgeDef += *attrIt + ": " + dataIt->getTensor()->get(*attrIt).toString() + "\\n";
                             }
                             edgeDef += "\"];";
                         }
