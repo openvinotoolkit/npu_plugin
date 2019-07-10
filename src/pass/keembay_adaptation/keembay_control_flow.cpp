@@ -124,6 +124,8 @@ void hangingDmaControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationM
             {
                 auto preceedingOp = *positionInTopologicalSort;
 
+                if (!preceedingOp->hasAttr("layerNumber"))
+                    continue;
                 unsigned preceedingOpLayerNumber = preceedingOp->get<unsigned>("layerNumber");
 
                 // Two conditions must be true to build the control flow preceedingOp -> dma
