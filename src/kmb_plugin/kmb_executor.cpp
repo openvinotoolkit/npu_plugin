@@ -304,6 +304,9 @@ void KmbExecutor::allocateGraph(const std::vector<char> &graphFileContent, const
     std::cout << "Started FLIC pipeline..." << std::endl;
 
     std::cout << "Fin" << std::endl;
+#else
+    UNUSED(graphFileContent);
+    UNUSED(networkName);
 #endif
 }
 
@@ -317,19 +320,25 @@ void KmbExecutor::queueInference(void *input_data, size_t input_bytes,
 #ifdef ENABLE_VPUAL
     auto physAddr = allocator->getPhysicalAddress(input_data);
     plgTensorInput_->Push(physAddr, input_bytes);
+#else
+    UNUSED(input_data);
+    UNUSED(input_bytes);
+    UNUSED(result_data);
+    UNUSED(result_bytes);
 #endif
-    return;
 }
 
 void KmbExecutor::getResult(void *result_data, unsigned int result_bytes) {
+    UNUSED(result_data);
+    UNUSED(result_bytes);
     auto parsedConfig = _config->getParsedConfig();
     if (parsedConfig[VPU_KMB_CONFIG_KEY(KMB_EXECUTOR)] == "NO") {
         return;
     }
-    uint32_t len = 0;
-    uint32_t pAddr = 0;
 
 #ifdef ENABLE_VPUAL
+    uint32_t len = 0;
+    uint32_t pAddr = 0;
     plgTensorOutput_->Pull(&pAddr, &len);
 
     std::cout << "Output tensor returned of length: " << std::dec << len << std::endl;
@@ -359,7 +368,6 @@ void KmbExecutor::getResult(void *result_data, unsigned int result_bytes) {
     std::memcpy(result_data, data, len);
     std::cout << "KmbExecutor::getResult memcpy finished" << std::endl;
 #endif
-    return;
 }
 
 void KmbExecutor::deallocateGraph() {
@@ -372,8 +380,6 @@ void KmbExecutor::deallocateGraph() {
     pipe->Delete();
     RgnAlloc.Delete();
 #endif
-
-    return;
 }
 
 std::shared_ptr<InferenceEngine::IAllocator> KmbExecutor::getAllocator() {

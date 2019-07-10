@@ -120,6 +120,14 @@ ie_add_plugin(NAME ${TARGET_NAME}
               VERSION_DEFINES_FOR kmb_plugin.cpp
             DEVICE_NAME KMB)
 
+
+target_compile_options(${TARGET_NAME}
+        PRIVATE
+        -Wall
+        -Wextra
+        -Werror)
+
+
 ie_register_plugins(MAIN_TARGET ${TARGET_NAME}
                     POSSIBLE_PLUGINS ${TARGET_NAME})
 

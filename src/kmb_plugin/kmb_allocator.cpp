@@ -34,6 +34,7 @@ void *KmbAllocator::lock(void *handle, InferenceEngine::LockOp) noexcept {
 }
 
 void KmbAllocator::unlock(void *handle) noexcept {
+    UNUSED(handle);
 }
 
 void *KmbAllocator::alloc(size_t size) noexcept {

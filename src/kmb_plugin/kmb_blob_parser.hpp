@@ -32,7 +32,7 @@ public:
 //  FlatBuffer blob parser to get information about network inputs/outputs
 //  from flatbuffer blob file loaded by ImportNetwork method
 
-    KmbBlob(const void *data, size_t size);
+    explicit KmbBlob(const void *data);
 
     const InferenceEngine::InputsDataMap& getNetworkInputs() const { return _networkInputs; }
     const InferenceEngine::OutputsDataMap& getNetworkOutputs() const { return _networkOutputs; }

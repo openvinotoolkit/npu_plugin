@@ -16,6 +16,8 @@
 
 #pragma once
 
+#define UNUSED(var) (void)var
+
 #include <map>
 #include <string>
 #include <unordered_set>
