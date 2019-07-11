@@ -428,7 +428,7 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model, mv::Dat
         auto slice = om.slice(inputTensor,
                                 childTiles[split].getStartCoord(),
                                 childTiles[split].getSize(),
-                                op->get<mv::QuantizationParams>("quantParams"),
+                                inputTensor->get<mv::QuantizationParams>("quantParams"),
                                 op->getName() + "_slice_" + std::to_string(split));
         om.getSourceOp(slice)->set<unsigned>("opId", opId);
 
