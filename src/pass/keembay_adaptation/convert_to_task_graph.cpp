@@ -145,6 +145,8 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             if(opIt->hasAttr("splitStrategy"))
                 splitStrategy = opIt->get<std::string>("splitStrategy");
 
+            auto inputControlFlows = mv::getInputControlFlow(cm, cm.switchContext(opIt));
+            auto outputControlFlows = mv::getOutputControlFlow(cm, cm.switchContext(opIt));
             auto outputDataFlows = mv::getOutputDataFlow(om, opIt);
 
             auto dpuPool = om.dPUTaskMaxPool({input}, kernelSize, strides, padding,
@@ -158,6 +160,8 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
 
             dpuPool->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
             setOutputDataFlow(om, dpuPool, outputDataFlows);
+            setInputControlFlow(cm, cm.switchContext(dpuPoolOp), inputControlFlows);
+            setOutputControlFlow(cm, cm.switchContext(dpuPoolOp), outputControlFlows);
         }
         else if (opType == "Add" || opType == "Subtract" || opType == "Multiply")
         {
@@ -178,7 +182,8 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
 
             if(opIt->hasAttr("splitStrategy"))
                 splitStrategy = opIt->get<std::string>("splitStrategy");
-
+            auto inputControlFlows = mv::getInputControlFlow(cm, cm.switchContext(opIt));
+            auto outputControlFlows = mv::getOutputControlFlow(cm, cm.switchContext(opIt));
             auto outputDataFlows = mv::getOutputDataFlow(om, opIt);
 
             auto dpuElementWiseFunctor = (dpuTaskMap.at(opType));
@@ -201,11 +206,11 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             dpuElementWise->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
 
             mv::setOutputDataFlow(om, dpuElementWise, outputDataFlows);
+            setInputControlFlow(cm, cm.switchContext(dpuElementWiseOp), inputControlFlows);
+            setOutputControlFlow(cm, cm.switchContext(dpuElementWiseOp), outputControlFlows);
         }
         //TODO: Fully connected
         else
             ++opIt;
     }
 }
-
-

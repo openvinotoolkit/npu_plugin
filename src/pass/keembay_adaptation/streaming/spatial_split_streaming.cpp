@@ -380,6 +380,7 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model, mv::Dat
 mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model, mv::Data::OpListIterator op, Tiling& tiling)
 {
     mv::OpModel om(model);
+    mv::ControlModel cm(model);
 
     //solve SOW/H location
     //TODO:: stop hardcoding index....
@@ -478,7 +479,9 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model, mv::Dat
         slices[split] = slice;
         convs[split] = newTensor;
 
-//        om.defineFlow(kernelTensor,newOp,1); //TODO:: review.
+        bool enableSerialStreaming = true;
+        if ((split > 0) && enableSerialStreaming)
+            cm.defineFlow(om.getSourceOp(convs[split-1]), om.getSourceOp(convs[split]));
     }
 
     // decide on the location of the I/O Tensors of the conv;
