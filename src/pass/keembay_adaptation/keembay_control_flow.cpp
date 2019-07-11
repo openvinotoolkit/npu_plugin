@@ -176,16 +176,45 @@ void layerNumberingFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mo
     assignLayerNumber(cm, firstIteration, initialLayerIndex);
 }
 
+void addTaskControlFlowsAndRecursivelySkipImplicitOperations(mv::OpModel& om, mv::Data::OpListIterator& anchorOp, mv::Data::OpListIterator& exploreOp, bool directionDown)
+{
+    mv::ControlModel cm(om);
+
+    mv::Data::OpListIterator nextOp;
+    if(directionDown)
+        nextOp = exploreOp.leftmostChild();
+    else
+        nextOp = exploreOp.leftmostParent();
+
+    for(; nextOp != om.opEnd(); ++nextOp)
+    {
+        if(!nextOp->hasTypeTrait("executable"))
+            addTaskControlFlowsAndRecursivelySkipImplicitOperations(om, anchorOp, nextOp, directionDown);
+        else
+        {
+            if(directionDown)
+            {
+                if(cm.isFlowAllowedAndNonExisting(anchorOp, nextOp))
+                    cm.defineFlow(anchorOp, nextOp);
+            }
+            else
+            {
+                if(cm.isFlowAllowedAndNonExisting(nextOp, anchorOp))
+                    cm.defineFlow(nextOp, anchorOp);
+            }
+        }
+    }
+}
+
+
 // This pass adds control flows relative to Task.
-// Rationale: Each DMA Task should be connected via a ControlFlow to the same operations he is connected via a DataFlow
+// Rationale: Each Task should be connected via a ControlFlow to the same operations he is connected via a DataFlow
 // But implicit operations (e.g. Constants, Concat, Slice etc) must be skipped and/or avoided
 
 // NOTE: For now, only max two level of implicit operations is handled. In the future we will need a recursive procedure
 void taskControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
     mv::OpModel om(model);
-    mv::ControlModel cm(model);
-    mv::DataModel dm(model);
 
     auto dmaTasks = om.getOps("DMATask");
     auto dpuTasks = om.getOps("DPUTask");
@@ -197,46 +226,7 @@ void taskControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& 
 
     for(auto op : tasks)
     {
-
-        //OUTPUT DATA FLOWS OF THE DMA TASK
-        for(auto son = op.leftmostChild(); son != om.opEnd(); ++son)
-        {
-            if(!son->hasTypeTrait("executable"))
-            {
-                for (auto nephew = son.leftmostChild(); nephew != om.opEnd(); ++nephew)
-                {
-                    // This hack is horrible and should be substituted with a recursive procedure ASAP
-                    if(!nephew->hasTypeTrait("executable"))
-                    {
-                        for(auto protoNephew = nephew.leftmostChild(); protoNephew != om.opEnd(); ++protoNephew)
-                        {
-                            if(cm.isFlowAllowedAndNonExisting(op, protoNephew))
-                                cm.defineFlow(op, protoNephew);
-                        }
-                    }
-                    else if(cm.isFlowAllowedAndNonExisting(op, nephew)) 
-                        cm.defineFlow(op, nephew);
-                }
-            }
-            else if(cm.isFlowAllowedAndNonExisting(op, son))
-                cm.defineFlow(op, son);
-        };
-
-        // INPUT DATA FLOWS OF THE DMA TASK
-        for(auto inputDataFlow = op.leftmostInput(); inputDataFlow != dm.flowEnd(); ++inputDataFlow)
-        {
-            auto source = inputDataFlow.source();
-
-            if(!source->hasTypeTrait("executable"))
-            {   
-                for (auto parent = source.leftmostParent(); parent != om.opEnd(); ++parent)
-                {
-                    if(cm.isFlowAllowedAndNonExisting(parent, op)) 
-                        cm.defineFlow(parent, op);
-                }
-            }
-            else if(cm.isFlowAllowedAndNonExisting(source, op))
-                cm.defineFlow(source, op);
-        }
+        addTaskControlFlowsAndRecursivelySkipImplicitOperations(om, op, op, true);
+        addTaskControlFlowsAndRecursivelySkipImplicitOperations(om, op, op, false);
     }
 }
