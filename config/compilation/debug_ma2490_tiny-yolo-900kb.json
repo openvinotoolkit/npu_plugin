@@ -128,7 +128,7 @@
                         "splits" : [ {"K" : 16} ]
                     },
                     {
-                        "name_filter" : "conv9#48",
+                        "name_filter" : "conv9/conv9#48",
                         "output_location" : "CMX",
                         "splits" : [ {"K" : 2} ]
                     }
