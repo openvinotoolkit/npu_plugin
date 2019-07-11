@@ -66,7 +66,8 @@ void setDpuTasksMemoryLocationFcn(const mv::pass::PassEntry& , mv::ComputationMo
                     auto dpuCopyOut = om.dMATask(output, mv::DmaDirectionEnum::CMX2DDR, outputQuantParams,opIt->getName() + "_copyOut");
                     auto dpuCopyOutOp = om.getSourceOp(dpuCopyOut);
                     dpuCopyOutOp->set<unsigned>("opId", opIt->get<unsigned>("opId"));
-                    dpuCopyOutOp->getOutputTensor(0)->get<mv::QuantizationParams>("quantParams").quantize(outputQuantParams.getShift(), outputQuantParams.getMult());
+                    if(output->hasAttr("quantParams"))
+                        dpuCopyOutOp->getOutputTensor(0)->get<mv::QuantizationParams>("quantParams").quantize(outputQuantParams.getShift(), outputQuantParams.getMult());
 
                     setOutputDataFlow(om, dpuCopyOut, outputDataFlows);
                     dpuCopyOut->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
@@ -81,7 +82,8 @@ void setDpuTasksMemoryLocationFcn(const mv::pass::PassEntry& , mv::ComputationMo
                         inputQuantParams = input->get<mv::QuantizationParams>("quantParams");
                     auto dpuCopyIn = om.dMATask(input, mv::DmaDirectionEnum::DDR2CMX, inputQuantParams, opIt->getName() + "_copyIn");
                     auto dpuCopyInOp = om.getSourceOp(dpuCopyIn);
-                    dpuCopyInOp->getOutputTensor(0)->get<mv::QuantizationParams>("quantParams").quantize(inputQuantParams.getShift(), inputQuantParams.getMult());
+                    if(input->hasAttr("quantParams"))
+                        dpuCopyInOp->getOutputTensor(0)->get<mv::QuantizationParams>("quantParams").quantize(inputQuantParams.getShift(), inputQuantParams.getMult());
 
                     dpuCopyInOp->set<unsigned>("opId", opIt->get<unsigned>("opId"));
 
