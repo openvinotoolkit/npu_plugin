@@ -167,6 +167,9 @@ else()
     add_executable(conv_multiSplit conv_multiSplit.cpp)
     target_link_libraries(conv_multiSplit cm)
 
+    add_executable(tiny_yolo_conv1 tiny_yolo_conv1.cpp)
+    target_link_libraries(tiny_yolo_conv1 cm)
+
     add_executable(conv_multi_pass conv_multi_pass.cpp)
     target_link_libraries(conv_multi_pass cm)
 
