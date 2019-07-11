@@ -80,6 +80,7 @@ void Engine::QueryNetwork(const ICNNNetwork& network, QueryNetworkResult& res) c
 
 void Engine::QueryNetwork(const ICNNNetwork& network, const std::map<std::string, std::string>& config,
                           QueryNetworkResult& res) const {
+    UNUSED(config);
 #ifdef ENABLE_MCM_COMPILER
     std::shared_ptr<mv::CompilationUnit> tmpCompiler =
             std::make_shared<mv::CompilationUnit>(network.getName());
@@ -142,7 +143,7 @@ INFERENCE_PLUGIN_API(StatusCode) CreatePluginEngine(IInferencePlugin *&plugin, R
     std::map<std::string, std::string> config;
 //    config[CONFIG_KEY(LOG_LEVEL)] = CONFIG_VALUE(LOG_DEBUG);
     try {
-        plugin = make_ie_compatible_plugin({1, 6, CI_BUILD_NUMBER, "kmbPlugin"}, std::make_shared<Engine>());
+        plugin = make_ie_compatible_plugin({{1, 6}, CI_BUILD_NUMBER, "kmbPlugin"}, std::make_shared<Engine>());
         return OK;
     }
     catch (std::exception &ex) {

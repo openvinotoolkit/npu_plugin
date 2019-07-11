@@ -15,6 +15,7 @@
 //
 
 #include <frontend_mcm.hpp>
+#include "kmb_config.h"
 
 #include <vector>
 #include <memory>
@@ -53,7 +54,7 @@ static std::unordered_map<int, char> DIM_NAMES({
 template<typename ResultType>
 std::vector<ResultType> packBlobToVector(
         ie::Blob::Ptr blobPtr,
-        int expectedSize) {
+        size_t expectedSize) {
     IE_ASSERT(blobPtr != nullptr);
 
     std::vector<ResultType> blobData(expectedSize, 0);
@@ -65,34 +66,34 @@ std::vector<ResultType> packBlobToVector(
 
     // TODO: add proper layout handling. for now, weights are assumed to have OIYX
     if (blobPrecision == ie::Precision::FP16) {
-        const fp16_t* blobDataFP16 = blobPtr->cbuffer().as<const fp16_t*>();
+        const auto* blobDataFP16 = blobPtr->cbuffer().as<const fp16_t*>();
         IE_ASSERT(blobDataFP16 != nullptr);
 
-        for (int pos = 0; pos < expectedSize; pos++) {
+        for (size_t pos = 0; pos < expectedSize; pos++) {
             ResultType val = ie::PrecisionUtils::f16tof32(blobDataFP16[pos]);
             blobData[pos] = val;
         }
     } else if (blobPrecision == ie::Precision::FP32) {
-        const float* blobDataFP32 = blobPtr->cbuffer().as<const float*>();
+        const auto* blobDataFP32 = blobPtr->cbuffer().as<const float*>();
         IE_ASSERT(blobDataFP32 != nullptr);
 
-        for (int pos = 0; pos < expectedSize; pos++) {
+        for (size_t pos = 0; pos < expectedSize; pos++) {
             ResultType val = blobDataFP32[pos];
             blobData[pos] = val;
         }
     } else if (blobPrecision == ie::Precision::I8) {
-        const int8_t* blobDataI8 = blobPtr->cbuffer().as<const int8_t*>();
+        const auto* blobDataI8 = blobPtr->cbuffer().as<const int8_t*>();
         IE_ASSERT(blobDataI8 != nullptr);
 
-        for (int pos = 0; pos < expectedSize; pos++) {
+        for (size_t pos = 0; pos < expectedSize; pos++) {
             ResultType val = blobDataI8[pos];
             blobData[pos] = val;
         }
     } else if (blobPrecision == ie::Precision::I32) {
-        const int32_t* blobDataI32 = blobPtr->cbuffer().as<const int32_t*>();
+        const auto* blobDataI32 = blobPtr->cbuffer().as<const int32_t*>();
         IE_ASSERT(blobDataI32 != nullptr);
 
-        for (int pos = 0; pos < expectedSize; pos++) {
+        for (size_t pos = 0; pos < expectedSize; pos++) {
             ResultType val = blobDataI32[pos];
             blobData[pos] = val;
         }
@@ -153,8 +154,6 @@ void getOutputScale(const ie::CNNLayerPtr& layer, mv::QuantizationParams &quantP
                     {oScaleDataVector},
                     {mv::utils::generateSequence<double>(oScaleDataVector.size(), -inf, 0)},
                     {mv::utils::generateSequence<double>(oScaleDataVector.size(), inf, 0)}};
-
-    return;
 }
 
 mv::DType convert_data_type(ie::Precision iePrecision) {
@@ -185,6 +184,7 @@ void FrontEndMcm::parseConvolution(
         const mv::OpModel& modelMcm,
         const ie::CNNLayerPtr& layer,
         const McmNodeVector& inputs) {
+    UNUSED(modelMcm);
     const auto& env = CompileEnv::get();
     IE_ASSERT(inputs.size() == 1);
 
@@ -235,7 +235,6 @@ void FrontEndMcm::parseConvolution(
 
     IE_ASSERT(layerOutput != nullptr);
     DataDesc outDesc(layerOutput->getTensorDesc());
-    int biasesSize = outDesc.dim(Dim::C);
     mv::Data::TensorIterator mvConv;
     mv::Data::TensorIterator mvConvOnly;
     mv::Data::TensorIterator mvWeights;
@@ -373,6 +372,7 @@ void FrontEndMcm::parsePooling(
         const mv::OpModel& modelMcm,
         const ie::CNNLayerPtr& layer,
         const McmNodeVector& inputs) {
+    UNUSED(modelMcm);
     const auto& env = CompileEnv::get();
 
     IE_ASSERT(inputs.size() == 1);
@@ -439,6 +439,7 @@ void FrontEndMcm::parseFullyConnected(
         const mv::OpModel& modelMcm,
         const ie::CNNLayerPtr& layer,
         const McmNodeVector& inputs) {
+    UNUSED(modelMcm);
     const auto& env = CompileEnv::get();
 
     IE_ASSERT(inputs.size() == 1);
@@ -554,6 +555,7 @@ void FrontEndMcm::parseReLU(
         const mv::OpModel& modelMcm,
         const ie::CNNLayerPtr& layer,
         const McmNodeVector& inputs) {
+    UNUSED(modelMcm);
     const auto& env = CompileEnv::get();
 
     IE_ASSERT(inputs.size() == 1);
@@ -588,6 +590,7 @@ void FrontEndMcm::parseSoftMax(
         const mv::OpModel& modelMcm,
         const ie::CNNLayerPtr& layer,
         const McmNodeVector& inputs) {
+    UNUSED(modelMcm);
     const auto& env = CompileEnv::get();
 
     IE_ASSERT(inputs.size() == 1);
@@ -616,6 +619,7 @@ void FrontEndMcm::parseNorm(
         const mv::OpModel& modelMcm,
         const ie::CNNLayerPtr& layer,
         const McmNodeVector& inputs) {
+    UNUSED(modelMcm);
     const auto& env = CompileEnv::get();
 
     IE_ASSERT(inputs.size() == 1);
@@ -645,6 +649,7 @@ void FrontEndMcm::parseScale(
         const mv::OpModel& modelMcm,
         const ie::CNNLayerPtr& layer,
         const McmNodeVector& inputs) {
+    UNUSED(modelMcm);
     const auto& env = CompileEnv::get();
 
     IE_ASSERT(inputs.size() == 1);
@@ -702,6 +707,7 @@ void FrontEndMcm::parsePermute(
         const mv::OpModel& modelMcm,
         const ie::CNNLayerPtr& layer,
         const McmNodeVector& inputs) {
+    UNUSED(modelMcm);
     const auto& env = CompileEnv::get();
 
     IE_ASSERT(inputs.size() == 1);
@@ -732,6 +738,7 @@ void FrontEndMcm::parseEltwise(
         const mv::OpModel& modelMcm,
         const ie::CNNLayerPtr& layer,
         const McmNodeVector& inputs) {
+    UNUSED(modelMcm);
     const auto& env = CompileEnv::get();
 
     if (inputs.size() != 2) {
@@ -820,6 +827,7 @@ void FrontEndMcm::parseBias(
         const mv::OpModel& modelMcm,
         const ie::CNNLayerPtr& layer,
         const McmNodeVector& inputs) {
+    UNUSED(modelMcm);
     const auto& env = CompileEnv::get();
 
     mv::Data::TensorIterator mvBias;
@@ -861,6 +869,7 @@ void FrontEndMcm::parseClamp(
         const mv::OpModel& modelMcm,
         const ie::CNNLayerPtr& layer,
         const McmNodeVector& inputs) {
+    UNUSED(modelMcm);
     const auto& env = CompileEnv::get();
 
     IE_ASSERT(inputs.size() == 1);
@@ -885,6 +894,7 @@ void FrontEndMcm::parseReshape(
         const mv::OpModel& modelMcm,
         const ie::CNNLayerPtr& layer,
         const McmNodeVector& inputs) {
+    UNUSED(modelMcm);
     const auto& env = CompileEnv::get();
 
     auto layerOutput = layer->outData[0];
@@ -921,20 +931,21 @@ void FrontEndMcm::parseConcat(
         const mv::OpModel& modelMcm,
         const ie::CNNLayerPtr& layer,
         const McmNodeVector& inputs) {
+    UNUSED(modelMcm);
     const auto& env = CompileEnv::get();
 
     IE_ASSERT(!inputs.empty());
 
     auto clampLayer = std::dynamic_pointer_cast<ie::ConcatLayer>(layer);
     IE_ASSERT(clampLayer != nullptr);
-    IE_ASSERT(clampLayer->_axis < inputs[0]->desc().numDims());
+    IE_ASSERT((int)clampLayer->_axis < inputs[0]->desc().numDims());
 
     std::string mcmAxis;
     mcmAxis = mcmAxis + DIM_NAMES[clampLayer->_axis];
     std::vector<mv::Data::TensorIterator> concatInputs;
 
-    for (size_t i = 0; i < inputs.size(); ++i) {
-        concatInputs.push_back(inputs[i]->getMcmNode());
+    for (const auto & input : inputs) {
+        concatInputs.push_back(input->getMcmNode());
     }
 
     env.log->debug("Concat orig: '%s' from '%s'", clampLayer->name, inputs[0]->getMcmNode()->getName());
@@ -954,6 +965,8 @@ void FrontEndMcm::parseArgMax(
         const mv::OpModel& modelMcm,
         const ie::CNNLayerPtr& layer,
         const McmNodeVector& inputs) {
+    UNUSED(modelMcm);
+    UNUSED(inputs);
     const auto& env = CompileEnv::get();
     env.log->debug("Parsing ArgMax layer %s", layer->name);
     VPU_THROW_EXCEPTION << "ArgMax layer is not supported by kmbPlugin";
@@ -963,6 +976,8 @@ void FrontEndMcm::parseGRN(
         const mv::OpModel& modelMcm,
         const ie::CNNLayerPtr& layer,
         const McmNodeVector& inputs) {
+    UNUSED(modelMcm);
+    UNUSED(inputs);
     const auto& env = CompileEnv::get();
     env.log->debug("Parsing GRN layer %s", layer->name);
     VPU_THROW_EXCEPTION << "GRN layer is not supported by kmbPlugin";
@@ -972,6 +987,8 @@ void FrontEndMcm::parseMVN(
         const mv::OpModel& modelMcm,
         const ie::CNNLayerPtr& layer,
         const McmNodeVector& inputs) {
+    UNUSED(modelMcm);
+    UNUSED(inputs);
     const auto& env = CompileEnv::get();
     env.log->debug("Parsing MVN layer %s", layer->name);
     VPU_THROW_EXCEPTION << "MVN layer is not supported by kmbPlugin";
@@ -981,6 +998,8 @@ void FrontEndMcm::parsePower(
         const mv::OpModel& modelMcm,
         const ie::CNNLayerPtr& layer,
         const McmNodeVector& inputs) {
+    UNUSED(modelMcm);
+    UNUSED(inputs);
     const auto& env = CompileEnv::get();
     env.log->debug("Parsing Power layer %s", layer->name);
     VPU_THROW_EXCEPTION << "Power layer is not supported by kmbPlugin";
@@ -990,6 +1009,8 @@ void FrontEndMcm::parseDetectionOutput(
         const mv::OpModel& modelMcm,
         const ie::CNNLayerPtr& layer,
         const McmNodeVector& inputs) {
+    UNUSED(modelMcm);
+    UNUSED(inputs);
     const auto& env = CompileEnv::get();
     env.log->debug("Parsing DetectionOutput layer %s", layer->name);
     VPU_THROW_EXCEPTION << "DetectionOutput layer is not supported by kmbPlugin";
@@ -999,6 +1020,8 @@ void FrontEndMcm::parseSigmoid(
         const mv::OpModel& modelMcm,
         const ie::CNNLayerPtr& layer,
         const McmNodeVector& inputs) {
+    UNUSED(modelMcm);
+    UNUSED(inputs);
     const auto& env = CompileEnv::get();
     env.log->debug("Parsing Sigmoid layer %s", layer->name);
     VPU_THROW_EXCEPTION << "Sigmoid layer is not supported by kmbPlugin";
@@ -1008,6 +1031,8 @@ void FrontEndMcm::parseTanH(
         const mv::OpModel& modelMcm,
         const ie::CNNLayerPtr& layer,
         const McmNodeVector& inputs) {
+    UNUSED(modelMcm);
+    UNUSED(inputs);
     const auto& env = CompileEnv::get();
     env.log->debug("Parsing TanH layer %s", layer->name);
     VPU_THROW_EXCEPTION << "TanH layer is not supported by kmbPlugin";
@@ -1017,6 +1042,8 @@ void FrontEndMcm::parsePReLU(
         const mv::OpModel& modelMcm,
         const ie::CNNLayerPtr& layer,
         const McmNodeVector& inputs) {
+    UNUSED(modelMcm);
+    UNUSED(inputs);
     const auto& env = CompileEnv::get();
     env.log->debug("Parsing PReLU layer %s", layer->name);
     VPU_THROW_EXCEPTION << "PReLU layer is not supported by kmbPlugin";
@@ -1026,6 +1053,8 @@ void FrontEndMcm::parseBatchNorm(
         const mv::OpModel& modelMcm,
         const ie::CNNLayerPtr& layer,
         const McmNodeVector& inputs) {
+    UNUSED(modelMcm);
+    UNUSED(inputs);
     const auto& env = CompileEnv::get();
     env.log->debug("Parsing PReLU layer %s", layer->name);
     VPU_THROW_EXCEPTION << "PReLU layer is not supported by kmbPlugin";
@@ -1035,6 +1064,8 @@ void FrontEndMcm::parseDeconvolution(
         const mv::OpModel& modelMcm,
         const ie::CNNLayerPtr& layer,
         const McmNodeVector& inputs) {
+    UNUSED(modelMcm);
+    UNUSED(inputs);
     // TODO: Leyer can be with bias
     const auto& env = CompileEnv::get();
     env.log->debug("Parsing Deconvolution( layer %s", layer->name);
@@ -1045,6 +1076,8 @@ void FrontEndMcm::parseCopy(
         const mv::OpModel& modelMcm,
         const ie::CNNLayerPtr& layer,
         const McmNodeVector& inputs) {
+    UNUSED(modelMcm);
+    UNUSED(inputs);
     const auto& env = CompileEnv::get();
     env.log->debug("Parsing Copy layer %s", layer->name);
     VPU_THROW_EXCEPTION << "Copy layer is not supported by kmbPlugin";
@@ -1054,6 +1087,8 @@ void FrontEndMcm::parseELU(
         const mv::OpModel& modelMcm,
         const ie::CNNLayerPtr& layer,
         const McmNodeVector& inputs) {
+    UNUSED(modelMcm);
+    UNUSED(inputs);
     const auto& env = CompileEnv::get();
     env.log->debug("Parsing ELU layer %s", layer->name);
     VPU_THROW_EXCEPTION << "ELU layer is not supported by kmbPlugin";
@@ -1063,6 +1098,8 @@ void FrontEndMcm::parseCrop(
         const mv::OpModel& modelMcm,
         const ie::CNNLayerPtr& layer,
         const McmNodeVector& inputs) {
+    UNUSED(modelMcm);
+    UNUSED(inputs);
     const auto& env = CompileEnv::get();
     env.log->debug("Parsing Crop layer %s", layer->name);
     VPU_THROW_EXCEPTION << "Crop layer is not supported by kmbPlugin";
@@ -1072,6 +1109,8 @@ void FrontEndMcm::parseTile(
         const mv::OpModel& modelMcm,
         const ie::CNNLayerPtr& layer,
         const McmNodeVector& inputs) {
+    UNUSED(modelMcm);
+    UNUSED(inputs);
     const auto& env = CompileEnv::get();
     env.log->debug("Parsing Tile layer %s", layer->name);
     VPU_THROW_EXCEPTION << "Tile layer is not supported by kmbPlugin";
@@ -1081,6 +1120,8 @@ void FrontEndMcm::parseNormalize(
         const mv::OpModel& modelMcm,
         const ie::CNNLayerPtr& layer,
         const McmNodeVector& inputs) {
+    UNUSED(modelMcm);
+    UNUSED(inputs);
     const auto& env = CompileEnv::get();
     env.log->debug("Parsing Normalize layer %s", layer->name);
     VPU_THROW_EXCEPTION << "Normalize layer is not supported by kmbPlugin";
@@ -1090,6 +1131,8 @@ void FrontEndMcm::parseRegionYolo(
         const mv::OpModel& modelMcm,
         const ie::CNNLayerPtr& layer,
         const McmNodeVector& inputs) {
+    UNUSED(modelMcm);
+    UNUSED(inputs);
     const auto& env = CompileEnv::get();
     env.log->debug("Parsing RegionYolo layer %s", layer->name);
     VPU_THROW_EXCEPTION << "RegionYolo layer is not supported by kmbPlugin";
@@ -1099,6 +1142,8 @@ void FrontEndMcm::parseReorgYolo(
         const mv::OpModel& modelMcm,
         const ie::CNNLayerPtr& layer,
         const McmNodeVector& inputs) {
+    UNUSED(modelMcm);
+    UNUSED(inputs);
     const auto& env = CompileEnv::get();
     env.log->debug("Parsing ReorgYolo layer %s", layer->name);
     VPU_THROW_EXCEPTION << "ReorgYolo layer is not supported by kmbPlugin";
@@ -1108,6 +1153,8 @@ void FrontEndMcm::parseCTCDecoder(
         const mv::OpModel& modelMcm,
         const ie::CNNLayerPtr& layer,
         const McmNodeVector& inputs) {
+    UNUSED(modelMcm);
+    UNUSED(inputs);
     const auto& env = CompileEnv::get();
     env.log->debug("Parsing CTCDecoder layer %s", layer->name);
     VPU_THROW_EXCEPTION << "CTCDecoder layer is not supported by kmbPlugin";
@@ -1117,6 +1164,8 @@ void FrontEndMcm::parseInterp(
         const mv::OpModel& modelMcm,
         const ie::CNNLayerPtr& layer,
         const McmNodeVector& inputs) {
+    UNUSED(modelMcm);
+    UNUSED(inputs);
     const auto& env = CompileEnv::get();
     env.log->debug("Parsing Interp layer %s", layer->name);
     VPU_THROW_EXCEPTION << "Interp layer is not supported by kmbPlugin";
@@ -1126,6 +1175,8 @@ void FrontEndMcm::parseProposal(
         const mv::OpModel& modelMcm,
         const ie::CNNLayerPtr& layer,
         const McmNodeVector& inputs) {
+    UNUSED(modelMcm);
+    UNUSED(inputs);
     const auto& env = CompileEnv::get();
     env.log->debug("Parsing Proposal layer %s", layer->name);
     VPU_THROW_EXCEPTION << "Proposal layer is not supported by kmbPlugin";
@@ -1135,6 +1186,8 @@ void FrontEndMcm::parseROIPooling(
         const mv::OpModel& modelMcm,
         const ie::CNNLayerPtr& layer,
         const McmNodeVector& inputs) {
+    UNUSED(modelMcm);
+    UNUSED(inputs);
     const auto& env = CompileEnv::get();
     env.log->debug("Parsing ROIPooling layer %s", layer->name);
     VPU_THROW_EXCEPTION << "ROIPooling layer is not supported by kmbPlugin";
@@ -1144,6 +1197,8 @@ void FrontEndMcm::parsePSROIPooling(
         const mv::OpModel& modelMcm,
         const ie::CNNLayerPtr& layer,
         const McmNodeVector& inputs) {
+    UNUSED(modelMcm);
+    UNUSED(inputs);
     const auto& env = CompileEnv::get();
     env.log->debug("Parsing PSROIPooling layer %s", layer->name);
     VPU_THROW_EXCEPTION << "PSROIPooling layer is not supported by kmbPlugin";
@@ -1153,6 +1208,8 @@ void FrontEndMcm::parseCustom(
         const mv::OpModel& modelMcm,
         const ie::CNNLayerPtr& layer,
         const McmNodeVector& inputs) {
+    UNUSED(modelMcm);
+    UNUSED(inputs);
     const auto& env = CompileEnv::get();
     env.log->debug("Parsing Custom layer %s", layer->name);
     VPU_THROW_EXCEPTION << "Custom layer is not supported by kmbPlugin";
@@ -1162,6 +1219,8 @@ void FrontEndMcm::parseMTCNN(
         const mv::OpModel& modelMcm,
         const ie::CNNLayerPtr& layer,
         const McmNodeVector& inputs) {
+    UNUSED(modelMcm);
+    UNUSED(inputs);
     const auto& env = CompileEnv::get();
     env.log->debug("Parsing MTCNN layer %s", layer->name);
     VPU_THROW_EXCEPTION << "MTCNN layer is not supported by kmbPlugin";
@@ -1171,6 +1230,8 @@ void FrontEndMcm::parsePad(
         const mv::OpModel& modelMcm,
         const ie::CNNLayerPtr& layer,
         const McmNodeVector& inputs) {
+    UNUSED(modelMcm);
+    UNUSED(inputs);
     const auto& env = CompileEnv::get();
     env.log->debug("Parsing Pad layer %s", layer->name);
     VPU_THROW_EXCEPTION << "Pad layer is not supported by kmbPlugin";
@@ -1180,6 +1241,8 @@ void FrontEndMcm::parseResample(
         const mv::OpModel& modelMcm,
         const ie::CNNLayerPtr& layer,
         const McmNodeVector& inputs) {
+    UNUSED(modelMcm);
+    UNUSED(inputs);
     const auto& env = CompileEnv::get();
     env.log->debug("Parsing Resample layer %s", layer->name);
     VPU_THROW_EXCEPTION << "Resample layer is not supported by kmbPlugin";
@@ -1189,6 +1252,8 @@ void FrontEndMcm::parseLSTMCell(
         const mv::OpModel& modelMcm,
         const ie::CNNLayerPtr& layer,
         const McmNodeVector& inputs) {
+    UNUSED(modelMcm);
+    UNUSED(inputs);
     const auto& env = CompileEnv::get();
     env.log->debug("Parsing LSTMCell layer %s", layer->name);
     VPU_THROW_EXCEPTION << "LSTMCell layer is not supported by kmbPlugin";
@@ -1198,6 +1263,8 @@ void FrontEndMcm::parsePriorBox(
         const mv::OpModel& modelMcm,
         const ie::CNNLayerPtr& layer,
         const McmNodeVector& inputs) {
+    UNUSED(modelMcm);
+    UNUSED(inputs);
     const auto& env = CompileEnv::get();
     env.log->debug("Parsing PriorBox layer %s", layer->name);
     VPU_THROW_EXCEPTION << "PriorBox layer is not supported by kmbPlugin";
@@ -1207,6 +1274,8 @@ void FrontEndMcm::parsePriorBoxClustered(
         const mv::OpModel& modelMcm,
         const ie::CNNLayerPtr& layer,
         const McmNodeVector& inputs) {
+    UNUSED(modelMcm);
+    UNUSED(inputs);
     const auto& env = CompileEnv::get();
     env.log->debug("Parsing PriorBoxClustered layer %s", layer->name);
     VPU_THROW_EXCEPTION << "PriorBoxClustered layer is not supported by kmbPlugin";
@@ -1216,6 +1285,8 @@ void FrontEndMcm::parseSplit(
         const mv::OpModel& modelMcm,
         const ie::CNNLayerPtr& layer,
         const McmNodeVector& inputs) {
+    UNUSED(modelMcm);
+    UNUSED(inputs);
     const auto& env = CompileEnv::get();
     env.log->debug("Parsing Split layer %s", layer->name);
     VPU_THROW_EXCEPTION << "Split layer is not supported by kmbPlugin";
