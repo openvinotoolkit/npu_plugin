@@ -95,7 +95,7 @@
                     {
                         "name_filter" : "pool1/max_pool#35",
                         "output_location" : "CMX",
-                        "splits" : [ {"H" : 2} ]
+                        "splits" : [ {"H" : 4} ]
                     },
                     {
                         "name_filter" : "conv2#36",
