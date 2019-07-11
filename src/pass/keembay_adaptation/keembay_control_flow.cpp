@@ -176,33 +176,29 @@ void layerNumberingFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mo
     assignLayerNumber(cm, firstIteration, initialLayerIndex);
 }
 
-void addTaskControlFlowsAndRecursivelySkipImplicitOperations(mv::OpModel& om, mv::Data::OpListIterator& anchorOp, mv::Data::OpListIterator& exploreOp, bool directionDown)
+void addTaskControlFlowsAndRecursivelySkipImplicitOperationsDown(mv::OpModel& om, mv::Data::OpListIterator anchorOp, mv::Data::OpListIterator exploreOp)
 {
     mv::ControlModel cm(om);
 
-    mv::Data::OpListIterator nextOp;
-    if(directionDown)
-        nextOp = exploreOp.leftmostChild();
-    else
-        nextOp = exploreOp.leftmostParent();
-
-    for(; nextOp != om.opEnd(); ++nextOp)
+    for(auto nextOp = exploreOp.leftmostChild(); nextOp != om.opEnd(); ++nextOp)
     {
         if(!nextOp->hasTypeTrait("executable"))
-            addTaskControlFlowsAndRecursivelySkipImplicitOperations(om, anchorOp, nextOp, directionDown);
-        else
-        {
-            if(directionDown)
-            {
-                if(cm.isFlowAllowedAndNonExisting(anchorOp, nextOp))
-                    cm.defineFlow(anchorOp, nextOp);
-            }
-            else
-            {
-                if(cm.isFlowAllowedAndNonExisting(nextOp, anchorOp))
-                    cm.defineFlow(nextOp, anchorOp);
-            }
-        }
+            addTaskControlFlowsAndRecursivelySkipImplicitOperationsDown(om, anchorOp, nextOp);
+        else if(cm.isFlowAllowedAndNonExisting(anchorOp, nextOp))
+            cm.defineFlow(anchorOp, nextOp);
+    }
+}
+
+void addTaskControlFlowsAndRecursivelySkipImplicitOperationsUp(mv::OpModel& om, mv::Data::OpListIterator anchorOp, mv::Data::OpListIterator exploreOp)
+{
+    mv::ControlModel cm(om);
+
+    for(auto nextOp = exploreOp.leftmostParent(); nextOp != om.opEnd(); ++nextOp)
+    {
+        if(!nextOp->hasTypeTrait("executable"))
+            addTaskControlFlowsAndRecursivelySkipImplicitOperationsUp(om, anchorOp, nextOp);
+        else if(cm.isFlowAllowedAndNonExisting(nextOp, anchorOp))
+            cm.defineFlow(nextOp, anchorOp);
     }
 }
 
@@ -226,7 +222,7 @@ void taskControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& 
 
     for(auto op : tasks)
     {
-        addTaskControlFlowsAndRecursivelySkipImplicitOperations(om, op, op, true);
-        addTaskControlFlowsAndRecursivelySkipImplicitOperations(om, op, op, false);
+        addTaskControlFlowsAndRecursivelySkipImplicitOperationsDown(om, op, op);
+        addTaskControlFlowsAndRecursivelySkipImplicitOperationsUp(om, op, op);
     }
 }
