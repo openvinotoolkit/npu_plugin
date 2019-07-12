@@ -282,7 +282,7 @@ protected:
     std::string pluginName = "kmbPlugin";
 };
 
-TEST_F(VpuNoRegressionInference, canDoInferenceOnImportedBlob) {
+TEST_F(VpuNoRegressionInference, DISABLED_canDoInferenceOnImportedBlob) {  // To be run in manual mode when device is available
     std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/TwoFramesConvolution/conv.blob";
 
     Core ie;
@@ -298,7 +298,7 @@ TEST_F(VpuNoRegressionInference, canDoInferenceOnImportedBlob) {
 
 using VpuInferAndCompareTests = vpuLayersTests;
 
-TEST_F(VpuInferAndCompareTests, compareInferenceOutputWithReference) {
+TEST_F(VpuInferAndCompareTests, DISABLED_compareInferenceOutputWithReference) {  // To be run in manual mode when device is available
     std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/SingleConvolutionFP16/SingleConv.blob";
 
     Core ie;

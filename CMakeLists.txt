@@ -36,11 +36,7 @@ endif()
 
 # Enable vpualHost by default if target is arm, disable otherwise
 if(NOT DEFINED ENABLE_VPUAL)
-    if(${CMAKE_SYSTEM_PROCESSOR} STREQUAL "aarch64")
-        set(ENABLE_VPUAL ON)
-    else()
-        set(ENABLE_VPUAL OFF)
-    endif()
+    set(ENABLE_VPUAL ON)
 endif()
 
 add_subdirectory(src/kmb_plugin)
