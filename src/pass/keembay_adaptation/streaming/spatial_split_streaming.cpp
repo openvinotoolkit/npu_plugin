@@ -628,19 +628,15 @@ void generateSpatialTiling(mv::Data::OpListIterator op,Tiling& tiling, std::vect
         else
             tileSize[axisToSplit] = inferInputSize(remainderOutputSize,0,0,kernelSize,kernelStride);
 
-        if (split == 0)
-        {
-            //startCoord += tileSize[axisToSplit] - (inferInputSize(newOutputSize,0,0,kernelSize,kernelStride) - tileSize[axisToSplit]);
-            startCoord += newOutputSize - (inferInputSize(newOutputSize,0,0,kernelSize,kernelStride) - tileSize[axisToSplit]);
-        }
-        else
-        {
-            //startCoord += tileSize[axisToSplit];
-            startCoord += newOutputSize;
-        }
-
         Tiling newTile(tileStart, tileSize);
         tiling.setChildTile(newTile, split);
+
+        // Compute start coordinates for the next tile
+        // TODO: compute correct formula.
+        if (split == 0)
+            startCoord += newOutputSize * kernelStride - (inferInputSize(newOutputSize,0,0,kernelSize,kernelStride) - tileSize[axisToSplit]);
+        else
+            startCoord += newOutputSize * kernelStride;
     }
 
     nesting++;
