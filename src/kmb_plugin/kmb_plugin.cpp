@@ -102,6 +102,9 @@ void Engine::QueryNetwork(const ICNNNetwork& network, const std::map<std::string
     IE_SUPPRESS_DEPRECATED_START
     res.supportedLayers.insert(layerNames.begin(), layerNames.end());
     IE_SUPPRESS_DEPRECATED_END
+#else
+    UNUSED(network);
+    UNUSED(res);
 #endif
 }
 

@@ -52,7 +52,7 @@ struct KmbCmaData {
     KmbCmaData() : fd(-1), buf(nullptr), phys_addr(0), size(0) {}
     ~KmbCmaData();
     static const int pageSize;
-    static const int getPageSize() { return pageSize; }
+    static int getPageSize() { return pageSize; }
 };
 #endif
 
@@ -63,6 +63,7 @@ class KmbExecutor {
     std::shared_ptr<GraphManagerPlg> gg;
     std::shared_ptr<PlgTensorSource> plgTensorInput_;
     std::shared_ptr<PlgStreamResult> plgTensorOutput_;
+    std::shared_ptr<RgnAllocator> RgnAlloc;
 
     std::shared_ptr<NNFlicPlg> nnPl;
 
@@ -80,6 +81,7 @@ class KmbExecutor {
     DataInfo m_inputInfo;
     DataInfo m_outputInfo;
     std::shared_ptr<KmbAllocator> allocator;
+    void initVpualObjects();
 
 public:
 #ifdef ENABLE_VPUAL

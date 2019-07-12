@@ -66,6 +66,8 @@ std::string readFromFile(const std::string & filePath) {
 
 TEST(kmbVPUALHostIntegrationTests, sendBlobToLeon) {
     const int nThreads = 4, nShaves = 16;
+    RgnAllocator  RgnAlloc;
+    HeapAllocator HeapAlloc;
 
 #if (!defined INTEGRATION_TESTS_ENABLE_IE && defined INTEGRATION_TESTS_BLOB_FILE)
     std::string blobFilePath = INTEGRATION_TESTS_BLOB_FILE;
