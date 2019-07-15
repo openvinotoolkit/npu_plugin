@@ -136,6 +136,9 @@ void hangingDmaControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationM
             // At this point (see assumption above) each DMA has at least one output control flow
             // We take the minimum layer number required by operations using this data
 
+            std::vector<mv::Control::OpListIterator> targets;
+            targets.push_back(dma);
+
             // HACK: Horrible hack because apparentely we have problem in assigning iterators
             unsigned sonWithMinimumLayerInvolvedIndex = 0;
             unsigned minimumLayerInvolved = dma.leftmostChild()->get<unsigned>("layerNumber");
@@ -156,6 +159,10 @@ void hangingDmaControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationM
             for(unsigned j = 0; j < sonWithMinimumLayerInvolvedIndex; ++j)
                 ++sonWithMinimumLayerInvolved;
 
+            for(unsigned j = 0; j < sonWithMinimumLayerInvolved.inputsSize(); ++j)
+                if(!sonWithMinimumLayerInvolved->getInputTensor(j)->isPopulated())
+                    targets.push_back(cm.switchContext(om.getSourceOp(sonWithMinimumLayerInvolved->getInputTensor(j))));
+
             // Now based on the prefetch we have to start from the sonWithMinimumLayerInvolved and go back prefetch layers
             for(auto positionInTopologicalSort = std::find(sortedOps.rbegin(), sortedOps.rend(), sonWithMinimumLayerInvolved); positionInTopologicalSort != sortedOps.rend(); ++positionInTopologicalSort)
             {
@@ -169,7 +176,8 @@ void hangingDmaControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationM
                 // 1) The difference in terms of layersNumber has to be EXACTLY _dma_dependency
                 // 2) There has to be a dependency between preceedingOp and the sonWithMinimumLayerInvolved (preeceding op could be on a parallel branch)
                 if(minimumLayerInvolved - preceedingOpLayerNumber == _dma_dependency && cm.pathExists(preceedingOp, sonWithMinimumLayerInvolved))
-                    flowsToAdd.push_back(std::make_pair(preceedingOp, dma));
+                    for(auto& target : targets)
+                        flowsToAdd.push_back(std::make_pair(preceedingOp, target));
 
             }
         }
