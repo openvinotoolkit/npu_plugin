@@ -19,6 +19,8 @@
 #include <sys/mman.h>
 #include <cstring>
 #include <fstream>
+#include <stdexcept>
+#include <memory>
 
 #include "NNFlicPlg.h"
 #include "GraphManagerPlg.h"
@@ -26,6 +28,11 @@
 #include "PlgStreamResult.h"
 
 #include "vpusmm.h"
+
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+
 
 #ifdef INTEGRATION_TESTS_ENABLE_IE
 #include "test_model_path.hpp"
@@ -64,10 +71,164 @@ std::string readFromFile(const std::string & filePath) {
     return fileContentStream.str();
 }
 
-TEST(kmbVPUALHostIntegrationTests, sendBlobToLeon) {
+class IMemoryAllocator {
+public:
+    virtual ~IMemoryAllocator() {}
+    virtual unsigned char* getVirtualAddress() = 0;
+    virtual unsigned long getPhysicalAddress() = 0;
+};
+
+class UdmaAllocator : public IMemoryAllocator {
+public:
+    UdmaAllocator(size_t requestedSize);
+    virtual ~UdmaAllocator();
+    unsigned char* getVirtualAddress() { return _buf; }
+    unsigned long getPhysicalAddress() { return _phys_addr; }
+private:
+    int _fd;
+    unsigned char* _buf;
+    unsigned long _phys_addr;
+    unsigned int _size;
+    static int _bufferCount;
+};
+
+int UdmaAllocator::_bufferCount = 0;
+
+UdmaAllocator::UdmaAllocator(size_t requestedSize) {
+    std::ostringstream bufferNameStream;
+    bufferNameStream << "udmabuf" << _bufferCount;
+    const std::string bufname = bufferNameStream.str();
+    const std::string udmabufdevname = "/dev/" + bufname;
+    const std::string udmabufsize = "/sys/class/udmabuf/" +  bufname + "/size";
+    const std::string udmabufphysaddr = "/sys/class/udmabuf/" + bufname + "/phys_addr";
+    const std::string udmabufclassname = "/sys/class/udmabuf/" + bufname + "/sync_mode";
+
+    // Set the sync mode.
+    const std::string SYNC_MODE_STR = "3";
+    int devFileDesc = -1;
+    if ((devFileDesc  = open(udmabufclassname.c_str(), O_WRONLY)) != -1) {
+        size_t bytesWritten = write(devFileDesc, SYNC_MODE_STR.c_str(), SYNC_MODE_STR.size());
+        close(devFileDesc);
+    } else {
+        throw std::runtime_error("UdmaAllocator::UdmaAllocator No Device: " + udmabufclassname);
+    }
+
+    _size = requestedSize;
+    // Get the size of the region.
+    int bufSizeFileDesc = -1;
+    if ((bufSizeFileDesc  = open(udmabufsize.c_str(), O_RDONLY)) != -1) {
+        const std::size_t maxRegionSizeLength = 1024;
+        std::string regionSizeString(maxRegionSizeLength, 0x0);
+
+        size_t bytesRead = read(bufSizeFileDesc, &regionSizeString[0], maxRegionSizeLength);
+        std::istringstream regionStringToInt(regionSizeString);
+        regionStringToInt >> _size;
+        close(bufSizeFileDesc);
+    } else {
+        throw std::runtime_error("UdmaAllocator::UdmaAllocator No Device: " + udmabufsize);
+    }
+
+    // Get the physical address of the region.
+    int physAddrFileDesc = -1;
+    if ((physAddrFileDesc  = open(udmabufphysaddr.c_str(), O_RDONLY)) != -1) {
+        const std::size_t maxPhysAddrLength = 1024;
+        std::string physAddrString(maxPhysAddrLength, 0x0);
+
+        size_t bytesRead = read(physAddrFileDesc, &physAddrString[0], maxPhysAddrLength);
+        std::istringstream physAddrToHex(physAddrString);
+        physAddrToHex >> std::hex >> _phys_addr;
+        close(physAddrFileDesc);
+    } else {
+        throw std::runtime_error("UdmaAllocator::UdmaAllocator No Device: " + udmabufphysaddr);
+    }
+
+    // Map a virtual address which we can use to the region.
+    // O_SYNC is important to ensure our data is written through the cache.
+    if ((_fd  = open(udmabufdevname.c_str(), O_RDWR | O_SYNC)) != -1) {
+        _buf = static_cast<unsigned char*>(mmap(nullptr, _size, PROT_READ|PROT_WRITE, MAP_SHARED, _fd, 0));
+    } else {
+        throw std::runtime_error("UdmaAllocator::UdmaAllocator No Device: " + udmabufdevname);
+    }
+
+    _bufferCount++;
+}
+
+UdmaAllocator::~UdmaAllocator() {
+    munmap(_buf, _size);
+    close(_fd);
+}
+
+class VpusmmAllocator : public IMemoryAllocator {
+public:
+    VpusmmAllocator(size_t requestedSize);
+    virtual ~VpusmmAllocator();
+    unsigned char* getVirtualAddress() { return _virtAddr; }
+    unsigned long getPhysicalAddress() { return _physAddr; }
+private:
+    int _fileDesc;
+    unsigned char* _virtAddr;
+    unsigned long _physAddr;
+    unsigned int _allocSize;
+    static int _pageSize;
+};
+
+int VpusmmAllocator::_pageSize = getpagesize();
+
+VpusmmAllocator::VpusmmAllocator(size_t requestedSize) {
+    const uint32_t requiredBlobSize = calculateRequiredSize(requestedSize, _pageSize);
+    _fileDesc = vpusmm_alloc_dmabuf(requiredBlobSize, VPUSMMTYPE_NON_COHERENT);
+    if (_fileDesc < 0) {
+        throw std::runtime_error("VpusmmAllocator::VpusmmAllocator: vpusmm_alloc_dmabuf failed");
+    }
+
+    _physAddr = vpusmm_import_dmabuf(_fileDesc, DMA_BIDIRECTIONAL);
+    if (_physAddr == 0) {
+        throw std::runtime_error("VpusmmAllocator::VpusmmAllocator: vpusmm_import_dmabuf failed");
+    }
+
+    _virtAddr = static_cast<unsigned char*>(mmap(0, requiredBlobSize, PROT_READ|PROT_WRITE, MAP_SHARED, _fileDesc, 0));
+    if (_virtAddr == MAP_FAILED) {
+        throw std::runtime_error("VpusmmAllocator::VpusmmAllocator: mmap failed");
+    }
+    _allocSize = requiredBlobSize;
+}
+
+VpusmmAllocator::~VpusmmAllocator() {
+    vpusmm_unimport_dmabuf(_fileDesc);
+    munmap(_virtAddr, _allocSize);
+    close(_fileDesc);
+}
+
+enum memoryAllocatorType {
+    MA_UDMA, MA_VPUSMM
+};
+
+std::shared_ptr<IMemoryAllocator> buildMemoryAllocator(memoryAllocatorType type, size_t memSize) {
+    std::shared_ptr<IMemoryAllocator> resultAllocator(nullptr);
+    switch (type) {
+    case MA_UDMA:
+        resultAllocator = std::make_shared<UdmaAllocator>(memSize);
+        break;
+    case MA_VPUSMM:
+        resultAllocator = std::make_shared<VpusmmAllocator>(memSize);
+        break;
+    default:
+        throw std::runtime_error("buildMemoryAllocator: invalid allocator type");
+    }
+    return resultAllocator;
+}
+
+template<class T>
+class kmbVPUALTestsWithParam : public testing::Test,
+                               public testing::WithParamInterface<T>
+{};
+
+typedef kmbVPUALTestsWithParam<memoryAllocatorType> kmbVPUALAllocTests;
+
+TEST_P(kmbVPUALAllocTests, sendBlobToLeonViaDifferentAllocators) {
+    memoryAllocatorType allocatorType = GetParam();
     const int nThreads = 4, nShaves = 16;
-    RgnAllocator  RgnAlloc;
-    HeapAllocator HeapAlloc;
+    RgnAllocator RgnAlloc;
 
 #if (!defined INTEGRATION_TESTS_ENABLE_IE && defined INTEGRATION_TESTS_BLOB_FILE)
     std::string blobFilePath = INTEGRATION_TESTS_BLOB_FILE;
@@ -96,40 +257,25 @@ TEST(kmbVPUALHostIntegrationTests, sendBlobToLeon) {
     // ########################################################################
     // Try and get some CMA allocations.
     // ########################################################################
+    std::shared_ptr<IMemoryAllocator> blob_file(nullptr);
+    ASSERT_NO_THROW(blob_file = buildMemoryAllocator(allocatorType, blobSize));
 
-    const int pageSize = getpagesize();
-    const uint32_t requiredBlobSize = calculateRequiredSize(blobSize, pageSize);
-    int blobFileDesc = vpusmm_alloc_dmabuf(requiredBlobSize, VPUSMMTYPE_NON_COHERENT);
-    ASSERT_GE(blobFileDesc, 0);
-
-    unsigned long blobPhysAddr = vpusmm_import_dmabuf(blobFileDesc, DMA_BIDIRECTIONAL);
-    ASSERT_NE(blobPhysAddr, 0);
-
-    void * blobFileData = mmap(0, requiredBlobSize, PROT_READ|PROT_WRITE, MAP_SHARED, blobFileDesc, 0);
-    ASSERT_NE(blobFileData, MAP_FAILED);
+    unsigned long blobPhysAddr = blob_file->getPhysicalAddress();
+    void * blobFileData = blob_file->getVirtualAddress();
 
     const uint32_t tensorInSize = inputTensorRawData.size();
-    const uint32_t requiredTensorInSize = calculateRequiredSize(tensorInSize, pageSize);
+    std::shared_ptr<IMemoryAllocator> input_tensor(nullptr);
+    ASSERT_NO_THROW(input_tensor = buildMemoryAllocator(allocatorType, tensorInSize));
 
-    int tensorInFileDesc = vpusmm_alloc_dmabuf(requiredTensorInSize, VPUSMMTYPE_NON_COHERENT);
-    ASSERT_GE(tensorInFileDesc, 0);
-
-    unsigned long tensorInPhysAddr = vpusmm_import_dmabuf(tensorInFileDesc, DMA_BIDIRECTIONAL);
-    ASSERT_NE(tensorInPhysAddr, 0);
-
-    void * inputTensorData = mmap(0, requiredTensorInSize, PROT_READ|PROT_WRITE, MAP_SHARED, tensorInFileDesc, 0);
-    ASSERT_NE(inputTensorData, MAP_FAILED);
+    unsigned long tensorInPhysAddr = input_tensor->getPhysicalAddress();
+    void * inputTensorData = input_tensor->getVirtualAddress();
 
     const uint32_t tensorOutSize = inputTensorRawData.size();
-    const uint32_t requiredTensorOutSize = calculateRequiredSize(tensorOutSize, pageSize);
-    int tensorOutFileDesc = vpusmm_alloc_dmabuf(requiredTensorOutSize, VPUSMMTYPE_NON_COHERENT);
-    ASSERT_GE(tensorOutFileDesc, 0);
+    std::shared_ptr<IMemoryAllocator> output_tensor(nullptr);
+    ASSERT_NO_THROW(output_tensor = buildMemoryAllocator(allocatorType, tensorOutSize));
 
-    unsigned long tensorOutPhysAddr = vpusmm_import_dmabuf(tensorOutFileDesc, DMA_BIDIRECTIONAL);
-    ASSERT_NE(tensorOutPhysAddr, 0);
-
-    void * outputTensorData = mmap(0, requiredTensorOutSize, PROT_READ|PROT_WRITE, MAP_SHARED, tensorOutFileDesc, 0);
-    ASSERT_NE(outputTensorData, MAP_FAILED);
+    unsigned long tensorOutPhysAddr = output_tensor->getPhysicalAddress();
+    void * outputTensorData = output_tensor->getVirtualAddress();
 
     // ########################################################################
     // Load the input files
@@ -232,19 +378,15 @@ TEST(kmbVPUALHostIntegrationTests, sendBlobToLeon) {
     pipe.Stop();
     pipe.Delete();
     RgnAlloc.Delete();
-
-    vpusmm_unimport_dmabuf(tensorOutFileDesc);
-    munmap(outputTensorData, requiredTensorOutSize);
-    close(tensorOutFileDesc);
-
-    vpusmm_unimport_dmabuf(tensorInFileDesc);
-    munmap(inputTensorData, requiredTensorInSize);
-    close(tensorInFileDesc);
-
-    vpusmm_unimport_dmabuf(blobFileDesc);
-    munmap(blobFileData, requiredBlobSize);
-    close(blobFileDesc);
 }
+
+const static std::vector<memoryAllocatorType> allocatorTypes = {
+    MA_UDMA, MA_VPUSMM
+};
+
+INSTANTIATE_TEST_CASE_P(sendBlob, kmbVPUALAllocTests,
+    ::testing::ValuesIn(allocatorTypes)
+);
 
 #ifndef INTEGRATION_TESTS_ENABLE_IE
 int main(int argc, char * argv[]) {
