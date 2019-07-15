@@ -341,4 +341,73 @@ TEST_F(VpuInferAndCompareTests, DISABLED_compareInferenceOutputWithReference) { 
         Compare(referenceOutputBlob, outputBlob, 0.125f);
     }
 }
+
+TEST_F(VpuInferAndCompareTests, DISABLED_multipleAsyncInferRequests) {
+    std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/SingleConvolutionFP16/SingleConv.blob";
+
+    Core ie;
+    InferenceEngine::IExecutableNetwork::Ptr importedNetworkPtr = ie.ImportNetwork(modelFilePath, "KMB", {});
+    ASSERT_NE(nullptr, importedNetworkPtr);
+
+    ResponseDesc resp;
+
+    std::list<InferenceEngine::IInferRequest::Ptr> requestList;
+    const int REQUEST_LIMIT = 10;
+    for (int requestCount = 0; requestCount < REQUEST_LIMIT; requestCount++) {
+        InferenceEngine::IInferRequest::Ptr inferRequest;
+        ASSERT_EQ(StatusCode::OK, importedNetworkPtr->CreateInferRequest(inferRequest, &resp)) << resp.msg;
+        requestList.push_back(inferRequest);
+    }
+
+    std::string inputFilePath = ModelsPath() + "/KMB_models/BLOBS/SingleConvolutionFP16/input.bin";
+
+    ConstInputsDataMap inputInfo;
+    importedNetworkPtr->GetInputsInfo(inputInfo, &resp);
+
+    for (auto & item : inputInfo) {
+        for(InferenceEngine::IInferRequest::Ptr & currentRequest : requestList) {
+            Blob::Ptr inputBlob;
+            currentRequest->GetBlob(item.first.c_str(), inputBlob, &resp);
+            ASSERT_TRUE(fromBinaryFile(inputFilePath, inputBlob));
+        }
+    }
+
+    const int MAX_WAIT = 60000;
+    auto requestRoutine = [](InferenceEngine::IInferRequest::Ptr requestPtr)->void {
+        ResponseDesc response;
+        ASSERT_EQ(StatusCode::OK, requestPtr->StartAsync(&response)) << response.msg;
+        ASSERT_EQ(StatusCode::OK, requestPtr->Wait(MAX_WAIT, &response)) << response.msg;
+    };
+
+    std::list<std::thread> requestThreadList;
+    for (InferenceEngine::IInferRequest::Ptr & currentRequest : requestList) {
+        requestThreadList.push_back(std::thread(requestRoutine, currentRequest));
+    }
+
+    for (std::thread & requestThread : requestThreadList) {
+        requestThread.join();
+    }
+
+    ConstOutputsDataMap outputInfo;
+    importedNetworkPtr->GetOutputsInfo(outputInfo, &resp);
+
+    std::string referenceOutputFilePath = ModelsPath() + "/KMB_models/BLOBS/SingleConvolutionFP16/output.bin";
+    for (auto & item : outputInfo) {
+        for (InferenceEngine::IInferRequest::Ptr & inferRequest : requestList) {
+            Blob::Ptr outputBlob;
+            inferRequest->GetBlob(item.first.c_str(), outputBlob, &resp);
+
+            TensorDesc outputBlobTensorDesc = outputBlob->getTensorDesc();
+            Blob::Ptr referenceOutputBlob = make_blob_with_precision(TensorDesc(
+                outputBlobTensorDesc.getPrecision(),
+                outputBlobTensorDesc.getDims(),
+                outputBlobTensorDesc.getLayout()));
+            referenceOutputBlob->allocate();
+
+            ASSERT_TRUE(fromBinaryFile(referenceOutputFilePath, referenceOutputBlob));
+
+            Compare(referenceOutputBlob, outputBlob, 0.125f);
+        }
+    }
+}
 #endif
