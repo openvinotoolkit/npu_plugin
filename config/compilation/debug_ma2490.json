@@ -330,6 +330,7 @@
                 "name": "ConvertDot",
                 "input": "output/dots/cmx2DDRControlFlows.dot"
             },
+            "ActivationTensorsControlFlows",
             "AddDeallocationTasks",
             {
                 "name": "GenerateDot",

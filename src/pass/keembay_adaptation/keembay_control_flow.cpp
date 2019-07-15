@@ -8,6 +8,7 @@ static void taskControlFlowsFcn(const mv::pass::PassEntry& pass, mv::Computation
 static void hangingDmaControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&passDesc, mv::json::Object&);
 static void cmx2DDRControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&passDesc, mv::json::Object&);
 static void layerNumberingFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&passDesc, mv::json::Object&);
+static void activationTensorsControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&passDesc, mv::json::Object&);
 
 namespace mv
 {
@@ -39,7 +40,43 @@ namespace mv
             ""
         );
 
+        MV_REGISTER_PASS(ActivationTensorsControlFlows)
+        .setFunc(activationTensorsControlFlowsFcn)
+        .setDescription(
+            ""
+        );
+
     }
+}
+
+// NOTE: This pass makes sense only when hanging dmas have been solved
+// and assign layer number has been rerun
+
+// Logic: Activation tensors involved in DPU task should be dependent on the previous operation executed
+void activationTensorsControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&passDesc, mv::json::Object&)
+{
+
+    mv::OpModel om(model);
+    mv::ControlModel cm(model);
+
+    auto dpus = om.getOps("DPUTask");
+
+    std::vector<std::pair<mv::Control::OpListIterator, mv::Control::OpListIterator>> flowsToAdd;
+
+    for(auto& dpu: dpus)
+    {
+        for(int i = 0; i < dpu.inputsSize(); ++i)
+        {
+            auto inputTensor = dpu->getInputTensor(i);
+            if(!inputTensor->isPopulated())
+                flowsToAdd.push_back(std::make_pair(cm.switchContext(dpu).leftmostParent(), cm.switchContext(om.getSourceOp(inputTensor))));
+        }
+    }
+
+    for(auto& flow : flowsToAdd)
+        if(cm.isFlowAllowedAndNonExisting(flow.first, flow.second))
+            cm.defineFlow(flow.first, flow.second);
+
 }
 
 // NOTE: This pass makes sense only when hanging dmas have been solved
