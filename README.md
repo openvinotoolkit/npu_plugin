@@ -43,9 +43,7 @@ Install python-numpy with command:
 
 Install metis with command: 
 
-* sudo wget "http://nnt-srv01.inn.intel.com/builds/inference_engine/vpu_kmb_for_mcm/metis-5.1.0.tar.gz" -O "/tmp/metis-5.1.0.tar.gz" && cd /tmp && 
-tar -xzf /tmp/metis-5.1.0.tar.gz && (cd "/tmp/metis-5.1.0" && make config && make -j4 && make install) && rm -r /tmp/\*
-
+* sudo apt install libmetis-dev libmetis5 metis
 
 3. Move to dldt base directory and make some building with commands:
 
