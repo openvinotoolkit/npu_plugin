@@ -159,9 +159,9 @@ void hangingDmaControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationM
             for(unsigned j = 0; j < sonWithMinimumLayerInvolvedIndex; ++j)
                 ++sonWithMinimumLayerInvolved;
 
-            for(unsigned j = 0; j < sonWithMinimumLayerInvolved.inputsSize(); ++j)
-                if(!sonWithMinimumLayerInvolved->getInputTensor(j)->isPopulated())
-                    targets.push_back(cm.switchContext(om.getSourceOp(sonWithMinimumLayerInvolved->getInputTensor(j))));
+            //Except for eltwise input tensor is always at index 0 
+            if(!sonWithMinimumLayerInvolved->getInputTensor(0)->isPopulated())
+                targets.push_back(cm.switchContext(om.getSourceOp(sonWithMinimumLayerInvolved->getInputTensor(0))));
 
             // Now based on the prefetch we have to start from the sonWithMinimumLayerInvolved and go back prefetch layers
             for(auto positionInTopologicalSort = std::find(sortedOps.rbegin(), sortedOps.rend(), sonWithMinimumLayerInvolved); positionInTopologicalSort != sortedOps.rend(); ++positionInTopologicalSort)
