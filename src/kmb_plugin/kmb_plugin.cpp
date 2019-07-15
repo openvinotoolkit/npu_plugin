@@ -31,12 +31,6 @@ using namespace vpu::KmbPlugin;
 
 ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(const ICore * /*core*/, ICNNNetwork &network,
                                                           const std::map<std::string, std::string> &config) {
-    if (network.getPrecision() != Precision::FP16 &&
-        network.getPrecision() != Precision::FP32) {
-        THROW_IE_EXCEPTION << "The plugin does not support networks with " << network.getPrecision() << " format.\n"
-                           << "Supported format: FP32 and FP16.";
-    }
-
     InputsDataMap networkInputs;
     OutputsDataMap networkOutputs;
 
@@ -86,6 +80,7 @@ void Engine::QueryNetwork(const ICNNNetwork& network, QueryNetworkResult& res) c
 
 void Engine::QueryNetwork(const ICNNNetwork& network, const std::map<std::string, std::string>& config,
                           QueryNetworkResult& res) const {
+    UNUSED(config);
 #ifdef ENABLE_MCM_COMPILER
     std::shared_ptr<mv::CompilationUnit> tmpCompiler =
             std::make_shared<mv::CompilationUnit>(network.getName());
@@ -107,6 +102,9 @@ void Engine::QueryNetwork(const ICNNNetwork& network, const std::map<std::string
     IE_SUPPRESS_DEPRECATED_START
     res.supportedLayers.insert(layerNames.begin(), layerNames.end());
     IE_SUPPRESS_DEPRECATED_END
+#else
+    UNUSED(network);
+    UNUSED(res);
 #endif
 }
 
@@ -148,7 +146,7 @@ INFERENCE_PLUGIN_API(StatusCode) CreatePluginEngine(IInferencePlugin *&plugin, R
     std::map<std::string, std::string> config;
 //    config[CONFIG_KEY(LOG_LEVEL)] = CONFIG_VALUE(LOG_DEBUG);
     try {
-        plugin = make_ie_compatible_plugin({1, 6, CI_BUILD_NUMBER, "kmbPlugin"}, std::make_shared<Engine>());
+        plugin = make_ie_compatible_plugin({{1, 6}, CI_BUILD_NUMBER, "kmbPlugin"}, std::make_shared<Engine>());
         return OK;
     }
     catch (std::exception &ex) {

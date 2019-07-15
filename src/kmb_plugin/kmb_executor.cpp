@@ -121,30 +121,56 @@ KmbExecutor::KmbExecutor(const Logger::Ptr& log, const std::shared_ptr<KmbConfig
     if (parsedConfig[VPU_KMB_CONFIG_KEY(KMB_EXECUTOR)] == "NO") {
         return;
     }
-
-#ifdef ENABLE_VPUAL
-    nnPl = make_shared<NNFlicPlg>();
-    gg = make_shared<GraphManagerPlg>();
-    plgTensorInput_ = make_shared<PlgTensorSource>();
-    plgTensorOutput_ = make_shared<PlgStreamResult>();
-    plgPoolA = make_shared<PlgPool<TensorMsg>>();
-    plgPoolB = make_shared<PlgPool<TensorMsg>>();
-
-    blob_file = make_shared<KmbCmaData>();
-    output_tensor = make_shared<KmbCmaData>();
-    BHandle = make_shared<BlobHandle_t>();
-    pipe = make_shared<Pipeline>();
-#endif
     allocator = make_shared<KmbAllocator>();
 }
 
+void KmbExecutor::initVpualObjects() {
+#ifdef ENABLE_VPUAL
+    if (!RgnAlloc) {
+        RgnAlloc  = make_shared<RgnAllocator>();
+    }
+    if (!nnPl) {
+        nnPl = make_shared<NNFlicPlg>();
+    }
+    if (!gg) {
+        gg = make_shared<GraphManagerPlg>();
+    }
+    if (!plgTensorInput_) {
+        plgTensorInput_ = make_shared<PlgTensorSource>();
+    }
+    if (!plgTensorOutput_) {
+        plgTensorOutput_ = make_shared<PlgStreamResult>();
+    }
+    if (!plgPoolA) {
+        plgPoolA = make_shared<PlgPool<TensorMsg>>();
+    }
+    if (!plgPoolB) {
+        plgPoolB = make_shared<PlgPool<TensorMsg>>();
+    }
+    if (!blob_file) {
+        blob_file = make_shared<KmbCmaData>();
+    }
+    if (!output_tensor) {
+        output_tensor = make_shared<KmbCmaData>();
+    }
+    if (!BHandle) {
+        BHandle = make_shared<BlobHandle_t>();
+    }
+    if (!pipe) {
+        pipe = make_shared<Pipeline>();
+    }
+#endif
+}
+
 void KmbExecutor::allocateGraph(const std::vector<char> &graphFileContent, const char* networkName) {
+    UNUSED(networkName);
     auto parsedConfig = _config->getParsedConfig();
     if (parsedConfig[VPU_KMB_CONFIG_KEY(KMB_EXECUTOR)] == "NO") {
         return;
     }
 
 #ifdef ENABLE_VPUAL
+    initVpualObjects();
     int graphId_main = 1;
     int nThreads = 4;
     int nShaves = 16;
@@ -267,13 +293,13 @@ void KmbExecutor::allocateGraph(const std::vector<char> &graphFileContent, const
     const unsigned int sizeOfFrames = 32;
     const unsigned int shavel2CacheLineSize = 64;
     unsigned int outputTensorSize = ROUND_UP(descOut.totalSize, shavel2CacheLineSize);
-    RgnAlloc.Create(output_tensor->phys_addr, POOL_SIZE);
+    RgnAlloc->Create(output_tensor->phys_addr, POOL_SIZE);
 
     // TODO - These
     std::cout << "Starting input output tensor plugin along with memory pool create..." << std::endl;
-    plgPoolA->Create(&RgnAlloc, 1, sizeOfFrames);
+    plgPoolA->Create(RgnAlloc.get(), 1, sizeOfFrames);
     std::cout << "read memory pool finished..." << std::endl;
-    plgPoolB->Create(&RgnAlloc, 1, outputTensorSize);
+    plgPoolB->Create(RgnAlloc.get(), 1, outputTensorSize);
     std::cout << "write memory pool finished..." << std::endl;
     plgTensorInput_->Create(descIn.totalSize, XLINK_INPUT_CHANNEL, descIn);
     std::cout << "input tensor plugin finished..." << std::endl;
@@ -304,11 +330,15 @@ void KmbExecutor::allocateGraph(const std::vector<char> &graphFileContent, const
     std::cout << "Started FLIC pipeline..." << std::endl;
 
     std::cout << "Fin" << std::endl;
+#else
+    UNUSED(graphFileContent);
 #endif
 }
 
 void KmbExecutor::queueInference(void *input_data, size_t input_bytes,
                     void *result_data, size_t result_bytes) {
+    UNUSED(result_data);
+    UNUSED(result_bytes);
     auto parsedConfig = _config->getParsedConfig();
     if (parsedConfig[VPU_KMB_CONFIG_KEY(KMB_EXECUTOR)] == "NO") {
         return;
@@ -317,19 +347,23 @@ void KmbExecutor::queueInference(void *input_data, size_t input_bytes,
 #ifdef ENABLE_VPUAL
     auto physAddr = allocator->getPhysicalAddress(input_data);
     plgTensorInput_->Push(physAddr, input_bytes);
+#else
+    UNUSED(input_data);
+    UNUSED(input_bytes);
 #endif
-    return;
 }
 
 void KmbExecutor::getResult(void *result_data, unsigned int result_bytes) {
+    UNUSED(result_data);
+    UNUSED(result_bytes);
     auto parsedConfig = _config->getParsedConfig();
     if (parsedConfig[VPU_KMB_CONFIG_KEY(KMB_EXECUTOR)] == "NO") {
         return;
     }
-    uint32_t len = 0;
-    uint32_t pAddr = 0;
 
 #ifdef ENABLE_VPUAL
+    uint32_t len = 0;
+    uint32_t pAddr = 0;
     plgTensorOutput_->Pull(&pAddr, &len);
 
     std::cout << "Output tensor returned of length: " << std::dec << len << std::endl;
@@ -359,7 +393,6 @@ void KmbExecutor::getResult(void *result_data, unsigned int result_bytes) {
     std::memcpy(result_data, data, len);
     std::cout << "KmbExecutor::getResult memcpy finished" << std::endl;
 #endif
-    return;
 }
 
 void KmbExecutor::deallocateGraph() {
@@ -368,12 +401,14 @@ void KmbExecutor::deallocateGraph() {
         return;
     }
 #ifdef ENABLE_VPUAL
-    pipe->Stop();
-    pipe->Delete();
-    RgnAlloc.Delete();
+    if (pipe) {
+        pipe->Stop();
+        pipe->Delete();
+    }
+    if (RgnAlloc) {
+        RgnAlloc->Delete();
+    }
 #endif
-
-    return;
 }
 
 std::shared_ptr<InferenceEngine::IAllocator> KmbExecutor::getAllocator() {

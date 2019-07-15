@@ -98,6 +98,7 @@ public:
 
     void GetMappedTopology(
             std::map<std::string, std::vector<InferenceEngine::PrimitiveInfo::Ptr>> &deployedTopology) override {
+        UNUSED(deployedTopology);
         THROW_IE_EXCEPTION << "GetMappedTopology is not implemented\n";
     }
 

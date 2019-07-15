@@ -10,6 +10,10 @@ else()
     MESSAGE(STATUS "*** Disabling MCM compiler for functional tests ***")
 endif()
 
+if (ENABLE_VPUAL)
+    add_definitions(-DENABLE_VPUAL)
+endif()
+
 file(GLOB VPU_TEST_INCLUDES
         ${CMAKE_CURRENT_SOURCE_DIR}/base/*.h
         ${CMAKE_CURRENT_SOURCE_DIR}/base/*.hpp
@@ -29,9 +33,12 @@ file(GLOB VPU_TEST_SOURCES
 
 file(GLOB KMB_TEST_INCLUDES
         ${CMAKE_CURRENT_SOURCE_DIR}/base/*.h
-        ${CMAKE_CURRENT_SOURCE_DIR}/base/*.hpp)
+        ${CMAKE_CURRENT_SOURCE_DIR}/base/*.hpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/common/*.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/common/*.hpp)
 file(GLOB KMB_TEST_SOURCES
-        ${CMAKE_CURRENT_SOURCE_DIR}/base/*.cpp)
+        ${CMAKE_CURRENT_SOURCE_DIR}/base/*.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/common/*.cpp)
 
 list(APPEND VPU_TEST_LIBRARIES
     IE::IESharedTests)

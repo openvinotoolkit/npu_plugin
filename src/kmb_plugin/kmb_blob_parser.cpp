@@ -112,12 +112,11 @@ InferenceEngine::Data deserializeTensor(const MVCNN::TensorReference& tensorRef)
     return ieData;
 }
 
-KmbBlob::KmbBlob(const void* data, size_t size) {
+KmbBlob::KmbBlob(const void* data) {
 //  FlatBuffer blob parser to get information about network inputs/outputs
 //  from flatbuffer blob file loaded by ImportNetwork method
 
     assert(nullptr != data);
-    assert(size > 0);
 
     const MVCNN::GraphFile* file = MVCNN::GetGraphFile(data);
     auto header = file->header();

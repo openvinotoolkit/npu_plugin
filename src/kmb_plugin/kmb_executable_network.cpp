@@ -51,6 +51,8 @@ ExecutableNetwork::ExecutableNetwork(ICNNNetwork &network, const std::map<std::s
         *(_config),
         *pCompiler,
         std::make_shared<Logger>("GraphCompiler", _config->hostLogLevel, consoleOutput()));
+#else
+    UNUSED(network);
 #endif
 }
 
@@ -71,7 +73,7 @@ ExecutableNetwork::ExecutableNetwork(const std::string &blobFilename, const std:
 
     _executor->allocateGraph(_graphBlob, &networkName[0]);
 #ifdef ENABLE_MCM_COMPILER
-    KmbBlob blobReader(blobContentString.data(), blobContentString.size());
+    KmbBlob blobReader(blobContentString.data());
 
     this->_networkInputs  = blobReader.getNetworkInputs();
     this->_networkOutputs = blobReader.getNetworkOutputs();

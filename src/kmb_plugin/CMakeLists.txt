@@ -120,6 +120,14 @@ ie_add_plugin(NAME ${TARGET_NAME}
               VERSION_DEFINES_FOR kmb_plugin.cpp
             DEVICE_NAME KMB)
 
+
+target_compile_options(${TARGET_NAME}
+        PRIVATE
+        -Wall
+        -Wextra
+        -Werror)
+
+
 ie_register_plugins(MAIN_TARGET ${TARGET_NAME}
                     POSSIBLE_PLUGINS ${TARGET_NAME})
 
@@ -152,6 +160,16 @@ if (MCM_COMPILER_PATHS_FINDING)
     unset(MCM_COMPILER_PATHS_FINDING CACHE)
     unset(FLATBUFFERRS_INCLUDE_PATH CACHE)
     unset(MCM_SCHEMA_INCLUDE_PATH CACHE)
+endif()
+
+# copy memory manager library to target directory when vpualHost is enabled
+if(ENABLE_VPUAL)
+    set(VPUSMM_LIB_PATH "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/thirdparty/vsi_cmodel/vpusmm/${CMAKE_SYSTEM_PROCESSOR}/libvpusmm.so")
+
+    set(VPUSMM_OUT_DIR "$<TARGET_FILE_DIR:kmbPlugin>")
+    add_custom_target(vpusmm_copy_library ALL
+        COMMAND "${CMAKE_COMMAND}" -E copy "${VPUSMM_LIB_PATH}" "${VPUSMM_OUT_DIR}/libvpusmm.so"
+        COMMENT "[VPUSMM] Copy ${VPUSMM_LIB_PATH} to build results")
 endif()
 
 if(ENABLE_TESTS)

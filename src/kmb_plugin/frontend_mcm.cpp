@@ -62,6 +62,8 @@ ie::details::caseless_map<std::string, parser_t> g_mcm_parsers = {
     {"Power",              &FrontEndMcm::parsePower},
     {"Copy",               &FrontEndMcm::parseCopy},
     {"Reshape",            &FrontEndMcm::parseReshape},
+    {"Squeeze",            &FrontEndMcm::parseReshape},
+    {"Unsqueeze",          &FrontEndMcm::parseReshape},
     {"ELU",                &FrontEndMcm::parseELU},
     // Flatten is represented as Reshape in KMB model
     {"Flatten",            &FrontEndMcm::parseReshape},

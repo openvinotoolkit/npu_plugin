@@ -16,6 +16,7 @@
 
 #pragma once
 
+#define UNUSED(var) (void)var
 #include <ie_allocator.hpp>
 #include <unordered_map>
 
