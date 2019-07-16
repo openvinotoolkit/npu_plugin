@@ -107,7 +107,7 @@ TEST_F(kmbLayersTests_nightly, TestsEltwiseAfterScaleShift) {
     CNNNetwork network = _net_reader.getNetwork();
 
     _inputsInfo = network.getInputsInfo();
-    _inputsInfo["input"]->setInputPrecision(Precision::FP16);
+    _inputsInfo["input"]->setPrecision(Precision::FP16);
 
     _outputsInfo = network.getOutputsInfo();
     _outputsInfo["eltwise1"]->setPrecision(Precision::FP16);
@@ -204,7 +204,7 @@ TEST_F(kmbLayersTests_nightly, TestsEltwiseAfterScaleShiftWithLargeWeight) {
     CNNNetwork network = _net_reader.getNetwork();
 
     _inputsInfo = network.getInputsInfo();
-    _inputsInfo["input"]->setInputPrecision(Precision::FP16);
+    _inputsInfo["input"]->setPrecision(Precision::FP16);
 
     _outputsInfo = network.getOutputsInfo();
     _outputsInfo["eltwise1"]->setPrecision(Precision::FP16);

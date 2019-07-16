@@ -52,7 +52,7 @@ void kmbLayersTests_nightly::setup(InferenceEngine::Precision outputPrecision,
     InferenceEngine::ICNNNetwork &network = _net_reader.getNetwork();
     ASSERT_NO_THROW(network.getInputsInfo(_inputsInfo));
     for (auto in = _inputsInfo.begin(); in != _inputsInfo.end(); in++) {
-        in->second->setInputPrecision(inputPrecision);
+        in->second->setPrecision(inputPrecision);
     }
     ASSERT_NO_THROW(network.getOutputsInfo(_outputsInfo));
     for (auto outputInfo : _outputsInfo) {

@@ -44,7 +44,7 @@ TEST_F(kmbLayersTests_nightly, DISABLED_TestsConvolutionAfterScaleShift) {
     CNNNetwork network = _net_reader.getNetwork();
 
     _inputsInfo = network.getInputsInfo();
-    _inputsInfo["input"]->setInputPrecision(Precision::FP16);
+    _inputsInfo["input"]->setPrecision(Precision::FP16);
 
     _outputsInfo = network.getOutputsInfo();
     _outputsInfo["conv_test1"]->setPrecision(Precision::FP16);
@@ -76,7 +76,7 @@ TEST_F(kmbLayersTests_nightly, TestsConvolutionAfterScaleShiftNoBias) {
     CNNNetwork network = _net_reader.getNetwork();
 
     _inputsInfo = network.getInputsInfo();
-    _inputsInfo["input"]->setInputPrecision(Precision::FP16);
+    _inputsInfo["input"]->setPrecision(Precision::FP16);
 
     _outputsInfo = network.getOutputsInfo();
     _outputsInfo["conv_test1"]->setPrecision(Precision::FP16);
@@ -120,7 +120,7 @@ TEST_F(kmbLayersTests_nightly, DISABLED_TestsQuantizedConvolutionAfterScaleShift
     CNNNetwork network = _net_reader.getNetwork();
 
     _inputsInfo = network.getInputsInfo();
-    _inputsInfo["input"]->setInputPrecision(Precision::FP32);
+    _inputsInfo["input"]->setPrecision(Precision::FP32);
 
     _outputsInfo = network.getOutputsInfo();
     _outputsInfo["conv2"]->setPrecision(Precision::FP32);
@@ -169,7 +169,7 @@ TEST_F(kmbLayersTests_nightly, TestsQuantizedConvolutionAfterScaleShiftNoBias) {
     CNNNetwork network = _net_reader.getNetwork();
 
     _inputsInfo = network.getInputsInfo();
-    _inputsInfo["input"]->setInputPrecision(Precision::FP32);
+    _inputsInfo["input"]->setPrecision(Precision::FP32);
 
     _outputsInfo = network.getOutputsInfo();
     _outputsInfo["conv2"]->setPrecision(Precision::FP32);
@@ -202,7 +202,7 @@ TEST_F(kmbLayersTests_nightly, TestsConvolutionOnly) {
     CNNNetwork network = _net_reader.getNetwork();
 
     _inputsInfo = network.getInputsInfo();
-    _inputsInfo["input"]->setInputPrecision(Precision::FP16);
+    _inputsInfo["input"]->setPrecision(Precision::FP16);
 
     _outputsInfo = network.getOutputsInfo();
     _outputsInfo["conv_test1"]->setPrecision(Precision::FP16);
@@ -234,7 +234,7 @@ TEST_F(kmbLayersTests_nightly, TestsConvolutionOnlyNoBias) {
     CNNNetwork network = _net_reader.getNetwork();
 
     _inputsInfo = network.getInputsInfo();
-    _inputsInfo["input"]->setInputPrecision(Precision::FP16);
+    _inputsInfo["input"]->setPrecision(Precision::FP16);
 
     _outputsInfo = network.getOutputsInfo();
     _outputsInfo["conv_test1"]->setPrecision(Precision::FP16);
