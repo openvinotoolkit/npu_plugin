@@ -211,17 +211,17 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model, mv::Dat
     //    std::cout<< "  No location attritbute on input tensor to original conv " << std::endl ;
     //}
 
-    if (inputTensor->get<mv::Tensor::MemoryLocation>("Location").toString() != "CMX")
-    {
-        //std::cout<< "  adding DMA2CMX on input " <<  std::endl ;
+    // if (inputTensor->get<mv::Tensor::MemoryLocation>("Location").toString() != "CMX")
+    // {
+    //     //std::cout<< "  adding DMA2CMX on input " <<  std::endl ;
 
-        auto flows = inputTensor->get<std::set<std::string>>("flows");
+    //     auto flows = inputTensor->get<std::set<std::string>>("flows");
 
-        auto inputTensorDma = om.dMATask(inputTensor, mv::DmaDirectionEnum::DDR2CMX, quantParams, mv::createDMATaskDDR2CMXName(inputOp->getName()));
-        auto inputTensorDmaOp = om.getSourceOp(inputTensorDma);
-        inputTensorDmaOp->set<unsigned>("opId", DMAOpId);
-        inputTensor2Conv = inputTensorDma ;
-    }
+    //     auto inputTensorDma = om.dMATask(inputTensor, mv::DmaDirectionEnum::DDR2CMX, quantParams, mv::createDMATaskDDR2CMXName(inputOp->getName()));
+    //     auto inputTensorDmaOp = om.getSourceOp(inputTensorDma);
+    //     inputTensorDmaOp->set<unsigned>("opId", DMAOpId);
+    //     inputTensor2Conv = inputTensorDma ;
+    // }
 
     auto opId = op->get<unsigned>("opId");
     auto number_of_splits = tiling.childTiles().size();
