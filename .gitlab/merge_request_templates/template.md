@@ -2,6 +2,10 @@ Description:
 
 (Please add a few words why your merge request is useful)
 
+Related MRs:
+
+(Please add links to related MRs (if you have such MRs) and a small note why you depend on it)
+
 JIRA:
 * [CVS-XXXXX](https://jira.devtools.intel.com/browse/CVS-XXXXX)
 
