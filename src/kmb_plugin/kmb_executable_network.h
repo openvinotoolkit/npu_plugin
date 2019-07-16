@@ -67,13 +67,11 @@ public:
     InferenceEngine::InferRequestInternal::Ptr CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
                                                                       InferenceEngine::OutputsDataMap networkOutputs) override {
         return std::make_shared<KmbInferRequest>(networkInputs, networkOutputs,
-                                                    _inputInfo, _outputInfo,
                                                     _stagesMetaData, _config, _log, _executor);
     }
 
     void CreateInferRequest(InferenceEngine::IInferRequest::Ptr &asyncRequest) override {
         auto syncRequestImpl = std::make_shared<KmbInferRequest>(_networkInputs, _networkOutputs,
-                                                                    _inputInfo, _outputInfo,
                                                                     _stagesMetaData, _config, _log,
                                                                     _executor);
         syncRequestImpl->setPointerToExecutableNetworkInternal(shared_from_this());
@@ -111,9 +109,6 @@ private:
     std::vector<char> _graphBlob;
     std::vector<StageMetaInfo> _stagesMetaData;
     std::shared_ptr<KmbConfig> _config;
-
-    DataInfo _inputInfo;
-    DataInfo _outputInfo;
 
     const size_t _maxTaskExecutorGetResultCount = 1;
     std::queue<std::string> _taskExecutorGetResultIds;

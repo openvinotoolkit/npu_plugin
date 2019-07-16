@@ -123,27 +123,16 @@ KmbBlob::KmbBlob(const void* data) {
     auto inputs = header->net_input();
     auto outputs = header->net_output();
 
-    _inputInfo.totalSize = 1;
-    _outputInfo.totalSize = 1;
     auto processTensor = [&](const MVCNN::TensorReference &tensor, bool isInput) {
         InferenceEngine::Data ieData = deserializeTensor(tensor);
 
-        auto tensorStrides = tensor.strides();
-        auto tensorStridesSize = tensorStrides->size();
         if (isInput) {
             InferenceEngine::InputInfo inputInfo;
             inputInfo.setInputData(std::make_shared<InferenceEngine::Data>(ieData));
             _networkInputs[inputInfo.name()] = std::make_shared<InferenceEngine::InputInfo>(inputInfo);
 
-            if (tensorStridesSize > 0) {
-                _inputInfo.totalSize = tensorStrides->Get(tensorStridesSize-1);
-            }
         } else {
             _networkOutputs[ieData.getName()] = std::make_shared<InferenceEngine::Data>(ieData);
-
-            if (tensorStridesSize > 0) {
-                _outputInfo.totalSize = tensorStrides->Get(tensorStridesSize-1);
-            }
         }
     };
 

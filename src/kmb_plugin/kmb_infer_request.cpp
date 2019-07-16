@@ -33,18 +33,16 @@ using namespace InferenceEngine;
 
 #define MEMCPY(dst, src, bytes) std::copy_n((src), (bytes), (dst))
 
-KmbInferRequest::KmbInferRequest(InferenceEngine::InputsDataMap networkInputs,
-                                        InferenceEngine::OutputsDataMap networkOutputs,
-                                        DataInfo& inputInfo,
-                                        DataInfo& outputInfo,
-                                        const std::vector<StageMetaInfo> &blobMetaData,
-                                        const std::shared_ptr<KmbConfig> &kmbConfig,
-                                        const Logger::Ptr &log,
-                                        const KmbExecutorPtr &executor) :
+KmbInferRequest::KmbInferRequest(const InferenceEngine::InputsDataMap& networkInputs,
+                                 const InferenceEngine::OutputsDataMap& networkOutputs,
+                                 const std::vector<StageMetaInfo> &blobMetaData,
+                                 const std::shared_ptr<KmbConfig> &kmbConfig,
+                                 const Logger::Ptr &log,
+                                 const KmbExecutorPtr &executor) :
         InferRequestInternal(networkInputs, networkOutputs), _executor(executor),
-        _log(log), _stagesMetaData(blobMetaData), _config(kmbConfig),
-        _inputInfo(inputInfo), _outputInfo(outputInfo) {
+        _log(log), _stagesMetaData(blobMetaData), _config(kmbConfig) {
     _deviceLayout = NCHW;
+
 
     if (_config->compileConfig.forceLayout == ComputeLayout::NCHW)
         _deviceLayout = NCHW;
@@ -108,7 +106,7 @@ void KmbInferRequest::InferImpl() {
 }
 
 void KmbInferRequest::InferAsync() {
-    for (auto input : _inputs) {
+    for (const auto& input : _inputs) {
         auto const inputBlobPtr = input.second;
         auto inputBlobPrecision = inputBlobPtr->getTensorDesc().getPrecision();
         if (inputBlobPrecision != Precision::FP16
@@ -117,7 +115,7 @@ void KmbInferRequest::InferAsync() {
             && inputBlobPrecision != Precision::U8)
             THROW_IE_EXCEPTION << PARAMETER_MISMATCH_str << "Unsupported input blob precision";
     }
-    for (auto output : _outputs) {
+    for (const auto& output : _outputs) {
         auto const outputBlobPtr = output.second;
         auto outputBlobPrecision = outputBlobPtr->getTensorDesc().getPrecision();
         if (outputBlobPrecision != Precision::FP16
@@ -136,9 +134,11 @@ void KmbInferRequest::InferAsync() {
         THROW_IE_EXCEPTION << "Error: input [" << dataName << "] is not provided.";
 
     void* inputPtr = _inputs.begin()->second->buffer();
-    size_t inputSize = _inputInfo.totalSize;
 
-    _executor->queueInference(inputPtr, inputSize, nullptr, 0);
+    size_t input_size_total = std::accumulate(_inputs.begin(), _inputs.end(), 0,
+                                              [] (size_t sum, InferenceEngine::BlobMap::value_type& input)
+                                              { return sum + input.second->byteSize(); });
+    _executor->queueInference(inputPtr, input_size_total, nullptr, 0);
 }
 
 void KmbInferRequest::GetResult() {
@@ -148,10 +148,12 @@ void KmbInferRequest::GetResult() {
         THROW_IE_EXCEPTION << "Error: output [" << dataName << "] is not provided.";
 
     void* outputPtr = _outputs.begin()->second->buffer();
-    size_t outputSize = _outputInfo.totalSize;
 
+    size_t output_size_total = std::accumulate(_outputs.begin(), _outputs.end(), 0,
+                                              [] (size_t sum, InferenceEngine::BlobMap::value_type& outputs)
+                                              { return sum + outputs.second->byteSize(); });
 
-    _executor->getResult(outputPtr, outputSize);
+    _executor->getResult(outputPtr, output_size_total);
 }
 
 void KmbInferRequest::GetPerformanceCounts(std::map<std::string, InferenceEngineProfileInfo> &perfMap) const {

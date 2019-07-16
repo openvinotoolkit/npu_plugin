@@ -19,7 +19,6 @@
 #include <cstdlib>
 
 #include <ie_icnn_network.hpp>
-#include <vpu/graph_transformer.hpp>
 
 #ifdef ENABLE_MCM_COMPILER
 #include "graphfile_generated.h"
@@ -37,9 +36,6 @@ public:
     const InferenceEngine::InputsDataMap& getNetworkInputs() const { return _networkInputs; }
     const InferenceEngine::OutputsDataMap& getNetworkOutputs() const { return _networkOutputs; }
 
-    const DataInfo& getInputInfo()  const { return _inputInfo; }
-    const DataInfo& getOutputInfo() const { return _outputInfo; }
-
     uint32_t getStageCount() const { return _blobHeader->layer_count(); }
     uint32_t getVersionMinor() const { return _blobHeader->version()->minorV(); }
     uint32_t getVersionMajor() const { return _blobHeader->version()->majorV(); }
@@ -50,10 +46,7 @@ private:
     InferenceEngine::InputsDataMap  _networkInputs;
     InferenceEngine::OutputsDataMap _networkOutputs;
 
-    DataInfo _inputInfo;
-    DataInfo _outputInfo;
-
-    uint32_t _stageCount;
+    uint32_t _stageCount{};
     const MVCNN::SummaryHeader* _blobHeader;
 };
 

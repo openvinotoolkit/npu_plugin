@@ -40,16 +40,11 @@ class KmbInferRequest : public InferenceEngine::InferRequestInternal {
     std::vector<StageMetaInfo> _stagesMetaData;
     std::shared_ptr<KmbConfig> _config;
 
-    const DataInfo _inputInfo;
-    const DataInfo _outputInfo;
-
 public:
     typedef std::shared_ptr<KmbInferRequest> Ptr;
 
-    explicit KmbInferRequest(InferenceEngine::InputsDataMap networkInputs,
-                                InferenceEngine::OutputsDataMap networkOutputs,
-                                DataInfo& inputInfo,
-                                DataInfo& outputInfo,
+    explicit KmbInferRequest(const InferenceEngine::InputsDataMap& networkInputs,
+                                const InferenceEngine::OutputsDataMap& networkOutputs,
                                 const std::vector<StageMetaInfo> &blobMetaData,
                                 const std::shared_ptr<KmbConfig> &kmbConfig,
                                 const Logger::Ptr &log,
