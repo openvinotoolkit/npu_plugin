@@ -342,7 +342,12 @@ TEST_F(VpuInferAndCompareTests, DISABLED_compareInferenceOutputWithReference) { 
     }
 }
 
-TEST_F(VpuInferAndCompareTests, DISABLED_multipleAsyncInferRequests) {
+class VpuInferAndCompareTestsWithParam: public vpuLayersTests,
+                             public testing::WithParamInterface<bool> {
+};
+
+TEST_P(VpuInferAndCompareTestsWithParam, DISABLED_multipleInferRequests) {
+    bool isSync = GetParam();
     std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/SingleConvolutionFP16/SingleConv.blob";
 
     Core ie;
@@ -379,13 +384,21 @@ TEST_F(VpuInferAndCompareTests, DISABLED_multipleAsyncInferRequests) {
         ASSERT_EQ(StatusCode::OK, requestPtr->Wait(MAX_WAIT, &response)) << response.msg;
     };
 
-    std::list<std::thread> requestThreadList;
-    for (InferenceEngine::IInferRequest::Ptr & currentRequest : requestList) {
-        requestThreadList.push_back(std::thread(requestRoutine, currentRequest));
-    }
+    if(isSync) {
+        // synchronous execution
+        for (InferenceEngine::IInferRequest::Ptr & currentRequest : requestList) {
+            ASSERT_EQ(StatusCode::OK, currentRequest->Infer(&resp)) << resp.msg;
+        }
+    } else {
+        // asynchronous execution
+        std::list<std::thread> requestThreadList;
+        for (InferenceEngine::IInferRequest::Ptr & currentRequest : requestList) {
+            requestThreadList.push_back(std::thread(requestRoutine, currentRequest));
+        }
 
-    for (std::thread & requestThread : requestThreadList) {
-        requestThread.join();
+        for (std::thread & requestThread : requestThreadList) {
+            requestThread.join();
+        }
     }
 
     ConstOutputsDataMap outputInfo;
@@ -410,4 +423,12 @@ TEST_F(VpuInferAndCompareTests, DISABLED_multipleAsyncInferRequests) {
         }
     }
 }
+
+const static std::vector<bool> isSyncVec = {
+    false, true
+};
+
+INSTANTIATE_TEST_CASE_P(multipleInference, VpuInferAndCompareTestsWithParam,
+    ::testing::ValuesIn(isSyncVec)
+);
 #endif
