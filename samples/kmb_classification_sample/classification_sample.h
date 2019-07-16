@@ -56,7 +56,7 @@ static void showUsage() {
     std::cout << "Options:" << std::endl;
     std::cout << std::endl;
     std::cout << "    -h                      " << help_message << std::endl;
-    std::cout << "    -i \"<path>\"             " << image_message << std::endl;
-    std::cout << "    -m \"<path>\"             " << model_message << std::endl;
+    std::cout << "    -i \"<path>\"           " << image_message << std::endl;
+    std::cout << "    -m \"<path>\"           " << model_message << std::endl;
     std::cout << "    -p_msg                  " << plugin_message << std::endl;
 }
