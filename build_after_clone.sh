@@ -51,7 +51,9 @@ echo "Begin to make DLDT for KMB-Plugin"
 cd $DLDT_HOME
 mkdir $DLDT_HOME/inference-engine/build
 cd $DLDT_HOME/inference-engine/build
-cmake -DENABLE_TESTS=ON -DENABLE_BEH_TESTS=ON -DENABLE_FUNCTIONAL_TESTS=ON ..
+# It is necessary to set -DENABLE_PLUGIN_RPATH=ON because in script in /dld/inference-engine/build-after-clone.sh this parameter is set to OFF
+# Path to libraries is necessary for properly work of test script (kmb-plugin/run_tests_after_build.sh)
+cmake -DENABLE_TESTS=ON -DENABLE_BEH_TESTS=ON -DENABLE_FUNCTIONAL_TESTS=ON -DENABLE_PLUGIN_RPATH=ON ..
 make -j8
 
 # try to fix some bug with cmake in DLDT (it is necessary to delete targets_developer.cmake)

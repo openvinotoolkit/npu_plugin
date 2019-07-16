@@ -52,7 +52,7 @@ tar -xzf /tmp/metis-5.1.0.tar.gz && (cd "/tmp/metis-5.1.0" && make config && mak
 * cd $(DLDT_HOME)
 * mkdir $(DLDT_HOME)/inference-engine/build
 * cd $(DLDT_HOME)/inference-engine/build
-* cmake -DENABLE_TESTS=ON -DENABLE_BEH_TESTS=ON -DENABLE_FUNCTIONAL_TESTS=ON ..
+* cmake -DENABLE_TESTS=ON -DENABLE_BEH_TESTS=ON -DENABLE_FUNCTIONAL_TESTS=ON -DENABLE_PLUGIN_RPATH=ON ..
 * make -j8
 
 
@@ -75,6 +75,7 @@ tar -xzf /tmp/metis-5.1.0.tar.gz && (cd "/tmp/metis-5.1.0" && make config && mak
 
 6. To check results of previous steps it is recommended to execute tests with the following commands:
 
+If you built Inference Engine with parameter "-DENABLE_PLUGIN_RPATH=ON" then go to command beginning with "export MCM_HOME..", otherwise enter these commands:
 * export LD_LIBRARY_PATH=$(LD_LIBRARY_PATH):$(DLDT_HOME)/inference-engine/bin/intel64/Release/lib
 * export LD_LIBRARY_PATH=$(LD_LIBRARY_PATH):$(DLDT_HOME)/inference-engine/temp/opencv_4.1.0_ubuntu18/lib
 * export LD_LIBRARY_PATH=$(LD_LIBRARY_PATH):$(DLDT_HOME)/inference-engine/temp/tbb/lib

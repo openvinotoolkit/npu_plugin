@@ -34,11 +34,12 @@ else
 fi
 echo "dldt base directory is: " $DLDT_HOME
 
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$DLDT_HOME/inference-engine/bin/intel64/Release/lib
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$DLDT_HOME/inference-engine/temp/opencv_4.1.0_ubuntu18/lib
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$DLDT_HOME/inference-engine/temp/tbb/lib
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$KMB_PLUGIN_HOME/thirdparty/vsi_cmodel/vpusmm/x86_64
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$KMB_PLUGIN_HOME/thirdparty/movidius/mcmCompiler/build/lib
+# If Inference Engine is built with parameter -DENABLE_PLUGIN_RPATH=OFF then uncomment 5 lines below
+# export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$DLDT_HOME/inference-engine/bin/intel64/Release/lib
+# export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$DLDT_HOME/inference-engine/temp/opencv_4.1.0_ubuntu18/lib
+# export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$DLDT_HOME/inference-engine/temp/tbb/lib
+# export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$KMB_PLUGIN_HOME/thirdparty/vsi_cmodel/vpusmm/x86_64
+# export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$KMB_PLUGIN_HOME/thirdparty/movidius/mcmCompiler/build/lib
 
 export MCM_HOME=$KMB_PLUGIN_HOME/thirdparty/movidius/mcmCompiler
 cd $DLDT_HOME/inference-engine/bin/intel64/Release/
