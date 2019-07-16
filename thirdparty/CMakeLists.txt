@@ -44,6 +44,8 @@ if (ENABLE_VPUAL)
         COMMAND "${CMAKE_COMMAND}" -E copy "${VPUSMM_LIB_PATH}" "${VPUSMM_OUT_DIR}"
         COMMENT "[VPUSMM] Copy ${VPUSMM_LIB_PATH} to build results")
 
+    add_subdirectory(gapi_sipp)
+
     if (ENABLE_TESTS)
         add_subdirectory(tests/integration)
     endif()
