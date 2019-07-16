@@ -18,6 +18,12 @@ find_library(VPUSMM_LIBRARY
         NAMES vpusmm
         HINTS ${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/thirdparty/vsi_cmodel/vpusmm/${CMAKE_SYSTEM_PROCESSOR})
 
+add_library(vpusmm SHARED IMPORTED GLOBAL)
+
+set_target_properties(vpusmm PROPERTIES
+        INTERFACE_INCLUDE_DIRECTORIES "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/thirdparty/vsi_cmodel/vpusmm/"
+        IMPORTED_LOCATION ${VPUSMM_LIBRARY})
+
 if (ENABLE_TESTS AND ENABLE_VPUAL)
     add_subdirectory(tests/integration)
 endif()
