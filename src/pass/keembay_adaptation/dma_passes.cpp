@@ -96,15 +96,9 @@ void addWeightsDMATasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
         {
             auto opId = opIt->get<unsigned>("opId");
             unsigned n = opIt->inputSlots();
-            unsigned inputOutputTensors = 0;
             for(unsigned i = 0; i < n; ++i)
             {
                 auto inputTensor = opIt->getInputTensor(i);
-                if(!inputTensor->isPopulated())
-                {
-                    ++inputOutputTensors;
-                    continue;
-                }
                 mv::QuantizationParams quantParams = {{},{},{},{}};
                 if(inputTensor->hasAttr("quantParams"))
                     quantParams = inputTensor->get<mv::QuantizationParams>("quantParams");
