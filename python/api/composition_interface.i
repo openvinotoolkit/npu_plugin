@@ -489,7 +489,7 @@ import_array();
         return o.matMul(input, weights);
     }
 
-    mv::Data::TensorIterator avgpool2D(mv::CompositionalModel& o, mv::Data::TensorIterator input, short unsigned kernelSizeX, 
+    mv::Data::TensorIterator avgpool2D(mv::CompositionalModel& o, mv::Data::TensorIterator input, short unsigned kernelSizeX,
         short unsigned kernelSizeY, short unsigned strideX, short unsigned strideY, short unsigned padXl, short unsigned padXr,  short unsigned padYu,short unsigned padYd, const mv::QuantizationParams &quantParams, const std::string& name)
     {
         return o.averagePool(input, {kernelSizeX, kernelSizeY}, {strideX, strideY}, {padXl, padXr, padYu, padYd}, false,"","floor", quantParams, name);
@@ -600,20 +600,20 @@ import_array();
     mv::Data::TensorIterator softmax(mv::CompositionalModel& o,mv::Data::TensorIterator input, const mv::QuantizationParams  &quantParams, const std::string &name){
         return o.softmax(input, "C", quantParams, name);
     }
-    mv::Data::TensorIterator add(mv::CompositionalModel& o, const std::vector<mv::Data::TensorIterator>& inputs, const mv::QuantizationParams &quantParams, const std::string& name){
-        return o.add(inputs, quantParams, name);
+    mv::Data::TensorIterator add(mv::CompositionalModel& o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1, const mv::QuantizationParams &quantParams, const std::string& name){
+        return o.add({input0, input1}, quantParams, name);
     }
-    mv::Data::TensorIterator add(mv::CompositionalModel& o,const std::vector<mv::Data::TensorIterator>& inputs){
-        return o.add(inputs);
+    mv::Data::TensorIterator add(mv::CompositionalModel& o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1){
+        return o.add({input0, input1});
     }
-    mv::Data::TensorIterator subtract(mv::CompositionalModel& o,const std::vector<mv::Data::TensorIterator>& inputs){
-        return o.subtract(inputs);
+    mv::Data::TensorIterator subtract(mv::CompositionalModel& o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1){
+        return o.subtract({input0, input1});
     }
-    mv::Data::TensorIterator multiply(mv::CompositionalModel& o,const std::vector<mv::Data::TensorIterator>& inputs, const mv::QuantizationParams &quantParams, const std::string& name){
-        return o.multiply(inputs, quantParams, name);
+    mv::Data::TensorIterator multiply(mv::CompositionalModel& o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1, const mv::QuantizationParams &quantParams, const std::string& name){
+        return o.multiply({input0, input1}, quantParams, name);
     }
-    mv::Data::TensorIterator multiply(mv::CompositionalModel& o,const std::vector<mv::Data::TensorIterator>& inputs){
-        return o.multiply(inputs);
+    mv::Data::TensorIterator multiply(mv::CompositionalModel& o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1){
+        return o.multiply({input0, input1});
     }
 
     mv::Data::TensorIterator fullyConnected(mv::CompositionalModel& o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1){
@@ -716,10 +716,10 @@ mv::Data::TensorIterator relu(mv::CompositionalModel& o,mv::Data::TensorIterator
 mv::Data::TensorIterator dropOut(mv::CompositionalModel& o, mv::Data::TensorIterator input);
 mv::Data::TensorIterator dropOut(mv::CompositionalModel& o, mv::Data::TensorIterator input, const mv::QuantizationParams &quantParams, const std::string& name);
 
-mv::Data::TensorIterator add(mv::CompositionalModel& o,const std::vector<mv::Data::TensorIterator>& inputs);
-mv::Data::TensorIterator add(mv::CompositionalModel& o,const std::vector<mv::Data::TensorIterator>& inputs, const mv::QuantizationParams &quantParams, const std::string& name);
-mv::Data::TensorIterator multiply(mv::CompositionalModel& o,const std::vector<mv::Data::TensorIterator>& inputs);
-mv::Data::TensorIterator multiply(mv::CompositionalModel& o,const std::vector<mv::Data::TensorIterator>& inputs, const mv::QuantizationParams &quantParams, const std::string& name);
+mv::Data::TensorIterator add(mv::CompositionalModel& o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1);
+mv::Data::TensorIterator add(mv::CompositionalModel& o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1, const mv::QuantizationParams &quantParams, const std::string& name);
+mv::Data::TensorIterator multiply(mv::CompositionalModel& o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1);
+mv::Data::TensorIterator multiply(mv::CompositionalModel& o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1, const mv::QuantizationParams &quantParams, const std::string& name);
 
 mv::Data::TensorIterator constant(mv::CompositionalModel&  o, const std::vector<double>& data, const mv::Shape &shape);
 mv::Data::TensorIterator constant(mv::CompositionalModel&  o, const std::vector<int64_t>& data, const mv::Shape &shape, const mv::Order& order, const mv::QuantizationParams  &quantParams, const std::string &name);
