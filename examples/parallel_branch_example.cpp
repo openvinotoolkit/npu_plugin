@@ -59,7 +59,7 @@ int main()
     auto biasWeights4 = om.constantInt(biasWeightsData4,{256}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{1.2574053471325897e-05},{-inf},{inf}}, "res2a_branch2c_bias#15");
     auto bias_c4 = om.bias(conv4, biasWeights4, {{0},{0.003921568859368563},{0.0},{1.0}});
 
-    auto eltwise0 = om.add(bias_c1,bias_c4, {{0},{0.003921568859368563},{0.0},{1.0}}, "res2a/FakeQuantWithMinMaxArgs#24");
+    auto eltwise0 = om.add({bias_c1,bias_c4}, {{0},{0.003921568859368563},{0.0},{1.0}}, "res2a/FakeQuantWithMinMaxArgs#24");
 
     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/eltwise_streaming.json";
     unit.loadCompilationDescriptor(compDescPath);
