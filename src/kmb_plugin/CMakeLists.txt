@@ -77,40 +77,6 @@ endif()
 
 if (ENABLE_VPUAL)
     add_definitions(-DENABLE_VPUAL)
-    if (NOT DEFINED ENV{VPUAL_HOME})
-        if(NOT EXISTS "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/thirdparty/movidius/vpualHost")
-            message(FATAL_ERROR "vpualHost is not found. Please use: git submodule update --init --recursive to get it")
-        endif()
-        set(vpual_home "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/thirdparty/movidius/vpualHost")
-    else()
-        set(vpual_home $ENV{VPUAL_HOME})
-    endif()
-    
-    add_definitions(-D__PC__)
-    add_definitions(-DUSE_USB_VSC)
-    
-    #       It works only if XLink for myriad/HDDL plugins excluded
-    #        include(${vpual_home}/host/source/FLIC/FLIC.cmake)
-    #        include(${vpual_home}/host/source/SIPP/SIPP.cmake)
-    #        set(VPUAL_LIBRARY VpualDispatcher RemoteFlic XLink sipp_custom)
-    #       Attempt to have two XLinks simultaneously
-    include(vpualPrivateCmake/FLIC.cmake)
-    include(vpualPrivateCmake/SIPP.cmake)
-    set(VPUAL_LIBRARY RemoteFlic VpualDispatcher XLink2 sipp_custom)
-    
-    include_directories(
-        ${REMOTE_FLIC_INCLUDE_DIRECTORIES}
-        ${SIPP_INCLUDE_DIRECTORIES}
-    )
-
-    # TODO: enable some day and fix all warnings
-    if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-        set_target_properties(${VPUAL_LIBRARY} PROPERTIES COMPILE_OPTIONS "-Wno-error")
-    endif()
-    
-    # TODO: enable some day and fix all warnings
-    set_target_properties(${VPUAL_LIBRARY} PROPERTIES CXX_VISIBILITY_PRESET default )
-    set_target_properties(${VPUAL_LIBRARY} PROPERTIES C_VISIBILITY_PRESET default )
 endif()
 
 file(GLOB_RECURSE SOURCES *.cpp *.hpp *.h)
@@ -119,7 +85,6 @@ ie_add_plugin(NAME ${TARGET_NAME}
               SOURCES ${SOURCES}
               VERSION_DEFINES_FOR kmb_plugin.cpp
             DEVICE_NAME KMB)
-
 
 target_compile_options(${TARGET_NAME}
         PRIVATE
@@ -154,7 +119,7 @@ target_link_libraries(${TARGET_NAME}
         IE::vpu_graph_transformer
         IE::vpu_common_lib
         ${MCM_COMPILER_LIBRARY}
-        ${VPUAL_LIBRARY}
+        NN
         vpusmm
         )
 
@@ -165,16 +130,6 @@ if (MCM_COMPILER_PATHS_FINDING)
     unset(MCM_COMPILER_PATHS_FINDING CACHE)
     unset(FLATBUFFERRS_INCLUDE_PATH CACHE)
     unset(MCM_SCHEMA_INCLUDE_PATH CACHE)
-endif()
-
-# copy memory manager library to target directory when vpualHost is enabled
-if(ENABLE_VPUAL)
-    set(VPUSMM_LIB_PATH "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/thirdparty/vsi_cmodel/vpusmm/${CMAKE_SYSTEM_PROCESSOR}/libvpusmm.so")
-
-    set(VPUSMM_OUT_DIR "$<TARGET_FILE_DIR:kmbPlugin>")
-    add_custom_target(vpusmm_copy_library ALL
-        COMMAND "${CMAKE_COMMAND}" -E copy "${VPUSMM_LIB_PATH}" "${VPUSMM_OUT_DIR}/libvpusmm.so"
-        COMMENT "[VPUSMM] Copy ${VPUSMM_LIB_PATH} to build results")
 endif()
 
 if(ENABLE_TESTS)
@@ -204,5 +159,5 @@ if(ENABLE_TESTS)
                 IE::vpu_graph_transformer
                 IE::vpu_common_lib
                 ${MCM_COMPILER_LIBRARY}
-                ${VPUAL_LIBRARY})
+                NN)
 endif()
