@@ -14,9 +14,12 @@
 # stated in the License.
 #
 
-add_subdirectory(vsi_cmodel/vpusmm)
+find_library(VPUSMM_LIBRARY
+        NAMES vpusmm
+        HINTS ${CMAKE_CURRENT_LIST_DIR}/${CMAKE_SYSTEM_PROCESSOR})
 
-if (ENABLE_TESTS AND ENABLE_VPUAL)
-    add_subdirectory(tests/integration)
-endif()
+add_library(vpusmm SHARED IMPORTED GLOBAL)
 
+set_target_properties(vpusmm PROPERTIES
+        INTERFACE_INCLUDE_DIRECTORIES "${CMAKE_CURRENT_LIST_DIR}"
+        IMPORTED_LOCATION ${VPUSMM_LIBRARY})
