@@ -46,6 +46,10 @@ if(ENABLE_TESTS)
     add_subdirectory(tests)
 endif()
 
-if (ENABLE_SAMPLES)
+if(NOT DEFINED ENABLE_KMB_SAMPLES OR ENABLE_SAMPLES)
+    set(ENABLE_KMB_SAMPLES ON)
+endif()
+
+if(ENABLE_KMB_SAMPLES)
     add_subdirectory(samples)
 endif()

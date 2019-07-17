@@ -78,8 +78,7 @@ macro(ie_add_sample)
         "${IE_MAIN_SAMPLES_DIR}/common"
     )
 
-    target_link_libraries(${IE_SAMPLE_NAME} PRIVATE ${InferenceEngine_LIBRARIES}
-                                                    ${IE_SAMPLE_DEPENDENCIES} IE::ie_cpu_extension gflags)
+    target_link_libraries(${IE_SAMPLE_NAME} PRIVATE ${InferenceEngine_LIBRARIES} gflags)
 
     target_link_libraries(${IE_SAMPLE_NAME} PRIVATE pthread)
 

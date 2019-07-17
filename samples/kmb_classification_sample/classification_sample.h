@@ -25,7 +25,7 @@
 static const char help_message[] = "Print a usage message.";
 
 /// @brief message for images argument
-static const char image_message[] = "Required. Path to a folder with binary inputs or path to binary input file";
+static const char image_message[] = "Required. Path to a binary input file";
 
 /// @brief message for model argument
 static const char model_message[] = "Required. Path to a .blob file compiled from .xml file with a trained model.";

@@ -64,6 +64,21 @@ bool readBinaryFile(std::string input_binary, std::string& data) {
     return status;
 }
 
+std::vector<std::string> readLabelsFromFile(const std::string& labelFileName) {
+    std::vector<std::string> labels;
+
+    std::ifstream inputFile;
+    inputFile.open(labelFileName, std::ios::in);
+    if (inputFile.is_open()) {
+        std::string strLine;
+        while (std::getline(inputFile, strLine)) {
+            trim(strLine);
+            labels.push_back(strLine);
+        }
+    }
+    return labels;
+}
+
 /**
 * @brief The entry point the Inference Engine sample application
 * @file classification_sample/main.cpp
@@ -79,9 +94,7 @@ int main(int argc, char *argv[]) {
         }
 
         /** This vector stores paths to the processed images **/
-        std::vector<std::string> imageNames;
-        parseInputFilesArguments(imageNames);
-        if (imageNames.empty()) throw std::logic_error("No suitable images were found");
+        std::string imageFileName = FLAGS_i;
 
         // -----------------------------------------------------------------------------------------------------
 
@@ -111,17 +124,11 @@ int main(int argc, char *argv[]) {
         importedNetworkPtr->GetInputsInfo(inputInfo, &response);
         if (inputInfo.size() != 1) throw std::logic_error("Sample supports topologies only with 1 input");
 
-        std::vector<std::string> imagesData;
-        for (auto & inputFilePath : imageNames) {
-            std::string data;
-            if (!readBinaryFile(inputFilePath, data)) {
-                slog::info << "failed to read " << inputFilePath << slog::endl;
-                continue;
-            }
-            /** Store image data **/
-            imagesData.push_back(data);
+        std::string imageData;
+        if (!readBinaryFile(imageFileName, imageData)) {
+            slog::info << "failed to read " << imageFileName << slog::endl;
+            throw std::logic_error("Valid input images were not found!");
         }
-        if (imagesData.empty()) throw std::logic_error("Valid input images were not found!");
         // -----------------------------------------------------------------------------------------------------
 
         // --------------------------- 4. Create infer request -------------------------------------------------
@@ -137,29 +144,18 @@ int main(int argc, char *argv[]) {
 
         // --------------------------- 5. Prepare input --------------------------------------------------------
         /** Iterate over all the input blobs **/
-        for (const auto & item : inputInfo) {
-            /** Creating input blob **/
-            Blob::Ptr input;
-            inferRequest->GetBlob(item.first.c_str(), input, &response);
+        std::string firstInputName = inputInfo.begin()->first;
+        /** Creating input blob **/
+        Blob::Ptr inputBlob;
+        inferRequest->GetBlob(firstInputName.c_str(), inputBlob, &response);
 
-            /** Filling input tensor with images. First b channel, then g and r channels **/
-            size_t num_channels = input->getTensorDesc().getDims()[1];
-            size_t image_size = input->getTensorDesc().getDims()[2] * input->getTensorDesc().getDims()[3];
-
-            auto data = input->buffer().as<PrecisionTrait<Precision::U8>::value_type*>();
-
-            /** Iterate over all input images **/
-            for (size_t image_id = 0; image_id < imagesData.size(); ++image_id) {
-                /** Iterate over all pixel in image (b,g,r) **/
-                for (size_t pid = 0; pid < image_size; pid++) {
-                    /** Iterate over all channels **/
-                    for (size_t ch = 0; ch < num_channels; ++ch) {
-                        /**          [images stride + channels stride + pixel id ] all in bytes            **/
-                        data[image_id * image_size * num_channels + ch * image_size + pid ] = imagesData.at(image_id).at(pid*num_channels + ch);
-                    }
-                }
-            }
+        /** Filling input tensor with images. **/
+        if(inputBlob->size() < imageData.size()) {
+            throw std::logic_error("Input blob doesn't have enough memory to fit input image");
         }
+
+        auto blobData = inputBlob->buffer().as<PrecisionTrait<Precision::U8>::value_type*>();
+        std::copy(imageData.begin(), imageData.end(), blobData);
 
         status = inferRequest->Infer(&response);
         if (status == StatusCode::OK) {
@@ -176,38 +172,25 @@ int main(int argc, char *argv[]) {
 
         ConstOutputsDataMap outputInfo;
         importedNetworkPtr->GetOutputsInfo(outputInfo, &response);
+        if (outputInfo.size() != 1) throw std::logic_error("Sample supports topologies only with 1 output");
 
-        std::string firstOutputName;
-        for (auto & item : outputInfo) {
-            if (firstOutputName.empty()) {
-                firstOutputName = item.first;
-            }
-        }
+        std::string firstOutputName = outputInfo.begin()->first;
 
         Blob::Ptr output_blob;
         inferRequest->GetBlob(firstOutputName.c_str(), output_blob, &response);
 
         /** Read labels from file (e.x. AlexNet.labels) **/
         std::string labelFileName = fileNameNoExt(FLAGS_m) + ".labels";
-        std::vector<std::string> labels;
-
-        std::ifstream inputFile;
-        inputFile.open(labelFileName, std::ios::in);
-        if (inputFile.is_open()) {
-            std::string strLine;
-            while (std::getline(inputFile, strLine)) {
-                trim(strLine);
-                labels.push_back(strLine);
-            }
-        }
+        std::vector<std::string> labels = readLabelsFromFile(labelFileName);
 
         auto inputInfoItem = *inputInfo.begin();
         Blob::Ptr input_blob;
         inferRequest->GetBlob(inputInfoItem.first.c_str(), input_blob, &response);
 
         const SizeVector inputDims = input_blob->getTensorDesc().getDims();
-        size_t batchSize = inputDims.at(1);
+        size_t batchSize = inputDims.at(0);
 
+        std::vector<std::string> imageNames = { imageFileName };
         const size_t resultsCnt = output_blob->size() / batchSize;
         ClassificationResult classificationResult(output_blob, imageNames,
                                                   batchSize, resultsCnt,
