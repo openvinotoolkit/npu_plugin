@@ -60,6 +60,7 @@ int main()
     auto bias_c4 = om.bias(conv4, biasWeights4, {{0},{0.003921568859368563},{0.0},{1.0}});
 
     auto eltwise0 = om.add({bias_c1,bias_c4}, {{0},{0.003921568859368563},{0.0},{1.0}}, "res2a/FakeQuantWithMinMaxArgs#24");
+    om.output(eltwise0);
 
     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/eltwise_streaming.json";
     unit.loadCompilationDescriptor(compDescPath);
