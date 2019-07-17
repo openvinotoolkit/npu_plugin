@@ -125,6 +125,9 @@ else()
     add_executable(dpu_task_example dpu_task_example.cpp)
     target_link_libraries(dpu_task_example cm)
 
+    add_executable(parallel_branch_example parallel_branch_example.cpp)
+    target_link_libraries(parallel_branch_example cm)
+
     add_executable(dpu_conv_3_conv dpu_conv_3_conv.cpp)
     target_link_libraries(dpu_conv_3_conv cm)
 
