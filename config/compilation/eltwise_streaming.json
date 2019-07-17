@@ -63,7 +63,22 @@
                 "streaming_strategy" :
                 [
                     {
-                        "name_filter" : "eltwise_test#6",
+                        "name_filter" : "conv1#18",
+                        "output_location" : "CMX",
+                        "splits" : [ {"H" : 2} ]
+                    },
+                    {
+                        "name_filter" : "pool1/max_pool#19",
+                        "output_location" : "CMX",
+                        "splits" : [ {"H" : 2} ]
+                    },
+                    {
+                        "name_filter" : "res2a_branch1#20",
+                        "output_location" : "CMX",
+                        "splits" : [ {"H" : 2} ]
+                    },
+                    {
+                        "name_filter" : "res2a_branch2c#23",
                         "output_location" : "CMX",
                         "splits" : [ {"H" : 2} ]
                     }
@@ -286,7 +301,7 @@
             {
                 "name": "GenerateDot",
                 "output": "output/dots/dma_model.dot",
-                "scope": "OpControlModel",
+                "scope": "ControlModel",
                 "content": "full",
                 "html": true
             },

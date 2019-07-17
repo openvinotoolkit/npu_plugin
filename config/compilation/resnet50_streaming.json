@@ -63,7 +63,12 @@
                 "streaming_strategy" :
                 [
                     {
-                        "name_filter" : "conv1#181",
+                        "name_filter" : "conv1#18",
+                        "output_location" : "CMX",
+                        "splits" : [ {"H" : 2} ]
+                    },
+                    {
+                        "name_filter" : "pool1/max_pool#182",
                         "output_location" : "CMX",
                         "splits" : [ {"H" : 2} ]
                     },
@@ -189,11 +194,6 @@
                     },
                     {
                         "name_filter" : "res3d/Relu#212",
-                        "output_location" : "CMX",
-                        "splits" : [ {"H" : 2} ]
-                    },
-                    {
-                        "name_filter" : "pool1/max_pool#182",
                         "output_location" : "CMX",
                         "splits" : [ {"H" : 2} ]
                     },
