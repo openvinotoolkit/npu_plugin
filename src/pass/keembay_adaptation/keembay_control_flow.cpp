@@ -130,8 +130,8 @@ void hangingDmaControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationM
     for(auto& dmaOp: dmas)
     {
         auto dma = cm.switchContext(dmaOp);
-        // Check if it's hanging, otherwise we don't need to do anything
-        if(dma.inputsSize() == 0)
+        // Check if it's DDR2CMX, otherwise we don't need to do anything
+        if(dma->get<mv::DmaDirection>("direction") == mv::DmaDirectionEnum::DDR2CMX)
         {
             // At this point (see assumption above) each DMA has at least one output control flow
             // We take the minimum layer number required by operations using this data
@@ -159,23 +159,23 @@ void hangingDmaControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationM
             for(unsigned j = 0; j < sonWithMinimumLayerInvolvedIndex; ++j)
                 ++sonWithMinimumLayerInvolved;
 
-            //Except for eltwise input tensor is always at index 0 
-            if(!sonWithMinimumLayerInvolved->getInputTensor(0)->isPopulated())
-                targets.push_back(cm.switchContext(om.getSourceOp(sonWithMinimumLayerInvolved->getInputTensor(0))));
+//            //Except for eltwise input tensor is always at index 0
+//            if(!sonWithMinimumLayerInvolved->getInputTensor(0)->isPopulated())
+//                targets.push_back(cm.switchContext(om.getSourceOp(sonWithMinimumLayerInvolved->getInputTensor(0))));
 
             // Now based on the prefetch we have to start from the sonWithMinimumLayerInvolved and go back prefetch layers
             for(auto positionInTopologicalSort = std::find(sortedOps.rbegin(), sortedOps.rend(), sonWithMinimumLayerInvolved); positionInTopologicalSort != sortedOps.rend(); ++positionInTopologicalSort)
             {
                 auto preceedingOp = *positionInTopologicalSort;
 
-                if (!preceedingOp->hasAttr("layerNumber"))
+                if (!preceedingOp->hasAttr("layerNumber") || preceedingOp->getOpType() == "DMATask")
                     continue;
                 unsigned preceedingOpLayerNumber = preceedingOp->get<unsigned>("layerNumber");
 
                 // Two conditions must be true to build the control flow preceedingOp -> dma
                 // 1) The difference in terms of layersNumber has to be EXACTLY _dma_dependency
                 // 2) There has to be a dependency between preceedingOp and the sonWithMinimumLayerInvolved (preeceding op could be on a parallel branch)
-                if(minimumLayerInvolved - preceedingOpLayerNumber == _dma_dependency && cm.pathExists(preceedingOp, sonWithMinimumLayerInvolved))
+                if(minimumLayerInvolved - preceedingOpLayerNumber >= _dma_dependency && cm.pathExists(preceedingOp, sonWithMinimumLayerInvolved))
                     for(auto& target : targets)
                         flowsToAdd.push_back(std::make_pair(preceedingOp, target));
 

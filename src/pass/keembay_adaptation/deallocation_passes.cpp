@@ -89,13 +89,14 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
         // NOTE: This check must remain as is, can't be replaced by hasTypeTrait("executable") check
         // e.g. concat's output tensor needs deallocation even if it's not executable
         if(inputOp->getOpType() == "Constant" || inputOp->getOpType() == "ConstantInt" || inputOp->getOpType() == "ConstantDataElement" ||
-            inputOp->getOpType() == "WeightsTable" || inputOp->getOpType() == "SparsityMap")
+            inputOp->getOpType() == "WeightsTable" || inputOp->getOpType() == "SparsityMap" || inputOp->getOpType() == "Slice")
             continue;
 
         auto inputTensor = dataFlowIt->getTensor();
         
-        if (inputTensor->get<mv::Tensor::MemoryLocation>("Location") != mv::Tensor::MemoryLocation::CMX)
-            continue;
+        // NOTE: To uncomment
+        //if (inputTensor->get<mv::Tensor::MemoryLocation>("Location") != mv::Tensor::MemoryLocation::CMX)
+            //continue;
         
         // Tensors that are input of a concat shall not be deallocated: they will be allocated into a bigger tensor
         // (the output of concat op) and that will be deallocated
