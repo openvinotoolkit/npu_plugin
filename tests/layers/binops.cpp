@@ -62,11 +62,11 @@ TEST_P(layers_binops, dump_blob)
 #endif
 
     auto binop = func == Add ?
-                     om.add(data0, data1) :
+                     om.add({data0, data1}) :
                  func == Subtract ?
-                     om.subtract(data0, data1) :
+                     om.subtract({data0, data1}) :
                  func == Multiply ?
-                     om.multiply(data0, data1) :
+                     om.multiply({data0, data1}) :
     //           func == Divide ?
                      om.divide(data0, data1);
     auto output = om.output(binop);

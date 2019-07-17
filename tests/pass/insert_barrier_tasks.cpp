@@ -45,7 +45,7 @@ TEST(insert_barrier_tasks, parallel_paths)
     auto conv1 = om.conv(input, weight0, {1, 1}, {0, 0, 0, 0}); // REUSE barrier 0
     auto conv2 = om.conv(conv0, weight2, {1, 1}, {0, 0, 0, 0}); // one barrier, #1
 
-    auto add1 = om.add(conv2, conv1);   // one barrier, #2
+    auto add1 = om.add({conv2, conv1});   // one barrier, #2
 
     om.output(add1); // one barrier for DMA out from CMX to DDR, #3
 
@@ -125,7 +125,7 @@ TEST(insert_barrier_tasks, single_control_edge)
     auto conv1 = om.conv(input, weight1, {1, 1}, {0, 0, 0, 0}); // one barrier, #1
     auto conv2 = om.conv(conv0, weight2, {1, 1}, {0, 0, 0, 0}); // one barrier, #2
 
-    auto add1 = om.add(conv2, conv1);   // one barrier, #3
+    auto add1 = om.add({conv2, conv1});   // one barrier, #3
 
     om.output(add1); // one barrier for DMA out from CMX to DDR, #4
 
@@ -224,7 +224,7 @@ TEST(insert_barrier_tasks, multiple_control_edges)
     auto conv1 = om.conv(input, weight1, {1, 1}, {0, 0, 0, 0}); // one barrier, #1
     auto conv2 = om.conv(conv0, weight2, {1, 1}, {0, 0, 0, 0}); // one barrier, #2
 
-    auto add1 = om.add(conv2, conv1);   // one barrier, #3
+    auto add1 = om.add({conv2, conv1});   // one barrier, #3
 
     om.output(add1); // one barrier for DMA out from CMX to DDR, #4
 
@@ -344,7 +344,7 @@ TEST(insert_barrier_tasks, dealloc_edge)
     auto conv1 = om.conv(input, weight1, {1, 1}, {0, 0, 0, 0}); // one barrier, #1
     auto conv2 = om.conv(conv0, weight2, {1, 1}, {0, 0, 0, 0}); // one barrier, #2
 
-    auto add1 = om.add(conv2, conv1);   // one barrier, #3
+    auto add1 = om.add({conv2, conv1});   // one barrier, #3
 
     om.output(add1); // one barrier for DMA out from CMX to DDR, #4
 
@@ -451,7 +451,7 @@ TEST(insert_barrier_tasks, static_index_assignment)
     auto conv2 = om.conv(pool1, weights2, {1, 1}, {1, 1, 1, 1});  // barrier
                                                                   // prefetch barrier
 
-    auto add0 = om.add(conv1, conv2);   // barrier
+    auto add0 = om.add({conv1, conv2});   // barrier
 
     auto weights3 = om.constant(weights1Data, {3, 3, 16, 16}, mv::DType("Float16"), mv::Order("NCWH"));
     auto conv3 = om.conv(add0, weights3, {1, 1}, {1, 1, 1, 1});    // barrier
@@ -529,7 +529,7 @@ TEST(insert_barrier_tasks, dynamic_index_assignment)
     auto weights3 = om.constant(weights3Data, {3, 3, 16, 16}, mv::DType("Float16"), mv::Order("NCWH"));
     auto conv3 = om.conv(pool2, weights3, {1, 1}, {1, 1, 1, 1});
 
-    auto add1 = om.add(conv2, conv3);
+    auto add1 = om.add({conv2, conv3});
 
     auto weights4 = om.constant(weights3Data, {3, 3, 16, 16}, mv::DType("Float16"), mv::Order("NCWH"));
     auto conv4 = om.conv(add1, weights4, {1, 1}, {1, 1, 1, 1});

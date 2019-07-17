@@ -108,7 +108,7 @@ mv::Data::TensorIterator residualBlock(mv::CompositionalModel& model,
                                         quantParams,
                                         "branch2c_" + name);
 
-    auto res = model.add(input, branch2c, quantParams, name + "_add");
+    auto res = model.add({input, branch2c}, quantParams, name + "_add");
     return model.relu(res, quantParams, name + "_relu");
 
 }
@@ -168,7 +168,7 @@ residualConvBlock(mv::CompositionalModel& model,
                                         quantParams,
                                         "branch2c_" + name);
 
-    auto res = model.add(branch1, branch2c, quantParams, name + "_add");
+    auto res = model.add({branch1, branch2c}, quantParams, name + "_add");
     return model.relu(res, quantParams, name + "_relu");
 
 }

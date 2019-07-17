@@ -12,7 +12,7 @@ TEST(ops, add)
     auto input1 = om.constant(input1Data, {256, 512}, mv::DType("Float16"), mv::Order("HW"));
     auto input2 = om.constant(input2Data, {256, 512}, mv::DType("Float16"), mv::Order("HW"));
 
-    auto add = om.add(input1, input2);
+    auto add = om.add({input1, input2});
     auto addOp = om.getSourceOp(add);
     auto output = om.output(add);
 

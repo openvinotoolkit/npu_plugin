@@ -173,7 +173,7 @@ void hangingDmaControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationM
                 unsigned preceedingOpLayerNumber = preceedingOp->get<unsigned>("layerNumber");
 
                 // Two conditions must be true to build the control flow preceedingOp -> dma
-                // 1) The difference in terms of layersNumber has to be EXACTLY _dma_dependency
+                // 1) The difference in terms of layersNumber has to be greater or equal _dma_dependency
                 // 2) There has to be a dependency between preceedingOp and the sonWithMinimumLayerInvolved (preeceding op could be on a parallel branch)
                 if(minimumLayerInvolved - preceedingOpLayerNumber >= _dma_dependency && cm.pathExists(preceedingOp, sonWithMinimumLayerInvolved))
                     for(auto& target : targets)
