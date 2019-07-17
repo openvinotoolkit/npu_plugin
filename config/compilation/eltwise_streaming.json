@@ -81,6 +81,11 @@
                         "name_filter" : "res2a_branch2c#23",
                         "output_location" : "CMX",
                         "splits" : [ {"H" : 2} ]
+                    },
+                    {
+                        "name_filter" : "res2a/FakeQuantWithMinMaxArgs#24",
+                        "output_location" : "CMX",
+                        "splits" : [ {"H" : 4} ]
                     }
                 ]
             },
