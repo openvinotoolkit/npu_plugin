@@ -171,10 +171,10 @@ mv::Data::FlowListIterator mv::BaseOpModel::defineFlow(Data::OpListIterator sour
 
 }
 
-std::vector<mv::Data::OpListIterator> mv::BaseOpModel::topologicalSort()
+std::vector<mv::Data::OpListIterator> mv::BaseOpModel::topologicalSort(bool lexical)
 {
     // Necessary for correct iterator casting
-    auto topologicalSortResult = mv::topologicalSort(dataGraph_);
+    auto topologicalSortResult = mv::topologicalSort(dataGraph_, lexical);
     std::vector<mv::Data::OpListIterator> toReturn(topologicalSortResult.begin(), topologicalSortResult.end());
     return toReturn;
 }

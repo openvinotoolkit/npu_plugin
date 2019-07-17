@@ -41,7 +41,7 @@ namespace mv
 
         void addGroupElement(Data::OpListIterator element, GroupIterator group);
         void removeGroupElement(Data::OpListIterator element, GroupIterator group);
-        std::vector<Data::OpListIterator> topologicalSort();
+        std::vector<Data::OpListIterator> topologicalSort(bool lexical = false);
         bool pathExists(Data::OpListIterator source, Data::OpListIterator target);
         using ComputationModel::addGroupElement;
         using ComputationModel::removeGroupElement;

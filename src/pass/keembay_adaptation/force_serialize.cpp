@@ -37,11 +37,12 @@ void forceSerializeFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mo
     };
 
     // This *NEEDS* to be based on the order of the Operational model
-    auto sortedOps = om.topologicalSort();
+    auto sortedOps = om.topologicalSort(true);
     removeNonEssentialOps(sortedOps);
 
     for (size_t i = 0; i < sortedOps.size() - 1; i++)
     {
+        pass.log(mv::Logger::MessageType::Debug, " sortedOps[" +  std::to_string(i) + "] = " + sortedOps[i]->getName() );;
         if (!(cm.pathExists(cm.switchContext(sortedOps[i]), cm.switchContext(sortedOps[i+1]))
             || om.pathExists(sortedOps[i], sortedOps[i+1])
             || cm.pathExists(cm.switchContext(sortedOps[i+1]), cm.switchContext(sortedOps[i]))
