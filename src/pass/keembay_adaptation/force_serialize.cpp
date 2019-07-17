@@ -43,7 +43,9 @@ void forceSerializeFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mo
     for (size_t i = 0; i < sortedOps.size() - 1; i++)
     {
         if (!(cm.pathExists(cm.switchContext(sortedOps[i]), cm.switchContext(sortedOps[i+1]))
-            || om.pathExists(sortedOps[i], sortedOps[i+1])))
+            || om.pathExists(sortedOps[i], sortedOps[i+1])
+            || cm.pathExists(cm.switchContext(sortedOps[i+1]), cm.switchContext(sortedOps[i]))
+            || om.pathExists(sortedOps[i+1], sortedOps[i])))
         {
             pass.log(mv::Logger::MessageType::Debug,
                 "FORCE SERIALIZE: adding edge from " + sortedOps[i]->getName() + " to " +
