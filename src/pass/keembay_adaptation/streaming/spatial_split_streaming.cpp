@@ -551,9 +551,12 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model, mv::Dat
         {
             //no more children.
             //todo:: Expose in JSON config the "Default stream location"
-            inputLocation[0].relocate(mv::Tensor::MemoryLocation::CMX);
+            for (auto i = 0; i < numInputs; i++)
+            {
+                inputLocation[i].relocate(mv::Tensor::MemoryLocation::CMX);
+                inputLocation[i].force();
+            }
             outputLocation.relocate(mv::Tensor::MemoryLocation::CMX);
-            inputLocation[0].force();
             outputLocation.force();
 
             // std::cout << "No more children deciding " << slices[split]->getName() << " to " << inputLocation.toString() << std::endl;
