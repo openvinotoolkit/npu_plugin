@@ -11,7 +11,6 @@ script "dldt/inference-engine/build-after-clone.sh" or see instructions in "dldt
 ## Build with help of script:
 1. Clone kmb-plugin from repository: git clone git@gitlab-icv.inn.intel.com:inference-engine/kmb-plugin.git
 2. Find bash-script "build_after_clone.sh" in the base directory of KMBPlugin and run it. 
-Possibly you need to execute (if you do not see script file): git checkout build_after_clone_script.
 3. When build finishes its work check output for possible errors.
 4. Then run script "run_tests_after_build.sh" to check that you have built KMBPlugin correctly.
 
