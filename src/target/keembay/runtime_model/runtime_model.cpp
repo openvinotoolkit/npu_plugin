@@ -2,6 +2,7 @@
 #include "meta/include/mcm/op_model.hpp"
 #include "contrib/flatbuffers/include/flatbuffers/util.h"
 #include "include/mcm/base/exception/argument_error.hpp"
+#include "include/mcm/utils/custom_math.hpp"
 #include <fstream>
 #include <iostream>
 
@@ -160,9 +161,7 @@ std::vector<unsigned> mv::RuntimeModel::reduceQuantVector_(std::vector<unsigned>
 std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT(mv::ComputationModel& model, mv::Element&, mv::Data::TensorIterator t)
 {
     mv::DataModel dm(model);
-    mv::OpModel om(model);
     mv::ControlModel cm(model);
-
 
     mv::Control::StageIterator stg = cm.getStage(0);
 
@@ -497,52 +496,27 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildUPADMATaskT(Co
 
 std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt)
 {
-    mv::DataModel dm(cm);
-    mv::ControlModel controlModel(cm);
-
     std::vector<std::unique_ptr<MVCNN::TaskT>> toReturn = std::vector<std::unique_ptr<MVCNN::TaskT>>(1);
     toReturn[0] = std::unique_ptr<MVCNN::TaskT>(new MVCNN::TaskT());
     toReturn[0]->task.type = MVCNN::SpecificTask_NNDMATask;
     auto tmp = new MVCNN::NNDMATaskT();
-    auto inputTensor = opIt->getInputTensor(0);
-    tmp->src = buildTensorReferenceT(cm, compilationDescriptor, inputTensor);
-    auto tensorAllocatorName = inputTensor->get<std::set<std::string>>("allocators").begin();
-    auto tensorAllocator = dm.getAllocator(*tensorAllocatorName);
-    mv::Data::BufferIterator tensorBufferIt = tensorAllocator.getBuffer(0, inputTensor);
-    mv::Control::StageIterator stg = controlModel.getStage(0);
 
-    if (tensorBufferIt->getMaster() != dm.bufferEnd(*tensorAllocatorName, stg))
+    tmp->src = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(0));
+    if (opIt->getInputTensor(0)->hasAttr("alignment"))
     {
-        auto masterBuffer = tensorBufferIt->getMaster(); //TODO: or do we need the top one?
-        auto masterTensor = (*masterBuffer)->getData();
-
-        auto numericStrides = masterTensor->computeNumericStrides();
-        numericStrides.push_back(masterTensor->getDType().getSizeInBits() / 8);
-
-        //Because according to graphfile order is given as NCHW, which is exactly the reverse of our shape assumption WHCN
+        auto globalConfigParams = cm.getGlobalConfigParams();
+        int pad = globalConfigParams->hasAttr("VPU2ChannelPadding") ? globalConfigParams->get<int>("VPU2ChannelPadding") : 16;
+        std::vector<std::size_t> dimensions = opIt->getInputTensor(0)->getShape();
+        auto outputChannelsPadded = mv::round_up(dimensions[mv::IO_CHANNEL_DIMENSION], pad);
+        dimensions = {dimensions[mv::IO_WIDTH_DIMENSION], dimensions[mv::IO_HEIGHT_DIMENSION], outputChannelsPadded, dimensions[mv::IO_BATCH_DIMENSION]};
+        auto numericStrides = opIt->getInputTensor(0)->getOrder().computeByteStrides(mv::Shape(dimensions), opIt->getInputTensor(0)->getDType().getSizeInBits() / 8);
+        numericStrides.push_back(opIt->getInputTensor(0)->getDType().getSizeInBits() / 8);
+        std::reverse(dimensions.begin(), dimensions.end());
         std::reverse(numericStrides.begin(), numericStrides.end());
-        tmp->src->strides = numericStrides;
+        tmp->src->strides = numericStrides; // NOTE: Maybe directly bufferIt->computeStrides() in the future?
     }
 
-    auto outputTensor = opIt->getOutputTensor(0);
-
-    tmp->dst = buildTensorReferenceT(cm, compilationDescriptor, outputTensor);
-    tensorAllocatorName = outputTensor->get<std::set<std::string>>("allocators").begin();
-    tensorAllocator = dm.getAllocator(*tensorAllocatorName);
-    tensorBufferIt = tensorAllocator.getBuffer(0, outputTensor);
-    stg = controlModel.getStage(0);
-
-    if (tensorBufferIt->getMaster() != dm.bufferEnd(*tensorAllocatorName, stg))
-    {
-        auto masterBuffer = tensorBufferIt->getMaster(); //TODO: or do we need the top one?
-        auto masterTensor = (*masterBuffer)->getData();
-        auto numericStrides = masterTensor->computeNumericStrides();
-        numericStrides.push_back(masterTensor->getDType().getSizeInBits() / 8);
-
-        //Because according to graphfile order is given as NCHW, which is exactly the reverse of our shape assumption WHCN
-        std::reverse(numericStrides.begin(), numericStrides.end());
-        tmp->dst->strides = numericStrides;
-    }
+    tmp->dst = buildTensorReferenceT(cm, compilationDescriptor, opIt->getOutputTensor(0));
 
     if(opIt->hasAttr("Compression"))
         tmp->compression =  opIt->get<bool>("Compression");

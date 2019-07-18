@@ -319,6 +319,7 @@
                 "input": "output/dots/NoHangingDmas.dot"
             },
             "cmx2DDRControlFlows",
+            "TransitiveReduction",
             {
                 "name": "GenerateDot",
                 "output": "output/dots/cmx2DDRControlFlows.dot",
@@ -330,7 +331,6 @@
                 "name": "ConvertDot",
                 "input": "output/dots/cmx2DDRControlFlows.dot"
             },
-            "ActivationTensorsControlFlows",
             "AddDeallocationTasks",
             {
                 "name": "GenerateDot",
