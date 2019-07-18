@@ -19,6 +19,57 @@ namespace mv
     }
 }
 
+
+    struct LexicalComparator
+    {
+        bool operator()(mv::Data::OpListIterator lhs, mv::Data::OpListIterator rhs) const
+        {
+            return !(lhs->getName() < rhs->getName());
+        }
+    };
+    struct OpItSetComparator
+    {
+        bool operator()(mv::Data::OpListIterator lhs, mv::Data::OpListIterator rhs) const
+        {
+            return (lhs->getName() < rhs->getName());
+        }
+    };
+    // NOTE: This graph non member function works only on DAGs
+    void visit(mv::Data::OpListIterator root, std::set<mv::Data::OpListIterator, OpItSetComparator>& unmarkedNodes, std::vector<mv::Data::OpListIterator>& toReturn, mv::OpModel& om)
+    {
+        if(unmarkedNodes.find(root) == unmarkedNodes.end())
+            return;
+
+        std::vector<mv::Data::OpListIterator> sortedNbrs;
+        for(auto neighbour = root.leftmostChild(); neighbour != om.opEnd(); ++neighbour)
+            sortedNbrs.push_back(neighbour);
+
+        std::sort(sortedNbrs.begin(), sortedNbrs.end(), LexicalComparator());
+
+        for (auto nbr: sortedNbrs)
+            visit(nbr, unmarkedNodes, toReturn, om);
+
+        unmarkedNodes.erase(root);
+        toReturn.push_back(root);
+    }
+    std::vector<mv::Data::OpListIterator> lexTopologicalSort(mv::OpModel& om)
+    {
+        std::vector<mv::Data::OpListIterator> toReturn;
+
+        std::set<mv::Data::OpListIterator, OpItSetComparator> unmarkedNodes;
+        for(auto node = om.opBegin(); node != om.opEnd(); ++node)
+            unmarkedNodes.insert(node);
+
+        while(!unmarkedNodes.empty())
+        {
+            auto toVisit = unmarkedNodes.begin();
+            visit(*toVisit, unmarkedNodes, toReturn, om);
+        }
+
+        std::reverse(toReturn.begin(), toReturn.end());
+        return toReturn;
+    }
+
 void forceSerializeFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
 
@@ -37,7 +88,8 @@ void forceSerializeFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mo
     };
 
     // This *NEEDS* to be based on the order of the Operational model
-    auto sortedOps = om.topologicalSort(true);
+    //auto sortedOps = om.topologicalSort(true);
+    auto sortedOps = lexTopologicalSort(om);
     removeNonEssentialOps(sortedOps);
 
     for (size_t i = 0; i < sortedOps.size() - 1; i++)
