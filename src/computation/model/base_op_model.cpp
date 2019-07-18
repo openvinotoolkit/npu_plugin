@@ -1,6 +1,7 @@
 #include "include/mcm/computation/model/base_op_model.hpp"
 #include "include/mcm/algorithms/topological_sort.hpp"
 #include "include/mcm/algorithms/path_exists.hpp"
+#include "include/mcm/algorithms/lexicographical_topsort.hpp"
 
 mv::BaseOpModel::BaseOpModel(const std::string& name) :
 ComputationModel(name)
@@ -176,6 +177,35 @@ std::vector<mv::Data::OpListIterator> mv::BaseOpModel::topologicalSort()
     // Necessary for correct iterator casting
     auto topologicalSortResult = mv::topologicalSort(dataGraph_);
     std::vector<mv::Data::OpListIterator> toReturn(topologicalSortResult.begin(), topologicalSortResult.end());
+    return toReturn;
+}
+
+struct OpItComparator
+{
+    bool operator()(mv::Data::OpListIterator lhs, mv::Data::OpListIterator rhs) const
+    {
+        return (lhs->getName() < lhs->getName());
+    }
+};
+
+struct OpLexComparator
+{
+    bool operator()(mv::Data::OpListIterator lhs, mv::Data::OpListIterator rhs) const
+    {
+        return !(lhs->getName() < rhs->getName());
+    }
+};
+
+std::vector<mv::Data::OpListIterator> mv::BaseOpModel::lexTopologicalSort()
+{
+    auto lexTopSortResult = mv::lexTopologicalSort<Op, DataFlow, OpItComparator, OpLexComparator>(dataGraph_);
+    std::vector<mv::Data::OpListIterator> toReturn(lexTopSortResult.begin(), lexTopSortResult.end());
+
+    std::cout << "-----sorted ops------" << std::endl;
+    for (auto s: toReturn)
+    {
+        std::cout << s->getName() << std::endl;
+    }
     return toReturn;
 }
 
