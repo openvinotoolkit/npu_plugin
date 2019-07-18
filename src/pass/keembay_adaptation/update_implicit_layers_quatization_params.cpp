@@ -20,7 +20,8 @@ namespace mv
 void updateImplicitLayersQuantizationParamsFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
     mv::OpModel om(model);
-    for(auto opIt = om.opBegin(); opIt != om.opEnd(); ++opIt)
+    auto sortedOps = om.topologicalSort();
+    for(auto opIt : sortedOps)
     {
          std::string opType = opIt->getOpType();
 
@@ -34,7 +35,6 @@ void updateImplicitLayersQuantizationParamsFcn(const mv::pass::PassEntry& , mv::
                 mv::QuantizationParams &outputQuantization = output->get<mv::QuantizationParams>("quantParams");
                 outputQuantization.quantize(inputQuantization.getShift(), inputQuantization.getMult());
             }
-
         }
     }
 }
