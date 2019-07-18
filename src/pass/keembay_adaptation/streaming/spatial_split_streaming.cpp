@@ -444,7 +444,7 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model, mv::Dat
 
         mv::Data::TensorIterator newTensor;
         std::string opType = op->getOpType();
-        if (opType == "MaxPool" || opType == "Conv")
+        if (opType == "MaxPool" || opType == "Conv" || opType == "DepthwiseConv")
         {
             auto inputTensor = op->getInputTensor(0);
 
@@ -464,7 +464,17 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model, mv::Dat
                                 op->get<std::string>("rounding_type"),
                                 op->get<mv::QuantizationParams>("quantParams"),
                                 op->getName() + "_split_" + std::to_string(split));
-            else
+                                
+            if (opType == "DepthwiseConv")
+                newTensor = om.depthwiseConv(slice,
+                                op->getInputTensor(1),
+                                kernelStride,
+                                currentPad,
+                                op->get<unsigned>("dilationFactor"),
+                                op->get<mv::QuantizationParams>("quantParams"),
+                                op->getName() + "_split_" + std::to_string(split));  
+
+            if (opType == "Conv")
                 newTensor = om.conv(slice,
                                 op->getInputTensor(1),
                                 kernelStride,
@@ -625,7 +635,7 @@ void generateSpatialTiling(mv::Data::OpListIterator op,Tiling& tiling, std::vect
     //todo:: check for original weights not the aligned one
     size_t kernelSize;
     std::string opType = op->getOpType();
-    if (opType == "Conv")
+    if (opType == "Conv" || opType == "Deptwise")
     {
         auto weightTensor = op->getInputTensor(1);
         auto weightsShape = weightTensor->getShape();
@@ -807,7 +817,7 @@ void streamingTilingFcn(const mv::pass::PassEntry& pass,
         std::string opType = opIt->getOpType();
         bool isElementWise = (opType == "Add" || opType == "Subtract" || opType == "Multiply");
 
-        if ((opType == "Conv" || (opType == "MaxPool") || isElementWise) && !opIt->hasAttr("splitted") && opHasSplittingStrategy)
+        if ((opType == "Conv" || opType == "DepthwiseConv" ||  (opType == "MaxPool") || isElementWise) && !opIt->hasAttr("splitted") && opHasSplittingStrategy)
         {
             //TODO:: get this as param or something!
             //the startingTile is the "big tensor". (currently any conv will be split based on one JSON specifier)

@@ -355,6 +355,7 @@
                 "input": "output/dots/NoHangingDmas.dot"
             },
             "cmx2DDRControlFlows",
+            "TransitiveReduction",
             {
                 "name": "GenerateDot",
                 "output": "output/dots/cmx2DDRControlFlows.dot",
