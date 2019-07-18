@@ -88,7 +88,6 @@ void forceSerializeFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mo
     };
 
     // This *NEEDS* to be based on the order of the Operational model
-    //auto sortedOps = om.topologicalSort(true);
     auto sortedOps = lexTopologicalSort(om);
     removeNonEssentialOps(sortedOps);
 

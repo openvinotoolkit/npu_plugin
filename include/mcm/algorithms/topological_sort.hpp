@@ -18,17 +18,8 @@ namespace mv
         }
     };
 
-    template <typename NodeIterator>
-    struct OpItComparatorTemplate3
-    {
-        bool operator()(NodeIterator lhs, NodeIterator rhs) const
-        {
-            return !((*lhs) < (*rhs));
-        }
-    };
-
     template <typename T_node, typename T_edge, typename OpIteratorComp>
-    void visit(typename graph<T_node, T_edge>::node_list_iterator root, std::set<typename graph<T_node, T_edge>::node_list_iterator, OpIteratorComp>& unmarkedNodes, std::vector<typename graph<T_node, T_edge>::node_list_iterator>& toReturn, graph<T_node, T_edge>& g, bool lexical = false)
+    void visit(typename graph<T_node, T_edge>::node_list_iterator root, std::set<typename graph<T_node, T_edge>::node_list_iterator, OpIteratorComp>& unmarkedNodes, std::vector<typename graph<T_node, T_edge>::node_list_iterator>& toReturn, graph<T_node, T_edge>& g)
     {
         if(unmarkedNodes.find(root) == unmarkedNodes.end())
             return;
@@ -36,9 +27,6 @@ namespace mv
         std::vector<typename graph<T_node, T_edge>::node_list_iterator> sortedNbrs;
         for(auto neighbour = root->leftmost_child(); neighbour != g.node_end(); ++neighbour)
             sortedNbrs.push_back(neighbour);
-
-        if (lexical)
-            std::sort(sortedNbrs.begin(), sortedNbrs.end(),  OpItComparatorTemplate3<typename graph<T_node, T_edge>::node_list_iterator>());
 
         for (auto nbr: sortedNbrs)
             visit(nbr, unmarkedNodes, toReturn, g);
@@ -49,7 +37,7 @@ namespace mv
 
     // NOTE: This graph non member function works only on DAGs
     template <typename T_node, typename T_edge>
-    std::vector<typename graph<T_node, T_edge>::node_list_iterator> topologicalSort(graph<T_node, T_edge>& g, bool lexical = false)
+    std::vector<typename graph<T_node, T_edge>::node_list_iterator> topologicalSort(graph<T_node, T_edge>& g)
     {
         std::vector<typename graph<T_node, T_edge>::node_list_iterator> toReturn;
 
@@ -63,7 +51,7 @@ namespace mv
         while(!unmarkedNodes.empty())
         {
             auto toVisit = unmarkedNodes.begin();
-            visit(*toVisit, unmarkedNodes, toReturn, g, lexical);
+            visit(*toVisit, unmarkedNodes, toReturn, g);
         }
 
         std::reverse(toReturn.begin(), toReturn.end());
