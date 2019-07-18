@@ -145,8 +145,6 @@ target_include_directories(${TARGET_NAME}
         "${MCM_COMPILER_INCLUDE_PATH}"
         "${FLATBUFFERRS_INCLUDE_PATH}"
         "${MCM_SCHEMA_INCLUDE_PATH}"
-        "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/thirdparty/vsi_cmodel/vpusmm/"
-        "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/thirdparty/vsi_cmodel/"
         )
 
 target_link_libraries(${TARGET_NAME}
@@ -157,7 +155,7 @@ target_link_libraries(${TARGET_NAME}
         IE::vpu_common_lib
         ${MCM_COMPILER_LIBRARY}
         ${VPUAL_LIBRARY}
-        ${VPUSMM_LIBRARY}
+        vpusmm
         )
 
 if (MCM_COMPILER_PATHS_FINDING)
@@ -196,12 +194,10 @@ if(ENABLE_TESTS)
             "${MCM_COMPILER_INCLUDE_PATH}"
             "${FLATBUFFERRS_INCLUDE_PATH}"
             "${MCM_SCHEMA_INCLUDE_PATH}"
-            "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/thirdparty/vsi_cmodel/vpusmm/"
-            "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/thirdparty/vsi_cmodel/"
             )
     target_link_libraries(${TARGET_NAME}_test_static
             PUBLIC
-                ${VPUSMM_LIBRARY}
+                vpusmm
                 IE::inference_engine
             PRIVATE
                 ${INTEL_ITT_LIBS}

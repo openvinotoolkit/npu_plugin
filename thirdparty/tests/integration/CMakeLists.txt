@@ -21,7 +21,6 @@ set(FLIC_TOP_INCLUDE_DIR "${VPUAL_HOST_ROOT_DIR}/host/source/FLIC/top/include")
 set(NN_FLIC_INCLUDE_DIR "${VPUAL_HOST_ROOT_DIR}/host/source/NN/NNFlicPlg/include")
 set(GRAPH_MANAGER_INCLUDE_DIR "${VPUAL_HOST_ROOT_DIR}/host/source/NN/GraphManagerPlg/include")
 set(TENSOR_PLG_INCLUDE_DIR "${VPUAL_HOST_ROOT_DIR}/host/source/NN/TensorPlg/include")
-set(VPUSMM_INCLUDE_DIR "${PROJECT_SOURCE_DIR}/thirdparty/vsi_cmodel/vpusmm")
 
 file(GLOB TEST_INCLUDE
         ${CMAKE_CURRENT_SOURCE_DIR}/*.h)
@@ -45,12 +44,11 @@ function(addVpuTest TARGET_NAME PLUGIN_NAME)
             ${FLIC_TOP_INCLUDE_DIR}
             ${NN_FLIC_INCLUDE_DIR}
             ${GRAPH_MANAGER_INCLUDE_DIR}
-            ${TENSOR_PLG_INCLUDE_DIR}
-            ${VPUSMM_INCLUDE_DIR})
+            ${TENSOR_PLG_INCLUDE_DIR})
 
     if (INTEGRATION_TESTS_ENABLE_IE)
         add_definitions(-DINTEGRATION_TESTS_ENABLE_IE)
-        target_link_libraries(${TARGET_NAME} PRIVATE IE::gtest IE::gtest_main IE::helpers ${VPUAL_LIBRARIES} ${VPUSMM_LIBRARY})
+        target_link_libraries(${TARGET_NAME} PRIVATE IE::gtest IE::gtest_main IE::helpers ${VPUAL_LIBRARIES} vpusmm)
     else()
         find_package(GTest REQUIRED)
         if (NOT INTEGRATION_TESTS_BLOB_FILE OR NOT INTEGRATION_TESTS_INPUT_FILE)
@@ -60,7 +58,7 @@ function(addVpuTest TARGET_NAME PLUGIN_NAME)
             -DINTEGRATION_TESTS_BLOB_FILE="${INTEGRATION_TESTS_BLOB_FILE}"
             -DINTEGRATION_TESTS_INPUT_FILE="${INTEGRATION_TESTS_INPUT_FILE}"
         )
-        target_link_libraries(${TARGET_NAME} PRIVATE ${GTEST_LIBRARIES} ${VPUAL_LIBRARIES} ${VPUSMM_LIBRARY})
+        target_link_libraries(${TARGET_NAME} PRIVATE ${GTEST_LIBRARIES} ${VPUAL_LIBRARIES} vpusmm)
     endif()
 
     add_test(NAME ${TARGET_NAME} COMMAND ${TARGET_NAME})
