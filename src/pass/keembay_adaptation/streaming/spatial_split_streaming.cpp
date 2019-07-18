@@ -635,7 +635,7 @@ void generateSpatialTiling(mv::Data::OpListIterator op,Tiling& tiling, std::vect
     //todo:: check for original weights not the aligned one
     size_t kernelSize;
     std::string opType = op->getOpType();
-    if (opType == "Conv" || opType == "Deptwise")
+    if (opType == "Conv" || opType == "DepthwiseConv")
     {
         auto weightTensor = op->getInputTensor(1);
         auto weightsShape = weightTensor->getShape();
