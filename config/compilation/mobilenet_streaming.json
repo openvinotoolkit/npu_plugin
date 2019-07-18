@@ -63,34 +63,24 @@
                 "streaming_strategy" :
                 [
                         {
-                        "name_filter" : "expanded_conv/depthwise/Relu6#172",
-                        "output_location" : "CMX",
-                        "splits" : [ {"H" : 4} ]
-                        },
-                        {
-                        "name_filter" : "expanded_conv/project/BatchNorm/FusedBatchNorm/BiasAdd#173",
-                        "output_location" : "CMX",
-                        "splits" : [ {"H" : 4} ]
-                        },
-                        {
                         "name_filter" : "expanded_conv_1/expand/Relu6#174",
                         "output_location" : "CMX",
-                        "splits" : [ {"H" : 4} ]
+                        "splits" : [ {"H" : 2} ]
                         },
                         {
                         "name_filter" : "expanded_conv_1/depthwise/Relu6#175",
                         "output_location" : "CMX",
-                        "splits" : [ {"H" : 4} ]
+                        "splits" : [ {"H" : 2} ]
                         },
                         {
                         "name_filter" : "expanded_conv_2/depthwise/Relu6_1#178",
                         "output_location" : "CMX",
-                        "splits" : [ {"H" : 4} ]
+                        "splits" : [ {"H" : 2} ]
                         },
                         {
                         "name_filter" : "Logits/Conv2d_1c_1x1/BiasAdd/Logits/Conv2d_1c_1x1/BiasAdd#234",
                         "output_location" : "CMX",
-                        "splits" : [ {"K" : 4} ]
+                        "splits" : [ {"K" : 2} ]
                         }
                 ]
             },
