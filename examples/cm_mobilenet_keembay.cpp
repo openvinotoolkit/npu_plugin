@@ -478,7 +478,7 @@ int main()
 
     om.output(bias_c35);
 
-    std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/debug_ma2490.json";
+    std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/mobilenet_streaming.json";
     unit.loadCompilationDescriptor(compDescPath);
 
     unit.loadTargetDescriptor(mv::Target::ma2490);
