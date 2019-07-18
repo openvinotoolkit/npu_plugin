@@ -850,10 +850,11 @@ void streamingTilingFcn(const mv::pass::PassEntry& pass,
 
             om.removeOp(opIt);
 
-            //std::cout<< "   connecting "<< result->getName() <<" to " << opsToLink[0]->getName() << " input slot " <<  inputSlots[0] << std::endl ;
             for (unsigned j = 0; j < opsToLink.size(); ++j)
             {
-                opsToLink[j]->setInputTensor(result, inputSlots[j]);
+                //std::cout<< "   connecting "<< result->getName() <<" to " << opsToLink[j]->getName() << " input slot " <<  inputSlots[j] << std::endl ;
+
+                opsToLink[j]->setInputTensor(result, inputSlots[j], false);
                 om.defineFlow(result, opsToLink[j], inputSlots[j]);
             }
 
