@@ -86,6 +86,9 @@ else()
     add_executable(cm_resnet50_keembay cm_resnet50_keembay.cpp)
     target_link_libraries(cm_resnet50_keembay cm)
 
+    add_executable(cm_mobilenet_keembay cm_mobilenet_keembay.cpp)
+    target_link_libraries(cm_mobilenet_keembay cm)
+
     add_executable(cm_resnet18 cm_resnet18.cpp)
     target_link_libraries(cm_resnet18 cm)
 
