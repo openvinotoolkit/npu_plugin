@@ -11,7 +11,7 @@
                 "Number_of_DPUs" : 1,
                 "Number_of_Clusters" : 1,
                 "UpaShaves": 1,
-                "DDRScratch": 1073741824,
+                "DDRScratch": 33554432,
                 "MemoryHack": false,
                 "Sparsity": false,
                 "CMX_memory_overflow_safety_factor" : 1.0,
@@ -63,7 +63,7 @@
                 "streaming_strategy" :
                 [
                     {
-                        "name_filter" : "conv1#18",
+                        "name_filter" : "conv1#181",
                         "output_location" : "CMX",
                         "splits" : [ {"H" : 2} ]
                     },
