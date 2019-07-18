@@ -2,6 +2,7 @@
 #include "meta/include/mcm/op_model.hpp"
 #include "contrib/flatbuffers/include/flatbuffers/util.h"
 #include "include/mcm/base/exception/argument_error.hpp"
+#include "include/mcm/utils/custom_math.hpp"
 #include <fstream>
 #include <iostream>
 
