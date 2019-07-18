@@ -92,11 +92,6 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
             inputOp->getOpType() == "WeightsTable" || inputOp->getOpType() == "SparsityMap" || inputOp->getOpType() == "Slice")
             continue;
 
-        auto inputTensor = dataFlowIt->getTensor();
-        
-        // NOTE: To uncomment
-        //if (inputTensor->get<mv::Tensor::MemoryLocation>("Location") != mv::Tensor::MemoryLocation::CMX)
-            //continue;
         
         // Tensors that are input of a concat shall not be deallocated: they will be allocated into a bigger tensor
         // (the output of concat op) and that will be deallocated
@@ -104,11 +99,12 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
         if(!outputOp->hasTypeTrait("executable"))
             continue;
         
+        auto inputTensor = dataFlowIt->getTensor();
+
         // Last check, possible thanks to MemoryLocation definition: In general, tensors that are not in CMX shall not be deallocated
-        // Probably this check covers most of the previous checks
-        // But one in life can never be too sure
-        //if (inputTensor->get<mv::Tensor::MemoryLocation>("Location") != mv::Tensor::MemoryLocation::CMX)
-            //continue;
+        // Probably this check covers most of the previous checks - NO! CONCAT IN DDR!
+        if (inputTensor->get<mv::Tensor::MemoryLocation>("Location") != mv::Tensor::MemoryLocation::CMX)
+            continue;
 
         // Arrived at this point, we know that the tensor has to be deallocated. We just have to check
         // if it was previously deallocated or not.
@@ -219,6 +215,7 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
                 }
                 else
                 {
+                    // THIS SHOULD NOT BE HAPPENING
                     for(auto& chosenOp : sinkOperations)
                         insertDeallocationControlFlows(om, deallocateInputOp, cm.switchContext(chosenOp));
                 }

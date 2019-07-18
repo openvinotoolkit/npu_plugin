@@ -53,6 +53,7 @@ namespace mv
 // and assign layer number has been rerun
 
 // Logic: Activation tensors involved in DPU task should be dependent on the previous operation executed
+// Not sure this pass is really needed for resnet50
 void activationTensorsControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&passDesc, mv::json::Object&)
 {
 
@@ -81,6 +82,9 @@ void activationTensorsControlFlowsFcn(const mv::pass::PassEntry& pass, mv::Compu
 
 // NOTE: This pass makes sense only when hanging dmas have been solved
 // and assign layer number has been rerun
+
+// This pass is absolutely necessary to ensure that we are not redeaming in cmx weights too soon
+// It is a conservative approach but it's needed for TIG
 void cmx2DDRControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&passDesc, mv::json::Object&)
 {
     mv::OpModel om(model);
