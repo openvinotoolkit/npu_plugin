@@ -78,8 +78,6 @@ class KmbExecutor {
     InferenceEngine::InputsDataMap  m_networkInputs;
     InferenceEngine::OutputsDataMap m_networkOutputs;
 
-    DataInfo m_inputInfo;
-    DataInfo m_outputInfo;
     std::shared_ptr<KmbAllocator> allocator;
     void initVpualObjects();
 
@@ -101,9 +99,6 @@ public:
 
     const InferenceEngine::InputsDataMap& getNetworkInputs() const { return m_networkInputs; }
     const InferenceEngine::OutputsDataMap& getNetworkOutputs() const { return m_networkOutputs; }
-
-    const DataInfo& getInputInfo()  const { return m_inputInfo; }
-    const DataInfo& getOutputInfo() const { return m_outputInfo; }
 
     const std::shared_ptr<KmbConfig>& _config;
 

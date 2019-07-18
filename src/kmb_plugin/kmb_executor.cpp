@@ -279,7 +279,6 @@ void KmbExecutor::allocateGraph(const std::vector<char> &graphFileContent, const
     InferenceEngine::InputInfo inputInfo;
     inputInfo.setInputData(std::make_shared<InferenceEngine::Data>(inputData));
     m_networkInputs[inputInfo.name()] = std::make_shared<InferenceEngine::InputInfo>(inputInfo);
-    m_inputInfo.totalSize = descIn.totalSize;
 
     InferenceEngine::SizeVector outputDims({descOut.n, descOut.c, descOut.h, descOut.w});
     InferenceEngine::Layout outputLayout = InferenceEngine::Layout::NCHW;
@@ -288,7 +287,6 @@ void KmbExecutor::allocateGraph(const std::vector<char> &graphFileContent, const
     InferenceEngine::Data outputData("output", outputDesc);
 
     m_networkOutputs[outputData.getName()] = std::make_shared<InferenceEngine::Data>(outputData);
-    m_outputInfo.totalSize = descOut.totalSize;
 
     const unsigned int sizeOfFrames = 32;
     const unsigned int shavel2CacheLineSize = 64;

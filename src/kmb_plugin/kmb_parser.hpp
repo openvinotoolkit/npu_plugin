@@ -65,9 +65,6 @@ struct CompiledGraph final {
     std::vector<StageMetaInfo> stagesMeta;
     int numActiveStages = 0;
 
-    DataInfo inputInfo;
-    DataInfo outputInfo;
-
     int inputBufSize = 0;
     int outputBufSize = 0;
 };

@@ -79,9 +79,6 @@ ExecutableNetwork::ExecutableNetwork(const std::string &blobFilename, const std:
     this->_networkOutputs = blobReader.getNetworkOutputs();
     std::size_t numStages = blobReader.getStageCount();
 
-    _inputInfo  = blobReader.getInputInfo();
-    _outputInfo = blobReader.getOutputInfo();
-
     _stagesMetaData.resize(numStages);
     for (auto &meta : _stagesMetaData) {
         meta.stageName = meta.stageType = meta.layerName = meta.layerType = "UNKNOWN";
@@ -90,9 +87,6 @@ ExecutableNetwork::ExecutableNetwork(const std::string &blobFilename, const std:
 #else  // if not defined ENABLE_MCM_COMPILER
     _networkInputs  = _executor->getNetworkInputs();
     _networkOutputs = _executor->getNetworkOutputs();
-
-    _inputInfo  = _executor->getInputInfo();
-    _outputInfo = _executor->getOutputInfo();
 #endif
 
     if (_config->exclusiveAsyncRequests) {
