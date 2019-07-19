@@ -94,6 +94,6 @@ To compile the blobs for the trained Top3 networks using mcmCompiler, use the fo
 
 1) MobileNet V2: python3 -u Fathom.py generate --network-description $TRAINED_NETWORKS/mobilenet_v2_050.tflite  --kmb --cpp --nDPU 1 --nClusters 1 --nWorkloads 1  --comp-descriptor $MCM_HOME/config/compilation/mobilenet_streaming_trained.json  --cmx 360000 --emulator
 
-2) Tiny Yolo V2: python3 -u Fathom.py generate --network-description $TRAINED_NETWORKS/tiny-yolov2-128output.tflite  --kmb --cpp --nDPU 1 --nClusters 1 --nWorkloads 1  --comp-descriptor $MCM_HOME/debug_ma2490_tiny-yolo-900kb-trained-model.json  --cmx 360000 --emulator
+2) Tiny Yolo V2: python3 -u Fathom.py generate --network-description $TRAINED_NETWORKS/tiny-yolov2-128output.tflite  --kmb --cpp --nDPU 1 --nClusters 1 --nWorkloads 1  --comp-descriptor $MCM_HOME/config/compilation/debug_ma2490_tiny-yolo-900kb-trained-model.json  --cmx 360000 --emulator
 
-3)  python3 -u Fathom.py generate --network-description $TRAINED_NETWORKS/resnet50_224_new.tflite --kmb --nDPU 1 --nClusters 1 --nWorkloads 1 --cmx  3670016 --emulator   --cpp  --comp-descriptor /home/ecopty/work/NCS/mcmCompiler//config/compilation/resnet50_trained_model_streaming.json
+3)  python3 -u Fathom.py generate --network-description $TRAINED_NETWORKS/resnet50_224_new.tflite --kmb --nDPU 1 --nClusters 1 --nWorkloads 1 --cmx  3670016 --emulator   --cpp  --comp-descriptor $MCM_HOME/config/compilation/resnet50_trained_model_streaming.json
