@@ -25,10 +25,16 @@ if (ENABLE_VPUAL)
         # including vpualHost/host directory directly not to add vpualHost's examples to the build
         add_subdirectory(movidius/vpualHost/host)
 
+        set(VPUAL_LIBS XLink VpualDispatcher sipp_custom RemoteFlic NN)
+
         # TODO: remove some day when all warnings are fixed
         if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-            set_target_properties(XLink VpualDispatcher sipp_custom RemoteFlic NN PROPERTIES COMPILE_OPTIONS "-Wno-error")
+            set_target_properties(${VPUAL_LIBS} PROPERTIES COMPILE_OPTIONS "-Wno-error")
         endif()
+
+        # TODO: remove some day when vpualHost will add exports
+        set_target_properties(${VPUAL_LIBS} PROPERTIES CXX_VISIBILITY_PRESET default
+                                                         C_VISIBILITY_PRESET default)
     endif()
 
     # copy memory manager library to target directory when vpualHost is enabled
