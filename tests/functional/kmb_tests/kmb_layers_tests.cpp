@@ -26,53 +26,44 @@
 using namespace InferenceEngine;
 
 void kmbLayersTests_nightly::NetworkInit(const std::string& layer_type,
-                std::map<std::string, std::string>* params,
-                int weights_size,
-                int biases_size,
-                InferenceEngine::TBlob<uint8_t>::Ptr weights,
-                InferenceEngine::Precision outputPrecision,
-                InferenceEngine::Precision inputPrecision,
-                bool useHWOpt)
+                                         std::map<std::string, std::string>* params,
+                                         int weights_size,
+                                         int biases_size,
+                                         InferenceEngine::TBlob<uint8_t>::Ptr weights,
+                                         InferenceEngine::Precision outputPrecision,
+                                         InferenceEngine::Precision inputPrecision,
+                                         bool useHWOpt)
 {
     ASSERT_NO_FATAL_FAILURE(
-        doNetworkInit(layer_type,
-                      params,
-                      weights_size,
-                      biases_size,
-                      weights,
-                      outputPrecision,
-                      inputPrecision);
+            doNetworkInit(layer_type,
+                          params,
+                          weights_size,
+                          biases_size,
+                          weights,
+                          outputPrecision,
+                          inputPrecision);
     );
 }
 
 void kmbLayersTests_nightly::setup(InferenceEngine::Precision outputPrecision,
-                              InferenceEngine::Precision inputPrecision,
-                              bool useHWOpt)
+                                   InferenceEngine::Precision inputPrecision,
+                                   bool useHWOpt)
 {
-    InferenceEngine::ICNNNetwork &network = _net_reader.getNetwork();
-    ASSERT_NO_THROW(network.getInputsInfo(_inputsInfo));
-    for (auto in = _inputsInfo.begin(); in != _inputsInfo.end(); in++) {
-        in->second->setPrecision(inputPrecision);
+    CNNNetwork network = _net_reader.getNetwork();
+    _inputsInfo = network.getInputsInfo();
+    for (const auto & in : _inputsInfo) {
+        in.second->setPrecision(inputPrecision);
     }
-    ASSERT_NO_THROW(network.getOutputsInfo(_outputsInfo));
-    for (auto outputInfo : _outputsInfo) {
+    _outputsInfo = network.getOutputsInfo();
+    for (const auto& outputInfo : _outputsInfo) {
         outputInfo.second->setPrecision(outputPrecision);
     }
-    std::map<std::string, std::string> config;
-    setCommonConfig(config);
-    InferenceEngine::StatusCode st = InferenceEngine::StatusCode::GENERAL_ERROR;
-    ASSERT_NO_THROW(st = myriadPluginPtr->LoadNetwork(_exeNetwork, network, config, &_resp));
-    ASSERT_NE(_exeNetwork, nullptr) << _resp.msg;
-}
-
-
-void kmbLayersTests_nightly::setCommonConfig(std::map<std::string, std::string>& config)
-{
-    config = _config;
+    std::map<std::string, std::string> config(_config);
 #if 0
     config[VPU_CONFIG_KEY(LOG_LEVEL)] = CONFIG_VALUE(LOG_INFO);
     config[CONFIG_KEY(LOG_LEVEL)] = CONFIG_VALUE(LOG_INFO);
 #endif
+//    config[CONFIG_KEY(LOG_LEVEL)] = CONFIG_VALUE(LOG_DEBUG);
 
 #if 0 // TODO: mcmCompiler generate BLOB issue
     config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_BLOB)] = CONFIG_VALUE(NO);
@@ -81,19 +72,18 @@ void kmbLayersTests_nightly::setCommonConfig(std::map<std::string, std::string>&
     config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_DOT)]  = CONFIG_VALUE(YES);
 
     const ::testing::TestInfo* const test_info =
-      ::testing::UnitTest::GetInstance()->current_test_info();
+            ::testing::UnitTest::GetInstance()->current_test_info();
 
-    config[VPU_KMB_CONFIG_KEY(MCM_COMPILATION_RESULTS_PATH)] = test_info->test_case_name();
-    config[VPU_KMB_CONFIG_KEY(MCM_COMPILATION_RESULTS)] = test_info->name();
+    _exeNetwork = ie.LoadNetwork(network, "kmb", config);
 }
 
 void kmbLayersTests_nightly::doNetworkInit(const std::string& layer_type,
-                std::map<std::string, std::string>* params,
-                int weights_size,
-                int biases_size,
-                InferenceEngine::TBlob<uint8_t>::Ptr weights,
-                InferenceEngine::Precision outputPrecision,
-                InferenceEngine::Precision inputPrecision)
+                                           std::map<std::string, std::string>* params,
+                                           int weights_size,
+                                           int biases_size,
+                                           InferenceEngine::TBlob<uint8_t>::Ptr weights,
+                                           InferenceEngine::Precision outputPrecision,
+                                           InferenceEngine::Precision inputPrecision)
 {
     std::string xml;
     genXML(layer_type, params, weights_size, biases_size, xml);

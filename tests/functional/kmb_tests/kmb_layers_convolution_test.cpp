@@ -56,9 +56,7 @@ TEST_F(kmbLayersTests_nightly, DISABLED_TestsConvolutionAfterScaleShift) {
     config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_DOT)] = CONFIG_VALUE(YES);
     config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_JSON)] = CONFIG_VALUE(YES);
 
-    StatusCode st;
-    ASSERT_NO_THROW(st = myriadPluginPtr->LoadNetwork(_exeNetwork, network, config, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
+    _exeNetwork = ie.LoadNetwork(network, "kmb", config);
 }
 
 TEST_F(kmbLayersTests_nightly, TestsConvolutionAfterScaleShiftNoBias) {
@@ -89,9 +87,7 @@ TEST_F(kmbLayersTests_nightly, TestsConvolutionAfterScaleShiftNoBias) {
     config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_DOT)] = CONFIG_VALUE(YES);
     config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_JSON)] = CONFIG_VALUE(YES);
 
-    StatusCode st;
-    ASSERT_NO_THROW(st = myriadPluginPtr->LoadNetwork(_exeNetwork, network, config, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
+    _exeNetwork = ie.LoadNetwork(network, "kmb", config);
 }
 
 TEST_F(kmbLayersTests_nightly, DISABLED_TestsQuantizedConvolutionAfterScaleShift) {
@@ -106,7 +102,6 @@ TEST_F(kmbLayersTests_nightly, DISABLED_TestsQuantizedConvolutionAfterScaleShift
     std::map<std::string, std::string> config;
     IExecutableNetwork::Ptr exeNetwork;
     details::CNNNetworkImplPtr clonedNetwork;
-    CNNNetworkInt8Normalizer cnnorm;
 
     setCommonConfig(config);
     config[VPU_KMB_CONFIG_KEY(MCM_PARSING_ONLY)] = CONFIG_VALUE(NO);
@@ -135,11 +130,10 @@ TEST_F(kmbLayersTests_nightly, DISABLED_TestsQuantizedConvolutionAfterScaleShift
 
     if (!pstats->isEmpty()) {
         clonedNetwork = cloneNet(network);
-        cnnorm.NormalizeNetwork(*clonedNetwork, *pstats);
-        sts = myriadPluginPtr->LoadNetwork(_exeNetwork, *clonedNetwork, config, &response);
-    }
+        InferenceEngine::details::CNNNetworkInt8Normalizer::NormalizeNetwork(*clonedNetwork, *pstats);
 
-    ASSERT_EQ(StatusCode::OK, sts) << _resp.msg;
+        _exeNetwork = ie.LoadNetwork(CNNNetwork(clonedNetwork), "kmb", config);
+    }
 }
 
 TEST_F(kmbLayersTests_nightly, TestsQuantizedConvolutionAfterScaleShiftNoBias) {
@@ -185,11 +179,11 @@ TEST_F(kmbLayersTests_nightly, TestsQuantizedConvolutionAfterScaleShiftNoBias) {
 
     if (!pstats->isEmpty()) {
         clonedNetwork = cloneNet(network);
-        cnnorm.NormalizeNetwork(*clonedNetwork, *pstats);
-        sts = myriadPluginPtr->LoadNetwork(_exeNetwork, *clonedNetwork, config, &response);
+        InferenceEngine::details::CNNNetworkInt8Normalizer::NormalizeNetwork(*clonedNetwork, *pstats);
+
+        _exeNetwork = ie.LoadNetwork(CNNNetwork(clonedNetwork), "kmb", config);
     }
 
-    ASSERT_EQ(StatusCode::OK, sts) << _resp.msg;
 }
 
 TEST_F(kmbLayersTests_nightly, TestsConvolutionOnly) {
@@ -219,9 +213,7 @@ TEST_F(kmbLayersTests_nightly, TestsConvolutionOnly) {
     setCommonConfig(config);
     config[VPU_KMB_CONFIG_KEY(MCM_PARSING_ONLY)] = CONFIG_VALUE(YES);
 
-    StatusCode st;
-    ASSERT_NO_THROW(st = myriadPluginPtr->LoadNetwork(_exeNetwork, network, config, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
+    _exeNetwork = ie.LoadNetwork(network, "kmb", config);
 }
 
 TEST_F(kmbLayersTests_nightly, TestsConvolutionOnlyNoBias) {
@@ -252,8 +244,6 @@ TEST_F(kmbLayersTests_nightly, TestsConvolutionOnlyNoBias) {
     setCommonConfig(config);
     config[VPU_KMB_CONFIG_KEY(MCM_PARSING_ONLY)] = CONFIG_VALUE(YES);
 
-    StatusCode st;
-    ASSERT_NO_THROW(st = myriadPluginPtr->LoadNetwork(_exeNetwork, network, config, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
+    _exeNetwork = ie.LoadNetwork(network, "kmb", config);
 }
 #endif

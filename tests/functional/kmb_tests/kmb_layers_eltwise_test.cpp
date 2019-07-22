@@ -119,9 +119,7 @@ TEST_F(kmbLayersTests_nightly, TestsEltwiseAfterScaleShift) {
     config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_DOT)] = CONFIG_VALUE(YES);
     config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_JSON)] = CONFIG_VALUE(YES);
 
-    StatusCode st;
-    ASSERT_NO_THROW(st = myriadPluginPtr->LoadNetwork(_exeNetwork, network, config, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << " response:" << _resp.msg;
+    _exeNetwork = ie.LoadNetwork(network, "kmb", config);
 }
 
 TEST_F(kmbLayersTests_nightly, TestsEltwiseAfterScaleShiftWithLargeWeight) {
@@ -217,8 +215,6 @@ TEST_F(kmbLayersTests_nightly, TestsEltwiseAfterScaleShiftWithLargeWeight) {
     config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_DOT)] = CONFIG_VALUE(YES);
     config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_JSON)] = CONFIG_VALUE(YES);
 
-    StatusCode st;
-    ASSERT_NO_THROW(st = myriadPluginPtr->LoadNetwork(_exeNetwork, network, config, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << " response:" << _resp.msg;
+    _exeNetwork = ie.LoadNetwork(network, "kmb", config);
 }
 #endif

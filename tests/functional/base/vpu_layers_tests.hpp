@@ -8,7 +8,6 @@
 #include <ie_version.hpp>
 #include <ie_device.hpp>
 #include <cpp/ie_cnn_net_reader.h>
-#include <ie_plugin_dispatcher.hpp>
 #include <inference_engine.hpp>
 #include "tests_common.hpp"
 #include <algorithm>
@@ -137,8 +136,7 @@ bool fromBinaryFile(std::string input_binary, InferenceEngine::Blob::Ptr blob);
 class vpuLayersTests : public TestsCommon {
 public:
     std::string pluginName;
-    InferenceEngine::InferenceEnginePluginPtr myriadPluginPtr;
-
+    InferenceEngine::Core ie;
     std::map<std::string, std::string> _config;
 
 protected:

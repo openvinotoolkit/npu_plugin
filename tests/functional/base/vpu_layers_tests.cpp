@@ -243,8 +243,6 @@ void vpuLayersTests::SetUp()
     pluginName = "kmbPlugin";
 #endif
 
-    myriadPluginPtr = PluginCache::get().byName(pluginName);
-
     _netInitialized = false;
     _genDataCallback = GenRandomData;
     TestsCommon::SetUp();
@@ -573,13 +571,13 @@ void vpuLayersTests::setup(InferenceEngine::Precision outputPrecision,
                               InferenceEngine::Precision inputPrecision,
                               bool useHWOpt)
 {
-    InferenceEngine::ICNNNetwork &network = _net_reader.getNetwork();
-    ASSERT_NO_THROW(network.getInputsInfo(_inputsInfo));
-    for (auto in = _inputsInfo.begin(); in != _inputsInfo.end(); in++) {
-        in->second->setPrecision(inputPrecision);
+    CNNNetwork network = _net_reader.getNetwork();
+    _inputsInfo = network.getInputsInfo();
+    for (const auto & in : _inputsInfo){
+        in.second->setPrecision(inputPrecision);
     }
-    ASSERT_NO_THROW(network.getOutputsInfo(_outputsInfo));
-    for (auto outputInfo : _outputsInfo) {
+    _outputsInfo = network.getOutputsInfo();
+    for (const auto& outputInfo : _outputsInfo) {
         outputInfo.second->setPrecision(outputPrecision);
     }
     std::map<std::string, std::string> config(_config);
@@ -595,15 +593,9 @@ void vpuLayersTests::setup(InferenceEngine::Precision outputPrecision,
     config[CONFIG_KEY(PERF_COUNT)] = CONFIG_VALUE(YES);
     config[VPU_CONFIG_KEY(PERF_REPORT_MODE)] = VPU_CONFIG_VALUE(PER_STAGE);
 
-    InferenceEngine::StatusCode st = InferenceEngine::StatusCode::GENERAL_ERROR;
-    ASSERT_NO_THROW(st = myriadPluginPtr->LoadNetwork(_exeNetwork, network, config, &_resp));
-    ASSERT_NE(_exeNetwork, nullptr) << _resp.msg;
-    ASSERT_NO_THROW(_exeNetwork->CreateInferRequest(_inferRequest, &_resp)) << _resp.msg;
-    ASSERT_EQ((int) InferenceEngine::StatusCode::OK, st) << _resp.msg;
-    ASSERT_NE(_inferRequest, nullptr) << _resp.msg;
-
-    ASSERT_NO_THROW(network.getInputsInfo(_inputsInfo));
-    ASSERT_NO_THROW(network.getOutputsInfo(_outputsInfo));
+    _exeNetwork = ie.LoadNetwork(network, "kmb", config);
+    _inputsInfo = network.getInputsInfo();
+    _outputsInfo = network.getOutputsInfo();
     genInputBlobs(inputPrecision);
     genOutputBlobs(outputPrecision);
     // FIXME: why we create and allocate refBlob here for myriadLayerTests if outputPrecision == FP16?
