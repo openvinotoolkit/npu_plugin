@@ -614,6 +614,8 @@
                 "name": "ConvertDot",
                 "input": "output/dots/cmx2DDRControlFlows.dot"
             },
+            "StrategyLayersToTensors",
+            "SplittingAcrossClusters",
             "AddDeallocationTasks",
             {
                 "name": "GenerateDot",
