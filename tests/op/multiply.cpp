@@ -12,7 +12,7 @@ TEST(ops, multiply)
     auto input1 = om.constant(input1Data, {256, 512}, mv::DType("Float16"), mv::Order("HW"));
     auto input2 = om.constant(input2Data, {256, 512}, mv::DType("Float16"), mv::Order("HW"));
 
-    auto multiply = om.multiply(input1, input2);
+    auto multiply = om.multiply({input1, input2});
     auto multiplyOp = om.getSourceOp(multiply);
     auto output = om.output(multiply);
 

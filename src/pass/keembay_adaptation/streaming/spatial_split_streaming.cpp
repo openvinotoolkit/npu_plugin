@@ -5,6 +5,7 @@
 #include "include/mcm/computation/model/data_model.hpp"
 #include "meta/include/mcm/op_model.hpp"
 #include "include/mcm/utils/custom_strings.hpp"
+#include "include/mcm/base/exception/runtime_error.hpp"
 
 static void streamingTilingFcn(const mv::pass::PassEntry& pass,
                                         mv::ComputationModel& model,
@@ -183,6 +184,7 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model, mv::Dat
 {
     mv::OpModel om(model);
     mv::DataModel dm(model);
+    mv::ControlModel cm(model);
 
     //solve SOW/H location
     //TODO:: stop hardcoding index....
@@ -210,17 +212,17 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model, mv::Dat
     //    std::cout<< "  No location attritbute on input tensor to original conv " << std::endl ;
     //}
 
-    if (inputTensor->get<mv::Tensor::MemoryLocation>("Location").toString() != "CMX")
-    {
-        //std::cout<< "  adding DMA2CMX on input " <<  std::endl ;
+    // if (inputTensor->get<mv::Tensor::MemoryLocation>("Location").toString() != "CMX")
+    // {
+    //     //std::cout<< "  adding DMA2CMX on input " <<  std::endl ;
 
-        auto flows = inputTensor->get<std::set<std::string>>("flows");
+    //     auto flows = inputTensor->get<std::set<std::string>>("flows");
 
-        auto inputTensorDma = om.dMATask(inputTensor, mv::DmaDirectionEnum::DDR2CMX, quantParams, mv::createDMATaskDDR2CMXName(inputOp->getName()));
-        auto inputTensorDmaOp = om.getSourceOp(inputTensorDma);
-        inputTensorDmaOp->set<unsigned>("opId", DMAOpId);
-        inputTensor2Conv = inputTensorDma ;
-    }
+    //     auto inputTensorDma = om.dMATask(inputTensor, mv::DmaDirectionEnum::DDR2CMX, quantParams, mv::createDMATaskDDR2CMXName(inputOp->getName()));
+    //     auto inputTensorDmaOp = om.getSourceOp(inputTensorDma);
+    //     inputTensorDmaOp->set<unsigned>("opId", DMAOpId);
+    //     inputTensor2Conv = inputTensorDma ;
+    // }
 
     auto opId = op->get<unsigned>("opId");
     auto number_of_splits = tiling.childTiles().size();
@@ -307,6 +309,9 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model, mv::Dat
         slices[split] = slice;
         convs[split] = conv;
 
+        bool enableSerialStreaming = true;
+        if ((split>0)&&(enableSerialStreaming))
+            cm.defineFlow(om.getSourceOp(convs[split-1]), om.getSourceOp(convs[split]));
     }
     kernelTensor->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::BLOB);
     // decide on the location of the I/O Tensors of the conv;
@@ -376,10 +381,10 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model, mv::Dat
 mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model, mv::Data::OpListIterator op, Tiling& tiling)
 {
     mv::OpModel om(model);
+    mv::ControlModel cm(model);
 
     //solve SOW/H location
     //TODO:: stop hardcoding index....
-    auto inputTensor = op->getInputTensor(0);
     auto outputTensor = op->getOutputTensor(0);
     auto opId = op->get<unsigned>("opId");
     auto number_of_splits = tiling.childTiles().size();
@@ -387,55 +392,70 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model, mv::Dat
     auto childTiles = tiling.childTiles();
 
     std::vector<mv::Shape> spatial_indexes(number_of_splits);
-    std::vector<mv::Data::TensorIterator> slices(number_of_splits);
+    std::vector<std::vector<mv::Data::TensorIterator>> slices(number_of_splits);
     std::vector<mv::Data::TensorIterator> convs(number_of_splits);
     std::vector<mv::Data::TensorIterator> final_outputs(number_of_splits);
-
-    auto kernelStride = op->get<std::array<unsigned short, 2>>("stride");
+    std::array<unsigned short, 2> kernelStride;
+    if (op->hasAttr("stride"))
+        kernelStride = op->get<std::array<unsigned short, 2>>("stride");
+    else
+        kernelStride = {1,1};//fake stride
 
     // pad_left, pad_right, pad_top, pad_bottom
     //TODO: cleaner solution for paddings..
     //assuming order of paddings: left,right,top,bottom
-    auto padding = op->get<std::array<unsigned short, 4>>("padding");
+    std::array<unsigned short, 4> padding;
+    if (op->hasAttr("padding"))
+        padding = op->get<std::array<unsigned short, 4>>("padding");
+    else
+    {
+        padding = {0, 0, 0, 0};
+    }
+
     auto startPad = padding;
     auto endPad = padding;
+    auto middlePad = padding;
     auto currentPad = padding;
-
-    std::array<unsigned short, 4> middle_pad = {0,0,0,0};
 
     if (axisToSplit == mv::Shape::getAxis("W"))
     {
         startPad[1] = 0;
         endPad[0] = 0;
+        middlePad[0] = 0;
+        middlePad[1] = 0;
     }
     else if (axisToSplit == mv::Shape::getAxis("H"))
     {
         startPad[3] = 0;
         endPad[2] = 0;
+        middlePad[2] = 0;
+        middlePad[3] = 0;
     }
 
     for (unsigned split = 0; split < number_of_splits; split++)
     {
-
-        auto slice = om.slice(inputTensor,
-                                childTiles[split].getStartCoord(),
-                                childTiles[split].getSize(),
-                                op->get<mv::QuantizationParams>("quantParams"),
-                                op->getName() + "_slice_" + std::to_string(split));
-        om.getSourceOp(slice)->set<unsigned>("opId", opId);
 
         if (split == 0)
             currentPad = startPad;
         else if (split == (number_of_splits -1))
             currentPad = endPad;
         else
-            currentPad = middle_pad;
+            currentPad = middlePad;
 
         mv::Data::TensorIterator newTensor;
         std::string opType = op->getOpType();
-        if (opType=="MaxPool")
+        if (opType == "MaxPool" || opType == "Conv" || opType == "DepthwiseConv")
         {
-            newTensor = om.maxPool(slice,
+            auto inputTensor = op->getInputTensor(0);
+
+            auto slice = om.slice(inputTensor,
+                                childTiles[split].getStartCoord(),
+                                childTiles[split].getSize(),
+                                inputTensor->get<mv::QuantizationParams>("quantParams"),
+                                op->getName() + "_slice_" + std::to_string(split));
+            om.getSourceOp(slice)->set<unsigned>("opId", opId);
+            if (opType == "MaxPool")
+                newTensor = om.maxPool(slice,
                                 op->get<std::array<unsigned short, 2UL>>("kSize"),
                                 kernelStride,
                                 currentPad,
@@ -444,10 +464,18 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model, mv::Dat
                                 op->get<std::string>("rounding_type"),
                                 op->get<mv::QuantizationParams>("quantParams"),
                                 op->getName() + "_split_" + std::to_string(split));
-        }
-        else
-        {
-            newTensor = om.conv(slice,
+                                
+            if (opType == "DepthwiseConv")
+                newTensor = om.depthwiseConv(slice,
+                                op->getInputTensor(1),
+                                kernelStride,
+                                currentPad,
+                                op->get<unsigned>("dilationFactor"),
+                                op->get<mv::QuantizationParams>("quantParams"),
+                                op->getName() + "_split_" + std::to_string(split));  
+
+            if (opType == "Conv")
+                newTensor = om.conv(slice,
                                 op->getInputTensor(1),
                                 kernelStride,
                                 currentPad,
@@ -455,6 +483,36 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model, mv::Dat
                                 op->get<unsigned>("group"),
                                 op->get<mv::QuantizationParams>("quantParams"),
                                 op->getName() + "_split_" + std::to_string(split));
+            slices[split].push_back(slice);
+        }
+        else if (opType == "Add" || opType == "Subtract" || opType == "Multiply")
+        {
+            for (auto i = 0; i < 2; i++)
+            {
+                auto inputTensor = op->getInputTensor(i);
+
+                auto slice = om.slice(inputTensor,
+                                childTiles[split].getStartCoord(),
+                                childTiles[split].getSize(),
+                                inputTensor->get<mv::QuantizationParams>("quantParams"),
+                                op->getName() + "_slice_" + std::to_string(split) + "_" + std::to_string(i));
+                om.getSourceOp(slice)->set<unsigned>("opId", opId);
+                slices[split].push_back(slice);
+            }
+            auto addFcn = [&om](std::vector< mv::Data::TensorIterator >& vec, const mv::QuantizationParams& quantParams, const std::string& s){ return om.add(vec,quantParams,s);};
+            auto subFcn = [&om](std::vector< mv::Data::TensorIterator >& vec, const mv::QuantizationParams& quantParams, const std::string& s){ return om.subtract(vec,quantParams,s);};
+            auto multFcn = [&om](std::vector< mv::Data::TensorIterator >& vec, const mv::QuantizationParams& quantParams, const std::string& s){ return om.multiply(vec,quantParams,s);};
+
+            auto dpuTaskMap = std::map<std::string, std::function<mv::Data::TensorIterator (std::vector< mv::Data::TensorIterator >&, const mv::QuantizationParams&, const std::string&)>>
+                                                    {{"Add", addFcn},
+                                                    {"Subtract", subFcn},
+                                                    {"Multiply", multFcn}};
+            auto dpuElementWiseFunctor = (dpuTaskMap.at(opType));
+            newTensor = dpuElementWiseFunctor(slices[split], op->get<mv::QuantizationParams>("quantParams"), op->getName() + "_split_" + std::to_string(split));
+        }
+        else
+        {
+            throw mv::RuntimeError(om, opType + " not supported for streaming");
         }
 
         auto newOp = om.getSourceOp(newTensor);
@@ -468,10 +526,11 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model, mv::Dat
         newOp->set<bool>("splitted", true);//TODO::temporary hack. To remove once the iteration conditions are updated
         newOp->set<unsigned>("opId", opId);
 
-        slices[split] = slice;
         convs[split] = newTensor;
 
-//        om.defineFlow(kernelTensor,newOp,1); //TODO:: review.
+        bool enableSerialStreaming = true;
+        if ((split > 0) && enableSerialStreaming)
+            cm.defineFlow(om.getSourceOp(convs[split-1]), om.getSourceOp(convs[split]));
     }
 
     // decide on the location of the I/O Tensors of the conv;
@@ -482,12 +541,17 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model, mv::Dat
 
     for (unsigned split = 0 ; split < number_of_splits; split++)
     {
-        mv::Tensor::MemoryLocation inputLocation;
+        auto numInputs = slices[split].size();
+        std::vector<mv::Tensor::MemoryLocation> inputLocation(numInputs);
         mv::Tensor::MemoryLocation outputLocation;
         if (childTiles[split].childTiles().size() > 1)
         {
             //has chidren. Inherit
-            inputLocation.relocate(inputTensor->get<mv::Tensor::MemoryLocation>("Location"));
+            for (auto i = 0; i < numInputs; i++)
+            {
+                auto inputTensor = op->getInputTensor(i);
+                inputLocation[i].relocate(inputTensor->get<mv::Tensor::MemoryLocation>("Location"));
+            }
             outputLocation.relocate(outputTensor->get<mv::Tensor::MemoryLocation>("Location"));
 
             // std::cout << "More children. Inheriting " << slices[split]->getName() << " to " << inputLocation.toString() << " from " << inputTensor->getName() <<  std::endl;
@@ -497,15 +561,19 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model, mv::Dat
         {
             //no more children.
             //todo:: Expose in JSON config the "Default stream location"
-            inputLocation.relocate(mv::Tensor::MemoryLocation::CMX);
+            for (auto i = 0; i < numInputs; i++)
+            {
+                inputLocation[i].relocate(mv::Tensor::MemoryLocation::CMX);
+                inputLocation[i].force();
+            }
             outputLocation.relocate(mv::Tensor::MemoryLocation::CMX);
-            inputLocation.force();
             outputLocation.force();
 
             // std::cout << "No more children deciding " << slices[split]->getName() << " to " << inputLocation.toString() << std::endl;
             // std::cout << "No more children deciding " << convs[split]->getName() << " to " << outputLocation.toString() << std::endl;
         }
-        slices[split]->set<mv::Tensor::MemoryLocation>("Location", inputLocation);
+        for (auto i = 0; i < numInputs; i++)
+            slices[split][i]->set<mv::Tensor::MemoryLocation>("Location", inputLocation[i]);
         convs[split]->set<mv::Tensor::MemoryLocation>("Location", outputLocation);
     }
 
@@ -526,6 +594,10 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model, mv::Dat
         }
         final_outputs[split] = out;
     }
+    //debug
+    std::vector<mv::Shape> final_outputs_deb(number_of_splits);
+    for (int i=0; i < number_of_splits; ++i)
+        final_outputs_deb[i] = final_outputs[i]->getShape();
 
     auto concat = om.concat(final_outputs,
                     tiling.getAxis(),
@@ -563,7 +635,7 @@ void generateSpatialTiling(mv::Data::OpListIterator op,Tiling& tiling, std::vect
     //todo:: check for original weights not the aligned one
     size_t kernelSize;
     std::string opType = op->getOpType();
-    if (opType == "Conv")
+    if (opType == "Conv" || opType == "DepthwiseConv")
     {
         auto weightTensor = op->getInputTensor(1);
         auto weightsShape = weightTensor->getShape();
@@ -572,15 +644,38 @@ void generateSpatialTiling(mv::Data::OpListIterator op,Tiling& tiling, std::vect
     }
     else
     {
-        kernelSize = op->get<std::array<unsigned short, 2UL>>("kSize")[0];
+        if (op->hasAttr("kSize"))
+        {
+            kernelSize = op->get<std::array<unsigned short, 2UL>>("kSize")[0];
+        }
+        else
+        {
+            //static const std::array<unsigned short, 2> FAKE_KERNEL = {1,1};
+            //static const std::array<unsigned short, 2> FAKE_STRIDE = {1,1};
+
+            kernelSize = 1;//fake kernel
+        }
     }
-    unsigned kernelStep = kernelSize / 2; //TODO:: Check with HW and also with Dilation
 
     //todo:: is there any macro for kernel w/h order?
     auto kernelAxis = (axisToSplit == mv::Shape::getAxis("W")) ? 0 : 1;
-    auto kernelStride = op->get<std::array<unsigned short, 2>>("stride")[kernelAxis];
+    unsigned short kernelStride;
+    if (op->hasAttr("stride"))
+    {
+        kernelStride = op->get<std::array<unsigned short, 2>>("stride")[kernelAxis];
+    }
+    else
+    {
+        kernelStride = 1;//fake stride
+    }
+    std::array<unsigned short, 4> padding;
+    if (op->hasAttr("padding"))
+        padding = op->get<std::array<unsigned short, 4>>("padding");
+    else
+    {
+        padding = {0,0,0,0};
+    }
 
-    auto padding = op->get<std::array<unsigned short, 4>>("padding");
     int padStart,padEnd;
 
     if (axisToSplit == mv::Shape::getAxis("W"))
@@ -614,13 +709,15 @@ void generateSpatialTiling(mv::Data::OpListIterator op,Tiling& tiling, std::vect
         else
             tileSize[axisToSplit] = inferInputSize(remainderOutputSize,0,0,kernelSize,kernelStride);
 
-        if (split == 0)
-            startCoord += tileSize[axisToSplit] - (inferInputSize(newOutputSize,0,0,kernelSize,kernelStride) - tileSize[axisToSplit]);
-        else
-            startCoord += tileSize[axisToSplit];
-
         Tiling newTile(tileStart, tileSize);
         tiling.setChildTile(newTile, split);
+
+        // Compute start coordinates for the next tile
+        // TODO: compute correct formula.
+        if (split == 0)
+            startCoord += newOutputSize * kernelStride - (inferInputSize(newOutputSize,0,0,kernelSize,kernelStride) - tileSize[axisToSplit]);
+        else
+            startCoord += newOutputSize * kernelStride;
     }
 
     nesting++;
@@ -713,12 +810,14 @@ void streamingTilingFcn(const mv::pass::PassEntry& pass,
         else
         {
             thisOpStrategy = thisGraphStrategy[masterOpName];
-            pass.log(mv::Logger::MessageType::Info, "  streaming nesting depth is " + thisOpStrategy.size());
+            pass.log(mv::Logger::MessageType::Info, masterOpName + "  streaming nesting depth is " + std::to_string(thisOpStrategy.size()));
             opHasSplittingStrategy = true;
         }
 
         std::string opType = opIt->getOpType();
-        if ((opType == "Conv" || (opType == "MaxPool")) && !opIt->hasAttr("splitted") && opHasSplittingStrategy)
+        bool isElementWise = (opType == "Add" || opType == "Subtract" || opType == "Multiply");
+
+        if ((opType == "Conv" || opType == "DepthwiseConv" ||  (opType == "MaxPool") || isElementWise) && !opIt->hasAttr("splitted") && opHasSplittingStrategy)
         {
             //TODO:: get this as param or something!
             //the startingTile is the "big tensor". (currently any conv will be split based on one JSON specifier)
@@ -761,14 +860,20 @@ void streamingTilingFcn(const mv::pass::PassEntry& pass,
 
             om.removeOp(opIt);
 
-            //std::cout<< "   connecting "<< result->getName() <<" to " << opsToLink[0]->getName() << " input slot " <<  inputSlots[0] << std::endl ;
             for (unsigned j = 0; j < opsToLink.size(); ++j)
             {
-                opsToLink[j]->setInputTensor(result, inputSlots[j]);
+                //std::cout<< "   connecting "<< result->getName() <<" to " << opsToLink[j]->getName() << " input slot " <<  inputSlots[j] << std::endl ;
+
+                opsToLink[j]->setInputTensor(result, inputSlots[j], false);
                 om.defineFlow(result, opsToLink[j], inputSlots[j]);
             }
 
         }
+        else
+        {
+            throw mv::RuntimeError(om, opType + " not supported for streaming");
+        }
+
     }
     //std::cout<< "STREAMING PASS: exit" << std::endl ;
 }

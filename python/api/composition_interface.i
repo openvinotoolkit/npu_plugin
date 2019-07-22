@@ -489,7 +489,7 @@ import_array();
         return o.matMul(input, weights);
     }
 
-    mv::Data::TensorIterator avgpool2D(mv::CompositionalModel& o, mv::Data::TensorIterator input, short unsigned kernelSizeX, 
+    mv::Data::TensorIterator avgpool2D(mv::CompositionalModel& o, mv::Data::TensorIterator input, short unsigned kernelSizeX,
         short unsigned kernelSizeY, short unsigned strideX, short unsigned strideY, short unsigned padXl, short unsigned padXr,  short unsigned padYu,short unsigned padYd, const mv::QuantizationParams &quantParams, const std::string& name)
     {
         return o.averagePool(input, {kernelSizeX, kernelSizeY}, {strideX, strideY}, {padXl, padXr, padYu, padYd}, false,"","floor", quantParams, name);
@@ -601,19 +601,19 @@ import_array();
         return o.softmax(input, "C", quantParams, name);
     }
     mv::Data::TensorIterator add(mv::CompositionalModel& o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1, const mv::QuantizationParams &quantParams, const std::string& name){
-        return o.add(input0, input1, quantParams, name);
+        return o.add({input0, input1}, quantParams, name);
     }
     mv::Data::TensorIterator add(mv::CompositionalModel& o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1){
-        return o.add(input0, input1);
+        return o.add({input0, input1});
     }
     mv::Data::TensorIterator subtract(mv::CompositionalModel& o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1){
-        return o.subtract(input0, input1);
+        return o.subtract({input0, input1});
     }
     mv::Data::TensorIterator multiply(mv::CompositionalModel& o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1, const mv::QuantizationParams &quantParams, const std::string& name){
-        return o.multiply(input0, input1, quantParams, name);
+        return o.multiply({input0, input1}, quantParams, name);
     }
     mv::Data::TensorIterator multiply(mv::CompositionalModel& o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1){
-        return o.multiply(input0, input1);
+        return o.multiply({input0, input1});
     }
 
     mv::Data::TensorIterator fullyConnected(mv::CompositionalModel& o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1){

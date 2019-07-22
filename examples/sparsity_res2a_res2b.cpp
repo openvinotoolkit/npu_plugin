@@ -49,7 +49,7 @@ int main()
     auto biasWeights3 = om.constantInt(biasWeightsData3,{256}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{1.2207969120936468e-05},{-inf},{inf}}, "res2a_branch2c_bias#11");
     auto bias_c3 = om.bias(conv3, biasWeights3, {{0},{0.003921568859368563},{0.0},{1.0}});
 
-    auto eltwise0 = om.add(bias_c0,bias_c3, {{0},{0.003921568859368563},{0.0},{1.0}}, "res2a/Relu#28");
+    auto eltwise0 = om.add({bias_c0,bias_c3}, {{0},{0.003921568859368563},{0.0},{1.0}}, "res2a/Relu#28");
 
     std::vector<int64_t> weightsData4 = mv::utils::generateSequence<int64_t> (1*1*256*64);
     auto weights4 = om.constantInt(weightsData4,{1,1,256,64}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{122},{0.0026876654010266066},{-0.32668831944465637},{0.3586663603782654}}, "res2b_branch2a_weights#14");
@@ -75,7 +75,7 @@ int main()
     auto biasWeights6 = om.constantInt(biasWeightsData6,{256}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{1.1049777640437242e-05},{-inf},{inf}}, "res2b_branch2c_bias#21");
     auto bias_c6 = om.bias(conv6, biasWeights6, {{0},{0.003921568859368563},{0.0},{1.0}});
 
-    auto eltwise1 = om.add(eltwise0,bias_c6, {{0},{0.003921568859368563},{0.0},{1.0}}, "res2b/FakeQuantWithMinMaxArgs#32");
+    auto eltwise1 = om.add({eltwise0,bias_c6}, {{0},{0.003921568859368563},{0.0},{1.0}}, "res2b/FakeQuantWithMinMaxArgs#32");
 
     om.output(eltwise1);
 

@@ -87,35 +87,6 @@
                 "streaming_strategy" :
                 [
                     {
-                        "name_filter" : "conv0_cmx_",
-                        "output_location" : "CMX",
-                        "splits" : [
-                            {"H" : 2},
-                            {"W" : 2}
-                        ]
-                    },
-                    {
-                        "name_filter" : "conv1_cmx_",
-                        "output_location" : "CMX",
-                        "splits" : [
-                            {"K" : 4}
-                        ]
-                    },
-                    {
-                        "name_filter" : "res2a_branch2a#4",
-                        "output_location" : "CMX",
-                        "splits" : [
-                        {"H" : 2}
-                        ]
-                    },
-                    {
-                        "name_filter" : "pool1/max_pool#6",
-                        "output_location" : "CMX",
-                        "splits" : [
-                            {"H" : 2}
-                        ]
-                    },
-                    {
                         "name_filter" : "conv7#46",
                         "output_location" : "DDR",
                         "splits" : [
@@ -134,20 +105,6 @@
                         "output_location" : "CMX",
                         "splits" : [
                             {"H" : 2}
-                        ]
-                    },
-                    {
-                        "name_filter" : "relu_6#47",
-                        "output_location" : "CMX",
-                        "splits" : [
-                            {"K" : 4}
-                        ]
-                    },
-                    {
-                        "name_filter" : "relu_7#48",
-                        "output_location" : "CMX",
-                        "splits" : [
-                            {"K" : 8}
                         ]
                     }
                 ],

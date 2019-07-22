@@ -28,6 +28,7 @@ namespace mv
 void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
     mv::OpModel om(model);
+    mv::ControlModel cm(model);
 
     auto addFcn = [&om](std::vector< mv::Data::TensorIterator >& vec, const mv::QuantizationParams& quantParams, const std::string& s){ return om.dPUTaskAdd(vec,quantParams,s);};
     auto subFcn = [&om](std::vector< mv::Data::TensorIterator >& vec, const mv::QuantizationParams& quantParams, const std::string& s){ return om.dPUTaskSubtract(vec,quantParams,s);};
@@ -83,6 +84,8 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
 
             std::array<unsigned short, 2> kernelSize = {kernel->getShape()[mv::KERNEL_WIDTH], kernel->getShape()[mv::KERNEL_HEIGHT]};
 
+            auto inputControlFlows = mv::getInputControlFlow(cm, cm.switchContext(opIt));
+            auto outputControlFlows = mv::getOutputControlFlow(cm, cm.switchContext(opIt));
             auto outputDataFlows = mv::getOutputDataFlow(om, opIt);
 
             mv::Data::TensorIterator dpuConv;
@@ -96,7 +99,6 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             dpuConvOp->set<bool>("hasWeights", true);
             dpuConvOp->set<std::array<unsigned short, 2>>("kSize", kernelSize);
 
-
             if(!biasName.empty())
                dpuConvOp->set<std::string>("bias", biasName);
             if(!splitStrategy.empty())
@@ -106,11 +108,10 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             if(workloadStrategyNWorkloads != -1)
                 dpuConvOp->set<int>("WorkloadStrategy_nWorkloads", workloadStrategyNWorkloads);
 
-
-
-
             dpuConv->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
             setOutputDataFlow(om, dpuConv, outputDataFlows);
+            setInputControlFlow(cm, cm.switchContext(dpuConvOp), inputControlFlows);
+            setOutputControlFlow(cm, cm.switchContext(dpuConvOp), outputControlFlows);
 
             if(opType == "Conv")
             {
@@ -144,6 +145,8 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             if(opIt->hasAttr("splitStrategy"))
                 splitStrategy = opIt->get<std::string>("splitStrategy");
 
+            auto inputControlFlows = mv::getInputControlFlow(cm, cm.switchContext(opIt));
+            auto outputControlFlows = mv::getOutputControlFlow(cm, cm.switchContext(opIt));
             auto outputDataFlows = mv::getOutputDataFlow(om, opIt);
 
             auto dpuPool = om.dPUTaskMaxPool({input}, kernelSize, strides, padding,
@@ -157,6 +160,8 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
 
             dpuPool->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
             setOutputDataFlow(om, dpuPool, outputDataFlows);
+            setInputControlFlow(cm, cm.switchContext(dpuPoolOp), inputControlFlows);
+            setOutputControlFlow(cm, cm.switchContext(dpuPoolOp), outputControlFlows);
         }
         else if (opType == "Add" || opType == "Subtract" || opType == "Multiply")
         {
@@ -177,7 +182,8 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
 
             if(opIt->hasAttr("splitStrategy"))
                 splitStrategy = opIt->get<std::string>("splitStrategy");
-
+            auto inputControlFlows = mv::getInputControlFlow(cm, cm.switchContext(opIt));
+            auto outputControlFlows = mv::getOutputControlFlow(cm, cm.switchContext(opIt));
             auto outputDataFlows = mv::getOutputDataFlow(om, opIt);
 
             auto dpuElementWiseFunctor = (dpuTaskMap.at(opType));
@@ -200,11 +206,11 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             dpuElementWise->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
 
             mv::setOutputDataFlow(om, dpuElementWise, outputDataFlows);
+            setInputControlFlow(cm, cm.switchContext(dpuElementWiseOp), inputControlFlows);
+            setOutputControlFlow(cm, cm.switchContext(dpuElementWiseOp), outputControlFlows);
         }
         //TODO: Fully connected
         else
             ++opIt;
     }
 }
-
-

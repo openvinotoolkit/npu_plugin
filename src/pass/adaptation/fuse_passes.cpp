@@ -280,7 +280,7 @@ void fuseBatchNormFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mod
             {
                 auto scale = om.constantDataElement(scaleParam.getData(), scaleParam.getShape(), scaleParam.getDType(), scaleParam.getOrder());
 
-                sourceTensor = om.multiply(opIt->getInputTensor(0), scale);
+                sourceTensor = om.multiply({opIt->getInputTensor(0), scale});
                 parentOpIt = om.getSourceOp(sourceTensor);
                 pass.log(Logger::MessageType::Info, "Replaced multiplicative term of BatchNorm op " + opIt->getName() + 
                     " with " + parentOpIt->getName());
@@ -291,7 +291,7 @@ void fuseBatchNormFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mod
                 sourceTensor = om.bias(sourceTensor, offset);  
 
             else
-                sourceTensor = om.add(sourceTensor, offset);
+                sourceTensor = om.add({sourceTensor, offset});
             pass.log(Logger::MessageType::Info, "Replaced additive term of BatchNorm op " + opIt->getName() + 
                 " with " + om.getSourceOp(sourceTensor)->getName());
 

@@ -15,7 +15,7 @@ int main()
     auto pool2It = cm.maxPool(pool1It, {1, 1}, {1, 1}, {0, 0, 0, 0});
     auto pool3It = cm.maxPool(pool1It, {1, 1}, {1, 1}, {0, 0, 0, 0});
 
-    auto concat1It = cm.add(pool3It, pool2It);
+    auto concat1It = cm.add({pool3It, pool2It});
     auto pool4It = cm.maxPool(concat1It, {1, 1}, {1, 1}, {0, 0, 0, 0});
     cm.output(pool4It);
 

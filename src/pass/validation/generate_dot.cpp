@@ -158,7 +158,8 @@ void generateDotFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
                             {
                                 std::vector<std::string> attrKeys(dataIt->getTensor()->attrsKeys());
                                 for (auto attrIt = attrKeys.begin(); attrIt != attrKeys.end(); ++attrIt)
-                                    edgeDef += "<TR><TD ALIGN=\"LEFT\"><FONT POINT-SIZE=\"11.0\">"
+                                    if (*attrIt != "flows")
+                                        edgeDef += "<TR><TD ALIGN=\"LEFT\"><FONT POINT-SIZE=\"11.0\">"
                                                 + *attrIt
                                                 + ": </FONT></TD> <TD ALIGN=\"RIGHT\"><FONT POINT-SIZE=\"11.0\">"
                                                 + dataIt->getTensor()->get(*attrIt).toString()
@@ -179,7 +180,8 @@ void generateDotFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
                             {
                                 std::vector<std::string> attrKeys(dataIt->getTensor()->attrsKeys());
                                 for (auto attrIt = attrKeys.begin(); attrIt != attrKeys.end(); ++attrIt)
-                                    edgeDef += *attrIt + ": " + dataIt->getTensor()->get(*attrIt).toString() + "\\n";
+                                    if (*attrIt != "flows")
+                                        edgeDef += *attrIt + ": " + dataIt->getTensor()->get(*attrIt).toString() + "\\n";
                             }
                             edgeDef += "\"];";
                         }
@@ -206,8 +208,19 @@ void generateDotFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
                     std::string edgeDef = "\t\"" + opIt->getName() + "\" -> \"" + controlIt.sink()->getName() + "\"";
                     if (htmlLike)
                     {
-                        if(contentLevel != "full")
-                            edgeDef += " [penwidth=2.0, style=dashed]";
+                        if(contentLevel != "full") {
+                            if(controlIt->hasAttr("MemoryRequirement")) {
+
+                                edgeDef += " [penwidth=2.0, style=dashed label=<<TABLE BORDER=\"0\" \
+                                CELLPADDING=\"0\" CELLSPACING=\"0\"><TR><TD ALIGN=\"CENTER\" \
+                                COLSPAN=\"2\"><FONT POINT-SIZE=\"14.0\"><B>"
+                                + std::to_string(controlIt->get<int>("MemoryRequirement"))
+                                + "</B></FONT></TD></TR>";
+                                edgeDef += "</TABLE>>];";
+                            }
+                            else
+                                edgeDef += " [penwidth=2.0, style=dashed]";
+                        }
                         else
                         {
                             edgeDef += " [penwidth=2.0, style=dashed label=<<TABLE BORDER=\"0\" \

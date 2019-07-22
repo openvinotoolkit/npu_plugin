@@ -12,7 +12,7 @@ TEST(ops, subtract)
     auto input1 = om.constant(input1Data, {256, 512}, mv::DType("Float16"), mv::Order("HW"));
     auto input2 = om.constant(input2Data, {256, 512}, mv::DType("Float16"), mv::Order("HW"));
 
-    auto subtract = om.subtract(input1, input2);
+    auto subtract = om.subtract({input1, input2});
     auto subtractOp = om.getSourceOp(subtract);
     auto output = om.output(subtract);
 

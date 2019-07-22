@@ -62,7 +62,7 @@ TEST(streaming_pass, op_fission_multiple_outputs)
     auto conv1 = om.conv(conv0, weight0, {1, 1}, {0, 0, 0, 0});
     auto conv2 = om.conv(conv0, weight2, {1, 1}, {0, 0, 0, 0});
 
-    auto add1 = om.add(conv1, conv2);   // one barrier, #2
+    auto add1 = om.add({conv1, conv2});   // one barrier, #2
 
     om.output(add1); // one barrier for DMA out from CMX to DDR, #3
 

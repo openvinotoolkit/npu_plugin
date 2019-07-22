@@ -86,6 +86,9 @@ else()
     add_executable(cm_resnet50_keembay cm_resnet50_keembay.cpp)
     target_link_libraries(cm_resnet50_keembay cm)
 
+    add_executable(cm_mobilenet_keembay cm_mobilenet_keembay.cpp)
+    target_link_libraries(cm_mobilenet_keembay cm)
+
     add_executable(cm_resnet18 cm_resnet18.cpp)
     target_link_libraries(cm_resnet18 cm)
 
@@ -124,6 +127,9 @@ else()
 
     add_executable(dpu_task_example dpu_task_example.cpp)
     target_link_libraries(dpu_task_example cm)
+
+    add_executable(parallel_branch_example parallel_branch_example.cpp)
+    target_link_libraries(parallel_branch_example cm)
 
     add_executable(dpu_conv_3_conv dpu_conv_3_conv.cpp)
     target_link_libraries(dpu_conv_3_conv cm)
@@ -166,6 +172,9 @@ else()
 
     add_executable(conv_multiSplit conv_multiSplit.cpp)
     target_link_libraries(conv_multiSplit cm)
+
+    add_executable(tiny_yolo_conv1 tiny_yolo_conv1.cpp)
+    target_link_libraries(tiny_yolo_conv1 cm)
 
     add_executable(conv_multi_pass conv_multi_pass.cpp)
     target_link_libraries(conv_multi_pass cm)
