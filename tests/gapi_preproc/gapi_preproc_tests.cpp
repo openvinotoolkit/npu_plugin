@@ -9,6 +9,14 @@
 #include <opencv2/highgui.hpp>
 #include <opencv2/gapi.hpp>
 
+#include <blob_factory.hpp>
+#include <blob_transform.hpp>
+#include <ie_preprocess.hpp>
+#include <ie_preprocess_data.hpp>
+#include <ie_compound_blob.h>
+
+#include <kmb_preproc_gapi.hpp>
+
 #include "gapi_test_computations.hpp"
 
 namespace {
@@ -136,6 +144,120 @@ void own_NV12toRGB(const cv::Mat& inY, const cv::Mat& inUV, cv::Mat& out)
     }
 }
 
+
+// FIXME: copy-paste from cropResize_tests.hpp
+template <InferenceEngine::Precision::ePrecision PRC>
+InferenceEngine::Blob::Ptr img2Blob(const std::vector<cv::Mat>& imgs, InferenceEngine::Layout layout) {
+    using data_t = typename InferenceEngine::PrecisionTrait<PRC>::value_type;
+    using namespace InferenceEngine;
+
+    if (imgs.empty()) {
+        THROW_IE_EXCEPTION << "No images to create blob from";
+    }
+
+    // get image value in correct format
+    static const auto img_value = [] (const cv::Mat& img, size_t h, size_t w, size_t c) -> data_t {
+        switch (img.type())
+        {
+            case CV_8UC1: return img.at<uchar>(h, w);
+            case CV_8UC2: return img.at<cv::Vec2b>(h, w)[c];
+            case CV_8UC3: return img.at<cv::Vec3b>(h, w)[c];
+            case CV_8UC4: return img.at<cv::Vec4b>(h, w)[c];
+            case CV_32FC3: return img.at<cv::Vec3f>(h, w)[c];
+            case CV_32FC4: return img.at<cv::Vec4f>(h, w)[c];
+            default:
+                THROW_IE_EXCEPTION << "Image type is not recognized";
+        }
+    };
+
+    size_t channels = imgs[0].channels();
+    size_t height = imgs[0].size().height;
+    size_t width = imgs[0].size().width;
+
+    SizeVector dims = {imgs.size(), channels, height, width};
+    Blob::Ptr resultBlob = make_shared_blob<data_t>(TensorDesc(PRC, dims, layout));;
+    resultBlob->allocate();
+
+    data_t* blobData = resultBlob->buffer().as<data_t*>();
+
+    for (size_t i = 0; i < imgs.size(); ++i) {
+        auto& img = imgs[i];
+        auto batch_offset = i * channels * height * width;
+
+        switch (layout) {
+            case Layout::NCHW: {
+                for (size_t c = 0; c < channels; c++) {
+                    for (size_t h = 0; h < height; h++) {
+                        for (size_t w = 0; w < width; w++) {
+                            blobData[batch_offset + c * width * height + h * width + w] =
+                                img_value(img, h, w, c);
+                        }
+                    }
+                }
+            }
+            break;
+            case Layout::NHWC: {
+                for (size_t h = 0; h < height; h++) {
+                    for (size_t w = 0; w < width; w++) {
+                        for (size_t c = 0; c < channels; c++) {
+                            blobData[batch_offset + h * width * channels + w * channels + c] =
+                                img_value(img, h, w, c);
+                        }
+                    }
+                }
+            }
+            break;
+            default:
+                THROW_IE_EXCEPTION << "Inconsistent input layout for image processing: " << layout;
+        }
+    }
+    return resultBlob;
+}
+
+template <InferenceEngine::Precision::ePrecision PRC>
+InferenceEngine::Blob::Ptr img2Blob(cv::Mat &img, InferenceEngine::Layout layout) {
+    return img2Blob<PRC>(std::vector<cv::Mat>({img}), layout);
+}
+
+template <InferenceEngine::Precision::ePrecision PRC>
+void Blob2Img(const InferenceEngine::Blob::Ptr& blobP, cv::Mat& img, InferenceEngine::Layout layout) {
+    using namespace InferenceEngine;
+    using data_t = typename PrecisionTrait<PRC>::value_type;
+
+    const size_t channels = img.channels();
+    const size_t height = img.size().height;
+    const size_t width = img.size().width;
+
+    CV_Assert(cv::DataType<data_t>::depth == img.depth());
+
+    data_t* blobData = blobP->buffer().as<data_t*>();
+
+    switch (layout) {
+        case Layout::NCHW: {
+            for (size_t c = 0; c < channels; c++) {
+                for (size_t h = 0; h < height; h++) {
+                    for (size_t w = 0; w < width; w++) {
+                        img.ptr<data_t>(h,w)[c] = blobData[c * width * height + h * width + w];
+                    }
+                }
+            }
+        }
+        break;
+        case Layout::NHWC: {
+            for (size_t h = 0; h < height; h++) {
+                for (size_t w = 0; w < width; w++) {
+                    for (size_t c = 0; c < channels; c++) {
+                        img.ptr<data_t>(h,w)[c] = blobData[h * width * channels + w * channels + c];
+                    }
+                }
+            }
+        }
+        break;
+        default:
+            THROW_IE_EXCEPTION << "Inconsistent input layout for image processing: " << layout;
+    }
+}
+
 test::Mat to_test(cv::Mat& mat) { return {mat.rows, mat.cols, mat.type(), mat.data, mat.step}; }
 
 } // anonymous namespace
@@ -248,4 +370,60 @@ TEST_P(ResizePTestGAPI, AccuracyTest)
     std::make_pair(cv::Size(  96,  256), cv::Size( 128,  384))
 
 INSTANTIATE_TEST_CASE_P(ResizePTestSIPP, ResizePTestGAPI,
+                        Values(TEST_SIZES_PREPROC));
+
+struct KmbSippPreprocTest: public testing::TestWithParam<std::pair<cv::Size, cv::Size>> {};
+TEST_P(KmbSippPreprocTest, TestNV12Resize)
+{
+    using namespace InferenceEngine;
+
+    constexpr auto prec = Precision::U8;
+    ResizeAlgorithm interp = RESIZE_BILINEAR;
+    Layout in_layout = Layout::NCHW;
+    Layout out_layout = in_layout;
+    ColorFormat in_fmt = ColorFormat::NV12;
+    auto sizes = GetParam();
+    cv::Size y_size, out_size;
+    std::tie(y_size, out_size) = sizes;
+    auto uv_size = cv::Size{y_size.width/2, y_size.height/2};
+
+    cv::Mat in_mat1 = cv::Mat(y_size, CV_8UC1);
+    cv::randu(in_mat1, cv::Scalar::all(0), cv::Scalar::all(255));
+
+    cv::Mat in_mat2 = cv::Mat(uv_size, CV_8UC2);
+    cv::randu(in_mat2, cv::Scalar::all(128), cv::Scalar::all(255));
+
+    cv::Mat out_mat(out_size, CV_8UC3);
+
+    Blob::Ptr in_blob, out_blob;
+    auto y_blob = img2Blob<prec>(in_mat1, Layout::NHWC);
+    auto uv_blob = img2Blob<prec>(in_mat2, Layout::NHWC);
+    in_blob = make_shared_blob<NV12Blob>(y_blob, uv_blob);
+    out_blob = img2Blob<prec>(out_mat, out_layout);
+
+    SIPPPreprocEngine pe;
+
+    for (int i = 0; i < 10; i++) {
+        pe.preprocWithSIPP(in_blob, out_blob, interp, in_fmt, true, 1);
+    }
+
+    Blob2Img<prec>(out_blob, out_mat, out_layout);
+
+    cv::Mat ocv_out_mat(y_size, CV_8UC3);
+
+    own_NV12toRGB(in_mat1, in_mat2, ocv_out_mat);
+
+    cv::resize(ocv_out_mat, ocv_out_mat, out_size, 0, 0, cv::INTER_LINEAR);
+
+    cv::Mat absDiff;
+    cv::absdiff(ocv_out_mat, out_mat, absDiff);
+    EXPECT_EQ(cv::countNonZero(absDiff > 1), 0);
+
+    cv::imwrite("ocv_out_mat.jpg", ocv_out_mat);
+    cv::imwrite("out_mat.jpg", out_mat);
+}
+
+using namespace testing;
+
+INSTANTIATE_TEST_CASE_P(Preproc, KmbSippPreprocTest,
                         Values(TEST_SIZES_PREPROC));

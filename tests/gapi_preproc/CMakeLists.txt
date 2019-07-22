@@ -18,7 +18,7 @@ add_executable(${TARGET} ${SOURCES} ${HEADERS})
 
 target_link_libraries(${TARGET} PRIVATE ${OpenCV_LIBS}
                                         gapi_test_computations
-                                        IE::gtest IE::gtest_main IE::IESharedTests
+                                        IE::gtest IE::gtest_main
                                         kmbPlugin_test_static)
 
 if(${GAPI_TEST_PERF})
