@@ -11,7 +11,7 @@
                 "Number_of_DPUs" : 1,
                 "Number_of_Clusters" : 1,
                 "UpaShaves": 1,
-                "DDRScratch": 1073741824,
+                "DDRScratch": 16777216,
                 "MemoryHack": true,
                 "Sparsity": false,
                 "CMX_memory_overflow_safety_factor" : 1.0,
