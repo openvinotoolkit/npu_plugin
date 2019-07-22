@@ -32,7 +32,7 @@
                     {
                         "name_filter" : ".*res2a.*",
                         "cluster_filter" : 0,
-                        "strategy" : "SplitOverH"
+                        "strategy" : "SplitOverK"
                     },
                     {
                         "name_filter" : ".*res2b.*",
@@ -127,7 +127,7 @@
                     {
                         "name_filter" : ".*res2.*",
                         "cluster_filter" : 0,
-                        "strategy" : "SplitOverH"
+                        "strategy" : "SplitOverK"
                     },
                     {
                         "name_filter" : ".*james2x2pool.*",
