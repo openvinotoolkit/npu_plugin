@@ -311,8 +311,7 @@ TEST_P(kmbVPUALAllocTests, sendBlobToLeonViaDifferentAllocators) {
     NNFlicPlg nnPl;
 
     // Pool plugins (to allocate memory for the plugins which require some):
-    PlgPool<TensorMsg> plgPoolA;
-    PlgPool<TensorMsg> plgPoolB;
+    PlgPool<TensorMsg> plgPoolOutputs;
 
     // FLIC Pipeline:
     Pipeline pipe;
@@ -333,25 +332,21 @@ TEST_P(kmbVPUALAllocTests, sendBlobToLeonViaDifferentAllocators) {
     flicTensorDescriptor_t  descIn = nnPl.GetInputTensorDescriptor(0);
 
     const unsigned int shavel2CacheLineSize = 64;
-    const unsigned int sizeOfFrames = 32;
     const unsigned int outputTensorSize = roundUp(descOut.totalSize, shavel2CacheLineSize);
 
-    plgPoolA.Create(&RgnAlloc, 1, sizeOfFrames);
-    plgPoolB.Create(&RgnAlloc, 1, outputTensorSize);
+    plgPoolOutputs.Create(&RgnAlloc, 1, 3 * outputTensorSize);
 
     plgTensorInput.Create(tensorInSize, XLINK_INPUT_CHANNEL, descIn);
     plgTensorOutput.Create(tensorOutSize, XLINK_OUTPUT_CHANNEL, descOut);
 
     // Add the plugins to the pipeline:
-    pipe.Add(&plgPoolA);
-    pipe.Add(&plgPoolB);
+    pipe.Add(&plgPoolOutputs);
     pipe.Add(&plgTensorInput);
     pipe.Add(&plgTensorOutput);
     pipe.Add(&nnPl);
 
     // Link the plugins' messages:
-    plgPoolA.out.Link(&plgTensorInput.emptyTensor);
-    plgPoolB.out.Link(&nnPl.resultInput);
+    plgPoolOutputs.out.Link(&nnPl.resultInput);
     plgTensorInput.tensorOut.Link(&nnPl.tensorInput);
     nnPl.output.Link(&plgTensorOutput.dataIn);
 
