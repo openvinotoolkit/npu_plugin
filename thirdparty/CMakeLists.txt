@@ -16,7 +16,36 @@
 
 add_subdirectory(vsi_cmodel/vpusmm)
 
-if (ENABLE_TESTS AND ENABLE_VPUAL)
-    add_subdirectory(tests/integration)
+if (ENABLE_VPUAL)
+    if (NOT vpualHost_FOUND)
+        if(NOT EXISTS "${CMAKE_CURRENT_LIST_DIR}/movidius/vpualHost")
+            message(FATAL_ERROR "vpualHost is not found. Please use: git submodule update --init --recursive to get it")
+        endif()
+
+        # including vpualHost/host directory directly not to add vpualHost's examples to the build
+        add_subdirectory(movidius/vpualHost/host)
+
+        set(VPUAL_LIBS XLink VpualDispatcher sipp_custom RemoteFlic NN)
+
+        # TODO: remove some day when all warnings are fixed
+        if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+            set_target_properties(${VPUAL_LIBS} PROPERTIES COMPILE_OPTIONS "-Wno-error")
+        endif()
+
+        # TODO: remove some day when vpualHost will add exports
+        set_target_properties(${VPUAL_LIBS} PROPERTIES CXX_VISIBILITY_PRESET default
+                                                         C_VISIBILITY_PRESET default)
+    endif()
+
+    # copy memory manager library to target directory when vpualHost is enabled
+    get_target_property(VPUSMM_LIB_PATH vpusmm IMPORTED_LOCATION)
+    set(VPUSMM_OUT_DIR "$<TARGET_FILE_DIR:kmbPlugin>")
+    add_custom_target(vpusmm_copy_library ALL
+        COMMAND "${CMAKE_COMMAND}" -E copy "${VPUSMM_LIB_PATH}" "${VPUSMM_OUT_DIR}"
+        COMMENT "[VPUSMM] Copy ${VPUSMM_LIB_PATH} to build results")
+
+    if (ENABLE_TESTS)
+        add_subdirectory(tests/integration)
+    endif()
 endif()
 
