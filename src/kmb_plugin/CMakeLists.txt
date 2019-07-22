@@ -78,6 +78,7 @@ endif()
 if (ENABLE_VPUAL)
     add_definitions(-DENABLE_VPUAL)
     set(VPUAL_NN_LIBRARY NN)
+    set(GAPI_SIPP_LIBRARY gapi_sipp)
 endif()
 
 file(GLOB_RECURSE SOURCES *.cpp *.hpp *.h)
@@ -93,6 +94,9 @@ target_compile_options(${TARGET_NAME}
         -Wextra
         -Werror)
 
+# TODO: Remove when warnings are fixed in vpualHost
+set_source_files_properties(kmb_preproc_gapi_kernels_sipp.cpp PROPERTIES
+                            COMPILE_FLAGS "-Wno-error")
 
 ie_register_plugins(MAIN_TARGET ${TARGET_NAME}
                     POSSIBLE_PLUGINS ${TARGET_NAME})
@@ -121,6 +125,7 @@ target_link_libraries(${TARGET_NAME}
         ${MCM_COMPILER_LIBRARY}
         ${VPUAL_NN_LIBRARY}
         vpusmm
+        ${GAPI_SIPP_LIBRARY}
         )
 
 if(ENABLE_TESTS)
@@ -149,5 +154,6 @@ if(ENABLE_TESTS)
                 ${INTEL_ITT_LIBS}
                 IE::vpu_common_lib
                 ${MCM_COMPILER_LIBRARY}
-                ${VPUAL_NN_LIBRARY})
+                ${VPUAL_NN_LIBRARY}
+                ${GAPI_SIPP_LIBRARY})
 endif()
