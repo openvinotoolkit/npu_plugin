@@ -12,6 +12,14 @@ namespace mv
             std::string& errMsg) -> std::pair<bool, std::size_t>
         {
 
+            auto kernel = inputs[1];
+            auto kernelShape = (kernel->hasAttr("OriginalShape")) ?
+                                    (kernel->get<mv::Shape>("OriginalShape")) :
+                                    (kernel->getShape());
+
+            auto data = inputs[0];
+            auto dataShape = inputs[0]->getShape();
+
             auto group = args.at("group").get<unsigned>();
             if (group < 1)
             {
@@ -21,35 +29,35 @@ namespace mv
                 return {false, 0};
             }
 
-            if (inputs[0]->getShape().ndims() != 4 )
+            if (dataShape.ndims() != 4 )
             {
                 errMsg = "Shape ndims is not equal to 4";
                 return {false, 0};
             }
 
-            if (inputs[1]->getShape().ndims() != 4)
+            if (kernelShape.ndims() != 4)
             {
                 errMsg = "Shape ndims is not equal to 4";
                 return {false, 1};
             }
 
-            if (inputs[0]->getShape()[IO_CHANNEL_DIMENSION] != inputs[1]->getShape()[KERNEL_INPUT_CHANNELS])
-            {
-                errMsg = "Does not match the channel dimension of input " + std::to_string(inputs[0]->getShape()[KERNEL_INPUT_CHANNELS]);
-                return {false, 1};
-            }
+           if (dataShape[IO_CHANNEL_DIMENSION] != kernelShape[KERNEL_INPUT_CHANNELS])
+           {
+               errMsg = "Does not match the channel dimension of input " + std::to_string(dataShape[KERNEL_INPUT_CHANNELS]);
+               return {false, 1};
+           }
 
             auto padding = args.at("padding").get<std::array<unsigned short, 4>>();
 
-            if (inputs[0]->getShape()[IO_WIDTH_DIMENSION] + padding[0] + padding[1] < inputs[1]->getShape()[KERNEL_WIDTH])
+            if (dataShape[IO_WIDTH_DIMENSION] + padding[0] + padding[1] < kernelShape[KERNEL_WIDTH])
             {
-                errMsg = "Width exceeds padded input width " + std::to_string(inputs[0]->getShape()[IO_WIDTH_DIMENSION] + padding[0] + padding[1]);
+                errMsg = "Width exceeds padded input width " + std::to_string(dataShape[IO_WIDTH_DIMENSION] + padding[0] + padding[1]);
                 return {false, 1};
             }
 
-            if (inputs[0]->getShape()[IO_HEIGHT_DIMENSION] + padding[2] + padding[3] < inputs[1]->getShape()[KERNEL_HEIGHT])
+            if (dataShape[IO_HEIGHT_DIMENSION] + padding[2] + padding[3] < kernelShape[KERNEL_HEIGHT])
             {
-                errMsg = "Height exceeds padded input height " + std::to_string(inputs[0]->getShape()[IO_HEIGHT_DIMENSION] + padding[2] + padding[3]);
+                errMsg = "Height exceeds padded input height " + std::to_string(dataShape[IO_HEIGHT_DIMENSION] + padding[2] + padding[3]);
                 return {false, 1};
             }
 
@@ -70,23 +78,31 @@ namespace mv
             [](const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>& args, std::vector<Tensor>& outputs)
         {
 
+            auto kernel = inputs[1];
+            auto kernelShape = (kernel->hasAttr("OriginalShape")) ?
+                                    (kernel->get<mv::Shape>("OriginalShape")) :
+                                    (kernel->getShape());
+
+            auto data = inputs[0];
+            auto dataShape = inputs[0]->getShape();
+
             auto padding = args.at("padding").get<std::array<unsigned short, 4>>();
             auto stride = args.at("stride").get<std::array<unsigned short, 2>>();
             auto group = args.at("group").get<unsigned>();
 
             // TODO: Please take dilation factor into account!
             // Make sure that the result of subtract will not be negative
-            auto W = (inputs[0]->getShape()[IO_WIDTH_DIMENSION] + padding[0] + padding[1] - inputs[1]->getShape()[KERNEL_WIDTH]) / stride[0] + 1;
-            auto H = (inputs[0]->getShape()[IO_HEIGHT_DIMENSION] + padding[2] + padding[3] - inputs[1]->getShape()[1]) / stride[1] + 1;
-            auto C =  inputs[1]->getShape()[KERNEL_OUTPUT_CHANNELS] * group;
-            auto N = inputs[0]->getShape()[IO_BATCH_DIMENSION];
+            auto W = (dataShape[IO_WIDTH_DIMENSION] + padding[0] + padding[1] - kernelShape[KERNEL_WIDTH]) / stride[0] + 1;
+            auto H = (dataShape[IO_HEIGHT_DIMENSION] + padding[2] + padding[3] - kernelShape[KERNEL_HEIGHT]) / stride[1] + 1;
+            auto C =  kernelShape[KERNEL_OUTPUT_CHANNELS] * group;
+            auto N = dataShape[IO_BATCH_DIMENSION];
 
             mv::Shape outputShape({W, H, C, N});
 
             if (args.at("quantParams").get<mv::QuantizationParams>().isEmpty())
                 outputs.push_back(mv::Tensor(":0", outputShape, inputs[0]->getDType(), inputs[0]->getOrder()));
             else
-                outputs.push_back(mv::Tensor(":0", outputShape, inputs[0]->getDType(), inputs[0]->getOrder(), args.at("quantParams").get<mv::QuantizationParams>()));
+                outputs.push_back(mv::Tensor(":0", outputShape, data->getDType(), data->getOrder(), args.at("quantParams").get<mv::QuantizationParams>()));
 
         };
 

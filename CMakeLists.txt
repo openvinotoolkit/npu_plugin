@@ -91,8 +91,10 @@ SET(base
     "${PROJECT_SOURCE_DIR}/src/base/attribute_def/bool.cpp" 
     "${PROJECT_SOURCE_DIR}/src/base/attribute_def/double.cpp" 
     "${PROJECT_SOURCE_DIR}/src/base/attribute_def/dtype.cpp"
+    "${PROJECT_SOURCE_DIR}/src/base/attribute_def/implicit_flow.cpp"
     "${PROJECT_SOURCE_DIR}/src/base/attribute_def/int.cpp"
     "${PROJECT_SOURCE_DIR}/src/base/attribute_def/int64.cpp"
+    "${PROJECT_SOURCE_DIR}/src/base/attribute_def/mem_location.cpp"
     "${PROJECT_SOURCE_DIR}/src/base/attribute_def/mv_element.cpp"
     "${PROJECT_SOURCE_DIR}/src/base/attribute_def/order.cpp"
     "${PROJECT_SOURCE_DIR}/src/base/attribute_def/shape.cpp"
@@ -154,6 +156,7 @@ SET(base
     "${PROJECT_SOURCE_DIR}/src/computation/op/def/bias.cpp"
     "${PROJECT_SOURCE_DIR}/src/computation/op/def/clamp.cpp"
     "${PROJECT_SOURCE_DIR}/src/computation/op/def/concat.cpp"
+    "${PROJECT_SOURCE_DIR}/src/computation/op/def/copy.cpp"
     "${PROJECT_SOURCE_DIR}/src/computation/op/def/constant.cpp"
     "${PROJECT_SOURCE_DIR}/src/computation/op/def/conv.cpp"
     "${PROJECT_SOURCE_DIR}/src/computation/op/def/conversion.cpp"
@@ -178,6 +181,7 @@ SET(base
     "${PROJECT_SOURCE_DIR}/src/computation/op/def/reorg_yolo.cpp"
     "${PROJECT_SOURCE_DIR}/src/computation/op/def/reshape.cpp"
     "${PROJECT_SOURCE_DIR}/src/computation/op/def/scale.cpp"
+    "${PROJECT_SOURCE_DIR}/src/computation/op/def/slice.cpp"
     "${PROJECT_SOURCE_DIR}/src/computation/op/def/sigmoid.cpp"
     "${PROJECT_SOURCE_DIR}/src/computation/op/def/softmax.cpp"
     "${PROJECT_SOURCE_DIR}/src/computation/op/def/subtract.cpp"
@@ -297,8 +301,7 @@ SET(pass
 
     "${PROJECT_SOURCE_DIR}/src/pass/initialization/assign_unique_op_id.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/initialization/create_source_structure.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/initialization/streaming_op_fission.cpp"
-    
+
     "${PROJECT_SOURCE_DIR}/src/pass/adaptation/conv_dilation_pass.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/adaptation/fuse_passes.cpp"
 
@@ -306,13 +309,15 @@ SET(pass
     "${PROJECT_SOURCE_DIR}/src/pass/adaptation/replacement_passes.cpp"
 
     "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/concat_as_implicit.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/update_concat_quatization_params.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/update_implicit_layers_quatization_params.cpp"
 
 
     "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/keembay_align_weights.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/keembay_control_flow.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/compute_tensors_quant.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/convert_to_task_graph.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/dpu_task_memory_location.cpp"
+
     "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/keembay_order_conversion.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/insert_barrier_tasks.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/dma_passes.cpp"
@@ -322,15 +327,17 @@ SET(pass
     "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/strategy_from_layers_to_tensors.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/splitting_across_clusters.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/store_workload_strategy.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/implicit_operation_passes.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/sparsity/sparsity_maps.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/sparsity/weights_tables.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/sparsity/eltwise_ops.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/keembay_align_to_16_channels.cpp"
-
+    "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/streaming/spatial_split_streaming.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/keembay_align_slice_ops.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/force_serialize.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/finalization/max_topological_cut.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/finalization/align_data_order.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/finalization/allocate_memory_keem_bay.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/finalization/allocate_memory_myriadX.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/finalization/arrange_execution.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/finalization/format_mx_weights.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/finalization/fuse_relu_mx.cpp"
@@ -346,6 +353,8 @@ SET(pass
     "${PROJECT_SOURCE_DIR}/src/pass/finalization/transitive_reduction.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/finalization/is_dag.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/finalization/schedule_helper.cpp"
+
+    "${PROJECT_SOURCE_DIR}/src/pass/scheduling/scheduling_passes.cpp"
 
     "${PROJECT_SOURCE_DIR}/src/pass/serialization/generate_blob_keembay.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/serialization/generate_blob.cpp"

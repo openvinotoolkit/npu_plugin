@@ -49,8 +49,13 @@ namespace mv
         void removeFromStage(Control::OpListIterator op);
         std::size_t stageSize() const;
 
-        bool checkControlFlow(mv::Control::OpListIterator source, mv::Control::OpListIterator sink);
-        bool checkControlFlow(mv::Data::OpListIterator source, mv::Data::OpListIterator sink);
+        mv::Control::FlowListIterator checkControlFlow(mv::Control::OpListIterator source, mv::Control::OpListIterator sink);
+        mv::Control::FlowListIterator checkControlFlow(mv::Data::OpListIterator source, mv::Data::OpListIterator sink);
+
+        bool isFlowAllowed(mv::Control::OpListIterator source, mv::Control::OpListIterator sink);
+        bool isFlowAllowed(mv::Data::OpListIterator source, mv::Data::OpListIterator sink);
+        bool isFlowAllowedAndNonExisting(mv::Control::OpListIterator source, mv::Control::OpListIterator sink);
+        bool isFlowAllowedAndNonExisting(mv::Data::OpListIterator source, mv::Data::OpListIterator sink);
 
         Control::StageIterator stageBegin();
         Control::StageIterator stageEnd();

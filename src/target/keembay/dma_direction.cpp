@@ -7,7 +7,7 @@ const std::unordered_map<mv::DmaDirectionEnum, std::string, mv::DmaDirectionEnum
     {mv::DmaDirectionEnum::DDR2CMX, "DDR2CMX"},
     {mv::DmaDirectionEnum::CMX2UPA, "CMX2UPA"},
     {mv::DmaDirectionEnum::UPA2CMX, "UPA2CMX"},
-
+    {mv::DmaDirectionEnum::DDR2DDR, "DDR2DDR"}
 };
 
 mv::DmaDirection::DmaDirection(DmaDirectionEnum value) :
@@ -31,16 +31,26 @@ direction_(other.direction_)
 mv::DmaDirection::DmaDirection(const std::string& value)
 {
 
-    DmaDirection(
-        [=]()->DmaDirection
+//    DmaDirection(
+//        [=]()->DmaDirection
+//        {
+//            for (auto &e : dmaDirectionStrings_)
+//                if (e.second == value)
+//                    return e.first;
+//            throw ArgumentError(*this, "Invalid initialization - string value specified as", value, "Initializer");
+//        }()
+//    );
+    bool found = false;
+    for ( auto &e : dmaDirectionStrings_)
+    {
+        if(e.second == value)
         {
-            for (auto &e : dmaDirectionStrings_)
-                if (e.second == value)
-                    return e.first;
-            throw ArgumentError(*this, "Invalid initialization - string value specified as", value, "Initializer");
-        }()
-    );
-
+            direction_ = e.first;
+            found = true;
+        }
+    }
+    if(found == false)
+        throw ArgumentError(*this, "Invalid initialization - string value specified as", value, "Initializer");
 }
 
 std::string mv::DmaDirection::toString() const

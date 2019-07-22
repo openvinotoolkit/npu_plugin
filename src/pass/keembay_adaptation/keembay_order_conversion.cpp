@@ -30,22 +30,41 @@ void kmbOrderConversion(const mv::pass::PassEntry& pass, mv::ComputationModel& m
             {
                 // ChannelMajorConvolution is the only operation that requires input tensor in OUR ColMajor
                 dpuTask->getInputTensor(0)->setOrder(mv::Order(mv::Order::getColMajorID(4)));
+                if (om.getSourceOp(dpuTask->getInputTensor(0))->getOpType() == "Slice")
+                {
+                    auto inputImplicitOp = om.getSourceOp(dpuTask->getInputTensor(0));
+                    inputImplicitOp->getInputTensor(0)->setOrder(mv::Order::getColMajorID(4));
+                }
 
                 // We also need to set weights shape to ColMajor (see document Order.ods)
                 mv::Order targetOrder(mv::Order::getColMajorID(4));
                 dpuTask->getInputTensor(1)->setOrder(targetOrder);
                 dpuTask->getOutputTensor(0)->setOrder(mv::Order(mv::Order::getZMajorID(4)));
+                if (om.getSourceOp(dpuTask->getInputTensor(1))->getOpType() == "Slice")
+                {
+                    auto kernelImplicitOp = om.getSourceOp(dpuTask->getInputTensor(1));
+                    kernelImplicitOp->getInputTensor(0)->setOrder(targetOrder);
+                }
 
             }
             else
             {
                 // All DPU tasks except ChannelMajor convolution (handled above) act with input tensor in ZMajor
                 dpuTask->getInputTensor(0)->setOrder(mv::Order(mv::Order::getZMajorID(4)));
-
+                if (om.getSourceOp(dpuTask->getInputTensor(0))->getOpType() == "Slice")
+                {
+                    auto inputImplicitOp = om.getSourceOp(dpuTask->getInputTensor(0));
+                    inputImplicitOp->getInputTensor(0)->setOrder(mv::Order::getZMajorID(4));
+                }
                 if(taskOp == "Conv")
                 {
                     mv::Order targetOrder("NHWC");
                     dpuTask->getInputTensor(1)->setOrder(targetOrder);
+                    if (om.getSourceOp(dpuTask->getInputTensor(1))->getOpType() == "Slice")
+                    {
+                        auto kernelImplicitOp = om.getSourceOp(dpuTask->getInputTensor(1));
+                        kernelImplicitOp->getInputTensor(0)->setOrder(targetOrder);
+                    }
                 }
             }
         }

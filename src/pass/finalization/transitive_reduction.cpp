@@ -28,7 +28,10 @@ void transitiveReductionFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
     pass.log(mv::Logger::MessageType::Debug, "Starting transitive reduction pass");
     mv::ControlModel cm(model);
 
-    auto filter = passArg.get<std::string>("filter");
+    std::string filter;
+    if(passArg.hasAttr("filter"))
+        filter = passArg.get<std::string>("filter");
+
     cm.transitiveReduction(filter);
     pass.log(mv::Logger::MessageType::Debug, "Ended transitive reduction pass");
 }

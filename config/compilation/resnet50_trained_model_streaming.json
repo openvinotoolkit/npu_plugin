@@ -1,0 +1,731 @@
+{
+    "initialize": {
+        "Singular": [
+            {
+                "name" : "GlobalConfigParams",
+                "_comment" : "Stores common params accross multiple passes. Access through the Computation Model.",
+                "recorded_model": true,
+                "verbose": "Debug",
+                "weights_form": "None",
+                "barrier_index_assignment" : "Dynamic",
+                "Number_of_DPUs" : 1,
+                "Number_of_Clusters" : 1,
+                "UpaShaves": 1,
+                "DDRScratch": 16777216,
+                "MemoryHack": false,
+                "Sparsity": false,
+                "CMX_memory_overflow_safety_factor" : 1.0,
+                "mpe_mode" : "Vector",
+                "split_strategy" :
+                [
+                    {
+                        "name_filter" : ".*",
+                        "cluster_filter" : 0,
+                        "strategy" : "SplitOverK"
+                    },
+                    {
+                        "name_filter" : ".*",
+                        "cluster_filter" : 1,
+                        "strategy" : "Clustering"
+                    },
+                    {
+                        "name_filter" : ".*input.*",
+                        "cluster_filter" : 0,
+                        "strategy" : "SplitOverH"
+                    },
+                    {
+                        "name_filter" : ".*res2a.*",
+                        "cluster_filter" : 0,
+                        "strategy" : "SplitOverH"
+                    },
+                    {
+                        "name_filter" : ".*conv1.*",
+                        "cluster_filter" : 0,
+                        "strategy" : "SplitOverH"
+                    },
+                    {
+                        "name_filter" : ".*pool1.*",
+                        "cluster_filter" : 0,
+                        "strategy" : "SplitOverH"
+                    },
+                    {
+                        "name_filter" : ".*res2.*",
+                        "cluster_filter" : 0,
+                        "strategy" : "SplitOverH"
+                    },
+                    {
+                        "name_filter" : ".*res3.*",
+                        "cluster_filter" : 0,
+                        "strategy" : "SplitOverH"
+                    }
+                ],
+                "default_tensor_placement" : "DDR",
+                "streaming_strategy" :
+                [
+                    {
+                        "name_filter" : "conv0/Relu#181",
+                        "output_location" : "CMX",
+                        "splits" : [ {"H" : 2} ]
+                    },
+                    {
+                        "name_filter" : "pool0/MaxPool#182",
+                        "output_location" : "CMX",
+                        "splits" : [ {"H" : 2} ]
+                    },
+                    {
+                        "name_filter" : "group0/block0/convshortcut/Relu#183",
+                        "output_location" : "CMX",
+                        "splits" : [ {"H" : 2} ]
+                    },
+                    {
+                        "name_filter" : "group0/block0/conv3/Relu#186",
+                        "output_location" : "CMX",
+                        "splits" : [ {"H" : 2} ]
+                    },
+                    {
+                        "name_filter" : "group0/block1/conv1/Relu#188",
+                        "output_location" : "CMX",
+                        "splits" : [ {"H" : 2} ]
+                    },
+                    {
+                        "name_filter" : "group0/block1/conv3/Relu#190",
+                        "output_location" : "CMX",
+                        "splits" : [ {"H" : 2} ]
+                    },
+                    {
+                        "name_filter" : "group0/block2/conv1/Relu#192",
+                        "output_location" : "CMX",
+                        "splits" : [ {"H" : 2} ]
+                    },
+                    {
+                        "name_filter" : "group0/block2/conv3/Relu#194",
+                        "output_location" : "CMX",
+                        "splits" : [ {"H" : 2} ]
+                    },
+                    {
+                        "name_filter" : "group1/block0/convshortcut/Relu#196",
+                        "output_location" : "CMX",
+                        "splits" : [ {"H" : 2} ]
+                    },
+                    {
+                        "name_filter" : "group1/block0/conv1/Relu#197",
+                        "output_location" : "CMX",
+                        "splits" : [ {"H" : 2} ]
+                    },
+                    {
+                        "name_filter" : "group2/block0/convshortcut/Relu#213",
+                        "output_location" : "CMX",
+                        "splits" : [ {"K" : 2} ]
+                    },
+                    {
+                        "name_filter" : "group3/block0/convshortcut/Relu#238",
+                        "output_location" : "CMX",
+                        "splits" : [ {"K" : 4} ]
+                    },
+                    {
+                        "name_filter" : "group3/block0/conv2/Relu#240",
+                        "output_location" : "CMX",
+                        "splits" : [ {"K" : 4} ]
+                    },
+                    {
+                        "name_filter" : "group3/block0/conv3/Relu#241",
+                        "output_location" : "CMX",
+                        "splits" : [ {"K" : 2} ]
+                    },
+                    {
+                        "name_filter" : "group3/block1/conv1/Relu#243",
+                        "output_location" : "CMX",
+                        "splits" : [ {"K" : 2} ]
+                    },
+                    {
+                        "name_filter" : "group3/block1/conv2/Relu#244",
+                        "output_location" : "CMX",
+                        "splits" : [ {"K" : 4} ]
+                    },
+                    {
+                        "name_filter" : "group3/block1/conv3/Relu#245",
+                        "output_location" : "CMX",
+                        "splits" : [ {"K" : 2} ]
+                    },
+                    {
+                        "name_filter" : "group3/block2/conv1/Relu#247",
+                        "output_location" : "CMX",
+                        "splits" : [ {"K" : 2} ]
+                    },
+                    {
+                        "name_filter" : "group3/block2/conv2/Relu#248",
+                        "output_location" : "CMX",
+                        "splits" : [ {"K" : 4} ]
+                    },
+                    {
+                        "name_filter" : "group3/block2/conv3/Relu#249",
+                        "output_location" : "CMX",
+                        "splits" : [ {"K" : 2} ]
+                    },
+                    {
+                        "name_filter" : "group0/block0/add#187",
+                        "output_location" : "CMX",
+                        "splits" : [ {"H" : 4} ]
+                    },
+                    {
+                        "name_filter" : "group0/block1/add#191",
+                        "output_location" : "CMX",
+                        "splits" : [ {"H" : 4} ]
+                    },
+                    {
+                        "name_filter" : "group0/block2/add#195",
+                        "output_location" : "CMX",
+                        "splits" : [ {"H" : 4} ]
+                    },
+                    {
+                        "name_filter" : "group1/block0/add#200",
+                        "output_location" : "CMX",
+                        "splits" : [ {"H" : 2} ]
+                    },
+                    {
+                        "name_filter" : "group1/block1/add#204",
+                        "output_location" : "CMX",
+                        "splits" : [ {"H" : 2} ]
+                    },
+                    {
+                        "name_filter" : "group1/block2/add#208",
+                        "output_location" : "CMX",
+                        "splits" : [ {"H" : 2} ]
+                    },
+                    {
+                        "name_filter" : "group1/block3/add#212",
+                        "output_location" : "CMX",
+                        "splits" : [ {"H" : 2} ]
+                    },
+                    {
+                        "name_filter" : "linear0/act_quant/FakeQuantWithMinMaxVars#252",
+                        "output_location" : "CMX",
+                        "splits" : [ {"K" : 4} ]
+                    }
+                ]
+            },
+
+            "ComputeMemory",
+            "AssignUniqueOpId",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/original_model.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/original_model.dot"
+            },
+            {
+                "name": "CreateSourceStructure",
+                "VersionMajor": 3,
+                "VersionMinor": 11,
+                "VersionPatch": 0,
+                "VersionHash": "9aa43159420c77d8cf765393954ac2fbb372ab02"
+            },
+            "StoreTensorPlacement",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/StoreTensorPlacement.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/StoreTensorPlacement.dot"
+            }
+        ]
+    },
+    "adapt": {
+        "Singular": [
+            "AverageAsDepthWise",
+            "FuseBatchNorm",
+            "FuseBias",
+            "FuseRelu",
+            "FuseScale",
+            "FullyConnectedAsConv2D",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/adapt_model.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/adapt_model.dot"
+            },
+            "StreamingTiling",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/tiling_model.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/tiling_model.dot"
+            }
+        ]
+    },
+    "keembay_adapt": {
+        "Singular": [
+            "ConcatAsImplicit",
+            "StoreLayerSplitStrategy",
+            "StoreWorkloadStrategy",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/BeforeOpsToTasks.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/BeforeOpsToTasks.dot"
+            },
+            "ConvertOpsToTasks",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/AfterOpsToTasks.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/AfterOpsToTasks.dot"
+            },
+            "ForceSerialize",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/AfterForceSerializae.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/AfterForceSerializae.dot"
+            },
+            "AlignTo16Channels",
+            "ComputeTensorsQuantParams",
+            "KMBOrderConversion",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/keembay_adapt_model.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/keembay_adapt_model.dot"
+            },
+            "UpdateImplicitLayersQuantizationParams",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/update_concat_quantization.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/update_concat_quantization.dot"
+            },
+            "SetDpuTasksMemoryLocation",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/dpu_tasks_location.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/dpu_tasks_location.dot"
+            },
+            "AlignTaskWeights",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/align_task_weights.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/align_task_weights.dot"
+            },
+            "AlignSliceOps",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/align_slice_ops.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/align_slice_ops.dot"
+            },
+            "GenerateSparsityMapsPopulatedTensors",
+            "GenerateWeightsTables",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/keembay_WeightsTable_model.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/keembay_WeightsTable_model.dot"
+            },
+            "GenerateEltWiseConstants",
+            "PopulateWeightsTablesQuantization",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/keembay_EltWiseConstants_model.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/keembay_EltWiseConstants_model.dot"
+            },
+            "RemoveBiasTensors"
+        ]
+    },
+    "dma": {
+        "Singular" : [
+            "ResolveImplicitOperations",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/implicit_operations_model.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/implicit_operations_model.dot"
+            },
+            "AddWeightsDMATasks",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/dma_model.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/dma_model.dot"
+            }
+
+
+        ]
+    },
+    "control_flows":{
+        "Singular" : [
+            "TaskControlFlows",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/TaskControlFlows_model.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/TaskControlFlows_model.dot"
+            },
+            "TransitiveReduction",
+            "LayerNumbering",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/TaskControlFlows_model_transitive_reduction.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/TaskControlFlows_model_transitive_reduction.dot"
+            },
+            "HangingDmaControlFlows",
+            "TransitiveReduction",
+            "LayerNumbering",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/NoHangingDmas.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/NoHangingDmas.dot"
+            },
+            "cmx2DDRControlFlows",
+            "TransitiveReduction",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/cmx2DDRControlFlows.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/cmx2DDRControlFlows.dot"
+            },
+            "AddDeallocationTasks",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/deallocation_model.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/deallocation_model.dot"
+            }
+
+        ]
+    },
+    "finalize": {
+        "Singular": [
+            "GenerateSparsityMapsUnpopulatedTensors",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/sparsitymaps_unpopulatedtensor.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/sparsitymaps_unpopulatedtensor.dot"
+            },
+            {
+                "name": "TransitiveReduction",
+                "filter": "PositiveMemory"
+            },
+            "MarkLastNodeForMaxTopologicalCut",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/TransitiveReductionBeforeMaxCut.dot",
+                "scope": "ControlModel",
+                "content": "nonfull",
+                "html": true
+            },
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/TransitiveReductionBeforeMaxCutFull.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/TransitiveReductionBeforeMaxCut.dot"
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/TransitiveReductionBeforeMaxCutFull.dot"
+            },
+            "MaxTopologicalCutAndPartialSerialisation",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/MaxTopologicalCutAndPartialSerialisation.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
+            },
+            "TransitiveReduction",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/TransitiveReductionAfterMaxCut.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/TransitiveReductionAfterMaxCut.dot"
+            },
+            {
+                "name": "GenerateWorkloads",
+                "costfunction": "criticalpath",
+                "TensorSplitAlgorithms": "Rectangle",
+                "_comment": "Supported CostFunctions are: balanced | criticalpath | minmax | greedy. Supported TensorSplitAlgorithms are Metis, Rectangle, Z-Tiling"
+            },
+            "ArrangeKeembayExecution",
+            "AllocateInputOutputTensorsKeemBay",
+            "AllocateGraphfileTensorsKeemBay",
+            "ReAllocateImplicitOperationsKeemBay",
+            "AllocateCMXTensorsKeemBay",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/BeforeGraphColoring.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/BeforeGraphColoring.dot"
+            },
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/BeforeGraphColoringControl.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/BeforeGraphColoringControl.dot"
+            },
+            {
+                "name": "TensorGraphColoring",
+                "output": "output/dots/nnCmx.dot"
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/nnCmx.dot"
+            },
+            "RemoveDeallocationTasks",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/DeallocationTasksRemoved.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/DeallocationTasksRemoved.dot"
+            },
+            "TransitiveReduction",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/DeallocationTasksRemovedAndTransitiveReduction.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/DeallocationTasksRemovedAndTransitiveReduction.dot"
+            },
+            {
+                "name" : "InsertBarrierTasks",
+                "outputBIG": "output/dots/BarrierInterferenceGraph.dot",
+                "barrier_reuse_window" : 0
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/BarrierInterferenceGraph.dot"
+            },
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/BarriersInserted.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/BarriersInserted.dot"
+            },
+            "TransitiveReduction",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/BarriersInsertedTransitiveReductionApplied.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/BarriersInsertedTransitiveReductionApplied.dot"
+            },
+            "PopulateWeightsTablesPointers",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/final_model.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/final_model.dot"
+            }
+        ]
+    },
+    "scheduling": {
+        "Singular": [
+            "StoreBarriersNamesInTasks",
+            "GenerateExecutionSchedule",
+            "BarrierIndexAssignment",
+            "UpdateBarrierRefs",
+            "UpdateBarrierProducerConsumerCounts",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/serial_model.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/serial_model.dot"
+            }
+        ]
+    },
+    "validate": {
+        "Singular": [
+            "CheckTensors"
+        ]
+    },
+    "serialize": {
+        "Singular": [
+            {
+                "name": "GenerateBlobKeembay",
+                "output": "output/mcm.blob"
+            },
+            {
+                "name": "ConvertFlatbuffer",
+                "input": "output/mcm.blob"
+            }
+
+        ]
+    },
+    "root": {
+        "Singular": [
+            "initialize",
+            "validate",
+            "adapt",
+            "keembay_adapt",
+            "dma",
+            "control_flows",
+            "finalize",
+            "scheduling",
+            "serialize"
+        ],
+        "Recurrent": [
+            "validate"
+        ]
+    }
+}

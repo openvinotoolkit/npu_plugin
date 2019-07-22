@@ -12,6 +12,7 @@ static void populateWeightsTablesPointersFcn(const mv::pass::PassEntry& pass, mv
 static void populateWeightsTablesQuantizationFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 static void populateSparseDataPointerMultiCluster(mv::Tensor& weightsTableData, mv::Data::OpListIterator dpuTaskOp, std::vector<int64_t> increments, long int offset, mv::ComputationModel& model);
 static void populateDenseDataPointerMultiCluster(mv::Tensor& weightsTableData, mv::Data::OpListIterator dpuTaskOp, long int increment, long int offset, mv::ComputationModel& model);
+static void removeBiasTensorsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 
 namespace mv
 {
@@ -34,6 +35,12 @@ namespace mv
         .setFunc(populateWeightsTablesQuantizationFcn)
         .setDescription(
             "Populate WeightsTables"
+        );
+
+        MV_REGISTER_PASS(RemoveBiasTensors)
+        .setFunc(removeBiasTensorsFcn)
+        .setDescription(
+            "remove bias tensors after been adding to all weight tables"
         );
 
     }
@@ -223,12 +230,6 @@ void populateWeightsTablesActivationAndBias(mv::Tensor& weightsTableData, mv::Da
         if (hasBias)
             weightsTableData(i+3) = biasData[i/4];
     }
-
-    if (hasBias)
-    {
-        dm.undefineTensor(bias);
-        dpuTaskOp->erase("bias");
-    }
 }
 
 static void populateWeightsTablesQuantizationFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
@@ -249,6 +250,37 @@ static void populateWeightsTablesQuantizationFcn(const mv::pass::PassEntry& , mv
                 populateWeightsTablesActivationAndBias(*weightsTable, dpuTaskOp, model);
             }
         }
+    }
+}
+
+static void removeBiasTensorsFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+{
+    mv::OpModel om(model);
+    mv::DataModel dm(model);
+    std::set<std::string> biasNamesToRemove;
+    for(auto dpuTaskOp = om.opBegin(); dpuTaskOp != om.opEnd(); ++dpuTaskOp)
+    {
+        if(dpuTaskOp->getOpType() == "DPUTask")
+        {
+            if((dpuTaskOp->get<std::string>("taskOp") == "Conv") ||
+               (dpuTaskOp->get<std::string>("taskOp") == "ChannelMajorConvolution") ||
+               (dpuTaskOp->get<std::string>("taskOp") == "MaxPool") ||
+               (dpuTaskOp->get<std::string>("taskOp") == "DepthwiseConv"))
+            {
+                bool hasBias = dpuTaskOp->hasAttr("bias");
+                if (hasBias)
+                {
+                    auto bias = dm.getTensor(dpuTaskOp->get<std::string>("bias"));
+                    biasNamesToRemove.insert(bias->getName());
+                    dpuTaskOp->erase("bias");
+                }
+            }
+        }
+    }
+    for(auto biasName = biasNamesToRemove.begin(); biasName != biasNamesToRemove.end(); ++biasName)
+    {
+        auto bias = dm.getTensor(*biasName);
+        dm.undefineTensor(bias);
     }
 }
 
@@ -283,6 +315,7 @@ static void generateWeightsTablesFcn(const mv::pass::PassEntry& , mv::Computatio
 {
     mv::OpModel om(model);
     mv::DataModel dm(model);
+    mv::ControlModel cm(model);
 
     for(auto dpuTaskOp = om.opBegin(); dpuTaskOp != om.opEnd(); ++dpuTaskOp)
     {
@@ -313,6 +346,16 @@ static void generateWeightsTablesFcn(const mv::pass::PassEntry& , mv::Computatio
                 om.getSourceOp(weightTable)->set<unsigned>("opId", dpuTaskOp->get<unsigned>("opId"));
                 unsigned newSize = dpuTaskOp->addInputTensor(weightTable);
                 om.defineFlow(weightTable, dpuTaskOp, newSize - 1);
+
+                auto ctlFlow = cm.switchContext(om.getSourceOp(dpuTaskOp->getInputTensor(1)));
+                if (auto parentOptest = ctlFlow.leftmostParent() == cm.opEnd())
+                    std::cout << "NO PARENT FOUND for " << ctlFlow->getName() << std::endl;
+                for (auto parentOp = ctlFlow.leftmostParent(); parentOp != cm.opEnd(); ++parentOp)
+                {
+                    cm.defineFlow(om.switchContext(parentOp),om.getSourceOp(weightTable));
+                    std::cout << "ADDED CONTROL FLOW from " << parentOp->getName() << " to " << weightTable->getName() << std::endl;
+                }
+
             }
         }
     }

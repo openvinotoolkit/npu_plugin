@@ -58,7 +58,7 @@ mv::Data::TensorIterator residualBlock(mv::CompositionalModel& model, mv::Data::
 	branch2a = model.relu(branch2a);
     auto branch2b = convBatchNormBlock(model, branch2a, {3, 3, inputShape[mv::IO_CHANNEL_DIMENSION], inputShape[mv::IO_CHANNEL_DIMENSION]}, {1, 1}, {1, 1, 1, 1});
 
-	auto res = model.add(input, branch2b);
+    auto res = model.add({input, branch2b});
 	return model.relu(res);
 
 }
@@ -78,7 +78,7 @@ mv::Data::TensorIterator residualConvBlock(mv::CompositionalModel& model, mv::Da
 	branch2a = model.relu(branch2a);
 	auto branch2b = convBatchNormBlock(model, branch2a, {3, 3, outputDepth, outputDepth}, stride, {1, 1, 1, 1});
 
-	auto res = model.add(branch1, branch2b);
+    auto res = model.add({branch1, branch2b});
 	return model.relu(res);
 
 }

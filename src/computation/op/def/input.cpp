@@ -38,7 +38,7 @@ namespace mv
         .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
         .setInputCheck(inputCheckFcn)
         .setOutputDef(outputDefFcn)
-        .setTypeTrait({"exposed"});
+        .setTypeTrait({"exposed", "executable"});
 
     }
 

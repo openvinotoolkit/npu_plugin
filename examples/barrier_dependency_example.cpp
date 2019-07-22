@@ -34,7 +34,7 @@ int main()
     auto weights3 = om.constant(weights3Data, {3, 3, 16, 16}, mv::DType("Float16"), mv::Order("NCWH"));
     auto conv3 = om.conv(pool2, weights3, {1, 1}, {1, 1, 1, 1});
 
-    auto add1 = om.add(conv2, conv3);
+    auto add1 = om.add({conv2, conv3});
 
     auto weights4 = om.constant(weights3Data, {3, 3, 16, 16}, mv::DType("Float16"), mv::Order("NCWH"));
     auto conv4 = om.conv(add1, weights4, {1, 1}, {1, 1, 1, 1});

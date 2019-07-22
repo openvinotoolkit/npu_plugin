@@ -29,3 +29,33 @@ void mv::setOutputDataFlow(mv::OpModel& om, mv::Data::TensorIterator &dpuTaskOut
         om.defineFlow(dpuTaskOutputTensor, flowPair.first, flowPair.second);
     }
 }
+
+std::vector<mv::Control::OpListIterator> mv::getInputControlFlow(mv::ControlModel& cm, mv::Control::OpListIterator opIt)
+{
+    std::vector<mv::Control::OpListIterator> toReturn;
+
+    for(auto outputFlow = opIt.leftmostChild(); outputFlow != cm.opEnd(); ++outputFlow)
+        toReturn.push_back(outputFlow);
+    return toReturn;
+}
+
+std::vector<mv::Control::OpListIterator> mv::getOutputControlFlow(mv::ControlModel& cm, mv::Control::OpListIterator opIt)
+{
+    std::vector<mv::Control::OpListIterator> toReturn;
+
+    for(auto outputFlow = opIt.leftmostParent(); outputFlow != cm.opEnd(); ++outputFlow)
+        toReturn.push_back(outputFlow);
+    return toReturn;
+}
+
+void mv::setInputControlFlow(mv::ControlModel& cm, mv::Control::OpListIterator op, const std::vector<mv::Control::OpListIterator>& inputControlFlows)
+{
+    for(auto& inputOp: inputControlFlows)
+        cm.defineFlow(inputOp, op);
+}
+
+void mv::setOutputControlFlow(mv::ControlModel& cm, mv::Control::OpListIterator op, const std::vector<mv::Control::OpListIterator>& outputControlFlows)
+{
+    for(auto& outputOp: outputControlFlows)
+        cm.defineFlow(op, outputOp);
+}

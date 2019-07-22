@@ -50,8 +50,6 @@ struct BigKEdgeInfo
 using BIGKoala = Koala::Graph <BigKVertexInfo, BigKEdgeInfo>;
 
 static void insertBarrierTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
-static void updateCountsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
-static void adjustBarrierIndicesFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 
 namespace mv
 {
@@ -63,18 +61,6 @@ namespace mv
         .setFunc(insertBarrierTasksFcn)
         .setDescription(
             "This pass inserts barrier tasks into the compute graph"
-        );
-
-        MV_REGISTER_PASS(AdjustBarrierIndices)
-        .setFunc(adjustBarrierIndicesFcn)
-        .setDescription(
-            "This pass adjustes barriers ID according to topological sort. This pass has to be executed before AddBarrierRefs");
-
-        MV_REGISTER_PASS(UpdateBarrierProducerConsumerCounts)
-        .setFunc(updateCountsFcn)
-        .setDescription(
-            "This pass updates producer and consumer counts in barriers based on workloads in producer and consumer \
-            DxxTasks in the compute graph"
         );
 
     }
@@ -415,31 +401,31 @@ static void setBarrierGroupAndIndex(const mv::pass::PassEntry& pass, mv::OpModel
     auto globalConfigurationParameters = om.getGlobalConfigParams();
     std::string indexAssignment = globalConfigurationParameters->get<std::string>("barrier_index_assignment");
 
-    int barrierReuseWindow = 0;
-    if (passDesc.hasAttr("barrier_reuse_window"))
-        barrierReuseWindow = passDesc.get<int>("barrier_reuse_window");
-
-    BarrierInterferenceGraph big = generateBarrierInterferenceGraph(om, barriers, indexAssignment, barrierReuseWindow);
-    if(passDesc.hasAttr("outputBIG"))
-        drawBIG(big, passDesc.get<std::string>("outputBIG"));
-
-
-    // Must be always done to verify we can execute a graph with only MAX_AVAILABLE_BARRIERS
-    BIGKoala bigK;
-    std::vector<BIGKoala::PVertex> koalaVertices;
-    convertToKoalaGraph(pass, big, bigK, koalaVertices);
-    drawBigK(bigK);
-
-    AssocArray<BIGKoala::PVertex, int> colors;
-    int numColors = colorKoalaGraph(bigK, koalaVertices, colors) + 1;
-    if (numColors > MAX_AVAILABLE_BARRIERS)
-        throw mv::RuntimeError(om,
-                "Cannot execute graph with " +
-                std::to_string(MAX_AVAILABLE_BARRIERS) +
-                " barriers; more graph serialization required.");
-
     if (indexAssignment == "Static")
     {
+        int barrierReuseWindow = 0;
+        if (passDesc.hasAttr("barrier_reuse_window"))
+            barrierReuseWindow = passDesc.get<int>("barrier_reuse_window");
+
+        BarrierInterferenceGraph big = generateBarrierInterferenceGraph(om, barriers, indexAssignment, barrierReuseWindow);
+        if(passDesc.hasAttr("outputBIG"))
+            drawBIG(big, passDesc.get<std::string>("outputBIG"));
+
+
+        // Must be always done to verify we can execute a graph with only MAX_AVAILABLE_BARRIERS
+        BIGKoala bigK;
+        std::vector<BIGKoala::PVertex> koalaVertices;
+        convertToKoalaGraph(pass, big, bigK, koalaVertices);
+        drawBigK(bigK);
+
+        AssocArray<BIGKoala::PVertex, int> colors;
+        int numColors = colorKoalaGraph(bigK, koalaVertices, colors) + 1;
+        if (numColors > MAX_AVAILABLE_BARRIERS)
+            throw mv::RuntimeError(om,
+                    "Cannot execute graph with " +
+                    std::to_string(MAX_AVAILABLE_BARRIERS) +
+                    " barriers; more graph serialization required.");
+            
         for (int i = 0; i < bigK.getVertNo(); i++)
         {
             pass.log(mv::Logger::MessageType::Info,
@@ -542,40 +528,6 @@ void removeExtraProducers(const mv::pass::PassEntry& pass,
     }
 }
 
-void setBarrierIndicesAccordingToTopologicalSortOrder(mv::ComputationModel& model, const mv::Element& passDesc)
-{
-    mv::ControlModel cm(model);
-
-    auto globalConfigParams = model.getGlobalConfigParams();
-    std::string indexAssignment = globalConfigParams->get<std::string>("barrier_index_assignment");
-
-    if (indexAssignment == "Dynamic")
-    {
-        auto topologicallySortedOps = cm.schedulingSort();
-
-        int id = 0;
-        for (auto op: topologicallySortedOps)
-        {
-            if (op->getOpType() == "BarrierTask")
-            {
-                auto& barrier = op->get<mv::Barrier>("Barrier");
-                barrier.setIndex(id);
-                id++;
-            }
-        }
-    }
-}
-
-//This pass has to be executed before "AddBarrierRefs",
-static void adjustBarrierIndicesFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::json::Object&)
-{
-    auto globalConfigParams = model.getGlobalConfigParams();
-
-    std::string indexAssignment = globalConfigParams->get<std::string>("barrier_index_assignment");
-    if(indexAssignment == "Dynamic")
-        setBarrierIndicesAccordingToTopologicalSortOrder(model, passDesc);
-}
-
 static void insertBarrierTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::json::Object&)
 {
     mv::OpModel om(model);
@@ -591,51 +543,13 @@ static void insertBarrierTasksFcn(const mv::pass::PassEntry& pass, mv::Computati
     removeExtraProducers(pass, model, barriers);
 
     // Optional pass
-    resetBarrierIDs(barriers);
+    //resetBarrierIDs(barriers);
 
     // Sets just the index, as group is not used right now
     // Runs barrier graph coloring to see if we can execute
     // are current parallel scheduling with 8 barriers
     // or we need to serialize more
-    setBarrierGroupAndIndex(pass, om, barriers, passDesc);
+    //setBarrierGroupAndIndex(pass, om, barriers, passDesc);
 
     insertBarriersIntoControlFlowGraph(model, passDesc, barriers);
-}
-
-static void updateCountsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
-{
-    mv::OpModel om(model);
-    mv::ControlModel cm(model);
-
-    auto barrierTasks = om.getOps("BarrierTask");
-
-    for (auto bt: barrierTasks)
-    {
-        auto& barrier = bt->get<mv::Barrier>("Barrier");
-
-        for (auto producer: barrier.getProducers())
-        {
-            auto producerOp = om.getOp(producer);
-            if (producerOp->hasAttr("Workloads"))
-            {
-                auto& workloads = producerOp->get<mv::Workloads>("Workloads");
-                int count = barrier.getNumProducers();
-                count = count - 1 + workloads.nWorkloads();
-                barrier.setNumProducers(count);
-            }
-        }
-
-        for (auto consumer: barrier.getConsumers())
-        {
-            auto consumerOp = om.getOp(consumer);
-
-            if (consumerOp->hasAttr("Workloads"))
-            {
-                auto& workloads = consumerOp->get<mv::Workloads>("Workloads");
-                int count = barrier.getNumConsumers();
-                count = count - 1 + workloads.nWorkloads();
-                barrier.setNumConsumers(count);
-            }
-        }
-    }
 }

@@ -39,6 +39,11 @@ dims_(other.dims_)
 
 }
 
+mv::Shape::Shape() : Shape({0,0,0,0})
+{
+
+}
+
 std::size_t mv::Shape::ndims() const
 {
     return dims_.size();

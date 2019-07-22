@@ -36,6 +36,7 @@ void alignTaskWeightsFcn(const mv::pass::PassEntry& , mv::ComputationModel& mode
     constants.insert(constants.end(), std::make_move_iterator(constantInts.begin()), std::make_move_iterator(constantInts.end()));
     constants.insert(constants.end(), std::make_move_iterator(constantsDataElements.begin()), std::make_move_iterator(constantsDataElements.end()));
 
+
     for(auto vecIt = constants.begin(); vecIt != constants.end(); ++vecIt)
     {
         auto kernelOp = *vecIt;
@@ -43,6 +44,7 @@ void alignTaskWeightsFcn(const mv::pass::PassEntry& , mv::ComputationModel& mode
 
         std::vector<mv::Data::OpListIterator> toUpdate;
         bool hasAtLeastOneDPUTask = false;
+        bool hasSliceOp = false;
         std::string dpuTaskType;
         for(auto opIt = kernelOp.leftmostChild(); opIt != om.opEnd(); ++opIt)
         {
@@ -55,11 +57,15 @@ void alignTaskWeightsFcn(const mv::pass::PassEntry& , mv::ComputationModel& mode
                 else if(dpuTaskType != opIt->get<std::string>("taskOp"))
                     throw "Assumption violated!";
             }
+            else if (opIt->getOpType() == "Slice")
+            {
+                hasSliceOp = true;
+            }
             else if(hasAtLeastOneDPUTask)
                 throw "Assumption violated!";
         }
 
-        if(hasAtLeastOneDPUTask)
+        if(hasAtLeastOneDPUTask || hasSliceOp)
         {
             auto kernel = kernelOp->getOutputTensor(0);
             auto kernelShape = kernel->getShape();
@@ -72,6 +78,7 @@ void alignTaskWeightsFcn(const mv::pass::PassEntry& , mv::ComputationModel& mode
             auto inputChannels = kernelShape[mv::KERNEL_INPUT_CHANNELS];
             auto kernelWidth = kernelShape[mv::KERNEL_WIDTH];
             auto kernelHeight = kernelShape[mv::KERNEL_HEIGHT];
+            auto oldWeightLocation = kernel->get<mv::Tensor::MemoryLocation>("Location");
 
             //Initializions are done assuming regular convolution and then eventually modified for depthwise
             auto outputChannels = kernelShape[mv::KERNEL_OUTPUT_CHANNELS];
@@ -107,8 +114,15 @@ void alignTaskWeightsFcn(const mv::pass::PassEntry& , mv::ComputationModel& mode
             auto newKernelOp = om.getSourceOp(newKernel);
             newKernelOp->set<unsigned>("opId", opId);
 
+            if (hasSliceOp)
+            {
+                //std::cout << "old weights location = " << oldWeightLocation.toString() << std::endl;
+                newKernel->set<mv::Tensor::MemoryLocation>("Location", oldWeightLocation);
+            }
+
             mv::setOutputDataFlow(om, newKernel, outputDataFlows);
 
+            newKernel->set<mv::Shape>("OriginalShape", kernelShape);
             for(auto& flowPair: outputDataFlows)
             {
                 flowPair.first->set<std::array<unsigned short, 2>>("kSize", {kernelWidth, kernelHeight});

@@ -13,7 +13,8 @@ namespace mv
         DDR2CMX,
         CMX2DDR,
         CMX2UPA,
-        UPA2CMX
+        UPA2CMX,
+        DDR2DDR,
     };
 
     struct DmaDirectionEnumHash

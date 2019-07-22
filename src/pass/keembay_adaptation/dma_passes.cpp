@@ -7,7 +7,7 @@
 
 
 static void addWeightsDMATasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::json::Object&);
-static void addInitialAndFinalDMATaskFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
+static void addFinalDMATaskFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 
 namespace mv
 {
@@ -18,8 +18,8 @@ namespace mv
             .setDescription(
                "Add Weights DMA Tasks where needed in the Task graph");
 
-        MV_REGISTER_PASS(AddInitialAndFinalDMATask)
-            .setFunc(addInitialAndFinalDMATaskFcn)
+        MV_REGISTER_PASS(AddFinalDMATask)
+            .setFunc(addFinalDMATaskFcn)
             .setDescription(
                "Add initial and final DMA task in the Task graph");
     }
@@ -54,46 +54,19 @@ bool isTensorInCMX(mv::Data::TensorIterator tensor, mv::BaseOpModel& opModel)
 }
 
 // Pass role: Add initial and final DMA Task CMX2DDR (if needed)
-void addInitialAndFinalDMATaskFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+void addFinalDMATaskFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
     mv::OpModel om(model);
     mv::DataModel dm(model);
 
-    // INPUT
-    auto inputOp = om.getInput();
-    auto inputTensor = inputOp->getOutputTensor(0);
-
-    auto opId = inputOp->get<unsigned>("opId");
-    mv::QuantizationParams quantParams = {{},{},{},{}};
-    if(inputTensor->hasAttr("quantParams"))
-        quantParams = inputTensor->get<mv::QuantizationParams>("quantParams");
-    if(!isTensorInCMX(inputTensor, om))
-    {
-        auto flows = inputTensor->get<std::set<std::string>>("flows");
-
-        auto inputTensorDma = om.dMATask(inputTensor, mv::DmaDirectionEnum::DDR2CMX,quantParams, mv::createDMATaskDDR2CMXName(inputOp->getName()));
-        auto inputTensorDmaOp = om.getSourceOp(inputTensorDma);
-        inputTensorDmaOp->set<unsigned>("opId", opId);
-
-        for(auto flowStr: flows)
-        {
-            auto backupFlow = dm.getDataFlow(flowStr);
-            auto idx = backupFlow->get<std::size_t>("sinkInput");
-            auto sink = backupFlow.sink();
-            om.undefineFlow(backupFlow);
-            sink->setInputTensor(inputTensorDma, idx, false);
-            om.defineFlow(inputTensorDmaOp, 0, sink, idx);
-        }
-    }
-
     // OUTPUT
     auto opIt = om.getOutput();
     auto input = opIt->getInputTensor(0);
-    inputOp = om.getSourceOp(input);
+    auto inputOp = om.getSourceOp(input);
 
-    opId = opIt->get<unsigned>("opId");
+    auto opId = opIt->get<unsigned>("opId");
     std::string oldOutputName(opIt->getName());
-    quantParams = {{},{},{},{}};
+    mv::QuantizationParams quantParams = {{},{},{},{}};
     if(input->hasAttr("quantParams"))
         quantParams = input->get<mv::QuantizationParams>("quantParams");
     if(isTensorInCMX(input, om))
@@ -116,36 +89,7 @@ void addWeightsDMATasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
     UNUSED(pass);
     UNUSED(target);
     mv::OpModel om(model);
-    mv::ControlModel cm(model);
     mv::DataModel dm(model);
-
-    auto removeOps = [] (std::vector<mv::Data::OpListIterator>& list, const std::string& opTrait)
-    {
-        list.erase(std::remove_if(list.begin(), list.end(), [opTrait](mv::Data::OpListIterator it) { return !it->hasTypeTrait(opTrait);}), list.end());
-    };
-
-    auto sortedOps = om.topologicalSort();
-    removeOps(sortedOps, "executable");
-
-    // How self.nn_cmx_memory is computed
-    //    cmxSize = 4194304;
-    //    4194304 / 4 (cluster) = 1048576;
-    //    0.9 (safety_factor) * 1048576 = 943718.4
-    //
-    //dma_dependency = std::min(std::max(1, self.nn_cmx_memory/param.cluster_size), dma_dependency);
-    //    This is the weights prefetch number. It specifies how early to start the inbound DMA for weights.
-    //    The units are number of ops preceeding current conv in the topographically sorted ops list.
-    //    If the weights tensor is very large (eg > 1/2 of CMX) then the specified prefetch parameter (eg 2)
-    //    would be reduced. This assumes that the only fit partial serialization would find for such a
-    //    big weights tensor would be to start the DMA right before it is needed. For smaller tensors, the
-    //    user-specified prefetch number will be used. The prefetch edge added is for partial serialization.
-    //
-
-    auto globalConfigParams = model.getGlobalConfigParams();
-    auto cmxSize = globalConfigParams->get<unsigned>("cmx");
-
-    int _dma_dependency = passDesc.get<int>("weights_prefetch");
-    int dma_dependency;
 
     // Pass main assumption is that we are working on the original graph, just with the Ops converted to DPUTasks
     // We don't need to perform eliminations in this pass, we can use a for loop to iterate among operations
@@ -156,15 +100,9 @@ void addWeightsDMATasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
         {
             auto opId = opIt->get<unsigned>("opId");
             unsigned n = opIt->inputSlots();
-            unsigned inputOutputTensors = 0;
             for(unsigned i = 0; i < n; ++i)
             {
                 auto inputTensor = opIt->getInputTensor(i);
-                if(!inputTensor->isPopulated())
-                {
-                    ++inputOutputTensors;
-                    continue;
-                }
                 mv::QuantizationParams quantParams = {{},{},{},{}};
                 if(inputTensor->hasAttr("quantParams"))
                     quantParams = inputTensor->get<mv::QuantizationParams>("quantParams");
@@ -173,7 +111,8 @@ void addWeightsDMATasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
                 {
                     auto flows = inputTensor->get<std::set<std::string>>("flows");
 
-                    auto inputTensorDma = om.dMATask(inputTensor, mv::DmaDirectionEnum::DDR2CMX,quantParams, mv::createDMATaskDDR2CMXName(inputOp->getName()));
+
+                    auto inputTensorDma = om.dMATask(inputTensor, mv::DmaDirectionEnum::DDR2CMX, quantParams, mv::createDMATaskDDR2CMXName(inputOp->getName()));
                     auto inputTensorDmaOp = om.getSourceOp(inputTensorDma);
                     inputTensorDmaOp->set<unsigned>("opId", opId);
 
@@ -186,27 +125,8 @@ void addWeightsDMATasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
                         sink->setInputTensor(inputTensorDma, idx, false);
                         om.defineFlow(inputTensorDmaOp, 0, sink, idx);
                     }
-
-                    // TODO: Maybe it should be changed using subtensor information
-                    long unsigned inputTensorDmaDimension = inputTensorDma->computeTotalSize();
-                    for(unsigned j = 0; j < inputOutputTensors; ++j)
-                        inputTensorDmaDimension += opIt->getInputTensor(j)->computeTotalSize();
-
-                    int partsPerCMX = std::max((unsigned long)1, cmxSize/inputTensorDmaDimension);
-                    if (partsPerCMX < (_dma_dependency + 1))
-                        dma_dependency = partsPerCMX;
-                    else
-                        dma_dependency =  _dma_dependency + 1 ;
-
-
-                    auto index = std::distance(sortedOps.begin(), std::find(sortedOps.begin(), sortedOps.end(), opIt));
-                    if(index <= dma_dependency)
-                        cm.defineFlow(om.getInput(), inputTensorDmaOp);
-                    else
-                        cm.defineFlow(sortedOps[index - dma_dependency], inputTensorDmaOp);
                 }
             }
         }
     }
 }
-
