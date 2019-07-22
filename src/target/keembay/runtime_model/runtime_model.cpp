@@ -992,18 +992,7 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
             toBuild->input_data = buildTensorReferenceT(cm, compilationDescriptor, parentInputTensor, clusterId);
     }
 
-    // This should not be here! This should be in buildTensorReferenceT
-    if (tensorBufferIt->getMaster() != dm.bufferEnd(*tensorAllocatorName, stg))
-    {
-        auto masterBuffer = tensorBufferIt->getMaster(); //TODO: or do we need the top one?
-        auto masterTensor = (*masterBuffer)->getData();
-        toBuild->parent_input_tensor = buildTensorReferenceT(cm, compilationDescriptor, masterTensor);
-        toBuild->input_data->strides = toBuild->parent_input_tensor->strides;
-    }
-    else
-    {
-        toBuild->parent_input_tensor = buildTensorReferenceT(cm, compilationDescriptor, parentInputTensor);
-    }
+    toBuild->parent_input_tensor = buildTensorReferenceT(cm, compilationDescriptor, parentInputTensor);
 
     //output
     auto parentOutputTensor = opIt->getOutputTensor(0);
@@ -1027,19 +1016,9 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
             toBuild->output_data->strides = numericStrides;
         }
     }
-    if (tensorBufferIt->getMaster() != dm.bufferEnd(*tensorAllocatorName, stg))
-    {
-        auto masterBuffer = tensorBufferIt->getMaster(); //TODO: or do we need the top one?
-        auto masterTensor = (*masterBuffer)->getData();
-        toBuild->parent_output_tensor = buildTensorReferenceT(cm, compilationDescriptor, masterTensor);
-        toBuild->output_data->strides = toBuild->parent_output_tensor->strides;
-    }
-    else
-    {
-        toBuild->parent_output_tensor = buildTensorReferenceT(cm, compilationDescriptor, parentOutputTensor);
-    }
 
-    toBuild->output_data->data->data_index += toBuild->output_data->leading_offset/2;
+    toBuild->parent_output_tensor = buildTensorReferenceT(cm, compilationDescriptor, parentOutputTensor);
+
     if (opIt->hasAttr("multiCast"))
     {
         if (opIt->get<bool>("multiCast"))
