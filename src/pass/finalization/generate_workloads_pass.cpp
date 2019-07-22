@@ -138,7 +138,7 @@ std::tuple<int,int, int> getGlobalCompilationDescriptorConf(const mv::pass::Pass
 
     pass.log(mv::Logger::MessageType::Debug, "Number of DPUs per cluster is: " + std::to_string(nDPUxCluster));
 
-    return {nDPUxCluster, nWorkloads, nClusters};
+    return std::make_tuple(nDPUxCluster, nWorkloads, nClusters);
 }
 
 void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& , mv::Element& passDesc, mv::json::Object &)
