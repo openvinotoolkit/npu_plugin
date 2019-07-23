@@ -158,7 +158,7 @@ void populateWeightsTablesSparsityPointers(mv::Tensor& weightsTableData, mv::Dat
             for (size_t i = 0; i < weightsTableData.size(); i+=4, offset +=increment)
             {
                 weightsTableData(i+1) = offset;
-                std::cout << "WeightsTable Offset: " << std::to_string(offset) << std::endl;
+                std::cout << "SparsityPointer Offset: " << std::to_string(offset) << std::endl;
             }
         }
         // Nothing to do here if is a dense ZMajor convolution

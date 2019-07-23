@@ -976,10 +976,6 @@
                 "barrier_reuse_window" : 0
             },
             {
-                "name": "ConvertDot",
-                "input": "output/dots/BarrierInterferenceGraph.dot"
-            },
-            {
                 "name": "GenerateDot",
                 "output": "output/dots/BarriersInserted.dot",
                 "scope": "ControlModel",

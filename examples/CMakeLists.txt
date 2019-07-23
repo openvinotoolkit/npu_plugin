@@ -68,6 +68,9 @@ else()
     add_executable(average_to_depthwise average_to_depthwise.cpp)
     target_link_libraries(average_to_depthwise cm)
 
+    add_executable(res2a_branch2a_sparse res2a_branch2a_sparse.cpp)
+    target_link_libraries(res2a_branch2a_sparse cm)
+
     add_executable(elementwise_to_dpu elementwise_to_dpu.cpp)
     target_link_libraries(elementwise_to_dpu cm)
 
