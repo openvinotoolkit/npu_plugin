@@ -481,6 +481,7 @@ bool mv::Tensor::setSparse(std::shared_ptr<mv::Tensor> sparsityMap, std::shared_
     sparsityMap_ = sparsityMap;
     noneZeroElements_ = countNonZeroElements();
 
+    this->log(mv::Logger::MessageType::Info, "SetSparse " + this->name_ + ": true");
     return true;
 }
 

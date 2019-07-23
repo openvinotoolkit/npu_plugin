@@ -206,7 +206,11 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
                         unsigned newSize = sink->addInputTensor(sparsityMap);
                         om.defineFlow(sparsityMap, sink, newSize - 1);
                     }
+                    pass.log(mv::Logger::MessageType::Info, "SetSparse: " + dpuTask->getName() + ": true");
                 }
+                else
+                    pass.log(mv::Logger::MessageType::Info, "SetSparse: " + dpuTask->getName() + ": false");
+                
             }
         }
     }
@@ -235,6 +239,7 @@ static void generateSparsityMapsUnpopulatedTensorsFcn(const mv::pass::PassEntry&
 
                 if(isZMajorConv)
                 {
+	                pass.log(mv::Logger::MessageType::Info, "Implementing sparsity for : " + dpuTask->getName());
                     dpuTask->getInputTensor(0)->setSparse();
                     dpuTask->getOutputTensor(0)->setSparse();
                 }
