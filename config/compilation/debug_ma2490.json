@@ -107,7 +107,7 @@
                     {
                         "name_filter" : ".*res5c.*",
                         "cluster_filter" : 0,
-                        "strategy" : "SplitOverH"
+                        "strategy" : "SplitOverK"
                     },
                     {
                         "name_filter" : ".*conv.*",
@@ -152,7 +152,7 @@
                     {
                         "name_filter" : "input.*" ,
                         "cluster_filter" : 0,
-                        "strategy": "SplitOverH"
+                        "strategy": "SplitOverK"
                     },
                     {
                         "name_filter" : "conv/BiasAdd.*" ,
