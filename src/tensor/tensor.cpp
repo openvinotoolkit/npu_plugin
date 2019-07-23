@@ -670,7 +670,7 @@ std::vector<mv::DataElement> mv::Tensor::getData()
 std::vector<int64_t> mv::Tensor::getKernelDataOffsets()
 {
     if (isSparse() && kernelDataOffsets_.empty()) //getDataPacked hasn't been called
-        auto temp = getDataPacked();
+        getDataPacked();
     return kernelDataOffsets_;
 }
 
