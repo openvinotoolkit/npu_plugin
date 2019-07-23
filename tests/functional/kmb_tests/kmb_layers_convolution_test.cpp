@@ -14,6 +14,7 @@
 // stated in the License.
 //
 
+#include <fstream>
 #include <vpu/kmb_plugin_config.hpp>
 
 #include "kmb_layers_tests.hpp"
@@ -243,5 +244,117 @@ TEST_F(kmbLayersTests_nightly, TestsConvolutionOnlyNoBias) {
     config[VPU_KMB_CONFIG_KEY(MCM_PARSING_ONLY)] = CONFIG_VALUE(YES);
 
     _exeNetwork = ie.LoadNetwork(network, "kmb", config);
+}
+
+
+// This function is necessary to check that two files with blobs have the same size (see test below)
+int getFileSize(const std::string &fileName) {
+    std::ifstream file(fileName.c_str(), std::ifstream::in | std::ifstream::binary);
+
+    if(!file.is_open()) {
+        std::cout << "Can not open file: " << fileName << std::endl;
+        return -1;
+    }
+
+    file.seekg(0, std::ios::end);
+    int sizeOfFile = file.tellg();
+    file.close();
+
+    return sizeOfFile;
+}
+
+// Function for comparison of content of two blob files
+bool isContentOfFilesEqual (const std::string &fileName1, const std::string &fileName2){
+    std::ifstream file1(fileName1.c_str(), std::ifstream::in | std::ifstream::binary);
+    std::ifstream file2(fileName2.c_str(), std::ifstream::in | std::ifstream::binary);
+
+    if( !file1.is_open() || !file2.is_open() ) {
+        std::cout << "Can not open file! " << std::endl;
+        return false;
+    }
+
+    char x, y;
+
+    while ( !file1.eof() || !file2.eof() )
+    {
+        file1.read(&x, 1);
+        file2.read(&y, 1);
+        if ( x != y )
+            return false;
+    }
+    return true;
+}
+
+
+TEST_F(kmbLayersTests_nightly, TestExportImportBlob01) {
+    std::string model = full_quant_model;
+
+    REPLACE_WITH_STR(model, "<biases offset=\"147456\" size=\"256\"/>", " ");
+    REPLACE_WITH_STR(model, "<biases offset=\"213248\" size=\"1024\"/>", " ");
+
+    ASSERT_NO_THROW(_net_reader.ReadNetwork(model.data(), model.length()));
+    ASSERT_TRUE(_net_reader.isParseSuccess());
+
+    StatusCode sts;
+    InferenceEngine::ResponseDesc response;
+    std::map<std::string, std::string> config;
+    IExecutableNetwork::Ptr exeNetwork;
+    details::CNNNetworkImplPtr clonedNetwork;
+    CNNNetworkInt8Normalizer cnnorm;
+
+    setCommonConfig(config);
+    config[VPU_KMB_CONFIG_KEY(MCM_PARSING_ONLY)] = CONFIG_VALUE(NO);
+    config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_BLOB)] = CONFIG_VALUE(YES);
+    config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_DOT)] = CONFIG_VALUE(YES);
+    config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_JSON)] = CONFIG_VALUE(YES);
+    config[VPU_CONFIG_KEY(ALLOW_FP32_MODELS)] = CONFIG_VALUE(YES);
+
+    std::size_t weightSize = 147456 + 65536;
+    std::size_t biasSize = 256 + 1024;
+    TBlob<uint8_t>::Ptr weightsBlob(GenWeights(weightSize + biasSize));
+    ASSERT_NO_THROW(_net_reader.SetWeights(weightsBlob));
+
+    CNNNetwork network = _net_reader.getNetwork();
+
+    _inputsInfo = network.getInputsInfo();
+    _inputsInfo["input"]->setPrecision(Precision::FP32);
+
+    _outputsInfo = network.getOutputsInfo();
+    _outputsInfo["conv2"]->setPrecision(Precision::FP32);
+
+    ICNNNetworkStats* pstats = nullptr;
+    StatusCode s = ((ICNNNetwork&)network).getStats(&pstats, nullptr);
+
+    ASSERT_EQ(StatusCode::OK, s);
+
+    if (!pstats->isEmpty()) {
+        clonedNetwork = cloneNet(network);
+        cnnorm.NormalizeNetwork(*clonedNetwork, *pstats);
+        sts = myriadPluginPtr->LoadNetwork(_exeNetwork, *clonedNetwork, config, &response);
+    }
+
+    ASSERT_EQ(StatusCode::OK, sts) << _resp.msg;
+
+    std::string blobFileName = "TestExportBlob01.blob";
+    std::cout << "Try to write blob to file" << std::endl;
+    s = _exeNetwork->Export(blobFileName, nullptr);
+    ASSERT_EQ(StatusCode::OK, s);
+
+    Core ie;
+    std::cout << "Try to load blob from file" << std::endl;
+    InferenceEngine::IExecutableNetwork::Ptr importedNetworkPtr = ie.ImportNetwork(blobFileName, "KMB", {});
+    ASSERT_NE(nullptr, importedNetworkPtr);
+
+    std::string blobFileName2 = "TestExportBlob02.blob";
+    std::cout << "Try to write blob to file again" << std::endl;
+    s = importedNetworkPtr->Export(blobFileName2, nullptr);
+    ASSERT_EQ(StatusCode::OK, s);
+
+    std::cout << "Compare size of base and derivated executable networks" << std::endl;
+    ASSERT_EQ(getFileSize(blobFileName), getFileSize(blobFileName2));
+
+    std::cout << "Compare content of base and derivated executable networks" << std::endl;
+    ASSERT_TRUE( isContentOfFilesEqual(blobFileName, blobFileName2) );
+
 }
 #endif
