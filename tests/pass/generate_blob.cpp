@@ -370,7 +370,7 @@ TEST (generate_blob, DISABLED_blob_eltwise_add)
     // define second maxpool
     auto maxpoolIt7b = test_cm.maxPool(convIt7b,{3,3}, {2, 2}, {1, 1, 1, 1});
     // define elementwise sum
-    auto eltwiseIt7 = test_cm.add(maxpoolIt7b,avgpoolIt72);
+    auto eltwiseIt7 = test_cm.add({maxpoolIt7b,avgpoolIt72});
     // define output
     auto outIt7 = test_cm.output(eltwiseIt7);
 
@@ -444,7 +444,7 @@ TEST (generate_blob, DISABLED_blob_eltwise_multiply)
     // define second maxpool
     auto maxpoolIt7b = test_cm.maxPool(convIt7b,{3,3}, {2, 2}, {1, 1, 1, 1});
     // define elementwise sum
-    auto eltwiseIt7 = test_cm.multiply(maxpoolIt7b,avgpoolIt72);
+    auto eltwiseIt7 = test_cm.multiply({maxpoolIt7b,avgpoolIt72});
     // define output
     auto outIt7 = test_cm.output(eltwiseIt7);
 
@@ -516,7 +516,7 @@ TEST (generate_blob, DISABLED_blob_softmax)
     // define second maxpool
     auto maxpoolIt7b = test_cm.maxPool(convIt7b, {3,3}, {2, 2}, {1, 1, 1, 1});
     // define elementwise sum
-    auto eltwiseIt7 = test_cm.add(maxpoolIt7b,avgpoolIt72);
+    auto eltwiseIt7 = test_cm.add({maxpoolIt7b,avgpoolIt72});
     auto softIt7 = test_cm.softmax(eltwiseIt7);
     // define output
     auto outIt7 = test_cm.output(softIt7);

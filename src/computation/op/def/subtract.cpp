@@ -33,12 +33,13 @@ namespace mv
         };
     
         MV_REGISTER_OP(Subtract)
-        .setInputs({"data0", "data1"})
+        .setInputs({"inputs"})
         .setOutputs({"output"})
         .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
         .setInputCheck(inputCheckFcn)
         .setOutputDef(outputDefFcn)
-        .setTypeTrait({"executable", "exposed"});
+        .setTypeTrait({"executable", "exposed"})
+        .setVariableInputNum(true);
 
     }
 
