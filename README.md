@@ -44,12 +44,12 @@ Install metis with command:
 
 * sudo apt install libmetis-dev libmetis5 metis
 
-3. Move to dldt base directory and make some building with commands:
+3. Move to dldt base directory and make some building with commands. Note that if you miss -DCMAKE_BUILD_TYPE=Debug then you will not be able to debug your code in kmb-plugin:
 
 * cd $(DLDT_HOME)
 * mkdir $(DLDT_HOME)/inference-engine/build
 * cd $(DLDT_HOME)/inference-engine/build
-* cmake -DENABLE_TESTS=ON -DENABLE_BEH_TESTS=ON -DENABLE_FUNCTIONAL_TESTS=ON -DENABLE_PLUGIN_RPATH=ON ..
+* cmake -DENABLE_TESTS=ON -DENABLE_BEH_TESTS=ON -DENABLE_FUNCTIONAL_TESTS=ON -DENABLE_PLUGIN_RPATH=ON -DCMAKE_BUILD_TYPE=Debug ..
 * make -j8
 
 
