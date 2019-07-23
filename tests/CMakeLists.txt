@@ -12,3 +12,7 @@ if (ENABLE_BEH_TESTS)
 endif()
 
 add_subdirectory(unit)
+
+if (ENABLE_VPUAL)
+    add_subdirectory(gapi_preproc)
+endif()
