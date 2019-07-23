@@ -77,6 +77,7 @@ endif()
 
 if (ENABLE_VPUAL)
     add_definitions(-DENABLE_VPUAL)
+    set(VPUAL_NN_LIBRARY NN)
 endif()
 
 file(GLOB_RECURSE SOURCES *.cpp *.hpp *.h)
@@ -119,7 +120,7 @@ target_link_libraries(${TARGET_NAME}
         IE::vpu_graph_transformer
         IE::vpu_common_lib
         ${MCM_COMPILER_LIBRARY}
-        NN
+        ${VPUAL_NN_LIBRARY}
         vpusmm
         )
 
@@ -159,5 +160,5 @@ if(ENABLE_TESTS)
                 IE::vpu_graph_transformer
                 IE::vpu_common_lib
                 ${MCM_COMPILER_LIBRARY}
-                NN)
+                ${VPUAL_NN_LIBRARY})
 endif()
