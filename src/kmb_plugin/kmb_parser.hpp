@@ -42,6 +42,7 @@
 #include "include/mcm/utils/serializer/Fp16Convert.h"
 #include "meta/include/mcm/op_model.hpp"
 #include "include/mcm/utils/hardware_tests.hpp"
+#include "include/mcm/target/target_descriptor.hpp"
 
 namespace vpu {
 namespace KmbPlugin {
@@ -77,6 +78,7 @@ void compileMcm(
         const ie::ICNNNetwork& network,
         const KmbConfig& config,
         mv::CompilationUnit& unit,
+        std::vector<char>& blob,
         const Logger::Ptr& log);
 //
 // getSupportedLayers

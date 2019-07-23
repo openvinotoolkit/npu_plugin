@@ -130,6 +130,7 @@ TEST_F(kmbLayersTests_nightly, DISABLED_TestsReLUAfterConvolution) {
     _outputsInfo["relu_test"]->setPrecision(Precision::FP16);
 
     std::map<std::string, std::string> config;
+    setCommonConfig(config);
     config[VPU_KMB_CONFIG_KEY(MCM_PARSING_ONLY)] = CONFIG_VALUE(NO);
     config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_BLOB)] = CONFIG_VALUE(YES);
     config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_DOT)] = CONFIG_VALUE(YES);
@@ -193,6 +194,7 @@ TEST_F(kmbLayersTests_nightly, TestsReLUOnly) {
     std::map<std::string, std::string> config;
     // LoadNetwork returns (-1) when MCM_PARSING_ONLY is set to NO
     // TODO disable 'parse only' and find out why LoadNetwork fails
+    setCommonConfig(config);
     config[VPU_KMB_CONFIG_KEY(MCM_PARSING_ONLY)] = CONFIG_VALUE(YES);
 
     StatusCode st;

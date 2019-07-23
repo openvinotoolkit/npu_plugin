@@ -113,6 +113,7 @@ TEST_F(kmbLayersTests_nightly, TestsEltwiseAfterScaleShift) {
     _outputsInfo["eltwise1"]->setPrecision(Precision::FP16);
 
     std::map<std::string, std::string> config;
+    setCommonConfig(config);
     config[VPU_KMB_CONFIG_KEY(MCM_PARSING_ONLY)] = CONFIG_VALUE(YES);
     config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_BLOB)] = CONFIG_VALUE(YES);
     config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_DOT)] = CONFIG_VALUE(YES);
@@ -210,6 +211,7 @@ TEST_F(kmbLayersTests_nightly, TestsEltwiseAfterScaleShiftWithLargeWeight) {
     _outputsInfo["eltwise1"]->setPrecision(Precision::FP16);
 
     std::map<std::string, std::string> config;
+    setCommonConfig(config);
     config[VPU_KMB_CONFIG_KEY(MCM_PARSING_ONLY)] = CONFIG_VALUE(YES);
     config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_BLOB)] = CONFIG_VALUE(YES);
     config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_DOT)] = CONFIG_VALUE(YES);

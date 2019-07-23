@@ -58,12 +58,21 @@ void kmbLayersTests_nightly::setup(InferenceEngine::Precision outputPrecision,
     for (auto outputInfo : _outputsInfo) {
         outputInfo.second->setPrecision(outputPrecision);
     }
-    std::map<std::string, std::string> config(_config);
+    std::map<std::string, std::string> config;
+    setCommonConfig(config);
+    InferenceEngine::StatusCode st = InferenceEngine::StatusCode::GENERAL_ERROR;
+    ASSERT_NO_THROW(st = myriadPluginPtr->LoadNetwork(_exeNetwork, network, config, &_resp));
+    ASSERT_NE(_exeNetwork, nullptr) << _resp.msg;
+}
+
+
+void kmbLayersTests_nightly::setCommonConfig(std::map<std::string, std::string>& config)
+{
+    config = _config;
 #if 0
     config[VPU_CONFIG_KEY(LOG_LEVEL)] = CONFIG_VALUE(LOG_INFO);
     config[CONFIG_KEY(LOG_LEVEL)] = CONFIG_VALUE(LOG_INFO);
 #endif
-//    config[CONFIG_KEY(LOG_LEVEL)] = CONFIG_VALUE(LOG_DEBUG);
 
 #if 0 // TODO: mcmCompiler generate BLOB issue
     config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_BLOB)] = CONFIG_VALUE(NO);
@@ -76,14 +85,6 @@ void kmbLayersTests_nightly::setup(InferenceEngine::Precision outputPrecision,
 
     config[VPU_KMB_CONFIG_KEY(MCM_COMPILATION_RESULTS_PATH)] = test_info->test_case_name();
     config[VPU_KMB_CONFIG_KEY(MCM_COMPILATION_RESULTS)] = test_info->name();
-    std::string& tmpPath = config[VPU_KMB_CONFIG_KEY(MCM_COMPILATION_RESULTS_PATH)];
-    std::replace(tmpPath.begin(), tmpPath.end(), '/', '_');
-    std::string& tmpName = config[VPU_KMB_CONFIG_KEY(MCM_COMPILATION_RESULTS)];
-    std::replace(tmpName.begin(), tmpName.end(), '/', '_');
-
-    InferenceEngine::StatusCode st = InferenceEngine::StatusCode::GENERAL_ERROR;
-    ASSERT_NO_THROW(st = myriadPluginPtr->LoadNetwork(_exeNetwork, network, config, &_resp));
-    ASSERT_NE(_exeNetwork, nullptr) << _resp.msg;
 }
 
 void kmbLayersTests_nightly::doNetworkInit(const std::string& layer_type,
