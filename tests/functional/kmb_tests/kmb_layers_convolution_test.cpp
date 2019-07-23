@@ -50,6 +50,7 @@ TEST_F(kmbLayersTests_nightly, DISABLED_TestsConvolutionAfterScaleShift) {
     _outputsInfo["conv_test1"]->setPrecision(Precision::FP16);
 
     std::map<std::string, std::string> config;
+    setCommonConfig(config);
     config[VPU_KMB_CONFIG_KEY(MCM_PARSING_ONLY)] = CONFIG_VALUE(NO);
     config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_BLOB)] = CONFIG_VALUE(YES);
     config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_DOT)] = CONFIG_VALUE(YES);
@@ -82,6 +83,7 @@ TEST_F(kmbLayersTests_nightly, TestsConvolutionAfterScaleShiftNoBias) {
     _outputsInfo["conv_test1"]->setPrecision(Precision::FP16);
 
     std::map<std::string, std::string> config;
+    setCommonConfig(config);
     config[VPU_KMB_CONFIG_KEY(MCM_PARSING_ONLY)] = CONFIG_VALUE(NO);
     config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_BLOB)] = CONFIG_VALUE(YES);
     config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_DOT)] = CONFIG_VALUE(YES);
@@ -106,6 +108,7 @@ TEST_F(kmbLayersTests_nightly, DISABLED_TestsQuantizedConvolutionAfterScaleShift
     details::CNNNetworkImplPtr clonedNetwork;
     CNNNetworkInt8Normalizer cnnorm;
 
+    setCommonConfig(config);
     config[VPU_KMB_CONFIG_KEY(MCM_PARSING_ONLY)] = CONFIG_VALUE(NO);
     config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_BLOB)] = CONFIG_VALUE(YES);
     config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_DOT)] = CONFIG_VALUE(YES);
@@ -155,6 +158,7 @@ TEST_F(kmbLayersTests_nightly, TestsQuantizedConvolutionAfterScaleShiftNoBias) {
     details::CNNNetworkImplPtr clonedNetwork;
     CNNNetworkInt8Normalizer cnnorm;
 
+    setCommonConfig(config);
     config[VPU_KMB_CONFIG_KEY(MCM_PARSING_ONLY)] = CONFIG_VALUE(NO);
     config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_BLOB)] = CONFIG_VALUE(YES);
     config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_DOT)] = CONFIG_VALUE(YES);
@@ -212,6 +216,7 @@ TEST_F(kmbLayersTests_nightly, TestsConvolutionOnly) {
     // The maximum peak memory requirment of the graph exceeds CMX and the partial serialisation algorithm is unable
     // to reduce parallelism, exiting now, this is normal behaviour
     // TODO disable 'parse only' and find out why it happens
+    setCommonConfig(config);
     config[VPU_KMB_CONFIG_KEY(MCM_PARSING_ONLY)] = CONFIG_VALUE(YES);
 
     StatusCode st;
@@ -244,6 +249,7 @@ TEST_F(kmbLayersTests_nightly, TestsConvolutionOnlyNoBias) {
     // The maximum peak memory requirment of the graph exceeds CMX and the partial serialisation algorithm is unable
     // to reduce parallelism, exiting now, this is normal behaviour
     // TODO disable 'parse only' and find out why it happens
+    setCommonConfig(config);
     config[VPU_KMB_CONFIG_KEY(MCM_PARSING_ONLY)] = CONFIG_VALUE(YES);
 
     StatusCode st;

@@ -79,6 +79,7 @@ void compileMcm(
         const ie::ICNNNetwork& network,
         const KmbConfig& config,
         mv::CompilationUnit& unit,
+        std::vector<char>& blob,
         const Logger::Ptr& log) {
     CompileEnv::init(Platform::MYRIAD_X, config.compileConfig, log);
     AutoScope autoDeinit([] {
@@ -117,21 +118,38 @@ void compileMcm(
 
     std::string resultsFullName = resultsPath + "/" + compDescName + "/" + targetName + "/" + resultNames;
 
+    IE_ASSERT(unit.loadTargetDescriptor(targetPath));
     IE_ASSERT(unit.loadCompilationDescriptor(compDescPath));
     auto &compDesc = unit.compilationDescriptor();
 
     std::cout << "Path for results:" << resultsFullName << "(" << std::strerror(errno) << ")" << std::endl;
 
     if (parsedConfig[VPU_KMB_CONFIG_KEY(MCM_GENERATE_BLOB)] == "YES") {
+        //-----------------------------------------------------------------------
+        // Note: There are different passes in different Compilation Descriptors
+        // Just now we try two of them
+        //-----------------------------------------------------------------------
+        bool isBlobFileSet = false;
         try {
+            compDesc.setPassArg("GenerateBlob", "fileName", resultsFullName + ".blob");
+            compDesc.setPassArg("GenerateBlob", "enableFileOutput", true);
+            isBlobFileSet = true;
             //-----------------------------------------------------------------------
-            // Note: MCM compiler does not support this attributyes for Keem Bay (yet)
+            // Just now we can not make mcmCompiler to return the bliob into memory, so we will read
+            // the blob from the file later in the code
             //-----------------------------------------------------------------------
-
-//            compDesc.setPassArg("GenerateBlob", "fileName", resultsFullName + ".blob");
-//            compDesc.setPassArg("GenerateBlob", "enableFileOutput", true);
-//            compDesc.setPassArg("GenerateBlob", "enableRAMOutput", false);
+//            compDesc.setPassArg("GenerateBlobKeembay", "enableRAMOutput", true);
         } catch (...) {
+        }
+
+        try {
+            compDesc.setPassArg("GenerateBlobKeembay", "output", resultsFullName + ".blob");
+            compDesc.setPassArg("GenerateBlobKeembay", "enableFileOutput", true);
+            isBlobFileSet = true;
+//            compDesc.setPassArg("GenerateBlobKeembay", "enableRAMOutput", true);
+        } catch (...) {
+        }
+        if (!isBlobFileSet) {
             VPU_THROW_EXCEPTION << "Can't set mcmCompiler arguments for blob generation!";
         }
     }
@@ -154,7 +172,6 @@ void compileMcm(
         }
     }
 
-    IE_ASSERT(unit.loadTargetDescriptor(targetPath));
     IE_ASSERT(unit.initialize());
 
     if (parsedConfig[CONFIG_KEY(LOG_LEVEL)] == CONFIG_VALUE(LOG_NONE)) {
@@ -186,10 +203,22 @@ void compileMcm(
     }
 
     //-----------------------------------------------------------------------
-    // Note: MCM compiler generates blob only in blob.bin (yet)
+    // Just now we can not make mcmCompiler to return the blob into memory,
+    // so we will read it from the file the file
     //-----------------------------------------------------------------------
     if (parsedConfig[VPU_KMB_CONFIG_KEY(MCM_GENERATE_BLOB)] == "YES") {
-        rename("blob.bin"   , (resultsFullName +          ".blob").c_str());
+        std::ifstream blobFile(resultsFullName + ".blob", std::ios::binary);
+        if (blobFile) {
+            std::ostringstream blobContentStream;
+            blobContentStream << blobFile.rdbuf();
+            const std::string& blobContentString = blobContentStream.str();
+            std::copy(blobContentString.begin(), blobContentString.end(), std::back_inserter(blob));
+            if (blob.size() == 0) {
+                VPU_THROW_EXCEPTION << "Blob file " << resultsFullName + ".blob" << " created by mcmCompiler is empty!";
+            }
+        } else {
+            VPU_THROW_EXCEPTION << "Can not open blob file " << resultsFullName + ".blob" << ". It was not created by mcmCompiler!";
+        }
     }
 }
 

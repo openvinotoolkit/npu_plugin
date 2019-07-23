@@ -50,6 +50,7 @@ ExecutableNetwork::ExecutableNetwork(ICNNNetwork &network, const std::map<std::s
         network,
         *(_config),
         *pCompiler,
+        _graphBlob,
         std::make_shared<Logger>("GraphCompiler", _config->hostLogLevel, consoleOutput()));
 #else
     UNUSED(network);

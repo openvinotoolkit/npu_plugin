@@ -42,6 +42,8 @@ public:
                 InferenceEngine::Precision inputPrecision = InferenceEngine::Precision::FP16,
                 bool useHWOpt = false);
 
+    void setCommonConfig(std::map<std::string, std::string>& config);
+
 private:
     void doNetworkInit(const std::string& layer_type,
             std::map<std::string, std::string>* params = nullptr,
