@@ -22,7 +22,7 @@
                     {
                         "name_filter" : ".*",
                         "cluster_filter" : 0,
-                        "strategy" : "SplitOverK"
+                        "strategy" : "SplitOverH"
                     },
                     {
                         "name_filter" : ".*",
@@ -32,7 +32,7 @@
                     {
                         "name_filter" : ".*res2a.*",
                         "cluster_filter" : 0,
-                        "strategy" : "SplitOverK"
+                        "strategy" : "SplitOverH"
                     },
                     {
                         "name_filter" : ".*res2b.*",
@@ -125,11 +125,6 @@
                         "strategy" : "SplitOverH"
                     },
                     {
-                        "name_filter" : ".*res2.*",
-                        "cluster_filter" : 0,
-                        "strategy" : "SplitOverK"
-                    },
-                    {
                         "name_filter" : ".*james2x2pool.*",
                         "cluster_filter" : 0,
                         "strategy" : "SplitOverH"
@@ -157,7 +152,7 @@
                     {
                         "name_filter" : "input.*" ,
                         "cluster_filter" : 0,
-                        "strategy": "SplitOverK"
+                        "strategy": "SplitOverH"
                     },
                     {
                         "name_filter" : "conv/BiasAdd.*" ,
