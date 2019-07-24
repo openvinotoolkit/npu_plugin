@@ -109,11 +109,7 @@
                         "cluster_filter" : 0,
                         "strategy" : "SplitOverK"
                     },
-                    {
-                        "name_filter" : ".*conv.*",
-                        "cluster_filter" : 0,
-                        "strategy" : "SplitOverK"
-                    },
+                   
                     {
                         "name_filter" : ".*conv0.*",
                         "cluster_filter" : 0,
@@ -152,7 +148,7 @@
                     {
                         "name_filter" : "input.*" ,
                         "cluster_filter" : 0,
-                        "strategy": "SplitOverK"
+                        "strategy": "SplitOverHOverlapped"
                     },
                     {
                         "name_filter" : "conv/BiasAdd.*" ,
@@ -789,7 +785,7 @@
             {
                 "name": "GenerateDot",
                 "output": "output/dots/final_model.dot",
-                "scope": "ControlModel",
+                "scope": "OpModel",
                 "content": "full",
                 "html": true
             },
