@@ -199,6 +199,13 @@ void mv::MemoryAllocator::placeBuffers_(unsigned stageIdx)
         // Move only master buffers
         if ((*it)->masterBuffer == bufferEnd(stageIdx))
         {
+            if ((lastOffset + (*it)->size) >= size_)
+            {
+                std::cout << "Memory allocator offset wrapping around. offset (" << lastOffset
+                            << ") + data (" << (*it)->size << ") will overflow " << name_ << " address range." << std::endl;
+                lastOffset = 0;
+            }
+
             (*it)->offset = lastOffset;
             lastOffset += (*it)->size;
 
