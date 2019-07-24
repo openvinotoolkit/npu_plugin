@@ -909,21 +909,16 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
         toBuild->parent_output_tensor->strides = toBuild->output_data->strides;
     }
 
-    unsigned num_inputs = opIt->getInputTensor().size();
-
-    //OP inputs == n ->
-    // n - 2 activation window (when present)
-    // n - 1 weights table
     if(opIt->hasAttr("fakeSparsity"))
     {
-        auto activationWindowTensorIterator = opIt->getInputTensor(num_inputs - 2);
+        auto activationWindowTensorIterator = opIt->getInputTensor(opIt->get<std::size_t>("fakeSparsityIndex"));
         toBuild->activation_window = buildTensorReferenceT(cm, compilationDescriptor, activationWindowTensorIterator);
         toBuild->activation_window_channel_length = activationWindowTensorIterator->get<int>("channelLength");
     }
 
     if(toBuild->dpu_task_type != MVCNN::DPULayerType_ELTWISE)
     {
-        auto weightsTableTensorIterator = opIt->getInputTensor(num_inputs - 1);
+        auto weightsTableTensorIterator = opIt->getInputTensor(opIt->get<std::size_t>("weightsTableIndex"));
         toBuild->weights_table = buildTensorReferenceT(cm, compilationDescriptor, weightsTableTensorIterator);
     }
 

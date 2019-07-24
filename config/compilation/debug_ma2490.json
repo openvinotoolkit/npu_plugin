@@ -716,7 +716,6 @@
                 "name": "ConvertDot",
                 "input": "output/dots/align_slice_ops.dot"
             },
-            "GenerateSparsityMapsPopulatedTensors",
             "GenerateWeightsTables",
             {
                 "name": "GenerateDot",
@@ -763,13 +762,31 @@
             {
                 "name": "GenerateDot",
                 "output": "output/dots/dma_model.dot",
-                "scope": "ControlModel",
+                "scope": "OpControlModel",
                 "content": "full",
                 "html": true
             },
             {
                 "name": "ConvertDot",
                 "input": "output/dots/dma_model.dot"
+            }
+        ]
+    },
+    "sparsity" : {
+        "Singular" : [
+            "GenerateSparsityMapsUnpopulatedTensors",
+            "GenerateSparsityMapsPopulatedTensors",
+            "AddWeightsDMATasks",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/sparsity_model.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/sparsity_model.dot"
             }
         ]
     },
@@ -1057,6 +1074,7 @@
             "adapt",
             "keembay_adapt",
             "dma",
+            "sparsity",
             "control_flows",
             "finalize",
             "scheduling",
