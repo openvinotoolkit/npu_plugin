@@ -43,11 +43,6 @@ KmbInferRequest::KmbInferRequest(const InferenceEngine::InputsDataMap& networkIn
         _log(log), _stagesMetaData(blobMetaData), _config(kmbConfig) {
     _deviceLayout = NCHW;
 
-
-    if (_config->compileConfig.forceLayout == ComputeLayout::NCHW)
-        _deviceLayout = NCHW;
-    if (_config->compileConfig.forceLayout == ComputeLayout::NHWC)
-        _deviceLayout = NHWC;
     // allocate inputs
     IE_ASSERT(_networkInputs.size() == 1) << "Do not support more than 1 input";
     for (auto &networkInput : _networkInputs) {

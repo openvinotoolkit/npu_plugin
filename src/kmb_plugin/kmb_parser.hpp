@@ -30,8 +30,6 @@
 #include <vpu/utils/enums.hpp>
 #include <vpu/utils/perf_report.hpp>
 #include <vpu/utils/logger.hpp>
-#include <vpu/graph_transformer.hpp>
-#include <vpu/parsed_config.hpp>
 
 #include <frontend_mcm.hpp>
 #include <kmb_config.h>
@@ -78,17 +76,14 @@ void compileMcm(
         const ie::ICNNNetwork& network,
         const KmbConfig& config,
         mv::CompilationUnit& unit,
-        std::vector<char>& blob,
-        const Logger::Ptr& log);
+        std::vector<char>& blob);
 //
 // getSupportedLayers
 //
 
 std::set<std::string> getSupportedLayersMcm(
         const ie::ICNNNetwork& network,
-        mv::OpModel& pCompiler,
-        const CompilationConfig& config,
-        const Logger::Ptr& log);
+        mv::OpModel& pCompiler);
 
 //
 // Blob version and checks

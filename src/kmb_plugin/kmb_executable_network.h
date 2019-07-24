@@ -28,9 +28,6 @@
 #include <cpp_interfaces/impl/ie_executable_network_thread_safe_default.hpp>
 #include <cpp_interfaces/ie_executor_manager.hpp>
 
-#include <vpu/graph_transformer.hpp>
-#include <vpu/parsed_config.hpp>
-
 #include "kmb_executor.h"
 #include "kmb_executable_network.h"
 #include "kmb_infer_request.h"

@@ -202,7 +202,6 @@ inline void VpuNoRegressionWithCompilation::loadNetworkWrapper(std::map<std::str
         details::CNNNetworkImplPtr clonedNetwork;
         CNNNetworkInt8Normalizer cnnorm;
 
-        config[VPU_CONFIG_KEY(ALLOW_FP32_MODELS)] = CONFIG_VALUE(YES);
         clonedNetwork = cloneNet(network);
         cnnorm.NormalizeNetwork(*clonedNetwork, *pstats);
         sts = plugin->LoadNetwork(exeNetwork, *clonedNetwork, config, &response);

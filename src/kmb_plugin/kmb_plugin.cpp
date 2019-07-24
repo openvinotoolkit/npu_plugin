@@ -22,7 +22,6 @@
 #include <cpp_interfaces/impl/ie_executable_network_internal.hpp>
 
 #include <vpu/kmb_plugin_config.hpp>
-#include <vpu/parsed_config.hpp>
 
 #include "kmb_plugin.h"
 
@@ -91,9 +90,7 @@ void Engine::QueryNetwork(const ICNNNetwork& network, const std::map<std::string
 
     auto layerNames = getSupportedLayersMcm(
         network,
-        tmpCompiler->model(),
-        CompilationConfig(),
-        std::make_shared<Logger>("GraphCompiler", LogLevel::None, consoleOutput()));
+        tmpCompiler->model());
 
     for (auto && layerName : layerNames) {
         res.supportedLayersMap.insert({ layerName, GetName() });

@@ -26,6 +26,7 @@
 #include <cpp_interfaces/impl/ie_executable_network_internal.hpp>
 
 #include <vpu/utils/logger.hpp>
+#include <vpu/utils/perf_report.hpp>
 
 #include "kmb_executor.h"
 #include "kmb_config.h"

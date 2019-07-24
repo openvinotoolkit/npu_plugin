@@ -58,9 +58,6 @@
 #include <description_buffer.hpp>
 #include <xml_parse_utils.h>
 
-#include <vpu/parsed_config.hpp>
-#include <vpu/compile_env.hpp>
-#include <vpu/frontend/stage_builder.hpp>
 #include "kmb_parser.hpp"
 
 #include <vpu/kmb_plugin_config.hpp>
@@ -79,16 +76,10 @@ void compileMcm(
         const ie::ICNNNetwork& network,
         const KmbConfig& config,
         mv::CompilationUnit& unit,
-        std::vector<char>& blob,
-        const Logger::Ptr& log) {
-    CompileEnv::init(Platform::MYRIAD_X, config.compileConfig, log);
-    AutoScope autoDeinit([] {
-        CompileEnv::free();
-    });
-
+        std::vector<char>& blob) {
     mv::OpModel& modelMcm = unit.model();
 
-    auto frontEnd = std::make_shared<FrontEndMcm>(modelMcm);
+    auto frontEnd = std::make_shared<FrontEndMcm>(modelMcm, std::make_shared<Logger>("GraphCompiler", config.hostLogLevel, consoleOutput()));
     frontEnd->buildInitialModel(network);
 
     auto parsedConfig = config.getParsedConfig();
@@ -228,15 +219,7 @@ void compileMcm(
 
 std::set<std::string> getSupportedLayersMcm(
         const ie::ICNNNetwork& network,
-        mv::OpModel& pCompiler,
-        const CompilationConfig& config,
-        const Logger::Ptr& log) {
-    CompileEnv::init(Platform::MYRIAD_X, config, log);
-
-    AutoScope autoDeinit([] {
-        CompileEnv::free();
-    });
-
+        mv::OpModel& pCompiler) {
     auto frontEnd = std::make_shared<FrontEndMcm>(pCompiler);
 
     return frontEnd->checkSupportedLayers(network);

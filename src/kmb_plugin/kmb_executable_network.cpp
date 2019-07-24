@@ -18,7 +18,6 @@
 #include <utility>
 
 #include <kmb_executable_network.h>
-#include <vpu/blob_reader.hpp>
 #include <net_pass.h>
 
 using namespace InferenceEngine;
@@ -50,8 +49,7 @@ ExecutableNetwork::ExecutableNetwork(ICNNNetwork &network, const std::map<std::s
         network,
         *(_config),
         *pCompiler,
-        _graphBlob,
-        std::make_shared<Logger>("GraphCompiler", _config->hostLogLevel, consoleOutput()));
+        _graphBlob);
 #else
     UNUSED(network);
 #endif

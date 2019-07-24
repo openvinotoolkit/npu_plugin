@@ -25,13 +25,14 @@
 
 using namespace vpu::KmbPlugin;
 
-KmbConfig::KmbConfig(const std::map<std::string, std::string> &config, ConfigMode mode) : ParsedConfig(mode)  {
+KmbConfig::KmbConfig(const std::map<std::string, std::string> &config, ConfigMode mode)
+    : ParsedConfigBase(mode)  {
     _parsedConfig = parse(config);
     configure(_parsedConfig);
 }
 
 std::map<std::string, std::string> KmbConfig::getDefaultConfig() const {
-    auto defaultVpuConfig = ParsedConfig::getDefaultConfig();
+    auto defaultVpuConfig = ParsedConfigBase::getDefaultConfig();
     std::map<std::string, std::string> kmbSpecific = {
 #ifdef NDEBUG
             {CONFIG_KEY(LOG_LEVEL),                                 CONFIG_VALUE(LOG_NONE)},
@@ -59,7 +60,7 @@ std::map<std::string, std::string> KmbConfig::getDefaultConfig() const {
 }
 
 void KmbConfig::checkInvalidValues(const std::map<std::string, std::string> &config) const {
-    ParsedConfig::checkInvalidValues(config);
+    ParsedConfigBase::checkInvalidValues(config);
 }
 
 std::unordered_set<std::string> KmbConfig::getCompileOptions() const {
@@ -77,7 +78,7 @@ std::unordered_set<std::string> KmbConfig::getCompileOptions() const {
             VPU_KMB_CONFIG_KEY(MCM_COMPILATION_RESULTS),
         };
 
-    auto parentCompileOptions = ParsedConfig::getCompileOptions();
+    auto parentCompileOptions = ParsedConfigBase::getCompileOptions();
     compileOptions.insert(parentCompileOptions.begin(), parentCompileOptions.end());
 
     return compileOptions;

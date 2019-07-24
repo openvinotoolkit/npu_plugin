@@ -27,10 +27,10 @@
 #include <cpp/ie_cnn_network.h>
 #include <details/caseless.hpp>
 
-#include <vpu/frontend/stage_builder.hpp>
-#include <vpu/custom_layer.hpp>
+#include <vpu/utils/logger.hpp>
 #include <vpu/utils/enums.hpp>
 #include <vpu/frontend/parse_network.hpp>
+#include <vpu/utils/attributes_map.hpp>
 
 #ifdef ENABLE_MCM_COMPILER
 #include "include/mcm/compiler/compilation_unit.hpp"
@@ -49,8 +49,8 @@ class McmNodeObject final :
         public EnableHandleFromThis<McmNodeObject>,
         public EnableCustomAttributes {
 public:
-    explicit McmNodeObject(mv::Data::TensorIterator node, DataDesc desc) : _desc(desc), _mcmNode(node) {}
-    VPU_MODEL_ATTRIBUTE(DataDesc, desc, DataDesc())
+    explicit McmNodeObject(mv::Data::TensorIterator node, InferenceEngine::TensorDesc desc) : _desc(desc), _mcmNode(node) {}
+    VPU_MODEL_ATTRIBUTE(InferenceEngine::TensorDesc, desc, InferenceEngine::TensorDesc())
     VPU_MODEL_ATTRIBUTE(ie::DataPtr, origData, nullptr)
     VPU_MODEL_ATTRIBUTE(DataContent::Ptr, content, nullptr)
 
@@ -73,7 +73,11 @@ class FrontEndMcm final : public std::enable_shared_from_this<FrontEndMcm> {
 public:
     using Ptr = std::shared_ptr<FrontEndMcm>;
 
-    explicit FrontEndMcm(mv::OpModel& modelMcm) : _modelMcm(modelMcm) {}
+    explicit FrontEndMcm(mv::OpModel& modelMcm,
+                         std::shared_ptr<Logger> logger = std::make_shared<Logger>("GraphCompiler", LogLevel::None, consoleOutput()))
+     : _modelMcm(modelMcm)
+     , _logger(logger) {
+    }
 
     void buildInitialModel(const ie::ICNNNetwork& network);
 
@@ -191,8 +195,9 @@ private:
     std::unordered_set<ie::DataPtr> _unbatchedOutputs;
     std::unordered_map<ie::DataPtr, McmNode> _ieToMcmMap;
 
-    ie::details::caseless_map<std::string, CustomLayer::Ptr> _customLayers;
     vpu::IeNetworkParser _ieNetworkParser;
+
+    Logger::Ptr _logger;
 };
 
 }  // namespace KmbPlugin
