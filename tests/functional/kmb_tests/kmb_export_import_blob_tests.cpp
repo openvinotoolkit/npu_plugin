@@ -123,7 +123,7 @@ TEST_F(kmbLayersTests_nightly, TestExportImportBlob01) {
 //    ASSERT_NE(nullptr, _exeNetwork);
 
 
-    std::string blobFileName1 = "TestExportBlob01.blob";
+    std::string blobFileName1 = "Test01ExportBlob01.blob";
 //    std::cout << "Try to write blob to file" << std::endl; // Uncomment this line for debug
     s = _exeNetwork->Export(blobFileName1, nullptr);
     ASSERT_EQ(StatusCode::OK, s);
@@ -133,7 +133,7 @@ TEST_F(kmbLayersTests_nightly, TestExportImportBlob01) {
     InferenceEngine::IExecutableNetwork::Ptr importedNetworkPtr = ie.ImportNetwork(blobFileName1, "KMB", {});
     ASSERT_NE(nullptr, importedNetworkPtr);
 
-    std::string blobFileName2 = "TestExportBlob02.blob";
+    std::string blobFileName2 = "Test01ExportBlob02.blob";
 //    std::cout << "Try to write blob to file again" << std::endl; // Uncomment this line for debug
     s = importedNetworkPtr->Export(blobFileName2, nullptr);
     ASSERT_EQ(StatusCode::OK, s);
@@ -146,6 +146,69 @@ TEST_F(kmbLayersTests_nightly, TestExportImportBlob01) {
 //    std::cout << "Compare content of base and derivated executable networks" << std::endl; // Uncomment this line for debug
     ASSERT_TRUE( isContentOfFilesEqual(blobFileName1, blobFileName2) );
 
+}
+
+TEST_F(kmbLayersTests_nightly, TestExportImportBlob02) {
+
+    extern std::string conv_after_scale_shift;
+    std::string model = conv_after_scale_shift;
+    REPLACE_WITH_STR(model, "<biases offset=\"6\" size=\"6\"/>", " ");
+    REPLACE_WITH_STR(model, "<biases offset=\"18828\" size=\"128\"/>", " ");
+
+    ASSERT_NO_THROW(_net_reader.ReadNetwork(model.data(), model.length()));
+    ASSERT_TRUE(_net_reader.isParseSuccess());
+
+    std::size_t weightSize = 6 + 18816;
+    std::size_t biasSize = 6 + 128;
+    TBlob<uint8_t>::Ptr weightsBlob(GenWeights(weightSize + biasSize));
+    ASSERT_NO_THROW(_net_reader.SetWeights(weightsBlob));
+
+    CNNNetwork network = _net_reader.getNetwork();
+
+    _inputsInfo = network.getInputsInfo();
+    _inputsInfo["input"]->setPrecision(Precision::FP16);
+
+    _outputsInfo = network.getOutputsInfo();
+    _outputsInfo["conv_test1"]->setPrecision(Precision::FP16);
+
+    std::map<std::string, std::string> config;
+    setCommonConfig(config);
+    config[VPU_KMB_CONFIG_KEY(MCM_PARSING_ONLY)] = CONFIG_VALUE(NO);
+    config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_BLOB)] = CONFIG_VALUE(YES);
+    config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_DOT)] = CONFIG_VALUE(YES);
+    config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_JSON)] = CONFIG_VALUE(YES);
+
+    StatusCode st;
+    ASSERT_NO_THROW(st = myriadPluginPtr->LoadNetwork(_exeNetwork, network, config, &_resp));
+    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
+
+    Core ie;
+//    _exeNetwork = ie.LoadNetwork(network, "KMB", config);  // Core::LoadNetwork - does not work
+//    ASSERT_NE(nullptr, _exeNetwork);
+
+
+    std::string blobFileName1 = "Test02ExportBlob01.blob";
+//    std::cout << "Try to write blob to file" << std::endl; // Uncomment this line for debug
+    StatusCode s = _exeNetwork->Export(blobFileName1, nullptr);
+    ASSERT_EQ(StatusCode::OK, s);
+    ASSERT_GT( getFileSize(blobFileName1), 0 ) << "Alarm! Alarm! We get blob file with zero size!!!";
+
+//    std::cout << "Try to load blob from file" << std::endl; // Uncomment this line for debug
+    InferenceEngine::IExecutableNetwork::Ptr importedNetworkPtr = ie.ImportNetwork(blobFileName1, "KMB", {});
+    ASSERT_NE(nullptr, importedNetworkPtr);
+
+    std::string blobFileName2 = "Test02ExportBlob02.blob";
+//    std::cout << "Try to write blob to file again" << std::endl; // Uncomment this line for debug
+    s = importedNetworkPtr->Export(blobFileName2, nullptr);
+    ASSERT_EQ(StatusCode::OK, s);
+
+//    std::cout << "Compare size of base and derivated executable networks" << std::endl; // Uncomment this line for debug
+    ASSERT_GT( getFileSize(blobFileName1), 0 ); // Test to be sure that first file size is not zero.
+    ASSERT_GT( getFileSize(blobFileName2), 0 ); // Test to be sure that second file size is not zero.
+    ASSERT_EQ(getFileSize(blobFileName1), getFileSize(blobFileName2)); // And now compare size of first and second file
+
+//    std::cout << "Compare content of base and derivated executable networks" << std::endl; // Uncomment this line for debug
+    ASSERT_TRUE( isContentOfFilesEqual(blobFileName1, blobFileName2) );
 }
 #endif
 
