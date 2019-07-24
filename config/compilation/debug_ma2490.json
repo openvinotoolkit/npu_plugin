@@ -335,7 +335,7 @@
                         "strategy": "SplitOverK"
                     }
                 ],
-                "default_tensor_placement" : "CMX",
+                "default_tensor_placement" : "DDR",
                 "streaming_strategy" :
                 [
                     {
