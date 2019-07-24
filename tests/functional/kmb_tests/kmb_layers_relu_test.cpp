@@ -136,8 +136,8 @@ TEST_F(kmbLayersTests_nightly, DISABLED_TestsReLUAfterConvolution) {
     config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_DOT)] = CONFIG_VALUE(YES);
     config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_JSON)] = CONFIG_VALUE(YES);
 
-    ASSERT_NO_THROW(st = myriadPluginPtr->LoadNetwork(_exeNetwork, network, config, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
+    _exeNetwork = ie.LoadNetwork(network, "kmb", config);
+    ASSERT_NE(_exeNetwork, nullptr);
 }
 
 TEST_F(kmbLayersTests_nightly, TestsReLUOnly) {
@@ -197,9 +197,7 @@ TEST_F(kmbLayersTests_nightly, TestsReLUOnly) {
     setCommonConfig(config);
     config[VPU_KMB_CONFIG_KEY(MCM_PARSING_ONLY)] = CONFIG_VALUE(YES);
 
-    StatusCode st;
-    ASSERT_NO_THROW(st = myriadPluginPtr->LoadNetwork(_exeNetwork, network, config, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
+    _exeNetwork = ie.LoadNetwork(network, "kmb", config);
 }
 
 TEST_P(kmbLayersTestsReLUParams, TestsReLUNetInit) {
@@ -224,13 +222,13 @@ TEST_P(kmbLayersTestsReLUParams, TestsReLUNetInit) {
     ASSERT_NO_THROW(_net_reader.ReadNetwork(xml.data(), xml.length()));
     ASSERT_EQ(_net_reader.isParseSuccess(), true);
 
-    InferenceEngine::ICNNNetwork &network = _net_reader.getNetwork();
-    ASSERT_NO_THROW(network.getInputsInfo(_inputsInfo));
-    for (auto in = _inputsInfo.begin(); in != _inputsInfo.end(); in++) {
-        in->second->setPrecision(InferenceEngine::Precision::FP16);
+    CNNNetwork network = _net_reader.getNetwork();
+    _inputsInfo = network.getInputsInfo();
+    for (const auto & in : _inputsInfo){
+        in.second->setPrecision(InferenceEngine::Precision::FP16);
     }
-    ASSERT_NO_THROW(network.getOutputsInfo(_outputsInfo));
-    for (auto outputInfo : _outputsInfo) {
+    _outputsInfo = network.getOutputsInfo();
+    for (const auto& outputInfo : _outputsInfo) {
         outputInfo.second->setPrecision(InferenceEngine::Precision::FP16);
     }
     std::map<std::string, std::string> config;
@@ -238,9 +236,7 @@ TEST_P(kmbLayersTestsReLUParams, TestsReLUNetInit) {
     // TODO disable 'parse only' and find out why LoadNetwork fails
     config[VPU_KMB_CONFIG_KEY(MCM_PARSING_ONLY)] = CONFIG_VALUE(YES);
 
-    InferenceEngine::StatusCode st = InferenceEngine::StatusCode::GENERAL_ERROR;
-    ASSERT_NO_THROW(st = myriadPluginPtr->LoadNetwork(_exeNetwork, network, config, &_resp));
-    ASSERT_NE(_exeNetwork, nullptr) << _resp.msg;
+    _exeNetwork = ie.LoadNetwork(network, "kmb", config);
 }
 
 static const tensor_test_params paramsTable[] = {

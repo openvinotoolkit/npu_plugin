@@ -20,7 +20,6 @@
 #include <ie_version.hpp>
 #include <ie_device.hpp>
 #include <cpp/ie_cnn_net_reader.h>
-#include <ie_plugin_dispatcher.hpp>
 #include <inference_engine.hpp>
 #include "tests_common.hpp"
 #include <algorithm>
