@@ -22,13 +22,12 @@
 #include <string>
 #include <unordered_set>
 
-#include <vpu/parsed_config.hpp>
-#include <vpu/private_plugin_config.hpp>
+#include <vpu/parsed_config_base.hpp>
 
 namespace vpu {
 namespace KmbPlugin {
 
-struct KmbConfig final : ParsedConfig {
+struct KmbConfig final : ParsedConfigBase {
     bool forceReset = false;
     int watchdogInterval = 1000;
 

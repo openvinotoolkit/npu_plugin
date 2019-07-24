@@ -16,6 +16,7 @@
 
 #include <frontend_mcm.hpp>
 #include "kmb_config.h"
+#include <utils/dims_parser.hpp>
 
 #include <vector>
 #include <memory>
@@ -26,9 +27,9 @@
 #include <unordered_set>
 #include <list>
 #include <limits>
+#include <functional>
 
 #include <ie_layers_internal.hpp>
-#include <vpu/compile_env.hpp>
 #include "ie_blob.h"
 
 #include <precision_utils.h>
@@ -185,7 +186,6 @@ void FrontEndMcm::parseConvolution(
         const ie::CNNLayerPtr& layer,
         const McmNodeVector& inputs) {
     UNUSED(modelMcm);
-    const auto& env = CompileEnv::get();
     IE_ASSERT(inputs.size() == 1);
 
     auto input = inputs[0];
@@ -215,7 +215,7 @@ void FrontEndMcm::parseConvolution(
         VPU_THROW_EXCEPTION << "kmb Convolution supports only equal dilationX and dilationY";
     }
 
-    int groupSize = convLayer->_group;
+    size_t groupSize = convLayer->_group;
 
     // Quantization parameters
     mv::QuantizationParams weightsQuantParams = {{}, {}, {}, {}};
@@ -234,7 +234,7 @@ void FrontEndMcm::parseConvolution(
     auto layerOutput = layer->outData[0];
 
     IE_ASSERT(layerOutput != nullptr);
-    DataDesc outDesc(layerOutput->getTensorDesc());
+    auto outDesc = layerOutput->getTensorDesc();
     mv::Data::TensorIterator mvConv;
     mv::Data::TensorIterator mvConvOnly;
     mv::Data::TensorIterator mvWeights;
@@ -249,13 +249,16 @@ void FrontEndMcm::parseConvolution(
         biasesShape[0] = biasBlob->size();
     }
 
-    env.log->debug("Convolution orig: '%s' from '%s' ", convLayer->name, input->getMcmNode()->getName());
-    if (groupSize > 1 && groupSize == input->desc().dim(Dim::C) && groupSize != outDesc.dim(Dim::C)) {
+    _logger->debug("Convolution orig: '%s' from '%s' ", convLayer->name, input->getMcmNode()->getName());
+    size_t inputGroupSize, outputGroupSize, stub;
+    parseDims(input->desc(), stub, inputGroupSize, stub, stub);
+    parseDims(outDesc, stub, outputGroupSize, stub, stub);
+    if (groupSize > 1 && groupSize == inputGroupSize && groupSize != outputGroupSize) {
         auto weightsShape = {static_cast<std::size_t>(kernelSizeX),
                              static_cast<std::size_t>(kernelSizeY),
-                             static_cast<std::size_t>(input->desc().dim(Dim::C)),
+                             inputGroupSize,
                              1lu};
-        int weightsSize = kernelSizeX * kernelSizeY * input->desc().dim(Dim::C);
+        int weightsSize = kernelSizeX * kernelSizeY * inputGroupSize;
         if (is_quantized) {
             // TODO: create per layer test
             auto weightsData = packBlobToVector<int64_t>(layer->blobs["weights"], weightsSize);
@@ -300,11 +303,14 @@ void FrontEndMcm::parseConvolution(
                                          inputQuantParams,
                                          convLayer->name);
     } else {
+        size_t inputC, outputC, stub;
+        parseDims(input->desc(), stub, inputC, stub, stub, 1);
+        parseDims(outDesc, stub, outputC, stub, stub, 1);
         auto weightsShape = {static_cast<std::size_t>(kernelSizeX),
                              static_cast<std::size_t>(kernelSizeY),
-                             static_cast<std::size_t>(input->desc().dim(Dim::C)),
-                             static_cast<std::size_t>(outDesc.dim(Dim::C)) / groupSize};
-        int weightsSize = kernelSizeX * kernelSizeY * input->desc().dim(Dim::C) * outDesc.dim(Dim::C) / groupSize;
+                             inputC,
+                             outputC / groupSize};
+        int weightsSize = std::accumulate(weightsShape.begin(), weightsShape.end(), 1, std::multiplies<int>());
         if (is_quantized) {
             auto weightsData = packBlobToVector<int64_t>(layer->blobs["weights"], weightsSize);
             mvWeights = _modelMcm.constantInt(weightsData,
@@ -356,7 +362,7 @@ void FrontEndMcm::parseConvolution(
     if (with_bias) {
         mvConvOnly = mvConv;
         mvConv = _modelMcm.bias(mvConvOnly, mvBiases, outputQuantParams, convLayer->name + ":bias");
-        env.log->debug("conv orig: '%s' Bias part (%s) added to mcmModel", convLayer->name, mvConv->getName());
+        _logger->debug("conv orig: '%s' Bias part (%s) added to mcmModel", convLayer->name, mvConv->getName());
     }
 
     mvConv->set<mv::DType>("dType", convert_data_type(layer->outData[0]->getPrecision()));
@@ -365,7 +371,7 @@ void FrontEndMcm::parseConvolution(
     _nodes.push_back(conv);
 
     bindData(conv, layerOutput);
-    env.log->debug("parsed to mcmModel as '%s'", mvConv->getName());
+    _logger->debug("parsed to mcmModel as '%s'", mvConv->getName());
 }
 
 void FrontEndMcm::parsePooling(
@@ -373,7 +379,6 @@ void FrontEndMcm::parsePooling(
         const ie::CNNLayerPtr& layer,
         const McmNodeVector& inputs) {
     UNUSED(modelMcm);
-    const auto& env = CompileEnv::get();
 
     IE_ASSERT(inputs.size() == 1);
 
@@ -395,7 +400,7 @@ void FrontEndMcm::parsePooling(
 
     auto poolType = poolLayer->_type;
 
-    env.log->debug("Pooling orig: '%s' from '%s'", poolLayer->name, inputs[0]->getMcmNode()->getName());
+    _logger->debug("Pooling orig: '%s' from '%s'", poolLayer->name, inputs[0]->getMcmNode()->getName());
     mv::Data::TensorIterator mvPooling;
     if (poolType == ie::PoolingLayer::AVG) {
         mvPooling = _modelMcm.averagePool(inputs[0]->getMcmNode(),
@@ -428,11 +433,11 @@ void FrontEndMcm::parsePooling(
     auto layerOutput = layer->outData[0];
     IE_ASSERT(layerOutput != nullptr);
 
-    auto pool = std::make_shared<McmNodeObject>(mvPooling, DataDesc(layerOutput->getTensorDesc()));
+    auto pool = std::make_shared<McmNodeObject>(mvPooling, layerOutput->getTensorDesc());
 
     _nodes.push_back(pool);
     bindData(pool, layerOutput);
-    env.log->debug("parsed to mcmModel as '%s'", mvPooling->getName());
+    _logger->debug("parsed to mcmModel as '%s'", mvPooling->getName());
 }
 
 void FrontEndMcm::parseFullyConnected(
@@ -440,7 +445,6 @@ void FrontEndMcm::parseFullyConnected(
         const ie::CNNLayerPtr& layer,
         const McmNodeVector& inputs) {
     UNUSED(modelMcm);
-    const auto& env = CompileEnv::get();
 
     IE_ASSERT(inputs.size() == 1);
 
@@ -481,10 +485,9 @@ void FrontEndMcm::parseFullyConnected(
     }
 
     mv::Data::TensorIterator mvWeights;
-    int weightsSize = input->desc().dim(Dim::W, 1) *
-                                      input->desc().dim(Dim::H, 1) *
-                                      input->desc().dim(Dim::C) *
-                                      static_cast<int>(FClayer->_out_num);
+    size_t dimC, dimY, dimX, stub;
+    parseDims(input->desc(), stub, dimC, dimY, dimX, 1);
+    int weightsSize = static_cast<int>(dimX * dimY * dimC * FClayer->_out_num);
     if (is_quantized) {
         std::vector<int64_t> weightsData = packBlobToVector<int64_t>(FClayer->blobs["weights"], weightsSize);
         mvWeights = _modelMcm.constantInt(weightsData,
@@ -519,7 +522,7 @@ void FrontEndMcm::parseFullyConnected(
     auto layerOutput = FClayer->outData[0];
     IE_ASSERT(layerOutput != nullptr);
 
-    env.log->debug("FullyConnected orig: '%s' from '%s'",
+    _logger->debug("FullyConnected orig: '%s' from '%s'",
             FClayer->name, input->getMcmNode()->getName());
     auto mvFullyConnected = _modelMcm.fullyConnected(input->getMcmNode(), mvWeights, inputQuantParams, FClayer->name);
 
@@ -530,16 +533,16 @@ void FrontEndMcm::parseFullyConnected(
     if (with_bias) {
         auto mvFCOnly = mvFullyConnected;
         mvFullyConnected = _modelMcm.bias(mvFCOnly, mvBiases, outputQuantParams, FClayer->name + ":bias");
-        env.log->debug("FullyConnected orig: '%s' Bias part (%s) added to mcmModel", FClayer->name, mvFullyConnected->getName());
+        _logger->debug("FullyConnected orig: '%s' Bias part (%s) added to mcmModel", FClayer->name, mvFullyConnected->getName());
     }
 
     mvFullyConnected->set<mv::DType>("dType", convert_data_type(layer->outData[0]->getPrecision()));
 
-    auto fullyConnected = std::make_shared<McmNodeObject>(mvFullyConnected, DataDesc(layerOutput->getTensorDesc()));
+    auto fullyConnected = std::make_shared<McmNodeObject>(mvFullyConnected, layerOutput->getTensorDesc());
 
     _nodes.push_back(fullyConnected);
     bindData(fullyConnected, layerOutput);
-    env.log->debug("parsed to mcmModel as '%s'", mvFullyConnected->getName());
+    _logger->debug("parsed to mcmModel as '%s'", mvFullyConnected->getName());
 }
 
 namespace {
@@ -556,14 +559,13 @@ void FrontEndMcm::parseReLU(
         const ie::CNNLayerPtr& layer,
         const McmNodeVector& inputs) {
     UNUSED(modelMcm);
-    const auto& env = CompileEnv::get();
 
     IE_ASSERT(inputs.size() == 1);
 
     auto reluLayer = std::dynamic_pointer_cast<ie::ReLULayer>(layer);
     IE_ASSERT(reluLayer != nullptr);
 
-    env.log->debug("ReLU orig: '%s' from '%s'", reluLayer->name, inputs[0]->getMcmNode()->getName());
+    _logger->debug("ReLU orig: '%s' from '%s'", reluLayer->name, inputs[0]->getMcmNode()->getName());
 
     float negativeSlope = reluLayer->negative_slope;
     mv::Data::TensorIterator mvRelu;
@@ -579,11 +581,11 @@ void FrontEndMcm::parseReLU(
     auto layerOutput = layer->outData[0];
     IE_ASSERT(layerOutput != nullptr);
 
-    auto relu = std::make_shared<McmNodeObject>(mvRelu, DataDesc(layerOutput->getTensorDesc()));
+    auto relu = std::make_shared<McmNodeObject>(mvRelu, layerOutput->getTensorDesc());
 
     _nodes.push_back(relu);
     bindData(relu, layerOutput);
-    env.log->debug("parsed to mcmModel as '%s", mvRelu->getName());
+    _logger->debug("parsed to mcmModel as '%s", mvRelu->getName());
 }
 
 void FrontEndMcm::parseSoftMax(
@@ -591,16 +593,15 @@ void FrontEndMcm::parseSoftMax(
         const ie::CNNLayerPtr& layer,
         const McmNodeVector& inputs) {
     UNUSED(modelMcm);
-    const auto& env = CompileEnv::get();
 
     IE_ASSERT(inputs.size() == 1);
 
     auto softMaxLayer = std::dynamic_pointer_cast<ie::SoftMaxLayer>(layer);
     IE_ASSERT(softMaxLayer != nullptr);
 
-    IE_ASSERT(softMaxLayer->axis < inputs[0]->desc().numDims());
+    IE_ASSERT(static_cast<size_t>(softMaxLayer->axis) < inputs[0]->desc().getDims().size());
 
-    env.log->debug("Softmax orig: '%s' from '%s'", softMaxLayer->name, inputs[0]->getMcmNode()->getName());
+    _logger->debug("Softmax orig: '%s' from '%s'", softMaxLayer->name, inputs[0]->getMcmNode()->getName());
     std::string mcmAxis;
     mcmAxis = mcmAxis + DIM_NAMES[softMaxLayer->axis];
     auto mvSoftmax = _modelMcm.softmax(inputs[0]->getMcmNode(), mcmAxis, {{}, {}, {}, {}}, softMaxLayer->name);
@@ -608,11 +609,11 @@ void FrontEndMcm::parseSoftMax(
     auto layerOutput = softMaxLayer->outData[0];
     IE_ASSERT(layerOutput != nullptr);
 
-    auto softmax = std::make_shared<McmNodeObject>(mvSoftmax, DataDesc(layerOutput->getTensorDesc()));
+    auto softmax = std::make_shared<McmNodeObject>(mvSoftmax, layerOutput->getTensorDesc());
 
     _nodes.push_back(softmax);
     bindData(softmax, layerOutput);
-    env.log->debug("parsed to mcmModel as '%s'", mvSoftmax->getName());
+    _logger->debug("parsed to mcmModel as '%s'", mvSoftmax->getName());
 }
 
 void FrontEndMcm::parseNorm(
@@ -620,25 +621,24 @@ void FrontEndMcm::parseNorm(
         const ie::CNNLayerPtr& layer,
         const McmNodeVector& inputs) {
     UNUSED(modelMcm);
-    const auto& env = CompileEnv::get();
 
     IE_ASSERT(inputs.size() == 1);
 
     auto normLayer = std::dynamic_pointer_cast<ie::NormLayer>(layer);
     IE_ASSERT(normLayer != nullptr);
 
-    env.log->debug("LRN orig: '%s' from '%s'", normLayer->name, inputs[0]->getMcmNode()->getName());
+    _logger->debug("LRN orig: '%s' from '%s'", normLayer->name, inputs[0]->getMcmNode()->getName());
     auto mvLRN = _modelMcm.localResponseNormalization(inputs[0]->getMcmNode(),
             normLayer->_size, normLayer->_k, normLayer->name);
 
     auto layerOutput = layer->outData[0];
     IE_ASSERT(layerOutput != nullptr);
 
-    auto LRN = std::make_shared<McmNodeObject>(mvLRN, DataDesc(layerOutput->getTensorDesc()));
+    auto LRN = std::make_shared<McmNodeObject>(mvLRN, layerOutput->getTensorDesc());
 
     _nodes.push_back(LRN);
     bindData(LRN, layerOutput);
-    env.log->debug("parsed to mcmModel as '%s'", mvLRN->getName());
+    _logger->debug("parsed to mcmModel as '%s'", mvLRN->getName());
 
     // TODO: add parsing following parameters
     // stage->attrs().set<float>("alpha", layer->_alpha);
@@ -650,7 +650,6 @@ void FrontEndMcm::parseScale(
         const ie::CNNLayerPtr& layer,
         const McmNodeVector& inputs) {
     UNUSED(modelMcm);
-    const auto& env = CompileEnv::get();
 
     IE_ASSERT(inputs.size() == 1);
 
@@ -665,23 +664,27 @@ void FrontEndMcm::parseScale(
 
     auto input = inputs[0];
 
-    int weightsSize = input->desc().dim(Dim::C);
+    size_t dimC, stub;
+    parseDims(input->desc(), stub, dimC, stub, stub);
+    int weightsSize = static_cast<int>(dimC);
     auto weightsData = packBlobToVector<double>(scaleLayer->_weights, weightsSize);
 
-    mv::Shape weightsShape = { static_cast<std::size_t>(input->desc().dim(Dim::C))};
+    mv::Shape weightsShape = { dimC };
     auto mvWeights = _modelMcm.constant(
             weightsData,
             weightsShape,
             mv::DType("Float16"), mv::Order("W"));
 
-    env.log->debug("ScaleShift orig: '%s' from '%s' ", scaleLayer->name, input->getMcmNode()->getName());
+    _logger->debug("ScaleShift orig: '%s' from '%s' ", scaleLayer->name, input->getMcmNode()->getName());
     auto mvScale = _modelMcm.scale(input->getMcmNode(), mvWeights, {{}, {}, {}, {}}, scaleLayer->name);
     auto mvScaleShift = mvScale;
 
-    env.log->debug("ScaleShift orig: '%s' Scale part (%s) added to mcmModel", scaleLayer->name, mvScaleShift->getName());
+    _logger->debug("ScaleShift orig: '%s' Scale part (%s) added to mcmModel", scaleLayer->name, mvScaleShift->getName());
 
     if (scaleLayer->_biases != nullptr) {
-        int biasesSize = input->desc().dim(Dim::C);
+        size_t C, stub;
+        parseDims(input->desc(), stub, C, stub, stub);
+        int biasesSize = static_cast<int>(dimC);
         auto biasData = packBlobToVector<double>(scaleLayer->_biases, biasesSize);
 
         auto mvBias = _modelMcm.constant(
@@ -689,7 +692,7 @@ void FrontEndMcm::parseScale(
                 weightsShape,
                 mv::DType("Float16"), mv::Order("W"));
         mvScaleShift = _modelMcm.bias(mvScale, mvBias, {{}, {}, {}, {}}, scaleLayer->name + ":bias");
-        env.log->debug("ScaleShift orig: '%s' Bias part (%s) added to mcmModel", scaleLayer->name, mvScaleShift->getName());
+        _logger->debug("ScaleShift orig: '%s' Bias part (%s) added to mcmModel", scaleLayer->name, mvScaleShift->getName());
     }
 
     auto layerOutput = scaleLayer->outData[0];
@@ -697,10 +700,10 @@ void FrontEndMcm::parseScale(
 
     mvScaleShift->set<mv::DType>("dType", convert_data_type(layer->outData[0]->getPrecision()));
 
-    auto scaleShift = std::make_shared<McmNodeObject>(mvScaleShift, DataDesc(layerOutput->getTensorDesc()));
+    auto scaleShift = std::make_shared<McmNodeObject>(mvScaleShift, layerOutput->getTensorDesc());
     _nodes.push_back(scaleShift);
     bindData(scaleShift, layerOutput);
-    env.log->debug("parsed to mcmModel as '%s'", mvScaleShift->getName());
+    _logger->debug("parsed to mcmModel as '%s'", mvScaleShift->getName());
 }
 
 void FrontEndMcm::parsePermute(
@@ -708,7 +711,6 @@ void FrontEndMcm::parsePermute(
         const ie::CNNLayerPtr& layer,
         const McmNodeVector& inputs) {
     UNUSED(modelMcm);
-    const auto& env = CompileEnv::get();
 
     IE_ASSERT(inputs.size() == 1);
 
@@ -721,17 +723,17 @@ void FrontEndMcm::parsePermute(
         newOrder += DIM_NAMES[ieOrder[ieOrder.size() - 1 - i]];
     }
 
-    env.log->debug("Permute orig: '%s' from '%s'", layer->name, inputs[0]->getMcmNode()->getName());
+    _logger->debug("Permute orig: '%s' from '%s'", layer->name, inputs[0]->getMcmNode()->getName());
     auto mvPerm = _modelMcm.permute(inputs[0]->getMcmNode(), mv::Order(newOrder), layer->name);
 
     auto layerOutput = layer->outData[0];
     IE_ASSERT(layerOutput != nullptr);
 
-    auto perm = std::make_shared<McmNodeObject>(mvPerm, DataDesc(layerOutput->getTensorDesc()));
+    auto perm = std::make_shared<McmNodeObject>(mvPerm, layerOutput->getTensorDesc());
 
     _nodes.push_back(perm);
     bindData(perm, layerOutput);
-    env.log->debug("parsed to mcmModel as '%s", mvPerm->getName());
+    _logger->debug("parsed to mcmModel as '%s", mvPerm->getName());
 }
 
 void FrontEndMcm::parseEltwise(
@@ -739,7 +741,6 @@ void FrontEndMcm::parseEltwise(
         const ie::CNNLayerPtr& layer,
         const McmNodeVector& inputs) {
     UNUSED(modelMcm);
-    const auto& env = CompileEnv::get();
 
     if (inputs.size() != 2) {
         VPU_THROW_EXCEPTION << "Eltwise with 2 inputs is only supported by kmbPlugin";
@@ -798,7 +799,7 @@ void FrontEndMcm::parseEltwise(
         VPU_THROW_EXCEPTION << layer->name << " coefficients (1 and -1) are only supported for Sum/Sub operations.";
     }
 
-    env.log->debug("eltwise orig: '%s' from '%s' and '%s'",
+    _logger->debug("eltwise orig: '%s' from '%s' and '%s'",
             eltwiseLayer->name, inputs[0]->getMcmNode()->getName(), inputs[1]->getMcmNode()->getName());
     mv::Data::TensorIterator mvEltwise;
     if (addCoefficient0 == 1.0f && addCoefficient1 == 1.0f) {
@@ -816,11 +817,11 @@ void FrontEndMcm::parseEltwise(
     auto layerOutput = layer->outData[0];
     IE_ASSERT(layerOutput != nullptr);
 
-    auto eltwise = std::make_shared<McmNodeObject>(mvEltwise, DataDesc(layerOutput->getTensorDesc()));
+    auto eltwise = std::make_shared<McmNodeObject>(mvEltwise, layerOutput->getTensorDesc());
 
     _nodes.push_back(eltwise);
     bindData(eltwise, layerOutput);
-    env.log->debug("parsed to mcmModel as '%s'", mvEltwise->getName());
+    _logger->debug("parsed to mcmModel as '%s'", mvEltwise->getName());
 }
 
 void FrontEndMcm::parseBias(
@@ -828,14 +829,15 @@ void FrontEndMcm::parseBias(
         const ie::CNNLayerPtr& layer,
         const McmNodeVector& inputs) {
     UNUSED(modelMcm);
-    const auto& env = CompileEnv::get();
 
     mv::Data::TensorIterator mvBias;
     if (inputs.size() == 1) {
         auto input = inputs[0];
-        env.log->debug("ScaleShift(Bias) orig: '%s' from '%s' ", layer->name, input->getMcmNode()->getName());
-        mv::Shape biasShape = { static_cast<std::size_t>(input->desc().dim(Dim::C))};
-        int biasesSize = input->desc().dim(Dim::C);
+         _logger->debug("ScaleShift(Bias) orig: '%s' from '%s' ", layer->name, input->getMcmNode()->getName());
+        size_t dimC, stub;
+        parseDims(input->desc(), stub, dimC, stub, stub);
+        mv::Shape biasShape = { dimC };
+        int biasesSize = dimC;
         auto biases = layer->blobs["biases"];
 
         auto weights = layer->blobs["weights"];
@@ -849,7 +851,7 @@ void FrontEndMcm::parseBias(
     } else if (inputs.size() == 2) {
         auto input = inputs[0];
         auto input1 = inputs[1];
-        env.log->debug("ScaleShift(Bias) orig: '%s' from '%s', '%s' ", layer->name,
+        _logger->debug("ScaleShift(Bias) orig: '%s' from '%s', '%s' ", layer->name,
                         input->getMcmNode()->getName(), input1->getMcmNode()->getName());
         mvBias = _modelMcm.bias(input->getMcmNode(), input1->getMcmNode(), {{}, {}, {}, {}}, layer->name);
     } else {
@@ -859,10 +861,10 @@ void FrontEndMcm::parseBias(
     auto layerOutput = layer->outData[0];
     IE_ASSERT(layerOutput != nullptr);
 
-    auto bias = std::make_shared<McmNodeObject>(mvBias, DataDesc(layerOutput->getTensorDesc()));
+    auto bias = std::make_shared<McmNodeObject>(mvBias, layerOutput->getTensorDesc());
     _nodes.push_back(bias);
     bindData(bias, layerOutput);
-    env.log->debug("parsed to mcmModel as '%s'", mvBias->getName());
+    _logger->debug("parsed to mcmModel as '%s'", mvBias->getName());
 }
 
 void FrontEndMcm::parseClamp(
@@ -870,24 +872,23 @@ void FrontEndMcm::parseClamp(
         const ie::CNNLayerPtr& layer,
         const McmNodeVector& inputs) {
     UNUSED(modelMcm);
-    const auto& env = CompileEnv::get();
 
     IE_ASSERT(inputs.size() == 1);
 
     auto clampLayer = std::dynamic_pointer_cast<ie::ClampLayer>(layer);
     IE_ASSERT(clampLayer != nullptr);
 
-    env.log->debug("Clamp orig: '%s' from '%s'", clampLayer->name, inputs[0]->getMcmNode()->getName());
+    _logger->debug("Clamp orig: '%s' from '%s'", clampLayer->name, inputs[0]->getMcmNode()->getName());
     auto mvClamp = _modelMcm.clamp(inputs[0]->getMcmNode(), clampLayer->min_value, clampLayer->max_value, clampLayer->name);
 
     auto layerOutput = clampLayer->outData[0];
     IE_ASSERT(layerOutput != nullptr);
 
-    auto clamp = std::make_shared<McmNodeObject>(mvClamp, DataDesc(layerOutput->getTensorDesc()));
+    auto clamp = std::make_shared<McmNodeObject>(mvClamp, layerOutput->getTensorDesc());
 
     _nodes.push_back(clamp);
     bindData(clamp, layerOutput);
-    env.log->debug("parsed to mcmModel as '%s", mvClamp->getName());
+    _logger->debug("parsed to mcmModel as '%s", mvClamp->getName());
 }
 
 void FrontEndMcm::parseReshape(
@@ -895,36 +896,25 @@ void FrontEndMcm::parseReshape(
         const ie::CNNLayerPtr& layer,
         const McmNodeVector& inputs) {
     UNUSED(modelMcm);
-    const auto& env = CompileEnv::get();
 
     auto layerOutput = layer->outData[0];
     IE_ASSERT(layerOutput != nullptr);
-    DataDesc vpuDesc(layerOutput->getTensorDesc());
 
-    // Translates dims to 16 element vector with -1 on the places of non-existing dims
-    auto dimVector = vpuDesc.dims().toVector(-1);
-
-    // Just to get maxElement, the last valuable dim number
-    // because mcmCompiler supports only "dense" layouts
+    // Because mcmCompiler supports only "dense" layouts
     // for example NC should be represented as NCHW with dims NC11
-    auto perm = vpuDesc.dimsOrder().toPermutation();
-    auto maxElement = static_cast<int>(*(std::max_element(perm.begin(), perm.end()))) + 1;
-
     // Formation of a newShape, "dense" shape with 1, substituted in the places of non-existent measurements
     // TODO: Tests on parsing/compilation of different cases of reshape should be added: Jira: CVS-20409
-    mv::Shape newShape(maxElement);
-    for (int i = 0; i < maxElement; i++) {
-        newShape[i] = (dimVector[i] > 0) ? dimVector[i] : 1;
-    }
+    // McmCompiler accept only input in WHCN format
+    mv::Shape newShape(getWHCN(layerOutput->getTensorDesc()).getDims());
 
-    env.log->debug("Reshape orig: '%s' from '%s'", layer->name, inputs[0]->getMcmNode()->getName());
+    _logger->debug("Reshape orig: '%s' from '%s'", layer->name, inputs[0]->getMcmNode()->getName());
     auto mvReshape = _modelMcm.reshape(inputs[0]->getMcmNode(), newShape, "", layer->name);
 
-    auto reshape = std::make_shared<McmNodeObject>(mvReshape, DataDesc(layerOutput->getTensorDesc()));
+    auto reshape = std::make_shared<McmNodeObject>(mvReshape, layerOutput->getTensorDesc());
 
     _nodes.push_back(reshape);
     bindData(reshape, layerOutput);
-    env.log->debug("parsed to mcmModel as '%s", mvReshape->getName());
+    _logger->debug("parsed to mcmModel as '%s", mvReshape->getName());
 }
 
 void FrontEndMcm::parseConcat(
@@ -932,13 +922,12 @@ void FrontEndMcm::parseConcat(
         const ie::CNNLayerPtr& layer,
         const McmNodeVector& inputs) {
     UNUSED(modelMcm);
-    const auto& env = CompileEnv::get();
 
     IE_ASSERT(!inputs.empty());
 
     auto clampLayer = std::dynamic_pointer_cast<ie::ConcatLayer>(layer);
     IE_ASSERT(clampLayer != nullptr);
-    IE_ASSERT((int)clampLayer->_axis < inputs[0]->desc().numDims());
+    IE_ASSERT(clampLayer->_axis < inputs[0]->desc().getDims().size());
 
     std::string mcmAxis;
     mcmAxis = mcmAxis + DIM_NAMES[clampLayer->_axis];
@@ -948,17 +937,17 @@ void FrontEndMcm::parseConcat(
         concatInputs.push_back(input->getMcmNode());
     }
 
-    env.log->debug("Concat orig: '%s' from '%s'", clampLayer->name, inputs[0]->getMcmNode()->getName());
+    _logger->debug("Concat orig: '%s' from '%s'", clampLayer->name, inputs[0]->getMcmNode()->getName());
     auto mvConcat = _modelMcm.concat(concatInputs, mcmAxis, {{}, {}, {}, {}}, clampLayer->name + ":step0");
 
     auto layerOutput = clampLayer->outData[0];
     IE_ASSERT(layerOutput != nullptr);
 
-    auto concat = std::make_shared<McmNodeObject>(mvConcat, DataDesc(layerOutput->getTensorDesc()));
+    auto concat = std::make_shared<McmNodeObject>(mvConcat, layerOutput->getTensorDesc());
 
     _nodes.push_back(concat);
     bindData(concat, layerOutput);
-    env.log->debug("parsed to mcmModel as '%s", mvConcat->getName());
+    _logger->debug("parsed to mcmModel as '%s", mvConcat->getName());
 }
 
 void FrontEndMcm::parseArgMax(
@@ -967,8 +956,7 @@ void FrontEndMcm::parseArgMax(
         const McmNodeVector& inputs) {
     UNUSED(modelMcm);
     UNUSED(inputs);
-    const auto& env = CompileEnv::get();
-    env.log->debug("Parsing ArgMax layer %s", layer->name);
+    _logger->debug("Parsing ArgMax layer %s", layer->name);
     VPU_THROW_EXCEPTION << "ArgMax layer is not supported by kmbPlugin";
 }
 
@@ -978,8 +966,7 @@ void FrontEndMcm::parseGRN(
         const McmNodeVector& inputs) {
     UNUSED(modelMcm);
     UNUSED(inputs);
-    const auto& env = CompileEnv::get();
-    env.log->debug("Parsing GRN layer %s", layer->name);
+    _logger->debug("Parsing GRN layer %s", layer->name);
     VPU_THROW_EXCEPTION << "GRN layer is not supported by kmbPlugin";
 }
 
@@ -989,8 +976,7 @@ void FrontEndMcm::parseMVN(
         const McmNodeVector& inputs) {
     UNUSED(modelMcm);
     UNUSED(inputs);
-    const auto& env = CompileEnv::get();
-    env.log->debug("Parsing MVN layer %s", layer->name);
+    _logger->debug("Parsing MVN layer %s", layer->name);
     VPU_THROW_EXCEPTION << "MVN layer is not supported by kmbPlugin";
 }
 
@@ -1000,8 +986,7 @@ void FrontEndMcm::parsePower(
         const McmNodeVector& inputs) {
     UNUSED(modelMcm);
     UNUSED(inputs);
-    const auto& env = CompileEnv::get();
-    env.log->debug("Parsing Power layer %s", layer->name);
+    _logger->debug("Parsing Power layer %s", layer->name);
     VPU_THROW_EXCEPTION << "Power layer is not supported by kmbPlugin";
 }
 
@@ -1011,8 +996,7 @@ void FrontEndMcm::parseDetectionOutput(
         const McmNodeVector& inputs) {
     UNUSED(modelMcm);
     UNUSED(inputs);
-    const auto& env = CompileEnv::get();
-    env.log->debug("Parsing DetectionOutput layer %s", layer->name);
+    _logger->debug("Parsing DetectionOutput layer %s", layer->name);
     VPU_THROW_EXCEPTION << "DetectionOutput layer is not supported by kmbPlugin";
 }
 
@@ -1022,8 +1006,7 @@ void FrontEndMcm::parseSigmoid(
         const McmNodeVector& inputs) {
     UNUSED(modelMcm);
     UNUSED(inputs);
-    const auto& env = CompileEnv::get();
-    env.log->debug("Parsing Sigmoid layer %s", layer->name);
+    _logger->debug("Parsing Sigmoid layer %s", layer->name);
     VPU_THROW_EXCEPTION << "Sigmoid layer is not supported by kmbPlugin";
 }
 
@@ -1033,8 +1016,7 @@ void FrontEndMcm::parseTanH(
         const McmNodeVector& inputs) {
     UNUSED(modelMcm);
     UNUSED(inputs);
-    const auto& env = CompileEnv::get();
-    env.log->debug("Parsing TanH layer %s", layer->name);
+    _logger->debug("Parsing TanH layer %s", layer->name);
     VPU_THROW_EXCEPTION << "TanH layer is not supported by kmbPlugin";
 }
 
@@ -1044,8 +1026,7 @@ void FrontEndMcm::parsePReLU(
         const McmNodeVector& inputs) {
     UNUSED(modelMcm);
     UNUSED(inputs);
-    const auto& env = CompileEnv::get();
-    env.log->debug("Parsing PReLU layer %s", layer->name);
+    _logger->debug("Parsing PReLU layer %s", layer->name);
     VPU_THROW_EXCEPTION << "PReLU layer is not supported by kmbPlugin";
 }
 
@@ -1055,8 +1036,7 @@ void FrontEndMcm::parseBatchNorm(
         const McmNodeVector& inputs) {
     UNUSED(modelMcm);
     UNUSED(inputs);
-    const auto& env = CompileEnv::get();
-    env.log->debug("Parsing PReLU layer %s", layer->name);
+    _logger->debug("Parsing PReLU layer %s", layer->name);
     VPU_THROW_EXCEPTION << "PReLU layer is not supported by kmbPlugin";
 }
 
@@ -1067,8 +1047,7 @@ void FrontEndMcm::parseDeconvolution(
     UNUSED(modelMcm);
     UNUSED(inputs);
     // TODO: Leyer can be with bias
-    const auto& env = CompileEnv::get();
-    env.log->debug("Parsing Deconvolution( layer %s", layer->name);
+    _logger->debug("Parsing Deconvolution( layer %s", layer->name);
     VPU_THROW_EXCEPTION << "Deconvolution layer is not supported by kmbPlugin";
 }
 
@@ -1078,8 +1057,7 @@ void FrontEndMcm::parseCopy(
         const McmNodeVector& inputs) {
     UNUSED(modelMcm);
     UNUSED(inputs);
-    const auto& env = CompileEnv::get();
-    env.log->debug("Parsing Copy layer %s", layer->name);
+    _logger->debug("Parsing Copy layer %s", layer->name);
     VPU_THROW_EXCEPTION << "Copy layer is not supported by kmbPlugin";
 }
 
@@ -1089,8 +1067,7 @@ void FrontEndMcm::parseELU(
         const McmNodeVector& inputs) {
     UNUSED(modelMcm);
     UNUSED(inputs);
-    const auto& env = CompileEnv::get();
-    env.log->debug("Parsing ELU layer %s", layer->name);
+    _logger->debug("Parsing ELU layer %s", layer->name);
     VPU_THROW_EXCEPTION << "ELU layer is not supported by kmbPlugin";
 }
 
@@ -1100,8 +1077,7 @@ void FrontEndMcm::parseCrop(
         const McmNodeVector& inputs) {
     UNUSED(modelMcm);
     UNUSED(inputs);
-    const auto& env = CompileEnv::get();
-    env.log->debug("Parsing Crop layer %s", layer->name);
+    _logger->debug("Parsing Crop layer %s", layer->name);
     VPU_THROW_EXCEPTION << "Crop layer is not supported by kmbPlugin";
 }
 
@@ -1111,8 +1087,7 @@ void FrontEndMcm::parseTile(
         const McmNodeVector& inputs) {
     UNUSED(modelMcm);
     UNUSED(inputs);
-    const auto& env = CompileEnv::get();
-    env.log->debug("Parsing Tile layer %s", layer->name);
+    _logger->debug("Parsing Tile layer %s", layer->name);
     VPU_THROW_EXCEPTION << "Tile layer is not supported by kmbPlugin";
 }
 
@@ -1122,8 +1097,7 @@ void FrontEndMcm::parseNormalize(
         const McmNodeVector& inputs) {
     UNUSED(modelMcm);
     UNUSED(inputs);
-    const auto& env = CompileEnv::get();
-    env.log->debug("Parsing Normalize layer %s", layer->name);
+    _logger->debug("Parsing Normalize layer %s", layer->name);
     VPU_THROW_EXCEPTION << "Normalize layer is not supported by kmbPlugin";
 }
 
@@ -1133,8 +1107,7 @@ void FrontEndMcm::parseRegionYolo(
         const McmNodeVector& inputs) {
     UNUSED(modelMcm);
     UNUSED(inputs);
-    const auto& env = CompileEnv::get();
-    env.log->debug("Parsing RegionYolo layer %s", layer->name);
+    _logger->debug("Parsing RegionYolo layer %s", layer->name);
     VPU_THROW_EXCEPTION << "RegionYolo layer is not supported by kmbPlugin";
 }
 
@@ -1144,8 +1117,7 @@ void FrontEndMcm::parseReorgYolo(
         const McmNodeVector& inputs) {
     UNUSED(modelMcm);
     UNUSED(inputs);
-    const auto& env = CompileEnv::get();
-    env.log->debug("Parsing ReorgYolo layer %s", layer->name);
+    _logger->debug("Parsing ReorgYolo layer %s", layer->name);
     VPU_THROW_EXCEPTION << "ReorgYolo layer is not supported by kmbPlugin";
 }
 
@@ -1155,8 +1127,7 @@ void FrontEndMcm::parseCTCDecoder(
         const McmNodeVector& inputs) {
     UNUSED(modelMcm);
     UNUSED(inputs);
-    const auto& env = CompileEnv::get();
-    env.log->debug("Parsing CTCDecoder layer %s", layer->name);
+    _logger->debug("Parsing CTCDecoder layer %s", layer->name);
     VPU_THROW_EXCEPTION << "CTCDecoder layer is not supported by kmbPlugin";
 }
 
@@ -1166,8 +1137,7 @@ void FrontEndMcm::parseInterp(
         const McmNodeVector& inputs) {
     UNUSED(modelMcm);
     UNUSED(inputs);
-    const auto& env = CompileEnv::get();
-    env.log->debug("Parsing Interp layer %s", layer->name);
+    _logger->debug("Parsing Interp layer %s", layer->name);
     VPU_THROW_EXCEPTION << "Interp layer is not supported by kmbPlugin";
 }
 
@@ -1177,8 +1147,7 @@ void FrontEndMcm::parseProposal(
         const McmNodeVector& inputs) {
     UNUSED(modelMcm);
     UNUSED(inputs);
-    const auto& env = CompileEnv::get();
-    env.log->debug("Parsing Proposal layer %s", layer->name);
+    _logger->debug("Parsing Proposal layer %s", layer->name);
     VPU_THROW_EXCEPTION << "Proposal layer is not supported by kmbPlugin";
 }
 
@@ -1188,8 +1157,7 @@ void FrontEndMcm::parseROIPooling(
         const McmNodeVector& inputs) {
     UNUSED(modelMcm);
     UNUSED(inputs);
-    const auto& env = CompileEnv::get();
-    env.log->debug("Parsing ROIPooling layer %s", layer->name);
+    _logger->debug("Parsing ROIPooling layer %s", layer->name);
     VPU_THROW_EXCEPTION << "ROIPooling layer is not supported by kmbPlugin";
 }
 
@@ -1199,8 +1167,7 @@ void FrontEndMcm::parsePSROIPooling(
         const McmNodeVector& inputs) {
     UNUSED(modelMcm);
     UNUSED(inputs);
-    const auto& env = CompileEnv::get();
-    env.log->debug("Parsing PSROIPooling layer %s", layer->name);
+    _logger->debug("Parsing PSROIPooling layer %s", layer->name);
     VPU_THROW_EXCEPTION << "PSROIPooling layer is not supported by kmbPlugin";
 }
 
@@ -1210,8 +1177,7 @@ void FrontEndMcm::parseCustom(
         const McmNodeVector& inputs) {
     UNUSED(modelMcm);
     UNUSED(inputs);
-    const auto& env = CompileEnv::get();
-    env.log->debug("Parsing Custom layer %s", layer->name);
+    _logger->debug("Parsing Custom layer %s", layer->name);
     VPU_THROW_EXCEPTION << "Custom layer is not supported by kmbPlugin";
 }
 
@@ -1221,8 +1187,7 @@ void FrontEndMcm::parseMTCNN(
         const McmNodeVector& inputs) {
     UNUSED(modelMcm);
     UNUSED(inputs);
-    const auto& env = CompileEnv::get();
-    env.log->debug("Parsing MTCNN layer %s", layer->name);
+    _logger->debug("Parsing MTCNN layer %s", layer->name);
     VPU_THROW_EXCEPTION << "MTCNN layer is not supported by kmbPlugin";
 }
 
@@ -1232,8 +1197,7 @@ void FrontEndMcm::parsePad(
         const McmNodeVector& inputs) {
     UNUSED(modelMcm);
     UNUSED(inputs);
-    const auto& env = CompileEnv::get();
-    env.log->debug("Parsing Pad layer %s", layer->name);
+    _logger->debug("Parsing Pad layer %s", layer->name);
     VPU_THROW_EXCEPTION << "Pad layer is not supported by kmbPlugin";
 }
 
@@ -1243,8 +1207,7 @@ void FrontEndMcm::parseResample(
         const McmNodeVector& inputs) {
     UNUSED(modelMcm);
     UNUSED(inputs);
-    const auto& env = CompileEnv::get();
-    env.log->debug("Parsing Resample layer %s", layer->name);
+    _logger->debug("Parsing Resample layer %s", layer->name);
     VPU_THROW_EXCEPTION << "Resample layer is not supported by kmbPlugin";
 }
 
@@ -1254,8 +1217,7 @@ void FrontEndMcm::parseLSTMCell(
         const McmNodeVector& inputs) {
     UNUSED(modelMcm);
     UNUSED(inputs);
-    const auto& env = CompileEnv::get();
-    env.log->debug("Parsing LSTMCell layer %s", layer->name);
+    _logger->debug("Parsing LSTMCell layer %s", layer->name);
     VPU_THROW_EXCEPTION << "LSTMCell layer is not supported by kmbPlugin";
 }
 
@@ -1265,8 +1227,7 @@ void FrontEndMcm::parsePriorBox(
         const McmNodeVector& inputs) {
     UNUSED(modelMcm);
     UNUSED(inputs);
-    const auto& env = CompileEnv::get();
-    env.log->debug("Parsing PriorBox layer %s", layer->name);
+    _logger->debug("Parsing PriorBox layer %s", layer->name);
     VPU_THROW_EXCEPTION << "PriorBox layer is not supported by kmbPlugin";
 }
 
@@ -1276,8 +1237,7 @@ void FrontEndMcm::parsePriorBoxClustered(
         const McmNodeVector& inputs) {
     UNUSED(modelMcm);
     UNUSED(inputs);
-    const auto& env = CompileEnv::get();
-    env.log->debug("Parsing PriorBoxClustered layer %s", layer->name);
+    _logger->debug("Parsing PriorBoxClustered layer %s", layer->name);
     VPU_THROW_EXCEPTION << "PriorBoxClustered layer is not supported by kmbPlugin";
 }
 
@@ -1287,19 +1247,14 @@ void FrontEndMcm::parseSplit(
         const McmNodeVector& inputs) {
     UNUSED(modelMcm);
     UNUSED(inputs);
-    const auto& env = CompileEnv::get();
-    env.log->debug("Parsing Split layer %s", layer->name);
+    _logger->debug("Parsing Split layer %s", layer->name);
     VPU_THROW_EXCEPTION << "Split layer is not supported by kmbPlugin";
 }
 
 void FrontEndMcm::checkNetwork(const ie::CNNNetwork& network) {
-    const auto& env = CompileEnv::get();
-
     auto networkPrecision = network.getPrecision();
     if (networkPrecision != ie::Precision::FP16) {
-        if (networkPrecision != ie::Precision::FP32 || !env.config.allowFP32Models) {
-            VPU_THROW_EXCEPTION << "Unsupported network precision : " << networkPrecision;
-        }
+        VPU_THROW_EXCEPTION << "Unsupported network precision : " << networkPrecision;
     }
 
     _ieNetworkParser.networkInputs = network.getInputsInfo();

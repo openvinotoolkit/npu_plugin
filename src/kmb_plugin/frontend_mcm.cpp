@@ -23,6 +23,8 @@
 #include <set>
 #include <vector>
 
+#include <vpu/utils/profiling.hpp>
+#include <utils/dims_parser.hpp>
 #include <vpu/compile_env.hpp>
 
 #ifdef ENABLE_MCM_COMPILER
@@ -94,21 +96,16 @@ std::atomic<int> g_counter(0);
 }  // namespace
 
 void FrontEndMcm::buildInitialModel(const ie::ICNNNetwork& network) {
-    const auto& env = CompileEnv::get();
-
     runCommonPasses(network, LayersOrder::DFS);
 
     for (const auto& layer : _ieNetworkParser.orderedLayers) {
         IE_ASSERT(layer != nullptr);
 
-        env.log->debug("try to parse layer %s", layer->name);
+        _logger->debug("try to parse layer %s", layer->name);
 
         McmNodeVector inputs;
         getInputData(layer, inputs);
-        auto it =
-                (_customLayers.count(layer->type) > 0) ?
-                    g_mcm_parsers.find("Custom") :
-                    g_mcm_parsers.find(layer->type);
+        auto it = g_mcm_parsers.find(layer->type);
         if (it == g_mcm_parsers.end()) {
             VPU_THROW_EXCEPTION
                     << "Cannot convert layer \""
@@ -128,8 +125,6 @@ void FrontEndMcm::buildInitialModel(const ie::ICNNNetwork& network) {
 }
 
 std::set<std::string> FrontEndMcm::checkSupportedLayers(const ie::ICNNNetwork& network) {
-    const auto& env = CompileEnv::get();
-
     runCommonPasses(network, LayersOrder::BFS);
 
     std::set<std::string> layerNames;
@@ -137,15 +132,12 @@ std::set<std::string> FrontEndMcm::checkSupportedLayers(const ie::ICNNNetwork& n
     for (const auto& layer : _ieNetworkParser.orderedLayers) {
         IE_ASSERT(layer != nullptr);
 
-        env.log->debug("Try to parse layer %s", layer->name);
+        _logger->debug("Try to parse layer %s", layer->name);
 
         McmNodeVector inputs;
         getInputData(layer, inputs);
 
-        auto it =
-                (_customLayers.count(layer->type) > 0) ?
-                    g_mcm_parsers.find("Custom") :
-                    g_mcm_parsers.find(layer->type);
+        auto it = g_mcm_parsers.find(layer->type);
         if (it != g_mcm_parsers.end()) {
             try {
                 // If we can create and have not thrown exception, then layer is supported.
@@ -167,7 +159,7 @@ std::set<std::string> FrontEndMcm::checkSupportedLayers(const ie::ICNNNetwork& n
 
 ie::CNNNetwork FrontEndMcm::detectNetworkBatch(
         const ie::ICNNNetwork& origNetwork) {
-    VPU_PROFILE(detectNetworkBatch);
+    IE_PROFILING_AUTO_SCOPE(detectNetworkBatch);
 
     // Keep original network.
     IE_SUPPRESS_DEPRECATED_START
@@ -176,10 +168,9 @@ ie::CNNNetwork FrontEndMcm::detectNetworkBatch(
 }
 
 void FrontEndMcm::parseInputData() {
-    VPU_PROFILE(parseInputData);
+    IE_PROFILING_AUTO_SCOPE(parseInputData);
 
-    const auto& env = CompileEnv::get();
-    env.log->debug("Try to parse network input");
+    _logger->debug("Try to parse network input");
 
     //
     // Parse network inputs
@@ -194,26 +185,16 @@ void FrontEndMcm::parseInputData() {
         auto ieData = netInput->getInputData();
         IE_ASSERT(ieData != nullptr);
 
-        DataDesc kmbDesc(ieData->getTensorDesc());
-        if (kmbDesc.numDims() >= 3) {
-            if (env.config.hwOptimization || env.config.forceLayout == ComputeLayout::NCHW) {
-                kmbDesc.moveDim(Dim::C, 2);
-            } else {
-                kmbDesc.moveDim(Dim::C, 0);
-            }
-        }
-        mv::Shape inputShape = {static_cast<std::size_t>(kmbDesc.dim(Dim::W)),
-                                static_cast<std::size_t>(kmbDesc.dim(Dim::H)),
-                                static_cast<std::size_t>(kmbDesc.dim(Dim::C)),
-                                static_cast<std::size_t>(kmbDesc.dim(Dim::N))};
+        const auto& dataDesc = ieData->getTensorDesc();
+        mv::Shape inputShape(getWHCN(dataDesc).getDims());
         auto mvInput = _modelMcm.input(inputShape, mv::DType("Float16"), mv::Order("NCHW"), {{}, {}, {}, {}}, netInput->name());
-        auto input = std::make_shared<McmNodeObject>(mvInput, kmbDesc);
+        auto input = std::make_shared<McmNodeObject>(mvInput, dataDesc);
         _nodes.push_back(input);
         bindData(input, ieData);
-        env.log->debug("Network input '%s'(orig: '%s') parsed to mcmModel", mvInput->getName(), netInput->name());
+        _logger->debug("Network input '%s'(orig: '%s') parsed to mcmModel", mvInput->getName(), netInput->name());
     }
 
-#if 0
+#if 0  // TODO: rewrite logic to mcm compiler if this part is needed
     //
     // Parse constant data
     //
@@ -243,10 +224,9 @@ void FrontEndMcm::parseInputData() {
 }
 
 void FrontEndMcm::parseOutputData() {
-    VPU_PROFILE(parseOutputData);
+    IE_PROFILING_AUTO_SCOPE(parseOutputData);
 
-    const auto& env = CompileEnv::get();
-    env.log->debug("Try to parse network output");
+    _logger->debug("Try to parse network output");
 
     //
     // Parse network outputs
@@ -273,6 +253,8 @@ void FrontEndMcm::runCommonPasses(
     _ieNetworkParser.clear();
     auto reshapedNetwork = detectNetworkBatch(network);  // , model);
 
+    // TODO: CompileEnv must be deleted after network parser would be refactored.
+    CompileEnv::init(Platform::UNKNOWN, {}, _logger);
     //
     // Get IE layers in topological order
     //
@@ -283,6 +265,7 @@ void FrontEndMcm::runCommonPasses(
         _ieNetworkParser.parseNetworkBFS(reshapedNetwork);
     }
 
+    CompileEnv::free();
     //
     // Parse network inputs/outputs/const datas
     //
