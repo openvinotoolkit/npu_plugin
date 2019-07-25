@@ -379,7 +379,7 @@
 				"name": "VPU_DDR_Heap",
 				"alignment": 64,
 				"dataTypeSize": 2,
-				"size": 16777216
+				"size": 31457280
 			},
 
 			{
