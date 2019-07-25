@@ -56,7 +56,6 @@
 #include <details/caseless.hpp>
 #include <graph_tools.hpp>
 #include <description_buffer.hpp>
-#include <xml_parse_utils.h>
 
 #include "kmb_parser.hpp"
 
