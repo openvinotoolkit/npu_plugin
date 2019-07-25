@@ -344,11 +344,10 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                                     workloadsVector.erase(workloadsVector.begin() + workloadsVectorIndex);
                                     ztilingFail = true;
                                 }
-
-                                if(!rectangleFail)
+                                if(!ztilingFail)
                                 {
-                                    rectangleFail = false;
-                                    pass.log(mv::Logger::MessageType::Debug, "Valid workload created using Rectangle");
+                                    ztilingFail = false;
+                                    pass.log(mv::Logger::MessageType::Debug, "Valid workload created using Z-Tiling");
                                     workloadsVectorIndex++;
                                 }
                             }
