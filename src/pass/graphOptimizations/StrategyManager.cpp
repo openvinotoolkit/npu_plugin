@@ -213,7 +213,8 @@ void StrategyManager::writeDot(mv::graph<std::tuple<mv::Op&,StrategySet,int>,dou
 
     for(auto edge = optimizationGraph.edge_begin(); edge != optimizationGraph.edge_end(); ++edge)
     {
-        if( skipInf and ( (*edge) == numeric_limits<double>::infinity()))
+//        if( skipInf and ( (*edge) == numeric_limits<double>::infinity()))
+        if( skipInf and ( (*edge) == 999999.999))
             continue;
         //TODO:: using an object's address to uniquely identify it is a baaaaaaaaad idea. Come up with something normal
         std::string edgeDef = "\t\""
