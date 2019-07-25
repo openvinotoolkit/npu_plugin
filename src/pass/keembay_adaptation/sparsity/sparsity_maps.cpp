@@ -214,11 +214,7 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
                         om.defineFlow(sparsityMap, sink, newSize - 1);
                         sink->set<size_t>("sparsityMapIndex", newSize - 1);
                     }
-                    pass.log(mv::Logger::MessageType::Info, "SetSparse: " + dpuTask->getName() + ": true");
-                }
-                else
-                    pass.log(mv::Logger::MessageType::Info, "SetSparse: " + dpuTask->getName() + ": false");
-                
+                }                
             }
         }
     }
