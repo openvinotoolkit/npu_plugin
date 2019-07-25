@@ -306,13 +306,13 @@ TEST_P(NV12toRGBpTestGAPI, AccuracyTest)
 using testing::Values;
 
 INSTANTIATE_TEST_CASE_P(NV12toRGBTestSIPP, NV12toRGBpTestGAPI,
-                        Values(cv::Size(224, 224)/*,
+                        Values(cv::Size(224, 224),
                                cv::Size(1280,  720),
                                cv::Size(1280,  960),
                                cv::Size( 960,  720),
                                cv::Size( 640,  480),
                                cv::Size( 300,  300),
-                               cv::Size( 320,  200)*/));
+                               cv::Size( 320,  200)));
 
 struct ResizePTestGAPI: public testing::TestWithParam<std::pair<cv::Size, cv::Size>> {};
 TEST_P(ResizePTestGAPI, AccuracyTest)
@@ -385,42 +385,39 @@ TEST_P(KmbSippPreprocTest, TestNV12Resize)
     auto sizes = GetParam();
     cv::Size y_size, out_size;
     std::tie(y_size, out_size) = sizes;
-    auto uv_size = cv::Size{y_size.width/2, y_size.height/2};
-
-    cv::Mat in_mat1 = cv::Mat(y_size, CV_8UC1);
-    cv::randu(in_mat1, cv::Scalar::all(0), cv::Scalar::all(255));
-
-    cv::Mat in_mat2 = cv::Mat(uv_size, CV_8UC2);
-    cv::randu(in_mat2, cv::Scalar::all(128), cv::Scalar::all(255));
-
-    cv::Mat out_mat(out_size, CV_8UC3);
-
-    Blob::Ptr in_blob, out_blob;
-    auto y_blob = img2Blob<prec>(in_mat1, Layout::NHWC);
-    auto uv_blob = img2Blob<prec>(in_mat2, Layout::NHWC);
-    in_blob = make_shared_blob<NV12Blob>(y_blob, uv_blob);
-    out_blob = img2Blob<prec>(out_mat, out_layout);
 
     SIPPPreprocEngine pe;
+    cv::Mat out_mat(out_size, CV_8UC3);
+    Blob::Ptr out_blob = img2Blob<prec>(out_mat, out_layout);
 
     for (int i = 0; i < 10; i++) {
+        y_size.width -= 2;
+        y_size.height -= 2;
+        auto uv_size = cv::Size{y_size.width/2, y_size.height/2};
+
+        cv::Mat in_mat1 = cv::Mat(y_size, CV_8UC1);
+        cv::randu(in_mat1, cv::Scalar::all(0), cv::Scalar::all(255));
+
+        cv::Mat in_mat2 = cv::Mat(uv_size, CV_8UC2);
+        cv::randu(in_mat2, cv::Scalar::all(128), cv::Scalar::all(255));
+
+        auto y_blob = img2Blob<prec>(in_mat1, Layout::NHWC);
+        auto uv_blob = img2Blob<prec>(in_mat2, Layout::NHWC);
+        Blob::Ptr in_blob = make_shared_blob<NV12Blob>(y_blob, uv_blob);
+
         pe.preprocWithSIPP(in_blob, out_blob, interp, in_fmt, true, 1);
+
+        Blob2Img<prec>(out_blob, out_mat, out_layout);
+
+        cv::Mat ocv_out_mat(y_size, CV_8UC3);
+
+        own_NV12toRGB(in_mat1, in_mat2, ocv_out_mat);
+        cv::resize(ocv_out_mat, ocv_out_mat, out_size, 0, 0, cv::INTER_LINEAR);
+
+        cv::Mat absDiff;
+        cv::absdiff(ocv_out_mat, out_mat, absDiff);
+        EXPECT_EQ(cv::countNonZero(absDiff > 1), 0);
     }
-
-    Blob2Img<prec>(out_blob, out_mat, out_layout);
-
-    cv::Mat ocv_out_mat(y_size, CV_8UC3);
-
-    own_NV12toRGB(in_mat1, in_mat2, ocv_out_mat);
-
-    cv::resize(ocv_out_mat, ocv_out_mat, out_size, 0, 0, cv::INTER_LINEAR);
-
-    cv::Mat absDiff;
-    cv::absdiff(ocv_out_mat, out_mat, absDiff);
-    EXPECT_EQ(cv::countNonZero(absDiff > 1), 0);
-
-    cv::imwrite("ocv_out_mat.jpg", ocv_out_mat);
-    cv::imwrite("out_mat.jpg", out_mat);
 }
 
 using namespace testing;

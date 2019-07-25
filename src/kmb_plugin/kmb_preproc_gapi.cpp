@@ -135,7 +135,6 @@ void SIPPPreprocEngine::preprocWithSIPP(const Blob::Ptr &inBlob, Blob::Ptr &outB
     auto outputs   = bind_to_blob(outBlob, batch_size);
 
     // FIXME: add batch
-    // FIXME: add reshape
 
     if (!_lastCompiled) {
         GMat in_y, in_uv;
@@ -149,6 +148,14 @@ void SIPPPreprocEngine::preprocWithSIPP(const Blob::Ptr &inBlob, Blob::Ptr &outB
                                     .compile(own::descr_of(inputs_y[0][0]), own::descr_of(inputs_uv[0][0]),
                                              compile_args(InferenceEngine::gapi::preproc::sipp::kernels(),
                                                           GSIPPBackendInitInfo{0, 3, 8}));
+    } else if (y_blob->getTensorDesc().getDims() != _lastInYDims) {
+        cv::GMetaArgs meta(2);
+        meta[0] = own::descr_of(inputs_y[0][0]);
+        meta[1] = own::descr_of(inputs_uv[0][0]);
+        _lastCompiled.reshape(meta,
+                              compile_args(InferenceEngine::gapi::preproc::sipp::kernels(),
+                                           GSIPPBackendInitInfo{0, 3, 8}));
+        _lastInYDims = y_blob->getTensorDesc().getDims();
     }
     _lastCompiled(gin(inputs_y[0][0], inputs_uv[0][0]), gout(outputs[0][0]));
 }

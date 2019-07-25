@@ -13,6 +13,7 @@ namespace InferenceEngine {
 
 class SIPPPreprocEngine {
     cv::GCompiled _lastCompiled;
+    SizeVector    _lastInYDims;
 
 public:
     void preprocWithSIPP(const Blob::Ptr &inBlob, Blob::Ptr &outBlob,
