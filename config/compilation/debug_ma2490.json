@@ -8,12 +8,13 @@
                 "verbose": "Error",
                 "weights_form": "None",
                 "barrier_index_assignment" : "Dynamic",
-                "Number_of_DPUs" : 4,
-                "Number_of_Clusters" : 4,
+                "Number_of_DPUs" : 1,
+                "Number_of_Clusters" : 1,
                 "UpaShaves": 1,
                 "DDRScratch": 16777216,
                 "MemoryHack": false,
-                "Sparsity": false,
+                "nWorkloads": 1,
+                "Sparsity": true,
                 "CMX_memory_overflow_safety_factor" : 0.925,
                 "mpe_mode" : "Vector",
                 "split_strategy" :
@@ -27,7 +28,213 @@
                 "default_tensor_placement" : "CMX",
                 "streaming_strategy" :
                 [
+                    {
+                        "name_filter" : "conv0/Relu#181",
+                        "output_location" : "CMX",
+                        "splits" : [ {"H" : 2} ]
+                    },
+                    {
+                        "name_filter" : "pool0/MaxPool#182",
+                        "output_location" : "CMX",
+                        "splits" : [ {"H" : 2} ]
+                    },
+                    {
+                        "name_filter" : "group0/block0/convshortcut/Relu#183",
+                        "output_location" : "CMX",
+                        "splits" : [ {"H" : 2} ]
+                    },
+                    {
+                        "name_filter" : "group0/block0/conv3/Relu#186",
+                        "output_location" : "CMX",
+                        "splits" : [ {"H" : 2} ]
+                    },
+                    {
+                        "name_filter" : "group0/block1/conv1/Relu#188",
+                        "output_location" : "CMX",
+                        "splits" : [ {"H" : 2} ]
+                    },
+                    {
+                        "name_filter" : "group0/block1/conv3/Relu#190",
+                        "output_location" : "CMX",
+                        "splits" : [ {"H" : 2} ]
+                    },
+                    {
+                        "name_filter" : "group0/block2/conv1/Relu#192",
+                        "output_location" : "CMX",
+                        "splits" : [ {"H" : 2} ]
+                    },
+                    {
+                        "name_filter" : "group0/block2/conv3/Relu#194",
+                        "output_location" : "CMX",
+                        "splits" : [ {"H" : 2} ]
+                    },
+                    {
+                        "name_filter" : "group1/block0/convshortcut/Relu#196",
+                        "output_location" : "CMX",
+                        "splits" : [ {"H" : 2} ]
+                    },
+                    {
+                        "name_filter" : "group1/block0/conv1/Relu#197",
+                        "output_location" : "CMX",
+                        "splits" : [ {"H" : 2} ]
+                    },
+                    {
+                        "name_filter" : "group2/block0/convshortcut/Relu#213",
+                        "output_location" : "CMX",
+                        "splits" : [ {"K" : 2} ]
+                    },
+                    {
+                        "name_filter" : "group3/block0/convshortcut/Relu#238",
+                        "output_location" : "CMX",
+                        "splits" : [ {"K" : 4} ]
+                    },
+                    {
+                        "name_filter" : "group3/block0/conv2/Relu#240",
+                        "output_location" : "CMX",
+                        "splits" : [ {"K" : 4} ]
+                    },
+                    {
+                        "name_filter" : "group3/block0/conv3/Relu#241",
+                        "output_location" : "CMX",
+                        "splits" : [ {"K" : 2} ]
+                    },
+                    {
+                        "name_filter" : "group3/block1/conv1/Relu#243",
+                        "output_location" : "CMX",
+                        "splits" : [ {"K" : 2} ]
+                    },
+                    {
+                        "name_filter" : "group3/block1/conv2/Relu#244",
+                        "output_location" : "CMX",
+                        "splits" : [ {"K" : 4} ]
+                    },
+                    {
+                        "name_filter" : "group3/block1/conv3/Relu#245",
+                        "output_location" : "CMX",
+                        "splits" : [ {"K" : 2} ]
+                    },
+                    {
+                        "name_filter" : "group3/block2/conv1/Relu#247",
+                        "output_location" : "CMX",
+                        "splits" : [ {"K" : 2} ]
+                    },
+                    {
+                        "name_filter" : "group3/block2/conv2/Relu#248",
+                        "output_location" : "CMX",
+                        "splits" : [ {"K" : 4} ]
+                    },
+                    {
+                        "name_filter" : "group3/block2/conv3/Relu#249",
+                        "output_location" : "CMX",
+                        "splits" : [ {"K" : 2} ]
+                    },
+                    {
+                        "name_filter" : "group0/block0/add#187",
+                        "output_location" : "CMX",
+                        "splits" : [ {"H" : 4} ]
+                    },
+                    {
+                        "name_filter" : "group0/block1/add#191",
+                        "output_location" : "CMX",
+                        "splits" : [ {"H" : 4} ]
+                    },
+                    {
+                        "name_filter" : "group0/block2/add#195",
+                        "output_location" : "CMX",
+                        "splits" : [ {"H" : 4} ]
+                    },
+                    {
+                        "name_filter" : "group1/block0/add#200",
+                        "output_location" : "CMX",
+                        "splits" : [ {"H" : 2} ]
+                    },
+                    {
+                        "name_filter" : "group1/block1/add#204",
+                        "output_location" : "CMX",
+                        "splits" : [ {"H" : 2} ]
+                    },
+                    {
+                        "name_filter" : "group1/block2/add#208",
+                        "output_location" : "CMX",
+                        "splits" : [ {"H" : 2} ]
+                    },
+                    {
+                        "name_filter" : "group1/block3/add#212",
+                        "output_location" : "CMX",
+                        "splits" : [ {"H" : 2} ]
+                    },
+                    {
+                        "name_filter" : "linear0/act_quant/FakeQuantWithMinMaxVars#252",
+                        "output_location" : "CMX",
+                        "splits" : [ {"K" : 4} ]
+                    },
 
+                    {
+                        "name_filter" : "MobilenetV2/expanded_conv_1/expand/Relu#174",
+                        "output_location" : "CMX",
+                        "splits" : [ {"H" : 2} ]
+                    },
+                    {
+                        "name_filter" : "MobilenetV2/expanded_conv_1/depthwise/Relu#175",
+                        "output_location" : "CMX",
+                        "splits" : [ {"H" : 2} ]
+                    },
+                    {
+                        "name_filter" : "MobilenetV2/expanded_conv_2/depthwise/Relu#178",
+                        "output_location" : "CMX",
+                        "splits" : [ {"H" : 2} ]
+                    },
+                    {
+                        "name_filter" : "MobilenetV2/Logits/Conv2d_1c_1x1/act_quant/FakeQuantWithMinMaxVars#234",
+                        "output_location" : "CMX",
+                        "splits" : [ {"K" : 2} ]
+                    },
+
+                    {
+                        "name_filter" : "model/re_lu/Relu#34",
+                        "output_location" : "CMX",
+                        "splits" : [ {"H" : 4} ]
+                    },
+                    {
+                        "name_filter" : "model/max_pooling2d/MaxPool#35",
+                        "output_location" : "CMX",
+                        "splits" : [ {"H" : 4} ]
+                    },
+                    {
+                        "name_filter" : "model/re_lu_1/Relu#36",
+                        "output_location" : "CMX",
+                        "splits" : [ {"H" : 4} ]
+                    },
+                    {
+                        "name_filter" : "model/max_pooling2d_1/MaxPool#37",
+                        "output_location" : "CMX",
+                        "splits" : [ {"H" : 2} ]
+                    },
+                    {
+                        "name_filter" : "model/re_lu_2/Relu#38",
+                        "output_location" : "CMX",
+                        "splits" : [ {"H" : 2} ]
+                    },
+                    {
+                        "name_filter" : "model/re_lu_5/Relu#44",
+                        "output_location" : "CMX",
+                        "splits" : [ {"K" : 2} ]
+                    },
+                    {
+                        "name_filter" : "model/re_lu_6/Relu#46",
+                        "output_location" : "DDR",
+                        "splits" : [ {"K" : 8} ]
+                    },
+                    {
+                        "name_filter" : "model/re_lu_7/Relu#47",
+                        "output_location" : "DDR",
+                        "splits" : [ {"K" : 16} ]
+                    },
+                    {
+                        "name_filter" : "Det/act_quant/FakeQuantWithMinMaxVars#48",
+                        "output_location" : "CMX",
+                        "splits" : [ {"K" : 2} ]
+                    }
                 ]
             },
             "ComputeMemory",
