@@ -161,12 +161,9 @@ void populateWeightsTablesSparsityPointers(mv::Tensor& weightsTableData, mv::Dat
             auto sparsityMapSizeInBytes = sparsityMapSizeInWords * weightsSparsityMap->getDType().getSizeInBits() / 8;
             auto sparsityMapBytesPerOutputChannel = sparsityMapSizeInBytes / outputChannels;
             long int increment = sparsityMapBytesPerOutputChannel;
-            std::cout << weightsSparsityMap->getName() << " SM Bytes: " << std::to_string(sparsityMapSizeInBytes) << "/ output channels: " << outputChannels << " = Bytes p/OutputChannel: " << std::to_string(sparsityMapBytesPerOutputChannel) << std::endl;
             for (size_t i = 0; i < weightsTableData.size(); i+=4, offset +=increment)
-            {
                 weightsTableData(i+1) = offset;
-                std::cout << "SparsityPointer Offset: " << std::to_string(offset) << std::endl;
-            }
+
         }
         // Nothing to do here if is a dense ZMajor convolution
         else
