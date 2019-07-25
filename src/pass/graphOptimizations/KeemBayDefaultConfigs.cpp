@@ -65,13 +65,15 @@ MV_OPTIMIZER_LAYER_STRATEGY_REGISTRY()
 MV_OPTIMIZER_LAYER_STRATEGY_REGISTRY()
     .enter("Input")
     .registerSet("streamingStrategies").insert(vector<string>(0))
-    .registerSet("clusteringStrategies").insert(vector<string>{"Clustering"})
+    .registerSet("clusteringStrategies").insert(vector<string>{"Clustering","SplitOverHOverlapped"})
+    .registerSet("tensorSpilling").insert(true)
     .registerSet("sparsity").insert(false);
 
 MV_OPTIMIZER_LAYER_STRATEGY_REGISTRY()
     .enter("Output")
     .registerSet("streamingStrategies").insert(vector<string>(0))
     .registerSet("clusteringStrategies").insert(vector<string>{"Clustering"})
+    .registerSet("tensorSpilling").insert(true)
     .registerSet("sparsity").insert(false);
 
 }
