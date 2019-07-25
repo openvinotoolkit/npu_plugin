@@ -749,7 +749,7 @@ void FrontEndMcm::parseEltwise(
     auto eltwiseLayer = std::dynamic_pointer_cast<ie::EltwiseLayer>(layer);
     IE_ASSERT(eltwiseLayer != nullptr);
 
-    auto stageType = StageType::None;
+    bool isSumStage = false;
     auto addCoefficient0 = 1.0f;
     auto addCoefficient1 = 1.0f;
 
@@ -786,16 +786,15 @@ void FrontEndMcm::parseEltwise(
             VPU_THROW_EXCEPTION << eltwiseLayer->name <<
                     " Eltwise Sum/Sub operations with such coefficients is not supported by kmbPlugin";
         }
-        stageType = StageType::Sum;
+            isSumStage = true;
         break;
     case ie::EltwiseLayer::eOperation::Prod:
-        stageType = StageType::Prod;
         break;
     default:
         VPU_THROW_EXCEPTION << "Eltwise operation" << eltwiseLayer->_operation << " is not supported";
     }
 
-    if (stageType != StageType::Sum && !eltwiseLayer->coeff.empty()) {
+    if (!isSumStage && !eltwiseLayer->coeff.empty()) {
         VPU_THROW_EXCEPTION << layer->name << " coefficients (1 and -1) are only supported for Sum/Sub operations.";
     }
 
@@ -1257,17 +1256,17 @@ void FrontEndMcm::checkNetwork(const ie::CNNNetwork& network) {
         VPU_THROW_EXCEPTION << "Unsupported network precision : " << networkPrecision;
     }
 
-    _ieNetworkParser.networkInputs = network.getInputsInfo();
-    _ieNetworkParser.networkOutputs = network.getOutputsInfo();
+    _parsedNetwork.networkInputs = network.getInputsInfo();
+    _parsedNetwork.networkOutputs = network.getOutputsInfo();
 
-    if (_ieNetworkParser.networkInputs.empty()) {
+    if (_parsedNetwork.networkInputs.empty()) {
         VPU_THROW_EXCEPTION << "No inputs detected in network " << network.getName();
     }
-    if (_ieNetworkParser.networkOutputs.empty()) {
+    if (_parsedNetwork.networkOutputs.empty()) {
         VPU_THROW_EXCEPTION << "No outputs detected in network " << network.getName();
     }
 
-    for (const auto& netInput : _ieNetworkParser.networkInputs) {
+    for (const auto& netInput : _parsedNetwork.networkInputs) {
         auto inputInfo = netInput.second;
         IE_ASSERT(inputInfo != nullptr);
 
@@ -1280,7 +1279,7 @@ void FrontEndMcm::checkNetwork(const ie::CNNNetwork& network) {
         }
     }
 
-    for (const auto& netOutput : _ieNetworkParser.networkOutputs) {
+    for (const auto& netOutput : _parsedNetwork.networkOutputs) {
         auto outputData = netOutput.second;
         IE_ASSERT(outputData != nullptr);
 

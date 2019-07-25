@@ -22,10 +22,15 @@
 #include <tuple>
 #include <set>
 #include <vector>
+#include <algorithm>
+#include <unordered_map>
+#include <unordered_set>
+#include <utility>
 
-#include <vpu/utils/profiling.hpp>
+#include <graph_tools.hpp>
+#include <ie_profiling.hpp>
+
 #include <utils/dims_parser.hpp>
-#include <vpu/compile_env.hpp>
 
 #ifdef ENABLE_MCM_COMPILER
 namespace vpu {
@@ -96,9 +101,9 @@ std::atomic<int> g_counter(0);
 }  // namespace
 
 void FrontEndMcm::buildInitialModel(const ie::ICNNNetwork& network) {
-    runCommonPasses(network, LayersOrder::DFS);
+    runCommonPasses(network);
 
-    for (const auto& layer : _ieNetworkParser.orderedLayers) {
+    for (const auto& layer : _parsedNetwork.orderedLayers) {
         IE_ASSERT(layer != nullptr);
 
         _logger->debug("try to parse layer %s", layer->name);
@@ -125,11 +130,11 @@ void FrontEndMcm::buildInitialModel(const ie::ICNNNetwork& network) {
 }
 
 std::set<std::string> FrontEndMcm::checkSupportedLayers(const ie::ICNNNetwork& network) {
-    runCommonPasses(network, LayersOrder::BFS);
+    runCommonPasses(network);
 
     std::set<std::string> layerNames;
 
-    for (const auto& layer : _ieNetworkParser.orderedLayers) {
+    for (const auto& layer : _parsedNetwork.orderedLayers) {
         IE_ASSERT(layer != nullptr);
 
         _logger->debug("Try to parse layer %s", layer->name);
@@ -176,9 +181,9 @@ void FrontEndMcm::parseInputData() {
     // Parse network inputs
     //
 
-    IE_ASSERT(_ieNetworkParser.networkInputs.size() == 1);
+    IE_ASSERT(_parsedNetwork.networkInputs.size() == 1);
 
-    for (const auto& inputInfo : _ieNetworkParser.networkInputs) {
+    for (const auto& inputInfo : _parsedNetwork.networkInputs) {
         auto netInput = inputInfo.second;
         IE_ASSERT(netInput != nullptr);
 
@@ -232,7 +237,7 @@ void FrontEndMcm::parseOutputData() {
     // Parse network outputs
     //
 
-    for (const auto& outputInfo : _ieNetworkParser.networkOutputs) {
+    for (const auto& outputInfo : _parsedNetwork.networkOutputs) {
         auto ieData = outputInfo.second;
 
         IE_ASSERT(ieData != nullptr);
@@ -247,29 +252,121 @@ void FrontEndMcm::parseOutputData() {
     }
 }
 
-void FrontEndMcm::runCommonPasses(
-        const ie::ICNNNetwork& network,
-        LayersOrder order) {
-    _ieNetworkParser.clear();
-    auto reshapedNetwork = detectNetworkBatch(network);  // , model);
+void FrontEndMcm::parseNetworkDFS(const ie::CNNNetwork& network, ParsedNetwork& parsedNetwork) {
+    IE_PROFILING_AUTO_SCOPE(parseNetworkDFS);
 
-    // TODO: CompileEnv must be deleted after network parser would be refactored.
-    CompileEnv::init(Platform::UNKNOWN, {}, _logger);
+    ie::details::CaselessEq<std::string> cmp;
+
     //
-    // Get IE layers in topological order
+    // Collect all network input data.
     //
 
-    if (order == LayersOrder::DFS) {
-        _ieNetworkParser.parseNetworkDFS(reshapedNetwork);
-    } else {
-        _ieNetworkParser.parseNetworkBFS(reshapedNetwork);
+    auto reshapedNetwork = detectNetworkBatch(network);
+
+    parsedNetwork.networkInputs = reshapedNetwork.getInputsInfo();
+    parsedNetwork.networkOutputs = reshapedNetwork.getOutputsInfo();
+
+    std::unordered_set<ie::DataPtr> allInputDatas;
+    for (const auto& netInput : parsedNetwork.networkInputs) {
+        auto inputInfo = netInput.second;
+        IE_ASSERT(inputInfo != nullptr);
+
+        auto inputData = inputInfo->getInputData();
+        IE_ASSERT(inputData != nullptr);
+
+        allInputDatas.insert(inputData);
     }
 
-    CompileEnv::free();
     //
-    // Parse network inputs/outputs/const datas
+    // Collect all network const data.
     //
 
+    for (const auto& layer : ie::CNNNetGetAllInputLayers(network)) {
+        IE_ASSERT(layer != nullptr);
+
+        if (!cmp(layer->type, "Const"))
+            continue;
+
+        if (layer->outData.size() != 1) {
+            VPU_THROW_EXCEPTION
+                    << "Const layer " << layer->name
+                    << " has unsupported number of outputs "
+                    << layer->outData.size();
+        }
+
+        if (layer->blobs.size() != 1) {
+            VPU_THROW_EXCEPTION
+                    << "Const layer " << layer->name
+                    << " has unsupported number of blobs "
+                    << layer->blobs.size();
+        }
+
+        auto constData = layer->outData[0];
+        IE_ASSERT(constData != nullptr);
+
+        auto constBlob = layer->blobs.begin()->second;
+        IE_ASSERT(constBlob != nullptr);
+
+        parsedNetwork.constDatas[constData] = constBlob;
+
+        allInputDatas.insert(constData);
+    }
+
+    //
+    // Collect initial layers.
+    //
+
+    std::unordered_set<ie::CNNLayerPtr> visitedInitialLayers;
+    SmallVector<ie::CNNLayerPtr> initialLayers;
+
+    for (const auto& inputData : allInputDatas) {
+        for (const auto& consumer : inputData->getInputTo()) {
+            auto initialLayer = consumer.second;
+            IE_ASSERT(initialLayer != nullptr);
+
+            if (visitedInitialLayers.count(initialLayer) > 0)
+                continue;
+
+            bool allInputsAvailable = true;
+            for (const auto& in : initialLayer->insData) {
+                auto input = in.lock();
+                IE_ASSERT(input != nullptr);
+
+                if (allInputDatas.count(input) == 0) {
+                    allInputsAvailable = false;
+                    break;
+                }
+            }
+
+            if (allInputsAvailable) {
+                visitedInitialLayers.insert(initialLayer);
+                initialLayers.emplace_back(std::move(initialLayer));
+            }
+        }
+    }
+
+    IE_ASSERT(!initialLayers.empty());
+
+    //
+    // Run recursive DFS algorithm.
+    //
+
+    std::sort(initialLayers.begin(), initialLayers.end(),
+              [](const ie::CNNLayerPtr& left, const ie::CNNLayerPtr& right) {
+                  ie::details::CaselessLess<std::string> cmp;
+                  return cmp(left->name, right->name);
+              });
+
+    InferenceEngine::CNNNetForestDFS(initialLayers, [&parsedNetwork](const ie::CNNLayerPtr& layer) {
+        parsedNetwork.orderedLayers.emplace_back(layer);
+    }, false);
+
+    std::reverse(parsedNetwork.orderedLayers.begin(), parsedNetwork.orderedLayers.end());
+}
+
+void FrontEndMcm::runCommonPasses(const ie::ICNNNetwork& network) {
+    auto reshapedNetwork = detectNetworkBatch(network);
+    parseNetworkDFS(reshapedNetwork, _parsedNetwork);
     parseInputData();
 }
 

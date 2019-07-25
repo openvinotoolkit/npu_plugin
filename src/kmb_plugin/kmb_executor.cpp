@@ -29,7 +29,6 @@
 #include <stdio.h>
 #include <unistd.h>
 
-#include <mvnc.h>
 #include <ie_common.h>
 #include <thread>
 

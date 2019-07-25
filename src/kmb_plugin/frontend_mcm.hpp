@@ -29,7 +29,6 @@
 
 #include <vpu/utils/logger.hpp>
 #include <vpu/utils/enums.hpp>
-#include <vpu/frontend/parse_network.hpp>
 #include <vpu/utils/attributes_map.hpp>
 
 #ifdef ENABLE_MCM_COMPILER
@@ -38,6 +37,7 @@
 #include "include/mcm/utils/serializer/Fp16Convert.h"
 #include "meta/include/mcm/op_model.hpp"
 #include "include/mcm/utils/hardware_tests.hpp"
+#include "kmb_base.hpp"
 
 #include <graph_tools.hpp>
 
@@ -50,9 +50,8 @@ class McmNodeObject final :
         public EnableCustomAttributes {
 public:
     explicit McmNodeObject(mv::Data::TensorIterator node, InferenceEngine::TensorDesc desc) : _desc(desc), _mcmNode(node) {}
-    VPU_MODEL_ATTRIBUTE(InferenceEngine::TensorDesc, desc, InferenceEngine::TensorDesc())
-    VPU_MODEL_ATTRIBUTE(ie::DataPtr, origData, nullptr)
-    VPU_MODEL_ATTRIBUTE(DataContent::Ptr, content, nullptr)
+    KMB_MODEL_ATTRIBUTE(InferenceEngine::TensorDesc, desc, InferenceEngine::TensorDesc())
+    KMB_MODEL_ATTRIBUTE(ie::DataPtr, origData, nullptr)
 
     mv::Data::TensorIterator& getMcmNode() { return _mcmNode; }
     void setOrigData(const ie::DataPtr& origData) { _origData = origData; }
@@ -61,7 +60,7 @@ private:
     mv::Data::TensorIterator _mcmNode;
 };
 
-VPU_DEFINE_MODEL_TYPES(McmNode, Object)
+KMB_DEFINE_MODEL_TYPES(McmNode, Object)
 
 namespace ie = InferenceEngine;
 
@@ -83,7 +82,7 @@ public:
 
     std::set<std::string> checkSupportedLayers(const ie::ICNNNetwork& network);
 
-    const std::vector<ie::CNNLayerPtr>& allLayers() const { return _ieNetworkParser.orderedLayers; }
+    const std::vector<ie::CNNLayerPtr>& allLayers() const { return _parsedNetwork.orderedLayers; }
     McmNodePtr output() { return _output; }
     mv::OpModel& getOpModel() {
         return _modelMcm;
@@ -95,8 +94,7 @@ public:
 
 private:
     void runCommonPasses(
-            const ie::ICNNNetwork& network,
-            LayersOrder order);
+            const ie::ICNNNetwork& network);
 
     ie::CNNNetwork detectNetworkBatch(
             const ie::ICNNNetwork& network);
@@ -188,6 +186,15 @@ private:
 //
 
 private:
+    struct ParsedNetwork {
+        ie::InputsDataMap networkInputs;
+        ie::OutputsDataMap networkOutputs;
+        std::unordered_map<ie::DataPtr, ie::Blob::Ptr> constDatas;
+        std::vector<ie::CNNLayerPtr> orderedLayers;
+    };
+
+    void parseNetworkDFS(const ie::CNNNetwork& network, ParsedNetwork& parsedNetwork);
+
     mv::OpModel& _modelMcm;
     McmNodePtrList _nodes;
     McmNodePtr _output;
@@ -195,7 +202,7 @@ private:
     std::unordered_set<ie::DataPtr> _unbatchedOutputs;
     std::unordered_map<ie::DataPtr, McmNode> _ieToMcmMap;
 
-    vpu::IeNetworkParser _ieNetworkParser;
+    ParsedNetwork _parsedNetwork;
 
     Logger::Ptr _logger;
 };

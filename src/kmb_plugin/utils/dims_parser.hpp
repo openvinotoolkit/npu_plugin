@@ -18,8 +18,13 @@
 
 #include <ie_layouts.h>
 
-void parseDims(const InferenceEngine::TensorDesc& desc, size_t& dimN, size_t& dimZ, size_t& dimY, size_t& dimX, size_t defaultValue = 1);
+namespace vpu {
 
-InferenceEngine::TensorDesc getNCHW(const InferenceEngine::TensorDesc& desc, size_t defaultValue = 1);
+void parseDims(const InferenceEngine::TensorDesc &desc, size_t &dimN, size_t &dimZ, size_t &dimY, size_t &dimX,
+               size_t defaultValue = 1);
 
-InferenceEngine::TensorDesc getWHCN(const InferenceEngine::TensorDesc& desc, size_t defaultValue = 1);
+InferenceEngine::TensorDesc getNCHW(const InferenceEngine::TensorDesc &desc, size_t defaultValue = 1);
+
+InferenceEngine::TensorDesc getWHCN(const InferenceEngine::TensorDesc &desc, size_t defaultValue = 1);
+
+}  // namespace vpu

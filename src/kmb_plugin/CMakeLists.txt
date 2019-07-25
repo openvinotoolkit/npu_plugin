@@ -117,7 +117,6 @@ target_link_libraries(${TARGET_NAME}
     PRIVATE
         ${INTEL_ITT_LIBS}
         IE::inference_engine
-        IE::vpu_graph_transformer
         IE::vpu_common_lib
         ${MCM_COMPILER_LIBRARY}
         ${VPUAL_NN_LIBRARY}
@@ -157,7 +156,6 @@ if(ENABLE_TESTS)
                 IE::inference_engine
             PRIVATE
                 ${INTEL_ITT_LIBS}
-                IE::vpu_graph_transformer
                 IE::vpu_common_lib
                 ${MCM_COMPILER_LIBRARY}
                 ${VPUAL_NN_LIBRARY})
