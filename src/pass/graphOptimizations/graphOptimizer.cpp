@@ -607,7 +607,7 @@ public:
 //        {
 //            streamingStrategyPool = createStrategyPoolFromStrategySet(op,"streamingStrategies");
 //        }
-        cout<<"adding strategy for " << op.getName() << endl;
+//        cout<<"adding strategy for " << op.getName() << endl;
 //        auto func = std::bind(createStrategy,op,strategyVec,_1,_2,_3,_4);
 //        applyDescartes(func,sparsityPool,doubleBufferPool,spillingPool,clusteringStrategyPool);
 
@@ -615,13 +615,13 @@ public:
 
         for( const auto sparsity : sparsityPool)
         {
-            cout << "\tsparsity :" << sparsity.toString() << endl;
+//            cout << "\tsparsity :" << sparsity.toString() << endl;
             for( const auto doubleBuffering : doubleBufferPool)
             {
-                cout <<"\tdoubleBuff " << doubleBuffering.toString() << endl;
+//                cout <<"\tdoubleBuff " << doubleBuffering.toString() << endl;
                 for( const auto spilling : spillingPool)
                 {
-                    cout<<"\tspilling " << spilling.toString() << endl;
+//                    cout<<"\tspilling " << spilling.toString() << endl;
                     for( const auto clustering : clusteringStrategyPool)
                     {
                         auto mem = memorySize(op,clustering,sparsity,{1,1,1,1},false);
@@ -635,11 +635,11 @@ public:
                         }
                         else
                         {
-                            maxSplitOverH = (unsigned)ceil((double)activationsSize/(double)clusterMemory);
+                            maxSplitOverH = (unsigned)ceil((double)activationsSize/(double)clusterMemory) + 1;
                         }
-                        cout<<"hasStreamH " << hasStreamOverH << " k " << hasStreamOverK << endl;
-                        cout<<"\tclusterMem " << clusterMemory << " ceil " << ceil((double)activationsSize/(double)clusterMemory) << endl;
-                        cout<<"\tmaxMem " << activationsSize << " maxSplitH " << maxSplitOverH << endl;
+//                        cout<<"hasStreamH " << hasStreamOverH << " k " << hasStreamOverK << endl;
+//                        cout<<"\tclusterMem " << clusterMemory << " ceil " << ceil((double)activationsSize/(double)clusterMemory) << endl;
+//                        cout<<"\tmaxMem " << activationsSize << " maxSplitH " << maxSplitOverH << endl;
 
                         vector<size_t> streamsOverK;
                         if(hasStreamOverK)
@@ -649,10 +649,10 @@ public:
 
                         for(const auto k : streamsOverK)
                         {
-                            cout<<"\tStrK: " << k << endl;
+//                            cout<<"\tStrK: " << k << endl;
                             for(unsigned h = 1; h <= maxSplitOverH; h++)
                             {
-                                cout<<"\tStrH: " << h << endl;
+//                                cout<<"\tStrH: " << h << endl;
                                 Shape streamShape({1,h,1,k});//Stream over W and C are 1 for now . TODO: implement stream W/C
                                 StrategySet s;
                                 s["name"] = op.getName();
