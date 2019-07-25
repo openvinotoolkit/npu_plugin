@@ -56,7 +56,13 @@ void populateSparseDataPointerMultiCluster(mv::Tensor& weightsTableData, mv::Dat
         {
             // First increment is always 0
             weightsTableData(i) = offset + increments[k];
-            std::cout << "Channel  " << k << " " << " Offset " << offset << " Increment " << increments[k] << " Result " << static_cast<int64_t>(weightsTableData(i)) << std::endl;
+            std::cout << "Channel  " << k << " " << " Offset " << offset << " Increment " << increments[k] << " Result " << static_cast<int64_t>(weightsTableData(i));
+            if(k > 0)
+            {
+                std::cout << " Difference " << static_cast<int64_t>(weightsTableData(i)) - static_cast<int64_t>(weightsTableData(i-4));
+            }
+
+            std::cout << std::endl;
             ++k;
         }
     }
