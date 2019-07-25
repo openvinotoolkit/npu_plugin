@@ -55,8 +55,7 @@ void populateSparseDataPointerMultiCluster(mv::Tensor& weightsTableData, mv::Dat
         for (size_t i = 0, k = 0; i < weightsTableData.size(); i+=4)
         {
             // First increment is always 0
-            offset += increments[k++];
-            weightsTableData(i) = offset;
+            weightsTableData(i) = offset + increments[k++];
         }
     }
     else
@@ -69,8 +68,7 @@ void populateSparseDataPointerMultiCluster(mv::Tensor& weightsTableData, mv::Dat
             for (size_t j = 0, k = 0; j < weightsTableData.size()/numClusters; j+=4)
             {
                 // First increment is always 0
-                offset += increments[k++];
-                weightsTableData(j + i * weightsTableData.size()/numClusters) = offset;
+                weightsTableData(j + i * weightsTableData.size()/numClusters) = offset + increments[k++];
             }
         }
     }
