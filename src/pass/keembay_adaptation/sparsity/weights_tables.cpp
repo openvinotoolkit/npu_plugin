@@ -52,7 +52,7 @@ void populateSparseDataPointerMultiCluster(mv::Tensor& weightsTableData, mv::Dat
     long int new_offset = offset;
     if (dpuTaskOp->get<std::string>("splitStrategy") != "SplitOverK")
     {
-        for (size_t i = 0, k = 0; i < weightsTableData.size(); i+=4, )
+        for (size_t i = 0, k = 0; i < weightsTableData.size(); i+=4)
         {
             // First increment is always 0
             offset += increments[k++];
