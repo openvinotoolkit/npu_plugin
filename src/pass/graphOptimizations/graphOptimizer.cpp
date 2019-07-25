@@ -178,7 +178,7 @@ public:
         {
             weightTableSize = 0;
             weightSize = 0;
-            inputSize += tensorSize(op.getInputTensor(1)->getShape(),{streamConfig['W'],streamConfig['H'],streamConfig['C'],1});
+            inputSize += tensorSize(op.getInputTensor(1)->getShape(),{streamConfig["W"],streamConfig["H"],streamConfig["C"],1});
         }
 
         weightSize += weightTableSize;
@@ -354,7 +354,7 @@ public:
         //naively emulate the workload cost
         //TODO: find cleaner solution
         unsigned baseKernelCost;
-        if(opType == "Eltwise")
+        if(opType == "Add")
         {
               baseKernelCost = 1;
         }
@@ -429,6 +429,11 @@ public:
                 childClustering == "SplitOverK")
             return INF;
 
+        //cannot pass directly from SoK to SoH
+        if( parentClustering == "SplitOverK" and
+                childClustering == "SplitOverH")
+            return INF;
+
         //TODO: Only the input can be SOH-Overlapped
 
         //SOH-Overlapped can only go to SOH layers
@@ -437,15 +442,34 @@ public:
             return INF;
 
         //TODO: SOH channelMajor conv requires SoHOverlapped input
+        if( parentClustering == "SplitOverHOverlapped" and
+                (not (parentOp.getOpType() == "Input")))
+            return INF;
 
+        if( childOp.getOpType() == "Conv")
+        {
+            auto weightsShape = childOp.getInputTensor(1)->getShape();
+            auto numInChannels = weightsShape[KERNEL_INPUT_CHANNELS];
+
+            if(numInChannels < 16)
+            {
+                //with this we will assume ChMajorConvolution
+                if( (childClustering == "SplitOverH") and
+                        (not (parentClustering == "SplitOverHOverlapped")))
+                    return INF;
+            }
+        }
         //TODO: disable sparsity for eltwise layer predecessors
 
         //Input and Output must have Spilled==True
-        if( (parentOp.getOpType() == "Input" or
-                childOp.getOpType() == "Output") and
+        if( (parentOp.getOpType() == "Input") and
                 parent["spilling"].get<bool>() == false)
-            return 1.0;
-//            return INF;
+//            return 1.0;
+            return INF;
+
+        if( (childOp.getOpType() == "Output") and
+                child["spilling"].get<bool>() == false)
+            return INF;
 
         //iIf the layer is streaming over H or W, output of this layer has to be spilled
         if( (parent["spilling"] == false) and
