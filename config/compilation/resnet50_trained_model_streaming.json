@@ -572,8 +572,8 @@
             "ArrangeKeembayExecution",
             "AllocateInputOutputTensorsKeemBay",
             "AllocateGraphfileTensorsKeemBay",
-            "ReAllocateImplicitOperationsKeemBay",
             "AllocateCMXTensorsKeemBay",
+            "ReAllocateImplicitOperationsKeemBay",
             {
                 "name": "GenerateDot",
                 "output": "output/dots/BeforeGraphColoring.dot",
