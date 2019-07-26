@@ -123,15 +123,6 @@ target_link_libraries(${TARGET_NAME}
         vpusmm
         )
 
-if (MCM_COMPILER_PATHS_FINDING)
-    unset(MCM_COMPILER_INTERNAL_BUILD CACHE)
-    unset(MCM_COMPILER_INCLUDE_PATH CACHE)
-    unset(MCM_COMPILER_LIBRARY CACHE)
-    unset(MCM_COMPILER_PATHS_FINDING CACHE)
-    unset(FLATBUFFERRS_INCLUDE_PATH CACHE)
-    unset(MCM_SCHEMA_INCLUDE_PATH CACHE)
-endif()
-
 if(ENABLE_TESTS)
     add_library(${TARGET_NAME}_test_static STATIC ${SOURCES})
 
