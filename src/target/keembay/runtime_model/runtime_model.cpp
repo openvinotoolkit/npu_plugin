@@ -4,6 +4,7 @@
 #include "include/mcm/base/exception/argument_error.hpp"
 #include "include/mcm/utils/warning_manager.hpp"
 #include "include/mcm/utils/custom_math.hpp"
+#include "include/mcm/utils/custom_strings.hpp"
 #include <fstream>
 #include <iostream>
 
@@ -228,12 +229,19 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
         {
             if(!t->isPopulated())
             {
-                std::string t_name = t->getName();
                 toBuild->data->sparsity_index = t->getSparsityMap()->getAddress();
                 toBuild->data->storage_element_index = t->getStorageElement()->getAddress();
 
                 //std::cout << "Weights Table: " + t->getSparsityMap()->getName() + " Sparsity Map address: " + std::to_string(t->getSparsityMap()->getAddress()) << std::endl;
                 //std::cout << "Weights Table: " + t->getSparsityMap()->getName() + " storage_element_index: " + std::to_string(t->getStorageElement()->getAddress()) << std::endl;
+            }
+            else
+            {
+                std::string t_name = t->getName();
+                toBuild->data->storage_element_index = 0;
+
+                auto sparsityMapOp = model.getOp(createSparsityMapName(t_name));
+                toBuild->data->sparsity_index = sparsityMapOp.leftmostChild().leftmostOutput()->getTensor()->getAddress();
             }
         }
     }
@@ -1031,7 +1039,6 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
             toBuild->output_data->data->data_index += clusterId * opIt->getOutputTensor(0)->getSubTensor(clusterId).getShape()[IO_CHANNEL_DIMENSION];
         }
     }
-    unsigned num_inputs = opIt->getInputTensor().size();
 
     //OP inputs == n ->
     // n - 2 activation window (when present)
