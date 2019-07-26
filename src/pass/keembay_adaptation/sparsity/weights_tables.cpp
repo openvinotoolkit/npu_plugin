@@ -167,8 +167,18 @@ void populateWeightsTablesSparsityPointers(mv::Tensor& weightsTableData, mv::Dat
             auto sparsityMapSizeInBytes = sparsityMapSizeInWords * weightsSparsityMap->getDType().getSizeInBits() / 8;
             auto sparsityMapBytesPerOutputChannel = sparsityMapSizeInBytes / outputChannels;
             long int increment = sparsityMapBytesPerOutputChannel;
-            for (size_t i = 0; i < weightsTableData.size(); i+=4, offset +=increment)
+            std::cout << "Sparsity pointer for weights table for " << dpuTaskOp->getName() << std::endl;
+            for (size_t i = 0, k = 0; i < weightsTableData.size(); i+=4, offset +=increment)
+            {
                 weightsTableData(i+1) = offset;
+                std::cout << "Channel  " << k << " Result " << static_cast<int64_t>(weightsTableData(i+1));
+                if(k > 0)
+                    std::cout << " Difference " << static_cast<int64_t>(weightsTableData(i+1)) - static_cast<int64_t>(weightsTableData(i+1-4));
+
+
+                std::cout << std::endl;
+                ++k;
+            }
 
         }
         // Nothing to do here if is a dense ZMajor convolution
