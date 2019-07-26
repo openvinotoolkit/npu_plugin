@@ -344,7 +344,7 @@ void StrategyManager::linearDijkstra(mv::Data::OpListIterator opBegin)
 
     mv::graph<std::tuple<mv::Op&,StrategySet,int>,double> optimizationGraph;
     vector<vector<StrategySet>> nodeStrategies;
-    vector<mv::graph<std::tuple<mv::Op&,StrategySet,int>,double>::node_list_iterator> old_nodes,new_nodes;
+    vector<mv::graph<std::tuple<mv::Op&,StrategySet,int>,double>::node_list_iterator> old_nodes,new_nodes,first_nodes,last_nodes;
 
     old_nodes.clear();
 
@@ -358,14 +358,16 @@ void StrategyManager::linearDijkstra(mv::Data::OpListIterator opBegin)
             continue;
         vector<StrategySet> nodeStrategy;
 
-        opCtr++;
-
         generateStrategySetForLayer(*op,nodeStrategy);
         new_nodes.clear();
         for(auto strategy : nodeStrategy)
         {
             new_nodes.push_back(optimizationGraph.node_insert(std::tuple<mv::Op&,StrategySet,int>(*op,strategy,optionCtr++)));
         }
+
+        if(opCtr == 0)
+            first_nodes = new_nodes;
+        opCtr++;
 
         for(const auto oldNode : old_nodes)
             for(const auto newNode : new_nodes)
@@ -384,6 +386,7 @@ void StrategyManager::linearDijkstra(mv::Data::OpListIterator opBegin)
 
         nodeStrategies.push_back(nodeStrategy);
     }
+    last_nodes = old_nodes;
 
     writeDot(optimizationGraph,true);
     costEdgeIteratorComp costEdgeCompare;
@@ -391,9 +394,59 @@ void StrategyManager::linearDijkstra(mv::Data::OpListIterator opBegin)
     auto sinkNodeIt = optimizationGraph.node_begin() ;
     for (int ii=0; ii<optimizationGraph.node_size()-1; ii++) ++sinkNodeIt;
 
-    auto criticalPathEdges = dijkstra<std::tuple<mv::Op&,StrategySet,int>,double,costNodeIteratorComp,costEdgeIteratorComp, double>(optimizationGraph,optimizationGraph.node_begin(),sinkNodeIt,edgeCostMap);
-    
-    saveStrategy(criticalPathEdges);
+    //TODO:: define some typenames, to reduce crazy declarations like this one
+    vector<CriticalPath> criticalPaths;
+
+    for(auto startingNode : first_nodes)
+        for( auto endingNode : last_nodes)
+        {
+            auto criticalPathEdges = dijkstra<std::tuple<mv::Op&,StrategySet,int>,double,costNodeIteratorComp,costEdgeIteratorComp, double>(optimizationGraph,startingNode,endingNode,edgeCostMap);
+            double sum = 0;
+
+            for (int showPath=0; showPath<criticalPathEdges.size(); showPath++)
+                sum+= *(criticalPathEdges[showPath]);
+
+            criticalPaths.push_back(CriticalPath(startingNode,endingNode,criticalPathEdges,sum));
+
+
+        }
+
+    //TODO:: the code below needs to happen at the layer above. When multiple choices are resolved by the recursive solver
+    // currently doing it here .
+
+    CriticalPath finalCriticalPath;
+
+//    double max = numeric_limits<double>::infinity();
+    double max = 999999.999;
+
+    for(auto criticalPath : criticalPaths)
+    {
+        if( get<3>(criticalPath) < max)
+        {
+            finalCriticalPath = criticalPath;
+            max = get<3>(criticalPath);
+        }
+
+    }
+
+
+    auto finalCriticalPathEdges = get<2>(finalCriticalPath);
+    saveStrategy(finalCriticalPathEdges);
+
+    cout << "length of critical path = " << finalCriticalPathEdges.size() << endl ;
+    for (int showPath=0; showPath<finalCriticalPathEdges.size(); showPath++)
+    {
+        cout << "    edge_"<< showPath << " cost is " << *(finalCriticalPathEdges[showPath]) << endl ;
+        auto node = (finalCriticalPathEdges[showPath])->source();
+        auto criticalOp = get<0>(*node);
+        auto ss = get<1>(*node);
+
+        cout << "\tOp : " << criticalOp.getName() << endl;
+        for( auto it = ss.begin(); it != ss.end(); ++it)
+        {
+            cout << "\t\t" << it->first << ": " << it->second.toString() << endl;
+        }
+    }
 }
 
 void StrategyManager::generateStrategySetForLayer(mv::Op& op,vector<StrategySet>& strategyVec)

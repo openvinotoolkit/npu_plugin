@@ -19,6 +19,11 @@ public:
     using StrategySet       = unordered_map<string,Attribute>;
     using LayerStrategySet  = unordered_map<string,StrategySet>;
 
+    using CriticalPath = std::tuple<mv::graph<std::tuple<mv::Op&,StrategySet,int>,double>::node_list_iterator,
+            mv::graph<std::tuple<mv::Op&,StrategySet,int>,double>::node_list_iterator,
+            std::vector<graph<std::tuple<mv::Op&,StrategySet,int>,double>::edge_list_iterator>,
+            double>;
+
     GlobalSetting globalConfig_;
     GlobalSetting globalStrategies_;
     LayerStrategySet layerStrategies_;
