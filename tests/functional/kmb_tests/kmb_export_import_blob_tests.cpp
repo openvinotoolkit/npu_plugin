@@ -28,14 +28,16 @@
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 
+enum class FileIOResult { FileNotOpened = -1, FilesWithDifferentSize = -2, FilesHaveEqualSize = 1 };
+
 #ifdef ENABLE_MCM_COMPILER
-// This function is necessary to check that two files with blobs have the same size (see test below)
+// This function calculate size of file and is used in tests below to check that
+// two files with blobs have the same size
 size_t getFileSize(const std::string &fileName) {
     std::ifstream file(fileName.c_str(), std::ifstream::in | std::ifstream::binary);
 
     if(!file.is_open()) {
-        std::cout << "File can not be opened: " << fileName << std::endl;
-        return -1;
+        return static_cast<size_t>(FileIOResult::FileNotOpened);
     }
 
     file.seekg(0, std::ios::end);
@@ -46,13 +48,12 @@ size_t getFileSize(const std::string &fileName) {
 }
 
 // Function for comparison of content of two blob files
-bool isContentOfFilesEqual (const std::string &fileName1, const std::string &fileName2){
+FileIOResult isContentOfFilesEqual (const std::string &fileName1, const std::string &fileName2){
     std::ifstream file1(fileName1.c_str(), std::ifstream::in | std::ifstream::binary);
     std::ifstream file2(fileName2.c_str(), std::ifstream::in | std::ifstream::binary);
 
     if( !file1.is_open() || !file2.is_open() ) {
-        std::cout << "Can not open file! " << std::endl;
-        return false;
+        return FileIOResult :: FileNotOpened;
     }
 
     char x, y;
@@ -62,93 +63,37 @@ bool isContentOfFilesEqual (const std::string &fileName1, const std::string &fil
         file1.read(&x, 1);
         file2.read(&y, 1);
         if ( x != y )
-            return false;
+            return FileIOResult :: FilesWithDifferentSize;
     }
-    return true;
+    return FileIOResult :: FilesHaveEqualSize;
 }
 
-TEST_F(kmbLayersTests_nightly, TestExportImportBlob01) {
-
-    extern std::string full_quant_model;
-
-    std::string model = full_quant_model;
-
-    REPLACE_WITH_STR(model, "<biases offset=\"147456\" size=\"256\"/>", " ");
-    REPLACE_WITH_STR(model, "<biases offset=\"213248\" size=\"1024\"/>", " ");
-
-    ASSERT_NO_THROW(_net_reader.ReadNetwork(model.data(), model.length()));
-    ASSERT_TRUE( _net_reader.isParseSuccess() );
-
-    StatusCode sts;
-    InferenceEngine::ResponseDesc response;
-    std::map<std::string, std::string> config;
-    IExecutableNetwork::Ptr exeNetwork;
-    details::CNNNetworkImplPtr clonedNetwork;
-    CNNNetworkInt8Normalizer cnnorm;
-
-    setCommonConfig(config);
-    config[VPU_KMB_CONFIG_KEY(MCM_PARSING_ONLY)] = CONFIG_VALUE(NO);
-    config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_BLOB)] = CONFIG_VALUE(YES);
-    config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_DOT)] = CONFIG_VALUE(YES);
-    config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_JSON)] = CONFIG_VALUE(YES);
-    config[VPU_CONFIG_KEY(ALLOW_FP32_MODELS)] = CONFIG_VALUE(YES);
-
-    std::size_t weightSize = 147456 + 65536;
-    std::size_t biasSize = 256 + 1024;
-    TBlob<uint8_t>::Ptr weightsBlob(GenWeights(weightSize + biasSize));
-    ASSERT_NO_THROW(_net_reader.SetWeights(weightsBlob));
-
-    CNNNetwork network = _net_reader.getNetwork();
-
-    _inputsInfo = network.getInputsInfo();
-    _inputsInfo["input"]->setPrecision(Precision::FP32);
-
-    _outputsInfo = network.getOutputsInfo();
-    _outputsInfo["conv2"]->setPrecision(Precision::FP32);
-
-    ICNNNetworkStats* pstats = nullptr;
-    StatusCode s = ((ICNNNetwork&)network).getStats(&pstats, nullptr);
-
-    ASSERT_EQ(StatusCode::OK, s);
-
-    if ( ! pstats->isEmpty() ) {
-        clonedNetwork = cloneNet(network);
-        cnnorm.NormalizeNetwork(*clonedNetwork, *pstats);
-        sts = myriadPluginPtr->LoadNetwork(_exeNetwork, *clonedNetwork, config, &response);
-    }
-    ASSERT_EQ(StatusCode::OK, sts) << _resp.msg;
-
+// This function is call at the end part of each test.
+// At the begining of each test it is necessary to set up network (CNNNetwork) and its configuration.
+// After that you could call this function to make all of remaining work.
+void ExportImportBlobToFromFile(const CNNNetwork& network, const std::map<std::string, std::string>& config, const std::string& testDescription ) {
     Core ie;
-//    _exeNetwork = ie.LoadNetwork(network, "KMB", config);  // Core::LoadNetwork - does not work
-//    ASSERT_NE(nullptr, _exeNetwork);
+    ExecutableNetwork exeNetwork = ie.LoadNetwork(network, "KMB", config);
 
+    std::string blobFileName1 = testDescription + "ExportBlob01.blob";
+    exeNetwork.Export(blobFileName1);
+    ASSERT_GT( getFileSize(blobFileName1), 0 ) << "Alarm! Alarm! We have gotten blob file with zero size!!!";
 
-    std::string blobFileName1 = "Test01ExportBlob01.blob";
-//    std::cout << "Try to write blob to file" << std::endl; // Uncomment this line for debug
-    s = _exeNetwork->Export(blobFileName1, nullptr);
-    ASSERT_EQ(StatusCode::OK, s);
-    ASSERT_GT( getFileSize(blobFileName1), 0 ) << "Alarm! Alarm! We get blob file with zero size!!!";
+    //  Try to import executable network and write it back to file via Export()
+    ExecutableNetwork importedNetwork = ie.ImportNetwork(blobFileName1, "KMB", config);
+    std::string blobFileName2 = testDescription + "ExportBlob02.blob";
+    importedNetwork.Export(blobFileName2);
 
-//    std::cout << "Try to load blob from file" << std::endl; // Uncomment this line for debug
-    InferenceEngine::IExecutableNetwork::Ptr importedNetworkPtr = ie.ImportNetwork(blobFileName1, "KMB", {});
-    ASSERT_NE(nullptr, importedNetworkPtr);
-
-    std::string blobFileName2 = "Test01ExportBlob02.blob";
-//    std::cout << "Try to write blob to file again" << std::endl; // Uncomment this line for debug
-    s = importedNetworkPtr->Export(blobFileName2, nullptr);
-    ASSERT_EQ(StatusCode::OK, s);
-
-//    std::cout << "Compare size of base and derivated executable networks" << std::endl; // Uncomment this line for debug
+    // Check for non-zero size of files and  compare them by size
     ASSERT_GT( getFileSize(blobFileName1), 0 ); // Test to be sure that first file size is not zero.
     ASSERT_GT( getFileSize(blobFileName2), 0 ); // Test to be sure that second file size is not zero.
     ASSERT_EQ(getFileSize(blobFileName1), getFileSize(blobFileName2)); // And now compare size of first and second file
 
-//    std::cout << "Compare content of base and derivated executable networks" << std::endl; // Uncomment this line for debug
-    ASSERT_TRUE( isContentOfFilesEqual(blobFileName1, blobFileName2) );
-
+    //  Compare contents of files
+    ASSERT_EQ( isContentOfFilesEqual(blobFileName1, blobFileName2), FileIOResult::FilesHaveEqualSize );
 }
 
-TEST_F(kmbLayersTests_nightly, TestExportImportBlob02) {
+TEST_F(kmbLayersTests_nightly, TestExportImportBlob01) {
 
     extern std::string conv_after_scale_shift;
     std::string model = conv_after_scale_shift;
@@ -178,38 +123,187 @@ TEST_F(kmbLayersTests_nightly, TestExportImportBlob02) {
     config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_DOT)] = CONFIG_VALUE(YES);
     config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_JSON)] = CONFIG_VALUE(YES);
 
-    StatusCode st;
-    ASSERT_NO_THROW(st = myriadPluginPtr->LoadNetwork(_exeNetwork, network, config, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
-    Core ie;
-//    _exeNetwork = ie.LoadNetwork(network, "KMB", config);  // Core::LoadNetwork - does not work
-//    ASSERT_NE(nullptr, _exeNetwork);
-
-
-    std::string blobFileName1 = "Test02ExportBlob01.blob";
-//    std::cout << "Try to write blob to file" << std::endl; // Uncomment this line for debug
-    StatusCode s = _exeNetwork->Export(blobFileName1, nullptr);
-    ASSERT_EQ(StatusCode::OK, s);
-    ASSERT_GT( getFileSize(blobFileName1), 0 ) << "Alarm! Alarm! We get blob file with zero size!!!";
-
-//    std::cout << "Try to load blob from file" << std::endl; // Uncomment this line for debug
-    InferenceEngine::IExecutableNetwork::Ptr importedNetworkPtr = ie.ImportNetwork(blobFileName1, "KMB", {});
-    ASSERT_NE(nullptr, importedNetworkPtr);
-
-    std::string blobFileName2 = "Test02ExportBlob02.blob";
-//    std::cout << "Try to write blob to file again" << std::endl; // Uncomment this line for debug
-    s = importedNetworkPtr->Export(blobFileName2, nullptr);
-    ASSERT_EQ(StatusCode::OK, s);
-
-//    std::cout << "Compare size of base and derivated executable networks" << std::endl; // Uncomment this line for debug
-    ASSERT_GT( getFileSize(blobFileName1), 0 ); // Test to be sure that first file size is not zero.
-    ASSERT_GT( getFileSize(blobFileName2), 0 ); // Test to be sure that second file size is not zero.
-    ASSERT_EQ(getFileSize(blobFileName1), getFileSize(blobFileName2)); // And now compare size of first and second file
-
-//    std::cout << "Compare content of base and derivated executable networks" << std::endl; // Uncomment this line for debug
-    ASSERT_TRUE( isContentOfFilesEqual(blobFileName1, blobFileName2) );
+    ExportImportBlobToFromFile(network, config, "Test01" );
 }
-#endif
 
+TEST_F(kmbLayersTests_nightly, TestExportImportBlob02) {
+
+    extern std::string full_quant_model;
+
+    std::string model = full_quant_model;
+
+    REPLACE_WITH_STR(model, "<biases offset=\"147456\" size=\"256\"/>", " ");
+    REPLACE_WITH_STR(model, "<biases offset=\"213248\" size=\"1024\"/>", " ");
+
+    ASSERT_NO_THROW(_net_reader.ReadNetwork(model.data(), model.length()));
+    ASSERT_TRUE( _net_reader.isParseSuccess() );
+
+    StatusCode sts;
+    InferenceEngine::ResponseDesc response;
+    std::map<std::string, std::string> config;
+    ExecutableNetwork executableNetwork;
+    details::CNNNetworkImplPtr clonedNetwork;
+    CNNNetworkInt8Normalizer cnnorm;
+
+    setCommonConfig(config);
+    config[VPU_KMB_CONFIG_KEY(MCM_PARSING_ONLY)] = CONFIG_VALUE(NO);
+    config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_BLOB)] = CONFIG_VALUE(YES);
+    config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_DOT)] = CONFIG_VALUE(YES);
+    config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_JSON)] = CONFIG_VALUE(YES);
+
+    std::size_t weightSize = 147456 + 65536;
+    std::size_t biasSize = 256 + 1024;
+    TBlob<uint8_t>::Ptr weightsBlob(GenWeights(weightSize + biasSize));
+    ASSERT_NO_THROW(_net_reader.SetWeights(weightsBlob));
+
+    CNNNetwork network = _net_reader.getNetwork();
+
+    _inputsInfo = network.getInputsInfo();
+    _inputsInfo["input"]->setPrecision(Precision::FP32);
+
+    _outputsInfo = network.getOutputsInfo();
+    _outputsInfo["conv2"]->setPrecision(Precision::FP32);
+
+    ICNNNetworkStats* pstats = nullptr;
+    StatusCode s = ((ICNNNetwork&)network).getStats(&pstats, nullptr);
+
+    ASSERT_EQ(StatusCode::OK, s);
+
+    if ( ! pstats->isEmpty() ) {
+        clonedNetwork = cloneNet(network);
+        //cnnorm.NormalizeNetwork(*clonedNetwork, *pstats);
+        InferenceEngine::details::CNNNetworkInt8Normalizer::NormalizeNetwork(*clonedNetwork, *pstats);
+    }
+
+    ExportImportBlobToFromFile(CNNNetwork(clonedNetwork), config, "Test02" );
+}
+
+
+TEST_F(kmbLayersTests_nightly, TestExportImportBlob03) {
+    const std::string model = R"V0G0N(
+    <net batch="1" name="POOLING_TEST" version="2">
+        <layers>
+            <layer id="0" name="input" precision="FP16" type="Input">
+                <output>
+                    <port id="0">
+                        <dim>1</dim>
+                        <dim>3</dim>
+                        <dim>224</dim>
+                        <dim>224</dim>
+                    </port>
+                </output>
+            </layer>
+            <layer id="1" name="pooling_test" precision="FP16" type="Pooling">
+                <data auto_pad="same_upper" exclude-pad="true" kernel="3,3" pads_begin="0,0" pads_end="1,1" pool-method="max" strides="2,2"/>
+                <input>
+                    <port id="0">
+                        <dim>1</dim>
+                        <dim>3</dim>
+                        <dim>224</dim>
+                        <dim>224</dim>
+                    </port>
+                </input>
+                <output>
+                    <port id="1">
+                        <dim>1</dim>
+                        <dim>3</dim>
+                        <dim>224</dim>
+                        <dim>224</dim>
+                    </port>
+                </output>
+            </layer>
+            </layers>
+        <edges>
+            <edge from-layer="0" from-port="0" to-layer="1" to-port="0"/>
+        </edges>
+    </net>
+        )V0G0N";
+
+    StatusCode st;
+
+    ASSERT_NO_THROW(_net_reader.ReadNetwork(model.data(), model.length()));
+    ASSERT_TRUE(_net_reader.isParseSuccess());
+
+    auto network = _net_reader.getNetwork();
+
+    _inputsInfo = network.getInputsInfo();
+    _inputsInfo["input"]->setPrecision(Precision::FP16);
+
+    _outputsInfo = network.getOutputsInfo();
+    _outputsInfo["pooling_test"]->setPrecision(Precision::FP16);
+
+    std::map<std::string, std::string> config;
+    setCommonConfig(config);
+    config[VPU_KMB_CONFIG_KEY(MCM_PARSING_ONLY)] = CONFIG_VALUE(NO);
+    config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_BLOB)] = CONFIG_VALUE(YES);
+    config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_DOT)] = CONFIG_VALUE(YES);
+    config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_JSON)] = CONFIG_VALUE(YES);
+
+    ExportImportBlobToFromFile(network, config, "Test03" );
+}
+
+
+TEST_F(kmbLayersTests_nightly, TestExportImportBlob04) {
+    const std::string model = R"V0G0N(
+        <net batch="1" name="RELU_TEST" version="2">
+            <layers>
+                <layer id="0" name="input" precision="FP16" type="Input">
+                    <output>
+                        <port id="0">
+                            <dim>1</dim>
+                            <dim>64</dim>
+                            <dim>112</dim>
+                            <dim>112</dim>
+                        </port>
+                    </output>
+                </layer>
+                <layer id="3" name="relu_test" precision="FP16" type="ReLU">
+                    <input>
+                        <port id="0">
+                            <dim>1</dim>
+                            <dim>64</dim>
+                            <dim>112</dim>
+                            <dim>112</dim>
+                        </port>
+                    </input>
+                    <output>
+                        <port id="1">
+                            <dim>1</dim>
+                            <dim>64</dim>
+                            <dim>112</dim>
+                            <dim>112</dim>
+                        </port>
+                    </output>
+                </layer>
+            </layers>
+            <edges>
+                <edge from-layer="0" from-port="0" to-layer="3" to-port="0"/>
+            </edges>
+        </net>
+            )V0G0N";
+
+
+    ASSERT_NO_THROW(_net_reader.ReadNetwork(model.data(), model.length()));
+    ASSERT_TRUE(_net_reader.isParseSuccess());
+
+    auto network = _net_reader.getNetwork();
+
+    _inputsInfo = network.getInputsInfo();
+    _inputsInfo["input"]->setPrecision(Precision::FP16);
+
+    _outputsInfo = network.getOutputsInfo();
+    _outputsInfo["relu_test"]->setPrecision(Precision::FP16);
+
+    std::map<std::string, std::string> config;
+    setCommonConfig(config);
+    config[VPU_KMB_CONFIG_KEY(MCM_PARSING_ONLY)] = CONFIG_VALUE(NO);
+    config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_BLOB)] = CONFIG_VALUE(YES);
+    config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_DOT)] = CONFIG_VALUE(YES);
+    config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_JSON)] = CONFIG_VALUE(YES);
+
+    ExportImportBlobToFromFile(network, config, "Test04" );
+
+}
+
+#endif
 
