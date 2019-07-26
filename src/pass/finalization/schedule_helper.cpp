@@ -47,14 +47,21 @@ void addressHelperPass(const mv::pass::PassEntry& pass, mv::ComputationModel& mo
     for (auto e : addressList)
     {
         std::string& name = e.get<std::string>("name_filter");
-        int64_t address = e.get<int64_t>("address");
+        int64_t address = e.get<int>("address");
         pass.log(mv::Logger::MessageType::Debug, "ADDRESS HELPER setting address of "+name+" to "+std::to_string(address));
-        auto t = dm.getTensor(name);
-        t->setAddress(address);
-        auto tensorAllocatorName = t->get<std::set<std::string>>("allocators").begin();
-        auto tensorAllocator = dm.getAllocator(*tensorAllocatorName);
-        mv::Data::BufferIterator tensorBufferIt = tensorAllocator.getBuffer(0, t); // 0 is the only stage for now, but this will probably change in the future
-        tensorBufferIt->setOffset(address);
+        try
+        {
+            auto t = dm.getTensor(name);
+            t->setAddress(address);
+            auto tensorAllocatorName = t->get<std::set<std::string>>("allocators").begin();
+            auto tensorAllocator = dm.getAllocator(*tensorAllocatorName);
+            mv::Data::BufferIterator tensorBufferIt = tensorAllocator.getBuffer(0, t); // 0 is the only stage for now, but this will probably change in the future
+            tensorBufferIt->setOffset(address);
+        }
+        catch (mv::ArgumentError error)
+        {
+            std::cout << error.what() << std::endl;
+        }
 
     }
 }
