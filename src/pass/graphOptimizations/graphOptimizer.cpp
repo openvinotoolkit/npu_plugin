@@ -256,6 +256,10 @@ public:
         if(globalEnableStreaming)
             maxSplits = (clusterOutChannelSize/16);
 
+        //TODO::::REMOVE THIS ONCE FIX INSANE COMPILE TIME
+        if(maxSplits > 16)
+            maxSplits = 16;
+
         for(unsigned split = 1; split <= maxSplits; split++)
         {
             bool validSplit = true;
@@ -511,7 +515,7 @@ public:
         }
 
         //TODO:: do the prefetching
-        double extra_stream_decay = 1.8; //TODO: expose in config
+        double extra_stream_decay = 10.0; //TODO: expose in config
         if(parentOp.getOpType() == "Conv")
         {
             auto streamOverK = parent["streaming"].get<Shape>()["K"];
@@ -544,7 +548,7 @@ public:
             auto iSize = parentOp.getInputTensor(0)->getShape().totalSize();
             auto oSize = parentOp.getOutputTensor(0)->getShape().totalSize();
 
-            execTime1 += ((double)(iSize + oSize) / (double)parentStreamOverH) / (double)ddrBandwidth * extra_stream_decay;
+            execTime1 += (((double)(iSize + oSize) / (double)parentStreamOverH) / (double)ddrBandwidth) * extra_stream_decay;
         }
         auto childStreamOverH = child["streaming"].get<Shape>()["H"];
         if(childStreamOverH > 1)
@@ -552,7 +556,7 @@ public:
             auto iSize = childOp.getInputTensor(0)->getShape().totalSize();
             auto oSize = childOp.getOutputTensor(0)->getShape().totalSize();
 
-            execTime2 += ((double)(iSize + oSize) / (double)childStreamOverH) / (double)ddrBandwidth  * extra_stream_decay;
+            execTime2 += (((double)(iSize + oSize) / (double)childStreamOverH) / (double)ddrBandwidth)  * extra_stream_decay;
         }
 
         return execTime1 + execTime2;
@@ -582,6 +586,7 @@ public:
         globalEnableStreaming = globalStrategies_["enableStreaming"].get<bool>();
 
         auto findStrategy = [](vector<Attribute>& vec,const string& str) ->bool { for(const auto elem : vec) if(str==elem.get<string>()) return true; return false;};
+        auto roundUp = [](unsigned in,unsigned val) -> unsigned {return (in & val)+val;};
 
         vector<Attribute> sparsityPool = createStrategyPoolFromBool(op,"sparsity");
         vector<Attribute> doubleBufferPool = createStrategyPoolFromBool(op,"doubleBuffering");
@@ -635,8 +640,9 @@ public:
                         }
                         else
                         {
-                            maxSplitOverH = (unsigned)ceil((double)activationsSize/(double)clusterMemory) + 1;
+                            maxSplitOverH = roundUp((unsigned)ceil((double)activationsSize/(double)clusterMemory) + 1,2);
                         }
+
 //                        cout<<"hasStreamH " << hasStreamOverH << " k " << hasStreamOverK << endl;
 //                        cout<<"\tclusterMem " << clusterMemory << " ceil " << ceil((double)activationsSize/(double)clusterMemory) << endl;
 //                        cout<<"\tmaxMem " << activationsSize << " maxSplitH " << maxSplitOverH << endl;
@@ -652,6 +658,12 @@ public:
 //                            cout<<"\tStrK: " << k << endl;
                             for(unsigned h = 1; h <= maxSplitOverH; h++)
                             {
+                                //TODO: these are very fast hacks. Delete after we can allow nested streams and
+                                // non-%2-number of streams
+                                if((h!=1) and (h%2))
+                                    continue;
+                                if( (h>1) and (k>1))
+                                    continue;
 //                                cout<<"\tStrH: " << h << endl;
                                 Shape streamShape({1,h,1,k});//Stream over W and C are 1 for now . TODO: implement stream W/C
                                 StrategySet s;
