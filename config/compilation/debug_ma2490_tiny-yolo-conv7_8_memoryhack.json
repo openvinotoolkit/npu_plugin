@@ -5,7 +5,7 @@
                 "name" : "GlobalConfigParams",
                 "_comment" : "Stores common params accross multiple passes. Access through the Computation Model.",
                 "recorded_model": true,
-                "verbose": "Debug",
+                "verbose": "Error",
                 "weights_form": "None",
                 "barrier_index_assignment" : "Dynamic",
                 "Number_of_DPUs" : 1,
@@ -92,21 +92,14 @@
                 "streaming_strategy" :
                 [
                     {
-                        "name_filter" : "conv0_cmx_",
-                        "output_location" : "CMX",
-                        "splits" : [
-                            {"K" : 4}
-                        ]
-                    },
-                    {
-                        "name_filter" : "conv7#7",
+                        "name_filter" : "conv7#46",
                         "output_location" : "DDR",
                         "splits" : [
                             {"K" : 2}
                         ]
                     },
                     {
-                        "name_filter" : "conv8/conv8#8",
+                        "name_filter" : "conv8#47",
                         "output_location" : "DDR",
                         "splits" : [
                             {"K" : 4}
@@ -363,6 +356,62 @@
             {
                 "name": "ConvertDot",
                 "input": "output/dots/adapt_model.dot"
+            },
+            {
+                "name" : "GraphParameterOptimization",
+                "graphOptimizerConfig" : {
+                    "globalConfigs" : [
+                        {"name" : "totalClusters",  "value" : 1   },
+                        {"name" : "clusterMemory",  "value" : 3584 },
+                        {"name" : "dpuPerCluster",  "value" : 1   },
+                        {"name" : "ddrBandwidth",   "value" : 20000 },
+                        {"name" : "systemClockMhz", "value" : 500 },
+                        {"name" : "FathomSafetyFactor", " value" : 0.95},
+                        {"name" : "dotFileLocation", "value" : "/home/patd/mcmDot.dot"}
+                    ],
+                    "globalStrategies" : [
+                        {"name" : "tensorSpilling",    "value" : false       },
+                        {"name" : "enableStreaming",   "value" : true       },
+                        {"name" : "doubleBuffering",   "value" : false      },
+                        {"name" : "scooby" ,            "value" : "doo"},
+                        {"name" : "enableSparsity",    "value" : false      },
+                        {"name" : "clusteringStrategy","value" : "Automatic"}
+                    ],
+                    "layerStrategies" : [
+                        {
+                            "name" : "Conv",
+                            "strategies": [
+                                {"name" : "streamingStrategies",  "value" : ["StreamOverH","StreamOverW","StreamOverK"]},
+                                {"name" : "clusteringStrategies", "value" : ["SplitOverH","SplitOverK"]},
+                                {"name" : "sparsity",             "value" : false}
+                            ]
+                        },
+                        {
+                            "name" : "DepthWiseConv",
+                            "strategies": [
+                                {"name" : "streamingStrategies",  "value" : ["StreamOverH","StreamOverW"]},
+                                {"name" : "clusteringStrategies", "value" : ["SplitOverH"]},
+                                {"name" : "sparsity",             "value" : false}
+                            ]
+                        },
+                        {
+                            "name" : "MaxPool",
+                            "strategies": [
+                                {"name" : "streamingStrategies",  "value" : ["StreamOverH","StreamOverW"]},
+                                {"name" : "clusteringStrategies", "value" : ["SplitOverH"]},
+                                {"name" : "sparsity",             "value" : false}
+                            ]
+                        },
+                        {
+                            "name" : "Eltwise",
+                            "strategies": [
+                                {"name" : "streamingStrategies",  "value" : ["StreamOverH","StreamOverW"]},
+                                {"name" : "clusteringStrategies", "value" : ["SplitOverH"]},
+                                {"name" : "sparsity",             "value" : false}
+                            ]
+                        }
+                    ]
+                }
             },
             "StreamingTiling",
             {

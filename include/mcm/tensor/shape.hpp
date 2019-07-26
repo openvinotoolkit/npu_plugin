@@ -38,11 +38,16 @@ namespace mv
         std::size_t ndims() const;
         std::size_t totalSize() const;
         std::size_t& operator[](int ndim);
+
         static Shape broadcast(const Shape& s1, const Shape& s2);
         static Shape augment(const Shape& s, std::size_t ndims);
 
         const std::size_t& operator[](int ndim) const;
+        const std::size_t& operator[](const std::string& ndim) const;
+
         Shape& operator=(const Shape& other);
+        Shape operator/(const Shape& denum) const;
+
         bool operator==(const Shape& other) const;
         bool operator!=(const Shape& other) const;
         operator std::vector<std::size_t>() const;

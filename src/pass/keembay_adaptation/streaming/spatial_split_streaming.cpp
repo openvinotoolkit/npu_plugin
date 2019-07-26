@@ -109,7 +109,7 @@ struct opStreamingSplitDef
     size_t numSplits ;
 };
 
-static void setStreamingStrategy(const mv::pass::PassEntry& pass, mv::ComputationModel& model,std::map<std::string, std::vector<opStreamingSplitDef>>& thisGraphStrategy)
+static void setStreamingStrategy(const mv::pass::PassEntry &pass, mv::ComputationModel &model, std::map<std::string, std::vector<opStreamingSplitDef>> &thisGraphStrategy)
 {
     mv::OpModel om(model);
     mv::ControlModel cm(model);
@@ -118,43 +118,68 @@ static void setStreamingStrategy(const mv::pass::PassEntry& pass, mv::Computatio
     auto globalParams = model.getGlobalConfigParams();
     if (!globalParams->hasAttr("streaming_strategy"))
     {
+        std::cout << "SET STREAMING STRATEGY EXITING: no strategy defined in JSON" << std::endl;
         pass.log(mv::Logger::MessageType::Info, "No custom streaming strategy provided");
         return;
     }
     auto strategyList = globalParams->get<std::vector<mv::Element>>("streaming_strategy");
 
     // each s refers to the name of an op, from the JSON strategy list
-    for (auto s: strategyList)
+    for (auto s : strategyList)
     {
         std::vector<opStreamingSplitDef> opxSplits;
-
-        std::string nodeName = s.get<std::string>("name_filter") ;
+        bool nodeHasSplit = false;
+        std::string nodeName = s.get<std::string>("name_filter");
         auto splitList = s.get<std::vector<mv::Element>>("splits");
-        for (int i=0; i<splitList.size(); i++)
+        for (int i = 0; i < splitList.size(); i++)
         {
             opStreamingSplitDef opxSplitx;
             if (splitList[i].hasAttr("H"))
             {
-                opxSplitx.axis= "H";
-                opxSplitx.numSplits= splitList[i].get<int>("H");
-                opxSplits.push_back(opxSplitx);
+                if (splitList[i].get<int>("H")>1)
+                {
+                    opxSplitx.axis = "H";
+                    opxSplitx.numSplits = splitList[i].get<int>("H");
+                    opxSplits.push_back(opxSplitx);
+                    nodeHasSplit=true;
+                    std::cout << "IN STREAMING PASS : node " << nodeName << " has stream H = " << splitList[i].get<int>("H") << std::endl ;
+                }
             }
             else if (splitList[i].hasAttr("W"))
             {
-                opxSplitx.axis= "W";
-                opxSplitx.numSplits= splitList[i].get<int>("W");
-                opxSplits.push_back(opxSplitx);
+                if (splitList[i].get<int>("W")>1)
+                {
+                    opxSplitx.axis = "W";
+                    opxSplitx.numSplits = splitList[i].get<int>("W");
+                    opxSplits.push_back(opxSplitx);
+                    nodeHasSplit=true;
+                }
+            }
+            else if (splitList[i].hasAttr("C"))
+            {
+                if (splitList[i].get<int>("C")>1)
+                {
+                    opxSplitx.axis = "C";
+                    opxSplitx.numSplits = splitList[i].get<int>("C");
+                    opxSplits.push_back(opxSplitx);
+                    nodeHasSplit=true;
+                }
             }
             else if (splitList[i].hasAttr("K"))
             {
-                opxSplitx.axis= "K";
-                opxSplitx.numSplits= splitList[i].get<int>("K");
-                opxSplits.push_back(opxSplitx);
+                if (splitList[i].get<int>("K")>1)
+                {
+                    std::cout << "IN STREAMING PASS : node " << nodeName << " has stream K = " << splitList[i].get<int>("K") << std::endl ;
+                    opxSplitx.axis = "K";
+                    opxSplitx.numSplits = splitList[i].get<int>("K");
+                    opxSplits.push_back(opxSplitx);
+                    nodeHasSplit=true;
+                }
             }
         }
-        thisGraphStrategy.insert(std::pair<std::string, std::vector<opStreamingSplitDef>>(nodeName,opxSplits));
+        if (nodeHasSplit) thisGraphStrategy.insert(std::pair<std::string, std::vector<opStreamingSplitDef>>(nodeName, opxSplits));
     }
-/*
+    /*
     std::vector<opStreamingSplitDef> op1Splits;
     std::vector<opStreamingSplitDef> op2Splits;
     opStreamingSplitDef opxSplitx;
@@ -177,7 +202,6 @@ static void setStreamingStrategy(const mv::pass::PassEntry& pass, mv::Computatio
     thisGraphStrategy.insert(std::pair<std::string, std::vector<opStreamingSplitDef>>("conv0_cmx_",op1Splits));
     thisGraphStrategy.insert(std::pair<std::string, std::vector<opStreamingSplitDef>>("conv1_cmx_",op2Splits));
 */
-
 }
 
 mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model, mv::Data::OpListIterator op,Tiling& tiling)
