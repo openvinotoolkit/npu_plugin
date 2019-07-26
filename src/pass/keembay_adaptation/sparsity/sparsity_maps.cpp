@@ -204,8 +204,12 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
                     auto smInternalTensor = weightsTensor->getSparsityMap();
                     auto sparsityMap = om.constantInt(smInternalTensor->getIntData(), smInternalTensor->getShape(), smInternalTensor->getDType(),
                                                       smInternalTensor->getOrder(), {{},{},{},{}}, smInternalTensor->getName());
+                    auto sparsityMapOp = om.getSourceOp(sparsityMap);
                     auto weights = om.getSourceOp(weightsTensor);
-                    om.getSourceOp(sparsityMap)->set<unsigned>("opId", weights->get<unsigned>("opId"));
+
+                    //Necessary hack because we want to put the sparse flag on the constant operation
+                    weights.leftmostParent()->set<bool>("sparse", true);
+                    sparsityMapOp->set<unsigned>("opId", weights->get<unsigned>("opId"));
                     auto outputFlows = mv::getOutputDataFlow(om, weights, false);
                     for(auto& output: outputFlows)
                     {

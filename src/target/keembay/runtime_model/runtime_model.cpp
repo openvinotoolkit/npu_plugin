@@ -1502,6 +1502,11 @@ void mv::RuntimeModel::buildGraphFile(ComputationModel& cm, mv::Element& compila
         if (opType == "Constant" || opType == "ConstantInt" || opType == "ConstantDataElement" || opType == "WeightsTable" || opType == "SparsityMap")
         {
             auto tIt = opIterator->getOutputTensor(0);
+
+            // NOTE: This resparsify the weights coming from constant operation
+            // can be optimized
+            if(opIterator->hasAttr("sparse") && opIterator->get<bool>("sparse"))
+                tIt->setSparse();
             //std::cout << "Serializing to binary data section " << tensorIt->getName() << std::endl;
             graphFile_.binary_data.push_back(buildBinaryDataT(cm, compilationDescriptor, *tIt));
         }
