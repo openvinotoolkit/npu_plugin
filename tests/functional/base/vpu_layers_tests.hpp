@@ -136,6 +136,7 @@ bool fromBinaryFile(std::string input_binary, InferenceEngine::Blob::Ptr blob);
 class vpuLayersTests : public TestsCommon {
 public:
     std::string pluginName;
+    InferenceEngine::InferenceEnginePluginPtr myriadPluginPtr;
     InferenceEngine::Core ie;
     std::map<std::string, std::string> _config;
 

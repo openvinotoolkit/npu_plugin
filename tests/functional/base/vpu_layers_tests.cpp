@@ -242,7 +242,7 @@ void vpuLayersTests::SetUp()
 #ifdef USE_KMB
     pluginName = "kmbPlugin";
 #endif
-
+    myriadPluginPtr = PluginCache::get().byName(pluginName);
     _netInitialized = false;
     _genDataCallback = GenRandomData;
     TestsCommon::SetUp();
