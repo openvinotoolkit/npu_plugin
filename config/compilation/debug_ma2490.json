@@ -22,49 +22,49 @@
                     {
                         "name_filter" : ".*",
                         "cluster_filter" : 0,
-                        "strategy" : "Clustering"
+                        "strategy" : "Clustering``"
                     }
                 ],
                 "default_tensor_placement" : "CMX",
 
 
-                "tensor_address" :
+                "address_helper_addresses" :
                 [
                     {
                         "name_filter" : "conv/BiasAdd#7_copyIn_0:0",
-                        "address" : "98176"
+                        "address" : 98176
                     },
                     {
                         "name_filter" : "conv/BiasAdd#7_weights_table_DDR2CMX:0",
-                        "address" : "164224"
+                        "address" : 164224
                     },
                     {
                         "name_filter" : "conv/BiasAdd_weights#1_DDR2CMX:0",
-                        "address" : "163712"
+                        "address" : 163712
                     },
                     {
                         "name_filter" : "conv/BiasAdd_weights#1_DDR2CMX:0_sm_DDR2CMX:0",
-                        "address" : "163968"
+                        "address" : 163968
                     },
                     {
                         "name_filter" : "conv/BiasAdd#7:0",
-                        "address" : "0"
+                        "address" : 0
                     },
                     {
                         "name_filter" : "output#8_weights_table_DDR2CMX:0",
-                        "address" : "97152"
+                        "address" : 97152
                     },
                     {
                         "name_filter" : "output_weights#4_DDR2CMX:0",
-                        "address" : "90112"
+                        "address" : 90112
                     },
                     {
                         "name_filter" : "output_weights#4_DDR2CMX:0_sm_DDR2CMX:0",
-                        "address" : "95104"
+                        "address" : 95104
                     },
                     {
                         "name_filter" : "output#8:0",
-                        "address" : "98176"
+                        "address" : 98176
                     }
                 ],
 
@@ -695,6 +695,7 @@
                 "name": "ConvertDot",
                 "input": "output/dots/nnCmx.dot"
             },
+            "AddressHelper",
             "RemoveDeallocationTasks",
             {
                 "name": "GenerateDot",
