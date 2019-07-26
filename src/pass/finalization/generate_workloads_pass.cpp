@@ -391,16 +391,21 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
 
                 /*Apply the SOH offset to the most optimial workload*/
                 if((opIt->getOutputTensor()[0]->hasAttr("splitStrategy")) && (nClusters > 1)) {
-                    auto subTensorOffset = subTensor.get<std::vector<std::size_t>>("offset");
-                    workloadsVector.at(optimalWorkloadIndex).add_xy_offset(subTensorOffset);
+                    auto opStrategy = opIt->getOutputTensor()[0]->get<std::string>("splitStrategy");
+                    pass.log(mv::Logger::MessageType::Debug, " op strategy " + opStrategy);
+                    if (opStrategy != "Clustering")
+                    {
+                        auto subTensorOffset = subTensor.get<std::vector<std::size_t>>("offset");
+                        workloadsVector.at(optimalWorkloadIndex).add_xy_offset(subTensorOffset);
+                    }
                 }
                 
                 /*Set the most optimal workload as attribute of the op*/
                 
                 //TODO update this when serialisation for multi-clustering has been done. Workload names need to change.
                 if(nClusters > 1) {
-                opIt->set<mv::Workloads>("Workloads" + std::to_string(clusterNumber), workloadsVector.at(optimalWorkloadIndex));
-                opIt->set<bool>("Valid_workload", true);
+                    opIt->set<mv::Workloads>("Workloads" + std::to_string(clusterNumber), workloadsVector.at(optimalWorkloadIndex));
+                    opIt->set<bool>("Valid_workload", true);
                 }
                 else {
                     opIt->set<mv::Workloads>("Workloads", workloadsVector.at(optimalWorkloadIndex));

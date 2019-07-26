@@ -581,10 +581,8 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildSpecificTaskUn
     std::vector<std::unique_ptr<MVCNN::TaskT>> toBuild = std::vector<std::unique_ptr<MVCNN::TaskT>>();
     std::string taskType(opIt->getOpType());
     UNUSED (nodeID);
-    unsigned numTasks = cm.getGlobalConfigParams()->get<int>("Number_of_Clusters");
-    bool splitting = false;
-    if (numTasks > 1)
-        splitting = true;
+    //unsigned numTasks = cm.getGlobalConfigParams()->get<int>("Number_of_Clusters");
+
     //NOTE: This if conditions of this big switch statements are not definitive and could change in the future
     //Take as granted for now that 1 cluster 1 tensor 0 subtensors
     if(taskType == "MvTensorTask")
@@ -593,7 +591,9 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildSpecificTaskUn
         toBuild = buildUPADMATaskT(cm, compilationDescriptor, opIt);
     else if(taskType == "DMATask")
     {
-        if (numTasks == 1)
+        bool splitting = opIt->hasAttr("Valid_workload") && opIt->get<bool>("Valid_workload");
+
+        if (!splitting)
             toBuild = buildNNDMATaskT(cm, compilationDescriptor, opIt);
         else
             toBuild = buildNNDMATaskT(cm, compilationDescriptor, opIt, splitting);
@@ -602,7 +602,9 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildSpecificTaskUn
         toBuild = buildNCE1TaskT(cm, compilationDescriptor, opIt);
     else if(taskType == "DPUTask")
     {
-        if (numTasks == 1)
+        bool splitting = opIt->hasAttr("Valid_workload") && opIt->get<bool>("Valid_workload");
+
+        if (!splitting)
             toBuild = buildNCE2TaskT(cm, compilationDescriptor, opIt);
         else
             toBuild = buildNCE2TaskT(cm, compilationDescriptor, opIt, splitting);
