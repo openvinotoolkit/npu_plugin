@@ -173,7 +173,7 @@ Attribute& StrategyManager::getStrategy(mv::Op op,string strategy)
         strategyEntry = globalStrategies_.find(strategy);
     }
 
-    cout<< "for op: " << op.getName() << " str: " << strategy << " got: " << strategyEntry->second.toString() << endl;
+//    cout<< "for op: " << op.getName() << " str: " << strategy << " got: " << strategyEntry->second.toString() << endl;
     return strategyEntry->second;
 }
 
