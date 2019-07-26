@@ -188,8 +188,8 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
             else if(sparsity && !isElementWise)
             {
                 auto inputTensor = dpuTask->getInputTensor(0);
-                if(!inputTensor->isSparse())
-                    continue;
+                //if(!inputTensor->isSparse())
+                    //continue;
 
                 //Here only in the case of ZMajorConvolution with sparse input
                 auto weightsTensor = dpuTask->getInputTensor(1);
