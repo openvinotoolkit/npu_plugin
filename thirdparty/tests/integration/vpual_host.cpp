@@ -181,7 +181,7 @@ VpusmmAllocator::VpusmmAllocator(size_t requestedSize) {
         throw std::runtime_error("VpusmmAllocator::VpusmmAllocator: vpusmm_alloc_dmabuf failed");
     }
 
-    _physAddr = vpusmm_import_dmabuf(_fileDesc, DMA_BIDIRECTIONAL);
+    _physAddr = vpusmm_import_dmabuf(_fileDesc, VPU_DEFAULT);
     if (_physAddr == 0) {
         throw std::runtime_error("VpusmmAllocator::VpusmmAllocator: vpusmm_import_dmabuf failed");
     }

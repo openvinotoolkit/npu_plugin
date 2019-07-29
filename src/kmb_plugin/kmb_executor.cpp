@@ -96,7 +96,7 @@ int KmbCmaData::Create(uint32_t requested_size) {
         return -1;
     }
 
-    phys_addr = vpusmm_import_dmabuf(fd, DMA_BIDIRECTIONAL);
+    phys_addr = vpusmm_import_dmabuf(fd, VPU_DEFAULT);
     if (phys_addr == 0) {
         int error_num = errno;
         std::cout << "vpusmm_import_dmabuf failed with " << error_num << std::endl;
