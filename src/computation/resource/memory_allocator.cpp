@@ -119,6 +119,11 @@ const std::vector<mv::MemoryAllocator::BufferIterator>& mv::MemoryAllocator::Mem
     return slaveBuffers;
 }
 
+const std::size_t mv::MemoryAllocator::MemoryBuffer::getDataTypeSize() const
+{
+    return dataTypeSize;
+}
+
 bool mv::MemoryAllocator::MemoryBuffer::operator<(const MemoryBuffer& other) const
 {
 
