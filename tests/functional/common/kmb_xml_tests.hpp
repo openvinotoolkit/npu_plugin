@@ -214,3 +214,81 @@ std::string conv_after_scale_shift = R"V0G0N(
         </edges>
     </net>
         )V0G0N";
+
+
+std::string pooling_test2 = R"V0G0N(
+    <net batch="1" name="POOLING_TEST" version="2">
+        <layers>
+            <layer id="0" name="input" precision="FP16" type="Input">
+                <output>
+                    <port id="0">
+                        <dim>1</dim>
+                        <dim>3</dim>
+                        <dim>224</dim>
+                        <dim>224</dim>
+                    </port>
+                </output>
+            </layer>
+            <layer id="1" name="pooling_test" precision="FP16" type="Pooling">
+                <data auto_pad="same_upper" exclude-pad="true" kernel="3,3" pads_begin="0,0" pads_end="1,1" pool-method="max" strides="2,2"/>
+                <input>
+                    <port id="0">
+                        <dim>1</dim>
+                        <dim>3</dim>
+                        <dim>224</dim>
+                        <dim>224</dim>
+                    </port>
+                </input>
+                <output>
+                    <port id="1">
+                        <dim>1</dim>
+                        <dim>3</dim>
+                        <dim>224</dim>
+                        <dim>224</dim>
+                    </port>
+                </output>
+            </layer>
+            </layers>
+        <edges>
+            <edge from-layer="0" from-port="0" to-layer="1" to-port="0"/>
+        </edges>
+    </net>
+        )V0G0N";
+
+std::string relu_test_2 = R"V0G0N(
+        <net batch="1" name="RELU_TEST" version="2">
+            <layers>
+                <layer id="0" name="input" precision="FP16" type="Input">
+                    <output>
+                        <port id="0">
+                            <dim>1</dim>
+                            <dim>64</dim>
+                            <dim>112</dim>
+                            <dim>112</dim>
+                        </port>
+                    </output>
+                </layer>
+                <layer id="3" name="relu_test" precision="FP16" type="ReLU">
+                    <input>
+                        <port id="0">
+                            <dim>1</dim>
+                            <dim>64</dim>
+                            <dim>112</dim>
+                            <dim>112</dim>
+                        </port>
+                    </input>
+                    <output>
+                        <port id="1">
+                            <dim>1</dim>
+                            <dim>64</dim>
+                            <dim>112</dim>
+                            <dim>112</dim>
+                        </port>
+                    </output>
+                </layer>
+            </layers>
+            <edges>
+                <edge from-layer="0" from-port="0" to-layer="3" to-port="0"/>
+            </edges>
+        </net>
+            )V0G0N";

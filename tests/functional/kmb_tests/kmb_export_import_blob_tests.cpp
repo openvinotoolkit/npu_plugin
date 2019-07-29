@@ -31,8 +31,6 @@ using namespace InferenceEngine::details;
 enum class FileIOResult { FileNotOpened = -1, FilesWithDifferentSize = -2, FilesHaveEqualSize = 1 };
 
 #ifdef ENABLE_MCM_COMPILER
-// This function calculate size of file and is used in tests below to check that
-// two files with blobs have the same size
 size_t getFileSize(const std::string &fileName) {
     std::ifstream file(fileName.c_str(), std::ifstream::in | std::ifstream::binary);
 
@@ -47,7 +45,6 @@ size_t getFileSize(const std::string &fileName) {
     return sizeOfFile;
 }
 
-// Function for comparison of content of two blob files
 FileIOResult isContentOfFilesEqual (const std::string &fileName1, const std::string &fileName2){
     std::ifstream file1(fileName1.c_str(), std::ifstream::in | std::ifstream::binary);
     std::ifstream file2(fileName2.c_str(), std::ifstream::in | std::ifstream::binary);
@@ -68,9 +65,6 @@ FileIOResult isContentOfFilesEqual (const std::string &fileName1, const std::str
     return FileIOResult :: FilesHaveEqualSize;
 }
 
-// This function is call at the end part of each test.
-// At the begining of each test it is necessary to set up network (CNNNetwork) and its configuration.
-// After that you could call this function to make all of remaining work.
 void ExportImportBlobToFromFile(const CNNNetwork& network, const std::map<std::string, std::string>& config, const std::string& testDescription ) {
     Core ie;
     ExecutableNetwork exeNetwork = ie.LoadNetwork(network, "KMB", config);
@@ -79,17 +73,14 @@ void ExportImportBlobToFromFile(const CNNNetwork& network, const std::map<std::s
     exeNetwork.Export(blobFileName1);
     ASSERT_GT( getFileSize(blobFileName1), 0 ) << "Alarm! Alarm! We have gotten blob file with zero size!!!";
 
-    //  Try to import executable network and write it back to file via Export()
     ExecutableNetwork importedNetwork = ie.ImportNetwork(blobFileName1, "KMB", config);
     std::string blobFileName2 = testDescription + "ExportBlob02.blob";
     importedNetwork.Export(blobFileName2);
 
-    // Check for non-zero size of files and  compare them by size
     ASSERT_GT( getFileSize(blobFileName1), 0 ); // Test to be sure that first file size is not zero.
     ASSERT_GT( getFileSize(blobFileName2), 0 ); // Test to be sure that second file size is not zero.
     ASSERT_EQ(getFileSize(blobFileName1), getFileSize(blobFileName2)); // And now compare size of first and second file
 
-    //  Compare contents of files
     ASSERT_EQ( isContentOfFilesEqual(blobFileName1, blobFileName2), FileIOResult::FilesHaveEqualSize );
 }
 
@@ -171,7 +162,6 @@ TEST_F(kmbLayersTests_nightly, TestExportImportBlob02) {
 
     if ( ! pstats->isEmpty() ) {
         clonedNetwork = cloneNet(network);
-        //cnnorm.NormalizeNetwork(*clonedNetwork, *pstats);
         InferenceEngine::details::CNNNetworkInt8Normalizer::NormalizeNetwork(*clonedNetwork, *pstats);
     }
 
@@ -180,44 +170,8 @@ TEST_F(kmbLayersTests_nightly, TestExportImportBlob02) {
 
 
 TEST_F(kmbLayersTests_nightly, TestExportImportBlob03) {
-    const std::string model = R"V0G0N(
-    <net batch="1" name="POOLING_TEST" version="2">
-        <layers>
-            <layer id="0" name="input" precision="FP16" type="Input">
-                <output>
-                    <port id="0">
-                        <dim>1</dim>
-                        <dim>3</dim>
-                        <dim>224</dim>
-                        <dim>224</dim>
-                    </port>
-                </output>
-            </layer>
-            <layer id="1" name="pooling_test" precision="FP16" type="Pooling">
-                <data auto_pad="same_upper" exclude-pad="true" kernel="3,3" pads_begin="0,0" pads_end="1,1" pool-method="max" strides="2,2"/>
-                <input>
-                    <port id="0">
-                        <dim>1</dim>
-                        <dim>3</dim>
-                        <dim>224</dim>
-                        <dim>224</dim>
-                    </port>
-                </input>
-                <output>
-                    <port id="1">
-                        <dim>1</dim>
-                        <dim>3</dim>
-                        <dim>224</dim>
-                        <dim>224</dim>
-                    </port>
-                </output>
-            </layer>
-            </layers>
-        <edges>
-            <edge from-layer="0" from-port="0" to-layer="1" to-port="0"/>
-        </edges>
-    </net>
-        )V0G0N";
+    extern std::string pooling_test2;
+    const std::string model = pooling_test2;
 
     StatusCode st;
 
@@ -244,44 +198,8 @@ TEST_F(kmbLayersTests_nightly, TestExportImportBlob03) {
 
 
 TEST_F(kmbLayersTests_nightly, TestExportImportBlob04) {
-    const std::string model = R"V0G0N(
-        <net batch="1" name="RELU_TEST" version="2">
-            <layers>
-                <layer id="0" name="input" precision="FP16" type="Input">
-                    <output>
-                        <port id="0">
-                            <dim>1</dim>
-                            <dim>64</dim>
-                            <dim>112</dim>
-                            <dim>112</dim>
-                        </port>
-                    </output>
-                </layer>
-                <layer id="3" name="relu_test" precision="FP16" type="ReLU">
-                    <input>
-                        <port id="0">
-                            <dim>1</dim>
-                            <dim>64</dim>
-                            <dim>112</dim>
-                            <dim>112</dim>
-                        </port>
-                    </input>
-                    <output>
-                        <port id="1">
-                            <dim>1</dim>
-                            <dim>64</dim>
-                            <dim>112</dim>
-                            <dim>112</dim>
-                        </port>
-                    </output>
-                </layer>
-            </layers>
-            <edges>
-                <edge from-layer="0" from-port="0" to-layer="3" to-port="0"/>
-            </edges>
-        </net>
-            )V0G0N";
-
+    extern std::string relu_test_2;
+    const std::string model = relu_test_2;
 
     ASSERT_NO_THROW(_net_reader.ReadNetwork(model.data(), model.length()));
     ASSERT_TRUE(_net_reader.isParseSuccess());

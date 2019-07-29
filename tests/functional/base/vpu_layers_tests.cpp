@@ -242,6 +242,7 @@ void vpuLayersTests::SetUp()
 #ifdef USE_KMB
     pluginName = "kmbPlugin";
 #endif
+
     _netInitialized = false;
     _genDataCallback = GenRandomData;
     TestsCommon::SetUp();
