@@ -695,7 +695,6 @@
                 "name": "ConvertDot",
                 "input": "output/dots/nnCmx.dot"
             },
-            "AddressHelper",
             "RemoveDeallocationTasks",
             {
                 "name": "GenerateDot",
