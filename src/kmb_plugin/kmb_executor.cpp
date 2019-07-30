@@ -39,9 +39,6 @@
 #include "kmb_executor.h"
 #include "kmb_config.h"
 
-#include <sys/mman.h>
-#include "vpusmm.h"
-
 #ifndef _WIN32
 # include <libgen.h>
 # include <dlfcn.h>
@@ -65,62 +62,17 @@ using namespace std;
 
 #define POOL_SIZE (4 * TENSOR_MAX_SIZE + 1024)
 
-#ifdef ENABLE_VPUAL
-KmbCmaData::~KmbCmaData() {
-    if (fd >= 0) {
-        vpusmm_unimport_dmabuf(fd);
-        munmap(buf, size);
-        close(fd);
-    }
-}
-
-const int KmbCmaData::pageSize = getpagesize();
-
-static uint32_t calculateRequiredSize(uint32_t blobSize, int pageSize) {
-    uint32_t blobSizeRem = blobSize % pageSize;
-    uint32_t requiredSize = (blobSize / pageSize) * pageSize;
-    if (blobSizeRem) {
-        requiredSize += pageSize;
-    }
-    return requiredSize;
-}
-
-int KmbCmaData::Create(uint32_t requested_size) {
-    const int page_size = getPageSize();
-
-    size = calculateRequiredSize(requested_size, page_size);
-    fd = vpusmm_alloc_dmabuf(size, VPUSMMTYPE_NON_COHERENT);
-    if (fd < 0) {
-        int error_num = errno;
-        std::cout << "vpusmm_alloc_dmabuf failed with " << error_num << std::endl;
-        return -1;
-    }
-
-    phys_addr = vpusmm_import_dmabuf(fd, VPU_DEFAULT);
-    if (phys_addr == 0) {
-        int error_num = errno;
-        std::cout << "vpusmm_import_dmabuf failed with " << error_num << std::endl;
-        return -2;
-    }
-
-    buf = static_cast<unsigned char *>(mmap(nullptr, size, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0));
-    if (buf == MAP_FAILED) {
-        int error_num = errno;
-        std::cout << "mmap failed with " << error_num << std::endl;
-        return -3;
-    }
-
-    return 0;
-}
-#endif
-
 KmbExecutor::KmbExecutor(const Logger::Ptr& log, const std::shared_ptr<KmbConfig>& config)
-            : _log(log), _config(config) {
+            : _log(log), _config(config)  {
     auto parsedConfig = _config->getParsedConfig();
     if (parsedConfig[VPU_KMB_CONFIG_KEY(KMB_EXECUTOR)] == "NO") {
         return;
     }
     allocator = make_shared<KmbAllocator>();
+#ifdef ENABLE_VPUAL
+    blob_file = nullptr;
+    output_tensor = nullptr;
+#endif
 }
 
 void KmbExecutor::initVpualObjects() {
@@ -142,12 +94,6 @@ void KmbExecutor::initVpualObjects() {
     }
     if (!plgPoolOutputs) {
         plgPoolOutputs = make_shared<PlgPool<TensorMsg>>();
-    }
-    if (!blob_file) {
-        blob_file = make_shared<KmbCmaData>();
-    }
-    if (!output_tensor) {
-        output_tensor = make_shared<KmbCmaData>();
     }
     if (!BHandle) {
         BHandle = make_shared<BlobHandle_t>();
@@ -181,9 +127,10 @@ void KmbExecutor::allocateGraph(const std::vector<char> &graphFileContent, const
     // ########################################################################
     // Try and get some CMA allocations.
     // ########################################################################
+    blob_file = allocator->alloc(graphFileContent.size());
 
-    if (blob_file->Create(graphFileContent.size())) {
-        std::cout << "Error getting CMA " << std::endl;
+    if (blob_file) {
+        std::cout << "KmbExecutor::allocateGraph: Error getting CMA for graph" << std::endl;
         return;
     }
 
@@ -191,12 +138,12 @@ void KmbExecutor::allocateGraph(const std::vector<char> &graphFileContent, const
     // Load the input files
     // ########################################################################
 
-    std::copy(graphFileContent.begin(), graphFileContent.end(), blob_file->buf);
+    std::memcpy(blob_file, graphFileContent.data(), graphFileContent.size());
     // Point Blob Handle to the newly loaded graph file. Only allow 32-bit
 
     // Assigning physical address of Blob file
 
-    BHandle->graphBuff = blob_file->phys_addr;  // Only lower 32-bits
+    BHandle->graphBuff = allocator->getPhysicalAddress(blob_file);  // Only lower 32-bits
 
     gg->Create();
 
@@ -260,8 +207,9 @@ void KmbExecutor::allocateGraph(const std::vector<char> &graphFileContent, const
     tensor_deserializer(descOut);
 
     std::cout << "KmbExecutor::allocateGraph: calling output_tensor->Create" << std::endl;
-    if (output_tensor->Create(descOut.totalSize)) {
-        std::cout << "KmbExecutor::allocateGraph: Error getting CMA " << std::endl;
+    output_tensor = allocator->alloc(descOut.totalSize);
+    if (output_tensor) {
+        std::cout << "KmbExecutor::allocateGraph: Error getting CMA for output tensor" << std::endl;
         return;
     }
 
@@ -286,7 +234,7 @@ void KmbExecutor::allocateGraph(const std::vector<char> &graphFileContent, const
 
     const unsigned int shavel2CacheLineSize = 64;
     unsigned int outputTensorSize = ROUND_UP(descOut.totalSize, shavel2CacheLineSize);
-    RgnAlloc->Create(output_tensor->phys_addr, POOL_SIZE);
+    RgnAlloc->Create(allocator->getPhysicalAddress(output_tensor), POOL_SIZE);
 
     // TODO - These
     std::cout << "read memory pool finished..." << std::endl;
@@ -358,8 +306,8 @@ void KmbExecutor::getResult(void *result_data, unsigned int result_bytes) {
     std::cout << "Output tensor returned of length: " << std::dec << len << std::endl;
 
     // Convert the physical address we received back to a virtual address we can use.
-    uint32_t offset = pAddr - output_tensor->phys_addr;
-    unsigned char *data = output_tensor->buf + offset;
+    uint32_t offset = pAddr - allocator->getPhysicalAddress(output_tensor);
+    unsigned char *data = static_cast<unsigned char *>(output_tensor) + offset;
 
     // write to file
     // Open output file
@@ -396,6 +344,12 @@ void KmbExecutor::deallocateGraph() {
     }
     if (RgnAlloc) {
         RgnAlloc->Delete();
+    }
+    if (blob_file) {
+        allocator->free(blob_file);
+    }
+    if (output_tensor) {
+        allocator->free(output_tensor);
     }
 #endif
 }
