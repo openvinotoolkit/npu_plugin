@@ -43,7 +43,7 @@ void *KmbAllocator::alloc(size_t size) noexcept {
 
     auto fd = vpusmm_alloc_dmabuf(realSize, VPUSMMType::VPUSMMTYPE_COHERENT);
 
-    auto physAddr = vpusmm_import_dmabuf(fd, DMA_BIDIRECTIONAL);
+    auto physAddr = vpusmm_import_dmabuf(fd, VPU_DEFAULT);
 
     void *virtAddr = mmap(nullptr, realSize, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
 

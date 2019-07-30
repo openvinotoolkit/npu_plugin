@@ -96,7 +96,7 @@ int KmbCmaData::Create(uint32_t requested_size) {
         return -1;
     }
 
-    phys_addr = vpusmm_import_dmabuf(fd, DMA_BIDIRECTIONAL);
+    phys_addr = vpusmm_import_dmabuf(fd, VPU_DEFAULT);
     if (phys_addr == 0) {
         int error_num = errno;
         std::cout << "vpusmm_import_dmabuf failed with " << error_num << std::endl;
@@ -140,11 +140,8 @@ void KmbExecutor::initVpualObjects() {
     if (!plgTensorOutput_) {
         plgTensorOutput_ = make_shared<PlgStreamResult>();
     }
-    if (!plgPoolA) {
-        plgPoolA = make_shared<PlgPool<TensorMsg>>();
-    }
-    if (!plgPoolB) {
-        plgPoolB = make_shared<PlgPool<TensorMsg>>();
+    if (!plgPoolOutputs) {
+        plgPoolOutputs = make_shared<PlgPool<TensorMsg>>();
     }
     if (!blob_file) {
         blob_file = make_shared<KmbCmaData>();
@@ -287,16 +284,13 @@ void KmbExecutor::allocateGraph(const std::vector<char> &graphFileContent, const
 
     m_networkOutputs[outputData.getName()] = std::make_shared<InferenceEngine::Data>(outputData);
 
-    const unsigned int sizeOfFrames = 32;
     const unsigned int shavel2CacheLineSize = 64;
     unsigned int outputTensorSize = ROUND_UP(descOut.totalSize, shavel2CacheLineSize);
     RgnAlloc->Create(output_tensor->phys_addr, POOL_SIZE);
 
     // TODO - These
-    std::cout << "Starting input output tensor plugin along with memory pool create..." << std::endl;
-    plgPoolA->Create(RgnAlloc.get(), 1, sizeOfFrames);
     std::cout << "read memory pool finished..." << std::endl;
-    plgPoolB->Create(RgnAlloc.get(), 1, outputTensorSize);
+    plgPoolOutputs->Create(RgnAlloc.get(), 1, 3 * outputTensorSize);
     std::cout << "write memory pool finished..." << std::endl;
     plgTensorInput_->Create(descIn.totalSize, XLINK_INPUT_CHANNEL, descIn);
     std::cout << "input tensor plugin finished..." << std::endl;
@@ -306,8 +300,7 @@ void KmbExecutor::allocateGraph(const std::vector<char> &graphFileContent, const
 
     // Add the plugins to the pipeline:
 
-    pipe->Add(plgPoolA.get());
-    pipe->Add(plgPoolB.get());
+    pipe->Add(plgPoolOutputs.get());
     pipe->Add(plgTensorInput_.get());
     pipe->Add(plgTensorOutput_.get());
     pipe->Add(nnPl.get());
@@ -316,8 +309,7 @@ void KmbExecutor::allocateGraph(const std::vector<char> &graphFileContent, const
 
     // Link the plugins' messages:
 
-    plgPoolA->out.Link(&plgTensorInput_->emptyTensor);
-    plgPoolB->out.Link(&nnPl->resultInput);
+    plgPoolOutputs->out.Link(&nnPl->resultInput);
     plgTensorInput_->tensorOut.Link(&nnPl->tensorInput);
     nnPl->output.Link(&plgTensorOutput_->dataIn);
 

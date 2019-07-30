@@ -70,8 +70,7 @@ class KmbExecutor {
     std::shared_ptr<KmbCmaData> blob_file;
     std::shared_ptr<BlobHandle_t> BHandle;
 
-    std::shared_ptr<PlgPool<TensorMsg>> plgPoolA;
-    std::shared_ptr<PlgPool<TensorMsg>> plgPoolB;
+    std::shared_ptr<PlgPool<TensorMsg>> plgPoolOutputs;
 
     std::shared_ptr<Pipeline> pipe;
 #endif
