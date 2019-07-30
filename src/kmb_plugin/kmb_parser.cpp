@@ -125,7 +125,7 @@ void compileMcm(
             compDesc.setPassArg("GenerateBlob", "enableFileOutput", true);
             isBlobFileSet = true;
             //-----------------------------------------------------------------------
-            // Just now we can not make mcmCompiler to return the bliob into memory, so we will read
+            // Just now we can not make mcmCompiler to return the blob into memory, so we will read
             // the blob from the file later in the code
             //-----------------------------------------------------------------------
 //            compDesc.setPassArg("GenerateBlobKeembay", "enableRAMOutput", true);
@@ -194,7 +194,7 @@ void compileMcm(
 
     //-----------------------------------------------------------------------
     // Just now we can not make mcmCompiler to return the blob into memory,
-    // so we will read it from the file the file
+    // so we will read it from the file
     //-----------------------------------------------------------------------
     if (parsedConfig[VPU_KMB_CONFIG_KEY(MCM_GENERATE_BLOB)] == "YES") {
         std::ifstream blobFile(resultsFullName + ".blob", std::ios::binary);
