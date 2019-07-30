@@ -4,7 +4,7 @@
 #include "meta/include/mcm/op_model.hpp"
 #include "include/mcm/utils/env_loader.hpp"
 
-void generateDotFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::json::Object&);
+void generateDotFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&);
 
 namespace mv
 {
@@ -26,7 +26,7 @@ namespace mv
 
 }
 
-void generateDotFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::json::Object&)
+void generateDotFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&)
 {
 
     using namespace mv;

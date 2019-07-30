@@ -3,7 +3,7 @@
 #include "include/mcm/computation/model/data_model.hpp"
 #include "meta/include/mcm/op_model.hpp"
 
-void checkTensorsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::json::Object& compOutput);
+void checkTensorsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element& compOutput);
 
 namespace mv
 {
@@ -26,17 +26,16 @@ namespace mv
 
 }
 
-void checkTensorsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object& compOutput)
+void checkTensorsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element& compOutput)
 {
 
     using namespace mv;
 
-    compOutput["valid"] = true;
-    compOutput["invalidTensors"] = json::Object();
-    compOutput["invalidTensors"]["unpopulatedConstOpOutput"] = json::Array();
-    compOutput["invalidTensors"]["populatedNonConstOpOutput"] = json::Array();
-    compOutput["invalidTensors"]["populatedNonConstDataFlow"] = json::Array();
-    compOutput["invalidTensors"]["emptyPopulated"] = json::Array();
+    compOutput.set<bool>("valid", true);
+    compOutput.set<std::vector<std::string>>("unpopulatedConstOpOutput", {});
+    compOutput.set<std::vector<std::string>>("populatedNonConstOpOutput", {});
+    compOutput.set<std::vector<std::string>>("populatedNonConstDataFlow", {});
+    compOutput.set<std::vector<std::string>>("emptyPopulated", {});
 
     OpModel om(model);
 
@@ -51,8 +50,8 @@ void checkTensorsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv
             if (!it->getOutputTensor(0)->isPopulated())
             {
 
-                compOutput["valid"] = false;
-                compOutput["invalidTensors"]["unpopulatedConstOpOutput"].append(it->getOutputTensor(0)->isPopulated());
+                compOutput.set<bool>("valid", false);
+                compOutput.get<std::vector<std::string>>("unpopulatedConstOpOutput").push_back(it->getOutputTensor(0)->getName());
 
             }
             
@@ -66,8 +65,8 @@ void checkTensorsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv
                 if (it->getOutputTensor(i)->isPopulated())
                 {
 
-                    compOutput["valid"] = false;
-                    compOutput["invalidTensors"]["populatedNonConstOpOutput"].append(it->getOutputTensor(0)->getName());
+                    compOutput.set<bool>("valid", false);
+                    compOutput.get<std::vector<std::string>>("populatedNonConstOpOutput").push_back(it->getOutputTensor(0)->getName());
 
                 }
 
@@ -85,8 +84,8 @@ void checkTensorsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv
         if (it->getTensor()->isPopulated() && it.source()->getOpType() != "Constant")
         {
 
-            compOutput["valid"] = false;
-            compOutput["invalidTensors"]["populatedNonConstDataFlow"].append(json::Object({{it->getTensor()->getName(), it->getName()}}));
+            compOutput.set<bool>("valid", false);
+            compOutput.get<std::vector<std::string>>("populatedNonConstDataFlow").push_back(it->getTensor()->getName());
         
         }
 
@@ -98,9 +97,9 @@ void checkTensorsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv
         if (it->isPopulated() && it->getShape().totalSize() == 0)
         {
 
-            compOutput["valid"] = false;
-            compOutput["invalidTensors"]["emptyPopulated"].append(it->getName());
-        
+            compOutput.set<bool>("valid", false);
+            compOutput.get<std::vector<std::string>>("emptyPopulated").push_back(it->getName());
+            
         }
 
     }

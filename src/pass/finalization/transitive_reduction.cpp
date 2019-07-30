@@ -3,7 +3,7 @@
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
 
-static void transitiveReductionFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&passArg, mv::json::Object&);
+static void transitiveReductionFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&passArg, mv::Element&);
 
 
 namespace mv
@@ -22,7 +22,7 @@ namespace mv
 
 }
 
-void transitiveReductionFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passArg, mv::json::Object&)
+void transitiveReductionFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passArg, mv::Element&)
 {
 
     pass.log(mv::Logger::MessageType::Debug, "Starting transitive reduction pass");

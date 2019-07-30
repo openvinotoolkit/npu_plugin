@@ -5,7 +5,7 @@
 #include "meta/include/mcm/op_model.hpp"
 #include <regex>
 
-static void storeWorkloadStrategyFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
+static void storeWorkloadStrategyFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 
 namespace mv
 {
@@ -39,7 +39,7 @@ void storeWorkloadStrategy(mv::Data::OpListIterator& it, int numClusters, std::v
     }
 }
 
-void storeWorkloadStrategyFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+void storeWorkloadStrategyFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
     auto globalParams = model.getGlobalConfigParams();
 

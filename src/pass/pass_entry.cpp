@@ -13,7 +13,7 @@ mv::pass::PassEntry& mv::pass::PassEntry::setDescription(const std::string& desc
 }
 
 mv::pass::PassEntry& mv::pass::PassEntry::setFunc(const std::function<void(const PassEntry&, ComputationModel&, TargetDescriptor&, 
-    Element&, json::Object&)>& passFunc)
+    Element&, Element&)>& passFunc)
 {
     passFunc_ = passFunc;
     return *this;
@@ -47,7 +47,7 @@ std::size_t mv::pass::PassEntry::argsCount() const
     return requiredArgs_.size();
 }
 
-void mv::pass::PassEntry::run(ComputationModel& model, TargetDescriptor& targetDescriptor, Element& passDescriptor, json::Object& output) const
+void mv::pass::PassEntry::run(ComputationModel& model, TargetDescriptor& targetDescriptor, Element& passDescriptor, Element& output) const
 {
     passFunc_(*this, model, targetDescriptor, passDescriptor, output);
 }

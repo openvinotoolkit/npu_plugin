@@ -4,7 +4,7 @@
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/target/myriadx/nce1.hpp"
 
-static void myriadXPaddings(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
+static void myriadXPaddings(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 
 namespace mv
 {
@@ -22,7 +22,7 @@ namespace mv
 
 //ASSUMPTION 1: This pass must be executed after the Mark Hardware Convolution pass.
 //REASON: There is no need to pad tensors not involved in HW operations at all.
-void myriadXPaddings(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+void myriadXPaddings(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
     mv::OpModel om(model);
     mv::DataModel dm(model);

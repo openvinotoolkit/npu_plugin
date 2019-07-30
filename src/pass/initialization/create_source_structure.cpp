@@ -4,7 +4,7 @@
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/target/keembay/runtime_model/runtime_model.hpp"
 
-static void CreateSourceStructureFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& compilationDescriptor, mv::json::Object&);
+static void CreateSourceStructureFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& compilationDescriptor, mv::Element&);
 
 namespace mv
 {
@@ -17,7 +17,7 @@ namespace mv
     }
 }
 
-void CreateSourceStructureFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& compilationDescriptor, mv::json::Object&)
+void CreateSourceStructureFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& compilationDescriptor, mv::Element&)
 {
     mv::RuntimeModel& rm = mv::RuntimeModel::getInstance();
     rm.buildHeader(model, compilationDescriptor);

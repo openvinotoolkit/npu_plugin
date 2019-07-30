@@ -4,7 +4,7 @@
 #include "meta/include/mcm/op_model.hpp"
 #include <math.h>
 
-static void GlobalConfigParamsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& compilationDescriptor, mv::json::Object&);
+static void GlobalConfigParamsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& compilationDescriptor, mv::Element&);
 
 namespace mv
 {
@@ -19,7 +19,7 @@ namespace mv
     }
 }
 
-static void GlobalConfigParamsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& compilationDescriptor, mv::json::Object&)
+static void GlobalConfigParamsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& compilationDescriptor, mv::Element&)
 {
     //set the global params to be this pass's compilation descriptor element
     model.setGlobalConfigParams(compilationDescriptor);

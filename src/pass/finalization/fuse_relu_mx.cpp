@@ -3,7 +3,7 @@
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/tensor/math.hpp"
 
-static void fuseReluMXFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
+static void fuseReluMXFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 
 namespace mv
 {
@@ -22,7 +22,7 @@ namespace mv
 
 }
 
-void fuseReluMXFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+void fuseReluMXFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
 
     using namespace mv;

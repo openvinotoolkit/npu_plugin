@@ -8,7 +8,7 @@
 #include "caffe.pb.h"
 #include <caffe/caffe.hpp>
 
-static void generateCaffeFcn(const mv::pass::PassEntry& pass, mv::ComputationModel &model, mv::TargetDescriptor &, mv::Element &, mv::json::Object &);
+static void generateCaffeFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 
 namespace mv
 {
@@ -26,7 +26,7 @@ namespace mv
         } // namespace pass
 } // namespace mv
 
-void generateCaffeFcn(const mv::pass::PassEntry& pass, mv::ComputationModel &model, mv::TargetDescriptor &, mv::Element &passDesc, mv::json::Object &compOutput)
+void generateCaffeFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&)
 {
     std::cout << "Generating Caffe files" << std::endl;
     using namespace mv;

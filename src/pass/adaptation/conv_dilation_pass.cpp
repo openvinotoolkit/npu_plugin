@@ -5,7 +5,7 @@
 #include "include/mcm/utils/custom_math.hpp"
 #include "include/mcm/utils/data_generator.hpp"
 
-static void convDilationFcn(const mv::pass::PassEntry &pass, mv::ComputationModel &model, mv::TargetDescriptor &, mv::Element &, mv::json::Object &);
+static void convDilationFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 
 namespace mv
 {
@@ -18,7 +18,7 @@ namespace mv
     }
 }
 
-void convDilationFcn(const mv::pass::PassEntry &, mv::ComputationModel &model, mv::TargetDescriptor &, mv::Element &, mv::json::Object &)
+void convDilationFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
 
     using namespace mv;

@@ -3,7 +3,7 @@
 #include "include/mcm/computation/model/data_model.hpp"
 #include "meta/include/mcm/op_model.hpp"
 
-void convertDotFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&, mv::TargetDescriptor&, mv::Element& passDesc, mv::json::Object&);
+void convertDotFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&);
 
 namespace mv
 {
@@ -22,7 +22,7 @@ namespace mv
 
 }
 
-void convertDotFcn(const mv::pass::PassEntry&, mv::ComputationModel&, mv::TargetDescriptor&, mv::Element& passDesc, mv::json::Object&)
+void convertDotFcn(const mv::pass::PassEntry&, mv::ComputationModel&, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&)
 {
     std::string outputFile = passDesc.get<std::string>("input");
     system(("dot -Tsvg " + outputFile + " -o " + outputFile+".svg").c_str());

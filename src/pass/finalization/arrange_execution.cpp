@@ -3,8 +3,8 @@
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
 
-static void arrangeLinearExecutionFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
-static void arrangeKeembayExecutionFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
+static void arrangeLinearExecutionFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+static void arrangeKeembayExecutionFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 
 
 namespace mv
@@ -33,7 +33,7 @@ namespace mv
 // 1) Put the stages
 // Point 1) is trivial for now (just 1 stage), but will be probably updated when Pat completes his analysis
 
-void arrangeKeembayExecutionFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+void arrangeKeembayExecutionFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
 
     pass.log(mv::Logger::MessageType::Debug, "Starting arrange Keembay execution");
@@ -49,7 +49,7 @@ void arrangeKeembayExecutionFcn(const mv::pass::PassEntry& pass, mv::Computation
 
 }
 
-void arrangeLinearExecutionFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+void arrangeLinearExecutionFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
 
     std::cout << "Arrange execution" << std::endl;

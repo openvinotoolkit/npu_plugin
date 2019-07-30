@@ -4,11 +4,11 @@
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/utils/custom_math.hpp"
 
-static void taskControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
-static void hangingDmaControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&passDesc, mv::json::Object&);
-static void cmx2DDRControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&passDesc, mv::json::Object&);
-static void layerNumberingFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&passDesc, mv::json::Object&);
-static void activationTensorsControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&passDesc, mv::json::Object&);
+static void taskControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+static void hangingDmaControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&passDesc, mv::Element&);
+static void cmx2DDRControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&passDesc, mv::Element&);
+static void layerNumberingFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&passDesc, mv::Element&);
+static void activationTensorsControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&passDesc, mv::Element&);
 
 namespace mv
 {
@@ -54,7 +54,7 @@ namespace mv
 
 // Logic: Activation tensors involved in DPU task should be dependent on the previous operation executed
 // Not sure this pass is really needed for resnet50
-void activationTensorsControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&passDesc, mv::json::Object&)
+void activationTensorsControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&passDesc, mv::Element&)
 {
 
     mv::OpModel om(model);
@@ -85,7 +85,7 @@ void activationTensorsControlFlowsFcn(const mv::pass::PassEntry& pass, mv::Compu
 
 // This pass is absolutely necessary to ensure that we are not redeaming in cmx weights too soon
 // It is a conservative approach but it's needed for TIG
-void cmx2DDRControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&passDesc, mv::json::Object&)
+void cmx2DDRControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&passDesc, mv::Element&)
 {
     mv::OpModel om(model);
     mv::ControlModel cm(model);
@@ -115,7 +115,7 @@ void cmx2DDRControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
 // Minimum (and most conservative approach) is 1
 
 // ASSUMPTION: This pass happens after the pass that assigns a layer number to each layer already in the control model
-void hangingDmaControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::json::Object&)
+void hangingDmaControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&)
 {
 
     mv::OpModel om(model);
@@ -215,7 +215,7 @@ void assignLayerNumber(mv::ControlModel& cm, const std::unordered_set<std::strin
 // And possibly also to handle CMX2DDR output flows
 
 // ASSUMPTION: We need task control flows and transitive reduction to be run before this pass
-void layerNumberingFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+void layerNumberingFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
     mv::ControlModel cm(model);
 
@@ -257,7 +257,7 @@ void addTaskControlFlowsAndRecursivelySkipImplicitOperationsUp(mv::OpModel& om, 
 // But implicit operations (e.g. Constants, Concat, Slice etc) must be skipped and/or avoided
 
 // NOTE: For now, only max two level of implicit operations is handled. In the future we will need a recursive procedure
-void taskControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+void taskControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
     mv::OpModel om(model);
 

@@ -5,8 +5,8 @@
 #include "meta/include/mcm/op_model.hpp"
 #include <regex>
 
-static void storeLayerSplitStrategyFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
-static void storeTensorPlacementFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&,mv::json::Object&);
+static void storeLayerSplitStrategyFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+static void storeTensorPlacementFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 
 namespace mv
 {
@@ -43,7 +43,7 @@ void storeStrategy(mv::Data::OpListIterator& it, int numClusters, std::vector<mv
     }
 }
 
-void storeLayerSplitStrategyFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+void storeLayerSplitStrategyFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
     auto globalParams = model.getGlobalConfigParams();
 
@@ -79,7 +79,8 @@ void storeLayerSplitStrategyFcn(const mv::pass::PassEntry& pass, mv::Computation
 void storeTensorPlacementFcn(const mv::pass::PassEntry& pass,
                                 mv::ComputationModel& model,
                                 mv::TargetDescriptor&,
-                                mv::Element&,mv::json::Object&)
+                                mv::Element&,
+                                mv::Element&)
 {
     //mv::Logger::setVerboseLevel(mv::VerboseLevel::Debug);
 

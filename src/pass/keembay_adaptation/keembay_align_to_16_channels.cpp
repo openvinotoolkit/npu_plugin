@@ -6,7 +6,7 @@
 #include "include/mcm/utils/custom_strings.hpp"
 #include "include/mcm/pass/pass_utils.hpp"
 
-static void alignTo16ChannelsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
+static void alignTo16ChannelsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void alignWeightsTensor(mv::OpModel& om, const mv::Data::TensorIterator &weightsTensor, unsigned channelsPadded, size_t axis, std::string typeOp);
 static void alignBiasTensor(mv::Data::OpListIterator &opIt, const mv::Data::TensorIterator biasTensor, unsigned biasTensorSizePadded, mv::DataModel dm);
 
@@ -23,7 +23,7 @@ namespace mv
 
 //NOTE: Mark the Ops that do not have output channels aligned to 16,in serialization you align their dims
 //and provide the appropriate Tensor for DMA
-void alignTo16ChannelsFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+void alignTo16ChannelsFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
     mv::OpModel om(model);
     mv::DataModel dm(model);

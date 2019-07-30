@@ -48,8 +48,8 @@ namespace mv
 
         void loadModelFromJson(const std::string& path);
         bool initialize();
-        json::Object runStep();
-        json::Object run();
+        Element runStep();
+        Element run();
         bool completed() const;
 
         virtual std::string getLogID() const override;

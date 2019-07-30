@@ -3,7 +3,7 @@
 
 
 
-static void GlobalParamsResetFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& compilationDescriptor, mv::json::Object&);
+static void GlobalParamsResetFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& compilationDescriptor, mv::Element&);
 
 namespace mv
 {
@@ -18,7 +18,7 @@ namespace mv
     }
 }
 
-static void GlobalParamsResetFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& compilationDescriptor, mv::json::Object&)
+static void GlobalParamsResetFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& compilationDescriptor, mv::Element&)
 {
     //Reset the global barrier params
     mv::Barrier::reset();

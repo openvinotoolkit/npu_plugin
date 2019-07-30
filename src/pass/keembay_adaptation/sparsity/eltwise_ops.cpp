@@ -6,7 +6,7 @@
 #include "include/mcm/tensor/quantization_params.hpp"
 #include <math.h>
 
-static void generateEltWiseConstantsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
+static void generateEltWiseConstantsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 
 namespace mv
 {
@@ -22,7 +22,7 @@ namespace mv
 }
 
 
-static void generateEltWiseConstantsFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+static void generateEltWiseConstantsFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
     mv::OpModel om(model);
     mv::DataModel dm(model);

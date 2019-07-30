@@ -2,7 +2,7 @@
 #include "include/mcm/pass/pass_registry.hpp"
 #include "include/mcm/computation/model/computation_model.hpp"
 
-static void generateJSONFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::json::Object& compOutput);
+static void generateJSONFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&);
 
 namespace mv
 {
@@ -18,7 +18,7 @@ namespace mv
 
 }
 
-static void generateJSONFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::json::Object& compOutput)
+static void generateJSONFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&)
 {
     pass.log(mv::Logger::MessageType::Debug, "Saving computation model to json...");
 

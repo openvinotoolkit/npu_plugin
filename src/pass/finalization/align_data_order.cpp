@@ -3,8 +3,8 @@
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/computation/model/control_model.hpp"
 
-static void addConversionLayersFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
-static void alignConstOrderFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
+static void addConversionLayersFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+static void alignConstOrderFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void compatibilityResolution(mv::Data::OpListIterator parentIt, mv::OpModel &om);
 
 namespace mv
@@ -29,7 +29,7 @@ namespace mv
 
 }
 
-void alignConstOrderFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+void alignConstOrderFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
 
     using namespace mv;
@@ -269,7 +269,7 @@ void compatibilityResolution(mv::Data::OpListIterator parentIt, mv::OpModel& om)
 
 
 //NOTE: This should not be done in such hardcoded way.
-void addConversionLayersFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+void addConversionLayersFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
 
     std::cout << "addConversionLayers " << std::endl;

@@ -4,8 +4,8 @@
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/computation/flow/implicit_flow.hpp"
 
-static void resolveImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
-static void solveHangingDMAsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
+static void resolveImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+static void solveHangingDMAsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 
 namespace mv
 {
@@ -32,7 +32,7 @@ static std::map<const std::string,mv::DmaDirectionEnum> dmaDirectionStrings =
       {"DDR2OUTPUT",mv::DmaDirectionEnum::DDR2DDR}
 };
 
-void resolveImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::json::Object&)
+void resolveImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&)
 {
     mv::OpModel om(model);
     mv::ControlModel cm(model);

@@ -8,7 +8,7 @@
 #include <limits.h>
 
 
-static void tensorGraphColoringFnc(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&passDesc, mv::json::Object&);
+static void tensorGraphColoringFnc(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&passDesc, mv::Element&);
 
 namespace mv
 {
@@ -507,7 +507,7 @@ void bestFitMemoryAllocation(mv::ComputationModel& model, std::queue<std::string
 
 }
 
-void tensorGraphColoringFnc(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element& passDesc, mv::json::Object&)
+void tensorGraphColoringFnc(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element& passDesc, mv::Element&)
 {
     pass.log(mv::Logger::MessageType::Debug, "Graph Coloring Started");
 

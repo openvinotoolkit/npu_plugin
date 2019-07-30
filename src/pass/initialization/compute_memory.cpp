@@ -4,7 +4,7 @@
 #include "meta/include/mcm/op_model.hpp"
 #include <math.h>
 
-static void computeMemoryFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& compilationDescriptor, mv::json::Object&);
+static void computeMemoryFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& compilationDescriptor, mv::Element&);
 
 namespace mv
 {
@@ -19,7 +19,7 @@ namespace mv
     }
 }
 
-static void computeMemoryFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element& compilationDescriptor, mv::json::Object&)
+static void computeMemoryFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element& compilationDescriptor, mv::Element&)
 {
     auto globalConfig = model.getGlobalConfigParams();
 

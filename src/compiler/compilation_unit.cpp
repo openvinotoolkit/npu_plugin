@@ -159,14 +159,15 @@ bool mv::CompilationUnit::initialize()
 
 }
 
-mv::json::Object mv::CompilationUnit::runStep()
+mv::Element mv::CompilationUnit::runStep()
 {
     return passManager_.step();
 }
 
-mv::json::Object mv::CompilationUnit::run()
+mv::Element mv::CompilationUnit::run()
 {
-    json::Object output;
+    Element output("CompilationOutput");
+    output.set<std::string>("ModelName", model_->getName());
     std::vector<mv::Element> passList = compDescriptor_.serializePassList();
     passManager_.loadPassList(passList);
 

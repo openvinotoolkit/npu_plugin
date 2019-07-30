@@ -49,7 +49,7 @@ struct BigKEdgeInfo
 
 using BIGKoala = Koala::Graph <BigKVertexInfo, BigKEdgeInfo>;
 
-static void insertBarrierTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
+static void insertBarrierTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 
 namespace mv
 {
@@ -528,7 +528,7 @@ void removeExtraProducers(const mv::pass::PassEntry& pass,
     }
 }
 
-static void insertBarrierTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::json::Object&)
+static void insertBarrierTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&)
 {
     mv::OpModel om(model);
 
