@@ -123,12 +123,9 @@ TEST_F(kmbLayersTests_nightly, TestExportImportBlob_resnet50_int8_fragment) {
     ASSERT_NO_THROW(_net_reader.ReadNetwork(model.data(), model.length()));
     ASSERT_TRUE( _net_reader.isParseSuccess() );
 
-    StatusCode sts;
-    InferenceEngine::ResponseDesc response;
     std::map<std::string, std::string> config;
     ExecutableNetwork executableNetwork;
     details::CNNNetworkImplPtr clonedNetwork;
-    CNNNetworkInt8Normalizer cnnorm;
 
     setCommonConfig(config);
     config[VPU_KMB_CONFIG_KEY(MCM_PARSING_ONLY)] = CONFIG_VALUE(NO);
@@ -194,7 +191,6 @@ TEST_F(kmbLayersTests_nightly, TestExportImportBlob_ReLU) {
     config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_JSON)] = CONFIG_VALUE(YES);
 
     ExportImportBlobToFromFile(network, config, "ReLU" );
-
 }
 
 #endif
