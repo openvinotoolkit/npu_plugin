@@ -149,7 +149,7 @@ namespace mv
             const std::vector<std::size_t>& getRightPad() const;
             BufferIterator getMaster() const;
             const std::vector<BufferIterator>& getSlaves() const;
-            const std::size_t getDataTypeSize() const;
+            std::size_t getDataTypeSize() const;
             bool operator<(const MemoryBuffer& other) const;
             bool operator==(const MemoryBuffer& other) const;
             MemoryBuffer& operator=(const MemoryBuffer& other);
