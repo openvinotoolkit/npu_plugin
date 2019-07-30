@@ -192,25 +192,6 @@ void fuseScaleFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, 
 
     }
 
-
-    unsigned long output_size = 0;
-    for (auto opIter = om.opBegin(); opIter != om.opEnd(); ++opIter)
-    {
-        if (opIter->getOpType() == "Output" || opIter->getOpType() == "Constant" || opIter->getOpType() == "ConstantInt")
-            continue;
-
-        auto output = opIter->getOutputTensor(0);
-
-        if (output)
-        {
-            output_size += output->size();
-            pass.log(mv::Logger::MessageType::Info, "adding output size of op:" + opIter->getName() + " size = " + std::to_string(output->size()));
-        }
-    }
-
-    pass.log(mv::Logger::MessageType::Info, "total tensors size = " + std::to_string(output_size));
-
-
 }
 
 void fuseReluFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
