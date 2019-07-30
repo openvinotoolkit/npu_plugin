@@ -69,12 +69,12 @@ void ExportImportBlobToFromFile(const CNNNetwork& network, const std::map<std::s
     Core ie;
     ExecutableNetwork exeNetwork = ie.LoadNetwork(network, "KMB", config);
 
-    std::string blobFileName1 = testDescription + "ExportBlob01.blob";
+    std::string blobFileName1 = "TestExportImportBlob_" + testDescription +  "_file01.blob";
     exeNetwork.Export(blobFileName1);
     ASSERT_GT( getFileSize(blobFileName1), 0 ) << "Alarm! Alarm! We have gotten blob file with zero size!!!";
 
     ExecutableNetwork importedNetwork = ie.ImportNetwork(blobFileName1, "KMB", config);
-    std::string blobFileName2 = testDescription + "ExportBlob02.blob";
+    std::string blobFileName2 = "TestExportImportBlob_" + testDescription +  "_file02.blob";;
     importedNetwork.Export(blobFileName2);
 
     ASSERT_GT( getFileSize(blobFileName1), 0 ); // Test to be sure that first file size is not zero.
@@ -84,7 +84,7 @@ void ExportImportBlobToFromFile(const CNNNetwork& network, const std::map<std::s
     ASSERT_EQ( isContentOfFilesEqual(blobFileName1, blobFileName2), FileIOResult::FilesHaveEqualSize );
 }
 
-TEST_F(kmbLayersTests_nightly, TestExportImportBlob01) {
+TEST_F(kmbLayersTests_nightly, TestExportImportBlob_Convolution_After_Scale_Shift) {
 
     extern std::string conv_after_scale_shift;
     std::string model = conv_after_scale_shift;
@@ -101,12 +101,6 @@ TEST_F(kmbLayersTests_nightly, TestExportImportBlob01) {
 
     CNNNetwork network = _net_reader.getNetwork();
 
-    _inputsInfo = network.getInputsInfo();
-    _inputsInfo["input"]->setPrecision(Precision::FP16);
-
-    _outputsInfo = network.getOutputsInfo();
-    _outputsInfo["conv_test1"]->setPrecision(Precision::FP16);
-
     std::map<std::string, std::string> config;
     setCommonConfig(config);
     config[VPU_KMB_CONFIG_KEY(MCM_PARSING_ONLY)] = CONFIG_VALUE(NO);
@@ -114,10 +108,10 @@ TEST_F(kmbLayersTests_nightly, TestExportImportBlob01) {
     config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_DOT)] = CONFIG_VALUE(YES);
     config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_JSON)] = CONFIG_VALUE(YES);
 
-    ExportImportBlobToFromFile(network, config, "Test01" );
+    ExportImportBlobToFromFile(network, config, "Convolution_After_Scale_Shift" );
 }
 
-TEST_F(kmbLayersTests_nightly, TestExportImportBlob02) {
+TEST_F(kmbLayersTests_nightly, TestExportImportBlob_resnet50_int8_fragment) {
 
     extern std::string full_quant_model;
 
@@ -149,12 +143,6 @@ TEST_F(kmbLayersTests_nightly, TestExportImportBlob02) {
 
     CNNNetwork network = _net_reader.getNetwork();
 
-    _inputsInfo = network.getInputsInfo();
-    _inputsInfo["input"]->setPrecision(Precision::FP32);
-
-    _outputsInfo = network.getOutputsInfo();
-    _outputsInfo["conv2"]->setPrecision(Precision::FP32);
-
     ICNNNetworkStats* pstats = nullptr;
     StatusCode s = ((ICNNNetwork&)network).getStats(&pstats, nullptr);
 
@@ -165,26 +153,18 @@ TEST_F(kmbLayersTests_nightly, TestExportImportBlob02) {
         InferenceEngine::details::CNNNetworkInt8Normalizer::NormalizeNetwork(*clonedNetwork, *pstats);
     }
 
-    ExportImportBlobToFromFile(CNNNetwork(clonedNetwork), config, "Test02" );
+    ExportImportBlobToFromFile(CNNNetwork(clonedNetwork), config, "resnet50_int8_fragment" );
 }
 
 
-TEST_F(kmbLayersTests_nightly, TestExportImportBlob03) {
+TEST_F(kmbLayersTests_nightly, TestExportImportBlob_Pooling) {
     extern std::string pooling_test2;
     const std::string model = pooling_test2;
-
-    StatusCode st;
 
     ASSERT_NO_THROW(_net_reader.ReadNetwork(model.data(), model.length()));
     ASSERT_TRUE(_net_reader.isParseSuccess());
 
     auto network = _net_reader.getNetwork();
-
-    _inputsInfo = network.getInputsInfo();
-    _inputsInfo["input"]->setPrecision(Precision::FP16);
-
-    _outputsInfo = network.getOutputsInfo();
-    _outputsInfo["pooling_test"]->setPrecision(Precision::FP16);
 
     std::map<std::string, std::string> config;
     setCommonConfig(config);
@@ -193,11 +173,11 @@ TEST_F(kmbLayersTests_nightly, TestExportImportBlob03) {
     config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_DOT)] = CONFIG_VALUE(YES);
     config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_JSON)] = CONFIG_VALUE(YES);
 
-    ExportImportBlobToFromFile(network, config, "Test03" );
+    ExportImportBlobToFromFile(network, config, "Pooling" );
 }
 
 
-TEST_F(kmbLayersTests_nightly, TestExportImportBlob04) {
+TEST_F(kmbLayersTests_nightly, TestExportImportBlob_ReLU) {
     extern std::string relu_test_2;
     const std::string model = relu_test_2;
 
@@ -206,12 +186,6 @@ TEST_F(kmbLayersTests_nightly, TestExportImportBlob04) {
 
     auto network = _net_reader.getNetwork();
 
-    _inputsInfo = network.getInputsInfo();
-    _inputsInfo["input"]->setPrecision(Precision::FP16);
-
-    _outputsInfo = network.getOutputsInfo();
-    _outputsInfo["relu_test"]->setPrecision(Precision::FP16);
-
     std::map<std::string, std::string> config;
     setCommonConfig(config);
     config[VPU_KMB_CONFIG_KEY(MCM_PARSING_ONLY)] = CONFIG_VALUE(NO);
@@ -219,7 +193,7 @@ TEST_F(kmbLayersTests_nightly, TestExportImportBlob04) {
     config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_DOT)] = CONFIG_VALUE(YES);
     config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_JSON)] = CONFIG_VALUE(YES);
 
-    ExportImportBlobToFromFile(network, config, "Test04" );
+    ExportImportBlobToFromFile(network, config, "ReLU" );
 
 }
 
