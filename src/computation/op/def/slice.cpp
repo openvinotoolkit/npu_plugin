@@ -28,11 +28,11 @@ namespace mv
             //starting coord must be inside input tensor
             // TODO: for variable number of dimensions, the "largest" tensor should be the input, and
             // we will need to check if the "sliced" dimensions exist in the inputTensor.
-            for( auto dim = 0 ; dim < inputShape.ndims() ; dim++)
+            for(std::size_t dim = 0; dim < inputShape.ndims(); dim++)
             {
-                if( not((0 <= startCoord[dim]) and
-                        (startCoord[dim] <= startCoord[dim] + outputSize[dim]) and
-                        (startCoord[dim] + outputSize[dim] <= inputShape[dim])))
+                if(!((0 <= startCoord[dim]) &&
+                    (startCoord[dim] <= startCoord[dim] + outputSize[dim]) &&
+                    (startCoord[dim] + outputSize[dim] <= inputShape[dim])))
                 {
                     errMsg = "Invalid configuration for dimension " + std::to_string(dim) + " Not able to slice : startCoord - outputSize - inputTensor"
                             + startCoord.toString() + " - " + outputSize.toString() + " " + inputShape.toString();

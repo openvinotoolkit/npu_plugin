@@ -140,6 +140,7 @@ SET(base
     "${PROJECT_SOURCE_DIR}/src/base/json/string.cpp"
     "${PROJECT_SOURCE_DIR}/src/base/json/value_content.cpp"
     "${PROJECT_SOURCE_DIR}/src/base/json/value.cpp"
+    "${PROJECT_SOURCE_DIR}/src/base/json/json.cpp"
     
     "${PROJECT_SOURCE_DIR}/src/base/attribute_entry.cpp"
     "${PROJECT_SOURCE_DIR}/src/base/attribute_registry.cpp"
