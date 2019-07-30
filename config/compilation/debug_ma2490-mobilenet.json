@@ -4,14 +4,14 @@
             {
                 "name" : "GlobalConfigParams",
                 "_comment" : "Stores common params accross multiple passes. Access through the Computation Model.",
-                "recorded_model": false,
+                "recorded_model": true,
                 "verbose": "Debug",
                 "weights_form": "None",
                 "barrier_index_assignment" : "Dynamic",
                 "Number_of_DPUs" : 1,
                 "Number_of_Clusters" : 1,
                 "UpaShaves": 1,
-                "DDRScratch": 1073741824,
+                "DDRScratch": 16777216,
                 "MemoryHack": false,
                 "Sparsity": false,
                 "CMX_memory_overflow_safety_factor" : 1.0,
@@ -59,289 +59,32 @@
                         "strategy" : "SplitOverH"
                     }
                 ],
-                "tensor_placement_override" :
-                [
-                    {
-                        "name_filter" : ".*_ddr_.*",
-                        "mem_location" : "DDR"
-                    },
-                    {
-                        "name_filter" : ".*_cmx_.*",
-                        "mem_location" : "CMX"
-                    },
-                    {
-                        "name_filter" : ".*_input_.*",
-                        "mem_location" : "INPUT"
-                    },
-                    {
-                        "name_filter" : ".*_output_.*",
-                        "mem_location" : "OUTPUT"
-                    },
-                    {
-                        "name_filter" : ".*weights.*",
-                        "mem_location" : "BLOB"
-                    }
-                                   
-                ],
                 "default_tensor_placement" : "DDR",
                 "streaming_strategy" :
                 [
-                    {
-                        "name_filter" : "expanded_conv_5/expand/Relu6#188)",
+                        {
+                        "name_filter" : "MobilenetV2/expanded_conv_1/expand/Relu#174",
+                        "output_location" : "CMX",
+                        "splits" : [ {"H" : 2} ]
+                        },
+                        {
+                        "name_filter" : "MobilenetV2/expanded_conv_1/depthwise/Relu#175",
+                        "output_location" : "CMX",
+                        "splits" : [ {"H" : 2} ]
+                        },
+                        {
+                        "name_filter" : "MobilenetV2/expanded_conv_2/depthwise/Relu#178",
+                        "output_location" : "CMX",
+                        "splits" : [ {"H" : 2} ]
+                        },
+                        {
+                        "name_filter" : "MobilenetV2/Logits/Conv2d_1c_1x1/act_quant/FakeQuantWithMinMaxVars#234",
                         "output_location" : "CMX",
                         "splits" : [ {"K" : 2} ]
-                    },
-                    {
-                        "name_filter" : "expanded_conv_6/expand/Relu6#192",
-                        "output_location" : "CMX",
-                        "splits" : [ {"K" : 3} ]
-                    },
-                    {
-                        "name_filter" : "expanded_conv_8/expand/Relu6#199",
-                        "output_location" : "CMX",
-                        "splits" : [ {"K" : 2} ]
-                    },
-                    {
-                        "name_filter" : "expanded_conv_9/expand/Relu6#203",
-                        "output_location" : "CMX",
-                        "splits" : [ {"K" : 2} ]
-                    },
-                    {
-                        "name_filter" : "expanded_conv_10/expand/Relu6#210",
-                        "output_location" : "CMX",
-                        "splits" : [ {"K" : 2} ]
-                    },
-                    {
-                        "name_filter" : "expanded_conv_12/expand/Relu6#214",
-                        "output_location" : "CMX",
-                        "splits" : [ {"K" : 3} ]
-                    },
-                    {
-                        "name_filter" : "expanded_conv_13/expand/Relu6#218",
-                        "output_location" : "CMX",
-                        "splits" : [ {"K" : 3} ]
-                    },
-                    {
-                        "name_filter" : "expanded_conv_15/expand/Relu6#225",
-                        "output_location" : "CMX",
-                        "splits" : [ {"K" : 3} ]
-                    },
-                    {
-                        "name_filter" : "expanded_conv_16/expand/Relu6#229",
-                        "output_location" : "CMX",
-                        "splits" : [ {"K" : 3} ]
-                    },
-                    {
-                        "name_filter" : "expanded_conv_16/project/BatchNorm/FusedBatchNorm/BiasAdd#231",
-                        "output_location" : "CMX",
-                        "splits" : [ {"K" : 5} ]
-                    },
-                    {
-                        "name_filter" : "Conv_1/Relu6#232",
-                        "output_location" : "CMX",
-                        "splits" : [ {"K" : 2} ]
-                    },
-                    {
-                        "name_filter" : "Logits/Conv2d_1c_1x1/BiasAdd/Logits/Conv2d_1c_1x1/BiasAdd#234",
-                        "output_location" : "CMX",
-                        "splits" : [ {"K" : 2} ]
-                    }
-                ],
-                "disable_opFission_streaming_strategy" :
-                [
-                    {
-                        "name_filter" : "conv1_cmx_",
-                        "weight_splits" : 2
-                    },
-                    {
-                        "name_filter" : "conv2_cmx_",
-                        "weight_splits" : 4
-                    }
-                ],
-                "schedule_helper_edges" :
-                [
-                    {
-                        "edge_source" : "max_pool#36_split_0_DEALLOC",
-                        "edge_sink" : "max_pool#36_slice_1_copy0"
-                    },
-                    {
-                        "edge_source" : "max_pool#36_split_0_DEALLOC",
-                        "edge_sink" : "max_pool#36_split_1_weights_table_DDR2CMX"
-                    },
-                    {
-                        "edge_source" : "max_pool#36_split_0_DEALLOC",
-                        "edge_sink" : "max_pool#36_split_1_sparse_dw_DDR2CMX"
-                    },
-                    {
-                        "edge_source" : "relu_6#47_split_0_DEALLOC",
-                        "edge_sink" : "relu_6#47_split_1_weights_table_DDR2CMX"
-                    },
-                    {
-                        "edge_source" : "relu_6#47_split_0_DEALLOC",
-                        "edge_sink" : "relu_6_weights#25:0_slice_1_Aligned_copy0"
-                    },
-                    {
-                        "edge_source" : "relu_6#47_split_1_DEALLOC",
-                        "edge_sink" : "relu_6#47_split_2_weights_table_DDR2CMX"
-                    },
-                    {
-                        "edge_source" : "relu_6#47_split_1_DEALLOC",
-                        "edge_sink" : "relu_6_weights#25:0_slice_2_Aligned_copy0"
-                    },
-                    {
-                        "edge_source" : "relu_6#47_split_2_DEALLOC",
-                        "edge_sink" : "relu_6#47_split_3_weights_table_DDR2CMX"
-                    },
-                    {
-                        "edge_source" : "relu_6#47_split_2_DEALLOC",
-                        "edge_sink" : "relu_6_weights#25:0_slice_3_Aligned_copy0"
-                    },
-                    {
-                        "edge_source" : "relu_6#47_split_4_DEALLOC",
-                        "edge_sink" : "relu_6#47_split_5_weights_table_DDR2CMX"
-                    },
-                    {
-                        "edge_source" : "relu_6#47_split_4_DEALLOC",
-                        "edge_sink" : "relu_6_weights#25:0_slice_5_Aligned_copy0"
-                    },
-                    {
-                        "edge_source" : "relu_6#47_split_5_DEALLOC",
-                        "edge_sink" : "relu_6#47_split_6_weights_table_DDR2CMX"
-                    },
-                    {
-                        "edge_source" : "relu_6#47_split_5_DEALLOC",
-                        "edge_sink" : "relu_6_weights#25:0_slice_6_Aligned_copy0"
-                    },
-                    {
-                        "edge_source" : "relu_6#47_split_6_DEALLOC",
-                        "edge_sink" : "relu_6#47_split_7_weights_table_DDR2CMX"
-                    },
-                    {
-                        "edge_source" : "relu_6#47_split_6_DEALLOC",
-                        "edge_sink" : "relu_6_weights#25:0_slice_7_Aligned_copy0"
-                    },
-                    {
-                        "edge_source" : "relu_7#48_split_0_DEALLOC",
-                        "edge_sink" : "relu_7#48_split_1_weights_table_DDR2CMX"
-                    },
-                    {
-                        "edge_source" : "relu_7#48_split_0_DEALLOC",
-                        "edge_sink" : "relu_7_weights#28:0_slice_1_Aligned_copy0"
-                    },
-                    {
-                        "edge_source" : "relu_7#48_split_1_DEALLOC",
-                        "edge_sink" : "relu_7#48_split_2_weights_table_DDR2CMX"
-                    },
-                    {
-                        "edge_source" : "relu_7#48_split_1_DEALLOC",
-                        "edge_sink" : "relu_7_weights#28:0_slice_2_Aligned_copy0"
-                    },
-                    {
-                        "edge_source" : "relu_7#48_split_2_DEALLOC",
-                        "edge_sink" : "relu_7#48_split_3_weights_table_DDR2CMX"
-                    },
-                    {
-                        "edge_source" : "relu_7#48_split_2_DEALLOC",
-                        "edge_sink" : "relu_7_weights#28:0_slice_3_Aligned_copy0"
-                    },
-                    {
-                        "edge_source" : "relu_7#48_split_3_DEALLOC",
-                        "edge_sink" : "relu_7#48_split_4_weights_table_DDR2CMX"
-                    },
-                    {
-                        "edge_source" : "relu_7#48_split_3_DEALLOC",
-                        "edge_sink" : "relu_7_weights#28:0_slice_4_Aligned_copy0"
-                    },
-                    {
-                        "edge_source" : "relu_7#48_split_4_DEALLOC",
-                        "edge_sink" : "relu_7#48_split_5_weights_table_DDR2CMX"
-                    },
-                    {
-                        "edge_source" : "relu_7#48_split_4_DEALLOC",
-                        "edge_sink" : "relu_7_weights#28:0_slice_5_Aligned_copy0"
-                    },
-                    {
-                        "edge_source" : "relu_7#48_split_5_DEALLOC",
-                        "edge_sink" : "relu_7#48_split_6_weights_table_DDR2CMX"
-                    },
-                    {
-                        "edge_source" : "relu_7#48_split_5_DEALLOC",
-                        "edge_sink" : "relu_7_weights#28:0_slice_6_Aligned_copy0"
-                    },
-                    {
-                        "edge_source" : "relu_7#48_split_6_DEALLOC",
-                        "edge_sink" : "relu_7#48_split_7_weights_table_DDR2CMX"
-                    },
-                    {
-                        "edge_source" : "relu_7#48_split_6_DEALLOC",
-                        "edge_sink" : "relu_7_weights#28:0_slice_7_Aligned_copy0"
-                    },
-                    {
-                        "edge_source" : "relu_7#48_split_7_DEALLOC",
-                        "edge_sink" : "relu_7#48_split_8_weights_table_DDR2CMX"
-                    },
-                    {
-                        "edge_source" : "relu_7#48_split_7_DEALLOC",
-                        "edge_sink" : "relu_7_weights#28:0_slice_8_Aligned_copy0"
-                    },
-                    {
-                        "edge_source" : "relu_7#48_split_8_DEALLOC",
-                        "edge_sink" : "relu_7#48_split_9_weights_table_DDR2CMX"
-                    },
-                    {
-                        "edge_source" : "relu_7#48_split_8_DEALLOC",
-                        "edge_sink" : "relu_7_weights#28:0_slice_9_Aligned_copy0"
-                    },
-                    {
-                        "edge_source" : "relu_7#48_split_9_DEALLOC",
-                        "edge_sink" : "relu_7#48_split_10_weights_table_DDR2CMX"
-                    },
-                    {
-                        "edge_source" : "relu_7#48_split_9_DEALLOC",
-                        "edge_sink" : "relu_7_weights#28:0_slice_10_Aligned_copy0"
-                    },
-                    {
-                        "edge_source" : "relu_7#48_split_10_DEALLOC",
-                        "edge_sink" : "relu_7#48_split_11_weights_table_DDR2CMX"
-                    },
-                    {
-                        "edge_source" : "relu_7#48_split_10_DEALLOC",
-                        "edge_sink" : "relu_7_weights#28:0_slice_11_Aligned_copy0"
-                    },
-                    {
-                        "edge_source" : "relu_7#48_split_11_DEALLOC",
-                        "edge_sink" : "relu_7#48_split_12_weights_table_DDR2CMX"
-                    },
-                    {
-                        "edge_source" : "relu_7#48_split_11_DEALLOC",
-                        "edge_sink" : "relu_7_weights#28:0_slice_12_Aligned_copy0"
-                    },
-                    {
-                        "edge_source" : "relu_7#48_split_12_DEALLOC",
-                        "edge_sink" : "relu_7#48_split_13_weights_table_DDR2CMX"
-                    },
-                    {
-                        "edge_source" : "relu_7#48_split_12_DEALLOC",
-                        "edge_sink" : "relu_7_weights#28:0_slice_13_Aligned_copy0"
-                    },
-                    {
-                        "edge_source" : "relu_7#48_split_13_DEALLOC",
-                        "edge_sink" : "relu_7#48_split_14_weights_table_DDR2CMX"
-                    },
-                    {
-                        "edge_source" : "relu_7#48_split_13_DEALLOC",
-                        "edge_sink" : "relu_7_weights#28:0_slice_14_Aligned_copy0"
-                    },
-                    {
-                        "edge_source" : "relu_7#48_split_14_DEALLOC",
-                        "edge_sink" : "relu_7#48_split_15_weights_table_DDR2CMX"
-                    },
-                    {
-                        "edge_source" : "relu_7#48_split_14_DEALLOC",
-                        "edge_sink" : "relu_7_weights#28:0_slice_15_Aligned_copy0"
-                    }
+                        }
                 ]
             },
+
             "ComputeMemory",
             "AssignUniqueOpId",
             {
@@ -436,6 +179,18 @@
             {
                 "name": "ConvertDot",
                 "input": "output/dots/AfterOpsToTasks.dot"
+            },
+            "ForceSerialize",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/AfterForceSerializae.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/AfterForceSerializae.dot"
             },
             "AlignTo16Channels",
             "ComputeTensorsQuantParams",
@@ -554,8 +309,8 @@
                 "name": "ConvertDot",
                 "input": "output/dots/dma_model.dot"
             }
-            
-            
+
+
         ]
     },
     "control_flows":{
@@ -600,6 +355,7 @@
                 "input": "output/dots/NoHangingDmas.dot"
             },
             "cmx2DDRControlFlows",
+            "TransitiveReduction",
             {
                 "name": "GenerateDot",
                 "output": "output/dots/cmx2DDRControlFlows.dot",
@@ -655,7 +411,7 @@
             {
                 "name": "GenerateDot",
                 "output": "output/dots/TransitiveReductionBeforeMaxCutFull.dot",
-                "scope": "OpControlModel",
+                "scope": "ControlModel",
                 "content": "full",
                 "html": true
             },
@@ -712,7 +468,7 @@
             {
                 "name": "GenerateDot",
                 "output": "output/dots/BeforeGraphColoringControl.dot",
-                "scope": "ControlModel",
+                "scope": "OpControlModel",
                 "content": "full",
                 "html": true
             },

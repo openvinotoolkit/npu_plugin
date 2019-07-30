@@ -41,4 +41,8 @@ static void GlobalConfigParamsFcn(const mv::pass::PassEntry& pass, mv::Computati
                 
     }
 
+    if (compilationDescriptor.hasAttr("log_time"))
+    {
+        mv::Logger::enableLogTime();
+    }
 }
