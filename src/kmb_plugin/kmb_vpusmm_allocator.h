@@ -14,35 +14,19 @@
 // stated in the License.
 //
 
-#include <vpusmm.h>
-#include <sys/mman.h>
-#include <sys/ioctl.h>
-#include <unistd.h>
+#pragma once
+
+#include <kmb_allocator.h>
+
+namespace vpu {
+namespace KmbPlugin {
+
+class KmbVpusmmAllocator : public KmbAllocator {
+public:
+    void * alloc(size_t size) noexcept override;
+    bool   free(void* handle) noexcept override;
+};
 
 
-#include "kmb_allocator.h"
-
-#include <iostream>
-
-using namespace vpu::KmbPlugin;
-
-void *KmbAllocator::lock(void *handle, InferenceEngine::LockOp) noexcept {
-    if (_allocatedMemory.find(handle) == _allocatedMemory.end())
-        return nullptr;
-
-    return handle;
-}
-
-void KmbAllocator::unlock(void *handle) noexcept {
-    UNUSED(handle);
-}
-
-unsigned long KmbAllocator::getPhysicalAddress(void *handle) noexcept {
-    auto memoryIt = _allocatedMemory.find(handle);
-    if (memoryIt == _allocatedMemory.end()) {
-        return 0;
-    }
-
-    auto memoryDesc = memoryIt->second;
-    return memoryDesc.physAddr;
-}
+}  // namespace KmbPlugin
+}  // namespace vpu

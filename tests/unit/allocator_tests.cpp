@@ -22,7 +22,7 @@
 
 #include <ie_blob.h>
 
-#include "kmb_allocator.h"
+#include "kmb_vpusmm_allocator.h"
 
 
 using namespace vpu::KmbPlugin;
@@ -49,7 +49,7 @@ TEST_F(kmbAllocatorUnitTests, canFreeMemory) {
         SKIP() << "vpusmm_driver not found. Please install before running tests";
     }
 
-    KmbAllocator allocator;
+    KmbVpusmmAllocator allocator;
 
     size_t size = 10;
     auto data = allocator.alloc(size);
@@ -63,7 +63,7 @@ TEST_F(kmbAllocatorUnitTests, canWriteAndReadAllocatedMemory) {
         SKIP() << "vpusmm_driver not found. Please install before running tests";
     }
 
-    KmbAllocator allocator;
+    KmbVpusmmAllocator allocator;
 
     size_t size = 10;
     void *data = allocator.alloc(size);
@@ -85,7 +85,7 @@ TEST_F(kmbAllocatorUnitTests, cannotFreeInvalidAddressMemory) {
         SKIP() << "vpusmm_driver not found. Please install before running tests";
     }
 
-    KmbAllocator allocator;
+    KmbVpusmmAllocator allocator;
 
     auto data = nullptr;
 
@@ -97,7 +97,7 @@ TEST_F(kmbAllocatorUnitTests, cannotDoDoubleFree) {
         SKIP() << "vpusmm_driver not found. Please install before running tests";
     }
 
-    KmbAllocator allocator;
+    KmbVpusmmAllocator allocator;
 
     size_t size = 10;
     auto data = allocator.alloc(size);
@@ -112,7 +112,7 @@ TEST_F(kmbAllocatorUnitTests, canCreateBlobBasedOnAllocator) {
         SKIP() << "vpusmm_driver not found. Please install before running tests";
     }
 
-    const std::shared_ptr<InferenceEngine::IAllocator> customAllocator(new KmbAllocator());
+    const std::shared_ptr<InferenceEngine::IAllocator> customAllocator(new KmbVpusmmAllocator());
 
     const InferenceEngine::TensorDesc tensorDesc(InferenceEngine::Precision::U8, {1, 1, 1, 1}, InferenceEngine::Layout::NCHW);
     auto blob = InferenceEngine::make_shared_blob<uint8_t>(tensorDesc, customAllocator);
@@ -125,7 +125,7 @@ TEST_F(kmbAllocatorUnitTests, canWriteToBlobMemory) {
         SKIP() << "vpusmm_driver not found. Please install before running tests";
     }
 
-    const std::shared_ptr<InferenceEngine::IAllocator> customAllocator(new KmbAllocator());
+    const std::shared_ptr<InferenceEngine::IAllocator> customAllocator(new KmbVpusmmAllocator());
 
     const InferenceEngine::TensorDesc tensorDesc(InferenceEngine::Precision::U8, {1, 1, 1, 1}, InferenceEngine::Layout::NCHW);
     auto blob = InferenceEngine::make_shared_blob<uint8_t>(tensorDesc, customAllocator);
@@ -159,7 +159,7 @@ TEST_P(kmbAllocatorDifferentSizeUnitTests, canAllocate) {
     }
     auto isAlignedAllocation = GetParam();
 
-    KmbAllocator allocator;
+    KmbVpusmmAllocator allocator;
 
     size_t alignedSize = 2 * pageSize;
     size_t size = alignedSize;
