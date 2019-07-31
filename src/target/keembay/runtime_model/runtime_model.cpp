@@ -320,7 +320,7 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
 
         toBuild->leading_offset = byte_index;
     }
-    else if(*tensorAllocatorName == "ProgrammableInput" || *tensorAllocatorName == "ProgrammableOutput" || *tensorAllocatorName == "VPU_DDR_BSS")
+    else if(*tensorAllocatorName == "ProgrammableInput" || *tensorAllocatorName == "ProgrammableOutput" || *tensorAllocatorName == "VPU_DDR_BSS" || *tensorAllocatorName == "VPU_DDR_Heap")
     {
         auto offset = subtensor.get<std::vector<std::size_t>>("offset");
         auto index = subtensor.getOrder().subToInd(t->getShape(), offset);
@@ -591,9 +591,11 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildSpecificTaskUn
         toBuild = buildUPADMATaskT(cm, compilationDescriptor, opIt);
     else if(taskType == "DMATask")
     {
-        bool splitting = opIt->hasAttr("Valid_workload") && opIt->get<bool>("Valid_workload");
+        std::string splitting;
+        if (opIt->hasAttr("splitStrategy"))
+            splitting = opIt->get<std::string>("splitStrategy");
 
-        if (!splitting)
+        if (splitting == "Clustering")
             toBuild = buildNNDMATaskT(cm, compilationDescriptor, opIt);
         else
             toBuild = buildNNDMATaskT(cm, compilationDescriptor, opIt, splitting);
@@ -602,9 +604,11 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildSpecificTaskUn
         toBuild = buildNCE1TaskT(cm, compilationDescriptor, opIt);
     else if(taskType == "DPUTask")
     {
-        bool splitting = opIt->hasAttr("Valid_workload") && opIt->get<bool>("Valid_workload");
+        std::string splitting;
+        if (opIt->hasAttr("splitStrategy"))
+            splitting = opIt->get<std::string>("splitStrategy");
 
-        if (!splitting)
+        if (splitting == "Clustering")
             toBuild = buildNCE2TaskT(cm, compilationDescriptor, opIt);
         else
             toBuild = buildNCE2TaskT(cm, compilationDescriptor, opIt, splitting);
@@ -672,7 +676,7 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
     return toReturn;
 }
 
-std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt, bool splitting)
+std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt, std::string splitting)
 {
     UNUSED(splitting);
 
@@ -1275,7 +1279,7 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNCE2TaskT(Comp
     return toReturn;
 }
 
-std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNCE2TaskT(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt, bool splitting)
+std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNCE2TaskT(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt, std::string splitting)
 {
     UNUSED (splitting);
     auto strategy = opIt->get<std::string>("splitStrategy");
@@ -1517,7 +1521,7 @@ void mv::RuntimeModel::serialize(const std::string& filename)
     char * dataBuffer = serialize(bufferSize);
     if (flatbuffers::SaveFile((filename).c_str(), dataBuffer, bufferSize, true))
         Logger::log(mv::Logger::MessageType::Info, "RuntimeModel", "File successfully written to: " + filename);
-    else 
+    else
         Logger::log(mv::Logger::MessageType::Error, "RuntimeModel", "File was not created. Check configuration");
     delete [] dataBuffer;
 }

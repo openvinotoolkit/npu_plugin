@@ -215,7 +215,7 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
 
             if(!splitStrategy.empty())
             {
-                //NOTE:Pooling can not be SplitOverK
+                //NOTE:Elwise can not be SplitOverK
                dpuElementWiseOp->set<std::string>("splitStrategy", splitStrategy);
                if (splitStrategy == "HKSwitch")
                     dpuElementWiseOp->set<bool>("multiCast", true);

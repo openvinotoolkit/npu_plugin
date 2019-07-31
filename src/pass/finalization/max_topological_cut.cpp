@@ -34,11 +34,7 @@ void markLastNodeForMaxTopologicalCutFcn(const mv::pass::PassEntry& pass, mv::Co
     mv::ControlModel cm(model);
     mv::OpModel om(model);
     auto sinkNode = cm.switchContext(om.getOutput());
-    //auto sinkNode = output.leftmostParent();
-    if(sinkNode.parentsSize() > 1)
-        sinkNode->set<bool>("lastOpKoala", true);
-    else
-        sinkNode.leftmostParent()->set<bool>("lastOpKoala", true);
+    sinkNode.leftmostParent()->set<bool>("lastOpKoala", true);
 }
 
 

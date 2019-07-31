@@ -21,530 +21,270 @@
                 [
                     {
                         "name_filter" : ".*",
-                        "cluster_filter" : 0,
-                        "strategy" : "SplitOverH"
-                    },
-                    {
-                        "name_filter" : ".*",
                         "cluster_filter" : 1,
                         "strategy" : "Clustering"
                     },
                     {
-                        "name_filter" : ".*res2a.*",
-                        "cluster_filter" : 0,
-                        "strategy" : "SplitOverK"
+                        "name_filter" : ".*input.*",
+                       "cluster_filter" : 0,
+                       "strategy" : "SplitOverK"
                     },
                     {
-                        "name_filter" : ".*res2b.*",
-                        "cluster_filter" : 0,
-                        "strategy" : "SplitOverH"
+                          "name_filter" : ".*conv7.*",
+                         "cluster_filter" : 0,
+                         "strategy" : "SplitOverK"
                     },
                     {
-                        "name_filter" : ".*res2c.*",
-                        "cluster_filter" : 0,
-                        "strategy" : "SplitOverH"
-                    },
-                    {
-                        "name_filter" : ".*res3a.*",
-                        "cluster_filter" : 0,
-                        "strategy" : "SplitOverH"
-                    },
-                    {
-                        "name_filter" : ".*res3b.*",
-                        "cluster_filter" : 0,
-                        "strategy" : "SplitOverH"
-                    },
-                    {
-                        "name_filter" : ".*res3c.*",
-                        "cluster_filter" : 0,
-                        "strategy" : "SplitOverH"
-                    },
-                    {
-                        "name_filter" : ".*res3d.*",
-                        "cluster_filter" : 0,
-                        "strategy" : "SplitOverH"
-                    },
-                    {
-                        "name_filter" : ".*mpool.*",
-                        "cluster_filter" : 0,
-                        "strategy" : "SplitOverH"
-                    },
-                    {
-                        "name_filter" : ".*res4a.*",
-                        "cluster_filter" : 0,
-                        "strategy" : "SplitOverH"
-                    },
-                    {
-                        "name_filter" : ".*res4b.*",
-                        "cluster_filter" : 0,
-                        "strategy" : "SplitOverH"
-                    },
-                    {
-                        "name_filter" : ".*res4c.*",
-                        "cluster_filter" : 0,
-                        "strategy" : "SplitOverH"
-                    },
-                    {
-                        "name_filter" : ".*res4d.*",
-                        "cluster_filter" : 0,
-                        "strategy" : "SplitOverH"
-                    },
-                    {
-                        "name_filter" : ".*res4f.*",
-                        "cluster_filter" : 0,
-                        "strategy" : "SplitOverH"
-                    },
-                    {
-                        "name_filter" : ".*res5a.*",
-                        "cluster_filter" : 0,
-                        "strategy" : "SplitOverH"
-                    },
-                    {
-                        "name_filter" : ".*res5b.*",
-                        "cluster_filter" : 0,
-                        "strategy" : "SplitOverH"
-                    },
-                    {
-                        "name_filter" : ".*res5c.*",
-                        "cluster_filter" : 0,
-                        "strategy" : "SplitOverK"
-                    },
-                   
-                    {
-                        "name_filter" : ".*conv0.*",
-                        "cluster_filter" : 0,
-                        "strategy" : "SplitOverK"
-                    },
-                    {
-                        "name_filter" : ".*pool1.*",
-                        "cluster_filter" : 0,
-                        "strategy" : "SplitOverH"
-                    },
-                    {
-                        "name_filter" : ".*james2x2pool.*",
-                        "cluster_filter" : 0,
-                        "strategy" : "SplitOverH"
-                    },
-                    {
-                        "name_filter" : ".*pool/max_pool#4.*",
-                        "cluster_filter" : 0,
-                        "strategy" : "SplitOverH"
-                    },
-                    {
-                        "name_filter" : ".*pool_1/max_pool#5.*",
-                        "cluster_filter" : 0,
-                        "strategy" : "SplitOverH"
-                    },
-                    {
-                        "name_filter" : ".*ew_1#6.*",
-                        "cluster_filter" : 0,
-                        "strategy" : "SplitOverH"
-                    },
-                    {
-                        "name_filter" : ".*conv3.*",
-                        "cluster_filter" : 0,
-                        "strategy" : "SplitOverK"
-                    },
-                    {
-                        "name_filter" : "input.*" ,
-                        "cluster_filter" : 0,
-                        "strategy": "SplitOverK"
-                    },
-                    {
-                        "name_filter" : "conv/BiasAdd.*" ,
-                        "cluster_filter" : 0,
-                        "strategy": "SplitOverK"
-                    },
-                    {
-                        "name_filter" : "conv_1/BiasAdd.*" ,
-                        "cluster_filter" : 0,
-                        "strategy": "SplitOverK"
-                    },
-                    {
-                        "name_filter" : "output.*" ,
-                        "cluster_filter" : 0,
-                        "strategy": "SplitOverK"
-                    },
-                    {
-                        "name_filter" :"conv0/Relu.*",
-                        "cluster_filter" : 0,
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter" : "pool0/MaxPool.*",
-                        "cluster_filter" : 0,
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter" : "group0/block0/conv1/Relu.*",
-                        "cluster_filter" : 0,
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter" : "group0/block0/conv2/Relu.*",
-                        "cluster_filter" : 0,
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter" : "group0/block0/conv3/Relu.*",
-                        "cluster_filter" : 0,
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter" : "group0/block0/convshortcut/Relu.*",
-                        "cluster_filter" : 0,
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter" : "group0/block0/add.*",
-                        "cluster_filter" : 0,
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter" : "group0/block1/conv1/Relu.*",
-                        "cluster_filter" : 0,
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter" : "group0/block1/conv2/Relu.*",
-                        "cluster_filter" : 0,
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter" : "group0/block1/conv3/Relu.*",
-                        "cluster_filter" : 0,
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter" : "group0/block1/add.*",
-                        "cluster_filter" : 0,
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter" : "group0/block2/conv1/Relu.*",
-                        "cluster_filter" : 0,
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter" : "group0/block2/conv2/Relu.*",
-                        "cluster_filter" : 0,
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter" : "group0/block2/conv3/Relu.*",
-                        "cluster_filter" : 0,
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter" : "group0/block2/add.*",
-                        "cluster_filter" : 0,
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter" : "group1/block0/conv1/Relu.*",
-                        "cluster_filter" : 0,
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter" : "group1/block0/conv2/Relu.*",
-                        "cluster_filter" : 0,
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter" : "group1/block0/conv3/Relu.*",
-                        "cluster_filter" : 0,
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter" : "group1/block0/convshortcut/Relu.*",
-                        "cluster_filter" : 0,
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter" : "group1/block0/add.*",
-                        "cluster_filter" : 0,
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter" : "group1/block1/conv1/Relu.*",
-                        "cluster_filter" : 0,
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter" : "group1/block1/conv2/Relu.*",
-                        "cluster_filter" : 0,
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter" : "group1/block1/conv3/Relu.*",
-                        "cluster_filter" : 0,
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter" : "group1/block1/add.*",
-                        "cluster_filter" : 0,
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter" : "group1/block2/conv1/Relu.*",
-                        "cluster_filter" : 0,
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter" : "group1/block2/conv2/Relu.*",
-                        "cluster_filter" : 0,
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter" : "group1/block2/conv3/Relu.*",
-                        "cluster_filter" : 0,
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter" : "group1/block2/add.*",
-                        "cluster_filter" : 0,
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter" : "group1/block3/conv1/Relu.*",
-                        "cluster_filter" : 0,
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter" : "group1/block3/conv2/Relu.*",
-                        "cluster_filter" : 0,
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter" : "group1/block3/conv3/Relu.*",
-                        "cluster_filter" : 0,
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter" : "group1/block3/add.*",
-                        "cluster_filter" : 0,
-                        "strategy": "HKSwitch"
-                    },
-                    {
-                        "name_filter" : "group2/block0/conv1/Relu.*",
-                        "cluster_filter" : 0,
-                        "strategy": "SplitOverK"
-                    },
-                    {
-                        "name_filter" : "group2/block0/conv2/Relu.*",
-                        "cluster_filter" : 0,
-                        "strategy": "SplitOverK"
+                        "name_filter" : ".*conv8.*",
+                       "cluster_filter" : 0,
+                       "strategy" : "SplitOverK"
                     }
                 ],
+                "tensor_placement_override" :
+                [
+                    {
+                        "name_filter" : ".*_ddr_.*",
+                        "mem_location" : "DDR"
+                    },
+                    {
+                        "name_filter" : ".*_cmx_.*",
+                        "mem_location" : "CMX"
+                    },
+                    {
+                        "name_filter" : ".*_input_.*",
+                        "mem_location" : "INPUT"
+                    },
+                    {
+                        "name_filter" : ".*_output_.*",
+                        "mem_location" : "OUTPUT"
+                    },
+                    {
+                        "name_filter" : ".*weights.*",
+                        "mem_location" : "BLOB"
+                    }
+
+                ],
                 "default_tensor_placement" : "DDR",
+
                 "streaming_strategy" :
                 [
                     {
-                        "name_filter" : "conv0/Relu#181",
+                        "name_filter" : "conv0_cmx_",
                         "output_location" : "CMX",
-                        "splits" : [ {"H" : 2} ]
+                        "splits" : [
+                            {"K" : 4}
+                        ]
                     },
                     {
-                        "name_filter" : "pool0/MaxPool#182",
-                        "output_location" : "CMX",
-                        "splits" : [ {"H" : 2} ]
+                        "name_filter" : "conv7/conv7#4",
+                        "output_location" : "DDR",
+                        "splits" : [
+                            {"K" : 8}
+                        ]
                     },
                     {
-                        "name_filter" : "group0/block0/convshortcut/Relu#183",
-                        "output_location" : "CMX",
-                        "splits" : [ {"H" : 2} ]
+                        "name_filter" : "conv8/conv8#8",
+                        "output_location" : "DDR",
+                        "splits" : [
+                            {"K" : 16}
+                        ]
+                    }
+
+                ],
+                "disable_opFission_streaming_strategy" :
+                [
+                    {
+                        "name_filter" : "conv1_cmx_",
+                        "weight_splits" : 2
                     },
                     {
-                        "name_filter" : "group0/block0/conv3/Relu#186",
-                        "output_location" : "CMX",
-                        "splits" : [ {"H" : 2} ]
+                        "name_filter" : "conv2_cmx_",
+                        "weight_splits" : 4
+                    }
+                ],
+                "schedule_helper_edges" :
+                [
+                    {
+                        "edge_source" : "max_pool#36_split_0_DEALLOC",
+                        "edge_sink" : "max_pool#36_slice_1_copy0"
                     },
                     {
-                        "name_filter" : "group0/block1/conv1/Relu#188",
-                        "output_location" : "CMX",
-                        "splits" : [ {"H" : 2} ]
+                        "edge_source" : "max_pool#36_split_0_DEALLOC",
+                        "edge_sink" : "max_pool#36_split_1_weights_table_DDR2CMX"
                     },
                     {
-                        "name_filter" : "group0/block1/conv3/Relu#190",
-                        "output_location" : "CMX",
-                        "splits" : [ {"H" : 2} ]
+                        "edge_source" : "max_pool#36_split_0_DEALLOC",
+                        "edge_sink" : "max_pool#36_split_1_sparse_dw_DDR2CMX"
                     },
                     {
-                        "name_filter" : "group0/block2/conv1/Relu#192",
-                        "output_location" : "CMX",
-                        "splits" : [ {"H" : 2} ]
+                        "edge_source" : "relu_6#47_split_0_DEALLOC",
+                        "edge_sink" : "relu_6#47_split_1_weights_table_DDR2CMX"
                     },
                     {
-                        "name_filter" : "group0/block2/conv3/Relu#194",
-                        "output_location" : "CMX",
-                        "splits" : [ {"H" : 2} ]
+                        "edge_source" : "relu_6#47_split_0_DEALLOC",
+                        "edge_sink" : "relu_6_weights#25:0_slice_1_Aligned_copy0"
                     },
                     {
-                        "name_filter" : "group1/block0/convshortcut/Relu#196",
-                        "output_location" : "CMX",
-                        "splits" : [ {"H" : 2} ]
+                        "edge_source" : "relu_6#47_split_1_DEALLOC",
+                        "edge_sink" : "relu_6#47_split_2_weights_table_DDR2CMX"
                     },
                     {
-                        "name_filter" : "group1/block0/conv1/Relu#197",
-                        "output_location" : "CMX",
-                        "splits" : [ {"H" : 2} ]
+                        "edge_source" : "relu_6#47_split_1_DEALLOC",
+                        "edge_sink" : "relu_6_weights#25:0_slice_2_Aligned_copy0"
                     },
                     {
-                        "name_filter" : "group2/block0/convshortcut/Relu#213",
-                        "output_location" : "CMX",
-                        "splits" : [ {"K" : 2} ]
+                        "edge_source" : "relu_6#47_split_2_DEALLOC",
+                        "edge_sink" : "relu_6#47_split_3_weights_table_DDR2CMX"
                     },
                     {
-                        "name_filter" : "group3/block0/convshortcut/Relu#238",
-                        "output_location" : "CMX",
-                        "splits" : [ {"K" : 4} ]
+                        "edge_source" : "relu_6#47_split_2_DEALLOC",
+                        "edge_sink" : "relu_6_weights#25:0_slice_3_Aligned_copy0"
                     },
                     {
-                        "name_filter" : "group3/block0/conv2/Relu#240",
-                        "output_location" : "CMX",
-                        "splits" : [ {"K" : 4} ]
+                        "edge_source" : "relu_6#47_split_4_DEALLOC",
+                        "edge_sink" : "relu_6#47_split_5_weights_table_DDR2CMX"
                     },
                     {
-                        "name_filter" : "group3/block0/conv3/Relu#241",
-                        "output_location" : "CMX",
-                        "splits" : [ {"K" : 2} ]
+                        "edge_source" : "relu_6#47_split_4_DEALLOC",
+                        "edge_sink" : "relu_6_weights#25:0_slice_5_Aligned_copy0"
                     },
                     {
-                        "name_filter" : "group3/block1/conv1/Relu#243",
-                        "output_location" : "CMX",
-                        "splits" : [ {"K" : 2} ]
+                        "edge_source" : "relu_6#47_split_5_DEALLOC",
+                        "edge_sink" : "relu_6#47_split_6_weights_table_DDR2CMX"
                     },
                     {
-                        "name_filter" : "group3/block1/conv2/Relu#244",
-                        "output_location" : "CMX",
-                        "splits" : [ {"K" : 4} ]
+                        "edge_source" : "relu_6#47_split_5_DEALLOC",
+                        "edge_sink" : "relu_6_weights#25:0_slice_6_Aligned_copy0"
                     },
                     {
-                        "name_filter" : "group3/block1/conv3/Relu#245",
-                        "output_location" : "CMX",
-                        "splits" : [ {"K" : 2} ]
+                        "edge_source" : "relu_6#47_split_6_DEALLOC",
+                        "edge_sink" : "relu_6#47_split_7_weights_table_DDR2CMX"
                     },
                     {
-                        "name_filter" : "group3/block2/conv1/Relu#247",
-                        "output_location" : "CMX",
-                        "splits" : [ {"K" : 2} ]
-                    },
-                    {
-                        "name_filter" : "group3/block2/conv2/Relu#248",
-                        "output_location" : "CMX",
-                        "splits" : [ {"K" : 4} ]
-                    },
-                    {
-                        "name_filter" : "group3/block2/conv3/Relu#249",
-                        "output_location" : "CMX",
-                        "splits" : [ {"K" : 2} ]
-                    },
-                    {
-                        "name_filter" : "group0/block0/add#187",
-                        "output_location" : "CMX",
-                        "splits" : [ {"H" : 4} ]
-                    },
-                    {
-                        "name_filter" : "group0/block1/add#191",
-                        "output_location" : "CMX",
-                        "splits" : [ {"H" : 4} ]
-                    },
-                    {
-                        "name_filter" : "group0/block2/add#195",
-                        "output_location" : "CMX",
-                        "splits" : [ {"H" : 4} ]
-                    },
-                    {
-                        "name_filter" : "group1/block0/add#200",
-                        "output_location" : "CMX",
-                        "splits" : [ {"H" : 2} ]
-                    },
-                    {
-                        "name_filter" : "group1/block1/add#204",
-                        "output_location" : "CMX",
-                        "splits" : [ {"H" : 2} ]
-                    },
-                    {
-                        "name_filter" : "group1/block2/add#208",
-                        "output_location" : "CMX",
-                        "splits" : [ {"H" : 2} ]
-                    },
-                    {
-                        "name_filter" : "group1/block3/add#212",
-                        "output_location" : "CMX",
-                        "splits" : [ {"H" : 2} ]
-                    },
-                    {
-                        "name_filter" : "linear0/act_quant/FakeQuantWithMinMaxVars#252",
-                        "output_location" : "CMX",
-                        "splits" : [ {"K" : 4} ]
+                        "edge_source" : "relu_6#47_split_6_DEALLOC",
+                        "edge_sink" : "relu_6_weights#25:0_slice_7_Aligned_copy0"
                     },
 
-                    {
-                        "name_filter" : "MobilenetV2/expanded_conv_1/expand/Relu#174",
-                        "output_location" : "CMX",
-                        "splits" : [ {"H" : 2} ]
-                    },
-                    {
-                        "name_filter" : "MobilenetV2/expanded_conv_1/depthwise/Relu#175",
-                        "output_location" : "CMX",
-                        "splits" : [ {"H" : 2} ]
-                    },
-                    {
-                        "name_filter" : "MobilenetV2/expanded_conv_2/depthwise/Relu#178",
-                        "output_location" : "CMX",
-                        "splits" : [ {"H" : 2} ]
-                    },
-                    {
-                        "name_filter" : "MobilenetV2/Logits/Conv2d_1c_1x1/act_quant/FakeQuantWithMinMaxVars#234",
-                        "output_location" : "CMX",
-                        "splits" : [ {"K" : 2} ]
-                    },
 
                     {
-                        "name_filter" : "model/re_lu/Relu#34",
-                        "output_location" : "CMX",
-                        "splits" : [ {"H" : 4} ]
+                        "edge_source" : "relu_7#48_split_0_DEALLOC",
+                        "edge_sink" : "relu_7#48_split_1_weights_table_DDR2CMX"
                     },
                     {
-                        "name_filter" : "model/max_pooling2d/MaxPool#35",
-                        "output_location" : "CMX",
-                        "splits" : [ {"H" : 4} ]
+                        "edge_source" : "relu_7#48_split_0_DEALLOC",
+                        "edge_sink" : "relu_7_weights#28:0_slice_1_Aligned_copy0"
                     },
                     {
-                        "name_filter" : "model/re_lu_1/Relu#36",
-                        "output_location" : "CMX",
-                        "splits" : [ {"H" : 4} ]
+                        "edge_source" : "relu_7#48_split_1_DEALLOC",
+                        "edge_sink" : "relu_7#48_split_2_weights_table_DDR2CMX"
                     },
                     {
-                        "name_filter" : "model/max_pooling2d_1/MaxPool#37",
-                        "output_location" : "CMX",
-                        "splits" : [ {"H" : 2} ]
+                        "edge_source" : "relu_7#48_split_1_DEALLOC",
+                        "edge_sink" : "relu_7_weights#28:0_slice_2_Aligned_copy0"
                     },
                     {
-                        "name_filter" : "model/re_lu_2/Relu#38",
-                        "output_location" : "CMX",
-                        "splits" : [ {"H" : 2} ]
+                        "edge_source" : "relu_7#48_split_2_DEALLOC",
+                        "edge_sink" : "relu_7#48_split_3_weights_table_DDR2CMX"
                     },
                     {
-                        "name_filter" : "model/re_lu_5/Relu#44",
-                        "output_location" : "CMX",
-                        "splits" : [ {"K" : 2} ]
+                        "edge_source" : "relu_7#48_split_2_DEALLOC",
+                        "edge_sink" : "relu_7_weights#28:0_slice_3_Aligned_copy0"
                     },
                     {
-                        "name_filter" : "model/re_lu_6/Relu#46",
-                        "output_location" : "DDR",
-                        "splits" : [ {"K" : 8} ]
+                        "edge_source" : "relu_7#48_split_3_DEALLOC",
+                        "edge_sink" : "relu_7#48_split_4_weights_table_DDR2CMX"
                     },
                     {
-                        "name_filter" : "model/re_lu_7/Relu#47",
-                        "output_location" : "DDR",
-                        "splits" : [ {"K" : 16} ]
+                        "edge_source" : "relu_7#48_split_3_DEALLOC",
+                        "edge_sink" : "relu_7_weights#28:0_slice_4_Aligned_copy0"
                     },
                     {
-                        "name_filter" : "Det/act_quant/FakeQuantWithMinMaxVars#48",
-                        "output_location" : "CMX",
-                        "splits" : [ {"K" : 2} ]
+                        "edge_source" : "relu_7#48_split_4_DEALLOC",
+                        "edge_sink" : "relu_7#48_split_5_weights_table_DDR2CMX"
+                    },
+                    {
+                        "edge_source" : "relu_7#48_split_4_DEALLOC",
+                        "edge_sink" : "relu_7_weights#28:0_slice_5_Aligned_copy0"
+                    },
+                    {
+                        "edge_source" : "relu_7#48_split_5_DEALLOC",
+                        "edge_sink" : "relu_7#48_split_6_weights_table_DDR2CMX"
+                    },
+                    {
+                        "edge_source" : "relu_7#48_split_5_DEALLOC",
+                        "edge_sink" : "relu_7_weights#28:0_slice_6_Aligned_copy0"
+                    },
+                    {
+                        "edge_source" : "relu_7#48_split_6_DEALLOC",
+                        "edge_sink" : "relu_7#48_split_7_weights_table_DDR2CMX"
+                    },
+                    {
+                        "edge_source" : "relu_7#48_split_6_DEALLOC",
+                        "edge_sink" : "relu_7_weights#28:0_slice_7_Aligned_copy0"
+                    },
+                    {
+                        "edge_source" : "relu_7#48_split_7_DEALLOC",
+                        "edge_sink" : "relu_7#48_split_8_weights_table_DDR2CMX"
+                    },
+                    {
+                        "edge_source" : "relu_7#48_split_7_DEALLOC",
+                        "edge_sink" : "relu_7_weights#28:0_slice_8_Aligned_copy0"
+                    },
+                    {
+                        "edge_source" : "relu_7#48_split_8_DEALLOC",
+                        "edge_sink" : "relu_7#48_split_9_weights_table_DDR2CMX"
+                    },
+                    {
+                        "edge_source" : "relu_7#48_split_8_DEALLOC",
+                        "edge_sink" : "relu_7_weights#28:0_slice_9_Aligned_copy0"
+                    },
+                    {
+                        "edge_source" : "relu_7#48_split_9_DEALLOC",
+                        "edge_sink" : "relu_7#48_split_10_weights_table_DDR2CMX"
+                    },
+                    {
+                        "edge_source" : "relu_7#48_split_9_DEALLOC",
+                        "edge_sink" : "relu_7_weights#28:0_slice_10_Aligned_copy0"
+                    },
+                    {
+                        "edge_source" : "relu_7#48_split_10_DEALLOC",
+                        "edge_sink" : "relu_7#48_split_11_weights_table_DDR2CMX"
+                    },
+                    {
+                        "edge_source" : "relu_7#48_split_10_DEALLOC",
+                        "edge_sink" : "relu_7_weights#28:0_slice_11_Aligned_copy0"
+                    },
+                    {
+                        "edge_source" : "relu_7#48_split_11_DEALLOC",
+                        "edge_sink" : "relu_7#48_split_12_weights_table_DDR2CMX"
+                    },
+                    {
+                        "edge_source" : "relu_7#48_split_11_DEALLOC",
+                        "edge_sink" : "relu_7_weights#28:0_slice_12_Aligned_copy0"
+                    },
+                    {
+                        "edge_source" : "relu_7#48_split_12_DEALLOC",
+                        "edge_sink" : "relu_7#48_split_13_weights_table_DDR2CMX"
+                    },
+                    {
+                        "edge_source" : "relu_7#48_split_12_DEALLOC",
+                        "edge_sink" : "relu_7_weights#28:0_slice_13_Aligned_copy0"
+                    },
+                    {
+                        "edge_source" : "relu_7#48_split_13_DEALLOC",
+                        "edge_sink" : "relu_7#48_split_14_weights_table_DDR2CMX"
+                    },
+                    {
+                        "edge_source" : "relu_7#48_split_13_DEALLOC",
+                        "edge_sink" : "relu_7_weights#28:0_slice_14_Aligned_copy0"
+                    },
+                    {
+                        "edge_source" : "relu_7#48_split_14_DEALLOC",
+                        "edge_sink" : "relu_7#48_split_15_weights_table_DDR2CMX"
+                    },
+                    {
+                        "edge_source" : "relu_7#48_split_14_DEALLOC",
+                        "edge_sink" : "relu_7_weights#28:0_slice_15_Aligned_copy0"
                     }
                 ]
             },
@@ -760,6 +500,8 @@
                 "name": "ConvertDot",
                 "input": "output/dots/dma_model.dot"
             }
+
+
         ]
     },
     "control_flows":{
@@ -862,7 +604,7 @@
             {
                 "name": "GenerateDot",
                 "output": "output/dots/TransitiveReductionBeforeMaxCutFull.dot",
-                "scope": "ControlModel",
+                "scope": "OpControlModel",
                 "content": "full",
                 "html": true
             },
@@ -908,7 +650,7 @@
             {
                 "name": "GenerateDot",
                 "output": "output/dots/BeforeGraphColoring.dot",
-                "scope": "ControlModel",
+                "scope": "OpControlModel",
                 "content": "full",
                 "html": true
             },
