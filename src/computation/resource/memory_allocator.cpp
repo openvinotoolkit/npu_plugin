@@ -119,6 +119,11 @@ const std::vector<mv::MemoryAllocator::BufferIterator>& mv::MemoryAllocator::Mem
     return slaveBuffers;
 }
 
+std::size_t mv::MemoryAllocator::MemoryBuffer::getDataTypeSize() const
+{
+    return dataTypeSize;
+}
+
 bool mv::MemoryAllocator::MemoryBuffer::operator<(const MemoryBuffer& other) const
 {
 
@@ -199,6 +204,14 @@ void mv::MemoryAllocator::placeBuffers_(unsigned stageIdx)
         // Move only master buffers
         if ((*it)->masterBuffer == bufferEnd(stageIdx))
         {
+            if ((lastOffset + (*it)->size) >= size_ && name_ == "VPU_DDR_Heap")
+            {
+                log(Logger::MessageType::Warning, "Memory allocator offset wrapping around. offset ("
+                                        + std::to_string(lastOffset) + ") + data (" + std::to_string((*it)->size)
+                                        + ") will overflow " + name_ + " address range.");
+                lastOffset = 0;
+            }
+
             (*it)->offset = lastOffset;
             lastOffset += (*it)->size;
 

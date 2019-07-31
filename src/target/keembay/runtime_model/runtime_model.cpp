@@ -197,16 +197,16 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     {
         toBuild->data->data_index = t->get<unsigned>("graphFileIndex");
         auto strides = tensorBufferIt->getStrides();
-        toBuild->leading_offset = strides[0]/2; //for some reason we get double the value, for now take the proper one.
+        toBuild->leading_offset = strides[0] / tensorBufferIt->getDataTypeSize(); //for some reason we get double the value, for now take the proper one.
         toBuild->trailing_offset = strides[strides.size()-1] + tensorBufferIt->getPostAlign();
-        toBuild->trailing_offset = toBuild->trailing_offset / 2;
+        toBuild->trailing_offset = toBuild->trailing_offset / tensorBufferIt->getDataTypeSize();
         // No need to set sparsity_index for tensor stored in graphfile
     }
     else if(*tensorAllocatorName == "ProgrammableInput" || *tensorAllocatorName == "ProgrammableOutput")
     {
         toBuild->data->data_index = 0;
         auto strides = tensorBufferIt->getStrides();
-        auto leading_offset = strides[0]/2;
+        auto leading_offset = strides[0] / tensorBufferIt->getDataTypeSize();
         if (leading_offset)
             toBuild->data->data_index += leading_offset;
         // No need to set sparsity_index for input/output tensor of the network
@@ -214,7 +214,7 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     else
     {
         auto strides = tensorBufferIt->getStrides();
-        auto leading_offset = strides[0]/2; //for some reason we get double the value, for now take the proper one.
+        auto leading_offset = strides[0] / tensorBufferIt->getDataTypeSize(); //for some reason we get double the value, for now take the proper one.
 
         // This part is for concat
         toBuild->data->data_index = tensorBufferIt->getOffset();
