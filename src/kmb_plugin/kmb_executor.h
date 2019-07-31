@@ -42,20 +42,6 @@
 namespace vpu {
 namespace KmbPlugin {
 
-#ifdef ENABLE_VPUAL
-struct KmbCmaData {
-    int fd;
-    unsigned char * buf;
-    unsigned long phys_addr;
-    unsigned int size;
-    int Create(uint32_t requested_size);
-    KmbCmaData() : fd(-1), buf(nullptr), phys_addr(0), size(0) {}
-    ~KmbCmaData();
-    static const int pageSize;
-    static int getPageSize() { return pageSize; }
-};
-#endif
-
 class KmbExecutor {
     Logger::Ptr _log;
     unsigned int _numStages = 0;
@@ -67,7 +53,8 @@ class KmbExecutor {
 
     std::shared_ptr<NNFlicPlg> nnPl;
 
-    std::shared_ptr<KmbCmaData> blob_file;
+    void *blob_file;
+    void *output_tensor;
     std::shared_ptr<BlobHandle_t> BHandle;
 
     std::shared_ptr<PlgPool<TensorMsg>> plgPoolOutputs;
@@ -81,10 +68,6 @@ class KmbExecutor {
     void initVpualObjects();
 
 public:
-#ifdef ENABLE_VPUAL
-    std::shared_ptr<KmbCmaData> output_tensor;
-#endif
-
     KmbExecutor(const Logger::Ptr& log, const std::shared_ptr<KmbConfig>& config);
     ~KmbExecutor() = default;
 
