@@ -140,9 +140,15 @@ static void setStreamingStrategy(const mv::pass::PassEntry &pass, mv::Computatio
                 {
                     opxSplitx.axis = "H";
                     opxSplitx.numSplits = splitList[i].get<int>("H");
+//                    std::cout << "IN STREAMING PASS : H = " << opxSplitx.numSplits << std::endl ;
+//                    if (opxSplitx.numSplits == (size_t) 3) 
+//                    {
+//                        std::cout << "IN STREAMING PASS : H==3 detected" << std::endl ;
+//                        opxSplitx.numSplits = 4;
+//                    }
                     opxSplits.push_back(opxSplitx);
                     nodeHasSplit=true;
-                    std::cout << "IN STREAMING PASS : node " << nodeName << " has stream H = " << splitList[i].get<int>("H") << std::endl ;
+                    std::cout << "IN STREAMING PASS : node " << nodeName << " has stream H = " << opxSplitx.numSplits << std::endl ;
                 }
             }
             else if (splitList[i].hasAttr("W"))

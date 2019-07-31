@@ -271,7 +271,6 @@ void StrategyManager::saveStrategy(std::vector<graph<std::tuple<mv::Op&,Strategy
     auto copySplits =  copyElement.get<std::vector<mv::Element>>("splits");
     for (int i=copySplits.size(); i<4; i++)
         copySplits.push_back(copySplits[0]);    // 4 element vector for streaming strategies c,h,w,k
-    cout << " copysplits.size = "<< copySplits.size() << endl ;
     for (int savePath=1; savePath<cPathEdges.size(); savePath++)
     {
         auto parentNode = cPathEdges[savePath]->leftmost_parent()->sink();
@@ -302,7 +301,11 @@ void StrategyManager::saveStrategy(std::vector<graph<std::tuple<mv::Op&,Strategy
         auto splitList = s.get<std::vector<mv::Element>>("splits");
         for (int i = 0; i < splitList.size(); i++)
         {
-            if (splitList[i].hasAttr("H"))
+            if (splitList[i].hasAttr("C"))
+            {
+                std::cout << "     C : " << splitList[i].get<int>("C") << std::endl;
+            }
+            else if (splitList[i].hasAttr("H"))
             {
                 std::cout << "     H : " << splitList[i].get<int>("H") << std::endl;
             }
