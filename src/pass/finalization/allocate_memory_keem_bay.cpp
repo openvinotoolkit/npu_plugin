@@ -194,7 +194,9 @@ void allocateCMXTensorsFcnKeemBay(const mv::pass::PassEntry& pass, mv::Computati
     mv::OpModel om(dm);
     auto stageIt = cm.getStage(0);
 
-    for(auto opIterator = om.opBegin(); opIterator != om.opEnd(); ++opIterator)
+    auto sortedOps = om.topologicalSort();
+
+    for (auto opIterator: sortedOps)
     {
         std::string opType = opIterator->getOpType();
         if (opType == "Input")
@@ -357,8 +359,9 @@ void allocateImplicitOperationsFcnKeemBay(const mv::pass::PassEntry& pass,
     mv::OpModel om(dm);
     auto stageIt = cm.getStage(0);
 
+    auto sortedOps = om.topologicalSort();
 
-    for(auto opIterator = om.opBegin(); opIterator != om.opEnd(); ++opIterator)
+    for (auto opIterator: sortedOps)
     {
 
         if(!opIterator->hasAttr("ImplicitFlow"))
