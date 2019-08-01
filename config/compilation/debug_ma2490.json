@@ -643,6 +643,18 @@
                 "name": "ConvertDot",
                 "input": "output/dots/AfterOpsToTasks.dot"
             },
+            "ForceSerialize",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/AfterForceSerializae.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/AfterForceSerializae.dot"
+            },
             "AlignTo16Channels",
             "ComputeTensorsQuantParams",
             "KMBOrderConversion",
