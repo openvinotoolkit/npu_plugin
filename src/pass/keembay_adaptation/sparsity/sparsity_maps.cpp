@@ -251,12 +251,12 @@ static void generateSparsityMapsUnpopulatedTensorsFcn(const mv::pass::PassEntry&
 
         if(activationSparsity)
         {
-            if(source->getOpType() == "DPUTask" && sink->getOpType() == "DPUTask" && sink->get<std::string>("taskOp") == "Conv")
+            if(!tensor->isPopulated() && source->getOpType() == "DPUTask" && sink->getOpType() == "DPUTask" && sink->get<std::string>("taskOp") == "Conv")
                 tensor->setSparse();
         }
         else
         {
-            if(tensor->hasAttr("splitStrategy") && tensor->get<std::string>("splitStrategy") == "SplitOverH")
+            if(!tensor->isPopulated() && tensor->hasAttr("splitStrategy") && tensor->get<std::string>("splitStrategy") == "SplitOverH")
                 if(sink->getOpType() == "DPUTask" && sink->get<std::string>("taskOp") == "Conv")
                     if(sink->get<std::array<unsigned short, 2>>("kSize")[0] > 1)
                         tensor->setSparse();
