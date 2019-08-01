@@ -42,9 +42,7 @@ using namespace testing;
 
 using kmbVPUALHostIntegrationTests = ::testing::Test;
 
-const uint32_t INPUT_WIDTH = 800, INPUT_HEIGHT = 480;
-const uint32_t FRAME_SIZE = INPUT_WIDTH*INPUT_HEIGHT*3/2;
-const uint32_t POOL_SIZE = 2 * FRAME_SIZE + 1024;
+const uint32_t POOL_SIZE = 30 * 1024 * 1024;
 const uint32_t XLINK_INPUT_CHANNEL = 3, XLINK_OUTPUT_CHANNEL = 4;
 
 static uint32_t roundUp(uint32_t x, uint32_t a) {
@@ -176,7 +174,7 @@ int VpusmmAllocator::_pageSize = getpagesize();
 
 VpusmmAllocator::VpusmmAllocator(size_t requestedSize) {
     const uint32_t requiredBlobSize = calculateRequiredSize(requestedSize, _pageSize);
-    _fileDesc = vpusmm_alloc_dmabuf(requiredBlobSize, VPUSMMTYPE_NON_COHERENT);
+    _fileDesc = vpusmm_alloc_dmabuf(requiredBlobSize, VPUSMMTYPE_COHERENT);
     if (_fileDesc < 0) {
         throw std::runtime_error("VpusmmAllocator::VpusmmAllocator: vpusmm_alloc_dmabuf failed");
     }
@@ -270,7 +268,9 @@ TEST_P(kmbVPUALAllocTests, sendBlobToLeonViaDifferentAllocators) {
     unsigned long tensorInPhysAddr = input_tensor->getPhysicalAddress();
     void * inputTensorData = input_tensor->getVirtualAddress();
 
-    const uint32_t tensorOutSize = inputTensorRawData.size();
+    // Looks weird but the same thing is done in the SimpleNN sample
+    // TODO: rename to outputPoolBufferSize
+    const uint32_t tensorOutSize = POOL_SIZE;
     std::shared_ptr<IMemoryAllocator> output_tensor(nullptr);
     ASSERT_NO_THROW(output_tensor = buildMemoryAllocator(allocatorType, tensorOutSize));
 
@@ -329,47 +329,50 @@ TEST_P(kmbVPUALAllocTests, sendBlobToLeonViaDifferentAllocators) {
     ASSERT_EQ(state, SUCCESS);
 
     flicTensorDescriptor_t descOut = nnPl.GetOutputTensorDescriptor(0);
+    std::cout << "Parsed output descriptor: (" << descOut.n << ", " << descOut.c << ", "
+              << descOut.h << "," << descOut.w << ")\n";
+
     flicTensorDescriptor_t  descIn = nnPl.GetInputTensorDescriptor(0);
+    std::cout << "Parsed input descriptor: (" << descIn.n << ", " << descIn.c << ", "
+              << descIn.h << "," << descIn.w << ")\n";
 
     const unsigned int shavel2CacheLineSize = 64;
     const unsigned int outputTensorSize = roundUp(descOut.totalSize, shavel2CacheLineSize);
 
     plgPoolOutputs.Create(&RgnAlloc, 1, 3 * outputTensorSize);
+    std::cout << "Created plgPoolOutputs\n";
 
-    plgTensorInput.Create(tensorInSize, XLINK_INPUT_CHANNEL, descIn);
-    plgTensorOutput.Create(tensorOutSize, XLINK_OUTPUT_CHANNEL, descOut);
+    plgTensorInput.Create(descIn.totalSize, XLINK_INPUT_CHANNEL, descIn);
+    std::cout << "Created plgTensorInput\n";
+
+    plgTensorOutput.Create(outputTensorSize, XLINK_OUTPUT_CHANNEL, descOut);
+    std::cout << "Created plgTensorOutput\n";
 
     // Add the plugins to the pipeline:
     pipe.Add(&plgPoolOutputs);
     pipe.Add(&plgTensorInput);
     pipe.Add(&plgTensorOutput);
     pipe.Add(&nnPl);
-
     // Link the plugins' messages:
     plgPoolOutputs.out.Link(&nnPl.resultInput);
     plgTensorInput.tensorOut.Link(&nnPl.tensorInput);
     nnPl.output.Link(&plgTensorOutput.dataIn);
 
     pipe.Start();
+    std::cout << "Started pipeline\n";
 
-    // Send and receive tensors
     plgTensorInput.Push(tensorInPhysAddr, tensorInSize);
+    std::cout << "Pushed input\n";
 
-    // Pull from pipeline.
     uint32_t len = 0;
     uint32_t pAddr = 0;
     plgTensorOutput.Pull(&pAddr, &len);
-
+    std::cerr << "Pulled output\n";
     // Convert the physical address we received back to a virtual address we can use.
     uint32_t offset = pAddr - tensorOutPhysAddr;
     unsigned char *data = static_cast<uint8_t *>(outputTensorData) + offset;
     ASSERT_NE(data, nullptr);
 
-    // ########################################################################
-    // Finish the application (stop FLIC pipeline)
-    // ########################################################################
-
-    // Some cleanup.
     pipe.Stop();
     pipe.Delete();
     RgnAlloc.Delete();
