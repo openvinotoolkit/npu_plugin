@@ -89,7 +89,7 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
 
     auto globalConfigParams = model.getGlobalConfigParams();
 
-    bool sparsity = globalConfigParams->hasAttr("Sparsity") ? globalConfigParams->get<bool>("Sparsity") : false;
+    bool weightsSparsity = globalConfigParams->hasAttr("WeightsSparsity") ? globalConfigParams->get<bool>("WeightsSparsity") : false;
 
     for(auto dpuTask = om.opBegin(); dpuTask != om.opEnd(); ++dpuTask)
     {
@@ -185,13 +185,10 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
                 dpuTask->set<bool>("fakeSparsity", true);
                 dpuTask->set<size_t>("fakeSparsityIndex", dpuTask->inputSlots()-1);
             }
-            else if(sparsity && !isElementWise)
+            else if(weightsSparsity && !isElementWise)
             {
-                auto inputTensor = dpuTask->getInputTensor(0);
-                //if(!inputTensor->isSparse())
-                    //continue;
+                //Here only in the case of ZMajorConvolution
 
-                //Here only in the case of ZMajorConvolution with sparse input
                 auto weightsTensor = dpuTask->getInputTensor(1);
                 weightsTensor->setOrder(mv::Order("NHWC"));
 
@@ -240,9 +237,9 @@ static void generateSparsityMapsUnpopulatedTensorsFcn(const mv::pass::PassEntry&
 
     auto globalConfigParams = model.getGlobalConfigParams();
 
-    bool sparsity = globalConfigParams->hasAttr("Sparsity") ? globalConfigParams->get<bool>("Sparsity") : false;
+    bool activationSparsity = globalConfigParams->hasAttr("ActivationSparsity") ? globalConfigParams->get<bool>("ActivationSparsity") : false;
 
-    if(sparsity)
+    if(activationSparsity)
     {
         for(auto dataFlow = dm.flowBegin(); dataFlow != dm.flowEnd(); ++dataFlow)
         {
