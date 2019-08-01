@@ -23,6 +23,15 @@ SIPPPreprocessor::SIPPPreprocessor(const InferenceEngine::BlobMap& inputs,
     }
 }
 
+bool SIPPPreprocessor::useSIPP() {
+    static const bool USE_SIPP = [](const char *str) -> bool {
+        std::string var(str ? str : "");
+        return var == "Y" || var == "YES" || var == "ON" || var == "1";
+    } (std::getenv("USE_SIPP"));
+
+    return USE_SIPP;
+}
+
 static bool supported(ResizeAlgorithm interp, ColorFormat inFmt) {
     return (interp == RESIZE_BILINEAR) &&
            (inFmt == ColorFormat::NV12);
@@ -70,6 +79,8 @@ SIPPPreprocessor::SIPPPreprocessor(const InferenceEngine::BlobMap&,
     THROW_IE_EXCEPTION << "Error: SIPPPreprocessor::SIPPPreprocessor() "
                        << "should never be called when ENABLE_VPUAL is OFF";
 }
+
+bool SIPPPreprocessor::useSIPP() { return false; }
 
 bool SIPPPreprocessor::isApplicable(const InferenceEngine::BlobMap&,
                   const std::map<std::string, PreProcessData>&,

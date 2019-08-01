@@ -123,7 +123,8 @@ void KmbInferRequest::InferAsync() {
     }
 
     // execute input pre-processing
-    if (SIPPPreprocessor::isApplicable(_inputs, _preProcData, _networkInputs)) {
+    if (SIPPPreprocessor::useSIPP() &&
+        SIPPPreprocessor::isApplicable(_inputs, _preProcData, _networkInputs)) {
         if (!_sippPreproc) {
             _sippPreproc.reset(new SIPPPreprocessor(_inputs, _preProcData));
         }

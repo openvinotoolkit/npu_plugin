@@ -21,6 +21,7 @@ public:
     SIPPPreprocessor(const InferenceEngine::BlobMap& inputs,
                      const std::map<std::string, PreProcessData>& preprocData);
 
+    static bool useSIPP();
     static bool isApplicable(const InferenceEngine::BlobMap& inputs,
                              const std::map<std::string, PreProcessData>& preprocData,
                              InputsDataMap& networkInputs);
