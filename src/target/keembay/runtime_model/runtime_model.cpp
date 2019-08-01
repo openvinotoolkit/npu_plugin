@@ -4,6 +4,7 @@
 #include "include/mcm/base/exception/argument_error.hpp"
 #include "include/mcm/utils/warning_manager.hpp"
 #include "include/mcm/utils/custom_math.hpp"
+#include "include/mcm/utils/custom_strings.hpp"
 #include <fstream>
 #include <iostream>
 
@@ -230,6 +231,9 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
             {
                 toBuild->data->sparsity_index = t->getSparsityMap()->getAddress();
                 toBuild->data->storage_element_index = t->getStorageElement()->getAddress();
+
+                //std::cout << "Weights Table: " + t->getSparsityMap()->getName() + " Sparsity Map address: " + std::to_string(t->getSparsityMap()->getAddress()) << std::endl;
+                //std::cout << "Weights Table: " + t->getSparsityMap()->getName() + " storage_element_index: " + std::to_string(t->getStorageElement()->getAddress()) << std::endl;
             }
         }
     }
@@ -340,7 +344,7 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     }
     else
     {
-        toBuild->data->data_index = subtensor.getAddress();
+        toBuild->data->data_index = t->getAddress();
         toBuild->locale_index = std::vector<unsigned int>(1, clusterId);
 
         // VERY IMPORTANT NOTE: Sparsity index is not used by populated tensors
@@ -493,8 +497,9 @@ std::unique_ptr<MVCNN::BinaryDataT> mv::RuntimeModel::buildBinaryDataT(Computati
     std::unique_ptr<MVCNN::BinaryDataT> toBuild = std::unique_ptr<MVCNN::BinaryDataT>(new MVCNN::BinaryDataT());
     if (t.isSparse())
     {
-        toBuild->data = packToInt64(t.getDataPacked(), t.getDType());
-        toBuild->length = t.dataPackedSize();
+        auto dataPacked = t.getDataPacked();
+        toBuild->data = packToInt64(dataPacked, t.getDType());
+        toBuild->length = dataPacked.size();
     }
     else
     {
@@ -905,21 +910,16 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
         toBuild->parent_output_tensor->strides = toBuild->output_data->strides;
     }
 
-    unsigned num_inputs = opIt->getInputTensor().size();
-
-    //OP inputs == n ->
-    // n - 2 activation window (when present)
-    // n - 1 weights table
     if(opIt->hasAttr("fakeSparsity"))
     {
-        auto activationWindowTensorIterator = opIt->getInputTensor(num_inputs - 2);
+        auto activationWindowTensorIterator = opIt->getInputTensor(opIt->get<std::size_t>("fakeSparsityIndex"));
         toBuild->activation_window = buildTensorReferenceT(cm, compilationDescriptor, activationWindowTensorIterator);
         toBuild->activation_window_channel_length = activationWindowTensorIterator->get<int>("channelLength");
     }
 
     if(toBuild->dpu_task_type != MVCNN::DPULayerType_ELTWISE)
     {
-        auto weightsTableTensorIterator = opIt->getInputTensor(num_inputs - 1);
+        auto weightsTableTensorIterator = opIt->getInputTensor(opIt->get<std::size_t>("weightsTableIndex"));
         toBuild->weights_table = buildTensorReferenceT(cm, compilationDescriptor, weightsTableTensorIterator);
     }
 
@@ -1032,21 +1032,20 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
             toBuild->output_data->data->data_index += clusterId * opIt->getOutputTensor(0)->getSubTensor(clusterId).getShape()[IO_CHANNEL_DIMENSION];
         }
     }
-    unsigned num_inputs = opIt->getInputTensor().size();
 
     //OP inputs == n ->
     // n - 2 activation window (when present)
     // n - 1 weights table
     if(opIt->hasAttr("fakeSparsity"))
     {
-        auto activationWindowTensorIterator = opIt->getInputTensor(num_inputs - 2);
+        auto activationWindowTensorIterator = opIt->getInputTensor(opIt->get<std::size_t>("fakeSparsityIndex"));
         toBuild->activation_window = buildTensorReferenceT(cm, compilationDescriptor, activationWindowTensorIterator, clusterId);
         toBuild->activation_window_channel_length = activationWindowTensorIterator->get<int>("channelLength");
     }
 
     if(toBuild->dpu_task_type != MVCNN::DPULayerType_ELTWISE)
     {
-        auto weightsTableTensorIterator = opIt->getInputTensor(num_inputs - 1);
+        auto weightsTableTensorIterator = opIt->getInputTensor(opIt->get<std::size_t>("weightsTableIndex"));
         toBuild->weights_table = buildTensorReferenceT(cm, compilationDescriptor, weightsTableTensorIterator, clusterId);
     }
 
@@ -1057,7 +1056,6 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
         case MVCNN::DPULayerType_CMCONV:
         case MVCNN::DPULayerType_FCL:
         case MVCNN::DPULayerType_ELTWISE:
-            //std::unique_ptr<TensorReferenceT> parent_weights_tensor;
             toBuild->weights_data = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(1), clusterId);
             break;
         default:
@@ -1497,6 +1495,11 @@ void mv::RuntimeModel::buildGraphFile(ComputationModel& cm, mv::Element& compila
         if (opType == "Constant" || opType == "ConstantInt" || opType == "ConstantDataElement" || opType == "WeightsTable" || opType == "SparsityMap")
         {
             auto tIt = opIterator->getOutputTensor(0);
+
+            // NOTE: This resparsify the weights coming from constant operation
+            // can be optimized
+            if(opIterator->hasAttr("sparse") && opIterator->get<bool>("sparse"))
+                tIt->setSparse();
             //std::cout << "Serializing to binary data section " << tensorIt->getName() << std::endl;
             graphFile_.binary_data.push_back(buildBinaryDataT(cm, compilationDescriptor, *tIt));
         }

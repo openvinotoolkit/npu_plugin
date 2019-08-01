@@ -79,15 +79,17 @@ std::vector<int8_t> createBitPattern(uint16_t kernelW, uint16_t kernelH, uint16_
     return bitpattern;
 }
 
-// The sparsity maps relative to populated tensors have to be generated BEFORE the dma passes.
-// As they have to be DMAed into CMX.
+// Result of chat with Alessandro:
+
+// A current limitation of runtime is that for weights of an ZMajorConv to be sparse, also the input has to be sparse
+// This means that this pass has to be executed after the GenerateSparsityMapsUnpopulatedTensors.
 static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::json::Object&)
 {
     mv::OpModel om(model);
 
     auto globalConfigParams = model.getGlobalConfigParams();
 
-    bool sparsity = globalConfigParams->hasAttr("Sparsity") ? globalConfigParams->get<bool>("Sparsity") : false;
+    bool weightsSparsity = globalConfigParams->hasAttr("WeightsSparsity") ? globalConfigParams->get<bool>("WeightsSparsity") : false;
 
     for(auto dpuTask = om.opBegin(); dpuTask != om.opEnd(); ++dpuTask)
     {
@@ -181,10 +183,12 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
                 fakeSparsityMap->set<int>("channelLength", channelLenght);
 
                 dpuTask->set<bool>("fakeSparsity", true);
+                dpuTask->set<size_t>("fakeSparsityIndex", dpuTask->inputSlots()-1);
             }
-            else if(sparsity && !isElementWise)
+            else if(weightsSparsity && !isElementWise)
             {
-                //Here only in the case of ZMajorConvolution and sparsity is active
+                //Here only in the case of ZMajorConvolution
+
                 auto weightsTensor = dpuTask->getInputTensor(1);
                 weightsTensor->setOrder(mv::Order("NHWC"));
 
@@ -197,48 +201,54 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
                     auto smInternalTensor = weightsTensor->getSparsityMap();
                     auto sparsityMap = om.constantInt(smInternalTensor->getIntData(), smInternalTensor->getShape(), smInternalTensor->getDType(),
                                                       smInternalTensor->getOrder(), {{},{},{},{}}, smInternalTensor->getName());
+                    auto sparsityMapOp = om.getSourceOp(sparsityMap);
                     auto weights = om.getSourceOp(weightsTensor);
-                    om.getSourceOp(sparsityMap)->set<unsigned>("opId", weights->get<unsigned>("opId"));
+
+                    //Necessary hack because we want to put the sparse flag on the constant operation
+                    weights.leftmostParent()->set<bool>("sparse", true);
+                    sparsityMapOp->set<unsigned>("opId", weights->get<unsigned>("opId"));
                     auto outputFlows = mv::getOutputDataFlow(om, weights, false);
                     for(auto& output: outputFlows)
                     {
                         auto sink = output.first;
                         unsigned newSize = sink->addInputTensor(sparsityMap);
                         om.defineFlow(sparsityMap, sink, newSize - 1);
+                        sink->set<size_t>("sparsityMapIndex", newSize - 1);
                     }
-                }
+                }                
             }
         }
     }
 }
 
 
-// The sparsity maps for unpopulated tensors have to be generated AFTER the dma passes.
-// This is because sparsity for unpopulated tensor really resolves to allocating to extra unpopulated tensors
-// That will be filled with information by the runtime. We don't need explicit DMA for them.
+// Result of chat with Alessandro:
+// An activation tensor can be sparse if and only if
+// 1) It is an output of a DPUTask. (ODU populates storage element and sparsity map).
+// 2) It is the input of a ZMajorConv (Only layer that supports IDU)
+
+// In the future, these two conditions could change. We have to sync with runtime.
+
+// Eltwise, being the hackiest operation ever, potentially can support sparsity input, but the runtime currently doesn't allow it.
+
 static void generateSparsityMapsUnpopulatedTensorsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::json::Object&)
 {
-    mv::OpModel om(model);
+    mv::DataModel dm(model);
 
     auto globalConfigParams = model.getGlobalConfigParams();
 
-    bool sparsity = globalConfigParams->hasAttr("Sparsity") ? globalConfigParams->get<bool>("Sparsity") : false;
+    bool activationSparsity = globalConfigParams->hasAttr("ActivationSparsity") ? globalConfigParams->get<bool>("ActivationSparsity") : false;
 
-    if(sparsity)
+    if(activationSparsity)
     {
-        for(auto dpuTask = om.opBegin(); dpuTask != om.opEnd(); ++dpuTask)
+        for(auto dataFlow = dm.flowBegin(); dataFlow != dm.flowEnd(); ++dataFlow)
         {
-            if(dpuTask->getOpType() == "DPUTask")
-            {
-                std::string taskOp = dpuTask->get<std::string>("taskOp");
-                bool isZMajorConv = taskOp == "Conv";
+            auto source = dataFlow.source();
+            auto sink = dataFlow.sink();
 
-                if(isZMajorConv)
-                {
-                    dpuTask->getInputTensor(0)->setSparse();
-                    dpuTask->getOutputTensor(0)->setSparse();
-                }
-            }
+            if(source->getOpType() == "DPUTask" && sink->getOpType() == "DPUTask" && sink->get<std::string>("taskOp") == "Conv")
+                dataFlow->getTensor()->setSparse();
+
         }
     }
 }

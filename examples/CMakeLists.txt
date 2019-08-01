@@ -92,6 +92,9 @@ else()
     add_executable(cm_resnet18 cm_resnet18.cpp)
     target_link_libraries(cm_resnet18 cm)
 
+    add_executable(sparsity_test sparsity_test.cpp)
+    target_link_libraries(sparsity_test cm)
+
     add_executable(standalone_softmax standalone_softmax.cpp)
     target_link_libraries(standalone_softmax cm)
 

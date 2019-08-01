@@ -445,6 +445,7 @@ bool mv::Tensor::setSparse()
         auto paddedDim = mv::round_up(static_cast<std::size_t>(std::ceil(shape[0] / 8.0)), 16);
         mapShape = {paddedDim, 1, 1, N};
     }
+    //std::cout << "Total bytes of sparsity map for " << getName() << " " << mapShape.totalSize() * mv::DType("UInt8").getSizeInBits() / 8 << std::endl;
     sparsityMap_ = std::make_shared<Tensor>(createSparsityMapName(getName()), mapShape, mv::DType("UInt8"), Order("NCHW"));
     noneZeroElements_ = 0;
 
@@ -452,7 +453,11 @@ bool mv::Tensor::setSparse()
     if (isPopulated())
         populateSparsityMapTensor_();
     else
-        storageElement_  = std::make_shared<Tensor>(createStorageElementName(getName()), mv::Shape({shape[0], shape[1], 1, N}), mv::DType("Int32"), order);
+    {
+        mv::Shape storageElementShape({shape[0], shape[1], 1, N});
+        //std::cout << "Total bytes of storage element for " << getName() << " " << storageElementShape.totalSize() * mv::DType("Int32").getSizeInBits() / 8 << std::endl;
+        storageElement_  = std::make_shared<Tensor>(createStorageElementName(getName()), storageElementShape, mv::DType("Int32"), order);
+    }
 
     for (size_t tIdx = 0; tIdx < subTensors_.size(); tIdx++)
         subTensors_[tIdx]->setSparse();
@@ -669,7 +674,7 @@ std::vector<mv::DataElement> mv::Tensor::getData()
 std::vector<int64_t> mv::Tensor::getKernelDataOffsets()
 {
     if (isSparse() && kernelDataOffsets_.empty()) //getDataPacked hasn't been called
-        auto temp = getDataPacked();
+        getDataPacked();
     return kernelDataOffsets_;
 }
 

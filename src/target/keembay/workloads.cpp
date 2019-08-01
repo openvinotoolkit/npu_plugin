@@ -473,7 +473,7 @@ const std::vector<int> mv::Workloads::getWorkloadSplitPool(const Tensor& tensor,
     double xDim = tensor.getShape()[0];
     double yDim = tensor.getShape()[1];
     
-    std::cout << dpuModeList.size() << std::endl;
+    //std::cout << dpuModeList.size() << std::endl;
     for(std::size_t i = 0; i < dpuModeList.size(); i++) 
         maxSplitsXY.push_back(ceil((xDim/dpuModeList[i].H)  * ceil(yDim/dpuModeList[i].W)));
     
