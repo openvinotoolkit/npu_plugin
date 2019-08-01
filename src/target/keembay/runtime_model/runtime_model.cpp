@@ -235,14 +235,6 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
                 //std::cout << "Weights Table: " + t->getSparsityMap()->getName() + " Sparsity Map address: " + std::to_string(t->getSparsityMap()->getAddress()) << std::endl;
                 //std::cout << "Weights Table: " + t->getSparsityMap()->getName() + " storage_element_index: " + std::to_string(t->getStorageElement()->getAddress()) << std::endl;
             }
-            else
-            {
-                std::string t_name = t->getName();
-                toBuild->data->storage_element_index = 0;
-
-                auto sparsityMapOp = model.getOp(createSparsityMapName(t_name));
-                toBuild->data->sparsity_index = sparsityMapOp.leftmostChild().leftmostOutput()->getTensor()->getAddress();
-            }
         }
     }
     toBuild->locale = convertAllocatorToMemoryLocale(*tensorAllocatorName);
