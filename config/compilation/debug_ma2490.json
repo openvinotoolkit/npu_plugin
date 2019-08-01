@@ -336,7 +336,7 @@
                         "cluster_filter" : 0,
                         "strategy": "SplitOverK"
                     }
-                ],                [
+                ],
                 "default_tensor_placement" : "CMX",
                 "address_helper_addresses" :
                 [
