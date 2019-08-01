@@ -50,19 +50,17 @@ namespace mv
 void populateSparseDataPointerMultiCluster(mv::Tensor& weightsTableData, mv::Data::OpListIterator dpuTaskOp, std::vector<int64_t> increments, long int offset, mv::ComputationModel &model)
 {
     long int new_offset = offset;
-    std::cout << "Populating data pointer of weights table for op " << dpuTaskOp->getName() << std::endl;
+    //std::cout << "Populating data pointer of weights table for op " << dpuTaskOp->getName() << std::endl;
     if (dpuTaskOp->get<std::string>("splitStrategy") != "SplitOverK")
     {
         for (size_t i = 0, k = 0; i < weightsTableData.size(); i+=4)
         {
             // First increment is always 0
             weightsTableData(i) = offset + increments[k];
-            std::cout << "Channel  " << k << " " << " Offset " << offset << " Increment " << increments[k] << " Result " << static_cast<int64_t>(weightsTableData(i));
-            if(k > 0)
-                std::cout << " Difference " << static_cast<int64_t>(weightsTableData(i)) - static_cast<int64_t>(weightsTableData(i-4));
-
-
-            std::cout << std::endl;
+            //std::cout << "Channel  " << k << " " << " Offset " << offset << " Increment " << increments[k] << " Result " << static_cast<int64_t>(weightsTableData(i));
+            //if(k > 0)
+                //std::cout << " Difference " << static_cast<int64_t>(weightsTableData(i)) - static_cast<int64_t>(weightsTableData(i-4));
+            //std::cout << std::endl;
             ++k;
         }
     }
@@ -167,16 +165,14 @@ void populateWeightsTablesSparsityPointers(mv::Tensor& weightsTableData, mv::Dat
             auto sparsityMapSizeInBytes = sparsityMapSizeInWords * weightsSparsityMap->getDType().getSizeInBits() / 8;
             auto sparsityMapBytesPerOutputChannel = sparsityMapSizeInBytes / outputChannels;
             long int increment = sparsityMapBytesPerOutputChannel;
-            std::cout << "Sparsity pointer for weights table for " << dpuTaskOp->getName() << std::endl;
+            //std::cout << "Sparsity pointer for weights table for " << dpuTaskOp->getName() << std::endl;
             for (size_t i = 0, k = 0; i < weightsTableData.size(); i+=4, offset +=increment)
             {
                 weightsTableData(i+1) = offset;
-                std::cout << "Channel  " << k << " Result " << static_cast<int64_t>(weightsTableData(i+1));
-                if(k > 0)
-                    std::cout << " Difference " << static_cast<int64_t>(weightsTableData(i+1)) - static_cast<int64_t>(weightsTableData(i+1-4));
-
-
-                std::cout << std::endl;
+                //std::cout << "Channel  " << k << " Result " << static_cast<int64_t>(weightsTableData(i+1));
+                //if(k > 0)
+                    //std::cout << " Difference " << static_cast<int64_t>(weightsTableData(i+1)) - static_cast<int64_t>(weightsTableData(i+1-4));
+                //std::cout << std::endl;
                 ++k;
             }
 
