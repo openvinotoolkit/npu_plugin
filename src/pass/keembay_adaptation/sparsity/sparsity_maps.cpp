@@ -227,6 +227,10 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
 // 1) It is an output of a DPUTask. (ODU populates storage element and sparsity map).
 // 2) It is the input of a ZMajorConv (Only layer that supports IDU)
 
+// An activation tensor MUST be sparse if it's:
+// 1) SplitOverH
+// 2) Involved in a ZMajorConvolution with kernel > 1 (HW bug)
+
 // In the future, these two conditions could change. We have to sync with runtime.
 
 // Eltwise, being the hackiest operation ever, potentially can support sparsity input, but the runtime currently doesn't allow it.
@@ -239,16 +243,23 @@ static void generateSparsityMapsUnpopulatedTensorsFcn(const mv::pass::PassEntry&
 
     bool activationSparsity = globalConfigParams->hasAttr("ActivationSparsity") ? globalConfigParams->get<bool>("ActivationSparsity") : false;
 
-    if(activationSparsity)
+    for(auto dataFlow = dm.flowBegin(); dataFlow != dm.flowEnd(); ++dataFlow)
     {
-        for(auto dataFlow = dm.flowBegin(); dataFlow != dm.flowEnd(); ++dataFlow)
+        auto source = dataFlow.source();
+        auto sink = dataFlow.sink();
+        auto tensor = dataFlow->getTensor();
+
+        if(activationSparsity)
         {
-            auto source = dataFlow.source();
-            auto sink = dataFlow.sink();
-
             if(source->getOpType() == "DPUTask" && sink->getOpType() == "DPUTask" && sink->get<std::string>("taskOp") == "Conv")
-                dataFlow->getTensor()->setSparse();
-
+                tensor->setSparse();
+        }
+        else
+        {
+            if(tensor->hasAttr("splitStrategy") && tensor->get<std::string>("splitStrategy") == "SplitOverH")
+                if(sink->getOpType() == "DPUTask" && sink->get<std::string>("taskOp") == "Conv")
+                    if(sink->get<std::array<unsigned short, 2>>("kSize")[0] > 1)
+                        tensor->setSparse();
         }
     }
 }
