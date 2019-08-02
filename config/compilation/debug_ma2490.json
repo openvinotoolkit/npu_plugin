@@ -984,7 +984,6 @@
             "BarrierIndexAssignment",
             "UpdateBarrierRefs",
             "UpdateBarrierProducerConsumerCounts",
-            "HackExecutionSchedule",
             {
                 "name": "GenerateDot",
                 "output": "output/dots/serial_model.dot",

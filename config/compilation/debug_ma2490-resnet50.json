@@ -14,7 +14,8 @@
                 "UpaShaves": 1,
                 "DDRScratch": 31457280,
                 "MemoryHack": false,
-                "Sparsity": false,
+                "ActivationSparsity": true,
+                "WeightsSparsity": true,
                 "CMX_memory_overflow_safety_factor" : 1.0,
                 "mpe_mode" : "Vector",
                 "split_strategy" :
@@ -22,7 +23,7 @@
                     {
                         "name_filter" : ".*",
                         "cluster_filter" : 0,
-                        "strategy" : "SplitOverK"
+                        "strategy" : "Clustering"
                     },
                     {
                         "name_filter" : ".*",
@@ -32,32 +33,32 @@
                     {
                         "name_filter" : ".*input.*",
                         "cluster_filter" : 0,
-                        "strategy" : "SplitOverH"
+                        "strategy" : "Clustering"
                     },
                     {
                         "name_filter" : ".*res2a.*",
                         "cluster_filter" : 0,
-                        "strategy" : "SplitOverH"
+                        "strategy" : "Clustering"
                     },
                     {
                         "name_filter" : ".*conv1.*",
                         "cluster_filter" : 0,
-                        "strategy" : "SplitOverH"
+                        "strategy" : "Clustering"
                     },
                     {
                         "name_filter" : ".*pool1.*",
                         "cluster_filter" : 0,
-                        "strategy" : "SplitOverH"
+                        "strategy" : "Clustering"
                     },
                     {
                         "name_filter" : ".*res2.*",
                         "cluster_filter" : 0,
-                        "strategy" : "SplitOverH"
+                        "strategy" : "Clustering"
                     },
                     {
                         "name_filter" : ".*res3.*",
                         "cluster_filter" : 0,
-                        "strategy" : "SplitOverH"
+                        "strategy" : "Clustering"
                     }
                 ],
                 "default_tensor_placement" : "DDR",
@@ -347,7 +348,6 @@
                     }
                 ]
             },
-
             "ComputeMemory",
             "AssignUniqueOpId",
             {
@@ -517,7 +517,6 @@
                 "name": "ConvertDot",
                 "input": "output/dots/align_slice_ops.dot"
             },
-            "GenerateSparsityMapsPopulatedTensors",
             "GenerateWeightsTables",
             {
                 "name": "GenerateDot",
@@ -564,16 +563,28 @@
             {
                 "name": "GenerateDot",
                 "output": "output/dots/dma_model.dot",
-                "scope": "ControlModel",
+                "scope": "OpControlModel",
                 "content": "full",
                 "html": true
             },
             {
                 "name": "ConvertDot",
                 "input": "output/dots/dma_model.dot"
+            },
+            "GenerateSparsityMapsUnpopulatedTensors",
+            "GenerateSparsityMapsPopulatedTensors",
+            "AddWeightsDMATasks",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/sparsity_model.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/sparsity_model.dot"
             }
-
-
         ]
     },
     "control_flows":{
@@ -630,6 +641,8 @@
                 "name": "ConvertDot",
                 "input": "output/dots/cmx2DDRControlFlows.dot"
             },
+            "StrategyLayersToTensors",
+            "SplittingAcrossClusters",
             "AddDeallocationTasks",
             {
                 "name": "GenerateDot",
@@ -642,23 +655,10 @@
                 "name": "ConvertDot",
                 "input": "output/dots/deallocation_model.dot"
             }
-
         ]
     },
     "finalize": {
         "Singular": [
-            "GenerateSparsityMapsUnpopulatedTensors",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/sparsitymaps_unpopulatedtensor.dot",
-                "scope": "ControlModel",
-                "content": "full",
-                "html": true
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/sparsitymaps_unpopulatedtensor.dot"
-            },
             {
                 "name": "TransitiveReduction",
                 "filter": "PositiveMemory"
@@ -709,14 +709,14 @@
             {
                 "name": "GenerateWorkloads",
                 "costfunction": "criticalpath",
-                "TensorSplitAlgorithms": "Rectangle",
+                "TensorSplitAlgorithms": "Rectangle, Z-Tiling",
                 "_comment": "Supported CostFunctions are: balanced | criticalpath | minmax | greedy. Supported TensorSplitAlgorithms are Metis, Rectangle, Z-Tiling"
             },
             "ArrangeKeembayExecution",
             "AllocateInputOutputTensorsKeemBay",
             "AllocateGraphfileTensorsKeemBay",
-            "AllocateCMXTensorsKeemBay",
             "ReAllocateImplicitOperationsKeemBay",
+            "AllocateCMXTensorsKeemBay",
             {
                 "name": "GenerateDot",
                 "output": "output/dots/BeforeGraphColoring.dot",
@@ -731,7 +731,7 @@
             {
                 "name": "GenerateDot",
                 "output": "output/dots/BeforeGraphColoringControl.dot",
-                "scope": "OpControlModel",
+                "scope": "ControlModel",
                 "content": "full",
                 "html": true
             },
@@ -775,10 +775,6 @@
                 "name" : "InsertBarrierTasks",
                 "outputBIG": "output/dots/BarrierInterferenceGraph.dot",
                 "barrier_reuse_window" : 0
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/BarrierInterferenceGraph.dot"
             },
             {
                 "name": "GenerateDot",
