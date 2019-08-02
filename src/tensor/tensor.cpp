@@ -450,7 +450,10 @@ bool mv::Tensor::setSparse()
 
     //populate sparsity map
     if (isPopulated())
+    {
         populateSparsityMapTensor_();
+        getDataPacked();
+    }
     else
     {
         mv::Shape storageElementShape({shape[0], shape[1], 1, N});

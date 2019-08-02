@@ -161,7 +161,7 @@ std::vector<unsigned> mv::RuntimeModel::reduceQuantVector_(std::vector<unsigned>
 }
 
 //build tensorReference for Tensors - 1 cluster case
-std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT(mv::ComputationModel& model, mv::Element&, mv::Data::TensorIterator t, const std::string& parentTensor)
+std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT(mv::ComputationModel& model, mv::Element&, mv::Data::TensorIterator t)
 {
     mv::DataModel dm(model);
     mv::ControlModel cm(model);
