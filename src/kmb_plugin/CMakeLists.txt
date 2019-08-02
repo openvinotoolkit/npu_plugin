@@ -27,6 +27,11 @@ if (ENABLE_MCM_COMPILER)
         PATH_SUFFIXES "schema/graphfile/flatbuffers/include")
 
     set(MCM_BASE_DIR ${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/thirdparty/movidius/mcmCompiler)
+
+    if (NOT ENABLE_PLUGIN_RPATH)
+        set(MCM_COMPILER_CMAKE_ARGS -DCMAKE_SKIP_RPATH=ON)
+    endif()
+
     ExternalProject_Add(
         mcmCompiler
         PREFIX ${MCM_BASE_DIR}
@@ -34,7 +39,7 @@ if (ENABLE_MCM_COMPILER)
         BINARY_DIR ${MCM_BASE_DIR}/build
         STAMP_DIR ${MCM_BASE_DIR}/stamp
         INSTALL_COMMAND ""
-    )
+        CMAKE_ARGS ${MCM_COMPILER_CMAKE_ARGS})
 
     set(MCM_COMPILER_INCLUDE_PATH "${MCM_BASE_DIR}")
     set(MCM_COMPILER_LIBRARY "${MCM_BASE_DIR}/build/lib/${CMAKE_SHARED_LIBRARY_PREFIX}cm${CMAKE_SHARED_LIBRARY_SUFFIX}")
