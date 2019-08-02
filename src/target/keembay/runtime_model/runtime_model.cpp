@@ -235,6 +235,14 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
                 //std::cout << "Weights Table: " + t->getSparsityMap()->getName() + " Sparsity Map address: " + std::to_string(t->getSparsityMap()->getAddress()) << std::endl;
                 //std::cout << "Weights Table: " + t->getSparsityMap()->getName() + " storage_element_index: " + std::to_string(t->getStorageElement()->getAddress()) << std::endl;
             }
+            else
+            {
+                auto sparsityMapCostantOp = model.getOp(mv::createSparsityMapName(t->getName()));
+                auto sparsityMapDmaOp = sparsityMapCostantOp.leftmostChild();
+                auto sparsityMapDma = sparsityMapDmaOp->getOutputTensor(0);
+                toBuild->data->sparsity_index = sparsityMapDma->getAddress();
+                toBuild->data->storage_element_index = 0;
+            }
         }
     }
     toBuild->locale = convertAllocatorToMemoryLocale(*tensorAllocatorName);
@@ -1480,13 +1488,6 @@ void mv::RuntimeModel::buildGraphFile(ComputationModel& cm, mv::Element& compila
 
     graphFile_.header = buildSummaryHeaderT(cm, compilationDescriptor, std::move(graphFile_.header));
 
-    // TASKS
-    graphFile_.task_lists = buildTaskListT(cm, compilationDescriptor);
-
-    // Barrier Table must be build only on dynamic scheduling
-    if(globalConfigurationParameters->get<std::string>("barrier_index_assignment") == "Dynamic")
-        graphFile_.barrier_table = buildBarrierTable(cm, compilationDescriptor);
-
     // Binary Data
     graphFile_.binary_data = std::vector<std::unique_ptr<MVCNN::BinaryDataT>>();
     std::vector<mv::Data::TensorIterator> toSort;
@@ -1497,7 +1498,7 @@ void mv::RuntimeModel::buildGraphFile(ComputationModel& cm, mv::Element& compila
         {
             auto tIt = opIterator->getOutputTensor(0);
             toSort.push_back(tIt);
-        }   
+        }
     }
     std::sort(toSort.begin(), toSort.end(), [](mv::Data::TensorIterator t1, mv::Data::TensorIterator t2){return (t1->get<unsigned>("graphFileIndex") < t2->get<unsigned>("graphFileIndex"));});
     for(auto& tIt : toSort)
@@ -1510,6 +1511,13 @@ void mv::RuntimeModel::buildGraphFile(ComputationModel& cm, mv::Element& compila
         //std::cout << "Serializing to binary data section " << tensorIt->getName() << std::endl;
         graphFile_.binary_data.push_back(buildBinaryDataT(cm, compilationDescriptor, *tIt));
     }
+
+    // TASKS
+    graphFile_.task_lists = buildTaskListT(cm, compilationDescriptor);
+
+    // Barrier Table must be build only on dynamic scheduling
+    if(globalConfigurationParameters->get<std::string>("barrier_index_assignment") == "Dynamic")
+        graphFile_.barrier_table = buildBarrierTable(cm, compilationDescriptor);
 
 }
 
