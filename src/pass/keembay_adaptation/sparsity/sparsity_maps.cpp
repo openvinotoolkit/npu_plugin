@@ -189,6 +189,10 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
             {
                 //Here only in the case of ZMajorConvolution
 
+                // POC ONLY CONDITION
+                if(!dpuTask->getInputTensor(0)->isSparse())
+                    continue;
+
                 auto weightsTensor = dpuTask->getInputTensor(1);
                 weightsTensor->setOrder(mv::Order("NHWC"));
 

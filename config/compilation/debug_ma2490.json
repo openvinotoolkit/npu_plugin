@@ -254,7 +254,6 @@
                 "name": "ConvertDot",
                 "input": "output/dots/implicit_operations_model.dot"
             },
-            "GenerateSparsityMapsPopulatedTensors",
             "AddWeightsDMATasks",
             {
                 "name": "GenerateDot",
@@ -266,6 +265,20 @@
             {
                 "name": "ConvertDot",
                 "input": "output/dots/dma_model.dot"
+            },
+            "GenerateSparsityMapsUnpopulatedTensors",
+            "GenerateSparsityMapsPopulatedTensors",
+            "AddWeightsDMATasks",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/sparsity_model.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/sparsity_model.dot"
             }
         ]
     },
@@ -325,7 +338,6 @@
             },
             "StrategyLayersToTensors",
             "SplittingAcrossClusters",
-            "GenerateSparsityMapsUnpopulatedTensors",
             "AddDeallocationTasks",
             {
                 "name": "GenerateDot",
@@ -338,23 +350,10 @@
                 "name": "ConvertDot",
                 "input": "output/dots/deallocation_model.dot"
             }
-
         ]
     },
     "finalize": {
         "Singular": [
-            "GenerateSparsityMapsUnpopulatedTensors",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/sparsitymaps_unpopulatedtensor.dot",
-                "scope": "ControlModel",
-                "content": "full",
-                "html": true
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/sparsitymaps_unpopulatedtensor.dot"
-            },
             {
                 "name": "TransitiveReduction",
                 "filter": "PositiveMemory"
@@ -443,6 +442,7 @@
                 "name": "ConvertDot",
                 "input": "output/dots/nnCmx.dot"
             },
+            "AddressHelper",
             "RemoveDeallocationTasks",
             {
                 "name": "GenerateDot",
