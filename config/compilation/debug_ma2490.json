@@ -408,6 +408,10 @@
                         "address" : 40384
                     },
                     {
+                        "name_filter" : "conv/BiasAdd_weights#1_DDR2CMX:0_sm_DDR2CMX:0",
+                        "address" : 41840
+                    },
+                    {
                         "name_filter" : "conv/BiasAdd#7_weights_table_DDR2CMX:0",
                         "address" : 42432
                     },
@@ -420,7 +424,7 @@
                         "address" : 10944
                     },
                     {
-                        "name_filter" : "output_weights#4_DDR2CMX:0_sm:0",
+                        "name_filter" : "output_weights#4_DDR2CMX:0_sm_DDR2CMX:0",
                         "address" : 29632
                     },
                     {
@@ -431,8 +435,28 @@
                 "graphfile_index_helper_addresses":
                 [
                     {
-                        "name_filter" : "weirdName",
+                        "name_filter" : "conv/BiasAdd_weights#1:0",
                         "address" : 0
+                    },
+                    {
+                        "name_filter" : "conv/BiasAdd_weights#1_DDR2CMX:0_sm:0",
+                        "address" : 1
+                    },
+                    {
+                        "name_filter" : "conv/BiasAdd#7_weights_table:0",
+                        "address" : 2
+                    },
+                    {
+                        "name_filter" : "output_weights#4:0",
+                        "address" : 3
+                    },
+                    {
+                        "name_filter" : "output_weights#4_DDR2CMX:0_sm:0",
+                        "address" : 4
+                    },
+                    {
+                        "name_filter" : "output#8_weights_table:0",
+                        "address" : 5
                     }
                 ],
                 "streaming_strategy" :
