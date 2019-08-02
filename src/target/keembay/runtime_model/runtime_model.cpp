@@ -1489,27 +1489,26 @@ void mv::RuntimeModel::buildGraphFile(ComputationModel& cm, mv::Element& compila
 
     // Binary Data
     graphFile_.binary_data = std::vector<std::unique_ptr<MVCNN::BinaryDataT>>();
+    std::vector<mv::Data::TensorIterator> toSort;
     for(auto opIterator = om.opBegin(); opIterator != om.opEnd(); ++opIterator)
     {
         std::string opType = opIterator->getOpType();
-        std::vector<mv::Data::TensorIterator> toSort;
         if (opType == "Constant" || opType == "ConstantInt" || opType == "ConstantDataElement" || opType == "WeightsTable" || opType == "SparsityMap")
         {
             auto tIt = opIterator->getOutputTensor(0);
             toSort.push_back(tIt);
-        }
-
-        std::sort(toSort.begin(), toSort.end(), [](mv::Data::TensorIterator t1, mv::Data::TensorIterator t2){return (t1->get<unsigned>("graphFileIndex") < t2->get<unsigned>("graphFileIndex"));});
-        for(auto& tIt : toSort)
-        {
-            auto opIterator = om.getSourceOp(tIt);
-            // NOTE: This resparsify the weights coming from constant operation
-            // can be optimized
-            if(opIterator->hasAttr("sparse") && opIterator->get<bool>("sparse"))
-                tIt->setSparse();
-            //std::cout << "Serializing to binary data section " << tensorIt->getName() << std::endl;
-            graphFile_.binary_data.push_back(buildBinaryDataT(cm, compilationDescriptor, *tIt));
-        }
+        }   
+    }
+    std::sort(toSort.begin(), toSort.end(), [](mv::Data::TensorIterator t1, mv::Data::TensorIterator t2){return (t1->get<unsigned>("graphFileIndex") < t2->get<unsigned>("graphFileIndex"));});
+    for(auto& tIt : toSort)
+    {
+        auto opIterator = om.getSourceOp(tIt);
+        // NOTE: This resparsify the weights coming from constant operation
+        // can be optimized
+        if(opIterator->hasAttr("sparse") && opIterator->get<bool>("sparse"))
+            tIt->setSparse();
+        //std::cout << "Serializing to binary data section " << tensorIt->getName() << std::endl;
+        graphFile_.binary_data.push_back(buildBinaryDataT(cm, compilationDescriptor, *tIt));
     }
 
 }
