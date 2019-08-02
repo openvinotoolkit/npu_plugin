@@ -30,8 +30,15 @@
                 "address_helper_addresses" :
                 [
                     {
-                        "name_filter" : "conv/BiasAdd#7_copyIn_0:0",
+                        "name_filter" : "weirdName",
                         "address" : 98176
+                    }
+                ],
+                "graphfile_index_helper_addresses":
+                [
+                    {
+                        "name_filter" : "weirdName",
+                        "address" : 0
                     }
                 ],
                 "streaming_strategy" :
@@ -410,6 +417,7 @@
             "ArrangeKeembayExecution",
             "AllocateInputOutputTensorsKeemBay",
             "AllocateGraphfileTensorsKeemBay",
+            "GraphfileIndexHelper",
             "ReAllocateImplicitOperationsKeemBay",
             "AllocateCMXTensorsKeemBay",
             {
