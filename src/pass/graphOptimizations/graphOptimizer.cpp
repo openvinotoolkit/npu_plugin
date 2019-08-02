@@ -468,12 +468,13 @@ public:
         //Input and Output must have Spilled==True
         if( (parentOp.getOpType() == "Input") and
                 parent["spilling"].get<bool>() == false)
-//            return 1.0;
-            return INF;
+            return 1.0;
+//            return INF;
 
         if( (childOp.getOpType() == "Output") and
                 child["spilling"].get<bool>() == false)
-            return INF;
+            return 1.0;
+//            return INF;
 
         //iIf the layer is streaming over H or W, output of this layer has to be spilled
         if( (parent["spilling"] == false) and

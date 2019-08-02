@@ -214,6 +214,7 @@ void StrategyManager::writeDot(mv::graph<std::tuple<mv::Op&,StrategySet,int>,dou
     for(auto edge = optimizationGraph.edge_begin(); edge != optimizationGraph.edge_end(); ++edge)
     {
 //        if( skipInf and ( (*edge) == numeric_limits<double>::infinity()))
+skipInf=false;
         if( skipInf and ( (*edge) == 999999.999))
             continue;
         //TODO:: using an object's address to uniquely identify it is a baaaaaaaaad idea. Come up with something normal
@@ -372,7 +373,7 @@ void StrategyManager::linearDijkstra(mv::Data::OpListIterator opBegin)
         for(const auto oldNode : old_nodes)
             for(const auto newNode : new_nodes)
             {
-//                cout<< "In linearDykstra: inserting edge to optGraph from " << get<1>(*oldNode)["name"].get<string>()  << "_"<< to_string((long long unsigned)(void*)&(*oldNode)) << " to " << get<1>(*newNode)["name"].get<string>()  << "_"<< to_string((long long unsigned)(void*)&(*newNode)) << endl;
+                cout<< "In linearDykstra: inserting edge to optGraph from " << get<1>(*oldNode)["name"].get<string>()  << "_"<< to_string((long long unsigned)(void*)&(*oldNode)) << " to " << get<1>(*newNode)["name"].get<string>()  << "_"<< to_string((long long unsigned)(void*)&(*newNode)) << endl;
                 double edgeCost = transitionCost( get<0>(*oldNode),
                                                   get<0>(*newNode),
                                                   get<1>(*oldNode),
@@ -380,7 +381,7 @@ void StrategyManager::linearDijkstra(mv::Data::OpListIterator opBegin)
                 int edgeCostInt = edgeCost ;
                 auto newEdge = optimizationGraph.edge_insert(oldNode,newNode,edgeCost);
                 edgeCostMap.insert(std::pair<mv::graph<std::tuple<mv::Op&,StrategySet,int>,double>::edge_list_iterator, double>(newEdge, edgeCost));
- //               cout<< "        cost = " << edgeCost << endl;
+                cout<< "        cost = " << edgeCost << endl;
             }
         old_nodes.swap(new_nodes);
 
@@ -417,14 +418,14 @@ void StrategyManager::linearDijkstra(mv::Data::OpListIterator opBegin)
     CriticalPath finalCriticalPath;
 
 //    double max = numeric_limits<double>::infinity();
-    double max = 999999.999;
+    double maxCost = 9999999.999;
 
     for(auto criticalPath : criticalPaths)
     {
-        if( get<3>(criticalPath) < max)
+        if( get<3>(criticalPath) < maxCost)
         {
             finalCriticalPath = criticalPath;
-            max = get<3>(criticalPath);
+            maxCost = get<3>(criticalPath);
         }
 
     }
