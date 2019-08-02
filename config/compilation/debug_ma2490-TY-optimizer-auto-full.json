@@ -318,15 +318,15 @@
                 "graphOptimizerConfig" : {
                     "globalConfigs" : [
                         {"name" : "totalClusters",  "value" : 1   },
-                        {"name" : "clusterMemory",  "value" : 3600 },
+                        {"name" : "clusterMemory",  "value" : 1024 },
                         {"name" : "dpuPerCluster",  "value" : 1   },
                         {"name" : "ddrBandwidth",   "value" : 20000 },
                         {"name" : "systemClockMhz", "value" : 500 },
-                        {"name" : "FathomSafetyFactor", " value" : 0.95},
+                        {"name" : "FathomSafetyFactor", " value" : 0.925},
                         {"name" : "dotFileLocation", "value" : "/home/patd/mcmDot.dot"}
                     ],
                     "globalStrategies" : [
-                        {"name" : "tensorSpilling",    "value" : false       },
+                        {"name" : "tensorSpilling",    "value" : true       },
                         {"name" : "enableStreaming",   "value" : true       },
                         {"name" : "doubleBuffering",   "value" : false      },
                         {"name" : "scooby" ,            "value" : "doo"},
@@ -338,16 +338,15 @@
                             "name" : "Conv",
                             "strategies": [
                                 {"name" : "streamingStrategies",  "value" : ["StreamOverH","StreamOverW","StreamOverK"]},
-                                {"name" : "clusteringStrategies", "value" : ["SplitOverH","SplitOverK"]},
+                                {"name" : "clusteringStrategies", "value" : ["SplitOverH","SplitOverK","HKSwitch"]},
                                 {"name" : "sparsity",             "value" : false}
                             ]
                         },
-
                         {
                             "name" : "DepthWiseConv",
                             "strategies": [
                                 {"name" : "streamingStrategies",  "value" : ["StreamOverH","StreamOverW"]},
-                                {"name" : "clusteringStrategies", "value" : ["SplitOverH"]},
+                                {"name" : "clusteringStrategies", "value" : ["SplitOverH","HKSwitch"]},
                                 {"name" : "sparsity",             "value" : false}
                             ]
                         },
@@ -355,15 +354,16 @@
                             "name" : "MaxPool",
                             "strategies": [
                                 {"name" : "streamingStrategies",  "value" : ["StreamOverH","StreamOverW"]},
-                                {"name" : "clusteringStrategies", "value" : ["SplitOverH"]},
-                                {"name" : "sparsity",             "value" : false}
+                                {"name" : "clusteringStrategies", "value" : ["SplitOverH","HKSwitch"]},
+                                {"name" : "sparsity",             "value" : false},
+                                {"name" : "tensorSpilling",       "value" : true}
                             ]
                         },
                         {
                             "name" : "Eltwise",
                             "strategies": [
                                 {"name" : "streamingStrategies",  "value" : ["StreamOverH","StreamOverW"]},
-                                {"name" : "clusteringStrategies", "value" : ["SplitOverH"]},
+                                {"name" : "clusteringStrategies", "value" : ["SplitOverH","HKSwitch"]},
                                 {"name" : "sparsity",             "value" : false}
                             ]
                         }
