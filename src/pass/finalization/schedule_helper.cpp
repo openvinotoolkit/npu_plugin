@@ -7,6 +7,7 @@
 
 static void scheduleHelperPass(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 static void addressHelperPass(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
+static void graphfileIndexHelperPass(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 
 namespace mv
 {
@@ -24,6 +25,12 @@ namespace mv
         .setFunc(addressHelperPass)
         .setDescription(
             "For debug purposes only: sets addresses of tensors manually"
+        );
+
+        MV_REGISTER_PASS(GraphfileIndexHelper)
+        .setFunc(graphfileIndexHelperPass)
+        .setDescription(
+            "For debug purposes only: sets addresses of graphfile tensors manually"
         );
     }
 
@@ -57,6 +64,39 @@ void addressHelperPass(const mv::pass::PassEntry& pass, mv::ComputationModel& mo
             auto tensorAllocator = dm.getAllocator(*tensorAllocatorName);
             mv::Data::BufferIterator tensorBufferIt = tensorAllocator.getBuffer(0, t); // 0 is the only stage for now, but this will probably change in the future
             tensorBufferIt->setOffset(address);
+        }
+        catch (mv::ArgumentError error)
+        {
+            std::cout << error.what() << std::endl;
+        }
+
+    }
+}
+
+void graphfileIndexHelperPass(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element&, mv::json::Object&)
+{
+
+    mv::OpModel om(model);
+    mv::ControlModel cm(model);
+    mv::DataModel dm(model);
+
+    auto globalParams = model.getGlobalConfigParams();
+    if (!globalParams->hasAttr("graphfile_index_helper_addresses"))
+    {
+        pass.log(mv::Logger::MessageType::Info, "No address helper addresses provided");
+        return;
+    }
+
+    auto addressList = globalParams->get<std::vector<mv::Element>>("graphfile_index_helper_addresses");
+    for (auto e : addressList)
+    {
+        std::string& name = e.get<std::string>("name_filter");
+        int64_t address = e.get<int>("address");
+        pass.log(mv::Logger::MessageType::Debug, "ADDRESS HELPER setting address of "+name+" to "+std::to_string(address));
+        try
+        {
+            auto t = dm.getTensor(name);
+            t->set<unsigned>("graphFileIndex", address);
         }
         catch (mv::ArgumentError error)
         {
