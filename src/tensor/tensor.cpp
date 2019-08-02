@@ -382,7 +382,6 @@ void mv::Tensor::populateSparsityMapTensor_()
         if (static_cast<int64_t>(data_[internalOrder_.subToInd(shape, sub)]) != zeroPoint[sub[channelIndex]])
         {
             map += 1 << shift;
-            noneZeroElements_++;
         }
         shift++;
         if (shift == 8)//finished one map entry
@@ -482,9 +481,7 @@ bool mv::Tensor::setSparse(std::shared_ptr<mv::Tensor> sparsityMap, std::shared_
     if(!isPopulated())
         storageElement_  = storageElement;
 
-
     sparsityMap_ = sparsityMap;
-    noneZeroElements_ = countNonZeroElements();
 
     return true;
 }
@@ -717,6 +714,7 @@ std::vector<mv::DataElement> mv::Tensor::getDataPacked()
         size_t numberOfElementsInKernel = orderedDataPacked.size() - prevNumOfElements; //include padding
         offset += numberOfElementsInKernel * std::ceil(getDType().getSizeInBits()/8.0);
     }
+    noneZeroElements_ = orderedDataPacked.size();
     return orderedDataPacked;
 }
 
