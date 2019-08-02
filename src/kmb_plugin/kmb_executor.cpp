@@ -39,6 +39,10 @@
 #include "kmb_executor.h"
 #include "kmb_config.h"
 
+#include "kmb_vpusmm_allocator.h"
+#include "kmb_udma_allocator.h"
+#include "kmb_native_allocator.h"
+
 #ifndef _WIN32
 # include <libgen.h>
 # include <dlfcn.h>
@@ -68,7 +72,20 @@ KmbExecutor::KmbExecutor(const Logger::Ptr& log, const std::shared_ptr<KmbConfig
     if (parsedConfig[VPU_KMB_CONFIG_KEY(KMB_EXECUTOR)] == "NO") {
         return;
     }
-    allocator = make_shared<KmbAllocator>();
+
+    const char *allocatorEnvPtr = std::getenv("IE_VPU_KMB_MEMORY_ALLOCATOR_TYPE");
+    std::string allocatorType = "";
+    if (allocatorEnvPtr) {
+        allocatorType = allocatorEnvPtr;
+    }
+
+    if (allocatorType == "UDMA") {
+        allocator = make_shared<KmbUdmaAllocator>();
+    } else if (allocatorType == "NATIVE") {
+        allocator = make_shared<KmbNativeAllocator>();
+    } else {
+        allocator = make_shared<KmbVpusmmAllocator>();
+    }
 #ifdef ENABLE_VPUAL
     blob_file = nullptr;
     output_tensor = nullptr;
@@ -129,7 +146,7 @@ void KmbExecutor::allocateGraph(const std::vector<char> &graphFileContent, const
     // ########################################################################
     blob_file = allocator->alloc(graphFileContent.size());
 
-    if (blob_file) {
+    if (!blob_file) {
         std::cout << "KmbExecutor::allocateGraph: Error getting CMA for graph" << std::endl;
         return;
     }
@@ -208,7 +225,7 @@ void KmbExecutor::allocateGraph(const std::vector<char> &graphFileContent, const
 
     std::cout << "KmbExecutor::allocateGraph: calling output_tensor->Create" << std::endl;
     output_tensor = allocator->alloc(descOut.totalSize);
-    if (output_tensor) {
+    if (!output_tensor) {
         std::cout << "KmbExecutor::allocateGraph: Error getting CMA for output tensor" << std::endl;
         return;
     }

@@ -29,15 +29,16 @@ public:
 
     void  unlock(void * handle) noexcept override;
 
-    void * alloc(size_t size) noexcept override;
+    virtual void * alloc(size_t size) noexcept = 0;
 
-    bool   free(void* handle) noexcept override;
+    virtual bool   free(void* handle) noexcept = 0;
 
     void Release() noexcept override { }
 
     unsigned long getPhysicalAddress(void *handle) noexcept;
+    virtual ~KmbAllocator() = default;
 
-private:
+protected:
     struct MemoryDescriptor {
         size_t size;
         int fd;

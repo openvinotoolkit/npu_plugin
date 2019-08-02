@@ -14,35 +14,50 @@
 // stated in the License.
 //
 
-#include <vpusmm.h>
-#include <sys/mman.h>
-#include <sys/ioctl.h>
-#include <unistd.h>
-
-
-#include "kmb_allocator.h"
+#include "kmb_native_allocator.h"
 
 #include <iostream>
+#include <string>
+#include <sstream>
+
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 using namespace vpu::KmbPlugin;
 
-void *KmbAllocator::lock(void *handle, InferenceEngine::LockOp) noexcept {
-    if (_allocatedMemory.find(handle) == _allocatedMemory.end())
+void *KmbNativeAllocator::alloc(size_t size) noexcept {
+    void *virtAddr = nullptr;
+    int fileDesc = -1;
+    virtAddr = static_cast<unsigned char*>(mmap(nullptr, size, PROT_READ|PROT_WRITE, MAP_SHARED|MAP_ANONYMOUS, fileDesc, 0));
+
+    if (virtAddr == MAP_FAILED)
         return nullptr;
 
-    return handle;
+    MemoryDescriptor memDesc = {
+            size,  // size
+            fileDesc,    // file descriptor
+            0  // physical address
+    };
+    _allocatedMemory[virtAddr] = memDesc;
+
+    return virtAddr;
 }
 
-void KmbAllocator::unlock(void *handle) noexcept {
-    UNUSED(handle);
-}
-
-unsigned long KmbAllocator::getPhysicalAddress(void *handle) noexcept {
+bool KmbNativeAllocator::free(void *handle) noexcept {
     auto memoryIt = _allocatedMemory.find(handle);
     if (memoryIt == _allocatedMemory.end()) {
-        return 0;
+        return false;
     }
 
     auto memoryDesc = memoryIt->second;
-    return memoryDesc.physAddr;
+
+    auto out = munmap(handle, memoryDesc.size);
+    if (out == -1) {
+        return false;
+    }
+
+    _allocatedMemory.erase(handle);
+
+    return true;
 }
