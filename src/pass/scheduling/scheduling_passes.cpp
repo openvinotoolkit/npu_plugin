@@ -13,6 +13,7 @@ static void barrierIndexAssignmentFcn(const mv::pass::PassEntry&, mv::Computatio
 static void updateBarrierRefsFcn(const mv::pass::PassEntry&, mv::ComputationModel&, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 static void storeBarriersNamesInTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel&, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 static void updateCountsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
+static void hackExecutionScheduleFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element&, mv::json::Object&);
 
 namespace mv
 {
@@ -49,6 +50,40 @@ namespace mv
             "This pass updates producer and consumer counts in barriers based on workloads in producer and consumer \
             DxxTasks in the compute graph"
         );
+
+        MV_REGISTER_PASS(HackExecutionSchedule)
+        .setFunc(hackExecutionScheduleFcn)
+        .setDescription(
+            "This pass is intended for debug use only"
+        );
+
+    }
+}
+
+void hackExecutionScheduleFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element&, mv::json::Object&)
+{
+
+    auto globalParams = model.getGlobalConfigParams();
+    if (!globalParams->hasAttr("schedule_helper_indices"))
+    {
+        pass.log(mv::Logger::MessageType::Info, "No schedule helper indices provided");
+        return;
+    }
+
+    auto addressList = globalParams->get<std::vector<mv::Element>>("schedule_helper_indices");
+    for (auto e : addressList)
+    {
+        std::string& name = e.get<std::string>("name_filter");
+        int64_t address = e.get<int>("index");
+        try
+        {
+            auto opIt = model.getOp(name);
+            opIt->set<unsigned>("schedulingNumber", address);
+        }
+        catch (mv::ArgumentError error)
+        {
+            std::cout << error.what() << std::endl;
+        }
 
     }
 }

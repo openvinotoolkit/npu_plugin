@@ -432,6 +432,50 @@
                         "address" : 34752
                     }
                 ],
+                "schedule_helper_indices" :
+                [
+                    {
+                        "name_filter" : "conv/BiasAdd_weights#1_DDR2CMX",
+                        "index" : 0
+                    },
+                    {
+                        "name_filter" : "conv/BiasAdd_weights#1_DDR2CMX:0_sm_DDR2CMX",
+                        "index" : 1
+                    },
+                    {
+                        "name_filter" : "conv/BiasAdd#7_weights_table_DDR2CMX",
+                        "index" : 2
+                    },
+                    {
+                        "name_filter" : "conv/BiasAdd#7_copyIn_0",
+                        "index" : 3
+                    },
+                    {
+                        "name_filter" : "conv/BiasAdd#7",
+                        "index" : 4
+                    },
+
+                    {
+                        "name_filter" : "output_weights#4_DDR2CMX",
+                        "index" : 5
+                    },
+                    {
+                        "name_filter" : "output_weights#4_DDR2CMX:0_sm_DDR2CMX",
+                        "index" : 6
+                    },
+                    {
+                        "name_filter" : "output#8_weights_table_DDR2CMX",
+                        "index" : 7
+                    },
+                    {
+                        "name_filter" : "output#8",
+                        "index" : 8
+                    },
+                    {
+                        "name_filter" : "output#8_copyOut",
+                        "index" : 9
+                    }
+                ],
                 "graphfile_index_helper_addresses":
                 [
                     {
@@ -942,6 +986,7 @@
             "BarrierIndexAssignment",
             "UpdateBarrierRefs",
             "UpdateBarrierProducerConsumerCounts",
+            "HackExecutionSchedule",
             {
                 "name": "GenerateDot",
                 "output": "output/dots/serial_model.dot",
