@@ -214,7 +214,7 @@ void populateWeightsTablesActivationAndBias(mv::Tensor& weightsTableData, mv::Da
     std::vector<int32_t> mScaled(outputChannels, 0);
     std::vector<int32_t> mShift(outputChannels, 0);
     if(output->hasAttr("quantParams"))
-    {dpuTaskOp->get<unsigned>("outputChannels");
+    {
         quantParams = dpuTaskOp->getOutputTensor(0)->get<mv::QuantizationParams>("quantParams");
         if (!quantParams.isEmpty())
         {
