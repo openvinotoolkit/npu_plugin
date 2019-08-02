@@ -54,7 +54,7 @@ class KmbExecutor {
     std::shared_ptr<NNFlicPlg> nnPl;
 
     void *blob_file;
-    void *output_tensor;
+    void *rgnAllocatorBuffer;
     std::shared_ptr<BlobHandle_t> BHandle;
 
     std::shared_ptr<PlgPool<TensorMsg>> plgPoolOutputs;

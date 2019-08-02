@@ -53,18 +53,8 @@ using namespace InferenceEngine;
 using namespace InferenceEngine::VPUConfigParams;
 using namespace std;
 
-#define TENSOR_MAX_SIZE (2 * 1024 * 1024)
-#define BLOB_SIZE (30 * 1024 * 1024)
-
-
-#define N_POOL_TENSORS  (4)
-#define TENSOR_IN_SIZE  (896)
-#define TENSOR_OUT_SIZE (896)
-
-#define XLINK_INPUT_CHANNEL (3)
-#define XLINK_OUTPUT_CHANNEL (4)
-
-#define POOL_SIZE (4 * TENSOR_MAX_SIZE + 1024)
+const uint32_t POOL_SIZE = 30 * 1024 * 1024;
+const uint32_t XLINK_INPUT_CHANNEL = 3, XLINK_OUTPUT_CHANNEL = 4;
 
 KmbExecutor::KmbExecutor(const Logger::Ptr& log, const std::shared_ptr<KmbConfig>& config)
             : _log(log), _config(config)  {
@@ -72,7 +62,6 @@ KmbExecutor::KmbExecutor(const Logger::Ptr& log, const std::shared_ptr<KmbConfig
     if (parsedConfig[VPU_KMB_CONFIG_KEY(KMB_EXECUTOR)] == "NO") {
         return;
     }
-
     const char *allocatorEnvPtr = std::getenv("IE_VPU_KMB_MEMORY_ALLOCATOR_TYPE");
     std::string allocatorType = "";
     if (allocatorEnvPtr) {
@@ -88,7 +77,7 @@ KmbExecutor::KmbExecutor(const Logger::Ptr& log, const std::shared_ptr<KmbConfig
     }
 #ifdef ENABLE_VPUAL
     blob_file = nullptr;
-    output_tensor = nullptr;
+    rgnAllocatorBuffer = nullptr;
 #endif
 }
 
@@ -223,13 +212,6 @@ void KmbExecutor::allocateGraph(const std::vector<char> &graphFileContent, const
     std::cout << "Output: ";
     tensor_deserializer(descOut);
 
-    std::cout << "KmbExecutor::allocateGraph: calling output_tensor->Create" << std::endl;
-    output_tensor = allocator->alloc(descOut.totalSize);
-    if (!output_tensor) {
-        std::cout << "KmbExecutor::allocateGraph: Error getting CMA for output tensor" << std::endl;
-        return;
-    }
-
     InferenceEngine::SizeVector inputDims({descIn.n, descIn.c, descIn.h, descIn.w});
     InferenceEngine::Layout inputLayout = InferenceEngine::Layout::NCHW;
     // TODO: add proper precision handling
@@ -249,31 +231,40 @@ void KmbExecutor::allocateGraph(const std::vector<char> &graphFileContent, const
 
     m_networkOutputs[outputData.getName()] = std::make_shared<InferenceEngine::Data>(outputData);
 
+    rgnAllocatorBuffer = allocator->alloc(POOL_SIZE);
+    if (!rgnAllocatorBuffer) {
+        std::cout << "KmbExecutor::allocateGraph: Cannot allocate buffer for RgnAlloc" << std::endl;
+        return;
+    }
+    RgnAlloc->Create(allocator->getPhysicalAddress(rgnAllocatorBuffer), POOL_SIZE);
+    std::cout << "KmbExecutor::allocateGraph: Created RgnAlloc" << std::endl;
+
+    // TODO - These
     const unsigned int shavel2CacheLineSize = 64;
     unsigned int outputTensorSize = ROUND_UP(descOut.totalSize, shavel2CacheLineSize);
-    RgnAlloc->Create(allocator->getPhysicalAddress(output_tensor), POOL_SIZE);
 
     // TODO - These
     std::cout << "read memory pool finished..." << std::endl;
     plgPoolOutputs->Create(RgnAlloc.get(), 1, 3 * outputTensorSize);
-    std::cout << "write memory pool finished..." << std::endl;
+    std::cout << "Created plgPoolOutputs" << std::endl;
+
     plgTensorInput_->Create(descIn.totalSize, XLINK_INPUT_CHANNEL, descIn);
-    std::cout << "input tensor plugin finished..." << std::endl;
+    std::cout << "Created plgTensorInput" << std::endl;
+
     plgTensorOutput_->Create(descOut.totalSize, XLINK_OUTPUT_CHANNEL, descOut);
-    std::cout << "output tensor plugin finished..." << std::endl;
-    std::cout << "'Created' all Plugins..." << std::endl;
+    std::cout << "reated plgTensorOutput" << std::endl;
+
+    std::cout << "Created all Plugins" << std::endl;
 
     // Add the plugins to the pipeline:
-
     pipe->Add(plgPoolOutputs.get());
     pipe->Add(plgTensorInput_.get());
     pipe->Add(plgTensorOutput_.get());
     pipe->Add(nnPl.get());
 
-    std::cout << "Added Plugins to Pipeline..." << std::endl;
+    std::cout << "Added Plugins to Pipeline" << std::endl;
 
     // Link the plugins' messages:
-
     plgPoolOutputs->out.Link(&nnPl->resultInput);
     plgTensorInput_->tensorOut.Link(&nnPl->tensorInput);
     nnPl->output.Link(&plgTensorOutput_->dataIn);
@@ -301,6 +292,7 @@ void KmbExecutor::queueInference(void *input_data, size_t input_bytes,
 #ifdef ENABLE_VPUAL
     auto physAddr = allocator->getPhysicalAddress(input_data);
     plgTensorInput_->Push(physAddr, input_bytes);
+    std::cout << "Pushed input, size " << input_bytes << std::endl;
 #else
     UNUSED(input_data);
     UNUSED(input_bytes);
@@ -323,8 +315,8 @@ void KmbExecutor::getResult(void *result_data, unsigned int result_bytes) {
     std::cout << "Output tensor returned of length: " << std::dec << len << std::endl;
 
     // Convert the physical address we received back to a virtual address we can use.
-    uint32_t offset = pAddr - allocator->getPhysicalAddress(output_tensor);
-    unsigned char *data = static_cast<unsigned char *>(output_tensor) + offset;
+    uint32_t offset = pAddr - allocator->getPhysicalAddress(rgnAllocatorBuffer);
+    unsigned char *data = static_cast<unsigned char *>(rgnAllocatorBuffer) + offset;
 
     // write to file
     // Open output file
@@ -365,8 +357,8 @@ void KmbExecutor::deallocateGraph() {
     if (blob_file) {
         allocator->free(blob_file);
     }
-    if (output_tensor) {
-        allocator->free(output_tensor);
+    if (rgnAllocatorBuffer) {
+        allocator->free(rgnAllocatorBuffer);
     }
 #endif
 }

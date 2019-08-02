@@ -113,16 +113,12 @@ int main(int argc, char *argv[]) {
         std::string binFileName = FLAGS_m;
         slog::info << "Loading blob:\t" << binFileName << slog::endl;
 
-        InferenceEngine::IExecutableNetwork::Ptr importedNetworkPtr = ie.ImportNetwork(binFileName, "KMB", {});
-        if (importedNetworkPtr == nullptr) {
-            throw std::logic_error("ImportNetwork failed");
-        }
+        ExecutableNetwork importedNetwork = ie.ImportNetwork(binFileName, "KMB", {});
         // -----------------------------------------------------------------------------------------------------
 
         // --------------------------- 3. Configure input & output ---------------------------------------------
-        InferenceEngine::ResponseDesc response;
-        ConstInputsDataMap inputInfo;
-        importedNetworkPtr->GetInputsInfo(inputInfo, &response);
+        ConstInputsDataMap inputInfo = importedNetwork.GetInputsInfo();
+
         if (inputInfo.size() != 1) throw std::logic_error("Sample supports topologies only with 1 input");
 
         std::string imageData;
@@ -133,22 +129,18 @@ int main(int argc, char *argv[]) {
         // -----------------------------------------------------------------------------------------------------
 
         // --------------------------- 4. Create infer request -------------------------------------------------
-        InferenceEngine::IInferRequest::Ptr inferRequest;
-        auto status = importedNetworkPtr->CreateInferRequest(inferRequest, &response);
-        if (status == StatusCode::OK) {
-            slog::info << "CreateInferRequest completed successfully" << slog::endl;
-        } else {
-            slog::info << "CreateInferRequest failed with status code: " << status << ", response: " << response.msg << slog::endl;
-            throw std::logic_error("CreateInferRequest failed");
-        }
+        InferenceEngine::InferRequest inferRequest = importedNetwork.CreateInferRequest();
+        slog::info << "CreateInferRequest completed successfully" << slog::endl;
         // -----------------------------------------------------------------------------------------------------
 
         // --------------------------- 5. Prepare input --------------------------------------------------------
         /** Iterate over all the input blobs **/
         std::string firstInputName = inputInfo.begin()->first;
         /** Creating input blob **/
-        Blob::Ptr inputBlob;
-        inferRequest->GetBlob(firstInputName.c_str(), inputBlob, &response);
+        Blob::Ptr inputBlob = inferRequest.GetBlob(firstInputName.c_str());
+        if (!inputBlob) {
+            throw std::logic_error("Cannot get input blob from inferRequest");
+        }
 
         /** Filling input tensor with images. **/
         if (inputBlob->size() < imageData.size()) {
@@ -158,43 +150,39 @@ int main(int argc, char *argv[]) {
         auto blobData = inputBlob->buffer().as<PrecisionTrait<Precision::U8>::value_type*>();
         std::copy(imageData.begin(), imageData.end(), blobData);
 
-        status = inferRequest->Infer(&response);
-        if (status == StatusCode::OK) {
-            slog::info << "inferRequest completed successfully" << slog::endl;
-        } else {
-            slog::info << "inferRequest failed with status code: " << status << ", response: " << response.msg << slog::endl;
-            throw std::logic_error("inferRequest failed");
-        }
-
+        inferRequest.Infer();
+        slog::info << "inferRequest completed successfully" << slog::endl;
         // -----------------------------------------------------------------------------------------------------
 
         // --------------------------- 6. Process output -------------------------------------------------------
         slog::info << "Processing output blobs" << slog::endl;
 
-        ConstOutputsDataMap outputInfo;
-        importedNetworkPtr->GetOutputsInfo(outputInfo, &response);
+        ConstOutputsDataMap outputInfo = importedNetwork.GetOutputsInfo();
         if (outputInfo.size() != 1) throw std::logic_error("Sample supports topologies only with 1 output");
 
         std::string firstOutputName = outputInfo.begin()->first;
 
-        Blob::Ptr output_blob;
-        inferRequest->GetBlob(firstOutputName.c_str(), output_blob, &response);
+        Blob::Ptr outputBlob = inferRequest.GetBlob(firstOutputName.c_str());
+        if (!outputBlob) {
+            throw std::logic_error("Cannot get output blob from inferRequest");
+        }
 
         /** Read labels from file (e.x. AlexNet.labels) **/
         std::string labelFileName = fileNameNoExt(FLAGS_m) + ".labels";
         std::vector<std::string> labels = readLabelsFromFile(labelFileName);
 
         auto inputInfoItem = *inputInfo.begin();
-        Blob::Ptr input_blob;
-        inferRequest->GetBlob(inputInfoItem.first.c_str(), input_blob, &response);
+        Blob::Ptr input_blob = inferRequest.GetBlob(inputInfoItem.first.c_str());
 
         const SizeVector inputDims = input_blob->getTensorDesc().getDims();
         size_t batchSize = inputDims.at(0);
 
         std::vector<std::string> imageNames = { imageFileName };
-        const size_t resultsCnt = output_blob->size() / batchSize;
-        ClassificationResult classificationResult(output_blob, imageNames,
-                                                  batchSize, resultsCnt,
+        const size_t maxNumOfTop = 10;
+        const size_t resultsCount = outputBlob->size() / batchSize;
+        const size_t printedResultsCount = resultsCount > maxNumOfTop ? maxNumOfTop : resultsCount;
+        ClassificationResult classificationResult(outputBlob, imageNames,
+                                                  batchSize, printedResultsCount,
                                                   labels);
         classificationResult.print();
     }
