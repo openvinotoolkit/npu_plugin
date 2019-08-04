@@ -13,11 +13,27 @@ set (CMAKE_CXX_STANDARD_REQUIRED ON)
 ####################################
 
 set(IE_MAIN_KMB_PLUGIN_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
+# TODO: can it be reused from IE package?
+if(MSVC64 OR MINGW64)
+  set(X86_64 1)
+elseif(MINGW OR (MSVC AND NOT CMAKE_CROSSCOMPILING))
+  set(X86 1)
+elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "amd64.*|x86_64.*|AMD64.*")
+  set(X86_64 1)
+elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "i686.*|i386.*|x86.*|amd64.*|AMD64.*")
+  set(X86 1)
+elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(arm.*|ARM.*)")
+  set(ARM 1)
+elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(aarch64.*|AARCH64.*)")
+  set(AARCH64 1)
+endif()
 
 #
 # Find Inference Engine Developer package
 #
-
+if (CMAKE_CROSSCOMPILING)
+    set(CMAKE_STAGING_PREFIX "${CMAKE_SOURCE_DIR}/thirdparty")
+endif()
 find_package(InferenceEngineDeveloperPackage REQUIRED)
 
 # resolving dependencies for the current project
@@ -38,7 +54,7 @@ endif()
 add_subdirectory(thirdparty)
 
 # Enable MCM compiler by default
-if(NOT DEFINED ENABLE_MCM_COMPILER)
+if(NOT DEFINED ENABLE_MCM_COMPILER AND NOT (ARM OR AARCH64))
     set(ENABLE_MCM_COMPILER ON)
 endif()
 

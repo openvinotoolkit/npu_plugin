@@ -86,3 +86,48 @@ export MCM_HOME=$(KMB_PLUGIN_HOME)/thirdparty/movidius/mcmCompiler
 
 If you see that all enabled tests are passed then you may congratulate yourself with successful build of KMBPlugin.
 
+## Cross build for Yocto
+
+Cross build use Yocto SDK. You can install it with:
+
+``` sh
+wget -q http://nnt-srv01.inn.intel.com/dl_score_engine/thirdparty/linux/keembay/stable/ww28.5/oecore-x86_64-aarch64-toolchain-1.0.sh && \
+        chmod +x oecore-x86_64-aarch64-toolchain-1.0.sh && \
+        ./oecore-x86_64-aarch64-toolchain-1.0.sh -y -d /usr/local/oecore-x86_64 && \
+        rm oecore-x86_64-aarch64-toolchain-1.0.sh
+```
+1. Clone dldt:
+
+```sh
+(cd .. && git clone git@gitlab-icv.inn.intel.com:inference-engine/dldt.git)
+```
+
+2. Configure and build inference engine:
+
+Run following command from temporary build folder (e.g. `dldt\inference-engine\build`):
+
+```sh
+(\
+  mkdir -p ../dldt/inference-engine/build && \
+  cd ../dldt/inference-engine/build && \
+  source /usr/local/oecore-x86_64/environment-setup-aarch64-ese-linux && \
+  rm targets*.cmake ; cmake -DENABLE_TESTS=ON .. && \
+  cmake --build . --parallel $(nproc) \
+)
+```
+
+Note: the command attempt to clean the auto-generated `targets*.cmake`. Due to
+bug in in inference engine you need to clean `targets*.cmake` before cmake
+execution.
+
+3. Build plugin:
+
+Run following command from temporary build folder (e.g. `kmb-plugin\build`):
+
+```sh
+(\
+  source /usr/local/oecore-x86_64/environment-setup-aarch64-ese-linux && \
+  cmake -DInferenceEngineDeveloperPackage_DIR=$(realpath ../../dldt/inference-engine/build) .. &&\
+  cmake --build . --parallel $(nproc) \
+)
+```
