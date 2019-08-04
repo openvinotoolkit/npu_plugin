@@ -40,9 +40,10 @@ if (ENABLE_VPUAL)
     # copy memory manager library to target directory when vpualHost is enabled
     get_target_property(VPUSMM_LIB_PATH vpusmm IMPORTED_LOCATION)
     set(VPUSMM_OUT_DIR "$<TARGET_FILE_DIR:kmbPlugin>")
+    # FIXME: dirty hack to copy vpusmm and symlinks on it
     add_custom_target(vpusmm_copy_library ALL
-        COMMAND "${CMAKE_COMMAND}" -E copy "${VPUSMM_LIB_PATH}" "${VPUSMM_OUT_DIR}"
-        COMMENT "[VPUSMM] Copy ${VPUSMM_LIB_PATH} to build results")
+        COMMAND "${CMAKE_COMMAND}" -E copy "${VPUSMM_LIB_PATH}*" "${VPUSMM_OUT_DIR}"
+        COMMENT "[VPUSMM] Copy vpusmm library to build results")
 
     add_subdirectory(gapi_sipp)
 
