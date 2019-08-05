@@ -19,10 +19,14 @@ public:
     using StrategySet       = unordered_map<string,Attribute>;
     using LayerStrategySet  = unordered_map<string,StrategySet>;
 
-    using CriticalPath = std::tuple<mv::graph<std::tuple<mv::Op&,StrategySet,int>,double>::node_list_iterator,
+   /* using CriticalPath = std::tuple<mv::graph<std::tuple<mv::Op&,StrategySet,int>,double>::node_list_iterator,
             mv::graph<std::tuple<mv::Op&,StrategySet,int>,double>::node_list_iterator,
             std::vector<graph<std::tuple<mv::Op&,StrategySet,int>,double>::edge_list_iterator>,
             double>;
+*/ 
+
+    using CriticalEdges = std::vector<graph<std::tuple<mv::Op&,StrategySet,int>,double>::edge_list_iterator>;
+    using SharedCriticalEdges = std::vector<std::shared_ptr<graph<std::tuple<mv::Op&,StrategySet,int>,double>::edge_list_iterator>>;
 
     GlobalSetting globalConfig_;
     GlobalSetting globalStrategies_;
@@ -32,7 +36,20 @@ public:
     mv::Element& passDesc_;
 
     string dotFileLocation;
+/*  
+    struct CriticalPath{
+        //CriticalPath(){}
+        CriticalPath(const CriticalPath &cp){ source = cp.source; sink = cp.sink; edges = cp.edges; sumCost = cp.sumCost;}
+        CriticalPath(mv::graph<std::tuple<mv::Op&,StrategySet,int>,double>::node_list_iterator so, mv::graph<std::tuple<mv::Op&,StrategySet,int>,double>::node_list_iterator si, 
+                std::vector<graph<std::tuple<mv::Op&,StrategySet,int>,double>::edge_list_iterator> e, double c)
+                : source(so), sink(si), edges(std::move(e)), sumCost(c) {}
 
+        mv::graph<std::tuple<mv::Op&,StrategySet,int>,double>::node_list_iterator source;
+        mv::graph<std::tuple<mv::Op&,StrategySet,int>,double>::node_list_iterator sink;
+        std::vector<graph<std::tuple<mv::Op&,StrategySet,int>,double>::edge_list_iterator> edges;
+        double sumCost;
+    };
+*/
 
     StrategyManager(OpModel& model,mv::Element& passDesc);
 
@@ -42,6 +59,10 @@ public:
 
     void saveStrategy(std::vector<graph<std::tuple<mv::Op&,StrategySet,int>,double>::edge_list_iterator> cPathEdges);
     void linearDijkstra(mv::Data::OpListIterator opBegin);
+    void recursiveDijkstra(mv::Data::OpListIterator opBegin);
+    std::vector<StrategyManager::CriticalEdges> recursiveCriticalPath
+                        (typename graph<mv::Op, mv::DataFlow>::node_list_iterator modelSource, std::unordered_set<std::string>& recursedNodes);
+
     void writeDot(mv::graph<std::tuple<mv::Op&,StrategySet,int>,double>& optimizationGraph,bool skipInf);
 
     virtual void generateStrategySetForLayer(mv::Op& op,vector<StrategySet>& strategyVec);
