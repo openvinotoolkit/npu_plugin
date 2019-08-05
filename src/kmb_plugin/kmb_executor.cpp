@@ -215,7 +215,7 @@ void KmbExecutor::allocateGraph(const std::vector<char> &graphFileContent, const
     InferenceEngine::SizeVector inputDims({descIn.n, descIn.c, descIn.h, descIn.w});
     InferenceEngine::Layout inputLayout = InferenceEngine::Layout::NCHW;
     // TODO: add proper precision handling
-    InferenceEngine::Precision inputPrecision = InferenceEngine::Precision::FP16;
+    InferenceEngine::Precision inputPrecision = InferenceEngine::Precision::U8;
     InferenceEngine::TensorDesc inputDesc(inputPrecision, inputDims, inputLayout);
     InferenceEngine::Data inputData("input", inputDesc);
 
@@ -225,7 +225,7 @@ void KmbExecutor::allocateGraph(const std::vector<char> &graphFileContent, const
 
     InferenceEngine::SizeVector outputDims({descOut.n, descOut.c, descOut.h, descOut.w});
     InferenceEngine::Layout outputLayout = InferenceEngine::Layout::NCHW;
-    InferenceEngine::Precision outputPrecision = InferenceEngine::Precision::FP16;
+    InferenceEngine::Precision outputPrecision = InferenceEngine::Precision::U8;
     InferenceEngine::TensorDesc outputDesc(outputPrecision, outputDims, outputLayout);
     InferenceEngine::Data outputData("output", outputDesc);
 
