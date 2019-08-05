@@ -233,7 +233,7 @@ protected:
     InferenceEngine::BlobMap                 _inputMap;
     InferenceEngine::BlobMap                 _outputMap;
     InferenceEngine::OutputsDataMap          _outputsInfo;
-    InferenceEngine::IExecutableNetwork::Ptr _exeNetwork;
+    InferenceEngine::ExecutableNetwork       _exeNetwork;
     InferenceEngine::IInferRequest::Ptr      _inferRequest;
     bool                                     _doReshape = false;  // reshape 4D input to layer input Tensor
     IN_OUT_desc                              _inputTensors;

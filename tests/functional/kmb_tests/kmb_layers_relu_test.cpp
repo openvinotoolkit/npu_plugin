@@ -115,7 +115,6 @@ TEST_F(kmbLayersTests_nightly, DISABLED_TestsReLUAfterConvolution) {
     std::size_t weightSize = 6 + 18816;
     std::size_t biasSize = 6 + 128;
     TBlob<uint8_t>::Ptr weightsBlob(GenWeights(weightSize + biasSize));
-    StatusCode st;
 
     ASSERT_NO_THROW(_net_reader.ReadNetwork(model.data(), model.length()));
     ASSERT_TRUE(_net_reader.isParseSuccess());
@@ -136,8 +135,7 @@ TEST_F(kmbLayersTests_nightly, DISABLED_TestsReLUAfterConvolution) {
     config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_DOT)] = CONFIG_VALUE(YES);
     config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_JSON)] = CONFIG_VALUE(YES);
 
-    _exeNetwork = ie.LoadNetwork(network, "kmb", config);
-    ASSERT_NE(_exeNetwork, nullptr);
+    ASSERT_NO_THROW(ie.LoadNetwork(network, "kmb", config));
 }
 
 TEST_F(kmbLayersTests_nightly, TestsReLUOnly) {
@@ -197,7 +195,7 @@ TEST_F(kmbLayersTests_nightly, TestsReLUOnly) {
     setCommonConfig(config);
     config[VPU_KMB_CONFIG_KEY(MCM_PARSING_ONLY)] = CONFIG_VALUE(YES);
 
-    _exeNetwork = ie.LoadNetwork(network, "kmb", config);
+    ASSERT_NO_THROW(ie.LoadNetwork(network, "kmb", config));
 }
 
 TEST_P(kmbLayersTestsReLUParams, TestsReLUNetInit) {
@@ -236,7 +234,7 @@ TEST_P(kmbLayersTestsReLUParams, TestsReLUNetInit) {
     // TODO disable 'parse only' and find out why LoadNetwork fails
     config[VPU_KMB_CONFIG_KEY(MCM_PARSING_ONLY)] = CONFIG_VALUE(YES);
 
-    _exeNetwork = ie.LoadNetwork(network, "kmb", config);
+    ASSERT_NO_THROW(ie.LoadNetwork(network, "kmb", config));
 }
 
 static const tensor_test_params paramsTable[] = {

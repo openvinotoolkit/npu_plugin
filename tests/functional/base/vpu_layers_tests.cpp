@@ -269,7 +269,7 @@ void vpuLayersTests::TearDown() {
             _net_reader.getNetwork().serialize(xmlName, weightsName);
 
             std::string blobName = filename + ".blob";
-            _exeNetwork->Export(blobName, nullptr);
+            _exeNetwork.Export(blobName);
         }
     }
 }
