@@ -36,6 +36,7 @@ public:
     void Release() noexcept override { }
 
     unsigned long getPhysicalAddress(void *handle) noexcept;
+
     virtual ~KmbAllocator() = default;
 
 protected:

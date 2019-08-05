@@ -71,22 +71,9 @@ ExecutableNetwork::ExecutableNetwork(const std::string &blobFilename, const std:
     const char networkName[1024] = "importedNetwork";
 
     _executor->allocateGraph(_graphBlob, &networkName[0]);
-#ifdef ENABLE_MCM_COMPILER
-    KmbBlob blobReader(blobContentString.data());
 
-    this->_networkInputs  = blobReader.getNetworkInputs();
-    this->_networkOutputs = blobReader.getNetworkOutputs();
-    std::size_t numStages = blobReader.getStageCount();
-
-    _stagesMetaData.resize(numStages);
-    for (auto &meta : _stagesMetaData) {
-        meta.stageName = meta.stageType = meta.layerName = meta.layerType = "UNKNOWN";
-        meta.status = InferenceEngineProfileInfo::LayerStatus::EXECUTED;
-    }
-#else  // if not defined ENABLE_MCM_COMPILER
     _networkInputs  = _executor->getNetworkInputs();
     _networkOutputs = _executor->getNetworkOutputs();
-#endif
 
     if (_config->exclusiveAsyncRequests) {
         ExecutorManager *executorManager = ExecutorManager::getInstance();
