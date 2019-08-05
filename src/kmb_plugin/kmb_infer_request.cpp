@@ -28,6 +28,8 @@
 #include "kmb_executable_network.h"
 #include "kmb_infer_request.h"
 
+#include "kmb_preproc.hpp"
+
 using namespace vpu::KmbPlugin;
 using namespace InferenceEngine;
 
@@ -121,7 +123,15 @@ void KmbInferRequest::InferAsync() {
     }
 
     // execute input pre-processing
-    execDataPreprocessing(_inputs, true);  // "true" stands for serial preprocessing in case of OpenMP
+    if (SIPPPreprocessor::useSIPP() &&
+        SIPPPreprocessor::isApplicable(_inputs, _preProcData, _networkInputs)) {
+        if (!_sippPreproc) {
+            _sippPreproc.reset(new SIPPPreprocessor(_inputs, _preProcData));
+        }
+        _sippPreproc->execSIPPDataPreprocessing(_inputs, _preProcData, _networkInputs, m_curBatch, true);
+    } else {
+        execDataPreprocessing(_inputs, true);  // "true" stands for serial preprocessing in case of OpenMP
+    }
 
     auto dataName = _networkInputs.begin()->first;
     auto foundInputBlob = _inputs.find(dataName);

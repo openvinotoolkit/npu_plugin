@@ -31,6 +31,8 @@
 #include "kmb_executor.h"
 #include "kmb_config.h"
 
+#include "kmb_preproc.hpp"
+
 namespace vpu {
 namespace KmbPlugin {
 
@@ -40,6 +42,7 @@ class KmbInferRequest : public InferenceEngine::InferRequestInternal {
     Logger::Ptr _log;
     std::vector<StageMetaInfo> _stagesMetaData;
     std::shared_ptr<KmbConfig> _config;
+    std::shared_ptr<InferenceEngine::SIPPPreprocessor> _sippPreproc;
 
 public:
     typedef std::shared_ptr<KmbInferRequest> Ptr;
