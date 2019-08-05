@@ -121,7 +121,7 @@ void StrategyManager::printStrategy()
 {
     cout <<"########## Final Strategy Config" << endl;
 
-    cout <<"Global Confings" << endl;
+    cout <<"Global Configs" << endl;
     for( const auto elem : globalConfig_)
     {
         cout <<"\t"<<elem.first << " : " << elem.second.toString() << endl;
@@ -373,7 +373,7 @@ void StrategyManager::linearDijkstra(mv::Data::OpListIterator opBegin)
         for(const auto oldNode : old_nodes)
             for(const auto newNode : new_nodes)
             {
-                cout<< "In linearDykstra: inserting edge to optGraph from " << get<1>(*oldNode)["name"].get<string>()  << "_"<< to_string((long long unsigned)(void*)&(*oldNode)) << " to " << get<1>(*newNode)["name"].get<string>()  << "_"<< to_string((long long unsigned)(void*)&(*newNode)) << endl;
+//                cout<< "In linearDykstra: inserting edge to optGraph from " << get<1>(*oldNode)["name"].get<string>()  << "_"<< to_string((long long unsigned)(void*)&(*oldNode)) << " to " << get<1>(*newNode)["name"].get<string>()  << "_"<< to_string((long long unsigned)(void*)&(*newNode)) << endl;
                 double edgeCost = transitionCost( get<0>(*oldNode),
                                                   get<0>(*newNode),
                                                   get<1>(*oldNode),
