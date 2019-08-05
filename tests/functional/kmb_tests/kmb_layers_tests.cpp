@@ -61,7 +61,7 @@ void kmbLayersTests_nightly::setup(InferenceEngine::Precision outputPrecision,
     std::map<std::string, std::string> config;
     setCommonConfig(config);
     InferenceEngine::StatusCode st = InferenceEngine::StatusCode::GENERAL_ERROR;
-    _exeNetwork = ie.LoadNetwork(network, "kmb", config);
+    ASSERT_NO_THROW(ie.LoadNetwork(network, "kmb", config));
 
 }
 

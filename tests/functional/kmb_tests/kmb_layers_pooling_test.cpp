@@ -115,7 +115,6 @@ TEST_F(kmbLayersTests_nightly, DISABLED_TestsPoolingAfterConvolution) {
         )V0G0N";
 
     TBlob<uint8_t>::Ptr weightsBlob(GenWeights(18828 + 128));
-    StatusCode st;
 
     ASSERT_NO_THROW(_net_reader.ReadNetwork(model.data(), model.length()));
     ASSERT_TRUE(_net_reader.isParseSuccess());
@@ -136,7 +135,7 @@ TEST_F(kmbLayersTests_nightly, DISABLED_TestsPoolingAfterConvolution) {
     config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_DOT)] = CONFIG_VALUE(YES);
     config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_JSON)] = CONFIG_VALUE(YES);
 
-    _exeNetwork = ie.LoadNetwork(network, "kmb", config);
+    ASSERT_NO_THROW(ie.LoadNetwork(network, "kmb", config));
 }
 
 TEST_F(kmbLayersTests_nightly, TestsPoolingOnly) {
@@ -199,7 +198,7 @@ TEST_F(kmbLayersTests_nightly, TestsPoolingOnly) {
     config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_DOT)] = CONFIG_VALUE(YES);
     config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_JSON)] = CONFIG_VALUE(YES);
 
-    _exeNetwork = ie.LoadNetwork(network, "kmb", config);
+    ASSERT_NO_THROW(ie.LoadNetwork(network, "kmb", config));
 }
 
 TEST_P(kmbLayersTestsPoolingParams, TestsPoolingNetInit) {

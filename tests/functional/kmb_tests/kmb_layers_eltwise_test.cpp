@@ -119,7 +119,7 @@ TEST_F(kmbLayersTests_nightly, TestsEltwiseAfterScaleShift) {
     config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_DOT)] = CONFIG_VALUE(YES);
     config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_JSON)] = CONFIG_VALUE(YES);
 
-    _exeNetwork = ie.LoadNetwork(network, "kmb", config);
+    ASSERT_NO_THROW(ie.LoadNetwork(network, "kmb", config));
 }
 
 TEST_F(kmbLayersTests_nightly, TestsEltwiseAfterScaleShiftWithLargeWeight) {
@@ -215,6 +215,6 @@ TEST_F(kmbLayersTests_nightly, TestsEltwiseAfterScaleShiftWithLargeWeight) {
     config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_DOT)] = CONFIG_VALUE(YES);
     config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_JSON)] = CONFIG_VALUE(YES);
 
-    _exeNetwork = ie.LoadNetwork(network, "kmb", config);
+    ASSERT_NO_THROW(ie.LoadNetwork(network, "kmb", config));
 }
 #endif

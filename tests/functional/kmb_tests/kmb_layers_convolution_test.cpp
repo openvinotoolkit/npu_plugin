@@ -56,7 +56,7 @@ TEST_F(kmbLayersTests_nightly, DISABLED_TestsConvolutionAfterScaleShift) {
     config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_DOT)] = CONFIG_VALUE(YES);
     config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_JSON)] = CONFIG_VALUE(YES);
 
-    _exeNetwork = ie.LoadNetwork(network, "kmb", config);
+    ASSERT_NO_THROW(ie.LoadNetwork(network, "kmb", config));
 }
 
 TEST_F(kmbLayersTests_nightly, TestsConvolutionAfterScaleShiftNoBias) {
@@ -87,7 +87,7 @@ TEST_F(kmbLayersTests_nightly, TestsConvolutionAfterScaleShiftNoBias) {
     config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_DOT)] = CONFIG_VALUE(YES);
     config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_JSON)] = CONFIG_VALUE(YES);
 
-    _exeNetwork = ie.LoadNetwork(network, "kmb", config);
+    ASSERT_NO_THROW(ie.LoadNetwork(network, "kmb", config));
 }
 
 TEST_F(kmbLayersTests_nightly, DISABLED_TestsQuantizedConvolutionAfterScaleShift) {
@@ -97,10 +97,7 @@ TEST_F(kmbLayersTests_nightly, DISABLED_TestsQuantizedConvolutionAfterScaleShift
     ASSERT_NO_THROW(_net_reader.ReadNetwork(model.data(), model.length()));
     ASSERT_TRUE(_net_reader.isParseSuccess());
 
-    StatusCode sts;
-    InferenceEngine::ResponseDesc response;
     std::map<std::string, std::string> config;
-    IExecutableNetwork::Ptr exeNetwork;
     details::CNNNetworkImplPtr clonedNetwork;
 
     setCommonConfig(config);
@@ -131,7 +128,7 @@ TEST_F(kmbLayersTests_nightly, DISABLED_TestsQuantizedConvolutionAfterScaleShift
         clonedNetwork = cloneNet(network);
         InferenceEngine::details::CNNNetworkInt8Normalizer::NormalizeNetwork(*clonedNetwork, *pstats);
 
-        _exeNetwork = ie.LoadNetwork(CNNNetwork(clonedNetwork), "kmb", config);
+        ASSERT_NO_THROW(ie.LoadNetwork(CNNNetwork(clonedNetwork), "kmb", config));
     }
 }
 
@@ -144,12 +141,8 @@ TEST_F(kmbLayersTests_nightly, TestsQuantizedConvolutionAfterScaleShiftNoBias) {
     ASSERT_NO_THROW(_net_reader.ReadNetwork(model.data(), model.length()));
     ASSERT_TRUE(_net_reader.isParseSuccess());
 
-    StatusCode sts;
-    InferenceEngine::ResponseDesc response;
     std::map<std::string, std::string> config;
-    IExecutableNetwork::Ptr exeNetwork;
     details::CNNNetworkImplPtr clonedNetwork;
-    CNNNetworkInt8Normalizer cnnorm;
 
     setCommonConfig(config);
     config[VPU_KMB_CONFIG_KEY(MCM_PARSING_ONLY)] = CONFIG_VALUE(NO);
@@ -172,14 +165,13 @@ TEST_F(kmbLayersTests_nightly, TestsQuantizedConvolutionAfterScaleShiftNoBias) {
 
     ICNNNetworkStats* pstats = nullptr;
     StatusCode s = ((ICNNNetwork&)network).getStats(&pstats, nullptr);
-
     ASSERT_EQ(StatusCode::OK, s);
 
     if (!pstats->isEmpty()) {
         clonedNetwork = cloneNet(network);
         InferenceEngine::details::CNNNetworkInt8Normalizer::NormalizeNetwork(*clonedNetwork, *pstats);
 
-        _exeNetwork = ie.LoadNetwork(CNNNetwork(clonedNetwork), "kmb", config);
+        ASSERT_NO_THROW(ie.LoadNetwork(CNNNetwork(clonedNetwork), "kmb", config));
     }
 
 }
@@ -211,7 +203,7 @@ TEST_F(kmbLayersTests_nightly, TestsConvolutionOnly) {
     setCommonConfig(config);
     config[VPU_KMB_CONFIG_KEY(MCM_PARSING_ONLY)] = CONFIG_VALUE(YES);
 
-    _exeNetwork = ie.LoadNetwork(network, "kmb", config);
+    ASSERT_NO_THROW(ie.LoadNetwork(network, "kmb", config));
 }
 
 TEST_F(kmbLayersTests_nightly, TestsConvolutionOnlyNoBias) {
@@ -242,6 +234,6 @@ TEST_F(kmbLayersTests_nightly, TestsConvolutionOnlyNoBias) {
     setCommonConfig(config);
     config[VPU_KMB_CONFIG_KEY(MCM_PARSING_ONLY)] = CONFIG_VALUE(YES);
 
-    _exeNetwork = ie.LoadNetwork(network, "kmb", config);
+    ASSERT_NO_THROW(ie.LoadNetwork(network, "kmb", config));
 }
 #endif
