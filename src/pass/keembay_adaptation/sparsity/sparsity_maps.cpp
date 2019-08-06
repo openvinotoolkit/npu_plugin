@@ -79,10 +79,6 @@ std::vector<int8_t> createBitPattern(uint16_t kernelW, uint16_t kernelH, uint16_
     return bitpattern;
 }
 
-// Result of chat with Alessandro:
-
-// A current limitation of runtime is that for weights of an ZMajorConv to be sparse, also the input has to be sparse
-// This means that this pass has to be executed after the GenerateSparsityMapsUnpopulatedTensors.
 static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::json::Object&)
 {
     mv::OpModel om(model);
@@ -239,7 +235,7 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
 
 // In the future, these two conditions could change. We have to sync with runtime.
 
-// Eltwise, being the hackiest operation ever, potentially can support sparsity input, but the runtime currently doesn't allow it.
+// Eltwise, being the hackiest operation ever, potentially can support sparsity input, sharing the IDU with ZMajorConv, but the runtime currently doesn't allow it.
 
 static void generateSparsityMapsUnpopulatedTensorsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::json::Object&)
 {

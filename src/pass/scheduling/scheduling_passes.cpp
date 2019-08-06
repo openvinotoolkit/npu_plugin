@@ -98,7 +98,7 @@ void correctExecutionScheduleFcn(const mv::pass::PassEntry& pass, mv::Computatio
             weightsOp->set<unsigned>("schedulingNumber", schedulingNumbers[currentIndex++]);
             if(weightsTensor->isSparse())
             {
-                auto weightsSparsityMapOp = om.getSourceOp(op->getInputTensor(weightsTensor->get<std::size_t>("")));
+                auto weightsSparsityMapOp = om.getSourceOp(op->getInputTensor(op->get<std::size_t>("sparsityMapIndex")));
                 weightsSparsityMapOp->set<unsigned>("schedulingNumber", schedulingNumbers[currentIndex++]);
             }
             weightsTableOp->set<unsigned>("schedulingNumber", schedulingNumbers[currentIndex++]);
