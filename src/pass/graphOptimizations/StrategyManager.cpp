@@ -241,13 +241,13 @@ skipInf=false;
 
 void StrategyManager::saveStrategy(std::vector<graph<std::tuple<mv::Op&,StrategySet,int>,double>::edge_list_iterator> cPathEdges)
 {
- /* 
+  
     cout << "Saving streaming Strategy to Compilation Descriptor" << endl;
     cout << "    Critical Path info: length = " << cPathEdges.size() << endl ;
     for (int showPath=0; showPath<cPathEdges.size(); showPath++){
         cout << "    edge_"<< showPath << " cost is " << *(cPathEdges[showPath]) << endl ;
         cout << "    source is: " << get<1>(*cPathEdges[showPath]->source()).begin()->first << endl;
-    }*/
+    }
     auto globalParams = model_.getGlobalConfigParams();
     auto strategyList = globalParams->get<std::vector<mv::Element>>("streaming_strategy");
 
@@ -400,11 +400,11 @@ void StrategyManager::linearDijkstra(mv::Data::OpListIterator opBegin)
 void StrategyManager::saveStrategyGraph(std::pair<mv::graph<std::tuple<mv::Op&,StrategySet,int>,double>,CriticalEdges> cPathEdges)
 {
 
-    cout << "Saving streaming Strategy to Compilation Descriptor" << endl;
-/*     cout << "    Critical Path info: length = " << cPathEdges.size() << endl ;
-    for (int showPath=0; showPath<cPathEdges.size(); showPath++)
-        cout << "    edge_"<< showPath << " cost is " << *(cPathEdges[showPath]) << endl ;
-*/
+    cout << "saveStrategyGraph() is saving streaming Strategy to Compilation Descriptor" << endl;
+     cout << "    Critical Path info: length = " << cPathEdges.second.size() << endl ;
+    for (int showPath=0; showPath<cPathEdges.second.size(); showPath++)
+        cout << "    edge_"<< showPath << " cost is " << *(cPathEdges.second[showPath]) << endl ;
+
 
     auto globalParams = model_.getGlobalConfigParams();
     auto strategyList = globalParams->get<std::vector<mv::Element>>("streaming_strategy");
@@ -567,7 +567,6 @@ vector<vector<std::pair<mv::graph<std::tuple<mv::Op&,StrategySet,int>,double>,Cr
         auto model_child = model_edge->sink();
         auto model_parent = model_edge->source();
 
-
         //ITERATE through linear section, building the optimization subgraph, while (model_child is not a pivot node)
         while ( model_child->children_size() == 1 && ( model_child->parents_size() == 1 || ( model_child->parents_size() == 2 && 
                 ( (*model_child->leftmost_input()->source()).getOpType() == "ConstantInt"  || 
@@ -651,10 +650,10 @@ vector<vector<std::pair<mv::graph<std::tuple<mv::Op&,StrategySet,int>,double>,Cr
     //vector<mv::graph<std::tuple<mv::Op&,StrategySet,int>,double>::node_list_iterator> is the type to compare nodes in opt graph
     //If the childRetVecs is empty, just pick the best of criticalPaths (linear graph)
     if(sinkRetVecs.empty()){
-        //cout << "Found linear graph - choosing best of " << allLinearCriticalPaths[0].size() << " dijkstra best paths from input to output" << endl;
+        cout << "Found linear graph - choosing best of " << allLinearCriticalPaths[0].size() << " dijkstra best paths from input to output" << endl;
         //CriticalEdges finalCriticalPath = allLinearCriticalPaths[0].front();
         std::pair<mv::graph<std::tuple<mv::Op&,StrategySet,int>,double>,CriticalEdges> finalPair;
-        double max = 999999.999;
+        double max = 99999999.999;
 
         for(auto criticalPath : allLinearCriticalPaths[0])
         {
@@ -663,13 +662,13 @@ vector<vector<std::pair<mv::graph<std::tuple<mv::Op&,StrategySet,int>,double>,Cr
             for (auto edge : criticalPath.second){
                 cost += *edge;
             }
-            //cout << "  Found cost of " << cost << endl;
+            cout << "  Found cost of " << cost << " current  max= " << max << endl;
             if( cost < max)
             {
                 finalPair = criticalPath;
                 //finalCriticalPath = criticalPath.second;
                 max = cost;
-                //cout << "    Updated best cost to " << max << endl;
+                cout << "    Updated best cost to " << max << endl;
             }
         }
 
