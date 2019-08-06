@@ -28,11 +28,10 @@ namespace mv
 
             if (inputs[0]->isPopulated())
                 outputs[0].populate(inputs[0]->getData());
-            if (inputs[0]->isSparse())
-            {
-                //Sparsity map shallow copy
-                outputs[0].setSparse(inputs[0]->getSparsityMap(), inputs[0]->getStorageElement());
-            }
+
+            if (inputs[0]->hasAttr("populatedTensorType"))
+                outputs[0].set<std::string>("populatedTensorType", inputs[0]->get<std::string>("populatedTensorType"));
+
             if (inputs[0]->hasAttr("channelLength"))
                 outputs[0].set<int>("channelLength", inputs[0]->get<int>("channelLength"));
             if (args.at("direction").get<mv::DmaDirection>() == mv::DmaDirectionEnum::DDR2CMX)

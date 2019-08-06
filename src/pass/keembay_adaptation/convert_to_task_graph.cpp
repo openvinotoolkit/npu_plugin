@@ -54,6 +54,9 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
 
             auto input = opIt->getInputTensor(0);
             auto kernel = opIt->getInputTensor(1);
+
+            kernel->set<std::string>("populatedTensorType", "weights");
+
             auto opId = opIt->get<unsigned>("opId");
 
             auto strides = opIt->get<std::array<unsigned short, 2>>("stride");

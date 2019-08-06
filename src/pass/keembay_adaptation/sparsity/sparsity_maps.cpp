@@ -208,6 +208,8 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
                     auto sparsityMapOp = om.getSourceOp(sparsityMap);
                     auto weights = om.getSourceOp(weightsTensor);
 
+                    sparsityMapOp->set<std::string>("populatedTensorType", "weightsSparsityMap");
+
                     //Necessary hack because we want to put the sparse flag on the constant operation
                     weights.leftmostParent()->set<bool>("sparse", true);
                     sparsityMapOp->set<unsigned>("opId", weights->get<unsigned>("opId"));
