@@ -14,12 +14,19 @@ static void updateBarrierRefsFcn(const mv::pass::PassEntry&, mv::ComputationMode
 static void storeBarriersNamesInTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel&, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 static void updateCountsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 static void hackExecutionScheduleFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element&, mv::json::Object&);
+static void correctExecutionScheduleFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element&, mv::json::Object&);
 
 namespace mv
 {
 
     namespace pass
     {
+        MV_REGISTER_PASS(CorrectExecutionSchedule)
+        .setFunc(correctExecutionScheduleFcn)
+        .setDescription(
+            "Corrects a schedule for the computational model"
+        );
+
         MV_REGISTER_PASS(GenerateExecutionSchedule)
         .setFunc(generateSchedulingFcn)
         .setDescription(
@@ -58,6 +65,46 @@ namespace mv
         );
 
     }
+}
+
+// ASSUMPTION: DMA for weights, weights table and sparsity map are swappable in terms of scheduling without causing the model to hang on barriers
+// ASSUMPTION 2: The correct dma order is: Weights - Sparsity Map (if present) - Weights Table
+void correctExecutionScheduleFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element&, mv::json::Object&)
+{
+    mv::ControlModel cm(model);
+    mv::OpModel om(model);
+    auto ops = cm.schedulingSort();
+
+    for(auto& op: ops)
+    {
+        std::string opType = op->getOpType();
+        if(opType == "DPUTask" && op->get<std::string>("taskOp") == "Conv")
+        {
+            std::vector<unsigned> schedulingNumbers;
+            auto weightsTensor = op->getInputTensor(1);
+            auto weightsOp = om.getSourceOp(weightsTensor);
+            schedulingNumbers.push_back(weightsOp->get<unsigned>("schedulingNumber"));
+            auto weightsTableOp = om.getSourceOp(op->getInputTensor(op->get<std::size_t>("weightsTableIndex")));
+            schedulingNumbers.push_back(weightsTableOp->get<unsigned>("schedulingNumber"));
+
+            if(weightsTensor->isSparse())
+            {
+                auto weightsSparsityMapOp = om.getSourceOp(op->getInputTensor(op->get<std::size_t>("sparsityMapIndex")));
+                schedulingNumbers.push_back(weightsSparsityMapOp->get<unsigned>("schedulingNumber"));
+            }
+
+            std::sort(schedulingNumbers.begin(), schedulingNumbers.end());
+            unsigned currentIndex = 0;
+            weightsOp->set<unsigned>("schedulingNumber", schedulingNumbers[currentIndex++]);
+            if(weightsTensor->isSparse())
+            {
+                auto weightsSparsityMapOp = om.getSourceOp(op->getInputTensor(weightsTensor->get<std::size_t>("")));
+                weightsSparsityMapOp->set<unsigned>("schedulingNumber", schedulingNumbers[currentIndex++]);
+            }
+            weightsTableOp->set<unsigned>("schedulingNumber", schedulingNumbers[currentIndex++]);
+        }
+    }
+
 }
 
 void hackExecutionScheduleFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element&, mv::json::Object&)
