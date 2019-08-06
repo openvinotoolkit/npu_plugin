@@ -445,6 +445,7 @@ void updateBarrierRefsFcn(const mv::pass::PassEntry&, mv::ComputationModel& mode
     }
 }
 
+// DEPRECATED
 // NEEDS TO BE UPDATED WHEN MERGING WITH MULTICLUSTER
 void updateCountsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
