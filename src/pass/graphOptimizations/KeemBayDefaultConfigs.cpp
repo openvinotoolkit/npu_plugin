@@ -45,6 +45,12 @@ MV_OPTIMIZER_LAYER_STRATEGY_REGISTRY()
     .registerSet("sparsity").insert(false);
 
 MV_OPTIMIZER_LAYER_STRATEGY_REGISTRY()
+    .enter("DepthwiseConv")
+    .registerSet("streamingStrategies").insert(vector<string>{"StreamOverH","StreamOverW"})
+    .registerSet("ClusteringStrategies").insert(vector<string>{"Clustering","SplitOverH","SplitOverHOverlapped"})
+    .registerSet("sparsity").insert(false);
+
+MV_OPTIMIZER_LAYER_STRATEGY_REGISTRY()
     .enter("DepthWiseConv")
     .registerSet("streamingStrategies").insert(vector<string>{"StreamOverH","StreamOverW"})
     .registerSet("ClusteringStrategies").insert(vector<string>{"Clustering","SplitOverH","SplitOverHOverlapped"})

@@ -367,7 +367,7 @@ public:
             auto kernel = op.get<array<unsigned short,2>>("kSize");
             baseKernelCost = kernel[0] * kernel[1];
         }
-        else if ((opType == "DepthWiseConv") or
+        else if ((opType == "DepthWiseConv") or (opType == "DepthwiseConv") or
                  (opType == "Conv"))
         {
             auto weightsShape = op.getInputTensor(1)->getShape();

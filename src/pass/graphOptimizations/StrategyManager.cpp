@@ -512,7 +512,7 @@ vector<StrategyManager::CriticalEdges> StrategyManager::recursiveCriticalPath(ty
         }
     };
 
-vector<vector<std::pair<mv::graph<std::tuple<mv::Op&,StrategySet,int>,double>,CriticalEdges>>> allLinearCriticalPaths;
+    vector<vector<std::pair<mv::graph<std::tuple<mv::Op&,StrategySet,int>,double>,CriticalEdges>>> allLinearCriticalPaths;
     vector<std::pair<mv::graph<std::tuple<mv::Op&,StrategySet,int>,double>,CriticalEdges>> linearCriticalPaths;
     vector<vector<StrategyManager::CriticalEdges>> sinkRetVecs;
     vector<mv::graph<std::tuple<mv::Op&,StrategySet,int>,double>> allOptimizationGraphs;

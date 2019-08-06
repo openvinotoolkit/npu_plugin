@@ -98,7 +98,7 @@ public:
 
     std::string getLogID() const
     {
-        return "GraphOptimizer-StrategyMangger";
+        return "GraphOptimizer-StrategyManager";
     };
 
 };
