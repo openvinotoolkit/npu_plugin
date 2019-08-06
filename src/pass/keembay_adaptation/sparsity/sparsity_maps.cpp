@@ -260,9 +260,10 @@ static void generateSparsityMapsUnpopulatedTensorsFcn(const mv::pass::PassEntry&
         }
         else
         {
-            if(!tensor->isPopulated() && tensor->hasAttr("splitStrategy") && tensor->get<std::string>("splitStrategy") == "SplitOverH")
-                if(sink->getOpType() == "DPUTask" && sink->get<std::string>("taskOp") == "Conv")
-                    if(sink->get<std::array<unsigned short, 2>>("kSize")[0] > 1)
+            if(!tensor->isPopulated())
+                if((sink->hasAttr("splitStrategy") && sink->get<std::string>("splitStrategy") == "SplitOverH" && sink->getOpType() == "DPUTask" && sink->get<std::string>("taskOp") == "Conv")&&
+                    (source->hasAttr("splitStrategy") && source->get<std::string>("splitStrategy") == "SplitOverH" && source->getOpType() == "DPUTask" && source->get<std::string>("taskOp") == "Conv"))
+                    if(sink->get<std::array<unsigned short, 2>>("kSize")[0] > 1 || source->get<std::array<unsigned short, 2>>("kSize")[0] > 1)
                         tensor->setSparse();
         }
     }
