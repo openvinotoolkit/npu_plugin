@@ -58,6 +58,7 @@ public:
     void printStrategy();
 
     void saveStrategy(std::vector<graph<std::tuple<mv::Op&,StrategySet,int>,double>::edge_list_iterator> cPathEdges);
+    void saveStrategyGraph(std::pair<mv::graph<std::tuple<mv::Op&,StrategySet,int>,double>,CriticalEdges> cPathEdges);
     void linearDijkstra(mv::Data::OpListIterator opBegin);
     void recursiveDijkstra(mv::Data::OpListIterator opBegin);
     std::vector<StrategyManager::CriticalEdges> recursiveCriticalPath

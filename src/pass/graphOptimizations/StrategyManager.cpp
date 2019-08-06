@@ -397,6 +397,89 @@ void StrategyManager::linearDijkstra(mv::Data::OpListIterator opBegin)
     saveStrategy(criticalPathEdges);
 }
 
+void StrategyManager::saveStrategyGraph(std::pair<mv::graph<std::tuple<mv::Op&,StrategySet,int>,double>,CriticalEdges> cPathEdges)
+{
+
+    cout << "Saving streaming Strategy to Compilation Descriptor" << endl;
+/*     cout << "    Critical Path info: length = " << cPathEdges.size() << endl ;
+    for (int showPath=0; showPath<cPathEdges.size(); showPath++)
+        cout << "    edge_"<< showPath << " cost is " << *(cPathEdges[showPath]) << endl ;
+*/
+
+    auto globalParams = model_.getGlobalConfigParams();
+    auto strategyList = globalParams->get<std::vector<mv::Element>>("streaming_strategy");
+
+    //determine if node already has strategy from JSON text, do not override text specification
+    std::map<std::string, bool> hasSpec;
+
+    for (auto s : strategyList)
+    {
+        std::string nodeName = s.get<std::string>("name_filter");
+        auto splitList = s.get<std::vector<mv::Element>>("splits");
+        for (int i = 0; i < splitList.size(); i++)
+        {
+            if ((splitList[i].hasAttr("C"))||(splitList[i].hasAttr("H"))||(splitList[i].hasAttr("W"))||(splitList[i].hasAttr("K")))
+                hasSpec.insert(std::pair<std::string, bool>(nodeName, true));
+            else
+                hasSpec.insert(std::pair<std::string, bool>(nodeName, false));
+        }
+    }
+            
+    //save streaming strategy into compilation descriptor
+    auto copyElement = strategyList[0];
+    auto copyName = copyElement.get<std::string>("name_filter");
+    auto copySplits =  copyElement.get<std::vector<mv::Element>>("splits");
+    for (int i=copySplits.size(); i<4; i++)
+        copySplits.push_back(copySplits[0]);    // 4 element vector for streaming strategies c,h,w,k
+    for (int savePath=1; savePath<cPathEdges.second.size(); savePath++)
+    {
+        auto parentNode = (cPathEdges.second)[savePath]->leftmost_parent()->sink();
+        auto parentStrategySet = get<1>(*parentNode) ;
+        mv:Shape newStrategy = parentStrategySet["streaming"];
+        std::string newName = parentStrategySet["name"] ;
+        if ( hasSpec.find(newName) == hasSpec.end())
+        { 
+            copyElement.set("name_filter",newName);
+            copySplits[0].set<int>("C", newStrategy[0]);
+            copySplits[1].set<int>("H", newStrategy[1]);
+            copySplits[2].set<int>("W", newStrategy[2]);
+            copySplits[3].set<int>("K", newStrategy[3]);
+            copyElement.set("splits",copySplits);
+            strategyList.push_back(copyElement);
+        }
+    }
+    globalParams->set("streaming_strategy", strategyList);
+
+    //test updated compilation descriptor
+    auto globalParams2 = model_.getGlobalConfigParams();
+    auto strategyList2 = globalParams2->get<std::vector<mv::Element>>("streaming_strategy");
+
+    for (auto s : strategyList2)
+    {
+        std::string nodeName = s.get<std::string>("name_filter");
+        std::cout <<" Streaming strategy (from compilation descriptor) for node " << s.get<std::string>("name_filter") <<  std::endl ;
+        auto splitList = s.get<std::vector<mv::Element>>("splits");
+        for (int i = 0; i < splitList.size(); i++)
+        {
+            if (splitList[i].hasAttr("C"))
+            {
+                std::cout << "     C : " << splitList[i].get<int>("C") << std::endl;
+            }
+            else if (splitList[i].hasAttr("H"))
+            {
+                std::cout << "     H : " << splitList[i].get<int>("H") << std::endl;
+            }
+            else if (splitList[i].hasAttr("W"))
+            {
+                std::cout << "     W : " << splitList[i].get<int>("W") << std::endl;
+            }
+            else if (splitList[i].hasAttr("K"))
+            {
+                std::cout << "     K : " << splitList[i].get<int>("K") << std::endl;
+            }
+        }
+    }
+}
 
 
 void StrategyManager::recursiveDijkstra(mv::Data::OpListIterator opBegin)
@@ -429,8 +512,8 @@ vector<StrategyManager::CriticalEdges> StrategyManager::recursiveCriticalPath(ty
         }
     };
 
-    vector<vector<CriticalEdges>> allLinearCriticalPaths;
-    vector<CriticalEdges> linearCriticalPaths;
+vector<vector<std::pair<mv::graph<std::tuple<mv::Op&,StrategySet,int>,double>,CriticalEdges>>> allLinearCriticalPaths;
+    vector<std::pair<mv::graph<std::tuple<mv::Op&,StrategySet,int>,double>,CriticalEdges>> linearCriticalPaths;
     vector<vector<StrategyManager::CriticalEdges>> sinkRetVecs;
     vector<mv::graph<std::tuple<mv::Op&,StrategySet,int>,double>> allOptimizationGraphs;
     mv::graph<mv::Op, mv::DataFlow> g;
@@ -550,8 +633,8 @@ vector<StrategyManager::CriticalEdges> StrategyManager::recursiveCriticalPath(ty
         for(auto startingNode : first_nodes){
             for( auto endingNode : last_nodes)
             {
-                auto criticalPath = dijkstra<std::tuple<mv::Op&,StrategySet,int>,double,costNodeIteratorComp,costEdgeIteratorComp, double>(optimizationGraph,startingNode,endingNode,edgeCostMap);
-                linearCriticalPaths.push_back(criticalPath);
+                CriticalEdges criticalPathEdges = dijkstra<std::tuple<mv::Op&,StrategySet,int>,double,costNodeIteratorComp,costEdgeIteratorComp, double>(optimizationGraph,startingNode,endingNode,edgeCostMap);
+                linearCriticalPaths.push_back(std::pair<mv::graph<std::tuple<mv::Op&,StrategySet,int>,double>,CriticalEdges>(optimizationGraph, criticalPathEdges) );
             }
         }
 
@@ -569,33 +652,36 @@ vector<StrategyManager::CriticalEdges> StrategyManager::recursiveCriticalPath(ty
     //If the childRetVecs is empty, just pick the best of criticalPaths (linear graph)
     if(sinkRetVecs.empty()){
         //cout << "Found linear graph - choosing best of " << allLinearCriticalPaths[0].size() << " dijkstra best paths from input to output" << endl;
-        CriticalEdges finalCriticalPath = allLinearCriticalPaths[0].front();
+        //CriticalEdges finalCriticalPath = allLinearCriticalPaths[0].front();
+        std::pair<mv::graph<std::tuple<mv::Op&,StrategySet,int>,double>,CriticalEdges> finalPair;
         double max = 999999.999;
 
         for(auto criticalPath : allLinearCriticalPaths[0])
         {
             double cost = 0;
             //cout << "Critical Path has " << criticalPath.size() << " edges" << endl;
-            for (auto edge : criticalPath){
+            for (auto edge : criticalPath.second){
                 cost += *edge;
             }
             //cout << "  Found cost of " << cost << endl;
             if( cost < max)
             {
-                finalCriticalPath = criticalPath;
+                finalPair = criticalPath;
+                //finalCriticalPath = criticalPath.second;
                 max = cost;
                 //cout << "    Updated best cost to " << max << endl;
             }
         }
 
-        saveStrategy(finalCriticalPath);
+        saveStrategyGraph(finalPair);
+        //saveStrategy(finalCriticalPath);
 
         vector<CriticalEdges> ret;
-        ret.push_back(finalCriticalPath);
+        //ret.push_back(finalCriticalPath);
         return ret;
     }
     //Linear section no branches, use found source strategy to lock the sink for criticalPaths and pick the best with this constraint (linear part of parallel graph)
-     else if(childCtr == 1){
+ /*    else if(childCtr == 1){
      	vector<CriticalEdges> finalCriticalPaths = sinkRetVecs.back();
      	//Consider only potential paths which match strategy previously chosen for this sections sink
      	CriticalEdges previousSection = sinkRetVecs.back().back();
@@ -686,7 +772,7 @@ vector<StrategyManager::CriticalEdges> StrategyManager::recursiveCriticalPath(ty
 
         return finalCriticalPaths;
     }
-
+*/ 
 }
 void StrategyManager::generateStrategySetForLayer(mv::Op& op,vector<StrategySet>& strategyVec)
 {
