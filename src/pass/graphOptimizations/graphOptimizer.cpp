@@ -703,7 +703,7 @@ static void GraphParameterOptimizationFcn(const mv::pass::PassEntry& pass,
     strategyManager.updateDefaultValues();
     strategyManager.printStrategy();
     strategyManager.readGlobalConfigs();
-//    strategyManager.linearDijkstra(om.opBegin());
+    //strategyManager.linearDijkstra(om.opBegin());
     strategyManager.recursiveDijkstra(om.opBegin());
 
 
