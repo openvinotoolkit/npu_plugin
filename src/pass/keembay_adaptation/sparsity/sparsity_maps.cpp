@@ -9,7 +9,10 @@
 #include <math.h>
 
 static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
+static void splitOverHWeightsSparsityMapsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 static void generateSparsityMapsUnpopulatedTensorsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
+static void sparseWeights(mv::Data::TensorIterator& weightsTensor, mv::ComputationModel& model);
+
 
 namespace mv
 {
@@ -26,6 +29,12 @@ namespace mv
         .setFunc(generateSparsityMapsUnpopulatedTensorsFcn)
         .setDescription(
             "Generates sparsity maps for unpopulated tensors."
+        );
+
+        MV_REGISTER_PASS(SplitOverHWeightsSparsityMaps)
+        .setFunc(splitOverHWeightsSparsityMapsFcn)
+        .setDescription(
+            "Generates sparsity maps for weights in case of SplittingOverH kernel greater than 1."
         );
 
     }
@@ -190,34 +199,7 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
                     //continue;
 
                 auto weightsTensor = dpuTask->getInputTensor(1);
-                weightsTensor->setOrder(mv::Order("NHWC"));
-
-                // Sparsity map costant has to be created just once
-                // and has to feed all the operations that are fed by
-                // the tensor. The input slot will be the same of fakeSparsityMap
-                if(weightsTensor->setSparse())
-                {
-                    //SparsityMap will be saved as attribute
-                    auto smInternalTensor = weightsTensor->getSparsityMap();
-                    auto sparsityMap = om.constantInt(smInternalTensor->getIntData(), smInternalTensor->getShape(), smInternalTensor->getDType(),
-                                                      smInternalTensor->getOrder(), {{},{},{},{}}, smInternalTensor->getName());
-                    auto sparsityMapOp = om.getSourceOp(sparsityMap);
-                    auto weights = om.getSourceOp(weightsTensor);
-
-                    sparsityMapOp->set<std::string>("populatedTensorType", "weightsSparsityMap");
-
-                    //Necessary hack because we want to put the sparse flag on the constant operation
-                    weights.leftmostParent()->set<bool>("sparse", true);
-                    sparsityMapOp->set<unsigned>("opId", weights->get<unsigned>("opId"));
-                    auto outputFlows = mv::getOutputDataFlow(om, weights, false);
-                    for(auto& output: outputFlows)
-                    {
-                        auto sink = output.first;
-                        unsigned newSize = sink->addInputTensor(sparsityMap);
-                        om.defineFlow(sparsityMap, sink, newSize - 1);
-                        sink->set<size_t>("sparsityMapIndex", newSize - 1);
-                    }
-                }                
+                sparseWeights(weightsTensor, model);
             }
         }
     }
@@ -258,10 +240,74 @@ static void generateSparsityMapsUnpopulatedTensorsFcn(const mv::pass::PassEntry&
         }
         else
         {
-            if(!tensor->isPopulated() && tensor->hasAttr("splitStrategy") && tensor->get<std::string>("splitStrategy") == "SplitOverH")
-                if(sink->getOpType() == "DPUTask" && sink->get<std::string>("taskOp") == "Conv")
-                    if(sink->get<std::array<unsigned short, 2>>("kSize")[0] > 1)
+            if(!tensor->isPopulated())
+                if((sink->hasAttr("splitStrategy") && sink->get<std::string>("splitStrategy") == "SplitOverH" && sink->getOpType() == "DPUTask" && sink->get<std::string>("taskOp") == "Conv")&&
+                    (source->hasAttr("splitStrategy") && source->get<std::string>("splitStrategy") == "SplitOverH" && source->getOpType() == "DPUTask" && source->get<std::string>("taskOp") == "Conv"))
+                    if(sink->get<std::array<unsigned short, 2>>("kSize")[0] > 1 || source->get<std::array<unsigned short, 2>>("kSize")[0] > 1)
                         tensor->setSparse();
+        }
+    }
+}
+
+static void splitOverHWeightsSparsityMapsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::json::Object&)
+{
+    mv::DataModel dm(model);
+    mv::OpModel om(model);
+
+    for(auto dataFlow = dm.flowBegin(); dataFlow != dm.flowEnd(); ++dataFlow)
+    {
+        auto source = dataFlow.source();
+        auto sink = dataFlow.sink();
+        auto tensor = dataFlow->getTensor();
+
+        if((sink->hasAttr("splitStrategy") && sink->get<std::string>("splitStrategy") == "SplitOverH" && sink->getOpType() == "DPUTask" && sink->get<std::string>("taskOp") == "Conv")&&
+           (source->hasAttr("splitStrategy") && source->get<std::string>("splitStrategy") == "SplitOverH" && source->getOpType() == "DPUTask" && source->get<std::string>("taskOp") == "Conv"))
+        {
+            if(sink->hasAttr("kSize") && sink->get<std::array<unsigned short, 2>>("kSize")[0] > 1)
+            {
+                auto prevWeightsTensor = source->getInputTensor(1);
+                sparseWeights(prevWeightsTensor, model);
+                auto nextWeightsTensor = sink->getInputTensor(1);
+                sparseWeights(nextWeightsTensor, model);
+            }
+            else if (source->hasAttr("kSize") && source->get<std::array<unsigned short, 2>>("kSize")[0] > 1)
+            {
+                auto prevWeightsTensor = source->getInputTensor(1);
+                sparseWeights(prevWeightsTensor, model);
+                auto nextWeightsTensor = sink->getInputTensor(1);
+                sparseWeights(nextWeightsTensor, model);
+            }
+        }
+    }
+}
+
+static void sparseWeights(mv::Data::TensorIterator& weightsTensor, mv::ComputationModel& model)
+{
+    mv::OpModel om(model);
+    weightsTensor->setOrder(mv::Order("NHWC"));
+
+    // Sparsity map costant has to be created just once
+    // and has to feed all the operations that are fed by
+    // the tensor. The input slot will be the same of fakeSparsityMap
+    if(weightsTensor->setSparse())
+    {
+        //SparsityMap will be saved as attribute
+        auto smInternalTensor = weightsTensor->getSparsityMap();
+        auto sparsityMap = om.constantInt(smInternalTensor->getIntData(), smInternalTensor->getShape(), smInternalTensor->getDType(),
+                                          smInternalTensor->getOrder(), {{},{},{},{}}, smInternalTensor->getName());
+        auto sparsityMapOp = om.getSourceOp(sparsityMap);
+        auto weights = om.getSourceOp(weightsTensor);
+
+        //Necessary hack because we want to put the sparse flag on the constant operation
+        weights.leftmostParent()->set<bool>("sparse", true);
+        sparsityMapOp->set<unsigned>("opId", weights->get<unsigned>("opId"));
+        auto outputFlows = mv::getOutputDataFlow(om, weights, false);
+        for(auto& output: outputFlows)
+        {
+            auto sink = output.first;
+            unsigned newSize = sink->addInputTensor(sparsityMap);
+            om.defineFlow(sparsityMap, sink, newSize - 1);
+            sink->set<size_t>("sparsityMapIndex", newSize - 1);
         }
     }
 }
