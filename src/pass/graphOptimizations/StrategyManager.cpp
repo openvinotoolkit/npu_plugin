@@ -651,7 +651,7 @@ vector<vector<std::pair<mv::graph<std::tuple<mv::Op&,StrategySet,int>,double>,Cr
     //If the childRetVecs is empty, just pick the best of criticalPaths (linear graph)
     if(sinkRetVecs.empty()){
         cout << "Found linear graph - choosing best of " << allLinearCriticalPaths[0].size() << " dijkstra best paths from input to output" << endl;
-        //CriticalEdges finalCriticalPath = allLinearCriticalPaths[0].front();
+        CriticalEdges finalCriticalPath;
         std::pair<mv::graph<std::tuple<mv::Op&,StrategySet,int>,double>,CriticalEdges> finalPair;
         double max = 99999999.999;
 
@@ -666,7 +666,7 @@ vector<vector<std::pair<mv::graph<std::tuple<mv::Op&,StrategySet,int>,double>,Cr
             if( cost < max)
             {
                 finalPair = criticalPath;
-                //finalCriticalPath = criticalPath.second;
+                finalCriticalPath = criticalPath.second;
                 max = cost;
                 cout << "    Updated best cost to " << max << endl;
             }
@@ -676,17 +676,21 @@ vector<vector<std::pair<mv::graph<std::tuple<mv::Op&,StrategySet,int>,double>,Cr
         //saveStrategy(finalCriticalPath);
 
         vector<CriticalEdges> ret;
-        //ret.push_back(finalCriticalPath);
+        ret.push_back(finalCriticalPath);
         return ret;
     }
     //Linear section no branches, use found source strategy to lock the sink for criticalPaths and pick the best with this constraint (linear part of parallel graph)
- /*    else if(childCtr == 1){
+    else if(childCtr == 1){
      	vector<CriticalEdges> finalCriticalPaths = sinkRetVecs.back();
+     	vector<CriticalPair> finalPairs;
      	//Consider only potential paths which match strategy previously chosen for this sections sink
      	CriticalEdges previousSection = sinkRetVecs.back().back();
-     	vector<CriticalEdges> thisSection = allLinearCriticalPaths.at(0); //only one linear part in this section
+     	vector<CriticalPair> thisSection = allLinearCriticalPaths.at(0); //only one linear part in this section
+
         CriticalEdges finalCriticalPath; 
-        double max = 999999.999;
+        CriticalPair finalPair;
+
+        double max = 99999999.999;
 
         //check first that this is a CP we should consider (does the sink match the strategy already decided for that node)
         auto prevSource = previousSection.front()->source();
@@ -696,34 +700,38 @@ vector<vector<std::pair<mv::graph<std::tuple<mv::Op&,StrategySet,int>,double>,Cr
         {
         	double cost = 0;
             //cout << "Critical Path has " << criticalPath.size() << " edges" << endl;
-            for (int showPath=0; showPath < criticalPath.size(); showPath++){
-                cost += *criticalPath[showPath];
+            for (int showPath=0; showPath < criticalPath.second.size(); showPath++){
+                cost += *criticalPath.second[showPath];
             }
             //TODO check that we can compare StrategySet in this way -> if strategy is a match we want this to execute
-            if(prevStrategy == get<1>(*criticalPath.front()->source()) && cost < max)
+            if(prevStrategy == get<1>(*criticalPath.second.front()->source()) && cost < max)
             {
-                finalCriticalPath = criticalPath;
+                finalCriticalPath = criticalPath.second;
+                finalPair = criticalPath;
                 max = cost;
             }
         }
-
-        saveStrategy(finalCriticalPath);
+        saveStrategyGraph(finalPair);
+        //saveStrategy(finalCriticalPath);
 
         finalCriticalPaths.push_back(finalCriticalPath);
         return finalCriticalPaths;
     }
     //Parallel branches between this source and sink, do addition to pick the best
-    else{
+     else{
     	
         vector<CriticalEdges> finalCriticalPaths = sinkRetVecs.back();
-        vector<vector<CriticalEdges>> sinkMatchedCriticalPaths;
-        vector<vector<CriticalEdges>> sourceMatchedCriticalPaths;
+        vector<CriticalPair> finalCriticalPairs;
+        vector<vector<CriticalPair>> sinkMatchedCriticalPaths;
+        vector<vector<CriticalPair>> sourceMatchedCriticalPaths;
         vector<CriticalEdges> bestFinalPaths;
+        vector<CriticalPair> bestFinalPairs;
         //Consider only potential paths which match strategy previously chosen for this sections sink
      	CriticalEdges previousSection = sinkRetVecs.back().back();
 
         CriticalEdges finalCriticalPath;
-        double max = 999999.999;
+        CriticalPair finalPair;
+        double max = 99999999.999;
 
         //check first that this is a CP we should consider (does the sink match the strategy already decided for that node)
         auto prevSource = previousSection.front()->source(); //source of the first edge
@@ -733,7 +741,7 @@ vector<vector<std::pair<mv::graph<std::tuple<mv::Op&,StrategySet,int>,double>,Cr
 
         for(int branch = 0; branch < childCtr; branch++){ 
             for(auto path : allLinearCriticalPaths[branch]){
-                if(get<1>(*path.back()->sink()) == prevStrategy){
+                if(get<1>(*path.second.back()->sink()) == prevStrategy){
                     sinkMatchedCriticalPaths[branch].push_back(path);
                 }
             }
@@ -744,12 +752,14 @@ vector<vector<std::pair<mv::graph<std::tuple<mv::Op&,StrategySet,int>,double>,Cr
         for(int source = 0; source < numSources; source++){
             double cost = 0;
             vector<CriticalEdges> potentialFinalPaths;
-            StrategySet sourceStrategy = get<1>(*sinkMatchedCriticalPaths[0].at(source).front()->source());
+            vector<CriticalPair> potentialFinalPairs;
+            StrategySet sourceStrategy = get<1>(*sinkMatchedCriticalPaths[0].at(source).second.front()->source());
             for(int branch = 0; branch < childCtr; branch++){
                 for(auto path : sinkMatchedCriticalPaths[branch]){
-                    if(get<1>(*path.front()->source()) == sourceStrategy){
-                        potentialFinalPaths.push_back(path);
-                        for(auto edge : path){
+                    if(get<1>(*path.second.front()->source()) == sourceStrategy){
+                        potentialFinalPaths.push_back(path.second);
+                        potentialFinalPairs.push_back(path);
+                        for(auto edge : path.second){
                             cost += *edge;
                         }
                         continue;
@@ -760,18 +770,23 @@ vector<vector<std::pair<mv::graph<std::tuple<mv::Op&,StrategySet,int>,double>,Cr
             {
                 max = cost;
                 bestFinalPaths = potentialFinalPaths;
+                bestFinalPairs = potentialFinalPairs;
             }
             potentialFinalPaths.clear();
+            potentialFinalPairs.clear();
         }
 
         for(auto criticalPath : bestFinalPaths){
-        	saveStrategy(criticalPath);
+        	//saveStrategy(criticalPath);
             finalCriticalPaths.push_back(criticalPath);
+        }
+        for(auto criticalPair : bestFinalPairs){
+        	saveStrategyGraph(criticalPair);
         }
 
         return finalCriticalPaths;
     }
-*/ 
+
 }
 void StrategyManager::generateStrategySetForLayer(mv::Op& op,vector<StrategySet>& strategyVec)
 {

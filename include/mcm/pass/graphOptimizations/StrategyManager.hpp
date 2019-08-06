@@ -19,15 +19,10 @@ public:
     using StrategySet       = unordered_map<string,Attribute>;
     using LayerStrategySet  = unordered_map<string,StrategySet>;
 
-   /* using CriticalPath = std::tuple<mv::graph<std::tuple<mv::Op&,StrategySet,int>,double>::node_list_iterator,
-            mv::graph<std::tuple<mv::Op&,StrategySet,int>,double>::node_list_iterator,
-            std::vector<graph<std::tuple<mv::Op&,StrategySet,int>,double>::edge_list_iterator>,
-            double>;
-*/ 
-
+    
     using CriticalEdges = std::vector<graph<std::tuple<mv::Op&,StrategySet,int>,double>::edge_list_iterator>;
-    using SharedCriticalEdges = std::vector<std::shared_ptr<graph<std::tuple<mv::Op&,StrategySet,int>,double>::edge_list_iterator>>;
-
+    using CriticalPair = std::pair<mv::graph<std::tuple<mv::Op&,StrategySet,int>,double>,CriticalEdges>;
+    
     GlobalSetting globalConfig_;
     GlobalSetting globalStrategies_;
     LayerStrategySet layerStrategies_;
@@ -36,20 +31,6 @@ public:
     mv::Element& passDesc_;
 
     string dotFileLocation;
-/*  
-    struct CriticalPath{
-        //CriticalPath(){}
-        CriticalPath(const CriticalPath &cp){ source = cp.source; sink = cp.sink; edges = cp.edges; sumCost = cp.sumCost;}
-        CriticalPath(mv::graph<std::tuple<mv::Op&,StrategySet,int>,double>::node_list_iterator so, mv::graph<std::tuple<mv::Op&,StrategySet,int>,double>::node_list_iterator si, 
-                std::vector<graph<std::tuple<mv::Op&,StrategySet,int>,double>::edge_list_iterator> e, double c)
-                : source(so), sink(si), edges(std::move(e)), sumCost(c) {}
-
-        mv::graph<std::tuple<mv::Op&,StrategySet,int>,double>::node_list_iterator source;
-        mv::graph<std::tuple<mv::Op&,StrategySet,int>,double>::node_list_iterator sink;
-        std::vector<graph<std::tuple<mv::Op&,StrategySet,int>,double>::edge_list_iterator> edges;
-        double sumCost;
-    };
-*/
 
     StrategyManager(OpModel& model,mv::Element& passDesc);
 
