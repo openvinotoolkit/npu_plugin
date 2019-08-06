@@ -5,6 +5,7 @@
 #include "kmb_preproc.hpp"
 #include <map>
 #include <string>
+#include <memory>
 
 #ifdef ENABLE_VPUAL
 #include "kmb_preproc_gapi.hpp"
@@ -18,7 +19,7 @@ SIPPPreprocessor::SIPPPreprocessor(const InferenceEngine::BlobMap& inputs,
     for (auto& input : inputs) {
         auto it = preprocData.find(input.first);
         if (it != preprocData.end()) {
-            _preprocs.emplace(input.first, new SIPPPreprocEngine);
+            _preprocs.emplace(input.first, std::make_shared<SIPPPreprocEngine>());
         }
     }
 }
