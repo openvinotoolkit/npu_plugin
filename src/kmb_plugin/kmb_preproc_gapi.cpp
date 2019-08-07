@@ -140,21 +140,20 @@ void SIPPPreprocEngine::preprocWithSIPP(const Blob::Ptr &inBlob, Blob::Ptr &outB
         GMat in_y, in_uv;
         own::Size out_sz{outputs[0][0].cols, outputs[0][0].rows/3};
 
-        // FIXME: BGR!
-        auto rgb = gapi::NV12toRGBp(in_y, in_uv);
+        auto rgb = gapi::NV12toBGRp(in_y, in_uv);
         auto out = gapi::resizeP(rgb, out_sz);
 
         _lastCompiled = GComputation(GIn(in_y, in_uv), GOut(out))
                                     .compile(own::descr_of(inputs_y[0][0]), own::descr_of(inputs_uv[0][0]),
                                              compile_args(InferenceEngine::gapi::preproc::sipp::kernels(),
-                                                          GSIPPBackendInitInfo{0, 3, 8}));
+                                                          GSIPPBackendInitInfo{0, 1, 1}));
     } else if (y_blob->getTensorDesc().getDims() != _lastInYDims) {
         cv::GMetaArgs meta(2);
         meta[0] = own::descr_of(inputs_y[0][0]);
         meta[1] = own::descr_of(inputs_uv[0][0]);
         _lastCompiled.reshape(meta,
                               compile_args(InferenceEngine::gapi::preproc::sipp::kernels(),
-                                           GSIPPBackendInitInfo{0, 3, 8}));
+                                           GSIPPBackendInitInfo{0, 1, 1}));
         _lastInYDims = y_blob->getTensorDesc().getDims();
     }
     _lastCompiled(gin(inputs_y[0][0], inputs_uv[0][0]), gout(outputs[0][0]));
