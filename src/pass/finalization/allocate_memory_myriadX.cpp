@@ -42,7 +42,8 @@ namespace mv
 //NOTE:This pass assumes the existence of memory allocators called ProgrammableInput and Programmable. Lucklily this is true for both MX and Keembay.
 void allocateInputOutputTensors(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
-    std::cout << "Allocate input/output tensors" << std::endl;
+   
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
 
     using namespace mv;
 
@@ -121,11 +122,8 @@ void allocateInputOutputTensors(const mv::pass::PassEntry&, mv::ComputationModel
 
         }
 
-
-
     }
 
-    std::cout << "Exiting allocate input and output" << std::endl;
 }
 
 // NOTE:This pass assumes the existence of a memory allocator called ConstantMemory. This was true only for MX, so this pass has to be changed to use TargetDescriptor.
@@ -134,7 +132,7 @@ void allocateInputOutputTensors(const mv::pass::PassEntry&, mv::ComputationModel
 void allocatePopulatedTensorsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
 
-    std::cout << "Allocate populated" << std::endl;
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
 
     using namespace mv;
 
@@ -179,8 +177,6 @@ void allocatePopulatedTensorsFcn(const mv::pass::PassEntry&, mv::ComputationMode
 
     }
 
-    std::cout << "Exiting allocate populated" << std::endl;
-
 }
 
 
@@ -189,8 +185,7 @@ void allocatePopulatedTensorsFcn(const mv::pass::PassEntry&, mv::ComputationMode
 void allocateUnpopulatedTensorsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
 
-    std::cout << "Allocate unpopulated" << std::endl;
-
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     using namespace mv;
 
     ControlModel cm(model);
@@ -429,7 +424,5 @@ void allocateUnpopulatedTensorsFcn(const mv::pass::PassEntry&, mv::ComputationMo
         }
 
     }
-
-    std::cout << "Exiting allocate unpopulated" << std::endl;
 
 }

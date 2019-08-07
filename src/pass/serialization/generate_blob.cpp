@@ -40,6 +40,7 @@ namespace mv
 void generateBlobFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor& td, mv::Element& passDesc, mv::Element& compOutput)
 {   
 
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     using namespace mv;
 
     mv::ControlModel cm(model);
@@ -584,6 +585,8 @@ void fillMXDescriptors(mv::ControlModel cm, mv::DataModel dm, unsigned fp16_size
 
 void PopulateSerialFieldsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);
     mv::DataModel dm(model);
     mv::ControlModel cm(model);

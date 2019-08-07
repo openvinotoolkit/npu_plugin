@@ -21,6 +21,7 @@ namespace mv
 void convDilationFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
 
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     using namespace mv;
 
     mv::OpModel om(model);
@@ -84,9 +85,9 @@ void convDilationFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv
                 om.defineFlow(dilatedConstant, opIt, 1);
                 opIt->setInputTensor(dilatedConstant, 1);
             }
-            else
-                 std::cout << "Dilation not required " << std::endl;
+
         }
+        
     }
-    std::cout << "Exiting Dilation Pass " << std::endl;
+    
 }

@@ -21,6 +21,8 @@ namespace mv
 
 static void computeMemoryFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element& compilationDescriptor, mv::Element&)
 {
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     auto globalConfig = model.getGlobalConfigParams();
 
     // ASSUMPTION: User always uses full memory

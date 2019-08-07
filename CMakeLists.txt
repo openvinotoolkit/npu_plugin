@@ -20,6 +20,26 @@ endif()
 
 add_compile_options(-std=c++11)
 
+SET(PROFILER FALSE CACHE BOOL "Enable integrated profiler")
+SET(LOG TRUE CACHE BOOL "Enable logger")
+SET(PROFILE_PHASE TRUE CACHE BOOL "Enable profiling at compilation phases level")
+SET(PROFILE_BASE TRUE CACHE BOOL "Enable profiling at base components level")
+SET(PROFILE_PASS TRUE CACHE BOOL "Enable profiling at compilation passes level")
+SET(PROFILE_COMP TRUE CACHE BOOL "Enable profiling at ops composition level")
+SET(PROFILE_ALGO TRUE CACHE BOOL "Enable profiling at internal algorithms level")
+SET(PROFILE_BULD TRUE CACHE BOOL "Enable profiling at building blocks level")
+SET(PROFILE_MATH TRUE CACHE BOOL "Enable profiling at tensor math operations level")
+
+add_definitions(-DMV_PROFILER_ENABLED=${PROFILER})
+add_definitions(-DMV_LOG_ENABLED=${LOG})
+add_definitions(-DMV_PROFILE_PHASE_ENABLED=${PROFILE_PHASE})
+add_definitions(-DMV_PROFILE_BASE_ENABLED=${PROFILE_BASE})
+add_definitions(-DMV_PROFILE_PASS_ENABLED=${PROFILE_PASS})
+add_definitions(-DMV_PROFILE_COMP_ENABLED=${PROFILE_COMP})
+add_definitions(-DMV_PROFILE_ALGO_ENABLED=${PROFILE_ALGO})
+add_definitions(-DMV_PROFILE_BULD_ENABLED=${PROFILE_BULD})
+add_definitions(-DMV_PROFILE_MATH_ENABLED=${PROFILE_MATH})
+
 #############################################################################################
 ### Test Coverage - off by default. Pass param CODE_COVERAGE=ON
 ### > cmake -DCODE_COVERAGE=ON -DCMAKE_BUILD_TYPE=Debug ..
@@ -62,6 +82,10 @@ endif()
 include_directories(${PROJECT_SOURCE_DIR})
 include_directories(${PROJECT_SOURCE_DIR}/include)
 include_directories(${PROJECT_SOURCE_DIR}/contrib/flatbuffers/include)
+
+if(${PROFILER})
+    include_directories(${PROJECT_SOURCE_DIR}/contrib/easy_profiler/easy_profiler_core/include)
+endif()
 
 if(VALIDATION)
     include_directories("/opt/movidius/caffe/include")
@@ -426,12 +450,17 @@ else()
         add_subdirectory(python/api)
         add_subdirectory(tests)
         add_subdirectory(contrib/googletest)
+        if(${PROFILER})
+            target_link_libraries(cm easy_profiler)
+        endif()
+        target_link_libraries(cm model)
+
     else()
         add_library(cm SHARED ${base} ${logger} ${pass} ${compiler} ${syscalls})
         add_library(corebase SHARED ${base} ${logger})
         add_library(model SHARED ${model})
+        target_link_libraries(cm model)
         
-
         IF(CMAKE_CROSSCOMPILING)
             #Flatbuffers and Metis not x-compiled yet
             target_link_libraries(cm corebase metamodel)
@@ -443,6 +472,9 @@ else()
             add_subdirectory(python/api)
             add_subdirectory(tests)
             add_subdirectory(contrib/googletest)
+            if(${PROFILER})
+                target_link_libraries(cm easy_profiler)
+            endif()
         ENDIF(CMAKE_CROSSCOMPILING)
        
     endif(VALIDATION)
@@ -453,4 +485,5 @@ IF(NOT CMAKE_CROSSCOMPILING)
     add_subdirectory(tools)
     add_subdirectory(schema)
     add_subdirectory(contrib/flatbuffers)
+    add_subdirectory(contrib/easy_profiler)
 ENDIF()

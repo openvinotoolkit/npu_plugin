@@ -34,6 +34,7 @@ namespace mv
 void markHardwareOperations(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor& targetDescriptor, mv::Element& passDesc, mv::Element&)
 {
 
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     //int amount_marked = 0;
     //int mark_limit = 3;
 
@@ -129,6 +130,7 @@ void markHardwareOperations(const mv::pass::PassEntry&, mv::ComputationModel& mo
 void scaleFissionFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&)
 {
 
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     using namespace mv;
 
     OpModel om(model);

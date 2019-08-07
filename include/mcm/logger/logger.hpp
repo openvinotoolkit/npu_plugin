@@ -8,6 +8,10 @@
 #include <regex>
 #include <list>
 
+#ifndef MV_LOG_ENABLED
+    #define MV_LOG_ENABLED 1
+#endif
+
 namespace mv
 {
 

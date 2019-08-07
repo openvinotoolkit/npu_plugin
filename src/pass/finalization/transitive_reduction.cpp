@@ -25,6 +25,7 @@ namespace mv
 void transitiveReductionFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passArg, mv::Element&)
 {
 
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     pass.log(mv::Logger::MessageType::Debug, "Starting transitive reduction pass");
     mv::ControlModel cm(model);
 

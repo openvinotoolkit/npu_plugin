@@ -29,6 +29,7 @@ namespace mv
 void checkTensorsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element& compOutput)
 {
 
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     using namespace mv;
 
     compOutput.set<bool>("valid", true);

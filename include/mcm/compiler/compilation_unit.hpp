@@ -9,6 +9,7 @@
 #include "include/mcm/pass/pass_manager.hpp"
 #include "include/mcm/utils/env_loader.hpp"
 #include "include/mcm/compiler/compilation_descriptor.hpp"
+#include "include/mcm/compiler/compilation_profiler.hpp"
 
 namespace mv
 {

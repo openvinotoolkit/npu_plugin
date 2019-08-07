@@ -22,6 +22,7 @@ namespace mv
 void formatMXWeightsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
 
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     using namespace mv;
 
     mv::OpModel om(model);
@@ -111,5 +112,5 @@ void formatMXWeightsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& m
             }
         }
     }
-    std::cout << "Exiting FormatMX Weights Pass " << std::endl;
+    
 }

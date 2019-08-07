@@ -41,6 +41,8 @@ void storeWorkloadStrategy(mv::Data::OpListIterator& it, int numClusters, std::v
 
 void storeWorkloadStrategyFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     auto globalParams = model.getGlobalConfigParams();
 
     if (!globalParams->hasAttr("workload_strategy"))

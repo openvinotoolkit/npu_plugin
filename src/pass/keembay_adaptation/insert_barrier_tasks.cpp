@@ -530,6 +530,8 @@ void removeExtraProducers(const mv::pass::PassEntry& pass,
 
 static void insertBarrierTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&)
 {
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);
 
     std::vector<mv::Barrier> barriers;

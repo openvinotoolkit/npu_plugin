@@ -70,7 +70,8 @@ std::vector<mv::SplitOverHSolution> computeSplitsOverH(mv::Nce1& nce, mv::Data::
 //REASON: Paddings (and possibly modes) for each HW operation are needed.
 void splitsOverH(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
-    std::cout << "Split over H pass " << std::endl;
+    
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);
     mv::DataModel dm(model);
     mv::Nce1 nce;

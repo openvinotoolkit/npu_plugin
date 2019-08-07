@@ -47,4 +47,7 @@ else()
 		${CMAKE_SOURCE_DIR}/meta/src/recorded_compositional_model.cpp
 	)
 	target_link_libraries(metamodel model)
+	if(${PROFILER})
+		target_link_libraries(metamodel easy_profiler)
+	endif()
 endif(MSVC)

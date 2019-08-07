@@ -509,6 +509,8 @@ void bestFitMemoryAllocation(mv::ComputationModel& model, std::queue<std::string
 
 void tensorGraphColoringFnc(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element& passDesc, mv::Element&)
 {
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     pass.log(mv::Logger::MessageType::Debug, "Graph Coloring Started");
 
     mv::OpModel om(model);

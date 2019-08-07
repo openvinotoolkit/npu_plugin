@@ -24,6 +24,8 @@ namespace mv
 //REASON: There is no need to pad tensors not involved in HW operations at all.
 void myriadXPaddings(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);
     mv::DataModel dm(model);
     mv::Nce1 nce;

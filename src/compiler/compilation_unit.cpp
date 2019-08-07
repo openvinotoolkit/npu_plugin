@@ -166,6 +166,8 @@ mv::Element mv::CompilationUnit::runStep()
 
 mv::Element mv::CompilationUnit::run()
 {
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_PHASE);
     Element output("CompilationOutput");
     output.set<std::string>("ModelName", model_->getName());
     std::vector<mv::Element> passList = compDescriptor_.serializePassList();
@@ -173,6 +175,7 @@ mv::Element mv::CompilationUnit::run()
 
     while (!passManager_.completed())
         output = passManager_.step();
+
     return output;
 }
 

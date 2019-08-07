@@ -45,6 +45,8 @@ void storeStrategy(mv::Data::OpListIterator& it, int numClusters, std::vector<mv
 
 void storeLayerSplitStrategyFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     auto globalParams = model.getGlobalConfigParams();
 
     if (!globalParams->hasAttr("split_strategy"))
@@ -82,6 +84,8 @@ void storeTensorPlacementFcn(const mv::pass::PassEntry& pass,
                                 mv::Element&,
                                 mv::Element&)
 {
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     //mv::Logger::setVerboseLevel(mv::VerboseLevel::Debug);
 
     auto globalParams = model.getGlobalConfigParams();

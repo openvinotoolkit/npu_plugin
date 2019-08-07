@@ -36,6 +36,7 @@ namespace mv
 void arrangeKeembayExecutionFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
 
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     pass.log(mv::Logger::MessageType::Debug, "Starting arrange Keembay execution");
 
     mv::OpModel om(model);
@@ -52,7 +53,7 @@ void arrangeKeembayExecutionFcn(const mv::pass::PassEntry& pass, mv::Computation
 void arrangeLinearExecutionFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
 
-    std::cout << "Arrange execution" << std::endl;
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
 
     mv::OpModel om(model);
     mv::ControlModel cm(model);
@@ -103,7 +104,4 @@ void arrangeLinearExecutionFcn(const mv::pass::PassEntry&, mv::ComputationModel&
             }
         }
     }
-
-    std::cout << "Exiting arrange execution" << std::endl;
-
 }

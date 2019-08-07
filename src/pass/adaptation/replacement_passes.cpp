@@ -66,6 +66,7 @@ mv::Data::OpListIterator linkNewOperationsReplacement(mv::Data::OpListIterator p
 void fullyConnectedAsConv2DFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
 
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     using namespace mv;
 
     OpModel om(model);
@@ -125,6 +126,8 @@ void fullyConnectedAsConv2DFcn(const mv::pass::PassEntry& pass, mv::ComputationM
 
 void standaloneActivationAsPostOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& targetDescriptor, mv::Element&, mv::Element&)
 {
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     using namespace mv;
 
     OpModel om(model);
@@ -180,6 +183,8 @@ void standaloneActivationAsPostOpsFcn(const mv::pass::PassEntry& pass, mv::Compu
 
 void averageAsDepthWise(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     using namespace mv;
 
     OpModel om(model);

@@ -61,6 +61,8 @@ bool thereIsDependency(mv::ControlModel& cm, const std::vector<mv::Data::OpListI
 // Pass role: Add deallocation tasks for each Tensor
 void addDeallocationTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&)
 {
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);
     mv::DataModel dm(model);
     mv::ControlModel cm(model);
@@ -229,6 +231,8 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
 // Data flows should not be propagated, control flows yes
 void removeDeallocationTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);
     mv::DataModel dm(model);
     mv::ControlModel cm(model);

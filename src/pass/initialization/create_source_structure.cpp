@@ -19,6 +19,8 @@ namespace mv
 
 void CreateSourceStructureFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& compilationDescriptor, mv::Element&)
 {
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::RuntimeModel& rm = mv::RuntimeModel::getInstance();
     rm.buildHeader(model, compilationDescriptor);
 }

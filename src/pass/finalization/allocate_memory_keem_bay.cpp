@@ -48,6 +48,8 @@ namespace mv
 */
 void allocateInputOutputTensorsKeemBay(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     pass.log(mv::Logger::MessageType::Debug, "Allocating input/output tensors");
 
     mv::ControlModel cm(model);
@@ -98,6 +100,8 @@ void allocateInputOutputTensorsKeemBay(const mv::pass::PassEntry& pass, mv::Comp
 //
 void allocateGraphfileTensorsFcnKeemBay(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     pass.log(mv::Logger::MessageType::Debug, "Allocating populated tensors");
 
     mv::ControlModel cm(model);
@@ -177,6 +181,8 @@ static mv::Data::BufferIterator allocateUnpopulatedTensor(const mv::pass::PassEn
 */
 void allocateCMXTensorsFcnKeemBay(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     pass.log(mv::Logger::MessageType::Debug, "Allocating unpopulated tensors");
 
     mv::ControlModel cm(model);
@@ -350,6 +356,7 @@ void allocateImplicitOperationsFcnKeemBay(const mv::pass::PassEntry& pass,
                                             mv::Element&)
 {
 
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     pass.log(mv::Logger::MessageType::Debug, "Allocating implicit tensors");
 
     mv::ControlModel cm(model);

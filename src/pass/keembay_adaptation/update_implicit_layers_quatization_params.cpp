@@ -19,6 +19,8 @@ namespace mv
 
 void updateImplicitLayersQuantizationParamsFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);
     auto sortedOps = om.topologicalSort();
     for(auto opIt : sortedOps)

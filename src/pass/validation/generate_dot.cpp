@@ -29,6 +29,7 @@ namespace mv
 void generateDotFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&)
 {
 
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     using namespace mv;
 
     if (!passDesc.hasAttr("output") || passDesc.get<std::string>("output").empty())

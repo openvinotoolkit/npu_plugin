@@ -28,7 +28,8 @@ namespace mv
 
 void generateCaffeFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&)
 {
-    std::cout << "Generating Caffe files" << std::endl;
+    
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     using namespace mv;
 
     if (!passDesc.hasAttr("outputPrototxt") || passDesc.get<std::string>("outputPrototxt").empty())

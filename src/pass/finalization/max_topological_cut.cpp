@@ -4,6 +4,7 @@
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/target/keembay/koala_graph_scheduler.hpp"
 #include <iostream>
+#include "include/mcm/compiler/compilation_profiler.hpp"
 
 static void maxTopologicalCutAndPartialSerialisationPass(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void markLastNodeForMaxTopologicalCutFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element&, mv::Element&);
@@ -44,6 +45,9 @@ void markLastNodeForMaxTopologicalCutFcn(const mv::pass::PassEntry& pass, mv::Co
 
 void maxTopologicalCutAndPartialSerialisationPass(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element&, mv::Element&)
 {
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
+
     int networkMemoryRequirement;
     double percentageMemory; 
     mv::KoalaGraphScheduler flowGraph;

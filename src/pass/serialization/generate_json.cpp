@@ -20,6 +20,8 @@ namespace mv
 
 static void generateJSONFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&)
 {
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     pass.log(mv::Logger::MessageType::Debug, "Saving computation model to json...");
 
     // get filename from compilation descriptor

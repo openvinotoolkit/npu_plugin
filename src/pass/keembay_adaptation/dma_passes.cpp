@@ -54,6 +54,8 @@ bool isTensorInCMX(mv::Data::TensorIterator tensor, mv::BaseOpModel& opModel)
 // Pass role: Add initial and final DMA Task CMX2DDR (if needed)
 void addFinalDMATaskFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);
     mv::DataModel dm(model);
 
@@ -84,6 +86,8 @@ void addFinalDMATaskFcn(const mv::pass::PassEntry& , mv::ComputationModel& model
 // Pass role: Add DMA Task DDR2CMX where needed for weights tensors input of DPUTasks.
 void addWeightsDMATasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);
     mv::DataModel dm(model);
 

@@ -229,6 +229,8 @@ bool generateSchedulingRecursively(mv::ComputationModel& model, std::unordered_s
 
 void generateSchedulingFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::ControlModel cm(model);
 
     auto barrierTasks = model.getOps("BarrierTask");
@@ -270,6 +272,8 @@ void generateSchedulingFcn(const mv::pass::PassEntry&, mv::ComputationModel& mod
 
 void barrierIndexAssignmentFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::ControlModel cm(model);
     mv::OpModel om(model);
 
@@ -298,6 +302,8 @@ void barrierIndexAssignmentFcn(const mv::pass::PassEntry&, mv::ComputationModel&
 
 void storeBarriersNamesInTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);
 
     auto barrierTasks = om.getOps("BarrierTask");
@@ -331,6 +337,8 @@ void storeBarriersNamesInTasksFcn(const mv::pass::PassEntry&, mv::ComputationMod
 
 void updateBarrierRefsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);
     mv::ControlModel cm(model);
 
@@ -366,6 +374,8 @@ void updateBarrierRefsFcn(const mv::pass::PassEntry&, mv::ComputationModel& mode
 // NEEDS TO BE UPDATED WHEN MERGING WITH MULTICLUSTER
 void updateCountsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);
 
     auto barrierTasks = om.getOps("BarrierTask");

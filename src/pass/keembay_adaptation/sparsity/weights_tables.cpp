@@ -187,6 +187,8 @@ void populateWeightsTablesActivationAndBias(mv::Tensor& weightsTableData, mv::Da
 
 static void populateWeightsTablesQuantizationFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);
 
     for(auto dpuTaskOp = om.opBegin(); dpuTaskOp != om.opEnd(); ++dpuTaskOp)
@@ -208,6 +210,8 @@ static void populateWeightsTablesQuantizationFcn(const mv::pass::PassEntry& , mv
 
 static void removeBiasTensorsFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);
     mv::DataModel dm(model);
     std::set<std::string> biasNamesToRemove;
@@ -239,6 +243,8 @@ static void removeBiasTensorsFcn(const mv::pass::PassEntry& , mv::ComputationMod
 
 static void populateWeightsTablesPointersFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);
 
     for(auto dpuTaskOp = om.opBegin(); dpuTaskOp != om.opEnd(); ++dpuTaskOp)
@@ -264,8 +270,10 @@ static void populateWeightsTablesPointersFcn(const mv::pass::PassEntry& , mv::Co
 }
 
 
-static void generateWeightsTablesFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+static void generateWeightsTablesFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);
     mv::DataModel dm(model);
     mv::ControlModel cm(model);
@@ -302,11 +310,11 @@ static void generateWeightsTablesFcn(const mv::pass::PassEntry& , mv::Computatio
 
                 auto ctlFlow = cm.switchContext(om.getSourceOp(dpuTaskOp->getInputTensor(1)));
                 if (ctlFlow.leftmostParent() == cm.opEnd())
-                    std::cout << "NO PARENT FOUND for " << ctlFlow->getName() << std::endl;
+                    pass.log(mv::Logger::MessageType::Debug, "No parent found for " + ctlFlow->getName());
                 for (auto parentOp = ctlFlow.leftmostParent(); parentOp != cm.opEnd(); ++parentOp)
                 {
                     cm.defineFlow(om.switchContext(parentOp),om.getSourceOp(weightTable));
-                    std::cout << "ADDED CONTROL FLOW from " << parentOp->getName() << " to " << weightTable->getName() << std::endl;
+                    pass.log(mv::Logger::MessageType::Debug, "Added control flow from " + parentOp->getName() + " to " + weightTable->getName());
                 }
 
             }

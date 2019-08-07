@@ -32,6 +32,7 @@ namespace mv
 void alignConstOrderFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
 
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     using namespace mv;
 
     DataModel dm(model);
@@ -272,8 +273,7 @@ void compatibilityResolution(mv::Data::OpListIterator parentIt, mv::OpModel& om)
 void addConversionLayersFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
 
-    std::cout << "addConversionLayers " << std::endl;
-
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     using namespace mv;
 
     DataModel dm(model);
@@ -282,7 +282,5 @@ void addConversionLayersFcn(const mv::pass::PassEntry&, mv::ComputationModel& mo
     auto opIt = om.opBegin();
 
     compatibilityResolution(opIt, om);
-    std::cout << "Added. " << std::endl;
-
 
 }

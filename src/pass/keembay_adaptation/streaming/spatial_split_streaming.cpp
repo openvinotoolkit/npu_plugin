@@ -781,6 +781,8 @@ void streamingTilingFcn(const mv::pass::PassEntry& pass,
                                 mv::Element& passDesc,
                                 mv::Element&)
 {
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);
     mv::ControlModel cm(model);
     mv::DataModel dm(model);

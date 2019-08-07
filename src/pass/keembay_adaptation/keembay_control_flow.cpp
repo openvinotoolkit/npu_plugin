@@ -57,6 +57,7 @@ namespace mv
 void activationTensorsControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&passDesc, mv::Element&)
 {
 
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);
     mv::ControlModel cm(model);
 
@@ -87,6 +88,8 @@ void activationTensorsControlFlowsFcn(const mv::pass::PassEntry& pass, mv::Compu
 // It is a conservative approach but it's needed for TIG
 void cmx2DDRControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&passDesc, mv::Element&)
 {
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);
     mv::ControlModel cm(model);
 
@@ -118,6 +121,7 @@ void cmx2DDRControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
 void hangingDmaControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&)
 {
 
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);
     mv::ControlModel cm(model);
 
@@ -217,6 +221,8 @@ void assignLayerNumber(mv::ControlModel& cm, const std::unordered_set<std::strin
 // ASSUMPTION: We need task control flows and transitive reduction to be run before this pass
 void layerNumberingFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::ControlModel cm(model);
 
     unsigned initialLayerIndex = 0;
@@ -259,6 +265,8 @@ void addTaskControlFlowsAndRecursivelySkipImplicitOperationsUp(mv::OpModel& om, 
 // NOTE: For now, only max two level of implicit operations is handled. In the future we will need a recursive procedure
 void taskControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);
 
     auto dmaTasks = om.getOps("DMATask");

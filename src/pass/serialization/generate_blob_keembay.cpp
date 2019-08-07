@@ -21,6 +21,8 @@ namespace mv
 
 void generateBlobKeembayFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor& td, mv::Element& passDesc, mv::Element&)
 {   
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_PHASE)
     mv::RuntimeModel& rm = mv::RuntimeModel::getInstance();
     rm.buildGraphFile(model, passDesc);
 
@@ -31,4 +33,5 @@ void generateBlobKeembayFcn(const mv::pass::PassEntry&, mv::ComputationModel& mo
     mv::utils::validatePath(output);
 
     rm.serialize(output);
+
 }

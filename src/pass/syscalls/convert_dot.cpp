@@ -24,6 +24,7 @@ namespace mv
 
 void convertDotFcn(const mv::pass::PassEntry&, mv::ComputationModel&, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&)
 {
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     std::string outputFile = passDesc.get<std::string>("input");
     system(("dot -Tsvg " + outputFile + " -o " + outputFile+".svg").c_str());
 }

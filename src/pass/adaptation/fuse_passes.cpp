@@ -86,7 +86,7 @@ mv::Data::OpListIterator linkNewOperationsFuse(mv::Data::OpListIterator parentOp
 void fuseBiasFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
     
-
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     using namespace mv;
 
     OpModel om(model);
@@ -148,6 +148,7 @@ void fuseBiasFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, m
 void fuseScaleFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
 
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     using namespace mv;
     OpModel om(model);
     DataModel dm(model);
@@ -197,6 +198,7 @@ void fuseScaleFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, 
 void fuseReluFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
 
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     using namespace mv;
     OpModel om(model);
 
@@ -229,7 +231,8 @@ void fuseReluFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, m
 
 void fuseBatchNormFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
-    std::cout << "Fusing batch norm" << std::endl;
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     using namespace mv;
     OpModel om(model);
 

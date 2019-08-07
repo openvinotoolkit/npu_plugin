@@ -83,6 +83,8 @@ std::vector<int8_t> createBitPattern(uint16_t kernelW, uint16_t kernelH, uint16_
 // As they have to be DMAed into CMX.
 static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&)
 {
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);
 
     auto globalConfigParams = model.getGlobalConfigParams();
@@ -218,6 +220,8 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
 // That will be filled with information by the runtime. We don't need explicit DMA for them.
 static void generateSparsityMapsUnpopulatedTensorsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&)
 {
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);
 
     auto globalConfigParams = model.getGlobalConfigParams();
