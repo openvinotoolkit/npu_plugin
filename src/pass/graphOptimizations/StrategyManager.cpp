@@ -488,11 +488,11 @@ void StrategyManager::recursiveDijkstra(mv::Data::OpListIterator opBegin)
     cout << "calling extract subgraphs on the data graph" << endl ;
     std::unordered_set<std::string> recursedNodes;
     //Each vector of edges corresponds to a linear portion of the graph
-    vector<vector<graph<std::tuple<mv::Op&,StrategySet,int>,double>::edge_list_iterator>> criticalPaths = recursiveCriticalPath(opBegin, recursedNodes);
-
+    pair<vector<OptimizationPair>, StrategySet> output = recursiveCriticalPath(opBegin, recursedNodes);
+    vector<OptimizationPair> subgraphs_and_dijkstras = output.first;
 }
 
-vector<StrategyManager::CriticalEdges> StrategyManager::recursiveCriticalPath(typename graph<mv::Op, mv::DataFlow>::node_list_iterator modelSource, 
+pair<vector<StrategyManager::OptimizationPair>, StrategyManager::StrategySet> StrategyManager::recursiveCriticalPath(typename graph<mv::Op, mv::DataFlow>::node_list_iterator modelSource, 
                                                                                 std::unordered_set<std::string>& recursedNodes){
     struct costEdgeIteratorComp
     {
@@ -512,17 +512,18 @@ vector<StrategyManager::CriticalEdges> StrategyManager::recursiveCriticalPath(ty
         }
     };
 
-    vector<vector<std::pair<mv::graph<std::tuple<mv::Op&,StrategySet,int>,double>,CriticalEdges>>> allLinearCriticalPaths;
-    vector<std::pair<mv::graph<std::tuple<mv::Op&,StrategySet,int>,double>,CriticalEdges>> linearCriticalPaths;
-    vector<vector<StrategyManager::CriticalEdges>> sinkRetVecs;
-    vector<mv::graph<std::tuple<mv::Op&,StrategySet,int>,double>> allOptimizationGraphs;
+    vector<OptimizationPair> parallelLinearSections;
+    pair<vector<StrategyManager::OptimizationPair>, StrategySet> sinkReturnValue;
+    vector<OptimizationPair> sinkReturnVector;
+    StrategySet sinkReturnStrategy;
+    
     mv::graph<mv::Op, mv::DataFlow> g;
     auto next_modelSource = modelSource;
 
     //BASE CASE - end of graph, or previously recursed on this source
     std::string opName = (*modelSource).getName();
     if(modelSource->leftmost_child() == g.node_end() || recursedNodes.find(opName) != recursedNodes.end() || (*modelSource).getOpType() == "ConstantInt"){
-        return vector<CriticalEdges>();
+        return pair<vector<OptimizationPair>, StrategySet>();
     }
     int childCtr = 0;
     recursedNodes.insert(opName); //haven't seen this source before, save it
@@ -533,13 +534,13 @@ vector<StrategyManager::CriticalEdges> StrategyManager::recursiveCriticalPath(ty
             continue;
         childCtr++;
          //Create the subgraph to pass to linear dijkstra, build iteratively until hit next pivot node
-        mv::graph<std::tuple<mv::Op&,StrategySet,int>,double> optimizationGraph;
+        OptimizationGraph optimizationGraph;
         vector<vector<StrategySet>> nodeStrategies;
-        vector<mv::graph<std::tuple<mv::Op&,StrategySet,int>,double>::node_list_iterator> old_nodes, new_nodes, first_nodes, last_nodes;
+        vector<OptimizationGraph::node_list_iterator> old_nodes, new_nodes, first_nodes, last_nodes;
 
         old_nodes.clear();
 
-        map<typename graph<std::tuple<mv::Op&,StrategySet,int>,double>::edge_list_iterator, double, costEdgeIteratorComp> edgeCostMap;
+        map<typename OptimizationGraph::edge_list_iterator, double, costEdgeIteratorComp> edgeCostMap;
         int opCtr = 0;
         int optionCtr = 0;
 
@@ -559,7 +560,7 @@ vector<StrategyManager::CriticalEdges> StrategyManager::recursiveCriticalPath(ty
                 double edgeCost = transitionCost( get<0>(*oldNode), get<0>(*newNode), get<1>(*oldNode), get<1>(*newNode));
                 int edgeCostInt = edgeCost ;
                 auto newEdge = optimizationGraph.edge_insert(oldNode,newNode,edgeCost);
-                edgeCostMap.insert(std::pair<mv::graph<std::tuple<mv::Op&,StrategySet,int>,double>::edge_list_iterator, double>(newEdge, edgeCost));
+                edgeCostMap.insert(std::pair<OptimizationGraph::edge_list_iterator, double>(newEdge, edgeCost));
             }
         old_nodes.swap(new_nodes);
         nodeStrategies.push_back(nodeStrategy);
@@ -588,7 +589,7 @@ vector<StrategyManager::CriticalEdges> StrategyManager::recursiveCriticalPath(ty
                     double edgeCost = transitionCost( get<0>(*oldNode), get<0>(*newNode), get<1>(*oldNode), get<1>(*newNode));
                     int edgeCostInt = edgeCost ;
                     auto newEdge = optimizationGraph.edge_insert(oldNode,newNode,edgeCost);
-                    edgeCostMap.insert(std::pair<mv::graph<std::tuple<mv::Op&,StrategySet,int>,double>::edge_list_iterator, double>(newEdge, edgeCost));
+                    edgeCostMap.insert(std::pair<OptimizationGraph::edge_list_iterator, double>(newEdge, edgeCost));
                 }
             old_nodes.swap(new_nodes);
 
@@ -612,7 +613,7 @@ vector<StrategyManager::CriticalEdges> StrategyManager::recursiveCriticalPath(ty
                 double edgeCost = transitionCost( get<0>(*oldNode), get<0>(*newNode), get<1>(*oldNode), get<1>(*newNode));
                 int edgeCostInt = edgeCost ;
                 auto newEdge = optimizationGraph.edge_insert(oldNode,newNode,edgeCost);
-                edgeCostMap.insert(std::pair<mv::graph<std::tuple<mv::Op&,StrategySet,int>,double>::edge_list_iterator, double>(newEdge, edgeCost));
+                edgeCostMap.insert(std::pair<OptimizationGraph::edge_list_iterator, double>(newEdge, edgeCost));
             }
         old_nodes.swap(new_nodes);
         nodeStrategies.push_back(nodeStrategy);
@@ -621,7 +622,7 @@ vector<StrategyManager::CriticalEdges> StrategyManager::recursiveCriticalPath(ty
 /*
     Next call dijkstra on the each linear subgraph found from the modelSource on this recursive pass
  */
-	allOptimizationGraphs.push_back(optimizationGraph);
+        vector<CriticalEdges> dijkstraOutputs;
         writeDot(optimizationGraph,true);
         costEdgeIteratorComp costEdgeCompare;
         auto sinkNodeIt = optimizationGraph.node_begin() ;
@@ -633,59 +634,55 @@ vector<StrategyManager::CriticalEdges> StrategyManager::recursiveCriticalPath(ty
             for( auto endingNode : last_nodes)
             {
                 CriticalEdges criticalPathEdges = dijkstra<std::tuple<mv::Op&,StrategySet,int>,double,costNodeIteratorComp,costEdgeIteratorComp, double>(optimizationGraph,startingNode,endingNode,edgeCostMap);
-                linearCriticalPaths.push_back(std::pair<mv::graph<std::tuple<mv::Op&,StrategySet,int>,double>,CriticalEdges>(optimizationGraph, criticalPathEdges) );
+                dijkstraOutputs.push_back(criticalPathEdges);
             }
         }
 
-        allLinearCriticalPaths.push_back(linearCriticalPaths);
+        parallelLinearSections.push_back(OptimizationPair(optimizationGraph, dijkstraOutputs));
 
         //cout << "finished calling dijkstra on strategy optimization graph" << endl;
         next_modelSource = model_child;
         if((*next_modelSource).getOpType() != "ConstantInt"){
-            vector<CriticalEdges> temp = recursiveCriticalPath(next_modelSource, recursedNodes); 
-            if(!temp.empty())
-                sinkRetVecs.push_back(temp);
+            sinkReturnValue = recursiveCriticalPath(next_modelSource, recursedNodes);
+            sinkReturnVector = sinkReturnValue.first;
+            sinkReturnStrategy = sinkReturnValue.second; 
         }
     }
+    
     //vector<mv::graph<std::tuple<mv::Op&,StrategySet,int>,double>::node_list_iterator> is the type to compare nodes in opt graph
     //If the childRetVecs is empty, just pick the best of criticalPaths (linear graph)
-    if(sinkRetVecs.empty()){
-        cout << "Found linear graph - choosing best of " << allLinearCriticalPaths[0].size() << " dijkstra best paths from input to output" << endl;
-        CriticalEdges finalCriticalPath;
-        std::pair<mv::graph<std::tuple<mv::Op&,StrategySet,int>,double>,CriticalEdges> finalPair;
+    if(sinkReturnVector.empty()){
+        CriticalPair finalPair;
         double max = 99999999.999;
+        OptimizationGraph optGraph = parallelLinearSections[0].first;
 
-        for(auto criticalPath : allLinearCriticalPaths[0])
+        for(auto criticalPath : parallelLinearSections[0].second)
         {
             double cost = 0;
-            //cout << "Critical Path has " << criticalPath.size() << " edges" << endl;
-            for (auto edge : criticalPath.second){
+            for (auto edge : criticalPath){
                 cost += *edge;
             }
             cout << "  Found cost of " << cost << " current  max= " << max << endl;
             if( cost < max)
             {
-                finalPair = criticalPath;
-                finalCriticalPath = criticalPath.second;
+                finalPair = CriticalPair(optGraph, criticalPath);
                 max = cost;
                 cout << "    Updated best cost to " << max << endl;
             }
         }
 
         saveStrategyGraph(finalPair);
-        //saveStrategy(finalCriticalPath);
 
-        vector<CriticalEdges> ret;
-        ret.push_back(finalCriticalPath);
-        return ret;
+        StrategySet strategy = get<1>(*finalPair.second.front()->source());
+        return pair<vector<OptimizationPair>, StrategySet>(parallelLinearSections, strategy);
     }
     //Linear section no branches, use found source strategy to lock the sink for criticalPaths and pick the best with this constraint (linear part of parallel graph)
     else if(childCtr == 1){
-     	vector<CriticalEdges> finalCriticalPaths = sinkRetVecs.back();
-     	vector<CriticalPair> finalPairs;
-     	//Consider only potential paths which match strategy previously chosen for this sections sink
-     	CriticalEdges previousSection = sinkRetVecs.back().back();
-     	vector<CriticalPair> thisSection = allLinearCriticalPaths.at(0); //only one linear part in this section
+     	vector<OptimizationPair> returnVector = sinkReturnVector;
+        StrategySet sinkStrategy = sinkReturnStrategy;
+
+     	OptimizationPair thisSection = parallelLinearSections[0]; //only one linear part in this section
+        OptimizationGraph optGraph = parallelLinearSections[0].first;
 
         CriticalEdges finalCriticalPath; 
         CriticalPair finalPair;
@@ -693,56 +690,46 @@ vector<StrategyManager::CriticalEdges> StrategyManager::recursiveCriticalPath(ty
         double max = 99999999.999;
 
         //check first that this is a CP we should consider (does the sink match the strategy already decided for that node)
-        auto prevSource = previousSection.front()->source();
-        auto prevStrategy = get<1>(*prevSource);
-
-        for(auto criticalPath : thisSection)
+        for(auto criticalPath : thisSection.second)
         {
         	double cost = 0;
             //cout << "Critical Path has " << criticalPath.size() << " edges" << endl;
-            for (int showPath=0; showPath < criticalPath.second.size(); showPath++){
-                cost += *criticalPath.second[showPath];
+            for (int showPath=0; showPath < criticalPath.size(); showPath++){
+                cost += *criticalPath[showPath];
             }
-            //TODO check that we can compare StrategySet in this way -> if strategy is a match we want this to execute
-            if(prevStrategy == get<1>(*criticalPath.second.front()->source()) && cost < max)
+            // if strategy is a match we want this to execute
+            if(sinkStrategy == get<1>(*criticalPath.front()->source()) && cost < max)
             {
-                finalCriticalPath = criticalPath.second;
-                finalPair = criticalPath;
+                finalPair = CriticalPair(optGraph, criticalPath);
                 max = cost;
             }
         }
         saveStrategyGraph(finalPair);
-        //saveStrategy(finalCriticalPath);
 
-        finalCriticalPaths.push_back(finalCriticalPath);
-        return finalCriticalPaths;
+        StrategySet strategy = get<1>(*finalPair.second.front()->source());
+        returnVector.push_back(parallelLinearSections[0]);
+        return pair<vector<OptimizationPair>, StrategySet>(returnVector, strategy);
     }
     //Parallel branches between this source and sink, do addition to pick the best
      else{
-    	
-        vector<CriticalEdges> finalCriticalPaths = sinkRetVecs.back();
-        vector<CriticalPair> finalCriticalPairs;
+    	vector<OptimizationPair> returnVector = sinkReturnVector;
+        StrategySet sinkStrategy = sinkReturnStrategy;
+
         vector<vector<CriticalPair>> sinkMatchedCriticalPaths;
         vector<vector<CriticalPair>> sourceMatchedCriticalPaths;
-        vector<CriticalEdges> bestFinalPaths;
-        vector<CriticalPair> bestFinalPairs;
-        //Consider only potential paths which match strategy previously chosen for this sections sink
-     	CriticalEdges previousSection = sinkRetVecs.back().back();
 
-        CriticalEdges finalCriticalPath;
-        CriticalPair finalPair;
+        vector<CriticalPair> bestFinalPairs;
+        StrategySet bestStrategy;
+
         double max = 99999999.999;
 
-        //check first that this is a CP we should consider (does the sink match the strategy already decided for that node)
-        auto prevSource = previousSection.front()->source(); //source of the first edge
-        auto prevStrategy = get<1>(*prevSource);
 
         int numSources = 0;
 
         for(int branch = 0; branch < childCtr; branch++){ 
-            for(auto path : allLinearCriticalPaths[branch]){
-                if(get<1>(*path.second.back()->sink()) == prevStrategy){
-                    sinkMatchedCriticalPaths[branch].push_back(path);
+            for(auto path : parallelLinearSections[branch].second){
+                if(get<1>(*path.back()->sink()) == sinkStrategy){
+                    sinkMatchedCriticalPaths[branch].push_back(CriticalPair(parallelLinearSections[branch].first, path));
                 }
             }
         }
@@ -751,13 +738,11 @@ vector<StrategyManager::CriticalEdges> StrategyManager::recursiveCriticalPath(ty
 
         for(int source = 0; source < numSources; source++){
             double cost = 0;
-            vector<CriticalEdges> potentialFinalPaths;
             vector<CriticalPair> potentialFinalPairs;
             StrategySet sourceStrategy = get<1>(*sinkMatchedCriticalPaths[0].at(source).second.front()->source());
             for(int branch = 0; branch < childCtr; branch++){
                 for(auto path : sinkMatchedCriticalPaths[branch]){
                     if(get<1>(*path.second.front()->source()) == sourceStrategy){
-                        potentialFinalPaths.push_back(path.second);
                         potentialFinalPairs.push_back(path);
                         for(auto edge : path.second){
                             cost += *edge;
@@ -769,22 +754,20 @@ vector<StrategyManager::CriticalEdges> StrategyManager::recursiveCriticalPath(ty
             if(cost < max)
             {
                 max = cost;
-                bestFinalPaths = potentialFinalPaths;
                 bestFinalPairs = potentialFinalPairs;
+                bestStrategy = sourceStrategy;
             }
-            potentialFinalPaths.clear();
             potentialFinalPairs.clear();
         }
 
-        for(auto criticalPath : bestFinalPaths){
-        	//saveStrategy(criticalPath);
-            finalCriticalPaths.push_back(criticalPath);
-        }
         for(auto criticalPair : bestFinalPairs){
         	saveStrategyGraph(criticalPair);
         }
 
-        return finalCriticalPaths;
+        for(auto linearSection : parallelLinearSections){
+            returnVector.push_back(linearSection);
+        }
+        return pair<vector<OptimizationPair>, StrategySet>(returnVector, bestStrategy);
     }
 
 }

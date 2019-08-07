@@ -19,9 +19,10 @@ public:
     using StrategySet       = unordered_map<string,Attribute>;
     using LayerStrategySet  = unordered_map<string,StrategySet>;
 
-    
-    using CriticalEdges = std::vector<graph<std::tuple<mv::Op&,StrategySet,int>,double>::edge_list_iterator>;
-    using CriticalPair = std::pair<mv::graph<std::tuple<mv::Op&,StrategySet,int>,double>,CriticalEdges>;
+    using OptimizationGraph = mv::graph<std::tuple<mv::Op&,StrategySet,int>,double>;
+    using CriticalEdges = std::vector<OptimizationGraph::edge_list_iterator>;
+    using CriticalPair = std::pair<OptimizationGraph,CriticalEdges>;
+    using OptimizationPair = std::pair<OptimizationGraph,vector<CriticalEdges>>;
     
     GlobalSetting globalConfig_;
     GlobalSetting globalStrategies_;
@@ -42,7 +43,7 @@ public:
     void saveStrategyGraph(std::pair<mv::graph<std::tuple<mv::Op&,StrategySet,int>,double>,CriticalEdges> cPathEdges);
     void linearDijkstra(mv::Data::OpListIterator opBegin);
     void recursiveDijkstra(mv::Data::OpListIterator opBegin);
-    std::vector<StrategyManager::CriticalEdges> recursiveCriticalPath
+    std::pair<std::vector<StrategyManager::OptimizationPair>, StrategyManager::StrategySet> recursiveCriticalPath
                         (typename graph<mv::Op, mv::DataFlow>::node_list_iterator modelSource, std::unordered_set<std::string>& recursedNodes);
 
     void writeDot(mv::graph<std::tuple<mv::Op&,StrategySet,int>,double>& optimizationGraph,bool skipInf);
