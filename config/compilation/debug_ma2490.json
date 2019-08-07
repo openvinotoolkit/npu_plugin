@@ -879,7 +879,6 @@
             },
             "ArrangeKeembayExecution",
             "AllocateInputOutputTensorsKeemBay",
-            "AllocateGraphfileTensorsKeemBay",
             "ReAllocateImplicitOperationsKeemBay",
             "AllocateCMXTensorsKeemBay",
             {
@@ -983,6 +982,7 @@
             "StoreBarriersNamesInTasks",
             "GenerateExecutionSchedule",
             "CorrectExecutionSchedule",
+            "AllocateGraphfileTensorsKeemBay",
             "BarrierIndexAssignment",
             "UpdateBarrierRefs",
             "UpdateBarrierProducerConsumerCounts",

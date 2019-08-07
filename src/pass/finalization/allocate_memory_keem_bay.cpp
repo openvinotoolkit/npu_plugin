@@ -100,14 +100,20 @@ void allocateGraphfileTensorsFcnKeemBay(const mv::pass::PassEntry& pass, mv::Com
     auto stageIt = cm.getStage(0);
 
     unsigned i = 0;
-    for(auto opIterator = om.opBegin(); opIterator != om.opEnd(); ++opIterator)
+
+    auto ops = cm.schedulingSort();
+    for(auto& opIterator : ops)
     {
         std::string opType = opIterator->getOpType();
-        if (opType == "Constant" || opType == "ConstantInt" || opType == "ConstantDataElement" || opType == "WeightsTable" || opType == "SparsityMap")
+        if (opType == "DMATask" && opIterator->get<mv::DmaDirection>("direction") == mv::DDR2CMX)
         {
-            auto tIt = opIterator->getOutputTensor(0);
-            dm.allocateTensor("GraphFile", stageIt, tIt);
-            tIt->set<unsigned>("graphFileIndex", i++);
+            auto tIt = opIterator->getInputTensor(0);
+            if(tIt->isPopulated())
+            {
+                // DDR2CMX transfer propagate populated and unpopulated tensors. We are only interested in populated ones.
+                dm.allocateTensor("GraphFile", stageIt, tIt);
+                tIt->set<unsigned>("graphFileIndex", i++);
+            }
         }
     }
 }

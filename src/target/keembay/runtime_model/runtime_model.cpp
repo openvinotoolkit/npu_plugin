@@ -237,10 +237,11 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
             }
             else
             {
-                auto sparsityMapCostantOp = model.getOp(mv::createSparsityMapName(t->getName()));
-                auto sparsityMapDmaOp = sparsityMapCostantOp.leftmostChild();
-                auto sparsityMapDma = sparsityMapDmaOp->getOutputTensor(0);
-                toBuild->data->sparsity_index = sparsityMapDma->getAddress();
+//                auto sparsityMapCostantOp = model.getOp(mv::createSparsityMapName(t->getName()));
+//                auto sparsityMapDmaOp = sparsityMapCostantOp.leftmostChild();
+//                auto sparsityMapDma = sparsityMapDmaOp->getOutputTensor(0);
+//                toBuild->data->sparsity_index = sparsityMapDma->getAddress();
+                toBuild->data->sparsity_index = 0;
                 toBuild->data->storage_element_index = 0;
             }
         }
@@ -366,6 +367,17 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
             {
                 toBuild->data->sparsity_index = t->getSparsityMap()->getAddress();
                 toBuild->data->storage_element_index = t->getStorageElement()->getAddress();
+
+                //std::cout << "Weights Table: " + t->getSparsityMap()->getName() + " Sparsity Map address: " + std::to_string(t->getSparsityMap()->getAddress()) << std::endl;
+                //std::cout << "Weights Table: " + t->getSparsityMap()->getName() + " storage_element_index: " + std::to_string(t->getStorageElement()->getAddress()) << std::endl;
+            }
+            else
+            {
+//                auto sparsityMapCostantOp = cm.getOp(mv::createSparsityMapName(t->getName()));
+//                auto sparsityMapDmaOp = sparsityMapCostantOp.leftmostChild();
+//                auto sparsityMapDma = sparsityMapDmaOp->getOutputTensor(0);
+                toBuild->data->sparsity_index = 0;
+                toBuild->data->storage_element_index = 0;
             }
         }
     }
