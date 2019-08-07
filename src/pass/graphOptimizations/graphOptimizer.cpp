@@ -705,7 +705,7 @@ static void GraphParameterOptimizationFcn(const mv::pass::PassEntry& pass,
     strategyManager.readGlobalConfigs();
     //strategyManager.linearDijkstra(om.opBegin());
     strategyManager.recursiveDijkstra(om.opBegin());
-
+    std::cout.flush();
 
     std::cout << "ran the optimizer" << std::endl;
 
