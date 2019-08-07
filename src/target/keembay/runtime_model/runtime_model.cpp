@@ -558,7 +558,7 @@ std::vector<std::unique_ptr<MVCNN::TaskListT>> mv::RuntimeModel::buildTaskListT(
             listToUse = &toBuild[0];
         else if(opType.find("DMA") != std::string::npos)
             listToUse = &toBuild[1];
-        auto tasks = buildTaskT(cm, compilationDescriptor, opIt, initialId);
+        auto tasks = buildTaskT(cm, compilationDescriptor, opIt);
         for(auto& task: tasks)
             (*listToUse)->content.push_back(std::move(task));
     }
@@ -574,10 +574,18 @@ std::vector<std::unique_ptr<MVCNN::TaskListT>> mv::RuntimeModel::buildTaskListT(
     unsigned n = barrierTasks.size();
     for(unsigned i = 0; i < n; ++i)
     {
-        auto tasks = buildTaskT(cm, compilationDescriptor, controlModel.switchContext(barrierTasks[i]), initialId);
+        auto tasks = buildTaskT(cm, compilationDescriptor, controlModel.switchContext(barrierTasks[i]));
         for(auto& task: tasks)
             toBuild[2]->content.push_back(std::move(task));
     }
+
+    // Filling node IDs
+    for(auto& serialTask: toBuild[0]->content)
+        serialTask->nodeID = initialId++;
+    for(auto& serialTask: toBuild[1]->content)
+        serialTask->nodeID = initialId++;
+    for(auto& serialTask: toBuild[2]->content)
+        serialTask->nodeID = initialId++;
 
     return toBuild;
 }
@@ -601,11 +609,10 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildBarrierTaskT(C
    return toReturn;
 }
 
-std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildSpecificTaskUnion(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt, int& nodeID)
+std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildSpecificTaskUnion(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt)
 {
     std::vector<std::unique_ptr<MVCNN::TaskT>> toBuild = std::vector<std::unique_ptr<MVCNN::TaskT>>();
     std::string taskType(opIt->getOpType());
-    UNUSED (nodeID);
     //unsigned numTasks = cm.getGlobalConfigParams()->get<int>("Number_of_Clusters");
 
     //NOTE: This if conditions of this big switch statements are not definitive and could change in the future
@@ -1339,15 +1346,14 @@ std::unique_ptr<MVCNN::BarrierReferenceT> mv::RuntimeModel::buildBarrierReferenc
     return toBuild;
 }
 
-std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildTaskT(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt, int& nodeID)
+std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildTaskT(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt)
 {
 
-    std::vector<std::unique_ptr<MVCNN::TaskT>> vecToBuild = buildSpecificTaskUnion(cm, compilationDescriptor, opIt, nodeID);
+    std::vector<std::unique_ptr<MVCNN::TaskT>> vecToBuild = buildSpecificTaskUnion(cm, compilationDescriptor, opIt);
 
     for(auto& toBuild: vecToBuild)
     {
         toBuild->name = opIt->getName();
-        toBuild->nodeID = nodeID++;
 
         // NOTE: This might change in the future
         if(opIt->hasAttr("opId"))
