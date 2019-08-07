@@ -404,7 +404,7 @@ void mv::Tensor::setAddress(int64_t address)
     set<int64_t>("address", address);
     if (isSparse() && !isPopulated())
     {
-        auto tensorSize = computeTotalSize();
+        auto tensorSize = getClusterSize();
         auto sparsitySize = sparsityMap_->computeTotalSize();
         storageElement_->set<int64_t>("address", address +
             (tensorSize - storageElement_->computeTotalSize() - sparsitySize));

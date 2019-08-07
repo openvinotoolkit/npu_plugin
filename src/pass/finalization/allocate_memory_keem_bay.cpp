@@ -5,7 +5,7 @@
 #include "include/mcm/computation/flow/implicit_flow.hpp"
 #include "include/mcm/base/exception/argument_error.hpp"
 
-static void allocateGraphfileTensorsFcnKeemBay(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
+static void allocateGraphfileTensorsFcnKeemBay(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&passArg, mv::json::Object&);
 static void allocateCMXTensorsFcnKeemBay(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 static void allocateInputOutputTensorsKeemBay(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 static void allocateImplicitOperationsFcnKeemBay(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
@@ -83,7 +83,7 @@ void allocateInputOutputTensorsKeemBay(const mv::pass::PassEntry& pass, mv::Comp
 
 //Populated Tensors are stored in:
 // 1) GraphFile
-void allocateGraphfileTensorsFcnKeemBay(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+void allocateGraphfileTensorsFcnKeemBay(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passArg, mv::json::Object&)
 {
     pass.log(mv::Logger::MessageType::Debug, "Allocating populated tensors");
 
@@ -91,8 +91,10 @@ void allocateGraphfileTensorsFcnKeemBay(const mv::pass::PassEntry& pass, mv::Com
     mv::DataModel dm(model);
     mv::OpModel om(model);
 
-    if (!dm.hasAllocator("GraphFile"))
-         throw mv::ArgumentError(dm, "allocators", "GraphFile", "Computation model does not have GraphFile allocator specified");
+    bool useSchedulingSort = true;
+
+    if(passArg.hasAttr("useSchedulingSort"))
+        useSchedulingSort = passArg.get<bool>("useSchedulingSort");
 
     if (cm.stageSize() == 0)
          throw mv::ArgumentError(cm, "stages count", "0", "Computation model does not have stages specified");
@@ -101,7 +103,12 @@ void allocateGraphfileTensorsFcnKeemBay(const mv::pass::PassEntry& pass, mv::Com
 
     unsigned i = 0;
 
-    auto ops = cm.schedulingSort();
+    std::vector<mv::Control::OpListIterator> ops;
+
+    if(useSchedulingSort)
+        ops = cm.schedulingSort();
+    else
+        ops = cm.topologicalSort();
     for(auto& opIterator : ops)
     {
         std::string opType = opIterator->getOpType();
@@ -110,9 +117,16 @@ void allocateGraphfileTensorsFcnKeemBay(const mv::pass::PassEntry& pass, mv::Com
             auto tIt = opIterator->getInputTensor(0);
             if(tIt->isPopulated())
             {
-                // DDR2CMX transfer propagate populated and unpopulated tensors. We are only interested in populated ones.
-                dm.allocateTensor("GraphFile", stageIt, tIt);
-                tIt->set<unsigned>("graphFileIndex", i++);
+                try
+                {
+                    dm.allocateTensor("GraphFile", stageIt, tIt);
+                    tIt->set<unsigned>("graphFileIndex", i++);
+                }
+                catch(mv::ArgumentError e)
+                {
+                    pass.log(mv::Logger::MessageType::Warning, e.what());
+                    tIt->set<unsigned>("graphFileIndex", i++);
+                }
             }
         }
     }
@@ -302,7 +316,7 @@ void allocateCMXTensorsFcnKeemBay(const mv::pass::PassEntry& pass, mv::Computati
                     (! inTensor->hasAttr("modelOutput") || ! inTensor->get<bool>("modelOutput"))
                     )
                 {
-                    allocateUnpopulatedTensor(pass,dm,stageIt,inTensor);
+                       allocateUnpopulatedTensor(pass,dm,stageIt,inTensor);
                 }
             }
             for (unsigned x = 0; x < opIterator->outputSlots(); ++x)

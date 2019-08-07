@@ -365,8 +365,8 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
         {
             if(!t->isPopulated())
             {
-                toBuild->data->sparsity_index = t->getSparsityMap()->getAddress();
-                toBuild->data->storage_element_index = t->getStorageElement()->getAddress();
+                toBuild->data->sparsity_index = subtensor.getSparsityMap()->getAddress();
+                toBuild->data->storage_element_index = subtensor.getStorageElement()->getAddress();
 
                 //std::cout << "Weights Table: " + t->getSparsityMap()->getName() + " Sparsity Map address: " + std::to_string(t->getSparsityMap()->getAddress()) << std::endl;
                 //std::cout << "Weights Table: " + t->getSparsityMap()->getName() + " storage_element_index: " + std::to_string(t->getStorageElement()->getAddress()) << std::endl;
