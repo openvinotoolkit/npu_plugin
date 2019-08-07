@@ -573,6 +573,7 @@
             },
             "GenerateSparsityMapsUnpopulatedTensors",
             "GenerateSparsityMapsPopulatedTensors",
+            "SplitOverHWeightsSparsityMaps",
             "AddWeightsDMATasks",
             {
                 "name": "GenerateDot",
@@ -817,9 +818,9 @@
         "Singular": [
             "StoreBarriersNamesInTasks",
             "GenerateExecutionSchedule",
+            "CorrectExecutionSchedule",
             "BarrierIndexAssignment",
             "UpdateBarrierRefs",
-            "UpdateBarrierProducerConsumerCounts",
             {
                 "name": "GenerateDot",
                 "output": "output/dots/serial_model.dot",
