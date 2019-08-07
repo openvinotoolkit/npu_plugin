@@ -67,13 +67,19 @@ namespace mv
     }
 }
 
-// ASSUMPTION: DMA for weights, weights table and sparsity map are swappable in terms of scheduling without causing the model to hang on barriers
-// ASSUMPTION 2: The correct dma order is: Weights - Sparsity Map (if present) - Weights Table
-void correctExecutionScheduleFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element&, mv::json::Object&)
+// ASSUMPTION: DMA for weights, weights table, sparsity map and input are swappable in terms of scheduling without causing the model to hang on barriers
+// This basically means that they have the same barrier dependencies
+// ASSUMPTION 2: The correct dma order is: Weights - Sparsity Map (if present) - Weights Table - Input data (if present)
+void correctExecutionScheduleFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element& passArg, mv::json::Object&)
 {
     mv::ControlModel cm(model);
     mv::OpModel om(model);
     auto ops = cm.schedulingSort();
+
+    bool inputFlag = true;
+
+    if(passArg.hasAttr("inputFlag"))
+        inputFlag = passArg.get<bool>("inputFlag");
 
     for(auto& op: ops)
     {
@@ -81,6 +87,16 @@ void correctExecutionScheduleFcn(const mv::pass::PassEntry& pass, mv::Computatio
         if(opType == "DPUTask" && op->get<std::string>("taskOp") == "Conv")
         {
             std::vector<unsigned> schedulingNumbers;
+
+            if(inputFlag)
+            {
+                auto inputTensor = op->getInputTensor(0);
+                auto inputTensorOp = om.getSourceOp(inputTensor);
+                if(inputTensorOp->getOpType() == "DMATask")
+                    schedulingNumbers.push_back(inputTensorOp->get<unsigned>("schedulingNumber"));
+
+            }
+
             auto weightsTensor = op->getInputTensor(1);
             auto weightsOp = om.getSourceOp(weightsTensor);
             schedulingNumbers.push_back(weightsOp->get<unsigned>("schedulingNumber"));
@@ -102,6 +118,13 @@ void correctExecutionScheduleFcn(const mv::pass::PassEntry& pass, mv::Computatio
                 weightsSparsityMapOp->set<unsigned>("schedulingNumber", schedulingNumbers[currentIndex++]);
             }
             weightsTableOp->set<unsigned>("schedulingNumber", schedulingNumbers[currentIndex++]);
+            if(inputFlag)
+            {
+                auto inputTensor = op->getInputTensor(0);
+                auto inputTensorOp = om.getSourceOp(inputTensor);
+                if(inputTensorOp->getOpType() == "DMATask")
+                    inputTensorOp->set<unsigned>("schedulingNumber", schedulingNumbers[currentIndex++]);
+            }
         }
     }
 
