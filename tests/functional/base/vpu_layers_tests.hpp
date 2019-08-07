@@ -444,3 +444,5 @@ inline bool vpuLayersTests::GenerateNetAndInfer(bool useHWOpt, bool runRefGraph,
     }
     return Infer();
 }
+
+InferenceEngine::Blob::Ptr ConvertU8ToFP32(const InferenceEngine::Blob::Ptr &inBlob);
