@@ -28,6 +28,9 @@
 
 #include <vpu_layers_tests.hpp>
 
+#include <mutex>
+#include <condition_variable>
+
 using namespace ::testing;
 using namespace InferenceEngine;
 using namespace Regression::Matchers;
@@ -332,7 +335,9 @@ TEST_F(VpuInferAndCompareTests, DISABLED_compareInferenceOutputWithReference) { 
         std::string referenceOutputFilePath = ModelsPath() + "/KMB_models/BLOBS/SingleConvolutionFP16/output.bin";
         ASSERT_TRUE(fromBinaryFile(referenceOutputFilePath, referenceOutputBlob));
 
-        Compare(referenceOutputBlob, outputBlob, 0.125f);
+        Blob::Ptr refFP32 = ConvertU8ToFP32(referenceOutputBlob);
+        Blob::Ptr outputFP32 = ConvertU8ToFP32(outputBlob);
+        Compare(refFP32, outputFP32, 0.0f);
     }
 }
 
@@ -383,7 +388,9 @@ TEST_F(VpuInferAndCompareTests, DISABLED_inferenceWithPreprocessing) {  // To be
         std::string referenceOutputFilePath = ModelsPath() + "/KMB_models/BLOBS/SingleConvolutionFP16/output.bin";
         ASSERT_TRUE(fromBinaryFile(referenceOutputFilePath, referenceOutputBlob));
 
-        Compare(referenceOutputBlob, outputBlob, 0.125f);
+        Blob::Ptr refFP32 = ConvertU8ToFP32(referenceOutputBlob);
+        Blob::Ptr outputFP32 = ConvertU8ToFP32(outputBlob);
+        Compare(refFP32, outputFP32, 0.0f);
     }
 }
 
@@ -394,7 +401,6 @@ TEST_F(VpuInferAndCompareTests, DISABLED_importWithPreprocessing) {  // To be ru
     InferenceEngine::ExecutableNetwork importedNetwork;
     ASSERT_NO_THROW(importedNetwork = ie.ImportNetwork(modelFilePath, "KMB", {}));
 
-    ResponseDesc resp;
     ConstInputsDataMap inputInfo = importedNetwork.GetInputsInfo();
 
     for (auto & item : inputInfo) {
@@ -430,17 +436,28 @@ TEST_F(VpuInferAndCompareTests, DISABLED_importWithPreprocessing) {  // To be ru
         std::string referenceOutputFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet/output.dat";
         ASSERT_TRUE(fromBinaryFile(referenceOutputFilePath, referenceOutputBlob));
 
-        Compare(referenceOutputBlob, outputBlob, 0.125f);
+        Blob::Ptr refFP32 = ConvertU8ToFP32(referenceOutputBlob);
+        Blob::Ptr outputFP32 = ConvertU8ToFP32(outputBlob);
+        Compare(refFP32, outputFP32, 0.0f);
     }
 }
 
+struct modelBlobsPaths {
+    std::string _graphPath, _inputPath, _outputPath;
+};
+
 class VpuInferAndCompareTestsWithParam: public vpuLayersTests,
-                             public testing::WithParamInterface<bool> {
+                             public testing::WithParamInterface< std::tuple<bool, modelBlobsPaths> > {
 };
 
 TEST_P(VpuInferAndCompareTestsWithParam, DISABLED_multipleInferRequests) {
-    bool isSync = GetParam();
-    std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/SingleConvolutionFP16/SingleConv.blob";
+    std::tuple<bool, modelBlobsPaths> paramTuple = GetParam();
+    bool isSync = std::get<0>(paramTuple);
+    modelBlobsPaths blobsPaths = std::get<1>(paramTuple);
+    std::string graphSuffix = blobsPaths._graphPath;
+    std::string inputSuffix = blobsPaths._inputPath;
+    std::string outputSuffix = blobsPaths._outputPath;
+    std::string modelFilePath = ModelsPath() + graphSuffix;
 
     Core ie;
     InferenceEngine::ExecutableNetwork importedNetwork;
@@ -454,7 +471,7 @@ TEST_P(VpuInferAndCompareTestsWithParam, DISABLED_multipleInferRequests) {
         requestList.push_back(inferRequest);
     }
 
-    std::string inputFilePath = ModelsPath() + "/KMB_models/BLOBS/SingleConvolutionFP16/input.bin";
+    std::string inputFilePath = ModelsPath() + inputSuffix;
 
     ConstInputsDataMap inputInfo;
     inputInfo = importedNetwork.GetInputsInfo();
@@ -494,7 +511,7 @@ TEST_P(VpuInferAndCompareTestsWithParam, DISABLED_multipleInferRequests) {
     ConstOutputsDataMap outputInfo;
     outputInfo = importedNetwork.GetOutputsInfo();
 
-    std::string referenceOutputFilePath = ModelsPath() + "/KMB_models/BLOBS/SingleConvolutionFP16/output.bin";
+    std::string referenceOutputFilePath = ModelsPath() + outputSuffix;
     for (auto & item : outputInfo) {
         for (InferenceEngine::InferRequest & inferRequest : requestList) {
             Blob::Ptr outputBlob;
@@ -509,8 +526,164 @@ TEST_P(VpuInferAndCompareTestsWithParam, DISABLED_multipleInferRequests) {
 
             ASSERT_TRUE(fromBinaryFile(referenceOutputFilePath, referenceOutputBlob));
 
-            Compare(referenceOutputBlob, outputBlob, 0.125f);
+            Blob::Ptr refFP32 = ConvertU8ToFP32(referenceOutputBlob);
+            Blob::Ptr outputFP32 = ConvertU8ToFP32(outputBlob);
+            Compare(refFP32, outputFP32, 0.0f);
         }
+    }
+}
+
+class VpuAsyncInferWithParam: public vpuLayersTests,
+                             public testing::WithParamInterface< modelBlobsPaths > {
+};
+
+TEST_P(VpuAsyncInferWithParam, DISABLED_asyncInferCallback) {
+    modelBlobsPaths blobsPaths = GetParam();
+    std::string graphSuffix = blobsPaths._graphPath;
+    std::string inputSuffix = blobsPaths._inputPath;
+    std::string outputSuffix = blobsPaths._outputPath;
+    std::string modelFilePath = ModelsPath() + graphSuffix;
+
+    Core ie;
+    InferenceEngine::ExecutableNetwork importedNetwork;
+    ASSERT_NO_THROW(importedNetwork = ie.ImportNetwork(modelFilePath, "KMB", {}));
+
+    std::list<InferenceEngine::InferRequest> requestList;
+    const int REQUEST_LIMIT = 10;
+    for (int requestCount = 0; requestCount < REQUEST_LIMIT; requestCount++) {
+        InferenceEngine::InferRequest inferRequest;
+        ASSERT_NO_THROW(inferRequest = importedNetwork.CreateInferRequest());
+        requestList.push_back(inferRequest);
+    }
+
+    std::string inputFilePath = ModelsPath() + inputSuffix;
+
+    ConstInputsDataMap inputInfo = importedNetwork.GetInputsInfo();
+
+    for (auto & item : inputInfo) {
+        for(auto currentRequest : requestList) {
+            Blob::Ptr inputBlob;
+            ASSERT_NO_THROW(inputBlob = currentRequest.GetBlob(item.first.c_str()));
+            ASSERT_TRUE(fromBinaryFile(inputFilePath, inputBlob));
+        }
+    }
+
+    std::mutex requestCounterGuard;
+    volatile int completedRequests = 0;
+    auto onComplete = [&completedRequests, &requestCounterGuard](void)->void {
+        std::lock_guard<std::mutex> incrementLock(requestCounterGuard);
+        completedRequests++;
+    };
+
+    // asynchronous execution
+    for (InferenceEngine::InferRequest & currentRequest : requestList) {
+        currentRequest.SetCompletionCallback(onComplete);
+        ASSERT_NO_THROW(currentRequest.StartAsync());
+    }
+
+    const int MAX_WAIT = 60000;
+    auto waitRoutine = [&completedRequests](void)->void {
+        std::chrono::system_clock::time_point endTime =
+            std::chrono::system_clock::now() +
+            std::chrono::milliseconds(MAX_WAIT);
+
+        while (completedRequests < REQUEST_LIMIT) {
+            ASSERT_LE(std::chrono::system_clock::now(), endTime);
+            std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+        }
+    };
+
+    std::thread waitThread(waitRoutine);
+    waitThread.join();
+
+    ConstOutputsDataMap outputInfo = importedNetwork.GetOutputsInfo();
+
+    std::string referenceOutputFilePath = ModelsPath() + outputSuffix;
+    for (auto & item : outputInfo) {
+        for (InferenceEngine::InferRequest & inferRequest : requestList) {
+            Blob::Ptr outputBlob;
+            ASSERT_NO_THROW(outputBlob = inferRequest.GetBlob(item.first.c_str()));
+
+            TensorDesc outputBlobTensorDesc = outputBlob->getTensorDesc();
+            Blob::Ptr referenceOutputBlob = make_blob_with_precision(TensorDesc(
+                outputBlobTensorDesc.getPrecision(),
+                outputBlobTensorDesc.getDims(),
+                outputBlobTensorDesc.getLayout()));
+            referenceOutputBlob->allocate();
+
+            ASSERT_TRUE(fromBinaryFile(referenceOutputFilePath, referenceOutputBlob));
+
+            Blob::Ptr refFP32 = ConvertU8ToFP32(referenceOutputBlob);
+            Blob::Ptr outputFP32 = ConvertU8ToFP32(outputBlob);
+            Compare(refFP32, outputFP32, 0.0f);
+        }
+    }
+}
+
+TEST_P(VpuAsyncInferWithParam, DISABLED_asyncInferCallbackRecursive) {
+    modelBlobsPaths blobsPaths = GetParam();
+    std::string graphSuffix = blobsPaths._graphPath;
+    std::string inputSuffix = blobsPaths._inputPath;
+    std::string outputSuffix = blobsPaths._outputPath;
+    std::string modelFilePath = ModelsPath() + graphSuffix;
+
+    Core ie;
+    InferenceEngine::ExecutableNetwork importedNetwork;
+    ASSERT_NO_THROW(importedNetwork = ie.ImportNetwork(modelFilePath, "KMB", {}));
+
+    InferenceEngine::InferRequest inferRequest;
+    ASSERT_NO_THROW(inferRequest = importedNetwork.CreateInferRequest());
+
+    std::string inputFilePath = ModelsPath() + inputSuffix;
+
+    ConstInputsDataMap inputInfo = importedNetwork.GetInputsInfo();
+
+    for (auto & item : inputInfo) {
+        Blob::Ptr inputBlob;
+        ASSERT_NO_THROW(inputBlob = inferRequest.GetBlob(item.first.c_str()));
+        ASSERT_TRUE(fromBinaryFile(inputFilePath, inputBlob));
+    }
+
+    const std::size_t MAX_ITERATIONS = 10;
+    volatile std::size_t iterationCount = 0;
+    std::condition_variable waitCompletion;
+
+    auto onComplete = [&waitCompletion, &iterationCount, &inferRequest](void)->void {
+        iterationCount++;
+        if (iterationCount < MAX_ITERATIONS) {
+            ASSERT_NO_THROW(inferRequest.StartAsync());
+        } else {
+            waitCompletion.notify_one();
+        }
+    };
+
+    inferRequest.SetCompletionCallback(onComplete);
+
+    ASSERT_NO_THROW(inferRequest.StartAsync());
+
+    std::mutex execGuard;
+    std::unique_lock<std::mutex> execLocker(execGuard);
+    waitCompletion.wait(execLocker, [&]{ return iterationCount == MAX_ITERATIONS; });
+
+    ConstOutputsDataMap outputInfo = importedNetwork.GetOutputsInfo();
+
+    std::string referenceOutputFilePath = ModelsPath() + outputSuffix;
+    for (auto & item : outputInfo) {
+        Blob::Ptr outputBlob;
+        ASSERT_NO_THROW(outputBlob = inferRequest.GetBlob(item.first.c_str()));
+
+        TensorDesc outputBlobTensorDesc = outputBlob->getTensorDesc();
+        Blob::Ptr referenceOutputBlob = make_blob_with_precision(TensorDesc(
+            outputBlobTensorDesc.getPrecision(),
+            outputBlobTensorDesc.getDims(),
+            outputBlobTensorDesc.getLayout()));
+        referenceOutputBlob->allocate();
+
+        ASSERT_TRUE(fromBinaryFile(referenceOutputFilePath, referenceOutputBlob));
+
+        Blob::Ptr refFP32 = ConvertU8ToFP32(referenceOutputBlob);
+        Blob::Ptr outputFP32 = ConvertU8ToFP32(outputBlob);
+        Compare(refFP32, outputFP32, 0.0f);
     }
 }
 
@@ -518,7 +691,32 @@ const static std::vector<bool> isSyncVec = {
     false, true
 };
 
+const static std::vector<modelBlobsPaths> pathToPreCompiledGraph = {
+    {
+        ._graphPath = "/KMB_models/BLOBS/mobilenet/mobilenet.blob",
+        ._inputPath = "/KMB_models/BLOBS/mobilenet/input.dat",
+        ._outputPath = "/KMB_models/BLOBS/mobilenet/output.dat"
+    },
+    {
+        ._graphPath = "/KMB_models/BLOBS/resnet/resnet.blob",
+        ._inputPath = "/KMB_models/BLOBS/resnet/input.dat",
+        ._outputPath = "/KMB_models/BLOBS/resnet/output.dat"
+    },
+    {
+        ._graphPath = "/KMB_models/BLOBS/yolotiny/yolotiny.blob",
+        ._inputPath = "/KMB_models/BLOBS/yolotiny/input.dat",
+        ._outputPath = "/KMB_models/BLOBS/yolotiny/output.dat"
+    }
+};
+
 INSTANTIATE_TEST_CASE_P(multipleInference, VpuInferAndCompareTestsWithParam,
-    ::testing::ValuesIn(isSyncVec)
+    ::testing::Combine(
+        ::testing::ValuesIn(isSyncVec),
+        ::testing::ValuesIn(pathToPreCompiledGraph)
+    )
+);
+
+INSTANTIATE_TEST_CASE_P(asyncInferenceWithCallback, VpuAsyncInferWithParam,
+    ::testing::ValuesIn(pathToPreCompiledGraph)
 );
 #endif

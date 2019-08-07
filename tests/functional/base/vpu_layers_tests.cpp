@@ -11,6 +11,8 @@
 #include "plugin_cache.hpp"
 #include "ie_memcpy.h"
 
+#include "blob_factory.hpp"
+
 using namespace InferenceEngine;
 
 void PrintTo(const tensor_test_params& sz, std::ostream* os) {
@@ -704,6 +706,12 @@ bool fromBinaryFile(std::string input_binary, InferenceEngine::Blob::Ptr blob) {
                 in.read(reinterpret_cast<char *>(blobRawData), count * sizeof(float));
                 status = true;
             }
+        } else if (blob->getTensorDesc().getPrecision() == InferenceEngine::Precision::U8) {
+            char *blobRawData = blob->buffer().as<char *>();
+            if(sizeFile == count * sizeof(char)) {
+                in.read(blobRawData, count * sizeof(char));
+                status = true;
+            }
         }
     }
     return status;
@@ -1016,4 +1024,24 @@ void vpuLayersTests::ReferenceGraph() {
         }
     }
     _referenceGraph();
+}
+
+Blob::Ptr ConvertU8ToFP32(const Blob::Ptr &inBlob) {
+    InferenceEngine::TensorDesc inTensor = inBlob->getTensorDesc();
+    if (inTensor.getPrecision() != InferenceEngine::Precision::U8) {
+        throw std::runtime_error("ConvertU8ToFP16: only U8 input is supported");
+    }
+    InferenceEngine::SizeVector outDims = inTensor.getDims();
+    InferenceEngine::Layout outLayout = inTensor.getLayout();
+    InferenceEngine::Precision outPrecision = InferenceEngine::Precision::FP32;
+    InferenceEngine::TensorDesc outTensor(outPrecision, outDims, outLayout);
+    Blob::Ptr outBlob = make_blob_with_precision(outTensor);
+    outBlob->allocate();
+    uint8_t *blobRawDataU8 = inBlob->buffer().as<uint8_t*>();
+    float *blobRawDataFP32 = outBlob->buffer().as<float*>();
+    for (size_t pos = 0; pos < inBlob->size(); pos++) {
+        blobRawDataFP32[pos] = blobRawDataU8[pos];
+    }
+
+    return outBlob;
 }
