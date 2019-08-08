@@ -33,12 +33,10 @@ void storeStrategy(mv::Data::OpListIterator& it, int numClusters, std::vector<mv
     for (auto s: strategyList)
     {
         std::string& name_filter = s.get<std::string>("name_filter");
-        int cluster_filter = s.get("cluster_filter");
         std::regex exp(name_filter);
         if (std::regex_match(it->getName(), exp))
         {
-            if (cluster_filter == 0 || cluster_filter == numClusters)
-                it->set<std::string>("splitStrategy", s.get<std::string>("strategy"));
+            it->set<std::string>("splitStrategy", s.get<std::string>("strategy"));
         }
     }
 }
