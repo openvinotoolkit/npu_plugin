@@ -6,6 +6,7 @@
 #include "include/mcm/base/exception/argument_error.hpp"
 
 static void allocateGraphfileTensorsFcnKeemBay(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&passArg, mv::json::Object&);
+static void allocateGraphfileTensorsFcnKeemBayLegacy(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&passArg, mv::json::Object&);
 static void allocateCMXTensorsFcnKeemBay(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 static void allocateInputOutputTensorsKeemBay(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 static void allocateImplicitOperationsFcnKeemBay(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
@@ -26,6 +27,12 @@ namespace mv
 
         MV_REGISTER_PASS(AllocateGraphfileTensorsKeemBay)
         .setFunc(allocateGraphfileTensorsFcnKeemBay)
+        .setDescription(
+            "Perform allocation of all populated tensors using memory allocator"
+        );
+
+        MV_REGISTER_PASS(AllocateGraphfileTensorsKeemBayLegacy)
+        .setFunc(allocateGraphfileTensorsFcnKeemBayLegacy)
         .setDescription(
             "Perform allocation of all populated tensors using memory allocator"
         );
@@ -83,6 +90,41 @@ void allocateInputOutputTensorsKeemBay(const mv::pass::PassEntry& pass, mv::Comp
 
 //Populated Tensors are stored in:
 // 1) GraphFile
+
+
+//Populated Tensors are stored in:
+// 1) GraphFile
+//
+void allocateGraphfileTensorsFcnKeemBayLegacy(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+{
+    pass.log(mv::Logger::MessageType::Debug, "Allocating populated tensors");
+
+    mv::ControlModel cm(model);
+    mv::DataModel dm(model);
+    mv::OpModel om(model);
+
+    if (!dm.hasAllocator("GraphFile"))
+         throw mv::ArgumentError(dm, "allocators", "GraphFile", "Computation model does not have GraphFile allocator specified");
+
+    if (cm.stageSize() == 0)
+         throw mv::ArgumentError(cm, "stages count", "0", "Computation model does not have stages specified");
+
+    auto stageIt = cm.getStage(0);
+
+    unsigned i = 0;
+    for(auto opIterator = om.opBegin(); opIterator != om.opEnd(); ++opIterator)
+    {
+        std::string opType = opIterator->getOpType();
+        if (opType == "Constant" || opType == "ConstantInt" || opType == "ConstantDataElement" || opType == "WeightsTable" || opType == "SparsityMap")
+        {
+            auto tIt = opIterator->getOutputTensor(0);
+            dm.allocateTensor("GraphFile", stageIt, tIt);
+            tIt->set<unsigned>("graphFileIndex", i++);
+        }
+    }
+}
+
+
 void allocateGraphfileTensorsFcnKeemBay(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passArg, mv::json::Object&)
 {
     pass.log(mv::Logger::MessageType::Debug, "Allocating populated tensors");
