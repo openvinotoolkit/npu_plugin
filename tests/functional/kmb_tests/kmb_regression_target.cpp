@@ -485,7 +485,7 @@ TEST_P(VpuInferAndCompareTestsWithParam, DISABLED_multipleInferRequests) {
     }
 
     const int MAX_WAIT = 60000;
-    auto requestRoutine = [](InferenceEngine::InferRequest request)->void {
+    auto requestRoutine = [MAX_WAIT](InferenceEngine::InferRequest request)->void {
         ResponseDesc response;
         ASSERT_NO_THROW(request.StartAsync());
         ASSERT_EQ(StatusCode::OK, request.Wait(MAX_WAIT)) << response.msg;
@@ -582,7 +582,7 @@ TEST_P(VpuAsyncInferWithParam, DISABLED_asyncInferCallback) {
     }
 
     const int MAX_WAIT = 60000;
-    auto waitRoutine = [&completedRequests](void)->void {
+    auto waitRoutine = [&completedRequests, MAX_WAIT, REQUEST_LIMIT](void)->void {
         std::chrono::system_clock::time_point endTime =
             std::chrono::system_clock::now() +
             std::chrono::milliseconds(MAX_WAIT);
