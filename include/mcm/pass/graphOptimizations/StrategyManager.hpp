@@ -46,7 +46,6 @@ public:
 
     void saveStrategy(std::vector<graph<std::tuple<mv::Op&,StrategySet,int>,double>::edge_list_iterator> cPathEdges);
     void saveMetaStrategy(std::vector<MetaGraph::edge_list_iterator> cPathEdges);
-    void linearDijkstra(mv::Data::OpListIterator opBegin);
     void recursiveDijkstra(mv::Data::OpListIterator opBegin);
     void recursiveCriticalPath(typename graph<mv::Op, mv::DataFlow>::node_list_iterator modelSource, std::unordered_set<std::string>& recursedNodes, MetaGraph& metaGraph);
 

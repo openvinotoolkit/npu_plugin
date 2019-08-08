@@ -473,10 +473,10 @@ void StrategyManager::recursiveDijkstra(mv::Data::OpListIterator opBegin)
     map<typename MetaGraph::edge_list_iterator, double, costEdgeIteratorComp> edgeCostMap;
     //build edge cost map needed to call dijkstra
     for (auto it = metaGraph.edge_begin(); it != metaGraph.edge_end(); ++it){
-        edgeCostMap.insert(std::pair<MetaGraph::edge_list_iterator, double>(it, get<0>(*it)));
+        edgeCostMap.insert(std::pair<MetaGraph::edge_list_iterator, double>(it, (*it).first));
     }
     //call dijkstra on metagraph for each source and sink combo, choosing the best
-    double max = 99999999.99;
+    double max = 99999999.999;
     vector<MetaGraph::edge_list_iterator> finalCriticalPath;
     for(auto source : sources){
         for(auto sink : sinks) {
@@ -484,8 +484,8 @@ void StrategyManager::recursiveDijkstra(mv::Data::OpListIterator opBegin)
             vector<MetaGraph::edge_list_iterator> criticalPathEdges = dijkstra<std::tuple<mv::Op&,StrategySet,int>,MetaGraphEdge,costNodeIteratorComp,costEdgeIteratorComp, double>(metaGraph,source,sink,edgeCostMap);
             double cost = 0;
             for (auto edge : criticalPathEdges){
-                cost += get<0>(*edge);
-                //cout << "  found edge with cost " << get<0>(*edge) << " total cost now " << cost << endl;
+                cost += (*edge).first;
+                cout << "  found edge with cost " << (*edge).first << " total cost now " << cost << endl;
             }
             if(cost < max){
                 finalCriticalPath = criticalPathEdges;
@@ -494,6 +494,7 @@ void StrategyManager::recursiveDijkstra(mv::Data::OpListIterator opBegin)
         }
     }
     //save best found strategy
+    cout << "saving meta graph optimal path" << endl;
     saveMetaStrategy(finalCriticalPath);
 }
 
@@ -679,9 +680,10 @@ void StrategyManager::recursiveCriticalPath(typename graph<mv::Op, mv::DataFlow>
         }
     }
     //If child counter is greater than 1, we were in a parallel section and add the sum of all relevant edges to a new meta subgraph and add that subgraph to the big graph
-/*   if(childCtr > 1){
-        //vector<CriticalInfo> linearSection = parallelLinearSections[0]; //Vector of Critical Info, add this to the metagraph
-        for(int infoIdx  = 0; ){
+   if(childCtr > 1){
+        vector<CriticalInfo> linearSection = parallelLinearSections[0]; //Vector of Critical Info, add this to the metagraph
+        for(int infoIdx  = 0; infoIdx < linearSection.size(); infoIdx++){
+            CriticalInfo critInfo = linearSection[infoIdx];
             MetaGraph::node_list_iterator source, sink;
             if(metaGraph.node_size() == 0 ){
                 source = metaGraph.node_insert(*get<0>(critInfo));
@@ -696,140 +698,17 @@ void StrategyManager::recursiveCriticalPath(typename graph<mv::Op, mv::DataFlow>
                     sink = metaGraph.node_insert(*get<1>(critInfo));
                 }
             }
-            for()
-            double cost = get<2>(critInfo).first;
-            vector<StrategySet> strategies = get<2>(critInfo).second;
+            double cost = 0;
+            vector<StrategySet> strategies;
+            for(int sectionIdx = 0; sectionIdx < parallelLinearSection.size(); sectionIdx++){
+                CriticalInfo ci = parallelLinearSections[sectionIdx][infoIdx];
+                cost += get<2>(ci).first;
+                for(auto strategy :  get<2>(ci).second)
+                    strategies.push_back(strategy);
+            }
             metaGraph.edge_insert(source, sink, MetaGraphEdge(cost, strategies));
         }
-    } */ 
-/* 
-    if(sinkReturnVector.empty()){
-       // cout << "*** In Linear Graph or end of graph Linear Section" << endl;
-        CriticalPair finalPair;
-        double max = 99999999.999;
-        OptimizationGraph optGraph = parallelLinearSections[0].first;
-
-        for(auto criticalPath : parallelLinearSections[0].second)
-        {
-            double cost = 0;
-            for (auto edge : criticalPath){
-                cost += *edge;
-            }
-            //cout << "  Found cost of " << cost << " current  max= " << max << endl;
-            if( cost < max)
-            {
-                finalPair = CriticalPair(optGraph, criticalPath);
-                max = cost;
-                //cout << "    Updated best cost to " << max << endl;
-            }
-        }
-
-        saveStrategyGraph(finalPair);
-        StrategySet strategy = get<1>(*finalPair.second.front()->source());
-        //return pair<vector<OptimizationPair>, StrategySet>(parallelLinearSections, strategy);
-    }
-    //Linear section no branches, use found source strategy to lock the sink for criticalPaths and pick the best with this constraint (linear part of parallel graph)
-    else if(childCtr == 1){
-        //cout << "*** In Linear Section" << endl;
-     	vector<OptimizationPair> returnVector = sinkReturnVector;
-        StrategySet sinkStrategy = sinkReturnStrategy;
-
-     	OptimizationPair thisSection = parallelLinearSections[0]; //only one linear part in this section
-        OptimizationGraph optGraph = parallelLinearSections[0].first;
-
-        CriticalEdges finalCriticalPath; 
-        CriticalPair finalPair;
-        StrategySet finalStrategy;
-
-        double max = 99999999.999;
-
-        //check first that this is a CP we should consider (does the sink match the strategy already decided for that node)
-        for(auto criticalPath : thisSection.second)
-        {
-        	double cost = 0;
-            for (int showPath=0; showPath < criticalPath.size(); showPath++){
-                cost += *criticalPath[showPath];
-            }
-            // if strategy is a match we want this to execute
-            if(sinkStrategy == get<1>(*criticalPath.front()->sink()) && cost < max)
-            {
-                finalPair = CriticalPair(optGraph, criticalPath);
-                finalStrategy = get<1>(*criticalPath.front()->source());
-                max = cost;
-            }
-        }
-        saveStrategyGraph(finalPair);
-
-        returnVector.push_back(parallelLinearSections[0]);
-        //return pair<vector<OptimizationPair>, StrategySet>(returnVector, finalStrategy);
-    }
-    //Parallel branches between this source and sink, do addition to pick the best
-     else{
-        //cout << "*** In Parallel Section" << endl;
-    	vector<OptimizationPair> returnVector = sinkReturnVector;
-        StrategySet sinkStrategy = sinkReturnStrategy;
-
-        vector<vector<CriticalPair>> sinkMatchedCriticalPaths;
-        vector<vector<CriticalPair>> sourceMatchedCriticalPaths;
-
-        vector<CriticalPair> bestFinalPairs;
-        StrategySet bestStrategy;
-
-        double max = 99999999.999;
-
-
-        int numSources = 0;
-        for(auto branch : parallelLinearSections){
-            vector<CriticalPair> found;
-            for(CriticalEdges path : branch.second){
-                auto lastEdge = path.back();
-                auto sinkNode = lastEdge->sink();
-                StrategySet pathStrategy = get<1>(*sinkNode);
-                if(pathStrategy == sinkStrategy){
-                    found.push_back(CriticalPair(branch.first, path));
-                }
-            }
-            sinkMatchedCriticalPaths.push_back(found);
-            found.clear();
-        }
-
-
-        numSources = sinkMatchedCriticalPaths[0].size(); //Assume all paths have the same number of source options (it's the same original graph node)
-
-        for(int source = 0; source < numSources; source++){
-            double cost = 0;
-            vector<CriticalPair> potentialFinalPairs;
-            StrategySet sourceStrategy = get<1>(*sinkMatchedCriticalPaths[0].at(source).second.front()->source());
-            for(auto branch : sinkMatchedCriticalPaths){
-                for(auto path : branch){
-                    if(get<1>(*path.second.front()->source()) == sourceStrategy){
-                        potentialFinalPairs.push_back(path);
-                        for(auto edge : path.second){
-                            cost += *edge;
-                        }
-                        continue;
-                    }
-                }
-            }
-            if(cost < max)
-            {
-                max = cost;
-                bestFinalPairs = potentialFinalPairs;
-                bestStrategy = sourceStrategy;
-            }
-            potentialFinalPairs.clear();
-        }
-
-        for(auto criticalPair : bestFinalPairs){
-        	saveStrategyGraph(criticalPair);
-        }
-
-        for(auto linearSection : parallelLinearSections){
-            returnVector.push_back(linearSection);
-        }
-        //return pair<vector<OptimizationPair>, StrategySet>(returnVector, bestStrategy);
-    }
-*/
+    }  
     for(auto source : next_modelSource)
     {
         std::string next_opName = (*source).getName();
@@ -838,7 +717,6 @@ void StrategyManager::recursiveCriticalPath(typename graph<mv::Op, mv::DataFlow>
             recursiveCriticalPath(source, recursedNodes, metaGraph);
         }
     }
-
 }
 void StrategyManager::generateStrategySetForLayer(mv::Op& op,vector<StrategySet>& strategyVec)
 {
