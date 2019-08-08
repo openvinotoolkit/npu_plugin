@@ -24,7 +24,6 @@ GAPI_SIPP_KERNEL(GSippNV12toRGBp, GNV12toRGBp) {
     {}
 };
 
-#if 0  // svucvtColorNV12toBGR is not exposed by vpualHost so far
 GAPI_SIPP_KERNEL(GSippNV12toBGRp, GNV12toBGRp) {
     static cv::gimpl::GSIPPKernel::InitInfo Init(cv::GMatDesc, cv::GMatDesc) {
         return {SVU_SYM(svucvtColorNV12toBGR), 0, 1, 1, SIPP_RESIZE};
@@ -33,7 +32,6 @@ GAPI_SIPP_KERNEL(GSippNV12toBGRp, GNV12toBGRp) {
     static void Configure(cv::GMatDesc, cv::GMatDesc, const cv::GSippConfigUserContext&)
     {}
 };
-#endif
 
 GAPI_SIPP_KERNEL(GSippResizeP, GResizeP) {
     static cv::gimpl::GSIPPKernel::InitInfo Init(cv::GMatDesc, cv::gapi::own::Size, int) {
@@ -55,10 +53,8 @@ GAPI_SIPP_KERNEL(GSippResizeP, GResizeP) {
 namespace sipp {
     cv::gapi::GKernelPackage kernels() {
         static auto pkg = cv::gapi::kernels
-            < GSippNV12toRGBp
-        #if 0
-            , GSippNV12toBGRp
-        #endif
+            < GSippNV12toBGRp
+            , GSippNV12toRGBp
             , GSippResizeP
             >();
         return pkg;
