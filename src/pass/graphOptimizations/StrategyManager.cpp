@@ -430,80 +430,6 @@ void StrategyManager::saveMetaStrategy(std::vector<MetaGraph::edge_list_iterator
     }
 }
 
-void StrategyManager::linearDijkstra(mv::Data::OpListIterator opBegin)
-{
-    struct costEdgeIteratorComp
-    {
-        bool operator()(const graph<std::tuple<mv::Op&,StrategySet,int>,double>::edge_list_iterator lhs, const graph<std::tuple<mv::Op&,StrategySet,int>,double>::edge_list_iterator rhs) const
-        {
-            return (*lhs) < (*rhs);
-        }
-    };
-
-    struct costNodeIteratorComp
-    {
-        bool operator()(const graph<std::tuple<mv::Op&,StrategySet,int>,double>::node_list_iterator lhs, const graph<std::tuple<mv::Op&,StrategySet,int>,double>::node_list_iterator rhs) const
-        {
-            int x = get<2>(*lhs) ;
-            int y = get<2>(*rhs) ;
-            return (x < y) ;
-        }
-    };
-
-    mv::graph<std::tuple<mv::Op&,StrategySet,int>,double> optimizationGraph;
-    vector<vector<StrategySet>> nodeStrategies;
-    vector<mv::graph<std::tuple<mv::Op&,StrategySet,int>,double>::node_list_iterator> old_nodes,new_nodes;
-
-    old_nodes.clear();
-
-    map<typename graph<std::tuple<mv::Op&,StrategySet,int>,double>::edge_list_iterator, double, costEdgeIteratorComp> edgeCostMap;
-    int opCtr = 0;
-    int optionCtr = 0;
-    
-    for(auto op = opBegin; op != model_.opEnd(); ++op)
-    {
-        if(op->getOpType() == "ConstantInt")
-            continue;
-        vector<StrategySet> nodeStrategy;
-
-        opCtr++;
-
-        generateStrategySetForLayer(*op,nodeStrategy);
-        new_nodes.clear();
-        for(auto strategy : nodeStrategy)
-        {
-            new_nodes.push_back(optimizationGraph.node_insert(std::tuple<mv::Op&,StrategySet,int>(*op,strategy,optionCtr++)));
-        }
-
-        for(const auto oldNode : old_nodes)
-            for(const auto newNode : new_nodes)
-            {
-//                cout<< "In linearDykstra: inserting edge to optGraph from " << get<1>(*oldNode)["name"].get<string>()  << "_"<< to_string((long long unsigned)(void*)&(*oldNode)) << " to " << get<1>(*newNode)["name"].get<string>()  << "_"<< to_string((long long unsigned)(void*)&(*newNode)) << endl;
-                double edgeCost = transitionCost( get<0>(*oldNode),
-                                                  get<0>(*newNode),
-                                                  get<1>(*oldNode),
-                                                  get<1>(*newNode));
-                int edgeCostInt = edgeCost ;
-                auto newEdge = optimizationGraph.edge_insert(oldNode,newNode,edgeCost);
-                edgeCostMap.insert(std::pair<mv::graph<std::tuple<mv::Op&,StrategySet,int>,double>::edge_list_iterator, double>(newEdge, edgeCost));
- //               cout<< "        cost = " << edgeCost << endl;
-            }
-        old_nodes.swap(new_nodes);
-
-        nodeStrategies.push_back(nodeStrategy);
-    }
-
-    writeDot(optimizationGraph,true);
-    costEdgeIteratorComp costEdgeCompare;
-
-    auto sinkNodeIt = optimizationGraph.node_begin() ;
-    for (int ii=0; ii<optimizationGraph.node_size()-1; ii++) ++sinkNodeIt;
-
-    auto criticalPathEdges = dijkstra<std::tuple<mv::Op&,StrategySet,int>,double,costNodeIteratorComp,costEdgeIteratorComp, double>(optimizationGraph,optimizationGraph.node_begin(),sinkNodeIt,edgeCostMap);
-    
-    saveStrategy(criticalPathEdges);
-}
-
 
 void StrategyManager::recursiveDijkstra(mv::Data::OpListIterator opBegin)
 {
@@ -559,9 +485,11 @@ void StrategyManager::recursiveDijkstra(mv::Data::OpListIterator opBegin)
             double cost = 0;
             for (auto edge : criticalPathEdges){
                 cost += get<0>(*edge);
+                //cout << "  found edge with cost " << get<0>(*edge) << " total cost now " << cost << endl;
             }
             if(cost < max){
                 finalCriticalPath = criticalPathEdges;
+                max = cost;
             }
         }
     }
@@ -721,7 +649,7 @@ void StrategyManager::recursiveCriticalPath(typename graph<mv::Op, mv::DataFlow>
             }
         }
         parallelLinearSections.emplace_back(parallelLinearSection);
-        cout << "done with this child" << endl;
+
     //TODO add check here for whether we've hit the same pivot (needed for nested parallelism)
     //recurse if we haven't all hit the same pivot (into the nested parallel branch)
         next_modelSource.push_back(model_child);
@@ -751,7 +679,29 @@ void StrategyManager::recursiveCriticalPath(typename graph<mv::Op, mv::DataFlow>
         }
     }
     //If child counter is greater than 1, we were in a parallel section and add the sum of all relevant edges to a new meta subgraph and add that subgraph to the big graph
-
+/*   if(childCtr > 1){
+        //vector<CriticalInfo> linearSection = parallelLinearSections[0]; //Vector of Critical Info, add this to the metagraph
+        for(int infoIdx  = 0; ){
+            MetaGraph::node_list_iterator source, sink;
+            if(metaGraph.node_size() == 0 ){
+                source = metaGraph.node_insert(*get<0>(critInfo));
+                sink = metaGraph.node_insert(*get<1>(critInfo));
+            }else {
+                source = metaGraph.node_find(*get<0>(critInfo));
+                if(source == metaGraph.node_end()){ //source node does not exist in metaGraph add it
+                    source = metaGraph.node_insert(*get<0>(critInfo));
+                }
+                sink = metaGraph.node_find(*get<1>(critInfo));
+                if(sink == metaGraph.node_end()){ //sink node does not exist in metaGraph add it
+                    sink = metaGraph.node_insert(*get<1>(critInfo));
+                }
+            }
+            for()
+            double cost = get<2>(critInfo).first;
+            vector<StrategySet> strategies = get<2>(critInfo).second;
+            metaGraph.edge_insert(source, sink, MetaGraphEdge(cost, strategies));
+        }
+    } */ 
 /* 
     if(sinkReturnVector.empty()){
        // cout << "*** In Linear Graph or end of graph Linear Section" << endl;
