@@ -468,15 +468,15 @@ const std::vector<int> mv::Workloads::getWorkloadSplitPool(const Tensor& tensor,
 {
     std::vector<int> splitPool = {1};
     std::vector<int> maxSplitsXY;
- 
+
     /*maxSplitsXY*/
     double xDim = tensor.getShape()[0];
     double yDim = tensor.getShape()[1];
-    
+
     //std::cout << dpuModeList.size() << std::endl;
-    for(std::size_t i = 0; i < dpuModeList.size(); i++) 
+    for(std::size_t i = 0; i < dpuModeList.size(); i++)
         maxSplitsXY.push_back(ceil((xDim/dpuModeList[i].H)  * ceil(yDim/dpuModeList[i].W)));
-    
+
     /*maxSplitsZ*/
     int maxSplitsZ = ceil(tensor.getShape()[2]/16);
 
@@ -499,14 +499,14 @@ const std::vector<int> mv::Workloads::getWorkloadSplitPool(const Tensor& tensor,
 
     /*XY splits*/
     for(std::size_t i = 0; i < dpuModeList.size(); i++) {
-        for(int j = 0; j < (int)ceil(log2(maxSplitsXY[i])); j++) 
-            if(((maxSplitsXY[i]%(int)std::pow(2,j)) == 0) && (maxSplitsXY[i]/(std::pow(2,j)) <= maxSplits)) 
+        for(int j = 0; j < (int)ceil(log2(maxSplitsXY[i])); j++)
+            if(((maxSplitsXY[i]%(int)std::pow(2,j)) == 0) && (maxSplitsXY[i]/(std::pow(2,j)) <= maxSplits))
             splitPool.push_back(maxSplitsXY[i]/std::pow(2,j));
     }
-    
+
     /*sort*/
     sort(splitPool.begin(), splitPool.end());
-    
+
     /*Erase duplicates*/
     splitPool.erase(std::unique( splitPool.begin(), splitPool.end() ), splitPool.end());
 
@@ -518,7 +518,7 @@ const std::vector<int> mv::Workloads::getWorkloadSplitPool(const Tensor& tensor,
 }
 
 
-void mv::Workloads::populateWorkloadsFromPartitions(idx_t nWorkloads, const mv::pass::PassEntry& pass, mv::DPUMode& mpe_mode) 
+void mv::Workloads::populateWorkloadsFromPartitions(idx_t nWorkloads, const mv::pass::PassEntry& pass, mv::DPUMode& mpe_mode)
 {
     std::vector<std::vector<mv::Workload>> listOfworkloadLists;
 
@@ -613,7 +613,7 @@ void mv::Workloads::populateWorkloadsFromPartitions(idx_t nWorkloads, const mv::
         else
             workloads_[workload].MPEMode = mv::MPE_Mode::Vector;
 
-        //add to the 'listOfworkloadLists' vector, the returned list of workloads from the polygonworkloadsplit function       
+        //add to the 'listOfworkloadLists' vector, the returned list of workloads from the polygonworkloadsplit function
         listOfworkloadLists.push_back(mv::Workloads::polygonWorkloadSplit(pass, workloads_[workload], workloads_, mpe_mode));
 
     }
@@ -810,7 +810,7 @@ std::vector<mv::Workload> mv::Workloads::workloadSplitHelper(const mv::pass::Pas
     workload_partition_2.setMinMaxAndVertices();
     std::vector<mv::Workload> final1;
     std::vector<mv::Workload> finalWorkloadList;
-    
+
     // add what happens if the partitions are empty --- same as POC. This can be tricky as the size of hte vector in points total
     // may be the max number of elements allowed for that vector type
     // Add a 'throw exception' condition below
@@ -818,7 +818,7 @@ std::vector<mv::Workload> mv::Workloads::workloadSplitHelper(const mv::pass::Pas
         pass.log(mv::Logger::MessageType::Warning, "Inside workload splitter into rectangles. workload parition with zero points can't exist, this should produce invalid workloads");
         return finalWorkloadList;
     }
-    
+
     final1 = mv::Workloads::polygonWorkloadSplit(pass, workload_partition_2, workloads_, mpe_mode);
     finalWorkloadList = mv::Workloads::polygonWorkloadSplit(pass, workload_partition_1, workloads_, mpe_mode);
     finalWorkloadList.insert(finalWorkloadList.end(), final1.begin(), final1.end());
@@ -844,10 +844,10 @@ mv::CostFunctions mv::Workloads::getCostFunction(mv::Element& passDesc, const mv
             costFunction = mv::CostFunctions::MinMaxWorkloads;
         else if (sCostFunction == "greedy")
             costFunction = mv::CostFunctions::Greedy;
-        else 
+        else
             pass.log(mv::Logger::MessageType::Warning, "Could not parse the Cost Function type (only \"balanced | criticalpath | minmax | greedy\" currently supported). Using \"Balanced\"...");
     }
-    else 
+    else
         pass.log(mv::Logger::MessageType::Info, "No Cost Function specified in descriptor, using \"Balanced\"...");
     return costFunction;
 }
@@ -882,12 +882,12 @@ void mv::Workloads::generateExecutionCycles(std::vector<mv::Workloads>& workload
 
     /*For each workload instance*/
     for(auto itWorklaods = workloadsVector.begin(); itWorklaods != workloadsVector.end(); itWorklaods++) {
-        
+
         workloadsExecutionCycles.clear();
-        
+
         /*Calculate the cost for each of the individual workloads (rectangles) */
         for(auto itworkload = itWorklaods->workloads_.begin(); itworkload != itWorklaods->workloads_.end(); ++itworkload) {
-            
+
             std::pair <int,int> mpeMode (4, 4);
 
             if(itworkload->MPEMode != mv::Matrix)
@@ -928,7 +928,7 @@ void mv::Workloads::generateExecutionCycles(std::vector<mv::Workloads>& workload
 
             itWorklaods->executionCycles_ = {-balancing, -balancing};
         }
-        
+
         else if (costFunction == CostFunctions::MinMaxWorkloads)
             itWorklaods->executionCycles_ = {min_range, max_range};
 
@@ -944,9 +944,9 @@ void mv::Workloads::generateExecutionCycles(std::vector<mv::Workloads>& workload
         }
         else
             throw mv::ArgumentError("Generate Workloads Pass", "costFunction", "unknown", "Unsupported cost function");
-        
+
         /*Calculate the mean of execution cycles*/
-        itWorklaods->meanExecutionCycles_ = std::accumulate(itWorklaods->executionCycles_.begin(), itWorklaods->executionCycles_.end(), 0.0) / itWorklaods->executionCycles_.size();  
+        itWorklaods->meanExecutionCycles_ = std::accumulate(itWorklaods->executionCycles_.begin(), itWorklaods->executionCycles_.end(), 0.0) / itWorklaods->executionCycles_.size();
     }
 }
 
@@ -1470,8 +1470,6 @@ int mv::Workloads::partitionTensorWithRectangleHeuristic(const mv::DPUModeList& 
 {
     pass.log(mv::Logger::MessageType::Debug, "RectangleHeuristic: layer=" + layerName_);
 
-    // FIXME: need to know tensor order to find its dimensions: width, height,...
-    // HACK: assume tensor order is "NCHW", so width=shape[0] and height=shape[1]
     unsigned C, H, W, N;
     if (tensorShape_.ndims() < 4) {
         pass.log(mv::Logger::MessageType::Error,
@@ -1576,7 +1574,7 @@ void mv::Workloads::add_xy_offset(std::vector<std::size_t>& offset)
         workload->MaxY = workload->MaxY + offset[IO_HEIGHT_DIMENSION];
         workload->MaxX = workload->MaxX + offset[IO_WIDTH_DIMENSION];
     }
- 
+
 }
 
 void mv::Workloads::populateClusterID(int clusterID)
@@ -1617,8 +1615,8 @@ int mv::Workloads::partitionTensorWithZsplit(const mv::DPUModeList& mode_list, i
 
         workload.MinX = 0;
         workload.MinY = 0;
-        workload.MaxX = W-1; 
-        workload.MaxY = H-1; 
+        workload.MaxX = W-1;
+        workload.MaxY = H-1;
         workload.MinZ = idx*max_channels_per_WL;
         workload.MaxZ = workload.MinZ + output_channels -1;
 
