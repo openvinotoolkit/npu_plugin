@@ -22,496 +22,303 @@
                 "split_strategy" :
                 [
                     {
-                        "name_filter" : ".*",
-                        "cluster_filter" : 0,
-                        "strategy" : "Clustering"
+                        "name_filter": ".*input#.*",
+                        "strategy": "SplitOverHOverlapped"
                     },
                     {
-                        "name_filter" : ".*res2a.*",
-                        "cluster_filter" : 0,
-                        "strategy" : "SplitOverK"
-                    },
-                    {
-                        "name_filter" : ".*res2a_branch2a.*",
-                        "cluster_filter" : 0,
-                        "strategy" : "SplitOverK"
-                    },
-                    {
-                        "name_filter" : ".*res2b.*",
-                        "cluster_filter" : 0,
-                        "strategy" : "SplitOverK"
-                    },
-                    {
-                        "name_filter" : ".*res2c.*",
-                        "cluster_filter" : 0,
-                        "strategy" : "SplitOverH"
-                    },
-                    {
-                        "name_filter" : ".*res3a.*",
-                        "cluster_filter" : 0,
-                        "strategy" : "SplitOverH"
-                    },
-                    {
-                        "name_filter" : ".*res3b.*",
-                        "cluster_filter" : 0,
-                        "strategy" : "SplitOverH"
-                    },
-                    {
-                        "name_filter" : ".*res3c.*",
-                        "cluster_filter" : 0,
-                        "strategy" : "SplitOverH"
-                    },
-                    {
-                        "name_filter" : ".*res3d.*",
-                        "cluster_filter" : 0,
-                        "strategy" : "SplitOverH"
-                    },
-                    {
-                        "name_filter" : ".*mpool.*",
-                        "cluster_filter" : 0,
-                        "strategy" : "SplitOverH"
-                    },
-                    {
-                        "name_filter" : ".*res4a.*",
-                        "cluster_filter" : 0,
-                        "strategy" : "SplitOverH"
-                    },
-                    {
-                        "name_filter" : ".*res4b.*",
-                        "cluster_filter" : 0,
-                        "strategy" : "SplitOverH"
-                    },
-                    {
-                        "name_filter" : ".*res4c.*",
-                        "cluster_filter" : 0,
-                        "strategy" : "SplitOverH"
-                    },
-                    {
-                        "name_filter" : ".*res4d.*",
-                        "cluster_filter" : 0,
-                        "strategy" : "SplitOverH"
-                    },
-                    {
-                        "name_filter" : ".*res4f.*",
-                        "cluster_filter" : 0,
-                        "strategy" : "SplitOverH"
-                    },
-                    {
-                        "name_filter" : ".*res5a.*",
-                        "cluster_filter" : 0,
-                        "strategy" : "SplitOverH"
-                    },
-                    {
-                        "name_filter" : ".*res5b.*",
-                        "cluster_filter" : 0,
-                        "strategy" : "SplitOverH"
-                    },
-                    {
-                        "name_filter" : ".*res5c.*",
-                        "cluster_filter" : 0,
-                        "strategy" : "SplitOverK"
-                    },
-
-                    {
-                        "name_filter" : ".*conv0.*",
-                        "cluster_filter" : 0,
-                        "strategy" : "SplitOverK"
-                    },
-                    {
-                        "name_filter" : ".*pool1.*",
-                        "cluster_filter" : 0,
-                        "strategy" : "SplitOverH"
-                    },
-                    {
-                        "name_filter" : ".*james2x2pool.*",
-                        "cluster_filter" : 0,
-                        "strategy" : "SplitOverH"
-                    },
-                    {
-                        "name_filter" : ".*pool/max_pool#4.*",
-                        "cluster_filter" : 0,
-                        "strategy" : "SplitOverH"
-                    },
-                    {
-                        "name_filter" : ".*pool_1/max_pool#5.*",
-                        "cluster_filter" : 0,
-                        "strategy" : "SplitOverH"
-                    },
-                    {
-                        "name_filter" : ".*ew_1#6.*",
-                        "cluster_filter" : 0,
-                        "strategy" : "SplitOverH"
-                    },
-                    {
-                        "name_filter" : ".*conv3.*",
-                        "cluster_filter" : 0,
-                        "strategy" : "SplitOverK"
-                    },
-                    {
-                        "name_filter" : "input.*" ,
-                        "cluster_filter" : 0,
-                        "strategy": "SplitOverK"
-                    },
-                    {
-                        "name_filter" : "conv/BiasAdd.*" ,
-                        "cluster_filter" : 0,
-                        "strategy": "Clustering"
-                    },
-                    {
-                        "name_filter" : "conv_1/BiasAdd.*" ,
-                        "cluster_filter" : 0,
-                        "strategy": "SplitOverK"
-                    },
-                    {
-                        "name_filter" : "output.*" ,
-                        "cluster_filter" : 0,
-                        "strategy": "SplitOverK"
-                    },
-                    {
-                        "name_filter" :"conv0/Relu.*",
-                        "cluster_filter" : 0,
+                        "name_filter":".*conv1#.*",
                         "strategy": "SplitOverH"
                     },
                     {
-                        "name_filter" : "pool0/MaxPool.*",
-                        "cluster_filter" : 0,
+                        "name_filter":".*pool1/max_pool#.*",
                         "strategy": "SplitOverH"
                     },
                     {
-                        "name_filter" : "group0/block0/conv1/Relu.*",
-                        "cluster_filter" : 0,
+                        "name_filter":".*res2a_branch1#.*",
                         "strategy": "SplitOverH"
                     },
                     {
-                        "name_filter" : "group0/block0/conv2/Relu.*",
-                        "cluster_filter" : 0,
+                        "name_filter":".*res2a_branch2a#.*",
                         "strategy": "SplitOverH"
                     },
                     {
-                        "name_filter" : "group0/block0/conv3/Relu.*",
-                        "cluster_filter" : 0,
+                        "name_filter":".*res2a_branch2b#.*",
                         "strategy": "SplitOverH"
                     },
                     {
-                        "name_filter" : "group0/block0/convshortcut/Relu.*",
-                        "cluster_filter" : 0,
+                        "name_filter":".*res2a_branch2c#.*",
                         "strategy": "SplitOverH"
                     },
                     {
-                        "name_filter" : "group0/block0/add.*",
-                        "cluster_filter" : 0,
+                        "name_filter":".*res2a/Relu#.*",
                         "strategy": "SplitOverH"
                     },
                     {
-                        "name_filter" : "group0/block1/conv1/Relu.*",
-                        "cluster_filter" : 0,
+                        "name_filter":".*res2b_branch2a#.*",
                         "strategy": "SplitOverH"
                     },
                     {
-                        "name_filter" : "group0/block1/conv2/Relu.*",
-                        "cluster_filter" : 0,
+                        "name_filter":".*res2b_branch2b#.*",
                         "strategy": "SplitOverH"
                     },
                     {
-                        "name_filter" : "group0/block1/conv3/Relu.*",
-                        "cluster_filter" : 0,
+                        "name_filter":".*res2b_branch2c#.*",
                         "strategy": "SplitOverH"
                     },
                     {
-                        "name_filter" : "group0/block1/add.*",
-                        "cluster_filter" : 0,
+                        "name_filter":".*res2b/Relu#.*",
                         "strategy": "SplitOverH"
                     },
                     {
-                        "name_filter" : "group0/block2/conv1/Relu.*",
-                        "cluster_filter" : 0,
+                        "name_filter":".*res2c_branch2a#.*",
                         "strategy": "SplitOverH"
                     },
                     {
-                        "name_filter" : "group0/block2/conv2/Relu.*",
-                        "cluster_filter" : 0,
+                        "name_filter":".*res2c_branch2b#.*",
                         "strategy": "SplitOverH"
                     },
                     {
-                        "name_filter" : "group0/block2/conv3/Relu.*",
-                        "cluster_filter" : 0,
+                        "name_filter":".*res2c_branch2c#.*",
                         "strategy": "SplitOverH"
                     },
                     {
-                        "name_filter" : "group0/block2/add.*",
-                        "cluster_filter" : 0,
+                        "name_filter":".*res2c/Relu#.*",
                         "strategy": "SplitOverH"
                     },
                     {
-                        "name_filter" : "group1/block0/conv1/Relu.*",
-                        "cluster_filter" : 0,
+                        "name_filter":".*res3a_branch1#.*",
                         "strategy": "SplitOverH"
                     },
                     {
-                        "name_filter" : "group1/block0/conv2/Relu.*",
-                        "cluster_filter" : 0,
+                        "name_filter":".*res3a_branch2a#.*",
                         "strategy": "SplitOverH"
                     },
                     {
-                        "name_filter" : "group1/block0/conv3/Relu.*",
-                        "cluster_filter" : 0,
+                        "name_filter":".*res3a_branch2b#.*",
                         "strategy": "SplitOverH"
                     },
                     {
-                        "name_filter" : "group1/block0/convshortcut/Relu.*",
-                        "cluster_filter" : 0,
+                        "name_filter":".*res3a_branch2c#.*",
                         "strategy": "SplitOverH"
                     },
                     {
-                        "name_filter" : "group1/block0/add.*",
-                        "cluster_filter" : 0,
+                        "name_filter":".*res3a/Relu#.*",
                         "strategy": "SplitOverH"
                     },
                     {
-                        "name_filter" : "group1/block1/conv1/Relu.*",
-                        "cluster_filter" : 0,
+                        "name_filter":".*res3b_branch2a#.*",
                         "strategy": "SplitOverH"
                     },
                     {
-                        "name_filter" : "group1/block1/conv2/Relu.*",
-                        "cluster_filter" : 0,
+                        "name_filter":".*res3b_branch2b#.*",
                         "strategy": "SplitOverH"
                     },
                     {
-                        "name_filter" : "group1/block1/conv3/Relu.*",
-                        "cluster_filter" : 0,
+                        "name_filter":".*res3b_branch2c#.*",
                         "strategy": "SplitOverH"
                     },
                     {
-                        "name_filter" : "group1/block1/add.*",
-                        "cluster_filter" : 0,
+                        "name_filter":".*res3b/Relu#.*",
                         "strategy": "SplitOverH"
                     },
                     {
-                        "name_filter" : "group1/block2/conv1/Relu.*",
-                        "cluster_filter" : 0,
+                        "name_filter":".*res3c_branch2a#.*",
                         "strategy": "SplitOverH"
                     },
                     {
-                        "name_filter" : "group1/block2/conv2/Relu.*",
-                        "cluster_filter" : 0,
+                        "name_filter":".*res3c_branch2b#.*",
                         "strategy": "SplitOverH"
                     },
                     {
-                        "name_filter" : "group1/block2/conv3/Relu.*",
-                        "cluster_filter" : 0,
+                        "name_filter":".*res3c_branch2c#.*",
                         "strategy": "SplitOverH"
                     },
                     {
-                        "name_filter" : "group1/block2/add.*",
-                        "cluster_filter" : 0,
+                        "name_filter":".*res3c/Relu#.*",
                         "strategy": "SplitOverH"
                     },
                     {
-                        "name_filter" : "group1/block3/conv1/Relu.*",
-                        "cluster_filter" : 0,
+                        "name_filter":".*res3d_branch2a#.*",
                         "strategy": "SplitOverH"
                     },
                     {
-                        "name_filter" : "group1/block3/conv2/Relu.*",
-                        "cluster_filter" : 0,
+                        "name_filter":".*res3d_branch2b#.*",
                         "strategy": "SplitOverH"
                     },
                     {
-                        "name_filter" : "group1/block3/conv3/Relu.*",
-                        "cluster_filter" : 0,
+                        "name_filter":".*res3d_branch2c#.*",
                         "strategy": "SplitOverH"
                     },
                     {
-                        "name_filter" : "group1/block3/add.*",
-                        "cluster_filter" : 0,
+                        "name_filter": ".*res3d/Relu#.*",
                         "strategy": "HKSwitch"
                     },
                     {
-                        "name_filter" : "group2/block0/conv1/Relu.*",
-                        "cluster_filter" : 0,
+                        "name_filter":".*res4a_branch1#.*",
                         "strategy": "SplitOverK"
                     },
                     {
-                        "name_filter" : "group2/block0/conv2/Relu.*",
-                        "cluster_filter" : 0,
+                        "name_filter":".*res4a_branch2a#.*",
                         "strategy": "SplitOverK"
                     },
                     {
-                        "name_filter":"input.*",
-                        "strategy": "SplitOverHOverlapped",
-                        "cluster_filter": 0
+                        "name_filter":".*res4a_branch2b#.*",
+                        "strategy": "SplitOverK"
                     },
                     {
-                        "name_filter":"res2a_branch1.*",
-                        "strategy": "SplitOverH",
-                        "cluster_filter": 0
+                        "name_filter":".*res4a_branch2c#.*",
+                        "strategy": "SplitOverK"
                     },
                     {
-                        "name_filter":"res2a_branch2a.*",
-                        "strategy": "SplitOverH",
-                        "cluster_filter": 0
+                        "name_filter":".*res4a/Relu#.*",
+                        "strategy": "Clustering"
                     },
                     {
-                        "name_filter":"res2a_branch2b.*",
-                        "strategy": "SplitOverH",
-                        "cluster_filter": 0
+                        "name_filter":".*res4b_branch2a#.*",
+                        "strategy": "SplitOverK"
                     },
                     {
-                        "name_filter":"res2a_branch2c.*",
-                        "strategy": "SplitOverH",
-                        "cluster_filter": 0
+                        "name_filter":".*res4b_branch2b#.*",
+                        "strategy": "SplitOverK"
                     },
                     {
-                        "name_filter":"res2a/FakeQuantWithMinMaxArgs.*",
-                        "strategy": "SplitOverH",
-                        "cluster_filter": 0
+                        "name_filter":".*res4b_branch2c#.*",
+                        "strategy": "SplitOverK"
                     },
                     {
-                        "name_filter":"output.*",
-                        "strategy": "Clustering",
-                        "cluster_filter": 0
+                        "name_filter":".*res4b/Relu#.*",
+                        "strategy": "Clustering"
                     },
                     {
-                        "name_filter":"input.*",
-                        "strategy": "Clustering",
-                        "cluster_filter": 0
+                        "name_filter":".*res4c_branch2a#.*",
+                        "strategy": "SplitOverK"
                     },
                     {
-                        "name_filter" : "pool/max_pool.*",
-                        "strategy": "SplitOverH",
-                        "cluster_filter": 0
+                        "name_filter":".*res4c_branch2b#.*",
+                        "strategy": "SplitOverK"
                     },
                     {
-                        "name_filter" : "pool_1/max_pool.*",
-                        "strategy": "SplitOverH",
-                        "cluster_filter": 0
+                        "name_filter":".*res4c_branch2c#.*",
+                        "strategy": "SplitOverK"
                     },
                     {
-                        "name_filter" : "ew_1#.*",
-                        "strategy": "SplitOverH",
-                        "cluster_filter": 0
+                        "name_filter":".*res4c/Relu#.*",
+                        "strategy": "Clustering"
+                    },
+                    {
+                        "name_filter":".*res4d_branch2a#.*",
+                        "strategy": "SplitOverK"
+                    },
+                    {
+                        "name_filter":".*res4d_branch2b#.*",
+                        "strategy": "SplitOverK"
+                    },
+                    {
+                        "name_filter":".*res4d_branch2c#.*",
+                        "strategy": "SplitOverK"
+                    },
+                    {
+                        "name_filter":".*res4d/Relu#.*",
+                        "strategy": "Clustering"
+                    },
+                    {
+                        "name_filter":".*res4e_branch2a#.*",
+                        "strategy": "SplitOverK"
+                    },
+                    {
+                        "name_filter":".*res4e_branch2b#.*",
+                        "strategy": "SplitOverK"
+                    },
+                    {
+                        "name_filter":".*res4e_branch2c#.*",
+                        "strategy": "SplitOverK"
+                    },
+                    {
+                        "name_filter":".*res4e/Relu#.*",
+                        "strategy": "Clustering"
+                    },
+                    {
+                        "name_filter":".*res4f_branch2a#.*",
+                        "strategy": "SplitOverK"
+                    },
+                    {
+                        "name_filter":".*res4f_branch2b#.*",
+                        "strategy": "SplitOverK"
+                    },
+                    {
+                        "name_filter":".*res4f_branch2c#.*",
+                        "strategy": "SplitOverK"
+                    },
+                    {
+                        "name_filter":".*res4f/Relu#.*",
+                        "strategy": "Clustering"
+                    },
+                    {
+                        "name_filter":".*res5a_branch1#.*",
+                        "strategy": "SplitOverK"
+                    },
+                    {
+                        "name_filter":".*res5a_branch2a#.*",
+                        "strategy": "SplitOverK"
+                    },
+                    {
+                        "name_filter":".*res5a_branch2b#.*",
+                        "strategy": "SplitOverK"
+                    },
+                    {
+                        "name_filter":".*res5a_branch2c#.*",
+                        "strategy": "SplitOverK"
+                    },
+                    {
+                        "name_filter":".*res5a/Relu#.*",
+                        "strategy": "Clustering"
+                    },
+                    {
+                        "name_filter":".*res5b_branch2a#.*",
+                        "strategy": "SplitOverK"
+                    },
+                    {
+                        "name_filter":".*res5b_branch2b#.*",
+                        "strategy": "SplitOverK"
+                    },
+                    {
+                        "name_filter":".*res5b_branch2c#.*",
+                        "strategy": "SplitOverK"
+                    },
+                    {
+                        "name_filter":".*res5b/Relu#.*",
+                        "strategy": "Clustering"
+                    },
+                    {
+                        "name_filter":".*res5c_branch2a#.*",
+                        "strategy": "SplitOverK"
+                    },
+                    {
+                        "name_filter":".*res5c_branch2b#.*",
+                        "strategy": "SplitOverK"
+                    },
+                    {
+                        "name_filter":".*res5c_branch2c#.*",
+                        "strategy": "SplitOverK"
+                    },
+                    {
+                        "name_filter":".*res5c/Relu#.*",
+                        "strategy": "Clustering"
+                    },
+                    {
+                        "name_filter":".*pool5/AvgPool#.*",
+                        "strategy": "SplitOverK"
+                    },
+                    {
+                        "name_filter":".*fc1000/fc1000#.*",
+                        "strategy": "SplitOverK"
+                    },
+                    {
+                        "name_filter":".*output#.*",
+                        "strategy": "SplitOverK"
                     }
                 ],
-                "default_tensor_placement" : "CMX",
-                "address_helper_addresses" :
-                [
-                    {
-                        "name_filter" : "conv/BiasAdd#7_copyIn_0:0",
-                        "address" : 35776
-                    },
-                    {
-                        "name_filter" : "conv/BiasAdd#7:0",
-                        "address" : 0
-                    },
-                    {
-                        "name_filter" : "conv/BiasAdd_weights#1_DDR2CMX:0",
-                        "address" : 40384
-                    },
-                    {
-                        "name_filter" : "conv/BiasAdd_weights#1_DDR2CMX:0_sm_DDR2CMX:0",
-                        "address" : 41840
-                    },
-                    {
-                        "name_filter" : "conv/BiasAdd#7_weights_table_DDR2CMX:0",
-                        "address" : 42432
-                    },
-                    {
-                        "name_filter" : "output#8:0",
-                        "address" : 35776
-                    },
-                    {
-                        "name_filter" : "output_weights#4_DDR2CMX:0",
-                        "address" : 10944
-                    },
-                    {
-                        "name_filter" : "output_weights#4_DDR2CMX:0_sm_DDR2CMX:0",
-                        "address" : 29632
-                    },
-                    {
-                        "name_filter" : "output#8_weights_table_DDR2CMX:0",
-                        "address" : 34752
-                    }
-                ],
-                "schedule_helper_indices" :
-                [
-                    {
-                        "name_filter" : "conv/BiasAdd_weights#1_DDR2CMX",
-                        "index" : 0
-                    },
-                    {
-                        "name_filter" : "conv/BiasAdd_weights#1_DDR2CMX:0_sm_DDR2CMX",
-                        "index" : 1
-                    },
-                    {
-                        "name_filter" : "conv/BiasAdd#7_weights_table_DDR2CMX",
-                        "index" : 2
-                    },
-                    {
-                        "name_filter" : "conv/BiasAdd#7_copyIn_0",
-                        "index" : 3
-                    },
-                    {
-                        "name_filter" : "conv/BiasAdd#7",
-                        "index" : 4
-                    },
-
-                    {
-                        "name_filter" : "output_weights#4_DDR2CMX",
-                        "index" : 5
-                    },
-                    {
-                        "name_filter" : "output_weights#4_DDR2CMX:0_sm_DDR2CMX",
-                        "index" : 6
-                    },
-                    {
-                        "name_filter" : "output#8_weights_table_DDR2CMX",
-                        "index" : 7
-                    },
-                    {
-                        "name_filter" : "output#8",
-                        "index" : 8
-                    },
-                    {
-                        "name_filter" : "output#8_copyOut",
-                        "index" : 9
-                    }
-                ],
-                "graphfile_index_helper_addresses":
-                [
-                    {
-                        "name_filter" : "conv/BiasAdd_weights#1:0",
-                        "address" : 0
-                    },
-                    {
-                        "name_filter" : "conv/BiasAdd_weights#1_DDR2CMX:0_sm:0",
-                        "address" : 1
-                    },
-                    {
-                        "name_filter" : "conv/BiasAdd#7_weights_table:0",
-                        "address" : 2
-                    },
-                    {
-                        "name_filter" : "output_weights#4:0",
-                        "address" : 3
-                    },
-                    {
-                        "name_filter" : "output_weights#4_DDR2CMX:0_sm:0",
-                        "address" : 4
-                    },
-                    {
-                        "name_filter" : "output#8_weights_table:0",
-                        "address" : 5
-                    }
-                ],
-                "streaming_strategy" :
-                [
-                    {
-                        "name_filter" : "conv0/Relu#181",
-                        "output_location" : "CMX",
-                        "splits" : [ {"H" : 2} ]
-                    }
-                ]
+                "default_tensor_placement" : "CMX"
             },
             "ComputeMemory",
             "AssignUniqueOpId",
