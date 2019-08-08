@@ -21,7 +21,9 @@ FYI..Metis can be found at the following link:
 http://glaros.dtc.umn.edu/gkhome/fetch/sw/metis/metis-5.1.0.tar.gz
 To build METIS, follow the instructions in the file metis-5.1.0/Install.txt. 
 
-Python Composition API bridge requires usage of `numpy` version 1.16.4.
+#### Python CompositionAPI requirements
+- numpy 1.16.4
+- tensorflow 1.13.1
 
 ## Building
 ```
