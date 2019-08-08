@@ -606,7 +606,7 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildBarrierTaskT(C
     controllerTask->task.value = barrierConfigurationTask;
     toReturn[0]->task.value = controllerTask;
 
-   return toReturn;
+    return toReturn;
 }
 
 std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildSpecificTaskUnion(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt)
@@ -651,8 +651,8 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildSpecificTaskUn
         else
             toBuild = buildNCE2TaskT(cm, compilationDescriptor, opIt, splitting);
     }
-    else if(taskType == "NNTensorTask")
-        toBuild = buildNNTensorTaskT(cm, compilationDescriptor, opIt);
+    else if(taskType == "UPALayerTask")
+        toBuild = buildUPALayerTask(cm, compilationDescriptor, opIt);
     else if(taskType == "ControllerTask")
         toBuild = buildControllerTaskT(cm, compilationDescriptor, opIt);
     else if(taskType == "BarrierTask")
@@ -1392,12 +1392,34 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNCE2TaskT(Comp
     return toReturn;
 }
 
-std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNTensorTaskT(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt)
+MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPASoftmaxTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt)
 {
-    UNUSED(cm);
-    UNUSED(compilationDescriptor);
-    UNUSED(opIt);
+    auto input = opIt->getInputTensor(0);
+    auto output = opIt->getOutputTensor(0);
+    auto toBuild = new MVCNN::UPALayerTaskT();
+    //toBuild->maxShaves = ;
+    toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_SoftmaxParams;
+    auto softLayerParamsValue = new MVCNN::SoftmaxParamsT();
+    //softLayerParamsValue->axis = //TODO: get the AXIS correctly
+    toBuild->softLayerParams.value = softLayerParamsValue;
+    toBuild->input_data = buildTensorReferenceT(cm, compilationDescriptor, input);
+    toBuild->output_data = buildTensorReferenceT(cm, compilationDescriptor, output);
+    return toBuild;
+}
+
+// For now 1:1 mapping
+std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildUPALayerTask(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt)
+{
     std::vector<std::unique_ptr<MVCNN::TaskT>> toReturn = std::vector<std::unique_ptr<MVCNN::TaskT>>(1);
+
+    toReturn[0] = std::unique_ptr<MVCNN::TaskT>(new MVCNN::TaskT());
+    toReturn[0]->task.type = MVCNN::SpecificTask_UPALayerTask;
+
+    std::string underlyingTask = opIt->get<std::string>("taskOp");
+    if(underlyingTask == "Softmax")
+        toReturn[0]->task.value = buildUPASoftmaxTask(cm, compilationDescriptor, opIt);
+    // TODO: Add other UPA layers
+
     return toReturn;
 }
 
