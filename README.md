@@ -21,6 +21,8 @@ FYI..Metis can be found at the following link:
 http://glaros.dtc.umn.edu/gkhome/fetch/sw/metis/metis-5.1.0.tar.gz
 To build METIS, follow the instructions in the file metis-5.1.0/Install.txt. 
 
+Python Composition API bridge requires usage of `numpy` version 1.16.4.
+
 ## Building
 ```
 git clone --recursive https://github.com/movidius/mcmCompiler.git
@@ -36,3 +38,12 @@ cd mcmCompiler
 cd build/examples
 ./cm_resnet50
 ```
+## Troubleshooting
+
+#### Thrown `terminate called after throwing an instance of 'std::logic_error' what():  basic_string::_M_construct null not valid` during the execution of compilation
+
+Missing `MCM_HOME` environment variable, it must be always set.
+
+#### Thrown `OverflowError: in method 'conv2D', argument 6 of type 'unsigned short'` in the Python CompositionAPI bridge
+
+Invalid numpy version, must be 1.16.4
