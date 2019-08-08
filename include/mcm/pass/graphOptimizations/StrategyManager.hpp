@@ -19,10 +19,15 @@ public:
     using StrategySet       = unordered_map<string,Attribute>;
     using LayerStrategySet  = unordered_map<string,StrategySet>;
 
+    using MetaGraph = mv::graph<std::tuple<mv::Op&,StrategySet,int>,std::pair<double, vector<StrategySet>>>;
     using OptimizationGraph = mv::graph<std::tuple<mv::Op&,StrategySet,int>,double>;
     using CriticalEdges = std::vector<OptimizationGraph::edge_list_iterator>;
     using CriticalPair = std::pair<OptimizationGraph,CriticalEdges>;
     using OptimizationPair = std::pair<OptimizationGraph,vector<CriticalEdges>>;
+
+    using OptGraphNode = OptimizationGraph::node_list_iterator;
+    using MetaGraphEdge = std::pair<double, vector<StrategySet>>;
+    using CriticalInfo = std::tuple<OptGraphNode, OptGraphNode, MetaGraphEdge>;
     
     GlobalSetting globalConfig_;
     GlobalSetting globalStrategies_;
@@ -40,11 +45,10 @@ public:
     void printStrategy();
 
     void saveStrategy(std::vector<graph<std::tuple<mv::Op&,StrategySet,int>,double>::edge_list_iterator> cPathEdges);
-    void saveStrategyGraph(std::pair<mv::graph<std::tuple<mv::Op&,StrategySet,int>,double>,CriticalEdges> cPathEdges);
+    void saveMetaStrategy(std::vector<MetaGraph::edge_list_iterator> cPathEdges);
     void linearDijkstra(mv::Data::OpListIterator opBegin);
     void recursiveDijkstra(mv::Data::OpListIterator opBegin);
-    std::pair<std::vector<StrategyManager::OptimizationPair>, StrategyManager::StrategySet> recursiveCriticalPath
-                        (typename graph<mv::Op, mv::DataFlow>::node_list_iterator modelSource, std::unordered_set<std::string>& recursedNodes);
+    void recursiveCriticalPath(typename graph<mv::Op, mv::DataFlow>::node_list_iterator modelSource, std::unordered_set<std::string>& recursedNodes, MetaGraph& metaGraph);
 
     void writeDot(mv::graph<std::tuple<mv::Op&,StrategySet,int>,double>& optimizationGraph,bool skipInf);
 
