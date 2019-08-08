@@ -28,7 +28,8 @@ add_custom_target(build_vpusmm
         WORKING_DIRECTORY ${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/thirdparty/vsi_cmodel/vsi_cmodel/vpusmm
         COMMAND rm -rf ${CMAKE_CURRENT_SOURCE_DIR}/include ${CMAKE_CURRENT_SOURCE_DIR}/lib
         COMMAND $(MAKE) ${KEY}
-        COMMAND $(MAKE) DESTDIR=${CMAKE_CURRENT_SOURCE_DIR} PREFIX="" install ${KEY})
+        COMMAND $(MAKE) DESTDIR=${CMAKE_CURRENT_SOURCE_DIR} PREFIX="" install ${KEY}
+        COMMAND if [ ! -e "${CMAKE_CURRENT_SOURCE_DIR}/lib/libvpusmm.so.1" ]\; then ln -s "${CMAKE_CURRENT_SOURCE_DIR}/lib/libvpusmm.so.1.0.0" "${CMAKE_CURRENT_SOURCE_DIR}/lib/libvpusmm.so.1"\; fi )
 
 add_library(vpusmm SHARED IMPORTED GLOBAL)
 
