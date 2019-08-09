@@ -119,13 +119,13 @@ void KmbExecutor::allocateGraph(const std::vector<char> &graphFileContent, const
 
 #ifdef ENABLE_VPUAL
     initVpualObjects();
-    int graphId_main = 1;
+    static int graphId_main = 1;
     int nThreads = 4;
     int nShaves = 16;
 
     std::cout << "Initiating verification of use case 1" << std::endl;
 
-    BHandle->graphid = graphId_main;
+    BHandle->graphid = graphId_main++;
     BHandle->graphBuff = 0x00000000;
     BHandle->graphLen = graphFileContent.size();
     BHandle->refCount = 0;
@@ -153,7 +153,7 @@ void KmbExecutor::allocateGraph(const std::vector<char> &graphFileContent, const
 
     gg->Create();
 
-    GraphStatus status = gg->NNGraphCheckAvailable(graphId_main);
+    GraphStatus status = gg->NNGraphCheckAvailable(BHandle->graphid);
     if (Success == status) {
         std::cout << "Blob available!" << std::endl;
         status = gg->NNGraphAllocateExistingBlob(BHandle.get());
