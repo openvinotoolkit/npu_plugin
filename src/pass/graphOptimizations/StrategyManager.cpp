@@ -470,7 +470,7 @@ void StrategyManager::recursiveDijkstra(mv::Data::OpListIterator opBegin)
             sinks.push_back(it);
         }
     }
-    cout << "found " << sources.size() << "sources and " << sinks.size() << " sinks" <<endl;
+    cout << "found " << sources.size() << " sources and " << sinks.size() << " sinks" <<endl;
     map<typename MetaGraph::edge_list_iterator, double, costEdgeIteratorComp> edgeCostMap;
     //build edge cost map needed to call dijkstra
     for (auto it = metaGraph.edge_begin(); it != metaGraph.edge_end(); ++it){
@@ -524,7 +524,8 @@ void StrategyManager::recursiveCriticalPath(typename graph<mv::Op, mv::DataFlow>
     vector<vector<CriticalInfo>> parallelLinearSections;
     vector<CriticalInfo> parallelLinearSection;
     vector<OptimizationGraph> allOptimizationGraphs;
-    vector<vector<OptimizationGraph::node_list_iterator>> all_first_nodes, all_last_nodes;
+    //vector<vector<OptimizationGraph::node_list_iterator>> all_first_nodes, all_last_nodes;
+    vector<OptimizationGraph::node_list_iterator> first_nodes, last_nodes;
     
     mv::graph<mv::Op, mv::DataFlow> g;
     vector<typename graph<mv::Op, mv::DataFlow>::node_list_iterator> next_modelSource;
@@ -545,8 +546,9 @@ void StrategyManager::recursiveCriticalPath(typename graph<mv::Op, mv::DataFlow>
          //Create the subgraph to pass to dijkstra, build iteratively until hit next pivot node
         OptimizationGraph optimizationGraph;
         vector<vector<StrategySet>> nodeStrategies;
-        vector<OptimizationGraph::node_list_iterator> old_nodes, new_nodes, first_nodes, last_nodes;
-
+        vector<OptimizationGraph::node_list_iterator> old_nodes, new_nodes;
+        first_nodes.clear();
+        last_nodes.clear();
         old_nodes.clear();
 
         map<typename OptimizationGraph::edge_list_iterator, double, costEdgeIteratorComp> edgeCostMap;
@@ -638,9 +640,9 @@ void StrategyManager::recursiveCriticalPath(typename graph<mv::Op, mv::DataFlow>
         for (int ii=0; ii<optimizationGraph.node_size()-1; ii++) ++sinkNodeIt;
 
         //Critical Path is node iter source, node iter sink, vector of edge iters critical path, double edge cost sum
-        //cout << "Found starting and endings nodes: " << first_nodes.size() << ", " << last_nodes.size() << endl;
-        all_first_nodes.push_back(first_nodes);
-        all_last_nodes.push_back(last_nodes);
+        cout << "Found Branch starting and endings nodes: " << first_nodes.size() << ", " << last_nodes.size() << endl;
+       // all_first_nodes.push_back(first_nodes);
+        //all_last_nodes.push_back(last_nodes);
         for(auto startingNode : first_nodes){
             for( auto endingNode : last_nodes)
             {
@@ -665,59 +667,83 @@ void StrategyManager::recursiveCriticalPath(typename graph<mv::Op, mv::DataFlow>
 
     //If child counter is 1, we were in a linear section, just add the subgraph to the big graph and move on
     if(childCtr == 1){
-        vector<CriticalInfo> linearSection = parallelLinearSections[0]; //Vector of Critical Info, add this to the metagraph
-        for(CriticalInfo critInfo : linearSection){
-            MetaGraph::node_list_iterator source, sink;
-            if(metaGraph.node_size() == 0 ){
-                source = metaGraph.node_insert(*get<0>(critInfo));
-                sink = metaGraph.node_insert(*get<1>(critInfo));
-            }else {
-                source = metaGraph.node_find(*get<0>(critInfo));
-                if(source == metaGraph.node_end()){ //source node does not exist in metaGraph add it
-                    source = metaGraph.node_insert(*get<0>(critInfo));
+        vector<MetaGraph::node_list_iterator> sources, sinks;
+        
+        if(metaGraph.node_size() == 0 ){ //Add the very first nodes, first time through
+            for(auto source : first_nodes){
+                sources.push_back(metaGraph.node_insert(*source));
+            }
+        }
+        else{
+            for(auto source : first_nodes){ //should be able to find all the sources, since they were previously a sink
+                bool found = false;
+                for(auto iter = metaGraph.node_begin(); iter != metaGraph.node_end() && !found; ++iter){
+                    if(get<0>(*iter).getName() == get<0>(*source).getName() && get<1>(*iter) == get<1>(*source)){
+                        sources.push_back(iter);
+                        found = true;
+                    }
                 }
-                sink = metaGraph.node_find(*get<1>(critInfo));
-                if(sink == metaGraph.node_end()){ //sink node does not exist in metaGraph add it
-                    sink = metaGraph.node_insert(*get<1>(critInfo));
+                if(!found){
+                    cout << "ERROR : Source should already exist" << endl;
                 }
             }
-            double cost = get<2>(critInfo).first;
-            vector<StrategySet> strategies = get<2>(critInfo).second;
-            metaGraph.edge_insert(source, sink, MetaGraphEdge(cost, strategies));
+        }
+        for(auto sink : last_nodes){
+            sinks.push_back(metaGraph.node_insert(*sink));
+        }
+              cout << "  Found Linear sources and sinks: " << sources.size() << ", " << sinks.size() << endl;
+        vector<CriticalInfo> linearSection = parallelLinearSections[0]; //Vector of Critical Info, add this to the metagraph
+        for(int source = 0; source < sources.size(); source++){
+            for(int sink = 0; sink < sinks.size(); sink++){
+                CriticalInfo critInfo = linearSection[source*sink];
+                double cost = get<2>(critInfo).first;
+                vector<StrategySet> strategies = get<2>(critInfo).second;
+                metaGraph.edge_insert(sources[source], sinks[sink], MetaGraphEdge(cost, strategies));
+                cout << "  Adding metagraph edge with cost " << cost << endl;
+            }
         }
     }
     //If child counter is greater than 1, we were in a parallel section and add the sum of all relevant edges to a new meta subgraph and add that subgraph to the big graph
    if(childCtr > 1){
-        //need to create as many edges as we have unique source to sink pairs, don't overwrite an edge - update it.
-        //need to connect these edges to already existing nodes from previous linear branches
-        vector<CriticalInfo> linearSection = parallelLinearSections[0];
-
-        for(int infoIdx  = 0; infoIdx < linearSection.size(); infoIdx++){ //assume all branches have same input and output nodes with same strategies
-            CriticalInfo critInfo = linearSection[infoIdx];
-            MetaGraph::node_list_iterator source, sink;
-            if(metaGraph.node_size() == 0 ){
-                source = metaGraph.node_insert(*get<0>(critInfo));
-                sink = metaGraph.node_insert(*get<1>(critInfo));
-            }else {
-                source = metaGraph.node_find(*get<0>(critInfo));
-                if(source == metaGraph.node_end()){ //source node does not exist in metaGraph add it
-                    source = metaGraph.node_insert(*get<0>(critInfo));
+        vector<MetaGraph::node_list_iterator> sources, sinks;
+        
+        if(metaGraph.node_size() == 0 ){ //If we start with a parallel branch, make sure the first nodes are still added
+            for(auto source : first_nodes){
+                sources.push_back(metaGraph.node_insert(*source));
+            }
+        }
+        else{
+            for(auto source : first_nodes){ //should be able to find all the sources, since they were previously a sink
+                bool found = false;
+                for(auto iter = metaGraph.node_begin(); iter != metaGraph.node_end() && !found; ++iter){
+                    if(get<0>(*iter).getName() == get<0>(*source).getName() && get<1>(*iter) == get<1>(*source)){
+                        sources.push_back(iter);
+                        found = true;
+                    }
                 }
-                sink = metaGraph.node_find(*get<1>(critInfo));
-                if(sink == metaGraph.node_end()){ //sink node does not exist in metaGraph add it
-                    sink = metaGraph.node_insert(*get<1>(critInfo));
+                if(!found){
+                    cout << "ERROR : Source should already exist" << endl;
                 }
             }
+        }
+        for(auto sink : last_nodes){
+            sinks.push_back(metaGraph.node_insert(*sink));
+        }
+        cout << "  Found Parallel sources and sinks: " << sources.size() << ", " << sinks.size() << endl;
 
-            double cost = 0;
-            vector<StrategySet> strategies;
-            for(int sectionIdx = 0; sectionIdx < parallelLinearSection.size(); sectionIdx++){
-                CriticalInfo ci = parallelLinearSections[sectionIdx][infoIdx];
-                cost += get<2>(ci).first;
-                for(auto strategy :  get<2>(ci).second)
-                    strategies.push_back(strategy);
+        for(int source = 0; source < sources.size(); source++){
+            for(int sink = 0; sink < sinks.size(); sink++){
+                double cost = 0;
+                vector<StrategySet> strategies;
+                for(int sectionIdx = 0; sectionIdx < parallelLinearSection.size(); sectionIdx++){
+                    CriticalInfo ci = parallelLinearSections[sectionIdx][source*sink];
+                    cost += get<2>(ci).first;
+                    for(auto strategy :  get<2>(ci).second)
+                        strategies.push_back(strategy);
+                }
+                metaGraph.edge_insert(sources[source], sinks[sink], MetaGraphEdge(cost, strategies));
+                cout << "  Adding metagraph edge with cost " << cost << endl;
             }
-            metaGraph.edge_insert(source, sink, MetaGraphEdge(cost, strategies));
         }
     }  
     for(auto source : next_modelSource)

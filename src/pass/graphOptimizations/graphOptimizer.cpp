@@ -614,7 +614,7 @@ public:
 //        {
 //            streamingStrategyPool = createStrategyPoolFromStrategySet(op,"streamingStrategies");
 //        }
-        cout<<"adding strategy for " << op.getName() << endl;
+       // cout<<"adding strategy for " << op.getName() << endl;
 //        auto func = std::bind(createStrategy,op,strategyVec,_1,_2,_3,_4);
 //        applyDescartes(func,sparsityPool,doubleBufferPool,spillingPool,clusteringStrategyPool);
 
@@ -647,9 +647,9 @@ public:
                             if ((maxSplitOverH%2)!= 0) maxSplitOverH= roundUp(maxSplitOverH,2);
                         }
 
-                        cout<<"hasStreamH " << hasStreamOverH << " k " << hasStreamOverK << endl;
-                        cout<<"\tclusterMem " << clusterMemory << " ceil " << ceil((double)activationsSize/(double)clusterMemory) << endl;
-                        cout<<"\tmaxMem " << activationsSize << " maxSplitH " << maxSplitOverH << endl;
+                       // cout<<"hasStreamH " << hasStreamOverH << " k " << hasStreamOverK << endl;
+                       // cout<<"\tclusterMem " << clusterMemory << " ceil " << ceil((double)activationsSize/(double)clusterMemory) << endl;
+                       // cout<<"\tmaxMem " << activationsSize << " maxSplitH " << maxSplitOverH << endl;
 
                         vector<size_t> streamsOverK;
                         if(hasStreamOverK)
@@ -659,7 +659,7 @@ public:
 
                         for(const auto k : streamsOverK)
                         {
-                            cout<<"\tStrK: " << k << endl;
+                           // cout<<"\tStrK: " << k << endl;
                             for(unsigned h = 1; h <= maxSplitOverH; h++)
                             {
                                 //TODO: these are very fast hacks. Delete after we can allow nested streams and
@@ -668,7 +668,7 @@ public:
                                     continue;
                                 if( (h>1) and (k>1))
                                     continue;
-                                cout<<"\tStrH: " << h << endl;
+                               // cout<<"\tStrH: " << h << endl;
                                 Shape streamShape({1,h,1,k});//Stream over W and C are 1 for now . TODO: implement stream W/C
                                 StrategySet s;
                                 s["name"] = op.getName();
