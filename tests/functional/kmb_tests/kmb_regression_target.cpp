@@ -494,6 +494,23 @@ static void setPreprocForInputBlob(const std::string &inputName,
     ASSERT_NO_THROW(inferRequest.SetBlob(inputName, inputBlob));
 }
 
+Blob::Ptr dequantize(float begin, float end, const Blob::Ptr &quantBlob) {
+    float step = (begin - end)/256;
+    const TensorDesc quantTensor = quantBlob->getTensorDesc();
+    Blob::Ptr outputBlob = make_blob_with_precision(TensorDesc(
+        InferenceEngine::Precision::FP32,
+        quantTensor.getDims(),
+        quantTensor.getLayout()));
+    outputBlob->allocate();
+    const uint8_t *quantRaw = quantBlob->cbuffer().as<const uint8_t *>();
+    float *outRaw = outputBlob->buffer().as<float *>();
+
+    for (size_t pos = 0; pos < quantBlob->byteSize(); pos++) {
+        outRaw[pos] = begin + quantRaw[pos] * step;
+    }
+    return outputBlob;
+}
+
 TEST_P(VpuPreprocessingTestsWithParam, DISABLED_importWithPreprocessing) {  // To be run in manual mode when device is available
     preprocessingType preprocType = GetParam();
     std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet/mobilenet.blob";
@@ -523,6 +540,30 @@ TEST_P(VpuPreprocessingTestsWithParam, DISABLED_importWithPreprocessing) {  // T
     }
 
     ASSERT_NO_THROW(inferRequest.Infer());
+
+    ConstOutputsDataMap outputInfo;
+    outputInfo = importedNetwork.GetOutputsInfo();
+
+    std::string referenceOutputFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet/output.dat";
+    for (auto & item : outputInfo) {
+        Blob::Ptr outputBlob;
+        outputBlob = inferRequest.GetBlob(item.first.c_str());
+
+        TensorDesc outputBlobTensorDesc = outputBlob->getTensorDesc();
+        Blob::Ptr referenceOutputBlob = make_blob_with_precision(TensorDesc(
+            outputBlobTensorDesc.getPrecision(),
+            outputBlobTensorDesc.getDims(),
+            outputBlobTensorDesc.getLayout()));
+        referenceOutputBlob->allocate();
+
+        ASSERT_TRUE(fromBinaryFile(referenceOutputFilePath, referenceOutputBlob));
+
+        float rangeStart = -31.364717483520508;
+        float rangeEnd = 2.2403368949890137;
+        Blob::Ptr dequantRef = dequantize(rangeStart, rangeEnd, referenceOutputBlob);
+        Blob::Ptr dequantOut = dequantize(rangeStart, rangeEnd, outputBlob);
+        Compare(dequantRef, dequantOut, 0.125f);
+    }
 }
 
 struct modelBlobsPaths {
