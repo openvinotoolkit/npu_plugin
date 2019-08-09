@@ -91,6 +91,7 @@ namespace mv
             static std::unique_ptr<MVCNN::NCEVariantFieldsT> buildNCEVariantFieldsT(ComputationModel& cm, Element& compilationDescriptor, Control::OpListIterator opIt, Workload workload, unsigned clusterId);
             static void getWorkloadPadding(Control::OpListIterator opIt, Workload &workload);
             static void getWorkloadPadding(Control::OpListIterator opIt, Workload &workload, unsigned clusterId);
+            static std::array<unsigned short, 4> getNewPadding(std::array<unsigned short, 4> padding, int clusterId, int numClusters);
             static std::array <unsigned short, 4> getPadding(Control::OpListIterator opIt, unsigned clusterId);
             static bool hardwareBugDepthwise(Control::OpListIterator opIt);
             static std::unique_ptr<MVCNN::PPETaskT> buildPPETaskT(ComputationModel& cm, Element& compilationDescriptor, const PPETask &ppeTask);

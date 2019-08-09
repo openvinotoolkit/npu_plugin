@@ -982,6 +982,12 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
     if (opIt->hasAttr("padding"))
     {
         auto kernelPadding = opIt->get<std::array<unsigned short, 4>>("padding");
+        if (opIt->get<std::string>("taskOp") == "ChannelMajorConvolution")
+        {
+            unsigned numClusters = cm.getGlobalConfigParams()->get<int>("Number_of_Clusters");
+            kernelPadding = getNewPadding(kernelPadding, clusterId, numClusters);
+        }
+
         toBuild->kernel_padLeft = kernelPadding[0];
         toBuild->kernel_padRight = kernelPadding[1];
         toBuild->kernel_padTop = kernelPadding[2];
@@ -1119,6 +1125,32 @@ void mv::RuntimeModel::getWorkloadPadding(Control::OpListIterator opIt, Workload
         }
     }
     return;
+}
+
+std::array<unsigned short, 4> mv::RuntimeModel::getNewPadding(std::array<unsigned short, 4> padding, int clusterId, int numClusters)
+{
+        if (clusterId == 0)
+        {
+            padding[0] = padding[0];
+            padding[1] = padding[1];
+            padding[2] = padding[2];
+            padding[3] = 0;
+        }
+        else if (clusterId == numClusters - 1)
+        {
+            padding[0] = padding[0];
+            padding[1] = padding[1];
+            padding[3] = padding[3];
+            padding[2] = 0;
+        }
+        else
+        {
+            padding[0] = padding[0];
+            padding[1] = padding[1];
+            padding[2] = 0;
+            padding[3] = 0;
+        }
+        return padding;
 }
 
 void mv::RuntimeModel::getWorkloadPadding(Control::OpListIterator opIt, Workload &workload, unsigned clusterId)
