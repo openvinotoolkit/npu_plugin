@@ -38,13 +38,26 @@ void strategyLayersToTensors(const mv::pass::PassEntry& , mv::ComputationModel& 
                 auto outputTensor = layer->getOutputTensor(0);
                 outputTensor->set<std::string>("splitStrategy", opStrategy);
                 unsigned n = layer->inputSlots();
-                for(unsigned i = 1; i < n; ++i)
+
+                // Starting from 1 because input 0 gets the strategy from the output tensor of the
+                // Previous operation
+
+                // We need to handle a special case for element wise (as usual)
+                // Since it has two inputs
+
+                unsigned startingIndex = 1;
+                auto taskOp = layer->get<std::string>("taskOp");
+
+                if(taskOp == "Add" || taskOp == "Multiply" || taskOp == "Subtract")
+                    startingIndex = 2;
+
+                for(unsigned i = startingIndex; i < n; ++i)
                 {
                     auto inputTensor = layer->getInputTensor(i);
                     inputTensor->set<std::string>("splitStrategy", opStrategy);
                 }
             }
-         }
+        }
         for(auto layer = om.opBegin(); layer != om.opEnd(); ++layer)
         {
             std::string opType = layer->getOpType();
