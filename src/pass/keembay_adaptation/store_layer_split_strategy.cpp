@@ -28,7 +28,7 @@ namespace mv
     }
 }
 
-void storeStrategy(mv::Data::OpListIterator& it, int numClusters, std::vector<mv::Element>& strategyList)
+void storeStrategy(mv::Data::OpListIterator& it, std::vector<mv::Element>& strategyList)
 {
     for (auto s: strategyList)
     {
@@ -50,7 +50,6 @@ void storeLayerSplitStrategyFcn(const mv::pass::PassEntry& pass, mv::Computation
     }
 
     auto strategyList = globalParams->get<std::vector<mv::Element>>("split_strategy");
-    auto numClusters = globalParams->get("Number_of_Clusters");
 
     mv::OpModel om(model);
 
@@ -58,7 +57,7 @@ void storeLayerSplitStrategyFcn(const mv::pass::PassEntry& pass, mv::Computation
     {
         auto opType = opIt->getOpType();
         if (!(opType == "Output"))
-            storeStrategy(opIt, numClusters, strategyList);
+            storeStrategy(opIt, strategyList);
     }
 
     pass.log(mv::Logger::MessageType::Info, "----splitting strategies for individual layers----");
