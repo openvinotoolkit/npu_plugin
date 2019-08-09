@@ -22,7 +22,7 @@
                 "split_strategy" :
                 [
                     {
-                        "name_filter" : "*",
+                        "name_filter" : ".*",
                         "strategy" : "Clustering"
                     }
                 ],
