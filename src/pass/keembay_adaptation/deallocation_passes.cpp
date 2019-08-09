@@ -6,7 +6,7 @@
 #include "include/mcm/utils/custom_strings.hpp"
 #include <algorithm>
 
-static void addDeallocationTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&passDesc, mv::json::Object&);
+static void addDeallocationTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 static void removeDeallocationTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 
 namespace mv
@@ -29,10 +29,11 @@ void insertDeallocationControlFlows(mv::OpModel& om, mv::Data::OpListIterator de
 {
     mv::ControlModel cm(om);
 
+    // Deallocation in flow
     if(cm.isFlowAllowedAndNonExisting(om.switchContext(chosenOp), deallocateInputOp))
         cm.defineFlow(om.switchContext(chosenOp), deallocateInputOp);
 
-    // CONTROL
+    // Deallocation out flows
     auto chosenOpControl = chosenOp;
     auto deallocateInputOpControl = cm.switchContext(deallocateInputOp);
     for(auto son = chosenOpControl.leftmostChild(); son != cm.opEnd(); ++son)
@@ -59,15 +60,11 @@ bool thereIsDependency(mv::ControlModel& cm, const std::vector<mv::Data::OpListI
 
 
 // Pass role: Add deallocation tasks for each Tensor
-void addDeallocationTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::json::Object&)
+void addDeallocationTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
     mv::OpModel om(model);
     mv::DataModel dm(model);
     mv::ControlModel cm(model);
-
-    bool forceDeallocationForCMX2DDR = true;
-    if(passDesc.hasAttr("DeallocationForCMX2DDR"))
-        forceDeallocationForCMX2DDR = passDesc.get<bool>("ForceDeallocationForCMX2DDR");
 
     // Sorting ops in dataflow topological order. Will be needed later.
     auto sortedOps = cm.topologicalSort();
@@ -92,13 +89,13 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
             inputOp->getOpType() == "WeightsTable" || inputOp->getOpType() == "SparsityMap" || inputOp->getOpType() == "Slice")
             continue;
 
-        
+
         // Tensors that are input of a concat shall not be deallocated: they will be allocated into a bigger tensor
         // (the output of concat op) and that will be deallocated
         // ADDITIONAL NOTE/TODO: This check by itself is not sufficient if a tensor is input of both an implicit and an explicit operation
         if(!outputOp->hasTypeTrait("executable"))
             continue;
-        
+
         auto inputTensor = dataFlowIt->getTensor();
 
         // Last check, possible thanks to MemoryLocation definition: In general, tensors that are not in CMX shall not be deallocated
@@ -120,19 +117,8 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
 
             mv::Data::OpListIterator deallocateInputOp;
 
-            // NOTE: According to POC, if a tensor is going to DDR there no need for explicit deallocation.
-            // But are we sure about this? I think only dealloc for the last CMX2DDR has to be avoided, and not in general
-            // and the recents failures of graph coloring when maxcut gives the green light seems to support this theory.
-            // Putting the flag to experiment until things are more clear
-            if(!forceDeallocationForCMX2DDR && outputOp->getOpType() == "DMATask" && outputOp->get<mv::DmaDirection>("direction") == mv::CMX2DDR)
-                deallocateInputOp = outputOp;
-            else
-            {
-                // Creating deallocation operation for the tensor and attaching it through a dataflow
-                // to the operation that created it
-                om.deallocate(inputTensor, deallocationName);
-                deallocateInputOp = om.getOp(deallocationName);
-            }
+            om.deallocate(inputTensor, deallocationName);
+            deallocateInputOp = om.getOp(deallocationName);
 
             // Now that we have created/set the pointer to/ the deallocation op, we have to attach
             // the control flows to it such that it respects the properties of a dataflow graph
@@ -176,7 +162,7 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
                     }
                 }
             }
-            
+
             // Now it's time to define the control flow with 0 as memory requirement
             // Which in our case is no memory requirement at all.
 
@@ -188,38 +174,12 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
                 sinkOperations.push_back(df.sink());
             }
 
-            // If there is just one operation, the solution is pretty easy: attach this operation to the dealloc
-            // and the dealloc to the next operation coming in control flow model
-            if(sinkOperations.size() == 1)
-            {
-                auto chosenOp = cm.switchContext(*sinkOperations.begin());
-                insertDeallocationControlFlows(om, deallocateInputOp, chosenOp);
-            }
-            else
-            {
-                // If there are more operations, things get tricky
-                // We have to ask ourselves: Is there a scheduling dependency existing
-                // between these operations?
-
-                // Two hypothesis are considered here:
-                // 1) There is. In this case, the dealloc op shall be attached only to the last operation in topological sort order. This case is similar to sinkOperations.size() == 1
-                // 2) There isn't among any of them. In this case the dealloc task shall be attached to all of the involved operations
-
-                if(thereIsDependency(cm, sinkOperations))
-                {
-                    auto chosenOp = sortedOps.rbegin();
-                    for(; chosenOp != sortedOps.rend(); ++chosenOp)
-                        if(std::find(sinkOperations.begin(), sinkOperations.end(), om.switchContext(*chosenOp)) != sinkOperations.end())
-                            break;
-                    insertDeallocationControlFlows(om, deallocateInputOp, *chosenOp);
-                }
-                else
-                {
-                    // THIS SHOULD NOT BE HAPPENING
-                    for(auto& chosenOp : sinkOperations)
-                        insertDeallocationControlFlows(om, deallocateInputOp, cm.switchContext(chosenOp));
-                }
-            }
+            // Attaching to the last one in reverse topological order
+            auto chosenOp = sortedOps.rbegin();
+            for(; chosenOp != sortedOps.rend(); ++chosenOp)
+                if(std::find(sinkOperations.begin(), sinkOperations.end(), om.switchContext(*chosenOp)) != sinkOperations.end())
+                    break;
+            insertDeallocationControlFlows(om, deallocateInputOp, *chosenOp);
         }
     }
 }
@@ -232,7 +192,7 @@ void removeDeallocationTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel
     mv::OpModel om(model);
     mv::DataModel dm(model);
     mv::ControlModel cm(model);
-    
+
     std::vector<std::pair<mv::Data::OpListIterator, mv::Data::OpListIterator>> oldEdges ;
     std::vector<std::pair<mv::Data::OpListIterator, mv::Data::OpListIterator>> newEdges ;
 
