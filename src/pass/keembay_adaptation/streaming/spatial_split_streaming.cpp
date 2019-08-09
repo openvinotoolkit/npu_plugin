@@ -13,6 +13,10 @@ static void streamingTilingFcn(const mv::pass::PassEntry& pass,
                                         mv::Element& passDesc,
                                         mv::json::Object&);
 
+static void streamBinaryDataWeightsFcn(const mv::pass::PassEntry&,
+                                        mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&,
+                                        mv::json::Object&);
+
 namespace mv
 {
     namespace pass
@@ -21,7 +25,43 @@ namespace mv
                 .setFunc(streamingTilingFcn)
                 .setDescription(
                         "splits only over H for DDR streaming");
+
+        MV_REGISTER_PASS(StreamBinaryDataWeights)
+        .setFunc(streamBinaryDataWeightsFcn)
+        .setDescription(
+            "stream the binary data of weights"
+        );
     }
+}
+
+mv::Data::OpListIterator operationsReplacement(mv::Data::OpListIterator parentOpIt, mv::Data::TensorIterator sourceTensor, mv::OpModel om, mv::Data::OpListIterator opIt)
+{
+    //Important: do not change the order of this ops
+    std::vector<mv::Data::OpListIterator> opsToLink;
+    std::vector<std::size_t> inputSlots;
+    for (mv::Data::FlowSiblingIterator sinkFlow(opIt.leftmostOutput()); sinkFlow != om.flowEnd(); ++sinkFlow)
+    {
+        opsToLink.push_back(sinkFlow.sink());
+        inputSlots.push_back(sinkFlow->get<std::size_t>("sinkInput"));
+    }
+
+    while(opIt.parentsSize() > 1)
+    {
+        auto paramOp = opIt.leftmostParent();
+        ++paramOp;
+        om.removeOp(paramOp);
+    }
+
+    om.removeOp(opIt);
+    opIt = parentOpIt;
+
+    for (unsigned j = 0; j < opsToLink.size(); ++j)
+    {
+        opsToLink[j]->setInputTensor(sourceTensor, inputSlots[j]);
+        om.defineFlow(sourceTensor, opsToLink[j], inputSlots[j]);
+    }
+
+    return opIt;
 }
 
 class Tiling {
@@ -772,6 +812,7 @@ void generateWeightsTiling(mv::Data::OpListIterator op,Tiling& tiling, std::vect
             tile.resizeNumberOfTiles(opStrategy[nesting].numSplits) ;
             generateWeightsTiling(op,tile,opStrategy,nesting);
         }
+
     }
 }
 
@@ -876,4 +917,49 @@ void streamingTilingFcn(const mv::pass::PassEntry& pass,
 
     }
     //std::cout<< "STREAMING PASS: exit" << std::endl ;
+}
+
+
+static void streamBinaryDataWeightsFcn(const mv::pass::PassEntry& ,
+                                        mv::ComputationModel& model,
+                                        mv::TargetDescriptor& ,
+                                        mv::Element& ,
+                                        mv::json::Object&)
+{
+    //Need to duplicate the consts to number equal to streams, cause of the binary_data
+    mv::OpModel om(model);
+
+    std::set <std::string> removeConstantsSet;
+    for(auto opIterator = om.opBegin(); opIterator != om.opEnd(); ++opIterator)
+    {
+        std::string opType = opIterator->getOpType();
+        std::vector<mv::Data::TensorIterator> toSort;
+
+        if (opType == "Slice" && opIterator->getInputTensor(0)->isPopulated())
+        {
+            auto inTensorSlice = opIterator->getInputTensor(0);
+            removeConstantsSet.insert(om.getSourceOp(inTensorSlice)->getName());
+            auto outTensorSlice = opIterator->getOutputTensor(0);
+            auto parentOpIt = om.getSourceOp(opIterator->getInputTensor(0));
+            mv::QuantizationParams tensorQuantizationParams = {{},{},{},{}};
+            auto shape = outTensorSlice->getShape();
+            if (outTensorSlice->isQuantized())
+                tensorQuantizationParams = outTensorSlice->get<mv::QuantizationParams>("quantParams");
+
+            auto newConstant = om.constantDataElement(outTensorSlice->getData(), shape,
+                                                               outTensorSlice->getDType(), outTensorSlice->getOrder(),
+                                                               tensorQuantizationParams, opIterator->getName() + "_weights");
+            newConstant->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::BLOB);
+            auto constantOp = om.getSourceOp(newConstant);
+            if(opIterator->hasAttr("opId"))
+            {
+                unsigned currentOpId = opIterator->get<unsigned>("opId");
+                constantOp->set<unsigned>("opId", currentOpId);
+            }
+            opIterator = operationsReplacement(parentOpIt, newConstant, om, opIterator);
+        }
+    }
+    for (auto& opName:removeConstantsSet)
+        om.removeOp(om.getOp(opName));
+
 }

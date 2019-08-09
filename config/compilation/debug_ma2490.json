@@ -90,6 +90,7 @@
                 "input": "output/dots/adapt_model.dot"
             },
             "StreamingTiling",
+            "StreamBinaryDataWeights",
             {
                 "name": "GenerateDot",
                 "output": "output/dots/tiling_model.dot",
@@ -193,7 +194,6 @@
                 "name": "ConvertDot",
                 "input": "output/dots/align_task_weights.dot"
             },
-            "AlignSliceOps",
             {
                 "name": "GenerateDot",
                 "output": "output/dots/align_slice_ops.dot",
