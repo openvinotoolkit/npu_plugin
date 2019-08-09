@@ -478,18 +478,6 @@
                 "name": "ConvertDot",
                 "input": "output/dots/align_task_weights.dot"
             },
-            "AlignSliceOps",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/align_slice_ops.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/align_slice_ops.dot"
-            },
             "GenerateWeightsTables",
             {
                 "name": "GenerateDot",
@@ -683,7 +671,7 @@
             {
                 "name": "GenerateWorkloads",
                 "costfunction": "criticalpath",
-                "TensorSplitAlgorithms": "Rectangle, Z-Tiling",
+                "TensorSplitAlgorithms": "Rectangle",
                 "_comment": "Supported CostFunctions are: balanced | criticalpath | minmax | greedy. Supported TensorSplitAlgorithms are Metis, Rectangle, Z-Tiling"
             },
             "ArrangeKeembayExecution",
