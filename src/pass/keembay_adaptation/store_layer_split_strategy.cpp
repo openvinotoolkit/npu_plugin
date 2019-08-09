@@ -35,9 +35,7 @@ void storeStrategy(mv::Data::OpListIterator& it, int numClusters, std::vector<mv
         std::string& name_filter = s.get<std::string>("name_filter");
         std::regex exp(name_filter);
         if (std::regex_match(it->getName(), exp))
-        {
             it->set<std::string>("splitStrategy", s.get<std::string>("strategy"));
-        }
     }
 }
 

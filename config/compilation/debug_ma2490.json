@@ -22,16 +22,8 @@
                 "split_strategy" :
                 [
                     {
-                        "name_filter": ".*input#.*",
+                        "name_filter": "*",
                         "strategy": "Clustering"
-                    },
-                ],
-                "streaming_strategy" :
-                [
-                    {
-                        "name_filter" : "fakename",
-                        "output_location" : "CMX",
-                        "splits" : [ {"H" : 2} ]
                     },
                 ],
                 "default_tensor_placement" : "CMX"
