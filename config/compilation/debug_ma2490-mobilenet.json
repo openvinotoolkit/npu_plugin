@@ -23,67 +23,31 @@
                 [
                     {
                         "name_filter" : ".*",
-                        "cluster_filter" : 0,
-                        "strategy" : "SplitOverK"
-                    },
-                    {
-                        "name_filter" : ".*",
-                        "cluster_filter" : 1,
                         "strategy" : "Clustering"
-                    },
-                    {
-                        "name_filter" : ".*input.*",
-                        "cluster_filter" : 0,
-                        "strategy" : "SplitOverH"
-                    },
-                    {
-                        "name_filter" : ".*res2a.*",
-                        "cluster_filter" : 0,
-                        "strategy" : "SplitOverH"
-                    },
-                    {
-                        "name_filter" : ".*conv1.*",
-                        "cluster_filter" : 0,
-                        "strategy" : "SplitOverH"
-                    },
-                    {
-                        "name_filter" : ".*pool1.*",
-                        "cluster_filter" : 0,
-                        "strategy" : "SplitOverH"
-                    },
-                    {
-                        "name_filter" : ".*res2.*",
-                        "cluster_filter" : 0,
-                        "strategy" : "SplitOverH"
-                    },
-                    {
-                        "name_filter" : ".*res3.*",
-                        "cluster_filter" : 0,
-                        "strategy" : "SplitOverH"
                     }
                 ],
                 "default_tensor_placement" : "DDR",
                 "streaming_strategy" :
                 [
                         {
-                        "name_filter" : "MobilenetV2/expanded_conv_1/expand/Relu#174",
-                        "output_location" : "CMX",
-                        "splits" : [ {"H" : 2} ]
+                            "name_filter" : "MobilenetV2/expanded_conv_1/expand/Relu#174",
+                            "output_location" : "CMX",
+                            "splits" : [ {"H" : 2} ]
                         },
                         {
-                        "name_filter" : "MobilenetV2/expanded_conv_1/depthwise/Relu#175",
-                        "output_location" : "CMX",
-                        "splits" : [ {"H" : 2} ]
+                            "name_filter" : "MobilenetV2/expanded_conv_1/depthwise/Relu#175",
+                            "output_location" : "CMX",
+                            "splits" : [ {"H" : 2} ]
                         },
                         {
-                        "name_filter" : "MobilenetV2/expanded_conv_2/depthwise/Relu#178",
-                        "output_location" : "CMX",
-                        "splits" : [ {"H" : 2} ]
+                            "name_filter" : "MobilenetV2/expanded_conv_2/depthwise/Relu#178",
+                            "output_location" : "CMX",
+                            "splits" : [ {"H" : 2} ]
                         },
                         {
-                        "name_filter" : "MobilenetV2/Logits/Conv2d_1c_1x1/act_quant/FakeQuantWithMinMaxVars#234",
-                        "output_location" : "CMX",
-                        "splits" : [ {"K" : 2} ]
+                            "name_filter" : "MobilenetV2/Logits/Conv2d_1c_1x1/act_quant/FakeQuantWithMinMaxVars#234",
+                            "output_location" : "CMX",
+                            "splits" : [ {"K" : 2} ]
                         }
                 ]
             },

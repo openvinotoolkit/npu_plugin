@@ -4,11 +4,11 @@
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/utils/custom_math.hpp"
 
-static void taskControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
-static void hangingDmaControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&passDesc, mv::json::Object&);
-static void cmx2DDRControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&passDesc, mv::json::Object&);
-static void layerNumberingFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&passDesc, mv::json::Object&);
-static void activationTensorsControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&passDesc, mv::json::Object&);
+static void taskControlFlowsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
+static void hangingDmaControlFlowsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&passDesc, mv::json::Object&);
+static void cmx2DDRControlFlowsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
+static void layerNumberingFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&passDesc, mv::json::Object&);
+static void activationTensorsControlFlowsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 
 namespace mv
 {
@@ -54,7 +54,7 @@ namespace mv
 
 // Logic: Activation tensors involved in DPU task should be dependent on the previous operation executed
 // Not sure this pass is really needed for resnet50
-void activationTensorsControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&passDesc, mv::json::Object&)
+void activationTensorsControlFlowsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
 
     mv::OpModel om(model);
@@ -66,7 +66,7 @@ void activationTensorsControlFlowsFcn(const mv::pass::PassEntry& pass, mv::Compu
 
     for(auto& dpu: dpus)
     {
-        for(int i = 0; i < dpu.inputsSize(); ++i)
+        for(unsigned i = 0; i < dpu.inputsSize(); ++i)
         {
             auto inputTensor = dpu->getInputTensor(i);
             if(!inputTensor->isPopulated())
@@ -85,7 +85,7 @@ void activationTensorsControlFlowsFcn(const mv::pass::PassEntry& pass, mv::Compu
 
 // This pass is absolutely necessary to ensure that we are not redeaming in cmx weights too soon
 // It is a conservative approach but it's needed for TIG
-void cmx2DDRControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&passDesc, mv::json::Object&)
+void cmx2DDRControlFlowsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
     mv::OpModel om(model);
     mv::ControlModel cm(model);
@@ -107,7 +107,7 @@ void cmx2DDRControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
 
     for(auto& flow : flowsToAdd)
         if(cm.isFlowAllowedAndNonExisting(flow.first, flow.second))
-            cm.defineFlow(flow.first, flow.second);    
+            cm.defineFlow(flow.first, flow.second);
 }
 
 // This pass handles all the hanging DMAs into the graph using the prefetch logic
@@ -115,7 +115,7 @@ void cmx2DDRControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
 // Minimum (and most conservative approach) is 1
 
 // ASSUMPTION: This pass happens after the pass that assigns a layer number to each layer already in the control model
-void hangingDmaControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::json::Object&)
+void hangingDmaControlFlowsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::json::Object&)
 {
 
     mv::OpModel om(model);
@@ -144,13 +144,13 @@ void hangingDmaControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationM
             targets.push_back(dma);
 
             // HACK: Horrible hack because apparentely we have problem in assigning iterators
-            unsigned sonWithMinimumLayerInvolvedIndex = 0;
-            unsigned minimumLayerInvolved = dma.leftmostChild()->get<unsigned>("layerNumber");
+            int sonWithMinimumLayerInvolvedIndex = 0;
+            int minimumLayerInvolved = dma.leftmostChild()->get<unsigned>("layerNumber");
 
             unsigned i = 0;
             for(auto son = dma.leftmostChild(); son != cm.opEnd(); ++son)
             {
-                unsigned currentMinimumLayerInvolved = son->get<unsigned>("layerNumber");
+                int currentMinimumLayerInvolved = son->get<unsigned>("layerNumber");
                 if(currentMinimumLayerInvolved < minimumLayerInvolved)
                 {
                     minimumLayerInvolved = currentMinimumLayerInvolved;
@@ -160,12 +160,8 @@ void hangingDmaControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationM
             }
 
             auto sonWithMinimumLayerInvolved = dma.leftmostChild();
-            for(unsigned j = 0; j < sonWithMinimumLayerInvolvedIndex; ++j)
+            for(int j = 0; j < sonWithMinimumLayerInvolvedIndex; ++j)
                 ++sonWithMinimumLayerInvolved;
-
-//            //Except for eltwise input tensor is always at index 0
-//            if(!sonWithMinimumLayerInvolved->getInputTensor(0)->isPopulated())
-//                targets.push_back(cm.switchContext(om.getSourceOp(sonWithMinimumLayerInvolved->getInputTensor(0))));
 
             // Now based on the prefetch we have to start from the sonWithMinimumLayerInvolved and go back prefetch layers
             for(auto positionInTopologicalSort = std::find(sortedOps.rbegin(), sortedOps.rend(), sonWithMinimumLayerInvolved); positionInTopologicalSort != sortedOps.rend(); ++positionInTopologicalSort)
@@ -174,12 +170,14 @@ void hangingDmaControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationM
 
                 if (!preceedingOp->hasAttr("layerNumber") || preceedingOp->getOpType() == "DMATask")
                     continue;
-                unsigned preceedingOpLayerNumber = preceedingOp->get<unsigned>("layerNumber");
+                int preceedingOpLayerNumber = preceedingOp->get<unsigned>("layerNumber");
 
                 // Two conditions must be true to build the control flow preceedingOp -> dma
                 // 1) The difference in terms of layersNumber has to be greater or equal _dma_dependency
                 // 2) There has to be a dependency between preceedingOp and the sonWithMinimumLayerInvolved (preeceding op could be on a parallel branch)
-                if(minimumLayerInvolved - preceedingOpLayerNumber >= _dma_dependency && cm.pathExists(preceedingOp, sonWithMinimumLayerInvolved))
+                if(minimumLayerInvolved - preceedingOpLayerNumber >= _dma_dependency &&
+                   minimumLayerInvolved - preceedingOpLayerNumber <= _dma_dependency + 2 &&
+                   cm.pathExists(preceedingOp, sonWithMinimumLayerInvolved))
                     for(auto& target : targets)
                         flowsToAdd.push_back(std::make_pair(preceedingOp, target));
 
@@ -215,7 +213,7 @@ void assignLayerNumber(mv::ControlModel& cm, const std::unordered_set<std::strin
 // And possibly also to handle CMX2DDR output flows
 
 // ASSUMPTION: We need task control flows and transitive reduction to be run before this pass
-void layerNumberingFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+void layerNumberingFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
     mv::ControlModel cm(model);
 
@@ -257,7 +255,7 @@ void addTaskControlFlowsAndRecursivelySkipImplicitOperationsUp(mv::OpModel& om, 
 // But implicit operations (e.g. Constants, Concat, Slice etc) must be skipped and/or avoided
 
 // NOTE: For now, only max two level of implicit operations is handled. In the future we will need a recursive procedure
-void taskControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+void taskControlFlowsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
     mv::OpModel om(model);
 

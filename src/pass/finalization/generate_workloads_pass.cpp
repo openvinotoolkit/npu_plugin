@@ -177,6 +177,12 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
             pass.log(mv::Logger::MessageType::Debug, "Found DPU task " + opIt->getName() + " of type " + opIt->get<std::string>("taskOp"));
             pass.log(mv::Logger::MessageType::Debug, "Output tensor size is: " + opIt->getOutputTensor()[0]->getShape().toString());
 
+            auto opStrategy = opIt->getOutputTensor()[0]->get<std::string>("splitStrategy");
+            if(opStrategy == "Clustering")
+                nClusters = 1;
+            else
+                nClusters = std::get<2>(compilationConfigs);
+
             /*For Deptwise convolution, Max pooling and CM convolution MPE mode must be (1,16)*/
             if((opIt->get<std::string>("taskOp") == "DepthwiseConv") || (opIt->get<std::string>("taskOp") == "MaxPool") || (opIt->get<std::string>("taskOp") == "ChannelMajorConvolution"))
                 dpuModes = {{1, 16}};
@@ -381,7 +387,6 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                 /*Apply the SOH offset to the most optimial workload*/
                 if((opIt->getOutputTensor()[0]->hasAttr("splitStrategy")) && (nClusters > 1))
                 {
-                    auto opStrategy = opIt->getOutputTensor()[0]->get<std::string>("splitStrategy");
                     pass.log(mv::Logger::MessageType::Debug, " op strategy " + opStrategy);
                     if (opStrategy != "Clustering")
                     {
