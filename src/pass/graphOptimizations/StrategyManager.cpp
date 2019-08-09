@@ -476,7 +476,37 @@ void StrategyManager::recursiveDijkstra(mv::Data::OpListIterator opBegin)
     for (auto it = metaGraph.edge_begin(); it != metaGraph.edge_end(); ++it){
         edgeCostMap.insert(std::pair<MetaGraph::edge_list_iterator, double>(it, (*it).first));
     }
+    /* TODO delete all this debugging stuff for the metagraph
     cout << "found " << metaGraph.node_size() << " nodes and "<< metaGraph.edge_size() << " edges " << endl;
+
+    cout << "trying BFS search on metagraph " << endl;
+     auto bfs_fdir = MetaGraph::node_bfs_iterator::forward;
+    auto bfs_lside = MetaGraph::node_bfs_iterator::leftmost;
+    // BFS (forward leftmost) - startng from node na
+    for(auto source : sources){
+        cout << "Considering a Meta Source" << endl;
+    for (MetaGraph::node_bfs_iterator it(source, bfs_fdir, bfs_lside); it != metaGraph.node_end(); ++it)
+    {
+        std::cout << " " << get<0>(*it).getName() << ", ";
+    }
+    std::cout << std::endl << endl;
+    }
+
+    std::cout << "trying BFS search on metagrpah edges " << endl;
+    for(auto source : sources){
+        // BFS - starting from edge e1
+
+    cout << "Considering a Meta Source" << endl;
+    for (MetaGraph::edge_bfs_iterator it(source->leftmost_output()); it != metaGraph.edge_end(); ++it)
+    {
+        
+        std::cout << get<0>(*it->source()).getName() << " -- " << (*it).first << " --> " << get<0>(*it->sink()).getName() << endl;
+        std::cout << get<2>(*it->source()) << " -- " << (*it).first << " --> " << get<2>(*it->sink()) << endl;
+        cout << "    holding " << ((*it).second).size() << " strategies" << endl;
+    }
+    std::cout << std::endl << endl;
+    }
+    */
     //call dijkstra on metagraph for each source and sink combo, choosing the best
     double max = 99999999.999;
     vector<MetaGraph::edge_list_iterator> finalCriticalPath;
@@ -515,9 +545,11 @@ void StrategyManager::recursiveCriticalPath(typename graph<mv::Op, mv::DataFlow>
     {
         bool operator()(const graph<std::tuple<mv::Op&,StrategySet,int>,double>::node_list_iterator lhs, const graph<std::tuple<mv::Op&,StrategySet,int>,double>::node_list_iterator rhs) const
         {
+            StrategySet lss = get<1>(*lhs);
+            StrategySet rss = get<1>(*rhs);
             int x = get<2>(*lhs) ;
             int y = get<2>(*rhs) ;
-            return (x < y) ;
+            return (x < y);
         }
     };
 
@@ -671,7 +703,8 @@ void StrategyManager::recursiveCriticalPath(typename graph<mv::Op, mv::DataFlow>
         
         if(metaGraph.node_size() == 0 ){ //Add the very first nodes, first time through
             for(auto source : first_nodes){
-                sources.push_back(metaGraph.node_insert(*source));
+                std::tuple<mv::Op&,StrategySet,int> modifiedSource(get<0>(*source), get<1>(*source), metaGraph.node_size());
+                sources.push_back(metaGraph.node_insert(modifiedSource));
             }
         }
         else{
@@ -689,9 +722,11 @@ void StrategyManager::recursiveCriticalPath(typename graph<mv::Op, mv::DataFlow>
             }
         }
         for(auto sink : last_nodes){
-            sinks.push_back(metaGraph.node_insert(*sink));
+            std::tuple<mv::Op&,StrategySet,int> modifiedSink(get<0>(*sink), get<1>(*sink), metaGraph.node_size());
+            sinks.push_back(metaGraph.node_insert(modifiedSink));
         }
-              cout << "  Found Linear sources and sinks: " << sources.size() << ", " << sinks.size() << endl;
+
+        cout << "  Found Linear sources and sinks: " << sources.size() << ", " << sinks.size() << endl;
         vector<CriticalInfo> linearSection = parallelLinearSections[0]; //Vector of Critical Info, add this to the metagraph
         for(int source = 0; source < sources.size(); source++){
             for(int sink = 0; sink < sinks.size(); sink++){
@@ -709,7 +744,8 @@ void StrategyManager::recursiveCriticalPath(typename graph<mv::Op, mv::DataFlow>
         
         if(metaGraph.node_size() == 0 ){ //If we start with a parallel branch, make sure the first nodes are still added
             for(auto source : first_nodes){
-                sources.push_back(metaGraph.node_insert(*source));
+                std::tuple<mv::Op&,StrategySet,int> modifiedSource(get<0>(*source), get<1>(*source), metaGraph.node_size());
+                sources.push_back(metaGraph.node_insert(modifiedSource));
             }
         }
         else{
@@ -727,7 +763,8 @@ void StrategyManager::recursiveCriticalPath(typename graph<mv::Op, mv::DataFlow>
             }
         }
         for(auto sink : last_nodes){
-            sinks.push_back(metaGraph.node_insert(*sink));
+            std::tuple<mv::Op&,StrategySet,int> modifiedSink(get<0>(*sink), get<1>(*sink), metaGraph.node_size());
+            sinks.push_back(metaGraph.node_insert(modifiedSink));
         }
         cout << "  Found Parallel sources and sinks: " << sources.size() << ", " << sinks.size() << endl;
 
