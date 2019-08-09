@@ -516,7 +516,7 @@ public:
         }
 
         //TODO:: do the prefetching
-        double extra_stream_decay = 10.0; //TODO: expose in config
+        double extra_stream_decay = 1.5; //TODO: expose in config
         if(parentOp.getOpType() == "Conv")
         {
             auto streamOverK = parent["streaming"].get<Shape>()["K"];
@@ -526,7 +526,7 @@ public:
             else if( streamOverK == 2)
                 execTime1 += (WSize / 2) / ddrBandwidth;
             else if( streamOverK > 2)
-                execTime1 += ((WSize / streamOverK) / ddrBandwidth) * extra_stream_decay;
+                execTime1 += ((WSize / streamOverK) / ddrBandwidth) * (extra_stream_decay * streamOverK);
         }
 
         if(childOp.getOpType() == "Conv")
@@ -538,7 +538,7 @@ public:
             else if( streamOverK == 2)
                 execTime2 += ((double)WSize / 2) / (double)ddrBandwidth;
             else if( streamOverK > 2)
-                execTime2 += (((double)WSize / (double)streamOverK) / (double)ddrBandwidth) * extra_stream_decay;
+                execTime2 += (((double)WSize / (double)streamOverK) / (double)ddrBandwidth) * (extra_stream_decay*streamOverK);
         }
 
         auto parentStreamOverH = parent["streaming"].get<Shape>()["H"];
@@ -549,7 +549,7 @@ public:
             auto iSize = parentOp.getInputTensor(0)->getShape().totalSize();
             auto oSize = parentOp.getOutputTensor(0)->getShape().totalSize();
 
-            execTime1 += (((double)(iSize + oSize) / (double)parentStreamOverH) / (double)ddrBandwidth) * extra_stream_decay;
+            execTime1 += (((double)(iSize + oSize) / (double)parentStreamOverH) / (double)ddrBandwidth) * (extra_stream_decay * parentStreamOverH);
         }
         auto childStreamOverH = child["streaming"].get<Shape>()["H"];
         if(childStreamOverH > 1)
@@ -557,7 +557,7 @@ public:
             auto iSize = childOp.getInputTensor(0)->getShape().totalSize();
             auto oSize = childOp.getOutputTensor(0)->getShape().totalSize();
 
-            execTime2 += (((double)(iSize + oSize) / (double)childStreamOverH) / (double)ddrBandwidth)  * extra_stream_decay;
+            execTime2 += (((double)(iSize + oSize) / (double)childStreamOverH) / (double)ddrBandwidth)  * (extra_stream_decay * childStreamOverH);
         }
 
         return execTime1 + execTime2;
