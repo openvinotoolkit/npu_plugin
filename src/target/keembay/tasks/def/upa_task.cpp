@@ -39,7 +39,7 @@ namespace mv
         .setOutputDef(outputDefFcn)
         .setTypeTrait({"executable"})
         .setVariableInputNum(true)
-        .setBaseOperation({"Softmax"})
+        .setBaseOperation({"Dummy", "Identity", "Softmax"})
         .setExtraInputs(true);
     }
 

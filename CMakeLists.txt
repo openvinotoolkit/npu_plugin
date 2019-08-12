@@ -162,6 +162,7 @@ SET(base
     "${PROJECT_SOURCE_DIR}/src/computation/op/def/depthwise_conv.cpp"
     "${PROJECT_SOURCE_DIR}/src/computation/op/def/divide.cpp"
     "${PROJECT_SOURCE_DIR}/src/computation/op/def/dropout.cpp"
+    "${PROJECT_SOURCE_DIR}/src/computation/op/def/dummy.cpp"
     "${PROJECT_SOURCE_DIR}/src/computation/op/def/elu.cpp"
     "${PROJECT_SOURCE_DIR}/src/computation/op/def/fully_connected.cpp"
     "${PROJECT_SOURCE_DIR}/src/computation/op/def/identity.cpp"
@@ -208,9 +209,6 @@ SET(base
     "${PROJECT_SOURCE_DIR}/src/target/keembay/tasks/def/dma_task.cpp"
     "${PROJECT_SOURCE_DIR}/src/target/keembay/tasks/def/dpu_task.cpp"
     "${PROJECT_SOURCE_DIR}/src/target/keembay/tasks/def/upa_task.cpp"
-    "${PROJECT_SOURCE_DIR}/src/target/keembay/tasks/def/placeholder_task.cpp"
-    "${PROJECT_SOURCE_DIR}/src/target/keembay/tasks/def/sparsity_map.cpp"
-    "${PROJECT_SOURCE_DIR}/src/target/keembay/tasks/def/weights_table.cpp"
     "${PROJECT_SOURCE_DIR}/src/target/keembay/tasks/def/implicit_concat.cpp"
 
 
