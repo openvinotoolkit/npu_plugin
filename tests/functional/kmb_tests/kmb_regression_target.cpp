@@ -21,12 +21,10 @@
 #include <inference_engine/precision_utils.h>
 #include <vpu/kmb_plugin_config.hpp>
 #include <vpu/private_plugin_config.hpp>
-#include <kmb_vpusmm_allocator.h>
 
 #include <ie_icnn_network_stats.hpp>
 #include <cnn_network_int8_normalizer.hpp>
 #include <ie_util_internal.hpp>
-#include <ie_compound_blob.h>
 
 #include <vpu_layers_tests.hpp>
 
@@ -396,176 +394,6 @@ TEST_F(VpuInferAndCompareTests, DISABLED_inferenceWithPreprocessing) {  // To be
     }
 }
 
-enum preprocessingType {
-    PT_RESIZE, PT_NV12
-};
-
-class VpuPreprocessingTestsWithParam : public vpuLayersTests,
-                                       public testing::WithParamInterface< preprocessingType > {
-};
-
-Blob::Ptr fromNV12File(const std::string &filePath,
-                       size_t imageWidth,
-                       size_t imageHeight,
-                       InferenceEngine::IAllocator &allocator) {
-    std::ifstream fileReader(filePath, std::ios_base::ate | std::ios_base::binary);
-    if (!fileReader.good()) {
-        throw std::runtime_error("fromNV12File: failed to open file " + filePath);
-    }
-
-    const size_t expectedSize = imageWidth * (imageHeight * 3 / 2);
-    const size_t fileSize = fileReader.tellg();
-    if (fileSize < expectedSize) {
-        throw std::runtime_error("fromNV12File: size of " + filePath + " is less than expected");
-    }
-    fileReader.seekg(0);
-
-    char *imageData = reinterpret_cast<char *>(allocator.alloc(fileSize));
-    if (!imageData) {
-        throw std::runtime_error("fromNV12File: failed to allocate memory");
-    }
-
-    fileReader.read(imageData, fileSize);
-    fileReader.close();
-
-    InferenceEngine::TensorDesc planeY(InferenceEngine::Precision::U8,
-        {1, 1, imageHeight, imageWidth}, InferenceEngine::Layout::NHWC);
-    InferenceEngine::TensorDesc planeUV(InferenceEngine::Precision::U8,
-        {1, 2, imageHeight / 2, imageWidth / 2}, InferenceEngine::Layout::NHWC);
-    const size_t offset = imageHeight * imageWidth;
-
-    Blob::Ptr blobY = make_blob_with_precision(planeY, imageData);
-    Blob::Ptr blobUV = make_blob_with_precision(planeUV, imageData + offset);
-
-    Blob::Ptr nv12Blob = make_shared_blob<NV12Blob>(blobY, blobUV);
-    return nv12Blob;
-}
-
-static std::string composePreprocInputPath(preprocessingType preprocType) {
-    std::string baseName = ModelsPath() + "/KMB_models/BLOBS/mobilenet/";
-    switch (preprocType) {
-    case PT_RESIZE:
-        baseName += "input-227x227.dat";
-        break;
-    case PT_NV12:
-        baseName += "input-nv12.dat";
-        break;
-    }
-    return baseName;
-}
-
-static void setPreprocAlgorithm(InputInfo* mutableItem, preprocessingType preprocType) {
-    switch (preprocType) {
-    case PT_RESIZE:
-        mutableItem->getPreProcess().setResizeAlgorithm(RESIZE_BILINEAR);
-        break;
-    case PT_NV12:
-        mutableItem->getPreProcess().setColorFormat(ColorFormat::NV12);
-        break;
-    }
-}
-
-static void setPreprocForInputBlob(const std::string &inputName,
-                                   const TensorDesc &inputTensor,
-                                   const std::string &inputFilePath,
-                                   InferenceEngine::InferRequest &inferRequest,
-                                   InferenceEngine::IAllocator &allocator,
-                                   preprocessingType preprocType) {
-    Blob::Ptr inputBlob;
-    switch (preprocType) {
-    case PT_RESIZE: {
-            void *imageData = allocator.alloc(3 * 227 * 227);
-            InferenceEngine::TensorDesc preprocTensor(
-                inputTensor.getPrecision(),
-                {1, 3, 227, 227},
-                inputTensor.getLayout());
-            inputBlob = make_blob_with_precision(preprocTensor, imageData);
-            ASSERT_TRUE(fromBinaryFile(inputFilePath, inputBlob));
-        }
-        break;
-    case PT_NV12:
-        const InferenceEngine::Layout inputLayout = inputTensor.getLayout();
-        const InferenceEngine::SizeVector dims = inputTensor.getDims();
-        const size_t expectedWidth = (inputLayout == InferenceEngine::Layout::NCHW) ? dims.at(3) : dims.at(2);
-        const size_t expectedHeight = (inputLayout == InferenceEngine::Layout::NCHW) ? dims.at(2) : dims.at(1);
-        ASSERT_NO_THROW(inputBlob = fromNV12File(inputFilePath, expectedWidth, expectedHeight, allocator));
-        break;
-    }
-    ASSERT_NO_THROW(inferRequest.SetBlob(inputName, inputBlob));
-}
-
-Blob::Ptr dequantize(float begin, float end, const Blob::Ptr &quantBlob) {
-    float step = (begin - end)/256;
-    const TensorDesc quantTensor = quantBlob->getTensorDesc();
-    Blob::Ptr outputBlob = make_blob_with_precision(TensorDesc(
-        InferenceEngine::Precision::FP32,
-        quantTensor.getDims(),
-        quantTensor.getLayout()));
-    outputBlob->allocate();
-    const uint8_t *quantRaw = quantBlob->cbuffer().as<const uint8_t *>();
-    float *outRaw = outputBlob->buffer().as<float *>();
-
-    for (size_t pos = 0; pos < quantBlob->byteSize(); pos++) {
-        outRaw[pos] = begin + quantRaw[pos] * step;
-    }
-    return outputBlob;
-}
-
-TEST_P(VpuPreprocessingTestsWithParam, DISABLED_importWithPreprocessing) {  // To be run in manual mode when device is available
-    preprocessingType preprocType = GetParam();
-    std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet/mobilenet.blob";
-
-    vpu::KmbPlugin::KmbVpusmmAllocator kmbAllocator;
-
-    Core ie;
-    InferenceEngine::ExecutableNetwork importedNetwork;
-    ASSERT_NO_THROW(importedNetwork = ie.ImportNetwork(modelFilePath, "KMB", {}));
-
-    ConstInputsDataMap inputInfo = importedNetwork.GetInputsInfo();
-
-    for (auto & item : inputInfo) {
-        InputInfo* mutableItem = const_cast<InputInfo*>(item.second.get());
-        setPreprocAlgorithm(mutableItem, preprocType);
-    }
-
-    InferenceEngine::InferRequest inferRequest;
-    ASSERT_NO_THROW(inferRequest = importedNetwork.CreateInferRequest());
-
-    std::string inputFilePath = composePreprocInputPath(preprocType);
-
-    for (auto & item : inputInfo) {
-        std::string inputName = item.first;
-        InferenceEngine::TensorDesc inputTensor = item.second->getTensorDesc();
-        setPreprocForInputBlob(inputName, inputTensor, inputFilePath, inferRequest, kmbAllocator, preprocType);
-    }
-
-    ASSERT_NO_THROW(inferRequest.Infer());
-
-    ConstOutputsDataMap outputInfo;
-    outputInfo = importedNetwork.GetOutputsInfo();
-
-    std::string referenceOutputFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet/output.dat";
-    for (auto & item : outputInfo) {
-        Blob::Ptr outputBlob;
-        outputBlob = inferRequest.GetBlob(item.first.c_str());
-
-        TensorDesc outputBlobTensorDesc = outputBlob->getTensorDesc();
-        Blob::Ptr referenceOutputBlob = make_blob_with_precision(TensorDesc(
-            outputBlobTensorDesc.getPrecision(),
-            outputBlobTensorDesc.getDims(),
-            outputBlobTensorDesc.getLayout()));
-        referenceOutputBlob->allocate();
-
-        ASSERT_TRUE(fromBinaryFile(referenceOutputFilePath, referenceOutputBlob));
-
-        float rangeStart = -31.364717483520508;
-        float rangeEnd = 2.2403368949890137;
-        Blob::Ptr dequantRef = dequantize(rangeStart, rangeEnd, referenceOutputBlob);
-        Blob::Ptr dequantOut = dequantize(rangeStart, rangeEnd, outputBlob);
-        Compare(dequantRef, dequantOut, 0.125f);
-    }
-}
-
 struct modelBlobsPaths {
     std::string _graphPath, _inputPath, _outputPath;
 };
@@ -811,10 +639,6 @@ TEST_P(VpuAsyncInferWithParam, DISABLED_asyncInferCallbackRecursive) {
     }
 }
 
-const static std::vector<preprocessingType> preprocTypes = {
-    PT_RESIZE, PT_NV12
-};
-
 const static std::vector<bool> isSyncVec = {
     false, true
 };
@@ -846,10 +670,6 @@ INSTANTIATE_TEST_CASE_P(multipleInference, VpuInferAndCompareTestsWithParam,
 
 INSTANTIATE_TEST_CASE_P(asyncInferenceWithCallback, VpuAsyncInferWithParam,
     ::testing::ValuesIn(pathToPreCompiledGraph)
-);
-
-INSTANTIATE_TEST_CASE_P(preprocessing, VpuPreprocessingTestsWithParam,
-    ::testing::ValuesIn(preprocTypes)
 );
 
 #endif

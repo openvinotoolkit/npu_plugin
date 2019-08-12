@@ -90,13 +90,12 @@ function(addVpuTest TARGET_NAME PLUGIN_NAME PLUGIN_TEST_FOLDER PLUGIN_MACRO_NAME
             ${IE_MAIN_SOURCE_DIR}/include/vpu
             ${IE_MAIN_SOURCE_DIR}/src/vpu/graph_transformer/include
         SYSTEM PRIVATE
-            ${CMAKE_SOURCE_DIR}/include
-            ${CMAKE_SOURCE_DIR}/src/kmb_plugin )
+            ${CMAKE_SOURCE_DIR}/include)
 
     target_link_libraries(${TARGET_NAME} PRIVATE
             ${LIBRARIES}
             ${VPU_TEST_LIBRARIES}
-            kmbPlugin_test_static)
+            vpusmm)
 
     add_test(NAME ${TARGET_NAME} COMMAND ${TARGET_NAME})
     set_property(TEST ${TARGET_NAME} PROPERTY LABELS VPU ${PLUGIN_NAME})
