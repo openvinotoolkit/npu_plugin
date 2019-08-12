@@ -239,15 +239,78 @@ skipInf=false;
     ostream.close();
 }
 
+void StrategyManager::writeMetaDot(MetaGraph& optimizationGraph, bool skipInf)
+{
+    ofstream ostream;
+    string outputFile = dotFileLocation;
+
+    ostream.open(outputFile,ios::trunc | ios::out);
+
+    ostream << "digraph G {\n\tgraph [splines=spline]\n";
+
+    for(auto node = optimizationGraph.node_begin(); node != optimizationGraph.node_end(); ++ node)
+    {
+        std::string nodeDef = "\t\"" + get<1>(*node)["name"].get<string>()  + "_" + to_string((long long unsigned)(void*)&(*node)) + "\" [shape=box,";
+//        nodeDef += " label=\"" + (*node)["name"].toString() + "\\n";
+        //TODO:: using an object's address to uniquely identify it is a baaaaaaaaad idea. Come up with something normal
+        //basically, in our graph, we can have multiple nodes with the same name, but cannot have that in the dotfile
+        nodeDef += " label=<<TABLE BORDER=\"0\" CELLPADDING=\"0\" CELLSPACING=\"0\"> \
+                    <TR><TD ALIGN=\"CENTER\" COLSPAN=\"2\"><FONT POINT-SIZE=\"10.0\"><B>"
+                    + get<1>(*node)["name"].get<string>() + "_" + to_string((long long unsigned)(void*)&(*node))
+                    + "</B></FONT></TD></TR>";
+        for(const auto strategy : get<1>(*node))
+        {
+//            nodeDef += strategy.first + ": " + strategy.second.toString() + "\\n";
+            nodeDef += "<TR><TD ALIGN=\"LEFT\"><FONT POINT-SIZE=\"11.0\">"
+                        + strategy.first
+                        + ": </FONT></TD> <TD ALIGN=\"RIGHT\"><FONT POINT-SIZE=\"11.0\">"
+                        + strategy.second.toString() + "</FONT></TD></TR>";
+        }
+
+//        nodeDef += "\"";
+        nodeDef += "</TABLE>>";
+
+        ostream << nodeDef << "];\n";
+    }
+
+    for(auto edge = optimizationGraph.edge_begin(); edge != optimizationGraph.edge_end(); ++edge)
+    {
+//        if( skipInf and ( (*edge) == numeric_limits<double>::infinity()))
+skipInf=false;
+        if( skipInf and ( (*edge).first == 999999.999))
+            continue;
+        //TODO:: using an object's address to uniquely identify it is a baaaaaaaaad idea. Come up with something normal
+        std::string edgeDef = "\t\""
+                            + get<1>(*(edge->source()))["name"].get<string>() + "_" + to_string((long long unsigned)(void*)&(*(edge->source())))
+                            + "\" -> \""
+                            + get<1>(*(edge->sink()))["name"].get<string>() + "_" + to_string((long long unsigned)(void*)&(*(edge->sink())))
+                            + "\"";
+
+        edgeDef += " [penwidth=2.0, label=<<TABLE BORDER=\"0\" CELLPADDING=\"0\" \
+                    CELLSPACING=\"0\"><TR><TD ALIGN=\"CENTER\" COLSPAN=\"2\"> \
+                    <FONT POINT-SIZE=\"14.0\"><B>" \
+                    + std::to_string((*edge).first)
+                    + "</B></FONT></TD></TR>";
+
+        edgeDef += "</TABLE>>];";
+
+        ostream << edgeDef << "\n";
+    }
+
+    ostream << "}\n";
+    ostream.close();
+}
+
+
 void StrategyManager::saveStrategy(std::vector<graph<std::tuple<mv::Op&,StrategySet,int>,double>::edge_list_iterator> cPathEdges)
 {
   
     cout << "Saving streaming Strategy to Compilation Descriptor" << endl;
-    cout << "    Critical Path info: length = " << cPathEdges.size() << endl ;
-    for (int showPath=0; showPath<cPathEdges.size(); showPath++){
-        cout << "    edge_"<< showPath << " cost is " << *(cPathEdges[showPath]) << endl ;
-        cout << "    source is: " << get<1>(*cPathEdges[showPath]->source()).begin()->first << endl;
-    }
+   // cout << "    Critical Path info: length = " << cPathEdges.size() << endl ;
+   // for (int showPath=0; showPath<cPathEdges.size(); showPath++){
+   //     cout << "    edge_"<< showPath << " cost is " << *(cPathEdges[showPath]) << endl ;
+   //     cout << "    source is: " << get<1>(*cPathEdges[showPath]->source()).begin()->first << endl;
+   // }
     auto globalParams = model_.getGlobalConfigParams();
     auto strategyList = globalParams->get<std::vector<mv::Element>>("streaming_strategy");
 
@@ -381,24 +444,7 @@ void StrategyManager::saveMetaStrategy(std::vector<MetaGraph::edge_list_iterator
             strategyList.push_back(copyElement);
         }
     }
-/*    for (int savePath=1; savePath<cPathEdges.size(); savePath++)
-    {
-        auto parentNode = cPathEdges[savePath]->leftmost_parent()->sink();
-        auto parentStrategySet = get<1>(*parentNode) ;
-        mv:Shape newStrategy = parentStrategySet["streaming"];
-        std::string newName = parentStrategySet["name"] ;
-        if ( hasSpec.find(newName) == hasSpec.end())
-        { 
-            copyElement.set("name_filter",newName);
-            copySplits[0].set<int>("C", newStrategy[0]);
-            copySplits[1].set<int>("H", newStrategy[1]);
-            copySplits[2].set<int>("W", newStrategy[2]);
-            copySplits[3].set<int>("K", newStrategy[3]);
-            copyElement.set("splits",copySplits);
-            strategyList.push_back(copyElement);
-        }
-    }
-    */
+
     globalParams->set("streaming_strategy", strategyList);
 
     //test updated compilation descriptor
@@ -454,13 +500,13 @@ void StrategyManager::recursiveDijkstra(mv::Data::OpListIterator opBegin)
             return (x < y) ;
         }
     };
-    cout << "calling extract subgraphs on the data graph" << endl ;
+    //cout << "calling extract subgraphs on the data graph" << endl ;
     std::unordered_set<std::string> recursedNodes;
     //Each vector of edges corresponds to a linear portion of the graph
     //pair<vector<OptimizationPair>, StrategySet> output = 
     MetaGraph metaGraph;
     recursiveCriticalPath(opBegin, recursedNodes, metaGraph);
-    cout << " calling dijkstra on the meta graph" << endl;
+   //cout << " calling dijkstra on the meta graph" << endl;
     //iterate through all metaGraph nodes and make note of which are sources and which are sinks
     vector<MetaGraph::node_list_iterator> sources, sinks;
     for (auto it = metaGraph.node_begin(); it != metaGraph.node_end(); ++it)
@@ -472,13 +518,13 @@ void StrategyManager::recursiveDijkstra(mv::Data::OpListIterator opBegin)
             sinks.push_back(it);
         }
     }
-    cout << "found " << sources.size() << " sources and " << sinks.size() << " sinks" <<endl;
+    //cout << "found " << sources.size() << " sources and " << sinks.size() << " sinks" <<endl;
     map<typename MetaGraph::edge_list_iterator, double, costEdgeIteratorComp> edgeCostMap;
     //build edge cost map needed to call dijkstra
     for (auto it = metaGraph.edge_begin(); it != metaGraph.edge_end(); ++it){
         edgeCostMap.insert(std::pair<MetaGraph::edge_list_iterator, double>(it, (*it).first));
     }
-    /* TODO delete all this debugging stuff for the metagraph */
+    /* TODO delete all this debugging stuff for the metagraph 
     cout << "found " << metaGraph.node_size() << " nodes and "<< metaGraph.edge_size() << " edges " << endl;
 
     cout << "trying BFS search on metagraph " << endl;
@@ -508,7 +554,7 @@ void StrategyManager::recursiveDijkstra(mv::Data::OpListIterator opBegin)
     }
     std::cout << std::endl << endl;
     }
-    
+    */
     //call dijkstra on metagraph for each source and sink combo, choosing the best
     double max = 99999999.999;
     vector<MetaGraph::edge_list_iterator> finalCriticalPath;
@@ -517,10 +563,10 @@ void StrategyManager::recursiveDijkstra(mv::Data::OpListIterator opBegin)
             //call dijkstra here, if cost is less than max found so far, save otherwise move on
             vector<MetaGraph::edge_list_iterator> criticalPathEdges = dijkstra<std::tuple<mv::Op&,StrategySet,int>,MetaGraphEdge,costNodeIteratorComp,costEdgeIteratorComp, double>(metaGraph,source,sink,edgeCostMap);
             double cost = 0;
-            cout << "edges in criticalPathEdges: " << criticalPathEdges.size() << endl;
+            //cout << "edges in criticalPathEdges: " << criticalPathEdges.size() << endl;
             for (auto edge : criticalPathEdges){
                 cost += (*edge).first;
-                cout << "  found edge with cost " << (*edge).first << " total cost now " << cost << endl;
+                //cout << "  found edge with cost " << (*edge).first << " total cost now " << cost << endl;
             }
             if(cost < max){
                 finalCriticalPath = criticalPathEdges;
@@ -529,6 +575,7 @@ void StrategyManager::recursiveDijkstra(mv::Data::OpListIterator opBegin)
         }
     }
     //save best found strategy
+    writeMetaDot(metaGraph, true);
     cout << "saving meta graph optimal path" << endl;
     saveMetaStrategy(finalCriticalPath);
 }
@@ -555,8 +602,8 @@ void StrategyManager::recursiveCriticalPath(typename graph<mv::Op, mv::DataFlow>
         }
     };
 
-    vector<vector<CriticalInfo>> parallelLinearSections;
-    vector<CriticalInfo> parallelLinearSection;
+    vector<vector<MetaGraphEdge>> parallelLinearSections;
+    vector<MetaGraphEdge> parallelLinearSection;
     vector<OptimizationGraph> allOptimizationGraphs;
     //vector<vector<OptimizationGraph::node_list_iterator>> all_first_nodes, all_last_nodes;
     vector<OptimizationGraph::node_list_iterator> first_nodes, last_nodes;
@@ -593,6 +640,7 @@ void StrategyManager::recursiveCriticalPath(typename graph<mv::Op, mv::DataFlow>
         vector<StrategySet> nodeStrategy;
         opCtr++;
         generateStrategySetForLayer(*modelSource,nodeStrategy);
+        cout << "Start Pivot node " << (*modelSource).getName() << " has " << nodeStrategy.size() << " strategies" <<endl;
         new_nodes.clear();
         for(auto strategy : nodeStrategy)
         {
@@ -627,7 +675,7 @@ void StrategyManager::recursiveCriticalPath(typename graph<mv::Op, mv::DataFlow>
             {
                 new_nodes.push_back(optimizationGraph.node_insert(std::tuple<mv::Op&,StrategySet,int>(*model_child,strategy,optionCtr++)));
             }
-
+            cout << "Inter node " << (*model_child).getName() << " has " << nodeStrategy.size() << " strategies" <<endl;
             for(const auto oldNode : old_nodes)
                 for(const auto newNode : new_nodes)
                 {
@@ -652,6 +700,7 @@ void StrategyManager::recursiveCriticalPath(typename graph<mv::Op, mv::DataFlow>
         {
             new_nodes.push_back(optimizationGraph.node_insert(std::tuple<mv::Op&,StrategySet,int>(*model_child,strategy,optionCtr++)));
         }
+        cout << "End Pivot node " << (*model_child).getName() << " has " << nodeStrategy.size() << " strategies" <<endl;
         for(const auto oldNode : old_nodes)
             for(const auto newNode : new_nodes)
             {
@@ -689,13 +738,15 @@ void StrategyManager::recursiveCriticalPath(typename graph<mv::Op, mv::DataFlow>
                     strategies.push_back(get<1>(*edge->sink()));
                 }
                 strategies.pop_back();
-                CriticalInfo particulars = CriticalInfo(startingNode, endingNode, MetaGraphEdge(cost, strategies));
+                MetaGraphEdge particulars = MetaGraphEdge(cost, strategies);
                 cout << "  Adding " << strategies.size() << " strategies" << endl;
                 parallelLinearSection.push_back(particulars);
                 strategies.clear();
+                particulars.second.clear();
             }
         }
-        parallelLinearSections.emplace_back(parallelLinearSection);
+        parallelLinearSections.push_back(parallelLinearSection);
+        parallelLinearSection.clear();
 
     //TODO add check here for whether we've hit the same pivot (needed for nested parallelism)
     //TODO recurse if we haven't all hit the same pivot (into the nested parallel branch)
@@ -732,13 +783,13 @@ void StrategyManager::recursiveCriticalPath(typename graph<mv::Op, mv::DataFlow>
         }
 
         cout << "  Found Linear sources and sinks: " << sources.size() << ", " << sinks.size() << endl;
-        vector<CriticalInfo> linearSection = parallelLinearSections[0]; //Vector of Critical Info, add this to the metagraph
+        vector<MetaGraphEdge> linearSection = parallelLinearSections[0]; //Vector of Critical Info, add this to the metagraph
         for(int source = 0; source < sources.size(); source++){
             for(int sink = 0; sink < sinks.size(); sink++){
-                CriticalInfo critInfo = linearSection[source*sink];
-                double cost = get<2>(critInfo).first;
-                vector<StrategySet> strategies = get<2>(critInfo).second;
-                metaGraph.edge_insert(sources[source], sinks[sink], MetaGraphEdge(cost, strategies));
+                MetaGraphEdge edgeInfo = linearSection[source*sinks.size() + sink];
+                double cost = edgeInfo.first;
+                //vector<StrategySet> strategies = edgeInfo.second;
+                metaGraph.edge_insert(sources[source], sinks[sink], edgeInfo);
                 cout << "  Adding metagraph edge with cost " << cost << endl;
             }
         }
@@ -772,6 +823,9 @@ void StrategyManager::recursiveCriticalPath(typename graph<mv::Op, mv::DataFlow>
             sinks.push_back(metaGraph.node_insert(modifiedSink));
         }
         cout << "  Found Parallel sources and sinks: " << sources.size() << ", " << sinks.size() << endl;
+        for(auto section : parallelLinearSections){
+            cout << "   Section size is " << section.size() << endl;
+        }
 
         for(int source = 0; source < sources.size(); source++){
             for(int sink = 0; sink < sinks.size(); sink++){
@@ -779,10 +833,12 @@ void StrategyManager::recursiveCriticalPath(typename graph<mv::Op, mv::DataFlow>
                 vector<StrategySet> strategies;
                 for(int sectionIdx = 0; sectionIdx < parallelLinearSections.size(); sectionIdx++)
                 {
-                    CriticalInfo ci = parallelLinearSections[sectionIdx][source*sink];
-                    cost += get<2>(ci).first;
-                    for(auto strategy :  get<2>(ci).second)
+                    MetaGraphEdge edgeInfo = parallelLinearSections[sectionIdx][source*sinks.size() + sink];
+                    cost += edgeInfo.first;
+                    cout << "      Adding "  << edgeInfo.second.size() << " strategies for section " << sectionIdx << " criticalInfo " << source*sinks.size() + sink << endl;
+                    for(auto strategy :  edgeInfo.second){
                         strategies.push_back(strategy);
+                    }
                 }
                 metaGraph.edge_insert(sources[source], sinks[sink], MetaGraphEdge(cost, strategies));
                 cout << "  Adding metagraph edge with cost " << cost << " and " <<  strategies.size() << " strategies " << endl;
