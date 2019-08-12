@@ -177,7 +177,7 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
             pass.log(mv::Logger::MessageType::Debug, "Found DPU task " + opIt->getName() + " of type " + opIt->get<std::string>("taskOp"));
             pass.log(mv::Logger::MessageType::Debug, "Output tensor size is: " + opIt->getOutputTensor()[0]->getShape().toString());
 
-            auto opStrategy = opIt->getOutputTensor()[0]->get<std::string>("splitStrategy");
+            auto opStrategy = opIt->get<std::string>("splitStrategy");
             if(opStrategy == "Clustering")
                 nClusters = 1;
             else

@@ -241,8 +241,8 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
 //                auto sparsityMapDmaOp = sparsityMapCostantOp.leftmostChild();
 //                auto sparsityMapDma = sparsityMapDmaOp->getOutputTensor(0);
 //                toBuild->data->sparsity_index = sparsityMapDma->getAddress();
-                toBuild->data->sparsity_index = 0;
-                toBuild->data->storage_element_index = 0;
+                toBuild->data->sparsity_index = 999999999999999999;
+                toBuild->data->storage_element_index = 999999999999999999;
             }
         }
     }
@@ -376,8 +376,8 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
 //                auto sparsityMapCostantOp = cm.getOp(mv::createSparsityMapName(t->getName()));
 //                auto sparsityMapDmaOp = sparsityMapCostantOp.leftmostChild();
 //                auto sparsityMapDma = sparsityMapDmaOp->getOutputTensor(0);
-                toBuild->data->sparsity_index = 0;
-                toBuild->data->storage_element_index = 0;
+                toBuild->data->sparsity_index = 999999999999999999;
+                toBuild->data->storage_element_index = 999999999999999999;
             }
         }
     }
@@ -997,15 +997,13 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
     auto parentInputTensor = opIt->getInputTensor(0);
     if (opIt->hasAttr("multiCast"))
     {
+        toBuild->input_data = buildTensorReferenceT(cm, compilationDescriptor, parentInputTensor, clusterId);
         if (opIt->get<bool>("multiCast"))
         {
-            toBuild->input_data = buildTensorReferenceT(cm, compilationDescriptor, parentInputTensor);
             std::vector<unsigned int> locale_index;
             locale_index.push_back(clusterId);
             toBuild->input_data->locale_index = locale_index;
         }
-        else
-            toBuild->input_data = buildTensorReferenceT(cm, compilationDescriptor, parentInputTensor, clusterId);
     }
 
     toBuild->parent_input_tensor = buildTensorReferenceT(cm, compilationDescriptor, parentInputTensor);
