@@ -7,3 +7,6 @@
 [submodule "thirdparty/gapi_sipp"]
 	path = thirdparty/gapi_sipp
 	url = git@gitlab-icv.inn.intel.com:G-API/g-api-vpu.git
+[submodule "thirdparty/vsi_cmodel/vsi_cmodel"]
+	path = thirdparty/vsi_cmodel/vsi_cmodel
+	url = ssh://git@gitlab.devtools.intel.com:29418/kmb_hddl/vsi_cmodel.git

@@ -316,3 +316,6 @@ build.*
 .local_vimrc
 .ycm_extra_conf.py
 tags
+
+# vpusmm lib
+thirdparty/vsi_cmodel/vpusmm/lib
