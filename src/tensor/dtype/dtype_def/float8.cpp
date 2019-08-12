@@ -4,16 +4,8 @@
 
 namespace mv
 {
-
-    static std::function<BinaryData(const std::vector<DataElement>&)> toBinaryFunc =
-    [](const std::vector<DataElement> & vals)->mv::BinaryData
-    {
-        (void) vals;
-        throw DTypeError("DType", "conversion for Float8 is not supported yet");
-    };
-
+    //Float 8 is handled with Integers
     MV_REGISTER_DTYPE(Float8)
-    .setToBinaryFunc(toBinaryFunc)
-    .setIsDoubleType(true)
+    .setIsDoubleType(false)
     .setSizeInBits(8);
 }

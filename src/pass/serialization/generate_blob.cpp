@@ -38,7 +38,7 @@ namespace mv
 }
 
 void generateBlobFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor& td, mv::Element& passDesc, mv::json::Object& compOutput)
-{   
+{
 
     using namespace mv;
 
@@ -49,8 +49,8 @@ void generateBlobFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv
     // note: defaults from cm.RuntimeBinary constructor are disableRam , enableFile ,  mcmCompile.blob
     bool RAMEnable = false ;
     bool fileEnable = false ;
-    std::string blobFileName = "mcmCompile.blob"; 
- 
+    std::string blobFileName = "mcmCompile.blob";
+
     if (passDesc.hasAttr("enableRAMOutput") && passDesc.get("enableRAMOutput")) {
         RAMEnable = true ;
     }
@@ -230,8 +230,8 @@ void fillMXDescriptors(mv::ControlModel cm, mv::DataModel dm, unsigned fp16_size
                     descriptors[i].padType = 0;   // Zero Padding
                 else if(hwOp == mv::NCE1HWOps::FullyConnected)
                     descriptors[i].padType = 0;   // Zero Padding
-                if ((hwOp == mv::NCE1HWOps::AveragePooling) || (hwOp == mv::NCE1HWOps::MaxPooling)) 
-		{
+                if ((hwOp == mv::NCE1HWOps::AveragePooling) || (hwOp == mv::NCE1HWOps::MaxPooling))
+        {
                     auto inputSize = input->getShape();
                     auto outputSize = output->getShape();
                     int kernelDimX = radixX;
@@ -260,7 +260,7 @@ void fillMXDescriptors(mv::ControlModel cm, mv::DataModel dm, unsigned fp16_size
                 descriptors[i].inputWidth = input->getShape()[0] -1;
 
                 unsigned int current_height;
-       
+
                 current_height = input_lines_processed[h];
 
                 descriptors[i].inputHeight =  current_height - 1;
@@ -292,8 +292,8 @@ void fillMXDescriptors(mv::ControlModel cm, mv::DataModel dm, unsigned fp16_size
                 descriptors[i].topOutputJunk = topJunk[h];
                 descriptors[i].bottomOutputJunk = bottomJunk[h];
 
- 
- // Calculate localLineStride, channel stride, lines per ch 
+
+ // Calculate localLineStride, channel stride, lines per ch
                 // TODO: verify this works for all cases
                 auto inputDimX = input->getShape()[0];
                 auto inputDimY = input_lines_processed[h];
@@ -347,15 +347,15 @@ void fillMXDescriptors(mv::ControlModel cm, mv::DataModel dm, unsigned fp16_size
                 descriptors[i].linesPerCh = std::min(LPC[oc] - 1, input_lines_processed[h] - 1);
                 descriptors[i].localCs = (descriptors[i].linesPerCh + 1) * descriptors[i].localLs;
 
-     
-                // python compiler calculates rud. 
+
+                // python compiler calculates rud.
                 //---------------------------------------------
                                 // Calculate rud
                 if ((hwOp == mv::NCE1HWOps::Convolution) || (hwOp == mv::NCE1HWOps::FullyConnected)) {
-     
+
                     auto scheduledInputDimZ = inputChannelsPadded / splits_over_iC;
 
-                       if (((mv::round_up(input->getShape()[0], 8)) * input->getShape()[1] * scheduledInputDimZ * bytesPerPixel) < 128 * 1024) { 
+                       if (((mv::round_up(input->getShape()[0], 8)) * input->getShape()[1] * scheduledInputDimZ * bytesPerPixel) < 128 * 1024) {
                         auto tileIndex = oc;
                         if (tileIndex == 0) {
                             descriptors[i].rud = 0;
@@ -379,7 +379,7 @@ void fillMXDescriptors(mv::ControlModel cm, mv::DataModel dm, unsigned fp16_size
                 descriptors[i].sodGroup = ic;
 
                 // Fused ReLU
-               
+
                 if(opIt->hasAttr("postOpType") && opIt->get<std::string>("postOpType") == "ReLu" && opIt->get<unsigned>("reluSHVAcc") == 0)
                 {
                     descriptors[i].t0 = 0;
@@ -433,8 +433,7 @@ void fillMXDescriptors(mv::ControlModel cm, mv::DataModel dm, unsigned fp16_size
                 }
                 else if (descriptors[i].poolEn && descriptors[i].poolType == 1) {
                     float chemicalX = 1.0 / ((float)(radixX * radixY));
-                    mv_num_convert cvtr;
-                    uint16_t fp16_val = cvtr.fp32_to_fp16(chemicalX);
+                    uint16_t fp16_val = mv::fp32_to_fp16(chemicalX);
                     descriptors[i].avgPoolX = fp16_val;
                 }
                 //------------------------------------------------------
@@ -518,7 +517,7 @@ void fillMXDescriptors(mv::ControlModel cm, mv::DataModel dm, unsigned fp16_size
 
                     // Update taps base address
                     // https://github.com/movidius/mdk/blob/release_R6_181129_1401/projects/Fathom/src2/Controllers/HwCompiler.py
-               
+
                     auto sodIndex = descriptors[i].sodGroup;
                     //auto bytesPerPixel = fp16_size;
                     auto scheduledOutputDimZ = output->getShape()[2];
@@ -540,11 +539,11 @@ void fillMXDescriptors(mv::ControlModel cm, mv::DataModel dm, unsigned fp16_size
                 // Note: only interleaved supported right now
                 auto offset = output_line_start[h] * output->getShape()[2] * outputBlobTensor.strideZ + output_channels_performed_so_far * outputBlobTensor.strideZ;
                 descriptors[i].outBaseAddr = offset;
-                
+
                 // Note: scale tensor patching is handled by FW
 //-----------------------------------------------------------------------------------------------
                 //HACK FOR CONCAT
-                /* commenting this out as this seems causing tinyyolo4th conv to fail. 
+                /* commenting this out as this seems causing tinyyolo4th conv to fail.
                 if(hwOp == mv::NCE1HWOps::Convolution)
                     descriptors[i].outBaseAddr = outputBlobTensor.strideZ * output_line_start[h] * output_channels; //output:427
                     BlobTensor.strideZ should be fp16_size * outputWidthPadded
@@ -744,7 +743,7 @@ void PopulateSerialFieldsFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
         }
         else if(opIt->getOpType() == "Elu")
         {
-            opIt->set<unsigned>("alpha", opIt->get<unsigned>("alpha")); 
+            opIt->set<unsigned>("alpha", opIt->get<unsigned>("alpha"));
             opIt->set<unsigned>("strideX", 0);
             opIt->set<unsigned>("strideY", 0);
             opIt->set<unsigned>("SerialID", 23);
@@ -758,12 +757,12 @@ void PopulateSerialFieldsFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
             opIt->set<unsigned>("strideY", 0);
             opIt->set<unsigned>("SerialID", 42);
 
-    
+
         }
         else if(opIt->getOpType() == "LocalResponseNormalization")
         {
-            opIt->set<unsigned>("size", opIt->get<unsigned>("size")); 
-            opIt->set<unsigned>("bias", opIt->get<unsigned>("bias")); 
+            opIt->set<unsigned>("size", opIt->get<unsigned>("size"));
+            opIt->set<unsigned>("bias", opIt->get<unsigned>("bias"));
             opIt->set<unsigned>("SerialID", 11);
         }
         else if(opIt->getOpType() == "Reshape")
