@@ -1,7 +1,8 @@
 #include "gtest/gtest.h"
 #include "include/mcm/compiler/compilation_unit.hpp"
 #include "include/mcm/utils/data_generator.hpp"
-#include "include/mcm/utils/serializer/Fp16Convert.h"
+#include "include/mcm/utils/custom_math.hpp"
+
 #include "include/mcm/utils/hardware_tests.hpp"
 #include "meta/include/mcm/op_model.hpp"
 #include <iostream>
@@ -29,38 +30,36 @@ mv::Data::TensorIterator convBatchNormBlock(mv::CompositionalModel& model, mv::D
 
 TEST (mv_num_convert, fp32_to_fp16)
 {
-   mv_num_convert cvtr ;
-   EXPECT_EQ(cvtr.fp32_to_fp16(1.0f),0x3c00 );
-   EXPECT_EQ(cvtr.fp32_to_fp16(2.0f),0x4000 );
-   EXPECT_EQ(cvtr.fp32_to_fp16(9.0f),0x4880 );
-   EXPECT_EQ(cvtr.fp32_to_fp16(15.0f),0x4b80 );
-   EXPECT_EQ(cvtr.fp32_to_fp16(27.0f),0x4ec0 );
-   EXPECT_EQ(cvtr.fp32_to_fp16(1.0009765625f),0x3c01 );
-   EXPECT_EQ(cvtr.fp32_to_fp16(-2.0f),0xc000 );
-   EXPECT_EQ(cvtr.fp32_to_fp16(65504.0f),0x7bff );
-   EXPECT_EQ(cvtr.fp32_to_fp16(0.0000610352f),0x0400 );
-   EXPECT_EQ(cvtr.fp32_to_fp16(0.0000609756f),0x03ff );
-   EXPECT_EQ(cvtr.fp32_to_fp16(0.0000000596046f),0x0001 );
-   EXPECT_EQ(cvtr.fp32_to_fp16(0.0f),0x0000 );
-   EXPECT_EQ(cvtr.fp32_to_fp16(0.333251953125f),0x3555 );
+   EXPECT_EQ(mv::fp32_to_fp16(1.0f),0x3c00 );
+   EXPECT_EQ(mv::fp32_to_fp16(2.0f),0x4000 );
+   EXPECT_EQ(mv::fp32_to_fp16(9.0f),0x4880 );
+   EXPECT_EQ(mv::fp32_to_fp16(15.0f),0x4b80 );
+   EXPECT_EQ(mv::fp32_to_fp16(27.0f),0x4ec0 );
+   EXPECT_EQ(mv::fp32_to_fp16(1.0009765625f),0x3c01 );
+   EXPECT_EQ(mv::fp32_to_fp16(-2.0f),0xc000 );
+   EXPECT_EQ(mv::fp32_to_fp16(65504.0f),0x7bff );
+   EXPECT_EQ(mv::fp32_to_fp16(0.0000610352f),0x0400 );
+   EXPECT_EQ(mv::fp32_to_fp16(0.0000609756f),0x03ff );
+   EXPECT_EQ(mv::fp32_to_fp16(0.0000000596046f),0x0001 );
+   EXPECT_EQ(mv::fp32_to_fp16(0.0f),0x0000 );
+   EXPECT_EQ(mv::fp32_to_fp16(0.333251953125f),0x3555 );
 }
 
 TEST (mv_num_convert, fp64_to_fp16)
 {
-   mv_num_convert cvtr ;
-   EXPECT_EQ(cvtr.fp32_to_fp16(1.0),0x3c00 );
-   EXPECT_EQ(cvtr.fp32_to_fp16(2.0),0x4000 );
-   EXPECT_EQ(cvtr.fp32_to_fp16(9.0),0x4880 );
-   EXPECT_EQ(cvtr.fp32_to_fp16(15.0),0x4b80 );
-   EXPECT_EQ(cvtr.fp32_to_fp16(27.0),0x4ec0 );
-   EXPECT_EQ(cvtr.fp32_to_fp16(1.0009765625),0x3c01 );
-   EXPECT_EQ(cvtr.fp32_to_fp16(-2.0),0xc000 );
-   EXPECT_EQ(cvtr.fp32_to_fp16(65504.0),0x7bff );
-   EXPECT_EQ(cvtr.fp32_to_fp16(0.0000610352),0x0400 );
-   EXPECT_EQ(cvtr.fp32_to_fp16(0.0000609756),0x03ff );
-   EXPECT_EQ(cvtr.fp32_to_fp16(0.0000000596046),0x0001 );
-   EXPECT_EQ(cvtr.fp32_to_fp16(0.0),0x0000 );
-   EXPECT_EQ(cvtr.fp32_to_fp16(0.333251953125),0x3555 );
+   EXPECT_EQ(mv::fp32_to_fp16(1.0),0x3c00 );
+   EXPECT_EQ(mv::fp32_to_fp16(2.0),0x4000 );
+   EXPECT_EQ(mv::fp32_to_fp16(9.0),0x4880 );
+   EXPECT_EQ(mv::fp32_to_fp16(15.0),0x4b80 );
+   EXPECT_EQ(mv::fp32_to_fp16(27.0),0x4ec0 );
+   EXPECT_EQ(mv::fp32_to_fp16(1.0009765625),0x3c01 );
+   EXPECT_EQ(mv::fp32_to_fp16(-2.0),0xc000 );
+   EXPECT_EQ(mv::fp32_to_fp16(65504.0),0x7bff );
+   EXPECT_EQ(mv::fp32_to_fp16(0.0000610352),0x0400 );
+   EXPECT_EQ(mv::fp32_to_fp16(0.0000609756),0x03ff );
+   EXPECT_EQ(mv::fp32_to_fp16(0.0000000596046),0x0001 );
+   EXPECT_EQ(mv::fp32_to_fp16(0.0),0x0000 );
+   EXPECT_EQ(mv::fp32_to_fp16(0.333251953125),0x3555 );
 }
 
 // test 01 : 1 2d convolution
@@ -675,7 +674,7 @@ TEST (generate_blob_WDDM, blob_maxpool1)
     mv::CompilationUnit unit("testModel");
     mv::CompositionalModel& test_cm = unit.model();
 
-    // Define input 
+    // Define input
     auto inIt = test_cm.input({64, 64, 3, 1}, mv::DType("Float16"), mv::Order("NWHC"));
 
     // define first maxpool
@@ -709,7 +708,7 @@ TEST (generate_blob_WDDM, blob_maxpool2)
     mv::CompilationUnit unit("testModel");
     mv::CompositionalModel& test_cm = unit.model();
 
-    // Define input 
+    // Define input
     auto inIt = test_cm.input({65, 65, 3, 1}, mv::DType("Float16"), mv::Order("NCHW"));
 
     // define first maxpool
@@ -744,7 +743,7 @@ TEST (generate_blob_WDDM, blob_maxpool3)
     mv::CompilationUnit unit("testModel");
     mv::CompositionalModel& test_cm = unit.model();
 
-    // Define input 
+    // Define input
     auto inIt = test_cm.input({65, 65, 3, 1}, mv::DType("Float16"), mv::Order("NCHW"));  // {w,h,c}
 
     // define first maxpool
@@ -779,7 +778,7 @@ TEST (generate_blob_WDDM, blob_maxpool4)
     mv::CompilationUnit unit("testModel");
     mv::CompositionalModel& test_cm = unit.model();
 
-    // Define input 
+    // Define input
     auto inIt = test_cm.input({1920, 1080, 4, 1}, mv::DType("Float16"), mv::Order("NCHW"));  // {w,h,c}
 
     // define first maxpool
@@ -814,7 +813,7 @@ TEST (generate_blob_WDDM, blob_avgpool1)
     mv::CompilationUnit unit("testModel");
     mv::CompositionalModel& test_cm = unit.model();
 
-    // Define input 
+    // Define input
     auto inIt = test_cm.input({256, 100, 3, 1}, mv::DType("Float16"), mv::Order("NCHW"));  // {w,h,c}
 
     // define first maxpool
@@ -849,7 +848,7 @@ TEST (generate_blob_WDDM, blob_avgpool2)
     mv::CompilationUnit unit("testModel");
     mv::CompositionalModel& test_cm = unit.model();
 
-    // Define input 
+    // Define input
     auto inIt = test_cm.input({255, 99, 3, 1}, mv::DType("Float16"), mv::Order("NCHW"));  // {w,h,c}
 
     // define first maxpool
@@ -1129,7 +1128,7 @@ TEST (generate_blob, DISABLED_runtime_binary_RAM_FILE)
     compDesc.setPassArg("GenerateBlob", "enableRAMOutput", true);
     compDesc.setPassArg("MarkHardwareOperations", "disableHardware", true);
 
-    // Initialize compilation 
+    // Initialize compilation
     unit.initialize();
 
     // test get name and size methods
@@ -1199,7 +1198,7 @@ TEST (generate_blob, DISABLED_runtime_binary_RAM)
     compDesc.setPassArg("GenerateBlob", "enableRAMOutput", true);
     compDesc.setPassArg("MarkHardwareOperations", "disableHardware", true);
 
-    // Initialize compilation 
+    // Initialize compilation
     unit.initialize();
     unit.run();
     cm.getBinaryBuffer()->dumpBuffer("final_RAM2.blob") ;
@@ -1259,7 +1258,7 @@ TEST (generate_blob, DISABLED_runtime_binary_FILE)
     compDesc.setPassArg("GenerateBlob", "enableRAMOutput", false);
     compDesc.setPassArg("MarkHardwareOperations", "disableHardware", true);
 
-    // Initialize compilation 
+    // Initialize compilation
     unit.initialize();
     unit.run();
     cm.getBinaryBuffer()->dumpBuffer("final_RAM3.blob") ;

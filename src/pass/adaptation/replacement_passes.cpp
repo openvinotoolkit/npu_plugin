@@ -1,10 +1,13 @@
 #include "include/mcm/pass/pass_registry.hpp"
 #include "meta/include/mcm/op_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
+#include "include/mcm/utils/custom_math.hpp"
+#include "include/mcm/pass/pass_utils.hpp"
 
 static void fullyConnectedAsConv2DFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 static void standaloneActivationAsPostOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
-static void averageAsDepthWise(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
+static void averageAsDepthWiseFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
+static void floatLayersToFP16Fcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 
 namespace mv
 {
@@ -25,9 +28,15 @@ namespace mv
         );
 
         MV_REGISTER_PASS(AverageAsDepthWise)
-        .setFunc(averageAsDepthWise)
+        .setFunc(averageAsDepthWiseFcn)
         .setDescription(
             "Replaces average Pooling Layer with a DeptwiseConvolution"
+        );
+
+        MV_REGISTER_PASS(FloatLayersToFP16)
+        .setFunc(floatLayersToFP16Fcn)
+        .setDescription(
+            "Replaces Float layers with equivalent FP16 layers"
         );
     }
 
@@ -61,6 +70,39 @@ mv::Data::OpListIterator linkNewOperationsReplacement(mv::Data::OpListIterator p
     }
 
     return opIt;
+}
+
+void floatLayersToFP16Fcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+{
+    mv::OpModel om(model);
+
+    auto constants = om.getOps("Constant");
+
+    for(auto vecIt = constants.begin(); vecIt != constants.end(); ++vecIt)
+    {
+        auto kernelOp = *vecIt;
+        auto originalDTypeSize = kernelOp->getOutputTensor(0)->getDType().getSizeInBits();
+        if(originalDTypeSize == 64 || originalDTypeSize == 32)
+        {
+            auto opId = kernelOp->get<unsigned>("opId");
+
+            std::vector<double> oldData = kernelOp->getOutputTensor(0)->getDoubleData();
+            std::vector<int64_t> newData(oldData.size());
+
+            for(unsigned i = 0; i < oldData.size(); ++i)
+                newData[i] = mv::fp32_to_fp16(oldData[i]);
+
+            auto kernelShape = kernelOp->getOutputTensor(0)->getShape();
+            auto kernelOrder = kernelOp->getOutputTensor(0)->getOrder();
+
+            auto outputDataFlows = mv::getOutputDataFlow(om, kernelOp);
+            auto newKernel = om.constantInt(newData, kernelShape, mv::DType("Float16"), kernelOrder);
+            auto newKernelOp = om.getSourceOp(newKernel);
+            newKernelOp->set<unsigned>("opId", opId);
+
+            mv::setOutputDataFlow(om, newKernel, outputDataFlows);
+        }
+    }
 }
 
 void fullyConnectedAsConv2DFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
@@ -178,7 +220,7 @@ void standaloneActivationAsPostOpsFcn(const mv::pass::PassEntry& pass, mv::Compu
     }
 }
 
-void averageAsDepthWise(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+void averageAsDepthWiseFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
     using namespace mv;
 
