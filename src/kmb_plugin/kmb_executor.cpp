@@ -332,6 +332,21 @@ void KmbExecutor::deallocateGraph() {
         pipe->Stop();
         pipe->Delete();
     }
+    if (nnPl) {
+        nnPl->Delete();
+    }
+    if (gg) {
+        gg->NNDeallocateGraph(BHandle->graphid);
+    }
+    if (plgTensorInput_) {
+        plgTensorInput_->Delete();
+    }
+    if (plgTensorOutput_) {
+        plgTensorOutput_->Delete();
+    }
+    if (plgPoolOutputs) {
+        plgPoolOutputs->Delete();
+    }
     if (RgnAlloc) {
         RgnAlloc->Delete();
     }
