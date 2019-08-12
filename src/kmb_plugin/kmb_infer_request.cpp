@@ -30,6 +30,22 @@
 
 #include "kmb_preproc.hpp"
 
+// TODO https://jira.devtools.intel.com/browse/CVS-21391
+ /**
+ * @brief multiply vector's values
+ * @param vec - vector with values
+ * @return result of multiplication
+ */
+template<typename T, typename A>
+static T product(std::vector<T, A> const &vec) {
+    if (vec.empty())
+        return 0;
+    T ret = vec[0];
+    for (size_t i = 1; i < vec.size(); ++i)
+        ret *= vec[i];
+    return ret;
+}
+
 using namespace vpu::KmbPlugin;
 using namespace InferenceEngine;
 
@@ -62,9 +78,9 @@ KmbInferRequest::KmbInferRequest(const InferenceEngine::InputsDataMap& networkIn
         }
 
         Blob::Ptr inputBlob = make_blob_with_precision(TensorDesc(
-            precision,
-            dims,
-            layout), executor->getAllocator());
+                precision,
+                dims,
+                layout), executor->getAllocator());
         inputBlob->allocate();
 
         _inputs[networkInput.first] = inputBlob;
@@ -101,8 +117,57 @@ void KmbInferRequest::InferImpl() {
     InferAsync();
     GetResult();
 }
-
+// TODO a lot of dublications
 void KmbInferRequest::InferAsync() {
+    if (!_custom_inputs.empty()) {
+        // execute input pre-processing
+        if (SIPPPreprocessor::useSIPP() &&
+            SIPPPreprocessor::isApplicable(_custom_inputs, _preProcData, _networkInputs)) {
+            if (!_sippPreproc) {
+                _sippPreproc.reset(new SIPPPreprocessor(_custom_inputs, _preProcData));
+            }
+
+            InferenceEngine::BlobMap inputs;
+
+            for (auto &input : _custom_inputs) {
+                inputs[input.first] = make_blob_with_precision(_custom_inputs.begin()->second->getTensorDesc(),
+                                                                _executor->getAllocator());
+                inputs[input.first]->allocate();
+            }
+
+            _sippPreproc->execSIPPDataPreprocessing(inputs, _preProcData, _networkInputs, m_curBatch, true);
+            for (auto &input : inputs) {
+                auto name = input.first;
+
+                auto custom_inputBlob = input.second;
+                auto inputBlob = _inputs[name];
+
+                copyBlob(custom_inputBlob, inputBlob);
+            }
+        } else {
+            execDataPreprocessing(_custom_inputs);
+            for (auto &input : _custom_inputs) {
+                auto name = input.first;
+
+                auto custom_inputBlob = input.second;
+                auto inputBlob = _inputs[name];
+
+                copyBlob(custom_inputBlob, inputBlob);
+            }
+        }
+    } else {
+        // execute input pre-processing
+        if (SIPPPreprocessor::useSIPP() &&
+            SIPPPreprocessor::isApplicable(_inputs, _preProcData, _networkInputs)) {
+            if (!_sippPreproc) {
+                _sippPreproc.reset(new SIPPPreprocessor(_inputs, _preProcData));
+            }
+            _sippPreproc->execSIPPDataPreprocessing(_inputs, _preProcData, _networkInputs, m_curBatch, true);
+        } else {
+            execDataPreprocessing(_inputs);
+        }
+    }
+
     for (const auto& input : _inputs) {
         auto const inputBlobPtr = input.second;
         auto inputBlobPrecision = inputBlobPtr->getTensorDesc().getPrecision();
@@ -159,9 +224,143 @@ void KmbInferRequest::GetResult() {
                                               { return sum + outputs.second->byteSize(); });
 
     _executor->getResult(outputPtr, output_size_total);
+
+    if (!_custom_outputs.empty()) {
+        for (auto &output : _outputs) {
+            auto name = output.first;
+
+            auto custom_outputBlob = _custom_outputs[name];
+            auto outputBlob = output.second;
+
+            copyBlob(outputBlob, custom_outputBlob);
+        }
+    }
 }
 
 void KmbInferRequest::GetPerformanceCounts(std::map<std::string, InferenceEngineProfileInfo> &perfMap) const {
     UNUSED(perfMap);
     THROW_IE_EXCEPTION << "KmbInferRequest::GetPerformanceCounts is not implemented\n";
+}
+
+void KmbInferRequest::SetBlob(const char *name, const InferenceEngine::Blob::Ptr &data) {
+    IE_PROFILING_AUTO_SCOPE(SetBlob)
+    if (name == nullptr) {
+        THROW_IE_EXCEPTION << NOT_FOUND_str + "Failed to set blob with empty name";
+    }
+    if (!data)
+        THROW_IE_EXCEPTION << NOT_ALLOCATED_str << "Failed to set empty blob with name: \'" << name << "\'";
+    const bool compoundBlobPassed = data->is<CompoundBlob>();
+    if (!compoundBlobPassed && data->buffer() == nullptr)
+        THROW_IE_EXCEPTION << "Input data was not allocated. Input name: \'" << name << "\'";
+    if (data->size() == 0) {
+        THROW_IE_EXCEPTION << "Input data is empty. Input name: \'" << name << "\'";
+    }
+
+    InputInfo::Ptr foundInput;
+    DataPtr foundOutput;
+    size_t dataSize = data->size();
+    if (findInputAndOutputBlobByName(name, foundInput, foundOutput)) {
+        if (foundInput->getPrecision() != data->getTensorDesc().getPrecision()) {
+            THROW_IE_EXCEPTION << PARAMETER_MISMATCH_str
+                               << "Failed to set Blob with precision not corresponding to user input precision";
+        }
+
+        const bool preProcRequired = preProcessingRequired(foundInput, data);
+        if (compoundBlobPassed && !preProcRequired) {
+            THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str
+                               << "cannot set compound blob: supported only for input pre-processing";
+        }
+
+        if (preProcRequired) {
+            // Stores the given blob as ROI blob. It will be used to fill in network input
+            // during pre-processing
+            Blob::Ptr orig_data;
+            auto found = _inputs.find(name);
+            if (found != _inputs.end()) {
+                orig_data = found->second;
+            } else {
+                orig_data = _custom_inputs[name];
+            }
+            PreProcessData::isApplicable(data, orig_data);
+
+            _preProcData[name].setRoiBlob(data);
+        } else {
+            size_t inputSize = product(foundInput->getTensorDesc().getDims());
+            if (dataSize != inputSize) {
+                THROW_IE_EXCEPTION << "Input blob size is not equal network input size ("
+                                   << dataSize << "!=" << inputSize << ").";
+            }
+            _custom_inputs[name] = data;
+        }
+    } else {
+        if (compoundBlobPassed) {
+            THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str
+                               << "cannot set compound blob: supported only for input pre-processing";
+        }
+        size_t outputSize = product(foundOutput->getDims());
+        if (dataSize != outputSize) {
+            THROW_IE_EXCEPTION << "Output blob size is not equal network output size ("
+                               << dataSize << "!=" << outputSize << ").";
+        }
+        if (foundOutput->getPrecision() != data->getTensorDesc().getPrecision()) {
+            THROW_IE_EXCEPTION << PARAMETER_MISMATCH_str
+                               << "Failed to set Blob with precision not corresponding to user output precision";
+        }
+        _custom_outputs[name] = data;
+    }
+}
+
+
+void KmbInferRequest::GetBlob(const char *name, Blob::Ptr &data) {
+    IE_PROFILING_AUTO_SCOPE(GetBlob)
+    InputInfo::Ptr foundInput;
+    DataPtr foundOutput;
+    if (findInputAndOutputBlobByName(name, foundInput, foundOutput)) {
+        // ROI blob is returned only if it was set previously. Otherwise default blob is returned.
+        auto it = _preProcData.find(name);
+        if (it != _preProcData.end()) {
+            data = it->second.getRoiBlob();
+        } else {
+            if (!_custom_inputs.empty()) {
+                data = _custom_inputs[name];
+            } else {
+                data = _inputs[name];
+            }
+            checkBlob(data, name, true, foundInput->getTensorDesc().getDims());
+        }
+    } else {
+        if (!_custom_outputs.empty()) {
+            data = _custom_outputs[name];
+        } else {
+            data = _outputs[name];
+        }
+        checkBlob(data, name, false, foundOutput->getTensorDesc().getDims());
+    }
+}
+
+void KmbInferRequest::Infer() {
+    KmbInferRequest::checkBlobs();
+    InferImpl();
+}
+
+void KmbInferRequest::checkBlobs() {
+    if (_custom_inputs.empty()) {
+        for (auto const &input : _inputs) {
+            checkBlob(input.second, input.first, true);
+        }
+    } else {
+        for (auto const &input : _custom_inputs) {
+            checkBlob(input.second, input.first, true);
+        }
+    }
+
+    if (_custom_outputs.empty()) {
+        for (auto const &output : _outputs) {
+            checkBlob(output.second, output.first, false);
+        }
+    } else {
+        for (auto const &output : _custom_outputs) {
+            checkBlob(output.second, output.first, false);
+        }
+    }
 }

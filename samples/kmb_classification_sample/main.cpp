@@ -185,6 +185,10 @@ int main(int argc, char *argv[]) {
                                                   batchSize, printedResultsCount,
                                                   labels);
         classificationResult.print();
+
+        FILE* outFile  = fopen("/output.dat", "wb");
+        fwrite(outputBlob->buffer(), sizeof(u_char), outputBlob->byteSize(), outFile);
+        fclose(outFile);
     }
     catch (const std::exception& error) {
         slog::err << "" << error.what() << slog::endl;

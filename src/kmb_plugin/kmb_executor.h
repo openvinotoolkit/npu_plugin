@@ -84,7 +84,7 @@ public:
 
     const std::shared_ptr<KmbConfig>& _config;
 
-    std::shared_ptr<InferenceEngine::IAllocator> getAllocator();
+    std::shared_ptr<KmbAllocator> getAllocator();
 };
 
 typedef std::shared_ptr<KmbExecutor> KmbExecutorPtr;

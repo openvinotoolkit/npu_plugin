@@ -44,6 +44,11 @@ class KmbInferRequest : public InferenceEngine::InferRequestInternal {
     std::shared_ptr<KmbConfig> _config;
     std::shared_ptr<InferenceEngine::SIPPPreprocessor> _sippPreproc;
 
+protected:
+    InferenceEngine::BlobMap _custom_inputs;
+    InferenceEngine::BlobMap _custom_outputs;
+    void checkBlobs();
+
 public:
     typedef std::shared_ptr<KmbInferRequest> Ptr;
 
@@ -60,6 +65,11 @@ public:
 
     void
     GetPerformanceCounts(std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> &perfMap) const override;
+
+    void SetBlob(const char *name, const InferenceEngine::Blob::Ptr &data) override;
+    void GetBlob(const char *name, InferenceEngine::Blob::Ptr &data) override;
+
+    void Infer() override;
 };
 
 }  // namespace KmbPlugin

@@ -363,7 +363,7 @@ void KmbExecutor::deallocateGraph() {
 #endif
 }
 
-std::shared_ptr<InferenceEngine::IAllocator> KmbExecutor::getAllocator() {
+std::shared_ptr<KmbAllocator> KmbExecutor::getAllocator() {
     return allocator;
 }
 

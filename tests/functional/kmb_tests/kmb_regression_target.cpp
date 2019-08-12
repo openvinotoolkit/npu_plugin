@@ -673,3 +673,198 @@ INSTANTIATE_TEST_CASE_P(asyncInferenceWithCallback, VpuAsyncInferWithParam,
 );
 
 #endif
+using kmbSetBlob = vpuLayersTests;
+
+TEST_F(kmbSetBlob, DISABLED_compareSetBlobAndGetBlob) {
+    std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet/mobilenet.blob";
+    Core ie;
+    InferenceEngine::ExecutableNetwork importedNetwork;
+    ASSERT_NO_THROW(importedNetwork = ie.ImportNetwork(modelFilePath, "KMB", {}));
+
+    InferenceEngine::InferRequest inferRequest;
+    ASSERT_NO_THROW(inferRequest = importedNetwork.CreateInferRequest());
+
+    ConstInputsDataMap inputInfo = importedNetwork.GetInputsInfo();
+    std::string input_name = inputInfo.begin()->first;
+
+    Blob::Ptr inputBlob;
+    ASSERT_NO_THROW(inputBlob = InferenceEngine::make_shared_blob<uint8_t>({Precision::U8, {1, 3, 224, 224}, Layout::NCHW}));
+    inputBlob->allocate();
+
+    u_int8_t* ptr = inputBlob->buffer();
+    memset(ptr, 0xFF, inputBlob->byteSize());
+    inferRequest.SetBlob(input_name, inputBlob);
+    Blob::Ptr newInputBlob;
+    ASSERT_NO_THROW(newInputBlob = inferRequest.GetBlob(input_name));
+
+    ASSERT_EQ(StatusCode::OK, memcmp(inputBlob->buffer(), newInputBlob->buffer(), inputBlob->byteSize()));
+    ASSERT_EQ((void *)inputBlob->buffer(), (void *)newInputBlob->buffer());
+}
+
+TEST_F(kmbSetBlob, DISABLED_compareSetBlobAndGetBlobAfterInfer) {
+    std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet/mobilenet.blob";
+
+
+    std::string inputNameFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet/input.dat";
+    std::string outputNameFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet/output.dat";
+
+    Blob::Ptr fileOutputBlob = InferenceEngine::make_shared_blob<uint8_t>({Precision::U8, {1, 1, 1, 1024}, Layout::NCHW});
+    fileOutputBlob->allocate();
+    fromBinaryFile(outputNameFilePath, fileOutputBlob);
+
+    Core ie;
+    InferenceEngine::ExecutableNetwork importedNetwork;
+    ASSERT_NO_THROW(importedNetwork = ie.ImportNetwork(modelFilePath, "KMB", {}));
+
+    InferenceEngine::InferRequest inferRequestOth;
+    ASSERT_NO_THROW(inferRequestOth = importedNetwork.CreateInferRequest());
+    std::string input_name = importedNetwork.GetInputsInfo().begin()->first;
+
+    Blob::Ptr firstInputBlob;
+    ASSERT_NO_THROW(firstInputBlob = inferRequestOth.GetBlob(input_name));
+    fromBinaryFile(inputNameFilePath, firstInputBlob);
+
+    inferRequestOth.Infer();
+    std::string output_name = importedNetwork.GetOutputsInfo().begin()->first;
+    Blob::Ptr outputBlobOth;
+    ASSERT_NO_THROW(outputBlobOth = inferRequestOth.GetBlob(output_name));
+
+    // ----------------------------------------------------------
+
+    Blob::Ptr inputBlob;
+    ASSERT_NO_THROW(inputBlob = InferenceEngine::make_shared_blob<uint8_t>({Precision::U8, {1, 3, 224, 224}, Layout::NCHW}));
+    inputBlob->allocate();
+    fromBinaryFile(inputNameFilePath, inputBlob);
+
+    InferenceEngine::InferRequest inferRequest;
+    ASSERT_NO_THROW(inferRequest = importedNetwork.CreateInferRequest());
+    std::string othInput_name = importedNetwork.GetInputsInfo().begin()->first;
+    inferRequest.SetBlob(othInput_name, inputBlob);
+
+    inferRequest.Infer();
+    std::string othOutput_name = importedNetwork.GetOutputsInfo().begin()->first;
+    Blob::Ptr outputBlob;
+    ASSERT_NO_THROW(outputBlob = inferRequest.GetBlob(othOutput_name));
+
+    Blob::Ptr blobFP32 = ConvertU8ToFP32(outputBlob);
+    Blob::Ptr othBlobFP32 = ConvertU8ToFP32(outputBlobOth);
+    Compare(blobFP32, othBlobFP32, 0.0f);
+
+    blobFP32 = ConvertU8ToFP32(outputBlob);
+    othBlobFP32 = ConvertU8ToFP32(fileOutputBlob);
+    Compare(blobFP32, othBlobFP32, 0.0f);
+}
+
+TEST_F(kmbSetBlob, DISABLED_compareSetBlobAllocation) {
+    std::string mobilenetModelFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet/mobilenet.blob";
+    std::string resnetModelFilePath = ModelsPath() + "/KMB_models/BLOBS/resnet/resnet.blob";
+    std::string inputNameFilePath = ModelsPath() + "/KMB_models/BLOBS/resnet/input.dat";
+
+    Core ie;
+    InferenceEngine::ExecutableNetwork mobilNImportedNetwork;
+    ASSERT_NO_THROW(mobilNImportedNetwork = ie.ImportNetwork(mobilenetModelFilePath, "KMB", {}));
+    InferenceEngine::ExecutableNetwork resNImportedNetwork;
+    ASSERT_NO_THROW(resNImportedNetwork = ie.ImportNetwork(resnetModelFilePath, "KMB", {}));
+
+
+    InferenceEngine::InferRequest mobilNInferRequest;
+    ASSERT_NO_THROW(mobilNInferRequest = mobilNImportedNetwork.CreateInferRequest());
+    InferenceEngine::InferRequest resNInferRequest;
+    ASSERT_NO_THROW(resNInferRequest = resNImportedNetwork.CreateInferRequest());
+
+    std::string mobilInput_name = mobilNImportedNetwork.GetInputsInfo().begin()->first;
+    Blob::Ptr mobilNInputBlob;
+    fromBinaryFile(inputNameFilePath, mobilNInputBlob);
+
+    std::string resNInput_name = resNImportedNetwork.GetInputsInfo().begin()->first;
+    resNInferRequest.SetBlob(resNInput_name, mobilNInputBlob);
+    Blob::Ptr resNInputBlob;
+    ASSERT_NO_THROW(resNInputBlob = resNInferRequest.GetBlob(resNInput_name));
+    ASSERT_EQ((void *)mobilNInputBlob->buffer(), (void *)resNInputBlob->buffer());
+}
+
+TEST_F(kmbSetBlob, DISABLED_compareOutpustTwoNetworks) {
+    std::string mobilenetModelFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet/mobilenet.blob";
+
+    std::string inputNameFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet/input.dat";
+    std::string outputNameFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet/output.dat";
+
+    Blob::Ptr fileOutputBlob = InferenceEngine::make_shared_blob<uint8_t>({Precision::U8, {1, 1, 1, 1024}, Layout::NCHW});
+    fileOutputBlob->allocate();
+    fromBinaryFile(outputNameFilePath, fileOutputBlob);
+
+    Core ie;
+    InferenceEngine::ExecutableNetwork mobilNImportedNetwork;
+    ASSERT_NO_THROW(mobilNImportedNetwork = ie.ImportNetwork(mobilenetModelFilePath, "KMB", {}));
+    InferenceEngine::ExecutableNetwork othMobilNImportedNetwork;
+    ASSERT_NO_THROW(othMobilNImportedNetwork = ie.ImportNetwork(mobilenetModelFilePath, "KMB", {}));
+
+
+    InferenceEngine::InferRequest mobilNInferRequest;
+    ASSERT_NO_THROW(mobilNInferRequest = mobilNImportedNetwork.CreateInferRequest());
+
+    std::string mobilInput_name = mobilNImportedNetwork.GetInputsInfo().begin()->first;
+    std::string mobilOutput_name = mobilNImportedNetwork.GetOutputsInfo().begin()->first;
+
+    Blob::Ptr mobilNInputBlob;
+    ASSERT_NO_THROW(mobilNInputBlob = mobilNInferRequest.GetBlob(mobilInput_name));
+    fromBinaryFile(inputNameFilePath, mobilNInputBlob);
+
+    mobilNInferRequest.Infer();
+    Blob::Ptr mobilNOutputBlob;
+    ASSERT_NO_THROW(mobilNOutputBlob = mobilNInferRequest.GetBlob(mobilOutput_name));
+
+    // --------------------
+
+    InferenceEngine::InferRequest othMobilNInferRequest;
+    ASSERT_NO_THROW(othMobilNInferRequest = othMobilNImportedNetwork.CreateInferRequest());
+
+    std::string othMobilNInput_name = othMobilNImportedNetwork.GetInputsInfo().begin()->first;
+    std::string othMobilNOutput_name = othMobilNImportedNetwork.GetOutputsInfo().begin()->first;
+
+    othMobilNInferRequest.SetBlob(othMobilNInput_name, mobilNInputBlob);
+    othMobilNInferRequest.Infer();
+    Blob::Ptr othMobilNOutputBlob;
+    ASSERT_NO_THROW(othMobilNOutputBlob = othMobilNInferRequest.GetBlob(othMobilNOutput_name));
+    ASSERT_EQ(mobilNOutputBlob->byteSize(), othMobilNOutputBlob->byteSize());
+
+    Blob::Ptr blobFP32 = ConvertU8ToFP32(othMobilNOutputBlob);
+    Blob::Ptr othBlobFP32 = ConvertU8ToFP32(mobilNOutputBlob);
+    Compare(blobFP32, othBlobFP32, 0.0f);
+
+    blobFP32 = ConvertU8ToFP32(othMobilNOutputBlob);
+    othBlobFP32 = ConvertU8ToFP32(fileOutputBlob);
+    Compare(blobFP32, othBlobFP32, 0.0f);
+}
+
+TEST_F(kmbSetBlob, DISABLED_compareSetBlobAndInfer) {
+    std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet/mobilenet.blob";
+    std::string inputNameFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet/input.dat";
+    std::string outputNameFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet/output.dat";
+
+    Blob::Ptr fileOutputBlob;
+    fromBinaryFile(outputNameFilePath, fileOutputBlob);
+
+    Core ie;
+    InferenceEngine::ExecutableNetwork importedNetwork;
+    ASSERT_NO_THROW(importedNetwork = ie.ImportNetwork(modelFilePath, "KMB", {}));
+
+    InferenceEngine::InferRequest inferRequest;
+    ASSERT_NO_THROW(inferRequest = importedNetwork.CreateInferRequest());
+
+    std::string input_name = importedNetwork.GetInputsInfo().begin()->first;
+    std::string output_name = importedNetwork.GetOutputsInfo().begin()->first;
+
+    Blob::Ptr inputBlob = InferenceEngine::make_shared_blob<uint8_t>({Precision::U8, {1, 3, 224, 224}, Layout::NCHW});
+    inputBlob->allocate();
+    fromBinaryFile(inputNameFilePath, inputBlob);
+
+    inferRequest.SetBlob(input_name, inputBlob);
+    inferRequest.Infer();
+    Blob::Ptr outputBlob;
+    ASSERT_NO_THROW(outputBlob = inferRequest.GetBlob(output_name));
+
+    Blob::Ptr blobFP32 = ConvertU8ToFP32(fileOutputBlob);
+    Blob::Ptr othBlobFP32 = ConvertU8ToFP32(inputBlob);
+    Compare(blobFP32, othBlobFP32, 0.0f);
+}
