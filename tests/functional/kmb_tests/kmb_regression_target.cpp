@@ -394,54 +394,6 @@ TEST_F(VpuInferAndCompareTests, DISABLED_inferenceWithPreprocessing) {  // To be
     }
 }
 
-TEST_F(VpuInferAndCompareTests, DISABLED_importWithPreprocessing) {  // To be run in manual mode when device is available
-    std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet/mobilenet.blob";
-
-    Core ie;
-    InferenceEngine::ExecutableNetwork importedNetwork;
-    ASSERT_NO_THROW(importedNetwork = ie.ImportNetwork(modelFilePath, "KMB", {}));
-
-    ConstInputsDataMap inputInfo = importedNetwork.GetInputsInfo();
-
-    for (auto & item : inputInfo) {
-        InputInfo* mutableItem = const_cast<InputInfo*>(item.second.get());
-        mutableItem->getPreProcess().setResizeAlgorithm(RESIZE_BILINEAR);
-    }
-
-    InferenceEngine::InferRequest inferRequest;
-    ASSERT_NO_THROW(inferRequest = importedNetwork.CreateInferRequest());
-
-    std::string inputFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet/input-227x227.dat";
-    for (auto & item : inputInfo) {
-        Blob::Ptr inputBlob;
-        ASSERT_NO_THROW(inputBlob = inferRequest.GetBlob(item.first.c_str()));
-        ASSERT_TRUE(fromBinaryFile(inputFilePath, inputBlob));
-    }
-
-    ASSERT_NO_THROW(inferRequest.Infer());
-
-    ConstOutputsDataMap outputInfo = importedNetwork.GetOutputsInfo();
-
-    for (auto & item : outputInfo) {
-        Blob::Ptr outputBlob;
-        ASSERT_NO_THROW(outputBlob = inferRequest.GetBlob(item.first.c_str()));
-
-        TensorDesc outputBlobTensorDesc = outputBlob->getTensorDesc();
-        Blob::Ptr referenceOutputBlob = make_blob_with_precision(TensorDesc(
-            outputBlobTensorDesc.getPrecision(),
-            outputBlobTensorDesc.getDims(),
-            outputBlobTensorDesc.getLayout()));
-        referenceOutputBlob->allocate();
-
-        std::string referenceOutputFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet/output.dat";
-        ASSERT_TRUE(fromBinaryFile(referenceOutputFilePath, referenceOutputBlob));
-
-        Blob::Ptr refFP32 = ConvertU8ToFP32(referenceOutputBlob);
-        Blob::Ptr outputFP32 = ConvertU8ToFP32(outputBlob);
-        Compare(refFP32, outputFP32, 0.0f);
-    }
-}
-
 struct modelBlobsPaths {
     std::string _graphPath, _inputPath, _outputPath;
 };
@@ -719,4 +671,5 @@ INSTANTIATE_TEST_CASE_P(multipleInference, VpuInferAndCompareTestsWithParam,
 INSTANTIATE_TEST_CASE_P(asyncInferenceWithCallback, VpuAsyncInferWithParam,
     ::testing::ValuesIn(pathToPreCompiledGraph)
 );
+
 #endif
