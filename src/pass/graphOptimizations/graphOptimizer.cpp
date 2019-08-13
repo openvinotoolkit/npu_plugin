@@ -660,14 +660,26 @@ public:
                         for(const auto k : streamsOverK)
                         {
                             cout<<"\tStrK: " << k << endl;
+                            cout<<"     max split H  "<< maxSplitOverH << endl;
                             for(unsigned h = 1; h <= maxSplitOverH; h++)
                             {
                                 //TODO: these are very fast hacks. Delete after we can allow nested streams and
                                 // non-%2-number of streams
                                 if((h!=1) and (h%2))
+                                {
+                                    cout<<"ignore h  not even " << h << endl;
                                     continue;
+                                }
                                 if( (h>1) and (k>1))
+                                {
+                                    cout<<"ignore h , neither h nor k==1  " << h << endl;
                                     continue;
+                                }
+                                if( (k<maxSplitOverH) and (h<maxSplitOverH))
+                                {
+                                    cout<<"ignore h , not enough splits " << h << endl;
+                                    continue;
+                                }
                                 cout<<"\tStrH: " << h << endl;
                                 Shape streamShape({1,h,1,k});//Stream over W and C are 1 for now . TODO: implement stream W/C
                                 StrategySet s;

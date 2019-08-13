@@ -788,9 +788,14 @@ void StrategyManager::recursiveCriticalPath(typename graph<mv::Op, mv::DataFlow>
             for(int sink = 0; sink < sinks.size(); sink++){
                 MetaGraphEdge edgeInfo = linearSection[source*sinks.size() + sink];
                 double cost = edgeInfo.first;
-                //vector<StrategySet> strategies = edgeInfo.second;
+                vector<StrategySet> strategies = edgeInfo.second;
                 metaGraph.edge_insert(sources[source], sinks[sink], edgeInfo);
-                cout << "  Adding metagraph edge with cost " << cost << endl;
+                cout << "  Adding metagraph edge (" << source << "-" << sink << ") with cost " << cost << endl;
+                cout << "     metagraph edge strategies " << endl;
+                for (auto strs : strategies)
+                {
+                    cout << "       " << strs["streaming"].toString() << endl;
+                }
             }
         }
     }
