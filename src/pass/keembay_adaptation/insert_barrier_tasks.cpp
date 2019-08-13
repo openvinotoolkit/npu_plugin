@@ -296,8 +296,33 @@ static bool opHasBarrier(const std::string& opName , std::vector<mv::Barrier>& b
     return false;
 }
 
-static void combineRedundantBarriers(const mv::pass::PassEntry& pass, std::vector<mv::Barrier>& barriers)
+static bool emptySetIntersection(const std::set<std::string>& s1, const std::set<std::string>& s2)
 {
+    auto it1 = s1.begin();
+    auto it2 = s2.begin();
+
+    while (it1 != s1.end() && it2 != s2.end())
+    {
+        if (*it1 == *it2)
+            return false;
+        else if (*it1 < *it2)
+            it1++;
+        else
+        {
+            it2++;
+        }
+    }
+
+    return true;
+}
+
+
+static void combineRedundantBarriers(mv::ComputationModel& model,
+                                    const mv::pass::PassEntry& pass,
+                                    std::vector<mv::Barrier>& barriers)
+{
+    mv::ControlModel cm(model);
+
     for (auto b = barriers.begin(); b != barriers.end(); b++ )
     {
         for (auto c = std::next(b); c!= barriers.end(); c++ )
@@ -332,6 +357,52 @@ static void combineRedundantBarriers(const mv::pass::PassEntry& pass, std::vecto
 
                     // Clear c so that it can be removed from the graph
                     c->clear();
+                }
+            }
+
+            // check whether c's producers are a subset of b, if so, move c's consumers to b
+            auto prod_b = b->getProducers();
+            auto prod_c = c->getProducers();
+            auto cons_b = b->getConsumers();
+            auto cons_c = c->getConsumers();
+            if ((std::includes(prod_b.begin(), prod_b.end(), prod_c.begin(), prod_c.end())
+                || std::includes(prod_c.begin(), prod_c.end(), prod_b.begin(), prod_b.end()))
+                && b->hasConsumers() && c->hasConsumers())
+            {
+                if (emptySetIntersection(prod_b, cons_c) && emptySetIntersection(prod_c, cons_b))
+                {
+                    bool noPath = true;
+                    for (auto p1 = prod_b.begin(); p1 != prod_b.end(); ++p1)
+                    {
+                        for (auto p2 = prod_c.begin(); p2 != prod_c.end(); ++p2)
+                        {
+                            if (*p1 != *p2 && (cm.pathExists(cm.switchContext(cm.getOp(*p1)), cm.switchContext(cm.getOp(*p2)))
+                                            || cm.pathExists(cm.switchContext(cm.getOp(*p2)), cm.switchContext(cm.getOp(*p1)))))
+                            {
+                                noPath = noPath && false;
+                            }
+                        }
+                    }
+
+                    if (noPath)
+                    {
+                        pass.log(mv::Logger::MessageType::Info,
+                                "combining redundant barriers: " + std::to_string(b->getID())
+                                + " and " + std::to_string(c->getID()));
+
+                        for (auto consumer : c->getConsumers())
+                        {
+                            b->addConsumer(consumer);
+                            c->removeConsumer(consumer);
+                        }
+
+                        for (auto producer: c->getProducers())
+                        {
+                            b->addProducer(producer);
+                            c->removeProducer(producer);
+                        }
+
+                    }
                 }
             }
         }
@@ -542,7 +613,7 @@ static void insertBarrierTasksFcn(const mv::pass::PassEntry& pass, mv::Computati
 
     addBarriers(model, barriers);
 
-    combineRedundantBarriers(pass, barriers);
+    combineRedundantBarriers(model, pass, barriers);
 
     // remove extraneous producers
     // XXX: Q: Do any extraneous consumers need to be removed as well?
