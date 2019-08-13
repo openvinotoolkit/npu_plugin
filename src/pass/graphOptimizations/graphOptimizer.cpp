@@ -235,7 +235,8 @@ public:
         vector<size_t> splits;
         size_t clusterOutChannelSize = outputShape["C"];
         vector<size_t> clusterChannelSizes(totalClusters);
-        auto roundUp = [](unsigned in,unsigned val) -> unsigned {return (in & val)+val;};
+        //auto roundUp = [](unsigned in,unsigned val) -> unsigned {return (in & val)+val;};
+        auto roundUpToStep = [](unsigned numberToRound,unsigned step) -> unsigned {return (((numberToRound+(step-1))/step)*step);};
 
         if(clustering == "SplitOverK")
             clusterOutChannelSize = clusterOutChannelSize / totalClusters;
@@ -243,7 +244,8 @@ public:
         //TODO::why is this needed?
         if((clusterOutChannelSize%16) and (clustering == "SplitOverK"))
         {
-            clusterOutChannelSize = (totalClusters -1) + roundUp(clusterOutChannelSize,16);
+            //clusterOutChannelSize = (totalClusters -1) + roundUp(clusterOutChannelSize,16);
+            clusterOutChannelSize = (totalClusters -1) + roundUpToStep(clusterOutChannelSize,16);
             fill_n(clusterChannelSizes.begin(),totalClusters-1,clusterOutChannelSize);
             clusterChannelSizes[totalClusters-1] =outputShape["C"] - (totalClusters-1)*clusterOutChannelSize;
         }
@@ -254,13 +256,16 @@ public:
 
         size_t maxSplits = 1;
         if(globalEnableStreaming)
-            maxSplits = (clusterOutChannelSize/16);
+        	maxSplits = (clusterOutChannelSize/2);
+            //maxSplits = (clusterOutChannelSize/16);
 
         //TODO::::REMOVE THIS ONCE FIX INSANE COMPILE TIME
         if(maxSplits > 16)
             maxSplits = 16;
 
-        for(unsigned split = 1; split <= maxSplits; split++)
+        splits.push_back(1);
+        //for(unsigned split = 1; split <= maxSplits; split++)
+        for(unsigned split = 2; split <= maxSplits; split=split+2)
         {
             bool validSplit = true;
 
@@ -588,7 +593,8 @@ public:
 
         auto findStrategy = [](vector<Attribute>& vec,const string& str) ->bool { for(const auto elem : vec) if(str==elem.get<string>()) return true; return false;};
 //        auto roundUp = [](unsigned in,unsigned val) -> unsigned {return (in & val)+val;};
-        auto roundUp = [](unsigned val,unsigned in) -> unsigned {return (in & val)+val;};
+ //       auto roundUp = [](unsigned val,unsigned in) -> unsigned {return (in & val)+val;};
+        auto roundUpToStep = [](unsigned numberToRound,unsigned step) -> unsigned {return (((numberToRound+(step-1))/step)*step);};
 
         vector<Attribute> sparsityPool = createStrategyPoolFromBool(op,"sparsity");
         vector<Attribute> doubleBufferPool = createStrategyPoolFromBool(op,"doubleBuffering");
@@ -643,8 +649,13 @@ public:
                         else
                         {
 //                            maxSplitOverH = roundUp((unsigned)ceil((double)activationsSize/(double)clusterMemory) + 1,2);
-                            maxSplitOverH = (unsigned)ceil((double)activationsSize/(double)clusterMemory);
-                            if ((maxSplitOverH%2)!= 0) maxSplitOverH= roundUp(maxSplitOverH,2);
+                            //maxSplitOverH = (unsigned)ceil((double)activationsSize/(double)clusterMemory);
+                            //if ((maxSplitOverH%2)!= 0) maxSplitOverH= roundUp(maxSplitOverH,2);
+                        	unsigned splitsToFit = ceil((double)activationsSize/(double)clusterMemory);
+                            if (splitsToFit > 1)
+                                maxSplitOverH = roundUpToStep(splitsToFit,2);
+                            else
+                                maxSplitOverH = splitsToFit;
                         }
 
                         cout<<"hasStreamH " << hasStreamOverH << " k " << hasStreamOverK << endl;
