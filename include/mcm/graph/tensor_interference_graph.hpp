@@ -92,16 +92,16 @@ namespace mv
             bool checkNodesDontInterfere_(mv::ComputationModel& model, const std::string& tensor1, const std::string& tensor2, std::set<std::string>& sourceNodeNames, std::set<std::string>& sinkNodeNames);
             bool isTensorInTopNames_(const std::vector<Data::TensorIterator>& tensorList, ComputationModel& model, const std::string tensorName);
             bool isSinkNode_(Data::OpListIterator& opIterator);
-            void genIntereferenceGraph_(ComputationModel& model , const TensorIteratorFilter& tensorFilter,const OpIteratorFilter& taskFilter, bool isDMA);
+            void genIntereferenceGraph_(const mv::pass::PassEntry& pass, ComputationModel& model , const TensorIteratorFilter& tensorFilter,const OpIteratorFilter& taskFilter, bool isDMA);
             std::set<std::string> getTensorNames_(ComputationModel& model, const TensorIteratorFilter& tensorFilter, const OpIteratorFilter& taskFilter, bool isDMA);
-            void addWeightsToInterferenceGraph_(ComputationModel& model, std::size_t alignment);
+            void addWeightsToInterferenceGraph_(const mv::pass::PassEntry& pass, ComputationModel& model, std::size_t alignment);
             std::size_t  getNeighborsWeight_(std::string& node);
             void buildCompleteGraph_(std::set<std::string> tensorNames);
             bool checkIsCMXTensor_(const Data::TensorIterator tensorIt);
 
         public:
             TensorInterferenceGraph() : graph<mv::TensorInterferenceGraphNode, int>() {}
-            TensorInterferenceGraph(ComputationModel& model, std::size_t alignment, const TensorIteratorFilter& tensorFilter = nullptr,
+            TensorInterferenceGraph(const mv::pass::PassEntry& pass, ComputationModel& model, std::size_t alignment, const TensorIteratorFilter& tensorFilter = nullptr,
                 const mv::OpIteratorFilter& taskFilter = nullptr, bool isCompleteTig = false, bool isDMA = false);
 
             TensorInterferenceGraph(const mv::TensorInterferenceGraph& g);

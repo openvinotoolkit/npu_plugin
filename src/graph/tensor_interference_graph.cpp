@@ -150,19 +150,23 @@ std::size_t  mv::TensorInterferenceGraph::getNeighborsWeight_(std::string& inode
     return totalWeights;
 }
 
-void  mv::TensorInterferenceGraph::addWeightsToInterferenceGraph_(mv::ComputationModel& model, std::size_t alignment)
+void  mv::TensorInterferenceGraph::addWeightsToInterferenceGraph_(const mv::pass::PassEntry& pass, mv::ComputationModel& model, std::size_t alignment)
 {
+    pass.log(mv::Logger::MessageType::Info, " \tcalc weights for nodes");
+
     for (mv::TensorInterferenceGraph::node_list_iterator it = this->node_begin(); it != this->node_end(); ++it)
     {
         (*it).weight = model.getTensor((*it).name)->computeTotalSize(alignment);
     }
+
+    pass.log(mv::Logger::MessageType::Info, " \tcalc neighbors weights");
     for (mv::TensorInterferenceGraph::node_list_iterator it = this->node_begin(); it != this->node_end(); ++it)
     {
         (*it).neighborsWeight = getNeighborsWeight_((*it).name) + (*it).weight;
     }
 }
 
-mv::TensorInterferenceGraph::TensorInterferenceGraph(mv::ComputationModel& model, std::size_t alignment, const mv::TensorIteratorFilter& tensorFilter,
+mv::TensorInterferenceGraph::TensorInterferenceGraph(const mv::pass::PassEntry& pass, mv::ComputationModel& model, std::size_t alignment, const mv::TensorIteratorFilter& tensorFilter,
     const mv::OpIteratorFilter& taskFilter, bool isCompleteTig, bool isDMA)
 {
 
@@ -172,9 +176,12 @@ mv::TensorInterferenceGraph::TensorInterferenceGraph(mv::ComputationModel& model
     }
     else
     {
-        genIntereferenceGraph_(model , tensorFilter, taskFilter, isDMA);
+        pass.log(mv::Logger::MessageType::Info, " calling genIntereferenceGraph_");
+
+        genIntereferenceGraph_(pass, model , tensorFilter, taskFilter, isDMA);
     }
-    addWeightsToInterferenceGraph_(model, alignment);
+    pass.log(mv::Logger::MessageType::Info, " calling addWeightsToInterferenceGraph_");
+    addWeightsToInterferenceGraph_(pass, model, alignment);
 }
 
 
@@ -215,7 +222,7 @@ bool mv::TensorInterferenceGraph::checkIsCMXTensor_(const Data::TensorIterator t
     return false;
 }
 
-void mv::TensorInterferenceGraph::genIntereferenceGraph_(mv::ComputationModel& model , const mv::TensorIteratorFilter& tensorFilter,
+void mv::TensorInterferenceGraph::genIntereferenceGraph_(const mv::pass::PassEntry& pass, mv::ComputationModel& model , const mv::TensorIteratorFilter& tensorFilter,
     const mv::OpIteratorFilter& taskFilter, bool isDMA)
 {
     mv::TensorInterferenceGraph directed_g;
@@ -228,6 +235,8 @@ void mv::TensorInterferenceGraph::genIntereferenceGraph_(mv::ComputationModel& m
     mv::OpModel om(model);
      std::set<std::pair<std::string, std::string>> addedEdges;
     //Collect all input/output tensor names
+    pass.log(mv::Logger::MessageType::Info, "\t collecting nodes and  obvious edges");
+
     for(auto opIterator = om.opBegin(); opIterator != om.opEnd(); ++opIterator)
     {
         if (!taskFilter || taskFilter(opIterator))
@@ -285,6 +294,8 @@ void mv::TensorInterferenceGraph::genIntereferenceGraph_(mv::ComputationModel& m
         }
     }
 
+    pass.log(mv::Logger::MessageType::Info, "\t creating source/sink maps");
+
     //for each 2 nodes, if they are not yet connected (neighbors) in the undirected graph
     // and dont have a path from one to the other in the directed graph, then check if they
     // exist in memory at the same time
@@ -304,6 +315,7 @@ void mv::TensorInterferenceGraph::genIntereferenceGraph_(mv::ComputationModel& m
         sourceNodesMap.insert(std::pair<std::string,std::set<std::string>>(*source, sourceNodeNames));
         sinkNodesMap.insert(std::pair<std::string,std::set<std::string>>(*source, sinkNodeNames));
     }
+    pass.log(mv::Logger::MessageType::Info, "\t adding more edges");
 
     for (std::set<std::string>::const_iterator source = nodeNames.begin( ); source != nodeNames.end( ); ++source)
     {
