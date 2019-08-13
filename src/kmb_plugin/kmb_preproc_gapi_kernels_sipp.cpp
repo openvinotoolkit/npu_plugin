@@ -26,7 +26,7 @@ GAPI_SIPP_KERNEL(GSippNV12toRGBp, GNV12toRGBp) {
 
 GAPI_SIPP_KERNEL(GSippNV12toBGRp, GNV12toBGRp) {
     static cv::gimpl::GSIPPKernel::InitInfo Init(cv::GMatDesc, cv::GMatDesc) {
-        return {svucvtColorNV12toRGB, 0, 1, 1, SIPP_RESIZE};
+        return {SVU_SYM(svucvtColorNV12toBGR), 0, 1, 1, SIPP_RESIZE};
     }
 
     static void Configure(cv::GMatDesc, cv::GMatDesc, const cv::GSippConfigUserContext&)
