@@ -85,6 +85,8 @@ namespace mv
     class TensorInterferenceGraph : public mv::graph<TensorInterferenceGraphNode, int>
     {
         private:
+            std::unordered_map<std::string, std::string> topMasterMap_;
+
             std::string getTensorTopMaster_(const Data::TensorIterator& t, ComputationModel& model);
             std::set<std::string> getTaskTopTensors_(const std::vector<Data::TensorIterator>& tensorList, ComputationModel& model,
                 const TensorIteratorFilter& tensorFilter, bool isDMA);

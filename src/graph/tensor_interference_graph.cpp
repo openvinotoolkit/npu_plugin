@@ -20,16 +20,24 @@ mv::TensorInterferenceGraph::TensorInterferenceGraph(const mv::TensorInterferenc
         this->edge_insert(source, sink, *it);
     }
 }
-
-//TODO this needs to be updated to use the memory allocator master buffers.
 std::string mv::TensorInterferenceGraph::getTensorTopMaster_(const mv::Data::TensorIterator& t, mv::ComputationModel& model)
 {
     mv::DataModel dm(model);
+    auto foundIt = topMasterMap_.find(t->getName());
+
+    if (foundIt != topMasterMap_.end())
+        return foundIt->second;
+
     auto tensorAllocatorName = t->get<std::set<std::string>>("allocators").begin();
     auto tensorAllocator = dm.getAllocator(*tensorAllocatorName);
     mv::Data::BufferIterator tensorBufferIt = tensorAllocator.getBuffer(0, t); // 0 is the only stage for now, but this will probably change in the future
     auto masterTensor = tensorAllocator.getTopMasterBuffer(tensorBufferIt);
-    return (*masterTensor)->getData()->getName();
+    std::pair<std::string,std::string> newEntry (t->getName(),(*masterTensor)->getData()->getName());
+    auto res = topMasterMap_.insert(newEntry);
+    if (!res.second)
+        throw mv::ArgumentError("getTensorTopMaster_", "adding already existing entry!", t->getName(), "");
+
+    return newEntry.second;
 }
 
 std::set<std::string> mv::TensorInterferenceGraph::getTaskTopTensors_(const std::vector<mv::Data::TensorIterator>& tensorList,
@@ -299,8 +307,8 @@ void mv::TensorInterferenceGraph::genIntereferenceGraph_(const mv::pass::PassEnt
     //for each 2 nodes, if they are not yet connected (neighbors) in the undirected graph
     // and dont have a path from one to the other in the directed graph, then check if they
     // exist in memory at the same time
-    std::map<std::string, std::set<std::string>> sourceNodesMap;
-    std::map<std::string, std::set<std::string>> sinkNodesMap;
+    std::unordered_map<std::string, std::set<std::string>> sourceNodesMap;
+    std::unordered_map<std::string, std::set<std::string>> sinkNodesMap;
     for (std::set<std::string>::const_iterator source = nodeNames.begin( ); source != nodeNames.end( ); ++source)
     {
         std::set<std::string> sourceNodeNames;
