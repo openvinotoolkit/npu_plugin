@@ -628,7 +628,6 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildSpecificTaskUn
            direction == mv::DmaDirectionEnum::DDR2UPACMX   ||
            direction == mv::DmaDirectionEnum::UPACMX2DDR)
             toBuild = buildUPADMATaskT(cm, compilationDescriptor, opIt);
-
         std::string splitting;
         if (opIt->getOutputTensor(0)->hasAttr("splitStrategy"))
             splitting = opIt->getOutputTensor(0)->get<std::string>("splitStrategy");
@@ -639,7 +638,16 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildSpecificTaskUn
             else
                 toBuild = buildNNDMATaskT(cm, compilationDescriptor, opIt, splitting);
         else
-            toBuild = buildNNDMATaskT(cm, compilationDescriptor, opIt, splitting);
+        {
+            std::string splitting;
+            if (opIt->hasAttr("splitStrategy"))
+                splitting = opIt->get<std::string>("splitStrategy");
+
+            if (splitting == "Clustering")
+                toBuild = buildNNDMATaskT(cm, compilationDescriptor, opIt);
+            else
+                toBuild = buildNNDMATaskT(cm, compilationDescriptor, opIt, splitting);
+        }
     }
     else if(taskType == "NCE1Task")
         toBuild = buildNCE1TaskT(cm, compilationDescriptor, opIt);
@@ -676,7 +684,6 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildMvTensorTaskT(
     return toReturn;
 }
 
-// UPA DMA TASK STILL NOT IN USE - TODO: ALIGN WITH NNDMA TASK FOR SUBTENSORS
 std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildUPADMATaskT(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt)
 {
     std::vector<std::unique_ptr<MVCNN::TaskT>> toReturn = std::vector<std::unique_ptr<MVCNN::TaskT>>(1);
