@@ -150,7 +150,10 @@ void setUPATasksMemoryLocationFcn(const mv::pass::PassEntry& , mv::ComputationMo
         {
             auto taskOp = opIt->get<std::string>("taskOp");
             if(taskOp == "Dummy")
+            {
+                ++opIt;
                 continue;
+            }
 
             auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
             auto inputMemoryLocation = opIt->getInputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");

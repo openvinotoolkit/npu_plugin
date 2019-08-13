@@ -279,17 +279,9 @@ void convertOpsToUPATasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& 
         }
         else if (opType == "Dummy")
         {
-            auto inputControlFlows = mv::getInputControlFlow(cm, cm.switchContext(opIt));
-            auto outputControlFlows = mv::getOutputControlFlow(cm, cm.switchContext(opIt));
-            unsigned opId = opIt->get<unsigned>("opId");
-
-            mv::Data::TensorIterator dpuConv = om.uPATaskDummy({opIt->getInputTensor(0)});
-
-            auto dpuConvOp = om.getSourceOp(dpuConv);
-            dpuConvOp->set<unsigned>("opId", opId);
-
-            setInputControlFlow(cm, cm.switchContext(dpuConvOp), inputControlFlows);
-            setOutputControlFlow(cm, cm.switchContext(dpuConvOp), outputControlFlows);
+            auto input = opIt->getInputTensor(0);
+            mv::getOutputDataFlow(om, opIt);
+            mv::Data::TensorIterator dpuConv = om.uPATaskDummy({input});
         }
         else if (opType == "Softmax")
         {

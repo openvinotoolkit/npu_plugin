@@ -264,6 +264,7 @@
     "control_flows":{
         "Singular" : [
             "TaskControlFlows",
+            "CompleteControlGraph",
             {
                 "name": "GenerateDot",
                 "output": "output/dots/TaskControlFlows_model.dot",

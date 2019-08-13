@@ -9,12 +9,20 @@ static void hangingDmaControlFlowsFcn(const mv::pass::PassEntry&, mv::Computatio
 static void NNCMX2DDRControlFlowsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 static void layerNumberingFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&passDesc, mv::json::Object&);
 static void activationTensorsControlFlowsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
+static void completeControlGraphFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
+
 
 namespace mv
 {
 
     namespace pass
     {
+
+        MV_REGISTER_PASS(CompleteControlGraph)
+        .setFunc(completeControlGraphFcn)
+        .setDescription(
+            ""
+        );
 
         MV_REGISTER_PASS(HangingDmaControlFlows)
         .setFunc(hangingDmaControlFlowsFcn)
@@ -276,3 +284,18 @@ void taskControlFlowsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model
         addTaskControlFlowsAndRecursivelySkipImplicitOperationsUp(om, op, op);
     }
 }
+
+void completeControlGraphFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+{
+    mv::ControlModel cm(model);
+    mv::OpModel om(model);
+    auto output = cm.switchContext(om.getOutput());
+
+    for(auto opIt = cm.opBegin(); opIt != cm.opEnd(); ++opIt)
+    {
+        if(opIt.outputsSize() == 0)
+            if(cm.isFlowAllowedAndNonExisting(opIt, output))
+                cm.defineFlow(opIt, output);
+    }
+}
+
