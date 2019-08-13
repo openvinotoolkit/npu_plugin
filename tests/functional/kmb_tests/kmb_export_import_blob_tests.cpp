@@ -65,16 +65,17 @@ FileIOResult isContentOfFilesEqual (const std::string &fileName1, const std::str
     return FileIOResult :: FilesHaveEqualSize;
 }
 
-void ExportImportBlobToFromFile(const CNNNetwork& network, const std::map<std::string, std::string>& config, const std::string& testDescription ) {
+void ExportImportBlobToFromFile(const CNNNetwork& network, std::map<std::string, std::string>& config, const std::string& testDescription ) {
     Core ie;
     ExecutableNetwork exeNetwork = ie.LoadNetwork(network, "KMB", config);
 
     std::string blobFileName1 = "TestExportImportBlob_" + testDescription +  "_file01.blob";
     exeNetwork.Export(blobFileName1);
     ASSERT_GT( getFileSize(blobFileName1), 0 ) << "Alarm! Alarm! We have gotten blob file with zero size!!!";
+    config[VPU_KMB_CONFIG_KEY(KMB_EXECUTOR)] = CONFIG_VALUE(NO);
 
     ExecutableNetwork importedNetwork = ie.ImportNetwork(blobFileName1, "KMB", config);
-    std::string blobFileName2 = "TestExportImportBlob_" + testDescription +  "_file02.blob";;
+    std::string blobFileName2 = "TestExportImportBlob_" + testDescription +  "_file02.blob";
     importedNetwork.Export(blobFileName2);
 
     ASSERT_GT( getFileSize(blobFileName1), 0 ); // Test to be sure that first file size is not zero.
