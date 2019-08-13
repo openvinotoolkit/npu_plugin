@@ -10,22 +10,26 @@
 static const std::array<unsigned short, 2> FAKE_KERNEL = {1,1};
 static const std::array<unsigned short, 2> FAKE_STRIDE = {1,1};
 
-static void convertOpsToTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
+static void convertOpsToDPUTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
+static void convertOpsToUPATasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 
 namespace mv
 {
     namespace pass
     {
-        MV_REGISTER_PASS(ConvertOpsToTasks)
-            .setFunc(convertOpsToTasksFcn)
+        MV_REGISTER_PASS(ConvertOpsToDPUTasks)
+            .setFunc(convertOpsToDPUTasksFcn)
             .setDescription(
-                "Replace all convolution operations with DPU tasks.\n"
-                "Assume each convolution can be done with DPU on KMB.\n"
-                "Assume each convolution should be done on DPU.");
+                "Replace all supported operations with DPU tasks.");
+
+        MV_REGISTER_PASS(ConvertOpsToUPATasks)
+            .setFunc(convertOpsToUPATasksFcn)
+            .setDescription(
+                "Replace all supported operations with UPA tasks.");
     }
 }
 
-void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+void convertOpsToDPUTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
     mv::OpModel om(model);
     mv::ControlModel cm(model);
@@ -232,7 +236,83 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             setInputControlFlow(cm, cm.switchContext(dpuElementWiseOp), inputControlFlows);
             setOutputControlFlow(cm, cm.switchContext(dpuElementWiseOp), outputControlFlows);
         }
-        //TODO: Fully connected
+        else
+            ++opIt;
+    }
+}
+
+void convertOpsToUPATasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+{
+    mv::OpModel om(model);
+    mv::ControlModel cm(model);
+
+    // Pass main assumption is that we are working on the original graph (just AveragePooling substituted)
+
+    // While loop is preferred in a loop like this were we are performing eliminations
+    // as it gives more flexibility on when to increment the iterator
+    auto opIt = om.getInput();
+    while (opIt != om.opEnd())
+    {
+        std::string opType = opIt->getOpType();
+
+        if (opType == "Identity")
+        {
+            auto input = opIt->getInputTensor(0);
+            auto output = opIt->getOutputTensor(0);
+            auto outputMemoryLocation = output->get<mv::Tensor::MemoryLocation>("Location");
+            unsigned opId = opIt->get<unsigned>("opId");
+
+            auto inputControlFlows = mv::getInputControlFlow(cm, cm.switchContext(opIt));
+            auto outputControlFlows = mv::getOutputControlFlow(cm, cm.switchContext(opIt));
+            auto outputDataFlows = mv::getOutputDataFlow(om, opIt);
+
+            mv::Data::TensorIterator dpuConv = om.uPATaskIdentity({input});
+
+            auto dpuConvOp = om.getSourceOp(dpuConv);
+            dpuConvOp->set<unsigned>("opId", opId);
+
+            dpuConv->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
+            setOutputDataFlow(om, dpuConv, outputDataFlows);
+            setInputControlFlow(cm, cm.switchContext(dpuConvOp), inputControlFlows);
+            setOutputControlFlow(cm, cm.switchContext(dpuConvOp), outputControlFlows);
+
+        }
+        else if (opType == "Dummy")
+        {
+            auto inputControlFlows = mv::getInputControlFlow(cm, cm.switchContext(opIt));
+            auto outputControlFlows = mv::getOutputControlFlow(cm, cm.switchContext(opIt));
+            unsigned opId = opIt->get<unsigned>("opId");
+
+            mv::Data::TensorIterator dpuConv = om.uPATaskDummy({opIt->getInputTensor(0)});
+
+            auto dpuConvOp = om.getSourceOp(dpuConv);
+            dpuConvOp->set<unsigned>("opId", opId);
+
+            setInputControlFlow(cm, cm.switchContext(dpuConvOp), inputControlFlows);
+            setOutputControlFlow(cm, cm.switchContext(dpuConvOp), outputControlFlows);
+        }
+        else if (opType == "Softmax")
+        {
+            auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
+            unsigned opId = opIt->get<unsigned>("opId");
+
+            auto inputControlFlows = mv::getInputControlFlow(cm, cm.switchContext(opIt));
+            auto outputControlFlows = mv::getOutputControlFlow(cm, cm.switchContext(opIt));
+            auto outputDataFlows = mv::getOutputDataFlow(om, opIt);
+
+            auto axis = opIt->get<std::string>("axis");
+
+            mv::Data::TensorIterator dpuConv = om.uPATaskSoftmax({opIt->getInputTensor(0)}, axis);
+
+            auto dpuConvOp = om.getSourceOp(dpuConv);
+            dpuConvOp->set<unsigned>("opId", opId);
+
+            dpuConv->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
+            setOutputDataFlow(om, dpuConv, outputDataFlows);
+            setInputControlFlow(cm, cm.switchContext(dpuConvOp), inputControlFlows);
+            setOutputControlFlow(cm, cm.switchContext(dpuConvOp), outputControlFlows);
+
+        }
         else
             ++opIt;
     }

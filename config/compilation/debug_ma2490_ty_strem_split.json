@@ -99,7 +99,7 @@
                     },
                     {
                         "name_filter" : ".*_cmx_.*",
-                        "mem_location" : "CMX"
+                        "mem_location" : "NNCMX"
                     },
                     {
                         "name_filter" : ".*_input_.*",
@@ -119,17 +119,17 @@
                 [
                     {
                         "name_filter" : ".*conv6.*#.*",
-                        "output_location" : "CMX",
+                        "output_location" : "NNCMX",
                         "splits" : [ {"K" : 2} ]
                     },
                     {
                         "name_filter" : ".*conv7.*#.*",
-                        "output_location" : "CMX",
+                        "output_location" : "NNCMX",
                         "splits" : [ {"K" : 8} ]
                     },
                                         {
                         "name_filter" : ".*conv8.*#.*",
-                        "output_location" : "CMX",
+                        "output_location" : "NNCMX",
                         "splits" : [ {"K" : 16} ]
                     }
                 ],
@@ -228,7 +228,7 @@
                 "name": "ConvertDot",
                 "input": "output/dots/BeforeOpsToTasks.dot"
             },
-            "ConvertOpsToTasks",
+            "ConvertOpsToDPUTasks",
             {
                 "name": "GenerateDot",
                 "output": "output/dots/AfterOpsToTasks.dot",
@@ -344,7 +344,7 @@
                 "name": "ConvertDot",
                 "input": "output/dots/implicit_operations_model.dot"
             },
-            "AddWeightsDMATasks",
+            "AddDPUTasksWeightsDMATasks",
             {
                 "name": "GenerateDot",
                 "output": "output/dots/dma_model.dot",
@@ -358,7 +358,7 @@
             },
             "GenerateSparsityMapsUnpopulatedTensors",
             "GenerateSparsityMapsPopulatedTensors",
-            "AddWeightsDMATasks",
+            "AddDPUTasksWeightsDMATasks",
             {
                 "name": "GenerateDot",
                 "output": "output/dots/sparsity_model.dot",
@@ -413,18 +413,18 @@
                 "name": "ConvertDot",
                 "input": "output/dots/NoHangingDmas.dot"
             },
-            "cmx2DDRControlFlows",
+            "NNCMX2DDRControlFlows",
             "TransitiveReduction",
             {
                 "name": "GenerateDot",
-                "output": "output/dots/cmx2DDRControlFlows.dot",
+                "output": "output/dots/NNCMX2DDRControlFlows.dot",
                 "scope": "ControlModel",
                 "content": "full",
                 "html": true
             },
             {
                 "name": "ConvertDot",
-                "input": "output/dots/cmx2DDRControlFlows.dot"
+                "input": "output/dots/NNCMX2DDRControlFlows.dot"
             },
             "StrategyLayersToTensors",
             "SplittingAcrossClusters",

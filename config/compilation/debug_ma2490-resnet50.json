@@ -319,7 +319,7 @@
                         "strategy": "SplitOverK"
                     }
                 ],
-                "default_tensor_placement" : "CMX"
+                "default_tensor_placement" : "NNCMX"
             },
             "ComputeMemory",
             "AssignUniqueOpId",
@@ -405,7 +405,7 @@
                 "name": "ConvertDot",
                 "input": "output/dots/BeforeOpsToTasks.dot"
             },
-            "ConvertOpsToTasks",
+            "ConvertOpsToDPUTasks",
             {
                 "name": "GenerateDot",
                 "output": "output/dots/AfterOpsToTasks.dot",
@@ -521,7 +521,7 @@
                 "name": "ConvertDot",
                 "input": "output/dots/implicit_operations_model.dot"
             },
-            "AddWeightsDMATasks",
+            "AddDPUTasksWeightsDMATasks",
             {
                 "name": "GenerateDot",
                 "output": "output/dots/dma_model.dot",
@@ -535,7 +535,8 @@
             },
             "GenerateSparsityMapsUnpopulatedTensors",
             "GenerateSparsityMapsPopulatedTensors",
-            "AddWeightsDMATasks",
+            "SplitOverHWeightsSparsityMaps",
+            "AddDPUTasksWeightsDMATasks",
             {
                 "name": "GenerateDot",
                 "output": "output/dots/sparsity_model.dot",
@@ -590,18 +591,18 @@
                 "name": "ConvertDot",
                 "input": "output/dots/NoHangingDmas.dot"
             },
-            "cmx2DDRControlFlows",
+            "NNCMX2DDRControlFlows",
             "TransitiveReduction",
             {
                 "name": "GenerateDot",
-                "output": "output/dots/cmx2DDRControlFlows.dot",
+                "output": "output/dots/NNCMX2DDRControlFlows.dot",
                 "scope": "ControlModel",
                 "content": "full",
                 "html": true
             },
             {
                 "name": "ConvertDot",
-                "input": "output/dots/cmx2DDRControlFlows.dot"
+                "input": "output/dots/NNCMX2DDRControlFlows.dot"
             },
             "StrategyLayersToTensors",
             "SplittingAcrossClusters",

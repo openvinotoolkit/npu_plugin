@@ -39,6 +39,8 @@ if (MSVC)
 
     add_executable(z_major_convolution z_major_convolution.cpp $<TARGET_OBJECTS:cm> $<TARGET_OBJECTS:corebase> $<TARGET_OBJECTS:metamodel> $<TARGET_OBJECTS:model>)
 
+    add_executable(upa_layer_example z_major_convolution.cpp $<TARGET_OBJECTS:cm> $<TARGET_OBJECTS:corebase> $<TARGET_OBJECTS:metamodel> $<TARGET_OBJECTS:model>)
+
     add_executable(dpu_task_example dpu_task_example.cpp $<TARGET_OBJECTS:cm> $<TARGET_OBJECTS:corebase> $<TARGET_OBJECTS:metamodel> $<TARGET_OBJECTS:model>)
 
     add_executable(barrier_task_api barrier_task_api.cpp $<TARGET_OBJECTS:cm> $<TARGET_OBJECTS:corebase> $<TARGET_OBJECTS:metamodel> $<TARGET_OBJECTS:model>)
@@ -121,6 +123,9 @@ else()
 
     add_executable(z_major_convolution z_major_convolution.cpp)
     target_link_libraries(z_major_convolution cm)
+    
+    add_executable(upa_layer_example upa_layer_example.cpp)
+    target_link_libraries(upa_layer_example cm)
 
     add_executable(channel_major_convolution channel_major_convolution.cpp)
     target_link_libraries(channel_major_convolution cm)

@@ -27,7 +27,7 @@ int main()
 
     om.output(bias_c0);
 
-    std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/debug_ma2490_tiny-yolo-conv7_8_900kb.json";
+    std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/debug_ma2490.json";
     unit.loadCompilationDescriptor(compDescPath);
 
     unit.loadTargetDescriptor(mv::Target::ma2490);

@@ -3,11 +3,14 @@
 
 const std::unordered_map<mv::DmaDirectionEnum, std::string, mv::DmaDirectionEnumHash> mv::DmaDirection::dmaDirectionStrings_ =
 {
-    {mv::DmaDirectionEnum::CMX2DDR, "CMX2DDR"},
-    {mv::DmaDirectionEnum::DDR2CMX, "DDR2CMX"},
-    {mv::DmaDirectionEnum::CMX2UPA, "CMX2UPA"},
-    {mv::DmaDirectionEnum::UPA2CMX, "UPA2CMX"},
-    {mv::DmaDirectionEnum::DDR2DDR, "DDR2DDR"}
+    {mv::DmaDirectionEnum::NNCMX2DDR, "NNCMX2DDR"},
+    {mv::DmaDirectionEnum::DDR2NNCMX, "DDR2NNCMX"},
+    {mv::DmaDirectionEnum::NNCMX2UPACMX, "NNCMX2UPACMX"},
+    {mv::DmaDirectionEnum::UPACMX2NNCMX, "UPACMX2NNCMX"},
+    {mv::DmaDirectionEnum::DDR2DDR, "DDR2DDR"},
+    {mv::DmaDirectionEnum::DDR2UPACMX, "DDR2UPACMX"},
+    {mv::DmaDirectionEnum::UPACMX2DDR, "UPACMX2DDR"}
+
 };
 
 mv::DmaDirection::DmaDirection(DmaDirectionEnum value) :
@@ -17,7 +20,7 @@ direction_(value)
 }
 
 mv::DmaDirection::DmaDirection() :
-direction_(DmaDirectionEnum::CMX2DDR)
+direction_(DmaDirectionEnum::NNCMX2DDR)
 {
 
 }

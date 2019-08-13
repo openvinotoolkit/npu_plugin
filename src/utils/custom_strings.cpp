@@ -44,14 +44,34 @@ std::string mv::createDeallocationName(const std::string& opName)
     return opName + "_DEALLOC";
 }
 
-std::string mv::createDMATaskCMX2DDRName(const std::string& opName)
+std::string mv::createDMATaskNNCMX2DDRName(const std::string& opName)
 {
-    return opName + "_CMX2DDR";
+    return opName + "_NNCMX2DDR";
 }
 
-std::string mv::createDMATaskDDR2CMXName(const std::string& opName)
+std::string mv::createDMATaskDDR2NNCMXName(const std::string& opName)
 {
-    return opName + "_DDR2CMX";
+    return opName + "_DDR2NNCMX";
+}
+
+std::string mv::createDMATaskUPACMX2NNCMXName(const std::string& opName)
+{
+    return opName + "_UPACMX2NNCMX";
+}
+
+std::string mv::createDMATaskUPACMX2DDRName(const std::string& opName)
+{
+    return opName + "_UPACMX2DDR";
+}
+
+std::string mv::createDMATaskDDR2UPACMXName(const std::string& opName)
+{
+    return opName + "_DDR2UPACMX";
+}
+
+std::string mv::createDMATaskNNCMX2UPACMXName(const std::string& opName)
+{
+    return opName + "_NNCMX2UPACMX";
 }
 
 std::string mv::createAlignConstantName(const std::string& opName)
@@ -65,7 +85,7 @@ std::string mv::createAlignWeightSetConstantName(const std::string& opName)
 }
 
 //Barrier ID HAS TO BE USED!!! It is unique because of the static counter in the barrier class
-std::string mv::createBarrierName(const std::string& opName, unsigned barrierID)
+std::string mv::createBarrierName(const std::string&, unsigned barrierID)
 {
     return "Barrier_" + std::to_string(barrierID);
 }

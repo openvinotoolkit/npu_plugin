@@ -139,13 +139,13 @@ static void convertToKoalaGraph(const mv::pass::PassEntry& pass, const BarrierIn
 
         auto srcVtx = std::find_if(
                     koalaVerts.begin(),
-                    koalaVerts.end(), 
+                    koalaVerts.end(),
                     [src](BIGKoala::PVertex& v) { return src.getID() == v->info.barrierId; }
         );
 
         auto snkVtx = std::find_if(
                     koalaVerts.begin(),
-                    koalaVerts.end(), 
+                    koalaVerts.end(),
                     [snk](BIGKoala::PVertex& v) { return snk.getID() == v->info.barrierId; }
         );
 
@@ -175,7 +175,7 @@ static void drawBigK(const BIGKoala& bigK)
     Koala::IO::GraphMLGraph *gmlg;
 
     //Koala::IO::writeGraphText(bigK, std::cout, Koala::IO::RG_VertexLists);
-    
+
     gmlg = gml.createGraph("BIGKoala");
     gmlg->writeGraph(bigK, Koala::IO::gmlIntField(&BigKVertexInfo::barrierId, "barrierId"),
                             Koala::IO::gmlIntField(&BigKEdgeInfo::srcId, "srcId")
@@ -202,7 +202,7 @@ generateBarrierInterferenceGraph(mv::OpModel& om,
     // Case 1: 2 barriers share the same op in their producer and consumer list,
     // like so: b1->op->b2. i.e. op is in b1's consumer list and b2's producer list.
     // In this case b1 and b2 are concurrent, so an edge exists between b1 and b2.
-    
+
 
     for (auto& b1: barriers)
     {
@@ -220,7 +220,7 @@ generateBarrierInterferenceGraph(mv::OpModel& om,
                         addEdge(b1, b2, big);
                 }
             }
-        }    
+        }
     }
 
     // Case 2: b1 and b2 are on parallel paths.
@@ -245,7 +245,7 @@ generateBarrierInterferenceGraph(mv::OpModel& om,
                         // disconnected only if c2 is neither an ancestor, nor a descendent of c1.
                         // pathExists checks only from source to sink on a directed graph, hence
                         // this check needs to be performed both from c1 to c2, and c2 to c1.i
-                        if (!cm.pathExists(cm.switchContext(om.getOp(c1)), cm.switchContext(om.getOp(c2))) 
+                        if (!cm.pathExists(cm.switchContext(om.getOp(c1)), cm.switchContext(om.getOp(c2)))
                          && !cm.pathExists(cm.switchContext(om.getOp(c2)), cm.switchContext(om.getOp(c1))) )
                         {
                             //std::cout << "ADDING BIG EDGE: No path from " << om.getOp(c1)->getName()  << " to " << om.getOp(c2)->getName()  << std::endl;
@@ -343,12 +343,12 @@ void getBarrierForControlModelOp(mv::ControlModel& cm, mv::Control::OpListIterat
 {
 
     auto ctrlOpType = opIt->getOpType();
-    if ((ctrlOpType == "DMATask") || (ctrlOpType == "DPUTask"))
+    if (ctrlOpType != "Input" && ctrlOpType != "Output")
     {
         for (auto parentOp = opIt.leftmostParent(); parentOp != cm.opEnd(); ++parentOp)
         {
             auto parentOpType = parentOp->getOpType();
-            if ((parentOpType == "DPUTask") || (parentOpType == "DMATask" ))
+            if (parentOpType != "Input")
             {
                 auto sinkOpName = opIt->getName();
                 auto sourceOpName = parentOp->getName();
@@ -362,7 +362,7 @@ void getBarrierForControlModelOp(mv::ControlModel& cm, mv::Control::OpListIterat
                         if (cons != bConsumers.end())
                         {
                             b.addProducer(sourceOpName);
-                            auto updatedList = b.getProducers();
+                            //auto updatedList = b.getProducers();
                         }
                     }
                 }
@@ -425,7 +425,7 @@ static void setBarrierGroupAndIndex(const mv::pass::PassEntry& pass, mv::OpModel
                     "Cannot execute graph with " +
                     std::to_string(MAX_AVAILABLE_BARRIERS) +
                     " barriers; more graph serialization required.");
-            
+
         for (int i = 0; i < bigK.getVertNo(); i++)
         {
             pass.log(mv::Logger::MessageType::Info,

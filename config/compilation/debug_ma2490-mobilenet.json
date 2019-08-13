@@ -31,22 +31,22 @@
                 [
                         {
                             "name_filter" : "MobilenetV2/expanded_conv_1/expand/Relu#174",
-                            "output_location" : "CMX",
+                            "output_location" : "NNCMX",
                             "splits" : [ {"H" : 2} ]
                         },
                         {
                             "name_filter" : "MobilenetV2/expanded_conv_1/depthwise/Relu#175",
-                            "output_location" : "CMX",
+                            "output_location" : "NNCMX",
                             "splits" : [ {"H" : 2} ]
                         },
                         {
                             "name_filter" : "MobilenetV2/expanded_conv_2/depthwise/Relu#178",
-                            "output_location" : "CMX",
+                            "output_location" : "NNCMX",
                             "splits" : [ {"H" : 2} ]
                         },
                         {
                             "name_filter" : "MobilenetV2/Logits/Conv2d_1c_1x1/act_quant/FakeQuantWithMinMaxVars#234",
-                            "output_location" : "CMX",
+                            "output_location" : "NNCMX",
                             "splits" : [ {"K" : 2} ]
                         }
                 ]
@@ -137,7 +137,7 @@
                 "name": "ConvertDot",
                 "input": "output/dots/BeforeOpsToTasks.dot"
             },
-            "ConvertOpsToTasks",
+            "ConvertOpsToDPUTasks",
             {
                 "name": "GenerateDot",
                 "output": "output/dots/AfterOpsToTasks.dot",
@@ -253,7 +253,7 @@
                 "name": "ConvertDot",
                 "input": "output/dots/implicit_operations_model.dot"
             },
-            "AddWeightsDMATasks",
+            "AddDPUTasksWeightsDMATasks",
             {
                 "name": "GenerateDot",
                 "output": "output/dots/dma_model.dot",
@@ -267,7 +267,7 @@
             },
             "GenerateSparsityMapsUnpopulatedTensors",
             "GenerateSparsityMapsPopulatedTensors",
-            "AddWeightsDMATasks",
+            "AddDPUTasksWeightsDMATasks",
             {
                 "name": "GenerateDot",
                 "output": "output/dots/sparsity_model.dot",
@@ -322,18 +322,18 @@
                 "name": "ConvertDot",
                 "input": "output/dots/NoHangingDmas.dot"
             },
-            "cmx2DDRControlFlows",
+            "NNCMX2DDRControlFlows",
             "TransitiveReduction",
             {
                 "name": "GenerateDot",
-                "output": "output/dots/cmx2DDRControlFlows.dot",
+                "output": "output/dots/NNCMX2DDRControlFlows.dot",
                 "scope": "ControlModel",
                 "content": "full",
                 "html": true
             },
             {
                 "name": "ConvertDot",
-                "input": "output/dots/cmx2DDRControlFlows.dot"
+                "input": "output/dots/NNCMX2DDRControlFlows.dot"
             },
             "StrategyLayersToTensors",
             "SplittingAcrossClusters",

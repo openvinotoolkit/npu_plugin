@@ -26,8 +26,8 @@ namespace mv
         //TODO :: find better place for it !!
         public:
             enum Location {
-                CMX = 0,
-                UPA =1,
+                NNCMX = 0,
+                UPACMX =1,
                 DDR = 2,
                 INPUT = 3,
                 OUTPUT = 4,
@@ -41,8 +41,8 @@ namespace mv
             //bool relocatable need this?
 
             static std::map<std::string,Location> createNamingMap() {
-                    return {{"CMX",CMX},
-                            {"UPA",UPA},
+                    return {{"NNCMX",NNCMX},
+                            {"UPA",UPACMX},
                             {"DDR",DDR},
                             {"INPUT",INPUT},
                             {"OUTPUT",OUTPUT},
@@ -54,12 +54,12 @@ namespace mv
             static std::map<std::string,Location> namingMap;
 
         public:
-            MemoryLocation(const std::string& location) : location_(namingMap[location]),forced_(false) {};
-            MemoryLocation(const Location location) : location_(location),forced_(false) {};
-            MemoryLocation() : location_(DEFAULT),forced_(false) {};
+            MemoryLocation(const std::string& location) : location_(namingMap[location]),forced_(false) {}
+            MemoryLocation(const Location location) : location_(location),forced_(false) {}
+            MemoryLocation() : location_(DEFAULT),forced_(false) {}
 
-            MemoryLocation(const std::string& location, bool forced) : location_(namingMap[location]),forced_(forced) {};
-            MemoryLocation(const Location location, bool forced) : location_(location),forced_(forced) {};
+            MemoryLocation(const std::string& location, bool forced) : location_(namingMap[location]),forced_(forced) {}
+            MemoryLocation(const Location location, bool forced) : location_(location),forced_(forced) {}
 
 //            MemoryLocation(MemoryLocation& location) = delete;
             void operator=(const MemoryLocation& location) = delete;
@@ -75,7 +75,7 @@ namespace mv
 
             void force() { forced_ = true;}
             bool isDefault() { return (location_ == DEFAULT); }
-            bool isForced() {return forced_;};
+            bool isForced() {return forced_;}
 
 //            void set(std::string &location) { location_ = namingMap[location]; }
 //            void set(const Location location) { location_ = location; }

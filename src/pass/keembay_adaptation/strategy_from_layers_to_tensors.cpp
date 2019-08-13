@@ -80,7 +80,7 @@ void strategyLayersToTensors(const mv::pass::PassEntry& , mv::ComputationModel& 
                     auto inputTensor = layer->getInputTensor(0);
                     inputTensor->set<std::string>("splitStrategy", outputTensorStrategy);
                 }
-                //last DMA CMX2DDR for Output
+                //last DMA NNCMX2DDR for Output
                 else
                 {
                     auto inputTensor = layer->getInputTensor(0);

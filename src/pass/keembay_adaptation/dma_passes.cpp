@@ -6,93 +6,69 @@
 #include "include/mcm/utils/warning_manager.hpp"
 
 
-static void addWeightsDMATasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::json::Object&);
-static void addFinalDMATaskFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
+static void AddDPUTasksWeightsDMATasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::json::Object&);
+static void AddUPATasksExtraInputsDMATasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::json::Object&);
 
 namespace mv
 {
     namespace pass
     {
-        MV_REGISTER_PASS(AddWeightsDMATasks)
-            .setFunc(addWeightsDMATasksFcn)
+        MV_REGISTER_PASS(AddDPUTasksWeightsDMATasks)
+            .setFunc(AddDPUTasksWeightsDMATasksFcn)
             .setDescription(
-               "Add Weights DMA Tasks where needed in the Task graph");
+               "Add DMA Tasks for DPU Tasks weights");
 
-        MV_REGISTER_PASS(AddFinalDMATask)
-            .setFunc(addFinalDMATaskFcn)
+        MV_REGISTER_PASS(AddUPATasksExtraInputsDMATasks)
+            .setFunc(AddUPATasksExtraInputsDMATasksFcn)
             .setDescription(
-               "Add initial and final DMA task in the Task graph");
+               "Add DMA Tasks for UPA Tasks extra inputs");
     }
 }
-
-// ASSUMPTION: If a tensor comes from a DDR2CMX dMATask or a Task in general, then it's already in CMX
-// and does not need to be transfered. In all other cases, it needs to be transfered.
 
 // NOTE: This is not checked using allocators for the simple reason that they are not assigned
 // to tensors yet.
-bool isTensorInCMX(mv::Data::TensorIterator tensor, mv::BaseOpModel& opModel)
+bool isTensorInNNCMX(mv::Data::TensorIterator tensor, mv::BaseOpModel& opModel)
 {
     auto sourceOp = opModel.getSourceOp(tensor);
     std::string opType(sourceOp->getOpType());
-    if(opType == "DMATask")
-    {
-        if(sourceOp->get<mv::DmaDirection>("direction") == mv::DmaDirectionEnum::DDR2CMX)
-            return true;
-        else
-            return false;
-    }
-    else if(opType == "ConstantInt" || opType == "Constant" || opType == "ConstantDataElement")
-        return false;
-    else if(opType == "WeightsTable")
-        return false;
-    else if(opType == "SparsityMap")
-        return false;
-    else if(opType == "Input")
-        return false;
-    else
+    if(opType == "DPUTask")
         return true;
-}
-
-// Pass role: Add initial and final DMA Task CMX2DDR (if needed)
-void addFinalDMATaskFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
-{
-    mv::OpModel om(model);
-    mv::DataModel dm(model);
-
-    // OUTPUT
-    auto opIt = om.getOutput();
-    auto input = opIt->getInputTensor(0);
-    auto inputOp = om.getSourceOp(input);
-
-    auto opId = opIt->get<unsigned>("opId");
-    std::string oldOutputName(opIt->getName());
-    mv::QuantizationParams quantParams = {{},{},{},{}};
-    if(input->hasAttr("quantParams"))
-        quantParams = input->get<mv::QuantizationParams>("quantParams");
-    if(isTensorInCMX(input, om))
+    else if(opType == "DMATask")
     {
-        auto newInput = om.dMATask(input, mv::DmaDirectionEnum::CMX2DDR, quantParams, mv::createDMATaskCMX2DDRName(inputOp->getName()));
-        auto newInputOp = om.getSourceOp(newInput);
-        newInputOp->set<unsigned>("opId", opId);
-        auto backup = opIt;
-        om.removeOp(backup);
-        om.output(newInput, quantParams, oldOutputName);
-        auto newOutputOp = om.getOp(oldOutputName);
-        newOutputOp->set<unsigned>("opId", opId);
+        auto direction = sourceOp->get<mv::DmaDirection>("direction");
+        if(direction == mv::DmaDirectionEnum::DDR2NNCMX)
+            return true;
+        else if(direction == mv::DmaDirectionEnum::UPACMX2NNCMX)
+            return true;
     }
+    return false;
 }
 
+bool isTensorInUPACMX(mv::Data::TensorIterator tensor, mv::BaseOpModel& opModel)
+{
+    auto sourceOp = opModel.getSourceOp(tensor);
+    std::string opType(sourceOp->getOpType());
+    if(opType == "DPUTask")
+        return true;
+    else if(opType == "DMATask")
+    {
+        auto direction = sourceOp->get<mv::DmaDirection>("direction");
+        if(direction == mv::DmaDirectionEnum::DDR2UPACMX)
+            return true;
+        else if(direction == mv::DmaDirectionEnum::NNCMX2UPACMX)
+            return true;
+    }
+    return false;
+}
 
-// Pass role: Add DMA Task DDR2CMX where needed for weights tensors input of DPUTasks.
-void addWeightsDMATasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element& passDesc, mv::json::Object&)
+// Pass role: Add DMA Tasks for weights tensors input of DPUTasks (if needed).
+void AddDPUTasksWeightsDMATasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element& passDesc, mv::json::Object&)
 {
     UNUSED(pass);
     UNUSED(target);
     mv::OpModel om(model);
     mv::DataModel dm(model);
 
-    // Pass main assumption is that we are working on the original graph, just with the Ops converted to DPUTasks
-    // We don't need to perform eliminations in this pass, we can use a for loop to iterate among operations
     for(auto opIt = om.opBegin(); opIt != om.opEnd(); ++opIt)
     {
         std::string opType = opIt->getOpType();
@@ -107,12 +83,59 @@ void addWeightsDMATasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
                 if(inputTensor->hasAttr("quantParams"))
                     quantParams = inputTensor->get<mv::QuantizationParams>("quantParams");
                 auto inputOp = om.getSourceOp(inputTensor);
-                if(!isTensorInCMX(inputTensor, om))
+                if(!isTensorInNNCMX(inputTensor, om))
                 {
                     auto flows = inputTensor->get<std::set<std::string>>("flows");
 
+                    mv::Data::TensorIterator inputTensorDma = om.dMATask(inputTensor, mv::DmaDirectionEnum::DDR2NNCMX, quantParams, mv::createDMATaskDDR2NNCMXName(inputOp->getName()));
+                    auto inputTensorDmaOp = om.getSourceOp(inputTensorDma);
+                    inputTensorDmaOp->set<unsigned>("opId", opId);
 
-                    auto inputTensorDma = om.dMATask(inputTensor, mv::DmaDirectionEnum::DDR2CMX, quantParams, mv::createDMATaskDDR2CMXName(inputOp->getName()));
+                    for(auto flowStr: flows)
+                    {
+                        auto backupFlow = dm.getDataFlow(flowStr);
+                        auto idx = backupFlow->get<std::size_t>("sinkInput");
+                        auto sink = backupFlow.sink();
+                        om.undefineFlow(backupFlow);
+                        sink->setInputTensor(inputTensorDma, idx, false);
+                        om.defineFlow(inputTensorDmaOp, 0, sink, idx);
+                    }
+                }
+            }
+        }
+    }
+}
+
+// Pass role: Add DMA Tasks for input tensors input of UPATasks (if needed).
+void AddUPATasksExtraInputsDMATasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element& passDesc, mv::json::Object&)
+{
+    UNUSED(pass);
+    UNUSED(target);
+    mv::OpModel om(model);
+    mv::DataModel dm(model);
+
+    for(auto opIt = om.opBegin(); opIt != om.opEnd(); ++opIt)
+    {
+        std::string opType = opIt->getOpType();
+        if (opType == "UPATask")
+        {
+            std::string taskOp = opIt->get<std::string>("taskOp");
+            if(taskOp == "Dummy")
+                continue;
+            auto opId = opIt->get<unsigned>("opId");
+            unsigned n = opIt->inputSlots();
+            for(unsigned i = 0; i < n; ++i)
+            {
+                auto inputTensor = opIt->getInputTensor(i);
+                mv::QuantizationParams quantParams = {{},{},{},{}};
+                if(inputTensor->hasAttr("quantParams"))
+                    quantParams = inputTensor->get<mv::QuantizationParams>("quantParams");
+                auto inputOp = om.getSourceOp(inputTensor);
+                if(!isTensorInUPACMX(inputTensor, om))
+                {
+                    auto flows = inputTensor->get<std::set<std::string>>("flows");
+
+                    mv::Data::TensorIterator inputTensorDma = om.dMATask(inputTensor, mv::DmaDirectionEnum::DDR2UPACMX, quantParams, mv::createDMATaskDDR2UPACMXName(inputOp->getName()));
                     auto inputTensorDmaOp = om.getSourceOp(inputTensorDma);
                     inputTensorDmaOp->set<unsigned>("opId", opId);
 

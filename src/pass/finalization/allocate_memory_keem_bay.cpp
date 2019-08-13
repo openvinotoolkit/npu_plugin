@@ -155,7 +155,7 @@ void allocateGraphfileTensorsFcnKeemBay(const mv::pass::PassEntry& pass, mv::Com
     for(auto& opIterator : ops)
     {
         std::string opType = opIterator->getOpType();
-        if (opType == "DMATask" && opIterator->get<mv::DmaDirection>("direction") == mv::DDR2CMX)
+        if (opType == "DMATask" && opIterator->get<mv::DmaDirection>("direction") == mv::DDR2NNCMX)
         {
             auto tIt = opIterator->getInputTensor(0);
             // NOTE: 1 level of streaming over K supported at the moment
@@ -183,9 +183,13 @@ static mv::Data::BufferIterator allocateUnpopulatedTensor(const mv::pass::PassEn
 {
     //todo:: stop with the if-else-if-else
     auto logicalLocation = tensorIt->get<mv::Tensor::MemoryLocation>("Location");
-    if( logicalLocation == mv::Tensor::MemoryLocation::CMX)
+    if( logicalLocation == mv::Tensor::MemoryLocation::NNCMX)
     {
         return dm.allocateTensor("VPU_CMX_NN", stageIt, tensorIt);
+    }
+    else if(logicalLocation == mv::Tensor::MemoryLocation::UPACMX)
+    {
+        return dm.allocateTensor("VPU_CMX_UPA",stageIt, tensorIt);
     }
     else if(logicalLocation == mv::Tensor::MemoryLocation::DDR)
     {
@@ -202,9 +206,13 @@ static mv::Data::BufferIterator allocateUnpopulatedTensor(const mv::pass::PassEn
         if (globalParams->hasAttr("default_tensor_placement"))
         {
             mv::Tensor::MemoryLocation defaultPlace = mv::Tensor::MemoryLocation(globalParams->get<std::string>("default_tensor_placement"));
-            if( defaultPlace == mv::Tensor::MemoryLocation::CMX)
+            if( defaultPlace == mv::Tensor::MemoryLocation::NNCMX)
             {
                 memoryLocation = "VPU_CMX_NN";
+            }
+            else if(defaultPlace == mv::Tensor::MemoryLocation::UPACMX)
+            {
+                memoryLocation = "VPU_CMX_UPA";
             }
             else if(defaultPlace == mv::Tensor::MemoryLocation::DDR)
             {
@@ -390,7 +398,8 @@ void allocateCMXTensorsFcnKeemBay(const mv::pass::PassEntry& pass, mv::Computati
 
 static std::map<std::string,std::string> location2Allocator =
 {
-        { "CMX", "VPU_CMX_NN" },
+        { "UPACMX", "VPU_CMX_UPA"},
+        { "NNCMX", "VPU_CMX_NN" },
         { "DDR", "VPU_DDR_Heap"},
         { "INPUT", "ProgrammableInput"},
         { "OUTPUT", "ProgrammableOutput"},

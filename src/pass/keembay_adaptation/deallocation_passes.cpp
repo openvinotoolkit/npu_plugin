@@ -100,7 +100,7 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
 
         // Last check, possible thanks to MemoryLocation definition: In general, tensors that are not in CMX shall not be deallocated
         // Probably this check covers most of the previous checks - NO! CONCAT IN DDR!
-        if (inputTensor->get<mv::Tensor::MemoryLocation>("Location") != mv::Tensor::MemoryLocation::CMX)
+        if (inputTensor->get<mv::Tensor::MemoryLocation>("Location") != mv::Tensor::MemoryLocation::NNCMX)
             continue;
 
         // Arrived at this point, we know that the tensor has to be deallocated. We just have to check

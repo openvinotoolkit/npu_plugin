@@ -556,6 +556,8 @@ std::vector<std::unique_ptr<MVCNN::TaskListT>> mv::RuntimeModel::buildTaskListT(
         std::string opType = opIt->getOpType();
         if(opType.find("DPU") != std::string::npos)
             listToUse = &toBuild[0];
+        if(opType.find("UPA") != std::string::npos)
+            listToUse = &toBuild[0];
         else if(opType.find("DMA") != std::string::npos)
             listToUse = &toBuild[1];
         auto tasks = buildTaskT(cm, compilationDescriptor, opIt);
@@ -616,13 +618,17 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildSpecificTaskUn
     unsigned numTasks = cm.getGlobalConfigParams()->get<int>("Number_of_Clusters");
 
     //NOTE: This if conditions of this big switch statements are not definitive and could change in the future
-    //Take as granted for now that 1 cluster 1 tensor 0 subtensors
     if(taskType == "MvTensorTask")
         toBuild = buildMvTensorTaskT(cm, compilationDescriptor, opIt);
-    else if(taskType == "UPADMATask")
-        toBuild = buildUPADMATaskT(cm, compilationDescriptor, opIt);
     else if(taskType == "DMATask")
     {
+        auto direction = opIt->get<mv::DmaDirection>("direction");
+        if(direction == mv::DmaDirectionEnum::NNCMX2UPACMX ||
+           direction == mv::DmaDirectionEnum::UPACMX2NNCMX ||
+           direction == mv::DmaDirectionEnum::DDR2UPACMX   ||
+           direction == mv::DmaDirectionEnum::UPACMX2DDR)
+            toBuild = buildUPADMATaskT(cm, compilationDescriptor, opIt);
+
         std::string splitting;
         if (opIt->getOutputTensor(0)->hasAttr("splitStrategy"))
             splitting = opIt->getOutputTensor(0)->get<std::string>("splitStrategy");
@@ -651,8 +657,8 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildSpecificTaskUn
         else
             toBuild = buildNCE2TaskT(cm, compilationDescriptor, opIt, splitting);
     }
-    else if(taskType == "UPALayerTask")
-        toBuild = buildUPALayerTask(cm, compilationDescriptor, opIt);
+    else if(taskType == "UPATask")
+        toBuild = buildUPATask(cm, compilationDescriptor, opIt);
     else if(taskType == "ControllerTask")
         toBuild = buildControllerTaskT(cm, compilationDescriptor, opIt);
     else if(taskType == "BarrierTask")
@@ -774,7 +780,7 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
             for (unsigned idx = numTasks; idx > 0; idx--)
                 locale_index.push_back(idx - 1);
 
-            if(direction == mv::DDR2CMX)
+            if(direction == mv::DDR2NNCMX)
                 tmp->dst->locale_index = locale_index;
 
             if(opIt->hasAttr("Compression"))
@@ -1407,8 +1413,32 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPASoftmaxTask(ComputationModel& c
     return toBuild;
 }
 
+MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAPassthroughTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt)
+{
+    auto input = opIt->getInputTensor(0);
+    auto output = opIt->getOutputTensor(0);
+    auto toBuild = new MVCNN::UPALayerTaskT();
+    //toBuild->maxShaves = ;
+    toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_PassthroughParams;
+    auto softLayerParamsValue = new MVCNN::SoftmaxParamsT();
+    toBuild->softLayerParams.value = softLayerParamsValue;
+    toBuild->input_data = buildTensorReferenceT(cm, compilationDescriptor, input);
+    toBuild->output_data = buildTensorReferenceT(cm, compilationDescriptor, output);
+    return toBuild;
+}
+
+MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPADummyTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt)
+{
+    auto toBuild = new MVCNN::UPALayerTaskT();
+    //toBuild->maxShaves = ;
+    toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_DummyParams;
+    auto softLayerParamsValue = new MVCNN::SoftmaxParamsT();
+    toBuild->softLayerParams.value = softLayerParamsValue;
+    return toBuild;
+}
+
 // For now 1:1 mapping
-std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildUPALayerTask(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt)
+std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildUPATask(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt)
 {
     std::vector<std::unique_ptr<MVCNN::TaskT>> toReturn = std::vector<std::unique_ptr<MVCNN::TaskT>>(1);
 
@@ -1418,6 +1448,10 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildUPALayerTask(C
     std::string underlyingTask = opIt->get<std::string>("taskOp");
     if(underlyingTask == "Softmax")
         toReturn[0]->task.value = buildUPASoftmaxTask(cm, compilationDescriptor, opIt);
+    if(underlyingTask == "Identity")
+        toReturn[0]->task.value = buildUPAPassthroughTask(cm, compilationDescriptor, opIt);
+    if(underlyingTask == "Dummy")
+        toReturn[0]->task.value = buildUPADummyTask(cm, compilationDescriptor, opIt);
     // TODO: Add other UPA layers
 
     return toReturn;

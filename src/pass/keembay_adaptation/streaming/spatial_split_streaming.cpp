@@ -213,7 +213,7 @@ static void setStreamingStrategy(const mv::pass::PassEntry& pass, mv::Computatio
     opxSplitx.axis = "W" ;
     opxSplitx.numSplits = 2 ;
     op2Splits.push_back(opxSplitx);
-    
+
     thisGraphStrategy.insert(std::pair<std::string, std::vector<opStreamingSplitDef>>("conv0_cmx_",op1Splits));
     thisGraphStrategy.insert(std::pair<std::string, std::vector<opStreamingSplitDef>>("conv1_cmx_",op2Splits));
 */
@@ -234,7 +234,7 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model, mv::Dat
     auto outputTensor = op->getOutputTensor(0);
 
     //add DMA from DDR to CMX, if needed
-    
+
     auto inputOp = om.getSourceOp(inputTensor);
 
     auto DMAOpId = inputOp->get<unsigned>("opId");
@@ -252,13 +252,13 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model, mv::Dat
     //    std::cout<< "  No location attritbute on input tensor to original conv " << std::endl ;
     //}
 
-    // if (inputTensor->get<mv::Tensor::MemoryLocation>("Location").toString() != "CMX")
+    // if (inputTensor->get<mv::Tensor::MemoryLocation>("Location").toString() != "NNCMX")
     // {
     //     //std::cout<< "  adding DMA2CMX on input " <<  std::endl ;
 
     //     auto flows = inputTensor->get<std::set<std::string>>("flows");
 
-    //     auto inputTensorDma = om.dMATask(inputTensor, mv::DmaDirectionEnum::DDR2CMX, quantParams, mv::createDMATaskDDR2CMXName(inputOp->getName()));
+    //     auto inputTensorDma = om.dMATask(inputTensor, mv::DmaDirectionEnum::DDR2NNCMX, quantParams, mv::createDMATaskDDR2NNCMXName(inputOp->getName()));
     //     auto inputTensorDmaOp = om.getSourceOp(inputTensorDma);
     //     inputTensorDmaOp->set<unsigned>("opId", DMAOpId);
     //     inputTensor2Conv = inputTensorDma ;
@@ -281,7 +281,7 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model, mv::Dat
     {
         mv::Data::TensorIterator slice;
         if (kernelTensor->hasAttr("quantParams"))
-        {            
+        {
             slice = om.slice(kernelTensor,
                             childTiles[split].getStartCoord(),
                             childTiles[split].getSize(),
@@ -377,8 +377,8 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model, mv::Dat
         {
             //no more children.
             //todo:: Expose in JSON config the "Default stream location"
-            inputLocation.relocate(mv::Tensor::MemoryLocation::CMX);
-            outputLocation.relocate(mv::Tensor::MemoryLocation::CMX);
+            inputLocation.relocate(mv::Tensor::MemoryLocation::NNCMX);
+            outputLocation.relocate(mv::Tensor::MemoryLocation::NNCMX);
             inputLocation.force();
             outputLocation.force();
 
@@ -504,7 +504,7 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model, mv::Dat
                                 op->get<std::string>("rounding_type"),
                                 op->get<mv::QuantizationParams>("quantParams"),
                                 op->getName() + "_split_" + std::to_string(split));
-                                
+
             if (opType == "DepthwiseConv")
                 newTensor = om.depthwiseConv(slice,
                                 op->getInputTensor(1),
@@ -512,7 +512,7 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model, mv::Dat
                                 currentPad,
                                 op->get<unsigned>("dilationFactor"),
                                 op->get<mv::QuantizationParams>("quantParams"),
-                                op->getName() + "_split_" + std::to_string(split));  
+                                op->getName() + "_split_" + std::to_string(split));
 
             if (opType == "Conv")
                 newTensor = om.conv(slice,
@@ -603,10 +603,10 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model, mv::Dat
             //todo:: Expose in JSON config the "Default stream location"
             for (auto i = 0; i < numInputs; i++)
             {
-                inputLocation[i].relocate(mv::Tensor::MemoryLocation::CMX);
+                inputLocation[i].relocate(mv::Tensor::MemoryLocation::NNCMX);
                 inputLocation[i].force();
             }
-            outputLocation.relocate(mv::Tensor::MemoryLocation::CMX);
+            outputLocation.relocate(mv::Tensor::MemoryLocation::NNCMX);
             outputLocation.force();
 
             // std::cout << "No more children deciding " << slices[split]->getName() << " to " << inputLocation.toString() << std::endl;
@@ -802,7 +802,7 @@ void generateWeightsTiling(mv::Data::OpListIterator op,Tiling& tiling, std::vect
         tiling.setChildTile(newTile,split);
 
     }
-    
+
     nesting++;
     if (nesting<opStrategy.size() )
     {

@@ -90,8 +90,8 @@ bool mv::TensorInterferenceGraph::isSinkNode_(mv::Data::OpListIterator& opIterat
     if (opType == "Deallocate") //Deallocate is a LeonTask
         return true;
     if (opType  == "DMATask" &&
-        (opIterator->get<mv::DmaDirection>("direction") == mv::DmaDirectionEnum::CMX2DDR ||
-         opIterator->get<mv::DmaDirection>("direction") == mv::DmaDirectionEnum::CMX2UPA))
+        (opIterator->get<mv::DmaDirection>("direction") == mv::DmaDirectionEnum::NNCMX2DDR ||
+         opIterator->get<mv::DmaDirection>("direction") == mv::DmaDirectionEnum::NNCMX2UPACMX))
         return true;
 
     return false;

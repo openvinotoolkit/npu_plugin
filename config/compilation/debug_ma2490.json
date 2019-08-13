@@ -26,7 +26,7 @@
                         "strategy": "Clustering"
                     }
                 ],
-                "default_tensor_placement" : "CMX"
+                "default_tensor_placement" : "NNCMX"
             },
             "ComputeMemory",
             "AssignUniqueOpId",
@@ -113,7 +113,8 @@
                 "name": "ConvertDot",
                 "input": "output/dots/BeforeOpsToTasks.dot"
             },
-            "ConvertOpsToTasks",
+            "ConvertOpsToDPUTasks",
+            "ConvertOpsToUPATasks",
             {
                 "name": "GenerateDot",
                 "output": "output/dots/AfterOpsToTasks.dot",
@@ -164,6 +165,7 @@
                 "input": "output/dots/update_concat_quantization.dot"
             },
             "SetDpuTasksMemoryLocation",
+            "SetUPATasksMemoryLocation",
             {
                 "name": "GenerateDot",
                 "output": "output/dots/dpu_tasks_location.dot",
@@ -229,7 +231,8 @@
                 "name": "ConvertDot",
                 "input": "output/dots/implicit_operations_model.dot"
             },
-            "AddWeightsDMATasks",
+            "AddDPUTasksWeightsDMATasks",
+            "AddUPATasksExtraInputsDMATasks",
             {
                 "name": "GenerateDot",
                 "output": "output/dots/dma_model.dot",
@@ -244,7 +247,7 @@
             "GenerateSparsityMapsUnpopulatedTensors",
             "GenerateSparsityMapsPopulatedTensors",
             "SplitOverHWeightsSparsityMaps",
-            "AddWeightsDMATasks",
+            "AddDPUTasksWeightsDMATasks",
             {
                 "name": "GenerateDot",
                 "output": "output/dots/sparsity_model.dot",
@@ -299,18 +302,18 @@
                 "name": "ConvertDot",
                 "input": "output/dots/NoHangingDmas.dot"
             },
-            "cmx2DDRControlFlows",
+            "NNCMX2DDRControlFlows",
             "TransitiveReduction",
             {
                 "name": "GenerateDot",
-                "output": "output/dots/cmx2DDRControlFlows.dot",
+                "output": "output/dots/NNCMX2DDRControlFlows.dot",
                 "scope": "ControlModel",
                 "content": "full",
                 "html": true
             },
             {
                 "name": "ConvertDot",
-                "input": "output/dots/cmx2DDRControlFlows.dot"
+                "input": "output/dots/NNCMX2DDRControlFlows.dot"
             },
             "StrategyLayersToTensors",
             "SplittingAcrossClusters",

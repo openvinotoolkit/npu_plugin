@@ -74,8 +74,13 @@ void generateDotFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
 
                 if(opIt->getOpType() == "DMATask")
                 {
-                    if(opIt->get<mv::DmaDirection>("direction") == mv::DmaDirectionEnum::DDR2CMX)
+                    auto direction = opIt->get<mv::DmaDirection>("direction");
+                    if(direction == mv::DmaDirectionEnum::DDR2NNCMX ||
+                       direction == mv::DmaDirectionEnum::DDR2UPACMX)
                         nodeDef += " style=filled, fillcolor=green,";
+                    else if(direction == mv::DmaDirectionEnum::NNCMX2UPACMX ||
+                            direction == mv::DmaDirectionEnum::UPACMX2NNCMX)
+                        nodeDef += " style=filled, fillcolor=yellow,";
                     else
                         nodeDef += " style=filled, fillcolor=red,";
                 }

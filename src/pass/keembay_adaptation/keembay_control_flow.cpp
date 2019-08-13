@@ -6,7 +6,7 @@
 
 static void taskControlFlowsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 static void hangingDmaControlFlowsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&passDesc, mv::json::Object&);
-static void cmx2DDRControlFlowsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
+static void NNCMX2DDRControlFlowsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 static void layerNumberingFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&passDesc, mv::json::Object&);
 static void activationTensorsControlFlowsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 
@@ -28,8 +28,8 @@ namespace mv
             ""
         );
 
-        MV_REGISTER_PASS(cmx2DDRControlFlows)
-        .setFunc(cmx2DDRControlFlowsFcn)
+        MV_REGISTER_PASS(NNCMX2DDRControlFlows)
+        .setFunc(NNCMX2DDRControlFlowsFcn)
         .setDescription(
             ""
         );
@@ -85,7 +85,7 @@ void activationTensorsControlFlowsFcn(const mv::pass::PassEntry&, mv::Computatio
 
 // This pass is absolutely necessary to ensure that we are not redeaming in cmx weights too soon
 // It is a conservative approach but it's needed for TIG
-void cmx2DDRControlFlowsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+void NNCMX2DDRControlFlowsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
     mv::OpModel om(model);
     mv::ControlModel cm(model);
@@ -96,7 +96,8 @@ void cmx2DDRControlFlowsFcn(const mv::pass::PassEntry&, mv::ComputationModel& mo
 
     for(auto& dma : dmas)
     {
-        if(dma->get<mv::DmaDirection>("direction") == mv::CMX2DDR)
+        auto direction = dma->get<mv::DmaDirection>("direction");
+        if(direction == mv::NNCMX2DDR)
         {
             auto controlDma = cm.switchContext(dma);
             for(auto parent = controlDma.leftmostParent(); parent != cm.opEnd(); ++parent)
@@ -134,8 +135,8 @@ void hangingDmaControlFlowsFcn(const mv::pass::PassEntry&, mv::ComputationModel&
     for(auto& dmaOp: dmas)
     {
         auto dma = cm.switchContext(dmaOp);
-        // Check if it's DDR2CMX, otherwise we don't need to do anything
-        if(dma->get<mv::DmaDirection>("direction") == mv::DmaDirectionEnum::DDR2CMX)
+        // Check if it's DDR2NNCMX, otherwise we don't need to do anything
+        if(dma->get<mv::DmaDirection>("direction") == mv::DmaDirectionEnum::DDR2NNCMX)
         {
             // At this point (see assumption above) each DMA has at least one output control flow
             // We take the minimum layer number required by operations using this data
@@ -210,7 +211,7 @@ void assignLayerNumber(mv::ControlModel& cm, const std::unordered_set<std::strin
 
 // This pass adds a numeric index that stands for layer to each op
 // It will be useful to solve hanging DMA's with a proper prefetch routine
-// And possibly also to handle CMX2DDR output flows
+// And possibly also to handle NNCMX2DDR output flows
 
 // ASSUMPTION: We need task control flows and transitive reduction to be run before this pass
 void layerNumberingFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
@@ -261,11 +262,13 @@ void taskControlFlowsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model
 
     auto dmaTasks = om.getOps("DMATask");
     auto dpuTasks = om.getOps("DPUTask");
+    auto upaTasks = om.getOps("UPATask");
 
     std::vector<mv::Data::OpListIterator> tasks;
-    tasks.reserve(dmaTasks.size() + dpuTasks.size());
+    tasks.reserve(dmaTasks.size() + dpuTasks.size() + upaTasks.size());
     tasks.insert(tasks.end(), dmaTasks.begin(), dmaTasks.end());
     tasks.insert(tasks.end(), dpuTasks.begin(), dpuTasks.end());
+    tasks.insert(tasks.end(), upaTasks.begin(), upaTasks.end());
 
     for(auto op : tasks)
     {
