@@ -91,7 +91,7 @@ namespace mv
             std::set<std::string> getTaskTopTensors_(const std::vector<Data::TensorIterator>& tensorList, ComputationModel& model,
                 const TensorIteratorFilter& tensorFilter, bool isDMA);
             bool checkNodesAreNeighbors_(TensorInterferenceGraph::node_list_iterator& n1, TensorInterferenceGraph::node_list_iterator& n2);
-            bool checkNodesDontInterfere_(mv::ComputationModel& model, const std::string& tensor1, const std::string& tensor2, std::set<std::string>& sourceNodeNames, std::set<std::string>& sinkNodeNames);
+            bool checkNodesDontInterfere_(mv::ComputationModel& model, std::set<std::string>& sourceNodeNames, std::set<std::string>& sinkNodeNames);
             bool isTensorInTopNames_(const std::vector<Data::TensorIterator>& tensorList, ComputationModel& model, const std::string tensorName);
             bool isSinkNode_(Data::OpListIterator& opIterator);
             void genIntereferenceGraph_(const mv::pass::PassEntry& pass, ComputationModel& model , const TensorIteratorFilter& tensorFilter,const OpIteratorFilter& taskFilter, bool isDMA);

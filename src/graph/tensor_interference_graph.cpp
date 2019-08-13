@@ -105,9 +105,8 @@ bool mv::TensorInterferenceGraph::isSinkNode_(mv::Data::OpListIterator& opIterat
     return false;
 }
 
-bool mv::TensorInterferenceGraph::checkNodesDontInterfere_(mv::ComputationModel& model, const std::string& tensor1, const std::string& tensor2, std::set<std::string>& sourceNodeNames, std::set<std::string>& sinkNodeNames)
+bool mv::TensorInterferenceGraph::checkNodesDontInterfere_(mv::ComputationModel& model, std::set<std::string>& sourceNodeNames, std::set<std::string>& sinkNodeNames)
 {
-    //returns true if tensor2 is already deallocated when tesnor1 is allocated
     mv::OpModel om(model);
     mv::ControlModel cm(om);
     //Check if there's a path from any node in sink to any node in source, if yes return true
@@ -336,7 +335,7 @@ void mv::TensorInterferenceGraph::genIntereferenceGraph_(const mv::pass::PassEnt
             auto directed_nj = directed_g.node_find(*target);
             if (source != target && !checkNodesAreNeighbors_(ni, nj) && mv::pathExists(*this, ni, nj) )
             {
-                if (!checkNodesDontInterfere_(model, *source, *target, sourceNodesMap[*source], sinkNodesMap[*target]) && !checkNodesDontInterfere_(model, *target, *source, sourceNodesMap[*target], sinkNodesMap[*source]))
+                if (!checkNodesDontInterfere_(model, sourceNodesMap[*source], sinkNodesMap[*target]) && !checkNodesDontInterfere_(model, sourceNodesMap[*target], sinkNodesMap[*source]))
                 {
                     this->edge_insert(ni, nj, 2*nodeId);
                     this->edge_insert(nj, ni, 2*nodeId+1);
