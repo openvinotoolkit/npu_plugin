@@ -22,6 +22,7 @@
 
 #include <ie_allocator.hpp>
 #include <unordered_map>
+#include <memory>
 
 namespace vpu {
 namespace KmbPlugin {
@@ -40,6 +41,8 @@ public:
 
     unsigned long getPhysicalAddress(void *handle) noexcept;
 
+    virtual bool isValidPtr(void* ptr) noexcept;
+
     virtual ~KmbAllocator() = default;
 
 protected:
@@ -51,6 +54,7 @@ protected:
     std::unordered_map<void *, MemoryDescriptor> _allocatedMemory;
 };
 
+std::shared_ptr<KmbAllocator>& getKmbAllocator();
 
 }  // namespace KmbPlugin
 }  // namespace vpu

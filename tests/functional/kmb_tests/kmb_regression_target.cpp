@@ -261,7 +261,7 @@ INSTANTIATE_TEST_CASE_P(
                 ValuesIn(compilation_parameters_kmb),
                 Values<Compile>(false),
                 Values<Timeout>(60.)),
-                KmbNoRegressionCompilationOnly::getTestCaseName);
+        KmbNoRegressionCompilationOnly::getTestCaseName);
 
 INSTANTIATE_TEST_CASE_P(
         DISABLED_KmbCompilationTest_smoke_nightly,
@@ -271,7 +271,7 @@ INSTANTIATE_TEST_CASE_P(
                 ValuesIn(compilation_parameters_kmb),
                 Values<Compile>(true),
                 Values<Timeout>(600.)),
-                KmbNoRegressionCompilationOnly::getTestCaseName);
+        KmbNoRegressionCompilationOnly::getTestCaseName);
 
 INSTANTIATE_TEST_CASE_P(
         DISABLED_KmbParsingUnsupportedOnlyTest_smoke_nightly,
@@ -326,7 +326,7 @@ const static std::vector<modelBlobsInfo> pathToPreCompiledGraph = {
 
 
 class VpuInferWithPath: public vpuLayersTests,
-                         public testing::WithParamInterface< modelBlobsInfo > {
+                        public testing::WithParamInterface< modelBlobsInfo > {
 };
 
 #ifdef ENABLE_VPUAL
@@ -462,7 +462,7 @@ TEST_F(VpuInferAndCompareTests, DISABLED_inferenceWithPreprocessing) {  // To be
 }
 
 class VpuInferAndCompareTestsWithParam: public vpuLayersTests,
-                             public testing::WithParamInterface< std::tuple<bool, modelBlobsInfo> > {
+                                        public testing::WithParamInterface< std::tuple<bool, modelBlobsInfo> > {
 };
 
 TEST_P(VpuInferAndCompareTestsWithParam, DISABLED_multipleInferRequests) {
@@ -742,7 +742,7 @@ TEST_P(VpuInferWithPath, DISABLED_compareSetBlobAndGetBlob) {
 
     u_int8_t* ptr = inputBlob->buffer();
     memset(ptr, 0xFF, inputBlob->byteSize());
-    inferRequest.SetBlob(input_name, inputBlob);
+    ASSERT_NO_THROW(inferRequest.SetBlob(input_name, inputBlob));
     Blob::Ptr newInputBlob;
     ASSERT_NO_THROW(newInputBlob = inferRequest.GetBlob(input_name));
 
@@ -750,7 +750,7 @@ TEST_P(VpuInferWithPath, DISABLED_compareSetBlobAndGetBlob) {
     ASSERT_EQ((void *)inputBlob->buffer(), (void *)newInputBlob->buffer());
 }
 
-TEST_P(VpuInferWithPath, DISABLED_compareSetBlobAndGetBlobAfterInfer) {
+TEST_P(VpuInferWithPath, DISABLED_compareSetBlobAfterInfer) {
     modelBlobsInfo blobsInfo = GetParam();
     std::string graphSuffix = blobsInfo._graphPath;
     std::string inputSuffix = blobsInfo._inputPath;
@@ -761,52 +761,56 @@ TEST_P(VpuInferWithPath, DISABLED_compareSetBlobAndGetBlobAfterInfer) {
 
     Blob::Ptr fileOutputBlob = InferenceEngine::make_shared_blob<uint8_t>({Precision::U8, blobsInfo._outDimensions, Layout::NCHW});
     fileOutputBlob->allocate();
-    fromBinaryFile(outputNameFilePath, fileOutputBlob);
+    bool status = false;
+    ASSERT_NO_THROW(status = fromBinaryFile(outputNameFilePath, fileOutputBlob));
+    ASSERT_TRUE(status);
 
     Core ie;
     InferenceEngine::ExecutableNetwork importedNetwork;
     ASSERT_NO_THROW(importedNetwork = ie.ImportNetwork(modelFilePath, "KMB", {}));
 
-    InferenceEngine::InferRequest inferRequestOth;
-    ASSERT_NO_THROW(inferRequestOth = importedNetwork.CreateInferRequest());
-    std::string input_name = importedNetwork.GetInputsInfo().begin()->first;
+    InferenceEngine::InferRequest inferRequest1;
+    ASSERT_NO_THROW(inferRequest1 = importedNetwork.CreateInferRequest());
+    std::string input_name1 = importedNetwork.GetInputsInfo().begin()->first;
 
-    Blob::Ptr firstInputBlob;
-    ASSERT_NO_THROW(firstInputBlob = inferRequestOth.GetBlob(input_name));
-    fromBinaryFile(inputNameFilePath, firstInputBlob);
+    Blob::Ptr inputBlob1;
+    ASSERT_NO_THROW(inputBlob1 = inferRequest1.GetBlob(input_name1));
+    ASSERT_NO_THROW(status = fromBinaryFile(inputNameFilePath, inputBlob1));
+    ASSERT_TRUE(status);
 
-    inferRequestOth.Infer();
-    std::string output_name = importedNetwork.GetOutputsInfo().begin()->first;
-    Blob::Ptr outputBlobOth;
-    ASSERT_NO_THROW(outputBlobOth = inferRequestOth.GetBlob(output_name));
+    ASSERT_NO_THROW(inferRequest1.Infer());
+    std::string output_name1 = importedNetwork.GetOutputsInfo().begin()->first;
+    Blob::Ptr outputBlob1;
+    ASSERT_NO_THROW(outputBlob1 = inferRequest1.GetBlob(output_name1));
 
     // ----------------------------------------------------------
 
     Blob::Ptr inputBlob;
     ASSERT_NO_THROW(inputBlob = InferenceEngine::make_shared_blob<uint8_t>({Precision::U8, blobsInfo._inDimensions, Layout::NCHW}));
     inputBlob->allocate();
-    fromBinaryFile(inputNameFilePath, inputBlob);
+    ASSERT_NO_THROW(status = fromBinaryFile(inputNameFilePath, inputBlob));
+    ASSERT_TRUE(status);
 
-    InferenceEngine::InferRequest inferRequest;
-    ASSERT_NO_THROW(inferRequest = importedNetwork.CreateInferRequest());
-    std::string othInput_name = importedNetwork.GetInputsInfo().begin()->first;
-    inferRequest.SetBlob(othInput_name, inputBlob);
+    InferenceEngine::InferRequest inferRequest2;
+    ASSERT_NO_THROW(inferRequest2 = importedNetwork.CreateInferRequest());
+    std::string input_name2 = importedNetwork.GetInputsInfo().begin()->first;
+    ASSERT_NO_THROW(inferRequest2.SetBlob(input_name2, inputBlob));
 
-    inferRequest.Infer();
-    std::string othOutput_name = importedNetwork.GetOutputsInfo().begin()->first;
-    Blob::Ptr outputBlob;
-    ASSERT_NO_THROW(outputBlob = inferRequest.GetBlob(othOutput_name));
+    ASSERT_NO_THROW(inferRequest2.Infer());
+    std::string output_name2 = importedNetwork.GetOutputsInfo().begin()->first;
+    Blob::Ptr outputBlob2;
+    ASSERT_NO_THROW(outputBlob2 = inferRequest2.GetBlob(output_name2));
     if (graphSuffix.rfind(YOLO_GRAPH_NAME) == graphSuffix.size() - YOLO_GRAPH_NAME.size()) {
-        Blob::Ptr blobFP32 = ConvertU8ToFP32(outputBlob);
-        Blob::Ptr othBlobFP32 = ConvertU8ToFP32(outputBlobOth);
-        Compare(blobFP32, othBlobFP32, 0.0f);
+        Blob::Ptr blobFP32 = ConvertU8ToFP32(outputBlob2);
+        Blob::Ptr expectedBlobFP32 = ConvertU8ToFP32(outputBlob1);
+        Compare(blobFP32, expectedBlobFP32, 0.0f);
 
-        blobFP32 = ConvertU8ToFP32(outputBlob);
-        othBlobFP32 = ConvertU8ToFP32(fileOutputBlob);
-        Compare(blobFP32, othBlobFP32, 0.0f);
+        blobFP32 = ConvertU8ToFP32(outputBlob2);
+        expectedBlobFP32 = ConvertU8ToFP32(fileOutputBlob);
+        Compare(blobFP32, expectedBlobFP32, 0.0f);
     } else {
-        ASSERT_NO_THROW(compareTopClasses(outputBlob, outputBlobOth, NUMBER_OF_TOP_CLASSES));
-        ASSERT_NO_THROW(compareTopClasses(outputBlob, fileOutputBlob, NUMBER_OF_TOP_CLASSES));
+        ASSERT_NO_THROW(compareTopClasses(outputBlob2, outputBlob1, NUMBER_OF_TOP_CLASSES));
+        ASSERT_NO_THROW(compareTopClasses(outputBlob2, fileOutputBlob, NUMBER_OF_TOP_CLASSES));
     }
 }
 
@@ -831,10 +835,13 @@ TEST_F(kmbSetBlob, DISABLED_compareSetBlobAllocation) {
 
     std::string mobilInput_name = mobilNImportedNetwork.GetInputsInfo().begin()->first;
     Blob::Ptr mobilNInputBlob;
-    fromBinaryFile(inputNameFilePath, mobilNInputBlob);
+    ASSERT_NO_THROW(mobilNInputBlob = resNInferRequest.GetBlob(mobilInput_name));
+    bool status = false;
+    ASSERT_NO_THROW(status = fromBinaryFile(inputNameFilePath, mobilNInputBlob));
+    ASSERT_TRUE(status);
 
     std::string resNInput_name = resNImportedNetwork.GetInputsInfo().begin()->first;
-    resNInferRequest.SetBlob(resNInput_name, mobilNInputBlob);
+    ASSERT_NO_THROW(resNInferRequest.SetBlob(resNInput_name, mobilNInputBlob));
     Blob::Ptr resNInputBlob;
     ASSERT_NO_THROW(resNInputBlob = resNInferRequest.GetBlob(resNInput_name));
     ASSERT_EQ((void *)mobilNInputBlob->buffer(), (void *)resNInputBlob->buffer());
@@ -851,54 +858,57 @@ TEST_P(VpuInferWithPath, DISABLED_compareOutputsTwoNetworks) {
 
     Blob::Ptr fileOutputBlob = InferenceEngine::make_shared_blob<uint8_t>({Precision::U8, blobsInfo._outDimensions, Layout::NCHW});
     fileOutputBlob->allocate();
-    fromBinaryFile(outputNameFilePath, fileOutputBlob);
+    bool status = false;
+    ASSERT_NO_THROW(status = fromBinaryFile(outputNameFilePath, fileOutputBlob));
+    ASSERT_TRUE(status);
 
     Core ie;
-    InferenceEngine::ExecutableNetwork mobilNImportedNetwork;
-    ASSERT_NO_THROW(mobilNImportedNetwork = ie.ImportNetwork(modelFilePath, "KMB", {}));
-    InferenceEngine::ExecutableNetwork othMobilNImportedNetwork;
-    ASSERT_NO_THROW(othMobilNImportedNetwork = ie.ImportNetwork(modelFilePath, "KMB", {}));
+    InferenceEngine::ExecutableNetwork importedNetwork1;
+    ASSERT_NO_THROW(importedNetwork1 = ie.ImportNetwork(modelFilePath, "KMB", {}));
+    InferenceEngine::ExecutableNetwork importedNetwork2;
+    ASSERT_NO_THROW(importedNetwork2 = ie.ImportNetwork(modelFilePath, "KMB", {}));
 
 
-    InferenceEngine::InferRequest mobilNInferRequest;
-    ASSERT_NO_THROW(mobilNInferRequest = mobilNImportedNetwork.CreateInferRequest());
+    InferenceEngine::InferRequest inferRequest1;
+    ASSERT_NO_THROW(inferRequest1 = importedNetwork1.CreateInferRequest());
 
-    std::string mobilInput_name = mobilNImportedNetwork.GetInputsInfo().begin()->first;
-    std::string mobilOutput_name = mobilNImportedNetwork.GetOutputsInfo().begin()->first;
+    std::string input_name1 = importedNetwork1.GetInputsInfo().begin()->first;
+    std::string output_name1 = importedNetwork1.GetOutputsInfo().begin()->first;
 
-    Blob::Ptr mobilNInputBlob;
-    ASSERT_NO_THROW(mobilNInputBlob = mobilNInferRequest.GetBlob(mobilInput_name));
-    fromBinaryFile(inputNameFilePath, mobilNInputBlob);
+    Blob::Ptr inputBlob1;
+    ASSERT_NO_THROW(inputBlob1 = inferRequest1.GetBlob(input_name1));
+    ASSERT_NO_THROW(status = fromBinaryFile(inputNameFilePath, inputBlob1));
+    ASSERT_TRUE(status);
 
-    mobilNInferRequest.Infer();
-    Blob::Ptr mobilNOutputBlob;
-    ASSERT_NO_THROW(mobilNOutputBlob = mobilNInferRequest.GetBlob(mobilOutput_name));
+    ASSERT_NO_THROW(inferRequest1.Infer());
+    Blob::Ptr outputBlob1;
+    ASSERT_NO_THROW(outputBlob1 = inferRequest1.GetBlob(output_name1));
 
     // --------------------
 
-    InferenceEngine::InferRequest othMobilNInferRequest;
-    ASSERT_NO_THROW(othMobilNInferRequest = othMobilNImportedNetwork.CreateInferRequest());
+    InferenceEngine::InferRequest InferRequest2;
+    ASSERT_NO_THROW(InferRequest2 = importedNetwork2.CreateInferRequest());
 
-    std::string othMobilNInput_name = othMobilNImportedNetwork.GetInputsInfo().begin()->first;
-    std::string othMobilNOutput_name = othMobilNImportedNetwork.GetOutputsInfo().begin()->first;
+    std::string input_name2 = importedNetwork2.GetInputsInfo().begin()->first;
+    std::string output_name2 = importedNetwork2.GetOutputsInfo().begin()->first;
 
-    othMobilNInferRequest.SetBlob(othMobilNInput_name, mobilNInputBlob);
-    othMobilNInferRequest.Infer();
-    Blob::Ptr othMobilNOutputBlob;
-    ASSERT_NO_THROW(othMobilNOutputBlob = othMobilNInferRequest.GetBlob(othMobilNOutput_name));
-    ASSERT_EQ(mobilNOutputBlob->byteSize(), othMobilNOutputBlob->byteSize());
+    ASSERT_NO_THROW(InferRequest2.SetBlob(input_name2, inputBlob1));
+    ASSERT_NO_THROW(InferRequest2.Infer());
+    Blob::Ptr outputBlob2;
+    ASSERT_NO_THROW(outputBlob2 = InferRequest2.GetBlob(output_name2));
+    ASSERT_EQ(outputBlob1->byteSize(), outputBlob2->byteSize());
 
     if (graphSuffix.rfind(YOLO_GRAPH_NAME) == graphSuffix.size() - YOLO_GRAPH_NAME.size()) {
-        Blob::Ptr blobFP32 = ConvertU8ToFP32(othMobilNOutputBlob);
-        Blob::Ptr othBlobFP32 = ConvertU8ToFP32(mobilNOutputBlob);
-        Compare(blobFP32, othBlobFP32, 0.0f);
+        Blob::Ptr blobFP32 = ConvertU8ToFP32(outputBlob2);
+        Blob::Ptr expectedBlobFP32 = ConvertU8ToFP32(outputBlob1);
+        Compare(blobFP32, expectedBlobFP32, 0.0f);
 
-        blobFP32 = ConvertU8ToFP32(othMobilNOutputBlob);
-        othBlobFP32 = ConvertU8ToFP32(fileOutputBlob);
-        Compare(blobFP32, othBlobFP32, 0.0f);
+        blobFP32 = ConvertU8ToFP32(outputBlob2);
+        expectedBlobFP32 = ConvertU8ToFP32(fileOutputBlob);
+        Compare(blobFP32, expectedBlobFP32, 0.0f);
     } else {
-        ASSERT_NO_THROW(compareTopClasses(othMobilNOutputBlob, mobilNOutputBlob, NUMBER_OF_TOP_CLASSES));
-        ASSERT_NO_THROW(compareTopClasses(othMobilNOutputBlob, fileOutputBlob, NUMBER_OF_TOP_CLASSES));
+        ASSERT_NO_THROW(compareTopClasses(outputBlob2, outputBlob1, NUMBER_OF_TOP_CLASSES));
+        ASSERT_NO_THROW(compareTopClasses(outputBlob2, fileOutputBlob, NUMBER_OF_TOP_CLASSES));
     }
 }
 
@@ -913,7 +923,9 @@ TEST_P(VpuInferWithPath, DISABLED_compareSetBlobAndInfer) {
 
     Blob::Ptr fileOutputBlob = InferenceEngine::make_shared_blob<uint8_t>({Precision::U8, blobsInfo._outDimensions, Layout::NCHW});
     fileOutputBlob->allocate();
-    fromBinaryFile(outputNameFilePath, fileOutputBlob);
+    bool status = false;
+    ASSERT_NO_THROW(status = fromBinaryFile(outputNameFilePath, fileOutputBlob));
+    ASSERT_TRUE(status);
 
     Core ie;
     InferenceEngine::ExecutableNetwork importedNetwork;
@@ -928,10 +940,11 @@ TEST_P(VpuInferWithPath, DISABLED_compareSetBlobAndInfer) {
     Blob::Ptr inputBlob;
     ASSERT_NO_THROW(inputBlob = InferenceEngine::make_shared_blob<uint8_t>({Precision::U8, blobsInfo._inDimensions, Layout::NCHW}));
     inputBlob->allocate();
-    fromBinaryFile(inputNameFilePath, inputBlob);
+    ASSERT_NO_THROW(status = fromBinaryFile(inputNameFilePath, inputBlob));
+    ASSERT_TRUE(status);
 
-    inferRequest.SetBlob(input_name, inputBlob);
-    inferRequest.Infer();
+    ASSERT_NO_THROW(inferRequest.SetBlob(input_name, inputBlob));
+    ASSERT_NO_THROW(inferRequest.Infer());
 
     Blob::Ptr outputBlob;
     ASSERT_NO_THROW(outputBlob = inferRequest.GetBlob(output_name));
@@ -940,12 +953,65 @@ TEST_P(VpuInferWithPath, DISABLED_compareSetBlobAndInfer) {
     Blob::Ptr outputBlobFP32 = ConvertU8ToFP32(outputBlob);
     Compare(expectedOutputFP32, outputBlobFP32, 0.0f);
     if (graphSuffix.rfind(YOLO_GRAPH_NAME) == graphSuffix.size() - YOLO_GRAPH_NAME.size()) {
-        Blob::Ptr expectedOutputFP32 = ConvertU8ToFP32(fileOutputBlob);
-        Blob::Ptr outputBlobFP32 = ConvertU8ToFP32(outputBlob);
+        expectedOutputFP32 = ConvertU8ToFP32(fileOutputBlob);
+        outputBlobFP32 = ConvertU8ToFP32(outputBlob);
         Compare(expectedOutputFP32, outputBlobFP32, 0.0f);
     } else {
         ASSERT_NO_THROW(compareTopClasses(outputBlob, fileOutputBlob, NUMBER_OF_TOP_CLASSES));
     }
+}
+
+class vpuInferWithSetUp : public vpuLayersTests {
+public:
+    std::stringstream out;
+    Regression::basic_streambuf<char, std::char_traits<char>>* ptr;
+    virtual void SetUp() {
+        ptr = std::cout.rdbuf();
+        std::cout.rdbuf(out.rdbuf());
+    }
+
+    virtual void TearDown() {
+        std::cout.rdbuf(ptr);
+    }
+};
+
+TEST_F(vpuInferWithSetUp, DISABLED_copyCheckSetBlob) {
+
+    std::string strToCheck = "isValidPtr(): Input blob will be copied";
+    std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet/mobilenet.blob";
+    std::string inputNameFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet/input.dat";
+    std::string outputNameFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet/output.dat";
+
+    Blob::Ptr fileOutputBlob = InferenceEngine::make_shared_blob<uint8_t>({Precision::U8, {1, 1, 1, 1024}, Layout::NCHW});
+    fileOutputBlob->allocate();
+    bool status;
+    ASSERT_NO_THROW(status = fromBinaryFile(outputNameFilePath, fileOutputBlob));
+    ASSERT_TRUE(status);
+
+    Core ie;
+    InferenceEngine::ExecutableNetwork importedNetwork;
+    ASSERT_NO_THROW(importedNetwork = ie.ImportNetwork(modelFilePath, "KMB", {}));
+
+    InferenceEngine::InferRequest inferRequest;
+    ASSERT_NO_THROW(inferRequest = importedNetwork.CreateInferRequest());
+    std::string input_name = importedNetwork.GetInputsInfo().begin()->first;
+
+    Blob::Ptr inputBlob;
+    ASSERT_NO_THROW(inputBlob = inferRequest.GetBlob(input_name));
+    ASSERT_NO_THROW(status = fromBinaryFile(inputNameFilePath, inputBlob));
+    ASSERT_TRUE(status);
+    ASSERT_NO_THROW(inferRequest.SetBlob(input_name, inputBlob));
+
+    ASSERT_NO_THROW(inferRequest.Infer());
+    std::string output_name = importedNetwork.GetOutputsInfo().begin()->first;
+    Blob::Ptr outputBlob;
+    ASSERT_NO_THROW(outputBlob = inferRequest.GetBlob(output_name));
+
+    Blob::Ptr blobFP32 = ConvertU8ToFP32(outputBlob);
+    Blob::Ptr expectedBlobFP32 = ConvertU8ToFP32(fileOutputBlob);
+    Compare(blobFP32, expectedBlobFP32, 0.0f);
+
+    ASSERT_TRUE(out.str().find(strToCheck) == std::string::npos);
 }
 
 INSTANTIATE_TEST_CASE_P(inferenceWithParameters, VpuInferWithPath,

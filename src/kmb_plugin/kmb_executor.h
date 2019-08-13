@@ -60,8 +60,6 @@ public:
 
     const std::shared_ptr<KmbConfig>& _config;
 
-    std::shared_ptr<KmbAllocator> getAllocator();
-
 private:
         unsigned int _numStages = 0;
         Logger::Ptr _logger;
