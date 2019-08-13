@@ -247,16 +247,6 @@ TEST_P(VpuPreprocessingTestsWithParam, DISABLED_importWithPreprocessing) {  // T
     }
 }
 
-TEST_F(vpuLayersTests, fromNV) {
-    std::string inputFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet/input-227x227.dat";
-    size_t expectedWidth = 224, expectedHeight = 224;
-    VPUAllocator kmbAllocator;
-    InferenceEngine::TensorDesc inputTensor(InferenceEngine::Precision::U8,
-        {1, 3, 224, 224}, InferenceEngine::Layout::NHWC);
-    InferenceEngine::InferRequest inferRequest;
-    setPreprocForInputBlob("input", inputTensor, inputFilePath, inferRequest, kmbAllocator, PT_RESIZE);
-}
-
 const static std::vector<preprocessingType> preprocTypes = {
     PT_RESIZE, PT_NV12
 };
