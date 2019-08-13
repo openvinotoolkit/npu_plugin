@@ -1420,7 +1420,8 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAPassthroughTask(ComputationMode
     auto toBuild = new MVCNN::UPALayerTaskT();
     //toBuild->maxShaves = ;
     toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_PassthroughParams;
-    auto softLayerParamsValue = new MVCNN::SoftmaxParamsT();
+    auto softLayerParamsValue = new MVCNN::PassthroughParamsT();
+    //softLayerParamsValue->min_delay_us = unsigned;
     toBuild->softLayerParams.value = softLayerParamsValue;
     toBuild->input_data = buildTensorReferenceT(cm, compilationDescriptor, input);
     toBuild->output_data = buildTensorReferenceT(cm, compilationDescriptor, output);
@@ -1432,7 +1433,9 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPADummyTask(ComputationModel& cm,
     auto toBuild = new MVCNN::UPALayerTaskT();
     //toBuild->maxShaves = ;
     toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_DummyParams;
-    auto softLayerParamsValue = new MVCNN::SoftmaxParamsT();
+    auto softLayerParamsValue = new MVCNN::DummyParamsT();
+    //softLayerParamsValue->message = string//;
+    //softLayerParamsValue->executeShaveKernel = boolean;
     toBuild->softLayerParams.value = softLayerParamsValue;
     return toBuild;
 }
