@@ -367,6 +367,7 @@
                 "input": "output/dots/adapt_model.dot"
             },
             "StreamingTiling",
+            "StreamBinaryDataWeights",
             {
                 "name": "GenerateDot",
                 "output": "output/dots/tiling_model.dot",
