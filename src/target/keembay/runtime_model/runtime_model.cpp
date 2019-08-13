@@ -613,7 +613,7 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildSpecificTaskUn
 {
     std::vector<std::unique_ptr<MVCNN::TaskT>> toBuild = std::vector<std::unique_ptr<MVCNN::TaskT>>();
     std::string taskType(opIt->getOpType());
-    //unsigned numTasks = cm.getGlobalConfigParams()->get<int>("Number_of_Clusters");
+    unsigned numTasks = cm.getGlobalConfigParams()->get<int>("Number_of_Clusters");
 
     //NOTE: This if conditions of this big switch statements are not definitive and could change in the future
     //Take as granted for now that 1 cluster 1 tensor 0 subtensors
@@ -641,7 +641,10 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildSpecificTaskUn
             splitting = opIt->get<std::string>("splitStrategy");
 
         if (splitting == "Clustering")
-            toBuild = buildNCE2TaskT(cm, compilationDescriptor, opIt);
+            if (numTasks == 1)
+                toBuild = buildNCE2TaskT(cm, compilationDescriptor, opIt);
+            else
+                toBuild = buildNCE2TaskT(cm, compilationDescriptor, opIt, splitting);
         else
             toBuild = buildNCE2TaskT(cm, compilationDescriptor, opIt, splitting);
     }
@@ -1310,35 +1313,62 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNCE2TaskT(Comp
 
 std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNCE2TaskT(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt, std::string splitting)
 {
-    UNUSED (splitting);
-    auto strategy = opIt->get<std::string>("splitStrategy");
     unsigned numTask = 0;
     numTask = cm.getGlobalConfigParams()->get<int>("Number_of_Clusters");
 
     std::vector<std::unique_ptr<MVCNN::TaskT>> toReturn = std::vector<std::unique_ptr<MVCNN::TaskT>>(numTask);
+    if (splitting != "Clustering")
+        for(unsigned i = 0; i < numTask; ++i)
+        {
+            toReturn[i] = std::unique_ptr<MVCNN::TaskT>(new MVCNN::TaskT());
+            toReturn[i]->task.type = MVCNN::SpecificTask_NCE2Task;
+            auto toBuild = new MVCNN::NCE2TaskT();
+            toBuild->variant = buildNCEVariantFieldsTVector(cm, compilationDescriptor, opIt, i);
+            toBuild->invariant = buildNCEInvariantFieldsT(cm, compilationDescriptor, opIt, i);
 
-    for(unsigned i = 0; i < numTask; ++i)
-    {
-        toReturn[i] = std::unique_ptr<MVCNN::TaskT>(new MVCNN::TaskT());
-        toReturn[i]->task.type = MVCNN::SpecificTask_NCE2Task;
-        auto toBuild = new MVCNN::NCE2TaskT();
-        toBuild->variant = buildNCEVariantFieldsTVector(cm, compilationDescriptor, opIt, i);
-        toBuild->invariant = buildNCEInvariantFieldsT(cm, compilationDescriptor, opIt, i);
+            auto hash = [](const MVCNN::MPE_Mode &g){ return static_cast<std::size_t>(g); };
+            auto comp = [](const MVCNN::MPE_Mode &l, const MVCNN::MPE_Mode &r){ return l == r; };
 
-        auto hash = [](const MVCNN::MPE_Mode &g){ return static_cast<std::size_t>(g); };
-        auto comp = [](const MVCNN::MPE_Mode &l, const MVCNN::MPE_Mode &r){ return l == r; };
+            std::unordered_map<MVCNN::MPE_Mode, unsigned, decltype(hash), decltype(comp)> frequencyCounter(4, hash, comp);
+            for(auto& variantField : toBuild->variant)
+                ++frequencyCounter[variantField->mpe_mode];
 
-        std::unordered_map<MVCNN::MPE_Mode, unsigned, decltype(hash), decltype(comp)> frequencyCounter(4, hash, comp);
-        for(auto& variantField : toBuild->variant)
-            ++frequencyCounter[variantField->mpe_mode];
+            unsigned maxFrequency = 0;
+            for(auto& frequencyCouple : frequencyCounter)
+                if(frequencyCouple.second > maxFrequency)
+                    toBuild->invariant->mpe_frequent_mode = frequencyCouple.first;
 
-        unsigned maxFrequency = 0;
-        for(auto& frequencyCouple : frequencyCounter)
-            if(frequencyCouple.second > maxFrequency)
-                toBuild->invariant->mpe_frequent_mode = frequencyCouple.first;
+            toReturn[i]->task.value = toBuild;
+        }
+    else
+        for(unsigned i = 0; i < numTask; ++i)
+        {
+            //Clustering in multiple clusters has to be executed in every cluster
+            toReturn[i] = std::unique_ptr<MVCNN::TaskT>(new MVCNN::TaskT());
+            toReturn[i]->task.type = MVCNN::SpecificTask_NCE2Task;
+            auto toBuild = new MVCNN::NCE2TaskT();
+            toBuild->variant = buildNCEVariantFieldsTVector(cm, compilationDescriptor, opIt);
+            toBuild->invariant = buildNCEInvariantFieldsT(cm, compilationDescriptor, opIt);
 
-        toReturn[i]->task.value = toBuild;
-    }
+            auto locale_index = std::vector<unsigned int>(1,i);
+            toBuild->invariant->input_data->locale_index = locale_index;
+            toBuild->invariant->output_data->locale_index = locale_index;
+            toBuild->invariant->weights_data->locale_index = locale_index;
+
+            auto hash = [](const MVCNN::MPE_Mode &g){ return static_cast<std::size_t>(g); };
+            auto comp = [](const MVCNN::MPE_Mode &l, const MVCNN::MPE_Mode &r){ return l == r; };
+
+            std::unordered_map<MVCNN::MPE_Mode, unsigned, decltype(hash), decltype(comp)> frequencyCounter(4, hash, comp);
+            for(auto& variantField : toBuild->variant)
+                ++frequencyCounter[variantField->mpe_mode];
+
+            unsigned maxFrequency = 0;
+            for(auto& frequencyCouple : frequencyCounter)
+                if(frequencyCouple.second > maxFrequency)
+                    toBuild->invariant->mpe_frequent_mode = frequencyCouple.first;
+
+            toReturn[i]->task.value = toBuild;
+        }
     return toReturn;
 }
 
