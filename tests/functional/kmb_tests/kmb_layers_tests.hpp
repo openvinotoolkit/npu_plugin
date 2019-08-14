@@ -17,18 +17,21 @@
 #pragma once
 
 #include <gtest/gtest.h>
+#include <algorithm>
+#include <cstddef>
+#include <tuple>
+
 #include <ie_version.hpp>
 #include <ie_device.hpp>
 #include <cpp/ie_cnn_net_reader.h>
 #include <inference_engine.hpp>
 #include "tests_common.hpp"
-#include <algorithm>
-#include <cstddef>
 #include <inference_engine/precision_utils.h>
-#include <tuple>
 #include "tests_common.hpp"
 #include "single_layer_common.hpp"
+
 #include "vpu_layers_tests.hpp"
+#include <vpu/kmb_plugin_config.hpp>
 
 class kmbLayersTests_nightly : public vpuLayersTests {
 public:

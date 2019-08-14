@@ -801,13 +801,18 @@ void FrontEndMcm::parseEltwise(
     _logger->debug("eltwise orig: '%s' from '%s' and '%s'",
             eltwiseLayer->name, inputs[0]->getMcmNode()->getName(), inputs[1]->getMcmNode()->getName());
     mv::Data::TensorIterator mvEltwise;
+    std::vector< mv::Data::TensorIterator > mvInputs;
+    for (const auto& input : inputs) {
+        mvInputs.push_back(input->getMcmNode());
+    }
+
     if (addCoefficient0 == 1.0f && addCoefficient1 == 1.0f) {
-        mvEltwise = _modelMcm.add(inputs[0]->getMcmNode(), inputs[1]->getMcmNode(), secondInputQuantParams, eltwiseLayer->name);
+        mvEltwise = _modelMcm.add(mvInputs, secondInputQuantParams, eltwiseLayer->name);
     } else {
         if (addCoefficient0 == 1.0f && addCoefficient1 == -1.0f) {
-            mvEltwise = _modelMcm.subtract(inputs[0]->getMcmNode(), inputs[1]->getMcmNode(), secondInputQuantParams, eltwiseLayer->name);
+            mvEltwise = _modelMcm.subtract(mvInputs, secondInputQuantParams, eltwiseLayer->name);
         } else {
-            mvEltwise = _modelMcm.subtract(inputs[1]->getMcmNode(), inputs[0]->getMcmNode(), secondInputQuantParams, eltwiseLayer->name);
+            mvEltwise = _modelMcm.subtract(mvInputs, secondInputQuantParams, eltwiseLayer->name);
         }
     }
 
