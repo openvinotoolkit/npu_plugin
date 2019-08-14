@@ -9,7 +9,6 @@
 #include <math.h>
 
 static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
-static void splitOverHWeightsSparsityMapsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 static void generateSparsityMapsUnpopulatedTensorsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 static void sparseWeights(mv::Data::TensorIterator& weightsTensor, mv::ComputationModel& model);
 
@@ -30,13 +29,6 @@ namespace mv
         .setDescription(
             "Generates sparsity maps for unpopulated tensors."
         );
-
-        MV_REGISTER_PASS(SplitOverHWeightsSparsityMaps)
-        .setFunc(splitOverHWeightsSparsityMapsFcn)
-        .setDescription(
-            "Generates sparsity maps for weights in case of SplittingOverH kernel greater than 1."
-        );
-
     }
 }
 
