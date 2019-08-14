@@ -7,3 +7,6 @@
 [submodule "graphfile"]
 	path = schema/graphfile
 	url = ../graphFile-schema
+[submodule "contrib/easy_profiler"]
+	path = contrib/easy_profiler
+	url = https://github.com/yse/easy_profiler.git
