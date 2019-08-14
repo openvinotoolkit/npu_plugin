@@ -389,7 +389,6 @@ void StrategyManager::saveStrategy(std::vector<graph<std::tuple<mv::Op&,Strategy
 void StrategyManager::saveMetaStrategy(std::vector<MetaGraph::edge_list_iterator> cPathEdges)
 {
   
-    cout << "Saving streaming Strategy to Compilation Descriptor" << endl;
     /* cout << "    Critical Path info: length = " << cPathEdges.size() << endl ;
     for (int showPath=0; showPath<cPathEdges.size(); showPath++){
         cout << "    edge_"<< showPath << " cost is " << *(cPathEdges[showPath]) << endl ;
@@ -405,12 +404,14 @@ void StrategyManager::saveMetaStrategy(std::vector<MetaGraph::edge_list_iterator
     allStrategies.push_back(get<1>(*cPathEdges.back()->sink())); //last node needs strategy too (one more node than edges)
 
     auto globalParams = model_.getGlobalConfigParams();
-    auto strategyList = globalParams->get<std::vector<mv::Element>>("streaming_strategy");
 
-    //determine if node already has strategy from JSON text, do not override text specification
+    cout << "Saving streaming Strategy to Compilation Descriptor" << endl;
+    auto streamingStrategyList = globalParams->get<std::vector<mv::Element>>("streaming_strategy");
+
+    //determine if node already has streaming strategy from JSON text, do not override text specification
     std::map<std::string, bool> hasSpec;
 
-    for (auto s : strategyList)
+    for (auto s : streamingStrategyList)
     {
         std::string nodeName = s.get<std::string>("name_filter");
         auto splitList = s.get<std::vector<mv::Element>>("splits");
@@ -424,14 +425,14 @@ void StrategyManager::saveMetaStrategy(std::vector<MetaGraph::edge_list_iterator
     }
       
     //save streaming strategy into compilation descriptor
-    auto copyElement = strategyList[0];
+    auto copyElement = streamingStrategyList[0];
     auto copyName = copyElement.get<std::string>("name_filter");
     auto copySplits =  copyElement.get<std::vector<mv::Element>>("splits");
     for (int i=copySplits.size(); i<4; i++)
         copySplits.push_back(copySplits[0]);    // 4 element vector for streaming strategies c,h,w,k
     for (auto strategy : allStrategies)
     {
-        mv:Shape newStrategy = strategy["streaming"];
+        mv::Shape newStrategy = strategy["streaming"];
         std::string newName = strategy["name"] ;
         if ( hasSpec.find(newName) == hasSpec.end())
         { 
@@ -441,12 +442,46 @@ void StrategyManager::saveMetaStrategy(std::vector<MetaGraph::edge_list_iterator
             copySplits[2].set<int>("W", newStrategy[2]);
             copySplits[3].set<int>("K", newStrategy[3]);
             copyElement.set("splits",copySplits);
-            strategyList.push_back(copyElement);
+            streamingStrategyList.push_back(copyElement);
         }
     }
 
-    globalParams->set("streaming_strategy", strategyList);
+    globalParams->set("streaming_strategy", streamingStrategyList);
 
+    cout << "Saving multi-clustering Strategy to Compilation Descriptor" << endl;
+    auto clusteringStrategyList = globalParams->get<std::vector<mv::Element>>("split_strategy");
+
+    //determine if node already has clustering strategy from JSON text, do not override text specification
+    std::map<std::string, bool> hasClusterSpec;
+
+    for (auto s : clusteringStrategyList)
+    {
+        std::string nodeName = s.get<std::string>("name_filter");
+        std::string strategyName = s.get<std::string>("strategy");
+        if ((strategyName=="SplitOverH") or (strategyName=="SplitOverK") or (strategyName=="SplitOverHOverlapped") or (strategyName=="HSSwitch"))
+            hasClusterSpec.insert(std::pair<std::string, bool>(nodeName, true));
+        else
+            hasClusterSpec.insert(std::pair<std::string, bool>(nodeName, false));
+    }
+ /* 
+    //save clustering strategy into compilation descriptor
+    auto copyCElement = clusteringStrategyList[0];
+    auto copyCName = copyCElement.get<std::string>("name_filter");
+    auto copyCStrategy = copyCElement.get<std::string>("strategy");
+    for (auto strategy : allStrategies)
+    {
+        std::string newStrategy = strategy["clustering"];
+        std::string newName = strategy["name"] ;
+        if ( hasClusterSpec.find(newName) == hasClusterSpec.end())
+        { 
+            copyCElement.set("name_filter",newName);
+            copyElement.set("strategy",copyCStrategy);
+            clusteringStrategyList.push_back(copyElement);
+        }
+    }
+
+    globalParams->set("split_strategy", clusteringStrategyList);
+    */
     //test updated compilation descriptor
     auto globalParams2 = model_.getGlobalConfigParams();
     auto strategyList2 = globalParams2->get<std::vector<mv::Element>>("streaming_strategy");
@@ -476,8 +511,13 @@ void StrategyManager::saveMetaStrategy(std::vector<MetaGraph::edge_list_iterator
             }
         }
     }
-}
 
+    auto strategyList3 = globalParams2->get<std::vector<mv::Element>>("split_strategy");
+    for (auto s : strategyList3)
+    {
+        std::cout <<" Clusteringing strategy (from compilation descriptor) for node " << s.get<std::string>("name_filter") << " is " <<  s.get<std::string>("strategy")<< std::endl ;
+    }
+}
 
 void StrategyManager::recursiveDijkstra(mv::Data::OpListIterator opBegin)
 {
