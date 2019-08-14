@@ -115,6 +115,17 @@ std::vector<std::vector<cv::gapi::own::Mat>> bind_to_blob(const Blob::Ptr& blob,
     }
     return result;
 }
+
+cv::gapi::own::Size getFullImageSize(const Blob::Ptr& blob) {
+    const auto desc = blob->getTensorDesc();
+    IE_ASSERT(desc.getLayout() == Layout::NHWC);
+
+    auto strides = desc.getBlockingDesc().getStrides();
+
+    int w = strides[1] / strides[2];
+    int h = strides[0] / strides[1];
+    return {w, h};
+}
 }  // anonymous namespace
 
 void SIPPPreprocEngine::preprocWithSIPP(const Blob::Ptr &inBlob, Blob::Ptr &outBlob,
@@ -146,14 +157,14 @@ void SIPPPreprocEngine::preprocWithSIPP(const Blob::Ptr &inBlob, Blob::Ptr &outB
         _lastCompiled = GComputation(GIn(in_y, in_uv), GOut(out))
                                     .compile(own::descr_of(inputs_y[0][0]), own::descr_of(inputs_uv[0][0]),
                                              compile_args(InferenceEngine::gapi::preproc::sipp::kernels(),
-                                                          GSIPPBackendInitInfo{0, 1, 1}));
+                                                          GSIPPBackendInitInfo{0, 1, 1},
+                                                          GSIPPMaxFrameSizes{{getFullImageSize(y_blob),
+                                                                              getFullImageSize(uv_blob)}}));
     } else if (y_blob->getTensorDesc().getDims() != _lastInYDims) {
         cv::GMetaArgs meta(2);
         meta[0] = own::descr_of(inputs_y[0][0]);
         meta[1] = own::descr_of(inputs_uv[0][0]);
-        _lastCompiled.reshape(meta,
-                              compile_args(InferenceEngine::gapi::preproc::sipp::kernels(),
-                                           GSIPPBackendInitInfo{0, 1, 1}));
+        _lastCompiled.reshape(meta, {});
         _lastInYDims = y_blob->getTensorDesc().getDims();
     }
     _lastCompiled(gin(inputs_y[0][0], inputs_uv[0][0]), gout(outputs[0][0]));

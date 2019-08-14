@@ -260,6 +260,34 @@ void Blob2Img(const InferenceEngine::Blob::Ptr& blobP, cv::Mat& img, InferenceEn
 
 test::Mat to_test(cv::Mat& mat) { return {mat.rows, mat.cols, mat.type(), mat.data, mat.step}; }
 
+InferenceEngine::ROI to_ie(cv::Rect roi) {
+    InferenceEngine::ROI ie_roi;
+    ie_roi.posX = roi.x;
+    ie_roi.posY = roi.y;
+    ie_roi.sizeX = roi.width;
+    ie_roi.sizeY = roi.height;
+    return ie_roi;
+}
+
+cv::Rect getRandomRoi(cv::Size size) {
+    cv::Rect rect;
+    auto getRand = [](){ return ((double)std::rand()/(double)RAND_MAX); };
+
+    rect.x = (size.width-64) * getRand();
+    rect.y = (size.height-64) * getRand();
+    rect.width = (size.width/4) * getRand();
+    rect.height = (size.height/4) * getRand();
+
+    if (rect.width  < 64) rect.width  = 64;
+    if (rect.height < 64) rect.height = 64;
+    if (rect.width  % 2 == 1)  rect.width += 1;
+    if (rect.height % 2 == 1) rect.height += 1;
+
+    rect.x = (size.width  - rect.width)  * getRand();
+    rect.y = (size.height - rect.height) * getRand();
+
+    return rect;
+}
 } // anonymous namespace
 
 struct NV12toRGBpTestGAPI: public testing::TestWithParam<cv::Size> {};
@@ -385,34 +413,39 @@ TEST_P(KmbSippPreprocTest, TestNV12Resize)
     auto sizes = GetParam();
     cv::Size y_size, out_size;
     std::tie(y_size, out_size) = sizes;
+    cv::Size uv_size{y_size.width/2, y_size.height/2};
 
     SIPPPreprocEngine pe;
     cv::Mat out_mat(out_size, CV_8UC3);
     Blob::Ptr out_blob = img2Blob<prec>(out_mat, out_layout);
 
+    cv::Mat y_mat(y_size, CV_8UC1);
+    cv::randu(y_mat, cv::Scalar::all(0), cv::Scalar::all(255));
+
+    cv::Mat uv_mat(uv_size, CV_8UC2);
+    cv::randu(uv_mat, cv::Scalar::all(128), cv::Scalar::all(128));
+
+    auto y_blob  = img2Blob<prec>(y_mat, Layout::NHWC);
+    auto uv_blob = img2Blob<prec>(uv_mat, Layout::NHWC);
+
     for (int i = 0; i < 10; i++) {
-        y_size.width -= 2;
-        y_size.height -= 2;
-        auto uv_size = cv::Size{y_size.width/2, y_size.height/2};
+        auto y_roi = getRandomRoi(y_size);
+        cv::Rect uv_roi{y_roi.x/2, y_roi.y/2, y_roi.width/2, y_roi.height/2};
 
-        cv::Mat in_mat1 = cv::Mat(y_size, CV_8UC1);
-        cv::randu(in_mat1, cv::Scalar::all(0), cv::Scalar::all(255));
+        auto  y_roi_blob = make_shared_blob( y_blob, to_ie( y_roi));
+        auto uv_roi_blob = make_shared_blob(uv_blob, to_ie(uv_roi));
 
-        cv::Mat in_mat2 = cv::Mat(uv_size, CV_8UC2);
-        cv::randu(in_mat2, cv::Scalar::all(128), cv::Scalar::all(255));
-
-        auto y_blob = img2Blob<prec>(in_mat1, Layout::NHWC);
-        auto uv_blob = img2Blob<prec>(in_mat2, Layout::NHWC);
-        Blob::Ptr in_blob = make_shared_blob<NV12Blob>(y_blob, uv_blob);
+        auto in_blob = make_shared_blob<NV12Blob>(y_roi_blob, uv_roi_blob);
 
         pe.preprocWithSIPP(in_blob, out_blob, interp, in_fmt, true, 1);
 
         Blob2Img<prec>(out_blob, out_mat, out_layout);
 
-        cv::Mat ocv_out_mat(y_size, CV_8UC3);
+        cv::Mat rgb_mat(cv::Size{y_roi.width, y_roi.height}, CV_8UC3);
+        cv::Mat ocv_out_mat(out_size, CV_8UC3);
 
-        own_NV12toRGB(in_mat1, in_mat2, ocv_out_mat);
-        cv::resize(ocv_out_mat, ocv_out_mat, out_size, 0, 0, cv::INTER_LINEAR);
+        own_NV12toRGB(y_mat(y_roi), uv_mat(uv_roi), rgb_mat);
+        cv::resize(rgb_mat, ocv_out_mat, out_size, 0, 0, cv::INTER_LINEAR);
 
         cv::Mat absDiff;
         cv::absdiff(ocv_out_mat, out_mat, absDiff);
