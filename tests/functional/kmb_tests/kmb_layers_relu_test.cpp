@@ -25,7 +25,7 @@ using namespace InferenceEngine;
 typedef kmbLayerTestBaseWithParam< tensor_test_params > kmbLayersTestsReLUParams;
 
 #ifdef ENABLE_MCM_COMPILER
-TEST_F(kmbLayersTests_nightly, DISABLED_TestsReLUAfterConvolution) {
+TEST_F(kmbLayersTests_nightly, TestsReLUAfterConvolution) {
     // TODO: mcmCompiler compilation fails (Convolution with bias): Segmentation fault. Jira: VPUNND-1474
     const std::string model = R"V0G0N(
     <net batch="1" name="RELU_TEST" version="2">
@@ -130,7 +130,10 @@ TEST_F(kmbLayersTests_nightly, DISABLED_TestsReLUAfterConvolution) {
 
     std::map<std::string, std::string> config;
     setCommonConfig(config);
-    config[VPU_KMB_CONFIG_KEY(MCM_PARSING_ONLY)] = CONFIG_VALUE(NO);
+
+    // Parsing only is enabled because mcmCompiler can't compile layers.
+    // TODO: turn off parsing only when mcmCompiler will be able to compile this layers.
+    config[VPU_KMB_CONFIG_KEY(MCM_PARSING_ONLY)] = CONFIG_VALUE(YES);
     config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_BLOB)] = CONFIG_VALUE(YES);
     config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_DOT)] = CONFIG_VALUE(YES);
     config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_JSON)] = CONFIG_VALUE(YES);

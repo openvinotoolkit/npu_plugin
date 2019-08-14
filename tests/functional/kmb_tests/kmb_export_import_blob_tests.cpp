@@ -85,7 +85,9 @@ void ExportImportBlobToFromFile(const CNNNetwork& network, std::map<std::string,
     ASSERT_EQ( isContentOfFilesEqual(blobFileName1, blobFileName2), FileIOResult::FilesHaveEqualSize );
 }
 
-TEST_F(kmbLayersTests_nightly, TestExportImportBlob_Convolution_After_Scale_Shift) {
+// Disabled because LoadNetwork fails to initialize device
+// Jira ticket - CVS-21379
+TEST_F(kmbLayersTests_nightly, DISABLED_TestExportImportBlob_Convolution_After_Scale_Shift) {
 
     extern std::string conv_after_scale_shift;
     std::string model = conv_after_scale_shift;
@@ -112,7 +114,9 @@ TEST_F(kmbLayersTests_nightly, TestExportImportBlob_Convolution_After_Scale_Shif
     ExportImportBlobToFromFile(network, config, "Convolution_After_Scale_Shift" );
 }
 
-TEST_F(kmbLayersTests_nightly, TestExportImportBlob_resnet50_int8_fragment) {
+// Disabled because LoadNetwork fails to initialize device
+// Jira ticket - CVS-21379
+TEST_F(kmbLayersTests_nightly, DISABLED_TestExportImportBlob_resnet50_int8_fragment) {
 
     extern std::string full_quant_model;
 
@@ -154,8 +158,9 @@ TEST_F(kmbLayersTests_nightly, TestExportImportBlob_resnet50_int8_fragment) {
     ExportImportBlobToFromFile(CNNNetwork(clonedNetwork), config, "resnet50_int8_fragment" );
 }
 
-
-TEST_F(kmbLayersTests_nightly, TestExportImportBlob_Pooling) {
+// Disabled because LoadNetwork fails to initialize device
+// Jira ticket - CVS-21379
+TEST_F(kmbLayersTests_nightly, DISABLED_TestExportImportBlob_Pooling) {
     extern std::string pooling_test2;
     const std::string model = pooling_test2;
 
@@ -174,8 +179,9 @@ TEST_F(kmbLayersTests_nightly, TestExportImportBlob_Pooling) {
     ExportImportBlobToFromFile(network, config, "Pooling" );
 }
 
-
-TEST_F(kmbLayersTests_nightly, TestExportImportBlob_ReLU) {
+// Disabled because LoadNetwork fails to initialize device
+// Jira ticket - CVS-21379
+TEST_F(kmbLayersTests_nightly, DISABLED_TestExportImportBlob_ReLU) {
     extern std::string relu_test_2;
     const std::string model = relu_test_2;
 

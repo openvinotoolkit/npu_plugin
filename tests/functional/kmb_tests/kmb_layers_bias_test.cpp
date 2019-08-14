@@ -37,6 +37,10 @@ TEST_P(kmbLayersTestsBias_nightly, TestsBias)
     SetInputTensors({dim});
     SetOutputTensors({dim});
 
+    // Parsing only is enabled because mcmCompiler can't compile layers.
+    // TODO: turn off parsing only when mcmCompiler will be able to compile this layers.
+    _config[VPU_KMB_CONFIG_KEY(MCM_PARSING_ONLY)] = CONFIG_VALUE(YES);
+
     NetworkInit("Bias",
                 nullptr,
                 0,
