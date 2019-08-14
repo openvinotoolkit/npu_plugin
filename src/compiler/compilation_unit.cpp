@@ -10,7 +10,7 @@ mv::CompilationUnit::CompilationUnit(const std::string& modelName) :
 model_(new OpModel(modelName)),
 recordedModel_(new RecordedCompositionalModel(*model_, compositionalModelRecordingsPath_))
 {
-
+    EASY_PROFILER_ENABLE; 
 }
 
 /*void mv::CompilationUnit::loadModelFromJson(const std::string &path)
@@ -43,6 +43,7 @@ recordedModel_(new RecordedCompositionalModel(*model_, compositionalModelRecordi
 
 mv::CompilationUnit::~CompilationUnit()
 {
+    profiler::dumpBlocksToFile("test_profile.prof");
 	delete model_;
     delete recordedModel_;
 }
@@ -176,6 +177,7 @@ mv::Element mv::CompilationUnit::run()
     while (!passManager_.completed())
         output = passManager_.step();
 
+    
     return output;
 }
 

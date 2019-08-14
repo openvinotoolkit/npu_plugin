@@ -1,15 +1,13 @@
 #ifndef MV_COMPILATION_PROFILER_HPP_
 #define MV_COMPILATION_PROFILER_HPP_
 
-#ifdef MV_PROFILER_ENABLED
-    #if(MV_PROFILER_ENABLED == 1)
-        #define __MV_PROFILE__
-    #endif
-#endif
+#define __MV_PROFILE__
 
 #ifdef __MV_PROFILE__
     
     #include "easy/profiler.h"
+    #include <easy/profiler.h>
+    #include <easy/arbitrary_value.h>
 
     #define MV_BLOCK_COLOR_RED profiler::colors::Red
     #define MV_BLOCK_COLOR_BLUE profiler::colors::Blue
