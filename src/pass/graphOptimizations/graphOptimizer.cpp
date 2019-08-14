@@ -321,6 +321,7 @@ public:
             return 0;
 
         auto outputShape = op.getOutputTensor(0)->getShape();
+        auto inputShape = op.getInputTensor(0)->getShape();
         auto clustering = strategySet["clustering"].get<string>();
         auto streaming = strategySet["streaming"].get<Shape>();
 
@@ -351,7 +352,7 @@ public:
             isiSplit = {1,1,1,1};
         }
 
-        Shape dpuOutShape = ( outputShape / isiSplit ) / streaming ;
+        Shape dpuOutShape = ( outputShape / streaming ) / isiSplit;
 
         bool channelAccum =  (opType == "Conv") ? true : false;
 
@@ -379,7 +380,10 @@ public:
         }
 
         if(channelAccum)
-            baseKernelCost *= streaming["C"];
+        {
+            auto weightsShape = op.getInputTensor(1)->getShape();
+            baseKernelCost *= weightsShape[KERNEL_INPUT_CHANNELS];
+        }
 
         Shape contextsInOp = dpuOutShape / contexts;
         unsigned numContextsInOp = 0;
@@ -393,7 +397,7 @@ public:
 
         unsigned contextsPerDpu = (unsigned)ceil( (double)numContextsInOp / (double)dpuPerCluster);
 
-        return contextsPerDpu * baseKernelCost;
+        return contextsPerDpu * (streaming["H"] + streaming["K"])* baseKernelCost;
     }
 
 
@@ -405,10 +409,14 @@ public:
 
         //TODO: expose these conditionals more cleanly
 //        auto INF = numeric_limits<double>::infinity();
-        auto INF = 999999.999;
+        auto INF = 9999999.999;
 
         auto parentClustering = parent["clustering"].get<string>();
         auto childClustering = child["clustering"].get<string>();
+
+        if((childOp.getOpType() == "MaxPool") and (child["streaming"].get<Shape>()["H"] > 1) and (parent["spilling"].get<bool>() == true))
+            cout<<"here" << endl;
+
 
         //Cannot go from SOK/HKSwitch to SOH
         if((parentClustering == "HKSwitch" or
@@ -468,13 +476,11 @@ public:
         //Input and Output must have Spilled==True
         if( (parentOp.getOpType() == "Input") and
                 parent["spilling"].get<bool>() == false)
-            return 99999.99;
-//            return INF;
+            return INF;
 
         if( (childOp.getOpType() == "Output") and
                 child["spilling"].get<bool>() == false)
-            return 99999.99;
-//            return INF;
+            return INF;
 
         //iIf the layer is streaming over H or W, output of this layer has to be spilled
         if( (parent["spilling"] == false) and
@@ -496,6 +502,9 @@ public:
                                     child["sparsity"],
                                     child["streaming"].get<Shape>(),
                                     false);
+
+        if(parentOp.getName() == "pool1/max_pool#182")
+            cout << parentOp.getName() << " parentAct: " << parentMem.first << endl;
 
         if( ((childMem.first + childMem.second) > clusterMemory) or
             ((parentMem.first + parentMem.second) > clusterMemory))
@@ -614,7 +623,7 @@ public:
 //        {
 //            streamingStrategyPool = createStrategyPoolFromStrategySet(op,"streamingStrategies");
 //        }
-        cout<<"Generating strategies for " << op.getName() << endl;
+//        cout<<"Generating strategies for " << op.getName() << endl;
 //        auto func = std::bind(createStrategy,op,strategyVec,_1,_2,_3,_4);
 //        applyDescartes(func,sparsityPool,doubleBufferPool,spillingPool,clusteringStrategyPool);
 
@@ -622,13 +631,13 @@ public:
 
         for( const auto sparsity : sparsityPool)
         {
-            cout << "\tsparsity :" << sparsity.toString() << endl;
-            for( const auto doubleBuffering : doubleBufferPool)
-            {
-                cout <<"\tdoubleBuff " << doubleBuffering.toString() << endl;
+//            cout << "\tsparsity :" << sparsity.toString() << endl;
+//            for( const auto doubleBuffering : doubleBufferPool)
+//            {
+//                cout <<"\tdoubleBuff " << doubleBuffering.toString() << endl;
                 for( const auto spilling : spillingPool)
                 {
-                    cout<<"\tspilling " << spilling.toString() << endl;
+//                    cout<<"\tspilling " << spilling.toString() << endl;
                     for( const auto clustering : clusteringStrategyPool)
                     {
                         auto mem = memorySize(op,clustering,sparsity,{1,1,1,1},false);
@@ -647,9 +656,9 @@ public:
                             if ((maxSplitOverH%2)!= 0) maxSplitOverH= roundUp(maxSplitOverH,2);
                         }
 
-                        cout<<"hasStreamH " << hasStreamOverH << " k " << hasStreamOverK << endl;
-                        cout<<"\tclusterMem " << clusterMemory << " ceil " << ceil((double)activationsSize/(double)clusterMemory) << endl;
-                        cout<<"\tmaxMem " << activationsSize << " maxSplitH " << maxSplitOverH << endl;
+                       // cout<<"hasStreamH " << hasStreamOverH << " k " << hasStreamOverK << endl;
+                       // cout<<"\tclusterMem " << clusterMemory << " ceil " << ceil((double)activationsSize/(double)clusterMemory) << endl;
+                       // cout<<"\tmaxMem " << activationsSize << " maxSplitH " << maxSplitOverH << endl;
 
                         vector<size_t> streamsOverK;
                         if(hasStreamOverK)
@@ -659,33 +668,24 @@ public:
 
                         for(const auto k : streamsOverK)
                         {
-                            cout<<"\tStrK: " << k << endl;
-                            cout<<"     max split H  "<< maxSplitOverH << endl;
+                           // cout<<"\tStrK: " << k << endl;
                             for(unsigned h = 1; h <= maxSplitOverH; h++)
                             {
                                 //TODO: these are very fast hacks. Delete after we can allow nested streams and
                                 // non-%2-number of streams
                                 if((h!=1) and (h%2))
-                                {
-                                    cout<<"ignore h  not even " << h << endl;
                                     continue;
-                                }
                                 if( (h>1) and (k>1))
-                                {
-                                    cout<<"ignore h , neither h nor k==1  " << h << endl;
                                     continue;
-                                }
-                                if( (k<maxSplitOverH) and (h<maxSplitOverH))
-                                {
-                                    cout<<"ignore h , not enough splits " << h << endl;
+                                if( ((h*k) > 1) and (spilling.get<bool>() == false))
                                     continue;
-                                }
-                                cout<<"\tStrH: " << h << endl;
+
+                                // cout<<"\tStrH: " << h << endl;
                                 Shape streamShape({1,h,1,k});//Stream over W and C are 1 for now . TODO: implement stream W/C
                                 StrategySet s;
                                 s["name"] = op.getName();
                                 s["sparsity"] = sparsity;
-                                s["doubleBuffering"] = doubleBuffering;
+//                                s["doubleBuffering"] = doubleBuffering;
                                 s["spilling"] = spilling;
                                 s["clustering"] = clustering;
                                 s["streaming"] = streamShape;
@@ -695,7 +695,7 @@ public:
                         }
                     }
                 }
-            }
+//            }
         }
     }
 };

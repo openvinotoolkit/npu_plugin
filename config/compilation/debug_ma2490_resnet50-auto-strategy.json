@@ -166,16 +166,16 @@
                 "name" : "GraphParameterOptimization",
                 "graphOptimizerConfig" : {
                     "globalConfigs" : [
-                        {"name" : "totalClusters",  "value" : 1   },
-                        {"name" : "clusterMemory",  "value" : 3600 },
+                        {"name" : "totalClusters",  "value" : 4   },
+                        {"name" : "clusterMemory",  "value" : 850 },
                         {"name" : "dpuPerCluster",  "value" : 1   },
                         {"name" : "ddrBandwidth",   "value" : 200000 },
                         {"name" : "systemClockMhz", "value" : 500 },
-                        {"name" : "FathomSafetyFactor", " value" : 0.95},
-                        {"name" : "dotFileLocation", "value" : "/home/adeflume/mcmDot.dot"}
+                        {"name" : "FathomSafetyFactor", " value" : 0.925},
+                        {"name" : "dotFileLocation", "value" : "/home/iszilve/work/keembay/mcmCompiler/build/examples/mcmGrapOptDots/"}
                     ],
                     "globalStrategies" : [
-                        {"name" : "tensorSpilling",    "value" : false       },
+                        {"name" : "tensorSpilling",    "value" : true       },
                         {"name" : "enableStreaming",   "value" : true       },
                         {"name" : "doubleBuffering",   "value" : false      },
                         {"name" : "scooby" ,            "value" : "doo"},
@@ -195,7 +195,7 @@
                             "name" : "DepthwiseConv",
                             "strategies": [
                                 {"name" : "streamingStrategies",  "value" : ["StreamOverH","StreamOverW"]},
-                                {"name" : "clusteringStrategies", "value" : ["SplitOverH","HKSwitch","Clustering"]},
+                                {"name" : "clusteringStrategies", "value" : ["SplitOverH","HKSwitch","SplitOverK","Clustering"]},
                                 {"name" : "sparsity",             "value" : false}
                             ]
                         },

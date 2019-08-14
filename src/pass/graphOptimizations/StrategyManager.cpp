@@ -177,18 +177,17 @@ Attribute& StrategyManager::getStrategy(mv::Op op,string strategy)
     return strategyEntry->second;
 }
 
-void StrategyManager::writeDot(mv::graph<std::tuple<mv::Op&,StrategySet,int>,double>& optimizationGraph, bool skipInf)
+void StrategyManager::writeDot(MetaGraph graph, bool skipInf)
 {
     ofstream ostream;
-    string outputFile = dotFileLocation;
+    string outputFile = dotFileLocation + "_finalMetaGraph";
 
     ostream.open(outputFile,ios::trunc | ios::out);
-
     ostream << "digraph G {\n\tgraph [splines=spline]\n";
 
-    for(auto node = optimizationGraph.node_begin(); node != optimizationGraph.node_end(); ++ node)
+    for(auto node = graph.node_begin(); node != graph.node_end(); ++ node)
     {
-        std::string nodeDef = "\t\"" + get<1>(*node)["name"].get<string>()  + "_" + to_string((long long unsigned)(void*)&(*node)) + "\" [shape=box,";
+        std::string nodeDef = "\t\"" + get<1>(*node)["name"].get<string>()  + "_" + to_string(get<2>(*node)) + "\" [shape=box,";
 //        nodeDef += " label=\"" + (*node)["name"].toString() + "\\n";
         //TODO:: using an object's address to uniquely identify it is a baaaaaaaaad idea. Come up with something normal
         //basically, in our graph, we can have multiple nodes with the same name, but cannot have that in the dotfile
@@ -211,11 +210,11 @@ void StrategyManager::writeDot(mv::graph<std::tuple<mv::Op&,StrategySet,int>,dou
         ostream << nodeDef << "];\n";
     }
 
-    for(auto edge = optimizationGraph.edge_begin(); edge != optimizationGraph.edge_end(); ++edge)
+    for(auto edge = graph.edge_begin(); edge != graph.edge_end(); ++edge)
     {
 //        if( skipInf and ( (*edge) == numeric_limits<double>::infinity()))
-skipInf=false;
-        if( skipInf and ( (*edge) == 999999.999))
+        skipInf=false;
+        if( skipInf and ( get<0>(*edge) >= 9999999.999))
             continue;
         //TODO:: using an object's address to uniquely identify it is a baaaaaaaaad idea. Come up with something normal
         std::string edgeDef = "\t\""
@@ -227,7 +226,7 @@ skipInf=false;
         edgeDef += " [penwidth=2.0, label=<<TABLE BORDER=\"0\" CELLPADDING=\"0\" \
                     CELLSPACING=\"0\"><TR><TD ALIGN=\"CENTER\" COLSPAN=\"2\"> \
                     <FONT POINT-SIZE=\"14.0\"><B>" \
-                    + std::to_string(*edge)
+                    + std::to_string(get<0>(*edge))
                     + "</B></FONT></TD></TR>";
 
         edgeDef += "</TABLE>>];";
@@ -239,11 +238,19 @@ skipInf=false;
     ostream.close();
 }
 
-void StrategyManager::writeMetaDot(MetaGraph& optimizationGraph, bool skipInf)
+unsigned int globalCtr = 0;
+
+
+void StrategyManager::writeDot(mv::graph<std::tuple<mv::Op&,StrategySet,int>,double>& optimizationGraph, bool skipInf)
 {
     ofstream ostream;
-    string outputFile = dotFileLocation;
 
+    auto start_node = optimizationGraph.node_begin() ;
+    auto start_node_name =  get<1>(*start_node)["name"].get<string>();
+    std::replace(start_node_name.begin(),start_node_name.end(),'/','_');
+
+    string outputFile = dotFileLocation + start_node_name  + "_" + to_string(globalCtr++) + ".dot";
+    cout << outputFile << endl;
     ostream.open(outputFile,ios::trunc | ios::out);
 
     ostream << "digraph G {\n\tgraph [splines=spline]\n";
@@ -276,8 +283,7 @@ void StrategyManager::writeMetaDot(MetaGraph& optimizationGraph, bool skipInf)
     for(auto edge = optimizationGraph.edge_begin(); edge != optimizationGraph.edge_end(); ++edge)
     {
 //        if( skipInf and ( (*edge) == numeric_limits<double>::infinity()))
-skipInf=false;
-        if( skipInf and ( (*edge).first == 999999.999))
+        if( skipInf and ( (*edge)== 9999999.999))
             continue;
         //TODO:: using an object's address to uniquely identify it is a baaaaaaaaad idea. Come up with something normal
         std::string edgeDef = "\t\""
@@ -289,7 +295,7 @@ skipInf=false;
         edgeDef += " [penwidth=2.0, label=<<TABLE BORDER=\"0\" CELLPADDING=\"0\" \
                     CELLSPACING=\"0\"><TR><TD ALIGN=\"CENTER\" COLSPAN=\"2\"> \
                     <FONT POINT-SIZE=\"14.0\"><B>" \
-                    + std::to_string((*edge).first)
+                    + std::to_string((*edge))
                     + "</B></FONT></TD></TR>";
 
         edgeDef += "</TABLE>>];";
