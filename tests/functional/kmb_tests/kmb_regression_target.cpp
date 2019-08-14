@@ -284,6 +284,8 @@ protected:
     std::string pluginName = "kmbPlugin";
 };
 
+const size_t NUMBER_OF_TOP_CLASSES = 5;
+
 TEST_F(VpuNoRegressionInference, DISABLED_canDoInferenceOnImportedBlob) {  // To be run in manual mode when device is available
     std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/TwoFramesConvolution/conv.blob";
 
@@ -334,6 +336,7 @@ TEST_F(VpuInferAndCompareTests, DISABLED_compareInferenceOutputWithReference) { 
 
         std::string referenceOutputFilePath = ModelsPath() + "/KMB_models/BLOBS/SingleConvolutionFP16/output.bin";
         ASSERT_TRUE(fromBinaryFile(referenceOutputFilePath, referenceOutputBlob));
+        ASSERT_NO_THROW(compareTopClasses(outputBlob, referenceOutputBlob, NUMBER_OF_TOP_CLASSES));
 
         Blob::Ptr refFP32 = ConvertU8ToFP32(referenceOutputBlob);
         Blob::Ptr outputFP32 = ConvertU8ToFP32(outputBlob);
@@ -477,6 +480,7 @@ TEST_P(VpuInferAndCompareTestsWithParam, DISABLED_multipleInferRequests) {
             referenceOutputBlob->allocate();
 
             ASSERT_TRUE(fromBinaryFile(referenceOutputFilePath, referenceOutputBlob));
+            ASSERT_NO_THROW(compareTopClasses(outputBlob, referenceOutputBlob, NUMBER_OF_TOP_CLASSES));
 
             Blob::Ptr refFP32 = ConvertU8ToFP32(referenceOutputBlob);
             Blob::Ptr outputFP32 = ConvertU8ToFP32(outputBlob);
@@ -564,6 +568,7 @@ TEST_P(VpuAsyncInferWithParam, DISABLED_asyncInferCallback) {
             referenceOutputBlob->allocate();
 
             ASSERT_TRUE(fromBinaryFile(referenceOutputFilePath, referenceOutputBlob));
+            ASSERT_NO_THROW(compareTopClasses(outputBlob, referenceOutputBlob, NUMBER_OF_TOP_CLASSES));
 
             Blob::Ptr refFP32 = ConvertU8ToFP32(referenceOutputBlob);
             Blob::Ptr outputFP32 = ConvertU8ToFP32(outputBlob);
@@ -632,6 +637,7 @@ TEST_P(VpuAsyncInferWithParam, DISABLED_asyncInferCallbackRecursive) {
         referenceOutputBlob->allocate();
 
         ASSERT_TRUE(fromBinaryFile(referenceOutputFilePath, referenceOutputBlob));
+        ASSERT_NO_THROW(compareTopClasses(outputBlob, referenceOutputBlob, NUMBER_OF_TOP_CLASSES));
 
         Blob::Ptr refFP32 = ConvertU8ToFP32(referenceOutputBlob);
         Blob::Ptr outputFP32 = ConvertU8ToFP32(outputBlob);
@@ -743,10 +749,13 @@ TEST_F(kmbSetBlob, DISABLED_compareSetBlobAndGetBlobAfterInfer) {
     std::string othOutput_name = importedNetwork.GetOutputsInfo().begin()->first;
     Blob::Ptr outputBlob;
     ASSERT_NO_THROW(outputBlob = inferRequest.GetBlob(othOutput_name));
+    ASSERT_NO_THROW(compareTopClasses(outputBlob, outputBlobOth, NUMBER_OF_TOP_CLASSES));
 
     Blob::Ptr blobFP32 = ConvertU8ToFP32(outputBlob);
     Blob::Ptr othBlobFP32 = ConvertU8ToFP32(outputBlobOth);
     Compare(blobFP32, othBlobFP32, 0.0f);
+
+    ASSERT_NO_THROW(compareTopClasses(outputBlob, fileOutputBlob, NUMBER_OF_TOP_CLASSES));
 
     blobFP32 = ConvertU8ToFP32(outputBlob);
     othBlobFP32 = ConvertU8ToFP32(fileOutputBlob);
@@ -824,10 +833,13 @@ TEST_F(kmbSetBlob, DISABLED_compareOutpustTwoNetworks) {
     Blob::Ptr othMobilNOutputBlob;
     ASSERT_NO_THROW(othMobilNOutputBlob = othMobilNInferRequest.GetBlob(othMobilNOutput_name));
     ASSERT_EQ(mobilNOutputBlob->byteSize(), othMobilNOutputBlob->byteSize());
+    ASSERT_NO_THROW(compareTopClasses(othMobilNOutputBlob, mobilNOutputBlob, NUMBER_OF_TOP_CLASSES));
 
     Blob::Ptr blobFP32 = ConvertU8ToFP32(othMobilNOutputBlob);
     Blob::Ptr othBlobFP32 = ConvertU8ToFP32(mobilNOutputBlob);
     Compare(blobFP32, othBlobFP32, 0.0f);
+
+    ASSERT_NO_THROW(compareTopClasses(othMobilNOutputBlob, fileOutputBlob, NUMBER_OF_TOP_CLASSES));
 
     blobFP32 = ConvertU8ToFP32(othMobilNOutputBlob);
     othBlobFP32 = ConvertU8ToFP32(fileOutputBlob);
@@ -863,6 +875,7 @@ TEST_F(kmbSetBlob, DISABLED_compareSetBlobAndInfer) {
 
     Blob::Ptr outputBlob;
     ASSERT_NO_THROW(outputBlob = inferRequest.GetBlob(output_name));
+    ASSERT_NO_THROW(compareTopClasses(inputBlob, fileOutputBlob, NUMBER_OF_TOP_CLASSES));
 
     Blob::Ptr expectedOutputFP32 = ConvertU8ToFP32(fileOutputBlob);
     Blob::Ptr outputBlobFP32 = ConvertU8ToFP32(outputBlob);
