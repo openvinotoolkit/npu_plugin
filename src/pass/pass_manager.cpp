@@ -128,6 +128,8 @@ bool mv::PassManager::validPassArgs() const
     for (auto p: passList_)
     {
         auto passEntry = pass::PassRegistry::instance().find(p.getName());
+        if (!passEntry)
+            throw ArgumentError(*this, "CompilationDescirptor:passName", p.getName(), "Unregistered pass");
         for (auto reqdArg: passEntry->getArgs())
         {
             if (!p.hasAttr(reqdArg.first))

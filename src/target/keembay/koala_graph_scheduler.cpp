@@ -1,5 +1,6 @@
 #include "include/mcm/target/keembay/koala_graph_scheduler.hpp"
 #include "include/mcm/base/exception/argument_error.hpp"
+#include "include/mcm/base/exception/runtime_error.hpp"
 
 mv::KoalaGraphScheduler::KoalaGraphScheduler(): graph_(new koalaGraph)
 {
@@ -29,7 +30,7 @@ std::vector<mv::koalaGraph::PVertex>::const_iterator mv::KoalaGraphScheduler::lo
         if((*iter)->info.sinkNode == sinknode) 
             return iter; 
     }
-    throw std::runtime_error("Could not find Koala graph sink node, exit");
+    throw mv::RuntimeError("KoalaGraphScheduler", "Could not find Koala graph sink node, exit");
 }
 
 /**
@@ -46,7 +47,7 @@ std::vector<mv::koalaGraph::PVertex>::const_iterator mv::KoalaGraphScheduler::lo
         if((*iter)->info.sourceNode == sourcenode) 
             return iter;
     }
-    throw std::runtime_error("Could not find Koala graph source node, exit"); 
+    throw mv::RuntimeError("KoalaGraphScheduler", "Could not find Koala graph source node, exit");
 }
 
 /**
@@ -63,7 +64,7 @@ std::vector<mv::koalaGraph::PEdge>::const_iterator mv::KoalaGraphScheduler::look
         if((*iter)->info.name == edgeName) 
             return iter;
     }
-    throw std::runtime_error("Could not find edge by name in the Koala graph, exit");
+    throw mv::RuntimeError("KoalaGraphScheduler", "Could not find edge by name in the Koala graph, exit");
 }
 /**
  * @brief Convert McM graph (control model view) to KOALA graph and store the data required to perform the max topoloigcal cut algorithm on the KOALA graph edges
@@ -335,7 +336,9 @@ void mv::KoalaGraphScheduler::performPartialSerialisation(const mv::pass::PassEn
             this->getGraph().delEdge(newEdge);
         }
     }
-    throw std::runtime_error("The maximum peak memory requirment of the graph exceeds CMX and the partial serialisation algorithm is unable to reduce parallelism, exiting now, this is normal behaviour");
+    throw mv::RuntimeError("KoalaGraphScheduler", 
+        "The maximum peak memory requirment of the graph exceeds CMX and the partial serialisation algorithm is"
+        " unable to reduce parallelism, exiting now, this is normal behaviour");
 }
 
 /*

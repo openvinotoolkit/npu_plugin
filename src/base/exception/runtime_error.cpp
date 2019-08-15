@@ -5,3 +5,9 @@ LoggedError(sender, "RuntimeError: " + whatArg)
 {
 
 }
+
+mv::RuntimeError::RuntimeError(const std::string& senderID, const std::string& whatArg) :
+LoggedError(senderID, "RuntimeError: " + whatArg)
+{
+
+}
