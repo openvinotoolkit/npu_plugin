@@ -624,11 +624,14 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildSpecificTaskUn
     else if(taskType == "DMATask")
     {
         std::string splitting;
-        if (opIt->hasAttr("splitStrategy"))
-            splitting = opIt->get<std::string>("splitStrategy");
+        if (opIt->getOutputTensor(0)->hasAttr("splitStrategy"))
+            splitting = opIt->getOutputTensor(0)->get<std::string>("splitStrategy");
 
         if (splitting == "Clustering")
-            toBuild = buildNNDMATaskT(cm, compilationDescriptor, opIt);
+            if (numTasks == 1)
+                toBuild = buildNNDMATaskT(cm, compilationDescriptor, opIt);
+            else
+                toBuild = buildNNDMATaskT(cm, compilationDescriptor, opIt, splitting);
         else
             toBuild = buildNNDMATaskT(cm, compilationDescriptor, opIt, splitting);
     }
@@ -713,13 +716,30 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
 
 std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt, std::string splitting)
 {
-    UNUSED(splitting);
-
     bool sourceIsBroadCasted = opIt->getInputTensor(0)->isBroadcasted();
     auto direction = opIt->get<mv::DmaDirection>("direction");
     unsigned numTasks = cm.getGlobalConfigParams()->get<int>("Number_of_Clusters");
 
-    if(sourceIsBroadCasted)
+    if (splitting == "Clustering" && !opIt->getOutputTensor(0)->isPopulated())
+    {
+        std::vector<std::unique_ptr<MVCNN::TaskT>> toReturn = std::vector<std::unique_ptr<MVCNN::TaskT>>(numTasks);
+        for(unsigned i = 0; i < numTasks; ++i)
+        {
+            toReturn[i] = std::unique_ptr<MVCNN::TaskT>(new MVCNN::TaskT());
+            toReturn[i]->task.type = MVCNN::SpecificTask_NNDMATask;
+            auto tmp = new MVCNN::NNDMATaskT();
+            tmp->src = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(0));
+            auto locale_index = std::vector<unsigned int>(1,i);
+            tmp->src->locale_index = locale_index;
+
+            tmp->dst = buildTensorReferenceT(cm, compilationDescriptor, opIt->getOutputTensor(0));
+            if(opIt->hasAttr("Compression"))
+                tmp->compression =  opIt->get<bool>("Compression");
+            toReturn[i]->task.value = tmp;
+        }
+        return toReturn;
+    }
+    else if(sourceIsBroadCasted || (splitting == "Clustering" && opIt->getOutputTensor(0)->isPopulated()))
     {
         //NOTE: Multicast flag works on nce2tasks for going the whole output tensor on every cluster,
         //POC's logic with replicating 4 times the same DMA seems not correct, even for mutiple layers to me,
