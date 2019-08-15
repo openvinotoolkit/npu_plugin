@@ -76,9 +76,10 @@ void compileMcm(
         const KmbConfig& config,
         mv::CompilationUnit& unit,
         std::vector<char>& blob) {
+    Logger::Ptr _logger = std::make_shared<Logger>("compileMCM", config.hostLogLevel, consoleOutput());
     mv::OpModel& modelMcm = unit.model();
 
-    auto frontEnd = std::make_shared<FrontEndMcm>(modelMcm, std::make_shared<Logger>("GraphCompiler", config.hostLogLevel, consoleOutput()));
+    auto frontEnd = std::make_shared<FrontEndMcm>(modelMcm, config);
     frontEnd->buildInitialModel(network);
 
     auto parsedConfig = config.getParsedConfig();
@@ -112,7 +113,7 @@ void compileMcm(
     IE_ASSERT(unit.loadCompilationDescriptor(compDescPath));
     auto &compDesc = unit.compilationDescriptor();
 
-    std::cout << "Path for results:" << resultsFullName << "(" << std::strerror(errno) << ")" << std::endl;
+    _logger->info("Path for results: %s (%s)", resultsFullName, std::strerror(errno));
 
     if (parsedConfig[VPU_KMB_CONFIG_KEY(MCM_GENERATE_BLOB)] == "YES") {
         //-----------------------------------------------------------------------
@@ -218,8 +219,9 @@ void compileMcm(
 
 std::set<std::string> getSupportedLayersMcm(
         const ie::ICNNNetwork& network,
-        mv::OpModel& pCompiler) {
-    auto frontEnd = std::make_shared<FrontEndMcm>(pCompiler);
+        mv::OpModel& pCompiler,
+        const std::map<std::string, std::string> &config) {
+    auto frontEnd = std::make_shared<FrontEndMcm>(pCompiler, KmbConfig(config, ConfigMode::RUNTIME_MODE));
 
     return frontEnd->checkSupportedLayers(network);
 }

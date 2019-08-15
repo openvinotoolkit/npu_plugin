@@ -29,10 +29,8 @@ namespace KmbPlugin {
 
 ExecutableNetwork::ExecutableNetwork(ICNNNetwork &network, const std::map<std::string, std::string> &config) {
     _config = std::make_shared<KmbConfig>(config);
-
-    _log = std::make_shared<Logger>("KmbPlugin", _config->hostLogLevel, consoleOutput());
-
-    _executor = std::make_shared<KmbExecutor>(_log, _config);
+    _logger = std::make_shared<Logger>("ExecutableNetwork", _config->hostLogLevel, consoleOutput());
+    _executor = std::make_shared<KmbExecutor>(_config);
 
 #ifdef ENABLE_MCM_COMPILER
     pCompiler = std::make_shared<mv::CompilationUnit>(network.getName());  // unit("testModel");
@@ -41,7 +39,7 @@ ExecutableNetwork::ExecutableNetwork(ICNNNetwork &network, const std::map<std::s
         THROW_IE_EXCEPTION << "CompilationUnit have not been created.";
     }
 
-    _log->debug("CompilationUnit and model '%s' are created", pCompiler->model().getName());
+    _logger->debug("CompilationUnit and model '%s' are created", pCompiler->model().getName());
     bool ti_proc_ok = !NetPass::CombineRNNSeq(network) ? NetPass::UnrollTI(network) : true;
     if (!ti_proc_ok)
         THROW_IE_EXCEPTION << "Plugin doesn't support Tensor Iterator in pure form. "
@@ -62,10 +60,8 @@ ExecutableNetwork::ExecutableNetwork(ICNNNetwork &network, const std::map<std::s
 
 ExecutableNetwork::ExecutableNetwork(const std::string &blobFilename, const std::map<std::string, std::string> &config) {
     _config = std::make_shared<KmbConfig>(config, ConfigMode::RUNTIME_MODE);
-
-    _log = std::make_shared<Logger>("KmbPlugin", _config->hostLogLevel, consoleOutput());
-
-    _executor = std::make_shared<KmbExecutor>(_log, _config);
+    _logger = std::make_shared<Logger>("ExecutableNetwork", _config->hostLogLevel, consoleOutput());
+    _executor = std::make_shared<KmbExecutor>(_config);
     std::ifstream blobFile(blobFilename, std::ios::binary);
     std::ostringstream blobContentStream;
     blobContentStream << blobFile.rdbuf();

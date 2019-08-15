@@ -24,6 +24,7 @@
 #include <unordered_map>
 #include <set>
 #include <utility>
+#include <map>
 
 #include <ie_icnn_network.hpp>
 
@@ -83,7 +84,8 @@ void compileMcm(
 
 std::set<std::string> getSupportedLayersMcm(
         const ie::ICNNNetwork& network,
-        mv::OpModel& pCompiler);
+        mv::OpModel& pCompiler,
+        const std::map<std::string, std::string> &config);
 
 //
 // Blob version and checks

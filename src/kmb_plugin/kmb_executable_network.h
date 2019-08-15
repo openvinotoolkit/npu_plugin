@@ -66,17 +66,17 @@ public:
     InferenceEngine::InferRequestInternal::Ptr CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
                                                                       InferenceEngine::OutputsDataMap networkOutputs) override {
         return std::make_shared<KmbInferRequest>(networkInputs, networkOutputs,
-                                                    _stagesMetaData, _config, _log, _executor);
+                                                    _stagesMetaData, _config, _executor);
     }
 
     void CreateInferRequest(InferenceEngine::IInferRequest::Ptr &asyncRequest) override {
         auto syncRequestImpl = std::make_shared<KmbInferRequest>(_networkInputs, _networkOutputs,
-                                                                    _stagesMetaData, _config, _log,
+                                                                    _stagesMetaData, _config,
                                                                     _executor);
         syncRequestImpl->setPointerToExecutableNetworkInternal(shared_from_this());
         auto taskExecutorGetResult = getNextTaskExecutor();
         auto asyncTreadSafeImpl = std::make_shared<KmbAsyncInferRequest>(
-                syncRequestImpl, _taskExecutor, taskExecutorGetResult, _taskSynchronizer, _callbackExecutor);
+                syncRequestImpl, _taskExecutor, taskExecutorGetResult, _taskSynchronizer, _callbackExecutor, _logger);
         asyncRequest.reset(new InferenceEngine::InferRequestBase<InferenceEngine::AsyncInferRequestThreadSafeDefault>(
                            asyncTreadSafeImpl),
                            [](InferenceEngine::IInferRequest *p) { p->Release(); });
@@ -100,10 +100,10 @@ public:
     }
 
 private:
+    Logger::Ptr _logger;
 #ifdef ENABLE_MCM_COMPILER
     std::shared_ptr<mv::CompilationUnit> pCompiler;
 #endif
-    Logger::Ptr _log;
     KmbExecutorPtr _executor;
     std::vector<char> _graphBlob;
     std::vector<StageMetaInfo> _stagesMetaData;
