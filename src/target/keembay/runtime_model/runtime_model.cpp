@@ -1454,18 +1454,8 @@ unsigned mv::RuntimeModel::countProducerConsumerTasks(mv::ComputationModel& cm, 
             else
             {
                 auto& workloads = opIt->get<mv::Workloads>("Workloads");
-                toReturn = workloads.nWorkloads();
+                toReturn = workloads.nWorkloads() * numClusters;
             }
-        }
-        else
-        {
-            if (opIt->hasAttr("Workloads"))
-            {
-                auto& workloads = opIt->get<mv::Workloads>("Workloads");
-                toReturn = workloads.nWorkloads();
-            }
-            else
-                toReturn = 1;
         }
     }
     else if(taskType == "DMATask")
@@ -1480,6 +1470,10 @@ unsigned mv::RuntimeModel::countProducerConsumerTasks(mv::ComputationModel& cm, 
 //                toReturn = numClusters;
             else
                 toReturn = 1;
+            if ((opIt->getInputTensor(0)->get<std::string>("splitStrategy") == "Clustering") && (opIt->getInputTensor(0)->isPopulated()))
+                toReturn = 1;
+            else if ((opIt->getInputTensor(0)->get<std::string>("splitStrategy") == "Clustering") && (!opIt->getInputTensor(0)->isPopulated()))
+                toReturn = numClusters;
         }
         else
             toReturn = 1;
