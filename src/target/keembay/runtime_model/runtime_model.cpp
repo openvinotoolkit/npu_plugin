@@ -1052,12 +1052,13 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
 
     toBuild->parent_output_tensor = buildTensorReferenceT(cm, compilationDescriptor, parentOutputTensor);
 
-    if (opIt->hasAttr("multiCast"))
+    if (opIt->get<bool>("multiCast"))
     {
-        if (opIt->get<bool>("multiCast"))
-        {
+        if (opIt->get<std::string>("splitStrategy") == "SplitOverK")
             toBuild->output_data->data->data_index += clusterId * opIt->getOutputTensor(0)->getSubTensor(clusterId).getShape()[IO_CHANNEL_DIMENSION];
-        }
+        else if (opIt->get<std::string>("splitStrategy") == "HKSwitch")
+            toBuild->output_data->data->data_index += clusterId * opIt->getOutputTensor(0)->getSubTensor(clusterId).getShape()[IO_CHANNEL_DIMENSION]
+                    * opIt->getOutputTensor(0)->getSubTensor(clusterId).getShape()[IO_HEIGHT_DIMENSION] * opIt->getOutputTensor(0)->getSubTensor(clusterId).getShape()[IO_WIDTH_DIMENSION];
     }
 
     //OP inputs == n ->
