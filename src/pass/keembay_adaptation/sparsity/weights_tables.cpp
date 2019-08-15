@@ -47,7 +47,7 @@ namespace mv
     }
 }
 
-void populateSparseDataPointerMultiCluster(mv::Tensor& weightsTableData, mv::Data::OpListIterator dpuTaskOp, std::vector<int64_t> increments, long int offset, mv::ComputationModel &model)
+void populateSparseDataPointerMultiCluster(mv::Tensor& weightsTableData, mv::Data::OpListIterator dpuTaskOp, std::vector<int64_t> increments, long int offset, std::size_t addingIndex, mv::ComputationModel &model)
 {
     long int new_offset = offset;
     //std::cout << "Populating data pointer of weights table for op " << dpuTaskOp->getName() << std::endl;
@@ -56,7 +56,7 @@ void populateSparseDataPointerMultiCluster(mv::Tensor& weightsTableData, mv::Dat
         for (size_t i = 0, k = 0; i < weightsTableData.size(); i+=4)
         {
             // First increment is always 0
-            weightsTableData(i) = offset + increments[k];
+            weightsTableData(i+ addingIndex) = offset + increments[k];
             //std::cout << "Channel  " << k << " " << " Offset " << offset << " Increment " << increments[k] << " Result " << static_cast<int64_t>(weightsTableData(i));
             //if(k > 0)
                 //std::cout << " Difference " << static_cast<int64_t>(weightsTableData(i)) - static_cast<int64_t>(weightsTableData(i-4));
@@ -74,20 +74,20 @@ void populateSparseDataPointerMultiCluster(mv::Tensor& weightsTableData, mv::Dat
             for (size_t j = 0, k = 0; j < weightsTableData.size()/numClusters; j+=4)
             {
                 // First increment is always 0
-                weightsTableData(j + i * weightsTableData.size()/numClusters) = offset + increments[k++];
+                weightsTableData(j + addingIndex + i * weightsTableData.size()/numClusters) = offset + increments[k++];
             }
         }
     }
     return;
 }
 
-void populateDenseDataPointerMultiCluster(mv::Tensor& weightsTableData, mv::Data::OpListIterator dpuTaskOp, long int increment, long int offset, mv::ComputationModel &model)
+void populateDenseDataPointerMultiCluster(mv::Tensor& weightsTableData, mv::Data::OpListIterator dpuTaskOp, long int increment, long int offset, std::size_t addingIndex, mv::ComputationModel &model)
 {
     long int new_offset = offset;
     if (dpuTaskOp->get<std::string>("splitStrategy") != "SplitOverK")
     {
         for (size_t i = 0; i < weightsTableData.size(); i+=4, offset +=increment)
-              weightsTableData(i) = offset;
+              weightsTableData(i+addingIndex) = offset;
     }
     else
     {
@@ -98,7 +98,7 @@ void populateDenseDataPointerMultiCluster(mv::Tensor& weightsTableData, mv::Data
             offset = new_offset;
             for (size_t j = 0; j < weightsTableData.size()/numClusters; j+=4, offset +=increment)
             {
-                weightsTableData(j + i * weightsTableData.size()/numClusters) = offset;
+                weightsTableData(j + addingIndex + i * weightsTableData.size()/numClusters) = offset;
             }
         }
     }
@@ -120,7 +120,7 @@ void populateWeightsTablesDataPointers(mv::Tensor& weightsTableData, mv::Data::O
             mv::Data::BufferIterator tensorBufferIt = tensorAllocator.getBuffer(0, weights); // 0 is the only stage for now, but this will probably change in the future
             long int offset = tensorBufferIt->getOffset();
             std::vector<int64_t> increments = weights->getKernelDataOffsets();
-            populateSparseDataPointerMultiCluster(weightsTableData, dpuTaskOp, increments, offset, model);
+            populateSparseDataPointerMultiCluster(weightsTableData, dpuTaskOp, increments, offset, 0, model);
         }
         else
         {
@@ -129,7 +129,7 @@ void populateWeightsTablesDataPointers(mv::Tensor& weightsTableData, mv::Data::O
             mv::Data::BufferIterator tensorBufferIt = tensorAllocator.getBuffer(0, weights); // 0 is the only stage for now, but this will probably change in the future
             long int offset = tensorBufferIt->getOffset();
             long int increment = weights->getShape()[0];
-            populateDenseDataPointerMultiCluster(weightsTableData, dpuTaskOp, increment, offset, model);
+            populateDenseDataPointerMultiCluster(weightsTableData, dpuTaskOp, increment, offset, 0, model);
         }
     }
     else if(dpuTaskOp->get<std::string>("taskOp") == "ChannelMajorConvolution" || dpuTaskOp->get<std::string>("taskOp") == "DepthwiseConv")
@@ -140,7 +140,7 @@ void populateWeightsTablesDataPointers(mv::Tensor& weightsTableData, mv::Data::O
         mv::Data::BufferIterator tensorBufferIt = tensorAllocator.getBuffer(0, weights); // 0 is the only stage for now, but this will probably change in the future
         long int offset = tensorBufferIt->getOffset();
         long int increment = weights->getShape()[0];
-        populateDenseDataPointerMultiCluster(weightsTableData, dpuTaskOp, increment, offset, model);
+        populateDenseDataPointerMultiCluster(weightsTableData, dpuTaskOp, increment, offset, 0, model);
     }
     // Max pooling does not need DataPointer
 
@@ -168,6 +168,7 @@ void populateWeightsTablesSparsityPointers(mv::Tensor& weightsTableData, mv::Dat
             //std::cout << "Sparsity pointer for weights table for " << dpuTaskOp->getName() << std::endl;
             for (size_t i = 0, k = 0; i < weightsTableData.size(); i+=4, offset +=increment)
             {
+                // NOTE: to be adapted for MC
                 weightsTableData(i+1) = offset;
                 //std::cout << "Channel  " << k << " Result " << static_cast<int64_t>(weightsTableData(i+1));
                 //if(k > 0)
@@ -199,8 +200,8 @@ void populateWeightsTablesSparsityPointers(mv::Tensor& weightsTableData, mv::Dat
         mv::Data::BufferIterator tensorBufferIt = tensorAllocator.getBuffer(0, activationWindow); // 0 is the only stage for now, but this will probably change in the future
         long int offset = tensorBufferIt->getOffset();
         long int increment = activationWindowBytesPerOutputChannel;
-        for (size_t i = 0; i < weightsTableData.size(); i+=4, offset +=increment)
-              weightsTableData(i+1) = offset;
+        populateDenseDataPointerMultiCluster(weightsTableData, dpuTaskOp, increment, offset, 1, model);
+
     }
 }
 
