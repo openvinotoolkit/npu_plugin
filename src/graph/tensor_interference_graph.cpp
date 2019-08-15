@@ -18,10 +18,7 @@ mv::TensorInterferenceGraph::TensorInterferenceGraph(const mv::TensorInterferenc
 
     for (auto it = g.edge_begin(); it != g.edge_end(); ++it)
     {
-        //auto source = this->node_find(*it->source());
         auto source = nodeIteratorsMap_.find((*it->source()).name)->second;
-
-        //auto sink = this->node_find(*it->sink());
         auto sink = nodeIteratorsMap_.find((*it->sink()).name)->second;
 
         this->edge_insert(source, sink, *it);
@@ -148,7 +145,6 @@ std::size_t  mv::TensorInterferenceGraph::getNeighborsWeight_(std::string& inode
     size_t totalWeights = 0;
     //Since we use a directed graph to represent undirected IG, every parent node is also a child node
     // so no need to go through both
-    //auto ni = this->node_find(inode);
     auto ni = nodeIteratorsMap_.find(inode)->second;
 
     //add parents
@@ -206,7 +202,6 @@ void mv::TensorInterferenceGraph::buildCompleteGraph_(std::set<std::string> tens
     int nodeId = 0;
     for (std::set<std::string>::const_iterator src = tensorNames.begin( ); src != tensorNames.end( ); ++src)
     {
-        //auto ni = this->node_find(*src);
         auto ni = nodeIteratorsMap_.find(*src)->second;
 
         //since we are directed graph need to create a->b and b->a, so we go through all combinations
@@ -240,7 +235,6 @@ void mv::TensorInterferenceGraph::transitiveClosureHelper_(std::string source, s
     transitiveClosureSet_.insert(std::make_pair(source, target));
 
     //for all childs of target, add them to reachable nodes from source
-    //auto ni = this->node_find(target);
     auto ni = nodeIteratorsMap_.find(target)->second;
 
 
@@ -331,14 +325,12 @@ void mv::TensorInterferenceGraph::genIntereferenceGraph_(const mv::pass::PassEnt
             //Add the obvious edges
             for (std::unordered_set<std::string>::const_iterator src = inputTensorNames.begin( ); src != inputTensorNames.end( ); ++src)
             {
-//                auto ni = this->node_find(*src);
                 auto ni = nodeIteratorsMap_.find(*src)->second;
 
                 for (std::unordered_set<std::string>::const_iterator target = outputTensorNames.begin( ); target != outputTensorNames.end( ); ++target)
                 {
                     if (*src != *target)
                     {
-//                        auto nj = this->node_find(*target);
                         auto nj = nodeIteratorsMap_.find(*target)->second;
 
                         auto inserted = addedEdges.insert(std::make_pair(*src, *target));
@@ -385,14 +377,10 @@ void mv::TensorInterferenceGraph::genIntereferenceGraph_(const mv::pass::PassEnt
     for (std::unordered_set<std::string>::const_iterator source = nodeNames.begin( ); source != nodeNames.end( ); ++source)
     {
         auto ni = nodeIteratorsMap_.find(*source)->second;
-        //auto ni = this->node_find(*source);
-
 
         for (std::unordered_set<std::string>::const_iterator target = source; target != nodeNames.end( ); ++target)
         {
-            //auto nj = this->node_find(*target);
             auto nj = nodeIteratorsMap_.find(*target)->second;
-
             auto pathExists = transitiveClosureSet_.find(std::make_pair(*source, *target));
 
             if (source != target && !checkNodesAreNeighbors_(ni, nj) && pathExists != transitiveClosureSet_.end())
