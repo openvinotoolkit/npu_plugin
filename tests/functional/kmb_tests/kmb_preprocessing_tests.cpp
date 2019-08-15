@@ -239,14 +239,6 @@ TEST_P(VpuPreprocessingTestsWithParam, DISABLED_importWithPreprocessing) {  // T
 
         const size_t NUMBER_OF_CLASSES = 5;
         ASSERT_NO_THROW(compareTopClasses(outputBlob, referenceOutputBlob, NUMBER_OF_CLASSES));
-
-        // Refer to mobilenet tflite to find these constants
-        // https://github.com/movidius/migNetworkZoo
-        const float MOBILE_NET_QUANT_START = -31.364717483520508;
-        const float MOBILE_NET_QUANT_END = 2.2403368949890137;
-        Blob::Ptr dequantRef = dequantize(MOBILE_NET_QUANT_START, MOBILE_NET_QUANT_END, referenceOutputBlob, kmbAllocator);
-        Blob::Ptr dequantOut = dequantize(MOBILE_NET_QUANT_START, MOBILE_NET_QUANT_END, outputBlob, kmbAllocator);
-        Compare(dequantRef, dequantOut, 100.f);
     }
 }
 
