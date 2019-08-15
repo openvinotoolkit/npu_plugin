@@ -75,12 +75,6 @@ bool mv::TensorInterferenceGraph::checkNodesAreNeighbors_(mv::TensorInterference
         if (it == n2)
             return true;
     }
-    //check parents
-    for (mv::TensorInterferenceGraph::node_parent_iterator it(n1); it != this->node_end(); ++it)
-    {
-        if (it == n2)
-            return true;
-    }
     return false;
 }
 
