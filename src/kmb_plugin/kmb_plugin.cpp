@@ -143,7 +143,7 @@ INFERENCE_PLUGIN_API(StatusCode) CreatePluginEngine(IInferencePlugin *&plugin, R
     std::map<std::string, std::string> config;
 //    config[CONFIG_KEY(LOG_LEVEL)] = CONFIG_VALUE(LOG_DEBUG);
     try {
-        plugin = make_ie_compatible_plugin({{1, 6}, CI_BUILD_NUMBER, "kmbPlugin"}, std::make_shared<Engine>());
+        plugin = make_ie_compatible_plugin({{2, 1}, CI_BUILD_NUMBER, "kmbPlugin"}, std::make_shared<Engine>());
         return OK;
     }
     catch (std::exception &ex) {
