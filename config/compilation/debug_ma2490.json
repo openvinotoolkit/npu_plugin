@@ -242,6 +242,7 @@
             },
             "GenerateSparsityMapsUnpopulatedTensors",
             "GenerateSparsityMapsPopulatedTensors",
+            "SplitOverHWeightsSparsityMaps",
             "AddWeightsDMATasks",
             {
                 "name": "GenerateDot",

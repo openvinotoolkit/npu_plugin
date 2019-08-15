@@ -249,6 +249,38 @@ static void generateSparsityMapsUnpopulatedTensorsFcn(const mv::pass::PassEntry&
     }
 }
 
+static void splitOverHWeightsSparsityMapsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::json::Object&)
+{
+    mv::DataModel dm(model);
+    mv::OpModel om(model);
+
+    for(auto dataFlow = dm.flowBegin(); dataFlow != dm.flowEnd(); ++dataFlow)
+    {
+        auto source = dataFlow.source();
+        auto sink = dataFlow.sink();
+        auto tensor = dataFlow->getTensor();
+
+        if((sink->hasAttr("splitStrategy") && sink->get<std::string>("splitStrategy") == "SplitOverH" && sink->getOpType() == "DPUTask" && sink->get<std::string>("taskOp") == "Conv")&&
+           (source->hasAttr("splitStrategy") && source->get<std::string>("splitStrategy") == "SplitOverH" && source->getOpType() == "DPUTask" && source->get<std::string>("taskOp") == "Conv"))
+        {
+            if(sink->hasAttr("kSize") && sink->get<std::array<unsigned short, 2>>("kSize")[0] > 1)
+            {
+                auto prevWeightsTensor = source->getInputTensor(1);
+                sparseWeights(prevWeightsTensor, model);
+                auto nextWeightsTensor = sink->getInputTensor(1);
+                sparseWeights(nextWeightsTensor, model);
+            }
+            else if (source->hasAttr("kSize") && source->get<std::array<unsigned short, 2>>("kSize")[0] > 1)
+            {
+                auto prevWeightsTensor = source->getInputTensor(1);
+                sparseWeights(prevWeightsTensor, model);
+                auto nextWeightsTensor = sink->getInputTensor(1);
+                sparseWeights(nextWeightsTensor, model);
+            }
+        }
+    }
+}
+
 static void sparseWeights(mv::Data::TensorIterator& weightsTensor, mv::ComputationModel& model)
 {
     mv::OpModel om(model);
