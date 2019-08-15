@@ -4,6 +4,7 @@
 #include "include/mcm/pass/pass_registry.hpp"
 #include "meta/include/mcm/op_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
+#include "include/mcm/computation/model/control_model.hpp"
 
 namespace mv
 {
@@ -85,14 +86,32 @@ namespace mv
     class TensorInterferenceGraph : public mv::graph<TensorInterferenceGraphNode, int>
     {
         private:
+            struct pair_hash
+            {
+                template <class T1, class T2>
+                std::size_t operator() (const std::pair<T1, T2> &pair) const
+                {
+                    return std::hash<T1>()(pair.first) ^ std::hash<T2>()(pair.second);
+                }
+            };
             std::unordered_map<std::string, std::string> topMasterMap_;
+            std::unordered_set<std::pair<std::string, std::string>, pair_hash> cmTransitiveClosureSet_;
+            std::unordered_set<std::pair<std::string, std::string>, pair_hash> transitiveClosureSet_;
+            std::unordered_map<std::string, node_list_iterator> nodeIteratorsMap_;
 
-            std::string getTensorTopMaster_(const Data::TensorIterator& t, ComputationModel& model);
-            std::set<std::string> getTaskTopTensors_(const std::vector<Data::TensorIterator>& tensorList, ComputationModel& model,
-                const TensorIteratorFilter& tensorFilter, bool isDMA);
+
+
+            std::string getTensorTopMaster_(const Data::TensorIterator& t, DataModel& dm);
+            std::unordered_set<std::string> getTaskTopTensors_(const std::vector<Data::TensorIterator>& tensorList, ComputationModel& model,
+                DataModel& dm, const TensorIteratorFilter& tensorFilter, bool isDMA);
+            void transitiveClosureHelper_(std::string source, std::string target);
+            void transitiveClosure_();
+
+            void cmTransitiveClosure_(mv::ComputationModel& model);
+            void cmTransitiveClosureHelper_(mv::OpModel& om, mv::ControlModel& cm, std::string source, std::string target);
             bool checkNodesAreNeighbors_(TensorInterferenceGraph::node_list_iterator& n1, TensorInterferenceGraph::node_list_iterator& n2);
-            bool checkNodesDontInterfere_(mv::ComputationModel& model, std::set<std::string>& sourceNodeNames, std::set<std::string>& sinkNodeNames);
-            bool isTensorInTopNames_(const std::vector<Data::TensorIterator>& tensorList, ComputationModel& model, const std::string tensorName);
+            bool checkNodesDontInterfere_(std::unordered_set<std::string>& sourceNodeNames, std::unordered_set<std::string>& sinkNodeNames);
+            bool isTensorInTopNames_(const std::vector<Data::TensorIterator>& tensorList, DataModel& model, const std::string tensorName);
             bool isSinkNode_(Data::OpListIterator& opIterator);
             void genIntereferenceGraph_(const mv::pass::PassEntry& pass, ComputationModel& model , const TensorIteratorFilter& tensorFilter,const OpIteratorFilter& taskFilter, bool isDMA);
             std::set<std::string> getTensorNames_(ComputationModel& model, const TensorIteratorFilter& tensorFilter, const OpIteratorFilter& taskFilter, bool isDMA);
