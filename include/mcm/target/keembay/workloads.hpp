@@ -136,6 +136,7 @@ namespace mv
                                                         mv::DPUMode& mpeMode);
 
         void add_xy_offset(std::vector<std::size_t>& offset);
+        void apply_z_offset(std::vector<std::size_t>& offset);
         void populateClusterID(int clusterID);
 
         std::size_t nWorkloads() const;

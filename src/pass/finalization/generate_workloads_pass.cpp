@@ -391,6 +391,7 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                     {
                         auto subTensorOffset = subTensor.get<std::vector<std::size_t>>("offset");
                         workloadsVector.at(optimalWorkloadIndex).add_xy_offset(subTensorOffset);
+                        workloadsVector.at(optimalWorkloadIndex).apply_z_offset(subTensorOffset);
                     }
                 }
 
