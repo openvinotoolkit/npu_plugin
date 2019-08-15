@@ -23,7 +23,7 @@
                 [
                     {
                         "name_filter": ".*input#.*",
-                        "strategy": "None"
+                        "strategy": "SplitOverHOverlapped"
                     },
                     {
                         "name_filter":".*conv1#.*",
