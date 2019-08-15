@@ -703,8 +703,6 @@ TEST_F(kmbSetBlob, DISABLED_compareSetBlobAndGetBlob) {
 
 TEST_F(kmbSetBlob, DISABLED_compareSetBlobAndGetBlobAfterInfer) {
     std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet/mobilenet.blob";
-
-
     std::string inputNameFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet/input.dat";
     std::string outputNameFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet/output.dat";
 
@@ -785,7 +783,6 @@ TEST_F(kmbSetBlob, DISABLED_compareSetBlobAllocation) {
 
 TEST_F(kmbSetBlob, DISABLED_compareOutpustTwoNetworks) {
     std::string mobilenetModelFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet/mobilenet.blob";
-
     std::string inputNameFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet/input.dat";
     std::string outputNameFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet/output.dat";
 
@@ -838,16 +835,17 @@ TEST_F(kmbSetBlob, DISABLED_compareOutpustTwoNetworks) {
 }
 
 TEST_F(kmbSetBlob, DISABLED_compareSetBlobAndInfer) {
-    std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet/mobilenet.blob";
+    std::string mobilenetModelFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet/mobilenet.blob";
     std::string inputNameFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet/input.dat";
     std::string outputNameFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet/output.dat";
 
-    Blob::Ptr fileOutputBlob;
+    Blob::Ptr fileOutputBlob = InferenceEngine::make_shared_blob<uint8_t>({Precision::U8, {1, 1, 1, 1024}, Layout::NCHW});
+    fileOutputBlob->allocate();
     fromBinaryFile(outputNameFilePath, fileOutputBlob);
 
     Core ie;
     InferenceEngine::ExecutableNetwork importedNetwork;
-    ASSERT_NO_THROW(importedNetwork = ie.ImportNetwork(modelFilePath, "KMB", {}));
+    ASSERT_NO_THROW(importedNetwork = ie.ImportNetwork(mobilenetModelFilePath, "KMB", {}));
 
     InferenceEngine::InferRequest inferRequest;
     ASSERT_NO_THROW(inferRequest = importedNetwork.CreateInferRequest());
@@ -855,16 +853,18 @@ TEST_F(kmbSetBlob, DISABLED_compareSetBlobAndInfer) {
     std::string input_name = importedNetwork.GetInputsInfo().begin()->first;
     std::string output_name = importedNetwork.GetOutputsInfo().begin()->first;
 
-    Blob::Ptr inputBlob = InferenceEngine::make_shared_blob<uint8_t>({Precision::U8, {1, 3, 224, 224}, Layout::NCHW});
+    Blob::Ptr inputBlob;
+    ASSERT_NO_THROW(inputBlob = InferenceEngine::make_shared_blob<uint8_t>({Precision::U8, {1, 3, 224, 224}, Layout::NCHW}));
     inputBlob->allocate();
     fromBinaryFile(inputNameFilePath, inputBlob);
 
     inferRequest.SetBlob(input_name, inputBlob);
     inferRequest.Infer();
+
     Blob::Ptr outputBlob;
     ASSERT_NO_THROW(outputBlob = inferRequest.GetBlob(output_name));
 
-    Blob::Ptr blobFP32 = ConvertU8ToFP32(fileOutputBlob);
-    Blob::Ptr othBlobFP32 = ConvertU8ToFP32(inputBlob);
-    Compare(blobFP32, othBlobFP32, 0.0f);
+    Blob::Ptr expectedOutputFP32 = ConvertU8ToFP32(fileOutputBlob);
+    Blob::Ptr outputBlobFP32 = ConvertU8ToFP32(outputBlob);
+    Compare(expectedOutputFP32, outputBlobFP32, 0.0f);
 }
