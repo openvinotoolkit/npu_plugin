@@ -998,16 +998,15 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
     }
     //input
     auto parentInputTensor = opIt->getInputTensor(0);
-    if (opIt->hasAttr("multiCast"))
+    if (opIt->get<std::string>("splitStrategy") == "SplitOverK")
     {
-        toBuild->input_data = buildTensorReferenceT(cm, compilationDescriptor, parentInputTensor, clusterId);
-        if (opIt->get<bool>("multiCast"))
-        {
-            std::vector<unsigned int> locale_index;
-            locale_index.push_back(clusterId);
-            toBuild->input_data->locale_index = locale_index;
-        }
+        toBuild->input_data = buildTensorReferenceT(cm, compilationDescriptor, parentInputTensor);
+        std::vector<unsigned int> locale_index;
+        locale_index.push_back(clusterId);
+        toBuild->input_data->locale_index = locale_index;
     }
+    else
+        toBuild->input_data = buildTensorReferenceT(cm, compilationDescriptor, parentInputTensor, clusterId);
 
     toBuild->parent_input_tensor = buildTensorReferenceT(cm, compilationDescriptor, parentInputTensor);
 
