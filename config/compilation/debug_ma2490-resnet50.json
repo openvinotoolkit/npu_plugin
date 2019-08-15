@@ -24,7 +24,7 @@
                 [
                     {
                         "name_filter": ".*input#.*",
-                        "strategy": "SplitOverHOverlapped"
+                        "strategy": "None"
                     },
                     {
                         "name_filter":".*conv1#.*",
@@ -534,7 +534,6 @@
             },
             "GenerateSparsityMapsUnpopulatedTensors",
             "GenerateSparsityMapsPopulatedTensors",
-            "SplitOverHWeightsSparsityMaps",
             "AddWeightsDMATasks",
             {
                 "name": "GenerateDot",
