@@ -119,13 +119,13 @@ void KmbExecutor::allocateGraph(const std::vector<char> &graphFileContent, const
 
 #ifdef ENABLE_VPUAL
     initVpualObjects();
-    int graphId_main = 1;
+    static int graphId_main = 1;
     int nThreads = 4;
     int nShaves = 16;
 
     std::cout << "Initiating verification of use case 1" << std::endl;
 
-    BHandle->graphid = graphId_main;
+    BHandle->graphid = graphId_main++;
     BHandle->graphBuff = 0x00000000;
     BHandle->graphLen = graphFileContent.size();
     BHandle->refCount = 0;
@@ -153,7 +153,7 @@ void KmbExecutor::allocateGraph(const std::vector<char> &graphFileContent, const
 
     gg->Create();
 
-    GraphStatus status = gg->NNGraphCheckAvailable(graphId_main);
+    GraphStatus status = gg->NNGraphCheckAvailable(BHandle->graphid);
     if (Success == status) {
         std::cout << "Blob available!" << std::endl;
         status = gg->NNGraphAllocateExistingBlob(BHandle.get());
@@ -161,7 +161,7 @@ void KmbExecutor::allocateGraph(const std::vector<char> &graphFileContent, const
     } else if (No_GraphId_Found == status) {
         std::cout << "Blob not found." << std::endl;
         status = gg->NNGraphAllocate(BHandle.get());
-        std::cout << "Allocated new blob with status: " << status << std::endl;
+        std::cout << "Allocated new blob with id " << BHandle->graphid << "  with status: " << status << std::endl;
     } else {
         std::cerr << "Error checking graph availability: " << status << std::endl;
         // TODO: error
@@ -273,8 +273,6 @@ void KmbExecutor::allocateGraph(const std::vector<char> &graphFileContent, const
 
     pipe->Start();
     std::cout << "Started FLIC pipeline..." << std::endl;
-
-    std::cout << "Fin" << std::endl;
 #else
     UNUSED(graphFileContent);
 #endif
@@ -318,23 +316,6 @@ void KmbExecutor::getResult(void *result_data, unsigned int result_bytes) {
     uint32_t offset = pAddr - allocator->getPhysicalAddress(rgnAllocatorBuffer);
     unsigned char *data = static_cast<unsigned char *>(rgnAllocatorBuffer) + offset;
 
-    // write to file
-    // Open output file
-    auto out_file = open("output.dat", O_WRONLY | O_CREAT, 0664);
-    if (out_file <= 0) {
-        std::cout << "Error opening output file" << std::endl;
-        return;
-    }
-    // Write tensor output to file.
-    if (write(out_file, data, len) != len) {
-        std::cout << "Error writing tensor output to file..." << std::endl;
-    }
-
-    close(out_file);
-    // Write tensor output to result_data.
-    if (len > result_bytes) {
-        std::cout << "Error: result_data buffer size less then output length." << std::endl;
-    }
     std::cout << "KmbExecutor::getResult memcpy started" << std::endl;
     std::memcpy(result_data, data, len);
     std::cout << "KmbExecutor::getResult memcpy finished" << std::endl;
@@ -350,6 +331,21 @@ void KmbExecutor::deallocateGraph() {
     if (pipe) {
         pipe->Stop();
         pipe->Delete();
+    }
+    if (nnPl) {
+        nnPl->Delete();
+    }
+    if (gg) {
+        gg->NNDeallocateGraph(BHandle->graphid);
+    }
+    if (plgTensorInput_) {
+        plgTensorInput_->Delete();
+    }
+    if (plgTensorOutput_) {
+        plgTensorOutput_->Delete();
+    }
+    if (plgPoolOutputs) {
+        plgPoolOutputs->Delete();
     }
     if (RgnAlloc) {
         RgnAlloc->Delete();
