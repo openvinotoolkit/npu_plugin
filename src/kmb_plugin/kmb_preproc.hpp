@@ -19,15 +19,15 @@ class SIPPPreprocessor {
 
 public:
     SIPPPreprocessor(const InferenceEngine::BlobMap& inputs,
-                     const std::map<std::string, PreProcessData>& preprocData);
+                     const std::map<std::string, PreProcessDataPtr>& preprocData);
 
     static bool useSIPP();
     static bool isApplicable(const InferenceEngine::BlobMap& inputs,
-                             const std::map<std::string, PreProcessData>& preprocData,
+                             const std::map<std::string, PreProcessDataPtr>& preprocData,
                              InputsDataMap& networkInputs);
 
     void execSIPPDataPreprocessing(InferenceEngine::BlobMap& inputs,
-                                   std::map<std::string, PreProcessData>& preprocData,
+                                   std::map<std::string, PreProcessDataPtr>& preprocData,
                                    InferenceEngine::InputsDataMap& networkInputs,
                                    int curBatch,
                                    bool serial);
