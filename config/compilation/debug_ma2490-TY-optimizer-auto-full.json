@@ -11,7 +11,7 @@
                 "Number_of_DPUs" : 1,
                 "Number_of_Clusters" : 1,
                 "UpaShaves": 1,
-                "DDRScratch": 31457280,
+                "DDRScratch": 31497280,
                 "MemoryHack": false,
                 "Sparsity": false,
                 "CMX_memory_overflow_safety_factor" : 1.0,
@@ -149,9 +149,9 @@
                 "graphOptimizerConfig" : {
                     "globalConfigs" : [
                         {"name" : "totalClusters",  "value" : 1   },
-                        {"name" : "clusterMemory",  "value" : 1024 },
+                        {"name" : "clusterMemory",  "value" : 896 },
                         {"name" : "dpuPerCluster",  "value" : 1   },
-                        {"name" : "ddrBandwidth",   "value" : 20000 },
+                        {"name" : "ddrBandwidth",   "value" : 200000 },
                         {"name" : "systemClockMhz", "value" : 500 },
                         {"name" : "FathomSafetyFactor", " value" : 0.925},
                         {"name" : "dotFileLocation", "value" : "/home/patd/mcmDot.dot"}
