@@ -111,7 +111,7 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
                if (splitStrategy == "SplitOverK")
                {
                     dpuConvOp->set<bool>("multiCast", true);
-                   dpuConvOp->getOutputTensor(0)->set<bool>("multiCast", true);
+//                   dpuConvOp->getOutputTensor(0)->set<bool>("multiCast", true);
                 }
                 else
                    dpuConvOp->set<bool>("multiCast", false);
