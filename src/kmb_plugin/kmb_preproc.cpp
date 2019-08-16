@@ -15,7 +15,7 @@ namespace InferenceEngine {
 
 #ifdef ENABLE_VPUAL
 SIPPPreprocessor::SIPPPreprocessor(const InferenceEngine::BlobMap& inputs,
-                                   const std::map<std::string, PreProcessData>& preprocData) {
+                                   const std::map<std::string, PreProcessDataPtr>& preprocData) {
     for (auto& input : inputs) {
         auto it = preprocData.find(input.first);
         if (it != preprocData.end()) {
@@ -39,7 +39,7 @@ static bool supported(ResizeAlgorithm interp, ColorFormat inFmt) {
 }
 
 bool SIPPPreprocessor::isApplicable(const InferenceEngine::BlobMap& inputs,
-                  const std::map<std::string, PreProcessData>& preprocData,
+                  const std::map<std::string, PreProcessDataPtr>& preprocData,
                   InputsDataMap& networkInputs) {
     for (auto& input : inputs) {
         const auto& blobName = input.first;
@@ -56,7 +56,7 @@ bool SIPPPreprocessor::isApplicable(const InferenceEngine::BlobMap& inputs,
 }
 
 void SIPPPreprocessor::execSIPPDataPreprocessing(InferenceEngine::BlobMap& inputs,
-                                                 std::map<std::string, PreProcessData>& preprocData,
+                                                 std::map<std::string, PreProcessDataPtr>& preprocData,
                                                  InputsDataMap& networkInputs,
                                                  int curBatch,
                                                  bool serial) {
@@ -65,7 +65,7 @@ void SIPPPreprocessor::execSIPPDataPreprocessing(InferenceEngine::BlobMap& input
         auto it = preprocData.find(blobName);
         if (it != preprocData.end()) {
             const auto& preprocInfo = networkInputs.at(blobName)->getPreProcess();
-            _preprocs.at(blobName)->preprocWithSIPP(preprocData.at(blobName).getRoiBlob(),
+            _preprocs.at(blobName)->preprocWithSIPP(preprocData.at(blobName)->getRoiBlob(),
                                                     input.second,
                                                     preprocInfo.getResizeAlgorithm(),
                                                     preprocInfo.getColorFormat(),
@@ -76,7 +76,7 @@ void SIPPPreprocessor::execSIPPDataPreprocessing(InferenceEngine::BlobMap& input
 }
 #else
 SIPPPreprocessor::SIPPPreprocessor(const InferenceEngine::BlobMap&,
-                                   const std::map<std::string, PreProcessData>&) {
+                                   const std::map<std::string, PreProcessDataPtr>&) {
     THROW_IE_EXCEPTION << "Error: SIPPPreprocessor::SIPPPreprocessor() "
                        << "should never be called when ENABLE_VPUAL is OFF";
 }
@@ -84,13 +84,13 @@ SIPPPreprocessor::SIPPPreprocessor(const InferenceEngine::BlobMap&,
 bool SIPPPreprocessor::useSIPP() { return false; }
 
 bool SIPPPreprocessor::isApplicable(const InferenceEngine::BlobMap&,
-                  const std::map<std::string, PreProcessData>&,
+                  const std::map<std::string, PreProcessDataPtr>&,
                   InputsDataMap&) {
     return false;
 }
 
 void SIPPPreprocessor::execSIPPDataPreprocessing(InferenceEngine::BlobMap&,
-                                                 std::map<std::string, PreProcessData>&,
+                                                 std::map<std::string, PreProcessDataPtr>&,
                                                  InputsDataMap&, int, bool) {
     THROW_IE_EXCEPTION << "Error: SIPPPreprocessor::execSIPPDataPreprocessing() "
                        << "should never be called when ENABLE_VPUAL is OFF";
