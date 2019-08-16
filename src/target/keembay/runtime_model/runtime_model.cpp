@@ -1054,9 +1054,9 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
 
     if (opIt->get<bool>("multiCast"))
     {
-        if (opIt->get<std::string>("splitStrategy") == "SplitOverK")
-            toBuild->output_data->data->data_index += clusterId * opIt->getOutputTensor(0)->getSubTensor(clusterId).getShape()[IO_CHANNEL_DIMENSION];
-        else if (opIt->get<std::string>("splitStrategy") == "HKSwitch")
+        // if (opIt->get<std::string>("splitStrategy") == "SplitOverK")
+        //     toBuild->output_data->data->data_index += clusterId * opIt->getOutputTensor(0)->getSubTensor(clusterId).getShape()[IO_CHANNEL_DIMENSION];
+        if (opIt->get<std::string>("splitStrategy") == "HKSwitch")
             toBuild->output_data->data->data_index += clusterId * opIt->getOutputTensor(0)->getSubTensor(clusterId).getShape()[IO_CHANNEL_DIMENSION]
                     * opIt->getOutputTensor(0)->getSubTensor(clusterId).getShape()[IO_HEIGHT_DIMENSION] * opIt->getOutputTensor(0)->getSubTensor(clusterId).getShape()[IO_WIDTH_DIMENSION];
     }

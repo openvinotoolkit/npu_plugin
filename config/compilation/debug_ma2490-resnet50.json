@@ -14,48 +14,12 @@
                 "UpaShaves": 1,
                 "DDRScratch": 100352,
                 "MemoryHack": false,
-                "nWorkloads": 8 ,
+                "nWorkloads": 2 ,
                 "ActivationSparsity": false,
                 "WeightsSparsity": false,
                 "CMX_memory_overflow_safety_factor" : 0.925,
                 "cmx": 917504,
-
-                "address_helper_addresses" :
-                [
-                    {
-                        "name_filter": "res5c_branch2a_weights#1:0",
-                        "strategy": "None"
-                    },
-                    {
-                        "name_filter":"res5c_branch2a#4_weights_table:0",
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter": "input#3:0",
-                        "strategy": "None"
-                    },
-                    {
-                        "name_filter":"res5c_branch2a#4_copyIn_0:0",
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter": "res5c_branch2a_weights#1_DDR2CMX:0",
-                        "strategy": "None"
-                    },
-                    {
-                        "name_filter":"res5c_branch2a#4_weights_table_DDR2CMX:0",
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter": "res5c_branch2a#4:0",
-                        "strategy": "None"
-                    },
-                    {
-                        "name_filter":"res5c_branch2a#4_copyOut:0",
-                        "strategy": "SplitOverH"
-                    }
-                ],
-
+                
                 "split_strategy" :
                 [
                     {
@@ -812,12 +776,12 @@
     },
     "scheduling": {
         "Singular": [
+            
             "StoreBarriersNamesInTasks",
             "GenerateExecutionSchedule",
             "CorrectExecutionSchedule",
             "BarrierIndexAssignment",
             "UpdateBarrierRefs",
-            "UpdateBarrierProducerConsumerCounts",
             {
                 "name": "GenerateDot",
                 "output": "output/dots/serial_model.dot",
@@ -828,8 +792,7 @@
             {
                 "name": "ConvertDot",
                 "input": "output/dots/serial_model.dot"
-            }
-        ]
+            }        ]
     },
     "validate": {
         "Singular": [
