@@ -45,6 +45,8 @@ namespace vpu {
 
 namespace KmbPlugin {
 
+mv::DType convert_data_type(ie::Precision iePrecision);
+
 class McmNodeObject final :
         public EnableHandleFromThis<McmNodeObject>,
         public EnableCustomAttributes {

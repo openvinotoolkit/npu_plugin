@@ -2,7 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+file (GLOB SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
+
 ie_add_sample(NAME kmb_infer_sample
-              SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/main.cpp"
+              SOURCES ${SRC}
               HEADERS infer_app.h
               DEPENDENCIES format_reader)

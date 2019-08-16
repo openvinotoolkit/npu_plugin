@@ -14,37 +14,24 @@
 // stated in the License.
 //
 
-#include <fstream>
-#include <vector>
-#include <memory>
-#include <algorithm>
 #include <string>
 #include <map>
-#include <condition_variable>
-#include <mutex>
 
 #include <inference_engine.hpp>
-
 #include <format_reader_ptr.h>
 
 #include <samples/common.hpp>
-#include <samples/slog.hpp>
-#include <samples/args_helper.hpp>
-#include <samples/classification_results.h>
 
 #include <ie_icnn_network_stats.hpp>
 #include <cnn_network_int8_normalizer.hpp>
 #include <ie_util_internal.hpp>
+#include <ie_plugin_dispatcher.hpp>
 
-#include <sys/stat.h>
-
-#include "classification_sample_async.h"
 #include <vpu/kmb_plugin_config.hpp>
+#include "full_pipeline_compile_app.h"
+#include "utils.hpp"
 
-using namespace InferenceEngine;
-
-ConsoleErrorListener error_listener;
-
+namespace {
 bool ParseAndCheckCommandLine(int argc, char *argv[]) {
     // ---------------------------Parsing and validation of input args--------------------------------------
     slog::info << "Parsing input parameters" << slog::endl;
@@ -52,7 +39,6 @@ bool ParseAndCheckCommandLine(int argc, char *argv[]) {
     gflags::ParseCommandLineNonHelpFlags(&argc, &argv, true);
     if (FLAGS_h) {
         showUsage();
-        showAvailableDevices();
         return false;
     }
     slog::info << "Parsing input parameters" << slog::endl;
@@ -61,8 +47,18 @@ bool ParseAndCheckCommandLine(int argc, char *argv[]) {
         throw std::logic_error("Parameter -m is not set");
     }
 
+    if (FLAGS_split.empty()) {
+        throw std::logic_error("Parameter -split is not set");
+    }
+
     return true;
 }
+}  // namespace
+
+using namespace InferenceEngine;
+using namespace Utils;
+
+ConsoleErrorListener error_listener;
 
 int main(int argc, char *argv[]) {
     try {
@@ -71,6 +67,19 @@ int main(int argc, char *argv[]) {
         // ------------------------------ Parsing and validation of input args ---------------------------------
         if (!ParseAndCheckCommandLine(argc, argv)) {
             return 0;
+        }
+
+        std::map<std::string, modelPart> requiredParts;
+
+        /** Path to save subnetworks .xml and .bin files**/
+        if (FLAGS_out.empty()) {
+            requiredParts["head"].path = "";
+            requiredParts["body"].path = "";
+            requiredParts["tail"].path = "";
+        } else {
+            requiredParts["head"].path = FLAGS_out;
+            requiredParts["body"].path = FLAGS_out;
+            requiredParts["tail"].path = FLAGS_out;
         }
 
         // --------------------------- 1. Load inference engine -------------------------------------
@@ -91,6 +100,8 @@ int main(int argc, char *argv[]) {
 
         /** Extract model name and load weights **/
         std::string binFileName = fileNameNoExt(FLAGS_m) + ".bin";
+        slog::info << FLAGS_m << slog::endl;
+        slog::info << binFileName << slog::endl;
         networkReader.ReadWeights(binFileName);
 
         CNNNetwork network = networkReader.getNetwork();
@@ -112,40 +123,84 @@ int main(int argc, char *argv[]) {
         // --------------------------- 4. Normalizing model ------------------------------------------
 
         details::CNNNetworkImplPtr clonedNetwork;
-        details::CNNNetworkImplPtr headNetwork;
-        details::CNNNetworkImplPtr bodyNetwork;
-        details::CNNNetworkImplPtr tailNetwork;
-        details::CNNNetworkInt8Normalizer cnnorm;
-
-        clonedNetwork = cloneNet(network);
-
-// #define NORMALIZE_NETWORK
-#ifdef NORMALIZE_NETWORK
         ICNNNetworkStats* pstats = nullptr;
-        /*StatusCode s = */((ICNNNetwork&)network).getStats(&pstats, nullptr);
-
-        if (!pstats->isEmpty()) {
-            cnnorm.NormalizeNetwork(clonedNetwork, *pstats);
+        if (FLAGS_no_quantize) {
+            clonedNetwork = cloneNet(network);
         } else {
-            throw std::logic_error("Can not get statistics for normalizer!");
+            StatusCode s = ((ICNNNetwork&)network).getStats(&pstats, nullptr);
+
+            if (s == StatusCode::OK && pstats && !pstats->isEmpty()) {
+                details::CNNNetworkInt8Normalizer cnnorm;
+
+                clonedNetwork = cloneNet(network);
+                cnnorm.NormalizeNetwork(*clonedNetwork, *pstats);
+            } else {
+                throw std::logic_error("Can not get statistics for normalizer!");
+            }
+            {
+                ResponseDesc resp;
+                std::string xml;
+                std::string bin;
+                std::string fname = clonedNetwork->getName();
+                std::replace(fname.begin(), fname.end(), '/', '_');
+                if (requiredParts["body"].path.empty()) {
+                    xml = "./" + fname + "_quantized_full.xml";
+                    bin = "./" + fname + "_quantized_full.bin";
+                } else {
+                    xml = requiredParts["body"].path + "/" + fname + "_quantized_full.xml";
+                    bin = requiredParts["body"].path + "/" + fname + "_quantized_full.bin";
+                }
+                clonedNetwork->serialize(xml, bin, &resp);
+            }
         }
-#endif
-
-        // -----------------------------------------------------------------------------------------------------
-
         // --------------------------- 5. Split model on three --------------------------------------
+        details::CNNNetworkIterator el(clonedNetwork.get());
 
-        // Move several starting layers to headNetwork
-        CNNNetwork clonedCNNNetwork(clonedNetwork);
-        headNetwork = cloneNet(clonedCNNNetwork);
-        // Move middle layers to body
-        bodyNetwork = cloneNet(clonedCNNNetwork);
-        // Move several ending layers to tailNetwork
-        tailNetwork = cloneNet(clonedCNNNetwork);
+        std::ifstream layersListFile;
+        layersListFile.open(FLAGS_split);
+        if (!layersListFile.good()) {
+            throw std::logic_error("Can't open split list file (-split parameter)");
+        }
+        std::string line;
+        std::map<std::string, std::string> layersList;
+        while (layersListFile.good()) {
+            getline(layersListFile, line);
+            size_t pos = 0;
+            std::string key;
+            std::string value;
+            if ((pos = line.find("\t")) != std::string::npos) {
+                key = line.substr(0, pos);
+                value = line.substr(pos + 1, line.size());
+                layersList[key] = value;
+                slog::info << key << "\t" << value << slog::endl;
+            }
+        }
+        layersListFile.close();
 
+        while (el != details::CNNNetworkIterator()) {
+            CNNLayer::Ptr layer = *el;
+
+            if (layersList[layer->name] == "head") {
+                layer->affinity = "head";
+            } else if (layersList[layer->name] == "tail") {
+                layer->affinity = "tail";
+            } else {
+                layer->affinity = "body";
+            }
+            el++;
+        }
+
+        doSplitGraph(clonedNetwork, requiredParts);
+
+        OutputsDataMap bodyOutputs;
+        (requiredParts["body"].networkPart)->getOutputsInfo(bodyOutputs);
+
+        for (auto &&o : bodyOutputs) {
+            o.second->setPrecision(Precision::U8);
+        }
         // -----------------------------------------------------------------------------------------------------
 
-        // --------------------------- 4. Loading middle network to the device ------------------------------------------
+        // --------------------------- 6. Compiling middle network ------------------------------------------
         slog::info << "Loading model to the device" << slog::endl;
         std::map<std::string, std::string> config;
         if (FLAGS_d ==  "KMB") {
@@ -153,18 +208,15 @@ int main(int argc, char *argv[]) {
             config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_BLOB)] = CONFIG_VALUE(YES);
         }
 
-// TODO: Without real compilation for the starter
-//        InferenceEngine::ExecutableNetwork executableNetwork = ie.LoadNetwork(CNNNetwork(bodyNetwork), FLAGS_d, config);
-//
-//        executableNetwork->Export("tmp.blob", nullptr);
-        // -----------------------------------------------------------------------------------------------------
+        ExecutableNetwork executableNetwork = ie.LoadNetwork(CNNNetwork(requiredParts["body"].networkPart), FLAGS_d, config);
 
-        // --------------------------- 5. Save head network to the file ------------------------------------------
-
-        // -----------------------------------------------------------------------------------------------------
-
-        // --------------------------- 6. Save tail network to the file ------------------------------------------
-
+        std::string blob;
+        if (FLAGS_blob.empty()) {
+            blob = "./" + (requiredParts["body"].networkPart)->getName() + ".blob";
+        } else {
+            blob = FLAGS_blob + "/" + (requiredParts["body"].networkPart)->getName() + ".blob";
+        }
+        executableNetwork.Export(blob);
         // -----------------------------------------------------------------------------------------------------
     }
     catch (const std::exception& error) {
