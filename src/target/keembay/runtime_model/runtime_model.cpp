@@ -1492,7 +1492,7 @@ unsigned mv::RuntimeModel::countProducerConsumerTasks(mv::ComputationModel& cm, 
                 toReturn = 1;
             if ((opIt->getInputTensor(0)->get<std::string>("splitStrategy") == "Clustering") && (opIt->getInputTensor(0)->isPopulated()))
                 toReturn = 1;
-            else if ((opIt->getInputTensor(0)->get<std::string>("splitStrategy") == "Clustering") && (!opIt->getInputTensor(0)->isPopulated()))
+            else if ((opIt->getInputTensor(0)->get<std::string>("splitStrategy") == "SplitOverK") && (!opIt->getInputTensor(0)->isPopulated()))
                 toReturn = numClusters;
         }
         else
