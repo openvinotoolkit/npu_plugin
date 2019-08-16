@@ -100,6 +100,30 @@ std::atomic<int> g_counter(0);
 
 }  // namespace
 
+mv::DType convert_data_type(ie::Precision iePrecision) {
+    mv::DType mvType;
+    switch (iePrecision) {
+    case ie::Precision::I8:
+        mvType = mv::DType("Int8");
+        break;
+    case ie::Precision::U8:
+        mvType = mv::DType("UInt8");
+        break;
+    case ie::Precision::I32:
+        mvType = mv::DType("Int32");
+        break;
+    case ie::Precision::FP16:
+        mvType = mv::DType("Float16");
+        break;
+    case ie::Precision::FP32:
+        mvType = mv::DType("Float32");
+        break;
+    default:
+        VPU_THROW_EXCEPTION << "Data type handling is not implemented" << iePrecision.name();
+    }
+    return mvType;
+}
+
 void FrontEndMcm::buildInitialModel(const ie::ICNNNetwork& network) {
     runCommonPasses(network);
 
@@ -192,7 +216,7 @@ void FrontEndMcm::parseInputData() {
 
         const auto& dataDesc = ieData->getTensorDesc();
         mv::Shape inputShape(getWHCN(dataDesc).getDims());
-        auto mvInput = _modelMcm.input(inputShape, mv::DType("Float16"), mv::Order("NCHW"), {{}, {}, {}, {}}, netInput->name());
+        auto mvInput = _modelMcm.input(inputShape, convert_data_type(dataDesc.getPrecision()), mv::Order("NCHW"), {{}, {}, {}, {}}, netInput->name());
         auto input = std::make_shared<McmNodeObject>(mvInput, dataDesc);
         _nodes.push_back(input);
         bindData(input, ieData);

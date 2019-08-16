@@ -4,5 +4,6 @@
 
 ie_add_sample(NAME kmb_full_pipeline_compile_app
               SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/main.cpp"
-              HEADERS classification_sample_async.h
-              DEPENDENCIES format_reader)
+                      "${CMAKE_CURRENT_SOURCE_DIR}/network_splitter.cpp"
+                      "${CMAKE_CURRENT_SOURCE_DIR}/utils.cpp"
+              DEPENDENCIES format_reader IE::ade)

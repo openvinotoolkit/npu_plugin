@@ -141,7 +141,9 @@ TEST_F(kmbLayersTests_nightly, DISABLED_TestsQuantizedConvolutionAfterScaleShift
     }
 }
 
-TEST_F(kmbLayersTests_nightly, TestsQuantizedConvolutionAfterScaleShiftNoBias) {
+//  TODO: mcmCompiler assert: 'extendToK parameters dimensions doesn't match size of output_channels or 1'
+//  JIRA Bug: VPUNND-1494
+TEST_F(kmbLayersTests_nightly, DISABLED_TestsQuantizedConvolutionAfterScaleShiftNoBias) {
     std::string model = full_quant_model;
 
     REPLACE_WITH_STR(model, "<biases offset=\"147456\" size=\"256\"/>", " ");

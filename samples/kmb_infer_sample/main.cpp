@@ -17,14 +17,15 @@
 #include <fstream>
 #include <vector>
 #include <string>
-
-#include <inference_engine.hpp>
+#include <functional>
+#include <algorithm>
+#include <map>
 
 #include <samples/common.hpp>
 #include <samples/args_helper.hpp>
-#include <samples/classification_results.h>
 
 #include "infer_app.h"
+#include "utils.hpp"
 
 using namespace InferenceEngine;
 
@@ -56,32 +57,6 @@ bool ParseAndCheckCommandLine(int argc, char *argv[]) {
     }
 
     return true;
-}
-
-bool readBinaryFile(std::string input_binary, std::string& data) {
-    std::ifstream in(input_binary, std::ios_base::binary | std::ios_base::ate);
-
-    size_t sizeFile = in.tellg();
-    in.seekg(0, std::ios_base::beg);
-    data.resize(sizeFile);
-    bool status = false;
-    if (in.good()) {
-        in.read(&data.front(), sizeFile);
-        status = true;
-    }
-    return status;
-}
-
-struct layerDesc {
-    std::string type;
-};
-
-std::vector<layerDesc> parseSpecialProcessing(const std::string& filename) {
-    std::vector<layerDesc> stages;
-    return stages;
-}
-
-void processLayers(const std::vector<layerDesc>& layers, Blob::Ptr src, Blob::Ptr dst) {
 }
 
 /**
@@ -121,18 +96,16 @@ int main(int argc, char *argv[]) {
         /** Path to postprocessing layers **/
         std::string pathToTailLayers = FLAGS_tail;
 
-        std::vector<layerDesc> preProcess = parseSpecialProcessing(pathToHeadLayers);
-        std::vector<layerDesc> postProcess = parseSpecialProcessing(pathToTailLayers);
-
         std::string binFileName = FLAGS_m;
         slog::info << "Loading blob:\t" << binFileName << slog::endl;
 
         InferenceEngine::ExecutableNetwork importedNetwork = ie.ImportNetwork(binFileName, "KMB", {});
+
         // -----------------------------------------------------------------------------------------------------
 
         // --------------------------- 3. Configure input & output ---------------------------------------------
-        InferenceEngine::ResponseDesc response;
-        ConstInputsDataMap inputInfo = importedNetwork.GetInputsInfo();
+        ConstInputsDataMap inputInfo;
+        inputInfo = importedNetwork.GetInputsInfo();
         if (inputInfo.size() != 1) throw std::logic_error("Sample supports topologies only with 1 input");
 
         std::string imageData;
@@ -142,26 +115,26 @@ int main(int argc, char *argv[]) {
         }
         // -----------------------------------------------------------------------------------------------------
 
-        // --------------------------- 4. PreProcessing calculation ---------------------------------------------
-
-        Blob::Ptr inputNetworkBlob;   // FP16
-        Blob::Ptr afterProcessingBlob;  // U8
-
-        processLayers(preProcess, inputNetworkBlob, afterProcessingBlob);
-
-
-        // Input Processing
-
-
-        // -----------------------------------------------------------------------------------------------------
-
-        // --------------------------- 5. Create infer request -------------------------------------------------
+        // --------------------------- 4. Create infer request -------------------------------------------------
         auto inferRequest = importedNetwork.CreateInferRequest();
         // -----------------------------------------------------------------------------------------------------
 
+        // --------------------------- 5. PreProcessing calculation ---------------------------------------------
+        Blob::Ptr inputNetworkBlob;  // FP32
+        Blob::Ptr afterProcessingBlob;  // U8
+
+        afterProcessingBlob = preprocessUncompiledLayers(pathToTailLayers, imageData);
+
+        // Input Processing
+
+        // -----------------------------------------------------------------------------------------------------
+
         // --------------------------- 6. Prepare input --------------------------------------------------------
+        /** Iterate over all the input blobs **/
+        std::string firstInputName = inputInfo.begin()->first;
         /** Creating input blob **/
-        Blob::Ptr kmbInputBlob = inferRequest.GetBlob(inputInfo.begin()->first);
+        Blob::Ptr kmbInputBlob;
+        kmbInputBlob = inferRequest.GetBlob(firstInputName.c_str());
 
         auto kmbInput = kmbInputBlob->buffer().as<PrecisionTrait<Precision::U8>::value_type*>();
         auto afterProcessingData = afterProcessingBlob->buffer().as<PrecisionTrait<Precision::U8>::value_type*>();
@@ -178,11 +151,13 @@ int main(int argc, char *argv[]) {
         ConstOutputsDataMap outputInfo = importedNetwork.GetOutputsInfo();
         if (outputInfo.size() != 1) throw std::logic_error("Sample supports topologies only with 1 output");
 
-        Blob::Ptr outputKMBBlob = inferRequest.GetBlob(outputInfo.begin()->first);
+        std::string firstOutputName = outputInfo.begin()->first;
 
-        Blob::Ptr output_blob;  // FP16
+        Blob::Ptr outputKMBBlob;  // U8
+        outputKMBBlob = inferRequest.GetBlob(firstOutputName.c_str());
 
-        processLayers(postProcess, outputKMBBlob, output_blob);
+        Blob::Ptr output_blob;  // FP32
+        output_blob = postprocessUncompiledLayers(pathToTailLayers, output_blob);
 
         // PostProcessing blobs
     }

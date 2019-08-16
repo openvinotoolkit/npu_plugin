@@ -123,10 +123,18 @@ mv::QuantizationParams createQuantParams(const ie::CNNLayerPtr& layer, std::stri
     return quantParams;
 }
 
-void getOutputScale(const ie::CNNLayerPtr& layer, mv::QuantizationParams &quantParams) {
+namespace {
+void getOutputScale(const ie::CNNLayerPtr& layer, mv::QuantizationParams &quantParams,
+        const Logger::Ptr& logger) {  // TODO: Refactor logging: JIRA: CVS-21492
     std::vector<double> oiScaleData, wScaleData;
     IE_ASSERT(layer->blobs["weights"] != nullptr);
-    IE_ASSERT(layer->blobs["weights"]->getTensorDesc().getPrecision() == ie::Precision::I8);
+
+// TODO: Check correctness of weights presicion
+// IE_ASSERT(layer->blobs["weights"]->getTensorDesc().getPrecision() == ie::Precision::I8);
+    if (layer->blobs["weights"]->getTensorDesc().getPrecision() == ie::Precision::I8) {
+        logger->warning("Weights of uantized layer %s have %d precision (!= ie::Precision::I8)' ",
+                layer->name, layer->blobs["weights"]->getTensorDesc().getPrecision());
+    }
     // quantized layer shall contain mandatory dequantize scale and optional requantize scale
     // extract dequantize scale
     IE_ASSERT(layer->blobs["w-scale"] != nullptr);
@@ -156,30 +164,7 @@ void getOutputScale(const ie::CNNLayerPtr& layer, mv::QuantizationParams &quantP
                     {mv::utils::generateSequence<double>(oScaleDataVector.size(), -inf, 0)},
                     {mv::utils::generateSequence<double>(oScaleDataVector.size(), inf, 0)}};
 }
-
-mv::DType convert_data_type(ie::Precision iePrecision) {
-    mv::DType mvType;
-    switch (iePrecision) {
-    case ie::Precision::I8:
-        mvType = mv::DType("Int8");
-        break;
-    case ie::Precision::U8:
-        mvType = mv::DType("UInt8");
-        break;
-    case ie::Precision::I32:
-        mvType = mv::DType("Int32");
-        break;
-    case ie::Precision::FP16:
-        mvType = mv::DType("Float16");
-        break;
-    case ie::Precision::FP32:
-        mvType = mv::DType("Float32");
-        break;
-    default:
-        VPU_THROW_EXCEPTION << "Data type handling is not implemented" << iePrecision.name();
-    }
-    return mvType;
-}
+}  // namespace
 
 void FrontEndMcm::parseConvolution(
         const mv::OpModel& modelMcm,
@@ -227,7 +212,7 @@ void FrontEndMcm::parseConvolution(
         double inf = std::numeric_limits<double>::infinity();
         inputQuantParams   = {{0}, {1}, {-inf}, {inf}};
         weightsQuantParams = {{0}, {1}, {-inf}, {inf}};
-        getOutputScale(layer, outputQuantParams);
+        getOutputScale(layer, outputQuantParams, _logger);
         is_quantized = true;
     }
 
@@ -272,8 +257,7 @@ void FrontEndMcm::parseConvolution(
                 mvBiases = _modelMcm.constantInt(
                     biasesData,
                     biasesShape,
-                    // TODO: Biases data type should be discussed with mcmCompiler team
-                    mv::DType("UInt8"), mv::Order::getColMajorID(1));
+                    mv::DType("Int32"), mv::Order::getColMajorID(1));
                 mvBiases->set<mv::QuantizationParams>("quantParams", weightsQuantParams);
             }
         } else {
@@ -300,7 +284,7 @@ void FrontEndMcm::parseConvolution(
                                          static_cast<uint16_t>(padTop),
                                          static_cast<uint16_t>(padBottom)},
                                          static_cast<unsigned>(dilationX),
-                                         inputQuantParams,
+                                         outputQuantParams,
                                          convLayer->name);
     } else {
         size_t inputC, outputC, stub;
@@ -323,8 +307,7 @@ void FrontEndMcm::parseConvolution(
                 mvBiases = _modelMcm.constantInt(
                     biasesData,
                     biasesShape,
-                    // TODO: Biases data type should be discussed with mcmCompiler team
-                    mv::DType("UInt8"), mv::Order::getColMajorID(1));
+                    mv::DType("Int32"), mv::Order::getColMajorID(1));
                 mvBiases->set<mv::QuantizationParams>("quantParams", weightsQuantParams);
             }
         } else {
@@ -352,7 +335,7 @@ void FrontEndMcm::parseConvolution(
                                 static_cast<uint16_t>(padBottom)},
                                 static_cast<unsigned>(dilationX),
                                 static_cast<unsigned>(groupSize),
-                                inputQuantParams,
+                                outputQuantParams,
                                 convLayer->name);
     }
     if (is_quantized) {
@@ -463,7 +446,7 @@ void FrontEndMcm::parseFullyConnected(
         double inf = std::numeric_limits<double>::infinity();
         inputQuantParams   = {{0}, {1}, {-inf}, {inf}};
         weightsQuantParams = {{0}, {1}, {-inf}, {inf}};
-        getOutputScale(layer, outputQuantParams);
+        getOutputScale(layer, outputQuantParams, _logger);
         is_quantized = true;
     }
 
@@ -500,8 +483,7 @@ void FrontEndMcm::parseFullyConnected(
             mvBiases = _modelMcm.constantInt(
                 biasesData,
                 biasesShape,
-                // TODO: Biases data type should be discussed with mcmCompiler team
-                mv::DType("UInt8"), mv::Order::getColMajorID(1));
+                mv::DType("Int32"), mv::Order::getColMajorID(1));
             mvBiases->set<mv::QuantizationParams>("quantParams", weightsQuantParams);
         }
     } else {
@@ -524,7 +506,7 @@ void FrontEndMcm::parseFullyConnected(
 
     _logger->debug("FullyConnected orig: '%s' from '%s'",
             FClayer->name, input->getMcmNode()->getName());
-    auto mvFullyConnected = _modelMcm.fullyConnected(input->getMcmNode(), mvWeights, inputQuantParams, FClayer->name);
+    auto mvFullyConnected = _modelMcm.fullyConnected(input->getMcmNode(), mvWeights, outputQuantParams, FClayer->name);
 
     if (is_quantized) {
         mvFullyConnected->set<mv::QuantizationParams>("quantParams", outputQuantParams);
@@ -742,19 +724,12 @@ void FrontEndMcm::parseEltwise(
         const McmNodeVector& inputs) {
     UNUSED(modelMcm);
 
-    if (inputs.size() != 2) {
-        VPU_THROW_EXCEPTION << "Eltwise with 2 inputs is only supported by kmbPlugin";
-    }
-
     auto eltwiseLayer = std::dynamic_pointer_cast<ie::EltwiseLayer>(layer);
     IE_ASSERT(eltwiseLayer != nullptr);
 
-    bool isSumStage = false;
-    auto addCoefficient0 = 1.0f;
-    auto addCoefficient1 = 1.0f;
-
     // Quantization parameters
     mv::QuantizationParams secondInputQuantParams  = {{}, {}, {}, {}};
+    mv::QuantizationParams outputQuantParams = {{}, {}, {}, {}};
 
     if (layer->precision == ie::Precision::I8) {
         // Quantized layer
@@ -768,13 +743,60 @@ void FrontEndMcm::parseEltwise(
                     << layer->name;
         }
 
+        const double inf = std::numeric_limits<double>::infinity();
+        outputQuantParams   = {{0}, {1}, {-inf}, {inf}};
+        // TODO: insert DW convolution or ScaleShift before non conv input with eltwise-sum-scale
         secondInputQuantParams  = createQuantParams(layer, "eltwise-sum-scale");
     }
 
+    _logger->debug("eltwise orig: '%s' from '%s' and '%s'",
+            eltwiseLayer->name, inputs[0]->getMcmNode()->getName(), inputs[1]->getMcmNode()->getName());
+    mv::Data::TensorIterator mvEltwise;
+    std::vector< mv::Data::TensorIterator > mvInputs;
+    for (const auto& input : inputs) {
+        mvInputs.push_back(input->getMcmNode());
+    }
+
+    auto addCoefficient0 = 1.0f;
+    auto addCoefficient1 = 1.0f;
     switch (eltwiseLayer->_operation) {
-    case ie::EltwiseLayer::eOperation::Sum:
     case ie::EltwiseLayer::eOperation::Sub:
+        if (inputs.size() > 2) {
+            VPU_THROW_EXCEPTION << eltwiseLayer->name <<
+                    "Eltwise Sub operations with with more than 2 operands is not supported by kmbPlugin";
+        }
         addCoefficient1 = -1.0f;
+        // fall through (implicit fall through error suppression)
+    case ie::EltwiseLayer::eOperation::Sum:
+        for (size_t i = 0; i < eltwiseLayer->coeff.size(); ++i) {
+            if (std::abs(eltwiseLayer->coeff[i]) != 1.0f) {
+                VPU_THROW_EXCEPTION << eltwiseLayer->name <<
+                        " Eltwise Sum/Sub operations with such coefficients is not supported by kmbPlugin";
+            }
+        }
+        if (inputs.size() == 2) {
+            if (eltwiseLayer->coeff.size() > 0) {
+                addCoefficient0 *= eltwiseLayer->coeff[0];
+            }
+            if (eltwiseLayer->coeff.size() > 1) {
+                addCoefficient1 *= eltwiseLayer->coeff[1];
+            }
+            if (addCoefficient0 == 1.0f && addCoefficient1 == 1.0f) {
+                mvEltwise = _modelMcm.add(mvInputs, secondInputQuantParams, eltwiseLayer->name);
+            } else if (addCoefficient0 * addCoefficient1 < 0.f) {
+                if (addCoefficient0 == 1.0f && addCoefficient1 == -1.0f) {
+                    mvEltwise = _modelMcm.subtract(mvInputs, secondInputQuantParams, eltwiseLayer->name);
+                } else {
+                    mvEltwise = _modelMcm.subtract(mvInputs, secondInputQuantParams, eltwiseLayer->name);
+                }
+            } else {
+                VPU_THROW_EXCEPTION << eltwiseLayer->name <<
+                        " Eltwise Sum/Sub operations with such coefficients is not supported by kmbPlugin";
+            }
+        } else {
+            mvEltwise = _modelMcm.add(mvInputs, secondInputQuantParams, eltwiseLayer->name);
+        }
+
         if (eltwiseLayer->coeff.size() > 0) {
             addCoefficient0 *= eltwiseLayer->coeff[0];
         }
@@ -786,34 +808,9 @@ void FrontEndMcm::parseEltwise(
             VPU_THROW_EXCEPTION << eltwiseLayer->name <<
                     " Eltwise Sum/Sub operations with such coefficients is not supported by kmbPlugin";
         }
-            isSumStage = true;
-        break;
-    case ie::EltwiseLayer::eOperation::Prod:
         break;
     default:
         VPU_THROW_EXCEPTION << "Eltwise operation" << eltwiseLayer->_operation << " is not supported";
-    }
-
-    if (!isSumStage && !eltwiseLayer->coeff.empty()) {
-        VPU_THROW_EXCEPTION << layer->name << " coefficients (1 and -1) are only supported for Sum/Sub operations.";
-    }
-
-    _logger->debug("eltwise orig: '%s' from '%s' and '%s'",
-            eltwiseLayer->name, inputs[0]->getMcmNode()->getName(), inputs[1]->getMcmNode()->getName());
-    mv::Data::TensorIterator mvEltwise;
-    std::vector< mv::Data::TensorIterator > mvInputs;
-    for (const auto& input : inputs) {
-        mvInputs.push_back(input->getMcmNode());
-    }
-
-    if (addCoefficient0 == 1.0f && addCoefficient1 == 1.0f) {
-        mvEltwise = _modelMcm.add(mvInputs, secondInputQuantParams, eltwiseLayer->name);
-    } else {
-        if (addCoefficient0 == 1.0f && addCoefficient1 == -1.0f) {
-            mvEltwise = _modelMcm.subtract(mvInputs, secondInputQuantParams, eltwiseLayer->name);
-        } else {
-            mvEltwise = _modelMcm.subtract(mvInputs, secondInputQuantParams, eltwiseLayer->name);
-        }
     }
 
     mvEltwise->set<mv::DType>("dType", convert_data_type(layer->outData[0]->getPrecision()));
