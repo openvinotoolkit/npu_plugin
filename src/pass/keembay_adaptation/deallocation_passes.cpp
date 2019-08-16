@@ -132,6 +132,7 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
                 // to the operation that created it
                 om.deallocate(inputTensor, deallocationName);
                 deallocateInputOp = om.getOp(deallocationName);
+                deallocateInputOp->set<mv::Tensor::MemoryLocation>("Location", inputTensor->get<mv::Tensor::MemoryLocation>("Location"));
             }
 
             // Now that we have created/set the pointer to/ the deallocation op, we have to attach
