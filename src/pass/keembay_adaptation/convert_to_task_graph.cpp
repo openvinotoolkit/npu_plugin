@@ -109,7 +109,10 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
                 //NOTE:Convolution can not be HWSwitch
                dpuConvOp->set<std::string>("splitStrategy", splitStrategy);
                if (splitStrategy == "SplitOverK")
+               {
                     dpuConvOp->set<bool>("multiCast", true);
+                   dpuConvOp->getOutputTensor(0)->set<bool>("multiCast", true);
+                }
                 else
                    dpuConvOp->set<bool>("multiCast", false);
             }
