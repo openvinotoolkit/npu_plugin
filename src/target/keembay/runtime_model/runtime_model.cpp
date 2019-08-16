@@ -1054,9 +1054,9 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
 
     if (opIt->get<bool>("multiCast"))
     {
-        if (opIt->get<std::string>("splitStrategy") == "SplitOverK")
-            toBuild->output_data->data->data_index += clusterId * opIt->getOutputTensor(0)->getSubTensor(clusterId).getShape()[IO_CHANNEL_DIMENSION];
-        else if (opIt->get<std::string>("splitStrategy") == "HKSwitch")
+//        if (opIt->get<std::string>("splitStrategy") == "SplitOverK")
+//            toBuild->output_data->data->data_index += clusterId * opIt->getOutputTensor(0)->getSubTensor(clusterId).getShape()[IO_CHANNEL_DIMENSION];
+        if (opIt->get<std::string>("splitStrategy") == "HKSwitch")
             toBuild->output_data->data->data_index += clusterId * opIt->getOutputTensor(0)->getSubTensor(clusterId).getShape()[IO_CHANNEL_DIMENSION]
                     * opIt->getOutputTensor(0)->getSubTensor(clusterId).getShape()[IO_HEIGHT_DIMENSION] * opIt->getOutputTensor(0)->getSubTensor(clusterId).getShape()[IO_WIDTH_DIMENSION];
     }
@@ -1298,8 +1298,14 @@ std::vector<std::unique_ptr<MVCNN::NCEVariantFieldsT>> mv::RuntimeModel::buildNC
     unsigned n = workloads.size();
     std::vector<std::unique_ptr<MVCNN::NCEVariantFieldsT>> toBuild = std::vector<std::unique_ptr<MVCNN::NCEVariantFieldsT>>(n);
     for(unsigned i = 0; i < n; ++i)
+    {
         toBuild[i] = buildNCEVariantFieldsT(cm, compilationDescriptor, opIt, workloads[i], numTask);
-
+        if ((opIt->get<std::string>("splitStrategy") == "SplitOverK") && (numTask > 0))
+        {
+            toBuild[i]->workload_start_Z = numTask * (toBuild[i]->workload_end_Z + 1);
+            toBuild[i]->workload_end_Z = toBuild[i]->workload_start_Z + toBuild[i]->workload_end_Z;
+        }
+    }
     return toBuild;
 }
 
