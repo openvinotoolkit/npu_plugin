@@ -281,9 +281,10 @@ void KmbInferRequest::SetBlob(const char *name, const InferenceEngine::Blob::Ptr
             } else {
                 orig_data = _custom_inputs[name];
             }
-            PreProcessData::isApplicable(data, orig_data);
+            _preProcData[name] = CreatePreprocDataHelper();
+            _preProcData[name]->isApplicable(data, orig_data);
 
-            _preProcData[name].setRoiBlob(data);
+            _preProcData[name]->setRoiBlob(data);
         } else {
             size_t inputSize = product(foundInput->getTensorDesc().getDims());
             if (dataSize != inputSize) {
@@ -319,7 +320,7 @@ void KmbInferRequest::GetBlob(const char *name, Blob::Ptr &data) {
         // ROI blob is returned only if it was set previously. Otherwise default blob is returned.
         auto it = _preProcData.find(name);
         if (it != _preProcData.end()) {
-            data = it->second.getRoiBlob();
+            data = it->second->getRoiBlob();
         } else {
             if (!_custom_inputs.empty()) {
                 data = _custom_inputs[name];
