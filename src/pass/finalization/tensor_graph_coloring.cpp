@@ -565,7 +565,26 @@ void tensorGraphColoringFnc(const mv::pass::PassEntry& pass, mv::ComputationMode
 
     auto alignment = 16; //memDefs.find("VPU_CMX_NN")->second.alignment;//TODO for now POC uses 16 for all memory
     pass.log(mv::Logger::MessageType::Info, " generating cmx TIG");
-    mv::TensorInterferenceGraph nncmx_g(pass, model, alignment, nullptr, nullptr, false, true);
+    mv::TensorInterferenceGraph nncmx_g(pass, model, alignment, nullptr, nullptr,
+    [](const mv::Data::OpListIterator& opIterator) -> bool
+    {
+        auto opType = opIterator->getOpType();
+        if (opType == "Deallocate")
+        {
+            //Deallocate is a LeonTask
+            auto location = opIterator->get<mv::Tensor::MemoryLocation>("Location");
+            return (location == mv::Tensor::MemoryLocation::CMX);
+        }
+        //TODO: it might be that we dont need this condition, dellocate is what we are looking for
+        // removing the below condition generated the same mcm blob for a small network
+        if (opType  == "DMATask" &&
+            (opIterator->get<mv::DmaDirection>("direction") == mv::DmaDirectionEnum::CMX2DDR ||
+            opIterator->get<mv::DmaDirection>("direction") == mv::DmaDirectionEnum::CMX2UPA))
+            return true;
+
+        return false;
+    },
+    false, true);
 
     auto memsize = globalConfigParams->get<unsigned>("cmx");
     pass.log(mv::Logger::MessageType::Info, " Calling AggressiveSimplify");

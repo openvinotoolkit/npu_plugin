@@ -89,19 +89,6 @@ bool mv::TensorInterferenceGraph::isTensorInTopNames_(const std::vector<mv::Data
     return false;
 }
 
-bool mv::TensorInterferenceGraph::isSinkNode_(mv::Data::OpListIterator& opIterator)
-{
-    auto opType = opIterator->getOpType();
-    if (opType == "Deallocate") //Deallocate is a LeonTask
-        return true;
-    if (opType  == "DMATask" &&
-        (opIterator->get<mv::DmaDirection>("direction") == mv::DmaDirectionEnum::CMX2DDR ||
-         opIterator->get<mv::DmaDirection>("direction") == mv::DmaDirectionEnum::CMX2UPA))
-        return true;
-
-    return false;
-}
-
 bool mv::TensorInterferenceGraph::checkNodesDontInterfere_(std::unordered_set<std::string>& sourceNodeNames, std::unordered_set<std::string>& sinkNodeNames)
 {
     //Check if there's a path from any node in sink to any node in source, if yes return true
@@ -172,7 +159,7 @@ void  mv::TensorInterferenceGraph::addWeightsToInterferenceGraph_(const mv::pass
 }
 
 mv::TensorInterferenceGraph::TensorInterferenceGraph(const mv::pass::PassEntry& pass, mv::ComputationModel& model, std::size_t alignment, const mv::TensorIteratorFilter& tensorFilter,
-    const mv::OpIteratorFilter& taskFilter, bool isCompleteTig, bool isDMA)
+    const mv::OpIteratorFilter& taskFilter, const SinkOpIteratorFilter& sinkFilter, bool isCompleteTig, bool isDMA)
 {
 
     if (isCompleteTig)
@@ -183,7 +170,7 @@ mv::TensorInterferenceGraph::TensorInterferenceGraph(const mv::pass::PassEntry& 
     {
         pass.log(mv::Logger::MessageType::Info, " calling genIntereferenceGraph_");
 
-        genIntereferenceGraph_(pass, model , tensorFilter, taskFilter, isDMA);
+        genIntereferenceGraph_(pass, model , tensorFilter, taskFilter, sinkFilter, isDMA);
     }
     pass.log(mv::Logger::MessageType::Info, " calling addWeightsToInterferenceGraph_");
     addWeightsToInterferenceGraph_(pass, model, alignment);
@@ -276,7 +263,7 @@ void mv::TensorInterferenceGraph::cmTransitiveClosure_(mv::ComputationModel& mod
 }
 
 void mv::TensorInterferenceGraph::genIntereferenceGraph_(const mv::pass::PassEntry& pass, mv::ComputationModel& model , const mv::TensorIteratorFilter& tensorFilter,
-    const mv::OpIteratorFilter& taskFilter, bool isDMA)
+    const mv::OpIteratorFilter& taskFilter, const mv::OpIteratorFilter& sinkFilter, bool isDMA)
 {
     std::unordered_set<std::string> inputTensorNames;
 
@@ -362,7 +349,7 @@ void mv::TensorInterferenceGraph::genIntereferenceGraph_(const mv::pass::PassEnt
         {
             if (isTensorInTopNames_(opIterator->getOutputTensor(), dm, *source))
                 sourceNodeNames.insert(opIterator->getName());
-            if (isTensorInTopNames_(opIterator->getInputTensor(), dm, *source) && isSinkNode_(opIterator))
+            if (isTensorInTopNames_(opIterator->getInputTensor(), dm, *source) && sinkFilter(opIterator))
                 sinkNodeNames.insert(opIterator->getName());
         }
         sourceNodesMap.insert(std::pair<std::string,std::unordered_set<std::string>>(*source, sourceNodeNames));

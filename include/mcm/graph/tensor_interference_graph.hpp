@@ -81,6 +81,7 @@ namespace mv
     class TensorInterferenceGraph;
     using TensorIteratorFilter = std::function<bool(const mv::Data::TensorIterator& t)>;
     using OpIteratorFilter = std::function<bool(mv::Data::OpListIterator& t)>;
+    using SinkOpIteratorFilter = std::function<bool(mv::Data::OpListIterator& t)>;
     using OrderingStrategyFunc = std::function<std::vector<mv::TensorInterferenceGraphNode>(mv::TensorInterferenceGraph& g)>;
 
     class TensorInterferenceGraph : public mv::graph<TensorInterferenceGraphNode, int>
@@ -112,8 +113,7 @@ namespace mv
             bool checkNodesAreNeighbors_(TensorInterferenceGraph::node_list_iterator& n1, TensorInterferenceGraph::node_list_iterator& n2);
             bool checkNodesDontInterfere_(std::unordered_set<std::string>& sourceNodeNames, std::unordered_set<std::string>& sinkNodeNames);
             bool isTensorInTopNames_(const std::vector<Data::TensorIterator>& tensorList, DataModel& model, const std::string tensorName);
-            bool isSinkNode_(Data::OpListIterator& opIterator);
-            void genIntereferenceGraph_(const mv::pass::PassEntry& pass, ComputationModel& model , const TensorIteratorFilter& tensorFilter,const OpIteratorFilter& taskFilter, bool isDMA);
+            void genIntereferenceGraph_(const mv::pass::PassEntry& pass, ComputationModel& model , const TensorIteratorFilter& tensorFilter,const OpIteratorFilter& taskFilter, const SinkOpIteratorFilter& sinkFilter, bool isDMA);
             std::set<std::string> getTensorNames_(ComputationModel& model, const TensorIteratorFilter& tensorFilter, const OpIteratorFilter& taskFilter, bool isDMA);
             void addWeightsToInterferenceGraph_(const mv::pass::PassEntry& pass, ComputationModel& model, std::size_t alignment);
             std::size_t  getNeighborsWeight_(std::string& node);
@@ -123,7 +123,7 @@ namespace mv
         public:
             TensorInterferenceGraph() : graph<mv::TensorInterferenceGraphNode, int>() {}
             TensorInterferenceGraph(const mv::pass::PassEntry& pass, ComputationModel& model, std::size_t alignment, const TensorIteratorFilter& tensorFilter = nullptr,
-                const mv::OpIteratorFilter& taskFilter = nullptr, bool isCompleteTig = false, bool isDMA = false);
+                const mv::OpIteratorFilter& taskFilter = nullptr, const SinkOpIteratorFilter& sinkFilter = nullptr, bool isCompleteTig = false, bool isDMA = false);
 
             TensorInterferenceGraph(const mv::TensorInterferenceGraph& g);
             void drawGraph(std::string outputFile);
