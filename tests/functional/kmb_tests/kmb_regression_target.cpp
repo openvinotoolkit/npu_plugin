@@ -269,6 +269,42 @@ INSTANTIATE_TEST_CASE_P(
                 KmbNoRegressionCompilationOnly::getTestCaseName);
 #endif
 
+const size_t NUMBER_OF_TOP_CLASSES = 5;
+const std::string YOLO_GRAPH_NAME = "yolotiny.blob";
+
+struct modelBlobsInfo {
+    std::string _graphPath, _inputPath, _outputPath;
+    SizeVector _inDimensions, _outDimensions;
+};
+
+const static std::vector<modelBlobsInfo> pathToPreCompiledGraph = {
+    {
+        ._graphPath = "/KMB_models/BLOBS/mobilenet/mobilenet.blob",
+        ._inputPath = "/KMB_models/BLOBS/mobilenet/input.dat",
+        ._outputPath = "/KMB_models/BLOBS/mobilenet/output.dat",
+        ._inDimensions = {1, 3, 224, 224},
+        ._outDimensions = {1, 1024, 1, 1}
+    },
+    {
+        ._graphPath = "/KMB_models/BLOBS/resnet/resnet.blob",
+        ._inputPath = "/KMB_models/BLOBS/resnet/input.dat",
+        ._outputPath = "/KMB_models/BLOBS/resnet/output.dat",
+        ._inDimensions = {1, 3, 224, 224},
+        ._outDimensions = {1, 1024, 1, 1}
+    },
+    {
+        ._graphPath = "/KMB_models/BLOBS/yolotiny/yolotiny.blob",
+        ._inputPath = "/KMB_models/BLOBS/yolotiny/input.dat",
+        ._outputPath = "/KMB_models/BLOBS/yolotiny/output.dat",
+        ._inDimensions = {1, 3, 416, 416},
+        ._outDimensions = {1, 128, 13, 13}
+    }
+};
+
+
+class VpuInferWithPath: public vpuLayersTests,
+                         public testing::WithParamInterface< modelBlobsInfo > {
+};
 
 #ifdef ENABLE_VPUAL
 class VpuNoRegressionInference : public Regression::RegressionTests {
@@ -284,8 +320,9 @@ protected:
     std::string pluginName = "kmbPlugin";
 };
 
-TEST_F(VpuNoRegressionInference, DISABLED_canDoInferenceOnImportedBlob) {  // To be run in manual mode when device is available
-    std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/TwoFramesConvolution/conv.blob";
+TEST_P(VpuInferWithPath, DISABLED_canDoInferenceOnImportedBlob) {  // To be run in manual mode when device is available
+    modelBlobsInfo blobsInfo = GetParam();
+    std::string modelFilePath = ModelsPath() + blobsInfo._graphPath;
 
     Core ie;
     InferenceEngine::ExecutableNetwork importedNetwork;
@@ -296,10 +333,12 @@ TEST_F(VpuNoRegressionInference, DISABLED_canDoInferenceOnImportedBlob) {  // To
     ASSERT_NO_THROW(inferRequest.Infer());
 }
 
-using VpuInferAndCompareTests = vpuLayersTests;
-
-TEST_F(VpuInferAndCompareTests, DISABLED_compareInferenceOutputWithReference) {  // To be run in manual mode when device is available
-    std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/SingleConvolutionFP16/SingleConv.blob";
+TEST_P(VpuInferWithPath, DISABLED_compareInferenceOutputWithReference) {  // To be run in manual mode when device is available
+    modelBlobsInfo blobsInfo = GetParam();
+    std::string graphSuffix = blobsInfo._graphPath;
+    std::string inputSuffix = blobsInfo._inputPath;
+    std::string outputSuffix = blobsInfo._outputPath;
+    std::string modelFilePath = ModelsPath() + graphSuffix;
 
     Core ie;
     InferenceEngine::ExecutableNetwork importedNetwork;
@@ -311,7 +350,7 @@ TEST_F(VpuInferAndCompareTests, DISABLED_compareInferenceOutputWithReference) { 
     ConstInputsDataMap inputInfo;
     inputInfo = importedNetwork.GetInputsInfo();
 
-    std::string inputFilePath = ModelsPath() + "/KMB_models/BLOBS/SingleConvolutionFP16/input.bin";
+    std::string inputFilePath = ModelsPath() + inputSuffix;
     for (auto & item : inputInfo) {
         Blob::Ptr inputBlob = inferRequest.GetBlob(item.first.c_str());
         ASSERT_TRUE(fromBinaryFile(inputFilePath, inputBlob));
@@ -332,14 +371,19 @@ TEST_F(VpuInferAndCompareTests, DISABLED_compareInferenceOutputWithReference) { 
             outputBlobTensorDesc.getLayout()));
         referenceOutputBlob->allocate();
 
-        std::string referenceOutputFilePath = ModelsPath() + "/KMB_models/BLOBS/SingleConvolutionFP16/output.bin";
+        std::string referenceOutputFilePath = ModelsPath() + outputSuffix;
         ASSERT_TRUE(fromBinaryFile(referenceOutputFilePath, referenceOutputBlob));
-
-        Blob::Ptr refFP32 = ConvertU8ToFP32(referenceOutputBlob);
-        Blob::Ptr outputFP32 = ConvertU8ToFP32(outputBlob);
-        Compare(refFP32, outputFP32, 0.0f);
+        if (graphSuffix.rfind(YOLO_GRAPH_NAME) == graphSuffix.size() - YOLO_GRAPH_NAME.size()) {
+            Blob::Ptr refFP32 = ConvertU8ToFP32(referenceOutputBlob);
+            Blob::Ptr outputFP32 = ConvertU8ToFP32(outputBlob);
+            Compare(refFP32, outputFP32, 0.0f);
+        } else {
+            ASSERT_NO_THROW(compareTopClasses(outputBlob, referenceOutputBlob, NUMBER_OF_TOP_CLASSES));
+        }
     }
 }
+
+using VpuInferAndCompareTests = vpuLayersTests;
 
 TEST_F(VpuInferAndCompareTests, DISABLED_inferenceWithPreprocessing) {  // To be run in manual mode when device is available
     std::string irXmlPath = ModelsPath() + "/KMB_models/BLOBS/SingleConvolutionFP16/SingleConvolutionFP16.xml";
@@ -394,21 +438,17 @@ TEST_F(VpuInferAndCompareTests, DISABLED_inferenceWithPreprocessing) {  // To be
     }
 }
 
-struct modelBlobsPaths {
-    std::string _graphPath, _inputPath, _outputPath;
-};
-
 class VpuInferAndCompareTestsWithParam: public vpuLayersTests,
-                             public testing::WithParamInterface< std::tuple<bool, modelBlobsPaths> > {
+                             public testing::WithParamInterface< std::tuple<bool, modelBlobsInfo> > {
 };
 
 TEST_P(VpuInferAndCompareTestsWithParam, DISABLED_multipleInferRequests) {
-    std::tuple<bool, modelBlobsPaths> paramTuple = GetParam();
+    std::tuple<bool, modelBlobsInfo> paramTuple = GetParam();
     bool isSync = std::get<0>(paramTuple);
-    modelBlobsPaths blobsPaths = std::get<1>(paramTuple);
-    std::string graphSuffix = blobsPaths._graphPath;
-    std::string inputSuffix = blobsPaths._inputPath;
-    std::string outputSuffix = blobsPaths._outputPath;
+    modelBlobsInfo blobsInfo = std::get<1>(paramTuple);
+    std::string graphSuffix = blobsInfo._graphPath;
+    std::string inputSuffix = blobsInfo._inputPath;
+    std::string outputSuffix = blobsInfo._outputPath;
     std::string modelFilePath = ModelsPath() + graphSuffix;
 
     Core ie;
@@ -477,23 +517,22 @@ TEST_P(VpuInferAndCompareTestsWithParam, DISABLED_multipleInferRequests) {
             referenceOutputBlob->allocate();
 
             ASSERT_TRUE(fromBinaryFile(referenceOutputFilePath, referenceOutputBlob));
-
-            Blob::Ptr refFP32 = ConvertU8ToFP32(referenceOutputBlob);
-            Blob::Ptr outputFP32 = ConvertU8ToFP32(outputBlob);
-            Compare(refFP32, outputFP32, 0.0f);
+            if (graphSuffix.rfind(YOLO_GRAPH_NAME) == graphSuffix.size() - YOLO_GRAPH_NAME.size()) {
+                Blob::Ptr refFP32 = ConvertU8ToFP32(referenceOutputBlob);
+                Blob::Ptr outputFP32 = ConvertU8ToFP32(outputBlob);
+                Compare(refFP32, outputFP32, 0.0f);
+            } else {
+                ASSERT_NO_THROW(compareTopClasses(outputBlob, referenceOutputBlob, NUMBER_OF_TOP_CLASSES));
+            }
         }
     }
 }
 
-class VpuAsyncInferWithParam: public vpuLayersTests,
-                             public testing::WithParamInterface< modelBlobsPaths > {
-};
-
-TEST_P(VpuAsyncInferWithParam, DISABLED_asyncInferCallback) {
-    modelBlobsPaths blobsPaths = GetParam();
-    std::string graphSuffix = blobsPaths._graphPath;
-    std::string inputSuffix = blobsPaths._inputPath;
-    std::string outputSuffix = blobsPaths._outputPath;
+TEST_P(VpuInferWithPath, DISABLED_asyncInferCallback) {
+    modelBlobsInfo blobsInfo = GetParam();
+    std::string graphSuffix = blobsInfo._graphPath;
+    std::string inputSuffix = blobsInfo._inputPath;
+    std::string outputSuffix = blobsInfo._outputPath;
     std::string modelFilePath = ModelsPath() + graphSuffix;
 
     Core ie;
@@ -564,19 +603,22 @@ TEST_P(VpuAsyncInferWithParam, DISABLED_asyncInferCallback) {
             referenceOutputBlob->allocate();
 
             ASSERT_TRUE(fromBinaryFile(referenceOutputFilePath, referenceOutputBlob));
-
-            Blob::Ptr refFP32 = ConvertU8ToFP32(referenceOutputBlob);
-            Blob::Ptr outputFP32 = ConvertU8ToFP32(outputBlob);
-            Compare(refFP32, outputFP32, 0.0f);
+            if (graphSuffix.rfind(YOLO_GRAPH_NAME) == graphSuffix.size() - YOLO_GRAPH_NAME.size()) {
+                Blob::Ptr refFP32 = ConvertU8ToFP32(referenceOutputBlob);
+                Blob::Ptr outputFP32 = ConvertU8ToFP32(outputBlob);
+                Compare(refFP32, outputFP32, 0.0f);
+            } else {
+                ASSERT_NO_THROW(compareTopClasses(outputBlob, referenceOutputBlob, NUMBER_OF_TOP_CLASSES));
+            }
         }
     }
 }
 
-TEST_P(VpuAsyncInferWithParam, DISABLED_asyncInferCallbackRecursive) {
-    modelBlobsPaths blobsPaths = GetParam();
-    std::string graphSuffix = blobsPaths._graphPath;
-    std::string inputSuffix = blobsPaths._inputPath;
-    std::string outputSuffix = blobsPaths._outputPath;
+TEST_P(VpuInferWithPath, DISABLED_asyncInferCallbackRecursive) {
+    modelBlobsInfo blobsInfo = GetParam();
+    std::string graphSuffix = blobsInfo._graphPath;
+    std::string inputSuffix = blobsInfo._inputPath;
+    std::string outputSuffix = blobsInfo._outputPath;
     std::string modelFilePath = ModelsPath() + graphSuffix;
 
     Core ie;
@@ -633,32 +675,18 @@ TEST_P(VpuAsyncInferWithParam, DISABLED_asyncInferCallbackRecursive) {
 
         ASSERT_TRUE(fromBinaryFile(referenceOutputFilePath, referenceOutputBlob));
 
-        Blob::Ptr refFP32 = ConvertU8ToFP32(referenceOutputBlob);
-        Blob::Ptr outputFP32 = ConvertU8ToFP32(outputBlob);
-        Compare(refFP32, outputFP32, 0.0f);
+        if (graphSuffix.rfind(YOLO_GRAPH_NAME) == graphSuffix.size() - YOLO_GRAPH_NAME.size()) {
+            Blob::Ptr refFP32 = ConvertU8ToFP32(referenceOutputBlob);
+            Blob::Ptr outputFP32 = ConvertU8ToFP32(outputBlob);
+            Compare(refFP32, outputFP32, 0.0f);
+        } else {
+            ASSERT_NO_THROW(compareTopClasses(outputBlob, referenceOutputBlob, NUMBER_OF_TOP_CLASSES));
+        }
     }
 }
 
 const static std::vector<bool> isSyncVec = {
     false, true
-};
-
-const static std::vector<modelBlobsPaths> pathToPreCompiledGraph = {
-    {
-        ._graphPath = "/KMB_models/BLOBS/mobilenet/mobilenet.blob",
-        ._inputPath = "/KMB_models/BLOBS/mobilenet/input.dat",
-        ._outputPath = "/KMB_models/BLOBS/mobilenet/output.dat"
-    },
-    {
-        ._graphPath = "/KMB_models/BLOBS/resnet/resnet.blob",
-        ._inputPath = "/KMB_models/BLOBS/resnet/input.dat",
-        ._outputPath = "/KMB_models/BLOBS/resnet/output.dat"
-    },
-    {
-        ._graphPath = "/KMB_models/BLOBS/yolotiny/yolotiny.blob",
-        ._inputPath = "/KMB_models/BLOBS/yolotiny/input.dat",
-        ._outputPath = "/KMB_models/BLOBS/yolotiny/output.dat"
-    }
 };
 
 INSTANTIATE_TEST_CASE_P(multipleInference, VpuInferAndCompareTestsWithParam,
@@ -668,15 +696,13 @@ INSTANTIATE_TEST_CASE_P(multipleInference, VpuInferAndCompareTestsWithParam,
     )
 );
 
-INSTANTIATE_TEST_CASE_P(asyncInferenceWithCallback, VpuAsyncInferWithParam,
-    ::testing::ValuesIn(pathToPreCompiledGraph)
-);
-
 #endif
-using kmbSetBlob = vpuLayersTests;
 
-TEST_F(kmbSetBlob, DISABLED_compareSetBlobAndGetBlob) {
-    std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet/mobilenet.blob";
+TEST_P(VpuInferWithPath, DISABLED_compareSetBlobAndGetBlob) {
+    modelBlobsInfo blobsInfo = GetParam();
+    std::string graphSuffix = blobsInfo._graphPath;
+    std::string modelFilePath = ModelsPath() + graphSuffix;
+
     Core ie;
     InferenceEngine::ExecutableNetwork importedNetwork;
     ASSERT_NO_THROW(importedNetwork = ie.ImportNetwork(modelFilePath, "KMB", {}));
@@ -688,7 +714,7 @@ TEST_F(kmbSetBlob, DISABLED_compareSetBlobAndGetBlob) {
     std::string input_name = inputInfo.begin()->first;
 
     Blob::Ptr inputBlob;
-    ASSERT_NO_THROW(inputBlob = InferenceEngine::make_shared_blob<uint8_t>({Precision::U8, {1, 3, 224, 224}, Layout::NCHW}));
+    ASSERT_NO_THROW(inputBlob = InferenceEngine::make_shared_blob<uint8_t>({Precision::U8, blobsInfo._inDimensions, Layout::NCHW}));
     inputBlob->allocate();
 
     u_int8_t* ptr = inputBlob->buffer();
@@ -701,12 +727,16 @@ TEST_F(kmbSetBlob, DISABLED_compareSetBlobAndGetBlob) {
     ASSERT_EQ((void *)inputBlob->buffer(), (void *)newInputBlob->buffer());
 }
 
-TEST_F(kmbSetBlob, DISABLED_compareSetBlobAndGetBlobAfterInfer) {
-    std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet/mobilenet.blob";
-    std::string inputNameFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet/input.dat";
-    std::string outputNameFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet/output.dat";
+TEST_P(VpuInferWithPath, DISABLED_compareSetBlobAndGetBlobAfterInfer) {
+    modelBlobsInfo blobsInfo = GetParam();
+    std::string graphSuffix = blobsInfo._graphPath;
+    std::string inputSuffix = blobsInfo._inputPath;
+    std::string outputSuffix = blobsInfo._outputPath;
+    std::string modelFilePath = ModelsPath() + graphSuffix;
+    std::string inputNameFilePath = ModelsPath() + inputSuffix;
+    std::string outputNameFilePath = ModelsPath() + outputSuffix;
 
-    Blob::Ptr fileOutputBlob = InferenceEngine::make_shared_blob<uint8_t>({Precision::U8, {1, 1, 1, 1024}, Layout::NCHW});
+    Blob::Ptr fileOutputBlob = InferenceEngine::make_shared_blob<uint8_t>({Precision::U8, blobsInfo._outDimensions, Layout::NCHW});
     fileOutputBlob->allocate();
     fromBinaryFile(outputNameFilePath, fileOutputBlob);
 
@@ -730,7 +760,7 @@ TEST_F(kmbSetBlob, DISABLED_compareSetBlobAndGetBlobAfterInfer) {
     // ----------------------------------------------------------
 
     Blob::Ptr inputBlob;
-    ASSERT_NO_THROW(inputBlob = InferenceEngine::make_shared_blob<uint8_t>({Precision::U8, {1, 3, 224, 224}, Layout::NCHW}));
+    ASSERT_NO_THROW(inputBlob = InferenceEngine::make_shared_blob<uint8_t>({Precision::U8, blobsInfo._inDimensions, Layout::NCHW}));
     inputBlob->allocate();
     fromBinaryFile(inputNameFilePath, inputBlob);
 
@@ -743,15 +773,21 @@ TEST_F(kmbSetBlob, DISABLED_compareSetBlobAndGetBlobAfterInfer) {
     std::string othOutput_name = importedNetwork.GetOutputsInfo().begin()->first;
     Blob::Ptr outputBlob;
     ASSERT_NO_THROW(outputBlob = inferRequest.GetBlob(othOutput_name));
+    if (graphSuffix.rfind(YOLO_GRAPH_NAME) == graphSuffix.size() - YOLO_GRAPH_NAME.size()) {
+        Blob::Ptr blobFP32 = ConvertU8ToFP32(outputBlob);
+        Blob::Ptr othBlobFP32 = ConvertU8ToFP32(outputBlobOth);
+        Compare(blobFP32, othBlobFP32, 0.0f);
 
-    Blob::Ptr blobFP32 = ConvertU8ToFP32(outputBlob);
-    Blob::Ptr othBlobFP32 = ConvertU8ToFP32(outputBlobOth);
-    Compare(blobFP32, othBlobFP32, 0.0f);
-
-    blobFP32 = ConvertU8ToFP32(outputBlob);
-    othBlobFP32 = ConvertU8ToFP32(fileOutputBlob);
-    Compare(blobFP32, othBlobFP32, 0.0f);
+        blobFP32 = ConvertU8ToFP32(outputBlob);
+        othBlobFP32 = ConvertU8ToFP32(fileOutputBlob);
+        Compare(blobFP32, othBlobFP32, 0.0f);
+    } else {
+        ASSERT_NO_THROW(compareTopClasses(outputBlob, outputBlobOth, NUMBER_OF_TOP_CLASSES));
+        ASSERT_NO_THROW(compareTopClasses(outputBlob, fileOutputBlob, NUMBER_OF_TOP_CLASSES));
+    }
 }
+
+using kmbSetBlob = vpuLayersTests;
 
 TEST_F(kmbSetBlob, DISABLED_compareSetBlobAllocation) {
     std::string mobilenetModelFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet/mobilenet.blob";
@@ -781,20 +817,24 @@ TEST_F(kmbSetBlob, DISABLED_compareSetBlobAllocation) {
     ASSERT_EQ((void *)mobilNInputBlob->buffer(), (void *)resNInputBlob->buffer());
 }
 
-TEST_F(kmbSetBlob, DISABLED_compareOutpustTwoNetworks) {
-    std::string mobilenetModelFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet/mobilenet.blob";
-    std::string inputNameFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet/input.dat";
-    std::string outputNameFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet/output.dat";
+TEST_P(VpuInferWithPath, DISABLED_compareOutputsTwoNetworks) {
+    modelBlobsInfo blobsInfo = GetParam();
+    std::string graphSuffix = blobsInfo._graphPath;
+    std::string inputSuffix = blobsInfo._inputPath;
+    std::string outputSuffix = blobsInfo._outputPath;
+    std::string modelFilePath = ModelsPath() + graphSuffix;
+    std::string inputNameFilePath = ModelsPath() + inputSuffix;
+    std::string outputNameFilePath = ModelsPath() + outputSuffix;
 
-    Blob::Ptr fileOutputBlob = InferenceEngine::make_shared_blob<uint8_t>({Precision::U8, {1, 1, 1, 1024}, Layout::NCHW});
+    Blob::Ptr fileOutputBlob = InferenceEngine::make_shared_blob<uint8_t>({Precision::U8, blobsInfo._outDimensions, Layout::NCHW});
     fileOutputBlob->allocate();
     fromBinaryFile(outputNameFilePath, fileOutputBlob);
 
     Core ie;
     InferenceEngine::ExecutableNetwork mobilNImportedNetwork;
-    ASSERT_NO_THROW(mobilNImportedNetwork = ie.ImportNetwork(mobilenetModelFilePath, "KMB", {}));
+    ASSERT_NO_THROW(mobilNImportedNetwork = ie.ImportNetwork(modelFilePath, "KMB", {}));
     InferenceEngine::ExecutableNetwork othMobilNImportedNetwork;
-    ASSERT_NO_THROW(othMobilNImportedNetwork = ie.ImportNetwork(mobilenetModelFilePath, "KMB", {}));
+    ASSERT_NO_THROW(othMobilNImportedNetwork = ie.ImportNetwork(modelFilePath, "KMB", {}));
 
 
     InferenceEngine::InferRequest mobilNInferRequest;
@@ -825,27 +865,36 @@ TEST_F(kmbSetBlob, DISABLED_compareOutpustTwoNetworks) {
     ASSERT_NO_THROW(othMobilNOutputBlob = othMobilNInferRequest.GetBlob(othMobilNOutput_name));
     ASSERT_EQ(mobilNOutputBlob->byteSize(), othMobilNOutputBlob->byteSize());
 
-    Blob::Ptr blobFP32 = ConvertU8ToFP32(othMobilNOutputBlob);
-    Blob::Ptr othBlobFP32 = ConvertU8ToFP32(mobilNOutputBlob);
-    Compare(blobFP32, othBlobFP32, 0.0f);
+    if (graphSuffix.rfind(YOLO_GRAPH_NAME) == graphSuffix.size() - YOLO_GRAPH_NAME.size()) {
+        Blob::Ptr blobFP32 = ConvertU8ToFP32(othMobilNOutputBlob);
+        Blob::Ptr othBlobFP32 = ConvertU8ToFP32(mobilNOutputBlob);
+        Compare(blobFP32, othBlobFP32, 0.0f);
 
-    blobFP32 = ConvertU8ToFP32(othMobilNOutputBlob);
-    othBlobFP32 = ConvertU8ToFP32(fileOutputBlob);
-    Compare(blobFP32, othBlobFP32, 0.0f);
+        blobFP32 = ConvertU8ToFP32(othMobilNOutputBlob);
+        othBlobFP32 = ConvertU8ToFP32(fileOutputBlob);
+        Compare(blobFP32, othBlobFP32, 0.0f);
+    } else {
+        ASSERT_NO_THROW(compareTopClasses(othMobilNOutputBlob, mobilNOutputBlob, NUMBER_OF_TOP_CLASSES));
+        ASSERT_NO_THROW(compareTopClasses(othMobilNOutputBlob, fileOutputBlob, NUMBER_OF_TOP_CLASSES));
+    }
 }
 
-TEST_F(kmbSetBlob, DISABLED_compareSetBlobAndInfer) {
-    std::string mobilenetModelFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet/mobilenet.blob";
-    std::string inputNameFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet/input.dat";
-    std::string outputNameFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet/output.dat";
+TEST_P(VpuInferWithPath, DISABLED_compareSetBlobAndInfer) {
+    modelBlobsInfo blobsInfo = GetParam();
+    std::string graphSuffix = blobsInfo._graphPath;
+    std::string inputSuffix = blobsInfo._inputPath;
+    std::string outputSuffix = blobsInfo._outputPath;
+    std::string modelFilePath = ModelsPath() + graphSuffix;
+    std::string inputNameFilePath = ModelsPath() + inputSuffix;
+    std::string outputNameFilePath = ModelsPath() + outputSuffix;
 
-    Blob::Ptr fileOutputBlob = InferenceEngine::make_shared_blob<uint8_t>({Precision::U8, {1, 1, 1, 1024}, Layout::NCHW});
+    Blob::Ptr fileOutputBlob = InferenceEngine::make_shared_blob<uint8_t>({Precision::U8, blobsInfo._outDimensions, Layout::NCHW});
     fileOutputBlob->allocate();
     fromBinaryFile(outputNameFilePath, fileOutputBlob);
 
     Core ie;
     InferenceEngine::ExecutableNetwork importedNetwork;
-    ASSERT_NO_THROW(importedNetwork = ie.ImportNetwork(mobilenetModelFilePath, "KMB", {}));
+    ASSERT_NO_THROW(importedNetwork = ie.ImportNetwork(modelFilePath, "KMB", {}));
 
     InferenceEngine::InferRequest inferRequest;
     ASSERT_NO_THROW(inferRequest = importedNetwork.CreateInferRequest());
@@ -854,7 +903,7 @@ TEST_F(kmbSetBlob, DISABLED_compareSetBlobAndInfer) {
     std::string output_name = importedNetwork.GetOutputsInfo().begin()->first;
 
     Blob::Ptr inputBlob;
-    ASSERT_NO_THROW(inputBlob = InferenceEngine::make_shared_blob<uint8_t>({Precision::U8, {1, 3, 224, 224}, Layout::NCHW}));
+    ASSERT_NO_THROW(inputBlob = InferenceEngine::make_shared_blob<uint8_t>({Precision::U8, blobsInfo._inDimensions, Layout::NCHW}));
     inputBlob->allocate();
     fromBinaryFile(inputNameFilePath, inputBlob);
 
@@ -867,4 +916,15 @@ TEST_F(kmbSetBlob, DISABLED_compareSetBlobAndInfer) {
     Blob::Ptr expectedOutputFP32 = ConvertU8ToFP32(fileOutputBlob);
     Blob::Ptr outputBlobFP32 = ConvertU8ToFP32(outputBlob);
     Compare(expectedOutputFP32, outputBlobFP32, 0.0f);
+    if (graphSuffix.rfind(YOLO_GRAPH_NAME) == graphSuffix.size() - YOLO_GRAPH_NAME.size()) {
+        Blob::Ptr expectedOutputFP32 = ConvertU8ToFP32(fileOutputBlob);
+        Blob::Ptr outputBlobFP32 = ConvertU8ToFP32(outputBlob);
+        Compare(expectedOutputFP32, outputBlobFP32, 0.0f);
+    } else {
+        ASSERT_NO_THROW(compareTopClasses(outputBlob, fileOutputBlob, NUMBER_OF_TOP_CLASSES));
+    }
 }
+
+INSTANTIATE_TEST_CASE_P(inferenceWithParameters, VpuInferWithPath,
+    ::testing::ValuesIn(pathToPreCompiledGraph)
+);
