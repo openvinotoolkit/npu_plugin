@@ -21,7 +21,7 @@
 using namespace InferenceEngine;
 
 class kmbLayersTestsBias_nightly: public kmbLayersTests_nightly,
-                             public testing::WithParamInterface<InferenceEngine::SizeVector> {
+                             public testing::WithParamInterface<SizeVector> {
 };
 
 #ifdef ENABLE_MCM_COMPILER
@@ -46,11 +46,11 @@ TEST_P(kmbLayersTestsBias_nightly, TestsBias)
                 0,
                 biasesSize,
                 weightsBlob,
-                InferenceEngine::Precision::FP16 // output precision
+                Precision::FP16 // output precision
     );
 }
 
-static std::vector<InferenceEngine::SizeVector> s_biasDims = {
+static std::vector<SizeVector> s_biasDims = {
     {{1, 32, 10, 10}},
     {{1, 8,  4, 4}}
 };

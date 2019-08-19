@@ -14,8 +14,8 @@
 // stated in the License.
 //
 
+#include <memory>
 #include <vpu/kmb_plugin_config.hpp>
-
 #include "kmb_layers_tests.hpp"
 
 #define ERROR_BOUND (.1f)

@@ -26,7 +26,7 @@
 #define ERROR_BOUND (.1f)
 
 using namespace InferenceEngine;
-using namespace InferenceEngine::details;
+using namespace details;
 
 #ifdef ENABLE_MCM_COMPILER
 TEST_F(kmbLayersTests_nightly, DISABLED_TestsConvolutionAfterScaleShift) {
@@ -135,7 +135,7 @@ TEST_F(kmbLayersTests_nightly, DISABLED_TestsQuantizedConvolutionAfterScaleShift
 
     if (!pstats->isEmpty()) {
         clonedNetwork = cloneNet(network);
-        InferenceEngine::details::CNNNetworkInt8Normalizer::NormalizeNetwork(*clonedNetwork, *pstats);
+        details::CNNNetworkInt8Normalizer::NormalizeNetwork(*clonedNetwork, *pstats);
 
         ASSERT_NO_THROW(ie.LoadNetwork(CNNNetwork(clonedNetwork), "kmb", config));
     }
@@ -180,7 +180,7 @@ TEST_F(kmbLayersTests_nightly, DISABLED_TestsQuantizedConvolutionAfterScaleShift
 
     if (!pstats->isEmpty()) {
         clonedNetwork = cloneNet(network);
-        InferenceEngine::details::CNNNetworkInt8Normalizer::NormalizeNetwork(*clonedNetwork, *pstats);
+        details::CNNNetworkInt8Normalizer::NormalizeNetwork(*clonedNetwork, *pstats);
 
         ASSERT_NO_THROW(ie.LoadNetwork(CNNNetwork(clonedNetwork), "kmb", config));
     }

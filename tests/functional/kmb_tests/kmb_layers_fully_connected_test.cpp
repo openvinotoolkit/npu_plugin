@@ -42,7 +42,7 @@ TEST_P(kmbLayersTestsFullyConnectedParams, TestsFullyConnected) {
     std::map<std::string, std::string> params;
     params["out-size"] = std::to_string(outSize);
 
-    TBlob<uint8_t>::Ptr weightsBlob(GenWeights(weightsSize + biasesSize));
+    Blob::Ptr weightsBlob(GenWeights(weightsSize + biasesSize));
 
     SetInputTensor(inputTensor);
     SetOutputTensor(outputTensor);
@@ -50,8 +50,8 @@ TEST_P(kmbLayersTestsFullyConnectedParams, TestsFullyConnected) {
                 &params,
                 weightsSize,
                 biasesSize,
-                weightsBlob,
-                InferenceEngine::Precision::FP16 // output precision
+                std::static_pointer_cast<TBlob<uint8_t> >(weightsBlob),
+                Precision::FP16 // output precision
     );
 }
 

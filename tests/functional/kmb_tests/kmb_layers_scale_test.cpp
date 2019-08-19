@@ -13,7 +13,7 @@
 // express or implied warranties, other than those that are expressly
 // stated in the License.
 //
-
+#include <memory>
 #include "kmb_layers_tests.hpp"
 
 #define ERROR_BOUND (.1f)
@@ -49,7 +49,7 @@ TEST_P(kmbLayersTestsScaleParams, TestsScale) {
                 weightsSize,
                 biasesSize,
                 weightsBlob,
-                InferenceEngine::Precision::FP16 // output precision
+                Precision::FP16 // output precision
     );
 }
 
