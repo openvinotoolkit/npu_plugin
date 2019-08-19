@@ -20,7 +20,7 @@ endif()
 
 add_compile_options(-std=c++11)
 
-SET(PROFILER TRUE CACHE BOOL "Enable integrated profiler")
+SET(PROFILER FALSE CACHE BOOL "Enable integrated profiler")
 SET(LOG TRUE CACHE BOOL "Enable logger")
 SET(PROFILE_PHASE TRUE CACHE BOOL "Enable profiling at compilation phases level")
 SET(PROFILE_BASE TRUE CACHE BOOL "Enable profiling at base components level")
@@ -30,20 +30,46 @@ SET(PROFILE_ALGO TRUE CACHE BOOL "Enable profiling at internal algorithms level"
 SET(PROFILE_BULD TRUE CACHE BOOL "Enable profiling at building blocks level")
 SET(PROFILE_MATH TRUE CACHE BOOL "Enable profiling at tensor math operations level")
 
-add_definitions(-DMV_PROFILER_ENABLED=1)
-add_definitions(-DMV_LOG_ENABLED=1)
-add_definitions(-DMV_PROFILE_PHASE_ENABLED=1)
-add_definitions(-DMV_PROFILE_BASE_ENABLED=1)
-add_definitions(-DMV_PROFILE_PASS_ENABLED=1)
-add_definitions(-DMV_PROFILE_COMP_ENABLED=1)
-add_definitions(-DMV_PROFILE_ALGO_ENABLED=1)
-add_definitions(-DMV_PROFILE_BULD_ENABLED=1)
-add_definitions(-DMV_PROFILE_MATH_ENABLED=1)
 
-#if(${PROFILER})
-include_directories(${PROJECT_SOURCE_DIR}/contrib/easy_profiler/easy_profiler_core/include)
-#endif()
+if (${LOG})
+    add_definitions(-DMV_LOG_ENABLED)
+endif()
 
+if (${PROFILER})
+    
+    add_definitions(-DMV_PROFILER_ENABLED)
+    include_directories(${PROJECT_SOURCE_DIR}/contrib/easy_profiler/easy_profiler_core/include)
+    add_subdirectory(contrib/easy_profiler)
+
+    if (${PROFILE_PHASE})
+        add_definitions(-DMV_PROFILE_PHASE_ENABLED)
+    endif()
+
+    if (${PROFILE_BASE})
+        add_definitions(-DMV_PROFILE_BASE_ENABLED)
+    endif()
+
+    if (${PROFILE_PASS})
+        add_definitions(-DMV_PROFILE_PASS_ENABLED)
+    endif()
+
+    if (${PROFILE_COMP})
+        add_definitions(-DMV_PROFILE_COMP_ENABLED)
+    endif()
+
+    if (${PROFILE_ALGO})
+        add_definitions(-DMV_PROFILE_ALGO_ENABLED)
+    endif()
+
+    if (${PROFILE_BULD})
+        add_definitions(-DMV_PROFILE_BULD_ENABLED)
+    endif()
+
+    if (${PROFILE_MATH})
+        add_definitions(-DMV_PROFILE_MATH_ENABLED)
+    endif()
+
+endif()
 
 #############################################################################################
 ### Test Coverage - off by default. Pass param CODE_COVERAGE=ON
@@ -452,9 +478,6 @@ else()
         add_subdirectory(python/api)
         add_subdirectory(tests)
         add_subdirectory(contrib/googletest)
-        #if(${PROFILER})
-            target_link_libraries(cm easy_profiler)
-        #endif()
         target_link_libraries(cm model)
 
     else()
@@ -474,9 +497,6 @@ else()
             add_subdirectory(python/api)
             add_subdirectory(tests)
             add_subdirectory(contrib/googletest)
-            #if(${PROFILER})
-                target_link_libraries(cm easy_profiler)
-            #endif()
         ENDIF(CMAKE_CROSSCOMPILING)
        
     endif(VALIDATION)
@@ -487,5 +507,8 @@ IF(NOT CMAKE_CROSSCOMPILING)
     add_subdirectory(tools)
     add_subdirectory(schema)
     add_subdirectory(contrib/flatbuffers)
-    add_subdirectory(contrib/easy_profiler)
 ENDIF()
+
+if (${PROFILER})
+    target_link_libraries(cm easy_profiler)
+endif()
