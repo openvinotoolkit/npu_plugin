@@ -134,13 +134,14 @@ inline std::string CompilationParameter::pathToWeights() const {
     return path_to_weights_;
 }
 
-std::vector<CompilationParameter> compilation_parameters_kmb =
-{
-    CompilationParameter{"squeezenetv1_1_int8_onnx_0001",
-                         "/KMB_models/INT8/squeezenetv1.1-int8-onnx-0001/squeezenetv1.1-int8.xml",
-                         "/KMB_models/INT8/squeezenetv1.1-int8-onnx-0001/squeezenetv1.1-int8.bin"},
-
-#if 0
+std::vector<CompilationParameter> compilation_parameters_unsupported = {
+// TODO: Yolo network can't be parsed into mcmCompiler due to bug in regionYolo parsing
+        CompilationParameter{"darknet_tiny_yolo_voc",
+                             "/KMB_models/INT8/darknet_tiny_yolo_voc/yolov2_IR_i8.xml",
+                             "/KMB_models/INT8/darknet_tiny_yolo_voc/yolov2_IR_i8.bin"},
+        CompilationParameter{"darknet19_yolo_voc",
+                             "/KMB_models/INT8/darknet19_yolo_voc/yolov2_IR_i8.xml",
+                             "/KMB_models/INT8/darknet19_yolo_voc/yolov2_IR_i8.bin"},
 // TODO: SSD512 network can not be parsed into mcmCompiler OpModel due to unsupported layers.
 // Jira:
 //  Feature VPUNND-1468
@@ -155,11 +156,15 @@ std::vector<CompilationParameter> compilation_parameters_kmb =
 //     Unsqueeze layer support
 //  Feature VPUNND-1463
 //     Squeeze layer support
-    CompilationParameter{"SSD512_int8_onnx_0001",
-                         "/KMB_models/INT8/SSD512-int8-onnx-0001/SSD512-int8-onnx-0001.xml",
-                         "/KMB_models/INT8/SSD512-int8-onnx-0001/SSD512-int8-onnx-0001.bin"},
-#endif
+        CompilationParameter{"SSD512_int8_onnx_0001",
+                             "/KMB_models/INT8/SSD512-int8-onnx-0001/SSD512-int8-onnx-0001.xml",
+                             "/KMB_models/INT8/SSD512-int8-onnx-0001/SSD512-int8-onnx-0001.bin"},
+};
 
+std::vector<CompilationParameter> compilation_parameters_kmb = {
+    CompilationParameter{"squeezenetv1_1_int8_onnx_0001",
+                         "/KMB_models/INT8/squeezenetv1.1-int8-onnx-0001/squeezenetv1.1-int8.xml",
+                         "/KMB_models/INT8/squeezenetv1.1-int8-onnx-0001/squeezenetv1.1-int8.bin"},
     CompilationParameter{"resnet_50_int8_tf_0001",
                          "/KMB_models/INT8/resnet-50-int8-tf-0001/resnet50-int8.xml",
                          "/KMB_models/INT8/resnet-50-int8-tf-0001/resnet50-int8.bin"},
@@ -184,7 +189,7 @@ std::vector<CompilationParameter> compilation_parameters_kmb =
                          "/KMB_models/FP16/inception_v3_74.19/inception_v3_no_preprocess.bin"},
 };
 
-}
+}  // namespace
 
 inline void VpuNoRegressionWithCompilation::loadNetworkWrapper(std::map<std::string, std::string> config, InferenceEngine::StatusCode* st) {
     StatusCode sts;
@@ -267,6 +272,24 @@ INSTANTIATE_TEST_CASE_P(
                 Values<Compile>(true),
                 Values<Timeout>(600.)),
                 KmbNoRegressionCompilationOnly::getTestCaseName);
+
+INSTANTIATE_TEST_CASE_P(
+        DISABLED_KmbParsingUnsupportedOnlyTest_smoke_nightly,
+        KmbNoRegressionCompilationOnly,
+        Combine(Values("kmbPlugin"),
+                ValuesIn(compilation_parameters_unsupported),
+                Values<Compile>(false),
+                Values<Timeout>(60.)),
+        KmbNoRegressionCompilationOnly::getTestCaseName);
+
+INSTANTIATE_TEST_CASE_P(
+        DISABLED_KmbCompilationParsingUnsupportedTest_smoke_nightly,
+        KmbNoRegressionCompilationOnly,
+        Combine(Values("kmbPlugin"),
+                ValuesIn(compilation_parameters_unsupported),
+                Values<Compile>(true),
+                Values<Timeout>(600.)),
+        KmbNoRegressionCompilationOnly::getTestCaseName);
 #endif
 
 const size_t NUMBER_OF_TOP_CLASSES = 5;

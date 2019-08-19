@@ -951,6 +951,57 @@ void FrontEndMcm::parseConcat(
     _logger->debug("parsed to mcmModel as '%s", mvConcat->getName());
 }
 
+void FrontEndMcm::parseRegionYolo(
+        const mv::OpModel& modelMcm,
+        const ie::CNNLayerPtr& layer,
+        const McmNodeVector& inputs) {
+    UNUSED(modelMcm);
+
+    IE_ASSERT(inputs.size() == 1);
+
+    _logger->debug("RegionYolo orig: '%s' from '%s'", layer->name, inputs[0]->getMcmNode()->getName());
+
+    auto coords = layer->GetParamAsUInt("coords");
+    auto classes = layer->GetParamAsUInt("classes");
+    auto do_softmax = layer->GetParamAsBool("do_softmax");
+    auto num = layer->GetParamAsUInt("num");
+
+    auto region = _modelMcm.regionYolo(inputs[0]->getMcmNode(), coords, classes, do_softmax, num, {}, layer->name);
+
+    auto layerOutput = layer->outData[0];
+    IE_ASSERT(layerOutput != nullptr);
+
+    auto mvRegion = std::make_shared<McmNodeObject>(region, layerOutput->getTensorDesc());
+
+    _nodes.push_back(mvRegion);
+    bindData(mvRegion, layerOutput);
+    _logger->debug("parsed to mcmModel as '%s", region->getName());
+}
+
+void FrontEndMcm::parseReorgYolo(
+        const mv::OpModel& modelMcm,
+        const ie::CNNLayerPtr& layer,
+        const McmNodeVector& inputs) {
+    UNUSED(modelMcm);
+
+    IE_ASSERT(inputs.size() == 1);
+
+    _logger->debug("Parsing ReorgYolo layer %s", layer->name);
+
+    auto stride = layer->GetParamAsUInt("stride");
+
+    auto reorg = _modelMcm.reorgYolo(inputs[0]->getMcmNode(), stride, layer->name);
+
+    auto layerOutput = layer->outData[0];
+    IE_ASSERT(layerOutput != nullptr);
+
+    auto mvReorg = std::make_shared<McmNodeObject>(reorg, layerOutput->getTensorDesc());
+
+    _nodes.push_back(mvReorg);
+    bindData(mvReorg, layerOutput);
+    _logger->debug("parsed to mcmModel as '%s", reorg->getName());
+}
+
 void FrontEndMcm::parseArgMax(
         const mv::OpModel& modelMcm,
         const ie::CNNLayerPtr& layer,
@@ -1100,26 +1151,6 @@ void FrontEndMcm::parseNormalize(
     UNUSED(inputs);
     _logger->debug("Parsing Normalize layer %s", layer->name);
     VPU_THROW_EXCEPTION << "Normalize layer is not supported by kmbPlugin";
-}
-
-void FrontEndMcm::parseRegionYolo(
-        const mv::OpModel& modelMcm,
-        const ie::CNNLayerPtr& layer,
-        const McmNodeVector& inputs) {
-    UNUSED(modelMcm);
-    UNUSED(inputs);
-    _logger->debug("Parsing RegionYolo layer %s", layer->name);
-    VPU_THROW_EXCEPTION << "RegionYolo layer is not supported by kmbPlugin";
-}
-
-void FrontEndMcm::parseReorgYolo(
-        const mv::OpModel& modelMcm,
-        const ie::CNNLayerPtr& layer,
-        const McmNodeVector& inputs) {
-    UNUSED(modelMcm);
-    UNUSED(inputs);
-    _logger->debug("Parsing ReorgYolo layer %s", layer->name);
-    VPU_THROW_EXCEPTION << "ReorgYolo layer is not supported by kmbPlugin";
 }
 
 void FrontEndMcm::parseCTCDecoder(
