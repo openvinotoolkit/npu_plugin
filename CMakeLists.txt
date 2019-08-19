@@ -36,37 +36,45 @@ if (${LOG})
 endif()
 
 if (${PROFILER})
+
+    if (${UNIX})
     
-    add_definitions(-DMV_PROFILER_ENABLED)
-    include_directories(${PROJECT_SOURCE_DIR}/contrib/easy_profiler/easy_profiler_core/include)
-    add_subdirectory(contrib/easy_profiler)
+        add_definitions(-DMV_PROFILER_ENABLED)
+        include_directories(${PROJECT_SOURCE_DIR}/contrib/easy_profiler/easy_profiler_core/include)
+        add_subdirectory(contrib/easy_profiler)
 
-    if (${PROFILE_PHASE})
-        add_definitions(-DMV_PROFILE_PHASE_ENABLED)
-    endif()
+        if (${PROFILE_PHASE})
+            add_definitions(-DMV_PROFILE_PHASE_ENABLED)
+        endif()
 
-    if (${PROFILE_BASE})
-        add_definitions(-DMV_PROFILE_BASE_ENABLED)
-    endif()
+        if (${PROFILE_BASE})
+            add_definitions(-DMV_PROFILE_BASE_ENABLED)
+        endif()
 
-    if (${PROFILE_PASS})
-        add_definitions(-DMV_PROFILE_PASS_ENABLED)
-    endif()
+        if (${PROFILE_PASS})
+            add_definitions(-DMV_PROFILE_PASS_ENABLED)
+        endif()
 
-    if (${PROFILE_COMP})
-        add_definitions(-DMV_PROFILE_COMP_ENABLED)
-    endif()
+        if (${PROFILE_COMP})
+            add_definitions(-DMV_PROFILE_COMP_ENABLED)
+        endif()
 
-    if (${PROFILE_ALGO})
-        add_definitions(-DMV_PROFILE_ALGO_ENABLED)
-    endif()
+        if (${PROFILE_ALGO})
+            add_definitions(-DMV_PROFILE_ALGO_ENABLED)
+        endif()
 
-    if (${PROFILE_BULD})
-        add_definitions(-DMV_PROFILE_BULD_ENABLED)
-    endif()
+        if (${PROFILE_BULD})
+            add_definitions(-DMV_PROFILE_BULD_ENABLED)
+        endif()
 
-    if (${PROFILE_MATH})
-        add_definitions(-DMV_PROFILE_MATH_ENABLED)
+        if (${PROFILE_MATH})
+            add_definitions(-DMV_PROFILE_MATH_ENABLED)
+        endif()
+
+    else()
+
+        message("Ignoring PROFILER=ON flag, profiling only available for Linux/UNIX")
+
     endif()
 
 endif()
@@ -509,6 +517,6 @@ IF(NOT CMAKE_CROSSCOMPILING)
     add_subdirectory(contrib/flatbuffers)
 ENDIF()
 
-if (${PROFILER})
+if (${PROFILER} AND ${UNIX})
     target_link_libraries(cm easy_profiler)
 endif()

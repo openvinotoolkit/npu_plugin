@@ -18,6 +18,7 @@ namespace mv
         .defineArg(json::JSONType::String, "scope")
         .defineArg(json::JSONType::String, "content")
         .defineArg(json::JSONType::Bool, "html")
+        .setLabel("Debug")
         .setDescription(
             "Generates the DOT representation of computation model"
         );

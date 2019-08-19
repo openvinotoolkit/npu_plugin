@@ -82,7 +82,7 @@ mv::Data::TensorIterator mv::BaseOpModel::defineOp(const std::string& opType, co
         else
             throw LogicError(*this, "Attempt of multi-output model definiton - currently unsupported");
     }
-    
+
     if ((*opNode).outputSlots() > 0)
         return (*opNode).getOutputTensor(0);
 
@@ -127,7 +127,7 @@ void mv::BaseOpModel::removeOp(Data::OpListIterator op)
 
     log(Logger::MessageType::Info, "Removed " + op->toString());
     dataGraph_.node_erase(op);
-    
+
 }
 
 mv::Data::FlowListIterator mv::BaseOpModel::defineFlow(Data::TensorIterator sourceTensor, Data::OpListIterator sinkOp, std::size_t inputIdx)
@@ -201,7 +201,6 @@ std::vector<mv::Data::OpListIterator> mv::BaseOpModel::lexTopologicalSort()
     auto lexTopSortResult = mv::lexTopologicalSort<Op, DataFlow, OpItComparator, OpLexComparator>(dataGraph_);
     std::vector<mv::Data::OpListIterator> toReturn(lexTopSortResult.begin(), lexTopSortResult.end());
 
-    std::cout << "-----sorted ops------" << std::endl;
     for (auto s: toReturn)
     {
         std::cout << s->getName() << std::endl;
@@ -307,6 +306,11 @@ std::size_t mv::BaseOpModel::opsCount(const std::string& opType) const
     if (opsInstanceCounter_->find(opType) != opsInstanceCounter_->end())
         return opsInstanceCounter_->at(opType);
     return 0;
+}
+
+std::size_t mv::BaseOpModel::dataFlowsCount() const
+{
+    return dataGraph_.edge_size();
 }
 
 long long unsigned mv::BaseOpModel::parametersCount() const

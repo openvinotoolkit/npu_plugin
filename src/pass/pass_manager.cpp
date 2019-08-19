@@ -108,6 +108,20 @@ mv::Element& mv::PassManager::step()
 
     auto passElem = *currentPass_;
 
+    if (model_->getGlobalConfigParams()->hasAttr("disabled_labels"))
+    {
+        auto disabledLabels = model_->getGlobalConfigParams()->get<std::vector<std::string>>("disabled_labels");
+        for (auto it = disabledLabels.begin(); it != disabledLabels.end(); ++it)
+        {
+            if (passPtr->hasLabel(*it))
+            {
+                log(Logger::MessageType::Info, "Skipping pass " + passPtr->getName() + " with label \"" + *it + "\"");
+                currentPass_++;
+                return compOutput_;
+            }
+        }
+    }
+        
     log(Logger::MessageType::Info, "Starting pass " + passPtr->getName());
     passPtr->run(*model_, targetDescriptor_, passElem, lastPassOutput);
     log(Logger::MessageType::Info, "Finished pass " + passPtr->getName());

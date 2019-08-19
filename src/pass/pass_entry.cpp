@@ -37,6 +37,12 @@ mv::pass::PassEntry& mv::pass::PassEntry::defineArg(json::JSONType argType, std:
     return *this;
 }
 
+mv::pass::PassEntry& mv::pass::PassEntry::setLabel(const std::string& label)
+{
+    labels_.emplace(label);
+    return *this;
+}
+
 const std::map<std::string, mv::json::JSONType>& mv::pass::PassEntry::getArgs() const
 {
     return requiredArgs_;
@@ -45,6 +51,11 @@ const std::map<std::string, mv::json::JSONType>& mv::pass::PassEntry::getArgs() 
 std::size_t mv::pass::PassEntry::argsCount() const
 {
     return requiredArgs_.size();
+}
+
+bool mv::pass::PassEntry::hasLabel(const std::string& label) const
+{
+    return labels_.find(label) != labels_.end();
 }
 
 void mv::pass::PassEntry::run(ComputationModel& model, TargetDescriptor& targetDescriptor, Element& passDescriptor, Element& output) const

@@ -13,6 +13,7 @@ namespace mv
 
         MV_REGISTER_PASS(CheckTensors)
         .setFunc(checkTensorsFcn)
+        .setLabel("Debug")
         .setDescription(
             "Check if tensors stored in the computation model are in a valid state."
             "States that are considered to be invalid:"

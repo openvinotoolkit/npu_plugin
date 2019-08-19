@@ -14,6 +14,7 @@ namespace mv
         MV_REGISTER_PASS(ConvertDot)
         .setFunc(convertDotFcn)
         .defineArg(json::JSONType::String, "input")
+        .setLabel("Debug")
         .setDescription(
             "Converts a .dot file in SVG under UNIX"
         );

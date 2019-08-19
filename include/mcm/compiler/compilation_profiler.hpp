@@ -6,6 +6,9 @@
     #include "easy/profiler.h"
     #include <easy/profiler.h>
     #include <easy/arbitrary_value.h>
+    #include "stdlib.h"
+    #include "stdio.h"
+    #include "string.h"
 
     #define MV_BLOCK_COLOR_RED profiler::colors::Red
     #define MV_BLOCK_COLOR_BLUE profiler::colors::Blue
@@ -74,8 +77,63 @@
     #define MV_PROFILED_BLOCK_START(name, ...) EASY_BLOCK(name, ## __VA_ARGS__)
     #define MV_PROFILED_BLOCK_END() EASY_END_BLOCK
     #define MV_PROFILED_EVENT(name, ...) EASY_EVENT(name, ## __VA_ARGS__)
-    // WIP
-    //#define MV_PROFILED_VARIABLE(name, ...) EASY_VALUE("#name", name, EASY_VIN("name"));
+    #define MV_PROFILED_VARIABLE(name, ...) EASY_VALUE(#name, name, EASY_VIN(#name));
+
+
+    // Source:
+    // https://stackoverflow.com/questions/63166/how-to-determine-cpu-and-memory-consumption-from-inside-a-process
+    static int parseLine(char* line)
+    {
+        int i = strlen(line);
+        const char* p = line;
+        while (*p <'0' || *p > '9') p++;
+        line[i-3] = '\0';
+        i = atoi(p);
+        return i;
+    }
+
+    // Source:
+    // https://stackoverflow.com/questions/63166/how-to-determine-cpu-and-memory-consumption-from-inside-a-process
+    inline int getVirtualMemoryUsage()
+    {
+        FILE* file = fopen("/proc/self/status", "r");
+        int result = -1;
+        char line[128];
+
+        while (fgets(line, 128, file) != NULL)
+        {
+            if (strncmp(line, "VmSize:", 7) == 0)
+            {
+                result = parseLine(line);
+                break;
+            }
+        }
+        fclose(file);
+        return result;
+    }
+
+    // Source:
+    // https://stackoverflow.com/questions/63166/how-to-determine-cpu-and-memory-consumption-from-inside-a-process
+    inline int getPhysicalMemoryUsage()
+    {
+        FILE* file = fopen("/proc/self/status", "r");
+        int result = -1;
+        char line[128];
+
+        while (fgets(line, 128, file) != NULL)
+        {
+            if (strncmp(line, "VmRSS:", 6) == 0)
+            {
+                result = parseLine(line);
+                break;
+            }
+        }
+        fclose(file);
+        return result;
+    }
+
+    #define MV_PROFILE_VIRTUAL_MEM int virtualMem  = getVirtualMemoryUsage(); MV_PROFILED_VARIABLE(virtualMem)
+    #define MV_PROFILE_PHYSICAL_MEM int physicalMem  = getPhysicalMemoryUsage(); MV_PROFILED_VARIABLE(physicalMem)
 
 #else
 
@@ -92,6 +150,9 @@
     #define MV_PROFILE_ALGO
     #define MV_PROFILE_BULD
     #define MV_PROFILE_MATH
+    #define MV_PROFILED_VARIABLE(name, ...)
+    #define MV_PROFILE_VIRTUAL_MEM
+    #define MV_PROFILE_PHYSICAL_MEM
 
 #endif
 

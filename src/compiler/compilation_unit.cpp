@@ -175,8 +175,24 @@ mv::Element mv::CompilationUnit::run()
     passManager_.loadPassList(passList);
 
     while (!passManager_.completed())
+    {
+        MV_PROFILE_VIRTUAL_MEM;
+        MV_PROFILE_PHYSICAL_MEM;
+        #ifdef MV_PROFILER_ENABLED
+        std::size_t ops = model_->opsCount();
+        std::size_t dataFlows = model_->dataFlowsCount();
+        ControlModel cm(*model_);
+        std::size_t controlFlows = cm.controlFlowsCount();
+        DataModel dm(*model_);
+        std::size_t tensors = dm.tensorsCount();
+        MV_PROFILED_VARIABLE(ops);
+        MV_PROFILED_VARIABLE(dataFlows);
+        MV_PROFILED_VARIABLE(controlFlows);
+        MV_PROFILED_VARIABLE(tensors);
+        #endif
+        
         output = passManager_.step();
-
+    }
     
     return output;
 }
