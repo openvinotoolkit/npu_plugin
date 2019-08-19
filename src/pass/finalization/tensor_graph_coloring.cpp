@@ -565,7 +565,7 @@ void tensorGraphColoringFnc(const mv::pass::PassEntry& pass, mv::ComputationMode
 
     auto alignment = 16; //memDefs.find("VPU_CMX_NN")->second.alignment;//TODO for now POC uses 16 for all memory
     pass.log(mv::Logger::MessageType::Info, " generating cmx TIG");
-    mv::TensorInterferenceGraph nncmx_g(model, alignment, nullptr, nullptr, false, true);
+    mv::TensorInterferenceGraph nncmx_g(pass, model, alignment, nullptr, nullptr, false, true);
 
     auto memsize = globalConfigParams->get<unsigned>("cmx");
     pass.log(mv::Logger::MessageType::Info, " Calling AggressiveSimplify");
