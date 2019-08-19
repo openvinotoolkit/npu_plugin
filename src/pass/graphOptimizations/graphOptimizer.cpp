@@ -680,9 +680,6 @@ public:
                             for(unsigned h = 1; h <= maxSplitOverH; h++)
                             {
                                 //TODO: these are very fast hacks. Delete after we can allow nested streams and
-                                // non-%2-number of streams
-                                if((h!=1) and (h%2))
-                                    continue;
                                 if( (h>1) and (k>1))
                                     continue;
                                 if( ((h*k) > 1) and (spilling.get<bool>() == false))
