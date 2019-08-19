@@ -43,192 +43,6 @@ void print_buffer_HWC_fp16(ie_fp16 *src_data, int32_t IW, int32_t IH, int32_t IC
     }
 }
 
-void print_tensor_HWC_fp16(const Blob::Ptr src, const char * tname, int32_t iw0, int32_t iw1, int32_t ih0, int32_t ih1, int32_t ic0, int32_t ic1)
-{
-    ie_fp16 *src_data = static_cast<ie_fp16*>(src->buffer());
-
-    int32_t IW = 0;
-    int32_t IH = 0;
-    int32_t IC = 0;
-    get_dims(src, IW, IH, IC);
-
-    print_buffer_HWC_fp16(src_data, IW, IH, IC, tname, iw0, iw1, ih0, ih1, ic0, ic1);
-}
-
-void get_ndims(const InferenceEngine::Blob::Ptr blob,
-               int32_t &dimx,
-               int32_t &dimy,
-               int32_t &dimz,
-               int32_t &dimn) {
-    ASSERT_NE(blob, nullptr);
-    auto dims = blob->getTensorDesc().getDims();
-    std::reverse(dims.begin(), dims.end());
-
-    if (dims.size() == 2) {
-        dimn = 1;
-        dimz = 1;
-        dimy = dims[1];
-        dimx = dims[0];
-    } else if (dims.size() == 3) {
-        dimx = dims[0];
-        dimy = dims[1];
-        dimz = dims[2];
-        dimn = 1;
-    } else if (dims.size() == 4) {
-        dimx = dims[0];
-        dimy = dims[1];
-        dimz = dims[2];
-        dimn = dims[3];
-    }
-}
-
-void get_dims(const InferenceEngine::Blob::Ptr blob,
-                    int32_t &dimx,
-                    int32_t &dimy,
-                    int32_t &dimz,
-                    int32_t &dimn) {
-    ASSERT_NE(blob, nullptr);
-    dimn = 1;
-    dimz = 1;
-    auto dims = blob->getTensorDesc().getDims();
-    std::reverse(dims.begin(), dims.end());
-
-    if (dims.size() > 3) {
-        dimn = dims[3];
-    }
-    if (dims.size() > 2) {
-        dimz = dims[2];
-    }
-    if (dims.size() > 1) {
-        dimy = dims[1];
-    }
-    dimx = dims[0];
-}
-
-void get_dims(const InferenceEngine::Blob::Ptr blob,
-                    int32_t &dimx,
-                    int32_t &dimy,
-                    int32_t &dimz) {
-    ASSERT_NE(blob, nullptr);
-    get_common_dims(*blob.get(), dimx, dimy, dimz);
-}
-
-void get_dims(const InferenceEngine::SizeVector& input_dims,
-                    int32_t &IW,
-                    int32_t &IH,
-                    int32_t &IC) {
-    IW = 0;
-    IH = 0;
-    IC = 0;
-    int32_t stub = 0;
-
-    get_dims(input_dims, IW, IH, IC, stub);
-}
-
-void get_dims(const InferenceEngine::SizeVector& input_dims,
-                    int32_t &IW,
-                    int32_t &IH,
-                    int32_t &IC,
-                    int32_t &I_N) {
-    IW = 0;
-    IH = 0;
-    IC = 0;
-    I_N = 1;
-    switch (input_dims.size()) {
-        case 2:
-            /* Fully connected tests */
-            IW = 1;
-            IC = 1;
-            IC = input_dims[1];
-            break;
-        case 3:
-            IW = input_dims[2];
-            IH = input_dims[1];
-            IC = input_dims[0];
-            break;
-        case 4:
-            IW = input_dims[3];
-            IH = input_dims[2];
-            IC = input_dims[1];
-            I_N = input_dims[0];
-            break;
-        default:
-            FAIL() << "Unsupported input dimension.";
-            break;
-    }
-}
-
-void gen_dims(InferenceEngine::SizeVector& out_dims,
-              int32_t dimension,
-              int32_t IW,
-              int32_t IH,
-              int32_t IC) {
-    if (dimension < 2 ||
-        dimension > 4)
-        FAIL() << "Unsupported input dimension:" << dimension;
-    out_dims.reserve(dimension);
-    switch (dimension) {
-        case 4:
-            out_dims.push_back(1);
-        case 3:
-            out_dims.push_back(IC);
-            out_dims.push_back(IH);
-            out_dims.push_back(IW);
-            break;
-        default:
-            break;
-    }
-}
-
-void gen_dims(InferenceEngine::SizeVector& out_dims,
-              int32_t dimension,
-              int32_t IW,
-              int32_t IH,
-              int32_t IC,
-              int32_t I_N) {
-    if (dimension < 2 ||
-        dimension > 4)
-        FAIL() << "Unsupported input dimension:" << dimension;
-    out_dims.reserve(dimension);
-    switch (dimension) {
-        case 4:
-            out_dims.push_back(I_N);
-        case 3:
-            out_dims.push_back(IC);
-            out_dims.push_back(IH);
-            out_dims.push_back(IW);
-            break;
-        default:
-            break;
-    }
-}
-
-void defaultWeightsRange(uint16_t* ptr, size_t weightsSize, size_t biasSize) {
-    ASSERT_NE(ptr, nullptr);
-    float scale  = 2.0f / RAND_MAX;
-    for (size_t count = 0 ; count < (weightsSize + biasSize); ++count) {
-        float val = rand();
-        val = val * scale - 1.0f;
-        ptr[count] = PrecisionUtils::f32tof16(val);
-    }
-}
-
-void smallWeightsRange(uint16_t* ptr, size_t weightsSize, size_t biasSize) {
-    ASSERT_NE(ptr, nullptr);
-    float scale  = 2.0f / RAND_MAX;
-    for (size_t count = 0 ; count < (weightsSize + biasSize); ++count) {
-        float val = rand();
-        val = (val * scale - 1.0f) / 512;
-        ptr[count] = PrecisionUtils::f32tof16(val);
-    }
-}
-
-std::string gen_param(const param_size& in_param) {
-    std::string res = std::to_string(in_param.x) + ",";
-    res += std::to_string(in_param.y);
-    return res;
-}
-
 void vpuLayersTests::SetUp()
 {
     pluginName = "myriadPlugin";
@@ -291,20 +105,20 @@ void vpuLayersTests::SetSeed(uint32_t seed)
 
 void vpuLayersTests::dumpPerformance()
 {
-    std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> perfMap;
+    std::map<std::string, InferenceEngineProfileInfo> perfMap;
     _inferRequest->GetPerformanceCounts(perfMap, nullptr);
-    std::vector <std::pair<std::string, InferenceEngine::InferenceEngineProfileInfo>> perfVec(perfMap.begin(), perfMap.end());
+    std::vector <std::pair<std::string, InferenceEngineProfileInfo>> perfVec(perfMap.begin(), perfMap.end());
     std::sort(perfVec.begin(), perfVec.end(),
-              [=](const std::pair<std::string, InferenceEngine::InferenceEngineProfileInfo> &pair1,
-                  const std::pair<std::string, InferenceEngine::InferenceEngineProfileInfo> &pair2) -> bool {
+              [=](const std::pair<std::string, InferenceEngineProfileInfo> &pair1,
+                  const std::pair<std::string, InferenceEngineProfileInfo> &pair2) -> bool {
                   return pair1.second.execution_index < pair2.second.execution_index;
               });
 
     unsigned currentIndex = 0;
     for (auto it = perfVec.begin(); it != perfVec.end(); ++it) {
         std::string layerName = it->first;
-        InferenceEngine::InferenceEngineProfileInfo info = it->second;
-        if (info.status == InferenceEngine::InferenceEngineProfileInfo::EXECUTED) {
+        InferenceEngineProfileInfo info = it->second;
+        if (info.status == InferenceEngineProfileInfo::EXECUTED) {
             printf("\x1B[32m[----------]\x1B[0m Myriad time = '%s' layer with '%s' type is %f ms.\n", layerName.c_str(), info.exec_type, info.realTime_uSec / 1000.f);
         }
     }
@@ -511,20 +325,20 @@ void vpuLayersTests::genInputBlobs(Precision precision)
 {
     auto genDataCallback = (_genDataCallback0 != nullptr) ? _genDataCallback0 : _genDataCallback;
     for (auto inpt : _inputsInfo) {
-        InferenceEngine::SizeVector inputDims = inpt.second->getTensorDesc().getDims();
+        SizeVector inputDims = inpt.second->getTensorDesc().getDims();
         Blob::Ptr inputBlob = nullptr;
         Layout netLayout = inpt.second->getTensorDesc().getLayout();
         // work only with NHWC layout if size of the input dimensions == NHWC
         Layout layout = netLayout == NHWC || netLayout == NCHW? NHWC : netLayout;
         switch (precision) {
         case Precision::U8:
-            inputBlob = InferenceEngine::make_shared_blob<uint8_t>({Precision::U8, inputDims, layout});
+            inputBlob = make_shared_blob<uint8_t>({Precision::U8, inputDims, layout});
             break;
         case Precision::FP16:
-            inputBlob = InferenceEngine::make_shared_blob<ie_fp16>({Precision::FP16, inputDims, layout});
+            inputBlob = make_shared_blob<ie_fp16>({Precision::FP16, inputDims, layout});
             break;
         case Precision::FP32:
-            inputBlob = InferenceEngine::make_shared_blob<float>({Precision::FP32, inputDims, layout});
+            inputBlob = make_shared_blob<float>({Precision::FP32, inputDims, layout});
             break;
         default:
             THROW_IE_EXCEPTION << "Unsupported precision for input. Supported U8, FP16, FP32";
@@ -532,14 +346,14 @@ void vpuLayersTests::genInputBlobs(Precision precision)
         inputBlob->allocate();
         ASSERT_NE(genDataCallback, nullptr);
         genDataCallback(inputBlob);
-        InferenceEngine::StatusCode st = _inferRequest->SetBlob(inpt.first.c_str(), inputBlob, &_resp);
-        ASSERT_EQ((int) InferenceEngine::StatusCode::OK, st) << _resp.msg;
+        StatusCode st = _inferRequest->SetBlob(inpt.first.c_str(), inputBlob, &_resp);
+        ASSERT_EQ((int) StatusCode::OK, st) << _resp.msg;
         _inputMap[inpt.first] = inputBlob;
         genDataCallback = _genDataCallback;
     }
 }
 
-void GenRandomData(InferenceEngine::Blob::Ptr blob)
+void GenRandomData(Blob::Ptr blob)
 {
     GenRandomDataCommon(blob);
 }
@@ -547,30 +361,30 @@ void GenRandomData(InferenceEngine::Blob::Ptr blob)
 void vpuLayersTests::genOutputBlobs(Precision precision)
 {
     for (auto outpt : _outputsInfo) {
-        InferenceEngine::SizeVector outputDims = outpt.second->getTensorDesc().getDims();
+        SizeVector outputDims = outpt.second->getTensorDesc().getDims();
         Blob::Ptr outputBlob = nullptr;
         Layout netLayout = outpt.second->getTensorDesc().getLayout();
         // work only with NHWC layout if size of the input dimensions == NHWC
         Layout layout = netLayout == NHWC || netLayout == NCHW? NHWC : netLayout;
         switch (precision) {
         case Precision::FP16:
-            outputBlob = InferenceEngine::make_shared_blob<ie_fp16>({Precision::FP16, outputDims, layout});
+            outputBlob = make_shared_blob<ie_fp16>({Precision::FP16, outputDims, layout});
             break;
         case Precision::FP32:
-            outputBlob = InferenceEngine::make_shared_blob<float>({Precision::FP32, outputDims, layout});
+            outputBlob = make_shared_blob<float>({Precision::FP32, outputDims, layout});
             break;
         default:
             THROW_IE_EXCEPTION << "Unsupported precision for output. Supported FP16, FP32";
         }
         outputBlob->allocate();
-        InferenceEngine::StatusCode st = _inferRequest->SetBlob(outpt.first.c_str(), outputBlob, &_resp);
+        StatusCode st = _inferRequest->SetBlob(outpt.first.c_str(), outputBlob, &_resp);
         _outputMap[outpt.first] = outputBlob;
-        ASSERT_EQ((int) InferenceEngine::StatusCode::OK, st) << _resp.msg;
+        ASSERT_EQ((int) StatusCode::OK, st) << _resp.msg;
     }
 }
 
-void vpuLayersTests::setup(InferenceEngine::Precision outputPrecision,
-                              InferenceEngine::Precision inputPrecision,
+void vpuLayersTests::setup(Precision outputPrecision,
+                              Precision inputPrecision,
                               bool useHWOpt)
 {
     CNNNetwork network = _net_reader.getNetwork();
@@ -601,11 +415,11 @@ void vpuLayersTests::setup(InferenceEngine::Precision outputPrecision,
     genInputBlobs(inputPrecision);
     genOutputBlobs(outputPrecision);
     // FIXME: why we create and allocate refBlob here for myriadLayerTests if outputPrecision == FP16?
-    if (outputPrecision == InferenceEngine::Precision::FP16) {
+    if (outputPrecision == Precision::FP16) {
         Layout netLayout = _outputsInfo.begin()->second->getTensorDesc().getLayout();
         // work only with NHWC layout if size of the input dimensions == NHWC
         Layout layout = netLayout == NHWC || netLayout == NCHW? NHWC : netLayout;
-            _refBlob = InferenceEngine::make_shared_blob<ie_fp16>({Precision::FP16, _outputMap.begin()->second->getTensorDesc().getDims(), layout});
+            _refBlob = make_shared_blob<ie_fp16>({Precision::FP16, _outputMap.begin()->second->getTensorDesc().getDims(), layout});
         _refBlob->allocate();
     }
 }
@@ -614,9 +428,9 @@ void vpuLayersTests::doNetworkInit(const std::string& layer_type,
                 std::map<std::string, std::string>* params,
                 int weights_size,
                 int biases_size,
-                InferenceEngine::TBlob<uint8_t>::Ptr weights,
-                InferenceEngine::Precision outputPrecision,
-                InferenceEngine::Precision inputPrecision,
+                TBlob<uint8_t>::Ptr weights,
+                Precision outputPrecision,
+                Precision inputPrecision,
                 bool useHWOpt)
 {
     std::string xml;
@@ -636,12 +450,12 @@ bool vpuLayersTests::Infer()
         _inputMap.size() == 0 ||
         _outputMap.size() == 0)
         return res;
-    InferenceEngine::StatusCode st = InferenceEngine::GENERAL_ERROR;
+    StatusCode st = GENERAL_ERROR;
     st = _inferRequest->Infer(&_resp);
-    if (InferenceEngine::OK == st)
+    if (OK == st)
         res = true;
     else {
-        EXPECT_EQ((int) InferenceEngine::StatusCode::OK, st) << _resp.msg;
+        EXPECT_EQ((int) StatusCode::OK, st) << _resp.msg;
     }
     //dumpPerformance();
     return res;
@@ -674,7 +488,7 @@ void vpuLayersTests::SetOutputTensor(tensor_test_params const& tensor)
     _outputTensors[0][3] = tensor.w;
 }
 
-bool fromBinaryFile(std::string input_binary, InferenceEngine::Blob::Ptr blob) {
+bool fromBinaryFile(std::string input_binary, Blob::Ptr blob) {
 
     std::ifstream in(input_binary, std::ios_base::binary | std::ios_base::ate);
 
@@ -683,7 +497,7 @@ bool fromBinaryFile(std::string input_binary, InferenceEngine::Blob::Ptr blob) {
     size_t count = blob->size();
     bool status = false;
     if(in.good()) {
-        if (blob->getTensorDesc().getPrecision() == InferenceEngine::Precision::FP16) {
+        if (blob->getTensorDesc().getPrecision() == Precision::FP16) {
             ie_fp16 *blobRawDataFP16 = blob->buffer().as<ie_fp16 *>();
             if(sizeFile == count * sizeof(float)) {
                 for (size_t i = 0; i < count; i++) {
@@ -700,13 +514,13 @@ bool fromBinaryFile(std::string input_binary, InferenceEngine::Blob::Ptr blob) {
                 }
                 status = true;
             }
-        }else if (blob->getTensorDesc().getPrecision() == InferenceEngine::Precision::FP32) {
+        }else if (blob->getTensorDesc().getPrecision() == Precision::FP32) {
             float *blobRawData = blob->buffer();
             if(sizeFile == count * sizeof(float)) {
                 in.read(reinterpret_cast<char *>(blobRawData), count * sizeof(float));
                 status = true;
             }
-        } else if (blob->getTensorDesc().getPrecision() == InferenceEngine::Precision::U8) {
+        } else if (blob->getTensorDesc().getPrecision() == Precision::U8) {
             char *blobRawData = blob->buffer().as<char *>();
             if(sizeFile == count * sizeof(char)) {
                 in.read(blobRawData, count * sizeof(char));
@@ -743,7 +557,7 @@ void vpuLayersTests::SetFirstInputToRange(float start, float finish)
 void vpuLayersTests::SetInputInOrder()
 {
     ASSERT_NE(_inputsInfo.size(), 0);
-    InferenceEngine::SizeVector inputDims = _inputsInfo.begin()->second->getTensorDesc().getDims();
+    SizeVector inputDims = _inputsInfo.begin()->second->getTensorDesc().getDims();
     auto inputBlob = _inputMap[_inputsInfo.begin()->first];
     ASSERT_NE(inputBlob, nullptr);
     uint16_t *inputBlobRawDataFp16 = inputBlob->buffer().as<uint16_t*>();
@@ -769,7 +583,7 @@ void vpuLayersTests::SetInputInOrderReverse() {
     }
 }
 
-void vpuLayersTests::checkBlobs(InferenceEngine::Blob::Ptr actual, InferenceEngine::Blob::Ptr expected)
+void vpuLayersTests::checkBlobs(Blob::Ptr actual, Blob::Ptr expected)
 {
     const auto& actual_dims = actual->getTensorDesc().getDims();
     const auto& expected_dims = expected->getTensorDesc().getDims();
@@ -779,9 +593,9 @@ void vpuLayersTests::checkBlobs(InferenceEngine::Blob::Ptr actual, InferenceEngi
     for (size_t i = 0; i < actual_dims.size(); i++) {
         ASSERT_EQ(actual_dims[i], expected_dims[i]);
     }
-    float *actualData = dynamic_cast<InferenceEngine::TBlob<float> *>(&(*actual))->data();
+    float *actualData = dynamic_cast<TBlob<float> *>(&(*actual))->data();
     ASSERT_NE(actualData, nullptr);
-    float *expectedData = dynamic_cast<InferenceEngine::TBlob<float> *>(&(*expected))->data();
+    float *expectedData = dynamic_cast<TBlob<float> *>(&(*expected))->data();
     ASSERT_NE(expectedData, nullptr);
     size_t countElems = actual_dims[0];
     for (size_t i = 1; i < actual_dims.size(); i++) {
@@ -792,14 +606,14 @@ void vpuLayersTests::checkBlobs(InferenceEngine::Blob::Ptr actual, InferenceEngi
     }
 }
 
-InferenceEngine::TBlob<uint8_t>* vpuLayersTests::GenWeights(size_t sz, float min_val, float max_val)
+TBlob<uint8_t>::Ptr vpuLayersTests::GenWeights(size_t sz, float min_val, float max_val)
 {
     // TODO: pass seed as parameter
 
     float scale  = (max_val - min_val) / RAND_MAX;
-    InferenceEngine::TBlob<uint8_t> *weights = new InferenceEngine::TBlob<uint8_t>({InferenceEngine::Precision::U8, {(sz) * sizeof(uint16_t)}, InferenceEngine::C});
+    TBlob<uint8_t>::Ptr weights = make_shared_blob<uint8_t>({Precision::U8, {(sz) * sizeof(uint16_t)}, C});
     weights->allocate();
-    uint16_t *inputBlobRawDataFp16 = weights->data().as<uint16_t *>();
+    uint16_t *inputBlobRawDataFp16 = weights->buffer().as<uint16_t *>();
     size_t indx = 0;
 
     for (; indx < sz; ++indx) {
@@ -810,15 +624,15 @@ InferenceEngine::TBlob<uint8_t>* vpuLayersTests::GenWeights(size_t sz, float min
     return weights;
 }
 
-void vpuLayersTests::Compare(InferenceEngine::Blob::Ptr actual,
-                                InferenceEngine::Blob::Ptr expected,
+void vpuLayersTests::Compare(Blob::Ptr actual,
+                                Blob::Ptr expected,
                                 float tolerance)
 {
     CompareCommon(actual, expected, tolerance);
 }
 
-void vpuLayersTests::CompareWithNorm(InferenceEngine::Blob::Ptr actual,
-                                        InferenceEngine::Blob::Ptr expected,
+void vpuLayersTests::CompareWithNorm(Blob::Ptr actual,
+                                        Blob::Ptr expected,
                                         float max_diff)
 {
     ASSERT_NE(actual, nullptr);
@@ -856,14 +670,14 @@ void vpuLayersTests::genNetwork(bool useHWOpt, int version) {
             real_offset += elem.biases_size;
         }
     }
-    InferenceEngine::TBlob<uint8_t>::Ptr weights_ptr;
+    TBlob<uint8_t>::Ptr weights_ptr;
     if (real_offset) {
-        InferenceEngine::TBlob<uint8_t> *weights = new InferenceEngine::TBlob<uint8_t>({InferenceEngine::Precision::U8, {(real_offset) * sizeof(uint16_t)}, InferenceEngine::C});
+        TBlob<uint8_t>::Ptr weights = make_shared_blob<uint8_t>({Precision::U8, {(real_offset) * sizeof(uint16_t)}, C});
         ASSERT_NE(weights, nullptr);
         weights->allocate();
-        weights_ptr = InferenceEngine::TBlob<uint8_t>::Ptr(weights);
+        weights_ptr = weights;
         /* fillup data */
-        uint16_t *inputBlobRawDataFp16 = weights_ptr->data().as<uint16_t *>();
+        uint16_t *inputBlobRawDataFp16 = weights_ptr->buffer().as<uint16_t *>();
         ASSERT_NE(inputBlobRawDataFp16, nullptr);
         uint16_t* ptr = inputBlobRawDataFp16;
         for (auto& elem : _testNet) {
@@ -961,13 +775,13 @@ R"V0G0N(
     model += R"V0G0N(
     </layers>)V0G0N";
     model += edges;
-    InferenceEngine::StatusCode st;
+    StatusCode st;
     ASSERT_NO_THROW(_net_reader.ReadNetwork(model.data(), model.length()));
     ASSERT_TRUE(_net_reader.isParseSuccess());
     if (weights_ptr != nullptr) {
         _net_reader.SetWeights(weights_ptr);
     }
-    setup(InferenceEngine::Precision::FP16, InferenceEngine::Precision::FP16, useHWOpt);
+    setup(Precision::FP16, Precision::FP16, useHWOpt);
     _netInitialized = true;
 }
 
@@ -987,13 +801,13 @@ void vpuLayersTests::ReferenceGraph() {
     uint16_t *refBlobRawDataFp16 = referenceInput->buffer();
     ASSERT_NE(inputBlobRawDataFp16, nullptr);
     ie_memcpy(refBlobRawDataFp16, realInput->byteSize(), inputBlobRawDataFp16, count * sizeof(uint16_t));
-    InferenceEngine::ICNNNetwork &network = _net_reader.getNetwork();
+    ICNNNetwork &network = _net_reader.getNetwork();
     for (size_t ind = 0; ind < _testNet.size(); ++ind) {
         if (_testNet[ind].fillWeights != nullptr) {
             auto& refLayer = _referenceGraph.callbacks[ind];
             CNNLayerPtr layer;
             auto status = network.getLayerByName(_testNet[ind].layer_name.c_str(), layer, &_resp);
-            ASSERT_EQ(status, (int) InferenceEngine::StatusCode::OK);
+            ASSERT_EQ(status, (int) StatusCode::OK);
             if (layer->type == "PReLU") {
                 /* PReLU is a custom layer */
                 auto it = layer->blobs.find("weights");
@@ -1005,7 +819,7 @@ void vpuLayersTests::ReferenceGraph() {
                 uint16_t *inputWeightsDataFp16 = weightsBlob->buffer();
                 ie_memcpy(refLayer.weights, refLayer.weights_size * sizeof(uint16_t), inputWeightsDataFp16, weigths_sz * sizeof(uint16_t));
             } else {
-                auto layerWithWeights = std::dynamic_pointer_cast<InferenceEngine::WeightableLayer>(layer);
+                auto layerWithWeights = std::dynamic_pointer_cast<WeightableLayer>(layer);
                 size_t weigths_sz = 0;
                 if (layerWithWeights->_weights) {
                     weigths_sz = layerWithWeights->_weights->size();
@@ -1027,14 +841,14 @@ void vpuLayersTests::ReferenceGraph() {
 }
 
 Blob::Ptr ConvertU8ToFP32(const Blob::Ptr &inBlob) {
-    InferenceEngine::TensorDesc inTensor = inBlob->getTensorDesc();
-    if (inTensor.getPrecision() != InferenceEngine::Precision::U8) {
+    TensorDesc inTensor = inBlob->getTensorDesc();
+    if (inTensor.getPrecision() != Precision::U8) {
         throw std::runtime_error("ConvertU8ToFP16: only U8 input is supported");
     }
-    InferenceEngine::SizeVector outDims = inTensor.getDims();
-    InferenceEngine::Layout outLayout = inTensor.getLayout();
-    InferenceEngine::Precision outPrecision = InferenceEngine::Precision::FP32;
-    InferenceEngine::TensorDesc outTensor(outPrecision, outDims, outLayout);
+    SizeVector outDims = inTensor.getDims();
+    Layout outLayout = inTensor.getLayout();
+    Precision outPrecision = Precision::FP32;
+    TensorDesc outTensor(outPrecision, outDims, outLayout);
     Blob::Ptr outBlob = make_blob_with_precision(outTensor);
     outBlob->allocate();
     uint8_t *blobRawDataU8 = inBlob->buffer().as<uint8_t*>();

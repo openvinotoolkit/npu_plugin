@@ -26,7 +26,7 @@
 #define ERROR_BOUND (.1f)
 
 using namespace InferenceEngine;
-using namespace InferenceEngine::details;
+using namespace details;
 
 enum class FileIOResult { FileNotOpened = -1, FilesWithDifferentSize = -2, FilesHaveEqualSize = 1 };
 
@@ -152,7 +152,7 @@ TEST_F(kmbLayersTests_nightly, DISABLED_TestExportImportBlob_resnet50_int8_fragm
 
     if ( ! pstats->isEmpty() ) {
         clonedNetwork = cloneNet(network);
-        InferenceEngine::details::CNNNetworkInt8Normalizer::NormalizeNetwork(*clonedNetwork, *pstats);
+        details::CNNNetworkInt8Normalizer::NormalizeNetwork(*clonedNetwork, *pstats);
     }
 
     ExportImportBlobToFromFile(CNNNetwork(clonedNetwork), config, "resnet50_int8_fragment" );

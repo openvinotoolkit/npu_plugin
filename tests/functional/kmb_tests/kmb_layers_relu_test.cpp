@@ -115,7 +115,7 @@ TEST_F(kmbLayersTests_nightly, TestsReLUAfterConvolution) {
     std::size_t weightSize = 6 + 18816;
     std::size_t biasSize = 6 + 128;
     TBlob<uint8_t>::Ptr weightsBlob(GenWeights(weightSize + biasSize));
-
+    
     ASSERT_NO_THROW(_net_reader.ReadNetwork(model.data(), model.length()));
     ASSERT_TRUE(_net_reader.isParseSuccess());
     ASSERT_NO_THROW(_net_reader.SetWeights(weightsBlob));
@@ -138,7 +138,7 @@ TEST_F(kmbLayersTests_nightly, TestsReLUAfterConvolution) {
     config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_DOT)] = CONFIG_VALUE(YES);
     config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_JSON)] = CONFIG_VALUE(YES);
 
-    ASSERT_NO_THROW(ie.LoadNetwork(network, "kmb", config));
+    ASSERT_NO_THROW(_exeNetwork = ie.LoadNetwork(network, "kmb", config));
 }
 
 TEST_F(kmbLayersTests_nightly, TestsReLUOnly) {
@@ -198,7 +198,7 @@ TEST_F(kmbLayersTests_nightly, TestsReLUOnly) {
     setCommonConfig(config);
     config[VPU_KMB_CONFIG_KEY(MCM_PARSING_ONLY)] = CONFIG_VALUE(YES);
 
-    ASSERT_NO_THROW(ie.LoadNetwork(network, "kmb", config));
+    ASSERT_NO_THROW(_exeNetwork = ie.LoadNetwork(network, "kmb", config));
 }
 
 TEST_P(kmbLayersTestsReLUParams, TestsReLUNetInit) {
@@ -226,18 +226,18 @@ TEST_P(kmbLayersTestsReLUParams, TestsReLUNetInit) {
     CNNNetwork network = _net_reader.getNetwork();
     _inputsInfo = network.getInputsInfo();
     for (const auto & in : _inputsInfo){
-        in.second->setPrecision(InferenceEngine::Precision::FP16);
+        in.second->setPrecision(Precision::FP16);
     }
     _outputsInfo = network.getOutputsInfo();
     for (const auto& outputInfo : _outputsInfo) {
-        outputInfo.second->setPrecision(InferenceEngine::Precision::FP16);
+        outputInfo.second->setPrecision(Precision::FP16);
     }
     std::map<std::string, std::string> config;
     // LoadNetwork results in 'Null pointer dereference' response
     // TODO disable 'parse only' and find out why LoadNetwork fails
     config[VPU_KMB_CONFIG_KEY(MCM_PARSING_ONLY)] = CONFIG_VALUE(YES);
 
-    ASSERT_NO_THROW(ie.LoadNetwork(network, "kmb", config));
+    ASSERT_NO_THROW(_exeNetwork = ie.LoadNetwork(network, "kmb", config));
 }
 
 static const tensor_test_params paramsTable[] = {
