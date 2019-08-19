@@ -166,7 +166,7 @@ public:
         if(op.getOpType() != "Output")
             outputSize = tensorSize(op.getOutputTensor(0)->getShape(),{streamConfig["W"],streamConfig["H"],1,1});
 
-        if(op.getOpType() == "Conv" || op.getOpType() == "DepthwiseConv")
+        if(op.getOpType() == "Conv" || op.getOpType() == "DepthwiseConv" || op.getOpType() == "DepthWiseConv")
         {
             weightTableSize = 16*((op.getInputTensor(1)->getShape()["K"] + streamConfig["K"] - 1) / streamConfig["K"]);
             weightSize += tensorSize(op.getInputTensor(1)->getShape(),{1,1,streamConfig["C"],streamConfig["K"]});
@@ -333,7 +333,7 @@ public:
         Shape contexts,isiSplit;
 
         if( (opType == "MaxPool") or
-            (opType == "DepthWiseConv")) // TODO:: check for CHMAJOR CONV
+            (opType == "DepthWiseConv") or (opType == "DepthwiseConv")) // TODO:: check for CHMAJOR CONV
         {
             contexts = {16,1,16,1};
         }
