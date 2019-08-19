@@ -159,7 +159,7 @@ void mv::DataModel::undefineTensor(Data::TensorIterator tensor)
     undefineTensor(tensor->getName());
 }
 
-unsigned mv::DataModel::tensorsCount() const
+std::size_t mv::DataModel::tensorsCount() const
 {
     return tensors_->size();
 }
@@ -354,6 +354,24 @@ const mv::MemoryAllocator& mv::DataModel::getAllocator(const std::string& alloca
     return *(*memoryAllocators_)[allocatorName];
 }
 
+unsigned long long mv::DataModel::populatedTotalSize() const
+{
+
+    long long result = 0;
+    for (auto it = tensorBegin(); it != tensorEnd(); ++it)
+        if (it->isPopulated())
+            result += it->computeTotalSize();
+    return result;
+}
+
+unsigned long long mv::DataModel::unpopulatedTotalSize() const
+{
+    long long result = 0;
+    for (auto it = tensorBegin(); it != tensorEnd(); ++it)
+        if (!it->isPopulated())
+            result += it->computeTotalSize();
+    return result;
+}
 
 std::string mv::DataModel::getLogID() const
 {

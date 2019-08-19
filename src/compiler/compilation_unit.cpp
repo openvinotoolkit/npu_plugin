@@ -185,10 +185,14 @@ mv::Element mv::CompilationUnit::run()
         std::size_t controlFlows = cm.controlFlowsCount();
         DataModel dm(*model_);
         std::size_t tensors = dm.tensorsCount();
-        MV_PROFILED_VARIABLE(ops);
-        MV_PROFILED_VARIABLE(dataFlows);
-        MV_PROFILED_VARIABLE(controlFlows);
-        MV_PROFILED_VARIABLE(tensors);
+        std::size_t populatedSize = dm.populatedTotalSize();
+        std::size_t unpopulatedSize = dm.unpopulatedTotalSize();
+        MV_PROFILED_VARIABLE(ops, MV_PROFILER_COLOR_GREEN);
+        MV_PROFILED_VARIABLE(dataFlows, MV_PROFILER_COLOR_ROSE);
+        MV_PROFILED_VARIABLE(controlFlows, MV_PROFILER_COLOR_RED);
+        MV_PROFILED_VARIABLE(tensors, MV_PROFILER_COLOR_BLUE);
+        MV_PROFILED_VARIABLE(populatedSize, MV_PROFILER_COLOR_ORANGE);
+        MV_PROFILED_VARIABLE(unpopulatedSize, MV_PROFILER_COLOR_LIME);
         #endif
         
         output = passManager_.step();
