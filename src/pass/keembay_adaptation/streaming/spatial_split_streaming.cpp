@@ -737,7 +737,7 @@ void generateSpatialTiling(mv::Data::OpListIterator op,Tiling& tiling, std::vect
         else if (split == (numberOfSplits-1))
             tileSize[axisToSplit] = inferInputSize(remainderOutputSize,0,padEnd,kernelSize,kernelStride);
         else
-            tileSize[axisToSplit] = inferInputSize(remainderOutputSize,0,0,kernelSize,kernelStride);
+            tileSize[axisToSplit] = inferInputSize(newOutputSize,0,0,kernelSize,kernelStride);
 
         Tiling newTile(tileStart, tileSize);
         tiling.setChildTile(newTile, split);
