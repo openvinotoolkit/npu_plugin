@@ -346,7 +346,7 @@ std::size_t updateNodeAddress(std::size_t startAddress, mv::TensorInterferenceGr
 std::size_t maxHeight(mv::TensorInterferenceGraph::node_list_iterator& ni, mv::graph<std::string, int>& directedGraph, mv::TensorInterferenceGraph& g)
 {
     auto directedNode = directedGraph.node_find((*ni).name);
-    if (ni->parents_size() == 0)
+    if (directedNode->parents_size() == 0)
         return (*ni).height;
 
     size_t currMaxHeight = 0;
@@ -365,7 +365,7 @@ std::size_t tryInsertion(std::pair<size_t, size_t>& gap, mv::TensorInterferenceG
 {
     auto startAddress = gap.first;
     auto size = gap.second;
-    auto gapDelta = (*ni).weight - size;
+    auto gapDelta = std::max((*ni).weight - size, (size_t)0);
 
     size_t currMaxHeight = 0;
 
@@ -374,7 +374,6 @@ std::size_t tryInsertion(std::pair<size_t, size_t>& gap, mv::TensorInterferenceG
         auto neighbor = g.node_find(*it);
         if ((*neighbor).address > startAddress)
         {
-            auto dn = directedGraph.node_find((*neighbor).name);
             auto neighborMax = maxHeight(neighbor, directedGraph, g);
             if (neighborMax > currMaxHeight)
                 currMaxHeight = neighborMax;
@@ -392,10 +391,10 @@ std::size_t updateHeights(mv::TensorInterferenceGraph::node_list_iterator& ni, m
     for (mv::graph<std::string, int>::node_parent_iterator parentIt(directedNode); parentIt != directedGraph.node_end(); ++parentIt)
     {
         auto parentNodeIt = g.node_find(*parentIt);
-        auto parentNode = *parentNodeIt;
-        parentNode.address = std::max(parentNode.address, (*ni).height);
-        parentNode.height = parentNode.address + parentNode.weight;
-        chromaticNumber = std::max(chromaticNumber, parentNode.height);
+        (*parentNodeIt).address = std::max((*parentNodeIt).address, (*ni).height);
+        (*parentNodeIt).height = (*parentNodeIt).address + (*parentNodeIt).weight;
+
+        chromaticNumber = std::max(chromaticNumber, (*parentNodeIt).height);
         auto currChromaticnumber = updateHeights(parentNodeIt, directedGraph, g, chromaticNumber);
         if (currChromaticnumber > maxChromaticNumber)
             maxChromaticNumber = currChromaticnumber;
