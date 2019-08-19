@@ -419,9 +419,6 @@ public:
         auto parentClustering = parent["clustering"].get<string>();
         auto childClustering = child["clustering"].get<string>();
 
-        if((childOp.getOpType() == "MaxPool") and (child["streaming"].get<Shape>()["H"] > 1) and (parent["spilling"].get<bool>() == true))
-            cout<<"here" << endl;
-
 
         //Cannot go from SOK/HKSwitch to SOH
         if((parentClustering == "HKSwitch" or
