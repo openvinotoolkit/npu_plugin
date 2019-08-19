@@ -621,7 +621,7 @@ void StrategyManager::recursiveDijkstra(mv::Data::OpListIterator opBegin)
         }
     }
     //save best found strategy
-    writeMetaDot(metaGraph, true);
+//    writeMetaDot(metaGraph, true);
     cout << "saving meta graph optimal path" << endl;
     saveMetaStrategy(finalCriticalPath);
 }
