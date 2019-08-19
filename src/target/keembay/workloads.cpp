@@ -886,7 +886,7 @@ void mv::Workloads::generateExecutionCycles(std::vector<mv::Workloads>& workload
         workloadsExecutionCycles.clear();
 
         /*Calculate the cost for each of the individual workloads (rectangles) */
-        for(auto itworkload = itWorklaods->workloads_.begin(); itworkload != itWorklaods->workloads_.end(); ++itworkload) {
+        for(auto itworkload = itWorkloads->workloads_.begin(); itworkload != itWorkloads->workloads_.end(); ++itworkload) {
             std::pair <int,int> mpeMode (4, 4);
 
             if(itworkload->MPEMode != mv::Matrix)
@@ -1628,7 +1628,7 @@ int mv::Workloads::partitionTensorWithZsplit(const mv::DPUModeList& mode_list, i
         workload.MinY = 0;
         workload.MaxX = W-1;
         workload.MaxY = H-1;
-        workload.z_offset = idx*max_channels_per_WL; 
+        workload.z_offset = idx*max_channels_per_WL;
         workload.MinZ = idx*max_channels_per_WL;
         workload.MaxZ = workload.MinZ + output_channels -1;
         workload.MPEMode = mv::Matrix;
