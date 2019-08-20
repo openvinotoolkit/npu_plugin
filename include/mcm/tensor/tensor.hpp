@@ -54,12 +54,12 @@ namespace mv
             static std::map<std::string,Location> namingMap;
 
         public:
-            MemoryLocation(const std::string& location) : location_(namingMap[location]),forced_(false) {};
-            MemoryLocation(const Location location) : location_(location),forced_(false) {};
-            MemoryLocation() : location_(DEFAULT),forced_(false) {};
+            MemoryLocation(const std::string& location) : location_(namingMap[location]),forced_(false) {}
+            MemoryLocation(const Location location) : location_(location),forced_(false) {}
+            MemoryLocation() : location_(DEFAULT),forced_(false) {}
 
-            MemoryLocation(const std::string& location, bool forced) : location_(namingMap[location]),forced_(forced) {};
-            MemoryLocation(const Location location, bool forced) : location_(location),forced_(forced) {};
+            MemoryLocation(const std::string& location, bool forced) : location_(namingMap[location]),forced_(forced) {}
+            MemoryLocation(const Location location, bool forced) : location_(location),forced_(forced) {}
 
 //            MemoryLocation(MemoryLocation& location) = delete;
             void operator=(const MemoryLocation& location) = delete;
@@ -75,16 +75,15 @@ namespace mv
 
             void force() { forced_ = true;}
             bool isDefault() { return (location_ == DEFAULT); }
-            bool isForced() {return forced_;};
+            bool isForced() {return forced_;}
 
 //            void set(std::string &location) { location_ = namingMap[location]; }
 //            void set(const Location location) { location_ = location; }
 //            void set(const MemoryLocation& location) { location_ = location.location_; };
-            bool relocate(Location newPlace){
+            bool relocate(Location newPlace)
+            {
                 if(forced_)
-                {
                     return false;
-                }
                 else
                 {
                     location_ = newPlace;
