@@ -9,6 +9,7 @@
 #include "include/mcm/pass/pass_manager.hpp"
 #include "include/mcm/utils/env_loader.hpp"
 #include "include/mcm/compiler/compilation_descriptor.hpp"
+#include "include/mcm/compiler/compilation_profiler.hpp"
 
 namespace mv
 {
@@ -48,8 +49,8 @@ namespace mv
 
         void loadModelFromJson(const std::string& path);
         bool initialize();
-        json::Object runStep();
-        json::Object run();
+        Element runStep();
+        Element run();
         bool completed() const;
 
         virtual std::string getLogID() const override;

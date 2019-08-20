@@ -584,7 +584,7 @@ std::vector<std::string> mv::op::OpRegistry::getStringifiedArgsCall_(const std::
 
 void mv::op::OpRegistry::defineOpOutput(std::string& output, const std::string& eol, const std::string& opType, OpEntry* const opPtr, std::string token, bool inputVectorTypes, bool checkInputs, bool copiedOp, const std::string& tab)
 {
-    output += token + eol + "{" +
+    output += token + eol + "{" + eol + tab + "MV_PROFILED_FUNCTION(MV_PROFILE_COMP)" +
         eol + tab + "return defineOp(" + eol + tab + tab + "\"" + opType + "\"," + eol + tab + tab;
     if(!inputVectorTypes)
         output += "{";
@@ -771,6 +771,7 @@ void mv::op::OpRegistry::generateCompositionAPI(const std::string& eol, const st
     incStream << "#define MV_OP_MODEL_HPP_" << eol << eol; 
     incStream << "#include \"" << compAPIHeaderPath_ << "\"" << eol;
     incStream << "#include \"include/mcm/computation/model/base_op_model.hpp\"" << eol << eol;
+    incStream << "#include \"include/mcm/compiler/compilation_profiler.hpp\"" << eol << eol;
 
     incStream << "namespace mv" << eol << eol;
     incStream << "{" << eol << eol;

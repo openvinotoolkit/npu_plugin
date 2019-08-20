@@ -13,7 +13,7 @@ blocks_(shape.totalSize() / blockSize_),
 shape_(shape),
 internalOrder_(Order(Order::getRowMajorID(shape.ndims())))
 {
-
+    MV_PROFILED_FUNCTION(MV_PROFILE_BASE)
     log(Logger::MessageType::Debug, "Initialized");
     if(order.size() != shape.ndims())
         throw OrderError(*this, "Order and shape size are mismatching " + std::to_string(order.size()) + " vs " + std::to_string(shape.ndims()));
@@ -35,7 +35,7 @@ blocks_(shape.totalSize() / blockSize_),
 shape_(shape),
 internalOrder_(Order(Order::getRowMajorID(shape.ndims())))
 {
-
+    MV_PROFILED_FUNCTION(MV_PROFILE_BASE)
     log(Logger::MessageType::Debug, "Initialized");
     if(order.size() != shape.ndims())
         throw OrderError(*this, "Order and shape size are mismatching " + std::to_string(order.size()) + " vs " + std::to_string(shape.ndims()));
@@ -58,7 +58,7 @@ blocks_(shape.totalSize() / blockSize_),
 shape_(shape),
 internalOrder_(Order(Order::getRowMajorID(shape.ndims())))
 {
-
+    MV_PROFILED_FUNCTION(MV_PROFILE_BASE)
     log(Logger::MessageType::Debug, "Initialized");
     if(order.size() != shape.ndims())
         throw OrderError(*this, "Order and shape size are mismatching " + std::to_string(order.size()) + " vs " + std::to_string(shape.ndims()));
@@ -77,36 +77,42 @@ internalOrder_(Order(Order::getRowMajorID(shape.ndims())))
 mv::Tensor::Tensor(const std::string &name, const Shape &shape, DType dType, Order order, const std::vector<double>& data) :
 Tensor(name, shape, dType, order)
 {
+    MV_PROFILED_FUNCTION(MV_PROFILE_BASE)
     populate(data, order);
 }
 
 mv::Tensor::Tensor(const std::string &name, const Shape &shape, DType dType, Order order, const std::vector<double>& data, const mv::QuantizationParams &quantParams) :
 Tensor(name, shape, dType, order, quantParams, true)
 {
+    MV_PROFILED_FUNCTION(MV_PROFILE_BASE)
     populate(data, order);
 }
 
 mv::Tensor::Tensor(const std::string &name, const Shape &shape, DType dType, Order order, const std::vector<int64_t>& data) :
 Tensor(name, shape, dType, order)
 {
+    MV_PROFILED_FUNCTION(MV_PROFILE_BASE)
     populate(data, order);
 }
 
 mv::Tensor::Tensor(const std::string &name, const Shape &shape, DType dType, Order order, const std::vector<int64_t>& data, const mv::QuantizationParams &quantParams) :
 Tensor(name, shape, dType, order, quantParams, true)
 {
+    MV_PROFILED_FUNCTION(MV_PROFILE_BASE)
     populate(data, order);
 }
 
 mv::Tensor::Tensor(const std::string &name, const Shape &shape, DType dType, Order order, const std::vector<mv::DataElement>& data) :
 Tensor(name, shape, dType, order)
 {
+    MV_PROFILED_FUNCTION(MV_PROFILE_BASE)
     populate(data, order);
 }
 
 mv::Tensor::Tensor(const std::string &name, const Shape &shape, DType dType, Order order, const std::vector<mv::DataElement>& data, const mv::QuantizationParams &quantParams):
 Tensor(name, shape, dType, order, quantParams, true)
 {
+    MV_PROFILED_FUNCTION(MV_PROFILE_BASE)
     populate(data, order);
 }
 
@@ -119,6 +125,7 @@ shape_(other.shape_),
 internalOrder_(Order(Order::getRowMajorID(other.shape_.ndims())))
 {
 
+    MV_PROFILED_FUNCTION(MV_PROFILE_BASE)
     log(Logger::MessageType::Debug, "Copied");
     for (std::size_t i = 0; i < blocks_.size(); ++i)
         blocks_[i] = data_.begin() + i * blockSize_;
@@ -179,6 +186,7 @@ unsigned mv::Tensor::subToInd_(const Shape& s, const std::vector<std::size_t>& s
 
 void mv::Tensor::populate(const std::vector<double>& data)
 {
+    MV_PROFILED_FUNCTION(MV_PROFILE_BULD)
     if (!isDoubleType())
         throw ArgumentError(*this, "data vector", "type double", "Unable to populate, data type is not double"
             "DType of tensor is " + getDType().toString() + " but populating with double data");
@@ -211,6 +219,7 @@ void mv::Tensor::populate(const std::vector<double>& data)
 
 void mv::Tensor::populate(const std::vector<mv::DataElement>& data)
 {
+    MV_PROFILED_FUNCTION(MV_PROFILE_BULD)
     if (data.size() != getShape().totalSize())
         throw ArgumentError(*this, "data vector", std::to_string(data.size()), "Unable to populate, data vector size"
             "does not match total size the tensor (" + std::to_string(getShape().totalSize()) + ")");
@@ -239,6 +248,7 @@ void mv::Tensor::populate(const std::vector<mv::DataElement>& data)
 
 void mv::Tensor::populate(const std::vector<int64_t>& data)
 {
+    MV_PROFILED_FUNCTION(MV_PROFILE_BULD)
     if (isDoubleType())
         throw ArgumentError(*this, "data vector", "type int", "Unable to populate, data type is not int"
             "DType of tensor is " + getDType().toString() + " but populating with int data");
@@ -270,24 +280,28 @@ void mv::Tensor::populate(const std::vector<int64_t>& data)
 
 void mv::Tensor::populate(const std::vector<mv::DataElement>& data, Order order)
 {
+    MV_PROFILED_FUNCTION(MV_PROFILE_BULD)
     set<Order>("order", order);
     populate(data);
 }
 
 void mv::Tensor::populate(const std::vector<double>& data, Order order)
 {
+    MV_PROFILED_FUNCTION(MV_PROFILE_BULD)
     set<Order>("order", order);
     populate(data);
 }
 
 void mv::Tensor::populate(const std::vector<int64_t>& data, Order order)
 {
+    MV_PROFILED_FUNCTION(MV_PROFILE_BULD)
     set<Order>("order", order);
     populate(data);
 }
 
 void mv::Tensor::unpopulate()
 {
+    MV_PROFILED_FUNCTION(MV_PROFILE_BULD)
     if (!isPopulated())
         return;
 
@@ -304,6 +318,7 @@ void mv::Tensor::unpopulate()
 
     log(Logger::MessageType::Debug, "Unpopulated");
 }
+
 std::shared_ptr<mv::Tensor> mv::Tensor::getSparsityMap() const
 {
     if (!isSparse())
@@ -355,6 +370,7 @@ unsigned mv::Tensor::countNonZeroElements() const
 
 void mv::Tensor::populateSparsityMapTensor_()
 {
+    MV_PROFILED_FUNCTION(MV_PROFILE_BULD)
     auto shape = getShape();
 
     std::vector<int64_t> zeroPoint = getZeroPointsPerChannel();
@@ -408,6 +424,7 @@ void mv::Tensor::populateSparsityMapTensor_()
 
 void mv::Tensor::setAddress(int64_t address)
 {
+    MV_PROFILED_FUNCTION(MV_PROFILE_BULD)
     set<int64_t>("address", address);
     if (isSparse() && !isPopulated())
     {
@@ -421,6 +438,7 @@ void mv::Tensor::setAddress(int64_t address)
 
 bool mv::Tensor::setSparse()
 {
+    MV_PROFILED_FUNCTION(MV_PROFILE_BULD)
     mv::Order order =  getOrder();
     if (!order.isZMajor())
         throw ArgumentError(*this, "Order", order.toString() , " Sparsity requires ZMajor layout (NHWC)");
@@ -464,6 +482,7 @@ bool mv::Tensor::setSparse()
 
 bool mv::Tensor::setSparse(std::shared_ptr<mv::Tensor> sparsityMap, std::shared_ptr<mv::Tensor> storageElement)
 {
+    MV_PROFILED_FUNCTION(MV_PROFILE_BULD)
     mv::Order order =  getOrder();
     if (!order.isZMajor())
         throw ArgumentError(*this, "Order", order.toString() , " Sparsity requires ZMajor layout (NHWC)");
@@ -636,6 +655,7 @@ std::vector<double> mv::Tensor::getDoubleData()
 
 std::vector<mv::DataElement> mv::Tensor::getData()
 {
+    MV_PROFILED_FUNCTION(MV_PROFILE_BULD)
     if (!isPopulated())
         throw ValueError(*this, "Attempt of restoring data from an unpopulated tensor");
 
@@ -665,6 +685,7 @@ std::vector<int64_t> mv::Tensor::getKernelDataOffsets()
 
 std::vector<mv::DataElement> mv::Tensor::getDataPacked()
 {
+    MV_PROFILED_FUNCTION(MV_PROFILE_BULD)
     if (!isPopulated())
         throw ValueError(*this, "Attempt of restoring data from an unpopulated tensor");
 
@@ -707,6 +728,7 @@ std::vector<mv::DataElement> mv::Tensor::getDataPacked()
 
 std::vector<int64_t> mv::Tensor::getIntData()
 {
+    MV_PROFILED_FUNCTION(MV_PROFILE_BULD)
     if (!isPopulated())
         throw ValueError(*this, "Attempt of restoring data from an unpopulated tensor");
 
@@ -817,6 +839,7 @@ void mv::Tensor::elementWiseDouble_(const Tensor& other, const std::function<dou
 
 void mv::Tensor::add(const Tensor& other)
 {
+    MV_PROFILED_FUNCTION(MV_PROFILE_MATH)
     if (isDoubleType())
         elementWiseDouble_(other, std::plus<double>());
     else
@@ -825,6 +848,7 @@ void mv::Tensor::add(const Tensor& other)
 
 void mv::Tensor::add(double val)
 {
+    MV_PROFILED_FUNCTION(MV_PROFILE_MATH)
     if (!isPopulated())
         throw ValueError(*this, "Unable to perfom scalar addition operation for an unpopulated tensor");
     for (unsigned i = 0; i < data_.size(); ++i)
@@ -833,6 +857,7 @@ void mv::Tensor::add(double val)
 
 void mv::Tensor::subtract(const Tensor& other)
 {
+    MV_PROFILED_FUNCTION(MV_PROFILE_MATH)
     if (isDoubleType())
         elementWiseDouble_(other, std::minus<double>());
     else
@@ -842,7 +867,7 @@ void mv::Tensor::subtract(const Tensor& other)
 
 void mv::Tensor::subtract(double val)
 {
-
+    MV_PROFILED_FUNCTION(MV_PROFILE_MATH)
     if (!isPopulated())
         throw ValueError(*this, "Unable to perfom scalar subtraction operation for an unpopulated tensor");
 
@@ -852,6 +877,7 @@ void mv::Tensor::subtract(double val)
 
 void mv::Tensor::multiply(const Tensor& other)
 {
+    MV_PROFILED_FUNCTION(MV_PROFILE_MATH)
     if (isDoubleType())
         elementWiseDouble_(other, std::multiplies<double>());
     else
@@ -861,6 +887,7 @@ void mv::Tensor::multiply(const Tensor& other)
 
 void mv::Tensor::multiply(double val)
 {
+    MV_PROFILED_FUNCTION(MV_PROFILE_MATH)
     if (!isPopulated())
         throw ValueError(*this, "Unable to perfom scalar multiplication operation for an unpopulated tensor");
     for (unsigned i = 0; i < data_.size(); ++i)
@@ -870,7 +897,7 @@ void mv::Tensor::multiply(double val)
 
 void mv::Tensor::divide(double val)
 {
-
+    MV_PROFILED_FUNCTION(MV_PROFILE_MATH)
     if (!isPopulated())
         throw ValueError(*this, "Unable to perfom scalar division operation for an unpopulated tensor");
 
@@ -881,6 +908,7 @@ void mv::Tensor::divide(double val)
 
 void mv::Tensor::divide(const Tensor& other)
 {
+    MV_PROFILED_FUNCTION(MV_PROFILE_MATH)
     if (isDoubleType())
         elementWiseDouble_(other, std::divides<double>());
     else
@@ -890,7 +918,7 @@ void mv::Tensor::divide(const Tensor& other)
 
 void mv::Tensor::sqrt()
 {
-
+    MV_PROFILED_FUNCTION(MV_PROFILE_MATH)
     if (!isPopulated())
         throw ValueError(*this, "Unable to perfom scalar square root operation for an unpopulated tensor");
     for (unsigned i = 0; i < data_.size(); ++i)
@@ -960,6 +988,7 @@ mv::DataElement& mv::Tensor::operator()(const std::vector<std::size_t>& sub)
 
 mv::Tensor& mv::Tensor::operator=(const Tensor& other)
 {
+    MV_PROFILED_FUNCTION(MV_PROFILE_BASE)
     Element::operator=(other);
     data_ = std::vector<DataElement>(other.data_.size(), DataElement(other.isDoubleType()));
 

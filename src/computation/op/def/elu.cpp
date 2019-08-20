@@ -18,17 +18,9 @@ namespace mv
                 
                 return {false, 0};
             }
-            
-            auto alpha = args.at("alpha").get<unsigned>();
-
-            if (alpha < 0)
-            {
-                errMsg = "Invalid value for the alpha parameter - must be a positive numnber";
-                    
-                return {false, 0};
-            }
-
+        
             return {true, 0};
+            
         };
                 
         static std::function<void(const std::vector<Data::TensorIterator>&, const std::map<std::string, Attribute>&, 

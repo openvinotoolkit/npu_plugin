@@ -107,10 +107,10 @@ protected:
         }
     }
 
-    std::string testDumpJson(const mv::json::Object& result)
+    std::string testDumpJson(const mv::Element& result)
     {
         std::fstream file_out("layers_" + testGetName() + ".json", std::fstream::out);
-        file_out << result.stringifyPretty() << std::endl;
+        file_out << result.toJSON().stringifyPretty() << std::endl;
         file_out.close();
         return "OK";
     }

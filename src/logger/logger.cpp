@@ -99,7 +99,7 @@ void mv::Logger::disableLogTime()
 
 void mv::Logger::log(MessageType messageType, const std::string& senderName, const std::string &content)
 {
-
+    #if MV_LOG_ENABLED
     if (!instance().filterList_.empty())
     {
         bool found = false;
@@ -149,7 +149,7 @@ void mv::Logger::log(MessageType messageType, const std::string& senderName, con
             break;
 
     }
-
+    #endif
 }
 
 void mv::Logger::logError_(const std::string &content) const

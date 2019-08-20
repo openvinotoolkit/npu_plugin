@@ -22,7 +22,7 @@ TEST(fuse_relu, case_conv)
 
     mv::Element dummyPassDesc("");
     mv::TargetDescriptor dummyTargDesc;
-    mv::json::Object compOutput;
+    mv::Element compOutput("CompilationOutput");
 
     mv::pass::PassRegistry::instance().find("FuseRelu")->run(om, dummyTargDesc, dummyPassDesc, compOutput);
 

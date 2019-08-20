@@ -6,6 +6,7 @@
 #include <set>
 #include <vector>
 #include <algorithm>
+#include "include/mcm/compiler/compilation_profiler.hpp"
 
 namespace mv
 {
@@ -36,6 +37,8 @@ namespace mv
     std::vector<typename graph<T_node, T_edge>::node_list_iterator>
     lexTopologicalSort(graph<T_node, T_edge>& g)
     {
+
+        MV_PROFILED_FUNCTION(MV_PROFILE_ALGO)
         std::vector<typename graph<T_node, T_edge>::node_list_iterator> toReturn;
 
         if(!isDAG(g))

@@ -94,7 +94,7 @@ TEST (generate_blob, DISABLED_blob_output_conv_01)
     auto compOutput = unit.run();
 
     // compare filesize written to expected
-    EXPECT_EQ (444LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
+    EXPECT_EQ (444LL, compOutput.get<std::vector<mv::Element>>("passes").back().get<int64_t>("blobSize")) << "ERROR: wrong blob size";
 
     // compare blob file contents to blob previously generated with mvNCCheck
     std::string goldBlobPath = mv::utils::projectRootPath() + std::string("/tests/data/gold_01.blob");
@@ -136,7 +136,7 @@ TEST (generate_blob, DISABLED_blob_output_conv_02)
     auto compOutput = unit.run();
 
     // compare filesize written to expected
-    EXPECT_EQ (572LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
+    EXPECT_EQ (572LL, compOutput.get<std::vector<mv::Element>>("passes").back().get<int64_t>("blobSize")) << "ERROR: wrong blob size";
 
     // compare blob file contents to blob previously generated with mvNCCheck
     std::string goldBlobPath = mv::utils::projectRootPath() + std::string("/tests/data/gold_02.blob");
@@ -179,7 +179,7 @@ TEST (generate_blob, DISABLED_blob_output_conv_03)
     auto compOutput = unit.run();
 
     // compare filesize written to expected
-    EXPECT_EQ (572LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
+    EXPECT_EQ (572LL, compOutput.get<std::vector<mv::Element>>("passes").back().get<int64_t>("blobSize")) << "ERROR: wrong blob size";
 
     // compare blob file contents to blob previously generated with mvNCCheck
     std::string goldBlobPath = mv::utils::projectRootPath() + std::string("/tests/data/gold_03.blob");
@@ -221,7 +221,7 @@ TEST (generate_blob, DISABLED_blob_output_conv_04)
     auto compOutput = unit.run();
 
     // compare filesize written to expected
-    EXPECT_EQ (892LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
+    EXPECT_EQ (892LL, compOutput.get<std::vector<mv::Element>>("passes").back().get<int64_t>("blobSize")) << "ERROR: wrong blob size";
 
     // compare blob file contents to blob previously generated with mvNCCheck
     std::string goldBlobPath = mv::utils::projectRootPath() + std::string("/tests/data/gold_04.blob");
@@ -266,7 +266,7 @@ TEST (generate_blob, DISABLED_blob_blur_edge_05)
     auto compOutput = unit.run();
 
     // compare filesize written to expected
-    EXPECT_EQ (740LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
+    EXPECT_EQ (740LL, compOutput.get<std::vector<mv::Element>>("passes").back().get<int64_t>("blobSize")) << "ERROR: wrong blob size";
 
     // compare blob file contents to blob previously generated with mvNCCheck
     std::string goldBlobPath = mv::utils::projectRootPath() + std::string("/tests/data/gold_05.blob");
@@ -318,7 +318,7 @@ TEST (generate_blob, DISABLED_blob_4_ops)
     auto compOutput = unit.run();
 
     // compare filesize written to expected
-    EXPECT_EQ (1156LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
+    EXPECT_EQ (1156LL, compOutput.get<std::vector<mv::Element>>("passes").back().get<int64_t>("blobSize")) << "ERROR: wrong blob size";
 
     // compare blob file contents to blob previously generated with mvNCCheck
     std::string goldBlobPath = mv::utils::projectRootPath() + std::string("/tests/data/gold_06.blob");
@@ -391,7 +391,7 @@ TEST (generate_blob, DISABLED_blob_eltwise_add)
     auto compOutput = unit.run();
 
     // compare filesize written to expected
-    EXPECT_EQ (2468LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
+    EXPECT_EQ (2468LL, compOutput.get<std::vector<mv::Element>>("passes").back().get<int64_t>("blobSize")) << "ERROR: wrong blob size";
 
     // compare blob file contents to blob previously generated with mvNCCheck
     std::string goldBlobPath = mv::utils::projectRootPath() + std::string("/tests/data/gold_07.blob");
@@ -465,7 +465,7 @@ TEST (generate_blob, DISABLED_blob_eltwise_multiply)
     auto compOutput = unit.run();
 
     // compare filesize written to expected
-    EXPECT_EQ (2468LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
+    EXPECT_EQ (2468LL, compOutput.get<std::vector<mv::Element>>("passes").back().get<int64_t>("blobSize")) << "ERROR: wrong blob size";
 
     // compare blob file contents to blob previously generated with mvNCCheck
     std::string goldBlobPath = mv::utils::projectRootPath() + std::string("/tests/data/gold_08.blob");
@@ -538,7 +538,7 @@ TEST (generate_blob, DISABLED_blob_softmax)
     auto compOutput = unit.run();
 
     // compare filesize written to expected
-    EXPECT_EQ (2452LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
+    EXPECT_EQ (2452LL, compOutput.get<std::vector<mv::Element>>("passes").back().get<int64_t>("blobSize")) << "ERROR: wrong blob size";
 
     // compare blob file contents to blob previously generated with mvNCCheck
     std::string goldBlobPath = mv::utils::projectRootPath() + std::string("/tests/data/gold_09.blob");
@@ -603,7 +603,7 @@ TEST (generate_blob, DISABLED_blob_convbias_convrelu)
     auto compOutput = unit.run();
 
     // compare filesize written to expected
-    EXPECT_EQ (1940LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
+    EXPECT_EQ (1940LL, compOutput.get<std::vector<mv::Element>>("passes").back().get<int64_t>("blobSize")) << "ERROR: wrong blob size";
 
     // compare blob file contents to blob previously generated with mvNCCheck
     std::string goldBlobPath = mv::utils::projectRootPath() + std::string("/tests/data/gold_10.blob");
@@ -660,7 +660,7 @@ TEST (generate_blob, DISABLED_blob_scale)
     auto compOutput = unit.run();
 
     // compare filesize written to expected
-    EXPECT_EQ (1076LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
+    EXPECT_EQ (1076LL, compOutput.get<std::vector<mv::Element>>("passes").back().get<int64_t>("blobSize")) << "ERROR: wrong blob size";
 
     // compare blob file contents to blob previously generated with mvNCCheck
     std::string goldBlobPath = mv::utils::projectRootPath() + std::string("/tests/data/gold_11.blob");
@@ -699,7 +699,7 @@ TEST (generate_blob_WDDM, blob_maxpool1)
 
     unit.initialize();
     auto compOutput = unit.run();
-    EXPECT_EQ (292LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
+    EXPECT_EQ (292LL, compOutput.get<std::vector<mv::Element>>("passes").back().get<int64_t>("blobSize")) << "ERROR: wrong blob size";
 
 }
 
@@ -735,7 +735,7 @@ TEST (generate_blob_WDDM, blob_maxpool2)
     auto compOutput = unit.run();
 
     // compare filesize written to expected
-    EXPECT_EQ (292LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
+    EXPECT_EQ (292LL, compOutput.get<std::vector<mv::Element>>("passes").back().get<int64_t>("blobSize")) << "ERROR: wrong blob size";
 }
 
 TEST (generate_blob_WDDM, blob_maxpool3)
@@ -770,7 +770,7 @@ TEST (generate_blob_WDDM, blob_maxpool3)
     auto compOutput = unit.run();
 
     // compare filesize written to expected
-    EXPECT_EQ (292LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
+    EXPECT_EQ (292LL, compOutput.get<std::vector<mv::Element>>("passes").back().get<int64_t>("blobSize")) << "ERROR: wrong blob size";
 }
 
 TEST (generate_blob_WDDM, blob_maxpool4)
@@ -805,7 +805,7 @@ TEST (generate_blob_WDDM, blob_maxpool4)
     auto compOutput = unit.run();
 
     // compare filesize written to expected
-    EXPECT_EQ (292LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
+    EXPECT_EQ (292LL, compOutput.get<std::vector<mv::Element>>("passes").back().get<int64_t>("blobSize")) << "ERROR: wrong blob size";
 }
 
 TEST (generate_blob_WDDM, blob_avgpool1)
@@ -840,7 +840,7 @@ TEST (generate_blob_WDDM, blob_avgpool1)
     auto compOutput = unit.run();
 
     // compare filesize written to expected
-    EXPECT_EQ (292LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
+    EXPECT_EQ (292LL, compOutput.get<std::vector<mv::Element>>("passes").back().get<int64_t>("blobSize")) << "ERROR: wrong blob size";
 }
 
 TEST (generate_blob_WDDM, blob_avgpool2)
@@ -875,7 +875,7 @@ TEST (generate_blob_WDDM, blob_avgpool2)
     auto compOutput = unit.run();
 
     // compare filesize written to expected
-    EXPECT_EQ (292LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
+    EXPECT_EQ (292LL, compOutput.get<std::vector<mv::Element>>("passes").back().get<int64_t>("blobSize")) << "ERROR: wrong blob size";
 }
 
 TEST (generate_blob_WDDM, blob_conv1)
@@ -908,7 +908,7 @@ TEST (generate_blob_WDDM, blob_conv1)
     auto compOutput = unit.run();
 
     // compare filesize written to expected
-    EXPECT_EQ (444LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
+    EXPECT_EQ (444LL, compOutput.get<std::vector<mv::Element>>("passes").back().get<int64_t>("blobSize")) << "ERROR: wrong blob size";
 }
 
 // test 10 : conv->leakyRel
@@ -946,7 +946,7 @@ TEST (generate_blob_WDDM, DISABLED_blob_leakyRelu)
     auto compOutput = unit.run();
 
     // compare filesize written to expected
-    EXPECT_EQ (700LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
+    EXPECT_EQ (700LL, compOutput.get<std::vector<mv::Element>>("passes").back().get<int64_t>("blobSize")) << "ERROR: wrong blob size";
 }
 
 // test 10 : conv->elu
@@ -984,7 +984,7 @@ TEST (generate_blob_WDDM, DISABLED_blob_elu)
     auto compOutput = unit.run();
 
     // compare filesize written to expected
-    EXPECT_EQ (700LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
+    EXPECT_EQ (700LL, compOutput.get<std::vector<mv::Element>>("passes").back().get<int64_t>("blobSize")) << "ERROR: wrong blob size";
 }
 
 TEST (generate_blob_WDDM, DISABLED_blob_sigmoid)
@@ -1021,7 +1021,7 @@ TEST (generate_blob_WDDM, DISABLED_blob_sigmoid)
     auto compOutput = unit.run();
 
     // compare filesize written to expected
-    EXPECT_EQ (684LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
+    EXPECT_EQ (684LL, compOutput.get<std::vector<mv::Element>>("passes").back().get<int64_t>("blobSize")) << "ERROR: wrong blob size";
 }
 
 TEST (generate_blob_WDDM, DISABLED_blob_tanh)
@@ -1058,7 +1058,7 @@ TEST (generate_blob_WDDM, DISABLED_blob_tanh)
     auto compOutput = unit.run();
 
     // compare filesize written to expected
-    EXPECT_EQ (684LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
+    EXPECT_EQ (684LL, compOutput.get<std::vector<mv::Element>>("passes").back().get<int64_t>("blobSize")) << "ERROR: wrong blob size";
 }
 
 TEST (generate_blob_WDDM, DISABLED_blob_lrn)
@@ -1095,7 +1095,7 @@ TEST (generate_blob_WDDM, DISABLED_blob_lrn)
     auto compOutput = unit.run();
 
     // compare filesize written to expected
-    EXPECT_EQ (700LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
+    EXPECT_EQ (700LL, compOutput.get<std::vector<mv::Element>>("passes").back().get<int64_t>("blobSize")) << "ERROR: wrong blob size";
 }
 
 // Create both RAM and file blobs

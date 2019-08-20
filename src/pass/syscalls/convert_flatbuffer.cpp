@@ -3,7 +3,7 @@
 #include "include/mcm/computation/model/data_model.hpp"
 #include "meta/include/mcm/op_model.hpp"
 
-void convertFlatbufferFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&, mv::TargetDescriptor&, mv::Element& passDesc, mv::json::Object&);
+void convertFlatbufferFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&);
 
 namespace mv
 {
@@ -14,6 +14,7 @@ namespace mv
         MV_REGISTER_PASS(ConvertFlatbuffer)
         .setFunc(convertFlatbufferFcn)
         .defineArg(json::JSONType::String, "input")
+        .setLabel("Debug")
         .setDescription(
             "Converts a flatbuffer binary file in json under UNIX"
         );
@@ -22,8 +23,9 @@ namespace mv
 
 }
 
-void convertFlatbufferFcn(const mv::pass::PassEntry&, mv::ComputationModel&, mv::TargetDescriptor&, mv::Element& passDesc, mv::json::Object&)
+void convertFlatbufferFcn(const mv::pass::PassEntry&, mv::ComputationModel&, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&)
 {
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     std::string outputFile = passDesc.get<std::string>("input");
     std::string flatbufferCommand("flatc -t $MCM_HOME/schema/graphfile/src/schema/graphfile.fbs --strict-json --defaults-json -- " + outputFile);
     system(flatbufferCommand.c_str());
