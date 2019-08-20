@@ -313,10 +313,6 @@
                     {
                         "name_filter":".*fc1000/fc1000#.*",
                         "strategy": "SplitOverK"
-                    },
-                    {
-                        "name_filter":".*output#.*",
-                        "strategy": "SplitOverK"
                     }
                 ],
                 "default_tensor_placement" : "CMX"
