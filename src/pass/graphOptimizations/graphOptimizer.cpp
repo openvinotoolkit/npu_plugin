@@ -414,7 +414,7 @@ public:
 
         //TODO: expose these conditionals more cleanly
 //        auto INF = numeric_limits<double>::infinity();
-        auto INF = 9999999.999;
+        auto INF = 99999999.999;
 
         auto parentClustering = parent["clustering"].get<string>();
         auto childClustering = child["clustering"].get<string>();
