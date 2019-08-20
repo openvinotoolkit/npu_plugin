@@ -109,8 +109,8 @@ namespace mv
 
         for(auto mapIt = previous.find(target); mapIt->first != source; mapIt = previous.find(mapIt->second))
         {
-        toReturn.nodes.push_back(mapIt->first);
-        toReturn.distances.push_back(distances[mapIt->first]);
+            toReturn.nodes.push_back(mapIt->first);
+            toReturn.distances.push_back(distances[mapIt->first]);
         }
 
         toReturn.nodes.push_back(source);
@@ -119,6 +119,7 @@ namespace mv
         std::reverse(toReturn.distances.begin(), toReturn.distances.end());
 
         return toReturn;
+        
     }
 
     template <typename T_node, typename T_edge, typename T_nodeItComp, typename T_edgeItComp>
