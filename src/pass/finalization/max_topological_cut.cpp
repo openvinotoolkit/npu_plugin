@@ -41,7 +41,7 @@ void markLastNodeForMaxTopologicalCutFcn(const mv::pass::PassEntry& pass, mv::Co
 void maxTopologicalCutAndPartialSerialisationPass(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element&, mv::json::Object&)
 {
     int networkMemoryRequirement;
-    double percentageMemory; 
+    double percentageMemory;
     mv::KoalaGraphScheduler flowGraph;
     bool memoryHack = false;
 

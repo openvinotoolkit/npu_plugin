@@ -119,7 +119,7 @@ namespace mv
 
 
     private:
-        std::vector<DataElement> data_;
+        std::shared_ptr<std::vector<DataElement>> data_;
 
         std::size_t blockSize_;
         std::vector<std::vector<DataElement>::iterator> blocks_;
@@ -196,6 +196,7 @@ namespace mv
         DType getDType() const;
         void setOrder(Order order, bool updateSubtensors = false);
         Order getOrder() const;
+        Shape getShape() const;
         const Order& getInternalOrder() const;
         void setShape(const Shape& shape);
         void setAddress(int64_t address);
@@ -250,15 +251,6 @@ namespace mv
                 return get<bool>("broadcasted");
             return true; //by default is true
         }
-        inline Shape& getShape()
-        {
-            return shape_;
-        }
-
-        inline const Shape& getShape() const
-        {
-            return shape_;
-        }
 
         inline unsigned size() const
         {
@@ -272,12 +264,12 @@ namespace mv
 
         inline std::vector<std::size_t> indToSub(unsigned index) const
         {
-            return indToSub_(getShape(), index);
+            return indToSub_(shape_, index);
         }
 
         inline unsigned subToInd(const std::vector<std::size_t>& sub) const
         {
-            return subToInd_(getShape(), sub);
+            return subToInd_(shape_, sub);
         }
         inline int64_t getAddress() const
         {
@@ -287,7 +279,6 @@ namespace mv
         std::shared_ptr<Tensor> getSparsityMap() const;
         std::shared_ptr<Tensor> getStorageElement() const;
         Tensor &getSubTensor(uint8_t cluster);
-        unsigned countNonZeroElements() const;
 
         Tensor& operator=(const Tensor& other);
 
