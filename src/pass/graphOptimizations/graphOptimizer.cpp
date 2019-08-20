@@ -260,8 +260,8 @@ public:
             //maxSplits = (clusterOutChannelSize/16);
 
         //TODO::::REMOVE THIS ONCE FIX INSANE COMPILE TIME
-        if(maxSplits > 16)
-            maxSplits = 16;
+        if(maxSplits > 32)
+            maxSplits = 32;
 
         splits.push_back(1);
         //for(unsigned split = 1; split <= maxSplits; split++)
@@ -510,7 +510,13 @@ public:
 
         if( ((childMem.first + childMem.second) > clusterMemory) or
             ((parentMem.first + parentMem.second) > clusterMemory))
+        {
+            cout << "Infinite cost for " << parentOp.getName() << " " << parent["streaming"].get<Shape>().toString() << " to " << childOp.getName() << " " << child["streaming"].get<Shape>().toString() << endl;
+            cout << "   clusterMemory= " << clusterMemory << endl;
+            cout << "     parentMemory= " << parentMem.first << "  " << parentMem.second << endl;
+            cout << "     childMemory = " << childMem.first << "  " << childMem.second << endl;
             return INF;
+        }
 
         auto execTime1 = executionTime(parentOp,parent);
         auto execTime2 = executionTime(childOp,child);
@@ -570,7 +576,7 @@ public:
 
             execTime2 += (((double)(iSize + oSize) / (double)childStreamOverH) / (double)ddrBandwidth)  * (extra_stream_decay * childStreamOverH);
         }
-
+        cout << "returning cost for " << parentOp.getName() << " " << parent["streaming"].get<Shape>().toString() << " to " << childOp.getName() << " " << child["streaming"].get<Shape>().toString() << " is " << execTime1 + execTime2 << endl;
         return execTime1 + execTime2;
     }
 
@@ -674,9 +680,10 @@ public:
                         else
                             streamsOverK.push_back(1);
 
+                        cout << "streamsoverK options for " << op.getName() ;
                         for(const auto k : streamsOverK)
                         {
-                           // cout<<"\tStrK: " << k << endl;
+                            cout << " " << k ;
                             for(unsigned h = 1; h <= maxSplitOverH; h++)
                             {
                                 //TODO: these are very fast hacks. Delete after we can allow nested streams and
@@ -697,6 +704,7 @@ public:
 
                                 strategyVec.push_back(s);
                             }
+                            cout << endl ;
                         }
                     }
                 }

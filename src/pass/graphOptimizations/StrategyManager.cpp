@@ -177,7 +177,7 @@ Attribute& StrategyManager::getStrategy(mv::Op op,string strategy)
     return strategyEntry->second;
 }
 
-void StrategyManager::writeDot(MetaGraph graph, bool skipInf)
+void StrategyManager::writeMetaDot(MetaGraph& graph, bool skipInf)
 {
     ofstream ostream;
     string outputFile = dotFileLocation + "_finalMetaGraph";
@@ -241,7 +241,7 @@ void StrategyManager::writeDot(MetaGraph graph, bool skipInf)
 unsigned int globalCtr = 0;
 
 
-void StrategyManager::writeDot(mv::graph<std::tuple<mv::Op&,StrategySet,int>,double>& optimizationGraph, bool skipInf)
+void StrategyManager::writeDot(OptimizationGraph& optimizationGraph, bool skipInf)
 {
     ofstream ostream;
 
