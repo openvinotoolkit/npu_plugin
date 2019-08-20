@@ -339,6 +339,12 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model, mv::Dat
         slices[split] = slice;
         convs[split] = conv;
 
+        if(op->hasAttr("splitStrategy"))
+        {
+            auto splitStrategy = op->get<std::string>("splitStrategy");
+            om.addAttr(newOp,"splitStrategy",splitStrategy);
+        }
+
         bool enableSerialStreaming = true;
         if ((split>0)&&(enableSerialStreaming))
             cm.defineFlow(om.getSourceOp(convs[split-1]), om.getSourceOp(convs[split]));
@@ -561,6 +567,12 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model, mv::Dat
         bool enableSerialStreaming = true;
         if ((split > 0) && enableSerialStreaming)
             cm.defineFlow(om.getSourceOp(convs[split-1]), om.getSourceOp(convs[split]));
+
+        if(op->hasAttr("splitStrategy"))
+        {
+            auto splitStrategy = op->get<std::string>("splitStrategy");
+            om.addAttr(newOp,"splitStrategy",splitStrategy);
+        }
     }
 
     // decide on the location of the I/O Tensors of the conv;
