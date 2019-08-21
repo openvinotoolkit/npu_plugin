@@ -436,6 +436,8 @@ void StrategyManager::saveMetaStrategy(std::vector<MetaGraph::edge_list_iterator
     for (auto strategy : allStrategies)
     {
         mv::Shape newStrategy = strategy["streaming"];
+        std::string splitting = strategy["clustering"];
+
         std::string newName = strategy["name"] ;
         if ( hasSpec.find(newName) == hasSpec.end())
         { 
@@ -461,12 +463,12 @@ void StrategyManager::saveMetaStrategy(std::vector<MetaGraph::edge_list_iterator
     {
         std::string nodeName = s.get<std::string>("name_filter");
         std::string strategyName = s.get<std::string>("strategy");
-        if ((strategyName=="SplitOverH") or (strategyName=="SplitOverK") or (strategyName=="SplitOverHOverlapped") or (strategyName=="HSSwitch"))
-            hasClusterSpec.insert(std::pair<std::string, bool>(nodeName, true));
-        else
+        if(strategyName=="Clustering")
             hasClusterSpec.insert(std::pair<std::string, bool>(nodeName, false));
+        else
+            hasClusterSpec.insert(std::pair<std::string, bool>(nodeName, true));
     }
- /* 
+
     //save clustering strategy into compilation descriptor
     auto copyCElement = clusteringStrategyList[0];
     auto copyCName = copyCElement.get<std::string>("name_filter");
@@ -476,16 +478,16 @@ void StrategyManager::saveMetaStrategy(std::vector<MetaGraph::edge_list_iterator
         std::string newStrategy = strategy["clustering"];
         std::string newName = strategy["name"] ;
         if ( hasClusterSpec.find(newName) == hasClusterSpec.end())
-        { 
+        {
             copyCElement.set("name_filter",newName);
-            copyElement.set("strategy",copyCStrategy);
-            clusteringStrategyList.push_back(copyElement);
+            copyCElement.set("strategy",newStrategy);
+            clusteringStrategyList.push_back(copyCElement);
         }
     }
 
     globalParams->set("split_strategy", clusteringStrategyList);
-    */
-    //test updated compilation descriptor
+
+//    test updated compilation descriptor
     auto globalParams2 = model_.getGlobalConfigParams();
     auto strategyList2 = globalParams2->get<std::vector<mv::Element>>("streaming_strategy");
 
