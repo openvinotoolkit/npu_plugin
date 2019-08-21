@@ -292,7 +292,7 @@ void StrategyManager::writeDot(OptimizationGraph& optimizationGraph, bool skipIn
         edgeDef += " [penwidth=2.0, label=<<TABLE BORDER=\"0\" CELLPADDING=\"0\" \
                     CELLSPACING=\"0\"><TR><TD ALIGN=\"CENTER\" COLSPAN=\"2\"> \
                     <FONT POINT-SIZE=\"14.0\"><B>" \
-                    + std::to_string((*edge))
+                    + std::to_string(get<1>(*edge)) + " : " + std::to_string(get<0>(*edge))
                     + "</B></FONT></TD></TR>";
 
         edgeDef += "</TABLE>>];";
@@ -627,20 +627,20 @@ void StrategyManager::recursiveDijkstra(mv::Data::OpListIterator opBegin)
 
 void StrategyManager::recursiveCriticalPath(typename graph<mv::Op, mv::DataFlow>::node_list_iterator modelSource, 
                                             std::unordered_set<std::string>& recursedNodes, MetaGraph& metaGraph){
-    struct costEdgeIteratorComp
+    struct costEdgeIteratorComp2
     {
-        bool operator()(const graph<std::tuple<mv::Op&,StrategySet,int>,double>::edge_list_iterator lhs, const graph<std::tuple<mv::Op&,StrategySet,int>,double>::edge_list_iterator rhs) const
+        bool operator()(const OptimizationGraph::edge_list_iterator lhs,
+                        const OptimizationGraph::edge_list_iterator rhs) const
         {
-            return (*lhs) < (*rhs);
+
+            return get<1>(*lhs) < get<1>(*rhs);
         }
     };
 
     struct costNodeIteratorComp
     {
-        bool operator()(const graph<std::tuple<mv::Op&,StrategySet,int>,double>::node_list_iterator lhs, const graph<std::tuple<mv::Op&,StrategySet,int>,double>::node_list_iterator rhs) const
+        bool operator()(const OptimizationGraph::node_list_iterator lhs, const OptimizationGraph::node_list_iterator rhs) const
         {
-            StrategySet lss = get<1>(*lhs);
-            StrategySet rss = get<1>(*rhs);
             int x = get<2>(*lhs) ;
             int y = get<2>(*rhs) ;
             return (x < y);
@@ -662,6 +662,8 @@ void StrategyManager::recursiveCriticalPath(typename graph<mv::Op, mv::DataFlow>
         return;
     }
     int childCtr = 0;
+    int nodeCtr = 0;
+
     recursedNodes.insert(opName); //haven't seen this source before, save it
     //RECURSIVE CASE - iterate over the children of source build linear subgraphs, kick off recursion if another pivot node hit
     for(auto model_edge  = modelSource->leftmost_output(); model_edge !=  g.edge_end(); ++model_edge)
@@ -677,7 +679,7 @@ void StrategyManager::recursiveCriticalPath(typename graph<mv::Op, mv::DataFlow>
         last_nodes.clear();
         old_nodes.clear();
 
-        map<typename OptimizationGraph::edge_list_iterator, double, costEdgeIteratorComp> edgeCostMap;
+        map<typename OptimizationGraph::edge_list_iterator, double, costEdgeIteratorComp2> edgeCostMap;
         int opCtr = 0;
         int optionCtr = 0;
 
@@ -696,10 +698,12 @@ void StrategyManager::recursiveCriticalPath(typename graph<mv::Op, mv::DataFlow>
             for(const auto newNode : new_nodes)
             {
                 double edgeCost = transitionCost( get<0>(*oldNode), get<0>(*newNode), get<1>(*oldNode), get<1>(*newNode));
-                int edgeCostInt = edgeCost ;
-                auto newEdge = optimizationGraph.edge_insert(oldNode,newNode,edgeCost);
+                auto newEdge = optimizationGraph.edge_insert(oldNode,newNode,OptimizationGraphEdge(edgeCost,nodeCtr));
                 edgeCostMap.insert(std::pair<OptimizationGraph::edge_list_iterator, double>(newEdge, edgeCost));
+
+                nodeCtr++;
             }
+
         old_nodes.swap(new_nodes);
         nodeStrategies.push_back(nodeStrategy);
 
@@ -726,8 +730,10 @@ void StrategyManager::recursiveCriticalPath(typename graph<mv::Op, mv::DataFlow>
                 {
                     double edgeCost = transitionCost( get<0>(*oldNode), get<0>(*newNode), get<1>(*oldNode), get<1>(*newNode));
                     int edgeCostInt = edgeCost ;
-                    auto newEdge = optimizationGraph.edge_insert(oldNode,newNode,edgeCost);
+                    auto newEdge = optimizationGraph.edge_insert(oldNode,newNode,OptimizationGraphEdge(edgeCost,nodeCtr));
                     edgeCostMap.insert(std::pair<OptimizationGraph::edge_list_iterator, double>(newEdge, edgeCost));
+
+                    nodeCtr++;
                 }
             old_nodes.swap(new_nodes);
 
@@ -750,9 +756,11 @@ void StrategyManager::recursiveCriticalPath(typename graph<mv::Op, mv::DataFlow>
             for(const auto newNode : new_nodes)
             {
                 double edgeCost = transitionCost( get<0>(*oldNode), get<0>(*newNode), get<1>(*oldNode), get<1>(*newNode));
-                int edgeCostInt = edgeCost ;
-                auto newEdge = optimizationGraph.edge_insert(oldNode,newNode,edgeCost);
+//                int edgeCostInt = edgeCost ;
+                auto newEdge = optimizationGraph.edge_insert(oldNode,newNode,OptimizationGraphEdge(edgeCost,nodeCtr));
                 edgeCostMap.insert(std::pair<OptimizationGraph::edge_list_iterator, double>(newEdge, edgeCost));
+
+                nodeCtr++;
             }
         old_nodes.swap(new_nodes);
         nodeStrategies.push_back(nodeStrategy);
@@ -763,7 +771,7 @@ void StrategyManager::recursiveCriticalPath(typename graph<mv::Op, mv::DataFlow>
  */
         allOptimizationGraphs.push_back(optimizationGraph);
         writeDot(optimizationGraph,true);
-        costEdgeIteratorComp costEdgeCompare;
+        costEdgeIteratorComp2 costEdgeCompare;
         auto sinkNodeIt = optimizationGraph.node_begin() ;
         for (int ii=0; ii<optimizationGraph.node_size()-1; ii++) ++sinkNodeIt;
 
@@ -774,12 +782,14 @@ void StrategyManager::recursiveCriticalPath(typename graph<mv::Op, mv::DataFlow>
         for(auto startingNode : first_nodes){
             for( auto endingNode : last_nodes)
             {
-                CriticalEdges criticalPathEdges = dijkstra<std::tuple<mv::Op&,StrategySet,int>,double,costNodeIteratorComp,costEdgeIteratorComp, double>(optimizationGraph,startingNode,endingNode,edgeCostMap);
+                CriticalEdges criticalPathEdges = dijkstra<OptimizationGraphNode,OptimizationGraphEdge,costNodeIteratorComp,costEdgeIteratorComp2, double>(optimizationGraph,startingNode,endingNode,edgeCostMap);
                 double cost = 0;
                 vector<StrategySet> strategies;
+
                 //strategies.push_back(get<1>(*criticalPathEdges[0]->source()));
                 for(auto edge : criticalPathEdges){
-                    cost += *edge;
+                    cost += get<0>(*edge);
+
                     strategies.push_back(get<1>(*edge->sink()));
                 }
                 strategies.pop_back();

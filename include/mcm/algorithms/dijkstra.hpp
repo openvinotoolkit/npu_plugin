@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <map>
 #include <tuple>
+#include <limits>
 #include "include/mcm/graph/graph.hpp"
 
 namespace mv

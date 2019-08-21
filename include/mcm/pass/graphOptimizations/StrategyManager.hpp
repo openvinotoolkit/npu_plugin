@@ -5,6 +5,7 @@
 #include "include/mcm/base/exception/argument_error.hpp"
 #include "math.h"
 #include "tuple"
+#include "limits"
 
 namespace mv {
 namespace graphOptimizer  {
@@ -20,7 +21,11 @@ public:
     using LayerStrategySet  = unordered_map<string,StrategySet>;
 
     using MetaGraph = mv::graph<std::tuple<mv::Op&,StrategySet,int>,std::pair<double, vector<StrategySet>>>;
-    using OptimizationGraph = mv::graph<std::tuple<mv::Op&,StrategySet,int>,double>;
+
+    using OptimizationGraphNode = std::tuple<mv::Op&,StrategySet,int>;
+    using OptimizationGraphEdge = std::pair<double,int>;
+    using OptimizationGraph = mv::graph<OptimizationGraphNode,OptimizationGraphEdge>;
+
     using CriticalEdges = std::vector<OptimizationGraph::edge_list_iterator>;
     using CriticalPair = std::pair<OptimizationGraph,CriticalEdges>;
     using OptimizationPair = std::pair<OptimizationGraph,vector<CriticalEdges>>;
