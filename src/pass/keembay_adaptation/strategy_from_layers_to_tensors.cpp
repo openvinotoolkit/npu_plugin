@@ -57,13 +57,21 @@ void strategyLayersToTensors(const mv::pass::PassEntry& , mv::ComputationModel& 
                     inputTensor->set<std::string>("splitStrategy", opStrategy);
                 }
             }
+            else if (opType == "Input")
+            {
+                auto opStrategy = layer->get<std::string>("splitStrategy");
+                auto outputTensor = layer->getOutputTensor(0);
+                outputTensor->set<std::string>("splitStrategy", opStrategy);
+            }
         }
+        // ASSUMPTION: All the input tensors of a concat share the same
+        // splitting strategy
         for(auto layer = om.opBegin(); layer != om.opEnd(); ++layer)
         {
             std::string opType = layer->getOpType();
-            if (opType == "Input")
+            if (opType == "ImplicitConcat" || opType == "Concat")
             {
-                auto opStrategy = layer->get<std::string>("splitStrategy");
+                auto opStrategy = layer->getInputTensor(0)->get<std::string>("splitStrategy");
                 auto outputTensor = layer->getOutputTensor(0);
                 outputTensor->set<std::string>("splitStrategy", opStrategy);
             }
@@ -71,22 +79,11 @@ void strategyLayersToTensors(const mv::pass::PassEntry& , mv::ComputationModel& 
         for(auto layer = om.opBegin(); layer != om.opEnd(); ++layer)
         {
             std::string opType = layer->getOpType();
-            if (opType == "DMATask")
+            if (opType == "Slice")
             {
+                auto opStrategy = layer->getInputTensor(0)->get<std::string>("splitStrategy");
                 auto outputTensor = layer->getOutputTensor(0);
-                if (outputTensor->hasAttr("splitStrategy"))
-                {
-                    auto outputTensorStrategy = outputTensor->get<std::string>("splitStrategy");
-                    auto inputTensor = layer->getInputTensor(0);
-                    inputTensor->set<std::string>("splitStrategy", outputTensorStrategy);
-                }
-                //last DMA CMX2DDR for Output
-                else
-                {
-                    auto inputTensor = layer->getInputTensor(0);
-                    auto inputTensorStrategy = inputTensor->get<std::string>("splitStrategy");
-                    outputTensor->set<std::string>("splitStrategy", inputTensorStrategy);
-                }
+                outputTensor->set<std::string>("splitStrategy", opStrategy);
             }
         }
     }
