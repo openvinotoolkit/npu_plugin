@@ -70,7 +70,7 @@ shape_(other.shape_),
 internalOrder_(other.internalOrder_),
 blockSize_(other.blockSize_),
 sparsityMap_(other.sparsityMap_),
-storageElement_(other.sparsityMap_),
+storageElement_(other.storageElement_),
 subTensors_(other.subTensors_),
 kernelDataOffsets_(other.kernelDataOffsets_),
 noneZeroElements_(other.noneZeroElements_)
@@ -948,7 +948,7 @@ mv::Tensor& mv::Tensor::operator=(const Tensor& other)
     internalOrder_ = other.internalOrder_;
     blockSize_ = other.blockSize_;
     sparsityMap_ = other.sparsityMap_;
-    storageElement_ = other.sparsityMap_;
+    storageElement_ = other.storageElement_;
     subTensors_ = other.subTensors_;
     kernelDataOffsets_ = other.kernelDataOffsets_;
 
