@@ -520,14 +520,6 @@ void tensorGraphColoringFnc(const mv::pass::PassEntry& pass, mv::ComputationMode
     for (auto i = memDefs.begin(); i != memDefs.end(); i++)
         pass.log(mv::Logger::MessageType::Debug, ""+ i->first + " size " + std::to_string(i->second.size) +  " alignment " +  std::to_string(i->second.alignment));
 
-    //Collect all input/output tensor names
-    /*for(auto opIterator = om.opBegin(); opIterator != om.opEnd(); ++opIterator)
-    {
-        std::cout << " Layer: " << opIterator->getName() ;
-        if (opIterator->getOpType() == "DMATask")
-           std::cout << "\t\t DMA direction" << opIterator->get<mv::DmaDirection>("direction");
-        std::cout << std::endl;
-    }*/
 //    auto memsize = memDefs.find("VPU_DDR_BSS")->second.size;
 //    auto alignment = 16; //memDefs.find("VPU_DDR_BSS")->second.alignment; //TODO for now POC uses 16 for all memory
 //    mv::TensorInterferenceGraph ddr_bss_g(model, alignment,
