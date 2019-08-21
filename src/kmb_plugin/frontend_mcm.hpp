@@ -84,11 +84,7 @@ public:
 
     std::set<std::string> checkSupportedLayers(const ie::ICNNNetwork& network);
 
-    const std::vector<ie::CNNLayerPtr>& allLayers() const { return _parsedNetwork.orderedLayers; }
     McmNodePtr output() { return _output; }
-    mv::OpModel& getOpModel() {
-        return _modelMcm;
-    }
 
 //
 // Passes
@@ -98,78 +94,57 @@ private:
     void runCommonPasses(
             const ie::ICNNNetwork& network);
 
-    ie::CNNNetwork detectNetworkBatch(
-            const ie::ICNNNetwork& network);
-
-    void checkNetwork(const ie::CNNNetwork& network);
-
     void parseInputData();
     void parseOutputData();
-    void addDataTypeConvertStages(const mv::OpModel& modelMcm);
-    void addPreProcessStages(const mv::OpModel& modelMcm);
 
 //
 // IR Parsers
 //
 
 public:
-    //
-    // Layers, that might be both SW and HW
-    //
-
-    void parseConvolution(const mv::OpModel& modelMcm, const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
-    void parsePooling(const mv::OpModel& modelMcm, const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
-    void parseFullyConnected(const mv::OpModel& modelMcml, const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
-
-    //
-    // SW only layers
-    //
-
-    void parseReLU(const mv::OpModel& modelMcm, const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
-    void parseSoftMax(const mv::OpModel& modelMcm, const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
-    void parseGRN(const mv::OpModel& modelMcm, const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
-    void parseMVN(const mv::OpModel& modelMcm, const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
-    void parseNorm(const mv::OpModel& modelMcm, const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
-    void parsePower(const mv::OpModel& modelMcm, const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
-    void parseScale(const mv::OpModel& modelMcm, const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
-    void parsePermute(const mv::OpModel& modelMcm, const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
-    void parseDetectionOutput(const mv::OpModel& modelMcm, const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
-    void parseEltwise(const mv::OpModel& modelMcm, const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
-    void parseSigmoid(const mv::OpModel& modelMcm, const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
-    void parseTanH(const mv::OpModel& modelMcm, const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
-    void parsePReLU(const mv::OpModel& modelMcm, const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
-    void parseBatchNorm(const mv::OpModel& modelMcm, const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
-    void parseDeconvolution(const mv::OpModel& modelMcm, const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
-    void parseCopy(const mv::OpModel& modelMcm, const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
-    void parseELU(const mv::OpModel& modelMcm, const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
-    void parseCrop(const mv::OpModel& modelMcm, const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
-    void parseTile(const mv::OpModel& modelMcm, const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
-    void parseNormalize(const mv::OpModel& modelMcm, const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
-    void parseRegionYolo(const mv::OpModel& modelMcm, const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
-    void parseReorgYolo(const mv::OpModel& modelMcm, const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
-    void parseBias(const mv::OpModel& modelMcm, const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
-    void parseCTCDecoder(const mv::OpModel& modelMcm, const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
-    void parseInterp(const mv::OpModel& modelMcm, const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
-    void parseClamp(const mv::OpModel& modelMcm, const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
-    void parseProposal(const mv::OpModel& modelMcm, const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
-    void parseROIPooling(const mv::OpModel& modelMcm, const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
-    void parsePSROIPooling(const mv::OpModel& modelMcm, const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
-    void parseCustom(const mv::OpModel& modelMcm, const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
-    void parseMTCNN(const mv::OpModel& modelMcm, const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
-    void parseLSTMCell(const mv::OpModel& modelMcm, const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
-    void parsePad(const mv::OpModel& modelMcm, const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
-    void parseResample(const mv::OpModel& modelMcm, const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
-    void parseArgMax(const mv::OpModel& modelMcm, const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
-
-    //
-    // Special layers
-    //
-
-    void parsePriorBox(const mv::OpModel& modelMcm, const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
-    void parsePriorBoxClustered(const mv::OpModel& modelMcm, const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
-    void parseReshape(const mv::OpModel& modelMcm, const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
-    void parseConcat(const mv::OpModel& modelMcm, const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
-    void parseSplit(const mv::OpModel& modelMcm, const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
+    void parseConvolution(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
+    void parsePooling(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
+    void parseFullyConnected(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
+    void parseReLU(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
+    void parseSoftMax(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
+    void parseGRN(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
+    void parseMVN(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
+    void parseNorm(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
+    void parsePower(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
+    void parseScale(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
+    void parsePermute(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
+    void parseDetectionOutput(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
+    void parseEltwise(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
+    void parseSigmoid(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
+    void parseTanH(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
+    void parsePReLU(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
+    void parseBatchNorm(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
+    void parseDeconvolution(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
+    void parseCopy(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
+    void parseELU(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
+    void parseCrop(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
+    void parseTile(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
+    void parseNormalize(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
+    void parseRegionYolo(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
+    void parseReorgYolo(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
+    void parseBias(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
+    void parseCTCDecoder(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
+    void parseInterp(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
+    void parseClamp(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
+    void parseProposal(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
+    void parseROIPooling(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
+    void parsePSROIPooling(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
+    void parseCustom(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
+    void parseMTCNN(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
+    void parseLSTMCell(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
+    void parsePad(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
+    void parseResample(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
+    void parseArgMax(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
+    void parsePriorBox(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
+    void parsePriorBoxClustered(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
+    void parseReshape(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
+    void parseConcat(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
+    void parseSplit(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
 
 //
 // Utility
@@ -178,30 +153,28 @@ public:
 private:
     McmNode getMcmData(const ie::DataPtr& ieData);
     void bindData(const McmNode& data, const ie::DataPtr& ieData);
-
+    void bindOutput(mv::Data::TensorIterator node, ie::DataPtr& layerOutput);
     void getInputData(
             const ie::CNNLayerPtr& layer,
             McmNodeVector& inputs);
 
-//
-// Internal state
-//
-
-private:
     struct ParsedNetwork {
         ie::InputsDataMap networkInputs;
         ie::OutputsDataMap networkOutputs;
         std::unordered_map<ie::DataPtr, ie::Blob::Ptr> constDatas;
         std::vector<ie::CNNLayerPtr> orderedLayers;
     };
+    void parseNetworkDFS(const ie::ICNNNetwork& network, ParsedNetwork& parsedNetwork);
 
-    void parseNetworkDFS(const ie::CNNNetwork& network, ParsedNetwork& parsedNetwork);
+//
+// Internal state
+//
 
+private:
     mv::OpModel& _modelMcm;
     McmNodePtrList _nodes;
     McmNodePtr _output;
 
-    std::unordered_set<ie::DataPtr> _unbatchedOutputs;
     std::unordered_map<ie::DataPtr, McmNode> _ieToMcmMap;
 
     ParsedNetwork _parsedNetwork;
