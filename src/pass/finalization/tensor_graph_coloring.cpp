@@ -574,7 +574,8 @@ void tensorGraphColoringFnc(const mv::pass::PassEntry& pass, mv::ComputationMode
     auto agOrder = aggressiveSimplify(ddr_heap_g, memsize, mv::OrderingStrategy::IG_LARGEST_NEIGHBORS_FIRST);
     //printASOrder(agOrder, "DDR_HEAP");
     bestFitMemoryAllocation(model, agOrder, ddr_heap_g, memsize);
-    ddr_heap_g.drawGraph("ddr_heap_memory.dot");
+    if(passDesc.hasAttr("heapOutput"))
+        ddr_heap_g.drawGraph(passDesc.get<std::string>("heapOutput"));
 
     alignment = 16; //memDefs.find("VPU_CMX_NN")->second.alignment;//TODO for now POC uses 16 for all memory
     pass.log(mv::Logger::MessageType::Info, " generating cmx TIG");
@@ -606,8 +607,8 @@ void tensorGraphColoringFnc(const mv::pass::PassEntry& pass, mv::ComputationMode
     pass.log(mv::Logger::MessageType::Info, " Calling bestFitMemoryAllocation");
     bestFitMemoryAllocation(model, agOrder, nncmx_g, memsize);
     pass.log(mv::Logger::MessageType::Info, " Calling DrawGraph");
-    if(passDesc.hasAttr("output"))
-        nncmx_g.drawGraph(passDesc.get<std::string>("output"));
+    if(passDesc.hasAttr("cmxOutput"))
+        nncmx_g.drawGraph(passDesc.get<std::string>("cmxOutput"));
 
     pass.log(mv::Logger::MessageType::Debug, "Graph Coloring Ended");
 }
