@@ -260,7 +260,6 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
                         if(flowIt == cm.flowEnd())
                             flowIt = cm.defineFlow(inputOp, deallocateInputOp);
                         auto outputTensor = flowIt.source()->getOutputTensor(0);
-                        flowIt->set<int>("MemoryRequirement", outputTensor->computeTotalSize());
                         flowIt->set<bool>("PositiveMemory", true);
                     }
 
@@ -270,19 +269,30 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
 
                     // Checking all the ops that have this tensor as input
                     std::vector<mv::Data::OpListIterator> sinkOperations;
-                    for(auto flowName : flowsNames)
+                    while(!flowsNames.empty())
+                    //for(auto flowName : flowsNames)
                     {
-                        auto df = dm.getDataFlow(flowName);
-                        sinkOperations.push_back(df.sink());
+                        auto flowName = flowsNames.begin();
+                        auto df = dm.getDataFlow(*flowName);
+                        auto chosenOp = cm.switchContext(df.sink());
+                        if (!chosenOp->hasTypeTrait("executable"))
+                        {
+                            //TODO: one output?
+                            auto implicitOpFlowsNames = chosenOp->getOutputTensor(0)->get<std::set<std::string>>("flows");
+                            flowsNames.insert(implicitOpFlowsNames.begin(), implicitOpFlowsNames.end());
+                        }
+                        else
+                            sinkOperations.push_back(df.sink());
+                        flowsNames.erase(flowName);
                     }
 
                     // If there is just one operation, the solution is pretty easy: attach this operation to the dealloc
                     // and the dealloc to the next operation coming in control flow model
                     if(sinkOperations.size() == 1)
                     {
-                        // TODO Need to handle this, because in case of streaming, it will skip flows going to concat
                         auto chosenOp = cm.switchContext(*sinkOperations.begin());
-                        insertDeallocationControlFlows(om, deallocateInputOp, chosenOp);
+                        if (chosenOp->hasTypeTrait("executable"))
+                            insertDeallocationControlFlows(om, deallocateInputOp, chosenOp);
                     }
                     else
                     {
