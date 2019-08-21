@@ -16,10 +16,8 @@
 
 #include <frontend_mcm.hpp>
 
-#include <atomic>
 #include <memory>
 #include <string>
-#include <tuple>
 #include <set>
 #include <vector>
 #include <algorithm>
@@ -40,7 +38,6 @@ namespace KmbPlugin {
 namespace {
 
 typedef void (FrontEndMcm::*parser_t)(
-        const mv::OpModel& modelMcm,
         const ie::CNNLayerPtr& layer,
         const McmNodeVector& inputs);
 
@@ -96,8 +93,6 @@ ie::details::caseless_map<std::string, parser_t> g_mcm_parsers = {
     {"ArgMax",             &FrontEndMcm::parseArgMax},
 };
 
-std::atomic<int> g_counter(0);
-
 }  // namespace
 
 mv::DType convert_data_type(ie::Precision iePrecision) {
@@ -130,7 +125,7 @@ void FrontEndMcm::buildInitialModel(const ie::ICNNNetwork& network) {
     for (const auto& layer : _parsedNetwork.orderedLayers) {
         IE_ASSERT(layer != nullptr);
 
-        _logger->debug("try to parse layer %s", layer->name);
+        _logger->debug("Try to parse layer %s", layer->name);
 
         McmNodeVector inputs;
         getInputData(layer, inputs);
@@ -147,7 +142,7 @@ void FrontEndMcm::buildInitialModel(const ie::ICNNNetwork& network) {
         auto parser = it->second;
         IE_ASSERT(parser != nullptr);
 
-        (this->*parser)(_modelMcm, layer, inputs);
+        (this->*parser)(layer, inputs);
     }
 
     parseOutputData();
@@ -173,7 +168,7 @@ std::set<std::string> FrontEndMcm::checkSupportedLayers(const ie::ICNNNetwork& n
                 auto parser = it->second;
                 IE_ASSERT(parser != nullptr);
 
-                (this->*parser)(_modelMcm, layer, inputs);
+                (this->*parser)(layer, inputs);
 
                 layerNames.insert(layer->name);
             } catch (const ie::details::InferenceEngineException&) {
@@ -186,97 +181,7 @@ std::set<std::string> FrontEndMcm::checkSupportedLayers(const ie::ICNNNetwork& n
     return layerNames;
 }
 
-ie::CNNNetwork FrontEndMcm::detectNetworkBatch(
-        const ie::ICNNNetwork& origNetwork) {
-    IE_PROFILING_AUTO_SCOPE(detectNetworkBatch);
-
-    // Keep original network.
-    IE_SUPPRESS_DEPRECATED_START
-    return ie::CNNNetwork(const_cast<ie::ICNNNetwork*>(&origNetwork));
-    IE_SUPPRESS_DEPRECATED_END
-}
-
-void FrontEndMcm::parseInputData() {
-    IE_PROFILING_AUTO_SCOPE(parseInputData);
-
-    _logger->debug("Try to parse network input");
-
-    //
-    // Parse network inputs
-    //
-
-    IE_ASSERT(_parsedNetwork.networkInputs.size() == 1);
-
-    for (const auto& inputInfo : _parsedNetwork.networkInputs) {
-        auto netInput = inputInfo.second;
-        IE_ASSERT(netInput != nullptr);
-
-        auto ieData = netInput->getInputData();
-        IE_ASSERT(ieData != nullptr);
-
-        const auto& dataDesc = ieData->getTensorDesc();
-        mv::Shape inputShape(getWHCN(dataDesc).getDims());
-        auto mvInput = _modelMcm.input(inputShape, convert_data_type(dataDesc.getPrecision()), mv::Order("NCHW"), {{}, {}, {}, {}}, netInput->name());
-        auto input = std::make_shared<McmNodeObject>(mvInput, dataDesc);
-        _nodes.push_back(input);
-        bindData(input, ieData);
-        _logger->debug("Network input '%s'(orig: '%s') parsed to mcmModel", mvInput->getName(), netInput->name());
-    }
-
-#if 0  // TODO: rewrite logic to mcm compiler if this part is needed
-    //
-    // Parse constant data
-    //
-
-        auto kmbData = model->addInputData(ieData->getName(), kmbDesc);
-        bindData(kmbData, ieData);
-
-        auto kmbData = model->addConstData(
-            ieData->getName(),
-            kmbDesc,
-            ieBlobContent(ieBlob));
-
-        // User might ask to return the output from Const layer.
-        if (auto kmbOutData = getVpuData(ieData)) {
-            IE_ASSERT(kmbOutData->usage() == DataUsage::Output);
-
-            _stageBuilder->addCopyStage(
-                model,
-                formatString("%s@return-const", kmbData->name()),
-                nullptr,
-                kmbData,
-                kmbOutData);
-        }
-
-        bindData(kmbData, ieData);
-#endif
-}
-
-void FrontEndMcm::parseOutputData() {
-    IE_PROFILING_AUTO_SCOPE(parseOutputData);
-
-    _logger->debug("Try to parse network output");
-
-    //
-    // Parse network outputs
-    //
-
-    for (const auto& outputInfo : _parsedNetwork.networkOutputs) {
-        auto ieData = outputInfo.second;
-
-        IE_ASSERT(ieData != nullptr);
-
-        auto lastLayerOut = getMcmData(ieData);
-        IE_ASSERT(lastLayerOut != nullptr);
-        auto name = lastLayerOut->getMcmNode()->getName();
-
-        auto mvOutput = _modelMcm.output(lastLayerOut->getMcmNode());
-        _output = std::make_shared<McmNodeObject>(mvOutput, lastLayerOut->desc());
-        _nodes.push_back(_output);
-    }
-}
-
-void FrontEndMcm::parseNetworkDFS(const ie::CNNNetwork& network, ParsedNetwork& parsedNetwork) {
+void FrontEndMcm::parseNetworkDFS(const ie::ICNNNetwork& network, ParsedNetwork& parsedNetwork) {
     IE_PROFILING_AUTO_SCOPE(parseNetworkDFS);
 
     ie::details::CaselessEq<std::string> cmp;
@@ -285,10 +190,8 @@ void FrontEndMcm::parseNetworkDFS(const ie::CNNNetwork& network, ParsedNetwork& 
     // Collect all network input data.
     //
 
-    auto reshapedNetwork = detectNetworkBatch(network);
-
-    parsedNetwork.networkInputs = reshapedNetwork.getInputsInfo();
-    parsedNetwork.networkOutputs = reshapedNetwork.getOutputsInfo();
+    network.getInputsInfo(parsedNetwork.networkInputs);
+    network.getOutputsInfo(parsedNetwork.networkOutputs);
 
     std::unordered_set<ie::DataPtr> allInputDatas;
     for (const auto& netInput : parsedNetwork.networkInputs) {
@@ -389,8 +292,7 @@ void FrontEndMcm::parseNetworkDFS(const ie::CNNNetwork& network, ParsedNetwork& 
 }
 
 void FrontEndMcm::runCommonPasses(const ie::ICNNNetwork& network) {
-    auto reshapedNetwork = detectNetworkBatch(network);
-    parseNetworkDFS(reshapedNetwork, _parsedNetwork);
+    parseNetworkDFS(network, _parsedNetwork);
     parseInputData();
 }
 
@@ -411,6 +313,13 @@ void FrontEndMcm::bindData(const McmNode& data, const ie::DataPtr& ieData) {
 
     _ieToMcmMap[ieData] = data;
     data->setOrigData(ieData);
+}
+
+void FrontEndMcm::bindOutput(mv::Data::TensorIterator node, ie::DataPtr& layerOutput) {
+    IE_ASSERT(layerOutput != nullptr);
+    auto layer = std::make_shared<McmNodeObject>(node, layerOutput->getTensorDesc());
+    _nodes.push_back(layer);
+    bindData(layer, layerOutput);
 }
 
 void FrontEndMcm::getInputData(
