@@ -391,10 +391,10 @@ public:
         }
 
         Shape contextsInOp = dpuOutShape / contexts;
-        unsigned numContextsInOp = 0;
+        unsigned numContextsInOp = 1;
         for(unsigned i =0 ; i < contextsInOp.ndims(); i++)
         {
-            numContextsInOp += contextsInOp[i];
+            numContextsInOp *= contextsInOp[i];
         }
 
         if(numContextsInOp == 0)
@@ -402,7 +402,7 @@ public:
 
         unsigned contextsPerDpu = (unsigned)ceil( (double)numContextsInOp / (double)dpuPerCluster);
 
-        return contextsPerDpu * (streaming["H"] + streaming["K"])* baseKernelCost;
+        return contextsPerDpu * (streaming["H"] * streaming["K"])* baseKernelCost;
     }
 
 
