@@ -217,28 +217,6 @@ bool mv::TensorInterferenceGraph::checkIsCMXTensor_(const Data::TensorIterator t
     return false;
 }
 
-void mv::TensorInterferenceGraph::transitiveClosureHelper_(std::string source, std::string target)
-{
-    transitiveClosureSet_.insert(std::make_pair(source, target));
-
-    //for all childs of target, add them to reachable nodes from source
-    auto ni = nodeIteratorsMap_.find(target)->second;
-
-
-    for (mv::TensorInterferenceGraph::node_child_iterator it(ni); it != this->node_end(); ++it)
-    {
-        //only if we haven't explored this path before lets explore it
-        if (transitiveClosureSet_.find(std::make_pair(source, (*it).name)) == transitiveClosureSet_.end())
-            transitiveClosureHelper_(source, (*it).name);
-    }
-}
-void mv::TensorInterferenceGraph::transitiveClosure_()
-{
-
-    for (auto it = this->node_begin(); it != this->node_end(); ++it)
-        transitiveClosureHelper_((*it).name, (*it).name);
-}
-
 void mv::TensorInterferenceGraph::cmTransitiveClosureHelper_(mv::OpModel& om, mv::ControlModel& cm, std::string source, std::string target)
 {
     //Todo maybe add only if source/target are in nodenames?
@@ -347,6 +325,8 @@ void mv::TensorInterferenceGraph::genIntereferenceGraph_(const mv::pass::PassEnt
         std::unordered_set<std::string> sinkNodeNames;
         for(auto opIterator = om.opBegin(); opIterator != om.opEnd(); ++opIterator)
         {
+            if (!opIterator->hasTypeTrait("executable"))
+                continue;
             if (isTensorInTopNames_(opIterator->getOutputTensor(), dm, *source))
                 sourceNodeNames.insert(opIterator->getName());
             if (isTensorInTopNames_(opIterator->getInputTensor(), dm, *source) && sinkFilter(opIterator))
@@ -357,7 +337,6 @@ void mv::TensorInterferenceGraph::genIntereferenceGraph_(const mv::pass::PassEnt
     }
     //create transitive closure for all nodes in graph
     cmTransitiveClosure_(model);
-    transitiveClosure_();
 
     pass.log(mv::Logger::MessageType::Info, "\t adding more edges (current Number of edges) " + std::to_string(nodeId));
 
@@ -368,9 +347,8 @@ void mv::TensorInterferenceGraph::genIntereferenceGraph_(const mv::pass::PassEnt
         for (std::unordered_set<std::string>::const_iterator target = source; target != nodeNames.end( ); ++target)
         {
             auto nj = nodeIteratorsMap_.find(*target)->second;
-            auto pathExists = transitiveClosureSet_.find(std::make_pair(*source, *target));
 
-            if (source != target && !checkNodesAreNeighbors_(ni, nj) && pathExists != transitiveClosureSet_.end())
+            if (source != target && !checkNodesAreNeighbors_(ni, nj))
             {
                 if (!checkNodesDontInterfere_(sourceNodesMap[*source], sinkNodesMap[*target]) && !checkNodesDontInterfere_(sourceNodesMap[*target], sinkNodesMap[*source]))
                 {

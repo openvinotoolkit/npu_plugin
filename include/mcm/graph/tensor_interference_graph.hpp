@@ -97,16 +97,11 @@ namespace mv
             };
             std::unordered_map<std::string, std::string> topMasterMap_;
             std::unordered_set<std::pair<std::string, std::string>, pair_hash> cmTransitiveClosureSet_;
-            std::unordered_set<std::pair<std::string, std::string>, pair_hash> transitiveClosureSet_;
             std::unordered_map<std::string, node_list_iterator> nodeIteratorsMap_;
-
-
 
             std::string getTensorTopMaster_(const Data::TensorIterator& t, DataModel& dm);
             std::unordered_set<std::string> getTaskTopTensors_(const std::vector<Data::TensorIterator>& tensorList, ComputationModel& model,
                 DataModel& dm, const TensorIteratorFilter& tensorFilter, bool isDMA);
-            void transitiveClosureHelper_(std::string source, std::string target);
-            void transitiveClosure_();
 
             void cmTransitiveClosure_(mv::ComputationModel& model);
             void cmTransitiveClosureHelper_(mv::OpModel& om, mv::ControlModel& cm, std::string source, std::string target);
