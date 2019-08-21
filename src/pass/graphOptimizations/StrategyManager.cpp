@@ -212,9 +212,7 @@ void StrategyManager::writeMetaDot(MetaGraph& graph, bool skipInf)
 
     for(auto edge = graph.edge_begin(); edge != graph.edge_end(); ++edge)
     {
-//        if( skipInf and ( (*edge) == numeric_limits<double>::infinity()))
-        skipInf=false;
-        if( skipInf and ( get<0>(*edge) >= 9999999.999))
+        if( skipInf and ( get<0>(*edge) == inf_))
             continue;
         //TODO:: using an object's address to uniquely identify it is a baaaaaaaaad idea. Come up with something normal
         std::string edgeDef = "\t\""
@@ -282,8 +280,7 @@ void StrategyManager::writeDot(OptimizationGraph& optimizationGraph, bool skipIn
 
     for(auto edge = optimizationGraph.edge_begin(); edge != optimizationGraph.edge_end(); ++edge)
     {
-//        if( skipInf and ( (*edge) == numeric_limits<double>::infinity()))
-        if( skipInf and ( (*edge)== 9999999.999))
+        if( skipInf and ( get<0>(*edge)== inf_))
             continue;
         //TODO:: using an object's address to uniquely identify it is a baaaaaaaaad idea. Come up with something normal
         std::string edgeDef = "\t\""
@@ -602,7 +599,7 @@ void StrategyManager::recursiveDijkstra(mv::Data::OpListIterator opBegin)
     }
     */
     //call dijkstra on metagraph for each source and sink combo, choosing the best
-    double max = 99999999.999;
+    double max = inf_;
     vector<MetaGraph::edge_list_iterator> finalCriticalPath;
     for(auto source : sources){
         for(auto sink : sinks) {

@@ -29,6 +29,8 @@ public:
     using MetaGraphEdge = std::pair<double, vector<StrategySet>>;
     using CriticalInfo = std::tuple<OptGraphNode, OptGraphNode, MetaGraphEdge>;
     
+    static constexpr auto inf_ = numeric_limits<double>::infinity();
+
     GlobalSetting globalConfig_;
     GlobalSetting globalStrategies_;
     LayerStrategySet layerStrategies_;
