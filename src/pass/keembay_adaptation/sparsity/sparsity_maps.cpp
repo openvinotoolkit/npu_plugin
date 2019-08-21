@@ -258,8 +258,7 @@ static void sparseWeights(mv::Data::TensorIterator& weightsTensor, mv::Computati
         auto sparsityMapOp = om.getSourceOp(sparsityMap);
         auto weights = om.getSourceOp(weightsTensor);
 
-        //Necessary hack because we want to put the sparse flag on the constant operation
-        weights.leftmostParent()->set<bool>("sparse", true);
+        weights->set<bool>("sparse", true);
         sparsityMapOp->set<unsigned>("opId", weights->get<unsigned>("opId"));
         auto outputFlows = mv::getOutputDataFlow(om, weights, false);
         for(auto& output: outputFlows)

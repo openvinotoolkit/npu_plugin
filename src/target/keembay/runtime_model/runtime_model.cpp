@@ -1579,11 +1579,6 @@ void mv::RuntimeModel::buildGraphFile(ComputationModel& cm, mv::Element& compila
     std::sort(toSort.begin(), toSort.end(), [](mv::Data::TensorIterator t1, mv::Data::TensorIterator t2){return (t1->get<unsigned>("graphFileIndex") < t2->get<unsigned>("graphFileIndex"));});
     for(auto& tIt : toSort)
     {
-        auto opIterator = om.getSourceOp(tIt);
-        // NOTE: This resparsify the weights coming from constant operation
-        // can be optimized
-        if(opIterator->hasAttr("sparse") && opIterator->get<bool>("sparse"))
-            tIt->setSparse();
         //std::cout << "Serializing to binary data section " << tensorIt->getName() << std::endl;
         graphFile_.binary_data.push_back(buildBinaryDataT(cm, compilationDescriptor, *tIt));
     }
