@@ -34,13 +34,13 @@ void convDilationFcn(const mv::pass::PassEntry &, mv::ComputationModel &model, m
 
             if (dilationFactor > 1)
             {
-            
+
                 /*Get the kernel attributes*/
                 auto nonDialtedKernel = opIt->getInputTensor(1);
-                auto nonDialtedKernelWidth = nonDialtedKernel->get<mv::Shape>("shape")[0];
-                auto nonDialtedKernelKernelHeight = nonDialtedKernel->get<mv::Shape>("shape")[1];
-                auto nonDialtedKernelKernelInputChannels = nonDialtedKernel->get<mv::Shape>("shape")[2];
-                auto nonDialtedKernelKernelOutpuChannels = nonDialtedKernel->get<mv::Shape>("shape")[3];
+                auto nonDialtedKernelWidth = nonDialtedKernel->getShape()[0];
+                auto nonDialtedKernelKernelHeight = nonDialtedKernel->getShape()[1];
+                auto nonDialtedKernelKernelInputChannels = nonDialtedKernel->getShape()[2];
+                auto nonDialtedKernelKernelOutpuChannels = nonDialtedKernel->getShape()[3];
 
 
                 /** Calculate dilated kernel shape

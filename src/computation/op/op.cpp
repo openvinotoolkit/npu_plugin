@@ -9,7 +9,7 @@ ModelElement(model, name)
 
     if (!op::OpRegistry::checkOpType(opType))
         throw ArgumentError(*this, "opType", opType, "Unregistered op type");
-    
+
     inputs_.reserve(op::OpRegistry::getInputsCount(opType));
     outputs_.reserve(op::OpRegistry::getOutputsCount(opType));
 
@@ -19,7 +19,7 @@ ModelElement(model, name)
     auto numReqdMandatoryArgs = mandatoryArgList.size();
     auto optionalArgList = op::OpRegistry::getOptionalArgsList(opType);
 
-    for (auto it = args.begin(); it != args.end(); ++it) 
+    for (auto it = args.begin(); it != args.end(); ++it)
     {
 
         auto argIt = std::find(mandatoryArgList.begin(), mandatoryArgList.end(), it->first);
@@ -27,9 +27,9 @@ ModelElement(model, name)
         if (argIt != mandatoryArgList.end())
         {
 
-            if (!op::OpRegistry::checkArgType(opType, it->first, it->second.getTypeID())) 
-                throw ArgumentError(*this, "arg", it->first, "Invalid argument type, received " +  
-                    attr::AttributeRegistry::getTypeName(it->second.getTypeID()) + ", must be " + 
+            if (!op::OpRegistry::checkArgType(opType, it->first, it->second.getTypeID()))
+                throw ArgumentError(*this, "arg", it->first, "Invalid argument type, received " +
+                    attr::AttributeRegistry::getTypeName(it->second.getTypeID()) + ", must be " +
                     attr::AttributeRegistry::getTypeName(op::OpRegistry::argType(opType, it->first)));
 
             set(it->first, it->second);
@@ -49,7 +49,7 @@ ModelElement(model, name)
 
                 if (!op::OpRegistry::checkArgType(opType, it->first, it->second.getTypeID()))
                 {
-                    
+
                     throw ArgumentError(*this, "arg", it->first, "Invalid argument type, received " +
                         attr::AttributeRegistry::getTypeName(it->second.getTypeID()) + ", must be " +
                         attr::AttributeRegistry::getTypeName(op::OpRegistry::argType(opType, it->first)));
@@ -69,7 +69,7 @@ ModelElement(model, name)
         }
 
     }
-    
+
     // Check if all mandatory args (no default values) provided
     if (args.size() < numReqdMandatoryArgs)
     {
@@ -80,7 +80,7 @@ ModelElement(model, name)
 
         throw ArgumentError(*this, "arg", list, "Missing arguments");
     }
-    
+
     if(checkInputSize)
         if (inputs.size() != op::OpRegistry::getInputsCount(opType))
             throw ArgumentError(*this, "inputs:size", std::to_string(inputs.size()), "Does not match the registered inputs count " +
@@ -93,7 +93,7 @@ ModelElement(model, name)
     auto checkRes = op::OpRegistry::checkInputs(opType, inputs_, getAttrs_(), errMsg);
 
     if (!checkRes.first)
-        throw OpError(*this, "Invalid input " + op::OpRegistry::getInputLabel(opType, checkRes.second) + " (" + 
+        throw OpError(*this, "Invalid input " + op::OpRegistry::getInputLabel(opType, checkRes.second) + " (" +
             std::to_string(checkRes.second) + ") - " + errMsg);
 
     std::vector<Tensor> outputsDef;
@@ -104,7 +104,7 @@ ModelElement(model, name)
     {
         outputsDef[i].setName(getName() + outputsDef[i].getName());
         outputs_.push_back(dm.defineTensor(outputsDef[i]));
-        outputs_[i]->set<std::string>("sourceOp", getName(), {"const"});
+        outputs_[i]->set<std::string>("sourceOp", getName());
     }
 
     const std::set<std::string>& typeTraits = op::OpRegistry::getTypeTraits(opType);
@@ -258,7 +258,7 @@ mv::Data::TensorIterator mv::Op::getOutputTensor(const std::string& label)
         throw ArgumentError(*this, "output:label", label, "Label not registered for op type " + getOpType());
 
     return outputs_[idx];
-    
+
 }
 
 std::vector<mv::Data::TensorIterator> mv::Op::getOutputTensor()

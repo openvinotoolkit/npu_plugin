@@ -71,7 +71,7 @@ void addFinalDMATaskFcn(const mv::pass::PassEntry& , mv::ComputationModel& model
         quantParams = input->get<mv::QuantizationParams>("quantParams");
     if(isTensorInCMX(input, om))
     {
-        auto newInput = om.dMATask(input, mv::DmaDirectionEnum::CMX2DDR, quantParams, mv::createDMATaskCMX2DDRName(inputOp->getName()));
+        auto newInput = om.dMATask(input, mv::DmaDirectionEnum::CMX2DDR, mv::createDMATaskCMX2DDRName(inputOp->getName()));
         auto newInputOp = om.getSourceOp(newInput);
         newInputOp->set<unsigned>("opId", opId);
         auto backup = opIt;
@@ -112,7 +112,7 @@ void addWeightsDMATasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
                     auto flows = inputTensor->get<std::set<std::string>>("flows");
 
 
-                    auto inputTensorDma = om.dMATask(inputTensor, mv::DmaDirectionEnum::DDR2CMX, quantParams, mv::createDMATaskDDR2CMXName(inputOp->getName()));
+                    auto inputTensorDma = om.dMATask(inputTensor, mv::DmaDirectionEnum::DDR2CMX, mv::createDMATaskDDR2CMXName(inputOp->getName()));
                     auto inputTensorDmaOp = om.getSourceOp(inputTensorDma);
                     inputTensorDmaOp->set<unsigned>("opId", opId);
 

@@ -54,12 +54,12 @@ namespace mv
             static std::map<std::string,Location> namingMap;
 
         public:
-            MemoryLocation(const std::string& location) : location_(namingMap[location]),forced_(false) {};
-            MemoryLocation(const Location location) : location_(location),forced_(false) {};
-            MemoryLocation() : location_(DEFAULT),forced_(false) {};
+            MemoryLocation(const std::string& location) : location_(namingMap[location]),forced_(false) {}
+            MemoryLocation(const Location location) : location_(location),forced_(false) {}
+            MemoryLocation() : location_(DEFAULT),forced_(false) {}
 
-            MemoryLocation(const std::string& location, bool forced) : location_(namingMap[location]),forced_(forced) {};
-            MemoryLocation(const Location location, bool forced) : location_(location),forced_(forced) {};
+            MemoryLocation(const std::string& location, bool forced) : location_(namingMap[location]),forced_(forced) {}
+            MemoryLocation(const Location location, bool forced) : location_(location),forced_(forced) {}
 
 //            MemoryLocation(MemoryLocation& location) = delete;
             void operator=(const MemoryLocation& location) = delete;
@@ -75,16 +75,15 @@ namespace mv
 
             void force() { forced_ = true;}
             bool isDefault() { return (location_ == DEFAULT); }
-            bool isForced() {return forced_;};
+            bool isForced() {return forced_;}
 
 //            void set(std::string &location) { location_ = namingMap[location]; }
 //            void set(const Location location) { location_ = location; }
 //            void set(const MemoryLocation& location) { location_ = location.location_; };
-            bool relocate(Location newPlace){
+            bool relocate(Location newPlace)
+            {
                 if(forced_)
-                {
                     return false;
-                }
                 else
                 {
                     location_ = newPlace;
@@ -120,13 +119,14 @@ namespace mv
 
 
     private:
-        std::vector<DataElement> data_;
+        Shape shape_;
+        Order internalOrder_;
+
+        std::shared_ptr<std::vector<DataElement>> data_;
 
         std::size_t blockSize_;
         std::vector<std::vector<DataElement>::iterator> blocks_;
 
-        Shape shape_;
-        Order internalOrder_;
         std::shared_ptr<Tensor> sparsityMap_;
         std::shared_ptr<Tensor> storageElement_;
         std::vector<std::shared_ptr<Tensor>> subTensors_;
@@ -197,6 +197,7 @@ namespace mv
         DType getDType() const;
         void setOrder(Order order, bool updateSubtensors = false);
         Order getOrder() const;
+        Shape getShape() const;
         const Order& getInternalOrder() const;
         void setShape(const Shape& shape);
         void setAddress(int64_t address);
@@ -251,15 +252,6 @@ namespace mv
                 return get<bool>("broadcasted");
             return true; //by default is true
         }
-        inline Shape& getShape()
-        {
-            return shape_;
-        }
-
-        inline const Shape& getShape() const
-        {
-            return shape_;
-        }
 
         inline unsigned size() const
         {
@@ -273,12 +265,12 @@ namespace mv
 
         inline std::vector<std::size_t> indToSub(unsigned index) const
         {
-            return indToSub_(getShape(), index);
+            return indToSub_(shape_, index);
         }
 
         inline unsigned subToInd(const std::vector<std::size_t>& sub) const
         {
-            return subToInd_(getShape(), sub);
+            return subToInd_(shape_, sub);
         }
         inline int64_t getAddress() const
         {
@@ -288,7 +280,6 @@ namespace mv
         std::shared_ptr<Tensor> getSparsityMap() const;
         std::shared_ptr<Tensor> getStorageElement() const;
         Tensor &getSubTensor(uint8_t cluster);
-        unsigned countNonZeroElements() const;
 
         Tensor& operator=(const Tensor& other);
 

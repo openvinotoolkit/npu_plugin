@@ -140,9 +140,6 @@ void hangingDmaControlFlowsFcn(const mv::pass::PassEntry&, mv::ComputationModel&
             // At this point (see assumption above) each DMA has at least one output control flow
             // We take the minimum layer number required by operations using this data
 
-            std::vector<mv::Control::OpListIterator> targets;
-            targets.push_back(dma);
-
             // HACK: Horrible hack because apparentely we have problem in assigning iterators
             int sonWithMinimumLayerInvolvedIndex = 0;
             int minimumLayerInvolved = dma.leftmostChild()->get<unsigned>("layerNumber");
@@ -176,11 +173,11 @@ void hangingDmaControlFlowsFcn(const mv::pass::PassEntry&, mv::ComputationModel&
                 // 1) The difference in terms of layersNumber has to be greater or equal _dma_dependency
                 // 2) There has to be a dependency between preceedingOp and the sonWithMinimumLayerInvolved (preeceding op could be on a parallel branch)
                 if(minimumLayerInvolved - preceedingOpLayerNumber >= _dma_dependency &&
-                   minimumLayerInvolved - preceedingOpLayerNumber <= _dma_dependency + 2 &&
                    cm.pathExists(preceedingOp, sonWithMinimumLayerInvolved))
-                    for(auto& target : targets)
-                        flowsToAdd.push_back(std::make_pair(preceedingOp, target));
-
+                {
+                    flowsToAdd.push_back(std::make_pair(preceedingOp, dma));
+                    break;
+                }
             }
         }
     }
