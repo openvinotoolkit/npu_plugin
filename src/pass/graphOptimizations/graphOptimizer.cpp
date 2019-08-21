@@ -523,12 +523,12 @@ public:
         if(parent["spilling"].get<bool>())
         {
             for(auto output : parentOp.getOutputTensor())
-                execTime1 += (unsigned)(output->getShape().totalSize()) / ddrBandwidth;
+                execTime1 += ((double)output->getShape().totalSize()) / ((double)ddrBandwidth);
         }
         if(child["spilling"].get<bool>())
         {
             for(auto output : childOp.getOutputTensor() )
-                execTime2 += (unsigned)(output->getShape().totalSize()) / ddrBandwidth;
+                execTime2 += ((double)output->getShape().totalSize()) / ((double)ddrBandwidth);
         }
 
         //TODO:: do the prefetching
@@ -627,6 +627,12 @@ public:
         bool hasStreamOverK = findStrategy(streamingStrategyPool,"StreamOverK");
         bool hasStreamOverW = findStrategy(streamingStrategyPool,"StreamOverW");
         bool hasStreamOverH = findStrategy(streamingStrategyPool,"StreamOverH");
+        if(globalEnableStreaming == false)
+        {
+            hasStreamOverH = false;
+            hasStreamOverW = false;
+            hasStreamOverK = false;
+        }
         //        if(globalEnableStreaming)
 //        {
 //            streamingStrategyPool = createStrategyPoolFromStrategySet(op,"streamingStrategies");
