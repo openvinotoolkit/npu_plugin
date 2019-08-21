@@ -67,12 +67,13 @@ Tensor(name, shape, dType, order, quantParams)
 mv::Tensor::Tensor(const Tensor &other) :
 Element(other),
 shape_(other.shape_),
-internalOrder_(Order(Order::getRowMajorID(other.shape_.ndims()))),
+internalOrder_(other.internalOrder_),
 blockSize_(other.blockSize_),
 sparsityMap_(other.sparsityMap_),
 storageElement_(other.sparsityMap_),
 subTensors_(other.subTensors_),
-kernelDataOffsets_(other.kernelDataOffsets_)
+kernelDataOffsets_(other.kernelDataOffsets_),
+noneZeroElements_(other.noneZeroElements_)
 {
 
     log(Logger::MessageType::Debug, "Copied");
@@ -316,7 +317,7 @@ const mv::Order& mv::Tensor::getInternalOrder() const
 
 void mv::Tensor::populateSparsityMapTensor_()
 {
-    auto shape = shape_;
+    auto shape = getShape();
 
     std::vector<int64_t> zeroPoint = getZeroPointsPerChannel();
     std::vector<int64_t> sparsityMapData(sparsityMap_->shape_.totalSize());
@@ -372,8 +373,9 @@ void mv::Tensor::setAddress(int64_t address)
     {
         auto tensorSize = getClusterSize();
         auto sparsitySize = sparsityMap_->computeTotalSize();
+        auto storageElementSize = storageElement_->computeTotalSize();
         storageElement_->set<int64_t>("address", address +
-            (tensorSize - storageElement_->computeTotalSize() - sparsitySize));
+            (tensorSize - storageElementSize - sparsitySize));
         sparsityMap_->set<int64_t>("address", address +(tensorSize - sparsitySize));
     }
     for (size_t tIdx = 0; tIdx < subTensors_.size(); tIdx++)
@@ -398,8 +400,8 @@ bool mv::Tensor::setSparse()
     // sparse then get the specific attributes by name and call toBinary
     // this will avoid duplicate of tensors, but it will not allow iterator to go over them.
 
-    auto shape = shape_;
-    size_t N = shape[-1];;
+    auto shape = getShape();
+    size_t N = shape[shape.ndims()-1];
 
     //Sparsity map
     //we choose layout as internal layout, no need to reorder
@@ -528,7 +530,6 @@ void mv::Tensor::setShape(const Shape& shape)
         if(shape.totalSize() != get<Shape>("shape").totalSize())
             throw ArgumentError(*this, "CurrentTensor", "shape", "Unable to change shape of a populated tensor");
     }
-    set<Shape>("shape", shape);
     shape_ = shape;
     log(Logger::MessageType::Debug, "Changed shape to " + shape_.toString());
     return;
@@ -1008,7 +1009,7 @@ std::size_t mv::Tensor::computeTotalSize(unsigned int alignment, bool isBase) co
 {
     std::size_t res;
 
-    auto shape = shape_;
+    auto shape = getShape();
 
     //use shape of master
     if (!isBase && hasAttr("master"))
@@ -1056,7 +1057,7 @@ void mv::Tensor::splitAcrossClusters(std::vector<mv::Workload> workloads, bool s
 {
     if (isPopulated())
     {
-        auto shape = shape_;
+        auto shape = getShape();
         for (auto wlItr = workloads.begin(); wlItr != workloads.end(); wlItr++)
         {
             size_t idx = wlItr - workloads.begin();
@@ -1098,7 +1099,7 @@ void mv::Tensor::splitAcrossClusters(std::vector<mv::Workload> workloads, bool s
     }
     else
     {
-        auto shape = shape_;
+        auto shape = getShape();
         for (auto wlItr = workloads.begin(); wlItr != workloads.end(); wlItr++)
         {
             size_t idx = wlItr - workloads.begin();

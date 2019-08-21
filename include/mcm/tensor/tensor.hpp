@@ -119,13 +119,14 @@ namespace mv
 
 
     private:
+        Shape shape_;
+        Order internalOrder_;
+
         std::shared_ptr<std::vector<DataElement>> data_;
 
         std::size_t blockSize_;
         std::vector<std::vector<DataElement>::iterator> blocks_;
 
-        Shape shape_;
-        Order internalOrder_;
         std::shared_ptr<Tensor> sparsityMap_;
         std::shared_ptr<Tensor> storageElement_;
         std::vector<std::shared_ptr<Tensor>> subTensors_;
