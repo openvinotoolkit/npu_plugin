@@ -158,10 +158,6 @@ void allocateGraphfileTensorsFcnKeemBay(const mv::pass::PassEntry& pass, mv::Com
         if (opType == "DMATask" && opIterator->get<mv::DmaDirection>("direction") == mv::DDR2CMX)
         {
             auto tIt = opIterator->getInputTensor(0);
-            // NOTE: 1 level of streaming over K supported at the moment
-            auto parentOp = om.getSourceOp(tIt);
-            if(parentOp->getOpType() == "Slice")
-                tIt = parentOp->getInputTensor(0);
             if(tIt->isPopulated())
             {
                 try
