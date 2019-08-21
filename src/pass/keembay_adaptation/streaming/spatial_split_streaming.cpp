@@ -8,9 +8,7 @@
 #include "include/mcm/base/exception/runtime_error.hpp"
 
 static void streamingTilingFcn(const mv::pass::PassEntry& pass,
-                                        mv::ComputationModel& model,
-                                        mv::TargetDescriptor& target,
-                                        mv::Element& passDesc,
+                                        mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&,
                                         mv::json::Object&);
 
 static void streamBinaryDataWeightsFcn(const mv::pass::PassEntry&,
@@ -170,7 +168,7 @@ static void setStreamingStrategy(const mv::pass::PassEntry& pass, mv::Computatio
 
         std::string nodeName = s.get<std::string>("name_filter") ;
         auto splitList = s.get<std::vector<mv::Element>>("splits");
-        for (int i=0; i<splitList.size(); i++)
+        for (std::size_t i=0; i<splitList.size(); i++)
         {
             opStreamingSplitDef opxSplitx;
             if (splitList[i].hasAttr("H"))
@@ -237,8 +235,6 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model, mv::Dat
     
     auto inputOp = om.getSourceOp(inputTensor);
 
-    auto DMAOpId = inputOp->get<unsigned>("opId");
-
     mv::QuantizationParams quantParams = {{},{},{},{}};
     if(inputTensor->hasAttr("quantParams"))
         quantParams = inputTensor->get<mv::QuantizationParams>("quantParams");
@@ -273,8 +269,6 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model, mv::Dat
     std::vector<mv::Data::TensorIterator> convs(number_of_splits);
     std::vector<mv::Data::TensorIterator> final_outputs(number_of_splits);
 
-    auto kernelStride = op->get<std::array<unsigned short, 2>>("stride");
-
     size_t biasStartIndex = 0;
     size_t biasEndIndex = 0;
     for (unsigned split = 0; split < number_of_splits; split++)
@@ -306,7 +300,6 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model, mv::Dat
                                 op->get<unsigned>("group"),
                                 op->get<mv::QuantizationParams>("quantParams"),
                                 op->getName() + "_split_" + std::to_string(split));
-
         if (op->hasAttr("bias"))
         {
             auto tileSize = childTiles[split].getSize()[axisToSplit];
@@ -820,8 +813,8 @@ void generateWeightsTiling(mv::Data::OpListIterator op,Tiling& tiling, std::vect
 
 void streamingTilingFcn(const mv::pass::PassEntry& pass,
                                 mv::ComputationModel& model,
-                                mv::TargetDescriptor& target,
-                                mv::Element& passDesc,
+                                mv::TargetDescriptor& ,
+                                mv::Element& ,
                                 mv::json::Object&)
 {
     mv::OpModel om(model);
@@ -963,5 +956,4 @@ static void streamBinaryDataWeightsFcn(const mv::pass::PassEntry& ,
     }
     for (auto& opName:removeConstantsSet)
         om.removeOp(om.getOp(opName));
-
 }
