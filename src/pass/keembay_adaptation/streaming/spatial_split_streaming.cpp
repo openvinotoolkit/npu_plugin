@@ -72,11 +72,11 @@ private:
 
 public:
 
-    Tiling() :start_({0,0,0,0}), size_({0,0,0,0}), axis_(""), childTiles_(0) {};
+    Tiling() :start_({0,0,0,0}), size_({0,0,0,0}), axis_(""), childTiles_(0) {}
     Tiling( mv::Shape& start, mv::Shape& size)
             : start_(start), size_(size), axis_(""), childTiles_(0)
     {
-    };
+    }
 
     Tiling( std::string& axis, std::size_t tiles)
             : start_({0,0,0,0}), size_({0,0,0,0}), axis_(axis), childTiles_(tiles)
@@ -97,19 +97,19 @@ public:
         return *this;
     }
 
-    std::string& getAxis() { return axis_; };
-    void setAxis(const std::string axis) { axis_ = axis; };
+    std::string& getAxis() { return axis_; }
+    void setAxis(const std::string axis) { axis_ = axis; }
 
-    mv::Shape& getStartCoord() { return start_; };
-    void setStartCoord(mv::Shape start) { start_ = start; };
+    mv::Shape& getStartCoord() { return start_; }
+    void setStartCoord(mv::Shape start) { start_ = start; }
 
-    mv::Shape& getSize() { return size_; };
-    void setSize(mv::Shape size) { size_ = size; };
+    mv::Shape& getSize() { return size_; }
+    void setSize(mv::Shape size) { size_ = size; }
 
-    std::vector<Tiling>& childTiles() { return childTiles_; };
-    void setChildTile(Tiling& tile, unsigned index) { childTiles_[index] = tile; };
+    std::vector<Tiling>& childTiles() { return childTiles_; }
+    void setChildTile(Tiling& tile, unsigned index) { childTiles_[index] = tile; }
 
-    void resizeNumberOfTiles(std::size_t children) { childTiles_.resize(children); } ;
+    void resizeNumberOfTiles(std::size_t children) { childTiles_.resize(children); }
 
     //TODO::build proper stream out of this
     void printOut(unsigned depth) const
@@ -125,7 +125,7 @@ public:
             std::cout << "\tChild: ";
             tile.printOut(depth+1);\
         }
-    };
+    }
 };
 
 mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model, mv::Data::OpListIterator op, Tiling& tiling);
@@ -211,7 +211,7 @@ static void setStreamingStrategy(const mv::pass::PassEntry& pass, mv::Computatio
     opxSplitx.axis = "W" ;
     opxSplitx.numSplits = 2 ;
     op2Splits.push_back(opxSplitx);
-    
+
     thisGraphStrategy.insert(std::pair<std::string, std::vector<opStreamingSplitDef>>("conv0_cmx_",op1Splits));
     thisGraphStrategy.insert(std::pair<std::string, std::vector<opStreamingSplitDef>>("conv1_cmx_",op2Splits));
 */
@@ -232,7 +232,7 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model, mv::Dat
     auto outputTensor = op->getOutputTensor(0);
 
     //add DMA from DDR to CMX, if needed
-    
+
     auto inputOp = om.getSourceOp(inputTensor);
 
     mv::QuantizationParams quantParams = {{},{},{},{}};
@@ -275,7 +275,7 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model, mv::Dat
     {
         mv::Data::TensorIterator slice;
         if (kernelTensor->hasAttr("quantParams"))
-        {            
+        {
             slice = om.slice(kernelTensor,
                             childTiles[split].getStartCoord(),
                             childTiles[split].getSize(),
@@ -498,7 +498,7 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model, mv::Dat
                                 op->get<std::string>("rounding_type"),
                                 op->get<mv::QuantizationParams>("quantParams"),
                                 op->getName() + "_split_" + std::to_string(split));
-                                
+
             if (opType == "DepthwiseConv")
                 newTensor = om.depthwiseConv(slice,
                                 op->getInputTensor(1),
@@ -506,7 +506,7 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model, mv::Dat
                                 currentPad,
                                 op->get<unsigned>("dilationFactor"),
                                 op->get<mv::QuantizationParams>("quantParams"),
-                                op->getName() + "_split_" + std::to_string(split));  
+                                op->getName() + "_split_" + std::to_string(split));
 
             if (opType == "Conv")
                 newTensor = om.conv(slice,
@@ -797,7 +797,7 @@ void generateWeightsTiling(mv::Data::OpListIterator op,Tiling& tiling, std::vect
         tiling.setChildTile(newTile,split);
 
     }
-    
+
     nesting++;
     if (nesting<opStrategy.size() )
     {
