@@ -949,7 +949,7 @@ mv::Tensor& mv::Tensor::operator=(const Tensor& other)
     sparsityMap_ = other.sparsityMap_;
     storageElement_ = other.sparsityMap_;
     subTensors_ = other.subTensors_;
-    kernelDataOffsets = _other.kernelDataOffsets_;
+    kernelDataOffsets_ = other.kernelDataOffsets_;
 
     if (other.isPopulated())
     {
