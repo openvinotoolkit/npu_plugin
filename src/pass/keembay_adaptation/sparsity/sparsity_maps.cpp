@@ -198,6 +198,31 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
 }
 
 
+bool checkA0SOHSparsityBug(mv::Data::FlowListIterator flow)
+{
+    auto sink = flow.sink();
+    auto tensor = flow->getTensor();
+
+    if(!tensor->isPopulated())
+    {
+        if(sink->hasAttr("splitStrategy"))
+        {
+            std::string splitStrategy = sink->get<std::string>("splitStrategy");
+
+            if(splitStrategy == "SplitOverH" &&
+               sink->getOpType() == "DPUTask" &&
+               sink->get<std::string>("taskOp") == "Conv" &&
+               (sink->get<std::array<unsigned short, 2>>("kSize")[0] > 1 ||
+                sink->get<std::array<unsigned short, 2>>("kSize")[1] > 1))
+
+                return true;
+        }
+    }
+    return false;
+}
+
+
+
 // Result of chat with Alessandro:
 // An activation tensor can be sparse if and only if
 // 1) It is an output of a DPUTask. (ODU populates storage element and sparsity map).
@@ -232,11 +257,8 @@ static void generateSparsityMapsUnpopulatedTensorsFcn(const mv::pass::PassEntry&
         }
         else
         {
-            if(!tensor->isPopulated())
-                if((sink->hasAttr("splitStrategy") && sink->get<std::string>("splitStrategy") == "SplitOverH" && sink->getOpType() == "DPUTask" && sink->get<std::string>("taskOp") == "Conv")&&
-                    (source->hasAttr("splitStrategy") && source->get<std::string>("splitStrategy") == "SplitOverH" && source->getOpType() == "DPUTask" && source->get<std::string>("taskOp") == "Conv"))
-                    if(sink->get<std::array<unsigned short, 2>>("kSize")[0] > 1 || source->get<std::array<unsigned short, 2>>("kSize")[0] > 1)
-                        tensor->setSparse();
+            if(checkA0SOHSparsityBug(dataFlow))
+                tensor->setSparse();
         }
     }
 }

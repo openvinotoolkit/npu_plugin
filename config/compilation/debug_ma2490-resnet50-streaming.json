@@ -408,6 +408,7 @@
                 "name": "ConvertDot",
                 "input": "output/dots/AfterOpsToTasks.dot"
             },
+            "AlignTo16Channels",
             "AlignTaskWeights",
             {
                 "name": "GenerateDot",
@@ -461,7 +462,6 @@
                 "name": "ConvertDot",
                 "input": "output/dots/AfterForceSerializae.dot"
             },
-            "AlignTo16Channels",
             "ComputeTensorsQuantParams",
             "KMBOrderConversion",
             {
