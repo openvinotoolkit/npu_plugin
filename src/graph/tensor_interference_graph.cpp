@@ -97,12 +97,12 @@ bool mv::TensorInterferenceGraph::checkNodesDontInterfere_(std::unordered_set<st
         for (std::unordered_set<std::string>::const_iterator target = sourceNodeNames.begin( ); target != sourceNodeNames.end( ); ++target)
         {
             auto pathExists = cmTransitiveClosureSet_.find(std::make_pair(*src, *target));
-            if (pathExists != cmTransitiveClosureSet_.end())
-                return true;
+            if (pathExists == cmTransitiveClosureSet_.end())
+                return false;
         }
 
     }
-    return false;
+    return true;
 }
 
 std::set<std::string> mv::TensorInterferenceGraph::getTensorNames_(mv::ComputationModel& model, const mv::TensorIteratorFilter& tensorFilter,
