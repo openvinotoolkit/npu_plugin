@@ -81,6 +81,7 @@
                 "name": "ConvertDot",
                 "input": "output/dots/adapt_model.dot"
             },
+            "StoreLayerSplitStrategy",
             "StreamingTiling",
             "StreamBinaryDataWeights",
             {
@@ -99,7 +100,6 @@
     "keembay_adapt": {
         "Singular": [
             "ConcatAsImplicit",
-            "StoreLayerSplitStrategy",
             "StoreWorkloadStrategy",
             {
                 "name": "GenerateDot",
@@ -124,6 +124,47 @@
                 "name": "ConvertDot",
                 "input": "output/dots/AfterOpsToTasks.dot"
             },
+            "AlignTaskWeights",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/align_task_weights.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/align_task_weights.dot"
+            },
+            "GenerateSparsityMapsUnpopulatedTensors",
+            "GenerateSparsityMapsPopulatedTensors",
+            "GenerateWeightsTables",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/keembay_WeightsTable_model.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/keembay_WeightsTable_model.dot"
+            },
+            "GenerateEltWiseConstants",
+            "PopulateWeightsTablesQuantization",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/keembay_EltWiseConstants_model.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/keembay_EltWiseConstants_model.dot"
+            },
+            "RemoveBiasTensors",
+            "StrategyLayersToTensors",
             "ForceSerialize",
             {
                 "name": "GenerateDot",
@@ -173,45 +214,7 @@
             {
                 "name": "ConvertDot",
                 "input": "output/dots/dpu_tasks_location.dot"
-            },
-            "AlignTaskWeights",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/align_task_weights.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/align_task_weights.dot"
-            },
-            "GenerateWeightsTables",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/keembay_WeightsTable_model.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/keembay_WeightsTable_model.dot"
-            },
-            "GenerateEltWiseConstants",
-            "PopulateWeightsTablesQuantization",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/keembay_EltWiseConstants_model.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/keembay_EltWiseConstants_model.dot"
-            },
-            "RemoveBiasTensors"
+            }
         ]
     },
     "dma": {
@@ -239,20 +242,6 @@
             {
                 "name": "ConvertDot",
                 "input": "output/dots/dma_model.dot"
-            },
-            "GenerateSparsityMapsUnpopulatedTensors",
-            "GenerateSparsityMapsPopulatedTensors",
-            "AddWeightsDMATasks",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/sparsity_model.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/sparsity_model.dot"
             }
         ]
     },
@@ -310,7 +299,6 @@
                 "name": "ConvertDot",
                 "input": "output/dots/cmx2DDRControlFlows.dot"
             },
-            "StrategyLayersToTensors",
             "SplittingAcrossClusters",
             "AddDeallocationTasks",
             {
