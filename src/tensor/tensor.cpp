@@ -68,7 +68,11 @@ mv::Tensor::Tensor(const Tensor &other) :
 Element(other),
 shape_(other.shape_),
 internalOrder_(Order(Order::getRowMajorID(other.shape_.ndims()))),
-blockSize_(other.blockSize_)
+blockSize_(other.blockSize_),
+sparsityMap_(other.sparsityMap_),
+storageElement_(other.sparsityMap_),
+subTensors_(other.subTensors_),
+kernelDataOffsets_(other.kernelDataOffsets_)
 {
 
     log(Logger::MessageType::Debug, "Copied");
@@ -77,20 +81,6 @@ blockSize_(other.blockSize_)
     {
         data_ = other.data_;
         blocks_ = other.blocks_;
-    }
-
-    if (other.isSparse())
-    {
-        sparsityMap_ = other.sparsityMap_;
-        noneZeroElements_ = other.noneZeroElements_;
-        kernelDataOffsets_ = other.kernelDataOffsets_;
-        if(!other.isPopulated())
-            storageElement_ = other.storageElement_;
-    }
-    if (other.subTensors_.size() > 0)
-    {
-        for (size_t tIdx = 0; tIdx < other.subTensors_.size(); tIdx++)
-            subTensors_.push_back(other.subTensors_[tIdx]);
     }
 }
 
@@ -953,11 +943,19 @@ mv::DataElement& mv::Tensor::operator()(const std::vector<std::size_t>& sub)
 mv::Tensor& mv::Tensor::operator=(const Tensor& other)
 {
     Element::operator=(other);
-    blockSize_ = other.blockSize_;
     shape_ = other.shape_;
+    internalOrder_ = other.internalOrder_;
+    blockSize_ = other.blockSize_;
+    sparsityMap_ = other.sparsityMap_;
+    storageElement_ = other.sparsityMap_;
+    subTensors_ = other.subTensors_;
+    kernelDataOffsets = _other.kernelDataOffsets_;
 
-    if (isPopulated())
-        populate(*other.data_, other.getOrder());
+    if (other.isPopulated())
+    {
+        data_ = other.data_;
+        blocks_ = other.blocks_;
+    }
 
     return *this;
 
