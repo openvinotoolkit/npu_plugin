@@ -12,7 +12,7 @@
 
 static const std::vector<mv::DPUModeList> TENSOR_MPE {{{1,1}}, {{16,1}}, {{1,16}}};
 
-static void splittingAcrossClusters(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&,
+static void SplittingTensorsAcrossClusters(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&,
                                     mv::Element&, mv::json::Object&);
 static void subTensorsGen(mv::ComputationModel& model, const std::vector<mv::Data::TensorIterator> &tensors, unsigned nClusters,
                           const mv::pass::PassEntry& pass);
@@ -26,15 +26,15 @@ namespace mv
 {
     namespace pass
     {
-        MV_REGISTER_PASS(SplittingAcrossClusters)
-        .setFunc(splittingAcrossClusters)
+        MV_REGISTER_PASS(SplittingTensorsAcrossClusters)
+        .setFunc(SplittingTensorsAcrossClusters)
         .setDescription(
             "Computing Splitting across clusters"
         );
     }
 }
 
-void splittingAcrossClusters(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&,
+void SplittingTensorsAcrossClusters(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&,
                              mv::json::Object&)
 {
     mv::OpModel om(model);
