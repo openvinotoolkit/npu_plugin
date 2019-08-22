@@ -176,7 +176,7 @@ mv::Shape mv::Shape::operator *(const Shape& multiplier) const
 
     for(unsigned idx = 0; idx < multiplicand.ndims(); ++idx)
     {
-        newDims[idx] = multiplicand[idx] + multiplier[idx];
+        newDims[idx] = multiplicand[idx] * multiplier[idx];
     }
 
     return mv::Shape(newDims);
