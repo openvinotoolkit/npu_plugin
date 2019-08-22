@@ -16,61 +16,45 @@
 
 set(TARGET_NAME "kmbPlugin")
 
-if (DEFINED MCM_COMPILER_PATHS_FINDING)
-    unset(MCM_COMPILER_INTERNAL_BUILD CACHE)
-    unset(MCM_COMPILER_INCLUDE_PATH CACHE)
-    unset(MCM_COMPILER_LIBRARY CACHE)
-    unset(FLATBUFFERRS_INCLUDE_PATH CACHE)
-    unset(MCM_SCHEMA_INCLUDE_PATH CACHE)
-endif()
-
 if (ENABLE_MCM_COMPILER)
     MESSAGE(STATUS "************ Enabling MCM compiler ************")
     add_definitions(-DENABLE_MCM_COMPILER)
 
-    if (DEFINED MCM_COMPILER_INCLUDE_PATH)
-        set(MCM_COMPILER_PATHS_FINDING TRUE)
-    endif()
     find_path(MCM_COMPILER_INCLUDE_PATH "include/mcm/compiler/compilation_unit.hpp"
         PATHS ENV MCM_HOME)
     find_path(FLATBUFFERRS_INCLUDE_PATH "flatbuffers/base.h"
         PATHS ENV MCM_HOME
         PATH_SUFFIXES "schema/graphfile/flatbuffers/include")
-    find_path(MCM_SCHEMA_INCLUDE_PATH "graphfile_generated.h"
-        PATHS ENV MCM_HOME
-        PATH_SUFFIXES "meta/schema/graphfile")
-    find_library(MCM_COMPILER_LIBRARY cm
-        PATHS ENV MCM_HOME
-        HINTS "$ENV{MCM_HOME}-build/lib" "$ENV{MCM_HOME}/build/lib")
 
-    message(STATUS "MCM_COMPILER_INCLUDE_PATH: ${MCM_COMPILER_INCLUDE_PATH}")
-    message(STATUS "MCM_COMPILER_LIBRARY: ${MCM_COMPILER_LIBRARY}")
-    message(STATUS "FLATBUFFERRS_INCLUDE_PATH: ${FLATBUFFERRS_INCLUDE_PATH}")
-    message(STATUS "MCM_SCHEMA_INCLUDE_PATH: ${MCM_SCHEMA_INCLUDE_PATH}")
-    message(STATUS "MCM_HOME: ${MCM_HOME}")
-    message(STATUS "env MCM_HOME: $ENV{MCM_HOME}")
+    set(MCM_BASE_DIR ${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/thirdparty/movidius/mcmCompiler)
 
-    if(NOT MCM_COMPILER_INCLUDE_PATH OR NOT MCM_COMPILER_LIBRARY OR
-       NOT FLATBUFFERRS_INCLUDE_PATH OR NOT MCM_SCHEMA_INCLUDE_PATH)
-        set(MCM_BASE_DIR ${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/thirdparty/movidius/mcmCompiler)
-
-        ExternalProject_Add(
-            mcmCompiler
-            PREFIX ${MCM_BASE_DIR}
-            SOURCE_DIR ${MCM_BASE_DIR}
-            BINARY_DIR ${MCM_BASE_DIR}/build
-            STAMP_DIR ${MCM_BASE_DIR}/stamp
-            INSTALL_COMMAND ""
-        )
-
-        set(MCM_COMPILER_INTERNAL_BUILD TRUE)
-        set(MCM_COMPILER_INCLUDE_PATH "${MCM_BASE_DIR}")
-        set(MCM_COMPILER_LIBRARY "${MCM_BASE_DIR}/build/lib/${CMAKE_SHARED_LIBRARY_PREFIX}cm${CMAKE_SHARED_LIBRARY_SUFFIX}")
-        set(FLATBUFFERRS_INCLUDE_PATH "${MCM_BASE_DIR}/schema/graphfile/flatbuffers/include/")
-        set(MCM_SCHEMA_INCLUDE_PATH "${MCM_BASE_DIR}/meta/schema/graphfile")
-    else()
-        message(STATUS "mcmCompiler is outside the IE tree")
+    if (NOT ENABLE_PLUGIN_RPATH)
+        set(MCM_COMPILER_CMAKE_ARGS -DCMAKE_SKIP_RPATH=ON)
     endif()
+
+    ExternalProject_Add(
+        mcmCompiler
+        PREFIX ${MCM_BASE_DIR}
+        SOURCE_DIR ${MCM_BASE_DIR}
+        BINARY_DIR ${MCM_BASE_DIR}/build
+        STAMP_DIR ${MCM_BASE_DIR}/stamp
+        INSTALL_COMMAND ""
+        CMAKE_ARGS ${MCM_COMPILER_CMAKE_ARGS})
+
+    set(MCM_COMPILER_INCLUDE_PATH "${MCM_BASE_DIR}")
+    set(MCM_COMPILER_LIBRARY "${MCM_BASE_DIR}/build/lib/${CMAKE_SHARED_LIBRARY_PREFIX}cm${CMAKE_SHARED_LIBRARY_SUFFIX}")
+    set(MCM_COMPILER_MODEL_LIBRARY "${MCM_BASE_DIR}/build/lib/${CMAKE_SHARED_LIBRARY_PREFIX}model${CMAKE_SHARED_LIBRARY_SUFFIX}")
+    set(MCM_COMPILER_METAMODEL_LIBRARY "${MCM_BASE_DIR}/build/lib/${CMAKE_SHARED_LIBRARY_PREFIX}metamodel${CMAKE_SHARED_LIBRARY_SUFFIX}")
+    set(FLATBUFFERRS_INCLUDE_PATH "${MCM_BASE_DIR}/schema/graphfile/flatbuffers/include/")
+    set(MCM_SCHEMA_INCLUDE_PATH "${MCM_BASE_DIR}/meta/schema/graphfile")
+
+    # copy mcm compiler library to target directory when the compiler is enabled
+    set(BINARY_OUT_DIR "$<TARGET_FILE_DIR:kmbPlugin>")
+    add_custom_target(mcm_copy_libraries ALL
+            COMMAND "${CMAKE_COMMAND}" -E copy "${MCM_COMPILER_LIBRARY}" "${BINARY_OUT_DIR}"
+            COMMAND "${CMAKE_COMMAND}" -E copy "${MCM_COMPILER_MODEL_LIBRARY}" "${BINARY_OUT_DIR}"
+            COMMAND "${CMAKE_COMMAND}" -E copy "${MCM_COMPILER_METAMODEL_LIBRARY}" "${BINARY_OUT_DIR}"
+            COMMENT "[MCM_COMPILER] Copy mcm compiler libraries to build results")
 else()
     MESSAGE(STATUS "************ Disabling MCM compiler ************")
 endif()
@@ -101,9 +85,7 @@ set_source_files_properties(kmb_preproc_gapi_kernels_sipp.cpp PROPERTIES
 ie_register_plugins(MAIN_TARGET ${TARGET_NAME}
                     POSSIBLE_PLUGINS ${TARGET_NAME})
 
-if (MCM_COMPILER_INTERNAL_BUILD)
-    add_dependencies(${TARGET_NAME} mcmCompiler)
-endif()
+add_dependencies(${TARGET_NAME} mcmCompiler)
 
 target_include_directories(${TARGET_NAME}
     PRIVATE
@@ -131,9 +113,7 @@ target_link_libraries(${TARGET_NAME}
 if(ENABLE_TESTS)
     add_library(${TARGET_NAME}_test_static STATIC ${SOURCES})
 
-    if (MCM_COMPILER_INTERNAL_BUILD)
-        add_dependencies(${TARGET_NAME}_test_static mcmCompiler)
-    endif()
+    add_dependencies(${TARGET_NAME}_test_static mcmCompiler)
 
     target_include_directories(${TARGET_NAME}_test_static
         PUBLIC
