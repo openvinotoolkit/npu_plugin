@@ -405,9 +405,48 @@ public:
         return contextsPerDpu * (streaming["H"] * streaming["K"])* baseKernelCost;
     }
 
+    //check if strategy+streaming+tensorSize is incompatible
+    bool checkStreamClusterComp(Op& op,StrategySet& strategySet)
+    {
+        auto clustering = strategySet["clustering"].get<string>();
+        auto s  = strategySet["streaming"].get<Shape>();
 
+        //currently we check activations.
+        //for Eltwise we will assume that the 2 inputs are of equal size
+        //TODO:: check only for DPU tasks
+        if(op.getOpType() == "Input" or
+           op.getOpType() == "Output")
+            return false;
 
+        //stream over K is the C dim for the OutputTensor
+        //steram over C is the C dim for the InputTensor
 
+        auto outStreaming = mv::Shape({s["W"],s["H"],s["K"],1});
+        auto inStreaming  = mv::Shape({s["W"],s["H"],s["C"],1});
+
+        if( (op.getName() == "res4a_branch1#213") and
+                (clustering == "SplitOverK") )
+            cout << "here" << endl;
+
+        auto inTensor = op.getInputTensor(0);
+        auto outTensor = op.getOutputTensor(0);
+
+        auto streamedShape = outTensor->getShape() / outStreaming;
+        auto remainderShape = outTensor->getShape() - ( (outStreaming - Shape({1,1,1,1})) * streamedShape);
+
+        //todo:: check if needed for inTensor too
+        if( clustering == "SplitOverH" and
+                ((streamedShape["H"] % totalClusters) or
+                 (remainderShape["H"] % totalClusters)))
+            return true;
+
+        if( clustering == "SplitOverK" and
+                ((streamedShape["C"] % totalClusters) or
+                 (remainderShape["C"] % totalClusters)))
+            return true;
+
+        return false;
+    }
 
     double transitionCost(Op& parentOp,Op& childOp,StrategySet& parent,StrategySet& child)
     {
@@ -419,12 +458,9 @@ public:
         auto childClustering = child["clustering"].get<string>();
 
 
-        //Cannot go from SOK/HKSwitch to SOH
         if((parentClustering == "HKSwitch" or
-                parentClustering == "SplitOverK" or
-                parentClustering == "Clustering") and
-                (childClustering == "SplitOverH") and
-                (parent["spilling"].get<bool>() == false))
+                parentClustering == "SplitOverK") and
+                (childClustering == "SplitOverH"))
             return INF;
 
         //HK Switch requires previous layer to be SOH
@@ -445,6 +481,16 @@ public:
         //cannot pass directly from SoK to SoH
         if( parentClustering == "SplitOverK" and
                 childClustering == "SplitOverH")
+            return INF;
+
+        if(checkStreamClusterComp(parentOp,parent))
+            return INF;
+        if(checkStreamClusterComp(childOp,child))
+            return INF;
+
+        //if child is spilled, HKSwitch makes no sense
+        if( (child["spilling"].get<bool>() == true ) and
+                (childClustering == "HKSwitch"))
             return INF;
 
         //TODO: Only the input can be SOH-Overlapped
@@ -633,7 +679,6 @@ public:
             hasStreamOverW = false;
             hasStreamOverK = false;
         }
-        //        if(globalEnableStreaming)
 //        {
 //            streamingStrategyPool = createStrategyPoolFromStrategySet(op,"streamingStrategies");
 //        }
