@@ -445,7 +445,6 @@
                 "name": "ConvertDot",
                 "input": "output/dots/dpu_tasks_location.dot"
             },
-            "SolveDDRSplitStrategies",
             "ResolveImplicitOperations",
             {
                 "name": "GenerateDot",
