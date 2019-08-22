@@ -143,7 +143,7 @@
                 "graphOptimizerConfig" : {
                     "globalConfigs" : [
                         {"name" : "totalClusters",  "value" : 1   },
-                        {"name" : "clusterMemory",  "value" : 3584 },
+                        {"name" : "clusterMemory",  "value" : 896 },
                         {"name" : "dpuPerCluster",  "value" : 1   },
                         {"name" : "ddrBandwidth",   "value" : 200000 },
                         {"name" : "systemClockMhz", "value" : 500 },
