@@ -100,11 +100,6 @@
                             {"W" : 1},
                             {"K" : 1}
                         ]
-                    },
-                    {
-                        "name_filter" : "pool1/max_pool#35",
-                        "output_location" : "CMX",
-                        "splits" : [ {"H" : 4} ]
                     }
                 ]
             },
@@ -137,7 +132,7 @@
                         {"name" : "dpuPerCluster",  "value" : 1   },
                         {"name" : "ddrBandwidth",   "value" : 200000 },
                         {"name" : "systemClockMhz", "value" : 500 },
-                        {"name" : "FathomSafetyFactor", " value" : 0.925},
+                        {"name" : "FathomSafetyFactor", " value" : 0.85},
                         {"name" : "dotFileLocation", "value" : "/home/patd/mcmDot.dot"}
                     ],
                     "globalStrategies" : [
