@@ -383,18 +383,6 @@
             {
                 "name": "ConvertDot",
                 "input": "output/dots/tiling_model.dot"
-            },
-            "ForceSerialize",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/AfterForceSerializae.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/AfterForceSerializae.dot"
             }
         ]
     },
@@ -403,6 +391,7 @@
             "ConcatAsImplicit",
             "StoreWorkloadStrategy",
             "ConvertOpsToTasks",
+            "ForceSerialize",
             "KMBOrderConversion",
             "AlignTo16Channels",
             "AlignTaskWeights",
