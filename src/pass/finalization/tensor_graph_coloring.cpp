@@ -275,12 +275,10 @@ std::vector<std::pair<size_t, size_t>> calculateGaps(std::list<std::string>& col
     }
     return gaps;
 }
-
 void assignOrientation(mv::graph<std::string, int>& directedGraph, mv::TensorInterferenceGraph::node_list_iterator& ni,
-    std::list<std::string>& coloredNeighbors, mv::TensorInterferenceGraph& g)
+    std::list<std::string>& coloredNeighbors, mv::TensorInterferenceGraph& g, std::size_t& directedGraphEdgeMaxId)
 {
     auto currentNode = directedGraph.node_find((*ni).name);
-    auto edgeIdx = directedGraph.edge_size();
     for (auto it = coloredNeighbors.begin(); it != coloredNeighbors.end(); it++)
     {
         auto neighbor = g.node_find(*it);
@@ -288,12 +286,12 @@ void assignOrientation(mv::graph<std::string, int>& directedGraph, mv::TensorInt
 
         if ((*ni).address < (*neighbor).address)
         {
-            directedGraph.edge_insert(dn, currentNode, edgeIdx++);
+            directedGraph.edge_insert(dn, currentNode, directedGraphEdgeMaxId++);
             //std::cout << "\tassignOrientation::adding edge from" << *dn << " -> " << *currentNode << std::endl;
         }
         else
         {
-            directedGraph.edge_insert(currentNode, dn, edgeIdx++);
+            directedGraph.edge_insert(currentNode, dn, directedGraphEdgeMaxId++);
             //std::cout << "\tassignOrientation::adding edge from" << *currentNode  << " -> "  << *dn << std::endl;
         }
 
@@ -333,12 +331,12 @@ void assignOrientation(mv::graph<std::string, int>& directedGraph, mv::TensorInt
 }
 
 std::size_t updateNodeAddress(std::size_t startAddress, mv::TensorInterferenceGraph::node_list_iterator& ni, size_t chromaticNumber,
-    std::list<std::string>& coloredNeighbors, mv::graph<std::string, int>& directedGraph, mv::TensorInterferenceGraph& g)
+    std::list<std::string>& coloredNeighbors, mv::graph<std::string, int>& directedGraph, mv::TensorInterferenceGraph& g, size_t& directedGraphMaxEdgeId)
 {
     (*ni).address = startAddress;
     (*ni).height = startAddress + (*ni).weight;
     (*ni).isColored = true;
-    assignOrientation(directedGraph, ni, coloredNeighbors, g);
+    assignOrientation(directedGraph, ni, coloredNeighbors, g, directedGraphMaxEdgeId);
 
     return std::max(chromaticNumber, (*ni).height);
 }
@@ -403,7 +401,7 @@ std::size_t updateHeights(mv::TensorInterferenceGraph::node_list_iterator& ni, m
 }
 
 std::size_t bestFitSelect(std::string& name, mv::TensorInterferenceGraph& g, long long memorySize, size_t chromaticNumber,
-    mv::graph<std::string, int>& directedGraph)
+    mv::graph<std::string, int>& directedGraph, std::size_t& directedGraphMaxEdgeId)
 {
     auto ni = g.node_find(name);
     auto coloredNeighbors = std::move(getColoredNeighbors(g, ni));
@@ -415,7 +413,7 @@ std::size_t bestFitSelect(std::string& name, mv::TensorInterferenceGraph& g, lon
     {
         if (itr->second > (*ni).weight)
         {
-            chromaticNumber = updateNodeAddress(itr->first, ni, chromaticNumber, coloredNeighbors, directedGraph, g);
+            chromaticNumber = updateNodeAddress(itr->first, ni, chromaticNumber, coloredNeighbors, directedGraph, g, directedGraphMaxEdgeId);
             return chromaticNumber;
         }
     }
@@ -446,35 +444,17 @@ std::size_t bestFitSelect(std::string& name, mv::TensorInterferenceGraph& g, lon
         //eventually, the exception is just to indicate that currently it's not handled
         throw mv::ArgumentError("bestFitSelect", "gaps size", "", "TODO Implement Actual Spill Routine");
 
-    chromaticNumber = updateNodeAddress(gaps[index].first, ni, chromaticNumber, coloredNeighbors, directedGraph, g);
+    chromaticNumber = updateNodeAddress(gaps[index].first, ni, chromaticNumber, coloredNeighbors, directedGraph, g, directedGraphMaxEdgeId);
     chromaticNumber = updateHeights(ni, directedGraph, g);
     return chromaticNumber;
 }
 
-void printGraph(std::string name, mv::graph<std::string, int>& g)
-{
-     // Nodes list
-    std::cout << "Printing Graph: " << name << std::endl;
-    std::cout << "==========================================" << std::endl;
-    std::cout << "Nodes list: " << std::endl;
-    for (auto it = g.node_begin(); it != g.node_end(); ++it)
-        std::cout << (*it) << " " << std::endl;
-
-    std::cout << std::endl;
-
-     // Edges list
-    std::cout << "Edges list: " << std::endl;
-    for (auto it = g.edge_begin(); it != g.edge_end(); ++it)
-        std::cout << " EDGE: " << *it << " Source " << (*it->source()) <<  " sink " << (*it->sink()) << std::endl;
-
-    std::cout << std::endl;
-    std::cout << "=========================================================" << std::endl;
-
-}
 
 void bestFitMemoryAllocation(mv::ComputationModel& model, std::queue<std::string>& order, mv::TensorInterferenceGraph& g, long long memorySize)
 {
     size_t chromaticNumber = 0;
+    std::size_t directedGraphEdgeMaxId = 0;
+
     //build orientation assignment dag
     mv::graph<std::string, int> directedGraph;
     for (auto ni = g.node_begin(); ni != g.node_end(); ++ni)
@@ -486,7 +466,7 @@ void bestFitMemoryAllocation(mv::ComputationModel& model, std::queue<std::string
     {
         std::string node = order.front();
         order.pop();
-        chromaticNumber = bestFitSelect(node, g, memorySize, chromaticNumber, directedGraph);
+        chromaticNumber = bestFitSelect(node, g, memorySize, chromaticNumber, directedGraph, directedGraphEdgeMaxId);
         //printGraph("BestFitDirectedGraph", directedGraph);
 
     }
