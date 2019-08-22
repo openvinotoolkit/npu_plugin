@@ -484,6 +484,17 @@ void bestFitMemoryAllocation(mv::ComputationModel& model, std::queue<std::string
         tensorBufferIt->setOffset((*it).address);
     }
 
+    ///test address allocation dont overlap:
+    for (mv::TensorInterferenceGraph::node_list_iterator ni = g.node_begin(); ni != g.node_end(); ++ni)
+    {
+        //std::cout << "testing node " << (*ni).name << std::endl;
+        for (mv::TensorInterferenceGraph::node_parent_iterator itr(ni); itr != g.node_end(); ++itr)
+        {
+            auto coloredNode = itr;
+            if ((*ni).address < (*itr).address && (*itr).address < (*ni).height)
+                throw mv::ArgumentError("Graph Coloring produced overlap!", "", "", " Overlap is between " + (*ni).name  + " and " + (*itr).name );
+        }
+    }
 }
 
 void tensorGraphColoringFnc(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element& passDesc, mv::json::Object&)
