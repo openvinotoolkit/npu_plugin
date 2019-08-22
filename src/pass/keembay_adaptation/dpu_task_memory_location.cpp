@@ -9,6 +9,8 @@
 
 
 static void setDpuTasksMemoryLocationFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
+static void solveDDRSplitStrategiesFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
+static std::vector<mv::Data::OpListIterator> findSinkLayers(mv::DataModel &dataModel, const mv::Data::TensorIterator &tensor);
 
 namespace mv
 {
@@ -18,6 +20,11 @@ namespace mv
             .setFunc(setDpuTasksMemoryLocationFcn)
             .setDescription(
                 "Set Dpu Task memory location and adds copy ops if needed");
+
+        MV_REGISTER_PASS(SolveDDRSplitStrategies)
+            .setFunc(solveDDRSplitStrategiesFcn)
+            .setDescription(
+                "Solve Tensor Strategies which are coming back from DDR");
     }
 }
 
@@ -113,4 +120,51 @@ void setDpuTasksMemoryLocationFcn(const mv::pass::PassEntry& , mv::ComputationMo
         }
         ++opIt;
     }
+}
+
+
+
+void solveDDRSplitStrategiesFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+{
+    mv::OpModel om(model);
+    mv::DataModel dm(model);
+
+    auto opIt = om.getInput();
+    while (opIt != om.opEnd())
+    {
+        std::string opType = opIt->getOpType();
+
+        if (opType == "DMATask")
+        {
+            auto dstTensor = opIt->getOutputTensor(0);
+            if (dstTensor->get<mv::Tensor::MemoryLocation>("Location") == mv::Tensor::MemoryLocation::DDR)
+            {
+                auto nextOp = findSinkLayers(dm, opIt->getOutputTensor(0));
+                if (nextOp[0]->getOpType() == "DMATask")
+                {
+                    if (nextOp[0]->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location") == mv::Tensor::MemoryLocation::CMX)
+                    {
+                        auto afterNextOp = findSinkLayers(dm, nextOp[0]->getOutputTensor(0));
+                        opIt->getOutputTensor(0)->set<std::string>("splitStrategy", afterNextOp[0]->get<std::string>("splitStrategy"));
+                        nextOp[0]->getOutputTensor(0)->set<std::string>("splitStrategy", afterNextOp[0]->get<std::string>("splitStrategy"));
+                        afterNextOp[0]->getInputTensor(0)->set<std::string>("splitStrategy", afterNextOp[0]->get<std::string>("splitStrategy"));
+                    }
+                }
+            }
+        }
+        ++opIt;
+
+    }
+}
+
+static std::vector<mv::Data::OpListIterator> findSinkLayers(mv::DataModel &dataModel, const mv::Data::TensorIterator &tensor)
+{
+    std::vector<mv::Data::OpListIterator> sinkOperations;
+    auto flowsNames = (tensor)->get<std::set<std::string>>("flows");
+    for(auto flowName : flowsNames)
+    {
+        auto df = dataModel.getDataFlow(flowName);
+        sinkOperations.push_back(df.sink());
+    }
+    return sinkOperations;
 }
