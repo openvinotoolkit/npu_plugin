@@ -129,6 +129,58 @@ mv::Shape mv::Shape::operator/(const Shape& denum) const
 
     return mv::Shape(newDims);
 }
+mv::Shape mv::Shape::operator-(const Shape& subtrahend) const
+{
+    if(this->ndims() != subtrahend.ndims())
+        throw ArgumentError(*this, " minuend nDims ",std::to_string(this->ndims()),
+                "differs from subtrahend " + std::to_string(subtrahend.ndims()));
+
+    const mv::Shape& minuend = *this;
+    std::vector<std::size_t> newDims(minuend.ndims());
+
+    for(unsigned idx = 0; idx < minuend.ndims(); ++idx)
+    {
+        //todo:: some raising signal error for negative;
+        newDims[idx] = minuend[idx] - subtrahend[idx];
+    }
+
+    return mv::Shape(newDims);
+}
+
+mv::Shape mv::Shape::operator+(const Shape& addend) const
+{
+    if(this->ndims() != addend.ndims())
+        throw ArgumentError(*this, " addend nDims ",std::to_string(this->ndims()),
+                "differs from subtrahend " + std::to_string(addend.ndims()));
+
+    const mv::Shape& augend = *this;
+    std::vector<std::size_t> newDims(augend.ndims());
+
+    for(unsigned idx = 0; idx < augend.ndims(); ++idx)
+    {
+        //todo:: some raising signal error for negative;
+        newDims[idx] = augend[idx] + addend[idx];
+    }
+
+    return mv::Shape(newDims);
+}
+
+mv::Shape mv::Shape::operator *(const Shape& multiplier) const
+{
+    if(this->ndims() != multiplier.ndims())
+        throw ArgumentError(*this, " addend nDims ",std::to_string(this->ndims()),
+                "differs from subtrahend " + std::to_string(multiplier.ndims()));
+
+    const mv::Shape& multiplicand = *this;
+    std::vector<std::size_t> newDims(multiplicand.ndims());
+
+    for(unsigned idx = 0; idx < multiplicand.ndims(); ++idx)
+    {
+        newDims[idx] = multiplicand[idx] + multiplier[idx];
+    }
+
+    return mv::Shape(newDims);
+}
 
 std::string mv::Shape::toString() const
 {

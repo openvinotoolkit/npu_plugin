@@ -47,6 +47,9 @@ namespace mv
 
         Shape& operator=(const Shape& other);
         Shape operator/(const Shape& denum) const;
+        Shape operator-(const Shape& subtrahed) const;
+        Shape operator*(const Shape& multiplier) const;
+        Shape operator+(const Shape& addend) const;
 
         bool operator==(const Shape& other) const;
         bool operator!=(const Shape& other) const;
