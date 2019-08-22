@@ -400,6 +400,27 @@ std::size_t updateHeights(mv::TensorInterferenceGraph::node_list_iterator& ni, m
     return maxChromaticNumber;
 }
 
+void printGraph(std::string name, mv::graph<std::string, int>& g)
+{
+     // Nodes list
+    std::cout << "Printing Graph: " << name << std::endl;
+    std::cout << "==========================================" << std::endl;
+    std::cout << "Nodes list: " << std::endl;
+    for (auto it = g.node_begin(); it != g.node_end(); ++it)
+        std::cout << (*it) << " " << std::endl;
+
+    std::cout << std::endl;
+
+     // Edges list
+    std::cout << "Edges list: " << std::endl;
+    for (auto it = g.edge_begin(); it != g.edge_end(); ++it)
+        std::cout << " EDGE: " << *it << " Source " << (*it->source()) <<  " sink " << (*it->sink()) << std::endl;
+
+    std::cout << std::endl;
+    std::cout << "=========================================================" << std::endl;
+
+}
+
 std::size_t bestFitSelect(std::string& name, mv::TensorInterferenceGraph& g, long long memorySize, size_t chromaticNumber,
     mv::graph<std::string, int>& directedGraph, std::size_t& directedGraphMaxEdgeId)
 {
