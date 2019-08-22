@@ -1380,6 +1380,8 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNCE2TaskT(Comp
             else if (opIt->get<std::string>("taskOp") == "MaxPool" || opIt->get<std::string>("taskOp") == "DepthwiseConv" ||
                      opIt->get<std::string>("taskOp") == "ChannelMajorConvolution")
                 toBuild->invariant->activation_window->locale_index = locale_index;
+            else if (opIt->get<std::string>("taskOp") == "ElementWise")
+                toBuild->invariant->weights_table->locale_index = locale_index;
 
             auto hash = [](const MVCNN::MPE_Mode &g){ return static_cast<std::size_t>(g); };
             auto comp = [](const MVCNN::MPE_Mode &l, const MVCNN::MPE_Mode &r){ return l == r; };
