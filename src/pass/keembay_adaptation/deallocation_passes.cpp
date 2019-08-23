@@ -59,7 +59,7 @@ bool thereIsDependency(mv::ControlModel& cm, const std::vector<mv::Data::OpListI
 
 
 // Pass role: Add deallocation tasks for each Tensor
-void addDeallocationTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::json::Object&)
+void addDeallocationTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::json::Object&)
 {
     mv::OpModel om(model);
     mv::DataModel dm(model);
@@ -187,6 +187,8 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
             if (inputTensor->get<mv::Tensor::MemoryLocation>("Location") == mv::Tensor::MemoryLocation::CMX &&
                 outputOp->hasTypeTrait("executable"))
             {
+                pass.log(mv::Logger::MessageType::Debug, " Collecting Sink Operations for case CMX Dealloc");
+
                 // Now it's time to define the control flow with 0 as memory requirement
                 // Which in our case is no memory requirement at all.
 
@@ -194,12 +196,16 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
 
                 for(auto flowName : flowsNames)
                 {
+                    pass.log(mv::Logger::MessageType::Debug, " Checking flow name " + flowName);
+
                     auto df = dm.getDataFlow(flowName);
                     sinkOperations.push_back(df.sink());
                 }
             }
             else
             {
+                pass.log(mv::Logger::MessageType::Debug, " Collecting Sink Operations for case DDR Dealloc");
+
                 // Now it's time to define the control flow with 0 as memory requirement
                 // Which in our case is no memory requirement at all.
 
@@ -207,6 +213,8 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
                 while(!flowsNames.empty())
                {
                     auto flowName = flowsNames.begin();
+                    pass.log(mv::Logger::MessageType::Debug, " Checking flow name " + *flowName);
+
                     auto df = dm.getDataFlow(*flowName);
                     auto chosenOp = cm.switchContext(df.sink());
                     if (!chosenOp->hasTypeTrait("executable"))
@@ -221,6 +229,7 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
             }
             // If there is just one operation, the solution is pretty easy: attach this operation to the dealloc
             // and the dealloc to the next operation coming in control flow model
+            pass.log(mv::Logger::MessageType::Debug, " sinkOperations.size() " + std::to_string(sinkOperations.size()));
             if(sinkOperations.size() == 1)
             {
                 auto chosenOp = cm.switchContext(*sinkOperations.begin());
@@ -229,27 +238,12 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
             else
             {
                 // If there are more operations, things get tricky
-                // We have to ask ourselves: Is there a scheduling dependency existing
-                // between these operations?
-
-                // Two hypothesis are considered here:
-                // 1) There is. In this case, the dealloc op shall be attached only to the last operation in topological sort order. This case is similar to sinkOperations.size() == 1
-                // 2) There isn't among any of them. In this case the dealloc task shall be attached to all of the involved operations
-
-                if(thereIsDependency(cm, sinkOperations))
-                {
-                    auto chosenOp = sortedOps.rbegin();
-                    for(; chosenOp != sortedOps.rend(); ++chosenOp)
-                        if(std::find(sinkOperations.begin(), sinkOperations.end(), om.switchContext(*chosenOp)) != sinkOperations.end())
-                            break;
-                    insertDeallocationControlFlows(om, deallocateInputOp, *chosenOp);
-                }
-                else
-                {
-                    // THIS SHOULD NOT BE HAPPENING
-                    for(auto& chosenOp : sinkOperations)
-                        insertDeallocationControlFlows(om, deallocateInputOp, cm.switchContext(chosenOp));
-                }
+                //the dealloc op shall be attached only to the last operation in topological sort order.
+                auto chosenOp = sortedOps.rbegin();
+                for(; chosenOp != sortedOps.rend(); ++chosenOp)
+                    if(std::find(sinkOperations.begin(), sinkOperations.end(), om.switchContext(*chosenOp)) != sinkOperations.end())
+                        break;
+                insertDeallocationControlFlows(om, deallocateInputOp, *chosenOp);
             }
 
 
