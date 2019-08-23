@@ -713,7 +713,6 @@ void StrategyManager::recursiveCriticalPath(typename graph<mv::Op, mv::DataFlow>
         vector<StrategySet> nodeStrategy;
         opCtr++;
         generateStrategySetForLayer(*modelSource,nodeStrategy);
-        cout << "Start Pivot node " << (*modelSource).getName() << " has " << nodeStrategy.size() << " strategies" <<endl;
         new_nodes.clear();
         for(auto strategy : nodeStrategy)
         {
@@ -777,7 +776,6 @@ void StrategyManager::recursiveCriticalPath(typename graph<mv::Op, mv::DataFlow>
         {
             new_nodes.push_back(optimizationGraph.node_insert(std::tuple<mv::Op&,StrategySet,int>(*model_child,strategy,optionCtr++)));
         }
-        cout << "End Pivot node " << (*model_child).getName() << " has " << nodeStrategy.size() << " strategies" <<endl;
         for(const auto oldNode : old_nodes)
             for(const auto newNode : new_nodes)
             {
@@ -858,8 +856,6 @@ void StrategyManager::recursiveCriticalPath(typename graph<mv::Op, mv::DataFlow>
             std::tuple<mv::Op&,StrategySet,int> modifiedSink(get<0>(*sink), get<1>(*sink), metaGraph.node_size());
             sinks.push_back(metaGraph.node_insert(modifiedSink));
         }
-
-        cout << "  Found Linear sources and sinks: " << sources.size() << ", " << sinks.size() << endl;
         vector<MetaGraphEdge> linearSection = parallelLinearSections[0]; //Vector of Critical Info, add this to the metagraph
         for(int source = 0; source < sources.size(); source++){
             for(int sink = 0; sink < sinks.size(); sink++){
@@ -867,12 +863,6 @@ void StrategyManager::recursiveCriticalPath(typename graph<mv::Op, mv::DataFlow>
                 double cost = edgeInfo.first;
                 vector<StrategySet> strategies = edgeInfo.second;
                 metaGraph.edge_insert(sources[source], sinks[sink], edgeInfo);
-                cout << "  Adding metagraph edge (" << source << "-" << sink << ") with cost " << cost << endl;
-                cout << "     metagraph edge strategies " << endl;
-                for (auto strs : strategies)
-                {
-                    cout << "       " << strs["streaming"].toString() << endl;
-                }
             }
         }
     }
@@ -904,10 +894,6 @@ void StrategyManager::recursiveCriticalPath(typename graph<mv::Op, mv::DataFlow>
             std::tuple<mv::Op&,StrategySet,int> modifiedSink(get<0>(*sink), get<1>(*sink), metaGraph.node_size());
             sinks.push_back(metaGraph.node_insert(modifiedSink));
         }
-        cout << "  Found Parallel sources and sinks: " << sources.size() << ", " << sinks.size() << endl;
-        for(auto section : parallelLinearSections){
-            cout << "   Section size is " << section.size() << endl;
-        }
 
         for(int source = 0; source < sources.size(); source++){
             for(int sink = 0; sink < sinks.size(); sink++){
@@ -917,13 +903,11 @@ void StrategyManager::recursiveCriticalPath(typename graph<mv::Op, mv::DataFlow>
                 {
                     MetaGraphEdge edgeInfo = parallelLinearSections[sectionIdx][source*sinks.size() + sink];
                     cost += edgeInfo.first;
-                    cout << "      Adding "  << edgeInfo.second.size() << " strategies for section " << sectionIdx << " criticalInfo " << source*sinks.size() + sink << endl;
                     for(auto strategy :  edgeInfo.second){
                         strategies.push_back(strategy);
                     }
                 }
                 metaGraph.edge_insert(sources[source], sinks[sink], MetaGraphEdge(cost, strategies));
-                cout << "  Adding metagraph edge with cost " << cost << " and " <<  strategies.size() << " strategies " << endl;
                 strategies.clear();
             }
         }
