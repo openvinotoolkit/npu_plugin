@@ -31,35 +31,13 @@
             "ComputeMemory",
             "AssignUniqueOpId",
             {
-                "name": "GenerateDot",
-                "output": "output/dots/original_model.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/original_model.dot"
-            },
-            {
                 "name": "CreateSourceStructure",
                 "VersionMajor": 3,
                 "VersionMinor": 11,
                 "VersionPatch": 0,
                 "VersionHash": "9aa43159420c77d8cf765393954ac2fbb372ab02"
             },
-            "StoreTensorPlacement",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/StoreTensorPlacement.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/StoreTensorPlacement.dot"
-            }
+            "StoreTensorPlacement"
         ]
     },
     "adapt": {
@@ -70,31 +48,9 @@
             "FuseRelu",
             "FuseScale",
             "FullyConnectedAsConv2D",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/adapt_model.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/adapt_model.dot"
-            },
             "StoreLayerSplitStrategy",
             "StreamingTiling",
-            "StreamBinaryDataWeights",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/tiling_model.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/tiling_model.dot"
-            }
+            "StreamBinaryDataWeights"
         ]
     },
     "keembay_adapt": {
@@ -113,118 +69,27 @@
             "StrategyLayersToTensors",
             "ComputeTensorsQuantParams",
             "UpdateImplicitLayersQuantizationParams",
-
-
             "PopulateWeightsTablesQuantization",
-            "RemoveBiasTensors",
-
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/keembay_adapt_model.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/keembay_adapt_model.dot"
-            }
+            "RemoveBiasTensors"
         ]
     },
     "dma": {
         "Singular" : [
             "SetDpuTasksMemoryLocation",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/dpu_tasks_location.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/dpu_tasks_location.dot"
-            },
             "ResolveImplicitOperations",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/implicit_operations_model.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/implicit_operations_model.dot"
-            },
-            "AddWeightsDMATasks",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/dma_model.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/dma_model.dot"
-            }
+            "AddWeightsDMATasks"
         ]
     },
     "control_flows":{
         "Singular" : [
             "TaskControlFlows",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/TaskControlFlows_model.dot",
-                "scope": "ControlModel",
-                "content": "full",
-                "html": true
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/TaskControlFlows_model.dot"
-            },
             "TransitiveReduction",
             "LayerNumbering",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/TaskControlFlows_model_transitive_reduction.dot",
-                "scope": "ControlModel",
-                "content": "full",
-                "html": true
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/TaskControlFlows_model_transitive_reduction.dot"
-            },
             "HangingDmaControlFlows",
             "TransitiveReduction",
             "LayerNumbering",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/NoHangingDmas.dot",
-                "scope": "ControlModel",
-                "content": "full",
-                "html": true
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/NoHangingDmas.dot"
-            },
             "cmx2DDRControlFlows",
             "TransitiveReduction",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/cmx2DDRControlFlows.dot",
-                "scope": "ControlModel",
-                "content": "full",
-                "html": true
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/cmx2DDRControlFlows.dot"
-            },
             "SplittingTensorsAcrossClusters"
         ]
     },
@@ -232,63 +97,12 @@
         "Singular": [
             "AddDeallocationTasks",
             {
-                "name": "GenerateDot",
-                "output": "output/dots/deallocation_model.dot",
-                "scope": "ControlModel",
-                "content": "full",
-                "html": true
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/deallocation_model.dot"
-            },
-            {
                 "name": "TransitiveReduction",
                 "filter": "PositiveMemory"
             },
             "MarkLastNodeForMaxTopologicalCut",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/TransitiveReductionBeforeMaxCut.dot",
-                "scope": "ControlModel",
-                "content": "nonfull",
-                "html": true
-            },
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/TransitiveReductionBeforeMaxCutFull.dot",
-                "scope": "ControlModel",
-                "content": "full",
-                "html": true
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/TransitiveReductionBeforeMaxCut.dot"
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/TransitiveReductionBeforeMaxCutFull.dot"
-            },
             "MaxTopologicalCutAndPartialSerialisation",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/MaxTopologicalCutAndPartialSerialisation.dot",
-                "scope": "ControlModel",
-                "content": "full",
-                "html": true
-            },
             "TransitiveReduction",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/TransitiveReductionAfterMaxCut.dot",
-                "scope": "ControlModel",
-                "content": "full",
-                "html": true
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/TransitiveReductionAfterMaxCut.dot"
-            },
             {
                 "name": "GenerateWorkloads",
                 "costfunction": "criticalpath",
@@ -300,100 +114,12 @@
             "AllocateGraphfileTensorsKeemBayLegacy",
             "ReAllocateImplicitOperationsKeemBay",
             "AllocateCMXTensorsKeemBay",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/BeforeGraphColoring.dot",
-                "scope": "ControlModel",
-                "content": "full",
-                "html": true
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/BeforeGraphColoring.dot"
-            },
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/BeforeGraphColoringControl.dot",
-                "scope": "ControlModel",
-                "content": "full",
-                "html": true
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/BeforeGraphColoringControl.dot"
-            },
-            {
-                "name": "TensorGraphColoring",
-                "output": "output/dots/nnCmx.dot"
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/nnCmx.dot"
-            },
+            "TensorGraphColoring",
             "RemoveDeallocationTasks",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/DeallocationTasksRemoved.dot",
-                "scope": "ControlModel",
-                "content": "full",
-                "html": true
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/DeallocationTasksRemoved.dot"
-            },
             "TransitiveReduction",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/DeallocationTasksRemovedAndTransitiveReduction.dot",
-                "scope": "ControlModel",
-                "content": "full",
-                "html": true
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/DeallocationTasksRemovedAndTransitiveReduction.dot"
-            },
-            {
-                "name" : "InsertBarrierTasks",
-                "outputBIG": "output/dots/BarrierInterferenceGraph.dot",
-                "barrier_reuse_window" : 0
-            },
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/BarriersInserted.dot",
-                "scope": "ControlModel",
-                "content": "full",
-                "html": true
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/BarriersInserted.dot"
-            },
+            "InsertBarrierTasks",
             "TransitiveReduction",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/BarriersInsertedTransitiveReductionApplied.dot",
-                "scope": "ControlModel",
-                "content": "full",
-                "html": true
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/BarriersInsertedTransitiveReductionApplied.dot"
-            },
             "PopulateWeightsTablesPointers",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/final_model.dot",
-                "scope": "ControlModel",
-                "content": "full",
-                "html": true
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/final_model.dot"
-            }
         ]
     },
     "scheduling": {
@@ -402,18 +128,7 @@
             "GenerateExecutionSchedule",
             "CorrectExecutionSchedule",
             "BarrierIndexAssignment",
-            "UpdateBarrierRefs",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/serial_model.dot",
-                "scope": "ControlModel",
-                "content": "full",
-                "html": true
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/serial_model.dot"
-            }
+            "UpdateBarrierRefs"
         ]
     },
     "validate": {
@@ -426,12 +141,7 @@
             {
                 "name": "GenerateBlobKeembay",
                 "output": "output/mcm.blob"
-            },
-            {
-                "name": "ConvertFlatbuffer",
-                "input": "output/mcm.blob"
             }
-
         ]
     },
     "root": {
