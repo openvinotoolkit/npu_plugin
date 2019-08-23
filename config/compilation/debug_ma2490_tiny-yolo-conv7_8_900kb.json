@@ -484,12 +484,12 @@
             {
                 "name": "ConvertDot",
                 "input": "output/dots/cmx2DDRControlFlows.dot"
-            },
-            "SplittingTensorsAcrossClusters"
+            }
         ]
     },
     "finalize": {
         "Singular": [
+            "SplittingTensorsAcrossClusters",
             "AddDeallocationTasks",
             {
                 "name": "GenerateDot",

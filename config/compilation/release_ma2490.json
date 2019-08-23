@@ -90,11 +90,11 @@
             "LayerNumbering",
             "cmx2DDRControlFlows",
             "TransitiveReduction",
-            "SplittingTensorsAcrossClusters"
         ]
     },
     "finalize": {
         "Singular": [
+            "SplittingTensorsAcrossClusters",
             "AddDeallocationTasks",
             {
                 "name": "TransitiveReduction",
