@@ -154,7 +154,6 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationMod
                                 flowIt = cm.defineFlow(concatInput, deallocateInputOp);
                             auto outputTensor = flowIt.source()->getOutputTensor(0);
                             flowIt->set<int>("MemoryRequirement", outputTensor->getClusterSize(16,true));
-                            flowIt->set<bool>("PositiveMemory", true);
                         }
                     }
                 }

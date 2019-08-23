@@ -98,7 +98,7 @@
             "AddDeallocationTasks",
             {
                 "name": "TransitiveReduction",
-                "filter": "PositiveMemory"
+                "filter": "MemoryRequirement"
             },
             "MarkLastNodeForMaxTopologicalCut",
             "MaxTopologicalCutAndPartialSerialisation",
