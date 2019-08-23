@@ -51,7 +51,10 @@ public:
     void updateDefaultValues();
     void printStrategy();
 
-    void saveStrategy(std::vector<graph<std::tuple<mv::Op&,StrategySet,int>,double>::edge_list_iterator> cPathEdges);
+    std::vector<mv::Element> convertStreamingStrategyToElement(std::vector<StrategySet> &strategiesToConvert, std::shared_ptr<mv::Element> compDesc);
+    std::vector<mv::Element> convertClusteringStrategyToElement(std::vector<StrategySet> &strategiesToConvert, std::shared_ptr<mv::Element> compDesc);
+    void saveStrategyToJsonFile(std::vector<mv::Element> &stategiesToSave,std::string jsonOutputFileName);
+    void saveStrategyToCompilationDescriptor(vector<mv::Element> &stategiesToSave, std::shared_ptr<mv::Element> compDesc);
     void saveMetaStrategy(std::vector<MetaGraph::edge_list_iterator> cPathEdges);
     void recursiveDijkstra(mv::Data::OpListIterator opBegin);
     void recursiveCriticalPath(typename graph<mv::Op, mv::DataFlow>::node_list_iterator modelSource, std::unordered_set<std::string>& recursedNodes, MetaGraph& metaGraph);
