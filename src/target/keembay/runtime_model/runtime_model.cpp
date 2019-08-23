@@ -729,10 +729,19 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
             toReturn[i]->task.type = MVCNN::SpecificTask_NNDMATask;
             auto tmp = new MVCNN::NNDMATaskT();
             tmp->src = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(0));
-            auto locale_index = std::vector<unsigned int>(1,i);
-            tmp->src->locale_index = locale_index;
+            if (direction == mv::DmaDirectionEnum::CMX2DDR)
+            {
+                auto locale_index = std::vector<unsigned int>(1,i);
+                tmp->src->locale_index = locale_index;
+            }
 
             tmp->dst = buildTensorReferenceT(cm, compilationDescriptor, opIt->getOutputTensor(0));
+            if (direction == mv::DmaDirectionEnum::DDR2CMX)
+            {
+                auto locale_index = std::vector<unsigned int>(1,i);
+                tmp->dst->locale_index = locale_index;
+            }
+
             if(opIt->hasAttr("Compression"))
                 tmp->compression =  opIt->get<bool>("Compression");
             toReturn[i]->task.value = tmp;
