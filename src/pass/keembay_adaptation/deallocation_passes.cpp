@@ -114,6 +114,7 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationMod
 
             om.deallocate(inputTensor, deallocationName);
             deallocateInputOp = om.getOp(deallocationName);
+            deallocateInputOp->set<mv::Tensor::MemoryLocation>("Location", inputTensor->get<mv::Tensor::MemoryLocation>("Location"));
 
             // Now that we have created/set the pointer to/ the deallocation op, we have to attach
             // the control flows to it such that it respects the properties of a dataflow graph
