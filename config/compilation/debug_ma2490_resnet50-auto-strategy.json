@@ -56,12 +56,7 @@
                     {
                         "name_filter" : ".*weights.*",
                         "mem_location" : "BLOB"
-                    },
-                    {
-                        "name_filter" : ".*conv7#7.*",
-                        "mem_location" : "CMX"
                     }
-                                   
                 ],
                 "default_tensor_placement" : "DDR",
                 "streaming_strategy" :
@@ -141,10 +136,10 @@
                 "name" : "GraphParameterOptimization",
                 "graphOptimizerConfig" : {
                     "globalConfigs" : [
-                        {"name" : "totalClusters",  "value" : 1   },
+                        {"name" : "totalClusters",  "value" : 4   },
                         {"name" : "clusterMemory",  "value" : 896 },
                         {"name" : "dpuPerCluster",  "value" : 1   },
-                        {"name" : "ddrBandwidth",   "value" : 200000 },
+                        {"name" : "ddrBandwidth",   "value" : 128 },
                         {"name" : "systemClockMhz", "value" : 500 },
                         {"name" : "FathomSafetyFactor", " value" : 0.925},
                         {"name" : "dotFileLocation", "value" : "output/mcmGrapOptDots"}
