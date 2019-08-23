@@ -24,13 +24,13 @@ namespace mv
             "Perform allocation of all input and output tensors using memory allocator"
         );
 
-        MV_REGISTER_PASS(allocateGraphfileTensorsKeemBay)
+        MV_REGISTER_PASS(AllocateGraphfileTensorsKeemBay)
         .setFunc(allocateGraphfileTensorsKeemBayFcn)
         .setDescription(
             "Perform allocation of all populated tensors using memory allocator"
         );
 
-        MV_REGISTER_PASS(allocateGraphfileTensorsKeemBayLegacy)
+        MV_REGISTER_PASS(AllocateGraphfileTensorsKeemBayLegacy)
         .setFunc(allocateGraphfileTensorsKeemBayLegacyFcn)
         .setDescription(
             "Perform allocation of all populated tensors using memory allocator"
