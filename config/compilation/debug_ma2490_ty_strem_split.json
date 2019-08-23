@@ -86,55 +86,94 @@
                         "strategy": "SplitOverK"
                     }
                 ],
-                    "tensor_placement_override" :
-                    [
-                        {
-                            "name_filter" : ".*_ddr_.*",
-                            "mem_location" : "DDR"
-                        },
-                        {
-                            "name_filter" : ".*_cmx_.*",
-                            "mem_location" : "CMX"
-                        },
-                        {
-                            "name_filter" : ".*_input_.*",
-                            "mem_location" : "INPUT"
-                        },
-                        {
-                            "name_filter" : ".*_output_.*",
-                            "mem_location" : "OUTPUT"
-                        },
-                        {
-                            "name_filter" : ".*weights.*",
-                            "mem_location" : "BLOB"
-                        }
-                    ],
+                "tensor_placement_override" :
+                [
+                    {
+                        "name_filter" : ".*_ddr_.*",
+                        "mem_location" : "DDR"
+                    },
+                    {
+                        "name_filter" : ".*_cmx_.*",
+                        "mem_location" : "CMX"
+                    },
+                    {
+                        "name_filter" : ".*_input_.*",
+                        "mem_location" : "INPUT"
+                    },
+                    {
+                        "name_filter" : ".*_output_.*",
+                        "mem_location" : "OUTPUT"
+                    },
+                    {
+                        "name_filter" : ".*weights.*",
+                        "mem_location" : "BLOB"
+                    },
+                    {
+                        "name_filter" : ".*conv1#.*",
+                        "mem_location" : "CMX"
+                    },
+                    {
+                        "name_filter":".*pool1/max_pool#.*",
+                        "mem_location": "CMX"
+                    },
+                    {
+                        "name_filter":".*conv2#.*",
+                        "mem_location": "CMX"
+                    },
+                    {
+                        "name_filter":".*pool2/max_pool#.*",
+                        "mem_location": "CMX"
+                    },
+                    {
+                        "name_filter":".*conv3#.*",
+                        "mem_location": "CMX"
+                    },
+                    {
+                        "name_filter":".*pool3/max_pool#.*",
+                        "mem_location": "CMX"
+                    },
+                    {
+                        "name_filter":".*conv4#.*",
+                        "mem_location": "CMX"
+                    },
+                    {
+                        "name_filter":".*pool4/max_pool#.*",
+                        "mem_location": "CMX"
+                    },
+                    {
+                        "name_filter":".*pool5/max_pool#.*",
+                        "mem_location": "CMX"
+                    },
+                    {
+                        "name_filter":".*pool6/max_pool#.*",
+                        "mem_location": "CMX"
+                    }
+                ],
                 "default_tensor_placement" : "DDR",
                 "streaming_strategy" :
                 [
                     {
                         "name_filter" : "conv5#42",
-                        "output_location" : "CMX",
+                        "splits" : [ {"K" : 2} ]
+                    },
+                    {
+                        "name_filter" : "conv5/conv5#28",
                         "splits" : [ {"K" : 2} ]
                     },
                     {
                         "name_filter" : "conv6#44",
-                        "output_location" : "CMX",
                         "splits" : [ {"K" : 2} ]
                     },
                     {
                         "name_filter" : "conv7#46",
-                        "output_location" : "CMX",
                         "splits" : [ {"K" : 8} ]
                     },
                     {
                         "name_filter" : "conv8#47",
-                        "output_location" : "CMX",
                         "splits" : [ {"K" : 4} ]
                     },
                     {
-                        "name_filter" : "conv9#48",
-                        "output_location" : "CMX",
+                        "name_filter" : "conv9/conv9#48",
                         "splits" : [ {"K" : 2} ]
                     }
                 ]
