@@ -146,10 +146,16 @@ void  mv::TensorInterferenceGraph::addWeightsToInterferenceGraph_(const mv::pass
 {
     pass.log(mv::Logger::MessageType::Info, " \tcalc weights for nodes");
 
-    // MERGING NOTE TO BE DISCUSSED WITH EMAN
     for (mv::TensorInterferenceGraph::node_list_iterator it = this->node_begin(); it != this->node_end(); ++it)
-        (*it).weight = model.getTensor((*it).name)->getClusterSize(alignment);
-
+    {
+        auto tensor = model.getTensor((*it).name);
+        auto tensorMemoryLocation = tensor->get<mv::Tensor::MemoryLocation>("Location");
+        // DDR does not need getClusterSize
+        if(tensorMemoryLocation == mv::Tensor::MemoryLocation::CMX)
+            (*it).weight = tensor->getClusterSize(alignment);
+        else
+            (*it).weight = tensor->computeTotalSize();
+    }
 
     pass.log(mv::Logger::MessageType::Info, " \tcalc neighbors weights");
     for (mv::TensorInterferenceGraph::node_list_iterator it = this->node_begin(); it != this->node_end(); ++it)
