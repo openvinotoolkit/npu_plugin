@@ -385,85 +385,23 @@
         "Singular": [
             "ConcatAsImplicit",
             "StoreWorkloadStrategy",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/BeforeOpsToTasks.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/BeforeOpsToTasks.dot"
-            },
             "ConvertOpsToTasks",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/AfterOpsToTasks.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/AfterOpsToTasks.dot"
-            },
+            "ForceSerialize",
+            "KMBOrderConversion",
             "AlignTo16Channels",
             "AlignTaskWeights",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/align_task_weights.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/align_task_weights.dot"
-            },
             "GenerateSparsityMapsUnpopulatedTensors",
             "GenerateSparsityMapsPopulatedTensors",
             "GenerateWeightsTables",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/keembay_WeightsTable_model.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/keembay_WeightsTable_model.dot"
-            },
             "GenerateEltWiseConstants",
-            "PopulateWeightsTablesQuantization",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/keembay_EltWiseConstants_model.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/keembay_EltWiseConstants_model.dot"
-            },
-            "RemoveBiasTensors",
             "StrategyLayersToTensors",
-            "ForceSerialize",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/AfterForceSerializae.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/AfterForceSerializae.dot"
-            },
             "ComputeTensorsQuantParams",
-            "KMBOrderConversion",
+            "UpdateImplicitLayersQuantizationParams",
+
+
+            "PopulateWeightsTablesQuantization",
+            "RemoveBiasTensors",
+
             {
                 "name": "GenerateDot",
                 "output": "output/dots/keembay_adapt_model.dot",
@@ -474,19 +412,11 @@
             {
                 "name": "ConvertDot",
                 "input": "output/dots/keembay_adapt_model.dot"
-            },
-            "UpdateImplicitLayersQuantizationParams",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/update_concat_quantization.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/update_concat_quantization.dot"
-            },
+            }
+        ]
+    },
+    "dma": {
+        "Singular" : [
             "SetDpuTasksMemoryLocation",
             {
                 "name": "GenerateDot",
@@ -498,11 +428,7 @@
             {
                 "name": "ConvertDot",
                 "input": "output/dots/dpu_tasks_location.dot"
-            }
-        ]
-    },
-    "dma": {
-        "Singular" : [
+            },
             "ResolveImplicitOperations",
             {
                 "name": "GenerateDot",
@@ -583,7 +509,11 @@
                 "name": "ConvertDot",
                 "input": "output/dots/cmx2DDRControlFlows.dot"
             },
-            "SplittingAcrossClusters",
+            "SplittingTensorsAcrossClusters"
+        ]
+    },
+    "finalize": {
+        "Singular": [
             "AddDeallocationTasks",
             {
                 "name": "GenerateDot",
@@ -595,11 +525,7 @@
             {
                 "name": "ConvertDot",
                 "input": "output/dots/deallocation_model.dot"
-            }
-        ]
-    },
-    "finalize": {
-        "Singular": [
+            },
             {
                 "name": "TransitiveReduction",
                 "filter": "PositiveMemory"
@@ -650,7 +576,7 @@
             {
                 "name": "GenerateWorkloads",
                 "costfunction": "criticalpath",
-                "TensorSplitAlgorithms": "Rectangle, Z-Tiling",
+                "TensorSplitAlgorithms": "Rectangle",
                 "_comment": "Supported CostFunctions are: balanced | criticalpath | minmax | greedy. Supported TensorSplitAlgorithms are Metis, Rectangle, Z-Tiling"
             },
             "ArrangeKeembayExecution",
@@ -761,7 +687,6 @@
             "CorrectExecutionSchedule",
             "BarrierIndexAssignment",
             "UpdateBarrierRefs",
-            "UpdateBarrierProducerConsumerCounts",
             {
                 "name": "GenerateDot",
                 "output": "output/dots/serial_model.dot",
