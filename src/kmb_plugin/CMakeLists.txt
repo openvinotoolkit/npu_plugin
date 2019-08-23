@@ -85,7 +85,9 @@ set_source_files_properties(kmb_preproc_gapi_kernels_sipp.cpp PROPERTIES
 ie_register_plugins(MAIN_TARGET ${TARGET_NAME}
                     POSSIBLE_PLUGINS ${TARGET_NAME})
 
-add_dependencies(${TARGET_NAME} mcmCompiler)
+if (ENABLE_MCM_COMPILER)
+    add_dependencies(${TARGET_NAME} mcmCompiler)
+endif()
 
 target_include_directories(${TARGET_NAME}
     PRIVATE
@@ -112,8 +114,9 @@ target_link_libraries(${TARGET_NAME}
 
 if(ENABLE_TESTS)
     add_library(${TARGET_NAME}_test_static STATIC ${SOURCES})
-
-    add_dependencies(${TARGET_NAME}_test_static mcmCompiler)
+    if (ENABLE_MCM_COMPILER)
+        add_dependencies(${TARGET_NAME}_test_static mcmCompiler)
+    endif()
 
     target_include_directories(${TARGET_NAME}_test_static
         PUBLIC
