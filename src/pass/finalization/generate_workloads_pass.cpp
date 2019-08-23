@@ -195,6 +195,12 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                 /*get the subtensor*/
                 auto subTensor = opIt->getOutputTensor()[0]->getSubTensor(clusterNumber);
 
+                /*Sparse tensor don't use z-tiling*/
+                if(subTensor.isSparse())
+                    algorithms = {"Rectangle"};
+                else
+                    algorithms = {"Rectangle", "Z-Tiling"};
+                
                 pass.log(mv::Logger::MessageType::Debug, "The shape of subtensor for cluster " + std::to_string(clusterNumber) + "is: " + subTensor.getShape().toString());
 
                 /*Generate the number of workloads split pool*/
@@ -267,7 +273,7 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                             }
                         }
                         // Rectangle euristic is used also as backup for metis
-                        if (algorithm == "Rectangle" || metisFail)
+                        if (algorithm == "Rectangle")
                         {
                             /*Create workload instance*/
                             workloadsVector.emplace_back(mv::Workloads(opIt->getName(), subTensor.getShape()));
@@ -345,10 +351,10 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                                     ztilingFail = true;
                                 }
 
-                                if(!rectangleFail)
+                                if(!ztilingFail)
                                 {
-                                    rectangleFail = false;
-                                    pass.log(mv::Logger::MessageType::Debug, "Valid workload created using Rectangle");
+                                    ztilingFail = false;
+                                    pass.log(mv::Logger::MessageType::Debug, "Valid workload created using Z-Tiling");
                                     workloadsVectorIndex++;
                                 }
                             }
@@ -392,22 +398,14 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                     {
                         auto subTensorOffset = subTensor.get<std::vector<std::size_t>>("offset");
                         workloadsVector.at(optimalWorkloadIndex).add_xy_offset(subTensorOffset);
+                        workloadsVector.at(optimalWorkloadIndex).apply_z_offset(subTensorOffset);
                     }
                 }
 
                 /*Set the most optimal workload as attribute of the op*/
-
-                //TODO update this when serialisation for multi-clustering has been done. Workload names need to change.
-                if(nClusters > 1)
-                {
-                    opIt->set<mv::Workloads>("Workloads" + std::to_string(clusterNumber), workloadsVector.at(optimalWorkloadIndex));
-                    opIt->set<bool>("Valid_workload", true);
-                }
-                else
-                {
-                    opIt->set<mv::Workloads>("Workloads", workloadsVector.at(optimalWorkloadIndex));
-                    opIt->set<bool>("Valid_workload", true);
-                }
+                opIt->set<mv::Workloads>("Workloads" + std::to_string(clusterNumber), workloadsVector.at(optimalWorkloadIndex));
+                opIt->set<bool>("Valid_workload", true);
+              
 
                 /*Reset workloads vector, splitpool and indices for the next sub tensor layer*/
                 workloadsVector.clear();
@@ -426,4 +424,5 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
     }
     pass.log(mv::Logger::MessageType::Debug, "Exiting workload generation pass");
 }
+
 

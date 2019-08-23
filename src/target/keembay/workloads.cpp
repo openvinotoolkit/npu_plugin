@@ -498,11 +498,11 @@ const std::vector<int> mv::Workloads::getWorkloadSplitPool(const Tensor& tensor,
         splitPool.push_back(i);
 
     /*XY splits*/
-    for(std::size_t i = 0; i < dpuModeList.size(); i++) {
-        for(int j = 0; j < (int)ceil(log2(maxSplitsXY[i])); j++)
-            if(((maxSplitsXY[i]%(int)std::pow(2,j)) == 0) && (maxSplitsXY[i]/(std::pow(2,j)) <= maxSplits))
-            splitPool.push_back(maxSplitsXY[i]/std::pow(2,j));
-    }
+    // for(std::size_t i = 0; i < dpuModeList.size(); i++) {
+    //     for(int j = 0; j < (int)ceil(log2(maxSplitsXY[i])); j++)
+    //         if(((maxSplitsXY[i]%(int)std::pow(2,j)) == 0) && (maxSplitsXY[i]/(std::pow(2,j)) <= maxSplits))
+    //         splitPool.push_back(maxSplitsXY[i]/std::pow(2,j));
+    // }
 
     /*sort*/
     sort(splitPool.begin(), splitPool.end());
@@ -662,7 +662,6 @@ std::vector<mv::Workload> mv::Workloads::polygonWorkloadSplit(const mv::pass::Pa
         which are A1, A2, A3, and C1. Current implementation is only supporting missing point at vertex, so D (and A3,C1) but not A1,A2.
         4. For each interesting point, recursively partitions are made till each of the partition is a rectangle
         5. Select the parition scheme that gives minimum number of rectangles
-
         A* * * * * * *A1       A2* * * *A3      D
          *           *           *     *
          *           * * * * * * *     * * * * *C1
@@ -881,12 +880,12 @@ void mv::Workloads::generateExecutionCycles(std::vector<mv::Workloads>& workload
         throw mv::ArgumentError("Generate Workloads Pass", "nDPUxCluster", std::to_string(nDPUxCluster), "Invalid number of DPUs");
 
     /*For each workload instance*/
-    for(auto itWorklaods = workloadsVector.begin(); itWorklaods != workloadsVector.end(); itWorklaods++) {
+    for(auto itWorkloads = workloadsVector.begin(); itWorkloads != workloadsVector.end(); itWorkloads++) {
 
         workloadsExecutionCycles.clear();
 
         /*Calculate the cost for each of the individual workloads (rectangles) */
-        for(auto itworkload = itWorklaods->workloads_.begin(); itworkload != itWorklaods->workloads_.end(); ++itworkload) {
+        for(auto itworkload = itWorkloads->workloads_.begin(); itworkload != itWorkloads->workloads_.end(); ++itworkload) {
 
             std::pair <int,int> mpeMode (4, 4);
 
@@ -896,57 +895,57 @@ void mv::Workloads::generateExecutionCycles(std::vector<mv::Workloads>& workload
             float height = (itworkload->MaxY+1) - itworkload->MinY; // + mpeMode.first;
             float width = (itworkload->MaxX+1) - itworkload->MinX; // + mpeMode.second;
 
-            float sumExeCycles = ceil(itWorklaods->tensorShape_[2]/16.0) * ceil(height / mpeMode.first) * ceil(width / mpeMode.second);
+            float sumExeCycles = ceil(itWorkloads->tensorShape_[2]/16.0) * ceil(height / mpeMode.first) * ceil(width / mpeMode.second);
             workloadsExecutionCycles.push_back(sumExeCycles);
         }
 
         /*Critical workload*/
-        itWorklaods->critical_workload_ = *std::max_element(workloadsExecutionCycles.begin(), workloadsExecutionCycles.end());
+        itWorkloads->critical_workload_ = *std::max_element(workloadsExecutionCycles.begin(), workloadsExecutionCycles.end());
 
         /*Workload sum*/
         for (auto& cycles : workloadsExecutionCycles)
-            itWorklaods->workload_sum_ += cycles;
+            itWorkloads->workload_sum_ += cycles;
 
-        float min_range = itWorklaods->workload_sum_/nDPUxCluster;
-        float max_range = itWorklaods->workload_sum_/nDPUxCluster + itWorklaods->critical_workload_;
+        float min_range = itWorkloads->workload_sum_/nDPUxCluster;
+        float max_range = itWorkloads->workload_sum_/nDPUxCluster + itWorkloads->critical_workload_;
 
         /*Cost function*/
         if(costFunction == CostFunctions::CriticalPath) {
 
         /*Store the excutions cycles in the object*/
         if (nDPUxCluster == 1)
-            itWorklaods->executionCycles_ = {min_range, min_range};
+            itWorkloads->executionCycles_ = {min_range, min_range};
         else
-            itWorklaods->executionCycles_ = {max_range, max_range};
+            itWorkloads->executionCycles_ = {max_range, max_range};
         }
 
         else if (costFunction == CostFunctions::Balanced)
         {
             float balancing = float(0.0);
-            if (!std::isinf(itWorklaods->workload_sum_))
-                balancing = itWorklaods->workload_sum_/(ceil(itWorklaods->workload_sum_/nDPUxCluster) * nDPUxCluster);
+            if (!std::isinf(itWorkloads->workload_sum_))
+                balancing = itWorkloads->workload_sum_/(ceil(itWorkloads->workload_sum_/nDPUxCluster) * nDPUxCluster);
 
-            itWorklaods->executionCycles_ = {-balancing, -balancing};
+            itWorkloads->executionCycles_ = {-balancing, -balancing};
         }
 
         else if (costFunction == CostFunctions::MinMaxWorkloads)
-            itWorklaods->executionCycles_ = {min_range, max_range};
+            itWorkloads->executionCycles_ = {min_range, max_range};
 
         else if (costFunction == CostFunctions::Greedy)
         {
-            if (std::isinf(itWorklaods->workload_sum_))
-                itWorklaods->executionCycles_ = {INFINITY, INFINITY};
+            if (std::isinf(itWorkloads->workload_sum_))
+                itWorkloads->executionCycles_ = {INFINITY, INFINITY};
             else
             {
                 float greedy = greedyTaskAssignment(nDPUxCluster, workloadsExecutionCycles);
-                itWorklaods->executionCycles_ = {greedy, greedy};
+                itWorkloads->executionCycles_ = {greedy, greedy};
             }
         }
         else
             throw mv::ArgumentError("Generate Workloads Pass", "costFunction", "unknown", "Unsupported cost function");
 
         /*Calculate the mean of execution cycles*/
-        itWorklaods->meanExecutionCycles_ = std::accumulate(itWorklaods->executionCycles_.begin(), itWorklaods->executionCycles_.end(), 0.0) / itWorklaods->executionCycles_.size();
+        itWorkloads->meanExecutionCycles_ = std::accumulate(itWorkloads->executionCycles_.begin(), itWorkloads->executionCycles_.end(), 0.0) / itWorkloads->executionCycles_.size();
     }
 }
 
@@ -1577,6 +1576,18 @@ void mv::Workloads::add_xy_offset(std::vector<std::size_t>& offset)
 
 }
 
+void mv::Workloads::apply_z_offset(std::vector<std::size_t>& offset)
+{
+    for (auto workload = workloads_.begin(); workload != workloads_.end(); workload++)
+    {
+        workload->z_offset += + offset[IO_CHANNEL_DIMENSION];
+        auto workloadOutputChannels = workload->MaxZ - workload->MinZ;
+        workload->MinZ = workload->z_offset;
+        workload->MaxZ = workload->z_offset + workloadOutputChannels;
+    }
+
+}
+
 void mv::Workloads::populateClusterID(int clusterID)
 {
     for (auto workload = workloads_.begin(); workload != workloads_.end(); workload++)
@@ -1617,8 +1628,14 @@ int mv::Workloads::partitionTensorWithZsplit(const mv::DPUModeList& mode_list, i
         workload.MinY = 0;
         workload.MaxX = W-1;
         workload.MaxY = H-1;
+        workload.z_offset = idx*max_channels_per_WL; 
         workload.MinZ = idx*max_channels_per_WL;
         workload.MaxZ = workload.MinZ + output_channels -1;
+        workload.MPEMode = mv::Matrix;
+
+        //Check that the z workloads dimension for z tiling are multiple of 16
+        if(((workload.MaxZ+1) - workload.MinZ)%16 != 0)
+            return 0;
 
         workloads_.push_back(workload);
 
@@ -1629,3 +1646,4 @@ int mv::Workloads::partitionTensorWithZsplit(const mv::DPUModeList& mode_list, i
 
     return METIS_OK;
 }
+

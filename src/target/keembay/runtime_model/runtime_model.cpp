@@ -1148,10 +1148,14 @@ void mv::RuntimeModel::getWorkloadPadding(Control::OpListIterator opIt, Workload
         }
         else
         {
-            workload.padLeft = padding[0];
-            workload.padTop = padding[2];
-            workload.padRight = padding[1];
-            workload.padBottom = padding[3];
+            // workload.padLeft = padding[0];
+            // workload.padTop = padding[2];
+            // workload.padRight = padding[1];
+            // workload.padBottom = padding[3];
+            workload.padLeft = (workload.MinX == 0) ? padding[0] : 0;
+            workload.padTop = (workload.MinY == 0) ? padding[2] : 0;
+            workload.padRight = ((workload.MaxX + unsigned(1)) == outputWidth) ? padding[1] : 0;
+            workload.padBottom = ((workload.MaxY + unsigned(1)) == outputHeight) ? padding[3] : 0;
         }
     }
     return;
@@ -1292,7 +1296,7 @@ std::unique_ptr<MVCNN::NCEVariantFieldsT> mv::RuntimeModel::buildNCEVariantField
 
 std::vector<std::unique_ptr<MVCNN::NCEVariantFieldsT>> mv::RuntimeModel::buildNCEVariantFieldsTVector(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt)
 {
-    auto workloads = opIt->get<mv::Workloads>("Workloads").getWorkloads();
+    auto workloads = opIt->get<mv::Workloads>("Workloads0").getWorkloads();
     unsigned n = workloads.size();
     std::vector<std::unique_ptr<MVCNN::NCEVariantFieldsT>> toBuild = std::vector<std::unique_ptr<MVCNN::NCEVariantFieldsT>>(n);
     for(unsigned i = 0; i < n; ++i)
@@ -1494,7 +1498,7 @@ unsigned mv::RuntimeModel::countProducerConsumerTasks(mv::ComputationModel& cm, 
             }
             else
             {
-                auto& workloads = opIt->get<mv::Workloads>("Workloads");
+                auto& workloads = opIt->get<mv::Workloads>("Workloads0");
                 toReturn = workloads.nWorkloads() * numClusters;
             }
         }
