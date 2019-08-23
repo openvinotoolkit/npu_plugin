@@ -332,8 +332,8 @@ public:
 
         Shape contexts,isiSplit;
 
-        if( (opType == "MaxPool") or
-            (opType == "DepthWiseConv") or (opType == "DepthwiseConv")) // TODO:: check for CHMAJOR CONV
+        // TODO:: check for CHMAJOR CONV
+        if( (opType == "MaxPool") or (opType == "DepthWiseConv") or (opType == "DepthwiseConv"))
         {
             contexts = {16,1,16,1};
         }
@@ -342,9 +342,7 @@ public:
             contexts = {4,4,16,1};
         }
 
-        if( (clustering == "SplitOverH") or
-            (clustering == "SplitOverHOverlapped") or
-            (clustering == "HKSwitch"))
+        if( (clustering == "SplitOverH") or (clustering == "SplitOverHOverlapped") or (clustering == "HKSwitch"))
         {
             isiSplit = {1,totalClusters,1,1};
         }
@@ -356,10 +354,6 @@ public:
         {
             isiSplit = {1,1,1,1};
         }
-
-        Shape dpuOutShape = ( outputShape / streaming ) / isiSplit;
-
-        bool channelAccum =  (opType == "Conv") ? true : false;
 
         //naively emulate the workload cost
         //TODO: find cleaner solution
@@ -384,25 +378,24 @@ public:
             throw LogicError(*this,"Invalid operation type " + opType);
         }
 
+        bool channelAccum =  (opType == "Conv") ? true : false;
         if(channelAccum)
         {
             auto weightsShape = op.getInputTensor(1)->getShape();
             baseKernelCost *= weightsShape[KERNEL_INPUT_CHANNELS];
         }
 
+        //the actual compute
+        Shape dpuOutShape = ( outputShape / streaming ) / isiSplit;
         Shape contextsInOp = dpuOutShape / contexts;
-        unsigned numContextsInOp = 1;
-        for(unsigned i =0 ; i < contextsInOp.ndims(); i++)
-        {
-            numContextsInOp *= contextsInOp[i];
-        }
+        unsigned numContextsInOp = contextsInOp.totalSize();
 
         if(numContextsInOp == 0)
             throw LogicError(*this,"error in contexts");
 
         unsigned contextsPerDpu = (unsigned)ceil( (double)numContextsInOp / (double)dpuPerCluster);
 
-        return contextsPerDpu * (streaming["H"] * streaming["K"])* baseKernelCost;
+        return contextsPerDpu * streaming.totalSize() * baseKernelCost;
     }
 
     //check if strategy+streaming+tensorSize is incompatible
@@ -411,6 +404,7 @@ public:
         auto clustering = strategySet["clustering"].get<string>();
         auto s  = strategySet["streaming"].get<Shape>();
 
+        auto one_shape = Shape({1,1,1,1});
         //currently we check activations.
         //for Eltwise we will assume that the 2 inputs are of equal size
         //TODO:: check only for DPU tasks
@@ -420,19 +414,16 @@ public:
 
         //stream over K is the C dim for the OutputTensor
         //steram over C is the C dim for the InputTensor
-
         auto outStreaming = mv::Shape({s["W"],s["H"],s["K"],1});
         auto inStreaming  = mv::Shape({s["W"],s["H"],s["C"],1});
-
-        if( (op.getName() == "res4a_branch1#213") and
-                (clustering == "SplitOverK") )
-            cout << "here" << endl;
 
         auto inTensor = op.getInputTensor(0);
         auto outTensor = op.getOutputTensor(0);
 
+        //this will assume that the first N streams will have the max shape, and the subsequent will have
+        //whatever is remained
         auto streamedShape = outTensor->getShape() / outStreaming;
-        auto remainderShape = outTensor->getShape() - ( (outStreaming - Shape({1,1,1,1})) * streamedShape);
+        auto remainderShape = outTensor->getShape() - ((outStreaming - one_shape) * streamedShape);
 
         //todo:: check if needed for inTensor too
         if( clustering == "SplitOverH" and
