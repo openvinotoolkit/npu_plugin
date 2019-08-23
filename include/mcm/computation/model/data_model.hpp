@@ -44,7 +44,9 @@ namespace mv
         Data::TensorIterator defineTensor(const Tensor& tensor);
         void undefineTensor(Data::TensorIterator tensor);
         void undefineTensor(const std::string& name);
-        unsigned tensorsCount() const;
+        std::size_t tensorsCount() const;
+        unsigned long long populatedTotalSize() const;
+        unsigned long long unpopulatedTotalSize() const;
 
         bool addAllocator(const std::string& name, std::size_t size, std::size_t alignment, std::size_t dataTypeSize);
         bool hasAllocator(const std::string& name);

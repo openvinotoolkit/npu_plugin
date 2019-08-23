@@ -9,11 +9,11 @@
 
 static void streamingTilingFcn(const mv::pass::PassEntry& pass,
                                         mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&,
-                                        mv::json::Object&);
+                                        mv::Element&);
 
 static void streamBinaryDataWeightsFcn(const mv::pass::PassEntry&,
                                         mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&,
-                                        mv::json::Object&);
+                                        mv::Element&);
 
 namespace mv
 {
@@ -814,13 +814,13 @@ void generateWeightsTiling(mv::Data::OpListIterator op,Tiling& tiling, std::vect
 
 void streamingTilingFcn(const mv::pass::PassEntry& pass,
                                 mv::ComputationModel& model,
-                                mv::TargetDescriptor& ,
-                                mv::Element& ,
-                                mv::json::Object&)
+                                mv::TargetDescriptor& target,
+                                mv::Element& passDesc,
+                                mv::Element&)
 {
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);
-    mv::ControlModel cm(model);
-    mv::DataModel dm(model);
 
     std::map<std::string, std::vector<opStreamingSplitDef>> thisGraphStrategy;
     setStreamingStrategy(pass, model, thisGraphStrategy);
@@ -920,7 +920,7 @@ static void streamBinaryDataWeightsFcn(const mv::pass::PassEntry& ,
                                         mv::ComputationModel& model,
                                         mv::TargetDescriptor& ,
                                         mv::Element& ,
-                                        mv::json::Object&)
+                                        mv::Element &)
 {
     //Need to duplicate the consts to number equal to streams, cause of the binary_data
     mv::OpModel om(model);

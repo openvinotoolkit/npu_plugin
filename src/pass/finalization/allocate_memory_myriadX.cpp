@@ -3,9 +3,9 @@
 #include "include/mcm/computation/model/data_model.hpp"
 #include "meta/include/mcm/op_model.hpp"
 
-static void allocatePopulatedTensorsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
-static void allocateUnpopulatedTensorsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
-static void allocateInputOutputTensors(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
+static void allocatePopulatedTensorsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+static void allocateUnpopulatedTensorsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+static void allocateInputOutputTensors(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 
 // static void allocateForImplicitConcat();
 
@@ -40,9 +40,10 @@ namespace mv
 
 
 //NOTE:This pass assumes the existence of memory allocators called ProgrammableInput and Programmable. Lucklily this is true for both MX and Keembay.
-void allocateInputOutputTensors(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+void allocateInputOutputTensors(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
-    std::cout << "Allocate input/output tensors" << std::endl;
+   
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
 
     using namespace mv;
 
@@ -121,20 +122,17 @@ void allocateInputOutputTensors(const mv::pass::PassEntry&, mv::ComputationModel
 
         }
 
-
-
     }
 
-    std::cout << "Exiting allocate input and output" << std::endl;
 }
 
 // NOTE:This pass assumes the existence of a memory allocator called ConstantMemory. This was true only for MX, so this pass has to be changed to use TargetDescriptor.
 // By doing so, we will know what Memories the Target provides for Populated Tensors
 // Also, NCE1_Paddings shall become NCE_Paddings.
-void allocatePopulatedTensorsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+void allocatePopulatedTensorsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
 
-    std::cout << "Allocate populated" << std::endl;
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
 
     using namespace mv;
 
@@ -179,18 +177,15 @@ void allocatePopulatedTensorsFcn(const mv::pass::PassEntry&, mv::ComputationMode
 
     }
 
-    std::cout << "Exiting allocate populated" << std::endl;
-
 }
 
 
 // NOTE:This pass assumes the existence of a memory allocator called IntermediateMemory. This was true only for MX, so this pass has to be changed to use TargetDescriptor to see
 // which allocators are available for IntermediateMemory.
-void allocateUnpopulatedTensorsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+void allocateUnpopulatedTensorsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
 
-    std::cout << "Allocate unpopulated" << std::endl;
-
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     using namespace mv;
 
     ControlModel cm(model);
@@ -429,7 +424,5 @@ void allocateUnpopulatedTensorsFcn(const mv::pass::PassEntry&, mv::ComputationMo
         }
 
     }
-
-    std::cout << "Exiting allocate unpopulated" << std::endl;
 
 }

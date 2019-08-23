@@ -20,6 +20,65 @@ endif()
 
 add_compile_options(-std=c++11)
 
+SET(PROFILER FALSE CACHE BOOL "Enable integrated profiler")
+SET(LOG TRUE CACHE BOOL "Enable logger")
+SET(PROFILE_PHASE TRUE CACHE BOOL "Enable profiling at compilation phases level")
+SET(PROFILE_BASE TRUE CACHE BOOL "Enable profiling at base components level")
+SET(PROFILE_PASS TRUE CACHE BOOL "Enable profiling at compilation passes level")
+SET(PROFILE_COMP TRUE CACHE BOOL "Enable profiling at ops composition level")
+SET(PROFILE_ALGO TRUE CACHE BOOL "Enable profiling at internal algorithms level")
+SET(PROFILE_BULD TRUE CACHE BOOL "Enable profiling at building blocks level")
+SET(PROFILE_MATH TRUE CACHE BOOL "Enable profiling at tensor math operations level")
+
+
+if (${LOG})
+    add_definitions(-DMV_LOG_ENABLED)
+endif()
+
+if (${PROFILER})
+
+    if (${UNIX})
+
+        add_definitions(-DMV_PROFILER_ENABLED)
+        include_directories(${PROJECT_SOURCE_DIR}/contrib/easy_profiler/easy_profiler_core/include)
+        add_subdirectory(contrib/easy_profiler)
+
+        if (${PROFILE_PHASE})
+            add_definitions(-DMV_PROFILE_PHASE_ENABLED)
+        endif()
+
+        if (${PROFILE_BASE})
+            add_definitions(-DMV_PROFILE_BASE_ENABLED)
+        endif()
+
+        if (${PROFILE_PASS})
+            add_definitions(-DMV_PROFILE_PASS_ENABLED)
+        endif()
+
+        if (${PROFILE_COMP})
+            add_definitions(-DMV_PROFILE_COMP_ENABLED)
+        endif()
+
+        if (${PROFILE_ALGO})
+            add_definitions(-DMV_PROFILE_ALGO_ENABLED)
+        endif()
+
+        if (${PROFILE_BULD})
+            add_definitions(-DMV_PROFILE_BULD_ENABLED)
+        endif()
+
+        if (${PROFILE_MATH})
+            add_definitions(-DMV_PROFILE_MATH_ENABLED)
+        endif()
+
+    else()
+
+        message("Ignoring PROFILER=ON flag, profiling only available for Linux/UNIX")
+
+    endif()
+
+endif()
+
 #############################################################################################
 ### Test Coverage - off by default. Pass param CODE_COVERAGE=ON
 ### > cmake -DCODE_COVERAGE=ON -DCMAKE_BUILD_TYPE=Debug ..
@@ -63,6 +122,7 @@ include_directories(${PROJECT_SOURCE_DIR})
 include_directories(${PROJECT_SOURCE_DIR}/include)
 include_directories(${PROJECT_SOURCE_DIR}/contrib/flatbuffers/include)
 
+
 if(VALIDATION)
     include_directories("/opt/movidius/caffe/include")
     include_directories("/opt/movidius/caffe/build/include")
@@ -88,8 +148,8 @@ if(VALIDATION)
 endif(VALIDATION)
 
 SET(base
-    "${PROJECT_SOURCE_DIR}/src/base/attribute_def/bool.cpp" 
-    "${PROJECT_SOURCE_DIR}/src/base/attribute_def/double.cpp" 
+    "${PROJECT_SOURCE_DIR}/src/base/attribute_def/bool.cpp"
+    "${PROJECT_SOURCE_DIR}/src/base/attribute_def/double.cpp"
     "${PROJECT_SOURCE_DIR}/src/base/attribute_def/dtype.cpp"
     "${PROJECT_SOURCE_DIR}/src/base/attribute_def/implicit_flow.cpp"
     "${PROJECT_SOURCE_DIR}/src/base/attribute_def/int.cpp"
@@ -115,7 +175,7 @@ SET(base
     "${PROJECT_SOURCE_DIR}/src/base/attribute_def/unsigned_short.cpp"
     "${PROJECT_SOURCE_DIR}/src/base/attribute_def/unsigned.cpp"
     "${PROJECT_SOURCE_DIR}/src/target/keembay/attribute_def/quantization_params.cpp"
-    
+
     "${PROJECT_SOURCE_DIR}/src/base/exception/argument_error.cpp"
     "${PROJECT_SOURCE_DIR}/src/base/exception/attribute_error.cpp"
     "${PROJECT_SOURCE_DIR}/src/base/exception/binarydata_error.cpp"
@@ -130,7 +190,7 @@ SET(base
     "${PROJECT_SOURCE_DIR}/src/base/exception/runtime_error.cpp"
     "${PROJECT_SOURCE_DIR}/src/base/exception/shape_error.cpp"
     "${PROJECT_SOURCE_DIR}/src/base/exception/value_error.cpp"
-    
+
     "${PROJECT_SOURCE_DIR}/src/base/json/array.cpp"
     "${PROJECT_SOURCE_DIR}/src/base/json/bool.cpp"
     "${PROJECT_SOURCE_DIR}/src/base/json/null.cpp"
@@ -140,14 +200,15 @@ SET(base
     "${PROJECT_SOURCE_DIR}/src/base/json/string.cpp"
     "${PROJECT_SOURCE_DIR}/src/base/json/value_content.cpp"
     "${PROJECT_SOURCE_DIR}/src/base/json/value.cpp"
-    
+    "${PROJECT_SOURCE_DIR}/src/base/json/json.cpp"
+
     "${PROJECT_SOURCE_DIR}/src/base/attribute_entry.cpp"
     "${PROJECT_SOURCE_DIR}/src/base/attribute_registry.cpp"
     "${PROJECT_SOURCE_DIR}/src/base/binarizable.cpp"
     "${PROJECT_SOURCE_DIR}/src/base/element.cpp"
     "${PROJECT_SOURCE_DIR}/src/base/jsonable.cpp"
     "${PROJECT_SOURCE_DIR}/src/base/printable.cpp"
-    
+
     "${PROJECT_SOURCE_DIR}/src/computation/model/runtime_binary.cpp"
 
     "${PROJECT_SOURCE_DIR}/src/computation/op/def/add.cpp"
@@ -186,7 +247,7 @@ SET(base
     "${PROJECT_SOURCE_DIR}/src/computation/op/def/softmax.cpp"
     "${PROJECT_SOURCE_DIR}/src/computation/op/def/subtract.cpp"
     "${PROJECT_SOURCE_DIR}/src/computation/op/def/tanh.cpp"
-    
+
     "${PROJECT_SOURCE_DIR}/src/computation/op/op_entry.cpp"
     "${PROJECT_SOURCE_DIR}/src/computation/op/op_registry.cpp"
 
@@ -203,7 +264,6 @@ SET(base
     "${PROJECT_SOURCE_DIR}/src/target/keembay/attribute_def/barrier_deps.cpp"
     "${PROJECT_SOURCE_DIR}/src/target/keembay/attribute_def/dma_direction.cpp"
     "${PROJECT_SOURCE_DIR}/src/target/keembay/attribute_def/workloads.cpp"
-    "${PROJECT_SOURCE_DIR}/src/target/keembay/metisGraphStructure.cpp"
     "${PROJECT_SOURCE_DIR}/src/target/keembay/attribute_def/ppe_task.cpp"
     "${PROJECT_SOURCE_DIR}/src/target/keembay/attribute_def/ppe_fixed_function.cpp"
     "${PROJECT_SOURCE_DIR}/src/target/keembay/tasks/def/barrier_task.cpp"
@@ -213,6 +273,7 @@ SET(base
     "${PROJECT_SOURCE_DIR}/src/target/keembay/tasks/def/placeholder_task.cpp"
     "${PROJECT_SOURCE_DIR}/src/target/keembay/tasks/def/sparsity_map.cpp"
     "${PROJECT_SOURCE_DIR}/src/target/keembay/tasks/def/weights_table.cpp"
+    "${PROJECT_SOURCE_DIR}/src/target/keembay/metisGraphStructure.cpp"
     "${PROJECT_SOURCE_DIR}/src/target/keembay/tasks/def/implicit_concat.cpp"
 
 
@@ -253,7 +314,7 @@ SET(base
     "${PROJECT_SOURCE_DIR}/src/tensor/quantization_params.cpp"
     "${PROJECT_SOURCE_DIR}/src/tensor/shape.cpp"
     "${PROJECT_SOURCE_DIR}/src/tensor/tensor.cpp"
-    
+
     "${PROJECT_SOURCE_DIR}/src/utils/parser/json_text.cpp"
     "${PROJECT_SOURCE_DIR}/src/utils/serializer/file_buffer.cpp"
     "${PROJECT_SOURCE_DIR}/src/utils/env_loader.cpp"
@@ -275,8 +336,8 @@ SET(model
     "${PROJECT_SOURCE_DIR}/src/computation/resource/memory_allocator.cpp"
     "${PROJECT_SOURCE_DIR}/src/computation/resource/stage.cpp"
     "${PROJECT_SOURCE_DIR}/src/target/myriadx/nce1.cpp"
-    "${PROJECT_SOURCE_DIR}/src/target/myriadx/nce1_utils.cpp" 
-    "${PROJECT_SOURCE_DIR}/src/target/keembay/koala_graph_scheduler.cpp"   
+    "${PROJECT_SOURCE_DIR}/src/target/myriadx/nce1_utils.cpp"
+    "${PROJECT_SOURCE_DIR}/src/target/keembay/koala_graph_scheduler.cpp"
 )
 
 SET(logger
@@ -290,7 +351,7 @@ SET(pass
     "${PROJECT_SOURCE_DIR}/src/deployer/blob_serialization/bTensor.cpp"
     "${PROJECT_SOURCE_DIR}/src/deployer/Fp16Convert.cpp"
     "${PROJECT_SOURCE_DIR}/src/deployer/serializer.cpp"
-    
+
     "${PROJECT_SOURCE_DIR}/src/pass/pass_entry.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/pass_manager.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/pass_registry.cpp"
@@ -323,8 +384,6 @@ SET(pass
     "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/dma_passes.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/deallocation_passes.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/assign_unique_task_id.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/store_layer_split_strategy.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/strategy_from_layers_to_tensors.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/splitting_across_clusters.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/store_workload_strategy.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/implicit_operation_passes.cpp"
@@ -368,7 +427,7 @@ SET(pass
 
     "${PROJECT_SOURCE_DIR}/src/graph/tensor_interference_graph.cpp"
     "${PROJECT_SOURCE_DIR}/contrib/koala/tinyxml/tinyxml.cpp"
-    "${PROJECT_SOURCE_DIR}/contrib/koala/tinyxml/tinyxmlerror.cpp" 
+    "${PROJECT_SOURCE_DIR}/contrib/koala/tinyxml/tinyxmlerror.cpp"
     "${PROJECT_SOURCE_DIR}/contrib/koala/tinyxml/tinyxmlparser.cpp"
     "${PROJECT_SOURCE_DIR}/contrib/koala/tinyxml/tinystr.cpp"
 )
@@ -400,7 +459,7 @@ ENDIF()
 
 if (MSVC)
     add_library(cm OBJECT ${pass} ${compiler} $<TARGET_OBJECTS:corebase> $<TARGET_OBJECTS:metamodel>)
-	target_link_libraries(cm corebase metamodel)
+        target_link_libraries(cm corebase metamodel)
     add_library(corebase OBJECT ${base} ${logger})
     add_library(model OBJECT ${model} $<TARGET_OBJECTS:corebase>)
     target_link_libraries(model corebase)
@@ -428,11 +487,13 @@ else()
         add_subdirectory(python/api)
         add_subdirectory(tests)
         add_subdirectory(contrib/googletest)
+        target_link_libraries(cm model)
+
     else()
         add_library(cm SHARED ${base} ${logger} ${pass} ${compiler} ${syscalls})
         add_library(corebase SHARED ${base} ${logger})
         add_library(model SHARED ${model})
-        
+        target_link_libraries(cm model)
 
         IF(CMAKE_CROSSCOMPILING)
             #Flatbuffers and Metis not x-compiled yet
@@ -446,7 +507,7 @@ else()
             add_subdirectory(tests)
             add_subdirectory(contrib/googletest)
         ENDIF(CMAKE_CROSSCOMPILING)
-       
+
     endif(VALIDATION)
 endif(MSVC)
 
@@ -456,3 +517,7 @@ IF(NOT CMAKE_CROSSCOMPILING)
     add_subdirectory(schema)
     add_subdirectory(contrib/flatbuffers)
 ENDIF()
+
+if (${PROFILER} AND ${UNIX})
+    target_link_libraries(cm easy_profiler)
+endif()

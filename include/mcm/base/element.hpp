@@ -11,7 +11,7 @@
 #include "include/mcm/base/printable.hpp"
 #include "include/mcm/base/jsonable.hpp"
 #include "include/mcm/logger/log_sender.hpp"
-
+#include "include/mcm/compiler/compilation_profiler.hpp"
 
 namespace mv
 {

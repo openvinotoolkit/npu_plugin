@@ -52,6 +52,7 @@ namespace mv
 
         std::size_t opsCount() const;
         std::size_t opsCount(const std::string& opType) const;
+        std::size_t dataFlowsCount() const;
 
         long long unsigned parametersCount() const;
 
