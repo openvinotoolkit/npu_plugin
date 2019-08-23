@@ -487,6 +487,23 @@ void StrategyManager::saveMetaStrategy(std::vector<MetaGraph::edge_list_iterator
 
     globalParams->set("split_strategy", clusteringStrategyList);
 
+
+    for(auto strategy : allStrategies)
+    {
+        auto spilling = strategy["spilling"].get<bool>();
+        auto opName   = strategy["name"].get<string>();
+
+        auto op = model_.getOp(opName);
+        if(op->getOpType() == "Output")
+            continue;
+
+        auto outTensor = op->getOutputTensor(0);
+        if(spilling)
+            outTensor->set<mv::Tensor::MemoryLocation>("Location",mv::Tensor::MemoryLocation::DDR);
+        else
+            outTensor->set<mv::Tensor::MemoryLocation>("Location",mv::Tensor::MemoryLocation::CMX);
+    }
+
 //    test updated compilation descriptor
     auto globalParams2 = model_.getGlobalConfigParams();
     auto strategyList2 = globalParams2->get<std::vector<mv::Element>>("streaming_strategy");
