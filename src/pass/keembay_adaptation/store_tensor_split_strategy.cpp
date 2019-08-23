@@ -37,7 +37,6 @@ void storeStrategy(mv::Data::OpListIterator& it, int numClusters, std::vector<mv
         if (std::regex_match(it->getName(), exp))
         {
             it->set<std::string>("splitStrategy", s.get<std::string>("strategy"));
-            std::cout << "$$$ for layer " << it->getName() << " : " << s.get<std::string>("strategy") << std::endl;
         }
     }
 }

@@ -142,7 +142,7 @@
                         {"name" : "ddrBandwidth",   "value" : 128 },
                         {"name" : "systemClockMhz", "value" : 500 },
                         {"name" : "FathomSafetyFactor", " value" : 0.925},
-                        {"name" : "dotFileLocation", "value" : "output/mcmGrapOptDots"}
+                        {"name" : "dotFileLocation", "value" : "output/mcmGrapOptDots/"}
                     ],
                     "globalStrategies" : [
                         {"name" : "tensorSpilling",    "value" : true       },

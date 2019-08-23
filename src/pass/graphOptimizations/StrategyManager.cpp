@@ -183,11 +183,12 @@ void StrategyManager::writeMetaDot(MetaGraph& graph, bool skipInf)
     ofstream ostream;
 
     utils::validatePath(dotFileLocation);
-    ostream.open(dotFileLocation, std::ios::trunc | std::ios::out);
+
+    string outputFile = dotFileLocation +"_finalMetaGraph.dot";
+    ostream.open(outputFile, std::ios::trunc | std::ios::out);
     if (!ostream.is_open())
         throw ArgumentError(model_, "output", dotFileLocation, "Unable to open output file");
 
-    string outputFile = dotFileLocation + "/" +"_finalMetaGraph";
 
     ostream.open(outputFile,ios::trunc | ios::out);
     ostream << "digraph G {\n\tgraph [splines=spline]\n";
@@ -251,16 +252,16 @@ void StrategyManager::writeDot(OptimizationGraph& optimizationGraph, bool skipIn
     ofstream ostream;
 
     utils::validatePath(dotFileLocation);
-    ostream.open(dotFileLocation, std::ios::trunc | std::ios::out);
-    if (!ostream.is_open())
-        throw ArgumentError(model_, "output", dotFileLocation, "Unable to open output file");
+//    ostream.open(dotFileLocation + "test", std::ios::trunc | std::ios::out);
 
     auto start_node = optimizationGraph.node_begin() ;
     auto start_node_name =  get<1>(*start_node)["name"].get<string>();
     std::replace(start_node_name.begin(),start_node_name.end(),'/','_');
 
-    string outputFile = dotFileLocation + "/" +  start_node_name  + "_" + to_string(globalCtr++) + ".dot";
+    string outputFile = dotFileLocation + start_node_name  + "_" + to_string(globalCtr++) + ".dot";
     ostream.open(outputFile,ios::trunc | ios::out);
+    if (!ostream.is_open())
+        throw ArgumentError(model_, "output", dotFileLocation, "Unable to open output file");
 
     ostream << "digraph G {\n\tgraph [splines=spline]\n";
 
