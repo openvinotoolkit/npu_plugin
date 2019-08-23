@@ -6,6 +6,7 @@
 #include "include/mcm/pass/graphOptimizations/StrategyRegistry.hpp"
 #include "include/mcm/base/element.hpp"
 #include "include/mcm/algorithms/dijkstra.hpp"
+#include "include/mcm/utils/env_loader.hpp"
 
 namespace mv {
 namespace graphOptimizer {
@@ -180,7 +181,13 @@ Attribute& StrategyManager::getStrategy(mv::Op op,string strategy)
 void StrategyManager::writeMetaDot(MetaGraph& graph, bool skipInf)
 {
     ofstream ostream;
-    string outputFile = dotFileLocation + "_finalMetaGraph";
+
+    utils::validatePath(dotFileLocation);
+    ostream.open(dotFileLocation, std::ios::trunc | std::ios::out);
+    if (!ostream.is_open())
+        throw ArgumentError(model_, "output", dotFileLocation, "Unable to open output file");
+
+    string outputFile = dotFileLocation + "/" +"_finalMetaGraph";
 
     ostream.open(outputFile,ios::trunc | ios::out);
     ostream << "digraph G {\n\tgraph [splines=spline]\n";
@@ -243,11 +250,16 @@ void StrategyManager::writeDot(OptimizationGraph& optimizationGraph, bool skipIn
 {
     ofstream ostream;
 
+    utils::validatePath(dotFileLocation);
+    ostream.open(dotFileLocation, std::ios::trunc | std::ios::out);
+    if (!ostream.is_open())
+        throw ArgumentError(model_, "output", dotFileLocation, "Unable to open output file");
+
     auto start_node = optimizationGraph.node_begin() ;
     auto start_node_name =  get<1>(*start_node)["name"].get<string>();
     std::replace(start_node_name.begin(),start_node_name.end(),'/','_');
 
-    string outputFile = dotFileLocation + start_node_name  + "_" + to_string(globalCtr++) + ".dot";
+    string outputFile = dotFileLocation + "/" +  start_node_name  + "_" + to_string(globalCtr++) + ".dot";
     cout << outputFile << endl;
     ostream.open(outputFile,ios::trunc | ios::out);
 
@@ -637,7 +649,7 @@ void StrategyManager::recursiveDijkstra(mv::Data::OpListIterator opBegin)
         }
     }
     //save best found strategy
-//    writeMetaDot(metaGraph, true);
+    writeMetaDot(metaGraph, true);
     cout << "saving meta graph optimal path" << endl;
     saveMetaStrategy(finalCriticalPath);
 }

@@ -147,7 +147,7 @@
                         {"name" : "ddrBandwidth",   "value" : 200000 },
                         {"name" : "systemClockMhz", "value" : 500 },
                         {"name" : "FathomSafetyFactor", " value" : 0.925},
-                        {"name" : "dotFileLocation", "value" : "/home/iszilve/work/keembay/mcmCompiler/build/examples/mcmGrapOptDots/"}
+                        {"name" : "dotFileLocation", "value" : "output/mcmGrapOptDots"}
                     ],
                     "globalStrategies" : [
                         {"name" : "tensorSpilling",    "value" : true       },

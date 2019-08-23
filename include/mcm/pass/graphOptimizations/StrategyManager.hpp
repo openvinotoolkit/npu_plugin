@@ -56,7 +56,8 @@ public:
     void recursiveDijkstra(mv::Data::OpListIterator opBegin);
     void recursiveCriticalPath(typename graph<mv::Op, mv::DataFlow>::node_list_iterator modelSource, std::unordered_set<std::string>& recursedNodes, MetaGraph& metaGraph);
 
-    void writeDot(OptimizationGraph& optimizationGraph,bool skipInf);
+    void writeDot(OptimizationGraph& graph,bool skipInf);
+    void writeDot(MetaGraph graph, bool skipInf);
     void writeMetaDot(MetaGraph& optimizationGraph, bool skipInf);
 
     virtual void generateStrategySetForLayer(mv::Op& op,vector<StrategySet>& strategyVec);
