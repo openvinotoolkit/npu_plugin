@@ -89,7 +89,7 @@
             "TransitiveReduction",
             "LayerNumbering",
             "cmx2DDRControlFlows",
-            "TransitiveReduction",
+            "TransitiveReduction"
         ]
     },
     "finalize": {
@@ -119,7 +119,7 @@
             "TransitiveReduction",
             "InsertBarrierTasks",
             "TransitiveReduction",
-            "PopulateWeightsTablesPointers",
+            "PopulateWeightsTablesPointers"
         ]
     },
     "scheduling": {
