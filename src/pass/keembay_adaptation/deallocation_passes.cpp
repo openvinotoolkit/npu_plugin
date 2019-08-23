@@ -59,7 +59,7 @@ bool thereIsDependency(mv::ControlModel& cm, const std::vector<mv::Data::OpListI
 
 
 // Pass role: Add deallocation tasks for each Tensor
-void addDeallocationTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&)
+void addDeallocationTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&)
 {
 
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
@@ -94,26 +94,29 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
             inputOp->getOpType() == "WeightsTable" || inputOp->getOpType() == "SparsityMap" || inputOp->getOpType() == "Slice")
             continue;
 
-        
-        // Tensors that are input of a concat shall not be deallocated: they will be allocated into a bigger tensor
-        // (the output of concat op) and that will be deallocated
-        // ADDITIONAL NOTE/TODO: This check by itself is not sufficient if a tensor is input of both an implicit and an explicit operation
-        if(!outputOp->hasTypeTrait("executable"))
-            continue;
-        
         auto inputTensor = dataFlowIt->getTensor();
 
-        // Last check, possible thanks to MemoryLocation definition: In general, tensors that are not in CMX shall not be deallocated
-        // Probably this check covers most of the previous checks - NO! CONCAT IN DDR!
-        if (inputTensor->get<mv::Tensor::MemoryLocation>("Location") != mv::Tensor::MemoryLocation::CMX)
-            continue;
 
-        // Arrived at this point, we know that the tensor has to be deallocated. We just have to check
-        // if it was previously deallocated or not.
-        if(!inputTensor->hasAttr("deallocated"))
+
+        //We just have to check if it was previously deallocated or not.
+
+        if(!inputTensor->hasAttr("deallocated") &&
+            // outputOp->hasTypeTrait("executable"): Tensors that are input of a concat shall not be deallocated: they will be allocated into a bigger tensor
+            // (the output of concat op) and that will be deallocated
+            // ADDITIONAL NOTE/TODO: This check by itself is not sufficient if a tensor is input of both an implicit and an explicit operation
+
+            // inputTensor->get<mv::Tensor::MemoryLocation>("Location") == mv::Tensor::MemoryLocation::CMX:
+            //  Last check, possible thanks to MemoryLocation definition: In general, tensors that are not in CMX shall not be deallocated
+            //  Probably this check covers most of the previous checks - NO! CONCAT IN DDR!
+          ((inputTensor->get<mv::Tensor::MemoryLocation>("Location") == mv::Tensor::MemoryLocation::CMX &&
+                outputOp->hasTypeTrait("executable")) ||
+          (inputOp->getOpType() == "DMATask" && inputTensor->get<mv::Tensor::MemoryLocation>("Location") == mv::Tensor::MemoryLocation::DDR)))
         {
+
+            auto opType = inputOp->getOpType();
             inputTensor->set<bool>("deallocated", true);
             auto inputOpName = inputOp->getName();
+
             std::string deallocationName(mv::createDeallocationName(inputOpName));
 
             // Flows names must be taken before the insertion of deallocation ops
@@ -134,6 +137,7 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
                 // to the operation that created it
                 om.deallocate(inputTensor, deallocationName);
                 deallocateInputOp = om.getOp(deallocationName);
+                deallocateInputOp->set<mv::Tensor::MemoryLocation>("Location", inputTensor->get<mv::Tensor::MemoryLocation>("Location"));
             }
 
             // Now that we have created/set the pointer to/ the deallocation op, we have to attach
@@ -154,7 +158,9 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
                     if(flowIt == cm.flowEnd())
                         flowIt = cm.defineFlow(inputOp, deallocateInputOp);
                     auto outputTensor = flowIt.source()->getOutputTensor(0);
-                    flowIt->set<int>("MemoryRequirement", outputTensor->computeTotalSize());
+                    if (!(inputOp->getOpType() == "DMATask" && inputTensor->get<mv::Tensor::MemoryLocation>("Location") == mv::Tensor::MemoryLocation::DDR))
+                        //MemoryRequirement is used in MaxCut - relevant only for CMX memory
+                        flowIt->set<int>("MemoryRequirement", outputTensor->computeTotalSize());
                     flowIt->set<bool>("PositiveMemory", true);
                 }
             }
@@ -166,7 +172,7 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
                 auto concatOp = dataFlowIt.source();
                 for(auto concatInput = concatOp.leftmostParent(); concatInput != om.opEnd(); ++concatInput)
                 {
-                     // Attaching also through a ControlFlow
+                    // Attaching also through a ControlFlow
                     if(cm.isFlowAllowed(concatInput, deallocateInputOp))
                     {
                         mv::Control::FlowListIterator flowIt = cm.checkControlFlow(concatInput, deallocateInputOp);
@@ -178,20 +184,54 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
                     }
                 }
             }
-            
-            // Now it's time to define the control flow with 0 as memory requirement
-            // Which in our case is no memory requirement at all.
 
-            // Checking all the ops that have this tensor as input
             std::vector<mv::Data::OpListIterator> sinkOperations;
-            for(auto flowName : flowsNames)
+            if (inputTensor->get<mv::Tensor::MemoryLocation>("Location") == mv::Tensor::MemoryLocation::CMX &&
+                outputOp->hasTypeTrait("executable"))
             {
-                auto df = dm.getDataFlow(flowName);
-                sinkOperations.push_back(df.sink());
-            }
+                pass.log(mv::Logger::MessageType::Debug, " Collecting Sink Operations for case CMX Dealloc");
 
+                // Now it's time to define the control flow with 0 as memory requirement
+                // Which in our case is no memory requirement at all.
+
+                // Checking all the ops that have this tensor as input
+
+                for(auto flowName : flowsNames)
+                {
+                    pass.log(mv::Logger::MessageType::Debug, " Checking flow name " + flowName);
+
+                    auto df = dm.getDataFlow(flowName);
+                    sinkOperations.push_back(df.sink());
+                }
+            }
+            else
+            {
+                pass.log(mv::Logger::MessageType::Debug, " Collecting Sink Operations for case DDR Dealloc");
+
+                // Now it's time to define the control flow with 0 as memory requirement
+                // Which in our case is no memory requirement at all.
+
+                // Checking all the ops that have this tensor as input
+                while(!flowsNames.empty())
+               {
+                    auto flowName = flowsNames.begin();
+                    pass.log(mv::Logger::MessageType::Debug, " Checking flow name " + *flowName);
+
+                    auto df = dm.getDataFlow(*flowName);
+                    auto chosenOp = cm.switchContext(df.sink());
+                    if (!chosenOp->hasTypeTrait("executable"))
+                    {
+                        auto implicitOpFlowsNames = chosenOp->getOutputTensor(0)->get<std::set<std::string>>("flows");
+                        flowsNames.insert(implicitOpFlowsNames.begin(), implicitOpFlowsNames.end());
+                    }
+                    else
+                        sinkOperations.push_back(df.sink());
+                    flowsNames.erase(flowName);
+                }
+            }
             // If there is just one operation, the solution is pretty easy: attach this operation to the dealloc
             // and the dealloc to the next operation coming in control flow model
+            pass.log(mv::Logger::MessageType::Debug, " sinkOperations.size() " + std::to_string(sinkOperations.size()));
             if(sinkOperations.size() == 1)
             {
                 auto chosenOp = cm.switchContext(*sinkOperations.begin());
@@ -200,28 +240,15 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
             else
             {
                 // If there are more operations, things get tricky
-                // We have to ask ourselves: Is there a scheduling dependency existing
-                // between these operations?
-
-                // Two hypothesis are considered here:
-                // 1) There is. In this case, the dealloc op shall be attached only to the last operation in topological sort order. This case is similar to sinkOperations.size() == 1
-                // 2) There isn't among any of them. In this case the dealloc task shall be attached to all of the involved operations
-
-                if(thereIsDependency(cm, sinkOperations))
-                {
-                    auto chosenOp = sortedOps.rbegin();
-                    for(; chosenOp != sortedOps.rend(); ++chosenOp)
-                        if(std::find(sinkOperations.begin(), sinkOperations.end(), om.switchContext(*chosenOp)) != sinkOperations.end())
-                            break;
-                    insertDeallocationControlFlows(om, deallocateInputOp, *chosenOp);
-                }
-                else
-                {
-                    // THIS SHOULD NOT BE HAPPENING
-                    for(auto& chosenOp : sinkOperations)
-                        insertDeallocationControlFlows(om, deallocateInputOp, cm.switchContext(chosenOp));
-                }
+                //the dealloc op shall be attached only to the last operation in topological sort order.
+                auto chosenOp = sortedOps.rbegin();
+                for(; chosenOp != sortedOps.rend(); ++chosenOp)
+                    if(std::find(sinkOperations.begin(), sinkOperations.end(), om.switchContext(*chosenOp)) != sinkOperations.end())
+                        break;
+                insertDeallocationControlFlows(om, deallocateInputOp, *chosenOp);
             }
+
+
         }
     }
 }

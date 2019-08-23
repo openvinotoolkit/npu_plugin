@@ -23,9 +23,15 @@ namespace mv
 
 }
 
-void convertDotFcn(const mv::pass::PassEntry&, mv::ComputationModel&, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&)
+void convertDotFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
-    std::string outputFile = passDesc.get<std::string>("input");
-    system(("dot -Tsvg " + outputFile + " -o " + outputFile+".svg").c_str());
+    auto globalConfigParams = model.getGlobalConfigParams();
+
+    auto convert = globalConfigParams->hasAttr("ConvertDots") ? globalConfigParams->get<bool>("ConvertDots") : true;
+    if (convert)
+    {
+        std::string outputFile = passDesc.get<std::string>("input");
+        system(("dot -Tsvg " + outputFile + " -o " + outputFile+".svg").c_str());
+    }
 }

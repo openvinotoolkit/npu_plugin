@@ -82,7 +82,13 @@ void generateDotFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
                         nodeDef += " style=filled, fillcolor=red,";
                 }
                 if(opIt->getOpType() == "Deallocate")
-                    nodeDef += " style=filled, fillcolor=orange,";
+                {
+                    auto location = opIt->get<mv::Tensor::MemoryLocation>("Location");
+                    if (location == mv::Tensor::MemoryLocation::CMX)
+                        nodeDef += " style=filled, fillcolor=orange,";
+                    else
+                        nodeDef += " style=filled, fillcolor=blue,";
+                }
                 if(opIt->getOpType() == "BarrierTask")
                     nodeDef += " style=filled, fillcolor=cyan,";
 

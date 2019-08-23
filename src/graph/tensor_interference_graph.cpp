@@ -89,19 +89,6 @@ bool mv::TensorInterferenceGraph::isTensorInTopNames_(const std::vector<mv::Data
     return false;
 }
 
-bool mv::TensorInterferenceGraph::isSinkNode_(mv::Data::OpListIterator& opIterator)
-{
-    auto opType = opIterator->getOpType();
-    if (opType == "Deallocate") //Deallocate is a LeonTask
-        return true;
-    if (opType  == "DMATask" &&
-        (opIterator->get<mv::DmaDirection>("direction") == mv::DmaDirectionEnum::CMX2DDR ||
-         opIterator->get<mv::DmaDirection>("direction") == mv::DmaDirectionEnum::CMX2UPA))
-        return true;
-
-    return false;
-}
-
 bool mv::TensorInterferenceGraph::checkNodesDontInterfere_(std::unordered_set<std::string>& sourceNodeNames, std::unordered_set<std::string>& sinkNodeNames)
 {
     //Check if there's a path from any node in sink to any node in source, if yes return true
@@ -110,12 +97,12 @@ bool mv::TensorInterferenceGraph::checkNodesDontInterfere_(std::unordered_set<st
         for (std::unordered_set<std::string>::const_iterator target = sourceNodeNames.begin( ); target != sourceNodeNames.end( ); ++target)
         {
             auto pathExists = cmTransitiveClosureSet_.find(std::make_pair(*src, *target));
-            if (pathExists != cmTransitiveClosureSet_.end())
-                return true;
+            if (pathExists == cmTransitiveClosureSet_.end())
+                return false;
         }
 
     }
-    return false;
+    return true;
 }
 
 std::set<std::string> mv::TensorInterferenceGraph::getTensorNames_(mv::ComputationModel& model, const mv::TensorIteratorFilter& tensorFilter,
@@ -172,7 +159,7 @@ void  mv::TensorInterferenceGraph::addWeightsToInterferenceGraph_(const mv::pass
 }
 
 mv::TensorInterferenceGraph::TensorInterferenceGraph(const mv::pass::PassEntry& pass, mv::ComputationModel& model, std::size_t alignment, const mv::TensorIteratorFilter& tensorFilter,
-    const mv::OpIteratorFilter& taskFilter, bool isCompleteTig, bool isDMA)
+    const mv::OpIteratorFilter& taskFilter, const SinkOpIteratorFilter& sinkFilter, bool isCompleteTig, bool isDMA)
 {
 
     if (isCompleteTig)
@@ -183,7 +170,7 @@ mv::TensorInterferenceGraph::TensorInterferenceGraph(const mv::pass::PassEntry& 
     {
         pass.log(mv::Logger::MessageType::Info, " calling genIntereferenceGraph_");
 
-        genIntereferenceGraph_(pass, model , tensorFilter, taskFilter, isDMA);
+        genIntereferenceGraph_(pass, model , tensorFilter, taskFilter, sinkFilter, isDMA);
     }
     pass.log(mv::Logger::MessageType::Info, " calling addWeightsToInterferenceGraph_");
     addWeightsToInterferenceGraph_(pass, model, alignment);
@@ -230,28 +217,6 @@ bool mv::TensorInterferenceGraph::checkIsCMXTensor_(const Data::TensorIterator t
     return false;
 }
 
-void mv::TensorInterferenceGraph::transitiveClosureHelper_(std::string source, std::string target)
-{
-    transitiveClosureSet_.insert(std::make_pair(source, target));
-
-    //for all childs of target, add them to reachable nodes from source
-    auto ni = nodeIteratorsMap_.find(target)->second;
-
-
-    for (mv::TensorInterferenceGraph::node_child_iterator it(ni); it != this->node_end(); ++it)
-    {
-        //only if we haven't explored this path before lets explore it
-        if (transitiveClosureSet_.find(std::make_pair(source, (*it).name)) == transitiveClosureSet_.end())
-            transitiveClosureHelper_(source, (*it).name);
-    }
-}
-void mv::TensorInterferenceGraph::transitiveClosure_()
-{
-
-    for (auto it = this->node_begin(); it != this->node_end(); ++it)
-        transitiveClosureHelper_((*it).name, (*it).name);
-}
-
 void mv::TensorInterferenceGraph::cmTransitiveClosureHelper_(mv::OpModel& om, mv::ControlModel& cm, std::string source, std::string target)
 {
     //Todo maybe add only if source/target are in nodenames?
@@ -276,7 +241,7 @@ void mv::TensorInterferenceGraph::cmTransitiveClosure_(mv::ComputationModel& mod
 }
 
 void mv::TensorInterferenceGraph::genIntereferenceGraph_(const mv::pass::PassEntry& pass, mv::ComputationModel& model , const mv::TensorIteratorFilter& tensorFilter,
-    const mv::OpIteratorFilter& taskFilter, bool isDMA)
+    const mv::OpIteratorFilter& taskFilter, const mv::OpIteratorFilter& sinkFilter, bool isDMA)
 {
     std::unordered_set<std::string> inputTensorNames;
 
@@ -360,9 +325,11 @@ void mv::TensorInterferenceGraph::genIntereferenceGraph_(const mv::pass::PassEnt
         std::unordered_set<std::string> sinkNodeNames;
         for(auto opIterator = om.opBegin(); opIterator != om.opEnd(); ++opIterator)
         {
+            if (!opIterator->hasTypeTrait("executable"))
+                continue;
             if (isTensorInTopNames_(opIterator->getOutputTensor(), dm, *source))
                 sourceNodeNames.insert(opIterator->getName());
-            if (isTensorInTopNames_(opIterator->getInputTensor(), dm, *source) && isSinkNode_(opIterator))
+            if (isTensorInTopNames_(opIterator->getInputTensor(), dm, *source) && sinkFilter(opIterator))
                 sinkNodeNames.insert(opIterator->getName());
         }
         sourceNodesMap.insert(std::pair<std::string,std::unordered_set<std::string>>(*source, sourceNodeNames));
@@ -370,7 +337,6 @@ void mv::TensorInterferenceGraph::genIntereferenceGraph_(const mv::pass::PassEnt
     }
     //create transitive closure for all nodes in graph
     cmTransitiveClosure_(model);
-    transitiveClosure_();
 
     pass.log(mv::Logger::MessageType::Info, "\t adding more edges (current Number of edges) " + std::to_string(nodeId));
 
@@ -381,9 +347,8 @@ void mv::TensorInterferenceGraph::genIntereferenceGraph_(const mv::pass::PassEnt
         for (std::unordered_set<std::string>::const_iterator target = source; target != nodeNames.end( ); ++target)
         {
             auto nj = nodeIteratorsMap_.find(*target)->second;
-            auto pathExists = transitiveClosureSet_.find(std::make_pair(*source, *target));
 
-            if (source != target && !checkNodesAreNeighbors_(ni, nj) && pathExists != transitiveClosureSet_.end())
+            if (source != target && !checkNodesAreNeighbors_(ni, nj))
             {
                 if (!checkNodesDontInterfere_(sourceNodesMap[*source], sinkNodesMap[*target]) && !checkNodesDontInterfere_(sourceNodesMap[*target], sinkNodesMap[*source]))
                 {
