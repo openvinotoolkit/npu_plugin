@@ -67,6 +67,8 @@ namespace mv
         void undefineFlow(Control::FlowListIterator flow);
         void undefineFlow(Data::FlowListIterator flow);
 
+        std::size_t controlFlowsCount() const;
+
         virtual std::string getLogID() const override;
 
     };

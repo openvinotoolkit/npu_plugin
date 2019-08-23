@@ -11,7 +11,7 @@ static void streamingTilingFcn(const mv::pass::PassEntry& pass,
                                         mv::ComputationModel& model,
                                         mv::TargetDescriptor& target,
                                         mv::Element& passDesc,
-                                        mv::json::Object&);
+                                        mv::Element&);
 
 namespace mv
 {
@@ -779,8 +779,10 @@ void streamingTilingFcn(const mv::pass::PassEntry& pass,
                                 mv::ComputationModel& model,
                                 mv::TargetDescriptor& target,
                                 mv::Element& passDesc,
-                                mv::json::Object&)
+                                mv::Element&)
 {
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);
     mv::ControlModel cm(model);
     mv::DataModel dm(model);
