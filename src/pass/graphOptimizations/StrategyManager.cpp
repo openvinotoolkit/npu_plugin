@@ -260,7 +260,6 @@ void StrategyManager::writeDot(OptimizationGraph& optimizationGraph, bool skipIn
     std::replace(start_node_name.begin(),start_node_name.end(),'/','_');
 
     string outputFile = dotFileLocation + "/" +  start_node_name  + "_" + to_string(globalCtr++) + ".dot";
-    cout << outputFile << endl;
     ostream.open(outputFile,ios::trunc | ios::out);
 
     ostream << "digraph G {\n\tgraph [splines=spline]\n";
@@ -452,7 +451,7 @@ void StrategyManager::saveMetaStrategy(std::vector<MetaGraph::edge_list_iterator
 
         std::string newName = strategy["name"] ;
         if ( hasSpec.find(newName) == hasSpec.end())
-        { 
+        {
             copyElement.set("name_filter",newName);
             copySplits[0].set<int>("C", newStrategy[0]);
             copySplits[1].set<int>("H", newStrategy[1]);
@@ -637,10 +636,9 @@ void StrategyManager::recursiveDijkstra(mv::Data::OpListIterator opBegin)
             //call dijkstra here, if cost is less than max found so far, save otherwise move on
             vector<MetaGraph::edge_list_iterator> criticalPathEdges = dijkstra<std::tuple<mv::Op&,StrategySet,int>,MetaGraphEdge,costNodeIteratorComp,costEdgeIteratorComp, double>(metaGraph,source,sink,edgeCostMap);
             double cost = 0;
-            //cout << "edges in criticalPathEdges: " << criticalPathEdges.size() << endl;
+
             for (auto edge : criticalPathEdges){
                 cost += (*edge).first;
-                //cout << "  found edge with cost " << (*edge).first << " total cost now " << cost << endl;
             }
             if(cost < max){
                 finalCriticalPath = criticalPathEdges;
@@ -661,7 +659,6 @@ void StrategyManager::recursiveCriticalPath(typename graph<mv::Op, mv::DataFlow>
         bool operator()(const OptimizationGraph::edge_list_iterator lhs,
                         const OptimizationGraph::edge_list_iterator rhs) const
         {
-
             return get<1>(*lhs) < get<1>(*rhs);
         }
     };
@@ -723,6 +720,7 @@ void StrategyManager::recursiveCriticalPath(typename graph<mv::Op, mv::DataFlow>
             new_nodes.push_back(optimizationGraph.node_insert(std::tuple<mv::Op&,StrategySet,int>(*modelSource,strategy,optionCtr++)));
         }
         first_nodes = new_nodes;
+
         for(const auto oldNode : old_nodes)
             for(const auto newNode : new_nodes)
             {
@@ -753,7 +751,6 @@ void StrategyManager::recursiveCriticalPath(typename graph<mv::Op, mv::DataFlow>
             {
                 new_nodes.push_back(optimizationGraph.node_insert(std::tuple<mv::Op&,StrategySet,int>(*model_child,strategy,optionCtr++)));
             }
-            cout << "Inter node " << (*model_child).getName() << " has " << nodeStrategy.size() << " strategies" <<endl;
             for(const auto oldNode : old_nodes)
                 for(const auto newNode : new_nodes)
                 {
@@ -805,9 +802,6 @@ void StrategyManager::recursiveCriticalPath(typename graph<mv::Op, mv::DataFlow>
         for (int ii=0; ii<optimizationGraph.node_size()-1; ii++) ++sinkNodeIt;
 
         //Critical Path is node iter source, node iter sink, vector of edge iters critical path, double edge cost sum
-        cout << "Found Branch starting and endings nodes: " << first_nodes.size() << ", " << last_nodes.size() << endl;
-       // all_first_nodes.push_back(first_nodes);
-        //all_last_nodes.push_back(last_nodes);
         for(auto startingNode : first_nodes){
             for( auto endingNode : last_nodes)
             {
@@ -818,17 +812,16 @@ void StrategyManager::recursiveCriticalPath(typename graph<mv::Op, mv::DataFlow>
                 //strategies.push_back(get<1>(*criticalPathEdges[0]->source()));
                 for(auto edge : criticalPathEdges){
                     cost += get<0>(*edge);
-
                     strategies.push_back(get<1>(*edge->sink()));
                 }
                 strategies.pop_back();
                 MetaGraphEdge particulars = MetaGraphEdge(cost, strategies);
-                cout << "  Adding " << strategies.size() << " strategies" << endl;
                 parallelLinearSection.push_back(particulars);
                 strategies.clear();
                 particulars.second.clear();
             }
         }
+
         parallelLinearSections.push_back(parallelLinearSection);
         parallelLinearSection.clear();
 

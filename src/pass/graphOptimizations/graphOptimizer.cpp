@@ -541,18 +541,9 @@ public:
                                     child["streaming"].get<Shape>(),
                                     false);
 
-        if(parentOp.getName() == "pool1/max_pool#182")
-            cout << parentOp.getName() << " parentAct: " << parentMem.first << endl;
-
         if( ((childMem.first + childMem.second) > clusterMemory) or
             ((parentMem.first + parentMem.second) > clusterMemory))
-        {
-            cout << "Infinite cost for " << parentOp.getName() << " " << parent["streaming"].get<Shape>().toString() << " to " << childOp.getName() << " " << child["streaming"].get<Shape>().toString() << endl;
-            cout << "   clusterMemory= " << clusterMemory << endl;
-            cout << "     parentMemory= " << parentMem.first << "  " << parentMem.second << endl;
-            cout << "     childMemory = " << childMem.first << "  " << childMem.second << endl;
             return INF;
-        }
 
         auto execTime1 = executionTime(parentOp,parent);
         auto execTime2 = executionTime(childOp,child);
@@ -616,25 +607,6 @@ public:
         return execTime1 + execTime2;
     }
 
-//    void createStrategy(mv::Op& op,
-//                        vector<StrategySet>& strategyVec,
-//                        const Attribute& sparsity,
-//                        const Attribute& doubleBuffering,
-//                        const Attribute& spilling,
-//                        const Attribute& clustering)
-//    {
-//        StrategySet s;
-//
-//        s["name"] = op.getName();
-//        s["sparsity"] = sparsity;
-//        s["doubleBuffering"] = doubleBuffering;
-//        s["spilling"] = spilling;
-//        s["clustering"] = clustering;
-//        s["streamK"] = 0;
-//        s["streamH"] = 0;
-//        strategyVec.push_back(s);
-//    }
-
     void generateStrategySetForLayer(mv::Op& op,vector<StrategySet>& strategyVec)
     {
         globalEnableStreaming = globalStrategies_["enableStreaming"].get<bool>();
@@ -670,9 +642,7 @@ public:
             hasStreamOverW = false;
             hasStreamOverK = false;
         }
-//        {
-//            streamingStrategyPool = createStrategyPoolFromStrategySet(op,"streamingStrategies");
-//        }
+
 //        cout<<"Generating strategies for " << op.getName() << endl;
 //        auto func = std::bind(createStrategy,op,strategyVec,_1,_2,_3,_4);
 //        applyDescartes(func,sparsityPool,doubleBufferPool,spillingPool,clusteringStrategyPool);
