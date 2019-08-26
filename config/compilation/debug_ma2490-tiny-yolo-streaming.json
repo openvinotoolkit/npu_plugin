@@ -25,132 +25,80 @@
                         "strategy": "Clustering"
                     }
                 ],
-                "tensor_placement_override" :
-                [
-                    {
-                        "name_filter" : ".*_ddr_.*",
-                        "mem_location" : "DDR"
-                    },
-                    {
-                        "name_filter" : ".*_cmx_.*",
-                        "mem_location" : "CMX"
-                    },
-                    {
-                        "name_filter" : ".*_input_.*",
-                        "mem_location" : "INPUT"
-                    },
-                    {
-                        "name_filter" : ".*_output_.*",
-                        "mem_location" : "OUTPUT"
-                    },
-                    {
-                        "name_filter" : ".*weights.*",
-                        "mem_location" : "BLOB"
-                    }
-                ],
                 "default_tensor_placement" : "DDR",
                 "streaming_strategy" :
                 [
                     {
                         "name_filter" : "model/re_lu/Relu#34",
-                        "output_location" : "CMX",
                         "splits" : [ {"H" : 4} ]
                     },
                     {
                         "name_filter" : "model/max_pooling2d/MaxPool#35",
-                        "output_location" : "CMX",
                         "splits" : [ {"H" : 4} ]
                     },
                     {
                         "name_filter" : "model/re_lu_1/Relu#36",
-                        "output_location" : "CMX",
                         "splits" : [ {"H" : 4} ]
                     },
                     {
                         "name_filter" : "model/max_pooling2d_1/MaxPool#37",
-                        "output_location" : "CMX",
                         "splits" : [ {"H" : 2} ]
                     },
                     {
                         "name_filter" : "model/re_lu_2/Relu#38",
-                        "output_location" : "CMX",
                         "splits" : [ {"H" : 2} ]
                     },
                     {
                         "name_filter" : "model/re_lu_5/Relu#44",
-                        "output_location" : "CMX",
                         "splits" : [ {"K" : 2} ]
                     },
                     {
                         "name_filter" : "model/re_lu_6/Relu#46",
-                        "output_location" : "DDR",
                         "splits" : [ {"K" : 8} ]
                     },
                     {
                         "name_filter" : "model/re_lu_7/Relu#47",
-                        "output_location" : "DDR",
                         "splits" : [ {"K" : 16} ]
                     },
                     {
                         "name_filter" : "Det/act_quant/FakeQuantWithMinMaxVars#48",
-                        "output_location" : "CMX",
                         "splits" : [ {"K" : 2} ]
                     },
                     {
                         "name_filter" : "conv1#34",
-                        "output_location" : "CMX",
                         "splits" : [ {"H" : 4} ]
                     },
                     {
                         "name_filter" : "pool1/max_pool#35",
-                        "output_location" : "CMX",
                         "splits" : [ {"H" : 4} ]
                     },
                     {
                         "name_filter" : "conv2#36",
-                        "output_location" : "CMX",
                         "splits" : [ {"H" : 4} ]
                     },
                     {
                         "name_filter" : "pool2/max_pool#37",
-                        "output_location" : "CMX",
                         "splits" : [ {"H" : 2} ]
                     },
                     {
                         "name_filter" : "conv3#38",
-                        "output_location" : "CMX",
                         "splits" : [ {"H" : 2} ]
                     },
                     {
                         "name_filter" : "conv6#44",
-                        "output_location" : "CMX",
                         "splits" : [ {"K" : 2} ]
                     },
                     {
                         "name_filter" : "conv7#46",
-                        "output_location" : "DDR",
                         "splits" : [ {"K" : 8} ]
                     },
                     {
                         "name_filter" : "conv8#47",
-                        "output_location" : "DDR",
                         "splits" : [ {"K" : 16} ]
                     },
                     {
                         "name_filter" : "conv9/conv9#48",
-                        "output_location" : "CMX",
                         "splits" : [ {"K" : 2} ]
-                    }
-                ],
-                "disable_opFission_streaming_strategy" :
-                [
-                    {
-                        "name_filter" : "conv1_cmx_",
-                        "weight_splits" : 2
-                    },
-                    {
-                        "name_filter" : "conv2_cmx_",
-                        "weight_splits" : 4
                     }
                 ]
             },

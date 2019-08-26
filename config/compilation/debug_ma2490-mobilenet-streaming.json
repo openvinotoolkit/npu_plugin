@@ -30,22 +30,18 @@
                 [
                         {
                             "name_filter" : "MobilenetV2/expanded_conv_1/expand/Relu#174",
-                            "output_location" : "CMX",
                             "splits" : [ {"H" : 8} ]
                         },
                         {
                             "name_filter" : "MobilenetV2/expanded_conv_1/depthwise/Relu#175",
-                            "output_location" : "CMX",
                             "splits" : [ {"H" : 8} ]
                         },
                         {
                             "name_filter" : "MobilenetV2/expanded_conv_2/depthwise/Relu#178",
-                            "output_location" : "CMX",
                             "splits" : [ {"H" : 8} ]
                         },
                         {
                             "name_filter" : "MobilenetV2/Logits/Conv2d_1c_1x1/act_quant/FakeQuantWithMinMaxVars#234",
-                            "output_location" : "CMX",
                             "splits" : [ {"K" : 8} ]
                         }
                 ]
