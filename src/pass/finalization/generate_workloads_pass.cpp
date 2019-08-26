@@ -196,10 +196,10 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                 auto subTensor = opIt->getOutputTensor()[0]->getSubTensor(clusterNumber);
 
                 /*Sparse tensor don't use z-tiling*/
-                if(subTensor.isSparse())
-                    algorithms = {"Rectangle"};
-                else
-                    algorithms = {"Rectangle", "Z-Tiling"};
+                // if(subTensor.isSparse())
+                //     algorithms = {"Rectangle"};
+                // else
+                //     algorithms = {"Rectangle", "Z-Tiling"};
                 
                 pass.log(mv::Logger::MessageType::Debug, "The shape of subtensor for cluster " + std::to_string(clusterNumber) + "is: " + subTensor.getShape().toString());
 
@@ -308,10 +308,11 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
 
                             if(!rectangleFail)
                             {
-
+                               
+                                /*Check that workloads sum to the orignal output tensor volume*/
                                 if((!workloadsVector.at(workloadsVectorIndex).validateWorkloads(subTensor.getShape())))
                                 {
-                                    pass.log(mv::Logger::MessageType::Debug, "Error producing valid workloads from Rectangle partitions,erasing this workload instance ");
+                                    pass.log(mv::Logger::MessageType::Debug, "Error producing valid workloads from Rectangle heuristic, the individual workloads do not sum to the original volume or they overlap, erasing this workload instance ");
                                     workloadsVector.erase(workloadsVector.begin() + workloadsVectorIndex);
                                     rectangleFail = true;
                                 }

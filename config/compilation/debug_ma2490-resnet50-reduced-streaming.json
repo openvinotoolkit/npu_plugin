@@ -12,7 +12,8 @@
                 "Number_of_DPUs" : 5,
                 "Number_of_Clusters" : 1,
                 "UpaShaves": 1,
-                "DDRScratch": 31457280,
+                "DDRScratch": 37632,
+                "cmx": 901120,
                 "MemoryHack": false,
                 "ActivationSparsity": false,
                 "WeightsSparsity": false,
@@ -343,7 +344,7 @@
             {
                 "name": "GenerateWorkloads",
                 "costfunction": "criticalpath",
-                "TensorSplitAlgorithms": "Rectangle",
+                "TensorSplitAlgorithms": "Rectangle, Z-Tiling",
                 "_comment": "Supported CostFunctions are: balanced | criticalpath | minmax | greedy. Supported TensorSplitAlgorithms are Metis, Rectangle, Z-Tiling"
             },
             "ArrangeKeembayExecution",

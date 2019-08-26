@@ -87,6 +87,7 @@ std::string mv::Workloads::toLongString() const
         output += "MaxZ " + std::to_string(this->workloads_[i].MaxZ) + ", ";
         output += "WorkloadID " + std::to_string(this->workloads_[i].workloadID) + ", ";
         output += "ClusterID " + std::to_string(this->workloads_[i].clusterID) + ", ";
+        output += "MPEMode " + std::to_string(this->workloads_[i].MPEMode) + ", ";
         }
         output += "}";
 
@@ -475,7 +476,7 @@ const std::vector<int> mv::Workloads::getWorkloadSplitPool(const Tensor& tensor,
 
     //std::cout << dpuModeList.size() << std::endl;
     for(std::size_t i = 0; i < dpuModeList.size(); i++)
-        maxSplitsXY.push_back(ceil((xDim/dpuModeList[i].H)  * ceil(yDim/dpuModeList[i].W)));
+        maxSplitsXY.push_back(ceil((yDim/dpuModeList[i].H)  * ceil(xDim/dpuModeList[i].W)));
 
     /*maxSplitsZ*/
     int maxSplitsZ = ceil(tensor.getShape()[2]/16);
@@ -498,11 +499,11 @@ const std::vector<int> mv::Workloads::getWorkloadSplitPool(const Tensor& tensor,
         splitPool.push_back(i);
 
     /*XY splits*/
-    // for(std::size_t i = 0; i < dpuModeList.size(); i++) {
-    //     for(int j = 0; j < (int)ceil(log2(maxSplitsXY[i])); j++)
-    //         if(((maxSplitsXY[i]%(int)std::pow(2,j)) == 0) && (maxSplitsXY[i]/(std::pow(2,j)) <= maxSplits))
-    //         splitPool.push_back(maxSplitsXY[i]/std::pow(2,j));
-    // }
+    for(std::size_t i = 0; i < dpuModeList.size(); i++) {
+        for(int j = 0; j < (int)ceil(log2(maxSplitsXY[i])); j++)
+            if(((maxSplitsXY[i]%(int)std::pow(2,j)) == 0) && (maxSplitsXY[i]/(std::pow(2,j)) <= maxSplits))
+            splitPool.push_back(maxSplitsXY[i]/std::pow(2,j));
+    }
 
     /*sort*/
     sort(splitPool.begin(), splitPool.end());
@@ -875,6 +876,10 @@ void mv::Workloads::generateExecutionCycles(std::vector<mv::Workloads>& workload
 
     /*Individual workload execution cycles*/
     std::vector<float> workloadsExecutionCycles;
+    float min_range = 0;
+    float max_range = 0;
+    float sumExeCycles = 0;
+    float workload_sum_  = 0;
 
     if (nDPUxCluster < 1)
         throw mv::ArgumentError("Generate Workloads Pass", "nDPUxCluster", std::to_string(nDPUxCluster), "Invalid number of DPUs");
@@ -883,6 +888,10 @@ void mv::Workloads::generateExecutionCycles(std::vector<mv::Workloads>& workload
     for(auto itWorkloads = workloadsVector.begin(); itWorkloads != workloadsVector.end(); itWorkloads++) {
 
         workloadsExecutionCycles.clear();
+        min_range = 0;
+        max_range = 0;
+        sumExeCycles = 0;
+        workload_sum_  = 0;
 
         /*Calculate the cost for each of the individual workloads (rectangles) */
         for(auto itworkload = itWorkloads->workloads_.begin(); itworkload != itWorkloads->workloads_.end(); ++itworkload) {
@@ -895,7 +904,7 @@ void mv::Workloads::generateExecutionCycles(std::vector<mv::Workloads>& workload
             float height = (itworkload->MaxY+1) - itworkload->MinY; // + mpeMode.first;
             float width = (itworkload->MaxX+1) - itworkload->MinX; // + mpeMode.second;
 
-            float sumExeCycles = ceil(itWorkloads->tensorShape_[2]/16.0) * ceil(height / mpeMode.first) * ceil(width / mpeMode.second);
+            sumExeCycles = ceil((itworkload->MaxZ-itworkload->MinZ)/16.0) * ceil(height / mpeMode.first) * ceil(width / mpeMode.second);
             workloadsExecutionCycles.push_back(sumExeCycles);
         }
 
@@ -906,8 +915,8 @@ void mv::Workloads::generateExecutionCycles(std::vector<mv::Workloads>& workload
         for (auto& cycles : workloadsExecutionCycles)
             itWorkloads->workload_sum_ += cycles;
 
-        float min_range = itWorkloads->workload_sum_/nDPUxCluster;
-        float max_range = itWorkloads->workload_sum_/nDPUxCluster + itWorkloads->critical_workload_;
+        min_range = itWorkloads->workload_sum_/nDPUxCluster;
+        max_range = itWorkloads->workload_sum_/nDPUxCluster + itWorkloads->critical_workload_;
 
         /*Cost function*/
         if(costFunction == CostFunctions::CriticalPath) {
@@ -1616,7 +1625,8 @@ int mv::Workloads::partitionTensorWithZsplit(const mv::DPUModeList& mode_list, i
     WorkloadShape original_shape;
     original_shape.W = W; // width, aka X
     original_shape.H = H; // height,    Y
-    auto best_padding = selectPadding(original_shape, mode_list); //best mode determination is not needed for Ztiling. But shouldn't the mode details be needed how the execution is made?
+    auto best_padding = selectPadding(original_shape, mode_list); 
+
     // split the output channels into per workload
     idx_t output_channels = 0;
     for (idx_t idx = 0; idx < nWorkloads; idx++)
@@ -1631,7 +1641,12 @@ int mv::Workloads::partitionTensorWithZsplit(const mv::DPUModeList& mode_list, i
         workload.z_offset = idx*max_channels_per_WL; 
         workload.MinZ = idx*max_channels_per_WL;
         workload.MaxZ = workload.MinZ + output_channels -1;
-        workload.MPEMode = mv::Matrix;
+
+        /*Select best MPE mode*/
+        if(best_padding.mode.H == 4)
+            workload.MPEMode = mv::Matrix; 
+        else
+            workload.MPEMode = mv::Vector; 
 
         //Check that the z workloads dimension for z tiling are multiple of 16
         if(((workload.MaxZ+1) - workload.MinZ)%16 != 0)
