@@ -191,7 +191,7 @@
                         "strategy": "SplitOverK"
                     },
                     {
-                        "name_filter":".*expanded_conv_11/project/BatchNorm/FusedBatchNorm/BiasAdd#.*1",
+                        "name_filter":".*expanded_conv_11/project/BatchNorm/FusedBatchNorm/BiasAdd#.*",
                         "strategy": "SplitOverK"
                     },
                     {
@@ -207,7 +207,7 @@
                         "strategy": "SplitOverK"
                     },
                     {
-                        "name_filter":".*expanded_conv_12/project/BatchNorm/FusedBatchNorm/BiasAdd#.*1",
+                        "name_filter":".*expanded_conv_12/project/BatchNorm/FusedBatchNorm/BiasAdd#.*",
                         "strategy": "SplitOverK"
                     },
                     {

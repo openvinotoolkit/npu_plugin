@@ -21,6 +21,7 @@ static void unpopulatedSplitOverH(const unsigned nWorkloads, std::vector<mv::Wor
 static void populatedSplitOverH(const unsigned nClusters, std::vector<mv::Workload> &subTensors, mv::Workloads& Tensor,
                                 const mv::pass::PassEntry& pass, int &success);
 static std::vector<mv::Data::OpListIterator> findSinkLayers(mv::DataModel &dataModel, const mv::Data::TensorIterator& tensor);
+static std::vector<mv::Workload> fixRectangularHeuristicBug(std::vector<mv::Workload> subTensors, const mv::Data::TensorIterator &tensor, int nWorkloads);
 
 namespace mv
 {
@@ -122,6 +123,13 @@ void subTensorsGen(mv::ComputationModel& model, const std::vector <mv::Data::Ten
                 success = Tensor.partitionTensorWithRectangleHeuristic(TENSOR_MPE[1], nWorkloads, true, false, true,
                         mv::WorkloadSplitMode::NC, pass);
             subTensors = Tensor.getWorkloads();
+            //NOTE:Permanent handle for bug in Rectangular Heuristic
+            if (subTensors.size() != nWorkloads)
+            {
+                auto newSubTensors = fixRectangularHeuristicBug(subTensors, tensor, nWorkloads);
+                subTensors.clear();
+                subTensors = newSubTensors;
+            }
             tensor->splitAcrossClusters(subTensors, false, false);
         }
         else if (tensor->get<std::string>("splitStrategy") == "HKSwitch")
@@ -176,4 +184,80 @@ static std::vector<mv::Data::OpListIterator> findSinkLayers(mv::DataModel &dataM
         sinkOperations.push_back(df.sink());
     }
     return sinkOperations;
+}
+
+static std::vector<mv::Workload> fixRectangularHeuristicBug(std::vector<mv::Workload> subTensors, const mv::Data::TensorIterator &tensor, int nWorkloads)
+{
+
+    std::vector<mv::Workload> newSubTensors;
+    if (!tensor->isPopulated())
+    {
+        for (unsigned i = 0; i < nWorkloads; i ++)
+        {
+            mv::Workload subTensor;
+            if (i == 0)
+            {
+                subTensor.MaxX = 15;
+                subTensor.MaxY = subTensors[0].MaxY;
+                subTensor.MaxZ = subTensors[0].MaxZ;
+                subTensor.MinX = 0;
+                subTensor.MinY = subTensors[0].MinY;
+                subTensor.MinZ = subTensors[0].MinZ;
+            }
+            else if (i == 1)
+            {
+                subTensor.MaxX = 31;
+                subTensor.MaxY = subTensors[0].MaxY;
+                subTensor.MaxZ = subTensors[0].MaxZ;
+                subTensor.MinX = 16;
+                subTensor.MinY = subTensors[0].MinY;
+                subTensor.MinZ = subTensors[0].MinZ;
+            }
+            else if (i == nWorkloads - 1)
+            {
+                subTensor = subTensors[subTensors.size() - 1];
+            }
+            else
+            {
+                subTensor = subTensors[1];
+            }
+            newSubTensors.push_back(subTensor);
+        }
+    }
+    else
+    {
+        for (unsigned i = 0; i < nWorkloads; i ++)
+         {
+            mv::Workload subTensor;
+            if (i == 0)
+            {
+                subTensor.MaxX = subTensors[0].MaxX;
+                subTensor.MaxY = 15;
+                subTensor.MaxZ = subTensors[0].MaxZ;
+                subTensor.MinX = subTensors[0].MinX;
+                subTensor.MinY = 0;
+                subTensor.MinZ = subTensors[0].MinZ;
+            }
+            else if (i == 1)
+            {
+                subTensor.MaxX = subTensors[0].MaxX;
+                subTensor.MaxY = 31;
+                subTensor.MaxZ = subTensors[0].MaxZ;
+                subTensor.MinX = subTensors[0].MinX;
+                subTensor.MinY = 16;
+                subTensor.MinZ = subTensors[0].MinZ;
+            }
+            else if (i == nWorkloads - 1)
+            {
+                subTensor = subTensors[subTensors.size() - 1];
+            }
+            else
+            {
+                subTensor = subTensors[1];
+            }
+            newSubTensors.push_back(subTensor);
+         }
+    }
+
+    return newSubTensors;
 }
