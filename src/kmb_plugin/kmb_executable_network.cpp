@@ -17,6 +17,8 @@
 #include <algorithm>
 #include <utility>
 
+#include <ie_metric_helpers.hpp>
+#include <ie_plugin_config.hpp>
 #include <kmb_executable_network.h>
 #include <net_pass.h>
 
@@ -53,6 +55,9 @@ ExecutableNetwork::ExecutableNetwork(ICNNNetwork &network, const std::map<std::s
 #else
     UNUSED(network);
 #endif
+    _supportedMetrics = {
+            METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)
+    };
 }
 
 ExecutableNetwork::ExecutableNetwork(const std::string &blobFilename, const std::map<std::string, std::string> &config) {
@@ -85,7 +90,20 @@ ExecutableNetwork::ExecutableNetwork(const std::string &blobFilename, const std:
         idStream << networkName << "_TaskExecutorGetResult" << i;
         _taskExecutorGetResultIds.emplace(idStream.str());
     }
+    _supportedMetrics = {
+            METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)
+    };
 }
+
+void ExecutableNetwork::GetMetric(const std::string &name, Parameter &result, ResponseDesc *resp) const {
+    UNUSED(resp);
+    if (name == METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)) {
+        result = IE_SET_METRIC(OPTIMAL_NUMBER_OF_INFER_REQUESTS, static_cast<unsigned int>(4u));
+    } else {
+        THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
+    }
+}
+
 
 }  // namespace KmbPlugin
 }  // namespace vpu
