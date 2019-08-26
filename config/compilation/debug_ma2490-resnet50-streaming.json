@@ -709,11 +709,11 @@
         "Singular": [
             {
                 "name": "GenerateBlobKeembay",
-                "output": "output/mcm.blob"
+                "output": "output/resnet50-streaming.blob"
             },
             {
                 "name": "ConvertFlatbuffer",
-                "input": "output/mcm.blob"
+                "input": "output/resnet50-streaming.blob"
             }
 
         ]

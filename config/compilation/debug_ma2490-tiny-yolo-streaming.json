@@ -551,11 +551,11 @@
         "Singular": [
             {
                 "name": "GenerateBlobKeembay",
-                "output": "output/mcm.blob"
+                "output": "output/tiny-yolo-streaming.blob"
             },
             {
                 "name": "ConvertFlatbuffer",
-                "input": "output/mcm.blob"
+                "input": "output/tiny-yolo-streaming.blob"
             }
 
         ]

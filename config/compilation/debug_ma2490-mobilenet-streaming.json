@@ -398,7 +398,7 @@
                 "name": "GenerateDot",
                 "output": "output/dots/BarriersInsertedTransitiveReductionApplied.dot",
                 "scope": "ControlModel",
-                "content": "full",
+                mcm"content": "full",
                 "html": true
             },
             {
@@ -448,11 +448,11 @@
         "Singular": [
             {
                 "name": "GenerateBlobKeembay",
-                "output": "output/mcm.blob"
+                "output": "output/mobilenet-streaming.blob"
             },
             {
                 "name": "ConvertFlatbuffer",
-                "input": "output/mcm.blob"
+                "input": "output/mobilenet-streaming.blob"
             }
 
         ]
