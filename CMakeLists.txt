@@ -38,7 +38,6 @@ endif()
 if (${PROFILER})
 
     if (${UNIX})
-
         add_definitions(-DMV_PROFILER_ENABLED)
         include_directories(${PROJECT_SOURCE_DIR}/contrib/easy_profiler/easy_profiler_core/include)
         add_subdirectory(contrib/easy_profiler)
@@ -201,7 +200,6 @@ SET(base
     "${PROJECT_SOURCE_DIR}/src/base/json/value_content.cpp"
     "${PROJECT_SOURCE_DIR}/src/base/json/value.cpp"
     "${PROJECT_SOURCE_DIR}/src/base/json/json.cpp"
-
     "${PROJECT_SOURCE_DIR}/src/base/attribute_entry.cpp"
     "${PROJECT_SOURCE_DIR}/src/base/attribute_registry.cpp"
     "${PROJECT_SOURCE_DIR}/src/base/binarizable.cpp"
@@ -496,7 +494,6 @@ else()
         add_library(corebase SHARED ${base} ${logger})
         add_library(model SHARED ${model})
         target_link_libraries(cm model)
-
         IF(CMAKE_CROSSCOMPILING)
             #Flatbuffers and Metis not x-compiled yet
             target_link_libraries(cm corebase metamodel)

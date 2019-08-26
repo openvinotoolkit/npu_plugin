@@ -200,7 +200,6 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
     }
 }
 
-
 bool checkA0SOHSparsityBug(mv::Data::FlowListIterator flow)
 {
     auto sink = flow.sink();

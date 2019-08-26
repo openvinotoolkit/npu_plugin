@@ -160,9 +160,6 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationMod
                 }
             }
 
-            // Now it's time to define the control flow with 0 as memory requirement
-            // Which in our case is no memory requirement at all.
-
             std::vector<mv::Data::OpListIterator> sinkOperations;
             if (inputTensor->get<mv::Tensor::MemoryLocation>("Location") == mv::Tensor::MemoryLocation::CMX &&
                 outputOp->hasTypeTrait("executable"))

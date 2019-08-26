@@ -608,11 +608,16 @@
             },
             {
                 "name": "TensorGraphColoring",
-                "output": "output/dots/nnCmx.dot"
+                "cmxOutput": "output/dots/nnCmx.dot",
+                "heapOutput": "output/dots/nnHeap.dot"
             },
             {
                 "name": "ConvertDot",
                 "input": "output/dots/nnCmx.dot"
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/nnHeap.dot"
             },
             "RemoveDeallocationTasks",
             {

@@ -176,7 +176,6 @@ void mv::Tensor::populate(const std::vector<mv::DataElement>& data)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_BULD)
     if (data.size() != shape_.totalSize())
-
         throw ArgumentError(*this, "data vector", std::to_string(data.size()), "Unable to populate, data vector size"
             "does not match total size the tensor (" + std::to_string(shape_.totalSize()) + ")");
 

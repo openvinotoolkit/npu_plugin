@@ -16,7 +16,6 @@ namespace mv
             {
                 errMsg = "Invalid shape of the input tensor (input 0) - must have a dimensionality of 3, "
                     " has " + std::to_string(inputs[0]->getShape().ndims());
-
                 return {false, 0};
             }
 
@@ -24,7 +23,6 @@ namespace mv
             UNUSED(alpha);
 
             return {true, 0};
-
         };
 
         static std::function<void(const std::vector<Data::TensorIterator>&, const std::map<std::string, Attribute>&,
