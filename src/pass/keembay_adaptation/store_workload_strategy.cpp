@@ -26,15 +26,14 @@ void storeWorkloadStrategy(mv::Data::OpListIterator& it, int numClusters, std::v
     for (auto s: strategyList)
     {
         std::string& name_filter = s.get<std::string>("name_filter");
-        int cluster_filter = s.get("cluster_filter");
         std::regex exp(name_filter);
         if (std::regex_match(it->getName(), exp))
         {
-            if (cluster_filter == 0 || cluster_filter == numClusters) {
                 if(s.hasAttr("nWorkloads"))
+                {
                     it->set<int>("WorkloadStrategy_nWorkloads", s.get<int>("nWorkloads"));
-                it->set<std::string>("WorkloadStrategy_MPE_mode", s.get<std::string>("mpe_mode"));
-            }
+                    it->set<std::string>("WorkloadStrategy_MPE_mode", s.get<std::string>("mpe_mode"));
+                }
         }
     }
 }

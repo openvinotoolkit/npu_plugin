@@ -21,23 +21,11 @@ namespace mv
             std::vector<Tensor>&)> outputDefFcn =
             [](const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>&args, std::vector<Tensor>& outputs)
         {
+            mv::Tensor toPush(*inputs[0]);
+            outputs.push_back(std::move(toPush));
+            outputs[0].setName(":0");
+            outputs[0].erase("flows");
 
-            MV_PROFILED_BLOCK_START("DMATask::outputDefFcn::[quant params push]", MV_PROFILE_BULD)
-            if (args.at("quantParams").get<mv::QuantizationParams>().isEmpty())
-                outputs.push_back(mv::Tensor(":0", inputs[0]->getShape(), inputs[0]->getDType(), inputs[0]->getOrder()));
-            else
-                outputs.push_back(mv::Tensor(":0", inputs[0]->getShape(), inputs[0]->getDType(), inputs[0]->getOrder(), args.at("quantParams").get<mv::QuantizationParams>()));
-            MV_PROFILED_BLOCK_END()
-
-            if (inputs[0]->isPopulated())
-                outputs[0].populate(inputs[0]->getData());
-            if (inputs[0]->isSparse())
-            {
-                //Sparsity map shallow copy
-                outputs[0].setSparse(inputs[0]->getSparsityMap(), inputs[0]->getStorageElement());
-            }
-            if (inputs[0]->hasAttr("channelLength"))
-                outputs[0].set<int>("channelLength", inputs[0]->get<int>("channelLength"));
             if (args.at("direction").get<mv::DmaDirection>() == mv::DmaDirectionEnum::DDR2CMX)
             {
                 mv::Tensor::MemoryLocation outputLocation("CMX");
@@ -54,7 +42,6 @@ namespace mv
         .setInputs({"data"})
         .setOutputs({"output"})
         .setArg<mv::DmaDirection>("direction")
-        .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{},{},{}))
         .setInputCheck(inputCheckFcn)
         .setOutputDef(outputDefFcn)
         .setTypeTrait({"executable"});

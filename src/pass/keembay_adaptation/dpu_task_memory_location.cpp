@@ -62,7 +62,7 @@ void setDpuTasksMemoryLocationFcn(const mv::pass::PassEntry& , mv::ComputationMo
                     mv::QuantizationParams outputQuantParams = {{},{},{},{}};
                     if (output->hasAttr("quantParams"))
                         outputQuantParams = output->get<mv::QuantizationParams>("quantParams");
-                    auto dpuCopyOut = om.dMATask(output, mv::DmaDirectionEnum::CMX2DDR, outputQuantParams,opIt->getName() + "_copyOut");
+                    auto dpuCopyOut = om.dMATask(output, mv::DmaDirectionEnum::CMX2DDR,opIt->getName() + "_copyOut");
                     auto dpuCopyOutOp = om.getSourceOp(dpuCopyOut);
                     dpuCopyOutOp->set<unsigned>("opId", opIt->get<unsigned>("opId"));
                     if (output->hasAttr("quantParams"))
@@ -83,7 +83,7 @@ void setDpuTasksMemoryLocationFcn(const mv::pass::PassEntry& , mv::ComputationMo
                         mv::QuantizationParams inputQuantParams = {{},{},{},{}};
                         if(input->hasAttr("quantParams"))
                             inputQuantParams = input->get<mv::QuantizationParams>("quantParams");
-                        auto dpuCopyIn = om.dMATask(input, mv::DmaDirectionEnum::DDR2CMX, inputQuantParams, opIt->getName() + "_copyIn_" + std::to_string(i));
+                        auto dpuCopyIn = om.dMATask(input, mv::DmaDirectionEnum::DDR2CMX, opIt->getName() + "_copyIn_" + std::to_string(i));
                         auto dpuCopyInOp = om.getSourceOp(dpuCopyIn);
 
                         if(dpuCopyInOp->getOutputTensor(0)->hasAttr("quantParams"))

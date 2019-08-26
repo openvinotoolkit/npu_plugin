@@ -5,11 +5,11 @@
 #include "include/mcm/computation/flow/implicit_flow.hpp"
 #include "include/mcm/base/exception/argument_error.hpp"
 
-static void allocateGraphfileTensorsFcnKeemBay(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
-static void allocateCMXTensorsFcnKeemBay(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
-static void allocateInputOutputTensorsKeemBay(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
-static void allocateImplicitOperationsFcnKeemBay(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
-// static void allocateForImplicitConcat();
+static void allocateGraphfileTensorsKeemBayLegacyFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&passArg, mv::Element&);
+static void allocateGraphfileTensorsKeemBayFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+static void allocateCMXTensorsKeemBayFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+static void allocateInputOutputTensorsKeemBayFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+static void allocateImplicitOperationsKeemBayFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 
 
 namespace mv
@@ -19,25 +19,31 @@ namespace mv
     {
 
         MV_REGISTER_PASS(AllocateInputOutputTensorsKeemBay)
-        .setFunc(allocateInputOutputTensorsKeemBay)
+        .setFunc(allocateInputOutputTensorsKeemBayFcn)
         .setDescription(
             "Perform allocation of all input and output tensors using memory allocator"
         );
 
         MV_REGISTER_PASS(AllocateGraphfileTensorsKeemBay)
-        .setFunc(allocateGraphfileTensorsFcnKeemBay)
+        .setFunc(allocateGraphfileTensorsKeemBayFcn)
+        .setDescription(
+            "Perform allocation of all populated tensors using memory allocator"
+        );
+
+        MV_REGISTER_PASS(AllocateGraphfileTensorsKeemBayLegacy)
+        .setFunc(allocateGraphfileTensorsKeemBayLegacyFcn)
         .setDescription(
             "Perform allocation of all populated tensors using memory allocator"
         );
 
         MV_REGISTER_PASS(AllocateCMXTensorsKeemBay)
-        .setFunc(allocateCMXTensorsFcnKeemBay)
+        .setFunc(allocateCMXTensorsKeemBayFcn)
         .setDescription(
             "Perform allocation of all unpopulated tensors using memory allocator"
         );
 
         MV_REGISTER_PASS(ReAllocateImplicitOperationsKeemBay)
-        .setFunc(allocateImplicitOperationsFcnKeemBay)
+        .setFunc(allocateImplicitOperationsKeemBayFcn)
         .setDescription("Iterates over all implicit operations and moves implicit buffers into explicit buffers");
     }
 }
@@ -46,7 +52,7 @@ namespace mv
  * 1) ProgrammableInput
  * 2) ProgrammableOutput
 */
-void allocateInputOutputTensorsKeemBay(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+void allocateInputOutputTensorsKeemBayFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
 
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
@@ -69,18 +75,6 @@ void allocateInputOutputTensorsKeemBay(const mv::pass::PassEntry& pass, mv::Comp
     mv::OpModel om(dm);
     auto stageIt = cm.getStage(0);
 
-//    auto inputOp = om.getInput();
-//    auto inTensor = inputOp->getOutputTensor(0);
-//
-//    if (!inTensor->isPopulated() && (! inTensor->hasAttr("allocators")))
-//        dm.allocateTensor("ProgrammableInput", stageIt, inTensor);
-//
-//    auto outputOp = om.getOutput();
-//    auto outTensor = outputOp->getInputTensor(0);
-//
-//    if (!outTensor->isPopulated() && (! outTensor->hasAttr("allocators")))
-//        dm.allocateTensor("ProgrammableOutput", stageIt, outTensor);
-
     for(auto tensorIterator = om.tensorBegin(); tensorIterator != om.tensorEnd(); ++tensorIterator)
     {
         auto location = tensorIterator->get<mv::Tensor::MemoryLocation>("Location");
@@ -97,8 +91,7 @@ void allocateInputOutputTensorsKeemBay(const mv::pass::PassEntry& pass, mv::Comp
 
 //Populated Tensors are stored in:
 // 1) GraphFile
-//
-void allocateGraphfileTensorsFcnKeemBay(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+void allocateGraphfileTensorsKeemBayLegacyFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
 
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
@@ -125,6 +118,57 @@ void allocateGraphfileTensorsFcnKeemBay(const mv::pass::PassEntry& pass, mv::Com
             auto tIt = opIterator->getOutputTensor(0);
             dm.allocateTensor("GraphFile", stageIt, tIt);
             tIt->set<unsigned>("graphFileIndex", i++);
+        }
+    }
+}
+
+
+void allocateGraphfileTensorsKeemBayFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passArg, mv::Element&)
+{
+    pass.log(mv::Logger::MessageType::Debug, "Allocating populated tensors");
+
+    mv::ControlModel cm(model);
+    mv::DataModel dm(model);
+    mv::OpModel om(model);
+
+    bool useSchedulingSort = true;
+
+    if(passArg.hasAttr("useSchedulingSort"))
+        useSchedulingSort = passArg.get<bool>("useSchedulingSort");
+
+    if (cm.stageSize() == 0)
+         throw mv::ArgumentError(cm, "stages count", "0", "Computation model does not have stages specified");
+
+    auto stageIt = cm.getStage(0);
+
+    unsigned i = 0;
+
+    std::vector<mv::Control::OpListIterator> ops;
+
+    if(useSchedulingSort)
+        ops = cm.schedulingSort();
+    else
+        ops = cm.topologicalSort();
+
+    for(auto& opIterator : ops)
+    {
+        std::string opType = opIterator->getOpType();
+        if (opType == "DMATask" && opIterator->get<mv::DmaDirection>("direction") == mv::DDR2CMX)
+        {
+            auto tIt = opIterator->getInputTensor(0);
+            if(tIt->isPopulated())
+            {
+                try
+                {
+                    dm.allocateTensor("GraphFile", stageIt, tIt);
+                    tIt->set<unsigned>("graphFileIndex", i++);
+                }
+                catch(mv::ArgumentError e)
+                {
+                    pass.log(mv::Logger::MessageType::Warning, e.what());
+                    tIt->set<unsigned>("graphFileIndex", i++);
+                }
+            }
         }
     }
 }
@@ -179,7 +223,7 @@ static mv::Data::BufferIterator allocateUnpopulatedTensor(const mv::pass::PassEn
  * 1) VPU_CMX_NN
  * 2) VPU_DDR_BSS
 */
-void allocateCMXTensorsFcnKeemBay(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+void allocateCMXTensorsKeemBayFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
 
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
@@ -215,7 +259,6 @@ void allocateCMXTensorsFcnKeemBay(const mv::pass::PassEntry& pass, mv::Computati
         {
             auto inTensor = opIterator->getInputTensor(0);
             inTensor->set<bool>("modelOutput", true); /*Assign tensor attribute  modelOutput"*/
-
         }
 
         else if (opType == "Constant" || opType == "ConstantInt" || opType == "ConstantDataElement" || opIterator->hasAttr("ImplicitFlow"))
@@ -316,7 +359,7 @@ void allocateCMXTensorsFcnKeemBay(const mv::pass::PassEntry& pass, mv::Computati
                     (! inTensor->hasAttr("modelOutput") || ! inTensor->get<bool>("modelOutput"))
                     )
                 {
-                    allocateUnpopulatedTensor(pass,dm,stageIt,inTensor);
+                       allocateUnpopulatedTensor(pass,dm,stageIt,inTensor);
                 }
             }
             for (unsigned x = 0; x < opIterator->outputSlots(); ++x)
@@ -351,7 +394,7 @@ static std::map<std::string,std::string> location2Allocator =
         { "BLOB", "GraphFile"}
 };
 
-void allocateImplicitOperationsFcnKeemBay(const mv::pass::PassEntry& pass,
+void allocateImplicitOperationsKeemBayFcn(const mv::pass::PassEntry& pass,
                                             mv::ComputationModel& model,
                                             mv::TargetDescriptor&,
                                             mv::Element&,
@@ -509,8 +552,8 @@ void allocateImplicitOperationsFcnKeemBay(const mv::pass::PassEntry& pass,
                 auto NewBuffer = dm.moveTensor(location2Allocator[inputLocation.toString()],
                                                 outputBuffer, inputBuffer,
                                                 lhs_padding, rhs_padding);
-                if (inputLocation == mv::Tensor::MemoryLocation::BLOB) //the parent should have already been allocated
-                    outputTensor->set<unsigned>("graphFileIndex", inputTensor->get<unsigned>("graphFileIndex"));
+//                if (inputLocation == mv::Tensor::MemoryLocation::BLOB) //the parent should have already been allocated
+//                    outputTensor->set<unsigned>("graphFileIndex", inputTensor->get<unsigned>("graphFileIndex"));
             }
             else if (opType == "Copy")
             {

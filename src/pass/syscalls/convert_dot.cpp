@@ -2,6 +2,7 @@
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
 #include "meta/include/mcm/op_model.hpp"
+#include <sys/stat.h>
 
 void convertDotFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&);
 

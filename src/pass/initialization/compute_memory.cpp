@@ -47,8 +47,15 @@ static void computeMemoryFcn(const mv::pass::PassEntry& pass, mv::ComputationMod
     else
     {
         auto cmxPerCluster = cmx / targetTotalClusters;
-        cmxPerCluster *= safetyFactor;
-        cmx = cmxPerCluster;
+        cmx = cmxPerCluster * safetyFactor;
+
+        if(globalConfig->hasAttr("cmx"))
+        {
+            //Bypass safety factor
+            unsigned userMemory = globalConfig->get<int>("cmx");
+            if(userMemory <= cmxPerCluster)
+                cmx = userMemory;
+        }
     }
 
     globalConfig->set<unsigned>("cmx", cmx);

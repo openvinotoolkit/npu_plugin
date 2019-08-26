@@ -130,7 +130,7 @@ std::vector<mv::Workloads> GenerateTestSolutions()
 {
     std::vector<mv::Workloads> solutions;
 
-    std::pair <int,int> MPEMode (4, 4);
+    mv::DPUMode MPEMode = {4,4};
     mv::Shape t_shape({64,64,56});
 
     //>>>> workloads A - execylces 15, 4 workloads (2nd) <<<<

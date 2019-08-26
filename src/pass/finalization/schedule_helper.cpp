@@ -6,6 +6,8 @@
 #include <iostream>
 
 static void scheduleHelperPass(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+static void addressHelperPass(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+static void graphfileIndexHelperPass(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 
 namespace mv
 {
@@ -18,18 +20,99 @@ namespace mv
         .setDescription(
             "Add specific edges for partial serilization"
         );
+
+        MV_REGISTER_PASS(AddressHelper)
+        .setFunc(addressHelperPass)
+        .setDescription(
+            "For debug purposes only: sets addresses of tensors manually"
+        );
+
+        MV_REGISTER_PASS(GraphfileIndexHelper)
+        .setFunc(graphfileIndexHelperPass)
+        .setDescription(
+            "For debug purposes only: sets addresses of graphfile tensors manually"
+        );
     }
 
+}
+
+void addressHelperPass(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element&, mv::Element &)
+{
+
+    mv::OpModel om(model);
+    mv::ControlModel cm(model);
+    mv::DataModel dm(model);
+
+    auto globalParams = model.getGlobalConfigParams();
+    if (!globalParams->hasAttr("address_helper_addresses"))
+    {
+        pass.log(mv::Logger::MessageType::Info, "No address helper addresses provided");
+        return;
+    }
+
+    auto addressList = globalParams->get<std::vector<mv::Element>>("address_helper_addresses");
+    for (auto e : addressList)
+    {
+        std::string& name = e.get<std::string>("name_filter");
+        int64_t address = e.get<int>("address");
+        pass.log(mv::Logger::MessageType::Debug, "ADDRESS HELPER setting address of "+name+" to "+std::to_string(address));
+        try
+        {
+            auto t = dm.getTensor(name);
+            t->setAddress(address);
+            auto tensorAllocatorName = t->get<std::set<std::string>>("allocators").begin();
+            auto tensorAllocator = dm.getAllocator(*tensorAllocatorName);
+            mv::Data::BufferIterator tensorBufferIt = tensorAllocator.getBuffer(0, t); // 0 is the only stage for now, but this will probably change in the future
+            tensorBufferIt->setOffset(address);
+        }
+        catch (mv::ArgumentError error)
+        {
+            std::cout << error.what() << std::endl;
+        }
+
+    }
+}
+
+void graphfileIndexHelperPass(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element&, mv::Element &)
+{
+
+    mv::OpModel om(model);
+    mv::ControlModel cm(model);
+    mv::DataModel dm(model);
+
+    auto globalParams = model.getGlobalConfigParams();
+    if (!globalParams->hasAttr("graphfile_index_helper_addresses"))
+    {
+        pass.log(mv::Logger::MessageType::Info, "No address helper addresses provided");
+        return;
+    }
+
+    auto addressList = globalParams->get<std::vector<mv::Element>>("graphfile_index_helper_addresses");
+    for (auto e : addressList)
+    {
+        std::string& name = e.get<std::string>("name_filter");
+        int64_t address = e.get<int>("address");
+        pass.log(mv::Logger::MessageType::Debug, "ADDRESS HELPER setting address of "+name+" to "+std::to_string(address));
+        try
+        {
+            auto t = dm.getTensor(name);
+            t->set<unsigned>("graphFileIndex", address);
+        }
+        catch (mv::ArgumentError error)
+        {
+            std::cout << error.what() << std::endl;
+        }
+
+    }
 }
 
 
 void scheduleHelperPass(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element&, mv::Element&)
 {
-    
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);
     mv::ControlModel cm(model);
-    
+
     auto globalParams = model.getGlobalConfigParams();
     if (!globalParams->hasAttr("schedule_helper_edges"))
     {
@@ -45,6 +128,6 @@ void scheduleHelperPass(const mv::pass::PassEntry& pass, mv::ComputationModel& m
         pass.log(mv::Logger::MessageType::Debug, "SCHEDULE HELPER adding edge from "+source+" to "+sink);
         auto sourceOp = om.getOp(source);
         auto sinkOp = om.getOp(sink);
-        cm.defineFlow(sourceOp, sinkOp);  
+        cm.defineFlow(sourceOp, sinkOp);
     }
 }

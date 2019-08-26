@@ -8,7 +8,6 @@ static void taskControlFlowsFcn(const mv::pass::PassEntry& pass, mv::Computation
 static void hangingDmaControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&passDesc, mv::Element&);
 static void cmx2DDRControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&passDesc, mv::Element&);
 static void layerNumberingFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&passDesc, mv::Element&);
-static void activationTensorsControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&passDesc, mv::Element&);
 
 namespace mv
 {
@@ -39,46 +38,7 @@ namespace mv
         .setDescription(
             ""
         );
-
-        MV_REGISTER_PASS(ActivationTensorsControlFlows)
-        .setFunc(activationTensorsControlFlowsFcn)
-        .setDescription(
-            ""
-        );
-
     }
-}
-
-// NOTE: This pass makes sense only when hanging dmas have been solved
-// and assign layer number has been rerun
-
-// Logic: Activation tensors involved in DPU task should be dependent on the previous operation executed
-// Not sure this pass is really needed for resnet50
-void activationTensorsControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&passDesc, mv::Element&)
-{
-
-    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
-    mv::OpModel om(model);
-    mv::ControlModel cm(model);
-
-    auto dpus = om.getOps("DPUTask");
-
-    std::vector<std::pair<mv::Control::OpListIterator, mv::Control::OpListIterator>> flowsToAdd;
-
-    for(auto& dpu: dpus)
-    {
-        for(int i = 0; i < dpu.inputsSize(); ++i)
-        {
-            auto inputTensor = dpu->getInputTensor(i);
-            if(!inputTensor->isPopulated())
-                flowsToAdd.push_back(std::make_pair(cm.switchContext(dpu).leftmostParent(), cm.switchContext(om.getSourceOp(inputTensor))));
-        }
-    }
-
-    for(auto& flow : flowsToAdd)
-        if(cm.isFlowAllowedAndNonExisting(flow.first, flow.second))
-            cm.defineFlow(flow.first, flow.second);
-
 }
 
 // NOTE: This pass makes sense only when hanging dmas have been solved
@@ -110,7 +70,7 @@ void cmx2DDRControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
 
     for(auto& flow : flowsToAdd)
         if(cm.isFlowAllowedAndNonExisting(flow.first, flow.second))
-            cm.defineFlow(flow.first, flow.second);    
+            cm.defineFlow(flow.first, flow.second);
 }
 
 // This pass handles all the hanging DMAs into the graph using the prefetch logic
@@ -144,17 +104,14 @@ void hangingDmaControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationM
             // At this point (see assumption above) each DMA has at least one output control flow
             // We take the minimum layer number required by operations using this data
 
-            std::vector<mv::Control::OpListIterator> targets;
-            targets.push_back(dma);
-
             // HACK: Horrible hack because apparentely we have problem in assigning iterators
-            unsigned sonWithMinimumLayerInvolvedIndex = 0;
-            unsigned minimumLayerInvolved = dma.leftmostChild()->get<unsigned>("layerNumber");
+            int sonWithMinimumLayerInvolvedIndex = 0;
+            int minimumLayerInvolved = dma.leftmostChild()->get<unsigned>("layerNumber");
 
             unsigned i = 0;
             for(auto son = dma.leftmostChild(); son != cm.opEnd(); ++son)
             {
-                unsigned currentMinimumLayerInvolved = son->get<unsigned>("layerNumber");
+                int currentMinimumLayerInvolved = son->get<unsigned>("layerNumber");
                 if(currentMinimumLayerInvolved < minimumLayerInvolved)
                 {
                     minimumLayerInvolved = currentMinimumLayerInvolved;
@@ -164,12 +121,8 @@ void hangingDmaControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationM
             }
 
             auto sonWithMinimumLayerInvolved = dma.leftmostChild();
-            for(unsigned j = 0; j < sonWithMinimumLayerInvolvedIndex; ++j)
+            for(int j = 0; j < sonWithMinimumLayerInvolvedIndex; ++j)
                 ++sonWithMinimumLayerInvolved;
-
-//            //Except for eltwise input tensor is always at index 0
-//            if(!sonWithMinimumLayerInvolved->getInputTensor(0)->isPopulated())
-//                targets.push_back(cm.switchContext(om.getSourceOp(sonWithMinimumLayerInvolved->getInputTensor(0))));
 
             // Now based on the prefetch we have to start from the sonWithMinimumLayerInvolved and go back prefetch layers
             for(auto positionInTopologicalSort = std::find(sortedOps.rbegin(), sortedOps.rend(), sonWithMinimumLayerInvolved); positionInTopologicalSort != sortedOps.rend(); ++positionInTopologicalSort)
@@ -178,15 +131,17 @@ void hangingDmaControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationM
 
                 if (!preceedingOp->hasAttr("layerNumber") || preceedingOp->getOpType() == "DMATask")
                     continue;
-                unsigned preceedingOpLayerNumber = preceedingOp->get<unsigned>("layerNumber");
+                int preceedingOpLayerNumber = preceedingOp->get<unsigned>("layerNumber");
 
                 // Two conditions must be true to build the control flow preceedingOp -> dma
                 // 1) The difference in terms of layersNumber has to be greater or equal _dma_dependency
                 // 2) There has to be a dependency between preceedingOp and the sonWithMinimumLayerInvolved (preeceding op could be on a parallel branch)
-                if(minimumLayerInvolved - preceedingOpLayerNumber >= _dma_dependency && cm.pathExists(preceedingOp, sonWithMinimumLayerInvolved))
-                    for(auto& target : targets)
-                        flowsToAdd.push_back(std::make_pair(preceedingOp, target));
-
+                if(minimumLayerInvolved - preceedingOpLayerNumber >= _dma_dependency &&
+                   cm.pathExists(preceedingOp, sonWithMinimumLayerInvolved))
+                {
+                    flowsToAdd.push_back(std::make_pair(preceedingOp, dma));
+                    break;
+                }
             }
         }
     }
@@ -261,8 +216,6 @@ void addTaskControlFlowsAndRecursivelySkipImplicitOperationsUp(mv::OpModel& om, 
 // This pass adds control flows relative to Task.
 // Rationale: Each Task should be connected via a ControlFlow to the same operations he is connected via a DataFlow
 // But implicit operations (e.g. Constants, Concat, Slice etc) must be skipped and/or avoided
-
-// NOTE: For now, only max two level of implicit operations is handled. In the future we will need a recursive procedure
 void taskControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
 

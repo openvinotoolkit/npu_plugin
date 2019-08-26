@@ -7,6 +7,9 @@
 #include "include/mcm/tensor/binary_data.hpp"
 #include "include/mcm/tensor/quantization_params.hpp"
 #include "include/mcm/utils/env_loader.hpp"
+#include "include/mcm/compiler/compilation_unit.hpp"
+#include "include/mcm/computation/model/data_model.hpp"
+#include "meta/include/mcm/op_model.hpp"
 
 #include <fstream>
 
@@ -1065,7 +1068,7 @@ TEST(tensor, sparsity)
                 channelTracker++;
                 if (data_res[counter*8+k] == 122)
                     ASSERT_TRUE((static_cast<uint8_t>(res[i]) & (1<<k)) == 0);
-                if (data_res[counter*8+k] != 122)
+                else if (data_res[counter*8+k] != 122)
                     ASSERT_TRUE((static_cast<uint8_t>(res[i]) & (1<<k)) != 0);
             }
         }
@@ -1190,4 +1193,369 @@ TEST(tensor, testing_at)
     val = t(20);
     ti(20) *= 20.3;
     ASSERT_TRUE(ti.at(20) == (int64_t)(val*20.3));
+}
+
+void checkSubtensor(mv::Tensor& inTensor, std::vector<mv::Shape>& refShapes, std::vector<std::vector<std::size_t>> refOffsets)
+{
+    bool done = false;
+    size_t subtensorsCount = 0;
+    std::cout << "checkingSubtensor for  " << inTensor.getName() << " shape " << inTensor.getShape().toString() << std::endl;
+    while (!done)
+    {
+        auto t = inTensor.getSubTensor(subtensorsCount);
+        if (t.getName() == inTensor.getName())
+        {
+            done = true;
+            continue;
+        }
+        auto shape = t.getShape();
+
+        ASSERT_EQ(shape.toString(), refShapes[subtensorsCount].toString());
+        ASSERT_EQ(t.get<std::vector<std::size_t>>("offset"), refOffsets[subtensorsCount]);
+        subtensorsCount++;
+    }
+    ASSERT_EQ(subtensorsCount, refShapes.size());
+}
+
+TEST(tensor, splitOverH)
+{
+    mv::CompilationUnit unit("res2a_branch2a_testModel");
+    mv::OpModel& om = unit.model();
+
+    auto input = om.input({56, 56, 64, 1}, mv::DType("UInt8"), mv::Order("NHWC"));
+
+    std::vector<int64_t> weightsData = mv::utils::generateSequence<int64_t>(1*1*64*64);
+    auto weights = om.constantInt(weightsData, {1, 1, 64, 64}, mv::DType("UInt8"), mv::Order("NCHW"));
+    auto conv = om.conv(input, weights, {1, 1}, {0, 0, 0, 0});
+
+    std::vector<int64_t> biasesData =  mv::utils::generateSequence<int64_t>(conv->getShape()[mv::IO_CHANNEL_DIMENSION]);
+    auto biases = om.constantInt(biasesData, {conv->getShape()[mv::IO_CHANNEL_DIMENSION]}, mv::DType("Int32"), mv::Order("W"),{{},{},{},{}}, "biases");
+    auto bias = om.bias(conv, biases);
+
+    auto output = om.output(conv);
+
+    std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/debug_ma2490.json";
+    unit.loadCompilationDescriptor(compDescPath);
+    mv::CompilationDescriptor &compDesc = unit.compilationDescriptor();
+    //compDesc.setPassArg("GenerateDot", "scope", std::string("ControlModel"));
+    compDesc.setPassArg("GenerateSparsityMaps", "enableRealSparsity", true);
+    compDesc.remove("serialize");
+    unit.loadTargetDescriptor(mv::Target::ma2490);
+    unit.initialize();
+    unit.run();
+
+    mv::Data::TensorIterator outputRes;
+    mv::Data::TensorIterator weightRes;
+    mv::Data::TensorIterator weightSparsityMapRes;
+    mv::Data::TensorIterator weightTableRes;
+    for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt)
+    {
+        if (opIt->getOpType() == "Output")
+        {
+            //std::cout << " output name " << opIt->getInputTensor(0)->getName() << " shape " << opIt->getInputTensor(0)->getShape().toString() << std::endl;
+            outputRes = opIt->getInputTensor(0);
+        }
+        else if (opIt->getOpType() == "DPUTask")
+        {
+            std::string taskOp = opIt->get<std::string>("taskOp");
+            unsigned n = opIt->getInputTensor().size();
+            ASSERT_EQ(n,4);
+            weightRes = opIt->getInputTensor(1);
+            weightSparsityMapRes = opIt->getInputTensor(2);
+            weightTableRes = opIt->getInputTensor(3);
+            //for (unsigned i = 0; i < n; ++i)
+            //    std::cout << " input " << i << " name " << opIt->getInputTensor(i)->getName() << " shape " << opIt->getInputTensor(i)->getShape().toString() << std::endl;
+        }
+    }
+
+    ////////////////////////////////////////////////////
+    //Testing unpopulated tensor - input/output tensors
+    ////////////////////////////////////////////////////
+    std::vector<mv::Workload> unpopulated_wl;
+    //0 : bottom left [0] :  0   bl[1]  0  height  14  width  56
+    //1 : bottom left [0] :  14  bl[1]  0  height  14  width  56
+    //2 : bottom left [0] :  28  bl[1]  0  height  14  width  56
+    //3 : bottom left [0] :  42  bl[1]  0  height  14  width  56
+    mv::Workload temp;
+    temp.MinX  = 0;
+    temp.MinY  = 0;
+    temp.MaxX = 55;
+    temp.MaxY = 13;
+    unpopulated_wl.push_back(temp);
+    temp.MinY += 14; //14
+    temp.MaxY += 14; //27
+    unpopulated_wl.push_back(temp);
+    temp.MinY += 14; //28
+    temp.MaxY += 14; //41
+    unpopulated_wl.push_back(temp);
+    temp.MinY += 14; //36
+    temp.MaxY += 14; //55
+    unpopulated_wl.push_back(temp);
+
+    input->splitAcrossClusters(unpopulated_wl, true, false);
+    outputRes->splitAcrossClusters(unpopulated_wl, true, false);
+
+    //reference
+    //subtensor  0  : shape  (1, 64, 14, 56)  offset  (0, 0, 0, 0)
+    //subtensor  1  : shape  (1, 64, 14, 56)  offset  (0, 0, 14, 0)
+    //subtensor  2  : shape  (1, 64, 14, 56)  offset  (0, 0, 28, 0)
+    //subtensor  3  : shape  (1, 64, 14, 56)  offset  (0, 0, 42, 0)
+    mv::Shape refSubTensorShape({56, 14, 64, 1});//order is opposite in POC
+    std::vector<mv::Shape> refShapes(4, refSubTensorShape);
+
+    std::vector<std::size_t> offset = {0, 0 , 0 ,0};//order is opposite in POC
+
+    std::vector<std::vector<std::size_t>> offsetRefs;
+    offsetRefs.push_back(offset);
+    offset[1] += 14;
+    offsetRefs.push_back(offset);
+    offset[1] += 14;
+    offsetRefs.push_back(offset);
+    offset[1] += 14;
+    offsetRefs.push_back(offset);
+
+    checkSubtensor(*input, refShapes, offsetRefs);
+    checkSubtensor(*outputRes, refShapes, offsetRefs);
+
+    ////////////////////////////////////////////////////
+    //Testing populated tensor
+    ////////////////////////////////////////////////////
+    /*
+    splitting populated tensor  res2a_branch2a_weights  split_over_h  True  shape  (64, 1, 1, 64)
+    0 : bottom left [0] :  0  bl[1]  0  height  1  width  64
+    1 : bottom left [0] :  0  bl[1]  0  height  1  width  64
+    2 : bottom left [0] :  0  bl[1]  0  height  1  width  64
+    3 : bottom left [0] :  0  bl[1]  0  height  1  width  64
+     subtensor  0  : shape  (64, 1, 1, 64)  offset  (0, 0, 0, 0)
+     subtensor  1  : shape  (64, 1, 1, 64)  offset  (0, 0, 0, 0)
+     subtensor  2  : shape  (64, 1, 1, 64)  offset  (0, 0, 0, 0)
+     subtensor  3  : shape  (64, 1, 1, 64)  offset  (0, 0, 0, 0)
+    */
+    temp.MinX = 0;
+    temp.MinY = 0;
+    temp.MaxX = 64;
+    temp.MaxY = 1;
+    std::vector<mv::Workload> weights_wl(4, temp);
+
+    weightRes->splitAcrossClusters(weights_wl, true, false);
+
+    std::vector<mv::Shape> refShapesWeights(4, mv::Shape({64, 1, 1, 64}));
+    std::vector<std::vector<std::size_t>> refOffsetsWeights(4, {0,0,0,0});
+    checkSubtensor(*weightRes, refShapesWeights, refOffsetsWeights);
+
+    /*splitting populated tensor  res2a_branch2a_weights_table  split_over_h  True  shape  (64, 1, 1, 4)
+    0 : bottom left [0] :  0  bl[1]  0  height  1  width  4
+    1 : bottom left [0] :  0  bl[1]  0  height  1  width  4
+    2 : bottom left [0] :  0  bl[1]  0  height  1  width  4
+    3 : bottom left [0] :  0  bl[1]  0  height  1  width  4
+     subtensor  0  : shape  (64, 1, 1, 4)  offset  (0, 0, 0, 0)
+     subtensor  1  : shape  (64, 1, 1, 4)  offset  (0, 0, 0, 0)
+     subtensor  2  : shape  (64, 1, 1, 4)  offset  (0, 0, 0, 0)
+     subtensor  3  : shape  (64, 1, 1, 4)  offset  (0, 0, 0, 0)
+    */
+    temp.MinX = 0;
+    temp.MinY = 0;
+    temp.MaxX = 4;
+    temp.MaxY = 1;
+    std::vector<mv::Workload> weights_table_wl(4, temp);
+    weightTableRes->splitAcrossClusters(weights_table_wl, true, false);
+
+    std::vector<mv::Shape> refShapesWeightsTable(4, mv::Shape({4, 1, 1, 64}));
+    std::vector<std::vector<std::size_t>> refOffsetsWeightsTable(4, {0,0,0,0});
+    checkSubtensor(*weightTableRes, refShapesWeightsTable, refOffsetsWeightsTable);
+
+    /*splitting populated tensor  res2a_branch2a_weights_sm  split_over_h  True  shape  (64, 1, 1, 16)
+    0 : bottom left [0] :  0  bl[1]  0  height  1  width  16
+    1 : bottom left [0] :  0  bl[1]  0  height  1  width  16
+    2 : bottom left [0] :  0  bl[1]  0  height  1  width  16
+    3 : bottom left [0] :  0  bl[1]  0  height  1  width  16
+     subtensor  0  : shape  (64, 1, 1, 16)  offset  (0, 0, 0, 0)
+     subtensor  1  : shape  (64, 1, 1, 16)  offset  (0, 0, 0, 0)
+     subtensor  2  : shape  (64, 1, 1, 16)  offset  (0, 0, 0, 0)
+     subtensor  3  : shape  (64, 1, 1, 16)  offset  (0, 0, 0, 0)
+    */
+
+    temp.MinX = 0;
+    temp.MinY = 0;
+    temp.MaxX = 16;
+    temp.MaxY = 1;
+    std::vector<mv::Workload> weights_sm_wl(4, temp);
+    weightSparsityMapRes->splitAcrossClusters(weights_sm_wl, true, false);
+    std::vector<mv::Shape> refShapesWeightsSM(4, mv::Shape({16, 1, 1, 64}));
+    std::vector<std::vector<std::size_t>> refOffsetsWeightsSM(4, {0,0,0,0});
+    checkSubtensor(*weightSparsityMapRes, refShapesWeightsSM, refOffsetsWeightsSM);
+
+}
+
+
+TEST(tensor, splitOverK)
+{
+    mv::CompilationUnit unit("res2a_branch2a_testModel");
+    mv::OpModel& om = unit.model();
+
+    auto input = om.input({56, 56, 64, 1}, mv::DType("UInt8"), mv::Order("NHWC"));
+
+    std::vector<int64_t> weightsData = mv::utils::generateSequence<int64_t>(1*1*64*64);
+    auto weights = om.constantInt(weightsData, {1, 1, 64, 64}, mv::DType("UInt8"), mv::Order("NCHW"));
+    auto conv = om.conv(input, weights, {1, 1}, {0, 0, 0, 0});
+
+    std::vector<int64_t> biasesData =  mv::utils::generateSequence<int64_t>(conv->getShape()[mv::IO_CHANNEL_DIMENSION]);
+    auto biases = om.constantInt(biasesData, {conv->getShape()[mv::IO_CHANNEL_DIMENSION]}, mv::DType("Int32"), mv::Order("W"),{{},{},{},{}}, "biases");
+    auto bias = om.bias(conv, biases);
+
+    auto output = om.output(conv);
+
+    std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/debug_ma2490.json";
+    unit.loadCompilationDescriptor(compDescPath);
+    mv::CompilationDescriptor &compDesc = unit.compilationDescriptor();
+    //compDesc.setPassArg("GenerateDot", "scope", std::string("ControlModel"));
+    compDesc.setPassArg("GenerateSparsityMaps", "enableRealSparsity", false);
+    compDesc.remove("serialize");
+    unit.loadTargetDescriptor(mv::Target::ma2490);
+    unit.initialize();
+    unit.run();
+
+    mv::Data::TensorIterator outputRes;
+    mv::Data::TensorIterator weightRes;
+    //mv::Data::TensorIterator weightSparsityMapRes;
+    mv::Data::TensorIterator weightTableRes;
+    for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt)
+    {
+        if (opIt->getOpType() == "Output")
+        {
+            outputRes = opIt->getInputTensor(0);
+        } else if (opIt->getOpType() == "DPUTask")
+        {
+            std::string taskOp = opIt->get<std::string>("taskOp");
+            unsigned n = opIt->getInputTensor().size();
+            ASSERT_EQ(n,3); //3 since we disabled sparsity
+            weightRes = opIt->getInputTensor(1);
+            //weightSparsityMapRes = opIt->getInputTensor(2);
+            weightTableRes = opIt->getInputTensor(2);
+            //for (unsigned i = 0; i < n; ++i)
+            //    std::cout << " input " << i << " name " << opIt->getInputTensor(i)->getName() << " shape " << opIt->getInputTensor(i)->getShape().toString() << std::endl;
+        }
+    }
+
+    ////////////////////////////////////////////////////
+    //Testing unpopulated tensor - input/output tensors
+    ////////////////////////////////////////////////////
+    /*
+    Spliting input split_over_h = False multicast False
+    original tensor shape  (1, 64, 56, 56)
+    wl[0] bl[0] 0 bl[1] 0 width 16 height 1
+    wl[1] bl[0] 0 bl[1] 16 width 16 height 1
+    wl[2] bl[0] 0 bl[1] 32 width 16 height 1
+    wl[3] bl[0] 0 bl[1] 48 width 16 height 1
+    */
+    std::vector<mv::Workload> unpopulated_wl;
+    mv::Workload temp;
+    temp.MinX  = 0;
+    temp.MinY  = 0;
+    temp.MaxX = 15;
+    temp.MaxY = 0; //min == max == one row
+    unpopulated_wl.push_back(temp);
+    temp.MinX += 16;
+    temp.MaxX += 16;
+    unpopulated_wl.push_back(temp);
+    temp.MinX += 16;
+    temp.MaxX += 16;
+    unpopulated_wl.push_back(temp);
+    temp.MinX += 16;
+    temp.MaxX += 16;
+    unpopulated_wl.push_back(temp);
+    input->splitAcrossClusters(unpopulated_wl, false, false);
+
+    /*
+    Spliting res2a_branch2a split_over_h = False multicast False
+    original tensor shape  (1, 64, 56, 56)
+    wl[0] bl[0] 0 bl[1] 0 width 16 height 1
+    wl[1] bl[0] 0 bl[1] 16 width 16 height 1
+    wl[2] bl[0] 0 bl[1] 32 width 16 height 1
+    wl[3] bl[0] 0 bl[1] 48 width 16 height 1
+    */
+
+    outputRes->splitAcrossClusters(unpopulated_wl, false, false);
+
+    //reference
+    /*
+    subtensor 0 shape  (1, 16, 56, 56)  offset  (0, 0, 0, 0)
+    subtensor 1 shape  (1, 16, 56, 56)  offset  (0, 16, 0, 0)
+    subtensor 2 shape  (1, 16, 56, 56)  offset  (0, 32, 0, 0)
+    subtensor 3 shape  (1, 16, 56, 56)  offset  (0, 48, 0, 0)
+    */
+    mv::Shape refSubTensorShape({56, 56, 16, 1});//order is opposite in POC
+    std::vector<mv::Shape> refShapes(4, refSubTensorShape);
+
+    std::vector<std::size_t> offset = {0, 0 , 0 ,0};//order is opposite in POC
+
+    std::vector<std::vector<std::size_t>> offsetRefs;
+    offsetRefs.push_back(offset);
+    offset[2] += 16;
+    offsetRefs.push_back(offset);
+    offset[2] += 16;
+    offsetRefs.push_back(offset);
+    offset[2] += 16;
+    offsetRefs.push_back(offset);
+
+    checkSubtensor(*input, refShapes, offsetRefs);
+    checkSubtensor(*outputRes, refShapes, offsetRefs);
+
+    ////////////////////////////////////////////////////
+    //Testing populated tensor
+    ////////////////////////////////////////////////////
+
+    /*
+        Spliting res2a_branch2a_weights split_over_h = False
+        original tensor shape  (64, 1, 1, 64)
+        wl[0] bl[0] 0 bl[1] 0 width 1 height 16
+        wl[1] bl[0] 16 bl[1] 0 width 1 height 16
+        wl[2] bl[0] 32 bl[1] 0 width 1 height 16
+        wl[3] bl[0] 48 bl[1] 0 width 1 height 16
+        subtensor 0 shape  (16, 1, 1, 64)  offset  (0, 0, 0, 0)
+        subtensor 1 shape  (16, 1, 1, 64)  offset  (16, 0, 0, 0)
+        subtensor 2 shape  (16, 1, 1, 64)  offset  (32, 0, 0, 0)
+        subtensor 3 shape  (16, 1, 1, 64)  offset  (48, 0, 0, 0)
+    */
+    temp.MinX = 0;
+    temp.MinY = 0;
+    temp.MaxX = 0;
+    temp.MaxY = 15;
+    std::vector<mv::Workload> weights_wl;
+    weights_wl.push_back(temp);
+    temp.MinY += 16;
+    temp.MaxY += 16;
+    weights_wl.push_back(temp);
+    temp.MinY += 16;
+    temp.MaxY += 16;
+    weights_wl.push_back(temp);
+    temp.MinY += 16;
+    temp.MaxY += 16;
+    weights_wl.push_back(temp);
+
+    weightRes->splitAcrossClusters(weights_wl, false, false);
+    std::vector<mv::Shape> refShapesWeights(4, mv::Shape({64, 1, 1, 16}));
+    std::vector<std::vector<std::size_t>> refOffsetsWeights;
+    refOffsetsWeights.push_back({0,0,0,0});
+    refOffsetsWeights.push_back({0,0,0,16});
+    refOffsetsWeights.push_back({0,0,0,32});
+    refOffsetsWeights.push_back({0,0,0,48});
+
+    checkSubtensor(*weightRes, refShapesWeights, refOffsetsWeights);
+    /*
+        Spliting res2a_branch2a_weights_table split_over_h = False
+        original tensor shape  (64, 1, 1, 4)
+        wl[0][0] 0 [1] 0 width 1 height 16
+        wl[1][0] 16 [1] 0 width 1 height 16
+        wl[2][0] 32 [1] 0 width 1 height 16
+        wl[3][0] 48 [1] 0 width 1 height 16
+        subtensor 0 shape  (16, 1, 1, 4)  offset  (0, 0, 0, 0)
+        subtensor 1 shape  (16, 1, 1, 4)  offset  (16, 0, 0, 0)
+        subtensor 2 shape  (16, 1, 1, 4)  offset  (32, 0, 0, 0)
+        subtensor 3 shape  (16, 1, 1, 4)  offset  (48, 0, 0, 0)
+    */
+    weightTableRes->splitAcrossClusters(weights_wl, false, false);
+    std::vector<mv::Shape> refShapesWeightsTable(4, mv::Shape({4, 1, 1, 16}));
+    checkSubtensor(*weightTableRes, refShapesWeightsTable, refOffsetsWeights);
+
 }
