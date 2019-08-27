@@ -4,35 +4,24 @@
 #include "meta/include/mcm/recorded_compositional_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/tensor/order/order.hpp"
-#include "include/mcm/compiler/compilation_unit.hpp"
-
 
 int main()
 {
-    
-    double inf = std::numeric_limits<double>::infinity();
+    mv::OpModel om("TestModel");
 
-    mv::CompilationUnit unit("parserModel");
-    mv::OpModel& om = unit.model();
+    auto input = om.input({32, 32, 1}, mv::DType("Float16"), mv::Order("CHW"));
+    std::vector<double> weightsData({1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f, 10.0f, 11.0f, 12.0f, 13.0f, 14.0f,
+    15.0f, 16.0f, 17.0f, 18.0f, 19.0f, 20.0f, 21.0f, 22.0f, 23.0f, 24.0f, 25.0f, 26.0f, 27.0f});
+    auto weights1 = om.constant(weightsData, {3, 3, 1, 3}, mv::DType("Float16"), mv::Order("NCHW"));
+    auto conv = om.conv(input, weights1, {4, 4}, {1, 1, 1, 1}, 1);
+    auto convOp = om.getSourceOp(conv);
+    om.output(conv);
 
-   auto input0 = om.input({112,122,3,1}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{128},{0.007843137718737125},{-1.0},{1.0}}, "input#3");
+    mv::DataModel dm(om);
 
-    std::vector<int64_t> weightsData0 = mv::utils::generateSequence<int64_t> (7*7*3*64);
-    auto weights0 = om.constantInt(weightsData0,{7,7,3,64}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{115},{0.002871257718652487},{-0.32948583364486694},{0.40268489718437195}}, "conv1/conv1_weights#1");
-    auto conv0 = om.conv(input0, weights0, {2, 2}, {2, 3, 2, 3}, 1, 1, {{0},{0.003921568859368563},{0.0},{1.0}}, "conv1/conv1#4");
-
-    std::vector<int64_t> biasWeightsData0 = mv::utils::generateSequence<int64_t> (64);
-    auto biasWeights0 = om.constantInt(biasWeightsData0,{64}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{2.2519669073517434e-05},{-inf},{inf}}, "conv1/conv1_bias#2");
-    auto bias_c0 = om.bias(conv0, biasWeights0, {{0},{0.003921568859368563},{0.0},{1.0}});
-
-    om.output(bias_c0);
-
-  
-    std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/debug_ma2490-resnet50-reduced-streaming.json";
-    unit.loadCompilationDescriptor(compDescPath);
-
-    unit.loadTargetDescriptor(mv::Target::ma2490);
-    unit.initialize();
-    unit.run();
+    om.removeOp(convOp);
+    std::cout << om.isValid(convOp) << std::endl;
+    std::cout << dm.tensorsCount() << std::endl;
+    std::cout << om.opsCount() << std::endl;
     return 0;
 }
