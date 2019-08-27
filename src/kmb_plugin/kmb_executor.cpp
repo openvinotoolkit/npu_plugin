@@ -54,7 +54,31 @@ using namespace InferenceEngine::VPUConfigParams;
 using namespace std;
 
 const uint32_t POOL_SIZE = 30 * 1024 * 1024;
-const uint32_t XLINK_INPUT_CHANNEL = 3, XLINK_OUTPUT_CHANNEL = 4;
+// XLink channel number to start allocation from
+const uint32_t IE_VPU_KMB_XC_DEFAULT = 3;
+
+
+// Get free XLink channel
+static uint32_t getXlinkChannel(void) {
+    static std::mutex mutex_;
+    static int XlinkChannel = -1;
+
+    uint32_t ret;
+    std::unique_lock<std::mutex> lock(mutex_);
+
+    if (XlinkChannel <= 0) {
+        const char * pxc = getenv("IE_VPU_KMB_XC");
+        XlinkChannel = pxc ? atoi(pxc):IE_VPU_KMB_XC_DEFAULT;
+    }
+    // In this simplified implementation we never reuse the cannel
+    ret = XlinkChannel++;
+    // Skipping "0xA: IP control channel (standard channel)"
+    if (ret == 10) {
+        ret = XlinkChannel++;
+    }
+    std::cout << "Allocated channel = " << ret << std::endl;
+    return ret;
+}
 
 KmbExecutor::KmbExecutor(const Logger::Ptr& log, const std::shared_ptr<KmbConfig>& config)
             : _log(log), _config(config)  {
@@ -248,10 +272,12 @@ void KmbExecutor::allocateGraph(const std::vector<char> &graphFileContent, const
     plgPoolOutputs->Create(RgnAlloc.get(), 1, 3 * outputTensorSize);
     std::cout << "Created plgPoolOutputs" << std::endl;
 
-    plgTensorInput_->Create(descIn.totalSize, XLINK_INPUT_CHANNEL, descIn);
+    xlinkChannelIn = getXlinkChannel();
+    xlinkChannelOut = getXlinkChannel();
+    plgTensorInput_->Create(descIn.totalSize, xlinkChannelIn, descIn);
     std::cout << "Created plgTensorInput" << std::endl;
 
-    plgTensorOutput_->Create(descOut.totalSize, XLINK_OUTPUT_CHANNEL, descOut);
+    plgTensorOutput_->Create(descOut.totalSize, xlinkChannelOut, descOut);
     std::cout << "reated plgTensorOutput" << std::endl;
 
     std::cout << "Created all Plugins" << std::endl;
@@ -277,6 +303,7 @@ void KmbExecutor::allocateGraph(const std::vector<char> &graphFileContent, const
     UNUSED(graphFileContent);
 #endif
 }
+
 
 void KmbExecutor::queueInference(void *input_data, size_t input_bytes,
                     void *result_data, size_t result_bytes) {
@@ -316,8 +343,16 @@ void KmbExecutor::getResult(void *result_data, unsigned int result_bytes) {
     uint32_t offset = pAddr - allocator->getPhysicalAddress(rgnAllocatorBuffer);
     unsigned char *data = static_cast<unsigned char *>(rgnAllocatorBuffer) + offset;
 
-    std::cout << "KmbExecutor::getResult memcpy started" << std::endl;
+    uint32_t checksum = 0;
+    for (uint32_t k = 0; k < len; k++) checksum += data[k];
+
+    std::cout << "KmbExecutor::getResult memcpy started @" << offset
+              << " checksum=" << checksum
+              << " xlinkChannel=" << xlinkChannelIn
+              << "," << xlinkChannelOut << std::endl;
+
     std::memcpy(result_data, data, len);
+    std::memset(data, 0, len);
     std::cout << "KmbExecutor::getResult memcpy finished" << std::endl;
 #endif
 }
