@@ -8,8 +8,9 @@
 #include "include/mcm/pass/pass_utils.hpp"
 #include <math.h>
 
-static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
-static void generateSparsityMapsUnpopulatedTensorsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
+static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+static void generateSparsityMapsUnpopulatedTensorsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+static void sparseWeights(mv::Data::TensorIterator& weightsTensor, mv::ComputationModel& model);
 
 namespace mv
 {
@@ -27,7 +28,6 @@ namespace mv
         .setDescription(
             "Generates sparsity maps for unpopulated tensors."
         );
-
     }
 }
 
@@ -81,13 +81,15 @@ std::vector<int8_t> createBitPattern(uint16_t kernelW, uint16_t kernelH, uint16_
 
 // The sparsity maps relative to populated tensors have to be generated BEFORE the dma passes.
 // As they have to be DMAed into CMX.
-static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::json::Object&)
+static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&)
 {
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);
 
     auto globalConfigParams = model.getGlobalConfigParams();
 
-    bool sparsity = globalConfigParams->hasAttr("Sparsity") ? globalConfigParams->get<bool>("Sparsity") : false;
+    bool weightsSparsity = globalConfigParams->hasAttr("WeightsSparsity") ? globalConfigParams->get<bool>("WeightsSparsity") : false;
 
     for(auto dpuTask = om.opBegin(); dpuTask != om.opEnd(); ++dpuTask)
     {
@@ -143,7 +145,7 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
                     perChannelSparsity.resize(static_cast<std::size_t>(std::ceil(bitpattern.size() / 128.0)) * 16);//allocate once
                     ndims = {16, static_cast<std::size_t>(std::ceil(bitpattern.size() / 128.0)), 1, inputChannels};
                 }
-                else
+                else //isChannelMajorConvolution
                 {
                     bitpattern = std::move(createBitPattern(kernelW, kernelH, windowsSize, inputChannels));
                     auto windowSparsitySize = static_cast<std::size_t>(std::ceil(windowsSize/8.0)); //how many bytes we need per window
@@ -181,64 +183,116 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
                 fakeSparsityMap->set<int>("channelLength", channelLenght);
 
                 dpuTask->set<bool>("fakeSparsity", true);
+                dpuTask->set<size_t>("fakeSparsityIndex", dpuTask->inputSlots()-1);
             }
-            else if(sparsity && !isElementWise)
+            else if(weightsSparsity && !isElementWise)
             {
-                //Here only in the case of ZMajorConvolution and sparsity is active
-                auto weightsTensor = dpuTask->getInputTensor(1);
-                weightsTensor->setOrder(mv::Order("NHWC"));
+                //Here only in the case of ZMajorConvolution
 
-                // Sparsity map costant has to be created just once
-                // and has to feed all the operations that are fed by
-                // the tensor. The input slot will be the same of fakeSparsityMap
-                if(weightsTensor->setSparse())
-                {
-                    //SparsityMap will be saved as attribute
-                    auto smInternalTensor = weightsTensor->getSparsityMap();
-                    auto sparsityMap = om.constantInt(smInternalTensor->getIntData(), smInternalTensor->getShape(), smInternalTensor->getDType(),
-                                                      smInternalTensor->getOrder(), {{},{},{},{}}, smInternalTensor->getName());
-                    auto weights = om.getSourceOp(weightsTensor);
-                    om.getSourceOp(sparsityMap)->set<unsigned>("opId", weights->get<unsigned>("opId"));
-                    auto outputFlows = mv::getOutputDataFlow(om, weights, false);
-                    for(auto& output: outputFlows)
-                    {
-                        auto sink = output.first;
-                        unsigned newSize = sink->addInputTensor(sparsityMap);
-                        om.defineFlow(sparsityMap, sink, newSize - 1);
-                    }
-                }
+                // POC ONLY CONDITION
+                //if(!dpuTask->getInputTensor(0)->isSparse())
+                    //continue;
+
+                auto weightsTensor = dpuTask->getInputTensor(1);
+                sparseWeights(weightsTensor, model);
             }
         }
     }
 }
 
-
-// The sparsity maps for unpopulated tensors have to be generated AFTER the dma passes.
-// This is because sparsity for unpopulated tensor really resolves to allocating to extra unpopulated tensors
-// That will be filled with information by the runtime. We don't need explicit DMA for them.
-static void generateSparsityMapsUnpopulatedTensorsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::json::Object&)
+bool checkA0SOHSparsityBug(mv::Data::FlowListIterator flow)
 {
-    mv::OpModel om(model);
+    auto sink = flow.sink();
+    auto tensor = flow->getTensor();
+
+    if(!tensor->isPopulated())
+    {
+        if(sink->hasAttr("splitStrategy"))
+        {
+            std::string splitStrategy = sink->get<std::string>("splitStrategy");
+
+            if(splitStrategy == "SplitOverH" &&
+               sink->getOpType() == "DPUTask" &&
+               sink->get<std::string>("taskOp") == "Conv" &&
+               (sink->get<std::array<unsigned short, 2>>("kSize")[0] > 1 ||
+                sink->get<std::array<unsigned short, 2>>("kSize")[1] > 1))
+
+                return true;
+        }
+    }
+    return false;
+}
+
+
+
+// Result of chat with Alessandro:
+// An activation tensor can be sparse if and only if
+// 1) It is an output of a DPUTask. (ODU populates storage element and sparsity map).
+// 2) It is the input of a ZMajorConv (Only layer that supports IDU)
+
+// An activation tensor MUST be sparse if it's:
+// 1) SplitOverH
+// 2) Involved in a ZMajorConvolution with kernel > 1 (HW bug)
+
+// In the future, these two conditions could change. We have to sync with runtime.
+
+// Eltwise, being the hackiest operation ever, potentially can support sparsity input, sharing the IDU with ZMajorConv, but the runtime currently doesn't allow it.
+
+static void generateSparsityMapsUnpopulatedTensorsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&)
+{
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
+    mv::DataModel dm(model);
 
     auto globalConfigParams = model.getGlobalConfigParams();
 
-    bool sparsity = globalConfigParams->hasAttr("Sparsity") ? globalConfigParams->get<bool>("Sparsity") : false;
+    bool activationSparsity = globalConfigParams->hasAttr("ActivationSparsity") ? globalConfigParams->get<bool>("ActivationSparsity") : false;
 
-    if(sparsity)
+    for(auto dataFlow = dm.flowBegin(); dataFlow != dm.flowEnd(); ++dataFlow)
     {
-        for(auto dpuTask = om.opBegin(); dpuTask != om.opEnd(); ++dpuTask)
-        {
-            if(dpuTask->getOpType() == "DPUTask")
-            {
-                std::string taskOp = dpuTask->get<std::string>("taskOp");
-                bool isZMajorConv = taskOp == "Conv";
+        auto source = dataFlow.source();
+        auto sink = dataFlow.sink();
+        auto tensor = dataFlow->getTensor();
 
-                if(isZMajorConv)
-                {
-                    dpuTask->getInputTensor(0)->setSparse();
-                    dpuTask->getOutputTensor(0)->setSparse();
-                }
-            }
+        if(activationSparsity)
+        {
+            if(!tensor->isPopulated() && source->getOpType() == "DPUTask" && sink->getOpType() == "DPUTask" && sink->get<std::string>("taskOp") == "Conv")
+                tensor->setSparse();
+        }
+        else
+        {
+            if(checkA0SOHSparsityBug(dataFlow))
+                tensor->setSparse();
+        }
+    }
+}
+
+static void sparseWeights(mv::Data::TensorIterator& weightsTensor, mv::ComputationModel& model)
+{
+    mv::OpModel om(model);
+    weightsTensor->setOrder(mv::Order("NHWC"));
+
+    // Sparsity map costant has to be created just once
+    // and has to feed all the operations that are fed by
+    // the tensor. The input slot will be the same of fakeSparsityMap
+    if(weightsTensor->setSparse())
+    {
+        //SparsityMap will be saved as attribute
+        auto smInternalTensor = weightsTensor->getSparsityMap();
+        auto sparsityMap = om.constantInt(smInternalTensor->getIntData(), smInternalTensor->getShape(), smInternalTensor->getDType(),
+                                          smInternalTensor->getOrder(), {{},{},{},{}}, smInternalTensor->getName());
+        auto sparsityMapOp = om.getSourceOp(sparsityMap);
+        auto weights = om.getSourceOp(weightsTensor);
+
+        weights->set<bool>("sparse", true);
+        sparsityMapOp->set<unsigned>("opId", weights->get<unsigned>("opId"));
+        auto outputFlows = mv::getOutputDataFlow(om, weights, false);
+        for(auto& output: outputFlows)
+        {
+            auto sink = output.first;
+            unsigned newSize = sink->addInputTensor(sparsityMap);
+            om.defineFlow(sparsityMap, sink, newSize - 1);
+            sink->set<size_t>("sparsityMapIndex", newSize - 1);
         }
     }
 }

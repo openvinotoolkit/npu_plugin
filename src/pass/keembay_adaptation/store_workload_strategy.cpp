@@ -5,7 +5,7 @@
 #include "meta/include/mcm/op_model.hpp"
 #include <regex>
 
-static void storeWorkloadStrategyFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
+static void storeWorkloadStrategyFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 
 namespace mv
 {
@@ -26,21 +26,22 @@ void storeWorkloadStrategy(mv::Data::OpListIterator& it, int numClusters, std::v
     for (auto s: strategyList)
     {
         std::string& name_filter = s.get<std::string>("name_filter");
-        int cluster_filter = s.get("cluster_filter");
         std::regex exp(name_filter);
         if (std::regex_match(it->getName(), exp))
         {
-            if (cluster_filter == 0 || cluster_filter == numClusters) {
                 if(s.hasAttr("nWorkloads"))
+                {
                     it->set<int>("WorkloadStrategy_nWorkloads", s.get<int>("nWorkloads"));
-                it->set<std::string>("WorkloadStrategy_MPE_mode", s.get<std::string>("mpe_mode"));
-            }
+                    it->set<std::string>("WorkloadStrategy_MPE_mode", s.get<std::string>("mpe_mode"));
+                }
         }
     }
 }
 
-void storeWorkloadStrategyFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+void storeWorkloadStrategyFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     auto globalParams = model.getGlobalConfigParams();
 
     if (!globalParams->hasAttr("workload_strategy"))

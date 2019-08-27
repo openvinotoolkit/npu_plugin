@@ -10,7 +10,7 @@
 static const std::array<unsigned short, 2> FAKE_KERNEL = {1,1};
 static const std::array<unsigned short, 2> FAKE_STRIDE = {1,1};
 
-static void convertOpsToTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
+static void convertOpsToTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 
 namespace mv
 {
@@ -25,8 +25,10 @@ namespace mv
     }
 }
 
-void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);
     mv::ControlModel cm(model);
 
@@ -54,6 +56,9 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
 
             auto input = opIt->getInputTensor(0);
             auto kernel = opIt->getInputTensor(1);
+
+            kernel->set<std::string>("populatedTensorType", "weights");
+
             auto opId = opIt->get<unsigned>("opId");
 
             auto strides = opIt->get<std::array<unsigned short, 2>>("stride");
@@ -102,7 +107,17 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             if(!biasName.empty())
                dpuConvOp->set<std::string>("bias", biasName);
             if(!splitStrategy.empty())
+            {
+                //NOTE:Convolution can not be HWSwitch
                dpuConvOp->set<std::string>("splitStrategy", splitStrategy);
+               if (splitStrategy == "SplitOverK")
+               {
+                    dpuConvOp->set<bool>("multiCast", true);
+//                   dpuConvOp->getOutputTensor(0)->set<bool>("multiCast", true);
+                }
+                else
+                   dpuConvOp->set<bool>("multiCast", false);
+            }
             if(!workloadStrategyMPEMode.empty())
                 dpuConvOp->set<std::string>("WorkloadStrategy_MPE_mode", workloadStrategyMPEMode);
             if(workloadStrategyNWorkloads != -1)
@@ -141,7 +156,6 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             auto quantParams = opIt->get<mv::QuantizationParams>("quantParams");
 
             std::string splitStrategy;
-
             if(opIt->hasAttr("splitStrategy"))
                 splitStrategy = opIt->get<std::string>("splitStrategy");
 
@@ -156,7 +170,14 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             dpuPoolOp->set<bool>("hasWeights", false);
 
             if(!splitStrategy.empty())
+            {
+                //NOTE:Pooling can not be SplitOverK
                dpuPoolOp->set<std::string>("splitStrategy", splitStrategy);
+               if (splitStrategy == "HKSwitch")
+                    dpuPoolOp->set<bool>("multiCast", true);
+                else
+                   dpuPoolOp->set<bool>("multiCast", false);
+            }
 
             dpuPool->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
             setOutputDataFlow(om, dpuPool, outputDataFlows);
@@ -201,7 +222,14 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             dpuElementWiseOp->set<mv::PPETask>("PPETask", ppeTask);
 
             if(!splitStrategy.empty())
+            {
+                //NOTE:Elwise can not be SplitOverK
                dpuElementWiseOp->set<std::string>("splitStrategy", splitStrategy);
+               if (splitStrategy == "HKSwitch")
+                    dpuElementWiseOp->set<bool>("multiCast", true);
+                else
+                   dpuElementWiseOp->set<bool>("multiCast", false);
+            }
 
             dpuElementWise->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
 

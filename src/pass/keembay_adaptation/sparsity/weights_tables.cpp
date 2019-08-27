@@ -5,12 +5,13 @@
 #include "include/mcm/utils/data_generator.hpp"
 #include "include/mcm/tensor/quantization_params.hpp"
 #include "include/mcm/utils/custom_strings.hpp"
+#include "include/mcm/utils/custom_math.hpp"
 #include <math.h>
 
-static void generateWeightsTablesFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
-static void populateWeightsTablesPointersFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
-static void populateWeightsTablesQuantizationFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
-static void removeBiasTensorsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
+static void generateWeightsTablesFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+static void populateWeightsTablesPointersFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+static void populateWeightsTablesQuantizationFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+static void removeBiasTensorsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 
 namespace mv
 {
@@ -44,6 +45,64 @@ namespace mv
     }
 }
 
+void populateSparseDataPointerMultiCluster(mv::Tensor& weightsTableData, mv::Data::OpListIterator dpuTaskOp, std::vector<int64_t> increments, long int offset, std::size_t addingIndex, mv::ComputationModel &model)
+{
+    long int new_offset = offset;
+    //std::cout << "Populating data pointer of weights table for op " << dpuTaskOp->getName() << std::endl;
+    if (dpuTaskOp->get<std::string>("splitStrategy") != "SplitOverK")
+    {
+        for (size_t i = 0, k = 0; i < weightsTableData.size(); i+=4)
+        {
+            // First increment is always 0
+            weightsTableData(i+ addingIndex) = offset + increments[k];
+            //std::cout << "Channel  " << k << " " << " Offset " << offset << " Increment " << increments[k] << " Result " << static_cast<int64_t>(weightsTableData(i));
+            //if(k > 0)
+                //std::cout << " Difference " << static_cast<int64_t>(weightsTableData(i)) - static_cast<int64_t>(weightsTableData(i-4));
+            //std::cout << std::endl;
+            ++k;
+        }
+    }
+    else
+    {
+        auto globalParams = model.getGlobalConfigParams();
+        unsigned numClusters = globalParams->get<int>("Number_of_Clusters");
+        for (unsigned i = 0; i < numClusters; i++)
+        {
+            offset = new_offset;
+            for (size_t j = 0, k = 0; j < weightsTableData.size()/numClusters; j+=4)
+            {
+                // First increment is always 0
+                weightsTableData(j + addingIndex + i * weightsTableData.size()/numClusters) = offset + increments[k++];
+            }
+        }
+    }
+    return;
+}
+
+void populateDenseDataPointerMultiCluster(mv::Tensor& weightsTableData, mv::Data::OpListIterator dpuTaskOp, long int increment, long int offset, std::size_t addingIndex, mv::ComputationModel &model)
+{
+    long int new_offset = offset;
+    if (dpuTaskOp->get<std::string>("splitStrategy") != "SplitOverK")
+    {
+        for (size_t i = 0; i < weightsTableData.size(); i+=4, offset +=increment)
+              weightsTableData(i+addingIndex) = offset;
+    }
+    else
+    {
+        auto globalParams = model.getGlobalConfigParams();
+        unsigned numClusters = globalParams->get<int>("Number_of_Clusters");
+        for (unsigned i = 0; i < numClusters; i++)
+        {
+            offset = new_offset;
+            for (size_t j = 0; j < weightsTableData.size()/numClusters; j+=4, offset +=increment)
+            {
+                weightsTableData(j + addingIndex + i * weightsTableData.size()/numClusters) = offset;
+            }
+        }
+    }
+    return;
+}
+
 void populateWeightsTablesDataPointers(mv::Tensor& weightsTableData, mv::Data::OpListIterator dpuTaskOp, mv::ComputationModel& model)
 {
     mv::OpModel om(model);
@@ -58,9 +117,8 @@ void populateWeightsTablesDataPointers(mv::Tensor& weightsTableData, mv::Data::O
             auto tensorAllocator = dm.getAllocator(*tensorAllocatorName);
             mv::Data::BufferIterator tensorBufferIt = tensorAllocator.getBuffer(0, weights); // 0 is the only stage for now, but this will probably change in the future
             long int offset = tensorBufferIt->getOffset();
-            auto increments = weights->getKernelDataOffsets();
-            for (size_t i = 0; i < weightsTableData.size(); i+=4, offset += increments[i])
-                  weightsTableData(i) = offset;
+            std::vector<int64_t> increments = weights->getKernelDataOffsets();
+            populateSparseDataPointerMultiCluster(weightsTableData, dpuTaskOp, increments, offset, 0, model);
         }
         else
         {
@@ -69,8 +127,7 @@ void populateWeightsTablesDataPointers(mv::Tensor& weightsTableData, mv::Data::O
             mv::Data::BufferIterator tensorBufferIt = tensorAllocator.getBuffer(0, weights); // 0 is the only stage for now, but this will probably change in the future
             long int offset = tensorBufferIt->getOffset();
             long int increment = weights->getShape()[0];
-            for (size_t i = 0; i < weightsTableData.size(); i+=4, offset +=increment)
-                  weightsTableData(i) = offset;
+            populateDenseDataPointerMultiCluster(weightsTableData, dpuTaskOp, increment, offset, 0, model);
         }
     }
     else if(dpuTaskOp->get<std::string>("taskOp") == "ChannelMajorConvolution" || dpuTaskOp->get<std::string>("taskOp") == "DepthwiseConv")
@@ -81,8 +138,7 @@ void populateWeightsTablesDataPointers(mv::Tensor& weightsTableData, mv::Data::O
         mv::Data::BufferIterator tensorBufferIt = tensorAllocator.getBuffer(0, weights); // 0 is the only stage for now, but this will probably change in the future
         long int offset = tensorBufferIt->getOffset();
         long int increment = weights->getShape()[0];
-        for (size_t i = 0; i < weightsTableData.size(); i+=4, offset +=increment)
-              weightsTableData(i) = offset;
+        populateDenseDataPointerMultiCluster(weightsTableData, dpuTaskOp, increment, offset, 0, model);
     }
     // Max pooling does not need DataPointer
 
@@ -101,14 +157,24 @@ void populateWeightsTablesSparsityPointers(mv::Tensor& weightsTableData, mv::Dat
         auto weights = dpuTaskOp->getInputTensor(1);
         if(weights->isSparse())
         {
-            auto weightsSparsityMap = dpuTaskOp->getInputTensor(dpuTaskOp->inputSlots() - 2);
+            auto weightsSparsityMap = dpuTaskOp->getInputTensor(dpuTaskOp->get<std::size_t>("sparsityMapIndex"));
             long int offset = weightsSparsityMap->getAddress();
             auto sparsityMapSizeInWords = weightsSparsityMap->getShape().totalSize();
             auto sparsityMapSizeInBytes = sparsityMapSizeInWords * weightsSparsityMap->getDType().getSizeInBits() / 8;
             auto sparsityMapBytesPerOutputChannel = sparsityMapSizeInBytes / outputChannels;
             long int increment = sparsityMapBytesPerOutputChannel;
-            for (size_t i = 0; i < weightsTableData.size(); i+=4, offset +=increment)
-                  weightsTableData(i+1) = offset;
+            //std::cout << "Sparsity pointer for weights table for " << dpuTaskOp->getName() << std::endl;
+            for (size_t i = 0, k = 0; i < weightsTableData.size(); i+=4, offset +=increment)
+            {
+                // NOTE: to be adapted for MC
+                weightsTableData(i+1) = offset;
+                //std::cout << "Channel  " << k << " Result " << static_cast<int64_t>(weightsTableData(i+1));
+                //if(k > 0)
+                    //std::cout << " Difference " << static_cast<int64_t>(weightsTableData(i+1)) - static_cast<int64_t>(weightsTableData(i+1-4));
+                //std::cout << std::endl;
+                ++k;
+            }
+
         }
         // Nothing to do here if is a dense ZMajor convolution
         else
@@ -123,7 +189,7 @@ void populateWeightsTablesSparsityPointers(mv::Tensor& weightsTableData, mv::Dat
             dpuTaskOp->get<std::string>("taskOp") == "MaxPool")
     {
         // We have fake sparsity here! Yuppi!
-        auto activationWindow = dpuTaskOp->getInputTensor(dpuTaskOp->inputSlots() - 2);
+        auto activationWindow = dpuTaskOp->getInputTensor(dpuTaskOp->get<std::size_t>("fakeSparsityIndex"));
         auto activationWindowSizeInWords = activationWindow->getShape().totalSize();
         auto activationWindowSizeInBytes = activationWindowSizeInWords * activationWindow->getDType().getSizeInBits() / 8;
         auto activationWindowBytesPerOutputChannel = activationWindowSizeInBytes / outputChannels;
@@ -132,8 +198,8 @@ void populateWeightsTablesSparsityPointers(mv::Tensor& weightsTableData, mv::Dat
         mv::Data::BufferIterator tensorBufferIt = tensorAllocator.getBuffer(0, activationWindow); // 0 is the only stage for now, but this will probably change in the future
         long int offset = tensorBufferIt->getOffset();
         long int increment = activationWindowBytesPerOutputChannel;
-        for (size_t i = 0; i < weightsTableData.size(); i+=4, offset +=increment)
-              weightsTableData(i+1) = offset;
+        populateDenseDataPointerMultiCluster(weightsTableData, dpuTaskOp, increment, offset, 1, model);
+
     }
 }
 
@@ -185,8 +251,10 @@ void populateWeightsTablesActivationAndBias(mv::Tensor& weightsTableData, mv::Da
     }
 }
 
-static void populateWeightsTablesQuantizationFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+static void populateWeightsTablesQuantizationFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);
 
     for(auto dpuTaskOp = om.opBegin(); dpuTaskOp != om.opEnd(); ++dpuTaskOp)
@@ -199,15 +267,17 @@ static void populateWeightsTablesQuantizationFcn(const mv::pass::PassEntry& , mv
                (dpuTaskOp->get<std::string>("taskOp") == "DepthwiseConv"))
             {
                 // This pass is executed when there are not DMA Tasks yet, no hack needed
-                auto weightsTable = dpuTaskOp->getInputTensor(dpuTaskOp->inputSlots()-1);
+                auto weightsTable = dpuTaskOp->getInputTensor(dpuTaskOp->get<std::size_t>("weightsTableIndex"));
                 populateWeightsTablesActivationAndBias(*weightsTable, dpuTaskOp, model);
             }
         }
     }
 }
 
-static void removeBiasTensorsFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+static void removeBiasTensorsFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);
     mv::DataModel dm(model);
     std::set<std::string> biasNamesToRemove;
@@ -237,8 +307,10 @@ static void removeBiasTensorsFcn(const mv::pass::PassEntry& , mv::ComputationMod
     }
 }
 
-static void populateWeightsTablesPointersFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+static void populateWeightsTablesPointersFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);
 
     for(auto dpuTaskOp = om.opBegin(); dpuTaskOp != om.opEnd(); ++dpuTaskOp)
@@ -251,7 +323,7 @@ static void populateWeightsTablesPointersFcn(const mv::pass::PassEntry& , mv::Co
                (dpuTaskOp->get<std::string>("taskOp") == "DepthwiseConv"))
             {
                 // Necessary hack since data is copied with DMA and we are not using a shared_ptr
-                auto weightsTable = dpuTaskOp->getInputTensor(dpuTaskOp->inputSlots()-1);
+                auto weightsTable = dpuTaskOp->getInputTensor(dpuTaskOp->get<std::size_t>("weightsTableIndex"));
                 auto weightsTableOp = om.getSourceOp(weightsTable);
                 weightsTableOp = weightsTableOp.leftmostParent();
                 weightsTable = weightsTableOp->getOutputTensor(0);
@@ -264,8 +336,10 @@ static void populateWeightsTablesPointersFcn(const mv::pass::PassEntry& , mv::Co
 }
 
 
-static void generateWeightsTablesFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+static void generateWeightsTablesFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);
     mv::DataModel dm(model);
     mv::ControlModel cm(model);
@@ -274,16 +348,17 @@ static void generateWeightsTablesFcn(const mv::pass::PassEntry& , mv::Computatio
     {
         if(dpuTaskOp->getOpType() == "DPUTask")
         {
-            if((dpuTaskOp->get<std::string>("taskOp") == "Conv") ||
-               (dpuTaskOp->get<std::string>("taskOp") == "ChannelMajorConvolution") ||
-               (dpuTaskOp->get<std::string>("taskOp") == "MaxPool") ||
-               (dpuTaskOp->get<std::string>("taskOp") == "DepthwiseConv"))
+            std::string taskOp = dpuTaskOp->get<std::string>("taskOp");
+            if(taskOp == "Conv" ||
+               taskOp == "ChannelMajorConvolution" ||
+               taskOp == "MaxPool" ||
+               taskOp == "DepthwiseConv")
             {
                 std::string opName = dpuTaskOp->getName();
 
                 std::string kernelWeightsTableName(mv::createWeightTableName(opName));
-                auto output = dpuTaskOp->getOutputTensor(0);
-                auto outputChannels = output->getShape()[mv::IO_CHANNEL_DIMENSION];
+
+                auto outputChannels = mv::round_up(dpuTaskOp->getOutputTensor(0)->getShape()[mv::IO_CHANNEL_DIMENSION], 16);
 
                 // per channel layout:
                 // 3 -> bias
@@ -297,18 +372,11 @@ static void generateWeightsTablesFcn(const mv::pass::PassEntry& , mv::Computatio
 
                 auto weightTable = om.constantInt(weightsTableData, shape, mv::DType("Int32"), mv::Order("NWCH"), quantParams, kernelWeightsTableName);
                 om.getSourceOp(weightTable)->set<unsigned>("opId", dpuTaskOp->get<unsigned>("opId"));
+                om.getSourceOp(weightTable)->set<std::string>("populatedTensorType", "weightsTable");
+
                 unsigned newSize = dpuTaskOp->addInputTensor(weightTable);
                 om.defineFlow(weightTable, dpuTaskOp, newSize - 1);
-
-                auto ctlFlow = cm.switchContext(om.getSourceOp(dpuTaskOp->getInputTensor(1)));
-                if (auto parentOptest = ctlFlow.leftmostParent() == cm.opEnd())
-                    std::cout << "NO PARENT FOUND for " << ctlFlow->getName() << std::endl;
-                for (auto parentOp = ctlFlow.leftmostParent(); parentOp != cm.opEnd(); ++parentOp)
-                {
-                    cm.defineFlow(om.switchContext(parentOp),om.getSourceOp(weightTable));
-                    std::cout << "ADDED CONTROL FLOW from " << parentOp->getName() << " to " << weightTable->getName() << std::endl;
-                }
-
+                dpuTaskOp->set<size_t>("weightsTableIndex", newSize - 1);
             }
         }
     }

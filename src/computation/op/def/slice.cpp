@@ -28,11 +28,11 @@ namespace mv
             //starting coord must be inside input tensor
             // TODO: for variable number of dimensions, the "largest" tensor should be the input, and
             // we will need to check if the "sliced" dimensions exist in the inputTensor.
-            for( auto dim = 0 ; dim < inputShape.ndims() ; dim++)
+            for(std::size_t dim = 0; dim < inputShape.ndims(); dim++)
             {
-                if( not((0 <= startCoord[dim]) and
-                        (startCoord[dim] <= startCoord[dim] + outputSize[dim]) and
-                        (startCoord[dim] + outputSize[dim] <= inputShape[dim])))
+                if(!((0 <= startCoord[dim]) &&
+                    (startCoord[dim] <= startCoord[dim] + outputSize[dim]) &&
+                    (startCoord[dim] + outputSize[dim] <= inputShape[dim])))
                 {
                     errMsg = "Invalid configuration for dimension " + std::to_string(dim) + " Not able to slice : startCoord - outputSize - inputTensor"
                             + startCoord.toString() + " - " + outputSize.toString() + " " + inputShape.toString();
@@ -55,8 +55,19 @@ namespace mv
 
             if (inputs[0]->isPopulated())
             {
+
                 std::vector<mv::DataElement> temp(args.at("size").get<mv::Shape>().totalSize(), mv::DataElement(0));
                 outputs[0].populate(temp);
+
+                auto begin = args.at("begin").get<mv::Shape>();
+                auto size = args.at("size").get<mv::Shape>();
+                for(unsigned oc = begin[mv::KERNEL_OUTPUT_CHANNELS]; oc < begin[mv::KERNEL_OUTPUT_CHANNELS] + size[mv::KERNEL_OUTPUT_CHANNELS]; ++oc)
+                    for(unsigned ic = begin[mv::KERNEL_INPUT_CHANNELS]; ic < begin[mv::KERNEL_INPUT_CHANNELS] + size[mv::KERNEL_INPUT_CHANNELS]; ++ic)
+                        for(unsigned kw = begin[mv::KERNEL_WIDTH]; kw <  begin[mv::KERNEL_WIDTH] + size[mv::KERNEL_WIDTH]; ++kw)
+                            for(unsigned kh = begin[mv::KERNEL_HEIGHT]; kh < begin[mv::KERNEL_HEIGHT] + size[mv::KERNEL_HEIGHT]; ++kh)
+                                outputs[0].at({kw - begin[mv::KERNEL_WIDTH],kh - begin[mv::KERNEL_HEIGHT]
+                                               ,ic - begin[mv::KERNEL_INPUT_CHANNELS],oc - begin[mv::KERNEL_OUTPUT_CHANNELS]})
+                                = inputs[0]->at({kw,kh,ic,oc});
             }
         };
 

@@ -22,11 +22,9 @@ TEST(store_split_strategy, parse_strategy)
     mv::Element e("split_strategy");
     mv::Element strategy1("");
     strategy1.set("name_filter", std::string(".*"));
-    strategy1.set("cluster_filter", 0);
     strategy1.set("strategy", std::string("SplitOverK"));
     mv::Element strategy2("");
     strategy2.set("name_filter", std::string(".*conv.*"));
-    strategy2.set("cluster_filter", 0);
     strategy2.set("strategy", std::string("SplitOverH"));
 
     // Ordering of strategies matters. The later strategies take precedence

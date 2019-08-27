@@ -24,7 +24,7 @@ namespace mv
             static PassRegistry& instance();
 
             void run(std::string name, ComputationModel& model, TargetDescriptor& targetDescriptor, 
-                Element& passDescriptor, json::Object& output);
+                Element& passDescriptor, Element& output);
 
         };
 

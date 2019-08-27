@@ -4,7 +4,7 @@
 #include "meta/include/mcm/op_model.hpp"
 #include <math.h>
 
-static void computeMemoryFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& compilationDescriptor, mv::json::Object&);
+static void computeMemoryFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& compilationDescriptor, mv::Element&);
 
 namespace mv
 {
@@ -19,8 +19,10 @@ namespace mv
     }
 }
 
-static void computeMemoryFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element& compilationDescriptor, mv::json::Object&)
+static void computeMemoryFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element& compilationDescriptor, mv::Element&)
 {
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     auto globalConfig = model.getGlobalConfigParams();
 
     // ASSUMPTION: User always uses full memory
@@ -45,8 +47,15 @@ static void computeMemoryFcn(const mv::pass::PassEntry& pass, mv::ComputationMod
     else
     {
         auto cmxPerCluster = cmx / targetTotalClusters;
-        cmxPerCluster *= safetyFactor;
-        cmx = cmxPerCluster;
+        cmx = cmxPerCluster * safetyFactor;
+
+        if(globalConfig->hasAttr("cmx"))
+        {
+            //Bypass safety factor
+            unsigned userMemory = globalConfig->get<int>("cmx");
+            if(userMemory <= cmxPerCluster)
+                cmx = userMemory;
+        }
     }
 
     globalConfig->set<unsigned>("cmx", cmx);

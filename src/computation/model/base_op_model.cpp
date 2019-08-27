@@ -30,12 +30,12 @@ mv::Data::OpListIterator mv::BaseOpModel::getSourceOp(Data::TensorIterator tenso
 
     if (!tensor->hasAttr("sourceOp"))
         return opEnd();
-    
+
     auto it = ops_->find(tensor->get<std::string>("sourceOp"));
     if (it == ops_->end())
         throw RuntimeError(*this, "Source op " + tensor->get<std::string>("sourceOp") + " of tensor " +
             tensor->getName() + " does not belong to the model");
-    
+
     return it->second;
 
 }
@@ -54,7 +54,7 @@ mv::Data::TensorIterator mv::BaseOpModel::defineOp(const std::string& opType, co
 
     if (ops_->find(name) != ops_->end())
         throw ArgumentError(*this, "op:name", name, "Duplicated op name");
-    
+
     auto opNode = dataGraph_.node_insert(Op(*this, opType, name, inputs, args, checkInputSize, checkArgs));
 
     incrementOpsInstanceCounter_(opType);
@@ -82,7 +82,7 @@ mv::Data::TensorIterator mv::BaseOpModel::defineOp(const std::string& opType, co
         else
             throw LogicError(*this, "Attempt of multi-output model definiton - currently unsupported");
     }
-    
+
     if ((*opNode).outputSlots() > 0)
         return (*opNode).getOutputTensor(0);
 
@@ -127,7 +127,7 @@ void mv::BaseOpModel::removeOp(Data::OpListIterator op)
 
     log(Logger::MessageType::Info, "Removed " + op->toString());
     dataGraph_.node_erase(op);
-    
+
 }
 
 mv::Data::FlowListIterator mv::BaseOpModel::defineFlow(Data::TensorIterator sourceTensor, Data::OpListIterator sinkOp, std::size_t inputIdx)
@@ -144,7 +144,7 @@ mv::Data::FlowListIterator mv::BaseOpModel::defineFlow(Data::TensorIterator sour
         throw ArgumentError(*this, "sourceTensor", "sourceless", "Defining flow using a tensor that does not have a source op is illegal");
 
     Data::FlowListIterator inputFlow = dataGraph_.edge_insert(sourceOp, sinkOp, DataFlow(*this, sourceOp, 0, sinkOp, inputIdx, sourceTensor));
-    
+
     if(!sourceTensor->hasAttr("flows"))
     {
         std::set<std::string> toSet;
@@ -184,7 +184,7 @@ struct OpItComparator
 {
     bool operator()(mv::Data::OpListIterator lhs, mv::Data::OpListIterator rhs) const
     {
-        return (lhs->getName() < lhs->getName());
+        return (lhs->getName() < rhs->getName());
     }
 };
 
@@ -201,7 +201,6 @@ std::vector<mv::Data::OpListIterator> mv::BaseOpModel::lexTopologicalSort()
     auto lexTopSortResult = mv::lexTopologicalSort<Op, DataFlow, OpItComparator, OpLexComparator>(dataGraph_);
     std::vector<mv::Data::OpListIterator> toReturn(lexTopSortResult.begin(), lexTopSortResult.end());
 
-    std::cout << "-----sorted ops------" << std::endl;
     for (auto s: toReturn)
     {
         std::cout << s->getName() << std::endl;
@@ -307,6 +306,11 @@ std::size_t mv::BaseOpModel::opsCount(const std::string& opType) const
     if (opsInstanceCounter_->find(opType) != opsInstanceCounter_->end())
         return opsInstanceCounter_->at(opType);
     return 0;
+}
+
+std::size_t mv::BaseOpModel::dataFlowsCount() const
+{
+    return dataGraph_.edge_size();
 }
 
 long long unsigned mv::BaseOpModel::parametersCount() const

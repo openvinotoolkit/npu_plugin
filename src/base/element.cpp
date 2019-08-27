@@ -12,16 +12,16 @@ name_(name)
 
 }
 
-mv::Element::Element(const Element &other) :
+mv::Element::Element(const Element& other) :
 attrs_(other.attrs_),
 name_(other.name_)
 {
-
+    MV_PROFILED_FUNCTION(MV_PROFILE_BASE)
 }
 
 mv::Element::Element(const json::Value& content, bool simplifiedTyping, std::string name)
 {
-
+    MV_PROFILED_FUNCTION(MV_PROFILE_BASE)
     if (content.valueType() != json::JSONType::Object)
         throw AttributeError(*this, "Unable to construct using non json::Object "
             "value type " + json::Value::typeName(content.valueType()));
@@ -178,6 +178,7 @@ std::string mv::Element::getLogID() const
 
 mv::Element& mv::Element::operator=(const Element &other)
 {
+    MV_PROFILED_FUNCTION(MV_PROFILE_BASE)
     name_ = other.name_;
     attrs_ = other.attrs_;
     return *this;
@@ -255,6 +256,7 @@ mv::Attribute& mv::Element::get(const std::string& name)
 
 void mv::Element::set(const std::string& name, const Attribute& attr)
 {
+    MV_PROFILED_FUNCTION(MV_PROFILE_BASE)
     auto it = attrs_.emplace(name, attr);
     if (!it.second)
         throw RuntimeError(*this, "Unable to emplace a new element in attributes dictionary");

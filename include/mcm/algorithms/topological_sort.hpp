@@ -6,6 +6,7 @@
 #include <set>
 #include <vector>
 #include <algorithm>
+#include "include/mcm/compiler/compilation_profiler.hpp"
 
 namespace mv
 {
@@ -39,10 +40,11 @@ namespace mv
     template <typename T_node, typename T_edge>
     std::vector<typename graph<T_node, T_edge>::node_list_iterator> topologicalSort(graph<T_node, T_edge>& g)
     {
+        MV_PROFILED_FUNCTION(MV_PROFILE_ALGO)
         std::vector<typename graph<T_node, T_edge>::node_list_iterator> toReturn;
 
         if(!isDAG(g))
-            throw "Trying to execute topologicalSort on a graph that is not a DAG";
+            throw std::string("Trying to execute topologicalSort on a graph that is not a DAG");
 
         std::set<typename graph<T_node, T_edge>::node_list_iterator, OpItComparatorTemplate2<typename graph<T_node, T_edge>::node_list_iterator>> unmarkedNodes;
         for(auto node = g.node_begin(); node != g.node_end(); ++node)

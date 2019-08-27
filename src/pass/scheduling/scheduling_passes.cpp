@@ -8,17 +8,25 @@
 #include <numeric>
 #include <cmath>
 
-static void generateSchedulingFcn(const mv::pass::PassEntry&, mv::ComputationModel&, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
-static void barrierIndexAssignmentFcn(const mv::pass::PassEntry&, mv::ComputationModel&, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
-static void updateBarrierRefsFcn(const mv::pass::PassEntry&, mv::ComputationModel&, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
-static void storeBarriersNamesInTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel&, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
-static void updateCountsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
+static void generateSchedulingFcn(const mv::pass::PassEntry&, mv::ComputationModel&, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+static void barrierIndexAssignmentFcn(const mv::pass::PassEntry&, mv::ComputationModel&, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+static void updateBarrierRefsFcn(const mv::pass::PassEntry&, mv::ComputationModel&, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+static void storeBarriersNamesInTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel&, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+static void updateCountsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+static void hackExecutionScheduleFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element&, mv::Element&);
+static void correctExecutionScheduleFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element&, mv::Element&);
 
 namespace mv
 {
 
     namespace pass
     {
+        MV_REGISTER_PASS(CorrectExecutionSchedule)
+        .setFunc(correctExecutionScheduleFcn)
+        .setDescription(
+            "Corrects a schedule for the computational model"
+        );
+
         MV_REGISTER_PASS(GenerateExecutionSchedule)
         .setFunc(generateSchedulingFcn)
         .setDescription(
@@ -49,6 +57,145 @@ namespace mv
             "This pass updates producer and consumer counts in barriers based on workloads in producer and consumer \
             DxxTasks in the compute graph"
         );
+
+        MV_REGISTER_PASS(HackExecutionSchedule)
+        .setFunc(hackExecutionScheduleFcn)
+        .setDescription(
+            "This pass is intended for debug use only"
+        );
+
+    }
+}
+
+// ASSUMPTION: DMA for weights, weights table, sparsity map and input are swappable in terms of scheduling without causing the model to hang on barriers
+// This basically means that they have the same barrier dependencies
+// ASSUMPTION 2: The correct dma order is: Weights - Sparsity Map (if present) - Weights Table - Input data (if present)
+void correctExecutionScheduleFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element& passArg, mv::Element &)
+{
+    mv::ControlModel cm(model);
+    mv::OpModel om(model);
+    auto ops = cm.schedulingSort();
+
+    bool inputFlag = true;
+
+    if(passArg.hasAttr("inputFlag"))
+        inputFlag = passArg.get<bool>("inputFlag");
+
+    for(auto& op: ops)
+    {
+        std::string opType = op->getOpType();
+        if(opType == "DPUTask")
+        {
+            std::string taskOp = op->get<std::string>("taskOp");
+            if(taskOp == "Conv")
+            {
+                std::vector<unsigned> schedulingNumbers;
+
+                if(inputFlag)
+                {
+                    auto inputTensor = op->getInputTensor(0);
+                    auto inputTensorOp = om.getSourceOp(inputTensor);
+                    if(inputTensorOp->getOpType() == "DMATask")
+                        schedulingNumbers.push_back(inputTensorOp->get<unsigned>("schedulingNumber"));
+
+                }
+
+                auto weightsTensor = op->getInputTensor(1);
+                auto weightsOp = om.getSourceOp(weightsTensor);
+                schedulingNumbers.push_back(weightsOp->get<unsigned>("schedulingNumber"));
+                auto weightsTableOp = om.getSourceOp(op->getInputTensor(op->get<std::size_t>("weightsTableIndex")));
+                schedulingNumbers.push_back(weightsTableOp->get<unsigned>("schedulingNumber"));
+
+                if(weightsTensor->isSparse())
+                {
+                    auto weightsSparsityMapOp = om.getSourceOp(op->getInputTensor(op->get<std::size_t>("sparsityMapIndex")));
+                    schedulingNumbers.push_back(weightsSparsityMapOp->get<unsigned>("schedulingNumber"));
+                }
+
+                std::sort(schedulingNumbers.begin(), schedulingNumbers.end());
+                unsigned currentIndex = 0;
+                weightsOp->set<unsigned>("schedulingNumber", schedulingNumbers[currentIndex++]);
+                if(weightsTensor->isSparse())
+                {
+                    auto weightsSparsityMapOp = om.getSourceOp(op->getInputTensor(op->get<std::size_t>("sparsityMapIndex")));
+                    weightsSparsityMapOp->set<unsigned>("schedulingNumber", schedulingNumbers[currentIndex++]);
+                }
+                weightsTableOp->set<unsigned>("schedulingNumber", schedulingNumbers[currentIndex++]);
+                if(inputFlag)
+                {
+                    auto inputTensor = op->getInputTensor(0);
+                    auto inputTensorOp = om.getSourceOp(inputTensor);
+                    if(inputTensorOp->getOpType() == "DMATask")
+                        inputTensorOp->set<unsigned>("schedulingNumber", schedulingNumbers[currentIndex++]);
+                }
+            }
+            else if(taskOp == "DepthwiseConv")
+            {
+                std::vector<unsigned> schedulingNumbers;
+
+                if(inputFlag)
+                {
+                    auto inputTensor = op->getInputTensor(0);
+                    auto inputTensorOp = om.getSourceOp(inputTensor);
+                    if(inputTensorOp->getOpType() == "DMATask")
+                        schedulingNumbers.push_back(inputTensorOp->get<unsigned>("schedulingNumber"));
+
+                }
+
+                auto weightsTensor = op->getInputTensor(1);
+                auto weightsOp = om.getSourceOp(weightsTensor);
+                schedulingNumbers.push_back(weightsOp->get<unsigned>("schedulingNumber"));
+                auto weightsTableOp = om.getSourceOp(op->getInputTensor(op->get<std::size_t>("weightsTableIndex")));
+                schedulingNumbers.push_back(weightsTableOp->get<unsigned>("schedulingNumber"));
+
+                auto weightsSparsityMapOp = om.getSourceOp(op->getInputTensor(op->get<std::size_t>("fakeSparsityIndex")));
+                schedulingNumbers.push_back(weightsSparsityMapOp->get<unsigned>("schedulingNumber"));
+
+                std::sort(schedulingNumbers.begin(), schedulingNumbers.end());
+                unsigned currentIndex = 0;
+                weightsOp->set<unsigned>("schedulingNumber", schedulingNumbers[currentIndex++]);
+
+                if(inputFlag)
+                {
+                    auto inputTensor = op->getInputTensor(0);
+                    auto inputTensorOp = om.getSourceOp(inputTensor);
+                    if(inputTensorOp->getOpType() == "DMATask")
+                        inputTensorOp->set<unsigned>("schedulingNumber", schedulingNumbers[currentIndex++]);
+                }
+
+                weightsSparsityMapOp->set<unsigned>("schedulingNumber", schedulingNumbers[currentIndex++]);
+                weightsTableOp->set<unsigned>("schedulingNumber", schedulingNumbers[currentIndex++]);
+
+            }
+        }
+    }
+
+}
+
+void hackExecutionScheduleFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element&, mv::Element &)
+{
+
+    auto globalParams = model.getGlobalConfigParams();
+    if (!globalParams->hasAttr("schedule_helper_indices"))
+    {
+        pass.log(mv::Logger::MessageType::Info, "No schedule helper indices provided");
+        return;
+    }
+
+    auto addressList = globalParams->get<std::vector<mv::Element>>("schedule_helper_indices");
+    for (auto e : addressList)
+    {
+        std::string& name = e.get<std::string>("name_filter");
+        int64_t address = e.get<int>("index");
+        try
+        {
+            auto opIt = model.getOp(name);
+            opIt->set<unsigned>("schedulingNumber", address);
+        }
+        catch (mv::ArgumentError error)
+        {
+            std::cout << error.what() << std::endl;
+        }
 
     }
 }
@@ -227,8 +374,10 @@ bool generateSchedulingRecursively(mv::ComputationModel& model, std::unordered_s
     return false;
 }
 
-void generateSchedulingFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+void generateSchedulingFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::ControlModel cm(model);
 
     auto barrierTasks = model.getOps("BarrierTask");
@@ -268,8 +417,10 @@ void generateSchedulingFcn(const mv::pass::PassEntry&, mv::ComputationModel& mod
 
 }
 
-void barrierIndexAssignmentFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+void barrierIndexAssignmentFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::ControlModel cm(model);
     mv::OpModel om(model);
 
@@ -296,8 +447,10 @@ void barrierIndexAssignmentFcn(const mv::pass::PassEntry&, mv::ComputationModel&
     }
 }
 
-void storeBarriersNamesInTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+void storeBarriersNamesInTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);
 
     auto barrierTasks = om.getOps("BarrierTask");
@@ -329,8 +482,10 @@ void storeBarriersNamesInTasksFcn(const mv::pass::PassEntry&, mv::ComputationMod
     }
 }
 
-void updateBarrierRefsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+void updateBarrierRefsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);
     mv::ControlModel cm(model);
 
@@ -363,9 +518,12 @@ void updateBarrierRefsFcn(const mv::pass::PassEntry&, mv::ComputationModel& mode
     }
 }
 
+// DEPRECATED
 // NEEDS TO BE UPDATED WHEN MERGING WITH MULTICLUSTER
-void updateCountsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+void updateCountsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);
 
     auto barrierTasks = om.getOps("BarrierTask");

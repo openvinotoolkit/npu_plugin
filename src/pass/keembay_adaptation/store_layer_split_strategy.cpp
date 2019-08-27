@@ -5,8 +5,8 @@
 #include "meta/include/mcm/op_model.hpp"
 #include <regex>
 
-static void storeLayerSplitStrategyFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
-static void storeTensorPlacementFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&,mv::json::Object&);
+static void storeLayerSplitStrategyFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+static void storeTensorPlacementFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 
 namespace mv
 {
@@ -17,7 +17,7 @@ namespace mv
         MV_REGISTER_PASS(StoreLayerSplitStrategy)
         .setFunc(storeLayerSplitStrategyFcn)
         .setDescription(
-            "This pass applies tensor splitting strategies."
+            "This pass applies layer splitting strategies."
         );
 
         MV_REGISTER_PASS(StoreTensorPlacement)
@@ -28,21 +28,21 @@ namespace mv
     }
 }
 
-void storeStrategy(mv::Data::OpListIterator& it, int numClusters, std::vector<mv::Element>& strategyList)
+void storeStrategy(mv::Data::OpListIterator& it, std::vector<mv::Element>& strategyList)
 {
     for (auto s: strategyList)
     {
         std::string& name_filter = s.get<std::string>("name_filter");
         std::regex exp(name_filter);
         if (std::regex_match(it->getName(), exp))
-        {
             it->set<std::string>("splitStrategy", s.get<std::string>("strategy"));
-        }
     }
 }
 
-void storeLayerSplitStrategyFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+void storeLayerSplitStrategyFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     auto globalParams = model.getGlobalConfigParams();
 
     if (!globalParams->hasAttr("split_strategy"))
@@ -52,15 +52,14 @@ void storeLayerSplitStrategyFcn(const mv::pass::PassEntry& pass, mv::Computation
     }
 
     auto strategyList = globalParams->get<std::vector<mv::Element>>("split_strategy");
-    auto numClusters = globalParams->get("Number_of_Clusters");
 
     mv::OpModel om(model);
 
     for (auto opIt = om.opBegin(); opIt != om.opEnd(); ++opIt)
     {
         auto opType = opIt->getOpType();
-        if (!(opType == "Input" || opType == "Output"))
-            storeStrategy(opIt, numClusters, strategyList);
+        if (!(opType == "Output"))
+            storeStrategy(opIt, strategyList);
     }
 
     pass.log(mv::Logger::MessageType::Info, "----splitting strategies for individual layers----");
@@ -77,8 +76,11 @@ void storeLayerSplitStrategyFcn(const mv::pass::PassEntry& pass, mv::Computation
 void storeTensorPlacementFcn(const mv::pass::PassEntry& pass,
                                 mv::ComputationModel& model,
                                 mv::TargetDescriptor&,
-                                mv::Element&,mv::json::Object&)
+                                mv::Element&,
+                                mv::Element&)
 {
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     //mv::Logger::setVerboseLevel(mv::VerboseLevel::Debug);
 
     auto globalParams = model.getGlobalConfigParams();

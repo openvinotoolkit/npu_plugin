@@ -1,8 +1,7 @@
 cmake_minimum_required(VERSION 3.5.0)
 project(mcmComplier VERSION 0.0.1)
 
-add_executable(gen_composition_api gen_composition_api.cpp)
-target_link_libraries(gen_composition_api corebase metis)
+add_executable(gen_composition_api gen_composition_api.cpp ${base} ${logger})
 
 file(MAKE_DIRECTORY ${CMAKE_SOURCE_DIR}/meta/include/mcm ${CMAKE_SOURCE_DIR}/meta/src/)
 
@@ -47,4 +46,7 @@ else()
 		${CMAKE_SOURCE_DIR}/meta/src/recorded_compositional_model.cpp
 	)
 	target_link_libraries(metamodel model)
+	if(${PROFILER})
+		target_link_libraries(metamodel easy_profiler)
+	endif()
 endif(MSVC)

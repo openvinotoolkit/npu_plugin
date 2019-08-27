@@ -19,7 +19,7 @@ TEST(GlobalConfigParams, case_read)
     testPassDesc.set("test_int", 2);
 
     mv::TargetDescriptor dummyTargDesc;
-    mv::json::Object compOutput;
+    mv::Element compOutput("CompilationOutput");
     mv::pass::PassRegistry::instance().find("GlobalConfigParams")->run(om, dummyTargDesc, testPassDesc, compOutput);
     
     // Check global params
@@ -46,7 +46,7 @@ TEST(GlobalConfigParams, case_readlast)
 
     mv::TargetDescriptor dummyTargDesc;
     dummyTargDesc.setTarget(mv::Target::ma2490);
-    mv::json::Object compOutput;
+    mv::Element compOutput("CompilationOutput");
     mv::pass::PassRegistry::instance().find("GlobalConfigParams")->run(om, dummyTargDesc, testPassDesc, compOutput);
 
     //run another pass to see if config is still correct after

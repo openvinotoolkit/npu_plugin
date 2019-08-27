@@ -3,6 +3,8 @@
 
 #include "include/mcm/graph/graph.hpp"
 #include <unordered_map>
+#include "include/mcm/compiler/compilation_profiler.hpp"
+
 namespace mv
 {
     /*  
@@ -17,6 +19,7 @@ namespace mv
     bool isDAG(graph<T_node, T_edge>& g)
     {
 
+        MV_PROFILED_FUNCTION(MV_PROFILE_ALGO)
         // Stores if the node is explored
         std::unordered_map<int,bool> explored;
         // Stores the state of the stack (which node being processed)

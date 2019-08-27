@@ -10,6 +10,7 @@
 #include <map>
 #include "include/mcm/graph/graph.hpp"
 #include "include/mcm/algorithms/dijkstra.hpp"
+#include "include/mcm/compiler/compilation_profiler.hpp"
 
 namespace mv
 {
@@ -17,6 +18,7 @@ namespace mv
     template <typename T_node, typename T_edge, typename T_node_iterator_comp, typename T_edge_iterator_comp>
     std::vector<typename graph<T_node, T_edge>::edge_list_iterator> critical_path(graph<T_node, T_edge>& g, typename graph<T_node, T_edge>::node_list_iterator source, typename graph<T_node, T_edge>::node_list_iterator sink, const std::map<typename graph<T_node, T_edge>::node_list_iterator, unsigned, T_node_iterator_comp>& nodeCosts, std::map<typename graph<T_node, T_edge>::edge_list_iterator, unsigned, T_edge_iterator_comp> edgeCosts = std::map<typename graph<T_node, T_edge>::edge_list_iterator, unsigned, T_edge_iterator_comp>())
     {
+        MV_PROFILED_FUNCTION(MV_PROFILE_ALGO)
         for(auto mapIt: nodeCosts)
         {
             auto nodeIt = mapIt.first;
