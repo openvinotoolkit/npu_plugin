@@ -61,6 +61,8 @@ public:
         }
     }
 
+    void GetMetric(const std::string &name, InferenceEngine::Parameter &result, InferenceEngine::ResponseDesc *resp) const override;
+
     InferenceEngine::InferRequestInternal::Ptr CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
                                                                       InferenceEngine::OutputsDataMap networkOutputs) override {
         return std::make_shared<KmbInferRequest>(networkInputs, networkOutputs,
@@ -106,6 +108,7 @@ private:
     std::vector<char> _graphBlob;
     std::vector<StageMetaInfo> _stagesMetaData;
     std::shared_ptr<KmbConfig> _config;
+    std::vector<std::string> _supportedMetrics;
 
     const size_t _maxTaskExecutorGetResultCount = 1;
     std::queue<std::string> _taskExecutorGetResultIds;
