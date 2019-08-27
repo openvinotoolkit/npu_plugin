@@ -9,7 +9,7 @@
 static void GraphParameterOptimizationFcn(const mv::pass::PassEntry& pass,
                                     mv::ComputationModel& model,
                                     mv::TargetDescriptor&, mv::Element& passDesc,
-                                    mv::json::Object&);
+                                    mv::Element&);
 
 namespace mv {
 namespace pass {
@@ -725,7 +725,7 @@ public:
 static void GraphParameterOptimizationFcn(const mv::pass::PassEntry& pass,
                                     mv::ComputationModel& model,
                                     mv::TargetDescriptor&, mv::Element& passDesc,
-                                    mv::json::Object&)
+                                    mv::Element&)
 {
 
     mv::OpModel om(model);
