@@ -196,12 +196,10 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     toBuild->data = std::unique_ptr<MVCNN::IndirectDataReferenceT>(new MVCNN::IndirectDataReferenceT());
     if (*tensorAllocatorName == "GraphFile")
     {
-        toBuild->data->data_index = t->get<unsigned>("graphFileIndex");
-        // No need to set sparsity_index for tensor stored in graphfile
-//        auto strides = tensorBufferIt->getStrides();
-//        toBuild->leading_offset = strides[0] / tensorBufferIt->getDataTypeSize(); //for some reason we get double the value, for now take the proper one.
-//        toBuild->trailing_offset = strides[strides.size()-1] + tensorBufferIt->getPostAlign();
-//        toBuild->trailing_offset = toBuild->trailing_offset / tensorBufferIt->getDataTypeSize();
+        toBuild->data->data_index = 0;
+        unsigned graphfileIndex = t->get<unsigned>("graphFileIndex");
+        toBuild->locale_index = std::vector<unsigned int>(1);
+        toBuild->locale_index[0] = graphfileIndex;
     }
     else if(*tensorAllocatorName == "ProgrammableInput" || *tensorAllocatorName == "ProgrammableOutput")
     {
@@ -322,16 +320,15 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     toBuild->data = std::unique_ptr<MVCNN::IndirectDataReferenceT>(new MVCNN::IndirectDataReferenceT());
     if (*tensorAllocatorName == "GraphFile")
     {
-        toBuild->data->data_index = t->get<unsigned>("graphFileIndex");
-
-        //No slice for tensors stored in graphfile
-        toBuild->locale_index = std::vector<unsigned int>(1,0);
+        unsigned graphfileIndex = t->get<unsigned>("graphFileIndex");
+        toBuild->locale_index = std::vector<unsigned int>(1);
+        toBuild->locale_index[0] = graphfileIndex;
         // No need to set sparsity_index for tensor stored in graphfile
         auto offset = subtensor.get<std::vector<std::size_t>>("offset");
         auto index = subtensor.getOrder().subToInd(t->getShape(), offset);
         auto byte_index = index * t->getDType().getSizeInBits() / 8;
 
-        toBuild->leading_offset = byte_index;
+        toBuild->data->data_index = byte_index;
     }
     else if(*tensorAllocatorName == "ProgrammableInput" || *tensorAllocatorName == "ProgrammableOutput" || *tensorAllocatorName == "VPU_DDR_BSS" || *tensorAllocatorName == "VPU_DDR_Heap")
     {
