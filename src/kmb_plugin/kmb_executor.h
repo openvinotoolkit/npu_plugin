@@ -67,6 +67,9 @@ class KmbExecutor {
     std::shared_ptr<KmbAllocator> allocator;
     void initVpualObjects();
 
+    int xlinkChannelIn;
+    int xlinkChannelOut;
+
 public:
     KmbExecutor(const Logger::Ptr& log, const std::shared_ptr<KmbConfig>& config);
     ~KmbExecutor() = default;
