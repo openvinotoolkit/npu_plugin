@@ -206,6 +206,7 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
         toBuild->data->data_index = 0;
         auto strides = tensorBufferIt->getStrides();
         auto leading_offset = strides[0] / tensorBufferIt->getDataTypeSize();
+        toBuild->locale_index = std::vector<unsigned int>(1,0);
         if (leading_offset)
             toBuild->data->data_index += leading_offset;
         // No need to set sparsity_index for input/output tensor of the network
@@ -214,6 +215,7 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     {
         auto strides = tensorBufferIt->getStrides();
         auto leading_offset = strides[0] / tensorBufferIt->getDataTypeSize(); //for some reason we get double the value, for now take the proper one.
+        toBuild->locale_index = std::vector<unsigned int>(1,0);
 
         // This part is for concat
         toBuild->data->data_index = tensorBufferIt->getOffset();
@@ -247,7 +249,6 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     toBuild->locale = convertAllocatorToMemoryLocale(*tensorAllocatorName);
 
     // NOTE: Will probably change in the future
-    toBuild->locale_index = std::vector<unsigned int>(1,0);
 
     toBuild->data_dtype = convertDtype(t->getDType());
 
