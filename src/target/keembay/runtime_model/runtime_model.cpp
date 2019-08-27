@@ -1603,39 +1603,37 @@ void mv::RuntimeModel::buildGraphFile(ComputationModel& cm, mv::Element& compila
 
 }
 
-char * mv::RuntimeModel::serialize(int& bufferSize)
+void mv::RuntimeModel::serialize()
 {
     flatbuffers::FlatBufferBuilder fbb;
     auto offset = MVCNN::CreateGraphFile(fbb, &graphFile_);
     MVCNN::FinishGraphFileBuffer(fbb, offset);
-    bufferSize = fbb.GetSize();
-    char * buffer = new char[bufferSize];
-    std::memcpy(buffer, (char*)fbb.GetBufferPointer(), bufferSize);
-    return buffer;
+    binaryBuffer_.bufferLength = fbb.GetSize();
+    binaryBuffer_.binarydata = std::shared_ptr<char>(new char[binaryBuffer_.bufferLength]);
+    std::memcpy(binaryBuffer_.binarydata.get(), (char*)fbb.GetBufferPointer(), binaryBuffer_.bufferLength);
 }
 
 void mv::RuntimeModel::serialize(const std::string& filename)
 {
-    int bufferSize;
-    char * dataBuffer = serialize(bufferSize);
-    if (flatbuffers::SaveFile((filename).c_str(), dataBuffer, bufferSize, true))
+    serialize();
+    if (flatbuffers::SaveFile((filename).c_str(), binaryBuffer_.binarydata.get(), binaryBuffer_.bufferLength, true))
         Logger::log(mv::Logger::MessageType::Info, "RuntimeModel", "File successfully written to: " + filename);
     else
         Logger::log(mv::Logger::MessageType::Error, "RuntimeModel", "File was not created. Check configuration");
-    delete [] dataBuffer;
 }
 
 void mv::RuntimeModel::deserialize(const std::string& path)
 {
     std::ifstream ifs(path.c_str(), std::ifstream::binary|std::ifstream::in);
     ifs.seekg(0, std::ios::end);
-    int length = ifs.tellg();
+    binaryBuffer_.bufferLength = ifs.tellg();
     ifs.seekg(0, std::ios::beg);
-    char * dataBuffer = new char[length];
-    ifs.read(dataBuffer, length);
+
+    binaryBuffer_.binarydata = std::shared_ptr<char>(new char[binaryBuffer_.bufferLength]);
+
+    ifs.read(binaryBuffer_.binarydata.get(), binaryBuffer_.bufferLength);
     ifs.close();
-    deserialize(dataBuffer, length);
-    delete [] dataBuffer;
+    deserialize(binaryBuffer_.binarydata.get(), binaryBuffer_.bufferLength);
 }
 
 void mv::RuntimeModel::deserialize(char * dataBuffer, int length)
@@ -1646,4 +1644,9 @@ void mv::RuntimeModel::deserialize(char * dataBuffer, int length)
     Logger::log(mv::Logger::MessageType::Info, "RuntimeModel", "GraphFile verification successful");
     const MVCNN::GraphFile *graphPtr = MVCNN::GetGraphFile(dataBuffer);
     graphPtr->UnPackTo(&graphFile_);
+}
+
+mv::BlobBinary mv::RuntimeModel::getBlob()
+{
+    return binaryBuffer_;
 }

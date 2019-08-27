@@ -10,7 +10,7 @@ mv::CompilationUnit::CompilationUnit(const std::string& modelName) :
 model_(new OpModel(modelName)),
 recordedModel_(new RecordedCompositionalModel(*model_, compositionalModelRecordingsPath_))
 {
-    MV_PROFILER_START; 
+    MV_PROFILER_START;
 }
 
 /*void mv::CompilationUnit::loadModelFromJson(const std::string &path)
@@ -44,7 +44,7 @@ recordedModel_(new RecordedCompositionalModel(*model_, compositionalModelRecordi
 mv::CompilationUnit::~CompilationUnit()
 {
     MV_PROFILER_FINISH("profiler_output.prof");
-	delete model_;
+    delete model_;
     delete recordedModel_;
 }
 
@@ -194,10 +194,10 @@ mv::Element mv::CompilationUnit::run()
         MV_PROFILED_VARIABLE(populatedSize, MV_PROFILER_COLOR_ORANGE);
         MV_PROFILED_VARIABLE(unpopulatedSize, MV_PROFILER_COLOR_LIME);
         #endif
-        
+
         output = passManager_.step();
     }
-    
+
     return output;
 }
 
@@ -209,4 +209,10 @@ bool mv::CompilationUnit::completed() const
 std::string mv::CompilationUnit::getLogID() const
 {
     return "CompilationUnit";
+}
+
+mv::BlobBinary mv::CompilationUnit::getBlob() const
+{
+    mv::RuntimeModel& rm = mv::RuntimeModel::getInstance();
+    return rm.getBlob();
 }
