@@ -8,11 +8,9 @@
 #include "include/mcm/pass/pass_utils.hpp"
 #include <math.h>
 
-static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
-static void splitOverHWeightsSparsityMapsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
-static void generateSparsityMapsUnpopulatedTensorsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
+static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+static void generateSparsityMapsUnpopulatedTensorsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void sparseWeights(mv::Data::TensorIterator& weightsTensor, mv::ComputationModel& model);
-
 
 namespace mv
 {
@@ -30,13 +28,6 @@ namespace mv
         .setDescription(
             "Generates sparsity maps for unpopulated tensors."
         );
-
-        MV_REGISTER_PASS(SplitOverHWeightsSparsityMaps)
-        .setFunc(splitOverHWeightsSparsityMapsFcn)
-        .setDescription(
-            "Generates sparsity maps for weights in case of SplittingOverH kernel greater than 1."
-        );
-
     }
 }
 
@@ -88,8 +79,12 @@ std::vector<int8_t> createBitPattern(uint16_t kernelW, uint16_t kernelH, uint16_
     return bitpattern;
 }
 
-static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::json::Object&)
+// The sparsity maps relative to populated tensors have to be generated BEFORE the dma passes.
+// As they have to be DMAed into CMX.
+static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&)
 {
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);
 
     auto globalConfigParams = model.getGlobalConfigParams();
@@ -205,6 +200,30 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
     }
 }
 
+bool checkA0SOHSparsityBug(mv::Data::FlowListIterator flow)
+{
+    auto sink = flow.sink();
+    auto tensor = flow->getTensor();
+
+    if(!tensor->isPopulated())
+    {
+        if(sink->hasAttr("splitStrategy"))
+        {
+            std::string splitStrategy = sink->get<std::string>("splitStrategy");
+
+            if(splitStrategy == "SplitOverH" &&
+               sink->getOpType() == "DPUTask" &&
+               sink->get<std::string>("taskOp") == "Conv" &&
+               (sink->get<std::array<unsigned short, 2>>("kSize")[0] > 1 ||
+                sink->get<std::array<unsigned short, 2>>("kSize")[1] > 1))
+
+                return true;
+        }
+    }
+    return false;
+}
+
+
 
 // Result of chat with Alessandro:
 // An activation tensor can be sparse if and only if
@@ -219,8 +238,10 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
 
 // Eltwise, being the hackiest operation ever, potentially can support sparsity input, sharing the IDU with ZMajorConv, but the runtime currently doesn't allow it.
 
-static void generateSparsityMapsUnpopulatedTensorsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::json::Object&)
+static void generateSparsityMapsUnpopulatedTensorsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&)
 {
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::DataModel dm(model);
 
     auto globalConfigParams = model.getGlobalConfigParams();
@@ -240,43 +261,8 @@ static void generateSparsityMapsUnpopulatedTensorsFcn(const mv::pass::PassEntry&
         }
         else
         {
-            if(!tensor->isPopulated())
-                if((sink->hasAttr("splitStrategy") && sink->get<std::string>("splitStrategy") == "SplitOverH" && sink->getOpType() == "DPUTask" && sink->get<std::string>("taskOp") == "Conv")&&
-                    (source->hasAttr("splitStrategy") && source->get<std::string>("splitStrategy") == "SplitOverH" && source->getOpType() == "DPUTask" && source->get<std::string>("taskOp") == "Conv"))
-                    if(sink->get<std::array<unsigned short, 2>>("kSize")[0] > 1 || source->get<std::array<unsigned short, 2>>("kSize")[0] > 1)
-                        tensor->setSparse();
-        }
-    }
-}
-
-static void splitOverHWeightsSparsityMapsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::json::Object&)
-{
-    mv::DataModel dm(model);
-    mv::OpModel om(model);
-
-    for(auto dataFlow = dm.flowBegin(); dataFlow != dm.flowEnd(); ++dataFlow)
-    {
-        auto source = dataFlow.source();
-        auto sink = dataFlow.sink();
-        auto tensor = dataFlow->getTensor();
-
-        if((sink->hasAttr("splitStrategy") && sink->get<std::string>("splitStrategy") == "SplitOverH" && sink->getOpType() == "DPUTask" && sink->get<std::string>("taskOp") == "Conv")&&
-           (source->hasAttr("splitStrategy") && source->get<std::string>("splitStrategy") == "SplitOverH" && source->getOpType() == "DPUTask" && source->get<std::string>("taskOp") == "Conv"))
-        {
-            if(sink->hasAttr("kSize") && sink->get<std::array<unsigned short, 2>>("kSize")[0] > 1)
-            {
-                auto prevWeightsTensor = source->getInputTensor(1);
-                sparseWeights(prevWeightsTensor, model);
-                auto nextWeightsTensor = sink->getInputTensor(1);
-                sparseWeights(nextWeightsTensor, model);
-            }
-            else if (source->hasAttr("kSize") && source->get<std::array<unsigned short, 2>>("kSize")[0] > 1)
-            {
-                auto prevWeightsTensor = source->getInputTensor(1);
-                sparseWeights(prevWeightsTensor, model);
-                auto nextWeightsTensor = sink->getInputTensor(1);
-                sparseWeights(nextWeightsTensor, model);
-            }
+            if(checkA0SOHSparsityBug(dataFlow))
+                tensor->setSparse();
         }
     }
 }
@@ -298,8 +284,7 @@ static void sparseWeights(mv::Data::TensorIterator& weightsTensor, mv::Computati
         auto sparsityMapOp = om.getSourceOp(sparsityMap);
         auto weights = om.getSourceOp(weightsTensor);
 
-        //Necessary hack because we want to put the sparse flag on the constant operation
-        weights.leftmostParent()->set<bool>("sparse", true);
+        weights->set<bool>("sparse", true);
         sparsityMapOp->set<unsigned>("opId", weights->get<unsigned>("opId"));
         auto outputFlows = mv::getOutputDataFlow(om, weights, false);
         for(auto& output: outputFlows)

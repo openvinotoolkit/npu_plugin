@@ -22,300 +22,264 @@
                 "mpe_mode" : "Vector",
                 "split_strategy" :
                 [
-                    {
-                        "name_filter": ".*input#.*",
+
+                    {   "name_filter":".*input#.*",
                         "strategy": "SplitOverHOverlapped"
                     },
                     {
-                        "name_filter":".*conv1#.*",
+                        "name_filter":".*Conv/Relu6#.*",
                         "strategy": "SplitOverH"
                     },
                     {
-                        "name_filter":".*pool1/max_pool#.*",
+                        "name_filter":".*expanded_conv/depthwise/Relu6#.*",
                         "strategy": "SplitOverH"
                     },
                     {
-                        "name_filter":".*res2a_branch1#.*",
+                        "name_filter":".*expanded_conv/project/BatchNorm/FusedBatchNorm/BiasAdd#.*",
                         "strategy": "SplitOverH"
                     },
                     {
-                        "name_filter":".*res2a_branch2a#.*",
+                        "name_filter":".*expanded_conv_1/expand/Relu6#.*",
                         "strategy": "SplitOverH"
                     },
                     {
-                        "name_filter":".*res2a_branch2b#.*",
+                        "name_filter":".*expanded_conv_1/depthwise/Relu6#.*",
                         "strategy": "SplitOverH"
                     },
                     {
-                        "name_filter":".*res2a_branch2c#.*",
+                        "name_filter":".*expanded_conv_1/project/BatchNorm/FusedBatchNorm/BiasAdd#.*",
                         "strategy": "SplitOverH"
                     },
                     {
-                        "name_filter":".*res2a/Relu#.*",
+                        "name_filter":".*expanded_conv_2/depthwise/Relu6#.*",
                         "strategy": "SplitOverH"
                     },
                     {
-                        "name_filter":".*res2b_branch2a#.*",
+                        "name_filter":".*expanded_conv_2/depthwise/Relu6_1#.*",
                         "strategy": "SplitOverH"
                     },
                     {
-                        "name_filter":".*res2b_branch2b#.*",
+                        "name_filter":".*expanded_conv_2/project/BatchNorm/FusedBatchNorm/BiasAdd#.*",
                         "strategy": "SplitOverH"
                     },
                     {
-                        "name_filter":".*res2b_branch2c#.*",
+                        "name_filter":".*expanded_conv_2/add/Add#.*",
                         "strategy": "SplitOverH"
                     },
                     {
-                        "name_filter":".*res2b/Relu#.*",
+                        "name_filter":".*expanded_conv_3/expand/Relu6#.*",
                         "strategy": "SplitOverH"
                     },
                     {
-                        "name_filter":".*res2c_branch2a#.*",
+                        "name_filter":".*expanded_conv_3/depthwise/Relu6#.*",
                         "strategy": "SplitOverH"
                     },
                     {
-                        "name_filter":".*res2c_branch2b#.*",
+                        "name_filter":".*expanded_conv_3/project/BatchNorm/FusedBatchNorm/BiasAdd#.*",
                         "strategy": "SplitOverH"
                     },
                     {
-                        "name_filter":".*res2c_branch2c#.*",
+                        "name_filter":".*expanded_conv_4/expand/Relu6#.*",
                         "strategy": "SplitOverH"
                     },
                     {
-                        "name_filter":".*res2c/Relu#.*",
+                        "name_filter":".*expanded_conv_4/depthwise/Relu6#.*",
                         "strategy": "SplitOverH"
                     },
                     {
-                        "name_filter":".*res3a_branch1#.*",
+                        "name_filter":".*expanded_conv_4/project/BatchNorm/FusedBatchNorm/BiasAdd#.*",
                         "strategy": "SplitOverH"
                     },
                     {
-                        "name_filter":".*res3a_branch2a#.*",
+                        "name_filter":".*expanded_conv_4/add/Add#.*",
                         "strategy": "SplitOverH"
                     },
                     {
-                        "name_filter":".*res3a_branch2b#.*",
+                        "name_filter":".*expanded_conv_5/expand/Relu6#.*",
                         "strategy": "SplitOverH"
                     },
                     {
-                        "name_filter":".*res3a_branch2c#.*",
+                        "name_filter":".*expanded_conv_5/depthwise/Relu6#.*",
                         "strategy": "SplitOverH"
                     },
                     {
-                        "name_filter":".*res3a/Relu#.*",
+                        "name_filter":".*expanded_conv_5/project/BatchNorm/FusedBatchNorm/BiasAdd#.*",
                         "strategy": "SplitOverH"
                     },
                     {
-                        "name_filter":".*res3b_branch2a#.*",
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter":".*res3b_branch2b#.*",
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter":".*res3b_branch2c#.*",
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter":".*res3b/Relu#.*",
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter":".*res3c_branch2a#.*",
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter":".*res3c_branch2b#.*",
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter":".*res3c_branch2c#.*",
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter":".*res3c/Relu#.*",
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter":".*res3d_branch2a#.*",
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter":".*res3d_branch2b#.*",
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter":".*res3d_branch2c#.*",
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter": ".*res3d/Relu#.*",
+                        "name_filter":".*expanded_conv_5/add/Add#.*",
                         "strategy": "HKSwitch"
                     },
                     {
-                        "name_filter":".*res4a_branch1#.*",
+                        "name_filter":".*expanded_conv_6/expand/Relu6#.*",
                         "strategy": "SplitOverK"
                     },
                     {
-                        "name_filter":".*res4a_branch2a#.*",
+                        "name_filter":".*expanded_conv_6/depthwise/Relu6#.*",
                         "strategy": "SplitOverK"
                     },
                     {
-                        "name_filter":".*res4a_branch2b#.*",
+                        "name_filter":".*expanded_conv_6/project/BatchNorm/FusedBatchNorm/BiasAdd#.*",
                         "strategy": "SplitOverK"
                     },
                     {
-                        "name_filter":".*res4a_branch2c#.*",
+                        "name_filter":".*expanded_conv_7/expand/Relu6#.*",
                         "strategy": "SplitOverK"
                     },
                     {
-                        "name_filter":".*res4a/Relu#.*",
+                        "name_filter":".*expanded_conv_7/depthwise/Relu6#.*",
+                        "strategy": "SplitOverK"
+                    },
+                    {
+                        "name_filter":".*expanded_conv_7/project/BatchNorm/FusedBatchNorm/BiasAdd#.*",
+                        "strategy": "SplitOverK"
+                    },
+                    {
+                        "name_filter":".*expanded_conv_7/add/Add#.*",
                         "strategy": "Clustering"
                     },
                     {
-                        "name_filter":".*res4b_branch2a#.*",
+                        "name_filter":".*expanded_conv_8/expand/Relu6#.*",
                         "strategy": "SplitOverK"
                     },
                     {
-                        "name_filter":".*res4b_branch2b#.*",
+                        "name_filter":".*expanded_conv_8/depthwise/Relu6#.*",
                         "strategy": "SplitOverK"
                     },
                     {
-                        "name_filter":".*res4b_branch2c#.*",
+                        "name_filter":".*expanded_conv_8/project/BatchNorm/FusedBatchNorm/BiasAdd#.*",
                         "strategy": "SplitOverK"
                     },
                     {
-                        "name_filter":".*res4b/Relu#.*",
+                        "name_filter":".*expanded_conv_8/add/Add#.*",
                         "strategy": "Clustering"
                     },
                     {
-                        "name_filter":".*res4c_branch2a#.*",
+                        "name_filter":".*expanded_conv_9/expand/Relu6#.*",
                         "strategy": "SplitOverK"
                     },
                     {
-                        "name_filter":".*res4c_branch2b#.*",
+                        "name_filter":".*expanded_conv_9/depthwise/Relu6#.*",
                         "strategy": "SplitOverK"
                     },
                     {
-                        "name_filter":".*res4c_branch2c#.*",
+                        "name_filter":".*expanded_conv_9/project/BatchNorm/FusedBatchNorm/BiasAdd#.*",
                         "strategy": "SplitOverK"
                     },
                     {
-                        "name_filter":".*res4c/Relu#.*",
+                        "name_filter":".*expanded_conv_9/add/Add#.*",
                         "strategy": "Clustering"
                     },
                     {
-                        "name_filter":".*res4d_branch2a#.*",
+                        "name_filter":".*expanded_conv_10/expand/Relu6#.*",
                         "strategy": "SplitOverK"
                     },
                     {
-                        "name_filter":".*res4d_branch2b#.*",
+                        "name_filter":".*expanded_conv_10/depthwise/Relu6#.*",
                         "strategy": "SplitOverK"
                     },
                     {
-                        "name_filter":".*res4d_branch2c#.*",
+                        "name_filter":".*expanded_conv_10/project/BatchNorm/FusedBatchNorm/BiasAdd#.*",
                         "strategy": "SplitOverK"
                     },
                     {
-                        "name_filter":".*res4d/Relu#.*",
+                        "name_filter":".*expanded_conv_11/expand/Relu6#.*",
+                        "strategy": "SplitOverK"
+                    },
+                    {
+                        "name_filter":".*expanded_conv_11/depthwise/Relu6#.*",
+                        "strategy": "SplitOverK"
+                    },
+                    {
+                        "name_filter":".*expanded_conv_11/project/BatchNorm/FusedBatchNorm/BiasAdd#.*",
+                        "strategy": "SplitOverK"
+                    },
+                    {
+                        "name_filter":".*expanded_conv_11/add/Add#.*",
                         "strategy": "Clustering"
                     },
                     {
-                        "name_filter":".*res4e_branch2a#.*",
+                        "name_filter":".*expanded_conv_12/expand/Relu6#.*",
                         "strategy": "SplitOverK"
                     },
                     {
-                        "name_filter":".*res4e_branch2b#.*",
+                        "name_filter":".*expanded_conv_12/depthwise/Relu6#.*",
                         "strategy": "SplitOverK"
                     },
                     {
-                        "name_filter":".*res4e_branch2c#.*",
+                        "name_filter":".*expanded_conv_12/project/BatchNorm/FusedBatchNorm/BiasAdd#.*",
                         "strategy": "SplitOverK"
                     },
                     {
-                        "name_filter":".*res4e/Relu#.*",
+                        "name_filter":".*expanded_conv_12/add/Add#.*",
                         "strategy": "Clustering"
                     },
                     {
-                        "name_filter":".*res4f_branch2a#.*",
+                        "name_filter":".*expanded_conv_13/expand/Relu6#.*",
                         "strategy": "SplitOverK"
                     },
                     {
-                        "name_filter":".*res4f_branch2b#.*",
+                        "name_filter":".*expanded_conv_13/depthwise/Relu6#.*",
                         "strategy": "SplitOverK"
                     },
                     {
-                        "name_filter":".*res4f_branch2c#.*",
+                        "name_filter":".*expanded_conv_13/project/BatchNorm/FusedBatchNorm/BiasAdd#.*",
                         "strategy": "SplitOverK"
                     },
                     {
-                        "name_filter":".*res4f/Relu#.*",
+                        "name_filter":".*expanded_conv_14/expand/Relu6#.*",
+                        "strategy": "SplitOverK"
+                    },
+                    {
+                        "name_filter":".*expanded_conv_14/depthwise/Relu6#.*",
+                        "strategy": "SplitOverK"
+                    },
+                    {
+                        "name_filter":".*expanded_conv_14/project/BatchNorm/FusedBatchNorm/BiasAdd#.*",
+                        "strategy": "SplitOverK"
+                    },
+                    {
+                        "name_filter":".*expanded_conv_14/add/Add#.*",
                         "strategy": "Clustering"
                     },
                     {
-                        "name_filter":".*res5a_branch1#.*",
+                        "name_filter":".*expanded_conv_15/expand/Relu6#.*",
                         "strategy": "SplitOverK"
                     },
                     {
-                        "name_filter":".*res5a_branch2a#.*",
+                        "name_filter":".*expanded_conv_15/depthwise/Relu6#.*",
                         "strategy": "SplitOverK"
                     },
                     {
-                        "name_filter":".*res5a_branch2b#.*",
+                        "name_filter":".*expanded_conv_15/project/BatchNorm/FusedBatchNorm/BiasAdd#.*",
                         "strategy": "SplitOverK"
                     },
                     {
-                        "name_filter":".*res5a_branch2c#.*",
-                        "strategy": "SplitOverK"
-                    },
-                    {
-                        "name_filter":".*res5a/Relu#.*",
+                        "name_filter":".*expanded_conv_15/add/Add#.*",
                         "strategy": "Clustering"
                     },
                     {
-                        "name_filter":".*res5b_branch2a#.*",
+                        "name_filter":".*expanded_conv_16/expand/Relu6#.*",
                         "strategy": "SplitOverK"
                     },
                     {
-                        "name_filter":".*res5b_branch2b#.*",
+                        "name_filter":".*expanded_conv_16/depthwise/Relu6#.*",
                         "strategy": "SplitOverK"
                     },
                     {
-                        "name_filter":".*res5b_branch2c#.*",
+                        "name_filter":".*expanded_conv_16/project/BatchNorm/FusedBatchNorm/BiasAdd#.*",
                         "strategy": "SplitOverK"
                     },
                     {
-                        "name_filter":".*res5b/Relu#.*",
-                        "strategy": "Clustering"
-                    },
-                    {
-                        "name_filter":".*res5c_branch2a#.*",
+                        "name_filter":".*Conv_1/Relu6#.*",
                         "strategy": "SplitOverK"
                     },
                     {
-                        "name_filter":".*res5c_branch2b#.*",
+                        "name_filter":".*Logits/AvgPool/AvgPool#.*",
                         "strategy": "SplitOverK"
                     },
                     {
-                        "name_filter":".*res5c_branch2c#.*",
-                        "strategy": "SplitOverK"
-                    },
-                    {
-                        "name_filter":".*res5c/Relu#.*",
-                        "strategy": "Clustering"
-                    },
-                    {
-                        "name_filter":".*pool5/AvgPool#.*",
-                        "strategy": "SplitOverK"
-                    },
-                    {
-                        "name_filter":".*fc1000/fc1000#.*",
-                        "strategy": "SplitOverK"
-                    },
-                    {
-                        "name_filter":".*output#.*",
+                        "name_filter":".*Logits/Conv2d_1c_1x1/BiasAdd/Logits/Conv2d_1c_1x1/BiasAdd#.*",
                         "strategy": "SplitOverK"
                     }
                 ],
@@ -357,7 +321,6 @@
     },
     "adapt": {
         "Singular": [
-            "FloatLayersToFP16",
             "AverageAsDepthWise",
             "FuseBatchNorm",
             "FuseBias",
@@ -375,7 +338,9 @@
                 "name": "ConvertDot",
                 "input": "output/dots/adapt_model.dot"
             },
+            "StoreLayerSplitStrategy",
             "StreamingTiling",
+            "StreamBinaryDataWeights",
             {
                 "name": "GenerateDot",
                 "output": "output/dots/tiling_model.dot",
@@ -392,46 +357,24 @@
     "keembay_adapt": {
         "Singular": [
             "ConcatAsImplicit",
-            "StoreLayerSplitStrategy",
             "StoreWorkloadStrategy",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/BeforeOpsToTasks.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/BeforeOpsToTasks.dot"
-            },
             "ConvertOpsToTasks",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/AfterOpsToTasks.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/AfterOpsToTasks.dot"
-            },
             "ForceSerialize",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/AfterForceSerializae.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/AfterForceSerializae.dot"
-            },
-            "AlignTo16Channels",
-            "ComputeTensorsQuantParams",
             "KMBOrderConversion",
+            "AlignTo16Channels",
+            "AlignTaskWeights",
+            "GenerateSparsityMapsUnpopulatedTensors",
+            "GenerateSparsityMapsPopulatedTensors",
+            "GenerateWeightsTables",
+            "GenerateEltWiseConstants",
+            "StrategyLayersToTensors",
+            "ComputeTensorsQuantParams",
+            "UpdateImplicitLayersQuantizationParams",
+
+
+            "PopulateWeightsTablesQuantization",
+            "RemoveBiasTensors",
+
             {
                 "name": "GenerateDot",
                 "output": "output/dots/keembay_adapt_model.dot",
@@ -442,19 +385,11 @@
             {
                 "name": "ConvertDot",
                 "input": "output/dots/keembay_adapt_model.dot"
-            },
-            "UpdateImplicitLayersQuantizationParams",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/update_concat_quantization.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/update_concat_quantization.dot"
-            },
+            }
+        ]
+    },
+    "dma": {
+        "Singular" : [
             "SetDpuTasksMemoryLocation",
             {
                 "name": "GenerateDot",
@@ -467,48 +402,6 @@
                 "name": "ConvertDot",
                 "input": "output/dots/dpu_tasks_location.dot"
             },
-            "AlignTaskWeights",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/align_task_weights.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/align_task_weights.dot"
-            },
-            "GenerateWeightsTables",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/keembay_WeightsTable_model.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/keembay_WeightsTable_model.dot"
-            },
-            "GenerateEltWiseConstants",
-            "PopulateWeightsTablesQuantization",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/keembay_EltWiseConstants_model.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/keembay_EltWiseConstants_model.dot"
-            },
-            "RemoveBiasTensors"
-        ]
-    },
-    "dma": {
-        "Singular" : [
             "ResolveImplicitOperations",
             {
                 "name": "GenerateDot",
@@ -532,21 +425,6 @@
             {
                 "name": "ConvertDot",
                 "input": "output/dots/dma_model.dot"
-            },
-            "GenerateSparsityMapsUnpopulatedTensors",
-            "GenerateSparsityMapsPopulatedTensors",
-            "SplitOverHWeightsSparsityMaps",
-            "AddWeightsDMATasks",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/sparsity_model.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/sparsity_model.dot"
             }
         ]
     },
@@ -603,9 +481,12 @@
             {
                 "name": "ConvertDot",
                 "input": "output/dots/cmx2DDRControlFlows.dot"
-            },
-            "StrategyLayersToTensors",
-            "SplittingAcrossClusters",
+            }
+        ]
+    },
+    "finalize": {
+        "Singular": [
+            "SplittingTensorsAcrossClusters",
             "AddDeallocationTasks",
             {
                 "name": "GenerateDot",
@@ -617,14 +498,10 @@
             {
                 "name": "ConvertDot",
                 "input": "output/dots/deallocation_model.dot"
-            }
-        ]
-    },
-    "finalize": {
-        "Singular": [
+            },
             {
                 "name": "TransitiveReduction",
-                "filter": "PositiveMemory"
+                "filter": "MemoryRequirement"
             },
             "MarkLastNodeForMaxTopologicalCut",
             {
@@ -704,11 +581,16 @@
             },
             {
                 "name": "TensorGraphColoring",
-                "output": "output/dots/nnCmx.dot"
+                "cmxOutput": "output/dots/nnCmx.dot",
+                "heapOutput": "output/dots/nnHeap.dot"
             },
             {
                 "name": "ConvertDot",
                 "input": "output/dots/nnCmx.dot"
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/nnHeap.dot"
             },
             "RemoveDeallocationTasks",
             {
@@ -783,7 +665,6 @@
             "CorrectExecutionSchedule",
             "BarrierIndexAssignment",
             "UpdateBarrierRefs",
-            "UpdateBarrierProducerConsumerCounts",
             {
                 "name": "GenerateDot",
                 "output": "output/dots/serial_model.dot",
@@ -806,11 +687,11 @@
         "Singular": [
             {
                 "name": "GenerateBlobKeembay",
-                "output": "output/mcm.blob"
+                "output": "output/mobilenet-multiclustering.blob"
             },
             {
                 "name": "ConvertFlatbuffer",
-                "input": "output/mcm.blob"
+                "input": "output/mobilenet-multiclustering.blob"
             }
 
         ]
@@ -826,9 +707,6 @@
             "finalize",
             "scheduling",
             "serialize"
-        ],
-        "Recurrent": [
-            "validate"
         ]
     }
 }

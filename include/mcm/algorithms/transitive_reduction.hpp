@@ -5,6 +5,7 @@
 #include "include/mcm/algorithms/topological_sort.hpp"
 #include <map>
 #include <vector>
+#include "include/mcm/compiler/compilation_profiler.hpp"
 
 namespace mv
 {
@@ -75,6 +76,7 @@ namespace mv
                 const std::set<typename graph<T_node, T_edge>::edge_list_iterator, EdgeItComparator>&
                 filteredEdges = std::set<typename graph<T_node, T_edge>::edge_list_iterator, EdgeItComparator>())
     {
+        MV_PROFILED_FUNCTION(MV_PROFILE_ALGO)
         // Topological sort in this case also checks if the graph is dag. Hence, no explicit check for DAG is needed here.
         auto sortedNodes = topologicalSort(g);
 

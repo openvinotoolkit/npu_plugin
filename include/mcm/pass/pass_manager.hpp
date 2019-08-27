@@ -25,12 +25,10 @@ namespace mv
         CompilationDescriptor compDescriptor_;
         ComputationModel *model_;
 
-        std::vector<mv::Element> passList_;
-        std::vector<mv::Element>::const_iterator currentPass_;
+        std::vector<Element> passList_;
+        std::vector<Element>::const_iterator currentPass_;
 
-        json::Object compOutput_;
-
-    protected:
+        Element compOutput_;
 
     public:
 
@@ -41,10 +39,10 @@ namespace mv
         bool initialized() const;
         bool completed() const;
         bool validPassArgs() const;
-        json::Object& step();
+        Element& step();
         std::string getLogID() const override;
 
-        void loadPassList(const std::vector<mv::Element>& passList);
+        void loadPassList(const std::vector<Element>& passList);
 
     };
 

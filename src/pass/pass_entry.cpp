@@ -13,7 +13,7 @@ mv::pass::PassEntry& mv::pass::PassEntry::setDescription(const std::string& desc
 }
 
 mv::pass::PassEntry& mv::pass::PassEntry::setFunc(const std::function<void(const PassEntry&, ComputationModel&, TargetDescriptor&, 
-    Element&, json::Object&)>& passFunc)
+    Element&, Element&)>& passFunc)
 {
     passFunc_ = passFunc;
     return *this;
@@ -37,6 +37,12 @@ mv::pass::PassEntry& mv::pass::PassEntry::defineArg(json::JSONType argType, std:
     return *this;
 }
 
+mv::pass::PassEntry& mv::pass::PassEntry::setLabel(const std::string& label)
+{
+    labels_.emplace(label);
+    return *this;
+}
+
 const std::map<std::string, mv::json::JSONType>& mv::pass::PassEntry::getArgs() const
 {
     return requiredArgs_;
@@ -47,7 +53,12 @@ std::size_t mv::pass::PassEntry::argsCount() const
     return requiredArgs_.size();
 }
 
-void mv::pass::PassEntry::run(ComputationModel& model, TargetDescriptor& targetDescriptor, Element& passDescriptor, json::Object& output) const
+bool mv::pass::PassEntry::hasLabel(const std::string& label) const
+{
+    return labels_.find(label) != labels_.end();
+}
+
+void mv::pass::PassEntry::run(ComputationModel& model, TargetDescriptor& targetDescriptor, Element& passDescriptor, Element& output) const
 {
     passFunc_(*this, model, targetDescriptor, passDescriptor, output);
 }

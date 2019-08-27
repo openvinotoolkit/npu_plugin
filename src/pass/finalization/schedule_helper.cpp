@@ -5,9 +5,9 @@
 #include "include/mcm/target/keembay/koala_graph_scheduler.hpp"
 #include <iostream>
 
-static void scheduleHelperPass(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
-static void addressHelperPass(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
-static void graphfileIndexHelperPass(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
+static void scheduleHelperPass(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+static void addressHelperPass(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+static void graphfileIndexHelperPass(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 
 namespace mv
 {
@@ -36,7 +36,7 @@ namespace mv
 
 }
 
-void addressHelperPass(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element&, mv::json::Object&)
+void addressHelperPass(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element&, mv::Element &)
 {
 
     mv::OpModel om(model);
@@ -73,7 +73,7 @@ void addressHelperPass(const mv::pass::PassEntry& pass, mv::ComputationModel& mo
     }
 }
 
-void graphfileIndexHelperPass(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element&, mv::json::Object&)
+void graphfileIndexHelperPass(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element&, mv::Element &)
 {
 
     mv::OpModel om(model);
@@ -107,12 +107,12 @@ void graphfileIndexHelperPass(const mv::pass::PassEntry& pass, mv::ComputationMo
 }
 
 
-void scheduleHelperPass(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element&, mv::json::Object&)
+void scheduleHelperPass(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element&, mv::Element&)
 {
-    
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);
     mv::ControlModel cm(model);
-    
+
     auto globalParams = model.getGlobalConfigParams();
     if (!globalParams->hasAttr("schedule_helper_edges"))
     {
@@ -128,6 +128,6 @@ void scheduleHelperPass(const mv::pass::PassEntry& pass, mv::ComputationModel& m
         pass.log(mv::Logger::MessageType::Debug, "SCHEDULE HELPER adding edge from "+source+" to "+sink);
         auto sourceOp = om.getOp(source);
         auto sinkOp = om.getOp(sink);
-        cm.defineFlow(sourceOp, sinkOp);  
+        cm.defineFlow(sourceOp, sinkOp);
     }
 }

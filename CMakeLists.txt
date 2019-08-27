@@ -20,6 +20,64 @@ endif()
 
 add_compile_options(-std=c++11)
 
+SET(PROFILER FALSE CACHE BOOL "Enable integrated profiler")
+SET(LOG TRUE CACHE BOOL "Enable logger")
+SET(PROFILE_PHASE TRUE CACHE BOOL "Enable profiling at compilation phases level")
+SET(PROFILE_BASE TRUE CACHE BOOL "Enable profiling at base components level")
+SET(PROFILE_PASS TRUE CACHE BOOL "Enable profiling at compilation passes level")
+SET(PROFILE_COMP TRUE CACHE BOOL "Enable profiling at ops composition level")
+SET(PROFILE_ALGO TRUE CACHE BOOL "Enable profiling at internal algorithms level")
+SET(PROFILE_BULD TRUE CACHE BOOL "Enable profiling at building blocks level")
+SET(PROFILE_MATH TRUE CACHE BOOL "Enable profiling at tensor math operations level")
+
+
+if (${LOG})
+    add_definitions(-DMV_LOG_ENABLED)
+endif()
+
+if (${PROFILER})
+
+    if (${UNIX})
+        add_definitions(-DMV_PROFILER_ENABLED)
+        include_directories(${PROJECT_SOURCE_DIR}/contrib/easy_profiler/easy_profiler_core/include)
+        add_subdirectory(contrib/easy_profiler)
+
+        if (${PROFILE_PHASE})
+            add_definitions(-DMV_PROFILE_PHASE_ENABLED)
+        endif()
+
+        if (${PROFILE_BASE})
+            add_definitions(-DMV_PROFILE_BASE_ENABLED)
+        endif()
+
+        if (${PROFILE_PASS})
+            add_definitions(-DMV_PROFILE_PASS_ENABLED)
+        endif()
+
+        if (${PROFILE_COMP})
+            add_definitions(-DMV_PROFILE_COMP_ENABLED)
+        endif()
+
+        if (${PROFILE_ALGO})
+            add_definitions(-DMV_PROFILE_ALGO_ENABLED)
+        endif()
+
+        if (${PROFILE_BULD})
+            add_definitions(-DMV_PROFILE_BULD_ENABLED)
+        endif()
+
+        if (${PROFILE_MATH})
+            add_definitions(-DMV_PROFILE_MATH_ENABLED)
+        endif()
+
+    else()
+
+        message("Ignoring PROFILER=ON flag, profiling only available for Linux/UNIX")
+
+    endif()
+
+endif()
+
 #############################################################################################
 ### Test Coverage - off by default. Pass param CODE_COVERAGE=ON
 ### > cmake -DCODE_COVERAGE=ON -DCMAKE_BUILD_TYPE=Debug ..
@@ -62,6 +120,7 @@ endif()
 include_directories(${PROJECT_SOURCE_DIR})
 include_directories(${PROJECT_SOURCE_DIR}/include)
 include_directories(${PROJECT_SOURCE_DIR}/contrib/flatbuffers/include)
+
 
 if(VALIDATION)
     include_directories("/opt/movidius/caffe/include")
@@ -139,7 +198,7 @@ SET(base
     "${PROJECT_SOURCE_DIR}/src/base/json/string.cpp"
     "${PROJECT_SOURCE_DIR}/src/base/json/value_content.cpp"
     "${PROJECT_SOURCE_DIR}/src/base/json/value.cpp"
-
+    "${PROJECT_SOURCE_DIR}/src/base/json/json.cpp"
     "${PROJECT_SOURCE_DIR}/src/base/attribute_entry.cpp"
     "${PROJECT_SOURCE_DIR}/src/base/attribute_registry.cpp"
     "${PROJECT_SOURCE_DIR}/src/base/binarizable.cpp"
@@ -200,7 +259,6 @@ SET(base
     "${PROJECT_SOURCE_DIR}/src/target/keembay/attribute_def/barrier_deps.cpp"
     "${PROJECT_SOURCE_DIR}/src/target/keembay/attribute_def/dma_direction.cpp"
     "${PROJECT_SOURCE_DIR}/src/target/keembay/attribute_def/workloads.cpp"
-    "${PROJECT_SOURCE_DIR}/src/target/keembay/metisGraphStructure.cpp"
     "${PROJECT_SOURCE_DIR}/src/target/keembay/attribute_def/ppe_task.cpp"
     "${PROJECT_SOURCE_DIR}/src/target/keembay/attribute_def/ppe_fixed_function.cpp"
     "${PROJECT_SOURCE_DIR}/src/target/keembay/tasks/def/barrier_task.cpp"
@@ -210,6 +268,7 @@ SET(base
     "${PROJECT_SOURCE_DIR}/src/target/keembay/tasks/def/placeholder_task.cpp"
     "${PROJECT_SOURCE_DIR}/src/target/keembay/tasks/def/sparsity_map.cpp"
     "${PROJECT_SOURCE_DIR}/src/target/keembay/tasks/def/weights_table.cpp"
+    "${PROJECT_SOURCE_DIR}/src/target/keembay/metisGraphStructure.cpp"
     "${PROJECT_SOURCE_DIR}/src/target/keembay/tasks/def/implicit_concat.cpp"
 
 
@@ -313,14 +372,14 @@ SET(pass
     "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/convert_to_task_graph.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/dpu_task_memory_location.cpp"
 
+    "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/strategy_from_layers_to_tensors.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/keembay_order_conversion.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/insert_barrier_tasks.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/dma_passes.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/deallocation_passes.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/assign_unique_task_id.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/store_layer_split_strategy.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/strategy_from_layers_to_tensors.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/splitting_across_clusters.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/store_layer_split_strategy.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/store_workload_strategy.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/implicit_operation_passes.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/sparsity/sparsity_maps.cpp"
@@ -423,12 +482,13 @@ else()
         add_subdirectory(python/api)
         add_subdirectory(tests)
         add_subdirectory(contrib/googletest)
+        target_link_libraries(cm model)
+
     else()
         add_library(cm SHARED ${base} ${logger} ${pass} ${compiler} ${syscalls})
         add_library(corebase SHARED ${base} ${logger})
         add_library(model SHARED ${model})
-
-
+        target_link_libraries(cm model)
         IF(CMAKE_CROSSCOMPILING)
             #Flatbuffers and Metis not x-compiled yet
             target_link_libraries(cm corebase metamodel)
@@ -451,3 +511,7 @@ IF(NOT CMAKE_CROSSCOMPILING)
     add_subdirectory(schema)
     add_subdirectory(contrib/flatbuffers)
 ENDIF()
+
+if (${PROFILER} AND ${UNIX})
+    target_link_libraries(cm easy_profiler)
+endif()

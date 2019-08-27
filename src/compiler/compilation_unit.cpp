@@ -10,7 +10,7 @@ mv::CompilationUnit::CompilationUnit(const std::string& modelName) :
 model_(new OpModel(modelName)),
 recordedModel_(new RecordedCompositionalModel(*model_, compositionalModelRecordingsPath_))
 {
-
+    MV_PROFILER_START; 
 }
 
 /*void mv::CompilationUnit::loadModelFromJson(const std::string &path)
@@ -43,6 +43,7 @@ recordedModel_(new RecordedCompositionalModel(*model_, compositionalModelRecordi
 
 mv::CompilationUnit::~CompilationUnit()
 {
+    MV_PROFILER_FINISH("profiler_output.prof");
 	delete model_;
     delete recordedModel_;
 }
@@ -159,19 +160,44 @@ bool mv::CompilationUnit::initialize()
 
 }
 
-mv::json::Object mv::CompilationUnit::runStep()
+mv::Element mv::CompilationUnit::runStep()
 {
     return passManager_.step();
 }
 
-mv::json::Object mv::CompilationUnit::run()
+mv::Element mv::CompilationUnit::run()
 {
-    json::Object output;
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_PHASE);
+    Element output("CompilationOutput");
+    output.set<std::string>("ModelName", model_->getName());
     std::vector<mv::Element> passList = compDescriptor_.serializePassList();
     passManager_.loadPassList(passList);
 
     while (!passManager_.completed())
+    {
+        MV_PROFILE_VIRTUAL_MEM;
+        MV_PROFILE_PHYSICAL_MEM;
+        #ifdef MV_PROFILER_ENABLED
+        std::size_t ops = model_->opsCount();
+        std::size_t dataFlows = model_->dataFlowsCount();
+        ControlModel cm(*model_);
+        std::size_t controlFlows = cm.controlFlowsCount();
+        DataModel dm(*model_);
+        std::size_t tensors = dm.tensorsCount();
+        std::size_t populatedSize = dm.populatedTotalSize();
+        std::size_t unpopulatedSize = dm.unpopulatedTotalSize();
+        MV_PROFILED_VARIABLE(ops, MV_PROFILER_COLOR_GREEN);
+        MV_PROFILED_VARIABLE(dataFlows, MV_PROFILER_COLOR_ROSE);
+        MV_PROFILED_VARIABLE(controlFlows, MV_PROFILER_COLOR_RED);
+        MV_PROFILED_VARIABLE(tensors, MV_PROFILER_COLOR_BLUE);
+        MV_PROFILED_VARIABLE(populatedSize, MV_PROFILER_COLOR_ORANGE);
+        MV_PROFILED_VARIABLE(unpopulatedSize, MV_PROFILER_COLOR_LIME);
+        #endif
+        
         output = passManager_.step();
+    }
+    
     return output;
 }
 

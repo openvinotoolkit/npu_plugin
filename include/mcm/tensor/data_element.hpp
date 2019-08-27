@@ -15,7 +15,7 @@ namespace mv
         } data_;
 
     public:
-        DataElement(bool isDouble) : isDouble_(isDouble), data_{0} {};
+        DataElement(bool isDouble) : isDouble_(isDouble), data_{0} {}
         DataElement(bool isDouble, double val);
         DataElement(bool isDouble, int64_t val);
         DataElement(const DataElement& other);
