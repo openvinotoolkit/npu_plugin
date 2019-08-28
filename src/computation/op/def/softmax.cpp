@@ -30,7 +30,7 @@ namespace mv
         {
             auto dTypeToUse = args.at("dType").get<mv::DType>();
             if(dTypeToUse == mv::DType("Default"))
-                dTypeToUse = dTypeToUse;
+                dTypeToUse = inputs[0]->getDType();
             if (args.at("quantParams").get<mv::QuantizationParams>().isEmpty())
                 outputs.push_back(mv::Tensor(":0",  inputs[0]->getShape(), dTypeToUse, inputs[0]->getOrder()));
             else

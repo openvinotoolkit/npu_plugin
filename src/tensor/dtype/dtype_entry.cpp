@@ -1,7 +1,9 @@
 #include "include/mcm/tensor/dtype/dtype_entry.hpp"
 
 mv::DTypeEntry::DTypeEntry(const std::string& name):
-name_(name)
+name_(name),
+size_(0),
+isDoubleType_(false)
 {
 
 }

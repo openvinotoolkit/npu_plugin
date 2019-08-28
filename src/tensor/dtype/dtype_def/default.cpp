@@ -3,5 +3,5 @@
 
 namespace mv
 {
-    MV_REGISTER_DTYPE(Default);
+    MV_RaEGISTER_DTYPE(Default);
 }
