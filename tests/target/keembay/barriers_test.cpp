@@ -3,7 +3,7 @@
 #include "include/mcm/base/attribute_registry.hpp"
 #include "include/mcm/target/keembay/barrier_definition.hpp"
 #include "include/mcm/target/keembay/barrier_deps.hpp"
-#include <unordered_set>
+#include <set>
 #include <string>
 
 TEST(barrier, api)
@@ -21,13 +21,13 @@ TEST(barrier, api)
     ASSERT_TRUE(b.hasProducers());
     ASSERT_TRUE(b.hasConsumers());
 
-    std::unordered_set<std::string> p = b.getProducers();
-    std::unordered_set<std::string> pExpected;
+    std::set<std::string> p = b.getProducers();
+    std::set<std::string> pExpected;
     pExpected.insert("p1");
     ASSERT_EQ(p, pExpected);
 
-    std::unordered_set<std::string> c = b.getConsumers();
-    std::unordered_set<std::string> cExpected;
+    std::set<std::string> c = b.getConsumers();
+    std::set<std::string> cExpected;
     cExpected.insert("c1");
     ASSERT_EQ(c, cExpected);
 
@@ -43,12 +43,12 @@ TEST(barrier, api)
     b.removeConsumer("c1");
     ASSERT_EQ(b.getNumConsumers(), 0);
 
-    std::unordered_set<std::string> pList;
+    std::set<std::string> pList;
     pList.insert("p1");
     pList.insert("p2");
     pList.insert("p3");
 
-    std::unordered_set<std::string> cList;
+    std::set<std::string> cList;
     cList.insert("c1");
     cList.insert("c2");
 
