@@ -35,7 +35,6 @@
 #include <precision_utils.h>
 
 #ifdef ENABLE_MCM_COMPILER
-#include "include/mcm/tensor/quantization_params.hpp"
 
 namespace vpu {
 

@@ -20,12 +20,6 @@ if (ENABLE_MCM_COMPILER)
     MESSAGE(STATUS "************ Enabling MCM compiler ************")
     add_definitions(-DENABLE_MCM_COMPILER)
 
-    find_path(MCM_COMPILER_INCLUDE_PATH "include/mcm/compiler/compilation_unit.hpp"
-        PATHS ENV MCM_HOME)
-    find_path(FLATBUFFERRS_INCLUDE_PATH "flatbuffers/base.h"
-        PATHS ENV MCM_HOME
-        PATH_SUFFIXES "schema/graphfile/flatbuffers/include")
-
     set(MCM_BASE_DIR ${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/thirdparty/movidius/mcmCompiler)
 
     if (NOT ENABLE_PLUGIN_RPATH)
@@ -41,7 +35,10 @@ if (ENABLE_MCM_COMPILER)
         INSTALL_COMMAND ""
         CMAKE_ARGS ${MCM_COMPILER_CMAKE_ARGS})
 
-    set(MCM_COMPILER_INCLUDE_PATH "${MCM_BASE_DIR}")
+    set(MCM_COMPILER_INCLUDE_PATH "${MCM_BASE_DIR}"
+                                  "${MCM_BASE_DIR}/include"
+                                  "${MCM_BASE_DIR}/meta/include"
+                                  )
     set(MCM_COMPILER_LIBRARY "${MCM_BASE_DIR}/build/lib/${CMAKE_SHARED_LIBRARY_PREFIX}cm${CMAKE_SHARED_LIBRARY_SUFFIX}")
     set(MCM_COMPILER_MODEL_LIBRARY "${MCM_BASE_DIR}/build/lib/${CMAKE_SHARED_LIBRARY_PREFIX}model${CMAKE_SHARED_LIBRARY_SUFFIX}")
     set(MCM_COMPILER_METAMODEL_LIBRARY "${MCM_BASE_DIR}/build/lib/${CMAKE_SHARED_LIBRARY_PREFIX}metamodel${CMAKE_SHARED_LIBRARY_SUFFIX}")

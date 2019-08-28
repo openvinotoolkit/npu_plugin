@@ -32,11 +32,7 @@
 #include <vpu/utils/attributes_map.hpp>
 
 #ifdef ENABLE_MCM_COMPILER
-#include "include/mcm/compiler/compilation_unit.hpp"
-#include "include/mcm/utils/data_generator.hpp"
-#include "include/mcm/utils/serializer/Fp16Convert.h"
-#include "meta/include/mcm/op_model.hpp"
-#include "include/mcm/utils/hardware_tests.hpp"
+#include <mcm/op_model.hpp>
 #include "kmb_base.hpp"
 
 #include <graph_tools.hpp>

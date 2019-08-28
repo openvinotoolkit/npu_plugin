@@ -57,7 +57,6 @@
 #include <graph_tools.hpp>
 #include <description_buffer.hpp>
 
-#include "include/mcm/target/keembay/runtime_model/runtime_model.hpp"
 #include "kmb_parser.hpp"
 
 #include <vpu/kmb_plugin_config.hpp>
@@ -67,6 +66,7 @@
 #endif
 
 #ifdef ENABLE_MCM_COMPILER
+#include <mcm/target/keembay/runtime_model/runtime_model.hpp>
 
 namespace vpu {
 
@@ -211,10 +211,6 @@ void compileMcm(
         }
     }
 }
-
-//
-// getSupportedLayers
-//
 
 std::set<std::string> getSupportedLayersMcm(
         const ie::ICNNNetwork& network,
