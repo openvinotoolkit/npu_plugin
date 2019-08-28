@@ -339,6 +339,7 @@ std::vector<mv::Element> StrategyManager::convertStreamingStrategyToElement(std:
 
     //cast streaming strategy into Element
     auto copyElement = streamingStrategyList[0];
+    auto copyName = copyElement.get<std::string>("name_filter");
     auto copySplits =  copyElement.get<std::vector<mv::Element>>("splits");
     for (int i=copySplits.size(); i<4; i++)
         copySplits.push_back(copySplits[0]);    // 4 element vector for streaming strategies c,h,w,k
@@ -364,7 +365,7 @@ std::vector<mv::Element> StrategyManager::convertStreamingStrategyToElement(std:
 
 std::vector<mv::Element> StrategyManager::convertClusteringStrategyToElement(std::vector<StrategySet> &strategiesToConvert, std::shared_ptr<mv::Element> compDesc)
 {
-    cout << "Converting Multiclustering Strategies to Element" << endl;
+    cout << "Converting iMulticlustering Strategies to Element" << endl;
 
     auto clusteringStrategyList = compDesc->get<std::vector<mv::Element>>("split_strategy");
 
@@ -375,16 +376,22 @@ std::vector<mv::Element> StrategyManager::convertClusteringStrategyToElement(std
         std::string nodeName = s.get<std::string>("name_filter");
         std::string strategyName = s.get<std::string>("strategy");
         if ((strategyName=="SplitOverH") or (strategyName=="SplitOverK") or (strategyName=="SplitOverHOverlapped") or (strategyName=="HKSwitch"))
+        {
             hasClusterSpec.push_back(nodeName);
+        }
     }
 
-    mv::Element copyCElement("");
+    //save clustering strategy into compilation descriptor
+    mv::Element copyCElement("");//= clusteringStrategyList[0];
+    //auto copyCName = copyCElement.get<std::string>("name_filter");
+    //auto copyCStrategy = copyCElement.get<std::string>("strategy");
     for (auto strategy : strategiesToConvert)
     {
         std::string newStrategy = strategy["clustering"];
         std::string newName = strategy["name"] ;
         if ( std::find(hasClusterSpec.begin(), hasClusterSpec.end(), newName) == hasClusterSpec.end())
         {
+            cout << "found in hasClusterSpec: " << newName << endl;
             copyCElement.set("name_filter",newName);
             copyCElement.set("strategy",newStrategy);
             clusteringStrategyList.push_back(copyCElement);
@@ -459,10 +466,10 @@ void StrategyManager::saveMetaStrategy(std::vector<MetaGraph::edge_list_iterator
             continue;
 
         auto outTensor = op->getOutputTensor(0);
- //       if(spilling)
+        if(spilling)
             outTensor->set<mv::Tensor::MemoryLocation>("Location",mv::Tensor::MemoryLocation::DDR);
-//        else
-//          outTensor->set<mv::Tensor::MemoryLocation>("Location",mv::Tensor::MemoryLocation::CMX);
+        else
+            outTensor->set<mv::Tensor::MemoryLocation>("Location",mv::Tensor::MemoryLocation::CMX);
     }
 
 //    test updated compilation descriptor
