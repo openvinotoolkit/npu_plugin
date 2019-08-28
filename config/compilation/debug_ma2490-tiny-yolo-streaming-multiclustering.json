@@ -5,7 +5,6 @@
                 "name" : "GlobalConfigParams",
                 "_comment" : "Stores common params accross multiple passes. Access through the Computation Model.",
                 "recorded_model": true,
-                "log_time" : true,
                 "verbose": "Debug",
                 "weights_form": "None",
                 "barrier_index_assignment" : "Dynamic",
@@ -22,268 +21,162 @@
                 "mpe_mode" : "Vector",
                 "split_strategy" :
                 [
-
-                    {   "name_filter":".*input#.*",
+                    {
+                        "name_filter": ".*input#.*",
                         "strategy": "SplitOverHOverlapped"
                     },
                     {
-                        "name_filter":".*Conv/Relu6#.*",
+                        "name_filter":".*conv1#.*",
                         "strategy": "SplitOverH"
                     },
                     {
-                        "name_filter":".*expanded_conv/depthwise/Relu6#.*",
+                        "name_filter":".*pool1/max_pool#.*",
                         "strategy": "SplitOverH"
                     },
                     {
-                        "name_filter":".*expanded_conv/project/BatchNorm/FusedBatchNorm/BiasAdd#.*",
+                        "name_filter":".*conv2#.*",
                         "strategy": "SplitOverH"
                     },
                     {
-                        "name_filter":".*expanded_conv_1/expand/Relu6#.*",
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter":".*expanded_conv_1/depthwise/Relu6#.*",
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter":".*expanded_conv_1/project/BatchNorm/FusedBatchNorm/BiasAdd#.*",
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter":".*expanded_conv_2/depthwise/Relu6#.*",
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter":".*expanded_conv_2/depthwise/Relu6_1#.*",
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter":".*expanded_conv_2/project/BatchNorm/FusedBatchNorm/BiasAdd#.*",
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter":".*expanded_conv_2/add/Add#.*",
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter":".*expanded_conv_3/expand/Relu6#.*",
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter":".*expanded_conv_3/depthwise/Relu6#.*",
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter":".*expanded_conv_3/project/BatchNorm/FusedBatchNorm/BiasAdd#.*",
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter":".*expanded_conv_4/expand/Relu6#.*",
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter":".*expanded_conv_4/depthwise/Relu6#.*",
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter":".*expanded_conv_4/project/BatchNorm/FusedBatchNorm/BiasAdd#.*",
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter":".*expanded_conv_4/add/Add#.*",
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter":".*expanded_conv_5/expand/Relu6#.*",
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter":".*expanded_conv_5/depthwise/Relu6#.*",
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter":".*expanded_conv_5/project/BatchNorm/FusedBatchNorm/BiasAdd#.*",
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter":".*expanded_conv_5/add/Add#.*",
+                        "name_filter":".*pool2/max_pool#.*",
                         "strategy": "HKSwitch"
                     },
                     {
-                        "name_filter":".*expanded_conv_6/expand/Relu6#.*",
+                        "name_filter":".*conv3#.*",
                         "strategy": "SplitOverK"
                     },
                     {
-                        "name_filter":".*expanded_conv_6/depthwise/Relu6#.*",
-                        "strategy": "SplitOverK"
-                    },
-                    {
-                        "name_filter":".*expanded_conv_6/project/BatchNorm/FusedBatchNorm/BiasAdd#.*",
-                        "strategy": "SplitOverK"
-                    },
-                    {
-                        "name_filter":".*expanded_conv_7/expand/Relu6#.*",
-                        "strategy": "SplitOverK"
-                    },
-                    {
-                        "name_filter":".*expanded_conv_7/depthwise/Relu6#.*",
-                        "strategy": "SplitOverK"
-                    },
-                    {
-                        "name_filter":".*expanded_conv_7/project/BatchNorm/FusedBatchNorm/BiasAdd#.*",
-                        "strategy": "SplitOverK"
-                    },
-                    {
-                        "name_filter":".*expanded_conv_7/add/Add#.*",
+                        "name_filter":".*pool3/max_pool#.*",
                         "strategy": "Clustering"
                     },
                     {
-                        "name_filter":".*expanded_conv_8/expand/Relu6#.*",
+                        "name_filter":".*conv4#.*",
                         "strategy": "SplitOverK"
                     },
                     {
-                        "name_filter":".*expanded_conv_8/depthwise/Relu6#.*",
-                        "strategy": "SplitOverK"
-                    },
-                    {
-                        "name_filter":".*expanded_conv_8/project/BatchNorm/FusedBatchNorm/BiasAdd#.*",
-                        "strategy": "SplitOverK"
-                    },
-                    {
-                        "name_filter":".*expanded_conv_8/add/Add#.*",
+                        "name_filter":".*pool4/max_pool#.*",
                         "strategy": "Clustering"
                     },
                     {
-                        "name_filter":".*expanded_conv_9/expand/Relu6#.*",
+                        "name_filter":".*conv5#.*",
                         "strategy": "SplitOverK"
                     },
                     {
-                        "name_filter":".*expanded_conv_9/depthwise/Relu6#.*",
-                        "strategy": "SplitOverK"
-                    },
-                    {
-                        "name_filter":".*expanded_conv_9/project/BatchNorm/FusedBatchNorm/BiasAdd#.*",
-                        "strategy": "SplitOverK"
-                    },
-                    {
-                        "name_filter":".*expanded_conv_9/add/Add#.*",
+                        "name_filter":".*pool5/max_pool#.*",
                         "strategy": "Clustering"
                     },
                     {
-                        "name_filter":".*expanded_conv_10/expand/Relu6#.*",
+                        "name_filter":".*conv6#.*",
                         "strategy": "SplitOverK"
                     },
                     {
-                        "name_filter":".*expanded_conv_10/depthwise/Relu6#.*",
-                        "strategy": "SplitOverK"
-                    },
-                    {
-                        "name_filter":".*expanded_conv_10/project/BatchNorm/FusedBatchNorm/BiasAdd#.*",
-                        "strategy": "SplitOverK"
-                    },
-                    {
-                        "name_filter":".*expanded_conv_11/expand/Relu6#.*",
-                        "strategy": "SplitOverK"
-                    },
-                    {
-                        "name_filter":".*expanded_conv_11/depthwise/Relu6#.*",
-                        "strategy": "SplitOverK"
-                    },
-                    {
-                        "name_filter":".*expanded_conv_11/project/BatchNorm/FusedBatchNorm/BiasAdd#.*",
-                        "strategy": "SplitOverK"
-                    },
-                    {
-                        "name_filter":".*expanded_conv_11/add/Add#.*",
+                        "name_filter":".*pool6/max_pool#.*",
                         "strategy": "Clustering"
                     },
                     {
-                        "name_filter":".*expanded_conv_12/expand/Relu6#.*",
+                        "name_filter":".*conv7#.*",
                         "strategy": "SplitOverK"
                     },
                     {
-                        "name_filter":".*expanded_conv_12/depthwise/Relu6#.*",
+                        "name_filter":".*conv8#.*",
                         "strategy": "SplitOverK"
                     },
                     {
-                        "name_filter":".*expanded_conv_12/project/BatchNorm/FusedBatchNorm/BiasAdd#.*",
-                        "strategy": "SplitOverK"
-                    },
-                    {
-                        "name_filter":".*expanded_conv_12/add/Add#.*",
-                        "strategy": "Clustering"
-                    },
-                    {
-                        "name_filter":".*expanded_conv_13/expand/Relu6#.*",
-                        "strategy": "SplitOverK"
-                    },
-                    {
-                        "name_filter":".*expanded_conv_13/depthwise/Relu6#.*",
-                        "strategy": "SplitOverK"
-                    },
-                    {
-                        "name_filter":".*expanded_conv_13/project/BatchNorm/FusedBatchNorm/BiasAdd#.*",
-                        "strategy": "SplitOverK"
-                    },
-                    {
-                        "name_filter":".*expanded_conv_14/expand/Relu6#.*",
-                        "strategy": "SplitOverK"
-                    },
-                    {
-                        "name_filter":".*expanded_conv_14/depthwise/Relu6#.*",
-                        "strategy": "SplitOverK"
-                    },
-                    {
-                        "name_filter":".*expanded_conv_14/project/BatchNorm/FusedBatchNorm/BiasAdd#.*",
-                        "strategy": "SplitOverK"
-                    },
-                    {
-                        "name_filter":".*expanded_conv_14/add/Add#.*",
-                        "strategy": "Clustering"
-                    },
-                    {
-                        "name_filter":".*expanded_conv_15/expand/Relu6#.*",
-                        "strategy": "SplitOverK"
-                    },
-                    {
-                        "name_filter":".*expanded_conv_15/depthwise/Relu6#.*",
-                        "strategy": "SplitOverK"
-                    },
-                    {
-                        "name_filter":".*expanded_conv_15/project/BatchNorm/FusedBatchNorm/BiasAdd#.*",
-                        "strategy": "SplitOverK"
-                    },
-                    {
-                        "name_filter":".*expanded_conv_15/add/Add#.*",
-                        "strategy": "Clustering"
-                    },
-                    {
-                        "name_filter":".*expanded_conv_16/expand/Relu6#.*",
-                        "strategy": "SplitOverK"
-                    },
-                    {
-                        "name_filter":".*expanded_conv_16/depthwise/Relu6#.*",
-                        "strategy": "SplitOverK"
-                    },
-                    {
-                        "name_filter":".*expanded_conv_16/project/BatchNorm/FusedBatchNorm/BiasAdd#.*",
-                        "strategy": "SplitOverK"
-                    },
-                    {
-                        "name_filter":".*Conv_1/Relu6#.*",
-                        "strategy": "SplitOverK"
-                    },
-                    {
-                        "name_filter":".*Logits/AvgPool/AvgPool#.*",
-                        "strategy": "SplitOverK"
-                    },
-                    {
-                        "name_filter":".*Logits/Conv2d_1c_1x1/BiasAdd/Logits/Conv2d_1c_1x1/BiasAdd#.*",
+                        "name_filter":".*conv9#.*",
                         "strategy": "SplitOverK"
                     }
                 ],
-                "default_tensor_placement" : "CMX"
+                "tensor_placement_override" :
+                [
+                    {
+                        "name_filter" : ".*_ddr_.*",
+                        "mem_location" : "DDR"
+                    },
+                    {
+                        "name_filter" : ".*_cmx_.*",
+                        "mem_location" : "CMX"
+                    },
+                    {
+                        "name_filter" : ".*_input_.*",
+                        "mem_location" : "INPUT"
+                    },
+                    {
+                        "name_filter" : ".*_output_.*",
+                        "mem_location" : "OUTPUT"
+                    },
+                    {
+                        "name_filter" : ".*weights.*",
+                        "mem_location" : "BLOB"
+                    },
+                    {
+                        "name_filter" : ".*conv1#.*",
+                        "mem_location" : "CMX"
+                    },
+                    {
+                        "name_filter":".*pool1/max_pool#.*",
+                        "mem_location": "CMX"
+                    },
+                    {
+                        "name_filter":".*conv2#.*",
+                        "mem_location": "CMX"
+                    },
+                    {
+                        "name_filter":".*pool2/max_pool#.*",
+                        "mem_location": "CMX"
+                    },
+                    {
+                        "name_filter":".*conv3#.*",
+                        "mem_location": "CMX"
+                    },
+                    {
+                        "name_filter":".*pool3/max_pool#.*",
+                        "mem_location": "CMX"
+                    },
+                    {
+                        "name_filter":".*conv4#.*",
+                        "mem_location": "CMX"
+                    },
+                    {
+                        "name_filter":".*pool4/max_pool#.*",
+                        "mem_location": "CMX"
+                    },
+                    {
+                        "name_filter":".*pool5/max_pool#.*",
+                        "mem_location": "CMX"
+                    },
+                    {
+                        "name_filter":".*pool6/max_pool#.*",
+                        "mem_location": "CMX"
+                    }
+                ],
+                "default_tensor_placement" : "DDR",
+                "streaming_strategy" :
+                [
+                    {
+                        "name_filter" : "conv5#42",
+                        "splits" : [ {"K" : 2} ]
+                    },
+                    {
+                        "name_filter" : "conv5/conv5#28",
+                        "splits" : [ {"K" : 2} ]
+                    },
+                    {
+                        "name_filter" : "conv6#44",
+                        "splits" : [ {"K" : 2} ]
+                    },
+                    {
+                        "name_filter" : "conv7#46",
+                        "splits" : [ {"K" : 8} ]
+                    },
+                    {
+                        "name_filter" : "conv8#47",
+                        "splits" : [ {"K" : 4} ]
+                    },
+                    {
+                        "name_filter" : "conv9/conv9#48",
+                        "splits" : [ {"K" : 2} ]
+                    }
+                ]
             },
             "ComputeMemory",
             "AssignUniqueOpId",
@@ -501,7 +394,7 @@
             },
             {
                 "name": "TransitiveReduction",
-                "filter": "PositiveMemory"
+                "filter": "MemoryRequirement"
             },
             "MarkLastNodeForMaxTopologicalCut",
             {
@@ -682,11 +575,11 @@
         "Singular": [
             {
                 "name": "GenerateBlobKeembay",
-                "output": "output/mcm.blob"
+                "output": "output/tiny-yolo-streaming-multiclustering.blob"
             },
             {
                 "name": "ConvertFlatbuffer",
-                "input": "output/mcm.blob"
+                "input": "output/tiny-yolo-streaming-multiclustering.blob"
             }
 
         ]
@@ -702,9 +595,6 @@
             "finalize",
             "scheduling",
             "serialize"
-        ],
-        "Recurrent": [
-            "validate"
         ]
     }
 }

@@ -4,6 +4,7 @@
 #include "include/mcm/graph/graph.hpp"
 #include <map>
 #include <vector>
+#include "include/mcm/compiler/compilation_profiler.hpp"
 
 namespace mv
 {
@@ -21,6 +22,7 @@ namespace mv
     template <typename T_node, typename T_edge>
     bool edgeExists(graph<T_node, T_edge>& g, typename graph<T_node, T_edge>::node_list_iterator source, typename graph<T_node, T_edge>::node_list_iterator target)
     {
+        MV_PROFILED_FUNCTION(MV_PROFILE_ALGO)
         return(edgeExists<T_node, T_edge>(source, target, g.node_end()));
     }
 }

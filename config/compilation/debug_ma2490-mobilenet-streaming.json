@@ -14,8 +14,8 @@
                 "DDRScratch": 31457280,
                 "MemoryHack": false,
                 "nWorkloads": 1,
-                "ActivationSparsity": true,
-                "WeightsSparsity": true,
+                "ActivationSparsity": false,
+                "WeightsSparsity": false,
                 "CMX_memory_overflow_safety_factor" : 0.925,
                 "mpe_mode" : "Vector",
                 "split_strategy" :
@@ -30,23 +30,19 @@
                 [
                         {
                             "name_filter" : "MobilenetV2/expanded_conv_1/expand/Relu#174",
-                            "output_location" : "CMX",
-                            "splits" : [ {"H" : 2} ]
+                            "splits" : [ {"H" : 8} ]
                         },
                         {
                             "name_filter" : "MobilenetV2/expanded_conv_1/depthwise/Relu#175",
-                            "output_location" : "CMX",
-                            "splits" : [ {"H" : 2} ]
+                            "splits" : [ {"H" : 8} ]
                         },
                         {
                             "name_filter" : "MobilenetV2/expanded_conv_2/depthwise/Relu#178",
-                            "output_location" : "CMX",
-                            "splits" : [ {"H" : 2} ]
+                            "splits" : [ {"H" : 8} ]
                         },
                         {
                             "name_filter" : "MobilenetV2/Logits/Conv2d_1c_1x1/act_quant/FakeQuantWithMinMaxVars#234",
-                            "output_location" : "CMX",
-                            "splits" : [ {"K" : 2} ]
+                            "splits" : [ {"K" : 8} ]
                         }
                 ]
             },
@@ -267,7 +263,7 @@
             },
             {
                 "name": "TransitiveReduction",
-                "filter": "PositiveMemory"
+                "filter": "MemoryRequirement"
             },
             "MarkLastNodeForMaxTopologicalCut",
             {
@@ -448,13 +444,12 @@
         "Singular": [
             {
                 "name": "GenerateBlobKeembay",
-                "output": "output/mcm.blob"
+                "output": "output/mobilenet-streaming.blob"
             },
             {
                 "name": "ConvertFlatbuffer",
-                "input": "output/mcm.blob"
+                "input": "output/mobilenet-streaming.blob"
             }
-
         ]
     },
     "root": {
@@ -468,9 +463,6 @@
             "finalize",
             "scheduling",
             "serialize"
-        ],
-        "Recurrent": [
-            "validate"
         ]
     }
 }

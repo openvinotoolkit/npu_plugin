@@ -357,3 +357,7 @@ bool mv::ControlModel::isFlowAllowedAndNonExisting(mv::Data::OpListIterator sour
     return isFlowAllowedAndNonExisting(switchContext(source), switchContext(sink));
 }
 
+std::size_t mv::ControlModel::controlFlowsCount() const
+{
+    return controlGraph_.edge_size();
+}

@@ -24,7 +24,7 @@ TEST(fuse_bias, case_conv)
 
     mv::Element dummyPassDesc("");
     mv::TargetDescriptor dummyTargDesc;
-    mv::json::Object compOutput;
+    mv::Element compOutput("CompilationOutput");
 
     mv::pass::PassRegistry::instance().find("FuseBias")->run(om, dummyTargDesc, dummyPassDesc, compOutput);
 

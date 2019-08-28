@@ -415,7 +415,6 @@ std::unique_ptr<MVCNN::SummaryHeaderT> mv::RuntimeModel::buildSummaryHeaderMetaI
     std::unique_ptr<MVCNN::SummaryHeaderT> toBuild = std::unique_ptr<MVCNN::SummaryHeaderT>(new MVCNN::SummaryHeaderT());
 
     toBuild->version = buildVersionT(cm, compilationDescriptor);
-    toBuild->resources = buildResourcesT(cm, compilationDescriptor);
     toBuild->original_structure = buildSourceStructureT(cm, compilationDescriptor);
     toBuild->layer_count = om.opsCount();
 
@@ -433,7 +432,7 @@ std::unique_ptr<MVCNN::SummaryHeaderT> mv::RuntimeModel::buildSummaryHeaderT(Com
 
     toBuild->version = std::move(originalHeader->version);
     toBuild->original_structure = std::move(originalHeader->original_structure);
-    toBuild->resources = std::move(originalHeader->resources);
+    toBuild->resources = buildResourcesT(cm, compilationDescriptor);
 
     // Just one input for now
     toBuild->net_input = std::vector<std::unique_ptr<MVCNN::TensorReferenceT>>(1);

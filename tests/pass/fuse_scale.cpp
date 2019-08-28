@@ -26,7 +26,7 @@ TEST(fuse_scale, case_conv)
     
     mv::Element dummyPassDesc("");
     mv::TargetDescriptor dummyTargDesc;
-    mv::json::Object compOutput;
+    mv::Element compOutput("CompilationOutput");
 
     mv::pass::PassRegistry::instance().find("FuseScale")->run(om, dummyTargDesc, dummyPassDesc, compOutput);
 
@@ -75,7 +75,7 @@ TEST(fuse_scale, case_conv_bias_fused)
 
     mv::Element dummyPassDesc("");
     mv::TargetDescriptor dummyTargDesc;
-    mv::json::Object compOutput;
+    mv::Element compOutput("CompilationOutput");
 
     mv::pass::PassRegistry::instance().find("FuseBias")->run(om, dummyTargDesc, dummyPassDesc, compOutput);
     mv::pass::PassRegistry::instance().find("FuseScale")->run(om, dummyTargDesc, dummyPassDesc, compOutput);

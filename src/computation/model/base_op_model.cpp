@@ -201,7 +201,6 @@ std::vector<mv::Data::OpListIterator> mv::BaseOpModel::lexTopologicalSort()
     auto lexTopSortResult = mv::lexTopologicalSort<Op, DataFlow, OpItComparator, OpLexComparator>(dataGraph_);
     std::vector<mv::Data::OpListIterator> toReturn(lexTopSortResult.begin(), lexTopSortResult.end());
 
-    std::cout << "-----sorted ops------" << std::endl;
     for (auto s: toReturn)
     {
         std::cout << s->getName() << std::endl;
@@ -307,6 +306,11 @@ std::size_t mv::BaseOpModel::opsCount(const std::string& opType) const
     if (opsInstanceCounter_->find(opType) != opsInstanceCounter_->end())
         return opsInstanceCounter_->at(opType);
     return 0;
+}
+
+std::size_t mv::BaseOpModel::dataFlowsCount() const
+{
+    return dataGraph_.edge_size();
 }
 
 long long unsigned mv::BaseOpModel::parametersCount() const

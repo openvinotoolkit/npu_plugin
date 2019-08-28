@@ -8,5 +8,7 @@ mv::LogSender::~LogSender()
 
 void mv::LogSender::log(Logger::MessageType messageType, const std::string &content) const
 {
-    Logger::log(messageType, getLogID(), content);
+    #if MV_LOG_ENABLED
+        Logger::log(messageType, getLogID(), content);
+    #endif
 }

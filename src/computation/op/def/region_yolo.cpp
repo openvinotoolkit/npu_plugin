@@ -54,12 +54,12 @@ namespace mv
             auto num = args.at("num").get<unsigned>();
             auto mask = args.at("mask").get<std::vector<unsigned>>();
 
-            size_t _num_ = do_softmax ? mask.size() : num;
+            size_t _num_ = do_softmax ? num : mask.size();
 
             if (_num_ == 0)
             {
                 if (do_softmax)
-                    errMsg = "Incorrect optional parameter: mnum=0";
+                    errMsg = "Incorrect optional parameter: num=0";
                 else
                     errMsg = "Incorrect optional parameter: mask={}";
 
@@ -76,18 +76,24 @@ namespace mv
                     << ", width=" << W << ", height=" << H << ", channels=" << C
                     << ", coords=" << coords << ", classes=" << classes
                     << ", do_softmax=" << do_softmax;
+                    
                 if (do_softmax)
-                    err << ", mask size=" << mask.size();
-                else
+                {
                     err << ", num=" << num;
+                }
+                else
+                {
+                    err << ", mask size=" << mask.size();
+                }
+
                 errMsg = err.str();
                 return {false, 0};
             }
 
             return {true, 0};
         };
-                
-        static std::function<void(const std::vector<Data::TensorIterator>&, const std::map<std::string, Attribute>&, 
+
+        static std::function<void(const std::vector<Data::TensorIterator>&, const std::map<std::string, Attribute>&,
             std::vector<Tensor>&)> outputDefFcn =
             [](const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>& args, std::vector<Tensor>& outputs)
         {
@@ -121,7 +127,7 @@ namespace mv
             auto num = args.at("num").get<unsigned>();
             auto mask = args.at("mask").get<std::vector<unsigned>>();
 
-            size_t _num_ = do_softmax ? mask.size(): num;
+            size_t _num_ = do_softmax ? num : mask.size();
 
             auto out_size = H * W * _num_ * (classes + coords + 1);
 
@@ -138,8 +144,8 @@ namespace mv
         // with following formula:
         // - number of output channels = H * W * _num_ * (classes + coords + 1)
         // - value of _num_ depends on parameters num and mask:
-        //     _num_ = size of mask vector, if parameter do_softmax is true
-        //     _num_ = just value of parameter num otherwise
+        //     _num_ = value of parameter num, if parameter do_softmax is true
+        //     _num_ = size of mask vector otherwise
         // - num, mask, do_softmax, classes, coords are layer parameters
         //
         // Additional parameters axis and axis_end of IR layer are redundant

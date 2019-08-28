@@ -38,7 +38,7 @@ TEST(fuse_batch_norm_pass, case_ndim_conv)
 
     mv::Element dummyPassDesc("");
     mv::TargetDescriptor dummyTargDesc;
-    mv::json::Object compOutput;
+    mv::Element compOutput("CompilationOutput");
 
     mv::pass::PassRegistry::instance().find("FuseBatchNorm")->run(om, dummyTargDesc, dummyPassDesc, compOutput);
 
@@ -126,7 +126,7 @@ TEST(fuse_batch_norm_pass, case_1dim_conv)
 
     mv::Element dummyPassDesc("");
     mv::TargetDescriptor dummyTargDesc;
-    mv::json::Object compOutput;
+    mv::Element compOutput("CompilationOutput");
 
     mv::pass::PassRegistry::instance().find("FuseBatchNorm")->run(om, dummyTargDesc, dummyPassDesc, compOutput);
 
@@ -201,7 +201,7 @@ TEST(fuse_batch_norm_pass, case_ndim_nonconv)
 
     mv::Element dummyPassDesc("");
     mv::TargetDescriptor dummyTargDesc;
-    mv::json::Object compOutput;
+    mv::Element compOutput("CompilationOutput");
 
     mv::pass::PassRegistry::instance().find("FuseBatchNorm")->run(om, dummyTargDesc, dummyPassDesc, compOutput);
 
@@ -291,7 +291,7 @@ TEST(fuse_batch_norm_pass, case_1dim_nonconv)
 
     mv::Element dummyPassDesc("");
     mv::TargetDescriptor dummyTargDesc;
-    mv::json::Object compOutput;
+    mv::Element compOutput("CompilationOutput");
 
     mv::pass::PassRegistry::instance().find("FuseBatchNorm")->run(om, dummyTargDesc, dummyPassDesc, compOutput);
 

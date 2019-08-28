@@ -13,7 +13,7 @@
 static const std::vector<mv::DPUModeList> TENSOR_MPE {{{1,1}}, {{16,1}}, {{1,16}}};
 
 static void SplittingTensorsAcrossClusters(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&,
-                                    mv::Element&, mv::json::Object&);
+                                    mv::Element&, mv::Element&);
 static void subTensorsGen(mv::ComputationModel& model, const std::vector<mv::Data::TensorIterator> &tensors, unsigned nClusters,
                           const mv::pass::PassEntry& pass);
 static void unpopulatedSplitOverH(const unsigned nWorkloads, std::vector<mv::Workload> &subTensors, mv::Workloads &Tensor,
@@ -36,7 +36,7 @@ namespace mv
 }
 
 void SplittingTensorsAcrossClusters(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&,
-                             mv::json::Object&)
+                             mv::Element &)
 {
     mv::OpModel om(model);
     auto globalParams = model.getGlobalConfigParams();
