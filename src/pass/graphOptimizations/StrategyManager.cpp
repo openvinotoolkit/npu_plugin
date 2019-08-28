@@ -375,22 +375,25 @@ std::vector<mv::Element> StrategyManager::convertClusteringStrategyToElement(std
     {
         std::string nodeName = s.get<std::string>("name_filter");
         std::string strategyName = s.get<std::string>("strategy");
-        if ((strategyName=="SplitOverH") or (strategyName=="SplitOverK") or (strategyName=="SplitOverHOverlapped") or (strategyName=="HSSwitch"))
+        if ((strategyName=="SplitOverH") or (strategyName=="SplitOverK") or (strategyName=="SplitOverHOverlapped") or (strategyName=="HKSwitch"))
+        {
             hasClusterSpec.push_back(nodeName);
+        }
     }
 
     //save clustering strategy into compilation descriptor
-    auto copyCElement = clusteringStrategyList[0];
-    auto copyCName = copyCElement.get<std::string>("name_filter");
-    auto copyCStrategy = copyCElement.get<std::string>("strategy");
+    mv::Element copyCElement("");//= clusteringStrategyList[0];
+    //auto copyCName = copyCElement.get<std::string>("name_filter");
+    //auto copyCStrategy = copyCElement.get<std::string>("strategy");
     for (auto strategy : strategiesToConvert)
     {
         std::string newStrategy = strategy["clustering"];
         std::string newName = strategy["name"] ;
         if ( std::find(hasClusterSpec.begin(), hasClusterSpec.end(), newName) == hasClusterSpec.end())
         {
+            cout << "found in hasClusterSpec: " << newName << endl;
             copyCElement.set("name_filter",newName);
-            copyCElement.set("strategy",copyCStrategy);
+            copyCElement.set("strategy",newStrategy);
             clusteringStrategyList.push_back(copyCElement);
         }
     }
