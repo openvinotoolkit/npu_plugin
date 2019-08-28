@@ -66,6 +66,7 @@
 #endif
 
 #ifdef ENABLE_MCM_COMPILER
+#include <mcm/target/keembay/runtime_model/runtime_model.hpp>
 
 namespace vpu {
 
@@ -121,24 +122,29 @@ void compileMcm(
         // Just now we try two of them
         //-----------------------------------------------------------------------
         bool isBlobFileSet = false;
-        try {
-            compDesc.setPassArg("GenerateBlob", "fileName", resultsFullName + ".blob");
-            compDesc.setPassArg("GenerateBlob", "enableFileOutput", true);
-            isBlobFileSet = true;
-            //-----------------------------------------------------------------------
-            // Just now we can not make mcmCompiler to return the blob into memory, so we will read
-            // the blob from the file later in the code
-            //-----------------------------------------------------------------------
-//            compDesc.setPassArg("GenerateBlobKeembay", "enableRAMOutput", true);
-        } catch (...) {
+        if (compDesc.validPass("GenerateBlob")) {
+            // validPass returns true here but 'setPassArg' attempt causes
+            // 'Trying to set arguments for a non-existent pass' error
+            // so we use try catch
+            try {
+                compDesc.setPassArg("GenerateBlob", "fileName", resultsFullName + ".blob");
+                compDesc.setPassArg("GenerateBlob", "enableFileOutput", true);
+                isBlobFileSet = true;
+            } catch (...) {
+            }
         }
 
-        try {
-            compDesc.setPassArg("GenerateBlobKeembay", "output", resultsFullName + ".blob");
-            compDesc.setPassArg("GenerateBlobKeembay", "enableFileOutput", true);
-            isBlobFileSet = true;
-//            compDesc.setPassArg("GenerateBlobKeembay", "enableRAMOutput", true);
-        } catch (...) {
+        if (compDesc.validPass("GenerateBlobKeembay")) {
+            // validPass returns true here but 'setPassArg' attempt causes
+            // 'Trying to set arguments for a non-existent pass' error
+            // so we use try catch
+            try {
+                compDesc.setPassArg("GenerateBlobKeembay", "output", resultsFullName + ".blob");
+                compDesc.setPassArg("GenerateBlobKeembay", "enableFileOutput", true);
+                isBlobFileSet = true;
+//                compDesc.setPassArg("GenerateBlobKeembay", "enableRAMOutput", true);
+            } catch (...) {
+            }
         }
         if (!isBlobFileSet) {
             VPU_THROW_EXCEPTION << "Can't set mcmCompiler arguments for blob generation!";
@@ -153,11 +159,6 @@ void compileMcm(
             // compDesc.setPassArg("GenerateDot", "scope", std::string("ControlModel"));
             compDesc.setPassArg("GenerateDot", "content", std::string("full"));
             compDesc.setPassArg("GenerateDot", "html", true);
-
-            //-------------------------------------------------------------------------
-            // MCM compiler dumps only final model, if we setup output file's name here
-            //-------------------------------------------------------------------------
-            // compDesc.setPassArg("GenerateDot", "output", "layers_" + testGetName() + ".dot");
         } catch (...) {
             VPU_THROW_EXCEPTION << "Can't set mcmCompiler arguments for *.dot generation!";
         }
@@ -193,29 +194,24 @@ void compileMcm(
         rename("final_model.dot"   , (resultsFullName +          ".dot").c_str());
     }
 
-    //-----------------------------------------------------------------------
-    // Just now we can not make mcmCompiler to return the blob into memory,
-    // so we will read it from the file
-    //-----------------------------------------------------------------------
     if (parsedConfig[VPU_KMB_CONFIG_KEY(MCM_GENERATE_BLOB)] == "YES") {
-        std::ifstream blobFile(resultsFullName + ".blob", std::ios::binary);
-        if (blobFile) {
-            std::ostringstream blobContentStream;
-            blobContentStream << blobFile.rdbuf();
-            const std::string& blobContentString = blobContentStream.str();
-            std::copy(blobContentString.begin(), blobContentString.end(), std::back_inserter(blob));
-            if (blob.size() == 0) {
-                VPU_THROW_EXCEPTION << "Blob file " << resultsFullName + ".blob" << " created by mcmCompiler is empty!";
-            }
-        } else {
-            VPU_THROW_EXCEPTION << "Can not open blob file " << resultsFullName + ".blob" << ". It was not created by mcmCompiler!";
+        mv::RuntimeModel& rm = mv::RuntimeModel::getInstance();
+        int bufferSize = 0;
+        char* memBlob = rm.serialize(bufferSize);
+
+        std::copy(memBlob, memBlob + bufferSize, std::back_inserter(blob));
+        //--------------------------------------------------------------------------
+        // Function char * mv::RuntimeModel::serialize(int& bufferSize)
+        // allocates (new) the char* buffer inside.
+        // We free it after to avoid memory leakage
+        //--------------------------------------------------------------------------
+        // TODO: Remove delete when mv::RuntimeModel::serialize will be implemented properly
+        delete memBlob;
+        if (blob.empty()) {
+            VPU_THROW_EXCEPTION << "Blob file " << resultsFullName + ".blob" << " created by mcmCompiler is empty!";
         }
     }
 }
-
-//
-// getSupportedLayers
-//
 
 std::set<std::string> getSupportedLayersMcm(
         const ie::ICNNNetwork& network,
