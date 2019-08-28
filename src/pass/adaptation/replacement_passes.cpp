@@ -72,38 +72,44 @@ mv::Data::OpListIterator linkNewOperationsReplacement(mv::Data::OpListIterator p
     return opIt;
 }
 
-
-// TODO: Bias tensors gave as double have to be handled too.
 void floatLayersToFP16Fcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
     mv::OpModel om(model);
 
-    auto constants = om.getOps("Constant");
-
-    for(auto vecIt = constants.begin(); vecIt != constants.end(); ++vecIt)
+    auto kernelOp = om.opBegin();
+    while(kernelOp != om.opEnd())
     {
-        auto kernelOp = *vecIt;
-        auto originalDTypeSize = kernelOp->getOutputTensor(0)->getDType().getSizeInBits();
-        if(originalDTypeSize == 64 || originalDTypeSize == 32)
+        if(kernelOp.outputsSize() > 0)
         {
-            auto opId = kernelOp->get<unsigned>("opId");
+            auto outputTensor = kernelOp->getOutputTensor(0);
+            auto originalDTypeSize = outputTensor->getDType().getSizeInBits();
+            if(outputTensor->isPopulated() && (originalDTypeSize == 64 || originalDTypeSize == 32))
+            {
+                auto opId = kernelOp->get<unsigned>("opId");
 
-            std::vector<double> oldData = kernelOp->getOutputTensor(0)->getDoubleData();
-            std::vector<int64_t> newData(oldData.size());
+                std::vector<double> oldData = kernelOp->getOutputTensor(0)->getDoubleData();
+                std::vector<int64_t> newData(oldData.size());
 
-            for(unsigned i = 0; i < oldData.size(); ++i)
-                newData[i] = mv::fp32_to_fp16(oldData[i]);
+                for(unsigned i = 0; i < oldData.size(); ++i)
+                    newData[i] = mv::fp32_to_fp16(oldData[i]);
 
-            auto kernelShape = kernelOp->getOutputTensor(0)->getShape();
-            auto kernelOrder = kernelOp->getOutputTensor(0)->getOrder();
+                auto kernelShape = kernelOp->getOutputTensor(0)->getShape();
+                auto kernelOrder = kernelOp->getOutputTensor(0)->getOrder();
 
-            auto outputDataFlows = mv::getOutputDataFlow(om, kernelOp);
-            auto newKernel = om.constantInt(newData, kernelShape, mv::DType("Float16"), kernelOrder);
-            auto newKernelOp = om.getSourceOp(newKernel);
-            newKernelOp->set<unsigned>("opId", opId);
+                auto backup = kernelOp;
+                ++kernelOp;
+                auto outputDataFlows = mv::getOutputDataFlow(om, backup);
+                auto newKernel = om.constantInt(newData, kernelShape, mv::DType("Float16"), kernelOrder);
+                auto newKernelOp = om.getSourceOp(newKernel);
+                newKernelOp->set<unsigned>("opId", opId);
 
-            mv::setOutputDataFlow(om, newKernel, outputDataFlows);
+                mv::setOutputDataFlow(om, newKernel, outputDataFlows);
+            }
+            else
+                ++kernelOp;
         }
+        else
+            ++kernelOp;
     }
 }
 
