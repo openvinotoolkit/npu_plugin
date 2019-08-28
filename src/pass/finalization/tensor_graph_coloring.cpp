@@ -471,7 +471,7 @@ std::size_t bestFitSelect(std::string& name, mv::TensorInterferenceGraph& g, lon
 }
 
 
-void bestFitMemoryAllocation(mv::ComputationModel& model, std::queue<std::string>& order, mv::TensorInterferenceGraph& g, long long memorySize)
+size_t bestFitMemoryAllocation(mv::ComputationModel& model, std::queue<std::string>& order, mv::TensorInterferenceGraph& g, long long memorySize)
 {
     size_t chromaticNumber = 0;
     std::size_t directedGraphEdgeMaxId = 0;
@@ -495,16 +495,20 @@ void bestFitMemoryAllocation(mv::ComputationModel& model, std::queue<std::string
 
     mv::DataModel dm(model);
     //set address in tensors
+    size_t maxHeight = 0;
     for (mv::TensorInterferenceGraph::node_list_iterator it = g.node_begin(); it != g.node_end(); ++it)
     {
         auto t = model.getTensor((*it).name);
         t->setAddress((*it).address); //still needed to set sparsityMap and storageElement addresses
+        if ((*it).height > maxHeight)
+            maxHeight = (*it).height;
         auto tensorAllocatorName = t->get<std::set<std::string>>("allocators").begin();
         auto tensorAllocator = dm.getAllocator(*tensorAllocatorName);
         mv::Data::BufferIterator tensorBufferIt = tensorAllocator.getBuffer(0, t); // 0 is the only stage for now, but this will probably change in the future
         tensorBufferIt->setOffset((*it).address);
     }
-
+    if (maxHeight != chromaticNumber)
+        throw mv::ArgumentError("Graph Coloring produced overlap!", "", "chromaticNumber is not correct!!", "chromaticNumber " + std::to_string(chromaticNumber) + " maxHeight " + std::to_string(maxHeight));
     ///test address allocation dont overlap:
     for (mv::TensorInterferenceGraph::node_list_iterator ni = g.node_begin(); ni != g.node_end(); ++ni)
     {
@@ -516,6 +520,8 @@ void bestFitMemoryAllocation(mv::ComputationModel& model, std::queue<std::string
                 throw mv::ArgumentError("Graph Coloring produced overlap!", "", "", " Overlap is between " + (*ni).name  + " and " + (*itr).name );
         }
     }
+
+    return chromaticNumber;
 }
 
 void tensorGraphColoringFnc(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element& passDesc, mv::Element&)
@@ -551,6 +557,7 @@ void tensorGraphColoringFnc(const mv::pass::PassEntry& pass, mv::ComputationMode
 //    bestFitMemoryAllocation(model, agOrder, ddr_bss_g, memsize);
 //    //ddr_bss_g.drawGraph("ddr_bss_memory");
     auto alignment = 16; //memDefs.find("VPU_DDR_Heap")->second.alignment;//TODO for now POC uses 16 for all memory
+    pass.log(mv::Logger::MessageType::Info, " Generating Heap Tig");
     mv::TensorInterferenceGraph ddr_heap_g(pass, model, alignment,
             [](const mv::Data::TensorIterator& t) -> bool
             {
@@ -578,7 +585,8 @@ void tensorGraphColoringFnc(const mv::pass::PassEntry& pass, mv::ComputationMode
 
     auto agOrder = aggressiveSimplify(ddr_heap_g, memsize, mv::OrderingStrategy::IG_LARGEST_NEIGHBORS_FIRST);
     //printASOrder(agOrder, "DDR_HEAP");
-    bestFitMemoryAllocation(model, agOrder, ddr_heap_g, memsize);
+    size_t maxMemoryUsed = bestFitMemoryAllocation(model, agOrder, ddr_heap_g, memsize);
+    globalConfigParams->set<int>("DDRScratch", maxMemoryUsed);
     if(passDesc.hasAttr("heapOutput"))
         ddr_heap_g.drawGraph(passDesc.get<std::string>("heapOutput"));
 
