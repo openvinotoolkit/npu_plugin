@@ -211,8 +211,10 @@ std::string mv::CompilationUnit::getLogID() const
     return "CompilationUnit";
 }
 
-mv::BlobBinary mv::CompilationUnit::getBlob() const
+std::shared_ptr<std::vector<char>> mv::CompilationUnit::getBlob() const
 {
+    if(!completed())
+        log(Logger::MessageType::Warning, "Getting a blob from compilation unit before completion");
     mv::RuntimeModel& rm = mv::RuntimeModel::getInstance();
     return rm.getBlob();
 }
