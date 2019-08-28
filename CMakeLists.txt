@@ -110,10 +110,10 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 ### Main build
 #############################################################################################
 if (MSVC)
-    add_compile_options("/W4" "$<$<CONFIG:RELEASE>:/O2>")
+    add_compile_options("/W4" "$<$<CONFIG:RELEASE>:/O2>" "/GS")
     SET(VALIDATION false)
 else()
-    add_compile_options("-Wall" "-Wextra" "-Wshadow" "-Wnon-virtual-dtor" "-pedantic" "$<$<CONFIG:RELEASE>:-O3>")
+    add_compile_options("-Wall" "-Wextra" "-Wshadow" "-Wnon-virtual-dtor" "-pedantic" "$<$<CONFIG:RELEASE>:-O3>" "-fstack-protector-all")
     SET(VALIDATION false CACHE BOOL "Flag to include additional external libaries for validation testing")
 endif()
 
