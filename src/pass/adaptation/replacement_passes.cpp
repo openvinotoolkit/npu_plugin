@@ -72,6 +72,8 @@ mv::Data::OpListIterator linkNewOperationsReplacement(mv::Data::OpListIterator p
     return opIt;
 }
 
+
+// TODO: Bias tensors gave as double have to be handled too.
 void floatLayersToFP16Fcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
     mv::OpModel om(model);
