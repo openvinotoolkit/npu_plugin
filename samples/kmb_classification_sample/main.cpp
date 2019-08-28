@@ -80,6 +80,31 @@ std::vector<std::string> readLabelsFromFile(const std::string& labelFileName) {
     return labels;
 }
 
+Blob::Ptr deQuantize(const Blob::Ptr &quantBlob, float scale, uint8_t zeroPoint) {
+  const TensorDesc quantTensor = quantBlob->getTensorDesc();
+  SizeVector dims = quantTensor.getDims();
+  size_t batchSize = dims.at(0);
+  slog::info << dims[0] << " " << dims[1] << " " << dims[2] << " " << dims[3] << slog::endl;
+  const size_t Count = quantBlob->size() / batchSize;
+  const size_t ResultsCount = Count > 1000 ? 1000 : Count;
+  dims[1] = ResultsCount;
+  const TensorDesc outTensor = TensorDesc(
+      InferenceEngine::Precision::FP32,
+      dims,
+      quantTensor.getLayout());
+  slog::info << dims[0] << " " << dims[1] << " " << dims[2] << " " << dims[3] << slog::endl;
+  Blob::Ptr outputBlob = make_shared_blob<float>(outTensor);
+  outputBlob->allocate();
+  float *outRaw = outputBlob->buffer().as<PrecisionTrait<Precision::FP32>::value_type *>();
+  const uint8_t *quantRaw = quantBlob->cbuffer().as<const uint8_t *>();
+
+  for (size_t pos = 0; pos < outputBlob->size(); pos++) {
+    outRaw[pos] = (quantRaw[pos] - zeroPoint) * scale;
+  }
+  return outputBlob;
+}
+
+
 /**
 * @brief The entry point the Inference Engine sample application
 * @file classification_sample/main.cpp
@@ -181,7 +206,16 @@ int main(int argc, char *argv[]) {
         const size_t maxNumOfTop = 10;
         const size_t resultsCount = outputBlob->size() / batchSize;
         const size_t printedResultsCount = resultsCount > maxNumOfTop ? maxNumOfTop : resultsCount;
-        ClassificationResult classificationResult(outputBlob, imageNames,
+
+        // de-Quantization
+        uint8_t zeroPoint = static_cast<uint8_t>(FLAGS_z);
+        float scale = static_cast<float>(FLAGS_s);
+        slog::info<< "zeroPoint" << zeroPoint << slog::endl;
+        slog::info<< "scale" << scale << slog::endl;
+
+        Blob::Ptr dequantOut = deQuantize(outputBlob, scale, zeroPoint);
+
+        ClassificationResult classificationResult(dequantOut, imageNames,
                                                   batchSize, printedResultsCount,
                                                   labels);
         classificationResult.print();
