@@ -292,6 +292,7 @@
     },
     "adapt": {
         "Singular": [
+            "FloatLayersToFP16",
             "AverageAsDepthWise",
             "FuseBatchNorm",
             "FuseBias",

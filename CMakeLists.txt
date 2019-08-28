@@ -177,7 +177,6 @@ SET(base
 
     "${PROJECT_SOURCE_DIR}/src/base/exception/argument_error.cpp"
     "${PROJECT_SOURCE_DIR}/src/base/exception/attribute_error.cpp"
-    "${PROJECT_SOURCE_DIR}/src/base/exception/binarydata_error.cpp"
     "${PROJECT_SOURCE_DIR}/src/base/exception/dtype_error.cpp"
     "${PROJECT_SOURCE_DIR}/src/base/exception/index_error.cpp"
     "${PROJECT_SOURCE_DIR}/src/base/exception/logged_error.cpp"
@@ -249,8 +248,6 @@ SET(base
     "${PROJECT_SOURCE_DIR}/src/computation/op/op_entry.cpp"
     "${PROJECT_SOURCE_DIR}/src/computation/op/op_registry.cpp"
 
-    "${PROJECT_SOURCE_DIR}/src/deployer/Fp16Convert.cpp"
-
     "${PROJECT_SOURCE_DIR}/src/target/keembay/barrier_definition.cpp"
     "${PROJECT_SOURCE_DIR}/src/target/keembay/barrier_deps.cpp"
     "${PROJECT_SOURCE_DIR}/src/target/keembay/dma_direction.cpp"
@@ -306,7 +303,6 @@ SET(base
     "${PROJECT_SOURCE_DIR}/src/tensor/order/order_registry.cpp"
     "${PROJECT_SOURCE_DIR}/src/tensor/order/order.cpp"
 
-    "${PROJECT_SOURCE_DIR}/src/tensor/binary_data.cpp"
     "${PROJECT_SOURCE_DIR}/src/tensor/data_element.cpp"
     "${PROJECT_SOURCE_DIR}/src/tensor/math.cpp"
     "${PROJECT_SOURCE_DIR}/src/tensor/quantization_params.cpp"
@@ -347,7 +343,6 @@ SET(pass
     "${PROJECT_SOURCE_DIR}/src/deployer/blob_serialization/blob_serializer.cpp"
     "${PROJECT_SOURCE_DIR}/src/deployer/blob_serialization/bRelocation.cpp"
     "${PROJECT_SOURCE_DIR}/src/deployer/blob_serialization/bTensor.cpp"
-    "${PROJECT_SOURCE_DIR}/src/deployer/Fp16Convert.cpp"
     "${PROJECT_SOURCE_DIR}/src/deployer/serializer.cpp"
 
     "${PROJECT_SOURCE_DIR}/src/pass/pass_entry.cpp"
