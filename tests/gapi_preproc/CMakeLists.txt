@@ -8,7 +8,7 @@ if(NOT OpenCV_FOUND)
     return()
 endif()
 
-file(GLOB SOURCES *.cpp common/*.cpp cpu/*.cpp)
+file(GLOB SOURCES *.cpp)
 file(GLOB HEADERS *.hpp common/*.hpp cpu/*.hpp)
 
 add_subdirectory(gapi_test_computations)

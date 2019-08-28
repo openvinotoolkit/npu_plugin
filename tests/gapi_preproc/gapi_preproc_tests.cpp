@@ -15,6 +15,7 @@
 #include <ie_preprocess_data.hpp>
 #include <ie_compound_blob.h>
 
+#include "kmb_vpusmm_allocator.h"
 #include <kmb_preproc_gapi.hpp>
 
 #include "gapi_test_computations.hpp"
@@ -144,10 +145,21 @@ void own_NV12toRGB(const cv::Mat& inY, const cv::Mat& inUV, cv::Mat& out)
     }
 }
 
+class AllocHelper {
+    vpu::KmbPlugin::KmbVpusmmAllocator m_alloc;
+    std::vector<std::shared_ptr<void>> m_buffs;
+public:
+    void* alloc(size_t size) {
+        void* ptr = m_alloc.alloc(size);
+        m_buffs.push_back(std::shared_ptr<void>(ptr, [&](void* p){ m_alloc.free(p); }));
+        return ptr;
+    }
+};
 
 // FIXME: copy-paste from cropResize_tests.hpp
 template <InferenceEngine::Precision::ePrecision PRC>
-InferenceEngine::Blob::Ptr img2Blob(const std::vector<cv::Mat>& imgs, InferenceEngine::Layout layout) {
+InferenceEngine::Blob::Ptr img2Blob(const std::vector<cv::Mat>& imgs, InferenceEngine::Layout layout,
+                                    AllocHelper& allocator) {
     using data_t = typename InferenceEngine::PrecisionTrait<PRC>::value_type;
     using namespace InferenceEngine;
 
@@ -175,8 +187,8 @@ InferenceEngine::Blob::Ptr img2Blob(const std::vector<cv::Mat>& imgs, InferenceE
     size_t width = imgs[0].size().width;
 
     SizeVector dims = {imgs.size(), channels, height, width};
-    Blob::Ptr resultBlob = make_shared_blob<data_t>(TensorDesc(PRC, dims, layout));;
-    resultBlob->allocate();
+    auto buf = reinterpret_cast<data_t*>(allocator.alloc(width*height*channels));
+    Blob::Ptr resultBlob = make_shared_blob<data_t>(TensorDesc(PRC, dims, layout), buf);
 
     data_t* blobData = resultBlob->buffer().as<data_t*>();
 
@@ -215,8 +227,9 @@ InferenceEngine::Blob::Ptr img2Blob(const std::vector<cv::Mat>& imgs, InferenceE
 }
 
 template <InferenceEngine::Precision::ePrecision PRC>
-InferenceEngine::Blob::Ptr img2Blob(cv::Mat &img, InferenceEngine::Layout layout) {
-    return img2Blob<PRC>(std::vector<cv::Mat>({img}), layout);
+InferenceEngine::Blob::Ptr img2Blob(cv::Mat &img, InferenceEngine::Layout layout,
+                                    AllocHelper& allocator) {
+    return img2Blob<PRC>(std::vector<cv::Mat>({img}), layout, allocator);
 }
 
 template <InferenceEngine::Precision::ePrecision PRC>
@@ -326,9 +339,6 @@ TEST_P(NV12toRGBpTestGAPI, AccuracyTest)
     {
         EXPECT_EQ(0, cv::countNonZero(out_mat_ocv != out_mat_gapi));
     }
-
-    cv::imwrite("out_mat_ocv.jpg", out_mat_ocv);
-    cv::imwrite("out_mat_gapi.jpg", out_mat_gapi);
 }
 
 using testing::Values;
@@ -415,21 +425,22 @@ TEST_P(KmbSippPreprocTest, TestNV12Resize)
     std::tie(y_size, out_size) = sizes;
     cv::Size uv_size{y_size.width/2, y_size.height/2};
 
-    SIPPPreprocEngine pe;
-    cv::Mat out_mat(out_size, CV_8UC3);
-    Blob::Ptr out_blob = img2Blob<prec>(out_mat, out_layout);
-
     cv::Mat y_mat(y_size, CV_8UC1);
-    cv::randu(y_mat, cv::Scalar::all(0), cv::Scalar::all(255));
-
     cv::Mat uv_mat(uv_size, CV_8UC2);
+    cv::Mat out_mat(out_size, CV_8UC3);
+    cv::randu(y_mat, cv::Scalar::all(0), cv::Scalar::all(255));
     cv::randu(uv_mat, cv::Scalar::all(128), cv::Scalar::all(128));
 
-    auto y_blob  = img2Blob<prec>(y_mat, Layout::NHWC);
-    auto uv_blob = img2Blob<prec>(uv_mat, Layout::NHWC);
+    AllocHelper allocator;
+    auto y_blob  = img2Blob<prec>(y_mat, Layout::NHWC, allocator);
+    auto uv_blob = img2Blob<prec>(uv_mat, Layout::NHWC, allocator);
+    auto out_blob = img2Blob<prec>(out_mat, out_layout, allocator);
 
-    for (int i = 0; i < 10; i++) {
+    SIPPPreprocEngine pe;
+
+    for (int i = 0; i < 100; i++) {
         auto y_roi = getRandomRoi(y_size);
+
         cv::Rect uv_roi{y_roi.x/2, y_roi.y/2, y_roi.width/2, y_roi.height/2};
 
         auto  y_roi_blob = make_shared_blob( y_blob, to_ie( y_roi));
