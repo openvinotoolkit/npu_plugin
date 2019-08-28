@@ -10,6 +10,7 @@
 #include "include/mcm/utils/env_loader.hpp"
 #include "include/mcm/compiler/compilation_descriptor.hpp"
 #include "include/mcm/compiler/compilation_profiler.hpp"
+#include "include/mcm/target/keembay/runtime_model/runtime_model.hpp"
 
 namespace mv
 {
@@ -32,6 +33,7 @@ namespace mv
         TargetDescriptor targetDescriptor_;
         CompilationDescriptor compDescriptor_;
         const static unsigned jsonParserBufferLength_ = 256;
+        BlobBinary getBlob() const;
 
     public:
 

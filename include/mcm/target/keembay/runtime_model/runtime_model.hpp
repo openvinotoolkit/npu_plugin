@@ -25,11 +25,18 @@ namespace mv
         }
     };
 
+    struct BlobBinary
+    {
+        std::shared_ptr<char> binarydata;
+        int bufferLength;
+    };
+
     class RuntimeModel
     {
         private:
             RuntimeModel() {}
             MVCNN::GraphFileT graphFile_;
+            BlobBinary binaryBuffer_;
             static const std::unordered_map<std::string, MVCNN::DType> dTypeMapping_;
             static const std::unordered_map<std::string, MVCNN::MemoryLocation> memoryLocationMapping_;
             static const std::unordered_map<std::string, MVCNN::DPULayerType> dpuLayerMapping_;
@@ -102,11 +109,12 @@ namespace mv
             static unsigned countProducerConsumerTasks(mv::ComputationModel& cm, mv::Control::OpListIterator opIt);
 
             void serialize(const std::string& path);
-            char * serialize(int& bufferSize);
+            void serialize();
             void deserialize(const std::string& path);
             void deserialize(char * buffer, int length);
             void buildGraphFile(ComputationModel& cm, Element& compilationDescriptor);
             void buildHeader(ComputationModel& cm, Element& compilationDescriptor);
+            BlobBinary getBlob();
     };
 }
 
