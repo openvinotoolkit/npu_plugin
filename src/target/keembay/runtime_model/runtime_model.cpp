@@ -1605,15 +1605,14 @@ void mv::RuntimeModel::serialize()
     flatbuffers::FlatBufferBuilder fbb;
     auto offset = MVCNN::CreateGraphFile(fbb, &graphFile_);
     MVCNN::FinishGraphFileBuffer(fbb, offset);
-    binaryBuffer_.bufferLength = fbb.GetSize();
-    binaryBuffer_.binarydata = std::shared_ptr<char>(new char[binaryBuffer_.bufferLength]);
-    std::memcpy(binaryBuffer_.binarydata.get(), (char*)fbb.GetBufferPointer(), binaryBuffer_.bufferLength);
+    binaryData_ = std::shared_ptr<std::vector<char>>(new std::vector<char>(fbb.GetSize()));
+    std::memcpy(binaryData_->data(), (char*)fbb.GetBufferPointer(), binaryData_->size());
 }
 
 void mv::RuntimeModel::serialize(const std::string& filename)
 {
     serialize();
-    if (flatbuffers::SaveFile((filename).c_str(), binaryBuffer_.binarydata.get(), binaryBuffer_.bufferLength, true))
+    if (flatbuffers::SaveFile((filename).c_str(), binaryData_->data(), binaryData_->size(), true))
         Logger::log(mv::Logger::MessageType::Info, "RuntimeModel", "File successfully written to: " + filename);
     else
         Logger::log(mv::Logger::MessageType::Error, "RuntimeModel", "File was not created. Check configuration");
@@ -1623,14 +1622,14 @@ void mv::RuntimeModel::deserialize(const std::string& path)
 {
     std::ifstream ifs(path.c_str(), std::ifstream::binary|std::ifstream::in);
     ifs.seekg(0, std::ios::end);
-    binaryBuffer_.bufferLength = ifs.tellg();
+    unsigned length = ifs.tellg();
     ifs.seekg(0, std::ios::beg);
 
-    binaryBuffer_.binarydata = std::shared_ptr<char>(new char[binaryBuffer_.bufferLength]);
+    binaryData_ = std::shared_ptr<std::vector<char>>(new std::vector<char>(length));
 
-    ifs.read(binaryBuffer_.binarydata.get(), binaryBuffer_.bufferLength);
+    ifs.read(binaryData_->data(), length);
     ifs.close();
-    deserialize(binaryBuffer_.binarydata.get(), binaryBuffer_.bufferLength);
+    deserialize(binaryData_->data(), binaryData_->size());
 }
 
 void mv::RuntimeModel::deserialize(char * dataBuffer, int length)
@@ -1643,7 +1642,7 @@ void mv::RuntimeModel::deserialize(char * dataBuffer, int length)
     graphPtr->UnPackTo(&graphFile_);
 }
 
-mv::BlobBinary mv::RuntimeModel::getBlob()
+std::shared_ptr<std::vector<char>> mv::RuntimeModel::getBlob()
 {
-    return binaryBuffer_;
+    return binaryData_;
 }

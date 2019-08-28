@@ -33,13 +33,13 @@ namespace mv
         TargetDescriptor targetDescriptor_;
         CompilationDescriptor compDescriptor_;
         const static unsigned jsonParserBufferLength_ = 256;
-        BlobBinary getBlob() const;
 
     public:
+        std::shared_ptr<std::vector<char> > getBlob() const;
 
         CompilationUnit(const std::string& modelName);
         ~CompilationUnit();
-        
+
         bool loadTargetDescriptor(const std::string& path);
         bool loadTargetDescriptor(Target target);
         bool loadCompilationDescriptor(const std::string& path);
