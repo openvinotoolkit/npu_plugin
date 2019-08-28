@@ -33,6 +33,12 @@ static const char model_message[] = "Required. Path to a .blob file compiled fro
 /// @brief message for plugin messages
 static const char plugin_message[] = "Enables messages from a plugin";
 
+/// @brief message for scale
+static const char scale_message[] = "Scale of output from fully connected layer. Default value is 0.3371347486972809";
+
+/// @brief message for zero point
+static const char zeropoint_message[] = "Zero point of output from fully connected layer. Default value is 221";
+
 /// @brief Define flag for showing help message <br>
 DEFINE_bool(h, false, help_message);
 
@@ -47,6 +53,12 @@ DEFINE_string(m, "", model_message);
 /// @brief Enable plugin messages
 DEFINE_bool(p_msg, false, plugin_message);
 
+/// @brief message for scale
+DEFINE_double(s, 0.3371347486972809, scale_message);
+
+/// @brief message for zero point
+DEFINE_int32(z, 221, zeropoint_message);
+
 /**
 * @brief This function show a help message
 */
@@ -59,4 +71,6 @@ static void showUsage() {
     std::cout << "    -i \"<path>\"           " << image_message << std::endl;
     std::cout << "    -m \"<path>\"           " << model_message << std::endl;
     std::cout << "    -p_msg                  " << plugin_message << std::endl;
+    std::cout << "    -s value                " << scale_message << std::endl;
+    std::cout << "    -z zeropoint            " << zeropoint_message << std::endl;
 }
