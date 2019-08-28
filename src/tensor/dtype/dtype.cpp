@@ -1,11 +1,9 @@
 #include "include/mcm/tensor/dtype/dtype.hpp"
-
-#include "include/mcm/tensor/binary_data.hpp"
 #include "include/mcm/base/exception/dtype_error.hpp"
 #include "include/mcm/tensor/dtype/dtype_registry.hpp"
 
 mv::DType::DType():
-DType("Float16")
+DType("Default")
 {
 
 }
@@ -26,12 +24,6 @@ mv::DType::DType(const std::string& value)
 std::string mv::DType::toString() const
 {
     return dType_;
-}
-
-mv::BinaryData mv::DType::toBinary(const std::vector<DataElement>& data) const
-{
-    const std::function<mv::BinaryData(const std::vector<DataElement>&)>& func = mv::DTypeRegistry::getToBinaryFunc(dType_);
-    return func(data);
 }
 
 unsigned mv::DType::getSizeInBits() const

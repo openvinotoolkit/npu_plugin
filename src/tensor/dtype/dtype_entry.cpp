@@ -6,12 +6,6 @@ name_(name)
 
 }
 
-mv::DTypeEntry& mv::DTypeEntry::setToBinaryFunc(std::function<mv::BinaryData(const std::vector<mv::DataElement>&)>& f)
-{
-    toBinaryFunc_ = f;
-    return *this;
-}
-
 mv::DTypeEntry& mv::DTypeEntry::setSizeInBits(unsigned size)
 {
     size_ = size;
@@ -22,11 +16,6 @@ mv::DTypeEntry& mv::DTypeEntry::setIsDoubleType(bool isDouble)
 {
     isDoubleType_ = isDouble;
     return *this;
-}
-
-const std::function<mv::BinaryData(const std::vector<mv::DataElement>&)>& mv::DTypeEntry::getToBinaryFunc() const
-{
-    return toBinaryFunc_;
 }
 
 unsigned mv::DTypeEntry::getSizeInBits() const

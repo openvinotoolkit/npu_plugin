@@ -3,6 +3,5 @@
 
 namespace mv
 {
-    MV_REGISTER_DTYPE(Default)
-    .setIsDoubleType(false);
+    MV_REGISTER_DTYPE(Default);
 }
