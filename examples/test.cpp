@@ -16,9 +16,9 @@ int main()
     auto conv = om.conv(input, weights1, {4, 4}, {1, 1, 1, 1}, 1);
     auto convOp = om.getSourceOp(conv);
     om.output(conv);
-    
+
     mv::DataModel dm(om);
-    
+
     om.removeOp(convOp);
     std::cout << om.isValid(convOp) << std::endl;
     std::cout << dm.tensorsCount() << std::endl;

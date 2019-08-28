@@ -196,18 +196,17 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     toBuild->data = std::unique_ptr<MVCNN::IndirectDataReferenceT>(new MVCNN::IndirectDataReferenceT());
     if (*tensorAllocatorName == "GraphFile")
     {
-        toBuild->data->data_index = t->get<unsigned>("graphFileIndex");
-        // No need to set sparsity_index for tensor stored in graphfile
-//        auto strides = tensorBufferIt->getStrides();
-//        toBuild->leading_offset = strides[0] / tensorBufferIt->getDataTypeSize(); //for some reason we get double the value, for now take the proper one.
-//        toBuild->trailing_offset = strides[strides.size()-1] + tensorBufferIt->getPostAlign();
-//        toBuild->trailing_offset = toBuild->trailing_offset / tensorBufferIt->getDataTypeSize();
+        toBuild->data->data_index = 0;
+        unsigned graphfileIndex = t->get<unsigned>("graphFileIndex");
+        toBuild->locale_index = std::vector<unsigned int>(1);
+        toBuild->locale_index[0] = graphfileIndex;
     }
     else if(*tensorAllocatorName == "ProgrammableInput" || *tensorAllocatorName == "ProgrammableOutput")
     {
         toBuild->data->data_index = 0;
         auto strides = tensorBufferIt->getStrides();
         auto leading_offset = strides[0] / tensorBufferIt->getDataTypeSize();
+        toBuild->locale_index = std::vector<unsigned int>(1,0);
         if (leading_offset)
             toBuild->data->data_index += leading_offset;
         // No need to set sparsity_index for input/output tensor of the network
@@ -216,6 +215,7 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     {
         auto strides = tensorBufferIt->getStrides();
         auto leading_offset = strides[0] / tensorBufferIt->getDataTypeSize(); //for some reason we get double the value, for now take the proper one.
+        toBuild->locale_index = std::vector<unsigned int>(1,0);
 
         // This part is for concat
         toBuild->data->data_index = tensorBufferIt->getOffset();
@@ -249,7 +249,6 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     toBuild->locale = convertAllocatorToMemoryLocale(*tensorAllocatorName);
 
     // NOTE: Will probably change in the future
-    toBuild->locale_index = std::vector<unsigned int>(1,0);
 
     toBuild->data_dtype = convertDtype(t->getDType());
 
@@ -322,16 +321,15 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     toBuild->data = std::unique_ptr<MVCNN::IndirectDataReferenceT>(new MVCNN::IndirectDataReferenceT());
     if (*tensorAllocatorName == "GraphFile")
     {
-        toBuild->data->data_index = t->get<unsigned>("graphFileIndex");
-
-        //No slice for tensors stored in graphfile
-        toBuild->locale_index = std::vector<unsigned int>(1,0);
+        unsigned graphfileIndex = t->get<unsigned>("graphFileIndex");
+        toBuild->locale_index = std::vector<unsigned int>(1);
+        toBuild->locale_index[0] = graphfileIndex;
         // No need to set sparsity_index for tensor stored in graphfile
         auto offset = subtensor.get<std::vector<std::size_t>>("offset");
         auto index = subtensor.getOrder().subToInd(t->getShape(), offset);
         auto byte_index = index * t->getDType().getSizeInBits() / 8;
 
-        toBuild->leading_offset = byte_index;
+        toBuild->data->data_index = byte_index;
     }
     else if(*tensorAllocatorName == "ProgrammableInput" || *tensorAllocatorName == "ProgrammableOutput" || *tensorAllocatorName == "VPU_DDR_BSS" || *tensorAllocatorName == "VPU_DDR_Heap")
     {
@@ -417,7 +415,6 @@ std::unique_ptr<MVCNN::SummaryHeaderT> mv::RuntimeModel::buildSummaryHeaderMetaI
     std::unique_ptr<MVCNN::SummaryHeaderT> toBuild = std::unique_ptr<MVCNN::SummaryHeaderT>(new MVCNN::SummaryHeaderT());
 
     toBuild->version = buildVersionT(cm, compilationDescriptor);
-    toBuild->resources = buildResourcesT(cm, compilationDescriptor);
     toBuild->original_structure = buildSourceStructureT(cm, compilationDescriptor);
     toBuild->layer_count = om.opsCount();
 
@@ -435,7 +432,7 @@ std::unique_ptr<MVCNN::SummaryHeaderT> mv::RuntimeModel::buildSummaryHeaderT(Com
 
     toBuild->version = std::move(originalHeader->version);
     toBuild->original_structure = std::move(originalHeader->original_structure);
-    toBuild->resources = std::move(originalHeader->resources);
+    toBuild->resources = buildResourcesT(cm, compilationDescriptor);
 
     // Just one input for now
     toBuild->net_input = std::vector<std::unique_ptr<MVCNN::TensorReferenceT>>(1);
@@ -1603,39 +1600,37 @@ void mv::RuntimeModel::buildGraphFile(ComputationModel& cm, mv::Element& compila
 
 }
 
-char * mv::RuntimeModel::serialize(int& bufferSize)
+void mv::RuntimeModel::serialize()
 {
     flatbuffers::FlatBufferBuilder fbb;
     auto offset = MVCNN::CreateGraphFile(fbb, &graphFile_);
     MVCNN::FinishGraphFileBuffer(fbb, offset);
-    bufferSize = fbb.GetSize();
-    char * buffer = new char[bufferSize];
-    std::memcpy(buffer, (char*)fbb.GetBufferPointer(), bufferSize);
-    return buffer;
+    binaryBuffer_.bufferLength = fbb.GetSize();
+    binaryBuffer_.binarydata = std::shared_ptr<char>(new char[binaryBuffer_.bufferLength]);
+    std::memcpy(binaryBuffer_.binarydata.get(), (char*)fbb.GetBufferPointer(), binaryBuffer_.bufferLength);
 }
 
 void mv::RuntimeModel::serialize(const std::string& filename)
 {
-    int bufferSize;
-    char * dataBuffer = serialize(bufferSize);
-    if (flatbuffers::SaveFile((filename).c_str(), dataBuffer, bufferSize, true))
+    serialize();
+    if (flatbuffers::SaveFile((filename).c_str(), binaryBuffer_.binarydata.get(), binaryBuffer_.bufferLength, true))
         Logger::log(mv::Logger::MessageType::Info, "RuntimeModel", "File successfully written to: " + filename);
     else
         Logger::log(mv::Logger::MessageType::Error, "RuntimeModel", "File was not created. Check configuration");
-    delete [] dataBuffer;
 }
 
 void mv::RuntimeModel::deserialize(const std::string& path)
 {
     std::ifstream ifs(path.c_str(), std::ifstream::binary|std::ifstream::in);
     ifs.seekg(0, std::ios::end);
-    int length = ifs.tellg();
+    binaryBuffer_.bufferLength = ifs.tellg();
     ifs.seekg(0, std::ios::beg);
-    char * dataBuffer = new char[length];
-    ifs.read(dataBuffer, length);
+
+    binaryBuffer_.binarydata = std::shared_ptr<char>(new char[binaryBuffer_.bufferLength]);
+
+    ifs.read(binaryBuffer_.binarydata.get(), binaryBuffer_.bufferLength);
     ifs.close();
-    deserialize(dataBuffer, length);
-    delete [] dataBuffer;
+    deserialize(binaryBuffer_.binarydata.get(), binaryBuffer_.bufferLength);
 }
 
 void mv::RuntimeModel::deserialize(char * dataBuffer, int length)
@@ -1646,4 +1641,9 @@ void mv::RuntimeModel::deserialize(char * dataBuffer, int length)
     Logger::log(mv::Logger::MessageType::Info, "RuntimeModel", "GraphFile verification successful");
     const MVCNN::GraphFile *graphPtr = MVCNN::GetGraphFile(dataBuffer);
     graphPtr->UnPackTo(&graphFile_);
+}
+
+mv::BlobBinary mv::RuntimeModel::getBlob()
+{
+    return binaryBuffer_;
 }
