@@ -4,6 +4,7 @@
 #include "meta/include/mcm/op_model.hpp"
 #include "include/mcm/base/exception/argument_error.hpp"
 #include "math.h"
+#include <unordered_set>
 #include "tuple"
 #include "limits"
 
