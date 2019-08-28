@@ -12,7 +12,6 @@
                 "Number_of_DPUs" : 5,
                 "Number_of_Clusters" : 1,
                 "UpaShaves": 1,
-                "nWorkloads": 1,
                 "DDRScratch": 200704,
                 "cmx": 901120,
                 "MemoryHack": false,

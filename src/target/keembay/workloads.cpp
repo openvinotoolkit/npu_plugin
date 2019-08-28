@@ -1423,7 +1423,7 @@ namespace mv {
 
     using  WorkloadList = std::vector<Workload>;
     static WorkloadList generateWorkloadsFromSlices(const mv::DPUModeList& mode_list, const SplitSliceList& slice_list,
-                                                    const PaddingVariant& padding,
+                                                    const PaddingVariant& padding, const idx_t nWorkloads,
                                                     unsigned Z=0)
     {
         WorkloadList workload_list;
@@ -1452,10 +1452,20 @@ namespace mv {
             workload.MaxZ = Z ? Z - 1: 0;
 
             //
-            if(mode_list[0].H == 4)
-                workload.MPEMode = mv::MPE_Mode::Matrix;
+            // if(mode_list[0].H == 4)
+            //     workload.MPEMode = mv::MPE_Mode::Matrix;
+            // else
+            //     workload.MPEMode = mv::MPE_Mode::Vector;
+
+            /*Select best MPE mode*/
+            if(padding.mode.H == 4)
+                workload.MPEMode = mv::Matrix; 
             else
-                workload.MPEMode = mv::MPE_Mode::Vector;
+                workload.MPEMode = mv::Vector; 
+
+            /*store requested number of workoads*/
+            workload.requestWorkloadNumber = nWorkloads;
+            workload.algorithm = "Rectangle";
 
             // FIXME: setup workload id
             // FIXME: adjust workloads padding
@@ -1554,7 +1564,7 @@ int mv::Workloads::partitionTensorWithRectangleHeuristic(const mv::DPUModeList& 
     }
 
 
-    workloads_ = generateWorkloadsFromSlices(mode_list, slice_list, best_padding, Z);
+    workloads_ = generateWorkloadsFromSlices(mode_list, slice_list, best_padding, nWorkloads, Z);
     pass.log(mv::Logger::MessageType::Debug, "RectangleHeuristic: done");
 
 
@@ -1641,6 +1651,8 @@ int mv::Workloads::partitionTensorWithZsplit(const mv::DPUModeList& mode_list, i
         workload.z_offset = idx*max_channels_per_WL; 
         workload.MinZ = idx*max_channels_per_WL;
         workload.MaxZ = workload.MinZ + output_channels -1;
+        workload.requestWorkloadNumber = nWorkloads;
+        workload.algorithm = "Z-Tiling";
 
         /*Select best MPE mode*/
         if(best_padding.mode.H == 4)

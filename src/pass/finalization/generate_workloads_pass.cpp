@@ -326,7 +326,7 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                                 }
                             }
                         }
-                        if (algorithm == "Z-Tiling")
+                        if (algorithm == "Z-Tiling" && opIt->get<std::string>("taskOp") != "Add") 
                         {
                             /*Create workload instance*/
                             workloadsVector.emplace_back(mv::Workloads(opIt->getName(), subTensor.getShape()));
@@ -367,12 +367,26 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                 /*Calculate execution cycles for each valid workload for this particular subtensor*/
                 mv::Workloads::generateExecutionCycles(workloadsVector, nDPUxCluster, costFuntion);
 
+                /*Sort on number of workloads */
+                std::sort(workloadsVector.begin(), workloadsVector.end(),
+                    [] (mv::Workloads const& lhs, mv::Workloads const& rhs)
+                    {
+                        return lhs.nWorkloads() < rhs.nWorkloads();
+                    });
+
                 /*Print the execution cycles*/
                 int index = 0;
                 for (auto wl : workloadsVector)
                 {
                     pass.log(mv::Logger::MessageType::Debug, "Index " + std::to_string(index) + " (Min) " + std::to_string(wl.getExecutionCycles()[0]) + " Cost (Max)" + std::to_string(wl.getExecutionCycles()[1]));
                     index++;
+                }
+
+                int index1 = 0;
+                for (auto wl : workloadsVector)
+                {
+                    pass.log(mv::Logger::MessageType::Debug, "Index " + std::to_string(index1) + " (Mean cost) " + std::to_string((wl.getExecutionCycles()[0]+wl.getExecutionCycles()[1])/2) + "  Workload number" + std::to_string(wl.nWorkloads()));
+                    index1++;
                 }
 
                 /*Pick the workload with mean execution time*/
