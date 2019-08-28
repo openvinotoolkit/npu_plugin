@@ -55,10 +55,10 @@ KmbInferRequest::KmbInferRequest(const InferenceEngine::InputsDataMap& networkIn
                                  const InferenceEngine::OutputsDataMap& networkOutputs,
                                  const std::vector<StageMetaInfo> &blobMetaData,
                                  const std::shared_ptr<KmbConfig> &kmbConfig,
-                                 const Logger::Ptr &log,
                                  const KmbExecutorPtr &executor) :
         InferRequestInternal(networkInputs, networkOutputs), _executor(executor),
-        _log(log), _stagesMetaData(blobMetaData), _config(kmbConfig) {
+        _stagesMetaData(blobMetaData), _config(kmbConfig),
+        _logger(std::make_shared<Logger>("KmbInferRequest", kmbConfig->hostLogLevel, consoleOutput())) {
     _deviceLayout = NCHW;
 
     // allocate inputs

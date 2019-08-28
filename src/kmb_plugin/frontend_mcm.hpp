@@ -31,6 +31,8 @@
 #include <vpu/utils/enums.hpp>
 #include <vpu/utils/attributes_map.hpp>
 
+#include <kmb_config.h>
+
 #ifdef ENABLE_MCM_COMPILER
 #include "include/mcm/compiler/compilation_unit.hpp"
 #include "include/mcm/utils/data_generator.hpp"
@@ -74,12 +76,9 @@ class FrontEndMcm final : public std::enable_shared_from_this<FrontEndMcm> {
 public:
     using Ptr = std::shared_ptr<FrontEndMcm>;
 
-    explicit FrontEndMcm(mv::OpModel& modelMcm,
-                         std::shared_ptr<Logger> logger = std::make_shared<Logger>("GraphCompiler", LogLevel::None, consoleOutput()))
-     : _modelMcm(modelMcm)
-     , _logger(logger) {
-    }
-
+    explicit FrontEndMcm(mv::OpModel& modelMcm, const KmbConfig& config)
+             : _modelMcm(modelMcm)
+             , _logger(std::make_shared<Logger>("FrontEndMcm", config.hostLogLevel, consoleOutput())) { }
     void buildInitialModel(const ie::ICNNNetwork& network);
 
     std::set<std::string> checkSupportedLayers(const ie::ICNNNetwork& network);
@@ -174,12 +173,11 @@ private:
     mv::OpModel& _modelMcm;
     McmNodePtrList _nodes;
     McmNodePtr _output;
+    Logger::Ptr _logger;
 
     std::unordered_map<ie::DataPtr, McmNode> _ieToMcmMap;
 
     ParsedNetwork _parsedNetwork;
-
-    Logger::Ptr _logger;
 };
 
 }  // namespace KmbPlugin

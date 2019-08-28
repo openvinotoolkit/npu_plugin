@@ -24,16 +24,18 @@ namespace KmbPlugin {
 
 class KmbAsyncInferRequest : virtual public InferenceEngine::AsyncInferRequestThreadSafeDefault {
 public:
-    KmbAsyncInferRequest(KmbInferRequest::Ptr request,
-                                const InferenceEngine::ITaskExecutor::Ptr &taskExecutorStart,
-                                const InferenceEngine::ITaskExecutor::Ptr &taskExecutorGetResult,
-                                const InferenceEngine::TaskSynchronizer::Ptr &taskSynchronizer,
-                                const InferenceEngine::ITaskExecutor::Ptr &callbackExecutor);
+    KmbAsyncInferRequest(const KmbInferRequest::Ptr &request,
+                         const InferenceEngine::ITaskExecutor::Ptr &taskExecutorStart,
+                         const InferenceEngine::ITaskExecutor::Ptr &taskExecutorGetResult,
+                         const InferenceEngine::TaskSynchronizer::Ptr &taskSynchronizer,
+                         const InferenceEngine::ITaskExecutor::Ptr &callbackExecutor,
+                         const Logger::Ptr &log);
 
     InferenceEngine::StagedTask::Ptr createAsyncRequestTask() override;
 
     ~KmbAsyncInferRequest();
 private:
+    Logger::Ptr _logger;
     KmbInferRequest::Ptr _request;
     InferenceEngine::ITaskExecutor::Ptr _taskExecutorGetResult;
 };
