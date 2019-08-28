@@ -408,59 +408,6 @@ TEST_P(VpuInferWithPath, DISABLED_compareInferenceOutputWithReference) {  // To 
 
 using VpuInferAndCompareTests = vpuLayersTests;
 
-TEST_F(VpuInferAndCompareTests, DISABLED_inferenceWithPreprocessing) {  // To be run in manual mode when device is available
-    std::string irXmlPath = ModelsPath() + "/KMB_models/BLOBS/SingleConvolutionFP16/SingleConvolutionFP16.xml";
-    std::string weightsPath = ModelsPath() + "/KMB_models/BLOBS/SingleConvolutionFP16/weights.bin";
-    CNNNetReader netReader;
-    netReader.ReadNetwork(irXmlPath);
-    netReader.ReadWeights(weightsPath);
-
-    CNNNetwork network = netReader.getNetwork();
-    InputsDataMap inputInfo = network.getInputsInfo();
-    for (auto & item : inputInfo) {
-        item.second->getPreProcess().setResizeAlgorithm(RESIZE_BILINEAR);
-    }
-
-    Core ie;
-    std::string input_name = inputInfo.begin()->first;
-    InferenceEngine::ExecutableNetwork exeNetwork;
-    ASSERT_NO_THROW(exeNetwork = ie.ImportNetwork(input_name, "KMB", {}));
-
-    InferenceEngine::InferRequest inferRequest;
-    ASSERT_NO_THROW(inferRequest = exeNetwork.CreateInferRequest());
-
-    std::string inputFilePath = ModelsPath() + "/KMB_models/BLOBS/SingleConvolutionFP16/input-300x300.bin";
-    for (auto & item : inputInfo) {
-        Blob::Ptr inputBlob;
-        inputBlob = inferRequest.GetBlob(item.first.c_str());
-        ASSERT_TRUE(fromBinaryFile(inputFilePath, inputBlob));
-    }
-
-    ASSERT_NO_THROW(inferRequest.Infer());
-
-    ConstOutputsDataMap outputInfo;
-    outputInfo = exeNetwork.GetOutputsInfo();
-
-    for (auto & item : outputInfo) {
-        Blob::Ptr outputBlob;
-        outputBlob = inferRequest.GetBlob(item.first.c_str());
-
-        TensorDesc outputBlobTensorDesc = outputBlob->getTensorDesc();
-        Blob::Ptr referenceOutputBlob = make_blob_with_precision(TensorDesc(
-            outputBlobTensorDesc.getPrecision(),
-            outputBlobTensorDesc.getDims(),
-            outputBlobTensorDesc.getLayout()));
-        referenceOutputBlob->allocate();
-
-        std::string referenceOutputFilePath = ModelsPath() + "/KMB_models/BLOBS/SingleConvolutionFP16/output.bin";
-        ASSERT_TRUE(fromBinaryFile(referenceOutputFilePath, referenceOutputBlob));
-
-        Blob::Ptr refFP32 = ConvertU8ToFP32(referenceOutputBlob);
-        Blob::Ptr outputFP32 = ConvertU8ToFP32(outputBlob);
-        Compare(refFP32, outputFP32, 0.0f);
-    }
-}
-
 class VpuInferAndCompareTestsWithParam: public vpuLayersTests,
                              public testing::WithParamInterface< std::tuple<bool, modelBlobsInfo> > {
 };
