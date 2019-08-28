@@ -32,9 +32,9 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
     mv::OpModel om(model);
     mv::ControlModel cm(model);
 
-    auto addFcn = [&om](std::vector< mv::Data::TensorIterator >& vec, const mv::QuantizationParams& quantParams, const std::string& s){ return om.dPUTaskAdd(vec,quantParams,s);};
-    auto subFcn = [&om](std::vector< mv::Data::TensorIterator >& vec, const mv::QuantizationParams& quantParams, const std::string& s){ return om.dPUTaskSubtract(vec,quantParams,s);};
-    auto multFcn = [&om](std::vector< mv::Data::TensorIterator >& vec, const mv::QuantizationParams& quantParams, const std::string& s){ return om.dPUTaskMultiply(vec,quantParams,s);};
+    auto addFcn = [&om](std::vector< mv::Data::TensorIterator >& vec, const mv::QuantizationParams& quantParams, const std::string& s){ return om.dPUTaskAdd(vec, mv::DType("Default"), quantParams,s);};
+    auto subFcn = [&om](std::vector< mv::Data::TensorIterator >& vec, const mv::QuantizationParams& quantParams, const std::string& s){ return om.dPUTaskSubtract(vec, mv::DType("Default"), quantParams,s);};
+    auto multFcn = [&om](std::vector< mv::Data::TensorIterator >& vec, const mv::QuantizationParams& quantParams, const std::string& s){ return om.dPUTaskMultiply(vec, mv::DType("Default"), quantParams,s);};
 
     auto dpuTaskMap = std::map<std::string, std::function<mv::Data::TensorIterator (std::vector< mv::Data::TensorIterator >&, const mv::QuantizationParams&, const std::string&)>>
                                                {{"Add", addFcn},
@@ -95,9 +95,9 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
 
             mv::Data::TensorIterator dpuConv;
             if(opType == "Conv")
-                dpuConv = om.dPUTaskConv({input, kernel}, strides, padding, dilationFactor, group, quantParams, mv::createDPUTaskName(name));
+                dpuConv = om.dPUTaskConv({input, kernel}, strides, padding, dilationFactor, group, mv::DType("Default"), quantParams, mv::createDPUTaskName(name));
             else
-                dpuConv = om.dPUTaskDepthwiseConv({input, kernel}, strides, padding, dilationFactor, quantParams, mv::createDPUTaskName(name));
+                dpuConv = om.dPUTaskDepthwiseConv({input, kernel}, strides, padding, dilationFactor, mv::DType("Default"), quantParams, mv::createDPUTaskName(name));
 
             auto dpuConvOp = om.getSourceOp(dpuConv);
             dpuConvOp->set<unsigned>("opId", opId);
@@ -164,7 +164,7 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             auto outputDataFlows = mv::getOutputDataFlow(om, opIt);
 
             auto dpuPool = om.dPUTaskMaxPool({input}, kernelSize, strides, padding,
-                               exclude_pad, auto_pad, rounding_type, quantParams, mv::createDPUTaskName(name));
+                               exclude_pad, auto_pad, rounding_type, mv::DType("Default"), quantParams, mv::createDPUTaskName(name));
             auto dpuPoolOp = om.getSourceOp(dpuPool);
             dpuPoolOp->set<unsigned>("opId", opId);
             dpuPoolOp->set<bool>("hasWeights", false);

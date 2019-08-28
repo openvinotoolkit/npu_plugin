@@ -26,7 +26,6 @@ namespace mv
 
         MV_REGISTER_OP(Output)
         .setInputs({"data"})
-        .setOptionalArg<mv::DType>("dType", mv::DType("Default"))
         .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
         .setInputCheck(inputCheckFcn)
         .setOutputDef(outputDefFcn)

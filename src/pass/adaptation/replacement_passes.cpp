@@ -139,7 +139,7 @@ void fullyConnectedAsConv2DFcn(const mv::pass::PassEntry& pass, mv::ComputationM
             opIt->getInputTensor(1)->getShape()[mv::IO_HEIGHT_DIMENSION]}, sourceTensor->getDType(),
             mv::Order::getZMajorID(4),weightsTensorQuantizationParams, opIt->getName() + "_weights");
 
-            auto conv2D = om.conv(sourceTensor, weights, {1, 1}, {0, 0, 0, 0}, 1, 1, outputTensorQuantizationParams);
+            auto conv2D = om.conv(sourceTensor, weights, {1, 1}, {0, 0, 0, 0}, 1, 1, mv::DType("Default"), outputTensorQuantizationParams);
             pass.log(Logger::MessageType::Info, "Replaced FullyConnected op " + opIt->getName() + " with " + conv2D->getName());
 
             if (opIt->hasAttr("bias"))
@@ -292,13 +292,13 @@ void averageAsDepthWiseFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
                 pass.log(Logger::MessageType::Debug, "Passing quantization params from input to output");
                 auto quantParams = opIt->get<mv::QuantizationParams>("quantParams");
                 // use default dilation factor
-                depthwise_conv = om.depthwiseConv(sourceTensor, weights, stride, padding, 1, quantParams, name + "_DepthwiseConv");
+                depthwise_conv = om.depthwiseConv(sourceTensor, weights, stride, padding, 1, mv::DType("Default"), quantParams, name + "_DepthwiseConv");
             }
             else
             {
                 pass.log(Logger::MessageType::Debug, "No need for quantization params, since input is of a floating point type");
                 mv::QuantizationParams emptyQuantParams({{}, {}, {}, {}});
-                depthwise_conv = om.depthwiseConv(sourceTensor, weights, stride, padding, 1, emptyQuantParams, name + "_DepthwiseConv");
+                depthwise_conv = om.depthwiseConv(sourceTensor, weights, stride, padding, 1, mv::DType("Default"), emptyQuantParams, name + "_DepthwiseConv");
             }
 
             auto depthwiseConvOp = om.getSourceOp(depthwise_conv);

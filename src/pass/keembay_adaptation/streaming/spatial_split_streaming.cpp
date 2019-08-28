@@ -299,6 +299,7 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model, mv::Dat
                                 op->get("padding"),
                                 op->get<unsigned>("dilationFactor"),
                                 op->get<unsigned>("group"),
+                                op->get<mv::DType>("dType"),
                                 op->get<mv::QuantizationParams>("quantParams"),
                                 op->getName() + "_split_" + std::to_string(split));
         if (op->hasAttr("bias"))
@@ -404,6 +405,7 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model, mv::Dat
     auto concat = om.concat(final_outputs,
                     "C",
 //                    tiling.getAxis(),
+                    op->get<mv::DType>("dType"),
                     op->get<mv::QuantizationParams>("quantParams"),
                     op->getName() + "concat_");
     om.getSourceOp(concat)->set<unsigned>("opId", opId);
@@ -497,6 +499,7 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model, mv::Dat
                                 op->get<const bool>("exclude_pad"),
                                 op->get<std::string>("auto_pad"),
                                 op->get<std::string>("rounding_type"),
+                                op->get<mv::DType>("dType"),
                                 op->get<mv::QuantizationParams>("quantParams"),
                                 op->getName() + "_split_" + std::to_string(split));
 
@@ -506,6 +509,7 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model, mv::Dat
                                 kernelStride,
                                 currentPad,
                                 op->get<unsigned>("dilationFactor"),
+                                op->get<mv::DType>("dType"),
                                 op->get<mv::QuantizationParams>("quantParams"),
                                 op->getName() + "_split_" + std::to_string(split));
 
@@ -516,6 +520,7 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model, mv::Dat
                                 currentPad,
                                 op->get<unsigned>("dilationFactor"),
                                 op->get<unsigned>("group"),
+                                op->get<mv::DType>("dType"),
                                 op->get<mv::QuantizationParams>("quantParams"),
                                 op->getName() + "_split_" + std::to_string(split));
             slices[split].push_back(slice);
@@ -534,16 +539,16 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model, mv::Dat
                 om.getSourceOp(slice)->set<unsigned>("opId", opId);
                 slices[split].push_back(slice);
             }
-            auto addFcn = [&om](std::vector< mv::Data::TensorIterator >& vec, const mv::QuantizationParams& quantParams, const std::string& s){ return om.add(vec,quantParams,s);};
-            auto subFcn = [&om](std::vector< mv::Data::TensorIterator >& vec, const mv::QuantizationParams& quantParams, const std::string& s){ return om.subtract(vec,quantParams,s);};
-            auto multFcn = [&om](std::vector< mv::Data::TensorIterator >& vec, const mv::QuantizationParams& quantParams, const std::string& s){ return om.multiply(vec,quantParams,s);};
+            auto addFcn = [&om](std::vector< mv::Data::TensorIterator >& vec, const mv::QuantizationParams& quantParams, const mv::DType& dType, const std::string& s){ return om.add(vec, dType, quantParams, s);};
+            auto subFcn = [&om](std::vector< mv::Data::TensorIterator >& vec, const mv::QuantizationParams& quantParams, const mv::DType& dType, const std::string& s){ return om.subtract(vec, dType, quantParams, s);};
+            auto multFcn = [&om](std::vector< mv::Data::TensorIterator >& vec, const mv::QuantizationParams& quantParams, const mv::DType& dType, const std::string& s){ return om.multiply(vec, dType, quantParams, s);};
 
-            auto dpuTaskMap = std::map<std::string, std::function<mv::Data::TensorIterator (std::vector< mv::Data::TensorIterator >&, const mv::QuantizationParams&, const std::string&)>>
+            auto dpuTaskMap = std::map<std::string, std::function<mv::Data::TensorIterator (std::vector< mv::Data::TensorIterator >&, const mv::QuantizationParams&, const mv::DType&, const std::string&)>>
                                                     {{"Add", addFcn},
                                                     {"Subtract", subFcn},
                                                     {"Multiply", multFcn}};
             auto dpuElementWiseFunctor = (dpuTaskMap.at(opType));
-            newTensor = dpuElementWiseFunctor(slices[split], op->get<mv::QuantizationParams>("quantParams"), op->getName() + "_split_" + std::to_string(split));
+            newTensor = dpuElementWiseFunctor(slices[split], op->get<mv::QuantizationParams>("quantParams"), op->get<mv::DType>("dType"), op->getName() + "_split_" + std::to_string(split));
         }
         else
         {
@@ -637,6 +642,7 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model, mv::Dat
 
     auto concat = om.concat(final_outputs,
                     tiling.getAxis(),
+                    op->get<mv::DType>("dType"),
                     op->get<mv::QuantizationParams>("quantParams"),
                     op->getName() + "concat_");
     om.getSourceOp(concat)->set<unsigned>("opId", opId);
