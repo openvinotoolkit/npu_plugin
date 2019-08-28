@@ -197,10 +197,10 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                 auto subTensor = opIt->getOutputTensor()[0]->getSubTensor(clusterNumber);
 
                 /*Sparse tensor don't use z-tiling*/
-                // if(subTensor.isSparse())
-                //     algorithms = {"Rectangle"};
-                // else
-                //     algorithms = {"Rectangle", "Z-Tiling"};
+                if(subTensor.isSparse())
+                    algorithms = {"Rectangle"};
+                else
+                    algorithms = {"Rectangle", "Z-Tiling"};
                 
                 pass.log(mv::Logger::MessageType::Debug, "The shape of subtensor for cluster " + std::to_string(clusterNumber) + "is: " + subTensor.getShape().toString());
 
@@ -326,6 +326,8 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                                 }
                             }
                         }
+                        /*Eltwise ops are performed by the PPE, which does not support Z-Tiling*/
+                        
                         if (algorithm == "Z-Tiling" && opIt->get<std::string>("taskOp") != "Add") 
                         {
                             /*Create workload instance*/
@@ -420,9 +422,7 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
 
                 /*Set the most optimal workload as attribute of the op*/
                 opIt->set<mv::Workloads>("Workloads" + std::to_string(clusterNumber), workloadsVector.at(optimalWorkloadIndex));
-                opIt->set<bool>("Valid_workload", true);
               
-
                 /*Reset workloads vector, splitpool and indices for the next sub tensor layer*/
                 workloadsVector.clear();
                 nWorkloadsSplitPool.clear();
