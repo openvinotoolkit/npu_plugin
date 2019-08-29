@@ -23,6 +23,8 @@ mv::koalaGraph& mv::KoalaGraphScheduler::getGraph()
  */
 void  mv::KoalaGraphScheduler::convertMcMGraphToKoalaGraph(const mv::pass::PassEntry& pass, mv::ComputationModel& model) {
 
+    MV_PROFILED_FUNCTION(MV_PROFILE_ALGO)
+
     mv::ControlModel cm(model);
     mv::DataModel dm(model);
     bool outputNodeAdded = false; 
@@ -111,6 +113,8 @@ void  mv::KoalaGraphScheduler::convertMcMGraphToKoalaGraph(const mv::pass::PassE
 
 uint64_t mv::KoalaGraphScheduler::calculateFMax(mv::ComputationModel& model) {
 
+    MV_PROFILED_FUNCTION(MV_PROFILE_ALGO)
+
     mv::ControlModel cm(model);
 
     /*Compute Fmax - (defined as sum of memory requirments + 1)*/
@@ -126,6 +130,8 @@ uint64_t mv::KoalaGraphScheduler::calculateFMax(mv::ComputationModel& model) {
 }
 
 void mv::KoalaGraphScheduler::insertpartialSerialisationEdgesInMcmGraph(mv::ComputationModel& model) {
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_ALGO)
 
     std::set<std::pair<std::string, std::string>> addedEdges;
     for (const auto& edge : partialSerialisationEdgesAdded_)
@@ -178,6 +184,8 @@ void mv::KoalaGraphScheduler::performPartialSerialisation(const mv::pass::PassEn
      * Do not include the original cut edges in this pool as they are already in the graph.
      * The direction of the new edge is however in the opposite direction, sink --> source. Take care to ensure the correct direction. 
     */
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_ALGO)
 
     /*Sources and sinks of cut edges*/
     std::vector<koalaGraph::PVertex> sources;
@@ -302,6 +310,8 @@ std::pair<int,std::vector<mv::koalaGraph::PEdge>> mv::KoalaGraphScheduler::calcu
 
     mv::ControlModel cm(model);
 
+    MV_PROFILED_FUNCTION(MV_PROFILE_ALGO)
+
     /* Calculate Fmax - Defined as sum of memory requirments + 1)*/
     auto Fmax = this->calculateFMax(model); 
     pass.log(mv::Logger::MessageType::Debug, "Fmax " + std::to_string(Fmax));
@@ -389,8 +399,8 @@ std::pair<int,std::vector<mv::koalaGraph::PEdge>> mv::KoalaGraphScheduler::calcu
     /*compute minimal cut*/
     Koala::Flow::minEdgeCut(this->getGraph(), cap, this->inputVertex, this->outputVertex, Koala::Flow::outCut(blackHole, std::back_inserter(cutEdges)));
     
-    for (std::size_t i = 0; i < cutEdges.size(); i++)
-        maxTopologicalCutValue += cutEdges[i]->info.memoryRequirement;
+    for (auto& cutEdge : cutEdges)
+        maxTopologicalCutValue += cutEdge->info.memoryRequirement;
 
     /*Add Max topological cut value as attribute to output node*/
     auto output = cm.getOutput();

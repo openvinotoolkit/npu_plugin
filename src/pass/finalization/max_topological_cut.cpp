@@ -77,4 +77,6 @@ void maxTopologicalCutAndPartialSerialisationPass(const mv::pass::PassEntry& pas
 
     /*Add the partial serialisaion edges to the mcmGraph*/
     flowGraph.insertpartialSerialisationEdgesInMcmGraph(model);
+
+   
 }
