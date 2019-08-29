@@ -86,7 +86,7 @@ namespace mv
     class Workloads : public LogSender
     {
 
-        std::vector<mv::Workload> workloads_;
+        std::vector<Workload> workloads_;
         std::string layerName_;
         mv::Shape tensorShape_;
         std::vector<float> executionCycles_; //Min & Max execution cycles

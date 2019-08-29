@@ -143,7 +143,6 @@ std::tuple<int,int, int> getGlobalCompilationDescriptorConf(const mv::pass::Pass
 
 void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element& passDesc, mv::Element&)
 {
-    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     pass.log(mv::Logger::MessageType::Debug, "Starting workload generation pass");
     mv::OpModel om(model);
 
@@ -176,15 +175,17 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
         if (opIt->getOpType() == "DPUTask")
         {
             pass.log(mv::Logger::MessageType::Debug, "Found DPU task " + opIt->getName() + " of type " + opIt->get<std::string>("taskOp"));
-            pass.log(mv::Logger::MessageType::Debug, "Output tensor size is: " + opIt->getOutputTensor()[0]->getShape().toString());
 
+            /*Get number of clusters*/
             auto opStrategy = opIt->get<std::string>("splitStrategy");
             if(opStrategy == "Clustering")
                 nClusters = 1;
             else
                 nClusters = std::get<2>(compilationConfigs);
 
-            /*For Deptwise convolution, Max pooling and CM convolution MPE mode must be (1,16)*/
+            /* For Deptwise convolution, Max pooling and CM convolution MPE mode must be (1,16)*/
+            /* This should be moved to a target descriptor*/
+
             if((opIt->get<std::string>("taskOp") == "DepthwiseConv") || (opIt->get<std::string>("taskOp") == "MaxPool") || (opIt->get<std::string>("taskOp") == "ChannelMajorConvolution"))
                 dpuModes = {{1, 16}};
             else
@@ -196,7 +197,8 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                 /*get the subtensor*/
                 auto subTensor = opIt->getOutputTensor()[0]->getSubTensor(clusterNumber);
 
-                /*Sparse tensor don't use z-tiling*/
+                /*Sparse tensors don't use z-tiling*/
+                /* This should be moved to a target descriptor*/
                 if(subTensor.isSparse())
                     algorithms = {"Rectangle"};
                 else
@@ -227,59 +229,62 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                     /*For each of the algorithms specified*/
                     for (std::string algorithm : algorithms)
                     {
-                        if (algorithm == "Metis")
-                        {
-                            /* For each dpu mode and for each workload, attempt to partition with METIS and/or Rectangle and create worklaods*/
-                            for (auto dpuMode : dpuModes)
-                            {
-                                /*Create workload instance*/
-                                workloadsVector.emplace_back(mv::Workloads(opIt->getName(), opIt->getOutputTensor()[0]->getShape(), dpuMode));
+                        /*Disabled METIS due to licence*/
 
-                                /*Populate Metis adjacency structure and partition tensor*/
-                                workloadsVector.at(workloadsVectorIndex).generateMetisGraph();
-                                metisGraph = workloadsVector.at(workloadsVectorIndex).getMetisGraph();
+                        // if (algorithm == "Metis")
+                        // {
+                        //     /* For each dpu mode and for each workload, attempt to partition with METIS and/or Rectangle and create worklaods*/
+                        //     for (auto dpuMode : dpuModes)
+                        //     {
+                        //         /*Create workload instance*/
+                        //         workloadsVector.emplace_back(mv::Workloads(opIt->getName(), opIt->getOutputTensor()[0]->getShape(), dpuMode));
 
-                                metisResult = partitionTensorWithMETIS(metisGraph, nWorkloads, pass);
+                        //         /*Populate Metis adjacency structure and partition tensor*/
+                        //         workloadsVector.at(workloadsVectorIndex).generateMetisGraph();
+                        //         metisGraph = workloadsVector.at(workloadsVectorIndex).getMetisGraph();
 
-                                /*Store METIS optimization value as attrbute for unit testing and for comparison with POC compiler*/
-                                opIt->set<int>("Metis_edge_cut", metisGraph->objval);
+                        //         metisResult = partitionTensorWithMETIS(metisGraph, nWorkloads, pass);
 
-                                /*Check that Metis returned the exact number of partitions requested. Sometimes it will return less*/
-                                if ((metisResult.first == 1) && (metisResult.second == nWorkloads))
-                                {
-                                    workloadsVector.at(workloadsVectorIndex).populateWorkloadsFromPartitions(nWorkloads, pass, dpuMode);
+                        //         /*Store METIS optimization value as attrbute for unit testing and for comparison with POC compiler*/
+                        //         opIt->set<int>("Metis_edge_cut", metisGraph->objval);
 
-                                    if(!workloadsVector.at(workloadsVectorIndex).validateWorkloads(opIt->getOutputTensor()[0]->getShape()))
-                                    {
-                                        pass.log(mv::Logger::MessageType::Debug, "Unable to produce valid workloads using METIS for this layer switching to Rectangle Heuristic");
+                        //         /*Check that Metis returned the exact number of partitions requested. Sometimes it will return less*/
+                        //         if ((metisResult.first == 1) && (metisResult.second == nWorkloads))
+                        //         {
+                        //             workloadsVector.at(workloadsVectorIndex).populateWorkloadsFromPartitions(nWorkloads, pass, dpuMode);
 
-                                        /*Remove the original workload created with metis*/
-                                        workloadsVector.erase(workloadsVector.begin() + workloadsVectorIndex);
-                                        metisFail = true;
-                                    }
-                                    else
-                                    {
-                                        workloadsVectorIndex++;
-                                        metisFail = false;
-                                    }
-                                }
-                                else
-                                {
-                                    pass.log(mv::Logger::MessageType::Debug,"Error partitioning tensor into workloads using METIS");
+                        //             if(!workloadsVector.at(workloadsVectorIndex).validateWorkloads(opIt->getOutputTensor()[0]->getShape()))
+                        //             {
+                        //                 pass.log(mv::Logger::MessageType::Debug, "Unable to produce valid workloads using METIS for this layer switching to Rectangle Heuristic");
 
-                                    /*Remove the original workload created with metis*/
-                                    workloadsVector.erase(workloadsVector.begin() + workloadsVectorIndex);
-                                    metisFail = true;
-                                }
-                            }
-                        }
-                        // Rectangle euristic is used also as backup for metis
+                        //                 /*Remove the original workload created with metis*/
+                        //                 workloadsVector.erase(workloadsVector.begin() + workloadsVectorIndex);
+                        //                 metisFail = true;
+                        //             }
+                        //             else
+                        //             {
+                        //                 workloadsVectorIndex++;
+                        //                 metisFail = false;
+                        //             }
+                        //         }
+                        //         else
+                        //         {
+                        //             pass.log(mv::Logger::MessageType::Debug,"Error partitioning tensor into workloads using METIS");
+
+                        //             /*Remove the original workload created with metis*/
+                        //             workloadsVector.erase(workloadsVector.begin() + workloadsVectorIndex);
+                        //             metisFail = true;
+                        //         }
+                        //     }
+                        // }
+
+                        // Rectangle Reuristic performs the same function as METIS
                         if (algorithm == "Rectangle")
                         {
                             /*Create workload instance*/
                             workloadsVector.emplace_back(mv::Workloads(opIt->getName(), subTensor.getShape()));
 
-                            /*Partition tensor into workloads with Rectangle, the default is to split over H*/
+                            /*Partition tensor into workloads with Rectangle*/
                             rectangleFail = false;
                             bool split_over_h = true;
                             bool split_over_w = true;
@@ -327,8 +332,7 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                             }
                         }
                         /*Eltwise ops are performed by the PPE, which does not support Z-Tiling*/
-                        
-                        if (algorithm == "Z-Tiling" && opIt->get<std::string>("taskOp") != "Add") 
+                        if (algorithm == "Z-Tiling" && opIt->get<std::string>("taskOp") != "Add" && opIt->get<std::string>("taskOp") != "Subtract" && opIt->get<std::string>("taskOp") != "Divide" && opIt->get<std::string>("taskOp") != "Multiply") 
                         {
                             /*Create workload instance*/
                             workloadsVector.emplace_back(mv::Workloads(opIt->getName(), subTensor.getShape()));

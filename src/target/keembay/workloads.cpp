@@ -474,7 +474,6 @@ const std::vector<int> mv::Workloads::getWorkloadSplitPool(const Tensor& tensor,
     double xDim = tensor.getShape()[0];
     double yDim = tensor.getShape()[1];
 
-    //std::cout << dpuModeList.size() << std::endl;
     for(std::size_t i = 0; i < dpuModeList.size(); i++)
         maxSplitsXY.push_back(ceil((yDim/dpuModeList[i].H)  * ceil(xDim/dpuModeList[i].W)));
 
@@ -482,7 +481,6 @@ const std::vector<int> mv::Workloads::getWorkloadSplitPool(const Tensor& tensor,
     int maxSplitsZ = ceil(tensor.getShape()[2]/16);
 
     /*Z splits*/
-    /*Switched off Z splits until supported*/
     if((maxSplitsZ < maxSplits) && (maxSplitsZ >1))
     {
         splitPool.push_back(maxSplitsZ);
@@ -867,7 +865,6 @@ void mv::Workloads::setExecutionCycles(std::vector<float> val)
     executionCycles_ = val;
 }
 
-/*Only the critical path cost function is supported*/
 void mv::Workloads::generateExecutionCycles(std::vector<mv::Workloads>& workloadsVector, int nDPUxCluster, CostFunctions costFunction)
 {
     /* Execution time is bounded by
@@ -1451,12 +1448,6 @@ namespace mv {
             workload.MinZ = 0;
             workload.MaxZ = Z ? Z - 1: 0;
 
-            //
-            // if(mode_list[0].H == 4)
-            //     workload.MPEMode = mv::MPE_Mode::Matrix;
-            // else
-            //     workload.MPEMode = mv::MPE_Mode::Vector;
-
             /*Select best MPE mode*/
             if(padding.mode.H == 4)
                 workload.MPEMode = mv::Matrix; 
@@ -1464,11 +1455,9 @@ namespace mv {
                 workload.MPEMode = mv::Vector; 
 
             /*store requested number of workoads*/
-            workload.requestWorkloadNumber = nWorkloads;
+            workload.requestedWorkloadNumber = nWorkloads;
             workload.algorithm = "Rectangle";
 
-            // FIXME: setup workload id
-            // FIXME: adjust workloads padding
             workload_list.push_back(workload);
         }
 
@@ -1644,6 +1633,7 @@ int mv::Workloads::partitionTensorWithZsplit(const mv::DPUModeList& mode_list, i
         Workload workload;
         output_channels = std::min<idx_t>(max_channels_per_WL, C - idx*max_channels_per_WL);
 
+        /*Populate the workloads*/
         workload.MinX = 0;
         workload.MinY = 0;
         workload.MaxX = W-1;
@@ -1651,7 +1641,7 @@ int mv::Workloads::partitionTensorWithZsplit(const mv::DPUModeList& mode_list, i
         workload.z_offset = idx*max_channels_per_WL; 
         workload.MinZ = idx*max_channels_per_WL;
         workload.MaxZ = workload.MinZ + output_channels -1;
-        workload.requestWorkloadNumber = nWorkloads;
+        workload.requestedWorkloadNumber = nWorkloads;
         workload.algorithm = "Z-Tiling";
 
         /*Select best MPE mode*/

@@ -1145,10 +1145,6 @@ void mv::RuntimeModel::getWorkloadPadding(Control::OpListIterator opIt, Workload
         }
         else
         {
-            // workload.padLeft = padding[0];
-            // workload.padTop = padding[2];
-            // workload.padRight = padding[1];
-            // workload.padBottom = padding[3];
             workload.padLeft = (workload.MinX == 0) ? padding[0] : 0;
             workload.padTop = (workload.MinY == 0) ? padding[2] : 0;
             workload.padRight = ((workload.MaxX + unsigned(1)) == outputWidth) ? padding[1] : 0;

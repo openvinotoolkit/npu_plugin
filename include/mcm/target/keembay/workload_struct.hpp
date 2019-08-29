@@ -12,8 +12,8 @@ namespace mv
 {
     enum MPE_Mode
     {
-        Vector = 0,
-        Matrix = 1
+        Vector,
+        Matrix
     };
     struct Workload
     {
@@ -31,7 +31,7 @@ namespace mv
         int32_t clusterID = 0;
         int8_t workloadID = 0;
         int16_t z_offset = 0;
-        int16_t requestWorkloadNumber = 0;
+        int16_t requestedWorkloadNumber = 0;
         std::string algorithm = "None";
         
         int16_t area()
