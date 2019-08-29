@@ -217,7 +217,7 @@ TEST_F(kmbLayersTests_nightly, TestsConvolutionOnly) {
     ASSERT_NO_THROW(ie.LoadNetwork(network, "kmb", config));
 }
 
-TEST_F(kmbLayersTests_nightly, TestsConvolutionOnlyNoBias) {
+TEST_F(kmbLayersTests_nightly, DISABLED_TestsConvolutionOnlyNoBias) {
     std::string model = convolution_only;
     REPLACE_WITH_STR(model, "<biases offset=\"18816\" size=\"128\"/>", " ");
 
