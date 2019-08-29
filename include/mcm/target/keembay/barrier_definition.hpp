@@ -2,7 +2,7 @@
 #define BARRIER_DEFINITION_HPP
 
 #include <string>
-#include <unordered_set>
+#include <set>
 
 #include "include/mcm/logger/log_sender.hpp"
 
@@ -16,14 +16,14 @@ namespace mv
         int barrierID_;
         int numProducers_;
         int numConsumers_;
-        std::unordered_set<std::string> producers_; // names of the input ops
-        std::unordered_set<std::string> consumers_; // names of the op that consume this barrier
+        std::set<std::string> producers_; // names of the input ops
+        std::set<std::string> consumers_; // names of the op that consume this barrier
         static int barrierCounter_;
 
     public:
         Barrier(int group = -1, int index = -1);
-        Barrier(int group, int index, std::unordered_set<std::string>& producers, std::unordered_set<std::string>& consumers);
-        Barrier(std::unordered_set<std::string>& producers, std::unordered_set<std::string>& consumers);
+        Barrier(int group, int index, std::set<std::string>& producers, std::set<std::string>& consumers);
+        Barrier(std::set<std::string>& producers, std::set<std::string>& consumers);
         bool operator==(const Barrier& other);
         bool operator!=(const Barrier& other);
 
@@ -59,8 +59,8 @@ namespace mv
         bool hasProducers();
         bool hasConsumers();
 
-        std::unordered_set<std::string> getProducers() const;
-        std::unordered_set<std::string> getConsumers() const;
+        std::set<std::string> getProducers() const;
+        std::set<std::string> getConsumers() const;
 
         // bool isSet();
 

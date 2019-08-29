@@ -292,7 +292,8 @@
     },
     "adapt": {
         "Singular": [
-            "FloatLayersToFP16",
+            "PopulatedTensorsToFP16",
+            "UnpopulatedTensorsToFP16",
             "AverageAsDepthWise",
             "FuseBatchNorm",
             "FuseBias",

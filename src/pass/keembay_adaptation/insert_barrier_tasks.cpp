@@ -81,7 +81,7 @@ static void drawBIG(BarrierInterferenceGraph& g, std::string outputFile)
     for (auto it = g.node_begin(); it != g.node_end(); ++it)
     {
         std::string vIdx = std::to_string((*it).getID());
-        std::unordered_set<std::string> consumers = (*it).getConsumers();
+        std::set<std::string> consumers = (*it).getConsumers();
         std::string consumerStr = "";
         for (auto s: consumers)
         {
@@ -174,7 +174,7 @@ static void drawBigK(const BIGKoala& bigK)
     Koala::IO::GraphML gml;
     Koala::IO::GraphMLGraph *gmlg;
 
-    //Koala::IO::writeGraphText(bigK, std::cout, Koala::IO::RG_VertexLists);
+    //Koala::IO::writeGraphText(bigK, //std::cout, Koala::IO::RG_VertexLists);
     
     gmlg = gml.createGraph("BIGKoala");
     gmlg->writeGraph(bigK, Koala::IO::gmlIntField(&BigKVertexInfo::barrierId, "barrierId"),
@@ -210,10 +210,14 @@ generateBarrierInterferenceGraph(mv::OpModel& om,
         {
             for (auto& b2: barriers)
             {
+                if (b1 == b2)
+                    continue;
+
                 auto b1It = big.node_find(b1);
                 auto b2It = big.node_find(b2);
-                auto concurrentBarrier = std::find(b2.getProducers().begin(), b2.getProducers().end(), c);
-                if (concurrentBarrier != b2.getProducers().end())
+                auto prod_b2 = b2.getProducers();
+                auto concurrentBarrier = std::find(prod_b2.begin(), prod_b2.end(), c);
+                if (concurrentBarrier != prod_b2.end())
                 {
                     // b1's consumer is the same as b2's producer, so add an edge
                     if (!mv::edgeExists(big, b1It, b2It) && !mv::edgeExists(big, b2It, b1It))
@@ -292,8 +296,33 @@ static bool opHasBarrier(const std::string& opName , std::vector<mv::Barrier>& b
     return false;
 }
 
-static void combineRedundantBarriers(const mv::pass::PassEntry& pass, std::vector<mv::Barrier>& barriers)
+static bool emptySetIntersection(const std::set<std::string>& s1, const std::set<std::string>& s2)
 {
+    auto it1 = s1.begin();
+    auto it2 = s2.begin();
+
+    while (it1 != s1.end() && it2 != s2.end())
+    {
+        if (*it1 == *it2)
+            return false;
+        else if (*it1 < *it2)
+            it1++;
+        else
+        {
+            it2++;
+        }
+    }
+
+    return true;
+}
+
+
+static void combineRedundantBarriers(mv::ComputationModel& model,
+                                    const mv::pass::PassEntry& pass,
+                                    std::vector<mv::Barrier>& barriers)
+{
+    mv::ControlModel cm(model);
+
     for (auto b = barriers.begin(); b != barriers.end(); b++ )
     {
         for (auto c = std::next(b); c!= barriers.end(); c++ )
@@ -328,6 +357,52 @@ static void combineRedundantBarriers(const mv::pass::PassEntry& pass, std::vecto
 
                     // Clear c so that it can be removed from the graph
                     c->clear();
+                }
+            }
+
+            // check whether c's producers are a subset of b, if so, move c's consumers to b
+            auto prod_b = b->getProducers();
+            auto prod_c = c->getProducers();
+            auto cons_b = b->getConsumers();
+            auto cons_c = c->getConsumers();
+            if ((std::includes(prod_b.begin(), prod_b.end(), prod_c.begin(), prod_c.end())
+                || std::includes(prod_c.begin(), prod_c.end(), prod_b.begin(), prod_b.end()))
+                && b->hasConsumers() && c->hasConsumers())
+            {
+                if (emptySetIntersection(prod_b, cons_c) && emptySetIntersection(prod_c, cons_b))
+                {
+                    bool noPath = true;
+                    for (auto p1 = prod_b.begin(); p1 != prod_b.end(); ++p1)
+                    {
+                        for (auto p2 = prod_c.begin(); p2 != prod_c.end(); ++p2)
+                        {
+                            if (*p1 != *p2 && (cm.pathExists(cm.switchContext(cm.getOp(*p1)), cm.switchContext(cm.getOp(*p2)))
+                                            || cm.pathExists(cm.switchContext(cm.getOp(*p2)), cm.switchContext(cm.getOp(*p1)))))
+                            {
+                                noPath = noPath && false;
+                            }
+                        }
+                    }
+
+                    if (noPath)
+                    {
+                        pass.log(mv::Logger::MessageType::Info,
+                                "combining redundant barriers: " + std::to_string(b->getID())
+                                + " and " + std::to_string(c->getID()));
+
+                        for (auto consumer : c->getConsumers())
+                        {
+                            b->addConsumer(consumer);
+                            c->removeConsumer(consumer);
+                        }
+
+                        for (auto producer: c->getProducers())
+                        {
+                            b->addProducer(producer);
+                            c->removeProducer(producer);
+                        }
+
+                    }
                 }
             }
         }
@@ -368,8 +443,8 @@ void getBarrierForControlModelOp(mv::ControlModel& cm, mv::Control::OpListIterat
                 }
                 else
                 {
-                    std::unordered_set<std::string> producers;
-                    std::unordered_set<std::string> consumers;
+                    std::set<std::string> producers;
+                    std::set<std::string> consumers;
                     producers.insert(sourceOpName);
                     consumers.insert(sinkOpName);
                     struct mv::Barrier new_barrier(producers, consumers);
@@ -538,7 +613,7 @@ static void insertBarrierTasksFcn(const mv::pass::PassEntry& pass, mv::Computati
 
     addBarriers(model, barriers);
 
-    combineRedundantBarriers(pass, barriers);
+    combineRedundantBarriers(model, pass, barriers);
 
     // remove extraneous producers
     // XXX: Q: Do any extraneous consumers need to be removed as well?

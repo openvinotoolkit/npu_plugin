@@ -7,6 +7,7 @@
 #include <cmath>
 #include <numeric>
 #include <cmath>
+#include <unordered_set>
 
 static void generateSchedulingFcn(const mv::pass::PassEntry&, mv::ComputationModel&, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void barrierIndexAssignmentFcn(const mv::pass::PassEntry&, mv::ComputationModel&, mv::TargetDescriptor&, mv::Element&, mv::Element&);

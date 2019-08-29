@@ -443,7 +443,7 @@ std::size_t bestFitSelect(std::string& name, mv::TensorInterferenceGraph& g, lon
     if (gaps.size() == 1)
         //Actual Spill will be handled in runtime
         //eventually, the exception is just to indicate that currently it's not handled
-        throw mv::ArgumentError("bestFitSelect", "gaps size", "", "TODO Implement Actual Spill Routine");
+        throw mv::ArgumentError("bestFitSelect", "gaps size", "", "trying to allocate " + name + " gap size == 1");
 
     auto lastgap = gaps.end();
     lastgap--;
@@ -463,7 +463,7 @@ std::size_t bestFitSelect(std::string& name, mv::TensorInterferenceGraph& g, lon
     if (insertionChromaticNumbersMin > memorySize)
         //Actual Spill will be handled in runtime
         //eventually, the exception is just to indicate that currently it's not handled
-        throw mv::ArgumentError("bestFitSelect", "gaps size", "", "TODO Implement Actual Spill Routine");
+        throw mv::ArgumentError("bestFitSelect", "insertionChromaticNumbersMin > memorySize", "", "trying to allocate " + name + std::to_string(memorySize) + " < " + std::to_string(insertionChromaticNumbersMin));
 
     chromaticNumber = updateNodeAddress(gaps[index].first, ni, chromaticNumber, coloredNeighbors, directedGraph, g, directedGraphMaxEdgeId);
     chromaticNumber = updateHeights(ni, directedGraph, g);
