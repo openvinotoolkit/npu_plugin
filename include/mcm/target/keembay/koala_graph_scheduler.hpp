@@ -57,15 +57,13 @@ namespace mv
         koalaGraph* graph_;
 
         /*KOALA vertices and edges iterators*/
+        koalaGraph::PVertex inputVertex;
+        koalaGraph::PVertex outputVertex; 
         std::vector<koalaGraph::PVertex> vertices_;  
         std::vector<koalaGraph::PEdge> edges_;
         /*New edges added to the graph from partial serialisation, these will be added to the McM graph*/
         std::vector<koalaGraph::PEdge> partialSerialisationEdgesAdded_;
 
-        std::vector<koalaGraph::PEdge>::const_iterator lookUpKoalaEdgebyName(std::string edgeName, const std::vector<koalaGraph::PEdge>& koalaEdges);
-        std::vector<mv::koalaGraph::PVertex>::const_iterator lookUpKoalaSinkNode(bool sinknode, const std::vector<koalaGraph::PVertex>& koalaVertices);
-        std::vector<mv::koalaGraph::PVertex>::const_iterator lookUpKoalaSourceNode(bool sourcenode, const std::vector<koalaGraph::PVertex>& koalaVertices);
-           
     public:
         KoalaGraphScheduler();
         ~KoalaGraphScheduler();
