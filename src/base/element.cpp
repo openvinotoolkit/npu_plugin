@@ -286,7 +286,8 @@ mv::json::Value mv::Element::toJSON() const
 mv::json::Value mv::Element::toJSON(bool simplifiedTyping) const
 {
     json::Object result;
-    result["name"] = name_;
+    if (name_ != "") 
+        result["name"] = name_;
 
     if (!simplifiedTyping)
     {
