@@ -75,8 +75,8 @@ void Engine::QueryNetwork(const ICNNNetwork& network, const std::map<std::string
                        << "Supported format: FP32 and FP16.";
     }
 
-    auto layerNames = getSupportedLayersMcm(
-        network,
+    auto copyNet = ie::CNNNetwork(InferenceEngine::cloneNet(network));
+    auto layerNames = getSupportedLayersMcm(copyNet,
         tmpCompiler->model(),
         config);
 

@@ -29,6 +29,10 @@
 #include <ie_profiling.hpp>
 
 #include <utils/dims_parser.hpp>
+#include "low_precision_transformer.hpp"
+#include <ie_util_internal.hpp>
+#include <graph_transformer.h>
+
 
 #ifdef ENABLE_MCM_COMPILER
 namespace vpu {
@@ -119,7 +123,7 @@ mv::DType convert_data_type(ie::Precision iePrecision) {
     return mvType;
 }
 
-void FrontEndMcm::buildInitialModel(const ie::ICNNNetwork& network) {
+void FrontEndMcm::buildInitialModel(ie::ICNNNetwork& network) {
     runCommonPasses(network);
 
     for (const auto& layer : _parsedNetwork.orderedLayers) {
@@ -128,6 +132,22 @@ void FrontEndMcm::buildInitialModel(const ie::ICNNNetwork& network) {
         _logger->debug("Try to parse layer %s", layer->name);
 
         McmNodeVector inputs;
+        if(layer->type == "FakeQuantize") {
+            continue;
+        }
+
+        if(layer->type == "ScaleShift") {
+            auto layerInput = layer->insData[0].lock();
+            IE_ASSERT(layerInput != nullptr);
+
+            auto prevLayer = layerInput->getCreatorLayer().lock();
+            if (prevLayer != nullptr) {
+                if (prevLayer->type == "Const") {
+                    continue;
+                }
+            }
+        }
+
         getInputData(layer, inputs);
         auto it = g_mcm_parsers.find(layer->type);
         if (it == g_mcm_parsers.end()) {
@@ -148,7 +168,7 @@ void FrontEndMcm::buildInitialModel(const ie::ICNNNetwork& network) {
     parseOutputData();
 }
 
-std::set<std::string> FrontEndMcm::checkSupportedLayers(const ie::ICNNNetwork& network) {
+std::set<std::string> FrontEndMcm::checkSupportedLayers(ie::ICNNNetwork& network) {
     runCommonPasses(network);
 
     std::set<std::string> layerNames;
@@ -291,14 +311,152 @@ void FrontEndMcm::parseNetworkDFS(const ie::ICNNNetwork& network, ParsedNetwork&
     std::reverse(parsedNetwork.orderedLayers.begin(), parsedNetwork.orderedLayers.end());
 }
 
-void FrontEndMcm::runCommonPasses(const ie::ICNNNetwork& network) {
-    parseNetworkDFS(network, _parsedNetwork);
+void FrontEndMcm::applyQuantizationTransformations(ie::CNNNetwork& network) {
+    InferenceEngine::details::LowPrecisionTransformer transformer(InferenceEngine::details::LowPrecisionTransformer::getAllTransformations(true));
+    transformer.transform(network);
+
+    for (auto layer : network) {
+        if (layer->type == "FakeQuantize") {
+
+            auto quantizeLayer = std::dynamic_pointer_cast<InferenceEngine::QuantizeLayer>(layer);
+            InferenceEngine::DataPtr layerInput = quantizeLayer->insData[0].lock();
+            auto prevLayer = layerInput->getCreatorLayer().lock();
+            if (prevLayer->type != "Convolution") {
+                continue;
+            }
+            auto initAxisIdx = [&](size_t edgeIdx) {
+                auto edge = quantizeLayer->insData[edgeIdx].lock();
+
+                size_t axisIdx = 0;
+                int numberOfNonUnit = 0;
+                for (unsigned i = 0; i < edge->getDims().size(); i++) {
+                    if (edge->getDims()[i] > 1) {
+                        axisIdx = i;
+                        numberOfNonUnit++;
+                    }
+                }
+                if (numberOfNonUnit > 1) {
+                    THROW_IE_EXCEPTION << "Quantize layer " << quantizeLayer->name
+                                       << " supports only per-tensor and per-channel quantizations";
+                }
+
+                return axisIdx;
+            };
+
+            int levels = -1;
+
+            size_t inputLowAxis = 0;
+            size_t inputHighAxis = 0;
+            size_t outputLowAxis = 0;
+            size_t outputHighAxis = 0;
+
+            inputLowAxis = initAxisIdx(1);
+            inputHighAxis = initAxisIdx(2);
+            outputLowAxis = initAxisIdx(3);
+            outputHighAxis = initAxisIdx(4);
+
+            size_t axis = 0;
+
+            axis = std::max(std::max(std::max(inputLowAxis, inputHighAxis), outputLowAxis), outputHighAxis);
+
+            if ((inputLowAxis != 0 && inputLowAxis != axis) ||
+                (inputHighAxis != 0 && inputHighAxis != axis) ||
+                (outputLowAxis != 0 && outputLowAxis != axis) ||
+                (outputHighAxis != 0 && outputHighAxis != axis)) {
+                THROW_IE_EXCEPTION << "Quantize layer " << layer->name << " has inconsistent input dims";
+            }
+
+            // WA to enable jit implementation
+            if (axis == 0) {
+                if (quantizeLayer->insData[1].lock()->getDims()[inputLowAxis] == 1 &&
+                    quantizeLayer->insData[2].lock()->getDims()[inputHighAxis] == 1 &&
+                    quantizeLayer->insData[3].lock()->getDims()[outputLowAxis] == 1 &&
+                    quantizeLayer->insData[4].lock()->getDims()[outputHighAxis] == 1) {
+                    axis = 1;
+                }
+            }
+
+            size_t axisRealSize = layer->insData[0].lock()->getDims()[axis];
+
+            InferenceEngine::DataPtr inputLow = layer->insData[1].lock();
+            bool isInputLowBroadcasted = inputLow->getDims()[inputLowAxis] != axisRealSize;
+
+            InferenceEngine::DataPtr inputHigh = layer->insData[2].lock();
+            bool isInputHighBroadcasted = inputHigh->getDims()[inputHighAxis] != axisRealSize;
+
+            InferenceEngine::DataPtr outputLow = layer->insData[3].lock();
+            bool isOutputLowBroadcasted = outputLow->getDims()[outputLowAxis] != axisRealSize;
+
+            InferenceEngine::DataPtr outputHigh = layer->insData[4].lock();
+            bool isOutputHighBroadcasted = outputHigh->getDims()[outputHighAxis] != axisRealSize;
+
+            auto outputHighCreator = outputHigh->getCreatorLayer().lock()->blobs["custom"];
+            auto outputHighBlob = dynamic_cast<InferenceEngine::TBlob<float> *>(outputHighCreator.get());
+            auto outputHighData = outputHighBlob->buffer().as<float *>();
+
+            auto outputLowCreator = outputLow->getCreatorLayer().lock()->blobs["custom"];
+            auto outputLowBlob = dynamic_cast<InferenceEngine::TBlob<float> *>(outputLowCreator.get());
+            auto outputLowData = outputLowBlob->buffer().as<float *>();
+
+            auto inputHighCreator = inputHigh->getCreatorLayer().lock()->blobs["custom"];
+            auto inputHighBlob = dynamic_cast<InferenceEngine::TBlob<float> *>(inputHighCreator.get());
+            auto inputHighData = inputHighBlob->buffer().as<float *>();
+
+            auto inputLowCreator = inputLow->getCreatorLayer().lock()->blobs["custom"];
+            auto inputLowBlob = dynamic_cast<InferenceEngine::TBlob<float> *>(inputLowCreator.get());
+            auto inputLowData = inputLowBlob->buffer().as<float *>();
+
+            auto dataDescFP = InferenceEngine::TensorDesc(InferenceEngine::Precision::FP32,
+                                                        {axisRealSize},
+                                                        InferenceEngine::Layout::C);
+            auto dataDescInt = InferenceEngine::TensorDesc(InferenceEngine::Precision::I64,
+                                            {axisRealSize},
+                                            InferenceEngine::Layout::C);
+
+            auto newActivationInputScale = InferenceEngine::make_shared_blob<double>(dataDescFP);
+            auto newActivationOutScale = InferenceEngine::make_shared_blob<double>(dataDescFP);
+            auto newActivationInputShift = InferenceEngine::make_shared_blob<int64_t>(dataDescInt);
+            auto newActivationOutShift = InferenceEngine::make_shared_blob<int64_t>(dataDescInt);
+
+            newActivationInputScale->allocate();
+            newActivationOutScale->allocate();
+            newActivationOutShift->allocate();
+            newActivationInputShift->allocate();
+
+            auto inputScale = newActivationInputScale->buffer().as<double *>();
+            auto outputScale = newActivationOutScale->buffer().as<double *>();
+            auto inputShift = newActivationInputShift->buffer().as<int64_t *>();
+            auto outputShift = newActivationOutShift->buffer().as<int64_t *>();
+
+            for (unsigned i = 0; i < axisRealSize; i++) {
+                float il = inputLowData[isInputLowBroadcasted ? 0 : i];
+                float ih = inputHighData[isInputHighBroadcasted ? 0 : i];
+                float ol = outputLowData[isOutputLowBroadcasted ? 0 : i];
+                float oh = outputHighData[isOutputHighBroadcasted ? 0 : i];
+
+                inputScale[i] = static_cast<double>((levels - 1) / (ih - il));
+                inputShift[i] = static_cast<int64_t>(-il * (levels - 1) / (ih - il));
+                outputScale[i] = static_cast<double>((oh - ol) / (levels - 1));
+                outputShift[i] = static_cast<int64_t>(ol);
+            }
+
+            prevLayer->blobs["newActivationInputScale"] = newActivationInputScale;
+            prevLayer->blobs["newActivationOutScale"] = newActivationOutScale;
+            prevLayer->blobs["newActivationInputShift"] = newActivationInputShift;
+            prevLayer->blobs["newActivationOutShift"] = newActivationOutShift;
+        }
+    }
+}
+
+void FrontEndMcm::runCommonPasses(ie::ICNNNetwork& network) {
+    auto cnnNet = ie::CNNNetwork(std::shared_ptr<ie::ICNNNetwork>(&network, [](ie::ICNNNetwork*){}));
+    applyQuantizationTransformations(cnnNet);
+    parseNetworkDFS(cnnNet, _parsedNetwork);
     parseInputData();
 }
 
 McmNode FrontEndMcm::getMcmData(const ie::DataPtr& ieData) {
     IE_ASSERT(ieData != nullptr);
-
     auto it = _ieToMcmMap.find(ieData);
     if (it == _ieToMcmMap.end()) {
         return nullptr;
@@ -310,7 +468,6 @@ McmNode FrontEndMcm::getMcmData(const ie::DataPtr& ieData) {
 void FrontEndMcm::bindData(const McmNode& data, const ie::DataPtr& ieData) {
     IE_ASSERT(_modelMcm.isValid(data->getMcmNode()));
     IE_ASSERT(_modelMcm.isValid(_modelMcm.getSourceOp(data->getMcmNode())));
-
     _ieToMcmMap[ieData] = data;
     data->setOrigData(ieData);
 }
@@ -331,6 +488,19 @@ void FrontEndMcm::getInputData(
     for (size_t i = 0; i < layer->insData.size(); ++i) {
         auto layerInput = layer->insData[i].lock();
         IE_ASSERT(layerInput != nullptr);
+
+        auto prevLayer = layerInput->getCreatorLayer().lock();
+        if (prevLayer != nullptr) {
+            // WA for ScaleShift on Weights, should be remove
+            if ((prevLayer->type == "Const") || (layer->type == "Const") || (prevLayer->type == "ScaleShift" && i != 0)){
+                continue;
+            }
+
+            if (prevLayer->type == "FakeQuantize")  {
+                auto prevLayerInput =  prevLayer->insData[0].lock();
+                layerInput = prevLayerInput;
+            }
+        }
 
         inputs[i] = getMcmData(layerInput);
         IE_ASSERT(inputs[i] != nullptr);

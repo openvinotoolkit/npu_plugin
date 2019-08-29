@@ -26,11 +26,13 @@
 #include <ie_icnn_network_stats.hpp>
 #include <cnn_network_int8_normalizer.hpp>
 #include <ie_util_internal.hpp>
+#include "low_precision_transformer.hpp"
 
 #include <vpu_layers_tests.hpp>
 
 #include <mutex>
 #include <condition_variable>
+#include <ie_layers.h>
 
 using namespace ::testing;
 using namespace InferenceEngine;
@@ -967,3 +969,165 @@ INSTANTIATE_TEST_CASE_P(inferenceWithParameters, VpuInferWithPath,
 );
 
 #endif
+
+TEST_F(VpuInferAndCompareTests, NQA_ResNet50) {  // To be run in manual mode when device is available
+    std::string irXmlPath = ModelsPath() + "/KMB_models/NQA/ResNet-50-tf/resnetv1-int8-sparse-v2-tf-0001.xml";
+    std::string weightsPath = ModelsPath() + "/KMB_models/NQA/ResNet-50-tf/resnetv1-int8-sparse-v2-tf-0001.bin";
+
+    CNNNetReader netReader;
+    netReader.ReadNetwork(irXmlPath);
+    netReader.ReadWeights(weightsPath);
+
+    CNNNetwork network = netReader.getNetwork();
+
+    InputsDataMap inputInfo = network.getInputsInfo();
+    for (auto & item : inputInfo) {
+        item.second->getPreProcess().setResizeAlgorithm(RESIZE_BILINEAR);
+    }
+
+    Core ie;
+    InferenceEngine::ResponseDesc response;
+    StatusCode sts;
+    int batch = 1;
+
+    IExecutableNetwork::Ptr exeNetwork = ie.LoadNetwork(network,  "KMB", {});
+
+    Blob::Ptr input;
+    Blob::Ptr result;
+    IInferRequest::Ptr inferRequest;
+    sts = exeNetwork->CreateInferRequest(inferRequest, &response);
+    ASSERT_EQ(StatusCode::OK, sts) << response.msg;
+    sts = inferRequest->GetBlob("data", input, &response);
+    ASSERT_EQ(StatusCode::OK, sts) << response.msg;
+    sts = inferRequest->GetBlob("prob", result, &response);
+    ASSERT_EQ(StatusCode::OK, sts) << response.msg;
+
+    std::shared_ptr<unsigned char> imageData;
+    FormatReader::ReaderPtr pictureReader((get_data_path() + "/224x224/cat3.bmp").c_str());
+    imageData = pictureReader->getData();
+    std::vector<unsigned char> imageDataBatched;
+    for(int i = 0; i != batch; i++) {
+        std::copy(imageData.get(), imageData.get() + pictureReader->size(), std::back_inserter(imageDataBatched));
+    }
+
+    ConvertImageToInput(&imageDataBatched.front(), imageDataBatched.size(), *input.get());
+
+    sts = inferRequest->Infer(&response);
+    ASSERT_EQ(StatusCode::OK, sts) << response.msg;
+
+    const TBlob<float> *out1 = dynamic_cast<const TBlob<float> *>(result.get());
+    for (int i=0; i != batch; i++) {
+        auto result_checked_value = out1->cbuffer().as<const float *>()[283 + i*out1->size() / batch];
+        std::cout << result_checked_value << std::endl;
+        EXPECT_NEAR(result_checked_value, 0.697f,  0.01) << "Value out of threshold for batch: " << i;
+    }
+}
+
+TEST_F(VpuInferAndCompareTests, NQA_InceptionV1) {  // To be run in manual mode when device is available
+    std::string irXmlPath = ModelsPath() + "/KMB_models/NQA/GoogLeNet-v1-tf/inceptionv1-int8-tf-0001.xml";
+    std::string weightsPath = ModelsPath() + "/KMB_models/NQA/GoogLeNet-v1-tf/inceptionv1-int8-tf-0001.bin";
+
+    CNNNetReader netReader;
+    netReader.ReadNetwork(irXmlPath);
+    netReader.ReadWeights(weightsPath);
+
+    CNNNetwork network = netReader.getNetwork();
+
+    InputsDataMap inputInfo = network.getInputsInfo();
+    for (auto & item : inputInfo) {
+        item.second->getPreProcess().setResizeAlgorithm(RESIZE_BILINEAR);
+    }
+
+    Core ie;
+    InferenceEngine::ResponseDesc response;
+    StatusCode sts;
+    int batch = 1;
+
+    IExecutableNetwork::Ptr exeNetwork = ie.LoadNetwork(network,  "KMB", {});
+
+    Blob::Ptr input;
+    Blob::Ptr result;
+    IInferRequest::Ptr inferRequest;
+    sts = exeNetwork->CreateInferRequest(inferRequest, &response);
+    ASSERT_EQ(StatusCode::OK, sts) << response.msg;
+    sts = inferRequest->GetBlob("data", input, &response);
+    ASSERT_EQ(StatusCode::OK, sts) << response.msg;
+    sts = inferRequest->GetBlob("prob", result, &response);
+    ASSERT_EQ(StatusCode::OK, sts) << response.msg;
+
+    std::shared_ptr<unsigned char> imageData;
+    FormatReader::ReaderPtr pictureReader((get_data_path() + "/224x224/cat3.bmp").c_str());
+    imageData = pictureReader->getData();
+    std::vector<unsigned char> imageDataBatched;
+    for(int i = 0; i != batch; i++) {
+        std::copy(imageData.get(), imageData.get() + pictureReader->size(), std::back_inserter(imageDataBatched));
+    }
+
+    ConvertImageToInput(&imageDataBatched.front(), imageDataBatched.size(), *input.get());
+
+    sts = inferRequest->Infer(&response);
+    ASSERT_EQ(StatusCode::OK, sts) << response.msg;
+
+    const TBlob<float> *out1 = dynamic_cast<const TBlob<float> *>(result.get());
+    for (int i=0; i != batch; i++) {
+        auto result_checked_value = out1->cbuffer().as<const float *>()[283 + i*out1->size() / batch];
+        std::cout << result_checked_value << std::endl;
+        EXPECT_NEAR(result_checked_value, 0.697f,  0.01) << "Value out of threshold for batch: " << i;
+    }
+}
+
+
+TEST_F(VpuInferAndCompareTests, NQA_MobileNetV2git) {  // To be run in manual mode when device is available
+    std::string irXmlPath = ModelsPath() + "/KMB_models/NQA/MoblieNet-v2-tf/mobilenetv2-int8-sparse-v2-tf-0001.xml";
+    std::string weightsPath = ModelsPath() + "/KMB_models/NQA/MoblieNet-v2-tf/mobilenetv2-int8-sparse-v2-tf-0001.bin";
+
+    CNNNetReader netReader;
+    netReader.ReadNetwork(irXmlPath);
+    netReader.ReadWeights(weightsPath);
+
+    CNNNetwork network = netReader.getNetwork();
+
+    InputsDataMap inputInfo = network.getInputsInfo();
+    for (auto & item : inputInfo) {
+        item.second->getPreProcess().setResizeAlgorithm(RESIZE_BILINEAR);
+    }
+
+    Core ie;
+    InferenceEngine::ResponseDesc response;
+    StatusCode sts;
+    int batch = 1;
+
+    IExecutableNetwork::Ptr exeNetwork = ie.LoadNetwork(network,  "KMB", {});
+
+    Blob::Ptr input;
+    Blob::Ptr result;
+    IInferRequest::Ptr inferRequest;
+    sts = exeNetwork->CreateInferRequest(inferRequest, &response);
+    ASSERT_EQ(StatusCode::OK, sts) << response.msg;
+    sts = inferRequest->GetBlob("data", input, &response);
+    ASSERT_EQ(StatusCode::OK, sts) << response.msg;
+    sts = inferRequest->GetBlob("prob", result, &response);
+    ASSERT_EQ(StatusCode::OK, sts) << response.msg;
+
+    std::shared_ptr<unsigned char> imageData;
+    FormatReader::ReaderPtr pictureReader((get_data_path() + "/224x224/cat3.bmp").c_str());
+    imageData = pictureReader->getData();
+    std::vector<unsigned char> imageDataBatched;
+    for(int i = 0; i != batch; i++) {
+        std::copy(imageData.get(), imageData.get() + pictureReader->size(), std::back_inserter(imageDataBatched));
+    }
+
+    ConvertImageToInput(&imageDataBatched.front(), imageDataBatched.size(), *input.get());
+
+    sts = inferRequest->Infer(&response);
+    ASSERT_EQ(StatusCode::OK, sts) << response.msg;
+
+    const TBlob<float> *out1 = dynamic_cast<const TBlob<float> *>(result.get());
+    for (int i=0; i != batch; i++) {
+        auto result_checked_value = out1->cbuffer().as<const float *>()[283 + i*out1->size() / batch];
+        std::cout << result_checked_value << std::endl;
+        EXPECT_NEAR(result_checked_value, 0.697f,  0.01) << "Value out of threshold for batch: " << i;
+    }
+}
+
+

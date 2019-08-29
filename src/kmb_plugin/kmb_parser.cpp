@@ -73,7 +73,7 @@ namespace vpu {
 namespace KmbPlugin {
 
 void compileMcm(
-        const ie::ICNNNetwork& network,
+        ie::ICNNNetwork& network,
         const KmbConfig& config,
         mv::CompilationUnit& unit,
         std::vector<char>& blob) {
@@ -214,7 +214,7 @@ void compileMcm(
 }
 
 std::set<std::string> getSupportedLayersMcm(
-        const ie::ICNNNetwork& network,
+        ie::ICNNNetwork& network,
         mv::OpModel& pCompiler,
         const std::map<std::string, std::string> &config) {
     auto frontEnd = std::make_shared<FrontEndMcm>(pCompiler, KmbConfig(config, ConfigMode::RUNTIME_MODE));
