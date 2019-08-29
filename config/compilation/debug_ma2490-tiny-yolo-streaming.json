@@ -18,6 +18,8 @@
                 "WeightsSparsity": false,
                 "CMX_memory_overflow_safety_factor" : 0.925,
                 "mpe_mode" : "Vector",
+                "cmx": 917504,
+
                 "split_strategy" :
                 [
                     {
@@ -138,6 +140,8 @@
     },
     "adapt": {
         "Singular": [
+            "PopulatedTensorsToFP16",
+            "UnpopulatedTensorsToFP16",
             "AverageAsDepthWise",
             "FuseBatchNorm",
             "FuseBias",

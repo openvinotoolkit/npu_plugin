@@ -12,7 +12,7 @@ numConsumers_(0)
     barrierCounter_++;
 }
 
-mv::Barrier::Barrier(int group, int index, std::unordered_set<std::string>& producers, std::unordered_set<std::string>& consumers) :
+mv::Barrier::Barrier(int group, int index, std::set<std::string>& producers, std::set<std::string>& consumers) :
 group_(group),
 index_(index),
 barrierID_(barrierCounter_),
@@ -24,7 +24,7 @@ consumers_(consumers)
     barrierCounter_++;
 }
 
-mv::Barrier::Barrier(std::unordered_set<std::string>& producers, std::unordered_set<std::string>& consumers) :
+mv::Barrier::Barrier(std::set<std::string>& producers, std::set<std::string>& consumers) :
 group_(-1),
 index_(-1),
 barrierID_(barrierCounter_),
@@ -156,12 +156,12 @@ bool mv::Barrier::hasConsumers()
     return !consumers_.empty();
 }
 
-std::unordered_set<std::string> mv::Barrier::getProducers() const
+std::set<std::string> mv::Barrier::getProducers() const
 {
     return producers_;
 }
 
-std::unordered_set<std::string> mv::Barrier::getConsumers() const
+std::set<std::string> mv::Barrier::getConsumers() const
 {
     return consumers_;
 }
@@ -182,6 +182,7 @@ std::string mv::Barrier::toLongString() const
 {
     std::string output = "";
 
+    output += "id   : " + std::to_string(barrierID_) + " | ";
     output += "group: " + std::to_string(group_) + " | ";
     output += "index: " + std::to_string(index_) + " | ";
     output += "nProd: " + std::to_string(numProducers_) + " | ";

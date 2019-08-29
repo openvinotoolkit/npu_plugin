@@ -202,8 +202,39 @@ void mv::KoalaGraphScheduler::insertpartialSerialisationEdgesInMcmGraph(mv::Comp
         if (inserted.second)
         {
             /*Add the edge to graph*/
-            auto partialSerialisationEdge = cm.defineFlow(mcmSourceNodeIterator, mcmSinkNodeIterator);
-            partialSerialisationEdge->set<bool>("PartialSerialisationEdge", true);
+            //if source node is Dealloc from **CMX**
+            //TODO add check if Dealloc is for CMX
+            //look for parent DPUTask and all controlflows to deallocs, connect sinks to sinknode
+            if (mcmSourceNodeIterator->getOpType() == "Deallocate")
+            {
+                for (auto parentOp = mcmSourceNodeIterator.leftmostParent(); parentOp != cm.opEnd(); ++parentOp)
+                {
+                    if (parentOp->getOpType() == "DPUTask")
+                    {
+                        for (auto childOp = parentOp.leftmostChild(); childOp != cm.opEnd(); ++childOp)
+                        {
+                            if (childOp->getOpType() == "Deallocate")
+                            {
+                                mv::Control::FlowListIterator flowIt = cm.checkControlFlow(childOp, mcmSinkNodeIterator);
+                                if(flowIt == cm.flowEnd())
+                                {
+                                    auto partialSerialisationEdge = cm.defineFlow(childOp, mcmSinkNodeIterator);
+                                    partialSerialisationEdge->set<bool>("PartialSerialisationEdge", true);
+                                }
+                            }
+                        }
+                        break;
+                    }
+                }
+            }
+            else
+            {
+                auto partialSerialisationEdge = cm.defineFlow(mcmSourceNodeIterator, mcmSinkNodeIterator);
+                partialSerialisationEdge->set<bool>("PartialSerialisationEdge", true);
+
+            }
+
+
         }
     }
 }
@@ -394,7 +425,7 @@ std::pair<int,std::vector<mv::koalaGraph::PEdge>> mv::KoalaGraphScheduler::calcu
         
         for (int k = 0; k < resInputToSource.edgeNo; k++) {
 
-            pass.log(mv::Logger::MessageType::Debug, shortestPathEdges[k]->info.name);
+            //pass.log(mv::Logger::MessageType::Debug, shortestPathEdges[k]->info.name);
 
             /*Add Fmax to the flow attribute of the edge*/
             auto edge = lookUpKoalaEdgebyName(shortestPathEdges[k]->info.name, this->edges_);
