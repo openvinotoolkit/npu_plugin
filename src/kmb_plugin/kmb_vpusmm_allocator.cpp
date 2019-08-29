@@ -68,3 +68,7 @@ bool KmbVpusmmAllocator::free(void *handle) noexcept {
 
     return true;
 }
+
+bool KmbVpusmmAllocator::isValidPtr(void* ptr) noexcept {
+    return ptr != nullptr && vpusmm_ptr_to_vpu(ptr) != 0;
+}

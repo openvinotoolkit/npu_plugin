@@ -86,19 +86,7 @@ KmbExecutor::KmbExecutor(const std::shared_ptr<KmbConfig>& config)
     if (parsedConfig[VPU_KMB_CONFIG_KEY(KMB_EXECUTOR)] == "NO") {
         return;
     }
-    const char *allocatorEnvPtr = std::getenv("IE_VPU_KMB_MEMORY_ALLOCATOR_TYPE");
-    std::string allocatorType = "";
-    if (allocatorEnvPtr) {
-        allocatorType = allocatorEnvPtr;
-    }
 
-    if (allocatorType == "UDMA") {
-        allocator = make_shared<KmbUdmaAllocator>();
-    } else if (allocatorType == "NATIVE") {
-        allocator = make_shared<KmbNativeAllocator>();
-    } else {
-        allocator = make_shared<KmbVpusmmAllocator>();
-    }
 #ifdef ENABLE_VPUAL
     blob_file = nullptr;
     rgnAllocatorBuffer = nullptr;
@@ -157,7 +145,7 @@ void KmbExecutor::allocateGraph(const std::vector<char> &graphFileContent, const
     // ########################################################################
     // Try and get some CMA allocations.
     // ########################################################################
-    blob_file = allocator->alloc(graphFileContent.size());
+    blob_file = getKmbAllocator()->alloc(graphFileContent.size());
 
     if (!blob_file) {
         _logger->error("KmbExecutor::allocateGraph: Error getting CMA for graph");
@@ -173,7 +161,7 @@ void KmbExecutor::allocateGraph(const std::vector<char> &graphFileContent, const
 
     // Assigning physical address of Blob file
 
-    BHandle->graphBuff = allocator->getPhysicalAddress(blob_file);  // Only lower 32-bits
+    BHandle->graphBuff = getKmbAllocator()->getPhysicalAddress(blob_file);  // Only lower 32-bits
 
     gg->Create();
 
@@ -247,12 +235,12 @@ void KmbExecutor::allocateGraph(const std::vector<char> &graphFileContent, const
 
     m_networkOutputs[outputData.getName()] = std::make_shared<InferenceEngine::Data>(outputData);
 
-    rgnAllocatorBuffer = allocator->alloc(POOL_SIZE);
+    rgnAllocatorBuffer = getKmbAllocator()->alloc(POOL_SIZE);
     if (!rgnAllocatorBuffer) {
         _logger->error("KmbExecutor::allocateGraph: Cannot allocate buffer for RgnAlloc");
         return;
     }
-    RgnAlloc->Create(allocator->getPhysicalAddress(rgnAllocatorBuffer), POOL_SIZE);
+    RgnAlloc->Create(getKmbAllocator()->getPhysicalAddress(rgnAllocatorBuffer), POOL_SIZE);
     _logger->info("KmbExecutor::allocateGraph: Created RgnAlloc");
 
     // TODO - These
@@ -305,7 +293,7 @@ void KmbExecutor::queueInference(void *input_data, size_t input_bytes,
     }
 
 #ifdef ENABLE_VPUAL
-    auto physAddr = allocator->getPhysicalAddress(input_data);
+    auto physAddr = getKmbAllocator()->getPhysicalAddress(input_data);
     plgTensorInput_->Push(physAddr, input_bytes);
     _logger->info("Pushed input, size %d", input_bytes);
 #else
@@ -330,7 +318,7 @@ void KmbExecutor::getResult(void *result_data, unsigned int result_bytes) {
     _logger->info("Output tensor returned of length: %d", len);
 
     // Convert the physical address we received back to a virtual address we can use.
-    uint32_t offset = pAddr - allocator->getPhysicalAddress(rgnAllocatorBuffer);
+    uint32_t offset = pAddr - getKmbAllocator()->getPhysicalAddress(rgnAllocatorBuffer);
     unsigned char *data = static_cast<unsigned char *>(rgnAllocatorBuffer) + offset;
     uint32_t checksum = 0;
     for (uint32_t k = 0; k < len; k++) checksum += data[k];
@@ -374,15 +362,10 @@ void KmbExecutor::deallocateGraph() {
         RgnAlloc->Delete();
     }
     if (blob_file) {
-        allocator->free(blob_file);
+        getKmbAllocator()->free(blob_file);
     }
     if (rgnAllocatorBuffer) {
-        allocator->free(rgnAllocatorBuffer);
+        getKmbAllocator()->free(rgnAllocatorBuffer);
     }
 #endif
 }
-
-std::shared_ptr<KmbAllocator> KmbExecutor::getAllocator() {
-    return allocator;
-}
-

@@ -21,8 +21,12 @@
 
 
 #include "kmb_allocator.h"
+#include "kmb_udma_allocator.h"
+#include "kmb_native_allocator.h"
+#include "kmb_vpusmm_allocator.h"
 
 #include <iostream>
+#include <string>
 
 using namespace vpu::KmbPlugin;
 
@@ -45,4 +49,27 @@ unsigned long KmbAllocator::getPhysicalAddress(void *handle) noexcept {
 
     auto memoryDesc = memoryIt->second;
     return memoryDesc.physAddr;
+}
+
+bool KmbAllocator::isValidPtr(void* ptr) noexcept {
+    return ptr != nullptr;
+}
+
+std::shared_ptr<KmbAllocator>& vpu::KmbPlugin::getKmbAllocator() {
+    static std::shared_ptr<KmbAllocator> allocator;
+    if (allocator == nullptr) {
+        const char *allocatorEnvPtr = std::getenv("IE_VPU_KMB_MEMORY_ALLOCATOR_TYPE");
+        std::string allocatorType;
+        if (allocatorEnvPtr) {
+            allocatorType = allocatorEnvPtr;
+        }
+        if (allocatorType == "UDMA") {
+            allocator = std::make_shared<KmbUdmaAllocator>();
+        } else if (allocatorType == "NATIVE") {
+            allocator = std::make_shared<KmbNativeAllocator>();
+        } else {
+            allocator = std::make_shared<KmbVpusmmAllocator>();
+        }
+    }
+    return allocator;
 }
