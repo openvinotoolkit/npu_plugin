@@ -4,7 +4,6 @@
 #include "include/mcm/utils/data_generator.hpp"
 #include "include/mcm/tensor/order/order.hpp"
 
-#include "include/mcm/tensor/binary_data.hpp"
 #include "include/mcm/tensor/quantization_params.hpp"
 #include "include/mcm/utils/env_loader.hpp"
 #include "include/mcm/compiler/compilation_unit.hpp"
