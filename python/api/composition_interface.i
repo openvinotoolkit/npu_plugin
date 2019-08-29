@@ -250,10 +250,6 @@ import_array();
         return o.add({input0, input1}, type, quantParams, name);
     }
 
-    mv::Data::TensorIterator add(mv::CompositionalModel& o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1, const std::string& type, const mv::QuantizationParams &quantParams, const std::string& name){
-        return o.add({input0, input1}, type, quantParams, name);
-    }
-
     mv::Data::TensorIterator multiply(mv::CompositionalModel& o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1, const std::string& type, const mv::QuantizationParams &quantParams, const std::string& name){
         return o.multiply({input0, input1}, type, quantParams, name);
     }
