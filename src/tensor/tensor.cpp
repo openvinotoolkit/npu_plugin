@@ -451,29 +451,6 @@ bool mv::Tensor::setSparse()
     return true;
 }
 
-bool mv::Tensor::setSparse(std::shared_ptr<mv::Tensor> sparsityMap, std::shared_ptr<mv::Tensor> storageElement)
-{
-    MV_PROFILED_FUNCTION(MV_PROFILE_BULD)
-    mv::Order order =  getOrder();
-    if (!order.isZMajor())
-        throw ArgumentError(*this, "Order", order.toString() , " Sparsity requires ZMajor layout (NHWC)");
-
-    if (order.size() < 3)
-        throw ArgumentError(*this, "Order", order.toString() , " Sparsity requires order of size >= 3");
-
-    if(hasAttr("sparse") && get<bool>("sparse") == true)
-        return false;
-
-    set<bool>("sparse", true);
-
-    if(!isPopulated())
-        storageElement_  = storageElement;
-
-    sparsityMap_ = sparsityMap;
-
-    return true;
-}
-
 void mv::Tensor::bindData(Tensor& other, const std::vector<std::size_t>& leftPadding, const std::vector<std::size_t> &rightPadding)
 {
     if (leftPadding.size() != other.shape_.ndims() && !leftPadding.empty())
@@ -656,23 +633,27 @@ std::vector<mv::DataElement> mv::Tensor::getData()
     return orderedData;
 }
 
-std::vector<int64_t> mv::Tensor::getKernelDataOffsets()
+const std::vector<int64_t>& mv::Tensor::getKernelDataOffsets()
 {
     if (isSparse() && kernelDataOffsets_.empty()) //getDataPacked hasn't been called
         getDataPacked();
     return kernelDataOffsets_;
 }
 
-std::vector<mv::DataElement> mv::Tensor::getDataPacked()
+const std::vector<mv::DataElement>& mv::Tensor::getDataPacked()
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_BULD)
     if (!isPopulated())
         throw ValueError(*this, "Attempt of restoring data from an unpopulated tensor");
 
+    if(!orderedDataPacked_.empty())
+        return orderedDataPacked_;
+
+    orderedDataPacked_ = std::vector<DataElement>();
+
     auto shape = shape_;
     std::vector<std::size_t> sub(shape.ndims());
     std::vector<int64_t> zeroPoint = getZeroPointsPerChannel();
-    std::vector<DataElement> orderedDataPacked;
     double datai;
     size_t outputChannels = shape[mv::KERNEL_OUTPUT_CHANNELS];
     size_t outputChannelSize = shape.totalSize() / outputChannels;
@@ -681,30 +662,30 @@ std::vector<mv::DataElement> mv::Tensor::getDataPacked()
     for (std::size_t k = 0; k < outputChannels; ++k)
     {
         kernelDataOffsets_[k] = offset;
-        size_t prevNumOfElements = orderedDataPacked.size();
+        size_t prevNumOfElements = orderedDataPacked_.size();
         for (std::size_t i = 0; i < outputChannelSize; i++)
         {
             sub = getOrder().indToSub(shape_, i + k*outputChannelSize);
             datai = data_->at(internalOrder_.subToInd(shape_, sub));
             //skip zero values if sparse
             if (!isSparse() || datai != zeroPoint[sub[mv::KERNEL_OUTPUT_CHANNELS]])
-                orderedDataPacked.push_back(DataElement(isDoubleType(), datai));
+                orderedDataPacked_.push_back(DataElement(isDoubleType(), datai));
         }
         //Add padding if needed
         if (isSparse())
         {
-            auto size = orderedDataPacked.size() * std::ceil(getDType().getSizeInBits()/8.0);
+            auto size = orderedDataPacked_.size() * std::ceil(getDType().getSizeInBits()/8.0);
             auto padsize = mv::round_up(size, 16) - size;
             int64_t zeroPointVal = zeroPoint[sub[mv::KERNEL_OUTPUT_CHANNELS]];
             for (std::size_t j = 0; j < padsize; ++j)
-                orderedDataPacked.push_back(DataElement(isDoubleType(), zeroPointVal));
+                orderedDataPacked_.push_back(DataElement(isDoubleType(), zeroPointVal));
         }
 
-        size_t numberOfElementsInKernel = orderedDataPacked.size() - prevNumOfElements; //include padding
+        size_t numberOfElementsInKernel = orderedDataPacked_.size() - prevNumOfElements; //include padding
         offset += numberOfElementsInKernel * std::ceil(getDType().getSizeInBits()/8.0);
     }
-    noneZeroElements_ = orderedDataPacked.size();
-    return orderedDataPacked;
+    noneZeroElements_ = orderedDataPacked_.size();
+    return orderedDataPacked_;
 }
 
 std::vector<int64_t> mv::Tensor::getIntData()

@@ -189,10 +189,6 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
             {
                 //Here only in the case of ZMajorConvolution
 
-                // POC ONLY CONDITION
-                //if(!dpuTask->getInputTensor(0)->isSparse())
-                    //continue;
-
                 auto weightsTensor = dpuTask->getInputTensor(1);
                 sparseWeights(weightsTensor, model);
             }
@@ -284,7 +280,6 @@ static void sparseWeights(mv::Data::TensorIterator& weightsTensor, mv::Computati
         auto sparsityMapOp = om.getSourceOp(sparsityMap);
         auto weights = om.getSourceOp(weightsTensor);
 
-        weights->set<bool>("sparse", true);
         sparsityMapOp->set<unsigned>("opId", weights->get<unsigned>("opId"));
         auto outputFlows = mv::getOutputDataFlow(om, weights, false);
         for(auto& output: outputFlows)

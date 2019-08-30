@@ -123,6 +123,7 @@ namespace mv
         Order internalOrder_;
 
         std::shared_ptr<std::vector<DataElement>> data_;
+        std::vector<DataElement> orderedDataPacked_;
 
         std::size_t blockSize_;
         std::vector<std::vector<DataElement>::iterator> blocks_;
@@ -168,8 +169,6 @@ namespace mv
 
         // Returns true if the tensor was not sparse and sparsity was set, false otherwise
         bool setSparse();
-
-        bool setSparse(std::shared_ptr<Tensor> sparsityMap, std::shared_ptr<Tensor> storageElement);
         /**
          * @brief Binds the data (values vector) of this tensor (slave) to the given master tensor. After this operation data accessed
          * from this tensor will be actually read/written to the master tensor. Using the leftPadding and rightPadding it is possible
@@ -188,8 +187,8 @@ namespace mv
         }
 
         std::vector<DataElement> getData();
-        std::vector<DataElement> getDataPacked();
-        std::vector<int64_t> getKernelDataOffsets();
+        const std::vector<DataElement> &getDataPacked();
+        const std::vector<int64_t> &getKernelDataOffsets();
 
         std::vector<double> getDoubleData();
         std::vector<int64_t> getIntData();
