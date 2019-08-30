@@ -94,7 +94,7 @@ public:
         safetyFactor = globalConfig_["FathomSafetyFactor"].get<double>();
         //Input is in Kb
         clusterMemory = (double)clusterMemroyKb * 1024.0 * safetyFactor;
-//        cout << "CLUSTEEER " << clusterMemroyKb << "  " << safetyFactor << endl;
+        cout << "Cluster Memory  " << clusterMemory << ", clusterMemorykb " << clusterMemroyKb << " * 1024 * Safety Factor " << safetyFactor << endl;
 
     }
 

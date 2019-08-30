@@ -60,8 +60,7 @@ public:
     void recursiveCriticalPath(typename graph<mv::Op, mv::DataFlow>::node_list_iterator modelSource, std::unordered_set<std::string>& recursedNodes, MetaGraph& metaGraph);
 
     void writeDot(OptimizationGraph& graph,bool skipInf);
-    void writeDot(MetaGraph graph, bool skipInf);
-    void writeMetaDot(MetaGraph& optimizationGraph, bool skipInf);
+    void writeMetaDot(MetaGraph& graph, bool skipInf);
 
     virtual void generateStrategySetForLayer(mv::Op& op,vector<StrategySet>& strategyVec);
     virtual double transitionCost(Op& parentOp,Op& childOp,StrategySet& parent,StrategySet& child);
