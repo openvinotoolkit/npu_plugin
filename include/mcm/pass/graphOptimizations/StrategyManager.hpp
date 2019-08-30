@@ -21,19 +21,17 @@ public:
     using StrategySet       = unordered_map<string,Attribute>;
     using LayerStrategySet  = unordered_map<string,StrategySet>;
 
-    using MetaGraph = mv::graph<std::tuple<mv::Op&,StrategySet,int>,std::pair<double, vector<StrategySet>>>;
 
-    using OptimizationGraphNode = std::tuple<mv::Op&,StrategySet,int>;
-    using OptimizationGraphEdge = std::pair<double,int>;
+    using OptimizationGraphNode = std::tuple<mv::Op&,StrategySet,int>; //op, strategies, unique id
+    using OptimizationGraphEdge = std::pair<double,int>; //cost, unique id
     using OptimizationGraph = mv::graph<OptimizationGraphNode,OptimizationGraphEdge>;
 
-    using CriticalEdges = std::vector<OptimizationGraph::edge_list_iterator>;
-    using CriticalPair = std::pair<OptimizationGraph,CriticalEdges>;
-    using OptimizationPair = std::pair<OptimizationGraph,vector<CriticalEdges>>;
+    using MetaGraphNode = OptimizationGraphNode;
+    using MetaGraphEdge = std::tuple<double, vector<StrategySet>, int>; //cost, strategies, unique id
+    using MetaGraph = mv::graph<MetaGraphNode, MetaGraphEdge>;
 
-    using OptGraphNode = OptimizationGraph::node_list_iterator;
-    using MetaGraphEdge = std::pair<double, vector<StrategySet>>;
-    using CriticalInfo = std::tuple<OptGraphNode, OptGraphNode, MetaGraphEdge>;
+    using CriticalEdges = std::vector<OptimizationGraph::edge_list_iterator>;
+
     
     static constexpr auto inf_ = numeric_limits<double>::infinity();
 

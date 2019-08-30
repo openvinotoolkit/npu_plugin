@@ -260,8 +260,10 @@ public:
             //maxSplits = (clusterOutChannelSize/16);
 
         //TODO::::REMOVE THIS ONCE FIX INSANE COMPILE TIME
+        /* 
         if(maxSplits > 32)
             maxSplits = 32;
+        */
 
         splits.push_back(1);
         //for(unsigned split = 1; split <= maxSplits; split++)

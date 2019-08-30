@@ -440,11 +440,14 @@ void StrategyManager::saveMetaStrategy(std::vector<MetaGraph::edge_list_iterator
     vector<StrategySet> allStrategies;
     for(auto edge : cPathEdges){
         allStrategies.push_back(get<1>(*edge->source())); //add strategy for each node in the metagraph that was chosen
-        for(auto strategy : (*edge).second){
+        for(auto strategy : get<1>(*edge)){
             allStrategies.push_back(strategy); //all the nodes that were eliminated from metagraph get added
         }
     } 
-    allStrategies.push_back(get<1>(*cPathEdges.back()->sink())); //last node needs strategy too (one more node than edges)
+    if(cPathEdges.empty())
+        cout << "There are no crtical edges, no strategies" << endl;
+    auto lastNode = *cPathEdges.back()->sink();
+    allStrategies.push_back(get<1>(lastNode)); //last node needs strategy too (one more node than edges)
 
     auto globalParams = model_.getGlobalConfigParams();
 
@@ -555,8 +558,8 @@ void StrategyManager::recursiveDijkstra(mv::Data::OpListIterator opBegin)
     {
         bool operator()(const MetaGraph::edge_list_iterator lhs, const MetaGraph::edge_list_iterator rhs) const
         {
-            double x = get<0>(*lhs);
-            double y = get<0>(*rhs);
+            double x = get<2>(*lhs);
+            double y = get<2>(*rhs);
             return (x < y);
         }
     };
@@ -573,7 +576,6 @@ void StrategyManager::recursiveDijkstra(mv::Data::OpListIterator opBegin)
     //cout << "calling extract subgraphs on the data graph" << endl ;
     std::unordered_set<std::string> recursedNodes;
     //Each vector of edges corresponds to a linear portion of the graph
-    //pair<vector<OptimizationPair>, StrategySet> output = 
     MetaGraph metaGraph;
     recursiveCriticalPath(opBegin, recursedNodes, metaGraph);
    //cout << " calling dijkstra on the meta graph" << endl;
@@ -592,9 +594,9 @@ void StrategyManager::recursiveDijkstra(mv::Data::OpListIterator opBegin)
     map<typename MetaGraph::edge_list_iterator, double, costEdgeIteratorComp> edgeCostMap;
     //build edge cost map needed to call dijkstra
     for (auto it = metaGraph.edge_begin(); it != metaGraph.edge_end(); ++it){
-        edgeCostMap.insert(std::pair<MetaGraph::edge_list_iterator, double>(it, (*it).first));
+        edgeCostMap.insert(std::pair<MetaGraph::edge_list_iterator, double>(it, get<0>(*it)));
     }
-    /* TODO delete all this debugging stuff for the metagraph 
+    // TODO delete all this debugging stuff for the metagraph 
     cout << "found " << metaGraph.node_size() << " nodes and "<< metaGraph.edge_size() << " edges " << endl;
 
     cout << "trying BFS search on metagraph " << endl;
@@ -618,16 +620,17 @@ void StrategyManager::recursiveDijkstra(mv::Data::OpListIterator opBegin)
     for (MetaGraph::edge_bfs_iterator it(source->leftmost_output()); it != metaGraph.edge_end(); ++it)
     {
         
-        std::cout << get<0>(*it->source()).getName() << " -- " << (*it).first << " --> " << get<0>(*it->sink()).getName() << endl;
-        std::cout << get<2>(*it->source()) << " -- " << (*it).first << " --> " << get<2>(*it->sink()) << endl;
-        cout << "    holding " << ((*it).second).size() << " strategies" << endl;
+        std::cout << get<0>(*it->source()).getName() << " -- " << get<0>(*it) << " --> " << get<0>(*it->sink()).getName() << endl;
+        std::cout << get<2>(*it->source()) << " -- " << get<0>(*it) << " --> " << get<2>(*it->sink()) << endl;
+        cout << "    holding " << (get<1>(*it)).size() << " strategies" << endl;
     }
     std::cout << std::endl << endl;
     }
-    */
+    
     //call dijkstra on metagraph for each source and sink combo, choosing the best
     double max = inf_;
     vector<MetaGraph::edge_list_iterator> finalCriticalPath;
+    bool foundCriticalPath = false;
     for(auto source : sources){
         for(auto sink : sinks) {
             //call dijkstra here, if cost is less than max found so far, save otherwise move on
@@ -635,14 +638,17 @@ void StrategyManager::recursiveDijkstra(mv::Data::OpListIterator opBegin)
             double cost = 0;
 
             for (auto edge : criticalPathEdges){
-                cost += (*edge).first;
+                cost += get<0>(*edge);
             }
             if(cost < max){
+                foundCriticalPath = true;
                 finalCriticalPath = criticalPathEdges;
                 max = cost;
             }
         }
     }
+    if(!foundCriticalPath)
+        cout << "TODO Put ERROR here: Critical Paths are all infinite in the Meta Graph" << endl;
     //save best found strategy
 //    writeMetaDot(metaGraph, true);
     cout << "saving meta graph optimal path" << endl;
@@ -718,14 +724,21 @@ void StrategyManager::recursiveCriticalPath(typename graph<mv::Op, mv::DataFlow>
         first_nodes = new_nodes;
 
         for(const auto oldNode : old_nodes)
+        {
+            bool foundNonInf = false;
             for(const auto newNode : new_nodes)
             {
                 double edgeCost = transitionCost( get<0>(*oldNode), get<0>(*newNode), get<1>(*oldNode), get<1>(*newNode));
                 auto newEdge = optimizationGraph.edge_insert(oldNode,newNode,OptimizationGraphEdge(edgeCost,nodeCtr));
                 edgeCostMap.insert(std::pair<OptimizationGraph::edge_list_iterator, double>(newEdge, edgeCost));
-
+                if(edgeCost < inf_) foundNonInf = true;
                 nodeCtr++;
             }
+            if(!foundNonInf)
+                cout << "TODO WARNING here: no non-infinte edges found leaving " << get<0>(*oldNode).getName() << endl;
+
+            foundNonInf = false;
+        }
 
         old_nodes.swap(new_nodes);
         nodeStrategies.push_back(nodeStrategy);
@@ -796,6 +809,7 @@ void StrategyManager::recursiveCriticalPath(typename graph<mv::Op, mv::DataFlow>
         auto sinkNodeIt = optimizationGraph.node_begin() ;
         for (int ii=0; ii<optimizationGraph.node_size()-1; ii++) ++sinkNodeIt;
 
+        int metaGraphEdgeCtr = 0;
         //Critical Path is node iter source, node iter sink, vector of edge iters critical path, double edge cost sum
         for(auto startingNode : first_nodes){
             for( auto endingNode : last_nodes)
@@ -810,10 +824,11 @@ void StrategyManager::recursiveCriticalPath(typename graph<mv::Op, mv::DataFlow>
                     strategies.push_back(get<1>(*edge->sink()));
                 }
                 strategies.pop_back();
-                MetaGraphEdge particulars = MetaGraphEdge(cost, strategies);
+                MetaGraphEdge particulars = MetaGraphEdge(cost, strategies, metaGraphEdgeCtr);
+                metaGraphEdgeCtr++;
                 parallelLinearSection.push_back(particulars);
-                strategies.clear();
-                particulars.second.clear();
+                //strategies.clear();
+                //particulars.second.clear();
             }
         }
 
@@ -827,6 +842,7 @@ void StrategyManager::recursiveCriticalPath(typename graph<mv::Op, mv::DataFlow>
 
     //If child counter is 1, we were in a linear section, just add the subgraph to the big graph and move on
     if(childCtr == 1){
+        cout << "In LINEAR section" << endl;
         vector<MetaGraph::node_list_iterator> sources, sinks;
         
         if(metaGraph.node_size() == 0 ){ //Add the very first nodes, first time through
@@ -857,14 +873,15 @@ void StrategyManager::recursiveCriticalPath(typename graph<mv::Op, mv::DataFlow>
         for(int source = 0; source < sources.size(); source++){
             for(int sink = 0; sink < sinks.size(); sink++){
                 MetaGraphEdge edgeInfo = linearSection[source*sinks.size() + sink];
-                double cost = edgeInfo.first;
-                vector<StrategySet> strategies = edgeInfo.second;
+                double cost = get<0>(edgeInfo);
+                vector<StrategySet> strategies = get<1>(edgeInfo);
                 metaGraph.edge_insert(sources[source], sinks[sink], edgeInfo);
             }
         }
     }
     //If child counter is greater than 1, we were in a parallel section and add the sum of all relevant edges to a new meta subgraph and add that subgraph to the big graph
    if(childCtr > 1){
+        cout << "In PARALLEL section" << endl;
         vector<MetaGraph::node_list_iterator> sources, sinks;
         
         if(metaGraph.node_size() == 0 ){ //If we start with a parallel branch, make sure the first nodes are still added
@@ -896,15 +913,17 @@ void StrategyManager::recursiveCriticalPath(typename graph<mv::Op, mv::DataFlow>
             for(int sink = 0; sink < sinks.size(); sink++){
                 double cost = 0;
                 vector<StrategySet> strategies;
+                int edgeCtr;
                 for(int sectionIdx = 0; sectionIdx < parallelLinearSections.size(); sectionIdx++)
                 {
                     MetaGraphEdge edgeInfo = parallelLinearSections[sectionIdx][source*sinks.size() + sink];
-                    cost += edgeInfo.first;
-                    for(auto strategy :  edgeInfo.second){
+                    cost += get<0>(edgeInfo);
+                    for(auto strategy :  get<1>(edgeInfo)){
                         strategies.push_back(strategy);
                     }
+                    edgeCtr = get<2>(edgeInfo); //just needs to be unique at next level, so taking just the last one is fine
                 }
-                metaGraph.edge_insert(sources[source], sinks[sink], MetaGraphEdge(cost, strategies));
+                metaGraph.edge_insert(sources[source], sinks[sink], MetaGraphEdge(cost, strategies, edgeCtr));
                 strategies.clear();
             }
         }
