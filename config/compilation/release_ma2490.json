@@ -49,6 +49,7 @@
             "FuseBias",
             "FuseRelu",
             "FuseScale",
+            "RemoveDropOut",
             "FullyConnectedAsConv2D",
             "StoreLayerSplitStrategy",
             "StreamingTiling",

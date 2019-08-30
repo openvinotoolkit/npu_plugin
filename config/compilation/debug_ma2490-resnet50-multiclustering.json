@@ -360,6 +360,7 @@
             "FuseBias",
             "FuseRelu",
             "FuseScale",
+            "RemoveDropOut",
             "FullyConnectedAsConv2D",
             {
                 "name": "GenerateDot",
