@@ -533,7 +533,7 @@ void mv::Tensor::setSubtensorsOrder_(Order order)
 void mv::Tensor::setDType(DType dtype)
 {
 
-    set<DType>("dtype", dtype);
+    set<DType>("dType", dtype);
     log(Logger::MessageType::Debug, "Changed data type to " + dtype.toString());
     return;
 

@@ -64,8 +64,7 @@
     },
     "adapt": {
         "Singular": [
-            "PopulatedTensorsToFP16",
-            "UnpopulatedTensorsToFP16",
+            "TensorsToFP16",
             {
                 "name": "GenerateDot",
                 "output": "output/dots/fp16_model.dot",
