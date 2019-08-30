@@ -54,16 +54,12 @@ void populateSparseDataPointerMultiCluster(mv::Tensor& weightsTableData, mv::Dat
         for (size_t i = 0, k = 0; i < weightsTableData.size(); i+=4)
         {
             // First increment is always 0
-            weightsTableData(i+ addingIndex) = offset + increments[k];
-            //std::cout << "Channel  " << k << " " << " Offset " << offset << " Increment " << increments[k] << " Result " << static_cast<int64_t>(weightsTableData(i));
-            //if(k > 0)
-                //std::cout << " Difference " << static_cast<int64_t>(weightsTableData(i)) - static_cast<int64_t>(weightsTableData(i-4));
-            //std::cout << std::endl;
-            ++k;
+            weightsTableData(i+ addingIndex) = offset + increments[k++];
         }
     }
     else
     {
+        //NOTE: k index handling has to be checked when testing SplitOverK + Sparsity
         auto globalParams = model.getGlobalConfigParams();
         unsigned numClusters = globalParams->get<int>("Number_of_Clusters");
         for (unsigned i = 0; i < numClusters; i++)
@@ -336,7 +332,7 @@ static void populateWeightsTablesPointersFcn(const mv::pass::PassEntry& , mv::Co
 }
 
 
-static void generateWeightsTablesFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+static void generateWeightsTablesFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
 
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)

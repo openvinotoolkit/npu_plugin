@@ -241,8 +241,8 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
 //                auto sparsityMapDmaOp = sparsityMapCostantOp.leftmostChild();
 //                auto sparsityMapDma = sparsityMapDmaOp->getOutputTensor(0);
 //                toBuild->data->sparsity_index = sparsityMapDma->getAddress();
-                toBuild->data->sparsity_index = 999999999999999999;
-                toBuild->data->storage_element_index = 999999999999999999;
+                toBuild->data->sparsity_index = 0;
+                toBuild->data->storage_element_index = 0;
             }
         }
     }
@@ -374,8 +374,8 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
 //                auto sparsityMapCostantOp = cm.getOp(mv::createSparsityMapName(t->getName()));
 //                auto sparsityMapDmaOp = sparsityMapCostantOp.leftmostChild();
 //                auto sparsityMapDma = sparsityMapDmaOp->getOutputTensor(0);
-                toBuild->data->sparsity_index = 999999999999999999;
-                toBuild->data->storage_element_index = 999999999999999999;
+                toBuild->data->sparsity_index = 0;
+                toBuild->data->storage_element_index = 0;
             }
         }
     }

@@ -652,46 +652,46 @@ const std::vector<mv::DataElement>& mv::Tensor::getDataPacked()
     if (!isPopulated())
         throw ValueError(*this, "Attempt of restoring data from an unpopulated tensor");
 
-    if(get<bool>("dataPacked"))
-        return *orderedDataPacked_;
-
-    orderedDataPacked_ = std::make_shared<std::vector<DataElement>>();
-    set<bool>("dataPacked", true);
-
-    auto shape = shape_;
-    std::vector<std::size_t> sub(shape.ndims());
-    std::vector<int64_t> zeroPoint = getZeroPointsPerChannel();
-    double datai;
-    size_t outputChannels = shape[mv::KERNEL_OUTPUT_CHANNELS];
-    size_t outputChannelSize = shape.totalSize() / outputChannels;
-    kernelDataOffsets_.resize(outputChannels);
-    size_t offset = 0;
-    for (std::size_t k = 0; k < outputChannels; ++k)
+    if(!get<bool>("dataPacked"))
     {
-        kernelDataOffsets_[k] = offset;
-        size_t prevNumOfElements = orderedDataPacked_->size();
-        for (std::size_t i = 0; i < outputChannelSize; i++)
-        {
-            sub = getOrder().indToSub(shape_, i + k*outputChannelSize);
-            datai = data_->at(internalOrder_.subToInd(shape_, sub));
-            //skip zero values if sparse
-            if (!isSparse() || datai != zeroPoint[sub[mv::KERNEL_OUTPUT_CHANNELS]])
-                orderedDataPacked_->push_back(DataElement(isDoubleType(), datai));
-        }
-        //Add padding if needed
-        if (isSparse())
-        {
-            auto size = orderedDataPacked_->size() * std::ceil(getDType().getSizeInBits()/8.0);
-            auto padsize = mv::round_up(size, 16) - size;
-            int64_t zeroPointVal = zeroPoint[sub[mv::KERNEL_OUTPUT_CHANNELS]];
-            for (std::size_t j = 0; j < padsize; ++j)
-                orderedDataPacked_->push_back(DataElement(isDoubleType(), zeroPointVal));
-        }
+        orderedDataPacked_ = std::make_shared<std::vector<DataElement>>();
+        set<bool>("dataPacked", true);
 
-        size_t numberOfElementsInKernel = orderedDataPacked_->size() - prevNumOfElements; //include padding
-        offset += numberOfElementsInKernel * std::ceil(getDType().getSizeInBits()/8.0);
+        auto shape = shape_;
+        std::vector<std::size_t> sub(shape.ndims());
+        std::vector<int64_t> zeroPoint = getZeroPointsPerChannel();
+        double datai;
+        size_t outputChannels = shape[mv::KERNEL_OUTPUT_CHANNELS];
+        size_t outputChannelSize = shape.totalSize() / outputChannels;
+        kernelDataOffsets_.resize(outputChannels);
+        size_t offset = 0;
+        for (std::size_t k = 0; k < outputChannels; ++k)
+        {
+            kernelDataOffsets_[k] = offset;
+            size_t prevNumOfElements = orderedDataPacked_->size();
+            for (std::size_t i = 0; i < outputChannelSize; i++)
+            {
+                sub = getOrder().indToSub(shape_, i + k*outputChannelSize);
+                datai = data_->at(internalOrder_.subToInd(shape_, sub));
+                //skip zero values if sparse
+                if (!isSparse() || datai != zeroPoint[sub[mv::KERNEL_OUTPUT_CHANNELS]])
+                    orderedDataPacked_->push_back(DataElement(isDoubleType(), datai));
+            }
+            //Add padding if needed
+            if (isSparse())
+            {
+                auto size = orderedDataPacked_->size() * std::ceil(getDType().getSizeInBits()/8.0);
+                auto padsize = mv::round_up(size, 16) - size;
+                int64_t zeroPointVal = zeroPoint[sub[mv::KERNEL_OUTPUT_CHANNELS]];
+                for (std::size_t j = 0; j < padsize; ++j)
+                    orderedDataPacked_->push_back(DataElement(isDoubleType(), zeroPointVal));
+            }
+
+            size_t numberOfElementsInKernel = orderedDataPacked_->size() - prevNumOfElements; //include padding
+            offset += numberOfElementsInKernel * std::ceil(getDType().getSizeInBits()/8.0);
+        }
+        noneZeroElements_ = orderedDataPacked_->size();
     }
-    noneZeroElements_ = orderedDataPacked_->size();
     return *orderedDataPacked_;
 }
 
