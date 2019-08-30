@@ -190,6 +190,8 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
             else
                 dpuModes = {{4,4},{1, 16}};
 
+            if (opIt->getOutputTensor()[0]->getDType() == mv::DType("Float16"))
+                dpuModes = {{1, 16}};
             /*For multi-clustering we work on subtensors*/
             for(clusterNumber = 0; clusterNumber < nClusters; clusterNumber++)
             {
