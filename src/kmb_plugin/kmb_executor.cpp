@@ -57,8 +57,6 @@ const uint32_t POOL_SIZE = 30 * 1024 * 1024;
 // XLink channel number to start allocation from
 const uint32_t IE_VPU_KMB_XC_DEFAULT = 3;
 
-
-#ifdef ENABLE_VPUAL
 // Get free XLink channel
 static uint32_t getXlinkChannel(const vpu::Logger::Ptr &_logger) {
     static std::mutex mutex_;

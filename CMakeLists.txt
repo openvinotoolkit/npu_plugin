@@ -51,17 +51,21 @@ if(NOT DEFINED ENABLE_VPUAL)
     find_package(vpualHost QUIET)
 endif()
 
-add_subdirectory(thirdparty)
-
 # Enable MCM compiler by default
 if(NOT DEFINED ENABLE_MCM_COMPILER AND NOT (ARM OR AARCH64))
     set(ENABLE_MCM_COMPILER ON)
 endif()
 
+if(ENABLE_MCM_COMPILER)
+    add_definitions(-DENABLE_MCM_COMPILER)
+endif()
+add_subdirectory(thirdparty)
+
 add_subdirectory(src/kmb_plugin)
 
 if(ENABLE_TESTS)
     enable_testing()
+    add_subdirectory(src/vpual_model)
     add_subdirectory(tests)
 endif()
 
