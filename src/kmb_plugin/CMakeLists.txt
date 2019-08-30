@@ -16,46 +16,6 @@
 
 set(TARGET_NAME "kmbPlugin")
 
-if (ENABLE_MCM_COMPILER)
-    MESSAGE(STATUS "************ Enabling MCM compiler ************")
-    add_definitions(-DENABLE_MCM_COMPILER)
-
-    set(MCM_BASE_DIR ${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/thirdparty/movidius/mcmCompiler)
-
-    if (NOT ENABLE_PLUGIN_RPATH)
-        set(MCM_COMPILER_CMAKE_ARGS -DCMAKE_SKIP_RPATH=ON)
-    endif()
-
-    ExternalProject_Add(
-        mcmCompiler
-        PREFIX ${MCM_BASE_DIR}
-        SOURCE_DIR ${MCM_BASE_DIR}
-        BINARY_DIR ${MCM_BASE_DIR}/build
-        STAMP_DIR ${MCM_BASE_DIR}/stamp
-        INSTALL_COMMAND ""
-        CMAKE_ARGS ${MCM_COMPILER_CMAKE_ARGS})
-
-    set(MCM_COMPILER_INCLUDE_PATH "${MCM_BASE_DIR}"
-                                  "${MCM_BASE_DIR}/include"
-                                  "${MCM_BASE_DIR}/meta/include"
-                                  )
-    set(MCM_COMPILER_LIBRARY "${MCM_BASE_DIR}/build/lib/${CMAKE_SHARED_LIBRARY_PREFIX}cm${CMAKE_SHARED_LIBRARY_SUFFIX}")
-    set(MCM_COMPILER_MODEL_LIBRARY "${MCM_BASE_DIR}/build/lib/${CMAKE_SHARED_LIBRARY_PREFIX}model${CMAKE_SHARED_LIBRARY_SUFFIX}")
-    set(MCM_COMPILER_METAMODEL_LIBRARY "${MCM_BASE_DIR}/build/lib/${CMAKE_SHARED_LIBRARY_PREFIX}metamodel${CMAKE_SHARED_LIBRARY_SUFFIX}")
-    set(FLATBUFFERRS_INCLUDE_PATH "${MCM_BASE_DIR}/schema/graphfile/flatbuffers/include/")
-    set(MCM_SCHEMA_INCLUDE_PATH "${MCM_BASE_DIR}/meta/schema/graphfile")
-
-    # copy mcm compiler library to target directory when the compiler is enabled
-    set(BINARY_OUT_DIR "$<TARGET_FILE_DIR:kmbPlugin>")
-    add_custom_target(mcm_copy_libraries ALL
-            COMMAND "${CMAKE_COMMAND}" -E copy "${MCM_COMPILER_LIBRARY}" "${BINARY_OUT_DIR}"
-            COMMAND "${CMAKE_COMMAND}" -E copy "${MCM_COMPILER_MODEL_LIBRARY}" "${BINARY_OUT_DIR}"
-            COMMAND "${CMAKE_COMMAND}" -E copy "${MCM_COMPILER_METAMODEL_LIBRARY}" "${BINARY_OUT_DIR}"
-            COMMENT "[MCM_COMPILER] Copy mcm compiler libraries to build results")
-else()
-    MESSAGE(STATUS "************ Disabling MCM compiler ************")
-endif()
-
 if (ENABLE_VPUAL)
     add_definitions(-DENABLE_VPUAL)
     set(VPUAL_NN_LIBRARY NN)
@@ -144,4 +104,14 @@ if(ENABLE_TESTS)
                 ${MCM_COMPILER_LIBRARY}
                 ${VPUAL_NN_LIBRARY}
                 ${GAPI_SIPP_LIBRARY})
+endif()
+
+if(ENABLE_MCM_COMPILER)
+    # copy mcm compiler library to target directory when the compiler is enabled
+    set(BINARY_OUT_DIR "$<TARGET_FILE_DIR:kmbPlugin>")
+    add_custom_target(mcm_copy_libraries ALL
+        COMMAND "${CMAKE_COMMAND}" -E copy "${MCM_COMPILER_LIBRARY}" "${BINARY_OUT_DIR}"
+        COMMAND "${CMAKE_COMMAND}" -E copy "${MCM_COMPILER_MODEL_LIBRARY}" "${BINARY_OUT_DIR}"
+        COMMAND "${CMAKE_COMMAND}" -E copy "${MCM_COMPILER_METAMODEL_LIBRARY}" "${BINARY_OUT_DIR}"
+        COMMENT "[MCM_COMPILER] Copy mcm compiler libraries to build results")
 endif()
