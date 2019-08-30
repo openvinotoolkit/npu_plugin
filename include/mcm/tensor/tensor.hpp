@@ -123,7 +123,7 @@ namespace mv
         Order internalOrder_;
 
         std::shared_ptr<std::vector<DataElement>> data_;
-        std::vector<DataElement> orderedDataPacked_;
+        std::shared_ptr<std::vector<DataElement>> orderedDataPacked_;
 
         std::size_t blockSize_;
         std::vector<std::vector<DataElement>::iterator> blocks_;

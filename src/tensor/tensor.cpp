@@ -89,6 +89,8 @@ noneZeroElements_(other.noneZeroElements_)
     {
         data_ = other.data_;
         blocks_ = other.blocks_;
+        if(other.get<bool>("dataPacked"))
+            orderedDataPacked_ = other.orderedDataPacked_;
     }
 }
 
@@ -147,6 +149,8 @@ void mv::Tensor::populate(const std::vector<double>& data)
 
     data_ = std::make_shared<std::vector<DataElement>>(data.size(), DataElement(true));
     blocks_ = std::vector<std::vector<DataElement>::iterator>(shape_.totalSize() / blockSize_);
+    set<bool>("dataPacked", false);
+
     for (std::size_t i = 0; i < blocks_.size(); ++i)
         blocks_[i] = data_->begin() + i * blockSize_;
 
@@ -181,6 +185,8 @@ void mv::Tensor::populate(const std::vector<mv::DataElement>& data)
 
     data_ = std::make_shared<std::vector<DataElement>>(data.size(), data[0].isDouble());
     blocks_ = std::vector<std::vector<DataElement>::iterator>(shape_.totalSize() / blockSize_);
+    set<bool>("dataPacked", false);
+
     for (std::size_t i = 0; i < blocks_.size(); ++i)
         blocks_[i] = data_->begin() + i * blockSize_;
 
@@ -222,6 +228,8 @@ void mv::Tensor::populate(const std::vector<int64_t>& data)
 
     data_ = std::make_shared<std::vector<DataElement>>(data.size(), false);
     blocks_ = std::vector<std::vector<DataElement>::iterator>(shape_.totalSize() / blockSize_);
+    set<bool>("dataPacked", false);
+
     for (std::size_t i = 0; i < blocks_.size(); ++i)
         blocks_[i] = data_->begin() + i * blockSize_;
 
@@ -497,8 +505,6 @@ void mv::Tensor::setOrder(Order order, bool updateSubtensors)
     log(Logger::MessageType::Debug, "Reorderd to " + order.toString());
     if (updateSubtensors)
         setSubtensorsOrder_(order);
-    return;
-
 }
 
 void mv::Tensor::setSubtensorsOrder_(Order order)
@@ -635,7 +641,7 @@ std::vector<mv::DataElement> mv::Tensor::getData()
 
 const std::vector<int64_t>& mv::Tensor::getKernelDataOffsets()
 {
-    if (isSparse() && kernelDataOffsets_.empty()) //getDataPacked hasn't been called
+    if(!get<bool>("dataPacked")) //getDataPacked hasn't been called
         getDataPacked();
     return kernelDataOffsets_;
 }
@@ -646,10 +652,11 @@ const std::vector<mv::DataElement>& mv::Tensor::getDataPacked()
     if (!isPopulated())
         throw ValueError(*this, "Attempt of restoring data from an unpopulated tensor");
 
-    if(!orderedDataPacked_.empty())
-        return orderedDataPacked_;
+    if(get<bool>("dataPacked"))
+        return *orderedDataPacked_;
 
-    orderedDataPacked_ = std::vector<DataElement>();
+    orderedDataPacked_ = std::make_shared<std::vector<DataElement>>();
+    set<bool>("dataPacked", true);
 
     auto shape = shape_;
     std::vector<std::size_t> sub(shape.ndims());
@@ -662,30 +669,30 @@ const std::vector<mv::DataElement>& mv::Tensor::getDataPacked()
     for (std::size_t k = 0; k < outputChannels; ++k)
     {
         kernelDataOffsets_[k] = offset;
-        size_t prevNumOfElements = orderedDataPacked_.size();
+        size_t prevNumOfElements = orderedDataPacked_->size();
         for (std::size_t i = 0; i < outputChannelSize; i++)
         {
             sub = getOrder().indToSub(shape_, i + k*outputChannelSize);
             datai = data_->at(internalOrder_.subToInd(shape_, sub));
             //skip zero values if sparse
             if (!isSparse() || datai != zeroPoint[sub[mv::KERNEL_OUTPUT_CHANNELS]])
-                orderedDataPacked_.push_back(DataElement(isDoubleType(), datai));
+                orderedDataPacked_->push_back(DataElement(isDoubleType(), datai));
         }
         //Add padding if needed
         if (isSparse())
         {
-            auto size = orderedDataPacked_.size() * std::ceil(getDType().getSizeInBits()/8.0);
+            auto size = orderedDataPacked_->size() * std::ceil(getDType().getSizeInBits()/8.0);
             auto padsize = mv::round_up(size, 16) - size;
             int64_t zeroPointVal = zeroPoint[sub[mv::KERNEL_OUTPUT_CHANNELS]];
             for (std::size_t j = 0; j < padsize; ++j)
-                orderedDataPacked_.push_back(DataElement(isDoubleType(), zeroPointVal));
+                orderedDataPacked_->push_back(DataElement(isDoubleType(), zeroPointVal));
         }
 
-        size_t numberOfElementsInKernel = orderedDataPacked_.size() - prevNumOfElements; //include padding
+        size_t numberOfElementsInKernel = orderedDataPacked_->size() - prevNumOfElements; //include padding
         offset += numberOfElementsInKernel * std::ceil(getDType().getSizeInBits()/8.0);
     }
-    noneZeroElements_ = orderedDataPacked_.size();
-    return orderedDataPacked_;
+    noneZeroElements_ = orderedDataPacked_->size();
+    return *orderedDataPacked_;
 }
 
 std::vector<int64_t> mv::Tensor::getIntData()
