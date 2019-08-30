@@ -57,6 +57,14 @@ int countNumberOfWorkloadsMetisReturned(int arr[], int n)
     return res;
 }
 
+float workloadPixelCost(mv::Data::OpListIterator opIt) 
+{
+ auto kh = opIt->get<std::array<unsigned short, 2>>("kSize")[0];
+ auto kw = opIt->get<std::array<unsigned short, 2>>("kSize")[1];
+ auto ic = opIt->get<std::string>("taskOp") == "ChannelMajorConvolution" || opIt->get<std::string>("taskOp") == "Conv" ? opIt->getInputTensor()[0]->getShape()[2] : 1;
+
+ return kh*kw*ic;
+}
 
 std::pair<int,int> partitionTensorWithMETIS(const std::shared_ptr<mv::MetisGraphStructure>& metisGraph, idx_t nWorkloads, const mv::pass::PassEntry& pass)
 {
@@ -312,6 +320,17 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                                 rectangleFail = true;
                             }
 
+                            /*Check that requested number of workloads was returned, if not then erase to align with Fathom*/
+                            if (!rectangleFail) 
+                            {
+                                if(workloadsVector.at(workloadsVectorIndex).getWorkloads().size() != nWorkloads)
+                                {
+                                    pass.log(mv::Logger::MessageType::Debug, "The requested number of worloads was not returned by Rectangle erasing this workload instance");
+                                    workloadsVector.erase(workloadsVector.begin() + (workloadsVectorIndex));
+                                    rectangleFail = true;
+                                }
+                            }
+
                             if(!rectangleFail)
                             {
                                
@@ -370,8 +389,10 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                     }
                 }
 
+                float pixelCost = workloadPixelCost(opIt); 
+                
                 /*Calculate execution cycles for each valid workload for this particular subtensor*/
-                mv::Workloads::generateExecutionCycles(workloadsVector, nDPUxCluster, costFuntion);
+                mv::Workloads::generateExecutionCycles(workloadsVector, nDPUxCluster, costFuntion, pixelCost);
 
                 /*Sort on number of workloads */
                 std::sort(workloadsVector.begin(), workloadsVector.end(),
