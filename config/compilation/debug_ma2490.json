@@ -119,7 +119,6 @@
             "KMBOrderConversion",
             "AlignTo16Channels",
             "AlignTaskWeights",
-            "GenerateSparsityMapsUnpopulatedTensors",
             "GenerateSparsityMapsPopulatedTensors",
             "GenerateWeightsTables",
             "GenerateEltWiseConstants",
@@ -181,7 +180,9 @@
             {
                 "name": "ConvertDot",
                 "input": "output/dots/dma_model.dot"
-            }
+            },
+            "GenerateSparsityMapsUnpopulatedTensors"
+
         ]
     },
     "control_flows":{

@@ -64,7 +64,6 @@
             "KMBOrderConversion",
             "AlignTo16Channels",
             "AlignTaskWeights",
-            "GenerateSparsityMapsUnpopulatedTensors",
             "GenerateSparsityMapsPopulatedTensors",
             "GenerateWeightsTables",
             "GenerateEltWiseConstants",
@@ -79,7 +78,8 @@
         "Singular" : [
             "SetDpuTasksMemoryLocation",
             "ResolveImplicitOperations",
-            "AddWeightsDMATasks"
+            "AddWeightsDMATasks",
+            "GenerateSparsityMapsUnpopulatedTensors"
         ]
     },
     "control_flows":{
