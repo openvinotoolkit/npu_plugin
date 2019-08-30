@@ -210,8 +210,13 @@ void populateWeightsTablesActivationAndBias(mv::Tensor& weightsTableData, mv::Da
     mv::QuantizationParams quantParams = {{},{},{},{}};
     auto output = dpuTaskOp->getOutputTensor(0);
     auto outputChannels = output->getShape()[mv::IO_CHANNEL_DIMENSION];
-    std::vector<int32_t> mScaled(outputChannels, 0);
-    std::vector<int32_t> mShift(outputChannels, 0);
+    auto paddedOutputChannels = outputChannels;
+    if (outputChannels % 16 != 0)
+    {
+        paddedOutputChannels = mv::round_up(outputChannels, 16);
+    }
+    std::vector<int32_t> mScaled(paddedOutputChannels, 0);
+    std::vector<int32_t> mShift(paddedOutputChannels, 0);
     if(output->hasAttr("quantParams"))
     {
         quantParams = dpuTaskOp->getOutputTensor(0)->get<mv::QuantizationParams>("quantParams");
@@ -221,6 +226,14 @@ void populateWeightsTablesActivationAndBias(mv::Tensor& weightsTableData, mv::Da
             auto shift = quantParams.getShift();
             std::transform(mScaled.begin(), mScaled.end(), mult.begin(), mScaled.begin(), std::plus<int32_t>());
             std::transform(mShift.begin(), mShift.end(), shift.begin(), mShift.begin(), std::plus<int32_t>());
+            if (paddedOutputChannels != outputChannels)
+            {
+                for (size_t idx = outputChannels; idx < paddedOutputChannels; idx++)
+                {
+                    mScaled[idx] = mScaled[0];
+                    mShift[idx] = mShift[0];
+                }
+            }
         }
     }
     std::vector<mv::DataElement> biasData;
@@ -240,7 +253,7 @@ void populateWeightsTablesActivationAndBias(mv::Tensor& weightsTableData, mv::Da
     // TODO mult & prelu are currently not implemented
 
     unsigned round_mode = 1;
-    std::vector<int32_t> round32(outputChannels, round_mode);
+    std::vector<int32_t> round32(paddedOutputChannels, round_mode);
 
     for (size_t i = 0; i < weightsTableData.size(); i+=4)
     {

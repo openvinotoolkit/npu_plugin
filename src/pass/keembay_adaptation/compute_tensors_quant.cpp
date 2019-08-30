@@ -3,6 +3,7 @@
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/tensor/quantization_params.hpp"
+#include "mcm/utils/custom_math.hpp"
 #include <numeric>
 #include <cmath>
 
@@ -41,9 +42,13 @@ void computeTensorsQuantParams(const mv::pass::PassEntry&, mv::ComputationModel&
              bool isConv = (taskOp == "Conv" || taskOp == "DepthwiseConv" || taskOp == "ChannelMajorConvolution");
              if (isConv || taskOp == "MaxPool" ||  isElementWise)
              {
-                 auto output = opIt->getOutputTensor(0);
-                 auto input = opIt->getInputTensor(0);
-                 auto outputChannels = output->getShape()[mv::IO_CHANNEL_DIMENSION];
+                auto output = opIt->getOutputTensor(0);
+                auto input = opIt->getInputTensor(0);
+                auto outputChannels = output->getShape()[mv::IO_CHANNEL_DIMENSION];
+                if (outputChannels % 16 != 0)
+                {
+                    outputChannels = mv::round_up(outputChannels, 16);
+                }
                  std::vector<int> shift(outputChannels, 0);
                  std::vector<int16_t> mScaled(outputChannels, 0);
 
