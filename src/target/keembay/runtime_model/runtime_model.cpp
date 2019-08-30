@@ -92,6 +92,21 @@ void setIfPresent(T1& fieldToFill, mv::Element& compilationDescriptor, const std
         fieldToFill = compilationDescriptor.get<T2>(key);
 }
 
+void mv::RuntimeModel::alignTensor(mv::ComputationModel& cm, std::unique_ptr<MVCNN::TensorReferenceT>& tensorT, mv::Data::TensorIterator tensor)
+{
+        auto globalConfigParams = cm.getGlobalConfigParams();
+        int pad = globalConfigParams->hasAttr("VPU2ChannelPadding") ? globalConfigParams->get<int>("VPU2ChannelPadding") : 16;
+        std::vector<std::size_t> dimensions = tensor->getShape();
+        auto outputChannelsPadded = mv::round_up(dimensions[mv::IO_CHANNEL_DIMENSION], pad);
+        dimensions = {dimensions[mv::IO_WIDTH_DIMENSION], dimensions[mv::IO_HEIGHT_DIMENSION], outputChannelsPadded, dimensions[mv::IO_BATCH_DIMENSION]};
+        auto numericStrides = tensor->getOrder().computeByteStrides(mv::Shape(dimensions), tensor->getDType().getSizeInBits() / 8);
+        numericStrides.push_back(tensor->getDType().getSizeInBits() / 8);
+        std::reverse(dimensions.begin(), dimensions.end());
+        std::reverse(numericStrides.begin(), numericStrides.end());
+        tensorT->strides = numericStrides; // NOTE: Maybe directly bufferIt->computeStrides() in the future
+        tensorT->dimensions = std::vector<uint32_t>(dimensions.begin(), dimensions.end());
+}
+
 MVCNN::DType mv::RuntimeModel::convertDtype(const mv::DType& dtype)
 {
     return dTypeMapping_.at(dtype.toString());
@@ -440,7 +455,10 @@ std::unique_ptr<MVCNN::SummaryHeaderT> mv::RuntimeModel::buildSummaryHeaderT(Com
 
     toBuild->net_output = std::vector<std::unique_ptr<MVCNN::TensorReferenceT>>(1);
     toBuild->net_output[0] = buildTensorReferenceT(cm, compilationDescriptor, om.getOutput()->getInputTensor(0));
-
+    if (om.getOutput()->getInputTensor(0)->hasAttr("alignment"))
+    {
+        alignTensor(cm, toBuild->net_output[0], om.getOutput()->getInputTensor(0));
+    }
     auto taskCount = [](mv::OpModel m)
     {
         unsigned i = 0;
@@ -691,19 +709,14 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
     tmp->src = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(0));
     if (opIt->getInputTensor(0)->hasAttr("alignment"))
     {
-        auto globalConfigParams = cm.getGlobalConfigParams();
-        int pad = globalConfigParams->hasAttr("VPU2ChannelPadding") ? globalConfigParams->get<int>("VPU2ChannelPadding") : 16;
-        std::vector<std::size_t> dimensions = opIt->getInputTensor(0)->getShape();
-        auto outputChannelsPadded = mv::round_up(dimensions[mv::IO_CHANNEL_DIMENSION], pad);
-        dimensions = {dimensions[mv::IO_WIDTH_DIMENSION], dimensions[mv::IO_HEIGHT_DIMENSION], outputChannelsPadded, dimensions[mv::IO_BATCH_DIMENSION]};
-        auto numericStrides = opIt->getInputTensor(0)->getOrder().computeByteStrides(mv::Shape(dimensions), opIt->getInputTensor(0)->getDType().getSizeInBits() / 8);
-        numericStrides.push_back(opIt->getInputTensor(0)->getDType().getSizeInBits() / 8);
-        std::reverse(dimensions.begin(), dimensions.end());
-        std::reverse(numericStrides.begin(), numericStrides.end());
-        tmp->src->strides = numericStrides; // NOTE: Maybe directly bufferIt->computeStrides() in the future?
+        alignTensor(cm, tmp->src, opIt->getInputTensor(0));
     }
 
     tmp->dst = buildTensorReferenceT(cm, compilationDescriptor, opIt->getOutputTensor(0));
+    if (opIt->getOutputTensor(0)->hasAttr("alignment"))
+    {
+        alignTensor(cm, tmp->dst, opIt->getOutputTensor(0));
+    }
 
     if(opIt->hasAttr("Compression"))
         tmp->compression =  opIt->get<bool>("Compression");
@@ -731,14 +744,20 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
                 auto locale_index = std::vector<unsigned int>(1,i);
                 tmp->src->locale_index = locale_index;
             }
-
+            if (opIt->getInputTensor(0)->hasAttr("alignment"))
+            {
+                alignTensor(cm, tmp->src, opIt->getInputTensor(0));
+            }
             tmp->dst = buildTensorReferenceT(cm, compilationDescriptor, opIt->getOutputTensor(0));
             if (direction == mv::DmaDirectionEnum::DDR2CMX)
             {
                 auto locale_index = std::vector<unsigned int>(1,i);
                 tmp->dst->locale_index = locale_index;
             }
-
+            if (opIt->getOutputTensor(0)->hasAttr("alignment"))
+            {
+                alignTensor(cm, tmp->dst, opIt->getOutputTensor(0));
+            }
             if(opIt->hasAttr("Compression"))
                 tmp->compression =  opIt->get<bool>("Compression");
             toReturn[i]->task.value = tmp;
@@ -774,8 +793,15 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
             toReturn[0]->task.type = MVCNN::SpecificTask_NNDMATask;
             auto tmp = new MVCNN::NNDMATaskT();
             tmp->src = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(0));
+            if (opIt->getInputTensor(0)->hasAttr("alignment"))
+            {
+                alignTensor(cm, tmp->src, opIt->getInputTensor(0));
+            }
             tmp->dst = buildTensorReferenceT(cm, compilationDescriptor, opIt->getOutputTensor(0));
-
+            if (opIt->getOutputTensor(0)->hasAttr("alignment"))
+            {
+                alignTensor(cm, tmp->dst, opIt->getOutputTensor(0));
+            }
             std::vector<unsigned int> locale_index;
             for (unsigned idx = numTasks; idx > 0; idx--)
                 locale_index.push_back(idx - 1);
@@ -799,7 +825,15 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
             toReturn[i]->task.type = MVCNN::SpecificTask_NNDMATask;
             auto tmp = new MVCNN::NNDMATaskT();
             tmp->src = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(0), i);
+            if (opIt->getInputTensor(0)->hasAttr("alignment"))
+            {
+                alignTensor(cm, tmp->src, opIt->getInputTensor(0));
+            }
             tmp->dst = buildTensorReferenceT(cm, compilationDescriptor, opIt->getOutputTensor(0), i);
+            if (opIt->getOutputTensor(0)->hasAttr("alignment"))
+            {
+                alignTensor(cm, tmp->dst, opIt->getOutputTensor(0));
+            }
             if(opIt->hasAttr("Compression"))
                 tmp->compression =  opIt->get<bool>("Compression");
             toReturn[i]->task.value = tmp;
