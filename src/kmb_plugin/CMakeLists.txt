@@ -46,10 +46,6 @@ if (ENABLE_MCM_COMPILER)
     add_dependencies(${TARGET_NAME} mcmCompiler)
 endif()
 
-if (ENABLE_VPUAL_MODEL)
-    add_dependencies(${TARGET_NAME} vpualModel)
-endif()
-
 target_include_directories(${TARGET_NAME}
     PRIVATE
         "${CMAKE_CURRENT_SOURCE_DIR}"
@@ -77,10 +73,6 @@ if(ENABLE_TESTS)
     add_library(${TARGET_NAME}_test_static STATIC ${SOURCES})
     if (ENABLE_MCM_COMPILER)
         add_dependencies(${TARGET_NAME}_test_static mcmCompiler)
-    endif()
-
-    if (ENABLE_VPUAL_MODEL)
-        add_dependencies(${TARGET_NAME}_test_static vpualModel)
     endif()
 
     target_include_directories(${TARGET_NAME}_test_static

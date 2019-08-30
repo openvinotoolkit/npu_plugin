@@ -53,6 +53,7 @@ using namespace InferenceEngine;
 using namespace InferenceEngine::VPUConfigParams;
 using namespace std;
 
+#ifdef ENABLE_VPUAL
 const uint32_t POOL_SIZE = 30 * 1024 * 1024;
 // XLink channel number to start allocation from
 const uint32_t IE_VPU_KMB_XC_DEFAULT = 3;

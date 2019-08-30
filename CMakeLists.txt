@@ -65,7 +65,10 @@ add_subdirectory(src/kmb_plugin)
 
 if(ENABLE_TESTS)
     enable_testing()
-    add_subdirectory(src/vpual_model)
+    # TODO: do not use model for ARM for now because the model requires mcm compiler which is not build on ARM
+    if(ENABLE_VPUAL AND NOT (ARM OR AARCH64))
+        add_subdirectory(src/vpual_model)
+    endif()
     add_subdirectory(tests)
 endif()
 
