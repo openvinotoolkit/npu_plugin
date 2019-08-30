@@ -443,7 +443,7 @@
             },
             {
                 "name": "GenerateWorkloads",
-                "costfunction": "criticalpath",
+                "costfunction": "greedy",
                 "TensorSplitAlgorithms": "Rectangle",
                 "_comment": "Supported CostFunctions are: balanced | criticalpath | minmax | greedy. Supported TensorSplitAlgorithms are Rectangle, Z-Tiling"
             },
