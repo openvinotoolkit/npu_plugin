@@ -168,7 +168,8 @@ public:
 
         if(op.getOpType() == "Conv" || op.getOpType() == "DepthwiseConv" || op.getOpType() == "DepthWiseConv")
         {
-            weightTableSize = 16*((op.getInputTensor(1)->getShape()["K"] + streamConfig["K"] - 1) / streamConfig["K"]);
+            //weightTableSize = 16*((op.getInputTensor(1)->getShape()["K"] + (streamConfig["K"]*streamConfig["H"]) - 1) / (streamConfig["K"]* streamConfig["H"])) ;
+            weightTableSize = 16*((op.getInputTensor(1)->getShape()["K"] + (streamConfig["K"]) - 1) / (streamConfig["K"])) ;
             weightSize += tensorSize(op.getInputTensor(1)->getShape(),{1,1,streamConfig["C"],streamConfig["K"]});
         } else if(op.getOpType() == "MaxPool")
         {
@@ -255,6 +256,7 @@ public:
         }
 
         size_t maxSplits = 1;
+
         if(globalEnableStreaming)
         	maxSplits = (clusterOutChannelSize/2);
             //maxSplits = (clusterOutChannelSize/16);
@@ -453,50 +455,76 @@ public:
 
         if((parentClustering == "HKSwitch" or
                 parentClustering == "SplitOverK") and
-                (childClustering == "SplitOverH"))
-            return INF;
+                (childClustering == "SplitOverH")){
+                    cout << "INF cause 1" << endl;
+                     return INF;
+                }
 
         //HK Switch requires previous layer to be SOH
         if((not (parentClustering == "SplitOverH")) and
-                childClustering == "HKSwitch")
-            return INF;
+                childClustering == "HKSwitch"){
+                    cout << "INF cause 2" << endl;
+                     return INF;
+                }
 
         //HK Switch requires next layer to be SOK
         if( parentClustering == "HKSwitch" and
-                (not (childClustering == "SplitOverK")))
+                (not (childClustering == "SplitOverK"))){
+                    cout << "INF cause 3" << endl;
             return INF;
+                }
 
         //Cannot pass directly from SoH to SoK
         if( parentClustering == "SplitOverH" and
-                childClustering == "SplitOverK")
-            return INF;
+                childClustering == "SplitOverK"){
+                    cout << "INF cause 4" << endl;
+                                return INF;
+                }
 
         //cannot pass directly from SoK to SoH
         if( parentClustering == "SplitOverK" and
-                childClustering == "SplitOverH")
-            return INF;
+                childClustering == "SplitOverH"){
+                    cout << "INF cause 5" << endl;
+                     return INF;
+                }
+           
 
-        if(checkStreamClusterComp(parentOp,parent))
+        if(checkStreamClusterComp(parentOp,parent)){
+              cout << "INF cause 6" << endl;
             return INF;
-        if(checkStreamClusterComp(childOp,child))
+        }
+        
+        if(checkStreamClusterComp(childOp,child)){
+              cout << "INF cause 7" << endl;
             return INF;
+        }
+
 
         //if child is spilled, HKSwitch makes no sense
         if( (child["spilling"].get<bool>() == true ) and
-                (childClustering == "HKSwitch"))
-            return INF;
+                (childClustering == "HKSwitch")){
+                      cout << "INF cause 8" << endl;
+                       return INF;
+                }
+           
 
         //TODO: Only the input can be SOH-Overlapped
 
         //SOH-Overlapped can only go to SOH layers
         if( parentClustering == "SplitOverHOverlapped" and
-                (not (childClustering == "SplitOverH")))
-            return INF;
+                (not (childClustering == "SplitOverH"))){
+                     cout << "INF cause 9" << endl;
+                       return INF;
+                }
+
 
         //TODO: SOH channelMajor conv requires SoHOverlapped input
         if( parentClustering == "SplitOverHOverlapped" and
-                (not (parentOp.getOpType() == "Input")))
-            return INF;
+                (not (parentOp.getOpType() == "Input"))){
+                      cout << "INF cause 10" << endl;
+                       return INF;
+                }
+
 
         if( childOp.getOpType() == "Conv")
         {
@@ -507,29 +535,40 @@ public:
             {
                 //with this we will assume ChMajorConvolution
                 if( (childClustering == "SplitOverH") and
-                        (not (parentClustering == "SplitOverHOverlapped")))
-                    return INF;
+                        (not (parentClustering == "SplitOverHOverlapped"))){
+                                                  cout << "INF cause 11" << endl;
+                       return INF;
+                        }
             }
         }
         //TODO: disable sparsity for eltwise layer predecessors
 
         //Input and Output must have Spilled==True
         if( (parentOp.getOpType() == "Input") and
-                parent["spilling"].get<bool>() == false)
-            return INF;
+                parent["spilling"].get<bool>() == false){
+                                          cout << "INF cause 12" << endl;
+                       return INF;
+                }
 
         if( (childOp.getOpType() == "Output") and
-                child["spilling"].get<bool>() == false)
-            return INF;
+                child["spilling"].get<bool>() == false){
+                 cout << "INF cause 13" << endl;
+                       return INF;
+                }
 
         //iIf the layer is streaming over H or W, output of this layer has to be spilled
         if( (parent["spilling"] == false) and
-                ((parent["streaming"].get<Shape>()["H"] * parent["streaming"].get<Shape>()["W"]) > 1))
-            return INF;
+                ((parent["streaming"].get<Shape>()["H"] * parent["streaming"].get<Shape>()["W"]) > 1)){
+                    cout << "INF cause 14" << endl;
+                       return INF;
+                }
+
         //If the child layer is streaming over H or W output of this layer has to be spilled
         if( (parent["spilling"] == false) and
-                ((child["streaming"].get<Shape>()["H"] * child["streaming"].get<Shape>()["W"]) > 1))
-            return INF;
+                ((child["streaming"].get<Shape>()["H"] * child["streaming"].get<Shape>()["W"]) > 1)){
+                    cout << "INF cause 15" << endl;
+                       return INF;
+                }
 
         auto parentMem = memorySize(parentOp,
                                     parentClustering,
@@ -544,8 +583,12 @@ public:
                                     false);
 
         if( ((childMem.first + childMem.second) > clusterMemory) or
-            ((parentMem.first + parentMem.second) > clusterMemory))
-            return INF;
+            ((parentMem.first + parentMem.second) > clusterMemory)){
+                cout << "INF cause 16" << endl;
+                cout << "cluster: "<< clusterMemory << ", child: " << childMem.first+childMem.second << ", parent: " << parentMem.first+parentMem.second<<endl;
+                       return INF;
+            }
+
 
         auto execTime1 = executionTime(parentOp,parent);
         auto execTime2 = executionTime(childOp,child);
@@ -675,7 +718,7 @@ public:
 //                            maxSplitOverH = roundUp((unsigned)ceil((double)activationsSize/(double)clusterMemory) + 1,2);
                             //maxSplitOverH = (unsigned)ceil((double)activationsSize/(double)clusterMemory);
                             //if ((maxSplitOverH%2)!= 0) maxSplitOverH= roundUp(maxSplitOverH,2);
-                        	unsigned splitsToFit = ceil((double)activationsSize/(double)clusterMemory);
+                        	unsigned splitsToFit = ceil((double)activationsSize/(double)(clusterMemory));
                             if (splitsToFit > 1)
                                 maxSplitOverH = roundUpToStep(splitsToFit,2);
                             else

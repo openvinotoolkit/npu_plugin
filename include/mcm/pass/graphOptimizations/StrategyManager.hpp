@@ -61,6 +61,7 @@ public:
 
     void writeDot(OptimizationGraph& graph,bool skipInf);
     void writeMetaDot(MetaGraph& graph, bool skipInf);
+    string strategyString(OptimizationGraphNode n);
 
     virtual void generateStrategySetForLayer(mv::Op& op,vector<StrategySet>& strategyVec);
     virtual double transitionCost(Op& parentOp,Op& childOp,StrategySet& parent,StrategySet& child);

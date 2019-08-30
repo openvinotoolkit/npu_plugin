@@ -657,6 +657,14 @@ void StrategyManager::recursiveDijkstra(mv::Data::OpListIterator opBegin)
     saveMetaStrategy(finalCriticalPath);
 }
 
+std::string StrategyManager::strategyString(OptimizationGraphNode n){
+        auto s = get<1>(n);
+        auto clustering = s["clustering"].get<string>();
+        auto streaming = s["streaming"].get<Shape>();
+        auto o = get<0>(n);
+        return o.getName() + " " + clustering + " " + streaming.toString();
+}
+
 void StrategyManager::recursiveCriticalPath(typename graph<mv::Op, mv::DataFlow>::node_list_iterator modelSource, 
                                             std::unordered_set<std::string>& recursedNodes, MetaGraph& metaGraph){
     struct costEdgeIteratorComp2
@@ -717,6 +725,7 @@ void StrategyManager::recursiveCriticalPath(typename graph<mv::Op, mv::DataFlow>
         //Add modelSource (start pivot) to the graph
         vector<StrategySet> nodeStrategy;
         opCtr++;
+        cout << "Generating strategies for pivot source " << (*modelSource).getName() << endl;
         generateStrategySetForLayer(*modelSource,nodeStrategy);
         new_nodes.clear();
         for(auto strategy : nodeStrategy)
@@ -727,15 +736,17 @@ void StrategyManager::recursiveCriticalPath(typename graph<mv::Op, mv::DataFlow>
 
         for(const auto oldNode : old_nodes)
         {
+            cout << "   Source Strategy: " << strategyString(*oldNode) << endl;
             for(const auto newNode : new_nodes)
             {
                 double edgeCost = transitionCost( get<0>(*oldNode), get<0>(*newNode), get<1>(*oldNode), get<1>(*newNode));
                 auto newEdge = optimizationGraph.edge_insert(oldNode,newNode,OptimizationGraphEdge(edgeCost,nodeCtr));
                 edgeCostMap.insert(std::pair<OptimizationGraph::edge_list_iterator, double>(newEdge, edgeCost));
-
+                           cout << "    Added edge of cost " << edgeCost << endl;
+                    cout << "    Sink Strategy: " <<  strategyString(*newNode) << endl;
                 nodeCtr++;
             }
-
+            cout << endl;
         }
 
         old_nodes.swap(new_nodes);
@@ -751,23 +762,28 @@ void StrategyManager::recursiveCriticalPath(typename graph<mv::Op, mv::DataFlow>
         {
             vector<StrategySet> nodeStrategy;
             opCtr++;
-
+                    cout << "Generating strategies for internal node " << (*model_child).getName() << endl;
             generateStrategySetForLayer(*model_child,nodeStrategy);
             new_nodes.clear();
             for(auto strategy : nodeStrategy)
             {
                 new_nodes.push_back(optimizationGraph.node_insert(std::tuple<mv::Op&,StrategySet,int>(*model_child,strategy,optionCtr++)));
             }
-            for(const auto oldNode : old_nodes)
+            for(const auto oldNode : old_nodes){
+                               cout << "   Source Strategy: " << strategyString(*oldNode) << endl;
                 for(const auto newNode : new_nodes)
                 {
                     double edgeCost = transitionCost( get<0>(*oldNode), get<0>(*newNode), get<1>(*oldNode), get<1>(*newNode));
                     int edgeCostInt = edgeCost ;
                     auto newEdge = optimizationGraph.edge_insert(oldNode,newNode,OptimizationGraphEdge(edgeCost,nodeCtr));
                     edgeCostMap.insert(std::pair<OptimizationGraph::edge_list_iterator, double>(newEdge, edgeCost));
-
+              cout << "    Added edge of cost " << edgeCost << endl;
+                    
+                    cout << "    Sink Strategy: " <<  strategyString(*newNode) << endl;
                     nodeCtr++;
                 }
+                cout << endl;
+            }
             old_nodes.swap(new_nodes);
 
             nodeStrategies.push_back(nodeStrategy);
@@ -778,22 +794,27 @@ void StrategyManager::recursiveCriticalPath(typename graph<mv::Op, mv::DataFlow>
         //Iteration ends when next pivot node is found, include this pivot node in the graph
         nodeStrategy.clear();
         opCtr++;
+        cout << "Generating strategies for pivot sink " << (*model_child).getName() << endl;
         generateStrategySetForLayer(*model_child,nodeStrategy);
         new_nodes.clear();
         for(auto strategy : nodeStrategy)
         {
             new_nodes.push_back(optimizationGraph.node_insert(std::tuple<mv::Op&,StrategySet,int>(*model_child,strategy,optionCtr++)));
         }
-        for(const auto oldNode : old_nodes)
+        for(const auto oldNode : old_nodes){
+                                cout << "   Source Strategy: " << strategyString(*oldNode) << endl;
             for(const auto newNode : new_nodes)
             {
                 double edgeCost = transitionCost( get<0>(*oldNode), get<0>(*newNode), get<1>(*oldNode), get<1>(*newNode));
 //                int edgeCostInt = edgeCost ;
                 auto newEdge = optimizationGraph.edge_insert(oldNode,newNode,OptimizationGraphEdge(edgeCost,nodeCtr));
                 edgeCostMap.insert(std::pair<OptimizationGraph::edge_list_iterator, double>(newEdge, edgeCost));
-
+                              cout << "    Added edge of cost " << edgeCost << endl;
+                    cout << "    Sink Strategy: " <<  strategyString(*newNode) << endl;
                 nodeCtr++;
             }
+            cout << endl;
+        }
         old_nodes.swap(new_nodes);
         nodeStrategies.push_back(nodeStrategy);
         last_nodes = old_nodes;
@@ -885,6 +906,7 @@ void StrategyManager::recursiveCriticalPath(typename graph<mv::Op, mv::DataFlow>
         if(!foundNonInf){
             writeMetaDot(metaGraph, false);
             cout << "TODO ERROR here. Only infinite paths from all sources to all sinks for this MetaGraph pivot pair" << endl;
+            throw LogicError(*this, "GraphOptimizer found all infinite paths");
         }
     }
     //If child counter is greater than 1, we were in a parallel section and add the sum of all relevant edges to a new meta subgraph and add that subgraph to the big graph
@@ -942,6 +964,7 @@ void StrategyManager::recursiveCriticalPath(typename graph<mv::Op, mv::DataFlow>
         if(!foundNonInf){
             writeMetaDot(metaGraph, false);
             cout << "TODO ERROR here. Only infinite paths from all sources to all sinks for this MetaGraph pivot pair" << endl;
+            throw LogicError(*this, "GraphOptimizer found all infinite paths");
         }
     }  
     for(auto source : next_modelSource)

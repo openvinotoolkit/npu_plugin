@@ -618,6 +618,8 @@ void tensorGraphColoringFnc(const mv::pass::PassEntry& pass, mv::ComputationMode
     agOrder = aggressiveSimplify(nncmx_g, memsize, mv::OrderingStrategy::IG_LARGEST_NEIGHBORS_FIRST);
     //printASOrder(agOrder, "NNCMX");
     pass.log(mv::Logger::MessageType::Info, " Calling bestFitMemoryAllocation");
+    if(passDesc.hasAttr("cmxOutput"))
+       nncmx_g.drawGraph(passDesc.get<std::string>("cmxOutput"));
     bestFitMemoryAllocation(model, agOrder, nncmx_g, memsize);
     pass.log(mv::Logger::MessageType::Info, " Calling DrawGraph");
     if(passDesc.hasAttr("cmxOutput"))
