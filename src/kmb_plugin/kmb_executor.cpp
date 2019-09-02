@@ -296,7 +296,7 @@ void KmbExecutor::queueInference(void *input_data, size_t input_bytes,
     auto pullFunc = [&]()->void {
         _outTensorLen = 0;
         _outTensorAddr = 0;
-        plgTensorOutput_->Pull(&_outTensorLen, &_outTensorAddr);
+        plgTensorOutput_->Pull(&_outTensorAddr, &_outTensorLen);
     };
 
     std::thread pullThread(pullFunc);
