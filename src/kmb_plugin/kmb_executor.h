@@ -87,6 +87,9 @@ private:
 
         int xlinkChannelIn;
         int xlinkChannelOut;
+
+        uint32_t _outTensorLen;
+        uint32_t _outTensorAddr;
 };
 
 typedef std::shared_ptr<KmbExecutor> KmbExecutorPtr;
