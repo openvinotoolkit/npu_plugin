@@ -132,7 +132,7 @@ void KmbExecutor::allocateGraph(const std::vector<char> &graphFileContent, const
 #ifdef ENABLE_VPUAL
     initVpualObjects();
     static int graphId_main = 1;
-    int nThreads = 4;
+    int nThreads = 1;
     int nShaves = 16;
 
     _logger->info("Initiating verification of use case 1");
