@@ -21,7 +21,6 @@ public:
     using StrategySet       = unordered_map<string,Attribute>;
     using LayerStrategySet  = unordered_map<string,StrategySet>;
 
-
     using OptimizationGraphNode = std::tuple<mv::Op&,StrategySet,int>; //op, strategies, unique id
     using OptimizationGraphEdge = std::pair<double,int>; //cost, unique id
     using OptimizationGraph = mv::graph<OptimizationGraphNode,OptimizationGraphEdge>;
