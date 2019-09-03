@@ -36,7 +36,7 @@ TEST_P(kmbLayersTestsScaleParams, TestsScale) {
             test_info->name() << " test_info->test_case_name() " << test_info->test_case_name() << std::endl;
 
     std::map<std::string, std::string> params;
-    TBlob<uint8_t>::Ptr weightsBlob(GenWeights(weightsSize + biasesSize));
+    TBlob<uint8_t>::Ptr weightsBlob(GenWeights<uint16_t >(weightsSize + biasesSize));
 
     // Parsing only is enabled because mcmCompiler can't compile layers.
     // TODO: turn off parsing only when mcmCompiler will be able to compile this layers.
