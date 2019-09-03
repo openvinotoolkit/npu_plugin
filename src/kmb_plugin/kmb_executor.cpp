@@ -58,6 +58,7 @@ const uint32_t POOL_SIZE = 30 * 1024 * 1024;
 const uint32_t IE_VPU_KMB_XC_DEFAULT = 3;
 
 
+#ifdef ENABLE_VPUAL
 // Get free XLink channel
 static uint32_t getXlinkChannel(const vpu::Logger::Ptr &_logger) {
     static std::mutex mutex_;
@@ -79,6 +80,7 @@ static uint32_t getXlinkChannel(const vpu::Logger::Ptr &_logger) {
     _logger->info("Allocated channel = %d", ret);
     return ret;
 }
+#endif
 
 KmbExecutor::KmbExecutor(const std::shared_ptr<KmbConfig>& config)
             : _config(config), _logger(std::make_shared<Logger>("KmbExecutor", config->hostLogLevel, consoleOutput())) {
