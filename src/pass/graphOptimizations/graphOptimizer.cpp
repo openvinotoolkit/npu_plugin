@@ -128,6 +128,21 @@ public:
         return attr;
     }
 
+    size_t realTensorSize(const mv::Data::TensorIterator tensorToSize,const Shape& streamingPool)
+    {
+        auto div = [](unsigned x,unsigned y) -> unsigned { return (x+y-1)/y; };
+
+        size_t streamDivisor = 1;
+        for( size_t dim = 0; dim <  streamingPool.ndims(); ++dim)
+        {
+            streamDivisor=streamDivisor*streamingPool[dim];
+        }
+
+        return tensorToSize->computeTotalSize()/streamDivisor;
+
+    }
+
+/*
     size_t tensorSize(const Shape& shape,const Shape& streamingPool)
     {
         auto div = [](unsigned x,unsigned y) -> unsigned { return (x+y-1)/y; };
@@ -143,7 +158,7 @@ public:
         return splittedShape.totalSize();
 
     }
-
+*/
     pair<size_t,size_t> memorySize(mv::Op& op,const Attribute& clustering,const Attribute& sparsity,const Shape& streamConfig, bool prefetch)
     {
         auto inputTensors = op.getInputTensor();
@@ -161,15 +176,18 @@ public:
         size_t totalActivationSize = 0;
 
         if(op.getOpType() != "Input")
-            inputSize = tensorSize(op.getInputTensor(0)->getShape(),{streamConfig["W"],streamConfig["H"],streamConfig["C"],1});
+//            inputSize = tensorSize(op.getInputTensor(0)->getShape(),{streamConfig["W"],streamConfig["H"],streamConfig["C"],1});
+            inputSize = realTensorSize(op.getInputTensor(0),{streamConfig["W"],streamConfig["H"],streamConfig["C"],1});
         if(op.getOpType() != "Output")
-            outputSize = tensorSize(op.getOutputTensor(0)->getShape(),{streamConfig["W"],streamConfig["H"],1,1});
+//            outputSize = tensorSize(op.getOutputTensor(0)->getShape(),{streamConfig["W"],streamConfig["H"],1,1});
+            outputSize = realTensorSize(op.getOutputTensor(0),{streamConfig["W"],streamConfig["H"],1,1});
 
         if(op.getOpType() == "Conv" || op.getOpType() == "DepthwiseConv" || op.getOpType() == "DepthWiseConv")
         {
             //weightTableSize = 16*((op.getInputTensor(1)->getShape()["K"] + (streamConfig["K"]*streamConfig["H"]) - 1) / (streamConfig["K"]* streamConfig["H"])) ;
             weightTableSize = 16*((op.getInputTensor(1)->getShape()["K"] + (streamConfig["K"]) - 1) / (streamConfig["K"])) ;
-            weightSize += tensorSize(op.getInputTensor(1)->getShape(),{1,1,streamConfig["C"],streamConfig["K"]});
+//            weightSize += tensorSize(op.getInputTensor(1)->getShape(),{1,1,streamConfig["C"],streamConfig["K"]});
+            weightSize += realTensorSize(op.getInputTensor(1),{1,1,streamConfig["C"],streamConfig["K"]});
         } else if(op.getOpType() == "MaxPool")
         {
             weightTableSize = 0;
@@ -178,7 +196,8 @@ public:
         {
             weightTableSize = 0;
             weightSize = 0;
-            inputSize += tensorSize(op.getInputTensor(1)->getShape(),{streamConfig["W"],streamConfig["H"],streamConfig["C"],1});
+//            inputSize += tensorSize(op.getInputTensor(1)->getShape(),{streamConfig["W"],streamConfig["H"],streamConfig["C"],1});
+            inputSize += realTensorSize(op.getInputTensor(1),{streamConfig["W"],streamConfig["H"],streamConfig["C"],1});
         }
 
         weightSize += weightTableSize;
