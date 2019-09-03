@@ -721,7 +721,6 @@ void StrategyManager::recursiveCriticalPath(typename graph<mv::Op, mv::DataFlow>
                 edgeCostMap.insert(std::pair<OptimizationGraph::edge_list_iterator, double>(newEdge, edgeCost));
                 nodeCtr++;
             }
-            cout << endl;
         }
 
         old_nodes.swap(new_nodes);
@@ -752,7 +751,6 @@ void StrategyManager::recursiveCriticalPath(typename graph<mv::Op, mv::DataFlow>
                     edgeCostMap.insert(std::pair<OptimizationGraph::edge_list_iterator, double>(newEdge, edgeCost));
                     nodeCtr++;
                 }
-                cout << endl;
             }
             old_nodes.swap(new_nodes);
 
@@ -778,7 +776,6 @@ void StrategyManager::recursiveCriticalPath(typename graph<mv::Op, mv::DataFlow>
                 edgeCostMap.insert(std::pair<OptimizationGraph::edge_list_iterator, double>(newEdge, edgeCost));
                 nodeCtr++;
             }
-            cout << endl;
         }
         old_nodes.swap(new_nodes);
         nodeStrategies.push_back(nodeStrategy);
