@@ -94,7 +94,6 @@ public:
         safetyFactor = globalConfig_["FathomSafetyFactor"].get<double>();
         //Input is in Kb
         clusterMemory = (double)clusterMemroyKb * 1024.0 * safetyFactor;
-        cout << "Cluster Memory  " << clusterMemory << ", clusterMemorykb " << clusterMemroyKb << " * 1024 * Safety Factor " << safetyFactor << endl;
 
     }
 
@@ -456,46 +455,39 @@ public:
         if((parentClustering == "HKSwitch" or
                 parentClustering == "SplitOverK") and
                 (childClustering == "SplitOverH")){
-                    cout << "INF cause 1" << endl;
                      return INF;
                 }
 
         //HK Switch requires previous layer to be SOH
         if((not (parentClustering == "SplitOverH")) and
                 childClustering == "HKSwitch"){
-                    cout << "INF cause 2" << endl;
                      return INF;
                 }
 
         //HK Switch requires next layer to be SOK
         if( parentClustering == "HKSwitch" and
                 (not (childClustering == "SplitOverK"))){
-                    cout << "INF cause 3" << endl;
             return INF;
                 }
 
         //Cannot pass directly from SoH to SoK
         if( parentClustering == "SplitOverH" and
                 childClustering == "SplitOverK"){
-                    cout << "INF cause 4" << endl;
                                 return INF;
                 }
 
         //cannot pass directly from SoK to SoH
         if( parentClustering == "SplitOverK" and
                 childClustering == "SplitOverH"){
-                    cout << "INF cause 5" << endl;
                      return INF;
                 }
            
 
         if(checkStreamClusterComp(parentOp,parent)){
-              cout << "INF cause 6" << endl;
             return INF;
         }
         
         if(checkStreamClusterComp(childOp,child)){
-              cout << "INF cause 7" << endl;
             return INF;
         }
 
@@ -503,7 +495,6 @@ public:
         //if child is spilled, HKSwitch makes no sense
         if( (child["spilling"].get<bool>() == true ) and
                 (childClustering == "HKSwitch")){
-                      cout << "INF cause 8" << endl;
                        return INF;
                 }
            
@@ -513,7 +504,6 @@ public:
         //SOH-Overlapped can only go to SOH layers
         if( parentClustering == "SplitOverHOverlapped" and
                 (not (childClustering == "SplitOverH"))){
-                     cout << "INF cause 9" << endl;
                        return INF;
                 }
 
@@ -521,7 +511,6 @@ public:
         //TODO: SOH channelMajor conv requires SoHOverlapped input
         if( parentClustering == "SplitOverHOverlapped" and
                 (not (parentOp.getOpType() == "Input"))){
-                      cout << "INF cause 10" << endl;
                        return INF;
                 }
 
@@ -536,7 +525,6 @@ public:
                 //with this we will assume ChMajorConvolution
                 if( (childClustering == "SplitOverH") and
                         (not (parentClustering == "SplitOverHOverlapped"))){
-                                                  cout << "INF cause 11" << endl;
                        return INF;
                         }
             }
@@ -546,27 +534,23 @@ public:
         //Input and Output must have Spilled==True
         if( (parentOp.getOpType() == "Input") and
                 parent["spilling"].get<bool>() == false){
-                                          cout << "INF cause 12" << endl;
                        return INF;
                 }
 
         if( (childOp.getOpType() == "Output") and
                 child["spilling"].get<bool>() == false){
-                 cout << "INF cause 13" << endl;
                        return INF;
                 }
 
         //iIf the layer is streaming over H or W, output of this layer has to be spilled
         if( (parent["spilling"] == false) and
                 ((parent["streaming"].get<Shape>()["H"] * parent["streaming"].get<Shape>()["W"]) > 1)){
-                    cout << "INF cause 14" << endl;
                        return INF;
                 }
 
         //If the child layer is streaming over H or W output of this layer has to be spilled
         if( (parent["spilling"] == false) and
                 ((child["streaming"].get<Shape>()["H"] * child["streaming"].get<Shape>()["W"]) > 1)){
-                    cout << "INF cause 15" << endl;
                        return INF;
                 }
 
@@ -584,8 +568,6 @@ public:
 
         if( ((childMem.first + childMem.second) > clusterMemory) or
             ((parentMem.first + parentMem.second) > clusterMemory)){
-                cout << "INF cause 16" << endl;
-                cout << "cluster: "<< clusterMemory << ", child: " << childMem.first+childMem.second << ", parent: " << parentMem.first+parentMem.second<<endl;
                        return INF;
             }
 
