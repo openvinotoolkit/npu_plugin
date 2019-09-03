@@ -25,18 +25,12 @@ namespace mv
         }
     };
 
-    struct BlobBinary
-    {
-        std::shared_ptr<char> binarydata;
-        int bufferLength;
-    };
-
     class RuntimeModel
     {
         private:
             RuntimeModel() {}
             MVCNN::GraphFileT graphFile_;
-            BlobBinary binaryBuffer_;
+            std::shared_ptr<std::vector<char>> binaryData_;
             static const std::unordered_map<std::string, MVCNN::DType> dTypeMapping_;
             static const std::unordered_map<std::string, MVCNN::MemoryLocation> memoryLocationMapping_;
             static const std::unordered_map<std::string, MVCNN::DPULayerType> dpuLayerMapping_;
@@ -114,7 +108,7 @@ namespace mv
             void deserialize(char * buffer, int length);
             void buildGraphFile(ComputationModel& cm, Element& compilationDescriptor);
             void buildHeader(ComputationModel& cm, Element& compilationDescriptor);
-            BlobBinary getBlob();
+            std::shared_ptr<std::vector<char>> getBlob();
     };
 }
 

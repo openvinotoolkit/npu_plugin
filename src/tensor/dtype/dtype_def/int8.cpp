@@ -3,22 +3,7 @@
 
 namespace mv
 {
-
-    static std::function<BinaryData(const std::vector<DataElement>&)> toBinaryFunc =
-    [](const std::vector<DataElement> & vals)->mv::BinaryData
-    {
-        std::vector<int8_t> res;
-        for_each(vals.begin(), vals.end(), [&](int64_t  val)
-        {
-            res.push_back(val);
-        });
-        mv::BinaryData bdata;
-        bdata.setI8(std::move(res));
-        return bdata;
-    };
-
     MV_REGISTER_DTYPE(Int8)
-    .setToBinaryFunc(toBinaryFunc)
     .setIsDoubleType(false)
     .setSizeInBits(8);
 }

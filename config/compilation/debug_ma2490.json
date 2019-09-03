@@ -64,6 +64,19 @@
     },
     "adapt": {
         "Singular": [
+            "PopulatedTensorsToFP16",
+            "UnpopulatedTensorsToFP16",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/fp16_model.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/fp16_model.dot"
+            },
             "AverageAsDepthWise",
             "FuseBatchNorm",
             "FuseBias",
@@ -106,7 +119,6 @@
             "KMBOrderConversion",
             "AlignTo16Channels",
             "AlignTaskWeights",
-            "GenerateSparsityMapsUnpopulatedTensors",
             "GenerateSparsityMapsPopulatedTensors",
             "GenerateWeightsTables",
             "GenerateEltWiseConstants",
@@ -168,7 +180,9 @@
             {
                 "name": "ConvertDot",
                 "input": "output/dots/dma_model.dot"
-            }
+            },
+            "GenerateSparsityMapsUnpopulatedTensors"
+
         ]
     },
     "control_flows":{

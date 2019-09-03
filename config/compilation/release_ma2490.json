@@ -42,6 +42,8 @@
     },
     "adapt": {
         "Singular": [
+            "PopulatedTensorsToFP16",
+            "UnpopulatedTensorsToFP16",
             "AverageAsDepthWise",
             "FuseBatchNorm",
             "FuseBias",
@@ -62,7 +64,6 @@
             "KMBOrderConversion",
             "AlignTo16Channels",
             "AlignTaskWeights",
-            "GenerateSparsityMapsUnpopulatedTensors",
             "GenerateSparsityMapsPopulatedTensors",
             "GenerateWeightsTables",
             "GenerateEltWiseConstants",
@@ -77,7 +78,8 @@
         "Singular" : [
             "SetDpuTasksMemoryLocation",
             "ResolveImplicitOperations",
-            "AddWeightsDMATasks"
+            "AddWeightsDMATasks",
+            "GenerateSparsityMapsUnpopulatedTensors"
         ]
     },
     "control_flows":{

@@ -1,4 +1,5 @@
 #include "include/mcm/deployer/serializer.hpp"
+#include "include/mcm/utils/custom_math.hpp"
 
 #include <climits>
 #include <stdio.h>
@@ -392,7 +393,6 @@ namespace mv
 
         uint32_t buffer_header_pad_size = 3 ;
         uint32_t buffer_header_pad_val = 0x002a ;
-        mv_num_convert cvtr ;
 
         mv::DataModel dm(cm);
         mv::Control::StageIterator stg = cm.getStage(0);
@@ -419,7 +419,7 @@ namespace mv
                     //auto data = bit->getData()->getData();
                     for (std::size_t idx = 0; idx != bit->getData()->getShape().totalSize(); idx++)
                     {
-                        uint16_t fp16_val = cvtr.fp32_to_fp16(static_cast<float>(bit->getData()->at(idx)));  // Convert to fp16.
+                        uint16_t fp16_val = mv::fp32_to_fp16(static_cast<float>(bit->getData()->at(idx)));  // Convert to fp16.
                         AddBytes(2, fp16_val);
                     }
                 }
@@ -432,7 +432,7 @@ namespace mv
                         for (std::size_t elem_idx = 0; elem_idx != bit->getStrides()[block_idx] / 2; elem_idx++)    // TODO: not only FP16
                         {
                             //std::cout << "x" ;
-                            fp16_val = cvtr.fp32_to_fp16(static_cast<float>(0));  // Convert to fp16.
+                            fp16_val = mv::fp32_to_fp16(static_cast<float>(0));  // Convert to fp16.
                             AddBytes(2, fp16_val);
                         }
 
@@ -441,14 +441,14 @@ namespace mv
                         {
                             //std::cout << "o" ;
                             uint16_t idx = ((block_idx*bit->getBlockSize())/2) + elem_idx;
-                            fp16_val = cvtr.fp32_to_fp16(static_cast<float>(bit->getData()->at(idx)));  // Convert to fp16.
+                            fp16_val = mv::fp32_to_fp16(static_cast<float>(bit->getData()->at(idx)));  // Convert to fp16.
                             AddBytes(2, fp16_val);
                         }
                         //std::cout << std::endl;
                     }
                     for (std::size_t elem_idx = 0; elem_idx < bit->getStrides()[bit->getBlockNum()] / 2; elem_idx++)    // TODO: not only FP16
                     {
-                        fp16_val = cvtr.fp32_to_fp16(static_cast<float>(0));  // Convert to fp16.
+                        fp16_val = mv::fp32_to_fp16(static_cast<float>(0));  // Convert to fp16.
                         AddBytes(2, fp16_val);
                     }
                }
