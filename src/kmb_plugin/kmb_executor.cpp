@@ -58,6 +58,7 @@ const uint32_t POOL_SIZE = 30 * 1024 * 1024;
 const uint32_t IE_VPU_KMB_XC_DEFAULT = 3;
 
 
+#ifdef ENABLE_VPUAL
 // Get free XLink channel
 static uint32_t getXlinkChannel(const vpu::Logger::Ptr &_logger) {
     static std::mutex mutex_;
@@ -79,6 +80,7 @@ static uint32_t getXlinkChannel(const vpu::Logger::Ptr &_logger) {
     _logger->info("Allocated channel = %d", ret);
     return ret;
 }
+#endif
 
 KmbExecutor::KmbExecutor(const std::shared_ptr<KmbConfig>& config)
             : _config(config), _logger(std::make_shared<Logger>("KmbExecutor", config->hostLogLevel, consoleOutput())) {
@@ -132,7 +134,7 @@ void KmbExecutor::allocateGraph(const std::vector<char> &graphFileContent, const
 #ifdef ENABLE_VPUAL
     initVpualObjects();
     static int graphId_main = 1;
-    int nThreads = 4;
+    int nThreads = std::stoi(parsedConfig[VPU_KMB_CONFIG_KEY(THROUGHPUT_STREAMS)]);
     int nShaves = 16;
 
     _logger->info("Initiating verification of use case 1");
@@ -293,9 +295,20 @@ void KmbExecutor::queueInference(void *input_data, size_t input_bytes,
     }
 
 #ifdef ENABLE_VPUAL
+    auto pullFunc = [&]()->void {
+        _outTensorLen = 0;
+        _outTensorAddr = 0;
+        plgTensorOutput_->Pull(&_outTensorAddr, &_outTensorLen);
+    };
+
+    std::thread pullThread(pullFunc);
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+
     auto physAddr = getKmbAllocator()->getPhysicalAddress(input_data);
     plgTensorInput_->Push(physAddr, input_bytes);
     _logger->info("Pushed input, size %d", input_bytes);
+
+    pullThread.join();
 #else
     UNUSED(input_data);
     UNUSED(input_bytes);
@@ -311,9 +324,9 @@ void KmbExecutor::getResult(void *result_data, unsigned int result_bytes) {
     }
 
 #ifdef ENABLE_VPUAL
-    uint32_t len = 0;
-    uint32_t pAddr = 0;
-    plgTensorOutput_->Pull(&pAddr, &len);
+    uint32_t len = _outTensorLen;
+    uint32_t pAddr = _outTensorAddr;
+    /* plgTensorOutput_->Pull(&pAddr, &len); */
 
     _logger->info("Output tensor returned of length: %d", len);
 

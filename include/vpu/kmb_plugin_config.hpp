@@ -112,5 +112,11 @@ DECLARE_VPU_KMB_CONFIG_KEY(MCM_COMPILATION_RESULTS);
  */
 DECLARE_VPU_KMB_CONFIG_KEY(KMB_EXECUTOR);
 
+/**
+ * @brief [Only for kmbPlugin]
+ * Type: integer, default is 1.
+ */
+DECLARE_VPU_KMB_CONFIG_KEY(THROUGHPUT_STREAMS);
+
 }  // namespace VPUConfigParams
 }  // namespace InferenceEngine
