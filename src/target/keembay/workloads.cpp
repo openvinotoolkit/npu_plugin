@@ -1588,7 +1588,7 @@ void mv::Workloads::apply_z_offset(std::vector<std::size_t>& offset)
 {
     for (auto workload = workloads_.begin(); workload != workloads_.end(); workload++)
     {
-        workload->z_offset += + offset[IO_CHANNEL_DIMENSION];
+        workload->z_offset += offset[IO_CHANNEL_DIMENSION];
         auto workloadOutputChannels = workload->MaxZ - workload->MinZ;
         workload->MinZ = workload->z_offset;
         workload->MaxZ = workload->z_offset + workloadOutputChannels;

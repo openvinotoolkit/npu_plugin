@@ -61,7 +61,7 @@ float workloadPixelCost(mv::Data::OpListIterator opIt)
 {
  auto kh = opIt->get<std::array<unsigned short, 2>>("kSize")[0];
  auto kw = opIt->get<std::array<unsigned short, 2>>("kSize")[1];
- auto ic = opIt->get<std::string>("taskOp") == "ChannelMajorConvolution" || opIt->get<std::string>("taskOp") == "Conv" ? opIt->getInputTensor()[0]->getShape()[2] : 1;
+ auto ic = opIt->get<std::string>("taskOp") == "ChannelMajorConvolution" || opIt->get<std::string>("taskOp") == "DepthwiseConv" || opIt->get<std::string>("taskOp") == "Conv" ? opIt->getInputTensor()[0]->getShape()[2] : 1;
 
  return kh*kw*ic;
 }
@@ -165,6 +165,7 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
     bool rectangleFail = false;
     std::pair<int,int> metisResult = {0,0};
     uint8_t clusterNumber = 0;
+    bool depthWiseSOHA0Workaround = false;
 
     /*Get the worklaods algorithm*/
     std::vector<std::string> algorithms = getTensorSplitAlgorithms(passDesc, pass);
@@ -184,6 +185,7 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
         {
             pass.log(mv::Logger::MessageType::Debug, "Found DPU task " + opIt->getName() + " of type " + opIt->get<std::string>("taskOp"));
 
+            depthWiseSOHA0Workaround = false;
             /*Get number of clusters*/
             auto opStrategy = opIt->get<std::string>("splitStrategy");
             if(opStrategy == "Clustering")
@@ -198,6 +200,13 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                 dpuModes = {{1, 16}};
             else
                 dpuModes = {{4,4},{1, 16}};
+
+            
+            /*Depthwise cov SOH A0 workaround*/
+            if((opIt->get<std::string>("taskOp") == "DepthwiseConv") && (opIt->get<std::string>("splitStrategy") == "SplitOverH")) {
+                depthWiseSOHA0Workaround = true;
+                opIt->set<std::string>("Depthwise_SOH_A0_bug", "True");
+            }
 
             /*For multi-clustering we work on subtensors*/
             for(clusterNumber = 0; clusterNumber < nClusters; clusterNumber++)
@@ -228,6 +237,7 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
 
                     /*Erase duplicate workload numbers from the split pool*/
                     nWorkloadsSplitPool.erase(std::unique(nWorkloadsSplitPool.begin(), nWorkloadsSplitPool.end()), nWorkloadsSplitPool.end());
+                    std::sort(nWorkloadsSplitPool.begin(), nWorkloadsSplitPool.end());
                 }
 
                 for(auto nWorkloads : nWorkloadsSplitPool)
@@ -287,7 +297,7 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                         // }
 
                         // Rectangle Reuristic performs the same function as METIS
-                        if (algorithm == "Rectangle")
+                        if ((algorithm == "Rectangle") && ((!depthWiseSOHA0Workaround) || nWorkloads > 1))
                         {
                             /*Create workload instance*/
                             workloadsVector.emplace_back(mv::Workloads(opIt->getName(), subTensor.getShape()));
@@ -301,12 +311,12 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
 
                             /*If nWorkloads specified in compilation descriptor, then force symmetric splits*/
                             if(nWorkloadsCompilationDescriptor)
-                                split_symmetric = true;
+                                split_symmetric = false;
                             else
                                 split_symmetric = false;
 
                             /*If the operation is deptwise convolution, then do not split over H due to AO hardware bug*/
-                            if(opIt->get<std::string>("taskOp") == "DepthwiseConv")
+                            if(depthWiseSOHA0Workaround)
                                 split_over_h = false;
 
                             rectangleResult = workloadsVector.at(workloadsVectorIndex).partitionTensorWithRectangleHeuristic(dpuModes, nWorkloads,
@@ -321,15 +331,15 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                             }
 
                             /*Check that requested number of workloads was returned, if not then erase to align with Fathom*/
-                            if (!rectangleFail) 
-                            {
-                                if(workloadsVector.at(workloadsVectorIndex).getWorkloads().size() != nWorkloads)
-                                {
-                                    pass.log(mv::Logger::MessageType::Debug, "The requested number of worloads was not returned by Rectangle erasing this workload instance");
-                                    workloadsVector.erase(workloadsVector.begin() + (workloadsVectorIndex));
-                                    rectangleFail = true;
-                                }
-                            }
+                            // if (!rectangleFail) 
+                            // {
+                            //     if(workloadsVector.at(workloadsVectorIndex).getWorkloads().size() != nWorkloads)
+                            //     {
+                            //         pass.log(mv::Logger::MessageType::Debug, "The requested number of worloads was not returned by Rectangle erasing this workload instance");
+                            //         workloadsVector.erase(workloadsVector.begin() + (workloadsVectorIndex));
+                            //         rectangleFail = true;
+                            //     }
+                            // }
 
                             if(!rectangleFail)
                             {
@@ -351,7 +361,9 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                             }
                         }
                         /*Eltwise ops are performed by the PPE, which does not support Z-Tiling*/
-                        if (algorithm == "Z-Tiling" && opIt->get<std::string>("taskOp") != "Add" && opIt->get<std::string>("taskOp") != "Subtract" && opIt->get<std::string>("taskOp") != "Divide" && opIt->get<std::string>("taskOp") != "Multiply") 
+                        if (algorithm == "Z-Tiling" && opIt->get<std::string>("taskOp") != "Add" && 
+                            opIt->get<std::string>("taskOp") != "Subtract" && opIt->get<std::string>("taskOp") != "Divide" 
+                            && opIt->get<std::string>("taskOp") != "Multiply" && !depthWiseSOHA0Workaround) 
                         {
                             /*Create workload instance*/
                             workloadsVector.emplace_back(mv::Workloads(opIt->getName(), subTensor.getShape()));
