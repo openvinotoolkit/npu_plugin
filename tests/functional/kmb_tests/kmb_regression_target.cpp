@@ -297,7 +297,6 @@ const std::string YOLO_GRAPH_NAME = "yolotiny.blob";
 
 struct modelBlobsInfo {
     std::string _graphPath, _inputPath, _outputPath;
-    SizeVector _inDimensions, _outDimensions;
 };
 
 const static std::vector<modelBlobsInfo> pathToPreCompiledGraph = {
@@ -305,22 +304,16 @@ const static std::vector<modelBlobsInfo> pathToPreCompiledGraph = {
         ._graphPath = "/KMB_models/BLOBS/mobilenet/mobilenet.blob",
         ._inputPath = "/KMB_models/BLOBS/mobilenet/input.dat",
         ._outputPath = "/KMB_models/BLOBS/mobilenet/output.dat",
-        ._inDimensions = {1, 3, 224, 224},
-        ._outDimensions = {1, 1024, 1, 1}
     },
     {
         ._graphPath = "/KMB_models/BLOBS/resnet/resnet.blob",
         ._inputPath = "/KMB_models/BLOBS/resnet/input.dat",
         ._outputPath = "/KMB_models/BLOBS/resnet/output.dat",
-        ._inDimensions = {1, 3, 224, 224},
-        ._outDimensions = {1, 1024, 1, 1}
     },
     {
         ._graphPath = "/KMB_models/BLOBS/yolotiny/yolotiny.blob",
         ._inputPath = "/KMB_models/BLOBS/yolotiny/input.dat",
         ._outputPath = "/KMB_models/BLOBS/yolotiny/output.dat",
-        ._inDimensions = {1, 3, 416, 416},
-        ._outDimensions = {1, 128, 13, 13}
     }
 };
 
@@ -683,8 +676,10 @@ TEST_P(VpuInferWithPath, DISABLED_compareSetBlobAndGetBlob) {
     ConstInputsDataMap inputInfo = importedNetwork.GetInputsInfo();
     std::string input_name = inputInfo.begin()->first;
 
+    InferenceEngine::TensorDesc inputTensorDesc = inferRequest.GetBlob(input_name)->getTensorDesc();
+
     Blob::Ptr inputBlob;
-    ASSERT_NO_THROW(inputBlob = InferenceEngine::make_shared_blob<uint8_t>({Precision::U8, blobsInfo._inDimensions, Layout::NCHW}));
+    ASSERT_NO_THROW(inputBlob = InferenceEngine::make_shared_blob<uint8_t>({Precision::U8, inputTensorDesc.getDims(), Layout::NCHW}));
     inputBlob->allocate();
 
     u_int8_t* ptr = inputBlob->buffer();
@@ -706,12 +701,6 @@ TEST_P(VpuInferWithPath, DISABLED_compareSetBlobAfterInfer) {
     std::string inputNameFilePath = ModelsPath() + inputSuffix;
     std::string outputNameFilePath = ModelsPath() + outputSuffix;
 
-    Blob::Ptr fileOutputBlob = InferenceEngine::make_shared_blob<uint8_t>({Precision::U8, blobsInfo._outDimensions, Layout::NCHW});
-    fileOutputBlob->allocate();
-    bool status = false;
-    ASSERT_NO_THROW(status = fromBinaryFile(outputNameFilePath, fileOutputBlob));
-    ASSERT_TRUE(status);
-
     Core ie;
     InferenceEngine::ExecutableNetwork importedNetwork;
     ASSERT_NO_THROW(importedNetwork = ie.ImportNetwork(modelFilePath, "KMB", {}));
@@ -720,6 +709,7 @@ TEST_P(VpuInferWithPath, DISABLED_compareSetBlobAfterInfer) {
     ASSERT_NO_THROW(inferRequest1 = importedNetwork.CreateInferRequest());
     std::string input_name1 = importedNetwork.GetInputsInfo().begin()->first;
 
+    bool status = false;
     Blob::Ptr inputBlob1;
     ASSERT_NO_THROW(inputBlob1 = inferRequest1.GetBlob(input_name1));
     ASSERT_NO_THROW(status = fromBinaryFile(inputNameFilePath, inputBlob1));
@@ -732,8 +722,17 @@ TEST_P(VpuInferWithPath, DISABLED_compareSetBlobAfterInfer) {
 
     // ----------------------------------------------------------
 
+    InferenceEngine::TensorDesc inputTensorDesc = inferRequest1.GetBlob(input_name1)->getTensorDesc();
+    InferenceEngine::TensorDesc outputTensorDesc = inferRequest1.GetBlob(output_name1)->getTensorDesc();
+
+    Blob::Ptr fileOutputBlob = InferenceEngine::make_shared_blob<uint8_t>({Precision::U8, outputTensorDesc.getDims(), Layout::NCHW});
+    fileOutputBlob->allocate();
+    ASSERT_NO_THROW(status = fromBinaryFile(outputNameFilePath, fileOutputBlob));
+    ASSERT_TRUE(status);
+
+
     Blob::Ptr inputBlob;
-    ASSERT_NO_THROW(inputBlob = InferenceEngine::make_shared_blob<uint8_t>({Precision::U8, blobsInfo._inDimensions, Layout::NCHW}));
+    ASSERT_NO_THROW(inputBlob = InferenceEngine::make_shared_blob<uint8_t>({Precision::U8, inputTensorDesc.getDims(), Layout::NCHW}));
     inputBlob->allocate();
     ASSERT_NO_THROW(status = fromBinaryFile(inputNameFilePath, inputBlob));
     ASSERT_TRUE(status);
@@ -803,12 +802,6 @@ TEST_P(VpuInferWithPath, DISABLED_compareOutputsTwoNetworks) {
     std::string inputNameFilePath = ModelsPath() + inputSuffix;
     std::string outputNameFilePath = ModelsPath() + outputSuffix;
 
-    Blob::Ptr fileOutputBlob = InferenceEngine::make_shared_blob<uint8_t>({Precision::U8, blobsInfo._outDimensions, Layout::NCHW});
-    fileOutputBlob->allocate();
-    bool status = false;
-    ASSERT_NO_THROW(status = fromBinaryFile(outputNameFilePath, fileOutputBlob));
-    ASSERT_TRUE(status);
-
     Core ie;
     InferenceEngine::ExecutableNetwork importedNetwork1;
     ASSERT_NO_THROW(importedNetwork1 = ie.ImportNetwork(modelFilePath, "KMB", {}));
@@ -821,6 +814,14 @@ TEST_P(VpuInferWithPath, DISABLED_compareOutputsTwoNetworks) {
 
     std::string input_name1 = importedNetwork1.GetInputsInfo().begin()->first;
     std::string output_name1 = importedNetwork1.GetOutputsInfo().begin()->first;
+
+    InferenceEngine::TensorDesc outputTensorDesc = inferRequest1.GetBlob(output_name1)->getTensorDesc();
+
+    Blob::Ptr fileOutputBlob = InferenceEngine::make_shared_blob<uint8_t>({Precision::U8, outputTensorDesc.getDims(), Layout::NCHW});
+    fileOutputBlob->allocate();
+    bool status = false;
+    ASSERT_NO_THROW(status = fromBinaryFile(outputNameFilePath, fileOutputBlob));
+    ASSERT_TRUE(status);
 
     Blob::Ptr inputBlob1;
     ASSERT_NO_THROW(inputBlob1 = inferRequest1.GetBlob(input_name1));
@@ -868,12 +869,6 @@ TEST_P(VpuInferWithPath, DISABLED_compareSetBlobAndInfer) {
     std::string inputNameFilePath = ModelsPath() + inputSuffix;
     std::string outputNameFilePath = ModelsPath() + outputSuffix;
 
-    Blob::Ptr fileOutputBlob = InferenceEngine::make_shared_blob<uint8_t>({Precision::U8, blobsInfo._outDimensions, Layout::NCHW});
-    fileOutputBlob->allocate();
-    bool status = false;
-    ASSERT_NO_THROW(status = fromBinaryFile(outputNameFilePath, fileOutputBlob));
-    ASSERT_TRUE(status);
-
     Core ie;
     InferenceEngine::ExecutableNetwork importedNetwork;
     ASSERT_NO_THROW(importedNetwork = ie.ImportNetwork(modelFilePath, "KMB", {}));
@@ -884,8 +879,17 @@ TEST_P(VpuInferWithPath, DISABLED_compareSetBlobAndInfer) {
     std::string input_name = importedNetwork.GetInputsInfo().begin()->first;
     std::string output_name = importedNetwork.GetOutputsInfo().begin()->first;
 
+    InferenceEngine::TensorDesc inputTensorDesc = inferRequest.GetBlob(input_name)->getTensorDesc();
+    InferenceEngine::TensorDesc outputTensorDesc = inferRequest.GetBlob(output_name)->getTensorDesc();
+
+    Blob::Ptr fileOutputBlob = InferenceEngine::make_shared_blob<uint8_t>({Precision::U8, outputTensorDesc.getDims(), Layout::NCHW});
+    fileOutputBlob->allocate();
+    bool status = false;
+    ASSERT_NO_THROW(status = fromBinaryFile(outputNameFilePath, fileOutputBlob));
+    ASSERT_TRUE(status);
+
     Blob::Ptr inputBlob;
-    ASSERT_NO_THROW(inputBlob = InferenceEngine::make_shared_blob<uint8_t>({Precision::U8, blobsInfo._inDimensions, Layout::NCHW}));
+    ASSERT_NO_THROW(inputBlob = InferenceEngine::make_shared_blob<uint8_t>({Precision::U8, inputTensorDesc.getDims(), Layout::NCHW}));
     inputBlob->allocate();
     ASSERT_NO_THROW(status = fromBinaryFile(inputNameFilePath, inputBlob));
     ASSERT_TRUE(status);
