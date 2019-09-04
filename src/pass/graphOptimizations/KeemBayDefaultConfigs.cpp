@@ -22,7 +22,7 @@ MV_OPTIMIZER_GLOBAL_CONFIG_REGISTRY()
 //##################DEFAULT GLOBAL STRATEGIES FOR KEEMBAY ###################
 
 MV_OPTIMIZER_GLOBAL_STRATEGY_REGISTRY()
-    .enter("tensorSpilling").set(true);
+    .enter("forceSpilling").set(true);
 
 MV_OPTIMIZER_GLOBAL_STRATEGY_REGISTRY()
     .enter("enableStreaming").set(true);
@@ -69,17 +69,24 @@ MV_OPTIMIZER_LAYER_STRATEGY_REGISTRY()
     .registerSet("sparsity").insert(false);
 
 MV_OPTIMIZER_LAYER_STRATEGY_REGISTRY()
+    .enter("Concat")
+    .registerSet("streamingStrategies").insert(vector<string>(0))
+    .registerSet("clusteringStrategies").insert(vector<string>{"Clustering"})
+    .registerSet("forceSpilling").insert(true)
+    .registerSet("sparsity").insert(false);
+
+MV_OPTIMIZER_LAYER_STRATEGY_REGISTRY()
     .enter("Input")
     .registerSet("streamingStrategies").insert(vector<string>(0))
     .registerSet("clusteringStrategies").insert(vector<string>{"Clustering","SplitOverHOverlapped"})
-    .registerSet("tensorSpilling").insert(true)
+    .registerSet("forceSpilling").insert(false)
     .registerSet("sparsity").insert(false);
 
 MV_OPTIMIZER_LAYER_STRATEGY_REGISTRY()
     .enter("Output")
     .registerSet("streamingStrategies").insert(vector<string>(0))
     .registerSet("clusteringStrategies").insert(vector<string>{"Clustering"})
-    .registerSet("tensorSpilling").insert(true)
+    .registerSet("forceSpilling").insert(true)
     .registerSet("sparsity").insert(false);
 
 }

@@ -42,6 +42,7 @@ public:
     mv::Element& passDesc_;
 
     string dotFileLocation;
+    string jsonOutFileName;
 
     StrategyManager(OpModel& model,mv::Element& passDesc);
 

@@ -435,7 +435,7 @@ void StrategyManager::saveMetaStrategy(std::vector<MetaGraph::edge_list_iterator
     const bool enablePrintStrategyToTerminal = true;
     const bool enableSaveStrategyToDescriptor = true;
     const bool enableSaveStrategyToJsonFile = true;
-    const std::string jsonOutputFileName = "./mcm_compiler_strategy_output.json";
+//    const std::string jsonOutputFileName = "./mcm_compiler_strategy_output.json";
  
     vector<StrategySet> allStrategies;
     for(auto edge : cPathEdges){
@@ -466,9 +466,9 @@ void StrategyManager::saveMetaStrategy(std::vector<MetaGraph::edge_list_iterator
     {
         cout << "Saving Strategy to JSON file" << endl;
         std::ofstream jsonOutputFile ;
-        jsonOutputFile.open(jsonOutputFileName, std::ios::out );
+        jsonOutputFile.open(jsonOutFileName, std::ios::out );
         if (!(jsonOutputFile.is_open()))
-            std::cout << "ERROR: Could not open output file " << jsonOutputFileName << std::endl;
+            std::cout << "ERROR: Could not open output file " << jsonOutFileName << std::endl;
 
         auto currentTime= chrono::system_clock::to_time_t(chrono::system_clock::now());
         std::string timeStamp(ctime(&currentTime));
@@ -505,23 +505,23 @@ void StrategyManager::saveMetaStrategy(std::vector<MetaGraph::edge_list_iterator
             continue;
 
         auto outTensor = op->getOutputTensor(0);
-         /* 
+         
         if(spilling)
             outTensor->set<mv::Tensor::MemoryLocation>("Location",mv::Tensor::MemoryLocation::DDR);
         else
             outTensor->set<mv::Tensor::MemoryLocation>("Location",mv::Tensor::MemoryLocation::CMX);
-        */
+        
        //TODO undo this hack once future passes can handle switching between DDR and CMX for streaming
-       
+       /*
        if(singleCluster){
-           outTensor->set<mv::Tensor::MemoryLocation>("Location",mv::Tensor::MemoryLocation::DDR);
-       }else{
+            outTensor->set<mv::Tensor::MemoryLocation>("Location",mv::Tensor::MemoryLocation::DDR);
+        }else{
             if(spilling)
                 outTensor->set<mv::Tensor::MemoryLocation>("Location",mv::Tensor::MemoryLocation::DDR);
             else
                 outTensor->set<mv::Tensor::MemoryLocation>("Location",mv::Tensor::MemoryLocation::CMX);
-       }
-
+        }
+        */
         std::cout << "Output tensor location (from tensor attribute) for node " << op->getName() << " is " << outTensor->get("Location").toString() << std::endl ;
         
     }

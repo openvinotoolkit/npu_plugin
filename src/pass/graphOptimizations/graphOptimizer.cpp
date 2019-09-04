@@ -74,7 +74,7 @@ public:
 //    };
 
     size_t totalClusters;
-    size_t clusterMemroyKb;
+    size_t clusterMemoryKb;
     size_t dpuPerCluster;
     int ddrBandwidth;
     int sysClock;
@@ -86,20 +86,21 @@ public:
     void readGlobalConfigs()
     {
         totalClusters = globalConfig_["totalClusters"].get<int>();
-        clusterMemroyKb = globalConfig_["clusterMemory"].get<int>();
+        clusterMemoryKb = globalConfig_["clusterMemory"].get<int>();
         dpuPerCluster = globalConfig_["dpuPerCluster"].get<int>();
         ddrBandwidth = globalConfig_["ddrBandwidth"].get<int>();
         sysClock = globalConfig_["systemClockMhz"].get<int>();
         dotFileLocation = globalConfig_["dotFileLocation"].get<string>();
+        jsonOutFileName = globalConfig_["jsonOutFileName"].get<string>();
         safetyFactor = globalConfig_["FathomSafetyFactor"].get<double>();
         //Input is in Kb
-        clusterMemory = (double)clusterMemroyKb * 1024.0 * safetyFactor;
+        clusterMemory = (double)clusterMemoryKb * 1024.0 * safetyFactor;
 
     }
 
     //TODO:: figure out more efficient and cleaner way to handle these....
 
-    vector<Attribute> createStrategyPoolFromBool(mv::Op op,string name)
+    vector<Attribute> createTFStrategyPoolFromBool(mv::Op op,string name)
     {
         auto& streamingStrategy = getStrategy(op,name);
 
@@ -111,6 +112,21 @@ public:
         else
         {
             return vector<Attribute>{false};
+        }
+    }
+    
+    vector<Attribute> createTStrategyPoolFromBool(mv::Op op,string name)
+    {
+        auto& streamingStrategy = getStrategy(op,name);
+
+        bool value = streamingStrategy.get<bool>();
+        if(value)
+        {
+            return vector<Attribute>{true};
+        }
+        else
+        {
+            return vector<Attribute>{true,false};
         }
     }
 
@@ -380,7 +396,7 @@ public:
         //naively emulate the workload cost
         //TODO: find cleaner solution
         unsigned baseKernelCost;
-        if(opType == "Add")
+        if ((opType == "Add") or (opType == "Concat"))
         {
               baseKernelCost = 1;
         }
@@ -661,9 +677,9 @@ public:
  //       auto roundUp = [](unsigned val,unsigned in) -> unsigned {return (in & val)+val;};
         auto roundUpToStep = [](unsigned numberToRound,unsigned step) -> unsigned {return (((numberToRound+(step-1))/step)*step);};
 
-        vector<Attribute> sparsityPool = createStrategyPoolFromBool(op,"sparsity");
-        vector<Attribute> doubleBufferPool = createStrategyPoolFromBool(op,"doubleBuffering");
-        vector<Attribute> spillingPool = createStrategyPoolFromBool(op,"tensorSpilling");
+        vector<Attribute> sparsityPool = createTFStrategyPoolFromBool(op,"sparsity");
+        vector<Attribute> doubleBufferPool = createTFStrategyPoolFromBool(op,"doubleBuffering");
+        vector<Attribute> spillingPool = createTStrategyPoolFromBool(op,"forceSpilling");
 
         vector<Attribute> clusteringStrategyPool;
 
