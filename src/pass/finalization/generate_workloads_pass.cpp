@@ -330,17 +330,6 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                                 rectangleFail = true;
                             }
 
-                            /*Check that requested number of workloads was returned, if not then erase to align with Fathom*/
-                            // if (!rectangleFail) 
-                            // {
-                            //     if(workloadsVector.at(workloadsVectorIndex).getWorkloads().size() != nWorkloads)
-                            //     {
-                            //         pass.log(mv::Logger::MessageType::Debug, "The requested number of worloads was not returned by Rectangle erasing this workload instance");
-                            //         workloadsVector.erase(workloadsVector.begin() + (workloadsVectorIndex));
-                            //         rectangleFail = true;
-                            //     }
-                            // }
-
                             if(!rectangleFail)
                             {
                                
