@@ -96,6 +96,8 @@ void mv::RuntimeModel::alignTensor(mv::ComputationModel& cm, std::unique_ptr<MVC
 {
         auto globalConfigParams = cm.getGlobalConfigParams();
         int pad = globalConfigParams->hasAttr("VPU2ChannelPadding") ? globalConfigParams->get<int>("VPU2ChannelPadding") : 16;
+        auto paddOutput = globalConfigParams->hasAttr("PadOutput") ? globalConfigParams->get<bool>("PadOutput") : false;
+
         std::vector<std::size_t> dimensions = tensor->getShape();
         auto outputChannelsPadded = mv::round_up(dimensions[mv::IO_CHANNEL_DIMENSION], pad);
         dimensions = {dimensions[mv::IO_WIDTH_DIMENSION], dimensions[mv::IO_HEIGHT_DIMENSION], outputChannelsPadded, dimensions[mv::IO_BATCH_DIMENSION]};
@@ -104,7 +106,8 @@ void mv::RuntimeModel::alignTensor(mv::ComputationModel& cm, std::unique_ptr<MVC
         std::reverse(dimensions.begin(), dimensions.end());
         std::reverse(numericStrides.begin(), numericStrides.end());
         tensorT->strides = numericStrides; // NOTE: Maybe directly bufferIt->computeStrides() in the future
-        tensorT->dimensions = std::vector<uint32_t>(dimensions.begin(), dimensions.end());
+        if(paddOutput)
+            tensorT->dimensions = std::vector<uint32_t>(dimensions.begin(), dimensions.end());
 }
 
 MVCNN::DType mv::RuntimeModel::convertDtype(const mv::DType& dtype)
@@ -444,6 +447,7 @@ std::unique_ptr<MVCNN::SummaryHeaderT> mv::RuntimeModel::buildSummaryHeaderT(Com
     std::unique_ptr<MVCNN::SummaryHeaderT> toBuild = std::unique_ptr<MVCNN::SummaryHeaderT>(new MVCNN::SummaryHeaderT());
 
     auto globalConfigurationParameters = cm.getGlobalConfigParams();
+    auto paddOutput = globalConfigurationParameters->hasAttr("PadOutput") ? globalConfigurationParameters->get<bool>("PadOutput") : false;
 
     toBuild->version = std::move(originalHeader->version);
     toBuild->original_structure = std::move(originalHeader->original_structure);
@@ -455,7 +459,7 @@ std::unique_ptr<MVCNN::SummaryHeaderT> mv::RuntimeModel::buildSummaryHeaderT(Com
 
     toBuild->net_output = std::vector<std::unique_ptr<MVCNN::TensorReferenceT>>(1);
     toBuild->net_output[0] = buildTensorReferenceT(cm, compilationDescriptor, om.getOutput()->getInputTensor(0));
-    if (om.getOutput()->getInputTensor(0)->hasAttr("alignment"))
+    if (paddOutput && om.getOutput()->getInputTensor(0)->hasAttr("alignment"))
     {
         alignTensor(cm, toBuild->net_output[0], om.getOutput()->getInputTensor(0));
     }
@@ -704,6 +708,8 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
     std::vector<std::unique_ptr<MVCNN::TaskT>> toReturn = std::vector<std::unique_ptr<MVCNN::TaskT>>(1);
     toReturn[0] = std::unique_ptr<MVCNN::TaskT>(new MVCNN::TaskT());
     toReturn[0]->task.type = MVCNN::SpecificTask_NNDMATask;
+    auto paddOutput = cm.getGlobalConfigParams()->hasAttr("PadOutput") ? cm.getGlobalConfigParams()->get<bool>("PadOutput") : false;
+
     auto tmp = new MVCNN::NNDMATaskT();
 
     tmp->src = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(0));
@@ -713,7 +719,7 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
     }
 
     tmp->dst = buildTensorReferenceT(cm, compilationDescriptor, opIt->getOutputTensor(0));
-    if (opIt->getOutputTensor(0)->hasAttr("alignment"))
+    if (paddOutput && opIt->getOutputTensor(0)->hasAttr("alignment"))
     {
         alignTensor(cm, tmp->dst, opIt->getOutputTensor(0));
     }
@@ -728,8 +734,9 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
 {
     bool sourceIsBroadCasted = opIt->getInputTensor(0)->isBroadcasted();
     auto direction = opIt->get<mv::DmaDirection>("direction");
-    unsigned numTasks = cm.getGlobalConfigParams()->get<int>("Number_of_Clusters");
-
+    auto globalConfigParams = cm.getGlobalConfigParams();
+    unsigned numTasks = globalConfigParams->get<int>("Number_of_Clusters");
+    auto paddOutput = globalConfigParams->hasAttr("PadOutput") ? globalConfigParams->get<bool>("PadOutput") : false;
     if (splitting == "Clustering" && !opIt->getOutputTensor(0)->isPopulated())
     {
         std::vector<std::unique_ptr<MVCNN::TaskT>> toReturn = std::vector<std::unique_ptr<MVCNN::TaskT>>(numTasks);
@@ -754,7 +761,7 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
                 auto locale_index = std::vector<unsigned int>(1,i);
                 tmp->dst->locale_index = locale_index;
             }
-            if (opIt->getOutputTensor(0)->hasAttr("alignment"))
+            if (paddOutput && opIt->getOutputTensor(0)->hasAttr("alignment"))
             {
                 alignTensor(cm, tmp->dst, opIt->getOutputTensor(0));
             }
@@ -798,7 +805,7 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
                 alignTensor(cm, tmp->src, opIt->getInputTensor(0));
             }
             tmp->dst = buildTensorReferenceT(cm, compilationDescriptor, opIt->getOutputTensor(0));
-            if (opIt->getOutputTensor(0)->hasAttr("alignment"))
+            if (paddOutput && opIt->getOutputTensor(0)->hasAttr("alignment"))
             {
                 alignTensor(cm, tmp->dst, opIt->getOutputTensor(0));
             }
@@ -830,7 +837,7 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
                 alignTensor(cm, tmp->src, opIt->getInputTensor(0));
             }
             tmp->dst = buildTensorReferenceT(cm, compilationDescriptor, opIt->getOutputTensor(0), i);
-            if (opIt->getOutputTensor(0)->hasAttr("alignment"))
+            if (paddOutput && opIt->getOutputTensor(0)->hasAttr("alignment"))
             {
                 alignTensor(cm, tmp->dst, opIt->getOutputTensor(0));
             }
