@@ -190,13 +190,18 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationMod
 
                     auto df = dm.getDataFlow(*flowName);
                     auto chosenOp = cm.switchContext(df.sink());
-                    if (!chosenOp->hasTypeTrait("executable"))
+                    if (!chosenOp->hasTypeTrait("executable") || chosenOp->getOpType() == "DMATask")
                     {
+                        //if it's a DMAtask it might be prefetched, so it's topological sort will not give us the right order
+                        // so let's look for DPUTasks that this DMA goes to.
                         auto implicitOpFlowsNames = chosenOp->getOutputTensor(0)->get<std::set<std::string>>("flows");
                         flowsNames.insert(implicitOpFlowsNames.begin(), implicitOpFlowsNames.end());
                     }
                     else
-                        sinkOperations.push_back(df.sink());
+                    {
+                        if (chosenOp->getOpType() != "Deallocate") //really, not interested in Deallocate sinks
+                           sinkOperations.push_back(df.sink());
+                    }
                     flowsNames.erase(flowName);
                 }
             }
