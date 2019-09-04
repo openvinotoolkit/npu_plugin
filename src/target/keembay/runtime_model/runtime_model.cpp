@@ -1194,6 +1194,7 @@ void mv::RuntimeModel::getWorkloadPadding(Control::OpListIterator opIt, Workload
         auto padding = getPadding(opIt, clusterId);
         auto outputWidth = opIt->getOutputTensor(0)->getShape()[mv::IO_WIDTH_DIMENSION];
         auto outputHeight = opIt->getOutputTensor(0)->getShape()[mv::IO_HEIGHT_DIMENSION];
+
         if (hardwareBugDepthwise(opIt))
         {
             workload.padLeft = (workload.MinX == 0) ? padding[0] : 0;
@@ -1201,12 +1202,20 @@ void mv::RuntimeModel::getWorkloadPadding(Control::OpListIterator opIt, Workload
             workload.padRight = ((workload.MaxX + unsigned(1)) == outputWidth) ? padding[1] : 0;
             workload.padBottom = ((workload.MaxY + unsigned(1)) == outputHeight) ? padding[3] : 0;
         }
-        else
+
+        else if (opIt->get<std::string>("taskOp") == "ChannelMajorConvolution")
         {
-            workload.padLeft = padding[0];
-            workload.padTop = padding[2];
-            workload.padRight = padding[1];
-            workload.padBottom = padding[3];
+            workload.padLeft = (workload.MinX == 0) ? padding[0] : 0;
+            workload.padTop = (workload.MinY == 0) ? padding[2] : 0;
+            workload.padRight = ((workload.MaxX + unsigned(1)) == outputWidth) ? padding[1] : 0;
+            workload.padBottom = ((workload.MaxY + unsigned(1)) == outputHeight) ? padding[3] : 0;
+        }
+        else 
+        {
+            workload.padLeft = (workload.MinX == 0) ? padding[0] : 0;
+            workload.padTop = (workload.MinY == 0) ? padding[2] : 0;
+            workload.padRight = ((workload.MaxX + unsigned(1)) == outputWidth) ? padding[1] : 0;
+            workload.padBottom = ((workload.MaxY + unsigned(1)) == outputHeight) ? padding[3] : 0;
         }
     }
     return;
@@ -1306,11 +1315,6 @@ std::vector<std::unique_ptr<MVCNN::NCEVariantFieldsT>> mv::RuntimeModel::buildNC
     for(unsigned i = 0; i < n; ++i)
     {
         toBuild[i] = buildNCEVariantFieldsT(cm, compilationDescriptor, opIt, workloads[i], numTask);
-        if ((opIt->get<std::string>("splitStrategy") == "SplitOverK") && (numTask > 0))
-        {
-            toBuild[i]->workload_start_Z = numTask * (toBuild[i]->workload_end_Z + 1);
-            toBuild[i]->workload_end_Z = toBuild[i]->workload_start_Z + toBuild[i]->workload_end_Z;
-        }
     }
     return toBuild;
 }

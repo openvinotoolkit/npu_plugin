@@ -865,7 +865,7 @@ void mv::Workloads::setExecutionCycles(std::vector<float> val)
     executionCycles_ = val;
 }
 
-void mv::Workloads::generateExecutionCycles(std::vector<mv::Workloads>& workloadsVector, int nDPUxCluster, CostFunctions costFunction)
+void mv::Workloads::generateExecutionCycles(std::vector<mv::Workloads>& workloadsVector, int nDPUxCluster, CostFunctions costFunction, float pixelCost)
 {
     /* Execution time is bounded by
      * sum(WL)/DPU <= T <= max(WL_max)*(P-1)/P
@@ -901,7 +901,7 @@ void mv::Workloads::generateExecutionCycles(std::vector<mv::Workloads>& workload
             float height = (itworkload->MaxY+1) - itworkload->MinY; // + mpeMode.first;
             float width = (itworkload->MaxX+1) - itworkload->MinX; // + mpeMode.second;
 
-            sumExeCycles = ceil((itworkload->MaxZ-itworkload->MinZ)/16.0) * ceil(height / mpeMode.first) * ceil(width / mpeMode.second);
+            sumExeCycles = ceil((itworkload->MaxZ-itworkload->MinZ)/16.0) * ceil(height / mpeMode.first) * ceil(width / mpeMode.second) * pixelCost;
             workloadsExecutionCycles.push_back(sumExeCycles);
         }
 
@@ -1588,7 +1588,7 @@ void mv::Workloads::apply_z_offset(std::vector<std::size_t>& offset)
 {
     for (auto workload = workloads_.begin(); workload != workloads_.end(); workload++)
     {
-        workload->z_offset += + offset[IO_CHANNEL_DIMENSION];
+        workload->z_offset += offset[IO_CHANNEL_DIMENSION];
         auto workloadOutputChannels = workload->MaxZ - workload->MinZ;
         workload->MinZ = workload->z_offset;
         workload->MaxZ = workload->z_offset + workloadOutputChannels;

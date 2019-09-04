@@ -144,7 +144,7 @@ namespace mv
         const std::vector<mv::Workload>& getWorkloads() const;
         static const std::vector<int> getWorkloadSplitPool(const Tensor& tensor, int nDPUxCluster, mv::DPUModeList dpuModeList, int maxSplits);
 
-        static void generateExecutionCycles(std::vector<mv::Workloads>& workloadsVector, int nDPUxCluster, CostFunctions costFunction);
+        static void generateExecutionCycles(std::vector<mv::Workloads>& workloadsVector, int nDPUxCluster, CostFunctions costFunction, float pixelCost);
         std::vector<float> getExecutionCycles() const;
         float getMeanExecutionCycles() const;
         void setExecutionCycles(std::vector<float> val);

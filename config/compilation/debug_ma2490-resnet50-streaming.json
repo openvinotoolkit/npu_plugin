@@ -13,7 +13,6 @@
                 "Number_of_Clusters" : 1,
                 "UpaShaves": 1,
                 "DDRScratch": 31457280,
-                "cmx": 901120,
                 "MemoryHack": false,
                 "ActivationSparsity": false,
                 "WeightsSparsity": false,
@@ -518,7 +517,7 @@
             },
             {
                 "name": "GenerateWorkloads",
-                "costfunction": "criticalpath",
+                "costfunction": "greedy",
                 "TensorSplitAlgorithms": "Rectangle, Z-Tiling",
                 "_comment": "Supported CostFunctions are: balanced | criticalpath | minmax | greedy. Supported TensorSplitAlgorithms are Rectangle, Z-Tiling"
             },
