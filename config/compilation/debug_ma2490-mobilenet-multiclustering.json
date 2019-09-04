@@ -6,7 +6,7 @@
                 "_comment" : "Stores common params accross multiple passes. Access through the Computation Model.",
                 "recorded_model": true,
                 "log_time" : true,
-                "verbose": "Error",
+                "verbose": "Debug",
                 "weights_form": "None",
                 "barrier_index_assignment" : "Dynamic",
                 "Number_of_DPUs" : 20,
@@ -17,7 +17,7 @@
                 "ActivationSparsity": false,
                 "WeightsSparsity": false,
                 "CMX_memory_overflow_safety_factor" : 0.925,
-                "cmx": 901120,
+                "cmx": 917504,
                 "split_strategy" :
                 [
 
@@ -26,10 +26,6 @@
                     },
                     {
                         "name_filter":".*Conv/Relu6#.*",
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter":".*expanded_conv/depthwise/Relu6#.*",
                         "strategy": "SplitOverH"
                     },
                     {

@@ -1315,13 +1315,6 @@ std::vector<std::unique_ptr<MVCNN::NCEVariantFieldsT>> mv::RuntimeModel::buildNC
     for(unsigned i = 0; i < n; ++i)
     {
         toBuild[i] = buildNCEVariantFieldsT(cm, compilationDescriptor, opIt, workloads[i], numTask);
-        
-        //Not clear why this is needed, leaving here for now
-        // if ((opIt->get<std::string>("splitStrategy") == "SplitOverK") && (numTask > 0))
-        // {
-        //     toBuild[i]->workload_start_Z = numTask * (toBuild[i]->workload_end_Z + 1);
-        //     toBuild[i]->workload_end_Z = toBuild[i]->workload_start_Z + toBuild[i]->workload_end_Z;
-        // }
     }
     return toBuild;
 }
