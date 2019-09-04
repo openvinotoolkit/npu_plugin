@@ -440,6 +440,101 @@ TEST_F(VpuPreprocessingTests, DISABLED_twoRequestsWithPreprocessing) {
     }
 }
 
+TEST_F(VpuPreprocessingTests, DISABLED_twoNetworksWithPreprocessing) {
+    InferenceEngine::ExecutableNetwork network1;
+    std::string network1Path = ModelsPath() + "/KMB_models/BLOBS/mobilenet/mobilenet.blob";
+    ASSERT_NO_THROW(network1 = ie.ImportNetwork(network1Path, "KMB", {}));
+
+    std::string network2Path = ModelsPath() + "/KMB_models/BLOBS/yolotiny/yolotiny.blob";
+    InferenceEngine::ExecutableNetwork network2;
+    ASSERT_NO_THROW(network2 = ie.ImportNetwork(network2Path, "KMB", {}));
+
+    std::cout << "Created networks\n";
+
+    ASSERT_EQ(1, network1.GetInputsInfo().size());
+    ASSERT_EQ(1, network2.GetInputsInfo().size());
+    std::cout << "Input info is OK\n";
+
+    ConstInputsDataMap inputInfo1 = network1.GetInputsInfo();
+
+    for (auto & item : inputInfo1) {
+        InputInfo* mutableItem = const_cast<InputInfo*>(item.second.get());
+        setPreprocAlgorithm(mutableItem, PT_RESIZE);
+        setPreprocAlgorithm(mutableItem, PT_NV12);
+    }
+
+    ConstInputsDataMap inputInfo2 = network2.GetInputsInfo();
+
+    for (auto & item : inputInfo2) {
+        InputInfo* mutableItem = const_cast<InputInfo*>(item.second.get());
+        setPreprocAlgorithm(mutableItem, PT_RESIZE);
+        setPreprocAlgorithm(mutableItem, PT_NV12);
+    }
+
+    VPUAllocator kmbAllocator;
+
+    InferenceEngine::InferRequest::Ptr network1InferReqPtr;
+    network1InferReqPtr = network1.CreateInferRequestPtr();
+
+    std::string input1_name = inputInfo1.begin()->first;
+    std::string input1Path = ModelsPath() + "/KMB_models/BLOBS/mobilenet/input-228x228-nv12.dat";
+    setNV12Preproc(input1_name, input1Path, *network1InferReqPtr, kmbAllocator);
+
+    InferenceEngine::InferRequest::Ptr network2InferReqPtr;
+    network2InferReqPtr = network2.CreateInferRequestPtr();
+
+    std::string input2_name = inputInfo2.begin()->first;
+    std::string input2Path = ModelsPath() + "/KMB_models/BLOBS/yolotiny/input-228x228-nv12.dat";
+    setNV12Preproc(input2_name, input2Path, *network2InferReqPtr, kmbAllocator);
+
+    std::cout << "Created inference requests\n";
+
+    ASSERT_EQ(1, network1.GetOutputsInfo().size());
+    ASSERT_EQ(1, network2.GetOutputsInfo().size());
+    std::cout << "Output info is OK\n";
+
+    const auto iterationCount = 5;
+    size_t curIterationNetwork1 = 0;
+    size_t curIterationNet2 = 0;
+    std::condition_variable condVar;
+
+    network1InferReqPtr->SetCompletionCallback(
+            [&] {
+                curIterationNetwork1++;
+                std::cout << "Completed " << curIterationNetwork1 << " async request execution for network1\n";
+                if (curIterationNetwork1 < iterationCount) {
+                    Blob::Ptr outputBlob;
+                    std::string output1Name = network1.GetOutputsInfo().begin()->first;
+                    ASSERT_NO_THROW(outputBlob = network1InferReqPtr->GetBlob(output1Name));
+                    network1InferReqPtr->StartAsync();
+                } else {
+                    condVar.notify_one();
+                }
+            });
+    network2InferReqPtr->SetCompletionCallback(
+            [&] {
+                curIterationNet2++;
+                std::cout << "Completed " << curIterationNet2 << " async request execution for network1\n";
+                if (curIterationNet2 < iterationCount) {
+                    Blob::Ptr outputBlob;
+                    std::string output2Name = network2.GetOutputsInfo().begin()->first;
+                    ASSERT_NO_THROW(outputBlob = network2InferReqPtr->GetBlob(output2Name));
+                    network2InferReqPtr->StartAsync();
+                } else {
+                    condVar.notify_one();
+                }
+            });
+
+    std::cout << "Start inference (" << iterationCount << " asynchronous executions) for network1" << std::endl;
+    network1InferReqPtr->StartAsync();
+    std::cout << "Start inference (" << iterationCount << " asynchronous executions) for network2" << std::endl;
+    network2InferReqPtr->StartAsync();
+
+    std::mutex mutex;
+    std::unique_lock<std::mutex> lock(mutex);
+    condVar.wait(lock, [&]{ return curIterationNetwork1 == iterationCount && curIterationNet2 == iterationCount; });
+}
+
 const static std::vector<preprocessingType> preprocTypes = {
     PT_RESIZE, PT_NV12
 };
