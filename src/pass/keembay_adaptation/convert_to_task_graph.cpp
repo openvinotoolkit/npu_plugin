@@ -51,8 +51,9 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
 
         if (opType == "Conv" || opType == "DepthwiseConv")
         {
-            auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
             auto inputMemoryLocation = opIt->getInputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
+            auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
+            auto outputTensorType = opIt->getOutputTensor(0)->get<mv::DType>("dType");
 
             auto input = opIt->getInputTensor(0);
             auto kernel = opIt->getInputTensor(1);
@@ -124,6 +125,7 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
                 dpuConvOp->set<int>("WorkloadStrategy_nWorkloads", workloadStrategyNWorkloads);
 
             dpuConv->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
+            dpuConv->set<mv::DType>("dType", outputTensorType);
             setOutputDataFlow(om, dpuConv, outputDataFlows);
             setInputControlFlow(cm, cm.switchContext(dpuConvOp), inputControlFlows);
             setOutputControlFlow(cm, cm.switchContext(dpuConvOp), outputControlFlows);
@@ -140,8 +142,9 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
         }
         else if (opType == "MaxPool")
         {
-            auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
             auto inputMemoryLocation = opIt->getInputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
+            auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
+            auto outputTensorType = opIt->getOutputTensor(0)->get<mv::DType>("dType");
 
             auto input = opIt->getInputTensor(0);
             auto opId = opIt->get<unsigned>("opId");
@@ -180,6 +183,7 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             }
 
             dpuPool->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
+            dpuPool->set<mv::DType>("dType", outputTensorType);
             setOutputDataFlow(om, dpuPool, outputDataFlows);
             setInputControlFlow(cm, cm.switchContext(dpuPoolOp), inputControlFlows);
             setOutputControlFlow(cm, cm.switchContext(dpuPoolOp), outputControlFlows);
@@ -187,6 +191,7 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
         else if (opType == "Add" || opType == "Subtract" || opType == "Multiply")
         {
             auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
+            auto outputTensorType = opIt->getOutputTensor(0)->get<mv::DType>("dType");
 
             auto input1 = opIt->getInputTensor(0);
             auto input2 = opIt->getInputTensor(1);
@@ -232,6 +237,7 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             }
 
             dpuElementWise->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
+            dpuElementWise->set<mv::DType>("dType", outputTensorType);
 
             mv::setOutputDataFlow(om, dpuElementWise, outputDataFlows);
             setInputControlFlow(cm, cm.switchContext(dpuElementWiseOp), inputControlFlows);

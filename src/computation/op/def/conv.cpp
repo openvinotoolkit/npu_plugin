@@ -105,7 +105,7 @@ namespace mv
             if (args.at("quantParams").get<mv::QuantizationParams>().isEmpty())
                 outputs.push_back(mv::Tensor(":0", outputShape, dTypeToUse, inputs[0]->getOrder()));
             else
-                outputs.push_back(mv::Tensor(":0", outputShape, data->getDType(), data->getOrder(), args.at("quantParams").get<mv::QuantizationParams>()));
+                outputs.push_back(mv::Tensor(":0", outputShape, dTypeToUse, data->getOrder(), args.at("quantParams").get<mv::QuantizationParams>()));
 
         };
 
