@@ -339,9 +339,10 @@ void mv::KoalaGraphScheduler::performPartialSerialisation(const mv::pass::PassEn
 */ 
 std::pair<int,std::vector<mv::koalaGraph::PEdge>> mv::KoalaGraphScheduler::calculateMaxTopologicalCut(const mv::pass::PassEntry& pass, mv::ComputationModel& model) {
 
+    MV_PROFILED_FUNCTION(MV_PROFILE_ALGO)
     mv::ControlModel cm(model);
 
-    MV_PROFILED_FUNCTION(MV_PROFILE_ALGO)
+   
 
     /* Calculate Fmax - Defined as sum of memory requirments + 1)*/
     auto Fmax = this->calculateFMax(model); 
@@ -377,6 +378,7 @@ std::pair<int,std::vector<mv::koalaGraph::PEdge>> mv::KoalaGraphScheduler::calcu
         pass.log(mv::Logger::MessageType::Debug, "Source Node " + this->getGraph().getEdgeEnds(this->edges_[i]).first->info.name);
         pass.log(mv::Logger::MessageType::Debug, "Sink Node " + this->getGraph().getEdgeEnds(this->edges_[i]).second->info.name);
 
+        MV_PROFILED_BLOCK_START("KOALA:DIJKSTRA",MV_PROFILE_ALGO)
         /*Find the shortest path from the input node to the source node of the edge*/
          Koala::DijkstraHeap::PathLengths <int> resInputToSource = Koala::DijkstraHeap::findPath(this->getGraph(), 
                                                                                                 edgeMap, 
@@ -401,7 +403,7 @@ std::pair<int,std::vector<mv::koalaGraph::PEdge>> mv::KoalaGraphScheduler::calcu
                                                                                                 this->getGraph().getEdgeEnds(this->edges_[i]).second, 
                                                                                                 this->outputVertex, 
                                                                                                 Koala::DijkstraHeap::outPath(blackHole, back_inserter(shortestPathEdges)));
-
+        MV_PROFILED_BLOCK_END()
         pass.log(mv::Logger::MessageType::Debug, "Number of edges on the path from the sink node of the current edge to the ouput node is " + std::to_string(resSinkToOuput.edgeNo));
 
         for(auto &edge : shortestPathEdges)
