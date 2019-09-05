@@ -64,8 +64,11 @@ mv::Data::OpListIterator linkNewOperationsReplacement(mv::Data::OpListIterator p
     while(opIt.parentsSize() > 1)
     {
         auto paramOp = opIt.leftmostParent();
-        ++paramOp;
-        om.removeOp(paramOp);
+
+        if (paramOp->getOpType() == "Constant" || paramOp->getOpType() == "ConstantInt" || paramOp->getOpType() == "ConstantDouble")
+        {
+            om.removeOp(paramOp);
+        }
     }
 
     om.removeOp(opIt);
@@ -80,7 +83,7 @@ mv::Data::OpListIterator linkNewOperationsReplacement(mv::Data::OpListIterator p
     return opIt;
 }
 
-void populatedTensorsToFP16Fcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+void populatedTensorsToFP16Fcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
     mv::OpModel om(model);
 
@@ -121,7 +124,7 @@ void populatedTensorsToFP16Fcn(const mv::pass::PassEntry& pass, mv::ComputationM
     }
 }
 
-void unpopulatedTensorsToFP16Fcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+void unpopulatedTensorsToFP16Fcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
     mv::OpModel om(model);
 
@@ -165,9 +168,9 @@ void fullyConnectedAsConv2DFcn(const mv::pass::PassEntry& pass, mv::ComputationM
             }
             auto weights = om.constantDataElement(weightsData, {inputShape[mv::IO_WIDTH_DIMENSION], inputShape[mv::IO_HEIGHT_DIMENSION], inputShape[mv::IO_CHANNEL_DIMENSION],
             opIt->getInputTensor(1)->getShape()[mv::IO_HEIGHT_DIMENSION]}, sourceTensor->getDType(),
-            mv::Order::getZMajorID(4),weightsTensorQuantizationParams, opIt->getName() + "_weights");
+            mv::Order::getZMajorID(4), weightsTensorQuantizationParams, opIt->getName() + "_weights");
 
-            auto conv2D = om.conv(sourceTensor, weights, {1, 1}, {0, 0, 0, 0}, 1, 1, outputTensorQuantizationParams);
+            auto conv2D = om.conv(sourceTensor, weights, {1, 1}, {0, 0, 0, 0}, 1, 1, outputTensorQuantizationParams, name + "_2DConv");
             pass.log(Logger::MessageType::Info, "Replaced FullyConnected op " + opIt->getName() + " with " + conv2D->getName());
 
             if (opIt->hasAttr("bias"))
