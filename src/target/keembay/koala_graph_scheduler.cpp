@@ -1,5 +1,6 @@
 #include "include/mcm/target/keembay/koala_graph_scheduler.hpp"
 #include "include/mcm/base/exception/argument_error.hpp"
+#include <thread>
 
 mv::KoalaGraphScheduler::KoalaGraphScheduler(): graph_(new koalaGraph)
 {
@@ -380,7 +381,7 @@ std::pair<int,std::vector<mv::koalaGraph::PEdge>> mv::KoalaGraphScheduler::calcu
 
         MV_PROFILED_BLOCK_START("KOALA:DIJKSTRA",MV_PROFILE_ALGO)
         /*Find the shortest path from the input node to the source node of the edge*/
-         Koala::DijkstraHeap::PathLengths <int> resInputToSource = Koala::DijkstraHeap::findPath(this->getGraph(), 
+        Koala::DijkstraHeap::PathLengths <int> resInputToSource = Koala::DijkstraHeap::findPath(this->getGraph(), 
                                                                                                 edgeMap, 
                                                                                                 this->inputVertex,
                                                                                                 this->getGraph().getEdgeEnds(this->edges_[i]).first, 
