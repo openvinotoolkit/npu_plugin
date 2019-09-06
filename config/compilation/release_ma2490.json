@@ -107,9 +107,9 @@
             "TransitiveReduction",
             {
                 "name": "GenerateWorkloads",
-                "costfunction": "criticalpath",
-                "TensorSplitAlgorithms": "Rectangle",
-                "_comment": "Supported CostFunctions are: balanced | criticalpath | minmax | greedy. Supported TensorSplitAlgorithms are Metis, Rectangle, Z-Tiling"
+                "costfunction": "greedy",
+                "TensorSplitAlgorithms": "Rectangle, Z-Tiling",
+                "_comment": "Supported CostFunctions are: balanced | criticalpath | minmax | greedy. Supported TensorSplitAlgorithms are Rectangle, Z-Tiling"
             },
             "ArrangeKeembayExecution",
             "AllocateInputOutputTensorsKeemBay",

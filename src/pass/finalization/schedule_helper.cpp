@@ -54,7 +54,7 @@ void addressHelperPass(const mv::pass::PassEntry& pass, mv::ComputationModel& mo
     for (auto e : addressList)
     {
         std::string& name = e.get<std::string>("name_filter");
-        int64_t address = e.get<int>("address");
+        std::size_t address = e.get<std::size_t>("address");
         pass.log(mv::Logger::MessageType::Debug, "ADDRESS HELPER setting address of "+name+" to "+std::to_string(address));
         try
         {
@@ -91,7 +91,7 @@ void graphfileIndexHelperPass(const mv::pass::PassEntry& pass, mv::ComputationMo
     for (auto e : addressList)
     {
         std::string& name = e.get<std::string>("name_filter");
-        int64_t address = e.get<int>("address");
+        std::size_t address = e.get<std::size_t>("address");
         pass.log(mv::Logger::MessageType::Debug, "ADDRESS HELPER setting address of "+name+" to "+std::to_string(address));
         try
         {
