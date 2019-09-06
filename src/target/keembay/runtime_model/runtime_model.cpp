@@ -290,6 +290,8 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     toBuild->name = subtensor.getName();
 
     auto tensorAllocatorName = t->get<std::set<std::string>>("allocators").begin();
+    auto tensorAllocator = dm.getAllocator(*tensorAllocatorName);
+    mv::Data::BufferIterator tensorBufferIt = tensorAllocator.getBuffer(0, t); // 0 is the only stage for now, but this will probably change in the future
 
     // Shape is always of the subtensor
     // If the tensor is broadcasted, then the shape of the subtensor is equal to the shape of the master tensor
@@ -345,9 +347,12 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
 
         toBuild->data->data_index = starting_address + byte_index;
 
-        //No slice for tensors in ProgrammableInput/ProgrammableOutput
+        auto strides = tensorBufferIt->getStrides();
+        auto leading_offset = strides[0] / tensorBufferIt->getDataTypeSize();
         toBuild->locale_index = std::vector<unsigned int>(1,0);
-        // No need to set sparsity_index for input/output tensor of the network
+        if (leading_offset)
+            toBuild->data->data_index += leading_offset;
+
     }
     else
     {
