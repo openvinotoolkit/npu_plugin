@@ -8,6 +8,7 @@
                 "log_time" : true,
                 "verbose": "Debug",
                 "weights_form": "None",
+                "ConvertDots": false,
                 "barrier_index_assignment" : "Dynamic",
                 "Number_of_DPUs" : 20,
                 "Number_of_Clusters" : 4,
@@ -347,7 +348,10 @@
                 "name": "ConvertDot",
                 "input": "output/dots/TaskControlFlows_model_transitive_reduction.dot"
             },
-            "HangingDmaControlFlows",
+            {
+                "name": "HangingDmaControlFlows",
+                "weights_prefetch": 2
+            },
             "TransitiveReduction",
             "LayerNumbering",
             {
@@ -473,7 +477,8 @@
             },
             {
                 "name": "TensorGraphColoring",
-                "output": "output/dots/nnCmx.dot"
+                "output": "output/dots/nnCmx.dot",
+                "heapOutput": "output/dots/nnHeap.dot"
             },
             {
                 "name": "ConvertDot",
@@ -549,7 +554,6 @@
         "Singular": [
             "StoreBarriersNamesInTasks",
             "GenerateExecutionSchedule",
-            "CorrectExecutionSchedule",
             "BarrierIndexAssignment",
             "UpdateBarrierRefs",
             {
