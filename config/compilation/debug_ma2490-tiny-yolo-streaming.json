@@ -6,6 +6,8 @@
                 "_comment" : "Stores common params accross multiple passes. Access through the Computation Model.",
                 "recorded_model": false,
                 "verbose": "Debug",
+                "log_time" : true,
+                "ConvertDots": false,
                 "weights_form": "None",
                 "barrier_index_assignment" : "Dynamic",
                 "Number_of_DPUs" : 1,
@@ -274,7 +276,10 @@
                 "name": "ConvertDot",
                 "input": "output/dots/TaskControlFlows_model_transitive_reduction.dot"
             },
-            "HangingDmaControlFlows",
+            {
+                "name": "HangingDmaControlFlows",
+                "weights_prefetch": 2
+            },
             "TransitiveReduction",
             "LayerNumbering",
             {
@@ -317,6 +322,17 @@
             {
                 "name": "ConvertDot",
                 "input": "output/dots/deallocation_model.dot"
+            },
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/deallocation_model_full.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/deallocation_model_full.dot"
             },
             {
                 "name": "TransitiveReduction",
@@ -481,7 +497,6 @@
         "Singular": [
             "StoreBarriersNamesInTasks",
             "GenerateExecutionSchedule",
-            "CorrectExecutionSchedule",
             "BarrierIndexAssignment",
             "UpdateBarrierRefs",
             {
@@ -494,6 +509,17 @@
             {
                 "name": "ConvertDot",
                 "input": "output/dots/serial_model.dot"
+            },
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/serial_model_full.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/serial_model_full.dot"
             }
         ]
     },
