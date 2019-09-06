@@ -628,7 +628,7 @@ void vpuLayersTests::Compare(Blob::Ptr actual,
                                 Blob::Ptr expected,
                                 float tolerance)
 {
-    CompareCommon(actual, expected, tolerance);
+    CompareCommonAbsolute(actual, expected, tolerance);
 }
 
 void vpuLayersTests::CompareWithNorm(Blob::Ptr actual,
