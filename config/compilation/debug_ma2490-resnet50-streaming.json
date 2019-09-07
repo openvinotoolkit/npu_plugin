@@ -142,6 +142,10 @@
                         "splits" : [ {"K" : 4} ]
                     },
                     {
+                        "name_filter" : "linear/act_quant/FakeQuantWithMinMaxVars#252_2DConv",
+                        "splits" : [ {"K" : 4} ]
+                    },
+                    {
                         "name_filter" : "conv1#181",
                         "splits" : [ {"H" : 2} ]
                     },
