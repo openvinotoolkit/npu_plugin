@@ -136,6 +136,7 @@ namespace mv
                                                         mv::DPUMode& mpeMode);
 
         void add_xy_offset(std::vector<std::size_t>& offset);
+        void apply_z_offset(std::vector<std::size_t>& offset);
         void populateClusterID(int clusterID);
 
         std::size_t nWorkloads() const;
@@ -143,7 +144,7 @@ namespace mv
         const std::vector<mv::Workload>& getWorkloads() const;
         static const std::vector<int> getWorkloadSplitPool(const Tensor& tensor, int nDPUxCluster, mv::DPUModeList dpuModeList, int maxSplits);
 
-        static void generateExecutionCycles(std::vector<mv::Workloads>& workloadsVector, int nDPUxCluster, CostFunctions costFunction);
+        static void generateExecutionCycles(std::vector<mv::Workloads>& workloadsVector, int nDPUxCluster, CostFunctions costFunction, float pixelCost);
         std::vector<float> getExecutionCycles() const;
         float getMeanExecutionCycles() const;
         void setExecutionCycles(std::vector<float> val);
@@ -169,3 +170,5 @@ namespace mv
 }
 
 #endif
+
+

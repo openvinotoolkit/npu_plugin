@@ -9,17 +9,15 @@
                 "verbose": "Debug",
                 "weights_form": "None",
                 "barrier_index_assignment" : "Dynamic",
-                "Number_of_DPUs" : 4,
+                "Number_of_DPUs" : 20,
                 "Number_of_Clusters" : 4,
                 "UpaShaves": 1,
                 "DDRScratch": 31457280,
                 "MemoryHack": false,
-                "nWorkloads": 1,
                 "ActivationSparsity": false,
                 "WeightsSparsity": false,
                 "CMX_memory_overflow_safety_factor" : 0.925,
                 "cmx": 917504,
-                "mpe_mode" : "Vector",
                 "split_strategy" :
                 [
 
@@ -364,18 +362,14 @@
             "KMBOrderConversion",
             "AlignTo16Channels",
             "AlignTaskWeights",
-            "GenerateSparsityMapsUnpopulatedTensors",
             "GenerateSparsityMapsPopulatedTensors",
             "GenerateWeightsTables",
             "GenerateEltWiseConstants",
             "StrategyLayersToTensors",
             "ComputeTensorsQuantParams",
             "UpdateImplicitLayersQuantizationParams",
-
-
             "PopulateWeightsTablesQuantization",
             "RemoveBiasTensors",
-
             {
                 "name": "GenerateDot",
                 "output": "output/dots/keembay_adapt_model.dot",
@@ -426,7 +420,9 @@
             {
                 "name": "ConvertDot",
                 "input": "output/dots/dma_model.dot"
-            }
+            },
+            "GenerateSparsityMapsUnpopulatedTensors"
+
         ]
     },
     "control_flows":{
@@ -549,9 +545,9 @@
             },
             {
                 "name": "GenerateWorkloads",
-                "costfunction": "criticalpath",
-                "TensorSplitAlgorithms": "Rectangle",
-                "_comment": "Supported CostFunctions are: balanced | criticalpath | minmax | greedy. Supported TensorSplitAlgorithms are Metis, Rectangle, Z-Tiling"
+                "costfunction": "greedy",
+                "TensorSplitAlgorithms": "Rectangle, Z-Tiling",
+                "_comment": "Supported CostFunctions are: balanced | criticalpath | minmax | greedy. Supported TensorSplitAlgorithms are Rectangle, Z-Tiling"
             },
             "ArrangeKeembayExecution",
             "AllocateInputOutputTensorsKeemBay",

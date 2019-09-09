@@ -6,7 +6,7 @@
                 "_comment" : "Stores common params accross multiple passes. Access through the Computation Model.",
                 "recorded_model": true,
                 "log_time" : true,
-                "verbose": "Debug",
+                "verbose": "Error",
                 "weights_form": "None",
                 "barrier_index_assignment" : "Dynamic",
                 "Number_of_DPUs" : 20,
@@ -29,291 +29,146 @@
                         "strategy": "SplitOverH"
                     },
                     {
-                        "name_filter":".*pool1/max_pool#.*",
+                        "name_filter": ".*pool1/max_pool#.*",
                         "strategy": "SplitOverH"
                     },
                     {
-                        "name_filter":".*res2a_branch1#.*",
+                        "name_filter": ".*conv2#.*",
                         "strategy": "SplitOverH"
                     },
                     {
-                        "name_filter":".*res2a_branch2a#.*",
+                        "name_filter": ".*pool2/max_pool#.*",
                         "strategy": "SplitOverH"
                     },
                     {
-                        "name_filter":".*res2a_branch2b#.*",
+                        "name_filter": ".*conv3#.*",
                         "strategy": "SplitOverH"
                     },
                     {
-                        "name_filter":".*res2a_branch2c#.*",
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter":".*res2a/Relu#.*",
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter":".*res2b_branch2a#.*",
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter":".*res2b_branch2b#.*",
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter":".*res2b_branch2c#.*",
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter":".*res2b/Relu#.*",
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter":".*res2c_branch2a#.*",
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter":".*res2c_branch2b#.*",
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter":".*res2c_branch2c#.*",
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter":".*res2c/Relu#.*",
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter":".*res3a_branch1#.*",
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter":".*res3a_branch2a#.*",
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter":".*res3a_branch2b#.*",
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter":".*res3a_branch2c#.*",
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter":".*res3a/Relu#.*",
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter":".*res3b_branch2a#.*",
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter":".*res3b_branch2b#.*",
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter":".*res3b_branch2c#.*",
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter":".*res3b/Relu#.*",
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter":".*res3c_branch2a#.*",
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter":".*res3c_branch2b#.*",
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter":".*res3c_branch2c#.*",
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter":".*res3c/Relu#.*",
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter":".*res3d_branch2a#.*",
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter":".*res3d_branch2b#.*",
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter":".*res3d_branch2c#.*",
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter": ".*res3d/Relu#.*",
+                        "name_filter": ".*pool3/max_pool#.*",
                         "strategy": "HKSwitch"
                     },
                     {
-                        "name_filter":".*res4a_branch1#.*",
+                        "name_filter": ".*conv4#.*",
                         "strategy": "SplitOverK"
                     },
                     {
-                        "name_filter":".*res4a_branch2a#.*",
-                        "strategy": "SplitOverK"
-                    },
-                    {
-                        "name_filter":".*res4a_branch2b#.*",
-                        "strategy": "SplitOverK"
-                    },
-                    {
-                        "name_filter":".*res4a_branch2c#.*",
-                        "strategy": "SplitOverK"
-                    },
-                    {
-                        "name_filter":".*res4a/Relu#.*",
+                        "name_filter": ".*pool4/max_pool#.*",
                         "strategy": "Clustering"
                     },
                     {
-                        "name_filter":".*res4b_branch2a#.*",
+                        "name_filter": ".*conv5#.*",
                         "strategy": "SplitOverK"
                     },
                     {
-                        "name_filter":".*res4b_branch2b#.*",
-                        "strategy": "SplitOverK"
-                    },
-                    {
-                        "name_filter":".*res4b_branch2c#.*",
-                        "strategy": "SplitOverK"
-                    },
-                    {
-                        "name_filter":".*res4b/Relu#.*",
+                        "name_filter": ".*pool5/max_pool#.*",
                         "strategy": "Clustering"
                     },
                     {
-                        "name_filter":".*res4c_branch2a#.*",
+                        "name_filter": ".*conv6#.*",
                         "strategy": "SplitOverK"
                     },
                     {
-                        "name_filter":".*res4c_branch2b#.*",
-                        "strategy": "SplitOverK"
-                    },
-                    {
-                        "name_filter":".*res4c_branch2c#.*",
-                        "strategy": "SplitOverK"
-                    },
-                    {
-                        "name_filter":".*res4c/Relu#.*",
+                        "name_filter": ".*pool6/max_pool#.*",
                         "strategy": "Clustering"
                     },
                     {
-                        "name_filter":".*res4d_branch2a#.*",
+                        "name_filter": ".*conv7#.*",
                         "strategy": "SplitOverK"
                     },
                     {
-                        "name_filter":".*res4d_branch2b#.*",
+                        "name_filter": ".*conv8#.*",
                         "strategy": "SplitOverK"
                     },
                     {
-                        "name_filter":".*res4d_branch2c#.*",
-                        "strategy": "SplitOverK"
-                    },
-                    {
-                        "name_filter":".*res4d/Relu#.*",
-                        "strategy": "Clustering"
-                    },
-                    {
-                        "name_filter":".*res4e_branch2a#.*",
-                        "strategy": "SplitOverK"
-                    },
-                    {
-                        "name_filter":".*res4e_branch2b#.*",
-                        "strategy": "SplitOverK"
-                    },
-                    {
-                        "name_filter":".*res4e_branch2c#.*",
-                        "strategy": "SplitOverK"
-                    },
-                    {
-                        "name_filter":".*res4e/Relu#.*",
-                        "strategy": "Clustering"
-                    },
-                    {
-                        "name_filter":".*res4f_branch2a#.*",
-                        "strategy": "SplitOverK"
-                    },
-                    {
-                        "name_filter":".*res4f_branch2b#.*",
-                        "strategy": "SplitOverK"
-                    },
-                    {
-                        "name_filter":".*res4f_branch2c#.*",
-                        "strategy": "SplitOverK"
-                    },
-                    {
-                        "name_filter":".*res4f/Relu#.*",
-                        "strategy": "Clustering"
-                    },
-                    {
-                        "name_filter":".*res5a_branch1#.*",
-                        "strategy": "SplitOverK"
-                    },
-                    {
-                        "name_filter":".*res5a_branch2a#.*",
-                        "strategy": "SplitOverK"
-                    },
-                    {
-                        "name_filter":".*res5a_branch2b#.*",
-                        "strategy": "SplitOverK"
-                    },
-                    {
-                        "name_filter":".*res5a_branch2c#.*",
-                        "strategy": "SplitOverK"
-                    },
-                    {
-                        "name_filter":".*res5a/Relu#.*",
-                        "strategy": "Clustering"
-                    },
-                    {
-                        "name_filter":".*res5b_branch2a#.*",
-                        "strategy": "SplitOverK"
-                    },
-                    {
-                        "name_filter":".*res5b_branch2b#.*",
-                        "strategy": "SplitOverK"
-                    },
-                    {
-                        "name_filter":".*res5b_branch2c#.*",
-                        "strategy": "SplitOverK"
-                    },
-                    {
-                        "name_filter":".*res5b/Relu#.*",
-                        "strategy": "Clustering"
-                    },
-                    {
-                        "name_filter":".*res5c_branch2a#.*",
-                        "strategy": "SplitOverK"
-                    },
-                    {
-                        "name_filter":".*res5c_branch2b#.*",
-                        "strategy": "SplitOverK"
-                    },
-                    {
-                        "name_filter":".*res5c_branch2c#.*",
-                        "strategy": "SplitOverK"
-                    },
-                    {
-                        "name_filter":".*res5c/Relu#.*",
-                        "strategy": "Clustering"
-                    },
-                    {
-                        "name_filter":".*pool5/AvgPool#.*",
-                        "strategy": "SplitOverK"
-                    },
-                    {
-                        "name_filter":".*fc1000/fc1000#.*",
+                        "name_filter": ".*conv9#.*",
                         "strategy": "SplitOverK"
                     }
                 ],
-                "default_tensor_placement" : "CMX"
+                "tensor_placement_override" :
+                [
+                    {
+                        "name_filter" : ".*_ddr_.*",
+                        "mem_location" : "DDR"
+                    },
+                    {
+                        "name_filter" : ".*_cmx_.*",
+                        "mem_location" : "CMX"
+                    },
+                    {
+                        "name_filter" : ".*_input_.*",
+                        "mem_location" : "INPUT"
+                    },
+                    {
+                        "name_filter" : ".*_output_.*",
+                        "mem_location" : "OUTPUT"
+                    },
+                    {
+                        "name_filter" : ".*weights.*",
+                        "mem_location" : "BLOB"
+                    },
+                    {
+                        "mem_location": "CMX",
+                        "name_filter": ".*conv2#.*"
+                    },
+                    {
+                        "mem_location": "CMX",
+                        "name_filter": ".*pool2/max_pool#.*"
+                    },
+                    {
+                        "mem_location": "CMX",
+                        "name_filter": ".*conv3#.*"
+                    },
+                    {
+                        "mem_location": "CMX",
+                        "name_filter": ".*pool3/max_pool#.*"
+                    },
+                    {
+                        "mem_location": "CMX",
+                        "name_filter": ".*conv4#.*"
+                    },
+                    {
+                        "mem_location": "CMX",
+                        "name_filter": ".*pool4/max_pool#.*"
+                    },
+                    {
+                        "mem_location": "CMX",
+                        "name_filter": ".*conv5#42.*"
+                    },
+                    {
+                        "mem_location": "CMX",
+                        "name_filter": ".*pool5/max_pool#.*"
+                    },
+                    {
+                        "mem_location": "CMX",
+                        "name_filter": ".*conv6#.*"
+                    },
+                    {
+                        "mem_location": "CMX",
+                        "name_filter": ".*pool6/max_pool#.*"
+                    },
+                    {
+                        "mem_location": "CMX",
+                        "name_filter": ".*conv9/conv9#.*"
+                    }
+                ],
+                "default_tensor_placement" : "DDR",
+                "streaming_strategy" :
+                [
+                    {
+                        "name_filter": "pool1/max_pool#35",
+                        "splits": [{"H": 2}]
+                    },
+                    {
+                        "name_filter": "conv7#46",
+                        "splits": [{"K": 2}]
+                    },
+                    {
+                        "name_filter": "conv8#47",
+                        "splits": [{"K": 8}]
+                    }
+           
+                ]
             },
             "ComputeMemory",
             "AssignUniqueOpId",
@@ -351,7 +206,8 @@
     },
     "adapt": {
         "Singular": [
-            "TensorsToFP16",
+            "PopulatedTensorsToFP16",
+            "UnpopulatedTensorsToFP16",
             "AverageAsDepthWise",
             "FuseBatchNorm",
             "FuseBias",
@@ -394,14 +250,18 @@
             "KMBOrderConversion",
             "AlignTo16Channels",
             "AlignTaskWeights",
+            "GenerateSparsityMapsUnpopulatedTensors",
             "GenerateSparsityMapsPopulatedTensors",
             "GenerateWeightsTables",
             "GenerateEltWiseConstants",
             "StrategyLayersToTensors",
             "ComputeTensorsQuantParams",
             "UpdateImplicitLayersQuantizationParams",
+
+
             "PopulateWeightsTablesQuantization",
             "RemoveBiasTensors",
+
             {
                 "name": "GenerateDot",
                 "output": "output/dots/keembay_adapt_model.dot",
@@ -452,9 +312,7 @@
             {
                 "name": "ConvertDot",
                 "input": "output/dots/dma_model.dot"
-            },
-            "GenerateSparsityMapsUnpopulatedTensors"
-
+            }
         ]
     },
     "control_flows":{
@@ -578,8 +436,8 @@
             {
                 "name": "GenerateWorkloads",
                 "costfunction": "greedy",
-                "TensorSplitAlgorithms": "Rectangle, Z-Tiling",
-                "_comment": "Supported CostFunctions are: balanced | criticalpath | minmax | greedy. Supported TensorSplitAlgorithms are, Rectangle, Z-Tiling"
+                "TensorSplitAlgorithms": "Rectangle",
+                "_comment": "Supported CostFunctions are: balanced | criticalpath | minmax | greedy. Supported TensorSplitAlgorithms are Rectangle, Z-Tiling"
             },
             "ArrangeKeembayExecution",
             "AllocateInputOutputTensorsKeemBay",
@@ -610,16 +468,11 @@
             },
             {
                 "name": "TensorGraphColoring",
-                "cmxOutput": "output/dots/nnCmx.dot",
-                "heapOutput": "output/dots/nnHeap.dot"
+                "output": "output/dots/nnCmx.dot"
             },
             {
                 "name": "ConvertDot",
                 "input": "output/dots/nnCmx.dot"
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/nnHeap.dot"
             },
             "RemoveDeallocationTasks",
             {
@@ -716,11 +569,11 @@
         "Singular": [
             {
                 "name": "GenerateBlobKeembay",
-                "output": "output/resnet50-multiclustering.blob"
+                "output": "output/tiny-yolo-streaming-multiclustering-full-size.blob"
             },
             {
                 "name": "ConvertFlatbuffer",
-                "input": "output/resnet50-multiclustering.blob"
+                "input": "output/tiny-yolo-streaming-multiclustering-full-size.blob"
             }
 
         ]
@@ -739,6 +592,3 @@
         ]
     }
 }
-
-
-
