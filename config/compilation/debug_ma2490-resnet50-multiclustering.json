@@ -7,6 +7,7 @@
                 "recorded_model": true,
                 "log_time" : true,
                 "verbose": "Debug",
+                "ConvertDots": false,
                 "weights_form": "None",
                 "barrier_index_assignment" : "Dynamic",
                 "Number_of_DPUs" : 20,
@@ -692,7 +693,6 @@
         "Singular": [
             "StoreBarriersNamesInTasks",
             "GenerateExecutionSchedule",
-            "CorrectExecutionSchedule",
             "BarrierIndexAssignment",
             "UpdateBarrierRefs",
             {
