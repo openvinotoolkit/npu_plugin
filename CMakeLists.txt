@@ -20,7 +20,7 @@ endif()
 
 add_compile_options(-std=c++11)
 
-SET(PROFILER TRUE CACHE BOOL "Enable integrated profiler")
+SET(PROFILER FALSE CACHE BOOL "Enable integrated profiler")
 SET(LOG TRUE CACHE BOOL "Enable logger")
 SET(PROFILE_PHASE TRUE CACHE BOOL "Enable profiling at compilation phases level")
 SET(PROFILE_BASE TRUE CACHE BOOL "Enable profiling at base components level")
