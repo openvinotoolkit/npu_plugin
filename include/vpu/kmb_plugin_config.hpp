@@ -108,7 +108,6 @@ DECLARE_VPU_KMB_CONFIG_KEY(MCM_COMPILATION_RESULTS);
 /**
  * @brief [Only for kmbPlugin]
  * Type: "YES/NO", default is "NO".
- * Type: Arbitrary string. Empty means ("config/target"), default: "";
  */
 DECLARE_VPU_KMB_CONFIG_KEY(KMB_EXECUTOR);
 
