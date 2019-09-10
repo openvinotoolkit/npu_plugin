@@ -5,60 +5,27 @@
                 "name" : "GlobalConfigParams",
                 "_comment" : "Stores common params accross multiple passes. Access through the Computation Model.",
                 "recorded_model": true,
+                "log_time" : true,
                 "verbose": "Error",
                 "weights_form": "None",
                 "barrier_index_assignment" : "Dynamic",
-                "Number_of_DPUs" : 1,
+                "Number_of_DPUs" : 5,
                 "Number_of_Clusters" : 1,
                 "UpaShaves": 1,
-                "DDRScratch": 1073741824,
-                "MemoryHack": true,
-                "Sparsity": false,
-                "CMX_memory_overflow_safety_factor" : 0.95,
-                "mpe_mode" : "Vector",
+                "DDRScratch": 31457280,
+                "MemoryHack": false,
+                "ActivationSparsity": false,
+                "WeightsSparsity": false,
+                "cmx": 917504,
                 "split_strategy" :
                 [
                     {
-                        "name_filter" : ".*",
+                        "name_filter" : "x",
                         "cluster_filter" : 0,
-                        "strategy" : "SplitOverK"
-                    },
-                    {
-                        "name_filter" : ".*",
-                        "cluster_filter" : 1,
-                        "strategy" : "Clustering"
-                    },
-                    {
-                        "name_filter" : ".*input.*",
-                        "cluster_filter" : 0,
-                        "strategy" : "SplitOverH"
-                    },
-                    {
-                        "name_filter" : ".*res2a.*",
-                        "cluster_filter" : 0,
-                        "strategy" : "SplitOverH"
-                    },
-                    {
-                        "name_filter" : ".*conv1.*",
-                        "cluster_filter" : 0,
-                        "strategy" : "SplitOverH"
-                    },
-                    {
-                        "name_filter" : ".*pool1.*",
-                        "cluster_filter" : 0,
-                        "strategy" : "SplitOverH"
-                    },
-                    {
-                        "name_filter" : ".*res2.*",
-                        "cluster_filter" : 0,
-                        "strategy" : "SplitOverH"
-                    },
-                    {
-                        "name_filter" : ".*res3.*",
-                        "cluster_filter" : 0,
-                        "strategy" : "SplitOverH"
+                        "strategy" : "JUNK"
                     }
                 ],
+                "default_tensor_placement" : "CMX",
                 "tensor_placement_override" :
                 [
                     {
@@ -80,43 +47,19 @@
                     {
                         "name_filter" : ".*weights.*",
                         "mem_location" : "BLOB"
-                    },
-                    {
-                        "name_filter" : ".*conv7#7.*",
-                        "mem_location" : "CMX"
                     }
-                                   
+
                 ],
-                "default_tensor_placement" : "DDR",
                 "streaming_strategy" :
                 [
                     {
                         "name_filter" : "Example_do_not_remove",
-                        "output_location" : "DDR",
                         "splits" : [
                             {"C" : 1},
                             {"H" : 1},
                             {"W" : 1},
                             {"K" : 1}
                         ]
-                    }
-                ],
-                "disable_opFission_streaming_strategy" :
-                [
-                    {
-                        "name_filter" : "conv1_cmx_",
-                        "weight_splits" : 2
-                    },
-                    {
-                        "name_filter" : "conv2_cmx_",
-                        "weight_splits" : 4
-                    }
-                ],
-                "schedule_helper_edges" :
-                [
-                    {
-                        "edge_source" : "relu_7#48_split_14_DEALLOC",
-                        "edge_sink" : "relu_7_weights#28:0_slice_15_Aligned_copy0"
                     }
                 ]
             },
@@ -140,11 +83,24 @@
                 "VersionPatch": 0,
                 "VersionHash": "9aa43159420c77d8cf765393954ac2fbb372ab02"
             },
-            "StoreTensorPlacement"
+            "StoreTensorPlacement",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/StoreTensorPlacement.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/StoreTensorPlacement.dot"
+            }
         ]
     },
     "adapt": {
         "Singular": [
+            "PopulatedTensorsToFP16",
+            "UnpopulatedTensorsToFP16",
             "AverageAsDepthWise",
             "FuseBatchNorm",
             "FuseBias",
@@ -152,30 +108,20 @@
             "FuseScale",
             "FullyConnectedAsConv2D",
             {
-                "name": "GenerateDot",
-                "output": "output/dots/adapt_model.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/adapt_model.dot"
-            },
-            {
                 "name" : "GraphParameterOptimization",
                 "graphOptimizerConfig" : {
                     "globalConfigs" : [
                         {"name" : "totalClusters",  "value" : 1   },
-                        {"name" : "clusterMemory",  "value" : 3600 },
-                        {"name" : "dpuPerCluster",  "value" : 1   },
-                        {"name" : "ddrBandwidth",   "value" : 20000 },
+                        {"name" : "clusterMemory",  "value" : 896 },
+                        {"name" : "dpuPerCluster",  "value" : 5   },
+                        {"name" : "ddrBandwidth",   "value" : 128 },
                         {"name" : "systemClockMhz", "value" : 500 },
-                        {"name" : "FathomSafetyFactor", " value" : 0.95},
-                        {"name" : "dotFileLocation", "value" : "/home/patd/mcmDot.dot"}
+                        {"name" : "FathomSafetyFactor", " value" : 0.9},
+                        {"name" : "dotFileLocation", "value" : "./output/"},
+                        {"name" : "jsonOutFileName", "value" : "./output/mcmCompiler_strategy_output.json"}
                     ],
                     "globalStrategies" : [
-                        {"name" : "tensorSpilling",    "value" : false       },
+                        {"name" : "forceSpilling",    "value" : true       },
                         {"name" : "enableStreaming",   "value" : true       },
                         {"name" : "doubleBuffering",   "value" : false      },
                         {"name" : "scooby" ,            "value" : "doo"},
@@ -187,15 +133,15 @@
                             "name" : "Conv",
                             "strategies": [
                                 {"name" : "streamingStrategies",  "value" : ["StreamOverH","StreamOverW","StreamOverK"]},
-                                {"name" : "clusteringStrategies", "value" : ["SplitOverH","SplitOverK"]},
+                                {"name" : "clusteringStrategies", "value" : ["SplitOverH","SplitOverK","HKSwitch","Clustering"]},
                                 {"name" : "sparsity",             "value" : false}
                             ]
                         },
                         {
-                            "name" : "DepthWiseConv",
+                            "name" : "DepthwiseConv",
                             "strategies": [
                                 {"name" : "streamingStrategies",  "value" : ["StreamOverH","StreamOverW"]},
-                                {"name" : "clusteringStrategies", "value" : ["SplitOverH"]},
+                                {"name" : "clusteringStrategies", "value" : ["SplitOverH","HKSwitch","SplitOverK","Clustering"]},
                                 {"name" : "sparsity",             "value" : false}
                             ]
                         },
@@ -203,22 +149,32 @@
                             "name" : "MaxPool",
                             "strategies": [
                                 {"name" : "streamingStrategies",  "value" : ["StreamOverH","StreamOverW"]},
-                                {"name" : "clusteringStrategies", "value" : ["SplitOverH"]},
+                                {"name" : "clusteringStrategies", "value" : ["SplitOverH","HKSwitch","Clustering"]},
                                 {"name" : "sparsity",             "value" : false}
                             ]
                         },
                         {
-                            "name" : "Eltwise",
+                            "name" : "Concat",
+                            "strategies": [
+                                {"name" : "clusteringStrategies", "value" : ["Clustering"]},
+                                {"name" : "sparsity",             "value" : false}
+                            ]
+                        },
+                        {
+                            "name" : "Add",
                             "strategies": [
                                 {"name" : "streamingStrategies",  "value" : ["StreamOverH","StreamOverW"]},
-                                {"name" : "clusteringStrategies", "value" : ["SplitOverH"]},
+                                {"name" : "clusteringStrategies", "value" : ["SplitOverH","HKSwitch","Clustering"]},
                                 {"name" : "sparsity",             "value" : false}
                             ]
                         }
                     ]
                 }
             },
+            "StoreLayerSplitStrategy",
+            "StoreTensorPlacement",
             "StreamingTiling",
+            "StreamBinaryDataWeights",
             {
                 "name": "GenerateDot",
                 "output": "output/dots/tiling_model.dot",
@@ -235,13 +191,39 @@
     "keembay_adapt": {
         "Singular": [
             "ConcatAsImplicit",
-            "StoreLayerSplitStrategy",
             "StoreWorkloadStrategy",
             "ConvertOpsToTasks",
-            "AlignTo16Channels",
-            "ComputeTensorsQuantParams",
+            "ForceSerialize",
             "KMBOrderConversion",
+            "AlignTo16Channels",
+            "AlignTaskWeights",
+            "GenerateSparsityMapsUnpopulatedTensors",
+            "GenerateSparsityMapsPopulatedTensors",
+            "GenerateWeightsTables",
+            "GenerateEltWiseConstants",
+            "StrategyLayersToTensors",
+            "ComputeTensorsQuantParams",
             "UpdateImplicitLayersQuantizationParams",
+
+
+            "PopulateWeightsTablesQuantization",
+            "RemoveBiasTensors",
+
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/keembay_adapt_model.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/keembay_adapt_model.dot"
+            }
+        ]
+    },
+    "dma": {
+        "Singular" : [
             "SetDpuTasksMemoryLocation",
             {
                 "name": "GenerateDot",
@@ -254,19 +236,30 @@
                 "name": "ConvertDot",
                 "input": "output/dots/dpu_tasks_location.dot"
             },
-            "AlignTaskWeights",
-            "AlignSliceOps",
-            "GenerateSparsityMapsPopulatedTensors",
-            "GenerateWeightsTables",
-            "GenerateEltWiseConstants",
-            "PopulateWeightsTablesQuantization",
-            "RemoveBiasTensors"
-        ]
-    },
-    "dma": {
-        "Singular" : [
             "ResolveImplicitOperations",
-            "AddWeightsDMATasks"
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/implicit_operations_model.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/implicit_operations_model.dot"
+            },
+            "AddWeightsDMATasks",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/dma_model.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/dma_model.dot"
+            }
         ]
     },
     "control_flows":{
@@ -275,7 +268,7 @@
             {
                 "name": "GenerateDot",
                 "output": "output/dots/TaskControlFlows_model.dot",
-                "scope": "OpControlModel",
+                "scope": "ControlModel",
                 "content": "full",
                 "html": true
             },
@@ -285,19 +278,53 @@
             },
             "TransitiveReduction",
             "LayerNumbering",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/TaskControlFlows_model_transitive_reduction.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/TaskControlFlows_model_transitive_reduction.dot"
+            },
             "HangingDmaControlFlows",
             "TransitiveReduction",
             "LayerNumbering",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/NoHangingDmas.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/NoHangingDmas.dot"
+            },
             "cmx2DDRControlFlows",
-            "AddDeallocationTasks"
+            "TransitiveReduction",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/cmx2DDRControlFlows.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/cmx2DDRControlFlows.dot"
+            }
         ]
     },
     "finalize": {
         "Singular": [
-            "GenerateSparsityMapsUnpopulatedTensors",
+            "SplittingTensorsAcrossClusters",
+            "AddDeallocationTasks",
             {
                 "name": "TransitiveReduction",
-                "filter": "PositiveMemory"
+                "filter": "MemoryRequirement"
             },
             "MarkLastNodeForMaxTopologicalCut",
             {
@@ -308,51 +335,37 @@
                 "html": true
             },
             {
-                "name": "ConvertDot",
-                "input": "output/dots/TransitiveReductionBeforeMaxCut.dot"
+                "name": "GenerateDot",
+                "output": "output/dots/TransitiveReductionBeforeMaxCutFull.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
             },
             "MaxTopologicalCutAndPartialSerialisation",
             "TransitiveReduction",
             {
-                "name": "GenerateDot",
-                "output": "output/dots/TransitiveReductionAfterMaxCut.dot",
-                "scope": "ControlModel",
-                "content": "full",
-                "html": true
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/TransitiveReductionAfterMaxCut.dot"
-            },
-            {
                 "name": "GenerateWorkloads",
-                "costfunction": "criticalpath",
-                "TensorSplitAlgorithms": "Rectangle",
+                "costfunction": "greedy",
+                "TensorSplitAlgorithms": "Rectangle, Z-tiling",
                 "_comment": "Supported CostFunctions are: balanced | criticalpath | minmax | greedy. Supported TensorSplitAlgorithms are Metis, Rectangle, Z-Tiling"
             },
             "ArrangeKeembayExecution",
             "AllocateInputOutputTensorsKeemBay",
-            "AllocateGraphfileTensorsKeemBay",
+            "AllocateGraphfileTensorsKeemBayLegacy",
             "ReAllocateImplicitOperationsKeemBay",
             "AllocateCMXTensorsKeemBay",
             {
-                "name": "GenerateDot",
-                "output": "output/dots/BeforeGraphColoring.dot",
-                "scope": "ControlModel",
-                "content": "full",
-                "html": true
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/BeforeGraphColoring.dot"
-            },
-            {
                 "name": "TensorGraphColoring",
-                "output": "output/dots/nnCmx.dot"
+                "cmxOutput": "output/dots/nnCmx.dot",
+                "heapOutput": "output/dots/nnHeap.dot"
             },
             {
                 "name": "ConvertDot",
                 "input": "output/dots/nnCmx.dot"
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/nnHeap.dot"
             },
             "RemoveDeallocationTasks",
             "TransitiveReduction",
@@ -360,21 +373,6 @@
                 "name" : "InsertBarrierTasks",
                 "outputBIG": "output/dots/BarrierInterferenceGraph.dot",
                 "barrier_reuse_window" : 0
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/BarrierInterferenceGraph.dot"
-            },
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/BarriersInserted.dot",
-                "scope": "ControlModel",
-                "content": "full",
-                "html": true
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/BarriersInserted.dot"
             },
             "TransitiveReduction",
             "PopulateWeightsTablesPointers"
@@ -384,20 +382,9 @@
         "Singular": [
             "StoreBarriersNamesInTasks",
             "GenerateExecutionSchedule",
+            "CorrectExecutionSchedule",
             "BarrierIndexAssignment",
-            "UpdateBarrierRefs",
-            "UpdateBarrierProducerConsumerCounts",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/serial_model.dot",
-                "scope": "ControlModel",
-                "content": "full",
-                "html": true
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/serial_model.dot"
-            }
+            "UpdateBarrierRefs"
         ]
     },
     "validate": {
@@ -409,12 +396,13 @@
         "Singular": [
             {
                 "name": "GenerateBlobKeembay",
-                "output": "output/mcm.blob"
+                "output": "output/test.blob"
             },
             {
                 "name": "ConvertFlatbuffer",
-                "input": "output/mcm.blob"
+                "input": "output/test.blob"
             }
+
         ]
     },
     "root": {
@@ -428,9 +416,6 @@
             "finalize",
             "scheduling",
             "serialize"
-        ],
-        "Recurrent": [
-            "validate"
         ]
     }
 }
