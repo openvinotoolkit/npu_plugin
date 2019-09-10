@@ -242,7 +242,6 @@ static void populateWeightsTablesQuantizationFcn(const mv::pass::PassEntry& , mv
                (dpuTaskOp->get<std::string>("taskOp") == "MaxPool") ||
                (dpuTaskOp->get<std::string>("taskOp") == "DepthwiseConv"))
             {
-                // This pass is executed when there are not DMA Tasks yet, no hack needed
                 auto weightsTable = dpuTaskOp->getInputTensor(dpuTaskOp->get<std::size_t>("weightsTableIndex"));
                 populateWeightsTablesActivationAndBias(*weightsTable, dpuTaskOp, model);
             }
@@ -293,7 +292,6 @@ static void populateWeightsTablesPointersFcn(const mv::pass::PassEntry& , mv::Co
                (dpuTaskOp->get<std::string>("taskOp") == "MaxPool") ||
                (dpuTaskOp->get<std::string>("taskOp") == "DepthwiseConv"))
             {
-                // Necessary hack since data is copied with DMA and we are not using a shared_ptr
                 auto weightsTable = dpuTaskOp->getInputTensor(dpuTaskOp->get<std::size_t>("weightsTableIndex"));
                 populateWeightsTablesDataPointers(*weightsTable, dpuTaskOp, model);
                 populateWeightsTablesSparsityPointers(*weightsTable, dpuTaskOp, model);
