@@ -286,6 +286,8 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     toBuild->name = subtensor.getName();
 
     auto tensorAllocatorName = t->get<std::set<std::string>>("allocators").begin();
+    auto tensorAllocator = dm.getAllocator(*tensorAllocatorName);
+    mv::Data::BufferIterator tensorBufferIt = tensorAllocator.getBuffer(0, t); // 0 is the only stage for now, but this will probably change in the future
 
     // Shape is always of the subtensor
     // If the tensor is broadcasted, then the shape of the subtensor is equal to the shape of the master tensor
@@ -322,7 +324,7 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
         toBuild->locale_index[0] = graphfileIndex;
         // No need to set sparsity_index for tensor stored in graphfile
         auto offset = subtensor.get<std::vector<std::size_t>>("offset");
-        auto index = t.getOrder().subToInd(t->getShape(), offset);
+        auto index = t->getOrder().subToInd(t->getShape(), offset);
         auto byte_index = index * t->getDType().getSizeInBits() / 8;
 
         toBuild->data->data_index = byte_index;
@@ -330,20 +332,23 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     else if(*tensorAllocatorName == "ProgrammableInput" || *tensorAllocatorName == "ProgrammableOutput" || *tensorAllocatorName == "VPU_DDR_BSS" || *tensorAllocatorName == "VPU_DDR_Heap")
     {
         auto offset = subtensor.get<std::vector<std::size_t>>("offset");
-        auto index = subtensor.getOrder().subToInd(t->getShape(), offset);
+        auto index = t->getOrder().subToInd(t->getShape(), offset);
         auto byte_index = index * t->getDType().getSizeInBits() / 8;
 
         // NOTE: This probably has to be done also when DDR kicks in
         // as CMX is the only memory with the cluster/slice approach
         auto starting_address = 0;
         if(t->hasAttr("address"))
-            starting_address = t->get<unsigned>("address");
+            starting_address = t->get<std::size_t>("address");
 
         toBuild->data->data_index = starting_address + byte_index;
 
-        //No slice for tensors in ProgrammableInput/ProgrammableOutput
+        auto strides = tensorBufferIt->getStrides();
+        auto leading_offset = strides[0] / tensorBufferIt->getDataTypeSize();
         toBuild->locale_index = std::vector<unsigned int>(1,0);
-        // No need to set sparsity_index for input/output tensor of the network
+        if (leading_offset)
+            toBuild->data->data_index += leading_offset;
+
     }
     else
     {
@@ -1137,10 +1142,10 @@ void mv::RuntimeModel::getWorkloadPadding(Control::OpListIterator opIt, Workload
         }
         else
         {
-            workload.padLeft = padding[0];
-            workload.padTop = padding[2];
-            workload.padRight = padding[1];
-            workload.padBottom = padding[3];
+            workload.padLeft = (workload.MinX == 0) ? padding[0] : 0;
+            workload.padTop = (workload.MinY == 0) ? padding[2] : 0;
+            workload.padRight = ((workload.MaxX + unsigned(1)) == outputWidth) ? padding[1] : 0;
+            workload.padBottom = ((workload.MaxY + unsigned(1)) == outputHeight) ? padding[3] : 0;
         }
     }
     return;
@@ -1186,7 +1191,16 @@ void mv::RuntimeModel::getWorkloadPadding(Control::OpListIterator opIt, Workload
         auto padding = getPadding(opIt, clusterId);
         auto outputWidth = opIt->getOutputTensor(0)->getShape()[mv::IO_WIDTH_DIMENSION];
         auto outputHeight = opIt->getOutputTensor(0)->getShape()[mv::IO_HEIGHT_DIMENSION];
+
         if (hardwareBugDepthwise(opIt))
+        {
+            workload.padLeft = (workload.MinX == 0) ? padding[0] : 0;
+            workload.padTop = (workload.MinY == 0) ? padding[2] : 0;
+            workload.padRight = ((workload.MaxX + unsigned(1)) == outputWidth) ? padding[1] : 0;
+            workload.padBottom = ((workload.MaxY + unsigned(1)) == outputHeight) ? padding[3] : 0;
+        }
+
+        else if (opIt->get<std::string>("taskOp") == "ChannelMajorConvolution")
         {
             workload.padLeft = (workload.MinX == 0) ? padding[0] : 0;
             workload.padTop = (workload.MinY == 0) ? padding[2] : 0;
@@ -1195,10 +1209,10 @@ void mv::RuntimeModel::getWorkloadPadding(Control::OpListIterator opIt, Workload
         }
         else
         {
-            workload.padLeft = padding[0];
-            workload.padTop = padding[2];
-            workload.padRight = padding[1];
-            workload.padBottom = padding[3];
+            workload.padLeft = (workload.MinX == 0) ? padding[0] : 0;
+            workload.padTop = (workload.MinY == 0) ? padding[2] : 0;
+            workload.padRight = ((workload.MaxX + unsigned(1)) == outputWidth) ? padding[1] : 0;
+            workload.padBottom = ((workload.MaxY + unsigned(1)) == outputHeight) ? padding[3] : 0;
         }
     }
     return;
@@ -1281,7 +1295,7 @@ std::unique_ptr<MVCNN::NCEVariantFieldsT> mv::RuntimeModel::buildNCEVariantField
 
 std::vector<std::unique_ptr<MVCNN::NCEVariantFieldsT>> mv::RuntimeModel::buildNCEVariantFieldsTVector(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt)
 {
-    auto workloads = opIt->get<mv::Workloads>("Workloads").getWorkloads();
+    auto workloads = opIt->get<mv::Workloads>("Workloads0").getWorkloads();
     unsigned n = workloads.size();
     std::vector<std::unique_ptr<MVCNN::NCEVariantFieldsT>> toBuild = std::vector<std::unique_ptr<MVCNN::NCEVariantFieldsT>>(n);
     for(unsigned i = 0; i < n; ++i)
@@ -1298,11 +1312,6 @@ std::vector<std::unique_ptr<MVCNN::NCEVariantFieldsT>> mv::RuntimeModel::buildNC
     for(unsigned i = 0; i < n; ++i)
     {
         toBuild[i] = buildNCEVariantFieldsT(cm, compilationDescriptor, opIt, workloads[i], numTask);
-        if ((opIt->get<std::string>("splitStrategy") == "SplitOverK") && (numTask > 0))
-        {
-            toBuild[i]->workload_start_Z = numTask * (toBuild[i]->workload_end_Z + 1);
-            toBuild[i]->workload_end_Z = toBuild[i]->workload_start_Z + toBuild[i]->workload_end_Z;
-        }
     }
     return toBuild;
 }
@@ -1483,7 +1492,7 @@ unsigned mv::RuntimeModel::countProducerConsumerTasks(mv::ComputationModel& cm, 
             }
             else
             {
-                auto& workloads = opIt->get<mv::Workloads>("Workloads");
+                auto& workloads = opIt->get<mv::Workloads>("Workloads0");
                 toReturn = workloads.nWorkloads() * numClusters;
             }
         }

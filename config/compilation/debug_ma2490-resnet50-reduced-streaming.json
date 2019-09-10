@@ -5,19 +5,19 @@
                 "name" : "GlobalConfigParams",
                 "_comment" : "Stores common params accross multiple passes. Access through the Computation Model.",
                 "recorded_model": true,
+                "log_time" : true,
                 "verbose": "Debug",
                 "weights_form": "None",
                 "barrier_index_assignment" : "Dynamic",
-                "Number_of_DPUs" : 1,
+                "Number_of_DPUs" : 5,
                 "Number_of_Clusters" : 1,
                 "UpaShaves": 1,
-                "DDRScratch": 31457280,
+                "DDRScratch": 200704,
+                "cmx": 901120,
                 "MemoryHack": false,
-                "nWorkloads": 1,
                 "ActivationSparsity": false,
                 "WeightsSparsity": false,
                 "CMX_memory_overflow_safety_factor" : 0.925,
-                "mpe_mode" : "Vector",
                 "split_strategy" :
                 [
                     {
@@ -28,25 +28,58 @@
                 "default_tensor_placement" : "DDR",
                 "streaming_strategy" :
                 [
-                        {
-                            "name_filter" : "MobilenetV2/expanded_conv_1/expand/Relu#174",
-                            "splits" : [ {"H" : 8} ]
+                    {
+                        "name_filter" : "res5a_branch1#238",
+                        "output_location" : "CMX",
+                        "splits" : [ {"K" : 4} ]
                         },
                         {
-                            "name_filter" : "MobilenetV2/expanded_conv_1/depthwise/Relu#175",
-                            "splits" : [ {"H" : 8} ]
+                        "name_filter" : "res5a_branch2b#240",
+                        "output_location" : "CMX",
+                        "splits" : [ {"K" : 4} ]
                         },
                         {
-                            "name_filter" : "MobilenetV2/expanded_conv_2/depthwise/Relu#178",
-                            "splits" : [ {"H" : 8} ]
+                        "name_filter" : "res5a_branch2c#241",
+                        "output_location" : "CMX",
+                        "splits" : [ {"K" : 2} ]
                         },
                         {
-                            "name_filter" : "MobilenetV2/Logits/Conv2d_1c_1x1/act_quant/FakeQuantWithMinMaxVars#234",
-                            "splits" : [ {"K" : 8} ]
+                        "name_filter" : "res5b_branch2a#243",
+                        "output_location" : "CMX",
+                        "splits" : [ {"K" : 2} ]
+                        },
+                        {
+                        "name_filter" : "res5b_branch2b#244",
+                        "output_location" : "CMX",
+                        "splits" : [ {"K" : 4} ]
+                        },
+                        {
+                        "name_filter" : "res5b_branch2c#245",
+                        "output_location" : "CMX",
+                        "splits" : [ {"K" : 2} ]
+                        },
+                        {
+                        "name_filter" : "res5c_branch2a#247",
+                        "output_location" : "CMX",
+                        "splits" : [ {"K" : 2} ]
+                        },
+                        {
+                        "name_filter" : "res5c_branch2b#248",
+                        "output_location" : "CMX",
+                        "splits" : [ {"K" : 4} ]
+                        },
+                        {
+                        "name_filter" : "res5c_branch2c#249",
+                        "output_location" : "CMX",
+                        "splits" : [ {"K" : 2} ]
+                        },
+                        {
+                        "name_filter" : "fc1000/fc1000#252",
+                        "output_location" : "CMX",
+                        "splits" : [ {"K" : 4} ]
                         }
                 ]
             },
-
             "ComputeMemory",
             "AssignUniqueOpId",
             {
@@ -83,8 +116,6 @@
     },
     "adapt": {
         "Singular": [
-            "PopulatedTensorsToFP16",
-            "UnpopulatedTensorsToFP16",
             "AverageAsDepthWise",
             "FuseBatchNorm",
             "FuseBias",
@@ -127,14 +158,18 @@
             "KMBOrderConversion",
             "AlignTo16Channels",
             "AlignTaskWeights",
+            "GenerateSparsityMapsUnpopulatedTensors",
             "GenerateSparsityMapsPopulatedTensors",
             "GenerateWeightsTables",
             "GenerateEltWiseConstants",
             "StrategyLayersToTensors",
             "ComputeTensorsQuantParams",
             "UpdateImplicitLayersQuantizationParams",
+
+
             "PopulateWeightsTablesQuantization",
             "RemoveBiasTensors",
+
             {
                 "name": "GenerateDot",
                 "output": "output/dots/keembay_adapt_model.dot",
@@ -185,9 +220,7 @@
             {
                 "name": "ConvertDot",
                 "input": "output/dots/dma_model.dot"
-            },
-            "GenerateSparsityMapsUnpopulatedTensors"
-
+            }
         ]
     },
     "control_flows":{
@@ -263,7 +296,7 @@
             },
             {
                 "name": "TransitiveReduction",
-                "filter": "MemoryRequirement"
+                "filter": "PositiveMemory"
             },
             "MarkLastNodeForMaxTopologicalCut",
             {
@@ -444,12 +477,13 @@
         "Singular": [
             {
                 "name": "GenerateBlobKeembay",
-                "output": "output/mobilenet-streaming.blob"
+                "output": "output/mcm.blob"
             },
             {
                 "name": "ConvertFlatbuffer",
-                "input": "output/mobilenet-streaming.blob"
+                "input": "output/mcm.blob"
             }
+
         ]
     },
     "root": {
@@ -463,6 +497,9 @@
             "finalize",
             "scheduling",
             "serialize"
+        ],
+        "Recurrent": [
+            "validate"
         ]
     }
 }

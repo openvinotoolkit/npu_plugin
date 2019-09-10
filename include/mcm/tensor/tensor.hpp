@@ -271,9 +271,9 @@ namespace mv
         {
             return subToInd_(shape_, sub);
         }
-        inline int64_t getAddress() const
+        inline std::size_t getAddress() const
         {
-            return get<int64_t>("address");
+            return get<std::size_t>("address");
         }
 
         std::shared_ptr<Tensor> getSparsityMap() const;

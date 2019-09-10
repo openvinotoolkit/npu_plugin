@@ -391,15 +391,15 @@ void mv::Tensor::populateSparsityMapTensor_()
 void mv::Tensor::setAddress(int64_t address)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_BULD)
-    set<int64_t>("address", address);
+    set<std::size_t>("address", address);
     if (isSparse() && !isPopulated())
     {
         auto tensorSize = getClusterSize();
         auto sparsitySize = sparsityMap_->computeTotalSize();
         auto storageElementSize = storageElement_->computeTotalSize();
-        storageElement_->set<int64_t>("address", address +
+        storageElement_->set<std::size_t>("address", address +
             (tensorSize - storageElementSize - sparsitySize));
-        sparsityMap_->set<int64_t>("address", address +(tensorSize - sparsitySize));
+        sparsityMap_->set<std::size_t>("address", address +(tensorSize - sparsitySize));
     }
     for (size_t tIdx = 0; tIdx < subTensors_.size(); tIdx++)
         subTensors_[tIdx]->setAddress(address);
