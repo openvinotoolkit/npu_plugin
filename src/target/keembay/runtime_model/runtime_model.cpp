@@ -255,6 +255,7 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     // could also be t->hasAttr("quantizationParameters")
     // but in my opinion quantization for a tensor of floats makes very little sense
     // leaving this comment here for future generations
+    // future generations say that needs to be serialized even in case of 0s and 1s(z_p, sc)
     if(t->isQuantized())
     {
         auto quantizationParams = t->get<mv::QuantizationParams>("quantParams");

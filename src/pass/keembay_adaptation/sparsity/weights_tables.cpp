@@ -8,7 +8,14 @@
 #include "include/mcm/utils/custom_math.hpp"
 #include "include/mcm/tensor/shape.hpp"
 #include <math.h>
-static const std::size_t BYTES_PER_WT_ELEMENT = 4;
+static const std::size_t FIELDS_PER_WT_ELEMENT = 4;
+
+// 4 is the number of fields of the weights table, not the number of bytes
+// 1) DATA_PTR
+// 2) SPARSITY_PTR
+// 3) ACTIVATION
+// 4) BIAS
+
 static void generateWeightsTablesFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void populateWeightsTablesPointersFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void populateWeightsTablesQuantizationFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
@@ -45,13 +52,13 @@ void populateSparseDataPointerMultiCluster(mv::Tensor& weightsTableData, mv::Dat
     //std::cout << "Populating data pointer of weights table for op " << dpuTaskOp->getName() << std::endl;
     if (dpuTaskOp->get<std::string>("splitStrategy") != "SplitOverK")
     {
-        for (size_t i = 0, k = 0; i < weightsTableData.size(); i+=BYTES_PER_WT_ELEMENT)
+        for (size_t i = 0, k = 0; i < weightsTableData.size(); i+=FIELDS_PER_WT_ELEMENT)
         {
             // First increment is always 0
             weightsTableData(i+ addingIndex) = offset + increments[k];
             //std::cout << "Channel  " << k << " " << " Offset " << offset << " Increment " << increments[k] << " Result " << static_cast<int64_t>(weightsTableData(i));
             //if(k > 0)
-                //std::cout << " Difference " << static_cast<int64_t>(weightsTableData(i)) - static_cast<int64_t>(weightsTableData(i-BYTES_PER_WT_ELEMENT));
+                //std::cout << " Difference " << static_cast<int64_t>(weightsTableData(i)) - static_cast<int64_t>(weightsTableData(i-FIELDS_PER_WT_ELEMENT));
             //std::cout << std::endl;
             ++k;
         }
@@ -65,8 +72,8 @@ void populateSparseDataPointerMultiCluster(mv::Tensor& weightsTableData, mv::Dat
         for (unsigned i = 0; i < numClusters; i++)
         {
             offset = new_offset;
-            sizeToIterate = dpuTaskOp->getInputTensor()[1]->getSubTensor(i).getShape()[mv::KERNEL_OUTPUT_CHANNELS] * BYTES_PER_WT_ELEMENT;
-            for (size_t j = 0, k = 0; j < weightsTableData.getClusterSize(i); j+=BYTES_PER_WT_ELEMENT)
+            sizeToIterate = dpuTaskOp->getInputTensor()[1]->getSubTensor(i).getShape()[mv::KERNEL_OUTPUT_CHANNELS] * FIELDS_PER_WT_ELEMENT;
+            for (size_t j = 0, k = 0; j < weightsTableData.getClusterSize(i); j+=FIELDS_PER_WT_ELEMENT)
                 // First increment is always 0
                 weightsTableData(j + addingIndex + totalSizeToIterate) = offset + increments[k++];
             totalSizeToIterate += sizeToIterate;
@@ -79,7 +86,7 @@ void populateDenseDataPointerMultiCluster(mv::Tensor& weightsTableData, mv::Data
     long int new_offset = offset;
     if (dpuTaskOp->get<std::string>("splitStrategy") != "SplitOverK")
     {
-        for (size_t i = 0; i < weightsTableData.size(); i+=BYTES_PER_WT_ELEMENT, offset +=increment * element_offset)
+        for (size_t i = 0; i < weightsTableData.size(); i+=FIELDS_PER_WT_ELEMENT, offset +=increment * element_offset)
               weightsTableData(i+addingIndex) = offset;
     }
     else
@@ -91,8 +98,8 @@ void populateDenseDataPointerMultiCluster(mv::Tensor& weightsTableData, mv::Data
         for (unsigned i = 0; i < numClusters; i++)
         {
             offset = new_offset;
-            sizeToIterate = dpuTaskOp->getInputTensor()[1]->getSubTensor(i).getShape()[mv::KERNEL_OUTPUT_CHANNELS] * BYTES_PER_WT_ELEMENT;
-            for (size_t j = 0; j < sizeToIterate; j += BYTES_PER_WT_ELEMENT, offset += increment * element_offset)
+            sizeToIterate = dpuTaskOp->getInputTensor()[1]->getSubTensor(i).getShape()[mv::KERNEL_OUTPUT_CHANNELS] * FIELDS_PER_WT_ELEMENT;
+            for (size_t j = 0; j < sizeToIterate; j += FIELDS_PER_WT_ELEMENT, offset += increment * element_offset)
                 weightsTableData(j + addingIndex + totalSizeToIterate) = offset;
             totalSizeToIterate += sizeToIterate;
         }
@@ -155,13 +162,13 @@ void populateWeightsTablesSparsityPointers(mv::Tensor& weightsTableData, mv::Dat
             auto sparsityMapBytesPerOutputChannel = sparsityMapSizeInBytes / outputChannels;
             long int increment = sparsityMapBytesPerOutputChannel;
             //std::cout << "Sparsity pointer for weights table for " << dpuTaskOp->getName() << std::endl;
-            for (size_t i = 0, k = 0; i < weightsTableData.size(); i+=BYTES_PER_WT_ELEMENT, offset +=increment)
+            for (size_t i = 0, k = 0; i < weightsTableData.size(); i+=FIELDS_PER_WT_ELEMENT, offset +=increment)
             {
                 // NOTE: to be adapted for MC
                 weightsTableData(i+1) = offset;
                 //std::cout << "Channel  " << k << " Result " << static_cast<int64_t>(weightsTableData(i+1));
                 //if(k > 0)
-                    //std::cout << " Difference " << static_cast<int64_t>(weightsTableData(i+1)) - static_cast<int64_t>(weightsTableData(i+1-BYTES_PER_WT_ELEMENT));
+                    //std::cout << " Difference " << static_cast<int64_t>(weightsTableData(i+1)) - static_cast<int64_t>(weightsTableData(i+1-FIELDS_PER_WT_ELEMENT));
                 //std::cout << std::endl;
                 ++k;
             }
@@ -170,7 +177,7 @@ void populateWeightsTablesSparsityPointers(mv::Tensor& weightsTableData, mv::Dat
         else
         {
             long int offset = 16777215; // NOTE: Implementation defined
-            for (size_t i = 0; i < weightsTableData.size(); i+=BYTES_PER_WT_ELEMENT)
+            for (size_t i = 0; i < weightsTableData.size(); i+=FIELDS_PER_WT_ELEMENT)
                   weightsTableData(i+1) = offset;
         }
     }
@@ -226,11 +233,11 @@ void populateWeightsTablesActivationAndBias(mv::Tensor& weightsTableData, mv::Da
     // TODO mult & prelu are currently not implemented
     unsigned round_mode = 1;
     std::vector<int32_t> round32(outputChannels, round_mode);
-    for (size_t i = 0; i < weightsTableData.size(); i+=BYTES_PER_WT_ELEMENT)
+    for (size_t i = 0; i < weightsTableData.size(); i+=FIELDS_PER_WT_ELEMENT)
     {
-        weightsTableData(i+2) = static_cast<long int>((mScaled[i/BYTES_PER_WT_ELEMENT] << 16) | (round32[i/BYTES_PER_WT_ELEMENT] << 14) | (mShift[i/BYTES_PER_WT_ELEMENT]) << 8);
+        weightsTableData(i+2) = static_cast<long int>((mScaled[i/FIELDS_PER_WT_ELEMENT] << 16) | (round32[i/FIELDS_PER_WT_ELEMENT] << 14) | (mShift[i/FIELDS_PER_WT_ELEMENT]) << 8);
         if (hasBias)
-            weightsTableData(i+3) = biasData[i/BYTES_PER_WT_ELEMENT];
+            weightsTableData(i+3) = biasData[i/FIELDS_PER_WT_ELEMENT];
     }
 }
 static void populateWeightsTablesQuantizationFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
@@ -304,11 +311,8 @@ static void populateWeightsTablesPointersFcn(const mv::pass::PassEntry& , mv::Co
                 weightsTable = weightsTableOp->getOutputTensor(0);
                 auto weights = dpuTaskOp->getInputTensor(1);
                 auto weightsDType = weights->get<mv::DType>("dType");
-                std::size_t e_offset;
-                if (weightsDType == mv::DType("Float16"))
-                    e_offset = 2;
-                else if (weightsDType == mv::DType("UInt8"))
-                    e_offset = 1;
+                std::size_t e_offset = weightsDType.getSizeInBits() / 8;
+
                 populateWeightsTablesDataPointers(*weightsTable, dpuTaskOp, model, e_offset);
                 populateWeightsTablesSparsityPointers(*weightsTable, dpuTaskOp, model);
             }
@@ -339,7 +343,7 @@ static void generateWeightsTablesFcn(const mv::pass::PassEntry& pass, mv::Comput
                 // 2 -> mult << 16 | round << 14 |  shift << 8 | prelu
                 // 1 -> SP_PTR
                 // 0 -> DATA_PTR
-                mv::Shape shape({BYTES_PER_WT_ELEMENT, 1, 1, outputChannels});
+                mv::Shape shape({FIELDS_PER_WT_ELEMENT, 1, 1, outputChannels});
                 std::vector<int64_t> weightsTableData(shape.totalSize(), 0);
                 mv::QuantizationParams quantParams = {{},{},{},{}};
                 auto weightTable = om.constantInt(weightsTableData, shape, mv::DType("Int32"), mv::Order("NWCH"), quantParams, kernelWeightsTableName);
