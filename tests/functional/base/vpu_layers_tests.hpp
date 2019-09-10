@@ -419,3 +419,8 @@ std::vector<size_t> yieldTopClasses(const InferenceEngine::Blob::Ptr &resultBlob
 void compareTopClasses(const InferenceEngine::Blob::Ptr &resultBlob,
                        const InferenceEngine::Blob::Ptr &refBlob,
                        size_t maxClasses);
+
+inline bool hasFakeXLinkDevice() {
+    std::string ldPreloadValue(std::getenv("LD_PRELOAD") != nullptr ? std::getenv("LD_PRELOAD") : "");
+    return ldPreloadValue.find("libvpualModel") != ldPreloadValue.npos;
+}

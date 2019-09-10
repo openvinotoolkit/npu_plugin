@@ -131,3 +131,27 @@ Run following command from temporary build folder (e.g. `kmb-plugin\build`):
   cmake --build . --parallel $(nproc) \
 )
 ```
+
+## Testing on x86
+
+You can run tests with inference using x86 platform with a fake device.
+It can be done by a library called vpualModel. This library implements `ioctl` function,
+which can be loaded before loading real `ioctl`(using `LD_PRELOAD`) to fake
+a real device.
+
+To be able to do it please follow the steps:
+
+1. Create a dummy file for the XLink device
+```sh
+$ sudo touch /dev/xlnk
+$ sudo chmod 666 /dev/xlnk
+``` 
+2. Enable corresponding environment to use the model
+ ```sh
+ $ export LD_PRELOAD=<path-to-lib-folder-with-ie-binaries>/libvpualModel.so
+ $ export IE_VPU_KMB_MEMORY_ALLOCATOR_TYPE=NATIVE
+ ```
+3. Run tests with inference. Example:
+ ```sh
+ $ ./KmbFunctionalTests --gtest_filter=*compareInferenceOutputWithReference*/0*
+ ```

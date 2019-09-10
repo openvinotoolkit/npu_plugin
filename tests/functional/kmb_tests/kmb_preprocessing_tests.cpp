@@ -1,3 +1,5 @@
+#ifdef ENABLE_VPUAL
+
 #include <gtest/gtest.h>
 #include <regression_tests.hpp>
 #include <inference_engine/precision_utils.h>
@@ -446,3 +448,4 @@ INSTANTIATE_TEST_CASE_P(preprocessing, VpuPreprocessingTestsWithParam,
     ::testing::ValuesIn(preprocTypes)
 );
 
+#endif

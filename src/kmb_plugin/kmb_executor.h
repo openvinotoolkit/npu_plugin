@@ -23,6 +23,8 @@
 #include <iomanip>
 #include <utility>
 
+#include <ie_icnn_network.hpp>
+
 #ifdef ENABLE_VPUAL
 #include <GraphManagerPlg.h>
 #include <PlgStreamResult.h>
@@ -36,7 +38,6 @@
 #endif
 
 #include <kmb_config.h>
-#include "kmb_blob_parser.hpp"
 #include "kmb_allocator.h"
 
 namespace vpu {

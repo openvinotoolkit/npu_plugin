@@ -13,6 +13,8 @@
 // express or implied warranties, other than those that are expressly
 // stated in the License.
 //
+#ifdef ENABLE_VPUAL
+
 #include <gtest/gtest.h>
 #include <vpu_layers_tests.hpp>
 #include <regression_tests.hpp>
@@ -21,6 +23,7 @@
 
 #include <condition_variable>
 #include <mutex>
+#include "kmb_layers_tests.hpp"
 
 using namespace std;
 using namespace InferenceEngine;
@@ -30,7 +33,7 @@ class KmbRegressionMultipleNetworks : public vpuLayersTests,
                                       public testing::WithParamInterface< std::tuple<std::string, std::pair<std::string, std::string>> >
 {};
 
-TEST_P(KmbRegressionMultipleNetworks, DISABLED_canRunInferTwoNetworksSeveralIteration) {
+TEST_P(KmbRegressionMultipleNetworks, canRunInferTwoNetworksSeveralIteration) {
     auto param = GetParam();
     auto models = get<1>(param);
 
@@ -160,3 +163,5 @@ const static std::vector<std::pair<std::string, std::string>> modelPairs =
 
 INSTANTIATE_TEST_CASE_P(inference, KmbRegressionMultipleNetworks,
                         Combine(ValuesIn(executionMode), ValuesIn(modelPairs)));
+
+#endif

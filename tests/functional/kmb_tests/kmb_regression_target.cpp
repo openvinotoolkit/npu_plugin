@@ -15,6 +15,7 @@
 //
 
 #include "tests_timeout.hpp"
+#include "kmb_layers_tests.hpp"
 
 #include <gtest/gtest.h>
 #include <regression_tests.hpp>
@@ -261,7 +262,7 @@ INSTANTIATE_TEST_CASE_P(
                 ValuesIn(compilation_parameters_kmb),
                 Values<Compile>(false),
                 Values<Timeout>(60.)),
-        KmbNoRegressionCompilationOnly::getTestCaseName);
+                KmbNoRegressionCompilationOnly::getTestCaseName);
 
 INSTANTIATE_TEST_CASE_P(
         DISABLED_KmbCompilationTest_smoke_nightly,
@@ -271,7 +272,7 @@ INSTANTIATE_TEST_CASE_P(
                 ValuesIn(compilation_parameters_kmb),
                 Values<Compile>(true),
                 Values<Timeout>(600.)),
-        KmbNoRegressionCompilationOnly::getTestCaseName);
+                KmbNoRegressionCompilationOnly::getTestCaseName);
 
 INSTANTIATE_TEST_CASE_P(
         DISABLED_KmbParsingUnsupportedOnlyTest_smoke_nightly,
@@ -291,6 +292,8 @@ INSTANTIATE_TEST_CASE_P(
                 Values<Timeout>(600.)),
         KmbNoRegressionCompilationOnly::getTestCaseName);
 #endif
+
+#ifdef ENABLE_VPUAL
 
 const size_t NUMBER_OF_TOP_CLASSES = 5;
 const std::string YOLO_GRAPH_NAME = "yolotiny.blob";
@@ -322,7 +325,6 @@ class VpuInferWithPath: public vpuLayersTests,
                         public testing::WithParamInterface< modelBlobsInfo > {
 };
 
-#ifdef ENABLE_VPUAL
 class VpuNoRegressionInference : public Regression::RegressionTests {
 public:
     std::string getPluginName() const override {
@@ -336,7 +338,7 @@ protected:
     std::string pluginName = "kmbPlugin";
 };
 
-TEST_P(VpuInferWithPath, DISABLED_canDoInferenceOnImportedBlob) {  // To be run in manual mode when device is available
+TEST_P(VpuInferWithPath, canDoInferenceOnImportedBlob) {
     modelBlobsInfo blobsInfo = GetParam();
     std::string modelFilePath = ModelsPath() + blobsInfo._graphPath;
 
@@ -349,7 +351,7 @@ TEST_P(VpuInferWithPath, DISABLED_canDoInferenceOnImportedBlob) {  // To be run 
     ASSERT_NO_THROW(inferRequest.Infer());
 }
 
-TEST_P(VpuInferWithPath, DISABLED_compareInferenceOutputWithReference) {  // To be run in manual mode when device is available
+TEST_P(VpuInferWithPath, compareInferenceOutputWithReference) {
     modelBlobsInfo blobsInfo = GetParam();
     std::string graphSuffix = blobsInfo._graphPath;
     std::string inputSuffix = blobsInfo._inputPath;
@@ -399,13 +401,11 @@ TEST_P(VpuInferWithPath, DISABLED_compareInferenceOutputWithReference) {  // To 
     }
 }
 
-using VpuInferAndCompareTests = vpuLayersTests;
-
 class VpuInferAndCompareTestsWithParam: public vpuLayersTests,
-                                        public testing::WithParamInterface< std::tuple<bool, modelBlobsInfo> > {
+                             public testing::WithParamInterface< std::tuple<bool, modelBlobsInfo> > {
 };
 
-TEST_P(VpuInferAndCompareTestsWithParam, DISABLED_multipleInferRequests) {
+TEST_P(VpuInferAndCompareTestsWithParam, multipleInferRequests) {
     std::tuple<bool, modelBlobsInfo> paramTuple = GetParam();
     bool isSync = std::get<0>(paramTuple);
     modelBlobsInfo blobsInfo = std::get<1>(paramTuple);
@@ -491,7 +491,7 @@ TEST_P(VpuInferAndCompareTestsWithParam, DISABLED_multipleInferRequests) {
     }
 }
 
-TEST_P(VpuInferWithPath, DISABLED_asyncInferCallback) {
+TEST_P(VpuInferWithPath, asyncInferCallback) {
     modelBlobsInfo blobsInfo = GetParam();
     std::string graphSuffix = blobsInfo._graphPath;
     std::string inputSuffix = blobsInfo._inputPath;
@@ -577,7 +577,7 @@ TEST_P(VpuInferWithPath, DISABLED_asyncInferCallback) {
     }
 }
 
-TEST_P(VpuInferWithPath, DISABLED_asyncInferCallbackRecursive) {
+TEST_P(VpuInferWithPath, asyncInferCallbackRecursive) {
     modelBlobsInfo blobsInfo = GetParam();
     std::string graphSuffix = blobsInfo._graphPath;
     std::string inputSuffix = blobsInfo._inputPath;
@@ -659,9 +659,7 @@ INSTANTIATE_TEST_CASE_P(multipleInference, VpuInferAndCompareTestsWithParam,
     )
 );
 
-#endif
-
-TEST_P(VpuInferWithPath, DISABLED_compareSetBlobAndGetBlob) {
+TEST_P(VpuInferWithPath, compareSetBlobAndGetBlob) {
     modelBlobsInfo blobsInfo = GetParam();
     std::string graphSuffix = blobsInfo._graphPath;
     std::string modelFilePath = ModelsPath() + graphSuffix;
@@ -692,7 +690,7 @@ TEST_P(VpuInferWithPath, DISABLED_compareSetBlobAndGetBlob) {
     ASSERT_EQ((void *)inputBlob->buffer(), (void *)newInputBlob->buffer());
 }
 
-TEST_P(VpuInferWithPath, DISABLED_compareSetBlobAfterInfer) {
+TEST_P(VpuInferWithPath, compareSetBlobAndGetBlobAfterInfer) {
     modelBlobsInfo blobsInfo = GetParam();
     std::string graphSuffix = blobsInfo._graphPath;
     std::string inputSuffix = blobsInfo._inputPath;
@@ -762,7 +760,7 @@ TEST_P(VpuInferWithPath, DISABLED_compareSetBlobAfterInfer) {
 
 using kmbSetBlob = vpuLayersTests;
 
-TEST_F(kmbSetBlob, DISABLED_compareSetBlobAllocation) {
+TEST_F(kmbSetBlob, compareSetBlobAllocation) {
     std::string mobilenetModelFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet/mobilenet.blob";
     std::string resnetModelFilePath = ModelsPath() + "/KMB_models/BLOBS/resnet/resnet.blob";
     std::string inputNameFilePath = ModelsPath() + "/KMB_models/BLOBS/resnet/input.dat";
@@ -793,7 +791,7 @@ TEST_F(kmbSetBlob, DISABLED_compareSetBlobAllocation) {
     ASSERT_EQ((void *)mobilNInputBlob->buffer(), (void *)resNInputBlob->buffer());
 }
 
-TEST_P(VpuInferWithPath, DISABLED_compareOutputsTwoNetworks) {
+TEST_P(VpuInferWithPath, compareOutputsTwoNetworks) {
     modelBlobsInfo blobsInfo = GetParam();
     std::string graphSuffix = blobsInfo._graphPath;
     std::string inputSuffix = blobsInfo._inputPath;
@@ -860,7 +858,7 @@ TEST_P(VpuInferWithPath, DISABLED_compareOutputsTwoNetworks) {
     }
 }
 
-TEST_P(VpuInferWithPath, DISABLED_compareSetBlobAndInfer) {
+TEST_P(VpuInferWithPath, compareSetBlobAndInfer) {
     modelBlobsInfo blobsInfo = GetParam();
     std::string graphSuffix = blobsInfo._graphPath;
     std::string inputSuffix = blobsInfo._inputPath;
@@ -926,8 +924,7 @@ public:
     }
 };
 
-TEST_F(vpuInferWithSetUp, DISABLED_copyCheckSetBlob) {
-
+TEST_F(vpuInferWithSetUp, copyCheckSetBlob) {
     std::string strToCheck = "isValidPtr(): Input blob will be copied";
     std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet/mobilenet.blob";
     std::string inputNameFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet/input.dat";
@@ -968,3 +965,5 @@ TEST_F(vpuInferWithSetUp, DISABLED_copyCheckSetBlob) {
 INSTANTIATE_TEST_CASE_P(inferenceWithParameters, VpuInferWithPath,
     ::testing::ValuesIn(pathToPreCompiledGraph)
 );
+
+#endif
