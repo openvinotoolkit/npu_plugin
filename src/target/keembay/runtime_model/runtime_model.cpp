@@ -224,23 +224,19 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
         // VERY IMPORTANT NOTE: Sparsity index is not used by populated tensors
         // as populated tensor represent weights, and all the information we need
         // about sparsity is contained in the weights table. This was confirmed
-        // after a chat with Levi
+        // after a chat with Levi.
+
+        // We still have to explicitely set sparsity_index and storage_element_index to 0
+        // in the case of populated tensors that are sparse, so that runtime knows that sparsity is used
         if(t->isSparse())
         {
             if(!t->isPopulated())
             {
                 toBuild->data->sparsity_index = t->getSparsityMap()->getAddress();
                 toBuild->data->storage_element_index = t->getStorageElement()->getAddress();
-
-                //std::cout << "Weights Table: " + t->getSparsityMap()->getName() + " Sparsity Map address: " + std::to_string(t->getSparsityMap()->getAddress()) << std::endl;
-                //std::cout << "Weights Table: " + t->getSparsityMap()->getName() + " storage_element_index: " + std::to_string(t->getStorageElement()->getAddress()) << std::endl;
             }
             else
             {
-//                auto sparsityMapCostantOp = model.getOp(mv::createSparsityMapName(t->getName()));
-//                auto sparsityMapDmaOp = sparsityMapCostantOp.leftmostChild();
-//                auto sparsityMapDma = sparsityMapDmaOp->getOutputTensor(0);
-//                toBuild->data->sparsity_index = sparsityMapDma->getAddress();
                 toBuild->data->sparsity_index = 0;
                 toBuild->data->storage_element_index = 0;
             }
@@ -358,22 +354,18 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
         // as populated tensor represent weights, and all the information we need
         // about sparsity is contained in the weights table. This was confirmed
         // after a chat with Levi
-        // NOTE: To be fixed for multiclustering
+
+        // We still have to explicitely set sparsity_index and storage_element_index to 0
+        // in the case of populated tensors that are sparse, so that runtime knows that sparsity is used
         if(t->isSparse())
         {
             if(!t->isPopulated())
             {
                 toBuild->data->sparsity_index = subtensor.getSparsityMap()->getAddress();
                 toBuild->data->storage_element_index = subtensor.getStorageElement()->getAddress();
-
-                //std::cout << "Weights Table: " + t->getSparsityMap()->getName() + " Sparsity Map address: " + std::to_string(t->getSparsityMap()->getAddress()) << std::endl;
-                //std::cout << "Weights Table: " + t->getSparsityMap()->getName() + " storage_element_index: " + std::to_string(t->getStorageElement()->getAddress()) << std::endl;
             }
             else
             {
-//                auto sparsityMapCostantOp = cm.getOp(mv::createSparsityMapName(t->getName()));
-//                auto sparsityMapDmaOp = sparsityMapCostantOp.leftmostChild();
-//                auto sparsityMapDma = sparsityMapDmaOp->getOutputTensor(0);
                 toBuild->data->sparsity_index = 0;
                 toBuild->data->storage_element_index = 0;
             }
