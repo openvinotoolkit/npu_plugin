@@ -322,7 +322,7 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
         toBuild->locale_index[0] = graphfileIndex;
         // No need to set sparsity_index for tensor stored in graphfile
         auto offset = subtensor.get<std::vector<std::size_t>>("offset");
-        auto index = subtensor.getOrder().subToInd(t->getShape(), offset);
+        auto index = t.getOrder().subToInd(t->getShape(), offset);
         auto byte_index = index * t->getDType().getSizeInBits() / 8;
 
         toBuild->data->data_index = byte_index;

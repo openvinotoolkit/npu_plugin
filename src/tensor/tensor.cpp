@@ -500,11 +500,16 @@ void mv::Tensor::bindData(Tensor& other, const std::vector<std::size_t>& leftPad
 
 void mv::Tensor::setOrder(Order order, bool updateSubtensors)
 {
-    //TODO need to call this with True from DPUTask for weights
-    set<Order>("order", order);
-    log(Logger::MessageType::Debug, "Reorderd to " + order.toString());
-    if (updateSubtensors)
-        setSubtensorsOrder_(order);
+    if(order != getOrder())
+    {
+        set<Order>("order", order);
+        log(Logger::MessageType::Debug, "Reorderd to " + order.toString());
+
+        //If the data order changes, the packed data is invalid
+        set<bool>("dataPacked", false);
+        if (updateSubtensors)
+            setSubtensorsOrder_(order);
+    }
 }
 
 void mv::Tensor::setSubtensorsOrder_(Order order)
