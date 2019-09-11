@@ -78,7 +78,22 @@ void maxTopologicalCutAndPartialSerialisationPass(const mv::pass::PassEntry& pas
     /*Add the partial serialisaion edges to the mcmGraph*/
     flowGraph.insertpartialSerialisationEdgesInMcmGraph(model, pass);
 
+    /*Check again if the peak memory is less than CMX as we did not insert all the specific PS edges*/
+
+    //--------------------------------------------------
+    mv::KoalaGraphScheduler flowGraph_extraCheck;
+
+    /*Convert to MCM graph to KOALA graph*/
+    flowGraph_extraCheck.convertMcMGraphToKoalaGraph(pass, model);
+
+    /*Calculate max topological cut and get the cut edges*/
+    maxTopologicalCut = flowGraph_extraCheck.calculateMaxTopologicalCut(pass, model);
+
+    pass.log(mv::Logger::MessageType::Info, "After PS the network now requires " + std::to_string(networkMemoryRequirement) + " kB of available CMX memory " + std::to_string(percentageMemory) + "%");
+    
+    if(maxTopologicalCut.first > cmxMemory)
+        throw std::runtime_error("The maximum peak memory requirment of the graph exceeds CMX after PS, logic is broken!!!");
+    
     pass.log(mv::Logger::MessageType::Info, "Exiting max cut pass ");
 
-   
 }
