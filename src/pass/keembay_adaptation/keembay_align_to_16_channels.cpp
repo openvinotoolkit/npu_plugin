@@ -136,8 +136,9 @@ static void alignBiasTensor(mv::Data::OpListIterator &opIt, const mv::Data::Tens
     //Bias case is easier since it is 1D
     auto biasTensorDType = biasTensor->getDType();
     auto biasTensorSize = biasTensor->getShape()[0];
-    auto biasTensorName = opIt->get<std::string>("bias");
 
+
+    auto biasTensorName = opIt->get<std::string>("bias");
     if(biasTensorSizePadded != biasTensorSize)
     {
         auto biasTensorQuantizationParams = biasTensor->get<mv::QuantizationParams>("quantParams");
@@ -156,5 +157,18 @@ static void alignBiasTensor(mv::Data::OpListIterator &opIt, const mv::Data::Tens
         dm.undefineTensor(biasTensorName);
         opIt->erase("bias");
         opIt->set<std::string>("bias", newBiasTensor->getName());
+
+        //check for other ops with the same bias tensor, and upate teh attribute
+        mv::OpModel om(dm);
+        auto dpuTasks = om.getOps("DPUTask");
+        for(auto vecIt = dpuTasks.begin(); vecIt != dpuTasks.end(); ++vecIt)
+        {
+            auto updateOpIt = *vecIt;
+            if(updateOpIt->hasAttr("bias") && updateOpIt->get<std::string>("bias") == biasTensorName)
+            {
+                updateOpIt->erase("bias");
+                updateOpIt->set<std::string>("bias", newBiasTensor->getName());
+            }
+        }
     }
 }
