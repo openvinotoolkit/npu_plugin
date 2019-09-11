@@ -63,11 +63,16 @@ void removeDropOut(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::
 
         if (opIt->getOpType() == "Dropout")
         {
+            auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
             auto parentOpIt = om.getSourceOp(opIt->getInputTensor(0));
 
             auto sourceTensor = parentOpIt->getOutputTensor(0);
 
             opIt = linkNewOperationsRemove(parentOpIt, sourceTensor, om, opIt);
+            if (outputMemoryLocation.isForced())
+            {
+                opIt->getOutputTensor(0)->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
+            }
         }
     }
 }
