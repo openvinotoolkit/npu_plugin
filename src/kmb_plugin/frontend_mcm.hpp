@@ -46,7 +46,7 @@ namespace KmbPlugin {
 mv::DType convert_data_type(ie::Precision iePrecision);
 
 class McmNodeObject final :
-        public EnableHandleFromThis<McmNodeObject>,
+        public EnableHandle,
         public EnableCustomAttributes {
 public:
     explicit McmNodeObject(mv::Data::TensorIterator node, InferenceEngine::TensorDesc desc) : _desc(desc), _mcmNode(node) {}

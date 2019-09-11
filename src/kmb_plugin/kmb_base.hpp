@@ -32,7 +32,7 @@ namespace KmbPlugin {
     \
     using VPU_COMBINE(type, Vector) = SmallVector<type>;                                            \
     \
-    using VPU_COMBINE(type, List) = IntrusivePtrList<VPU_COMBINE(type, postfix)>;                   \
+    using VPU_COMBINE(type, List) = IntrusiveHandleList<VPU_COMBINE(type, postfix)>;                \
     \
     using VPU_COMBINE(type, Set) = std::unordered_set<type, HandleHash>;                            \
     \
