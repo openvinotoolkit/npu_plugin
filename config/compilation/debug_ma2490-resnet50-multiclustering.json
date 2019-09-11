@@ -302,7 +302,7 @@
                         "strategy": "SplitOverK"
                     },
                     {
-                        "name_filter":".*res5c/FakeQuantWithMinMaxArgs#.*",
+                        "name_filter":".*res5c/Relu#.*",
                         "strategy": "Clustering"
                     },
                     {
