@@ -31,48 +31,6 @@ public:
     {
     }
 
-    //TODO:: figure out cleaner and faster way to represent this...
-    // the pass will do tremendous amounts of ops accessing this map, and constant string hashing will be slow.
-    //
-//    class StreamingPool
-//    {
-//        std::map<char,int> streamingPool_;
-//
-//        //TODO: inherit dims somehow from Shape
-//        StreamingPool()
-//        {
-//            streamingPool_['H'] = 0;
-//            streamingPool_['W'] = 0;
-//            streamingPool_['K'] = 0;
-//            streamingPool_['C'] = 0;
-//        }
-//
-//        StreamingPool(initializer_list<pair<char,size_t>> initList)
-//        {
-//            StreamingPool();
-//            for( auto elem : initList)
-//            {
-//                streamingPool_[elem.first] = elem.second;
-//            }
-//        }
-//
-////        StreamingPool(initializer_list<size_t> initList)
-////        {
-////
-////        }
-//
-//        int& operator[](char dim)
-//        {
-//            auto elem = streamingPool_.find(dim);
-//            if(elem == streamingPool_.end())
-//            {
-//                //TODO::Throw error for unspupported DIM
-//            }
-//            return elem->second;
-//        }
-//
-//    };
-
     size_t totalClusters;
     size_t clusterMemoryKb;
     size_t dpuPerCluster;
@@ -295,12 +253,6 @@ public:
         	maxSplits = (clusterOutChannelSize/2);
             //maxSplits = (clusterOutChannelSize/16);
 
-        //TODO::::REMOVE THIS ONCE FIX INSANE COMPILE TIME
-        /* 
-        if(maxSplits > 32)
-            maxSplits = 32;
-        */
-
         splits.push_back(1);
         //for(unsigned split = 1; split <= maxSplits; split++)
         for(unsigned split = 2; split <= maxSplits; split=split+2)
@@ -326,35 +278,6 @@ public:
 
         return 0;
     }
-
-//    int simulateDpuExecutionTime(Op& op,StrategySet strategy)
-//    {
-//        auto opType = op.getOpType();
-//        auto clustering = strategy["clustering"].get<string>();
-//
-//        vector<Shape> contexts;
-//        Shape clusterSplit;
-//
-//        if( (opType == "Pooling") or (opType == "DepthWiseConv")) //TODO:: OR CHMAJOR CONV
-//        {
-//            contexts.push_back({16,1,16,1});
-//        }
-//        else
-//        {
-//            contexts.push_back({4,4,16,1});
-//            contexts.push_back({16,1,16,1});
-//        }
-//
-//        if( (clustering == "SplitOverH") or
-//                (clustering == "SplitOverHOverlapped") or
-//                (clustering == "HKSwitch"))
-//            clusterSplit = {1,totalClusters,1,1};
-//        else if(clustering == "SplitOverK")
-//            clusterSplit = {1,1,totalClusters,1};
-//        else
-//            clusterSplit = {1,1,1,1};
-//
-//    }
 
     double executionTime(Op& op,StrategySet& strategySet)
     {
@@ -489,65 +412,55 @@ public:
 
         if((parentClustering == "HKSwitch" or
                 parentClustering == "SplitOverK") and
-                (childClustering == "SplitOverH")){
+                (childClustering == "SplitOverH"))
                      return INF;
-                }
-
+                
         //HK Switch requires previous layer to be SOH
         if((not (parentClustering == "SplitOverH")) and
-                childClustering == "HKSwitch"){
+                childClustering == "HKSwitch")
                      return INF;
-                }
 
         //HK Switch requires next layer to be SOK
         if( parentClustering == "HKSwitch" and
-                (not (childClustering == "SplitOverK"))){
+                (not (childClustering == "SplitOverK")))
             return INF;
-                }
 
         //Cannot pass directly from SoH to SoK
         if( parentClustering == "SplitOverH" and
-                childClustering == "SplitOverK"){
+                childClustering == "SplitOverK")
                                 return INF;
-                }
 
         //cannot pass directly from SoK to SoH
         if( parentClustering == "SplitOverK" and
-                childClustering == "SplitOverH"){
+                childClustering == "SplitOverH")
                      return INF;
-                }
            
 
-        if(checkStreamClusterComp(parentOp,parent)){
+        if(checkStreamClusterComp(parentOp,parent))
             return INF;
-        }
         
-        if(checkStreamClusterComp(childOp,child)){
+        if(checkStreamClusterComp(childOp,child))
             return INF;
-        }
 
 
         //if child is spilled, HKSwitch makes no sense
         if( (child["spilling"].get<bool>() == true ) and
-                (childClustering == "HKSwitch")){
+                (childClustering == "HKSwitch"))
                        return INF;
-                }
            
 
         //TODO: Only the input can be SOH-Overlapped
 
         //SOH-Overlapped can only go to SOH layers
         if( parentClustering == "SplitOverHOverlapped" and
-                (not (childClustering == "SplitOverH"))){
+                (not (childClustering == "SplitOverH")))
                        return INF;
-                }
 
 
         //TODO: SOH channelMajor conv requires SoHOverlapped input
         if( parentClustering == "SplitOverHOverlapped" and
-                (not (parentOp.getOpType() == "Input"))){
+                (not (parentOp.getOpType() == "Input")))
                        return INF;
-                }
 
 
         if( childOp.getOpType() == "Conv")
@@ -704,80 +617,65 @@ public:
             hasStreamOverK = false;
         }
 
-//        cout<<"Generating strategies for " << op.getName() << endl;
-//        auto func = std::bind(createStrategy,op,strategyVec,_1,_2,_3,_4);
-//        applyDescartes(func,sparsityPool,doubleBufferPool,spillingPool,clusteringStrategyPool);
-
         //TODO:: replace nested loops with clean cartesian product function
 
         for( const auto sparsity : sparsityPool)
         {
-//            cout << "\tsparsity :" << sparsity.toString() << endl;
-//            for( const auto doubleBuffering : doubleBufferPool)
-//            {
-//                cout <<"\tdoubleBuff " << doubleBuffering.toString() << endl;
-                for( const auto spilling : spillingPool)
+            for( const auto spilling : spillingPool)
+            {
+                for( const auto clustering : clusteringStrategyPool)
                 {
-//                    cout<<"\tspilling " << spilling.toString() << endl;
-                    for( const auto clustering : clusteringStrategyPool)
+                    auto mem = memorySize(op,clustering,sparsity,{1,1,1,1},false);
+                    auto activationsSize = mem.first;
+                    auto weightsSize = mem.second;
+
+                    unsigned maxSplitOverH;
+                    if(!hasStreamOverH)
                     {
-                        auto mem = memorySize(op,clustering,sparsity,{1,1,1,1},false);
-                        auto activationsSize = mem.first;
-                        auto weightsSize = mem.second;
-
-                        unsigned maxSplitOverH;
-                        if(!hasStreamOverH)
-                        {
-                            maxSplitOverH = 1;
-                        }
+                        maxSplitOverH = 1;
+                    }
+                    else
+                    {
+//                      maxSplitOverH = roundUp((unsigned)ceil((double)activationsSize/(double)clusterMemory) + 1,2);
+                        //maxSplitOverH = (unsigned)ceil((double)activationsSize/(double)clusterMemory);
+                        //if ((maxSplitOverH%2)!= 0) maxSplitOverH= roundUp(maxSplitOverH,2);
+                        unsigned splitsToFit = ceil((double)activationsSize/(double)(clusterMemory));
+                        if (splitsToFit > 1)
+                            maxSplitOverH = roundUpToStep(splitsToFit,2);
                         else
+                            maxSplitOverH = splitsToFit;
+                    }
+
+                    vector<size_t> streamsOverK;
+                    if(hasStreamOverK)
+                        streamsOverK = getMaxStreamOverK(clustering.get<string>(),op);
+                    else
+                        streamsOverK.push_back(1);
+
+                    for(const auto k : streamsOverK)
+                    {
+                        for(unsigned h = 1; h <= maxSplitOverH; h++)
                         {
-//                            maxSplitOverH = roundUp((unsigned)ceil((double)activationsSize/(double)clusterMemory) + 1,2);
-                            //maxSplitOverH = (unsigned)ceil((double)activationsSize/(double)clusterMemory);
-                            //if ((maxSplitOverH%2)!= 0) maxSplitOverH= roundUp(maxSplitOverH,2);
-                        	unsigned splitsToFit = ceil((double)activationsSize/(double)(clusterMemory));
-                            if (splitsToFit > 1)
-                                maxSplitOverH = roundUpToStep(splitsToFit,2);
-                            else
-                                maxSplitOverH = splitsToFit;
-                        }
+                            //TODO: these are very fast hacks. Delete after we can allow nested streams and
+                            if( (h>1) and (k>1))
+                                continue;
+                            if( ((h*k) > 1) and (spilling.get<bool>() == false))
+                                continue;
 
-                       // cout<<"hasStreamH " << hasStreamOverH << " k " << hasStreamOverK << endl;
-                       // cout<<"\tclusterMem " << clusterMemory << " ceil " << ceil((double)activationsSize/(double)clusterMemory) << endl;
-                       // cout<<"\tmaxMem " << activationsSize << " maxSplitH " << maxSplitOverH << endl;
+                            Shape streamShape({1,h,1,k});//Stream over W and C are 1 for now . TODO: implement stream W/C
+                            StrategySet s;
+                            s["name"] = op.getName();
+                            s["sparsity"] = sparsity;
+//                          s["doubleBuffering"] = doubleBuffering;
+                            s["spilling"] = spilling;
+                            s["clustering"] = clustering;
+                            s["streaming"] = streamShape;
 
-                        vector<size_t> streamsOverK;
-                        if(hasStreamOverK)
-                            streamsOverK = getMaxStreamOverK(clustering.get<string>(),op);
-                        else
-                            streamsOverK.push_back(1);
-
-                        for(const auto k : streamsOverK)
-                        {
-                            for(unsigned h = 1; h <= maxSplitOverH; h++)
-                            {
-                                //TODO: these are very fast hacks. Delete after we can allow nested streams and
-                                if( (h>1) and (k>1))
-                                    continue;
-                                if( ((h*k) > 1) and (spilling.get<bool>() == false))
-                                    continue;
-
-                                // cout<<"\tStrH: " << h << endl;
-                                Shape streamShape({1,h,1,k});//Stream over W and C are 1 for now . TODO: implement stream W/C
-                                StrategySet s;
-                                s["name"] = op.getName();
-                                s["sparsity"] = sparsity;
-//                                s["doubleBuffering"] = doubleBuffering;
-                                s["spilling"] = spilling;
-                                s["clustering"] = clustering;
-                                s["streaming"] = streamShape;
-
-                                strategyVec.push_back(s);
-                            }
+                            strategyVec.push_back(s);
                         }
                     }
                 }
-//            }
+            }
         }
     }
 };
@@ -799,7 +697,6 @@ static void GraphParameterOptimizationFcn(const mv::pass::PassEntry& pass,
     strategyManager.readGlobalConfigs();
     strategyManager.recursiveDijkstra(om.opBegin());
 
-    std::cout << "ran the optimizer" << std::endl;
 
     return;
 }
