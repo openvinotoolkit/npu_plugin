@@ -23,6 +23,7 @@
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <zconf.h>
 
 using namespace vpu::KmbPlugin;
 
@@ -34,10 +35,20 @@ void *KmbNativeAllocator::alloc(size_t size) noexcept {
     if (virtAddr == MAP_FAILED)
         return nullptr;
 
+    auto getShiftBase2 = [](long num) -> size_t {
+        size_t shiftCount = 0;
+        while (num >>= 1) shiftCount++;
+        return shiftCount;
+    };
+    // HACK:
+    // instead of storing physical address. Let's pack virtual address into uint32_t physAddr.
+    // mmap aligns a pointer on pagesize. We can avoid storing this information
+    uint32_t physAddr = reinterpret_cast<unsigned long>(virtAddr) >> getShiftBase2(getpagesize());
+
     MemoryDescriptor memDesc = {
             size,  // size
             fileDesc,    // file descriptor
-            0  // physical address
+            physAddr  // physical address
     };
     _allocatedMemory[virtAddr] = memDesc;
 

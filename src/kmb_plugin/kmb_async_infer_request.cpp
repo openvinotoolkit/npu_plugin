@@ -20,16 +20,17 @@
 using namespace vpu::KmbPlugin;
 using namespace InferenceEngine;
 
-KmbAsyncInferRequest::KmbAsyncInferRequest(KmbInferRequest::Ptr request,
+KmbAsyncInferRequest::KmbAsyncInferRequest(const KmbInferRequest::Ptr &request,
                                                  const InferenceEngine::ITaskExecutor::Ptr &taskExecutorStart,
                                                  const InferenceEngine::ITaskExecutor::Ptr &taskExecutorGetResult,
                                                  const InferenceEngine::TaskSynchronizer::Ptr &taskSynchronizer,
-                                                 const InferenceEngine::ITaskExecutor::Ptr &callbackExecutor)
+                                                 const InferenceEngine::ITaskExecutor::Ptr &callbackExecutor,
+                                                 const Logger::Ptr &log)
         : InferenceEngine::AsyncInferRequestThreadSafeDefault(request,
                                                               taskExecutorStart,
                                                               taskSynchronizer,
                                                               callbackExecutor),
-          _request(request), _taskExecutorGetResult(taskExecutorGetResult) {}
+          _logger(log), _request(request), _taskExecutorGetResult(taskExecutorGetResult) {}
 
 
 InferenceEngine::StagedTask::Ptr KmbAsyncInferRequest::createAsyncRequestTask() {

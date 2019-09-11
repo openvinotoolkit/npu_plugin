@@ -1,3 +1,5 @@
+#ifdef ENABLE_VPUAL
+
 #include <gtest/gtest.h>
 #include <regression_tests.hpp>
 #include <inference_engine/precision_utils.h>
@@ -17,6 +19,9 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+
+#include <mutex>
+#include <condition_variable>
 
 using namespace ::testing;
 using namespace InferenceEngine;
@@ -167,11 +172,22 @@ static void setPreprocForInputBlob(const std::string &inputName,
     case PT_NV12:
         const InferenceEngine::Layout inputLayout = inputTensor.getLayout();
         const InferenceEngine::SizeVector dims = inputTensor.getDims();
-        const size_t expectedWidth = dims.at(3);
-        const size_t expectedHeight = dims.at(2);
+        const size_t expectedWidth = dims.at(2);
+        const size_t expectedHeight = dims.at(3);
         ASSERT_NO_THROW(inputBlob = fromNV12File(inputFilePath, expectedWidth, expectedHeight, allocator));
         break;
     }
+    ASSERT_NO_THROW(inferRequest.SetBlob(inputName, inputBlob));
+}
+
+static void setNV12Preproc(const std::string &inputName,
+                                   const std::string &inputFilePath,
+                                   InferenceEngine::InferRequest &inferRequest,
+                                   VPUAllocator &allocator) {
+    Blob::Ptr inputBlob;
+    const size_t expectedWidth = 228;
+    const size_t expectedHeight = 228;
+    ASSERT_NO_THROW(inputBlob = fromNV12File(inputFilePath, expectedWidth, expectedHeight, allocator));
     ASSERT_NO_THROW(inferRequest.SetBlob(inputName, inputBlob));
 }
 
@@ -242,6 +258,188 @@ TEST_P(VpuPreprocessingTestsWithParam, DISABLED_importWithPreprocessing) {  // T
     }
 }
 
+using VpuPreprocessingTests = vpuLayersTests;
+
+TEST_F(VpuPreprocessingTests, DISABLED_correctPreprocessing) {
+    std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet/mobilenet.blob";
+
+    VPUAllocator kmbAllocator;
+
+    Core ie;
+    InferenceEngine::ExecutableNetwork importedNetwork;
+    ASSERT_NO_THROW(importedNetwork = ie.ImportNetwork(modelFilePath, "KMB", {}));
+
+    ConstInputsDataMap inputInfo = importedNetwork.GetInputsInfo();
+
+    for (auto & item : inputInfo) {
+        InputInfo* mutableItem = const_cast<InputInfo*>(item.second.get());
+        setPreprocAlgorithm(mutableItem, PT_RESIZE);
+        setPreprocAlgorithm(mutableItem, PT_NV12);
+    }
+
+    InferenceEngine::InferRequest inferRequest;
+    ASSERT_NO_THROW(inferRequest = importedNetwork.CreateInferRequest());
+
+    inputInfo = importedNetwork.GetInputsInfo();
+    std::string input_name = inputInfo.begin()->first;
+
+    std::string inputFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet/input-228x228-nv12.dat";
+
+    setNV12Preproc(input_name, inputFilePath, inferRequest, kmbAllocator);
+
+    ASSERT_NO_THROW(inferRequest.Infer());
+
+    ConstOutputsDataMap outputInfo;
+    ASSERT_NO_THROW(outputInfo = importedNetwork.GetOutputsInfo());
+
+    std::string referenceOutputFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet/output.dat";
+    for (auto & item : outputInfo) {
+        Blob::Ptr outputBlob;
+        ASSERT_NO_THROW(outputBlob = inferRequest.GetBlob(item.first.c_str()));
+
+        TensorDesc outputBlobTensorDesc = outputBlob->getTensorDesc();
+
+        uint8_t* outputRefData = reinterpret_cast<uint8_t*>(kmbAllocator.allocate(outputBlob->byteSize()));
+        Blob::Ptr referenceOutputBlob = make_shared_blob<uint8_t>(outputBlobTensorDesc, outputRefData);
+        ASSERT_TRUE(fromBinaryFile(referenceOutputFilePath, referenceOutputBlob));
+
+        const size_t NUMBER_OF_CLASSES = 5;
+        ASSERT_NO_THROW(compareTopClasses(outputBlob, referenceOutputBlob, NUMBER_OF_CLASSES));
+    }
+}
+
+TEST_F(VpuPreprocessingTests, DISABLED_multiThreadCorrectPreprocessing) {
+    std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet/mobilenet.blob";
+
+    VPUAllocator kmbAllocator;
+
+    Core ie;
+    InferenceEngine::ExecutableNetwork importedNetwork;
+    ASSERT_NO_THROW(importedNetwork = ie.ImportNetwork(modelFilePath, "KMB", {}));
+
+    ConstInputsDataMap inputInfo = importedNetwork.GetInputsInfo();
+
+    for (auto & item : inputInfo) {
+        InputInfo* mutableItem = const_cast<InputInfo*>(item.second.get());
+        setPreprocAlgorithm(mutableItem, PT_RESIZE);
+        setPreprocAlgorithm(mutableItem, PT_NV12);
+    }
+
+    InferenceEngine::InferRequest inferRequest;
+    ASSERT_NO_THROW(inferRequest = importedNetwork.CreateInferRequest());
+
+    InferenceEngine::InferRequest inferRequest2;
+    ASSERT_NO_THROW(inferRequest2 = importedNetwork.CreateInferRequest());
+
+    inputInfo = importedNetwork.GetInputsInfo();
+    std::string input_name = inputInfo.begin()->first;
+
+    std::string inputFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet/input-228x228-nv12.dat";
+
+    setNV12Preproc(input_name, inputFilePath, inferRequest, kmbAllocator);
+    setNV12Preproc(input_name, inputFilePath, inferRequest2, kmbAllocator);
+
+    ASSERT_NO_THROW(inferRequest.StartAsync());
+    ASSERT_NO_THROW(inferRequest2.StartAsync());
+
+    const unsigned WAIT_TIMEOUT = 60000;
+    inferRequest.Wait(WAIT_TIMEOUT);
+    inferRequest2.Wait(WAIT_TIMEOUT);
+
+    ConstOutputsDataMap outputInfo;
+    ASSERT_NO_THROW(outputInfo = importedNetwork.GetOutputsInfo());
+
+    std::string referenceOutputFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet/output.dat";
+    for (auto & item : outputInfo) {
+        Blob::Ptr outputBlob;
+        ASSERT_NO_THROW(outputBlob = inferRequest.GetBlob(item.first.c_str()));
+
+        TensorDesc outputBlobTensorDesc = outputBlob->getTensorDesc();
+
+        uint8_t* outputRefData = reinterpret_cast<uint8_t*>(kmbAllocator.allocate(outputBlob->byteSize()));
+        Blob::Ptr referenceOutputBlob = make_shared_blob<uint8_t>(outputBlobTensorDesc, outputRefData);
+        ASSERT_TRUE(fromBinaryFile(referenceOutputFilePath, referenceOutputBlob));
+
+        const size_t NUMBER_OF_CLASSES = 5;
+        ASSERT_NO_THROW(compareTopClasses(outputBlob, referenceOutputBlob, NUMBER_OF_CLASSES));
+    }
+}
+
+TEST_F(VpuPreprocessingTests, DISABLED_twoRequestsWithPreprocessing) {
+    std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet/mobilenet.blob";
+
+    VPUAllocator kmbAllocator;
+
+    Core ie;
+    InferenceEngine::ExecutableNetwork importedNetwork;
+    ASSERT_NO_THROW(importedNetwork = ie.ImportNetwork(modelFilePath, "KMB", {}));
+
+    ConstInputsDataMap inputInfo = importedNetwork.GetInputsInfo();
+
+    for (auto & item : inputInfo) {
+        InputInfo* mutableItem = const_cast<InputInfo*>(item.second.get());
+        setPreprocAlgorithm(mutableItem, PT_RESIZE);
+        setPreprocAlgorithm(mutableItem, PT_NV12);
+    }
+
+    InferenceEngine::InferRequest inferRequest;
+    ASSERT_NO_THROW(inferRequest = importedNetwork.CreateInferRequest());
+
+    inputInfo = importedNetwork.GetInputsInfo();
+    std::string input_name = inputInfo.begin()->first;
+
+    std::string inputFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet/input-228x228-nv12.dat";
+
+    setNV12Preproc(input_name, inputFilePath, inferRequest, kmbAllocator);
+
+    const std::size_t MAX_ITERATIONS = 10;
+    volatile std::size_t iterationCount = 0;
+    std::condition_variable waitCompletion;
+
+    auto onComplete = [
+                        &input_name,
+                        &kmbAllocator,
+                        &waitCompletion,
+                        &iterationCount,
+                        &inferRequest,
+                        &inputFilePath
+                        ](void)->void {
+        iterationCount++;
+        if (iterationCount < MAX_ITERATIONS) {
+            setNV12Preproc(input_name, inputFilePath, inferRequest, kmbAllocator);
+            ASSERT_NO_THROW(inferRequest.StartAsync());
+        } else {
+            waitCompletion.notify_one();
+        }
+    };
+
+    inferRequest.SetCompletionCallback(onComplete);
+
+    ASSERT_NO_THROW(inferRequest.StartAsync());
+
+    std::mutex execGuard;
+    std::unique_lock<std::mutex> execLocker(execGuard);
+    waitCompletion.wait(execLocker, [&]{ return iterationCount == MAX_ITERATIONS; });
+
+    ConstOutputsDataMap outputInfo;
+    ASSERT_NO_THROW(outputInfo = importedNetwork.GetOutputsInfo());
+
+    std::string referenceOutputFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet/output.dat";
+    for (auto & item : outputInfo) {
+        Blob::Ptr outputBlob;
+        ASSERT_NO_THROW(outputBlob = inferRequest.GetBlob(item.first.c_str()));
+
+        TensorDesc outputBlobTensorDesc = outputBlob->getTensorDesc();
+
+        uint8_t* outputRefData = reinterpret_cast<uint8_t*>(kmbAllocator.allocate(outputBlob->byteSize()));
+        Blob::Ptr referenceOutputBlob = make_shared_blob<uint8_t>(outputBlobTensorDesc, outputRefData);
+        ASSERT_TRUE(fromBinaryFile(referenceOutputFilePath, referenceOutputBlob));
+
+        const size_t NUMBER_OF_CLASSES = 5;
+        ASSERT_NO_THROW(compareTopClasses(outputBlob, referenceOutputBlob, NUMBER_OF_CLASSES));
+    }
+}
+
 const static std::vector<preprocessingType> preprocTypes = {
     PT_RESIZE, PT_NV12
 };
@@ -250,3 +448,4 @@ INSTANTIATE_TEST_CASE_P(preprocessing, VpuPreprocessingTestsWithParam,
     ::testing::ValuesIn(preprocTypes)
 );
 
+#endif

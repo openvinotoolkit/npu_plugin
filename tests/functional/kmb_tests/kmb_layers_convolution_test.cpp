@@ -217,7 +217,7 @@ TEST_F(kmbLayersTests_nightly, TestsConvolutionOnly) {
     ASSERT_NO_THROW(ie.LoadNetwork(network, "kmb", config));
 }
 
-TEST_F(kmbLayersTests_nightly, TestsConvolutionOnlyNoBias) {
+TEST_F(kmbLayersTests_nightly, DISABLED_TestsConvolutionOnlyNoBias) {
     std::string model = convolution_only;
     REPLACE_WITH_STR(model, "<biases offset=\"18816\" size=\"128\"/>", " ");
 
@@ -243,7 +243,7 @@ TEST_F(kmbLayersTests_nightly, TestsConvolutionOnlyNoBias) {
     // to reduce parallelism, exiting now, this is normal behaviour
     // TODO disable 'parse only' and find out why it happens
     setCommonConfig(config);
-    config[VPU_KMB_CONFIG_KEY(MCM_PARSING_ONLY)] = CONFIG_VALUE(YES);
+    config[VPU_KMB_CONFIG_KEY(MCM_PARSING_ONLY)] = CONFIG_VALUE(NO);
 
     ASSERT_NO_THROW(ie.LoadNetwork(network, "kmb", config));
 }

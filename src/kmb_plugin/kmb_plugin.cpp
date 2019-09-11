@@ -90,7 +90,8 @@ void Engine::QueryNetwork(const ICNNNetwork& network, const std::map<std::string
 
     auto layerNames = getSupportedLayersMcm(
         network,
-        tmpCompiler->model());
+        tmpCompiler->model(),
+        config);
 
     for (auto && layerName : layerNames) {
         res.supportedLayersMap.insert({ layerName, GetName() });

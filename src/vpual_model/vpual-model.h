@@ -16,18 +16,12 @@
 
 #pragma once
 
-#include <kmb_allocator.h>
+#define VPUAL_MODEL_VISIBILITY __attribute__((visibility("default")))
 
-namespace vpu {
-namespace KmbPlugin {
-
-class KmbVpusmmAllocator : public KmbAllocator {
-public:
-    void * alloc(size_t size) noexcept override;
-    bool   free(void* handle) noexcept override;
-    bool   isValidPtr(void* ptr) noexcept override;
-};
-
-
-}  // namespace KmbPlugin
-}  // namespace vpu
+#ifdef __cplusplus
+extern "C" {
+#endif
+VPUAL_MODEL_VISIBILITY int ioctl(int __fd, unsigned long int __request, ...);
+#ifdef __cplusplus
+}
+#endif

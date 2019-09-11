@@ -53,13 +53,13 @@ using namespace InferenceEngine;
 using namespace InferenceEngine::VPUConfigParams;
 using namespace std;
 
+#ifdef ENABLE_VPUAL
 const uint32_t POOL_SIZE = 30 * 1024 * 1024;
 // XLink channel number to start allocation from
 const uint32_t IE_VPU_KMB_XC_DEFAULT = 3;
 
-
 // Get free XLink channel
-static uint32_t getXlinkChannel(void) {
+static uint32_t getXlinkChannel(const vpu::Logger::Ptr &_logger) {
     static std::mutex mutex_;
     static int XlinkChannel = -1;
 
@@ -76,29 +76,18 @@ static uint32_t getXlinkChannel(void) {
     if (ret == 10) {
         ret = XlinkChannel++;
     }
-    std::cout << "Allocated channel = " << ret << std::endl;
+    _logger->info("Allocated channel = %d", ret);
     return ret;
 }
+#endif
 
-KmbExecutor::KmbExecutor(const Logger::Ptr& log, const std::shared_ptr<KmbConfig>& config)
-            : _log(log), _config(config)  {
+KmbExecutor::KmbExecutor(const std::shared_ptr<KmbConfig>& config)
+            : _config(config), _logger(std::make_shared<Logger>("KmbExecutor", config->hostLogLevel, consoleOutput())) {
     auto parsedConfig = _config->getParsedConfig();
     if (parsedConfig[VPU_KMB_CONFIG_KEY(KMB_EXECUTOR)] == "NO") {
         return;
     }
-    const char *allocatorEnvPtr = std::getenv("IE_VPU_KMB_MEMORY_ALLOCATOR_TYPE");
-    std::string allocatorType = "";
-    if (allocatorEnvPtr) {
-        allocatorType = allocatorEnvPtr;
-    }
 
-    if (allocatorType == "UDMA") {
-        allocator = make_shared<KmbUdmaAllocator>();
-    } else if (allocatorType == "NATIVE") {
-        allocator = make_shared<KmbNativeAllocator>();
-    } else {
-        allocator = make_shared<KmbVpusmmAllocator>();
-    }
 #ifdef ENABLE_VPUAL
     blob_file = nullptr;
     rgnAllocatorBuffer = nullptr;
@@ -144,10 +133,10 @@ void KmbExecutor::allocateGraph(const std::vector<char> &graphFileContent, const
 #ifdef ENABLE_VPUAL
     initVpualObjects();
     static int graphId_main = 1;
-    int nThreads = 4;
+    int nThreads = std::stoi(parsedConfig[VPU_KMB_CONFIG_KEY(THROUGHPUT_STREAMS)]);
     int nShaves = 16;
 
-    std::cout << "Initiating verification of use case 1" << std::endl;
+    _logger->info("Initiating verification of use case 1");
 
     BHandle->graphid = graphId_main++;
     BHandle->graphBuff = 0x00000000;
@@ -157,10 +146,10 @@ void KmbExecutor::allocateGraph(const std::vector<char> &graphFileContent, const
     // ########################################################################
     // Try and get some CMA allocations.
     // ########################################################################
-    blob_file = allocator->alloc(graphFileContent.size());
+    blob_file = getKmbAllocator()->alloc(graphFileContent.size());
 
     if (!blob_file) {
-        std::cout << "KmbExecutor::allocateGraph: Error getting CMA for graph" << std::endl;
+        _logger->error("KmbExecutor::allocateGraph: Error getting CMA for graph");
         return;
     }
 
@@ -173,21 +162,21 @@ void KmbExecutor::allocateGraph(const std::vector<char> &graphFileContent, const
 
     // Assigning physical address of Blob file
 
-    BHandle->graphBuff = allocator->getPhysicalAddress(blob_file);  // Only lower 32-bits
+    BHandle->graphBuff = getKmbAllocator()->getPhysicalAddress(blob_file);  // Only lower 32-bits
 
     gg->Create();
 
     GraphStatus status = gg->NNGraphCheckAvailable(BHandle->graphid);
     if (Success == status) {
-        std::cout << "Blob available!" << std::endl;
+        _logger->info("Blob available!");
         status = gg->NNGraphAllocateExistingBlob(BHandle.get());
-        std::cout << "Allocated existing blob with status: " << status << std::endl;
+        _logger->info("Allocated existing blob with status: %d", status);
     } else if (No_GraphId_Found == status) {
-        std::cout << "Blob not found." << std::endl;
+        _logger->info("Blob not found.");
         status = gg->NNGraphAllocate(BHandle.get());
-        std::cout << "Allocated new blob with id " << BHandle->graphid << "  with status: " << status << std::endl;
+        _logger->info("Allocated new blob with id: %d; with status: %d", BHandle->graphid, status);
     } else {
-        std::cerr << "Error checking graph availability: " << status << std::endl;
+        _logger->error("Error checking graph availability: %d", status);
         // TODO: error
     }
 
@@ -196,8 +185,7 @@ void KmbExecutor::allocateGraph(const std::vector<char> &graphFileContent, const
 
     // Pool plugins (to allocate memory for the plugins which require some):
 
-
-    std::cout << "Instantiated Plugins..." << std::endl;
+    _logger->info("Instantiated Plugins...");
 
     // FLIC Pipeline:
 
@@ -208,32 +196,25 @@ void KmbExecutor::allocateGraph(const std::vector<char> &graphFileContent, const
 
     nnPl->Create(BHandle.get());
 
-    std::cout << "NN Plugin Create finished..." << std::endl;
+    _logger->info("NN Plugin Create finished...");
 
     NNPlgState state = nnPl->GetLatestState();
     if (SUCCESS != state) {
-        std::cerr << "Error, bad NN Plugin state: " << state << std::endl;
+        _logger->error("Error, bad NN Plugin state: ");
         return;
     }
 
-    auto tensor_deserializer = [](const flicTensorDescriptor_t & descriptor)->void {
-        std::cout << "{";
-        std::cout << "n: " << descriptor.n << ", ";
-        std::cout << "c: " << descriptor.c << ", ";
-        std::cout << "h: " << descriptor.h << ", ";
-        std::cout << "w: " << descriptor.w << ", ";
-        std::cout << "totalSize: " << descriptor.totalSize << ", ";
-        std::cout << "widthStride: " << descriptor.widthStride << ", ";
-        std::cout << "heightStride: " << descriptor.heightStride << ", ";
-        std::cout << "channelsStride: " << descriptor.channelsStride << "}" << std::endl;
+    auto tensor_deserializer = [&](const flicTensorDescriptor_t & descriptor)->void {
+        _logger->info("{ n: %d, c: %d, h: %d, w: %d, totalSize: %d, widthStride: %d, heightStride: %d, channelsStride: %d}",
+                      descriptor.n, descriptor.c, descriptor.h, descriptor.w,
+                      descriptor.totalSize, descriptor.widthStride, descriptor.heightStride, descriptor.channelsStride);
     };
 
     flicTensorDescriptor_t descOut = nnPl->GetOutputTensorDescriptor(0);
     flicTensorDescriptor_t  descIn = nnPl->GetInputTensorDescriptor(0);
-    std::cout << "Deserializing descriptors:" << std::endl;
-    std::cout << "Input: ";
+    _logger->info("Deserializing descriptors:\nInput: ");
     tensor_deserializer(descIn);
-    std::cout << "Output: ";
+    _logger->info("Output: ");
     tensor_deserializer(descOut);
 
     InferenceEngine::SizeVector inputDims({descIn.n, descIn.c, descIn.h, descIn.w});
@@ -255,32 +236,32 @@ void KmbExecutor::allocateGraph(const std::vector<char> &graphFileContent, const
 
     m_networkOutputs[outputData.getName()] = std::make_shared<InferenceEngine::Data>(outputData);
 
-    rgnAllocatorBuffer = allocator->alloc(POOL_SIZE);
+    rgnAllocatorBuffer = getKmbAllocator()->alloc(POOL_SIZE);
     if (!rgnAllocatorBuffer) {
-        std::cout << "KmbExecutor::allocateGraph: Cannot allocate buffer for RgnAlloc" << std::endl;
+        _logger->error("KmbExecutor::allocateGraph: Cannot allocate buffer for RgnAlloc");
         return;
     }
-    RgnAlloc->Create(allocator->getPhysicalAddress(rgnAllocatorBuffer), POOL_SIZE);
-    std::cout << "KmbExecutor::allocateGraph: Created RgnAlloc" << std::endl;
+    RgnAlloc->Create(getKmbAllocator()->getPhysicalAddress(rgnAllocatorBuffer), POOL_SIZE);
+    _logger->info("KmbExecutor::allocateGraph: Created RgnAlloc");
 
     // TODO - These
     const unsigned int shavel2CacheLineSize = 64;
     unsigned int outputTensorSize = ROUND_UP(descOut.totalSize, shavel2CacheLineSize);
 
     // TODO - These
-    std::cout << "read memory pool finished..." << std::endl;
+    _logger->info("read memory pool finished...");
     plgPoolOutputs->Create(RgnAlloc.get(), 1, 3 * outputTensorSize);
-    std::cout << "Created plgPoolOutputs" << std::endl;
+    _logger->info("Created plgPoolOutputs");
 
-    xlinkChannelIn = getXlinkChannel();
-    xlinkChannelOut = getXlinkChannel();
+    xlinkChannelIn = getXlinkChannel(_logger);
+    xlinkChannelOut = getXlinkChannel(_logger);
     plgTensorInput_->Create(descIn.totalSize, xlinkChannelIn, descIn);
-    std::cout << "Created plgTensorInput" << std::endl;
+    _logger->info("Created plgTensorInput");
 
     plgTensorOutput_->Create(descOut.totalSize, xlinkChannelOut, descOut);
-    std::cout << "reated plgTensorOutput" << std::endl;
+    _logger->info("Created plgTensorOutput");
 
-    std::cout << "Created all Plugins" << std::endl;
+    _logger->info("Created all Plugins");
 
     // Add the plugins to the pipeline:
     pipe->Add(plgPoolOutputs.get());
@@ -288,17 +269,15 @@ void KmbExecutor::allocateGraph(const std::vector<char> &graphFileContent, const
     pipe->Add(plgTensorOutput_.get());
     pipe->Add(nnPl.get());
 
-    std::cout << "Added Plugins to Pipeline" << std::endl;
+    _logger->info("Added Plugins to Pipeline");
 
     // Link the plugins' messages:
     plgPoolOutputs->out.Link(&nnPl->resultInput);
     plgTensorInput_->tensorOut.Link(&nnPl->tensorInput);
     nnPl->output.Link(&plgTensorOutput_->dataIn);
-
-    std::cout << "Linked Plugins..." << std::endl;
-
+    _logger->info("Linked Plugins...");
     pipe->Start();
-    std::cout << "Started FLIC pipeline..." << std::endl;
+    _logger->info("Started FLIC pipeline...");
 #else
     UNUSED(graphFileContent);
 #endif
@@ -315,9 +294,20 @@ void KmbExecutor::queueInference(void *input_data, size_t input_bytes,
     }
 
 #ifdef ENABLE_VPUAL
-    auto physAddr = allocator->getPhysicalAddress(input_data);
+    auto pullFunc = [&]()->void {
+        _outTensorLen = 0;
+        _outTensorAddr = 0;
+        plgTensorOutput_->Pull(&_outTensorAddr, &_outTensorLen);
+    };
+
+    std::thread pullThread(pullFunc);
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+
+    auto physAddr = getKmbAllocator()->getPhysicalAddress(input_data);
     plgTensorInput_->Push(physAddr, input_bytes);
-    std::cout << "Pushed input, size " << input_bytes << std::endl;
+    _logger->info("Pushed input, size %d", input_bytes);
+
+    pullThread.join();
 #else
     UNUSED(input_data);
     UNUSED(input_bytes);
@@ -333,27 +323,25 @@ void KmbExecutor::getResult(void *result_data, unsigned int result_bytes) {
     }
 
 #ifdef ENABLE_VPUAL
-    uint32_t len = 0;
-    uint32_t pAddr = 0;
-    plgTensorOutput_->Pull(&pAddr, &len);
+    uint32_t len = _outTensorLen;
+    uint32_t pAddr = _outTensorAddr;
+    /* plgTensorOutput_->Pull(&pAddr, &len); */
 
-    std::cout << "Output tensor returned of length: " << std::dec << len << std::endl;
+    _logger->info("Output tensor returned of length: %d", len);
 
     // Convert the physical address we received back to a virtual address we can use.
-    uint32_t offset = pAddr - allocator->getPhysicalAddress(rgnAllocatorBuffer);
+    uint32_t offset = pAddr - getKmbAllocator()->getPhysicalAddress(rgnAllocatorBuffer);
     unsigned char *data = static_cast<unsigned char *>(rgnAllocatorBuffer) + offset;
-
     uint32_t checksum = 0;
     for (uint32_t k = 0; k < len; k++) checksum += data[k];
 
-    std::cout << "KmbExecutor::getResult memcpy started @" << offset
-              << " checksum=" << checksum
-              << " xlinkChannel=" << xlinkChannelIn
-              << "," << xlinkChannelOut << std::endl;
+    _logger->info("KmbExecutor::getResult memcpy started @%d checksum=%d xlinkChannel=%d, %d ",
+                  offset, checksum, xlinkChannelIn, xlinkChannelOut);
 
+    _logger->info("KmbExecutor::getResult memcpy started");
     std::memcpy(result_data, data, len);
     std::memset(data, 0, len);
-    std::cout << "KmbExecutor::getResult memcpy finished" << std::endl;
+    _logger->info("KmbExecutor::getResult memcpy finished");
 #endif
 }
 
@@ -386,15 +374,10 @@ void KmbExecutor::deallocateGraph() {
         RgnAlloc->Delete();
     }
     if (blob_file) {
-        allocator->free(blob_file);
+        getKmbAllocator()->free(blob_file);
     }
     if (rgnAllocatorBuffer) {
-        allocator->free(rgnAllocatorBuffer);
+        getKmbAllocator()->free(rgnAllocatorBuffer);
     }
 #endif
 }
-
-std::shared_ptr<KmbAllocator> KmbExecutor::getAllocator() {
-    return allocator;
-}
-

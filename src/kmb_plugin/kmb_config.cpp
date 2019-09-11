@@ -54,6 +54,7 @@ std::map<std::string, std::string> KmbConfig::getDefaultConfig() const {
             {VPU_KMB_CONFIG_KEY(MCM_PARSING_ONLY),                  CONFIG_VALUE(NO)},
             {VPU_KMB_CONFIG_KEY(MCM_COMPILATION_RESULTS_PATH),      "."},
             {VPU_KMB_CONFIG_KEY(MCM_COMPILATION_RESULTS),           ""},
+            {VPU_KMB_CONFIG_KEY(THROUGHPUT_STREAMS),                "1"},
     };
     defaultVpuConfig.insert(kmbSpecific.begin(), kmbSpecific.end());
     return defaultVpuConfig;
@@ -76,6 +77,7 @@ std::unordered_set<std::string> KmbConfig::getCompileOptions() const {
             VPU_KMB_CONFIG_KEY(MCM_PARSING_ONLY),
             VPU_KMB_CONFIG_KEY(MCM_COMPILATION_RESULTS_PATH),
             VPU_KMB_CONFIG_KEY(MCM_COMPILATION_RESULTS),
+            VPU_KMB_CONFIG_KEY(THROUGHPUT_STREAMS),
         };
 
     auto parentCompileOptions = ParsedConfigBase::getCompileOptions();

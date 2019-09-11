@@ -24,6 +24,7 @@
 #include <unordered_map>
 #include <set>
 #include <utility>
+#include <map>
 
 #include <ie_icnn_network.hpp>
 
@@ -35,12 +36,7 @@
 #include <kmb_config.h>
 
 #ifdef ENABLE_MCM_COMPILER
-#include "include/mcm/compiler/compilation_unit.hpp"
-#include "include/mcm/utils/data_generator.hpp"
-#include "include/mcm/utils/serializer/Fp16Convert.h"
-#include "meta/include/mcm/op_model.hpp"
-#include "include/mcm/utils/hardware_tests.hpp"
-#include "include/mcm/target/target_descriptor.hpp"
+#include <mcm/compiler/compilation_unit.hpp>
 
 namespace vpu {
 namespace KmbPlugin {
@@ -83,7 +79,8 @@ void compileMcm(
 
 std::set<std::string> getSupportedLayersMcm(
         const ie::ICNNNetwork& network,
-        mv::OpModel& pCompiler);
+        mv::OpModel& pCompiler,
+        const std::map<std::string, std::string> &config);
 
 //
 // Blob version and checks

@@ -23,6 +23,8 @@
 #include <iomanip>
 #include <utility>
 
+#include <ie_icnn_network.hpp>
+
 #ifdef ENABLE_VPUAL
 #include <GraphManagerPlg.h>
 #include <PlgStreamResult.h>
@@ -36,42 +38,14 @@
 #endif
 
 #include <kmb_config.h>
-#include "kmb_blob_parser.hpp"
 #include "kmb_allocator.h"
 
 namespace vpu {
 namespace KmbPlugin {
 
 class KmbExecutor {
-    Logger::Ptr _log;
-    unsigned int _numStages = 0;
-#ifdef ENABLE_VPUAL
-    std::shared_ptr<GraphManagerPlg> gg;
-    std::shared_ptr<PlgTensorSource> plgTensorInput_;
-    std::shared_ptr<PlgStreamResult> plgTensorOutput_;
-    std::shared_ptr<RgnAllocator> RgnAlloc;
-
-    std::shared_ptr<NNFlicPlg> nnPl;
-
-    void *blob_file;
-    void *rgnAllocatorBuffer;
-    std::shared_ptr<BlobHandle_t> BHandle;
-
-    std::shared_ptr<PlgPool<TensorMsg>> plgPoolOutputs;
-
-    std::shared_ptr<Pipeline> pipe;
-#endif
-    InferenceEngine::InputsDataMap  m_networkInputs;
-    InferenceEngine::OutputsDataMap m_networkOutputs;
-
-    std::shared_ptr<KmbAllocator> allocator;
-    void initVpualObjects();
-
-    int xlinkChannelIn;
-    int xlinkChannelOut;
-
 public:
-    KmbExecutor(const Logger::Ptr& log, const std::shared_ptr<KmbConfig>& config);
+    explicit KmbExecutor(const std::shared_ptr<KmbConfig>& config);
     ~KmbExecutor() = default;
 
     void allocateGraph(const std::vector<char> &graphFileContent, const char* networkName);
@@ -87,7 +61,36 @@ public:
 
     const std::shared_ptr<KmbConfig>& _config;
 
-    std::shared_ptr<KmbAllocator> getAllocator();
+private:
+        unsigned int _numStages = 0;
+        Logger::Ptr _logger;
+#ifdef ENABLE_VPUAL
+        std::shared_ptr<GraphManagerPlg> gg;
+        std::shared_ptr<PlgTensorSource> plgTensorInput_;
+        std::shared_ptr<PlgStreamResult> plgTensorOutput_;
+        std::shared_ptr<RgnAllocator> RgnAlloc;
+
+        std::shared_ptr<NNFlicPlg> nnPl;
+
+        void *blob_file;
+        void *rgnAllocatorBuffer;
+        std::shared_ptr<BlobHandle_t> BHandle;
+
+        std::shared_ptr<PlgPool<TensorMsg>> plgPoolOutputs;
+
+        std::shared_ptr<Pipeline> pipe;
+#endif
+        InferenceEngine::InputsDataMap  m_networkInputs;
+        InferenceEngine::OutputsDataMap m_networkOutputs;
+
+        std::shared_ptr<KmbAllocator> allocator;
+        void initVpualObjects();
+
+        int xlinkChannelIn;
+        int xlinkChannelOut;
+
+        uint32_t _outTensorLen;
+        uint32_t _outTensorAddr;
 };
 
 typedef std::shared_ptr<KmbExecutor> KmbExecutorPtr;

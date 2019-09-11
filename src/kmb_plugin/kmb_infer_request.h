@@ -39,7 +39,6 @@ namespace KmbPlugin {
 class KmbInferRequest : public InferenceEngine::InferRequestInternal {
     KmbExecutorPtr _executor;
     InferenceEngine::Layout _deviceLayout;
-    Logger::Ptr _log;
     std::vector<StageMetaInfo> _stagesMetaData;
     std::shared_ptr<KmbConfig> _config;
     std::shared_ptr<InferenceEngine::SIPPPreprocessor> _sippPreproc;
@@ -56,7 +55,6 @@ public:
                                 const InferenceEngine::OutputsDataMap& networkOutputs,
                                 const std::vector<StageMetaInfo> &blobMetaData,
                                 const std::shared_ptr<KmbConfig> &kmbConfig,
-                                const Logger::Ptr &log,
                                 const KmbExecutorPtr &executor);
 
     void InferImpl() override;
@@ -70,6 +68,9 @@ public:
     void GetBlob(const char *name, InferenceEngine::Blob::Ptr &data) override;
 
     void Infer() override;
+
+private:
+    Logger::Ptr _logger;
 };
 
 }  // namespace KmbPlugin

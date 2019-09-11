@@ -55,10 +55,10 @@ KmbInferRequest::KmbInferRequest(const InferenceEngine::InputsDataMap& networkIn
                                  const InferenceEngine::OutputsDataMap& networkOutputs,
                                  const std::vector<StageMetaInfo> &blobMetaData,
                                  const std::shared_ptr<KmbConfig> &kmbConfig,
-                                 const Logger::Ptr &log,
                                  const KmbExecutorPtr &executor) :
         InferRequestInternal(networkInputs, networkOutputs), _executor(executor),
-        _log(log), _stagesMetaData(blobMetaData), _config(kmbConfig) {
+        _stagesMetaData(blobMetaData), _config(kmbConfig),
+        _logger(std::make_shared<Logger>("KmbInferRequest", kmbConfig->hostLogLevel, consoleOutput())) {
     _deviceLayout = NCHW;
 
     // allocate inputs
@@ -80,7 +80,7 @@ KmbInferRequest::KmbInferRequest(const InferenceEngine::InputsDataMap& networkIn
         Blob::Ptr inputBlob = make_blob_with_precision(TensorDesc(
                 precision,
                 dims,
-                layout), executor->getAllocator());
+                layout), getKmbAllocator());
         inputBlob->allocate();
 
         _inputs[networkInput.first] = inputBlob;
@@ -103,7 +103,7 @@ KmbInferRequest::KmbInferRequest(const InferenceEngine::InputsDataMap& networkIn
         Blob::Ptr outputBlob = make_blob_with_precision(TensorDesc(
             precision,
             dims,
-            layout), executor->getAllocator());
+            layout), getKmbAllocator());
 
         outputBlob->allocate();
         _outputs[networkOutput.first] = outputBlob;
@@ -131,7 +131,7 @@ void KmbInferRequest::InferAsync() {
 
             for (auto &input : _custom_inputs) {
                 inputs[input.first] = make_blob_with_precision(_custom_inputs.begin()->second->getTensorDesc(),
-                                                                _executor->getAllocator());
+                                                               getKmbAllocator());
                 inputs[input.first]->allocate();
             }
 
@@ -291,7 +291,12 @@ void KmbInferRequest::SetBlob(const char *name, const InferenceEngine::Blob::Ptr
                 THROW_IE_EXCEPTION << "Input blob size is not equal network input size ("
                                    << dataSize << "!=" << inputSize << ").";
             }
-            _custom_inputs[name] = data;
+            if  (getKmbAllocator()->isValidPtr(data->buffer())) {
+                _inputs[name] = data;
+            } else {
+                _logger->info("isValidPtr(): Input blob will be copied");
+                _custom_inputs[name] = data;
+            }
         }
     } else {
         if (compoundBlobPassed) {
@@ -307,7 +312,12 @@ void KmbInferRequest::SetBlob(const char *name, const InferenceEngine::Blob::Ptr
             THROW_IE_EXCEPTION << PARAMETER_MISMATCH_str
                                << "Failed to set Blob with precision not corresponding to user output precision";
         }
-        _custom_outputs[name] = data;
+        if  (getKmbAllocator()->isValidPtr(data->buffer())) {
+            _inputs[name] = data;
+        } else {
+            _logger->info("isValidPtr(): Input blob will be copied");
+            _custom_inputs[name] = data;
+        }
     }
 }
 

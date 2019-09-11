@@ -67,16 +67,18 @@ FileIOResult isContentOfFilesEqual (const std::string &fileName1, const std::str
 
 void ExportImportBlobToFromFile(const CNNNetwork& network, std::map<std::string, std::string>& config, const std::string& testDescription ) {
     Core ie;
-    ExecutableNetwork exeNetwork = ie.LoadNetwork(network, "KMB", config);
+    ExecutableNetwork exeNetwork;
+    ASSERT_NO_THROW(exeNetwork = ie.LoadNetwork(network, "KMB", config));
 
     std::string blobFileName1 = "TestExportImportBlob_" + testDescription +  "_file01.blob";
-    exeNetwork.Export(blobFileName1);
+    ASSERT_NO_THROW(exeNetwork.Export(blobFileName1));
     ASSERT_GT( getFileSize(blobFileName1), 0 ) << "Alarm! Alarm! We have gotten blob file with zero size!!!";
     config[VPU_KMB_CONFIG_KEY(KMB_EXECUTOR)] = CONFIG_VALUE(NO);
 
-    ExecutableNetwork importedNetwork = ie.ImportNetwork(blobFileName1, "KMB", config);
+    ExecutableNetwork importedNetwork;
+    ASSERT_NO_THROW(importedNetwork = ie.ImportNetwork(blobFileName1, "KMB", config));
     std::string blobFileName2 = "TestExportImportBlob_" + testDescription +  "_file02.blob";
-    importedNetwork.Export(blobFileName2);
+    ASSERT_NO_THROW(importedNetwork.Export(blobFileName2));
 
     ASSERT_GT( getFileSize(blobFileName1), 0 ); // Test to be sure that first file size is not zero.
     ASSERT_GT( getFileSize(blobFileName2), 0 ); // Test to be sure that second file size is not zero.
@@ -160,7 +162,7 @@ TEST_F(kmbLayersTests_nightly, DISABLED_TestExportImportBlob_resnet50_int8_fragm
 
 // Disabled because LoadNetwork fails to initialize device
 // Jira ticket - CVS-21379
-TEST_F(kmbLayersTests_nightly, DISABLED_TestExportImportBlob_Pooling) {
+TEST_F(kmbLayersTests_nightly, TestExportImportBlob_Pooling) {
     extern std::string pooling_test2;
     const std::string model = pooling_test2;
 

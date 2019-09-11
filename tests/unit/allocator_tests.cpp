@@ -172,3 +172,19 @@ TEST_P(kmbAllocatorDifferentSizeUnitTests, canAllocate) {
 INSTANTIATE_TEST_CASE_P(unit,
         kmbAllocatorDifferentSizeUnitTests,
         ::testing::Values(true, false), kmbAllocatorDifferentSizeUnitTests::PrintToStringParamName());
+
+
+TEST_F(kmbAllocatorUnitTests, checkValidPtrOnVpusmm) {
+    if (!isVPUSMMDriverFound) {
+        SKIP() << "vpusmm_driver not found. Please install before running tests";
+    }
+
+    KmbVpusmmAllocator allocator;
+
+    size_t size = 10;
+    auto data = allocator.alloc(size);
+
+    ASSERT_NE(data, nullptr);
+    ASSERT_TRUE(allocator.isValidPtr(data));
+    ASSERT_TRUE(allocator.free(data));
+}
