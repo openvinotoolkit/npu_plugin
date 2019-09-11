@@ -125,24 +125,24 @@ uint64_t mv::KoalaGraphScheduler::calculateFMax(mv::ComputationModel& model) {
     return Fmax;
 }
 
-void mv::KoalaGraphScheduler::insertpartialSerialisationEdgesInMcmGraph(mv::ComputationModel& model) {
+void mv::KoalaGraphScheduler::insertpartialSerialisationEdgesInMcmGraph(mv::ComputationModel& model, const mv::pass::PassEntry& pass) {
 
+    mv::ControlModel cm(model);
     std::set<std::pair<std::string, std::string>> addedEdges;
+    mv::Control::OpListIterator mcmSourceNodeIterator;
+    mv::Control::OpListIterator mcmSinkNodeIterator;
+
     for (const auto& edge : partialSerialisationEdgesAdded_)
     {
         std::string edgeSourceName = edge->getEnd1()->info.name;
         std::string edgeSinkName = edge->getEnd2()->info.name;
-
-        mv::ControlModel cm(model);
-
-        mv::Control::OpListIterator mcmSourceNodeIterator;
-        mv::Control::OpListIterator mcmSinkNodeIterator;
 
         /*Find the McM iterator for the source node*/
         for (auto opItSource = cm.getFirst(); opItSource != cm.opEnd(); ++opItSource)
         {
             if(opItSource->getName() == edgeSourceName) 
                 mcmSourceNodeIterator = opItSource;
+
         }
 
         /*Find the McM iterator for the sink node*/
@@ -151,7 +151,9 @@ void mv::KoalaGraphScheduler::insertpartialSerialisationEdgesInMcmGraph(mv::Comp
             if(opItSink->getName() == edgeSinkName) 
                 mcmSinkNodeIterator = opItSink;
         }
+
         auto inserted = addedEdges.insert(std::make_pair(edgeSourceName, edgeSinkName));
+
         if (inserted.second)
         {
             /*Add the edge to graph*/
@@ -169,10 +171,19 @@ void mv::KoalaGraphScheduler::insertpartialSerialisationEdgesInMcmGraph(mv::Comp
                             if (childOp->getOpType() == "Deallocate")
                             {
                                 mv::Control::FlowListIterator flowIt = cm.checkControlFlow(childOp, mcmSinkNodeIterator);
+                                
                                 if(flowIt == cm.flowEnd())
                                 {
+                                    pass.log(mv::Logger::MessageType::Info, "Adding an additional partial serialisation edge required for tensor graph colouring");
                                     auto partialSerialisationEdge = cm.defineFlow(childOp, mcmSinkNodeIterator);
                                     partialSerialisationEdge->set<bool>("PartialSerialisationEdge", true);
+
+                                    if(!cm.isDag()) {
+                                        pass.log(mv::Logger::MessageType::Info, "Removing the additional partial serialisation edge required for tensor graph colouring, creates a cycle");
+                                        cm.undefineFlow(partialSerialisationEdge);
+                                    }
+
+                                   
                                 }
                             }
                         }

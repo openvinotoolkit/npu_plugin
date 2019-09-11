@@ -73,7 +73,7 @@ namespace mv
         void performPartialSerialisation(const mv::pass::PassEntry& pass, std::vector<koalaGraph::PEdge> cutEdges);
         std::pair<int,std::vector<koalaGraph::PEdge>> calculateMaxTopologicalCut(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
         uint64_t calculateFMax(mv::ComputationModel& model);
-        void insertpartialSerialisationEdgesInMcmGraph(mv::ComputationModel& model);
+        void insertpartialSerialisationEdgesInMcmGraph(mv::ComputationModel& model, const mv::pass::PassEntry& pass);
           
         std::string getLogID() const override;
 
