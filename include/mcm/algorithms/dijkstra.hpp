@@ -8,7 +8,6 @@
 #include <set>
 #include <algorithm>
 #include <map>
-#include <tuple>
 #include <limits>
 #include "include/mcm/graph/graph.hpp"
 #include "include/mcm/compiler/compilation_profiler.hpp"
