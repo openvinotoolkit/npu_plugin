@@ -360,9 +360,7 @@ TEST_P(ConvolutionTest, DISABLED_convolution_only) {
 #endif
 }
 
-// Disabled due to bug in mcmCompiler with Release build type.
-// Corresponding Jira ticket VPUNND-1910
-TEST_P(ConvolutionTest, DISABLED_u8_convolution_only) {
+TEST_P(ConvolutionTest, u8_convolution_only) {
     std::string test_name = ::testing::UnitTest::GetInstance()->current_test_info()->name();
 
     Core ie;

@@ -28,13 +28,9 @@ using namespace InferenceEngine;
 namespace vpu {
 namespace KmbPlugin {
 
-void ExecutableNetwork::LoadBlob() {
+void ExecutableNetwork::ConfigureExecutor() {
     // TODO: better name
     const char networkName[1024] = "Network";
-
-    _executor->allocateGraph(_graphBlob, &networkName[0]);
-    _networkInputs  = _executor->getNetworkInputs();
-    _networkOutputs = _executor->getNetworkOutputs();
 
     if (_config.exclusiveAsyncRequests()) {
         ExecutorManager *executorManager = ExecutorManager::getInstance();
@@ -47,9 +43,14 @@ void ExecutableNetwork::LoadBlob() {
     }
 }
 
-ExecutableNetwork::ExecutableNetwork(ICNNNetwork &network, const KmbConfig& config) : _config(config) {
-            _logger = std::make_shared<Logger>("ExecutableNetwork", _config.logLevel(), consoleOutput());
+void ExecutableNetwork::LoadBlob() {
+    _executor->allocateGraph(_graphBlob);
+    _networkInputs  = _executor->getNetworkInputs();
+    _networkOutputs = _executor->getNetworkOutputs();
+}
 
+ExecutableNetwork::ExecutableNetwork(ICNNNetwork &network, const KmbConfig& config) : _config(config) {
+    _logger = std::make_shared<Logger>("ExecutableNetwork", _config.logLevel(), consoleOutput());
     _executor = std::make_shared<KmbExecutor>(_config);
 
 #ifdef ENABLE_MCM_COMPILER
@@ -67,13 +68,11 @@ ExecutableNetwork::ExecutableNetwork(ICNNNetwork &network, const KmbConfig& conf
 
 
         compileMcm(network, _config, *pCompiler, _graphBlob);
-
         auto parsedConfig = _config.getParsedConfig();
-
         if (parsedConfig[VPU_KMB_CONFIG_KEY(LOAD_NETWORK_AFTER_COMPILATION)] == CONFIG_VALUE(YES)) {
             LoadBlob();
+            ConfigureExecutor();
         }
-
 #else
     UNUSED(network);
 #endif
@@ -90,8 +89,8 @@ ExecutableNetwork::ExecutableNetwork(const std::string &blobFilename, const KmbC
     blobContentStream << blobFile.rdbuf();
     const std::string& blobContentString = blobContentStream.str();
     std::copy(blobContentString.begin(), blobContentString.end(), std::back_inserter(_graphBlob));
-
     LoadBlob();
+    ConfigureExecutor();
 }
 
 void ExecutableNetwork::GetMetric(const std::string &name, Parameter &result, ResponseDesc *resp) const {
