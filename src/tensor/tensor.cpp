@@ -1057,7 +1057,18 @@ std::size_t mv::Tensor::computeTotalSize(unsigned int alignment, bool isBase) co
 
         }
     }
-
+    bool isTensorAligned = hasAttr("alignment") ? get<bool>("alignment") : false;
+    size_t totalSize = shape.totalSize();
+    if (isTensorAligned)
+    {
+        auto outputChannels = shape[mv::IO_CHANNEL_DIMENSION];
+        if (outputChannels % alignment != 0)
+        {
+            auto paddedOutputChannels = mv::round_up(outputChannels, alignment);
+            totalSize = totalSize / outputChannels * paddedOutputChannels;
+        }
+        std::cout << getName() << " totalSize aligned " << totalSize << std::endl;
+    }
     if (isSparse())
     {
         if (isPopulated())
@@ -1066,6 +1077,7 @@ std::size_t mv::Tensor::computeTotalSize(unsigned int alignment, bool isBase) co
         }
         else
         {
+            //TODO what happens in this case
             res = shape.totalSize() * std::ceil(getDType().getSizeInBits()/8.0); //TODO check if we need ceil here?
             res += getSparsityMap()->computeTotalSize();
             res += getStorageElement()->computeTotalSize();
@@ -1073,7 +1085,7 @@ std::size_t mv::Tensor::computeTotalSize(unsigned int alignment, bool isBase) co
     }
     else
     {
-        res = shape.totalSize() * std::ceil(getDType().getSizeInBits()/8.0); //TODO check if we need ceil here?
+        res = totalSize * std::ceil(getDType().getSizeInBits()/8.0); //TODO check if we need ceil here?
     }
     //Round up to align to (alignment) 16 bytes
     res = mv::round_up(res, alignment);
