@@ -9,7 +9,7 @@
                 "verbose": "Error",
                 "weights_form": "None",
                 "barrier_index_assignment" : "Dynamic",
-                "Number_of_DPUs" : 20,
+                "Number_of_DPUs" : 4,
                 "Number_of_Clusters" : 4,
                 "UpaShaves": 1,
                 "DDRScratch": 31457280,
@@ -34,19 +34,23 @@
                     },
                     {
                         "name_filter": ".*conv2#.*",
-                        "strategy": "SplitOverH"
+                        "strategy": "Clustering"
+                    },
+                    {
+                        "name_filter": ".*conv2/conv2#.*",
+                        "strategy": "Clustering"
                     },
                     {
                         "name_filter": ".*pool2/max_pool#.*",
-                        "strategy": "SplitOverH"
+                        "strategy": "Clustering"
                     },
                     {
                         "name_filter": ".*conv3#.*",
-                        "strategy": "SplitOverH"
+                        "strategy": "SplitOverK"
                     },
                     {
                         "name_filter": ".*pool3/max_pool#.*",
-                        "strategy": "HKSwitch"
+                        "strategy": "Clustering"
                     },
                     {
                         "name_filter": ".*conv4#.*",
@@ -109,20 +113,13 @@
                     },
                     {
                         "mem_location": "CMX",
-                        "name_filter": ".*conv2#.*"
+                        "name_filter": ".*conv1#.*"
                     },
                     {
                         "mem_location": "CMX",
-                        "name_filter": ".*pool2/max_pool#.*"
+                        "name_filter": ".*conv1/conv1#.*"
                     },
-                    {
-                        "mem_location": "CMX",
-                        "name_filter": ".*conv3#.*"
-                    },
-                    {
-                        "mem_location": "CMX",
-                        "name_filter": ".*pool3/max_pool#.*"
-                    },
+
                     {
                         "mem_location": "CMX",
                         "name_filter": ".*conv4#.*"
@@ -133,7 +130,7 @@
                     },
                     {
                         "mem_location": "CMX",
-                        "name_filter": ".*conv5#42.*"
+                        "name_filter": ".*conv5#.*"
                     },
                     {
                         "mem_location": "CMX",
@@ -156,12 +153,29 @@
                 "streaming_strategy" :
                 [
                     {
-                        "name_filter": "pool1/max_pool#35",
+                        "name_filter": "conv2/conv2#10",
+                        "splits": [{"H": 4}]
+                    },
+
+                    {
+                        "name_filter": "pool2/max_pool#37",
+                        "splits": [{"H": 4}]
+                    },
+                    {
+                        "name_filter": "pool2/max_pool#12",
+                        "splits": [{"H": 4}]
+                    },
+                    {
+                        "name_filter": "conv3#38",
+                        "splits": [{"H": 2}]
+                    },
+                    {
+                        "name_filter": "pool3/max_pool#39",
                         "splits": [{"H": 2}]
                     },
                     {
                         "name_filter": "conv7#46",
-                        "splits": [{"K": 2}]
+                        "splits": [{"K": 4}]
                     },
                     {
                         "name_filter": "conv8#47",
@@ -302,6 +316,7 @@
                 "input": "output/dots/implicit_operations_model.dot"
             },
             "AddWeightsDMATasks",
+            "EnsureSplitStrategiesForSpilling",
             {
                 "name": "GenerateDot",
                 "output": "output/dots/dma_model.dot",
