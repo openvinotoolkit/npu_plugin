@@ -89,12 +89,11 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
 
     auto globalConfigParams = model.getGlobalConfigParams();
 
-    bool weightsSparsity = globalConfigParams->hasAttr("WeightsSparsity") ? globalConfigParams->get<bool>("WeightsSparsity") : false;
-
     for(auto dpuTask = om.opBegin(); dpuTask != om.opEnd(); ++dpuTask)
     {
         if(dpuTask->getOpType() == "DPUTask")
         {
+            bool weightsSparsity = dpuTask->hasAttr("weightsSparsity") ? dpuTask->get<bool>("weightsSparsity") : false;
             std::string taskOp = dpuTask->get<std::string>("taskOp");
             pass.log(mv::Logger::MessageType::Debug, " taskOp "  + dpuTask->get<std::string>("taskOp"));
             bool isChannelMajorConv = taskOp == "ChannelMajorConvolution";
@@ -188,7 +187,6 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
             else if(weightsSparsity && !isElementWise)
             {
                 //Here only in the case of ZMajorConvolution
-
                 auto weightsTensor = dpuTask->getInputTensor(1);
                 sparseWeights(weightsTensor, model);
             }
@@ -234,21 +232,19 @@ bool checkA0SOHSparsityBug(mv::Data::FlowListIterator flow)
 
 // Eltwise, being the hackiest operation ever, potentially can support sparsity input, sharing the IDU with ZMajorConv, but the runtime currently doesn't allow it.
 
-static void generateSparsityMapsUnpopulatedTensorsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&)
+static void generateSparsityMapsUnpopulatedTensorsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&)
 {
 
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::DataModel dm(model);
-
-    auto globalConfigParams = model.getGlobalConfigParams();
-
-    bool activationSparsity = globalConfigParams->hasAttr("ActivationSparsity") ? globalConfigParams->get<bool>("ActivationSparsity") : false;
 
     for(auto dataFlow = dm.flowBegin(); dataFlow != dm.flowEnd(); ++dataFlow)
     {
         auto source = dataFlow.source();
         auto sink = dataFlow.sink();
         auto tensor = dataFlow->getTensor();
+
+        bool activationSparsity = sink->hasAttr("activationSparsity") ? sink->get<bool>("activationSparsity") : false;
 
         if(activationSparsity)
         {

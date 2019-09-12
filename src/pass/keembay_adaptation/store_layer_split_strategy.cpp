@@ -7,6 +7,7 @@
 
 static void storeLayerSplitStrategyFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void storeTensorPlacementFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+static void storeLayerSparsityStrategyFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 
 namespace mv
 {
@@ -20,6 +21,12 @@ namespace mv
             "This pass applies layer splitting strategies."
         );
 
+        MV_REGISTER_PASS(StoreLayerSparsityStrategy)
+        .setFunc(storeLayerSparsityStrategyFcn)
+        .setDescription(
+            "This pass applies layer sparsity strategies."
+        );
+
         MV_REGISTER_PASS(StoreTensorPlacement)
         .setFunc(storeTensorPlacementFcn)
         .setDescription(
@@ -28,14 +35,14 @@ namespace mv
     }
 }
 
-void storeStrategy(mv::Data::OpListIterator& it, std::vector<mv::Element>& strategyList)
+void storeStrategy(mv::Data::OpListIterator& opIt, std::vector<mv::Element>& strategyList)
 {
     for (auto s: strategyList)
     {
         std::string& name_filter = s.get<std::string>("name_filter");
         std::regex exp(name_filter);
-        if (std::regex_match(it->getName(), exp))
-            it->set<std::string>("splitStrategy", s.get<std::string>("strategy"));
+        if (std::regex_match(opIt->getName(), exp))
+            opIt->set<std::string>("splitStrategy", s.get<std::string>("strategy"));
     }
 }
 
@@ -69,6 +76,48 @@ void storeLayerSplitStrategyFcn(const mv::pass::PassEntry& pass, mv::Computation
         {
             pass.log(mv::Logger::MessageType::Info, "op: " + opIt->getName() +
                         " | strategy = " + opIt->get<std::string>("splitStrategy"));
+        }
+    }
+}
+
+void storeLayerSparsityStrategyFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+{
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
+    auto globalParams = model.getGlobalConfigParams();
+
+    if (!globalParams->hasAttr("sparsity_strategy"))
+    {
+        pass.log(mv::Logger::MessageType::Info, "No custom sparsity strategy provided, exiting...");
+        return;
+    }
+
+    auto strategyList = globalParams->get<std::vector<mv::Element>>("sparsity_strategy");
+
+    mv::OpModel om(model);
+
+    for (auto opIt = om.opBegin(); opIt != om.opEnd(); ++opIt)
+    {
+        auto opType = opIt->getOpType();
+        bool strategyFound = false;
+        if (opType != "Output" && opType != "Input")
+        {
+            for (auto s: strategyList)
+            {
+                std::string& name_filter = s.get<std::string>("name_filter");
+                std::regex exp(name_filter);
+                if (std::regex_match(opIt->getName(), exp))
+                {
+                    opIt->set<bool>("activationSparsity", s.get<bool>("activationSparsity"));
+                    opIt->set<bool>("weightsSparsity", s.get<bool>("weightsSparsity"));
+                    strategyFound = true;
+                }
+            }
+            if(!strategyFound)
+            {
+                opIt->set<bool>("activationSparsity", false);
+                opIt->set<bool>("weightsSparsity", false);
+            }
         }
     }
 }
@@ -142,7 +191,7 @@ void storeTensorPlacementFcn(const mv::pass::PassEntry& pass,
         }
         pass.log(mv::Logger::MessageType::Warning,"Found OutputTensor " +
                         tensor->getName() + " current location is " + tensor->get<mv::Tensor::MemoryLocation>("Location").toString() + " override with OUTPUT");
-        //mark location forced so any adaptation pass will inheret it
+        //mark location forced so any adaptation pass will inheret opIt
         tensor->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation("INPUT", true));
     }
 
@@ -158,7 +207,7 @@ void storeTensorPlacementFcn(const mv::pass::PassEntry& pass,
         }
         pass.log(mv::Logger::MessageType::Warning,"Found OutputTensor " +
                         tensor->getName() + " current location is " + tensor->get<mv::Tensor::MemoryLocation>("Location").toString() + " override with OUTPUT");
-        //mark location forced so any adaptation pass will inheret it
+        //mark location forced so any adaptation pass will inheret opIt
         tensor->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation("OUTPUT", true));
     }
 

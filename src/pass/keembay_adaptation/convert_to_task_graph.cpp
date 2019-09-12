@@ -52,7 +52,6 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
         if (opType == "Conv" || opType == "DepthwiseConv")
         {
             auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
-            auto inputMemoryLocation = opIt->getInputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
 
             auto input = opIt->getInputTensor(0);
             auto kernel = opIt->getInputTensor(1);
@@ -71,6 +70,8 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             std::string biasName, splitStrategy, workloadStrategyMPEMode;
             int workloadStrategyNWorkloads = -1;
 
+            bool activationSparsity, weightsSparsity = false;
+
             unsigned group = 1;
             if (opType == "Conv")
                 group = opIt->get<unsigned>("group");
@@ -80,6 +81,12 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
 
             if(opIt->hasAttr("splitStrategy"))
                 splitStrategy = opIt->get<std::string>("splitStrategy");
+
+            if(opIt->hasAttr("activationSparsity"))
+                activationSparsity = opIt->get<bool>("activationSparsity");
+
+            if(opIt->hasAttr("weightsSparsity"))
+                weightsSparsity = opIt->get<bool>("weightsSparsity");
 
             if (opIt->hasAttr("WorkloadStrategy_nWorkloads"))
                 workloadStrategyMPEMode = opIt->get<std::string>("WorkloadStrategy_MPE_mode");
@@ -101,6 +108,10 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
 
             auto dpuConvOp = om.getSourceOp(dpuConv);
             dpuConvOp->set<unsigned>("opId", opId);
+
+            dpuConvOp->set<bool>("activationSparsity", activationSparsity);
+            dpuConvOp->set<bool>("weightsSparsity", weightsSparsity);
+
             dpuConvOp->set<bool>("hasWeights", true);
             dpuConvOp->set<std::array<unsigned short, 2>>("kSize", kernelSize);
 
@@ -109,14 +120,11 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             if(!splitStrategy.empty())
             {
                 //NOTE:Convolution can not be HWSwitch
-               dpuConvOp->set<std::string>("splitStrategy", splitStrategy);
-               if (splitStrategy == "SplitOverK")
-               {
+                dpuConvOp->set<std::string>("splitStrategy", splitStrategy);
+                if (splitStrategy == "SplitOverK")
                     dpuConvOp->set<bool>("multiCast", true);
-//                   dpuConvOp->getOutputTensor(0)->set<bool>("multiCast", true);
-                }
                 else
-                   dpuConvOp->set<bool>("multiCast", false);
+                    dpuConvOp->set<bool>("multiCast", false);
             }
             if(!workloadStrategyMPEMode.empty())
                 dpuConvOp->set<std::string>("WorkloadStrategy_MPE_mode", workloadStrategyMPEMode);
@@ -141,7 +149,6 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
         else if (opType == "MaxPool")
         {
             auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
-            auto inputMemoryLocation = opIt->getInputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
 
             auto input = opIt->getInputTensor(0);
             auto opId = opIt->get<unsigned>("opId");
@@ -155,9 +162,14 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             auto name = opIt->getName();
             auto quantParams = opIt->get<mv::QuantizationParams>("quantParams");
 
+            bool activationSparsity = false;
+
             std::string splitStrategy;
             if(opIt->hasAttr("splitStrategy"))
                 splitStrategy = opIt->get<std::string>("splitStrategy");
+
+            if(opIt->hasAttr("activationSparsity"))
+                activationSparsity = opIt->get<bool>("activationSparsity");
 
             auto inputControlFlows = mv::getInputControlFlow(cm, cm.switchContext(opIt));
             auto outputControlFlows = mv::getOutputControlFlow(cm, cm.switchContext(opIt));
@@ -168,6 +180,7 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             auto dpuPoolOp = om.getSourceOp(dpuPool);
             dpuPoolOp->set<unsigned>("opId", opId);
             dpuPoolOp->set<bool>("hasWeights", false);
+            dpuPoolOp->set<bool>("activationSparsity", activationSparsity);
 
             if(!splitStrategy.empty())
             {
@@ -195,6 +208,8 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             inputs.push_back(input2);
             auto name = opIt->getName();
 
+            bool activationSparsity = false;
+
             auto quantParams = opIt->get<mv::QuantizationParams>("quantParams");
 
             auto opId = opIt->get<unsigned>("opId");
@@ -203,6 +218,10 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
 
             if(opIt->hasAttr("splitStrategy"))
                 splitStrategy = opIt->get<std::string>("splitStrategy");
+
+            if(opIt->hasAttr("activationSparsity"))
+                activationSparsity = opIt->get<bool>("activationSparsity");
+
             auto inputControlFlows = mv::getInputControlFlow(cm, cm.switchContext(opIt));
             auto outputControlFlows = mv::getOutputControlFlow(cm, cm.switchContext(opIt));
             auto outputDataFlows = mv::getOutputDataFlow(om, opIt);
@@ -214,6 +233,7 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             dpuElementWiseOp->set<bool>("hasWeights", false);
             dpuElementWiseOp->set<std::array<unsigned short, 2>>("kSize", FAKE_KERNEL);
             dpuElementWiseOp->set<std::array<unsigned short, 2>>("stride", FAKE_STRIDE);
+            dpuElementWiseOp->set<bool>("activationSparsity", activationSparsity);
 
             auto ppeLayerType = mv::PPELayerType(opType);
             auto ppeFixedFunction = mv::PPEFixedFunction();
