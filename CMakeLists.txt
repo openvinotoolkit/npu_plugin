@@ -408,6 +408,11 @@ SET(pass
     "${PROJECT_SOURCE_DIR}/src/pass/finalization/is_dag.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/finalization/schedule_helper.cpp"
 
+    "${PROJECT_SOURCE_DIR}/src/pass/graphOptimizations/graphOptimizer.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/graphOptimizations/StrategyManager.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/graphOptimizations/StrategyRegistry.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/graphOptimizations/KeemBayDefaultConfigs.cpp"
+
     "${PROJECT_SOURCE_DIR}/src/pass/scheduling/scheduling_passes.cpp"
 
     "${PROJECT_SOURCE_DIR}/src/pass/serialization/generate_blob_keembay.cpp"

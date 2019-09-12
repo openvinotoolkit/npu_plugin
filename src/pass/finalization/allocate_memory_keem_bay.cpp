@@ -450,6 +450,8 @@ void allocateImplicitOperationsKeemBayFcn(const mv::pass::PassEntry& pass,
 
                 auto axis = mv::Shape::getAxis(opIterator->get<std::string>("axis"));
                 std::vector<unsigned> running_concat_offset_LHS;
+                std::vector<unsigned> running_concat_offset_RHS;
+
                 auto prev_offset = 0;
                 auto offset = 0;
 
@@ -459,13 +461,8 @@ void allocateImplicitOperationsKeemBayFcn(const mv::pass::PassEntry& pass,
                     prev_offset = prev_offset + offset;
                     // Calculate for next tensor
                     offset = opIterator->getInputTensor(i)->getShape()[axis];
+                    running_concat_offset_RHS.push_back(outputTensor->getShape()[axis] - prev_offset - offset);
                 }
-
-                std::vector<unsigned> running_concat_offset_RHS;
-                std::copy(running_concat_offset_LHS.begin(),
-                        running_concat_offset_LHS.end(),
-                        back_inserter(running_concat_offset_RHS));
-                std::reverse(std::begin(running_concat_offset_RHS), std::end(running_concat_offset_RHS));
 
                 for(unsigned i = 0; i != inputSlots; i++)
                 {
