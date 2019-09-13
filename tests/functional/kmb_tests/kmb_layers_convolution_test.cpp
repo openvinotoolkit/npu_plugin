@@ -206,11 +206,11 @@ TEST_F(kmbLayersTests_nightly, TestsConvolutionOnly) {
     _outputsInfo = network.getOutputsInfo();
     _outputsInfo["conv_test1"]->setPrecision(Precision::FP16);
 
-    std::map<std::string, std::string> config;
     // LoadNetwork results in the following message when MCM_PARSING_ONLY is set to 'NO':
     // The maximum peak memory requirment of the graph exceeds CMX and the partial serialisation algorithm is unable
     // to reduce parallelism, exiting now, this is normal behaviour
     // TODO disable 'parse only' and find out why it happens
+    std::map<std::string, std::string> config;
     setCommonConfig(config);
     config[VPU_KMB_CONFIG_KEY(MCM_PARSING_ONLY)] = CONFIG_VALUE(YES);
 
