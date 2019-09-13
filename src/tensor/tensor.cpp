@@ -1067,7 +1067,6 @@ std::size_t mv::Tensor::computeTotalSize(unsigned int alignment, bool isBase) co
             auto paddedOutputChannels = mv::round_up(outputChannels, alignment);
             totalSize = totalSize / outputChannels * paddedOutputChannels;
         }
-        std::cout << getName() << " totalSize aligned " << totalSize << std::endl;
     }
     if (isSparse())
     {
