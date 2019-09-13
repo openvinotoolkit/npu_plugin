@@ -157,29 +157,35 @@ void ensureSplitStrategiesForSpilling(const mv::pass::PassEntry& , mv::Computati
         {"SplitOverK", "HKSwitch"},
         {"Clustering", "HKSwitch"}
     };
+    auto globalParams = model.getGlobalConfigParams();
+    unsigned numClusters = globalParams->get<int>("Number_of_Clusters");
 
-    for(auto opIt = om.opBegin(); opIt != om.opEnd(); ++opIt)
+    if (numClusters > 1)
     {
-        std::string opType = opIt->getOpType();
-        if (opType == "DMATask")
+        for(auto opIt = om.opBegin(); opIt != om.opEnd(); ++opIt)
         {
-            if (opIt->get<mv::DmaDirection>("direction") == mv::DmaDirectionEnum::DDR2CMX &&
-                !opIt->getOutputTensor(0)->isPopulated())
+            std::string opType = opIt->getOpType();
+            if (opType == "DMATask")
             {
-                std::vector<mv::Data::OpListIterator> sinkOperators = findSinkLayers(dm, opIt->getOutputTensor(0));
-                auto opStrategy = sinkOperators[0]->get<std::string>("splitStrategy");
-                for (auto restrictedCombination:incompatibleStrategies)
+                if (opIt->get<mv::DmaDirection>("direction") == mv::DmaDirectionEnum::DDR2CMX &&
+                    !opIt->getOutputTensor(0)->isPopulated())
                 {
-                    std::pair<std::string, std::string> possibleCombination(opIt->getOutputTensor(0)->get<std::string>("splitStrategy"), opStrategy);
-                    if (possibleCombination == restrictedCombination)
+                    std::vector<mv::Data::OpListIterator> sinkOperators = findSinkLayers(dm, opIt->getOutputTensor(0));
+                    auto opStrategy = sinkOperators[0]->get<std::string>("splitStrategy");
+                    for (auto restrictedCombination:incompatibleStrategies)
                     {
-                        opIt->getOutputTensor(0)->set<std::string>("splitStrategy", opStrategy);
-                        opIt->getInputTensor(0)->set<std::string>("splitStrategy", opStrategy);
+                        std::pair<std::string, std::string> possibleCombination(opIt->getOutputTensor(0)->get<std::string>("splitStrategy"), opStrategy);
+                        if (possibleCombination == restrictedCombination)
+                        {
+                            opIt->getOutputTensor(0)->set<std::string>("splitStrategy", opStrategy);
+                            opIt->getInputTensor(0)->set<std::string>("splitStrategy", opStrategy);
+                        }
                     }
                 }
             }
         }
     }
+    return;
 
 }
 

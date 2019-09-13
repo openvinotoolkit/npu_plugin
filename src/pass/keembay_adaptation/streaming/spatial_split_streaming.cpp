@@ -187,7 +187,7 @@ static void setStreamingStrategy(const mv::pass::PassEntry &pass, mv::Computatio
 //                    }
                     opxSplits.push_back(opxSplitx);
                     nodeHasSplit=true;
-                    std::cout << "IN STREAMING PASS : node " << nodeName << " has stream H = " << opxSplitx.numSplits << std::endl ;
+                    std::cout << "Streaming for node: " << nodeName << " has stream H = " << opxSplitx.numSplits << std::endl ;
                 }
             }
             else if (splitList[i].hasAttr("W"))
@@ -214,7 +214,7 @@ static void setStreamingStrategy(const mv::pass::PassEntry &pass, mv::Computatio
             {
                 if (splitList[i].get<int>("K")>1)
                 {
-                    std::cout << "IN STREAMING PASS : node " << nodeName << " has stream K = " << splitList[i].get<int>("K") << std::endl ;
+                    std::cout << "Streaming for node: " << nodeName << " has stream K = " << splitList[i].get<int>("K") << std::endl ;
                     opxSplitx.axis = "K";
                     opxSplitx.numSplits = splitList[i].get<int>("K");
                     opxSplits.push_back(opxSplitx);
