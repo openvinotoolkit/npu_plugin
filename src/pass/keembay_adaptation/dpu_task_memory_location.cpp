@@ -43,7 +43,6 @@ void setDpuTasksMemoryLocationFcn(const mv::pass::PassEntry& , mv::ComputationMo
                 taskOp == "MaxPool" || taskOp == "Conv" || isElementWise)
             {
                 auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
-                auto inputMemoryLocation = opIt->getInputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
 
                 if(outputMemoryLocation != mv::Tensor::MemoryLocation::CMX)
                 {
@@ -72,12 +71,14 @@ void setDpuTasksMemoryLocationFcn(const mv::pass::PassEntry& , mv::ComputationMo
                     dpuCopyOut->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
                 }
 
-                if(inputMemoryLocation != mv::Tensor::MemoryLocation::CMX)
+                size_t numInputs = 1;
+                if (isElementWise)
+                    numInputs++;
+
+                for (auto i = 0; i < numInputs; i++)
                 {
-                    size_t numInputs = 1;
-                    if (isElementWise)
-                        numInputs++;
-                    for (auto i = 0; i < numInputs; i++)
+                    auto inputMemoryLocation = opIt->getInputTensor(i)->get<mv::Tensor::MemoryLocation>("Location");
+                    if(inputMemoryLocation != mv::Tensor::MemoryLocation::CMX)
                     {
                         auto input = opIt->getInputTensor(i);
                         mv::QuantizationParams inputQuantParams = {{},{},{},{}};

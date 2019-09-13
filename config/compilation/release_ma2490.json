@@ -39,7 +39,7 @@
             },
             "StoreTensorPlacement"
         ]
-    },
+    },   
     "adapt": {
         "Singular": [
             "PopulatedTensorsToFP16",
@@ -51,7 +51,72 @@
             "FuseScale",
             "RemoveDropOut",
             "FullyConnectedAsConv2D",
+            {
+                "name" : "GraphParameterOptimization",
+                "graphOptimizerConfig" : {
+                    "globalConfigs" : [
+                        {"name" : "totalClusters",  "value" : 4   },
+                        {"name" : "clusterMemory",  "value" : 896 },
+                        {"name" : "dpuPerCluster",  "value" : 5   },
+                        {"name" : "ddrBandwidth",   "value" : 128 },
+                        {"name" : "systemClockMhz", "value" : 500 },
+                        {"name" : "FathomSafetyFactor", " value" : 0.8},
+                        {"name" : "dotFileLocation", "value" : "./output/"},
+                        {"name" : "jsonOutFileName", "value" : "./output/mcmCompiler_strategy_output.json"}
+                    ],
+                    "globalStrategies" : [
+                        {"name" : "forceSpilling",    "value" : false       },
+                        {"name" : "enableStreaming",   "value" : true       },
+                        {"name" : "doubleBuffering",   "value" : false      },
+                        {"name" : "scooby" ,            "value" : "doo"},
+                        {"name" : "enableSparsity",    "value" : false      },
+                        {"name" : "clusteringStrategy","value" : "Automatic"}
+                    ],
+                    "layerStrategies" : [
+                        {
+                            "name" : "Conv",
+                            "strategies": [
+                                {"name" : "streamingStrategies",  "value" : ["StreamOverH","StreamOverW","StreamOverK"]},
+                                {"name" : "clusteringStrategies", "value" : ["SplitOverH","SplitOverK","HKSwitch","Clustering"]},
+                                {"name" : "sparsity",             "value" : false}
+                            ]
+                        },
+                        {
+                            "name" : "DepthwiseConv",
+                            "strategies": [
+                                {"name" : "streamingStrategies",  "value" : ["StreamOverH","StreamOverW"]},
+                                {"name" : "clusteringStrategies", "value" : ["SplitOverH","HKSwitch","SplitOverK","Clustering"]},
+                                {"name" : "sparsity",             "value" : false}
+                            ]
+                        },
+                        {
+                            "name" : "MaxPool",
+                            "strategies": [
+                                {"name" : "streamingStrategies",  "value" : ["StreamOverH","StreamOverW"]},
+                                {"name" : "clusteringStrategies", "value" : ["SplitOverH","HKSwitch","Clustering"]},
+                                {"name" : "sparsity",             "value" : false}
+                            ]
+                        },
+                        {
+                            "name" : "Concat",
+                            "strategies": [
+                                {"name" : "clusteringStrategies", "value" : ["Clustering"]},
+                                {"name" : "sparsity",             "value" : false}
+                            ]
+                        },
+                        {
+                            "name" : "Add",
+                            "strategies": [
+                                {"name" : "streamingStrategies",  "value" : ["StreamOverH","StreamOverW"]},
+                                {"name" : "clusteringStrategies", "value" : ["SplitOverH","HKSwitch","Clustering"]},
+                                {"name" : "sparsity",             "value" : false}
+                            ]
+                        }
+                    ]
+                }
+            },
             "StoreLayerSplitStrategy",
+            "StoreTensorPlacement",
             "StreamingTiling",
             "StreamBinaryDataWeights"
         ]
@@ -72,6 +137,8 @@
             "StrategyLayersToTensors",
             "ComputeTensorsQuantParams",
             "UpdateImplicitLayersQuantizationParams",
+
+
             "PopulateWeightsTablesQuantization",
             "RemoveBiasTensors"
         ]
@@ -80,7 +147,8 @@
         "Singular" : [
             "SetDpuTasksMemoryLocation",
             "ResolveImplicitOperations",
-            "AddWeightsDMATasks"
+            "AddWeightsDMATasks",
+            "EnsureSplitStrategiesForSpilling"
         ]
     },
     "control_flows":{
@@ -99,28 +167,16 @@
         "Singular": [
             "SplittingTensorsAcrossClusters",
             "AddDeallocationTasks",
-            {
-                "name": "TransitiveReduction",
-                "filter": "MemoryRequirement"
-            },
             "MarkLastNodeForMaxTopologicalCut",
             "MaxTopologicalCutAndPartialSerialisation",
             "TransitiveReduction",
-            {
-                "name": "GenerateWorkloads",
-                "costfunction": "criticalpath",
-                "TensorSplitAlgorithms": "Rectangle",
-                "_comment": "Supported CostFunctions are: balanced | criticalpath | minmax | greedy. Supported TensorSplitAlgorithms are Metis, Rectangle, Z-Tiling"
-            },
             "ArrangeKeembayExecution",
             "AllocateInputOutputTensorsKeemBay",
             "AllocateGraphfileTensorsKeemBayLegacy",
             "ReAllocateImplicitOperationsKeemBay",
             "AllocateCMXTensorsKeemBay",
-            "TensorGraphColoring",
             "RemoveDeallocationTasks",
             "TransitiveReduction",
-            "InsertBarrierTasks",
             "TransitiveReduction",
             "PopulateWeightsTablesPointers"
         ]
@@ -143,8 +199,13 @@
         "Singular": [
             {
                 "name": "GenerateBlobKeembay",
-                "output": "output/mcm.blob"
+                "output": "output/test.blob"
+            },
+            {
+                "name": "ConvertFlatbuffer",
+                "input": "output/test.blob"
             }
+
         ]
     },
     "root": {

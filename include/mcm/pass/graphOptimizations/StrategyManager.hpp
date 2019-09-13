@@ -21,19 +21,16 @@ public:
     using StrategySet       = unordered_map<string,Attribute>;
     using LayerStrategySet  = unordered_map<string,StrategySet>;
 
-    using MetaGraph = mv::graph<std::tuple<mv::Op&,StrategySet,int>,std::pair<double, vector<StrategySet>>>;
-
-    using OptimizationGraphNode = std::tuple<mv::Op&,StrategySet,int>;
-    using OptimizationGraphEdge = std::pair<double,int>;
+    using OptimizationGraphNode = std::tuple<mv::Op&,StrategySet,int>; //op, strategies, unique id
+    using OptimizationGraphEdge = std::pair<double,int>; //cost, unique id
     using OptimizationGraph = mv::graph<OptimizationGraphNode,OptimizationGraphEdge>;
 
-    using CriticalEdges = std::vector<OptimizationGraph::edge_list_iterator>;
-    using CriticalPair = std::pair<OptimizationGraph,CriticalEdges>;
-    using OptimizationPair = std::pair<OptimizationGraph,vector<CriticalEdges>>;
+    using MetaGraphNode = OptimizationGraphNode;
+    using MetaGraphEdge = std::tuple<double, vector<StrategySet>, int>; //cost, strategies, unique id
+    using MetaGraph = mv::graph<MetaGraphNode, MetaGraphEdge>;
 
-    using OptGraphNode = OptimizationGraph::node_list_iterator;
-    using MetaGraphEdge = std::pair<double, vector<StrategySet>>;
-    using CriticalInfo = std::tuple<OptGraphNode, OptGraphNode, MetaGraphEdge>;
+    using CriticalEdges = std::vector<OptimizationGraph::edge_list_iterator>;
+
     
     static constexpr auto inf_ = numeric_limits<double>::infinity();
 
@@ -45,6 +42,7 @@ public:
     mv::Element& passDesc_;
 
     string dotFileLocation;
+    string jsonOutFileName;
 
     StrategyManager(OpModel& model,mv::Element& passDesc);
 
@@ -62,8 +60,8 @@ public:
     void recursiveCriticalPath(typename graph<mv::Op, mv::DataFlow>::node_list_iterator modelSource, std::unordered_set<std::string>& recursedNodes, MetaGraph& metaGraph);
 
     void writeDot(OptimizationGraph& graph,bool skipInf);
-    void writeDot(MetaGraph graph, bool skipInf);
-    void writeMetaDot(MetaGraph& optimizationGraph, bool skipInf);
+    void writeMetaDot(MetaGraph& graph, bool skipInf);
+    string strategyString(OptimizationGraphNode n);
 
     virtual void generateStrategySetForLayer(mv::Op& op,vector<StrategySet>& strategyVec);
     virtual double transitionCost(Op& parentOp,Op& childOp,StrategySet& parent,StrategySet& child);
