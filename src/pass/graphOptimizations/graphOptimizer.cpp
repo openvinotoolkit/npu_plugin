@@ -467,6 +467,7 @@ public:
         {
             auto weightsShape = childOp.getInputTensor(1)->getShape();
             auto numInChannels = weightsShape[KERNEL_INPUT_CHANNELS];
+            auto numOutChannels = weightsShape[KERNEL_OUTPUT_CHANNELS];
 
             if(numInChannels < 16)
             {
@@ -475,7 +476,17 @@ public:
                         (not (parentClustering == "SplitOverHOverlapped"))){
                        return INF;
                         }
+                if((childClustering == "SplitOverH") and (child["streaming"].get<Shape>()["H"] > 1))
+                    return INF;
             }
+            else
+            {
+                if((parent["spilling"].get<bool>() == true) and (childClustering == "SplitOverH"))
+                            return INF;
+            }
+            if((numOutChannels/totalClusters < 16) and (childClustering == "SplitOverK"))
+                return INF;
+
         }
         //TODO: disable sparsity for eltwise layer predecessors
 
