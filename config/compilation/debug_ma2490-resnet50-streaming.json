@@ -14,8 +14,6 @@
                 "UpaShaves": 1,
                 "DDRScratch": 31457280,
                 "MemoryHack": false,
-                "ActivationSparsity": false,
-                "WeightsSparsity": false,
                 "CMX_memory_overflow_safety_factor" : 0.925,
                 "split_strategy" :
                 [
@@ -25,6 +23,14 @@
                     }
                 ],
                 "default_tensor_placement" : "DDR",
+                "sparsity_strategy" :
+                [
+                    {
+                        "name_filter": ".*",
+                        "activationSparsity": false,
+                        "weightsSparsity": false
+                    }
+                ],
                 "streaming_strategy" :
                 [
                     {
@@ -310,6 +316,7 @@
                 "input": "output/dots/adapt_model.dot"
             },
             "StoreLayerSplitStrategy",
+            "StoreLayerSparsityStrategy",
             "StreamingTiling",
             "StreamBinaryDataWeights",
             {

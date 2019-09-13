@@ -14,8 +14,6 @@
                 "UpaShaves": 1,
                 "DDRScratch": 31457280,
                 "MemoryHack": false,
-                "ActivationSparsity": false,
-                "WeightsSparsity": false,
                 "CMX_memory_overflow_safety_factor" : 0.925,
                 "cmx": 917504,
                 "split_strategy" :
@@ -313,6 +311,14 @@
                         "strategy": "SplitOverK"
                     }
                 ],
+                "sparsity_strategy" :
+                [
+                    {
+                        "name_filter": ".*",
+                        "activationSparsity": false,
+                        "weightsSparsity": false
+                    }
+                ],
                 "default_tensor_placement" : "CMX"
             },
             "ComputeMemory",
@@ -371,6 +377,7 @@
                 "input": "output/dots/adapt_model.dot"
             },
             "StoreLayerSplitStrategy",
+            "StoreLayerSparsityStrategy",
             "StreamingTiling",
             "StreamBinaryDataWeights",
             {

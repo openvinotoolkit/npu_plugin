@@ -25,6 +25,14 @@
                         "strategy" : "Clustering"
                     }
                 ],
+                "sparsity_strategy" :
+                [
+                    {
+                        "name_filter": ".*",
+                        "activationSparsity": false,
+                        "weightsSparsity": false
+                    }
+                ],
                 "default_tensor_placement" : "DDR",
                 "streaming_strategy" :
                 [
