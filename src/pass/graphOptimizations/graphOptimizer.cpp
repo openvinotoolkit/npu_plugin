@@ -479,10 +479,10 @@ public:
                 if((childClustering == "SplitOverH") and (child["streaming"].get<Shape>()["H"] > 1))
                     return INF;
             }
-
+            else {
                 if((parent["spilling"].get<bool>() == true) and (childClustering == "SplitOverH"))
                             return INF;
-            
+            }
             if((numOutChannels/totalClusters < 16) and (childClustering == "SplitOverK"))
                 return INF;
 
