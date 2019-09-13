@@ -1090,8 +1090,10 @@ void mv::Tensor::splitAcrossClusters(std::vector<mv::Workload> workloads, bool s
             {
                 //NOTE: We can probably avoid to populate this tensor
                 // We will save a lot of time and space
+//                subTensors_.push_back(std::make_shared<mv::Tensor>(getName() + "sub" + std::to_string(idx),
+//                    shape_, getDType(), getOrder(), getData()));
                 subTensors_.push_back(std::make_shared<mv::Tensor>(getName() + "sub" + std::to_string(idx),
-                    shape_, getDType(), getOrder(), getData()));
+                    shape_, getDType(), getOrder()));
             }
             else
             {
