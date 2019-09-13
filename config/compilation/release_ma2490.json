@@ -117,18 +117,7 @@
             "StoreLayerSplitStrategy",
             "StoreTensorPlacement",
             "StreamingTiling",
-            "StreamBinaryDataWeights",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/tiling_model.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/tiling_model.dot"
-            }
+            "StreamBinaryDataWeights"
         ]
     },
     "keembay_adapt": {
@@ -150,174 +139,43 @@
 
 
             "PopulateWeightsTablesQuantization",
-            "RemoveBiasTensors",
-
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/keembay_adapt_model.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/keembay_adapt_model.dot"
-            }
+            "RemoveBiasTensors"
         ]
     },
     "dma": {
         "Singular" : [
             "SetDpuTasksMemoryLocation",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/dpu_tasks_location.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/dpu_tasks_location.dot"
-            },
             "ResolveImplicitOperations",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/implicit_operations_model.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/implicit_operations_model.dot"
-            },
             "AddWeightsDMATasks",
-            "EnsureSplitStrategiesForSpilling",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/dma_model.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/dma_model.dot"
-            }
+            "EnsureSplitStrategiesForSpilling"
         ]
     },
     "control_flows":{
         "Singular" : [
             "TaskControlFlows",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/TaskControlFlows_model.dot",
-                "scope": "ControlModel",
-                "content": "full",
-                "html": true
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/TaskControlFlows_model.dot"
-            },
             "TransitiveReduction",
             "LayerNumbering",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/TaskControlFlows_model_transitive_reduction.dot",
-                "scope": "ControlModel",
-                "content": "full",
-                "html": true
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/TaskControlFlows_model_transitive_reduction.dot"
-            },
             "HangingDmaControlFlows",
             "TransitiveReduction",
             "LayerNumbering",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/NoHangingDmas.dot",
-                "scope": "ControlModel",
-                "content": "full",
-                "html": true
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/NoHangingDmas.dot"
-            },
             "cmx2DDRControlFlows",
-            "TransitiveReduction",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/cmx2DDRControlFlows.dot",
-                "scope": "ControlModel",
-                "content": "full",
-                "html": true
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/cmx2DDRControlFlows.dot"
-            }
+            "TransitiveReduction"
         ]
     },
     "finalize": {
         "Singular": [
             "SplittingTensorsAcrossClusters",
             "AddDeallocationTasks",
-            {
-                "name": "TransitiveReduction",
-                "filter": "MemoryRequirement"
-            },
             "MarkLastNodeForMaxTopologicalCut",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/TransitiveReductionBeforeMaxCut.dot",
-                "scope": "ControlModel",
-                "content": "nonfull",
-                "html": true
-            },
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/TransitiveReductionBeforeMaxCutFull.dot",
-                "scope": "ControlModel",
-                "content": "full",
-                "html": true
-            },
             "MaxTopologicalCutAndPartialSerialisation",
             "TransitiveReduction",
-            {
-                "name": "GenerateWorkloads",
-                "costfunction": "greedy",
-                "TensorSplitAlgorithms": "Rectangle, Z-tiling",
-                "_comment": "Supported CostFunctions are: balanced | criticalpath | minmax | greedy. Supported TensorSplitAlgorithms are Metis, Rectangle, Z-Tiling"
-            },
             "ArrangeKeembayExecution",
             "AllocateInputOutputTensorsKeemBay",
             "AllocateGraphfileTensorsKeemBayLegacy",
             "ReAllocateImplicitOperationsKeemBay",
             "AllocateCMXTensorsKeemBay",
-            {
-                "name": "TensorGraphColoring",
-                "cmxOutput": "output/dots/nnCmx.dot",
-                "heapOutput": "output/dots/nnHeap.dot"
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/nnCmx.dot"
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/nnHeap.dot"
-            },
             "RemoveDeallocationTasks",
             "TransitiveReduction",
-            {
-                "name" : "InsertBarrierTasks",
-                "outputBIG": "output/dots/BarrierInterferenceGraph.dot",
-                "barrier_reuse_window" : 0
-            },
             "TransitiveReduction",
             "PopulateWeightsTablesPointers"
         ]
