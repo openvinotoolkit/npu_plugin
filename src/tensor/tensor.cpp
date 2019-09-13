@@ -1099,19 +1099,21 @@ void mv::Tensor::splitAcrossClusters(std::vector<mv::Workload> workloads, bool s
             {
                 mv::Shape newShape = { shape[0], shape[1] , static_cast<size_t>(width), static_cast<size_t>(height)};
                 auto order = getOrder();
-                std::vector<mv::DataElement> splittedData(newShape.totalSize(), mv::DataElement(this->isDoubleType()));
-                size_t nOffset = static_cast<size_t>(wlItr->MinY);
-                size_t cOffset = static_cast<size_t>(wlItr->MinX);
-                for (size_t n = 0; n < newShape[3]; n++)
-                    for (size_t c = 0; c < newShape[2]; c++)
-                        for (size_t h = 0; h < newShape[1]; h++)
-                            for (size_t w = 0; w < newShape[0]; w++)
-                            {
-                                //copy only the relevant channels/kernels
-                                splittedData[order.subToInd(newShape, {w, h, c, n})] = this->at({w , h, c+cOffset, n+nOffset});
-                            }
+//                std::vector<mv::DataElement> splittedData(newShape.totalSize(), mv::DataElement(this->isDoubleType()));
+//                size_t nOffset = static_cast<size_t>(wlItr->MinY);
+//                size_t cOffset = static_cast<size_t>(wlItr->MinX);
+//                for (size_t n = 0; n < newShape[3]; n++)
+//                    for (size_t c = 0; c < newShape[2]; c++)
+//                        for (size_t h = 0; h < newShape[1]; h++)
+//                            for (size_t w = 0; w < newShape[0]; w++)
+//                            {
+//                                //copy only the relevant channels/kernels
+//                                splittedData[order.subToInd(newShape, {w, h, c, n})] = this->at({w , h, c+cOffset, n+nOffset});
+//                            }
+//                subTensors_.push_back(std::make_shared<mv::Tensor>(getName() + "sub" + std::to_string(idx),
+//                    newShape, getDType(), order, splittedData));
                 subTensors_.push_back(std::make_shared<mv::Tensor>(getName() + "sub" + std::to_string(idx),
-                    newShape, getDType(), order, splittedData));
+                    newShape, getDType(), order));
             }
             std::vector<std::size_t> offset = {0 , 0,
                 static_cast<size_t>(wlItr->MinX), static_cast<size_t>(wlItr->MinY)};
