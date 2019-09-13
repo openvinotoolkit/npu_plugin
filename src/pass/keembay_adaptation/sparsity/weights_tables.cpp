@@ -62,7 +62,7 @@ void populateSparseDataPointerMultiCluster(mv::Tensor& weightsTableData, mv::Dat
         {
             offset = new_offset;
             sizeToIterate = dpuTaskOp->getInputTensor()[1]->getSubTensor(i).getShape()[mv::KERNEL_OUTPUT_CHANNELS] * BYTES_PER_WT_ELEMENT;
-            for (size_t j = 0, k = 0; j < weightsTableData.getClusterSize(i); j+=BYTES_PER_WT_ELEMENT)
+            for (size_t j = 0, k = 0; j < weightsTableData.getSubTensor(i).size(); j+=BYTES_PER_WT_ELEMENT)
                 // First increment is always 0
                 weightsTableData(j + addingIndex + totalSizeToIterate) = offset + increments[k++];
             totalSizeToIterate += sizeToIterate;
