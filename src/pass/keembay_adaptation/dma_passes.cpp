@@ -172,7 +172,10 @@ void ensureSplitStrategiesForSpilling(const mv::pass::PassEntry& , mv::Computati
                 {
                     std::pair<std::string, std::string> possibleCombination(opIt->getOutputTensor(0)->get<std::string>("splitStrategy"), opStrategy);
                     if (possibleCombination == restrictedCombination)
+                    {
                         opIt->getOutputTensor(0)->set<std::string>("splitStrategy", opStrategy);
+                        opIt->getInputTensor(0)->set<std::string>("splitStrategy", opStrategy);
+                    }
                 }
             }
         }
