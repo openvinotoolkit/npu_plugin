@@ -87,8 +87,6 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);
 
-    auto globalConfigParams = model.getGlobalConfigParams();
-
     for(auto dpuTask = om.opBegin(); dpuTask != om.opEnd(); ++dpuTask)
     {
         if(dpuTask->getOpType() == "DPUTask")
@@ -187,6 +185,14 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
             else if(weightsSparsity && !isElementWise)
             {
                 //Here only in the case of ZMajorConvolution
+
+                // NOTE: Adding limitation for the release:
+                // We can't have weights sparsity for SOK ZMajor convolution
+                // Will be solved in the next sprint
+
+                if(dpuTask->hasAttr("splitStrategy"))
+                    if(dpuTask->get<std::string>("splitStrategy") == "SplitOverK")
+                        continue;
                 auto weightsTensor = dpuTask->getInputTensor(1);
                 sparseWeights(weightsTensor, model);
             }

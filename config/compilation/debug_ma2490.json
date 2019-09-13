@@ -132,11 +132,8 @@
             "StrategyLayersToTensors",
             "ComputeTensorsQuantParams",
             "UpdateImplicitLayersQuantizationParams",
-
-
             "PopulateWeightsTablesQuantization",
             "RemoveBiasTensors",
-
             {
                 "name": "GenerateDot",
                 "output": "output/dots/keembay_adapt_model.dot",
@@ -189,7 +186,6 @@
                 "input": "output/dots/dma_model.dot"
             },
             "GenerateSparsityMapsUnpopulatedTensors"
-
         ]
     },
     "control_flows":{
