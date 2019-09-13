@@ -488,7 +488,10 @@ public:
 
         }
         //TODO: disable sparsity for eltwise layer predecessors
-
+	if(parentOp.getOpType() == "Conv"){
+		if((parent["spilling"].get<bool>()) and (childClustering == "SplitOverH"))
+			return INF;
+	}
         //Input and Output must have Spilled==True
         if( (parentOp.getOpType() == "Input") and
                 parent["spilling"].get<bool>() == false){
