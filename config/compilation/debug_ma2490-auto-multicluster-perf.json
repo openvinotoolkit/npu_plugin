@@ -249,7 +249,7 @@
                 "input": "output/dots/implicit_operations_model.dot"
             },
             "AddWeightsDMATasks",
-	"EnsureSplitStrategiesForSpilling",
+	        "EnsureSplitStrategiesForSpilling",
             {
                 "name": "GenerateDot",
                 "output": "output/dots/dma_model.dot",
