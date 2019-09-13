@@ -581,11 +581,11 @@
         "Singular": [
             {
                 "name": "GenerateBlobKeembay",
-                "output": "output/tiny-yolo-streaming-multiclustering.blob"
+                "output": "output/mcm.blob"
             },
             {
                 "name": "ConvertFlatbuffer",
-                "input": "output/tiny-yolo-streaming-multiclustering.blob"
+                "input": "output/mcm.blob"
             }
 
         ]

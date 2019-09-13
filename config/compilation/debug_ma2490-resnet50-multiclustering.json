@@ -724,11 +724,11 @@
         "Singular": [
             {
                 "name": "GenerateBlobKeembay",
-                "output": "output/resnet50-multiclustering.blob"
+                "output": "output/mcm.blob"
             },
             {
                 "name": "ConvertFlatbuffer",
-                "input": "output/resnet50-multiclustering.blob"
+                "input": "output/mcm.blob"
             }
 
         ]

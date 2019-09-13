@@ -692,11 +692,11 @@
         "Singular": [
             {
                 "name": "GenerateBlobKeembay",
-                "output": "output/mobilenet-multiclustering.blob"
+                "output": "output/mcm.blob"
             },
             {
                 "name": "ConvertFlatbuffer",
-                "input": "output/mobilenet-multiclustering.blob"
+                "input": "output/mcm.blob"
             }
 
         ]

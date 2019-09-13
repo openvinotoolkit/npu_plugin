@@ -452,11 +452,11 @@
         "Singular": [
             {
                 "name": "GenerateBlobKeembay",
-                "output": "output/mobilenet-streaming.blob"
+                "output": "output/mcm.blob"
             },
             {
                 "name": "ConvertFlatbuffer",
-                "input": "output/mobilenet-streaming.blob"
+                "input": "output/mcm.blob"
             }
         ]
     },
