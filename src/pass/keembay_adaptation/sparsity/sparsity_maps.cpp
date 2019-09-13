@@ -256,11 +256,12 @@ static void generateSparsityMapsUnpopulatedTensorsFcn(const mv::pass::PassEntry&
         // 1) The source of the activation tensor must be a DPUTask (Otherwise there's no ODU to write SM, SE)
         // 2) The sink of the activation tensor must be a ZMajor Convolution, the only operation
         //    with an IDU capable of handling sparsity data
-        // 3) Runtime doesn't support SOK and activation sparsity
+        // 3) Runtime doesn't support SOK and activation sparsity neither in input nor output
         if(activationSparsity)
         {
             if(!tensor->isPopulated() &&
                 source->getOpType() == "DPUTask" &&
+                source->get<std::string>("splitStrategy") != "SplitOverK" &&
                 sink->getOpType() == "DPUTask" &&
                 sink->get<std::string>("taskOp") == "Conv" &&
                 sink->get<std::string>("splitStrategy") != "SplitOverK")
