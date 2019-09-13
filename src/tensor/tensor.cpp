@@ -395,6 +395,9 @@ void mv::Tensor::setAddress(int64_t address)
     if (isSparse() && !isPopulated())
     {
         auto tensorSize = getClusterSize();
+
+        //NOTE: SOK problem?
+        //Order assumed: Tensor - Storage Element - Sparsity Map
         auto sparsitySize = sparsityMap_->computeTotalSize();
         auto storageElementSize = storageElement_->computeTotalSize();
         storageElement_->set<std::size_t>("address", address +
@@ -1085,6 +1088,8 @@ void mv::Tensor::splitAcrossClusters(std::vector<mv::Workload> workloads, bool s
             auto height = wlItr->MaxY - wlItr->MinY + 1;
             if (splitOverH)
             {
+                //NOTE: We can probably avoid to populate this tensor
+                // We will save a lot of time and space
                 subTensors_.push_back(std::make_shared<mv::Tensor>(getName() + "sub" + std::to_string(idx),
                     shape_, getDType(), getOrder(), getData()));
             }
