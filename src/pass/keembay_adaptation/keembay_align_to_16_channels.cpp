@@ -102,9 +102,13 @@ static void alignWeightsTensor(mv::OpModel& om, const mv::Data::TensorIterator &
     auto weightsTensorHeight = weightsTensorShape[mv::KERNEL_HEIGHT];
     auto weightsTensorInputChannels = weightsTensorShape[mv::KERNEL_INPUT_CHANNELS];
     auto weightsTensorOutputChannels = weightsTensorShape[mv::KERNEL_OUTPUT_CHANNELS];
+
     auto newShape = mv::Shape({0, 0, 0, 0});
     if (typeOp == "Conv")
     {
+        if ((axis == mv::KERNEL_INPUT_CHANNELS && weightsTensorInputChannels == channelsPadded) ||
+            (axis == mv::KERNEL_OUTPUT_CHANNELS && weightsTensorOutputChannels == channelsPadded))
+            return;
         newShape = mv::Shape({weightsTensorWidth, weightsTensorHeight, weightsTensorInputChannels, channelsPadded});
         if (axis == mv::KERNEL_INPUT_CHANNELS)
             newShape = mv::Shape({weightsTensorWidth, weightsTensorHeight, channelsPadded, weightsTensorOutputChannels});
