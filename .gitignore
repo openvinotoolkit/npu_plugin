@@ -2,7 +2,6 @@ build/
 meta/include/mcm/*
 meta/src/*
 meta/schema/*
-contrib/lemon
 *.user
 .vscode
 *.blob

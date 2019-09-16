@@ -97,12 +97,7 @@ else()
     message(STATUS "Metis not found!")
 endif(METIS_FOUND)
 
-find_package(LEMON)
-if(LEMON_FOUND)
-    include_directories(${LEMON_INCLUDE_DIR})
-else()
-    message(STATUS "LEMON not found!")
-endif(LEMON_FOUND)
+add_subdirectory(contrib/lemon)
 
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
