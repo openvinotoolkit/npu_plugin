@@ -433,10 +433,6 @@ SET(pass
     "${PROJECT_SOURCE_DIR}/src/target/target_descriptor.cpp"
 
     "${PROJECT_SOURCE_DIR}/src/graph/tensor_interference_graph.cpp"
-    "${PROJECT_SOURCE_DIR}/contrib/koala/tinyxml/tinyxml.cpp"
-    "${PROJECT_SOURCE_DIR}/contrib/koala/tinyxml/tinyxmlerror.cpp"
-    "${PROJECT_SOURCE_DIR}/contrib/koala/tinyxml/tinyxmlparser.cpp"
-    "${PROJECT_SOURCE_DIR}/contrib/koala/tinyxml/tinystr.cpp"
 )
 
  SET(compiler

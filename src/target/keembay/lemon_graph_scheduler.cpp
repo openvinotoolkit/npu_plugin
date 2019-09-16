@@ -237,9 +237,44 @@ void mv::LemonGraphScheduler::insertpartialSerialisationEdgesInMcmGraph(mv::Comp
         auto inserted = addedEdges.insert(std::make_pair(edgeSourceName, edgeSinkName));
         if (inserted.second)
         {   
-            if (! (cm.pathExists(mcmSourceNodeIterator, mcmSinkNodeIterator)) )
+            /*Add the edge to graph*/
+            //if source node is Dealloc from **CMX**
+            //TODO add check if Dealloc is for CMX
+            //look for parent DPUTask and all controlflows to deallocs, connect sinks to sinknode
+            if (mcmSourceNodeIterator->getOpType() == "Deallocate")
             {
-                /*Add the edge to graph*/
+                for (auto parentOp = mcmSourceNodeIterator.leftmostParent(); parentOp != cm.opEnd(); ++parentOp)
+                {
+                    if (parentOp->getOpType() == "DPUTask")
+                    {
+                        for (auto childOp = parentOp.leftmostChild(); childOp != cm.opEnd(); ++childOp)
+                        {
+                            if (childOp->getOpType() == "Deallocate")
+                            {
+                                mv::Control::FlowListIterator flowIt = cm.checkControlFlow(childOp, mcmSinkNodeIterator);
+                                
+                                if(flowIt == cm.flowEnd())
+                                {
+                                    if (! (cm.pathExists(mcmSourceNodeIterator, mcmSinkNodeIterator)) )
+                                    {
+                                        /*Add the edge to graph*/
+                                        auto partialSerialisationEdge = cm.defineFlow(mcmSourceNodeIterator, mcmSinkNodeIterator);
+                                        partialSerialisationEdge->set<bool>("PartialSerialisationEdge", true);
+                                        if(!cm.isDag()) 
+                                        {
+                                            this->log(mv::Logger::MessageType::Info, "Removing the additional partial serialisation edge required for tensor graph colouring, creates a cycle");
+                                            cm.undefineFlow(partialSerialisationEdge);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        break;
+                    }
+                }
+            }
+            else
+            {
                 auto partialSerialisationEdge = cm.defineFlow(mcmSourceNodeIterator, mcmSinkNodeIterator);
                 partialSerialisationEdge->set<bool>("PartialSerialisationEdge", true);
             }
@@ -286,7 +321,7 @@ void mv::LemonGraphScheduler::performPartialSerialisation(const mv::pass::PassEn
 
         // sources.push_back(this->nodes_[sourceNode]);
         // sinks.push_back(this->nodes_[targetNode]);
-        
+
         // Don't add the same node multiple times (ie, map container)
         sourcesMap[this->nodes_[sourceNode].name] = this->nodes_[sourceNode];
         sinksMap[this->nodes_[targetNode].name] = this->nodes_[targetNode];
@@ -326,14 +361,17 @@ void mv::LemonGraphScheduler::performPartialSerialisation(const mv::pass::PassEn
         lemon::ListDigraph::Node tmpTargetNode = this->graph_.nodeFromId(possibleEdge.first.id);
         lemon::ListDigraph::Arc newArc = this->graph_.addArc(tmpSourceNode, tmpTargetNode);
         mv::edgeDescription newDesc = edgeDescription(this->graph_.id(newArc), 0, "PS_edge_"+sinkName+sourceName);
-        this->edges_[newArc] = newDesc;
 
         lemon::ListDigraph::NodeMap<mv::nodeDescription> order(this->graph_);
         lemon::topologicalSort(this->graph_, order);
 
         /*Check if graph still direccted DAG*/
         if (lemon::dag(this->graph_))
-        {   /*keep track of the edges added as these edges will be added to mcmGraph*/
+        {   
+            /*add edge iterator to the vector of LEMON edge iterators*/
+            this->edges_[newArc] = newDesc;
+
+            /*keep track of the edges added as these edges will be added to mcmGraph*/
             pass.log(mv::Logger::MessageType::Debug, "Graph still DAG after adding partial serialisation edge, recalulating max topological cut value...");
             partialSerialisationEdgesAdded_.push_back(newDesc);
             return;
