@@ -495,7 +495,7 @@ TEST_F(VpuPreprocessingTests, DISABLED_twoRequestsWithPreprocessing) {
     }
 }
 
-TEST_F(VpuPreprocessingTests, DISABLED_twoNetworksWithPreprocessing) {
+TEST_F(VpuPreprocessingTests, twoNetworksWithPreprocessing) {
     InferenceEngine::ExecutableNetwork network1;
     std::string network1Path = ModelsPath() + "/KMB_models/BLOBS/mobilenet/mobilenet.blob";
     ASSERT_NO_THROW(network1 = ie.ImportNetwork(network1Path, "KMB", {}));
