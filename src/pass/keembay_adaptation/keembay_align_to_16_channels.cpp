@@ -44,9 +44,17 @@ void alignTo16ChannelsFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
         if (outputTensorChannels % pad != 0)
         {
             opIt->set<bool>("alignment", true);
-            outputTensor->set<bool>("alignment", true);
+            if (!outputTensor->hasAttr("alignment"))
+                outputTensor->set<bool>("alignment", true);
         }
         auto outputChannelsPadded = mv::round_up(outputTensorShape[mv::IO_CHANNEL_DIMENSION], pad);
+
+        if(taskOp == "Conv" || taskOp == "DepthWiseConv")
+        {
+            auto inputTensor = opIt->getInputTensor(0);
+            if (!inputTensor->hasAttr("alignment") && inputTensor->getShape()[mv::IO_CHANNEL_DIMENSION] % pad != 0)
+                inputTensor->set<bool>("alignment", true);
+        }
 
         if(taskOp == "Conv")
         {
