@@ -144,10 +144,11 @@ void storeTensorPlacementFcn(const mv::pass::PassEntry& pass,
         {
             auto parentOp = om.getSourceOp(tensorIt);
 
-            if(parentOp->getOpType() == "Input")
-            {
-                continue;
-            }
+            if(parentOp != om.opEnd())
+                if(parentOp->getOpType() == "Input")
+                {
+                    continue;
+                }
 
             bool found = false;
             for( auto s : placementOverrideList )
@@ -167,7 +168,7 @@ void storeTensorPlacementFcn(const mv::pass::PassEntry& pass,
                 }
             }
 
-            if(!found)
+            if((not found) and (not tensorIt->hasAttr("Location")))
             {
                 tensorIt->set<mv::Tensor::MemoryLocation>("Location",mv::Tensor::MemoryLocation::DEFAULT);
                 pass.log(mv::Logger::MessageType::Info,"tensor " + tensorIt->getName() + "not found. setting to DEFAULT");
