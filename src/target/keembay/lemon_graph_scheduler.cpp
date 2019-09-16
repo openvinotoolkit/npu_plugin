@@ -5,7 +5,13 @@
 #include <lemon/preflow.h>
 #include <lemon/connectivity.h>
 
-mv::LemonGraphScheduler::LemonGraphScheduler(): nodes_(graph_), edges_(graph_), edgesMemory_(graph_), edgesLength_(graph_), graphSourceNode_(lemon::INVALID), graphSinkNode_(lemon::INVALID)
+mv::LemonGraphScheduler::LemonGraphScheduler(): 
+nodes_(graph_), 
+edges_(graph_), 
+edgesMemory_(graph_), 
+edgesLength_(graph_), 
+graphSourceNode_(lemon::INVALID), 
+graphSinkNode_(lemon::INVALID)
 {  }
 
 mv::LemonGraphScheduler::~LemonGraphScheduler()
@@ -19,7 +25,7 @@ lemon::ListDigraph& mv::LemonGraphScheduler::getGraph()
 }
 
 /**
- * @brief Convert McM graph (control model view) to KOALA graph and store the data required to perform the max topoloigcal cut algorithm on the KOALA graph edges
+ * @brief Convert McM graph (control model view) to Lemon graph and store the data required to perform the max topoloigcal cut algorithm on the Lemon graph edges
  * @param pass  - pass object
  * @param model - McM computation model
  */
@@ -37,7 +43,7 @@ void  mv::LemonGraphScheduler::convertMcMGraphToLemonGraph(const mv::pass::PassE
         //if (opIt->hasAttr("lastDMAOp") && opIt->get<bool>("lastDMAOp"))
         if (opIt->hasAttr("lastOpKoala") && opIt->get<bool>("lastOpKoala"))
         {
-            pass.log(mv::Logger::MessageType::Debug, "Adding vertex to Lemon graph: " + opIt->getName());
+            this->log(mv::Logger::MessageType::Debug, "Adding vertex to Lemon graph: " + opIt->getName());
 
             lemon::ListDigraph::Node currentNode = this->graph_.addNode();
             this->nodes_[currentNode] = nodeDescription(this->graph_.id(currentNode), opIt->getName(),0, false, true);
