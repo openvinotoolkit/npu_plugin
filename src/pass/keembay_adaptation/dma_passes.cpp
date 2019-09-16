@@ -7,6 +7,8 @@
 
 static void addWeightsDMATasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&);
 static void addFinalDMATaskFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+static void ensureSplitStrategiesForSpilling(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+static std::vector<mv::Data::OpListIterator> findSinkLayers(mv::DataModel &dataModel, const mv::Data::TensorIterator& tensor);
 
 namespace mv
 {
@@ -21,6 +23,11 @@ namespace mv
             .setFunc(addFinalDMATaskFcn)
             .setDescription(
                "Add initial and final DMA task in the Task graph");
+
+        MV_REGISTER_PASS(EnsureSplitStrategiesForSpilling)
+            .setFunc(ensureSplitStrategiesForSpilling)
+            .setDescription(
+               "Ensures Split Strategies still valid after Spilling cases");
     }
 }
 
@@ -126,4 +133,66 @@ void addWeightsDMATasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& mod
             }
         }
     }
+}
+
+// Pass role: Splitting Strategies propagation algorithm may create an incompatibility
+void ensureSplitStrategiesForSpilling(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+{
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
+    mv::OpModel om(model);
+    mv::DataModel dm(model);
+    std::vector<std::pair<std::string, std::string>>incompatibleStrategies =
+    {
+        {"SplitOverHOverlapped", "Clustering"},
+        {"SplitOverHOverlapped", "SplitOverK"},
+        {"SplitOverH", "Clustering"},
+        {"SplitOverH", "SplitOverK"},
+        {"SplitOverK", "SplitOverH"},
+        {"Clustering", "SplitOverH"},
+        {"SplitOverK", "HKSwitch"},
+        {"Clustering", "HKSwitch"}
+    };
+    auto globalParams = model.getGlobalConfigParams();
+    unsigned numClusters = globalParams->get<int>("Number_of_Clusters");
+
+    if (numClusters > 1)
+    {
+        for(auto opIt = om.opBegin(); opIt != om.opEnd(); ++opIt)
+        {
+            std::string opType = opIt->getOpType();
+            if (opType == "DMATask")
+            {
+                if (opIt->get<mv::DmaDirection>("direction") == mv::DmaDirectionEnum::DDR2CMX &&
+                    !opIt->getOutputTensor(0)->isPopulated())
+                {
+                    std::vector<mv::Data::OpListIterator> sinkOperators = findSinkLayers(dm, opIt->getOutputTensor(0));
+                    auto opStrategy = sinkOperators[0]->get<std::string>("splitStrategy");
+                    for (auto restrictedCombination:incompatibleStrategies)
+                    {
+                        std::pair<std::string, std::string> possibleCombination(opIt->getOutputTensor(0)->get<std::string>("splitStrategy"), opStrategy);
+                        if (possibleCombination == restrictedCombination)
+                        {
+                            opIt->getOutputTensor(0)->set<std::string>("splitStrategy", opStrategy);
+                            opIt->getInputTensor(0)->set<std::string>("splitStrategy", opStrategy);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return;
+
+}
+
+static std::vector<mv::Data::OpListIterator> findSinkLayers(mv::DataModel &dataModel, const mv::Data::TensorIterator &tensor)
+{
+    std::vector<mv::Data::OpListIterator> sinkOperations;
+    auto flowsNames = (tensor)->get<std::set<std::string>>("flows");
+    for(auto flowName : flowsNames)
+    {
+        auto df = dataModel.getDataFlow(flowName);
+        sinkOperations.push_back(df.sink());
+    }
+    return sinkOperations;
 }
