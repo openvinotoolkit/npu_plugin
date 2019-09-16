@@ -70,7 +70,7 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             std::string biasName, splitStrategy, workloadStrategyMPEMode;
             int workloadStrategyNWorkloads = -1;
 
-            bool activationSparsity, weightsSparsity = false;
+            bool inputActivationSparsity, outputActivationSparsity, weightsSparsity = false;
 
             unsigned group = 1;
             if (opType == "Conv")
@@ -82,8 +82,11 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             if(opIt->hasAttr("splitStrategy"))
                 splitStrategy = opIt->get<std::string>("splitStrategy");
 
-            if(opIt->hasAttr("activationSparsity"))
-                activationSparsity = opIt->get<bool>("activationSparsity");
+            if(opIt->hasAttr("inputActivationSparsity"))
+                inputActivationSparsity = opIt->get<bool>("inputActivationSparsity");
+
+            if(opIt->hasAttr("outputActivationSparsity"))
+                outputActivationSparsity = opIt->get<bool>("outputActivationSparsity");
 
             if(opIt->hasAttr("weightsSparsity"))
                 weightsSparsity = opIt->get<bool>("weightsSparsity");
@@ -109,7 +112,11 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             auto dpuConvOp = om.getSourceOp(dpuConv);
             dpuConvOp->set<unsigned>("opId", opId);
 
-            dpuConvOp->set<bool>("activationSparsity", activationSparsity);
+            if(opType == "Conv")
+                dpuConvOp->set<bool>("inputActivationSparsity", inputActivationSparsity);
+            else
+                dpuConvOp->set<bool>("inputActivationSparsity", false);
+            dpuConvOp->set<bool>("outputActivationSparsity", outputActivationSparsity);
             dpuConvOp->set<bool>("weightsSparsity", weightsSparsity);
 
             dpuConvOp->set<bool>("hasWeights", true);
@@ -162,14 +169,14 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             auto name = opIt->getName();
             auto quantParams = opIt->get<mv::QuantizationParams>("quantParams");
 
-            bool activationSparsity = false;
+            bool outputActivationSparsity = false;
 
             std::string splitStrategy;
             if(opIt->hasAttr("splitStrategy"))
                 splitStrategy = opIt->get<std::string>("splitStrategy");
 
-            if(opIt->hasAttr("activationSparsity"))
-                activationSparsity = opIt->get<bool>("activationSparsity");
+            if(opIt->hasAttr("outputActivationSparsity"))
+                outputActivationSparsity = opIt->get<bool>("outputActivationSparsity");
 
             auto inputControlFlows = mv::getInputControlFlow(cm, cm.switchContext(opIt));
             auto outputControlFlows = mv::getOutputControlFlow(cm, cm.switchContext(opIt));
@@ -180,7 +187,10 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             auto dpuPoolOp = om.getSourceOp(dpuPool);
             dpuPoolOp->set<unsigned>("opId", opId);
             dpuPoolOp->set<bool>("hasWeights", false);
-            dpuPoolOp->set<bool>("activationSparsity", activationSparsity);
+
+            dpuPoolOp->set<bool>("inputActivationSparsity", false);
+            dpuPoolOp->set<bool>("outputActivationSparsity", outputActivationSparsity);
+            dpuPoolOp->set<bool>("weightsSparsity", false);
 
             if(!splitStrategy.empty())
             {
@@ -208,7 +218,7 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             inputs.push_back(input2);
             auto name = opIt->getName();
 
-            bool activationSparsity = false;
+            bool outputActivationSparsity = false;
 
             auto quantParams = opIt->get<mv::QuantizationParams>("quantParams");
 
@@ -219,8 +229,8 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             if(opIt->hasAttr("splitStrategy"))
                 splitStrategy = opIt->get<std::string>("splitStrategy");
 
-            if(opIt->hasAttr("activationSparsity"))
-                activationSparsity = opIt->get<bool>("activationSparsity");
+            if(opIt->hasAttr("outputActivationSparsity"))
+                outputActivationSparsity = opIt->get<bool>("outputActivationSparsity");
 
             auto inputControlFlows = mv::getInputControlFlow(cm, cm.switchContext(opIt));
             auto outputControlFlows = mv::getOutputControlFlow(cm, cm.switchContext(opIt));
@@ -233,7 +243,11 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             dpuElementWiseOp->set<bool>("hasWeights", false);
             dpuElementWiseOp->set<std::array<unsigned short, 2>>("kSize", FAKE_KERNEL);
             dpuElementWiseOp->set<std::array<unsigned short, 2>>("stride", FAKE_STRIDE);
-            dpuElementWiseOp->set<bool>("activationSparsity", activationSparsity);
+
+            // NOTE/TODO: If and when we want to support elementwise IDU sparsity we have to act here
+            dpuElementWiseOp->set<bool>("inputActivationSparsity", false);
+            dpuElementWiseOp->set<bool>("weightsSparsity", false);
+            dpuElementWiseOp->set<bool>("outputActivationSparsity", outputActivationSparsity);
 
             auto ppeLayerType = mv::PPELayerType(opType);
             auto ppeFixedFunction = mv::PPEFixedFunction();

@@ -108,14 +108,24 @@ void storeLayerSparsityStrategyFcn(const mv::pass::PassEntry& pass, mv::Computat
                 std::regex exp(name_filter);
                 if (std::regex_match(opIt->getName(), exp))
                 {
-                    opIt->set<bool>("activationSparsity", s.get<bool>("activationSparsity"));
-                    opIt->set<bool>("weightsSparsity", s.get<bool>("weightsSparsity"));
+                    bool inputActivationSparsity, outputActivationSparsity, weightsSparsity = false;
+                    if(s.hasAttr("inputActivationSparsity"))
+                        inputActivationSparsity = s.get<bool>("inputActivationSparsity");
+                    if(s.hasAttr("outputActivationSparsity"))
+                        outputActivationSparsity = s.get<bool>("outputActivationSparsity");
+                    if(s.hasAttr("weightsSparsity"))
+                        weightsSparsity = s.get<bool>("weightsSparsity");
+
+                    opIt->set<bool>("inputActivationSparsity", inputActivationSparsity);
+                    opIt->set<bool>("outputActivationSparsity", outputActivationSparsity);
+                    opIt->set<bool>("weightsSparsity", weightsSparsity);
                     strategyFound = true;
                 }
             }
             if(!strategyFound)
             {
-                opIt->set<bool>("activationSparsity", false);
+                opIt->set<bool>("inputActivationSparsity", false);
+                opIt->set<bool>("outputActivationSparsity", false);
                 opIt->set<bool>("weightsSparsity", false);
             }
         }
