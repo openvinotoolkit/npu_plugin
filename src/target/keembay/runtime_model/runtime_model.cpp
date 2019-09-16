@@ -872,9 +872,6 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
         toBuild->ppe_task = buildPPETaskT(cm, compilationDescriptor, opIt->get<PPETask>("PPETask"));
     else
         toBuild->ppe_task = buildPPETaskT();
-    // TODO
-    // std::vector<std::unique_ptr<NNTensorTaskT>> nnshv_task;
-    // split_over_h: bool = false;
 
     if (opIt->hasAttr("kSize"))
     {
@@ -899,12 +896,12 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
         toBuild->kernel_padBottom = kernelPadding[3];
     }
     //input
-    mv::DataModel dm(cm);
-    mv::ControlModel controlModel(cm);
     auto inputTensor = opIt->getInputTensor(0);
 
     toBuild->input_data = buildTensorReferenceT(cm, compilationDescriptor, inputTensor);
     toBuild->parent_input_tensor = buildTensorReferenceT(cm, compilationDescriptor, inputTensor);
+    toBuild->parent_input_tensor->data->sparsity_index = 999999999999999999;
+    toBuild->parent_input_tensor->data->storage_element_index = 999999999999999999;
 
     if (inputTensor->hasAttr("alignment"))
     {
@@ -929,6 +926,8 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
 
     toBuild->output_data = buildTensorReferenceT(cm, compilationDescriptor, outputTensor);
     toBuild->parent_output_tensor = buildTensorReferenceT(cm, compilationDescriptor, outputTensor);
+    toBuild->parent_output_tensor->data->sparsity_index = 999999999999999999;
+    toBuild->parent_output_tensor->data->storage_element_index = 999999999999999999;
 
     if (outputTensor->hasAttr("alignment"))
     {
@@ -1033,6 +1032,8 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
         toBuild->input_data = buildTensorReferenceT(cm, compilationDescriptor, parentInputTensor, clusterId);
 
     toBuild->parent_input_tensor = buildTensorReferenceT(cm, compilationDescriptor, parentInputTensor);
+    toBuild->parent_input_tensor->data->sparsity_index = 999999999999999999;
+    toBuild->parent_input_tensor->data->storage_element_index = 999999999999999999;
 
     //output
     auto parentOutputTensor = opIt->getOutputTensor(0);
@@ -1055,6 +1056,8 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
     }
 
     toBuild->parent_output_tensor = buildTensorReferenceT(cm, compilationDescriptor, parentOutputTensor);
+    toBuild->parent_output_tensor->data->sparsity_index = 999999999999999999;
+    toBuild->parent_output_tensor->data->storage_element_index = 999999999999999999;
 
     if (opIt->get<bool>("multiCast"))
     {
