@@ -283,7 +283,8 @@
                 [
                     {
                         "name_filter": ".*",
-                        "activationSparsity": false,
+                        "outputActivationSparsity": false,
+                        "inputActivationSparsity": false,
                         "weightsSparsity": false
                     }
                 ],
