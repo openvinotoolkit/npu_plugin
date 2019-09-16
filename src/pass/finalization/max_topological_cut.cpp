@@ -2,7 +2,7 @@
 #include "meta/include/mcm/op_model.hpp"
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
-#include "include/mcm/target/keembay/koala_graph_scheduler.hpp"
+#include "include/mcm/target/keembay/lemon_graph_scheduler.hpp"
 #include <iostream>
 #include "include/mcm/compiler/compilation_profiler.hpp"
 
@@ -27,7 +27,6 @@ namespace mv
             "Perform the max topological cut algorithm and partial serialisation (if required) to schedule the DAG."
         );
     }
-
 }
 void markLastNodeForMaxTopologicalCutFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element&, mv::Element&)
 {
@@ -39,25 +38,30 @@ void markLastNodeForMaxTopologicalCutFcn(const mv::pass::PassEntry& pass, mv::Co
 }
 
 
-void maxTopologicalCutAndPartialSerialisationPass(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element&, mv::Element&)
+void maxTopologicalCutAndPartialSerialisationPass(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element&, mv::Element& compOutput)
 {
 
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
 
     int networkMemoryRequirement;
-    double percentageMemory;
-    mv::KoalaGraphScheduler flowGraph;
+    double percentageMemory; 
+    mv::LemonGraphScheduler flowGraph;
     bool memoryHack = false;
 
     auto returnedParams = model.getGlobalConfigParams();
     memoryHack = returnedParams->get<bool>("MemoryHack");
 
-    /*Convert to MCM graph to KOALA graph*/
-    flowGraph.convertMcMGraphToKoalaGraph(pass, model);
+    /*Convert to MCM graph to Lemon graph*/
+    flowGraph.convertMcMGraphToLemonGraph(pass, model);
 
     /*Calculate max topological cut and get the cut edges*/
     auto maxTopologicalCut = flowGraph.calculateMaxTopologicalCut(pass, model);
-
+    
+    compOutput.set<uint64_t>("maxTopologicalCut", maxTopologicalCut.first);
+    mv::DataModel dm(model);
+    auto outflow = dm.getOutputFlow();
+    outflow->set<uint64_t>("MaxTopologicalCutValue", maxTopologicalCut.first);
+    
     double cmxMemory = returnedParams->get<unsigned>("cmx");
 
     networkMemoryRequirement = maxTopologicalCut.first / 1024;

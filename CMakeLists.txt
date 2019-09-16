@@ -97,6 +97,13 @@ else()
     message(STATUS "Metis not found!")
 endif(METIS_FOUND)
 
+find_package(LEMON)
+if(LEMON_FOUND)
+    include_directories(${LEMON_INCLUDE_DIR})
+else()
+    message(STATUS "LEMON not found!")
+endif(LEMON_FOUND)
+
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 # find_package(Flatbuffers)
@@ -330,8 +337,8 @@ SET(model
     "${PROJECT_SOURCE_DIR}/src/computation/resource/memory_allocator.cpp"
     "${PROJECT_SOURCE_DIR}/src/computation/resource/stage.cpp"
     "${PROJECT_SOURCE_DIR}/src/target/myriadx/nce1.cpp"
-    "${PROJECT_SOURCE_DIR}/src/target/myriadx/nce1_utils.cpp"
-    "${PROJECT_SOURCE_DIR}/src/target/keembay/koala_graph_scheduler.cpp"
+    "${PROJECT_SOURCE_DIR}/src/target/myriadx/nce1_utils.cpp" 
+    "${PROJECT_SOURCE_DIR}/src/target/keembay/lemon_graph_scheduler.cpp"   
 )
 
 SET(logger
@@ -498,7 +505,7 @@ else()
             #Flatbuffers and Metis not x-compiled yet
             target_link_libraries(cm corebase metamodel)
         ELSE()
-            target_link_libraries(cm corebase metamodel flatbuffers metis)
+            target_link_libraries(cm corebase metamodel flatbuffers metis ${LEMON_LIBRARY})
             add_dependencies(cm generate-comp-api)
             add_dependencies(model generate-comp-api)
             add_dependencies(cm generate-graphfile-headers)
