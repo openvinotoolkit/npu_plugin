@@ -249,6 +249,8 @@ void StrategyManager::writeDot(OptimizationGraph& optimizationGraph, bool skipIn
                     <TR><TD ALIGN=\"CENTER\" COLSPAN=\"2\"><FONT POINT-SIZE=\"10.0\"><B>"
                     + get<1>(*node)["name"].get<string>() + "_" + to_string((long long unsigned)(void*)&(*node))
                     + "</B></FONT></TD></TR>";
+        nodeDef += "<TR><TD ALIGN=\"LEFT\"><FONT POINT-SIZE=\"11.0\">opType: </FONT></TD> <TD ALIGN=\"RIGHT\"><FONT POINT-SIZE=\"11.0\">"
+                        + get<0>(*node).getOpType() + "</FONT></TD></TR>";
         for(const auto strategy : get<1>(*node))
         {
             nodeDef += "<TR><TD ALIGN=\"LEFT\"><FONT POINT-SIZE=\"11.0\">"
@@ -453,8 +455,8 @@ void StrategyManager::saveMetaStrategy(std::vector<MetaGraph::edge_list_iterator
         auto jsonSStrategy = SSA.toJSON(true);
         auto jsonCStrategy = CSA.toJSON(true);
         auto jsonLStrategy = LSA.toJSON(true);
-        jsonOutputFile << jsonSStrategy.stringifyPretty() << std::endl ;
-        jsonOutputFile << jsonCStrategy.stringifyPretty() << std::endl;
+        jsonOutputFile << jsonSStrategy.stringifyPretty() << "," << std::endl;
+        jsonOutputFile << jsonCStrategy.stringifyPretty() << "," << std::endl;
         jsonOutputFile << jsonLStrategy.stringifyPretty() << std::endl;
 
         jsonOutputFile.close();
@@ -734,7 +736,7 @@ void StrategyManager::recursiveCriticalPath(typename graph<mv::Op, mv::DataFlow>
     //TODO add check here for whether we've hit the same pivot (needed for nested parallelism)
     //TODO recurse if we haven't all hit the same pivot (into the nested parallel branch)
         next_modelSource.push_back(model_child);
-        writeDot(optimizationGraph, true);
+        //writeDot(optimizationGraph, false);
     }
 
     //If child counter is 1, we were in a linear section, just add the subgraph to the metaGraph
