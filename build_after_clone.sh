@@ -46,6 +46,7 @@ sudo apt install libmetis-dev libmetis5 metis
 # Begin to make DLDT for KMB-Plugin
 echo "Begin to make DLDT for KMB-Plugin"
 cd $DLDT_HOME
+git submodule update --init --recursive
 mkdir $DLDT_HOME/inference-engine/build
 cd $DLDT_HOME/inference-engine/build
 # It is necessary to set -DENABLE_PLUGIN_RPATH=ON because in script in /dld/inference-engine/build-after-clone.sh this parameter is set to OFF
