@@ -249,6 +249,8 @@ void StrategyManager::writeDot(OptimizationGraph& optimizationGraph, bool skipIn
                     <TR><TD ALIGN=\"CENTER\" COLSPAN=\"2\"><FONT POINT-SIZE=\"10.0\"><B>"
                     + get<1>(*node)["name"].get<string>() + "_" + to_string((long long unsigned)(void*)&(*node))
                     + "</B></FONT></TD></TR>";
+        nodeDef += "<TR><TD ALIGN=\"LEFT\"><FONT POINT-SIZE=\"11.0\">opType: </FONT></TD> <TD ALIGN=\"RIGHT\"><FONT POINT-SIZE=\"11.0\">"
+                        + get<0>(*node).getOpType() + "</FONT></TD></TR>";
         for(const auto strategy : get<1>(*node))
         {
             nodeDef += "<TR><TD ALIGN=\"LEFT\"><FONT POINT-SIZE=\"11.0\">"

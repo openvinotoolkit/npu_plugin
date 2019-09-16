@@ -262,7 +262,7 @@ public:
 
             for(auto clusterSize : clusterChannelSizes)
             {
-                if( ((clusterSize / split) <16) or ((clusterSize%split) !=0) or ((clusterSize/split)%16 != 0))
+                if( ((clusterSize / split) <16) or ((clusterSize%split) !=0) )//or ((clusterSize/split)%16 != 0))
                     validSplit = false;
             }
             if(!validSplit)
@@ -414,27 +414,27 @@ public:
         if((parentClustering == "HKSwitch" or
                 parentClustering == "SplitOverK") and
                 (childClustering == "SplitOverH"))
-                     return INF;
+                    return INF;
                 
         //HK Switch requires previous layer to be SOH
         if((not (parentClustering == "SplitOverH")) and
                 childClustering == "HKSwitch")
-                     return INF;
+                    return INF;
 
         //HK Switch requires next layer to be SOK
         if( parentClustering == "HKSwitch" and
                 (not (childClustering == "SplitOverK")))
-            return INF;
+                    return INF;
 
         //Cannot pass directly from SoH to SoK
         if( parentClustering == "SplitOverH" and
                 childClustering == "SplitOverK")
-                                return INF;
+                    return INF;
 
         //cannot pass directly from SoK to SoH
         if( parentClustering == "SplitOverK" and
                 childClustering == "SplitOverH")
-                     return INF;
+                    return INF;
            
 
         if(checkStreamClusterComp(parentOp,parent))
@@ -447,7 +447,7 @@ public:
         //if child is spilled, HKSwitch makes no sense
         if( (child["spilling"].get<bool>() == true ) and
                 (childClustering == "HKSwitch"))
-                       return INF;
+                    return INF;
            
 
         //TODO: Only the input can be SOH-Overlapped
@@ -455,13 +455,13 @@ public:
         //SOH-Overlapped can only go to SOH layers
         if( parentClustering == "SplitOverHOverlapped" and
                 (not (childClustering == "SplitOverH")))
-                       return INF;
+                    return INF;
 
 
         //TODO: SOH channelMajor conv requires SoHOverlapped input
         if( parentClustering == "SplitOverHOverlapped" and
                 (not (parentOp.getOpType() == "Input")))
-                       return INF;
+                    return INF;
 
 
         //TODO if parent spills, no input activation sparsity
@@ -494,15 +494,14 @@ public:
                     return INF;
                 //with this we will assume ChMajorConvolution
                 if( (childClustering == "SplitOverH") and
-                        (not (parentClustering == "SplitOverHOverlapped"))){
-                       return INF;
-                        }
+                        (not (parentClustering == "SplitOverHOverlapped")))
+                            return INF;
                 if((childClustering == "SplitOverH") and (child["streaming"].get<Shape>()["H"] > 1))
                     return INF;
             }
             else {
                 if((parent["spilling"].get<bool>() == true) and (childClustering == "SplitOverH"))
-                            return INF;
+                    return INF;
             }
             if((numOutChannels/totalClusters < 16) and (childClustering == "SplitOverK"))
                 return INF;
@@ -511,30 +510,26 @@ public:
         //TODO: disable sparsity for eltwise layer predecessors
 	if(parentOp.getOpType() == "Conv"){
 		if((parent["spilling"].get<bool>()) and (childClustering == "SplitOverH"))
-			return INF;
+            return INF;
 	}
         //Input and Output must have Spilled==True
         if( (parentOp.getOpType() == "Input") and
-                parent["spilling"].get<bool>() == false){
-                       return INF;
-                }
+                parent["spilling"].get<bool>() == false)
+                    return INF;
 
         if( (childOp.getOpType() == "Output") and
-                child["spilling"].get<bool>() == false){
-                       return INF;
-                }
+                child["spilling"].get<bool>() == false)
+                    return INF;
 
         //iIf the layer is streaming over H or W, output of this layer has to be spilled
         if( (parent["spilling"] == false) and
-                ((parent["streaming"].get<Shape>()["H"] * parent["streaming"].get<Shape>()["W"]) > 1)){
-                       return INF;
-                }
+                ((parent["streaming"].get<Shape>()["H"] * parent["streaming"].get<Shape>()["W"]) > 1))
+                    return INF;
 
         //If the child layer is streaming over H or W output of this layer has to be spilled
         if( (parent["spilling"] == false) and
-                ((child["streaming"].get<Shape>()["H"] * child["streaming"].get<Shape>()["W"]) > 1)){
-                       return INF;
-                }
+                ((child["streaming"].get<Shape>()["H"] * child["streaming"].get<Shape>()["W"]) > 1))
+                    return INF;
 
         auto parentMem = memorySize(parentOp,
                                     parentClustering,
@@ -549,9 +544,8 @@ public:
                                     false);
 
         if( ((childMem.first + childMem.second) > clusterMemory) or
-            ((parentMem.first + parentMem.second) > clusterMemory)){
-                       return INF;
-            }
+            ((parentMem.first + parentMem.second) > clusterMemory))
+                return INF;
 
 
         auto execTime1 = executionTime(parentOp,parent);
@@ -689,11 +683,11 @@ public:
 //                      maxSplitOverH = roundUp((unsigned)ceil((double)activationsSize/(double)clusterMemory) + 1,2);
                         //maxSplitOverH = (unsigned)ceil((double)activationsSize/(double)clusterMemory);
                         //if ((maxSplitOverH%2)!= 0) maxSplitOverH= roundUp(maxSplitOverH,2);
-                        unsigned splitsToFit = ceil((double)activationsSize/(double)(clusterMemory));
-                        if (splitsToFit > 1)
-                            maxSplitOverH = roundUpToStep(splitsToFit,2);
+                        unsigned splitsToFit = ceil((double)activationsSize/(double)(clusterMemory-weightsSize));
+                        if (splitsToFit < 1)
+                            maxSplitOverH = 1;
                         else
-                            maxSplitOverH = splitsToFit;
+                            maxSplitOverH = roundUpToStep(splitsToFit,2);
                     }
 
                     vector<size_t> streamsOverK;
