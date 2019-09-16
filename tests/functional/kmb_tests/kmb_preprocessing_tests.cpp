@@ -38,15 +38,20 @@ class VpuPreprocessingTestsWithParam : public vpuLayersTests,
 
 class VPUAllocator {
 public:
-    VPUAllocator() {};
-    virtual ~VPUAllocator();
+    virtual void* allocate(size_t requestedSize) = 0;
+};
+
+class VPUSMMAllocator : public VPUAllocator {
+public:
+    VPUSMMAllocator() {};
+    virtual ~VPUSMMAllocator();
     void* allocate(size_t requestedSize);
 private:
     std::list< std::tuple<int, void*, size_t> > _memChunks;
     static int _pageSize;
 };
 
-int VPUAllocator::_pageSize = getpagesize();
+int VPUSMMAllocator::_pageSize = getpagesize();
 
 static uint32_t calculateRequiredSize(uint32_t blobSize, int pageSize) {
     uint32_t blobSizeRem = blobSize % pageSize;
@@ -57,21 +62,21 @@ static uint32_t calculateRequiredSize(uint32_t blobSize, int pageSize) {
     return requiredSize;
 }
 
-void* VPUAllocator::allocate(size_t requestedSize) {
+void* VPUSMMAllocator::allocate(size_t requestedSize) {
     const uint32_t requiredBlobSize = calculateRequiredSize(requestedSize, _pageSize);
     int fileDesc = vpusmm_alloc_dmabuf(requiredBlobSize, VPUSMMTYPE_COHERENT);
     if (fileDesc < 0) {
-        throw std::runtime_error("VPUAllocator::allocate: vpusmm_alloc_dmabuf failed");
+        throw std::runtime_error("VPUSMMAllocator::allocate: vpusmm_alloc_dmabuf failed");
     }
 
     unsigned long physAddr = vpusmm_import_dmabuf(fileDesc, VPU_DEFAULT);
     if (physAddr == 0) {
-        throw std::runtime_error("VPUAllocator::allocate: vpusmm_import_dmabuf failed");
+        throw std::runtime_error("VPUSMMAllocator::allocate: vpusmm_import_dmabuf failed");
     }
 
     void* virtAddr = mmap(0, requiredBlobSize, PROT_READ|PROT_WRITE, MAP_SHARED, fileDesc, 0);
     if (virtAddr == MAP_FAILED) {
-        throw std::runtime_error("VPUAllocator::allocate: mmap failed");
+        throw std::runtime_error("VPUSMMAllocator::allocate: mmap failed");
     }
     std::tuple<int, void*, size_t> memChunk(fileDesc, virtAddr, requiredBlobSize);
     _memChunks.push_back(memChunk);
@@ -79,7 +84,7 @@ void* VPUAllocator::allocate(size_t requestedSize) {
     return virtAddr;
 }
 
-VPUAllocator::~VPUAllocator() {
+VPUSMMAllocator::~VPUSMMAllocator() {
     for (const std::tuple<int, void*, size_t> & chunk : _memChunks) {
         int fileDesc = std::get<0>(chunk);
         void* virtAddr = std::get<1>(chunk);
@@ -90,10 +95,43 @@ VPUAllocator::~VPUAllocator() {
     }
 }
 
+class NativeAllocator : public VPUAllocator {
+public:
+    NativeAllocator() {};
+    virtual ~NativeAllocator();
+    void* allocate(size_t requestedSize);
+private:
+    std::list< std::tuple<int, void*, size_t> > _memChunks;
+};
+
+void* NativeAllocator::allocate(size_t requestedSize) {
+    void *virtAddr = nullptr;
+    int fileDesc = -1;
+    virtAddr = static_cast<unsigned char*>(mmap(nullptr, requestedSize, PROT_READ|PROT_WRITE, MAP_SHARED|MAP_ANONYMOUS, fileDesc, 0));
+
+    if (virtAddr == MAP_FAILED) {
+        throw std::runtime_error("VPUSMMAllocator::allocate: mmap failed");
+    }
+    std::tuple<int, void*, size_t> memChunk(fileDesc, virtAddr, requestedSize);
+    _memChunks.push_back(memChunk);
+
+    return virtAddr;
+}
+
+NativeAllocator::~NativeAllocator() {
+    for (const std::tuple<int, void*, size_t> & chunk : _memChunks) {
+        int fileDesc = std::get<0>(chunk);
+        void* virtAddr = std::get<1>(chunk);
+        size_t allocatedSize = std::get<2>(chunk);
+        munmap(virtAddr, allocatedSize);
+        close(fileDesc);
+    }
+}
+
 Blob::Ptr fromNV12File(const std::string &filePath,
                        size_t imageWidth,
                        size_t imageHeight,
-                       VPUAllocator &allocator) {
+                       std::shared_ptr<VPUAllocator> &allocator) {
     std::ifstream fileReader(filePath, std::ios_base::ate | std::ios_base::binary);
     if (!fileReader.good()) {
         throw std::runtime_error("fromNV12File: failed to open file " + filePath);
@@ -106,7 +144,7 @@ Blob::Ptr fromNV12File(const std::string &filePath,
     }
     fileReader.seekg(0);
 
-    uint8_t *imageData = reinterpret_cast<uint8_t *>(allocator.allocate(fileSize));
+    uint8_t *imageData = reinterpret_cast<uint8_t *>(allocator->allocate(fileSize));
     if (!imageData) {
         throw std::runtime_error("fromNV12File: failed to allocate memory");
     }
@@ -155,12 +193,12 @@ static void setPreprocForInputBlob(const std::string &inputName,
                                    const TensorDesc &inputTensor,
                                    const std::string &inputFilePath,
                                    InferenceEngine::InferRequest &inferRequest,
-                                   VPUAllocator &allocator,
+                                   std::shared_ptr<VPUAllocator> &allocator,
                                    preprocessingType preprocType) {
     Blob::Ptr inputBlob;
     switch (preprocType) {
     case PT_RESIZE: {
-            uint8_t *imageData = reinterpret_cast<uint8_t*>(allocator.allocate(3 * 227 * 227));
+            uint8_t *imageData = reinterpret_cast<uint8_t*>(allocator->allocate(3 * 227 * 227));
             InferenceEngine::TensorDesc preprocTensor(
                 inputTensor.getPrecision(),
                 {1, 3, 227, 227},
@@ -183,7 +221,7 @@ static void setPreprocForInputBlob(const std::string &inputName,
 static void setNV12Preproc(const std::string &inputName,
                                    const std::string &inputFilePath,
                                    InferenceEngine::InferRequest &inferRequest,
-                                   VPUAllocator &allocator) {
+                                   std::shared_ptr<VPUAllocator> &allocator) {
     Blob::Ptr inputBlob;
     const size_t expectedWidth = 228;
     const size_t expectedHeight = 228;
@@ -191,7 +229,7 @@ static void setNV12Preproc(const std::string &inputName,
     ASSERT_NO_THROW(inferRequest.SetBlob(inputName, inputBlob));
 }
 
-Blob::Ptr dequantize(float begin, float end, const Blob::Ptr &quantBlob, VPUAllocator &allocator) {
+Blob::Ptr dequantize(float begin, float end, const Blob::Ptr &quantBlob, std::shared_ptr<VPUAllocator> &allocator) {
     const int QUANT_LEVELS = 256;
     float step = (begin - end)/QUANT_LEVELS;
     const TensorDesc quantTensor = quantBlob->getTensorDesc();
@@ -200,7 +238,7 @@ Blob::Ptr dequantize(float begin, float end, const Blob::Ptr &quantBlob, VPUAllo
         quantTensor.getDims(),
         quantTensor.getLayout());
     const uint8_t *quantRaw = quantBlob->cbuffer().as<const uint8_t *>();
-    float *outRaw = reinterpret_cast<float *>(allocator.allocate(quantBlob->byteSize() * sizeof(float)));
+    float *outRaw = reinterpret_cast<float *>(allocator->allocate(quantBlob->byteSize() * sizeof(float)));
 
     for (size_t pos = 0; pos < quantBlob->byteSize(); pos++) {
         outRaw[pos] = begin + quantRaw[pos] * step;
@@ -209,11 +247,28 @@ Blob::Ptr dequantize(float begin, float end, const Blob::Ptr &quantBlob, VPUAllo
     return outputBlob;
 }
 
+std::shared_ptr<VPUAllocator> buildAllocator(const char * allocatorType) {
+    if (allocatorType == nullptr) {
+        return std::make_shared<VPUSMMAllocator>();
+    }
+
+    std::string allocTypeStr(allocatorType);
+    if (allocTypeStr == "NATIVE") {
+        return std::make_shared<NativeAllocator>();
+    } else if (allocTypeStr == "UDMA") {
+        throw std::runtime_error("buildAllocator: UDMA is not supported");
+    }
+
+    // VPUSMM is default
+    return std::make_shared<VPUSMMAllocator>();
+}
+
+
 TEST_P(VpuPreprocessingTestsWithParam, DISABLED_importWithPreprocessing) {  // To be run in manual mode when device is available
     preprocessingType preprocType = GetParam();
     std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet/mobilenet.blob";
 
-    VPUAllocator kmbAllocator;
+    std::shared_ptr<VPUAllocator> kmbAllocator = buildAllocator(std::getenv("IE_VPU_KMB_MEMORY_ALLOCATOR_TYPE"));
 
     Core ie;
     InferenceEngine::ExecutableNetwork importedNetwork;
@@ -249,7 +304,7 @@ TEST_P(VpuPreprocessingTestsWithParam, DISABLED_importWithPreprocessing) {  // T
 
         TensorDesc outputBlobTensorDesc = outputBlob->getTensorDesc();
 
-        uint8_t* outputRefData = reinterpret_cast<uint8_t*>(kmbAllocator.allocate(outputBlob->byteSize()));
+        uint8_t* outputRefData = reinterpret_cast<uint8_t*>(kmbAllocator->allocate(outputBlob->byteSize()));
         Blob::Ptr referenceOutputBlob = make_shared_blob<uint8_t>(outputBlobTensorDesc, outputRefData);
         ASSERT_TRUE(fromBinaryFile(referenceOutputFilePath, referenceOutputBlob));
 
@@ -263,7 +318,7 @@ using VpuPreprocessingTests = vpuLayersTests;
 TEST_F(VpuPreprocessingTests, DISABLED_correctPreprocessing) {
     std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet/mobilenet.blob";
 
-    VPUAllocator kmbAllocator;
+    std::shared_ptr<VPUAllocator> kmbAllocator = buildAllocator(std::getenv("IE_VPU_KMB_MEMORY_ALLOCATOR_TYPE"));
 
     Core ie;
     InferenceEngine::ExecutableNetwork importedNetwork;
@@ -299,7 +354,7 @@ TEST_F(VpuPreprocessingTests, DISABLED_correctPreprocessing) {
 
         TensorDesc outputBlobTensorDesc = outputBlob->getTensorDesc();
 
-        uint8_t* outputRefData = reinterpret_cast<uint8_t*>(kmbAllocator.allocate(outputBlob->byteSize()));
+        uint8_t* outputRefData = reinterpret_cast<uint8_t*>(kmbAllocator->allocate(outputBlob->byteSize()));
         Blob::Ptr referenceOutputBlob = make_shared_blob<uint8_t>(outputBlobTensorDesc, outputRefData);
         ASSERT_TRUE(fromBinaryFile(referenceOutputFilePath, referenceOutputBlob));
 
@@ -311,7 +366,7 @@ TEST_F(VpuPreprocessingTests, DISABLED_correctPreprocessing) {
 TEST_F(VpuPreprocessingTests, DISABLED_multiThreadCorrectPreprocessing) {
     std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet/mobilenet.blob";
 
-    VPUAllocator kmbAllocator;
+    std::shared_ptr<VPUAllocator> kmbAllocator = buildAllocator(std::getenv("IE_VPU_KMB_MEMORY_ALLOCATOR_TYPE"));
 
     Core ie;
     InferenceEngine::ExecutableNetwork importedNetwork;
@@ -356,7 +411,7 @@ TEST_F(VpuPreprocessingTests, DISABLED_multiThreadCorrectPreprocessing) {
 
         TensorDesc outputBlobTensorDesc = outputBlob->getTensorDesc();
 
-        uint8_t* outputRefData = reinterpret_cast<uint8_t*>(kmbAllocator.allocate(outputBlob->byteSize()));
+        uint8_t* outputRefData = reinterpret_cast<uint8_t*>(kmbAllocator->allocate(outputBlob->byteSize()));
         Blob::Ptr referenceOutputBlob = make_shared_blob<uint8_t>(outputBlobTensorDesc, outputRefData);
         ASSERT_TRUE(fromBinaryFile(referenceOutputFilePath, referenceOutputBlob));
 
@@ -368,7 +423,7 @@ TEST_F(VpuPreprocessingTests, DISABLED_multiThreadCorrectPreprocessing) {
 TEST_F(VpuPreprocessingTests, DISABLED_twoRequestsWithPreprocessing) {
     std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet/mobilenet.blob";
 
-    VPUAllocator kmbAllocator;
+    std::shared_ptr<VPUAllocator> kmbAllocator = buildAllocator(std::getenv("IE_VPU_KMB_MEMORY_ALLOCATOR_TYPE"));
 
     Core ie;
     InferenceEngine::ExecutableNetwork importedNetwork;
@@ -431,7 +486,7 @@ TEST_F(VpuPreprocessingTests, DISABLED_twoRequestsWithPreprocessing) {
 
         TensorDesc outputBlobTensorDesc = outputBlob->getTensorDesc();
 
-        uint8_t* outputRefData = reinterpret_cast<uint8_t*>(kmbAllocator.allocate(outputBlob->byteSize()));
+        uint8_t* outputRefData = reinterpret_cast<uint8_t*>(kmbAllocator->allocate(outputBlob->byteSize()));
         Blob::Ptr referenceOutputBlob = make_shared_blob<uint8_t>(outputBlobTensorDesc, outputRefData);
         ASSERT_TRUE(fromBinaryFile(referenceOutputFilePath, referenceOutputBlob));
 
@@ -471,7 +526,7 @@ TEST_F(VpuPreprocessingTests, DISABLED_twoNetworksWithPreprocessing) {
         setPreprocAlgorithm(mutableItem, PT_NV12);
     }
 
-    VPUAllocator kmbAllocator;
+    std::shared_ptr<VPUAllocator> kmbAllocator = buildAllocator(std::getenv("IE_VPU_KMB_MEMORY_ALLOCATOR_TYPE"));
 
     InferenceEngine::InferRequest::Ptr network1InferReqPtr;
     network1InferReqPtr = network1.CreateInferRequestPtr();
