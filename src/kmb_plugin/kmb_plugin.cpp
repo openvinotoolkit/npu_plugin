@@ -36,15 +36,6 @@ ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(const ICore * /*core*/
     network.getInputsInfo(networkInputs);
     network.getOutputsInfo(networkOutputs);
 
-    IE_SUPPRESS_DEPRECATED_START
-    auto specifiedDevice = network.getTargetDevice();
-    auto supportedDevice = InferenceEngine::TargetDevice::eKMB;
-    if (specifiedDevice != InferenceEngine::TargetDevice::eDefault && specifiedDevice != supportedDevice) {
-        THROW_IE_EXCEPTION << "The plugin doesn't support target device: " << getDeviceName(specifiedDevice) << ".\n" <<
-                           "Supported target device: " << getDeviceName(supportedDevice);
-    }
-    IE_SUPPRESS_DEPRECATED_END
-
     for (auto networkInput : networkInputs) {
         auto input_precision = networkInput.second->getPrecision();
 
@@ -73,10 +64,6 @@ void Engine::SetConfig(const std::map<std::string, std::string> &userConfig) {
     }
 }
 
-void Engine::QueryNetwork(const ICNNNetwork& network, QueryNetworkResult& res) const {
-    QueryNetwork(network, {}, res);
-}
-
 void Engine::QueryNetwork(const ICNNNetwork& network, const std::map<std::string, std::string>& config,
                           QueryNetworkResult& res) const {
     UNUSED(config);
@@ -97,9 +84,6 @@ void Engine::QueryNetwork(const ICNNNetwork& network, const std::map<std::string
         res.supportedLayersMap.insert({ layerName, GetName() });
     }
 
-    IE_SUPPRESS_DEPRECATED_START
-    res.supportedLayers.insert(layerNames.begin(), layerNames.end());
-    IE_SUPPRESS_DEPRECATED_END
 #else
     UNUSED(network);
     UNUSED(res);
