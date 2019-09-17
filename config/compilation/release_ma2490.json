@@ -26,7 +26,7 @@
                         "strategy": "Clustering"
                     }
                 ],
-                "default_tensor_placement" : "CMX"
+                "default_tensor_placement" : "NNCMX"
             },
             "ComputeMemory",
             "AssignUniqueOpId",
@@ -39,7 +39,7 @@
             },
             "StoreTensorPlacement"
         ]
-    },   
+    },
     "adapt": {
         "Singular": [
             "PopulatedTensorsToFP16",
@@ -124,20 +124,18 @@
         "Singular": [
             "ConcatAsImplicit",
             "StoreWorkloadStrategy",
-            "ConvertOpsToTasks",
+            "ConvertOpsToDPUTasks",
+            "ConvertOpsToUPATasks",
             "ForceSerialize",
             "KMBOrderConversion",
             "AlignTo16Channels",
             "AlignTaskWeights",
-            "GenerateSparsityMapsUnpopulatedTensors",
             "GenerateSparsityMapsPopulatedTensors",
             "GenerateWeightsTables",
             "GenerateEltWiseConstants",
             "StrategyLayersToTensors",
             "ComputeTensorsQuantParams",
             "UpdateImplicitLayersQuantizationParams",
-
-
             "PopulateWeightsTablesQuantization",
             "RemoveBiasTensors"
         ]
@@ -145,9 +143,11 @@
     "dma": {
         "Singular" : [
             "SetDpuTasksMemoryLocation",
+            "SetUPATasksMemoryLocation",
             "ResolveImplicitOperations",
-            "AddWeightsDMATasks",
-            "EnsureSplitStrategiesForSpilling"
+            "AddDPUTasksWeightsDMATasks",
+            "AddUPATasksExtraInputsDMATasks",
+            "GenerateSparsityMapsUnpopulatedTensors"
         ]
     },
     "control_flows":{
@@ -158,7 +158,7 @@
             "HangingDmaControlFlows",
             "TransitiveReduction",
             "LayerNumbering",
-            "cmx2DDRControlFlows",
+            "NNCMX2DDRControlFlows",
             "TransitiveReduction"
         ]
     },
@@ -166,6 +166,10 @@
         "Singular": [
             "SplittingTensorsAcrossClusters",
             "AddDeallocationTasks",
+            {
+                "name": "TransitiveReduction",
+                "filter": "MemoryRequirement"
+            },
             "MarkLastNodeForMaxTopologicalCut",
             "MaxTopologicalCutAndPartialSerialisation",
             "TransitiveReduction",
@@ -198,11 +202,11 @@
         "Singular": [
             {
                 "name": "GenerateBlobKeembay",
-                "output": "output/test.blob"
+                "output": "output/mcm.blob"
             },
             {
                 "name": "ConvertFlatbuffer",
-                "input": "output/test.blob"
+                "input": "output/mcm.blob"
             }
 
         ]
