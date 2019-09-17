@@ -409,24 +409,24 @@ void FrontEndMcm::applyQuantizationTransformations(ie::CNNNetwork& network) {
             auto dataDescFP = InferenceEngine::TensorDesc(InferenceEngine::Precision::FP32,
                                                         {axisRealSize},
                                                         InferenceEngine::Layout::C);
-            auto dataDescInt = InferenceEngine::TensorDesc(InferenceEngine::Precision::I64,
+            auto dataDescInt = InferenceEngine::TensorDesc(InferenceEngine::Precision::I32,
                                             {axisRealSize},
                                             InferenceEngine::Layout::C);
 
-            auto newActivationInputScale = InferenceEngine::make_shared_blob<double>(dataDescFP);
-            auto newActivationOutScale = InferenceEngine::make_shared_blob<double>(dataDescFP);
-            auto newActivationInputShift = InferenceEngine::make_shared_blob<int64_t>(dataDescInt);
-            auto newActivationOutShift = InferenceEngine::make_shared_blob<int64_t>(dataDescInt);
+            auto newActivationInputScale = InferenceEngine::make_shared_blob<float>(dataDescFP);
+            auto newActivationOutScale = InferenceEngine::make_shared_blob<float>(dataDescFP);
+            auto newActivationInputShift = InferenceEngine::make_shared_blob<int32_t>(dataDescInt);
+            auto newActivationOutShift = InferenceEngine::make_shared_blob<int32_t>(dataDescInt);
 
             newActivationInputScale->allocate();
             newActivationOutScale->allocate();
             newActivationOutShift->allocate();
             newActivationInputShift->allocate();
 
-            auto inputScale = newActivationInputScale->buffer().as<double *>();
-            auto outputScale = newActivationOutScale->buffer().as<double *>();
-            auto inputShift = newActivationInputShift->buffer().as<int64_t *>();
-            auto outputShift = newActivationOutShift->buffer().as<int64_t *>();
+            auto inputScale = newActivationInputScale->buffer().as<float *>();
+            auto outputScale = newActivationOutScale->buffer().as<float *>();
+            auto inputShift = newActivationInputShift->buffer().as<int32_t *>();
+            auto outputShift = newActivationOutShift->buffer().as<int32_t *>();
 
             for (unsigned i = 0; i < axisRealSize; i++) {
                 float il = inputLowData[isInputLowBroadcasted ? 0 : i];
@@ -434,10 +434,10 @@ void FrontEndMcm::applyQuantizationTransformations(ie::CNNNetwork& network) {
                 float ol = outputLowData[isOutputLowBroadcasted ? 0 : i];
                 float oh = outputHighData[isOutputHighBroadcasted ? 0 : i];
 
-                inputScale[i] = static_cast<double>((levels - 1) / (ih - il));
-                inputShift[i] = static_cast<int64_t>(-il * (levels - 1) / (ih - il));
-                outputScale[i] = static_cast<double>((oh - ol) / (levels - 1));
-                outputShift[i] = static_cast<int64_t>(ol);
+                inputScale[i] = static_cast<float>((levels - 1) / (ih - il));
+                inputShift[i] = static_cast<int32_t>(-il * (levels - 1) / (ih - il));
+                outputScale[i] = static_cast<float>((oh - ol) / (levels - 1));
+                outputShift[i] = static_cast<int32_t>(ol);
             }
 
             prevLayer->blobs["newActivationInputScale"] = newActivationInputScale;
