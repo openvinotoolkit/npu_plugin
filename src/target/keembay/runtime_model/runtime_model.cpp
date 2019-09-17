@@ -92,11 +92,10 @@ void setIfPresent(T1& fieldToFill, mv::Element& compilationDescriptor, const std
         fieldToFill = compilationDescriptor.get<T2>(key);
 }
 
-void mv::RuntimeModel::alignTensor(mv::ComputationModel& cm, std::unique_ptr<MVCNN::TensorReferenceT>& tensorT, mv::Data::TensorIterator tensor)
+void mv::RuntimeModel::alignTensor(mv::ComputationModel& cm, std::unique_ptr<MVCNN::TensorReferenceT>& tensorT, mv::Data::TensorIterator tensor, bool padFinalOutput)
 {
         auto globalConfigParams = cm.getGlobalConfigParams();
         int pad = globalConfigParams->hasAttr("VPU2ChannelPadding") ? globalConfigParams->get<int>("VPU2ChannelPadding") : 16;
-        auto paddOutput = globalConfigParams->hasAttr("PadOutput") ? globalConfigParams->get<bool>("PadOutput") : false;
 
         std::vector<std::size_t> dimensions = tensor->getShape();
         auto outputChannelsPadded = mv::round_up(dimensions[mv::IO_CHANNEL_DIMENSION], pad);
@@ -106,7 +105,7 @@ void mv::RuntimeModel::alignTensor(mv::ComputationModel& cm, std::unique_ptr<MVC
         std::reverse(dimensions.begin(), dimensions.end());
         std::reverse(numericStrides.begin(), numericStrides.end());
         tensorT->strides = numericStrides; // NOTE: Maybe directly bufferIt->computeStrides() in the future
-        if(paddOutput)
+        if(padFinalOutput)
             tensorT->dimensions = std::vector<uint32_t>(dimensions.begin(), dimensions.end());
 }
 
@@ -467,7 +466,7 @@ std::unique_ptr<MVCNN::SummaryHeaderT> mv::RuntimeModel::buildSummaryHeaderT(Com
     toBuild->net_output[0] = buildTensorReferenceT(cm, compilationDescriptor, om.getOutput()->getInputTensor(0));
     if (paddOutput && om.getOutput()->getInputTensor(0)->hasAttr("alignment"))
     {
-        alignTensor(cm, toBuild->net_output[0], om.getOutput()->getInputTensor(0));
+        alignTensor(cm, toBuild->net_output[0], om.getOutput()->getInputTensor(0), paddOutput);
     }
     auto taskCount = [](mv::OpModel m)
     {
@@ -714,20 +713,26 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
     std::vector<std::unique_ptr<MVCNN::TaskT>> toReturn = std::vector<std::unique_ptr<MVCNN::TaskT>>(1);
     toReturn[0] = std::unique_ptr<MVCNN::TaskT>(new MVCNN::TaskT());
     toReturn[0]->task.type = MVCNN::SpecificTask_NNDMATask;
-    auto paddOutput = cm.getGlobalConfigParams()->hasAttr("PadOutput") ? cm.getGlobalConfigParams()->get<bool>("PadOutput") : false;
+    auto padFinalOutput = false;
 
+    auto tensorAllocatorName = opIt->getOutputTensor(0)->get<std::set<std::string>>("allocators").begin();
+    if (*tensorAllocatorName == "ProgrammableOutput")
+    {
+        //Only if we are DMA-ing to programmable output check if we need to padd it
+        padFinalOutput = cm.getGlobalConfigParams()->hasAttr("PadOutput") ? cm.getGlobalConfigParams()->get<bool>("PadOutput") : false;
+    }
     auto tmp = new MVCNN::NNDMATaskT();
-
     tmp->src = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(0));
     if (opIt->getInputTensor(0)->hasAttr("alignment"))
     {
-        alignTensor(cm, tmp->src, opIt->getInputTensor(0));
+        alignTensor(cm, tmp->src, opIt->getInputTensor(0), padFinalOutput);
     }
 
     tmp->dst = buildTensorReferenceT(cm, compilationDescriptor, opIt->getOutputTensor(0));
-    if (paddOutput && opIt->getOutputTensor(0)->hasAttr("alignment"))
+
+    if (padFinalOutput && opIt->getOutputTensor(0)->hasAttr("alignment"))
     {
-        alignTensor(cm, tmp->dst, opIt->getOutputTensor(0));
+        alignTensor(cm, tmp->dst, opIt->getOutputTensor(0), padFinalOutput);
     }
 
     if(opIt->hasAttr("Compression"))
@@ -742,7 +747,14 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
     auto direction = opIt->get<mv::DmaDirection>("direction");
     auto globalConfigParams = cm.getGlobalConfigParams();
     unsigned numTasks = globalConfigParams->get<int>("Number_of_Clusters");
-    auto paddOutput = globalConfigParams->hasAttr("PadOutput") ? globalConfigParams->get<bool>("PadOutput") : false;
+    auto padFinalOutput = false;
+
+    auto tensorAllocatorName = opIt->getOutputTensor(0)->get<std::set<std::string>>("allocators").begin();
+    if (*tensorAllocatorName == "ProgrammableOutput")
+    {
+        //Only if we are DMA-ing to programmable output check if we need to padd it
+        padFinalOutput = cm.getGlobalConfigParams()->hasAttr("PadOutput") ? cm.getGlobalConfigParams()->get<bool>("PadOutput") : false;
+    }
     if (splitting == "Clustering" && !opIt->getOutputTensor(0)->isPopulated())
     {
         std::vector<std::unique_ptr<MVCNN::TaskT>> toReturn = std::vector<std::unique_ptr<MVCNN::TaskT>>(numTasks);
@@ -759,7 +771,7 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
             }
             if (opIt->getInputTensor(0)->hasAttr("alignment"))
             {
-                alignTensor(cm, tmp->src, opIt->getInputTensor(0));
+                alignTensor(cm, tmp->src, opIt->getInputTensor(0), padFinalOutput);
             }
             tmp->dst = buildTensorReferenceT(cm, compilationDescriptor, opIt->getOutputTensor(0));
             if (direction == mv::DmaDirectionEnum::DDR2CMX)
@@ -767,9 +779,9 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
                 auto locale_index = std::vector<unsigned int>(1,i);
                 tmp->dst->locale_index = locale_index;
             }
-            if (paddOutput && opIt->getOutputTensor(0)->hasAttr("alignment"))
+            if (padFinalOutput && opIt->getOutputTensor(0)->hasAttr("alignment"))
             {
-                alignTensor(cm, tmp->dst, opIt->getOutputTensor(0));
+                alignTensor(cm, tmp->dst, opIt->getOutputTensor(0), padFinalOutput);
             }
             if(opIt->hasAttr("Compression"))
                 tmp->compression =  opIt->get<bool>("Compression");
@@ -782,34 +794,18 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
         //NOTE: Multicast flag works on nce2tasks for going the whole output tensor on every cluster,
         //POC's logic with replicating 4 times the same DMA seems not correct, even for mutiple layers to me,
         //however letting this on comments.
-//        if (opIt->getInputTensor(0)->hasAttr("multiCast"))
-//        {
-//            std::vector<std::unique_ptr<MVCNN::TaskT>> toReturn = std::vector<std::unique_ptr<MVCNN::TaskT>>(numTasks);
-//            for(unsigned i = 0; i < numTasks; ++i)
-//            {
-//                toReturn[i] = std::unique_ptr<MVCNN::TaskT>(new MVCNN::TaskT());
-//                toReturn[i]->task.type = MVCNN::SpecificTask_NNDMATask;
-//                auto tmp = new MVCNN::NNDMATaskT();
-//                tmp->src = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(0));
-//                tmp->dst = buildTensorReferenceT(cm, compilationDescriptor, opIt->getOutputTensor(0));
-//                if(opIt->hasAttr("Compression"))
-//                    tmp->compression =  opIt->get<bool>("Compression");
-//                toReturn[i]->task.value = tmp;
-//            }
-//            return toReturn;
-//        }
-//        else
-//        {
+
         auto tmp = new MVCNN::NNDMATaskT();
         std::vector<std::unique_ptr<MVCNN::TaskT>> toReturn = std::vector<std::unique_ptr<MVCNN::TaskT>>(1);
 
+        // 1 DMA to multiple slices -  multiple slices to 1 place
+        toReturn[0] = std::unique_ptr<MVCNN::TaskT>(new MVCNN::TaskT());
+        toReturn[0]->task.type = MVCNN::SpecificTask_NNDMATask;
+
+        tmp->src = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(0));
         if (direction == mv::DDR2CMX)
         {
-            // 1 DMA to multiple slices -  multiple slices to 1 place
-            toReturn[0] = std::unique_ptr<MVCNN::TaskT>(new MVCNN::TaskT());
-            toReturn[0]->task.type = MVCNN::SpecificTask_NNDMATask;
-
-            tmp->src = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(0));
+            //copying from DDR2CMX we need to pad output if tensor needs alignment
             tmp->dst = buildTensorReferenceT(cm, compilationDescriptor, opIt->getOutputTensor(0));
             if (opIt->getOutputTensor(0)->hasAttr("alignment"))
             {
@@ -818,33 +814,29 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
         }
         else
         {
-            // 1 DMA to multiple slices -  multiple slices to 1 place
-            toReturn[0] = std::unique_ptr<MVCNN::TaskT>(new MVCNN::TaskT());
-            toReturn[0]->task.type = MVCNN::SpecificTask_NNDMATask;
-            tmp->src = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(0));
+            //copying from CMX2DDR we need to crop down if tensor needed alignment in CMX
             if (opIt->getInputTensor(0)->hasAttr("alignment"))
             {
-                alignTensor(cm, tmp->src, opIt->getInputTensor(0));
+                alignTensor(cm, tmp->src, opIt->getInputTensor(0), padFinalOutput);
             }
             tmp->dst = buildTensorReferenceT(cm, compilationDescriptor, opIt->getOutputTensor(0));
-            if (paddOutput && opIt->getOutputTensor(0)->hasAttr("alignment"))
+            if (padFinalOutput && opIt->getOutputTensor(0)->hasAttr("alignment"))
             {
-                alignTensor(cm, tmp->dst, opIt->getOutputTensor(0));
+                alignTensor(cm, tmp->dst, opIt->getOutputTensor(0), padFinalOutput);
             }
         }
 
-            std::vector<unsigned int> locale_index;
-            for (unsigned idx = numTasks; idx > 0; idx--)
-                locale_index.push_back(idx - 1);
+        std::vector<unsigned int> locale_index;
+        for (unsigned idx = numTasks; idx > 0; idx--)
+            locale_index.push_back(idx - 1);
 
-            if(direction == mv::DDR2CMX)
-                tmp->dst->locale_index = locale_index;
+        if(direction == mv::DDR2CMX)
+            tmp->dst->locale_index = locale_index;
 
-            if(opIt->hasAttr("Compression"))
-                tmp->compression =  opIt->get<bool>("Compression");
-            toReturn[0]->task.value = tmp;
-            return toReturn;
-//        }
+        if(opIt->hasAttr("Compression"))
+            tmp->compression =  opIt->get<bool>("Compression");
+        toReturn[0]->task.value = tmp;
+        return toReturn;
     }
     else
     {
@@ -858,12 +850,12 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
             tmp->src = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(0), i);
             if (opIt->getInputTensor(0)->hasAttr("alignment"))
             {
-                alignTensor(cm, tmp->src, opIt->getInputTensor(0));
+                alignTensor(cm, tmp->src, opIt->getInputTensor(0), padFinalOutput);
             }
             tmp->dst = buildTensorReferenceT(cm, compilationDescriptor, opIt->getOutputTensor(0), i);
-            if (paddOutput && opIt->getOutputTensor(0)->hasAttr("alignment"))
+            if (padFinalOutput && opIt->getOutputTensor(0)->hasAttr("alignment"))
             {
-                alignTensor(cm, tmp->dst, opIt->getOutputTensor(0));
+                alignTensor(cm, tmp->dst, opIt->getOutputTensor(0), padFinalOutput);
             }
             if(opIt->hasAttr("Compression"))
                 tmp->compression =  opIt->get<bool>("Compression");
