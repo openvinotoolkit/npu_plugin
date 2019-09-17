@@ -36,10 +36,6 @@ public:
                                                                        const std::map<std::string, std::string> &config) override;
 
     void SetConfig(const std::map<std::string, std::string> &config) override;
-    /**
-     * @deprecated Use the version with config parameter
-     */
-    void QueryNetwork(const InferenceEngine::ICNNNetwork& network, InferenceEngine::QueryNetworkResult& res) const override;
     void QueryNetwork(const InferenceEngine::ICNNNetwork& network,
                       const std::map<std::string, std::string>& config, InferenceEngine::QueryNetworkResult& res) const override;
 
