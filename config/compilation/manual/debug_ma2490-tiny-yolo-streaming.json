@@ -80,6 +80,314 @@
                     },
                     {
                         "name_filter" : "conv3#38",
+            "ComputeMemory",
+            "AssignUniqueOpId",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/original_model.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/original_model.dot"
+            },
+            {
+                "name": "CreateSourceStructure",
+                "VersionMajor": 3,
+                "VersionMinor": 11,
+                "VersionPatch": 0,
+                "VersionHash": "9aa43159420c77d8cf765393954ac2fbb372ab02"
+            },
+            "StoreTensorPlacement",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/StoreTensorPlacement.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/StoreTensorPlacement.dot"
+            }
+        ]
+    },
+    "adapt": {
+        "Singular": [
+            "PopulatedTensorsToFP16",
+            "UnpopulatedTensorsToFP16",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/fp16_model.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/fp16_model.dot"
+            },
+            "AverageAsDepthWise",
+            "FuseBatchNorm",
+            "FuseBias",
+            "FuseRelu",
+            "FuseScale",
+            "FullyConnectedAsConv2D",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/adapt_model.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/adapt_model.dot"
+            },
+            "StoreLayerSplitStrategy",
+            "StreamingTiling",
+            "StreamBinaryDataWeights",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/tiling_model.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/tiling_model.dot"
+            }
+        ]
+    },
+    "keembay_adapt": {
+        "Singular": [
+            "ConcatAsImplicit",
+            "StoreWorkloadStrategy",
+            "ConvertOpsToDPUTasks",
+            "ConvertOpsToUPATasks",
+            "ForceSerialize",
+            "KMBOrderConversion",
+            "AlignTo16Channels",
+            "AlignTaskWeights",
+            "GenerateSparsityMapsPopulatedTensors",
+            "GenerateWeightsTables",
+            "GenerateEltWiseConstants",
+            "StrategyLayersToTensors",
+            "ComputeTensorsQuantParams",
+            "UpdateImplicitLayersQuantizationParams",
+            "PopulateWeightsTablesQuantization",
+            "RemoveBiasTensors",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/keembay_adapt_model.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/keembay_adapt_model.dot"
+            }
+        ]
+    },
+    "dma": {
+        "Singular" : [
+            "SetDpuTasksMemoryLocation",
+            "SetUPATasksMemoryLocation",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/dpu_tasks_location.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/dpu_tasks_location.dot"
+            },
+            "ResolveImplicitOperations",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/implicit_operations_model.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/implicit_operations_model.dot"
+            },
+            "AddDPUTasksWeightsDMATasks",
+            "AddUPATasksExtraInputsDMATasks",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/dma_model.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/dma_model.dot"
+            },
+            "GenerateSparsityMapsUnpopulatedTensors"
+        ]
+    },
+    "control_flows":{
+        "Singular" : [
+            "TaskControlFlows",
+            "CompleteControlGraph",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/TaskControlFlows_model.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/TaskControlFlows_model.dot"
+            },
+            "TransitiveReduction",
+            "LayerNumbering",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/TaskControlFlows_model_transitive_reduction.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/TaskControlFlows_model_transitive_reduction.dot"
+            },
+            "HangingDmaControlFlows",
+            "TransitiveReduction",
+            "LayerNumbering",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/NoHangingDmas.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/NoHangingDmas.dot"
+            },
+            "NNCMX2DDRControlFlows",
+            "TransitiveReduction",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/NNCMX2DDRControlFlows.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/cmx2DDRControlFlows.dot"
+            }
+        ]
+    },
+    "finalize": {
+        "Singular": [
+            "SplittingTensorsAcrossClusters",
+            "AddDeallocationTasks",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/deallocation_model.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/deallocation_model.dot"
+            },
+            {
+                "name": "TransitiveReduction",
+                "filter": "MemoryRequirement"
+            },
+            "MarkLastNodeForMaxTopologicalCut",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/TransitiveReductionBeforeMaxCut.dot",
+                "scope": "ControlModel",
+                "content": "nonfull",
+                "html": true
+            },
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/TransitiveReductionBeforeMaxCutFull.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/TransitiveReductionBeforeMaxCut.dot"
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/TransitiveReductionBeforeMaxCutFull.dot"
+            },
+            "MaxTopologicalCutAndPartialSerialisation",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/MaxTopologicalCutAndPartialSerialisation.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
+            },
+            "TransitiveReduction",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/TransitiveReductionAfterMaxCut.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/TransitiveReductionAfterMaxCut.dot"
+            },
+            {
+                "name": "GenerateWorkloads",
+                "costfunction": "greedy",
+                "TensorSplitAlgorithms": "Rectangle, Z-Tiling",
+                "_comment": "Supported CostFunctions are: balanced | criticalpath | minmax | greedy. Supported TensorSplitAlgorithms are Rectangle, Z-Tiling"
+            },
+            "ArrangeKeembayExecution",
+            "AllocateInputOutputTensorsKeemBay",
+            "AllocateGraphfileTensorsKeemBayLegacy",
+            "ReAllocateImplicitOperationsKeemBay",
+            "AllocateCMXTensorsKeemBay",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/BeforeGraphColoring.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/BeforeGraphColoring.dot"
+            },
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/BeforeGraphColoringControl.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/BeforeGraphColoringControl.dot"
+            },
             {
                 "name": "TensorGraphColoring",
                 "cmxOutput": "output/dots/nnCmx.dot",
@@ -188,11 +496,11 @@
         "Singular": [
             {
                 "name": "GenerateBlobKeembay",
-                "output": "output/tiny-yolo-streaming.blob"
+                "output": "output/mcm.blob"
             },
             {
                 "name": "ConvertFlatbuffer",
-                "input": "output/tiny-yolo-streaming.blob"
+                "input": "output/mcm.blob"
             }
 
         ]

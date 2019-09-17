@@ -77,6 +77,41 @@
                     },
                     {
                         "name_filter" : "group3/block2/conv2/Relu#248",
+            "ComputeMemory",
+            "AssignUniqueOpId",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/original_model.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/original_model.dot"
+            },
+            {
+                "name": "CreateSourceStructure",
+                "VersionMajor": 3,
+                "VersionMinor": 11,
+                "VersionPatch": 0,
+                "VersionHash": "9aa43159420c77d8cf765393954ac2fbb372ab02"
+            },
+            "StoreTensorPlacement",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/StoreTensorPlacement.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/StoreTensorPlacement.dot"
+            }
+        ]
+    },
+    "adapt": {
         "Singular": [
             "PopulatedTensorsToFP16",
             "UnpopulatedTensorsToFP16",
@@ -117,7 +152,8 @@
         "Singular": [
             "ConcatAsImplicit",
             "StoreWorkloadStrategy",
-            "ConvertOpsToTasks",
+            "ConvertOpsToDPUTasks",
+            "ConvertOpsToUPATasks",
             "ForceSerialize",
             "KMBOrderConversion",
             "AlignTo16Channels",
@@ -146,6 +182,7 @@
     "dma": {
         "Singular" : [
             "SetDpuTasksMemoryLocation",
+            "SetUPATasksMemoryLocation",
             {
                 "name": "GenerateDot",
                 "output": "output/dots/dpu_tasks_location.dot",
@@ -170,6 +207,7 @@
                 "input": "output/dots/implicit_operations_model.dot"
             },
             "AddDPUTasksWeightsDMATasks",
+            "AddUPATasksExtraInputsDMATasks",
             {
                 "name": "GenerateDot",
                 "output": "output/dots/dma_model.dot",
@@ -444,11 +482,11 @@
         "Singular": [
             {
                 "name": "GenerateBlobKeembay",
-                "output": "output/resnet50-streaming.blob"
+                "output": "output/mcm.blob"
             },
             {
                 "name": "ConvertFlatbuffer",
-                "input": "output/resnet50-streaming.blob"
+                "input": "output/mcm.blob"
             }
 
         ]
