@@ -5,12 +5,11 @@
 #include "include/mcm/computation/flow/implicit_flow.hpp"
 #include "include/mcm/base/exception/argument_error.hpp"
 
-static void allocateGraphfileTensorsFcnKeemBay(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&passArg, mv::json::Object&);
-static void allocateGraphfileTensorsFcnKeemBayLegacy(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&passArg, mv::json::Object&);
-static void allocateCMXTensorsFcnKeemBay(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
-static void allocateInputOutputTensorsKeemBay(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
-static void allocateImplicitOperationsFcnKeemBay(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
-// static void allocateForImplicitConcat();
+static void allocateGraphfileTensorsKeemBayLegacyFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&passArg, mv::Element&);
+static void allocateGraphfileTensorsKeemBayFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+static void allocateCMXTensorsKeemBayFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+static void allocateInputOutputTensorsKeemBayFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+static void allocateImplicitOperationsKeemBayFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 
 
 namespace mv
@@ -20,31 +19,31 @@ namespace mv
     {
 
         MV_REGISTER_PASS(AllocateInputOutputTensorsKeemBay)
-        .setFunc(allocateInputOutputTensorsKeemBay)
+        .setFunc(allocateInputOutputTensorsKeemBayFcn)
         .setDescription(
             "Perform allocation of all input and output tensors using memory allocator"
         );
 
         MV_REGISTER_PASS(AllocateGraphfileTensorsKeemBay)
-        .setFunc(allocateGraphfileTensorsFcnKeemBay)
+        .setFunc(allocateGraphfileTensorsKeemBayFcn)
         .setDescription(
             "Perform allocation of all populated tensors using memory allocator"
         );
 
         MV_REGISTER_PASS(AllocateGraphfileTensorsKeemBayLegacy)
-        .setFunc(allocateGraphfileTensorsFcnKeemBayLegacy)
+        .setFunc(allocateGraphfileTensorsKeemBayLegacyFcn)
         .setDescription(
             "Perform allocation of all populated tensors using memory allocator"
         );
 
         MV_REGISTER_PASS(AllocateCMXTensorsKeemBay)
-        .setFunc(allocateCMXTensorsFcnKeemBay)
+        .setFunc(allocateCMXTensorsKeemBayFcn)
         .setDescription(
             "Perform allocation of all unpopulated tensors using memory allocator"
         );
 
         MV_REGISTER_PASS(ReAllocateImplicitOperationsKeemBay)
-        .setFunc(allocateImplicitOperationsFcnKeemBay)
+        .setFunc(allocateImplicitOperationsKeemBayFcn)
         .setDescription("Iterates over all implicit operations and moves implicit buffers into explicit buffers");
     }
 }
@@ -53,8 +52,10 @@ namespace mv
  * 1) ProgrammableInput
  * 2) ProgrammableOutput
 */
-void allocateInputOutputTensorsKeemBay(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+void allocateInputOutputTensorsKeemBayFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     pass.log(mv::Logger::MessageType::Debug, "Allocating input/output tensors");
 
     mv::ControlModel cm(model);
@@ -90,13 +91,10 @@ void allocateInputOutputTensorsKeemBay(const mv::pass::PassEntry& pass, mv::Comp
 
 //Populated Tensors are stored in:
 // 1) GraphFile
-
-
-//Populated Tensors are stored in:
-// 1) GraphFile
-//
-void allocateGraphfileTensorsFcnKeemBayLegacy(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+void allocateGraphfileTensorsKeemBayLegacyFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     pass.log(mv::Logger::MessageType::Debug, "Allocating populated tensors");
 
     mv::ControlModel cm(model);
@@ -125,7 +123,7 @@ void allocateGraphfileTensorsFcnKeemBayLegacy(const mv::pass::PassEntry& pass, m
 }
 
 
-void allocateGraphfileTensorsFcnKeemBay(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passArg, mv::json::Object&)
+void allocateGraphfileTensorsKeemBayFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passArg, mv::Element&)
 {
     pass.log(mv::Logger::MessageType::Debug, "Allocating populated tensors");
 
@@ -158,10 +156,6 @@ void allocateGraphfileTensorsFcnKeemBay(const mv::pass::PassEntry& pass, mv::Com
         if (opType == "DMATask" && opIterator->get<mv::DmaDirection>("direction") == mv::DDR2NNCMX)
         {
             auto tIt = opIterator->getInputTensor(0);
-            // NOTE: 1 level of streaming over K supported at the moment
-            auto parentOp = om.getSourceOp(tIt);
-            if(parentOp->getOpType() == "Slice")
-                tIt = parentOp->getInputTensor(0);
             if(tIt->isPopulated())
             {
                 try
@@ -237,8 +231,10 @@ static mv::Data::BufferIterator allocateUnpopulatedTensor(const mv::pass::PassEn
  * 1) VPU_CMX_NN
  * 2) VPU_DDR_BSS
 */
-void allocateCMXTensorsFcnKeemBay(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+void allocateCMXTensorsKeemBayFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     pass.log(mv::Logger::MessageType::Debug, "Allocating unpopulated tensors");
 
     mv::ControlModel cm(model);
@@ -407,13 +403,14 @@ static std::map<std::string,std::string> location2Allocator =
         { "BLOB", "GraphFile"}
 };
 
-void allocateImplicitOperationsFcnKeemBay(const mv::pass::PassEntry& pass,
+void allocateImplicitOperationsKeemBayFcn(const mv::pass::PassEntry& pass,
                                             mv::ComputationModel& model,
                                             mv::TargetDescriptor&,
                                             mv::Element&,
-                                            mv::json::Object&)
+                                            mv::Element&)
 {
 
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     pass.log(mv::Logger::MessageType::Debug, "Allocating implicit tensors");
 
     mv::ControlModel cm(model);
@@ -462,6 +459,8 @@ void allocateImplicitOperationsFcnKeemBay(const mv::pass::PassEntry& pass,
 
                 auto axis = mv::Shape::getAxis(opIterator->get<std::string>("axis"));
                 std::vector<unsigned> running_concat_offset_LHS;
+                std::vector<unsigned> running_concat_offset_RHS;
+
                 auto prev_offset = 0;
                 auto offset = 0;
 
@@ -471,13 +470,8 @@ void allocateImplicitOperationsFcnKeemBay(const mv::pass::PassEntry& pass,
                     prev_offset = prev_offset + offset;
                     // Calculate for next tensor
                     offset = opIterator->getInputTensor(i)->getShape()[axis];
+                    running_concat_offset_RHS.push_back(outputTensor->getShape()[axis] - prev_offset - offset);
                 }
-
-                std::vector<unsigned> running_concat_offset_RHS;
-                std::copy(running_concat_offset_LHS.begin(),
-                        running_concat_offset_LHS.end(),
-                        back_inserter(running_concat_offset_RHS));
-                std::reverse(std::begin(running_concat_offset_RHS), std::end(running_concat_offset_RHS));
 
                 for(unsigned i = 0; i != inputSlots; i++)
                 {
@@ -564,8 +558,6 @@ void allocateImplicitOperationsFcnKeemBay(const mv::pass::PassEntry& pass,
                 auto NewBuffer = dm.moveTensor(location2Allocator[inputLocation.toString()],
                                                 outputBuffer, inputBuffer,
                                                 lhs_padding, rhs_padding);
-                if (inputLocation == mv::Tensor::MemoryLocation::BLOB) //the parent should have already been allocated
-                    outputTensor->set<unsigned>("graphFileIndex", inputTensor->get<unsigned>("graphFileIndex"));
             }
             else if (opType == "Copy")
             {

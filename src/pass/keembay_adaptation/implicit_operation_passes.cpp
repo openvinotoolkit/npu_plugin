@@ -4,8 +4,8 @@
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/computation/flow/implicit_flow.hpp"
 
-static void resolveImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
-static void solveHangingDMAsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
+static void resolveImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+static void solveHangingDMAsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 
 namespace mv
 {
@@ -32,8 +32,10 @@ static std::map<const std::string,mv::DmaDirectionEnum> dmaDirectionStrings =
       {"DDR2OUTPUT",mv::DmaDirectionEnum::DDR2DDR}
 };
 
-void resolveImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::json::Object&)
+void resolveImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&)
 {
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);
     mv::ControlModel cm(model);
 
@@ -105,7 +107,6 @@ void resolveImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::Computati
                     const std::string directionString = inputLocation.toString() + "2" + outputLocation.toString();
                     auto compensatorOutput = om.dMATask(inputTensor,
                                                     dmaDirectionStrings[directionString],
-                                                    inQuantParams,
                                                     opIt->getName() + "_copy" + std::to_string(ctr));
                     compensatorOutput->get<mv::QuantizationParams>("quantParams").quantize(inQuantParams.getShift(), inQuantParams.getMult());
 
@@ -171,9 +172,8 @@ void resolveImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::Computati
                     outQuantParams = outputTensor->get<mv::QuantizationParams>("quantParams");
                 auto compensatorOutput = om.dMATask(outputTensor,
                                                         dmaDirectionStrings[directionString],
-                                                        outQuantParams,
                                                         opIt->getName() + "_copy" + std::to_string(ctr));
-                                                        
+
                 if (compensatorOutput->hasAttr("quantParams"))
                     compensatorOutput->get<mv::QuantizationParams>("quantParams").quantize(outQuantParams.getShift(), outQuantParams.getMult());
 

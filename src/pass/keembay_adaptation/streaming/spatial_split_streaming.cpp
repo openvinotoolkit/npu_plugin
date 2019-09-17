@@ -8,14 +8,12 @@
 #include "include/mcm/base/exception/runtime_error.hpp"
 
 static void streamingTilingFcn(const mv::pass::PassEntry& pass,
-                                        mv::ComputationModel& model,
-                                        mv::TargetDescriptor& target,
-                                        mv::Element& passDesc,
-                                        mv::json::Object&);
+                                        mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&,
+                                        mv::Element&);
 
 static void streamBinaryDataWeightsFcn(const mv::pass::PassEntry&,
                                         mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&,
-                                        mv::json::Object&);
+                                        mv::Element&);
 
 namespace mv
 {
@@ -57,7 +55,8 @@ mv::Data::OpListIterator operationsReplacement(mv::Data::OpListIterator parentOp
 
     for (unsigned j = 0; j < opsToLink.size(); ++j)
     {
-        opsToLink[j]->setInputTensor(sourceTensor, inputSlots[j]);
+        //no need to trigger a cascade, we know what we are doing
+        opsToLink[j]->setInputTensor(sourceTensor, inputSlots[j], false);
         om.defineFlow(sourceTensor, opsToLink[j], inputSlots[j]);
     }
 
@@ -74,11 +73,11 @@ private:
 
 public:
 
-    Tiling() :start_({0,0,0,0}), size_({0,0,0,0}), axis_(""), childTiles_(0) {};
+    Tiling() :start_({0,0,0,0}), size_({0,0,0,0}), axis_(""), childTiles_(0) {}
     Tiling( mv::Shape& start, mv::Shape& size)
             : start_(start), size_(size), axis_(""), childTiles_(0)
     {
-    };
+    }
 
     Tiling( std::string& axis, std::size_t tiles)
             : start_({0,0,0,0}), size_({0,0,0,0}), axis_(axis), childTiles_(tiles)
@@ -99,19 +98,19 @@ public:
         return *this;
     }
 
-    std::string& getAxis() { return axis_; };
-    void setAxis(const std::string axis) { axis_ = axis; };
+    std::string& getAxis() { return axis_; }
+    void setAxis(const std::string axis) { axis_ = axis; }
 
-    mv::Shape& getStartCoord() { return start_; };
-    void setStartCoord(mv::Shape start) { start_ = start; };
+    mv::Shape& getStartCoord() { return start_; }
+    void setStartCoord(mv::Shape start) { start_ = start; }
 
-    mv::Shape& getSize() { return size_; };
-    void setSize(mv::Shape size) { size_ = size; };
+    mv::Shape& getSize() { return size_; }
+    void setSize(mv::Shape size) { size_ = size; }
 
-    std::vector<Tiling>& childTiles() { return childTiles_; };
-    void setChildTile(Tiling& tile, unsigned index) { childTiles_[index] = tile; };
+    std::vector<Tiling>& childTiles() { return childTiles_; }
+    void setChildTile(Tiling& tile, unsigned index) { childTiles_[index] = tile; }
 
-    void resizeNumberOfTiles(std::size_t children) { childTiles_.resize(children); } ;
+    void resizeNumberOfTiles(std::size_t children) { childTiles_.resize(children); }
 
     //TODO::build proper stream out of this
     void printOut(unsigned depth) const
@@ -127,7 +126,7 @@ public:
             std::cout << "\tChild: ";
             tile.printOut(depth+1);\
         }
-    };
+    }
 };
 
 mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model, mv::Data::OpListIterator op, Tiling& tiling);
@@ -149,7 +148,7 @@ struct opStreamingSplitDef
     size_t numSplits ;
 };
 
-static void setStreamingStrategy(const mv::pass::PassEntry& pass, mv::ComputationModel& model,std::map<std::string, std::vector<opStreamingSplitDef>>& thisGraphStrategy)
+static void setStreamingStrategy(const mv::pass::PassEntry &pass, mv::ComputationModel &model, std::map<std::string, std::vector<opStreamingSplitDef>> &thisGraphStrategy)
 {
     mv::OpModel om(model);
     mv::ControlModel cm(model);
@@ -158,43 +157,74 @@ static void setStreamingStrategy(const mv::pass::PassEntry& pass, mv::Computatio
     auto globalParams = model.getGlobalConfigParams();
     if (!globalParams->hasAttr("streaming_strategy"))
     {
+        std::cout << "SET STREAMING STRATEGY EXITING: no strategy defined in JSON" << std::endl;
         pass.log(mv::Logger::MessageType::Info, "No custom streaming strategy provided");
         return;
     }
     auto strategyList = globalParams->get<std::vector<mv::Element>>("streaming_strategy");
 
     // each s refers to the name of an op, from the JSON strategy list
-    for (auto s: strategyList)
+    for (auto s : strategyList)
     {
         std::vector<opStreamingSplitDef> opxSplits;
-
-        std::string nodeName = s.get<std::string>("name_filter") ;
+        bool nodeHasSplit = false;
+        std::string nodeName = s.get<std::string>("name_filter");
         auto splitList = s.get<std::vector<mv::Element>>("splits");
-        for (int i=0; i<splitList.size(); i++)
+        for (std::size_t i=0; i<splitList.size(); i++)
         {
             opStreamingSplitDef opxSplitx;
             if (splitList[i].hasAttr("H"))
             {
-                opxSplitx.axis= "H";
-                opxSplitx.numSplits= splitList[i].get<int>("H");
-                opxSplits.push_back(opxSplitx);
+                if (splitList[i].get<int>("H")>1)
+                {
+                    opxSplitx.axis = "H";
+                    opxSplitx.numSplits = splitList[i].get<int>("H");
+//                    std::cout << "IN STREAMING PASS : H = " << opxSplitx.numSplits << std::endl ;
+//                    if (opxSplitx.numSplits == (size_t) 3)
+//                    {
+//                        std::cout << "IN STREAMING PASS : H==3 detected" << std::endl ;
+//                        opxSplitx.numSplits = 4;
+//                    }
+                    opxSplits.push_back(opxSplitx);
+                    nodeHasSplit=true;
+                    std::cout << "Streaming for node: " << nodeName << " has stream H = " << opxSplitx.numSplits << std::endl ;
+                }
             }
             else if (splitList[i].hasAttr("W"))
             {
-                opxSplitx.axis= "W";
-                opxSplitx.numSplits= splitList[i].get<int>("W");
-                opxSplits.push_back(opxSplitx);
+                if (splitList[i].get<int>("W")>1)
+                {
+                    opxSplitx.axis = "W";
+                    opxSplitx.numSplits = splitList[i].get<int>("W");
+                    opxSplits.push_back(opxSplitx);
+                    nodeHasSplit=true;
+                }
+            }
+            else if (splitList[i].hasAttr("C"))
+            {
+                if (splitList[i].get<int>("C")>1)
+                {
+                    opxSplitx.axis = "C";
+                    opxSplitx.numSplits = splitList[i].get<int>("C");
+                    opxSplits.push_back(opxSplitx);
+                    nodeHasSplit=true;
+                }
             }
             else if (splitList[i].hasAttr("K"))
             {
-                opxSplitx.axis= "K";
-                opxSplitx.numSplits= splitList[i].get<int>("K");
-                opxSplits.push_back(opxSplitx);
+                if (splitList[i].get<int>("K")>1)
+                {
+                    std::cout << "Streaming for node: " << nodeName << " has stream K = " << splitList[i].get<int>("K") << std::endl ;
+                    opxSplitx.axis = "K";
+                    opxSplitx.numSplits = splitList[i].get<int>("K");
+                    opxSplits.push_back(opxSplitx);
+                    nodeHasSplit=true;
+                }
             }
         }
-        thisGraphStrategy.insert(std::pair<std::string, std::vector<opStreamingSplitDef>>(nodeName,opxSplits));
+        if (nodeHasSplit) thisGraphStrategy.insert(std::pair<std::string, std::vector<opStreamingSplitDef>>(nodeName, opxSplits));
     }
-/*
+    /*
     std::vector<opStreamingSplitDef> op1Splits;
     std::vector<opStreamingSplitDef> op2Splits;
     opStreamingSplitDef opxSplitx;
@@ -217,7 +247,6 @@ static void setStreamingStrategy(const mv::pass::PassEntry& pass, mv::Computatio
     thisGraphStrategy.insert(std::pair<std::string, std::vector<opStreamingSplitDef>>("conv0_cmx_",op1Splits));
     thisGraphStrategy.insert(std::pair<std::string, std::vector<opStreamingSplitDef>>("conv1_cmx_",op2Splits));
 */
-
 }
 
 mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model, mv::Data::OpListIterator op,Tiling& tiling)
@@ -233,36 +262,9 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model, mv::Dat
     auto kernelTensor = op->getInputTensor(1);
     auto outputTensor = op->getOutputTensor(0);
 
-    //add DMA from DDR to CMX, if needed
-
-    auto inputOp = om.getSourceOp(inputTensor);
-
-    auto DMAOpId = inputOp->get<unsigned>("opId");
-
     mv::QuantizationParams quantParams = {{},{},{},{}};
     if(inputTensor->hasAttr("quantParams"))
         quantParams = inputTensor->get<mv::QuantizationParams>("quantParams");
-
-    //if(inputTensor->hasAttr("Location"))
-    //{
-    //    std::cout<< "  location of input tensor is " << inputTensor->get<mv::Tensor::MemoryLocation>("Location").toString() <<  std::endl ;
-    //}
-    //else
-    //{
-    //    std::cout<< "  No location attritbute on input tensor to original conv " << std::endl ;
-    //}
-
-    // if (inputTensor->get<mv::Tensor::MemoryLocation>("Location").toString() != "NNCMX")
-    // {
-    //     //std::cout<< "  adding DMA2CMX on input " <<  std::endl ;
-
-    //     auto flows = inputTensor->get<std::set<std::string>>("flows");
-
-    //     auto inputTensorDma = om.dMATask(inputTensor, mv::DmaDirectionEnum::DDR2NNCMX, quantParams, mv::createDMATaskDDR2NNCMXName(inputOp->getName()));
-    //     auto inputTensorDmaOp = om.getSourceOp(inputTensorDma);
-    //     inputTensorDmaOp->set<unsigned>("opId", DMAOpId);
-    //     inputTensor2Conv = inputTensorDma ;
-    // }
 
     auto opId = op->get<unsigned>("opId");
     auto number_of_splits = tiling.childTiles().size();
@@ -272,8 +274,6 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model, mv::Dat
     std::vector<mv::Data::TensorIterator> slices(number_of_splits);
     std::vector<mv::Data::TensorIterator> convs(number_of_splits);
     std::vector<mv::Data::TensorIterator> final_outputs(number_of_splits);
-
-    auto kernelStride = op->get<std::array<unsigned short, 2>>("stride");
 
     size_t biasStartIndex = 0;
     size_t biasEndIndex = 0;
@@ -306,7 +306,6 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model, mv::Dat
                                 op->get<unsigned>("group"),
                                 op->get<mv::QuantizationParams>("quantParams"),
                                 op->getName() + "_split_" + std::to_string(split));
-
         if (op->hasAttr("bias"))
         {
             auto tileSize = childTiles[split].getSize()[axisToSplit];
@@ -345,10 +344,18 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model, mv::Dat
 
         newOp->set<bool>("splitted",true);//TODO::temporary hack. To remove once the iteration conditions are updated
         newOp->set<unsigned>("opId",opId);
+        newOp->set<std::string>("splitStrategy", op->get<std::string>("splitStrategy"));
 
         slices[split] = slice;
         convs[split] = conv;
-
+/*
+        if(op->hasAttr("splitStrategy"))
+        {
+            auto splitStrategy = op->get<std::string>("splitStrategy");
+            //om.addAttr(newOp,"splitStrategy",splitStrategy);
+            //newOp->set<std::string>("splitStrategy", splitStrategy);
+        }
+*/
         bool enableSerialStreaming = true;
         if ((split>0)&&(enableSerialStreaming))
             cm.defineFlow(om.getSourceOp(convs[split-1]), om.getSourceOp(convs[split]));
@@ -565,12 +572,19 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model, mv::Dat
 
         newOp->set<bool>("splitted", true);//TODO::temporary hack. To remove once the iteration conditions are updated
         newOp->set<unsigned>("opId", opId);
+        newOp->set<std::string>("splitStrategy", op->get<std::string>("splitStrategy"));
 
         convs[split] = newTensor;
 
         bool enableSerialStreaming = true;
         if ((split > 0) && enableSerialStreaming)
             cm.defineFlow(om.getSourceOp(convs[split-1]), om.getSourceOp(convs[split]));
+
+        if(op->hasAttr("splitStrategy"))
+        {
+            auto splitStrategy = op->get<std::string>("splitStrategy");
+            //om.addAttr(newOp,"splitStrategy",splitStrategy);
+        }
     }
 
     // decide on the location of the I/O Tensors of the conv;
@@ -747,7 +761,7 @@ void generateSpatialTiling(mv::Data::OpListIterator op,Tiling& tiling, std::vect
         else if (split == (numberOfSplits-1))
             tileSize[axisToSplit] = inferInputSize(remainderOutputSize,0,padEnd,kernelSize,kernelStride);
         else
-            tileSize[axisToSplit] = inferInputSize(remainderOutputSize,0,0,kernelSize,kernelStride);
+            tileSize[axisToSplit] = inferInputSize(newOutputSize,0,0,kernelSize,kernelStride);
 
         Tiling newTile(tileStart, tileSize);
         tiling.setChildTile(newTile, split);
@@ -820,11 +834,11 @@ void streamingTilingFcn(const mv::pass::PassEntry& pass,
                                 mv::ComputationModel& model,
                                 mv::TargetDescriptor& target,
                                 mv::Element& passDesc,
-                                mv::json::Object&)
+                                mv::Element&)
 {
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);
-    mv::ControlModel cm(model);
-    mv::DataModel dm(model);
 
     std::map<std::string, std::vector<opStreamingSplitDef>> thisGraphStrategy;
     setStreamingStrategy(pass, model, thisGraphStrategy);
@@ -924,7 +938,7 @@ static void streamBinaryDataWeightsFcn(const mv::pass::PassEntry& ,
                                         mv::ComputationModel& model,
                                         mv::TargetDescriptor& ,
                                         mv::Element& ,
-                                        mv::json::Object&)
+                                        mv::Element &)
 {
     //Need to duplicate the consts to number equal to streams, cause of the binary_data
     mv::OpModel om(model);
@@ -961,5 +975,4 @@ static void streamBinaryDataWeightsFcn(const mv::pass::PassEntry& ,
     }
     for (auto& opName:removeConstantsSet)
         om.removeOp(om.getOp(opName));
-
 }

@@ -5,7 +5,7 @@
 #include "include/mcm/utils/custom_math.hpp"
 #include "include/mcm/utils/data_generator.hpp"
 
-static void convDilationFcn(const mv::pass::PassEntry &pass, mv::ComputationModel &model, mv::TargetDescriptor &, mv::Element &, mv::json::Object &);
+static void convDilationFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 
 namespace mv
 {
@@ -18,9 +18,10 @@ namespace mv
     }
 }
 
-void convDilationFcn(const mv::pass::PassEntry &, mv::ComputationModel &model, mv::TargetDescriptor &, mv::Element &, mv::json::Object &)
+void convDilationFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
 
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     using namespace mv;
 
     mv::OpModel om(model);
@@ -34,13 +35,13 @@ void convDilationFcn(const mv::pass::PassEntry &, mv::ComputationModel &model, m
 
             if (dilationFactor > 1)
             {
-            
+
                 /*Get the kernel attributes*/
                 auto nonDialtedKernel = opIt->getInputTensor(1);
-                auto nonDialtedKernelWidth = nonDialtedKernel->get<mv::Shape>("shape")[0];
-                auto nonDialtedKernelKernelHeight = nonDialtedKernel->get<mv::Shape>("shape")[1];
-                auto nonDialtedKernelKernelInputChannels = nonDialtedKernel->get<mv::Shape>("shape")[2];
-                auto nonDialtedKernelKernelOutpuChannels = nonDialtedKernel->get<mv::Shape>("shape")[3];
+                auto nonDialtedKernelWidth = nonDialtedKernel->getShape()[0];
+                auto nonDialtedKernelKernelHeight = nonDialtedKernel->getShape()[1];
+                auto nonDialtedKernelKernelInputChannels = nonDialtedKernel->getShape()[2];
+                auto nonDialtedKernelKernelOutpuChannels = nonDialtedKernel->getShape()[3];
 
 
                 /** Calculate dilated kernel shape
@@ -84,9 +85,9 @@ void convDilationFcn(const mv::pass::PassEntry &, mv::ComputationModel &model, m
                 om.defineFlow(dilatedConstant, opIt, 1);
                 opIt->setInputTensor(dilatedConstant, 1);
             }
-            else
-                 std::cout << "Dilation not required " << std::endl;
+
         }
+        
     }
-    std::cout << "Exiting Dilation Pass " << std::endl;
+    
 }

@@ -5,7 +5,7 @@
 #include "include/mcm/target/myriadx/nce1.hpp"
 #include "include/mcm/target/myriadx/nce1_utils.hpp"
 
-static void optimizeConvolutionsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
+static void optimizeConvolutionsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 
 namespace mv
 {
@@ -164,9 +164,10 @@ mv::ModeSelectionResult optimize_convolution_nce1(mv::Nce1& nce, mv::Data::OpLis
     return nce.optimize_convolution(source);
 }
 
-void optimizeConvolutionsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+void optimizeConvolutionsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
-    std::cout << "HW optimization convolution pass started" << std::endl;
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);
     mv::Nce1 nce;
 
@@ -195,11 +196,8 @@ void optimizeConvolutionsFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
         std::cout << "Optimizing " << opIterator->getName() << std::endl;
         to_be_optimized.pop();
         auto modes = optimize_convolution_nce1(nce, opIterator, om);
-        if(write_hardware_attributes(om, opIterator, modes, nce))
-            std::cout << "FOOOOOOOOOOOOOOOOOOOL! Reoptimization is needed (convolution)! :(" << std::endl;
+        write_hardware_attributes(om, opIterator, modes, nce);
 
     }
-
-    std::cout << "HW optimization convolution pass ended" << std::endl;
 
 }

@@ -30,6 +30,7 @@ namespace mv
         private:
             RuntimeModel() {}
             MVCNN::GraphFileT graphFile_;
+            std::shared_ptr<std::vector<char>> binaryData_;
             static const std::unordered_map<std::string, MVCNN::DType> dTypeMapping_;
             static const std::unordered_map<std::string, MVCNN::MemoryLocation> memoryLocationMapping_;
             static const std::unordered_map<std::string, MVCNN::DPULayerType> dpuLayerMapping_;
@@ -108,11 +109,12 @@ namespace mv
             static unsigned countProducerConsumerTasks(mv::ComputationModel& cm, mv::Control::OpListIterator opIt);
 
             void serialize(const std::string& path);
-            char * serialize(int& bufferSize);
+            void serialize();
             void deserialize(const std::string& path);
             void deserialize(char * buffer, int length);
             void buildGraphFile(ComputationModel& cm, Element& compilationDescriptor);
             void buildHeader(ComputationModel& cm, Element& compilationDescriptor);
+            std::shared_ptr<std::vector<char>> getBlob();
     };
 }
 

@@ -4,7 +4,7 @@
 #include "meta/include/mcm/op_model.hpp"
 #include "include/mcm/utils/env_loader.hpp"
 
-void generateDotFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::json::Object&);
+void generateDotFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&);
 
 namespace mv
 {
@@ -18,6 +18,7 @@ namespace mv
         .defineArg(json::JSONType::String, "scope")
         .defineArg(json::JSONType::String, "content")
         .defineArg(json::JSONType::Bool, "html")
+        .setLabel("Debug")
         .setDescription(
             "Generates the DOT representation of computation model"
         );
@@ -26,9 +27,10 @@ namespace mv
 
 }
 
-void generateDotFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::json::Object&)
+void generateDotFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&)
 {
 
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     using namespace mv;
 
     if (!passDesc.hasAttr("output") || passDesc.get<std::string>("output").empty())
@@ -85,7 +87,13 @@ void generateDotFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
                         nodeDef += " style=filled, fillcolor=red,";
                 }
                 if(opIt->getOpType() == "Deallocate")
-                    nodeDef += " style=filled, fillcolor=orange,";
+                {
+                    auto location = opIt->get<mv::Tensor::MemoryLocation>("Location");
+                    if (location == mv::Tensor::MemoryLocation::NNCMX)
+                        nodeDef += " style=filled, fillcolor=orange,";
+                    else
+                        nodeDef += " style=filled, fillcolor=blue,";
+                }
                 if(opIt->getOpType() == "BarrierTask")
                     nodeDef += " style=filled, fillcolor=cyan,";
 

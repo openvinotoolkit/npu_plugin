@@ -19,7 +19,7 @@ TEST(sparsity, case_cm)
 
     mv::Element dummyCompDesc("dummyPassDesc");
 
-    mv::json::Object compOutput;
+    mv::Element compOutput("CompilationOutput");
     mv::TargetDescriptor desc;
 
     desc.setTarget(mv::Target::ma2490);
@@ -71,7 +71,7 @@ TEST(sparsity, case_hwPooling)
     auto poolOp = om.getSourceOp(pool);
     auto output = om.output(pool);
     mv::Element dummyCompDesc("dummyPassDesc");
-    mv::json::Object compOutput;
+    mv::Element compOutput("CompilationOutput");
     mv::TargetDescriptor desc;
 
     desc.setTarget(mv::Target::ma2490);

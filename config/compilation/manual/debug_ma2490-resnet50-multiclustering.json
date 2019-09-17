@@ -9,309 +9,311 @@
                 "verbose": "Debug",
                 "weights_form": "None",
                 "barrier_index_assignment" : "Dynamic",
-                "Number_of_DPUs" : 1,
-                "Number_of_Clusters" : 1,
+                "Number_of_DPUs" : 20,
+                "Number_of_Clusters" : 4,
                 "UpaShaves": 1,
-                "DDRScratch": 31457280,
+                "DDRScratch": 100352,
                 "MemoryHack": false,
-                "nWorkloads": 1,
-                "ActivationSparsity": true,
-                "WeightsSparsity": true,
+                "ActivationSparsity": false,
+                "WeightsSparsity": false,
                 "CMX_memory_overflow_safety_factor" : 0.925,
-                "cmx": 901120,
-                "mpe_mode" : "Vector",
+                "cmx": 917504,
                 "split_strategy" :
                 [
                     {
-                        "name_filter" : ".*",
-                        "strategy" : "Clustering"
+                        "name_filter": ".*input#.*",
+                        "strategy": "None"
+                    },
+                    {
+                        "name_filter":".*conv1#.*",
+                        "strategy": "SplitOverH"
+                    },
+                    {
+                        "name_filter":".*pool1/max_pool#.*",
+                        "strategy": "SplitOverH"
+                    },
+                    {
+                        "name_filter":".*res2a_branch1#.*",
+                        "strategy": "SplitOverH"
+                    },
+                    {
+                        "name_filter":".*res2a_branch2a#.*",
+                        "strategy": "SplitOverH"
+                    },
+                    {
+                        "name_filter":".*res2a_branch2b#.*",
+                        "strategy": "SplitOverH"
+                    },
+                    {
+                        "name_filter":".*res2a_branch2c#.*",
+                        "strategy": "SplitOverH"
+                    },
+                    {
+                        "name_filter":".*res2a/Relu#.*",
+                        "strategy": "SplitOverH"
+                    },
+                    {
+                        "name_filter":".*res2b_branch2a#.*",
+                        "strategy": "SplitOverH"
+                    },
+                    {
+                        "name_filter":".*res2b_branch2b#.*",
+                        "strategy": "SplitOverH"
+                    },
+                    {
+                        "name_filter":".*res2b_branch2c#.*",
+                        "strategy": "SplitOverH"
+                    },
+                    {
+                        "name_filter":".*res2b/Relu#.*",
+                        "strategy": "SplitOverH"
+                    },
+                    {
+                        "name_filter":".*res2c_branch2a#.*",
+                        "strategy": "SplitOverH"
+                    },
+                    {
+                        "name_filter":".*res2c_branch2b#.*",
+                        "strategy": "SplitOverH"
+                    },
+                    {
+                        "name_filter":".*res2c_branch2c#.*",
+                        "strategy": "SplitOverH"
+                    },
+                    {
+                        "name_filter":".*res2c/Relu#.*",
+                        "strategy": "SplitOverH"
+                    },
+                    {
+                        "name_filter":".*res3a_branch1#.*",
+                        "strategy": "SplitOverH"
+                    },
+                    {
+                        "name_filter":".*res3a_branch2a#.*",
+                        "strategy": "SplitOverH"
+                    },
+                    {
+                        "name_filter":".*res3a_branch2b#.*",
+                        "strategy": "SplitOverH"
+                    },
+                    {
+                        "name_filter":".*res3a_branch2c#.*",
+                        "strategy": "SplitOverH"
+                    },
+                    {
+                        "name_filter":".*res3a/Relu#.*",
+                        "strategy": "SplitOverH"
+                    },
+                    {
+                        "name_filter":".*res3b_branch2a#.*",
+                        "strategy": "SplitOverH"
+                    },
+                    {
+                        "name_filter":".*res3b_branch2b#.*",
+                        "strategy": "SplitOverH"
+                    },
+                    {
+                        "name_filter":".*res3b_branch2c#.*",
+                        "strategy": "SplitOverH"
+                    },
+                    {
+                        "name_filter":".*res3b/Relu#.*",
+                        "strategy": "SplitOverH"
+                    },
+                    {
+                        "name_filter":".*res3c_branch2a#.*",
+                        "strategy": "SplitOverH"
+                    },
+                    {
+                        "name_filter":".*res3c_branch2b#.*",
+                        "strategy": "SplitOverH"
+                    },
+                    {
+                        "name_filter":".*res3c_branch2c#.*",
+                        "strategy": "SplitOverH"
+                    },
+                    {
+                        "name_filter":".*res3c/Relu#.*",
+                        "strategy": "SplitOverH"
+                    },
+                    {
+                        "name_filter":".*res3d_branch2a#.*",
+                        "strategy": "SplitOverH"
+                    },
+                    {
+                        "name_filter":".*res3d_branch2b#.*",
+                        "strategy": "SplitOverH"
+                    },
+                    {
+                        "name_filter":".*res3d_branch2c#.*",
+                        "strategy": "SplitOverH"
+                    },
+                    {
+                        "name_filter": ".*res3d/Relu#.*",
+                        "strategy": "HKSwitch"
+                    },
+                    {
+                        "name_filter":".*res4a_branch1#.*",
+                        "strategy": "SplitOverK"
+                    },
+                    {
+                        "name_filter":".*res4a_branch2a#.*",
+                        "strategy": "SplitOverK"
+                    },
+                    {
+                        "name_filter":".*res4a_branch2b#.*",
+                        "strategy": "SplitOverK"
+                    },
+                    {
+                        "name_filter":".*res4a_branch2c#.*",
+                        "strategy": "SplitOverK"
+                    },
+                    {
+                        "name_filter":".*res4a/Relu#.*",
+                        "strategy": "Clustering"
+                    },
+                    {
+                        "name_filter":".*res4b_branch2a#.*",
+                        "strategy": "SplitOverK"
+                    },
+                    {
+                        "name_filter":".*res4b_branch2b#.*",
+                        "strategy": "SplitOverK"
+                    },
+                    {
+                        "name_filter":".*res4b_branch2c#.*",
+                        "strategy": "SplitOverK"
+                    },
+                    {
+                        "name_filter":".*res4b/Relu#.*",
+                        "strategy": "Clustering"
+                    },
+                    {
+                        "name_filter":".*res4c_branch2a#.*",
+                        "strategy": "SplitOverK"
+                    },
+                    {
+                        "name_filter":".*res4c_branch2b#.*",
+                        "strategy": "SplitOverK"
+                    },
+                    {
+                        "name_filter":".*res4c_branch2c#.*",
+                        "strategy": "SplitOverK"
+                    },
+                    {
+                        "name_filter":".*res4c/Relu#.*",
+                        "strategy": "Clustering"
+                    },
+                    {
+                        "name_filter":".*res4d_branch2a#.*",
+                        "strategy": "SplitOverK"
+                    },
+                    {
+                        "name_filter":".*res4d_branch2b#.*",
+                        "strategy": "SplitOverK"
+                    },
+                    {
+                        "name_filter":".*res4d_branch2c#.*",
+                        "strategy": "SplitOverK"
+                    },
+                    {
+                        "name_filter":".*res4d/Relu#.*",
+                        "strategy": "Clustering"
+                    },
+                    {
+                        "name_filter":".*res4e_branch2a#.*",
+                        "strategy": "SplitOverK"
+                    },
+                    {
+                        "name_filter":".*res4e_branch2b#.*",
+                        "strategy": "SplitOverK"
+                    },
+                    {
+                        "name_filter":".*res4e_branch2c#.*",
+                        "strategy": "SplitOverK"
+                    },
+                    {
+                        "name_filter":".*res4e/Relu#.*",
+                        "strategy": "Clustering"
+                    },
+                    {
+                        "name_filter":".*res4f_branch2a#.*",
+                        "strategy": "SplitOverK"
+                    },
+                    {
+                        "name_filter":".*res4f_branch2b#.*",
+                        "strategy": "SplitOverK"
+                    },
+                    {
+                        "name_filter":".*res4f_branch2c#.*",
+                        "strategy": "SplitOverK"
+                    },
+                    {
+                        "name_filter":".*res4f/Relu#.*",
+                        "strategy": "Clustering"
+                    },
+                    {
+                        "name_filter":".*res5a_branch1#.*",
+                        "strategy": "SplitOverK"
+                    },
+                    {
+                        "name_filter":".*res5a_branch2a#.*",
+                        "strategy": "SplitOverK"
+                    },
+                    {
+                        "name_filter":".*res5a_branch2b#.*",
+                        "strategy": "SplitOverK"
+                    },
+                    {
+                        "name_filter":".*res5a_branch2c#.*",
+                        "strategy": "SplitOverK"
+                    },
+                    {
+                        "name_filter":".*res5a/Relu#.*",
+                        "strategy": "Clustering"
+                    },
+                    {
+                        "name_filter":".*res5b_branch2a#.*",
+                        "strategy": "SplitOverK"
+                    },
+                    {
+                        "name_filter":".*res5b_branch2b#.*",
+                        "strategy": "SplitOverK"
+                    },
+                    {
+                        "name_filter":".*res5b_branch2c#.*",
+                        "strategy": "SplitOverK"
+                    },
+                    {
+                        "name_filter":".*res5b/Relu#.*",
+                        "strategy": "Clustering"
+                    },
+                    {
+                        "name_filter":".*res5c_branch2a#.*",
+                        "strategy": "SplitOverK"
+                    },
+                    {
+                        "name_filter":".*res5c_branch2b#.*",
+                        "strategy": "SplitOverK"
+                    },
+                    {
+                        "name_filter":".*res5c_branch2c#.*",
+                        "strategy": "SplitOverK"
+                    },
+                    {
+                        "name_filter":".*res5c/Relu#.*",
+                        "strategy": "Clustering"
+                    },
+                    {
+                        "name_filter":".*pool5/AvgPool#.*",
+                        "strategy": "SplitOverK"
+                    },
+                    {
+                        "name_filter":".*fc1000/fc1000#.*",
+                        "strategy": "SplitOverK"
                     }
                 ],
-                "default_tensor_placement" : "DDR",
-                "streaming_strategy" :
-                [
-                    {
-                        "name_filter" : "conv0/Relu#181",
-                        "output_location" : "NNCMX",
-                        "splits" : [ {"H" : 2} ]
-                    },
-                    {
-                        "name_filter" : "pool0/MaxPool#182",
-                        "output_location" : "NNCMX",
-                        "splits" : [ {"H" : 2} ]
-                    },
-                    {
-                        "name_filter" : "group0/block0/convshortcut/Relu#183",
-                        "output_location" : "NNCMX",
-                        "splits" : [ {"H" : 2} ]
-                    },
-                    {
-                        "name_filter" : "group0/block0/conv3/Relu#186",
-                        "output_location" : "NNCMX",
-                        "splits" : [ {"H" : 2} ]
-                    },
-                    {
-                        "name_filter" : "group0/block1/conv1/Relu#188",
-                        "output_location" : "NNCMX",
-                        "splits" : [ {"H" : 2} ]
-                    },
-                    {
-                        "name_filter" : "group0/block1/conv3/Relu#190",
-                        "output_location" : "NNCMX",
-                        "splits" : [ {"H" : 2} ]
-                    },
-                    {
-                        "name_filter" : "group0/block2/conv1/Relu#192",
-                        "output_location" : "NNCMX",
-                        "splits" : [ {"H" : 2} ]
-                    },
-                    {
-                        "name_filter" : "group0/block2/conv3/Relu#194",
-                        "output_location" : "NNCMX",
-                        "splits" : [ {"H" : 2} ]
-                    },
-                    {
-                        "name_filter" : "group1/block0/convshortcut/Relu#196",
-                        "output_location" : "NNCMX",
-                        "splits" : [ {"H" : 2} ]
-                    },
-                    {
-                        "name_filter" : "group1/block0/conv1/Relu#197",
-                        "output_location" : "NNCMX",
-                        "splits" : [ {"H" : 2} ]
-                    },
-                    {
-                        "name_filter" : "group2/block0/convshortcut/Relu#213",
-                        "output_location" : "NNCMX",
-                        "splits" : [ {"K" : 2} ]
-                    },
-                    {
-                        "name_filter" : "group3/block0/convshortcut/Relu#238",
-                        "output_location" : "NNCMX",
-                        "splits" : [ {"K" : 4} ]
-                    },
-                    {
-                        "name_filter" : "group3/block0/conv2/Relu#240",
-                        "output_location" : "NNCMX",
-                        "splits" : [ {"K" : 4} ]
-                    },
-                    {
-                        "name_filter" : "group3/block0/conv3/Relu#241",
-                        "output_location" : "NNCMX",
-                        "splits" : [ {"K" : 2} ]
-                    },
-                    {
-                        "name_filter" : "group3/block1/conv1/Relu#243",
-                        "output_location" : "NNCMX",
-                        "splits" : [ {"K" : 2} ]
-                    },
-                    {
-                        "name_filter" : "group3/block1/conv2/Relu#244",
-                        "output_location" : "NNCMX",
-                        "splits" : [ {"K" : 4} ]
-                    },
-                    {
-                        "name_filter" : "group3/block1/conv3/Relu#245",
-                        "output_location" : "NNCMX",
-                        "splits" : [ {"K" : 2} ]
-                    },
-                    {
-                        "name_filter" : "group3/block2/conv1/Relu#247",
-                        "output_location" : "NNCMX",
-                        "splits" : [ {"K" : 2} ]
-                    },
-                    {
-                        "name_filter" : "group3/block2/conv2/Relu#248",
-                        "output_location" : "NNCMX",
-                        "splits" : [ {"K" : 4} ]
-                    },
-                    {
-                        "name_filter" : "group3/block2/conv3/Relu#249",
-                        "output_location" : "NNCMX",
-                        "splits" : [ {"K" : 2} ]
-                    },
-                    {
-                        "name_filter" : "group0/block0/add#187",
-                        "output_location" : "NNCMX",
-                        "splits" : [ {"H" : 4} ]
-                    },
-                    {
-                        "name_filter" : "group0/block1/add#191",
-                        "output_location" : "NNCMX",
-                        "splits" : [ {"H" : 4} ]
-                    },
-                    {
-                        "name_filter" : "group0/block2/add#195",
-                        "output_location" : "NNCMX",
-                        "splits" : [ {"H" : 4} ]
-                    },
-                    {
-                        "name_filter" : "group1/block0/add#200",
-                        "output_location" : "NNCMX",
-                        "splits" : [ {"H" : 2} ]
-                    },
-                    {
-                        "name_filter" : "group1/block1/add#204",
-                        "output_location" : "NNCMX",
-                        "splits" : [ {"H" : 2} ]
-                    },
-                    {
-                        "name_filter" : "group1/block2/add#208",
-                        "output_location" : "NNCMX",
-                        "splits" : [ {"H" : 2} ]
-                    },
-                    {
-                        "name_filter" : "group1/block3/add#212",
-                        "output_location" : "NNCMX",
-                        "splits" : [ {"H" : 2} ]
-                    },
-                    {
-                        "name_filter" : "linear0/act_quant/FakeQuantWithMinMaxVars#252",
-                        "output_location" : "NNCMX",
-                        "splits" : [ {"K" : 4} ]
-                    },
-                    {
-                        "name_filter" : "conv1#181",
-                        "output_location" : "NNCMX",
-                        "splits" : [ {"H" : 2} ]
-                    },
-                    {
-                        "name_filter" : "pool1/max_pool#182",
-                        "output_location" : "NNCMX",
-                        "splits" : [ {"H" : 2} ]
-                    },
-                    {
-                        "name_filter" : "res2a_branch1#183",
-                        "output_location" : "NNCMX",
-                        "splits" : [ {"H" : 2} ]
-                    },
-                    {
-                        "name_filter" : "res2a_branch2c#186",
-                        "output_location" : "NNCMX",
-                        "splits" : [ {"H" : 2} ]
-                    },
-                    {
-                        "name_filter" : "res2b_branch2a#188",
-                        "output_location" : "NNCMX",
-                        "splits" : [ {"H" : 2} ]
-                    },
-                    {
-                        "name_filter" : "res2b_branch2c#190",
-                        "output_location" : "NNCMX",
-                        "splits" : [ {"H" : 2} ]
-                    },
-                    {
-                        "name_filter" : "res2c_branch2a#192",
-                        "output_location" : "NNCMX",
-                        "splits" : [ {"H" : 2} ]
-                    },
-                    {
-                        "name_filter" : "res2c_branch2c#194",
-                        "output_location" : "NNCMX",
-                        "splits" : [ {"H" : 2} ]
-                    },
-                    {
-                        "name_filter" : "res3a_branch1#196",
-                        "output_location" : "NNCMX",
-                        "splits" : [ {"H" : 2} ]
-                    },
-                    {
-                        "name_filter" : "res3a_branch2a#197",
-                        "output_location" : "NNCMX",
-                        "splits" : [ {"H" : 2} ]
-                    },
-                    {
-                        "name_filter" : "res4a_branch1#213",
-                        "output_location" : "NNCMX",
-                        "splits" : [ {"K" : 2} ]
-                    },
-                    {
-                        "name_filter" : "res5a_branch1#238",
-                        "output_location" : "NNCMX",
-                        "splits" : [ {"K" : 4} ]
-                    },
-                    {
-                        "name_filter" : "res5a_branch2b#240",
-                        "output_location" : "NNCMX",
-                        "splits" : [ {"K" : 4} ]
-                    },
-                    {
-                        "name_filter" : "res5a_branch2c#241",
-                        "output_location" : "NNCMX",
-                        "splits" : [ {"K" : 2} ]
-                    },
-                    {
-                        "name_filter" : "res5b_branch2a#243",
-                        "output_location" : "NNCMX",
-                        "splits" : [ {"K" : 2} ]
-                    },
-                    {
-                        "name_filter" : "res5b_branch2b#244",
-                        "output_location" : "NNCMX",
-                        "splits" : [ {"K" : 4} ]
-                    },
-                    {
-                        "name_filter" : "res5b_branch2c#245",
-                        "output_location" : "NNCMX",
-                        "splits" : [ {"K" : 2} ]
-                    },
-                    {
-                        "name_filter" : "res5c_branch2a#247",
-                        "output_location" : "NNCMX",
-                        "splits" : [ {"K" : 2} ]
-                    },
-                    {
-                        "name_filter" : "res5c_branch2b#248",
-                        "output_location" : "NNCMX",
-                        "splits" : [ {"K" : 4} ]
-                    },
-                    {
-                        "name_filter" : "res5c_branch2c#249",
-                        "output_location" : "NNCMX",
-                        "splits" : [ {"K" : 2} ]
-                    },
-                    {
-                        "name_filter" : "res2a/Relu#187",
-                        "output_location" : "NNCMX",
-                        "splits" : [ {"H" : 4} ]
-                    },
-                    {
-                        "name_filter" : "res2b/Relu#191",
-                        "output_location" : "NNCMX",
-                        "splits" : [ {"H" : 4} ]
-                    },
-                    {
-                        "name_filter" : "res2c/Relu#195",
-                        "output_location" : "NNCMX",
-                        "splits" : [ {"H" : 4} ]
-                    },
-                    {
-                        "name_filter" : "res3a/Relu#200",
-                        "output_location" : "NNCMX",
-                        "splits" : [ {"H" : 2} ]
-                    },
-                    {
-                        "name_filter" : "res3b/Relu#204",
-                        "output_location" : "NNCMX",
-                        "splits" : [ {"H" : 2} ]
-                    },
-                    {
-                        "name_filter" : "res3c/Relu#208",
-                        "output_location" : "NNCMX",
-                        "splits" : [ {"H" : 2} ]
-                    },
-                    {
-                        "name_filter" : "res3d/Relu#212",
-                        "output_location" : "NNCMX",
-                        "splits" : [ {"H" : 2} ]
-                    },
-                    {
-                        "name_filter" : "fc1000/fc1000#252",
-                        "output_location" : "NNCMX",
-                        "splits" : [ {"K" : 4} ]
-                    }
-                ],
-                "default_tensor_placement" : "DDR"
+                "default_tensor_placement" : "NNCMX"
             },
             "ComputeMemory",
             "AssignUniqueOpId",
@@ -349,7 +351,8 @@
     },
     "adapt": {
         "Singular": [
-            "FloatLayersToFP16",
+            "PopulatedTensorsToFP16",
+            "UnpopulatedTensorsToFP16",
             "AverageAsDepthWise",
             "FuseBatchNorm",
             "FuseBias",
@@ -367,6 +370,7 @@
                 "name": "ConvertDot",
                 "input": "output/dots/adapt_model.dot"
             },
+            "StoreLayerSplitStrategy",
             "StreamingTiling",
             "StreamBinaryDataWeights",
             {
@@ -385,46 +389,20 @@
     "keembay_adapt": {
         "Singular": [
             "ConcatAsImplicit",
-            "StoreLayerSplitStrategy",
             "StoreWorkloadStrategy",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/BeforeOpsToTasks.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/BeforeOpsToTasks.dot"
-            },
-            "ConvertOpsToDPUTasks",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/AfterOpsToTasks.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/AfterOpsToTasks.dot"
-            },
+            "ConvertOpsToTasks",
             "ForceSerialize",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/AfterForceSerializae.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/AfterForceSerializae.dot"
-            },
-            "AlignTo16Channels",
-            "ComputeTensorsQuantParams",
             "KMBOrderConversion",
+            "AlignTo16Channels",
+            "AlignTaskWeights",
+            "GenerateSparsityMapsPopulatedTensors",
+            "GenerateWeightsTables",
+            "GenerateEltWiseConstants",
+            "StrategyLayersToTensors",
+            "ComputeTensorsQuantParams",
+            "UpdateImplicitLayersQuantizationParams",
+            "PopulateWeightsTablesQuantization",
+            "RemoveBiasTensors",
             {
                 "name": "GenerateDot",
                 "output": "output/dots/keembay_adapt_model.dot",
@@ -435,19 +413,11 @@
             {
                 "name": "ConvertDot",
                 "input": "output/dots/keembay_adapt_model.dot"
-            },
-            "UpdateImplicitLayersQuantizationParams",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/update_concat_quantization.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/update_concat_quantization.dot"
-            },
+            }
+        ]
+    },
+    "dma": {
+        "Singular" : [
             "SetDpuTasksMemoryLocation",
             {
                 "name": "GenerateDot",
@@ -460,48 +430,6 @@
                 "name": "ConvertDot",
                 "input": "output/dots/dpu_tasks_location.dot"
             },
-            "AlignTaskWeights",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/align_task_weights.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/align_task_weights.dot"
-            },
-            "GenerateWeightsTables",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/keembay_WeightsTable_model.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/keembay_WeightsTable_model.dot"
-            },
-            "GenerateEltWiseConstants",
-            "PopulateWeightsTablesQuantization",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/keembay_EltWiseConstants_model.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/keembay_EltWiseConstants_model.dot"
-            },
-            "RemoveBiasTensors"
-        ]
-    },
-    "dma": {
-        "Singular" : [
             "ResolveImplicitOperations",
             {
                 "name": "GenerateDot",
@@ -526,20 +454,8 @@
                 "name": "ConvertDot",
                 "input": "output/dots/dma_model.dot"
             },
-            "GenerateSparsityMapsUnpopulatedTensors",
-            "GenerateSparsityMapsPopulatedTensors",
-            "AddDPUTasksWeightsDMATasks",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/sparsity_model.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/sparsity_model.dot"
-            }
+            "GenerateSparsityMapsUnpopulatedTensors"
+
         ]
     },
     "control_flows":{
@@ -594,10 +510,13 @@
             },
             {
                 "name": "ConvertDot",
-                "input": "output/dots/NNCMX2DDRControlFlows.dot"
-            },
-            "StrategyLayersToTensors",
-            "SplittingAcrossClusters",
+                "input": "output/dots/cmx2DDRControlFlows.dot"
+            }
+        ]
+    },
+    "finalize": {
+        "Singular": [
+            "SplittingTensorsAcrossClusters",
             "AddDeallocationTasks",
             {
                 "name": "GenerateDot",
@@ -609,14 +528,10 @@
             {
                 "name": "ConvertDot",
                 "input": "output/dots/deallocation_model.dot"
-            }
-        ]
-    },
-    "finalize": {
-        "Singular": [
+            },
             {
                 "name": "TransitiveReduction",
-                "filter": "PositiveMemory"
+                "filter": "MemoryRequirement"
             },
             "MarkLastNodeForMaxTopologicalCut",
             {
@@ -663,9 +578,9 @@
             },
             {
                 "name": "GenerateWorkloads",
-                "costfunction": "criticalpath",
+                "costfunction": "greedy",
                 "TensorSplitAlgorithms": "Rectangle, Z-Tiling",
-                "_comment": "Supported CostFunctions are: balanced | criticalpath | minmax | greedy. Supported TensorSplitAlgorithms are Metis, Rectangle, Z-Tiling"
+                "_comment": "Supported CostFunctions are: balanced | criticalpath | minmax | greedy. Supported TensorSplitAlgorithms are, Rectangle, Z-Tiling"
             },
             "ArrangeKeembayExecution",
             "AllocateInputOutputTensorsKeemBay",
@@ -696,11 +611,16 @@
             },
             {
                 "name": "TensorGraphColoring",
-                "output": "output/dots/nnCmx.dot"
+                "cmxOutput": "output/dots/nnCmx.dot",
+                "heapOutput": "output/dots/nnHeap.dot"
             },
             {
                 "name": "ConvertDot",
                 "input": "output/dots/nnCmx.dot"
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/nnHeap.dot"
             },
             "RemoveDeallocationTasks",
             {
@@ -758,7 +678,7 @@
             {
                 "name": "GenerateDot",
                 "output": "output/dots/final_model.dot",
-                "scope": "ControlModel",
+                "scope": "OpModel",
                 "content": "full",
                 "html": true
             },
@@ -770,12 +690,12 @@
     },
     "scheduling": {
         "Singular": [
+            
             "StoreBarriersNamesInTasks",
             "GenerateExecutionSchedule",
             "CorrectExecutionSchedule",
             "BarrierIndexAssignment",
             "UpdateBarrierRefs",
-            "UpdateBarrierProducerConsumerCounts",
             {
                 "name": "GenerateDot",
                 "output": "output/dots/serial_model.dot",
@@ -786,8 +706,7 @@
             {
                 "name": "ConvertDot",
                 "input": "output/dots/serial_model.dot"
-            }
-        ]
+            }        ]
     },
     "validate": {
         "Singular": [
@@ -798,11 +717,11 @@
         "Singular": [
             {
                 "name": "GenerateBlobKeembay",
-                "output": "output/mcm.blob"
+                "output": "output/resnet50-multiclustering.blob"
             },
             {
                 "name": "ConvertFlatbuffer",
-                "input": "output/mcm.blob"
+                "input": "output/resnet50-multiclustering.blob"
             }
 
         ]
@@ -818,9 +737,9 @@
             "finalize",
             "scheduling",
             "serialize"
-        ],
-        "Recurrent": [
-            "validate"
         ]
     }
 }
+
+
+

@@ -3,26 +3,19 @@
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/utils/custom_math.hpp"
+#include <unordered_set>
 
-static void taskControlFlowsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
-static void hangingDmaControlFlowsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&passDesc, mv::json::Object&);
-static void NNCMX2DDRControlFlowsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
-static void layerNumberingFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&passDesc, mv::json::Object&);
-static void activationTensorsControlFlowsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
-static void completeControlGraphFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
-
+static void taskControlFlowsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+static void hangingDmaControlFlowsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&passDesc, mv::Element&);
+static void NNCMX2DDRControlFlowsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+static void layerNumberingFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&);
+static void activationTensorsControlFlowsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 
 namespace mv
 {
 
     namespace pass
     {
-
-        MV_REGISTER_PASS(CompleteControlGraph)
-        .setFunc(completeControlGraphFcn)
-        .setDescription(
-            ""
-        );
 
         MV_REGISTER_PASS(HangingDmaControlFlows)
         .setFunc(hangingDmaControlFlowsFcn)
@@ -47,45 +40,7 @@ namespace mv
         .setDescription(
             ""
         );
-
-        MV_REGISTER_PASS(ActivationTensorsControlFlows)
-        .setFunc(activationTensorsControlFlowsFcn)
-        .setDescription(
-            ""
-        );
-
     }
-}
-
-// NOTE: This pass makes sense only when hanging dmas have been solved
-// and assign layer number has been rerun
-
-// Logic: Activation tensors involved in DPU task should be dependent on the previous operation executed
-// Not sure this pass is really needed for resnet50
-void activationTensorsControlFlowsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
-{
-
-    mv::OpModel om(model);
-    mv::ControlModel cm(model);
-
-    auto dpus = om.getOps("DPUTask");
-
-    std::vector<std::pair<mv::Control::OpListIterator, mv::Control::OpListIterator>> flowsToAdd;
-
-    for(auto& dpu: dpus)
-    {
-        for(unsigned i = 0; i < dpu.inputsSize(); ++i)
-        {
-            auto inputTensor = dpu->getInputTensor(i);
-            if(!inputTensor->isPopulated())
-                flowsToAdd.push_back(std::make_pair(cm.switchContext(dpu).leftmostParent(), cm.switchContext(om.getSourceOp(inputTensor))));
-        }
-    }
-
-    for(auto& flow : flowsToAdd)
-        if(cm.isFlowAllowedAndNonExisting(flow.first, flow.second))
-            cm.defineFlow(flow.first, flow.second);
-
 }
 
 // NOTE: This pass makes sense only when hanging dmas have been solved
@@ -93,8 +48,10 @@ void activationTensorsControlFlowsFcn(const mv::pass::PassEntry&, mv::Computatio
 
 // This pass is absolutely necessary to ensure that we are not redeaming in cmx weights too soon
 // It is a conservative approach but it's needed for TIG
-void NNCMX2DDRControlFlowsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+void NNCMX2DDRControlFlowsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);
     mv::ControlModel cm(model);
 
@@ -124,9 +81,10 @@ void NNCMX2DDRControlFlowsFcn(const mv::pass::PassEntry&, mv::ComputationModel& 
 // Minimum (and most conservative approach) is 1
 
 // ASSUMPTION: This pass happens after the pass that assigns a layer number to each layer already in the control model
-void hangingDmaControlFlowsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::json::Object&)
+void hangingDmaControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&)
 {
 
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);
     mv::ControlModel cm(model);
 
@@ -148,9 +106,6 @@ void hangingDmaControlFlowsFcn(const mv::pass::PassEntry&, mv::ComputationModel&
         {
             // At this point (see assumption above) each DMA has at least one output control flow
             // We take the minimum layer number required by operations using this data
-
-            std::vector<mv::Control::OpListIterator> targets;
-            targets.push_back(dma);
 
             // HACK: Horrible hack because apparentely we have problem in assigning iterators
             int sonWithMinimumLayerInvolvedIndex = 0;
@@ -185,11 +140,11 @@ void hangingDmaControlFlowsFcn(const mv::pass::PassEntry&, mv::ComputationModel&
                 // 1) The difference in terms of layersNumber has to be greater or equal _dma_dependency
                 // 2) There has to be a dependency between preceedingOp and the sonWithMinimumLayerInvolved (preeceding op could be on a parallel branch)
                 if(minimumLayerInvolved - preceedingOpLayerNumber >= _dma_dependency &&
-                   minimumLayerInvolved - preceedingOpLayerNumber <= _dma_dependency + 2 &&
                    cm.pathExists(preceedingOp, sonWithMinimumLayerInvolved))
-                    for(auto& target : targets)
-                        flowsToAdd.push_back(std::make_pair(preceedingOp, target));
-
+                {
+                    flowsToAdd.push_back(std::make_pair(preceedingOp, dma));
+                    break;
+                }
             }
         }
     }
@@ -222,8 +177,10 @@ void assignLayerNumber(mv::ControlModel& cm, const std::unordered_set<std::strin
 // And possibly also to handle NNCMX2DDR output flows
 
 // ASSUMPTION: We need task control flows and transitive reduction to be run before this pass
-void layerNumberingFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+void layerNumberingFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::ControlModel cm(model);
 
     unsigned initialLayerIndex = 0;
@@ -262,10 +219,10 @@ void addTaskControlFlowsAndRecursivelySkipImplicitOperationsUp(mv::OpModel& om, 
 // This pass adds control flows relative to Task.
 // Rationale: Each Task should be connected via a ControlFlow to the same operations he is connected via a DataFlow
 // But implicit operations (e.g. Constants, Concat, Slice etc) must be skipped and/or avoided
-
-// NOTE: For now, only max two level of implicit operations is handled. In the future we will need a recursive procedure
-void taskControlFlowsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+void taskControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);
 
     auto dmaTasks = om.getOps("DMATask");
@@ -285,7 +242,7 @@ void taskControlFlowsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model
     }
 }
 
-void completeControlGraphFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+void completeControlGraphFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
     mv::ControlModel cm(model);
     mv::OpModel om(model);

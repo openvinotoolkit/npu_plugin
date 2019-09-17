@@ -3,7 +3,7 @@
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
 
-static void assignUniqueTaskIdFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
+static void assignUniqueTaskIdFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 
 namespace mv
 {
@@ -19,8 +19,10 @@ namespace mv
     }
 }
 
-void assignUniqueTaskIdFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+void assignUniqueTaskIdFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);
 
     unsigned currentId = 1;

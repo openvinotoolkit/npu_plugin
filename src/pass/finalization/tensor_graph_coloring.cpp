@@ -8,7 +8,7 @@
 #include <limits.h>
 
 
-static void tensorGraphColoringFnc(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&passDesc, mv::json::Object&);
+static void tensorGraphColoringFnc(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&passDesc, mv::Element&);
 
 namespace mv
 {
@@ -275,12 +275,10 @@ std::vector<std::pair<size_t, size_t>> calculateGaps(std::list<std::string>& col
     }
     return gaps;
 }
-
 void assignOrientation(mv::graph<std::string, int>& directedGraph, mv::TensorInterferenceGraph::node_list_iterator& ni,
-    std::list<std::string>& coloredNeighbors, mv::TensorInterferenceGraph& g)
+    std::list<std::string>& coloredNeighbors, mv::TensorInterferenceGraph& g, std::size_t& directedGraphEdgeMaxId)
 {
     auto currentNode = directedGraph.node_find((*ni).name);
-    auto edgeIdx = directedGraph.edge_size();
     for (auto it = coloredNeighbors.begin(); it != coloredNeighbors.end(); it++)
     {
         auto neighbor = g.node_find(*it);
@@ -288,12 +286,12 @@ void assignOrientation(mv::graph<std::string, int>& directedGraph, mv::TensorInt
 
         if ((*ni).address < (*neighbor).address)
         {
-            directedGraph.edge_insert(dn, currentNode, edgeIdx++);
+            directedGraph.edge_insert(dn, currentNode, directedGraphEdgeMaxId++);
             //std::cout << "\tassignOrientation::adding edge from" << *dn << " -> " << *currentNode << std::endl;
         }
         else
         {
-            directedGraph.edge_insert(currentNode, dn, edgeIdx++);
+            directedGraph.edge_insert(currentNode, dn, directedGraphEdgeMaxId++);
             //std::cout << "\tassignOrientation::adding edge from" << *currentNode  << " -> "  << *dn << std::endl;
         }
 
@@ -333,12 +331,12 @@ void assignOrientation(mv::graph<std::string, int>& directedGraph, mv::TensorInt
 }
 
 std::size_t updateNodeAddress(std::size_t startAddress, mv::TensorInterferenceGraph::node_list_iterator& ni, size_t chromaticNumber,
-    std::list<std::string>& coloredNeighbors, mv::graph<std::string, int>& directedGraph, mv::TensorInterferenceGraph& g)
+    std::list<std::string>& coloredNeighbors, mv::graph<std::string, int>& directedGraph, mv::TensorInterferenceGraph& g, size_t& directedGraphMaxEdgeId)
 {
     (*ni).address = startAddress;
     (*ni).height = startAddress + (*ni).weight;
     (*ni).isColored = true;
-    assignOrientation(directedGraph, ni, coloredNeighbors, g);
+    assignOrientation(directedGraph, ni, coloredNeighbors, g, directedGraphMaxEdgeId);
 
     return std::max(chromaticNumber, (*ni).height);
 }
@@ -346,7 +344,7 @@ std::size_t updateNodeAddress(std::size_t startAddress, mv::TensorInterferenceGr
 std::size_t maxHeight(mv::TensorInterferenceGraph::node_list_iterator& ni, mv::graph<std::string, int>& directedGraph, mv::TensorInterferenceGraph& g)
 {
     auto directedNode = directedGraph.node_find((*ni).name);
-    if (ni->parents_size() == 0)
+    if (directedNode->parents_size() == 0)
         return (*ni).height;
 
     size_t currMaxHeight = 0;
@@ -365,7 +363,7 @@ std::size_t tryInsertion(std::pair<size_t, size_t>& gap, mv::TensorInterferenceG
 {
     auto startAddress = gap.first;
     auto size = gap.second;
-    auto gapDelta = (*ni).weight - size;
+    auto gapDelta = std::max((*ni).weight - size, (size_t)0);
 
     size_t currMaxHeight = 0;
 
@@ -374,7 +372,6 @@ std::size_t tryInsertion(std::pair<size_t, size_t>& gap, mv::TensorInterferenceG
         auto neighbor = g.node_find(*it);
         if ((*neighbor).address > startAddress)
         {
-            auto dn = directedGraph.node_find((*neighbor).name);
             auto neighborMax = maxHeight(neighbor, directedGraph, g);
             if (neighborMax > currMaxHeight)
                 currMaxHeight = neighborMax;
@@ -392,64 +389,15 @@ std::size_t updateHeights(mv::TensorInterferenceGraph::node_list_iterator& ni, m
     for (mv::graph<std::string, int>::node_parent_iterator parentIt(directedNode); parentIt != directedGraph.node_end(); ++parentIt)
     {
         auto parentNodeIt = g.node_find(*parentIt);
-        auto parentNode = *parentNodeIt;
-        parentNode.address = std::max(parentNode.address, (*ni).height);
-        parentNode.height = parentNode.address + parentNode.weight;
-        chromaticNumber = std::max(chromaticNumber, parentNode.height);
+        (*parentNodeIt).address = std::max((*parentNodeIt).address, (*ni).height);
+        (*parentNodeIt).height = (*parentNodeIt).address + (*parentNodeIt).weight;
+
+        chromaticNumber = std::max(chromaticNumber, (*parentNodeIt).height);
         auto currChromaticnumber = updateHeights(parentNodeIt, directedGraph, g, chromaticNumber);
         if (currChromaticnumber > maxChromaticNumber)
             maxChromaticNumber = currChromaticnumber;
     }
     return maxChromaticNumber;
-}
-
-std::size_t bestFitSelect(std::string& name, mv::TensorInterferenceGraph& g, long long memorySize, size_t chromaticNumber,
-    mv::graph<std::string, int>& directedGraph)
-{
-    auto ni = g.node_find(name);
-    auto coloredNeighbors = std::move(getColoredNeighbors(g, ni));
-    coloredNeighbors.sort();
-
-    auto gaps = calculateGaps(coloredNeighbors, g, memorySize);
-
-    for (auto itr = gaps.begin(); itr != gaps.end(); itr++)
-    {
-        if (itr->second > (*ni).weight)
-        {
-            chromaticNumber = updateNodeAddress(itr->first, ni, chromaticNumber, coloredNeighbors, directedGraph, g);
-            return chromaticNumber;
-        }
-    }
-
-    //no gap big enough
-    if (gaps.size() == 1)
-        //Actual Spill will be handled in runtime
-        //eventually, the exception is just to indicate that currently it's not handled
-        throw mv::ArgumentError("bestFitSelect", "gaps size", "", "TODO Implement Actual Spill Routine");
-
-    auto lastgap = gaps.end();
-    lastgap--;
-    size_t insertionChromaticNumbersMin = ULONG_MAX;
-    size_t index = 0;
-    size_t currChromaticNumber;
-    for (auto itr = gaps.begin(); itr != lastgap; itr++)
-    {
-        currChromaticNumber = tryInsertion(*itr, ni, coloredNeighbors, directedGraph, g);
-        if (currChromaticNumber < insertionChromaticNumbersMin)
-        {
-            insertionChromaticNumbersMin = currChromaticNumber;
-            index = (itr - gaps.begin());
-        }
-    }
-
-    if (insertionChromaticNumbersMin > memorySize)
-        //Actual Spill will be handled in runtime
-        //eventually, the exception is just to indicate that currently it's not handled
-        throw mv::ArgumentError("bestFitSelect", "gaps size", "", "TODO Implement Actual Spill Routine");
-
-    chromaticNumber = updateNodeAddress(gaps[index].first, ni, chromaticNumber, coloredNeighbors, directedGraph, g);
-    chromaticNumber = updateHeights(ni, directedGraph, g);
-    return chromaticNumber;
 }
 
 void printGraph(std::string name, mv::graph<std::string, int>& g)
@@ -473,9 +421,61 @@ void printGraph(std::string name, mv::graph<std::string, int>& g)
 
 }
 
-void bestFitMemoryAllocation(mv::ComputationModel& model, std::queue<std::string>& order, mv::TensorInterferenceGraph& g, long long memorySize)
+std::size_t bestFitSelect(std::string& name, mv::TensorInterferenceGraph& g, long long memorySize, size_t chromaticNumber,
+    mv::graph<std::string, int>& directedGraph, std::size_t& directedGraphMaxEdgeId)
+{
+    auto ni = g.node_find(name);
+    auto coloredNeighbors = std::move(getColoredNeighbors(g, ni));
+    coloredNeighbors.sort();
+
+    auto gaps = calculateGaps(coloredNeighbors, g, memorySize);
+
+    for (auto itr = gaps.begin(); itr != gaps.end(); itr++)
+    {
+        if (itr->second > (*ni).weight)
+        {
+            chromaticNumber = updateNodeAddress(itr->first, ni, chromaticNumber, coloredNeighbors, directedGraph, g, directedGraphMaxEdgeId);
+            return chromaticNumber;
+        }
+    }
+
+    //no gap big enough
+    if (gaps.size() == 1)
+        //Actual Spill will be handled in runtime
+        //eventually, the exception is just to indicate that currently it's not handled
+        throw mv::ArgumentError("bestFitSelect", "gaps size", "", "trying to allocate " + name + " gap size == 1");
+
+    auto lastgap = gaps.end();
+    lastgap--;
+    size_t insertionChromaticNumbersMin = ULONG_MAX;
+    size_t index = 0;
+    size_t currChromaticNumber;
+    for (auto itr = gaps.begin(); itr != lastgap; itr++)
+    {
+        currChromaticNumber = tryInsertion(*itr, ni, coloredNeighbors, directedGraph, g);
+        if (currChromaticNumber < insertionChromaticNumbersMin)
+        {
+            insertionChromaticNumbersMin = currChromaticNumber;
+            index = (itr - gaps.begin());
+        }
+    }
+
+    if (insertionChromaticNumbersMin > memorySize)
+        //Actual Spill will be handled in runtime
+        //eventually, the exception is just to indicate that currently it's not handled
+        throw mv::ArgumentError("bestFitSelect", "insertionChromaticNumbersMin > memorySize", "", "trying to allocate " + name + std::to_string(memorySize) + " < " + std::to_string(insertionChromaticNumbersMin));
+
+    chromaticNumber = updateNodeAddress(gaps[index].first, ni, chromaticNumber, coloredNeighbors, directedGraph, g, directedGraphMaxEdgeId);
+    chromaticNumber = updateHeights(ni, directedGraph, g);
+    return chromaticNumber;
+}
+
+
+size_t bestFitMemoryAllocation(mv::ComputationModel& model, std::queue<std::string>& order, mv::TensorInterferenceGraph& g, long long memorySize)
 {
     size_t chromaticNumber = 0;
+    std::size_t directedGraphEdgeMaxId = 0;
+
     //build orientation assignment dag
     mv::graph<std::string, int> directedGraph;
     for (auto ni = g.node_begin(); ni != g.node_end(); ++ni)
@@ -487,7 +487,7 @@ void bestFitMemoryAllocation(mv::ComputationModel& model, std::queue<std::string
     {
         std::string node = order.front();
         order.pop();
-        chromaticNumber = bestFitSelect(node, g, memorySize, chromaticNumber, directedGraph);
+        chromaticNumber = bestFitSelect(node, g, memorySize, chromaticNumber, directedGraph, directedGraphEdgeMaxId);
         //printGraph("BestFitDirectedGraph", directedGraph);
 
     }
@@ -495,20 +495,39 @@ void bestFitMemoryAllocation(mv::ComputationModel& model, std::queue<std::string
 
     mv::DataModel dm(model);
     //set address in tensors
+    size_t maxHeight = 0;
     for (mv::TensorInterferenceGraph::node_list_iterator it = g.node_begin(); it != g.node_end(); ++it)
     {
         auto t = model.getTensor((*it).name);
         t->setAddress((*it).address); //still needed to set sparsityMap and storageElement addresses
+        if ((*it).height > maxHeight)
+            maxHeight = (*it).height;
         auto tensorAllocatorName = t->get<std::set<std::string>>("allocators").begin();
         auto tensorAllocator = dm.getAllocator(*tensorAllocatorName);
         mv::Data::BufferIterator tensorBufferIt = tensorAllocator.getBuffer(0, t); // 0 is the only stage for now, but this will probably change in the future
         tensorBufferIt->setOffset((*it).address);
     }
+    if (maxHeight != chromaticNumber)
+        throw mv::ArgumentError("Graph Coloring produced overlap!", "", "chromaticNumber is not correct!!", "chromaticNumber " + std::to_string(chromaticNumber) + " maxHeight " + std::to_string(maxHeight));
+    ///test address allocation dont overlap:
+    for (mv::TensorInterferenceGraph::node_list_iterator ni = g.node_begin(); ni != g.node_end(); ++ni)
+    {
+        //std::cout << "testing node " << (*ni).name << std::endl;
+        for (mv::TensorInterferenceGraph::node_parent_iterator itr(ni); itr != g.node_end(); ++itr)
+        {
+            auto coloredNode = itr;
+            if ((*ni).address < (*itr).address && (*itr).address < (*ni).height)
+                throw mv::ArgumentError("Graph Coloring produced overlap!", "", "", " Overlap is between " + (*ni).name  + " and " + (*itr).name );
+        }
+    }
 
+    return chromaticNumber;
 }
 
-void tensorGraphColoringFnc(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element& passDesc, mv::json::Object&)
+void tensorGraphColoringFnc(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element& passDesc, mv::Element&)
 {
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     pass.log(mv::Logger::MessageType::Debug, "Graph Coloring Started");
 
     mv::OpModel om(model);
@@ -520,14 +539,6 @@ void tensorGraphColoringFnc(const mv::pass::PassEntry& pass, mv::ComputationMode
     for (auto i = memDefs.begin(); i != memDefs.end(); i++)
         pass.log(mv::Logger::MessageType::Debug, ""+ i->first + " size " + std::to_string(i->second.size) +  " alignment " +  std::to_string(i->second.alignment));
 
-    //Collect all input/output tensor names
-    /*for(auto opIterator = om.opBegin(); opIterator != om.opEnd(); ++opIterator)
-    {
-        std::cout << " Layer: " << opIterator->getName() ;
-        if (opIterator->getOpType() == "DMATask")
-           std::cout << "\t\t DMA direction" << opIterator->get<mv::DmaDirection>("direction");
-        std::cout << std::endl;
-    }*/
 //    auto memsize = memDefs.find("VPU_DDR_BSS")->second.size;
 //    auto alignment = 16; //memDefs.find("VPU_DDR_BSS")->second.alignment; //TODO for now POC uses 16 for all memory
 //    mv::TensorInterferenceGraph ddr_bss_g(model, alignment,
@@ -545,37 +556,74 @@ void tensorGraphColoringFnc(const mv::pass::PassEntry& pass, mv::ComputationMode
 
 //    bestFitMemoryAllocation(model, agOrder, ddr_bss_g, memsize);
 //    //ddr_bss_g.drawGraph("ddr_bss_memory");
+    auto alignment = 16; //memDefs.find("VPU_DDR_Heap")->second.alignment;//TODO for now POC uses 16 for all memory
+    pass.log(mv::Logger::MessageType::Info, " Generating Heap Tig");
+    mv::TensorInterferenceGraph ddr_heap_g(pass, model, alignment,
+            [](const mv::Data::TensorIterator& t) -> bool
+            {
+                return (!t->isPopulated());
+            },
+            [](const mv::Data::OpListIterator& t) -> bool
+            {
+                return (t->getOpType() == "DMATask" &&
+                    t->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location") == mv::Tensor::MemoryLocation::DDR);
+            },
+            [](const mv::Data::OpListIterator& opIterator) -> bool
+            {
+                auto opType = opIterator->getOpType();
+                if (opType == "Deallocate")
+                {
+                    //Deallocate is a LeonTask
+                    auto location = opIterator->get<mv::Tensor::MemoryLocation>("Location");
+                    return (location == mv::Tensor::MemoryLocation::DDR);
+                }
 
-//    mv::TensorInterferenceGraph ddr_heap_g(model, alignment,
-//            [](const mv::Data::TensorIterator& t) -> bool
-//            {
-//                return (!t->isPopulated());
-//            },
-//            [](const mv::Data::OpListIterator& t) -> bool
-//            {
-//                return (t->getOpType() == "DMATask");
-//            },
-//            false);
-//    memsize = memDefs.find("VPU_DDR_Heap")->second.size;
-//    alignment = 16; //memDefs.find("VPU_DDR_Heap")->second.alignment;//TODO for now POC uses 16 for all memory
-//    agOrder = aggressiveSimplify(ddr_heap_g, memsize, mv::OrderingStrategy::IG_LARGEST_NEIGHBORS_FIRST);
-//    //printASOrder(agOrder, "DDR_HEAP");
-//    bestFitMemoryAllocation(model, agOrder, ddr_heap_g, memsize);
-//    //ddr_heap_g.drawGraph("ddr_heap_memory");
+                return false;
+            },
+            false);
+    auto memsize = memDefs.find("VPU_DDR_Heap")->second.size;
 
-    auto alignment = 16; //memDefs.find("VPU_CMX_NN")->second.alignment;//TODO for now POC uses 16 for all memory
+    auto agOrder = aggressiveSimplify(ddr_heap_g, memsize, mv::OrderingStrategy::IG_LARGEST_NEIGHBORS_FIRST);
+    //printASOrder(agOrder, "DDR_HEAP");
+    size_t maxMemoryUsed = bestFitMemoryAllocation(model, agOrder, ddr_heap_g, memsize);
+    globalConfigParams->set<int>("DDRScratch", maxMemoryUsed);
+    if(passDesc.hasAttr("heapOutput"))
+        ddr_heap_g.drawGraph(passDesc.get<std::string>("heapOutput"));
+
+    alignment = 16; //memDefs.find("VPU_CMX_NN")->second.alignment;//TODO for now POC uses 16 for all memory
     pass.log(mv::Logger::MessageType::Info, " generating cmx TIG");
-    mv::TensorInterferenceGraph nncmx_g(model, alignment, nullptr, nullptr, false, true);
+    mv::TensorInterferenceGraph nncmx_g(pass, model, alignment, nullptr, nullptr,
+    [](const mv::Data::OpListIterator& opIterator) -> bool
+    {
+        auto opType = opIterator->getOpType();
+        if (opType == "Deallocate")
+        {
+            //Deallocate is a LeonTask
+            auto location = opIterator->get<mv::Tensor::MemoryLocation>("Location");
+            return (location == mv::Tensor::MemoryLocation::NNCMX);
+        }
+        //TODO: it might be that we dont need this condition, dellocate is what we are looking for
+        // removing the below condition generated the same mcm blob for a small network
+        if (opType  == "DMATask" &&
+            (opIterator->get<mv::DmaDirection>("direction") == mv::DmaDirectionEnum::NNCMX2DDR ||
+            opIterator->get<mv::DmaDirection>("direction") == mv::DmaDirectionEnum::NNCMX2UPACMX))
+            return true;
 
-    auto memsize = globalConfigParams->get<unsigned>("cmx");
+        return false;
+    },
+    false, true);
+
+    memsize = globalConfigParams->get<unsigned>("cmx");
     pass.log(mv::Logger::MessageType::Info, " Calling AggressiveSimplify");
-    auto agOrder = aggressiveSimplify(nncmx_g, memsize, mv::OrderingStrategy::IG_LARGEST_NEIGHBORS_FIRST);
+    agOrder = aggressiveSimplify(nncmx_g, memsize, mv::OrderingStrategy::IG_LARGEST_NEIGHBORS_FIRST);
     //printASOrder(agOrder, "NNCMX");
     pass.log(mv::Logger::MessageType::Info, " Calling bestFitMemoryAllocation");
+    //if(passDesc.hasAttr("cmxOutput"))
+       //nncmx_g.drawGraph(passDesc.get<std::string>("cmxOutput"));
     bestFitMemoryAllocation(model, agOrder, nncmx_g, memsize);
     pass.log(mv::Logger::MessageType::Info, " Calling DrawGraph");
-    if(passDesc.hasAttr("output"))
-        nncmx_g.drawGraph(passDesc.get<std::string>("output"));
+    if(passDesc.hasAttr("cmxOutput"))
+        nncmx_g.drawGraph(passDesc.get<std::string>("cmxOutput"));
 
     pass.log(mv::Logger::MessageType::Debug, "Graph Coloring Ended");
 }

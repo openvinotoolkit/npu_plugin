@@ -4,7 +4,8 @@ mv::PassManager::PassManager() :
 initialized_(false),
 completed_(false),
 running_(false),
-model_(nullptr)
+model_(nullptr),
+compOutput_("CompilationOutput")
 {
 
 }
@@ -31,7 +32,7 @@ bool mv::PassManager::initialize(ComputationModel &model, const TargetDescriptor
     completed_ = false;
     running_ = false;
     compDescriptor_ = compDescriptor;
-    compOutput_ = mv::json::Object();
+    compOutput_.clear();
     return true;
 
 }
@@ -47,7 +48,7 @@ void mv::PassManager::reset()
     currentPass_ = passList_.begin();
     targetDescriptor_ = TargetDescriptor();
     compDescriptor_ = CompilationDescriptor();
-    compOutput_ = json::Object();
+    compOutput_.clear();
 
 }
 
@@ -67,7 +68,7 @@ void mv::PassManager::loadPassList(const std::vector<mv::Element>& passList)
     currentPass_ = passList_.begin();
 }
 
-mv::json::Object& mv::PassManager::step()
+mv::Element& mv::PassManager::step()
 {
 
     if (!running_)
@@ -81,33 +82,46 @@ mv::json::Object& mv::PassManager::step()
         {
             completed_ = true;
             running_ = false;
-            compOutput_["finished"] = true;
+            compOutput_.set<bool>("finished", true);
             return compOutput_;
         }
 
         // Initialize pass execution...
         currentPass_ = passList_.begin();
-        compOutput_ = json::Object();
-        compOutput_["finished"] = false;
-        compOutput_["passes"] = json::Array();
+        compOutput_.clear();
+        compOutput_.set<bool>("finished", false);
+        compOutput_.set<std::vector<Element>>("passes", {});
     }
 
     if (completed_ || currentPass_ == passList_.end())
     {
         completed_ = true;
         running_ = false;
-        compOutput_["finished"] = true;
+        compOutput_.set<bool>("finished", true);
         return compOutput_;
     }
 
     auto passPtr = pass::PassRegistry::instance().find(currentPass_->getName());
 
-    compOutput_["passes"].append(json::Object());
-    json::Object& lastPassOutput = compOutput_["passes"].last().get<json::Object>();
-    lastPassOutput["name"] = passPtr->getName();
+    compOutput_.get<std::vector<Element>>("passes").push_back(Element(passPtr->getName()));
+    Element& lastPassOutput = compOutput_.get<std::vector<Element>>("passes").back();
 
     auto passElem = *currentPass_;
 
+    if (model_->getGlobalConfigParams()->hasAttr("disabled_labels"))
+    {
+        auto disabledLabels = model_->getGlobalConfigParams()->get<std::vector<std::string>>("disabled_labels");
+        for (auto it = disabledLabels.begin(); it != disabledLabels.end(); ++it)
+        {
+            if (passPtr->hasLabel(*it))
+            {
+                log(Logger::MessageType::Info, "Skipping pass " + passPtr->getName() + " with label \"" + *it + "\"");
+                currentPass_++;
+                return compOutput_;
+            }
+        }
+    }
+        
     log(Logger::MessageType::Info, "Starting pass " + passPtr->getName());
     passPtr->run(*model_, targetDescriptor_, passElem, lastPassOutput);
     log(Logger::MessageType::Info, "Finished pass " + passPtr->getName());

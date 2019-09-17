@@ -5,9 +5,11 @@
 #include "include/mcm/utils/custom_strings.hpp"
 #include "include/mcm/utils/warning_manager.hpp"
 
-
-static void AddDPUTasksWeightsDMATasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::json::Object&);
-static void AddUPATasksExtraInputsDMATasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::json::Object&);
+static void AddDPUTasksWeightsDMATasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&);
+static void AddUPATasksExtraInputsDMATasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&);
+static void addFinalDMATaskFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+static void ensureSplitStrategiesForSpilling(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+static std::vector<mv::Data::OpListIterator> findSinkLayers(mv::DataModel &dataModel, const mv::Data::TensorIterator& tensor);
 
 namespace mv
 {
@@ -22,6 +24,12 @@ namespace mv
             .setFunc(AddUPATasksExtraInputsDMATasksFcn)
             .setDescription(
                "Add DMA Tasks for UPA Tasks extra inputs");
+
+
+        MV_REGISTER_PASS(EnsureSplitStrategiesForSpilling)
+            .setFunc(ensureSplitStrategiesForSpilling)
+            .setDescription(
+               "Ensures Split Strategies still valid after Spilling cases");
     }
 }
 
@@ -62,7 +70,7 @@ bool isTensorInUPACMX(mv::Data::TensorIterator tensor, mv::BaseOpModel& opModel)
 }
 
 // Pass role: Add DMA Tasks for weights tensors input of DPUTasks (if needed).
-void AddDPUTasksWeightsDMATasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element& passDesc, mv::json::Object&)
+void AddDPUTasksWeightsDMATasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element& passDesc, mv::Element &)
 {
     UNUSED(pass);
     UNUSED(target);
@@ -79,15 +87,12 @@ void AddDPUTasksWeightsDMATasksFcn(const mv::pass::PassEntry& pass, mv::Computat
             for(unsigned i = 0; i < n; ++i)
             {
                 auto inputTensor = opIt->getInputTensor(i);
-                mv::QuantizationParams quantParams = {{},{},{},{}};
-                if(inputTensor->hasAttr("quantParams"))
-                    quantParams = inputTensor->get<mv::QuantizationParams>("quantParams");
                 auto inputOp = om.getSourceOp(inputTensor);
                 if(!isTensorInNNCMX(inputTensor, om))
                 {
                     auto flows = inputTensor->get<std::set<std::string>>("flows");
 
-                    mv::Data::TensorIterator inputTensorDma = om.dMATask(inputTensor, mv::DmaDirectionEnum::DDR2NNCMX, quantParams, mv::createDMATaskDDR2NNCMXName(inputOp->getName()));
+                    mv::Data::TensorIterator inputTensorDma = om.dMATask(inputTensor, mv::DmaDirectionEnum::DDR2NNCMX, mv::createDMATaskDDR2NNCMXName(inputOp->getName()));
                     auto inputTensorDmaOp = om.getSourceOp(inputTensorDma);
                     inputTensorDmaOp->set<unsigned>("opId", opId);
 
@@ -107,10 +112,10 @@ void AddDPUTasksWeightsDMATasksFcn(const mv::pass::PassEntry& pass, mv::Computat
 }
 
 // Pass role: Add DMA Tasks for input tensors input of UPATasks (if needed).
-void AddUPATasksExtraInputsDMATasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element& passDesc, mv::json::Object&)
+void AddUPATasksExtraInputsDMATasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element& passDesc, mv::Element &)
 {
-    UNUSED(pass);
-    UNUSED(target);
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);
     mv::DataModel dm(model);
 
@@ -127,15 +132,12 @@ void AddUPATasksExtraInputsDMATasksFcn(const mv::pass::PassEntry& pass, mv::Comp
             for(unsigned i = 0; i < n; ++i)
             {
                 auto inputTensor = opIt->getInputTensor(i);
-                mv::QuantizationParams quantParams = {{},{},{},{}};
-                if(inputTensor->hasAttr("quantParams"))
-                    quantParams = inputTensor->get<mv::QuantizationParams>("quantParams");
                 auto inputOp = om.getSourceOp(inputTensor);
                 if(!isTensorInUPACMX(inputTensor, om))
                 {
                     auto flows = inputTensor->get<std::set<std::string>>("flows");
 
-                    mv::Data::TensorIterator inputTensorDma = om.dMATask(inputTensor, mv::DmaDirectionEnum::DDR2UPACMX, quantParams, mv::createDMATaskDDR2UPACMXName(inputOp->getName()));
+                    mv::Data::TensorIterator inputTensorDma = om.dMATask(inputTensor, mv::DmaDirectionEnum::DDR2UPACMX, mv::createDMATaskDDR2UPACMXName(inputOp->getName()));
                     auto inputTensorDmaOp = om.getSourceOp(inputTensorDma);
                     inputTensorDmaOp->set<unsigned>("opId", opId);
 
@@ -152,4 +154,66 @@ void AddUPATasksExtraInputsDMATasksFcn(const mv::pass::PassEntry& pass, mv::Comp
             }
         }
     }
+}
+
+// Pass role: Splitting Strategies propagation algorithm may create an incompatibility
+void ensureSplitStrategiesForSpilling(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+{
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
+    mv::OpModel om(model);
+    mv::DataModel dm(model);
+    std::vector<std::pair<std::string, std::string>>incompatibleStrategies =
+    {
+        {"SplitOverHOverlapped", "Clustering"},
+        {"SplitOverHOverlapped", "SplitOverK"},
+        {"SplitOverH", "Clustering"},
+        {"SplitOverH", "SplitOverK"},
+        {"SplitOverK", "SplitOverH"},
+        {"Clustering", "SplitOverH"},
+        {"SplitOverK", "HKSwitch"},
+        {"Clustering", "HKSwitch"}
+    };
+    auto globalParams = model.getGlobalConfigParams();
+    unsigned numClusters = globalParams->get<int>("Number_of_Clusters");
+
+    if (numClusters > 1)
+    {
+        for(auto opIt = om.opBegin(); opIt != om.opEnd(); ++opIt)
+        {
+            std::string opType = opIt->getOpType();
+            if (opType == "DMATask")
+            {
+                if (opIt->get<mv::DmaDirection>("direction") == mv::DmaDirectionEnum::DDR2NNCMX &&
+                    !opIt->getOutputTensor(0)->isPopulated())
+                {
+                    std::vector<mv::Data::OpListIterator> sinkOperators = findSinkLayers(dm, opIt->getOutputTensor(0));
+                    auto opStrategy = sinkOperators[0]->get<std::string>("splitStrategy");
+                    for (auto restrictedCombination:incompatibleStrategies)
+                    {
+                        std::pair<std::string, std::string> possibleCombination(opIt->getOutputTensor(0)->get<std::string>("splitStrategy"), opStrategy);
+                        if (possibleCombination == restrictedCombination)
+                        {
+                            opIt->getOutputTensor(0)->set<std::string>("splitStrategy", opStrategy);
+                            opIt->getInputTensor(0)->set<std::string>("splitStrategy", opStrategy);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return;
+
+}
+
+static std::vector<mv::Data::OpListIterator> findSinkLayers(mv::DataModel &dataModel, const mv::Data::TensorIterator &tensor)
+{
+    std::vector<mv::Data::OpListIterator> sinkOperations;
+    auto flowsNames = (tensor)->get<std::set<std::string>>("flows");
+    for(auto flowName : flowsNames)
+    {
+        auto df = dataModel.getDataFlow(flowName);
+        sinkOperations.push_back(df.sink());
+    }
+    return sinkOperations;
 }

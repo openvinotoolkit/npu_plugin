@@ -1,5 +1,5 @@
-#ifndef DIJKSTRA_HPP_
-#define DIJKSTRA_HPP_
+#ifndef MV_DIJKSTRA_HPP_
+#define MV_DIJKSTRA_HPP_
 
 #include <iostream>
 #include <queue>
@@ -8,7 +8,9 @@
 #include <set>
 #include <algorithm>
 #include <map>
+#include <limits>
 #include "include/mcm/graph/graph.hpp"
+#include "include/mcm/compiler/compilation_profiler.hpp"
 
 namespace mv
 {
@@ -43,26 +45,28 @@ namespace mv
     template <typename NodeValue, typename DistanceValue>
     DijkstraReturnValue<NodeValue, DistanceValue> dijkstraRT(NodeValue source, NodeValue target, std::function<std::vector<NodeValue>(NodeValue)> generateNeighbours, std::function<DistanceValue(NodeValue, NodeValue)> computeCost)
     {
-         // Auxiliary data structures
-         std::map<NodeValue, DistanceValue> distances;
-         std::map<NodeValue, NodeValue> previous;
-         std::set<NodeValue> seen;
-         std::set<NodeValue> generatedNodes;
-         std::priority_queue<HeapContent<NodeValue, DistanceValue>, std::vector<HeapContent<NodeValue, DistanceValue>>, std::greater<HeapContent<NodeValue, DistanceValue>>> minHeap;
-         DistanceValue zeroCost(0);
 
-         // Variable to return
-         DijkstraReturnValue<NodeValue, DistanceValue> toReturn;
+        MV_PROFILED_FUNCTION(MV_PROFILE_ALGO)
+        // Auxiliary data structures
+        std::map<NodeValue, DistanceValue> distances;
+        std::map<NodeValue, NodeValue> previous;
+        std::set<NodeValue> seen;
+        std::set<NodeValue> generatedNodes;
+        std::priority_queue<HeapContent<NodeValue, DistanceValue>, std::vector<HeapContent<NodeValue, DistanceValue>>, std::greater<HeapContent<NodeValue, DistanceValue>>> minHeap;
+        DistanceValue zeroCost(0);
 
-         // Inserting the source into heap and graph
-         distances[source] = zeroCost;
-         previous[source] = source;
-         HeapContent<NodeValue, DistanceValue> sourceHeap = {source, distances[source]};
-         minHeap.push(sourceHeap);
-         generatedNodes.insert(source);
+        // Variable to return
+        DijkstraReturnValue<NodeValue, DistanceValue> toReturn;
 
-         while(!minHeap.empty())
-         {
+        // Inserting the source into heap and graph
+        distances[source] = zeroCost;
+        previous[source] = source;
+        HeapContent<NodeValue, DistanceValue> sourceHeap = {source, distances[source]};
+        minHeap.push(sourceHeap);
+        generatedNodes.insert(source);
+
+        while(!minHeap.empty())
+        {
             HeapContent<NodeValue, DistanceValue> top = minHeap.top();
             NodeValue u = top.id;
             minHeap.pop();
@@ -102,47 +106,52 @@ namespace mv
                     }
                 }
             }
-         }
+        }
 
-         for(auto mapIt = previous.find(target); mapIt->first != source; mapIt = previous.find(mapIt->second))
-         {
+        for(auto mapIt = previous.find(target); mapIt->first != source; mapIt = previous.find(mapIt->second))
+        {
             toReturn.nodes.push_back(mapIt->first);
             toReturn.distances.push_back(distances[mapIt->first]);
-         }
+        }
 
-         toReturn.nodes.push_back(source);
+        toReturn.nodes.push_back(source);
 
-         std::reverse(toReturn.nodes.begin(), toReturn.nodes.end());
-         std::reverse(toReturn.distances.begin(), toReturn.distances.end());
+        std::reverse(toReturn.nodes.begin(), toReturn.nodes.end());
+        std::reverse(toReturn.distances.begin(), toReturn.distances.end());
 
-         return toReturn;
+        return toReturn;
+        
     }
 
-    template <typename T_node, typename T_edge, typename T_nodeItComp, typename T_edgeItComp>
-    std::vector<typename graph<T_node, T_edge>::node_list_iterator> dijkstra_nodes(graph<T_node, T_edge>& g, typename graph<T_node, T_edge>::node_list_iterator source, typename graph<T_node, T_edge>::node_list_iterator sink, std::map<typename graph<T_node, T_edge>::edge_list_iterator, unsigned, T_edgeItComp>& edgeCosts)
+    template <typename T_node, typename T_edge, typename T_nodeItComp, typename T_edgeItComp, typename T_value>
+    std::vector<typename graph<T_node, T_edge>::node_list_iterator> dijkstra_nodes(graph<T_node, T_edge>& g, typename graph<T_node, T_edge>::node_list_iterator source, typename graph<T_node, T_edge>::node_list_iterator sink, std::map<typename graph<T_node, T_edge>::edge_list_iterator, T_value, T_edgeItComp>& edgeCosts)
     {
+
+        MV_PROFILED_FUNCTION(MV_PROFILE_ALGO)
         std::vector<typename graph<T_node, T_edge>::node_list_iterator> toReturn;
-        std::priority_queue<HeapContent<typename graph<T_node, T_edge>::node_list_iterator, int>, std::vector<HeapContent<typename graph<T_node, T_edge>::node_list_iterator, int>>, std::greater<HeapContent<typename graph<T_node, T_edge>::node_list_iterator, int>>> minHeap;
-        std::map<typename graph<T_node, T_edge>::node_list_iterator, int, T_nodeItComp> distances;
+        std::priority_queue<HeapContent<typename graph<T_node, T_edge>::node_list_iterator, double>, std::vector<HeapContent<typename graph<T_node, T_edge>::node_list_iterator, double>>, std::greater<HeapContent<typename graph<T_node, T_edge>::node_list_iterator, double>>> minHeap;
+        std::map<typename graph<T_node, T_edge>::node_list_iterator, T_value, T_nodeItComp> distances;
         std::set<typename graph<T_node, T_edge>::node_list_iterator, T_nodeItComp> seen;
         std::map<typename graph<T_node, T_edge>::node_list_iterator, typename graph<T_node, T_edge>::node_list_iterator, T_nodeItComp> previous;
 
-        int zeroCost(0);
-        int infiniteCost(-1);
+        T_value zeroCost(0);
+        T_value infiniteCost(std::numeric_limits<double>::infinity());
 
         // Inserting the source into heap and graph
         for(auto nodeIt = g.node_begin(); nodeIt != g.node_end(); ++nodeIt)
+        {
             distances[nodeIt] = infiniteCost;
+        }
         distances[source] = zeroCost;
         previous[source] = source;
 
-        HeapContent<typename graph<T_node, T_edge>::node_list_iterator, int> sourceHeap = {source, distances[source]};
+        HeapContent<typename graph<T_node, T_edge>::node_list_iterator, double> sourceHeap = {source, distances[source]};
         minHeap.push(sourceHeap);
 
         while(!minHeap.empty())
         {
 
-           HeapContent<typename graph<T_node, T_edge>::node_list_iterator, int> top = minHeap.top();
+           HeapContent<typename graph<T_node, T_edge>::node_list_iterator,double> top = minHeap.top();
            auto uIt = top.id;
 
            minHeap.pop();
@@ -156,17 +165,18 @@ namespace mv
            for(auto u_vIt = uIt->leftmost_output(); u_vIt != g.edge_end(); ++u_vIt)
            {
                auto vIt = u_vIt->sink();
-               int cost_u_v = edgeCosts.at(u_vIt);
-               int distance = distances[uIt] + cost_u_v;
+               T_value cost_u_v = edgeCosts.at(u_vIt);
+               T_value distance = distances[uIt] + cost_u_v;
                if(distances[vIt] == infiniteCost || distance < distances[vIt])
                {
                    distances[vIt] = distance;
                    previous[vIt] = uIt;
-                   HeapContent<typename graph<T_node, T_edge>::node_list_iterator, int> toPush = {vIt, distances[vIt]};
+                   HeapContent<typename graph<T_node, T_edge>::node_list_iterator, double> toPush = {vIt, distances[vIt]};
                    minHeap.push(toPush);
                }
 
            }
+
         }
 
         for(auto mapIt = previous.find(sink); mapIt->first != source; mapIt = previous.find(mapIt->second))
@@ -179,10 +189,12 @@ namespace mv
         return toReturn;
     }
 
-
-    template <typename T_node, typename T_edge, typename T_nodeItComp, typename T_edgeItComp>
-    std::vector<typename graph<T_node, T_edge>::edge_list_iterator> dijkstra(graph<T_node, T_edge>& g, typename graph<T_node, T_edge>::node_list_iterator source, typename graph<T_node, T_edge>::node_list_iterator sink, std::map<typename graph<T_node, T_edge>::edge_list_iterator, unsigned, T_edgeItComp>& edgeCosts)
+    template <typename T_node, typename T_edge, typename T_nodeItComp, typename T_edgeItComp, typename T_value>
+    std::vector<typename graph<T_node, T_edge>::edge_list_iterator> dijkstra(graph<T_node, T_edge>& g, typename graph<T_node, T_edge>::node_list_iterator source, typename graph<T_node, T_edge>::node_list_iterator sink, std::map<typename graph<T_node, T_edge>::edge_list_iterator, T_value, T_edgeItComp>& edgeCosts)
     {
+
+        MV_PROFILED_FUNCTION(MV_PROFILE_ALGO)
+        
         std::vector<typename graph<T_node, T_edge>::node_list_iterator> buildList = dijkstra_nodes<T_node, T_edge, T_nodeItComp, T_edgeItComp>(g, source, sink, edgeCosts);
         std::vector<typename graph<T_node, T_edge>::edge_list_iterator> toReturn;
 
@@ -206,4 +218,4 @@ namespace mv
 
 }
 
-#endif // DIJKSTRA_HPP_
+#endif // MV_DIJKSTRA_HPP_

@@ -10,8 +10,8 @@
 static const std::array<unsigned short, 2> FAKE_KERNEL = {1,1};
 static const std::array<unsigned short, 2> FAKE_STRIDE = {1,1};
 
-static void convertOpsToDPUTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
-static void convertOpsToUPATasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
+static void convertOpsToDPUTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+static void convertOpsToUPATasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 
 namespace mv
 {
@@ -29,8 +29,10 @@ namespace mv
     }
 }
 
-void convertOpsToDPUTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+void convertOpsToDPUTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);
     mv::ControlModel cm(model);
 
@@ -113,7 +115,10 @@ void convertOpsToDPUTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& 
                 //NOTE:Convolution can not be HWSwitch
                dpuConvOp->set<std::string>("splitStrategy", splitStrategy);
                if (splitStrategy == "SplitOverK")
+               {
                     dpuConvOp->set<bool>("multiCast", true);
+//                   dpuConvOp->getOutputTensor(0)->set<bool>("multiCast", true);
+                }
                 else
                    dpuConvOp->set<bool>("multiCast", false);
             }
@@ -241,7 +246,7 @@ void convertOpsToDPUTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& 
     }
 }
 
-void convertOpsToUPATasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+void convertOpsToUPATasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
     mv::OpModel om(model);
     mv::ControlModel cm(model);

@@ -5,8 +5,8 @@
 #include "meta/include/mcm/op_model.hpp"
 #include <regex>
 
-static void storeLayerSplitStrategyFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
-static void storeTensorPlacementFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&,mv::json::Object&);
+static void storeLayerSplitStrategyFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+static void storeTensorPlacementFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 
 namespace mv
 {
@@ -39,8 +39,10 @@ void storeStrategy(mv::Data::OpListIterator& it, std::vector<mv::Element>& strat
     }
 }
 
-void storeLayerSplitStrategyFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+void storeLayerSplitStrategyFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     auto globalParams = model.getGlobalConfigParams();
 
     if (!globalParams->hasAttr("split_strategy"))
@@ -74,8 +76,11 @@ void storeLayerSplitStrategyFcn(const mv::pass::PassEntry& pass, mv::Computation
 void storeTensorPlacementFcn(const mv::pass::PassEntry& pass,
                                 mv::ComputationModel& model,
                                 mv::TargetDescriptor&,
-                                mv::Element&,mv::json::Object&)
+                                mv::Element&,
+                                mv::Element&)
 {
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     //mv::Logger::setVerboseLevel(mv::VerboseLevel::Debug);
 
     auto globalParams = model.getGlobalConfigParams();
@@ -90,10 +95,11 @@ void storeTensorPlacementFcn(const mv::pass::PassEntry& pass,
         {
             auto parentOp = om.getSourceOp(tensorIt);
 
-            if(parentOp->getOpType() == "Input")
-            {
-                continue;
-            }
+            if(parentOp != om.opEnd())
+                if(parentOp->getOpType() == "Input")
+                {
+                    continue;
+                }
 
             bool found = false;
             for( auto s : placementOverrideList )
@@ -113,7 +119,7 @@ void storeTensorPlacementFcn(const mv::pass::PassEntry& pass,
                 }
             }
 
-            if(!found)
+            if((not found) and (not tensorIt->hasAttr("Location")))
             {
                 tensorIt->set<mv::Tensor::MemoryLocation>("Location",mv::Tensor::MemoryLocation::DEFAULT);
                 pass.log(mv::Logger::MessageType::Info,"tensor " + tensorIt->getName() + "not found. setting to DEFAULT");

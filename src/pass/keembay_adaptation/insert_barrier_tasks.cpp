@@ -9,47 +9,13 @@
 #include "include/mcm/algorithms/path_exists.hpp"
 #include "include/mcm/algorithms/edge_exists.hpp"
 #include <algorithm>
-#include "../contrib/koala/graph/graph.h"
-#include "../contrib/koala/io/text.h"
-#include "../contrib/koala/io/parsetgml.h"
-#include "../contrib/koala/coloring/vertex.h"
-#include "../contrib/koala/io/graphml.h"
 #include "include/mcm/logger/logger.hpp"
 #include "include/mcm/utils/custom_strings.hpp"
 #include "include/mcm/utils/env_loader.hpp"
 
 #define MAX_AVAILABLE_BARRIERS 8
 
-using namespace Koala;
-
-struct BigKVertexInfo
-{
-    int barrierId;
-
-    BigKVertexInfo(int id) : barrierId(id) {};
-
-    friend std::ostream& operator<<(std::ostream& os, const BigKVertexInfo& arg)
-    {
-        return os << arg.barrierId;
-    }
-};
-
-struct BigKEdgeInfo
-{
-    int srcId;
-    int snkId;
-
-    BigKEdgeInfo(int src, int snk) : srcId(src), snkId(snk) {};
-
-    friend std::ostream& operator<<(std::ostream& os, const BigKEdgeInfo& arg)
-    {
-        return os << "src = " << arg.srcId << " | snk = " << arg.snkId;
-    }
-};
-
-using BIGKoala = Koala::Graph <BigKVertexInfo, BigKEdgeInfo>;
-
-static void insertBarrierTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
+static void insertBarrierTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 
 namespace mv
 {
@@ -67,218 +33,6 @@ namespace mv
 
 }
 
-using BarrierInterferenceGraph = mv::graph<mv::Barrier, int>;
-
-static void drawBIG(BarrierInterferenceGraph& g, std::string outputFile)
-{
-    std::ofstream ostream;
-
-    mv::utils::validatePath(outputFile);
-
-    ostream.open(outputFile, std::ios::trunc | std::ios::out);
-    ostream << "strict graph G {\n\tgraph [splines=spline]\n";
-
-    for (auto it = g.node_begin(); it != g.node_end(); ++it)
-    {
-        std::string vIdx = std::to_string((*it).getID());
-        std::unordered_set<std::string> consumers = (*it).getConsumers();
-        std::string consumerStr = "";
-        for (auto s: consumers)
-        {
-            consumerStr = consumerStr + "\n" + s;
-        }
-        std::string disp = vIdx + " " + consumerStr;
-
-        std::string nodeDef = "\t\"" + vIdx + "\" [shape=box,";
-        nodeDef += " label=<<TABLE BORDER=\"0\" CELLPADDING=\"0\" \
-                    CELLSPACING=\"0\"><TR><TD ALIGN=\"CENTER\" \
-                    COLSPAN=\"2\"><FONT POINT-SIZE=\"14.0\"><B>" \
-                    + disp + \
-                    "</B></FONT></TD></TR>";
-        nodeDef += "</TABLE>>";
-        ostream << nodeDef << "];\n";
-    }
-
-    for (auto it = g.edge_begin(); it != g.edge_end(); ++it)
-    {
-        std::string vIdxSrc = std::to_string((*(it->source())).getID());
-        std::string vIdxSnk = std::to_string((*(it->sink())).getID());
-        std::string edgeDef = "\t\"" + vIdxSrc + "\" -- \"" +  vIdxSnk + "\"";
-        ostream << edgeDef << "\n";
-    }
-    ostream << "}\n";
-    ostream.close();
-}
-
-static void addEdge(const mv::Barrier& b1, const mv::Barrier& b2, BarrierInterferenceGraph& big)
-{
-    auto n1 = big.node_find(b1);
-    auto n2 = big.node_find(b2);
-    big.edge_insert(n1, n2, b1.getID());
-    big.edge_insert(n2, n1, b2.getID());
-}
-
-
-static int colorKoalaGraph(BIGKoala& bigK, std::vector<BIGKoala::PVertex> verts, AssocArray<BIGKoala::PVertex, int>& colors)
-{
-    return SeqVertColoring::greedy(bigK, colors);
-}
-
-static void convertToKoalaGraph(const mv::pass::PassEntry& pass, const BarrierInterferenceGraph& big, BIGKoala& bigK, std::vector<BIGKoala::PVertex>& koalaVerts)
-{
-    for (auto it = big.node_begin(); it != big.node_end(); ++it)
-    {
-        BIGKoala::PVertex v = bigK.addVert(BigKVertexInfo((*it).getID()));
-        koalaVerts.push_back(v);
-    }
-
-    for (auto it = big.edge_begin(); it != big.edge_end(); ++it)
-    {
-        auto& src = *it->source();
-        auto& snk = *it->sink();
-
-        auto srcVtx = std::find_if(
-                    koalaVerts.begin(),
-                    koalaVerts.end(),
-                    [src](BIGKoala::PVertex& v) { return src.getID() == v->info.barrierId; }
-        );
-
-        auto snkVtx = std::find_if(
-                    koalaVerts.begin(),
-                    koalaVerts.end(),
-                    [snk](BIGKoala::PVertex& v) { return snk.getID() == v->info.barrierId; }
-        );
-
-        if (*srcVtx && *snkVtx)
-        {
-            pass.log(mv::Logger::MessageType::Info,
-                "Trying to add edge between: k_src = " + std::to_string((*srcVtx)->info.barrierId)
-                + ", k_snk = " + std::to_string((*snkVtx)->info.barrierId));
-
-            if (!bigK.getEdgeNo(*srcVtx, *snkVtx, Koala::Undirected))
-            {
-                bigK.addEdge(*srcVtx, *snkVtx, BigKEdgeInfo(src.getID(), snk.getID()), Koala::Undirected);
-            }
-            else
-            {
-                pass.log(mv::Logger::MessageType::Info,
-                    "edge exists between k_src = " + std::to_string((*srcVtx)->info.barrierId)
-                    + ", k_snk = " + std::to_string((*snkVtx)->info.barrierId));
-            }
-        }
-    }
-}
-
-static void drawBigK(const BIGKoala& bigK)
-{
-    Koala::IO::GraphML gml;
-    Koala::IO::GraphMLGraph *gmlg;
-
-    //Koala::IO::writeGraphText(bigK, std::cout, Koala::IO::RG_VertexLists);
-
-    gmlg = gml.createGraph("BIGKoala");
-    gmlg->writeGraph(bigK, Koala::IO::gmlIntField(&BigKVertexInfo::barrierId, "barrierId"),
-                            Koala::IO::gmlIntField(&BigKEdgeInfo::srcId, "srcId")
-                            & Koala::IO::gmlIntField(&BigKEdgeInfo::snkId, "snkId"));
-    gml.writeFile("bigK.graphml");
-}
-
-static BarrierInterferenceGraph
-generateBarrierInterferenceGraph(mv::OpModel& om,
-                                    std::vector<mv::Barrier>& barriers,
-                                    const std::string& indexAssignment,
-                                    const int barrierReuseWindow)
-{
-    BarrierInterferenceGraph big;
-    mv::ControlModel cm(om);
-
-    // Insert all barriers into interference graph
-    for (auto& b: barriers)
-    {
-        big.node_insert(b);
-    }
-
-    // Draw edges
-    // Case 1: 2 barriers share the same op in their producer and consumer list,
-    // like so: b1->op->b2. i.e. op is in b1's consumer list and b2's producer list.
-    // In this case b1 and b2 are concurrent, so an edge exists between b1 and b2.
-
-
-    for (auto& b1: barriers)
-    {
-        for (auto& c: b1.getConsumers())
-        {
-            for (auto& b2: barriers)
-            {
-                auto b1It = big.node_find(b1);
-                auto b2It = big.node_find(b2);
-                auto concurrentBarrier = std::find(b2.getProducers().begin(), b2.getProducers().end(), c);
-                if (concurrentBarrier != b2.getProducers().end())
-                {
-                    // b1's consumer is the same as b2's producer, so add an edge
-                    if (!mv::edgeExists(big, b1It, b2It) && !mv::edgeExists(big, b2It, b1It))
-                        addEdge(b1, b2, big);
-                }
-            }
-        }
-    }
-
-    // Case 2: b1 and b2 are on parallel paths.
-    // Try all possible combinations of operations & check whether they're an ancestor
-    // or a descendent of this op.
-    // Subsequently check whether an edge already exists between barriers associated with
-    // the two ops. If not, add an edge between the two barriers in the BIG.
-
-    for (auto& b1: barriers)
-    {
-        for (auto& c1: b1.getConsumers())
-        {
-            for (auto& b2: barriers)
-            {
-                if (b1 != b2)
-                {
-                    for (auto& c2: b2.getConsumers())
-                    {
-                        auto b1It = big.node_find(b1);
-                        auto b2It = big.node_find(b2);
-                        // BIG is an undirected graph, so nodes in the opModel are considered to be
-                        // disconnected only if c2 is neither an ancestor, nor a descendent of c1.
-                        // pathExists checks only from source to sink on a directed graph, hence
-                        // this check needs to be performed both from c1 to c2, and c2 to c1.i
-                        if (!cm.pathExists(cm.switchContext(om.getOp(c1)), cm.switchContext(om.getOp(c2)))
-                         && !cm.pathExists(cm.switchContext(om.getOp(c2)), cm.switchContext(om.getOp(c1))) )
-                        {
-                            //std::cout << "ADDING BIG EDGE: No path from " << om.getOp(c1)->getName()  << " to " << om.getOp(c2)->getName()  << std::endl;
-                            if (!mv::edgeExists(big, b1It, b2It) && !mv::edgeExists(big, b2It, b1It))
-                                addEdge(b1, b2, big);
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    // Add more interference here to allow firmware to allow other barrier indices before
-    // reusing any specific one again (hardware switching timing related, presumably).
-    // use sliding window algorithm --> use 5 as the width of the window.
-    if (indexAssignment == "Static")
-    {
-        for (size_t i = 0; i < barriers.size(); i++)
-        {
-            for (size_t j = i + 1; j < i + barrierReuseWindow && j < barriers.size(); j++)
-            {
-                auto b1It = big.node_find(barriers[i]);
-                auto b2It = big.node_find(barriers[j]);
-                if (!mv::edgeExists(big, b1It, b2It) && !mv::edgeExists(big, b2It, b1It))
-                    addEdge(barriers[i], barriers[j], big);
-            }
-        }
-    }
-
-    return big;
-}
-
-
 static bool opHasBarrier(const std::string& opName , std::vector<mv::Barrier>& barriers)
 {
     for (auto b : barriers)
@@ -292,8 +46,31 @@ static bool opHasBarrier(const std::string& opName , std::vector<mv::Barrier>& b
     return false;
 }
 
-static void combineRedundantBarriers(const mv::pass::PassEntry& pass, std::vector<mv::Barrier>& barriers)
+static bool emptySetIntersection(const std::set<std::string>& s1, const std::set<std::string>& s2)
 {
+    auto it1 = s1.begin();
+    auto it2 = s2.begin();
+
+    while (it1 != s1.end() && it2 != s2.end())
+    {
+        if (*it1 == *it2)
+            return false;
+        else if (*it1 < *it2)
+            it1++;
+        else
+            it2++;
+    }
+
+    return true;
+}
+
+
+static void combineRedundantBarriers(mv::ComputationModel& model,
+                                    const mv::pass::PassEntry& pass,
+                                    std::vector<mv::Barrier>& barriers)
+{
+    mv::ControlModel cm(model);
+
     for (auto b = barriers.begin(); b != barriers.end(); b++ )
     {
         for (auto c = std::next(b); c!= barriers.end(); c++ )
@@ -328,6 +105,52 @@ static void combineRedundantBarriers(const mv::pass::PassEntry& pass, std::vecto
 
                     // Clear c so that it can be removed from the graph
                     c->clear();
+                }
+            }
+
+            // check whether c's producers are a subset of b, if so, move c's consumers to b
+            auto prod_b = b->getProducers();
+            auto prod_c = c->getProducers();
+            auto cons_b = b->getConsumers();
+            auto cons_c = c->getConsumers();
+            if ((std::includes(prod_b.begin(), prod_b.end(), prod_c.begin(), prod_c.end())
+                || std::includes(prod_c.begin(), prod_c.end(), prod_b.begin(), prod_b.end()))
+                && b->hasConsumers() && c->hasConsumers())
+            {
+                if (emptySetIntersection(prod_b, cons_c) && emptySetIntersection(prod_c, cons_b))
+                {
+                    bool noPath = true;
+                    for (auto p1 = prod_b.begin(); p1 != prod_b.end(); ++p1)
+                    {
+                        for (auto p2 = prod_c.begin(); p2 != prod_c.end(); ++p2)
+                        {
+                            if (*p1 != *p2 && (cm.pathExists(cm.switchContext(cm.getOp(*p1)), cm.switchContext(cm.getOp(*p2)))
+                                            || cm.pathExists(cm.switchContext(cm.getOp(*p2)), cm.switchContext(cm.getOp(*p1)))))
+                            {
+                                noPath = noPath && false;
+                            }
+                        }
+                    }
+
+                    if (noPath)
+                    {
+                        pass.log(mv::Logger::MessageType::Info,
+                                "combining redundant barriers: " + std::to_string(b->getID())
+                                + " and " + std::to_string(c->getID()));
+
+                        for (auto consumer : c->getConsumers())
+                        {
+                            b->addConsumer(consumer);
+                            c->removeConsumer(consumer);
+                        }
+
+                        for (auto producer: c->getProducers())
+                        {
+                            b->addProducer(producer);
+                            c->removeProducer(producer);
+                        }
+
+                    }
                 }
             }
         }
@@ -368,8 +191,8 @@ void getBarrierForControlModelOp(mv::ControlModel& cm, mv::Control::OpListIterat
                 }
                 else
                 {
-                    std::unordered_set<std::string> producers;
-                    std::unordered_set<std::string> consumers;
+                    std::set<std::string> producers;
+                    std::set<std::string> consumers;
                     producers.insert(sourceOpName);
                     consumers.insert(sinkOpName);
                     struct mv::Barrier new_barrier(producers, consumers);
@@ -394,54 +217,6 @@ static void addBarriers(mv::ComputationModel& model, std::vector<mv::Barrier>& b
     for (auto ctrlOp: sortedCtrlOps)
         getBarrierForControlModelOp(cm, ctrlOp, barriers);
 
-}
-
-static void setBarrierGroupAndIndex(const mv::pass::PassEntry& pass, mv::OpModel& om, std::vector<mv::Barrier>& barriers, mv::Element& passDesc)
-{
-    auto globalConfigurationParameters = om.getGlobalConfigParams();
-    std::string indexAssignment = globalConfigurationParameters->get<std::string>("barrier_index_assignment");
-
-    if (indexAssignment == "Static")
-    {
-        int barrierReuseWindow = 0;
-        if (passDesc.hasAttr("barrier_reuse_window"))
-            barrierReuseWindow = passDesc.get<int>("barrier_reuse_window");
-
-        BarrierInterferenceGraph big = generateBarrierInterferenceGraph(om, barriers, indexAssignment, barrierReuseWindow);
-        if(passDesc.hasAttr("outputBIG"))
-            drawBIG(big, passDesc.get<std::string>("outputBIG"));
-
-
-        // Must be always done to verify we can execute a graph with only MAX_AVAILABLE_BARRIERS
-        BIGKoala bigK;
-        std::vector<BIGKoala::PVertex> koalaVertices;
-        convertToKoalaGraph(pass, big, bigK, koalaVertices);
-        drawBigK(bigK);
-
-        AssocArray<BIGKoala::PVertex, int> colors;
-        int numColors = colorKoalaGraph(bigK, koalaVertices, colors) + 1;
-        if (numColors > MAX_AVAILABLE_BARRIERS)
-            throw mv::RuntimeError(om,
-                    "Cannot execute graph with " +
-                    std::to_string(MAX_AVAILABLE_BARRIERS) +
-                    " barriers; more graph serialization required.");
-
-        for (int i = 0; i < bigK.getVertNo(); i++)
-        {
-            pass.log(mv::Logger::MessageType::Info,
-                "bId = " + std::to_string(koalaVertices[i]->info.barrierId)
-                + " : color = " + std::to_string(colors[koalaVertices[i]]));
-        }
-
-        // assign colors to indices
-        for (auto& b: barriers)
-        {
-            auto koalaVertex = std::find_if(koalaVertices.begin(), koalaVertices.end(),
-                            [b](BIGKoala::PVertex v){ return v->info.barrierId == b.getID(); } );
-
-            b.setIndex(colors[*koalaVertex]);
-        }
-    }
 }
 
 static void insertBarriersIntoControlFlowGraph(mv::ComputationModel& model, const mv::Element& passDesc, const std::vector<mv::Barrier>& barriers)
@@ -528,28 +303,21 @@ void removeExtraProducers(const mv::pass::PassEntry& pass,
     }
 }
 
-static void insertBarrierTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::json::Object&)
+static void insertBarrierTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&)
 {
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);
 
     std::vector<mv::Barrier> barriers;
 
     addBarriers(model, barriers);
 
-    combineRedundantBarriers(pass, barriers);
+    combineRedundantBarriers(model, pass, barriers);
 
     // remove extraneous producers
     // XXX: Q: Do any extraneous consumers need to be removed as well?
     removeExtraProducers(pass, model, barriers);
-
-    // Optional pass
-    //resetBarrierIDs(barriers);
-
-    // Sets just the index, as group is not used right now
-    // Runs barrier graph coloring to see if we can execute
-    // are current parallel scheduling with 8 barriers
-    // or we need to serialize more
-    //setBarrierGroupAndIndex(pass, om, barriers, passDesc);
 
     insertBarriersIntoControlFlowGraph(model, passDesc, barriers);
 }

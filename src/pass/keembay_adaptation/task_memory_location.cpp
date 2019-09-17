@@ -7,9 +7,8 @@
 #include "include/mcm/utils/custom_strings.hpp"
 #include "include/mcm/pass/pass_utils.hpp"
 
-
-static void setDpuTasksMemoryLocationFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
-static void setUPATasksMemoryLocationFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
+static void setDpuTasksMemoryLocationFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+static void setUPATasksMemoryLocationFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 
 namespace mv
 {
@@ -30,7 +29,7 @@ namespace mv
 
 // This set of passes handles activation tensor DMAs for both DPU Task and DMA task
 // For activation tensor it makes way more sense to use memory locations
-void setDpuTasksMemoryLocationFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+void setDpuTasksMemoryLocationFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
     mv::OpModel om(model);
     mv::DataModel dm(model);
@@ -75,7 +74,7 @@ void setDpuTasksMemoryLocationFcn(const mv::pass::PassEntry& , mv::ComputationMo
                         memoryLocation = "DDR";
                     std::string stringDirection("NNCMX2"+memoryLocation);
                     mv::DmaDirection direction(stringDirection);
-                    auto dpuCopyOut = om.dMATask(output, direction, outputQuantParams,opIt->getName() + "_copyOut");
+                    auto dpuCopyOut = om.dMATask(output, direction,opIt->getName() + "_copyOut");
                     auto dpuCopyOutOp = om.getSourceOp(dpuCopyOut);
                     dpuCopyOutOp->set<unsigned>("opId", opIt->get<unsigned>("opId"));
                     if (output->hasAttr("quantParams"))
@@ -102,7 +101,7 @@ void setDpuTasksMemoryLocationFcn(const mv::pass::PassEntry& , mv::ComputationMo
                             memoryLocation = "DDR";
                         std::string stringDirection(memoryLocation+"2NNCMX");
                         mv::DmaDirection direction(stringDirection);
-                        auto dpuCopyIn = om.dMATask(input, direction, inputQuantParams, opIt->getName() + "_copyIn_" + std::to_string(i));
+                        auto dpuCopyIn = om.dMATask(input, direction, opIt->getName() + "_copyIn_" + std::to_string(i));
                         auto dpuCopyInOp = om.getSourceOp(dpuCopyIn);
 
                         if(dpuCopyInOp->getOutputTensor(0)->hasAttr("quantParams"))
@@ -136,7 +135,7 @@ void setDpuTasksMemoryLocationFcn(const mv::pass::PassEntry& , mv::ComputationMo
     }
 }
 
-void setUPATasksMemoryLocationFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+void setUPATasksMemoryLocationFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
     mv::OpModel om(model);
     mv::DataModel dm(model);
@@ -180,7 +179,7 @@ void setUPATasksMemoryLocationFcn(const mv::pass::PassEntry& , mv::ComputationMo
                     memoryLocation = "DDR";
                 std::string stringDirection("UPACMX2"+memoryLocation);
                 mv::DmaDirection direction(stringDirection);
-                auto dpuCopyOut = om.dMATask(output, direction, outputQuantParams,opIt->getName() + "_copyOut");
+                auto dpuCopyOut = om.dMATask(output, direction,opIt->getName() + "_copyOut");
                 auto dpuCopyOutOp = om.getSourceOp(dpuCopyOut);
                 dpuCopyOutOp->set<unsigned>("opId", opIt->get<unsigned>("opId"));
                 if (output->hasAttr("quantParams"))
@@ -205,7 +204,7 @@ void setUPATasksMemoryLocationFcn(const mv::pass::PassEntry& , mv::ComputationMo
                         memoryLocation = "DDR";
                     std::string stringDirection(memoryLocation+"2UPACMX");
                     mv::DmaDirection direction(stringDirection);
-                    auto dpuCopyIn = om.dMATask(input, direction, inputQuantParams, opIt->getName() + "_copyIn_" + std::to_string(i));
+                    auto dpuCopyIn = om.dMATask(input, direction, opIt->getName() + "_copyIn_" + std::to_string(i));
                     auto dpuCopyInOp = om.getSourceOp(dpuCopyIn);
 
                     if(dpuCopyInOp->getOutputTensor(0)->hasAttr("quantParams"))

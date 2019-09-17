@@ -4,145 +4,80 @@
             {
                 "name" : "GlobalConfigParams",
                 "_comment" : "Stores common params accross multiple passes. Access through the Computation Model.",
-                "recorded_model": false,
+                "recorded_model": true,
+                "log_time" : true,
                 "verbose": "Debug",
                 "weights_form": "None",
                 "barrier_index_assignment" : "Dynamic",
-                "Number_of_DPUs" : 4,
-                "Number_of_Clusters" : 4,
+                "Number_of_DPUs" : 5,
+                "Number_of_Clusters" : 1,
                 "UpaShaves": 1,
-                "DDRScratch": 31457280,
-                "MemoryHack": false,
-                "nWorkloads": 1,
-                "ActivationSparsity": true,
-                "WeightsSparsity": true,
-                "CMX_memory_overflow_safety_factor" : 0.925,
+                "DDRScratch": 200704,
                 "cmx": 901120,
-                "mpe_mode" : "Vector",
+                "MemoryHack": false,
+                "ActivationSparsity": false,
+                "WeightsSparsity": false,
+                "CMX_memory_overflow_safety_factor" : 0.925,
                 "split_strategy" :
                 [
                     {
-                        "name_filter": ".*input#.*",
-                        "strategy": "SplitOverHOverlapped"
-                    },
-                    {
-                        "name_filter":".*conv1.*",
-                        "strategy": "SplitOverH"
-                    },
-                    //ask marco for Sparsity
-                    {
-                        "name_filter":".*pool1/max_pool.*",
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter":".*conv2.*",
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter":".*pool2/max_pool.*",
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter":".*conv3.*",
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter":".*pool3/max_pool.*",
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter":".*conv4.*",
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter":".*pool4/max_pool.*",
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter":".*conv5.*",
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter":".*pool5/max_pool.*",
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter":".*conv6.*",
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter":".*pool6/max_pool.*",
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter":".*conv7.*",
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter":".*conv8.*",
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter":".*conv9.*",
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter":".*output.*",
-                        "strategy": "SplitOverH"
-                    }
-                ],
-                "tensor_placement_override" :
-                [
-                    {
-                        "name_filter" : ".*_ddr_.*",
-                        "mem_location" : "DDR"
-                    },
-                    {
-                        "name_filter" : ".*_cmx_.*",
-                        "mem_location" : "NNCMX"
-                    },
-                    {
-                        "name_filter" : ".*_input_.*",
-                        "mem_location" : "INPUT"
-                    },
-                    {
-                        "name_filter" : ".*_output_.*",
-                        "mem_location" : "OUTPUT"
-                    },
-                    {
-                        "name_filter" : ".*weights.*",
-                        "mem_location" : "BLOB"
+                        "name_filter" : ".*",
+                        "strategy" : "Clustering"
                     }
                 ],
                 "default_tensor_placement" : "DDR",
                 "streaming_strategy" :
                 [
                     {
-                        "name_filter" : ".*conv6.*#.*",
-                        "output_location" : "NNCMX",
+                        "name_filter" : "res5a_branch1#238",
+                        "output_location" : "CMX",
+                        "splits" : [ {"K" : 4} ]
+                        },
+                        {
+                        "name_filter" : "res5a_branch2b#240",
+                        "output_location" : "CMX",
+                        "splits" : [ {"K" : 4} ]
+                        },
+                        {
+                        "name_filter" : "res5a_branch2c#241",
+                        "output_location" : "CMX",
                         "splits" : [ {"K" : 2} ]
-                    },
-                    {
-                        "name_filter" : ".*conv7.*#.*",
-                        "output_location" : "NNCMX",
-                        "splits" : [ {"K" : 8} ]
-                    },
-                                        {
-                        "name_filter" : ".*conv8.*#.*",
-                        "output_location" : "NNCMX",
-                        "splits" : [ {"K" : 16} ]
-                    }
-                ],
-                "disable_opFission_streaming_strategy" :
-                [
-                    {
-                        "name_filter" : "conv1_cmx_",
-                        "weight_splits" : 2
-                    },
-                    {
-                        "name_filter" : "conv2_cmx_",
-                        "weight_splits" : 4
-                    }
+                        },
+                        {
+                        "name_filter" : "res5b_branch2a#243",
+                        "output_location" : "CMX",
+                        "splits" : [ {"K" : 2} ]
+                        },
+                        {
+                        "name_filter" : "res5b_branch2b#244",
+                        "output_location" : "CMX",
+                        "splits" : [ {"K" : 4} ]
+                        },
+                        {
+                        "name_filter" : "res5b_branch2c#245",
+                        "output_location" : "CMX",
+                        "splits" : [ {"K" : 2} ]
+                        },
+                        {
+                        "name_filter" : "res5c_branch2a#247",
+                        "output_location" : "CMX",
+                        "splits" : [ {"K" : 2} ]
+                        },
+                        {
+                        "name_filter" : "res5c_branch2b#248",
+                        "output_location" : "CMX",
+                        "splits" : [ {"K" : 4} ]
+                        },
+                        {
+                        "name_filter" : "res5c_branch2c#249",
+                        "output_location" : "CMX",
+                        "splits" : [ {"K" : 2} ]
+                        },
+                        {
+                        "name_filter" : "fc1000/fc1000#252",
+                        "output_location" : "CMX",
+                        "splits" : [ {"K" : 4} ]
+                        }
                 ]
             },
             "ComputeMemory",
@@ -198,7 +133,9 @@
                 "name": "ConvertDot",
                 "input": "output/dots/adapt_model.dot"
             },
+            "StoreLayerSplitStrategy",
             "StreamingTiling",
+            "StreamBinaryDataWeights",
             {
                 "name": "GenerateDot",
                 "output": "output/dots/tiling_model.dot",
@@ -215,46 +152,24 @@
     "keembay_adapt": {
         "Singular": [
             "ConcatAsImplicit",
-            "StoreLayerSplitStrategy",
             "StoreWorkloadStrategy",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/BeforeOpsToTasks.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/BeforeOpsToTasks.dot"
-            },
-            "ConvertOpsToDPUTasks",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/AfterOpsToTasks.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/AfterOpsToTasks.dot"
-            },
+            "ConvertOpsToTasks",
             "ForceSerialize",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/AfterForceSerializae.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/AfterForceSerializae.dot"
-            },
-            "AlignTo16Channels",
-            "ComputeTensorsQuantParams",
             "KMBOrderConversion",
+            "AlignTo16Channels",
+            "AlignTaskWeights",
+            "GenerateSparsityMapsUnpopulatedTensors",
+            "GenerateSparsityMapsPopulatedTensors",
+            "GenerateWeightsTables",
+            "GenerateEltWiseConstants",
+            "StrategyLayersToTensors",
+            "ComputeTensorsQuantParams",
+            "UpdateImplicitLayersQuantizationParams",
+
+
+            "PopulateWeightsTablesQuantization",
+            "RemoveBiasTensors",
+
             {
                 "name": "GenerateDot",
                 "output": "output/dots/keembay_adapt_model.dot",
@@ -265,19 +180,11 @@
             {
                 "name": "ConvertDot",
                 "input": "output/dots/keembay_adapt_model.dot"
-            },
-            "UpdateImplicitLayersQuantizationParams",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/update_concat_quantization.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/update_concat_quantization.dot"
-            },
+            }
+        ]
+    },
+    "dma": {
+        "Singular" : [
             "SetDpuTasksMemoryLocation",
             {
                 "name": "GenerateDot",
@@ -290,48 +197,6 @@
                 "name": "ConvertDot",
                 "input": "output/dots/dpu_tasks_location.dot"
             },
-            "AlignTaskWeights",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/align_task_weights.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/align_task_weights.dot"
-            },
-            "GenerateWeightsTables",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/keembay_WeightsTable_model.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/keembay_WeightsTable_model.dot"
-            },
-            "GenerateEltWiseConstants",
-            "PopulateWeightsTablesQuantization",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/keembay_EltWiseConstants_model.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/keembay_EltWiseConstants_model.dot"
-            },
-            "RemoveBiasTensors"
-        ]
-    },
-    "dma": {
-        "Singular" : [
             "ResolveImplicitOperations",
             {
                 "name": "GenerateDot",
@@ -344,7 +209,7 @@
                 "name": "ConvertDot",
                 "input": "output/dots/implicit_operations_model.dot"
             },
-            "AddDPUTasksWeightsDMATasks",
+            "AddWeightsDMATasks",
             {
                 "name": "GenerateDot",
                 "output": "output/dots/dma_model.dot",
@@ -355,20 +220,6 @@
             {
                 "name": "ConvertDot",
                 "input": "output/dots/dma_model.dot"
-            },
-            "GenerateSparsityMapsUnpopulatedTensors",
-            "GenerateSparsityMapsPopulatedTensors",
-            "AddDPUTasksWeightsDMATasks",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/sparsity_model.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/sparsity_model.dot"
             }
         ]
     },
@@ -413,21 +264,24 @@
                 "name": "ConvertDot",
                 "input": "output/dots/NoHangingDmas.dot"
             },
-            "NNCMX2DDRControlFlows",
+            "cmx2DDRControlFlows",
             "TransitiveReduction",
             {
                 "name": "GenerateDot",
-                "output": "output/dots/NNCMX2DDRControlFlows.dot",
+                "output": "output/dots/cmx2DDRControlFlows.dot",
                 "scope": "ControlModel",
                 "content": "full",
                 "html": true
             },
             {
                 "name": "ConvertDot",
-                "input": "output/dots/NNCMX2DDRControlFlows.dot"
-            },
-            "StrategyLayersToTensors",
-            "SplittingAcrossClusters",
+                "input": "output/dots/cmx2DDRControlFlows.dot"
+            }
+        ]
+    },
+    "finalize": {
+        "Singular": [
+            "SplittingTensorsAcrossClusters",
             "AddDeallocationTasks",
             {
                 "name": "GenerateDot",
@@ -439,11 +293,7 @@
             {
                 "name": "ConvertDot",
                 "input": "output/dots/deallocation_model.dot"
-            }
-        ]
-    },
-    "finalize": {
-        "Singular": [
+            },
             {
                 "name": "TransitiveReduction",
                 "filter": "PositiveMemory"
@@ -493,9 +343,9 @@
             },
             {
                 "name": "GenerateWorkloads",
-                "costfunction": "criticalpath",
+                "costfunction": "greedy",
                 "TensorSplitAlgorithms": "Rectangle, Z-Tiling",
-                "_comment": "Supported CostFunctions are: balanced | criticalpath | minmax | greedy. Supported TensorSplitAlgorithms are Metis, Rectangle, Z-Tiling"
+                "_comment": "Supported CostFunctions are: balanced | criticalpath | minmax | greedy. Supported TensorSplitAlgorithms are Rectangle, Z-Tiling"
             },
             "ArrangeKeembayExecution",
             "AllocateInputOutputTensorsKeemBay",
@@ -605,7 +455,6 @@
             "CorrectExecutionSchedule",
             "BarrierIndexAssignment",
             "UpdateBarrierRefs",
-            "UpdateBarrierProducerConsumerCounts",
             {
                 "name": "GenerateDot",
                 "output": "output/dots/serial_model.dot",
