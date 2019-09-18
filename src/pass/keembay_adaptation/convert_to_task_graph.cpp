@@ -230,12 +230,7 @@ void convertOpsToDPUTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& 
             dpuElementWiseOp->set<bool>("hasWeights", false);
             dpuElementWiseOp->set<std::array<unsigned short, 2>>("kSize", FAKE_KERNEL);
             dpuElementWiseOp->set<std::array<unsigned short, 2>>("stride", FAKE_STRIDE);
-
-            auto ppeLayerType = mv::PPELayerType(opType);
-            auto ppeFixedFunction = mv::PPEFixedFunction();
-            ppeFixedFunction.addLayer(ppeLayerType);
-            auto ppeTask = mv::PPETask(ppeFixedFunction);
-            dpuElementWiseOp->set<mv::PPETask>("PPETask", ppeTask);
+            addPpeTask(dpuElementWiseOp, opType);
 
             if(!splitStrategy.empty())
             {
