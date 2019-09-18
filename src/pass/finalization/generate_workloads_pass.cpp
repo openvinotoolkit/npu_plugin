@@ -214,6 +214,16 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                 /*get the subtensor*/
                 auto subTensor = opIt->getOutputTensor()[0]->getSubTensor(clusterNumber);
 
+                /* Check if subtensor needs to be aligned to 16 channels*/
+
+                auto subTensorShape = subTensor.getShape();
+                auto subTensorChannels = subTensorShape[mv::IO_CHANNEL_DIMENSION];
+                if (subTensorChannels % 16 != 0) {
+
+                    auto outputChannelsPadded = mv::round_up(subTensorShape[mv::IO_CHANNEL_DIMENSION], 16);
+                    subTensorShape[mv::IO_CHANNEL_DIMENSION] = outputChannelsPadded;
+                }
+
                 /*Sparse tensors don't use z-tiling*/
                 /* This should be moved to a target descriptor*/
                 if(subTensor.isSparse())
@@ -300,7 +310,7 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                         if ((algorithm == "Rectangle") && ((!depthWiseSOHA0Workaround) || nWorkloads > 1))
                         {
                             /*Create workload instance*/
-                            workloadsVector.emplace_back(mv::Workloads(opIt->getName(), subTensor.getShape()));
+                            workloadsVector.emplace_back(mv::Workloads(opIt->getName(), subTensorShape));
 
                             /*Partition tensor into workloads with Rectangle*/
                             rectangleFail = false;
@@ -334,7 +344,7 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                             {
                                
                                 /*Check that workloads sum to the orignal output tensor volume*/
-                                if((!workloadsVector.at(workloadsVectorIndex).validateWorkloads(subTensor.getShape())))
+                                if((!workloadsVector.at(workloadsVectorIndex).validateWorkloads(subTensorShape)))
                                 {
                                     pass.log(mv::Logger::MessageType::Debug, "Error producing valid workloads from Rectangle heuristic, the individual workloads do not sum to the original volume or they overlap, erasing this workload instance ");
                                     workloadsVector.erase(workloadsVector.begin() + workloadsVectorIndex);
@@ -355,7 +365,7 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                             && opIt->get<std::string>("taskOp") != "Multiply" && !depthWiseSOHA0Workaround) 
                         {
                             /*Create workload instance*/
-                            workloadsVector.emplace_back(mv::Workloads(opIt->getName(), subTensor.getShape()));
+                            workloadsVector.emplace_back(mv::Workloads(opIt->getName(), subTensorShape));
 
                             bool ztilingFail = false;
                             int ztilingResult = 0;
@@ -372,7 +382,7 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                             if(!ztilingFail)
                             {
 
-                                if((!workloadsVector.at(workloadsVectorIndex).validateWorkloads(subTensor.getShape())))
+                                if((!workloadsVector.at(workloadsVectorIndex).validateWorkloads(subTensorShape)))
                                 {
                                     pass.log(mv::Logger::MessageType::Debug, "Error producing valid workloads from Ztiling partitions,erasing this workload instance ");
                                     workloadsVector.erase(workloadsVector.begin() + workloadsVectorIndex);
