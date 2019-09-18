@@ -97,6 +97,8 @@ else()
     message(STATUS "Metis not found!")
 endif(METIS_FOUND)
 
+add_subdirectory(contrib/lemon)
+
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 # find_package(Flatbuffers)
@@ -330,8 +332,8 @@ SET(model
     "${PROJECT_SOURCE_DIR}/src/computation/resource/memory_allocator.cpp"
     "${PROJECT_SOURCE_DIR}/src/computation/resource/stage.cpp"
     "${PROJECT_SOURCE_DIR}/src/target/myriadx/nce1.cpp"
-    "${PROJECT_SOURCE_DIR}/src/target/myriadx/nce1_utils.cpp"
-    "${PROJECT_SOURCE_DIR}/src/target/keembay/koala_graph_scheduler.cpp"
+    "${PROJECT_SOURCE_DIR}/src/target/myriadx/nce1_utils.cpp" 
+    "${PROJECT_SOURCE_DIR}/src/target/keembay/lemon_graph_scheduler.cpp"   
 )
 
 SET(logger
@@ -426,10 +428,6 @@ SET(pass
     "${PROJECT_SOURCE_DIR}/src/target/target_descriptor.cpp"
 
     "${PROJECT_SOURCE_DIR}/src/graph/tensor_interference_graph.cpp"
-    "${PROJECT_SOURCE_DIR}/contrib/koala/tinyxml/tinyxml.cpp"
-    "${PROJECT_SOURCE_DIR}/contrib/koala/tinyxml/tinyxmlerror.cpp"
-    "${PROJECT_SOURCE_DIR}/contrib/koala/tinyxml/tinyxmlparser.cpp"
-    "${PROJECT_SOURCE_DIR}/contrib/koala/tinyxml/tinystr.cpp"
 )
 
  SET(compiler
@@ -498,7 +496,7 @@ else()
             #Flatbuffers and Metis not x-compiled yet
             target_link_libraries(cm corebase metamodel)
         ELSE()
-            target_link_libraries(cm corebase metamodel flatbuffers metis)
+            target_link_libraries(cm corebase metamodel flatbuffers metis ${LEMON_LIBRARY})
             add_dependencies(cm generate-comp-api)
             add_dependencies(model generate-comp-api)
             add_dependencies(cm generate-graphfile-headers)

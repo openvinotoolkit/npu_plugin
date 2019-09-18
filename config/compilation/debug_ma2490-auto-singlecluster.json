@@ -121,7 +121,7 @@
                         {"name" : "jsonOutFileName", "value" : "./output/mcmCompiler_strategy_output.json"}
                     ],
                     "globalStrategies" : [
-                        {"name" : "forceSpilling",    "value" : false       },
+                        {"name" : "forceSpilling",    "value" : true       },
                         {"name" : "enableStreaming",   "value" : true       },
                         {"name" : "doubleBuffering",   "value" : false      },
                         {"name" : "scooby" ,            "value" : "doo"},
