@@ -764,24 +764,29 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
             toReturn[i]->task.type = MVCNN::SpecificTask_NNDMATask;
             auto tmp = new MVCNN::NNDMATaskT();
             tmp->src = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(0));
+            tmp->dst = buildTensorReferenceT(cm, compilationDescriptor, opIt->getOutputTensor(0));
             if (direction == mv::DmaDirectionEnum::CMX2DDR)
             {
                 auto locale_index = std::vector<unsigned int>(1,i);
                 tmp->src->locale_index = locale_index;
+                if (opIt->getInputTensor(0)->hasAttr("alignment"))
+                {
+                    alignTensor(cm, tmp->src, opIt->getInputTensor(0), padFinalOutput);
+                }
+                if (padFinalOutput && opIt->getOutputTensor(0)->hasAttr("alignment"))
+                {
+                    alignTensor(cm, tmp->dst, opIt->getOutputTensor(0), padFinalOutput);
+                }
             }
-            if (opIt->getInputTensor(0)->hasAttr("alignment"))
-            {
-                alignTensor(cm, tmp->src, opIt->getInputTensor(0), padFinalOutput);
-            }
-            tmp->dst = buildTensorReferenceT(cm, compilationDescriptor, opIt->getOutputTensor(0));
-            if (direction == mv::DmaDirectionEnum::DDR2CMX)
+            else //(direction == mv::DmaDirectionEnum::DDR2CMX)
             {
                 auto locale_index = std::vector<unsigned int>(1,i);
                 tmp->dst->locale_index = locale_index;
-            }
-            if (padFinalOutput && opIt->getOutputTensor(0)->hasAttr("alignment"))
-            {
-                alignTensor(cm, tmp->dst, opIt->getOutputTensor(0), padFinalOutput);
+
+                if (opIt->getOutputTensor(0)->hasAttr("alignment"))
+                {
+                    alignTensor(cm, tmp->dst, opIt->getOutputTensor(0));
+                }
             }
             if(opIt->hasAttr("Compression"))
                 tmp->compression =  opIt->get<bool>("Compression");
@@ -803,10 +808,11 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
         toReturn[0]->task.type = MVCNN::SpecificTask_NNDMATask;
 
         tmp->src = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(0));
+        tmp->dst = buildTensorReferenceT(cm, compilationDescriptor, opIt->getOutputTensor(0));
+
         if (direction == mv::DDR2CMX)
         {
             //copying from DDR2CMX we need to pad output if tensor needs alignment
-            tmp->dst = buildTensorReferenceT(cm, compilationDescriptor, opIt->getOutputTensor(0));
             if (opIt->getOutputTensor(0)->hasAttr("alignment"))
             {
                 alignTensor(cm, tmp->dst, opIt->getOutputTensor(0));
@@ -819,7 +825,6 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
             {
                 alignTensor(cm, tmp->src, opIt->getInputTensor(0), padFinalOutput);
             }
-            tmp->dst = buildTensorReferenceT(cm, compilationDescriptor, opIt->getOutputTensor(0));
             if (padFinalOutput && opIt->getOutputTensor(0)->hasAttr("alignment"))
             {
                 alignTensor(cm, tmp->dst, opIt->getOutputTensor(0), padFinalOutput);
@@ -848,15 +853,28 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
             toReturn[i]->task.type = MVCNN::SpecificTask_NNDMATask;
             auto tmp = new MVCNN::NNDMATaskT();
             tmp->src = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(0), i);
-            if (opIt->getInputTensor(0)->hasAttr("alignment"))
-            {
-                alignTensor(cm, tmp->src, opIt->getInputTensor(0), padFinalOutput);
-            }
             tmp->dst = buildTensorReferenceT(cm, compilationDescriptor, opIt->getOutputTensor(0), i);
-            if (padFinalOutput && opIt->getOutputTensor(0)->hasAttr("alignment"))
+            if (direction == mv::DDR2CMX)
             {
-                alignTensor(cm, tmp->dst, opIt->getOutputTensor(0), padFinalOutput);
+                //copying from DDR2CMX we need to pad output if tensor needs alignment
+                if (opIt->getOutputTensor(0)->hasAttr("alignment"))
+                {
+                    alignTensor(cm, tmp->dst, opIt->getOutputTensor(0));
+                }
             }
+            else
+            {
+                //copying from CMX2DDR we need to crop down if tensor needed alignment in CMX
+                if (opIt->getInputTensor(0)->hasAttr("alignment"))
+                {
+                    alignTensor(cm, tmp->src, opIt->getInputTensor(0), padFinalOutput);
+                }
+                if (padFinalOutput && opIt->getOutputTensor(0)->hasAttr("alignment"))
+                {
+                    alignTensor(cm, tmp->dst, opIt->getOutputTensor(0), padFinalOutput);
+                }
+            }
+
             if(opIt->hasAttr("Compression"))
                 tmp->compression =  opIt->get<bool>("Compression");
             toReturn[i]->task.value = tmp;
