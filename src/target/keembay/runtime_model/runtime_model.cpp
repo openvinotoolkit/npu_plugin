@@ -1114,8 +1114,11 @@ MVCNN::MPE_Mode mv::RuntimeModel::convertMPEMode(mv::MPE_Mode mpe)
             return MVCNN::MPE_Mode::MPE_Mode_MATRIX;
         case mv::MPE_Mode::Vector:
             return MVCNN::MPE_Mode::MPE_Mode_VECTOR;
+        case mv::MPE_Mode::Vector_FP16:
+            return MVCNN::MPE_Mode::MPE_Mode_VECTOR_FP16;
+
         default:
-            return MVCNN::MPE_Mode::MPE_Mode_VECTOR;
+                return MVCNN::MPE_Mode::MPE_Mode_VECTOR;
     }
 }
 

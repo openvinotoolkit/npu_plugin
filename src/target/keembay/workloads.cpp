@@ -607,10 +607,13 @@ void mv::Workloads::populateWorkloadsFromPartitions(idx_t nWorkloads, const mv::
         workloads_[workload].MaxZ = tensorShape_[2]-1;
 
         /*These should be set in the polygon logic*/
-        if (mpe_mode.H == 4)
+        if (mpe_mode.H == mpe_mode.W)
             workloads_[workload].MPEMode = mv::MPE_Mode::Matrix;
-        else
+        else if ((mpe_mode.H == 1) && (mpe_mode.W == 16))
             workloads_[workload].MPEMode = mv::MPE_Mode::Vector;
+        else
+            workloads_[workload].MPEMode = mv::MPE_Mode::Vector_FP16;
+
 
         //add to the 'listOfworkloadLists' vector, the returned list of workloads from the polygonworkloadsplit function
         listOfworkloadLists.push_back(mv::Workloads::polygonWorkloadSplit(pass, workloads_[workload], workloads_, mpe_mode));
@@ -623,10 +626,13 @@ void mv::Workloads::populateWorkloadsFromPartitions(idx_t nWorkloads, const mv::
     for (auto listIt = listOfworkloadLists.begin(); listIt != listOfworkloadLists.end(); listIt++) {
         for (auto it = listIt->begin(); it != listIt->end(); it++) {
             /*These should be set in the polygon logic*/
-            if (mpe_mode.H == 4)
+            if (mpe_mode.H == mpe_mode.W)
                 it->MPEMode = mv::MPE_Mode::Matrix;
-            else
+            else if ((mpe_mode.H == 1) && (mpe_mode.W == 16))
                 it->MPEMode = mv::MPE_Mode::Vector;
+            else
+                it->MPEMode = mv::MPE_Mode::Vector_FP16;
+
 
             it->MinZ = 0;
             it->MaxZ = tensorShape_[2]-1;
@@ -636,7 +642,7 @@ void mv::Workloads::populateWorkloadsFromPartitions(idx_t nWorkloads, const mv::
     }
 
 
-    for(int workload = 0; workload < workloads_.size(); workload++) {
+    for(uint workload = 0; workload < workloads_.size(); workload++) {
 
         pass.log(mv::Logger::MessageType::Debug, "\nworkload: " + std::to_string(workload));
         pass.log(mv::Logger::MessageType::Debug, " max_x: " + std::to_string(workloads_[workload].MaxX));
@@ -895,8 +901,13 @@ void mv::Workloads::generateExecutionCycles(std::vector<mv::Workloads>& workload
 
             std::pair <int,int> mpeMode (4, 4);
 
-            if(itworkload->MPEMode != mv::Matrix)
+            if(itworkload->MPEMode == mv::Vector)
                 mpeMode = {1,16};
+            else if (itworkload->MPEMode == mv::Matrix)
+               mpeMode = {4,4};
+            else
+                mpeMode = {1,4};
+
 
             float height = (itworkload->MaxY+1) - itworkload->MinY; // + mpeMode.first;
             float width = (itworkload->MaxX+1) - itworkload->MinX; // + mpeMode.second;
@@ -1449,10 +1460,12 @@ namespace mv {
             workload.MaxZ = Z ? Z - 1: 0;
 
             /*Select best MPE mode*/
-            if(padding.mode.H == 4)
-                workload.MPEMode = mv::Matrix; 
+            if(padding.mode.H == padding.mode.W)
+                workload.MPEMode = mv::Matrix;
+            else if ((padding.mode.W == 1) && (padding.mode.W == 16))
+                workload.MPEMode = mv::MPE_Mode::Vector;
             else
-                workload.MPEMode = mv::Vector; 
+                workload.MPEMode = mv::MPE_Mode::Vector_FP16;
 
             /*store requested number of workoads*/
             workload.requestedWorkloadNumber = nWorkloads;
@@ -1645,10 +1658,12 @@ int mv::Workloads::partitionTensorWithZsplit(const mv::DPUModeList& mode_list, i
         workload.algorithm = "Z-Tiling";
 
         /*Select best MPE mode*/
-        if(best_padding.mode.H == 4)
+        if(best_padding.mode.H == best_padding.mode.W)
             workload.MPEMode = mv::Matrix; 
+        else if ((best_padding.mode.W == 1) && (best_padding.mode.W == 16))
+            workload.MPEMode = mv::Vector;
         else
-            workload.MPEMode = mv::Vector; 
+            workload.MPEMode = mv::Vector_FP16;
 
         //Check that the z workloads dimension for z tiling are multiple of 16
         if(((workload.MaxZ+1) - workload.MinZ)%16 != 0)

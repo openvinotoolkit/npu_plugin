@@ -13,7 +13,8 @@ namespace mv
     enum MPE_Mode
     {
         Vector,
-        Matrix
+        Matrix,
+        Vector_FP16
     };
     struct Workload
     {
