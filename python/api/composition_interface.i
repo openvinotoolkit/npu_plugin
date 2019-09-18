@@ -200,6 +200,10 @@ import_array();
         return ret_val;
     }
 
+    mv::Data::TensorIterator identity(mv::CompositionalModel& o,mv::Data::TensorIterator input0, const std::string& type, const mv::QuantizationParams  &quantParams, const std::string &name){
+        return o.identity(input0, type, quantParams, name);
+    }
+
     mv::Data::TensorIterator constant(mv::CompositionalModel& o, const std::vector<double>& data, const mv::Shape &shape, const mv::Order& order, const mv::QuantizationParams &quantParams, const std::string &name){
         /// Add a Constant Layer to the CompositionalModel and return the relevant iterator
         return o.constant(data, shape, mv::DType("Float64"), order, quantParams, name);
@@ -651,6 +655,7 @@ std::vector<int64_t> * getData(int64_t * d, std::size_t len);
 mv::QuantizationParams * getQuantParams(const std::vector<int64_t> &zero_data, const std::vector<double>& scale_data, const std::vector<double>& min,  const std::vector<double>& max);
 mv::Order * getOrder(const std::string& framework_layout);
 //Keep the order of the Wrapper
+mv::Data::TensorIterator identity(mv::CompositionalModel&  o,mv::Data::TensorIterator input0, const std::string& type, const mv::QuantizationParams  &quantParams, const std::string &name);
 mv::Data::TensorIterator constant(mv::CompositionalModel&  o, const std::vector<int64_t>& data, const mv::Shape &shape, const mv::Order& order, const mv::QuantizationParams  &quantParams, const std::string &name);
 mv::Data::TensorIterator constant(mv::CompositionalModel&  o, const std::vector<double>& data, const mv::Shape &shape, const mv::Order& order,  const mv::QuantizationParams  &quantParams,  const std::string &name);
 mv::Data::TensorIterator input(mv::CompositionalModel& o, const mv::Shape &shape, double type, const mv::Order& order, const mv::QuantizationParams &quantParams, const std::string& name);
