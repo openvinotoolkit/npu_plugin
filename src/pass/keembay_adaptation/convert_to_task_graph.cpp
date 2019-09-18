@@ -11,6 +11,7 @@ static const std::array<unsigned short, 2> FAKE_KERNEL = {1,1};
 static const std::array<unsigned short, 2> FAKE_STRIDE = {1,1};
 
 static void convertOpsToTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+static void addPpeTask(mv::Data::OpListIterator &opIt, std::string ppeTaskType);
 
 namespace mv
 {
@@ -69,7 +70,7 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             auto name = opIt->getName();
             auto quantParams = opIt->get<mv::QuantizationParams>("quantParams");
 
-            std::string biasName, splitStrategy, workloadStrategyMPEMode;
+            std::string biasName, splitStrategy, workloadStrategyMPEMode, ppeType;
             int workloadStrategyNWorkloads = -1;
 
             unsigned group = 1;
@@ -87,6 +88,9 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
 
             if (opIt->hasAttr("WorkloadStrategy_nWorkloads"))
                 workloadStrategyNWorkloads = opIt->get<int>("WorkloadStrategy_nWorkloads");
+            //NOTE: This will become bigger with new ppeTasks
+            if (opIt->hasAttr("postOpType") && opIt->get<std::string>("postOpType") == "Relu")
+                ppeType = "LRELU";
 
             std::array<unsigned short, 2> kernelSize = {kernel->getShape()[mv::KERNEL_WIDTH], kernel->getShape()[mv::KERNEL_HEIGHT]};
 
@@ -105,6 +109,8 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             dpuConvOp->set<bool>("hasWeights", true);
             dpuConvOp->set<std::array<unsigned short, 2>>("kSize", kernelSize);
 
+            if (!ppeType.empty())
+                addPpeTask(dpuConvOp, ppeType);
             if(!biasName.empty())
                dpuConvOp->set<std::string>("bias", biasName);
             if(!splitStrategy.empty())
@@ -129,6 +135,7 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             setOutputDataFlow(om, dpuConv, outputDataFlows);
             setInputControlFlow(cm, cm.switchContext(dpuConvOp), inputControlFlows);
             setOutputControlFlow(cm, cm.switchContext(dpuConvOp), outputControlFlows);
+
 
             if(opType == "Conv")
             {
@@ -247,4 +254,13 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
         else
             ++opIt;
     }
+}
+
+static void addPpeTask(mv::Data::OpListIterator &opIt, std::string ppeTaskType)
+{
+    auto ppeLayerType = mv::PPELayerType(ppeTaskType);
+    auto ppeFixedFunction = mv::PPEFixedFunction();
+    ppeFixedFunction.addLayer(ppeLayerType);
+    auto ppeTask = mv::PPETask(ppeFixedFunction);
+    opIt->set<mv::PPETask>("PPETask", ppeTask);
 }
