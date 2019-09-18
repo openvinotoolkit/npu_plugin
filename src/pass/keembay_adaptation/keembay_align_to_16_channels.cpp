@@ -44,9 +44,17 @@ void alignTo16ChannelsFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
         if (outputTensorChannels % pad != 0)
         {
             opIt->set<bool>("alignment", true);
-            outputTensor->set<bool>("alignment", true);
+            if (!outputTensor->hasAttr("alignment"))
+                outputTensor->set<bool>("alignment", true);
         }
         auto outputChannelsPadded = mv::round_up(outputTensorShape[mv::IO_CHANNEL_DIMENSION], pad);
+
+        if(taskOp == "Conv" || taskOp == "DepthWiseConv")
+        {
+            auto inputTensor = opIt->getInputTensor(0);
+            if (!inputTensor->hasAttr("alignment") && inputTensor->getShape()[mv::IO_CHANNEL_DIMENSION] % pad != 0)
+                inputTensor->set<bool>("alignment", true);
+        }
 
         if(taskOp == "Conv")
         {
@@ -94,9 +102,13 @@ static void alignWeightsTensor(mv::OpModel& om, const mv::Data::TensorIterator &
     auto weightsTensorHeight = weightsTensorShape[mv::KERNEL_HEIGHT];
     auto weightsTensorInputChannels = weightsTensorShape[mv::KERNEL_INPUT_CHANNELS];
     auto weightsTensorOutputChannels = weightsTensorShape[mv::KERNEL_OUTPUT_CHANNELS];
+
     auto newShape = mv::Shape({0, 0, 0, 0});
     if (typeOp == "Conv")
     {
+        if ((axis == mv::KERNEL_INPUT_CHANNELS && weightsTensorInputChannels == channelsPadded) ||
+            (axis == mv::KERNEL_OUTPUT_CHANNELS && weightsTensorOutputChannels == channelsPadded))
+            return;
         newShape = mv::Shape({weightsTensorWidth, weightsTensorHeight, weightsTensorInputChannels, channelsPadded});
         if (axis == mv::KERNEL_INPUT_CHANNELS)
             newShape = mv::Shape({weightsTensorWidth, weightsTensorHeight, channelsPadded, weightsTensorOutputChannels});

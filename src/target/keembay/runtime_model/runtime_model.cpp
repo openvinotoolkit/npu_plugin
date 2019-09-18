@@ -800,11 +800,27 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
 //        }
 //        else
 //        {
+        auto tmp = new MVCNN::NNDMATaskT();
+        std::vector<std::unique_ptr<MVCNN::TaskT>> toReturn = std::vector<std::unique_ptr<MVCNN::TaskT>>(1);
+
+        if (direction == mv::DDR2CMX)
+        {
             // 1 DMA to multiple slices -  multiple slices to 1 place
-            std::vector<std::unique_ptr<MVCNN::TaskT>> toReturn = std::vector<std::unique_ptr<MVCNN::TaskT>>(1);
             toReturn[0] = std::unique_ptr<MVCNN::TaskT>(new MVCNN::TaskT());
             toReturn[0]->task.type = MVCNN::SpecificTask_NNDMATask;
-            auto tmp = new MVCNN::NNDMATaskT();
+
+            tmp->src = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(0));
+            tmp->dst = buildTensorReferenceT(cm, compilationDescriptor, opIt->getOutputTensor(0));
+            if (opIt->getOutputTensor(0)->hasAttr("alignment"))
+            {
+                alignTensor(cm, tmp->dst, opIt->getOutputTensor(0));
+            }
+        }
+        else
+        {
+            // 1 DMA to multiple slices -  multiple slices to 1 place
+            toReturn[0] = std::unique_ptr<MVCNN::TaskT>(new MVCNN::TaskT());
+            toReturn[0]->task.type = MVCNN::SpecificTask_NNDMATask;
             tmp->src = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(0));
             if (opIt->getInputTensor(0)->hasAttr("alignment"))
             {
@@ -815,6 +831,8 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
             {
                 alignTensor(cm, tmp->dst, opIt->getOutputTensor(0));
             }
+        }
+
             std::vector<unsigned int> locale_index;
             for (unsigned idx = numTasks; idx > 0; idx--)
                 locale_index.push_back(idx - 1);
