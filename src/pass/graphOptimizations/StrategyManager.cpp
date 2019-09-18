@@ -729,7 +729,6 @@ void StrategyManager::recursiveCriticalPath(typename graph<mv::Op, mv::DataFlow>
                 parallelLinearSection.push_back(particulars);
             }
         }
-
         parallelLinearSections.push_back(parallelLinearSection);
         parallelLinearSection.clear();
 

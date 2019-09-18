@@ -256,12 +256,13 @@ public:
         splits.push_back(1);
         //for(unsigned split = 1; split <= maxSplits; split++)
         for(unsigned split = 2; split <= maxSplits; split=split+2)
+        //for(unsigned split = 2; split <= maxSplits; split++)
         {
             bool validSplit = true;
 
             for(auto clusterSize : clusterChannelSizes)
             {
-                if( ((clusterSize / split) <16) or ((clusterSize%split) !=0) )//or ((clusterSize/split)%16 != 0))
+                if( ((clusterSize / split) <16) )//or ((clusterSize%split) !=0) )// or ((clusterSize/split)%16 != 0))
                     validSplit = false;
             }
             if(!validSplit)
@@ -609,7 +610,7 @@ public:
             clusteringStrategyPool= createStrategyPoolFromStrategySet(op,"clusteringStrategies");
         else
         {
-            //TODO::raise error
+            throw LogicError(*this, "Graph Optimizer unable to determine number of clusters");
         }
         vector<Attribute> streamingStrategyPool = createStrategyPoolFromStrategySet(op,"streamingStrategies");
 
@@ -635,7 +636,6 @@ public:
                     auto mem = memorySize(op,clustering,sparsity,{1,1,1,1},false);
                     auto activationsSize = mem.first;
                     auto weightsSize = mem.second;
-
                     unsigned maxSplitOverH;
                     if(!hasStreamOverH)
                     {
@@ -643,16 +643,17 @@ public:
                     }
                     else
                     {
-//                      maxSplitOverH = roundUp((unsigned)ceil((double)activationsSize/(double)clusterMemory) + 1,2);
-                        //maxSplitOverH = (unsigned)ceil((double)activationsSize/(double)clusterMemory);
-                        //if ((maxSplitOverH%2)!= 0) maxSplitOverH= roundUp(maxSplitOverH,2);
-                        unsigned splitsToFit = ceil((double)activationsSize/(double)(clusterMemory-weightsSize));
-                        if (splitsToFit < 1)
+                        double availableMemory = (double) clusterMemory - (double) weightsSize;
+                        if (availableMemory < 0)
                             maxSplitOverH = 1;
-                        else
-                            maxSplitOverH = roundUpToStep(splitsToFit,2);
+                        else {
+                            unsigned splitsToFit = ceil((double)activationsSize/availableMemory);
+                            if (splitsToFit < 1)
+                                maxSplitOverH = 1;
+                            else
+                                maxSplitOverH = splitsToFit;
+                        }
                     }
-
                     vector<size_t> streamsOverK;
                     if(hasStreamOverK)
                         streamsOverK = getMaxStreamOverK(clustering.get<string>(),op);
@@ -703,7 +704,6 @@ static void GraphParameterOptimizationFcn(const mv::pass::PassEntry& pass,
     strategyManager.printStrategy();
     strategyManager.readGlobalConfigs();
     strategyManager.recursiveDijkstra(om.opBegin());
-
 
     return;
 }
