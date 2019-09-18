@@ -59,13 +59,21 @@ void populateSparseDataPointerMultiCluster(mv::Tensor& weightsTableData, mv::Dat
     else
     {
         auto globalParams = model.getGlobalConfigParams();
+        int pad = globalParams->hasAttr("VPU2ChannelPadding") ? globalParams->get<int>("VPU2ChannelPadding") : 16;
+
         unsigned numClusters = globalParams->get<int>("Number_of_Clusters");
         std::size_t sizeToIterate = 0;
         std::size_t totalSizeToIterate = 0;
+        auto tensorNeedsAlignment = dpuTaskOp->getInputTensor(1)->hasAttr("alignment") ? dpuTaskOp->getInputTensor(1)->get<bool>("alignment") : false;
+
         for (unsigned i = 0; i < numClusters; i++)
         {
             offset = new_offset;
-            sizeToIterate = dpuTaskOp->getInputTensor()[1]->getSubTensor(i).getShape()[mv::KERNEL_OUTPUT_CHANNELS] * BYTES_PER_WT_ELEMENT;
+            auto output_channels = dpuTaskOp->getInputTensor()[1]->getSubTensor(i).getShape()[mv::KERNEL_OUTPUT_CHANNELS];
+            if (tensorNeedsAlignment)
+                output_channels = mv::round_up(output_channels, pad);
+
+            sizeToIterate = output_channels * BYTES_PER_WT_ELEMENT;
             for (size_t j = 0, k = 0; j < weightsTableData.getClusterSize(i); j+=BYTES_PER_WT_ELEMENT)
                 // First increment is always 0
                 weightsTableData(j + addingIndex + totalSizeToIterate) = offset + increments[k++];
@@ -85,13 +93,20 @@ void populateDenseDataPointerMultiCluster(mv::Tensor& weightsTableData, mv::Data
     else
     {
         auto globalParams = model.getGlobalConfigParams();
+        int pad = globalParams->hasAttr("VPU2ChannelPadding") ? globalParams->get<int>("VPU2ChannelPadding") : 16;
+
         unsigned numClusters = globalParams->get<int>("Number_of_Clusters");
         std::size_t sizeToIterate = 0;
         std::size_t totalSizeToIterate = 0;
+        auto tensorNeedsAlignment = dpuTaskOp->getInputTensor(1)->hasAttr("alignment") ? dpuTaskOp->getInputTensor(1)->get<bool>("alignment") : false;
         for (unsigned i = 0; i < numClusters; i++)
         {
             offset = new_offset;
-            sizeToIterate = dpuTaskOp->getInputTensor()[1]->getSubTensor(i).getShape()[mv::KERNEL_OUTPUT_CHANNELS] * BYTES_PER_WT_ELEMENT;
+            auto output_channels = dpuTaskOp->getInputTensor()[1]->getSubTensor(i).getShape()[mv::KERNEL_OUTPUT_CHANNELS];
+            if (tensorNeedsAlignment)
+                output_channels = mv::round_up(output_channels, pad);
+
+            sizeToIterate = output_channels * BYTES_PER_WT_ELEMENT;
             for (size_t j = 0; j < sizeToIterate; j += BYTES_PER_WT_ELEMENT, offset += increment)
                 weightsTableData(j + addingIndex + totalSizeToIterate) = offset;
             totalSizeToIterate += sizeToIterate;
