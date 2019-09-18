@@ -149,7 +149,7 @@ std::tuple<int,int, int> getGlobalCompilationDescriptorConf(const mv::pass::Pass
     return std::make_tuple(nDPUxCluster, nWorkloads, nClusters);
 }
 
-void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element& passDesc, mv::Element&)
+void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& , mv::Element& passDesc, mv::Element&)
 {
     pass.log(mv::Logger::MessageType::Debug, "Starting workload generation pass");
     mv::OpModel om(model);
@@ -161,9 +161,7 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
 
     int workloadsVectorIndex = 0;
     int optimalWorkloadIndex = 0;
-    bool metisFail = false;
     bool rectangleFail = false;
-    std::pair<int,int> metisResult = {0,0};
     uint8_t clusterNumber = 0;
     bool depthWiseSOHA0Workaround = false;
 
@@ -201,6 +199,8 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
             else
                 dpuModes = {{4,4},{1, 16}};
 
+            if (opIt->getOutputTensor()[0]->getDType() == mv::DType("Float16"))
+                dpuModes = {{1,4}};
 
             /*Depthwise cov SOH A0 workaround*/
             if((opIt->get<std::string>("taskOp") == "DepthwiseConv") && (opIt->get<std::string>("splitStrategy") == "SplitOverH")) {

@@ -181,7 +181,7 @@
                         "name_filter": "conv8#47",
                         "splits": [{"K": 8}]
                     }
-           
+
                 ]
             },
             "ComputeMemory",
@@ -220,8 +220,7 @@
     },
     "adapt": {
         "Singular": [
-            "PopulatedTensorsToFP16",
-            "UnpopulatedTensorsToFP16",
+            "TensorsToFP16",
             "AverageAsDepthWise",
             "FuseBatchNorm",
             "FuseBias",

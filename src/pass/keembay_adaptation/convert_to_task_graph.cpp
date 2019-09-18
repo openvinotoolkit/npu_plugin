@@ -12,6 +12,7 @@ static const std::array<unsigned short, 2> FAKE_STRIDE = {1,1};
 
 static void convertOpsToDPUTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void convertOpsToUPATasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+static void addPpeTask(mv::Data::OpListIterator &opIt, std::string ppeTaskType);
 
 namespace mv
 {
@@ -36,9 +37,9 @@ void convertOpsToDPUTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& 
     mv::OpModel om(model);
     mv::ControlModel cm(model);
 
-    auto addFcn = [&om](std::vector< mv::Data::TensorIterator >& vec, const mv::QuantizationParams& quantParams, const std::string& s){ return om.dPUTaskAdd(vec,quantParams,s);};
-    auto subFcn = [&om](std::vector< mv::Data::TensorIterator >& vec, const mv::QuantizationParams& quantParams, const std::string& s){ return om.dPUTaskSubtract(vec,quantParams,s);};
-    auto multFcn = [&om](std::vector< mv::Data::TensorIterator >& vec, const mv::QuantizationParams& quantParams, const std::string& s){ return om.dPUTaskMultiply(vec,quantParams,s);};
+    auto addFcn = [&om](std::vector< mv::Data::TensorIterator >& vec, const mv::QuantizationParams& quantParams, const std::string& s){ return om.dPUTaskAdd(vec, mv::DType("Default"), quantParams,s);};
+    auto subFcn = [&om](std::vector< mv::Data::TensorIterator >& vec, const mv::QuantizationParams& quantParams, const std::string& s){ return om.dPUTaskSubtract(vec, mv::DType("Default"), quantParams,s);};
+    auto multFcn = [&om](std::vector< mv::Data::TensorIterator >& vec, const mv::QuantizationParams& quantParams, const std::string& s){ return om.dPUTaskMultiply(vec, mv::DType("Default"), quantParams,s);};
 
     auto dpuTaskMap = std::map<std::string, std::function<mv::Data::TensorIterator (std::vector< mv::Data::TensorIterator >&, const mv::QuantizationParams&, const std::string&)>>
                                                {{"Add", addFcn},
@@ -55,8 +56,9 @@ void convertOpsToDPUTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& 
 
         if (opType == "Conv" || opType == "DepthwiseConv")
         {
-            auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
             auto inputMemoryLocation = opIt->getInputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
+            auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
+            auto outputTensorType = opIt->getOutputTensor(0)->get<mv::DType>("dType");
 
             auto input = opIt->getInputTensor(0);
             auto kernel = opIt->getInputTensor(1);
@@ -72,7 +74,7 @@ void convertOpsToDPUTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& 
             auto name = opIt->getName();
             auto quantParams = opIt->get<mv::QuantizationParams>("quantParams");
 
-            std::string biasName, splitStrategy, workloadStrategyMPEMode;
+            std::string biasName, splitStrategy, workloadStrategyMPEMode, ppeType;
             int workloadStrategyNWorkloads = -1;
 
             unsigned group = 1;
@@ -90,6 +92,9 @@ void convertOpsToDPUTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& 
 
             if (opIt->hasAttr("WorkloadStrategy_nWorkloads"))
                 workloadStrategyNWorkloads = opIt->get<int>("WorkloadStrategy_nWorkloads");
+            //NOTE: This will become bigger with new ppeTasks
+            if (opIt->hasAttr("postOpType") && opIt->get<std::string>("postOpType") == "Relu")
+                ppeType = "LRELU";
 
             std::array<unsigned short, 2> kernelSize = {kernel->getShape()[mv::KERNEL_WIDTH], kernel->getShape()[mv::KERNEL_HEIGHT]};
 
@@ -99,15 +104,17 @@ void convertOpsToDPUTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& 
 
             mv::Data::TensorIterator dpuConv;
             if(opType == "Conv")
-                dpuConv = om.dPUTaskConv({input, kernel}, strides, padding, dilationFactor, group, quantParams, mv::createDPUTaskName(name));
+                dpuConv = om.dPUTaskConv({input, kernel}, strides, padding, dilationFactor, group, mv::DType("Default"), quantParams, mv::createDPUTaskName(name));
             else
-                dpuConv = om.dPUTaskDepthwiseConv({input, kernel}, strides, padding, dilationFactor, quantParams, mv::createDPUTaskName(name));
+                dpuConv = om.dPUTaskDepthwiseConv({input, kernel}, strides, padding, dilationFactor, mv::DType("Default"), quantParams, mv::createDPUTaskName(name));
 
             auto dpuConvOp = om.getSourceOp(dpuConv);
             dpuConvOp->set<unsigned>("opId", opId);
             dpuConvOp->set<bool>("hasWeights", true);
             dpuConvOp->set<std::array<unsigned short, 2>>("kSize", kernelSize);
 
+            if (!ppeType.empty())
+                addPpeTask(dpuConvOp, ppeType);
             if(!biasName.empty())
                dpuConvOp->set<std::string>("bias", biasName);
             if(!splitStrategy.empty())
@@ -128,9 +135,11 @@ void convertOpsToDPUTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& 
                 dpuConvOp->set<int>("WorkloadStrategy_nWorkloads", workloadStrategyNWorkloads);
 
             dpuConv->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
+            dpuConv->set<mv::DType>("dType", outputTensorType);
             setOutputDataFlow(om, dpuConv, outputDataFlows);
             setInputControlFlow(cm, cm.switchContext(dpuConvOp), inputControlFlows);
             setOutputControlFlow(cm, cm.switchContext(dpuConvOp), outputControlFlows);
+
 
             if(opType == "Conv")
             {
@@ -144,8 +153,9 @@ void convertOpsToDPUTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& 
         }
         else if (opType == "MaxPool")
         {
-            auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
             auto inputMemoryLocation = opIt->getInputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
+            auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
+            auto outputTensorType = opIt->getOutputTensor(0)->get<mv::DType>("dType");
 
             auto input = opIt->getInputTensor(0);
             auto opId = opIt->get<unsigned>("opId");
@@ -168,7 +178,7 @@ void convertOpsToDPUTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& 
             auto outputDataFlows = mv::getOutputDataFlow(om, opIt);
 
             auto dpuPool = om.dPUTaskMaxPool({input}, kernelSize, strides, padding,
-                               exclude_pad, auto_pad, rounding_type, quantParams, mv::createDPUTaskName(name));
+                               exclude_pad, auto_pad, rounding_type, mv::DType("Default"), quantParams, mv::createDPUTaskName(name));
             auto dpuPoolOp = om.getSourceOp(dpuPool);
             dpuPoolOp->set<unsigned>("opId", opId);
             dpuPoolOp->set<bool>("hasWeights", false);
@@ -184,6 +194,7 @@ void convertOpsToDPUTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& 
             }
 
             dpuPool->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
+            dpuPool->set<mv::DType>("dType", outputTensorType);
             setOutputDataFlow(om, dpuPool, outputDataFlows);
             setInputControlFlow(cm, cm.switchContext(dpuPoolOp), inputControlFlows);
             setOutputControlFlow(cm, cm.switchContext(dpuPoolOp), outputControlFlows);
@@ -191,6 +202,7 @@ void convertOpsToDPUTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& 
         else if (opType == "Add" || opType == "Subtract" || opType == "Multiply")
         {
             auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
+            auto outputTensorType = opIt->getOutputTensor(0)->get<mv::DType>("dType");
 
             auto input1 = opIt->getInputTensor(0);
             auto input2 = opIt->getInputTensor(1);
@@ -236,6 +248,7 @@ void convertOpsToDPUTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& 
             }
 
             dpuElementWise->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
+            dpuElementWise->set<mv::DType>("dType", outputTensorType);
 
             mv::setOutputDataFlow(om, dpuElementWise, outputDataFlows);
             setInputControlFlow(cm, cm.switchContext(dpuElementWiseOp), inputControlFlows);
@@ -313,4 +326,13 @@ void convertOpsToUPATasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& 
         else
             ++opIt;
     }
+}
+
+static void addPpeTask(mv::Data::OpListIterator &opIt, std::string ppeTaskType)
+{
+    auto ppeLayerType = mv::PPELayerType(ppeTaskType);
+    auto ppeFixedFunction = mv::PPEFixedFunction();
+    ppeFixedFunction.addLayer(ppeLayerType);
+    auto ppeTask = mv::PPETask(ppeFixedFunction);
+    opIt->set<mv::PPETask>("PPETask", ppeTask);
 }

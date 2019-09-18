@@ -255,6 +255,7 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     // could also be t->hasAttr("quantizationParameters")
     // but in my opinion quantization for a tensor of floats makes very little sense
     // leaving this comment here for future generations
+    // future generations say that needs to be serialized even in case of 0s and 1s(z_p, sc)
     if(t->isQuantized())
     {
         auto quantizationParams = t->get<mv::QuantizationParams>("quantParams");
@@ -1124,8 +1125,11 @@ MVCNN::MPE_Mode mv::RuntimeModel::convertMPEMode(mv::MPE_Mode mpe)
             return MVCNN::MPE_Mode::MPE_Mode_MATRIX;
         case mv::MPE_Mode::Vector:
             return MVCNN::MPE_Mode::MPE_Mode_VECTOR;
+        case mv::MPE_Mode::Vector_FP16:
+            return MVCNN::MPE_Mode::MPE_Mode_VECTOR_FP16;
+
         default:
-            return MVCNN::MPE_Mode::MPE_Mode_VECTOR;
+                return MVCNN::MPE_Mode::MPE_Mode_VECTOR;
     }
 }
 
@@ -1652,7 +1656,7 @@ void mv::RuntimeModel::buildGraphFile(ComputationModel& cm, mv::Element& compila
     for(auto opIterator = om.opBegin(); opIterator != om.opEnd(); ++opIterator)
     {
         std::string opType = opIterator->getOpType();
-        if (opType == "Constant" || opType == "ConstantInt" || opType == "ConstantDataElement" || opType == "WeightsTable" || opType == "SparsityMap")
+        if (opType == "Constant" || opType == "ConstantInt" || opType == "ConstantDataElement")
         {
             auto tIt = opIterator->getOutputTensor(0);
             toSort.push_back(tIt);

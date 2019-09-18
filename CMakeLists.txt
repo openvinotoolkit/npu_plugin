@@ -209,6 +209,30 @@ SET(base
 
     "${PROJECT_SOURCE_DIR}/src/computation/model/runtime_binary.cpp"
 
+    "${PROJECT_SOURCE_DIR}/src/tensor/dtype/dtype_def/default.cpp"
+    "${PROJECT_SOURCE_DIR}/src/tensor/dtype/dtype_def/bin.cpp"
+    "${PROJECT_SOURCE_DIR}/src/tensor/dtype/dtype_def/float8.cpp"
+    "${PROJECT_SOURCE_DIR}/src/tensor/dtype/dtype_def/float16.cpp"
+    "${PROJECT_SOURCE_DIR}/src/tensor/dtype/dtype_def/float32.cpp"
+    "${PROJECT_SOURCE_DIR}/src/tensor/dtype/dtype_def/float64.cpp"
+    "${PROJECT_SOURCE_DIR}/src/tensor/dtype/dtype_def/int2.cpp"
+    "${PROJECT_SOURCE_DIR}/src/tensor/dtype/dtype_def/int2x.cpp"
+    "${PROJECT_SOURCE_DIR}/src/tensor/dtype/dtype_def/int4.cpp"
+    "${PROJECT_SOURCE_DIR}/src/tensor/dtype/dtype_def/int4x.cpp"
+    "${PROJECT_SOURCE_DIR}/src/tensor/dtype/dtype_def/int8.cpp"
+    "${PROJECT_SOURCE_DIR}/src/tensor/dtype/dtype_def/int16.cpp"
+    "${PROJECT_SOURCE_DIR}/src/tensor/dtype/dtype_def/int32.cpp"
+    "${PROJECT_SOURCE_DIR}/src/tensor/dtype/dtype_def/int64.cpp"
+    "${PROJECT_SOURCE_DIR}/src/tensor/dtype/dtype_def/log.cpp"
+    "${PROJECT_SOURCE_DIR}/src/tensor/dtype/dtype_def/uint8.cpp"
+    "${PROJECT_SOURCE_DIR}/src/tensor/dtype/dtype_def/uint16.cpp"
+    "${PROJECT_SOURCE_DIR}/src/tensor/dtype/dtype_def/uint32.cpp"
+    "${PROJECT_SOURCE_DIR}/src/tensor/dtype/dtype_def/uint64.cpp"
+
+    "${PROJECT_SOURCE_DIR}/src/tensor/dtype/dtype_entry.cpp"
+    "${PROJECT_SOURCE_DIR}/src/tensor/dtype/dtype_registry.cpp"
+    "${PROJECT_SOURCE_DIR}/src/tensor/dtype/dtype.cpp"
+
     "${PROJECT_SOURCE_DIR}/src/computation/op/def/add.cpp"
     "${PROJECT_SOURCE_DIR}/src/computation/op/def/average_pool.cpp"
     "${PROJECT_SOURCE_DIR}/src/computation/op/def/batch_normalization.cpp"
@@ -484,7 +508,7 @@ else()
         target_link_libraries(cm ${Caffe_LIBRARIES} ${Boost_FILESYSTEM_LIBRARY} ${Boost_SYSTEM_LIBRARY} ${Boost_REGEX_LIBRARY} ${PROTOBUF_LIBRARY})
         target_compile_definitions(cm PRIVATE CPU_ONLY=1)
         add_subdirectory(python/api)
-        add_subdirectory(tests)
+#        add_subdirectory(tests)
         add_subdirectory(contrib/googletest)
         target_link_libraries(cm model)
 
@@ -503,7 +527,7 @@ else()
             add_dependencies(model generate-comp-api)
             add_dependencies(cm generate-graphfile-headers)
             add_subdirectory(python/api)
-            add_subdirectory(tests)
+#            add_subdirectory(tests)
             add_subdirectory(contrib/googletest)
         ENDIF(CMAKE_CROSSCOMPILING)
 
@@ -511,8 +535,9 @@ else()
 endif(MSVC)
 
 IF(NOT CMAKE_CROSSCOMPILING)
-    add_subdirectory(examples)
-    add_subdirectory(tools)
+    #add_subdirectory(examples)
+    add_subdirectory(example)
+    #add_subdirectory(tools)
     add_subdirectory(schema)
     add_subdirectory(contrib/flatbuffers)
 ENDIF()

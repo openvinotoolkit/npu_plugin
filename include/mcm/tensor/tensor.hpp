@@ -230,8 +230,7 @@ namespace mv
         }
         inline bool isQuantized() const
         {
-            return hasAttr("quantParams") &&
-                !(getDType() == DType("Float16") || getDType() == DType("Float32") || getDType() == DType("Float64"));
+            return hasAttr("quantParams");
         }
 
         inline bool isPopulated() const
@@ -286,7 +285,6 @@ namespace mv
         std::string toString() const override;
         virtual std::string getLogID() const override;
 
-        BinaryData toBinary();
         std::vector<unsigned> computeNumericStrides() const;
         std::size_t computeTotalSize(unsigned int alignment = 16, bool base = false) const;
         std::size_t getClusterSize(unsigned int alignment = 16, bool base = false) const;
