@@ -44,6 +44,9 @@
             {
                 "name": "CreateSourceStructure",
                 "VersionMajor": 3,
+                "VersionMinor": 14,
+                "VersionPatch": 2,
+                "VersionHash": "a6df9f88d55bc015efedb73632821d24d80c6613"
                 "VersionMinor": 11,
                 "VersionPatch": 0,
                 "VersionHash": "9aa43159420c77d8cf765393954ac2fbb372ab02"
