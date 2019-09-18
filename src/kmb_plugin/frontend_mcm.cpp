@@ -132,11 +132,11 @@ void FrontEndMcm::buildInitialModel(ie::ICNNNetwork& network) {
         _logger->debug("Try to parse layer %s", layer->name);
 
         McmNodeVector inputs;
-        if(layer->type == "FakeQuantize") {
+        if (layer->type == "FakeQuantize") {
             continue;
         }
 
-        if(layer->type == "ScaleShift") {
+        if (layer->type == "ScaleShift") {
             auto layerInput = layer->insData[0].lock();
             IE_ASSERT(layerInput != nullptr);
 
@@ -317,7 +317,6 @@ void FrontEndMcm::applyQuantizationTransformations(ie::CNNNetwork& network) {
 
     for (auto layer : network) {
         if (layer->type == "FakeQuantize") {
-
             auto quantizeLayer = std::dynamic_pointer_cast<InferenceEngine::QuantizeLayer>(layer);
             InferenceEngine::DataPtr layerInput = quantizeLayer->insData[0].lock();
             auto prevLayer = layerInput->getCreatorLayer().lock();
@@ -492,7 +491,7 @@ void FrontEndMcm::getInputData(
         auto prevLayer = layerInput->getCreatorLayer().lock();
         if (prevLayer != nullptr) {
             // WA for ScaleShift on Weights, should be remove
-            if ((prevLayer->type == "Const") || (layer->type == "Const") || (prevLayer->type == "ScaleShift" && i != 0)){
+            if ((prevLayer->type == "Const") || (layer->type == "Const") || (prevLayer->type == "ScaleShift" && i != 0)) {
                 continue;
             }
 

@@ -183,9 +183,9 @@ void compileMcm(
     auto result = unit.run();
 
     if (parsedConfig[VPU_KMB_CONFIG_KEY(MCM_GENERATE_JSON)] == "YES") {
-        std::fstream file_out(resultsFullName + ".json", std::fstream::out);
-        file_out << result.stringifyPretty() << std::endl;
-        file_out.close();
+         std::fstream file_out(resultsFullName + ".json", std::fstream::out);
+         file_out << result.toString() << std::endl;
+         file_out.close();
     }
 
     if (parsedConfig[VPU_KMB_CONFIG_KEY(MCM_GENERATE_DOT)] == "YES") {

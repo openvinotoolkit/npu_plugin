@@ -229,7 +229,7 @@ inline void VpuNoRegressionWithCompilation::loadNetworkWrapper(std::map<std::str
 }
 
 #ifdef ENABLE_MCM_COMPILER
-TEST_P(KmbNoRegressionCompilationOnly, IE2MCM) {
+TEST_P(KmbNoRegressionCompilationOnly, DISABLED_IE2MCM) {
     auto toCompile = get<2>(TestParam::GetParam());
     double tm      = get<3>(TestParam::GetParam());
     std::map<std::string, std::string> config(_config);
@@ -970,7 +970,7 @@ INSTANTIATE_TEST_CASE_P(inferenceWithParameters, VpuInferWithPath,
 
 #endif
 
-TEST_F(VpuInferAndCompareTests, NQA_ResNet50) {  // To be run in manual mode when device is available
+TEST_F(VpuInferAndCompareTests, DISABLED_NQA_MobileNetV2gitNQA_ResNet50) {  // To be run in manual mode when device is available
     std::string irXmlPath = ModelsPath() + "/KMB_models/NQA/ResNet-50-tf/resnetv1-int8-sparse-v2-tf-0001.xml";
     std::string weightsPath = ModelsPath() + "/KMB_models/NQA/ResNet-50-tf/resnetv1-int8-sparse-v2-tf-0001.bin";
 
@@ -1023,7 +1023,7 @@ TEST_F(VpuInferAndCompareTests, NQA_ResNet50) {  // To be run in manual mode whe
     }
 }
 
-TEST_F(VpuInferAndCompareTests, NQA_InceptionV1) {  // To be run in manual mode when device is available
+TEST_F(VpuInferAndCompareTests, DISABLED_NQA_MobileNetV2gitNQA_InceptionV1) {  // To be run in manual mode when device is available
     std::string irXmlPath = ModelsPath() + "/KMB_models/NQA/GoogLeNet-v1-tf/inceptionv1-int8-tf-0001.xml";
     std::string weightsPath = ModelsPath() + "/KMB_models/NQA/GoogLeNet-v1-tf/inceptionv1-int8-tf-0001.bin";
 
@@ -1077,7 +1077,7 @@ TEST_F(VpuInferAndCompareTests, NQA_InceptionV1) {  // To be run in manual mode 
 }
 
 
-TEST_F(VpuInferAndCompareTests, NQA_MobileNetV2git) {  // To be run in manual mode when device is available
+TEST_F(VpuInferAndCompareTests, DISABLED_NQA_MobileNetV2git) {  // To be run in manual mode when device is available
     std::string irXmlPath = ModelsPath() + "/KMB_models/NQA/MoblieNet-v2-tf/mobilenetv2-int8-sparse-v2-tf-0001.xml";
     std::string weightsPath = ModelsPath() + "/KMB_models/NQA/MoblieNet-v2-tf/mobilenetv2-int8-sparse-v2-tf-0001.bin";
 

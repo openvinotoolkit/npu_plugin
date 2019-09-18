@@ -38,7 +38,6 @@
 #ifdef ENABLE_MCM_COMPILER
 #include "include/mcm/compiler/compilation_unit.hpp"
 #include "include/mcm/utils/data_generator.hpp"
-#include "include/mcm/utils/serializer/Fp16Convert.h"
 #include "meta/include/mcm/op_model.hpp"
 #include "include/mcm/utils/hardware_tests.hpp"
 #include "include/mcm/target/target_descriptor.hpp"

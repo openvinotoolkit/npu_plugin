@@ -187,7 +187,7 @@ TEST_F(kmbLayersTests_nightly, DISABLED_TestsQuantizedConvolutionAfterScaleShift
 
 }
 
-TEST_F(kmbLayersTests_nightly, TestsConvolutionOnly) {
+TEST_F(kmbLayersTests_nightly, DISABLED_TestsConvolutionOnly) {
     const std::string model = convolution_only;
 
     ASSERT_NO_THROW(_net_reader.ReadNetwork(model.data(), model.length()));
