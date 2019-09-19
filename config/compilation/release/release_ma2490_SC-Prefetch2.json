@@ -13,8 +13,6 @@
                 "UpaShaves": 1,
                 "DDRScratch": 16777216,
                 "MemoryHack": false,
-                "ActivationSparsity": false,
-                "WeightsSparsity": false,
                 "cmx": 917504,
                 "split_strategy" :
                 [
@@ -110,7 +108,6 @@
                         {"name" : "forceSpilling",    "value" : false       },
                         {"name" : "enableStreaming",   "value" : true       },
                         {"name" : "doubleBuffering",   "value" : false      },
-                        {"name" : "scooby" ,            "value" : "doo"},
                         {"name" : "enableSparsity",    "value" : false      },
                         {"name" : "clusteringStrategy","value" : "Automatic"}
                     ],
@@ -168,6 +165,7 @@
                 }
             },
             "StoreLayerSplitStrategy",
+            "StoreLayerSparsityStrategy",
             "StoreTensorPlacement",
             "StreamingTiling",
             "StreamBinaryDataWeights"
@@ -240,7 +238,7 @@
             "AllocateGraphfileTensorsKeemBayLegacy",
             "ReAllocateImplicitOperationsKeemBay",
             "AllocateCMXTensorsKeemBay",
-	    "TensorGraphColoring",
+	        "TensorGraphColoring",
             "RemoveDeallocationTasks",
             "TransitiveReduction",
             {
@@ -255,7 +253,6 @@
         "Singular": [
             "StoreBarriersNamesInTasks",
             "GenerateExecutionSchedule",
-            "CorrectExecutionSchedule",
             "BarrierIndexAssignment",
             "UpdateBarrierRefs"
         ]

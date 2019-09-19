@@ -13,8 +13,6 @@
                 "UpaShaves": 1,
                 "DDRScratch": 16777216,
                 "MemoryHack": false,
-                "ActivationSparsity": false,
-                "WeightsSparsity": false,
                 "cmx": 917504,
                 "split_strategy" :
                 [
@@ -65,9 +63,9 @@
                 [
                     {
                         "name_filter": ".*",
-                        "inputActivationSparsity": false,
-                        "outputActivationSparsity": false,
-                        "weightsSparsity": false
+                        "inputActivationSparsity": true,
+                        "outputActivationSparsity": true,
+                        "weightsSparsity": true
                     }
                 ]
             },
@@ -99,7 +97,7 @@
                     "globalConfigs" : [
                         {"name" : "totalClusters",  "value" : 4   },
                         {"name" : "clusterMemory",  "value" : 896 },
-                        {"name" : "dpuPerCluster",  "value" : 20   },
+                        {"name" : "dpuPerCluster",  "value" : 5   },
                         {"name" : "ddrBandwidth",   "value" : 128 },
                         {"name" : "systemClockMhz", "value" : 500 },
                         {"name" : "FathomSafetyFactor", " value" : 0.75},
@@ -110,7 +108,6 @@
                         {"name" : "forceSpilling",    "value" : false       },
                         {"name" : "enableStreaming",   "value" : true       },
                         {"name" : "doubleBuffering",   "value" : false      },
-                        {"name" : "scooby" ,            "value" : "doo"},
                         {"name" : "enableSparsity",    "value" : true      },
                         {"name" : "clusteringStrategy","value" : "Automatic"}
                     ],
@@ -168,6 +165,7 @@
                 }
             },
             "StoreLayerSplitStrategy",
+            "StoreLayerSparsityStrategy",
             "StoreTensorPlacement",
             "StreamingTiling",
             "StreamBinaryDataWeights"
@@ -240,7 +238,7 @@
             "AllocateGraphfileTensorsKeemBayLegacy",
             "ReAllocateImplicitOperationsKeemBay",
             "AllocateCMXTensorsKeemBay",
-	    "TensorGraphColoring",
+	        "TensorGraphColoring",
             "RemoveDeallocationTasks",
             "TransitiveReduction",
             {
@@ -255,7 +253,6 @@
         "Singular": [
             "StoreBarriersNamesInTasks",
             "GenerateExecutionSchedule",
-            "CorrectExecutionSchedule",
             "BarrierIndexAssignment",
             "UpdateBarrierRefs"
         ]

@@ -13,8 +13,6 @@
                 "UpaShaves": 1,
                 "DDRScratch": 16777216,
                 "MemoryHack": false,
-                "ActivationSparsity": false,
-                "WeightsSparsity": false,
                 "cmx": 917504,
                 "split_strategy" :
                 [
@@ -60,6 +58,15 @@
                             {"K" : 1}
                         ]
                     }
+                ],
+                "sparsity_strategy" :
+                [
+                    {
+                        "name_filter": ".*",
+                        "inputActivationSparsity": false,
+                        "outputActivationSparsity": false,
+                        "weightsSparsity": false
+                    }
                 ]
             },
             "ComputeMemory",
@@ -70,8 +77,7 @@
                 "VersionMinor": 11,
                 "VersionPatch": 0,
                 "VersionHash": "9aa43159420c77d8cf765393954ac2fbb372ab02"
-            },
-            "StoreTensorPlacement"
+            }
         ]
     },   
     "adapt": {
@@ -83,6 +89,7 @@
             "FuseBias",
             "FuseRelu",
             "FuseScale",
+            "RemoveDropOut",
             "FullyConnectedAsConv2D",
             {
                 "name" : "GraphParameterOptimization",
@@ -93,7 +100,7 @@
                         {"name" : "dpuPerCluster",  "value" : 5   },
                         {"name" : "ddrBandwidth",   "value" : 128 },
                         {"name" : "systemClockMhz", "value" : 500 },
-                        {"name" : "FathomSafetyFactor", " value" : 0.8},
+                        {"name" : "FathomSafetyFactor", " value" : 0.75},
                         {"name" : "dotFileLocation", "value" : "./output/"},
                         {"name" : "jsonOutFileName", "value" : "./output/mcmCompiler_strategy_output.json"}
                     ],
@@ -101,7 +108,6 @@
                         {"name" : "forceSpilling",    "value" : false       },
                         {"name" : "enableStreaming",   "value" : true       },
                         {"name" : "doubleBuffering",   "value" : false      },
-                        {"name" : "scooby" ,            "value" : "doo"},
                         {"name" : "enableSparsity",    "value" : false      },
                         {"name" : "clusteringStrategy","value" : "Automatic"}
                     ],
@@ -111,7 +117,9 @@
                             "strategies": [
                                 {"name" : "streamingStrategies",  "value" : ["StreamOverH","StreamOverW","StreamOverK"]},
                                 {"name" : "clusteringStrategies", "value" : ["SplitOverH","SplitOverK","HKSwitch","Clustering"]},
-                                {"name" : "sparsity",             "value" : false}
+                                {"name" : "inputActivationSparsity",             "value" : true},
+                                {"name" : "outputActivationSparsity",             "value" : true},
+                                {"name" : "weightsSparsity",                      "value" : true}
                             ]
                         },
                         {
@@ -119,7 +127,9 @@
                             "strategies": [
                                 {"name" : "streamingStrategies",  "value" : ["StreamOverH","StreamOverW"]},
                                 {"name" : "clusteringStrategies", "value" : ["SplitOverH","HKSwitch","SplitOverK","Clustering"]},
-                                {"name" : "sparsity",             "value" : false}
+                                {"name" : "inputActivationSparsity",             "value" : false},
+                                {"name" : "outputActivationSparsity",             "value" : true},
+                                {"name" : "weightsSparsity",                      "value" : false}
                             ]
                         },
                         {
@@ -127,14 +137,18 @@
                             "strategies": [
                                 {"name" : "streamingStrategies",  "value" : ["StreamOverH","StreamOverW"]},
                                 {"name" : "clusteringStrategies", "value" : ["SplitOverH","HKSwitch","Clustering"]},
-                                {"name" : "sparsity",             "value" : false}
+                                {"name" : "inputActivationSparsity",             "value" : false},
+                                {"name" : "outputActivationSparsity",             "value" : true},
+                                {"name" : "weightsSparsity",                      "value" : false}
                             ]
                         },
                         {
                             "name" : "Concat",
                             "strategies": [
                                 {"name" : "clusteringStrategies", "value" : ["Clustering"]},
-                                {"name" : "sparsity",             "value" : false}
+                                {"name" : "inputActivationSparsity",             "value" : false},
+                                {"name" : "outputActivationSparsity",             "value" : true},
+                                {"name" : "weightsSparsity",                      "value" : false}
                             ]
                         },
                         {
@@ -142,13 +156,16 @@
                             "strategies": [
                                 {"name" : "streamingStrategies",  "value" : ["StreamOverH","StreamOverW"]},
                                 {"name" : "clusteringStrategies", "value" : ["SplitOverH","HKSwitch","Clustering"]},
-                                {"name" : "sparsity",             "value" : false}
+                                {"name" : "inputActivationSparsity",             "value" : false},
+                                {"name" : "outputActivationSparsity",             "value" : true},
+                                {"name" : "weightsSparsity",                      "value" : false}
                             ]
                         }
                     ]
                 }
             },
             "StoreLayerSplitStrategy",
+            "StoreLayerSparsityStrategy",
             "StoreTensorPlacement",
             "StreamingTiling",
             "StreamBinaryDataWeights"
@@ -203,16 +220,31 @@
         "Singular": [
             "SplittingTensorsAcrossClusters",
             "AddDeallocationTasks",
+            {
+                "name": "TransitiveReduction",
+                "filter": "MemoryRequirement"
+            },
             "MarkLastNodeForMaxTopologicalCut",
             "MaxTopologicalCutAndPartialSerialisation",
             "TransitiveReduction",
+            {
+                "name": "GenerateWorkloads",
+                "costfunction": "greedy",
+                "TensorSplitAlgorithms": "Rectangle, Z-tiling",
+                "_comment": "Supported CostFunctions are: balanced | criticalpath | minmax | greedy. Supported TensorSplitAlgorithms are Metis, Rectangle, Z-Tiling"
+            },
             "ArrangeKeembayExecution",
             "AllocateInputOutputTensorsKeemBay",
             "AllocateGraphfileTensorsKeemBayLegacy",
             "ReAllocateImplicitOperationsKeemBay",
             "AllocateCMXTensorsKeemBay",
+	        "TensorGraphColoring",
             "RemoveDeallocationTasks",
             "TransitiveReduction",
+            {
+                "name" : "InsertBarrierTasks",
+                "barrier_reuse_window" : 0
+            },
             "TransitiveReduction",
             "PopulateWeightsTablesPointers"
         ]
@@ -221,7 +253,6 @@
         "Singular": [
             "StoreBarriersNamesInTasks",
             "GenerateExecutionSchedule",
-            "CorrectExecutionSchedule",
             "BarrierIndexAssignment",
             "UpdateBarrierRefs"
         ]

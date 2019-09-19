@@ -5,7 +5,7 @@
                 "name" : "GlobalConfigParams",
                 "_comment" : "Stores common params accross multiple passes. Access through the Computation Model.",
                 "recorded_model": true,
-                "verbose": "Debug",
+                "verbose": "Error",
                 "weights_form": "None",
                 "barrier_index_assignment" : "Dynamic",
                 "Number_of_DPUs" : 5,
@@ -65,7 +65,7 @@
                         "name_filter": ".*",
                         "inputActivationSparsity": true,
                         "outputActivationSparsity": true,
-                        "weightsSparsity": true
+                        "weightsSparsity": false
                     }
                 ]
             },
@@ -100,7 +100,7 @@
                         {"name" : "dpuPerCluster",  "value" : 5   },
                         {"name" : "ddrBandwidth",   "value" : 128 },
                         {"name" : "systemClockMhz", "value" : 500 },
-                        {"name" : "FathomSafetyFactor", " value" : 0.75},
+                        {"name" : "FathomSafetyFactor", " value" : 0.9},
                         {"name" : "dotFileLocation", "value" : "./output/"},
                         {"name" : "jsonOutFileName", "value" : "./output/mcmCompiler_strategy_output.json"}
                     ],
@@ -108,7 +108,6 @@
                         {"name" : "forceSpilling",    "value" : false       },
                         {"name" : "enableStreaming",   "value" : true       },
                         {"name" : "doubleBuffering",   "value" : false      },
-                        {"name" : "scooby" ,            "value" : "doo"},
                         {"name" : "enableSparsity",    "value" : true      },
                         {"name" : "clusteringStrategy","value" : "Automatic"}
                     ],
