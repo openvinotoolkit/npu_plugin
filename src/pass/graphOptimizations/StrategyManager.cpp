@@ -488,7 +488,7 @@ void StrategyManager::saveMetaStrategy(std::vector<MetaGraph::edge_list_iterator
         //auto jsonSpStrategy = SpSA.toJSON(true);
         jsonOutputFile << jsonSStrategy.stringifyPretty() << "," << std::endl;
         jsonOutputFile << jsonCStrategy.stringifyPretty() << "," << std::endl;
-        jsonOutputFile << jsonLStrategy.stringifyPretty()  << "," << std::endl;
+        jsonOutputFile << jsonLStrategy.stringifyPretty()  << endl; //<< "," << std::endl;
         //jsonOutputFile << jsonSpStrategy.stringifyPretty() << std::endl;
 
         jsonOutputFile.close();
@@ -767,7 +767,7 @@ void StrategyManager::recursiveCriticalPath(typename graph<mv::Op, mv::DataFlow>
     //TODO add check here for whether we've hit the same pivot (needed for nested parallelism)
     //TODO recurse if we haven't all hit the same pivot (into the nested parallel branch)
         next_modelSource.push_back(model_child);
-        //writeDot(optimizationGraph, true); //debug
+        writeDot(optimizationGraph, true); //debug
     }
 
     //If child counter is 1, we were in a linear section, just add the subgraph to the metaGraph

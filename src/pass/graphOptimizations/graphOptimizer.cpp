@@ -231,6 +231,9 @@ public:
         	maxSplits = (clusterOutChannelSize/2);
             //maxSplits = (clusterOutChannelSize/16);
 
+        if(maxSplits > 32)
+            maxSplits = 32;
+
         splits.push_back(1);
         //for(unsigned split = 1; split <= maxSplits; split++)
         for(unsigned split = 2; split <= maxSplits; split=split+2)

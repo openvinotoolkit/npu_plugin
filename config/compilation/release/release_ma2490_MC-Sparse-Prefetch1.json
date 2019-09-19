@@ -63,8 +63,8 @@
                 [
                     {
                         "name_filter": ".*",
-                        "inputActivationSparsity": true,
-                        "outputActivationSparsity": true,
+                        "inputActivationSparsity": false,
+                        "outputActivationSparsity": false,
                         "weightsSparsity": true
                     }
                 ]
