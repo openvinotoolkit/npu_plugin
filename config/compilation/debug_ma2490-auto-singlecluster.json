@@ -179,6 +179,7 @@
                     ]
                 }
             },
+            "StoreLayerSparsityStrategy",
             "StoreLayerSplitStrategy",
             "StoreTensorPlacement",
             "StreamingTiling",

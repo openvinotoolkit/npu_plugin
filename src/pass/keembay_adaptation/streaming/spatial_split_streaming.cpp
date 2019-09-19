@@ -370,7 +370,8 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model, mv::Dat
         newOp->set<bool>("splitted",true);//TODO::temporary hack. To remove once the iteration conditions are updated
         newOp->set<unsigned>("opId",opId);
         newOp->set<std::string>("splitStrategy", op->get<std::string>("splitStrategy"));
-        newOp->set<bool>("activationSparsity", op->get<bool>("activationSparsity"));
+        newOp->set<bool>("inputActivationSparsity", op->get<bool>("inputActivationSparsity"));
+        newOp->set<bool>("outputActivationSparsity", op->get<bool>("outputActivationSparsity"));
         newOp->set<bool>("weightsSparsity", op->get<bool>("weightsSparsity"));
 
         slices[split] = slice;
@@ -600,7 +601,8 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model, mv::Dat
         newOp->set<bool>("splitted", true);//TODO::temporary hack. To remove once the iteration conditions are updated
         newOp->set<unsigned>("opId", opId);
         newOp->set<std::string>("splitStrategy", op->get<std::string>("splitStrategy"));
-        newOp->set<bool>("activationSparsity", op->get<bool>("activationSparsity"));
+        newOp->set<bool>("inputActivationSparsity", op->get<bool>("inputActivationSparsity"));
+        newOp->set<bool>("outputActivationSparsity", op->get<bool>("outputActivationSparsity"));
         newOp->set<bool>("weightsSparsity", op->get<bool>("weightsSparsity"));
 
         convs[split] = newTensor;
