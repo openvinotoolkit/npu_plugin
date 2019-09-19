@@ -12,6 +12,7 @@ meta/schema/*
 recordings/
 klockwork/
 klocwork/
+contrib/lemon/*
 *.prototxt
 *.caffemodel
 *.ps
