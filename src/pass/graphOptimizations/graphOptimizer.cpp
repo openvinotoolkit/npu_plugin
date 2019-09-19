@@ -117,23 +117,6 @@ public:
 
     }
 
-/*
-    size_t tensorSize(const Shape& shape,const Shape& streamingPool)
-    {
-        auto div = [](unsigned x,unsigned y) -> unsigned { return (x+y-1)/y; };
-        Shape splittedShape(shape.ndims());
-
-//        auto vec = vector<unsigned>(shape);
-//        transform(vec.begin(), vec.end(),splittedShape.begin()[](unsigned dim) -> unsigned { return dim}
-        for( size_t dim = 0; dim <  shape.ndims(); ++dim)
-        {
-            splittedShape[dim] = div(shape[dim],streamingPool[dim]);
-        }
-
-        return splittedShape.totalSize();
-
-    }
-*/
     pair<size_t,size_t> memorySize(mv::Op& op,const Attribute& clustering,const Attribute& sparsity,const Shape& streamConfig, bool prefetch)
     {
         auto inputTensors = op.getInputTensor();
@@ -151,17 +134,13 @@ public:
         size_t totalActivationSize = 0;
 
         if(op.getOpType() != "Input")
-//            inputSize = tensorSize(op.getInputTensor(0)->getShape(),{streamConfig["W"],streamConfig["H"],streamConfig["C"],1});
             inputSize = realTensorSize(op.getInputTensor(0),{streamConfig["W"],streamConfig["H"],streamConfig["C"],1});
         if(op.getOpType() != "Output")
-//            outputSize = tensorSize(op.getOutputTensor(0)->getShape(),{streamConfig["W"],streamConfig["H"],1,1});
             outputSize = realTensorSize(op.getOutputTensor(0),{streamConfig["W"],streamConfig["H"],1,1});
 
         if(op.getOpType() == "Conv" || op.getOpType() == "DepthwiseConv" || op.getOpType() == "DepthWiseConv")
         {
-            //weightTableSize = 16*((op.getInputTensor(1)->getShape()["K"] + (streamConfig["K"]*streamConfig["H"]) - 1) / (streamConfig["K"]* streamConfig["H"])) ;
             weightTableSize = 16*((op.getInputTensor(1)->getShape()["K"] + (streamConfig["K"]) - 1) / (streamConfig["K"])) ;
-//            weightSize += tensorSize(op.getInputTensor(1)->getShape(),{1,1,streamConfig["C"],streamConfig["K"]});
             weightSize += realTensorSize(op.getInputTensor(1),{1,1,streamConfig["C"],streamConfig["K"]});
         } else if(op.getOpType() == "MaxPool")
         {
@@ -171,7 +150,6 @@ public:
         {
             weightTableSize = 0;
             weightSize = 0;
-//            inputSize += tensorSize(op.getInputTensor(1)->getShape(),{streamConfig["W"],streamConfig["H"],streamConfig["C"],1});
             inputSize += realTensorSize(op.getInputTensor(1),{streamConfig["W"],streamConfig["H"],streamConfig["C"],1});
         }
 
@@ -229,7 +207,6 @@ public:
         vector<size_t> splits;
         size_t clusterOutChannelSize = outputShape["C"];
         vector<size_t> clusterChannelSizes(totalClusters);
-        //auto roundUp = [](unsigned in,unsigned val) -> unsigned {return (in & val)+val;};
         auto roundUpToStep = [](unsigned numberToRound,unsigned step) -> unsigned {return (((numberToRound+(step-1))/step)*step);};
 
         if(clustering == "SplitOverK")
@@ -465,11 +442,11 @@ public:
                     return INF;
 
 
-        //TODO if parent spills, no input activation sparsity
+     /* TODO Renable sparsity choices in graph optimizer
         if( (parent["spilling"].get<bool>()) and (child["inputSparsity"].get<bool>()) )
             return INF;
 
-        //TODO if child spills, no output activation sparsity
+        //if child spills, no output activation sparsity
         if( (child["spilling"].get<bool>()) and (child["outputSparsity"].get<bool>()) )
             return INF;
 
@@ -481,7 +458,7 @@ public:
         if((childClustering == "SplitOverK") and 
             (child["inputSparsity"].get<bool>() or child["outputSparsity"].get<bool>() or child["weightsSparsity"].get<bool>()) )
                 return INF;
-
+*/
         if( childOp.getOpType() == "Conv")
         {
             auto weightsShape = childOp.getInputTensor(1)->getShape();
@@ -491,8 +468,9 @@ public:
             if(numInChannels < 16)
             {
                 //TODO add input activation sparsity can't happen here
-                if(child["inputSparsity"].get<bool>())
-                    return INF;
+                //if(child["inputSparsity"].get<bool>())
+                  //
+                 // return INF;
                 //with this we will assume ChMajorConvolution
                 if( (childClustering == "SplitOverH") and
                         (not (parentClustering == "SplitOverHOverlapped")))
@@ -508,7 +486,7 @@ public:
                 return INF;
 
         }
-        //TODO: disable sparsity for eltwise layer predecessors
+        //disable sparsity for eltwise layer predecessors
 	if(parentOp.getOpType() == "Conv"){
 		if((parent["spilling"].get<bool>()) and (childClustering == "SplitOverH"))
             return INF;
@@ -534,13 +512,13 @@ public:
 
         auto parentMem = memorySize(parentOp,
                                     parentClustering,
-                                    parent["inputSparsity"],
+                                    parent["sparsity"],
                                     parent["streaming"].get<Shape>(),
                                     false);
 
         auto childMem = memorySize(childOp,
                                     child["clustering"],
-                                    child["inputSparsity"],
+                                    child["sparsity"],
                                     child["streaming"].get<Shape>(),
                                     false);
 
@@ -619,21 +597,21 @@ public:
 //        auto roundUp = [](unsigned in,unsigned val) -> unsigned {return (in & val)+val;};
  //       auto roundUp = [](unsigned val,unsigned in) -> unsigned {return (in & val)+val;};
         auto roundUpToStep = [](unsigned numberToRound,unsigned step) -> unsigned {return (((numberToRound+(step-1))/step)*step);};
-
+/*
         vector<Attribute> inputSparsityPool;
-        vector<Attribute> outputSparsityPool;
+        //vector<Attribute> outputSparsityPool;
         vector<Attribute> weightsSparsityPool;
 
         if(globalEnableSparsity){
             inputSparsityPool = createTFStrategyPoolFromBool(op,"inputActivationSparsity");
-            outputSparsityPool = createTFStrategyPoolFromBool(op,"outputActivationSparsity");
+            //outputSparsityPool = createTFStrategyPoolFromBool(op,"outputActivationSparsity");
             weightsSparsityPool = createTFStrategyPoolFromBool(op,"weightsSparsity");   
         } else {
             inputSparsityPool.push_back({false});
-            outputSparsityPool.push_back({false});
+            //outputSparsityPool.push_back({false});
             weightsSparsityPool.push_back({false});
         }
-
+*/
         vector<Attribute> doubleBufferPool = createTFStrategyPoolFromBool(op,"doubleBuffering");
         vector<Attribute> spillingPool = createTStrategyPoolFromBool(op,"forceSpilling");
 
@@ -662,15 +640,14 @@ public:
 
         //TODO:: replace nested loops with clean cartesian product function
         
-        for( const auto isparsity : inputSparsityPool){
-        for( const auto osparsity : outputSparsityPool){
-        for( const auto wsparsity : weightsSparsityPool)
-        {
+       // for( const auto isparsity : inputSparsityPool){
+        //for( const auto wsparsity : weightsSparsityPool)
+       // {
             for( const auto spilling : spillingPool)
             {
                 for( const auto clustering : clusteringStrategyPool)
                 {
-                    auto mem = memorySize(op,clustering,wsparsity,{1,1,1,1},false);
+                    auto mem = memorySize(op,clustering,{false},{1,1,1,1},false); //TODO pass sparsity
                     auto activationsSize = mem.first;
                     auto weightsSize = mem.second;
                     unsigned maxSplitOverH;
@@ -710,9 +687,10 @@ public:
                             Shape streamShape({1,h,1,k});//Stream over W and C are 1 for now . TODO: implement stream W/C
                             StrategySet s;
                             s["name"] = op.getName();
-                            s["weightsSparsity"] = wsparsity;
-                            s["inputSparsity"] = isparsity;
-                            s["outputSparsity"] = osparsity;
+                            s["sparsity"] = {false};
+                            //s["weightsSparsity"] = wsparsity;
+                           // s["inputSparsity"] = isparsity;
+                            //s["outputSparsity"] = osparsity;
 //                          s["doubleBuffering"] = doubleBuffering;
                             s["spilling"] = spilling;
                             s["clustering"] = clustering;
@@ -723,9 +701,9 @@ public:
                     }
                 }
             }
-        }
-        }
-        }
+       // }
+        
+        //}
     }
 };
 }

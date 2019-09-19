@@ -410,14 +410,14 @@ std::vector<mv::Element> StrategyManager::convertSparsityStrategyToElement(std::
     for(auto strategy : strategiesToConvert)
     {
         auto inputActivationSparsity = strategy["inputSparsity"].get<bool>();
-        auto outputActivationSparsity = strategy["outputSparsity"].get<bool>();
+        //auto outputActivationSparsity = strategy["outputSparsity"].get<bool>();
         auto weightsSparsity = strategy["weightsSparsity"].get<bool>();
         auto opName   = strategy["name"].get<string>();
         
         auto op = model_.getOp(opName);
 
         copyLElement.set("inputActivationSparsity",inputActivationSparsity);
-        copyLElement.set("outputActivationSparsity",outputActivationSparsity);
+       // copyLElement.set("outputActivationSparsity",outputActivationSparsity);
         copyLElement.set("weightsSparsity",weightsSparsity);
         copyLElement.set("name_filter", opName);
     
@@ -450,7 +450,7 @@ void StrategyManager::saveMetaStrategy(std::vector<MetaGraph::edge_list_iterator
     std::vector<mv::Element> streamingStrategyElements = convertStreamingStrategyToElement(allStrategies, globalParams);
     std::vector<mv::Element> multiClusterStrategyElements = convertClusteringStrategyToElement(allStrategies, globalParams);
     std::vector<mv::Element> locationStrategyElements = convertLocationStrategyToElement(allStrategies);
-    std::vector<mv::Element> sparsityStrategyElements = convertSparsityStrategyToElement(allStrategies);
+    //std::vector<mv::Element> sparsityStrategyElements = convertSparsityStrategyToElement(allStrategies);
 
     if (enableSaveStrategyToDescriptor)
     {
@@ -458,7 +458,7 @@ void StrategyManager::saveMetaStrategy(std::vector<MetaGraph::edge_list_iterator
         auto compDesc = model_.getGlobalConfigParams();
         compDesc->set("streaming_strategy", streamingStrategyElements);
         compDesc->set("split_strategy", multiClusterStrategyElements);
-        compDesc->set("sparsity_strategy", sparsityStrategyElements);
+        //compDesc->set("sparsity_strategy", sparsityStrategyElements);
     }
 
     if (enableSaveStrategyToJsonFile)
@@ -481,15 +481,15 @@ void StrategyManager::saveMetaStrategy(std::vector<MetaGraph::edge_list_iterator
         SSA.set("streaming_strategy",streamingStrategyElements);
         CSA.set("split_strategy",multiClusterStrategyElements);
         LSA.set("tensor_placement_override",locationStrategyElements);
-        SpSA.set("sparsity_strategy",sparsityStrategyElements);
+        //SpSA.set("sparsity_strategy",sparsityStrategyElements);
         auto jsonSStrategy = SSA.toJSON(true);
         auto jsonCStrategy = CSA.toJSON(true);
         auto jsonLStrategy = LSA.toJSON(true);
-        auto jsonSpStrategy = SpSA.toJSON(true);
+        //auto jsonSpStrategy = SpSA.toJSON(true);
         jsonOutputFile << jsonSStrategy.stringifyPretty() << "," << std::endl;
         jsonOutputFile << jsonCStrategy.stringifyPretty() << "," << std::endl;
         jsonOutputFile << jsonLStrategy.stringifyPretty()  << "," << std::endl;
-        jsonOutputFile << jsonSpStrategy.stringifyPretty() << std::endl;
+        //jsonOutputFile << jsonSpStrategy.stringifyPretty() << std::endl;
 
         jsonOutputFile.close();
     }
