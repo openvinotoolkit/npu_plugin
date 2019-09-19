@@ -345,6 +345,7 @@ static void generateWeightsTablesFcn(const mv::pass::PassEntry& pass, mv::Comput
     mv::ControlModel cm(model);
     auto globalConfigParams = model.getGlobalConfigParams();
     int numberClusters = globalConfigParams->get<int>("Number_of_Clusters");
+    auto pad = globalConfigParams->hasAttr("VPU2ChannelPadding") ? globalConfigParams->get<int>("VPU2ChannelPadding") : 16;
 
     for(auto dpuTaskOp = om.opBegin(); dpuTaskOp != om.opEnd(); ++dpuTaskOp)
     {
@@ -358,7 +359,11 @@ static void generateWeightsTablesFcn(const mv::pass::PassEntry& pass, mv::Comput
             {
                 std::string opName = dpuTaskOp->getName();
                 std::string kernelWeightsTableName(mv::createWeightTableName(opName));
-                auto outputChannels = mv::round_up(dpuTaskOp->getOutputTensor(0)->getShape()[mv::IO_CHANNEL_DIMENSION], (16*numberClusters));
+                auto layerpad = pad;
+                auto opStrategy = dpuTaskOp->get<std::string>("splitStrategy");
+                if (opStrategy == "HKSwitch"|| opStrategy == "SplitOverK")
+                    layerpad = layerpad * numberClusters;
+                auto outputChannels = mv::round_up(dpuTaskOp->getOutputTensor(0)->getShape()[mv::IO_CHANNEL_DIMENSION], layerpad);
                 // per channel layout:
                 // 3 -> bias
                 // 2 -> mult << 16 | round << 14 |  shift << 8 | prelu

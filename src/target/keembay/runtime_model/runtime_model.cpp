@@ -1138,7 +1138,10 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
         auto globalConfigParams = cm.getGlobalConfigParams();
         int numberClusters = globalConfigParams->get<int>("Number_of_Clusters");
 
-        int pad = globalConfigParams->hasAttr("VPU2ChannelPadding") ? globalConfigParams->get<int>("VPU2ChannelPadding") : (16*numberClusters);
+        int pad = globalConfigParams->hasAttr("VPU2ChannelPadding") ? globalConfigParams->get<int>("VPU2ChannelPadding") : 16;
+        auto opStrategy = opIt->get<std::string>("splitStrategy");
+        if (opStrategy == "HKSwitch"|| opStrategy == "SplitOverK")
+            pad = pad * numberClusters;
         std::vector<std::size_t> dimensions = parentOutputTensor->getShape();
         auto outputChannelsPadded = mv::round_up(dimensions[mv::IO_CHANNEL_DIMENSION], pad);
         dimensions = {dimensions[mv::IO_WIDTH_DIMENSION], dimensions[mv::IO_HEIGHT_DIMENSION], outputChannelsPadded, dimensions[mv::IO_BATCH_DIMENSION]};

@@ -219,8 +219,12 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                 auto subTensorShape = subTensor.getShape();
                 auto subTensorChannels = subTensorShape[mv::IO_CHANNEL_DIMENSION];
                 if (subTensorChannels % 16 != 0) {
+                    auto pad = 16;
+                    if (opStrategy == "HKSwitch"|| opStrategy == "SplitOverK")
+                        pad = pad * nClusters;
+                    auto outputChannelsPadded = mv::round_up(subTensorShape[mv::IO_CHANNEL_DIMENSION], pad);
 
-                    auto outputChannelsPadded = mv::round_up(subTensorShape[mv::IO_CHANNEL_DIMENSION], (16*nClusters));
+
                     subTensorShape[mv::IO_CHANNEL_DIMENSION] = outputChannelsPadded;
                 }
 

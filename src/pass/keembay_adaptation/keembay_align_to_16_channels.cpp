@@ -32,7 +32,7 @@ void alignTo16ChannelsFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
 
     auto globalConfigParams = model.getGlobalConfigParams();
     int numberClusters = globalConfigParams->get<int>("Number_of_Clusters");
-    int pad = globalConfigParams->hasAttr("VPU2ChannelPadding") ? globalConfigParams->get<int>("VPU2ChannelPadding") : (16*numberClusters);
+    int pad = globalConfigParams->hasAttr("VPU2ChannelPadding") ? globalConfigParams->get<int>("VPU2ChannelPadding") : 16;
     auto dpuTasks = om.getOps("DPUTask");
 
     for(auto vecIt = dpuTasks.begin(); vecIt != dpuTasks.end(); ++vecIt)
@@ -42,18 +42,23 @@ void alignTo16ChannelsFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
         auto outputTensor = opIt->getOutputTensor(0);
         auto outputTensorShape = outputTensor->getShape();
         auto outputTensorChannels = outputTensorShape[mv::IO_CHANNEL_DIMENSION];
-        if (outputTensorChannels % pad != 0)
+        auto opStrategy = opIt->get<std::string>("splitStrategy");
+        auto layerPad = pad;
+        if (opStrategy == "HKSwitch"|| opStrategy == "SplitOverK")
+            layerPad = layerPad * numberClusters;
+
+        if (outputTensorChannels % layerPad != 0)
         {
             opIt->set<bool>("alignment", true);
             if (!outputTensor->hasAttr("alignment"))
                 outputTensor->set<bool>("alignment", true);
         }
-        auto outputChannelsPadded = mv::round_up(outputTensorShape[mv::IO_CHANNEL_DIMENSION], pad);
+        auto outputChannelsPadded = mv::round_up(outputTensorShape[mv::IO_CHANNEL_DIMENSION], layerPad);
 
         if(taskOp == "Conv" || taskOp == "DepthWiseConv")
         {
             auto inputTensor = opIt->getInputTensor(0);
-            if (!inputTensor->hasAttr("alignment") && inputTensor->getShape()[mv::IO_CHANNEL_DIMENSION] % pad != 0)
+            if (!inputTensor->hasAttr("alignment") && inputTensor->getShape()[mv::IO_CHANNEL_DIMENSION] % layerPad != 0)
                 inputTensor->set<bool>("alignment", true);
         }
 
@@ -67,7 +72,7 @@ void alignTo16ChannelsFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             if (inputTensor->hasAttr("alignment"))
             {
                 auto inputTensorChannels = inputTensor->getShape()[mv::IO_CHANNEL_DIMENSION];
-                auto inputChannelsPadded = mv::round_up(inputTensorChannels, pad);
+                auto inputChannelsPadded = mv::round_up(inputTensorChannels, layerPad);
                 alignWeightsTensor(om, weightsTensor, inputChannelsPadded, mv::KERNEL_INPUT_CHANNELS, taskOp);
             }
         }
@@ -80,7 +85,7 @@ void alignTo16ChannelsFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             if (inputTensor->hasAttr("alignment"))
             {
                 auto inputTensorChannels = inputTensor->getShape()[mv::IO_CHANNEL_DIMENSION];
-                auto inputChannelsPadded = mv::round_up(inputTensorChannels, pad);
+                auto inputChannelsPadded = mv::round_up(inputTensorChannels, layerPad);
                 alignWeightsTensor(om, weightsTensor, inputChannelsPadded, mv::KERNEL_INPUT_CHANNELS, taskOp);
             }
         }
