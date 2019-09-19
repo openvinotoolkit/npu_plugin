@@ -140,7 +140,7 @@ TEST_F(kmbLayersTests_nightly, DISABLED_TestsPoolingAfterConvolution) {
     ASSERT_NO_THROW(_exeNetwork = ie.LoadNetwork(network, "kmb", config));
 }
 
-TEST_F(kmbLayersTests_nightly, TestsPoolingOnly) {
+TEST_F(kmbLayersTests_nightly, DISABLED_TestsPoolingOnly) {
     const std::string model = R"V0G0N(
     <net batch="1" name="POOLING_TEST" version="2">
         <layers>
@@ -203,7 +203,7 @@ TEST_F(kmbLayersTests_nightly, TestsPoolingOnly) {
     ASSERT_NO_THROW(_exeNetwork = ie.LoadNetwork(network, "kmb", config));
 }
 
-TEST_P(kmbLayersTestsPoolingParams, TestsPoolingNetInit) {
+TEST_P(kmbLayersTestsPoolingParams, DISABLED_TestsPoolingNetInit) {
     auto param = GetParam();
     tensor_test_params tensor = std::get<0>(param);
     std::string sameUpper = std::get<1>(param);
