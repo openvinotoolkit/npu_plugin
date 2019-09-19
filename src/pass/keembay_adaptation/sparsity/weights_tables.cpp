@@ -343,6 +343,9 @@ static void generateWeightsTablesFcn(const mv::pass::PassEntry& pass, mv::Comput
     mv::OpModel om(model);
     mv::DataModel dm(model);
     mv::ControlModel cm(model);
+    auto globalConfigParams = model.getGlobalConfigParams();
+    int numberClusters = globalConfigParams->get<int>("Number_of_Clusters");
+
     for(auto dpuTaskOp = om.opBegin(); dpuTaskOp != om.opEnd(); ++dpuTaskOp)
     {
         if(dpuTaskOp->getOpType() == "DPUTask")
@@ -355,7 +358,7 @@ static void generateWeightsTablesFcn(const mv::pass::PassEntry& pass, mv::Comput
             {
                 std::string opName = dpuTaskOp->getName();
                 std::string kernelWeightsTableName(mv::createWeightTableName(opName));
-                auto outputChannels = mv::round_up(dpuTaskOp->getOutputTensor(0)->getShape()[mv::IO_CHANNEL_DIMENSION], 16);
+                auto outputChannels = mv::round_up(dpuTaskOp->getOutputTensor(0)->getShape()[mv::IO_CHANNEL_DIMENSION], (16*numberClusters));
                 // per channel layout:
                 // 3 -> bias
                 // 2 -> mult << 16 | round << 14 |  shift << 8 | prelu

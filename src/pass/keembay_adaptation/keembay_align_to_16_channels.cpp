@@ -31,7 +31,8 @@ void alignTo16ChannelsFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
     mv::DataModel dm(model);
 
     auto globalConfigParams = model.getGlobalConfigParams();
-    int pad = globalConfigParams->hasAttr("VPU2ChannelPadding") ? globalConfigParams->get<int>("VPU2ChannelPadding") : 16;
+    int numberClusters = globalConfigParams->get<int>("Number_of_Clusters");
+    int pad = globalConfigParams->hasAttr("VPU2ChannelPadding") ? globalConfigParams->get<int>("VPU2ChannelPadding") : (16*numberClusters);
     auto dpuTasks = om.getOps("DPUTask");
 
     for(auto vecIt = dpuTasks.begin(); vecIt != dpuTasks.end(); ++vecIt)

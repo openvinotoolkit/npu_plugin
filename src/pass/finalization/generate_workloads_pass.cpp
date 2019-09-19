@@ -220,7 +220,7 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                 auto subTensorChannels = subTensorShape[mv::IO_CHANNEL_DIMENSION];
                 if (subTensorChannels % 16 != 0) {
 
-                    auto outputChannelsPadded = mv::round_up(subTensorShape[mv::IO_CHANNEL_DIMENSION], 16);
+                    auto outputChannelsPadded = mv::round_up(subTensorShape[mv::IO_CHANNEL_DIMENSION], (16*nClusters));
                     subTensorShape[mv::IO_CHANNEL_DIMENSION] = outputChannelsPadded;
                 }
 
