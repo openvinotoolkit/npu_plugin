@@ -5,7 +5,7 @@
                 "name" : "GlobalConfigParams",
                 "_comment" : "Stores common params accross multiple passes. Access through the Computation Model.",
                 "recorded_model": true,
-                "verbose": "Error",
+                "verbose": "Debug",
                 "weights_form": "None",
                 "barrier_index_assignment" : "Dynamic",
                 "Number_of_DPUs" : 5,
@@ -13,8 +13,6 @@
                 "UpaShaves": 1,
                 "DDRScratch": 16777216,
                 "MemoryHack": false,
-                "ActivationSparsity": false,
-                "WeightsSparsity": false,
                 "cmx": 917504,
                 "split_strategy" :
                 [
@@ -65,9 +63,9 @@
                 [
                     {
                         "name_filter": ".*",
-                        "inputActivationSparsity": false,
-                        "outputActivationSparsity": false,
-                        "weightsSparsity": false
+                        "inputActivationSparsity": true,
+                        "outputActivationSparsity": true,
+                        "weightsSparsity": true
                     }
                 ]
             },
@@ -168,6 +166,7 @@
                 }
             },
             "StoreLayerSplitStrategy",
+            "StoreLayerSparsityStrategy",
             "StoreTensorPlacement",
             "StreamingTiling",
             "StreamBinaryDataWeights"
@@ -240,7 +239,7 @@
             "AllocateGraphfileTensorsKeemBayLegacy",
             "ReAllocateImplicitOperationsKeemBay",
             "AllocateCMXTensorsKeemBay",
-	    "TensorGraphColoring",
+	        "TensorGraphColoring",
             "RemoveDeallocationTasks",
             "TransitiveReduction",
             {
@@ -255,7 +254,6 @@
         "Singular": [
             "StoreBarriersNamesInTasks",
             "GenerateExecutionSchedule",
-            "CorrectExecutionSchedule",
             "BarrierIndexAssignment",
             "UpdateBarrierRefs"
         ]
