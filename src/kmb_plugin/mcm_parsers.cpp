@@ -98,6 +98,14 @@ std::vector<ResultType> packBlobToVector(
             ResultType val = blobDataFP32[pos];
             blobData[pos] = val;
         }
+    } else if (blobPrecision == ie::Precision::U8) {
+        const auto* blobDataU8 = blobPtr->cbuffer().as<const uint8_t*>();
+        IE_ASSERT(blobDataU8 != nullptr);
+
+        for (size_t pos = 0; pos < expectedSize; pos++) {
+            ResultType val = blobDataU8[pos];
+            blobData[pos] = val;
+        }
     } else if (blobPrecision == ie::Precision::I8) {
         const auto* blobDataI8 = blobPtr->cbuffer().as<const int8_t*>();
         IE_ASSERT(blobDataI8 != nullptr);
@@ -310,7 +318,7 @@ void FrontEndMcm::parseConvolution(
     ie::Blob::Ptr biasBlob = nullptr;
     mv::Shape biasesShape {1};
 
-    if(inputs.size() == 1) {
+    if (inputs.size() == 1) {
     // OLD APPROACH
         if (layer->precision == ie::Precision::I8) {
             // Quantized layer
@@ -393,12 +401,16 @@ void FrontEndMcm::parseConvolution(
     size_t inputGroupSize, outputGroupSize, stub;
     parseDims(input->desc(), stub, inputGroupSize, stub, stub);
     parseDims(outDesc, stub, outputGroupSize, stub, stub);
-    if (groupSize > 1 && groupSize == inputGroupSize && groupSize != outputGroupSize) {
-        auto weightsShape = {static_cast<std::size_t>(kernelSizeX),
-                             static_cast<std::size_t>(kernelSizeY),
-                             inputGroupSize,
-                             1lu};
-        int weightsSize = kernelSizeX * kernelSizeY * inputGroupSize;
+
+    bool isDepthWiseConv = groupSize > 1 && groupSize == inputGroupSize && groupSize != outputGroupSize;
+
+    auto weightsShape = {static_cast<std::size_t>(kernelSizeX),
+                         static_cast<std::size_t>(kernelSizeY),
+                         inputGroupSize,
+                         isDepthWiseConv? 1lu : outputGroupSize / groupSize};
+    int weightsSize = std::accumulate(weightsShape.begin(), weightsShape.end(), 1, std::multiplies<int>());
+
+    if (isDepthWiseConv) {
         if (is_quantized) {
             // TODO: create per layer test
             auto weightsData = packBlobToVector<int64_t>(weightsBlob, weightsSize);
@@ -407,27 +419,12 @@ void FrontEndMcm::parseConvolution(
                                               mv::DType("Int8"),
                                               mv::Order(mv::Order::getColMajorID(4)));
             mvWeights->set<mv::QuantizationParams>("quantParams", weightsQuantParams);
-            if (with_bias) {
-                auto biasesData = packBlobToVector<int64_t>(biasBlob, biasBlob->size());
-                mvBiases = _modelMcm.constantInt(
-                    biasesData,
-                    biasesShape,
-                    mv::DType("Int32"), mv::Order::getColMajorID(1));
-                mvBiases->set<mv::QuantizationParams>("quantParams", biasQuantParams);
-            }
         } else {
             auto weightsData = packBlobToVector<double>(weightsBlob, weightsSize);
             mvWeights = _modelMcm.constant(weightsData,
                                            weightsShape,
                                            mv::DType("Float16"),
                                            mv::Order(mv::Order::getColMajorID(4)));
-            if (with_bias) {
-                auto biasesData = packBlobToVector<double>(biasBlob, biasBlob->size());
-                mvBiases = _modelMcm.constant(
-                    biasesData,
-                    biasesShape,
-                    mv::DType("Float16"), mv::Order::getColMajorID(1));
-            }
         }
 
         mvConv = _modelMcm.depthwiseConv(input->getMcmNode(),
@@ -442,48 +439,25 @@ void FrontEndMcm::parseConvolution(
                                          outputQuantParams,
                                          convLayer->name);
     } else {
-        size_t inputC, outputC, stub;
-        parseDims(input->desc(), stub, inputC, stub, stub, 1);
-        parseDims(outDesc, stub, outputC, stub, stub, 1);
-        auto weightsShape = {static_cast<std::size_t>(kernelSizeX),
-                                static_cast<std::size_t>(kernelSizeY),
-                                inputC,
-                                outputC / groupSize};
-        int weightsSize = std::accumulate(weightsShape.begin(), weightsShape.end(), 1, std::multiplies<int>());
         if (is_quantized) {
             auto weightsData = packBlobToVector<int64_t>(weightsBlob, weightsSize);
             mvWeights = _modelMcm.constantInt(weightsData,
-                                                weightsShape,
-                                                mv::DType("Int8"),
-                                                mv::Order("NCWH"));
+                                              weightsShape,
+                                              mv::DType("Int8"),
+                                              mv::Order("NCWH"));
             mvWeights->set<mv::QuantizationParams>("quantParams", weightsQuantParams);
-            if (with_bias) {
-                auto biasesData = packBlobToVector<int64_t>(biasBlob, biasBlob->size());
-                mvBiases = _modelMcm.constantInt(
-                    biasesData,
-                    biasesShape,
-                    mv::DType("Int32"), mv::Order::getColMajorID(1));
-                mvBiases->set<mv::QuantizationParams>("quantParams", biasQuantParams);
-            }
         } else {
             auto weightsData = packBlobToVector<double>(weightsBlob, weightsSize);
             mvWeights = _modelMcm.constant(weightsData,
-                                            weightsShape,
-                                            mv::DType("Float16"),
-                                            mv::Order("NCWH"));
-            if (with_bias) {
-                auto biasesData = packBlobToVector<double>(biasBlob, biasBlob->size());
-                mvBiases = _modelMcm.constant(
-                    biasesData,
-                    biasesShape,
-                    mv::DType("Float16"), mv::Order::getColMajorID(1));
-            }
+                                           weightsShape,
+                                           mv::DType("Float16"),
+                                           mv::Order("NCWH"));
         }
         mvConv = _modelMcm.conv(input->getMcmNode(),
                                 mvWeights,
-                                {static_cast<uint16_t>(kernelStrideX),
+                               {static_cast<uint16_t>(kernelStrideX),
                                 static_cast<uint16_t>(kernelStrideY)},
-                                {static_cast<uint16_t>(padLeft),
+                               {static_cast<uint16_t>(padLeft),
                                 static_cast<uint16_t>(padRight),
                                 static_cast<uint16_t>(padTop),
                                 static_cast<uint16_t>(padBottom)},
@@ -492,11 +466,28 @@ void FrontEndMcm::parseConvolution(
                                 outputQuantParams,
                                 convLayer->name);
     }
+
     if (is_quantized) {
         mvConv->set<mv::QuantizationParams>("quantParams", outputQuantParams);
     }
 
-    if (with_bias) {
+    bool TODO_FIX_ME = true;
+    if (!TODO_FIX_ME && with_bias) {
+        if (is_quantized) {
+            auto biasesData = packBlobToVector<int64_t>(biasBlob, biasBlob->size());
+            mvBiases = _modelMcm.constantInt(
+                    biasesData,
+                    biasesShape,
+                    mv::DType("Int32"), mv::Order::getColMajorID(1));
+            mvBiases->set<mv::QuantizationParams>("quantParams", biasQuantParams);
+        } else {
+            auto biasesData = packBlobToVector<double>(biasBlob, biasBlob->size());
+            mvBiases = _modelMcm.constant(
+                    biasesData,
+                    biasesShape,
+                    mv::DType("Float64"), mv::Order::getColMajorID(1));
+        }
+
         mvConvOnly = mvConv;
         mvConv = _modelMcm.bias(mvConvOnly, mvBiases, outputQuantParams, convLayer->name + ":bias");
         _logger->debug("'%s' layer '%s': Bias part (%s) added to mcmModel", convLayer->type, convLayer->name, mvConv->getName());
@@ -762,7 +753,7 @@ void FrontEndMcm::parseScale(
     auto mvWeights = _modelMcm.constant(
             weightsData,
             weightsShape,
-            mv::DType("Float16"), mv::Order("W"));
+            mv::DType("Float64"), mv::Order("W"));
 
     auto mvScale = _modelMcm.scale(input->getMcmNode(), mvWeights, initialQuantParams, scaleLayer->name);
     auto mvScaleShift = mvScale;
@@ -778,7 +769,7 @@ void FrontEndMcm::parseScale(
         auto mvBias = _modelMcm.constant(
                 biasData,
                 weightsShape,
-                mv::DType("Float16"), mv::Order("W"));
+                mv::DType("Float64"), mv::Order("W"));
         mvScaleShift = _modelMcm.bias(mvScale, mvBias, initialQuantParams, scaleLayer->name + ":bias");
         _logger->debug("'%s' layer '%s': Bias part (%s) added to mcmModel", scaleLayer->type, scaleLayer->name, mvScaleShift->getName());
     }

@@ -196,17 +196,10 @@ void compileMcm(
 
     if (parsedConfig[VPU_KMB_CONFIG_KEY(MCM_GENERATE_BLOB)] == "YES") {
         mv::RuntimeModel& rm = mv::RuntimeModel::getInstance();
-        int bufferSize = 0;
-        char* memBlob = rm.serialize(bufferSize);
+        auto memBlob = rm.getBlob();
 
-        std::copy(memBlob, memBlob + bufferSize, std::back_inserter(blob));
-        //--------------------------------------------------------------------------
-        // Function char * mv::RuntimeModel::serialize(int& bufferSize)
-        // allocates (new) the char* buffer inside.
-        // We free it after to avoid memory leakage
-        //--------------------------------------------------------------------------
-        // TODO: Remove delete when mv::RuntimeModel::serialize will be implemented properly
-        delete memBlob;
+        std::copy(memBlob->begin(), memBlob->end(), std::back_inserter(blob));
+
         if (blob.empty()) {
             VPU_THROW_EXCEPTION << "Blob file " << resultsFullName + ".blob" << " created by mcmCompiler is empty!";
         }

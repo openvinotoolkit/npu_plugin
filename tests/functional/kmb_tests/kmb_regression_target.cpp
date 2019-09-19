@@ -26,7 +26,7 @@
 #include <ie_icnn_network_stats.hpp>
 #include <cnn_network_int8_normalizer.hpp>
 #include <ie_util_internal.hpp>
-#include "low_precision_transformer.hpp"
+#include "low_precision_transformations/transformer.hpp"
 
 #include <vpu_layers_tests.hpp>
 
@@ -968,7 +968,7 @@ INSTANTIATE_TEST_CASE_P(inferenceWithParameters, VpuInferWithPath,
     ::testing::ValuesIn(pathToPreCompiledGraph)
 );
 
-#endif
+using VpuInferAndCompareTests = vpuLayersTests;
 
 TEST_F(VpuInferAndCompareTests, DISABLED_NQA_MobileNetV2gitNQA_ResNet50) {  // To be run in manual mode when device is available
     std::string irXmlPath = ModelsPath() + "/KMB_models/NQA/ResNet-50-tf/resnetv1-int8-sparse-v2-tf-0001.xml";
@@ -1023,7 +1023,7 @@ TEST_F(VpuInferAndCompareTests, DISABLED_NQA_MobileNetV2gitNQA_ResNet50) {  // T
     }
 }
 
-TEST_F(VpuInferAndCompareTests, DISABLED_NQA_MobileNetV2gitNQA_InceptionV1) {  // To be run in manual mode when device is available
+TEST_F(VpuInferAndCompareTests, DISABLED_NQA_InceptionV1) {  // To be run in manual mode when device is available
     std::string irXmlPath = ModelsPath() + "/KMB_models/NQA/GoogLeNet-v1-tf/inceptionv1-int8-tf-0001.xml";
     std::string weightsPath = ModelsPath() + "/KMB_models/NQA/GoogLeNet-v1-tf/inceptionv1-int8-tf-0001.bin";
 
@@ -1077,7 +1077,7 @@ TEST_F(VpuInferAndCompareTests, DISABLED_NQA_MobileNetV2gitNQA_InceptionV1) {  /
 }
 
 
-TEST_F(VpuInferAndCompareTests, DISABLED_NQA_MobileNetV2git) {  // To be run in manual mode when device is available
+TEST_F(VpuInferAndCompareTests, DISABLED_NQA_MobileNetV2) {  // To be run in manual mode when device is available
     std::string irXmlPath = ModelsPath() + "/KMB_models/NQA/MoblieNet-v2-tf/mobilenetv2-int8-sparse-v2-tf-0001.xml";
     std::string weightsPath = ModelsPath() + "/KMB_models/NQA/MoblieNet-v2-tf/mobilenetv2-int8-sparse-v2-tf-0001.bin";
 
@@ -1130,4 +1130,4 @@ TEST_F(VpuInferAndCompareTests, DISABLED_NQA_MobileNetV2git) {  // To be run in 
     }
 }
 
-
+#endif
