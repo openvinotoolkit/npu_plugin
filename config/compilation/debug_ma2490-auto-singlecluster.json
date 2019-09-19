@@ -14,9 +14,17 @@
                 "UpaShaves": 1,
                 "DDRScratch": 31457280,
                 "MemoryHack": false,
-                "ActivationSparsity": false,
                 "WeightsSparsity": false,
                 "cmx": 917504,
+                "sparsity_strategy" :
+                [
+                    {
+                        "name_filter": ".*",
+                        "inputActivationSparsity": false,
+                        "outputActivationSparsity": false,
+                        "weightsSparsity": false
+                    }
+                ],
                 "split_strategy" :
                 [
                     {

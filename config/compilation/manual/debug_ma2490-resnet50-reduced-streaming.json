@@ -15,8 +15,6 @@
                 "DDRScratch": 200704,
                 "cmx": 901120,
                 "MemoryHack": false,
-                "ActivationSparsity": false,
-                "WeightsSparsity": false,
                 "CMX_memory_overflow_safety_factor" : 0.925,
                 "split_strategy" :
                 [
