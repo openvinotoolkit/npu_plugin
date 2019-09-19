@@ -15,14 +15,21 @@
                 "DDRScratch": 200704,
                 "cmx": 901120,
                 "MemoryHack": false,
-                "ActivationSparsity": false,
-                "WeightsSparsity": false,
                 "CMX_memory_overflow_safety_factor" : 0.925,
                 "split_strategy" :
                 [
                     {
                         "name_filter" : ".*",
                         "strategy" : "Clustering"
+                    }
+                ],
+                "sparsity_strategy" :
+                [
+                    {
+                        "name_filter": ".*",
+                        "inputActivationSparsity": false,
+                        "outputActivationSparsity": false,
+                        "weightsSparsity": false
                     }
                 ],
                 "default_tensor_placement" : "DDR",
@@ -134,6 +141,7 @@
                 "input": "output/dots/adapt_model.dot"
             },
             "StoreLayerSplitStrategy",
+            "StoreLayerSparsityStrategy",
             "StreamingTiling",
             "StreamBinaryDataWeights",
             {
@@ -452,7 +460,6 @@
         "Singular": [
             "StoreBarriersNamesInTasks",
             "GenerateExecutionSchedule",
-            "CorrectExecutionSchedule",
             "BarrierIndexAssignment",
             "UpdateBarrierRefs",
             {

@@ -224,25 +224,21 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
         // VERY IMPORTANT NOTE: Sparsity index is not used by populated tensors
         // as populated tensor represent weights, and all the information we need
         // about sparsity is contained in the weights table. This was confirmed
-        // after a chat with Levi
+        // after a chat with Levi.
+
+        // We still have to explicitely set sparsity_index and storage_element_index to 0
+        // in the case of populated tensors that are sparse, so that runtime knows that sparsity is used
         if(t->isSparse())
         {
             if(!t->isPopulated())
             {
                 toBuild->data->sparsity_index = t->getSparsityMap()->getAddress();
                 toBuild->data->storage_element_index = t->getStorageElement()->getAddress();
-
-                //std::cout << "Weights Table: " + t->getSparsityMap()->getName() + " Sparsity Map address: " + std::to_string(t->getSparsityMap()->getAddress()) << std::endl;
-                //std::cout << "Weights Table: " + t->getSparsityMap()->getName() + " storage_element_index: " + std::to_string(t->getStorageElement()->getAddress()) << std::endl;
             }
             else
             {
-//                auto sparsityMapCostantOp = model.getOp(mv::createSparsityMapName(t->getName()));
-//                auto sparsityMapDmaOp = sparsityMapCostantOp.leftmostChild();
-//                auto sparsityMapDma = sparsityMapDmaOp->getOutputTensor(0);
-//                toBuild->data->sparsity_index = sparsityMapDma->getAddress();
-                toBuild->data->sparsity_index = 999999999999999999;
-                toBuild->data->storage_element_index = 999999999999999999;
+                toBuild->data->sparsity_index = 0;
+                toBuild->data->storage_element_index = 0;
             }
         }
     }
@@ -328,7 +324,7 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
         toBuild->locale_index[0] = graphfileIndex;
         // No need to set sparsity_index for tensor stored in graphfile
         auto offset = subtensor.get<std::vector<std::size_t>>("offset");
-        auto index = subtensor.getOrder().subToInd(t->getShape(), offset);
+        auto index = t->getOrder().subToInd(t->getShape(), offset);
         auto byte_index = index * t->getDType().getSizeInBits() / 8;
 
         toBuild->data->data_index = byte_index;
@@ -337,7 +333,7 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
             *tensorAllocatorName == "VPU_DDR_BSS" || *tensorAllocatorName == "VPU_DDR_Heap")
     {
         auto offset = subtensor.get<std::vector<std::size_t>>("offset");
-        auto index = subtensor.getOrder().subToInd(t->getShape(), offset);
+        auto index = t->getOrder().subToInd(t->getShape(), offset);
         auto byte_index = index * t->getDType().getSizeInBits() / 8;
 
         // NOTE: This probably has to be done also when DDR kicks in
@@ -364,24 +360,20 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
         // as populated tensor represent weights, and all the information we need
         // about sparsity is contained in the weights table. This was confirmed
         // after a chat with Levi
-        // NOTE: To be fixed for multiclustering
+
+        // We still have to explicitely set sparsity_index and storage_element_index to 0
+        // in the case of populated tensors that are sparse, so that runtime knows that sparsity is used
         if(t->isSparse())
         {
             if(!t->isPopulated())
             {
                 toBuild->data->sparsity_index = subtensor.getSparsityMap()->getAddress();
                 toBuild->data->storage_element_index = subtensor.getStorageElement()->getAddress();
-
-                //std::cout << "Weights Table: " + t->getSparsityMap()->getName() + " Sparsity Map address: " + std::to_string(t->getSparsityMap()->getAddress()) << std::endl;
-                //std::cout << "Weights Table: " + t->getSparsityMap()->getName() + " storage_element_index: " + std::to_string(t->getStorageElement()->getAddress()) << std::endl;
             }
             else
             {
-//                auto sparsityMapCostantOp = cm.getOp(mv::createSparsityMapName(t->getName()));
-//                auto sparsityMapDmaOp = sparsityMapCostantOp.leftmostChild();
-//                auto sparsityMapDma = sparsityMapDmaOp->getOutputTensor(0);
-                toBuild->data->sparsity_index = 999999999999999999;
-                toBuild->data->storage_element_index = 999999999999999999;
+                toBuild->data->sparsity_index = 0;
+                toBuild->data->storage_element_index = 0;
             }
         }
     }
@@ -880,9 +872,6 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
         toBuild->ppe_task = buildPPETaskT(cm, compilationDescriptor, opIt->get<PPETask>("PPETask"));
     else
         toBuild->ppe_task = buildPPETaskT();
-    // TODO
-    // std::vector<std::unique_ptr<NNTensorTaskT>> nnshv_task;
-    // split_over_h: bool = false;
 
     if (opIt->hasAttr("kSize"))
     {
@@ -907,12 +896,12 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
         toBuild->kernel_padBottom = kernelPadding[3];
     }
     //input
-    mv::DataModel dm(cm);
-    mv::ControlModel controlModel(cm);
     auto inputTensor = opIt->getInputTensor(0);
 
     toBuild->input_data = buildTensorReferenceT(cm, compilationDescriptor, inputTensor);
     toBuild->parent_input_tensor = buildTensorReferenceT(cm, compilationDescriptor, inputTensor);
+    toBuild->parent_input_tensor->data->sparsity_index = 999999999999999999;
+    toBuild->parent_input_tensor->data->storage_element_index = 999999999999999999;
 
     if (inputTensor->hasAttr("alignment"))
     {
@@ -937,6 +926,8 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
 
     toBuild->output_data = buildTensorReferenceT(cm, compilationDescriptor, outputTensor);
     toBuild->parent_output_tensor = buildTensorReferenceT(cm, compilationDescriptor, outputTensor);
+    toBuild->parent_output_tensor->data->sparsity_index = 999999999999999999;
+    toBuild->parent_output_tensor->data->storage_element_index = 999999999999999999;
 
     if (outputTensor->hasAttr("alignment"))
     {
@@ -1041,6 +1032,8 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
         toBuild->input_data = buildTensorReferenceT(cm, compilationDescriptor, parentInputTensor, clusterId);
 
     toBuild->parent_input_tensor = buildTensorReferenceT(cm, compilationDescriptor, parentInputTensor);
+    toBuild->parent_input_tensor->data->sparsity_index = 999999999999999999;
+    toBuild->parent_input_tensor->data->storage_element_index = 999999999999999999;
 
     //output
     auto parentOutputTensor = opIt->getOutputTensor(0);
@@ -1063,6 +1056,8 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
     }
 
     toBuild->parent_output_tensor = buildTensorReferenceT(cm, compilationDescriptor, parentOutputTensor);
+    toBuild->parent_output_tensor->data->sparsity_index = 999999999999999999;
+    toBuild->parent_output_tensor->data->storage_element_index = 999999999999999999;
 
     if (opIt->get<bool>("multiCast"))
     {
@@ -1216,7 +1211,7 @@ void mv::RuntimeModel::getWorkloadPadding(Control::OpListIterator opIt, Workload
             workload.padRight = ((workload.MaxX + unsigned(1)) == outputWidth) ? padding[1] : 0;
             workload.padBottom = ((workload.MaxY + unsigned(1)) == outputHeight) ? padding[3] : 0;
         }
-        else 
+        else
         {
             workload.padLeft = (workload.MinX == 0) ? padding[0] : 0;
             workload.padTop = (workload.MinY == 0) ? padding[2] : 0;
