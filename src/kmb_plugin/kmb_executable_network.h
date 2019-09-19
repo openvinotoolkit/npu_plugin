@@ -43,11 +43,11 @@ public:
     typedef std::shared_ptr<ExecutableNetwork> Ptr;
 
     explicit ExecutableNetwork(InferenceEngine::ICNNNetwork &network,
-                               const std::map<std::string, std::string> &config);
+                               const KmbConfig& config);
 
 
     explicit ExecutableNetwork(const std::string &blobFilename,
-                               const std::map<std::string, std::string> &config);
+                               const KmbConfig &config);
 
     ~ExecutableNetwork() {
         try {
@@ -107,7 +107,7 @@ private:
     KmbExecutorPtr _executor;
     std::vector<char> _graphBlob;
     std::vector<StageMetaInfo> _stagesMetaData;
-    std::shared_ptr<KmbConfig> _config;
+    KmbConfig _config;
     std::vector<std::string> _supportedMetrics;
 
     const size_t _maxTaskExecutorGetResultCount = 1;

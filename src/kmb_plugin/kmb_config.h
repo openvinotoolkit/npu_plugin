@@ -27,23 +27,21 @@
 namespace vpu {
 namespace KmbPlugin {
 
-struct KmbConfig final : ParsedConfigBase {
-    bool forceReset = false;
-    int watchdogInterval = 1000;
+class KmbConfig final : public ParsedConfigBase {
+public:
+    KmbConfig();
 
-    explicit KmbConfig(const std::map<std::string, std::string> &config = std::map<std::string, std::string>(),
-                          ConfigMode mode = ConfigMode::DEFAULT_MODE);
-
-    std::unordered_set<std::string> getCompileOptions() const override;
-    std::map<std::string, std::string> getDefaultConfig() const override;
-
-    const std::map<std::string, std::string>& getParsedConfig() const {
-        return _parsedConfig;
+    std::map<std::string, std::string> getParsedConfig() const {
+        return _config;
     }
 
+protected:
+    const std::unordered_set<std::string>& getCompileOptions() const override;
+    const std::unordered_set<std::string>& getRunTimeOptions() const override;
+    void parse(const std::map<std::string, std::string>& config) override;
+
 private:
-    void checkInvalidValues(const std::map<std::string, std::string> &config) const final;
-    std::map<std::string, std::string> _parsedConfig;
+    std::map<std::string, std::string> _config;
 };
 
 }  // namespace KmbPlugin

@@ -54,11 +54,11 @@ using namespace InferenceEngine;
 KmbInferRequest::KmbInferRequest(const InferenceEngine::InputsDataMap& networkInputs,
                                  const InferenceEngine::OutputsDataMap& networkOutputs,
                                  const std::vector<StageMetaInfo> &blobMetaData,
-                                 const std::shared_ptr<KmbConfig> &kmbConfig,
+                                 const KmbConfig& kmbConfig,
                                  const KmbExecutorPtr &executor) :
         InferRequestInternal(networkInputs, networkOutputs), _executor(executor),
         _stagesMetaData(blobMetaData), _config(kmbConfig),
-        _logger(std::make_shared<Logger>("KmbInferRequest", kmbConfig->hostLogLevel, consoleOutput())) {
+        _logger(std::make_shared<Logger>("KmbInferRequest", kmbConfig.logLevel(), consoleOutput())) {
     _deviceLayout = NCHW;
 
     // allocate inputs

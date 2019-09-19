@@ -38,7 +38,7 @@ const BehTestParams allUnSupportedValues[] = {
 
 const std::vector<BehTestParams> withCorrectConfValues = {
     BEH_KMB.withConfig({ { KEY_VPU_COPY_OPTIMIZATION, NO } }),
-    BEH_KMB.withConfig({ { KEY_VPU_LOG_LEVEL, LOG_DEBUG } }),
+    BEH_KMB.withConfig({ { KEY_LOG_LEVEL, LOG_DEBUG } }),
     BEH_KMB.withConfig({ { KEY_VPU_IGNORE_UNKNOWN_LAYERS, YES } }),
     BEH_KMB.withConfig({ { KEY_VPU_HW_STAGES_OPTIMIZATION, YES } }),
     BEH_KMB.withConfig({ { KEY_VPU_NONE_LAYERS, "Tile" } }),
@@ -56,6 +56,6 @@ const std::vector<BehTestParams> withCorrectConfValuesNetworkOnly = {
 
 const BehTestParams withIncorrectConfValues[] = {
     BEH_KMB.withConfig({ { KEY_VPU_COPY_OPTIMIZATION, "ON" } }),
-    BEH_KMB.withConfig({ { KEY_VPU_LOG_LEVEL, "VERBOSE" } }),
+    BEH_KMB.withConfig({ { KEY_LOG_LEVEL, "VERBOSE" } }),
     BEH_KMB.withConfig({ { KEY_VPU_IGNORE_UNKNOWN_LAYERS, "ON" } }),
 };

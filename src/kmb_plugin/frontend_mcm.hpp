@@ -74,7 +74,7 @@ public:
 
     explicit FrontEndMcm(mv::OpModel& modelMcm, const KmbConfig& config)
              : _modelMcm(modelMcm)
-             , _logger(std::make_shared<Logger>("FrontEndMcm", config.hostLogLevel, consoleOutput())) { }
+             , _logger(std::make_shared<Logger>("FrontEndMcm", config.logLevel(), consoleOutput())) { }
     void buildInitialModel(const ie::ICNNNetwork& network);
 
     std::set<std::string> checkSupportedLayers(const ie::ICNNNetwork& network);
