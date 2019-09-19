@@ -1131,8 +1131,24 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
         }
     }
 
+
     toBuild->parent_output_tensor = buildTensorReferenceT(cm, compilationDescriptor, parentOutputTensor);
 
+    if (parentOutputTensor->hasAttr("alignment"))
+    {
+        auto globalConfigParams = cm.getGlobalConfigParams();
+        int pad = globalConfigParams->hasAttr("VPU2ChannelPadding") ? globalConfigParams->get<int>("VPU2ChannelPadding") : 16;
+        std::vector<std::size_t> dimensions = parentOutputTensor->getShape();
+        auto outputChannelsPadded = mv::round_up(dimensions[mv::IO_CHANNEL_DIMENSION], pad);
+        dimensions = {dimensions[mv::IO_WIDTH_DIMENSION], dimensions[mv::IO_HEIGHT_DIMENSION], outputChannelsPadded, dimensions[mv::IO_BATCH_DIMENSION]};
+        auto numericStrides = parentOutputTensor->getOrder().computeByteStrides(mv::Shape(dimensions), parentOutputTensor->getDType().getSizeInBits() / 8);
+        numericStrides.push_back(parentOutputTensor->getDType().getSizeInBits() / 8);
+        std::reverse(dimensions.begin(), dimensions.end());
+        std::reverse(numericStrides.begin(), numericStrides.end());
+        toBuild->output_data->strides = numericStrides;
+        toBuild->parent_output_tensor->dimensions = numericStrides;
+        toBuild->parent_output_tensor->dimensions = std::vector<uint32_t>(dimensions.begin(), dimensions.end());
+    }
     if (opIt->get<bool>("multiCast"))
     {
 //        if (opIt->get<std::string>("splitStrategy") == "SplitOverK")
@@ -1156,6 +1172,13 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
     {
         auto weightsTableTensorIterator = opIt->getInputTensor(opIt->get<std::size_t>("weightsTableIndex"));
         toBuild->weights_table = buildTensorReferenceT(cm, compilationDescriptor, weightsTableTensorIterator, clusterId);
+    }
+    if (parentOutputTensor->hasAttr("alignment"))
+    {
+        if (toBuild->weights_table->dimensions[0] != toBuild->output_data->dimensions[1])
+        {
+            toBuild->output_data->dimensions[1] = toBuild->weights_table->dimensions[0];
+        }
     }
 
     switch (toBuild->dpu_task_type)
