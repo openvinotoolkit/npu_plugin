@@ -92,6 +92,8 @@ void maxTopologicalCutAndPartialSerialisationPass(const mv::pass::PassEntry& pas
 
     /*Calculate max topological cut and get the cut edges*/
     maxTopologicalCut = flowGraph_extraCheck.calculateMaxTopologicalCut(pass, model);
+    networkMemoryRequirement = maxTopologicalCut.first / 1024;
+    percentageMemory = (maxTopologicalCut.first / cmxMemory) * 100.00;
 
     pass.log(mv::Logger::MessageType::Info, "After PS the network now requires " + std::to_string(networkMemoryRequirement) + " kB of available CMX memory " + std::to_string(percentageMemory) + "%");
     

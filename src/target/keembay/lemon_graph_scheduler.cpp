@@ -74,8 +74,17 @@ void  mv::LemonGraphScheduler::convertMcMGraphToLemonGraph(const mv::pass::PassE
     {    
         /* 1. Don't add the edge going to Ouput in the MCM graph to the Lemon graph
          * 2. Don't add edge coming from a ConstantInt operation (Sparsity Map and Weights Table) */
-        if (flowIt.sink()->getOpType() != "Output" && flowIt.source()->getOpType() != "ConstantInt" && flowIt.source()->getOpType() != "ConstantDataElement" && flowIt.source()->getOpType() != "Constant")
-        {
+        // if (flowIt.sink()->getOpType() != "Output" &&
+        //     flowIt.source()->getOpType() != "ConstantInt" &&
+        //     flowIt.source()->getOpType() != "ConstantDataElement" &&
+        //     flowIt.source()->getOpType() != "Constant")
+        // {
+            // if (flowIt.sink()->getOpType() == "Deallocate" && flowIt.source()->getOpType() == "Deallocate")
+            // {
+            //     pass.log(mv::Logger::MessageType::Debug, "Not adding dealloc-dealloc edge: " + flowIt->getName());
+            //     continue;
+            // }
+
             auto sourceName = flowIt.source()->getName();
             auto sinkName  = flowIt.sink()->getName();
             if (sinkName.substr(0,6) == "Output") continue;
@@ -99,7 +108,7 @@ void  mv::LemonGraphScheduler::convertMcMGraphToLemonGraph(const mv::pass::PassE
             this->edges_[tmpEdge] = edgeDescription(this->graph_.id(tmpEdge), memReq, flowIt->getName());
             this->edgesMemory_[tmpEdge] = memReq;
             this->edgesLength_[tmpEdge] = 1;
-        }
+        // }
     }
     pass.log(mv::Logger::MessageType::Debug, "Lemon graph has " + std::to_string(lemon::countNodes(this->graph_)) + " nodes and " + std::to_string(lemon::countArcs(this->graph_)) + " edges");
     pass.log(mv::Logger::MessageType::Debug, "Source: " + this->nodes_[this->graphSourceNode_].name + " | Sink: " + this->nodes_[this->graphSinkNode_].name);
@@ -261,10 +270,11 @@ void mv::LemonGraphScheduler::insertpartialSerialisationEdgesInMcmGraph(mv::Comp
                                 
                                 if(flowIt == cm.flowEnd())
                                 {
-                                    if (! (cm.pathExists(mcmSourceNodeIterator, mcmSinkNodeIterator)) )
+                                    if (! (cm.pathExists(childOp, mcmSinkNodeIterator)) )
                                     {
                                         /*Add the edge to graph*/
-                                        auto partialSerialisationEdge = cm.defineFlow(mcmSourceNodeIterator, mcmSinkNodeIterator);
+                                        this->log(mv::Logger::MessageType::Info, "Adding an additional partial serialisation edge required for tensor graph colouring");
+                                        auto partialSerialisationEdge = cm.defineFlow(childOp, mcmSinkNodeIterator);
                                         partialSerialisationEdge->set<bool>("PartialSerialisationEdge", true);
                                         if(!cm.isDag()) 
                                         {
