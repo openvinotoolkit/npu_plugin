@@ -283,9 +283,9 @@
                 [
                     {
                         "name_filter": ".*",
-                        "outputActivationSparsity": false,
-                        "inputActivationSparsity": false,
-                        "weightsSparsity": false
+                        "outputActivationSparsity": true,
+                        "inputActivationSparsity": true,
+                        "weightsSparsity": true
                     }
                 ],
                 "default_tensor_placement" : "CMX"
