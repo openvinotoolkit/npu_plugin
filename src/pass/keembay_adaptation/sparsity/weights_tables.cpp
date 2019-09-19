@@ -62,6 +62,9 @@ void populateSparseDataPointerMultiCluster(mv::Tensor& weightsTableData, mv::Dat
         int pad = globalParams->hasAttr("VPU2ChannelPadding") ? globalParams->get<int>("VPU2ChannelPadding") : 16;
 
         unsigned numClusters = globalParams->get<int>("Number_of_Clusters");
+        auto opStrategy = dpuTaskOp->get<std::string>("splitStrategy");
+        if (opStrategy == "HKSwitch"|| opStrategy == "SplitOverK")
+            pad = pad * numClusters;
         std::size_t sizeToIterate = 0;
         std::size_t totalSizeToIterate = 0;
         auto tensorNeedsAlignment = dpuTaskOp->getInputTensor(1)->hasAttr("alignment") ? dpuTaskOp->getInputTensor(1)->get<bool>("alignment") : false;
@@ -96,6 +99,9 @@ void populateDenseDataPointerMultiCluster(mv::Tensor& weightsTableData, mv::Data
         int pad = globalParams->hasAttr("VPU2ChannelPadding") ? globalParams->get<int>("VPU2ChannelPadding") : 16;
 
         unsigned numClusters = globalParams->get<int>("Number_of_Clusters");
+        auto opStrategy = dpuTaskOp->get<std::string>("splitStrategy");
+        if (opStrategy == "HKSwitch"|| opStrategy == "SplitOverK")
+            pad = pad * numClusters;
         std::size_t sizeToIterate = 0;
         std::size_t totalSizeToIterate = 0;
         auto tensorNeedsAlignment = dpuTaskOp->getInputTensor(1)->hasAttr("alignment") ? dpuTaskOp->getInputTensor(1)->get<bool>("alignment") : false;
@@ -213,9 +219,16 @@ void populateWeightsTablesActivationAndBias(mv::Tensor& weightsTableData, mv::Da
     auto output = dpuTaskOp->getOutputTensor(0);
     auto outputChannels = output->getShape()[mv::IO_CHANNEL_DIMENSION];
     auto paddedOutputChannels = outputChannels;
-    if (outputChannels % 16 != 0)
+    auto opStrategy = dpuTaskOp->get<std::string>("splitStrategy");
+    auto globalParams = model.getGlobalConfigParams();
+    int pad = globalParams->hasAttr("VPU2ChannelPadding") ? globalParams->get<int>("VPU2ChannelPadding") : 16;
+    unsigned numClusters = globalParams->get<int>("Number_of_Clusters");
+    if (opStrategy == "HKSwitch"|| opStrategy == "SplitOverK")
+        pad = pad * numClusters;
+
+    if (outputChannels % pad != 0)
     {
-        paddedOutputChannels = mv::round_up(outputChannels, 16);
+        paddedOutputChannels = mv::round_up(outputChannels, pad);
     }
     std::vector<int32_t> mScaled(paddedOutputChannels, 0);
     std::vector<int32_t> mShift(paddedOutputChannels, 0);
