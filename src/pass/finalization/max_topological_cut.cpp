@@ -51,6 +51,8 @@ void maxTopologicalCutAndPartialSerialisationPass(const mv::pass::PassEntry& pas
     auto returnedParams = model.getGlobalConfigParams();
     memoryHack = returnedParams->get<bool>("MemoryHack");
 
+    mv::ControlModel cm(model);
+
     /*Convert to MCM graph to Lemon graph*/
     flowGraph.convertMcMGraphToLemonGraph(pass, model);
 
@@ -72,7 +74,7 @@ void maxTopologicalCutAndPartialSerialisationPass(const mv::pass::PassEntry& pas
     /*Repeat partial serialisation until max topological cut is less than CMX memory*/
     while (maxTopologicalCut.first > cmxMemory)
     {
-        flowGraph.performPartialSerialisation(pass, maxTopologicalCut.second);
+        flowGraph.performPartialSerialisation(pass, maxTopologicalCut.second, model);
         maxTopologicalCut = flowGraph.calculateMaxTopologicalCut(pass, model);
         networkMemoryRequirement = maxTopologicalCut.first / 1024;
         percentageMemory = (maxTopologicalCut.first / cmxMemory) * 100;
