@@ -606,24 +606,6 @@ void vpuLayersTests::checkBlobs(Blob::Ptr actual, Blob::Ptr expected)
     }
 }
 
-TBlob<uint8_t>::Ptr vpuLayersTests::GenWeights(size_t sz, float min_val, float max_val)
-{
-    // TODO: pass seed as parameter
-
-    float scale  = (max_val - min_val) / RAND_MAX;
-    TBlob<uint8_t>::Ptr weights = make_shared_blob<uint8_t>({Precision::U8, {(sz) * sizeof(uint16_t)}, C});
-    weights->allocate();
-    uint16_t *inputBlobRawDataFp16 = weights->buffer().as<uint16_t *>();
-    size_t indx = 0;
-
-    for (; indx < sz; ++indx) {
-        float val = rand();
-        val = val * scale + min_val;
-        inputBlobRawDataFp16[indx] = PrecisionUtils::f32tof16(val);
-    }
-    return weights;
-}
-
 void vpuLayersTests::Compare(Blob::Ptr actual,
                                 Blob::Ptr expected,
                                 float tolerance)
@@ -841,6 +823,22 @@ void vpuLayersTests::ReferenceGraph() {
         }
     }
     _referenceGraph();
+}
+
+template <typename T>
+T vpuLayersTests::generate_val(float min_val, float max_val)
+{
+    float scale  = (max_val - min_val) / RAND_MAX;
+    float val = rand() * scale + min_val;
+    return static_cast<T>(val);
+}
+
+template <>
+uint16_t vpuLayersTests::generate_val<uint16_t>(float min_val, float max_val)
+{
+    float scale  = (max_val - min_val) / RAND_MAX;
+    float val = rand() * scale + min_val;
+    return InferenceEngine::PrecisionUtils::f32tof16(val);
 }
 
 Blob::Ptr ConvertU8ToFP32(const Blob::Ptr &inBlob) {

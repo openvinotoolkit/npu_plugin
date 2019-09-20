@@ -114,7 +114,7 @@ TEST_F(kmbLayersTests_nightly, TestsReLUAfterConvolution) {
 
     std::size_t weightSize = 6 + 18816;
     std::size_t biasSize = 6 + 128;
-    TBlob<uint8_t>::Ptr weightsBlob(GenWeights(weightSize + biasSize));
+    TBlob<uint8_t>::Ptr weightsBlob(GenWeights<uint16_t >(weightSize + biasSize));
 
     ASSERT_NO_THROW(_net_reader.ReadNetwork(model.data(), model.length()));
     ASSERT_TRUE(_net_reader.isParseSuccess());

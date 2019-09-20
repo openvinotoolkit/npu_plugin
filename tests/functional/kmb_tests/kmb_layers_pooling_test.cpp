@@ -113,7 +113,7 @@ TEST_F(kmbLayersTests_nightly, TestsPoolingAfterConvolution) {
     </net>
         )V0G0N";
 
-    TBlob<uint8_t>::Ptr weightsBlob(GenWeights(18828 + 128));
+    TBlob<uint8_t>::Ptr weightsBlob(GenWeights<uint16_t >(18828 + 128));
    
     ASSERT_NO_THROW(_net_reader.ReadNetwork(model.data(), model.length()));
     ASSERT_TRUE(_net_reader.isParseSuccess());
