@@ -66,7 +66,10 @@ void alignTo16ChannelsFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
         {
             auto weightsTensor = opIt->getInputTensor(1);
             if(outputChannelsPadded != weightsTensor->getShape()[mv::KERNEL_OUTPUT_CHANNELS])
+            {
                 alignWeightsTensor(om, weightsTensor, outputChannelsPadded, mv::KERNEL_OUTPUT_CHANNELS, taskOp);
+                weightsTensor = opIt->getInputTensor(1);
+            }
             auto inputTensor = opIt->getInputTensor(0);
             //if the previous op will be alligned you have to align the weights of the current
             if (inputTensor->hasAttr("alignment"))
@@ -74,13 +77,17 @@ void alignTo16ChannelsFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
                 auto inputTensorChannels = inputTensor->getShape()[mv::IO_CHANNEL_DIMENSION];
                 auto inputChannelsPadded = mv::round_up(inputTensorChannels, layerPad);
                 alignWeightsTensor(om, weightsTensor, inputChannelsPadded, mv::KERNEL_INPUT_CHANNELS, taskOp);
+
             }
         }
         else if (taskOp == "DepthwiseConv")
         {
             auto weightsTensor = opIt->getInputTensor(1);
             if(outputChannelsPadded != weightsTensor->getShape()[mv::KERNEL_INPUT_CHANNELS])
+            {
                 alignWeightsTensor(om, weightsTensor, outputChannelsPadded, mv::KERNEL_INPUT_CHANNELS, taskOp);
+                weightsTensor = opIt->getInputTensor(1);
+            }
             auto inputTensor = opIt->getInputTensor(0);
             if (inputTensor->hasAttr("alignment"))
             {
