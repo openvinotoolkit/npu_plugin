@@ -8,10 +8,12 @@
                 "log_time" : true,
                 "verbose": "Debug",
                 "weights_form": "None",
+                "PadOutput": true,
                 "barrier_index_assignment" : "Dynamic",
                 "Number_of_DPUs" : 20,
                 "Number_of_Clusters" : 4,
                 "UpaShaves": 1,
+                "nWorkloads": 2,
                 "DDRScratch": 31457280,
                 "MemoryHack": false,
                 "ActivationSparsity": false,
@@ -30,9 +32,12 @@
                 "split_strategy" :
                 [
                     {
-                        "name_filter" : "x",
-                        "cluster_filter" : 0,
-                        "strategy" : "JUNK"
+                        "name_filter": "input#3",
+                        "strategy": "SplitOverH"
+                    },
+                    {
+                        "name_filter": "expanded_conv/project/BatchNorm/FusedBatchNorm/expanded_conv/project/BatchNorm/FusedBatchNorm#4",
+                        "strategy": "SplitOverH"
                     }
                 ],
                 "default_tensor_placement" : "CMX",
@@ -69,6 +74,24 @@
                             {"H" : 1},
                             {"W" : 1},
                             {"K" : 1}
+                        ]
+                    },
+                    {
+                        "name_filter": "expanded_conv/project/BatchNorm/FusedBatchNorm/expanded_conv/project/BatchNorm/FusedBatchNorm#4",
+                        "splits": 
+                        [
+                            {
+                                "C": 1
+                            },
+                            {
+                                "H": 1
+                            },
+                            {
+                                "W": 1
+                            },
+                            {
+                                "K": 1
+                            }
                         ]
                     }
                 ]
@@ -421,11 +444,11 @@
         "Singular": [
             {
                 "name": "GenerateBlobKeembay",
-                "output": "output/test.blob"
+                "output": "output/mobilenet_test.blob"
             },
             {
                 "name": "ConvertFlatbuffer",
-                "input": "output/test.blob"
+                "input": "output/mobilenet_test.blob"
             }
 
         ]
