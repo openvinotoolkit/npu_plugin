@@ -14,8 +14,6 @@
                 "UpaShaves": 1,
                 "DDRScratch": 31457280,
                 "MemoryHack": false,
-                "ActivationSparsity": false,
-                "WeightsSparsity": false,
                 "CMX_memory_overflow_safety_factor" : 0.925,
                 "cmx": 917504,
                 "split_strategy" :
@@ -150,6 +148,15 @@
                     }
                 ],
                 "default_tensor_placement" : "DDR",
+                "sparsity_strategy" :
+                [
+                    {
+                        "name_filter": ".*",
+                        "inputActivationSparsity": false,
+                        "outputActivationSparsity": false,
+                        "weightsSparsity": false
+                    }
+                ],
                 "streaming_strategy" :
                 [
                     {
@@ -181,7 +188,7 @@
                         "name_filter": "conv8#47",
                         "splits": [{"K": 8}]
                     }
-           
+
                 ]
             },
             "ComputeMemory",
@@ -240,6 +247,7 @@
                 "input": "output/dots/adapt_model.dot"
             },
             "StoreLayerSplitStrategy",
+            "StoreLayerSparsityStrategy",
             "StreamingTiling",
             "StreamBinaryDataWeights",
             {
@@ -271,11 +279,9 @@
             "StrategyLayersToTensors",
             "ComputeTensorsQuantParams",
             "UpdateImplicitLayersQuantizationParams",
-
-
             "PopulateWeightsTablesQuantization",
             "RemoveBiasTensors",
-
+            "SplittingTensorsAcrossClusters",
             {
                 "name": "GenerateDot",
                 "output": "output/dots/keembay_adapt_model.dot",
@@ -388,7 +394,6 @@
     },
     "finalize": {
         "Singular": [
-            "SplittingTensorsAcrossClusters",
             "AddDeallocationTasks",
             {
                 "name": "GenerateDot",
@@ -559,7 +564,6 @@
         "Singular": [
             "StoreBarriersNamesInTasks",
             "GenerateExecutionSchedule",
-            "CorrectExecutionSchedule",
             "BarrierIndexAssignment",
             "UpdateBarrierRefs",
             {
@@ -584,11 +588,11 @@
         "Singular": [
             {
                 "name": "GenerateBlobKeembay",
-                "output": "output/tiny-yolo-streaming-multiclustering-full-size.blob"
+                "output": "output/mcm.blob"
             },
             {
                 "name": "ConvertFlatbuffer",
-                "input": "output/tiny-yolo-streaming-multiclustering-full-size.blob"
+                "input": "output/mcm.blob"
             }
 
         ]
