@@ -63,8 +63,8 @@
                 [
                     {
                         "name_filter": ".*",
-                        "inputActivationSparsity": false,
-                        "outputActivationSparsity": false,
+                        "inputActivationSparsity": true,
+                        "outputActivationSparsity": true,
                         "weightsSparsity": true
                     }
                 ]
@@ -188,7 +188,7 @@
             "ComputeTensorsQuantParams",
             "UpdateImplicitLayersQuantizationParams",
             "PopulateWeightsTablesQuantization",
-            "RemoveBiasTensors"
+            "RemoveBiasTensors",
             "SplittingTensorsAcrossClusters"
         ]
     },

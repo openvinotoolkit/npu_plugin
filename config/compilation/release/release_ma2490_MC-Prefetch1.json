@@ -188,7 +188,7 @@
             "ComputeTensorsQuantParams",
             "UpdateImplicitLayersQuantizationParams",
             "PopulateWeightsTablesQuantization",
-            "RemoveBiasTensors"
+            "RemoveBiasTensors",
             "SplittingTensorsAcrossClusters"
         ]
     },
