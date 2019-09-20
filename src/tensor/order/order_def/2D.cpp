@@ -7,4 +7,6 @@ namespace mv
     MV_REGISTER_ORDER(WH).setContiguityVector({1, 0});
     MV_REGISTER_ORDER(HW).setContiguityVector({0, 1});
     MV_REGISTER_ORDER(NC).setContiguityVector({0, 1});
+    MV_REGISTER_ORDER(WC).setContiguityVector({1, 0});
+
 }
