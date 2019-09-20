@@ -301,7 +301,6 @@ void KmbExecutor::queueInference(void *input_data, size_t input_bytes,
     };
 
     std::thread pullThread(pullFunc);
-    std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
     auto physAddr = getKmbAllocator()->getPhysicalAddress(input_data);
     plgTensorInput_->Push(physAddr, input_bytes);
