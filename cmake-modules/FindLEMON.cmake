@@ -41,10 +41,10 @@ IF(EXISTS "${LEMON_DIR}" AND NOT "${LEMON_DIR}" STREQUAL "")
   MESSAGE(STATUS "Found Lemon ${LEMON_VERSION} (include: ${LEMON_DIR})")
 ELSE()
   # Lemon not installed. Download external project and install. Mercurial required.
-  find_package(Hg)
-  if(NOT HG_FOUND)
-    message( FATAL_ERROR "Mercurial client (hg) requred to download Lemon sources. Please install 'Mercurial'. Exiting...")
-  endif()
+  #find_package(Hg)
+  #if(NOT HG_FOUND)
+  #  message( FATAL_ERROR "Mercurial client (hg) requred to download Lemon sources. Please install 'Mercurial'. Exiting...")
+  #endif()
 
   MESSAGE(STATUS "Lemon not found. Will download as External Project and install locally.")
   include(ExternalProject)
@@ -52,8 +52,8 @@ ELSE()
   set(LEMON_INSTALL_DIR "${PROJECT_SOURCE_DIR}/contrib/lemon/install")
   ExternalProject_Add(
       project_lemon
-      HG_REPOSITORY     http://lemon.cs.elte.hu/hg/lemon 
-      HG_TAG            "r1.3.1"
+      #HG_REPOSITORY     http://lemon.cs.elte.hu/hg/lemon 
+      #HG_TAG            "r1.3.1"
       SOURCE_DIR        ${LEMON_SOURCE_DIR}
       BUILD_COMMAND     ${MAKE}
       INSTALL_COMMAND   make DESTDIR=${LEMON_INSTALL_DIR} install
