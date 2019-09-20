@@ -340,7 +340,7 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
         // as CMX is the only memory with the cluster/slice approach
         auto starting_address = 0;
         if(t->hasAttr("address"))
-            starting_address = t->get<int64_t>("address");
+            starting_address = t->get<std::size_t>("address");
 
         toBuild->data->data_index = starting_address + byte_index;
 
