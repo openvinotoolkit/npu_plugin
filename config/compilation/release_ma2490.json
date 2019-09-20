@@ -144,10 +144,9 @@
             "StrategyLayersToTensors",
             "ComputeTensorsQuantParams",
             "UpdateImplicitLayersQuantizationParams",
-
-
             "PopulateWeightsTablesQuantization",
-            "RemoveBiasTensors"
+            "RemoveBiasTensors",
+            "SplittingTensorsAcrossClusters"
         ]
     },
     "dma": {
@@ -172,7 +171,6 @@
     },
     "finalize": {
         "Singular": [
-            "SplittingTensorsAcrossClusters",
             "AddDeallocationTasks",
             "MarkLastNodeForMaxTopologicalCut",
             "MaxTopologicalCutAndPartialSerialisation",

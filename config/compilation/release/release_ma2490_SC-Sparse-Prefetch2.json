@@ -79,7 +79,7 @@
                 "VersionHash": "9aa43159420c77d8cf765393954ac2fbb372ab02"
             }
         ]
-    },   
+    },
     "adapt": {
         "Singular": [
             "PopulatedTensorsToFP16",
@@ -187,10 +187,9 @@
             "StrategyLayersToTensors",
             "ComputeTensorsQuantParams",
             "UpdateImplicitLayersQuantizationParams",
-
-
             "PopulateWeightsTablesQuantization",
-            "RemoveBiasTensors"
+            "RemoveBiasTensors",
+            "SplittingTensorsAcrossClusters"
         ]
     },
     "dma": {
@@ -218,7 +217,6 @@
     },
     "finalize": {
         "Singular": [
-            "SplittingTensorsAcrossClusters",
             "AddDeallocationTasks",
             {
                 "name": "TransitiveReduction",
@@ -238,7 +236,7 @@
             "AllocateGraphfileTensorsKeemBayLegacy",
             "ReAllocateImplicitOperationsKeemBay",
             "AllocateCMXTensorsKeemBay",
-	        "TensorGraphColoring",
+            "TensorGraphColoring",
             "RemoveDeallocationTasks",
             "TransitiveReduction",
             {
