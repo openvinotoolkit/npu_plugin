@@ -284,6 +284,7 @@ static void generateSparsityMapsUnpopulatedTensorsFcn(const mv::pass::PassEntry&
             inputActivationSparsity |= sink->hasAttr("inputActivationSparsity") ? sink->get<bool>("inputActivationSparsity") : false;
             if(source->getOpType() != "DPUTask" ||
                source->get<std::string>("splitStrategy") == "SplitOverK" ||
+               source->get<std::string>("taskOp") == "DepthwiseConv" || //TESTING ONLY!
                sink->getOpType() != "DPUTask" ||
                sink->get<std::string>("taskOp") != "Conv" ||
                sink->get<std::string>("splitStrategy") == "SplitOverK")
