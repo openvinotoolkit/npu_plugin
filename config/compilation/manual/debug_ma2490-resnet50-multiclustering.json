@@ -485,7 +485,10 @@
                 "name": "ConvertDot",
                 "input": "output/dots/TaskControlFlows_model_transitive_reduction.dot"
             },
-            "HangingDmaControlFlows",
+            {
+                "name": "HangingDmaControlFlows",
+                "weights_prefetch": 2
+            },
             "TransitiveReduction",
             "LayerNumbering",
             {
