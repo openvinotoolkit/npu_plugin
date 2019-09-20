@@ -65,7 +65,7 @@
                         "name_filter": ".*",
                         "inputActivationSparsity": true,
                         "outputActivationSparsity": true,
-                        "weightsSparsity": true
+                        "weightsSparsity": false
                     }
                 ]
             },

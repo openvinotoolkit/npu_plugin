@@ -65,7 +65,7 @@
                         "name_filter": ".*",
                         "inputActivationSparsity": true,
                         "outputActivationSparsity": true,
-                        "weightsSparsity": true
+                        "weightsSparsity": false
                     }
                 ]
             },
@@ -100,7 +100,7 @@
                         {"name" : "dpuPerCluster",  "value" : 5   },
                         {"name" : "ddrBandwidth",   "value" : 128 },
                         {"name" : "systemClockMhz", "value" : 500 },
-                        {"name" : "FathomSafetyFactor", " value" : 0.75},
+                        {"name" : "FathomSafetyFactor", " value" : 0.625},
                         {"name" : "dotFileLocation", "value" : "./output/"},
                         {"name" : "jsonOutFileName", "value" : "./output/mcmCompiler_strategy_output.json"}
                     ],
