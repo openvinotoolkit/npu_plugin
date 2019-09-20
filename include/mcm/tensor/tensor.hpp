@@ -288,7 +288,7 @@ namespace mv
 
         BinaryData toBinary();
         std::vector<unsigned> computeNumericStrides() const;
-        std::size_t computeTotalSize(unsigned int alignment = 16, bool base = false) const;
+        std::size_t computeTotalSize(unsigned int alignment = 16, bool base = false, bool fatherTensorAligned = false) const;
         std::size_t getClusterSize(unsigned int alignment = 16, bool base = false) const;
         void splitAcrossClusters(std::vector<Workload>, bool splitOverH, bool multicast);
 

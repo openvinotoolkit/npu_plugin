@@ -1017,9 +1017,11 @@ std::size_t mv::Tensor::getClusterSize(unsigned int alignment, bool isBase) cons
     if (!isBroadcasted())
     {
         res = 0;
+        bool isTensorAligned = hasAttr("alignment") ? get<bool>("alignment") : false;
+
         for (size_t tIdx = 0; tIdx < subTensors_.size(); tIdx++)
         {
-            auto size = subTensors_[tIdx]->computeTotalSize(alignment, isBase);
+            auto size = subTensors_[tIdx]->computeTotalSize(alignment, isBase,isTensorAligned);
             if (size > res)
                 res = size;
         }
@@ -1032,7 +1034,7 @@ std::size_t mv::Tensor::getClusterSize(unsigned int alignment, bool isBase) cons
     return res;
 }
 
-std::size_t mv::Tensor::computeTotalSize(unsigned int alignment, bool isBase) const
+std::size_t mv::Tensor::computeTotalSize(unsigned int alignment, bool isBase, bool fatherTensorAligned) const
 {
     std::size_t res;
 
@@ -1059,7 +1061,8 @@ std::size_t mv::Tensor::computeTotalSize(unsigned int alignment, bool isBase) co
     }
     bool isTensorAligned = hasAttr("alignment") ? get<bool>("alignment") : false;
     size_t totalSize = shape.totalSize();
-    if (isTensorAligned)
+    //TODO update that to proper alignment
+    if (isTensorAligned || fatherTensorAligned)
     {
         auto outputChannels = shape[mv::IO_CHANNEL_DIMENSION];
         if (outputChannels % alignment != 0)
