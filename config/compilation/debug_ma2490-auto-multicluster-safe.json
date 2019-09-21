@@ -127,7 +127,7 @@
                         {"name" : "dpuPerCluster",  "value" : 5   },
                         {"name" : "ddrBandwidth",   "value" : 128 },
                         {"name" : "systemClockMhz", "value" : 500 },
-                        {"name" : "FathomSafetyFactor", " value" : 0.8},
+                        {"name" : "FathomSafetyFactor", " value" : 0.675},
                         {"name" : "dotFileLocation", "value" : "./output/"},
                         {"name" : "jsonOutFileName", "value" : "./output/mcmCompiler_strategy_output.json"}
                     ],
@@ -301,8 +301,7 @@
                 "input": "output/dots/TaskControlFlows_model_transitive_reduction.dot"
             },
             {
-                "name":"HangingDmaControlFlows",
-                "weights_prefetch": 2
+                "name":"HangingDmaControlFlows"
             },
             "TransitiveReduction",
             "LayerNumbering",
