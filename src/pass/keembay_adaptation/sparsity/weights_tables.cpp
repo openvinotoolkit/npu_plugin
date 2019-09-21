@@ -58,9 +58,9 @@ void populateSparseDataPointerMultiCluster(mv::Tensor& weightsTableData, mv::Dat
         int pad = globalParams->hasAttr("VPU2ChannelPadding") ? globalParams->get<int>("VPU2ChannelPadding") : 16;
 
         unsigned numClusters = globalParams->get<int>("Number_of_Clusters");
-        auto opStrategy = dpuTaskOp->get<std::string>("splitStrategy");
-        if (opStrategy == "HKSwitch"|| opStrategy == "SplitOverK")
-            pad = pad * numClusters;
+        //auto opStrategy = dpuTaskOp->get<std::string>("splitStrategy");
+        //if (opStrategy == "HKSwitch"|| opStrategy == "SplitOverK")
+        //    pad = pad * numClusters;
         std::size_t sizeToIterate = 0;
         std::size_t totalSizeToIterate = 0;
         auto tensorNeedsAlignment = dpuTaskOp->getInputTensor(1)->hasAttr("alignment") ? dpuTaskOp->getInputTensor(1)->get<bool>("alignment") : false;
@@ -95,11 +95,12 @@ void populateDenseDataPointerMultiCluster(mv::Tensor& weightsTableData, mv::Data
         int pad = globalParams->hasAttr("VPU2ChannelPadding") ? globalParams->get<int>("VPU2ChannelPadding") : 16;
 
         unsigned numClusters = globalParams->get<int>("Number_of_Clusters");
-        auto opStrategy = dpuTaskOp->get<std::string>("splitStrategy");
-        if (opStrategy == "HKSwitch"|| opStrategy == "SplitOverK")
-            pad = pad * numClusters;
+        //auto opStrategy = dpuTaskOp->get<std::string>("splitStrategy");
+        //if (opStrategy == "HKSwitch"|| opStrategy == "SplitOverK")
+        //    pad = pad * numClusters;
         std::size_t sizeToIterate = 0;
         std::size_t totalSizeToIterate = 0;
+
         auto tensorNeedsAlignment = dpuTaskOp->getInputTensor(1)->hasAttr("alignment") ? dpuTaskOp->getInputTensor(1)->get<bool>("alignment") : false;
         for (unsigned i = 0; i < numClusters; i++)
         {
@@ -219,7 +220,7 @@ void populateWeightsTablesActivationAndBias(mv::Tensor& weightsTableData, mv::Da
     auto globalParams = model.getGlobalConfigParams();
     int pad = globalParams->hasAttr("VPU2ChannelPadding") ? globalParams->get<int>("VPU2ChannelPadding") : 16;
     unsigned numClusters = globalParams->get<int>("Number_of_Clusters");
-    if (opStrategy == "HKSwitch"|| opStrategy == "SplitOverK")
+    if ((outputChannels % pad != 0) && (opStrategy == "HKSwitch"|| opStrategy == "SplitOverK"))
         pad = pad * numClusters;
 
     if (outputChannels % pad != 0)
@@ -366,9 +367,12 @@ static void generateWeightsTablesFcn(const mv::pass::PassEntry&, mv::Computation
                 std::string kernelWeightsTableName(mv::createWeightTableName(opName));
                 auto layerpad = pad;
                 auto opStrategy = dpuTaskOp->get<std::string>("splitStrategy");
-                if (opStrategy == "HKSwitch"|| opStrategy == "SplitOverK")
+                auto outputChannels = dpuTaskOp->getOutputTensor(0)->getShape()[mv::IO_CHANNEL_DIMENSION];
+                if ((outputChannels % pad) != 0 && (opStrategy == "HKSwitch"|| opStrategy == "SplitOverK"))
+                {
                     layerpad = layerpad * numberClusters;
-                auto outputChannels = mv::round_up(dpuTaskOp->getOutputTensor(0)->getShape()[mv::IO_CHANNEL_DIMENSION], layerpad);
+                }
+                outputChannels = mv::round_up(dpuTaskOp->getOutputTensor(0)->getShape()[mv::IO_CHANNEL_DIMENSION], layerpad);
                 // per channel layout:
                 // 3 -> bias
                 // 2 -> mult << 16 | round << 14 |  shift << 8 | prelu

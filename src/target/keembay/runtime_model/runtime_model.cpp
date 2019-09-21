@@ -1172,13 +1172,6 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
         auto weightsTableTensorIterator = opIt->getInputTensor(opIt->get<std::size_t>("weightsTableIndex"));
         toBuild->weights_table = buildTensorReferenceT(cm, compilationDescriptor, weightsTableTensorIterator, clusterId);
     }
-    if (parentOutputTensor->hasAttr("alignment"))
-    {
-        if (toBuild->weights_table->dimensions[0] != toBuild->output_data->dimensions[1])
-        {
-            toBuild->output_data->dimensions[1] = toBuild->weights_table->dimensions[0];
-        }
-    }
 
     switch (toBuild->dpu_task_type)
     {
@@ -1191,6 +1184,14 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
             break;
         default:
             break;
+    }
+
+    if (parentOutputTensor->hasAttr("alignment"))
+    {
+        if (toBuild->weights_data->dimensions[0] != toBuild->output_data->dimensions[1])
+        {
+            toBuild->output_data->dimensions[1] = toBuild->weights_data->dimensions[0];
+        }
     }
 
     return toBuild;
