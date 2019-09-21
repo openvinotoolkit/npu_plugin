@@ -879,13 +879,13 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
                     if(opIt->getInputTensor()[0]->get<std::string>("splitStrategy") == "SplitOverH")
                         alignSubTensor(cm, tmp->src, opIt->getInputTensor(0)->getSubTensor(i), padFinalOutput);
 
-                    else 
+                    else
                         alignTensor(cm, tmp->src, opIt->getInputTensor(0), padFinalOutput);
-                    
+
                 }
                 if (padFinalOutput && opIt->getOutputTensor(0)->hasAttr("alignment"))
                 {
-                    if(opIt->getInputTensor()[0]->get<std::string>("splitStrategy") == "SplitOverH") 
+                    if(opIt->getInputTensor()[0]->get<std::string>("splitStrategy") == "SplitOverH")
                     {
                         int pad = globalConfigParams->hasAttr("VPU2ChannelPadding") ? globalConfigParams->get<int>("VPU2ChannelPadding") : 16;
                         alignSubTensor(cm, tmp->dst, opIt->getOutputTensor(0)->getSubTensor(i), padFinalOutput);
@@ -899,7 +899,7 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
                         tmp->dst->strides = numericStrides;
                     }
 
-                    else 
+                    else
                         alignTensor(cm, tmp->dst, opIt->getOutputTensor(0), padFinalOutput);
                 }
             }
@@ -1180,7 +1180,7 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
         dimensions = {dimensions[mv::IO_WIDTH_DIMENSION], dimensions[mv::IO_HEIGHT_DIMENSION], outputChannelsPadded, dimensions[mv::IO_BATCH_DIMENSION]};
         auto numericStrides = parentOutputTensor->getOrder().computeByteStrides(mv::Shape(dimensions), parentOutputTensor->getDType().getSizeInBits() / 8);
 
-        if (opStrategy == "SplitOverH") 
+        if (opStrategy == "SplitOverH")
         {
 
             numericStrides = parentOutputTensor->getSubTensor(clusterId).getOrder().computeByteStrides(mv::Shape({
@@ -1188,8 +1188,7 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
                  mv::round_up(parentOutputTensor->getSubTensor(clusterId).getShape()[IO_CHANNEL_DIMENSION], pad), parentOutputTensor->getSubTensor(clusterId).getShape()[IO_BATCH_DIMENSION]})
             , parentOutputTensor->getSubTensor(clusterId).getDType().getSizeInBits() / 8);
 
-            auto paddOutput = globalConfigParams->hasAttr("PadOutput") ? globalConfigParams->get<bool>("PadOutput") : false;
-            alignTensor(cm, toBuild->parent_output_tensor, opIt->getOutputTensor(0), paddOutput);
+            alignTensor(cm, toBuild->parent_output_tensor, opIt->getOutputTensor(0));
         }
 
         numericStrides.push_back(parentOutputTensor->getDType().getSizeInBits() / 8);
@@ -1206,7 +1205,7 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
         auto numericStrides = parentInputTensor->getOrder().computeByteStrides(mv::Shape(dimensions), parentInputTensor->getDType().getSizeInBits() / 8);
         int pad = globalConfigParams->hasAttr("VPU2ChannelPadding") ? globalConfigParams->get<int>("VPU2ChannelPadding") : 16;
 
-        if (opStrategy == "SplitOverH") 
+        if (opStrategy == "SplitOverH")
         {
             std::vector<std::size_t> new_dimensions = {
                 parentInputTensor->getSubTensor(clusterId).getShape()[IO_WIDTH_DIMENSION],parentInputTensor->getSubTensor(clusterId).getShape()[IO_HEIGHT_DIMENSION],
@@ -1215,12 +1214,11 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
             numericStrides = parentInputTensor->getSubTensor(clusterId).getOrder().computeByteStrides(mv::Shape(new_dimensions)
             , parentInputTensor->getSubTensor(clusterId).getDType().getSizeInBits() / 8);
 
-            auto paddOutput = globalConfigParams->hasAttr("PadOutput") ? globalConfigParams->get<bool>("PadOutput") : false;
-            alignTensor(cm, toBuild->parent_input_tensor, opIt->getInputTensor(0), paddOutput);
-            
+            alignTensor(cm, toBuild->parent_input_tensor, opIt->getInputTensor(0), true); //????
+
             numericStrides.push_back(parentOutputTensor->getDType().getSizeInBits() / 8);
-        
-            
+
+
             std::reverse(new_dimensions.begin(), new_dimensions.end());
 
             std::reverse(numericStrides.begin(), numericStrides.end());
@@ -1264,6 +1262,17 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
             break;
         default:
             break;
+    }
+    if (parentOutputTensor->hasAttr("alignment"))
+    {
+        if (toBuild->weights_data->dimensions[0] != toBuild->output_data->dimensions[1])
+        {
+            std::cout << parentOutputTensor->getName() << " has alignment and dimensions of output dont match weight table ";
+            std::cout << std::to_string(toBuild->weights_data->dimensions[0]) << " vs " << std::to_string(toBuild->output_data->dimensions[1]) << std::endl;
+
+            toBuild->output_data->dimensions[1] = toBuild->weights_data->dimensions[0];
+        }
+
     }
 
     if (parentOutputTensor->hasAttr("alignment"))
