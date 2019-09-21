@@ -471,7 +471,11 @@ std::size_t bestFitSelect(std::string& name, mv::TensorInterferenceGraph& g, lon
 }
 
 
-size_t bestFitMemoryAllocation(mv::ComputationModel& model, std::queue<std::string>& order, mv::TensorInterferenceGraph& g, long long memorySize)
+size_t bestFitMemoryAllocation(mv::ComputationModel& model,
+                            std::queue<std::string>& order,
+                            mv::TensorInterferenceGraph& g,
+                            long long memorySize,
+                            bool isHeap)
 {
     size_t chromaticNumber = 0;
     std::size_t directedGraphEdgeMaxId = 0;
@@ -507,7 +511,7 @@ size_t bestFitMemoryAllocation(mv::ComputationModel& model, std::queue<std::stri
         mv::Data::BufferIterator tensorBufferIt = tensorAllocator.getBuffer(0, t); // 0 is the only stage for now, but this will probably change in the future
         tensorBufferIt->setOffset((*it).address);
     }
-    if (maxHeight != chromaticNumber)
+    if (isHeap && maxHeight != chromaticNumber)
         throw mv::ArgumentError("Graph Coloring produced overlap!", "", "chromaticNumber is not correct!!", "chromaticNumber " + std::to_string(chromaticNumber) + " maxHeight " + std::to_string(maxHeight));
     ///test address allocation dont overlap:
     for (mv::TensorInterferenceGraph::node_list_iterator ni = g.node_begin(); ni != g.node_end(); ++ni)
@@ -585,7 +589,8 @@ void tensorGraphColoringFnc(const mv::pass::PassEntry& pass, mv::ComputationMode
 
     auto agOrder = aggressiveSimplify(ddr_heap_g, memsize, mv::OrderingStrategy::IG_LARGEST_NEIGHBORS_FIRST);
     //printASOrder(agOrder, "DDR_HEAP");
-    size_t maxMemoryUsed = bestFitMemoryAllocation(model, agOrder, ddr_heap_g, memsize);
+    bool isHeap = true;
+    size_t maxMemoryUsed = bestFitMemoryAllocation(model, agOrder, ddr_heap_g, memsize, isHeap);
     globalConfigParams->set<int>("DDRScratch", maxMemoryUsed);
     if(passDesc.hasAttr("heapOutput"))
         ddr_heap_g.drawGraph(passDesc.get<std::string>("heapOutput"));
@@ -618,9 +623,7 @@ void tensorGraphColoringFnc(const mv::pass::PassEntry& pass, mv::ComputationMode
     agOrder = aggressiveSimplify(nncmx_g, memsize, mv::OrderingStrategy::IG_LARGEST_NEIGHBORS_FIRST);
     //printASOrder(agOrder, "NNCMX");
     pass.log(mv::Logger::MessageType::Info, " Calling bestFitMemoryAllocation");
-    //if(passDesc.hasAttr("cmxOutput"))
-       //nncmx_g.drawGraph(passDesc.get<std::string>("cmxOutput"));
-    bestFitMemoryAllocation(model, agOrder, nncmx_g, memsize);
+    bestFitMemoryAllocation(model, agOrder, nncmx_g, memsize, !isHeap);
     pass.log(mv::Logger::MessageType::Info, " Calling DrawGraph");
     if(passDesc.hasAttr("cmxOutput"))
         nncmx_g.drawGraph(passDesc.get<std::string>("cmxOutput"));

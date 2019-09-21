@@ -87,14 +87,11 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);
 
-    auto globalConfigParams = model.getGlobalConfigParams();
-
-    bool weightsSparsity = globalConfigParams->hasAttr("WeightsSparsity") ? globalConfigParams->get<bool>("WeightsSparsity") : false;
-
     for(auto dpuTask = om.opBegin(); dpuTask != om.opEnd(); ++dpuTask)
     {
         if(dpuTask->getOpType() == "DPUTask")
         {
+            bool weightsSparsity = dpuTask->hasAttr("weightsSparsity") ? dpuTask->get<bool>("weightsSparsity") : false;
             std::string taskOp = dpuTask->get<std::string>("taskOp");
             pass.log(mv::Logger::MessageType::Debug, " taskOp "  + dpuTask->get<std::string>("taskOp"));
             bool isChannelMajorConv = taskOp == "ChannelMajorConvolution";
@@ -189,10 +186,13 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
             {
                 //Here only in the case of ZMajorConvolution
 
-                // POC ONLY CONDITION
-                //if(!dpuTask->getInputTensor(0)->isSparse())
-                    //continue;
+                // NOTE: Adding limitation for the release:
+                // We can't have weights sparsity for SOK ZMajor convolution
+                // Will be solved in the next sprint
 
+                if(dpuTask->hasAttr("splitStrategy"))
+                    if(dpuTask->get<std::string>("splitStrategy") == "SplitOverK")
+                        continue;
                 auto weightsTensor = dpuTask->getInputTensor(1);
                 sparseWeights(weightsTensor, model);
             }
@@ -237,33 +237,67 @@ bool checkA0SOHSparsityBug(mv::Data::FlowListIterator flow)
 // In the future, these two conditions could change. We have to sync with runtime.
 
 // Eltwise, being the hackiest operation ever, potentially can support sparsity input, sharing the IDU with ZMajorConv, but the runtime currently doesn't allow it.
-
-static void generateSparsityMapsUnpopulatedTensorsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&)
+// The inner loop of this function must iterate on tensors, not data flows
+static void generateSparsityMapsUnpopulatedTensorsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&)
 {
 
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::DataModel dm(model);
 
-    auto globalConfigParams = model.getGlobalConfigParams();
-
-    bool activationSparsity = globalConfigParams->hasAttr("ActivationSparsity") ? globalConfigParams->get<bool>("ActivationSparsity") : false;
-
-    for(auto dataFlow = dm.flowBegin(); dataFlow != dm.flowEnd(); ++dataFlow)
+    for(auto tensor = dm.tensorBegin(); tensor != dm.tensorEnd(); ++tensor)
     {
-        auto source = dataFlow.source();
-        auto sink = dataFlow.sink();
-        auto tensor = dataFlow->getTensor();
+        // Probably an inner tensor, skip
+        if(!tensor->hasAttr("flows"))
+            continue;
 
-        if(activationSparsity)
+        // Populated tensor, skip
+        if(tensor->isPopulated())
+            continue;
+
+        auto flows = tensor->get<std::set<std::string>>("flows");
+
+        bool tensorSparsifiable = true;
+        bool tensorNeedsSparsity = false;
+        bool inputActivationSparsity = false;
+        bool outputActivationSparsity = false;
+
+        // Conditions for activation sparsity
+        // 1) The source of the activation tensor must be a DPUTask (Otherwise there's no ODU to write SM, SE)
+        // 2) The sink of the activation tensor must be a ZMajor Convolution, the only operation
+        //    with an IDU capable of handling sparsity data
+        // 3) Runtime doesn't support SOK and activation sparsity neither in input nor output
+        for(auto& flowStr: flows)
         {
-            if(!tensor->isPopulated() && source->getOpType() == "DPUTask" && sink->getOpType() == "DPUTask" && sink->get<std::string>("taskOp") == "Conv")
-                tensor->setSparse();
+            auto flow = dm.getDataFlow(flowStr);
+            if(checkA0SOHSparsityBug(flow))
+            {
+                tensorNeedsSparsity = true;
+                break;
+            }
         }
-        else
+        for(auto& flowStr: flows)
         {
-            if(checkA0SOHSparsityBug(dataFlow))
-                tensor->setSparse();
+            auto flow = dm.getDataFlow(flowStr);
+            auto source = flow.source();
+            auto sink = flow.sink();
+            outputActivationSparsity |= source->hasAttr("outputActivationSparsity") ? source->get<bool>("outputActivationSparsity") : false;
+            inputActivationSparsity |= sink->hasAttr("inputActivationSparsity") ? sink->get<bool>("inputActivationSparsity") : false;
+            if(source->getOpType() != "DPUTask" ||
+               source->get<std::string>("splitStrategy") == "SplitOverK" ||
+               source->get<std::string>("taskOp") == "DepthwiseConv" || //TESTING ONLY!
+               sink->getOpType() != "DPUTask" ||
+               sink->get<std::string>("taskOp") != "Conv" ||
+               sink->get<std::string>("splitStrategy") == "SplitOverK")
+            {
+                tensorSparsifiable = false;
+                break;
+            }
         }
+
+        if(tensorNeedsSparsity && !tensorSparsifiable)
+            throw std::runtime_error("Wrong strategy generated: tensor " + tensor->getName() + " needs sparsity but it can't be sparsified");
+        if((tensorSparsifiable && inputActivationSparsity && outputActivationSparsity) || tensorNeedsSparsity)
+            tensor->setSparse();
     }
 }
 
@@ -284,7 +318,6 @@ static void sparseWeights(mv::Data::TensorIterator& weightsTensor, mv::Computati
         auto sparsityMapOp = om.getSourceOp(sparsityMap);
         auto weights = om.getSourceOp(weightsTensor);
 
-        weights->set<bool>("sparse", true);
         sparsityMapOp->set<unsigned>("opId", weights->get<unsigned>("opId"));
         auto outputFlows = mv::getOutputDataFlow(om, weights, false);
         for(auto& output: outputFlows)

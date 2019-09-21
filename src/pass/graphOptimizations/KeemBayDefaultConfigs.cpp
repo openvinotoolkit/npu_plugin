@@ -42,52 +42,68 @@ MV_OPTIMIZER_LAYER_STRATEGY_REGISTRY()
     .enter("Conv")
     .registerSet("streamingStrategies").insert(vector<string>{"StreamOverH","StreamOverW","StreamOverK"})
     .registerSet("clusteringStrategies").insert(vector<string>{"Clustering","SplitOverH","SplitOverHOverlapped"})
-    .registerSet("sparsity").insert(false);
+    .registerSet("inputActivationSparsity").insert(true)
+    .registerSet("outputActivationSparsity").insert(true)
+    .registerSet("weightsSparsity").insert(true);
 
 MV_OPTIMIZER_LAYER_STRATEGY_REGISTRY()
     .enter("DepthwiseConv")
     .registerSet("streamingStrategies").insert(vector<string>{"StreamOverH","StreamOverW"})
     .registerSet("ClusteringStrategies").insert(vector<string>{"Clustering","SplitOverH","SplitOverHOverlapped"})
-    .registerSet("sparsity").insert(false);
+    .registerSet("inputActivationSparsity").insert(false)
+    .registerSet("outputActivationSparsity").insert(true)
+    .registerSet("weightsSparsity").insert(false);
 
 MV_OPTIMIZER_LAYER_STRATEGY_REGISTRY()
     .enter("DepthWiseConv")
     .registerSet("streamingStrategies").insert(vector<string>{"StreamOverH","StreamOverW"})
     .registerSet("ClusteringStrategies").insert(vector<string>{"Clustering","SplitOverH","SplitOverHOverlapped"})
-    .registerSet("sparsity").insert(false);
+    .registerSet("inputActivationSparsity").insert(false)
+    .registerSet("outputActivationSparsity").insert(true)
+    .registerSet("weightsSparsity").insert(false);
 
 MV_OPTIMIZER_LAYER_STRATEGY_REGISTRY()
     .enter("MaxPool")
     .registerSet("streamingStrategies").insert(vector<string>{"StreamOverH","StreamOverW"})
     .registerSet("clusteringStrategies").insert(vector<string>{"Clustering","SplitOverH","HKSwitch"})
-    .registerSet("sparsity").insert(false);
+    .registerSet("inputActivationSparsity").insert(false)
+    .registerSet("outputActivationSparsity").insert(true)
+    .registerSet("weightsSparsity").insert(false);
 
 MV_OPTIMIZER_LAYER_STRATEGY_REGISTRY()
     .enter("Eltwise")
     .registerSet("streamingStrategies").insert(vector<string>{"StreamOverH","StreamOverW"})
     .registerSet("clusteringStrategies").insert(vector<string>{"Clustering","SplitOverH","HKSwitch"})
-    .registerSet("sparsity").insert(false);
+    .registerSet("inputActivationSparsity").insert(false)
+    .registerSet("outputActivationSparsity").insert(true)
+    .registerSet("weightsSparsity").insert(false);
 
 MV_OPTIMIZER_LAYER_STRATEGY_REGISTRY()
     .enter("Concat")
     .registerSet("streamingStrategies").insert(vector<string>(0))
     .registerSet("clusteringStrategies").insert(vector<string>{"Clustering"})
     .registerSet("forceSpilling").insert(true)
-    .registerSet("sparsity").insert(false);
+    .registerSet("inputActivationSparsity").insert(false)
+    .registerSet("outputActivationSparsity").insert(false)
+    .registerSet("weightsSparsity").insert(false);
 
 MV_OPTIMIZER_LAYER_STRATEGY_REGISTRY()
     .enter("Input")
     .registerSet("streamingStrategies").insert(vector<string>(0))
     .registerSet("clusteringStrategies").insert(vector<string>{"Clustering","SplitOverHOverlapped"})
     .registerSet("forceSpilling").insert(false)
-    .registerSet("sparsity").insert(false);
+    .registerSet("inputActivationSparsity").insert(false)
+    .registerSet("outputActivationSparsity").insert(false)
+    .registerSet("weightsSparsity").insert(false);
 
 MV_OPTIMIZER_LAYER_STRATEGY_REGISTRY()
     .enter("Output")
     .registerSet("streamingStrategies").insert(vector<string>(0))
     .registerSet("clusteringStrategies").insert(vector<string>{"Clustering"})
     .registerSet("forceSpilling").insert(true)
-    .registerSet("sparsity").insert(false);
+    .registerSet("inputActivationSparsity").insert(false)
+    .registerSet("outputActivationSparsity").insert(false)
+    .registerSet("weightsSparsity").insert(false);
 
 }
 }

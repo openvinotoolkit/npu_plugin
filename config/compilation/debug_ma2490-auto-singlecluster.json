@@ -14,9 +14,18 @@
                 "UpaShaves": 1,
                 "DDRScratch": 31457280,
                 "MemoryHack": false,
-                "ActivationSparsity": false,
                 "WeightsSparsity": false,
+                "ConvertDots": false,
                 "cmx": 917504,
+                "sparsity_strategy" :
+                [
+                    {
+                        "name_filter": ".*",
+                        "inputActivationSparsity": false,
+                        "outputActivationSparsity": false,
+                        "weightsSparsity": false
+                    }
+                ],
                 "split_strategy" :
                 [
                     {
@@ -122,7 +131,7 @@
                         {"name" : "jsonOutFileName", "value" : "./output/mcmCompiler_strategy_output.json"}
                     ],
                     "globalStrategies" : [
-                        {"name" : "forceSpilling",    "value" : false       },
+                        {"name" : "forceSpilling",    "value" : true       },
                         {"name" : "enableStreaming",   "value" : true       },
                         {"name" : "doubleBuffering",   "value" : false      },
                         {"name" : "scooby" ,            "value" : "doo"},
@@ -172,6 +181,7 @@
                     ]
                 }
             },
+            "StoreLayerSparsityStrategy",
             "StoreLayerSplitStrategy",
             "StoreTensorPlacement",
             "StreamingTiling",
@@ -205,11 +215,9 @@
             "StrategyLayersToTensors",
             "ComputeTensorsQuantParams",
             "UpdateImplicitLayersQuantizationParams",
-
-
             "PopulateWeightsTablesQuantization",
             "RemoveBiasTensors",
-
+            "SplittingTensorsAcrossClusters",
             {
                 "name": "GenerateDot",
                 "output": "output/dots/keembay_adapt_model.dot",
@@ -291,7 +299,10 @@
                 "name": "ConvertDot",
                 "input": "output/dots/TaskControlFlows_model_transitive_reduction.dot"
             },
-            "HangingDmaControlFlows",
+            {
+                "name":"HangingDmaControlFlows",
+                "weights_prefetch": 2
+            },
             "TransitiveReduction",
             "LayerNumbering",
             {
@@ -322,7 +333,6 @@
     },
     "finalize": {
         "Singular": [
-            "SplittingTensorsAcrossClusters",
             "AddDeallocationTasks",
             {
                 "name": "TransitiveReduction",
@@ -384,9 +394,15 @@
         "Singular": [
             "StoreBarriersNamesInTasks",
             "GenerateExecutionSchedule",
-            "CorrectExecutionSchedule",
             "BarrierIndexAssignment",
-            "UpdateBarrierRefs"
+            "UpdateBarrierRefs",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/serial_model.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
+            }
         ]
     },
     "validate": {

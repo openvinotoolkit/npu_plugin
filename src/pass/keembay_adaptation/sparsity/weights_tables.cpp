@@ -48,16 +48,12 @@ void populateSparseDataPointerMultiCluster(mv::Tensor& weightsTableData, mv::Dat
         for (size_t i = 0, k = 0; i < weightsTableData.size(); i+=BYTES_PER_WT_ELEMENT)
         {
             // First increment is always 0
-            weightsTableData(i+ addingIndex) = offset + increments[k];
-            //std::cout << "Channel  " << k << " " << " Offset " << offset << " Increment " << increments[k] << " Result " << static_cast<int64_t>(weightsTableData(i));
-            //if(k > 0)
-                //std::cout << " Difference " << static_cast<int64_t>(weightsTableData(i)) - static_cast<int64_t>(weightsTableData(i-BYTES_PER_WT_ELEMENT));
-            //std::cout << std::endl;
-            ++k;
+            weightsTableData(i+ addingIndex) = offset + increments[k++];
         }
     }
     else
     {
+        //NOTE: k index handling has to be checked when testing SplitOverK + Sparsity
         auto globalParams = model.getGlobalConfigParams();
         int pad = globalParams->hasAttr("VPU2ChannelPadding") ? globalParams->get<int>("VPU2ChannelPadding") : 16;
 
@@ -77,7 +73,7 @@ void populateSparseDataPointerMultiCluster(mv::Tensor& weightsTableData, mv::Dat
                 output_channels = mv::round_up(output_channels, pad);
 
             sizeToIterate = output_channels * BYTES_PER_WT_ELEMENT;
-            for (size_t j = 0, k = 0; j < weightsTableData.getClusterSize(i); j+=BYTES_PER_WT_ELEMENT)
+            for (size_t j = 0, k = 0; j < weightsTableData.getSubTensor(i).size(); j+=BYTES_PER_WT_ELEMENT)
                 // First increment is always 0
                 weightsTableData(j + addingIndex + totalSizeToIterate) = offset + increments[k++];
             totalSizeToIterate += sizeToIterate;
@@ -288,7 +284,6 @@ static void populateWeightsTablesQuantizationFcn(const mv::pass::PassEntry& , mv
                (dpuTaskOp->get<std::string>("taskOp") == "MaxPool") ||
                (dpuTaskOp->get<std::string>("taskOp") == "DepthwiseConv"))
             {
-                // This pass is executed when there are not DMA Tasks yet, no hack needed
                 auto weightsTable = dpuTaskOp->getInputTensor(dpuTaskOp->get<std::size_t>("weightsTableIndex"));
                 populateWeightsTablesActivationAndBias(*weightsTable, dpuTaskOp, model);
             }
@@ -339,18 +334,15 @@ static void populateWeightsTablesPointersFcn(const mv::pass::PassEntry& , mv::Co
                (dpuTaskOp->get<std::string>("taskOp") == "MaxPool") ||
                (dpuTaskOp->get<std::string>("taskOp") == "DepthwiseConv"))
             {
-                // Necessary hack since data is copied with DMA and we are not using a shared_ptr
                 auto weightsTable = dpuTaskOp->getInputTensor(dpuTaskOp->get<std::size_t>("weightsTableIndex"));
-                auto weightsTableOp = om.getSourceOp(weightsTable);
-                weightsTableOp = weightsTableOp.leftmostParent();
-                weightsTable = weightsTableOp->getOutputTensor(0);
                 populateWeightsTablesDataPointers(*weightsTable, dpuTaskOp, model);
                 populateWeightsTablesSparsityPointers(*weightsTable, dpuTaskOp, model);
             }
         }
     }
 }
-static void generateWeightsTablesFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+
+static void generateWeightsTablesFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);
