@@ -1263,9 +1263,10 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
         default:
             break;
     }
+
     if (parentOutputTensor->hasAttr("alignment"))
     {
-        if (toBuild->weights_data->dimensions[0] != toBuild->output_data->dimensions[1])
+        if (toBuild->output_data->dimensions[1] % 16 != 0 && toBuild->weights_data->dimensions[0] != toBuild->output_data->dimensions[1])
         {
             std::cout << parentOutputTensor->getName() << " has alignment and dimensions of output dont match weight table ";
             std::cout << std::to_string(toBuild->weights_data->dimensions[0]) << " vs " << std::to_string(toBuild->output_data->dimensions[1]) << std::endl;
@@ -1273,14 +1274,6 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
             toBuild->output_data->dimensions[1] = toBuild->weights_data->dimensions[0];
         }
 
-    }
-
-    if (parentOutputTensor->hasAttr("alignment"))
-    {
-        if (toBuild->weights_data->dimensions[0] != toBuild->output_data->dimensions[1])
-        {
-            toBuild->output_data->dimensions[1] = toBuild->weights_data->dimensions[0];
-        }
     }
 
     return toBuild;
