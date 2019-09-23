@@ -22,12 +22,13 @@ namespace mv
     {
         int id; 
         std::string name;
+        std::string opType;
         int cost; //Required for optimal partial serialisation (minimises increase in the critical path)
         bool sourceNode;
         bool sinkNode;
 
-        nodeDescription(int id=0, std::string aname = "", int cost = 0, bool sourcenode = false, bool sinknode = false) :
-            id(id), name(aname), cost(cost), sourceNode(sourcenode), sinkNode(sinknode) { }
+        nodeDescription(int id=0, std::string aname = "", std::string inOpType = "", int cost = 0, bool sourcenode = false, bool sinknode = false) :
+            id(id), name(aname), opType(inOpType), cost(cost), sourceNode(sourcenode), sinkNode(sinknode) { }
     };
 
     /*Lemon Edge info*/

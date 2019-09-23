@@ -46,7 +46,7 @@ void  mv::LemonGraphScheduler::convertMcMGraphToLemonGraph(const mv::pass::PassE
             this->log(mv::Logger::MessageType::Debug, "Adding vertex to Lemon graph: " + opIt->getName());
 
             lemon::ListDigraph::Node currentNode = this->graph_.addNode();
-            this->nodes_[currentNode] = nodeDescription(this->graph_.id(currentNode), opIt->getName(),0, false, true);
+            this->nodes_[currentNode] = nodeDescription(this->graph_.id(currentNode), opIt->getName(), opIt->getOpType(), 0, false, true);
             this->graphSinkNode_ = currentNode;
             nodeAdded = true;
         }
@@ -55,7 +55,7 @@ void  mv::LemonGraphScheduler::convertMcMGraphToLemonGraph(const mv::pass::PassE
         { 
             pass.log(mv::Logger::MessageType::Debug, "Adding vertex to Lemon graph: " + opIt->getName());
             lemon::ListDigraph::Node currentNode = this->graph_.addNode();
-            this->nodes_[currentNode] = nodeDescription(this->graph_.id(currentNode), opIt->getName(),0, true, false);
+            this->nodes_[currentNode] = nodeDescription(this->graph_.id(currentNode), opIt->getName(), opIt->getOpType(), 0, true, false);
             this->graphSourceNode_ = currentNode;
             nodeAdded = true;
         }
@@ -63,7 +63,7 @@ void  mv::LemonGraphScheduler::convertMcMGraphToLemonGraph(const mv::pass::PassE
         {   /*All other nodes between source and sink node*/
             pass.log(mv::Logger::MessageType::Debug, "Adding vertex to Lemon graph: " + opIt->getName());
             lemon::ListDigraph::Node currentNode = this->graph_.addNode();
-            this->nodes_[currentNode] = nodeDescription(this->graph_.id(currentNode), opIt->getName(),0, false, false);
+            this->nodes_[currentNode] = nodeDescription(this->graph_.id(currentNode), opIt->getName(), opIt->getOpType(), 0, false, false);
             nodeAdded = true;
         }
     }
@@ -349,19 +349,7 @@ void mv::LemonGraphScheduler::performPartialSerialisation(const mv::pass::PassEn
         std::string edgeSourceName = this->nodes_[sourceNode].name;
         std::string edgeSinkName = this->nodes_[targetNode].name;
 
-        mv::Control::OpListIterator mcmSourceNodeIterator;
-        mv::Control::OpListIterator mcmSinkNodeIterator;
-
-        /*Find the McM iterator for the source and sink node*/
-        for (auto opItSource = cm.getFirst(); opItSource != cm.opEnd(); ++opItSource) 
-        {    
-            if(opItSource->getName() == edgeSourceName) 
-                mcmSourceNodeIterator = opItSource;
-            if(opItSource->getName() == edgeSinkName) 
-                mcmSinkNodeIterator = opItSource;
-        }
-
-        if (mcmSourceNodeIterator->getOpType() == "Deallocate" && mcmSinkNodeIterator->getOpType() == "Deallocate")
+        if (nodes_[sourceNode].opType == "Deallocate" && nodes_[targetNode].opType == "Deallocate")
         {
             pass.log(mv::Logger::MessageType::Debug, "Not adding dealloc-dealloc edge to Lemon graph from: " + edgeSourceName + " --> " + edgeSinkName);
             continue;
@@ -392,19 +380,7 @@ void mv::LemonGraphScheduler::performPartialSerialisation(const mv::pass::PassEn
                 }
             }
 
-            mv::Control::OpListIterator mcmSourceNodeIterator;
-            mv::Control::OpListIterator mcmSinkNodeIterator;
-
-            /*Find the McM iterator for the source and sink node*/
-            for (auto opItSource = cm.getFirst(); opItSource != cm.opEnd(); ++opItSource) 
-            {    
-                if(opItSource->getName() == sourcenode.first) 
-                    mcmSourceNodeIterator = opItSource;
-                if(opItSource->getName() == sinknode.first) 
-                    mcmSinkNodeIterator = opItSource;
-            }
-
-            bool do_not_add = mcmSourceNodeIterator->getOpType() == "Deallocate" && mcmSinkNodeIterator->getOpType() == "Deallocate";
+            bool do_not_add = sourcenode.second.opType == "Deallocate" && sinknode.second.opType == "Deallocate";
             if (do_not_add)
             {
                 pass.log(mv::Logger::MessageType::Debug, "Not adding dealloc-dealloc edge to Lemon graph from: " + sourcenode.first + " --> " + sinknode.first);
@@ -415,7 +391,7 @@ void mv::LemonGraphScheduler::performPartialSerialisation(const mv::pass::PassEn
                 possibleEdges.push_back(std::make_pair(sourcenode.second, sinknode.second));
         }
     }
-    
+
     /* Attempt to add each edge to edge in the graph and check if it is still a DAG*/
     /* It is still a DAG then recalculate max topological cut*/
     /* Note in future here is where the optimal edge should be selected such that it minimises the increase in the critical path of the graph*/
@@ -423,6 +399,9 @@ void mv::LemonGraphScheduler::performPartialSerialisation(const mv::pass::PassEn
     {
         auto sourceName = possibleEdge.second.name;
         auto sinkName  = possibleEdge.first.name;
+
+        // TODO: Add logic here to add additional edges if source is a dealloc node emanating from a DPUTask
+
         pass.log(mv::Logger::MessageType::Debug, "Adding partial serialisation edge to Lemon graph from: " + sourceName + " --> " + sinkName );
        
         lemon::ListDigraph::Node tmpSourceNode = this->graph_.nodeFromId(possibleEdge.second.id);
