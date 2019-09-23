@@ -101,12 +101,13 @@ add_subdirectory(contrib/lemon)
 
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
-# find_package(Flatbuffers)
-# if(FLATBUFFERS_FOUND)
-#     include_directories(${FLATBUFFERS_INCLUDE_DIR})
-# else()
-#     message(STATUS "Flatbuffers not found!")
-# endif(FLATBUFFERS_FOUND)
+find_package(Flatbuffers)
+if(FLATBUFFERS_FOUND)
+     include_directories(${FLATBUFFERS_INCLUDE_DIR})
+else()
+     message(STATUS "Flatbuffers not found!")
+     add_subdirectory(contrib/flatbuffers)
+endif(FLATBUFFERS_FOUND)
 
 #############################################################################################
 ### Main build
@@ -121,7 +122,7 @@ endif()
 
 include_directories(${PROJECT_SOURCE_DIR})
 include_directories(${PROJECT_SOURCE_DIR}/include)
-include_directories(${PROJECT_SOURCE_DIR}/contrib/flatbuffers/include)
+#include_directories(${PROJECT_SOURCE_DIR}/contrib/flatbuffers/include)
 
 
 if(VALIDATION)
@@ -512,7 +513,6 @@ IF(NOT CMAKE_CROSSCOMPILING)
     add_subdirectory(examples)
     add_subdirectory(tools)
     add_subdirectory(schema)
-    add_subdirectory(contrib/flatbuffers)
 ENDIF()
 
 if (${PROFILER} AND ${UNIX})

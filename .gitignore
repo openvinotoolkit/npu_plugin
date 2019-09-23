@@ -1,4 +1,5 @@
 build/
+build-debug/
 meta/include/mcm/*
 meta/src/*
 meta/schema/*
@@ -20,3 +21,9 @@ klocwork/
 # CLion
 .idea/
 cmake-build-debug/
+tags
+*.cmake
+.*
+*CMakeFiles*
+CMakeCache*
+tests/Makefile
