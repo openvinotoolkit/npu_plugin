@@ -24,6 +24,8 @@ namespace mv
         class AttributeEntry : public LogSender
         {
 
+
+
             struct GenericFunc
             {
                 virtual ~GenericFunc()
