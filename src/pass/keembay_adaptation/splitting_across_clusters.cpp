@@ -123,7 +123,21 @@ void subTensorsGen(mv::ComputationModel& model, const std::vector <mv::Data::Ten
                 success = Tensor.partitionTensorWithRectangleHeuristic(TENSOR_MPE[1], nWorkloads, true, false, true,
                         mv::WorkloadSplitMode::NC, pass);
             subTensors = Tensor.getWorkloads();
-            //NOTE:Permanent handle for bug in Rectangular Heuristic
+            int16_t difference;
+            std::set<int16_t> differences;
+            for (unsigned idx = 0; idx < nWorkloads; idx++)
+            {
+                difference = subTensors[idx].MaxX - subTensors[idx].MinX;
+                differences.insert(difference);
+            }
+            //NOTE This is coming from the fact of symmetrical split over K
+            if (differences.size() > 1)
+            {
+                auto newSubTensors = fixRectangularHeuristicBug(subTensors, tensor, nWorkloads);
+                subTensors.clear();
+                subTensors = newSubTensors;
+            }
+                //NOTE:Permanent handle for bug in Rectangular Heuristic
             if (subTensors.size() != nWorkloads)
             {
                 auto newSubTensors = fixRectangularHeuristicBug(subTensors, tensor, nWorkloads);
