@@ -3,7 +3,7 @@
 namespace mv
 {
 
-    namespace op
+    namespace op_fully_connected
     {
 
         static std::function<std::pair<bool, std::size_t>(const std::vector<Data::TensorIterator>&,
@@ -40,12 +40,17 @@ namespace mv
                 outputs.push_back(mv::Tensor(":0",{1, 1, inputs[1]->getShape()[KERNEL_HEIGHT], 1}, inputs[0]->getDType(), inputs[0]->getOrder(), args.at("quantParams").get<mv::QuantizationParams>()));
         };
     
+
+    }
+
+    namespace op {
+
         MV_REGISTER_OP(FullyConnected)
         .setInputs({"data", "weights"})
         .setOutputs({"output"})
         .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
-        .setInputCheck(inputCheckFcn)
-        .setOutputDef(outputDefFcn)
+        .setInputCheck(op_fully_connected::inputCheckFcn)
+        .setOutputDef(op_fully_connected::outputDefFcn)
         .setTypeTrait({"executable", "exposed"});
 
     }

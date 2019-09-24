@@ -6,7 +6,7 @@
 namespace mv
 {
 
-    namespace attr
+    namespace attr_ppe_task
     {
 
     static mv::json::Value toJSON(const Attribute& a)
@@ -29,10 +29,14 @@ namespace mv
         return "PPETask::" + a.get<PPETask>().toString();
     }
 
-    MV_REGISTER_ATTR(PPETask)
-        .setToJSONFunc(toJSON)
-        .setFromJSONFunc(fromJSON)
-        .setToStringFunc(toString);
+
+    }
+
+    namespace attr {
+	    MV_REGISTER_ATTR(PPETask)
+		.setToJSONFunc(attr_ppe_task::toJSON)
+		.setFromJSONFunc(attr_ppe_task::fromJSON)
+		.setToStringFunc(attr_ppe_task::toString);
 
     }
 

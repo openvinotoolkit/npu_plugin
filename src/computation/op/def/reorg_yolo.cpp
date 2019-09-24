@@ -3,7 +3,7 @@
 namespace mv
 {
 
-    namespace op
+    namespace op_reorg_yolo
     {
 
         static std::function<std::pair<bool, std::size_t>(const std::vector<Data::TensorIterator>&,
@@ -84,6 +84,10 @@ namespace mv
             outputs.push_back(mv::Tensor(":0", out_shape, input->getDType(), order));
         };
 
+
+    }
+
+    namespace op {
         // Reorg Yolo reorganizes tensor like,
         // e.g. NxCxHxW into Nx(C*4)x(H/2)x(W/2)
 
@@ -91,10 +95,9 @@ namespace mv
         .setInputs({"data"})
         .setOutputs({"output"})
         .setArg<unsigned>("stride")
-        .setInputCheck(inputCheckFcn)
-        .setOutputDef(outputDefFcn)
+        .setInputCheck(op_reorg_yolo::inputCheckFcn)
+        .setOutputDef(op_reorg_yolo::outputDefFcn)
         .setTypeTrait({"executable", "exposed"});
 
     }
-
 }

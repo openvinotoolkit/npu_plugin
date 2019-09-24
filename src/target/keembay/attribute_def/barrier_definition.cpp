@@ -6,7 +6,7 @@
 namespace mv
 {
 
-    namespace attr
+    namespace attr_barrier_definition
     {
 
     static mv::json::Value toJSON(const Attribute& a)
@@ -34,7 +34,7 @@ namespace mv
 
     static Attribute fromJSON(const json::Value&)
     {
-        
+        return Barrier();
     }
 
     static std::string toString(const Attribute& a)
@@ -42,10 +42,14 @@ namespace mv
        return a.get<Barrier>().toString();
     }
 
-    MV_REGISTER_ATTR(Barrier)
-        .setToJSONFunc(toJSON)
-        .setFromJSONFunc(fromJSON)
-        .setToStringFunc(toString);
+
+    }
+
+    namespace attr {
+	    MV_REGISTER_ATTR(Barrier)
+		.setToJSONFunc(attr_barrier_definition::toJSON)
+		.setFromJSONFunc(attr_barrier_definition::fromJSON)
+		.setToStringFunc(attr_barrier_definition::toString);
 
     }
 

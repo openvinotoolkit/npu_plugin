@@ -4,7 +4,7 @@
 namespace mv
 {
 
-    namespace op
+    namespace op_dma
     {
 
         static std::function<std::pair<bool, std::size_t>(const std::vector<Data::TensorIterator>&,
@@ -38,14 +38,16 @@ namespace mv
             }
         };
 
+    }
+
+    namespace op {
         MV_REGISTER_OP(DMATask)
         .setInputs({"data"})
         .setOutputs({"output"})
         .setArg<mv::DmaDirection>("direction")
-        .setInputCheck(inputCheckFcn)
-        .setOutputDef(outputDefFcn)
+        .setInputCheck(op_dma::inputCheckFcn)
+        .setOutputDef(op_dma::outputDefFcn)
         .setTypeTrait({"executable"});
-
     }
 
 }

@@ -3,7 +3,7 @@
 namespace mv
 {
 
-    namespace op
+    namespace op_permute
     {
 
         static std::function<std::pair<bool, std::size_t>(const std::vector<Data::TensorIterator>&,
@@ -68,6 +68,11 @@ namespace mv
         
         };
 
+    }
+
+
+
+    namespace op {
         // Permute:
         // Physically transpose tensor's data according to
         // the given permutation of its dimensions.
@@ -83,10 +88,9 @@ namespace mv
         .setInputs({"data"})
         .setOutputs({"output"})
         .setArg<mv::Order>("order")
-        .setInputCheck(inputCheckFcn)
-        .setOutputDef(outputDefFcn)
+        .setInputCheck(op_permute::inputCheckFcn)
+        .setOutputDef(op_permute::outputDefFcn)
         .setTypeTrait({"executable", "exposed"});
-
     }
 
 }

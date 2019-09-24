@@ -6,7 +6,7 @@
 namespace mv
 {
 
-    namespace attr
+    namespace attr_std_vector_unsigned
     {
 
         static mv::json::Value toJSON(const Attribute& a)
@@ -69,12 +69,16 @@ namespace mv
             return toReturn;
         }
 
-        MV_REGISTER_DUPLICATE_ATTR(std::vector<unsigned>)
-            .setToJSONFunc(toJSON)
-            .setFromJSONFunc(fromJSON)
-            .setToStringFunc(toString)
-            .setToBinaryFunc(toBinary);
 
     }
 
+    namespace attr {
+
+        MV_REGISTER_DUPLICATE_ATTR(std::vector<unsigned>)
+            .setToJSONFunc(attr_std_vector_unsigned::toJSON)
+            .setFromJSONFunc(attr_std_vector_unsigned::fromJSON)
+            .setToStringFunc(attr_std_vector_unsigned::toString)
+            .setToBinaryFunc(attr_std_vector_unsigned::toBinary);
+
+    }
 }

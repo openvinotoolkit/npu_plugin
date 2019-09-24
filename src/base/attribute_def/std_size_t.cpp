@@ -5,7 +5,7 @@
 namespace mv
 {
 
-    namespace attr
+    namespace attr_std_size_t
     {
 
         static mv::json::Value toJSON(const Attribute& a)
@@ -37,12 +37,15 @@ namespace mv
             return std::vector<uint8_t>(std::begin(tmp.bytes), std::end(tmp.bytes));
         }
 
-        MV_REGISTER_DUPLICATE_ATTR(std::size_t)
-            .setToJSONFunc(toJSON)
-            .setFromJSONFunc(fromJSON)
-            .setToStringFunc(toString)
-            .setToBinaryFunc(toBinary);
 
+    }
+
+    namespace attr {
+        MV_REGISTER_DUPLICATE_ATTR(std::size_t)
+            .setToJSONFunc(attr_std_size_t::toJSON)
+            .setFromJSONFunc(attr_std_size_t::fromJSON)
+            .setToStringFunc(attr_std_size_t::toString)
+            .setToBinaryFunc(attr_std_size_t::toBinary);
     }
 
 }

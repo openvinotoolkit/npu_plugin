@@ -3,7 +3,7 @@
 namespace mv
 {
 
-    namespace op
+    namespace op_local_response_normalization
     {
 
         static std::function<std::pair<bool, std::size_t>(const std::vector<Data::TensorIterator>&,
@@ -32,17 +32,21 @@ namespace mv
 
         };
         
+
+    }
+
+    namespace op {
+
         //NOTE: Myriad X only can recieve bias and size parameters for LRN
         MV_REGISTER_OP(LocalResponseNormalization)
         .setInputs({"data"})
         .setOutputs({"output"})
         .setArg<unsigned>("size")
         .setArg<unsigned>("bias")
-        .setInputCheck(inputCheckFcn)
-        .setOutputDef(outputDefFcn)
+        .setInputCheck(op_local_response_normalization::inputCheckFcn)
+        .setOutputDef(op_local_response_normalization::outputDefFcn)
         .setTypeTrait({"executable", "exposed"});
 
     }
 
-    }
-
+}
