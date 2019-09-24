@@ -92,11 +92,15 @@ void setIfPresent(T1& fieldToFill, mv::Element& compilationDescriptor, const std
         fieldToFill = compilationDescriptor.get<T2>(key);
 }
 
-void mv::RuntimeModel::alignTensor(mv::ComputationModel& cm, std::unique_ptr<MVCNN::TensorReferenceT>& tensorT, mv::Data::TensorIterator tensor, bool padFinalOutput)
+void mv::RuntimeModel::alignTensor(mv::ComputationModel& cm, std::unique_ptr<MVCNN::TensorReferenceT>& tensorT, mv::Data::TensorIterator tensor, bool padFinalOutput, bool broadcast)
 {
         auto globalConfigParams = cm.getGlobalConfigParams();
         int pad = globalConfigParams->hasAttr("VPU2ChannelPadding") ? globalConfigParams->get<int>("VPU2ChannelPadding") : 16;
-
+        if (broadcast)
+        {
+            int numberClusters = globalConfigParams->get<int>("Number_of_Clusters");
+            pad = pad * numberClusters;
+        }
         std::vector<std::size_t> dimensions = tensor->getShape();
         auto outputChannelsPadded = mv::round_up(dimensions[mv::IO_CHANNEL_DIMENSION], pad);
         dimensions = {dimensions[mv::IO_WIDTH_DIMENSION], dimensions[mv::IO_HEIGHT_DIMENSION], outputChannelsPadded, dimensions[mv::IO_BATCH_DIMENSION]};
@@ -832,7 +836,7 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
             //copying from CMX2DDR we need to crop down if tensor needed alignment in CMX
             if (opIt->getInputTensor(0)->hasAttr("alignment"))
             {
-                alignTensor(cm, tmp->src, opIt->getInputTensor(0), padFinalOutput);
+                alignTensor(cm, tmp->src, opIt->getInputTensor(0), padFinalOutput, true);
             }
             if (padFinalOutput && opIt->getOutputTensor(0)->hasAttr("alignment"))
             {
