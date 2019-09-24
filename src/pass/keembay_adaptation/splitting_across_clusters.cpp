@@ -190,6 +190,17 @@ static std::vector<mv::Workload> fixRectangularHeuristicBug(std::vector<mv::Work
 {
 
     std::vector<mv::Workload> newSubTensors;
+    auto tensorNeedsAlignment = tensor->hasAttr("alignment") ? tensor->get<bool>("alignment") : false;
+    size_t paddedSymetricalOutputChannels;
+    if (tensorNeedsAlignment)
+    {
+        int numClusters = 4; //TODO
+        int pad = 16 * numClusters; //todo fix it
+
+        auto output_channels = tensor->getShape()[mv::KERNEL_INPUT_CHANNELS];
+        output_channels = mv::round_up(output_channels, pad);
+        paddedSymetricalOutputChannels = output_channels / numClusters ;
+    }
     if (!tensor->isPopulated())
     {
         for (unsigned i = 0; i < nWorkloads; i ++)
@@ -203,12 +214,13 @@ static std::vector<mv::Workload> fixRectangularHeuristicBug(std::vector<mv::Work
                 subTensor.MinX = 0;
                 subTensor.MinY = subTensors[0].MinY;
                 subTensor.MinZ = subTensors[0].MinZ;
+
             }
             else if (i == 1)
             {
                 subTensor.MaxX = 31;
                 subTensor.MaxY = subTensors[0].MaxY;
-                subTensor.MaxZ = subTensors[0].MaxZ;
+                subTensor.MaxZ = paddedSymetricalOutputChannels;
                 subTensor.MinX = 16;
                 subTensor.MinY = subTensors[0].MinY;
                 subTensor.MinZ = subTensors[0].MinZ;
@@ -220,6 +232,11 @@ static std::vector<mv::Workload> fixRectangularHeuristicBug(std::vector<mv::Work
             else
             {
                 subTensor = subTensors[1];
+            }
+            if (tensorNeedsAlignment)
+            {
+                subTensor.MinX = paddedSymetricalOutputChannels*i;
+                subTensor.MaxX = subTensor.MinX + paddedSymetricalOutputChannels - 1;
             }
             newSubTensors.push_back(subTensor);
         }
