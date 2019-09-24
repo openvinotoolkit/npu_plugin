@@ -120,7 +120,7 @@ void allocateGraphfileTensorsKeemBayLegacyFcn(const mv::pass::PassEntry& pass, m
             {
                 auto sparsityMap = tIt->getSparsityMap();
                 auto sparsityMapIterator = dm.getTensor(sparsityMap->getName());
-                dm.allocateTensor("Graphfile", stageIt, sparsityMapIterator);
+                dm.allocateTensor("GraphFile", stageIt, sparsityMapIterator);
                 sparsityMap->set<unsigned>("graphFileIndex", i++);;
             }
         }
