@@ -132,7 +132,16 @@ mv::Data::TensorIterator mv::DataModel::defineTensor(const Tensor& tensor)
     auto result = tensors_->emplace(tensor.getName(), std::make_shared<Tensor>(tensor));
     log(Logger::MessageType::Info, "Defined " + result.first->second->toString());
     return result.first;
+}
 
+mv::Data::TensorIterator mv::DataModel::defineTensor(std::shared_ptr<Tensor> tensor)
+{
+    if (tensors_->find(tensor->getName()) != tensors_->end())
+        throw ArgumentError(*this, "Tensor::name", tensor->getName(), "Duplicated");
+
+    auto result = tensors_->emplace(tensor->getName(), tensor);
+    log(Logger::MessageType::Info, "Defined " + result.first->second->toString());
+    return result.first;
 }
 
 void mv::DataModel::undefineTensor(const std::string& name)
@@ -151,7 +160,7 @@ void mv::DataModel::undefineTensor(const std::string& name)
     log(Logger::MessageType::Info, "Removed " + it->toString());
 
     tensors_->erase(name);
-    
+
 }
 
 void mv::DataModel::undefineTensor(Data::TensorIterator tensor)

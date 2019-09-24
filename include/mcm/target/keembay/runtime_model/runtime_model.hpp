@@ -109,6 +109,7 @@ namespace mv
             void buildGraphFile(ComputationModel& cm, Element& compilationDescriptor);
             void buildHeader(ComputationModel& cm, Element& compilationDescriptor);
             std::shared_ptr<std::vector<char>> getBlob();
+            static void case2MC(unsigned numTasks, ComputationModel& cm, mv::DmaDirection direction, mv::Element &compilationDescriptor, bool padFinalOutput, bool compression, std::vector<std::unique_ptr<MVCNN::TaskT>>& toReturn, Data::TensorIterator src, Data::TensorIterator dst);
     };
 }
 

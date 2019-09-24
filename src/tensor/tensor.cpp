@@ -392,16 +392,24 @@ void mv::Tensor::setAddress(int64_t address)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_BULD)
     set<std::size_t>("address", address);
-    if (isSparse() && !isPopulated())
+    if (isSparse())
     {
         auto tensorSize = getClusterSize();
 
-        //NOTE: SOK problem?
-        //Order assumed: Tensor - Storage Element - Sparsity Map
+        // ASSUMPTION: Sparsity maps and Storage element do not have subtensors by themselved
+        // This is reasonable, as subtensors of will have their own Sparsity map and Storage Element
+        // For this reason, computeTotalSize is used.
+
+        // Order assumed for unpopulated: Tensor - Storage Element - Sparsity Map
+        // Order assumed for populated: Tensor (packed data) - Sparsity Map
         auto sparsitySize = sparsityMap_->computeTotalSize();
-        auto storageElementSize = storageElement_->computeTotalSize();
-        storageElement_->set<std::size_t>("address", address +
+
+        if(!isPopulated())
+        {
+            auto storageElementSize = storageElement_->computeTotalSize();
+            storageElement_->set<std::size_t>("address", address +
             (tensorSize - storageElementSize - sparsitySize));
+        }
         sparsityMap_->set<std::size_t>("address", address +(tensorSize - sparsitySize));
     }
     for (size_t tIdx = 0; tIdx < subTensors_.size(); tIdx++)
@@ -1059,6 +1067,7 @@ std::size_t mv::Tensor::computeTotalSize(unsigned int alignment, bool isBase) co
         if (isPopulated())
         {
             res = noneZeroElements_ * std::ceil(getDType().getSizeInBits()/8.0); //TODO check if we need ceil here?
+            res += getSparsityMap()->computeTotalSize();
         }
         else
         {
@@ -1099,6 +1108,8 @@ void mv::Tensor::splitAcrossClusters(std::vector<mv::Workload> workloads, bool s
             {
                 mv::Shape newShape = { shape[0], shape[1] , static_cast<size_t>(width), static_cast<size_t>(height)};
                 auto order = getOrder();
+
+                // NOTE: This part must be decommented in order to activate weights sparsity and SOK
 //                std::vector<mv::DataElement> splittedData(newShape.totalSize(), mv::DataElement(this->isDoubleType()));
 //                size_t nOffset = static_cast<size_t>(wlItr->MinY);
 //                size_t cOffset = static_cast<size_t>(wlItr->MinX);

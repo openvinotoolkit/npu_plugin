@@ -6,7 +6,6 @@
 #include "include/mcm/base/exception/argument_error.hpp"
 
 static void allocateGraphfileTensorsKeemBayLegacyFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&passArg, mv::Element&);
-static void allocateGraphfileTensorsKeemBayFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void allocateCMXTensorsKeemBayFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void allocateInputOutputTensorsKeemBayFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void allocateImplicitOperationsKeemBayFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
@@ -22,12 +21,6 @@ namespace mv
         .setFunc(allocateInputOutputTensorsKeemBayFcn)
         .setDescription(
             "Perform allocation of all input and output tensors using memory allocator"
-        );
-
-        MV_REGISTER_PASS(AllocateGraphfileTensorsKeemBay)
-        .setFunc(allocateGraphfileTensorsKeemBayFcn)
-        .setDescription(
-            "Perform allocation of all populated tensors using memory allocator"
         );
 
         MV_REGISTER_PASS(AllocateGraphfileTensorsKeemBayLegacy)
@@ -113,73 +106,44 @@ void allocateGraphfileTensorsKeemBayLegacyFcn(const mv::pass::PassEntry& pass, m
     for(auto opIterator = om.opBegin(); opIterator != om.opEnd(); ++opIterator)
     {
         std::string opType = opIterator->getOpType();
-        if (opType == "Constant" || opType == "ConstantInt" || opType == "ConstantDataElement" || opType == "WeightsTable" || opType == "SparsityMap")
+        if (opType == "Constant" || opType == "ConstantInt" || opType == "ConstantDataElement")
         {
             auto tIt = opIterator->getOutputTensor(0);
             dm.allocateTensor("GraphFile", stageIt, tIt);
             tIt->set<unsigned>("graphFileIndex", i++);
-        }
-    }
-}
 
+            // Weights sparsity new approach: there is not a separate constant for sparsity map
 
-void allocateGraphfileTensorsKeemBayFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passArg, mv::Element&)
-{
-    pass.log(mv::Logger::MessageType::Debug, "Allocating populated tensors");
-
-    mv::ControlModel cm(model);
-    mv::DataModel dm(model);
-    mv::OpModel om(model);
-
-    bool useSchedulingSort = true;
-
-    if(passArg.hasAttr("useSchedulingSort"))
-        useSchedulingSort = passArg.get<bool>("useSchedulingSort");
-
-    if (cm.stageSize() == 0)
-         throw mv::ArgumentError(cm, "stages count", "0", "Computation model does not have stages specified");
-
-    auto stageIt = cm.getStage(0);
-
-    unsigned i = 0;
-
-    std::vector<mv::Control::OpListIterator> ops;
-
-    if(useSchedulingSort)
-        ops = cm.schedulingSort();
-    else
-        ops = cm.topologicalSort();
-
-    for(auto& opIterator : ops)
-    {
-        std::string opType = opIterator->getOpType();
-        if (opType == "DMATask" && opIterator->get<mv::DmaDirection>("direction") == mv::DDR2CMX)
-        {
-            auto tIt = opIterator->getInputTensor(0);
-            if(tIt->isPopulated())
+            // NOTE: not allocating tensor in data model to avoid headaches in transformation
+            // of shared_ptr<Tensor> to mv::Data::TensorIterator or the opposite
+            if(tIt->isSparse())
             {
-                try
-                {
-                    dm.allocateTensor("GraphFile", stageIt, tIt);
-                    tIt->set<unsigned>("graphFileIndex", i++);
-                }
-                catch(mv::ArgumentError e)
-                {
-                    pass.log(mv::Logger::MessageType::Warning, e.what());
-                    tIt->set<unsigned>("graphFileIndex", i++);
-                }
+                auto sparsityMap = tIt->getSparsityMap();
+                auto sparsityMapIterator = dm.getTensor(sparsityMap->getName());
+                dm.allocateTensor("Graphfile", stageIt, sparsityMapIterator);
+                sparsityMap->set<unsigned>("graphFileIndex", i++);;
             }
         }
     }
 }
 
+// NOTE: This pass name is misleading. As a matter of fact, it allocates both populated and unpopulated tensors.
 static mv::Data::BufferIterator allocateUnpopulatedTensor(const mv::pass::PassEntry& pass,mv::DataModel& dm,mv::Control::StageIterator& stageIt,mv::Data::TensorIterator& tensorIt)
 {
     //todo:: stop with the if-else-if-else
     auto logicalLocation = tensorIt->get<mv::Tensor::MemoryLocation>("Location");
     if( logicalLocation == mv::Tensor::MemoryLocation::CMX)
     {
-        return dm.allocateTensor("VPU_CMX_NN", stageIt, tensorIt);
+        auto toReturn = dm.allocateTensor("VPU_CMX_NN", stageIt, tensorIt);
+
+        // Weights sparsity new approach
+        if(tensorIt->isPopulated() && tensorIt->isSparse())
+        {
+            auto sparsityMap = tensorIt->getSparsityMap();
+            auto sparsityMapIterator = dm.getTensor(sparsityMap->getName());
+            dm.allocateTensor("VPU_CMX_NN", stageIt, sparsityMapIterator);
+        }
+        return toReturn;
     }
     else if(logicalLocation == mv::Tensor::MemoryLocation::DDR)
     {

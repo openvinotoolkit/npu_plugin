@@ -709,12 +709,72 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
     return toReturn;
 }
 
+void mv::RuntimeModel::case2MC(unsigned numTasks, mv::ComputationModel& cm, mv::DmaDirection direction, mv::Element &compilationDescriptor,
+                               bool padFinalOutput, bool compression, std::vector<std::unique_ptr<MVCNN::TaskT>>& toReturn, mv::Data::TensorIterator src, mv::Data::TensorIterator dst)
+{
+    std::unique_ptr<MVCNN::TaskT> toPush = std::unique_ptr<MVCNN::TaskT>(new MVCNN::TaskT());
+    auto tmp = new MVCNN::NNDMATaskT();
+    toPush->task.type = MVCNN::SpecificTask_NNDMATask;
+
+    tmp->src = buildTensorReferenceT(cm, compilationDescriptor, src);
+    tmp->dst = buildTensorReferenceT(cm, compilationDescriptor, dst);
+
+    if (direction == mv::DDR2CMX)
+    {
+        //copying from DDR2CMX we need to pad output if tensor needs alignment
+        if (dst->hasAttr("alignment"))
+        {
+            alignTensor(cm, tmp->dst, dst);
+        }
+    }
+    else
+    {
+        //copying from CMX2DDR we need to crop down if tensor needed alignment in CMX
+        if (src->hasAttr("alignment"))
+        {
+            alignTensor(cm, tmp->src, src, padFinalOutput);
+        }
+        if (padFinalOutput && dst->hasAttr("alignment"))
+        {
+            alignTensor(cm, tmp->dst, dst, padFinalOutput);
+        }
+    }
+
+    std::vector<unsigned int> locale_index;
+    for (unsigned idx = numTasks; idx > 0; idx--)
+        locale_index.push_back(idx - 1);
+
+    if(direction == mv::DDR2CMX)
+        tmp->dst->locale_index = locale_index;
+
+    tmp->compression =  compression;
+    toPush->task.value = tmp;
+
+    toReturn.push_back(std::move(toPush));
+}
+
 std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt, std::string splitting)
 {
+    mv::DataModel dm(cm);
+
     bool sourceIsBroadCasted = opIt->getInputTensor(0)->isBroadcasted();
     auto direction = opIt->get<mv::DmaDirection>("direction");
     unsigned numTasks = cm.getGlobalConfigParams()->get<int>("Number_of_Clusters");
 
+    auto tensorAllocatorName = opIt->getOutputTensor(0)->get<std::set<std::string>>("allocators").begin();
+    if (*tensorAllocatorName == "ProgrammableOutput")
+    {
+        //Only if we are DMA-ing to programmable output check if we need to padd it
+        padFinalOutput = cm.getGlobalConfigParams()->hasAttr("PadOutput") ? cm.getGlobalConfigParams()->get<bool>("PadOutput") : false;
+    }
+
+    // Case 1 of MC DMAs - Unpopulated tensors going in clustering op and vice versa
+    // This could happen when we move input tensor of the network in or
+    // when we come back after spilling to DDR.
+
+    // Weights sparsity maps with new approach should NOT be handled here
+
+    // Strategy: 1 dma from/to each DMA cluster
     if (splitting == "Clustering" && !opIt->getOutputTensor(0)->isPopulated())
     {
         std::vector<std::unique_ptr<MVCNN::TaskT>> toReturn = std::vector<std::unique_ptr<MVCNN::TaskT>>(numTasks);
@@ -743,53 +803,37 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
         }
         return toReturn;
     }
+
+    // Case 2 of MC DMAs - Source tensor is broadcasted, i.e. present in it's entirety
+    // in all clusters, OR populated tensors going into clustering op (which for some reason are not marked as broadcasted).
+
+    // Weights sparsity maps with new approach should be handled here
+
+    // Strategy: 1 DMA to multiple slices -  multiple slices to 1 place
     else if(sourceIsBroadCasted || (splitting == "Clustering" && opIt->getOutputTensor(0)->isPopulated()))
     {
-        //NOTE: Multicast flag works on nce2tasks for going the whole output tensor on every cluster,
-        //POC's logic with replicating 4 times the same DMA seems not correct, even for mutiple layers to me,
-        //however letting this on comments.
-//        if (opIt->getInputTensor(0)->hasAttr("multiCast"))
-//        {
-//            std::vector<std::unique_ptr<MVCNN::TaskT>> toReturn = std::vector<std::unique_ptr<MVCNN::TaskT>>(numTasks);
-//            for(unsigned i = 0; i < numTasks; ++i)
-//            {
-//                toReturn[i] = std::unique_ptr<MVCNN::TaskT>(new MVCNN::TaskT());
-//                toReturn[i]->task.type = MVCNN::SpecificTask_NNDMATask;
-//                auto tmp = new MVCNN::NNDMATaskT();
-//                tmp->src = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(0));
-//                tmp->dst = buildTensorReferenceT(cm, compilationDescriptor, opIt->getOutputTensor(0));
-//                if(opIt->hasAttr("Compression"))
-//                    tmp->compression =  opIt->get<bool>("Compression");
-//                toReturn[i]->task.value = tmp;
-//            }
-//            return toReturn;
-//        }
-//        else
-//        {
-            // 1 DMA to multiple slices -  multiple slices to 1 place
-            std::vector<std::unique_ptr<MVCNN::TaskT>> toReturn = std::vector<std::unique_ptr<MVCNN::TaskT>>(1);
-            toReturn[0] = std::unique_ptr<MVCNN::TaskT>(new MVCNN::TaskT());
-            toReturn[0]->task.type = MVCNN::SpecificTask_NNDMATask;
-            auto tmp = new MVCNN::NNDMATaskT();
-            tmp->src = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(0));
-            tmp->dst = buildTensorReferenceT(cm, compilationDescriptor, opIt->getOutputTensor(0));
+        std::vector<std::unique_ptr<MVCNN::TaskT>> toReturn;
+        bool compression = false;
+        if(opIt->hasAttr("compression"))
+            compression = opIt->get<bool>("compression");
+        case2MC(numTasks, cm, direction, compilationDescriptor, padFinalOutput, compression, toReturn, opIt->getInputTensor(0), opIt->getOutputTensor(0));
 
-            std::vector<unsigned int> locale_index;
-            for (unsigned idx = numTasks; idx > 0; idx--)
-                locale_index.push_back(idx - 1);
-
-            if(direction == mv::DDR2CMX)
-                tmp->dst->locale_index = locale_index;
-
-            if(opIt->hasAttr("Compression"))
-                tmp->compression =  opIt->get<bool>("Compression");
-            toReturn[0]->task.value = tmp;
-            return toReturn;
-//        }
+        if(opIt->getInputTensor(0)->isSparse())
+        {
+            auto inputTensorSparsityMap = dm.getTensor(opIt->getInputTensor(0)->getSparsityMap()->getName());
+            auto outputTensorSparsityMap = dm.getTensor(opIt->getOutputTensor(0)->getSparsityMap()->getName());
+            case2MC(numTasks, cm, direction, compilationDescriptor, padFinalOutput, compression, toReturn, inputTensorSparsityMap, outputTensorSparsityMap);
+        }
+        return toReturn;
     }
+    // Case 3 of MC DMAs - All cases that are not case 1 or 2. Mostly applied to SOH tensors for activation
+    // and SOK for weights.
+
+    // Weights sparsity maps with new approach should be handled in the future here, when SOK and weights sparsity is supported.
+
+    // Strategy: Multiple DMAs, yuppi!
     else
     {
-        //Multiple DMAs, yuppi!
         std::vector<std::unique_ptr<MVCNN::TaskT>> toReturn = std::vector<std::unique_ptr<MVCNN::TaskT>>(numTasks);
         for(unsigned i = 0; i < numTasks; ++i)
         {
@@ -1503,6 +1547,15 @@ unsigned mv::RuntimeModel::countProducerConsumerTasks(mv::ComputationModel& cm, 
     }
     else if(taskType == "DMATask")
     {
+        auto inputTensor = opIt->getInputTensor(0);
+        // Weights sparsity new approach: it doesn't matter what strategy is chosen,
+        // the number of dma is doubled since the strategy is shared between weights
+        // and sparsity map. Techinically the isPopulated() check is not needed
+        // because we never transfer sparse activation tensors.
+
+        unsigned multiplicator = 1;
+        if(inputTensor->isPopulated() && inputTensor->isSparse())
+            multiplicator = 2;
         if(numClusters > 1)
         {
             bool sourceIsBroadCasted = opIt->getInputTensor(0)->isBroadcasted();
@@ -1520,6 +1573,8 @@ unsigned mv::RuntimeModel::countProducerConsumerTasks(mv::ComputationModel& cm, 
         }
         else
             toReturn = 1;
+
+        toReturn *= multiplicator;
     }
     return toReturn;
 }
@@ -1572,6 +1627,7 @@ void mv::RuntimeModel::buildHeader(ComputationModel &cm, Element &compilationDes
 void mv::RuntimeModel::buildGraphFile(ComputationModel& cm, mv::Element& compilationDescriptor)
 {
     mv::OpModel om(cm);
+    mv::DataModel dm(cm);
 
     auto globalConfigurationParameters = cm.getGlobalConfigParams();
 
@@ -1583,10 +1639,19 @@ void mv::RuntimeModel::buildGraphFile(ComputationModel& cm, mv::Element& compila
     for(auto opIterator = om.opBegin(); opIterator != om.opEnd(); ++opIterator)
     {
         std::string opType = opIterator->getOpType();
-        if (opType == "Constant" || opType == "ConstantInt" || opType == "ConstantDataElement" || opType == "WeightsTable" || opType == "SparsityMap")
+        if (opType == "Constant" || opType == "ConstantInt" || opType == "ConstantDataElement")
         {
             auto tIt = opIterator->getOutputTensor(0);
+
+            // This line is horrible, but it's the only way to cast TensorIterator to Tensor *
             toSort.push_back(tIt);
+
+            // Weights sparsity new approach: there is not a separate constant for sparsity map
+            if(tIt->isSparse())
+            {
+                auto sparsityMapIterator = dm.getTensor(tIt->getSparsityMap()->getName());
+                toSort.push_back(sparsityMapIterator);
+            }
         }
     }
     std::sort(toSort.begin(), toSort.end(), [](mv::Data::TensorIterator t1, mv::Data::TensorIterator t2){return (t1->get<unsigned>("graphFileIndex") < t2->get<unsigned>("graphFileIndex"));});

@@ -55,6 +55,12 @@ void strategyLayersToTensors(const mv::pass::PassEntry& , mv::ComputationModel& 
                 {
                     auto inputTensor = layer->getInputTensor(i);
                     inputTensor->set<std::string>("splitStrategy", opStrategy);
+
+                    // Weights Sparsity new approach doesn't use a extra input
+                    // So we have to propagate sparsity to the tensor sparsity map directly
+
+                    if(inputTensor->isSparse() && inputTensor->isPopulated())
+                        inputTensor->getSparsityMap()->set<std::string>("splitStrategy", opStrategy);
                 }
             }
             else if (opType == "Input")

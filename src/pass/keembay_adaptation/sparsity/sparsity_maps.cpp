@@ -10,7 +10,6 @@
 
 static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void generateSparsityMapsUnpopulatedTensorsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
-static void sparseWeights(mv::Data::TensorIterator& weightsTensor, mv::ComputationModel& model);
 
 namespace mv
 {
@@ -86,6 +85,7 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
 
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);
+    mv::DataModel dm(model);
 
     for(auto dpuTask = om.opBegin(); dpuTask != om.opEnd(); ++dpuTask)
     {
@@ -194,7 +194,9 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
                     if(dpuTask->get<std::string>("splitStrategy") == "SplitOverK")
                         continue;
                 auto weightsTensor = dpuTask->getInputTensor(1);
-                sparseWeights(weightsTensor, model);
+                weightsTensor->setOrder(mv::Order("NHWC"));
+                weightsTensor->setSparse();
+                dm.defineTensor(weightsTensor->getSparsityMap());
             }
         }
     }
@@ -298,34 +300,5 @@ static void generateSparsityMapsUnpopulatedTensorsFcn(const mv::pass::PassEntry&
             throw std::runtime_error("Wrong strategy generated: tensor " + tensor->getName() + " needs sparsity but it can't be sparsified");
         if((tensorSparsifiable && inputActivationSparsity && outputActivationSparsity) || tensorNeedsSparsity)
             tensor->setSparse();
-    }
-}
-
-static void sparseWeights(mv::Data::TensorIterator& weightsTensor, mv::ComputationModel& model)
-{
-    mv::OpModel om(model);
-    weightsTensor->setOrder(mv::Order("NHWC"));
-
-    // Sparsity map costant has to be created just once
-    // and has to feed all the operations that are fed by
-    // the tensor. The input slot will be the same of fakeSparsityMap
-    if(weightsTensor->setSparse())
-    {
-        //SparsityMap will be saved as attribute
-        auto smInternalTensor = weightsTensor->getSparsityMap();
-        auto sparsityMap = om.constantInt(smInternalTensor->getIntData(), smInternalTensor->getShape(), smInternalTensor->getDType(),
-                                          smInternalTensor->getOrder(), {{},{},{},{}}, smInternalTensor->getName());
-        auto sparsityMapOp = om.getSourceOp(sparsityMap);
-        auto weights = om.getSourceOp(weightsTensor);
-
-        sparsityMapOp->set<unsigned>("opId", weights->get<unsigned>("opId"));
-        auto outputFlows = mv::getOutputDataFlow(om, weights, false);
-        for(auto& output: outputFlows)
-        {
-            auto sink = output.first;
-            unsigned newSize = sink->addInputTensor(sparsityMap);
-            om.defineFlow(sparsityMap, sink, newSize - 1);
-            sink->set<size_t>("sparsityMapIndex", newSize - 1);
-        }
     }
 }
