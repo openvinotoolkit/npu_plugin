@@ -272,7 +272,6 @@
             "KMBOrderConversion",
             "AlignTo16Channels",
             "AlignTaskWeights",
-            "GenerateSparsityMapsUnpopulatedTensors",
             "GenerateSparsityMapsPopulatedTensors",
             "GenerateWeightsTables",
             "GenerateEltWiseConstants",
@@ -338,6 +337,7 @@
     },
     "control_flows":{
         "Singular" : [
+            "GenerateSparsityMapsUnpopulatedTensors",
             "TaskControlFlows",
             {
                 "name": "GenerateDot",
