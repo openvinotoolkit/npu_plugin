@@ -106,13 +106,7 @@ endif(LEMON_FOUND)
 
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
-find_package(Flatbuffers)
-if(FLATBUFFERS_FOUND)
-     include_directories(${FLATBUFFERS_INCLUDE_DIR})
-else()
-     message(STATUS "Flatbuffers not found!")
-     add_subdirectory(contrib/flatbuffers)
-endif(FLATBUFFERS_FOUND)
+add_subdirectory(contrib/flatbuffers)
 
 #############################################################################################
 ### Main build
