@@ -396,7 +396,12 @@ public:
                 parentClustering == "SplitOverK") and
                 (childClustering == "SplitOverH"))
                     return INF;
-                
+
+        if((parentClustering == "SplitOverH" or
+                (parentClustering == "SplitOverHOverlapped")) and (parent["spilling"].get<bool>() == false) and
+                (childClustering == "Clustering"))
+                    return INF;
+
         //HK Switch requires previous layer to be SOH
         if((not (parentClustering == "SplitOverH")) and
                 childClustering == "HKSwitch")
