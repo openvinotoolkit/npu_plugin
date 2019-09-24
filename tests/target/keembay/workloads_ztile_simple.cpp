@@ -7,7 +7,6 @@
 #include "test_utils.hpp"
 
 #include "gtest/gtest.h"
-#include <metis.h>
 
 #include <string>
 #include <unordered_set>
@@ -31,7 +30,7 @@ struct Form
     mv::Order order;
 };
 
-using NWorkloads = idx_t;
+using NWorkloads = size_t;
 
 class workloads_ztile_simple :
     public TestWithParam<std::tuple<NWorkloads, Form>>
@@ -68,7 +67,7 @@ TEST_P(workloads_ztile_simple, forms)
     mv::Workloads workloads(layer_name, shape);
 
     mv::pass::PassEntry pass("dummy");
-    ASSERT_EQ(METIS_OK, workloads.partitionTensorWithZsplit(mode_list, n_wls, pass));
+    ASSERT_EQ(1, workloads.partitionTensorWithZsplit(mode_list, n_wls, pass));
 
     int n_workloads = 0;
     EXPECT_GE(n_wls, n_workloads = workloads.nWorkloads());

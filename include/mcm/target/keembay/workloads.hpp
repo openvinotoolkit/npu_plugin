@@ -11,7 +11,6 @@
 #include "include/mcm/tensor/shape.hpp"
 #include "include/mcm/target/keembay/rectangle.hpp"
 #include "include/mcm/target/keembay/workload_struct.hpp"
-#include <metis.h>
 #include <climits>
 #include <math.h>
 #include <cmath>
@@ -50,30 +49,30 @@ namespace mv
      *    12   15---16----17---18
      */
 
-    struct MetisGraphStructure
-    {
-        std::unique_ptr<idx_t[]>  xadj;   /*Indexes of starting points in adjacent array*/
-        std::unique_ptr<idx_t[]>  adjncy; /*Adjacent vertices in consecutive index order*/
-        std::unique_ptr<idx_t[]>  part;
-        std::unique_ptr<idx_t[]>  vwgt;
+    // struct MetisGraphStructure
+    // {
+    //     std::unique_ptr<idx_t[]>  xadj;   /*Indexes of starting points in adjacent array*/
+    //     std::unique_ptr<idx_t[]>  adjncy; /*Adjacent vertices in consecutive index order*/
+    //     std::unique_ptr<idx_t[]>  part;
+    //     std::unique_ptr<idx_t[]>  vwgt;
 
-        idx_t objval;
-        idx_t nWeights  = 1;              /*Each vertex stores 1 weight*/
-        idx_t options[METIS_NOPTIONS];
+    //     idx_t objval;
+    //     idx_t nWeights  = 1;              /*Each vertex stores 1 weight*/
+    //     idx_t options[METIS_NOPTIONS];
 
-        idx_t m_numberTensorVertices;
-        idx_t m_numberTensorEdges;
-        int m_xDim;
-        int m_yDim;
-        int n_elem_y;
-        int n_elem_x;
-        double tensorXDim;
-        double tensorYDim;
+    //     idx_t m_numberTensorVertices;
+    //     idx_t m_numberTensorEdges;
+    //     int m_xDim;
+    //     int m_yDim;
+    //     int n_elem_y;
+    //     int n_elem_x;
+    //     double tensorXDim;
+    //     double tensorYDim;
 
-        std::unique_ptr<mv::Rectangle[]>  node_coords;
+    //     std::unique_ptr<mv::Rectangle[]>  node_coords;
 
-        MetisGraphStructure(mv::Shape outputTensor, mv::DPUMode MPEMode);
-    };
+    //     MetisGraphStructure(mv::Shape outputTensor, mv::DPUMode MPEMode);
+    // };
   
     struct point
     {
@@ -92,26 +91,26 @@ namespace mv
         std::vector<float> executionCycles_; //Min & Max execution cycles
         float meanExecutionCycles_ = 0;
 
-        std::shared_ptr<MetisGraphStructure> metisGraph_;
+        //std::shared_ptr<MetisGraphStructure> metisGraph_;
 
         float critical_workload_ = 0;
         float workload_sum_ = 0;
         float min_range_ = 0;
         float max_range_ = 0;
 
-        std::vector<int> generateMetisGraphNodeNumbers(void);
+        //std::vector<int> generateMetisGraphNodeNumbers(void);
 
     public:
         Workloads(const std::string& name, const mv::Shape& tensorShape);
         Workloads(const std::string& name, const mv::Shape& tensorShape, mv::DPUMode& mpeMode);
         ~Workloads();
 
-        void generateMetisGraph(void);
-        std::shared_ptr<mv::MetisGraphStructure> getMetisGraph();
+        //void generateMetisGraph(void);
+        //std::shared_ptr<mv::MetisGraphStructure> getMetisGraph();
 
         /*returns: METIS_OK(=1), or METIS_ERROR*/
         int partitionTensorWithRectangleHeuristic(const mv::DPUModeList& modes,
-                                                            idx_t        nWorkloads,
+                                                            size_t        nWorkloads,
                                                             bool         split_over_h,
                                                             bool         split_over_w,
                                                             bool         split_symmetric,
@@ -119,9 +118,9 @@ namespace mv
                                                   const mv::pass::PassEntry& pass);
                                                   
         // returns: METIS_OK(=1), or METIS_ERROR
-        int partitionTensorWithZsplit(const mv::DPUModeList& modes, idx_t nWorkloads, const mv::pass::PassEntry& pass);
+        int partitionTensorWithZsplit(const mv::DPUModeList& modes, size_t nWorkloads, const mv::pass::PassEntry& pass);
         
-        void populateWorkloadsFromPartitions(idx_t nWorkloads, 
+        void populateWorkloadsFromPartitions(size_t nWorkloads, 
                                             const mv::pass::PassEntry& pass, 
                                             mv::DPUMode& mpeMode);
 
@@ -170,5 +169,4 @@ namespace mv
 }
 
 #endif
-
 

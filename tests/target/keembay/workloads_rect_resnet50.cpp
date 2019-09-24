@@ -7,7 +7,6 @@
 #include "test_utils.hpp"
 
 #include "gtest/gtest.h"
-#include <metis.h>
 
 #include <string>
 #include <vector>
@@ -25,7 +24,7 @@
 
 using namespace testing;
 
-using NumWls = idx_t;
+using NumWls = size_t;
 
 struct Slice { int x0, x1, y0, y1; };
 using  SliceList = std::vector<Slice>;
@@ -141,7 +140,7 @@ TEST_P(workloads_rect_resnet50, forms)
     mv::Workloads workloads(layer_name, shape);
 
     mv::pass::PassEntry pass("dummy");
-    ASSERT_EQ(METIS_OK, workloads.partitionTensorWithRectangleHeuristic(modes, n_wls,
+    ASSERT_EQ(1, workloads.partitionTensorWithRectangleHeuristic(modes, n_wls,
                                          split_over_h, split_over_w, split_symmetric,
                                          split_mode, pass));
 
