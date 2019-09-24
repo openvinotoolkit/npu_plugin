@@ -167,7 +167,7 @@
                             "name" : "Conv",
                             "strategies": [
                                 {"name" : "streamingStrategies",  "value" : ["StreamOverH","StreamOverW","StreamOverK"]},
-                                {"name" : "clusteringStrategies", "value" : ["SplitOverH","SplitOverK","HKSwitch","Clustering"]},
+                                {"name" : "clusteringStrategies", "value" : ["SplitOverH","SplitOverK","Clustering"]},
                                 {"name" : "sparsity",             "value" : false}
                             ]
                         },
@@ -175,7 +175,7 @@
                             "name" : "DepthwiseConv",
                             "strategies": [
                                 {"name" : "streamingStrategies",  "value" : ["StreamOverH","StreamOverW"]},
-                                {"name" : "clusteringStrategies", "value" : ["SplitOverH","HKSwitch","SplitOverK","Clustering"]},
+                                {"name" : "clusteringStrategies", "value" : ["SplitOverH","SplitOverK","Clustering"]},
                                 {"name" : "sparsity",             "value" : false}
                             ]
                         },
