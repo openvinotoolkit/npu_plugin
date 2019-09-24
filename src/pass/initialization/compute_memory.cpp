@@ -33,31 +33,25 @@ static void computeMemoryFcn(const mv::pass::PassEntry& pass, mv::ComputationMod
     auto clustersUser = globalConfig->hasAttr("Number_of_Clusters") ? globalConfig->get<int>("Number_of_Clusters") : 1;
     auto clusters = std::min(targetTotalClusters, clustersUser);
 
-    // ASSUMPTION: By default there is no memory hack
-    auto memoryHack = globalConfig->hasAttr("MemoryHack") && globalConfig->get<bool>("MemoryHack");
-
     // ASSUMPTION: Default memory safety factor is 0.925
-    auto safetyFactor = globalConfig->hasAttr("CMX_memory_overflow_safety_factor") ? globalConfig->get<double>("CMX_memory_overflow_safety_factor") : 0.925;
+    auto safetyFactor = globalConfig->hasAttr("FathomSafetyFactor") ? globalConfig->get<double>("FathomSafetyFactor") : 0.925;
 
     // ASSUMPTION: Except for when we use the memory hack, the amount of cmx available refers to the amount available to a single cluster
     // This means that subtensor have to be used for the computation of memory requirements during maxcut.
     // Also, for now memory hack makes sense just for 1 cluster.
-    if (memoryHack)
-        cmx *= safetyFactor;
-    else
-    {
-        auto cmxPerCluster = cmx / targetTotalClusters;
-        cmx = cmxPerCluster * safetyFactor;
+    auto cmxPerCluster = cmx / targetTotalClusters;
 
-        if(globalConfig->hasAttr("cmx"))
-        {
-            //Bypass safety factor
-            unsigned userMemory = globalConfig->get<int>("cmx");
-            if(userMemory <= cmxPerCluster)
-                cmx = userMemory;
-        }
+    if(globalConfig->hasAttr("cmx"))
+    {
+        //Bypass safety factor
+        unsigned userMemory = globalConfig->get<int>("cmx");
+        if(userMemory <= cmxPerCluster)
+            cmx = userMemory;
     }
 
-    globalConfig->set<unsigned>("cmx", cmx);
+    auto updatedCmx = cmx * safetyFactor;
+
+    globalConfig->set<unsigned>("cmx", updatedCmx); // this has cmx including safety factor
+    globalConfig->set<unsigned>("totalCmx", cmx); // use the lower value of the two total CMX - target vs user requested
     globalConfig->set<unsigned>("clusters", clusters);
 }
