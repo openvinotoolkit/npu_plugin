@@ -3,7 +3,7 @@
 namespace mv
 {
 
-    namespace op
+    namespace op_region_yolo
     {
 
         static std::function<std::pair<bool, std::size_t>(const std::vector<Data::TensorIterator>&,
@@ -140,6 +140,10 @@ namespace mv
             outputs.push_back(mv::Tensor(":0", out_shape, input->getDType(), out_order));
         };
 
+        static std::vector<unsigned> empty;
+    }
+
+    namespace op {
         // Region Yolo converts tensor like e.g. N×C×H×W into Nx(C*H*W)
         // with following formula:
         // - number of output channels = H * W * _num_ * (classes + coords + 1)
@@ -151,7 +155,6 @@ namespace mv
         // Additional parameters axis and axis_end of IR layer are redundant
         // and so omitted, as one always knows the order of MCM tensor axes.
 
-        static std::vector<unsigned> empty;
 
         MV_REGISTER_OP(RegionYolo)
         .setInputs({"data"})
@@ -160,11 +163,10 @@ namespace mv
         .setArg<unsigned>("classes")
         .setArg<bool>("do_softmax")
         .setOptionalArg<unsigned>("num", 0)
-        .setOptionalArg<std::vector<unsigned>>("mask", empty)
-        .setInputCheck(inputCheckFcn)
-        .setOutputDef(outputDefFcn)
+        .setOptionalArg<std::vector<unsigned>>("mask", op_region_yolo::empty)
+        .setInputCheck(op_region_yolo::inputCheckFcn)
+        .setOutputDef(op_region_yolo::outputDefFcn)
         .setTypeTrait({"executable", "exposed"});
-
     }
 
 }

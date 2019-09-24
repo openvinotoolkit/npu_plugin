@@ -6,7 +6,7 @@
 namespace mv
 {
 
-    namespace attr
+    namespace attr_order
     {
 
         static mv::json::Value toJSON(const Attribute& a)
@@ -29,11 +29,14 @@ namespace mv
             return "OrderType::" + a.get<Order>().toString();
         }
 
-        MV_REGISTER_ATTR(Order)
-            .setToJSONFunc(toJSON)
-            .setFromJSONFunc(fromJSON)
-            .setToStringFunc(toString);
 
+    }
+
+    namespace attr {
+        MV_REGISTER_ATTR(Order)
+            .setToJSONFunc(attr_order::toJSON)
+            .setFromJSONFunc(attr_order::fromJSON)
+            .setToStringFunc(attr_order::toString);
     }
 
 }

@@ -6,7 +6,7 @@
 namespace mv
 {
 
-    namespace attr
+    namespace attr_shape
     {
 
         static mv::json::Value toJSON(const Attribute& a)
@@ -46,11 +46,14 @@ namespace mv
             return output;
         }
 
-        MV_REGISTER_ATTR(Shape)
-            .setToJSONFunc(toJSON)
-            .setFromJSONFunc(fromJSON)
-            .setToStringFunc(toString);
 
+    }
+
+    namespace attr {
+        MV_REGISTER_ATTR(Shape)
+            .setToJSONFunc(attr_shape::toJSON)
+            .setFromJSONFunc(attr_shape::fromJSON)
+            .setToStringFunc(attr_shape::toString);
     }
 
 }

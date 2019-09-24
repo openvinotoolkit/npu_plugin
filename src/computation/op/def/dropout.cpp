@@ -3,7 +3,7 @@
 namespace mv
 {
 
-    namespace op
+    namespace op_dropout
     {
 
         static std::function<std::pair<bool, std::size_t>(const std::vector<Data::TensorIterator>&,
@@ -28,12 +28,17 @@ namespace mv
 
         };
     
+
+    }
+
+    namespace op {
+
         MV_REGISTER_OP(Dropout)
         .setInputs({"input"})
         .setOutputs({"output"})
         .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
-        .setInputCheck(inputCheckFcn)
-        .setOutputDef(outputDefFcn)
+        .setInputCheck(op_dropout::inputCheckFcn)
+        .setOutputDef(op_dropout::outputDefFcn)
         .setTypeTrait({"exposed"});
 
     }

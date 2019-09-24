@@ -3,7 +3,7 @@
 namespace mv
 {
 
-    namespace op
+    namespace op_identity
     {
 
         static std::function<std::pair<bool, std::size_t>(const std::vector<Data::TensorIterator>&,
@@ -24,14 +24,15 @@ namespace mv
             outputs.push_back(mv::Tensor(":0", inputs[0]->getShape(), inputs[0]->getDType(), inputs[0]->getOrder()));
 
         };
-    
+    }
+
+    namespace op {
         MV_REGISTER_OP(Identity)
         .setInputs({"data"})
         .setOutputs({"output"})
-        .setInputCheck(inputCheckFcn)
-        .setOutputDef(outputDefFcn)
+        .setInputCheck(op_identity::inputCheckFcn)
+        .setOutputDef(op_identity::outputDefFcn)
         .setTypeTrait({"executable", "exposed"});
-
     }
 
 }

@@ -7,7 +7,7 @@
 namespace mv
 {
 
-    namespace attr
+    namespace attr_std_vector_std_string
     {
 
         static mv::json::Value toJSON(const Attribute& a)
@@ -51,11 +51,15 @@ namespace mv
             return output;
         }
 
-        MV_REGISTER_ATTR(std::vector<std::string>)
-            .setToJSONFunc(toJSON)
-            .setFromJSONFunc(fromJSON)
-            .setToStringFunc(toString);
 
+    }
+
+    namespace attr {
+
+        MV_REGISTER_ATTR(std::vector<std::string>)
+            .setToJSONFunc(attr_std_vector_std_string::toJSON)
+            .setFromJSONFunc(attr_std_vector_std_string::fromJSON)
+            .setToStringFunc(attr_std_vector_std_string::toString);
     }
 
 }

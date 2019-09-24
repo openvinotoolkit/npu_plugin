@@ -3,7 +3,7 @@
 namespace mv
 {
 
-    namespace op
+    namespace op_slice
     {
 
         static std::function<std::pair<bool, std::size_t>(const std::vector<Data::TensorIterator>&,
@@ -71,16 +71,18 @@ namespace mv
             }
         };
 
+    }
+
+    namespace op {
         MV_REGISTER_OP(Slice)
         .setInputs({"data"})
         .setOutputs({"output"})
         .setArg<mv::Shape>("begin")
         .setArg<mv::Shape>("size")
         .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
-        .setInputCheck(inputCheckFcn)
-        .setOutputDef(outputDefFcn)
+        .setInputCheck(op_slice::inputCheckFcn)
+        .setOutputDef(op_slice::outputDefFcn)
         .setTypeTrait({"exposed"});
     }
-
 
 }

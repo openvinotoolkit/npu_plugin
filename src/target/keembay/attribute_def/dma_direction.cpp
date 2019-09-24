@@ -6,7 +6,7 @@
 namespace mv
 {
 
-    namespace attr
+    namespace attr_dma_direction
     {
 
     static mv::json::Value toJSON(const Attribute& a)
@@ -19,7 +19,7 @@ namespace mv
     {
         if (v.valueType() != json::JSONType::String)
             throw AttributeError(v, "Unable to convert JSON value of type " + json::Value::typeName(v.valueType()) +
-                " to mv::DType");
+                " to mv::DmaDirection");
 
         return DmaDirection(v.get<std::string>());
     }
@@ -29,10 +29,14 @@ namespace mv
         return "DmaDirection::" + a.get<DmaDirection>().toString();
     }
 
-    MV_REGISTER_ATTR(DmaDirection)
-        .setToJSONFunc(toJSON)
-        .setFromJSONFunc(fromJSON)
-        .setToStringFunc(toString);
+
+    }
+
+    namespace attr {
+	    MV_REGISTER_ATTR(DmaDirection)
+		.setToJSONFunc(attr_dma_direction::toJSON)
+		.setFromJSONFunc(attr_dma_direction::fromJSON)
+		.setToStringFunc(attr_dma_direction::toString);
 
     }
 

@@ -6,7 +6,7 @@
 namespace mv
 {
 
-    namespace attr
+    namespace attr_std_vector_int64
     {
 
         static mv::json::Value toJSON(const Attribute& a)
@@ -75,12 +75,18 @@ namespace mv
             return toReturn;
         }
 
+
+    }
+
+    namespace attr {
+
         MV_REGISTER_DUPLICATE_ATTR(std::vector<int64_t>)
-            .setToJSONFunc(toJSON)
-            .setFromJSONFunc(fromJSON)
-            .setToStringFunc(toString)
-            .setToLongStringFunc(toLongString)
-            .setToBinaryFunc(toBinary);
+            .setToJSONFunc(attr_std_vector_int64::toJSON)
+            .setFromJSONFunc(attr_std_vector_int64::fromJSON)
+            .setToStringFunc(attr_std_vector_int64::toString)
+            .setToLongStringFunc(attr_std_vector_int64::toLongString)
+            .setToBinaryFunc(attr_std_vector_int64::toBinary);
+
 
     }
 

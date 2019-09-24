@@ -6,7 +6,7 @@
 namespace mv
 {
 
-    namespace attr
+    namespace attr_ppe_fixed_function
     {
 
     static mv::json::Value toJSON(const Attribute& a)
@@ -45,11 +45,15 @@ namespace mv
         return "PPEFixedFunction::" + a.get<PPEFixedFunction>().toString();
     }
 
-    MV_REGISTER_ATTR(PPEFixedFunction)
-        .setToJSONFunc(toJSON)
-        .setFromJSONFunc(fromJSON)
-        .setToStringFunc(toString);
 
+    }
+
+
+    namespace attr {
+	    MV_REGISTER_ATTR(PPEFixedFunction)
+		.setToJSONFunc(attr_ppe_fixed_function::toJSON)
+		.setFromJSONFunc(attr_ppe_fixed_function::fromJSON)
+		.setToStringFunc(attr_ppe_fixed_function::toString);
     }
 
 }

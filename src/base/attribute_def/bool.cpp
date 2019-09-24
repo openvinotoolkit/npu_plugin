@@ -5,7 +5,7 @@
 namespace mv
 {
 
-    namespace attr
+    namespace attr_bool
     {
 
         static mv::json::Value toJSON(const Attribute& a)
@@ -30,13 +30,13 @@ namespace mv
         {
             return std::vector<uint8_t>(1, a.get<bool>());
         }
-
-        MV_REGISTER_ATTR(bool)
-            .setToJSONFunc(toJSON)
-            .setFromJSONFunc(fromJSON)
-            .setToStringFunc(toString)
-            .setToBinaryFunc(toBinary);
-
     }
 
+    namespace attr {
+        MV_REGISTER_ATTR(bool)
+            .setToJSONFunc(attr_bool::toJSON)
+            .setFromJSONFunc(attr_bool::fromJSON)
+            .setToStringFunc(attr_bool::toString)
+            .setToBinaryFunc(attr_bool::toBinary);
+   }
 }

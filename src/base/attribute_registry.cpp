@@ -1,3 +1,7 @@
+// NOTE: Never compile this file as a standalone compiliation unit. It
+// must be included as .cpp explicity in the final target object in the
+// right order as needed.
+
 #include "include/mcm/base/attribute_registry.hpp"
 
 namespace mv
@@ -253,3 +257,32 @@ bool mv::attr::AttributeRegistry::checkInstanceTrait(const std::string& trait)
         return true;
     return false;
 }
+
+// Define all base attributes in a single compilation unit //
+
+#include    "src/base/attribute_def/bool.cpp"
+#include    "src/base/attribute_def/double.cpp"
+#include    "src/base/attribute_def/dtype.cpp"
+#include    "src/base/attribute_def/implicit_flow.cpp"
+#include    "src/base/attribute_def/int.cpp"
+#include    "src/base/attribute_def/int64.cpp"
+#include    "src/base/attribute_def/mem_location.cpp"
+#include    "src/base/attribute_def/mv_element.cpp"
+#include    "src/base/attribute_def/order.cpp"
+#include    "src/base/attribute_def/shape.cpp"
+#include    "src/base/attribute_def/std_array_unsigned_short_2.cpp"
+#include    "src/base/attribute_def/std_array_unsigned_short_3.cpp"
+#include    "src/base/attribute_def/std_array_unsigned_short_4.cpp"
+#include    "src/base/attribute_def/std_map_std_string_element.cpp"
+#include    "src/base/attribute_def/std_set_std_string.cpp"
+#include    "src/base/attribute_def/std_size_t.cpp"
+#include    "src/base/attribute_def/std_string.cpp"
+#include    "src/base/attribute_def/std_vec_mv_data_element.cpp"
+#include    "src/base/attribute_def/std_vec_mv_element.cpp"
+#include    "src/base/attribute_def/std_vector_double.cpp"
+#include    "src/base/attribute_def/std_vector_int64.cpp"
+#include    "src/base/attribute_def/std_vector_std_size_t.cpp"
+#include    "src/base/attribute_def/std_vector_std_string.cpp"
+#include    "src/base/attribute_def/std_vector_unsigned.cpp"
+#include    "src/base/attribute_def/unsigned_short.cpp"
+#include    "src/base/attribute_def/unsigned.cpp"

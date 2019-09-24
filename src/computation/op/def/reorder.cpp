@@ -3,7 +3,7 @@
 namespace mv
 {
 
-    namespace op
+    namespace op_reorder
     {
 
         static std::function<std::pair<bool, std::size_t>(const std::vector<Data::TensorIterator>&,
@@ -54,6 +54,10 @@ namespace mv
         
         };
 
+
+    }
+
+    namespace op {
         // Reorder:
         // Change tensor's order without touching its shape
         // and without physically transposing tensor's data.
@@ -63,10 +67,9 @@ namespace mv
         .setInputs({"data"})
         .setOutputs({"output"})
         .setArg<mv::Order>("order")
-        .setInputCheck(inputCheckFcn)
-        .setOutputDef(outputDefFcn)
+        .setInputCheck(op_reorder::inputCheckFcn)
+        .setOutputDef(op_reorder::outputDefFcn)
         .setTypeTrait({"executable", "exposed"});
-
     }
 
 }

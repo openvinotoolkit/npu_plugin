@@ -1,4 +1,5 @@
 build/
+build-debug/
 meta/include/mcm/*
 meta/src/*
 meta/schema/*
@@ -12,7 +13,6 @@ meta/schema/*
 recordings/
 klockwork/
 klocwork/
-contrib/lemon/*
 *.prototxt
 *.caffemodel
 *.ps
@@ -21,3 +21,8 @@ contrib/lemon/*
 # CLion
 .idea/
 cmake-build-debug/
+tags
+*.cmake
+*CMakeFiles*
+CMakeCache*
+tests/Makefile
