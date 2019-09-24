@@ -4,7 +4,7 @@
 namespace mv
 {
 
-    namespace op
+    namespace op_deallocate
     {
 
         static std::function<std::pair<bool, std::size_t>(const std::vector<Data::TensorIterator>&,
@@ -22,11 +22,13 @@ namespace mv
 
         };
     
-        MV_REGISTER_OP(Deallocate)
-        .setInputs({"inputs"})
-        .setInputCheck(inputCheckFcn)
-        .setOutputDef(outputDefFcn)
-        .setTypeTrait({"executable"});
     }
 
+    namespace op {
+        MV_REGISTER_OP(Deallocate)
+        .setInputs({"inputs"})
+        .setInputCheck(op_deallocate::inputCheckFcn)
+        .setOutputDef(op_deallocate::outputDefFcn)
+        .setTypeTrait({"executable"});
+    }
 }

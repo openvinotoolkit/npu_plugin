@@ -150,33 +150,6 @@ if(VALIDATION)
 endif(VALIDATION)
 
 SET(base
-    "${PROJECT_SOURCE_DIR}/src/base/attribute_def/bool.cpp"
-    "${PROJECT_SOURCE_DIR}/src/base/attribute_def/double.cpp"
-    "${PROJECT_SOURCE_DIR}/src/base/attribute_def/dtype.cpp"
-    "${PROJECT_SOURCE_DIR}/src/base/attribute_def/implicit_flow.cpp"
-    "${PROJECT_SOURCE_DIR}/src/base/attribute_def/int.cpp"
-    "${PROJECT_SOURCE_DIR}/src/base/attribute_def/int64.cpp"
-    "${PROJECT_SOURCE_DIR}/src/base/attribute_def/mem_location.cpp"
-    "${PROJECT_SOURCE_DIR}/src/base/attribute_def/mv_element.cpp"
-    "${PROJECT_SOURCE_DIR}/src/base/attribute_def/order.cpp"
-    "${PROJECT_SOURCE_DIR}/src/base/attribute_def/shape.cpp"
-    "${PROJECT_SOURCE_DIR}/src/base/attribute_def/std_array_unsigned_short_2.cpp"
-    "${PROJECT_SOURCE_DIR}/src/base/attribute_def/std_array_unsigned_short_3.cpp"
-    "${PROJECT_SOURCE_DIR}/src/base/attribute_def/std_array_unsigned_short_4.cpp"
-    "${PROJECT_SOURCE_DIR}/src/base/attribute_def/std_map_std_string_element.cpp"
-    "${PROJECT_SOURCE_DIR}/src/base/attribute_def/std_set_std_string.cpp"
-    "${PROJECT_SOURCE_DIR}/src/base/attribute_def/std_size_t.cpp"
-    "${PROJECT_SOURCE_DIR}/src/base/attribute_def/std_string.cpp"
-    "${PROJECT_SOURCE_DIR}/src/base/attribute_def/std_vec_mv_data_element.cpp"
-    "${PROJECT_SOURCE_DIR}/src/base/attribute_def/std_vec_mv_element.cpp"
-    "${PROJECT_SOURCE_DIR}/src/base/attribute_def/std_vector_double.cpp"
-    "${PROJECT_SOURCE_DIR}/src/base/attribute_def/std_vector_int64.cpp"
-    "${PROJECT_SOURCE_DIR}/src/base/attribute_def/std_vector_std_size_t.cpp"
-    "${PROJECT_SOURCE_DIR}/src/base/attribute_def/std_vector_std_string.cpp"
-    "${PROJECT_SOURCE_DIR}/src/base/attribute_def/std_vector_unsigned.cpp"
-    "${PROJECT_SOURCE_DIR}/src/base/attribute_def/unsigned_short.cpp"
-    "${PROJECT_SOURCE_DIR}/src/base/attribute_def/unsigned.cpp"
-    "${PROJECT_SOURCE_DIR}/src/target/keembay/attribute_def/quantization_params.cpp"
 
     "${PROJECT_SOURCE_DIR}/src/base/exception/argument_error.cpp"
     "${PROJECT_SOURCE_DIR}/src/base/exception/attribute_error.cpp"
@@ -203,7 +176,6 @@ SET(base
     "${PROJECT_SOURCE_DIR}/src/base/json/value.cpp"
     "${PROJECT_SOURCE_DIR}/src/base/json/json.cpp"
     "${PROJECT_SOURCE_DIR}/src/base/attribute_entry.cpp"
-    "${PROJECT_SOURCE_DIR}/src/base/attribute_registry.cpp"
     "${PROJECT_SOURCE_DIR}/src/base/binarizable.cpp"
     "${PROJECT_SOURCE_DIR}/src/base/element.cpp"
     "${PROJECT_SOURCE_DIR}/src/base/jsonable.cpp"
@@ -211,45 +183,10 @@ SET(base
 
     "${PROJECT_SOURCE_DIR}/src/computation/model/runtime_binary.cpp"
 
-    "${PROJECT_SOURCE_DIR}/src/computation/op/def/add.cpp"
-    "${PROJECT_SOURCE_DIR}/src/computation/op/def/average_pool.cpp"
-    "${PROJECT_SOURCE_DIR}/src/computation/op/def/batch_normalization.cpp"
-    "${PROJECT_SOURCE_DIR}/src/computation/op/def/bias.cpp"
-    "${PROJECT_SOURCE_DIR}/src/computation/op/def/clamp.cpp"
-    "${PROJECT_SOURCE_DIR}/src/computation/op/def/concat.cpp"
-    "${PROJECT_SOURCE_DIR}/src/computation/op/def/copy.cpp"
-    "${PROJECT_SOURCE_DIR}/src/computation/op/def/constant.cpp"
-    "${PROJECT_SOURCE_DIR}/src/computation/op/def/conv.cpp"
-    "${PROJECT_SOURCE_DIR}/src/computation/op/def/conversion.cpp"
-    "${PROJECT_SOURCE_DIR}/src/computation/op/def/depthwise_conv.cpp"
-    "${PROJECT_SOURCE_DIR}/src/computation/op/def/divide.cpp"
-    "${PROJECT_SOURCE_DIR}/src/computation/op/def/dropout.cpp"
-    "${PROJECT_SOURCE_DIR}/src/computation/op/def/elu.cpp"
-    "${PROJECT_SOURCE_DIR}/src/computation/op/def/fully_connected.cpp"
-    "${PROJECT_SOURCE_DIR}/src/computation/op/def/identity.cpp"
-    "${PROJECT_SOURCE_DIR}/src/computation/op/def/input.cpp"
-    "${PROJECT_SOURCE_DIR}/src/computation/op/def/leaky_relu.cpp"
-    "${PROJECT_SOURCE_DIR}/src/computation/op/def/local_response_normalization.cpp"
-    "${PROJECT_SOURCE_DIR}/src/computation/op/def/matmul.cpp"
-    "${PROJECT_SOURCE_DIR}/src/computation/op/def/max_pool.cpp"
-    "${PROJECT_SOURCE_DIR}/src/computation/op/def/multiply.cpp"
-    "${PROJECT_SOURCE_DIR}/src/computation/op/def/output.cpp"
-    "${PROJECT_SOURCE_DIR}/src/computation/op/def/permute.cpp"
-    "${PROJECT_SOURCE_DIR}/src/computation/op/def/prelu.cpp"
-    "${PROJECT_SOURCE_DIR}/src/computation/op/def/region_yolo.cpp"
-    "${PROJECT_SOURCE_DIR}/src/computation/op/def/relu.cpp"
-    "${PROJECT_SOURCE_DIR}/src/computation/op/def/reorder.cpp"
-    "${PROJECT_SOURCE_DIR}/src/computation/op/def/reorg_yolo.cpp"
-    "${PROJECT_SOURCE_DIR}/src/computation/op/def/reshape.cpp"
-    "${PROJECT_SOURCE_DIR}/src/computation/op/def/scale.cpp"
-    "${PROJECT_SOURCE_DIR}/src/computation/op/def/slice.cpp"
-    "${PROJECT_SOURCE_DIR}/src/computation/op/def/sigmoid.cpp"
-    "${PROJECT_SOURCE_DIR}/src/computation/op/def/softmax.cpp"
-    "${PROJECT_SOURCE_DIR}/src/computation/op/def/subtract.cpp"
-    "${PROJECT_SOURCE_DIR}/src/computation/op/def/tanh.cpp"
-
     "${PROJECT_SOURCE_DIR}/src/computation/op/op_entry.cpp"
-    "${PROJECT_SOURCE_DIR}/src/computation/op/op_registry.cpp"
+
+# Single compilation unit for all Keembay attributes and operations in order //
+    "${PROJECT_SOURCE_DIR}/src/target/keembay/keembay_registry.cpp"
 
     "${PROJECT_SOURCE_DIR}/src/target/keembay/barrier_definition.cpp"
     "${PROJECT_SOURCE_DIR}/src/target/keembay/barrier_deps.cpp"
@@ -258,21 +195,8 @@ SET(base
     "${PROJECT_SOURCE_DIR}/src/target/keembay/ppe_layer_type.cpp"
     "${PROJECT_SOURCE_DIR}/src/target/keembay/ppe_task.cpp"
     "${PROJECT_SOURCE_DIR}/src/target/keembay/workloads.cpp"
-    "${PROJECT_SOURCE_DIR}/src/target/keembay/attribute_def/barrier_definition.cpp"
-    "${PROJECT_SOURCE_DIR}/src/target/keembay/attribute_def/barrier_deps.cpp"
-    "${PROJECT_SOURCE_DIR}/src/target/keembay/attribute_def/dma_direction.cpp"
-    "${PROJECT_SOURCE_DIR}/src/target/keembay/attribute_def/workloads.cpp"
-    "${PROJECT_SOURCE_DIR}/src/target/keembay/attribute_def/ppe_task.cpp"
-    "${PROJECT_SOURCE_DIR}/src/target/keembay/attribute_def/ppe_fixed_function.cpp"
-    "${PROJECT_SOURCE_DIR}/src/target/keembay/tasks/def/barrier_task.cpp"
-    "${PROJECT_SOURCE_DIR}/src/target/keembay/tasks/def/deallocate_task.cpp"
-    "${PROJECT_SOURCE_DIR}/src/target/keembay/tasks/def/dma_task.cpp"
-    "${PROJECT_SOURCE_DIR}/src/target/keembay/tasks/def/dpu_task.cpp"
-    "${PROJECT_SOURCE_DIR}/src/target/keembay/tasks/def/placeholder_task.cpp"
-    "${PROJECT_SOURCE_DIR}/src/target/keembay/tasks/def/sparsity_map.cpp"
-    "${PROJECT_SOURCE_DIR}/src/target/keembay/tasks/def/weights_table.cpp"
+
     "${PROJECT_SOURCE_DIR}/src/target/keembay/metisGraphStructure.cpp"
-    "${PROJECT_SOURCE_DIR}/src/target/keembay/tasks/def/implicit_concat.cpp"
 
 
     "${PROJECT_SOURCE_DIR}/src/tensor/dtype/dtype_def/bin.cpp"
@@ -474,7 +398,7 @@ else()
         )
         add_library(cm SHARED ${base} ${logger} ${pass} ${compiler} ${pass_validation})
         add_library(corebase SHARED ${base} ${logger})
-        add_library(model SHARED ${model})
+        add_library(model SHARED ${model}) 
         add_library(dep SHARED ${deployer})
         target_link_libraries(dep mvnc)
         target_link_libraries(cm corebase metamodel flatbuffers metis)

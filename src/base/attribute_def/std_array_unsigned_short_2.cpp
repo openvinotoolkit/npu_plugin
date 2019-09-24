@@ -6,7 +6,7 @@
 namespace mv
 {
 
-    namespace attr
+    namespace attr_us2
     {
 
         static mv::json::Value toJSON(const Attribute& a)
@@ -66,11 +66,15 @@ namespace mv
             return toReturn;
         }
 
+
+    }
+
+    namespace attr {
         MV_REGISTER_ATTR(std::array<unsigned short COMMA 2>)
-            .setToJSONFunc(toJSON)
-            .setFromJSONFunc(fromJSON)
-            .setToStringFunc(toString)
-            .setToBinaryFunc(toBinary);
+            .setToJSONFunc(attr_us2::toJSON)
+            .setFromJSONFunc(attr_us2::fromJSON)
+            .setToStringFunc(attr_us2::toString)
+            .setToBinaryFunc(attr_us2::toBinary);
 
     }
 

@@ -6,7 +6,7 @@
 namespace mv
 {
 
-    namespace op
+    namespace op_barrier
     {
 
         static std::function<std::pair<bool, std::size_t>(const std::vector<Data::TensorIterator>&,
@@ -24,12 +24,15 @@ namespace mv
 
         };
 
+
+    }
+
+    namespace op {
         MV_REGISTER_OP(BarrierTask)
-        .setInputCheck(inputCheckFcn)
-        .setOutputDef(outputDefFcn)
+        .setInputCheck(op_barrier::inputCheckFcn)
+        .setOutputDef(op_barrier::outputDefFcn)
         .setArg<mv::Barrier>("Barrier")
         .setTypeTrait({"executable"});
-
     }
 
 }

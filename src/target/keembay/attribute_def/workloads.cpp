@@ -6,7 +6,7 @@
 namespace mv
 {
 
-    namespace attr
+    namespace attr_workloads
     {
 
     static mv::json::Value toJSON(const Attribute& a)
@@ -30,12 +30,15 @@ namespace mv
         return a.get<Workloads>().toLongString();
     }
 
-    MV_REGISTER_ATTR(Workloads)
-        .setToJSONFunc(toJSON)
-        .setFromJSONFunc(fromJSON)
-        .setToStringFunc(toString)
-        .setToLongStringFunc(toLongString)
-        .setTypeTrait("large");
+    }
+
+    namespace attr {
+	    MV_REGISTER_ATTR(Workloads)
+		.setToJSONFunc(attr_workloads::toJSON)
+		.setFromJSONFunc(attr_workloads::fromJSON)
+		.setToStringFunc(attr_workloads::toString)
+		.setToLongStringFunc(attr_workloads::toLongString)
+		.setTypeTrait("large");
     }
 
 }

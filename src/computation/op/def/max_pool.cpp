@@ -3,7 +3,7 @@
 namespace mv
 {
 
-    namespace op
+    namespace op_max_pool
     {
 
         static std::function<std::pair<bool, std::size_t>(const std::vector<Data::TensorIterator>&,
@@ -77,6 +77,12 @@ namespace mv
 
         };
 
+
+    }
+
+
+    namespace op {
+
         // TODO: make setOptionalArg accept "..." instead of std::string("...")
         // Default values for (some of) optional arguments
         static std::string default_auto_pad = ""; // variants: "", "same_upper", "same_lower", "valid"
@@ -92,8 +98,8 @@ namespace mv
         .setOptionalArg<std::string>("auto_pad", default_auto_pad)      // default: ""
         .setOptionalArg<std::string>("rounding_type", default_rounding_type) // default: "floor"
         .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
-        .setInputCheck(inputCheckFcn)
-        .setOutputDef(outputDefFcn)
+        .setInputCheck(op_max_pool::inputCheckFcn)
+        .setOutputDef(op_max_pool::outputDefFcn)
         .setTypeTrait({"executable", "exposed"});
 
     }

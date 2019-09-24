@@ -3,7 +3,7 @@
 namespace mv
 {
 
-    namespace op
+    namespace op_depthwise_conv
     {
 
         static std::function<std::pair<bool, std::size_t>(const std::vector<Data::TensorIterator>&,
@@ -77,6 +77,10 @@ namespace mv
 
         };
 
+
+    }
+
+    namespace op {
         MV_REGISTER_OP(DepthwiseConv)
         .setInputs({"data", "weights"})
         .setOutputs({"output"})
@@ -84,9 +88,10 @@ namespace mv
         .setOptionalArg<unsigned>("dilationFactor", 1)
         .setArg<std::array<unsigned short, 4>>("padding")
         .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
-        .setInputCheck(inputCheckFcn)
-        .setOutputDef(outputDefFcn)
+        .setInputCheck(op_depthwise_conv::inputCheckFcn)
+        .setOutputDef(op_depthwise_conv::outputDefFcn)
         .setTypeTrait({"executable", "exposed"});
+
 
     }
 
