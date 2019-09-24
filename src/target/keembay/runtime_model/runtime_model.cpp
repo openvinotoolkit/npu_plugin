@@ -221,25 +221,13 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
         toBuild->data->data_index = tensorBufferIt->getOffset();
         toBuild->data->data_index += leading_offset;
 
-        // VERY IMPORTANT NOTE: Sparsity index is not used by populated tensors
-        // as populated tensor represent weights, and all the information we need
-        // about sparsity is contained in the weights table. This was confirmed
-        // after a chat with Levi.
-
-        // We still have to explicitely set sparsity_index and storage_element_index to 0
-        // in the case of populated tensors that are sparse, so that runtime knows that sparsity is used
         if(t->isSparse())
         {
+            toBuild->data->sparsity_index = t->getSparsityMap()->getAddress();
             if(!t->isPopulated())
-            {
-                toBuild->data->sparsity_index = t->getSparsityMap()->getAddress();
                 toBuild->data->storage_element_index = t->getStorageElement()->getAddress();
-            }
             else
-            {
-                toBuild->data->sparsity_index = 0;
                 toBuild->data->storage_element_index = 0;
-            }
         }
     }
     toBuild->locale = convertAllocatorToMemoryLocale(*tensorAllocatorName);
@@ -356,25 +344,13 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
         toBuild->data->data_index = t->getAddress();
         toBuild->locale_index = std::vector<unsigned int>(1, clusterId);
 
-        // VERY IMPORTANT NOTE: Sparsity index is not used by populated tensors
-        // as populated tensor represent weights, and all the information we need
-        // about sparsity is contained in the weights table. This was confirmed
-        // after a chat with Levi
-
-        // We still have to explicitely set sparsity_index and storage_element_index to 0
-        // in the case of populated tensors that are sparse, so that runtime knows that sparsity is used
         if(t->isSparse())
         {
+            toBuild->data->sparsity_index = subtensor.getSparsityMap()->getAddress();
             if(!t->isPopulated())
-            {
-                toBuild->data->sparsity_index = subtensor.getSparsityMap()->getAddress();
                 toBuild->data->storage_element_index = subtensor.getStorageElement()->getAddress();
-            }
             else
-            {
-                toBuild->data->sparsity_index = 0;
                 toBuild->data->storage_element_index = 0;
-            }
         }
     }
 
