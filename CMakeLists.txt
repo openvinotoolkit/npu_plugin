@@ -113,7 +113,7 @@ endif()
 
 include_directories(${PROJECT_SOURCE_DIR})
 include_directories(${PROJECT_SOURCE_DIR}/include)
-#include_directories(${PROJECT_SOURCE_DIR}/contrib/flatbuffers/include)
+include_directories(${PROJECT_SOURCE_DIR}/contrib/flatbuffers/include)
 
 
 if(VALIDATION)
