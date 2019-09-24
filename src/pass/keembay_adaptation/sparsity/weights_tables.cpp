@@ -365,14 +365,15 @@ static void generateWeightsTablesFcn(const mv::pass::PassEntry&, mv::Computation
             {
                 std::string opName = dpuTaskOp->getName();
                 std::string kernelWeightsTableName(mv::createWeightTableName(opName));
-                auto layerpad = pad;
+                auto layerPad = pad;
                 auto opStrategy = dpuTaskOp->get<std::string>("splitStrategy");
+
+                if (opStrategy == "HKSwitch"|| opStrategy == "SplitOverK")
+                    layerPad = layerPad * numberClusters;
+
                 auto outputChannels = dpuTaskOp->getOutputTensor(0)->getShape()[mv::IO_CHANNEL_DIMENSION];
-                if ((outputChannels % pad) != 0 && (opStrategy == "HKSwitch"|| opStrategy == "SplitOverK"))
-                {
-                    layerpad = layerpad * numberClusters;
-                }
-                outputChannels = mv::round_up(dpuTaskOp->getOutputTensor(0)->getShape()[mv::IO_CHANNEL_DIMENSION], layerpad);
+
+                outputChannels = mv::round_up(dpuTaskOp->getOutputTensor(0)->getShape()[mv::IO_CHANNEL_DIMENSION], layerPad);
                 // per channel layout:
                 // 3 -> bias
                 // 2 -> mult << 16 | round << 14 |  shift << 8 | prelu

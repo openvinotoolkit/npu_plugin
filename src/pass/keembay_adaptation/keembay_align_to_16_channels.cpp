@@ -44,11 +44,11 @@ void alignTo16ChannelsFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
         auto outputTensorChannels = outputTensorShape[mv::IO_CHANNEL_DIMENSION];
         auto opStrategy = opIt->get<std::string>("splitStrategy");
         auto layerPad = pad;
+        if (opStrategy == "HKSwitch"|| opStrategy == "SplitOverK")
+            layerPad = layerPad * numberClusters;
 
-        if (outputTensorChannels % pad != 0)
+        if (outputTensorChannels % layerPad != 0)
         {
-            if (opStrategy == "HKSwitch"|| opStrategy == "SplitOverK")
-                layerPad = layerPad * numberClusters;
             opIt->set<bool>("alignment", true);
             if (!outputTensor->hasAttr("alignment"))
             {

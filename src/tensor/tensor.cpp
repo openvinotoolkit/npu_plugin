@@ -1060,12 +1060,12 @@ std::size_t mv::Tensor::computeTotalSize(unsigned int alignment, bool isBase, bo
     //TODO update that to proper alignment, if this needs to align to 32 (splitOverK, each cluster has the whole tensor size, but need it aligned to 16*numclusters)
     if (isTensorAligned || fatherTensorAligned)
     {
-        auto pad = 16;
+        auto pad = alignment;
         if (hasAttr("splitStrategy") && get<std::string>("splitStrategy") == "SplitOverK")
         //if (opStrategy == "HKSwitch"|| opStrategy == "SplitOverK")
             pad = pad * 4;
         auto outputChannels = shape[mv::IO_CHANNEL_DIMENSION];
-        if (outputChannels % alignment != 0)
+        if (outputChannels % pad != 0)
         {
             auto paddedOutputChannels = mv::round_up(outputChannels, pad);
             totalSize = totalSize / outputChannels * paddedOutputChannels;
