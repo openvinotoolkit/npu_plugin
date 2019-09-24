@@ -208,7 +208,6 @@
             "KMBOrderConversion",
             "AlignTo16Channels",
             "AlignTaskWeights",
-            "GenerateSparsityMapsUnpopulatedTensors",
             "GenerateSparsityMapsPopulatedTensors",
             "GenerateWeightsTables",
             "GenerateEltWiseConstants",
@@ -333,6 +332,7 @@
     },
     "finalize": {
         "Singular": [
+            "GenerateSparsityMapsUnpopulatedTensors",
             "AddDeallocationTasks",
             {
                 "name": "TransitiveReduction",
