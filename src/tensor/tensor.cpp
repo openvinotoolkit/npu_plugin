@@ -407,10 +407,9 @@ void mv::Tensor::setAddress(int64_t address)
         if(!isPopulated())
         {
             auto storageElementSize = storageElement_->computeTotalSize();
-            storageElement_->set<std::size_t>("address", address +
-            (tensorSize - storageElementSize - sparsitySize));
+            storageElement_->setAddress(address + (tensorSize - storageElementSize - sparsitySize));
         }
-        sparsityMap_->set<std::size_t>("address", address +(tensorSize - sparsitySize));
+        sparsityMap_->setAddress(address + (tensorSize - sparsitySize));
     }
     for (size_t tIdx = 0; tIdx < subTensors_.size(); tIdx++)
         subTensors_[tIdx]->setAddress(address);
