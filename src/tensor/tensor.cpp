@@ -89,6 +89,8 @@ noneZeroElements_(other.noneZeroElements_)
     {
         data_ = other.data_;
         blocks_ = other.blocks_;
+        if(other.get<bool>("dataPacked"))
+            orderedDataPacked_ = other.orderedDataPacked_;
     }
 }
 
@@ -147,6 +149,8 @@ void mv::Tensor::populate(const std::vector<double>& data)
 
     data_ = std::make_shared<std::vector<DataElement>>(data.size(), DataElement(true));
     blocks_ = std::vector<std::vector<DataElement>::iterator>(shape_.totalSize() / blockSize_);
+    set<bool>("dataPacked", false);
+
     for (std::size_t i = 0; i < blocks_.size(); ++i)
         blocks_[i] = data_->begin() + i * blockSize_;
 
@@ -181,6 +185,8 @@ void mv::Tensor::populate(const std::vector<mv::DataElement>& data)
 
     data_ = std::make_shared<std::vector<DataElement>>(data.size(), data[0].isDouble());
     blocks_ = std::vector<std::vector<DataElement>::iterator>(shape_.totalSize() / blockSize_);
+    set<bool>("dataPacked", false);
+
     for (std::size_t i = 0; i < blocks_.size(); ++i)
         blocks_[i] = data_->begin() + i * blockSize_;
 
@@ -222,6 +228,8 @@ void mv::Tensor::populate(const std::vector<int64_t>& data)
 
     data_ = std::make_shared<std::vector<DataElement>>(data.size(), false);
     blocks_ = std::vector<std::vector<DataElement>::iterator>(shape_.totalSize() / blockSize_);
+    set<bool>("dataPacked", false);
+
     for (std::size_t i = 0; i < blocks_.size(); ++i)
         blocks_[i] = data_->begin() + i * blockSize_;
 
@@ -387,6 +395,9 @@ void mv::Tensor::setAddress(int64_t address)
     if (isSparse() && !isPopulated())
     {
         auto tensorSize = getClusterSize();
+
+        //NOTE: SOK problem?
+        //Order assumed: Tensor - Storage Element - Sparsity Map
         auto sparsitySize = sparsityMap_->computeTotalSize();
         auto storageElementSize = storageElement_->computeTotalSize();
         storageElement_->set<std::size_t>("address", address +
@@ -451,29 +462,6 @@ bool mv::Tensor::setSparse()
     return true;
 }
 
-bool mv::Tensor::setSparse(std::shared_ptr<mv::Tensor> sparsityMap, std::shared_ptr<mv::Tensor> storageElement)
-{
-    MV_PROFILED_FUNCTION(MV_PROFILE_BULD)
-    mv::Order order =  getOrder();
-    if (!order.isZMajor())
-        throw ArgumentError(*this, "Order", order.toString() , " Sparsity requires ZMajor layout (NHWC)");
-
-    if (order.size() < 3)
-        throw ArgumentError(*this, "Order", order.toString() , " Sparsity requires order of size >= 3");
-
-    if(hasAttr("sparse") && get<bool>("sparse") == true)
-        return false;
-
-    set<bool>("sparse", true);
-
-    if(!isPopulated())
-        storageElement_  = storageElement;
-
-    sparsityMap_ = sparsityMap;
-
-    return true;
-}
-
 void mv::Tensor::bindData(Tensor& other, const std::vector<std::size_t>& leftPadding, const std::vector<std::size_t> &rightPadding)
 {
     if (leftPadding.size() != other.shape_.ndims() && !leftPadding.empty())
@@ -515,13 +503,16 @@ void mv::Tensor::bindData(Tensor& other, const std::vector<std::size_t>& leftPad
 
 void mv::Tensor::setOrder(Order order, bool updateSubtensors)
 {
-    //TODO need to call this with True from DPUTask for weights
-    set<Order>("order", order);
-    log(Logger::MessageType::Debug, "Reorderd to " + order.toString());
-    if (updateSubtensors)
-        setSubtensorsOrder_(order);
-    return;
+    if(order != getOrder())
+    {
+        set<Order>("order", order);
+        log(Logger::MessageType::Debug, "Reorderd to " + order.toString());
 
+        //If the data order changes, the packed data is invalid
+        set<bool>("dataPacked", false);
+        if (updateSubtensors)
+            setSubtensorsOrder_(order);
+    }
 }
 
 void mv::Tensor::setSubtensorsOrder_(Order order)
@@ -656,55 +647,60 @@ std::vector<mv::DataElement> mv::Tensor::getData()
     return orderedData;
 }
 
-std::vector<int64_t> mv::Tensor::getKernelDataOffsets()
+const std::vector<int64_t>& mv::Tensor::getKernelDataOffsets()
 {
-    if (isSparse() && kernelDataOffsets_.empty()) //getDataPacked hasn't been called
+    if(!get<bool>("dataPacked")) //getDataPacked hasn't been called
         getDataPacked();
     return kernelDataOffsets_;
 }
 
-std::vector<mv::DataElement> mv::Tensor::getDataPacked()
+const std::vector<mv::DataElement>& mv::Tensor::getDataPacked()
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_BULD)
     if (!isPopulated())
         throw ValueError(*this, "Attempt of restoring data from an unpopulated tensor");
 
-    auto shape = shape_;
-    std::vector<std::size_t> sub(shape.ndims());
-    std::vector<int64_t> zeroPoint = getZeroPointsPerChannel();
-    std::vector<DataElement> orderedDataPacked;
-    double datai;
-    size_t outputChannels = shape[mv::KERNEL_OUTPUT_CHANNELS];
-    size_t outputChannelSize = shape.totalSize() / outputChannels;
-    kernelDataOffsets_.resize(outputChannels);
-    size_t offset = 0;
-    for (std::size_t k = 0; k < outputChannels; ++k)
+    if(!get<bool>("dataPacked"))
     {
-        kernelDataOffsets_[k] = offset;
-        size_t prevNumOfElements = orderedDataPacked.size();
-        for (std::size_t i = 0; i < outputChannelSize; i++)
-        {
-            sub = getOrder().indToSub(shape_, i + k*outputChannelSize);
-            datai = data_->at(internalOrder_.subToInd(shape_, sub));
-            //skip zero values if sparse
-            if (!isSparse() || datai != zeroPoint[sub[mv::KERNEL_OUTPUT_CHANNELS]])
-                orderedDataPacked.push_back(DataElement(isDoubleType(), datai));
-        }
-        //Add padding if needed
-        if (isSparse())
-        {
-            auto size = orderedDataPacked.size() * std::ceil(getDType().getSizeInBits()/8.0);
-            auto padsize = mv::round_up(size, 16) - size;
-            int64_t zeroPointVal = zeroPoint[sub[mv::KERNEL_OUTPUT_CHANNELS]];
-            for (std::size_t j = 0; j < padsize; ++j)
-                orderedDataPacked.push_back(DataElement(isDoubleType(), zeroPointVal));
-        }
+        orderedDataPacked_ = std::make_shared<std::vector<DataElement>>();
+        set<bool>("dataPacked", true);
 
-        size_t numberOfElementsInKernel = orderedDataPacked.size() - prevNumOfElements; //include padding
-        offset += numberOfElementsInKernel * std::ceil(getDType().getSizeInBits()/8.0);
+        auto shape = shape_;
+        std::vector<std::size_t> sub(shape.ndims());
+        std::vector<int64_t> zeroPoint = getZeroPointsPerChannel();
+        double datai;
+        size_t outputChannels = shape[mv::KERNEL_OUTPUT_CHANNELS];
+        size_t outputChannelSize = shape.totalSize() / outputChannels;
+        kernelDataOffsets_.resize(outputChannels);
+        size_t offset = 0;
+        for (std::size_t k = 0; k < outputChannels; ++k)
+        {
+            kernelDataOffsets_[k] = offset;
+            size_t prevNumOfElements = orderedDataPacked_->size();
+            for (std::size_t i = 0; i < outputChannelSize; i++)
+            {
+                sub = getOrder().indToSub(shape_, i + k*outputChannelSize);
+                datai = data_->at(internalOrder_.subToInd(shape_, sub));
+                //skip zero values if sparse
+                if (!isSparse() || datai != zeroPoint[sub[mv::KERNEL_OUTPUT_CHANNELS]])
+                    orderedDataPacked_->push_back(DataElement(isDoubleType(), datai));
+            }
+            //Add padding if needed
+            if (isSparse())
+            {
+                auto size = orderedDataPacked_->size() * std::ceil(getDType().getSizeInBits()/8.0);
+                auto padsize = mv::round_up(size, 16) - size;
+                int64_t zeroPointVal = zeroPoint[sub[mv::KERNEL_OUTPUT_CHANNELS]];
+                for (std::size_t j = 0; j < padsize; ++j)
+                    orderedDataPacked_->push_back(DataElement(isDoubleType(), zeroPointVal));
+            }
+
+            size_t numberOfElementsInKernel = orderedDataPacked_->size() - prevNumOfElements; //include padding
+            offset += numberOfElementsInKernel * std::ceil(getDType().getSizeInBits()/8.0);
+        }
+        noneZeroElements_ = orderedDataPacked_->size();
     }
-    noneZeroElements_ = orderedDataPacked.size();
-    return orderedDataPacked;
+    return *orderedDataPacked_;
 }
 
 std::vector<int64_t> mv::Tensor::getIntData()
@@ -1092,26 +1088,32 @@ void mv::Tensor::splitAcrossClusters(std::vector<mv::Workload> workloads, bool s
             auto height = wlItr->MaxY - wlItr->MinY + 1;
             if (splitOverH)
             {
+                //NOTE: We can probably avoid to populate this tensor
+                // We will save a lot of time and space
+//                subTensors_.push_back(std::make_shared<mv::Tensor>(getName() + "sub" + std::to_string(idx),
+//                    shape_, getDType(), getOrder(), getData()));
                 subTensors_.push_back(std::make_shared<mv::Tensor>(getName() + "sub" + std::to_string(idx),
-                    shape_, getDType(), getOrder(), getData()));
+                    shape_, getDType(), getOrder()));
             }
             else
             {
                 mv::Shape newShape = { shape[0], shape[1] , static_cast<size_t>(width), static_cast<size_t>(height)};
                 auto order = getOrder();
-                std::vector<mv::DataElement> splittedData(newShape.totalSize(), mv::DataElement(this->isDoubleType()));
-                size_t nOffset = static_cast<size_t>(wlItr->MinY);
-                size_t cOffset = static_cast<size_t>(wlItr->MinX);
-                for (size_t n = 0; n < newShape[3]; n++)
-                    for (size_t c = 0; c < newShape[2]; c++)
-                        for (size_t h = 0; h < newShape[1]; h++)
-                            for (size_t w = 0; w < newShape[0]; w++)
-                            {
-                                //copy only the relevant channels/kernels
-                                splittedData[order.subToInd(newShape, {w, h, c, n})] = this->at({w , h, c+cOffset, n+nOffset});
-                            }
+//                std::vector<mv::DataElement> splittedData(newShape.totalSize(), mv::DataElement(this->isDoubleType()));
+//                size_t nOffset = static_cast<size_t>(wlItr->MinY);
+//                size_t cOffset = static_cast<size_t>(wlItr->MinX);
+//                for (size_t n = 0; n < newShape[3]; n++)
+//                    for (size_t c = 0; c < newShape[2]; c++)
+//                        for (size_t h = 0; h < newShape[1]; h++)
+//                            for (size_t w = 0; w < newShape[0]; w++)
+//                            {
+//                                //copy only the relevant channels/kernels
+//                                splittedData[order.subToInd(newShape, {w, h, c, n})] = this->at({w , h, c+cOffset, n+nOffset});
+//                            }
+//                subTensors_.push_back(std::make_shared<mv::Tensor>(getName() + "sub" + std::to_string(idx),
+//                    newShape, getDType(), order, splittedData));
                 subTensors_.push_back(std::make_shared<mv::Tensor>(getName() + "sub" + std::to_string(idx),
-                    newShape, getDType(), order, splittedData));
+                    newShape, getDType(), order));
             }
             std::vector<std::size_t> offset = {0 , 0,
                 static_cast<size_t>(wlItr->MinX), static_cast<size_t>(wlItr->MinY)};

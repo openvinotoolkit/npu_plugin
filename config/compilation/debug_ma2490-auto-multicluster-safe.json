@@ -6,7 +6,7 @@
                 "_comment" : "Stores common params accross multiple passes. Access through the Computation Model.",
                 "recorded_model": false,
                 "log_time" : true,
-                "verbose": "Error",
+                "verbose": "Debug",
                 "weights_form": "None",
                 "barrier_index_assignment" : "Dynamic",
                 "Number_of_DPUs" : 20,
@@ -16,7 +16,17 @@
                 "MemoryHack": false,
                 "ActivationSparsity": false,
                 "WeightsSparsity": false,
+                "ConvertDots" : false,
                 "cmx": 917504,
+                "sparsity_strategy" :
+                [
+                    {
+                        "name_filter": ".*",
+                        "inputActivationSparsity": false,
+                        "outputActivationSparsity": false,
+                        "weightsSparsity": false
+                    }
+                ],
                 "split_strategy" :
                 [
                     {
@@ -172,6 +182,7 @@
                 }
             },
             "StoreLayerSplitStrategy",
+            "StoreLayerSparsityStrategy",
             "StoreTensorPlacement",
             "StreamingTiling",
             "StreamBinaryDataWeights",
@@ -204,11 +215,9 @@
             "StrategyLayersToTensors",
             "ComputeTensorsQuantParams",
             "UpdateImplicitLayersQuantizationParams",
-
-
             "PopulateWeightsTablesQuantization",
             "RemoveBiasTensors",
-
+            "SplittingTensorsAcrossClusters",
             {
                 "name": "GenerateDot",
                 "output": "output/dots/keembay_adapt_model.dot",
@@ -290,7 +299,10 @@
                 "name": "ConvertDot",
                 "input": "output/dots/TaskControlFlows_model_transitive_reduction.dot"
             },
-            "HangingDmaControlFlows",
+            {
+                "name":"HangingDmaControlFlows",
+                "weights_prefetch": 2
+            },
             "TransitiveReduction",
             "LayerNumbering",
             {
@@ -321,7 +333,6 @@
     },
     "finalize": {
         "Singular": [
-            "SplittingTensorsAcrossClusters",
             "AddDeallocationTasks",
             {
                 "name": "TransitiveReduction",
@@ -343,6 +354,13 @@
                 "html": true
             },
             "MaxTopologicalCutAndPartialSerialisation",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/TransitiveReductionAfterMaxCut.dot",
+                "scope": "ControlModel",
+                "content": "nonfull",
+                "html": true
+            },
             "TransitiveReduction",
             {
                 "name": "GenerateWorkloads",
@@ -383,9 +401,15 @@
         "Singular": [
             "StoreBarriersNamesInTasks",
             "GenerateExecutionSchedule",
-            "CorrectExecutionSchedule",
             "BarrierIndexAssignment",
-            "UpdateBarrierRefs"
+            "UpdateBarrierRefs",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/serial_model.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
+            }
         ]
     },
     "validate": {

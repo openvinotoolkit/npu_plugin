@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 build/
 build-debug/
 meta/include/mcm/*
@@ -27,3 +28,28 @@ tags
 *CMakeFiles*
 CMakeCache*
 tests/Makefile
+=======
+build/
+meta/include/mcm/*
+meta/src/*
+meta/schema/*
+*.user
+.vscode
+*.blob
+*.dot
+*.json
+*:*
+*.svg
+recordings/
+klockwork/
+klocwork/
+contrib/lemon/*
+*.prototxt
+*.caffemodel
+*.ps
+*.png
+
+# CLion
+.idea/
+cmake-build-debug/
+>>>>>>> master
