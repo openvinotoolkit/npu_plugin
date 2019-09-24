@@ -1690,8 +1690,6 @@ unsigned mv::RuntimeModel::countProducerConsumerTasks(mv::ComputationModel& cm, 
         {
             bool sourceIsBroadCasted = opIt->getInputTensor(0)->isBroadcasted();
             // NOTE: a sok tensor might come from a different strategy op
-            sourceIsBroadCasted = (opIt->getInputTensor(0)->get<std::string>("splitStrategy") == "SplitOverK")
-                    && (!opIt->getInputTensor(0)->isPopulated());
             if(!sourceIsBroadCasted)
                 toReturn = numClusters;
 //Look at the coments on buildNNDMATaskT for multiCluster is case of Multiclustering
