@@ -807,7 +807,7 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
         }
         return toReturn;
     }
-    else if(sourceIsBroadCasted || (splitting == "Clustering" && opIt->getOutputTensor(0)->isPopulated()))
+    else if(sourceIsBroadCasted || (splitting == "Clustering" && opIt->getOutputTensor(0)->isPopulated()) || ((splitting == "SplitOverK" && !opIt->getOutputTensor(0)->isPopulated())))
     {
         //NOTE: Multicast flag works on nce2tasks for going the whole output tensor on every cluster,
         //POC's logic with replicating 4 times the same DMA seems not correct, even for mutiple layers to me,
@@ -1689,6 +1689,9 @@ unsigned mv::RuntimeModel::countProducerConsumerTasks(mv::ComputationModel& cm, 
         if(numClusters > 1)
         {
             bool sourceIsBroadCasted = opIt->getInputTensor(0)->isBroadcasted();
+            // NOTE: a sok tensor might come from a different strategy op
+            sourceIsBroadCasted = (opIt->getInputTensor(0)->get<std::string>("splitStrategy") == "SplitOverK")
+                    && (!opIt->getInputTensor(0)->isPopulated());
             if(!sourceIsBroadCasted)
                 toReturn = numClusters;
 //Look at the coments on buildNNDMATaskT for multiCluster is case of Multiclustering
