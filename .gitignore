@@ -3,6 +3,7 @@ build-debug/
 meta/include/mcm/*
 meta/src/*
 meta/schema/*
+contrib/*
 *.user
 .vscode
 *.blob
