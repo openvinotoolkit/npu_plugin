@@ -796,6 +796,7 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
 
         if(opIt->getInputTensor(0)->isSparse())
         {
+            // NOTE: Problem here. They are coincident tensors. The allocators are the same.
             auto inputTensorSparsityMap = dm.getTensor(opIt->getInputTensor(0)->getSparsityMap()->getName());
             auto outputTensorSparsityMap = dm.getTensor(opIt->getOutputTensor(0)->getSparsityMap()->getName());
             case2MC(numTasks, cm, direction, compilationDescriptor, padFinalOutput, compression, toReturn, inputTensorSparsityMap, outputTensorSparsityMap);
