@@ -89,14 +89,6 @@ add_code_coverage()
 #############################################################################################
 ### Find packages - uses Find*.cmake files in /cmake-modules dir
 #############################################################################################
-find_package(METIS)
-if(METIS_FOUND)
-    set(METIS_LIBS ${METIS_LIBRARIES})
-    include_directories(${METIS_INCLUDE_DIRS})
-else()
-    message(STATUS "Metis not found!")
-endif(METIS_FOUND)
-
 find_package(LEMON)
 if(LEMON_FOUND)
     include_directories(${LEMON_INCLUDE_DIR})
@@ -194,9 +186,6 @@ SET(base
     "${PROJECT_SOURCE_DIR}/src/target/keembay/ppe_layer_type.cpp"
     "${PROJECT_SOURCE_DIR}/src/target/keembay/ppe_task.cpp"
     "${PROJECT_SOURCE_DIR}/src/target/keembay/workloads.cpp"
-
-    "${PROJECT_SOURCE_DIR}/src/target/keembay/metisGraphStructure.cpp"
-
 
     "${PROJECT_SOURCE_DIR}/src/tensor/dtype/dtype_def/bin.cpp"
     "${PROJECT_SOURCE_DIR}/src/tensor/dtype/dtype_def/float8.cpp"
@@ -400,7 +389,7 @@ else()
         add_library(model SHARED ${model}) 
         add_library(dep SHARED ${deployer})
         target_link_libraries(dep mvnc)
-        target_link_libraries(cm corebase metamodel flatbuffers metis)
+        target_link_libraries(cm corebase metamodel flatbuffers)
         add_dependencies(cm generate-comp-api)
         add_dependencies(model generate-comp-api)
         add_dependencies(cm generate-graphfile-headers)
@@ -417,10 +406,10 @@ else()
         add_library(model SHARED ${model})
         target_link_libraries(cm model)
         IF(CMAKE_CROSSCOMPILING)
-            #Flatbuffers and Metis not x-compiled yet
+            #Flatbuffers not x-compiled yet
             target_link_libraries(cm corebase metamodel)
         ELSE()
-            target_link_libraries(cm corebase metamodel flatbuffers metis ${LEMON_LIBRARY})
+            target_link_libraries(cm corebase metamodel flatbuffers ${LEMON_LIBRARY})
             add_dependencies(cm generate-comp-api)
             add_dependencies(model generate-comp-api)
             add_dependencies(cm generate-graphfile-headers)
