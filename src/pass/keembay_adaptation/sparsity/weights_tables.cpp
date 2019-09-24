@@ -144,7 +144,7 @@ void populateWeightsTablesSparsityPointers(mv::Tensor& weightsTableData, mv::Dat
         auto weights = dpuTaskOp->getInputTensor(1);
         if(weights->isSparse())
         {
-            auto weightsSparsityMap = dpuTaskOp->getInputTensor(dpuTaskOp->get<std::size_t>("sparsityMapIndex"));
+            auto weightsSparsityMap = weights->getSparsityMap();
             long int offset = weightsSparsityMap->getAddress();
             auto sparsityMapSizeInWords = weightsSparsityMap->getShape().totalSize();
             auto sparsityMapSizeInBytes = sparsityMapSizeInWords * weightsSparsityMap->getDType().getSizeInBits() / 8;
