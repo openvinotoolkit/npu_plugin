@@ -462,9 +462,7 @@
             {
                 "name": "ConvertDot",
                 "input": "output/dots/dma_model.dot"
-            },
-            "GenerateSparsityMapsUnpopulatedTensors"
-
+            }
         ]
     },
     "control_flows":{
@@ -528,6 +526,7 @@
     },
     "finalize": {
         "Singular": [
+            "GenerateSparsityMapsUnpopulatedTensors",
             "AddDeallocationTasks",
             {
                 "name": "GenerateDot",
