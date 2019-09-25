@@ -704,7 +704,7 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
 }
 
 void mv::RuntimeModel::case2MC(unsigned numTasks, mv::ComputationModel& cm, mv::DmaDirection direction, mv::Element &compilationDescriptor,
-                               bool padFinalOutput, bool compression, std::vector<std::unique_ptr<MVCNN::TaskT>>& toReturn, mv::Data::TensorIterator src, mv::Data::TensorIterator dst, const std::string& srcAllocator, const std::string& dstAllocator)
+                               bool compression, std::vector<std::unique_ptr<MVCNN::TaskT>>& toReturn, mv::Data::TensorIterator src, mv::Data::TensorIterator dst, const std::string& srcAllocator, const std::string& dstAllocator)
 {
     std::unique_ptr<MVCNN::TaskT> toPush = std::unique_ptr<MVCNN::TaskT>(new MVCNN::TaskT());
     auto tmp = new MVCNN::NNDMATaskT();
@@ -713,26 +713,7 @@ void mv::RuntimeModel::case2MC(unsigned numTasks, mv::ComputationModel& cm, mv::
     tmp->src = buildTensorReferenceT(cm, compilationDescriptor, src, srcAllocator);
     tmp->dst = buildTensorReferenceT(cm, compilationDescriptor, dst, dstAllocator);
 
-    if (direction == mv::DDR2CMX)
-    {
-        //copying from DDR2CMX we need to pad output if tensor needs alignment
-        if (dst->hasAttr("alignment"))
-        {
-            alignTensor(cm, tmp->dst, dst);
-        }
-    }
-    else
-    {
-        //copying from CMX2DDR we need to crop down if tensor needed alignment in CMX
-        if (src->hasAttr("alignment"))
-        {
-            alignTensor(cm, tmp->src, src, padFinalOutput);
-        }
-        if (padFinalOutput && dst->hasAttr("alignment"))
-        {
-            alignTensor(cm, tmp->dst, dst, padFinalOutput);
-        }
-    }
+    // NOTE: Alignment stuff should go here!!!!
 
     std::vector<unsigned int> locale_index;
     for (unsigned idx = numTasks; idx > 0; idx--)
@@ -810,13 +791,13 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
         bool compression = false;
         if(opIt->hasAttr("compression"))
             compression = opIt->get<bool>("compression");
-        case2MC(numTasks, cm, direction, compilationDescriptor, padFinalOutput, compression, toReturn, opIt->getInputTensor(0), opIt->getOutputTensor(0));
+        case2MC(numTasks, cm, direction, compilationDescriptor, compression, toReturn, opIt->getInputTensor(0), opIt->getOutputTensor(0));
 
         if(opIt->getInputTensor(0)->isSparse())
         {
-            // NOTE: First usage ever of the concept one tensor -> Multiple allocator
-            auto inputTensorSparsityMap = dm.getTensor(opIt->getInputTensor(0)->getSparsityMap()->getName());
-            case2MC(numTasks, cm, direction, compilationDescriptor, padFinalOutput, compression, toReturn, inputTensorSparsityMap, inputTensorSparsityMap, "GraphFile", "VPU_CMX_NN");
+            // NOTE: First usage ever of the concept one tensor -> Multiple allocators
+            auto tensorSparsityMap = dm.getTensor(opIt->getInputTensor(0)->getSparsityMap()->getName());
+            case2MC(numTasks, cm, direction, compilationDescriptor, compression, toReturn, tensorSparsityMap, tensorSparsityMap, "GraphFile", "VPU_CMX_NN");
         }
         return toReturn;
     }
