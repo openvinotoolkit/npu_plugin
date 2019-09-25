@@ -10,6 +10,11 @@ else()
     add_executable(z_major_convolution z_major_convolution.cpp)
     target_link_libraries(z_major_convolution cm)
 
+    add_executable(conv_softmax conv_softmax.cpp)
+    target_link_libraries(conv_softmax cm)
+
+    add_executable(softmax_only softmax_only.cpp)
+    target_link_libraries(softmax_only cm)
 
     if(VALIDATION)
     add_executable(caffe_files_generator caffe_files_generator.cpp)
