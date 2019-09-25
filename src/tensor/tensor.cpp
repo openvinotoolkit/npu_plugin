@@ -681,7 +681,7 @@ const std::vector<int64_t> mv::Tensor::getDataPacked()
         throw ValueError(*this, "Attempt of getting data packed from populated double tensor");
 
     // This works only if the order assumption is respected
-    if(getOrder() != mv::Order("NHWC"));
+    if(getOrder() != mv::Order("NHWC"))
         throw ValueError(*this, "To use getDataPacked order has to be NHWC");
 
     std::vector<int64_t> orderedDataPacked;
