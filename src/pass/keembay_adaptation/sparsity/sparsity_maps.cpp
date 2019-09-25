@@ -195,8 +195,8 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
                         continue;
                 auto weightsTensor = dpuTask->getInputTensor(1);
                 weightsTensor->setOrder(mv::Order("NHWC"));
-                weightsTensor->setSparse();
-                dm.defineTensor(weightsTensor->getSparsityMap());
+                if(weightsTensor->setSparse())
+                    dm.defineTensor(weightsTensor->getSparsityMap());
             }
         }
     }
