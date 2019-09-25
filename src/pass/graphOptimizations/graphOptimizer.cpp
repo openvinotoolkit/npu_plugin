@@ -51,7 +51,9 @@ public:
         sysClock = globalConfig_["systemClockMhz"].get<int>();
         dotFileLocation = globalConfig_["dotFileLocation"].get<string>();
         jsonOutFileName = globalConfig_["jsonOutFileName"].get<string>();
-        safetyFactor = globalConfig_["FathomSafetyFactor"].get<double>();
+        safetyFactor = model_.getGlobalConfigParams()->hasAttr("FathomSafetyFactor")
+                            ? model_.getGlobalConfigParams()->get<double>("FathomSafetyFactor")
+                            : globalConfig_["FathomSafetyFactor"].get<double>();
         //Input is in Kb
         clusterMemory = (double)clusterMemoryKb * 1024.0 * safetyFactor;
 
