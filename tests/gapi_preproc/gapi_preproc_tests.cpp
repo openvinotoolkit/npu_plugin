@@ -17,8 +17,11 @@
 
 #include "kmb_vpusmm_allocator.h"
 #include <kmb_preproc_gapi.hpp>
+#include <kmb_preproc.hpp>
 
 #include "gapi_test_computations.hpp"
+
+#include <thread>
 
 namespace {
 
@@ -410,8 +413,10 @@ TEST_P(ResizePTestGAPI, AccuracyTest)
 INSTANTIATE_TEST_CASE_P(ResizePTestSIPP, ResizePTestGAPI,
                         Values(TEST_SIZES_PREPROC));
 
-struct KmbSippPreprocTest: public testing::TestWithParam<std::pair<cv::Size, cv::Size>> {};
-TEST_P(KmbSippPreprocTest, TestNV12Resize)
+using namespace testing;
+
+struct KmbSippPreprocEngineTest: public TestWithParam<std::pair<cv::Size, cv::Size>> {};
+TEST_P(KmbSippPreprocEngineTest, TestNV12Resize)
 {
     using namespace InferenceEngine;
 
@@ -436,7 +441,7 @@ TEST_P(KmbSippPreprocTest, TestNV12Resize)
     auto uv_blob = img2Blob<prec>(uv_mat, Layout::NHWC, allocator);
     auto out_blob = img2Blob<prec>(out_mat, out_layout, allocator);
 
-    SIPPPreprocEngine pe;
+    SIPPPreprocEngine pe(0, 1);
 
     for (int i = 0; i < 100; i++) {
         auto y_roi = getRandomRoi(y_size);
@@ -464,7 +469,132 @@ TEST_P(KmbSippPreprocTest, TestNV12Resize)
     }
 }
 
-using namespace testing;
-
-INSTANTIATE_TEST_CASE_P(Preproc, KmbSippPreprocTest,
+INSTANTIATE_TEST_CASE_P(Preproc, KmbSippPreprocEngineTest,
                         Values(TEST_SIZES_PREPROC));
+
+struct KmbSippPreprocPoolTest: public TestWithParam<std::tuple<cv::Size, cv::Size, cv::Size>> {};
+TEST_P(KmbSippPreprocPoolTest, TestNV12Resize)
+{
+    using namespace InferenceEngine;
+
+    constexpr auto prec = Precision::U8;
+    ResizeAlgorithm interp = RESIZE_BILINEAR;
+    Layout in_layout = Layout::NCHW;
+    Layout out_layout = in_layout;
+    ColorFormat in_fmt = ColorFormat::NV12;
+    auto sizes = GetParam();
+    cv::Size y_size, detect_size, classify_size;
+    std::tie(y_size, detect_size, classify_size) = sizes;
+
+    constexpr int numThreads = 8;
+
+    struct TestContext {
+        Layout out_layout;
+
+        cv::Mat y_mat;
+        cv::Mat uv_mat;
+        cv::Mat out_mat;
+
+        Blob::Ptr y_blob;
+        Blob::Ptr uv_blob;
+        Blob::Ptr out_blob;
+
+        std::string inName;
+        InputsDataMap inputInfos;
+        std::map<std::string, PreProcessDataPtr> preprocDatas;
+        BlobMap netInputs;
+
+        void init(int idx, cv::Size y_size, cv::Size out_size, Layout output_layout, AllocHelper& allocator) {
+            out_layout = output_layout;
+            constexpr auto prec = Precision::U8;
+            cv::Size uv_size{y_size.width/2, y_size.height/2};
+            y_mat = cv::Mat(y_size, CV_8UC1);
+            uv_mat = cv::Mat(uv_size, CV_8UC2);
+            out_mat = cv::Mat(out_size, CV_8UC3);
+            cv::randu(y_mat, cv::Scalar::all(0), cv::Scalar::all(255));
+            cv::randu(uv_mat, cv::Scalar::all(128), cv::Scalar::all(128));
+
+            y_blob  = img2Blob<prec>(y_mat, Layout::NHWC, allocator);
+            uv_blob = img2Blob<prec>(uv_mat, Layout::NHWC, allocator);
+            out_blob = img2Blob<prec>(out_mat, out_layout, allocator);
+
+            inName = "input0";
+            inputInfos[inName] = std::make_shared<InputInfo>();
+            SizeVector dims{1, 1, static_cast<size_t>(y_size.height), static_cast<size_t>(y_size.width)};
+            inputInfos[inName]->setInputData(std::make_shared<Data>(inName, dims, prec, Layout::NHWC));
+            inputInfos[inName]->getPreProcess().setResizeAlgorithm(RESIZE_BILINEAR);
+            inputInfos[inName]->getPreProcess().setColorFormat(NV12);
+            inputInfos[inName]->setLayout(Layout::NHWC);
+
+            preprocDatas[inName] = CreatePreprocDataHelper();
+        }
+    };
+
+    AllocHelper allocator;
+
+    TestContext detectContexts[numThreads];
+    for (int i = 0; i < numThreads; i++) {
+        detectContexts[i].init(i, y_size, detect_size, out_layout, allocator);
+    }
+
+    TestContext classifyContexts[numThreads];
+    for (int i = 0; i < numThreads; i++) {
+        classifyContexts[i].init(i, y_size, classify_size, out_layout, allocator);
+    }
+
+    auto threadFunc = [y_size, out_layout](TestContext& ctx, cv::Size out_size) {
+        for (int i = 0; i < 100; i++) {
+            auto y_roi = getRandomRoi(y_size);
+
+            cv::Rect uv_roi{y_roi.x/2, y_roi.y/2, y_roi.width/2, y_roi.height/2};
+
+            auto  y_roi_blob = make_shared_blob(ctx. y_blob, to_ie( y_roi));
+            auto uv_roi_blob = make_shared_blob(ctx.uv_blob, to_ie(uv_roi));
+
+            auto in_blob = make_shared_blob<NV12Blob>(y_roi_blob, uv_roi_blob);
+
+            ctx.preprocDatas[ctx.inName]->setRoiBlob(in_blob);
+            ctx.netInputs[ctx.inName] = ctx.out_blob;
+
+            SippPreproc::execSIPPDataPreprocessing(ctx.netInputs, ctx.preprocDatas, ctx.inputInfos, 1, true);
+        }
+
+#if 0
+        Blob2Img<prec>(ctx.out_blob, ctx.out_mat, out_layout);
+
+        cv::Mat rgb_mat(cv::Size{y_roi.width, y_roi.height}, CV_8UC3);
+        cv::Mat ocv_out_mat(out_size, CV_8UC3);
+
+        own_NV12toRGB(ctx.y_mat(y_roi), ctx.uv_mat(uv_roi), rgb_mat);
+        cv::resize(rgb_mat, ocv_out_mat, out_size, 0, 0, cv::INTER_LINEAR);
+
+        cv::Mat absDiff;
+        cv::absdiff(ocv_out_mat, ctx.out_mat, absDiff);
+        EXPECT_EQ(cv::countNonZero(absDiff > 1), 0);
+#endif
+    };
+
+    std::thread detectThreads[numThreads];
+    std::thread classifyThreads[numThreads];
+
+    for (int t = 0 ; t < numThreads; t ++) {
+        detectThreads[t] = std::thread([t, &threadFunc, &detectContexts, detect_size](){
+            threadFunc(detectContexts[t], detect_size);
+        });
+        classifyThreads[t] = std::thread([t, &threadFunc, &classifyContexts, classify_size](){
+            threadFunc(classifyContexts[t], classify_size);
+        });
+    }
+
+    for (int i = 0 ; i < numThreads; i++) {
+        detectThreads[i].join();
+        classifyThreads[i].join();
+    }
+}
+
+INSTANTIATE_TEST_CASE_P(Preproc, KmbSippPreprocPoolTest,
+                        Values(std::make_tuple(cv::Size(1920, 1080),
+                                               cv::Size(224, 224),
+                                               cv::Size(416, 416))
+                               ));
+
