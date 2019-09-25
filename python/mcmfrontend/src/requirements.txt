@@ -4,3 +4,5 @@ protobuf==3.9.1
 tensorflow==1.13.1
 graphviz-dev
 pygraphviz
+flatbuffers
+ordered_set
