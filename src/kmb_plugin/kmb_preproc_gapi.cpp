@@ -157,7 +157,7 @@ void SIPPPreprocEngine::preprocWithSIPP(const Blob::Ptr &inBlob, Blob::Ptr &outB
         _lastCompiled = GComputation(GIn(in_y, in_uv), GOut(out))
                                     .compile(own::descr_of(inputs_y[0][0]), own::descr_of(inputs_uv[0][0]),
                                              compile_args(InferenceEngine::gapi::preproc::sipp::kernels(),
-                                                          GSIPPBackendInitInfo{0, 1, 1},
+                                                          GSIPPBackendInitInfo{_shaveFirst, _shaveLast, 8},
                                                           GSIPPMaxFrameSizes{{getFullImageSize(y_blob),
                                                                               getFullImageSize(uv_blob)}}));
     } else if (y_blob->getTensorDesc().getDims() != _lastInYDims) {
