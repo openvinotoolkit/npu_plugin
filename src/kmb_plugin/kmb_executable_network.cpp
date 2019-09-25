@@ -21,14 +21,35 @@
 #include <ie_plugin_config.hpp>
 #include <kmb_executable_network.h>
 #include <net_pass.h>
+#include "vpu/kmb_plugin_config.hpp"
 
 using namespace InferenceEngine;
 
 namespace vpu {
 namespace KmbPlugin {
 
+void ExecutableNetwork::LoadBlob() {
+    // TODO: better name
+    const char networkName[1024] = "Network";
+
+    _executor->allocateGraph(_graphBlob, &networkName[0]);
+    _networkInputs  = _executor->getNetworkInputs();
+    _networkOutputs = _executor->getNetworkOutputs();
+
+    if (_config.exclusiveAsyncRequests()) {
+        ExecutorManager *executorManager = ExecutorManager::getInstance();
+        _taskExecutor = executorManager->getExecutor("KMB");
+    }
+    for (size_t i = 0; i < _maxTaskExecutorGetResultCount; i++) {
+        std::stringstream idStream;
+        idStream << networkName << "_TaskExecutorGetResult" << i;
+        _taskExecutorGetResultIds.emplace(idStream.str());
+    }
+}
+
 ExecutableNetwork::ExecutableNetwork(ICNNNetwork &network, const KmbConfig& config) : _config(config) {
-    _logger = std::make_shared<Logger>("ExecutableNetwork", _config.logLevel(), consoleOutput());
+            _logger = std::make_shared<Logger>("ExecutableNetwork", _config.logLevel(), consoleOutput());
+
     _executor = std::make_shared<KmbExecutor>(_config);
 
 #ifdef ENABLE_MCM_COMPILER
@@ -44,11 +65,15 @@ ExecutableNetwork::ExecutableNetwork(ICNNNetwork &network, const KmbConfig& conf
         THROW_IE_EXCEPTION << "Plugin doesn't support Tensor Iterator in pure form. "
                               "None TI optimization pattern has been applied successfully";
 
-    compileMcm(
-        network,
-        _config,
-        *pCompiler,
-        _graphBlob);
+
+        compileMcm(network, _config, *pCompiler, _graphBlob);
+
+        auto parsedConfig = _config.getParsedConfig();
+
+        if (parsedConfig[VPU_KMB_CONFIG_KEY(LOAD_NETWORK_AFTER_COMPILATION)] == CONFIG_VALUE(YES)) {
+            LoadBlob();
+        }
+
 #else
     UNUSED(network);
 #endif
@@ -66,27 +91,7 @@ ExecutableNetwork::ExecutableNetwork(const std::string &blobFilename, const KmbC
     const std::string& blobContentString = blobContentStream.str();
     std::copy(blobContentString.begin(), blobContentString.end(), std::back_inserter(_graphBlob));
 
-    // TODO: better name
-    const char networkName[1024] = "importedNetwork";
-
-    _executor->allocateGraph(_graphBlob, &networkName[0]);
-
-    _networkInputs  = _executor->getNetworkInputs();
-    _networkOutputs = _executor->getNetworkOutputs();
-
-    if (_config.exclusiveAsyncRequests()) {
-        ExecutorManager *executorManager = ExecutorManager::getInstance();
-        _taskExecutor = executorManager->getExecutor("KMB");
-    }
-
-    for (size_t i = 0; i < _maxTaskExecutorGetResultCount; i++) {
-        std::stringstream idStream;
-        idStream << networkName << "_TaskExecutorGetResult" << i;
-        _taskExecutorGetResultIds.emplace(idStream.str());
-    }
-    _supportedMetrics = {
-            METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)
-    };
+    LoadBlob();
 }
 
 void ExecutableNetwork::GetMetric(const std::string &name, Parameter &result, ResponseDesc *resp) const {
