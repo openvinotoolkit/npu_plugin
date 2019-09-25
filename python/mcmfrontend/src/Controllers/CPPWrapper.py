@@ -167,7 +167,7 @@ def composeForCpp(parsedLayers, arguments):
     comp_desc_file = os.environ["MCM_HOME"] + "/config/compilation/release_kmb.json"
     if arguments.comp_descriptor is not None:
         comp_desc_file = arguments.comp_descriptor
-
+    exit
     ca.loadCompilationDescriptor(comp_unit, comp_desc_file)
     json_file = json.load(open(comp_desc_file))
     try:

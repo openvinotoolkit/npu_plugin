@@ -1,10 +1,10 @@
 #include "include/mcm/compiler/compilation_unit.hpp"
 
 const std::string mv::CompilationUnit::ma2480DefTargetDescPath_ = "/config/target/ma2480.json";
-const std::string mv::CompilationUnit::ma2490DefTargetDescPath_ = "/config/target/ma2490.json";
+const std::string mv::CompilationUnit::ma2490DefTargetDescPath_ = "/config/target/release_kmb.json";
 const std::string mv::CompilationUnit::compositionalModelRecordingsPath_ = "/recordings/";
 const std::string mv::CompilationUnit::ma2480DefCompDescPath_ = "/config/compilation/release_ma2480.json";
-const std::string mv::CompilationUnit::ma2490DefCompDescPath_ = "/config/compilation/release_ma2490.json";
+const std::string mv::CompilationUnit::ma2490DefCompDescPath_ = "/config/compilation/release_kmb.json";
 
 mv::CompilationUnit::CompilationUnit(const std::string& modelName) :
 model_(new OpModel(modelName)),
