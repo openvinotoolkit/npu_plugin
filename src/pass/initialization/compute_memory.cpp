@@ -25,21 +25,21 @@ static void computeMemoryFcn(const mv::pass::PassEntry& pass, mv::ComputationMod
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     auto globalConfig = model.getGlobalConfigParams();
 
-    // ASSUMPTION: User always uses full memory
-    auto cmx = target.memoryDefs().at("VPU_CMX_NN").size;
 
     // ASSUMPTION: One cluster if not specified
     auto targetTotalClusters = static_cast<int>(target.nceDefs().at("Clusters").totalNumber);
     auto clustersUser = globalConfig->hasAttr("Number_of_Clusters") ? globalConfig->get<int>("Number_of_Clusters") : 1;
     auto clusters = std::min(targetTotalClusters, clustersUser);
 
-    // ASSUMPTION: Default memory safety factor is 0.925
-    auto safetyFactor = globalConfig->hasAttr("FathomSafetyFactor") ? globalConfig->get<double>("FathomSafetyFactor") : 0.925;
-
+    // ASSUMPTION: User always uses full memory
+    auto cmx = target.memoryDefs().at("VPU_CMX_NN").size;
     // ASSUMPTION: Except for when we use the memory hack, the amount of cmx available refers to the amount available to a single cluster
     // This means that subtensor have to be used for the computation of memory requirements during maxcut.
     // Also, for now memory hack makes sense just for 1 cluster.
     auto cmxPerCluster = cmx / targetTotalClusters;
+
+    // ASSUMPTION: Default memory safety factor is 0.925
+    auto safetyFactor = globalConfig->hasAttr("CMXOverflowSafetyFactor") ? globalConfig->get<double>("CMXOverflowSafetyFactor") : 0.925;
 
     if(globalConfig->hasAttr("cmx"))
     {
