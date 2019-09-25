@@ -42,7 +42,7 @@ TEST_P(kmbLayersTestsFullyConnectedParams, DISABLED_TestsFullyConnected) {
     std::map<std::string, std::string> params;
     params["out-size"] = std::to_string(outSize);
 
-    Blob::Ptr weightsBlob(GenWeights(weightsSize + biasesSize));
+    Blob::Ptr weightsBlob(GenWeights<uint16_t >(weightsSize + biasesSize));
 
     SetInputTensor(inputTensor);
     SetOutputTensor(outputTensor);

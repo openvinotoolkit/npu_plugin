@@ -22,7 +22,6 @@
 #include <tuple>
 
 #include <ie_version.hpp>
-#include <ie_device.hpp>
 #include <cpp/ie_cnn_net_reader.h>
 #include <inference_engine.hpp>
 #include "tests_common.hpp"

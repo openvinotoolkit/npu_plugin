@@ -197,7 +197,7 @@ std::vector<CompilationParameter> compilation_parameters_kmb = {
 inline void VpuNoRegressionWithCompilation::loadNetworkWrapper(std::map<std::string, std::string> config, InferenceEngine::StatusCode* st) {
     StatusCode sts;
     InferenceEngine::ResponseDesc response;
-    HeteroPluginPtr plugin(make_plugin_name(pluginName));
+    InferenceEnginePluginPtr plugin(make_plugin_name(pluginName));
     CNNNetReader reader;
     reader.ReadNetwork((ModelsPath() + path_to_files.pathToNetwork()).c_str());
     reader.ReadWeights((ModelsPath() + path_to_files.pathToWeights()).c_str());

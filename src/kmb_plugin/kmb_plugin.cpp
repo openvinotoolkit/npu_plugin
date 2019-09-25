@@ -124,6 +124,8 @@ IExecutableNetwork::Ptr Engine::ImportNetwork(const std::string &modelFileName, 
     return executableNetwork;
 }
 
+IE_SUPPRESS_DEPRECATED_START
+
 INFERENCE_PLUGIN_API(StatusCode) CreatePluginEngine(IInferencePlugin *&plugin, ResponseDesc *resp) noexcept {
     std::map<std::string, std::string> config;
 //    config[CONFIG_KEY(LOG_LEVEL)] = CONFIG_VALUE(LOG_DEBUG);
@@ -135,3 +137,5 @@ INFERENCE_PLUGIN_API(StatusCode) CreatePluginEngine(IInferencePlugin *&plugin, R
         return DescriptionBuffer(GENERAL_ERROR, resp) << ex.what();
     }
 }
+
+IE_SUPPRESS_DEPRECATED_END
