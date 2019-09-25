@@ -298,16 +298,17 @@ void convertOpsToUPATasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& 
         }
         else if (opType == "Softmax")
         {
+            auto input = opIt->getInputTensor(0);
             auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
             unsigned opId = opIt->get<unsigned>("opId");
+
+            auto axis = opIt->get<std::string>("axis");
 
             auto inputControlFlows = mv::getInputControlFlow(cm, cm.switchContext(opIt));
             auto outputControlFlows = mv::getOutputControlFlow(cm, cm.switchContext(opIt));
             auto outputDataFlows = mv::getOutputDataFlow(om, opIt);
 
-            auto axis = opIt->get<std::string>("axis");
-
-            mv::Data::TensorIterator dpuConv = om.uPATaskSoftmax({opIt->getInputTensor(0)}, axis);
+            mv::Data::TensorIterator dpuConv = om.uPATaskSoftmax({input}, axis);
 
             auto dpuConvOp = om.getSourceOp(dpuConv);
             dpuConvOp->set<unsigned>("opId", opId);
