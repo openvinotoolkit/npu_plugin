@@ -22,6 +22,8 @@ static void populatedSplitOverH(const unsigned nClusters, std::vector<mv::Worklo
                                 const mv::pass::PassEntry& pass, int &success);
 static std::vector<mv::Data::OpListIterator> findSinkLayers(mv::DataModel &dataModel, const mv::Data::TensorIterator& tensor);
 static std::vector<mv::Workload> fixRectangularHeuristicBug(std::vector<mv::Workload> subTensors, const mv::Data::TensorIterator &tensor, int nWorkloads);
+static void ensureSplitStrategiesForSpilling(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+
 
 namespace mv
 {
@@ -32,6 +34,12 @@ namespace mv
         .setDescription(
             "Computing Splitting across clusters"
         );
+
+
+        MV_REGISTER_PASS(EnsureSplitStrategiesForSpilling)
+            .setFunc(ensureSplitStrategiesForSpilling)
+            .setDescription(
+               "Ensures Split Strategies still valid after Spilling cases");
     }
 }
 
@@ -291,4 +299,65 @@ static std::vector<mv::Workload> fixRectangularHeuristicBug(std::vector<mv::Work
     }
 
     return newSubTensors;
+}
+
+// Pass role: Splitting Strategies propagation algorithm may create an incompatibility
+void ensureSplitStrategiesForSpilling(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+{
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
+    mv::OpModel om(model);
+    mv::DataModel dm(model);
+    std::vector<std::pair<std::string, std::string>>incompatibleStrategies =
+    {
+        {"SplitOverHOverlapped", "Clustering"},
+        {"SplitOverHOverlapped", "SplitOverK"},
+        {"SplitOverH", "Clustering"},
+        {"SplitOverH", "SplitOverK"},
+        {"SplitOverK", "SplitOverH"},
+        {"Clustering", "SplitOverH"},
+        {"SplitOverK", "HKSwitch"},
+        {"Clustering", "HKSwitch"}
+    };
+    auto globalParams = model.getGlobalConfigParams();
+    unsigned numClusters = globalParams->get<int>("Number_of_Clusters");
+
+    if (numClusters > 1)
+    {
+        for(auto opIt = om.opBegin(); opIt != om.opEnd(); ++opIt)
+        {
+            std::string opType = opIt->getOpType();
+            if (opType == "DMATask")
+            {
+                auto outputTensor = opIt->getOutputTensor(0);
+                auto inputTensor = opIt->getInputTensor(0);
+
+                if (opIt->get<mv::DmaDirection>("direction") == mv::DmaDirectionEnum::DDR2CMX &&
+                    !outputTensor->isPopulated())
+                {
+                    std::vector<mv::Data::OpListIterator> sinkOperators = findSinkLayers(dm, outputTensor);
+
+                    //ASSUMPTION: all sink ops have the same strategy.
+                    auto opStrategy = sinkOperators[0]->get<std::string>("splitStrategy");
+                    auto tensorStrategy = outputTensor->get<std::string>("splitStrategy");
+
+                    std::pair<std::string, std::string> possibleCombination(tensorStrategy, opStrategy);
+                    for (auto restrictedCombination: incompatibleStrategies)
+                    {
+                        if (possibleCombination == restrictedCombination)
+                        {
+                            // Strategy have to be adjusted...
+                            outputTensor->set<std::string>("splitStrategy", opStrategy);
+                            inputTensor->set<std::string>("splitStrategy", opStrategy);
+
+                            // ... and splitting has to be done again!!! <- Price for efficiency
+                            subTensorsGen(model, {inputTensor, outputTensor}, numClusters, pass);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return;
+
 }
