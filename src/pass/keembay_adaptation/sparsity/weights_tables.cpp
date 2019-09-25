@@ -40,13 +40,13 @@ namespace mv
         );
     }
 }
-void populatePointerMultiCluster(mv::Tensor& weightsTableData, mv::Data::OpListIterator dpuTaskOp, const std::vector<int64_t>& increments, long int offset, std::size_t addingIndex, mv::ComputationModel &model, mv::Data::TensorIterator tensor)
+void populatePointerMultiCluster(mv::Data::TensorIterator weightsTableData, mv::Data::OpListIterator dpuTaskOp, const std::vector<int64_t>& increments, long int offset, std::size_t addingIndex, mv::ComputationModel &model, mv::Data::TensorIterator tensor)
 {
     //std::cout << "Populating " << std::to_string(addingIndex) << " pointer of weights table for op " << dpuTaskOp->getName() << std::endl;
     if (dpuTaskOp->get<std::string>("splitStrategy") != "SplitOverK")
     {
-        for (size_t i = 0, k = 0; i < weightsTableData.size(); i+=BYTES_PER_WT_ELEMENT, ++k)
-            weightsTableData(i + addingIndex) = offset + increments[k];
+        for (size_t i = 0, k = 0; i < weightsTableData->size(); i+=BYTES_PER_WT_ELEMENT, ++k)
+            weightsTableData->at(i + addingIndex) = offset + increments[k];
     }
     else
     {
@@ -64,8 +64,8 @@ void populatePointerMultiCluster(mv::Tensor& weightsTableData, mv::Data::OpListI
             offset = new_offset;
 
             // Filling cluster
-            for (size_t j = 0, k = 0; j < weightsTableData.getSubTensor(i).size(); j+=BYTES_PER_WT_ELEMENT)
-                weightsTableData(j + addingIndex + totalSizeToIterate) = offset + increments[k++];
+            for (size_t j = 0, k = 0; j < weightsTableData->getSubTensor(i).size(); j+=BYTES_PER_WT_ELEMENT)
+                weightsTableData->at(j + addingIndex + totalSizeToIterate) = offset + increments[k++];
 
             // Preparing for next iteration
             sizeToIterate = tensor->getSubTensor(i).getShape()[mv::KERNEL_OUTPUT_CHANNELS] * BYTES_PER_WT_ELEMENT;
@@ -75,7 +75,7 @@ void populatePointerMultiCluster(mv::Tensor& weightsTableData, mv::Data::OpListI
     return;
 }
 
-void populateWeightsTablesDataPointers(mv::Tensor& weightsTableData, mv::Data::OpListIterator dpuTaskOp, mv::ComputationModel& model)
+void populateWeightsTablesDataPointers(mv::Data::TensorIterator weightsTableData, mv::Data::OpListIterator dpuTaskOp, mv::ComputationModel& model)
 {
     // Max pooling does not need DataPointer
     if(dpuTaskOp->get<std::string>("taskOp") == "Conv" ||
@@ -103,7 +103,7 @@ void populateWeightsTablesDataPointers(mv::Tensor& weightsTableData, mv::Data::O
 
 
 
-void populateWeightsTablesSparsityPointers(mv::Tensor& weightsTableData, mv::Data::OpListIterator dpuTaskOp, mv::ComputationModel& model)
+void populateWeightsTablesSparsityPointers(mv::Data::TensorIterator weightsTableData, mv::Data::OpListIterator dpuTaskOp, mv::ComputationModel& model)
 {
     mv::DataModel dm(model);
 
@@ -130,8 +130,8 @@ void populateWeightsTablesSparsityPointers(mv::Tensor& weightsTableData, mv::Dat
             // Dense ZMajor Convolution case
             // Not using the generic function because it's a super simple case
             long int offset = 16777215; // NOTE: Implementation defined
-            for (size_t i = 0; i < weightsTableData.size(); i+=BYTES_PER_WT_ELEMENT)
-                  weightsTableData(i+1) = offset;
+            for (size_t i = 0; i < weightsTableData->size(); i+=BYTES_PER_WT_ELEMENT)
+                  weightsTableData->at(i+1) = offset;
         }
     }
     else if(dpuTaskOp->get<std::string>("taskOp") == "ChannelMajorConvolution" ||
@@ -157,7 +157,7 @@ void populateWeightsTablesSparsityPointers(mv::Tensor& weightsTableData, mv::Dat
 }
 
 
-void populateWeightsTablesActivationAndBias(mv::Tensor& weightsTableData, mv::Data::OpListIterator dpuTaskOp, mv::ComputationModel& model)
+void populateWeightsTablesActivationAndBias(mv::Data::TensorIterator weightsTableData, mv::Data::OpListIterator dpuTaskOp, mv::ComputationModel& model)
 {
     mv::DataModel dm(model);
     mv::QuantizationParams quantParams = {{},{},{},{}};
@@ -192,11 +192,11 @@ void populateWeightsTablesActivationAndBias(mv::Tensor& weightsTableData, mv::Da
     // TODO mult & prelu are currently not implemented
     unsigned round_mode = 1;
     std::vector<int32_t> round32(outputChannels, round_mode);
-    for (size_t i = 0; i < weightsTableData.size(); i+=BYTES_PER_WT_ELEMENT)
+    for (size_t i = 0; i < weightsTableData->size(); i+=BYTES_PER_WT_ELEMENT)
     {
-        weightsTableData(i+2) = static_cast<long int>((mScaled[i/BYTES_PER_WT_ELEMENT] << 16) | (round32[i/BYTES_PER_WT_ELEMENT] << 14) | (mShift[i/BYTES_PER_WT_ELEMENT]) << 8);
+        weightsTableData->at(i+2) = static_cast<long int>((mScaled[i/BYTES_PER_WT_ELEMENT] << 16) | (round32[i/BYTES_PER_WT_ELEMENT] << 14) | (mShift[i/BYTES_PER_WT_ELEMENT]) << 8);
         if (hasBias)
-            weightsTableData(i+3) = biasData[i/BYTES_PER_WT_ELEMENT];
+            weightsTableData->at(i+3) = biasData[i/BYTES_PER_WT_ELEMENT];
     }
 }
 static void populateWeightsTablesQuantizationFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
@@ -213,7 +213,7 @@ static void populateWeightsTablesQuantizationFcn(const mv::pass::PassEntry& , mv
                (dpuTaskOp->get<std::string>("taskOp") == "DepthwiseConv"))
             {
                 auto weightsTable = dpuTaskOp->getInputTensor(dpuTaskOp->get<std::size_t>("weightsTableIndex"));
-                populateWeightsTablesActivationAndBias(*weightsTable, dpuTaskOp, model);
+                populateWeightsTablesActivationAndBias(weightsTable, dpuTaskOp, model);
             }
         }
     }
@@ -263,8 +263,8 @@ static void populateWeightsTablesPointersFcn(const mv::pass::PassEntry& , mv::Co
                (dpuTaskOp->get<std::string>("taskOp") == "DepthwiseConv"))
             {
                 auto weightsTable = dpuTaskOp->getInputTensor(dpuTaskOp->get<std::size_t>("weightsTableIndex"));
-                populateWeightsTablesDataPointers(*weightsTable, dpuTaskOp, model);
-                populateWeightsTablesSparsityPointers(*weightsTable, dpuTaskOp, model);
+                populateWeightsTablesDataPointers(weightsTable, dpuTaskOp, model);
+                populateWeightsTablesSparsityPointers(weightsTable, dpuTaskOp, model);
             }
         }
     }

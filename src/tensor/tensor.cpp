@@ -379,11 +379,11 @@ void mv::Tensor::populateSparsityMapTensor_()
         }
 
         // Updating current entry: 1 UInt8 contains 8 bits, so can cover for 8 elements
+        // NOTE: NoneZero elements can't be counted here
+        // Because we need alignment to 16, which can be obtained only in getPackedData.
         if (static_cast<int64_t>(data_->at(internalOrder_.subToInd(shape, sub))) != zeroPoint[sub[channelIndex]])
-        {
-            ++noneZeroElements_;
             map ^= (1 << shift);
-        }
+
 
         // Finished one entry, writing it and resetting entry and shift variables
         if (++shift == 8)
@@ -463,6 +463,9 @@ bool mv::Tensor::setSparse()
     if (isPopulated())
     {
         populateSparsityMapTensor_();
+
+        // NOTE: Necessary to initialize correctly noneZeroElements_
+        getDataPacked();
     }
     else
     {
@@ -686,6 +689,12 @@ const std::vector<int64_t> mv::Tensor::getDataPacked()
 
     std::vector<int64_t> orderedDataPacked;
 
+    // NOTE: noneZeroElements_ has a misleading name. We pad the packed data
+    // and that actually is memorized in graphfile and transferred. So it's
+    // counter must be updated for both elements != ZeroPoint and for each
+    // ZeroPoint of padding that we put in orderedDataPacked
+    noneZeroElements_ = 0;
+
     auto shape = getShape();
     std::vector<std::size_t> sub(shape.ndims());
     std::vector<int64_t> zeroPoint = getZeroPointsPerChannel();
@@ -708,7 +717,10 @@ const std::vector<int64_t> mv::Tensor::getDataPacked()
             datai = static_cast<int64_t>(data_->at(internalOrder_.subToInd(shape, sub)));
             //skip zero values if sparse
             if (!isSparse() || datai != zeroPoint[sub[mv::KERNEL_OUTPUT_CHANNELS]])
+            {
                 orderedDataPacked.push_back(datai);
+                noneZeroElements_++;
+            }
         }
 
         // Add padding if needed - Needs to be done only in the sparse case
@@ -719,7 +731,10 @@ const std::vector<int64_t> mv::Tensor::getDataPacked()
             auto padsize = mv::round_up(size, 16) - size;
             int64_t zeroPointVal = zeroPoint[sub[mv::KERNEL_OUTPUT_CHANNELS]];
             for (std::size_t j = 0; j < padsize; ++j)
+            {
                 orderedDataPacked.push_back(zeroPointVal);
+                noneZeroElements_++;
+            }
         }
 
         size_t numberOfElementsInKernel = orderedDataPacked.size() - prevNumOfElements; //include padding
