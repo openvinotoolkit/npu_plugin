@@ -222,7 +222,11 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
         toBuild->locale_index = std::vector<unsigned int>(1,0);
 
         // This part is for concat
-        toBuild->data->data_index = t->getAddress();
+        if(t->hasAttr("address"))
+            toBuild->data->data_index = t->getAddress();
+        else
+            toBuild->data->data_index = tensorBufferIt->getOffset();
+
         toBuild->data->data_index += leading_offset;
 
         if(t->isSparse())
@@ -350,7 +354,12 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     }
     else
     {
-        toBuild->data->data_index = t->getAddress();
+        // This part is for concat
+        if(t->hasAttr("address"))
+            toBuild->data->data_index = t->getAddress();
+        else
+            toBuild->data->data_index = tensorBufferIt->getOffset();
+
         toBuild->locale_index = std::vector<unsigned int>(1, clusterId);
 
         if(t->isSparse())
