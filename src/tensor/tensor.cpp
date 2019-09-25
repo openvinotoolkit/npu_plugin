@@ -89,8 +89,6 @@ noneZeroElements_(other.noneZeroElements_)
     {
         data_ = other.data_;
         blocks_ = other.blocks_;
-        if(other.get<bool>("dataPacked"))
-            orderedDataPacked_ = other.orderedDataPacked_;
     }
 }
 
@@ -149,7 +147,6 @@ void mv::Tensor::populate(const std::vector<double>& data)
 
     data_ = std::make_shared<std::vector<DataElement>>(data.size(), DataElement(true));
     blocks_ = std::vector<std::vector<DataElement>::iterator>(shape_.totalSize() / blockSize_);
-    set<bool>("dataPacked", false);
 
     for (std::size_t i = 0; i < blocks_.size(); ++i)
         blocks_[i] = data_->begin() + i * blockSize_;
@@ -185,7 +182,6 @@ void mv::Tensor::populate(const std::vector<mv::DataElement>& data)
 
     data_ = std::make_shared<std::vector<DataElement>>(data.size(), data[0].isDouble());
     blocks_ = std::vector<std::vector<DataElement>::iterator>(shape_.totalSize() / blockSize_);
-    set<bool>("dataPacked", false);
 
     for (std::size_t i = 0; i < blocks_.size(); ++i)
         blocks_[i] = data_->begin() + i * blockSize_;
@@ -228,7 +224,6 @@ void mv::Tensor::populate(const std::vector<int64_t>& data)
 
     data_ = std::make_shared<std::vector<DataElement>>(data.size(), false);
     blocks_ = std::vector<std::vector<DataElement>::iterator>(shape_.totalSize() / blockSize_);
-    set<bool>("dataPacked", false);
 
     for (std::size_t i = 0; i < blocks_.size(); ++i)
         blocks_[i] = data_->begin() + i * blockSize_;
@@ -336,55 +331,69 @@ const mv::Order& mv::Tensor::getInternalOrder() const
     return internalOrder_;
 }
 
+// Auxiliary function to write sparsity map entry and reset all the variables
+void writeMapEntry(std::vector<int64_t>& sparsityMapData, std::size_t& sparsityMapIdx, uint8_t& map, int& shift)
+{
+    sparsityMapData.at(sparsityMapIdx++) = map;
+    map = 0;
+    shift = 0;
+}
+
 void mv::Tensor::populateSparsityMapTensor_()
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_BULD)
     auto shape = getShape();
 
     std::vector<int64_t> zeroPoint = getZeroPointsPerChannel();
-    std::vector<int64_t> sparsityMapData(sparsityMap_->shape_.totalSize());
+    std::vector<int64_t> sparsityMapData(sparsityMap_->shape_.totalSize(), 0);
     std::vector<size_t> sub(shape.ndims());
     uint8_t map = 0;
     std::size_t sparsityMapIdx = 0;
     size_t n = 0;
     int shift = 0;
     int channelIndex = mv::KERNEL_OUTPUT_CHANNELS;
+    noneZeroElements_ = 0;
 
+    // Populating on a per channel basis
     for (size_t t = 0; t < shape.totalSize(); t++)
     {
         sub = getOrder().indToSub(shape, t);
-        if (sub[channelIndex] != n) //starting a new channel, reset map
+
+        // Starting a new channel
+        if (sub[channelIndex] != n)
         {
-           if (shift != 0) //this is needed in the case when tensor dimensions are not multiple of 8
-            {
-                //write map
-                sparsityMapData.at(sparsityMapIdx++) = map;
-                map = 0;
-                shift = 0;
-            }
+            // This is needed in the case when tensor dimensions are not multiple of 8
+            // This should never happen because weights sets are padded to have alignment to 16
+            if (shift != 0)
+                writeMapEntry(sparsityMapData, sparsityMapIdx, map, shift);
+
+            // Updating current channel index
             n = sub[channelIndex];
+
+            // Again, this should never happen, same reasoning as above
             if (sparsityMapIdx % 16 != 0)
             {
-                auto padding = 16 - (sparsityMapIdx%16);
+                auto padding = 16 - (sparsityMapIdx % 16);
                 sparsityMapIdx += padding;
             }
         }
-        if (static_cast<int64_t>(data_->at(internalOrder_.subToInd(shape, sub))) != zeroPoint[sub[channelIndex]])
-            map += 1 << shift;
 
-        shift++;
-        if (shift == 8)//finished one map entry
+        // Updating current entry: 1 UInt8 contains 8 bits, so can cover for 8 elements
+        if (static_cast<int64_t>(data_->at(internalOrder_.subToInd(shape, sub))) != zeroPoint[sub[channelIndex]])
         {
-            sparsityMapData.at(sparsityMapIdx++) = map;
-            map = 0;
-            shift = 0;
+            ++noneZeroElements_;
+            map ^= (1 << shift);
         }
+
+        // Finished one entry, writing it and resetting entry and shift variables
+        if (++shift == 8)
+            writeMapEntry(sparsityMapData, sparsityMapIdx, map, shift);
     }
+
+    // Following the above reasoning, this should never happen
     if (shift != 0)
-    {
-        //write map
-        sparsityMapData.at(sparsityMapIdx++) = map;
-    }
+        writeMapEntry(sparsityMapData, sparsityMapIdx, map, shift);
+
     sparsityMap_->populate(sparsityMapData);
 }
 
@@ -454,7 +463,6 @@ bool mv::Tensor::setSparse()
     if (isPopulated())
     {
         populateSparsityMapTensor_();
-        getDataPacked();
     }
     else
     {
@@ -516,7 +524,6 @@ void mv::Tensor::setOrder(Order order, bool updateSubtensors)
         log(Logger::MessageType::Debug, "Reorderd to " + order.toString());
 
         //If the data order changes, the packed data is invalid
-        set<bool>("dataPacked", false);
         if (updateSubtensors)
             setSubtensorsOrder_(order);
     }
@@ -656,58 +663,70 @@ std::vector<mv::DataElement> mv::Tensor::getData()
 
 const std::vector<int64_t>& mv::Tensor::getKernelDataOffsets()
 {
-    if(!get<bool>("dataPacked")) //getDataPacked hasn't been called
+    if(kernelDataOffsets_.empty())
         getDataPacked();
     return kernelDataOffsets_;
 }
 
-const std::vector<mv::DataElement>& mv::Tensor::getDataPacked()
+// NOTE: For now this can handle only integer tensors
+// This is because we have to make quantParams dataElements as well.
+const std::vector<int64_t> mv::Tensor::getDataPacked()
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_BULD)
     if (!isPopulated())
         throw ValueError(*this, "Attempt of restoring data from an unpopulated tensor");
 
-    if(!get<bool>("dataPacked"))
+    // TODO: Make it work on doubles - Or maybe not considering that FP16 is integer type
+    if(isDoubleType())
+        throw ValueError(*this, "Attempt of getting data packed from populated double tensor");
+
+    // This works only if the order assumption is respected
+    if(getOrder() != mv::Order("NHWC"));
+        throw ValueError(*this, "To use getDataPacked order has to be NHWC");
+
+    std::vector<int64_t> orderedDataPacked;
+
+    auto shape = getShape();
+    std::vector<std::size_t> sub(shape.ndims());
+    std::vector<int64_t> zeroPoint = getZeroPointsPerChannel();
+
+    int64_t datai;
+    size_t outputChannels = shape[mv::KERNEL_OUTPUT_CHANNELS];
+    size_t outputChannelSize = shape.totalSize() / outputChannels;
+    kernelDataOffsets_.resize(outputChannels);
+    size_t offset = 0;
+
+    // Filling the data on a per channel basis
+    for (std::size_t k = 0; k < outputChannels; ++k)
     {
-        orderedDataPacked_ = std::make_shared<std::vector<DataElement>>();
-        set<bool>("dataPacked", true);
+        kernelDataOffsets_[k] = offset;
+        size_t prevNumOfElements = orderedDataPacked.size();
 
-        auto shape = shape_;
-        std::vector<std::size_t> sub(shape.ndims());
-        std::vector<int64_t> zeroPoint = getZeroPointsPerChannel();
-        double datai;
-        size_t outputChannels = shape[mv::KERNEL_OUTPUT_CHANNELS];
-        size_t outputChannelSize = shape.totalSize() / outputChannels;
-        kernelDataOffsets_.resize(outputChannels);
-        size_t offset = 0;
-        for (std::size_t k = 0; k < outputChannels; ++k)
+        for (std::size_t i = 0; i < outputChannelSize; i++)
         {
-            kernelDataOffsets_[k] = offset;
-            size_t prevNumOfElements = orderedDataPacked_->size();
-            for (std::size_t i = 0; i < outputChannelSize; i++)
-            {
-                sub = getOrder().indToSub(shape_, i + k*outputChannelSize);
-                datai = data_->at(internalOrder_.subToInd(shape_, sub));
-                //skip zero values if sparse
-                if (!isSparse() || datai != zeroPoint[sub[mv::KERNEL_OUTPUT_CHANNELS]])
-                    orderedDataPacked_->push_back(DataElement(isDoubleType(), datai));
-            }
-            //Add padding if needed
-            if (isSparse())
-            {
-                auto size = orderedDataPacked_->size() * std::ceil(getDType().getSizeInBits()/8.0);
-                auto padsize = mv::round_up(size, 16) - size;
-                int64_t zeroPointVal = zeroPoint[sub[mv::KERNEL_OUTPUT_CHANNELS]];
-                for (std::size_t j = 0; j < padsize; ++j)
-                    orderedDataPacked_->push_back(DataElement(isDoubleType(), zeroPointVal));
-            }
-
-            size_t numberOfElementsInKernel = orderedDataPacked_->size() - prevNumOfElements; //include padding
-            offset += numberOfElementsInKernel * std::ceil(getDType().getSizeInBits()/8.0);
+            sub = getOrder().indToSub(shape, k*outputChannelSize + i);
+            datai = static_cast<int64_t>(data_->at(internalOrder_.subToInd(shape, sub)));
+            //skip zero values if sparse
+            if (!isSparse() || datai != zeroPoint[sub[mv::KERNEL_OUTPUT_CHANNELS]])
+                orderedDataPacked.push_back(datai);
         }
-        noneZeroElements_ = orderedDataPacked_->size();
+
+        // Add padding if needed - Needs to be done only in the sparse case
+        // As weights sets are aligned to 16
+        if (isSparse())
+        {
+            auto size = orderedDataPacked.size() * std::ceil(getDType().getSizeInBits()/8.0);
+            auto padsize = mv::round_up(size, 16) - size;
+            int64_t zeroPointVal = zeroPoint[sub[mv::KERNEL_OUTPUT_CHANNELS]];
+            for (std::size_t j = 0; j < padsize; ++j)
+                orderedDataPacked.push_back(zeroPointVal);
+        }
+
+        size_t numberOfElementsInKernel = orderedDataPacked.size() - prevNumOfElements; //include padding
+        offset += numberOfElementsInKernel * std::ceil(getDType().getSizeInBits()/8.0);
     }
-    return *orderedDataPacked_;
+
+    return orderedDataPacked;
 }
 
 std::vector<int64_t> mv::Tensor::getIntData()
@@ -1000,11 +1019,6 @@ const mv::DataElement& mv::Tensor::operator()(const std::vector<std::size_t>& su
 std::string mv::Tensor::getLogID() const
 {
     return "Tensor:" + getName();
-}
-
-mv::BinaryData mv::Tensor::toBinary()
-{
-    return getDType().toBinary(getDataPacked());
 }
 
 std::vector<unsigned> mv::Tensor::computeNumericStrides() const
