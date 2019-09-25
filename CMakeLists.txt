@@ -8,8 +8,8 @@ SET(CMAKE_VERBOSE_MAKEFILE OFF) # for debugging
 #############################################################################################
 ### Setup
 #############################################################################################
-SET(PROJECT_VERSION_MAJOR 0)
-SET(PROJECT_VERSION_MINOR 1)
+SET(PROJECT_VERSION_MAJOR 1)
+SET(PROJECT_VERSION_MINOR 0)
 SET(PROJECT_VERSION_PATCH 0)
 
 if (NOT EXISTS ${CMAKE_BINARY_DIR}/CMakeCache.txt)
@@ -20,71 +20,11 @@ endif()
 
 add_compile_options(-std=c++11)
 
-SET(PROFILER FALSE CACHE BOOL "Enable integrated profiler")
 SET(LOG TRUE CACHE BOOL "Enable logger")
-SET(PROFILE_PHASE TRUE CACHE BOOL "Enable profiling at compilation phases level")
-SET(PROFILE_BASE TRUE CACHE BOOL "Enable profiling at base components level")
-SET(PROFILE_PASS TRUE CACHE BOOL "Enable profiling at compilation passes level")
-SET(PROFILE_COMP TRUE CACHE BOOL "Enable profiling at ops composition level")
-SET(PROFILE_ALGO TRUE CACHE BOOL "Enable profiling at internal algorithms level")
-SET(PROFILE_BULD TRUE CACHE BOOL "Enable profiling at building blocks level")
-SET(PROFILE_MATH TRUE CACHE BOOL "Enable profiling at tensor math operations level")
-
 
 if (${LOG})
     add_definitions(-DMV_LOG_ENABLED)
 endif()
-
-if (${PROFILER})
-
-    if (${UNIX})
-        add_definitions(-DMV_PROFILER_ENABLED)
-        include_directories(${PROJECT_SOURCE_DIR}/contrib/easy_profiler/easy_profiler_core/include)
-        add_subdirectory(contrib/easy_profiler)
-
-        if (${PROFILE_PHASE})
-            add_definitions(-DMV_PROFILE_PHASE_ENABLED)
-        endif()
-
-        if (${PROFILE_BASE})
-            add_definitions(-DMV_PROFILE_BASE_ENABLED)
-        endif()
-
-        if (${PROFILE_PASS})
-            add_definitions(-DMV_PROFILE_PASS_ENABLED)
-        endif()
-
-        if (${PROFILE_COMP})
-            add_definitions(-DMV_PROFILE_COMP_ENABLED)
-        endif()
-
-        if (${PROFILE_ALGO})
-            add_definitions(-DMV_PROFILE_ALGO_ENABLED)
-        endif()
-
-        if (${PROFILE_BULD})
-            add_definitions(-DMV_PROFILE_BULD_ENABLED)
-        endif()
-
-        if (${PROFILE_MATH})
-            add_definitions(-DMV_PROFILE_MATH_ENABLED)
-        endif()
-
-    else()
-
-        message("Ignoring PROFILER=ON flag, profiling only available for Linux/UNIX")
-
-    endif()
-
-endif()
-
-#############################################################################################
-### Test Coverage - off by default. Pass param CODE_COVERAGE=ON
-### > cmake -DCODE_COVERAGE=ON -DCMAKE_BUILD_TYPE=Debug ..
-#############################################################################################
-include(cmake-modules/code-coverage.cmake)
-add_code_coverage()
-
 
 #############################################################################################
 ### Find packages - uses Find*.cmake files in /cmake-modules dir
@@ -100,45 +40,11 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 add_subdirectory(contrib/flatbuffers)
 
-#############################################################################################
-### Main build
-#############################################################################################
-if (MSVC)
-    add_compile_options("/W4" "$<$<CONFIG:RELEASE>:/O2>" "/GS")
-    SET(VALIDATION false)
-else()
-    add_compile_options("-Wall" "-Wextra" "-Wshadow" "-Wnon-virtual-dtor" "-pedantic" "$<$<CONFIG:RELEASE>:-O3>" "-fstack-protector-all")
-    SET(VALIDATION false CACHE BOOL "Flag to include additional external libaries for validation testing")
-endif()
+add_compile_options("-Wall" "-Wextra" "-Wshadow" "-Wnon-virtual-dtor" "-pedantic" "$<$<CONFIG:RELEASE>:-O3>" "-fstack-protector-all")
 
 include_directories(${PROJECT_SOURCE_DIR})
 include_directories(${PROJECT_SOURCE_DIR}/include)
 include_directories(${PROJECT_SOURCE_DIR}/contrib/flatbuffers/include)
-
-
-if(VALIDATION)
-    include_directories("/opt/movidius/caffe/include")
-    include_directories("/opt/movidius/caffe/build/include")
-    include_directories("/opt/movidius/caffe/build/include/caffe/proto")
-
-    #Protobuf
-    find_package(Protobuf REQUIRED)
-    include_directories(${PROTOBUF_INCLUDE_DIR})
-
-    #MVNC
-    find_library(mvnc REQUIRED)
-
-    #Boost
-    find_package(Boost COMPONENTS regex system filesystem REQUIRED)
-
-    #Caffe
-    set(Caffe_INCLUDE_DIRS "/opt/movidius/caffe/build/include/caffe/proto;/opt/movidius/caffe/include;/opt/movidius/caffe/build/include")
-    set(Caffe_LIBRARIES "/opt/movidius/caffe/build/lib/libcaffe.so")
-
-    SET(pass_validation
-        "${PROJECT_SOURCE_DIR}/src/pass/adaptation/generate_caffe.cpp"
-    )
-endif(VALIDATION)
 
 SET(base
 
@@ -176,7 +82,7 @@ SET(base
 
     "${PROJECT_SOURCE_DIR}/src/computation/op/op_entry.cpp"
 
-# Single compilation unit for all Keembay attributes and operations in order //
+    # Single compilation unit for all Keembay attributes and operations in order //
     "${PROJECT_SOURCE_DIR}/src/target/keembay/keembay_registry.cpp"
 
     "${PROJECT_SOURCE_DIR}/src/target/keembay/barrier_definition.cpp"
@@ -355,75 +261,17 @@ SET(syscalls
    "${PROJECT_SOURCE_DIR}/src/pass/syscalls/convert_flatbuffer.cpp"
 )
 
-IF(CMAKE_CROSSCOMPILING)
-    message(STATUS "Cross-compiling, assumes meta/ files already generated...")
-    add_library(metamodel SHARED
-        ${CMAKE_SOURCE_DIR}/meta/src/compositional_model.cpp
-        ${CMAKE_SOURCE_DIR}/meta/src/op_model.cpp
-        ${CMAKE_SOURCE_DIR}/meta/src/recorded_compositional_model.cpp
-    )
-    target_link_libraries(metamodel model)
-ELSE()
-    message(STATUS "Standard build...")
-    add_subdirectory(meta)
-ENDIF()
+add_subdirectory(meta)
 
-if (MSVC)
-    add_library(cm OBJECT ${pass} ${compiler} $<TARGET_OBJECTS:corebase> $<TARGET_OBJECTS:metamodel>)
-        target_link_libraries(cm corebase metamodel)
-    add_library(corebase OBJECT ${base} ${logger})
-    add_library(model OBJECT ${model} $<TARGET_OBJECTS:corebase>)
-    target_link_libraries(model corebase)
-    add_dependencies(cm generate-comp-api)
-    add_dependencies(cm generate-graphfile-headers)
-    add_dependencies(model generate-comp-api)
-else()
-    if(VALIDATION)
+add_library(cm SHARED ${base} ${logger} ${pass} ${compiler} ${syscalls})
+add_library(corebase SHARED ${base} ${logger})
+add_library(model SHARED ${model})
+target_link_libraries(cm model)
+target_link_libraries(cm corebase metamodel flatbuffers ${LEMON_LIBRARY})
+add_dependencies(cm generate-comp-api)
+add_dependencies(model generate-comp-api)
+add_dependencies(cm generate-graphfile-headers)
 
-        SET(deployer
-            "${PROJECT_SOURCE_DIR}/src/utils/deployer/deployer_utils.cpp"
-            "${PROJECT_SOURCE_DIR}/src/utils/deployer/executor.cpp"
-        )
-        add_library(cm SHARED ${base} ${logger} ${pass} ${compiler} ${pass_validation})
-        add_library(corebase SHARED ${base} ${logger})
-        add_library(model SHARED ${model}) 
-        add_library(dep SHARED ${deployer})
-        target_link_libraries(dep mvnc)
-        target_link_libraries(cm corebase metamodel flatbuffers)
-        add_dependencies(cm generate-comp-api)
-        add_dependencies(model generate-comp-api)
-        add_dependencies(cm generate-graphfile-headers)
-        target_link_libraries(cm ${Caffe_LIBRARIES} ${Boost_FILESYSTEM_LIBRARY} ${Boost_SYSTEM_LIBRARY} ${Boost_REGEX_LIBRARY} ${PROTOBUF_LIBRARY})
-        target_compile_definitions(cm PRIVATE CPU_ONLY=1)
-        add_subdirectory(python/api)
-        add_subdirectory(contrib/googletest)
-        target_link_libraries(cm model)
+add_subdirectory(python/api)
+add_subdirectory(schema)
 
-    else()
-        add_library(cm SHARED ${base} ${logger} ${pass} ${compiler} ${syscalls})
-        add_library(corebase SHARED ${base} ${logger})
-        add_library(model SHARED ${model})
-        target_link_libraries(cm model)
-        IF(CMAKE_CROSSCOMPILING)
-            #Flatbuffers not x-compiled yet
-            target_link_libraries(cm corebase metamodel)
-        ELSE()
-            target_link_libraries(cm corebase metamodel flatbuffers ${LEMON_LIBRARY})
-            add_dependencies(cm generate-comp-api)
-            add_dependencies(model generate-comp-api)
-            add_dependencies(cm generate-graphfile-headers)
-            add_subdirectory(python/api)
-            add_subdirectory(contrib/googletest)
-        ENDIF(CMAKE_CROSSCOMPILING)
-
-    endif(VALIDATION)
-endif(MSVC)
-
-IF(NOT CMAKE_CROSSCOMPILING)
-    add_subdirectory(tools)
-    add_subdirectory(schema)
-ENDIF()
-
-if (${PROFILER} AND ${UNIX})
-    target_link_libraries(cm easy_profiler)
-endif()
