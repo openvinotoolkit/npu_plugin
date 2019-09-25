@@ -161,7 +161,7 @@ std::vector<unsigned> mv::RuntimeModel::reduceQuantVector_(std::vector<unsigned>
 }
 
 //build tensorReference for Tensors - 1 cluster case
-std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT(mv::ComputationModel& model, mv::Element&, mv::Data::TensorIterator t)
+std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT(mv::ComputationModel& model, mv::Element&, mv::Data::TensorIterator t, const std::string &allocatorName)
 {
     mv::DataModel dm(model);
     mv::ControlModel cm(model);
@@ -171,7 +171,11 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
 
     toBuild->name = t->getName();
 
-    auto tensorAllocatorName = t->get<std::set<std::string>>("allocators").begin();
+    auto tensorAllocators = t->get<std::set<std::string>>("allocators");
+
+    auto tensorAllocatorName = tensorAllocators.begin();
+    if(!allocatorName.empty())
+        tensorAllocatorName = tensorAllocators.find(allocatorName);
 
     auto tensorAllocator = dm.getAllocator(*tensorAllocatorName);
     mv::Data::BufferIterator tensorBufferIt = tensorAllocator.getBuffer(0, t); // 0 is the only stage for now, but this will probably change in the future
@@ -218,7 +222,7 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
         toBuild->locale_index = std::vector<unsigned int>(1,0);
 
         // This part is for concat
-        toBuild->data->data_index = tensorBufferIt->getOffset();
+        toBuild->data->data_index = t->getAddress();
         toBuild->data->data_index += leading_offset;
 
         if(t->isSparse())
@@ -262,7 +266,7 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
 }
 
 //build tensorReference for subTensors - multiple clusters
-std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT(mv::ComputationModel& cm, mv::Element&, mv::Data::TensorIterator t, unsigned clusterId)
+std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT(mv::ComputationModel& cm, mv::Element&, mv::Data::TensorIterator t, unsigned clusterId, const std::string& allocatorName)
 {
     mv::DataModel dm(cm);
     mv::OpModel om(cm);
@@ -273,8 +277,13 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
 
     toBuild->name = subtensor.getName();
 
-    auto tensorAllocatorName = t->get<std::set<std::string>>("allocators").begin();
+    auto tensorAllocators = t->get<std::set<std::string>>("allocators");
+
+    auto tensorAllocatorName = tensorAllocators.begin();
+    if(!allocatorName.empty())
+        tensorAllocatorName = tensorAllocators.find(allocatorName);
     auto tensorAllocator = dm.getAllocator(*tensorAllocatorName);
+
     mv::Data::BufferIterator tensorBufferIt = tensorAllocator.getBuffer(0, t); // 0 is the only stage for now, but this will probably change in the future
 
     // Shape is always of the subtensor
@@ -686,14 +695,14 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
 }
 
 void mv::RuntimeModel::case2MC(unsigned numTasks, mv::ComputationModel& cm, mv::DmaDirection direction, mv::Element &compilationDescriptor,
-                               bool padFinalOutput, bool compression, std::vector<std::unique_ptr<MVCNN::TaskT>>& toReturn, mv::Data::TensorIterator src, mv::Data::TensorIterator dst)
+                               bool padFinalOutput, bool compression, std::vector<std::unique_ptr<MVCNN::TaskT>>& toReturn, mv::Data::TensorIterator src, mv::Data::TensorIterator dst, const std::string& srcAllocator, const std::string& dstAllocator)
 {
     std::unique_ptr<MVCNN::TaskT> toPush = std::unique_ptr<MVCNN::TaskT>(new MVCNN::TaskT());
     auto tmp = new MVCNN::NNDMATaskT();
     toPush->task.type = MVCNN::SpecificTask_NNDMATask;
 
-    tmp->src = buildTensorReferenceT(cm, compilationDescriptor, src);
-    tmp->dst = buildTensorReferenceT(cm, compilationDescriptor, dst);
+    tmp->src = buildTensorReferenceT(cm, compilationDescriptor, src, srcAllocator);
+    tmp->dst = buildTensorReferenceT(cm, compilationDescriptor, dst, dstAllocator);
 
     if (direction == mv::DDR2CMX)
     {
@@ -796,10 +805,9 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
 
         if(opIt->getInputTensor(0)->isSparse())
         {
-            // NOTE: Problem here. They are coincident tensors. The allocators are the same.
+            // NOTE: First usage ever of the concept one tensor -> Multiple allocator
             auto inputTensorSparsityMap = dm.getTensor(opIt->getInputTensor(0)->getSparsityMap()->getName());
-            auto outputTensorSparsityMap = dm.getTensor(opIt->getOutputTensor(0)->getSparsityMap()->getName());
-            case2MC(numTasks, cm, direction, compilationDescriptor, padFinalOutput, compression, toReturn, inputTensorSparsityMap, outputTensorSparsityMap);
+            case2MC(numTasks, cm, direction, compilationDescriptor, padFinalOutput, compression, toReturn, inputTensorSparsityMap, inputTensorSparsityMap, "GraphFile", "VPU_CMX_NN");
         }
         return toReturn;
     }
