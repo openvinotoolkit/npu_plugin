@@ -113,9 +113,6 @@ void allocateGraphfileTensorsKeemBayLegacyFcn(const mv::pass::PassEntry& pass, m
             tIt->set<unsigned>("graphFileIndex", i++);
 
             // Weights sparsity new approach: there is not a separate constant for sparsity map
-
-            // NOTE: not allocating tensor in data model to avoid headaches in transformation
-            // of shared_ptr<Tensor> to mv::Data::TensorIterator or the opposite
             if(tIt->isSparse())
             {
                 auto sparsityMap = tIt->getSparsityMap();
