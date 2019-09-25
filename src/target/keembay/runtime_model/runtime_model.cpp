@@ -737,11 +737,6 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
     unsigned numTasks = cm.getGlobalConfigParams()->get<int>("Number_of_Clusters");
 
     auto tensorAllocatorName = opIt->getOutputTensor(0)->get<std::set<std::string>>("allocators").begin();
-    if (*tensorAllocatorName == "ProgrammableOutput")
-    {
-        //Only if we are DMA-ing to programmable output check if we need to padd it
-        padFinalOutput = cm.getGlobalConfigParams()->hasAttr("PadOutput") ? cm.getGlobalConfigParams()->get<bool>("PadOutput") : false;
-    }
 
     // Case 1 of MC DMAs - Unpopulated tensors going in clustering op and vice versa
     // This could happen when we move input tensor of the network in or
