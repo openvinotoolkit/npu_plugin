@@ -164,8 +164,7 @@ def composeForCpp(parsedLayers, arguments):
     g = buildGraph(parsedLayers)
 
     # if user provided compilation descriptor file
-    comp_desc_file = os.environ["MCM_HOME"] + \
-        "/config/compilation/release_kmb.json"
+    comp_desc_file = os.environ["MCM_HOME"] + "/config/compilation/release_kmb.json"
     if arguments.comp_descriptor is not None:
         comp_desc_file = arguments.comp_descriptor
 
