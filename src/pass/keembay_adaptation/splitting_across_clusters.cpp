@@ -348,10 +348,9 @@ void ensureSplitStrategiesForSpilling(const mv::pass::PassEntry& pass, mv::Compu
                         {
                             // Strategy have to be adjusted...
                             outputTensor->set<std::string>("splitStrategy", opStrategy);
-                            inputTensor->set<std::string>("splitStrategy", opStrategy);
 
                             // ... and splitting has to be done again!!! <- Price for efficiency
-                            subTensorsGen(model, {inputTensor, outputTensor}, numClusters, pass);
+                            subTensorsGen(model, {outputTensor}, numClusters, pass);
                         }
                     }
                 }

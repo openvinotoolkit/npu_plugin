@@ -768,6 +768,7 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
         //Only if we are DMA-ing to programmable output check if we need to padd it
         padFinalOutput = cm.getGlobalConfigParams()->hasAttr("PadOutput") ? cm.getGlobalConfigParams()->get<bool>("PadOutput") : false;
     }
+
     if (splitting == "Clustering" && !opIt->getOutputTensor(0)->isPopulated())
     {
         std::vector<std::unique_ptr<MVCNN::TaskT>> toReturn = std::vector<std::unique_ptr<MVCNN::TaskT>>(numTasks);
@@ -1689,8 +1690,11 @@ unsigned mv::RuntimeModel::countProducerConsumerTasks(mv::ComputationModel& cm, 
         if(numClusters > 1)
         {
             bool sourceIsBroadCasted = opIt->getInputTensor(0)->isBroadcasted();
+            //NOTE: In case I spill from soh and I bring a sok tensor is not broadcasted
+            if (opIt->getInputTensor(0)->get<std::string>("splitStrategy") == "SplitOverH" && opIt->getOutputTensor(0)->get<std::string>("splitStrategy") == "SplitOverK")
+                toReturn = 1;
             // NOTE: a sok tensor might come from a different strategy op
-            if(!sourceIsBroadCasted)
+            else if(!sourceIsBroadCasted)
                 toReturn = numClusters;
 //Look at the coments on buildNNDMATaskT for multiCluster is case of Multiclustering
 //            else if (opIt->getInputTensor(0)->hasAttr("multiCast"))
