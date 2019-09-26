@@ -185,14 +185,6 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
             else if(weightsSparsity && !isElementWise)
             {
                 //Here only in the case of ZMajorConvolution
-
-                // NOTE: Adding limitation for the release:
-                // We can't have weights sparsity for SOK ZMajor convolution
-                // Will be solved in the next sprint
-
-                if(dpuTask->hasAttr("splitStrategy"))
-                    if(dpuTask->get<std::string>("splitStrategy") == "SplitOverK")
-                        continue;
                 auto weightsTensor = dpuTask->getInputTensor(1);
                 weightsTensor->setOrder(mv::Order("NHWC"));
                 if(weightsTensor->setSparse())
