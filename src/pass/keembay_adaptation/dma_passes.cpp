@@ -133,11 +133,15 @@ void AddUPATasksExtraInputsDMATasksFcn(const mv::pass::PassEntry& pass, mv::Comp
             {
                 auto inputTensor = opIt->getInputTensor(i);
                 auto inputOp = om.getSourceOp(inputTensor);
-                if(!isTensorInUPACMX(inputTensor, om))
+                if(isTensorInNNCMX(inputTensor, om) || isTensorInUPACMX(inputTensor, om))
                 {
                     auto flows = inputTensor->get<std::set<std::string>>("flows");
 
-                    mv::Data::TensorIterator inputTensorDma = om.dMATask(inputTensor, mv::DmaDirectionEnum::DDR2UPACMX, mv::createDMATaskDDR2UPACMXName(inputOp->getName()));
+                    mv::Data::TensorIterator inputTensorDma;
+                    if(isTensorInNNCMX(inputTensor, om))
+                        inputTensorDma = om.dMATask(inputTensor, mv::DmaDirectionEnum::NNCMX2DDR, mv::createDMATaskNNCMX2DDRName(inputOp->getName()));
+                    else if (isTensorInUPACMX(inputTensor, om))
+                        inputTensorDma = om.dMATask(inputTensor, mv::DmaDirectionEnum::UPACMX2DDR, mv::createDMATaskUPACMX2DDRName(inputOp->getName()));
                     auto inputTensorDmaOp = om.getSourceOp(inputTensorDma);
                     inputTensorDmaOp->set<unsigned>("opId", opId);
 
