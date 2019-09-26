@@ -736,51 +736,13 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
     auto direction = opIt->get<mv::DmaDirection>("direction");
     unsigned numTasks = cm.getGlobalConfigParams()->get<int>("Number_of_Clusters");
 
-    auto tensorAllocatorName = opIt->getOutputTensor(0)->get<std::set<std::string>>("allocators").begin();
-
-    // Case 1 of MC DMAs - Unpopulated tensors going in clustering op and vice versa
-    // This could happen when we move input tensor of the network in or
-    // when we come back after spilling to DDR.
-
-    // Weights sparsity maps with new approach should NOT be handled here
-
-    // Strategy: 1 dma from/to each DMA cluster
-    if (splitting == "Clustering" && !opIt->getOutputTensor(0)->isPopulated())
-    {
-        std::vector<std::unique_ptr<MVCNN::TaskT>> toReturn = std::vector<std::unique_ptr<MVCNN::TaskT>>(numTasks);
-        for(unsigned i = 0; i < numTasks; ++i)
-        {
-            toReturn[i] = std::unique_ptr<MVCNN::TaskT>(new MVCNN::TaskT());
-            toReturn[i]->task.type = MVCNN::SpecificTask_NNDMATask;
-            auto tmp = new MVCNN::NNDMATaskT();
-            tmp->src = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(0));
-            if (direction == mv::DmaDirectionEnum::CMX2DDR)
-            {
-                auto locale_index = std::vector<unsigned int>(1,i);
-                tmp->src->locale_index = locale_index;
-            }
-
-            tmp->dst = buildTensorReferenceT(cm, compilationDescriptor, opIt->getOutputTensor(0));
-            if (direction == mv::DmaDirectionEnum::DDR2CMX)
-            {
-                auto locale_index = std::vector<unsigned int>(1,i);
-                tmp->dst->locale_index = locale_index;
-            }
-
-            if(opIt->hasAttr("Compression"))
-                tmp->compression =  opIt->get<bool>("Compression");
-            toReturn[i]->task.value = tmp;
-        }
-        return toReturn;
-    }
-
     // Case 2 of MC DMAs - Source tensor is broadcasted, i.e. present in it's entirety
     // in all clusters, OR populated tensors going into clustering op (which for some reason are not marked as broadcasted).
 
     // Weights sparsity maps with new approach should be handled here
 
     // Strategy: 1 DMA to multiple slices -  multiple slices to 1 place
-    else if(sourceIsBroadCasted || (splitting == "Clustering" && opIt->getOutputTensor(0)->isPopulated()))
+    if(sourceIsBroadCasted || (splitting == "Clustering"))
     {
         std::vector<std::unique_ptr<MVCNN::TaskT>> toReturn;
         bool compression = false;
@@ -788,7 +750,7 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
             compression = opIt->get<bool>("compression");
         case2MC(numTasks, cm, direction, compilationDescriptor, compression, toReturn, opIt->getInputTensor(0), opIt->getOutputTensor(0));
 
-        if(opIt->getInputTensor(0)->isSparse())
+        if(opIt->getInputTensor(0)->isSparse() && opIt->getInputTensor(0)->isPopulated())
         {
             // NOTE: First usage ever of the concept one tensor -> Multiple allocators
             auto tensorSparsityMap = dm.getTensor(opIt->getInputTensor(0)->getSparsityMap()->getName());
@@ -1536,10 +1498,8 @@ unsigned mv::RuntimeModel::countProducerConsumerTasks(mv::ComputationModel& cm, 
 //                toReturn = numClusters;
             else
                 toReturn = 1;
-            if ((opIt->getInputTensor(0)->get<std::string>("splitStrategy") == "Clustering") && (opIt->getInputTensor(0)->isPopulated()))
+            if ((opIt->getInputTensor(0)->get<std::string>("splitStrategy") == "Clustering"))
                 toReturn = 1;
-            else if ((opIt->getInputTensor(0)->get<std::string>("splitStrategy") == "Clustering") && (!opIt->getInputTensor(0)->isPopulated()))
-                toReturn = numClusters;
         }
         else
             toReturn = 1;
