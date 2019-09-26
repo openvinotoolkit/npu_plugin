@@ -1443,8 +1443,15 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPASoftmaxTask(ComputationModel& c
     //toBuild->maxShaves = ;
     toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_SoftmaxParams;
     auto softLayerParamsValue = new MVCNN::SoftmaxParamsT();
-    //softLayerParamsValue->axis = //TODO: get the AXIS correctly
+
+    std::string axis = opIt->get<std::string>("axis");
+    // TODO: magic numbers
+    if (axis.compare(std::string("C")) == 0)
+        softLayerParamsValue->axis = 1;
+    else if (axis.compare(std::string("H")) == 0)
+        softLayerParamsValue->axis = 2;
     toBuild->softLayerParams.value = softLayerParamsValue;
+
     toBuild->input_data = buildTensorReferenceT(cm, compilationDescriptor, input);
     toBuild->output_data = buildTensorReferenceT(cm, compilationDescriptor, output);
     return toBuild;
