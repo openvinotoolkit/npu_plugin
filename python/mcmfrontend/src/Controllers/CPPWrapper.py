@@ -26,8 +26,17 @@ from Controllers.GraphUtils import buildGraph
 import os
 import sys
 try:
-    from Controllers import mcmpathinclude  # noqa: E261
-    assert mcmpathinclude  # silence pyflakes
+    base = os.environ.get('MCM_HOME')
+    ldlib = os.environ.get('LD_LIBRARY_PATH')
+    if base is None:
+        print("Please set environment path MCM_HOME. Exiting...")
+        quit()
+    if ldlib is None:
+        print("Please set your LD_LIBRARY_PATH environment variable correctly. Exiting...")
+        quit()
+
+    sys.path.append(base + '/python/api')
+
     import composition_api as ca
 except ImportError:
     print("problem importing mcmpathinclude")
@@ -155,11 +164,10 @@ def composeForCpp(parsedLayers, arguments):
     g = buildGraph(parsedLayers)
 
     # if user provided compilation descriptor file
-    comp_desc_file = os.environ["MCM_HOME"] + \
-        "/config/compilation/debug_ma2490.json"
+    comp_desc_file = os.environ["MCM_HOME"] + "/config/compilation/release_kmb.json"
     if arguments.comp_descriptor is not None:
         comp_desc_file = arguments.comp_descriptor
-
+    exit
     ca.loadCompilationDescriptor(comp_unit, comp_desc_file)
     json_file = json.load(open(comp_desc_file))
     try:

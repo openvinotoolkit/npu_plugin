@@ -28,10 +28,6 @@ print("\033[1mmcmFrontend v" + (u"{0:02d}".format(major_version, )) + "." +
 
 def main(args=None):
 
-    exitcode = setup_hooks()
-    if exitcode == -1:
-        throw_warning(ErrorTable.GitHooksWarning)
-
     setup_warnings()
     if args is None:
         args = define_and_parse_args()
