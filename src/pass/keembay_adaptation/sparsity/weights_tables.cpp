@@ -147,7 +147,7 @@ void populateWeightsTablesSparsityPointers(mv::Data::TensorIterator weightsTable
         {
             // Dense ZMajor Convolution case
             // Not using the generic function because it's a super simple case
-            long int offset = 16777215; // NOTE: Implementation defined
+            long int offset = 0xFFFFFF; // NOTE: Implementation defined
             for (size_t i = 0; i < weightsTableData->size(); i+=BYTES_PER_WT_ELEMENT)
                   weightsTableData->at(i+1) = offset;
         }
@@ -267,6 +267,20 @@ static void removeBiasTensorsFcn(const mv::pass::PassEntry& , mv::ComputationMod
         dm.undefineTensor(bias);
     }
 }
+
+void debugPrint(mv::Data::TensorIterator weightsTableData)
+{
+    // Data pointer
+    std::cout << weightsTableData->getName() + "Data pointer" << std::endl;
+    for (size_t i = 0; i < weightsTableData->size(); i+=BYTES_PER_WT_ELEMENT)
+        std::cout << static_cast<int64_t>(weightsTableData->at(i)) << std::endl;
+
+    // Sparsity pointer
+    std::cout << weightsTableData->getName() + "Sparsity pointer" << std::endl;
+    for (size_t i = 0; i < weightsTableData->size(); i+=BYTES_PER_WT_ELEMENT)
+        std::cout << static_cast<int64_t>(weightsTableData->at(i+1)) << std::endl;
+}
+
 static void populateWeightsTablesPointersFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
@@ -283,6 +297,8 @@ static void populateWeightsTablesPointersFcn(const mv::pass::PassEntry& , mv::Co
                 auto weightsTable = dpuTaskOp->getInputTensor(dpuTaskOp->get<std::size_t>("weightsTableIndex"));
                 populateWeightsTablesDataPointers(weightsTable, dpuTaskOp, model);
                 populateWeightsTablesSparsityPointers(weightsTable, dpuTaskOp, model);
+
+                debugPrint(weightsTable);
             }
         }
     }
