@@ -56,13 +56,19 @@ void populatePointerMultiCluster(mv::Data::TensorIterator weightsTableData, mv::
         unsigned numClusters =  model.getGlobalConfigParams()->get<int>("Number_of_Clusters");
         std::size_t sizeToIterate = 0;
         std::size_t totalSizeToIterate = 0;
+        std::size_t k = 0;
+        bool isSparse = tensor->isSparse();
         for (unsigned i = 0; i < numClusters; i++)
         {
             // Resetting offset at the beginning of the cluster
             offset = new_offset;
 
+            // Resetting k index only when weights are not sparse
+            if(!isSparse)
+                k = 0;
+
             // Filling cluster
-            for (size_t j = 0, k = 0; j < weightsTableData->getSubTensor(i).size(); j+=BYTES_PER_WT_ELEMENT)
+            for (size_t j = 0; j < weightsTableData->getSubTensor(i).size(); j+=BYTES_PER_WT_ELEMENT)
                 weightsTableData->at(j + addingIndex + totalSizeToIterate) = offset + increments[k++];
 
             // Preparing for next iteration
@@ -90,11 +96,21 @@ void populateWeightsTablesDataPointers(mv::Data::TensorIterator weightsTableData
 
         if(weights->isSparse())
         {
-            increments = weights->getKernelDataOffsets();
+            if(strategy != "SplitOverK")
+                increments = weights->getKernelDataOffsets();
+            else
+            {
+                unsigned numClusters =  model.getGlobalConfigParams()->get<int>("Number_of_Clusters");
+                for(std::size_t i = 0; i < numClusters; ++i)
+                {
+                    auto kernelOffsets = weights->getSubTensor(i).getKernelDataOffsets();
+                    increments.insert(increments.end(), kernelOffsets.begin(), kernelOffsets.end());
+                }
+            }
         }
         else
         {
-            long int increment = weights->getShape()[0];
+            long int increment = weights->getShape()[mv::KERNEL_WEIGHT_SETS] * (weights->getDType().getSizeInBits() / 8);
             increments = std::vector<int64_t>(outputChannels, 0);
             for(unsigned i = 1; i < outputChannels; ++i)
                 increments[i] = increments[i-1] + increment;
