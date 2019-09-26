@@ -66,6 +66,7 @@ target_link_libraries(${TARGET_NAME}
         ${VPUAL_NN_LIBRARY}
         vpusmm
         ${GAPI_SIPP_LIBRARY}
+        kmb_utils
         )
 
 if(ENABLE_TESTS)
@@ -94,7 +95,8 @@ if(ENABLE_TESTS)
                 IE::vpu_common_lib
                 ${MCM_COMPILER_LIBRARY}
                 ${VPUAL_NN_LIBRARY}
-                ${GAPI_SIPP_LIBRARY})
+                ${GAPI_SIPP_LIBRARY}
+                kmb_utils)
 endif()
 
 if(ENABLE_MCM_COMPILER)
