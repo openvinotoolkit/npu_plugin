@@ -50,8 +50,6 @@ void populatePointerMultiCluster(mv::Data::TensorIterator weightsTableData, mv::
     }
     else
     {
-        // NOTE: k index handling has to be checked when testing SplitOverK + Sparsity
-
         // Saving a backup copy of the offset
         long int new_offset = offset;
 
@@ -78,18 +76,22 @@ void populatePointerMultiCluster(mv::Data::TensorIterator weightsTableData, mv::
 void populateWeightsTablesDataPointers(mv::Data::TensorIterator weightsTableData, mv::Data::OpListIterator dpuTaskOp, mv::ComputationModel& model)
 {
     // Max pooling does not need DataPointer
+    // Eltwise doesn't have weights table at all
     if(dpuTaskOp->get<std::string>("taskOp") == "Conv" ||
        dpuTaskOp->get<std::string>("taskOp") == "ChannelMajorConvolution" ||
        dpuTaskOp->get<std::string>("taskOp") == "DepthwiseConv")
     {
         auto weights = dpuTaskOp->getInputTensor(1);
-        auto outputChannels = weights->getShape()[3];
+        auto outputChannels = weights->getShape()[mv::KERNEL_OUTPUT_CHANNELS];
+        auto strategy = dpuTaskOp->get<std::string>("splitStrategy");
 
         long int offset = weights->getAddress();
         std::vector<int64_t> increments;
 
         if(weights->isSparse())
+        {
             increments = weights->getKernelDataOffsets();
+        }
         else
         {
             long int increment = weights->getShape()[0];
