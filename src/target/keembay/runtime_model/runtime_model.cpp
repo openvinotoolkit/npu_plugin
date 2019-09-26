@@ -344,10 +344,10 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
                leading_offset += previousSubtensorKernelOffsets[previousSubtensorKernelOffsets.size()-1];
             }
 
-            auto subtensorKernelOffsets = subtensor.getKernelDataOffsets();
-            unsigned trailing_offset = subtensorKernelOffsets[subtensorKernelOffsets.size()-1];
+            // auto subtensorKernelOffsets = subtensor.getKernelDataOffsets();
+            // unsigned trailing_offset = subtensorKernelOffsets[subtensorKernelOffsets.size()-1];
+            // toBuild->trailing_offset = trailing_offset;
             toBuild->data->data_index = leading_offset;
-            toBuild->trailing_offset = trailing_offset;
         }
     }
     else if(*tensorAllocatorName == "ProgrammableInput" || *tensorAllocatorName == "ProgrammableOutput" ||
