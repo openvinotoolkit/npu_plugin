@@ -1094,7 +1094,7 @@ std::size_t mv::Tensor::computeTotalSize(unsigned int alignment, bool isBase, bo
     return res;
 }
 
-void mv::Tensor::splitAcrossClusters(std::vector<mv::Workload> workloads, bool splitOverH, bool multicast)
+void mv::Tensor::splitAcrossClusters(std::vector<mv::Workload> workloads, bool splitOverH, bool multicast, bool clustering)
 {
     if (isPopulated())
     {
@@ -1104,7 +1104,7 @@ void mv::Tensor::splitAcrossClusters(std::vector<mv::Workload> workloads, bool s
             size_t idx = wlItr - workloads.begin();
             auto width = wlItr->MaxX - wlItr->MinX + 1;
             auto height = wlItr->MaxY - wlItr->MinY + 1;
-            if (splitOverH)
+            if (splitOverH || clustering)
             {
                 //NOTE: We can probably avoid to populate this tensor
                 // We will save a lot of time and space
@@ -1142,7 +1142,7 @@ void mv::Tensor::splitAcrossClusters(std::vector<mv::Workload> workloads, bool s
             if (isSparse())
                 subTensors_[idx]->setSparse();
         }
-        set<bool>("broadcasted", (splitOverH == true));
+        set<bool>("broadcasted", (splitOverH == true) || (clustering == true));
     }
     else
     {
@@ -1182,7 +1182,7 @@ void mv::Tensor::splitAcrossClusters(std::vector<mv::Workload> workloads, bool s
             }
         }
 
-        set<bool>("broadcasted", (!splitOverH || multicast));
+        set<bool>("broadcasted", (!splitOverH || multicast || clustering));
     }
 }
 

@@ -768,47 +768,8 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
         //Only if we are DMA-ing to programmable output check if we need to padd it
         padFinalOutput = cm.getGlobalConfigParams()->hasAttr("PadOutput") ? cm.getGlobalConfigParams()->get<bool>("PadOutput") : false;
     }
-
-    if (splitting == "Clustering" && !opIt->getOutputTensor(0)->isPopulated())
-    {
-        std::vector<std::unique_ptr<MVCNN::TaskT>> toReturn = std::vector<std::unique_ptr<MVCNN::TaskT>>(numTasks);
-        for(unsigned i = 0; i < numTasks; ++i)
-        {
-            toReturn[i] = std::unique_ptr<MVCNN::TaskT>(new MVCNN::TaskT());
-            toReturn[i]->task.type = MVCNN::SpecificTask_NNDMATask;
-            auto tmp = new MVCNN::NNDMATaskT();
-            tmp->src = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(0));
-            tmp->dst = buildTensorReferenceT(cm, compilationDescriptor, opIt->getOutputTensor(0));
-            if (direction == mv::DmaDirectionEnum::CMX2DDR)
-            {
-                auto locale_index = std::vector<unsigned int>(1,i);
-                tmp->src->locale_index = locale_index;
-                if (opIt->getInputTensor(0)->hasAttr("alignment"))
-                {
-                    alignTensor(cm, tmp->src, opIt->getInputTensor(0), padFinalOutput);
-                }
-                if (padFinalOutput && opIt->getOutputTensor(0)->hasAttr("alignment"))
-                {
-                    alignTensor(cm, tmp->dst, opIt->getOutputTensor(0), padFinalOutput);
-                }
-            }
-            else //(direction == mv::DmaDirectionEnum::DDR2CMX)
-            {
-                auto locale_index = std::vector<unsigned int>(1,i);
-                tmp->dst->locale_index = locale_index;
-
-                if (opIt->getOutputTensor(0)->hasAttr("alignment"))
-                {
-                    alignTensor(cm, tmp->dst, opIt->getOutputTensor(0));
-                }
-            }
-            if(opIt->hasAttr("Compression"))
-                tmp->compression =  opIt->get<bool>("Compression");
-            toReturn[i]->task.value = tmp;
-        }
-        return toReturn;
-    }
-    else if(sourceIsBroadCasted || (splitting == "Clustering" && opIt->getOutputTensor(0)->isPopulated()) || ((splitting == "SplitOverK" && !opIt->getOutputTensor(0)->isPopulated())))
+    //NOTE: splitting == clustering might not needed more the last condition is coming from SOH to SOH DMATASK
+    if(sourceIsBroadCasted || ((splitting == "SplitOverK" && !opIt->getOutputTensor(0)->isPopulated())))
     {
         //NOTE: Multicast flag works on nce2tasks for going the whole output tensor on every cluster,
         //POC's logic with replicating 4 times the same DMA seems not correct, even for mutiple layers to me,
@@ -1701,10 +1662,8 @@ unsigned mv::RuntimeModel::countProducerConsumerTasks(mv::ComputationModel& cm, 
 //                toReturn = numClusters;
             else
                 toReturn = 1;
-            if ((opIt->getInputTensor(0)->get<std::string>("splitStrategy") == "Clustering") && (opIt->getInputTensor(0)->isPopulated()))
+            if ((opIt->getInputTensor(0)->get<std::string>("splitStrategy") == "Clustering"))
                 toReturn = 1;
-            else if ((opIt->getInputTensor(0)->get<std::string>("splitStrategy") == "Clustering") && (!opIt->getInputTensor(0)->isPopulated()))
-                toReturn = numClusters;
         }
         else
             toReturn = 1;
