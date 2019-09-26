@@ -2,7 +2,7 @@
 #include "include/mcm/target/keembay/runtime_model/runtime_model.hpp"
 #include "include/mcm/utils/env_loader.hpp"
 
-static void generateBlobKeembayFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&td, mv::Element& passDesc, mv::Element&);
+static void generateBlobKeembayFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&);
 
 namespace mv
 {
@@ -19,7 +19,7 @@ namespace mv
 
 }
 
-void generateBlobKeembayFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor& td, mv::Element& passDesc, mv::Element&)
+void generateBlobKeembayFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&)
 {   
 
     MV_PROFILED_FUNCTION(MV_PROFILE_PHASE)
