@@ -488,49 +488,6 @@ void vpuLayersTests::SetOutputTensor(tensor_test_params const& tensor)
     _outputTensors[0][3] = tensor.w;
 }
 
-bool fromBinaryFile(std::string input_binary, Blob::Ptr blob) {
-
-    std::ifstream in(input_binary, std::ios_base::binary | std::ios_base::ate);
-
-    size_t sizeFile = in.tellg();
-    in.seekg(0, std::ios_base::beg);
-    size_t count = blob->size();
-    bool status = false;
-    if(in.good()) {
-        if (blob->getTensorDesc().getPrecision() == Precision::FP16) {
-            ie_fp16 *blobRawDataFP16 = blob->buffer().as<ie_fp16 *>();
-            if(sizeFile == count * sizeof(float)) {
-                for (size_t i = 0; i < count; i++) {
-                    float tmp;
-                    in.read(reinterpret_cast<char *>(&tmp), sizeof(float));
-                    blobRawDataFP16[i] = PrecisionUtils::f32tof16(tmp);
-                }
-                status = true;
-            } else if(sizeFile == count * sizeof(ie_fp16)) {
-                for (size_t i = 0; i < count; i++) {
-                    ie_fp16 tmp;
-                    in.read(reinterpret_cast<char *>(&tmp), sizeof(ie_fp16));
-                    blobRawDataFP16[i] = tmp;
-                }
-                status = true;
-            }
-        }else if (blob->getTensorDesc().getPrecision() == Precision::FP32) {
-            float *blobRawData = blob->buffer();
-            if(sizeFile == count * sizeof(float)) {
-                in.read(reinterpret_cast<char *>(blobRawData), count * sizeof(float));
-                status = true;
-            }
-        } else if (blob->getTensorDesc().getPrecision() == Precision::U8) {
-            char *blobRawData = blob->buffer().as<char *>();
-            if(sizeFile == count * sizeof(char)) {
-                in.read(blobRawData, count * sizeof(char));
-                status = true;
-            }
-        }
-    }
-    return status;
-}
-
 void vpuLayersTests::SetOutputTensors(IN_OUT_desc out_tensors)
 {
     _outputTensors = out_tensors;

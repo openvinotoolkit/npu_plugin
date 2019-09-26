@@ -16,7 +16,6 @@
 
 #include <frontend_mcm.hpp>
 #include "kmb_config.h"
-#include <utils/dims_parser.hpp>
 
 #include <vector>
 #include <memory>
@@ -33,6 +32,7 @@
 #include "ie_blob.h"
 
 #include <precision_utils.h>
+#include <dims_parser.hpp>
 
 #ifdef ENABLE_MCM_COMPILER
 

@@ -14,7 +14,7 @@
 // stated in the License.
 //
 
-#include <utils/dims_parser.hpp>
+#include <dims_parser.hpp>
 #include <details/ie_exception.hpp>
 
 namespace vpu {

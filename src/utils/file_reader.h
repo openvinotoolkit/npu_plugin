@@ -14,16 +14,20 @@
 // stated in the License.
 //
 
-#pragma once
+#include <string>
+#include <ie_blob.h>
 
-#include <samples/common.hpp>
+namespace vpu {
 
-#include <inference_engine.hpp>
+namespace KmbPlugin {
 
-namespace IE = InferenceEngine;
+namespace utils {
 
-std::vector<std::string> readLabelsFromFile(const std::string& labelFileName);
+void fromBinaryFile(std::string input_binary, InferenceEngine::Blob::Ptr blob);
 
-IE::Blob::Ptr preprocessUncompiledLayers(const std::string &layersPath, const std::string& data);
-IE::Blob::Ptr postprocessUncompiledLayers(const std::string &layersPath, IE::Blob::Ptr src);
+}  // namespace utils
+
+}  // namespace KmbPlugin
+
+}  // namespace vpu
 

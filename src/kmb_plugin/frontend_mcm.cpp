@@ -27,8 +27,7 @@
 
 #include <graph_tools.hpp>
 #include <ie_profiling.hpp>
-
-#include <utils/dims_parser.hpp>
+#include <dims_parser.hpp>
 
 #ifdef ENABLE_MCM_COMPILER
 namespace vpu {

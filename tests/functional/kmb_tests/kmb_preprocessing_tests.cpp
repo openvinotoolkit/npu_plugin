@@ -23,6 +23,8 @@
 #include <mutex>
 #include <condition_variable>
 
+#include <file_reader.h>
+
 using namespace ::testing;
 using namespace InferenceEngine;
 using namespace Regression::Matchers;
@@ -204,7 +206,7 @@ static void setPreprocForInputBlob(const std::string &inputName,
                 {1, 3, 227, 227},
                 inputTensor.getLayout());
             inputBlob = make_shared_blob<uint8_t>(preprocTensor, imageData);
-            ASSERT_TRUE(fromBinaryFile(inputFilePath, inputBlob));
+            ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(inputFilePath, inputBlob));
         }
         break;
     case PT_NV12:
@@ -306,7 +308,7 @@ TEST_P(VpuPreprocessingTestsWithParam, DISABLED_importWithPreprocessing) {  // T
 
         uint8_t* outputRefData = reinterpret_cast<uint8_t*>(kmbAllocator->allocate(outputBlob->byteSize()));
         Blob::Ptr referenceOutputBlob = make_shared_blob<uint8_t>(outputBlobTensorDesc, outputRefData);
-        ASSERT_TRUE(fromBinaryFile(referenceOutputFilePath, referenceOutputBlob));
+        ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(referenceOutputFilePath, referenceOutputBlob));
 
         const size_t NUMBER_OF_CLASSES = 5;
         ASSERT_NO_THROW(compareTopClasses(outputBlob, referenceOutputBlob, NUMBER_OF_CLASSES));
@@ -356,7 +358,7 @@ TEST_F(VpuPreprocessingTests, DISABLED_correctPreprocessing) {
 
         uint8_t* outputRefData = reinterpret_cast<uint8_t*>(kmbAllocator->allocate(outputBlob->byteSize()));
         Blob::Ptr referenceOutputBlob = make_shared_blob<uint8_t>(outputBlobTensorDesc, outputRefData);
-        ASSERT_TRUE(fromBinaryFile(referenceOutputFilePath, referenceOutputBlob));
+        ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(referenceOutputFilePath, referenceOutputBlob));
 
         const size_t NUMBER_OF_CLASSES = 5;
         ASSERT_NO_THROW(compareTopClasses(outputBlob, referenceOutputBlob, NUMBER_OF_CLASSES));
@@ -413,7 +415,7 @@ TEST_F(VpuPreprocessingTests, DISABLED_multiThreadCorrectPreprocessing) {
 
         uint8_t* outputRefData = reinterpret_cast<uint8_t*>(kmbAllocator->allocate(outputBlob->byteSize()));
         Blob::Ptr referenceOutputBlob = make_shared_blob<uint8_t>(outputBlobTensorDesc, outputRefData);
-        ASSERT_TRUE(fromBinaryFile(referenceOutputFilePath, referenceOutputBlob));
+        ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(referenceOutputFilePath, referenceOutputBlob));
 
         const size_t NUMBER_OF_CLASSES = 5;
         ASSERT_NO_THROW(compareTopClasses(outputBlob, referenceOutputBlob, NUMBER_OF_CLASSES));
@@ -488,7 +490,7 @@ TEST_F(VpuPreprocessingTests, DISABLED_twoRequestsWithPreprocessing) {
 
         uint8_t* outputRefData = reinterpret_cast<uint8_t*>(kmbAllocator->allocate(outputBlob->byteSize()));
         Blob::Ptr referenceOutputBlob = make_shared_blob<uint8_t>(outputBlobTensorDesc, outputRefData);
-        ASSERT_TRUE(fromBinaryFile(referenceOutputFilePath, referenceOutputBlob));
+        ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(referenceOutputFilePath, referenceOutputBlob));
 
         const size_t NUMBER_OF_CLASSES = 5;
         ASSERT_NO_THROW(compareTopClasses(outputBlob, referenceOutputBlob, NUMBER_OF_CLASSES));
