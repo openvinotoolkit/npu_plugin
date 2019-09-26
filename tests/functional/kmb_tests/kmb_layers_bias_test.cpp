@@ -33,7 +33,7 @@ TEST_P(kmbLayersTestsBias_nightly, DISABLED_TestsBias)
         biasesSize *= dim[pos];
     }
 
-    TBlob<uint8_t>::Ptr weightsBlob(GenWeights(0 + biasesSize));
+    TBlob<uint8_t>::Ptr weightsBlob(GenWeights<uint16_t >(0 + biasesSize));
     SetInputTensors({dim});
     SetOutputTensors({dim});
 

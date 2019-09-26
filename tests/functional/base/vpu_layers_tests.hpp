@@ -6,7 +6,6 @@
 
 #include <gtest/gtest.h>
 #include <ie_version.hpp>
-#include <ie_device.hpp>
 #include <cpp/ie_cnn_net_reader.h>
 #include <inference_engine.hpp>
 #include "tests_common.hpp"
@@ -170,9 +169,25 @@ protected:
         return _referenceGraph.callbacks.back().output;
     }
 
-    InferenceEngine::TBlob<uint8_t>::Ptr GenWeights(size_t sz,
-                                                float min_val = -1.0f,
-                                                float max_val = 1.0f);
+    template <typename T>
+    T generate_val(float min_val, float max_val);
+
+    template <typename T>
+    InferenceEngine::TBlob<uint8_t>::Ptr GenWeights(size_t sz, float min_val = -1.0f, float max_val = 1.0f)
+    {
+        // TODO: pass seed as parameter
+        InferenceEngine::TBlob<uint8_t>::Ptr weights = InferenceEngine::make_shared_blob<uint8_t>({
+                                                                                        InferenceEngine::Precision::U8,
+                                                                                        {(sz) * sizeof(T)},
+                                                                                        InferenceEngine::C});
+        weights->allocate();
+        T *inputBlobRawData = weights->buffer().as<T *>();
+
+        for (size_t indx = 0; indx < sz; ++indx) {
+            inputBlobRawData[indx] = generate_val<T>(min_val, max_val);
+        }
+        return weights;
+    }
 
     InferenceEngine::CNNNetReader            _net_reader;
     InferenceEngine::ResponseDesc            _resp;

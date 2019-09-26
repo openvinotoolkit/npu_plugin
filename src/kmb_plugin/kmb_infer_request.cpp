@@ -121,21 +121,17 @@ void KmbInferRequest::InferImpl() {
 void KmbInferRequest::InferAsync() {
     if (!_custom_inputs.empty()) {
         // execute input pre-processing
-        if (SIPPPreprocessor::useSIPP() &&
-            SIPPPreprocessor::isApplicable(_custom_inputs, _preProcData, _networkInputs)) {
-            if (!_sippPreproc) {
-                _sippPreproc.reset(new SIPPPreprocessor(_custom_inputs, _preProcData));
-            }
-
+        if (SippPreproc::useSIPP() &&
+            SippPreproc::isApplicable(_custom_inputs, _preProcData, _networkInputs)) {
             InferenceEngine::BlobMap inputs;
-
             for (auto &input : _custom_inputs) {
                 inputs[input.first] = make_blob_with_precision(_custom_inputs.begin()->second->getTensorDesc(),
                                                                getKmbAllocator());
                 inputs[input.first]->allocate();
             }
 
-            _sippPreproc->execSIPPDataPreprocessing(inputs, _preProcData, _networkInputs, m_curBatch, true);
+            SippPreproc::execSIPPDataPreprocessing(inputs, _preProcData, _networkInputs, 1, true);
+
             for (auto &input : inputs) {
                 auto name = input.first;
 
@@ -157,12 +153,9 @@ void KmbInferRequest::InferAsync() {
         }
     } else {
         // execute input pre-processing
-        if (SIPPPreprocessor::useSIPP() &&
-            SIPPPreprocessor::isApplicable(_inputs, _preProcData, _networkInputs)) {
-            if (!_sippPreproc) {
-                _sippPreproc.reset(new SIPPPreprocessor(_inputs, _preProcData));
-            }
-            _sippPreproc->execSIPPDataPreprocessing(_inputs, _preProcData, _networkInputs, m_curBatch, true);
+        if (SippPreproc::useSIPP() &&
+            SippPreproc::isApplicable(_inputs, _preProcData, _networkInputs)) {
+            SippPreproc::execSIPPDataPreprocessing(_inputs, _preProcData, _networkInputs, 1, true);
         } else {
             execDataPreprocessing(_inputs);
         }
@@ -185,17 +178,6 @@ void KmbInferRequest::InferAsync() {
             && outputBlobPrecision != Precision::I8
             && outputBlobPrecision != Precision::U8)
             THROW_IE_EXCEPTION << PARAMETER_MISMATCH_str << "Unsupported output blob precision";
-    }
-
-    // execute input pre-processing
-    if (SIPPPreprocessor::useSIPP() &&
-        SIPPPreprocessor::isApplicable(_inputs, _preProcData, _networkInputs)) {
-        if (!_sippPreproc) {
-            _sippPreproc.reset(new SIPPPreprocessor(_inputs, _preProcData));
-        }
-        _sippPreproc->execSIPPDataPreprocessing(_inputs, _preProcData, _networkInputs, m_curBatch, true);
-    } else {
-        execDataPreprocessing(_inputs, true);  // "true" stands for serial preprocessing in case of OpenMP
     }
 
     auto dataName = _networkInputs.begin()->first;

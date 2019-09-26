@@ -67,7 +67,7 @@ enum GraphManagerMethod : uint32_t {
     NN_DEALLOCATE_GRAPH = 5,
 };
 
-std::string operationModeToStr(OperationMode operationMode) {
+std::string operationModeToStr(xlink_opmode operationMode) {
     switch (operationMode) {
         case RXB_TXB:
             return "RXB_TXB";
@@ -225,8 +225,8 @@ int ioctl(int __fd, unsigned long int __request, ...) {
             logger->debug("Doing XL_OPEN_CHANNEL...");
             xlinkopenchannel *data = va_arg(args, xlinkopenchannel *);
 
-            logger->debug("  Operation mode: %s", operationModeToStr(data->opMode));
-            logger->debug("  Data size: %u", data->dataSize);
+            logger->debug("  Operation mode: %s", operationModeToStr(data->mode));
+            logger->debug("  Data size: %u", data->data_size);
             data->return_code = 0;
 
             logger->debug("Done.");
@@ -257,8 +257,8 @@ int ioctl(int __fd, unsigned long int __request, ...) {
             std::cout << "Doing XL_CLOSE_CHANNEL...\n";
             xlinkopenchannel *data = va_arg(args, xlinkopenchannel *);
 
-            std::cout << "  Operation mode: " << operationModeToStr(data->opMode) << '\n';
-            std::cout << "  Data size: " << data->dataSize << '\n';
+            std::cout << "  Operation mode: " << operationModeToStr(data->mode) << '\n';
+            std::cout << "  Data size: " << data->data_size << '\n';
             data->return_code = 0;
 
             std::cout << "Done." << '\n';

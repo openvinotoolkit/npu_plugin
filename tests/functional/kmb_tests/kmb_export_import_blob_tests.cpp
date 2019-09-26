@@ -101,7 +101,7 @@ TEST_F(kmbLayersTests_nightly, DISABLED_TestExportImportBlob_Convolution_After_S
 
     std::size_t weightSize = 6 + 18816;
     std::size_t biasSize = 6 + 128;
-    TBlob<uint8_t>::Ptr weightsBlob(GenWeights(weightSize + biasSize));
+    TBlob<uint8_t>::Ptr weightsBlob(GenWeights<uint16_t >(weightSize + biasSize));
     ASSERT_NO_THROW(_net_reader.SetWeights(weightsBlob));
 
     CNNNetwork network = _net_reader.getNetwork();
@@ -142,7 +142,7 @@ TEST_F(kmbLayersTests_nightly, DISABLED_TestExportImportBlob_resnet50_int8_fragm
 
     std::size_t weightSize = 147456 + 65536;
     std::size_t biasSize = 256 + 1024;
-    TBlob<uint8_t>::Ptr weightsBlob(GenWeights(weightSize + biasSize));
+    TBlob<uint8_t>::Ptr weightsBlob(GenWeights<uint16_t >(weightSize + biasSize));
     ASSERT_NO_THROW(_net_reader.SetWeights(weightsBlob));
 
     CNNNetwork network = _net_reader.getNetwork();

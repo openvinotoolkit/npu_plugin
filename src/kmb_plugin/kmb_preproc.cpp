@@ -8,23 +8,15 @@
 #include <memory>
 
 #ifdef ENABLE_VPUAL
-#include "kmb_preproc_gapi.hpp"
+#include "kmb_preproc_pool.hpp"
 #endif
 
 namespace InferenceEngine {
 
 #ifdef ENABLE_VPUAL
-SIPPPreprocessor::SIPPPreprocessor(const InferenceEngine::BlobMap& inputs,
-                                   const std::map<std::string, PreProcessDataPtr>& preprocData) {
-    for (auto& input : inputs) {
-        auto it = preprocData.find(input.first);
-        if (it != preprocData.end()) {
-            _preprocs.emplace(input.first, std::make_shared<SIPPPreprocEngine>());
-        }
-    }
-}
 
-bool SIPPPreprocessor::useSIPP() {
+namespace SippPreproc {
+bool useSIPP() {
     static const bool USE_SIPP = [](const char *str) -> bool {
         std::string var(str ? str : "");
         return var == "Y" || var == "YES" || var == "ON" || var == "1";
@@ -38,9 +30,11 @@ static bool supported(ResizeAlgorithm interp, ColorFormat inFmt) {
            (inFmt == ColorFormat::NV12);
 }
 
-bool SIPPPreprocessor::isApplicable(const InferenceEngine::BlobMap& inputs,
+bool isApplicable(const InferenceEngine::BlobMap& inputs,
                   const std::map<std::string, PreProcessDataPtr>& preprocData,
                   InputsDataMap& networkInputs) {
+    if (inputs.size() != 1) return false;
+
     for (auto& input : inputs) {
         const auto& blobName = input.first;
         auto it = preprocData.find(blobName);
@@ -55,31 +49,21 @@ bool SIPPPreprocessor::isApplicable(const InferenceEngine::BlobMap& inputs,
     return true;
 }
 
-void SIPPPreprocessor::execSIPPDataPreprocessing(InferenceEngine::BlobMap& inputs,
-                                                 std::map<std::string, PreProcessDataPtr>& preprocData,
-                                                 InputsDataMap& networkInputs,
-                                                 int curBatch,
-                                                 bool serial) {
-    for (auto& input : inputs) {
-        const auto& blobName = input.first;
-        auto it = preprocData.find(blobName);
-        if (it != preprocData.end()) {
-            const auto& preprocInfo = networkInputs.at(blobName)->getPreProcess();
-            _preprocs.at(blobName)->preprocWithSIPP(preprocData.at(blobName)->getRoiBlob(),
-                                                    input.second,
-                                                    preprocInfo.getResizeAlgorithm(),
-                                                    preprocInfo.getColorFormat(),
-                                                    serial,
-                                                    curBatch);
-        }
-    }
+void execSIPPDataPreprocessing(InferenceEngine::BlobMap& inputs,
+                               std::map<std::string, PreProcessDataPtr>& preprocData,
+                               InferenceEngine::InputsDataMap& networkInputs,
+                               int curBatch,
+                               bool serial) {
+    sippPreprocPool().execSIPPDataPreprocessing({inputs, preprocData, networkInputs, curBatch, serial});
 }
+}  // namespace SippPreproc
+
 #else
-SIPPPreprocessor::SIPPPreprocessor(const InferenceEngine::BlobMap&,
-                                   const std::map<std::string, PreProcessDataPtr>&) {
+SIPPPreprocessor::SIPPPreprocessor() {
     THROW_IE_EXCEPTION << "Error: SIPPPreprocessor::SIPPPreprocessor() "
                        << "should never be called when ENABLE_VPUAL is OFF";
 }
+SIPPPreprocessor::~SIPPPreprocessor() = default;
 
 bool SIPPPreprocessor::useSIPP() { return false; }
 

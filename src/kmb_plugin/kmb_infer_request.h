@@ -41,7 +41,6 @@ class KmbInferRequest : public InferenceEngine::InferRequestInternal {
     InferenceEngine::Layout _deviceLayout;
     std::vector<StageMetaInfo> _stagesMetaData;
     std::shared_ptr<KmbConfig> _config;
-    std::shared_ptr<InferenceEngine::SIPPPreprocessor> _sippPreproc;
 
 protected:
     InferenceEngine::BlobMap _custom_inputs;
