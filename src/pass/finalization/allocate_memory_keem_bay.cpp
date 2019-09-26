@@ -94,6 +94,8 @@ void allocateGraphfileTensorsKeemBayLegacyFcn(const mv::pass::PassEntry& pass, m
     mv::DataModel dm(model);
     mv::OpModel om(model);
 
+    unsigned numClusters = dm.getGlobalConfigParams()->get<int>("Number_of_Clusters");
+
     if (!dm.hasAllocator("GraphFile"))
          throw mv::ArgumentError(dm, "allocators", "GraphFile", "Computation model does not have GraphFile allocator specified");
 
@@ -109,17 +111,31 @@ void allocateGraphfileTensorsKeemBayLegacyFcn(const mv::pass::PassEntry& pass, m
         if (opType == "Constant" || opType == "ConstantInt" || opType == "ConstantDataElement")
         {
             auto tIt = opIterator->getOutputTensor(0);
-            dm.allocateTensor("GraphFile", stageIt, tIt);
-            tIt->set<unsigned>("graphFileIndex", i++);
 
-            // Weights sparsity new approach: there is not a separate constant for sparsity map
+            // Main tensor is always allocated to GraphFile
+            // Subtensors are not
+            dm.allocateTensor("GraphFile", stageIt, tIt);
+
+            // Weights sparsity new approach: there is a separate constant for
+            // each cluster
             if(tIt->isSparse())
             {
                 auto sparsityMap = tIt->getSparsityMap();
                 auto sparsityMapIterator = dm.getTensor(sparsityMap->getName());
+
+                // Main tensor is always allocated to GraphFile
+                // Subtensors are not
                 dm.allocateTensor("GraphFile", stageIt, sparsityMapIterator);
-                sparsityMap->set<unsigned>("graphFileIndex", i++);;
+                sparsityMap->set<unsigned>("graphFileIndex", i++);
+
+                if(tIt->get<std::string>("splitStrategy") == "SplitOverK")
+                {
+                    for(std::size_t j = 0; j < numClusters; ++j)
+                        tIt->getSubTensor(j).set<unsigned>("graphFileIndex", i++);
+                }
             }
+            else
+                tIt->set<unsigned>("graphFileIndex", i++);
         }
     }
 }

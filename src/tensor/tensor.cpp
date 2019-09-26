@@ -291,6 +291,7 @@ void mv::Tensor::unpopulate()
     log(Logger::MessageType::Debug, "Unpopulated");
 }
 
+// NOTE: why a reference? Otherwise return *this trick doesn't work
 mv::Tensor& mv::Tensor::getSubTensor(uint8_t cluster)
 {
     if (cluster < subTensors_.size())

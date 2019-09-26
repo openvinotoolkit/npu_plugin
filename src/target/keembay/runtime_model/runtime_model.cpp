@@ -311,20 +311,17 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     std::reverse(numericStrides.begin(), numericStrides.end());
 
     toBuild->dimensions = dimensions;
-    toBuild->strides = numericStrides; // NOTE: Maybe directly bufferIt->computeStrides() in the future?
-
-    toBuild->leading_offset = 0;
-    toBuild->trailing_offset = 0;
+    toBuild->strides = numericStrides;
 
     toBuild->data = std::unique_ptr<MVCNN::IndirectDataReferenceT>(new MVCNN::IndirectDataReferenceT());
     if (*tensorAllocatorName == "GraphFile")
     {
-        unsigned graphfileIndex = t->get<unsigned>("graphFileIndex");
-        toBuild->locale_index = std::vector<unsigned int>(1);
-        toBuild->locale_index[0] = graphfileIndex;
-        // No need to set sparsity_index for tensor stored in graphfile
         if(!t->isSparse())
         {
+            unsigned graphfileIndex = t->get<unsigned>("graphFileIndex");
+            toBuild->locale_index = std::vector<unsigned int>(1);
+            toBuild->locale_index[0] = graphfileIndex;
+
             auto offset = subtensor.get<std::vector<std::size_t>>("offset");
             auto index = t->getOrder().subToInd(t->getShape(), offset);
             auto byte_index = index * t->getDType().getSizeInBits() / 8;
@@ -333,21 +330,12 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
         }
         else
         {
-            // In case data is sparse, I think we should provide both leading and trailing offset
-            // Otherwise how does the runtime understand how many data it has to transfer
+            // In case data is sparse, packed subtensors are serialiazed. This simplifies our life a lot.
+            // No data index to be provided, just have to take the graphfile index from the subtensor
 
-            unsigned leading_offset = 0;
-            for(int previousSubtensorClusterId = clusterId - 1; previousSubtensorClusterId >= 0; --previousSubtensorClusterId)
-            {
-               auto previousSubtensor = t->getSubTensor(previousSubtensorClusterId);
-               auto previousSubtensorKernelOffsets = previousSubtensor.getKernelDataOffsets();
-               leading_offset += previousSubtensorKernelOffsets[previousSubtensorKernelOffsets.size()-1];
-            }
-
-            // auto subtensorKernelOffsets = subtensor.getKernelDataOffsets();
-            // unsigned trailing_offset = subtensorKernelOffsets[subtensorKernelOffsets.size()-1];
-            // toBuild->trailing_offset = trailing_offset;
-            toBuild->data->data_index = leading_offset;
+            unsigned graphfileIndex = subtensor.get<unsigned>("graphFileIndex");
+            toBuild->locale_index = std::vector<unsigned int>(1);
+            toBuild->locale_index[0] = graphfileIndex;
         }
     }
     else if(*tensorAllocatorName == "ProgrammableInput" || *tensorAllocatorName == "ProgrammableOutput" ||
@@ -1634,13 +1622,15 @@ void mv::RuntimeModel::buildGraphFile(ComputationModel& cm, mv::Element& compila
     mv::OpModel om(cm);
     mv::DataModel dm(cm);
 
+    unsigned numClusters = dm.getGlobalConfigParams()->get<int>("Number_of_Clusters");
+
     auto globalConfigurationParameters = cm.getGlobalConfigParams();
 
     graphFile_.header = buildSummaryHeaderT(cm, compilationDescriptor, std::move(graphFile_.header));
 
     // Binary Data
     graphFile_.binary_data = std::vector<std::unique_ptr<MVCNN::BinaryDataT>>();
-    std::vector<mv::Data::TensorIterator> toSort;
+    std::vector<Tensor *> toSort;
     for(auto opIterator = om.opBegin(); opIterator != om.opEnd(); ++opIterator)
     {
         std::string opType = opIterator->getOpType();
@@ -1648,18 +1638,26 @@ void mv::RuntimeModel::buildGraphFile(ComputationModel& cm, mv::Element& compila
         {
             auto tIt = opIterator->getOutputTensor(0);
 
-            // This line is horrible, but it's the only way to cast TensorIterator to Tensor *
-            toSort.push_back(tIt);
-
-            // Weights sparsity new approach: there is not a separate constant for sparsity map
+            // Weights sparsity new approach: there is a separate constant for
+            // each cluster
             if(tIt->isSparse())
             {
                 auto sparsityMapIterator = dm.getTensor(tIt->getSparsityMap()->getName());
-                toSort.push_back(sparsityMapIterator);
+                toSort.push_back(&(*sparsityMapIterator));
+                if(tIt->get<std::string>("splitStrategy") == "SplitOverK")
+                {
+                    for(std::size_t i = 0; i < numClusters; ++i)
+                        toSort.push_back(&(tIt->getSubTensor(i)));
+                }
+                else
+                    toSort.push_back(&(*tIt));
             }
+            else
+                toSort.push_back(&(*tIt));
+
         }
     }
-    std::sort(toSort.begin(), toSort.end(), [](mv::Data::TensorIterator t1, mv::Data::TensorIterator t2){return (t1->get<unsigned>("graphFileIndex") < t2->get<unsigned>("graphFileIndex"));});
+    std::sort(toSort.begin(), toSort.end(), [](mv::Tensor * t1, mv::Tensor * t2){return (t1->get<unsigned>("graphFileIndex") < t2->get<unsigned>("graphFileIndex"));});
     for(auto& tIt : toSort)
     {
         //std::cout << "Serializing to binary data section " << tensorIt->getName() << std::endl;
