@@ -104,6 +104,10 @@ void subTensorsGen(mv::ComputationModel& model, const std::vector <mv::Data::Ten
                 populatedSplitOverH(nClusters, subTensors, Tensor, pass, success);
             tensor->splitAcrossClusters(subTensors, true, false);
         }
+        else if (tensor->get<std::string>("splitStrategy") == "Clustering")
+        {
+            tensor->splitAcrossClusters(subTensors, false, false, true);
+        }
         else if (tensor->get<std::string>("splitStrategy") == "SplitOverHOverlapped")
         {
             if(!tensor->isPopulated())
