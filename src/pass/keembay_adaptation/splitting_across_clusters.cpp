@@ -116,19 +116,19 @@ void subTensorsGen(mv::ComputationModel& model, const std::vector <mv::Data::Ten
         }
         else if (tensor->get<std::string>("splitStrategy") == "Clustering")
         {
-            //NOTE: Compute the same subtensors with the initial Tensor in order to do everything 1
-            //function in seralization
-            for (int i = 0; i < nWorkloads; i++)
-            {
-                subTensors[i].MaxX = MaxX;
-                subTensors[i].MinX = 0;
-                subTensors[i].MaxZ = MaxX;
-                subTensors[i].MinZ = 0;
-                subTensors[i].MaxY = MaxX;
-                subTensors[i].MinY = 0;
-            }
-            if (tensorNeedsAlignment)
-                ensureAlignmentForSubTensors(subTensors, tensor, nWorkloads, pad);
+//            //NOTE: Compute the same subtensors with the initial Tensor in order to do everything 1
+//            //function in seralization
+//            for (int i = 0; i < nWorkloads; i++)
+//            {
+//                subTensors[i].MaxX = MaxX;
+//                subTensors[i].MinX = 0;
+//                subTensors[i].MaxZ = MaxX;
+//                subTensors[i].MinZ = 0;
+//                subTensors[i].MaxY = MaxX;
+//                subTensors[i].MinY = 0;
+//            }
+//            if (tensorNeedsAlignment)
+//                ensureAlignmentForSubTensors(subTensors, tensor, nWorkloads, pad);
             tensor->splitAcrossClusters(subTensors, false, false, true);
         }
         else if (tensor->get<std::string>("splitStrategy") == "SplitOverHOverlapped")

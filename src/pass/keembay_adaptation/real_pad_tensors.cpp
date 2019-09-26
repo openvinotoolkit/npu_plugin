@@ -68,7 +68,6 @@ void alignUnpopulatedTensors(const mv::pass::PassEntry& , mv::ComputationModel& 
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);
     auto globalConfigParams = model.getGlobalConfigParams();
-    int numberClusters = globalConfigParams->get<int>("Number_of_Clusters");
     int pad = globalConfigParams->hasAttr("VPU2ChannelPadding") ? globalConfigParams->get<int>("VPU2ChannelPadding") : 16;
 
     auto dpuTasks = om.topologicalSort();
@@ -82,19 +81,13 @@ void alignUnpopulatedTensors(const mv::pass::PassEntry& , mv::ComputationModel& 
         auto outputTensorShape = outputTensor->getShape();
         auto outputTensorChannels = outputTensorShape[mv::IO_CHANNEL_DIMENSION];
         auto opStrategy = opIt->get<std::string>("splitStrategy");
-        auto layerPad = pad;
 
-        // NOTE: Fix for runtime bug that doesn't allow asymmetrical
-        // splitting when multicasting
-        if (opStrategy == "HKSwitch" || opStrategy == "SplitOverK")
-            layerPad *= numberClusters;
-
-        if (outputTensorChannels % layerPad != 0)
+        if (outputTensorChannels % pad != 0)
         {
             opIt->set<bool>("alignment", true);
             outputTensor->set<bool>("alignment", true);
 
-            auto outputChannelsPadded = mv::round_up(outputTensorChannels, layerPad);
+            auto outputChannelsPadded = mv::round_up(outputTensorChannels, pad);
 
             // If for whatever reason we pass through this tensor more than once, we
             // don't want to overwrite the original dimensions
