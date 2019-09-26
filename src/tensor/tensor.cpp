@@ -405,17 +405,13 @@ void mv::Tensor::setAddress(int64_t address)
     {
         auto tensorSize = getClusterSize();
 
-        // ASSUMPTION: Sparsity maps and Storage element do not have subtensors by themselved
-        // This is reasonable, as subtensors of will have their own Sparsity map and Storage Element
-        // For this reason, computeTotalSize is used.
-
         // Order assumed for unpopulated: Tensor - Storage Element - Sparsity Map
         // Order assumed for populated: Tensor (packed data) - Sparsity Map
-        auto sparsitySize = sparsityMap_->computeTotalSize();
+        auto sparsitySize = sparsityMap_->getClusterSize();
 
         if(!isPopulated())
         {
-            auto storageElementSize = storageElement_->computeTotalSize();
+            auto storageElementSize = storageElement_->getClusterSize();
             storageElement_->setAddress(address + (tensorSize - storageElementSize - sparsitySize));
         }
         sparsityMap_->setAddress(address + (tensorSize - sparsitySize));
