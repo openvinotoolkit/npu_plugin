@@ -123,11 +123,12 @@ std::vector<std::string> getTensorSplitAlgorithms(mv::Element& passDesc, const m
     return algorithms;
 }
 
-std::tuple<int,int, int> getGlobalCompilationDescriptorConf(const mv::pass::PassEntry& pass, mv::ComputationModel& model) {
+std::tuple<int,int, int, int> getGlobalCompilationDescriptorConf(const mv::pass::PassEntry& pass, mv::ComputationModel& model) {
 
     int nDPU = 1;
     int nClusters = 1;
     int nWorkloads = 0;
+    int pad = 16;
 
     /*Get nDPUs and nClsuters from gloabl compilation descriptor*/
     std::shared_ptr<mv::Element> globalParams = model.getGlobalConfigParams();
@@ -137,6 +138,8 @@ std::tuple<int,int, int> getGlobalCompilationDescriptorConf(const mv::pass::Pass
         nClusters = globalParams->get<int>("Number_of_Clusters");
     if (globalParams->hasAttr("nWorkloads"))
         nWorkloads= globalParams->get<int>("nWorkloads");
+    if (globalParams->hasAttr("VPU2ChannelPadding"))
+        pad = globalParams->get<int>("VPU2ChannelPadding");
 
     if(nDPU < nClusters)
         throw std::runtime_error("The number of DPUs cannot be less than the number of clusters!, exiting");
@@ -146,7 +149,7 @@ std::tuple<int,int, int> getGlobalCompilationDescriptorConf(const mv::pass::Pass
 
     pass.log(mv::Logger::MessageType::Debug, "Number of DPUs per cluster is: " + std::to_string(nDPUxCluster));
 
-    return std::make_tuple(nDPUxCluster, nWorkloads, nClusters);
+    return std::make_tuple(nDPUxCluster, nWorkloads, nClusters, pad);
 }
 
 void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element& passDesc, mv::Element&)
@@ -178,6 +181,7 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
     auto nDPUxCluster = std::get<0>(compilationConfigs);
     auto nWorkloadsCompilationDescriptor = std::get<1>(compilationConfigs);
     auto nClusters = std::get<2>(compilationConfigs);
+    auto pad = std::get<3>(compilationConfigs);
 
     for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt)
     {
@@ -215,16 +219,11 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                 auto subTensor = opIt->getOutputTensor()[0]->getSubTensor(clusterNumber);
 
                 /* Check if subtensor needs to be aligned to 16 channels*/
-
                 auto subTensorShape = subTensor.getShape();
                 auto subTensorChannels = subTensorShape[mv::IO_CHANNEL_DIMENSION];
-                if (subTensorChannels % 16 != 0) {
-                    auto pad = 16;
-                    //if (opStrategy == "HKSwitch"|| opStrategy == "SplitOverK")
-                    //    pad = pad * nClusters;
+                if (subTensorChannels % pad != 0)
+                {
                     auto outputChannelsPadded = mv::round_up(subTensorShape[mv::IO_CHANNEL_DIMENSION], pad);
-
-
                     subTensorShape[mv::IO_CHANNEL_DIMENSION] = outputChannelsPadded;
                 }
 

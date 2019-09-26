@@ -43,11 +43,8 @@ void alignTo16ChannelsFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
         auto outputTensorShape = outputTensor->getShape();
         auto outputTensorChannels = outputTensorShape[mv::IO_CHANNEL_DIMENSION];
         auto opStrategy = opIt->get<std::string>("splitStrategy");
-        auto layerPad = pad;
-        if (opStrategy == "HKSwitch"|| opStrategy == "SplitOverK")
-            layerPad = layerPad * numberClusters;
 
-        if (outputTensorChannels % layerPad != 0)
+        if (outputTensorChannels % pad != 0)
         {
             opIt->set<bool>("alignment", true);
             if (!outputTensor->hasAttr("alignment"))
@@ -55,7 +52,7 @@ void alignTo16ChannelsFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
                 outputTensor->set<bool>("alignment", true);
             }
         }
-        auto outputChannelsPadded = mv::round_up(outputTensorShape[mv::IO_CHANNEL_DIMENSION], layerPad);
+        auto outputChannelsPadded = mv::round_up(outputTensorShape[mv::IO_CHANNEL_DIMENSION], pad);
 
         if(taskOp == "Conv" || taskOp == "DepthWiseConv")
         {
@@ -79,7 +76,7 @@ void alignTo16ChannelsFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             if (inputTensor->hasAttr("alignment"))
             {
                 auto inputTensorChannels = inputTensor->getShape()[mv::IO_CHANNEL_DIMENSION];
-                auto inputChannelsPadded = mv::round_up(inputTensorChannels, layerPad);
+                auto inputChannelsPadded = mv::round_up(inputTensorChannels, pad);
                 alignWeightsTensor(om, weightsTensor, inputChannelsPadded, mv::KERNEL_INPUT_CHANNELS, taskOp);
 
             }
@@ -96,7 +93,7 @@ void alignTo16ChannelsFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             if (inputTensor->hasAttr("alignment"))
             {
                 auto inputTensorChannels = inputTensor->getShape()[mv::IO_CHANNEL_DIMENSION];
-                auto inputChannelsPadded = mv::round_up(inputTensorChannels, layerPad);
+                auto inputChannelsPadded = mv::round_up(inputTensorChannels, pad);
                 alignWeightsTensor(om, weightsTensor, inputChannelsPadded, mv::KERNEL_INPUT_CHANNELS, taskOp);
             }
         }

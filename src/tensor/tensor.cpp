@@ -1061,9 +1061,6 @@ std::size_t mv::Tensor::computeTotalSize(unsigned int alignment, bool isBase, bo
     if (isTensorAligned || fatherTensorAligned)
     {
         auto pad = alignment;
-        if (hasAttr("splitStrategy") && get<std::string>("splitStrategy") == "SplitOverK")
-        //if (opStrategy == "HKSwitch"|| opStrategy == "SplitOverK")
-            pad = pad * 4;
         auto outputChannels = shape[mv::IO_CHANNEL_DIMENSION];
         if (outputChannels % pad != 0)
         {

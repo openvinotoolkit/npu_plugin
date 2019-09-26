@@ -92,15 +92,10 @@ void setIfPresent(T1& fieldToFill, mv::Element& compilationDescriptor, const std
         fieldToFill = compilationDescriptor.get<T2>(key);
 }
 
-void mv::RuntimeModel::alignTensor(mv::ComputationModel& cm, std::unique_ptr<MVCNN::TensorReferenceT>& tensorT, mv::Data::TensorIterator tensor, bool padFinalOutput, bool broadcast)
+void mv::RuntimeModel::alignTensor(mv::ComputationModel& cm, std::unique_ptr<MVCNN::TensorReferenceT>& tensorT, mv::Data::TensorIterator tensor, bool padFinalOutput)
 {
         auto globalConfigParams = cm.getGlobalConfigParams();
         int pad = globalConfigParams->hasAttr("VPU2ChannelPadding") ? globalConfigParams->get<int>("VPU2ChannelPadding") : 16;
-        if (broadcast)
-        {
-            int numberClusters = globalConfigParams->get<int>("Number_of_Clusters");
-            pad = pad * numberClusters;
-        }
         std::vector<std::size_t> dimensions = tensor->getShape();
         auto outputChannelsPadded = mv::round_up(dimensions[mv::IO_CHANNEL_DIMENSION], pad);
         dimensions = {dimensions[mv::IO_WIDTH_DIMENSION], dimensions[mv::IO_HEIGHT_DIMENSION], outputChannelsPadded, dimensions[mv::IO_BATCH_DIMENSION]};
@@ -117,7 +112,6 @@ void mv::RuntimeModel::alignSubTensor(mv::ComputationModel& cm, std::unique_ptr<
 {
         auto globalConfigParams = cm.getGlobalConfigParams();
         int pad = globalConfigParams->hasAttr("VPU2ChannelPadding") ? globalConfigParams->get<int>("VPU2ChannelPadding") : 16;
-
         std::vector<std::size_t> dimensions = tensor.getShape();
         auto outputChannelsPadded = mv::round_up(dimensions[mv::IO_CHANNEL_DIMENSION], pad);
         dimensions = {dimensions[mv::IO_WIDTH_DIMENSION], dimensions[mv::IO_HEIGHT_DIMENSION], outputChannelsPadded, dimensions[mv::IO_BATCH_DIMENSION]};
@@ -737,16 +731,12 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
     auto tmp = new MVCNN::NNDMATaskT();
     tmp->src = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(0));
     if (opIt->getInputTensor(0)->hasAttr("alignment"))
-    {
         alignTensor(cm, tmp->src, opIt->getInputTensor(0), padFinalOutput);
-    }
 
     tmp->dst = buildTensorReferenceT(cm, compilationDescriptor, opIt->getOutputTensor(0));
 
     if (padFinalOutput && opIt->getOutputTensor(0)->hasAttr("alignment"))
-    {
         alignTensor(cm, tmp->dst, opIt->getOutputTensor(0), padFinalOutput);
-    }
 
     if(opIt->hasAttr("Compression"))
         tmp->compression =  opIt->get<bool>("Compression");
@@ -798,7 +788,7 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
             //copying from CMX2DDR we need to crop down if tensor needed alignment in CMX
             if (opIt->getInputTensor(0)->hasAttr("alignment"))
             {
-                alignTensor(cm, tmp->src, opIt->getInputTensor(0), padFinalOutput, true);
+                alignTensor(cm, tmp->src, opIt->getInputTensor(0), padFinalOutput);
             }
             if (padFinalOutput && opIt->getOutputTensor(0)->hasAttr("alignment"))
             {
@@ -1126,7 +1116,6 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
         }
     }
 
-
     toBuild->parent_output_tensor = buildTensorReferenceT(cm, compilationDescriptor, parentOutputTensor);
     toBuild->parent_output_tensor->data->sparsity_index = 999999999999999999;
     toBuild->parent_output_tensor->data->storage_element_index = 999999999999999999;
@@ -1134,13 +1123,8 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
     if (parentOutputTensor->hasAttr("alignment"))
     {
         auto globalConfigParams = cm.getGlobalConfigParams();
-        int numberClusters = globalConfigParams->get<int>("Number_of_Clusters");
-
         int pad = globalConfigParams->hasAttr("VPU2ChannelPadding") ? globalConfigParams->get<int>("VPU2ChannelPadding") : 16;
         auto opStrategy = opIt->get<std::string>("splitStrategy");
-
-        if (opStrategy == "HKSwitch"|| opStrategy == "SplitOverK")
-            pad = pad * numberClusters;
         std::vector<std::size_t> dimensions = parentOutputTensor->getShape();
         auto outputChannelsPadded = mv::round_up(dimensions[mv::IO_CHANNEL_DIMENSION], pad);
         dimensions = {dimensions[mv::IO_WIDTH_DIMENSION], dimensions[mv::IO_HEIGHT_DIMENSION], outputChannelsPadded, dimensions[mv::IO_BATCH_DIMENSION]};
@@ -1148,7 +1132,6 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
 
         if (opStrategy == "SplitOverH")
         {
-
             numericStrides = parentOutputTensor->getSubTensor(clusterId).getOrder().computeByteStrides(mv::Shape({
                 parentOutputTensor->getSubTensor(clusterId).getShape()[IO_WIDTH_DIMENSION],parentOutputTensor->getSubTensor(clusterId).getShape()[IO_HEIGHT_DIMENSION],
                  mv::round_up(parentOutputTensor->getSubTensor(clusterId).getShape()[IO_CHANNEL_DIMENSION], pad), parentOutputTensor->getSubTensor(clusterId).getShape()[IO_BATCH_DIMENSION]})
@@ -1156,12 +1139,12 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
 
             alignTensor(cm, toBuild->parent_output_tensor, opIt->getOutputTensor(0));
         }
-
         numericStrides.push_back(parentOutputTensor->getDType().getSizeInBits() / 8);
         std::reverse(dimensions.begin(), dimensions.end());
         std::reverse(numericStrides.begin(), numericStrides.end());
         toBuild->output_data->strides = numericStrides;
         toBuild->parent_output_tensor->dimensions = std::vector<uint32_t>(dimensions.begin(), dimensions.end());
+        toBuild->parent_output_tensor->strides = numericStrides;
     }
     if (parentInputTensor->hasAttr("alignment"))
     {
@@ -1183,10 +1166,7 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
             alignTensor(cm, toBuild->parent_input_tensor, opIt->getInputTensor(0), true); //????
 
             numericStrides.push_back(parentOutputTensor->getDType().getSizeInBits() / 8);
-
-
             std::reverse(new_dimensions.begin(), new_dimensions.end());
-
             std::reverse(numericStrides.begin(), numericStrides.end());
             toBuild->input_data->dimensions = std::vector<uint32_t>(new_dimensions.begin(), new_dimensions.end());
             toBuild->input_data->strides = numericStrides;

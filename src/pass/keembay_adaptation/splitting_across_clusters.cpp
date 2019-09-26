@@ -21,7 +21,7 @@ static void unpopulatedSplitOverH(const unsigned nWorkloads, std::vector<mv::Wor
 static void populatedSplitOverH(const unsigned nClusters, std::vector<mv::Workload> &subTensors, mv::Workloads& Tensor,
                                 const mv::pass::PassEntry& pass, int &success);
 static std::vector<mv::Data::OpListIterator> findSinkLayers(mv::DataModel &dataModel, const mv::Data::TensorIterator& tensor);
-static std::vector<mv::Workload> fixRectangularHeuristicBug(std::vector<mv::Workload> subTensors, const mv::Data::TensorIterator &tensor, int nWorkloads);
+static std::vector<mv::Workload> fixRectangularHeuristicBug(std::vector<mv::Workload> subTensors, const mv::Data::TensorIterator &tensor, int nWorkloads, int pad = 16);
 static void ensureSplitStrategiesForSpilling(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 
 
@@ -89,6 +89,9 @@ void subTensorsGen(mv::ComputationModel& model, const std::vector <mv::Data::Ten
                    const mv::pass::PassEntry& pass)
 {
     mv::DataModel dm(model);
+    auto globalParams = model.getGlobalConfigParams();
+    int pad = globalParams->hasAttr("VPU2ChannelPadding") ? globalParams->get<int>("VPU2ChannelPadding") : 16;
+
     for (auto& tensor : tensors)
     {
         int success;
@@ -135,24 +138,10 @@ void subTensorsGen(mv::ComputationModel& model, const std::vector <mv::Data::Ten
                 success = Tensor.partitionTensorWithRectangleHeuristic(TENSOR_MPE[1], nWorkloads, true, false, true,
                         mv::WorkloadSplitMode::NC, pass);
             subTensors = Tensor.getWorkloads();
-            int16_t difference;
-            std::set<int16_t> differences;
-            for (unsigned idx = 0; idx < nWorkloads; idx++)
-            {
-                difference = subTensors[idx].MaxX - subTensors[idx].MinX;
-                differences.insert(difference);
-            }
-            //NOTE This is coming from the fact of symmetrical split over K
-            if (differences.size() > 1)
-            {
-                auto newSubTensors = fixRectangularHeuristicBug(subTensors, tensor, nWorkloads);
-                subTensors.clear();
-                subTensors = newSubTensors;
-            }
-                //NOTE:Permanent handle for bug in Rectangular Heuristic
+            //NOTE:Permanent handle for bug in Rectangular Heuristic
             if (subTensors.size() != nWorkloads)
             {
-                auto newSubTensors = fixRectangularHeuristicBug(subTensors, tensor, nWorkloads);
+                auto newSubTensors = fixRectangularHeuristicBug(subTensors, tensor, nWorkloads, pad);
                 subTensors.clear();
                 subTensors = newSubTensors;
             }
@@ -212,24 +201,19 @@ static std::vector<mv::Data::OpListIterator> findSinkLayers(mv::DataModel &dataM
     return sinkOperations;
 }
 
-static std::vector<mv::Workload> fixRectangularHeuristicBug(std::vector<mv::Workload> subTensors, const mv::Data::TensorIterator &tensor, int nWorkloads)
+static std::vector<mv::Workload> fixRectangularHeuristicBug(std::vector<mv::Workload> subTensors, const mv::Data::TensorIterator &tensor, int nWorkloads, int pad)
 {
 
     std::vector<mv::Workload> newSubTensors;
     auto tensorNeedsAlignment = tensor->hasAttr("alignment") ? tensor->get<bool>("alignment") : false;
-    size_t paddedSymetricalOutputChannels;
+    auto output_channels = tensor->getShape()[mv::IO_CHANNEL_DIMENSION];
     if (tensorNeedsAlignment)
     {
-        int numClusters = 4; //TODO
-        int pad = 16 * numClusters; //todo fix it
-
-        auto output_channels = tensor->getShape()[mv::KERNEL_INPUT_CHANNELS];
         output_channels = mv::round_up(output_channels, pad);
-        paddedSymetricalOutputChannels = output_channels / numClusters ;
     }
     if (!tensor->isPopulated())
     {
-        for (unsigned i = 0; i < nWorkloads; i ++)
+        for (int i = 0; i < nWorkloads; i ++)
         {
             mv::Workload subTensor;
             if (i == 0)
@@ -240,13 +224,12 @@ static std::vector<mv::Workload> fixRectangularHeuristicBug(std::vector<mv::Work
                 subTensor.MinX = 0;
                 subTensor.MinY = subTensors[0].MinY;
                 subTensor.MinZ = subTensors[0].MinZ;
-
             }
             else if (i == 1)
             {
                 subTensor.MaxX = 31;
                 subTensor.MaxY = subTensors[0].MaxY;
-                subTensor.MaxZ = paddedSymetricalOutputChannels;
+                subTensor.MaxZ = subTensors[0].MaxZ;
                 subTensor.MinX = 16;
                 subTensor.MinY = subTensors[0].MinY;
                 subTensor.MinZ = subTensors[0].MinZ;
@@ -254,22 +237,23 @@ static std::vector<mv::Workload> fixRectangularHeuristicBug(std::vector<mv::Work
             else if (i == nWorkloads - 1)
             {
                 subTensor = subTensors[subTensors.size() - 1];
+                if (tensorNeedsAlignment)
+                {
+                    subTensor.MinX = newSubTensors[i-1].MaxX;
+                    subTensor.MaxX = output_channels;
+                }
+
             }
             else
             {
                 subTensor = subTensors[1];
-            }
-            if (tensorNeedsAlignment)
-            {
-                subTensor.MinX = paddedSymetricalOutputChannels*i;
-                subTensor.MaxX = subTensor.MinX + paddedSymetricalOutputChannels - 1;
             }
             newSubTensors.push_back(subTensor);
         }
     }
     else
     {
-        for (unsigned i = 0; i < nWorkloads; i ++)
+        for (int i = 0; i < nWorkloads; i ++)
          {
             mv::Workload subTensor;
             if (i == 0)
