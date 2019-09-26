@@ -273,7 +273,6 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
 std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT(mv::ComputationModel& cm, mv::Element&, mv::Data::TensorIterator t, unsigned clusterId, const std::string& allocatorName)
 {
     mv::DataModel dm(cm);
-    mv::OpModel om(cm);
 
     auto subtensor = t->getSubTensor(clusterId);
 
@@ -850,7 +849,7 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
         {
             // NOTE: Second usage ever of the concept one tensor -> Multiple allocators
             auto tensorSparsityMap = dm.getTensor(opIt->getInputTensor(0)->getSparsityMap()->getName());
-            case3MC(numTasks, cm, compilationDescriptor, compression, toReturn, tensorSparsityMap, tensorSparsityMap, "GraphFile", "VPU_NN_CMX");
+            case3MC(numTasks, cm, compilationDescriptor, compression, toReturn, tensorSparsityMap, tensorSparsityMap, "GraphFile", "VPU_CMX_NN");
         }
         return toReturn;
 

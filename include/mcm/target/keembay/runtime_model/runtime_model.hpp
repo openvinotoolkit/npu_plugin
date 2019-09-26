@@ -110,6 +110,7 @@ namespace mv
             void buildHeader(ComputationModel& cm, Element& compilationDescriptor);
             std::shared_ptr<std::vector<char>> getBlob();
             static void case2MC(unsigned numTasks, ComputationModel& cm, mv::DmaDirection direction, mv::Element &compilationDescriptor, bool compression, std::vector<std::unique_ptr<MVCNN::TaskT>>& toReturn, Data::TensorIterator src, Data::TensorIterator dst, const std::string &srcAllocator = "", const std::string &dstAllocator = "");
+            static void case3MC(unsigned numTasks, ComputationModel& cm, mv::Element &compilationDescriptor, bool compression, std::vector<std::unique_ptr<MVCNN::TaskT> > &toReturn, Data::TensorIterator src, Data::TensorIterator dst, const std::string &srcAllocator = "", const std::string &dstAllocator = "");
     };
 }
 
