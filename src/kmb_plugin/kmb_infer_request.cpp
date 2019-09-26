@@ -266,6 +266,27 @@ void KmbInferRequest::SetBlob(const char *name, const InferenceEngine::Blob::Ptr
             _preProcData[name] = CreatePreprocDataHelper();
             _preProcData[name]->isApplicable(data, orig_data);
 
+            if (data->is<NV12Blob>()) {
+                // check if planes of nv12 blob were allocated with KMB allocator
+                NV12Blob::Ptr origNV12Blob = as<NV12Blob>(data);
+                Blob::Ptr& origYBlob = origNV12Blob->y();
+                Blob::Ptr& origUVBlob = origNV12Blob->uv();
+
+                if (!getKmbAllocator()->isValidPtr(origYBlob->buffer())) {
+                    Blob::Ptr kmbYBlob = make_blob_with_precision(origYBlob->getTensorDesc(), getKmbAllocator());
+                    kmbYBlob->allocate();
+                    copyBlob(origYBlob, kmbYBlob);
+                    origNV12Blob->y() = kmbYBlob;
+                }
+
+                if (!getKmbAllocator()->isValidPtr(origUVBlob->buffer())) {
+                    Blob::Ptr kmbUVBlob = make_blob_with_precision(origUVBlob->getTensorDesc(), getKmbAllocator());
+                    kmbUVBlob->allocate();
+                    copyBlob(origUVBlob, kmbUVBlob);
+                    origNV12Blob->uv() = kmbUVBlob;
+                }
+            }
+
             _preProcData[name]->setRoiBlob(data);
         } else {
             size_t inputSize = product(foundInput->getTensorDesc().getDims());
