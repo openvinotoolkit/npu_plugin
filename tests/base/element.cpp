@@ -5,7 +5,7 @@
 #include "include/mcm/tensor/dtype/dtype.hpp"
 #include "include/mcm/tensor/order/order.hpp"
 #include "include/mcm/tensor/shape.hpp"
-#include "meta/include/mcm/op_model.hpp"
+#include "include/mcm/op_model.hpp"
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
 

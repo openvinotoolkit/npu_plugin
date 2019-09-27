@@ -2,15 +2,16 @@ cmake_minimum_required(VERSION 3.10.0)
 project(mcmComplier VERSION 1.0.0)
 
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/lib)
-SET(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake-modules")
-SET(CMAKE_VERBOSE_MAKEFILE OFF) # for debugging
+set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake-modules")
+set(CMAKE_VERBOSE_MAKEFILE OFF) # for debugging
+set(META_DIR_PATH "${PROJECT_BINARY_DIR}/meta")
+include_directories(${META_DIR_PATH})
+add_definitions(-DMETA_DIR=\"${META_DIR_PATH}\")
+add_definitions(-DPROJECT_DIR=\"${PROJECT_SOURCE_DIR}\")
 
 #############################################################################################
 ### Setup
 #############################################################################################
-SET(PROJECT_VERSION_MAJOR 1)
-SET(PROJECT_VERSION_MINOR 0)
-SET(PROJECT_VERSION_PATCH 0)
 
 if (NOT EXISTS ${CMAKE_BINARY_DIR}/CMakeCache.txt)
     if (NOT CMAKE_BUILD_TYPE)
@@ -20,15 +21,15 @@ endif()
 
 add_compile_options(-std=c++11)
 
-SET(PROFILER FALSE CACHE BOOL "Enable integrated profiler")
-SET(LOG TRUE CACHE BOOL "Enable logger")
-SET(PROFILE_PHASE TRUE CACHE BOOL "Enable profiling at compilation phases level")
-SET(PROFILE_BASE TRUE CACHE BOOL "Enable profiling at base components level")
-SET(PROFILE_PASS TRUE CACHE BOOL "Enable profiling at compilation passes level")
-SET(PROFILE_COMP TRUE CACHE BOOL "Enable profiling at ops composition level")
-SET(PROFILE_ALGO TRUE CACHE BOOL "Enable profiling at internal algorithms level")
-SET(PROFILE_BULD TRUE CACHE BOOL "Enable profiling at building blocks level")
-SET(PROFILE_MATH TRUE CACHE BOOL "Enable profiling at tensor math operations level")
+set(PROFILER FALSE CACHE BOOL "Enable integrated profiler")
+set(LOG TRUE CACHE BOOL "Enable logger")
+set(PROFILE_PHASE TRUE CACHE BOOL "Enable profiling at compilation phases level")
+set(PROFILE_BASE TRUE CACHE BOOL "Enable profiling at base components level")
+set(PROFILE_PASS TRUE CACHE BOOL "Enable profiling at compilation passes level")
+set(PROFILE_COMP TRUE CACHE BOOL "Enable profiling at ops composition level")
+set(PROFILE_ALGO TRUE CACHE BOOL "Enable profiling at internal algorithms level")
+set(PROFILE_BULD TRUE CACHE BOOL "Enable profiling at building blocks level")
+set(PROFILE_MATH TRUE CACHE BOOL "Enable profiling at tensor math operations level")
 
 
 if (${LOG})
@@ -97,6 +98,7 @@ endif(LEMON_FOUND)
 
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
+set(FLATBUFFERS_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 add_subdirectory(contrib/flatbuffers)
 
 #############################################################################################
@@ -112,7 +114,7 @@ include_directories(${PROJECT_SOURCE_DIR})
 include_directories(${PROJECT_SOURCE_DIR}/include)
 include_directories(${PROJECT_SOURCE_DIR}/contrib/flatbuffers/include)
 
-SET(base
+set(base
 
     "${PROJECT_SOURCE_DIR}/src/base/exception/argument_error.cpp"
     "${PROJECT_SOURCE_DIR}/src/base/exception/attribute_error.cpp"
@@ -204,7 +206,7 @@ SET(base
 
 )
 
-SET(model
+set(model
     "${PROJECT_SOURCE_DIR}/src/computation/model/base_op_model.cpp"
     "${PROJECT_SOURCE_DIR}/src/computation/model/computation_model.cpp"
     "${PROJECT_SOURCE_DIR}/src/computation/model/control_model.cpp"
@@ -221,12 +223,12 @@ SET(model
     "${PROJECT_SOURCE_DIR}/src/target/keembay/lemon_graph_scheduler.cpp"   
 )
 
-SET(logger
+set(logger
     "${PROJECT_SOURCE_DIR}/src/logger/log_sender.cpp"
     "${PROJECT_SOURCE_DIR}/src/logger/logger.cpp"
 )
 
-SET(pass
+set(pass
     "${PROJECT_SOURCE_DIR}/src/deployer/blob_serialization/blob_serializer.cpp"
     "${PROJECT_SOURCE_DIR}/src/deployer/blob_serialization/bRelocation.cpp"
     "${PROJECT_SOURCE_DIR}/src/deployer/blob_serialization/bTensor.cpp"
@@ -315,30 +317,28 @@ SET(pass
     "${PROJECT_SOURCE_DIR}/src/graph/tensor_interference_graph.cpp"
 )
 
- SET(compiler
+ set(compiler
     "${PROJECT_SOURCE_DIR}/src/compiler/compilation_descriptor"
     "${PROJECT_SOURCE_DIR}/src/compiler/compilation_unit"
-    "${PROJECT_SOURCE_DIR}/src/utils/hardware_tests.cpp"
     "${PROJECT_SOURCE_DIR}/src/target/keembay/runtime_model/runtime_model.cpp"
 )
 
-SET(syscalls
+set(syscalls
    "${PROJECT_SOURCE_DIR}/src/pass/syscalls/convert_dot.cpp"
    "${PROJECT_SOURCE_DIR}/src/pass/syscalls/convert_flatbuffer.cpp"
 )
 
-IF(CMAKE_CROSSCOMPILING)
+if(CMAKE_CROSSCOMPILING)
     message(STATUS "Cross-compiling, assumes meta/ files already generated...")
     add_library(metamodel SHARED
-        ${CMAKE_SOURCE_DIR}/meta/src/compositional_model.cpp
-        ${CMAKE_SOURCE_DIR}/meta/src/op_model.cpp
-        ${CMAKE_SOURCE_DIR}/meta/src/recorded_compositional_model.cpp
+        ${META_DIR_PATH}/src/compositional_model.cpp
+        ${META_DIR_PATH}/src/op_model.cpp
     )
     target_link_libraries(metamodel model)
-ELSE()
+else()
     message(STATUS "Standard build...")
     add_subdirectory(meta)
-ENDIF()
+endif()
 
 if (MSVC)
     add_library(cm OBJECT ${pass} ${compiler} $<TARGET_OBJECTS:corebase> $<TARGET_OBJECTS:metamodel>)
@@ -354,24 +354,24 @@ else()
     add_library(corebase SHARED ${base} ${logger})
     add_library(model SHARED ${model})
     target_link_libraries(cm model)
-    IF(CMAKE_CROSSCOMPILING)
+    if(CMAKE_CROSSCOMPILING)
         #Flatbuffers not x-compiled yet
         target_link_libraries(cm corebase metamodel)
-    ELSE()
+    else()
         target_link_libraries(cm corebase metamodel flatbuffers ${LEMON_LIBRARY})
         add_dependencies(cm generate-comp-api)
         add_dependencies(model generate-comp-api)
         add_dependencies(cm generate-graphfile-headers)
         add_subdirectory(python/api)
         add_subdirectory(contrib/googletest)
-    ENDIF(CMAKE_CROSSCOMPILING)
+    endif(CMAKE_CROSSCOMPILING)
 
 endif(MSVC)
 
-IF(NOT CMAKE_CROSSCOMPILING)
+if(NOT CMAKE_CROSSCOMPILING)
     add_subdirectory(tools)
     add_subdirectory(schema)
-ENDIF()
+endif()
 
 if (${PROFILER} AND ${UNIX})
     target_link_libraries(cm easy_profiler)

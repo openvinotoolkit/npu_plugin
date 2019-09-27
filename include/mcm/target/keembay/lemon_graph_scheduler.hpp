@@ -7,7 +7,7 @@
 #include "include/mcm/computation/model/model_element.hpp"
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/logger/log_sender.hpp"
-#include "meta/include/mcm/op_model.hpp"
+#include "include/mcm/op_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/base/exception/op_error.hpp"
 #include "include/mcm/base/exception/index_error.hpp"

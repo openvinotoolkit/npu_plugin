@@ -3,8 +3,7 @@
 
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
-#include "meta/include/mcm/op_model.hpp"
-#include "meta/include/mcm/recorded_compositional_model.hpp"
+#include "include/mcm/op_model.hpp"
 #include "include/mcm/logger/log_sender.hpp"
 #include "include/mcm/pass/pass_manager.hpp"
 #include "include/mcm/utils/env_loader.hpp"
@@ -28,7 +27,6 @@ namespace mv
         static Logger& logger_;
 
         OpModel* model_;
-        RecordedCompositionalModel* recordedModel_;
         PassManager passManager_;
         TargetDescriptor targetDescriptor_;
         CompilationDescriptor compDescriptor_;

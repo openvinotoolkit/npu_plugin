@@ -1,7 +1,7 @@
 #ifndef PASS_UTILS_HPP_
 #define PASS_UTILS_HPP_
 
-#include "meta/include/mcm/op_model.hpp"
+#include "include/mcm/op_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/computation/model/control_model.hpp"
 

@@ -7,7 +7,7 @@
 #include "include/mcm/computation/op/op.hpp"
 #include "include/mcm/computation/model/model_element.hpp"
 #include "include/mcm/computation/resource/memory_allocator.hpp"
-#include "meta/include/mcm/op_model.hpp"
+#include "include/mcm/op_model.hpp"
 #include "include/mcm/utils/data_generator.hpp"
 
 // Notes regarding the test: 2 model types are used below. A simple model without constants and another model which is more detailed to get control flow, groups etc.

@@ -1,5 +1,5 @@
 #include "gtest/gtest.h"
-#include "meta/include/mcm/op_model.hpp"
+#include "include/mcm/op_model.hpp"
 #include "include/mcm/utils/data_generator.hpp"
 #include "include/mcm/compiler/compilation_unit.hpp"
 

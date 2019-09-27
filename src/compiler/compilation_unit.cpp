@@ -7,8 +7,7 @@ const std::string mv::CompilationUnit::ma2480DefCompDescPath_ = "/config/compila
 const std::string mv::CompilationUnit::ma2490DefCompDescPath_ = "/config/compilation/release_kmb.json";
 
 mv::CompilationUnit::CompilationUnit(const std::string& modelName) :
-model_(new OpModel(modelName)),
-recordedModel_(new RecordedCompositionalModel(*model_, compositionalModelRecordingsPath_))
+model_(new OpModel(modelName))
 {
     MV_PROFILER_START;
 }
@@ -45,7 +44,6 @@ mv::CompilationUnit::~CompilationUnit()
 {
     MV_PROFILER_FINISH("profiler_output.prof");
     delete model_;
-    delete recordedModel_;
 }
 
 bool mv::CompilationUnit::loadTargetDescriptor(const std::string& path)
@@ -137,11 +135,6 @@ mv::CompilationDescriptor& mv::CompilationUnit::compilationDescriptor()
 mv::OpModel& mv::CompilationUnit::model()
 {
     return *model_;
-}
-
-mv::CompositionalModel& mv::CompilationUnit::recordedModel()
-{
-    return *recordedModel_;
 }
 
 bool mv::CompilationUnit::initialize()

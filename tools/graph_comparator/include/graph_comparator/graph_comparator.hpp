@@ -6,7 +6,7 @@
 #include "include/mcm/logger/logger.hpp"
 #include "include/mcm/utils/env_loader.hpp"
 #include "include/mcm/base/exception/argument_error.hpp"
-#include "meta/schema/graphfile/graphfile_generated.h"
+#include "schema/graphfile/graphfile_generated.h"
 #include "flatbuffers/flatbuffers.h"
 #include "flatbuffers/idl.h"
 #include "flatbuffers/minireflect.h"

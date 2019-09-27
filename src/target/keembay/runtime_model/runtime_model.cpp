@@ -1,5 +1,5 @@
 #include "include/mcm/target/keembay/runtime_model/runtime_model.hpp"
-#include "meta/include/mcm/op_model.hpp"
+#include "include/mcm/op_model.hpp"
 #include "contrib/flatbuffers/include/flatbuffers/util.h"
 #include "include/mcm/base/exception/argument_error.hpp"
 #include "include/mcm/utils/warning_manager.hpp"

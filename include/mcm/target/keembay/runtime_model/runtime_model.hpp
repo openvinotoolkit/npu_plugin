@@ -1,8 +1,8 @@
 #ifndef MV_RUNTIME_MODEL_
 #define MV_RUNTIME_MODEL_
 
-#include "meta/schema/graphfile/graphfile_generated.h"
-#include "meta/schema/graphfile/memoryManagement_generated.h"
+#include "schema/graphfile/graphfile_generated.h"
+#include "schema/graphfile/memoryManagement_generated.h"
 #include "include/mcm/computation/resource/memory_allocator.hpp"
 #include "include/mcm/computation/model/computation_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"

@@ -1,7 +1,7 @@
 #include "gtest/gtest.h"
 #include "include/mcm/compiler/compilation_unit.hpp"
 #include "include/mcm/utils/data_generator.hpp"
-#include "meta/include/mcm/op_model.hpp"
+#include "include/mcm/op_model.hpp"
 
 TEST(runtime_serialize, root_access)
 {

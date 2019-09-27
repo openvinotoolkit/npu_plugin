@@ -1,8 +1,5 @@
 build/
 build-debug/
-meta/include/mcm/*
-meta/src/*
-meta/schema/*
 *.user
 .vscode
 *.blob
