@@ -476,7 +476,7 @@ void allocateImplicitOperationsKmbFcn(const mv::pass::PassEntry& pass,
                                                     lhs_padding, rhs_padding);
                 }
             }
-            else if (opType == "Slice")
+            else if (opType == "Slice" || opType == "Crop")
             {
                 auto outputTensor = opIterator->getOutputTensor(0);
                 auto inputTensor = opIterator->getInputTensor(0);
@@ -505,13 +505,24 @@ void allocateImplicitOperationsKmbFcn(const mv::pass::PassEntry& pass,
                 }
                 else
                 {
-                    outputBuffer = dm.getBuffer(location2Allocator[outputLocation.toString()],stageIt,outputTensor);
+                    outputBuffer = dm.getBuffer(location2Allocator[outputLocation.toString()],
+                                                stageIt,outputTensor);
                 }
 
                 auto ndims = inputTensor->getShape().ndims();
                 auto inputShape = inputTensor->getShape();
-                auto begin = opIterator->get<mv::Shape>("begin");
-                auto size = opIterator->get<mv::Shape>("size");
+                mv::Shape begin;
+                mv::Shape size;
+                if (opType == "Slice")
+                {
+                    begin = opIterator->get<mv::Shape>("begin");
+                    size = opIterator->get<mv::Shape>("size");
+                }
+                else
+                {
+                    begin = {0,0,0,0};
+                    size = outputTensor->getShape();
+                }
 
                 std::vector<std::size_t> lhs_padding(ndims);
                 std::vector<std::size_t> rhs_padding(ndims);
@@ -526,7 +537,7 @@ void allocateImplicitOperationsKmbFcn(const mv::pass::PassEntry& pass,
                                                 outputBuffer, inputBuffer,
                                                 lhs_padding, rhs_padding);
             }
-            else if (opType == "Copy")
+            else if (opType == "Copy" || opType == "Align")
             {
                 auto outputTensor = opIterator->getOutputTensor(0);
                 auto inputTensor = opIterator->getInputTensor(0);

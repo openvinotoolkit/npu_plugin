@@ -52,6 +52,10 @@ namespace mv
             else
                 outputs.push_back(mv::Tensor(":0", outputShape, inputs[0]->getDType(), inputs[0]->getOrder(),
                         args.at("quantParams").get<mv::QuantizationParams>()));
+
+            if (inputs[0]->hasAttr("Location"))
+                outputs[0].set<Tensor::MemoryLocation>("Location",
+                                inputs[0]->get<mv::Tensor::MemoryLocation>("Location"));
         };
 
     }

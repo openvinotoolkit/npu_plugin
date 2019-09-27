@@ -63,7 +63,7 @@ void propagateShapeChange(mv::OpModel& om, const std::string& flowStr)
 
 //NOTE: Mark the Ops that do not have output channels aligned to 16,in serialization you align their dims
 //and provide the appropriate Tensor for DMA
-void alignUnpopulatedTensors(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+void alignUnpopulatedTensors(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);
@@ -100,6 +100,52 @@ void alignUnpopulatedTensors(const mv::pass::PassEntry& , mv::ComputationModel& 
             auto flows = outputTensor->get<std::set<std::string>>("flows");
             for(auto& flowStr: flows)
                 propagateShapeChange(om, flowStr);
+
+            flows = outputTensor->get<std::set<std::string>>("flows");
+
+            std::vector<mv::Data::OpListIterator> opsToLink;
+            std::vector<std::size_t> inputSlots;
+            std::vector<mv::Data::FlowSiblingIterator> flowsToRemove;
+
+            auto sourceFlowStart = opIt.leftmostOutput();
+
+            for (mv::Data::FlowSiblingIterator sinkFlow(sourceFlowStart); sinkFlow != om.flowEnd(); ++sinkFlow)
+            {
+                opsToLink.push_back(sinkFlow.sink());
+                inputSlots.push_back(sinkFlow->get<std::size_t>("sinkInput"));
+                flowsToRemove.push_back(sinkFlow);
+            }
+
+            //TODO check if already there's a crop? or maybe move this to separate pass
+            auto cropOpName = outputTensor->getName() + "_crop";
+            mv::QuantizationParams quantParams = {{}, {}, {}, {}};
+
+            if (outputTensor->hasAttr("quantParams"))
+            {
+                quantParams = outputTensor->get<mv::QuantizationParams>("quantParams");
+            }
+            auto croppedTensor = om.crop(outputTensor,
+                                outputTensorChannels,
+                                mv::IO_CHANNEL_DIMENSION,
+                                quantParams,
+                                cropOpName);
+            croppedTensor->set<bool>("alignment", true);//TODO remove this, just for testing now
+            auto cropOp = om.getOp(cropOpName);
+            cropOp->set<unsigned>("opId", opIt->get<unsigned>("opId"));
+
+
+            for (unsigned flowIdx = 0; flowIdx < flowsToRemove.size(); flowIdx++)
+            {
+                om.undefineFlow(flowsToRemove[flowIdx]);
+            }
+            for(unsigned op = 0 ; op < opsToLink.size(); ++op)
+            {
+                pass.log(mv::Logger::MessageType::Debug, " Setting # " + croppedTensor->getName() +
+                                                            "# as input to: # " + opsToLink[op]->getName() +
+                                                            "# at slotIdx: " + std::to_string(inputSlots[op]));
+                opsToLink[op]->setInputTensor(croppedTensor, inputSlots[op], false);
+                om.defineFlow(croppedTensor, opsToLink[op], inputSlots[op]);
+            }
         }
     }
 }
@@ -114,7 +160,7 @@ void alignPopulatedTensors(const mv::pass::PassEntry& , mv::ComputationModel& mo
 
     for(auto layer = om.opBegin(); layer != om.opEnd(); ++layer)
     {
-        if (layer->hasAttr("hasWeights") && layer->get<bool>("hasWeights"))
+        if (layer->hasAttr("alignment") && layer->hasAttr("hasWeights") && layer->get<bool>("hasWeights"))
         {
             auto inputTensor = layer->getInputTensor(0);
             auto weightsTensor = layer->getInputTensor(1);
@@ -125,28 +171,27 @@ void alignPopulatedTensors(const mv::pass::PassEntry& , mv::ComputationModel& mo
 
             mv::Shape alignedShape;
             //NOTE: only Convs have weights (=) alignment
-            if (layer->get<bool>("alignment"))
-            {
-                std::size_t outputChannelsPadded = outputTensorShape[mv::IO_CHANNEL_DIMENSION];
+            auto taskOp = layer->get<std::string>("taskOp");
 
-                if (layer->getOpType() == "Conv")
-                {
-                    alignedShape = mv::Shape({weightsTensorShape[mv::KERNEL_WIDTH], weightsTensorShape[mv::KERNEL_HEIGHT],
-                                                       inputTensorShape[mv::IO_CHANNEL_DIMENSION], outputTensorShape[mv::IO_CHANNEL_DIMENSION]});
-                }
-                else if (layer->getOpType() == "DepthwiseConv")
-                {
-                    alignedShape = mv::Shape({weightsTensorShape[mv::KERNEL_WIDTH], weightsTensorShape[mv::KERNEL_HEIGHT],
-                                                             inputTensorShape[mv::IO_CHANNEL_DIMENSION], 1});
-                    outputChannelsPadded = inputTensorShape[mv::IO_CHANNEL_DIMENSION];
-                }
-                alignWeightsTensor(om, weightsTensor, alignedShape);
-                if(layer->hasAttr("bias"))
-                {
-                    auto biasTensorName = layer->get<std::string>("bias");
-                    auto biasTensor = om.getTensor(biasTensorName);
-                    alignBiasTensor(layer, biasTensor, outputChannelsPadded, dm);
-                }
+            std::size_t outputChannelsPadded = outputTensorShape[mv::IO_CHANNEL_DIMENSION];
+
+            if (taskOp == "Conv")
+            {
+                alignedShape = mv::Shape({weightsTensorShape[mv::KERNEL_WIDTH], weightsTensorShape[mv::KERNEL_HEIGHT],
+                                                    inputTensorShape[mv::IO_CHANNEL_DIMENSION], outputTensorShape[mv::IO_CHANNEL_DIMENSION]});
+            }
+            else if (taskOp == "DepthwiseConv")
+            {
+                alignedShape = mv::Shape({weightsTensorShape[mv::KERNEL_WIDTH], weightsTensorShape[mv::KERNEL_HEIGHT],
+                                                            inputTensorShape[mv::IO_CHANNEL_DIMENSION], 1});
+                outputChannelsPadded = inputTensorShape[mv::IO_CHANNEL_DIMENSION];
+            }
+            alignWeightsTensor(om, weightsTensor, alignedShape);
+            if(layer->hasAttr("bias"))
+            {
+                auto biasTensorName = layer->get<std::string>("bias");
+                auto biasTensor = om.getTensor(biasTensorName);
+                alignBiasTensor(layer, biasTensor, outputChannelsPadded, dm);
             }
         }
     }
@@ -157,8 +202,13 @@ static void alignWeightsTensor(mv::OpModel& om, const mv::Data::TensorIterator &
 {
     auto weightsTensorOrder = weightsTensor->getOrder();
     auto weightsTensorDType = weightsTensor->getDType();
+    auto weightsTensorShape = weightsTensor->getShape();
     int64_t zeroPoint = 0;
     mv::QuantizationParams weightsTensorQuantizationParams({},{},{},{});
+
+    if (weightsTensorShape[mv::KERNEL_OUTPUT_CHANNELS] == alignedShape[mv::KERNEL_OUTPUT_CHANNELS] &&
+        weightsTensorShape[mv::KERNEL_INPUT_CHANNELS] == alignedShape[mv::KERNEL_INPUT_CHANNELS])
+            return;
 
     if(weightsTensor->isQuantized())
     {
@@ -172,10 +222,10 @@ static void alignWeightsTensor(mv::OpModel& om, const mv::Data::TensorIterator &
     mv::Data::TensorIterator newKernel = om.constantDataElement(newData, alignedShape, weightsTensorDType, weightsTensorOrder, weightsTensorQuantizationParams, mv::createAlignConstantName(constantOp->getName()));
 
     //DO NOT CHANGE THE LIMITS OF THE LOOP! THERE IS A REASON WHY IT'S DONE LIKE THIS AND NOT USING THE AUXILIARY VARIABLES
-    for(unsigned oc = 0; oc < alignedShape[mv::KERNEL_OUTPUT_CHANNELS]; ++oc)
-        for(unsigned ic = 0; ic < alignedShape[mv::KERNEL_INPUT_CHANNELS]; ++ic)
-            for(unsigned kw = 0; kw < alignedShape[mv::KERNEL_WIDTH]; ++kw)
-                for(unsigned kh = 0; kh < alignedShape[mv::KERNEL_HEIGHT]; ++kh)
+    for(unsigned oc = 0; oc < weightsTensorShape[mv::KERNEL_OUTPUT_CHANNELS]; ++oc)
+        for(unsigned ic = 0; ic < weightsTensorShape[mv::KERNEL_INPUT_CHANNELS]; ++ic)
+            for(unsigned kw = 0; kw < weightsTensorShape[mv::KERNEL_WIDTH]; ++kw)
+                for(unsigned kh = 0; kh < weightsTensorShape[mv::KERNEL_HEIGHT]; ++kh)
                     newKernel->at({kw,kh,ic,oc}) = weightsTensor->at({kw,kh,ic,oc});
 
     om.getSourceOp(newKernel)->set<unsigned>("opId", constantOp->get<unsigned>("opId"));

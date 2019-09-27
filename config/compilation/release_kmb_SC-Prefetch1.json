@@ -178,7 +178,19 @@
             "ConvertOpsToTasks",
             "ForceSerialize",
             "KMBOrderConversion",
-            "AlignTo16Channels",
+            "AlignUnpopulatedTensors",
+            "AlignPopulatedTensors",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/align_to_16.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/align_to_16.dot"
+            },
             "AlignTaskWeights",
             "GenerateSparsityMapsPopulatedTensors",
             "GenerateWeightsTables",
