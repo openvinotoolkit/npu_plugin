@@ -12,34 +12,6 @@ model_(new OpModel(modelName))
     MV_PROFILER_START;
 }
 
-/*void mv::CompilationUnit::loadModelFromJson(const std::string &path)
-{
-
-    mv::JSONTextParser parser;
-    mv::json::Value value;
-    parser.parseFile(path, value);
-    delete model_;
-    model_ = new OpModel(value);
-    if(mv::Jsonable::constructBoolTypeFromJson(value["has_populated_tensors"]))
-    {
-        size_t lastindex = path.find_last_of(".");
-        std::string pathNoExt(path.substr(0, lastindex));
-
-        for(auto tensorIt = model_->tensorBegin(); tensorIt != model_->tensorEnd(); ++tensorIt)
-        {
-            if(!tensorIt->isPopulated())
-                continue;
-            std::string currentTensorInputPath(pathNoExt+"_"+tensorIt->getName());
-            std::ifstream currentTensorInputStream(currentTensorInputPath, std::ios::in | std::ios::binary);
-            std::vector<double> tensorData(tensorIt->getShape().totalSize());
-            currentTensorInputStream.read(reinterpret_cast<char*>(&tensorData[0]), tensorData.size() * sizeof(tensorData[0]));
-            tensorIt->populate(tensorData, tensorIt->getOrder());
-            currentTensorInputStream.close();
-        }
-    }
-
-}*/
-
 mv::CompilationUnit::~CompilationUnit()
 {
     MV_PROFILER_FINISH("profiler_output.prof");

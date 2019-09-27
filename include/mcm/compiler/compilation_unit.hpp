@@ -45,9 +45,7 @@ namespace mv
 
         CompilationDescriptor& compilationDescriptor();
         OpModel& model();
-        CompositionalModel& recordedModel();
 
-        void loadModelFromJson(const std::string& path);
         bool initialize();
         Element runStep();
         Element run();

@@ -7,3 +7,5 @@
 __*__
 python_unittests_xml/
 output
+mcmfrontend/src/Controllers/Parsers/TensorFlowLiteParser/tflite
+mcmNetwork.cpp
