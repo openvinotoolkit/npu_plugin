@@ -644,10 +644,7 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildSpecificTaskUn
 {
     std::vector<std::unique_ptr<MVCNN::TaskT>> toBuild = std::vector<std::unique_ptr<MVCNN::TaskT>>();
     std::string taskType(opIt->getOpType());
-    unsigned numTasks = cm.getGlobalConfigParams()->get<int>("Number_of_Clusters");
 
-    //NOTE: This if conditions of this big switch statements are not definitive and could change in the future
-    //Take as granted for now that 1 cluster 1 tensor 0 subtensors
     if(taskType == "MvTensorTask")
         toBuild = buildMvTensorTaskT(cm, compilationDescriptor, opIt);
     else if(taskType == "UPADMATask")
@@ -661,17 +658,8 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildSpecificTaskUn
         toBuild = buildNCE1TaskT(cm, compilationDescriptor, opIt);
     else if(taskType == "DPUTask")
     {
-        std::string splitting;
-        if (opIt->hasAttr("splitStrategy"))
-            splitting = opIt->get<std::string>("splitStrategy");
-
-        if (splitting == "Clustering")
-            if (numTasks == 1)
-                toBuild = buildNCE2TaskT(cm, compilationDescriptor, opIt);
-            else
-                toBuild = buildNCE2TaskT(cm, compilationDescriptor, opIt, splitting);
-        else
-            toBuild = buildNCE2TaskT(cm, compilationDescriptor, opIt, splitting);
+        std::string splitting = opIt->get<std::string>("splitStrategy");
+        toBuild = buildNCE2TaskT(cm, compilationDescriptor, opIt, splitting);
     }
     else if(taskType == "NNTensorTask")
         toBuild = buildNNTensorTaskT(cm, compilationDescriptor, opIt);
@@ -1402,34 +1390,6 @@ std::vector<std::unique_ptr<MVCNN::NCEVariantFieldsT>> mv::RuntimeModel::buildNC
         toBuild[i] = buildNCEVariantFieldsT(cm, compilationDescriptor, opIt, workloads[i], numTask);
     }
     return toBuild;
-}
-
-
-
-std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNCE2TaskT(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt)
-{
-    std::vector<std::unique_ptr<MVCNN::TaskT>> toReturn = std::vector<std::unique_ptr<MVCNN::TaskT>>(1);
-
-    toReturn[0] = std::unique_ptr<MVCNN::TaskT>(new MVCNN::TaskT());
-    toReturn[0]->task.type = MVCNN::SpecificTask_NCE2Task;
-    auto toBuild = new MVCNN::NCE2TaskT();
-    toBuild->variant = buildNCEVariantFieldsTVector(cm, compilationDescriptor, opIt);
-    toBuild->invariant = buildNCEInvariantFieldsT(cm, compilationDescriptor, opIt);
-
-    auto hash = [](const MVCNN::MPE_Mode &g){ return static_cast<std::size_t>(g); };
-    auto comp = [](const MVCNN::MPE_Mode &l, const MVCNN::MPE_Mode &r){ return l == r; };
-
-    std::unordered_map<MVCNN::MPE_Mode, unsigned, decltype(hash), decltype(comp)> frequencyCounter(4, hash, comp);
-    for(auto& variantField : toBuild->variant)
-        ++frequencyCounter[variantField->mpe_mode];
-
-    unsigned maxFrequency = 0;
-    for(auto& frequencyCouple : frequencyCounter)
-        if(frequencyCouple.second > maxFrequency)
-            toBuild->invariant->mpe_frequent_mode = frequencyCouple.first;
-
-    toReturn[0]->task.value = toBuild;
-    return toReturn;
 }
 
 std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNCE2TaskT(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt, std::string splitting)
