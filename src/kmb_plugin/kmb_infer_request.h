@@ -40,7 +40,7 @@ class KmbInferRequest : public InferenceEngine::InferRequestInternal {
     KmbExecutorPtr _executor;
     InferenceEngine::Layout _deviceLayout;
     std::vector<StageMetaInfo> _stagesMetaData;
-    std::shared_ptr<KmbConfig> _config;
+    KmbConfig _config;
 
 protected:
     InferenceEngine::BlobMap _custom_inputs;
@@ -53,7 +53,7 @@ public:
     explicit KmbInferRequest(const InferenceEngine::InputsDataMap& networkInputs,
                                 const InferenceEngine::OutputsDataMap& networkOutputs,
                                 const std::vector<StageMetaInfo> &blobMetaData,
-                                const std::shared_ptr<KmbConfig> &kmbConfig,
+                                const KmbConfig &kmbConfig,
                                 const KmbExecutorPtr &executor);
 
     void InferImpl() override;

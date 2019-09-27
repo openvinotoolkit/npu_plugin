@@ -403,7 +403,6 @@ void vpuLayersTests::setup(Precision outputPrecision,
         config[VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION)] = CONFIG_VALUE(NO);
     }
 #if 0
-    config[VPU_CONFIG_KEY(LOG_LEVEL)] = CONFIG_VALUE(LOG_INFO);
     config[CONFIG_KEY(LOG_LEVEL)] = CONFIG_VALUE(LOG_INFO);
 #endif
     config[CONFIG_KEY(PERF_COUNT)] = CONFIG_VALUE(YES);
@@ -655,7 +654,7 @@ R"V0G0N(
     }
 
     strt += input_dim_postfix;
-    
+
     for (auto val : bgn->inDim[0]) {
         std::string ind = "_DIM_" + std::to_string(counter) + "_";
         REPLACE_WITH_NUM(strt, ind.c_str(), val);

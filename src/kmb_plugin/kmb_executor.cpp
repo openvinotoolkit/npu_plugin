@@ -81,9 +81,9 @@ static uint32_t getXlinkChannel(const vpu::Logger::Ptr &_logger) {
 }
 #endif
 
-KmbExecutor::KmbExecutor(const std::shared_ptr<KmbConfig>& config)
-            : _config(config), _logger(std::make_shared<Logger>("KmbExecutor", config->hostLogLevel, consoleOutput())) {
-    auto parsedConfig = _config->getParsedConfig();
+KmbExecutor::KmbExecutor(const KmbConfig& config)
+            : _config(config), _logger(std::make_shared<Logger>("KmbExecutor", config.logLevel(), consoleOutput())) {
+    auto parsedConfig = _config.getParsedConfig();
     if (parsedConfig[VPU_KMB_CONFIG_KEY(KMB_EXECUTOR)] == "NO") {
         return;
     }
@@ -125,7 +125,7 @@ void KmbExecutor::initVpualObjects() {
 
 void KmbExecutor::allocateGraph(const std::vector<char> &graphFileContent, const char* networkName) {
     UNUSED(networkName);
-    auto parsedConfig = _config->getParsedConfig();
+    auto parsedConfig = _config.getParsedConfig();
     if (parsedConfig[VPU_KMB_CONFIG_KEY(KMB_EXECUTOR)] == "NO") {
         return;
     }
@@ -288,7 +288,7 @@ void KmbExecutor::queueInference(void *input_data, size_t input_bytes,
                     void *result_data, size_t result_bytes) {
     UNUSED(result_data);
     UNUSED(result_bytes);
-    auto parsedConfig = _config->getParsedConfig();
+    auto parsedConfig = _config.getParsedConfig();
     if (parsedConfig[VPU_KMB_CONFIG_KEY(KMB_EXECUTOR)] == "NO") {
         return;
     }
@@ -317,7 +317,7 @@ void KmbExecutor::queueInference(void *input_data, size_t input_bytes,
 void KmbExecutor::getResult(void *result_data, unsigned int result_bytes) {
     UNUSED(result_data);
     UNUSED(result_bytes);
-    auto parsedConfig = _config->getParsedConfig();
+    auto parsedConfig = _config.getParsedConfig();
     if (parsedConfig[VPU_KMB_CONFIG_KEY(KMB_EXECUTOR)] == "NO") {
         return;
     }
@@ -346,7 +346,7 @@ void KmbExecutor::getResult(void *result_data, unsigned int result_bytes) {
 }
 
 void KmbExecutor::deallocateGraph() {
-    auto parsedConfig = _config->getParsedConfig();
+    auto parsedConfig = _config.getParsedConfig();
     if (parsedConfig[VPU_KMB_CONFIG_KEY(KMB_EXECUTOR)] == "NO") {
         return;
     }

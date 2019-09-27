@@ -80,7 +80,7 @@ void compileMcm(
 std::set<std::string> getSupportedLayersMcm(
         const ie::ICNNNetwork& network,
         mv::OpModel& pCompiler,
-        const std::map<std::string, std::string> &config);
+        const KmbConfig& config);
 
 //
 // Blob version and checks

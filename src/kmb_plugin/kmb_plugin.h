@@ -24,6 +24,7 @@
 #include <vector>
 #include <map>
 #include <cpp_interfaces/impl/ie_plugin_internal.hpp>
+#include "kmb_config.h"
 
 namespace vpu {
 namespace KmbPlugin {
@@ -40,6 +41,9 @@ public:
                       const std::map<std::string, std::string>& config, InferenceEngine::QueryNetworkResult& res) const override;
 
     InferenceEngine::IExecutableNetwork::Ptr ImportNetwork(const std::string &modelFileName, const std::map<std::string, std::string> &config) override;
+
+private:
+    KmbConfig _parsedConfig;
 };
 
 }  // namespace KmbPlugin
