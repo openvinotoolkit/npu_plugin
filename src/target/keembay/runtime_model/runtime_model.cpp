@@ -497,6 +497,7 @@ std::vector<long unsigned int> packToInt64(const std::vector<T>& origData, mv::D
 {
     unsigned dataSize = origData.size();
     unsigned origDataSize = dtype.getSizeInBits();
+
     unsigned nElementToPack = 64 / origDataSize;
     unsigned finalLength = dataSize / nElementToPack;
 
@@ -509,20 +510,24 @@ std::vector<long unsigned int> packToInt64(const std::vector<T>& origData, mv::D
     return toReturn;
 }
 
+template <typename T>
+void debugPrint(const std::vector<T>& origData, const std::string& tensorName)
+{
+    std::cout << "Data of " << tensorName << std::endl;
+    for(std::size_t i = 0; i < origData.size(); ++i)
+        std::cout << origData[i] << std::endl;
+}
+
 std::unique_ptr<MVCNN::BinaryDataT> mv::RuntimeModel::buildBinaryDataT(ComputationModel&, mv::Element&, mv::Tensor& t)
 {
     std::unique_ptr<MVCNN::BinaryDataT> toBuild = std::unique_ptr<MVCNN::BinaryDataT>(new MVCNN::BinaryDataT());
+
+    auto dataPacked = t.getDataPacked();
     if (t.isSparse())
-    {
-        auto dataPacked = t.getDataPacked();
-        toBuild->data = packToInt64(dataPacked, t.getDType());
-        toBuild->length = dataPacked.size();
-    }
-    else
-    {
-        toBuild->data = packToInt64(t.getData(), t.getDType());
-        toBuild->length = t.getShape().totalSize();
-    }
+        debugPrint(dataPacked, t.getName());
+    // Compression code goes here
+    toBuild->data = packToInt64(dataPacked, t.getDType());
+    toBuild->length = dataPacked.size();
 
     toBuild->underlying_type = convertDtype(t.getDType());
 
@@ -700,7 +705,7 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
         numericStrides.push_back(opIt->getInputTensor(0)->getDType().getSizeInBits() / 8);
         std::reverse(dimensions.begin(), dimensions.end());
         std::reverse(numericStrides.begin(), numericStrides.end());
-        tmp->src->strides = numericStrides; // NOTE: Maybe directly bufferIt->computeStrides() in the future?
+        tmp->src->strides = numericStrides;
     }
 
     tmp->dst = buildTensorReferenceT(cm, compilationDescriptor, opIt->getOutputTensor(0));

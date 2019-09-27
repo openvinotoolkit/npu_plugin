@@ -311,6 +311,9 @@ std::shared_ptr<mv::Tensor> mv::Tensor::getStorageElement() const
     if (!isSparse())
         throw ArgumentError(*this, "currentTensor", "storageElement" , " tensor not sparse, cannot get storage element");
 
+    if (!isPopulated())
+        throw ArgumentError(*this, "currentTensor", "storageElement" , " tensor sparse but not populated, cannot get storage element");
+
     return storageElement_;
 }
 
@@ -384,7 +387,6 @@ void mv::Tensor::populateSparsityMapTensor_()
         // Because we need alignment to 16, which can be obtained only in getPackedData.
         if (static_cast<int64_t>(data_->at(internalOrder_.subToInd(shape, sub))) != zeroPoint[sub[channelIndex]])
             map ^= (1 << shift);
-
 
         // Finished one entry, writing it and resetting entry and shift variables
         if (++shift == 8)
