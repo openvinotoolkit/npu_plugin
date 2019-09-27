@@ -63,7 +63,6 @@ namespace mv
         ~Workloads();
 
 
-        /*returns: METIS_OK(=1), or METIS_ERROR*/
         int partitionTensorWithRectangleHeuristic(const mv::DPUModeList& modes,
                                                             size_t        nWorkloads,
                                                             bool         split_over_h,
@@ -72,7 +71,6 @@ namespace mv
                                                   const mv::WorkloadSplitMode& split_mode,
                                                   const mv::pass::PassEntry& pass);
                                                   
-        // returns: METIS_OK(=1), or METIS_ERROR
         int partitionTensorWithZsplit(const mv::DPUModeList& modes, size_t nWorkloads, const mv::pass::PassEntry& pass);
         
         void populateWorkloadsFromPartitions(size_t nWorkloads, 

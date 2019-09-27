@@ -213,7 +213,7 @@ std::vector<mv::Workload> mv::Workloads::polygonWorkloadSplit(const mv::pass::Pa
         being at the vertices. Need to support the case where the missing points may be on the perimeter but not the edge
         2. If there are no points in the 'points not in the workload', it means the workload is already a rectangle.
         3. get the list of 'interesting points' - these points are the ones that are 1) closest to the missing vertices or/and 2) the inner points
-        on the (cut) edge. Below is a possible metis partition with AD edge of the rectangle ABCD that has A1A2 cut out and A3D cut out. The interesting points are at the corners
+        on the (cut) edge. Below is a possible partition with AD edge of the rectangle ABCD that has A1A2 cut out and A3D cut out. The interesting points are at the corners
         which are A1, A2, A3, and C1. Current implementation is only supporting missing point at vertex, so D (and A3,C1) but not A1,A2.
         4. For each interesting point, recursively partitions are made till each of the partition is a rectangle
         5. Select the parition scheme that gives minimum number of rectangles
@@ -600,7 +600,7 @@ bool mv::Workloads::validateWorkloads(const mv::Shape& shape)
     std::size_t totalVol = getTensorSize(shape); // shape.totalSize() is wrong here as it counts 'N' (batch) dimension
     if (vol != totalVol)
     {
-        this->log(mv::Logger::MessageType::Warning, "METIS partition failed because of volume differences. Original Tensor: " +
+        this->log(mv::Logger::MessageType::Warning, "Partition failed because of volume differences. Original Tensor: " +
                     std::to_string(shape.totalSize()) + " Partitioned Tensor: " + std::to_string(this->getAllWorkloadsVolume()));
         return false;
     }
@@ -608,7 +608,7 @@ bool mv::Workloads::validateWorkloads(const mv::Shape& shape)
     // Check for same vertices for each of the X, Y and X dimensions. This is done by comparing the shape of the inputTensor and min max of (all) workloads
     if (!equalShapes(this->getShapefromMinMax(), shape))
     {
-        this->log(mv::Logger::MessageType::Warning, "METIS partition failed because vertices/bounds different between Original Tensor " +
+        this->log(mv::Logger::MessageType::Warning, "Partition failed because vertices/bounds different between Original Tensor " +
                                      shape.toString() + " and Partitioned Tensor " + this->getShapefromMinMax().toString());
         return false;
     }
@@ -616,7 +616,7 @@ bool mv::Workloads::validateWorkloads(const mv::Shape& shape)
     // Check 2: No intersection between workloads.
     if (!this->noOverlap())
     {
-        this->log(mv::Logger::MessageType::Debug, "METIS partition failed because of overlap of paritions");
+        this->log(mv::Logger::MessageType::Debug, "Partition failed because of overlap of paritions");
         return false;
     }
 

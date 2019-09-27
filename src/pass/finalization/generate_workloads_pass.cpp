@@ -22,7 +22,7 @@ namespace mv
         MV_REGISTER_PASS(GenerateWorkloads)
             .setFunc(generateWorkloadsFcn)
             .setDescription(
-                "Generate workloads using the METIS graph partitioning library");
+                "Generate workloads");
     }
 }
 
@@ -42,7 +42,7 @@ float workloadPixelCost(mv::Data::OpListIterator opIt)
 std::vector<std::string> getTensorSplitAlgorithms(mv::Element& passDesc, const mv::pass::PassEntry& pass)
 {
     /*parse TensorSplitAlgorithms from Compilation Descriptor*/
-    std::vector<std::string> algorithms = {"Metis", "Rectangle", "Z-Tiling"}; //default
+    std::vector<std::string> algorithms = {"Rectangle", "Z-Tiling"}; //default
     if (passDesc.hasAttr("TensorSplitAlgorithms"))
     {
         algorithms.clear();
@@ -52,18 +52,18 @@ std::vector<std::string> getTensorSplitAlgorithms(mv::Element& passDesc, const m
         {
             std::string tempStr;
             std::getline(ss, tempStr, ',');
-            if (tempStr=="Metis" || tempStr=="Rectangle" || tempStr=="Z-Tiling")
+            if (tempStr=="Rectangle" || tempStr=="Z-Tiling")
                 algorithms.push_back(tempStr);
             else
-                pass.log(mv::Logger::MessageType::Warning, "Could not parse the TensorSplitAlgorithms type (only \"Metis, Rectangle, Z-Tiling\" currently supported).");
+                pass.log(mv::Logger::MessageType::Warning, "Could not parse the TensorSplitAlgorithms type (only \"Rectangle, Z-Tiling\" currently supported).");
         }
     }
     else
-        pass.log(mv::Logger::MessageType::Debug, "No TensorSplitAlgorithms specified in descriptor, using  \"Metis, Rectangle, Z-Tiling\"...");
+        pass.log(mv::Logger::MessageType::Debug, "No TensorSplitAlgorithms specified in descriptor, using  \"Rectangle, Z-Tiling\"...");
 
     //if parsing problem, return all 3
     if (algorithms.size() == 0)
-        algorithms = {"Metis", "Rectangle", "Z-Tiling"};
+        algorithms = {"Rectangle", "Z-Tiling"};
     return algorithms;
 }
 
@@ -99,15 +99,12 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
     mv::OpModel om(model);
 
     mv::DPUModeList dpuModes;
-    //std::shared_ptr<mv::MetisGraphStructure> metisGraph;
     std::vector<mv::Workloads> workloadsVector;
     std::vector<int> nWorkloadsSplitPool;
 
     int workloadsVectorIndex = 0;
     int optimalWorkloadIndex = 0;
-    bool metisFail = false;
     bool rectangleFail = false;
-    //std::pair<int,int> metisResult = {0,0};
     uint8_t clusterNumber = 0;
     bool depthWiseSOHA0Workaround = false;
 
@@ -205,7 +202,6 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                     /*For each of the algorithms specified*/
                     for (std::string algorithm : algorithms)
                     {
-                        // Rectangle Reuristic performs the same function as METIS
                         if ((algorithm == "Rectangle") && ((!depthWiseSOHA0Workaround) || nWorkloads > 1))
                         {
                             /*Create workload instance*/
