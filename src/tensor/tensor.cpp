@@ -455,7 +455,7 @@ bool mv::Tensor::setSparse()
         mapShape = {paddedDim, 1, 1, N};
     }
     //std::cout << "Total bytes of sparsity map for " << getName() << " " << mapShape.totalSize() * mv::DType("UInt8").getSizeInBits() / 8 << std::endl;
-    sparsityMap_ = std::make_shared<Tensor>(createSparsityMapName(getName()), mapShape, mv::DType("UInt8"), Order("NCHW"));
+    sparsityMap_ = std::make_shared<Tensor>(createSparsityMapName(getName()), mapShape, mv::DType("UInt8"), Order("NHWC"));
     noneZeroElements_ = 0;
 
     //populate sparsity map
@@ -671,7 +671,11 @@ const std::vector<int64_t>& mv::Tensor::getKernelDataOffsets()
 }
 
 // NOTE: For now this can handle only integer tensors
-// This is because we have to make quantParams dataElements as well.
+// This is because we have to make quantParams (currently int64) dataElements as well.
+
+// NOTE2: This method works properly only on tensors of the form (W, 1, 1, N)
+// The order has to be an order in which the W comes after the N, examples:
+// NHWC, NHCW
 const std::vector<int64_t> mv::Tensor::getDataPacked()
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_BULD)
@@ -682,8 +686,7 @@ const std::vector<int64_t> mv::Tensor::getDataPacked()
     if(isDoubleType())
         throw ValueError(*this, "Attempt of getting data packed from populated double tensor");
 
-    // This works only if the order assumption is respected
-    if(getOrder() != mv::Order("NHWC"))
+    if(!getOrder().isZMajor())
         throw ValueError(*this, "To use getDataPacked order has to be NHWC");
 
     std::vector<int64_t> orderedDataPacked;
