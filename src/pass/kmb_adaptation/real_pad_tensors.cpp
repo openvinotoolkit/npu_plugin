@@ -61,6 +61,50 @@ void propagateShapeChange(mv::OpModel& om, const std::string& flowStr)
     }
 }
 
+static void addCropNode(mv::OpModel& om, mv::Data::OpListIterator& opIt, mv::Data::TensorIterator& outputTensor, std::size_t& outputTensorChannels)
+{
+    std::vector<mv::Data::OpListIterator> opsToLink;
+    std::vector<std::size_t> inputSlots;
+    std::vector<mv::Data::FlowSiblingIterator> flowsToRemove;
+
+    auto sourceFlowStart = opIt.leftmostOutput();
+
+    for (mv::Data::FlowSiblingIterator sinkFlow(sourceFlowStart); sinkFlow != om.flowEnd(); ++sinkFlow)
+    {
+        opsToLink.push_back(sinkFlow.sink());
+        inputSlots.push_back(sinkFlow->get<std::size_t>("sinkInput"));
+        flowsToRemove.push_back(sinkFlow);
+    }
+
+    //TODO check if already there's a crop? or maybe move this to separate pass
+    auto cropOpName = outputTensor->getName() + "_crop";
+    mv::QuantizationParams quantParams = {{}, {}, {}, {}};
+
+    if (outputTensor->hasAttr("quantParams"))
+    {
+        quantParams = outputTensor->get<mv::QuantizationParams>("quantParams");
+    }
+    auto croppedTensor = om.crop(outputTensor,
+                        outputTensorChannels,
+                        mv::IO_CHANNEL_DIMENSION,
+                        quantParams,
+                        cropOpName);
+    croppedTensor->set<bool>("alignment", true);//TODO remove this, just for testing now
+    auto cropOp = om.getOp(cropOpName);
+    cropOp->set<unsigned>("opId", opIt->get<unsigned>("opId"));
+
+
+    for (unsigned flowIdx = 0; flowIdx < flowsToRemove.size(); flowIdx++)
+    {
+        om.undefineFlow(flowsToRemove[flowIdx]);
+    }
+    for(unsigned op = 0 ; op < opsToLink.size(); ++op)
+    {
+        opsToLink[op]->setInputTensor(croppedTensor, inputSlots[op], false);
+        om.defineFlow(croppedTensor, opsToLink[op], inputSlots[op]);
+    }
+}
+
 //NOTE: Mark the Ops that do not have output channels aligned to 16,in serialization you align their dims
 //and provide the appropriate Tensor for DMA
 void alignUnpopulatedTensors(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
@@ -100,52 +144,7 @@ void alignUnpopulatedTensors(const mv::pass::PassEntry& pass, mv::ComputationMod
             auto flows = outputTensor->get<std::set<std::string>>("flows");
             for(auto& flowStr: flows)
                 propagateShapeChange(om, flowStr);
-
-            flows = outputTensor->get<std::set<std::string>>("flows");
-
-            std::vector<mv::Data::OpListIterator> opsToLink;
-            std::vector<std::size_t> inputSlots;
-            std::vector<mv::Data::FlowSiblingIterator> flowsToRemove;
-
-            auto sourceFlowStart = opIt.leftmostOutput();
-
-            for (mv::Data::FlowSiblingIterator sinkFlow(sourceFlowStart); sinkFlow != om.flowEnd(); ++sinkFlow)
-            {
-                opsToLink.push_back(sinkFlow.sink());
-                inputSlots.push_back(sinkFlow->get<std::size_t>("sinkInput"));
-                flowsToRemove.push_back(sinkFlow);
-            }
-
-            //TODO check if already there's a crop? or maybe move this to separate pass
-            auto cropOpName = outputTensor->getName() + "_crop";
-            mv::QuantizationParams quantParams = {{}, {}, {}, {}};
-
-            if (outputTensor->hasAttr("quantParams"))
-            {
-                quantParams = outputTensor->get<mv::QuantizationParams>("quantParams");
-            }
-            auto croppedTensor = om.crop(outputTensor,
-                                outputTensorChannels,
-                                mv::IO_CHANNEL_DIMENSION,
-                                quantParams,
-                                cropOpName);
-            croppedTensor->set<bool>("alignment", true);//TODO remove this, just for testing now
-            auto cropOp = om.getOp(cropOpName);
-            cropOp->set<unsigned>("opId", opIt->get<unsigned>("opId"));
-
-
-            for (unsigned flowIdx = 0; flowIdx < flowsToRemove.size(); flowIdx++)
-            {
-                om.undefineFlow(flowsToRemove[flowIdx]);
-            }
-            for(unsigned op = 0 ; op < opsToLink.size(); ++op)
-            {
-                pass.log(mv::Logger::MessageType::Debug, " Setting # " + croppedTensor->getName() +
-                                                            "# as input to: # " + opsToLink[op]->getName() +
-                                                            "# at slotIdx: " + std::to_string(inputSlots[op]));
-                opsToLink[op]->setInputTensor(croppedTensor, inputSlots[op], false);
-                om.defineFlow(croppedTensor, opsToLink[op], inputSlots[op]);
-            }
+            addCropNode(om, opIt, outputTensor, outputTensorChannels);
         }
     }
 }
