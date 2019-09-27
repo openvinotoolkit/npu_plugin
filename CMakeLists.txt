@@ -1,5 +1,5 @@
-cmake_minimum_required(VERSION 3.5.0)
-project(mcmComplier VERSION 0.0.1)
+cmake_minimum_required(VERSION 3.10.0)
+project(mcmComplier VERSION 1.0.0)
 
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/lib)
 SET(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake-modules")
@@ -8,8 +8,8 @@ SET(CMAKE_VERBOSE_MAKEFILE OFF) # for debugging
 #############################################################################################
 ### Setup
 #############################################################################################
-SET(PROJECT_VERSION_MAJOR 0)
-SET(PROJECT_VERSION_MINOR 1)
+SET(PROJECT_VERSION_MAJOR 1)
+SET(PROJECT_VERSION_MINOR 0)
 SET(PROJECT_VERSION_PATCH 0)
 
 if (NOT EXISTS ${CMAKE_BINARY_DIR}/CMakeCache.txt)
@@ -85,7 +85,6 @@ endif()
 include(cmake-modules/code-coverage.cmake)
 add_code_coverage()
 
-
 #############################################################################################
 ### Find packages - uses Find*.cmake files in /cmake-modules dir
 #############################################################################################
@@ -105,40 +104,13 @@ add_subdirectory(contrib/flatbuffers)
 #############################################################################################
 if (MSVC)
     add_compile_options("/W4" "$<$<CONFIG:RELEASE>:/O2>" "/GS")
-    SET(VALIDATION false)
 else()
     add_compile_options("-Wall" "-Wextra" "-Wshadow" "-Wnon-virtual-dtor" "-pedantic" "$<$<CONFIG:RELEASE>:-O3>" "-fstack-protector-all")
-    SET(VALIDATION false CACHE BOOL "Flag to include additional external libaries for validation testing")
 endif()
 
 include_directories(${PROJECT_SOURCE_DIR})
 include_directories(${PROJECT_SOURCE_DIR}/include)
 include_directories(${PROJECT_SOURCE_DIR}/contrib/flatbuffers/include)
-
-
-if(VALIDATION)
-    include_directories("/opt/movidius/caffe/include")
-    include_directories("/opt/movidius/caffe/build/include")
-    include_directories("/opt/movidius/caffe/build/include/caffe/proto")
-
-    #Protobuf
-    find_package(Protobuf REQUIRED)
-    include_directories(${PROTOBUF_INCLUDE_DIR})
-
-    #MVNC
-    find_library(mvnc REQUIRED)
-
-    #Boost
-    find_package(Boost COMPONENTS regex system filesystem REQUIRED)
-
-    #Caffe
-    set(Caffe_INCLUDE_DIRS "/opt/movidius/caffe/build/include/caffe/proto;/opt/movidius/caffe/include;/opt/movidius/caffe/build/include")
-    set(Caffe_LIBRARIES "/opt/movidius/caffe/build/lib/libcaffe.so")
-
-    SET(pass_validation
-        "${PROJECT_SOURCE_DIR}/src/pass/adaptation/generate_caffe.cpp"
-    )
-endif(VALIDATION)
 
 SET(base
 
@@ -176,7 +148,7 @@ SET(base
 
     "${PROJECT_SOURCE_DIR}/src/computation/op/op_entry.cpp"
 
-# Single compilation unit for all Keembay attributes and operations in order //
+    # Single compilation unit for all Keembay attributes and operations in order
     "${PROJECT_SOURCE_DIR}/src/target/keembay/keembay_registry.cpp"
 
     "${PROJECT_SOURCE_DIR}/src/target/keembay/barrier_definition.cpp"
@@ -378,45 +350,22 @@ if (MSVC)
     add_dependencies(cm generate-graphfile-headers)
     add_dependencies(model generate-comp-api)
 else()
-    if(VALIDATION)
-
-        SET(deployer
-            "${PROJECT_SOURCE_DIR}/src/utils/deployer/deployer_utils.cpp"
-            "${PROJECT_SOURCE_DIR}/src/utils/deployer/executor.cpp"
-        )
-        add_library(cm SHARED ${base} ${logger} ${pass} ${compiler} ${pass_validation})
-        add_library(corebase SHARED ${base} ${logger})
-        add_library(model SHARED ${model}) 
-        add_library(dep SHARED ${deployer})
-        target_link_libraries(dep mvnc)
-        target_link_libraries(cm corebase metamodel flatbuffers)
+    add_library(cm SHARED ${base} ${logger} ${pass} ${compiler} ${syscalls})
+    add_library(corebase SHARED ${base} ${logger})
+    add_library(model SHARED ${model})
+    target_link_libraries(cm model)
+    IF(CMAKE_CROSSCOMPILING)
+        #Flatbuffers not x-compiled yet
+        target_link_libraries(cm corebase metamodel)
+    ELSE()
+        target_link_libraries(cm corebase metamodel flatbuffers ${LEMON_LIBRARY})
         add_dependencies(cm generate-comp-api)
         add_dependencies(model generate-comp-api)
         add_dependencies(cm generate-graphfile-headers)
-        target_link_libraries(cm ${Caffe_LIBRARIES} ${Boost_FILESYSTEM_LIBRARY} ${Boost_SYSTEM_LIBRARY} ${Boost_REGEX_LIBRARY} ${PROTOBUF_LIBRARY})
-        target_compile_definitions(cm PRIVATE CPU_ONLY=1)
         add_subdirectory(python/api)
         add_subdirectory(contrib/googletest)
-        target_link_libraries(cm model)
+    ENDIF(CMAKE_CROSSCOMPILING)
 
-    else()
-        add_library(cm SHARED ${base} ${logger} ${pass} ${compiler} ${syscalls})
-        add_library(corebase SHARED ${base} ${logger})
-        add_library(model SHARED ${model})
-        target_link_libraries(cm model)
-        IF(CMAKE_CROSSCOMPILING)
-            #Flatbuffers not x-compiled yet
-            target_link_libraries(cm corebase metamodel)
-        ELSE()
-            target_link_libraries(cm corebase metamodel flatbuffers ${LEMON_LIBRARY})
-            add_dependencies(cm generate-comp-api)
-            add_dependencies(model generate-comp-api)
-            add_dependencies(cm generate-graphfile-headers)
-            add_subdirectory(python/api)
-            add_subdirectory(contrib/googletest)
-        ENDIF(CMAKE_CROSSCOMPILING)
-
-    endif(VALIDATION)
 endif(MSVC)
 
 IF(NOT CMAKE_CROSSCOMPILING)
