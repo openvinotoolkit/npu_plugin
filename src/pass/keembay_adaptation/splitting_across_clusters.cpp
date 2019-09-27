@@ -24,7 +24,7 @@ static std::vector<mv::Data::OpListIterator> findSinkLayers(mv::DataModel &dataM
 static std::vector<mv::Workload> fixRectangularHeuristicBug(std::vector<mv::Workload> subTensors, const mv::Data::TensorIterator &tensor, int nWorkloads, int pad = 16);
 static void ensureSplitStrategiesForSpilling(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 //NOTE: Temporary Function for aligning the subTensors with fake "Alignment"
-static std::vector<mv::Workload> ensureAlignmentForSubTensors(std::vector<mv::Workload> subTensors, const mv::Data::TensorIterator &tensor, int nWorkloads, int pad = 16);
+static std::vector<mv::Workload> ensureAlignmentForSubTensors(std::vector<mv::Workload> subTensors, const mv::Data::TensorIterator &tensor, unsigned nWorkloads, int pad = 16);
 
 namespace mv
 {
@@ -49,7 +49,7 @@ void SplittingTensorsAcrossClusters(const mv::pass::PassEntry& pass, mv::Computa
 {
     mv::OpModel om(model);
     auto globalParams = model.getGlobalConfigParams();
-    unsigned numClusters = globalParams->get<int>("Number_of_Clusters");
+    unsigned int numClusters = (unsigned int)globalParams->get<int>("Number_of_Clusters");
 
     if (numClusters > 1)
     {
@@ -92,7 +92,7 @@ void subTensorsGen(mv::ComputationModel& model, const std::vector <mv::Data::Ten
     mv::DataModel dm(model);
     auto globalParams = model.getGlobalConfigParams();
     int pad = globalParams->hasAttr("VPU2ChannelPadding") ? globalParams->get<int>("VPU2ChannelPadding") : 16;
-    int nWorkloads = nClusters;
+    unsigned nWorkloads = nClusters;
 
     for (auto& tensor : tensors)
     {
@@ -116,20 +116,39 @@ void subTensorsGen(mv::ComputationModel& model, const std::vector <mv::Data::Ten
         }
         else if (tensor->get<std::string>("splitStrategy") == "Clustering")
         {
-//            //NOTE: Compute the same subtensors with the initial Tensor in order to do everything 1
-//            //function in seralization
-//            for (int i = 0; i < nWorkloads; i++)
-//            {
-//                subTensors[i].MaxX = MaxX;
-//                subTensors[i].MinX = 0;
-//                subTensors[i].MaxZ = MaxX;
-//                subTensors[i].MinZ = 0;
-//                subTensors[i].MaxY = MaxX;
-//                subTensors[i].MinY = 0;
-//            }
-//            if (tensorNeedsAlignment)
-//                ensureAlignmentForSubTensors(subTensors, tensor, nWorkloads, pad);
-            tensor->splitAcrossClusters(subTensors, false, false, true);
+            //NOTE: Compute the same subtensors with the initial Tensor in order to do everything 1
+            //function in seralization
+            if (!tensor->isPopulated())
+            {
+                for (unsigned i = 0; i < nWorkloads; i++)
+                {
+                    mv::Workload subTensor;
+                    subTensor.MaxX = tensor->getShape()[mv::IO_WIDTH_DIMENSION];
+                    subTensor.MinX = 0;
+                    subTensor.MaxZ = tensor->getShape()[mv::IO_CHANNEL_DIMENSION];
+                    subTensor.MinZ = 0;
+                    subTensor.MaxY = tensor->getShape()[mv::IO_HEIGHT_DIMENSION];
+                    subTensor.MinY = 0;
+                    subTensors.push_back(subTensor);
+                }
+            }
+            else
+            {
+                for (unsigned i = 0; i < nWorkloads; i++)
+                {
+                    mv::Workload subTensor;
+                    subTensor.MaxX = tensor->getShape()[mv::KERNEL_WIDTH];
+                    subTensor.MinX = 0;
+                    subTensor.MaxZ = tensor->getShape()[mv::KERNEL_OUTPUT_CHANNELS];
+                    subTensor.MinZ = 0;
+                    subTensor.MaxY = tensor->getShape()[mv::KERNEL_INPUT_CHANNELS];
+                    subTensor.MinY = 0;
+                    subTensors.push_back(subTensor);
+                }
+            }
+            if (tensorNeedsAlignment)
+                ensureAlignmentForSubTensors(subTensors, tensor, nWorkloads, pad);
+            tensor->shareAcrossClusters(subTensors);
         }
         else if (tensor->get<std::string>("splitStrategy") == "SplitOverHOverlapped")
         {
@@ -304,13 +323,13 @@ static std::vector<mv::Workload> fixRectangularHeuristicBug(std::vector<mv::Work
     return newSubTensors;
 }
 
-static std::vector<mv::Workload> ensureAlignmentForSubTensors(std::vector<mv::Workload> subTensors, const mv::Data::TensorIterator &tensor, int nWorkloads, int pad)
+static std::vector<mv::Workload> ensureAlignmentForSubTensors(std::vector<mv::Workload> subTensors, const mv::Data::TensorIterator &tensor, unsigned nWorkloads, int pad)
 {
     std::vector<mv::Workload> newSubTensors;
     auto output_channels = tensor->getShape()[mv::IO_CHANNEL_DIMENSION];
     output_channels = mv::round_up(output_channels, pad);
 
-    for (int i = 0; i < nWorkloads; i ++)
+    for (unsigned i = 0; i < nWorkloads; i ++)
     {
         mv::Workload subTensor;
         subTensor.MaxX = output_channels;
