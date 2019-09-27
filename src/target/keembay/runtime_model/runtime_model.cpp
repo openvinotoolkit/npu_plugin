@@ -527,9 +527,9 @@ std::unique_ptr<MVCNN::BinaryDataT> mv::RuntimeModel::buildBinaryDataT(Computati
         debugPrint(dataPacked, t.getName());
     // Compression code goes here
     toBuild->data = packToInt64(dataPacked, t.getDType());
-    toBuild->length = dataPacked.size();
+    toBuild->length = dataPacked.size() * t.getDType().getSizeInBits() / 8;
 
-    toBuild->underlying_type = convertDtype(t.getDType());
+    toBuild->underlying_type = convertDtype(mv::DType("UInt8"));
 
     return toBuild;
 }
