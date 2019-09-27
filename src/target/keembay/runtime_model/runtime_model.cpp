@@ -712,6 +712,29 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
     return toReturn;
 }
 
+void checkUnstridedDMA(mv::Data::TensorIterator src, int i, MVCNN::NNDMATaskT * tmp)
+{
+    if(tmp->src->locale == MVCNN::MemoryLocation_GraphFile)
+    {
+        unsigned totalSize = src->getSubTensor(i).getShape().totalSize();
+        if(src->isSparse())
+            totalSize = src->getSubTensor(i).dataPackedSize();
+
+        totalSize *= src->getDType().getSizeInBits() / 8;
+        std::vector<uint32_t> dimensions = {totalSize, 1, 1, 1};
+        std::vector<uint32_t> strides = {1, 1, 1, 1, 1};
+        auto dtype = MVCNN::DType::DType_U8;
+
+        tmp->src->dimensions = dimensions;
+        tmp->src->strides = strides;
+        tmp->src->data_dtype = dtype;
+
+        tmp->dst->dimensions = dimensions;
+        tmp->dst->strides = strides;
+        tmp->dst->data_dtype = dtype;
+    }
+}
+
 void mv::RuntimeModel::case2MC(unsigned numTasks, mv::ComputationModel& cm, mv::DmaDirection direction, mv::Element &compilationDescriptor,
                                bool compression, std::vector<std::unique_ptr<MVCNN::TaskT>>& toReturn, mv::Data::TensorIterator src, mv::Data::TensorIterator dst, const std::string& srcAllocator, const std::string& dstAllocator)
 {
@@ -731,7 +754,11 @@ void mv::RuntimeModel::case2MC(unsigned numTasks, mv::ComputationModel& cm, mv::
     if(direction == mv::DDR2CMX)
         tmp->dst->locale_index = locale_index;
 
+    // Passing -1 as subtensor index, will have us get the full tensor
+    checkUnstridedDMA(src, -1, tmp);
+
     tmp->compression =  compression;
+
     toPush->task.value = tmp;
 
     toReturn.push_back(std::move(toPush));
@@ -750,26 +777,7 @@ void mv::RuntimeModel::case3MC(unsigned numTasks, ComputationModel& cm, mv::Elem
         tmp->src = buildTensorReferenceT(cm, compilationDescriptor, src, i, srcAllocator);
         tmp->dst = buildTensorReferenceT(cm, compilationDescriptor, dst, i, dstAllocator);
 
-        // Unaligned DMAs
-        if(tmp->src->locale == MVCNN::MemoryLocation_GraphFile)
-        {
-            unsigned totalSize = src->getSubTensor(i).getShape().totalSize();
-            if(src->getSubTensor(i).isSparse())
-                totalSize = src->getSubTensor(i).dataPackedSize();
-
-            totalSize *= src->getDType().getSizeInBits() / 8;
-            std::vector<uint32_t> dimensions = {totalSize, 1, 1, 1};
-            std::vector<uint32_t> strides = {1, 1, 1, 1, 1};
-            auto dtype = MVCNN::DType::DType_U8;
-
-            tmp->src->dimensions = dimensions;
-            tmp->src->strides = strides;
-            tmp->src->data_dtype = dtype;
-
-            tmp->dst->dimensions = dimensions;
-            tmp->dst->strides = strides;
-            tmp->dst->data_dtype = dtype;
-        }
+        checkUnstridedDMA(src, i, tmp);
 
         tmp->compression =  compression;
         toPush->task.value = tmp;
