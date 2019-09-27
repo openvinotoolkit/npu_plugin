@@ -1276,13 +1276,6 @@ void mv::RuntimeModel::getWorkloadPadding(Control::OpListIterator opIt, Workload
             workload.padBottom = ((workload.MaxY + unsigned(1)) == outputHeight) ? padding[3] : 0;
         }
 
-        else if (opIt->get<std::string>("taskOp") == "ChannelMajorConvolution")
-        {
-            workload.padLeft = (workload.MinX == 0) ? padding[0] : 0;
-            workload.padTop = (workload.MinY == 0) ? padding[2] : 0;
-            workload.padRight = ((workload.MaxX + unsigned(1)) == outputWidth) ? padding[1] : 0;
-            workload.padBottom = ((workload.MaxY + unsigned(1)) == outputHeight) ? padding[3] : 0;
-        }
         else
         {
             workload.padLeft = (workload.MinX == 0) ? padding[0] : 0;
@@ -1318,7 +1311,7 @@ std::array <unsigned short, 4>  mv::RuntimeModel::getPadding(Control::OpListIter
     return padding;
 }
 
-std::unique_ptr<MVCNN::NCEVariantFieldsT> mv::RuntimeModel::buildNCEVariantFieldsT(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt, Workload workload)
+std::unique_ptr<MVCNN::NCEVariantFieldsT> mv::RuntimeModel::buildNCEVariantFieldsT(ComputationModel& , mv::Element &compilationDescriptor, Control::OpListIterator opIt, Workload workload, unsigned clusterId, std::string strategy)
 {
     UNUSED (compilationDescriptor);
     std::unique_ptr<MVCNN::NCEVariantFieldsT> toBuild = std::unique_ptr<MVCNN::NCEVariantFieldsT>(new MVCNN::NCEVariantFieldsT());
@@ -1330,37 +1323,11 @@ std::unique_ptr<MVCNN::NCEVariantFieldsT> mv::RuntimeModel::buildNCEVariantField
     toBuild->workload_end_X = workload.MaxX;
     toBuild->workload_end_Y = workload.MaxY;
     toBuild->workload_end_Z = workload.MaxZ;
-    //Padding should be computed for every cluster
-    getWorkloadPadding(opIt, workload);
-    toBuild->padLeft = workload.padLeft;
-    toBuild->padRight = workload.padRight;
-    toBuild->padTop = workload.padTop;
-    toBuild->padBottom = workload.padBottom;
-    if (opIt->hasAttr("alignment"))
-    {
-        auto globalConfigParams = cm.getGlobalConfigParams();
-        int pad = globalConfigParams->hasAttr("VPU2ChannelPadding") ? globalConfigParams->get<int>("VPU2ChannelPadding") : 16;
-        std::vector<std::size_t> dimensions = opIt->getOutputTensor(0)->getShape();
-        auto outputChannelsPadded = mv::round_up(dimensions[mv::IO_CHANNEL_DIMENSION], pad);
-        toBuild->workload_end_Z = outputChannelsPadded - 1;
-    }
-    return toBuild;
-}
-
-std::unique_ptr<MVCNN::NCEVariantFieldsT> mv::RuntimeModel::buildNCEVariantFieldsT(ComputationModel& , mv::Element &compilationDescriptor, Control::OpListIterator opIt, Workload workload, unsigned clusterId)
-{
-    UNUSED (compilationDescriptor);
-    std::unique_ptr<MVCNN::NCEVariantFieldsT> toBuild = std::unique_ptr<MVCNN::NCEVariantFieldsT>(new MVCNN::NCEVariantFieldsT());
-
-    toBuild->mpe_mode = convertMPEMode(workload.MPEMode);
-    toBuild->workload_start_X = workload.MinX;
-    toBuild->workload_start_Y = workload.MinY;
-    toBuild->workload_start_Z = workload.MinZ;
-    toBuild->workload_end_X = workload.MaxX;
-    toBuild->workload_end_Y = workload.MaxY;
-    toBuild->workload_end_Z = workload.MaxZ;
-    //Padding should be computed for every cluster
-    getWorkloadPadding(opIt, workload, clusterId);
+    if (strategy != "Clustering")
+        //Padding should be computed for every cluster
+        getWorkloadPadding(opIt, workload, clusterId);
+    else
+        getWorkloadPadding(opIt, workload);
     toBuild->padLeft = workload.padLeft;
     toBuild->padRight = workload.padRight;
     toBuild->padTop = workload.padTop;
@@ -1369,25 +1336,20 @@ std::unique_ptr<MVCNN::NCEVariantFieldsT> mv::RuntimeModel::buildNCEVariantField
     return toBuild;
 }
 
-std::vector<std::unique_ptr<MVCNN::NCEVariantFieldsT>> mv::RuntimeModel::buildNCEVariantFieldsTVector(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt)
+std::vector<std::unique_ptr<MVCNN::NCEVariantFieldsT>> mv::RuntimeModel::buildNCEVariantFieldsTVector(ComputationModel& cm, mv::Element &compilationDescriptor,
+                                                                                                      Control::OpListIterator opIt, unsigned numTask, std::string strategy)
 {
-    auto workloads = opIt->get<mv::Workloads>("Workloads0").getWorkloads();
-    unsigned n = workloads.size();
-    std::vector<std::unique_ptr<MVCNN::NCEVariantFieldsT>> toBuild = std::vector<std::unique_ptr<MVCNN::NCEVariantFieldsT>>(n);
-    for(unsigned i = 0; i < n; ++i)
-        toBuild[i] = buildNCEVariantFieldsT(cm, compilationDescriptor, opIt, workloads[i]);
-
-    return toBuild;
-}
-
-std::vector<std::unique_ptr<MVCNN::NCEVariantFieldsT>> mv::RuntimeModel::buildNCEVariantFieldsTVector(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt, unsigned numTask)
-{
-    auto workloads = opIt->get<mv::Workloads>("Workloads" + std::to_string(numTask)).getWorkloads();
+    std::vector <mv::Workload> workloads;
+    //NOTE: For Clustering SubTensors equal Workloads per Subtensor
+    if (strategy == "Clustering" && numTask > 0)
+        workloads = opIt->get<mv::Workloads>("Workloads" + std::to_string(0)).getWorkloads();
+    else
+        workloads = opIt->get<mv::Workloads>("Workloads" + std::to_string(numTask)).getWorkloads();
     unsigned n = workloads.size();
     std::vector<std::unique_ptr<MVCNN::NCEVariantFieldsT>> toBuild = std::vector<std::unique_ptr<MVCNN::NCEVariantFieldsT>>(n);
     for(unsigned i = 0; i < n; ++i)
     {
-        toBuild[i] = buildNCEVariantFieldsT(cm, compilationDescriptor, opIt, workloads[i], numTask);
+        toBuild[i] = buildNCEVariantFieldsT(cm, compilationDescriptor, opIt, workloads[i], numTask, strategy);
     }
     return toBuild;
 }
@@ -1404,7 +1366,7 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNCE2TaskT(Comp
             toReturn[i] = std::unique_ptr<MVCNN::TaskT>(new MVCNN::TaskT());
             toReturn[i]->task.type = MVCNN::SpecificTask_NCE2Task;
             auto toBuild = new MVCNN::NCE2TaskT();
-            toBuild->variant = buildNCEVariantFieldsTVector(cm, compilationDescriptor, opIt, i);
+            toBuild->variant = buildNCEVariantFieldsTVector(cm, compilationDescriptor, opIt, i, splitting);
             toBuild->invariant = buildNCEInvariantFieldsT(cm, compilationDescriptor, opIt, i);
 
             auto hash = [](const MVCNN::MPE_Mode &g){ return static_cast<std::size_t>(g); };
@@ -1428,7 +1390,7 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNCE2TaskT(Comp
             toReturn[i] = std::unique_ptr<MVCNN::TaskT>(new MVCNN::TaskT());
             toReturn[i]->task.type = MVCNN::SpecificTask_NCE2Task;
             auto toBuild = new MVCNN::NCE2TaskT();
-            toBuild->variant = buildNCEVariantFieldsTVector(cm, compilationDescriptor, opIt);
+            toBuild->variant = buildNCEVariantFieldsTVector(cm, compilationDescriptor, opIt, i, splitting);
             toBuild->invariant = buildNCEInvariantFieldsT(cm, compilationDescriptor, opIt);
 
             auto locale_index = std::vector<unsigned int>(1,i);
@@ -1556,9 +1518,6 @@ unsigned mv::RuntimeModel::countProducerConsumerTasks(mv::ComputationModel& cm, 
             // NOTE: a sok tensor might come from a different strategy op
             else if(!sourceIsBroadCasted)
                 toReturn = numClusters;
-//Look at the coments on buildNNDMATaskT for multiCluster is case of Multiclustering
-//            else if (opIt->getInputTensor(0)->hasAttr("multiCast"))
-//                toReturn = numClusters;
             else
                 toReturn = 1;
             if ((opIt->getInputTensor(0)->get<std::string>("splitStrategy") == "Clustering"))
