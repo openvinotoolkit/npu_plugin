@@ -290,7 +290,7 @@ namespace mv
         std::size_t computeTotalSize(unsigned int alignment = 16, bool base = false, bool fatherTensorAligned = false) const;
         std::size_t getClusterSize(unsigned int alignment = 16, bool base = false) const;
         void splitAcrossClusters(std::vector<Workload>, bool splitOverH, bool multicast);
-        void shareAcrossClusters(std::vector<Workload>, bool clustering = true);
+        void shareAcrossClusters(std::vector<Workload>, unsigned int numClusters, bool clustering = true);
 
 
     };

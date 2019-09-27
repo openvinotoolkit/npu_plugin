@@ -654,17 +654,8 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildSpecificTaskUn
         toBuild = buildUPADMATaskT(cm, compilationDescriptor, opIt);
     else if(taskType == "DMATask")
     {
-        std::string splitting;
-        if (opIt->getOutputTensor(0)->hasAttr("splitStrategy"))
-            splitting = opIt->getOutputTensor(0)->get<std::string>("splitStrategy");
-
-        if (splitting == "Clustering")
-            if (numTasks == 1)
-                toBuild = buildNNDMATaskT(cm, compilationDescriptor, opIt);
-            else
-                toBuild = buildNNDMATaskT(cm, compilationDescriptor, opIt, splitting);
-        else
-            toBuild = buildNNDMATaskT(cm, compilationDescriptor, opIt, splitting);
+        std::string splitting = opIt->getOutputTensor(0)->get<std::string>("splitStrategy");
+        toBuild = buildNNDMATaskT(cm, compilationDescriptor, opIt, splitting);
     }
     else if(taskType == "NCE1Task")
         toBuild = buildNCE1TaskT(cm, compilationDescriptor, opIt);
@@ -714,36 +705,6 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildUPADMATaskT(Co
     return toReturn;
 }
 
-
-std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt)
-{
-    std::vector<std::unique_ptr<MVCNN::TaskT>> toReturn = std::vector<std::unique_ptr<MVCNN::TaskT>>(1);
-    toReturn[0] = std::unique_ptr<MVCNN::TaskT>(new MVCNN::TaskT());
-    toReturn[0]->task.type = MVCNN::SpecificTask_NNDMATask;
-    auto padFinalOutput = false;
-
-    auto tensorAllocatorName = opIt->getOutputTensor(0)->get<std::set<std::string>>("allocators").begin();
-    if (*tensorAllocatorName == "ProgrammableOutput")
-    {
-        //Only if we are DMA-ing to programmable output check if we need to padd it
-        padFinalOutput = cm.getGlobalConfigParams()->hasAttr("PadOutput") ? cm.getGlobalConfigParams()->get<bool>("PadOutput") : false;
-    }
-    auto tmp = new MVCNN::NNDMATaskT();
-    tmp->src = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(0));
-    if (opIt->getInputTensor(0)->hasAttr("alignment"))
-        alignTensor(cm, tmp->src, opIt->getInputTensor(0), padFinalOutput);
-
-    tmp->dst = buildTensorReferenceT(cm, compilationDescriptor, opIt->getOutputTensor(0));
-
-    if (padFinalOutput && opIt->getOutputTensor(0)->hasAttr("alignment"))
-        alignTensor(cm, tmp->dst, opIt->getOutputTensor(0), padFinalOutput);
-
-    if(opIt->hasAttr("Compression"))
-        tmp->compression =  opIt->get<bool>("Compression");
-    toReturn[0]->task.value = tmp;
-    return toReturn;
-}
-
 std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt, std::string splitting)
 {
     bool sourceIsBroadCasted = opIt->getInputTensor(0)->isBroadcasted();
@@ -754,12 +715,11 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
 
     auto tensorAllocatorName = opIt->getOutputTensor(0)->get<std::set<std::string>>("allocators").begin();
     if (*tensorAllocatorName == "ProgrammableOutput")
-    {
         //Only if we are DMA-ing to programmable output check if we need to padd it
         padFinalOutput = cm.getGlobalConfigParams()->hasAttr("PadOutput") ? cm.getGlobalConfigParams()->get<bool>("PadOutput") : false;
-    }
+
     //NOTE: splitting == clustering might not needed more the last condition is coming from SOH to SOH DMATASK
-    if(sourceIsBroadCasted || ((splitting == "SplitOverK" && !opIt->getOutputTensor(0)->isPopulated())))
+    if(sourceIsBroadCasted || (splitting == "SplitOverK" && !opIt->getOutputTensor(0)->isPopulated()) || (splitting == "Clustering" && numTasks == 1))
     {
         //NOTE: Multicast flag works on nce2tasks for going the whole output tensor on every cluster,
         //POC's logic with replicating 4 times the same DMA seems not correct, even for mutiple layers to me,
@@ -779,21 +739,17 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
         {
             //copying from DDR2CMX we need to pad output if tensor needs alignment
             if (opIt->getOutputTensor(0)->hasAttr("alignment"))
-            {
                 alignTensor(cm, tmp->dst, opIt->getOutputTensor(0));
-            }
         }
         else
         {
             //copying from CMX2DDR we need to crop down if tensor needed alignment in CMX
             if (opIt->getInputTensor(0)->hasAttr("alignment"))
-            {
                 alignTensor(cm, tmp->src, opIt->getInputTensor(0), padFinalOutput);
-            }
+
             if (padFinalOutput && opIt->getOutputTensor(0)->hasAttr("alignment"))
-            {
                 alignTensor(cm, tmp->dst, opIt->getOutputTensor(0), padFinalOutput);
-            }
+
         }
 
         std::vector<unsigned int> locale_index;

@@ -148,7 +148,7 @@ void subTensorsGen(mv::ComputationModel& model, const std::vector <mv::Data::Ten
             }
             if (tensorNeedsAlignment)
                 ensureAlignmentForSubTensors(subTensors, tensor, nWorkloads, pad);
-            tensor->shareAcrossClusters(subTensors);
+            tensor->shareAcrossClusters(subTensors, nWorkloads);
         }
         else if (tensor->get<std::string>("splitStrategy") == "SplitOverHOverlapped")
         {

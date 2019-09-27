@@ -1091,10 +1091,11 @@ std::size_t mv::Tensor::computeTotalSize(unsigned int alignment, bool isBase, bo
     return res;
 }
 
-void mv::Tensor::shareAcrossClusters(std::vector<mv::Workload> workloads, bool clustering)
+void mv::Tensor::shareAcrossClusters(std::vector<mv::Workload> workloads, unsigned int numClusters, bool clustering)
 {
     if (isPopulated())
     {
+        //NOTE Shape of Populated will be aligned already, so I am using the shape not the workload
         auto shape = getShape();
         for (auto wlItr = workloads.begin(); wlItr != workloads.end(); wlItr++)
         {
@@ -1105,16 +1106,12 @@ void mv::Tensor::shareAcrossClusters(std::vector<mv::Workload> workloads, bool c
                 subTensors_.push_back(std::make_shared<mv::Tensor>(getName() + "sub" + std::to_string(idx),
                     shape_, getDType(), getOrder()));
             }
-            std::vector<std::size_t> offset = {0 , 0,
-                static_cast<size_t>(wlItr->MinX), static_cast<size_t>(wlItr->MinY)};
-            subTensors_[idx]->set<std::vector<std::size_t>>("offset", offset);
-
             if (hasAttr("quantizationParams"))
                 subTensors_[idx]->set<mv::QuantizationParams>("quantizationParams", get<mv::QuantizationParams>("quantizationParams"));
             if (isSparse())
                 subTensors_[idx]->setSparse();
         }
-        set<bool>("broadcasted", clustering == true);
+        set<bool>("broadcasted", clustering == true && (numClusters > 1));
     }
     else
     {
@@ -1122,20 +1119,21 @@ void mv::Tensor::shareAcrossClusters(std::vector<mv::Workload> workloads, bool c
         for (auto wlItr = workloads.begin(); wlItr != workloads.end(); wlItr++)
         {
             size_t idx = wlItr - workloads.begin();
+            auto width = wlItr->MaxX - wlItr->MinX;
+            auto height = wlItr->MaxY - wlItr->MinY;
+            auto channels = wlItr->MaxZ - wlItr->MinZ;
             if (clustering)
             {
-                mv::Shape newShape = shape;
+                mv::Shape newShape = {width, height, channels, 1};
                 subTensors_.push_back(std::make_shared<mv::Tensor>(getName() + "sub" + std::to_string(idx), newShape, getDType(), getOrder()));
-                std::vector<std::size_t> offset =  {0 , 0, static_cast<size_t>(wlItr->MinX), static_cast<size_t>(wlItr->MinY)};
-                subTensors_[idx]->set<std::vector<std::size_t>>("offset", offset);
-            }
+           }
 
             if (hasAttr("quantizationParams"))
                 subTensors_[idx]->set<mv::QuantizationParams>("quantizationParams", get<mv::QuantizationParams>("quantizationParams"));
             if (isSparse())
                 subTensors_[idx]->setSparse();
         }
-        set<bool>("broadcasted", (clustering));
+        set<bool>("broadcasted", (clustering && (numClusters > 1)));
     }
 }
 
