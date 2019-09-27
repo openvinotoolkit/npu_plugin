@@ -88,13 +88,13 @@ NWHC = (0, 3, 2, 1)
 NWCH = (0, 3, 1, 2)
 
 """
-    Keembay layouts
+    Kmb layouts
 """
 ChannelMajor = (0, 1, 2, 3)
 ZMajor = (0, 2, 3, 1)
 
 """
-    Keembay weights are in the format KWHC
+    Kmb weights are in the format KWHC
     (canonical weights layout are in KCHW)
 """
 SparsityTensorLayout = (0, 1, 2, 3)

@@ -28,7 +28,7 @@ TEST(graph_coloring, single_conv)
     compDesc.setPassArg("GenerateSparsityMaps", "enableRealSparsity", true);
 
     compDesc.remove("finalize","GenerateWorkloads");
-    compDesc.remove("serialize","GenerateBlobKeembay");
+    compDesc.remove("serialize","GenerateBlobKmb");
 
     unit.loadTargetDescriptor(mv::Target::ma2490);
     unit.initialize();
@@ -109,7 +109,7 @@ TEST(graph_coloring, three_conv)
     mv::CompilationDescriptor &compDesc = unit.compilationDescriptor();
     compDesc.setPassArg("GenerateSparsityMaps", "enableRealSparsity", true);
     compDesc.remove("finalize", "GenerateWorkloads");
-    compDesc.remove("serialize", "GenerateBlobKeembay");
+    compDesc.remove("serialize", "GenerateBlobKmb");
 
     unit.loadTargetDescriptor(mv::Target::ma2490);
     unit.initialize();

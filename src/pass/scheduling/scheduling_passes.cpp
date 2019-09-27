@@ -3,7 +3,7 @@
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/target/target_descriptor.hpp"
 #include "include/mcm/utils/custom_math.hpp"
-#include "include/mcm/target/keembay/workloads.hpp"
+#include "include/mcm/target/kmb/workloads.hpp"
 #include <cmath>
 #include <numeric>
 #include <cmath>

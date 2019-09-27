@@ -4,9 +4,9 @@
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/utils/custom_math.hpp"
 #include "include/mcm/utils/data_generator.hpp"
-#include "include/mcm/target/keembay/workloads.hpp"
-#include "include/mcm/target/keembay/rectangle.hpp"
-#include "include/mcm/target/keembay/workload_struct.hpp"
+#include "include/mcm/target/kmb/workloads.hpp"
+#include "include/mcm/target/kmb/rectangle.hpp"
+#include "include/mcm/target/kmb/workload_struct.hpp"
 #include "include/mcm/graph/graph.hpp"
 #include <algorithm>
 #include <climits>

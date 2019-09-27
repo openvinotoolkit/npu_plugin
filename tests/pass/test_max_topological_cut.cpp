@@ -25,7 +25,7 @@ TEST(MaxTopologicalCut, lessThanCMXMemory)
     unit.loadTargetDescriptor(mv::Target::ma2490);
 
     unit.compilationDescriptor().remove("finalize","GenerateWorkloads");
-    unit.compilationDescriptor().remove("serialize","GenerateBlobKeembay");
+    unit.compilationDescriptor().remove("serialize","GenerateBlobKmb");
     unit.compilationDescriptor().setPassArg("GlobalConfigParams", "MemoryHack", false);
 
     unit.initialize();
@@ -536,7 +536,7 @@ TEST(MaxTopologicalCut, greaterThanCMXMemory)
     unit.loadTargetDescriptor(mv::Target::ma2490);
 
     unit.compilationDescriptor().remove("finalize","GenerateWorkloads");
-    unit.compilationDescriptor().remove("serialize","GenerateBlobKeembay");
+    unit.compilationDescriptor().remove("serialize","GenerateBlobKmb");
     unit.compilationDescriptor().setPassArg("GlobalConfigParams", "MemoryHack", false);
     unit.compilationDescriptor().remove("finalize", "TensorGraphColoring");
 

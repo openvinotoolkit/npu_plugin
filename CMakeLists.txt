@@ -150,16 +150,16 @@ set(base
 
     "${PROJECT_SOURCE_DIR}/src/computation/op/op_entry.cpp"
 
-    # Single compilation unit for all Keembay attributes and operations in order
-    "${PROJECT_SOURCE_DIR}/src/target/keembay/keembay_registry.cpp"
+    # Single compilation unit for all Kmb attributes and operations in order
+    "${PROJECT_SOURCE_DIR}/src/target/kmb/kmb_registry.cpp"
 
-    "${PROJECT_SOURCE_DIR}/src/target/keembay/barrier_definition.cpp"
-    "${PROJECT_SOURCE_DIR}/src/target/keembay/barrier_deps.cpp"
-    "${PROJECT_SOURCE_DIR}/src/target/keembay/dma_direction.cpp"
-    "${PROJECT_SOURCE_DIR}/src/target/keembay/ppe_fixed_function.cpp"
-    "${PROJECT_SOURCE_DIR}/src/target/keembay/ppe_layer_type.cpp"
-    "${PROJECT_SOURCE_DIR}/src/target/keembay/ppe_task.cpp"
-    "${PROJECT_SOURCE_DIR}/src/target/keembay/workloads.cpp"
+    "${PROJECT_SOURCE_DIR}/src/target/kmb/barrier_definition.cpp"
+    "${PROJECT_SOURCE_DIR}/src/target/kmb/barrier_deps.cpp"
+    "${PROJECT_SOURCE_DIR}/src/target/kmb/dma_direction.cpp"
+    "${PROJECT_SOURCE_DIR}/src/target/kmb/ppe_fixed_function.cpp"
+    "${PROJECT_SOURCE_DIR}/src/target/kmb/ppe_layer_type.cpp"
+    "${PROJECT_SOURCE_DIR}/src/target/kmb/ppe_task.cpp"
+    "${PROJECT_SOURCE_DIR}/src/target/kmb/workloads.cpp"
 
     "${PROJECT_SOURCE_DIR}/src/tensor/dtype/dtype_def/bin.cpp"
     "${PROJECT_SOURCE_DIR}/src/tensor/dtype/dtype_def/float8.cpp"
@@ -218,9 +218,7 @@ set(model
     "${PROJECT_SOURCE_DIR}/src/computation/op/op.cpp"
     "${PROJECT_SOURCE_DIR}/src/computation/resource/memory_allocator.cpp"
     "${PROJECT_SOURCE_DIR}/src/computation/resource/stage.cpp"
-    "${PROJECT_SOURCE_DIR}/src/target/myriadx/nce1.cpp"
-    "${PROJECT_SOURCE_DIR}/src/target/myriadx/nce1_utils.cpp" 
-    "${PROJECT_SOURCE_DIR}/src/target/keembay/lemon_graph_scheduler.cpp"   
+    "${PROJECT_SOURCE_DIR}/src/target/kmb/lemon_graph_scheduler.cpp"   
 )
 
 set(logger
@@ -229,10 +227,6 @@ set(logger
 )
 
 set(pass
-    "${PROJECT_SOURCE_DIR}/src/deployer/blob_serialization/blob_serializer.cpp"
-    "${PROJECT_SOURCE_DIR}/src/deployer/blob_serialization/bRelocation.cpp"
-    "${PROJECT_SOURCE_DIR}/src/deployer/blob_serialization/bTensor.cpp"
-    "${PROJECT_SOURCE_DIR}/src/deployer/serializer.cpp"
 
     "${PROJECT_SOURCE_DIR}/src/pass/pass_entry.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/pass_manager.cpp"
@@ -251,61 +245,50 @@ set(pass
     "${PROJECT_SOURCE_DIR}/src/pass/adaptation/remove_passes.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/adaptation/replacement_passes.cpp"
 
-    "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/concat_as_implicit.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/update_implicit_layers_quatization_params.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/concat_as_implicit.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/update_implicit_layers_quatization_params.cpp"
 
 
-    "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/keembay_align_weights.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/keembay_control_flow.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/compute_tensors_quant.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/convert_to_task_graph.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/dpu_task_memory_location.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/kmb_align_weights.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/kmb_control_flow.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/compute_tensors_quant.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/convert_to_task_graph.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/dpu_task_memory_location.cpp"
 
-    "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/strategy_from_layers_to_tensors.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/keembay_order_conversion.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/insert_barrier_tasks.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/dma_passes.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/deallocation_passes.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/assign_unique_task_id.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/splitting_across_clusters.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/store_layer_split_strategy.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/store_workload_strategy.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/implicit_operation_passes.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/sparsity/sparsity_maps.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/sparsity/weights_tables.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/sparsity/eltwise_ops.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/keembay_align_to_16_channels.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/streaming/spatial_split_streaming.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/keembay_align_slice_ops.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/force_serialize.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/strategy_from_layers_to_tensors.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/kmb_order_conversion.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/insert_barrier_tasks.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/dma_passes.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/deallocation_passes.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/assign_unique_task_id.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/splitting_across_clusters.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/store_layer_split_strategy.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/store_workload_strategy.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/implicit_operation_passes.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/sparsity/sparsity_maps.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/sparsity/weights_tables.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/sparsity/eltwise_ops.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/kmb_align_to_16_channels.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/streaming/spatial_split_streaming.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/kmb_align_slice_ops.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/force_serialize.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/finalization/max_topological_cut.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/finalization/align_data_order.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/finalization/allocate_memory_keem_bay.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/finalization/arrange_execution.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/finalization/format_mx_weights.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/finalization/fuse_relu_mx.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/finalization/allocate_memory_kmb.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/finalization/generate_workloads_pass.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/finalization/tensor_graph_coloring.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/finalization/manipulate_barrier_refs.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/finalization/mark_hardware_operations.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/finalization/myriad_x_paddings.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/finalization/optimize_convolutions.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/finalization/optimize_poolings.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/finalization/splits_over_h.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/finalization/tensor_field_storage.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/finalization/transitive_reduction.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/finalization/is_dag.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/finalization/schedule_helper.cpp"
 
-    "${PROJECT_SOURCE_DIR}/src/pass/graphOptimizations/graphOptimizer.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/graphOptimizations/StrategyManager.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/graphOptimizations/StrategyRegistry.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/graphOptimizations/KeemBayDefaultConfigs.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/optimization/graph_parameter_optimization.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/optimization/strategy_manager.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/optimization/strategy_registry.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/optimization/kmb_default_configs.cpp"
 
     "${PROJECT_SOURCE_DIR}/src/pass/scheduling/scheduling_passes.cpp"
 
-    "${PROJECT_SOURCE_DIR}/src/pass/serialization/generate_blob_keembay.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/serialization/generate_blob.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/serialization/generate_blob_kmb.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/serialization/generate_json.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/serialization/global_params_reset.cpp"
 
@@ -320,7 +303,7 @@ set(pass
  set(compiler
     "${PROJECT_SOURCE_DIR}/src/compiler/compilation_descriptor"
     "${PROJECT_SOURCE_DIR}/src/compiler/compilation_unit"
-    "${PROJECT_SOURCE_DIR}/src/target/keembay/runtime_model/runtime_model.cpp"
+    "${PROJECT_SOURCE_DIR}/src/target/kmb/runtime_model/runtime_model.cpp"
 )
 
 set(syscalls

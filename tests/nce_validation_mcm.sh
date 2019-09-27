@@ -9,11 +9,11 @@
 # set -x # outputs all to screen - for debug
 
 # set required variables
-TEST_DIR=~/mdk/testApps/keembay/tapeout_so/tc_keembay_ma2490/ts_nce_bm_blob
+TEST_DIR=~/mdk/testApps/kmb/tapeout_so/tc_kmb_ma2490/ts_nce_bm_blob
 TMP_DIR="$TEST_DIR/tmp"
 MDK_ROOT=~/mdk
 TFLITE_GEN_DIR=~/git/migNetworkZoo/test/kmb_test_generation
-TFLITE_MODEL_DIR=~/git/migNetworkZoo/internal/unit_tests/CompilerTestsKeembay/layers
+TFLITE_MODEL_DIR=~/git/migNetworkZoo/internal/unit_tests/CompilerTestsKmb/layers
 FATHOM_DIR="$MDK_ROOT/projects/Fathom/src2"
 MV_TOOLS_VERSION="Latest_195458"
 MV_TOOLS_DIR="$MDK_ROOT/tools"

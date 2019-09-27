@@ -3,7 +3,7 @@
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/base/exception/argument_error.hpp"
 #include "include/mcm/graph/tensor_interference_graph.hpp"
-#include "include/mcm/target/keembay/interference_graph_ordering_strategy.hpp"
+#include "include/mcm/target/kmb/interference_graph_ordering_strategy.hpp"
 #include "include/mcm/algorithms/edge_exists.hpp"
 #include <limits.h>
 
