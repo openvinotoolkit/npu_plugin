@@ -239,9 +239,6 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
         }
     }
     toBuild->locale = convertAllocatorToMemoryLocale(*tensorAllocatorName);
-
-    // NOTE: Will probably change in the future
-
     toBuild->data_dtype = convertDtype(t->getDType());
 
     // could also be t->hasAttr("quantizationParameters")
@@ -528,8 +525,7 @@ std::unique_ptr<MVCNN::BinaryDataT> mv::RuntimeModel::buildBinaryDataT(Computati
     // Compression code goes here
     toBuild->data = packToInt64(dataPacked, t.getDType());
     toBuild->length = dataPacked.size() * t.getDType().getSizeInBits() / 8;
-
-    toBuild->underlying_type = convertDtype(mv::DType("UInt8"));
+    toBuild->underlying_type = MVCNN::DType::DType_U8;
 
     return toBuild;
 }
@@ -753,6 +749,28 @@ void mv::RuntimeModel::case3MC(unsigned numTasks, ComputationModel& cm, mv::Elem
         toPush->task.type = MVCNN::SpecificTask_NNDMATask;
         tmp->src = buildTensorReferenceT(cm, compilationDescriptor, src, i, srcAllocator);
         tmp->dst = buildTensorReferenceT(cm, compilationDescriptor, dst, i, dstAllocator);
+
+        // Unaligned DMAs
+        if(tmp->src->locale == MVCNN::MemoryLocation_GraphFile)
+        {
+            unsigned totalSize = src->getSubTensor(i).getShape().totalSize();
+            if(src->getSubTensor(i).isSparse())
+                totalSize = src->getSubTensor(i).dataPackedSize();
+
+            totalSize *= src->getDType().getSizeInBits() / 8;
+            std::vector<uint32_t> dimensions = {totalSize, 1, 1, 1};
+            std::vector<uint32_t> strides = {1, 1, 1, 1, 1};
+            auto dtype = MVCNN::DType::DType_U8;
+
+            tmp->src->dimensions = dimensions;
+            tmp->src->strides = strides;
+            tmp->src->data_dtype = dtype;
+
+            tmp->dst->dimensions = dimensions;
+            tmp->dst->strides = strides;
+            tmp->dst->data_dtype = dtype;
+        }
+
         tmp->compression =  compression;
         toPush->task.value = tmp;
         toReturn.push_back(std::move(toPush));
@@ -763,7 +781,10 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
 {
     mv::DataModel dm(cm);
 
-    bool sourceIsBroadCasted = opIt->getInputTensor(0)->isBroadcasted();
+    auto inputTensor = opIt->getInputTensor(0);
+    auto outputTensor = opIt->getOutputTensor(0);
+
+    bool sourceIsBroadCasted = inputTensor->isBroadcasted();
     bool compression = false;
     if(opIt->hasAttr("compression"))
         compression = opIt->get<bool>("compression");
@@ -778,7 +799,7 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
     // Weights sparsity maps with new approach should NOT be handled here
 
     // Strategy: 1 dma from/to each DMA cluster
-    if (splitting == "Clustering" && !opIt->getOutputTensor(0)->isPopulated())
+    if (splitting == "Clustering" && !inputTensor->isPopulated())
     {
         std::vector<std::unique_ptr<MVCNN::TaskT>> toReturn = std::vector<std::unique_ptr<MVCNN::TaskT>>(numTasks);
         for(unsigned i = 0; i < numTasks; ++i)
@@ -786,14 +807,14 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
             toReturn[i] = std::unique_ptr<MVCNN::TaskT>(new MVCNN::TaskT());
             toReturn[i]->task.type = MVCNN::SpecificTask_NNDMATask;
             auto tmp = new MVCNN::NNDMATaskT();
-            tmp->src = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(0));
+            tmp->src = buildTensorReferenceT(cm, compilationDescriptor, inputTensor);
             if (direction == mv::DmaDirectionEnum::CMX2DDR)
             {
                 auto locale_index = std::vector<unsigned int>(1,i);
                 tmp->src->locale_index = locale_index;
             }
 
-            tmp->dst = buildTensorReferenceT(cm, compilationDescriptor, opIt->getOutputTensor(0));
+            tmp->dst = buildTensorReferenceT(cm, compilationDescriptor, outputTensor);
             if (direction == mv::DmaDirectionEnum::DDR2CMX)
             {
                 auto locale_index = std::vector<unsigned int>(1,i);
@@ -813,16 +834,16 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
     // Weights sparsity maps with new approach should be handled here
 
     // Strategy: 1 DMA to multiple slices -  multiple slices to 1 place
-    else if(sourceIsBroadCasted || (splitting == "Clustering" && opIt->getOutputTensor(0)->isPopulated()))
+    else if(sourceIsBroadCasted || (splitting == "Clustering" && inputTensor->isPopulated()))
     {
         std::vector<std::unique_ptr<MVCNN::TaskT>> toReturn;
 
-        case2MC(numTasks, cm, direction, compilationDescriptor, compression, toReturn, opIt->getInputTensor(0), opIt->getOutputTensor(0));
+        case2MC(numTasks, cm, direction, compilationDescriptor, compression, toReturn, inputTensor, outputTensor);
 
-        if(opIt->getInputTensor(0)->isSparse())
+        if(inputTensor->isSparse())
         {
             // NOTE: First usage ever of the concept one tensor -> Multiple allocators
-            auto tensorSparsityMap = dm.getTensor(opIt->getInputTensor(0)->getSparsityMap()->getName());
+            auto tensorSparsityMap = dm.getTensor(inputTensor->getSparsityMap()->getName());
             case2MC(numTasks, cm, direction, compilationDescriptor, compression, toReturn, tensorSparsityMap, tensorSparsityMap, "GraphFile", "VPU_CMX_NN");
         }
         return toReturn;
@@ -837,11 +858,11 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
     else
     {
         std::vector<std::unique_ptr<MVCNN::TaskT>> toReturn;
-        case3MC(numTasks, cm, compilationDescriptor, compression, toReturn, opIt->getInputTensor(0), opIt->getOutputTensor(0));
-        if(opIt->getInputTensor(0)->isSparse())
+        case3MC(numTasks, cm, compilationDescriptor, compression, toReturn, inputTensor, outputTensor);
+        if(inputTensor->isSparse())
         {
             // NOTE: Second usage ever of the concept one tensor -> Multiple allocators
-            auto tensorSparsityMap = dm.getTensor(opIt->getInputTensor(0)->getSparsityMap()->getName());
+            auto tensorSparsityMap = dm.getTensor(inputTensor->getSparsityMap()->getName());
             case3MC(numTasks, cm, compilationDescriptor, compression, toReturn, tensorSparsityMap, tensorSparsityMap, "GraphFile", "VPU_CMX_NN");
         }
         return toReturn;
