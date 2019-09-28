@@ -179,6 +179,7 @@
             "ForceSerialize",
             "KMBOrderConversion",
             "AlignUnpopulatedTensors",
+            "AddAlignOpForInputTensors",
             "AlignPopulatedTensors",
             {
                 "name": "GenerateDot",

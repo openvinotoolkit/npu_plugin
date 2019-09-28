@@ -11,6 +11,7 @@ static void alignUnpopulatedTensors(const mv::pass::PassEntry& pass, mv::Computa
 static void alignPopulatedTensors(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void alignWeightsTensor(mv::OpModel& om, const mv::Data::TensorIterator &weightsTensor, mv::Shape alignedShape);
 static void alignBiasTensor(mv::Data::OpListIterator &opIt, const mv::Data::TensorIterator biasTensor, unsigned biasTensorSizePadded, mv::DataModel dm);
+static void addAlignOpForInputTensors(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 
 namespace mv
 {
@@ -23,6 +24,11 @@ namespace mv
             .setFunc(alignPopulatedTensors)
             .setDescription(
                 "Aligns I/O channels involved in DPUTask to 16");
+
+        MV_REGISTER_PASS(AddAlignOpForInputTensors)
+            .setFunc(addAlignOpForInputTensors)
+            .setDescription(
+                "Add implicit Align Op for input tensors where needed");
     }
 }
 
@@ -105,9 +111,75 @@ static void addCropNode(mv::OpModel& om, mv::Data::OpListIterator& opIt, mv::Dat
     }
 }
 
+void addAlignOpForInputTensors(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+{
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
+    mv::OpModel om(model);
+    mv::DataModel dm(model);
+
+    auto globalConfigParams = model.getGlobalConfigParams();
+    int pad = globalConfigParams->hasAttr("VPU2ChannelPadding") ? globalConfigParams->get<int>("VPU2ChannelPadding") : 16;
+    auto dpuTasks = om.getOps("DPUTask");
+
+    for(auto vecIt = dpuTasks.begin(); vecIt != dpuTasks.end(); ++vecIt)
+    {
+        auto opIt = *vecIt;
+        auto taskOp = opIt->get<std::string>("taskOp");
+        if(taskOp == "Conv" || taskOp == "DepthWiseConv")
+        {
+            auto inputTensor = opIt->getInputTensor(0);
+            if (!inputTensor->hasAttr("alignment") && inputTensor->getShape()[mv::IO_CHANNEL_DIMENSION] % pad != 0)
+            {
+                inputTensor->set<bool>("alignment", true);
+                opIt->set<bool>("alignment", true);
+
+                std::vector<mv::Data::OpListIterator> opsToLink;
+                std::vector<std::size_t> inputSlots;
+                std::vector<mv::Data::FlowSiblingIterator> flowsToRemove;
+
+                auto parentOpIt = om.getSourceOp(inputTensor);
+                auto sourceFlowStart = parentOpIt.leftmostOutput();
+
+                for (mv::Data::FlowSiblingIterator sinkFlow(sourceFlowStart); sinkFlow != om.flowEnd(); ++sinkFlow)
+                {
+                    opsToLink.push_back(sinkFlow.sink());
+                    inputSlots.push_back(sinkFlow->get<std::size_t>("sinkInput"));
+                    flowsToRemove.push_back(sinkFlow);
+                }
+
+                auto alignOpName = inputTensor->getName() + "_align";
+                mv::QuantizationParams quantParams = {{}, {}, {}, {}};
+
+                if (inputTensor->hasAttr("quantParams"))
+                {
+                    quantParams = inputTensor->get<mv::QuantizationParams>("quantParams");
+                }
+                auto alignedTensor = om.align(inputTensor,
+                                    mv::IO_CHANNEL_DIMENSION,
+                                    pad,
+                                    quantParams,
+                                    alignOpName);
+                alignedTensor->set<bool>("alignment", true);//TODO remove this, just for testing now
+                auto alignOp = om.getOp(alignOpName);
+                alignOp->set<unsigned>("opId", parentOpIt->get<unsigned>("opId"));
+
+                for (unsigned flowIdx = 0; flowIdx < flowsToRemove.size(); flowIdx++)
+                {
+                    om.undefineFlow(flowsToRemove[flowIdx]);
+                }
+                for(unsigned op = 0 ; op < opsToLink.size(); ++op)
+                {
+                    opsToLink[op]->setInputTensor(alignedTensor, inputSlots[op], false);
+                    om.defineFlow(alignedTensor, opsToLink[op], inputSlots[op]);
+                }
+            }
+        }
+    }
+}
 //NOTE: Mark the Ops that do not have output channels aligned to 16,in serialization you align their dims
 //and provide the appropriate Tensor for DMA
-void alignUnpopulatedTensors(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+void alignUnpopulatedTensors(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);
@@ -171,7 +243,6 @@ void alignPopulatedTensors(const mv::pass::PassEntry& , mv::ComputationModel& mo
             mv::Shape alignedShape;
             //NOTE: only Convs have weights (=) alignment
             auto taskOp = layer->get<std::string>("taskOp");
-
             std::size_t outputChannelsPadded = outputTensorShape[mv::IO_CHANNEL_DIMENSION];
 
             if (taskOp == "Conv")

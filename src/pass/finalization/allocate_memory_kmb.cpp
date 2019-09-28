@@ -547,29 +547,55 @@ void allocateImplicitOperationsKmbFcn(const mv::pass::PassEntry& pass,
                 mv::Data::BufferIterator outputBuffer;
 
                 if (!inputTensor->hasAttr("allocators"))
-                {    inputBuffer = allocateUnpopulatedTensor(pass,dm,stageIt,inputTensor);
+                {
+                    inputBuffer = allocateUnpopulatedTensor(pass, dm, stageIt, inputTensor);
                     pass.log(mv::Logger::MessageType::Warning, "Tensor " + outputTensor->getName() + ""
                             " Has no allocator. Will attempt to allocate based on logical location");
                 }
                 else
                 {
-                    inputBuffer = dm.getBuffer(location2Allocator[inputLocation.toString()],stageIt,inputTensor);
+                    inputBuffer = dm.getBuffer(location2Allocator[inputLocation.toString()],
+                                                stageIt, inputTensor);
                 }
 
                 if( !outputTensor->hasAttr("allocators"))
                 {
                     pass.log(mv::Logger::MessageType::Warning, "Tensor " + outputTensor->getName() +
                             " Has no allocator. Will attempt to allocate based on logical location");
-                    outputBuffer = allocateUnpopulatedTensor(pass,dm,stageIt,outputTensor);
+                    outputBuffer = allocateUnpopulatedTensor(pass, dm, stageIt, outputTensor);
                 }
                 else
                 {
-                    outputBuffer = dm.getBuffer(location2Allocator[outputLocation.toString()],stageIt,outputTensor);
+                    outputBuffer = dm.getBuffer(location2Allocator[outputLocation.toString()],
+                                                stageIt, outputTensor);
                 }
 
-                auto newBuffer = dm.moveTensor(location2Allocator[inputLocation.toString()],
-                                                inputBuffer,outputBuffer,
-                                                {0,0,0,0},{0,0,0,0});
+                if (opType == "Align")
+                {
+                    auto ndims = inputTensor->getShape().ndims();
+
+                    std::vector<std::size_t> lhs_padding(ndims);
+                    std::vector<std::size_t> rhs_padding(ndims);
+
+                    mv::Shape begin = {0,0,0,0};
+                    mv::Shape size = inputTensor->getShape();;
+                    mv::Shape outputShape = outputTensor->getShape();
+                    for(unsigned i = 0; i < ndims; i++)
+                    {
+                        lhs_padding[i] = begin[i];
+                        rhs_padding[i] = outputShape[i] - (begin[i] + size[i]);
+                    }
+                    auto newBuffer = dm.moveTensor(location2Allocator[inputLocation.toString()],
+                                                    inputBuffer, outputBuffer,
+                                                    lhs_padding, rhs_padding);
+                }
+                else
+                {
+                    auto newBuffer = dm.moveTensor(location2Allocator[inputLocation.toString()],
+                                                    inputBuffer, outputBuffer,
+                                                    {0,0,0,0}, {0,0,0,0});
+                }
+
             }
         }
     }
