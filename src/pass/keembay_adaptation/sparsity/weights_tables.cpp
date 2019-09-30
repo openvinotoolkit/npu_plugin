@@ -273,19 +273,6 @@ static void removeBiasTensorsFcn(const mv::pass::PassEntry& , mv::ComputationMod
     }
 }
 
-void debugPrint(mv::Data::TensorIterator weightsTableData)
-{
-    // Data pointer
-    std::cout << weightsTableData->getName() + "Data pointer" << std::endl;
-    for (size_t i = 0; i < weightsTableData->size(); i+=WT_ELEMENTS_PER_CHANNEL)
-        std::cout << static_cast<int64_t>(weightsTableData->at(i)) << std::endl;
-
-    // Sparsity pointer
-    std::cout << weightsTableData->getName() + "Sparsity pointer" << std::endl;
-    for (size_t i = 0; i < weightsTableData->size(); i+=WT_ELEMENTS_PER_CHANNEL)
-        std::cout << static_cast<int64_t>(weightsTableData->at(i+1)) << std::endl;
-}
-
 static void populateWeightsTablesPointersFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
@@ -303,9 +290,6 @@ static void populateWeightsTablesPointersFcn(const mv::pass::PassEntry& , mv::Co
                 auto weightsTable = dpuTaskOp->getInputTensor(dpuTaskOp->get<std::size_t>("weightsTableIndex"));
                 populateWeightsTablesDataPointers(weightsTable, dpuTaskOp, model);
                 populateWeightsTablesSparsityPointers(weightsTable, dpuTaskOp, model);
-
-                if(dpuTaskOp->hasAttr("weightsSparsity") && dpuTaskOp->get<bool>("weightsSparsity"))
-                    debugPrint(weightsTable);
             }
         }
     }

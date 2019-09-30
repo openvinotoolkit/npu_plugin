@@ -509,21 +509,11 @@ std::vector<long unsigned int> packToInt64(const std::vector<T>& origData, mv::D
     return toReturn;
 }
 
-template <typename T>
-void debugPrint(const std::vector<T>& origData, const std::string& tensorName)
-{
-    std::cout << "Data of " << tensorName << std::endl;
-    for(std::size_t i = 0; i < origData.size(); ++i)
-        std::cout << origData[i] << std::endl;
-}
-
 std::unique_ptr<MVCNN::BinaryDataT> mv::RuntimeModel::buildBinaryDataT(ComputationModel&, mv::Element&, mv::Tensor& t)
 {
     std::unique_ptr<MVCNN::BinaryDataT> toBuild = std::unique_ptr<MVCNN::BinaryDataT>(new MVCNN::BinaryDataT());
 
     auto dataPacked = t.getDataPacked();
-    if (t.isSparse())
-        debugPrint(dataPacked, t.getName());
     // Compression code goes here
     toBuild->data = packToInt64(dataPacked, t.getDType());
     toBuild->length = dataPacked.size() * t.getDType().getSizeInBits() / 8;
