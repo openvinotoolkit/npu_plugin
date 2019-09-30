@@ -333,6 +333,8 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
             unsigned graphfileIndex = subtensor.get<unsigned>("graphFileIndex");
             toBuild->locale_index = std::vector<unsigned int>(1);
             toBuild->locale_index[0] = graphfileIndex;
+
+            toBuild->data->data_index = 0;
         }
     }
     else if(*tensorAllocatorName == "ProgrammableInput" || *tensorAllocatorName == "ProgrammableOutput" ||
