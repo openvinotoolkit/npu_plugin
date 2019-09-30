@@ -32,7 +32,7 @@ namespace mv
 
 mv::Data::TensorIterator createFakeSparsityMap(mv::OpModel om, mv::Data::OpListIterator dpuTaskOp, const std::string& sparsityMapName, const mv::Shape& sparsityShape, const std::vector<int64_t>& sparsityMapData)
 {
-    auto sparsityMap = om.constantInt(sparsityMapData, sparsityShape, mv::DType("UInt8"), mv::Order("NCHW"), {{},{},{},{}},sparsityMapName);
+    auto sparsityMap = om.constantInt(sparsityMapData, sparsityShape, mv::DType("UInt8"), mv::Order("NHWC"), {{},{},{},{}},sparsityMapName);
     om.getSourceOp(sparsityMap)->set<unsigned>("opId", dpuTaskOp->get<unsigned>("opId"));
     unsigned newSize = dpuTaskOp->addInputTensor(sparsityMap);
     om.defineFlow(sparsityMap, dpuTaskOp, newSize - 1);
@@ -140,7 +140,7 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
                 {
                     bitpattern = std::move(createBitPattern(kernelW, kernelH, windowsSize, 1));
                     perChannelSparsity.resize(static_cast<std::size_t>(std::ceil(bitpattern.size() / 128.0)) * 16);//allocate once
-                    ndims = {16, static_cast<std::size_t>(std::ceil(bitpattern.size() / 128.0)), 1, inputChannels};
+                    ndims = {16 * static_cast<std::size_t>(std::ceil(bitpattern.size() / 128.0)), 1, 1, inputChannels};
                 }
                 else //isChannelMajorConvolution
                 {
@@ -148,7 +148,7 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
                     auto windowSparsitySize = static_cast<std::size_t>(std::ceil(windowsSize/8.0)); //how many bytes we need per window
                     auto NumberOfRowsSparistyBytes = static_cast<std::size_t>(std::ceil((kernelH * inputChannels * windowSparsitySize) / 16.0 ));
                     perChannelSparsity.resize(NumberOfRowsSparistyBytes * 16);//allocate once
-                    ndims = {16, NumberOfRowsSparistyBytes, 1, outputChannels};
+                    ndims = {16 * NumberOfRowsSparistyBytes, 1, 1, outputChannels};
                 }
 
                 int channelLenght = bitpattern.size();
@@ -166,7 +166,7 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
                 mv::Shape sparsityShape(ndims);
                 std::vector<int64_t> data(sparsityShape.totalSize(), 0);
                 //mv::Tensor sparsityTensor("backup", sparsityShape, mv::DType("UInt8"), mv::Order("WHCN"), data);
-                auto sparsityTensor = mv::Tensor(dpuTask->getName() + "_sparse_dw", sparsityShape, mv::DType("UInt8"), mv::Order("NCHW"), data);
+                auto sparsityTensor = mv::Tensor(dpuTask->getName() + "_sparse_dw", sparsityShape, mv::DType("UInt8"), mv::Order("NHWC"), data);
 
                 for(unsigned kx = 0; kx < sparsityShape[0]; ++kx)
                     for(unsigned ky = 0; ky < sparsityShape[1]; ++ky)
