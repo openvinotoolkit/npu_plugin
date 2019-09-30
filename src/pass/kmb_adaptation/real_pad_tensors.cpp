@@ -12,7 +12,7 @@ static void alignPopulatedTensors(const mv::pass::PassEntry& pass, mv::Computati
 static void alignWeightsTensor(mv::OpModel& om, const mv::Data::TensorIterator &weightsTensor, mv::Shape alignedShape);
 static void alignBiasTensor(mv::Data::OpListIterator &opIt, const mv::Data::TensorIterator biasTensor, unsigned biasTensorSizePadded, mv::DataModel dm);
 static void addAlignOpForInputTensors(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
-
+static void addCropNode(mv::OpModel& om, mv::Data::OpListIterator& opIt, mv::Data::TensorIterator& outputTensor, std::size_t& outputTensorChannels);
 namespace mv
 {
     namespace pass
@@ -67,7 +67,7 @@ void propagateShapeChange(mv::OpModel& om, const std::string& flowStr)
     }
 }
 
-static void addCropNode(mv::OpModel& om, mv::Data::OpListIterator& opIt, mv::Data::TensorIterator& outputTensor, std::size_t& outputTensorChannels)
+void addCropNode(mv::OpModel& om, mv::Data::OpListIterator& opIt, mv::Data::TensorIterator& outputTensor, std::size_t& outputTensorChannels)
 {
     std::vector<mv::Data::OpListIterator> opsToLink;
     std::vector<std::size_t> inputSlots;
@@ -126,52 +126,60 @@ void addAlignOpForInputTensors(const mv::pass::PassEntry& , mv::ComputationModel
     {
         auto opIt = *vecIt;
         auto taskOp = opIt->get<std::string>("taskOp");
-        if(taskOp == "Conv" || taskOp == "DepthWiseConv")
+        if(taskOp == "Conv" || taskOp == "DepthWiseConv" ||
+            taskOp == "Add" || taskOp == "Subtract" || taskOp == "Multiply")
         {
-            auto inputTensor = opIt->getInputTensor(0);
-            if (!inputTensor->hasAttr("alignment") && inputTensor->getShape()[mv::IO_CHANNEL_DIMENSION] % pad != 0)
+            auto numInputs = 1;
+            if (taskOp == "Add" || taskOp == "Subtract" || taskOp == "Multiply")
+                numInputs = opIt->getInputTensor().size();
+            for (auto i = 0; i < numInputs; i++)
             {
-                inputTensor->set<bool>("alignment", true);
-                opIt->set<bool>("alignment", true);
-
-                std::vector<mv::Data::OpListIterator> opsToLink;
-                std::vector<std::size_t> inputSlots;
-                std::vector<mv::Data::FlowSiblingIterator> flowsToRemove;
-
+                auto inputTensor = opIt->getInputTensor(i);
                 auto parentOpIt = om.getSourceOp(inputTensor);
-                auto sourceFlowStart = parentOpIt.leftmostOutput();
-
-                for (mv::Data::FlowSiblingIterator sinkFlow(sourceFlowStart); sinkFlow != om.flowEnd(); ++sinkFlow)
+                if (parentOpIt->getOpType() != "Align" && inputTensor->getShape()[mv::IO_CHANNEL_DIMENSION] % pad != 0)
                 {
-                    opsToLink.push_back(sinkFlow.sink());
-                    inputSlots.push_back(sinkFlow->get<std::size_t>("sinkInput"));
-                    flowsToRemove.push_back(sinkFlow);
-                }
+                    inputTensor->set<bool>("alignment", true);
+                    opIt->set<bool>("alignment", true);
 
-                auto alignOpName = inputTensor->getName() + "_align";
-                mv::QuantizationParams quantParams = {{}, {}, {}, {}};
+                    std::vector<mv::Data::OpListIterator> opsToLink;
+                    std::vector<std::size_t> inputSlots;
+                    std::vector<mv::Data::FlowSiblingIterator> flowsToRemove;
 
-                if (inputTensor->hasAttr("quantParams"))
-                {
-                    quantParams = inputTensor->get<mv::QuantizationParams>("quantParams");
-                }
-                auto alignedTensor = om.align(inputTensor,
-                                    mv::IO_CHANNEL_DIMENSION,
-                                    pad,
-                                    quantParams,
-                                    alignOpName);
-                alignedTensor->set<bool>("alignment", true);//TODO remove this, just for testing now
-                auto alignOp = om.getOp(alignOpName);
-                alignOp->set<unsigned>("opId", parentOpIt->get<unsigned>("opId"));
 
-                for (unsigned flowIdx = 0; flowIdx < flowsToRemove.size(); flowIdx++)
-                {
-                    om.undefineFlow(flowsToRemove[flowIdx]);
-                }
-                for(unsigned op = 0 ; op < opsToLink.size(); ++op)
-                {
-                    opsToLink[op]->setInputTensor(alignedTensor, inputSlots[op], false);
-                    om.defineFlow(alignedTensor, opsToLink[op], inputSlots[op]);
+                    auto sourceFlowStart = parentOpIt.leftmostOutput();
+
+                    for (mv::Data::FlowSiblingIterator sinkFlow(sourceFlowStart); sinkFlow != om.flowEnd(); ++sinkFlow)
+                    {
+                        opsToLink.push_back(sinkFlow.sink());
+                        inputSlots.push_back(sinkFlow->get<std::size_t>("sinkInput"));
+                        flowsToRemove.push_back(sinkFlow);
+                    }
+
+                    auto alignOpName = inputTensor->getName() + "_align";
+                    mv::QuantizationParams quantParams = {{}, {}, {}, {}};
+
+                    if (inputTensor->hasAttr("quantParams"))
+                    {
+                        quantParams = inputTensor->get<mv::QuantizationParams>("quantParams");
+                    }
+                    auto alignedTensor = om.align(inputTensor,
+                                        mv::IO_CHANNEL_DIMENSION,
+                                        pad,
+                                        quantParams,
+                                        alignOpName);
+                    alignedTensor->set<bool>("alignment", true);//TODO remove this, just for testing now
+                    auto alignOp = om.getOp(alignOpName);
+                    alignOp->set<unsigned>("opId", parentOpIt->get<unsigned>("opId"));
+
+                    for (unsigned flowIdx = 0; flowIdx < flowsToRemove.size(); flowIdx++)
+                    {
+                        om.undefineFlow(flowsToRemove[flowIdx]);
+                    }
+                    for(unsigned op = 0 ; op < opsToLink.size(); ++op)
+                    {
+                        opsToLink[op]->setInputTensor(alignedTensor, inputSlots[op], false);
+                        om.defineFlow(alignedTensor, opsToLink[op], inputSlots[op]);
+                    }
                 }
             }
         }
