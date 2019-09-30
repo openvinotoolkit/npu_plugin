@@ -6,7 +6,7 @@
 namespace mv
 {
 
-    namespace attr
+    namespace attr_mv_element
     {
 
         static mv::json::Value toJSON(const Attribute& a)
@@ -40,12 +40,15 @@ namespace mv
             return a.get<Element>().toString();
         }
 
+    }
+
+    namespace attr {
         MV_REGISTER_ATTR(Element)
-            .setToJSONFunc(toJSON)
-            .setFromJSONFunc(fromJSON)
-            .setToSimplifiedJSONFunc(toSimplifiedJSON)
-            .setFromSimplifiedJSONFunc(fromSimplifiedJSON)
-            .setToStringFunc(toString);
+            .setToJSONFunc(attr_mv_element::toJSON)
+            .setFromJSONFunc(attr_mv_element::fromJSON)
+            .setToSimplifiedJSONFunc(attr_mv_element::toSimplifiedJSON)
+            .setFromSimplifiedJSONFunc(attr_mv_element::fromSimplifiedJSON)
+            .setToStringFunc(attr_mv_element::toString);
 
     }
 

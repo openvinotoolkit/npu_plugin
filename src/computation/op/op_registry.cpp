@@ -1,3 +1,8 @@
+// NOTE: Never compile this file as a standalone compiliation unit. It
+// must be included as .cpp explicity in the final target object in the
+// right order as needed.
+
+
 #include "include/mcm/computation/op/op_registry.hpp"
 #include "include/mcm/base/attribute_registry.hpp"
 
@@ -1003,3 +1008,42 @@ void mv::op::OpRegistry::generateRecordedCompositionAPI(const std::string& eol, 
     srcStream.close();
     
 }
+
+// Define all OPs in a single compilation unit. //
+
+#include    "src/computation/op/def/add.cpp"
+#include    "src/computation/op/def/average_pool.cpp"
+#include    "src/computation/op/def/batch_normalization.cpp"
+#include    "src/computation/op/def/bias.cpp"
+#include    "src/computation/op/def/clamp.cpp"
+#include    "src/computation/op/def/concat.cpp"
+#include    "src/computation/op/def/copy.cpp"
+#include    "src/computation/op/def/constant.cpp"
+#include    "src/computation/op/def/conv.cpp"
+#include    "src/computation/op/def/conversion.cpp"
+#include    "src/computation/op/def/depthwise_conv.cpp"
+#include    "src/computation/op/def/divide.cpp"
+#include    "src/computation/op/def/dropout.cpp"
+#include    "src/computation/op/def/elu.cpp"
+#include    "src/computation/op/def/fully_connected.cpp"
+#include    "src/computation/op/def/identity.cpp"
+#include    "src/computation/op/def/input.cpp"
+#include    "src/computation/op/def/leaky_relu.cpp"
+#include    "src/computation/op/def/local_response_normalization.cpp"
+#include    "src/computation/op/def/matmul.cpp"
+#include    "src/computation/op/def/max_pool.cpp"
+#include    "src/computation/op/def/multiply.cpp"
+#include    "src/computation/op/def/output.cpp"
+#include    "src/computation/op/def/permute.cpp"
+#include    "src/computation/op/def/prelu.cpp"
+#include    "src/computation/op/def/region_yolo.cpp"
+#include    "src/computation/op/def/relu.cpp"
+#include    "src/computation/op/def/reorder.cpp"
+#include    "src/computation/op/def/reorg_yolo.cpp"
+#include    "src/computation/op/def/reshape.cpp"
+#include    "src/computation/op/def/scale.cpp"
+#include    "src/computation/op/def/slice.cpp"
+#include    "src/computation/op/def/sigmoid.cpp"
+#include    "src/computation/op/def/softmax.cpp"
+#include    "src/computation/op/def/subtract.cpp"
+#include    "src/computation/op/def/tanh.cpp"

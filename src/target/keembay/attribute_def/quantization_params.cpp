@@ -6,7 +6,7 @@
 namespace mv
 {
 
-    namespace attr
+    namespace attr_quantization_params
     {
 
         static mv::json::Value toJSON(const Attribute& a)
@@ -103,11 +103,14 @@ namespace mv
             return output + "}}";
         }
 
+    }
+
+    namespace attr {
         MV_REGISTER_ATTR(mv::QuantizationParams)
-            .setToJSONFunc(toJSON)
-            .setFromJSONFunc(fromJSON)
-            .setToStringFunc(toString)
-            .setToLongStringFunc(toLongString)
+            .setToJSONFunc(attr_quantization_params::toJSON)
+            .setFromJSONFunc(attr_quantization_params::fromJSON)
+            .setToStringFunc(attr_quantization_params::toString)
+            .setToLongStringFunc(attr_quantization_params::toLongString)
             .setTypeTrait("large");
     }
 

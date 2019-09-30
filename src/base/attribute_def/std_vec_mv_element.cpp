@@ -8,7 +8,7 @@
 namespace mv
 {
 
-    namespace attr
+    namespace attr_std_vec_mv
     {
 
         static mv::json::Value toJSON(const Attribute& a)
@@ -80,12 +80,17 @@ namespace mv
             return output;
         }
 
+
+    }
+
+    namespace attr {
         MV_REGISTER_ATTR(std::vector<mv::Element>)
-            .setToJSONFunc(toJSON)
-            .setFromJSONFunc(fromJSON)
-            .setToSimplifiedJSONFunc(toSimplifiedJSON)
-            .setFromSimplifiedJSONFunc(fromSimplifiedJSON)
-            .setToStringFunc(toString);
+            .setToJSONFunc(attr_std_vec_mv::toJSON)
+            .setFromJSONFunc(attr_std_vec_mv::fromJSON)
+            .setToSimplifiedJSONFunc(attr_std_vec_mv::toSimplifiedJSON)
+            .setFromSimplifiedJSONFunc(attr_std_vec_mv::fromSimplifiedJSON)
+            .setToStringFunc(attr_std_vec_mv::toString);
+
 
     }
 

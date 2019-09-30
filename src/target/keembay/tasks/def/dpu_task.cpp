@@ -4,7 +4,7 @@
 namespace mv
 {
 
-    namespace op
+    namespace op_dpu
     {
 
         static std::function<std::pair<bool, std::size_t>(const std::vector<Data::TensorIterator>&,
@@ -30,13 +30,16 @@ namespace mv
             mv::op::OpRegistry::getOutputsDef(opIt, inputs, args, outputs);
         };
 
+    }
+
+    namespace op {
         MV_REGISTER_OP(DPUTask)
         .setInputs({"inputs"})
         .setOutputs({"output"})
         .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
-        .setInputCheck(inputCheckFcn)
+        .setInputCheck(op_dpu::inputCheckFcn)
         .setInputCheck(false)
-        .setOutputDef(outputDefFcn)
+        .setOutputDef(op_dpu::outputDefFcn)
         .setTypeTrait({"executable"})
         .setVariableInputNum(true)
         .setBaseOperation({"Conv", "MaxPool", "DepthwiseConv", "Add", "Subtract", "Multiply"})

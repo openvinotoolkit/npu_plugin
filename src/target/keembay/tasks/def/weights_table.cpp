@@ -3,7 +3,7 @@
 namespace mv
 {
 
-    namespace op
+    namespace op_weights_table
     {
 
         static std::function<std::pair<bool, std::size_t>(const std::vector<Data::TensorIterator>&,
@@ -33,6 +33,9 @@ namespace mv
         };
 
 
+    }
+
+    namespace op {
         MV_REGISTER_OP(WeightsTable)
         .setOutputs({"output"})
         .setArg<std::vector<int64_t>>("data")
@@ -40,8 +43,8 @@ namespace mv
         .setArg<mv::DType>("dType")
         .setArg<mv::Order>("order")
         .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{},{},{}))
-        .setInputCheck(inputCheckFcn)
-        .setOutputDef(outputIntDefFcn);
+        .setInputCheck(op_weights_table::inputCheckFcn)
+        .setOutputDef(op_weights_table::outputIntDefFcn);
     }
 
 }

@@ -3,7 +3,7 @@
 namespace mv
 {
 
-    namespace op
+    namespace op_sparsity_map
     {
 
         static std::function<std::pair<bool, std::size_t>(const std::vector<Data::TensorIterator>&,
@@ -32,7 +32,9 @@ namespace mv
             }
         };
 
+    }
 
+    namespace op {
         MV_REGISTER_OP(SparsityMap)
         .setOutputs({"output"})
         .setArg<std::vector<int64_t>>("data")
@@ -40,8 +42,8 @@ namespace mv
         .setArg<mv::DType>("dType")
         .setArg<mv::Order>("order")
         .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
-        .setInputCheck(inputCheckFcn)
-        .setOutputDef(outputIntDefFcn);
+        .setInputCheck(op_sparsity_map::inputCheckFcn)
+        .setOutputDef(op_sparsity_map::outputIntDefFcn);
     }
 
 }

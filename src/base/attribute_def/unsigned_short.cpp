@@ -5,7 +5,7 @@
 namespace mv
 {
 
-    namespace attr
+    namespace attr_unsigned_short
     {
 
         static mv::json::Value toJSON(const Attribute& a)
@@ -37,11 +37,15 @@ namespace mv
             return std::vector<uint8_t>(std::begin(tmp.bytes), std::end(tmp.bytes));
         }
 
+    }
+
+    namespace attr {
         MV_REGISTER_ATTR(unsigned short)
-            .setToJSONFunc(toJSON)
-            .setFromJSONFunc(fromJSON)
-            .setToStringFunc(toString)
-            .setToBinaryFunc(toBinary);
+            .setToJSONFunc(attr_unsigned_short::toJSON)
+            .setFromJSONFunc(attr_unsigned_short::fromJSON)
+            .setToStringFunc(attr_unsigned_short::toString)
+            .setToBinaryFunc(attr_unsigned_short::toBinary);
+
 
     }
 

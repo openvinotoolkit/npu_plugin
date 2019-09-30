@@ -3,7 +3,7 @@
 namespace mv
 {
 
-    namespace op
+    namespace op_placeholder
     {
 
         static std::function<std::pair<bool, std::size_t>(const std::vector<Data::TensorIterator>&,
@@ -26,15 +26,17 @@ namespace mv
 
         };
 
+    }
+
+    namespace op {
         MV_REGISTER_OP(PlaceholderTask)
         .setOutputs({"output"})
         .setArg<mv::Shape>("shape")
         .setArg<mv::DType>("dType")
         .setArg<mv::Order>("order")
-        .setInputCheck(inputCheckFcn)
-        .setOutputDef(outputDefFcn)
+        .setInputCheck(op_placeholder::inputCheckFcn)
+        .setOutputDef(op_placeholder::outputDefFcn)
         .setTypeTrait({"executable"});
-
     }
 
 }
