@@ -46,6 +46,14 @@ void setDpuTasksMemoryLocationFcn(const mv::pass::PassEntry& , mv::ComputationMo
 
                 if(outputMemoryLocation != mv::Tensor::MemoryLocation::CMX)
                 {
+                    auto sink = opIt.leftmostOutput().sink();
+                    std::string opTypeAfter = sink->getOpType();
+
+                    auto opItBackup = opIt;
+                    if (opTypeAfter == "Crop")
+                    {
+                        opIt = sink;
+                    }
                     auto output = opIt->getOutputTensor(0);
                     auto outputDataFlows = mv::getOutputDataFlow(om, opIt, false);
 
@@ -57,6 +65,8 @@ void setDpuTasksMemoryLocationFcn(const mv::pass::PassEntry& , mv::ComputationMo
                         om.undefineFlow(flow);
 
                     output->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::CMX);
+                    if (opTypeAfter == "Crop")
+                        opItBackup->getOutputTensor(0)->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::CMX);
 
                     mv::QuantizationParams outputQuantParams = {{},{},{},{}};
                     if (output->hasAttr("quantParams"))
@@ -69,6 +79,8 @@ void setDpuTasksMemoryLocationFcn(const mv::pass::PassEntry& , mv::ComputationMo
 
                     setOutputDataFlow(om, dpuCopyOut, outputDataFlows);
                     dpuCopyOut->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
+
+                    opIt = opItBackup;
                 }
 
                 size_t numInputs = 1;
