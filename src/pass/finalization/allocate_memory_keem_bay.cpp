@@ -122,9 +122,6 @@ void allocateGraphfileTensorsKeemBayLegacyFcn(const mv::pass::PassEntry& pass, m
             {
                 auto sparsityMap = tIt->getSparsityMap();
                 auto sparsityMapIterator = dm.getTensor(sparsityMap->getName());
-
-                // Main tensor is always allocated to GraphFile
-                // Subtensors are not
                 dm.allocateTensor("GraphFile", stageIt, sparsityMapIterator);
                 sparsityMap->set<unsigned>("graphFileIndex", i++);
 
@@ -133,6 +130,8 @@ void allocateGraphfileTensorsKeemBayLegacyFcn(const mv::pass::PassEntry& pass, m
                     for(std::size_t j = 0; j < numClusters; ++j)
                         tIt->getSubTensor(j).set<unsigned>("graphFileIndex", i++);
                 }
+                else
+                    tIt->set<unsigned>("graphFileIndex", i++);
             }
             else
                 tIt->set<unsigned>("graphFileIndex", i++);
