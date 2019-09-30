@@ -66,13 +66,20 @@ namespace mv
             "This pass is intended for debug use only"
         );
 
+        MV_REGISTER_PASS(ReorderDmasInSchedule)
+        .setFunc(reorderDmasInScheduleFcn)
+        .setDescription(
+            "This pass reorders DMAs emanating from a given barrier task so that a DMA task consumed earlier will \
+            get a lower scheduling number"
+        );
+
     }
 }
 
 // ASSUMPTION: DMA for weights, weights table, sparsity map and input are swappable in terms of scheduling without causing the model to hang on barriers
 // This basically means that they have the same barrier dependencies
 // ASSUMPTION 2: The correct dma order is: Weights - Sparsity Map (if present) - Weights Table - Input data (if present)
-void correctExecutionScheduleFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element& passArg, mv::Element &)
+void correctExecutionScheduleFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passArg, mv::Element &)
 {
     mv::ControlModel cm(model);
     mv::OpModel om(model);
@@ -174,7 +181,7 @@ void correctExecutionScheduleFcn(const mv::pass::PassEntry& pass, mv::Computatio
 
 }
 
-void hackExecutionScheduleFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element&, mv::Element &)
+void hackExecutionScheduleFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element &)
 {
 
     auto globalParams = model.getGlobalConfigParams();
