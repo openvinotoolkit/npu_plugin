@@ -12,6 +12,8 @@ static void alignPopulatedTensors(const mv::pass::PassEntry& pass, mv::Computati
 static void alignWeightsTensor(mv::OpModel& om, const mv::Data::TensorIterator &weightsTensor, mv::Shape alignedShape);
 static void alignBiasTensor(mv::Data::OpListIterator &opIt, const mv::Data::TensorIterator biasTensor, unsigned biasTensorSizePadded, mv::DataModel dm);
 static void addAlignOpForInputTensors(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+static void removeCropAlignInCMX(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+
 static void addCropNode(mv::OpModel& om, mv::Data::OpListIterator& opIt, mv::Data::TensorIterator& outputTensor, std::size_t& outputTensorChannels);
 namespace mv
 {
@@ -24,11 +26,14 @@ namespace mv
             .setFunc(alignPopulatedTensors)
             .setDescription(
                 "Aligns I/O channels involved in DPUTask to 16");
-
         MV_REGISTER_PASS(AddAlignOpForInputTensors)
             .setFunc(addAlignOpForInputTensors)
             .setDescription(
                 "Add implicit Align Op for input tensors where needed");
+        MV_REGISTER_PASS(RemoveCropAlignInCMX)
+            .setFunc(removeCropAlignInCMX)
+            .setDescription(
+                "Remove Redundant Crop-Align when they are both in CMX");
     }
 }
 
@@ -108,6 +113,80 @@ void addCropNode(mv::OpModel& om, mv::Data::OpListIterator& opIt, mv::Data::Tens
     {
         opsToLink[op]->setInputTensor(croppedTensor, inputSlots[op], false);
         om.defineFlow(croppedTensor, opsToLink[op], inputSlots[op]);
+    }
+}
+
+mv::Data::OpListIterator fuseCropAlign(mv::Data::OpListIterator parentOpIt, mv::Data::TensorIterator sourceTensor, mv::OpModel om, mv::Data::OpListIterator opIt)
+{
+    //Important: do not change the order of this ops
+    std::vector<mv::Data::OpListIterator> opsToLink;
+    std::vector<std::size_t> inputSlots;
+    for (mv::Data::FlowSiblingIterator sinkFlow(opIt.leftmostOutput()); sinkFlow != om.flowEnd(); ++sinkFlow)
+    {
+        opsToLink.push_back(sinkFlow.sink());
+        inputSlots.push_back(sinkFlow->get<std::size_t>("sinkInput"));
+    }
+
+    while(opIt.parentsSize() > 1)
+    {
+        auto paramOp = opIt.leftmostParent();
+        ++paramOp;
+        om.removeOp(paramOp);
+    }
+
+    om.removeOp(opIt);
+    opIt = parentOpIt;
+
+    for (unsigned j = 0; j < opsToLink.size(); ++j)
+    {
+        opsToLink[j]->setInputTensor(sourceTensor, inputSlots[j], false);
+        om.defineFlow(sourceTensor, opsToLink[j], inputSlots[j]);
+    }
+
+    return opIt;
+}
+
+void removeCropAlignInCMX(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+{
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
+    mv::OpModel om(model);
+    mv::DataModel dm(model);
+
+    auto globalConfigParams = model.getGlobalConfigParams();
+    auto cropOps = om.getOps("Crop");
+
+    for(auto vecIt = cropOps.begin(); vecIt != cropOps.end(); ++vecIt)
+    {
+        auto layer = *vecIt;
+        // /if (layer->getOpType() == "Crop")
+        {
+            auto outputTensor = layer->getOutputTensor(0);
+            auto outputLocation = outputTensor->get<mv::Tensor::MemoryLocation>("Location");
+            auto flows = outputTensor->get<std::set<std::string>>("flows");
+            auto removeCrop = true;
+            auto inputTensor = layer->getInputTensor(0);
+            auto parentOpIt = om.getSourceOp(inputTensor);
+            std::cout << " checking crop Op " << layer->getName() << std::endl;
+            for(auto& flowStr: flows)
+            {
+                auto flow = om.getDataFlow(flowStr);
+                auto sink = flow.sink();
+
+                std::string opType = sink->getOpType();
+                if (opType == "Align" &&
+                    sink->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location") == outputLocation)
+                {
+                    fuseCropAlign(parentOpIt, parentOpIt->getOutputTensor(0), om, sink);
+                }
+                else
+                {
+                    //at least one flow doesnt go to Align, we have to keep the crop
+                    removeCrop = false;
+                }
+            }
+            if (removeCrop)
+               om.removeOp(layer);
+        }
     }
 }
 

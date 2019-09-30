@@ -192,6 +192,7 @@
                 "name": "ConvertDot",
                 "input": "output/dots/align_to_16.dot"
             },
+            "RemoveCropAlignInCMX",
             "AlignTaskWeights",
             "GenerateSparsityMapsPopulatedTensors",
             "GenerateWeightsTables",
