@@ -311,9 +311,6 @@ std::shared_ptr<mv::Tensor> mv::Tensor::getStorageElement() const
     if (!isSparse())
         throw ArgumentError(*this, "currentTensor", "storageElement" , " tensor not sparse, cannot get storage element");
 
-    if (!isPopulated())
-        throw ArgumentError(*this, "currentTensor", "storageElement" , " tensor sparse but not populated, cannot get storage element");
-
     return storageElement_;
 }
 
