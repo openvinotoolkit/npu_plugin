@@ -363,7 +363,7 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     {
         // This part is for concat
         if(t->hasAttr("address"))
-            toBuild->data->data_index = t->getAddress();
+            toBuild->data->data_index = subtensor.getAddress();
         else
             toBuild->data->data_index = tensorBufferIt->getOffset();
 

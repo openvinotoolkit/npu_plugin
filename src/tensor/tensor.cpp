@@ -438,10 +438,6 @@ bool mv::Tensor::setSparse()
 
     set<bool>("sparse", true);
 
-    // we will create tensors here, and set them as attributes, in runtime_modle, need to check if
-    // sparse then get the specific attributes by name and call toBinary
-    // this will avoid duplicate of tensors, but it will not allow iterator to go over them.
-
     auto shape = getShape();
     size_t N = shape[shape.ndims()-1];
 
