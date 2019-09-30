@@ -16,6 +16,7 @@ static void storeBarriersNamesInTasksFcn(const mv::pass::PassEntry&, mv::Computa
 static void updateCountsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void hackExecutionScheduleFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element&, mv::Element&);
 static void correctExecutionScheduleFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element&, mv::Element&);
+static void reorderDmasInScheduleFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element&, mv::Element&);
 
 namespace mv
 {
@@ -569,5 +570,61 @@ void updateCountsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv
                 barrier.setNumConsumers(count);
             }
         }
+    }
+}
+
+void reorderDmasInScheduleFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+{
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
+    mv::ControlModel cm(model);
+
+    std::vector<mv::Control::OpListIterator> dmaSrcTasks;
+    for (auto op = cm.opBegin(); op != cm.opEnd(); ++op)
+    {
+        if (op->getOpType() == "Input" || op->getOpType() == "BarrierTask")
+            dmaSrcTasks.push_back(op);
+    }
+
+    std::sort(dmaSrcTasks.begin(), dmaSrcTasks.end(), [](mv::Control::OpListIterator b1, mv::Control::OpListIterator b2)
+    {
+        return b1->get<unsigned>("layerNumber") < b2->get<unsigned>("layerNumber");
+    });
+
+    for (auto task : dmaSrcTasks)
+    {
+        // create an ordered map frm barrier layerNumber -> associated DMA.
+        std::map<unsigned, std::vector<mv::Control::OpListIterator>> downstreamBarriers;
+        unsigned minSchedulingNumber = INT_MAX;
+        for (auto child = task.leftmostChild(); child != cm.opEnd(); ++child)
+        {
+            if (child->getOpType() == "DMATask" && child->get<mv::DmaDirection>("direction") == mv::DDR2CMX)
+            {
+                auto schedNum = child->get<unsigned>("schedulingNumber");
+                if (schedNum < minSchedulingNumber)
+                    minSchedulingNumber = schedNum;
+                for (auto outgoingOp = child.leftmostChild(); outgoingOp != cm.opEnd(); ++outgoingOp)
+                {
+                    if (outgoingOp->getOpType() == "BarrierTask")
+                    {
+                        downstreamBarriers[outgoingOp->get<unsigned>("layerNumber")].push_back(child);
+                    }
+                }
+            }
+        }
+
+        if (downstreamBarriers.empty())
+            continue;
+
+        for (auto it = downstreamBarriers.begin(); it != downstreamBarriers.end(); ++it)
+        {
+            auto dmaOps = it->second;
+
+            for (auto dma: dmaOps)
+            {
+                dma->set<unsigned>("schedulingNumber", minSchedulingNumber);
+                minSchedulingNumber++;
+            }
+        }
+
     }
 }
