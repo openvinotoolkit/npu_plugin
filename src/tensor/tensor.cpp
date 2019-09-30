@@ -1160,8 +1160,8 @@ void mv::Tensor::splitAcrossClusters(std::vector<mv::Workload> workloads, bool s
                 static_cast<size_t>(wlItr->MinX), static_cast<size_t>(wlItr->MinY)};
             subTensors_[idx]->set<std::vector<std::size_t>>("offset", offset);
 
-            if (hasAttr("quantizationParams"))
-                subTensors_[idx]->set<mv::QuantizationParams>("quantizationParams", get<mv::QuantizationParams>("quantizationParams"));
+            if (hasAttr("quantParams"))
+                subTensors_[idx]->set<mv::QuantizationParams>("quantParams", get<mv::QuantizationParams>("quantParams"));
             if (isSparse())
                 subTensors_[idx]->setSparse();
         }
