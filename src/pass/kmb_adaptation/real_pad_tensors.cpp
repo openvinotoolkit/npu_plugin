@@ -10,6 +10,7 @@
 static void alignUnpopulatedTensors(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void alignPopulatedTensors(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void alignWeightsTensor(mv::OpModel& om, const mv::Data::TensorIterator &weightsTensor, mv::Shape alignedShape);
+static void cropFinalOutput(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void alignBiasTensor(mv::Data::OpListIterator &opIt, const mv::Data::TensorIterator biasTensor, unsigned biasTensorSizePadded, mv::DataModel dm);
 static void addAlignOpForInputTensors(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void removeCropAlignInCMX(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
@@ -34,6 +35,10 @@ namespace mv
             .setFunc(removeCropAlignInCMX)
             .setDescription(
                 "Remove Redundant Crop-Align when they are both in CMX");
+        MV_REGISTER_PASS(CropFinalOutput)
+            .setFunc(cropFinalOutput)
+            .setDescription(
+                "Add implicit Crop Op for final Op unless padOutput is on");
     }
 }
 
@@ -114,6 +119,29 @@ void addCropNode(mv::OpModel& om, mv::Data::OpListIterator& opIt, mv::Data::Tens
         opsToLink[op]->setInputTensor(croppedTensor, inputSlots[op], false);
         om.defineFlow(croppedTensor, opsToLink[op], inputSlots[op]);
     }
+}
+
+void cropFinalOutput(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+{
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
+    mv::OpModel om(model);
+    mv::DataModel dm(model);
+
+    auto globalConfigParams = model.getGlobalConfigParams();
+
+    auto padOutput = globalConfigParams->hasAttr("PadOutput") ? globalConfigParams->get<bool>("PadOutput") : false;
+    if (padOutput)
+        return;
+
+    auto outputOp = om.getOutput();
+    auto inputTensor = outputOp->getInputTensor(0);
+     auto parentOpIt = om.getSourceOp(inputTensor);
+    if (parentOpIt->hasAttr("alignment") && parentOpIt->getOpType() != "Crop")
+    {
+        auto oldDimensions = inputTensor->get<mv::Shape>("oldDimensions");
+        addCropNode(om, parentOpIt, inputTensor, oldDimensions[mv::IO_CHANNEL_DIMENSION]);
+    }
+
 }
 
 mv::Data::OpListIterator fuseCropAlign(mv::Data::OpListIterator parentOpIt, mv::Data::TensorIterator sourceTensor, mv::OpModel om, mv::Data::OpListIterator opIt)
