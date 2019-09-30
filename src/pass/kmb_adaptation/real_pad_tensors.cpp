@@ -186,35 +186,33 @@ void removeCropAlignInCMX(const mv::pass::PassEntry& , mv::ComputationModel& mod
     for(auto vecIt = cropOps.begin(); vecIt != cropOps.end(); ++vecIt)
     {
         auto layer = *vecIt;
-        // /if (layer->getOpType() == "Crop")
-        {
-            auto outputTensor = layer->getOutputTensor(0);
-            auto outputLocation = outputTensor->get<mv::Tensor::MemoryLocation>("Location");
-            auto flows = outputTensor->get<std::set<std::string>>("flows");
-            auto removeCrop = true;
-            auto inputTensor = layer->getInputTensor(0);
-            auto parentOpIt = om.getSourceOp(inputTensor);
-            std::cout << " checking crop Op " << layer->getName() << std::endl;
-            for(auto& flowStr: flows)
-            {
-                auto flow = om.getDataFlow(flowStr);
-                auto sink = flow.sink();
 
-                std::string opType = sink->getOpType();
-                if (opType == "Align" &&
-                    sink->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location") == outputLocation)
-                {
-                    fuseCropAlign(parentOpIt, parentOpIt->getOutputTensor(0), om, sink);
-                }
-                else
-                {
-                    //at least one flow doesnt go to Align, we have to keep the crop
-                    removeCrop = false;
-                }
+        auto outputTensor = layer->getOutputTensor(0);
+        auto outputLocation = outputTensor->get<mv::Tensor::MemoryLocation>("Location");
+        auto flows = outputTensor->get<std::set<std::string>>("flows");
+        auto removeCrop = true;
+        auto inputTensor = layer->getInputTensor(0);
+        auto parentOpIt = om.getSourceOp(inputTensor);
+        for(auto& flowStr: flows)
+        {
+            auto flow = om.getDataFlow(flowStr);
+            auto sink = flow.sink();
+
+            std::string opType = sink->getOpType();
+            if (opType == "Align" &&
+                sink->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location") == outputLocation)
+            {
+                fuseCropAlign(parentOpIt, parentOpIt->getOutputTensor(0), om, sink);
             }
-            if (removeCrop)
-               om.removeOp(layer);
+            else
+            {
+                //at least one flow doesnt go to Align, we have to keep the crop
+                removeCrop = false;
+            }
         }
+        if (removeCrop)
+            om.removeOp(layer);
+
     }
 }
 
