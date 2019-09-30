@@ -26,6 +26,7 @@
 #include "GraphManagerPlg.h"
 #include "PlgTensorSource.h"
 #include "PlgStreamResult.h"
+#include "XPool.h"
 
 #include "vpusmm.h"
 
@@ -43,7 +44,7 @@ using namespace testing;
 using kmbVPUALHostIntegrationTests = ::testing::Test;
 
 const uint32_t POOL_SIZE = 30 * 1024 * 1024;
-const uint32_t XLINK_INPUT_CHANNEL = 3, XLINK_OUTPUT_CHANNEL = 4;
+const uint32_t XLINK_INPUT_CHANNEL = 3, XLINK_OUTPUT_CHANNEL = 4, XPOOL_CHANNEL = 5;
 
 static uint32_t roundUp(uint32_t x, uint32_t a) {
     return ((x + a - 1) / a) * a;
@@ -376,6 +377,208 @@ TEST_P(kmbVPUALAllocTests, sendBlobToLeonViaDifferentAllocators) {
     pipe.Stop();
     pipe.Delete();
     RgnAlloc.Delete();
+}
+
+static std::map< DevicePtr, std::shared_ptr<VpusmmAllocator> > bufferMap;
+
+static DevicePtr allocateTensor(uint32_t size) {
+    std::shared_ptr<VpusmmAllocator> allocator = std::make_shared<VpusmmAllocator>(size);
+    DevicePtr physAddress = allocator->getPhysicalAddress();
+    bufferMap[physAddress] = allocator;
+    return physAddress;
+}
+
+static void freeTensor(DevicePtr paddr) {
+    std::map< DevicePtr, std::shared_ptr<VpusmmAllocator> >::iterator bufferMapIter = bufferMap.find(paddr);
+    assert(bufferMapIter != bufferMap.end());
+    bufferMap.erase(bufferMapIter);
+}
+
+template<>
+XPool<TensorMsg>::XPool()
+  : PluginStub("XPoolTensorMsg") {
+    std::cout << "XPool constructor is called" << std::endl;
+}
+
+std::vector<size_t> yieldTopClasses(const std::vector<uint8_t> & unsortedRawData, size_t maxClasses) {
+    // map key is a byte from raw data (quantized probability)
+    // map value is the index of that byte (class id)
+    std::multimap<uint8_t, size_t> sortedClassMap;
+    for (size_t classIndex = 0; classIndex < unsortedRawData.size(); classIndex++) {
+        uint8_t classProbability = unsortedRawData.at(classIndex);
+        std::pair<uint8_t, size_t> mapItem(classProbability, classIndex);
+        sortedClassMap.insert(mapItem);
+    }
+
+    std::vector<size_t> topClasses;
+    for (size_t classCounter = 0; classCounter < maxClasses; classCounter++) {
+        std::multimap<uint8_t, size_t>::reverse_iterator classIter = sortedClassMap.rbegin();
+        std::advance(classIter, classCounter);
+        topClasses.push_back(classIter->second);
+        std::cout << "index: " << classIter->second << " value: " << (int) classIter->first << std::endl;
+    }
+
+    return topClasses;
+}
+
+TEST_P(kmbVPUALAllocTests, xPoolTest) {
+    memoryAllocatorType allocatorType = GetParam();
+    const int nThreads = 1, nShaves = 16;
+
+#if (!defined INTEGRATION_TESTS_ENABLE_IE && defined INTEGRATION_TESTS_BLOB_FILE)
+    std::string blobFilePath = INTEGRATION_TESTS_BLOB_FILE;
+#else
+    std::string blobFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet/mobilenet.blob";
+#endif
+    std::string blobRawData = readFromFile(blobFilePath);
+    ASSERT_NE(blobRawData, "");
+
+#if (!defined INTEGRATION_TESTS_ENABLE_IE && defined INTEGRATION_TESTS_INPUT_FILE)
+    std::string inputTensorFilePath = INTEGRATION_TESTS_INPUT_FILE;
+#else
+    std::string inputTensorFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet/input.dat";
+#endif
+    std::string inputTensorRawData = readFromFile(inputTensorFilePath);
+    ASSERT_NE(inputTensorRawData, "");
+
+    const uint32_t blobSize = blobRawData.size();
+    BlobHandle_t BHandle = {
+        1,              // ID of graph
+        0x00000000,     // P-address of graph (will be filled in shortly).
+        blobSize,      // Length of graph
+        0,              // Ref count of graph
+    };
+
+    // ########################################################################
+    // Try and get some CMA allocations.
+    // ########################################################################
+    std::shared_ptr<IMemoryAllocator> blob_file(nullptr);
+    ASSERT_NO_THROW(blob_file = buildMemoryAllocator(allocatorType, blobSize));
+
+    unsigned long blobPhysAddr = blob_file->getPhysicalAddress();
+    void * blobFileData = blob_file->getVirtualAddress();
+
+    const uint32_t tensorInSize = inputTensorRawData.size();
+    std::shared_ptr<IMemoryAllocator> input_tensor(nullptr);
+    ASSERT_NO_THROW(input_tensor = buildMemoryAllocator(allocatorType, tensorInSize));
+
+    unsigned long tensorInPhysAddr = input_tensor->getPhysicalAddress();
+    void * inputTensorData = input_tensor->getVirtualAddress();
+
+    // Looks weird but the same thing is done in the SimpleNN sample
+    // TODO: rename to outputPoolBufferSize
+    const uint32_t tensorOutSize = POOL_SIZE;
+    std::shared_ptr<IMemoryAllocator> output_tensor(nullptr);
+    ASSERT_NO_THROW(output_tensor = buildMemoryAllocator(allocatorType, tensorOutSize));
+
+    unsigned long tensorOutPhysAddr = output_tensor->getPhysicalAddress();
+    void * outputTensorData = output_tensor->getVirtualAddress();
+
+    // ########################################################################
+    // Load the input files
+    // ########################################################################
+
+    // Load the blob file:
+    std::memcpy(blobFileData, blobRawData.c_str(), blobSize);
+
+    // Point Blob Handle to the newly loaded graph file.
+    BHandle.graphBuff = blobPhysAddr; // Only lower 32-bits
+
+    // Load the input tensor
+    std::memcpy(inputTensorData, inputTensorRawData.c_str(), tensorInSize);
+
+    // ########################################################################
+    // Create and use the FLIC Pipeline.
+    // ########################################################################
+
+    GraphManagerPlg gg;
+    gg.Create();
+
+    GraphStatus status = gg.NNGraphCheckAvailable(BHandle.graphid);
+    ASSERT_TRUE(status == Success || status == No_GraphId_Found);
+    if (Success == status) {
+        status = gg.NNGraphAllocateExistingBlob(&BHandle);
+    } else if (No_GraphId_Found == status) {
+        status = gg.NNGraphAllocate(&BHandle);
+    }
+
+    // Plugins:
+    PlgTensorSource plgTensorInput;
+    PlgStreamResult plgTensorOutput;
+    NNFlicPlg nnPl;
+
+    // Pool plugins (to allocate memory for the plugins which require some):
+    XPool<TensorMsg> xPool;
+
+    // FLIC Pipeline:
+    Pipeline pipe;
+
+    //Setting number of threads for NNPlugin
+    nnPl.SetNumberOfThreads(nThreads);
+    nnPl.SetNumberOfShaves(nShaves);
+
+    nnPl.Create(&BHandle);
+
+    NNPlgState state = nnPl.GetLatestState();
+    ASSERT_EQ(state, SUCCESS);
+
+    flicTensorDescriptor_t descOut = nnPl.GetOutputTensorDescriptor(0);
+    std::cout << "Parsed output descriptor: (" << descOut.n << ", " << descOut.c << ", "
+              << descOut.h << "," << descOut.w << ")\n";
+
+    flicTensorDescriptor_t  descIn = nnPl.GetInputTensorDescriptor(0);
+    std::cout << "Parsed input descriptor: (" << descIn.n << ", " << descIn.c << ", "
+              << descIn.h << "," << descIn.w << ")\n";
+
+    const unsigned int shavel2CacheLineSize = 64;
+    const unsigned int outputTensorSize = roundUp(descOut.totalSize, shavel2CacheLineSize);
+
+    xPool.Create(2, POOL_SIZE, XPOOL_CHANNEL, allocateTensor, freeTensor);
+    std::cout << "Created xPool\n";
+
+    plgTensorInput.Create(descIn.totalSize, XLINK_INPUT_CHANNEL, descIn);
+    std::cout << "Created plgTensorInput\n";
+
+    plgTensorOutput.Create(outputTensorSize, XLINK_OUTPUT_CHANNEL, descOut);
+    std::cout << "Created plgTensorOutput\n";
+
+    // Add the plugins to the pipeline:
+    pipe.Add(&xPool);
+    pipe.Add(&plgTensorInput);
+    pipe.Add(&plgTensorOutput);
+    pipe.Add(&nnPl);
+    // Link the plugins' messages:
+    xPool.out.Link(&nnPl.resultInput);
+    plgTensorInput.tensorOut.Link(&nnPl.tensorInput);
+    nnPl.output.Link(&plgTensorOutput.dataIn);
+
+    pipe.Start();
+    std::cout << "Started pipeline\n";
+
+    plgTensorInput.Push(tensorInPhysAddr, tensorInSize);
+    std::cout << "Pushed input\n";
+
+    uint32_t len = 0;
+    uint32_t pAddr = 0;
+    plgTensorOutput.Pull(&pAddr, &len);
+    std::cout << "Pulled output with length " << len << std::endl;
+    // Convert the physical address we received back to a virtual address we can use.
+    uint32_t offset = pAddr - tensorOutPhysAddr;
+    uint8_t *data = static_cast<uint8_t *>(outputTensorData) + offset;
+    ASSERT_NE(data, nullptr);
+
+    std::vector<uint8_t> unsortedRawData(data, data + len);
+
+    const int MAX_TOP_CLASSES = 5;
+    std::vector<size_t> topClasses = yieldTopClasses(unsortedRawData, MAX_TOP_CLASSES);
+    std::cout << "Top " << MAX_TOP_CLASSES << " classification results: ";
+    for(auto && x : topClasses) {
+        std::cout << x << " ";
+    }
+    std::cout << std::endl;
+
+    pipe.Stop();
+    pipe.Delete();
 }
 
 const static std::vector<memoryAllocatorType> allocatorTypes = {
