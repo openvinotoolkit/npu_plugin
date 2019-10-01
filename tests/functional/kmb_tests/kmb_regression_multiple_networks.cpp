@@ -87,13 +87,6 @@ TEST_P(KmbRegressionMultipleNetworks, canRunInferTwoNetworksSeveralIteration) {
 
     std::cout << "Created inference requests\n";
 
-    auto getReferenceBlob = [](const TensorDesc &outputTensorDesc, const std::string &filename) -> Blob::Ptr {
-        Blob::Ptr blob = make_blob_with_precision(outputTensorDesc);
-        blob->allocate();
-        vpu::KmbPlugin::utils::fromBinaryFile(filename, blob);
-        return blob;
-    };
-
     ASSERT_EQ(1, network1.GetOutputsInfo().size());
     ASSERT_EQ(1, network2.GetOutputsInfo().size());
     std::cout << "Output info is OK\n";
@@ -115,7 +108,7 @@ TEST_P(KmbRegressionMultipleNetworks, canRunInferTwoNetworksSeveralIteration) {
                 [&] {
                     curIterationNetwork1++;
                     std::cout << "Completed " << curIterationNetwork1 << " async request execution for network1\n";
-                    if (curIterationNetwork1 < iterationCount) {
+                    if (curIterationNetwork1 < static_cast<size_t>(iterationCount)) {
                         Blob::Ptr outputBlob;
                         std::string output1Name = network1.GetOutputsInfo().begin()->first;
                         ASSERT_NO_THROW(outputBlob = network1InferReqPtr->GetBlob(output1Name));
@@ -128,7 +121,7 @@ TEST_P(KmbRegressionMultipleNetworks, canRunInferTwoNetworksSeveralIteration) {
                 [&] {
                     curIterationNet2++;
                     std::cout << "Completed " << curIterationNet2 << " async request execution for network1\n";
-                    if (curIterationNet2 < iterationCount) {
+                    if (curIterationNet2 < static_cast<size_t>(iterationCount)) {
                         Blob::Ptr outputBlob;
                         std::string output2Name = network2.GetOutputsInfo().begin()->first;
                         ASSERT_NO_THROW(outputBlob = network2InferReqPtr->GetBlob(output2Name));
@@ -145,7 +138,7 @@ TEST_P(KmbRegressionMultipleNetworks, canRunInferTwoNetworksSeveralIteration) {
 
         std::mutex mutex;
         std::unique_lock<std::mutex> lock(mutex);
-        condVar.wait(lock, [&]{ return curIterationNetwork1 == iterationCount && curIterationNet2 == iterationCount; });
+        condVar.wait(lock, [&]{ return curIterationNetwork1 == static_cast<size_t>(iterationCount) && curIterationNet2 == static_cast<size_t>(iterationCount); });
     }
 }
 

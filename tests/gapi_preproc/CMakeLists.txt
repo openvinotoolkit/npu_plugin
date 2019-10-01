@@ -22,7 +22,11 @@ target_link_libraries(${TARGET} PRIVATE ${OpenCV_LIBS}
                                         kmbPlugin_test_static)
 
 if(${GAPI_TEST_PERF})
-  target_compile_definitions(${TARGET} PRIVATE -DPERF_TEST=1)
+    target_compile_options(${TARGET}
+            PRIVATE
+            -Wall
+            -Werror)
+    target_compile_definitions(${TARGET} PRIVATE -DPERF_TEST=1)
 else()
   target_compile_definitions(${TARGET} PRIVATE -DPERF_TEST=0)
 endif()

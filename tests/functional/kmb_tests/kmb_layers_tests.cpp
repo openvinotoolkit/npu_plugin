@@ -60,7 +60,6 @@ void kmbLayersTests_nightly::setup(InferenceEngine::Precision outputPrecision,
 
     std::map<std::string, std::string> config;
     setCommonConfig(config);
-    InferenceEngine::StatusCode st = InferenceEngine::StatusCode::GENERAL_ERROR;
     ASSERT_NO_THROW(ie.LoadNetwork(network, "kmb", config));
 
 }
@@ -98,7 +97,8 @@ void kmbLayersTests_nightly::doNetworkInit(const std::string& layer_type,
     genXML(layer_type, params, weights_size, biases_size, xml);
     ASSERT_NO_THROW(_net_reader.ReadNetwork(xml.data(), xml.length()));
     ASSERT_EQ(_net_reader.isParseSuccess(), true);
-    if (weights != nullptr)
+    if (weights != nullptr) {
         ASSERT_NO_THROW(_net_reader.SetWeights(weights));
+    }
     setup(outputPrecision, inputPrecision, true);
 }

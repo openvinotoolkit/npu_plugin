@@ -105,7 +105,6 @@ UdmaAllocator::UdmaAllocator(size_t requestedSize) {
     const std::string SYNC_MODE_STR = "3";
     int devFileDesc = -1;
     if ((devFileDesc  = open(udmabufclassname.c_str(), O_WRONLY)) != -1) {
-        size_t bytesWritten = write(devFileDesc, SYNC_MODE_STR.c_str(), SYNC_MODE_STR.size());
         close(devFileDesc);
     } else {
         throw std::runtime_error("UdmaAllocator::UdmaAllocator No Device: " + udmabufclassname);
@@ -118,7 +117,6 @@ UdmaAllocator::UdmaAllocator(size_t requestedSize) {
         const std::size_t maxRegionSizeLength = 1024;
         std::string regionSizeString(maxRegionSizeLength, 0x0);
 
-        size_t bytesRead = read(bufSizeFileDesc, &regionSizeString[0], maxRegionSizeLength);
         std::istringstream regionStringToInt(regionSizeString);
         regionStringToInt >> _size;
         close(bufSizeFileDesc);
@@ -132,7 +130,6 @@ UdmaAllocator::UdmaAllocator(size_t requestedSize) {
         const std::size_t maxPhysAddrLength = 1024;
         std::string physAddrString(maxPhysAddrLength, 0x0);
 
-        size_t bytesRead = read(physAddrFileDesc, &physAddrString[0], maxPhysAddrLength);
         std::istringstream physAddrToHex(physAddrString);
         physAddrToHex >> std::hex >> _phys_addr;
         close(physAddrFileDesc);

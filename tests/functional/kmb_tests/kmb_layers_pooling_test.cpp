@@ -180,8 +180,6 @@ TEST_F(kmbLayersTests_nightly, TestsPoolingOnly) {
     </net>
         )V0G0N";
 
-    StatusCode st;
-
     ASSERT_NO_THROW(_net_reader.ReadNetwork(model.data(), model.length()));
     ASSERT_TRUE(_net_reader.isParseSuccess());
 

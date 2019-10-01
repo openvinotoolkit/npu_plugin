@@ -800,14 +800,14 @@ template<typename Dtype>
 void GetMaxScoreIndex(const std::vector<Dtype>& scores, const float threshold,
                       const int top_k, std::vector<std::pair<Dtype, int> >* score_index_vec) {
     std::vector<int> indices(scores.size());
-    for (int i = 0; i < scores.size(); ++i) {
+    for (size_t i = 0; i < scores.size(); ++i) {
         indices[i] = i;
     }
 
     GetTopKScoreIndex(scores, indices, top_k, score_index_vec);
 
     // trim output values smaller or equal to the threshold, if exist
-    for (int i = 0; i < score_index_vec->size(); i++) {
+    for (size_t i = 0; i < score_index_vec->size(); i++) {
         Dtype score = (*score_index_vec)[i].first;
         if (score <= threshold) {
             score_index_vec->resize(i);
@@ -827,7 +827,7 @@ void ApplyNMS(const std::vector<NormalizedBBox>& bboxes, const std::vector<float
               std::map<int, std::map<int, float> >* overlaps, std::vector<int>* indices) {
     std::vector<int> idx;
 
-    for (int  i = 0; i < scores.size(); i++) {
+    for (size_t  i = 0; i < scores.size(); i++) {
         idx.push_back(i);
     }
 
@@ -852,7 +852,7 @@ void ApplyNMS(const std::vector<NormalizedBBox>& bboxes, const std::vector<float
         // Erase the best box.
         score_index_vec.erase(score_index_vec.begin());
 
-        if (top_k > -1 && indices->size() >= top_k) {
+        if (top_k > -1 && static_cast<int>(indices->size()) >= top_k) {
             // Stop if finding enough bboxes for nms.
             break;
         }
@@ -943,7 +943,7 @@ void ApplyNMSFast_impl(const ArrayOfBBox& bboxes,
         const int idx = score_index_vec.front().second;
         bool keep = true;
 
-        for (int k = 0; k < indices->size(); ++k) {
+        for (size_t k = 0; k < indices->size(); ++k) {
             if (keep) {
                 const int kept_idx = (*indices)[k];
                 float overlap = JaccardOverlap(bboxes[idx], bboxes[kept_idx]);
