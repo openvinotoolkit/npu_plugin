@@ -29,7 +29,7 @@ TEST_P(kmbLayersTestsBias_nightly, TestsBias)
 {
     auto dim = GetParam();
     std::size_t biasesSize = 1;
-    for (int32_t pos = 0; pos < dim.size(); ++pos) {
+    for (uint32_t pos = 0; pos < dim.size(); ++pos) {
         biasesSize *= dim[pos];
     }
 

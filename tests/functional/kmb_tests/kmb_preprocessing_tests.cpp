@@ -210,7 +210,6 @@ static void setPreprocForInputBlob(const std::string &inputName,
         }
         break;
     case PT_NV12:
-        const InferenceEngine::Layout inputLayout = inputTensor.getLayout();
         const InferenceEngine::SizeVector dims = inputTensor.getDims();
         const size_t expectedWidth = dims.at(2);
         const size_t expectedHeight = dims.at(3);
@@ -559,7 +558,7 @@ TEST_F(VpuPreprocessingTests, twoNetworksWithPreprocessing) {
             [&] {
                 curIterationNetwork1++;
                 std::cout << "Completed " << curIterationNetwork1 << " async request execution for network1\n";
-                if (curIterationNetwork1 < iterationCount) {
+                if (curIterationNetwork1 < static_cast<size_t>(iterationCount)) {
                     Blob::Ptr outputBlob;
                     std::string output1Name = network1.GetOutputsInfo().begin()->first;
                     ASSERT_NO_THROW(outputBlob = network1InferReqPtr->GetBlob(output1Name));
@@ -572,7 +571,7 @@ TEST_F(VpuPreprocessingTests, twoNetworksWithPreprocessing) {
             [&] {
                 curIterationNet2++;
                 std::cout << "Completed " << curIterationNet2 << " async request execution for network1\n";
-                if (curIterationNet2 < iterationCount) {
+                if (curIterationNet2 < static_cast<size_t>(iterationCount)) {
                     Blob::Ptr outputBlob;
                     std::string output2Name = network2.GetOutputsInfo().begin()->first;
                     ASSERT_NO_THROW(outputBlob = network2InferReqPtr->GetBlob(output2Name));
@@ -589,7 +588,7 @@ TEST_F(VpuPreprocessingTests, twoNetworksWithPreprocessing) {
 
     std::mutex mutex;
     std::unique_lock<std::mutex> lock(mutex);
-    condVar.wait(lock, [&]{ return curIterationNetwork1 == iterationCount && curIterationNet2 == iterationCount; });
+    condVar.wait(lock, [&]{ return curIterationNetwork1 == static_cast<size_t>(iterationCount) && curIterationNet2 == static_cast<size_t>(iterationCount); });
 }
 
 const static std::vector<preprocessingType> preprocTypes = {

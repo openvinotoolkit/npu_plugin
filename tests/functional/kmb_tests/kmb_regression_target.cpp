@@ -66,13 +66,27 @@ using Compile = bool;
 using Timeout = double;
 using CompilationTestParam = WithParamInterface<std::tuple<std::string, CompilationParameter, Compile, Timeout>>;
 
+std::string getTestCaseName(
+        TestParamInfo <CompilationTestParam::ParamType> param) {
+    return std::string("Main_") +
+           get<0>(param.param) +
+           std::string("_") + get<1>(param.param).name() +
+           ((get<2>(param.param)) ? std::string("_Compilation") : std::string("_Parsing"));
+}
+
 class VpuNoRegressionWithCompilation : public Regression::RegressionTests,
                                        public CompilationTestParam {
 public:
     using TestParam = WithParamInterface<std::tuple<std::string, CompilationParameter, Compile, Timeout>>;
 
+    // Constructor
+    VpuNoRegressionWithCompilation() {
+        // ARM toolchain treat this function as unused workaround to enable -Wall -Werror
+        SetUp();
+        getTestCaseName(TestParamInfo<CompilationTestParam::ParamType>({}, 0));
+    }
+
     // Operations
-    static std::string getTestCaseName(TestParamInfo <CompilationTestParam::ParamType> param);
     inline void loadNetworkWrapper(std::map<std::string, std::string> config, InferenceEngine::StatusCode* st = nullptr);
 
     // Accessors
@@ -88,14 +102,6 @@ protected:
     //Operations
     void SetUp() override;
 };
-
-std::string VpuNoRegressionWithCompilation::getTestCaseName(
-        TestParamInfo <CompilationTestParam::ParamType> param) {
-    return std::string("Main_") +
-           get<0>(param.param) +
-           std::string("_") + get<1>(param.param).name() +
-           ((get<2>(param.param)) ? std::string("_Compilation") : std::string("_Parsing"));
-}
 
 void VpuNoRegressionWithCompilation::SetUp() {
     pluginName = get<0>(TestParam::GetParam());
@@ -264,7 +270,7 @@ INSTANTIATE_TEST_CASE_P(
                 ValuesIn(compilation_parameters_kmb),
                 Values<Compile>(false),
                 Values<Timeout>(60.)),
-                KmbNoRegressionCompilationOnly::getTestCaseName);
+                getTestCaseName);
 
 INSTANTIATE_TEST_CASE_P(
         DISABLED_KmbCompilationTest_smoke_nightly,
@@ -274,7 +280,7 @@ INSTANTIATE_TEST_CASE_P(
                 ValuesIn(compilation_parameters_kmb),
                 Values<Compile>(true),
                 Values<Timeout>(600.)),
-                KmbNoRegressionCompilationOnly::getTestCaseName);
+                getTestCaseName);
 
 INSTANTIATE_TEST_CASE_P(
         DISABLED_KmbParsingUnsupportedOnlyTest_smoke_nightly,
@@ -283,7 +289,7 @@ INSTANTIATE_TEST_CASE_P(
                 ValuesIn(compilation_parameters_unsupported),
                 Values<Compile>(false),
                 Values<Timeout>(60.)),
-        KmbNoRegressionCompilationOnly::getTestCaseName);
+        getTestCaseName);
 
 INSTANTIATE_TEST_CASE_P(
         DISABLED_KmbCompilationParsingUnsupportedTest_smoke_nightly,
@@ -292,7 +298,7 @@ INSTANTIATE_TEST_CASE_P(
                 ValuesIn(compilation_parameters_unsupported),
                 Values<Compile>(true),
                 Values<Timeout>(600.)),
-        KmbNoRegressionCompilationOnly::getTestCaseName);
+        getTestCaseName);
 #endif
 
 #ifdef ENABLE_VPUAL
