@@ -778,7 +778,6 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
 {
     mv::DataModel dm(cm);
 
-    bool sourceIsBroadCasted = opIt->getInputTensor(0)->isBroadcasted();
     auto direction = opIt->get<mv::DmaDirection>("direction");
     auto globalConfigParams = cm.getGlobalConfigParams();
     unsigned numTasks = globalConfigParams->get<int>("Number_of_Clusters");
@@ -786,42 +785,27 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
 
     auto inputTensor = opIt->getInputTensor(0);
     auto outputTensor = opIt->getOutputTensor(0);
+    bool sourceIsBroadCasted = inputTensor->isBroadcasted();
+
     bool compression = false;
     if(opIt->hasAttr("compression"))
         compression = opIt->get<bool>("compression");
 
-    auto tensorAllocatorName = opIt->getOutputTensor(0)->get<std::set<std::string>>("allocators").begin();
+    auto tensorAllocatorName = outputTensor->get<std::set<std::string>>("allocators").begin();
     if (*tensorAllocatorName == "ProgrammableOutput")
         //Only if we are DMA-ing to programmable output check if we need to padd it
         padFinalOutput = cm.getGlobalConfigParams()->hasAttr("PadOutput") ? cm.getGlobalConfigParams()->get<bool>("PadOutput") : false;
 
-    // Case 1 of MC DMAs - Unpopulated tensors going in clustering op and vice versa
-    // This could happen when we move input tensor of the network in or
-    // when we come back after spilling to DDR.
-    //NOTE: splitting == clustering might not needed more the last condition is coming from SOH to SOH DMATASK
-    if(sourceIsBroadCasted || (splitting == "SplitOverK" && !outputTensor->isPopulated()) || (splitting == "Clustering" && numTasks == 1))
-    {
-        auto tmp = new MVCNN::NNDMATaskT();
-        std::vector<std::unique_ptr<MVCNN::TaskT>> toReturn = std::vector<std::unique_ptr<MVCNN::TaskT>>(1);
-
-        // 1 DMA to multiple slices -  multiple slices to 1 place
-        toReturn[0] = std::unique_ptr<MVCNN::TaskT>(new MVCNN::TaskT());
-        toReturn[0]->task.type = MVCNN::SpecificTask_NNDMATask;
-
-        tmp->src = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(0));
-        tmp->dst = buildTensorReferenceT(cm, compilationDescriptor, opIt->getOutputTensor(0));
-
-
-        return toReturn;
-    }
-
     // Case 2 of MC DMAs - Source tensor is broadcasted, i.e. present in it's entirety
-    // in all clusters, OR populated tensors going into clustering op (which for some reason are not marked as broadcasted).
+    // in all clusters, OR populated tensors going into clustering op
+    // (which for some reason are not marked as broadcasted).
 
     // Weights sparsity maps with new approach should be handled here
 
     // Strategy: 1 DMA to multiple slices -  multiple slices to 1 place
-    if(sourceIsBroadCasted || (splitting == "SplitOverK" && !outputTensor->isPopulated()) || (splitting == "Clustering" && numTasks == 1))
+    if(sourceIsBroadCasted ||
+      (splitting == "SplitOverK" && !outputTensor->isPopulated()) ||
+      (splitting == "Clustering" && numTasks == 1))
     {
         std::vector<std::unique_ptr<MVCNN::TaskT>> toReturn;
 
