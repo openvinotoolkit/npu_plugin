@@ -23,7 +23,7 @@ NZOO_ROOT = os.environ["NZOO_ROOT"]
 POC_ROOT = MDK_ROOT+'/projects/Fathom/'
 
 # which runtime do you want to use? (PoC/Production)
-#APP_ROOT = MDK_ROOT + "/testApps/keembay/tapeout_so/tc_keembay_ma2490/ts_nce_bm_blob/"  # PoC Runtime
+#APP_ROOT = MDK_ROOT + "/testApps/kmb/tapeout_so/tc_kmb_ma2490/ts_nce_bm_blob/"  # PoC Runtime
 APP_ROOT = MDK_ROOT + "/testApps/components/NeuralNet/008_demo_ncelib_LNN/conv_3l_16wi/" # Prod Runtime
 
 PWD = os.path.dirname(os.path.realpath(__file__)) + "/"
@@ -306,5 +306,5 @@ def generate_model_path(args):
                 folder_name = row["Name"].strip()
                 break
 
-    model = NZOO_ROOT + "/internal/unit_tests/CompilerTestsKeembay/layers/" + folder_name + model_name
+    model = NZOO_ROOT + "/internal/unit_tests/CompilerTestsKmb/layers/" + folder_name + model_name
     return model

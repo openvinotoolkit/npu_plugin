@@ -212,81 +212,7 @@ class TensorFlowLiteParser(BaseParser):
     def getType(self):
         return self.type
 
-    # calculate the reference output of the graph to compare with myriad results
-    '''
-    def calculateReference(self, arguments):
 
-        image = arguments.image
-
-        # Load TFLite model and allocate tensors.
-        self.interpreter = lite.Interpreter(model_path=self.model_path)
-
-        self.interpreter.allocate_tensors()
-
-        # Get input and output tensors.
-        input_details = self.interpreter.get_input_details()
-        output_details = self.interpreter.get_output_details()
-
-        if len(input_details) != 1:
-            raise ValueError(
-                "Only a single input is supported (instead found {}".format(
-                    len(input_details)))
-
-        if len(output_details) != 1:
-            raise ValueError(
-                "Only a single output is supported (instead found {}".format(
-                    len(output_details)))
-        input_details = input_details[0]
-        output_details = output_details[0]
-        shape = input_details['shape']
-        dtype = input_details['dtype']
-
-        input_data = parse_input(image,
-                                 shape,
-                                 dtype,
-                                 raw_scale=arguments.raw_scale,
-                                 mean=arguments.mean,
-                                 channel_swap=arguments.channel_swap)
-
-        self.interpreter.set_tensor(input_details['index'], input_data)
-
-        self.interpreter.invoke()
-        expected_result = self.interpreter.get_tensor(output_details['index'])
-
-        if arguments.input_node_name is not None:
-            if arguments.input_node_name not in self.tensor_index_map.keys():
-                throw_error(
-                    ErrorTable.GraphConstructionFailure,
-                    arguments.input_node_name)
-            input_data = self.get_layer_data(
-                arguments.input_node_name).transpose(
-                (0, 2, 3, 1))
-        if arguments.output_node_name is not None:
-            if arguments.output_node_name not in self.tensor_index_map.keys():
-                throw_error(
-                    ErrorTable.GraphConstructionFailure,
-                    arguments.output_node_name)
-            expected_result = self.get_layer_data(
-                arguments.output_node_name).transpose(
-                (0, 2, 3, 1))
-
-        # convert shape
-        input_data = np.transpose(input_data, (0, 3, 1, 2))
-        if len(expected_result.shape) == 4:
-            expected_result = np.transpose(expected_result, (0, 3, 1, 2))
-        elif len(expected_result.shape) == 3:
-            pass
-        elif len(expected_result.shape) == 2:
-            expected_result = expected_result.reshape(
-                1, expected_result.shape[1], expected_result.shape[0], 1)
-        else:
-            expected_result = expected_result.reshape(
-                1, 1, expected_result.shape[0])
-
-        np.save("mcmFrontend_expected.npy", expected_result)
-
-        return input_data, expected_result, output_details['name']
-    '''
     def loadNetworkObjects(self, graph_path, model_path=None):
         """ Get the tensorflow protobuff model and parse it via tensorflow
         """
@@ -300,7 +226,6 @@ class TensorFlowLiteParser(BaseParser):
         return
 
     def parse(self, arguments):
-
         # Define which subparser needs to be called for each layer
         subParsers = {
             BuiltinOperator.AVERAGE_POOL_2D: tfp.Pooling.load,

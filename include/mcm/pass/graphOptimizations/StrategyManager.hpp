@@ -1,7 +1,7 @@
 #ifndef __STRATEGY_MANAGER_HPP__
 #define __STRATEGY_MANAGER_HPP__
 
-#include "meta/include/mcm/op_model.hpp"
+#include "include/mcm/op_model.hpp"
 #include "include/mcm/base/exception/argument_error.hpp"
 #include "math.h"
 #include <unordered_set>

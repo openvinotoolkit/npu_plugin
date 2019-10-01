@@ -16,11 +16,9 @@
 
 from Models.EnumDeclarations import Parser
 
-try:
-    from Controllers.Parsers.TensorFlowLite import TensorFlowLiteParser
-    print("TensorFlow Lite found")
-except ImportError:
-    print("TensorFlow Lite not found")
+
+from Controllers.Parsers.TensorFlowLite import TensorFlowLiteParser
+print("TensorFlow Lite found")
 
 from Controllers.Parsers.BaseParser import BaseParser
 

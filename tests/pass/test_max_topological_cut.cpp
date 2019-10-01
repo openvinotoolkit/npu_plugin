@@ -1,7 +1,7 @@
 #include "gtest/gtest.h"
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
-#include "meta/include/mcm/op_model.hpp"
+#include "include/mcm/op_model.hpp"
 #include "include/mcm/utils/data_generator.hpp"
 #include "include/mcm/pass/pass_registry.hpp"
 #include "include/mcm/compiler/compilation_unit.hpp"
@@ -25,7 +25,7 @@ TEST(MaxTopologicalCut, lessThanCMXMemory)
     unit.loadTargetDescriptor(mv::Target::ma2490);
 
     unit.compilationDescriptor().remove("finalize","GenerateWorkloads");
-    unit.compilationDescriptor().remove("serialize","GenerateBlobKeembay");
+    unit.compilationDescriptor().remove("serialize","GenerateBlobKmb");
     unit.compilationDescriptor().setPassArg("GlobalConfigParams", "MemoryHack", false);
 
     unit.initialize();
@@ -536,7 +536,7 @@ TEST(MaxTopologicalCut, greaterThanCMXMemory)
     unit.loadTargetDescriptor(mv::Target::ma2490);
 
     unit.compilationDescriptor().remove("finalize","GenerateWorkloads");
-    unit.compilationDescriptor().remove("serialize","GenerateBlobKeembay");
+    unit.compilationDescriptor().remove("serialize","GenerateBlobKmb");
     unit.compilationDescriptor().setPassArg("GlobalConfigParams", "MemoryHack", false);
     unit.compilationDescriptor().remove("finalize", "TensorGraphColoring");
 
