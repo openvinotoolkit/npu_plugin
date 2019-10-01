@@ -13,11 +13,11 @@ add_definitions(-DPROJECT_DIR=\"${PROJECT_SOURCE_DIR}\")
 ### Setup
 #############################################################################################
 
-if (NOT EXISTS ${CMAKE_BINARY_DIR}/CMakeCache.txt)
-    if (NOT CMAKE_BUILD_TYPE)
-        set(CMAKE_BUILD_TYPE "Debug" CACHE STRING "" FORCE)
-    endif()
+if (NOT CMAKE_BUILD_TYPE)
+    # Due to the current development pace, Debug is default build type
+    set(CMAKE_BUILD_TYPE "Debug" CACHE STRING "" FORCE)
 endif()
+message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 
 add_compile_options(-std=c++11)
 
