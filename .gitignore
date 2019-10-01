@@ -1,10 +1,5 @@
 build/
 build-debug/
-meta/include/mcm/*
-meta/src/*
-meta/schema/*
-contrib/koala/*
-contrib/lemon/*
 *.user
 .vscode
 *.blob
