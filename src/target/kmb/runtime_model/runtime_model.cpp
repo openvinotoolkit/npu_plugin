@@ -92,15 +92,15 @@ void setIfPresent(T1& fieldToFill, mv::Element& compilationDescriptor, const std
         fieldToFill = compilationDescriptor.get<T2>(key);
 }
 
-void mv::RuntimeModel::alignTensor(mv::ComputationModel& cm, std::unique_ptr<MVCNN::TensorReferenceT>& tensorT, mv::Data::TensorIterator tensor, bool padFinalOutput)
+void mv::RuntimeModel::alignTensor(mv::ComputationModel& cm, std::unique_ptr<MVCNN::TensorReferenceT>& tensorT, mv::Tensor& tensor, bool padFinalOutput)
 {
         auto globalConfigParams = cm.getGlobalConfigParams();
         int pad = globalConfigParams->hasAttr("VPU2ChannelPadding") ? globalConfigParams->get<int>("VPU2ChannelPadding") : 16;
-        std::vector<std::size_t> dimensions = tensor->getShape();
+        std::vector<std::size_t> dimensions = tensor.getShape();
         auto outputChannelsPadded = mv::round_up(dimensions[mv::IO_CHANNEL_DIMENSION], pad);
         dimensions = {dimensions[mv::IO_WIDTH_DIMENSION], dimensions[mv::IO_HEIGHT_DIMENSION], outputChannelsPadded, dimensions[mv::IO_BATCH_DIMENSION]};
-        auto numericStrides = tensor->getOrder().computeByteStrides(mv::Shape(dimensions), tensor->getDType().getSizeInBits() / 8);
-        numericStrides.push_back(tensor->getDType().getSizeInBits() / 8);
+        auto numericStrides = tensor.getOrder().computeByteStrides(mv::Shape(dimensions), tensor.getDType().getSizeInBits() / 8);
+        numericStrides.push_back(tensor.getDType().getSizeInBits() / 8);
         std::reverse(dimensions.begin(), dimensions.end());
         std::reverse(numericStrides.begin(), numericStrides.end());
         tensorT->strides = numericStrides; // NOTE: Maybe directly bufferIt->computeStrides() in the future
@@ -457,9 +457,8 @@ std::unique_ptr<MVCNN::SummaryHeaderT> mv::RuntimeModel::buildSummaryHeaderT(Com
     toBuild->net_output = std::vector<std::unique_ptr<MVCNN::TensorReferenceT>>(1);
     toBuild->net_output[0] = buildTensorReferenceT(cm, compilationDescriptor, om.getOutput()->getInputTensor(0));
     if (paddOutput && om.getOutput()->getInputTensor(0)->hasAttr("alignment"))
-    {
-        alignTensor(cm, toBuild->net_output[0], om.getOutput()->getInputTensor(0), paddOutput);
-    }
+        alignTensor(cm, toBuild->net_output[0], *om.getOutput()->getInputTensor(0), paddOutput);
+
     auto taskCount = [](mv::OpModel m)
     {
         unsigned i = 0;
@@ -696,7 +695,7 @@ void checkUnstridedDMA(mv::Data::TensorIterator src, int i, MVCNN::NNDMATaskT * 
 }
 
 void mv::RuntimeModel::case2MC(unsigned numTasks, mv::ComputationModel& cm, mv::DmaDirection direction, mv::Element &compilationDescriptor,
-                               bool compression, std::vector<std::unique_ptr<MVCNN::TaskT>>& toReturn, mv::Data::TensorIterator src, mv::Data::TensorIterator dst, const std::string& srcAllocator, const std::string& dstAllocator)
+                               bool compression, bool padFinalOutput, std::vector<std::unique_ptr<MVCNN::TaskT>>& toReturn, mv::Data::TensorIterator src, mv::Data::TensorIterator dst, const std::string& srcAllocator, const std::string& dstAllocator)
 {
     std::unique_ptr<MVCNN::TaskT> toPush = std::unique_ptr<MVCNN::TaskT>(new MVCNN::TaskT());
     auto tmp = new MVCNN::NNDMATaskT();
@@ -705,7 +704,21 @@ void mv::RuntimeModel::case2MC(unsigned numTasks, mv::ComputationModel& cm, mv::
     tmp->src = buildTensorReferenceT(cm, compilationDescriptor, src, srcAllocator);
     tmp->dst = buildTensorReferenceT(cm, compilationDescriptor, dst, dstAllocator);
 
-    // NOTE: Alignment stuff should go here!!!!
+    if (direction == mv::DDR2CMX)
+    {
+        //copying from DDR2CMX we need to pad output if tensor needs alignment
+        if (src->hasAttr("alignment"))
+            alignTensor(cm, tmp->dst, *dst);
+    }
+    else
+    {
+        //copying from CMX2DDR we need to crop down if tensor needed alignment in CMX
+        if (src->hasAttr("alignment"))
+            alignTensor(cm, tmp->src, *src, padFinalOutput);
+
+        if (padFinalOutput && dst->hasAttr("alignment"))
+            alignTensor(cm, tmp->dst, *dst, padFinalOutput);
+    }
 
     std::vector<unsigned int> locale_index;
     for (unsigned idx = numTasks; idx > 0; idx--)
@@ -717,15 +730,15 @@ void mv::RuntimeModel::case2MC(unsigned numTasks, mv::ComputationModel& cm, mv::
     // Passing -1 as subtensor index, will have us get the full tensor
     checkUnstridedDMA(src, -1, tmp);
 
-    tmp->compression =  compression;
+    tmp->compression = compression;
 
     toPush->task.value = tmp;
 
     toReturn.push_back(std::move(toPush));
 }
 
-void mv::RuntimeModel::case3MC(unsigned numTasks, ComputationModel& cm, mv::Element &compilationDescriptor,
-                               bool compression, std::vector<std::unique_ptr<MVCNN::TaskT>>& toReturn,
+void mv::RuntimeModel::case3MC(unsigned numTasks, ComputationModel& cm,  mv::DmaDirection direction, mv::Element &compilationDescriptor,
+                               bool compression, bool padFinalOutput, std::vector<std::unique_ptr<MVCNN::TaskT>>& toReturn,
                                mv::Data::TensorIterator src, mv::Data::TensorIterator dst, const std::string& srcAllocator,
                                const std::string& dstAllocator)
 {
@@ -736,6 +749,22 @@ void mv::RuntimeModel::case3MC(unsigned numTasks, ComputationModel& cm, mv::Elem
         toPush->task.type = MVCNN::SpecificTask_NNDMATask;
         tmp->src = buildTensorReferenceT(cm, compilationDescriptor, src, i, srcAllocator);
         tmp->dst = buildTensorReferenceT(cm, compilationDescriptor, dst, i, dstAllocator);
+
+        if (direction == mv::DDR2CMX)
+        {
+            //copying from DDR2CMX we need to pad output if tensor needs alignment
+            if (dst->hasAttr("alignment"))
+                alignTensor(cm, tmp->dst, dst->getSubTensor(i));
+        }
+        else
+        {
+            //copying from CMX2DDR we need to crop down if tensor needed alignment in CMX
+            if (src->hasAttr("alignment"))
+                alignTensor(cm, tmp->src, src->getSubTensor(i), padFinalOutput);
+
+            if (padFinalOutput && dst->hasAttr("alignment"))
+                alignTensor(cm, tmp->dst, dst->getSubTensor(i), padFinalOutput);
+        }
 
         checkUnstridedDMA(src, i, tmp);
 
@@ -782,22 +811,7 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
         tmp->src = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(0));
         tmp->dst = buildTensorReferenceT(cm, compilationDescriptor, opIt->getOutputTensor(0));
 
-        if (direction == mv::DDR2CMX)
-        {
-            //copying from DDR2CMX we need to pad output if tensor needs alignment
-            if (opIt->getOutputTensor(0)->hasAttr("alignment"))
-                alignTensor(cm, tmp->dst, opIt->getOutputTensor(0));
-        }
-        else
-        {
-            //copying from CMX2DDR we need to crop down if tensor needed alignment in CMX
-            if (opIt->getInputTensor(0)->hasAttr("alignment"))
-                alignTensor(cm, tmp->src, opIt->getInputTensor(0), padFinalOutput);
 
-            if (padFinalOutput && opIt->getOutputTensor(0)->hasAttr("alignment"))
-                alignTensor(cm, tmp->dst, opIt->getOutputTensor(0), padFinalOutput);
-
-        }
         return toReturn;
     }
 
@@ -807,17 +821,17 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
     // Weights sparsity maps with new approach should be handled here
 
     // Strategy: 1 DMA to multiple slices -  multiple slices to 1 place
-    else if(sourceIsBroadCasted || (splitting == "Clustering" && inputTensor->isPopulated()))
+    if(sourceIsBroadCasted || (splitting == "SplitOverK" && !outputTensor->isPopulated()) || (splitting == "Clustering" && numTasks == 1))
     {
         std::vector<std::unique_ptr<MVCNN::TaskT>> toReturn;
 
-        case2MC(numTasks, cm, direction, compilationDescriptor, compression, toReturn, inputTensor, outputTensor);
+        case2MC(numTasks, cm, direction, compilationDescriptor, compression, padFinalOutput, toReturn, inputTensor, outputTensor);
 
         if(inputTensor->isSparse())
         {
             // NOTE: First usage ever of the concept one tensor -> Multiple allocators
             auto tensorSparsityMap = dm.getTensor(inputTensor->getSparsityMap()->getName());
-            case2MC(numTasks, cm, direction, compilationDescriptor, compression, toReturn, tensorSparsityMap, tensorSparsityMap, "GraphFile", "VPU_CMX_NN");
+            case2MC(numTasks, cm, direction, compilationDescriptor, compression, padFinalOutput, toReturn, tensorSparsityMap, tensorSparsityMap, "GraphFile", "VPU_CMX_NN");
         }
         return toReturn;
     }
@@ -831,12 +845,12 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
     else
     {
         std::vector<std::unique_ptr<MVCNN::TaskT>> toReturn;
-        case3MC(numTasks, cm, compilationDescriptor, compression, toReturn, inputTensor, outputTensor);
+        case3MC(numTasks, cm, direction, compilationDescriptor, compression, padFinalOutput, toReturn, inputTensor, outputTensor);
         if(inputTensor->isSparse())
         {
             // NOTE: Second usage ever of the concept one tensor -> Multiple allocators
             auto tensorSparsityMap = dm.getTensor(inputTensor->getSparsityMap()->getName());
-            case3MC(numTasks, cm, compilationDescriptor, compression, toReturn, tensorSparsityMap, tensorSparsityMap, "GraphFile", "VPU_CMX_NN");
+            case3MC(numTasks, cm, direction, compilationDescriptor, compression, padFinalOutput, toReturn, tensorSparsityMap, tensorSparsityMap, "GraphFile", "VPU_CMX_NN");
         }
         return toReturn;
     }
@@ -1113,7 +1127,7 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
                  mv::round_up(parentOutputTensor->getSubTensor(clusterId).getShape()[IO_CHANNEL_DIMENSION], pad), parentOutputTensor->getSubTensor(clusterId).getShape()[IO_BATCH_DIMENSION]})
             , parentOutputTensor->getSubTensor(clusterId).getDType().getSizeInBits() / 8);
 
-            alignTensor(cm, toBuild->parent_output_tensor, opIt->getOutputTensor(0));
+            alignTensor(cm, toBuild->parent_output_tensor, *opIt->getOutputTensor(0));
         }
         numericStrides.push_back(parentOutputTensor->getDType().getSizeInBits() / 8);
         std::reverse(dimensions.begin(), dimensions.end());
@@ -1139,7 +1153,7 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
             numericStrides = parentInputTensor->getSubTensor(clusterId).getOrder().computeByteStrides(mv::Shape(new_dimensions)
             , parentInputTensor->getSubTensor(clusterId).getDType().getSizeInBits() / 8);
 
-            alignTensor(cm, toBuild->parent_input_tensor, opIt->getInputTensor(0), true); //????
+            alignTensor(cm, toBuild->parent_input_tensor, *opIt->getInputTensor(0), true); // ????
 
             numericStrides.push_back(parentOutputTensor->getDType().getSizeInBits() / 8);
             std::reverse(new_dimensions.begin(), new_dimensions.end());
