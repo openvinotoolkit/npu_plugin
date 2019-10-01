@@ -50,6 +50,8 @@ void strategyLayersToTensors(const mv::pass::PassEntry& , mv::ComputationModel& 
             {
                 auto inputTensor = layer->getInputTensor(i);
                 inputTensor->set<std::string>("splitStrategy", opStrategy);
+                if(inputTensor->isSparse())
+                    inputTensor->getSparsityMap()->set<std::string>("splitStrategy", opStrategy);
             }
         }
         else if (opType == "Input")
