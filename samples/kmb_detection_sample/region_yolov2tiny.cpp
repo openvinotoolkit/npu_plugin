@@ -325,4 +325,4 @@ int yolov2(const float *data, int *shape4D, int *strides4D,
   free(boxes);
   return k;
 }
-};  // namespace postprocess
+}  // namespace postprocess
