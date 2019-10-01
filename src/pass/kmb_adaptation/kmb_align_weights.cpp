@@ -90,6 +90,7 @@ void alignTaskWeightsFcn(const mv::pass::PassEntry& , mv::ComputationModel& mode
             auto weightSetDimension = kernelWidth * kernelHeight * inputChannels;
             if(dpuTaskType == "DepthwiseConv")
                 weightSetDimension = kernelWidth * kernelHeight;
+            
             auto weightSetDimensionPadded = mv::round_up(weightSetDimension, 16);
             auto paddingDifference = weightSetDimensionPadded - weightSetDimension;
 

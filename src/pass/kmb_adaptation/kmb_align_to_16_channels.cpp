@@ -31,6 +31,7 @@ void alignTo16ChannelsFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
     mv::DataModel dm(model);
 
     auto globalConfigParams = model.getGlobalConfigParams();
+    int numberClusters = globalConfigParams->get<int>("Number_of_Clusters");
     int pad = globalConfigParams->hasAttr("VPU2ChannelPadding") ? globalConfigParams->get<int>("VPU2ChannelPadding") : 16;
     auto dpuTasks = om.getOps("DPUTask");
 
@@ -41,18 +42,35 @@ void alignTo16ChannelsFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
         auto outputTensor = opIt->getOutputTensor(0);
         auto outputTensorShape = outputTensor->getShape();
         auto outputTensorChannels = outputTensorShape[mv::IO_CHANNEL_DIMENSION];
+        auto opStrategy = opIt->get<std::string>("splitStrategy");
+
         if (outputTensorChannels % pad != 0)
         {
             opIt->set<bool>("alignment", true);
-            outputTensor->set<bool>("alignment", true);
+            if (!outputTensor->hasAttr("alignment"))
+            {
+                outputTensor->set<bool>("alignment", true);
+            }
         }
         auto outputChannelsPadded = mv::round_up(outputTensorShape[mv::IO_CHANNEL_DIMENSION], pad);
+
+        if(taskOp == "Conv" || taskOp == "DepthWiseConv")
+        {
+            auto inputTensor = opIt->getInputTensor(0);
+            if (!inputTensor->hasAttr("alignment") && inputTensor->getShape()[mv::IO_CHANNEL_DIMENSION] % pad != 0)
+            {
+                inputTensor->set<bool>("alignment", true);
+            }
+        }
 
         if(taskOp == "Conv")
         {
             auto weightsTensor = opIt->getInputTensor(1);
             if(outputChannelsPadded != weightsTensor->getShape()[mv::KERNEL_OUTPUT_CHANNELS])
+            {
                 alignWeightsTensor(om, weightsTensor, outputChannelsPadded, mv::KERNEL_OUTPUT_CHANNELS, taskOp);
+                weightsTensor = opIt->getInputTensor(1);
+            }
             auto inputTensor = opIt->getInputTensor(0);
             //if the previous op will be alligned you have to align the weights of the current
             if (inputTensor->hasAttr("alignment"))
@@ -60,13 +78,17 @@ void alignTo16ChannelsFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
                 auto inputTensorChannels = inputTensor->getShape()[mv::IO_CHANNEL_DIMENSION];
                 auto inputChannelsPadded = mv::round_up(inputTensorChannels, pad);
                 alignWeightsTensor(om, weightsTensor, inputChannelsPadded, mv::KERNEL_INPUT_CHANNELS, taskOp);
+
             }
         }
         else if (taskOp == "DepthwiseConv")
         {
             auto weightsTensor = opIt->getInputTensor(1);
             if(outputChannelsPadded != weightsTensor->getShape()[mv::KERNEL_INPUT_CHANNELS])
+            {
                 alignWeightsTensor(om, weightsTensor, outputChannelsPadded, mv::KERNEL_INPUT_CHANNELS, taskOp);
+                weightsTensor = opIt->getInputTensor(1);
+            }
             auto inputTensor = opIt->getInputTensor(0);
             if (inputTensor->hasAttr("alignment"))
             {
@@ -94,9 +116,13 @@ static void alignWeightsTensor(mv::OpModel& om, const mv::Data::TensorIterator &
     auto weightsTensorHeight = weightsTensorShape[mv::KERNEL_HEIGHT];
     auto weightsTensorInputChannels = weightsTensorShape[mv::KERNEL_INPUT_CHANNELS];
     auto weightsTensorOutputChannels = weightsTensorShape[mv::KERNEL_OUTPUT_CHANNELS];
+
     auto newShape = mv::Shape({0, 0, 0, 0});
     if (typeOp == "Conv")
     {
+        if ((axis == mv::KERNEL_INPUT_CHANNELS && weightsTensorInputChannels == channelsPadded) ||
+            (axis == mv::KERNEL_OUTPUT_CHANNELS && weightsTensorOutputChannels == channelsPadded))
+            return;
         newShape = mv::Shape({weightsTensorWidth, weightsTensorHeight, weightsTensorInputChannels, channelsPadded});
         if (axis == mv::KERNEL_INPUT_CHANNELS)
             newShape = mv::Shape({weightsTensorWidth, weightsTensorHeight, channelsPadded, weightsTensorOutputChannels});
@@ -136,8 +162,9 @@ static void alignBiasTensor(mv::Data::OpListIterator &opIt, const mv::Data::Tens
     //Bias case is easier since it is 1D
     auto biasTensorDType = biasTensor->getDType();
     auto biasTensorSize = biasTensor->getShape()[0];
-    auto biasTensorName = opIt->get<std::string>("bias");
 
+
+    auto biasTensorName = opIt->get<std::string>("bias");
     if(biasTensorSizePadded != biasTensorSize)
     {
         auto biasTensorQuantizationParams = biasTensor->get<mv::QuantizationParams>("quantParams");
@@ -156,5 +183,18 @@ static void alignBiasTensor(mv::Data::OpListIterator &opIt, const mv::Data::Tens
         dm.undefineTensor(biasTensorName);
         opIt->erase("bias");
         opIt->set<std::string>("bias", newBiasTensor->getName());
+
+        //check for other ops with the same bias tensor, and upate teh attribute
+        mv::OpModel om(dm);
+        auto dpuTasks = om.getOps("DPUTask");
+        for(auto vecIt = dpuTasks.begin(); vecIt != dpuTasks.end(); ++vecIt)
+        {
+            auto updateOpIt = *vecIt;
+            if(updateOpIt->hasAttr("bias") && updateOpIt->get<std::string>("bias") == biasTensorName)
+            {
+                updateOpIt->erase("bias");
+                updateOpIt->set<std::string>("bias", newBiasTensor->getName());
+            }
+        }
     }
 }

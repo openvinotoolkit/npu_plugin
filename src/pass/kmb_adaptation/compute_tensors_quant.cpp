@@ -3,6 +3,7 @@
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/tensor/quantization_params.hpp"
+#include "mcm/utils/custom_math.hpp"
 #include <numeric>
 #include <cmath>
 
@@ -41,9 +42,13 @@ void computeTensorsQuantParams(const mv::pass::PassEntry&, mv::ComputationModel&
              bool isConv = (taskOp == "Conv" || taskOp == "DepthwiseConv" || taskOp == "ChannelMajorConvolution");
              if (isConv || taskOp == "MaxPool" ||  isElementWise)
              {
-                 auto output = opIt->getOutputTensor(0);
-                 auto input = opIt->getInputTensor(0);
-                 auto outputChannels = output->getShape()[mv::IO_CHANNEL_DIMENSION];
+                auto output = opIt->getOutputTensor(0);
+                auto input = opIt->getInputTensor(0);
+                auto outputChannels = output->getShape()[mv::IO_CHANNEL_DIMENSION];
+                if (outputChannels % 16 != 0)
+                {
+                    outputChannels = mv::round_up(outputChannels, 16);
+                }
                  std::vector<int> shift(outputChannels, 0);
                  std::vector<int16_t> mScaled(outputChannels, 0);
 
@@ -119,14 +124,18 @@ void computeTensorsQuantParams(const mv::pass::PassEntry&, mv::ComputationModel&
                      if (opIt->hasAttr("bias"))
                      {
                          auto bias = dm.getTensor(opIt->get<std::string>("bias"));
-                         auto data = bias->getData();
-                         //auto biasQuantization = bias->get<mv::QuantizationParams>("quantParams");
-                         //auto Z_bias = biasQuantization.getZeroPoint();
-                         //auto S_bias = biasQuantization.getScale();
-                         std::transform(data.begin(), data.end(), zeroPointScaled.begin(), data.begin(), std::plus<int64_t>());
-                         bias->setDType(mv::DType("Int32"));
-                         bias->populate(data);
+                         if (!bias->hasAttr("biasQuantized"))
+                         {
+                            auto data = bias->getData();
+                            //auto biasQuantization = bias->get<mv::QuantizationParams>("quantParams");
+                            //auto Z_bias = biasQuantization.getZeroPoint();
+                            //auto S_bias = biasQuantization.getScale();
+                            std::transform(data.begin(), data.end(), zeroPointScaled.begin(), data.begin(), std::plus<int64_t>());
+                            bias->setDType(mv::DType("Int32"));
 
+                            bias->populate(data);
+                            bias->set<bool>("biasQuantized", true);
+                         }
                      }
                      else
                      {
@@ -137,6 +146,7 @@ void computeTensorsQuantParams(const mv::pass::PassEntry&, mv::ComputationModel&
 
                          auto biasTensor = dm.defineTensor(biasTensorName, shape, mv::DType("Int32"), order, zeroPointScaled64);
                          om.addAttr(opIt, "bias", biasTensor->getName());
+                         biasTensor->set<bool>("biasQuantized", true);
                      }
                  }
 

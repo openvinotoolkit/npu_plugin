@@ -92,6 +92,22 @@ void setIfPresent(T1& fieldToFill, mv::Element& compilationDescriptor, const std
         fieldToFill = compilationDescriptor.get<T2>(key);
 }
 
+void mv::RuntimeModel::alignTensor(mv::ComputationModel& cm, std::unique_ptr<MVCNN::TensorReferenceT>& tensorT, mv::Data::TensorIterator tensor, bool padFinalOutput)
+{
+        auto globalConfigParams = cm.getGlobalConfigParams();
+        int pad = globalConfigParams->hasAttr("VPU2ChannelPadding") ? globalConfigParams->get<int>("VPU2ChannelPadding") : 16;
+        std::vector<std::size_t> dimensions = tensor->getShape();
+        auto outputChannelsPadded = mv::round_up(dimensions[mv::IO_CHANNEL_DIMENSION], pad);
+        dimensions = {dimensions[mv::IO_WIDTH_DIMENSION], dimensions[mv::IO_HEIGHT_DIMENSION], outputChannelsPadded, dimensions[mv::IO_BATCH_DIMENSION]};
+        auto numericStrides = tensor->getOrder().computeByteStrides(mv::Shape(dimensions), tensor->getDType().getSizeInBits() / 8);
+        numericStrides.push_back(tensor->getDType().getSizeInBits() / 8);
+        std::reverse(dimensions.begin(), dimensions.end());
+        std::reverse(numericStrides.begin(), numericStrides.end());
+        tensorT->strides = numericStrides; // NOTE: Maybe directly bufferIt->computeStrides() in the future
+        if(padFinalOutput)
+            tensorT->dimensions = std::vector<uint32_t>(dimensions.begin(), dimensions.end());
+}
+
 MVCNN::DType mv::RuntimeModel::convertDtype(const mv::DType& dtype)
 {
     return dTypeMapping_.at(dtype.toString());
@@ -427,6 +443,7 @@ std::unique_ptr<MVCNN::SummaryHeaderT> mv::RuntimeModel::buildSummaryHeaderT(Com
     std::unique_ptr<MVCNN::SummaryHeaderT> toBuild = std::unique_ptr<MVCNN::SummaryHeaderT>(new MVCNN::SummaryHeaderT());
 
     auto globalConfigurationParameters = cm.getGlobalConfigParams();
+    auto paddOutput = globalConfigurationParameters->hasAttr("PadOutput") ? globalConfigurationParameters->get<bool>("PadOutput") : false;
 
     toBuild->version = std::move(originalHeader->version);
     toBuild->original_structure = std::move(originalHeader->original_structure);
@@ -438,7 +455,10 @@ std::unique_ptr<MVCNN::SummaryHeaderT> mv::RuntimeModel::buildSummaryHeaderT(Com
 
     toBuild->net_output = std::vector<std::unique_ptr<MVCNN::TensorReferenceT>>(1);
     toBuild->net_output[0] = buildTensorReferenceT(cm, compilationDescriptor, om.getOutput()->getInputTensor(0));
-
+    if (paddOutput && om.getOutput()->getInputTensor(0)->hasAttr("alignment"))
+    {
+        alignTensor(cm, toBuild->net_output[0], om.getOutput()->getInputTensor(0), paddOutput);
+    }
     auto taskCount = [](mv::OpModel m)
     {
         unsigned i = 0;
@@ -608,43 +628,22 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildSpecificTaskUn
 {
     std::vector<std::unique_ptr<MVCNN::TaskT>> toBuild = std::vector<std::unique_ptr<MVCNN::TaskT>>();
     std::string taskType(opIt->getOpType());
-    unsigned numTasks = cm.getGlobalConfigParams()->get<int>("Number_of_Clusters");
 
-    //NOTE: This if conditions of this big switch statements are not definitive and could change in the future
-    //Take as granted for now that 1 cluster 1 tensor 0 subtensors
     if(taskType == "MvTensorTask")
         toBuild = buildMvTensorTaskT(cm, compilationDescriptor, opIt);
     else if(taskType == "UPADMATask")
         toBuild = buildUPADMATaskT(cm, compilationDescriptor, opIt);
     else if(taskType == "DMATask")
     {
-        std::string splitting;
-        if (opIt->getOutputTensor(0)->hasAttr("splitStrategy"))
-            splitting = opIt->getOutputTensor(0)->get<std::string>("splitStrategy");
-
-        if (splitting == "Clustering")
-            if (numTasks == 1)
-                toBuild = buildNNDMATaskT(cm, compilationDescriptor, opIt);
-            else
-                toBuild = buildNNDMATaskT(cm, compilationDescriptor, opIt, splitting);
-        else
-            toBuild = buildNNDMATaskT(cm, compilationDescriptor, opIt, splitting);
+        std::string splitting = opIt->getOutputTensor(0)->get<std::string>("splitStrategy");
+        toBuild = buildNNDMATaskT(cm, compilationDescriptor, opIt, splitting);
     }
     else if(taskType == "NCE1Task")
         toBuild = buildNCE1TaskT(cm, compilationDescriptor, opIt);
     else if(taskType == "DPUTask")
     {
-        std::string splitting;
-        if (opIt->hasAttr("splitStrategy"))
-            splitting = opIt->get<std::string>("splitStrategy");
-
-        if (splitting == "Clustering")
-            if (numTasks == 1)
-                toBuild = buildNCE2TaskT(cm, compilationDescriptor, opIt);
-            else
-                toBuild = buildNCE2TaskT(cm, compilationDescriptor, opIt, splitting);
-        else
-            toBuild = buildNCE2TaskT(cm, compilationDescriptor, opIt, splitting);
+        std::string splitting = opIt->get<std::string>("splitStrategy");
+        toBuild = buildNCE2TaskT(cm, compilationDescriptor, opIt, splitting);
     }
     else if(taskType == "NNTensorTask")
         toBuild = buildNNTensorTaskT(cm, compilationDescriptor, opIt);
@@ -678,115 +677,66 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildUPADMATaskT(Co
     return toReturn;
 }
 
-
-std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt)
-{
-    std::vector<std::unique_ptr<MVCNN::TaskT>> toReturn = std::vector<std::unique_ptr<MVCNN::TaskT>>(1);
-    toReturn[0] = std::unique_ptr<MVCNN::TaskT>(new MVCNN::TaskT());
-    toReturn[0]->task.type = MVCNN::SpecificTask_NNDMATask;
-    auto tmp = new MVCNN::NNDMATaskT();
-
-    tmp->src = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(0));
-    if (opIt->getInputTensor(0)->hasAttr("alignment"))
-    {
-        auto globalConfigParams = cm.getGlobalConfigParams();
-        int pad = globalConfigParams->hasAttr("VPU2ChannelPadding") ? globalConfigParams->get<int>("VPU2ChannelPadding") : 16;
-        std::vector<std::size_t> dimensions = opIt->getInputTensor(0)->getShape();
-        auto outputChannelsPadded = mv::round_up(dimensions[mv::IO_CHANNEL_DIMENSION], pad);
-        dimensions = {dimensions[mv::IO_WIDTH_DIMENSION], dimensions[mv::IO_HEIGHT_DIMENSION], outputChannelsPadded, dimensions[mv::IO_BATCH_DIMENSION]};
-        auto numericStrides = opIt->getInputTensor(0)->getOrder().computeByteStrides(mv::Shape(dimensions), opIt->getInputTensor(0)->getDType().getSizeInBits() / 8);
-        numericStrides.push_back(opIt->getInputTensor(0)->getDType().getSizeInBits() / 8);
-        std::reverse(dimensions.begin(), dimensions.end());
-        std::reverse(numericStrides.begin(), numericStrides.end());
-        tmp->src->strides = numericStrides; // NOTE: Maybe directly bufferIt->computeStrides() in the future?
-    }
-
-    tmp->dst = buildTensorReferenceT(cm, compilationDescriptor, opIt->getOutputTensor(0));
-
-    if(opIt->hasAttr("Compression"))
-        tmp->compression =  opIt->get<bool>("Compression");
-    toReturn[0]->task.value = tmp;
-    return toReturn;
-}
-
 std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt, std::string splitting)
 {
     bool sourceIsBroadCasted = opIt->getInputTensor(0)->isBroadcasted();
     auto direction = opIt->get<mv::DmaDirection>("direction");
-    unsigned numTasks = cm.getGlobalConfigParams()->get<int>("Number_of_Clusters");
+    auto globalConfigParams = cm.getGlobalConfigParams();
+    unsigned numTasks = globalConfigParams->get<int>("Number_of_Clusters");
+    auto padFinalOutput = false;
 
-    if (splitting == "Clustering" && !opIt->getOutputTensor(0)->isPopulated())
-    {
-        std::vector<std::unique_ptr<MVCNN::TaskT>> toReturn = std::vector<std::unique_ptr<MVCNN::TaskT>>(numTasks);
-        for(unsigned i = 0; i < numTasks; ++i)
-        {
-            toReturn[i] = std::unique_ptr<MVCNN::TaskT>(new MVCNN::TaskT());
-            toReturn[i]->task.type = MVCNN::SpecificTask_NNDMATask;
-            auto tmp = new MVCNN::NNDMATaskT();
-            tmp->src = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(0));
-            if (direction == mv::DmaDirectionEnum::CMX2DDR)
-            {
-                auto locale_index = std::vector<unsigned int>(1,i);
-                tmp->src->locale_index = locale_index;
-            }
+    auto tensorAllocatorName = opIt->getOutputTensor(0)->get<std::set<std::string>>("allocators").begin();
+    if (*tensorAllocatorName == "ProgrammableOutput")
+        //Only if we are DMA-ing to programmable output check if we need to padd it
+        padFinalOutput = cm.getGlobalConfigParams()->hasAttr("PadOutput") ? cm.getGlobalConfigParams()->get<bool>("PadOutput") : false;
 
-            tmp->dst = buildTensorReferenceT(cm, compilationDescriptor, opIt->getOutputTensor(0));
-            if (direction == mv::DmaDirectionEnum::DDR2CMX)
-            {
-                auto locale_index = std::vector<unsigned int>(1,i);
-                tmp->dst->locale_index = locale_index;
-            }
-
-            if(opIt->hasAttr("Compression"))
-                tmp->compression =  opIt->get<bool>("Compression");
-            toReturn[i]->task.value = tmp;
-        }
-        return toReturn;
-    }
-    else if(sourceIsBroadCasted || (splitting == "Clustering" && opIt->getOutputTensor(0)->isPopulated()))
+    //NOTE: splitting == clustering might not needed more the last condition is coming from SOH to SOH DMATASK
+    if(sourceIsBroadCasted || (splitting == "SplitOverK" && !opIt->getOutputTensor(0)->isPopulated()) || (splitting == "Clustering" && numTasks == 1))
     {
         //NOTE: Multicast flag works on nce2tasks for going the whole output tensor on every cluster,
         //POC's logic with replicating 4 times the same DMA seems not correct, even for mutiple layers to me,
         //however letting this on comments.
-//        if (opIt->getInputTensor(0)->hasAttr("multiCast"))
-//        {
-//            std::vector<std::unique_ptr<MVCNN::TaskT>> toReturn = std::vector<std::unique_ptr<MVCNN::TaskT>>(numTasks);
-//            for(unsigned i = 0; i < numTasks; ++i)
-//            {
-//                toReturn[i] = std::unique_ptr<MVCNN::TaskT>(new MVCNN::TaskT());
-//                toReturn[i]->task.type = MVCNN::SpecificTask_NNDMATask;
-//                auto tmp = new MVCNN::NNDMATaskT();
-//                tmp->src = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(0));
-//                tmp->dst = buildTensorReferenceT(cm, compilationDescriptor, opIt->getOutputTensor(0));
-//                if(opIt->hasAttr("Compression"))
-//                    tmp->compression =  opIt->get<bool>("Compression");
-//                toReturn[i]->task.value = tmp;
-//            }
-//            return toReturn;
-//        }
-//        else
-//        {
-            // 1 DMA to multiple slices -  multiple slices to 1 place
-            std::vector<std::unique_ptr<MVCNN::TaskT>> toReturn = std::vector<std::unique_ptr<MVCNN::TaskT>>(1);
-            toReturn[0] = std::unique_ptr<MVCNN::TaskT>(new MVCNN::TaskT());
-            toReturn[0]->task.type = MVCNN::SpecificTask_NNDMATask;
-            auto tmp = new MVCNN::NNDMATaskT();
-            tmp->src = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(0));
-            tmp->dst = buildTensorReferenceT(cm, compilationDescriptor, opIt->getOutputTensor(0));
 
-            std::vector<unsigned int> locale_index;
-            for (unsigned idx = numTasks; idx > 0; idx--)
-                locale_index.push_back(idx - 1);
+        auto tmp = new MVCNN::NNDMATaskT();
+        std::vector<std::unique_ptr<MVCNN::TaskT>> toReturn = std::vector<std::unique_ptr<MVCNN::TaskT>>(1);
 
-            if(direction == mv::DDR2CMX)
-                tmp->dst->locale_index = locale_index;
+        // 1 DMA to multiple slices -  multiple slices to 1 place
+        toReturn[0] = std::unique_ptr<MVCNN::TaskT>(new MVCNN::TaskT());
+        toReturn[0]->task.type = MVCNN::SpecificTask_NNDMATask;
 
-            if(opIt->hasAttr("Compression"))
-                tmp->compression =  opIt->get<bool>("Compression");
-            toReturn[0]->task.value = tmp;
-            return toReturn;
-//        }
+        tmp->src = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(0));
+        tmp->dst = buildTensorReferenceT(cm, compilationDescriptor, opIt->getOutputTensor(0));
+
+        if (direction == mv::DDR2CMX)
+        {
+            //copying from DDR2CMX we need to pad output if tensor needs alignment
+            if (opIt->getOutputTensor(0)->hasAttr("alignment"))
+                alignTensor(cm, tmp->dst, opIt->getOutputTensor(0));
+        }
+        else
+        {
+            //copying from CMX2DDR we need to crop down if tensor needed alignment in CMX
+            if (opIt->getInputTensor(0)->hasAttr("alignment"))
+                alignTensor(cm, tmp->src, opIt->getInputTensor(0), padFinalOutput);
+
+            if (padFinalOutput && opIt->getOutputTensor(0)->hasAttr("alignment"))
+                alignTensor(cm, tmp->dst, opIt->getOutputTensor(0), padFinalOutput);
+
+        }
+
+        std::vector<unsigned int> locale_index;
+        for (unsigned idx = numTasks; idx > 0; idx--)
+            locale_index.push_back(idx - 1);
+
+        if(direction == mv::DDR2CMX)
+            tmp->dst->locale_index = locale_index;
+
+        if(opIt->hasAttr("Compression"))
+            tmp->compression =  opIt->get<bool>("Compression");
+        toReturn[0]->task.value = tmp;
+        return toReturn;
     }
+    //NOTE: Have multiple dmas only for Unpopulated SOH, Populated SOK
     else
     {
         //Multiple DMAs, yuppi!
@@ -798,6 +748,25 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
             auto tmp = new MVCNN::NNDMATaskT();
             tmp->src = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(0), i);
             tmp->dst = buildTensorReferenceT(cm, compilationDescriptor, opIt->getOutputTensor(0), i);
+            if (direction == mv::DDR2CMX)
+            {
+                //copying from DDR2CMX we need to pad output if tensor needs alignment
+                if (opIt->getOutputTensor(0)->hasAttr("alignment"))
+                    alignTensor(cm, tmp->dst, opIt->getOutputTensor(0));
+            }
+            else
+            {
+                //copying from CMX2DDR we need to crop down if tensor needed alignment in CMX
+                if (opIt->getInputTensor(0)->hasAttr("alignment"))
+                    alignTensor(cm, tmp->src, opIt->getInputTensor(0), padFinalOutput);
+
+                if (padFinalOutput && opIt->getOutputTensor(0)->hasAttr("alignment"))
+                {
+                    if(opIt->getInputTensor()[0]->get<std::string>("splitStrategy") == "SplitOverH")                    
+                        alignTensor(cm, tmp->dst, opIt->getOutputTensor(0), padFinalOutput);
+                }
+            }
+
             if(opIt->hasAttr("Compression"))
                 tmp->compression =  opIt->get<bool>("Compression");
             toReturn[i]->task.value = tmp;
@@ -981,7 +950,6 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
 // Multicluster version
 std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantFieldsT(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt, int clusterId)
 {
-
     std::unique_ptr<MVCNN::NCEInvariantFieldsT> toBuild = std::unique_ptr<MVCNN::NCEInvariantFieldsT>(new MVCNN::NCEInvariantFieldsT());
 
     toBuild->dpu_task_type = convertTaskOp(opIt->get<std::string>("taskOp"));
@@ -1027,6 +995,9 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
         std::vector<unsigned int> locale_index;
         locale_index.push_back(clusterId);
         toBuild->input_data->locale_index = locale_index;
+//        toBuild->out_channel_offset = 0;
+//        for (int i = 0; i < clusterId; i++)
+//            toBuild->out_channel_offset += opIt->getOutputTensor(0)->getSubTensor(i).getShape()[IO_CHANNEL_DIMENSION];
     }
     else
         toBuild->input_data = buildTensorReferenceT(cm, compilationDescriptor, parentInputTensor, clusterId);
@@ -1059,6 +1030,58 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
     toBuild->parent_output_tensor->data->sparsity_index = 999999999999999999;
     toBuild->parent_output_tensor->data->storage_element_index = 999999999999999999;
 
+    if (parentOutputTensor->hasAttr("alignment"))
+    {
+        auto globalConfigParams = cm.getGlobalConfigParams();
+        int pad = globalConfigParams->hasAttr("VPU2ChannelPadding") ? globalConfigParams->get<int>("VPU2ChannelPadding") : 16;
+        auto opStrategy = opIt->get<std::string>("splitStrategy");
+        std::vector<std::size_t> dimensions = parentOutputTensor->getShape();
+        auto outputChannelsPadded = mv::round_up(dimensions[mv::IO_CHANNEL_DIMENSION], pad);
+        dimensions = {dimensions[mv::IO_WIDTH_DIMENSION], dimensions[mv::IO_HEIGHT_DIMENSION], outputChannelsPadded, dimensions[mv::IO_BATCH_DIMENSION]};
+        auto numericStrides = parentOutputTensor->getOrder().computeByteStrides(mv::Shape(dimensions), parentOutputTensor->getDType().getSizeInBits() / 8);
+
+        if (opStrategy == "SplitOverH")
+        {
+            numericStrides = parentOutputTensor->getSubTensor(clusterId).getOrder().computeByteStrides(mv::Shape({
+                parentOutputTensor->getSubTensor(clusterId).getShape()[IO_WIDTH_DIMENSION],parentOutputTensor->getSubTensor(clusterId).getShape()[IO_HEIGHT_DIMENSION],
+                 mv::round_up(parentOutputTensor->getSubTensor(clusterId).getShape()[IO_CHANNEL_DIMENSION], pad), parentOutputTensor->getSubTensor(clusterId).getShape()[IO_BATCH_DIMENSION]})
+            , parentOutputTensor->getSubTensor(clusterId).getDType().getSizeInBits() / 8);
+
+            alignTensor(cm, toBuild->parent_output_tensor, opIt->getOutputTensor(0));
+        }
+        numericStrides.push_back(parentOutputTensor->getDType().getSizeInBits() / 8);
+        std::reverse(dimensions.begin(), dimensions.end());
+        std::reverse(numericStrides.begin(), numericStrides.end());
+        toBuild->output_data->strides = numericStrides;
+        toBuild->parent_output_tensor->dimensions = std::vector<uint32_t>(dimensions.begin(), dimensions.end());
+        toBuild->parent_output_tensor->strides = numericStrides;
+    }
+    if (parentInputTensor->hasAttr("alignment"))
+    {
+        auto opStrategy = opIt->get<std::string>("splitStrategy");
+        auto globalConfigParams = cm.getGlobalConfigParams();
+        std::vector<std::size_t> dimensions = parentInputTensor->getShape();
+        auto numericStrides = parentInputTensor->getOrder().computeByteStrides(mv::Shape(dimensions), parentInputTensor->getDType().getSizeInBits() / 8);
+        int pad = globalConfigParams->hasAttr("VPU2ChannelPadding") ? globalConfigParams->get<int>("VPU2ChannelPadding") : 16;
+
+        if (opStrategy == "SplitOverH")
+        {
+            std::vector<std::size_t> new_dimensions = {
+                parentInputTensor->getSubTensor(clusterId).getShape()[IO_WIDTH_DIMENSION],parentInputTensor->getSubTensor(clusterId).getShape()[IO_HEIGHT_DIMENSION],
+                 mv::round_up(parentInputTensor->getSubTensor(clusterId).getShape()[IO_CHANNEL_DIMENSION], pad), parentInputTensor->getSubTensor(clusterId).getShape()[IO_BATCH_DIMENSION]};
+
+            numericStrides = parentInputTensor->getSubTensor(clusterId).getOrder().computeByteStrides(mv::Shape(new_dimensions)
+            , parentInputTensor->getSubTensor(clusterId).getDType().getSizeInBits() / 8);
+
+            alignTensor(cm, toBuild->parent_input_tensor, opIt->getInputTensor(0), true); //????
+
+            numericStrides.push_back(parentOutputTensor->getDType().getSizeInBits() / 8);
+            std::reverse(new_dimensions.begin(), new_dimensions.end());
+            std::reverse(numericStrides.begin(), numericStrides.end());
+            toBuild->input_data->dimensions = std::vector<uint32_t>(new_dimensions.begin(), new_dimensions.end());
+            toBuild->input_data->strides = numericStrides;
+        }
+    }
     if (opIt->get<bool>("multiCast"))
     {
 //        if (opIt->get<std::string>("splitStrategy") == "SplitOverK")
@@ -1095,6 +1118,18 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
             break;
         default:
             break;
+    }
+
+    if (parentOutputTensor->hasAttr("alignment"))
+    {
+        if (toBuild->output_data->dimensions[1] % 16 != 0 && toBuild->weights_data->dimensions[0] != toBuild->output_data->dimensions[1])
+        {
+            std::cout << parentOutputTensor->getName() << " has alignment and dimensions of output dont match weight table ";
+            std::cout << std::to_string(toBuild->weights_data->dimensions[0]) << " vs " << std::to_string(toBuild->output_data->dimensions[1]) << std::endl;
+
+            toBuild->output_data->dimensions[1] = toBuild->weights_data->dimensions[0];
+        }
+
     }
 
     return toBuild;
@@ -1204,13 +1239,6 @@ void mv::RuntimeModel::getWorkloadPadding(Control::OpListIterator opIt, Workload
             workload.padBottom = ((workload.MaxY + unsigned(1)) == outputHeight) ? padding[3] : 0;
         }
 
-        else if (opIt->get<std::string>("taskOp") == "ChannelMajorConvolution")
-        {
-            workload.padLeft = (workload.MinX == 0) ? padding[0] : 0;
-            workload.padTop = (workload.MinY == 0) ? padding[2] : 0;
-            workload.padRight = ((workload.MaxX + unsigned(1)) == outputWidth) ? padding[1] : 0;
-            workload.padBottom = ((workload.MaxY + unsigned(1)) == outputHeight) ? padding[3] : 0;
-        }
         else
         {
             workload.padLeft = (workload.MinX == 0) ? padding[0] : 0;
@@ -1246,7 +1274,7 @@ std::array <unsigned short, 4>  mv::RuntimeModel::getPadding(Control::OpListIter
     return padding;
 }
 
-std::unique_ptr<MVCNN::NCEVariantFieldsT> mv::RuntimeModel::buildNCEVariantFieldsT(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt, Workload workload)
+std::unique_ptr<MVCNN::NCEVariantFieldsT> mv::RuntimeModel::buildNCEVariantFieldsT(ComputationModel& , mv::Element &compilationDescriptor, Control::OpListIterator opIt, Workload workload, unsigned clusterId, std::string strategy)
 {
     UNUSED (compilationDescriptor);
     std::unique_ptr<MVCNN::NCEVariantFieldsT> toBuild = std::unique_ptr<MVCNN::NCEVariantFieldsT>(new MVCNN::NCEVariantFieldsT());
@@ -1258,37 +1286,11 @@ std::unique_ptr<MVCNN::NCEVariantFieldsT> mv::RuntimeModel::buildNCEVariantField
     toBuild->workload_end_X = workload.MaxX;
     toBuild->workload_end_Y = workload.MaxY;
     toBuild->workload_end_Z = workload.MaxZ;
-    //Padding should be computed for every cluster
-    getWorkloadPadding(opIt, workload);
-    toBuild->padLeft = workload.padLeft;
-    toBuild->padRight = workload.padRight;
-    toBuild->padTop = workload.padTop;
-    toBuild->padBottom = workload.padBottom;
-    if (opIt->hasAttr("alignment"))
-    {
-        auto globalConfigParams = cm.getGlobalConfigParams();
-        int pad = globalConfigParams->hasAttr("VPU2ChannelPadding") ? globalConfigParams->get<int>("VPU2ChannelPadding") : 16;
-        std::vector<std::size_t> dimensions = opIt->getOutputTensor(0)->getShape();
-        auto outputChannelsPadded = mv::round_up(dimensions[mv::IO_CHANNEL_DIMENSION], pad);
-        toBuild->workload_end_Z = outputChannelsPadded - 1;
-    }
-    return toBuild;
-}
-
-std::unique_ptr<MVCNN::NCEVariantFieldsT> mv::RuntimeModel::buildNCEVariantFieldsT(ComputationModel& , mv::Element &compilationDescriptor, Control::OpListIterator opIt, Workload workload, unsigned clusterId)
-{
-    UNUSED (compilationDescriptor);
-    std::unique_ptr<MVCNN::NCEVariantFieldsT> toBuild = std::unique_ptr<MVCNN::NCEVariantFieldsT>(new MVCNN::NCEVariantFieldsT());
-
-    toBuild->mpe_mode = convertMPEMode(workload.MPEMode);
-    toBuild->workload_start_X = workload.MinX;
-    toBuild->workload_start_Y = workload.MinY;
-    toBuild->workload_start_Z = workload.MinZ;
-    toBuild->workload_end_X = workload.MaxX;
-    toBuild->workload_end_Y = workload.MaxY;
-    toBuild->workload_end_Z = workload.MaxZ;
-    //Padding should be computed for every cluster
-    getWorkloadPadding(opIt, workload, clusterId);
+    if (strategy != "Clustering")
+        //Padding should be computed for every cluster
+        getWorkloadPadding(opIt, workload, clusterId);
+    else
+        getWorkloadPadding(opIt, workload);
     toBuild->padLeft = workload.padLeft;
     toBuild->padRight = workload.padRight;
     toBuild->padTop = workload.padTop;
@@ -1297,55 +1299,22 @@ std::unique_ptr<MVCNN::NCEVariantFieldsT> mv::RuntimeModel::buildNCEVariantField
     return toBuild;
 }
 
-std::vector<std::unique_ptr<MVCNN::NCEVariantFieldsT>> mv::RuntimeModel::buildNCEVariantFieldsTVector(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt)
+std::vector<std::unique_ptr<MVCNN::NCEVariantFieldsT>> mv::RuntimeModel::buildNCEVariantFieldsTVector(ComputationModel& cm, mv::Element &compilationDescriptor,
+                                                                                                      Control::OpListIterator opIt, unsigned numTask, std::string strategy)
 {
-    auto workloads = opIt->get<mv::Workloads>("Workloads0").getWorkloads();
-    unsigned n = workloads.size();
-    std::vector<std::unique_ptr<MVCNN::NCEVariantFieldsT>> toBuild = std::vector<std::unique_ptr<MVCNN::NCEVariantFieldsT>>(n);
-    for(unsigned i = 0; i < n; ++i)
-        toBuild[i] = buildNCEVariantFieldsT(cm, compilationDescriptor, opIt, workloads[i]);
-
-    return toBuild;
-}
-
-std::vector<std::unique_ptr<MVCNN::NCEVariantFieldsT>> mv::RuntimeModel::buildNCEVariantFieldsTVector(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt, unsigned numTask)
-{
-    auto workloads = opIt->get<mv::Workloads>("Workloads" + std::to_string(numTask)).getWorkloads();
+    std::vector <mv::Workload> workloads;
+    //NOTE: For Clustering SubTensors equal Workloads per Subtensor
+    if (strategy == "Clustering" && numTask > 0)
+        workloads = opIt->get<mv::Workloads>("Workloads" + std::to_string(0)).getWorkloads();
+    else
+        workloads = opIt->get<mv::Workloads>("Workloads" + std::to_string(numTask)).getWorkloads();
     unsigned n = workloads.size();
     std::vector<std::unique_ptr<MVCNN::NCEVariantFieldsT>> toBuild = std::vector<std::unique_ptr<MVCNN::NCEVariantFieldsT>>(n);
     for(unsigned i = 0; i < n; ++i)
     {
-        toBuild[i] = buildNCEVariantFieldsT(cm, compilationDescriptor, opIt, workloads[i], numTask);
+        toBuild[i] = buildNCEVariantFieldsT(cm, compilationDescriptor, opIt, workloads[i], numTask, strategy);
     }
     return toBuild;
-}
-
-
-
-std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNCE2TaskT(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt)
-{
-    std::vector<std::unique_ptr<MVCNN::TaskT>> toReturn = std::vector<std::unique_ptr<MVCNN::TaskT>>(1);
-
-    toReturn[0] = std::unique_ptr<MVCNN::TaskT>(new MVCNN::TaskT());
-    toReturn[0]->task.type = MVCNN::SpecificTask_NCE2Task;
-    auto toBuild = new MVCNN::NCE2TaskT();
-    toBuild->variant = buildNCEVariantFieldsTVector(cm, compilationDescriptor, opIt);
-    toBuild->invariant = buildNCEInvariantFieldsT(cm, compilationDescriptor, opIt);
-
-    auto hash = [](const MVCNN::MPE_Mode &g){ return static_cast<std::size_t>(g); };
-    auto comp = [](const MVCNN::MPE_Mode &l, const MVCNN::MPE_Mode &r){ return l == r; };
-
-    std::unordered_map<MVCNN::MPE_Mode, unsigned, decltype(hash), decltype(comp)> frequencyCounter(4, hash, comp);
-    for(auto& variantField : toBuild->variant)
-        ++frequencyCounter[variantField->mpe_mode];
-
-    unsigned maxFrequency = 0;
-    for(auto& frequencyCouple : frequencyCounter)
-        if(frequencyCouple.second > maxFrequency)
-            toBuild->invariant->mpe_frequent_mode = frequencyCouple.first;
-
-    toReturn[0]->task.value = toBuild;
-    return toReturn;
 }
 
 std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNCE2TaskT(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt, std::string splitting)
@@ -1360,7 +1329,7 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNCE2TaskT(Comp
             toReturn[i] = std::unique_ptr<MVCNN::TaskT>(new MVCNN::TaskT());
             toReturn[i]->task.type = MVCNN::SpecificTask_NCE2Task;
             auto toBuild = new MVCNN::NCE2TaskT();
-            toBuild->variant = buildNCEVariantFieldsTVector(cm, compilationDescriptor, opIt, i);
+            toBuild->variant = buildNCEVariantFieldsTVector(cm, compilationDescriptor, opIt, i, splitting);
             toBuild->invariant = buildNCEInvariantFieldsT(cm, compilationDescriptor, opIt, i);
 
             auto hash = [](const MVCNN::MPE_Mode &g){ return static_cast<std::size_t>(g); };
@@ -1384,7 +1353,7 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNCE2TaskT(Comp
             toReturn[i] = std::unique_ptr<MVCNN::TaskT>(new MVCNN::TaskT());
             toReturn[i]->task.type = MVCNN::SpecificTask_NCE2Task;
             auto toBuild = new MVCNN::NCE2TaskT();
-            toBuild->variant = buildNCEVariantFieldsTVector(cm, compilationDescriptor, opIt);
+            toBuild->variant = buildNCEVariantFieldsTVector(cm, compilationDescriptor, opIt, i, splitting);
             toBuild->invariant = buildNCEInvariantFieldsT(cm, compilationDescriptor, opIt);
 
             auto locale_index = std::vector<unsigned int>(1,i);
@@ -1506,17 +1475,16 @@ unsigned mv::RuntimeModel::countProducerConsumerTasks(mv::ComputationModel& cm, 
         if(numClusters > 1)
         {
             bool sourceIsBroadCasted = opIt->getInputTensor(0)->isBroadcasted();
-            if(!sourceIsBroadCasted)
+            //NOTE: In case I spill from soh and I bring a sok tensor is not broadcasted
+            if (opIt->getInputTensor(0)->get<std::string>("splitStrategy") == "SplitOverH" && opIt->getOutputTensor(0)->get<std::string>("splitStrategy") == "SplitOverK")
+                toReturn = 1;
+            // NOTE: a sok tensor might come from a different strategy op
+            else if(!sourceIsBroadCasted)
                 toReturn = numClusters;
-//Look at the coments on buildNNDMATaskT for multiCluster is case of Multiclustering
-//            else if (opIt->getInputTensor(0)->hasAttr("multiCast"))
-//                toReturn = numClusters;
             else
                 toReturn = 1;
-            if ((opIt->getInputTensor(0)->get<std::string>("splitStrategy") == "Clustering") && (opIt->getInputTensor(0)->isPopulated()))
+            if ((opIt->getInputTensor(0)->get<std::string>("splitStrategy") == "Clustering"))
                 toReturn = 1;
-            else if ((opIt->getInputTensor(0)->get<std::string>("splitStrategy") == "Clustering") && (!opIt->getInputTensor(0)->isPopulated()))
-                toReturn = numClusters;
         }
         else
             toReturn = 1;

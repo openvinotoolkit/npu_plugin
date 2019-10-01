@@ -1013,9 +1013,11 @@ std::size_t mv::Tensor::getClusterSize(unsigned int alignment, bool isBase) cons
     if (!isBroadcasted())
     {
         res = 0;
+        bool isTensorAligned = hasAttr("alignment") ? get<bool>("alignment") : false;
+
         for (size_t tIdx = 0; tIdx < subTensors_.size(); tIdx++)
         {
-            auto size = subTensors_[tIdx]->computeTotalSize(alignment, isBase);
+            auto size = subTensors_[tIdx]->computeTotalSize(alignment, isBase,isTensorAligned);
             if (size > res)
                 res = size;
         }
@@ -1028,7 +1030,7 @@ std::size_t mv::Tensor::getClusterSize(unsigned int alignment, bool isBase) cons
     return res;
 }
 
-std::size_t mv::Tensor::computeTotalSize(unsigned int alignment, bool isBase) const
+std::size_t mv::Tensor::computeTotalSize(unsigned int alignment, bool isBase, bool fatherTensorAligned) const
 {
     std::size_t res;
 
@@ -1053,7 +1055,19 @@ std::size_t mv::Tensor::computeTotalSize(unsigned int alignment, bool isBase) co
 
         }
     }
-
+    bool isTensorAligned = hasAttr("alignment") ? get<bool>("alignment") : false;
+    size_t totalSize = shape.totalSize();
+    //TODO update that to proper alignment, if this needs to align to 32 (splitOverK, each cluster has the whole tensor size, but need it aligned to 16*numclusters)
+    if (isTensorAligned || fatherTensorAligned)
+    {
+        auto pad = alignment;
+        auto outputChannels = shape[mv::IO_CHANNEL_DIMENSION];
+        if (outputChannels % pad != 0)
+        {
+            auto paddedOutputChannels = mv::round_up(outputChannels, pad);
+            totalSize = totalSize / outputChannels * paddedOutputChannels;
+        }
+    }
     if (isSparse())
     {
         if (isPopulated())
@@ -1062,6 +1076,7 @@ std::size_t mv::Tensor::computeTotalSize(unsigned int alignment, bool isBase) co
         }
         else
         {
+            //TODO what happens in this case
             res = shape.totalSize() * std::ceil(getDType().getSizeInBits()/8.0); //TODO check if we need ceil here?
             res += getSparsityMap()->computeTotalSize();
             res += getStorageElement()->computeTotalSize();
@@ -1069,11 +1084,57 @@ std::size_t mv::Tensor::computeTotalSize(unsigned int alignment, bool isBase) co
     }
     else
     {
-        res = shape.totalSize() * std::ceil(getDType().getSizeInBits()/8.0); //TODO check if we need ceil here?
+        res = totalSize * std::ceil(getDType().getSizeInBits()/8.0); //TODO check if we need ceil here?
     }
     //Round up to align to (alignment) 16 bytes
     res = mv::round_up(res, alignment);
     return res;
+}
+
+void mv::Tensor::shareAcrossClusters(std::vector<mv::Workload> workloads, unsigned int numClusters, bool clustering)
+{
+    if (isPopulated())
+    {
+        //NOTE Shape of Populated will be aligned already, so I am using the shape not the workload
+        auto shape = getShape();
+        for (auto wlItr = workloads.begin(); wlItr != workloads.end(); wlItr++)
+        {
+            size_t idx = wlItr - workloads.begin();
+
+            if (clustering)
+            {
+                subTensors_.push_back(std::make_shared<mv::Tensor>(getName() + "sub" + std::to_string(idx),
+                    shape_, getDType(), getOrder()));
+            }
+            if (hasAttr("quantizationParams"))
+                subTensors_[idx]->set<mv::QuantizationParams>("quantizationParams", get<mv::QuantizationParams>("quantizationParams"));
+            if (isSparse())
+                subTensors_[idx]->setSparse();
+        }
+        set<bool>("broadcasted", clustering == true && (numClusters > 1));
+    }
+    else
+    {
+        auto shape = getShape();
+        for (auto wlItr = workloads.begin(); wlItr != workloads.end(); wlItr++)
+        {
+            size_t idx = wlItr - workloads.begin();
+            auto width = wlItr->MaxX - wlItr->MinX;
+            auto height = wlItr->MaxY - wlItr->MinY;
+            auto channels = wlItr->MaxZ - wlItr->MinZ;
+            if (clustering)
+            {
+                mv::Shape newShape = {width, height, channels, 1};
+                subTensors_.push_back(std::make_shared<mv::Tensor>(getName() + "sub" + std::to_string(idx), newShape, getDType(), getOrder()));
+           }
+
+            if (hasAttr("quantizationParams"))
+                subTensors_[idx]->set<mv::QuantizationParams>("quantizationParams", get<mv::QuantizationParams>("quantizationParams"));
+            if (isSparse())
+                subTensors_[idx]->setSparse();
+        }
+        set<bool>("broadcasted", (clustering && (numClusters > 1)));
+    }
 }
 
 void mv::Tensor::splitAcrossClusters(std::vector<mv::Workload> workloads, bool splitOverH, bool multicast)

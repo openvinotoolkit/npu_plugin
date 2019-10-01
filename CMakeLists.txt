@@ -218,7 +218,7 @@ set(model
     "${PROJECT_SOURCE_DIR}/src/computation/op/op.cpp"
     "${PROJECT_SOURCE_DIR}/src/computation/resource/memory_allocator.cpp"
     "${PROJECT_SOURCE_DIR}/src/computation/resource/stage.cpp"
-    "${PROJECT_SOURCE_DIR}/src/target/kmb/lemon_graph_scheduler.cpp"   
+    "${PROJECT_SOURCE_DIR}/src/target/kmb/lemon_graph_scheduler.cpp"
 )
 
 set(logger
@@ -269,9 +269,11 @@ set(pass
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/sparsity/weights_tables.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/sparsity/eltwise_ops.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/kmb_align_to_16_channels.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/real_pad_tensors.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/streaming/spatial_split_streaming.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/kmb_align_slice_ops.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/force_serialize.cpp"
+
     "${PROJECT_SOURCE_DIR}/src/pass/finalization/max_topological_cut.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/finalization/allocate_memory_kmb.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/finalization/generate_workloads_pass.cpp"
