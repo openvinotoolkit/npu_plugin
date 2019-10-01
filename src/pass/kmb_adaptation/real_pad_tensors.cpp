@@ -108,6 +108,7 @@ void addCropNode(mv::OpModel& om, mv::Data::OpListIterator& opIt, mv::Data::Tens
     croppedTensor->set<bool>("alignment", true);//TODO remove this, just for testing now
     auto cropOp = om.getOp(cropOpName);
     cropOp->set<unsigned>("opId", opIt->get<unsigned>("opId"));
+    cropOp->set<std::string>("splitStrategy", opIt->get<std::string>("splitStrategy"));
 
 
     for (unsigned flowIdx = 0; flowIdx < flowsToRemove.size(); flowIdx++)
@@ -275,6 +276,7 @@ void addAlignOpForInputTensors(const mv::pass::PassEntry& , mv::ComputationModel
                     alignedTensor->set<bool>("alignment", true);//TODO remove this, just for testing now
                     auto alignOp = om.getOp(alignOpName);
                     alignOp->set<unsigned>("opId", parentOpIt->get<unsigned>("opId"));
+                    alignOp->set<std::string>("splitStrategy", parentOpIt->get<std::string>("splitStrategy"));
 
                     for (unsigned flowIdx = 0; flowIdx < flowsToRemove.size(); flowIdx++)
                     {
