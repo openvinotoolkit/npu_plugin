@@ -997,7 +997,9 @@ TEST_F(VpuInferAndCompareTests, DISABLED_NQA_MobileNetV2gitNQA_ResNet50) {  // T
         std::copy(imageData.get(), imageData.get() + pictureReader->size(), std::back_inserter(imageDataBatched));
     }
 
+    IE_SUPPRESS_DEPRECATED_START
     ConvertImageToInput(&imageDataBatched.front(), imageDataBatched.size(), *input.get());
+    IE_SUPPRESS_DEPRECATED_END
 
     sts = inferRequest->Infer(&response);
     ASSERT_EQ(StatusCode::OK, sts) << response.msg;
@@ -1050,7 +1052,9 @@ TEST_F(VpuInferAndCompareTests, DISABLED_NQA_InceptionV1) {  // To be run in man
         std::copy(imageData.get(), imageData.get() + pictureReader->size(), std::back_inserter(imageDataBatched));
     }
 
+    IE_SUPPRESS_DEPRECATED_START
     ConvertImageToInput(&imageDataBatched.front(), imageDataBatched.size(), *input.get());
+    IE_SUPPRESS_DEPRECATED_END
 
     sts = inferRequest->Infer(&response);
     ASSERT_EQ(StatusCode::OK, sts) << response.msg;
@@ -1104,7 +1108,9 @@ TEST_F(VpuInferAndCompareTests, DISABLED_NQA_MobileNetV2) {  // To be run in man
         std::copy(imageData.get(), imageData.get() + pictureReader->size(), std::back_inserter(imageDataBatched));
     }
 
+    IE_SUPPRESS_DEPRECATED_START
     ConvertImageToInput(&imageDataBatched.front(), imageDataBatched.size(), *input.get());
+    IE_SUPPRESS_DEPRECATED_END
 
     sts = inferRequest->Infer(&response);
     ASSERT_EQ(StatusCode::OK, sts) << response.msg;
