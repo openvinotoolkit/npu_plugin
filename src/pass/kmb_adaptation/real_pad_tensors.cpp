@@ -138,10 +138,10 @@ void cropOrPadFinalOutputFunc(const mv::pass::PassEntry& , mv::ComputationModel&
     if (padOutput)
     {
         //remove Crop layer if it's there
-        if (parentOpIt->hasAttr("alignment") && parentOpIt->getOpType() == "Crop")
+        if (parentOpIt->getOpType() == "Crop")
         {
             auto cropParentOpIt = om.getSourceOp(parentOpIt->getInputTensor(0));
-            fuseCropAlign(cropParentOpIt, cropParentOpIt->getOutputTensor(0), om, outputOp);
+            fuseCropAlign(cropParentOpIt, cropParentOpIt->getOutputTensor(0), om, parentOpIt);
         }
     }
     else
