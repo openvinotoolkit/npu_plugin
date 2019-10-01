@@ -45,7 +45,7 @@ namespace KmbPlugin {
 
 class KmbExecutor {
 public:
-    explicit KmbExecutor(const std::shared_ptr<KmbConfig>& config);
+    explicit KmbExecutor(const KmbConfig& config);
     ~KmbExecutor() = default;
 
     void allocateGraph(const std::vector<char> &graphFileContent, const char* networkName);
@@ -59,7 +59,7 @@ public:
     const InferenceEngine::InputsDataMap& getNetworkInputs() const { return m_networkInputs; }
     const InferenceEngine::OutputsDataMap& getNetworkOutputs() const { return m_networkOutputs; }
 
-    const std::shared_ptr<KmbConfig>& _config;
+    const KmbConfig& _config;
 
 private:
         unsigned int _numStages = 0;

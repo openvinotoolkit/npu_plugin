@@ -25,6 +25,8 @@
 #include <mutex>
 #include "kmb_layers_tests.hpp"
 
+#include <file_reader.h>
+
 using namespace std;
 using namespace InferenceEngine;
 using namespace ::testing;
@@ -62,10 +64,7 @@ TEST_P(KmbRegressionMultipleNetworks, canRunInferTwoNetworksSeveralIteration) {
 
         Blob::Ptr inputBlob;
         inputBlob = inferRequestPtr->GetBlob(inputName);
-        if (!fromBinaryFile(filename, inputBlob)) {
-            std::cerr << "Cannot read input\n";
-            return nullptr;
-        }
+        vpu::KmbPlugin::utils::fromBinaryFile(filename, inputBlob);
 
         return inferRequestPtr;
     };
@@ -91,10 +90,7 @@ TEST_P(KmbRegressionMultipleNetworks, canRunInferTwoNetworksSeveralIteration) {
     auto getReferenceBlob = [](const TensorDesc &outputTensorDesc, const std::string &filename) -> Blob::Ptr {
         Blob::Ptr blob = make_blob_with_precision(outputTensorDesc);
         blob->allocate();
-        if (!fromBinaryFile(filename, blob)) {
-            std::cerr << "Cannot read reference\n";
-            return nullptr;
-        }
+        vpu::KmbPlugin::utils::fromBinaryFile(filename, blob);
         return blob;
     };
 

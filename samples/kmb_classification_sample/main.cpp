@@ -26,6 +26,7 @@
 #include <samples/classification_results.h>
 
 #include "classification_sample.h"
+#include <file_reader.h>
 
 using namespace InferenceEngine;
 
@@ -49,20 +50,6 @@ bool ParseAndCheckCommandLine(int argc, char *argv[]) {
     }
 
     return true;
-}
-
-bool readBinaryFile(std::string input_binary, std::string& data) {
-    std::ifstream in(input_binary, std::ios_base::binary | std::ios_base::ate);
-
-    size_t sizeFile = in.tellg();
-    in.seekg(0, std::ios_base::beg);
-    data.resize(sizeFile);
-    bool status = false;
-    if (in.good()) {
-        in.read(&data.front(), sizeFile);
-        status = true;
-    }
-    return status;
 }
 
 std::vector<std::string> readLabelsFromFile(const std::string& labelFileName) {
@@ -146,11 +133,8 @@ int main(int argc, char *argv[]) {
 
         if (inputInfo.size() != 1) throw std::logic_error("Sample supports topologies only with 1 input");
 
-        std::string imageData;
-        if (!readBinaryFile(imageFileName, imageData)) {
-            slog::info << "failed to read " << imageFileName << slog::endl;
-            throw std::logic_error("Valid input images were not found!");
-        }
+        Blob::Ptr inputImageBlob;
+        vpu::KmbPlugin::utils::fromBinaryFile(imageFileName, inputImageBlob);
         // -----------------------------------------------------------------------------------------------------
 
         // --------------------------- 4. Create infer request -------------------------------------------------
@@ -168,12 +152,12 @@ int main(int argc, char *argv[]) {
         }
 
         /** Filling input tensor with images. **/
-        if (inputBlob->size() < imageData.size()) {
+        if (inputBlob->size() < inputImageBlob->size()) {
             throw std::logic_error("Input blob doesn't have enough memory to fit input image");
         }
 
         auto blobData = inputBlob->buffer().as<PrecisionTrait<Precision::U8>::value_type*>();
-        std::copy(imageData.begin(), imageData.end(), blobData);
+        std::copy_n(inputImageBlob->buffer().as<uint8_t*>(), inputImageBlob->size(), blobData);
 
         inferRequest.Infer();
         slog::info << "inferRequest completed successfully" << slog::endl;

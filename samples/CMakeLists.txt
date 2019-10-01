@@ -161,7 +161,7 @@ macro(ie_add_sample)
     target_include_directories(${IE_SAMPLE_NAME} PRIVATE "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/include")
 
     target_link_libraries(${IE_SAMPLE_NAME} PRIVATE ${OpenCV_LIBRARIES} ${InferenceEngine_LIBRARIES}
-                                                    ${IE_SAMPLE_DEPENDENCIES} gflags)
+                                                    ${IE_SAMPLE_DEPENDENCIES} gflags kmb_utils)
 
     if(UNIX)
         target_link_libraries(${IE_SAMPLE_NAME} PRIVATE pthread)

@@ -69,7 +69,6 @@ void kmbLayersTests_nightly::setCommonConfig(std::map<std::string, std::string>&
 {
     config = _config;
 #if 0
-    config[VPU_CONFIG_KEY(LOG_LEVEL)] = CONFIG_VALUE(LOG_INFO);
     config[CONFIG_KEY(LOG_LEVEL)] = CONFIG_VALUE(LOG_INFO);
 #endif
 

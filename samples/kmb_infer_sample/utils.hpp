@@ -22,7 +22,6 @@
 
 namespace IE = InferenceEngine;
 
-bool readBinaryFile(std::string input_binary, std::string& data);
 std::vector<std::string> readLabelsFromFile(const std::string& labelFileName);
 
 IE::Blob::Ptr preprocessUncompiledLayers(const std::string &layersPath, const std::string& data);

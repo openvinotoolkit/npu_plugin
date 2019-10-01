@@ -63,6 +63,8 @@ add_subdirectory(thirdparty)
 
 add_subdirectory(src/kmb_plugin)
 
+add_subdirectory(src/utils)
+
 if(ENABLE_TESTS)
     enable_testing()
     # TODO: do not use model for ARM for now because the model requires mcm compiler which is not build on ARM

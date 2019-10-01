@@ -47,26 +47,22 @@ ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(const ICore * /*core*/
         }
     }
 
-    // override what was set globally for plugin, otherwise - override default config without touching config for plugin
-    auto configCopy = _config;
-    for (auto &&entry : config) {
-        configCopy[entry.first] = entry.second;
-    }
+    auto parsedConfigCopy = _parsedConfig;
+    parsedConfigCopy.update(config);
 
-    return std::make_shared<ExecutableNetwork>(network, configCopy);
+    return std::make_shared<ExecutableNetwork>(network, parsedConfigCopy);
 }
 
-void Engine::SetConfig(const std::map<std::string, std::string> &userConfig) {
-    KmbConfig kmbConfig(userConfig);
+void Engine::SetConfig(const std::map<std::string, std::string> &config) {
+    _parsedConfig.update(config);
 
-    for (auto &&entry : userConfig) {
+    for (const auto& entry : config) {
         _config[entry.first] = entry.second;
     }
 }
 
 void Engine::QueryNetwork(const ICNNNetwork& network, const std::map<std::string, std::string>& config,
                           QueryNetworkResult& res) const {
-    UNUSED(config);
 #ifdef ENABLE_MCM_COMPILER
     std::shared_ptr<mv::CompilationUnit> tmpCompiler =
             std::make_shared<mv::CompilationUnit>(network.getName());
@@ -75,10 +71,14 @@ void Engine::QueryNetwork(const ICNNNetwork& network, const std::map<std::string
                        << "Supported format: FP32 and FP16.";
     }
 
+    auto parsedConfigCopy = _parsedConfig;
+    parsedConfigCopy.update(config);
+
     auto copyNet = ie::CNNNetwork(InferenceEngine::cloneNet(network));
-    auto layerNames = getSupportedLayersMcm(copyNet,
+    auto layerNames = getSupportedLayersMcm(
+        copyNet,
         tmpCompiler->model(),
-        config);
+        parsedConfigCopy);
 
     for (auto && layerName : layerNames) {
         res.supportedLayersMap.insert({ layerName, GetName() });
@@ -87,14 +87,13 @@ void Engine::QueryNetwork(const ICNNNetwork& network, const std::map<std::string
 #else
     UNUSED(network);
     UNUSED(res);
+    UNUSED(config);
 #endif
 }
 
 Engine::Engine() {
     _pluginName = "KMB";
 
-    KmbConfig config;
-    _config = config.getDefaultConfig();
 #ifdef ENABLE_MCM_COMPILER
     std::shared_ptr<mv::CompilationUnit> tmpCompiler =
             std::make_shared<mv::CompilationUnit>("testModel");
@@ -105,9 +104,6 @@ Engine::Engine() {
 #endif
 }
 
-// TODO: ImportNetwork and LoadNetwork handle the config parameter in different ways.
-// ImportNetwork gets a config provided by an user. LoadNetwork gets the plugin config and merge it with user's config.
-// Need to found a common way to handle configs
 IExecutableNetwork::Ptr Engine::ImportNetwork(const std::string &modelFileName, const std::map<std::string, std::string> &config) {
     std::ifstream blobFile(modelFileName, std::ios::binary);
 
@@ -115,20 +111,21 @@ IExecutableNetwork::Ptr Engine::ImportNetwork(const std::string &modelFileName, 
         THROW_IE_EXCEPTION << InferenceEngine::details::as_status << NETWORK_NOT_READ;
     }
 
-    IExecutableNetwork::Ptr executableNetwork;
-    // Use config provided by an user ignoring default config
-    executableNetwork.reset(new ExecutableNetworkBase<ExecutableNetworkInternal>(
-                                std::make_shared<ExecutableNetwork>(modelFileName, config)),
-                                [](InferenceEngine::details::IRelease *p) {p->Release();});
+    auto parsedConfigCopy = _parsedConfig;
+    parsedConfigCopy.update(config, ConfigMode::RunTime);
 
-    return executableNetwork;
+    const auto executableNetwork =
+            std::make_shared<ExecutableNetwork>(
+                modelFileName, parsedConfigCopy);
+
+    return IExecutableNetwork::Ptr(
+        new ExecutableNetworkBase<ExecutableNetworkInternal>(executableNetwork),
+        [](ie::details::IRelease *p) {p->Release();});
 }
 
 IE_SUPPRESS_DEPRECATED_START
 
 INFERENCE_PLUGIN_API(StatusCode) CreatePluginEngine(IInferencePlugin *&plugin, ResponseDesc *resp) noexcept {
-    std::map<std::string, std::string> config;
-//    config[CONFIG_KEY(LOG_LEVEL)] = CONFIG_VALUE(LOG_DEBUG);
     try {
         plugin = make_ie_compatible_plugin({{2, 1}, CI_BUILD_NUMBER, "kmbPlugin"}, std::make_shared<Engine>());
         return OK;

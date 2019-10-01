@@ -34,6 +34,8 @@
 #include <condition_variable>
 #include <ie_layers.h>
 
+#include <file_reader.h>
+
 using namespace ::testing;
 using namespace InferenceEngine;
 using namespace Regression::Matchers;
@@ -373,7 +375,7 @@ TEST_P(VpuInferWithPath, compareInferenceOutputWithReference) {
     std::string inputFilePath = ModelsPath() + inputSuffix;
     for (auto & item : inputInfo) {
         Blob::Ptr inputBlob = inferRequest.GetBlob(item.first.c_str());
-        ASSERT_TRUE(fromBinaryFile(inputFilePath, inputBlob));
+        ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(inputFilePath, inputBlob));
     }
 
     ASSERT_NO_THROW(inferRequest.Infer());
@@ -392,7 +394,7 @@ TEST_P(VpuInferWithPath, compareInferenceOutputWithReference) {
         referenceOutputBlob->allocate();
 
         std::string referenceOutputFilePath = ModelsPath() + outputSuffix;
-        ASSERT_TRUE(fromBinaryFile(referenceOutputFilePath, referenceOutputBlob));
+        ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(referenceOutputFilePath, referenceOutputBlob));
         if (graphSuffix.rfind(YOLO_GRAPH_NAME) == graphSuffix.size() - YOLO_GRAPH_NAME.size()) {
             Blob::Ptr refFP32 = ConvertU8ToFP32(referenceOutputBlob);
             Blob::Ptr outputFP32 = ConvertU8ToFP32(outputBlob);
@@ -437,7 +439,7 @@ TEST_P(VpuInferAndCompareTestsWithParam, multipleInferRequests) {
         for(auto currentRequest : requestList) {
             Blob::Ptr inputBlob;
             inputBlob = currentRequest.GetBlob(item.first.c_str());
-            ASSERT_TRUE(fromBinaryFile(inputFilePath, inputBlob));
+            ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(inputFilePath, inputBlob));
         }
     }
 
@@ -481,7 +483,7 @@ TEST_P(VpuInferAndCompareTestsWithParam, multipleInferRequests) {
                 outputBlobTensorDesc.getLayout()));
             referenceOutputBlob->allocate();
 
-            ASSERT_TRUE(fromBinaryFile(referenceOutputFilePath, referenceOutputBlob));
+            ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(referenceOutputFilePath, referenceOutputBlob));
             if (graphSuffix.rfind(YOLO_GRAPH_NAME) == graphSuffix.size() - YOLO_GRAPH_NAME.size()) {
                 Blob::Ptr refFP32 = ConvertU8ToFP32(referenceOutputBlob);
                 Blob::Ptr outputFP32 = ConvertU8ToFP32(outputBlob);
@@ -520,7 +522,7 @@ TEST_P(VpuInferWithPath, asyncInferCallback) {
         for(auto currentRequest : requestList) {
             Blob::Ptr inputBlob;
             ASSERT_NO_THROW(inputBlob = currentRequest.GetBlob(item.first.c_str()));
-            ASSERT_TRUE(fromBinaryFile(inputFilePath, inputBlob));
+            ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(inputFilePath, inputBlob));
         }
     }
 
@@ -567,7 +569,7 @@ TEST_P(VpuInferWithPath, asyncInferCallback) {
                 outputBlobTensorDesc.getLayout()));
             referenceOutputBlob->allocate();
 
-            ASSERT_TRUE(fromBinaryFile(referenceOutputFilePath, referenceOutputBlob));
+            ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(referenceOutputFilePath, referenceOutputBlob));
             if (graphSuffix.rfind(YOLO_GRAPH_NAME) == graphSuffix.size() - YOLO_GRAPH_NAME.size()) {
                 Blob::Ptr refFP32 = ConvertU8ToFP32(referenceOutputBlob);
                 Blob::Ptr outputFP32 = ConvertU8ToFP32(outputBlob);
@@ -600,7 +602,7 @@ TEST_P(VpuInferWithPath, asyncInferCallbackRecursive) {
     for (auto & item : inputInfo) {
         Blob::Ptr inputBlob;
         ASSERT_NO_THROW(inputBlob = inferRequest.GetBlob(item.first.c_str()));
-        ASSERT_TRUE(fromBinaryFile(inputFilePath, inputBlob));
+        ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(inputFilePath, inputBlob));
     }
 
     const std::size_t MAX_ITERATIONS = 10;
@@ -638,7 +640,7 @@ TEST_P(VpuInferWithPath, asyncInferCallbackRecursive) {
             outputBlobTensorDesc.getLayout()));
         referenceOutputBlob->allocate();
 
-        ASSERT_TRUE(fromBinaryFile(referenceOutputFilePath, referenceOutputBlob));
+        ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(referenceOutputFilePath, referenceOutputBlob));
 
         if (graphSuffix.rfind(YOLO_GRAPH_NAME) == graphSuffix.size() - YOLO_GRAPH_NAME.size()) {
             Blob::Ptr refFP32 = ConvertU8ToFP32(referenceOutputBlob);
@@ -709,11 +711,9 @@ TEST_P(VpuInferWithPath, compareSetBlobAndGetBlobAfterInfer) {
     ASSERT_NO_THROW(inferRequest1 = importedNetwork.CreateInferRequest());
     std::string input_name1 = importedNetwork.GetInputsInfo().begin()->first;
 
-    bool status = false;
     Blob::Ptr inputBlob1;
     ASSERT_NO_THROW(inputBlob1 = inferRequest1.GetBlob(input_name1));
-    ASSERT_NO_THROW(status = fromBinaryFile(inputNameFilePath, inputBlob1));
-    ASSERT_TRUE(status);
+    ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(inputNameFilePath, inputBlob1));
 
     ASSERT_NO_THROW(inferRequest1.Infer());
     std::string output_name1 = importedNetwork.GetOutputsInfo().begin()->first;
@@ -727,15 +727,13 @@ TEST_P(VpuInferWithPath, compareSetBlobAndGetBlobAfterInfer) {
 
     Blob::Ptr fileOutputBlob = InferenceEngine::make_shared_blob<uint8_t>({Precision::U8, outputTensorDesc.getDims(), Layout::NCHW});
     fileOutputBlob->allocate();
-    ASSERT_NO_THROW(status = fromBinaryFile(outputNameFilePath, fileOutputBlob));
-    ASSERT_TRUE(status);
+    ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(outputNameFilePath, fileOutputBlob));
 
 
     Blob::Ptr inputBlob;
     ASSERT_NO_THROW(inputBlob = InferenceEngine::make_shared_blob<uint8_t>({Precision::U8, inputTensorDesc.getDims(), Layout::NCHW}));
     inputBlob->allocate();
-    ASSERT_NO_THROW(status = fromBinaryFile(inputNameFilePath, inputBlob));
-    ASSERT_TRUE(status);
+    ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(inputNameFilePath, inputBlob));
 
     InferenceEngine::InferRequest inferRequest2;
     ASSERT_NO_THROW(inferRequest2 = importedNetwork.CreateInferRequest());
@@ -782,9 +780,7 @@ TEST_F(kmbSetBlob, compareSetBlobAllocation) {
     std::string mobilInput_name = mobilNImportedNetwork.GetInputsInfo().begin()->first;
     Blob::Ptr mobilNInputBlob;
     ASSERT_NO_THROW(mobilNInputBlob = resNInferRequest.GetBlob(mobilInput_name));
-    bool status = false;
-    ASSERT_NO_THROW(status = fromBinaryFile(inputNameFilePath, mobilNInputBlob));
-    ASSERT_TRUE(status);
+    ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(inputNameFilePath, mobilNInputBlob));
 
     std::string resNInput_name = resNImportedNetwork.GetInputsInfo().begin()->first;
     ASSERT_NO_THROW(resNInferRequest.SetBlob(resNInput_name, mobilNInputBlob));
@@ -819,14 +815,11 @@ TEST_P(VpuInferWithPath, compareOutputsTwoNetworks) {
 
     Blob::Ptr fileOutputBlob = InferenceEngine::make_shared_blob<uint8_t>({Precision::U8, outputTensorDesc.getDims(), Layout::NCHW});
     fileOutputBlob->allocate();
-    bool status = false;
-    ASSERT_NO_THROW(status = fromBinaryFile(outputNameFilePath, fileOutputBlob));
-    ASSERT_TRUE(status);
+    ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(outputNameFilePath, fileOutputBlob));
 
     Blob::Ptr inputBlob1;
     ASSERT_NO_THROW(inputBlob1 = inferRequest1.GetBlob(input_name1));
-    ASSERT_NO_THROW(status = fromBinaryFile(inputNameFilePath, inputBlob1));
-    ASSERT_TRUE(status);
+    ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(inputNameFilePath, inputBlob1));
 
     ASSERT_NO_THROW(inferRequest1.Infer());
     Blob::Ptr outputBlob1;
@@ -884,15 +877,12 @@ TEST_P(VpuInferWithPath, compareSetBlobAndInfer) {
 
     Blob::Ptr fileOutputBlob = InferenceEngine::make_shared_blob<uint8_t>({Precision::U8, outputTensorDesc.getDims(), Layout::NCHW});
     fileOutputBlob->allocate();
-    bool status = false;
-    ASSERT_NO_THROW(status = fromBinaryFile(outputNameFilePath, fileOutputBlob));
-    ASSERT_TRUE(status);
+    ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(outputNameFilePath, fileOutputBlob));
 
     Blob::Ptr inputBlob;
     ASSERT_NO_THROW(inputBlob = InferenceEngine::make_shared_blob<uint8_t>({Precision::U8, inputTensorDesc.getDims(), Layout::NCHW}));
     inputBlob->allocate();
-    ASSERT_NO_THROW(status = fromBinaryFile(inputNameFilePath, inputBlob));
-    ASSERT_TRUE(status);
+    ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(inputNameFilePath, inputBlob));
 
     ASSERT_NO_THROW(inferRequest.SetBlob(input_name, inputBlob));
     ASSERT_NO_THROW(inferRequest.Infer());
@@ -934,9 +924,7 @@ TEST_F(vpuInferWithSetUp, copyCheckSetBlob) {
 
     Blob::Ptr fileOutputBlob = InferenceEngine::make_shared_blob<uint8_t>({Precision::U8, {1, 1, 1, 1024}, Layout::NCHW});
     fileOutputBlob->allocate();
-    bool status;
-    ASSERT_NO_THROW(status = fromBinaryFile(outputNameFilePath, fileOutputBlob));
-    ASSERT_TRUE(status);
+    ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(outputNameFilePath, fileOutputBlob));
 
     Core ie;
     InferenceEngine::ExecutableNetwork importedNetwork;
@@ -948,8 +936,7 @@ TEST_F(vpuInferWithSetUp, copyCheckSetBlob) {
 
     Blob::Ptr inputBlob;
     ASSERT_NO_THROW(inputBlob = inferRequest.GetBlob(input_name));
-    ASSERT_NO_THROW(status = fromBinaryFile(inputNameFilePath, inputBlob));
-    ASSERT_TRUE(status);
+    ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(inputNameFilePath, inputBlob));
     ASSERT_NO_THROW(inferRequest.SetBlob(input_name, inputBlob));
 
     ASSERT_NO_THROW(inferRequest.Infer());

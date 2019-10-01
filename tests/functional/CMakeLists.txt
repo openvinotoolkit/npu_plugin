@@ -36,6 +36,7 @@ file(GLOB KMB_TEST_INCLUDES
         ${CMAKE_CURRENT_SOURCE_DIR}/base/*.hpp
         ${CMAKE_CURRENT_SOURCE_DIR}/common/*.h
         ${CMAKE_CURRENT_SOURCE_DIR}/common/*.hpp)
+
 file(GLOB KMB_TEST_SOURCES
         ${CMAKE_CURRENT_SOURCE_DIR}/base/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/common/*.cpp)
@@ -99,7 +100,8 @@ function(addVpuTest TARGET_NAME PLUGIN_NAME PLUGIN_TEST_FOLDER PLUGIN_MACRO_NAME
     target_link_libraries(${TARGET_NAME} PRIVATE
             ${LIBRARIES}
             ${VPU_TEST_LIBRARIES}
-            vpusmm)
+            vpusmm
+            kmb_utils)
 
     add_test(NAME ${TARGET_NAME} COMMAND ${TARGET_NAME})
     set_property(TEST ${TARGET_NAME} PROPERTY LABELS VPU ${PLUGIN_NAME})

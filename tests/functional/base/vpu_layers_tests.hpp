@@ -77,7 +77,6 @@ PRETTY_PARAM(DimsOutput, tensor_test_params);
 /* modification of the existing codebase                                    */
 
 void GenRandomData(InferenceEngine::Blob::Ptr blob);
-bool fromBinaryFile(std::string input_binary, InferenceEngine::Blob::Ptr blob);
 
 class vpuLayersTests : public TestsCommon {
 public:
