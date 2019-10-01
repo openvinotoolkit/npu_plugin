@@ -54,7 +54,6 @@ namespace mv
             static MVCNN::MPE_Mode convertMPEMode(MPE_Mode mpe);
             static MVCNN::PPELayerType convertPPELayerType(PPELayerTypeEnum ppe);
             static void alignTensor(mv::ComputationModel& cm, std::unique_ptr<MVCNN::TensorReferenceT>& tensorT, Tensor &tensor, bool padFinalOutput = false);
-            static void alignSubTensor(mv::ComputationModel& cm, std::unique_ptr<MVCNN::TensorReferenceT>& tensorT, mv::Tensor tensor, bool padFinalOutput = true);
 
             static std::unique_ptr<MVCNN::TensorReferenceT> buildTensorReferenceT(ComputationModel &cm, Element&, Data::TensorIterator t, const std::string& allocatorName = "");
             static std::unique_ptr<MVCNN::TensorReferenceT> buildTensorReferenceT(ComputationModel &cm, Element&, Data::TensorIterator t, unsigned clusterId, const std::string &allocatorName = "");
