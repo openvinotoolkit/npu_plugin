@@ -803,6 +803,9 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
     // Weights sparsity maps with new approach should be handled here
 
     // Strategy: 1 DMA to multiple slices -  multiple slices to 1 place
+    // The second condition is necessary because when we spill we replace
+    // the strategies, so a SplitOverK unpopulated tensor could potentially
+    // not be marked as broadcasted
     if(sourceIsBroadCasted ||
       (splitting == "SplitOverK" && !outputTensor->isPopulated()) ||
       (splitting == "Clustering" && numTasks == 1))
