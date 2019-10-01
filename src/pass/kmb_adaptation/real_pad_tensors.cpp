@@ -7,38 +7,38 @@
 #include "include/mcm/pass/pass_utils.hpp"
 #include "include/mcm/tensor/shape.hpp"
 
-static void alignUnpopulatedTensors(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
-static void alignPopulatedTensors(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+static void alignUnpopulatedTensorsFunc(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+static void alignPopulatedTensorsFunc(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void alignWeightsTensor(mv::OpModel& om, const mv::Data::TensorIterator &weightsTensor, mv::Shape alignedShape);
-static void cropFinalOutput(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+static void cropOrPadFinalOutputFunc(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void alignBiasTensor(mv::Data::OpListIterator &opIt, const mv::Data::TensorIterator biasTensor, unsigned biasTensorSizePadded, mv::DataModel dm);
-static void addAlignOpForInputTensors(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
-static void removeCropAlignInCMX(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
-
+static void addAlignOpForInputTensorsFunc(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+static void removeCropAlignInCMXFunc(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+static mv::Data::OpListIterator fuseCropAlign(mv::Data::OpListIterator parentOpIt, mv::Data::TensorIterator sourceTensor, mv::OpModel om, mv::Data::OpListIterator opIt);
 static void addCropNode(mv::OpModel& om, mv::Data::OpListIterator& opIt, mv::Data::TensorIterator& outputTensor, std::size_t& outputTensorChannels);
 namespace mv
 {
     namespace pass
     {
         MV_REGISTER_PASS(AlignUnpopulatedTensors)
-            .setFunc(alignUnpopulatedTensors);
+            .setFunc(alignUnpopulatedTensorsFunc);
 
         MV_REGISTER_PASS(AlignPopulatedTensors)
-            .setFunc(alignPopulatedTensors)
+            .setFunc(alignPopulatedTensorsFunc)
             .setDescription(
                 "Aligns I/O channels involved in DPUTask to 16");
         MV_REGISTER_PASS(AddAlignOpForInputTensors)
-            .setFunc(addAlignOpForInputTensors)
+            .setFunc(addAlignOpForInputTensorsFunc)
             .setDescription(
                 "Add implicit Align Op for input tensors where needed");
         MV_REGISTER_PASS(RemoveCropAlignInCMX)
-            .setFunc(removeCropAlignInCMX)
+            .setFunc(removeCropAlignInCMXFunc)
             .setDescription(
                 "Remove Redundant Crop-Align when they are both in CMX");
-        MV_REGISTER_PASS(CropFinalOutput)
-            .setFunc(cropFinalOutput)
+        MV_REGISTER_PASS(CropOrPadFinalOutput)
+            .setFunc(cropOrPadFinalOutputFunc)
             .setDescription(
-                "Add implicit Crop Op for final Op unless padOutput is on");
+                "Add/Remove implicit Crop Op for final Op based on padOutput value");
     }
 }
 
@@ -122,7 +122,7 @@ void addCropNode(mv::OpModel& om, mv::Data::OpListIterator& opIt, mv::Data::Tens
     }
 }
 
-void cropFinalOutput(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+void cropOrPadFinalOutputFunc(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);
@@ -131,16 +131,27 @@ void cropFinalOutput(const mv::pass::PassEntry& , mv::ComputationModel& model, m
     auto globalConfigParams = model.getGlobalConfigParams();
 
     auto padOutput = globalConfigParams->hasAttr("PadOutput") ? globalConfigParams->get<bool>("PadOutput") : false;
-    if (padOutput)
-        return;
-
     auto outputOp = om.getOutput();
     auto inputTensor = outputOp->getInputTensor(0);
-     auto parentOpIt = om.getSourceOp(inputTensor);
-    if (parentOpIt->hasAttr("alignment") && parentOpIt->getOpType() != "Crop")
+    auto parentOpIt = om.getSourceOp(inputTensor);
+
+    if (padOutput)
     {
-        auto oldDimensions = inputTensor->get<mv::Shape>("oldDimensions");
-        addCropNode(om, parentOpIt, inputTensor, oldDimensions[mv::IO_CHANNEL_DIMENSION]);
+        //remove Crop layer if it's there
+        if (parentOpIt->hasAttr("alignment") && parentOpIt->getOpType() == "Crop")
+        {
+            auto cropParentOpIt = om.getSourceOp(parentOpIt->getInputTensor(0));
+            fuseCropAlign(cropParentOpIt, cropParentOpIt->getOutputTensor(0), om, outputOp);
+        }
+    }
+    else
+    {
+        //make sure there's a crop layer
+        if (parentOpIt->hasAttr("alignment") && parentOpIt->getOpType() != "Crop")
+        {
+            auto oldDimensions = inputTensor->get<mv::Shape>("oldDimensions");
+            addCropNode(om, parentOpIt, inputTensor, oldDimensions[mv::IO_CHANNEL_DIMENSION]);
+        }
     }
 
 }
@@ -175,7 +186,7 @@ mv::Data::OpListIterator fuseCropAlign(mv::Data::OpListIterator parentOpIt, mv::
     return opIt;
 }
 
-void removeCropAlignInCMX(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+void removeCropAlignInCMXFunc(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);
@@ -217,7 +228,7 @@ void removeCropAlignInCMX(const mv::pass::PassEntry& , mv::ComputationModel& mod
     }
 }
 
-void addAlignOpForInputTensors(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+void addAlignOpForInputTensorsFunc(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
 
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
@@ -294,7 +305,7 @@ void addAlignOpForInputTensors(const mv::pass::PassEntry& , mv::ComputationModel
 }
 //NOTE: Mark the Ops that do not have output channels aligned to 16,in serialization you align their dims
 //and provide the appropriate Tensor for DMA
-void alignUnpopulatedTensors(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+void alignUnpopulatedTensorsFunc(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);
@@ -336,7 +347,7 @@ void alignUnpopulatedTensors(const mv::pass::PassEntry&, mv::ComputationModel& m
     }
 }
 
-void alignPopulatedTensors(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+void alignPopulatedTensorsFunc(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
 
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)

@@ -193,7 +193,7 @@
                 "input": "output/dots/align_to_16.dot"
             },
             "RemoveCropAlignInCMX",
-            "CropFinalOutput",
+            "CropOrPadFinalOutput",
             "AlignTaskWeights",
             "GenerateSparsityMapsPopulatedTensors",
             "GenerateWeightsTables",
