@@ -25,20 +25,6 @@
 
 #include <graph_tools.hpp>
 
-bool readBinaryFile(std::string input_binary, std::string& data) {
-    std::ifstream in(input_binary, std::ios_base::binary | std::ios_base::ate);
-
-    size_t sizeFile = in.tellg();
-    in.seekg(0, std::ios_base::beg);
-    data.resize(sizeFile);
-    bool status = false;
-    if (in.good()) {
-        in.read(&data.front(), sizeFile);
-        status = true;
-    }
-    return status;
-}
-
 std::vector<std::string> readLabelsFromFile(const std::string& labelFileName) {
     std::vector<std::string> labels;
 

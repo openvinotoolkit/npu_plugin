@@ -14,35 +14,20 @@
 // stated in the License.
 //
 
-#pragma once
-
-#define UNUSED(var) (void)var
-
-#include <map>
 #include <string>
-#include <unordered_set>
-
-#include <vpu/parsed_config_base.hpp>
+#include <ie_blob.h>
 
 namespace vpu {
+
 namespace KmbPlugin {
 
-class KmbConfig final : public ParsedConfigBase {
-public:
-    KmbConfig();
+namespace utils {
 
-    std::map<std::string, std::string> getParsedConfig() const {
-        return _config;
-    }
+void fromBinaryFile(std::string input_binary, InferenceEngine::Blob::Ptr blob);
 
-protected:
-    const std::unordered_set<std::string>& getCompileOptions() const override;
-    const std::unordered_set<std::string>& getRunTimeOptions() const override;
-    void parse(const std::map<std::string, std::string>& config) override;
-
-private:
-    std::map<std::string, std::string> _config;
-};
+}  // namespace utils
 
 }  // namespace KmbPlugin
+
 }  // namespace vpu
+

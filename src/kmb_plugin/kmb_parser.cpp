@@ -77,7 +77,7 @@ void compileMcm(
         const KmbConfig& config,
         mv::CompilationUnit& unit,
         std::vector<char>& blob) {
-    Logger::Ptr _logger = std::make_shared<Logger>("compileMCM", config.hostLogLevel, consoleOutput());
+    Logger::Ptr _logger = std::make_shared<Logger>("compileMCM", config.logLevel(), consoleOutput());
     mv::OpModel& modelMcm = unit.model();
 
     auto frontEnd = std::make_shared<FrontEndMcm>(modelMcm, config);
@@ -209,8 +209,8 @@ void compileMcm(
 std::set<std::string> getSupportedLayersMcm(
         ie::ICNNNetwork& network,
         mv::OpModel& pCompiler,
-        const std::map<std::string, std::string> &config) {
-    auto frontEnd = std::make_shared<FrontEndMcm>(pCompiler, KmbConfig(config, ConfigMode::RUNTIME_MODE));
+        const KmbConfig& config) {
+    auto frontEnd = std::make_shared<FrontEndMcm>(pCompiler, config);
 
     return frontEnd->checkSupportedLayers(network);
 }

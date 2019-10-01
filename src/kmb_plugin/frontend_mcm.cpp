@@ -28,7 +28,7 @@
 #include <graph_tools.hpp>
 #include <ie_profiling.hpp>
 
-#include <utils/dims_parser.hpp>
+#include <dims_parser.hpp>
 #include "low_precision_transformations/transformer.hpp"
 #include <ie_util_internal.hpp>
 #include <graph_transformer.h>

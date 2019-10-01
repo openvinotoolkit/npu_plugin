@@ -34,10 +34,7 @@
 #include <kmb_config.h>
 
 #ifdef ENABLE_MCM_COMPILER
-#include "include/mcm/compiler/compilation_unit.hpp"
-#include "include/mcm/utils/data_generator.hpp"
-#include "meta/include/mcm/op_model.hpp"
-#include "include/mcm/utils/hardware_tests.hpp"
+#include <mcm/op_model.hpp>
 #include "kmb_base.hpp"
 
 #include <graph_tools.hpp>
@@ -77,7 +74,7 @@ public:
 
     explicit FrontEndMcm(mv::OpModel& modelMcm, const KmbConfig& config)
              : _modelMcm(modelMcm)
-             , _logger(std::make_shared<Logger>("FrontEndMcm", config.hostLogLevel, consoleOutput())) { }
+             , _logger(std::make_shared<Logger>("FrontEndMcm", config.logLevel(), consoleOutput())) { }
     void buildInitialModel(ie::ICNNNetwork& network);
 
     std::set<std::string> checkSupportedLayers(ie::ICNNNetwork& network);

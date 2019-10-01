@@ -27,9 +27,8 @@ using namespace InferenceEngine;
 namespace vpu {
 namespace KmbPlugin {
 
-ExecutableNetwork::ExecutableNetwork(ICNNNetwork &network, const std::map<std::string, std::string> &config) {
-    _config = std::make_shared<KmbConfig>(config);
-    _logger = std::make_shared<Logger>("ExecutableNetwork", _config->hostLogLevel, consoleOutput());
+ExecutableNetwork::ExecutableNetwork(ICNNNetwork &network, const KmbConfig& config) : _config(config) {
+    _logger = std::make_shared<Logger>("ExecutableNetwork", _config.logLevel(), consoleOutput());
     _executor = std::make_shared<KmbExecutor>(_config);
 
 #ifdef ENABLE_MCM_COMPILER
@@ -47,7 +46,7 @@ ExecutableNetwork::ExecutableNetwork(ICNNNetwork &network, const std::map<std::s
 
     compileMcm(
         network,
-        *(_config),
+        _config,
         *pCompiler,
         _graphBlob);
 #else
@@ -58,9 +57,8 @@ ExecutableNetwork::ExecutableNetwork(ICNNNetwork &network, const std::map<std::s
     };
 }
 
-ExecutableNetwork::ExecutableNetwork(const std::string &blobFilename, const std::map<std::string, std::string> &config) {
-    _config = std::make_shared<KmbConfig>(config, ConfigMode::RUNTIME_MODE);
-    _logger = std::make_shared<Logger>("ExecutableNetwork", _config->hostLogLevel, consoleOutput());
+ExecutableNetwork::ExecutableNetwork(const std::string &blobFilename, const KmbConfig& config) : _config(config) {
+    _logger = std::make_shared<Logger>("ExecutableNetwork", _config.logLevel(), consoleOutput());
     _executor = std::make_shared<KmbExecutor>(_config);
     std::ifstream blobFile(blobFilename, std::ios::binary);
     std::ostringstream blobContentStream;
@@ -76,7 +74,7 @@ ExecutableNetwork::ExecutableNetwork(const std::string &blobFilename, const std:
     _networkInputs  = _executor->getNetworkInputs();
     _networkOutputs = _executor->getNetworkOutputs();
 
-    if (_config->exclusiveAsyncRequests) {
+    if (_config.exclusiveAsyncRequests()) {
         ExecutorManager *executorManager = ExecutorManager::getInstance();
         _taskExecutor = executorManager->getExecutor("KMB");
     }
