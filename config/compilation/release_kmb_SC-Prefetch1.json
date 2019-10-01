@@ -181,17 +181,6 @@
             "AlignUnpopulatedTensors",
             "AddAlignOpForInputTensors",
             "AlignPopulatedTensors",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/align_to_16.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/align_to_16.dot"
-            },
             "RemoveCropAlignInCMX",
             "CropOrPadFinalOutput",
             "AlignTaskWeights",
