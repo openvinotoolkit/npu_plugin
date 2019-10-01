@@ -177,7 +177,7 @@ std::vector<unsigned> mv::RuntimeModel::reduceQuantVector_(std::vector<unsigned>
 }
 
 //build tensorReference for Tensors - 1 cluster case
-std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT(mv::ComputationModel& model, mv::Element&, mv::Data::TensorIterator t)
+std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT(mv::ComputationModel& model, mv::Element&, mv::Data::TensorIterator t, const std::string &allocatorName)
 {
     mv::DataModel dm(model);
     mv::ControlModel cm(model);
@@ -187,7 +187,11 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
 
     toBuild->name = t->getName();
 
-    auto tensorAllocatorName = t->get<std::set<std::string>>("allocators").begin();
+    auto tensorAllocators = t->get<std::set<std::string>>("allocators");
+
+    auto tensorAllocatorName = tensorAllocators.begin();
+    if(!allocatorName.empty())
+        tensorAllocatorName = tensorAllocators.find(allocatorName);
 
     auto tensorAllocator = dm.getAllocator(*tensorAllocatorName);
     mv::Data::BufferIterator tensorBufferIt = tensorAllocator.getBuffer(0, t); // 0 is the only stage for now, but this will probably change in the future
@@ -234,34 +238,23 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
         toBuild->locale_index = std::vector<unsigned int>(1,0);
 
         // This part is for concat
-        toBuild->data->data_index = tensorBufferIt->getOffset();
+        if(t->hasAttr("address"))
+            toBuild->data->data_index = t->getAddress();
+        else
+            toBuild->data->data_index = tensorBufferIt->getOffset();
+
         toBuild->data->data_index += leading_offset;
 
-        // VERY IMPORTANT NOTE: Sparsity index is not used by populated tensors
-        // as populated tensor represent weights, and all the information we need
-        // about sparsity is contained in the weights table. This was confirmed
-        // after a chat with Levi.
-
-        // We still have to explicitely set sparsity_index and storage_element_index to 0
-        // in the case of populated tensors that are sparse, so that runtime knows that sparsity is used
         if(t->isSparse())
         {
+            toBuild->data->sparsity_index = t->getSparsityMap()->getAddress();
             if(!t->isPopulated())
-            {
-                toBuild->data->sparsity_index = t->getSparsityMap()->getAddress();
                 toBuild->data->storage_element_index = t->getStorageElement()->getAddress();
-            }
             else
-            {
-                toBuild->data->sparsity_index = 0;
                 toBuild->data->storage_element_index = 0;
-            }
         }
     }
     toBuild->locale = convertAllocatorToMemoryLocale(*tensorAllocatorName);
-
-    // NOTE: Will probably change in the future
-
     toBuild->data_dtype = convertDtype(t->getDType());
 
     // could also be t->hasAttr("quantizationParameters")
@@ -290,10 +283,9 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
 }
 
 //build tensorReference for subTensors - multiple clusters
-std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT(mv::ComputationModel& cm, mv::Element&, mv::Data::TensorIterator t, unsigned clusterId)
+std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT(mv::ComputationModel& cm, mv::Element&, mv::Data::TensorIterator t, unsigned clusterId, const std::string& allocatorName)
 {
     mv::DataModel dm(cm);
-    mv::OpModel om(cm);
 
     auto subtensor = t->getSubTensor(clusterId);
 
@@ -301,8 +293,13 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
 
     toBuild->name = subtensor.getName();
 
-    auto tensorAllocatorName = t->get<std::set<std::string>>("allocators").begin();
+    auto tensorAllocators = t->get<std::set<std::string>>("allocators");
+
+    auto tensorAllocatorName = tensorAllocators.begin();
+    if(!allocatorName.empty())
+        tensorAllocatorName = tensorAllocators.find(allocatorName);
     auto tensorAllocator = dm.getAllocator(*tensorAllocatorName);
+
     mv::Data::BufferIterator tensorBufferIt = tensorAllocator.getBuffer(0, t); // 0 is the only stage for now, but this will probably change in the future
 
     // Shape is always of the subtensor
@@ -327,23 +324,34 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     std::reverse(numericStrides.begin(), numericStrides.end());
 
     toBuild->dimensions = dimensions;
-    toBuild->strides = numericStrides; // NOTE: Maybe directly bufferIt->computeStrides() in the future?
-
-    toBuild->leading_offset = 0;
-    toBuild->trailing_offset = 0;
+    toBuild->strides = numericStrides;
 
     toBuild->data = std::unique_ptr<MVCNN::IndirectDataReferenceT>(new MVCNN::IndirectDataReferenceT());
     if (*tensorAllocatorName == "GraphFile")
     {
-        unsigned graphfileIndex = t->get<unsigned>("graphFileIndex");
-        toBuild->locale_index = std::vector<unsigned int>(1);
-        toBuild->locale_index[0] = graphfileIndex;
-        // No need to set sparsity_index for tensor stored in graphfile
-        auto offset = subtensor.get<std::vector<std::size_t>>("offset");
-        auto index = t->getOrder().subToInd(t->getShape(), offset);
-        auto byte_index = index * t->getDType().getSizeInBits() / 8;
+        if(!t->isSparse())
+        {
+            unsigned graphfileIndex = t->get<unsigned>("graphFileIndex");
+            toBuild->locale_index = std::vector<unsigned int>(1);
+            toBuild->locale_index[0] = graphfileIndex;
 
-        toBuild->data->data_index = byte_index;
+            auto offset = subtensor.get<std::vector<std::size_t>>("offset");
+            auto index = t->getOrder().subToInd(t->getShape(), offset);
+            auto byte_index = index * t->getDType().getSizeInBits() / 8;
+
+            toBuild->data->data_index = byte_index;
+        }
+        else
+        {
+            // In case data is sparse, packed subtensors are serialiazed. This simplifies our life a lot.
+            // No data index to be provided, just have to take the graphfile index from the subtensor
+
+            unsigned graphfileIndex = subtensor.get<unsigned>("graphFileIndex");
+            toBuild->locale_index = std::vector<unsigned int>(1);
+            toBuild->locale_index[0] = graphfileIndex;
+
+            toBuild->data->data_index = 0;
+        }
     }
     else if(*tensorAllocatorName == "ProgrammableInput" || *tensorAllocatorName == "ProgrammableOutput" ||
             *tensorAllocatorName == "VPU_DDR_BSS" || *tensorAllocatorName == "VPU_DDR_Heap")
@@ -369,28 +377,21 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     }
     else
     {
-        toBuild->data->data_index = t->getAddress();
+        // This part is for concat
+        if(t->hasAttr("address"))
+            toBuild->data->data_index = subtensor.getAddress();
+        else
+            toBuild->data->data_index = tensorBufferIt->getOffset();
+
         toBuild->locale_index = std::vector<unsigned int>(1, clusterId);
 
-        // VERY IMPORTANT NOTE: Sparsity index is not used by populated tensors
-        // as populated tensor represent weights, and all the information we need
-        // about sparsity is contained in the weights table. This was confirmed
-        // after a chat with Levi
-
-        // We still have to explicitely set sparsity_index and storage_element_index to 0
-        // in the case of populated tensors that are sparse, so that runtime knows that sparsity is used
         if(t->isSparse())
         {
+            toBuild->data->sparsity_index = subtensor.getSparsityMap()->getAddress();
             if(!t->isPopulated())
-            {
-                toBuild->data->sparsity_index = subtensor.getSparsityMap()->getAddress();
                 toBuild->data->storage_element_index = subtensor.getStorageElement()->getAddress();
-            }
             else
-            {
-                toBuild->data->sparsity_index = 0;
                 toBuild->data->storage_element_index = 0;
-            }
         }
     }
 
@@ -515,6 +516,7 @@ std::vector<long unsigned int> packToInt64(const std::vector<T>& origData, mv::D
 {
     unsigned dataSize = origData.size();
     unsigned origDataSize = dtype.getSizeInBits();
+
     unsigned nElementToPack = 64 / origDataSize;
     unsigned finalLength = dataSize / nElementToPack;
 
@@ -530,19 +532,12 @@ std::vector<long unsigned int> packToInt64(const std::vector<T>& origData, mv::D
 std::unique_ptr<MVCNN::BinaryDataT> mv::RuntimeModel::buildBinaryDataT(ComputationModel&, mv::Element&, mv::Tensor& t)
 {
     std::unique_ptr<MVCNN::BinaryDataT> toBuild = std::unique_ptr<MVCNN::BinaryDataT>(new MVCNN::BinaryDataT());
-    if (t.isSparse())
-    {
-        auto dataPacked = t.getDataPacked();
-        toBuild->data = packToInt64(dataPacked, t.getDType());
-        toBuild->length = dataPacked.size();
-    }
-    else
-    {
-        toBuild->data = packToInt64(t.getData(), t.getDType());
-        toBuild->length = t.getShape().totalSize();
-    }
 
-    toBuild->underlying_type = convertDtype(t.getDType());
+    auto dataPacked = t.getDataPacked();
+    // Compression code goes here
+    toBuild->data = packToInt64(dataPacked, t.getDType());
+    toBuild->length = dataPacked.size() * t.getDType().getSizeInBits() / 8;
+    toBuild->underlying_type = MVCNN::DType::DType_U8;
 
     return toBuild;
 }
@@ -677,26 +672,106 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildUPADMATaskT(Co
     return toReturn;
 }
 
+void checkUnstridedDMA(mv::Data::TensorIterator src, int i, MVCNN::NNDMATaskT * tmp)
+{
+    if(tmp->src->locale == MVCNN::MemoryLocation_GraphFile)
+    {
+        unsigned totalSize = src->getSubTensor(i).getShape().totalSize();
+        if(src->isSparse())
+            totalSize = src->getSubTensor(i).dataPackedSize();
+
+        totalSize *= src->getDType().getSizeInBits() / 8;
+        std::vector<uint32_t> dimensions = {totalSize, 1, 1, 1};
+        std::vector<uint32_t> strides = {1, 1, 1, 1, 1};
+        auto dtype = MVCNN::DType::DType_U8;
+
+        tmp->src->dimensions = dimensions;
+        tmp->src->strides = strides;
+        tmp->src->data_dtype = dtype;
+
+        tmp->dst->dimensions = dimensions;
+        tmp->dst->strides = strides;
+        tmp->dst->data_dtype = dtype;
+    }
+}
+
+void mv::RuntimeModel::case2MC(unsigned numTasks, mv::ComputationModel& cm, mv::DmaDirection direction, mv::Element &compilationDescriptor,
+                               bool compression, std::vector<std::unique_ptr<MVCNN::TaskT>>& toReturn, mv::Data::TensorIterator src, mv::Data::TensorIterator dst, const std::string& srcAllocator, const std::string& dstAllocator)
+{
+    std::unique_ptr<MVCNN::TaskT> toPush = std::unique_ptr<MVCNN::TaskT>(new MVCNN::TaskT());
+    auto tmp = new MVCNN::NNDMATaskT();
+    toPush->task.type = MVCNN::SpecificTask_NNDMATask;
+
+    tmp->src = buildTensorReferenceT(cm, compilationDescriptor, src, srcAllocator);
+    tmp->dst = buildTensorReferenceT(cm, compilationDescriptor, dst, dstAllocator);
+
+    // NOTE: Alignment stuff should go here!!!!
+
+    std::vector<unsigned int> locale_index;
+    for (unsigned idx = numTasks; idx > 0; idx--)
+        locale_index.push_back(idx - 1);
+
+    if(direction == mv::DDR2CMX)
+        tmp->dst->locale_index = locale_index;
+
+    // Passing -1 as subtensor index, will have us get the full tensor
+    checkUnstridedDMA(src, -1, tmp);
+
+    tmp->compression =  compression;
+
+    toPush->task.value = tmp;
+
+    toReturn.push_back(std::move(toPush));
+}
+
+void mv::RuntimeModel::case3MC(unsigned numTasks, ComputationModel& cm, mv::Element &compilationDescriptor,
+                               bool compression, std::vector<std::unique_ptr<MVCNN::TaskT>>& toReturn,
+                               mv::Data::TensorIterator src, mv::Data::TensorIterator dst, const std::string& srcAllocator,
+                               const std::string& dstAllocator)
+{
+    for(unsigned i = 0; i < numTasks; ++i)
+    {
+        std::unique_ptr<MVCNN::TaskT> toPush = std::unique_ptr<MVCNN::TaskT>(new MVCNN::TaskT());
+        auto tmp = new MVCNN::NNDMATaskT();
+        toPush->task.type = MVCNN::SpecificTask_NNDMATask;
+        tmp->src = buildTensorReferenceT(cm, compilationDescriptor, src, i, srcAllocator);
+        tmp->dst = buildTensorReferenceT(cm, compilationDescriptor, dst, i, dstAllocator);
+
+        checkUnstridedDMA(src, i, tmp);
+
+        tmp->compression =  compression;
+        toPush->task.value = tmp;
+        toReturn.push_back(std::move(toPush));
+    }
+}
+
 std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt, std::string splitting)
 {
+    mv::DataModel dm(cm);
+
     bool sourceIsBroadCasted = opIt->getInputTensor(0)->isBroadcasted();
     auto direction = opIt->get<mv::DmaDirection>("direction");
     auto globalConfigParams = cm.getGlobalConfigParams();
     unsigned numTasks = globalConfigParams->get<int>("Number_of_Clusters");
     auto padFinalOutput = false;
 
+    auto inputTensor = opIt->getInputTensor(0);
+    auto outputTensor = opIt->getOutputTensor(0);
+    bool compression = false;
+    if(opIt->hasAttr("compression"))
+        compression = opIt->get<bool>("compression");
+
     auto tensorAllocatorName = opIt->getOutputTensor(0)->get<std::set<std::string>>("allocators").begin();
     if (*tensorAllocatorName == "ProgrammableOutput")
         //Only if we are DMA-ing to programmable output check if we need to padd it
         padFinalOutput = cm.getGlobalConfigParams()->hasAttr("PadOutput") ? cm.getGlobalConfigParams()->get<bool>("PadOutput") : false;
 
+    // Case 1 of MC DMAs - Unpopulated tensors going in clustering op and vice versa
+    // This could happen when we move input tensor of the network in or
+    // when we come back after spilling to DDR.
     //NOTE: splitting == clustering might not needed more the last condition is coming from SOH to SOH DMATASK
-    if(sourceIsBroadCasted || (splitting == "SplitOverK" && !opIt->getOutputTensor(0)->isPopulated()) || (splitting == "Clustering" && numTasks == 1))
+    if(sourceIsBroadCasted || (splitting == "SplitOverK" && !outputTensor->isPopulated()) || (splitting == "Clustering" && numTasks == 1))
     {
-        //NOTE: Multicast flag works on nce2tasks for going the whole output tensor on every cluster,
-        //POC's logic with replicating 4 times the same DMA seems not correct, even for mutiple layers to me,
-        //however letting this on comments.
-
         auto tmp = new MVCNN::NNDMATaskT();
         std::vector<std::unique_ptr<MVCNN::TaskT>> toReturn = std::vector<std::unique_ptr<MVCNN::TaskT>>(1);
 
@@ -723,56 +798,47 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
                 alignTensor(cm, tmp->dst, opIt->getOutputTensor(0), padFinalOutput);
 
         }
-
-        std::vector<unsigned int> locale_index;
-        for (unsigned idx = numTasks; idx > 0; idx--)
-            locale_index.push_back(idx - 1);
-
-        if(direction == mv::DDR2CMX)
-            tmp->dst->locale_index = locale_index;
-
-        if(opIt->hasAttr("Compression"))
-            tmp->compression =  opIt->get<bool>("Compression");
-        toReturn[0]->task.value = tmp;
         return toReturn;
     }
-    //NOTE: Have multiple dmas only for Unpopulated SOH, Populated SOK
-    else
+
+    // Case 2 of MC DMAs - Source tensor is broadcasted, i.e. present in it's entirety
+    // in all clusters, OR populated tensors going into clustering op (which for some reason are not marked as broadcasted).
+
+    // Weights sparsity maps with new approach should be handled here
+
+    // Strategy: 1 DMA to multiple slices -  multiple slices to 1 place
+    else if(sourceIsBroadCasted || (splitting == "Clustering" && inputTensor->isPopulated()))
     {
-        //Multiple DMAs, yuppi!
-        std::vector<std::unique_ptr<MVCNN::TaskT>> toReturn = std::vector<std::unique_ptr<MVCNN::TaskT>>(numTasks);
-        for(unsigned i = 0; i < numTasks; ++i)
+        std::vector<std::unique_ptr<MVCNN::TaskT>> toReturn;
+
+        case2MC(numTasks, cm, direction, compilationDescriptor, compression, toReturn, inputTensor, outputTensor);
+
+        if(inputTensor->isSparse())
         {
-            toReturn[i] = std::unique_ptr<MVCNN::TaskT>(new MVCNN::TaskT());
-            toReturn[i]->task.type = MVCNN::SpecificTask_NNDMATask;
-            auto tmp = new MVCNN::NNDMATaskT();
-            tmp->src = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(0), i);
-            tmp->dst = buildTensorReferenceT(cm, compilationDescriptor, opIt->getOutputTensor(0), i);
-            if (direction == mv::DDR2CMX)
-            {
-                //copying from DDR2CMX we need to pad output if tensor needs alignment
-                if (opIt->getOutputTensor(0)->hasAttr("alignment"))
-                    alignTensor(cm, tmp->dst, opIt->getOutputTensor(0));
-            }
-            else
-            {
-                //copying from CMX2DDR we need to crop down if tensor needed alignment in CMX
-                if (opIt->getInputTensor(0)->hasAttr("alignment"))
-                    alignTensor(cm, tmp->src, opIt->getInputTensor(0), padFinalOutput);
-
-                if (padFinalOutput && opIt->getOutputTensor(0)->hasAttr("alignment"))
-                {
-                    if(opIt->getInputTensor()[0]->get<std::string>("splitStrategy") == "SplitOverH")                    
-                        alignTensor(cm, tmp->dst, opIt->getOutputTensor(0), padFinalOutput);
-                }
-            }
-
-            if(opIt->hasAttr("Compression"))
-                tmp->compression =  opIt->get<bool>("Compression");
-            toReturn[i]->task.value = tmp;
+            // NOTE: First usage ever of the concept one tensor -> Multiple allocators
+            auto tensorSparsityMap = dm.getTensor(inputTensor->getSparsityMap()->getName());
+            case2MC(numTasks, cm, direction, compilationDescriptor, compression, toReturn, tensorSparsityMap, tensorSparsityMap, "GraphFile", "VPU_CMX_NN");
         }
         return toReturn;
+    }
+    // Case 3 of MC DMAs - All cases that are not case 1 or 2. Mostly applied to SOH tensors for activation
+    // and SOK for weights.
 
+    // Weights sparsity maps with new approach has be handled in the future here, for the
+    // case of SOK and weights sparsity.
+
+    // Strategy: Multiple DMAs, yuppi!
+    else
+    {
+        std::vector<std::unique_ptr<MVCNN::TaskT>> toReturn;
+        case3MC(numTasks, cm, compilationDescriptor, compression, toReturn, inputTensor, outputTensor);
+        if(inputTensor->isSparse())
+        {
+            // NOTE: Second usage ever of the concept one tensor -> Multiple allocators
+            auto tensorSparsityMap = dm.getTensor(inputTensor->getSparsityMap()->getName());
+            case3MC(numTasks, cm, compilationDescriptor, compression, toReturn, tensorSparsityMap, tensorSparsityMap, "GraphFile", "VPU_CMX_NN");
+        }
+        return toReturn;
     }
 }
 
@@ -1472,6 +1538,15 @@ unsigned mv::RuntimeModel::countProducerConsumerTasks(mv::ComputationModel& cm, 
     }
     else if(taskType == "DMATask")
     {
+        auto inputTensor = opIt->getInputTensor(0);
+        // Weights sparsity new approach: it doesn't matter what strategy is chosen,
+        // the number of dma is doubled since the strategy is shared between weights
+        // and sparsity map. Techinically the isPopulated() check is not needed
+        // because we never transfer sparse activation tensors.
+
+        unsigned multiplicator = 1;
+        if(inputTensor->isPopulated() && inputTensor->isSparse())
+            multiplicator = 2;
         if(numClusters > 1)
         {
             bool sourceIsBroadCasted = opIt->getInputTensor(0)->isBroadcasted();
@@ -1488,6 +1563,8 @@ unsigned mv::RuntimeModel::countProducerConsumerTasks(mv::ComputationModel& cm, 
         }
         else
             toReturn = 1;
+
+        toReturn *= multiplicator;
     }
     return toReturn;
 }
@@ -1540,6 +1617,9 @@ void mv::RuntimeModel::buildHeader(ComputationModel &cm, Element &compilationDes
 void mv::RuntimeModel::buildGraphFile(ComputationModel& cm, mv::Element& compilationDescriptor)
 {
     mv::OpModel om(cm);
+    mv::DataModel dm(cm);
+
+    unsigned numClusters = dm.getGlobalConfigParams()->get<int>("Number_of_Clusters");
 
     auto globalConfigurationParameters = cm.getGlobalConfigParams();
 
@@ -1547,17 +1627,34 @@ void mv::RuntimeModel::buildGraphFile(ComputationModel& cm, mv::Element& compila
 
     // Binary Data
     graphFile_.binary_data = std::vector<std::unique_ptr<MVCNN::BinaryDataT>>();
-    std::vector<mv::Data::TensorIterator> toSort;
+    std::vector<Tensor *> toSort;
     for(auto opIterator = om.opBegin(); opIterator != om.opEnd(); ++opIterator)
     {
         std::string opType = opIterator->getOpType();
-        if (opType == "Constant" || opType == "ConstantInt" || opType == "ConstantDataElement" || opType == "WeightsTable" || opType == "SparsityMap")
+        if (opType == "Constant" || opType == "ConstantInt" || opType == "ConstantDataElement")
         {
             auto tIt = opIterator->getOutputTensor(0);
-            toSort.push_back(tIt);
+
+            // Weights sparsity new approach: there is a separate constant for
+            // each cluster
+            if(tIt->isSparse())
+            {
+                auto sparsityMapIterator = dm.getTensor(tIt->getSparsityMap()->getName());
+                toSort.push_back(&(*sparsityMapIterator));
+                if(tIt->get<std::string>("splitStrategy") == "SplitOverK")
+                {
+                    for(std::size_t i = 0; i < numClusters; ++i)
+                        toSort.push_back(&(tIt->getSubTensor(i)));
+                }
+                else
+                    toSort.push_back(&(*tIt));
+            }
+            else
+                toSort.push_back(&(*tIt));
+
         }
     }
-    std::sort(toSort.begin(), toSort.end(), [](mv::Data::TensorIterator t1, mv::Data::TensorIterator t2){return (t1->get<unsigned>("graphFileIndex") < t2->get<unsigned>("graphFileIndex"));});
+    std::sort(toSort.begin(), toSort.end(), [](mv::Tensor * t1, mv::Tensor * t2){return (t1->get<unsigned>("graphFileIndex") < t2->get<unsigned>("graphFileIndex"));});
     for(auto& tIt : toSort)
     {
         //std::cout << "Serializing to binary data section " << tensorIt->getName() << std::endl;
