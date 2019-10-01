@@ -1,7 +1,5 @@
 #include "include/mcm/pass/pass_registry.hpp"
-#include "include/mcm/computation/model/control_model.hpp"
-#include "include/mcm/computation/model/data_model.hpp"
-#include "include/mcm/op_model.hpp"
+#include "include/mcm/utils/env_loader.hpp"
 #include <sys/stat.h>
 
 void convertFlatbufferFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&);
@@ -31,7 +29,7 @@ void convertFlatbufferFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
     struct stat buffer;
     if (stat (outputFile.c_str(), &buffer) == 0)
     {
-        std::string flatbufferCommand("flatc -t $MCM_HOME/schema/graphfile/src/schema/graphfile.fbs --strict-json -- " + outputFile);
+        std::string flatbufferCommand("flatc -t " + mv::utils::projectRootPath() + "/schema/graphfile/src/schema/graphfile.fbs --strict-json -- " + outputFile);
         system(flatbufferCommand.c_str());
     }
     else

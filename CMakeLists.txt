@@ -280,6 +280,7 @@ set(pass
     "${PROJECT_SOURCE_DIR}/src/pass/finalization/transitive_reduction.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/finalization/is_dag.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/finalization/schedule_helper.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/finalization/arrange_execution.cpp"
 
     "${PROJECT_SOURCE_DIR}/src/pass/optimization/graph_parameter_optimization.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/optimization/strategy_manager.cpp"
