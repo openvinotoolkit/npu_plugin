@@ -168,6 +168,7 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
                 //mv::Tensor sparsityTensor("backup", sparsityShape, mv::DType("UInt8"), mv::Order("WHCN"), data);
                 auto sparsityTensor = mv::Tensor(dpuTask->getName() + "_sparse_dw", sparsityShape, mv::DType("UInt8"), mv::Order("NHWC"), data);
 
+                // NOTE: This loop can probably be simplified without using an auxiliary tensor
                 for(unsigned kx = 0; kx < sparsityShape[0]; ++kx)
                     for(unsigned ky = 0; ky < sparsityShape[1]; ++ky)
                         for(unsigned ic = 0; ic < sparsityShape[2]; ++ic)
@@ -184,9 +185,12 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
             }
             else if(weightsSparsity && !isElementWise)
             {
-                //Here only in the case of ZMajorConvolution
+                // Here only in the case of ZMajorConvolution
                 auto weightsTensor = dpuTask->getInputTensor(1);
+
+                // NOTE: Facultative, but doesn't cause overload
                 weightsTensor->setOrder(mv::Order("NHWC"));
+
                 if(weightsTensor->setSparse())
                     dm.defineTensor(weightsTensor->getSparsityMap());
             }
