@@ -41,6 +41,7 @@ class VpuPreprocessingTestsWithParam : public vpuLayersTests,
 class VPUAllocator {
 public:
     virtual void* allocate(size_t requestedSize) = 0;
+    virtual void* getAllocatedChunkByIndex(size_t chunkIndex) = 0;
 };
 
 class VPUSMMAllocator : public VPUAllocator {
@@ -48,8 +49,9 @@ public:
     VPUSMMAllocator() {};
     virtual ~VPUSMMAllocator();
     void* allocate(size_t requestedSize);
+    void* getAllocatedChunkByIndex(size_t chunkIndex);
 private:
-    std::list< std::tuple<int, void*, size_t> > _memChunks;
+    std::vector< std::tuple<int, void*, size_t> > _memChunks;
     static int _pageSize;
 };
 
@@ -86,6 +88,12 @@ void* VPUSMMAllocator::allocate(size_t requestedSize) {
     return virtAddr;
 }
 
+void* VPUSMMAllocator::getAllocatedChunkByIndex(size_t chunkIndex) {
+    std::tuple<int, void*, size_t> chunk = _memChunks.at(chunkIndex);
+    void* virtAddr = std::get<1>(chunk);
+    return virtAddr;
+}
+
 VPUSMMAllocator::~VPUSMMAllocator() {
     for (const std::tuple<int, void*, size_t> & chunk : _memChunks) {
         int fileDesc = std::get<0>(chunk);
@@ -102,8 +110,9 @@ public:
     NativeAllocator() {};
     virtual ~NativeAllocator();
     void* allocate(size_t requestedSize);
+    void* getAllocatedChunkByIndex(size_t chunkIndex);
 private:
-    std::list< uint8_t* > _memChunks;
+    std::vector< uint8_t* > _memChunks;
 };
 
 void* NativeAllocator::allocate(size_t requestedSize) {
@@ -112,35 +121,40 @@ void* NativeAllocator::allocate(size_t requestedSize) {
     return allocatedChunk;
 }
 
+void* NativeAllocator::getAllocatedChunkByIndex(size_t chunkIndex) {
+    return _memChunks.at(chunkIndex);
+}
+
 NativeAllocator::~NativeAllocator() {
     for (uint8_t* chunk : _memChunks) {
         delete [] chunk;
     }
 }
 
+void readNV12FileHelper(const std::string &filePath,
+                        size_t expectedSize,
+                        uint8_t *imageData) {
+    std::ifstream fileReader(filePath, std::ios_base::ate | std::ios_base::binary);
+    if (!fileReader.good()) {
+        throw std::runtime_error("readNV12FileHelper: failed to open file " + filePath);
+    }
+
+    const size_t fileSize = fileReader.tellg();
+    if (fileSize < expectedSize) {
+        throw std::runtime_error("readNV12FileHelper: size of " + filePath + " is less than expected");
+    }
+    fileReader.seekg(0);
+    fileReader.read(reinterpret_cast<char *>(imageData), expectedSize);
+    fileReader.close();
+}
+
 Blob::Ptr fromNV12File(const std::string &filePath,
                        size_t imageWidth,
                        size_t imageHeight,
                        std::shared_ptr<VPUAllocator> &allocator) {
-    std::ifstream fileReader(filePath, std::ios_base::ate | std::ios_base::binary);
-    if (!fileReader.good()) {
-        throw std::runtime_error("fromNV12File: failed to open file " + filePath);
-    }
-
     const size_t expectedSize = imageWidth * (imageHeight * 3 / 2);
-    const size_t fileSize = fileReader.tellg();
-    if (fileSize < expectedSize) {
-        throw std::runtime_error("fromNV12File: size of " + filePath + " is less than expected");
-    }
-    fileReader.seekg(0);
-
-    uint8_t *imageData = reinterpret_cast<uint8_t *>(allocator->allocate(fileSize));
-    if (!imageData) {
-        throw std::runtime_error("fromNV12File: failed to allocate memory");
-    }
-
-    fileReader.read(reinterpret_cast<char *>(imageData), fileSize);
-    fileReader.close();
+    uint8_t *imageData = reinterpret_cast<uint8_t *>(allocator->allocate(expectedSize));
+    readNV12FileHelper(filePath, expectedSize, imageData);
 
     InferenceEngine::TensorDesc planeY(InferenceEngine::Precision::U8,
         {1, 1, imageHeight, imageWidth}, InferenceEngine::Layout::NHWC);
@@ -579,7 +593,7 @@ TEST_F(VpuPreprocessingTests, twoNetworksWithPreprocessing) {
     condVar.wait(lock, [&]{ return curIterationNetwork1 == static_cast<size_t>(iterationCount) && curIterationNet2 == static_cast<size_t>(iterationCount); });
 }
 
-TEST_F(vpuLayersTests, DISABLED_allocateNV12WithNative) {
+TEST_F(vpuLayersTests, allocateNV12WithNative) {
     InferenceEngine::ExecutableNetwork network1;
     std::string network1Path = ModelsPath() + "/KMB_models/BLOBS/resnet/resnet.blob";
     ASSERT_NO_THROW(network1 = ie.ImportNetwork(network1Path, "KMB", {}));
@@ -600,12 +614,11 @@ TEST_F(vpuLayersTests, DISABLED_allocateNV12WithNative) {
     network1InferReqPtr = network1.CreateInferRequestPtr();
 
     std::string input1_name = inputInfo1.begin()->first;
-    std::string input1Path = ModelsPath() + "/KMB_models/BLOBS/resnet/input-1080x1080-nv12.dat";
+    std::string input1Path = ModelsPath() + "/KMB_models/BLOBS/resnet/input-cat-1080x1080-nv12.bin";
     setNV12Preproc(input1_name, input1Path, *network1InferReqPtr, nativeAllocator, 1080, 1080);
 
     ASSERT_NO_THROW(network1InferReqPtr->Infer());
     ASSERT_EQ(1, network1.GetOutputsInfo().size());
-    std::cout << "Output info is OK\n";
 
     ConstOutputsDataMap outputInfo;
     ASSERT_NO_THROW(outputInfo = network1.GetOutputsInfo());
@@ -616,13 +629,76 @@ TEST_F(vpuLayersTests, DISABLED_allocateNV12WithNative) {
 
     TensorDesc outputBlobTensorDesc = outputBlob->getTensorDesc();
 
-    std::string referenceOutputFilePath = ModelsPath() + "/KMB_models/BLOBS/resnet/output.dat";
+    std::string referenceOutputFilePath = ModelsPath() + "/KMB_models/BLOBS/resnet/output-cat.bin";
     uint8_t* outputRefData = reinterpret_cast<uint8_t*>(nativeAllocator->allocate(outputBlob->byteSize()));
     Blob::Ptr referenceOutputBlob = make_shared_blob<uint8_t>(outputBlobTensorDesc, outputRefData);
     ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(referenceOutputFilePath, referenceOutputBlob));
 
     const size_t NUMBER_OF_CLASSES = 1;
     ASSERT_NO_THROW(compareTopClasses(outputBlob, referenceOutputBlob, NUMBER_OF_CLASSES));
+}
+
+TEST_F(vpuLayersTests, allocateNV12TwoImages) {
+    InferenceEngine::ExecutableNetwork network1;
+    std::string network1Path = ModelsPath() + "/KMB_models/BLOBS/resnet/resnet.blob";
+    ASSERT_NO_THROW(network1 = ie.ImportNetwork(network1Path, "KMB", {}));
+
+    ASSERT_EQ(1, network1.GetInputsInfo().size());
+
+    ConstInputsDataMap inputInfo1 = network1.GetInputsInfo();
+
+    for (auto & item : inputInfo1) {
+        InputInfo* mutableItem = const_cast<InputInfo*>(item.second.get());
+        setPreprocAlgorithm(mutableItem, PT_RESIZE);
+        setPreprocAlgorithm(mutableItem, PT_NV12);
+    }
+
+    std::shared_ptr<VPUAllocator> nativeAllocator = buildAllocator("NATIVE");
+
+    InferenceEngine::InferRequest::Ptr commonInferReqPtr;
+    commonInferReqPtr = network1.CreateInferRequestPtr();
+
+    std::string input1_name = inputInfo1.begin()->first;
+
+    std::string inputCatPath = ModelsPath() + "/KMB_models/BLOBS/resnet/input-cat-1080x1080-nv12.bin";
+    setNV12Preproc(input1_name, inputCatPath, *commonInferReqPtr, nativeAllocator, 1080, 1080);
+
+    ASSERT_NO_THROW(commonInferReqPtr->Infer());
+    ASSERT_EQ(1, network1.GetOutputsInfo().size());
+
+    ConstOutputsDataMap outputInfo;
+    ASSERT_NO_THROW(outputInfo = network1.GetOutputsInfo());
+    std::string firstOutputName = outputInfo.begin()->first;
+
+    Blob::Ptr catOutputBlob;
+    ASSERT_NO_THROW(catOutputBlob = commonInferReqPtr->GetBlob(firstOutputName));
+
+    TensorDesc outputBlobTensorDesc = catOutputBlob->getTensorDesc();
+
+    std::string catOutputFilePath = ModelsPath() + "/KMB_models/BLOBS/resnet/output-cat.bin";
+    uint8_t* catOutputRefData = reinterpret_cast<uint8_t*>(nativeAllocator->allocate(catOutputBlob->byteSize()));
+    Blob::Ptr catReferenceOutputBlob = make_shared_blob<uint8_t>(outputBlobTensorDesc, catOutputRefData);
+    ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(catOutputFilePath, catReferenceOutputBlob));
+
+    const size_t NUMBER_OF_CLASSES = 1;
+    ASSERT_NO_THROW(compareTopClasses(catOutputBlob, catReferenceOutputBlob, NUMBER_OF_CLASSES));
+
+    // set another image to already allocated chunk
+    std::string inputDogPath = ModelsPath() + "/KMB_models/BLOBS/resnet/input-dog-1080x1080-nv12.bin";
+    uint8_t* inputMemPtr = reinterpret_cast<uint8_t*>(nativeAllocator->getAllocatedChunkByIndex(0));
+    ASSERT_NO_THROW(readNV12FileHelper(inputDogPath, (1080 * 1080 * 3) / 2, inputMemPtr));
+
+    ASSERT_NO_THROW(commonInferReqPtr->Infer());
+
+    Blob::Ptr dogOutputBlob;
+    ASSERT_NO_THROW(dogOutputBlob = commonInferReqPtr->GetBlob(firstOutputName));
+
+    std::string dogOutputFilePath = ModelsPath() + "/KMB_models/BLOBS/resnet/output-dog.bin";
+    uint8_t* dogOutputRefData = reinterpret_cast<uint8_t*>(nativeAllocator->allocate(dogOutputBlob->byteSize()));
+    Blob::Ptr dogReferenceOutputBlob = make_shared_blob<uint8_t>(outputBlobTensorDesc, dogOutputRefData);
+    ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(dogOutputFilePath, dogReferenceOutputBlob));
+
+    ASSERT_NO_THROW(compareTopClasses(dogOutputBlob, dogReferenceOutputBlob, NUMBER_OF_CLASSES));
 }
 
 const static std::vector<preprocessingType> preprocTypes = {
