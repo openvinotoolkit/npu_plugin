@@ -53,7 +53,7 @@ def define_and_parse_args():
     parser = argparse.ArgumentParser(
         description="""mcmFrontend is Movidius\'s machine learning software framework. \n
 mcmFrontend converts trained offline neural networks into embedded neural networks running on the \
-ultra-low power Keembay VPU.\nBy targeting Keembay, \
+ultra-low power Kmb VPU.\nBy targeting Kmb, \
 mcmFrontend makes it easy to profile, tune and optimize your standard TensorFlow, TensorFlowLite or Caffe neural network. """,
         formatter_class=argparse.RawTextHelpFormatter,
         usage=usage_msg())

@@ -2,7 +2,7 @@
 #define __STRATEGY_CONFIG_HPP__
 
 #include <map>
-#include "meta/include/mcm/op_model.hpp"
+#include "include/mcm/op_model.hpp"
 
 namespace mv {
 namespace graphOptimizer {

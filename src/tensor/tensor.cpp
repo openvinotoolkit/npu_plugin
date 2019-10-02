@@ -89,8 +89,6 @@ noneZeroElements_(other.noneZeroElements_)
     {
         data_ = other.data_;
         blocks_ = other.blocks_;
-        if(other.get<bool>("dataPacked"))
-            orderedDataPacked_ = other.orderedDataPacked_;
     }
 }
 
@@ -149,7 +147,6 @@ void mv::Tensor::populate(const std::vector<double>& data)
 
     data_ = std::make_shared<std::vector<DataElement>>(data.size(), DataElement(true));
     blocks_ = std::vector<std::vector<DataElement>::iterator>(shape_.totalSize() / blockSize_);
-    set<bool>("dataPacked", false);
 
     for (std::size_t i = 0; i < blocks_.size(); ++i)
         blocks_[i] = data_->begin() + i * blockSize_;
@@ -185,7 +182,6 @@ void mv::Tensor::populate(const std::vector<mv::DataElement>& data)
 
     data_ = std::make_shared<std::vector<DataElement>>(data.size(), data[0].isDouble());
     blocks_ = std::vector<std::vector<DataElement>::iterator>(shape_.totalSize() / blockSize_);
-    set<bool>("dataPacked", false);
 
     for (std::size_t i = 0; i < blocks_.size(); ++i)
         blocks_[i] = data_->begin() + i * blockSize_;
@@ -228,7 +224,6 @@ void mv::Tensor::populate(const std::vector<int64_t>& data)
 
     data_ = std::make_shared<std::vector<DataElement>>(data.size(), false);
     blocks_ = std::vector<std::vector<DataElement>::iterator>(shape_.totalSize() / blockSize_);
-    set<bool>("dataPacked", false);
 
     for (std::size_t i = 0; i < blocks_.size(); ++i)
         blocks_[i] = data_->begin() + i * blockSize_;
@@ -296,6 +291,7 @@ void mv::Tensor::unpopulate()
     log(Logger::MessageType::Debug, "Unpopulated");
 }
 
+// NOTE: why a reference? Otherwise return *this trick doesn't work
 mv::Tensor& mv::Tensor::getSubTensor(uint8_t cluster)
 {
     if (cluster < subTensors_.size())
@@ -336,55 +332,68 @@ const mv::Order& mv::Tensor::getInternalOrder() const
     return internalOrder_;
 }
 
+// Auxiliary function to write sparsity map entry and reset all the variables
+void writeMapEntry(std::vector<int64_t>& sparsityMapData, std::size_t& sparsityMapIdx, uint8_t& map, int& shift)
+{
+    sparsityMapData.at(sparsityMapIdx++) = map;
+    map = 0;
+    shift = 0;
+}
+
 void mv::Tensor::populateSparsityMapTensor_()
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_BULD)
     auto shape = getShape();
 
     std::vector<int64_t> zeroPoint = getZeroPointsPerChannel();
-    std::vector<int64_t> sparsityMapData(sparsityMap_->shape_.totalSize());
+    std::vector<int64_t> sparsityMapData(sparsityMap_->shape_.totalSize(), 0);
     std::vector<size_t> sub(shape.ndims());
     uint8_t map = 0;
     std::size_t sparsityMapIdx = 0;
     size_t n = 0;
     int shift = 0;
     int channelIndex = mv::KERNEL_OUTPUT_CHANNELS;
+    noneZeroElements_ = 0;
 
+    // Populating on a per channel basis
     for (size_t t = 0; t < shape.totalSize(); t++)
     {
         sub = getOrder().indToSub(shape, t);
-        if (sub[channelIndex] != n) //starting a new channel, reset map
+
+        // Starting a new channel
+        if (sub[channelIndex] != n)
         {
-           if (shift != 0) //this is needed in the case when tensor dimensions are not multiple of 8
-            {
-                //write map
-                sparsityMapData.at(sparsityMapIdx++) = map;
-                map = 0;
-                shift = 0;
-            }
+            // This is needed in the case when tensor dimensions are not multiple of 8
+            // This should never happen because weights sets are padded to have alignment to 16
+            if (shift != 0)
+                writeMapEntry(sparsityMapData, sparsityMapIdx, map, shift);
+
+            // Updating current channel index
             n = sub[channelIndex];
+
+            // Again, this should never happen, same reasoning as above
             if (sparsityMapIdx % 16 != 0)
             {
-                auto padding = 16 - (sparsityMapIdx%16);
+                auto padding = 16 - (sparsityMapIdx % 16);
                 sparsityMapIdx += padding;
             }
         }
-        if (static_cast<int64_t>(data_->at(internalOrder_.subToInd(shape, sub))) != zeroPoint[sub[channelIndex]])
-            map += 1 << shift;
 
-        shift++;
-        if (shift == 8)//finished one map entry
-        {
-            sparsityMapData.at(sparsityMapIdx++) = map;
-            map = 0;
-            shift = 0;
-        }
+        // Updating current entry: 1 UInt8 contains 8 bits, so can cover for 8 elements
+        // NOTE: NoneZero elements can't be counted here
+        // Because we need alignment to 16, which can be obtained only in getPackedData.
+        if (static_cast<int64_t>(data_->at(internalOrder_.subToInd(shape, sub))) != zeroPoint[sub[channelIndex]])
+            map ^= (1 << shift);
+
+        // Finished one entry, writing it and resetting entry and shift variables
+        if (++shift == 8)
+            writeMapEntry(sparsityMapData, sparsityMapIdx, map, shift);
     }
+
+    // Following the above reasoning, this should never happen
     if (shift != 0)
-    {
-        //write map
-        sparsityMapData.at(sparsityMapIdx++) = map;
-    }
+        writeMapEntry(sparsityMapData, sparsityMapIdx, map, shift);
+
     sparsityMap_->populate(sparsityMapData);
 }
 
@@ -392,17 +401,20 @@ void mv::Tensor::setAddress(int64_t address)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_BULD)
     set<std::size_t>("address", address);
-    if (isSparse() && !isPopulated())
+    if (isSparse())
     {
         auto tensorSize = getClusterSize();
 
-        //NOTE: SOK problem?
-        //Order assumed: Tensor - Storage Element - Sparsity Map
-        auto sparsitySize = sparsityMap_->computeTotalSize();
-        auto storageElementSize = storageElement_->computeTotalSize();
-        storageElement_->set<std::size_t>("address", address +
-            (tensorSize - storageElementSize - sparsitySize));
-        sparsityMap_->set<std::size_t>("address", address +(tensorSize - sparsitySize));
+        // Order assumed for unpopulated: Tensor - Storage Element - Sparsity Map
+        // Order assumed for populated: Tensor (packed data) - Sparsity Map
+        auto sparsitySize = sparsityMap_->getClusterSize();
+
+        if(!isPopulated())
+        {
+            auto storageElementSize = storageElement_->getClusterSize();
+            storageElement_->setAddress(address + (tensorSize - storageElementSize - sparsitySize));
+        }
+        sparsityMap_->setAddress(address + (tensorSize - sparsitySize));
     }
     for (size_t tIdx = 0; tIdx < subTensors_.size(); tIdx++)
         subTensors_[tIdx]->setAddress(address);
@@ -423,10 +435,6 @@ bool mv::Tensor::setSparse()
 
     set<bool>("sparse", true);
 
-    // we will create tensors here, and set them as attributes, in runtime_modle, need to check if
-    // sparse then get the specific attributes by name and call toBinary
-    // this will avoid duplicate of tensors, but it will not allow iterator to go over them.
-
     auto shape = getShape();
     size_t N = shape[shape.ndims()-1];
 
@@ -440,13 +448,15 @@ bool mv::Tensor::setSparse()
         mapShape = {paddedDim, 1, 1, N};
     }
     //std::cout << "Total bytes of sparsity map for " << getName() << " " << mapShape.totalSize() * mv::DType("UInt8").getSizeInBits() / 8 << std::endl;
-    sparsityMap_ = std::make_shared<Tensor>(createSparsityMapName(getName()), mapShape, mv::DType("UInt8"), Order("NCHW"));
+    sparsityMap_ = std::make_shared<Tensor>(createSparsityMapName(getName()), mapShape, mv::DType("UInt8"), Order("NHWC"));
     noneZeroElements_ = 0;
 
     //populate sparsity map
     if (isPopulated())
     {
         populateSparsityMapTensor_();
+
+        // NOTE: Necessary to initialize correctly noneZeroElements_
         getDataPacked();
     }
     else
@@ -509,7 +519,6 @@ void mv::Tensor::setOrder(Order order, bool updateSubtensors)
         log(Logger::MessageType::Debug, "Reorderd to " + order.toString());
 
         //If the data order changes, the packed data is invalid
-        set<bool>("dataPacked", false);
         if (updateSubtensors)
             setSubtensorsOrder_(order);
     }
@@ -649,58 +658,85 @@ std::vector<mv::DataElement> mv::Tensor::getData()
 
 const std::vector<int64_t>& mv::Tensor::getKernelDataOffsets()
 {
-    if(!get<bool>("dataPacked")) //getDataPacked hasn't been called
+    if(kernelDataOffsets_.empty())
         getDataPacked();
     return kernelDataOffsets_;
 }
 
-const std::vector<mv::DataElement>& mv::Tensor::getDataPacked()
+// NOTE: For now this can handle only integer tensors
+// This is because we have to make quantParams (currently int64) dataElements as well.
+
+// NOTE2: This method works properly only on tensors of the form (W, 1, 1, N)
+// The order has to be an order in which the W comes after the N, examples:
+// NHWC, NHCW
+const std::vector<int64_t> mv::Tensor::getDataPacked()
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_BULD)
     if (!isPopulated())
         throw ValueError(*this, "Attempt of restoring data from an unpopulated tensor");
 
-    if(!get<bool>("dataPacked"))
+    // TODO: Make it work on doubles - Or maybe not considering that FP16 is integer type
+    if(isDoubleType())
+        throw ValueError(*this, "Attempt of getting data packed from populated double tensor");
+
+    if(!getOrder().isZMajor())
+        throw ValueError(*this, "To use getDataPacked order has to be NHWC");
+
+    std::vector<int64_t> orderedDataPacked;
+
+    // NOTE: noneZeroElements_ has a misleading name. We pad the packed data
+    // and that actually is memorized in graphfile and transferred. So it's
+    // counter must be updated for both elements != ZeroPoint and for each
+    // ZeroPoint of padding that we put in orderedDataPacked
+    noneZeroElements_ = 0;
+
+    auto shape = getShape();
+    std::vector<std::size_t> sub(shape.ndims());
+    std::vector<int64_t> zeroPoint = getZeroPointsPerChannel();
+
+    int64_t datai;
+    size_t outputChannels = shape[mv::KERNEL_OUTPUT_CHANNELS];
+    size_t outputChannelSize = shape.totalSize() / outputChannels;
+    kernelDataOffsets_.resize(outputChannels);
+    size_t offset = 0;
+
+    // Filling the data on a per channel basis
+    for (std::size_t k = 0; k < outputChannels; ++k)
     {
-        orderedDataPacked_ = std::make_shared<std::vector<DataElement>>();
-        set<bool>("dataPacked", true);
+        kernelDataOffsets_[k] = offset;
+        size_t prevNumOfElements = orderedDataPacked.size();
 
-        auto shape = shape_;
-        std::vector<std::size_t> sub(shape.ndims());
-        std::vector<int64_t> zeroPoint = getZeroPointsPerChannel();
-        double datai;
-        size_t outputChannels = shape[mv::KERNEL_OUTPUT_CHANNELS];
-        size_t outputChannelSize = shape.totalSize() / outputChannels;
-        kernelDataOffsets_.resize(outputChannels);
-        size_t offset = 0;
-        for (std::size_t k = 0; k < outputChannels; ++k)
+        for (std::size_t i = 0; i < outputChannelSize; i++)
         {
-            kernelDataOffsets_[k] = offset;
-            size_t prevNumOfElements = orderedDataPacked_->size();
-            for (std::size_t i = 0; i < outputChannelSize; i++)
+            sub = getOrder().indToSub(shape, k*outputChannelSize + i);
+            datai = static_cast<int64_t>(data_->at(internalOrder_.subToInd(shape, sub)));
+            //skip zero values if sparse
+            if (!isSparse() || datai != zeroPoint[sub[mv::KERNEL_OUTPUT_CHANNELS]])
             {
-                sub = getOrder().indToSub(shape_, i + k*outputChannelSize);
-                datai = data_->at(internalOrder_.subToInd(shape_, sub));
-                //skip zero values if sparse
-                if (!isSparse() || datai != zeroPoint[sub[mv::KERNEL_OUTPUT_CHANNELS]])
-                    orderedDataPacked_->push_back(DataElement(isDoubleType(), datai));
+                orderedDataPacked.push_back(datai);
+                noneZeroElements_++;
             }
-            //Add padding if needed
-            if (isSparse())
-            {
-                auto size = orderedDataPacked_->size() * std::ceil(getDType().getSizeInBits()/8.0);
-                auto padsize = mv::round_up(size, 16) - size;
-                int64_t zeroPointVal = zeroPoint[sub[mv::KERNEL_OUTPUT_CHANNELS]];
-                for (std::size_t j = 0; j < padsize; ++j)
-                    orderedDataPacked_->push_back(DataElement(isDoubleType(), zeroPointVal));
-            }
-
-            size_t numberOfElementsInKernel = orderedDataPacked_->size() - prevNumOfElements; //include padding
-            offset += numberOfElementsInKernel * std::ceil(getDType().getSizeInBits()/8.0);
         }
-        noneZeroElements_ = orderedDataPacked_->size();
+
+        // Add padding if needed - Needs to be done only in the sparse case
+        // As weights sets are aligned to 16
+        if (isSparse())
+        {
+            auto size = orderedDataPacked.size() * std::ceil(getDType().getSizeInBits()/8.0);
+            auto padsize = mv::round_up(size, 16) - size;
+            int64_t zeroPointVal = zeroPoint[sub[mv::KERNEL_OUTPUT_CHANNELS]];
+            for (std::size_t j = 0; j < padsize; ++j)
+            {
+                orderedDataPacked.push_back(zeroPointVal);
+                noneZeroElements_++;
+            }
+        }
+
+        size_t numberOfElementsInKernel = orderedDataPacked.size() - prevNumOfElements; //include padding
+        offset += numberOfElementsInKernel * std::ceil(getDType().getSizeInBits()/8.0);
     }
-    return *orderedDataPacked_;
+
+    return orderedDataPacked;
 }
 
 std::vector<int64_t> mv::Tensor::getIntData()
@@ -995,11 +1031,6 @@ std::string mv::Tensor::getLogID() const
     return "Tensor:" + getName();
 }
 
-mv::BinaryData mv::Tensor::toBinary()
-{
-    return getDType().toBinary(getDataPacked());
-}
-
 std::vector<unsigned> mv::Tensor::computeNumericStrides() const
 {
     return getOrder().computeByteStrides(shape_, getDType().getSizeInBits() / 8);
@@ -1013,9 +1044,11 @@ std::size_t mv::Tensor::getClusterSize(unsigned int alignment, bool isBase) cons
     if (!isBroadcasted())
     {
         res = 0;
+        bool isTensorAligned = hasAttr("alignment") ? get<bool>("alignment") : false;
+
         for (size_t tIdx = 0; tIdx < subTensors_.size(); tIdx++)
         {
-            auto size = subTensors_[tIdx]->computeTotalSize(alignment, isBase);
+            auto size = subTensors_[tIdx]->computeTotalSize(alignment, isBase,isTensorAligned);
             if (size > res)
                 res = size;
         }
@@ -1028,7 +1061,7 @@ std::size_t mv::Tensor::getClusterSize(unsigned int alignment, bool isBase) cons
     return res;
 }
 
-std::size_t mv::Tensor::computeTotalSize(unsigned int alignment, bool isBase) const
+std::size_t mv::Tensor::computeTotalSize(unsigned int alignment, bool isBase, bool fatherTensorAligned) const
 {
     std::size_t res;
 
@@ -1053,15 +1086,29 @@ std::size_t mv::Tensor::computeTotalSize(unsigned int alignment, bool isBase) co
 
         }
     }
-
+    bool isTensorAligned = hasAttr("alignment") ? get<bool>("alignment") : false;
+    size_t totalSize = shape.totalSize();
+    //TODO update that to proper alignment, if this needs to align to 32 (splitOverK, each cluster has the whole tensor size, but need it aligned to 16*numclusters)
+    if (isTensorAligned || fatherTensorAligned)
+    {
+        auto pad = alignment;
+        auto outputChannels = shape[mv::IO_CHANNEL_DIMENSION];
+        if (outputChannels % pad != 0)
+        {
+            auto paddedOutputChannels = mv::round_up(outputChannels, pad);
+            totalSize = totalSize / outputChannels * paddedOutputChannels;
+        }
+    }
     if (isSparse())
     {
         if (isPopulated())
         {
             res = noneZeroElements_ * std::ceil(getDType().getSizeInBits()/8.0); //TODO check if we need ceil here?
+            res += getSparsityMap()->computeTotalSize();
         }
         else
         {
+            //TODO what happens in this case
             res = shape.totalSize() * std::ceil(getDType().getSizeInBits()/8.0); //TODO check if we need ceil here?
             res += getSparsityMap()->computeTotalSize();
             res += getStorageElement()->computeTotalSize();
@@ -1069,11 +1116,57 @@ std::size_t mv::Tensor::computeTotalSize(unsigned int alignment, bool isBase) co
     }
     else
     {
-        res = shape.totalSize() * std::ceil(getDType().getSizeInBits()/8.0); //TODO check if we need ceil here?
+        res = totalSize * std::ceil(getDType().getSizeInBits()/8.0); //TODO check if we need ceil here?
     }
     //Round up to align to (alignment) 16 bytes
     res = mv::round_up(res, alignment);
     return res;
+}
+
+void mv::Tensor::shareAcrossClusters(std::vector<mv::Workload> workloads, unsigned int numClusters, bool clustering)
+{
+    if (isPopulated())
+    {
+        //NOTE Shape of Populated will be aligned already, so I am using the shape not the workload
+        auto shape = getShape();
+        for (auto wlItr = workloads.begin(); wlItr != workloads.end(); wlItr++)
+        {
+            size_t idx = wlItr - workloads.begin();
+
+            if (clustering)
+            {
+                subTensors_.push_back(std::make_shared<mv::Tensor>(getName() + "sub" + std::to_string(idx),
+                    shape_, getDType(), getOrder()));
+            }
+            if (hasAttr("quantizationParams"))
+                subTensors_[idx]->set<mv::QuantizationParams>("quantizationParams", get<mv::QuantizationParams>("quantizationParams"));
+            if (isSparse())
+                subTensors_[idx]->setSparse();
+        }
+        set<bool>("broadcasted", clustering == true && (numClusters > 1));
+    }
+    else
+    {
+        auto shape = getShape();
+        for (auto wlItr = workloads.begin(); wlItr != workloads.end(); wlItr++)
+        {
+            size_t idx = wlItr - workloads.begin();
+            auto width = wlItr->MaxX - wlItr->MinX;
+            auto height = wlItr->MaxY - wlItr->MinY;
+            auto channels = wlItr->MaxZ - wlItr->MinZ;
+            if (clustering)
+            {
+                mv::Shape newShape = {width, height, channels, 1};
+                subTensors_.push_back(std::make_shared<mv::Tensor>(getName() + "sub" + std::to_string(idx), newShape, getDType(), getOrder()));
+           }
+
+            if (hasAttr("quantizationParams"))
+                subTensors_[idx]->set<mv::QuantizationParams>("quantizationParams", get<mv::QuantizationParams>("quantizationParams"));
+            if (isSparse())
+                subTensors_[idx]->setSparse();
+        }
+        set<bool>("broadcasted", (clustering && (numClusters > 1)));
+    }
 }
 
 void mv::Tensor::splitAcrossClusters(std::vector<mv::Workload> workloads, bool splitOverH, bool multicast)
@@ -1088,10 +1181,6 @@ void mv::Tensor::splitAcrossClusters(std::vector<mv::Workload> workloads, bool s
             auto height = wlItr->MaxY - wlItr->MinY + 1;
             if (splitOverH)
             {
-                //NOTE: We can probably avoid to populate this tensor
-                // We will save a lot of time and space
-//                subTensors_.push_back(std::make_shared<mv::Tensor>(getName() + "sub" + std::to_string(idx),
-//                    shape_, getDType(), getOrder(), getData()));
                 subTensors_.push_back(std::make_shared<mv::Tensor>(getName() + "sub" + std::to_string(idx),
                     shape_, getDType(), getOrder()));
             }
@@ -1099,28 +1188,34 @@ void mv::Tensor::splitAcrossClusters(std::vector<mv::Workload> workloads, bool s
             {
                 mv::Shape newShape = { shape[0], shape[1] , static_cast<size_t>(width), static_cast<size_t>(height)};
                 auto order = getOrder();
-//                std::vector<mv::DataElement> splittedData(newShape.totalSize(), mv::DataElement(this->isDoubleType()));
-//                size_t nOffset = static_cast<size_t>(wlItr->MinY);
-//                size_t cOffset = static_cast<size_t>(wlItr->MinX);
-//                for (size_t n = 0; n < newShape[3]; n++)
-//                    for (size_t c = 0; c < newShape[2]; c++)
-//                        for (size_t h = 0; h < newShape[1]; h++)
-//                            for (size_t w = 0; w < newShape[0]; w++)
-//                            {
-//                                //copy only the relevant channels/kernels
-//                                splittedData[order.subToInd(newShape, {w, h, c, n})] = this->at({w , h, c+cOffset, n+nOffset});
-//                            }
-//                subTensors_.push_back(std::make_shared<mv::Tensor>(getName() + "sub" + std::to_string(idx),
-//                    newShape, getDType(), order, splittedData));
-                subTensors_.push_back(std::make_shared<mv::Tensor>(getName() + "sub" + std::to_string(idx),
-                    newShape, getDType(), order));
+
+                // NOTE: Physically copying the data to subtensors is needed only when the tensor is sparse
+                // since we need to sparsify the subtensors to get the kernel data offsets.
+                if (isSparse())
+                {
+                    std::vector<mv::DataElement> splittedData(newShape.totalSize(), mv::DataElement(this->isDoubleType()));
+                    size_t nOffset = static_cast<size_t>(wlItr->MinY);
+                    size_t cOffset = static_cast<size_t>(wlItr->MinX);
+                    for (size_t n = 0; n < newShape[3]; n++)
+                        for (size_t c = 0; c < newShape[2]; c++)
+                            for (size_t h = 0; h < newShape[1]; h++)
+                                for (size_t w = 0; w < newShape[0]; w++)
+                                    splittedData[order.subToInd(newShape, {w, h, c, n})] = this->at({w , h, c+cOffset, n+nOffset});
+                    subTensors_.push_back(std::make_shared<mv::Tensor>(getName() + "sub" + std::to_string(idx),
+                        newShape, getDType(), order, splittedData));
+                }
+                else
+                {
+                    subTensors_.push_back(std::make_shared<mv::Tensor>(getName() + "sub" + std::to_string(idx),
+                        newShape, getDType(), order));
+                }
             }
             std::vector<std::size_t> offset = {0 , 0,
                 static_cast<size_t>(wlItr->MinX), static_cast<size_t>(wlItr->MinY)};
             subTensors_[idx]->set<std::vector<std::size_t>>("offset", offset);
 
-            if (hasAttr("quantizationParams"))
-                subTensors_[idx]->set<mv::QuantizationParams>("quantizationParams", get<mv::QuantizationParams>("quantizationParams"));
+            if (hasAttr("quantParams"))
+                subTensors_[idx]->set<mv::QuantizationParams>("quantParams", get<mv::QuantizationParams>("quantParams"));
             if (isSparse())
                 subTensors_[idx]->setSparse();
         }

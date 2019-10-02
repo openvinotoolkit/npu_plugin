@@ -7,7 +7,7 @@
 * @author Patrick Doyle, Ian Hunter
 * @date 4/27/2018
 */
-#include "meta/include/mcm/op_model.hpp"
+#include "include/mcm/op_model.hpp"
 
 #include "include/mcm/utils/serializer/file_buffer.hpp"
 #include "include/mcm/computation/model/control_model.hpp"

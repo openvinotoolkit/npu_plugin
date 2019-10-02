@@ -2,7 +2,7 @@
 #include "include/mcm/computation/model/computation_model.hpp"
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
-#include "meta/include/mcm/op_model.hpp"
+#include "include/mcm/op_model.hpp"
 
 mv::Group::Group(ComputationModel &model, const std::string &name) :
 ModelElement(model, name)

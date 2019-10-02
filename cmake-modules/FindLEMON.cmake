@@ -49,7 +49,7 @@ ELSE()
   MESSAGE(STATUS "Lemon not found. Will download as External Project and install locally.")
   include(ExternalProject)
   set(LEMON_SOURCE_DIR "${PROJECT_SOURCE_DIR}/contrib/lemon")
-  set(LEMON_INSTALL_DIR "${PROJECT_SOURCE_DIR}/contrib/lemon/install")
+  set(LEMON_INSTALL_DIR "${PROJECT_BINARY_DIR}/contrib/lemon/install")
   ExternalProject_Add(
       project_lemon
       #HG_REPOSITORY     http://lemon.cs.elte.hu/hg/lemon 

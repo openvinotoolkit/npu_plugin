@@ -171,7 +171,7 @@
             "StreamBinaryDataWeights"
         ]
     },
-    "keembay_adapt": {
+    "kmb_adapt": {
         "Singular": [
             "ConcatAsImplicit",
             "StoreWorkloadStrategy",
@@ -229,13 +229,13 @@
                 "name": "GenerateWorkloads",
                 "costfunction": "greedy",
                 "TensorSplitAlgorithms": "Rectangle, Z-tiling",
-                "_comment": "Supported CostFunctions are: balanced | criticalpath | minmax | greedy. Supported TensorSplitAlgorithms are Metis, Rectangle, Z-Tiling"
+                "_comment": "Supported CostFunctions are: balanced | criticalpath | minmax | greedy. Supported TensorSplitAlgorithms Rectangle, Z-Tiling"
             },
-            "ArrangeKeembayExecution",
-            "AllocateInputOutputTensorsKeemBay",
-            "AllocateGraphfileTensorsKeemBayLegacy",
-            "ReAllocateImplicitOperationsKeemBay",
-            "AllocateCMXTensorsKeemBay",
+            "ArrangeKmbExecution",
+            "AllocateInputOutputTensorsKmb",
+            "AllocateGraphfileTensorsKmb",
+            "ReAllocateImplicitOperationsKmb",
+            "AllocateCMXTensorsKmb",
             "TensorGraphColoring",
             "RemoveDeallocationTasks",
             "TransitiveReduction",
@@ -263,7 +263,7 @@
     "serialize": {
         "Singular": [
             {
-                "name": "GenerateBlobKeembay",
+                "name": "GenerateBlobKmb",
                 "output": "output/mcm.blob"
             },
             {
@@ -278,7 +278,7 @@
             "initialize",
             "validate",
             "adapt",
-            "keembay_adapt",
+            "kmb_adapt",
             "dma",
             "control_flows",
             "finalize",

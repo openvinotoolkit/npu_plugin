@@ -1,30 +1,90 @@
-cmake_minimum_required(VERSION 3.5.0)
-project(mcmComplier VERSION 0.0.1)
+cmake_minimum_required(VERSION 3.10.0)
+project(mcmComplier VERSION 1.0.0)
 
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/lib)
-SET(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake-modules")
-SET(CMAKE_VERBOSE_MAKEFILE OFF) # for debugging
+set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake-modules")
+set(CMAKE_VERBOSE_MAKEFILE OFF) # for debugging
+set(META_DIR_PATH "${PROJECT_BINARY_DIR}/meta")
+include_directories(${META_DIR_PATH})
+add_definitions(-DMETA_DIR=\"${META_DIR_PATH}\")
+add_definitions(-DPROJECT_DIR=\"${PROJECT_SOURCE_DIR}\")
 
 #############################################################################################
 ### Setup
 #############################################################################################
-SET(PROJECT_VERSION_MAJOR 1)
-SET(PROJECT_VERSION_MINOR 0)
-SET(PROJECT_VERSION_PATCH 0)
 
-if (NOT EXISTS ${CMAKE_BINARY_DIR}/CMakeCache.txt)
-    if (NOT CMAKE_BUILD_TYPE)
-        set(CMAKE_BUILD_TYPE "Debug" CACHE STRING "" FORCE)
-    endif()
+if (NOT CMAKE_BUILD_TYPE)
+    # Due to the current development pace, Debug is default build type
+    set(CMAKE_BUILD_TYPE "Debug" CACHE STRING "" FORCE)
 endif()
+message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 
 add_compile_options(-std=c++11)
 
-SET(LOG TRUE CACHE BOOL "Enable logger")
+set(PROFILER FALSE CACHE BOOL "Enable integrated profiler")
+set(LOG TRUE CACHE BOOL "Enable logger")
+set(PROFILE_PHASE TRUE CACHE BOOL "Enable profiling at compilation phases level")
+set(PROFILE_BASE TRUE CACHE BOOL "Enable profiling at base components level")
+set(PROFILE_PASS TRUE CACHE BOOL "Enable profiling at compilation passes level")
+set(PROFILE_COMP TRUE CACHE BOOL "Enable profiling at ops composition level")
+set(PROFILE_ALGO TRUE CACHE BOOL "Enable profiling at internal algorithms level")
+set(PROFILE_BULD TRUE CACHE BOOL "Enable profiling at building blocks level")
+set(PROFILE_MATH TRUE CACHE BOOL "Enable profiling at tensor math operations level")
+
 
 if (${LOG})
     add_definitions(-DMV_LOG_ENABLED)
 endif()
+
+if (${PROFILER})
+
+    if (${UNIX})
+        add_definitions(-DMV_PROFILER_ENABLED)
+        include_directories(${PROJECT_SOURCE_DIR}/contrib/easy_profiler/easy_profiler_core/include)
+        add_subdirectory(contrib/easy_profiler)
+
+        if (${PROFILE_PHASE})
+            add_definitions(-DMV_PROFILE_PHASE_ENABLED)
+        endif()
+
+        if (${PROFILE_BASE})
+            add_definitions(-DMV_PROFILE_BASE_ENABLED)
+        endif()
+
+        if (${PROFILE_PASS})
+            add_definitions(-DMV_PROFILE_PASS_ENABLED)
+        endif()
+
+        if (${PROFILE_COMP})
+            add_definitions(-DMV_PROFILE_COMP_ENABLED)
+        endif()
+
+        if (${PROFILE_ALGO})
+            add_definitions(-DMV_PROFILE_ALGO_ENABLED)
+        endif()
+
+        if (${PROFILE_BULD})
+            add_definitions(-DMV_PROFILE_BULD_ENABLED)
+        endif()
+
+        if (${PROFILE_MATH})
+            add_definitions(-DMV_PROFILE_MATH_ENABLED)
+        endif()
+
+    else()
+
+        message("Ignoring PROFILER=ON flag, profiling only available for Linux/UNIX")
+
+    endif()
+
+endif()
+
+#############################################################################################
+### Test Coverage - off by default. Pass param CODE_COVERAGE=ON
+### > cmake -DCODE_COVERAGE=ON -DCMAKE_BUILD_TYPE=Debug ..
+#############################################################################################
+include(cmake-modules/code-coverage.cmake)
+add_code_coverage()
 
 #############################################################################################
 ### Find packages - uses Find*.cmake files in /cmake-modules dir
@@ -38,15 +98,23 @@ endif(LEMON_FOUND)
 
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
+set(FLATBUFFERS_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 add_subdirectory(contrib/flatbuffers)
 
-add_compile_options("-Wall" "-Wextra" "-Wshadow" "-Wnon-virtual-dtor" "-pedantic" "$<$<CONFIG:RELEASE>:-O3>" "-fstack-protector-all")
+#############################################################################################
+### Main build
+#############################################################################################
+if (MSVC)
+    add_compile_options("/W4" "$<$<CONFIG:RELEASE>:/O2>" "/GS")
+else()
+    add_compile_options("-Wall" "-Wextra" "-Wshadow" "-Wnon-virtual-dtor" "-pedantic" "$<$<CONFIG:RELEASE>:-O3>" "-fstack-protector-all")
+endif()
 
 include_directories(${PROJECT_SOURCE_DIR})
 include_directories(${PROJECT_SOURCE_DIR}/include)
 include_directories(${PROJECT_SOURCE_DIR}/contrib/flatbuffers/include)
 
-SET(base
+set(base
 
     "${PROJECT_SOURCE_DIR}/src/base/exception/argument_error.cpp"
     "${PROJECT_SOURCE_DIR}/src/base/exception/attribute_error.cpp"
@@ -82,16 +150,16 @@ SET(base
 
     "${PROJECT_SOURCE_DIR}/src/computation/op/op_entry.cpp"
 
-    # Single compilation unit for all Keembay attributes and operations in order //
-    "${PROJECT_SOURCE_DIR}/src/target/keembay/keembay_registry.cpp"
+    # Single compilation unit for all Kmb attributes and operations in order
+    "${PROJECT_SOURCE_DIR}/src/target/kmb/kmb_registry.cpp"
 
-    "${PROJECT_SOURCE_DIR}/src/target/keembay/barrier_definition.cpp"
-    "${PROJECT_SOURCE_DIR}/src/target/keembay/barrier_deps.cpp"
-    "${PROJECT_SOURCE_DIR}/src/target/keembay/dma_direction.cpp"
-    "${PROJECT_SOURCE_DIR}/src/target/keembay/ppe_fixed_function.cpp"
-    "${PROJECT_SOURCE_DIR}/src/target/keembay/ppe_layer_type.cpp"
-    "${PROJECT_SOURCE_DIR}/src/target/keembay/ppe_task.cpp"
-    "${PROJECT_SOURCE_DIR}/src/target/keembay/workloads.cpp"
+    "${PROJECT_SOURCE_DIR}/src/target/kmb/barrier_definition.cpp"
+    "${PROJECT_SOURCE_DIR}/src/target/kmb/barrier_deps.cpp"
+    "${PROJECT_SOURCE_DIR}/src/target/kmb/dma_direction.cpp"
+    "${PROJECT_SOURCE_DIR}/src/target/kmb/ppe_fixed_function.cpp"
+    "${PROJECT_SOURCE_DIR}/src/target/kmb/ppe_layer_type.cpp"
+    "${PROJECT_SOURCE_DIR}/src/target/kmb/ppe_task.cpp"
+    "${PROJECT_SOURCE_DIR}/src/target/kmb/workloads.cpp"
 
     "${PROJECT_SOURCE_DIR}/src/tensor/dtype/dtype_def/bin.cpp"
     "${PROJECT_SOURCE_DIR}/src/tensor/dtype/dtype_def/float8.cpp"
@@ -138,7 +206,7 @@ SET(base
 
 )
 
-SET(model
+set(model
     "${PROJECT_SOURCE_DIR}/src/computation/model/base_op_model.cpp"
     "${PROJECT_SOURCE_DIR}/src/computation/model/computation_model.cpp"
     "${PROJECT_SOURCE_DIR}/src/computation/model/control_model.cpp"
@@ -150,21 +218,15 @@ SET(model
     "${PROJECT_SOURCE_DIR}/src/computation/op/op.cpp"
     "${PROJECT_SOURCE_DIR}/src/computation/resource/memory_allocator.cpp"
     "${PROJECT_SOURCE_DIR}/src/computation/resource/stage.cpp"
-    "${PROJECT_SOURCE_DIR}/src/target/myriadx/nce1.cpp"
-    "${PROJECT_SOURCE_DIR}/src/target/myriadx/nce1_utils.cpp" 
-    "${PROJECT_SOURCE_DIR}/src/target/keembay/lemon_graph_scheduler.cpp"   
+    "${PROJECT_SOURCE_DIR}/src/target/kmb/lemon_graph_scheduler.cpp"
 )
 
-SET(logger
+set(logger
     "${PROJECT_SOURCE_DIR}/src/logger/log_sender.cpp"
     "${PROJECT_SOURCE_DIR}/src/logger/logger.cpp"
 )
 
-SET(pass
-    "${PROJECT_SOURCE_DIR}/src/deployer/blob_serialization/blob_serializer.cpp"
-    "${PROJECT_SOURCE_DIR}/src/deployer/blob_serialization/bRelocation.cpp"
-    "${PROJECT_SOURCE_DIR}/src/deployer/blob_serialization/bTensor.cpp"
-    "${PROJECT_SOURCE_DIR}/src/deployer/serializer.cpp"
+set(pass
 
     "${PROJECT_SOURCE_DIR}/src/pass/pass_entry.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/pass_manager.cpp"
@@ -183,61 +245,53 @@ SET(pass
     "${PROJECT_SOURCE_DIR}/src/pass/adaptation/remove_passes.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/adaptation/replacement_passes.cpp"
 
-    "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/concat_as_implicit.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/update_implicit_layers_quatization_params.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/concat_as_implicit.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/update_implicit_layers_quatization_params.cpp"
 
 
-    "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/keembay_align_weights.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/keembay_control_flow.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/compute_tensors_quant.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/convert_to_task_graph.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/dpu_task_memory_location.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/kmb_align_weights.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/kmb_control_flow.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/compute_tensors_quant.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/convert_to_task_graph.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/dpu_task_memory_location.cpp"
 
-    "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/strategy_from_layers_to_tensors.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/keembay_order_conversion.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/insert_barrier_tasks.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/dma_passes.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/deallocation_passes.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/assign_unique_task_id.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/splitting_across_clusters.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/store_layer_split_strategy.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/store_workload_strategy.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/implicit_operation_passes.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/sparsity/sparsity_maps.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/sparsity/weights_tables.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/sparsity/eltwise_ops.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/keembay_align_to_16_channels.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/streaming/spatial_split_streaming.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/keembay_align_slice_ops.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/force_serialize.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/strategy_from_layers_to_tensors.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/kmb_order_conversion.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/insert_barrier_tasks.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/dma_passes.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/deallocation_passes.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/assign_unique_task_id.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/splitting_across_clusters.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/store_layer_split_strategy.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/store_workload_strategy.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/implicit_operation_passes.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/sparsity/sparsity_maps.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/sparsity/weights_tables.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/sparsity/eltwise_ops.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/kmb_align_to_16_channels.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/real_pad_tensors.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/streaming/spatial_split_streaming.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/kmb_align_slice_ops.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/force_serialize.cpp"
+
     "${PROJECT_SOURCE_DIR}/src/pass/finalization/max_topological_cut.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/finalization/align_data_order.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/finalization/allocate_memory_keem_bay.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/finalization/arrange_execution.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/finalization/format_mx_weights.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/finalization/fuse_relu_mx.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/finalization/allocate_memory_kmb.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/finalization/generate_workloads_pass.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/finalization/tensor_graph_coloring.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/finalization/manipulate_barrier_refs.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/finalization/mark_hardware_operations.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/finalization/myriad_x_paddings.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/finalization/optimize_convolutions.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/finalization/optimize_poolings.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/finalization/splits_over_h.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/finalization/tensor_field_storage.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/finalization/transitive_reduction.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/finalization/is_dag.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/finalization/schedule_helper.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/finalization/arrange_execution.cpp"
 
-    "${PROJECT_SOURCE_DIR}/src/pass/graphOptimizations/graphOptimizer.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/graphOptimizations/StrategyManager.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/graphOptimizations/StrategyRegistry.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/graphOptimizations/KeemBayDefaultConfigs.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/optimization/graph_parameter_optimization.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/optimization/strategy_manager.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/optimization/strategy_registry.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/optimization/kmb_default_configs.cpp"
 
     "${PROJECT_SOURCE_DIR}/src/pass/scheduling/scheduling_passes.cpp"
 
-    "${PROJECT_SOURCE_DIR}/src/pass/serialization/generate_blob_keembay.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/serialization/generate_blob.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/serialization/generate_blob_kmb.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/serialization/generate_json.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/serialization/global_params_reset.cpp"
 
@@ -249,29 +303,62 @@ SET(pass
     "${PROJECT_SOURCE_DIR}/src/graph/tensor_interference_graph.cpp"
 )
 
- SET(compiler
+ set(compiler
     "${PROJECT_SOURCE_DIR}/src/compiler/compilation_descriptor"
     "${PROJECT_SOURCE_DIR}/src/compiler/compilation_unit"
-    "${PROJECT_SOURCE_DIR}/src/utils/hardware_tests.cpp"
-    "${PROJECT_SOURCE_DIR}/src/target/keembay/runtime_model/runtime_model.cpp"
+    "${PROJECT_SOURCE_DIR}/src/target/kmb/runtime_model/runtime_model.cpp"
 )
 
-SET(syscalls
+set(syscalls
    "${PROJECT_SOURCE_DIR}/src/pass/syscalls/convert_dot.cpp"
    "${PROJECT_SOURCE_DIR}/src/pass/syscalls/convert_flatbuffer.cpp"
 )
 
-add_subdirectory(meta)
+if(CMAKE_CROSSCOMPILING)
+    message(STATUS "Cross-compiling, assumes meta/ files already generated...")
+    add_library(metamodel SHARED
+        ${META_DIR_PATH}/src/compositional_model.cpp
+        ${META_DIR_PATH}/src/op_model.cpp
+    )
+    target_link_libraries(metamodel model)
+else()
+    message(STATUS "Standard build...")
+    add_subdirectory(meta)
+endif()
 
-add_library(cm SHARED ${base} ${logger} ${pass} ${compiler} ${syscalls})
-add_library(corebase SHARED ${base} ${logger})
-add_library(model SHARED ${model})
-target_link_libraries(cm model)
-target_link_libraries(cm corebase metamodel flatbuffers ${LEMON_LIBRARY})
-add_dependencies(cm generate-comp-api)
-add_dependencies(model generate-comp-api)
-add_dependencies(cm generate-graphfile-headers)
+if (MSVC)
+    add_library(cm OBJECT ${pass} ${compiler} $<TARGET_OBJECTS:corebase> $<TARGET_OBJECTS:metamodel>)
+        target_link_libraries(cm corebase metamodel)
+    add_library(corebase OBJECT ${base} ${logger})
+    add_library(model OBJECT ${model} $<TARGET_OBJECTS:corebase>)
+    target_link_libraries(model corebase)
+    add_dependencies(cm generate-comp-api)
+    add_dependencies(cm generate-graphfile-headers)
+    add_dependencies(model generate-comp-api)
+else()
+    add_library(cm SHARED ${base} ${logger} ${pass} ${compiler} ${syscalls})
+    add_library(corebase SHARED ${base} ${logger})
+    add_library(model SHARED ${model})
+    target_link_libraries(cm model)
+    if(CMAKE_CROSSCOMPILING)
+        #Flatbuffers not x-compiled yet
+        target_link_libraries(cm corebase metamodel)
+    else()
+        target_link_libraries(cm corebase metamodel flatbuffers ${LEMON_LIBRARY})
+        add_dependencies(cm generate-comp-api)
+        add_dependencies(model generate-comp-api)
+        add_dependencies(cm generate-graphfile-headers)
+        add_subdirectory(python/api)
+        add_subdirectory(contrib/googletest)
+    endif(CMAKE_CROSSCOMPILING)
 
-add_subdirectory(python/api)
-add_subdirectory(schema)
+endif(MSVC)
 
+if(NOT CMAKE_CROSSCOMPILING)
+    #add_subdirectory(tools) # testing without
+    add_subdirectory(schema)
+endif()
+
+if (${PROFILER} AND ${UNIX})
+    target_link_libraries(cm easy_profiler)
+endif()

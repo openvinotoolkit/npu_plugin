@@ -26,16 +26,13 @@ from Controllers.GraphUtils import buildGraph
 import os
 import sys
 try:
-    base = os.environ.get('MCM_HOME')
+
     ldlib = os.environ.get('LD_LIBRARY_PATH')
-    if base is None:
-        print("Please set environment path MCM_HOME. Exiting...")
-        quit()
     if ldlib is None:
         print("Please set your LD_LIBRARY_PATH environment variable correctly. Exiting...")
         quit()
 
-    sys.path.append(base + '/python/api')
+    sys.path.append('../../api')
 
     import composition_api as ca
 except ImportError:
@@ -71,16 +68,9 @@ def initialize_execution_file(weights="None"):
         '"' +
         'include/mcm/utils/data_generator.hpp' +
         '"\n')
-    exec_file.write('#include ' + '"' +
-                    'meta/include/mcm/op_model.hpp' + '"\n')
-    exec_file.write(
-        '#include ' +
-        '"' +
-        'include/mcm/utils/hardware_tests.hpp' +
-        '"\n\n')
 
-    exec_file.write('#include ' + '"' + 'iostream' + '"\n')
-    exec_file.write('#include ' + '"' + 'fstream' + '"\n\n')
+    exec_file.write('#include ' + '<iostream>\n')
+    exec_file.write('#include ' + '<fstream>\n\n')
 
     if (text.match(weights)):
 
@@ -163,12 +153,12 @@ def composeForCpp(parsedLayers, arguments):
     om = ca.getModel(comp_unit)
     g = buildGraph(parsedLayers)
 
+    comp_desc_file = ca.getProjectPath() + "/config/compilation/release_kmb.json"
     # if user provided compilation descriptor file
-    comp_desc_file = os.environ["MCM_HOME"] + "/config/compilation/release_kmb.json"
     if arguments.comp_descriptor is not None:
         comp_desc_file = arguments.comp_descriptor
-    exit
-    ca.loadCompilationDescriptor(comp_unit, comp_desc_file)
+        ca.loadCompilationDescriptor(comp_unit, comp_desc_file)
+    
     json_file = json.load(open(comp_desc_file))
     try:
         produce_network_description_mcm = json_file['initialize']['Singular'][0]['recorded_model']

@@ -72,7 +72,6 @@ namespace mv
 
 
             static void generateCompositionAPI(const std::string& eol = "\n", const std::string& tab = "    ");
-            static void generateRecordedCompositionAPI(const std::string& eol = "\n", const std::string& tab = "    ");
             
         private:
             static void outputMandatoryArgList(std::vector<std::string>& mandatoryArgsList, OpEntry* const opPtr, std::string& mandatoryArgsDef, bool types);

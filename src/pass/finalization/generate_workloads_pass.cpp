@@ -1,12 +1,12 @@
 #include "include/mcm/pass/pass_registry.hpp"
-#include "meta/include/mcm/op_model.hpp"
+#include "include/mcm/op_model.hpp"
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/utils/custom_math.hpp"
 #include "include/mcm/utils/data_generator.hpp"
-#include "include/mcm/target/keembay/workloads.hpp"
-#include "include/mcm/target/keembay/rectangle.hpp"
-#include "include/mcm/target/keembay/workload_struct.hpp"
+#include "include/mcm/target/kmb/workloads.hpp"
+#include "include/mcm/target/kmb/rectangle.hpp"
+#include "include/mcm/target/kmb/workload_struct.hpp"
 #include "include/mcm/graph/graph.hpp"
 #include <algorithm>
 #include <climits>
@@ -22,11 +22,11 @@ namespace mv
         MV_REGISTER_PASS(GenerateWorkloads)
             .setFunc(generateWorkloadsFcn)
             .setDescription(
-                "Generate workloads using the METIS graph partitioning library");
+                "Generate workloads");
     }
 }
 
-float workloadPixelCost(mv::Data::OpListIterator opIt) 
+float workloadPixelCost(mv::Data::OpListIterator opIt)
 {
  auto kh = opIt->get<std::array<unsigned short, 2>>("kSize")[0];
  auto kw = opIt->get<std::array<unsigned short, 2>>("kSize")[1];
@@ -42,7 +42,7 @@ float workloadPixelCost(mv::Data::OpListIterator opIt)
 std::vector<std::string> getTensorSplitAlgorithms(mv::Element& passDesc, const mv::pass::PassEntry& pass)
 {
     /*parse TensorSplitAlgorithms from Compilation Descriptor*/
-    std::vector<std::string> algorithms = {"Metis", "Rectangle", "Z-Tiling"}; //default
+    std::vector<std::string> algorithms = {"Rectangle", "Z-Tiling"}; //default
     if (passDesc.hasAttr("TensorSplitAlgorithms"))
     {
         algorithms.clear();
@@ -52,26 +52,27 @@ std::vector<std::string> getTensorSplitAlgorithms(mv::Element& passDesc, const m
         {
             std::string tempStr;
             std::getline(ss, tempStr, ',');
-            if (tempStr=="Metis" || tempStr=="Rectangle" || tempStr=="Z-Tiling")
+            if (tempStr=="Rectangle" || tempStr=="Z-Tiling")
                 algorithms.push_back(tempStr);
             else
-                pass.log(mv::Logger::MessageType::Warning, "Could not parse the TensorSplitAlgorithms type (only \"Metis, Rectangle, Z-Tiling\" currently supported).");
+                pass.log(mv::Logger::MessageType::Warning, "Could not parse the TensorSplitAlgorithms type (only \"Rectangle, Z-Tiling\" currently supported).");
         }
     }
     else
-        pass.log(mv::Logger::MessageType::Debug, "No TensorSplitAlgorithms specified in descriptor, using  \"Metis, Rectangle, Z-Tiling\"...");
+        pass.log(mv::Logger::MessageType::Debug, "No TensorSplitAlgorithms specified in descriptor, using  \"Rectangle, Z-Tiling\"...");
 
     //if parsing problem, return all 3
     if (algorithms.size() == 0)
-        algorithms = {"Metis", "Rectangle", "Z-Tiling"};
+        algorithms = {"Rectangle", "Z-Tiling"};
     return algorithms;
 }
 
-std::tuple<int,int, int> getGlobalCompilationDescriptorConf(const mv::pass::PassEntry& pass, mv::ComputationModel& model) {
+std::tuple<int,int, int, int> getGlobalCompilationDescriptorConf(const mv::pass::PassEntry& pass, mv::ComputationModel& model) {
 
     int nDPU = 1;
     int nClusters = 1;
     int nWorkloads = 0;
+    int pad = 16;
 
     /*Get nDPUs and nClsuters from gloabl compilation descriptor*/
     std::shared_ptr<mv::Element> globalParams = model.getGlobalConfigParams();
@@ -81,6 +82,8 @@ std::tuple<int,int, int> getGlobalCompilationDescriptorConf(const mv::pass::Pass
         nClusters = globalParams->get<int>("Number_of_Clusters");
     if (globalParams->hasAttr("nWorkloads"))
         nWorkloads= globalParams->get<int>("nWorkloads");
+    if (globalParams->hasAttr("VPU2ChannelPadding"))
+        pad = globalParams->get<int>("VPU2ChannelPadding");
 
     if(nDPU < nClusters)
         throw std::runtime_error("The number of DPUs cannot be less than the number of clusters!, exiting");
@@ -90,7 +93,7 @@ std::tuple<int,int, int> getGlobalCompilationDescriptorConf(const mv::pass::Pass
 
     pass.log(mv::Logger::MessageType::Debug, "Number of DPUs per cluster is: " + std::to_string(nDPUxCluster));
 
-    return std::make_tuple(nDPUxCluster, nWorkloads, nClusters);
+    return std::make_tuple(nDPUxCluster, nWorkloads, nClusters, pad);
 }
 
 void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element& passDesc, mv::Element&)
@@ -99,15 +102,12 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
     mv::OpModel om(model);
 
     mv::DPUModeList dpuModes;
-    //std::shared_ptr<mv::MetisGraphStructure> metisGraph;
     std::vector<mv::Workloads> workloadsVector;
     std::vector<int> nWorkloadsSplitPool;
 
     int workloadsVectorIndex = 0;
     int optimalWorkloadIndex = 0;
-    bool metisFail = false;
     bool rectangleFail = false;
-    //std::pair<int,int> metisResult = {0,0};
     uint8_t clusterNumber = 0;
     bool depthWiseSOHA0Workaround = false;
 
@@ -122,6 +122,7 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
     auto nDPUxCluster = std::get<0>(compilationConfigs);
     auto nWorkloadsCompilationDescriptor = std::get<1>(compilationConfigs);
     auto nClusters = std::get<2>(compilationConfigs);
+    auto pad = std::get<3>(compilationConfigs);
 
     for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt)
     {
@@ -145,7 +146,7 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
             else
                 dpuModes = {{4,4},{1, 16}};
 
-            
+
             /*Depthwise cov SOH A0 workaround*/
             if((opIt->get<std::string>("taskOp") == "DepthwiseConv") && (opIt->get<std::string>("splitStrategy") == "SplitOverH")) {
                 depthWiseSOHA0Workaround = true;
@@ -159,16 +160,11 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                 auto subTensor = opIt->getOutputTensor()[0]->getSubTensor(clusterNumber);
 
                 /* Check if subtensor needs to be aligned to 16 channels*/
-
                 auto subTensorShape = subTensor.getShape();
                 auto subTensorChannels = subTensorShape[mv::IO_CHANNEL_DIMENSION];
-                if (subTensorChannels % 16 != 0) {
-                    auto pad = 16;
-                    if (opStrategy == "HKSwitch"|| opStrategy == "SplitOverK")
-                        pad = pad * nClusters;
+                if (subTensorChannels % pad != 0)
+                {
                     auto outputChannelsPadded = mv::round_up(subTensorShape[mv::IO_CHANNEL_DIMENSION], pad);
-
-
                     subTensorShape[mv::IO_CHANNEL_DIMENSION] = outputChannelsPadded;
                 }
 
@@ -178,7 +174,7 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                     algorithms = {"Rectangle"};
                 else
                     algorithms = {"Rectangle", "Z-Tiling"};
-                
+
                 pass.log(mv::Logger::MessageType::Debug, "The shape of subtensor for cluster " + std::to_string(clusterNumber) + "is: " + subTensor.getShape().toString());
 
                 /*Generate the number of workloads split pool*/
@@ -205,7 +201,6 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                     /*For each of the algorithms specified*/
                     for (std::string algorithm : algorithms)
                     {
-                        // Rectangle Reuristic performs the same function as METIS
                         if ((algorithm == "Rectangle") && ((!depthWiseSOHA0Workaround) || nWorkloads > 1))
                         {
                             /*Create workload instance*/
@@ -241,7 +236,7 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
 
                             if(!rectangleFail)
                             {
-                               
+
                                 /*Check that workloads sum to the orignal output tensor volume*/
                                 if((!workloadsVector.at(workloadsVectorIndex).validateWorkloads(subTensorShape)))
                                 {
@@ -259,9 +254,9 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                             }
                         }
                         /*Eltwise ops are performed by the PPE, which does not support Z-Tiling*/
-                        if (algorithm == "Z-Tiling" && opIt->get<std::string>("taskOp") != "Add" && 
-                            opIt->get<std::string>("taskOp") != "Subtract" && opIt->get<std::string>("taskOp") != "Divide" 
-                            && opIt->get<std::string>("taskOp") != "Multiply" && !depthWiseSOHA0Workaround) 
+                        if (algorithm == "Z-Tiling" && opIt->get<std::string>("taskOp") != "Add" &&
+                            opIt->get<std::string>("taskOp") != "Subtract" && opIt->get<std::string>("taskOp") != "Divide"
+                            && opIt->get<std::string>("taskOp") != "Multiply" && !depthWiseSOHA0Workaround)
                         {
                             /*Create workload instance*/
                             workloadsVector.emplace_back(mv::Workloads(opIt->getName(), subTensorShape));
@@ -299,8 +294,8 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                     }
                 }
 
-                float pixelCost = workloadPixelCost(opIt); 
-                
+                float pixelCost = workloadPixelCost(opIt);
+
                 /*Calculate execution cycles for each valid workload for this particular subtensor*/
                 mv::Workloads::generateExecutionCycles(workloadsVector, nDPUxCluster, costFuntion, pixelCost);
 
@@ -357,7 +352,7 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
 
                 /*Set the most optimal workload as attribute of the op*/
                 opIt->set<mv::Workloads>("Workloads" + std::to_string(clusterNumber), workloadsVector.at(optimalWorkloadIndex));
-              
+
                 /*Reset workloads vector, splitpool and indices for the next sub tensor layer*/
                 workloadsVector.clear();
                 nWorkloadsSplitPool.clear();

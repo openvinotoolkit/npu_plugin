@@ -17,10 +17,10 @@
 #include "include/mcm/computation/resource/stage.hpp"
 #include "include/mcm/computation/resource/memory_allocator.hpp"
 #include "include/mcm/computation/model/runtime_binary.hpp"
-#include "include/mcm/target/keembay/dma_direction.hpp"
-#include "include/mcm/target/keembay/ppe_layer_type.hpp"
-#include "include/mcm/target/keembay/barrier_definition.hpp"
-#include "include/mcm/target/keembay/barrier_deps.hpp"
+#include "include/mcm/target/kmb/dma_direction.hpp"
+#include "include/mcm/target/kmb/ppe_layer_type.hpp"
+#include "include/mcm/target/kmb/barrier_definition.hpp"
+#include "include/mcm/target/kmb/barrier_deps.hpp"
 
 namespace mv
 {
