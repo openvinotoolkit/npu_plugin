@@ -57,6 +57,11 @@ file(GLOB utils
     "utils/*.cpp"
 )
 
+include_directories("../src/scheduler")
+file(GLOB scheduler_unit_tests
+  "../src/scheduler/*\_test.cpp"
+)
+
 add_executable(mcm_unit_tests
     mcm_unit_tests.cpp
     #${nce1}
@@ -71,6 +76,7 @@ add_executable(mcm_unit_tests
     ${model_src}
     ${kmb}
     ${utils}
+    ${scheduler_unit_tests}
 )
 
 if(VALIDATION)
