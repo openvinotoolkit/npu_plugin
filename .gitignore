@@ -26,3 +26,4 @@ tags
 *CMakeFiles*
 CMakeCache*
 tests/Makefile
+.*.swp
