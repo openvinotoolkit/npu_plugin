@@ -66,7 +66,7 @@
 #endif
 
 #ifdef ENABLE_MCM_COMPILER
-#include <mcm/target/keembay/runtime_model/runtime_model.hpp>
+#include <mcm/target/kmb/runtime_model/runtime_model.hpp>
 
 namespace vpu {
 
@@ -77,6 +77,7 @@ void compileMcm(
         const KmbConfig& config,
         mv::CompilationUnit& unit,
         std::vector<char>& blob) {
+    blob.empty();
     Logger::Ptr _logger = std::make_shared<Logger>("compileMCM", config.logLevel(), consoleOutput());
     mv::OpModel& modelMcm = unit.model();
 
@@ -116,57 +117,53 @@ void compileMcm(
 
     _logger->info("Path for results: %s (%s)", resultsFullName, std::strerror(errno));
 
-    if (parsedConfig[VPU_KMB_CONFIG_KEY(MCM_GENERATE_BLOB)] == "YES") {
-        //-----------------------------------------------------------------------
-        // Note: There are different passes in different Compilation Descriptors
-        // Just now we try two of them
-        //-----------------------------------------------------------------------
-        bool isBlobFileSet = false;
-        if (compDesc.validPass("GenerateBlob")) {
-            // validPass returns true here but 'setPassArg' attempt causes
-            // 'Trying to set arguments for a non-existent pass' error
-            // so we use try catch
-            try {
-                compDesc.setPassArg("GenerateBlob", "fileName", resultsFullName + ".blob");
-                compDesc.setPassArg("GenerateBlob", "enableFileOutput", true);
-                isBlobFileSet = true;
-            } catch (...) {
-            }
-        }
+//     if (parsedConfig[VPU_KMB_CONFIG_KEY(MCM_GENERATE_BLOB)] == "YES") {
+//         //-----------------------------------------------------------------------
+//         // Note: There are different passes in different Compilation Descriptors
+//         // Just now we try two of them
+//         //-----------------------------------------------------------------------
+//         bool isBlobFileSet = false;
+//         if (compDesc.validPass("GenerateBlob")) {
+//             // validPass returns true here but 'setPassArg' attempt causes
+//             // 'Trying to set arguments for a non-existent pass' error
+//             // so we use try catch
+//             try {
+//                 compDesc.setPassArg("GenerateBlob", "fileName", resultsFullName + ".blob");
+//                 compDesc.setPassArg("GenerateBlob", "enableFileOutput", true);
+//                 isBlobFileSet = true;
+//             } catch (...) {
+//             }
+//         }
 
-        if (compDesc.validPass("GenerateBlobKeembay")) {
-            // validPass returns true here but 'setPassArg' attempt causes
-            // 'Trying to set arguments for a non-existent pass' error
-            // so we use try catch
-            try {
-                compDesc.setPassArg("GenerateBlobKeembay", "output", resultsFullName + ".blob");
-                compDesc.setPassArg("GenerateBlobKeembay", "enableFileOutput", true);
-                isBlobFileSet = true;
-//                compDesc.setPassArg("GenerateBlobKeembay", "enableRAMOutput", true);
+//         if (compDesc.validPass("GenerateBlobKeembay")) {
+//             // validPass returns true here but 'setPassArg' attempt causes
+//             // 'Trying to set arguments for a non-existent pass' error
+//             // so we use try catch
+//             try {
+//                 compDesc.setPassArg("GenerateBlobKeembay", "output", resultsFullName + ".blob");
+//                 compDesc.setPassArg("GenerateBlobKeembay", "enableFileOutput", true);
+//                 isBlobFileSet = true;
+// //                compDesc.setPassArg("GenerateBlobKeembay", "enableRAMOutput", true);
+//             } catch (...) {
+//             }
+//         }
+//         if (!isBlobFileSet) {
+//             VPU_THROW_EXCEPTION << "Can't set mcmCompiler arguments for blob generation!";
+//         }
+//     }
 
-                if (compDesc.validPass("ConvertFlatbuffer")) {
-                    compDesc.setPassArg("ConvertFlatbuffer", "input", resultsFullName + ".blob");
-                }
-            } catch (...) {
-            }
-        }
-        if (!isBlobFileSet) {
-            VPU_THROW_EXCEPTION << "Can't set mcmCompiler arguments for blob generation!";
-        }
-    }
-
-    if (parsedConfig[VPU_KMB_CONFIG_KEY(MCM_GENERATE_DOT)] == "YES") {
-        try {
-            //--------------------------------------------------------------------------
-            // Setting scope to control-model disables compute model details in dot-file
-            //--------------------------------------------------------------------------
-            // compDesc.setPassArg("GenerateDot", "scope", std::string("ControlModel"));
-            compDesc.setPassArg("GenerateDot", "content", std::string("full"));
-            compDesc.setPassArg("GenerateDot", "html", true);
-        } catch (...) {
-            VPU_THROW_EXCEPTION << "Can't set mcmCompiler arguments for *.dot generation!";
-        }
-    }
+    // if (parsedConfig[VPU_KMB_CONFIG_KEY(MCM_GENERATE_DOT)] == "YES") {
+    //     try {
+    //         //--------------------------------------------------------------------------
+    //         // Setting scope to control-model disables compute model details in dot-file
+    //         //--------------------------------------------------------------------------
+    //         // compDesc.setPassArg("GenerateDot", "scope", std::string("ControlModel"));
+    //         compDesc.setPassArg("GenerateDot", "content", std::string("full"));
+    //         compDesc.setPassArg("GenerateDot", "html", true);
+    //     } catch (...) {
+    //         VPU_THROW_EXCEPTION << "Can't set mcmCompiler arguments for *.dot generation!";
+    //     }
+    // }
 
     IE_ASSERT(unit.initialize());
 
@@ -199,29 +196,14 @@ void compileMcm(
     }
 
     if (parsedConfig[VPU_KMB_CONFIG_KEY(MCM_GENERATE_BLOB)] == "YES") {
-#ifdef NDEBUG
-        std::ifstream blobFile(resultsFullName + ".blob", std::ios::binary);
-        if (blobFile) {
-            std::ostringstream blobContentStream;
-            blobContentStream << blobFile.rdbuf();
-            const std::string& blobContentString = blobContentStream.str();
-            std::copy(blobContentString.begin(), blobContentString.end(), std::back_inserter(blob));
-            if (blob.size() == 0) {
-                VPU_THROW_EXCEPTION << "Blob file " << resultsFullName + ".blob" << " created by mcmCompiler is empty!";
-            }
-        } else {
-            VPU_THROW_EXCEPTION << "Can not open blob file " << resultsFullName + ".blob" << ". It was not created by mcmCompiler!";
-        }
-#else
-        mv::RuntimeModel& rm = mv::RuntimeModel::getInstance();
-        auto memBlob = rm.getBlob();
-
+        // rm.serialize() is already called by unit.run() method
+        // at this point we only need to get the blob from the compilation unit
+        auto memBlob = unit.getBlob();
         std::copy(memBlob->begin(), memBlob->end(), std::back_inserter(blob));
 
         if (blob.empty()) {
             VPU_THROW_EXCEPTION << "Blob file " << resultsFullName + ".blob" << " created by mcmCompiler is empty!";
         }
-#endif
     }
 }
 

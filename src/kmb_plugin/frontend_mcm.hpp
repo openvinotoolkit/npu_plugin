@@ -34,7 +34,7 @@
 #include <kmb_config.h>
 
 #ifdef ENABLE_MCM_COMPILER
-#include <mcm/op_model.hpp>
+#include <include/mcm/op_model.hpp>
 #include "kmb_base.hpp"
 
 #include <graph_tools.hpp>
