@@ -29,7 +29,8 @@ function(addVpuTest TARGET_NAME PLUGIN_NAME)
     target_compile_options(${TARGET_NAME}
             PRIVATE
             -Wall
-            -Werror)
+            -Werror
+            -Wno-unused-variable)
 
     if (INTEGRATION_TESTS_ENABLE_IE)
         add_definitions(-DINTEGRATION_TESTS_ENABLE_IE)
