@@ -143,6 +143,11 @@ void compileMcm(
                 compDesc.setPassArg("GenerateBlobKeembay", "enableFileOutput", true);
                 isBlobFileSet = true;
 //                compDesc.setPassArg("GenerateBlobKeembay", "enableRAMOutput", true);
+
+                if (compDesc.validPass("ConvertFlatbuffer")) {
+                    compDesc.setPassArg("ConvertFlatbuffer", "input", resultsFullName + ".blob");
+                }
+
             } catch (...) {
             }
         }
