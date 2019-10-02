@@ -108,7 +108,8 @@ void addCropNode(mv::OpModel& om, mv::Data::OpListIterator& opIt, mv::Data::Tens
     croppedTensor->set<bool>("alignment", true);//TODO remove this, just for testing now
     auto cropOp = om.getOp(cropOpName);
     cropOp->set<unsigned>("opId", opIt->get<unsigned>("opId"));
-    cropOp->set<std::string>("splitStrategy", opIt->get<std::string>("splitStrategy"));
+    if (opIt->hasAttr("splitStrategy"))
+        cropOp->set<std::string>("splitStrategy", opIt->get<std::string>("splitStrategy"));
 
 
     for (unsigned flowIdx = 0; flowIdx < flowsToRemove.size(); flowIdx++)
@@ -287,7 +288,8 @@ void addAlignOpForInputTensorsFunc(const mv::pass::PassEntry& , mv::ComputationM
                     alignedTensor->set<bool>("alignment", true);//TODO remove this, just for testing now
                     auto alignOp = om.getOp(alignOpName);
                     alignOp->set<unsigned>("opId", parentOpIt->get<unsigned>("opId"));
-                    alignOp->set<std::string>("splitStrategy", parentOpIt->get<std::string>("splitStrategy"));
+                    if (parentOpIt->hasAttr("splitStrategy"))
+                        alignOp->set<std::string>("splitStrategy", parentOpIt->get<std::string>("splitStrategy"));
 
                     for (unsigned flowIdx = 0; flowIdx < flowsToRemove.size(); flowIdx++)
                     {
@@ -322,7 +324,7 @@ void alignUnpopulatedTensorsFunc(const mv::pass::PassEntry&, mv::ComputationMode
         auto outputTensor = opIt->getOutputTensor(0);
         auto outputTensorShape = outputTensor->getShape();
         auto outputTensorChannels = outputTensorShape[mv::IO_CHANNEL_DIMENSION];
-        auto opStrategy = opIt->get<std::string>("splitStrategy");
+        //auto opStrategy = opIt->get<std::string>("splitStrategy");
 
         if (outputTensorChannels % pad != 0)
         {
