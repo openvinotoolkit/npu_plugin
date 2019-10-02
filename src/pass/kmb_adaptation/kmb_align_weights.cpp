@@ -90,6 +90,7 @@ void alignTaskWeightsFcn(const mv::pass::PassEntry& , mv::ComputationModel& mode
             auto weightSetDimension = kernelWidth * kernelHeight * inputChannels;
             if(dpuTaskType == "DepthwiseConv")
                 weightSetDimension = kernelWidth * kernelHeight;
+            
             auto weightSetDimensionPadded = mv::round_up(weightSetDimension, 16);
             auto paddingDifference = weightSetDimensionPadded - weightSetDimension;
 
@@ -97,6 +98,7 @@ void alignTaskWeightsFcn(const mv::pass::PassEntry& , mv::ComputationModel& mode
 
             auto oldData = kernel->getData();
 
+            // NOTE: This should be ZeroPoint, not 0
             std::vector<mv::DataElement> newData(newShape.totalSize(), 0);
             unsigned i = 0, j = 0;
             for(unsigned oc = 0; oc < outputChannels; ++oc)

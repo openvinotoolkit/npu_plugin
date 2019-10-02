@@ -123,7 +123,6 @@ namespace mv
         Order internalOrder_;
 
         std::shared_ptr<std::vector<DataElement>> data_;
-        std::shared_ptr<std::vector<DataElement>> orderedDataPacked_;
 
         std::size_t blockSize_;
         std::vector<std::vector<DataElement>::iterator> blocks_;
@@ -187,7 +186,7 @@ namespace mv
         }
 
         std::vector<DataElement> getData();
-        const std::vector<DataElement> &getDataPacked();
+        const std::vector<int64_t> getDataPacked();
         const std::vector<int64_t> &getKernelDataOffsets();
 
         std::vector<double> getDoubleData();
@@ -285,13 +284,11 @@ namespace mv
         std::string toString() const override;
         virtual std::string getLogID() const override;
 
-        BinaryData toBinary();
         std::vector<unsigned> computeNumericStrides() const;
-        std::size_t computeTotalSize(unsigned int alignment = 16, bool base = false) const;
+        std::size_t computeTotalSize(unsigned int alignment = 16, bool base = false, bool fatherTensorAligned = false) const;
         std::size_t getClusterSize(unsigned int alignment = 16, bool base = false) const;
         void splitAcrossClusters(std::vector<Workload>, bool splitOverH, bool multicast);
-
-
+        void shareAcrossClusters(std::vector<Workload>, unsigned int numClusters, bool clustering = true);
     };
 
 }

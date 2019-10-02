@@ -233,7 +233,7 @@
             },
             "ArrangeKmbExecution",
             "AllocateInputOutputTensorsKmb",
-            "AllocateGraphfileTensorsKmbLegacy",
+            "AllocateGraphfileTensorsKmb",
             "ReAllocateImplicitOperationsKmb",
             "AllocateCMXTensorsKmb",
             "TensorGraphColoring",
