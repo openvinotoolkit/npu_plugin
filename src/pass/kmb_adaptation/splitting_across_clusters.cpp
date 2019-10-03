@@ -23,8 +23,6 @@ static void populatedSplitOverH(const unsigned nClusters, std::vector<mv::Worklo
 static std::vector<mv::Data::OpListIterator> findSinkLayers(mv::DataModel &dataModel, const mv::Data::TensorIterator& tensor);
 static std::vector<mv::Workload> fixRectangularHeuristicBug(std::vector<mv::Workload> subTensors, const mv::Data::TensorIterator &tensor, int nWorkloads);
 static void ensureSplitStrategiesForSpilling(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
-//NOTE: Temporary Function for aligning the subTensors with fake "Alignment"
-static std::vector<mv::Workload> ensureAlignmentForSubTensors(std::vector<mv::Workload> subTensors, const mv::Data::TensorIterator &tensor, unsigned nWorkloads, int pad = 16);
 
 namespace mv
 {
@@ -100,7 +98,6 @@ void subTensorsGen(mv::ComputationModel& model, const std::vector <mv::Data::Ten
 {
     mv::DataModel dm(model);
     auto globalParams = model.getGlobalConfigParams();
-    int pad = globalParams->hasAttr("VPU2ChannelPadding") ? globalParams->get<int>("VPU2ChannelPadding") : 16;
     unsigned nWorkloads = nClusters;
 
     for (auto& tensor : tensors)
@@ -109,15 +106,12 @@ void subTensorsGen(mv::ComputationModel& model, const std::vector <mv::Data::Ten
         UNUSED(success);
         mv::Workloads Tensor(tensor->getName(), tensor->getShape());
         std::vector<mv::Workload> subTensors;
-        auto tensorNeedsAlignment = tensor->hasAttr("alignment") ? tensor->get<bool>("alignment") : false;
 
         if (tensor->get<std::string>("splitStrategy") == "SplitOverH")
         {
             if(!tensor->isPopulated())
             {
                 unpopulatedSplitOverH(nClusters, subTensors, Tensor, pass, success);
-                if (tensorNeedsAlignment)
-                    ensureAlignmentForSubTensors(subTensors, tensor, nWorkloads, pad);
             }
             else
                 populatedSplitOverH(nClusters, subTensors, Tensor, pass, success);
@@ -155,8 +149,6 @@ void subTensorsGen(mv::ComputationModel& model, const std::vector <mv::Data::Ten
                     subTensors.push_back(subTensor);
                 }
             }
-            if (tensorNeedsAlignment)
-                ensureAlignmentForSubTensors(subTensors, tensor, nWorkloads, pad);
             tensor->shareAcrossClusters(subTensors, nWorkloads);
         }
         else if (tensor->get<std::string>("splitStrategy") == "SplitOverHOverlapped")
@@ -172,8 +164,6 @@ void subTensorsGen(mv::ComputationModel& model, const std::vector <mv::Data::Ten
                                                        sinkOperators[0]->get<std::array<unsigned short, 4>>("padding")[3]};
                 //Rectangular Heuristc: The workload has only one rectangle in its list, itself
                 subTensors = Tensor.overlap_and_clip(padding, tensor->getShape());
-                if (tensorNeedsAlignment)
-                    ensureAlignmentForSubTensors(subTensors, tensor, nWorkloads, pad);
             }
             else
                 populatedSplitOverH(nClusters, subTensors, Tensor, pass, success);
@@ -327,27 +317,6 @@ static std::vector<mv::Workload> fixRectangularHeuristicBug(std::vector<mv::Work
             newSubTensors.push_back(subTensor);
         }
     }
-    return newSubTensors;
-}
-
-static std::vector<mv::Workload> ensureAlignmentForSubTensors(std::vector<mv::Workload> subTensors, const mv::Data::TensorIterator &tensor, unsigned nWorkloads, int pad)
-{
-    std::vector<mv::Workload> newSubTensors;
-    auto output_channels = tensor->getShape()[mv::IO_CHANNEL_DIMENSION];
-    output_channels = mv::round_up(output_channels, pad);
-
-    for (unsigned i = 0; i < nWorkloads; i ++)
-    {
-        mv::Workload subTensor;
-        subTensor.MaxX = output_channels;
-        subTensor.MaxY = subTensors[0].MaxY;
-        subTensor.MaxZ = subTensors[0].MaxZ;
-        subTensor.MinX = subTensors[0].MinX;
-        subTensor.MinY = subTensors[0].MinY;
-        subTensor.MinZ = subTensors[0].MinZ;
-        newSubTensors.push_back(subTensor);
-    }
-
     return newSubTensors;
 }
 

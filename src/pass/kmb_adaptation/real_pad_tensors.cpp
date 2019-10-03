@@ -305,8 +305,8 @@ void addAlignOpForInputTensorsFunc(const mv::pass::PassEntry& , mv::ComputationM
         }
     }
 }
-//NOTE: Mark the Ops that do not have output channels aligned to 16,in serialization you align their dims
-//and provide the appropriate Tensor for DMA
+
+//NOTE: REAL PADDING IN THE UNALIGNED TENSORS
 void alignUnpopulatedTensorsFunc(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
