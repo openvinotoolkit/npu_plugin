@@ -131,7 +131,6 @@ void FrontEndMcm::buildInitialModel(ie::ICNNNetwork& network) {
 
         _logger->debug("Try to parse layer %s", layer->name);
 
-        McmNodeVector inputs;
         if (layer->type == "FakeQuantize") {
             continue;
         }
@@ -148,7 +147,6 @@ void FrontEndMcm::buildInitialModel(ie::ICNNNetwork& network) {
             }
         }
 
-        getInputData(layer, inputs);
         auto it = g_mcm_parsers.find(layer->type);
         if (it == g_mcm_parsers.end()) {
             VPU_THROW_EXCEPTION
@@ -162,6 +160,8 @@ void FrontEndMcm::buildInitialModel(ie::ICNNNetwork& network) {
         auto parser = it->second;
         IE_ASSERT(parser != nullptr);
 
+        McmNodeVector inputs;
+        getInputData(layer, inputs);
         (this->*parser)(layer, inputs);
     }
 
@@ -318,9 +318,9 @@ void FrontEndMcm::applyQuantizationTransformations(ie::CNNNetwork& network) {
     for (auto layer : network) {
         if (layer->type == "FakeQuantize") {
             auto quantizeLayer = std::dynamic_pointer_cast<InferenceEngine::QuantizeLayer>(layer);
-            InferenceEngine::DataPtr layerInput = quantizeLayer->insData[0].lock();
-            auto prevLayer = layerInput->getCreatorLayer().lock();
-            if (prevLayer->type != "Convolution") {
+            InferenceEngine::DataPtr quantizeLayerFirstInput = quantizeLayer->insData[0].lock();
+            auto quantizeLayerDataProducer = quantizeLayerFirstInput->getCreatorLayer().lock();
+            if (quantizeLayerDataProducer->type != "Convolution") {
                 continue;
             }
             auto initAxisIdx = [&](size_t edgeIdx) {
@@ -439,10 +439,10 @@ void FrontEndMcm::applyQuantizationTransformations(ie::CNNNetwork& network) {
                 outputShift[i] = static_cast<int32_t>(ol);
             }
 
-            prevLayer->blobs["newActivationInputScale"] = newActivationInputScale;
-            prevLayer->blobs["newActivationOutScale"] = newActivationOutScale;
-            prevLayer->blobs["newActivationInputShift"] = newActivationInputShift;
-            prevLayer->blobs["newActivationOutShift"] = newActivationOutShift;
+            quantizeLayerDataProducer->blobs["newActivationInputScale"] = newActivationInputScale;
+            quantizeLayerDataProducer->blobs["newActivationOutScale"] = newActivationOutScale;
+            quantizeLayerDataProducer->blobs["newActivationInputShift"] = newActivationInputShift;
+            quantizeLayerDataProducer->blobs["newActivationOutShift"] = newActivationOutShift;
         }
     }
 }
@@ -497,6 +497,10 @@ void FrontEndMcm::getInputData(
 
             if (prevLayer->type == "FakeQuantize")  {
                 auto prevLayerInput =  prevLayer->insData[0].lock();
+                if (prevLayerInput->getCreatorLayer().lock()->type == "Const") {
+                    continue;
+                }
+
                 layerInput = prevLayerInput;
             }
         }
