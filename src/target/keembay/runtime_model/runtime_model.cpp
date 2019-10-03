@@ -1522,6 +1522,36 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAProposalTask(ComputationModel& 
     return toBuild;
 }
 
+MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAROIPoolingTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt)
+{
+
+    auto toBuild = new MVCNN::UPALayerTaskT();
+    //toBuild->maxShaves = ;
+    toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_ROIPoolingParams;
+    auto softLayerParamsValue = new MVCNN::ROIPoolingParamsT();
+
+    auto input = opIt->getInputTensor(0);
+    auto coords = opIt->getInputTensor(1);
+
+    auto output = opIt->getOutputTensor(0);
+
+    // Fill in tensors
+    toBuild->input_data = buildTensorReferenceT(cm, compilationDescriptor, input);
+    toBuild->weights_data = buildTensorReferenceT(cm, compilationDescriptor, coords);
+    toBuild->output_data = buildTensorReferenceT(cm, compilationDescriptor, output);
+
+    // Fill in required params
+    softLayerParamsValue->pooled_w = opIt->get<unsigned>("pooled_w");
+    softLayerParamsValue->pooled_h = opIt->get<unsigned>("pooled_h");
+    softLayerParamsValue->spatial_scale = static_cast<float>(opIt->get<double>("spatial_scale"));
+    softLayerParamsValue->roi_pooling_method = opIt->get<unsigned>("roi_pooling_method");
+    softLayerParamsValue->num_rois = opIt->get<unsigned>("num_rois");
+
+    toBuild->softLayerParams.value = softLayerParamsValue;
+
+    return toBuild;
+}
+
 MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAPassthroughTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt)
 {
     auto input = opIt->getInputTensor(0);
@@ -1566,6 +1596,8 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildUPATask(Comput
         toReturn[0]->task.value = buildUPASoftmaxTask(cm, compilationDescriptor, opIt);
     else if(underlyingTask == "Proposal")
         toReturn[0]->task.value = buildUPAProposalTask(cm, compilationDescriptor, opIt);
+    else if(underlyingTask == "ROIPooling")
+        toReturn[0]->task.value = buildUPAROIPoolingTask(cm, compilationDescriptor, opIt);
     // TODO: Add other UPA layers
 
     return toReturn;

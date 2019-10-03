@@ -265,6 +265,7 @@ SET(base
     "${PROJECT_SOURCE_DIR}/src/computation/op/def/reorder.cpp"
     "${PROJECT_SOURCE_DIR}/src/computation/op/def/reorg_yolo.cpp"
     "${PROJECT_SOURCE_DIR}/src/computation/op/def/reshape.cpp"
+    "${PROJECT_SOURCE_DIR}/src/computation/op/def/roipooling.cpp"
     "${PROJECT_SOURCE_DIR}/src/computation/op/def/scale.cpp"
     "${PROJECT_SOURCE_DIR}/src/computation/op/def/slice.cpp"
     "${PROJECT_SOURCE_DIR}/src/computation/op/def/sigmoid.cpp"

@@ -394,6 +394,50 @@ void convertOpsToUPATasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& 
             setOutputControlFlow(cm, cm.switchContext(upaProposalOp), outputControlFlows);
 
         }
+        else if (opType == "ROIPooling")
+        {
+            auto input = opIt->getInputTensor(0);
+            auto coords = opIt->getInputTensor(1);
+            input->set<std::string>("populatedTensorType", "input");
+            coords->set<std::string>("populatedTensorType", "coords");
+
+            std::vector<mv::Data::TensorIterator> inputs;
+            inputs.push_back(input);
+            inputs.push_back(coords);
+
+            auto quantParams = opIt->get<mv::QuantizationParams>("quantParams");
+
+            auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
+            unsigned opId = opIt->get<unsigned>("opId");
+
+            auto pooled_w = opIt->get<unsigned>("pooled_w");
+            auto pooled_h = opIt->get<unsigned>("pooled_h");
+            auto spatial_scale = opIt->get<double>("spatial_scale");
+            auto roi_pooling_method = opIt->get<unsigned>("roi_pooling_method");
+            auto num_rois = opIt->get<unsigned>("num_rois");
+
+            auto inputControlFlows = mv::getInputControlFlow(cm, cm.switchContext(opIt));
+            auto outputControlFlows = mv::getOutputControlFlow(cm, cm.switchContext(opIt));
+            auto outputDataFlows = mv::getOutputDataFlow(om, opIt);
+
+            mv::Data::TensorIterator upaROIPooling = om.uPATaskROIPooling(inputs, pooled_w, pooled_h, spatial_scale, roi_pooling_method, num_rois, mv::DType("Default"), quantParams);
+
+            auto upaROIPoolingOp = om.getSourceOp(upaROIPooling);
+            upaROIPoolingOp->set<unsigned>("opId", opId);
+
+            upaROIPooling->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
+
+            upaROIPooling->set<unsigned>("pooled_w", pooled_w);
+            upaROIPooling->set<unsigned>("pooled_h", pooled_h);
+            upaROIPooling->set<double>("spatial_scale", spatial_scale);
+            upaROIPooling->set<unsigned>("roi_pooling_method", roi_pooling_method);
+            upaROIPooling->set<unsigned>("num_rois", num_rois);
+
+            setOutputDataFlow(om, upaROIPooling, outputDataFlows);
+            setInputControlFlow(cm, cm.switchContext(upaROIPoolingOp), inputControlFlows);
+            setOutputControlFlow(cm, cm.switchContext(upaROIPoolingOp), outputControlFlows);
+
+        }
         else
             ++opIt;
     }
