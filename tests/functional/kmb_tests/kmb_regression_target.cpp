@@ -16,6 +16,7 @@
 
 #include "tests_timeout.hpp"
 #include "kmb_layers_tests.hpp"
+#include "kmb_regression_target.hpp"
 
 #include <gtest/gtest.h>
 #include <regression_tests.hpp>
@@ -41,28 +42,10 @@ using namespace InferenceEngine;
 using namespace Regression::Matchers;
 using namespace InferenceEngine::details;
 using namespace TestsTimeout;
+using namespace KmbRegressionTarget;
 
 namespace
 {
-
-class CompilationParameter {
-public:
-    CompilationParameter() = default;
-    inline CompilationParameter(std::string name,
-                                std::string path_to_network,
-                                std::string path_to_weights);
-    //Accessors
-
-    inline std::string name() const;
-    inline std::string pathToNetwork() const;
-    inline std::string pathToWeights() const;
-
-protected:
-    //Data section
-    std::string name_;
-    std::string path_to_network_;
-    std::string path_to_weights_;
-};
 
 using Compile = bool;
 using Timeout = double;
@@ -95,7 +78,7 @@ std::string VpuNoRegressionWithCompilation::getTestCaseName(
         TestParamInfo <CompilationTestParam::ParamType> param) {
     return std::string("Main_") +
            get<0>(param.param) +
-           std::string("_") + get<1>(param.param).name() +
+           std::string("_") + get<1>(param.param).name +
            ((get<2>(param.param)) ? std::string("_Compilation") : std::string("_Parsing"));
 }
 
@@ -116,28 +99,6 @@ inline std::string VpuNoRegressionWithCompilation::getDeviceName() const {
 
 class KmbNoRegressionCompilationOnly : public VpuNoRegressionWithCompilation {
 };
-
-inline CompilationParameter::CompilationParameter(
-        std::string name,
-        std::string path_to_network,
-        std::string path_to_weights):
-        name_(name),
-        path_to_network_(path_to_network),
-        path_to_weights_(path_to_weights)
-{
-}
-
-inline std::string CompilationParameter::name() const {
-    return name_;
-}
-
-inline std::string CompilationParameter::pathToNetwork() const {
-    return path_to_network_;
-}
-
-inline std::string CompilationParameter::pathToWeights() const {
-    return path_to_weights_;
-}
 
 std::vector<CompilationParameter> compilation_parameters_unsupported = {
 // TODO: Yolo network can't be parsed into mcmCompiler due to bug in regionYolo parsing
@@ -201,8 +162,8 @@ inline void VpuNoRegressionWithCompilation::loadNetworkWrapper(std::map<std::str
     InferenceEngine::ResponseDesc response;
     InferenceEnginePluginPtr plugin(make_plugin_name(pluginName));
     CNNNetReader reader;
-    reader.ReadNetwork((ModelsPath() + path_to_files.pathToNetwork()).c_str());
-    reader.ReadWeights((ModelsPath() + path_to_files.pathToWeights()).c_str());
+    reader.ReadNetwork((ModelsPath() + path_to_files.path_to_network).c_str());
+    reader.ReadWeights((ModelsPath() + path_to_files.path_to_weights).c_str());
     CNNNetwork network = reader.getNetwork();
 
     ExecutableNetwork exeNetwork;
@@ -954,173 +915,5 @@ TEST_F(vpuInferWithSetUp, copyCheckSetBlob) {
 INSTANTIATE_TEST_CASE_P(inferenceWithParameters, VpuInferWithPath,
     ::testing::ValuesIn(pathToPreCompiledGraph)
 );
-
-using VpuInferAndCompareTests = vpuLayersTests;
-
-TEST_F(VpuInferAndCompareTests, DISABLED_NQA_MobileNetV2gitNQA_ResNet50) {  // To be run in manual mode when device is available
-    std::string irXmlPath = ModelsPath() + "/KMB_models/NQA/ResNet-50-tf/resnetv1-int8-sparse-v2-tf-0001.xml";
-    std::string weightsPath = ModelsPath() + "/KMB_models/NQA/ResNet-50-tf/resnetv1-int8-sparse-v2-tf-0001.bin";
-
-    CNNNetReader netReader;
-    netReader.ReadNetwork(irXmlPath);
-    netReader.ReadWeights(weightsPath);
-
-    CNNNetwork network = netReader.getNetwork();
-
-    InputsDataMap inputInfo = network.getInputsInfo();
-    for (auto & item : inputInfo) {
-        item.second->getPreProcess().setResizeAlgorithm(RESIZE_BILINEAR);
-    }
-
-    Core ie;
-    InferenceEngine::ResponseDesc response;
-    StatusCode sts;
-    int batch = 1;
-
-    IExecutableNetwork::Ptr exeNetwork = ie.LoadNetwork(network,  "KMB", {});
-
-    Blob::Ptr input;
-    Blob::Ptr result;
-    IInferRequest::Ptr inferRequest;
-    sts = exeNetwork->CreateInferRequest(inferRequest, &response);
-    ASSERT_EQ(StatusCode::OK, sts) << response.msg;
-    sts = inferRequest->GetBlob("data", input, &response);
-    ASSERT_EQ(StatusCode::OK, sts) << response.msg;
-    sts = inferRequest->GetBlob("prob", result, &response);
-    ASSERT_EQ(StatusCode::OK, sts) << response.msg;
-
-    std::shared_ptr<unsigned char> imageData;
-    FormatReader::ReaderPtr pictureReader((get_data_path() + "/224x224/cat3.bmp").c_str());
-    imageData = pictureReader->getData();
-    std::vector<unsigned char> imageDataBatched;
-    for(int i = 0; i != batch; i++) {
-        std::copy(imageData.get(), imageData.get() + pictureReader->size(), std::back_inserter(imageDataBatched));
-    }
-
-    IE_SUPPRESS_DEPRECATED_START
-    ConvertImageToInput(&imageDataBatched.front(), imageDataBatched.size(), *input.get());
-    IE_SUPPRESS_DEPRECATED_END
-
-    sts = inferRequest->Infer(&response);
-    ASSERT_EQ(StatusCode::OK, sts) << response.msg;
-
-    const TBlob<float> *out1 = dynamic_cast<const TBlob<float> *>(result.get());
-    for (int i=0; i != batch; i++) {
-        auto result_checked_value = out1->cbuffer().as<const float *>()[283 + i*out1->size() / batch];
-        std::cout << result_checked_value << std::endl;
-        EXPECT_NEAR(result_checked_value, 0.697f,  0.01) << "Value out of threshold for batch: " << i;
-    }
-}
-
-TEST_F(VpuInferAndCompareTests, DISABLED_NQA_InceptionV1) {  // To be run in manual mode when device is available
-    std::string irXmlPath = ModelsPath() + "/KMB_models/NQA/GoogLeNet-v1-tf/inceptionv1-int8-tf-0001.xml";
-    std::string weightsPath = ModelsPath() + "/KMB_models/NQA/GoogLeNet-v1-tf/inceptionv1-int8-tf-0001.bin";
-
-    CNNNetReader netReader;
-    netReader.ReadNetwork(irXmlPath);
-    netReader.ReadWeights(weightsPath);
-
-    CNNNetwork network = netReader.getNetwork();
-
-    InputsDataMap inputInfo = network.getInputsInfo();
-    for (auto & item : inputInfo) {
-        item.second->getPreProcess().setResizeAlgorithm(RESIZE_BILINEAR);
-    }
-
-    Core ie;
-    InferenceEngine::ResponseDesc response;
-    StatusCode sts;
-    int batch = 1;
-
-    IExecutableNetwork::Ptr exeNetwork = ie.LoadNetwork(network,  "KMB", {});
-
-    Blob::Ptr input;
-    Blob::Ptr result;
-    IInferRequest::Ptr inferRequest;
-    sts = exeNetwork->CreateInferRequest(inferRequest, &response);
-    ASSERT_EQ(StatusCode::OK, sts) << response.msg;
-    sts = inferRequest->GetBlob("data", input, &response);
-    ASSERT_EQ(StatusCode::OK, sts) << response.msg;
-    sts = inferRequest->GetBlob("prob", result, &response);
-    ASSERT_EQ(StatusCode::OK, sts) << response.msg;
-
-    std::shared_ptr<unsigned char> imageData;
-    FormatReader::ReaderPtr pictureReader((get_data_path() + "/224x224/cat3.bmp").c_str());
-    imageData = pictureReader->getData();
-    std::vector<unsigned char> imageDataBatched;
-    for(int i = 0; i != batch; i++) {
-        std::copy(imageData.get(), imageData.get() + pictureReader->size(), std::back_inserter(imageDataBatched));
-    }
-
-    IE_SUPPRESS_DEPRECATED_START
-    ConvertImageToInput(&imageDataBatched.front(), imageDataBatched.size(), *input.get());
-    IE_SUPPRESS_DEPRECATED_END
-
-    sts = inferRequest->Infer(&response);
-    ASSERT_EQ(StatusCode::OK, sts) << response.msg;
-
-    const TBlob<float> *out1 = dynamic_cast<const TBlob<float> *>(result.get());
-    for (int i=0; i != batch; i++) {
-        auto result_checked_value = out1->cbuffer().as<const float *>()[283 + i*out1->size() / batch];
-        std::cout << result_checked_value << std::endl;
-        EXPECT_NEAR(result_checked_value, 0.697f,  0.01) << "Value out of threshold for batch: " << i;
-    }
-}
-
-
-TEST_F(VpuInferAndCompareTests, DISABLED_NQA_MobileNetV2) {  // To be run in manual mode when device is available
-    std::string irXmlPath = ModelsPath() + "/KMB_models/NQA/MoblieNet-v2-tf/mobilenetv2-int8-sparse-v2-tf-0001.xml";
-    std::string weightsPath = ModelsPath() + "/KMB_models/NQA/MoblieNet-v2-tf/mobilenetv2-int8-sparse-v2-tf-0001.bin";
-
-    CNNNetReader netReader;
-    netReader.ReadNetwork(irXmlPath);
-    netReader.ReadWeights(weightsPath);
-
-    CNNNetwork network = netReader.getNetwork();
-
-    InputsDataMap inputInfo = network.getInputsInfo();
-    for (auto & item : inputInfo) {
-        item.second->getPreProcess().setResizeAlgorithm(RESIZE_BILINEAR);
-    }
-
-    Core ie;
-    InferenceEngine::ResponseDesc response;
-    StatusCode sts;
-    int batch = 1;
-
-    IExecutableNetwork::Ptr exeNetwork = ie.LoadNetwork(network,  "KMB", {});
-
-    Blob::Ptr input;
-    Blob::Ptr result;
-    IInferRequest::Ptr inferRequest;
-    sts = exeNetwork->CreateInferRequest(inferRequest, &response);
-    ASSERT_EQ(StatusCode::OK, sts) << response.msg;
-    sts = inferRequest->GetBlob("data", input, &response);
-    ASSERT_EQ(StatusCode::OK, sts) << response.msg;
-    sts = inferRequest->GetBlob("prob", result, &response);
-    ASSERT_EQ(StatusCode::OK, sts) << response.msg;
-
-    std::shared_ptr<unsigned char> imageData;
-    FormatReader::ReaderPtr pictureReader((get_data_path() + "/224x224/cat3.bmp").c_str());
-    imageData = pictureReader->getData();
-    std::vector<unsigned char> imageDataBatched;
-    for(int i = 0; i != batch; i++) {
-        std::copy(imageData.get(), imageData.get() + pictureReader->size(), std::back_inserter(imageDataBatched));
-    }
-
-    IE_SUPPRESS_DEPRECATED_START
-    ConvertImageToInput(&imageDataBatched.front(), imageDataBatched.size(), *input.get());
-    IE_SUPPRESS_DEPRECATED_END
-
-    sts = inferRequest->Infer(&response);
-    ASSERT_EQ(StatusCode::OK, sts) << response.msg;
-
-    const TBlob<float> *out1 = dynamic_cast<const TBlob<float> *>(result.get());
-    for (int i=0; i != batch; i++) {
-        auto result_checked_value = out1->cbuffer().as<const float *>()[283 + i*out1->size() / batch];
-        std::cout << result_checked_value << std::endl;
-        EXPECT_NEAR(result_checked_value, 0.697f,  0.01) << "Value out of threshold for batch: " << i;
-    }
-}
 
 #endif
