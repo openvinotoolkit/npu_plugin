@@ -462,13 +462,13 @@ namespace mv
                 //if( (child["spilling"].get<bool>()) and (child["outputSparsity"].get<bool>()) )
                     //return INF;
 
-                //TODO if clustering strategy is splitoverK, don't have any type of sparsity
+                //TODO if clustering strategy is splitoverK, activation sparsity not supported
                 if((parentClustering == "SplitOverK") and 
-                    (parent["inputSparsity"].get<bool>() or parent["weightsSparsity"].get<bool>()) )
+                    (parent["inputSparsity"].get<bool>() ) )
                         return INF;
 
                 if((childClustering == "SplitOverK") and 
-                    (child["inputSparsity"].get<bool>() or child["weightsSparsity"].get<bool>()) )
+                    (child["inputSparsity"].get<bool>()) )
                         return INF;
  
                 if( childOp.getOpType() == "Conv")
@@ -652,7 +652,7 @@ namespace mv
                     {
                         for( const auto clustering : clusteringStrategyPool)
                         {
-                            if(clustering.get<string>() == "SplitOverK" and ((inputSparsity.get<bool>()) or (weightsSparsity.get<bool>()) ))
+                            if(clustering.get<string>() == "SplitOverK" and (inputSparsity.get<bool>()))
                                 continue;
                             auto mem = memorySize(op,clustering,inputSparsity,weightsSparsity,{1,1,1,1},false);
                             auto activationsSize = mem.first;
@@ -729,12 +729,8 @@ static void GraphParameterOptimizationFcn(
     mv::graphOptimizer::StrategyManagerKmb strategyManager(om,passDesc);
 
     strategyManager.updateValuesFromJSON();
-    std::cout << "Updated values from JSON" << std::endl;
     strategyManager.updateDefaultValues();
-    std::cout << "Updated default values" << std::endl;
     strategyManager.readGlobalConfigs();
-    std::cout << "Read global configs" << std::endl;
     strategyManager.recursiveDijkstra(om.opBegin());
-    std::cout << "Optimizer Done" << std::endl;
 }
 
