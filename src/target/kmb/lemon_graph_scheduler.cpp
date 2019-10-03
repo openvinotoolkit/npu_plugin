@@ -46,7 +46,7 @@ void  mv::LemonGraphScheduler::convertMcMGraphToLemonGraph(const mv::pass::PassE
             this->log(mv::Logger::MessageType::Debug, "Adding vertex to Lemon graph: " + opIt->getName());
 
             lemon::ListDigraph::Node currentNode = this->graph_.addNode();
-            this->nodes_[currentNode] = nodeDescription(this->graph_.id(currentNode), opIt->getName(),0, false, true);
+            this->nodes_[currentNode] = nodeDescription(this->graph_.id(currentNode), opIt->getName(), opIt->getOpType(), 0, false, true);
             this->graphSinkNode_ = currentNode;
             nodeAdded = true;
         }
@@ -55,7 +55,7 @@ void  mv::LemonGraphScheduler::convertMcMGraphToLemonGraph(const mv::pass::PassE
         { 
             pass.log(mv::Logger::MessageType::Debug, "Adding vertex to Lemon graph: " + opIt->getName());
             lemon::ListDigraph::Node currentNode = this->graph_.addNode();
-            this->nodes_[currentNode] = nodeDescription(this->graph_.id(currentNode), opIt->getName(),0, true, false);
+            this->nodes_[currentNode] = nodeDescription(this->graph_.id(currentNode), opIt->getName(), opIt->getOpType(), 0, true, false);
             this->graphSourceNode_ = currentNode;
             nodeAdded = true;
         }
@@ -63,7 +63,7 @@ void  mv::LemonGraphScheduler::convertMcMGraphToLemonGraph(const mv::pass::PassE
         {   /*All other nodes between source and sink node*/
             pass.log(mv::Logger::MessageType::Debug, "Adding vertex to Lemon graph: " + opIt->getName());
             lemon::ListDigraph::Node currentNode = this->graph_.addNode();
-            this->nodes_[currentNode] = nodeDescription(this->graph_.id(currentNode), opIt->getName(),0, false, false);
+            this->nodes_[currentNode] = nodeDescription(this->graph_.id(currentNode), opIt->getName(), opIt->getOpType(), 0, false, false);
             nodeAdded = true;
         }
     }
@@ -253,47 +253,9 @@ void mv::LemonGraphScheduler::insertpartialSerialisationEdgesInMcmGraph(mv::Comp
         if (inserted.second)
         {   
             /*Add the edge to graph*/
-            //if source node is Dealloc from **CMX**
-            //TODO add check if Dealloc is for CMX
-            //look for parent DPUTask and all controlflows to deallocs, connect sinks to sinknode
-            if (mcmSourceNodeIterator->getOpType() == "Deallocate")
-            {
-                for (auto parentOp = mcmSourceNodeIterator.leftmostParent(); parentOp != cm.opEnd(); ++parentOp)
-                {
-                    if (parentOp->getOpType() == "DPUTask")
-                    {
-                        for (auto childOp = parentOp.leftmostChild(); childOp != cm.opEnd(); ++childOp)
-                        {
-                            if (childOp->getOpType() == "Deallocate")
-                            {
-                                mv::Control::FlowListIterator flowIt = cm.checkControlFlow(childOp, mcmSinkNodeIterator);
-                                
-                                if(flowIt == cm.flowEnd())
-                                {
-                                    if (! (cm.pathExists(childOp, mcmSinkNodeIterator)) )
-                                    {
-                                        /*Add the edge to graph*/
-                                        this->log(mv::Logger::MessageType::Info, "Adding an additional partial serialisation edge required for tensor graph colouring");
-                                        auto partialSerialisationEdge = cm.defineFlow(childOp, mcmSinkNodeIterator);
-                                        partialSerialisationEdge->set<bool>("PartialSerialisationEdge", true);
-                                        if(!cm.isDag()) 
-                                        {
-                                            this->log(mv::Logger::MessageType::Info, "Removing the additional partial serialisation edge required for tensor graph colouring, creates a cycle");
-                                            cm.undefineFlow(partialSerialisationEdge);
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        break;
-                    }
-                }
-            }
-            else
-            {
-                auto partialSerialisationEdge = cm.defineFlow(mcmSourceNodeIterator, mcmSinkNodeIterator);
-                partialSerialisationEdge->set<bool>("PartialSerialisationEdge", true);
-            }
+
+            auto partialSerialisationEdge = cm.defineFlow(mcmSourceNodeIterator, mcmSinkNodeIterator);
+            partialSerialisationEdge->set<bool>("PartialSerialisationEdge", true);
         }
     }
 }
@@ -338,6 +300,10 @@ void mv::LemonGraphScheduler::performPartialSerialisation(const mv::pass::PassEn
     //     pass.log(mv::Logger::MessageType::Debug, "Cut edges: " + nodes_[sourceNode].name + " --> " + nodes_[targetNode].name );
     // }
 
+    // initialize this for checking connectivity between nodes
+    lemon::Dfs<lemon::ListDigraph> dfs(graph_);
+    dfs.run();
+
     /*Get the source and sink of each cut edge*/
     for (const auto& edge : cutEdges) 
     {
@@ -349,19 +315,7 @@ void mv::LemonGraphScheduler::performPartialSerialisation(const mv::pass::PassEn
         std::string edgeSourceName = this->nodes_[sourceNode].name;
         std::string edgeSinkName = this->nodes_[targetNode].name;
 
-        mv::Control::OpListIterator mcmSourceNodeIterator;
-        mv::Control::OpListIterator mcmSinkNodeIterator;
-
-        /*Find the McM iterator for the source and sink node*/
-        for (auto opItSource = cm.getFirst(); opItSource != cm.opEnd(); ++opItSource) 
-        {    
-            if(opItSource->getName() == edgeSourceName) 
-                mcmSourceNodeIterator = opItSource;
-            if(opItSource->getName() == edgeSinkName) 
-                mcmSinkNodeIterator = opItSource;
-        }
-
-        if (mcmSourceNodeIterator->getOpType() == "Deallocate" && mcmSinkNodeIterator->getOpType() == "Deallocate")
+        if (nodes_[sourceNode].opType == "Deallocate" && nodes_[targetNode].opType == "Deallocate")
         {
             pass.log(mv::Logger::MessageType::Debug, "Not adding dealloc-dealloc edge to Lemon graph from: " + edgeSourceName + " --> " + edgeSinkName);
             continue;
@@ -392,19 +346,7 @@ void mv::LemonGraphScheduler::performPartialSerialisation(const mv::pass::PassEn
                 }
             }
 
-            mv::Control::OpListIterator mcmSourceNodeIterator;
-            mv::Control::OpListIterator mcmSinkNodeIterator;
-
-            /*Find the McM iterator for the source and sink node*/
-            for (auto opItSource = cm.getFirst(); opItSource != cm.opEnd(); ++opItSource) 
-            {    
-                if(opItSource->getName() == sourcenode.first) 
-                    mcmSourceNodeIterator = opItSource;
-                if(opItSource->getName() == sinknode.first) 
-                    mcmSinkNodeIterator = opItSource;
-            }
-
-            bool do_not_add = mcmSourceNodeIterator->getOpType() == "Deallocate" && mcmSinkNodeIterator->getOpType() == "Deallocate";
+            bool do_not_add = sourcenode.second.opType == "Deallocate" && sinknode.second.opType == "Deallocate";
             if (do_not_add)
             {
                 pass.log(mv::Logger::MessageType::Debug, "Not adding dealloc-dealloc edge to Lemon graph from: " + sourcenode.first + " --> " + sinknode.first);
@@ -415,7 +357,7 @@ void mv::LemonGraphScheduler::performPartialSerialisation(const mv::pass::PassEn
                 possibleEdges.push_back(std::make_pair(sourcenode.second, sinknode.second));
         }
     }
-    
+
     /* Attempt to add each edge to edge in the graph and check if it is still a DAG*/
     /* It is still a DAG then recalculate max topological cut*/
     /* Note in future here is where the optimal edge should be selected such that it minimises the increase in the critical path of the graph*/
@@ -423,30 +365,91 @@ void mv::LemonGraphScheduler::performPartialSerialisation(const mv::pass::PassEn
     {
         auto sourceName = possibleEdge.second.name;
         auto sinkName  = possibleEdge.first.name;
-        pass.log(mv::Logger::MessageType::Debug, "Adding partial serialisation edge to Lemon graph from: " + sourceName + " --> " + sinkName );
-       
+
         lemon::ListDigraph::Node tmpSourceNode = this->graph_.nodeFromId(possibleEdge.second.id);
         lemon::ListDigraph::Node tmpTargetNode = this->graph_.nodeFromId(possibleEdge.first.id);
-        lemon::ListDigraph::Arc newArc = this->graph_.addArc(tmpSourceNode, tmpTargetNode);
-        mv::edgeDescription newDesc = edgeDescription(this->graph_.id(newArc), 0, "PS_edge_"+sinkName+sourceName);
 
-        lemon::ListDigraph::NodeMap<mv::nodeDescription> order(this->graph_);
-        lemon::topologicalSort(this->graph_, order);
+        // TODO: Add logic here to add additional edges if source is a dealloc node emanating from a DPUTask
+        auto srcNode = possibleEdge.second;
+        auto snkNode = possibleEdge.first;
+        if (srcNode.opType == "Deallocate")
+        {
+            for (lemon::ListDigraph::InArcIt in(graph_, tmpSourceNode); in != lemon::INVALID; ++in)
+            {
+                lemon::ListDigraph::Node parent = graph_.source(in);
+                if (nodes_[parent].opType == "DPUTask")
+                {
+                    // Found the DPUTask that is the parent of the Dealloc task
+                    for (lemon::ListDigraph::OutArcIt out(graph_, parent); out != lemon::INVALID; ++out)
+                    {
+                        lemon::ListDigraph::Node childOpOfDpuTask = graph_.target(out);
 
-        /*Check if graph still direccted DAG*/
-        if (lemon::dag(this->graph_))
-        {   
-            /*add edge iterator to the vector of LEMON edge iterators*/
-            this->edges_[newArc] = newDesc;
+                        if (nodes_[childOpOfDpuTask].opType == "Deallocate")
+                        {
+                            // i.e. no path exists between childOfDpuTask and the targetNode
+                            if (dfs.run(childOpOfDpuTask, tmpTargetNode) == false)
+                            {
 
-            /*keep track of the edges added as these edges will be added to mcmGraph*/
-            pass.log(mv::Logger::MessageType::Debug, "Graph still DAG after adding partial serialisation edge, recalulating max topological cut value...");
-            partialSerialisationEdgesAdded_.push_back(newDesc);
-            return;
+                                pass.log(mv::Logger::MessageType::Debug,
+                                        "Adding TIG partial serialisation edge to Lemon graph from: " + sourceName + " --> " + sinkName );
+                            
+                                lemon::ListDigraph::Arc newArc = this->graph_.addArc(tmpSourceNode, tmpTargetNode);
+                                mv::edgeDescription newDesc = edgeDescription(this->graph_.id(newArc), 0, "PS_edge_"+sinkName+sourceName);
+
+                                lemon::ListDigraph::NodeMap<mv::nodeDescription> order(this->graph_);
+                                lemon::topologicalSort(this->graph_, order);
+
+                                /*Check if graph still direccted DAG*/
+                                if (lemon::dag(this->graph_))
+                                {   
+                                    /*add edge iterator to the vector of LEMON edge iterators*/
+                                    this->edges_[newArc] = newDesc;
+
+                                    /*keep track of the edges added as these edges will be added to mcmGraph*/
+                                    pass.log(mv::Logger::MessageType::Debug,
+                                            "Graph still DAG after adding TIG partial serialisation edge, recalulating max topological cut value...");
+                                    partialSerialisationEdgesAdded_.push_back(newDesc);
+                                    return;
+                                }
+                                else
+                                {
+                                    pass.log(mv::Logger::MessageType::Debug,
+                                            "Removing TIG partial serialisation edge as graph is no longer a DAG, from: " + sourceName + " --> " + sinkName );
+                                    this->graph_.erase(newArc);
+                                }
+                            }
+                        }
+
+                    }
+                }
+            }
         }
-        else {
-            pass.log(mv::Logger::MessageType::Debug, "Removing partial serialisation edge as graph is no longer a DAG, from: " + sourceName + " --> " + sinkName );
-            this->graph_.erase(newArc);
+        else
+        {
+
+            pass.log(mv::Logger::MessageType::Debug, "Adding partial serialisation edge to Lemon graph from: " + sourceName + " --> " + sinkName );
+        
+            lemon::ListDigraph::Arc newArc = this->graph_.addArc(tmpSourceNode, tmpTargetNode);
+            mv::edgeDescription newDesc = edgeDescription(this->graph_.id(newArc), 0, "PS_edge_"+sinkName+sourceName);
+
+            lemon::ListDigraph::NodeMap<mv::nodeDescription> order(this->graph_);
+            lemon::topologicalSort(this->graph_, order);
+
+            /*Check if graph still direccted DAG*/
+            if (lemon::dag(this->graph_))
+            {   
+                /*add edge iterator to the vector of LEMON edge iterators*/
+                this->edges_[newArc] = newDesc;
+
+                /*keep track of the edges added as these edges will be added to mcmGraph*/
+                pass.log(mv::Logger::MessageType::Debug, "Graph still DAG after adding partial serialisation edge, recalulating max topological cut value...");
+                partialSerialisationEdgesAdded_.push_back(newDesc);
+                return;
+            }
+            else {
+                pass.log(mv::Logger::MessageType::Debug, "Removing partial serialisation edge as graph is no longer a DAG, from: " + sourceName + " --> " + sinkName );
+                this->graph_.erase(newArc);
+            }
         }
     }
     throw std::runtime_error("The maximum peak memory requirment of the graph exceeds CMX and the partial serialisation algorithm is unable to reduce parallelism, exiting now, this is normal behaviour");

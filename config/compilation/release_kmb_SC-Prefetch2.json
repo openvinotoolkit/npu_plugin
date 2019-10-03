@@ -256,6 +256,8 @@
             "StoreBarriersNamesInTasks",
             "GenerateExecutionSchedule",
             "BarrierIndexAssignment",
+            "LayerNumbering",
+            "ReorderDmasInSchedule",
             "UpdateBarrierRefs"
         ]
     },
