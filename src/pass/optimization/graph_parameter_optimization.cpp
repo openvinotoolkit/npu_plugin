@@ -738,7 +738,6 @@ static void GraphParameterOptimizationFcn(
 
     strategyManager.updateValuesFromJSON();
     strategyManager.updateDefaultValues();
-    strategyManager.printStrategy();
     strategyManager.readGlobalConfigs();
     strategyManager.recursiveDijkstra(om.opBegin());
 
