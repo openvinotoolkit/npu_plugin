@@ -149,7 +149,7 @@ namespace mv
                 if(op.getOpType() != "Output")
                     outputSize = realTensorSize(op.getOutputTensor(0),{streamConfig["W"],streamConfig["H"],1,1});
 
-                if(op.getOpType() == "Conv" || op.getOpType() == "DepthwiseConv" || op.getOpType() == "DepthWiseConv")
+                if(op.getOpType() == "Conv" || op.getOpType() == "DepthwiseConv")
                 {
                     weightTableSize = 16*((op.getInputTensor(1)->getShape()["K"] + (streamConfig["K"]) - 1) / (streamConfig["K"])) ;
                     weightSize += realTensorSize(op.getInputTensor(1),{1,1,streamConfig["C"],streamConfig["K"]});
@@ -219,6 +219,7 @@ namespace mv
                 size_t clusterOutChannelSize = outputShape["C"];
                 vector<size_t> clusterChannelSizes(totalClusters);
                 auto roundUpToStep = [](unsigned numberToRound,unsigned step) -> unsigned {return (((numberToRound+(step-1))/step)*step);};
+                //auto roundUpToNearestMultiple = [](unsigned numberToRound,unsigned multiple) -> unsigned {return ((numberToRound - (numberToRound % multiple)) + multiple);};
 
                 if(clustering == "SplitOverK")
                     clusterOutChannelSize = clusterOutChannelSize / totalClusters;
@@ -226,7 +227,6 @@ namespace mv
                 //TODO::why is this needed?
                 if((clusterOutChannelSize%16) and (clustering == "SplitOverK"))
                 {
-                    //clusterOutChannelSize = (totalClusters -1) + roundUp(clusterOutChannelSize,16);
                     clusterOutChannelSize = (totalClusters -1) + roundUpToStep(clusterOutChannelSize,16);
                     fill_n(clusterChannelSizes.begin(),totalClusters-1,clusterOutChannelSize);
                     clusterChannelSizes[totalClusters-1] =outputShape["C"] - (totalClusters-1)*clusterOutChannelSize;
@@ -254,7 +254,7 @@ namespace mv
 
                     for(auto clusterSize : clusterChannelSizes)
                     {
-                        if( ((clusterSize / split) <16) )//or ((clusterSize%split) !=0) )// or ((clusterSize/split)%16 != 0))
+                        if( ((clusterSize / split) <16) or ((clusterSize%split) !=0) or ((clusterSize/split)%16 != 0))
                             validSplit = false;
                     }
                     if(!validSplit)
@@ -287,7 +287,7 @@ namespace mv
                 Shape contexts,isiSplit;
 
                 // TODO:: check for CHMAJOR CONV
-                if( (opType == "MaxPool") or (opType == "DepthWiseConv") or (opType == "DepthwiseConv"))
+                if( (opType == "MaxPool") or (opType == "DepthwiseConv"))
                 {
                     contexts = {16,1,16,1};
                 }
@@ -321,8 +321,7 @@ namespace mv
                     auto kernel = op.get<array<unsigned short,2>>("kSize");
                     baseKernelCost = kernel[0] * kernel[1];
                 }
-                else if ((opType == "DepthWiseConv") or (opType == "DepthwiseConv") or
-                        (opType == "Conv"))
+                else if ((opType == "DepthwiseConv") or (opType == "Conv"))
                 {
                     auto weightsShape = op.getInputTensor(1)->getShape();
                     baseKernelCost = weightsShape[KERNEL_WIDTH] * weightsShape[KERNEL_HEIGHT];
@@ -608,9 +607,6 @@ namespace mv
                 globalEnableSparsity = globalStrategies_["enableSparsity"].get<bool>();
 
                 auto findStrategy = [](vector<Attribute>& vec,const string& str) ->bool { for(const auto elem : vec) if(str==elem.get<string>()) return true; return false;};
-                //auto roundUp = [](unsigned in,unsigned val) -> unsigned {return (in & val)+val;};
-                //auto roundUp = [](unsigned val,unsigned in) -> unsigned {return (in & val)+val;};
-                auto roundUpToStep = [](unsigned numberToRound,unsigned step) -> unsigned {return (((numberToRound+(step-1))/step)*step);};
                 /*
                 vector<Attribute> inputSparsityPool;
                 //vector<Attribute> outputSparsityPool;
