@@ -147,7 +147,6 @@ void compileMcm(
                 if (compDesc.validPass("ConvertFlatbuffer")) {
                     compDesc.setPassArg("ConvertFlatbuffer", "input", resultsFullName + ".blob");
                 }
-
             } catch (...) {
             }
         }

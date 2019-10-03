@@ -256,6 +256,9 @@ void FrontEndMcm::parseOutputData() {
         IE_ASSERT(ieData != nullptr);
 
         auto lastLayerOut = getMcmData(ieData);
+        if (lastLayerOut == nullptr) {
+            lastLayerOut = _nodes.back();
+        }
         IE_ASSERT(lastLayerOut != nullptr);
         auto name = lastLayerOut->getMcmNode()->getName();
 
@@ -423,7 +426,7 @@ void FrontEndMcm::parseConvolution(
             auto weightsData = packBlobToVector<double>(weightsBlob, weightsSize);
             mvWeights = _modelMcm.constant(weightsData,
                                            weightsShape,
-                                           mv::DType("Float16"),
+                                           mv::DType("Float64"),
                                            mv::Order(mv::Order::getColMajorID(4)));
         }
 
@@ -450,7 +453,7 @@ void FrontEndMcm::parseConvolution(
             auto weightsData = packBlobToVector<double>(weightsBlob, weightsSize);
             mvWeights = _modelMcm.constant(weightsData,
                                            weightsShape,
-                                           mv::DType("Float16"),
+                                           mv::DType("Float64"),
                                            mv::Order("NCWH"));
         }
         mvConv = _modelMcm.conv(input->getMcmNode(),
@@ -496,6 +499,7 @@ void FrontEndMcm::parseConvolution(
     mvConv->set<mv::DType>("dType", convert_data_type(layer->outData[0]->getPrecision()));
 
     bindOutput(mvConv, layerOutput);
+
     _logger->debug(FINISH_PARSING_STR, mvConv->getName());
 }
 
