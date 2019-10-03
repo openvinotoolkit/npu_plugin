@@ -133,13 +133,13 @@ namespace mv
                 auto inputTensors = op.getInputTensor();
                 auto outputTensors = op.getOutputTensor();
                 auto div = [](unsigned x,unsigned y) -> unsigned { return (x+y-1)/y; };
+                auto roundUpToNearestMultiple = [](unsigned numberToRound,unsigned multiple) -> unsigned {return ((numberToRound - (numberToRound % multiple)) + multiple);};
 
                 //StreamingPool noSplit( {{'W',1},{'H',1},{'C'},{'K'}});
                 size_t inputSize = 0;
                 size_t outputSize = 0;
                 size_t weightSize = 0;
                 size_t weightTableSize = 0;
-                size_t totalMemSize = 0;
 
                 size_t totalWeightsSize = 0;
                 size_t totalActivationSize = 0;
@@ -174,31 +174,34 @@ namespace mv
                 {
                     totalActivationSize = inputSize + outputSize;
                     totalWeightsSize = weightSize;
-                    totalMemSize = inputSize + outputSize + weightSize;
+                    /* if(activationSparseStrategy){
+                        //w*h*c, 1 bit per byte of tensor. 
+                        auto activationSize = (op.getInputTensor(0)->getShape()[0] * op.getInputTensor(0)->getShape()[1]* op.getInputTensor(0)->getShape()[2]) / 8;
+                        //storage element
+                        activationSize += (op.getInputTensor(0)->getShape()[0] * op.getInputTensor(0)->getShape()[1]);
+                        activationSize = roundUpToNearestMultiple(activationSize, 16);
+                        //totalActivationSize += activationSize;
+                    } */
                 }
                 else if(clusterStrategy == "SplitOverH")
                 {
                     totalActivationSize = div(inputSize,totalClusters) + div(outputSize,totalClusters);
                     totalWeightsSize = weightSize;
-                    totalMemSize = div(inputSize,totalClusters) + div(outputSize,totalClusters) + weightSize;
                 }
                 else if(clusterStrategy == "SplitOverK")
                 {
                     totalActivationSize = inputSize + outputSize;
                     totalWeightsSize =  div(weightSize,totalClusters);
-                    totalMemSize = inputSize + outputSize + div(weightSize,totalClusters);
                 }
                 else if(clusterStrategy == "HKSwitch")
                 {
                     totalActivationSize = div(inputSize,totalClusters) + outputSize;
                     totalWeightsSize = weightSize;
-                    totalMemSize = div(inputSize,totalClusters) + outputSize + weightSize;
                 }//TODO: proper calculation here
                 else if(clusterStrategy == "SplitOverHOverlapped")
                 {
                     totalActivationSize = div(inputSize,totalClusters) + div(outputSize,totalClusters);
                     totalWeightsSize = weightSize;
-                    totalMemSize = div(inputSize,totalClusters) + div(outputSize,totalClusters) + weightSize;
                 }
                 else
                 {
@@ -460,13 +463,6 @@ namespace mv
                 if( (parent["spilling"].get<bool>()) and (child["inputSparsity"].get<bool>()) )
                     return INF;
 
-                //parent and child must have matching activation sparsity strategy
-                if( parent["outputSparsity"].get<bool>() and !child["inputSparsity"].get<bool>())
-                    return INF;
-
-                if( !parent["outputSparsity"].get<bool>() and child["inputSparsity"].get<bool>())
-                    return INF;
-
                 /* TODO decide where these should live ->  currently captured in generate strategy instead
                  
                 //if child spills, no output activation sparsity ->
@@ -626,7 +622,8 @@ namespace mv
 
                 if(globalEnableSparsity){
                     inputSparsityPool = createTFStrategyPoolFromBool(op,"inputActivationSparsity");
-                    outputSparsityPool = createTFStrategyPoolFromBool(op,"outputActivationSparsity");
+                    //outputSparsityPool = createTFStrategyPoolFromBool(op,"outputActivationSparsity");
+                    outputSparsityPool.push_back({true});
                     weightsSparsityPool = createTFStrategyPoolFromBool(op,"weightsSparsity");   
                 } else {
                     inputSparsityPool.push_back({false});
@@ -666,8 +663,6 @@ namespace mv
                 for( const auto weightsSparsity : weightsSparsityPool){
                     for( const auto spilling : spillingPool)
                     {
-                        if(spilling.get<bool>() and outputSparsity.get<bool>())
-                            continue;
                         for( const auto clustering : clusteringStrategyPool)
                         {
                             if(clustering.get<string>() == "SplitOverK" and (inputSparsity.get<bool>()))
