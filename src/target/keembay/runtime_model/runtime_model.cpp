@@ -1601,6 +1601,12 @@ unsigned mv::RuntimeModel::countProducerConsumerTasks(mv::ComputationModel& cm, 
         else
             toReturn = 1;
     }
+    else if(taskType == "UPATask")
+    {
+        if (opIt->hasAttr("BarrierDeps"))
+            if (opIt->get<mv::BarrierDependencies>("BarrierDeps").getWait() != 1)
+                toReturn = 1;
+    }
     return toReturn;
 }
 
