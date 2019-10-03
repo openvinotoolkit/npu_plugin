@@ -529,3 +529,38 @@ TEST(scheduler, resource_bound_of_two_units) {
   ++scheduler_begin;
   ASSERT_TRUE(scheduler_begin == schedule_end);
 }
+
+TEST(scheduler, two_connected_diamonds) {
+  dag_t::adjacency_map_t in = {
+    {"a", {"b", "c"} }, {"b", {"d"}}, {"c", {"d"}},
+    {"d", {"e", "f"}}, {"e", {"g"}}, {"f", {"g"}}, {"g", {}} };
+  dag_t g(in);
+
+  {
+    scheduler_t scheduler_begin(g, 2), scheduler_end;
+    
+    size_t make_span = 0UL;
+
+    while (scheduler_begin != scheduler_end) {
+      ++make_span;
+      ++scheduler_begin;
+    }
+    EXPECT_EQ(scheduler_begin.current_time(), 5UL);
+  }
+
+  // if we constrain to 1 resource the makespan increases to 7 //
+  {
+    scheduler_t scheduler_begin(g, 1), scheduler_end;
+    
+    size_t make_span = 0UL;
+
+    while (scheduler_begin != scheduler_end) {
+      ++make_span;
+      ++scheduler_begin;
+    }
+    EXPECT_EQ(scheduler_begin.current_time(), 7UL);
+  }
+}
+
+
+
