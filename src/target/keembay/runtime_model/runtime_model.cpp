@@ -1558,14 +1558,14 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildUPATask(Comput
     toReturn[0]->task.type = MVCNN::SpecificTask_UPALayerTask;
 
     std::string underlyingTask = opIt->get<std::string>("taskOp");
-    if(underlyingTask == "Proposal")
-        toReturn[0]->task.value = buildUPAProposalTask(cm, compilationDescriptor, opIt);
-    if(underlyingTask == "Softmax")
-        toReturn[0]->task.value = buildUPASoftmaxTask(cm, compilationDescriptor, opIt);
     if(underlyingTask == "Identity")
         toReturn[0]->task.value = buildUPAPassthroughTask(cm, compilationDescriptor, opIt);
-    if(underlyingTask == "Dummy")
+    else if(underlyingTask == "Dummy")
         toReturn[0]->task.value = buildUPADummyTask(cm, compilationDescriptor, opIt);
+    else if(underlyingTask == "Softmax")
+        toReturn[0]->task.value = buildUPASoftmaxTask(cm, compilationDescriptor, opIt);
+    else if(underlyingTask == "Proposal")
+        toReturn[0]->task.value = buildUPAProposalTask(cm, compilationDescriptor, opIt);
     // TODO: Add other UPA layers
 
     return toReturn;
