@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <list>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 namespace mv {
@@ -159,6 +160,7 @@ class Feasible_Schedule_Generator {
       const_schedulable_ops_iterator_t;
   typedef typename schedulable_ops_t::iterator schedulable_ops_iterator_t;
   typedef std::unordered_map<const_op_ptr_t, size_t> operation_in_degree_t;
+  typedef std::unordered_set<const_op_ptr_t> processed_ops_t;
   
   //////////////////////////////////////////////////////////////////////////////
 
@@ -167,20 +169,25 @@ class Feasible_Schedule_Generator {
 
   Feasible_Schedule_Generator(const dag_t& in, const resource_t& resource_bound)
     : heap_(), current_time_(0), candidates_(), resource_state_(),
-    heap_ordering_(), schedulable_op_(), in_degree_(), input_ptr_(&in) {
-      init(resource_bound);
-  }
+    heap_ordering_(), schedulable_op_(), in_degree_(), processed_ops_(),
+    input_ptr_(&in) { init(resource_bound); }
 
   Feasible_Schedule_Generator() : heap_(), current_time_(0), candidates_(),
     resource_state_(), heap_ordering_(), schedulable_op_(), in_degree_(),
-    input_ptr_() {} 
+    processed_ops_(), input_ptr_() {} 
 
   void operator++() { next_schedulable_operation(); }
   // Precondition: reached_end() is false //
   const operation_t& operator*() const { return *schedulable_op_; }
+
   bool operator==(const Feasible_Schedule_Generator& o) const {
     return reached_end() && o.reached_end();
   }
+
+  bool operator!=(const Feasible_Schedule_Generator& o) const {
+    return !(*this == o);
+  }
+
   size_t current_time() const { return current_time_; }
 
   const_schedulable_ops_iterator_t begin_candidates() const {
@@ -202,6 +209,8 @@ class Feasible_Schedule_Generator {
   bool init(const resource_t& upper_bound) {
     traits::initialize_resource_upper_bound(upper_bound, resource_state_);
     in_degree_.clear();
+    processed_ops_.clear();
+
     const_operation_iterator_t itr = traits::operations_begin(*input_ptr_);
     const_operation_iterator_t itr_end = traits::operations_end(*input_ptr_);
 
@@ -233,7 +242,7 @@ class Feasible_Schedule_Generator {
     while (itr != itr_end) {
       const_op_ptr_t op_ptr = &(*itr);
       if (in_degree_.find(op_ptr) == in_degree_.end()) {
-        candidates_.push_back(op_ptr);
+        add_to_candidate_set(op_ptr);
       }
       ++itr;
     }
@@ -299,7 +308,7 @@ class Feasible_Schedule_Generator {
     const_operation_iterator_t itr=input_ptr_->begin(op);
     const_operation_iterator_t itr_end=input_ptr_->end(op);
     for (;itr != itr_end; ++itr) {
-      candidates_.push_back( &(*itr) );
+      add_to_candidate_set( &(*itr) );
     }
   }
 
@@ -325,6 +334,12 @@ class Feasible_Schedule_Generator {
     return elem;
   }
 
+  void add_to_candidate_set(const_op_ptr_t op_ptr) {
+    if (processed_ops_.find(op_ptr) != processed_ops_.end()) { return; }
+    candidates_.push_back(op_ptr);
+    processed_ops_.insert(op_ptr);
+  }
+
  
   //////////////////////////////////////////////////////////////////////////////
   schedule_heap_t heap_;
@@ -334,6 +349,7 @@ class Feasible_Schedule_Generator {
   min_heap_ordering_t heap_ordering_;
   const_op_ptr_t schedulable_op_;
   operation_in_degree_t in_degree_;
+  processed_ops_t processed_ops_;
   const dag_t *input_ptr_;
   //////////////////////////////////////////////////////////////////////////////
 
