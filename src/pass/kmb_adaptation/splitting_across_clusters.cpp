@@ -21,7 +21,7 @@ static void unpopulatedSplitOverH(const unsigned nWorkloads, std::vector<mv::Wor
 static void populatedSplitOverH(const unsigned nClusters, std::vector<mv::Workload> &subTensors, mv::Workloads& Tensor,
                                 const mv::pass::PassEntry& pass, int &success);
 static std::vector<mv::Data::OpListIterator> findSinkLayers(mv::DataModel &dataModel, const mv::Data::TensorIterator& tensor);
-static std::vector<mv::Workload> fixRectangularHeuristicBug(std::vector<mv::Workload> subTensors, const mv::Data::TensorIterator &tensor, int nWorkloads, int pad = 16);
+static std::vector<mv::Workload> fixRectangularHeuristicBug(std::vector<mv::Workload> subTensors, const mv::Data::TensorIterator &tensor, int nWorkloads);
 static void ensureSplitStrategiesForSpilling(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 //NOTE: Temporary Function for aligning the subTensors with fake "Alignment"
 static std::vector<mv::Workload> ensureAlignmentForSubTensors(std::vector<mv::Workload> subTensors, const mv::Data::TensorIterator &tensor, unsigned nWorkloads, int pad = 16);
@@ -191,7 +191,7 @@ void subTensorsGen(mv::ComputationModel& model, const std::vector <mv::Data::Ten
             //NOTE:Temporary handle for bug in Rectangular Heuristic
             if (subTensors.size() != nWorkloads)
             {
-                auto newSubTensors = fixRectangularHeuristicBug(subTensors, tensor, nWorkloads, pad);
+                auto newSubTensors = fixRectangularHeuristicBug(subTensors, tensor, nWorkloads);
                 subTensors.clear();
                 subTensors = newSubTensors;
             }
@@ -251,83 +251,81 @@ static std::vector<mv::Data::OpListIterator> findSinkLayers(mv::DataModel &dataM
     return sinkOperations;
 }
 
-static std::vector<mv::Workload> fixRectangularHeuristicBug(std::vector<mv::Workload> subTensors, const mv::Data::TensorIterator &tensor, int nWorkloads, int pad)
+static std::vector<mv::Workload> fixRectangularHeuristicBug(std::vector<mv::Workload> subTensors, const mv::Data::TensorIterator &tensor, int nWorkloads)
 {
     std::vector<mv::Workload> newSubTensors;
-    auto tensorNeedsAlignment = tensor->hasAttr("alignment") ? tensor->get<bool>("alignment") : false;
-    auto output_channels = tensor->getShape()[mv::IO_CHANNEL_DIMENSION];
-    if (tensorNeedsAlignment)
-        output_channels = mv::round_up(output_channels, pad);
 
     if (!tensor->isPopulated())
     {
-        for (int i = 0; i < nWorkloads; i ++)
-        {
-            mv::Workload subTensor;
-            if (i == 0)
-            {
-                subTensor.MaxX = 15;
-                subTensor.MaxY = subTensors[0].MaxY;
-                subTensor.MaxZ = subTensors[0].MaxZ;
-                subTensor.MinX = 0;
-                subTensor.MinY = subTensors[0].MinY;
-                subTensor.MinZ = subTensors[0].MinZ;
-            }
-            else if (i == 1)
-            {
-                subTensor.MaxX = 31;
-                subTensor.MaxY = subTensors[0].MaxY;
-                subTensor.MaxZ = subTensors[0].MaxZ;
-                subTensor.MinX = 16;
-                subTensor.MinY = subTensors[0].MinY;
-                subTensor.MinZ = subTensors[0].MinZ;
-            }
-            else if (i == nWorkloads - 1)
-            {
-                subTensor = subTensors[subTensors.size() - 1];
-                if (tensorNeedsAlignment)
-                {
-                    subTensor.MinX = newSubTensors[i-1].MaxX;
-                    subTensor.MaxX = output_channels;
-                }
+        std::vector<size_t> z_sizes(nWorkloads);
 
+        auto totalZ = subTensors[0].MaxX;
+        for(size_t i=1; i<subTensors.size();i++)
+            if (subTensors[i].MaxX > totalZ)
+                totalZ = subTensors[i].MaxX;
+        totalZ++;
+
+        int t=0;
+        while (totalZ > 0)
+        {
+            z_sizes[t] += 16;
+            totalZ -= 16;
+            t++;
+            if (t == nWorkloads)
+                t = 0;
+        }
+        for (int i = 0; i < nWorkloads; i++)
+        {
+            mv::Workload subTensor = subTensors[0];
+
+            if (i==0)
+            {
+                subTensor.MinX = 0;
+                subTensor.MaxX = z_sizes[i] - 1;
             }
             else
             {
-                subTensor = subTensors[1];
+                subTensor.MinX = newSubTensors[i - 1].MaxX + 1;
+                subTensor.MaxX = subTensor.MinX + z_sizes[i] - 1;
             }
             newSubTensors.push_back(subTensor);
         }
     }
     else
     {
-        for (int i = 0; i < nWorkloads; i ++)
-         {
-            mv::Workload subTensor;
-            if (i == 0)
+        std::vector<size_t> z_sizes(nWorkloads);
+
+        auto totalZ = subTensors[0].MaxY;
+        for(size_t i=1; i<subTensors.size();i++)
+            if (subTensors[i].MaxY > totalZ)
+                totalZ = subTensors[i].MaxY;
+        totalZ++;
+
+        int t=0;
+        while (totalZ > 0)
+        {
+            z_sizes[t] += 16;
+            totalZ -= 16;
+            t++;
+            if (t == nWorkloads)
+                t = 0;
+        }
+        for (int i = 0; i < nWorkloads; i++)
+        {
+            mv::Workload subTensor = subTensors[0];
+
+            if (i==0)
             {
-                subTensor.MaxX = subTensors[0].MaxX;
-                subTensor.MaxY = 15;
-                subTensor.MaxZ = subTensors[0].MaxZ;
-                subTensor.MinX = subTensors[0].MinX;
                 subTensor.MinY = 0;
-                subTensor.MinZ = subTensors[0].MinZ;
+                subTensor.MaxY = z_sizes[i] - 1;
             }
-            else if (i == 1)
-            {
-                subTensor.MaxX = subTensors[0].MaxX;
-                subTensor.MaxY = 31;
-                subTensor.MaxZ = subTensors[0].MaxZ;
-                subTensor.MinX = subTensors[0].MinX;
-                subTensor.MinY = 16;
-                subTensor.MinZ = subTensors[0].MinZ;
-            }
-            else if (i == nWorkloads - 1)
-                subTensor = subTensors[subTensors.size() - 1];
             else
-                subTensor = subTensors[1];
+            {
+                subTensor.MinY = newSubTensors[i - 1].MaxY + 1;
+                subTensor.MaxY = subTensor.MinY + z_sizes[i] - 1;
+            }
             newSubTensors.push_back(subTensor);
-         }
+        }
     }
     return newSubTensors;
 }
