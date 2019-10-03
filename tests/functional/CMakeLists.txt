@@ -112,5 +112,8 @@ function(addVpuTest TARGET_NAME PLUGIN_NAME PLUGIN_TEST_FOLDER PLUGIN_MACRO_NAME
     set_property(TEST ${TARGET_NAME} PROPERTY LABELS VPU ${PLUGIN_NAME})
 endfunction()
 
-
 addVpuTest(KmbFunctionalTests kmbPlugin kmb_tests USE_KMB)
+
+if (ENABLE_HDDL2)
+    add_subdirectory(hddl2_tests)
+endif()

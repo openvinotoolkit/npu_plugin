@@ -81,3 +81,10 @@ endif()
 if(ENABLE_KMB_SAMPLES)
     add_subdirectory(samples)
 endif()
+
+############### HDDL 2 ##################
+option(ENABLE_HDDL2 "Enable HDDL2 Plugin" ON)
+
+if (ENABLE_HDDL2)
+    add_subdirectory(src/hddl2_plugin)
+endif()
