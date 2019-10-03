@@ -410,14 +410,14 @@ std::vector<mv::Element> StrategyManager::convertSparsityStrategyToElement(std::
     for(auto strategy : strategiesToConvert)
     {
         auto inputActivationSparsity = strategy["inputSparsity"].get<bool>();
-        //auto outputActivationSparsity = strategy["outputSparsity"].get<bool>();
+        auto outputActivationSparsity = strategy["outputSparsity"].get<bool>();
         auto weightsSparsity = strategy["weightsSparsity"].get<bool>();
         auto opName   = strategy["name"].get<string>();
 
         auto op = model_.getOp(opName);
 
         copyLElement.set("inputActivationSparsity",inputActivationSparsity);
-       // copyLElement.set("outputActivationSparsity",outputActivationSparsity);
+        copyLElement.set("outputActivationSparsity",outputActivationSparsity);
         copyLElement.set("weightsSparsity",weightsSparsity);
         copyLElement.set("name_filter", opName);
 

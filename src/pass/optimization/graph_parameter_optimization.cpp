@@ -455,12 +455,23 @@ namespace mv
                         (not (parentOp.getOpType() == "Input")))
                             return INF;
 
+
+                //Sparsity rules
                 if( (parent["spilling"].get<bool>()) and (child["inputSparsity"].get<bool>()) )
                     return INF;
 
-                //if child spills, no output activation sparsity
+                //parent and child must have matching activation sparsity strategy
+                if( parent["outputSparsity"].get<bool>() and !child["inputSparsity"].get<bool>())
+                    return INF;
+
+                if( !parent["outputSparsity"].get<bool>() and child["inputSparsity"].get<bool>())
+                    return INF;
+
+                /* TODO decide where these should live ->  currently captured in generate strategy instead
+                 
+                //if child spills, no output activation sparsity ->
                 //if( (child["spilling"].get<bool>()) and (child["outputSparsity"].get<bool>()) )
-                    //return INF;
+                   // return INF;
 
                 //TODO if clustering strategy is splitoverK, activation sparsity not supported
                 if((parentClustering == "SplitOverK") and 
@@ -470,6 +481,7 @@ namespace mv
                 if((childClustering == "SplitOverK") and 
                     (child["inputSparsity"].get<bool>()) )
                         return INF;
+                */
  
                 if( childOp.getOpType() == "Conv")
                 {
@@ -523,7 +535,7 @@ namespace mv
 
                 auto parentMem = memorySize(parentOp,
                                             parentClustering,
-                                            child["inputSparsity"],
+                                            parent["outputSparsity"],
                                             parent["weightsSparsity"],
                                             parent["streaming"].get<Shape>(),
                                             false);
@@ -609,13 +621,16 @@ namespace mv
                 auto findStrategy = [](vector<Attribute>& vec,const string& str) ->bool { for(const auto elem : vec) if(str==elem.get<string>()) return true; return false;};
                 
                 vector<Attribute> inputSparsityPool;
+                vector<Attribute> outputSparsityPool;
                 vector<Attribute> weightsSparsityPool;
 
                 if(globalEnableSparsity){
                     inputSparsityPool = createTFStrategyPoolFromBool(op,"inputActivationSparsity");
+                    outputSparsityPool = createTFStrategyPoolFromBool(op,"outputActivationSparsity");
                     weightsSparsityPool = createTFStrategyPoolFromBool(op,"weightsSparsity");   
                 } else {
                     inputSparsityPool.push_back({false});
+                    outputSparsityPool.push_back({false});
                     weightsSparsityPool.push_back({false});
                 }
                 
@@ -647,9 +662,12 @@ namespace mv
 
                 //TODO:: replace nested loops with clean cartesian product function
                 for( const auto inputSparsity : inputSparsityPool){
+                for( const auto outputSparsity : outputSparsityPool){
                 for( const auto weightsSparsity : weightsSparsityPool){
                     for( const auto spilling : spillingPool)
                     {
+                        if(spilling.get<bool>() and outputSparsity.get<bool>())
+                            continue;
                         for( const auto clustering : clusteringStrategyPool)
                         {
                             if(clustering.get<string>() == "SplitOverK" and (inputSparsity.get<bool>()))
@@ -695,6 +713,7 @@ namespace mv
                                     StrategySet s;
                                     s["name"] = op.getName();
                                     s["weightsSparsity"] = weightsSparsity;
+                                    s["outputSparsity"] = outputSparsity;
                                     s["inputSparsity"] = inputSparsity;
                                     //s["doubleBuffering"] = doubleBuffering;
                                     s["spilling"] = spilling;
@@ -708,6 +727,7 @@ namespace mv
                     }
                 }
                 
+                }
                 }
             }
 
