@@ -97,7 +97,7 @@ void setDpuTasksMemoryLocationFcn(const mv::pass::PassEntry& , mv::ComputationMo
                             inputQuantParams = input->get<mv::QuantizationParams>("quantParams");
 
                         std::string memoryLocation = inputMemoryLocation.toString();
-                        if(memoryLocation == "OUTPUT" || memoryLocation == "INPUT")
+                        if(memoryLocation == "OUTPUT" || memoryLocation == "INPUT" || memoryLocation == "DEFAULT")
                             memoryLocation = "DDR";
                         std::string stringDirection(memoryLocation+"2NNCMX");
                         mv::DmaDirection direction(stringDirection);
