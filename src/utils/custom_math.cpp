@@ -56,3 +56,21 @@ uint16_t mv::fp32_to_fp16(double value)
 {
     return fp32_to_fp16(static_cast<float>(value));
 }
+
+float mv::fp16_to_fp32(uint16_t value){
+    bit_field32 v;
+    v.ui = value;
+    int32_t sign = v.si & signC;
+    v.si ^= sign;
+    sign <<= shiftSign;
+    v.si ^= ((v.si + minD) ^ v.si) & -(v.si > subC);
+    v.si ^= ((v.si + maxD) ^ v.si) & -(v.si > maxC);
+    bit_field32 s;
+    s.si = mulC;
+    s.fp *= v.si;
+    int32_t mask = -(norC > v.si);
+    v.si <<= shiftFraction;
+    v.si ^= (s.si ^ v.si) & mask;
+    v.si |= sign;
+    return v.fp;
+}
