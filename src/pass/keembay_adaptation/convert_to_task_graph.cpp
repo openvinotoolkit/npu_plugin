@@ -319,6 +319,81 @@ void convertOpsToUPATasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& 
             setOutputControlFlow(cm, cm.switchContext(dpuConvOp), outputControlFlows);
 
         }
+        else if (opType == "Proposal")
+        {
+            auto cls_pred = opIt->getInputTensor(0);
+            auto bbox_pred = opIt->getInputTensor(1);
+            auto im_info = opIt->getInputTensor(2);
+            auto scale = opIt->getInputTensor(3);
+            auto ratio = opIt->getInputTensor(4);
+            cls_pred->set<std::string>("populatedTensorType", "cls_pred");
+            bbox_pred->set<std::string>("populatedTensorType", "bbox_pred");
+
+            std::vector<mv::Data::TensorIterator> inputs;
+            inputs.push_back(cls_pred);
+            inputs.push_back(bbox_pred);
+            inputs.push_back(im_info);
+            inputs.push_back(scale);
+            inputs.push_back(ratio);
+
+            auto quantParams = opIt->get<mv::QuantizationParams>("quantParams");
+
+            auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
+            unsigned opId = opIt->get<unsigned>("opId");
+
+            // Required params
+            auto base_size = opIt->get<unsigned>("base_size");
+            auto pre_nms_topn = opIt->get<unsigned>("pre_nms_topn");
+            auto post_nms_topn = opIt->get<unsigned>("post_nms_topn");
+            auto nms_thresh = opIt->get<double>("nms_thresh");
+            auto feat_stride = opIt->get<unsigned>("feat_stride");
+            auto min_size = opIt->get<unsigned>("min_size");
+
+            // Optional params
+            auto pre_nms_thresh = opIt->get<double>("pre_nms_thresh");
+            auto clip_before_nms = opIt->get<bool>("clip_before_nms");
+            auto clip_after_nms = opIt->get<bool>("clip_after_nms");
+            auto normalize = opIt->get<bool>("normalize");
+            auto box_size_scale = opIt->get<double>("box_size_scale");
+            auto box_coordinate_scale = opIt->get<double>("box_coordinate_scale");
+            auto framework = opIt->get<std::string>("framework");
+            auto for_deformable = opIt->get<bool>("for_deformable");
+
+            auto inputControlFlows = mv::getInputControlFlow(cm, cm.switchContext(opIt));
+            auto outputControlFlows = mv::getOutputControlFlow(cm, cm.switchContext(opIt));
+            auto outputDataFlows = mv::getOutputDataFlow(om, opIt);
+
+            mv::Data::TensorIterator upaProposal = om.uPATaskProposal(inputs, base_size, pre_nms_topn, post_nms_topn, nms_thresh, feat_stride, min_size,
+                                                                      pre_nms_thresh, clip_before_nms, clip_after_nms, normalize, box_size_scale, box_coordinate_scale, framework, for_deformable,
+                                                                      mv::DType("Default"), quantParams);
+
+            auto upaProposalOp = om.getSourceOp(upaProposal);
+            upaProposalOp->set<unsigned>("opId", opId);
+
+            upaProposal->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
+            // Required params
+            upaProposal->set<unsigned>("base_size", base_size);
+            upaProposal->set<unsigned>("pre_nms_topn", pre_nms_topn);
+            upaProposal->set<unsigned>("post_nms_topn", post_nms_topn);
+            upaProposal->set<double>("nms_thresh", nms_thresh);
+            upaProposal->set<unsigned>("feat_stride", feat_stride);
+            upaProposal->set<unsigned>("min_size", min_size);
+
+            // Optional params
+            upaProposal->set<double>("pre_nms_thresh", pre_nms_thresh);
+            upaProposal->set<bool>("clip_before_nms", clip_before_nms);
+            upaProposal->set<bool>("clip_after_nms", clip_after_nms);
+            upaProposal->set<bool>("normalize", normalize);
+            upaProposal->set<double>("box_size_scale", box_size_scale);
+            upaProposal->set<double>("box_coordinate_scale", box_coordinate_scale);
+            upaProposal->set<std::string>("framework", framework);
+            upaProposal->set<bool>("for_deformable", for_deformable);
+
+            setOutputDataFlow(om, upaProposal, outputDataFlows);
+            setInputControlFlow(cm, cm.switchContext(upaProposalOp), inputControlFlows);
+            setOutputControlFlow(cm, cm.switchContext(upaProposalOp), outputControlFlows);
+
+        }
         else
             ++opIt;
     }

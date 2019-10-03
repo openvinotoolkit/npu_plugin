@@ -1457,6 +1457,71 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPASoftmaxTask(ComputationModel& c
     return toBuild;
 }
 
+MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAProposalTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt)
+{
+
+    auto toBuild = new MVCNN::UPALayerTaskT();
+    //toBuild->maxShaves = ;
+    toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_ProposalParams;
+    auto softLayerParamsValue = new MVCNN::ProposalParamsT();
+
+    // input_tensor mapping:
+    // 0 = cls_pred --> UPALayerTask.input_data
+    // 1 = bbox_pred --> UPALayerTask.weights_data
+    // 2 = im_info --> UPALayerTask.weights_table
+    // 3 = scale --> ProposalParams.ratio
+    // 4 = ratio --> ProposalParams.scale
+    auto cls_pred = opIt->getInputTensor(0);
+    auto bbox_pred = opIt->getInputTensor(1);
+    auto im_info = opIt->getInputTensor(2);
+    auto scale = opIt->getInputTensor(3);
+    auto ratio = opIt->getInputTensor(4);
+
+    // output tensor mapping:
+    // 0 = output --> UPALayerTask.output_data
+    auto output = opIt->getOutputTensor(0);
+
+    // Build scale vector
+    auto scale_vector = std::vector<float>();
+    for (auto i = 0; i < scale->size(); ++i)
+        scale_vector.push_back(mv::fp16_to_fp32(static_cast<uint16_t>(scale->getIntData().at({i}))));
+
+    // Build ratio vector
+    auto ratio_vector = std::vector<float>();
+    for (auto i = 0; i < ratio->size(); ++i)
+        ratio_vector.push_back(mv::fp16_to_fp32(static_cast<uint16_t>(ratio->getIntData().at({i}))));
+
+    // Fill in tensors
+    toBuild->input_data = buildTensorReferenceT(cm, compilationDescriptor, cls_pred);
+    toBuild->weights_data = buildTensorReferenceT(cm, compilationDescriptor, bbox_pred);
+    toBuild->weights_table = buildTensorReferenceT(cm, compilationDescriptor, im_info);
+    toBuild->output_data = buildTensorReferenceT(cm, compilationDescriptor, output);
+
+    // Fill in required params
+    softLayerParamsValue->ratio = ratio_vector;
+    softLayerParamsValue->scale = scale_vector;
+    softLayerParamsValue->base_size = opIt->get<unsigned>("base_size");
+    softLayerParamsValue->pre_nms_topn = opIt->get<unsigned>("pre_nms_topn");
+    softLayerParamsValue->post_nms_topn = opIt->get<unsigned>("post_nms_topn");
+    softLayerParamsValue->nms_thresh = static_cast<float>(opIt->get<double>("nms_thresh"));
+    softLayerParamsValue->feat_stride = opIt->get<unsigned>("feat_stride");
+    softLayerParamsValue->min_size = opIt->get<unsigned>("min_size");
+
+    // Fill in optional params
+    softLayerParamsValue->pre_nms_thresh = static_cast<float>(opIt->get<double>("pre_nms_thresh"));
+    softLayerParamsValue->clip_before_nms = opIt->get<bool>("clip_before_nms");
+    softLayerParamsValue->clip_after_nms = opIt->get<bool>("clip_after_nms");
+    softLayerParamsValue->normalize = opIt->get<bool>("normalize");
+    softLayerParamsValue->box_size_scale = static_cast<float>(opIt->get<double>("box_size_scale"));
+    softLayerParamsValue->box_coordinate_scale = static_cast<float>(opIt->get<double>("box_coordinate_scale"));
+    softLayerParamsValue->framework = opIt->get<std::string>("framework");
+    softLayerParamsValue->for_deformable = opIt->get<bool>("for_deformable");
+
+    toBuild->softLayerParams.value = softLayerParamsValue;
+
+    return toBuild;
+}
+
 MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAPassthroughTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt)
 {
     auto input = opIt->getInputTensor(0);
@@ -1493,6 +1558,8 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildUPATask(Comput
     toReturn[0]->task.type = MVCNN::SpecificTask_UPALayerTask;
 
     std::string underlyingTask = opIt->get<std::string>("taskOp");
+    if(underlyingTask == "Proposal")
+        toReturn[0]->task.value = buildUPAProposalTask(cm, compilationDescriptor, opIt);
     if(underlyingTask == "Softmax")
         toReturn[0]->task.value = buildUPASoftmaxTask(cm, compilationDescriptor, opIt);
     if(underlyingTask == "Identity")

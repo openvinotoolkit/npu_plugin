@@ -259,6 +259,7 @@ SET(base
     "${PROJECT_SOURCE_DIR}/src/computation/op/def/output.cpp"
     "${PROJECT_SOURCE_DIR}/src/computation/op/def/permute.cpp"
     "${PROJECT_SOURCE_DIR}/src/computation/op/def/prelu.cpp"
+    "${PROJECT_SOURCE_DIR}/src/computation/op/def/proposal.cpp"
     "${PROJECT_SOURCE_DIR}/src/computation/op/def/region_yolo.cpp"
     "${PROJECT_SOURCE_DIR}/src/computation/op/def/relu.cpp"
     "${PROJECT_SOURCE_DIR}/src/computation/op/def/reorder.cpp"
