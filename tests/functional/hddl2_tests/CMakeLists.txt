@@ -14,6 +14,12 @@ target_include_directories(${TARGET_NAME} PRIVATE
         ${IE_MAIN_SOURCE_DIR}/include
         )
 
+target_compile_options(${TARGET_NAME}
+        PRIVATE
+        -Wall
+        -Wextra
+        -Werror)
+
 target_link_libraries(${TARGET_NAME} PRIVATE
         IE::IESharedTests
         HDDL2Plugin

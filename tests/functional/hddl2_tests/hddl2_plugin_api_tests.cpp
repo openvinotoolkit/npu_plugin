@@ -35,7 +35,6 @@ TEST_F(HDDL2_Plugin_API, CanCreateExecutableNetworkImportMethod) {
 
     std::map<std::string, std::string> config = {};
     ASSERT_NO_THROW(executableNetwork = core.ImportNetwork(blob_name, device_name, config));
-    //  FIXME executableNetwork here is nullptr
 }
 
 TEST_F(HDDL2_Plugin_API, CanCreateInferRequestAfterLoadNetwork) {
