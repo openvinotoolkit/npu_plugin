@@ -1,9 +1,10 @@
-#include "gtest/gtest.h"
 #include "disjoint_interval_set.hpp"
+#include "gtest/gtest.h"
 
 using namespace mv::lp_scheduler;
 
-typedef Disjoint_Interval_Set<int, std::string> disjoint_interval_set_t;
+typedef int unit_t;
+typedef Disjoint_Interval_Set<unit_t, std::string> disjoint_interval_set_t;
 
 TEST(Disjoint_Interval_Set, test_disjoint_dont_allow_touch) {
   disjoint_interval_set_t dset;
@@ -158,3 +159,96 @@ TEST(Disjoint_Interval_Set, invalid_erase) {
   EXPECT_TRUE(dset.erase(10,10));
   EXPECT_TRUE(dset.empty());
 }
+
+TEST(Disjoint_Interval_Set, free_iterator_test_empty) {
+  disjoint_interval_set_t dset;
+
+  disjoint_interval_set_t::free_interval_iterator_t itr_begin, itr_end;
+
+  itr_begin = dset.begin_free_intervals();
+  itr_end = dset.end_free_intervals();
+
+  // since set is empty the entire range is free : (-\infty, +\infty) //
+  ASSERT_FALSE(itr_begin == itr_end);
+
+  ASSERT_EQ(itr_begin.interval_begin(), std::numeric_limits<unit_t>::min());
+  ASSERT_EQ(itr_begin.interval_end(), std::numeric_limits<unit_t>::max());
+
+  ++itr_begin;
+  ASSERT_TRUE(itr_begin == itr_end);
+}
+
+TEST(Disjoint_Interval, open_intervals_with_no_integral_points) {
+  disjoint_interval_set_t dset;
+
+  EXPECT_TRUE(dset.insert(10,10, "interval1"));
+  EXPECT_TRUE(dset.insert(11,11, "interval2"));
+
+  disjoint_interval_set_t::free_interval_iterator_t itr_begin, itr_end;
+  
+  itr_begin = dset.begin_free_intervals();
+  itr_end = dset.end_free_intervals();
+
+  ASSERT_FALSE(itr_begin == itr_end);
+  ASSERT_EQ(itr_begin.interval_begin(), std::numeric_limits<unit_t>::min());
+  ASSERT_EQ(itr_begin.interval_end(), 10);
+
+  ++itr_begin;
+
+  ASSERT_FALSE(itr_begin == itr_end);
+  ASSERT_EQ(itr_begin.interval_begin(), 10);
+  ASSERT_EQ(itr_begin.interval_end(), 11);
+  // note a unit-length interval with integral end-points has no integers
+  // inside the interval.
+
+  ++itr_begin;
+  ASSERT_FALSE(itr_begin == itr_end);
+  ASSERT_EQ(itr_begin.interval_begin(), 11);
+  ASSERT_EQ(itr_begin.interval_end(), std::numeric_limits<unit_t>::max());
+
+  ++itr_begin;
+  ASSERT_TRUE(itr_begin == itr_end);
+}
+
+TEST(Disjoint_Interval, open_intervals_with_typical_case) {
+  disjoint_interval_set_t dset;
+
+  EXPECT_TRUE(dset.insert(10,15, "interval1"));
+  EXPECT_TRUE(dset.insert(20,30, "interval2"));
+
+  disjoint_interval_set_t::free_interval_iterator_t itr_begin, itr_end;
+  
+  itr_begin = dset.begin_free_intervals();
+  itr_end = dset.end_free_intervals();
+
+  ASSERT_FALSE(itr_begin == itr_end);
+  ASSERT_EQ(itr_begin.interval_begin(), std::numeric_limits<unit_t>::min());
+  ASSERT_EQ(itr_begin.interval_end(), 10);
+
+  ++itr_begin;
+
+  ASSERT_FALSE(itr_begin == itr_end);
+  ASSERT_EQ(itr_begin.interval_begin(), 15);
+  ASSERT_EQ(itr_begin.interval_end(), 20);
+
+  ++itr_begin;
+  ASSERT_FALSE(itr_begin == itr_end);
+  ASSERT_EQ(itr_begin.interval_begin(), 30);
+  ASSERT_EQ(itr_begin.interval_end(), std::numeric_limits<unit_t>::max());
+
+  ++itr_begin;
+  ASSERT_TRUE(itr_begin == itr_end);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
