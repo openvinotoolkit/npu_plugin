@@ -184,6 +184,20 @@ std::vector<TestingNetworkParameters> vpuInferAndCompareTestsNQA = {
                         "/KMB_models/FP16/icnet/caffe/caffe/FP16/1/dldt/icnet.xml",
                         "/KMB_models/FP16/icnet/caffe/caffe/FP16/1/dldt/icnet.bin",
                         "/1024x2048/frankfurt_001016.bmp"},
+
+        // u8_asymmetric models
+        TestingNetworkParameters{"YoloTiny_v2_u8",
+                        "/KMB_models/NQA/u8_asymmetric/YoloTiny-v2/tiny_yolo_v2_asymmetric.xml",
+                        "/KMB_models/NQA/u8_asymmetric/YoloTiny-v2/tiny_yolo_v2_asymmetric.bin",
+                        "/416x416/person.bmp"},
+        TestingNetworkParameters{"MobileNet_v2_u8",
+                        "/KMB_models/NQA/u8_asymmetric/MobileNet-v2/mobilenetv2_asymmetric.xml",
+                        "/KMB_models/NQA/u8_asymmetric/MobileNet-v2/mobilenetv2_asymmetric.bin",
+                        "/224x224/cat3.bmp"},
+        TestingNetworkParameters{"Resnet_50_u8",
+                        "/KMB_models/NQA/u8_asymmetric/ResNet-50/resnet-50-pytorch_asymmetric.xml",
+                        "/KMB_models/NQA/u8_asymmetric/ResNet-50/resnet-50-pytorch_asymmetric.bin",
+                        "/224x224/cat3.bmp"},
 };
 
 INSTANTIATE_TEST_CASE_P(InferAndCompareTestsNQA, VpuInferAndCompareTests,
