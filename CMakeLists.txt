@@ -357,6 +357,7 @@ endif(MSVC)
 if(NOT CMAKE_CROSSCOMPILING)
     #add_subdirectory(tools) # testing without
     add_subdirectory(schema)
+    add_subdirectory(example)
 endif()
 
 if (${PROFILER} AND ${UNIX})

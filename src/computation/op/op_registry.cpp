@@ -892,6 +892,8 @@ void mv::op::OpRegistry::generateCompositionAPI(const std::string& eol, const st
 #include    "src/computation/op/def/reshape.cpp"
 #include    "src/computation/op/def/scale.cpp"
 #include    "src/computation/op/def/slice.cpp"
+#include    "src/computation/op/def/align.cpp"
+#include    "src/computation/op/def/crop.cpp"
 #include    "src/computation/op/def/sigmoid.cpp"
 #include    "src/computation/op/def/softmax.cpp"
 #include    "src/computation/op/def/subtract.cpp"
