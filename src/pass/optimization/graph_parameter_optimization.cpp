@@ -274,7 +274,7 @@ namespace mv
 
                     for(auto clusterSize : clusterChannelSizes)
                     {
-                        if( ((clusterSize / split) <16) or ((clusterSize%split) !=0) or ((clusterSize/split)%16 != 0))
+                        if( ((clusterSize / split) <16) ) //or ((clusterSize%split) !=0) or ((clusterSize/split)%16 != 0))
                             validSplit = false;
                     }
                     if(!validSplit)
