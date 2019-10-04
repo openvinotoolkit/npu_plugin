@@ -1,6 +1,7 @@
 #ifndef FEASIBLE_SCHEDULER_HPP
 #define FEASIBLE_SCHEDULER_HPP
 #include <algorithm>
+#include "disjoint_interval_set.hpp"
 #include <list>
 #include <unordered_map>
 #include <unordered_set>
@@ -122,6 +123,49 @@ class Cumulative_Resource_State {
   lookup_t active_resources_;
 }; // class Cumulative_Resource_State //
 
+
+/*
+// This models the resource state as disjoint set of intervals//
+template<typename Unit, typename Key>
+class Contiguous_Resource_State {
+  public:
+    typedef Unit unit_t;
+    typedef Key key_t;
+    typedef Disjoint_Interval_Set<unit_t, key_t> active_resources_t;
+
+    void initialize_resource_upper_bound(const unit_t& upper_bound,
+        unit_t location_begin=unit_t(0)) {
+      active_resources_.clear();
+      location_begin_ = location_begin;
+      location_end_ = location_begin_ + upper_bound;
+    }
+
+    bool is_resource_available(const unit_t& demand) const {
+
+    }
+
+  private:
+
+    // TODO(vamsikku): the cost of this O(k) where k is the number of active
+    // tasking using the contiguous memory.
+    bool find_smallest_interval_satisfying_demand(const unit_t& demand,
+        unit_t& interval_start, unit_t& interval_end) const {
+      active_resources_t::interval_iterator_t itr = active_resources_.begin(),
+        itr_end = active_resources_.end();
+
+      if (active_resources_.empty() &&
+            (upper_bound() >= demand)) { return true; }
+
+
+    }
+
+    unit_t upper_bound() const { return location_end_ - location_begin; }
+
+    active_resources_t active_resources_;
+    unit_t location_begin_;
+    unit_t location_end_;
+}; // class Contiguous_Resource_State //
+*/
 
 template<typename T, typename SchedulerTraits=scheduler_traits<T>,
          typename Allocator=std::allocator<T> >
@@ -308,7 +352,19 @@ class Feasible_Schedule_Generator {
     const_operation_iterator_t itr=input_ptr_->begin(op);
     const_operation_iterator_t itr_end=input_ptr_->end(op);
     for (;itr != itr_end; ++itr) {
-      add_to_candidate_set( &(*itr) );
+      // decrement the in-degree of &(*itr) and only add to candidate set
+      // if the indegree is zero. This means this op is ready to be scheduled.
+      const_op_ptr_t dep_op_ptr = &(*itr);
+      typename operation_in_degree_t::iterator deg_itr =
+          in_degree_.find(dep_op_ptr);
+      assert((deg_itr != in_degree_.end()) && (deg_itr->second > 0) );
+
+      if (deg_itr->second == 1) {
+        add_to_candidate_set( dep_op_ptr );
+        in_degree_.erase(deg_itr);
+      } else {
+        --(deg_itr->second);
+      }
     }
   }
 
