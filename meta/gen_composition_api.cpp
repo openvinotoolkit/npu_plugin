@@ -3,6 +3,5 @@
 int main()
 {
     mv::op::OpRegistry::generateCompositionAPI();
-    mv::op::OpRegistry::generateRecordedCompositionAPI();
     return 0;
 }

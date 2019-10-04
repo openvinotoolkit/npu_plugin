@@ -3,7 +3,7 @@
 namespace mv
 {
 
-    namespace op
+    namespace op_conversion
     {
 
         static std::function<std::pair<bool, std::size_t>(const std::vector<Data::TensorIterator>&,
@@ -25,14 +25,16 @@ namespace mv
 
         };
 
+    }
+
+    namespace op {
         MV_REGISTER_OP(Conversion)
         .setInputs({"data"})
         .setOutputs({"output"})
         .setArg<mv::Order>("order")
-        .setInputCheck(inputCheckFcn)
-        .setOutputDef(outputDefFcn)
+        .setInputCheck(op_conversion::inputCheckFcn)
+        .setOutputDef(op_conversion::outputDefFcn)
         .setTypeTrait({"executable"});
-
     }
 
 }

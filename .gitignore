@@ -1,7 +1,5 @@
 build/
-meta/include/mcm/*
-meta/src/*
-meta/schema/*
+build-debug/
 *.user
 .vscode
 *.blob
@@ -20,3 +18,8 @@ klocwork/
 # CLion
 .idea/
 cmake-build-debug/
+tags
+*.cmake
+*CMakeFiles*
+CMakeCache*
+tests/Makefile

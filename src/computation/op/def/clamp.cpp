@@ -5,7 +5,7 @@
 namespace mv
 {
 
-    namespace op
+    namespace op_clamp
     {
 
         static std::function<std::pair<bool, std::size_t>(const std::vector<Data::TensorIterator>&,
@@ -37,13 +37,16 @@ namespace mv
 
         };
 
+    }
+
+    namespace op {
         MV_REGISTER_OP(Clamp)
         .setInputs({"data"})
         .setOutputs({"output"})
         .setArg<double>("min")
         .setArg<double>("max")
-        .setInputCheck(inputCheckFcn)
-        .setOutputDef(outputDefFcn)
+        .setInputCheck(op_clamp::inputCheckFcn)
+        .setOutputDef(op_clamp::outputDefFcn)
         .setTypeTrait({"executable", "exposed"});
 
     }

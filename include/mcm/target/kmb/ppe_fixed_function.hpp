@@ -1,0 +1,29 @@
+#ifndef MV_PPEFIXEDFUNCTION
+#define MV_PPEFIXEDFUNCTION
+
+#include <string>
+#include <array>
+#include "include/mcm/target/kmb/ppe_layer_type.hpp"
+
+namespace mv
+{
+    class PPEFixedFunction : public LogSender
+    {
+        private:
+            int lowClamp_;
+            int highClamp_;
+            std::vector<PPELayerType> layers_;
+        public:
+            PPEFixedFunction(int lowClamp = -2147483648, int highClamp = 2147483647);
+
+            int getLowClamp() const;
+            int getHighClamp() const ;
+            const std::vector<mv::PPELayerType>& getLayers() const;
+            void addLayer(PPELayerType layer);
+
+            std::string getLogID() const;
+            std::string toString() const;
+    };
+}
+
+#endif

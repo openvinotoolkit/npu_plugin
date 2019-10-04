@@ -14,7 +14,7 @@
 #include "include/mcm/base/exception/argument_error.hpp"
 #include "include/mcm/base/exception/value_error.hpp"
 #include "include/mcm/tensor/quantization_params.hpp"
-#include "include/mcm/target/keembay/workload_struct.hpp"
+#include "include/mcm/target/kmb/workload_struct.hpp"
 
 namespace mv
 {
@@ -168,8 +168,6 @@ namespace mv
 
         // Returns true if the tensor was not sparse and sparsity was set, false otherwise
         bool setSparse();
-
-        bool setSparse(std::shared_ptr<Tensor> sparsityMap, std::shared_ptr<Tensor> storageElement);
         /**
          * @brief Binds the data (values vector) of this tensor (slave) to the given master tensor. After this operation data accessed
          * from this tensor will be actually read/written to the master tensor. Using the leftPadding and rightPadding it is possible
@@ -188,8 +186,8 @@ namespace mv
         }
 
         std::vector<DataElement> getData();
-        std::vector<DataElement> getDataPacked();
-        std::vector<int64_t> getKernelDataOffsets();
+        const std::vector<int64_t> getDataPacked();
+        const std::vector<int64_t> &getKernelDataOffsets();
 
         std::vector<double> getDoubleData();
         std::vector<int64_t> getIntData();
@@ -286,11 +284,10 @@ namespace mv
         virtual std::string getLogID() const override;
 
         std::vector<float> computeNumericStrides() const;
-        std::size_t computeTotalSize(unsigned int alignment = 16, bool base = false) const;
+        std::size_t computeTotalSize(unsigned int alignment = 16, bool base = false, bool fatherTensorAligned = false) const;
         std::size_t getClusterSize(unsigned int alignment = 16, bool base = false) const;
         void splitAcrossClusters(std::vector<Workload>, bool splitOverH, bool multicast);
-
-
+        void shareAcrossClusters(std::vector<Workload>, unsigned int numClusters, bool clustering = true);
     };
 
 }

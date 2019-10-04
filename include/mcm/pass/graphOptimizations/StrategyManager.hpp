@@ -1,7 +1,7 @@
 #ifndef __STRATEGY_MANAGER_HPP__
 #define __STRATEGY_MANAGER_HPP__
 
-#include "meta/include/mcm/op_model.hpp"
+#include "include/mcm/op_model.hpp"
 #include "include/mcm/base/exception/argument_error.hpp"
 #include "math.h"
 #include <unordered_set>
@@ -53,6 +53,7 @@ public:
     std::vector<mv::Element> convertStreamingStrategyToElement(std::vector<StrategySet> &strategiesToConvert, std::shared_ptr<mv::Element> compDesc);
     std::vector<mv::Element> convertClusteringStrategyToElement(std::vector<StrategySet> &strategiesToConvert, std::shared_ptr<mv::Element> compDesc);
     std::vector<mv::Element> convertLocationStrategyToElement(std::vector<StrategySet> &strategiesToConvert);
+    std::vector<mv::Element> convertSparsityStrategyToElement(std::vector<StrategySet> &strategiesToConvert);
     void saveStrategyToJsonFile(std::vector<mv::Element> &stategiesToSave,std::string jsonOutputFileName);
     void saveStrategyToCompilationDescriptor(vector<mv::Element> &stategiesToSave, std::shared_ptr<mv::Element> compDesc);
     void saveMetaStrategy(std::vector<MetaGraph::edge_list_iterator> cPathEdges);

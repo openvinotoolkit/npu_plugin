@@ -142,6 +142,8 @@ bool mv::PassManager::validPassArgs() const
     for (auto p: passList_)
     {
         auto passEntry = pass::PassRegistry::instance().find(p.getName());
+        if (!passEntry)
+            throw RuntimeError(*this, "Queried pass " + p.getName() + " not found in the pass registry");
         for (auto reqdArg: passEntry->getArgs())
         {
             if (!p.hasAttr(reqdArg.first))

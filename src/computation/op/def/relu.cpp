@@ -3,7 +3,7 @@
 namespace mv
 {
 
-    namespace op
+    namespace op_relu
     {
 
         static std::function<std::pair<bool, std::size_t>(const std::vector<Data::TensorIterator>&,
@@ -30,15 +30,19 @@ namespace mv
 
         };
 
+    }
+
+
+
+    namespace op {
         MV_REGISTER_OP(Relu)
         .setInputs({"data"})
         .setOutputs({"output"})
         .setOptionalArg<mv::DType>("dType", mv::DType("Default"))
         .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
-        .setInputCheck(inputCheckFcn)
-        .setOutputDef(outputDefFcn)
+        .setInputCheck(op_relu::inputCheckFcn)
+        .setOutputDef(op_relu::outputDefFcn)
         .setTypeTrait({"executable", "exposed"});
-
     }
 
 }

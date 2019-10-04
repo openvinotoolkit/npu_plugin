@@ -3,7 +3,7 @@
 namespace mv
 {
 
-    namespace op
+    namespace op_sigmoid
     {
 
         static std::function<std::pair<bool, std::size_t>(const std::vector<Data::TensorIterator>&,
@@ -25,13 +25,15 @@ namespace mv
 
         };
 
+    }
+
+    namespace op {
         MV_REGISTER_OP(Sigmoid)
         .setInputs({"data"})
         .setOutputs({"output"})
-        .setInputCheck(inputCheckFcn)
-        .setOutputDef(outputDefFcn)
+        .setInputCheck(op_sigmoid::inputCheckFcn)
+        .setOutputDef(op_sigmoid::outputDefFcn)
         .setTypeTrait({"executable", "exposed"});
-
     }
 
 }

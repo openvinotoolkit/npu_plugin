@@ -6,7 +6,7 @@
 namespace mv
 {
 
-    namespace attr
+    namespace attr_dtype
     {
 
         static mv::json::Value toJSON(const Attribute& a)
@@ -28,12 +28,14 @@ namespace mv
         {
             return "mv::DType(\""+a.get<DType>().toString()+"\")";
         }
+    }
 
+
+    namespace attr {
         MV_REGISTER_ATTR(DType)
-            .setToJSONFunc(toJSON)
-            .setFromJSONFunc(fromJSON)
-            .setToStringFunc(toString);
-
+            .setToJSONFunc(attr_dtype::toJSON)
+            .setFromJSONFunc(attr_dtype::fromJSON)
+            .setToStringFunc(attr_dtype::toString);
     }
 
 }

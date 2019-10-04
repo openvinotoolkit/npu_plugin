@@ -3,7 +3,7 @@
 namespace mv
 {
 
-    namespace op
+    namespace op_softmax
     {
 
         static std::function<std::pair<bool, std::size_t>(const std::vector<Data::TensorIterator>&,
@@ -37,6 +37,10 @@ namespace mv
                 outputs.push_back(mv::Tensor(":0",  inputs[0]->getShape(), dTypeToUse, inputs[0]->getOrder(), args.at("quantParams").get<mv::QuantizationParams>()));
         };
 
+    }
+
+    namespace op {
+
         // TODO: make .setOptionalArg accept "C" instead of std::string("C")
         static std::string channels("C");
 
@@ -46,8 +50,8 @@ namespace mv
         .setOptionalArg<std::string>("axis", channels)
         .setOptionalArg<mv::DType>("dType", mv::DType("Default"))
         .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
-        .setInputCheck(inputCheckFcn)
-        .setOutputDef(outputDefFcn)
+        .setInputCheck(op_softmax::inputCheckFcn)
+        .setOutputDef(op_softmax::outputDefFcn)
         .setTypeTrait({"executable", "exposed"});
 
     }

@@ -52,8 +52,8 @@ TEST(insert_barrier_tasks, parallel_paths)
     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/debug_ma2490.json";
     unit.loadCompilationDescriptor(compDescPath);
 
-    unit.compilationDescriptor().remove("keembay_adapt", "GenerateSparsityMaps");
-    unit.compilationDescriptor().remove("keembay_adapt", "GenerateWeightsTables");
+    unit.compilationDescriptor().remove("kmb_adapt", "GenerateSparsityMaps");
+    unit.compilationDescriptor().remove("kmb_adapt", "GenerateWeightsTables");
     unit.compilationDescriptor().addToGroup("root","GlobalParamsReset","Singular", false);
 
     unit.loadTargetDescriptor(mv::Target::ma2490);
@@ -150,7 +150,7 @@ TEST(insert_barrier_tasks, single_control_edge)
     unit.loadTargetDescriptor(mv::Target::ma2490);
     unit.compilationDescriptor().remove("initialize");
     unit.compilationDescriptor().remove("adapt");
-    unit.compilationDescriptor().remove("keembay_adapt");
+    unit.compilationDescriptor().remove("kmb_adapt");
     unit.compilationDescriptor().remove("dma");
     unit.compilationDescriptor().remove("control_flows");
     unit.compilationDescriptor().remove("finalize","MaxTopologicalCutAndPartialSerialisation");
@@ -251,7 +251,7 @@ TEST(insert_barrier_tasks, multiple_control_edges)
     unit.loadTargetDescriptor(mv::Target::ma2490);
     unit.compilationDescriptor().remove("initialize");
     unit.compilationDescriptor().remove("adapt");
-    unit.compilationDescriptor().remove("keembay_adapt");
+    unit.compilationDescriptor().remove("kmb_adapt");
     unit.compilationDescriptor().remove("dma");
     unit.compilationDescriptor().remove("control_flows");
     unit.compilationDescriptor().remove("finalize","MaxTopologicalCutAndPartialSerialisation");
@@ -369,7 +369,7 @@ TEST(insert_barrier_tasks, dealloc_edge)
     unit.loadTargetDescriptor(mv::Target::ma2490);
     unit.compilationDescriptor().remove("initialize");
     unit.compilationDescriptor().remove("adapt");
-    unit.compilationDescriptor().remove("keembay_adapt");
+    unit.compilationDescriptor().remove("kmb_adapt");
     unit.compilationDescriptor().remove("dma");
     unit.compilationDescriptor().remove("control_flows");
     unit.compilationDescriptor().remove("finalize","MaxTopologicalCutAndPartialSerialisation");
@@ -718,7 +718,7 @@ static void RunTest(mv::CompilationUnit& unit, std::vector<int>& barrierOpIndice
 
     unit.compilationDescriptor().remove("finalize","GenerateWorkloads");
     unit.compilationDescriptor().remove("finalize","MaxTopologicalCutAndPartialSerialisation");
-    unit.compilationDescriptor().remove("serialize","GenerateBlobKeembay");
+    unit.compilationDescriptor().remove("serialize","GenerateBlobKmb");
 
     // Clean up barrier indices after run (since we'll be creating and running multiple networks)
     unit.compilationDescriptor().addToGroup("root","GlobalParamsReset","Singular", false);

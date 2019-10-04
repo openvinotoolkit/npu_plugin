@@ -1,10 +1,5 @@
 #!/bin/bash
 
-# remove any previously generated meta files
-rm -rf meta/include
-rm -rf meta/schema
-rm -rf meta/src
-
 if ! [ -d "build" ] 
 then
     mkdir build

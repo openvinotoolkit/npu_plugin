@@ -312,7 +312,7 @@ void mv::MemoryAllocator::bindData_(BufferIterator slaveBuffer, bool pad)
         (*slaveBuffer)->getData()->bindData(*(*masterBuffer)->getData());
     for (auto it = (*slaveBuffer)->slaveBuffers.begin(); it != (*slaveBuffer)->slaveBuffers.end(); ++it)
         bindData_(*it, false);
-    
+
 }
 
 mv::MemoryAllocator::BufferIterator mv::MemoryAllocator::allocate(Data::TensorIterator tensor, std::size_t stageIdx)
@@ -322,7 +322,7 @@ mv::MemoryAllocator::BufferIterator mv::MemoryAllocator::allocate(Data::TensorIt
         entries_.emplace(stageIdx, std::set<std::shared_ptr<MemoryBuffer>, BufferOrderComparator>());
 
     if (!tensor->hasAttr("allocators")) {
-        
+
         Shape shape(tensor->getShape());
         MemoryBuffer newBuffer;
         newBuffer.id = currentID_++;
@@ -356,15 +356,15 @@ mv::MemoryAllocator::BufferIterator mv::MemoryAllocator::allocate(Data::TensorIt
     else {
 
         /*Get attribute allocators*/
-        auto allocators = tensor->get<std::set<std::string>>("allocators");
-       
+        auto& allocators = tensor->get<std::set<std::string>>("allocators");
+
         /*If tensor  already has an allocator of the same name*/
         if (allocators.count(name_) != 0)
-            throw ArgumentError(*this, "tensor", tensor->getName(), "Already has an allocater called " + name_); 
+            throw ArgumentError(*this, "tensor", tensor->getName(), "Already has an allocater called " + name_);
         else {
 
             Shape shape(tensor->getShape());
-            
+
             MemoryBuffer newBuffer;
             newBuffer.id = currentID_++;
             newBuffer.offset = 0;
@@ -387,14 +387,14 @@ mv::MemoryAllocator::BufferIterator mv::MemoryAllocator::allocate(Data::TensorIt
 
             auto buffer = entries_[stageIdx].emplace(std::make_shared<MemoryBuffer>(newBuffer)).first;
             placeBuffers_(stageIdx);
-            
+
             /*Add allocator name*/
             allocators.insert(name_);
 
             return buffer;
 
         }
-    }        
+    }
 }
 
 mv::MemoryAllocator::BufferIterator mv::MemoryAllocator::allocate(Data::TensorIterator tensor, BufferIterator masterBuffer,
@@ -415,7 +415,7 @@ mv::MemoryAllocator::BufferIterator mv::MemoryAllocator::getTopMasterBuffer(mv::
     return t;
 }
 
-mv::MemoryAllocator::BufferIterator mv::MemoryAllocator::move(BufferIterator slaveBuffer, BufferIterator masterBuffer, 
+mv::MemoryAllocator::BufferIterator mv::MemoryAllocator::move(BufferIterator slaveBuffer, BufferIterator masterBuffer,
     const std::vector<std::size_t>& leftPadding, const std::vector<std::size_t>& rightPadding)
 {
 
@@ -455,7 +455,7 @@ mv::MemoryAllocator::BufferIterator mv::MemoryAllocator::move(BufferIterator sla
         auto &slaves = (*masterBuffer)->slaveBuffers;
         slaves.erase(std::remove(slaves.begin(), slaves.end(), slaveBuffer), slaves.end());
     }
-    
+
     (*slaveBuffer)->offset = (*masterBuffer)->offset;
     (*slaveBuffer)->masterBuffer = masterBuffer;
     (*masterBuffer)->slaveBuffers.push_back(slaveBuffer);

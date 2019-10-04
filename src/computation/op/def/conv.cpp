@@ -3,7 +3,7 @@
 namespace mv
 {
 
-    namespace op
+    namespace op_conv
     {
 
         static std::function<std::pair<bool, std::size_t>(const std::vector<Data::TensorIterator>&,
@@ -109,6 +109,10 @@ namespace mv
 
         };
 
+
+    }
+
+    namespace op {
         MV_REGISTER_OP(Conv)
         .setInputs({"data", "weights"})
         .setOutputs({"output"})
@@ -118,9 +122,10 @@ namespace mv
         .setOptionalArg<unsigned>("group", 1)
         .setOptionalArg<mv::DType>("dType", mv::DType("Default"))
         .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
-        .setInputCheck(inputCheckFcn)
-        .setOutputDef(outputDefFcn)
+        .setInputCheck(op_conv::inputCheckFcn)
+        .setOutputDef(op_conv::outputDefFcn)
         .setTypeTrait({"executable", "exposed"});
+
 
     }
 

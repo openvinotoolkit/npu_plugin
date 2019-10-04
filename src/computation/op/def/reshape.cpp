@@ -3,7 +3,7 @@
 namespace mv
 {
 
-    namespace op
+    namespace op_reshape
     {
 
         static std::function<std::pair<bool, std::size_t>(const std::vector<Data::TensorIterator>&,
@@ -49,6 +49,12 @@ namespace mv
             outputs.push_back(mv::Tensor(":0",  args.at("shape").get<mv::Shape>(), inputs[0]->getDType(), new_order));
         };
 
+        static std::string empty;
+
+    }
+
+    namespace op {
+
         // Reshape:
         // Change tensor shape w/o physically moving data
         //
@@ -63,15 +69,14 @@ namespace mv
 
         // TODO: introduce "undefined" value of mv::Order
         // Undefined new order means: do not change order
-        static std::string empty;
 
         MV_REGISTER_OP(Reshape)
         .setInputs({"data0"})
         .setOutputs({"output"})
         .setArg<mv::Shape>("shape")
-        .setOptionalArg<std::string>("order", empty)
-        .setInputCheck(inputCheckFcn)
-        .setOutputDef(outputDefFcn)
+        .setOptionalArg<std::string>("order", op_reshape::empty)
+        .setInputCheck(op_reshape::inputCheckFcn)
+        .setOutputDef(op_reshape::outputDefFcn)
         .setTypeTrait({"executable", "exposed"});
 
     }

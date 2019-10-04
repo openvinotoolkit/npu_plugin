@@ -2,7 +2,7 @@
 #include "include/mcm/compiler/compilation_unit.hpp"
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
-#include "meta/include/mcm/op_model.hpp"
+#include "include/mcm/op_model.hpp"
 #include "include/mcm/tensor/math.hpp"
 #include "include/mcm/utils/data_generator.hpp"
 #include "include/mcm/pass/pass_registry.hpp"
@@ -28,7 +28,7 @@ TEST(graph_coloring, single_conv)
     compDesc.setPassArg("GenerateSparsityMaps", "enableRealSparsity", true);
 
     compDesc.remove("finalize","GenerateWorkloads");
-    compDesc.remove("serialize","GenerateBlobKeembay");
+    compDesc.remove("serialize","GenerateBlobKmb");
 
     unit.loadTargetDescriptor(mv::Target::ma2490);
     unit.initialize();
@@ -109,7 +109,7 @@ TEST(graph_coloring, three_conv)
     mv::CompilationDescriptor &compDesc = unit.compilationDescriptor();
     compDesc.setPassArg("GenerateSparsityMaps", "enableRealSparsity", true);
     compDesc.remove("finalize", "GenerateWorkloads");
-    compDesc.remove("serialize", "GenerateBlobKeembay");
+    compDesc.remove("serialize", "GenerateBlobKmb");
 
     unit.loadTargetDescriptor(mv::Target::ma2490);
     unit.initialize();

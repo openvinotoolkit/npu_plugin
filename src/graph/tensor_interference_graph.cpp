@@ -265,7 +265,6 @@ void mv::TensorInterferenceGraph::genIntereferenceGraph_(const mv::pass::PassEnt
     {
         if (!taskFilter || taskFilter(opIterator))
         {
-
             inputTensorNames = getTaskTopTensors_(opIterator->getInputTensor(), model, dm, tensorFilter, isDMA);
 
             for (std::unordered_set<std::string>::const_iterator name = inputTensorNames.begin( ); name != inputTensorNames.end( ); ++name)

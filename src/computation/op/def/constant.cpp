@@ -3,7 +3,7 @@
 namespace mv
 {
 
-    namespace op
+    namespace op_constant
     {
 
         static std::function<std::pair<bool, std::size_t>(const std::vector<Data::TensorIterator>&,
@@ -64,6 +64,9 @@ namespace mv
             }
      };
 
+    }
+
+    namespace op {
         MV_REGISTER_OP(Constant)
         .setOutputs({"output"})
         .setArg<std::vector<double>>("data")
@@ -71,8 +74,8 @@ namespace mv
         .setArg<mv::DType>("dType")
         .setArg<mv::Order>("order")
         .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
-        .setInputCheck(inputCheckFcn)
-        .setOutputDef(outputDefFcn)
+        .setInputCheck(op_constant::inputCheckFcn)
+        .setOutputDef(op_constant::outputDefFcn)
         .setTypeTrait({"exposed"});
 
         MV_REGISTER_OP(ConstantInt)
@@ -82,8 +85,8 @@ namespace mv
         .setArg<mv::DType>("dType")
         .setArg<mv::Order>("order")
         .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
-        .setInputCheck(inputCheckFcn)
-        .setOutputDef(outputIntDefFcn)
+        .setInputCheck(op_constant::inputCheckFcn)
+        .setOutputDef(op_constant::outputIntDefFcn)
         .setTypeTrait({"exposed"});
 
         MV_REGISTER_OP(ConstantDataElement)
@@ -93,8 +96,10 @@ namespace mv
         .setArg<mv::DType>("dType")
         .setArg<mv::Order>("order")
         .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
-        .setInputCheck(inputCheckFcn)
-        .setOutputDef(outputDataElementDefFcn);
+        .setInputCheck(op_constant::inputCheckFcn)
+        .setOutputDef(op_constant::outputDataElementDefFcn);
+
+
     }
 
 }

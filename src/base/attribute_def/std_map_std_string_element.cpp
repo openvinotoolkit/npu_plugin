@@ -8,7 +8,7 @@
 namespace mv
 {
 
-    namespace attr
+    namespace attr_std_map_std_string
     {
 
         static mv::json::Value toJSON(const Attribute& a)
@@ -57,10 +57,13 @@ namespace mv
             return output;
         }
 
+    }
+
+    namespace attr {
         MV_REGISTER_ATTR(std::map<std::string COMMA Element>)
-            .setToJSONFunc(toJSON)
-            .setFromJSONFunc(fromJSON)
-            .setToStringFunc(toString);
+            .setToJSONFunc(attr_std_map_std_string::toJSON)
+            .setFromJSONFunc(attr_std_map_std_string::fromJSON)
+            .setToStringFunc(attr_std_map_std_string::toString);
 
     }
 

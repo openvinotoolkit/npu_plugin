@@ -4,7 +4,7 @@
 #include "include/mcm/utils/custom_math.hpp"
 
 #include "include/mcm/utils/hardware_tests.hpp"
-#include "meta/include/mcm/op_model.hpp"
+#include "include/mcm/op_model.hpp"
 #include <iostream>
 #include <fstream>
 

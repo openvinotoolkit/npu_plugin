@@ -1,7 +1,7 @@
 #include "include/mcm/pass/pass_registry.hpp"
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
-#include "meta/include/mcm/op_model.hpp"
+#include "include/mcm/op_model.hpp"
 #include "include/mcm/utils/env_loader.hpp"
 
 void generateDotFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&);
@@ -173,17 +173,17 @@ void generateDotFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
                                                 + dataIt->getTensor()->get(*attrIt).toString()
                                                 + "</FONT></TD></TR>";
                             }
-                            else
-                            {
-                                edgeDef += "<TR><TD ALIGN=\"RIGHT\"><FONT POINT-SIZE=\"11.0\">"
-                                            + dataIt->getTensor()->getShape().toString()
-                                            + "</FONT></TD></TR>";
-                            }
+                            edgeDef += "<TR><TD ALIGN=\"LEFT\"><FONT POINT-SIZE=\"11.0\"> Shape : </FONT></TD> <TD ALIGN=\"RIGHT\"><FONT POINT-SIZE=\"11.0\">"
+                                        + dataIt->getTensor()->getShape().toString()
+                                        + "</FONT></TD></TR>";
                             edgeDef += "</TABLE>>];";
                         }
                         else
                         {
                             edgeDef += " [label=\"" + dataIt->getTensor()->getName() + "\\n";
+                            edgeDef += "shape : "
+                                        + dataIt->getTensor()->getShape().toString()
+                                        + "\\n";
                             if (contentLevel == "full")
                             {
                                 std::vector<std::string> attrKeys(dataIt->getTensor()->attrsKeys());

@@ -8,7 +8,7 @@
 #include "include/mcm/utils/env_loader.hpp"
 #include "include/mcm/compiler/compilation_unit.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
-#include "meta/include/mcm/op_model.hpp"
+#include "include/mcm/op_model.hpp"
 
 #include <fstream>
 
