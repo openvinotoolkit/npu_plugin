@@ -1,7 +1,7 @@
-#include <limits>
-#include <unordered_map>
 #include "gtest/gtest.h"
 #include "feasible_scheduler.hpp"
+#include <limits>
+#include <unordered_map>
 
 namespace scheduler_unit_tests {
 
@@ -290,7 +290,7 @@ using namespace scheduler_unit_tests;
 typedef Operation_Dag dag_t;
 
 // Unit tests to verify the iterator in the dag //
-TEST(scheduler_unit_test_infra, empty_graph) {
+TEST(lp_scheduler_unit_test_infra, empty_graph) {
   dag_t::adjacency_map_t in = { }; 
   dag_t dag(in);
 
@@ -298,7 +298,7 @@ TEST(scheduler_unit_test_infra, empty_graph) {
   EXPECT_TRUE(dag.begin_edges() == dag.end());
 }
 
-TEST(scheduler_unit_test_infra, edge_iteration_no_edges) {
+TEST(lp_scheduler_unit_test_infra, edge_iteration_no_edges) {
   dag_t::adjacency_map_t in = { {"u", {}  }, {"v", {}  }, {"w", {} }};
   dag_t dag(in);
 
@@ -308,7 +308,7 @@ TEST(scheduler_unit_test_infra, edge_iteration_no_edges) {
   EXPECT_TRUE(itr == itr_end);
 }
 
-TEST(scheduler_unit_test_infra, edge_iteration_with_edges) {
+TEST(lp_scheduler_unit_test_infra, edge_iteration_with_edges) {
   dag_t::adjacency_map_t in = { {"u", {}  }, {"v", {"p", "q"}  }, {"w", {} }, 
     {"p", {}}, {"q", {}} };
   dag_t dag(in);
@@ -331,7 +331,7 @@ TEST(scheduler_unit_test_infra, edge_iteration_with_edges) {
   EXPECT_EQ(expected, out);
 }
 
-TEST(scheduler_unit_test_infra, vertex_iteration_no_edges) {
+TEST(lp_scheduler_unit_test_infra, vertex_iteration_no_edges) {
   dag_t::adjacency_map_t in = { {"u", {}  }, {"v", {}  }, {"w", {} }};
   dag_t dag(in);
 
@@ -353,7 +353,7 @@ TEST(scheduler_unit_test_infra, vertex_iteration_no_edges) {
   EXPECT_EQ(in, out);
 }
 
-TEST(scheduler_unit_test_infra, vertex_iteration_with_edges) {
+TEST(lp_scheduler_unit_test_infra, vertex_iteration_with_edges) {
   dag_t::adjacency_map_t in = { {"u", {"e", "f", "g"}  },
       {"v", {"h", "i", "j"}  }, {"w", {"k"} }};
   dag_t dag(in);
@@ -377,7 +377,7 @@ TEST(scheduler_unit_test_infra, vertex_iteration_with_edges) {
   EXPECT_EQ(expected, out);
 }
 
-TEST(scheduler_unit_test_infra, outgoing_edges_of_node) {
+TEST(lp_scheduler_unit_test_infra, outgoing_edges_of_node) {
   dag_t::adjacency_map_t in = { {"u", {"v"}  }, {"v", {"w"}  }, {"w", {"x"} },
       {"x", {} } }; // chain //
   dag_t dag(in);
@@ -395,7 +395,7 @@ typedef mv::lp_scheduler::Feasible_Schedule_Generator<Operation_Dag>
   scheduler_t; 
 
 // Unit tests for the scheduler algorithm //
-TEST(scheduler, chain_scheduler_unbounded_resources) {
+TEST(lp_scheduler, chain_scheduler_unbounded_resources) {
   // create input //
   dag_t::adjacency_map_t in = { {"u", {"v"}  }, {"v", {"w"}  }, {"w", {"x"} },
       {"x", {} } }; // chain //
@@ -434,7 +434,7 @@ TEST(scheduler, chain_scheduler_unbounded_resources) {
 }
 
 
-TEST(scheduler, unfeasible_schedule) {
+TEST(lp_scheduler, unfeasible_schedule) {
   // create input //
   dag_t::adjacency_map_t in = { {"u", {"v"}  }, {"v", {"w"}  }, {"w", {"x"} },
       {"x", {} } }; // chain //
@@ -446,7 +446,7 @@ TEST(scheduler, unfeasible_schedule) {
 }
 
 
-TEST(scheduler, no_resource_bottle_neck) {
+TEST(lp_scheduler, no_resource_bottle_neck) {
   /// input //
   dag_t::adjacency_map_t in = { 
     {"start", {"u", "v", "w", "x"} },
@@ -488,7 +488,7 @@ TEST(scheduler, no_resource_bottle_neck) {
   ASSERT_TRUE(scheduler_begin == schedule_end);
 }
 
-TEST(scheduler, resource_bound_of_two_units) {
+TEST(lp_scheduler, resource_bound_of_two_units) {
   /// input //
   dag_t::adjacency_map_t in = { 
     {"start", {"u", "v", "w", "x"} },
@@ -530,7 +530,7 @@ TEST(scheduler, resource_bound_of_two_units) {
   ASSERT_TRUE(scheduler_begin == schedule_end);
 }
 
-TEST(scheduler, two_connected_diamonds) {
+TEST(lp_scheduler, two_connected_diamonds) {
   dag_t::adjacency_map_t in = {
     {"a", {"b", "c"} }, {"b", {"d"}}, {"c", {"d"}},
     {"d", {"e", "f"}}, {"e", {"g"}}, {"f", {"g"}}, {"g", {}} };
@@ -539,10 +539,7 @@ TEST(scheduler, two_connected_diamonds) {
   {
     scheduler_t scheduler_begin(g, 2), scheduler_end;
     
-    size_t make_span = 0UL;
-
     while (scheduler_begin != scheduler_end) {
-      ++make_span;
       ++scheduler_begin;
     }
     EXPECT_EQ(scheduler_begin.current_time(), 5UL);
@@ -552,15 +549,39 @@ TEST(scheduler, two_connected_diamonds) {
   {
     scheduler_t scheduler_begin(g, 1), scheduler_end;
     
-    size_t make_span = 0UL;
-
     while (scheduler_begin != scheduler_end) {
-      ++make_span;
       ++scheduler_begin;
     }
     EXPECT_EQ(scheduler_begin.current_time(), 7UL);
   }
 }
+
+TEST(lp_scheduler, dependency_dominates_availability) {
+  dag_t::adjacency_map_t in = { 
+    {"start", {"u", "v", "w"} },
+        {"u", {"x"}  }, {"v", {"x"}  }, {"w", {"x"} }, {"x", {} } }; 
+  dag_t g(in);
+
+  scheduler_t scheduler_begin(g, 2 /*resource bound*/), scheduler_end; 
+
+  // notice that even though we have 2 resources available "x" cannot
+  // be scheduled with any of "u", "v" or "w" it has to wait till all 
+  // the three "u,v,w" complete.
+
+  size_t itr_count = 0UL;
+  size_t op_time_of_x = 0UL;
+  while (scheduler_begin != scheduler_end) {
+    if (*scheduler_begin == "x") {
+      op_time_of_x = scheduler_begin.current_time();
+    }
+    ++itr_count;
+    ++scheduler_begin;
+    ASSERT_TRUE(itr_count <= 5);
+  }
+  EXPECT_EQ(op_time_of_x, 3UL);
+  EXPECT_EQ(scheduler_begin.current_time(), 4UL);
+}
+
 
 
 
