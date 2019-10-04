@@ -546,6 +546,7 @@ namespace mv
 
                 auto parentMem = memorySize(parentOp,
                                             parentClustering,
+                                            //parent["inputSparsity"],
                                             false,
                                             parentOutputSparsity,
                                             parent["weightsSparsity"].get<bool>(),
@@ -559,6 +560,11 @@ namespace mv
                                             child["weightsSparsity"].get<bool>(),
                                             child["streaming"].get<Shape>(),
                                             false);
+
+                //if((parentMem.first + parentMem.second) > clusterMemory)
+                    //std::cout << "Parent " << parentOp.getName() << " memory footprint: " << parentMem.first << ", " << parentMem.second << std::endl;
+                //if( (childMem.first + childMem.second) > clusterMemory)
+                    //std::cout << "Child " << childOp.getName() << " memory footprint: " << childMem.first << ", " << childMem.second << std::endl;
 
                 if( ((childMem.first + childMem.second) > clusterMemory) or
                     ((parentMem.first + parentMem.second) > clusterMemory))
@@ -726,6 +732,11 @@ namespace mv
                                         continue;
 
                                     Shape streamShape({1,h,1,k});//Stream over W and C are 1 for now . TODO: implement stream W/C
+                                    //hack to decrease number of nodes added to graph
+                                    auto fit = memorySize(op,clustering,false, false,weightsSparsity.get<bool>(),streamShape,false);
+                                    if(fit.first + fit.second > clusterMemory)
+                                        continue;
+
                                     StrategySet s;
                                     s["name"] = op.getName();
                                     if(clustering.get<string>() == "SplitOverK")
