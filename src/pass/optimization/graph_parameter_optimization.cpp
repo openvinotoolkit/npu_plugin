@@ -48,7 +48,8 @@ namespace mv
             int ddrBandwidth;
             int sysClock;
             bool globalEnableStreaming;
-            bool globalEnableSparsity;
+            bool globalEnableActivationSparsity;
+            bool globalEnableWeightsSparsity;
             double safetyFactor;
             double clusterMemory;
 
@@ -97,6 +98,20 @@ namespace mv
                 else
                 {
                     return vector<Attribute>{true,false};
+                }
+            }
+
+            bool createStrategyFromBool(mv::Op op, string name){
+                auto& streamingStrategy = getStrategy(op,name);
+
+                bool value = streamingStrategy.get<bool>();
+                if(value)
+                {
+                    return true;
+                }
+                else
+                {
+                    return false;
                 }
             }
 
@@ -274,7 +289,7 @@ namespace mv
 
                     for(auto clusterSize : clusterChannelSizes)
                     {
-                        if( ((clusterSize / split) <16) ) //or ((clusterSize%split) !=0) or ((clusterSize/split)%16 != 0))
+                        if( ((clusterSize / split) <16)  or (split > 8 and split%8 != 0) )//((clusterSize%split) !=0) or ((clusterSize/split)%16 != 0))
                             validSplit = false;
                     }
                     if(!validSplit)
@@ -642,22 +657,24 @@ namespace mv
             void generateStrategySetForLayer(mv::Op& op,vector<StrategySet>& strategyVec)
             {
                 globalEnableStreaming = globalStrategies_["enableStreaming"].get<bool>();
-                globalEnableSparsity = globalStrategies_["enableSparsity"].get<bool>();
+                globalEnableActivationSparsity = globalStrategies_["enableActivationSparsity"].get<bool>();
+                globalEnableWeightsSparsity = globalStrategies_["enableWeightsSparsity"].get<bool>();
 
                 auto findStrategy = [](vector<Attribute>& vec,const string& str) ->bool { for(const auto elem : vec) if(str==elem.get<string>()) return true; return false;};
                 
                 vector<Attribute> weightsSparsityPool;
-                bool inputActivationSparsity;
-                bool outputActivationSparsity;
-
-                if(globalEnableSparsity){
+                if(globalEnableWeightsSparsity){
                     weightsSparsityPool = createTFStrategyPoolFromBool(op,"weightsSparsity"); 
-                    auto& inputStrategy = getStrategy(op,"inputActivationSparsity");
-                    inputActivationSparsity = inputStrategy.get<bool>();
-                    auto& outputStrategy = getStrategy(op,"outputActivationSparsity");
-                    outputActivationSparsity = outputStrategy.get<bool>();
                 } else {
                     weightsSparsityPool.push_back({false});
+                }
+
+                bool inputActivationSparsity;
+                bool outputActivationSparsity;
+                if(globalEnableActivationSparsity){
+                    inputActivationSparsity = createStrategyFromBool(op,"inputActivationSparsity");
+                    outputActivationSparsity = createStrategyFromBool(op,"outputActivationSparsity");
+                }else{
                     inputActivationSparsity = false;
                     outputActivationSparsity = false;
                 }
