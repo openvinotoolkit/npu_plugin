@@ -134,7 +134,6 @@ void StrategyManager::printStrategy()
 }
 
 
-//TODO:: error if the strategy is not there...
 Attribute& StrategyManager::getStrategy(mv::Op op,string strategy)
 {
     auto layerEntry = layerStrategies_.find(op.getName());

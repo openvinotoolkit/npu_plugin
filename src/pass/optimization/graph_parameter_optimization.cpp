@@ -128,6 +128,21 @@ namespace mv
 
             }
 
+            void resetActivationSparsityStrategy(mv::Op op, StrategySet& layer){
+                bool inputActivationSparsity;
+                bool outputActivationSparsity;
+                if(globalEnableSparsity){
+                    auto& activationSparsityStrategy = getStrategy(op,"inputActivationSparsity");
+                    inputActivationSparsity = activationSparsityStrategy.get<bool>();
+                    outputActivationSparsity = true;  
+                } else {
+                    inputActivationSparsity = false;
+                    outputActivationSparsity = false;
+                }
+                layer["inputSparsity"] = inputActivationSparsity;
+                layer["outputSparsity"] = outputActivationSparsity;
+            }
+
             pair<size_t,size_t> memorySize(mv::Op& op,const Attribute& clustering,const Attribute& activationSparsity,const Attribute& weightsSparsity,const Shape& streamConfig, bool prefetch)
             {
                 auto inputTensors = op.getInputTensor();
@@ -460,8 +475,8 @@ namespace mv
 
 
                 //Sparsity rules
-                if( (parent["spilling"].get<bool>()) and (child["inputSparsity"].get<bool>()) )
-                    return INF;
+                //if( (parent["spilling"].get<bool>()) and (child["inputSparsity"].get<bool>()) )
+                    //return INF;
 
                 /* TODO decide where these should live ->  currently captured in generate strategy instead
                  
@@ -488,8 +503,8 @@ namespace mv
                     if(numInChannels < 16)
                     {
                         //TODO add input activation sparsity can't happen here
-                        if(child["inputSparsity"].get<bool>())
-                           return INF;
+                        //if(child["inputSparsity"].get<bool>())
+                           //return INF;
                         //with this we will assume ChMajorConvolution
                         if( (childClustering == "SplitOverH") and
                                 (not (parentClustering == "SplitOverHOverlapped")))
@@ -616,19 +631,19 @@ namespace mv
 
                 auto findStrategy = [](vector<Attribute>& vec,const string& str) ->bool { for(const auto elem : vec) if(str==elem.get<string>()) return true; return false;};
                 
-                vector<Attribute> inputSparsityPool;
-                vector<Attribute> outputSparsityPool;
                 vector<Attribute> weightsSparsityPool;
+                bool inputActivationSparsity;
+                bool outputActivationSparsity;
 
                 if(globalEnableSparsity){
-                    inputSparsityPool = createTFStrategyPoolFromBool(op,"inputActivationSparsity");
-                    //outputSparsityPool = createTFStrategyPoolFromBool(op,"outputActivationSparsity");
-                    outputSparsityPool.push_back({true});
-                    weightsSparsityPool = createTFStrategyPoolFromBool(op,"weightsSparsity");   
+                    weightsSparsityPool = createTFStrategyPoolFromBool(op,"weightsSparsity"); 
+                    auto& activationSparsityStrategy = getStrategy(op,"inputActivationSparsity");
+                    inputActivationSparsity = activationSparsityStrategy.get<bool>();
+                    outputActivationSparsity = true;  
                 } else {
-                    inputSparsityPool.push_back({false});
-                    outputSparsityPool.push_back({false});
                     weightsSparsityPool.push_back({false});
+                    inputActivationSparsity = false;
+                    outputActivationSparsity = false;
                 }
                 
                 vector<Attribute> doubleBufferPool = createTFStrategyPoolFromBool(op,"doubleBuffering");
@@ -658,16 +673,12 @@ namespace mv
                 }
 
                 //TODO:: replace nested loops with clean cartesian product function
-                for( const auto inputSparsity : inputSparsityPool){
-                for( const auto outputSparsity : outputSparsityPool){
                 for( const auto weightsSparsity : weightsSparsityPool){
                     for( const auto spilling : spillingPool)
                     {
                         for( const auto clustering : clusteringStrategyPool)
                         {
-                            if(clustering.get<string>() == "SplitOverK" and (inputSparsity.get<bool>()))
-                                continue;
-                            auto mem = memorySize(op,clustering,inputSparsity,weightsSparsity,{1,1,1,1},false);
+                            auto mem = memorySize(op,clustering,inputActivationSparsity,weightsSparsity,{1,1,1,1},false);
                             auto activationsSize = mem.first;
                             auto weightsSize = mem.second;
                             unsigned maxSplitOverH;
@@ -707,9 +718,9 @@ namespace mv
                                     Shape streamShape({1,h,1,k});//Stream over W and C are 1 for now . TODO: implement stream W/C
                                     StrategySet s;
                                     s["name"] = op.getName();
+                                    s["inputSparsity"] = inputActivationSparsity;
+                                    s["outputSparsity"] = outputActivationSparsity;
                                     s["weightsSparsity"] = weightsSparsity;
-                                    s["outputSparsity"] = outputSparsity;
-                                    s["inputSparsity"] = inputSparsity;
                                     //s["doubleBuffering"] = doubleBuffering;
                                     s["spilling"] = spilling;
                                     s["clustering"] = clustering;
@@ -720,9 +731,6 @@ namespace mv
                             }
                         }
                     }
-                }
-                
-                }
                 }
             }
 
