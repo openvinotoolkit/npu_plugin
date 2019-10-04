@@ -1,5 +1,7 @@
 #ifndef DISJOINT_INTERVAL_SET_HPP
 #define DISJOINT_INTERVAL_SET_HPP
+#include <cassert>
+#include <limits>
 #include <map>
 #include <unordered_set>
 
@@ -73,6 +75,7 @@ class Disjoint_Interval_Set {
         const interval_iterator_t& operator++() {
           // Invariant: itr_begin_ always points to a left end //
           ++itr_begin_;
+          assert(itr_begin_ != itr_end_);
           ++itr_begin_;
           return *this;
         }
@@ -93,6 +96,63 @@ class Disjoint_Interval_Set {
         const_end_point_iterator_t itr_begin_;
         const_end_point_iterator_t itr_end_;
     }; // class range_query_iterator_t //
+
+    // Iterator over free intervals in the data structure //
+    class free_interval_iterator_t {
+      public:
+
+        free_interval_iterator_t(
+            const_end_point_iterator_t begin, const_end_point_iterator_t end,
+            unit_t prev_right=std::numeric_limits<unit_t>::min())
+        : itr_begin_(begin), itr_end_(end), prev_right_end_(prev_right) {}
+
+        // this constructor creates an invalid instance //
+        free_interval_iterator_t() : itr_begin_(), itr_end_(),
+          prev_right_end_(std::numeric_limits<unit_t>::max()) {}
+
+        // only invalid iterators are equivalent //
+        bool operator==(const free_interval_iterator_t& o) const {
+          return invalid() && o.invalid();
+        }
+
+        //WARNING: please keep in mind the interval is open on both
+        //ends. That is its of the following form:
+        // { x | interval_begin() < x < interval_end() }
+        unit_t interval_begin() const { return prev_right_end_; }
+        unit_t interval_end() const {
+          return (itr_begin_ == itr_end_) ? std::numeric_limits<unit_t>::max() :
+            (itr_begin_->first).x_;
+        }
+
+        // Precondition: !invalid() //
+        const free_interval_iterator_t& operator++() {
+          assert(!invalid());
+          if (itr_begin_ != itr_end_) {
+            // Invariant: itr_begin_ always points to the left end in the DS //
+            ++itr_begin_;
+            prev_right_end_ = (itr_begin_->first).x_;
+            assert((itr_begin_ != itr_end_));
+            ++itr_begin_;
+          } else {
+            invalidate(); 
+          }
+          return *this;
+        }
+
+      private:
+
+        void invalidate() {
+          prev_right_end_ = std::numeric_limits<unit_t>::max();
+        }
+
+        bool invalid() const { 
+          return (prev_right_end_ == std::numeric_limits<unit_t>::max());
+        }
+
+        const_end_point_iterator_t itr_begin_;
+        const_end_point_iterator_t itr_end_;
+        unit_t prev_right_end_;
+    }; // class free_interval_iterator_t //
 
 
     bool insert(const unit_t& ibeg, const unit_t& iend, const element_t& e) {
@@ -141,8 +201,24 @@ class Disjoint_Interval_Set {
       return interval_iterator_t(litr, ritr);
     }
 
+    interval_iterator_t begin() const {
+      return interval_iterator_t(tree_.begin(), tree_.end());
+    }
+
     interval_iterator_t end() const {
       return interval_iterator_t(tree_.end(), tree_.end());
+    }
+
+    // NOTE: the number of free intervals is n+1 if there are n intervals
+    // in this data structure. Even if the data structure is empty there is
+    // a free interval. The iterator returns open intervals of the form (a,b)
+    // not including 'a' and 'b'.
+    free_interval_iterator_t begin_free_intervals() const {
+      return free_interval_iterator_t(tree_.begin(), tree_.end());
+    }
+
+    free_interval_iterator_t end_free_intervals() const {
+      return free_interval_iterator_t();
     }
 
     // static utility method //
