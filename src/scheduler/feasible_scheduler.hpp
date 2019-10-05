@@ -139,6 +139,10 @@ class Contiguous_Resource_State {
     struct interval_info_t {
       unit_t begin_; 
       unit_t end_;
+      void invalidate() { 
+        begin_ = std::numeric_limits<unit_t>::max();
+        end_ = std::numeric_limits<unit_t>::min();
+      }
       interval_info_t(unit_t ibeg, unit_t iend) : begin_(ibeg), end_(iend) {}
     }; // struct interval_info_t //
 
@@ -200,6 +204,18 @@ class Contiguous_Resource_State {
       }
       lookup_.erase(litr);
       return true;
+    }
+
+    // Returns false if the operation is not using any resources //
+    interval_info_t get_resource_usage_info(const key_t& op) const {
+      typename lookup_t::iterator litr = lookup_.find(&op);
+      interval_info_t result;
+
+      result.invalidate();
+      if (litr != lookup_.end()) {
+        result = litr->second;
+      }
+      return result;
     }
 
   private:
@@ -344,6 +360,8 @@ class Feasible_Schedule_Generator {
   const_schedulable_ops_iterator_t end_candidates() const {
     return candidates_.end();
   }
+
+  const resource_state_t& resource_state() const { return resource_state_; }
 
 
 

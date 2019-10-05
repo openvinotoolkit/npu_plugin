@@ -239,3 +239,4 @@ TEST(Disjoint_Interval, open_intervals_with_typical_case) {
   ++itr_begin;
   ASSERT_TRUE(itr_begin == itr_end);
 }
+

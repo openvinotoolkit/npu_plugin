@@ -165,6 +165,12 @@ class Operation_Dag {
       resource_cost_model_ = resource_model;
     }
 
+    const operation_t& get_operation(const std::string& name) const {
+      adjacency_map_t::const_iterator itr = adj_map_.find(name);
+      assert(itr != adj_map_.end());
+      return itr->first;
+    }
+
 
     delay_t get_operation_delay(const operation_t& op) const {
       resource_cost_model_t::const_iterator itr = delay_cost_model_.find(op);
@@ -634,6 +640,110 @@ TEST(Contiguous_Resource_State, cumulative_available_but_not_contiguous) {
   EXPECT_TRUE(rstate.assign_resources(ops[2], 8));
   EXPECT_FALSE(rstate.is_resource_available(5));
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// Test scheduler with contiguous resource model //
+namespace scheduler_unit_tests {
+
+typedef mv::lp_scheduler::Contiguous_Resource_State<Operation_Dag::resource_t,
+        Operation_Dag::operation_t> memory_resource_state_t;
+
+struct operation_dag_with_contiguous_resource_model_t;
+
+} // namespace scheduler_unit_tests //
+
+namespace mv {
+namespace lp_scheduler {
+
+template<>
+struct scheduler_traits<
+  scheduler_unit_tests::operation_dag_with_contiguous_resource_model_t
+  > : public scheduler_unit_tests::Operation_Dag {
+    ////////////////////////////////////////////////////////////////////////////
+    // input graph model and delay model are used from Operation_Dag itself   //
+    using scheduler_unit_tests::Operation_Dag::Operation_Dag;
+
+    ////////////////////////////////////////////////////////////////////////////
+    // define resource update model //
+    typedef scheduler_unit_tests::memory_resource_state_t resource_state_t;
+
+    static void initialize_resource_upper_bound(const resource_t& upper_bound,
+        resource_state_t& state) {
+      state.initialize_resource_upper_bound(upper_bound);
+    }
+
+    static bool is_resource_available(const resource_t& demand,
+          const resource_state_t& state) {
+      return state.is_resource_available(demand);
+    }
+
+    static bool schedule_operation(const operation_t& op,
+        const resource_t& demand, resource_state_t& state) {
+      return state.assign_resources(op, demand);
+    }
+
+    static bool unschedule_operation(const operation_t& op,
+        resource_state_t& state) {
+      return state.unassign_resources(op);
+    }
+    ////////////////////////////////////////////////////////////////////////////
+
+}; // specialization for scheduler_unit_tests::dag_t //
+
+} // namespace lp_scheduler
+} // namespace mv
+
+typedef mv::lp_scheduler::Feasible_Schedule_Generator<
+  operation_dag_with_contiguous_resource_model_t > memory_scheduler_t; 
+
+TEST(memory_lp_scheduler, basic_test) {
+  /*
+  ///////////////////////////////////////////
+  //       +-->-(a)\
+  //       |        \
+  //       |         \
+  //       |          (c)
+  // (start)-->-(b)  /
+  //       |        /
+  //       |       /
+  //       +--->(d)
+  //
+  // d(a) = d(d) = d(c) 1 , d(b) = 3
+  // r(a) = 3, r(b) = 3 , r(d) = 4, r(c) = 5
+  ///////////////////////////////////////////
+  */
+
+  dag_t::adjacency_map_t in = {
+    {"start", {"a", "b", "d"} }, {"a", {"c"}}, {"b", {}}, {"d", {"c"}},
+      {"c", {}} };
+  dag_t::delay_cost_model_t delay = { {"start", 1},
+    {"a", 1}, {"d", 1}, {"c", 1}, {"b", 3} };
+  dag_t::resource_cost_model_t memory = { {"start", 1},
+    {"a", 3}, {"b", 3}, {"d", 4}, {"c", 5} };
+
+  dag_t g(in);
+
+  g.reset_delay_model(delay);
+  g.reset_resource_model(memory);
+
+  // scheduler with 10 units for resources//
+  memory_scheduler_t scheduler_begin(g, 10), scheduler_end; 
+
+  size_t itr_count = 0UL;
+  size_t start_time_of_c = 0UL;
+  while (scheduler_begin != scheduler_end) {
+    std::cout << "op=" << *scheduler_begin << " time=" 
+      << scheduler_begin.current_time() << std::endl;
+    if (*scheduler_begin  == "c") {
+      start_time_of_c = scheduler_begin.current_time();
+    }
+    ++itr_count;
+    ++scheduler_begin;
+    ASSERT_TRUE(itr_count <= 5);
+  }
+  EXPECT_EQ(start_time_of_c, 4UL);
+}
+
 
 
 
