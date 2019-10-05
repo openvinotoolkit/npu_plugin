@@ -582,6 +582,84 @@ TEST(lp_scheduler, dependency_dominates_availability) {
   EXPECT_EQ(scheduler_begin.current_time(), 4UL);
 }
 
+// Unit tests for testing the contiguous resource state //
+typedef mv::lp_scheduler::Contiguous_Resource_State<size_t, std::string>
+  contiguous_resource_state_t;
+
+TEST(Contiguous_Resource_State, unit_resource_upper_bound) {
+  std::vector<std::string> ops = {"op1", "op2"};
+
+  contiguous_resource_state_t rstate(1);
+
+  EXPECT_TRUE(rstate.is_resource_available(1));
+  EXPECT_FALSE(rstate.is_resource_available(2));
+
+  // now make a transaction //
+  EXPECT_TRUE(rstate.assign_resources(ops[0], 1));
+
+  // since the resource is already used this should be false //
+  EXPECT_FALSE(rstate.is_resource_available(1));
+}
+
+TEST(Contiguous_Resource_State, cumulative_available_but_not_contiguous) {
+  std::vector<std::string> ops = {"#", "*", "%"};
+
+  contiguous_resource_state_t rstate(10);
+  /*start state = [----------] */
+
+  EXPECT_TRUE(rstate.is_resource_available(5));
+  // now make a transaction //
+  EXPECT_TRUE(rstate.assign_resources(ops[0], 5));
+  /* state after = [#####-----]*/
+
+  EXPECT_TRUE(rstate.is_resource_available(2));
+  // now make a transaction //
+  EXPECT_TRUE(rstate.assign_resources(ops[1], 2));
+  /* state after = [#####**---]*/
+
+  EXPECT_FALSE(rstate.is_resource_available(5));
+  EXPECT_TRUE(rstate.is_resource_available(1));
+  EXPECT_TRUE(rstate.is_resource_available(2));
+  EXPECT_TRUE(rstate.is_resource_available(2));
+
+  // now unassign ops[0]=# //
+  EXPECT_TRUE(rstate.unassign_resources(ops[0]));
+  EXPECT_TRUE(rstate.is_resource_available(5));
+  // sum of free fragments is 8units but contiguous is max of 5 units //
+  EXPECT_FALSE(rstate.is_resource_available(8));
+
+  // now we unassign op[1]=* then we should have contiguous 8 units//
+  EXPECT_TRUE(rstate.unassign_resources(ops[1]));
+  EXPECT_TRUE(rstate.is_resource_available(8));
+  EXPECT_TRUE(rstate.assign_resources(ops[2], 8));
+  EXPECT_FALSE(rstate.is_resource_available(5));
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

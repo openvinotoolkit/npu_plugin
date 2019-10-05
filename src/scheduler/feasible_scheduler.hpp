@@ -123,49 +123,152 @@ class Cumulative_Resource_State {
   lookup_t active_resources_;
 }; // class Cumulative_Resource_State //
 
-
-/*
-// This models the resource state as disjoint set of intervals//
+// This models the resource state as disjoint set of integral intervals//
 template<typename Unit, typename Key>
 class Contiguous_Resource_State {
   public:
+    ////////////////////////////////////////////////////////////////////////////
     typedef Unit unit_t;
     typedef Key key_t;
-    typedef Disjoint_Interval_Set<unit_t, key_t> active_resources_t;
+    typedef const key_t * const_key_ptr_t;
+    typedef Disjoint_Interval_Set<unit_t, const_key_ptr_t> active_resources_t;
+    typedef typename active_resources_t::free_interval_iterator_t
+        free_interval_iterator_t;
+
+    // closed interval [begin_, end_] = { x | begin_ <= x <= end_ }
+    struct interval_info_t {
+      unit_t begin_; 
+      unit_t end_;
+      interval_info_t(unit_t ibeg, unit_t iend) : begin_(ibeg), end_(iend) {}
+    }; // struct interval_info_t //
+
+    typedef std::unordered_map<const_key_ptr_t, interval_info_t> lookup_t;
+    ////////////////////////////////////////////////////////////////////////////
+
+    Contiguous_Resource_State() : active_resources_(),
+      location_begin_(unit_t(1)), location_end_(unit_t(1)), lookup_() {}
+
+    Contiguous_Resource_State(unit_t upper_bound) : active_resources_(),
+      location_begin_(unit_t(1)), location_end_(unit_t(1)), lookup_() {
+        initialize_resource_upper_bound(upper_bound);
+    }
+
 
     void initialize_resource_upper_bound(const unit_t& upper_bound,
-        unit_t location_begin=unit_t(0)) {
+        unit_t location_begin=unit_t(1)) {
+      assert(upper_bound > 0);
       active_resources_.clear();
       location_begin_ = location_begin;
-      location_end_ = location_begin_ + upper_bound;
+      location_end_ = location_begin_ + upper_bound - 1; // its an index //
+      assert(location_begin_ > std::numeric_limits<unit_t>::min());
+      assert(location_end_ < std::numeric_limits<unit_t>::max());
     }
 
     bool is_resource_available(const unit_t& demand) const {
+      unit_t ibeg, iend;
+      return find_interval_satisfying_demand(demand, ibeg, iend);
+    }
 
+    bool assign_resources(const key_t& op, const unit_t& demand) {
+      if (!demand) { return true;}
+
+      const_key_ptr_t op_ptr = &op;
+      typename lookup_t::iterator litr = lookup_.find(op_ptr);
+
+      if (litr != lookup_.end()) { return false; }
+
+      // no resources assigned for this operation //
+
+      unit_t ibeg, iend;
+      if (!find_smallest_interval_satisfying_demand(demand, ibeg, iend) ||
+          !active_resources_.insert(ibeg, ibeg+demand-1, op_ptr)) {
+        return false;
+      }
+      // found a feasible resource //
+      lookup_.insert(std::make_pair(op_ptr,
+              interval_info_t(ibeg, ibeg+demand-1)));
+      return true;
+    }
+
+    bool unassign_resources(const key_t& op) {
+      typename lookup_t::iterator litr = lookup_.find(&op);
+      if (litr == lookup_.end()) { return false; }
+      const interval_info_t &interval = litr->second; 
+
+      if (!active_resources_.erase(interval.begin_, interval.end_)) {
+        return false;
+      }
+      lookup_.erase(litr);
+      return true;
     }
 
   private:
 
     // TODO(vamsikku): the cost of this O(k) where k is the number of active
     // tasking using the contiguous memory.
-    bool find_smallest_interval_satisfying_demand(const unit_t& demand,
+    bool find_interval_satisfying_demand(const unit_t& demand,
         unit_t& interval_start, unit_t& interval_end) const {
-      active_resources_t::interval_iterator_t itr = active_resources_.begin(),
-        itr_end = active_resources_.end();
+      free_interval_iterator_t itr, itr_end;
+      itr = active_resources_.begin_free_intervals();
+      itr_end = active_resources_.end_free_intervals();
 
-      if (active_resources_.empty() &&
-            (upper_bound() >= demand)) { return true; }
-
-
+      for (;itr != itr_end; ++itr) {
+        if (does_interval_satisfy_demand(itr, demand,
+                interval_start, interval_end)) { return true; }
+      }
+      return false;
     }
 
-    unit_t upper_bound() const { return location_end_ - location_begin; }
+    bool does_interval_satisfy_demand(free_interval_iterator_t itr,
+        const unit_t& demand,
+        unit_t& interval_start, unit_t& interval_end) const {
+      // note this always produces open intervals of the form:
+      // (a,b) = { x | a < x < b } //
+      unit_t a = std::max(location_begin_-1, itr.interval_begin());
+      unit_t b = std::min(location_end_+1, itr.interval_end());
+      assert(b >= a);
+      unit_t available_capacity = (b - a) - 1;
+      // note for open intervals (i,i+1) the above value is zero //
+
+      if (available_capacity < demand) { return false; }
+
+      interval_start = a+1; interval_end = b-1;
+      assert(interval_start <= interval_end);
+      return true;
+    }
+
+    // TODO(vamsikku): the cost of this O(k) where k is the number of active
+    // tasking using the contiguous memory.
+    bool find_smallest_interval_satisfying_demand(const unit_t& demand,
+        unit_t& output_interval_start, unit_t& output_interval_end) const {
+      typename active_resources_t::free_interval_iterator_t itr, itr_end;
+
+      itr = active_resources_.begin_free_intervals();
+      itr_end = active_resources_.end_free_intervals();
+      unit_t min_capacity = std::numeric_limits<unit_t>::max();
+      unit_t curr_start, curr_end;
+
+      output_interval_start = std::numeric_limits<unit_t>::max();
+      output_interval_end = std::numeric_limits<unit_t>::min();
+
+      for (;itr != itr_end; ++itr) {
+        if (does_interval_satisfy_demand(itr, demand, curr_start, curr_end) &&
+            (min_capacity > ((curr_end - curr_start)+1)) ) {
+          output_interval_start = curr_start;
+          output_interval_end = curr_end;
+          min_capacity = (curr_end - curr_start) + 1; 
+        }
+      }
+      return output_interval_start <= output_interval_end;
+    }
+
+    unit_t upper_bound() const { return (location_end_ - location_begin_) + 1; }
 
     active_resources_t active_resources_;
     unit_t location_begin_;
     unit_t location_end_;
+    lookup_t lookup_;
 }; // class Contiguous_Resource_State //
-*/
 
 template<typename T, typename SchedulerTraits=scheduler_traits<T>,
          typename Allocator=std::allocator<T> >

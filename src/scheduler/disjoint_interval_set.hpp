@@ -115,6 +115,10 @@ class Disjoint_Interval_Set {
           return invalid() && o.invalid();
         }
 
+        bool operator!=(const free_interval_iterator_t& o) const {
+          return !(*this == o);
+        }
+
         //WARNING: please keep in mind the interval is open on both
         //ends. That is its of the following form:
         // { x | interval_begin() < x < interval_end() }
@@ -231,6 +235,7 @@ class Disjoint_Interval_Set {
 
     size_t size() const { assert(tree_.size()%2 == 0); return tree_.size()/2; }
     bool empty() const { return tree_.empty(); }
+    void clear() { tree_.clear(); }
 
   private:
 
@@ -247,7 +252,7 @@ class Disjoint_Interval_Set {
           (lkey.x_ < lkey_lb.x_) && (rkey.x_ < lkey_lb.x_));
     }
 
-
+    ////////////////////////////////////////////////////////////////////////////
     end_point_tree_t tree_; // balanced search tree on end_point_t //
 }; // class Disjoint_Interval_Set //
 
