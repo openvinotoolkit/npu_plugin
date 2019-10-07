@@ -399,6 +399,7 @@ TEST(lp_scheduler_unit_test_infra, outgoing_edges_of_node) {
 
 typedef mv::lp_scheduler::Feasible_Schedule_Generator<Operation_Dag>
   scheduler_t; 
+typedef scheduler_t cumulative_memory_scheduler_t;
 
 // Unit tests for the scheduler algorithm //
 TEST(lp_scheduler, chain_scheduler_unbounded_resources) {
@@ -742,34 +743,45 @@ TEST(memory_lp_scheduler, basic_test) {
     ASSERT_TRUE(itr_count <= 5);
   }
   EXPECT_EQ(start_time_of_c, 4UL);
+  // completion time //
+  EXPECT_EQ(scheduler_begin.current_time(), 5UL);
 }
 
 
+TEST(memory_lp_scheduler, cumulative_version) {
+  // Same as the above test however we relax the cumulative resource constraint
+  // notice the makespan improvement form 5units to 4units. Also the operation
+  // 'c' now is being scheduled at time of 2units. The operation 'b' is now on
+  // the critical path.
 
+  dag_t::adjacency_map_t in = {
+    {"start", {"a", "b", "d"} }, {"a", {"c"}}, {"b", {}}, {"d", {"c"}},
+      {"c", {}} };
+  dag_t::delay_cost_model_t delay = { {"start", 1},
+    {"a", 1}, {"d", 1}, {"c", 1}, {"b", 3} };
+  dag_t::resource_cost_model_t memory = { {"start", 1},
+    {"a", 3}, {"b", 3}, {"d", 4}, {"c", 5} };
 
+  dag_t g(in);
 
+  g.reset_delay_model(delay);
+  g.reset_resource_model(memory);
 
+  // scheduler with 10 units for resources//
+  cumulative_memory_scheduler_t scheduler_begin(g, 10), scheduler_end; 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+  size_t itr_count = 0UL;
+  size_t start_time_of_c = 0UL;
+  while (scheduler_begin != scheduler_end) {
+    std::cout << "op=" << *scheduler_begin << " time=" 
+      << scheduler_begin.current_time() << std::endl;
+    if (*scheduler_begin  == "c") {
+      start_time_of_c = scheduler_begin.current_time();
+    }
+    ++itr_count;
+    ++scheduler_begin;
+    ASSERT_TRUE(itr_count <= 5);
+  }
+  EXPECT_EQ(start_time_of_c, 2UL);
+  EXPECT_EQ(scheduler_begin.current_time(), 4UL);
+}

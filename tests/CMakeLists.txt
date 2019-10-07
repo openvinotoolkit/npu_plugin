@@ -57,9 +57,8 @@ file(GLOB utils
     "utils/*.cpp"
 )
 
-include_directories("../src/scheduler")
 file(GLOB scheduler_unit_tests
-  "../src/scheduler/*\_test.cpp"
+  "${CMAKE_SOURCE_DIR}/src/scheduler/*\_test.cpp"
 )
 
 add_executable(mcm_unit_tests
@@ -94,7 +93,8 @@ endif(VALIDATION)
 
 target_link_libraries(mcm_unit_tests gtest m)
 target_link_libraries(mcm_unit_tests cm)
-target_include_directories(mcm_unit_tests PRIVATE utils)
+target_include_directories(mcm_unit_tests PRIVATE utils INTERFACE lp_scheduler)
+target_link_libraries(mcm_unit_tests lp_scheduler)
 
 set(CMAKE_CXX_IMPLICIT_LINK_LIBRARIES stdc++)
 set(CMAKE_CXX_IMPLICIT_LINK_DIRECTORIES "")

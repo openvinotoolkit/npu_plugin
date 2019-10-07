@@ -317,7 +317,11 @@ set(syscalls
    "${PROJECT_SOURCE_DIR}/src/pass/syscalls/convert_flatbuffer.cpp"
 )
 
-if(CMAKE_CROSSCOMPILING)
+add_subdirectory(src/scheduler)
+
+
+
+IF(CMAKE_CROSSCOMPILING)
     message(STATUS "Cross-compiling, assumes meta/ files already generated...")
     add_library(metamodel SHARED
         ${META_DIR_PATH}/src/compositional_model.cpp
