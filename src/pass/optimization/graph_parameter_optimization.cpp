@@ -576,10 +576,6 @@ namespace mv
                                             child["streaming"].get<Shape>(),
                                             false);
 
-                //if((parentMem.first + parentMem.second) > clusterMemory)
-                    //std::cout << "Parent " << parentOp.getName() << " memory footprint: " << parentMem.first << ", " << parentMem.second << std::endl;
-                //if( (childMem.first + childMem.second) > clusterMemory)
-                    //std::cout << "Child " << childOp.getName() << " memory footprint: " << childMem.first << ", " << childMem.second << std::endl;
 
                 if( ((childMem.first + childMem.second) > clusterMemory) or
                     ((parentMem.first + parentMem.second) > clusterMemory))
@@ -669,8 +665,7 @@ namespace mv
                     weightsSparsityPool.push_back({false});
                 }
 
-                bool inputActivationSparsity;
-                bool outputActivationSparsity;
+                bool inputActivationSparsity, outputActivationSparsity;
                 if(globalEnableActivationSparsity){
                     inputActivationSparsity = createStrategyFromBool(op,"inputActivationSparsity");
                     outputActivationSparsity = createStrategyFromBool(op,"outputActivationSparsity");

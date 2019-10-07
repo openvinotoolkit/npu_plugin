@@ -658,6 +658,9 @@ void StrategyManager::recursiveCriticalPath(typename graph<mv::Op, mv::DataFlow>
         opCtr++;
 
         generateStrategySetForLayer(*modelSource,nodeStrategy);
+        if(nodeStrategy.empty()){
+            throw LogicError(*this, "GraphOptimizer did not create any potential strategies for " + (*modelSource).getName());
+        }
         new_nodes.clear();
         for(auto strategy : nodeStrategy)
         {
@@ -690,6 +693,9 @@ void StrategyManager::recursiveCriticalPath(typename graph<mv::Op, mv::DataFlow>
             vector<StrategySet> nodeStrategy;
             opCtr++;
             generateStrategySetForLayer(*model_child,nodeStrategy);
+            if(nodeStrategy.empty()){
+                throw LogicError(*this, "GraphOptimizer did not create any potential strategies for " + (*model_child).getName());
+            }
             new_nodes.clear();
             for(auto strategy : nodeStrategy)
             {
@@ -716,6 +722,9 @@ void StrategyManager::recursiveCriticalPath(typename graph<mv::Op, mv::DataFlow>
         nodeStrategy.clear();
         opCtr++;
         generateStrategySetForLayer(*model_child,nodeStrategy);
+        if(nodeStrategy.empty()){
+            throw LogicError(*this, "GraphOptimizer did not create any potential strategies for " + (*model_child).getName());
+        }
         new_nodes.clear();
         for(auto strategy : nodeStrategy)
         {
@@ -790,7 +799,7 @@ void StrategyManager::recursiveCriticalPath(typename graph<mv::Op, mv::DataFlow>
                     }
                 }
                 if(!found){
-                    throw LogicError(*this, "GraphOptimizer unable to find MetaGraph source " + get<0>(*source).getName());
+                    throw LogicError(*this, "GraphOptimizer unable to find MetaGraph source throw" + get<0>(*source).getName());
                 }
             }
         }
