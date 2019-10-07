@@ -85,6 +85,6 @@ endif()
 ############### HDDL 2 ##################
 option(ENABLE_HDDL2 "Enable HDDL2 Plugin" ON)
 
-if (ENABLE_HDDL2)
+if (ENABLE_HDDL2 AND NOT (ARM OR AARCH64))
     add_subdirectory(src/hddl2_plugin)
 endif()
