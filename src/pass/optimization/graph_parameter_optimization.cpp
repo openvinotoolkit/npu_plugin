@@ -428,6 +428,59 @@ namespace mv
                 return false;
             }
 
+            //Check to see if a given stategy is internally consistent for performance
+            //Strategies that can only have infinite edges because they are illegal should never be added to the graph
+            bool checkForBadStrategy(mv::Op& op,StrategySet& strategy){
+                auto clustering = strategy["clustering"].get<string>();
+                auto weightsSparsity = strategy["weightsSparsity"].get<bool>();
+                auto streamShape = strategy["streaming"].get<Shape>();
+                auto spilling = strategy["spilling"].get<bool>();
+
+                auto fit = memorySize(op,clustering,false, false,weightsSparsity,streamShape,false);
+                if(fit.first + fit.second > clusterMemory)
+                    return true;
+
+                if(checkStreamClusterComp(op, strategy))
+                    return true;
+
+                //If spilling, HKSwitch makes no sense
+                if( (spilling) and (clustering == "HKSwitch"))
+                    return true;
+
+                //TODO: SOH channelMajor conv requires SoHOverlapped input
+                if( clustering == "SplitOverHOverlapped" and (not (op.getOpType() == "Input")))
+                    return true;
+
+                if( op.getOpType() == "Conv")
+                {
+                    auto weightsShape = op.getInputTensor(1)->getShape();
+                    auto numInChannels = weightsShape[KERNEL_INPUT_CHANNELS];
+                    auto numOutChannels = weightsShape[KERNEL_OUTPUT_CHANNELS];
+
+                    if(numInChannels < 16)
+                    {
+                        //with this we will assume ChMajorConvolution
+                        if((clustering == "SplitOverH") and (streamShape["H"] > 1))
+                            return true;
+                    }
+                    if((numOutChannels/totalClusters < 16) and (clustering == "SplitOverK"))
+                        return true;
+                }
+
+                 //Input and Output must have Spilled==True
+                if( (op.getOpType() == "Input") and (not spilling))
+                    return true;
+
+                if( (op.getOpType() == "Output") and (not spilling))
+                    return true;
+
+                //iIf the layer is streaming over H or W, output of this layer has to be spilled
+                if( (not spilling) and ((streamShape["H"] * streamShape["W"]) > 1))
+                    return true;
+
+                return false; //good strategy
+            }
+
             double transitionCost(Op& parentOp,Op& childOp,StrategySet& parent,StrategySet& child)
             {
 
@@ -463,7 +516,7 @@ namespace mv
                         childClustering == "SplitOverH")
                             return INF;
                 
-
+/* These rules moved to checkForBadStrategy, TODO remove here
                 if(checkStreamClusterComp(parentOp,parent))
                     return INF;
                 
@@ -476,7 +529,7 @@ namespace mv
                         (childClustering == "HKSwitch"))
                             return INF;
                 
-
+*/
                 //TODO: Only the input can be SOH-Overlapped
 
                 //SOH-Overlapped can only go to SOH layers
@@ -484,14 +537,14 @@ namespace mv
                         (not (childClustering == "SplitOverH")))
                             return INF;
 
-
+/* These rules moved to checkForBadStrategy, TODO remove here
                 //TODO: SOH channelMajor conv requires SoHOverlapped input
                 if( parentClustering == "SplitOverHOverlapped" and
                         (not (parentOp.getOpType() == "Input")))
                             return INF;
+*/
 
-
- 
+                //TODO child only rules moved to checkForBadStrategy, update to perserve only pair-wise rules
                 if( childOp.getOpType() == "Conv")
                 {
                     auto weightsShape = childOp.getInputTensor(1)->getShape();
@@ -501,7 +554,7 @@ namespace mv
                     if(numInChannels < 16)
                     {
                         //with this we will assume ChMajorConvolution
-                        if( (childClustering == "SplitOverH") and
+                        if( (childClustering == "SplitOverH") and 
                                 (not (parentClustering == "SplitOverHOverlapped")))
                                     return INF;
                         if((childClustering == "SplitOverH") and (child["streaming"].get<Shape>()["H"] > 1))
@@ -515,11 +568,13 @@ namespace mv
                         return INF;
 
                 }
+
                 //disable sparsity for eltwise layer predecessors
                 if(parentOp.getOpType() == "Conv"){
                     if((parent["spilling"].get<bool>()) and (childClustering == "SplitOverH"))
                         return INF;
                 }
+/* These rules moved to checkForBadStrategy, TODO remove here
                 //Input and Output must have Spilled==True
                 if( (parentOp.getOpType() == "Input") and
                         parent["spilling"].get<bool>() == false)
@@ -533,6 +588,7 @@ namespace mv
                 if( (parent["spilling"].get<bool>() == false) and
                         ((parent["streaming"].get<Shape>()["H"] * parent["streaming"].get<Shape>()["W"]) > 1))
                             return INF;
+*/
 
                 //If the child layer is streaming over H or W output of this layer has to be spilled
                 if( (parent["spilling"].get<bool>() == false) and
@@ -642,12 +698,23 @@ namespace mv
                 }
 
                 //TODO do a proper sparsity calculation here depending on zeros in weights
-                if(parent["weightsSparsity"].get<bool>())
-                    execTime1 = execTime1 * .85;
-                if(child["weightsSparsity"].get<bool>())
-                    execTime2 = execTime2 * .85;
+                if(parent["weightsSparsity"].get<bool>()){
+                    double factor = estimateSparsityPerformanceBoost(parentOp);
+                    execTime1 = execTime1 * factor;
+                }
+                if(child["weightsSparsity"].get<bool>()){
+                    double factor = estimateSparsityPerformanceBoost(childOp);
+                    execTime2 = execTime2 * factor;
+                }
 
                 return execTime1 + execTime2;
+            }
+
+            double estimateSparsityPerformanceBoost(mv::Op op){
+                auto weights = op.getInputTensor(1);
+                //TODO put calculation here for sparsity percentage and calculate expected performance gain
+                //Return x>1 if performance loss, 0 < x < 1 for performance gain. Lower number, faster perf
+                return 0.85; //dummy value, assume weights sparsity always 15% faster
             }
 
             void generateStrategySetForLayer(mv::Op& op,vector<StrategySet>& strategyVec)
@@ -744,10 +811,6 @@ namespace mv
                                         continue;
 
                                     Shape streamShape({1,h,1,k});//Stream over W and C are 1 for now . TODO: implement stream W/C
-                                    //hack to decrease number of nodes added to graph
-                                    auto fit = memorySize(op,clustering,false, false,weightsSparsity.get<bool>(),streamShape,false);
-                                    if(fit.first + fit.second > clusterMemory)
-                                        continue;
 
                                     StrategySet s;
                                     s["name"] = op.getName();
@@ -761,6 +824,10 @@ namespace mv
                                     s["spilling"] = spilling;
                                     s["clustering"] = clustering;
                                     s["streaming"] = streamShape;
+
+                                    //Function to prune strategies that will have only infinite edges in or out (or both), improves performance
+                                    if(checkForBadStrategy(op,s))
+                                        continue;
 
                                     strategyVec.push_back(s);
                                 }
