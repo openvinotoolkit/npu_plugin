@@ -169,81 +169,10 @@ void setUPATasksMemoryLocationFcn(const mv::pass::PassEntry& , mv::ComputationMo
 
             auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
 
-            if(outputMemoryLocation != mv::Tensor::MemoryLocation::UPACMX)
+            if(outputMemoryLocation != mv::Tensor::MemoryLocation::DDR)
             {
                 auto output = opIt->getOutputTensor(0);
-                auto outputDataFlows = mv::getOutputDataFlow(om, opIt, false);
-
-                std::vector<mv::Data::FlowListIterator> flows;
-                for(auto outputFlow = opIt.leftmostOutput(); outputFlow != om.flowEnd(); ++outputFlow)
-                    flows.push_back(outputFlow);
-
-                for (auto flow : flows)
-                    om.undefineFlow(flow);
-
-                output->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::UPACMX);
-
-                mv::QuantizationParams outputQuantParams = {{},{},{},{}};
-                if (output->hasAttr("quantParams"))
-                    outputQuantParams = output->get<mv::QuantizationParams>("quantParams");
-                std::string memoryLocation = outputMemoryLocation.toString();
-                if(memoryLocation == "OUTPUT" || memoryLocation == "INPUT")
-                    memoryLocation = "DDR";
-                std::string stringDirection("UPACMX2"+memoryLocation);
-                mv::DmaDirection direction(stringDirection);
-                auto dpuCopyOut = om.dMATask(output, direction,opIt->getName() + "_copyOut");
-                auto dpuCopyOutOp = om.getSourceOp(dpuCopyOut);
-                dpuCopyOutOp->set<unsigned>("opId", opIt->get<unsigned>("opId"));
-                if (output->hasAttr("quantParams"))
-                    dpuCopyOutOp->getOutputTensor(0)->get<mv::QuantizationParams>("quantParams").quantize(outputQuantParams.getShift(), outputQuantParams.getMult());
-
-                setOutputDataFlow(om, dpuCopyOut, outputDataFlows);
-                dpuCopyOut->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
-            }
-
-
-            size_t numInputs = 1;
-            for (size_t i = 0; i < numInputs; i++)
-            {
-                auto input = opIt->getInputTensor(i);
-                auto inputMemoryLocation = input->get<mv::Tensor::MemoryLocation>("Location");
-                if(inputMemoryLocation != mv::Tensor::MemoryLocation::UPACMX)
-                {
-                    mv::QuantizationParams inputQuantParams = {{},{},{},{}};
-                    if(input->hasAttr("quantParams"))
-                        inputQuantParams = input->get<mv::QuantizationParams>("quantParams");
-
-                    std::string memoryLocation = inputMemoryLocation.toString();
-                    if(memoryLocation == "OUTPUT" || memoryLocation == "INPUT")
-                        memoryLocation = "DDR";
-                    std::string stringDirection(memoryLocation+"2UPACMX");
-                    mv::DmaDirection direction(stringDirection);
-                    auto dpuCopyIn = om.dMATask(input, direction, opIt->getName() + "_copyIn_" + std::to_string(i));
-                    auto dpuCopyInOp = om.getSourceOp(dpuCopyIn);
-
-                    if(dpuCopyInOp->getOutputTensor(0)->hasAttr("quantParams"))
-                        dpuCopyInOp->getOutputTensor(0)->get<mv::QuantizationParams>("quantParams").quantize(inputQuantParams.getShift(), inputQuantParams.getMult());
-
-                    dpuCopyInOp->set<unsigned>("opId", opIt->get<unsigned>("opId"));
-
-                    auto flows = input->get<std::set<std::string>>("flows");
-
-                    for(auto flowStr: flows)
-                    {
-                        auto backupFlow = dm.getDataFlow(flowStr);
-                        auto idx = backupFlow->get<std::size_t>("sinkInput");
-                        if (backupFlow.sink()->getName() == opIt->getName())
-                        {
-                            auto sink = backupFlow.sink();
-                            om.undefineFlow(backupFlow);
-                            sink->setInputTensor(dpuCopyIn, idx, false);
-                            om.defineFlow(dpuCopyInOp, 0, sink, idx);
-                            break;
-                        }
-                    }
-
-                    dpuCopyIn->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::UPACMX);
-                }
+                output->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::DDR);
             }
         }
         ++opIt;
