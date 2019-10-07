@@ -4,6 +4,8 @@
 #include "include/mcm/utils/custom_math.hpp"
 #include "include/mcm/pass/pass_utils.hpp"
 
+static const size_t FULLY_CONNECTED_KERNEL = 1;
+
 static void fullyConnectedAsConv2DFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void standaloneActivationAsPostOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void tensorsToFP16Fcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
@@ -48,20 +50,23 @@ mv::Data::OpListIterator linkNewOperationsReplacement(mv::Data::OpListIterator p
     //Important: do not change the order of this ops
     std::vector<mv::Data::OpListIterator> opsToLink;
     std::vector<std::size_t> inputSlots;
-    for (mv::Data::FlowSiblingIterator sinkFlow(opIt.leftmostOutput()); sinkFlow != om.flowEnd(); ++sinkFlow)
+    for (auto sinkFlow = opIt.leftmostOutput(); sinkFlow != om.flowEnd(); ++sinkFlow)
     {
         opsToLink.push_back(sinkFlow.sink());
         inputSlots.push_back(sinkFlow->get<std::size_t>("sinkInput"));
     }
 
-    while(opIt.parentsSize() > 1)
+    auto paramOp = opIt.leftmostParent();
+    while(paramOp != om.opEnd())
     {
-        auto paramOp = opIt.leftmostParent();
-
-        if (paramOp->getOpType() == "Constant" || paramOp->getOpType() == "ConstantInt" || paramOp->getOpType() == "ConstantDouble")
+        if (paramOp->getOpType() == "Constant" || paramOp->getOpType() == "ConstantInt" || paramOp->getOpType() == "ConstantDataElement")
         {
-            om.removeOp(paramOp);
+            auto backUp = paramOp;
+            ++paramOp;
+            om.removeOp(backUp);
         }
+        else
+            ++paramOp;
     }
 
     om.removeOp(opIt);
@@ -147,8 +152,8 @@ void fullyConnectedAsConv2DFcn(const mv::pass::PassEntry& pass, mv::ComputationM
 
             pass.log(Logger::MessageType::Debug, "Found FullyConnected op " + opIt->getName());
 
-            auto parentOpIt = om.getSourceOp(opIt->getInputTensor(0));
-            auto sourceTensor = parentOpIt->getOutputTensor(0);
+            auto sourceTensor = opIt->getInputTensor(0);
+            auto parentOpIt = om.getSourceOp(sourceTensor);
             auto weightsData = opIt->getInputTensor(1)->getData();
             auto inputShape = sourceTensor->getShape();
             mv::QuantizationParams weightsTensorQuantizationParams = {{},{},{},{}};
@@ -159,7 +164,7 @@ void fullyConnectedAsConv2DFcn(const mv::pass::PassEntry& pass, mv::ComputationM
                 weightsTensorQuantizationParams = opIt->getInputTensor(1)->get<mv::QuantizationParams>("quantParams");
                 outputTensorQuantizationParams = opIt->getOutputTensor(0)->get<mv::QuantizationParams>("quantParams");
             }
-            auto weights = om.constantDataElement(weightsData, {inputShape[mv::IO_WIDTH_DIMENSION], inputShape[mv::IO_HEIGHT_DIMENSION], inputShape[mv::IO_CHANNEL_DIMENSION],
+            auto weights = om.constantDataElement(weightsData, {FULLY_CONNECTED_KERNEL, FULLY_CONNECTED_KERNEL, inputShape[mv::IO_CHANNEL_DIMENSION],
             opIt->getInputTensor(1)->getShape()[mv::IO_HEIGHT_DIMENSION]}, sourceTensor->getDType(),
             mv::Order::getZMajorID(4), weightsTensorQuantizationParams, opIt->getName() + "_weights");
             auto outputTensorType = opIt->getOutputTensor(0)->get<mv::DType>("dType");
