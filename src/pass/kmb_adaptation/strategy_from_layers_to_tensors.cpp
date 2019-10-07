@@ -54,7 +54,7 @@ void strategyLayersToTensors(const mv::pass::PassEntry& , mv::ComputationModel& 
                     inputTensor->getSparsityMap()->set<std::string>("splitStrategy", opStrategy);
             }
         }
-        else if (opType == "Input")
+        else if (opType == "Input" || opType == "Crop")
         {
             auto opStrategy = layer->get<std::string>("splitStrategy");
             auto outputTensor = layer->getOutputTensor(0);
@@ -76,7 +76,7 @@ void strategyLayersToTensors(const mv::pass::PassEntry& , mv::ComputationModel& 
     for(auto layer = om.opBegin(); layer != om.opEnd(); ++layer)
     {
         std::string opType = layer->getOpType();
-        if (opType == "Slice")
+        if (opType == "Slice" || opType == "Align")
         {
             auto opStrategy = layer->getInputTensor(0)->get<std::string>("splitStrategy");
             auto outputTensor = layer->getOutputTensor(0);
