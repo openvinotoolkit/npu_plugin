@@ -477,6 +477,30 @@ void convertOpsToUPATasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& 
             setOutputControlFlow(cm, cm.switchContext(upaROIPoolingOp), outputControlFlows);
 
         }
+        else if (opType == "Quantize")
+        {
+            auto input = opIt->getInputTensor(0);
+            auto output = opIt->getOutputTensor(0);
+            auto outputMemoryLocation = output->get<mv::Tensor::MemoryLocation>("Location");
+            unsigned opId = opIt->get<unsigned>("opId");
+            auto dtype = opIt->get<mv::DType>("dType");
+            auto quantParams = opIt->get<mv::QuantizationParams>("quantParams");
+
+            auto inputControlFlows = mv::getInputControlFlow(cm, cm.switchContext(opIt));
+            auto outputControlFlows = mv::getOutputControlFlow(cm, cm.switchContext(opIt));
+            auto outputDataFlows = mv::getOutputDataFlow(om, opIt);
+
+            mv::Data::TensorIterator upaQuantize = om.uPATaskQuantize({input}, dtype, quantParams);
+
+            auto upaQuantizeOp = om.getSourceOp(upaQuantize);
+            upaQuantizeOp->set<unsigned>("opId", opId);
+
+            upaQuantize->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
+            setOutputDataFlow(om, upaQuantize, outputDataFlows);
+            setInputControlFlow(cm, cm.switchContext(upaQuantizeOp), inputControlFlows);
+            setOutputControlFlow(cm, cm.switchContext(upaQuantizeOp), outputControlFlows);
+
+        }
         else
             ++opIt;
     }

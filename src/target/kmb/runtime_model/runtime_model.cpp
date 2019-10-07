@@ -1466,6 +1466,21 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAROIPoolingTask(ComputationModel
     return toBuild;
 }
 
+MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAQuantizeTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt)
+{
+    auto input = opIt->getInputTensor(0);
+    auto output = opIt->getOutputTensor(0);
+    auto toBuild = new MVCNN::UPALayerTaskT();
+    //toBuild->maxShaves = ;
+    //toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_QuantizeParams;
+    auto softLayerParamsValue = new MVCNN::QuantizeParamsT();
+
+    toBuild->softLayerParams.value = softLayerParamsValue;
+    toBuild->input_data = buildTensorReferenceT(cm, compilationDescriptor, input);
+    toBuild->output_data = buildTensorReferenceT(cm, compilationDescriptor, output);
+    return toBuild;
+}
+
 MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAPassthroughTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt)
 {
     auto input = opIt->getInputTensor(0);
@@ -1515,6 +1530,8 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildUPATask(Comput
         toReturn[0]->task.value = buildUPAProposalTask(cm, compilationDescriptor, opIt);
     else if(underlyingTask == "ROIPooling")
         toReturn[0]->task.value = buildUPAROIPoolingTask(cm, compilationDescriptor, opIt);
+    else if(underlyingTask == "Quantize")
+        toReturn[0]->task.value = buildUPAQuantizeTask(cm, compilationDescriptor, opIt);
     // TODO: Add other UPA layers
 
     return toReturn;
