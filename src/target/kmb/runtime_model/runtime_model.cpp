@@ -1472,7 +1472,7 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAQuantizeTask(ComputationModel& 
     auto output = opIt->getOutputTensor(0);
     auto toBuild = new MVCNN::UPALayerTaskT();
     //toBuild->maxShaves = ;
-    //toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_QuantizeParams;
+    toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_QuantizeParams;
     auto softLayerParamsValue = new MVCNN::QuantizeParamsT();
 
     toBuild->softLayerParams.value = softLayerParamsValue;
