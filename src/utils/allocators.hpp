@@ -13,11 +13,10 @@
 // express or implied warranties, other than those that are expressly
 // stated in the License.
 //
+#pragma once
 
-#include <string>
-#include <ie_blob.h>
-
-#include "allocators.hpp"
+#include <vector>
+#include <tuple>
 
 namespace vpu {
 
@@ -25,14 +24,35 @@ namespace KmbPlugin {
 
 namespace utils {
 
-void fromBinaryFile(std::string input_binary, InferenceEngine::Blob::Ptr blob);
-void readNV12FileHelper(const std::string &filePath, size_t expectedSize, uint8_t *imageData, size_t readOffset);
-InferenceEngine::Blob::Ptr fromNV12File(const std::string &filePath, size_t imageWidth, size_t imageHeight,
-                                        std::shared_ptr<VPUAllocator> &allocator);
+class VPUAllocator {
+public:
+    virtual void* allocate(size_t requestedSize) = 0;
+    virtual void* getAllocatedChunkByIndex(size_t chunkIndex) = 0;
+};
+
+class VPUSMMAllocator : public VPUAllocator {
+public:
+    VPUSMMAllocator() {};
+    virtual ~VPUSMMAllocator();
+    void* allocate(size_t requestedSize);
+    void* getAllocatedChunkByIndex(size_t chunkIndex);
+private:
+    std::vector< std::tuple<int, void*, size_t> > _memChunks;
+    static int _pageSize;
+};
+
+class NativeAllocator : public VPUAllocator {
+public:
+    NativeAllocator() {};
+    virtual ~NativeAllocator();
+    void* allocate(size_t requestedSize);
+    void* getAllocatedChunkByIndex(size_t chunkIndex);
+private:
+    std::vector< uint8_t* > _memChunks;
+};
 
 }  // namespace utils
 
 }  // namespace KmbPlugin
 
 }  // namespace vpu
-

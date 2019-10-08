@@ -38,138 +38,6 @@ class VpuPreprocessingTestsWithParam : public vpuLayersTests,
                                        public testing::WithParamInterface< preprocessingType > {
 };
 
-class VPUAllocator {
-public:
-    virtual void* allocate(size_t requestedSize) = 0;
-    virtual void* getAllocatedChunkByIndex(size_t chunkIndex) = 0;
-};
-
-class VPUSMMAllocator : public VPUAllocator {
-public:
-    VPUSMMAllocator() {};
-    virtual ~VPUSMMAllocator();
-    void* allocate(size_t requestedSize);
-    void* getAllocatedChunkByIndex(size_t chunkIndex);
-private:
-    std::vector< std::tuple<int, void*, size_t> > _memChunks;
-    static int _pageSize;
-};
-
-int VPUSMMAllocator::_pageSize = getpagesize();
-
-static uint32_t calculateRequiredSize(uint32_t blobSize, int pageSize) {
-    uint32_t blobSizeRem = blobSize % pageSize;
-    uint32_t requiredSize = (blobSize / pageSize) * pageSize;
-    if (blobSizeRem) {
-        requiredSize += pageSize;
-    }
-    return requiredSize;
-}
-
-void* VPUSMMAllocator::allocate(size_t requestedSize) {
-    const uint32_t requiredBlobSize = calculateRequiredSize(requestedSize, _pageSize);
-    int fileDesc = vpusmm_alloc_dmabuf(requiredBlobSize, VPUSMMTYPE_COHERENT);
-    if (fileDesc < 0) {
-        throw std::runtime_error("VPUSMMAllocator::allocate: vpusmm_alloc_dmabuf failed");
-    }
-
-    unsigned long physAddr = vpusmm_import_dmabuf(fileDesc, VPU_DEFAULT);
-    if (physAddr == 0) {
-        throw std::runtime_error("VPUSMMAllocator::allocate: vpusmm_import_dmabuf failed");
-    }
-
-    void* virtAddr = mmap(0, requiredBlobSize, PROT_READ|PROT_WRITE, MAP_SHARED, fileDesc, 0);
-    if (virtAddr == MAP_FAILED) {
-        throw std::runtime_error("VPUSMMAllocator::allocate: mmap failed");
-    }
-    std::tuple<int, void*, size_t> memChunk(fileDesc, virtAddr, requiredBlobSize);
-    _memChunks.push_back(memChunk);
-
-    return virtAddr;
-}
-
-void* VPUSMMAllocator::getAllocatedChunkByIndex(size_t chunkIndex) {
-    std::tuple<int, void*, size_t> chunk = _memChunks.at(chunkIndex);
-    void* virtAddr = std::get<1>(chunk);
-    return virtAddr;
-}
-
-VPUSMMAllocator::~VPUSMMAllocator() {
-    for (const std::tuple<int, void*, size_t> & chunk : _memChunks) {
-        int fileDesc = std::get<0>(chunk);
-        void* virtAddr = std::get<1>(chunk);
-        size_t allocatedSize = std::get<2>(chunk);
-        vpusmm_unimport_dmabuf(fileDesc);
-        munmap(virtAddr, allocatedSize);
-        close(fileDesc);
-    }
-}
-
-class NativeAllocator : public VPUAllocator {
-public:
-    NativeAllocator() {};
-    virtual ~NativeAllocator();
-    void* allocate(size_t requestedSize);
-    void* getAllocatedChunkByIndex(size_t chunkIndex);
-private:
-    std::vector< uint8_t* > _memChunks;
-};
-
-void* NativeAllocator::allocate(size_t requestedSize) {
-    uint8_t* allocatedChunk = new uint8_t [requestedSize];
-    _memChunks.push_back(allocatedChunk);
-    return allocatedChunk;
-}
-
-void* NativeAllocator::getAllocatedChunkByIndex(size_t chunkIndex) {
-    return _memChunks.at(chunkIndex);
-}
-
-NativeAllocator::~NativeAllocator() {
-    for (uint8_t* chunk : _memChunks) {
-        delete [] chunk;
-    }
-}
-
-void readNV12FileHelper(const std::string &filePath,
-                        size_t expectedSize,
-                        uint8_t *imageData,
-                        size_t readOffset) {
-    std::ifstream fileReader(filePath, std::ios_base::ate | std::ios_base::binary);
-    if (!fileReader.good()) {
-        throw std::runtime_error("readNV12FileHelper: failed to open file " + filePath);
-    }
-
-    const size_t fileSize = fileReader.tellg();
-    if (fileSize - readOffset < expectedSize) {
-        throw std::runtime_error("readNV12FileHelper: size of " + filePath + " is less than expected");
-    }
-    fileReader.seekg(readOffset, std::ios_base::beg);
-    fileReader.read(reinterpret_cast<char *>(imageData), expectedSize);
-    fileReader.close();
-}
-
-Blob::Ptr fromNV12File(const std::string &filePath,
-                       size_t imageWidth,
-                       size_t imageHeight,
-                       std::shared_ptr<VPUAllocator> &allocator) {
-    const size_t expectedSize = imageWidth * (imageHeight * 3 / 2);
-    uint8_t *imageData = reinterpret_cast<uint8_t *>(allocator->allocate(expectedSize));
-    readNV12FileHelper(filePath, expectedSize, imageData, 0);
-
-    InferenceEngine::TensorDesc planeY(InferenceEngine::Precision::U8,
-        {1, 1, imageHeight, imageWidth}, InferenceEngine::Layout::NHWC);
-    InferenceEngine::TensorDesc planeUV(InferenceEngine::Precision::U8,
-        {1, 2, imageHeight / 2, imageWidth / 2}, InferenceEngine::Layout::NHWC);
-    const size_t offset = imageHeight * imageWidth;
-
-    Blob::Ptr blobY = make_shared_blob<uint8_t>(planeY, imageData);
-    Blob::Ptr blobUV = make_shared_blob<uint8_t>(planeUV, imageData + offset);
-
-    Blob::Ptr nv12Blob = make_shared_blob<NV12Blob>(blobY, blobUV);
-    return nv12Blob;
-}
-
 static std::string composePreprocInputPath(preprocessingType preprocType) {
     std::string baseName = ModelsPath() + "/KMB_models/BLOBS/mobilenet/";
     switch (preprocType) {
@@ -198,7 +66,7 @@ static void setPreprocForInputBlob(const std::string &inputName,
                                    const TensorDesc &inputTensor,
                                    const std::string &inputFilePath,
                                    InferenceEngine::InferRequest &inferRequest,
-                                   std::shared_ptr<VPUAllocator> &allocator,
+                                   std::shared_ptr<vpu::KmbPlugin::utils::VPUAllocator> &allocator,
                                    preprocessingType preprocType) {
     Blob::Ptr inputBlob;
     switch (preprocType) {
@@ -216,7 +84,7 @@ static void setPreprocForInputBlob(const std::string &inputName,
         const InferenceEngine::SizeVector dims = inputTensor.getDims();
         const size_t expectedWidth = dims.at(2);
         const size_t expectedHeight = dims.at(3);
-        ASSERT_NO_THROW(inputBlob = fromNV12File(inputFilePath, expectedWidth, expectedHeight, allocator));
+        ASSERT_NO_THROW(inputBlob = vpu::KmbPlugin::utils::fromNV12File(inputFilePath, expectedWidth, expectedHeight, allocator));
         break;
     }
     ASSERT_NO_THROW(inferRequest.SetBlob(inputName, inputBlob));
@@ -225,15 +93,15 @@ static void setPreprocForInputBlob(const std::string &inputName,
 static void setNV12Preproc(const std::string &inputName,
                                    const std::string &inputFilePath,
                                    InferenceEngine::InferRequest &inferRequest,
-                                   std::shared_ptr<VPUAllocator> &allocator,
+                                   std::shared_ptr<vpu::KmbPlugin::utils::VPUAllocator> &allocator,
                                    size_t expectedWidth,
                                    size_t expectedHeight) {
     Blob::Ptr inputBlob;
-    ASSERT_NO_THROW(inputBlob = fromNV12File(inputFilePath, expectedWidth, expectedHeight, allocator));
+    ASSERT_NO_THROW(inputBlob = vpu::KmbPlugin::utils::fromNV12File(inputFilePath, expectedWidth, expectedHeight, allocator));
     ASSERT_NO_THROW(inferRequest.SetBlob(inputName, inputBlob));
 }
 
-Blob::Ptr dequantize(float begin, float end, const Blob::Ptr &quantBlob, std::shared_ptr<VPUAllocator> &allocator) {
+Blob::Ptr dequantize(float begin, float end, const Blob::Ptr &quantBlob, std::shared_ptr<vpu::KmbPlugin::utils::VPUAllocator> &allocator) {
     const int QUANT_LEVELS = 256;
     float step = (begin - end)/QUANT_LEVELS;
     const TensorDesc quantTensor = quantBlob->getTensorDesc();
@@ -251,20 +119,20 @@ Blob::Ptr dequantize(float begin, float end, const Blob::Ptr &quantBlob, std::sh
     return outputBlob;
 }
 
-std::shared_ptr<VPUAllocator> buildAllocator(const char * allocatorType) {
+std::shared_ptr<vpu::KmbPlugin::utils::VPUAllocator> buildAllocator(const char * allocatorType) {
     if (allocatorType == nullptr) {
-        return std::make_shared<VPUSMMAllocator>();
+        return std::make_shared<vpu::KmbPlugin::utils::VPUSMMAllocator>();
     }
 
     std::string allocTypeStr(allocatorType);
     if (allocTypeStr == "NATIVE") {
-        return std::make_shared<NativeAllocator>();
+        return std::make_shared<vpu::KmbPlugin::utils::NativeAllocator>();
     } else if (allocTypeStr == "UDMA") {
         throw std::runtime_error("buildAllocator: UDMA is not supported");
     }
 
     // VPUSMM is default
-    return std::make_shared<VPUSMMAllocator>();
+    return std::make_shared<vpu::KmbPlugin::utils::VPUSMMAllocator>();
 }
 
 
@@ -272,7 +140,7 @@ TEST_P(VpuPreprocessingTestsWithParam, DISABLED_importWithPreprocessing) {  // T
     preprocessingType preprocType = GetParam();
     std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet/mobilenet.blob";
 
-    std::shared_ptr<VPUAllocator> kmbAllocator = buildAllocator(std::getenv("IE_VPU_KMB_MEMORY_ALLOCATOR_TYPE"));
+    std::shared_ptr<vpu::KmbPlugin::utils::VPUAllocator> kmbAllocator = buildAllocator(std::getenv("IE_VPU_KMB_MEMORY_ALLOCATOR_TYPE"));
 
     Core ie;
     InferenceEngine::ExecutableNetwork importedNetwork;
@@ -322,7 +190,7 @@ using VpuPreprocessingTests = vpuLayersTests;
 TEST_F(VpuPreprocessingTests, DISABLED_correctPreprocessing) {
     std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet/mobilenet.blob";
 
-    std::shared_ptr<VPUAllocator> kmbAllocator = buildAllocator(std::getenv("IE_VPU_KMB_MEMORY_ALLOCATOR_TYPE"));
+    std::shared_ptr<vpu::KmbPlugin::utils::VPUAllocator> kmbAllocator = buildAllocator(std::getenv("IE_VPU_KMB_MEMORY_ALLOCATOR_TYPE"));
 
     Core ie;
     InferenceEngine::ExecutableNetwork importedNetwork;
@@ -370,7 +238,7 @@ TEST_F(VpuPreprocessingTests, DISABLED_correctPreprocessing) {
 TEST_F(VpuPreprocessingTests, DISABLED_multiThreadCorrectPreprocessing) {
     std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet/mobilenet.blob";
 
-    std::shared_ptr<VPUAllocator> kmbAllocator = buildAllocator(std::getenv("IE_VPU_KMB_MEMORY_ALLOCATOR_TYPE"));
+    std::shared_ptr<vpu::KmbPlugin::utils::VPUAllocator> kmbAllocator = buildAllocator(std::getenv("IE_VPU_KMB_MEMORY_ALLOCATOR_TYPE"));
 
     Core ie;
     InferenceEngine::ExecutableNetwork importedNetwork;
@@ -427,7 +295,7 @@ TEST_F(VpuPreprocessingTests, DISABLED_multiThreadCorrectPreprocessing) {
 TEST_F(VpuPreprocessingTests, DISABLED_twoRequestsWithPreprocessing) {
     std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet/mobilenet.blob";
 
-    std::shared_ptr<VPUAllocator> kmbAllocator = buildAllocator(std::getenv("IE_VPU_KMB_MEMORY_ALLOCATOR_TYPE"));
+    std::shared_ptr<vpu::KmbPlugin::utils::VPUAllocator> kmbAllocator = buildAllocator(std::getenv("IE_VPU_KMB_MEMORY_ALLOCATOR_TYPE"));
 
     Core ie;
     InferenceEngine::ExecutableNetwork importedNetwork;
@@ -530,7 +398,7 @@ TEST_F(VpuPreprocessingTests, twoNetworksWithPreprocessing) {
         setPreprocAlgorithm(mutableItem, PT_NV12);
     }
 
-    std::shared_ptr<VPUAllocator> kmbAllocator = buildAllocator(std::getenv("IE_VPU_KMB_MEMORY_ALLOCATOR_TYPE"));
+    std::shared_ptr<vpu::KmbPlugin::utils::VPUAllocator> kmbAllocator = buildAllocator(std::getenv("IE_VPU_KMB_MEMORY_ALLOCATOR_TYPE"));
 
     InferenceEngine::InferRequest::Ptr network1InferReqPtr;
     network1InferReqPtr = network1.CreateInferRequestPtr();
@@ -609,7 +477,7 @@ TEST_F(vpuLayersTests, allocateNV12WithNative) {
         setPreprocAlgorithm(mutableItem, PT_NV12);
     }
 
-    std::shared_ptr<VPUAllocator> nativeAllocator = buildAllocator("NATIVE");
+    std::shared_ptr<vpu::KmbPlugin::utils::VPUAllocator> nativeAllocator = buildAllocator("NATIVE");
 
     InferenceEngine::InferRequest::Ptr network1InferReqPtr;
     network1InferReqPtr = network1.CreateInferRequestPtr();
@@ -654,7 +522,7 @@ TEST_F(vpuLayersTests, allocateNV12TwoImages) {
         setPreprocAlgorithm(mutableItem, PT_NV12);
     }
 
-    std::shared_ptr<VPUAllocator> nativeAllocator = buildAllocator("NATIVE");
+    std::shared_ptr<vpu::KmbPlugin::utils::VPUAllocator> nativeAllocator = buildAllocator("NATIVE");
 
     InferenceEngine::InferRequest::Ptr commonInferReqPtr;
     commonInferReqPtr = network1.CreateInferRequestPtr();
@@ -687,7 +555,7 @@ TEST_F(vpuLayersTests, allocateNV12TwoImages) {
     // set another image to already allocated chunk
     std::string inputDogPath = ModelsPath() + "/KMB_models/BLOBS/resnet/input-dog-1080x1080-nv12.bin";
     uint8_t* inputMemPtr = reinterpret_cast<uint8_t*>(nativeAllocator->getAllocatedChunkByIndex(0));
-    ASSERT_NO_THROW(readNV12FileHelper(inputDogPath, (1080 * 1080 * 3) / 2, inputMemPtr, 0));
+    ASSERT_NO_THROW(vpu::KmbPlugin::utils::readNV12FileHelper(inputDogPath, (1080 * 1080 * 3) / 2, inputMemPtr, 0));
 
     ASSERT_NO_THROW(commonInferReqPtr->Infer());
 
@@ -717,7 +585,7 @@ TEST_F(vpuLayersTests, allocateNV12TwoImagesGetBlob) {
         setPreprocAlgorithm(mutableItem, PT_NV12);
     }
 
-    std::shared_ptr<VPUAllocator> nativeAllocator = buildAllocator("NATIVE");
+    std::shared_ptr<vpu::KmbPlugin::utils::VPUAllocator> nativeAllocator = buildAllocator("NATIVE");
 
     InferenceEngine::InferRequest::Ptr commonInferReqPtr;
     commonInferReqPtr = network1.CreateInferRequestPtr();
@@ -757,8 +625,8 @@ TEST_F(vpuLayersTests, allocateNV12TwoImagesGetBlob) {
     NV12Blob::Ptr dogNV12blobPtr = as<NV12Blob>(dogInputBlobPtr);
     Blob::Ptr & dogYPlane = dogNV12blobPtr->y();
     Blob::Ptr & dogUVPlane = dogNV12blobPtr->uv();
-    ASSERT_NO_THROW(readNV12FileHelper(inputDogPath, 1080 * 1080, dogYPlane->buffer().as<uint8_t *>(), 0));
-    ASSERT_NO_THROW(readNV12FileHelper(inputDogPath, 1080 * 1080 / 2, dogUVPlane->buffer().as<uint8_t *>(), 1080 * 1080));
+    ASSERT_NO_THROW(vpu::KmbPlugin::utils::readNV12FileHelper(inputDogPath, 1080 * 1080, dogYPlane->buffer().as<uint8_t *>(), 0));
+    ASSERT_NO_THROW(vpu::KmbPlugin::utils::readNV12FileHelper(inputDogPath, 1080 * 1080 / 2, dogUVPlane->buffer().as<uint8_t *>(), 1080 * 1080));
 
     ASSERT_NO_THROW(commonInferReqPtr->Infer());
 
