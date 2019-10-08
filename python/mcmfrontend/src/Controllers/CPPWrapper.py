@@ -421,7 +421,7 @@ def buildOM(
                     om, in_, rx, ry, sx, sy, px[0], py[0], output_tensor_name)
             elif (parser == Parser.TensorFlowLite or parser == Parser.TensorFlow):
                 _ref = ca.maxpool2D(om, in_, rx, ry, sx, sy,
-                                    px[0], px[1], py[0], py[1], mv_quant_params[0], output_tensor_name)
+                                    px[0], px[1], py[0], py[1], order_type_dict[type(type_value)],mv_quant_params[0], output_tensor_name)
             else:
                 throw_error(ErrorTable.ParserNotSupported, parser.name)
         elif layer.getType() == Pooling.Type.AVE:
@@ -430,7 +430,7 @@ def buildOM(
                     om, in_, rx, ry, sx, sy, px[0], py[0], output_tensor_name)
             elif parser == Parser.TensorFlowLite:
                 _ref = ca.avgpool2D(
-                    om, in_, rx, ry, sx, sy, px[0], px[1], py[0], py[1], mv_quant_params[0], output_tensor_name)
+                    om, in_, rx, ry, sx, sy, px[0], px[1], py[0], py[1], order_type_dict[type(type_value)], mv_quant_params[0], output_tensor_name)
             else:
                 throw_error(ErrorTable.ParserNotSupported, parser.name)
 
@@ -444,7 +444,8 @@ def buildOM(
             output_file.write(' ' * 4 + 'auto pool' + str(pooling_node_id) + ' = om.' + str(pool_mcm[layer.getType()]) + '(' +
                               str(tensor_mapping_dict[layer.getInputTensors()[0].getName().stringifyName()]) + ', {' + str(ry) +
                               ', ' + str(rx) + '}, {' + str(sy) + ', ' + str(sx) + '}, {' + str(px[0]) + ', ' + str(px[1]) +
-                              ', ' + str(py[0]) + ', ' + str(py[1]) + '}, ' + 'true, "", "floor", ' + ' {{' +
+                              ', ' + str(py[0]) + ', ' + str(py[1]) + '}, ' + 'true, "", "floor"' +
+                              ', mv::DType("'+ str(order_type_dict[type(type_value)]) + '"), {{' +
                               ', '.join(map(str, get_parse_quant(layer.getOutputTensors()[0])[1])) + '},{' +
                               ', '.join(map(str, get_parse_quant(layer.getOutputTensors()[0])[2])) + '},{' +
                               ', '.join(map(str, get_parse_quant(layer.getOutputTensors()[0])[3])) + '},{' +
@@ -523,13 +524,13 @@ def buildOM(
                 in2_ = reflist[pred[1]]
 
             _ref = ca.add(om, in1_, in2_,
-                          mv_quant_params[0], output_tensor_name)
+                          order_type_dict[type_value], mv_quant_params[0], output_tensor_name)
 
         elif layer.getType() == Eltwise.Type.WPROD:
 
             in2_ = reflist[pred[1]]
             _ref = ca.multiply(
-                om, in1_, in2_, mv_quant_params[0], output_tensor_name)
+                om, in1_, in2_, order_type_dict[type(type_value)] , mv_quant_params[0], output_tensor_name)
 
         if (output_file is not None):
 
@@ -540,7 +541,8 @@ def buildOM(
 
             output_file.write(' ' * 4 + 'auto eltwise' + str(eltwise_node_id) + ' = om.' + str(eltwise_map[layer.getType()]) +
                               '({' + str(tensor_mapping_dict[layer.getInputTensors()[0].getName().stringifyName()]) +
-                              ',' + str(tensor_mapping_dict[layer.getInputTensors()[1].getName().stringifyName()]) + '},  {{' +
+                              ',' + str(tensor_mapping_dict[layer.getInputTensors()[1].getName().stringifyName()]) + '}, ' +
+                              'mv::DType("'+ str(order_type_dict[type_value]) + '"), {{' +
                               ', '.join(map(str, get_parse_quant(layer.getOutputTensors()[0])[1])) + '},{' +
                               ', '.join(map(str, get_parse_quant(layer.getOutputTensors()[0])[2])) + '},{' +
                               ', '.join(map(str, get_parse_quant(layer.getOutputTensors()[0])[3])) + '},{' +
@@ -724,6 +726,7 @@ def buildOM(
                                   str(tensor_mapping_dict[output_tensor_name]) +
                                   ', biasWeights' +
                                   str(scale_node_id) +
+                                  ', mv::DType("' + order_type_dict[bias_type_value] + '") ' +
                                   ', {{' +
                                   ', '.join(map(str, get_parse_quant(layer.getOutputTensors()[0])[1])) +
                                   '},{' +
@@ -942,6 +945,7 @@ def buildOM(
 
                 output_file.write(' ' * 4 + 'auto bias_i' + str(fully_node_id) + ' = om.bias(' +
                                   str(tensor_mapping_dict[output_tensor_name]) + ', biasWeights' + str(fully_node_id) +
+                                  ', mv::DType("' + order_type_dict[bias_type_value] + '") ' +
                                   ', {{' + ', '.join(map(str, get_parse_quant(layer.getOutputTensors()[0])[1])) +
                                   '},{' + ', '.join(map(str, get_parse_quant(layer.getOutputTensors()[0])[2])) +
                                   '},{' + ', '.join(map(str, get_parse_quant(layer.getOutputTensors()[0])[3])) +
@@ -964,7 +968,7 @@ def buildOM(
         weight_tensor_name = layer.getWeights().getName().stringifyName()
         weight_mv_quant_params = get_parse_quant(layer.getWeights())
         weight_type_value = type(type_dict[layer.getWeights().dtype](0.0))
-
+        type_value = type_dict[layer.getOutputTensors()[0].dtype]
         output_tensor_name = layer.getOutputTensors()[0].getName().stringifyName()
         mv_quant_params = get_parse_quant(layer.getOutputTensors()[0])
 
@@ -984,7 +988,7 @@ def buildOM(
                                     pX[0], pY[0], dilationFactor, group, output_tensor_name)  # Caffe
         elif (parser == Parser.TensorFlowLite or parser == Parser.TensorFlow):
             _conv = ca.conv2D(om, in_, weights_param, sX, sY,
-                              pX[0], pX[1], pY[0], pY[1], dilationFactor, group, mv_quant_params[0], output_tensor_name)
+                              pX[0], pX[1], pY[0], pY[1], dilationFactor, group, order_type_dict[type_value], mv_quant_params[0], output_tensor_name)
         else:
             throw_error(ErrorTable.ParserNotSupported, parser.name)
 
@@ -1029,7 +1033,8 @@ def buildOM(
                               ', weights' + str(convolution_node_id) + ', {' +
                               str(sY) + ', ' + str(sX) + '}, {' + str(pX[0]) + ', ' +
                               str(pX[1]) + ', ' + str(pY[0]) + ', ' + str(pY[1]) + '}, ' +
-                              str(dilationFactor) + ', ' + str(group) + ', {{' +
+                              str(dilationFactor) + ', ' + str(group) +
+                              ', mv::DType("'+ str(order_type_dict[type_value]) + '"), {{' +
                               ', '.join(map(str, get_parse_quant(layer.getOutputTensors()[0])[1])) + '},{' +
                               ', '.join(map(str, get_parse_quant(layer.getOutputTensors()[0])[2])) + '},{' +
                               ', '.join(map(str, get_parse_quant(layer.getOutputTensors()[0])[3])) + '},{' +
@@ -1050,8 +1055,8 @@ def buildOM(
                 np.array(b.data.flatten()).astype(bias_type_value))
 
             bias = ca.constant(om, bias_data, ca.getShape(b.shape[0]), ca.getOrder(
-                mcm_1d_layout[parser]), bias_mv_quant_params, bias_tensor_name + "weights")
-            _ref = ca.bias(om, _conv, bias,
+                mcm_1d_layout[parser]),  bias_mv_quant_params, bias_tensor_name + "weights")
+            _ref = ca.bias(om, _conv, bias, order_type_dict[bias_type_value],
                            bias_mv_quant_params, bias_tensor_name)
 
             if (output_file is not None):
@@ -1102,7 +1107,8 @@ def buildOM(
 
                 output_file.write(' ' * 4 + 'auto bias_c' + str(convolution_node_id) +
                                   ' = om.bias(' + str(tensor_mapping_dict[output_tensor_name]) +
-                                  ', biasWeights' + str(convolution_node_id) + ', {{' +
+                                  ', biasWeights' + str(convolution_node_id) +
+                                  ', mv::DType("'+ str(order_type_dict[bias_type_value]) + '"), {{' +
                                   ', '.join(map(str, get_parse_quant(layer.getOutputTensors()[0])[1])) +
                                   '},{' + ', '.join(map(str, get_parse_quant(layer.getOutputTensors()[0])[2])) +
                                   '},{' + ', '.join(map(str, get_parse_quant(layer.getOutputTensors()[0])[3])) +
@@ -1125,7 +1131,7 @@ def buildOM(
         weight_tensor_name = layer.getWeights().getName().stringifyName()
         weight_mv_quant_params = get_parse_quant(layer.getWeights())
         weight_type_value = type(type_dict[layer.getWeights().dtype](0.0))
-
+        type_value = type(type_dict[layer.getOutputTensors()[0].dtype](0.0))
         output_tensor_name = layer.getOutputTensors()[0].getName().stringifyName()
         mv_quant_params = get_parse_quant(layer.getOutputTensors()[0])
         arr = w_data.flatten()
@@ -1138,7 +1144,7 @@ def buildOM(
         (pY, pX) = layer.getPadding()
         dilationFactor = layer.getDilation()
         _conv = ca.depthwiseConv2D(om, in_, weights_param, sX, sY, pX[0], pX[1], pY[0], pY[1], dilationFactor,
-                                   mv_quant_params[0], output_tensor_name)  # TFLite
+                                  order_type_dict[type_value],  mv_quant_params[0], output_tensor_name)  # TFLite
 
         if (output_file is not None):
 
@@ -1184,8 +1190,8 @@ def buildOM(
                               ' = om.depthwiseConv(' + str(tensor_mapping_dict[layer.getInputTensors()[0].getName().stringifyName()]) +
                               ', d_weights' + str(depthwise_node_id) + ', {' + str(sY) + ', ' + str(sX) + '}, {' +
                               str(pX[0]) + ', ' + str(pX[1]) + ', ' + str(pY[0]) + ', ' + str(pY[1]) + '}, ' + str(dilationFactor) + ',' +
-                              str(w_orig.shape[2]) + ',' + str(w_orig.shape[1]) + ',' + str(w_orig.shape[0]) +
-                              '},' + '{{' +
+                               'mv::DType("' + order_type_dict[type_value] + '"), ' +
+                              '{{' +
                               ', '.join(map(str, get_parse_quant(layer.getOutputTensors()[0])[1])) + '},{' +
                               ', '.join(map(str, get_parse_quant(layer.getOutputTensors()[0])[2])) + '},{' +
                               ', '.join(map(str, get_parse_quant(layer.getOutputTensors()[0])[3])) + '},{' +
@@ -1206,7 +1212,7 @@ def buildOM(
             bias = ca.constant(om, bias_data, ca.getShape(b.shape[0]), ca.getOrder(
                 mcm_1d_layout[parser]), bias_mv_quant_params[0], bias_tensor_name + "weights")
             _ref = ca.bias(
-                om, _conv, bias, mv_quant_params[0], bias_tensor_name)
+                om, _conv, bias, order_type_dict[bias_type_value], mv_quant_params[0], bias_tensor_name)
 
             if (output_file is not None):
                 if (keep_weights != "None"):
@@ -1242,7 +1248,9 @@ def buildOM(
 
                 output_file.write(' ' * 4 + 'auto bias_cd' + str(depthwise_node_id) + ' = om.bias(' +
                                   str(tensor_mapping_dict[output_tensor_name]) + ', biasdWeights' +
-                                  str(depthwise_node_id) + ', {{' + ', '.join(map(str, get_parse_quant(layer.getOutputTensors()[0])[1])) +
+                                  str(depthwise_node_id) +
+                                  ', mv::DType("' + order_type_dict[bias_type_value] + '") ' +
+                                  ', {{' + ', '.join(map(str, get_parse_quant(layer.getOutputTensors()[0])[1])) +
                                   '},{' + ', '.join(map(str, get_parse_quant(layer.getOutputTensors()[0])[2])) +
                                   '},{' + ', '.join(map(str, get_parse_quant(layer.getOutputTensors()[0])[3])) +
                                   '},{' + ', '.join(map(str, get_parse_quant(layer.getOutputTensors()[0])[4])) + '}});\n\n')
