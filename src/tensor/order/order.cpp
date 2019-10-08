@@ -124,10 +124,10 @@ std::vector<std::size_t> mv::Order::indToSub(const Shape &s, std::size_t idx) co
 
 }
 
-std::vector<float> mv::Order::computeWordStrides(const Shape &shape) const
+std::vector<uint32_t> mv::Order::computeWordStrides(const Shape &shape) const
 {
     unsigned n = shape.ndims();
-    std::vector<float> realStrides(n, 1);
+    std::vector<uint32_t> realStrides(n, 1);
 
     for(unsigned i = 1; i < n; ++i)
         realStrides[contVector_[i]] = realStrides[contVector_[i-1]] * shape[contVector_[i-1]];
@@ -135,9 +135,9 @@ std::vector<float> mv::Order::computeWordStrides(const Shape &shape) const
     return realStrides;
 }
 
-std::vector<float> mv::Order::computeByteStrides(const Shape &s, unsigned dataSize) const
+std::vector<uint32_t> mv::Order::computeByteStrides(const Shape &s, unsigned dataSize) const
 {
-    std::vector<float> toReturn(computeWordStrides(s));
+    std::vector<uint32_t> toReturn(computeWordStrides(s));
     std::transform(toReturn.begin(), toReturn.end(), toReturn.begin(), [dataSize](float n) -> float {return n * dataSize;});
     return toReturn;
 }
