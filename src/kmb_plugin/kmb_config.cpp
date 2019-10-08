@@ -81,4 +81,5 @@ void KmbConfig::parse(const std::map<std::string, std::string>& config) {
     for (const auto& p : config) {
         _config[p.first] = p.second;
     }
+    ParsedConfigBase::parse(config);
 }
