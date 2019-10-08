@@ -22,8 +22,6 @@ StrategyManager::StrategyManager(OpModel& model,mv::Element& passDesc) :
 void StrategyManager::updateValuesFromJSON()
 {
     auto graphOptimizerConfig = passDesc_.get<mv::Element>("graphOptimizerConfig");
-
-
     auto globalConfigs = graphOptimizerConfig.get<vector<mv::Element>>("globalConfigs");
     auto globalStrategies = graphOptimizerConfig.get<vector<mv::Element>>("globalStrategies");
     auto layerStrategySets  = graphOptimizerConfig.get<vector<mv::Element>>("layerStrategies");
@@ -767,7 +765,7 @@ void StrategyManager::recursiveCriticalPath(typename graph<mv::Op, mv::DataFlow>
     //TODO add check here for whether we've hit the same pivot (needed for nested parallelism)
     //TODO recurse if we haven't all hit the same pivot (into the nested parallel branch)
         next_modelSource.push_back(model_child);
-        //writeDot(optimizationGraph, true); //debug
+        writeDot(optimizationGraph, true); //debug
     }
 
     //If child counter is 1, we were in a linear section, just add the subgraph to the metaGraph
