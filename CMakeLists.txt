@@ -65,6 +65,18 @@ add_subdirectory(src/kmb_plugin)
 
 add_subdirectory(src/utils)
 
+####      HDDL 2
+option(ENABLE_HDDL2 "Enable HDDL2 Plugin" ON)
+
+if (ARM OR AARCH64)
+    set(ENABLE_HDDL2 OFF)
+endif()
+
+if (ENABLE_HDDL2)
+    add_subdirectory(src/hddl2_plugin)
+endif()
+
+####      TESTS
 if(ENABLE_TESTS)
     enable_testing()
     # TODO: do not use model for ARM for now because the model requires mcm compiler which is not build on ARM
@@ -80,11 +92,4 @@ endif()
 
 if(ENABLE_KMB_SAMPLES)
     add_subdirectory(samples)
-endif()
-
-############### HDDL 2 ##################
-option(ENABLE_HDDL2 "Enable HDDL2 Plugin" ON)
-
-if (ENABLE_HDDL2 AND NOT (ARM OR AARCH64))
-    add_subdirectory(src/hddl2_plugin)
 endif()
