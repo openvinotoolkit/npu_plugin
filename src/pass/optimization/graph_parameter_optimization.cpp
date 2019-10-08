@@ -3,8 +3,9 @@
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/op_model.hpp"
+#include "include/mcm/tensor/shape.hpp"
 #include "include/mcm/pass/graphOptimizations/StrategyManager.hpp"
-
+#include "include/mcm/utils/custom_math.hpp"
 
 static void GraphParameterOptimizationFcn(
     const mv::pass::PassEntry& pass,
@@ -139,7 +140,6 @@ namespace mv
                 size_t outputSize = 0;
                 size_t weightSize = 0;
                 size_t weightTableSize = 0;
-                size_t totalMemSize = 0;
 
                 size_t totalWeightsSize = 0;
                 size_t totalActivationSize = 0;
@@ -147,17 +147,24 @@ namespace mv
                 if(op.getOpType() != "Input")
                     inputSize = realTensorSize(op.getInputTensor(0),{streamConfig["W"],streamConfig["H"],streamConfig["C"],1});
                 if(op.getOpType() != "Output")
-                    outputSize = realTensorSize(op.getOutputTensor(0),{streamConfig["W"],streamConfig["H"],1,1});
+                    outputSize = realTensorSize(op.getOutputTensor(0),{streamConfig["W"],streamConfig["H"],streamConfig["K"],1});
 
-                if(op.getOpType() == "Conv" || op.getOpType() == "DepthwiseConv" || op.getOpType() == "DepthWiseConv")
+                if(op.getOpType() == "Conv" || op.getOpType() == "DepthwiseConv")
                 {
-                    weightTableSize = 16*((op.getInputTensor(1)->getShape()["K"] + (streamConfig["K"]) - 1) / (streamConfig["K"])) ;
-                    weightSize += realTensorSize(op.getInputTensor(1),{1,1,streamConfig["C"],streamConfig["K"]});
-                } else if(op.getOpType() == "MaxPool")
+                    size_t alignedFullChannels = mv::round_up(op.getOutputTensor(0)->getShape()[IO_CHANNEL_DIMENSION], 16);
+                    size_t alignedSplittedChannels = mv::round_up(alignedFullChannels/streamConfig["K"], 16);
+                    weightTableSize = 4 * alignedSplittedChannels ;
+                    if (op.getOpType() == "Conv")
+                        weightSize += realTensorSize(op.getInputTensor(1),{1,1,streamConfig["C"],streamConfig["K"]});
+                    else
+                        weightSize += realTensorSize(op.getInputTensor(1),{1,1,streamConfig["C"],1});
+                }
+                else if(op.getOpType() == "MaxPool")
                 {
                     weightTableSize = 0;
                     weightSize = 0;
-                } else if(op.getOpType() == "Add" || op.getOpType() == "Multiply")
+                }
+                else if(op.getOpType() == "Add" || op.getOpType() == "Multiply")
                 {
                     weightTableSize = 0;
                     weightSize = 0;
@@ -173,31 +180,26 @@ namespace mv
                 {
                     totalActivationSize = inputSize + outputSize;
                     totalWeightsSize = weightSize;
-                    totalMemSize = inputSize + outputSize + weightSize;
                 }
                 else if(clusterStrategy == "SplitOverH")
                 {
                     totalActivationSize = div(inputSize,totalClusters) + div(outputSize,totalClusters);
                     totalWeightsSize = weightSize;
-                    totalMemSize = div(inputSize,totalClusters) + div(outputSize,totalClusters) + weightSize;
                 }
                 else if(clusterStrategy == "SplitOverK")
                 {
                     totalActivationSize = inputSize + outputSize;
                     totalWeightsSize =  div(weightSize,totalClusters);
-                    totalMemSize = inputSize + outputSize + div(weightSize,totalClusters);
                 }
                 else if(clusterStrategy == "HKSwitch")
                 {
                     totalActivationSize = div(inputSize,totalClusters) + outputSize;
                     totalWeightsSize = weightSize;
-                    totalMemSize = div(inputSize,totalClusters) + outputSize + weightSize;
                 }//TODO: proper calculation here
                 else if(clusterStrategy == "SplitOverHOverlapped")
                 {
                     totalActivationSize = div(inputSize,totalClusters) + div(outputSize,totalClusters);
                     totalWeightsSize = weightSize;
-                    totalMemSize = div(inputSize,totalClusters) + div(outputSize,totalClusters) + weightSize;
                 }
                 else
                 {
@@ -435,7 +437,6 @@ namespace mv
                 if(checkStreamClusterComp(childOp,child))
                     return INF;
 
-
                 //if child is spilled, HKSwitch makes no sense
                 if( (child["spilling"].get<bool>() == true ) and
                         (childClustering == "HKSwitch"))
@@ -530,16 +531,8 @@ namespace mv
                                             parent["streaming"].get<Shape>(),
                                             false);
 
-                auto childMem = memorySize(childOp,
-                                            child["clustering"],
-                                            child["sparsity"],
-                                            child["streaming"].get<Shape>(),
-                                            false);
-
-                if( ((childMem.first + childMem.second) > clusterMemory) or
-                    ((parentMem.first + parentMem.second) > clusterMemory))
+                if((parentMem.first + parentMem.second) > clusterMemory)
                         return INF;
-
 
                 auto execTime1 = executionTime(parentOp,parent);
                 auto execTime2 = executionTime(childOp,child);
