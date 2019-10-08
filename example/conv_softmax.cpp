@@ -1,7 +1,7 @@
 //This file is the parsed network which is created through python.
 #include "include/mcm/compiler/compilation_unit.hpp"
 #include "include/mcm/utils/data_generator.hpp"
-#include "meta/include/mcm/op_model.hpp"
+#include "include/mcm/op_model.hpp"
 #include "include/mcm/utils/hardware_tests.hpp"
 
 #include "iostream"

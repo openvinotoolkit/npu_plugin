@@ -4,7 +4,7 @@
 namespace mv
 {
 
-    namespace op
+    namespace op_upa
     {
 
         static std::function<std::pair<bool, std::size_t>(const std::vector<Data::TensorIterator>&,
@@ -29,14 +29,16 @@ namespace mv
 
             mv::op::OpRegistry::getOutputsDef(opIt, inputs, args, outputs);
         };
-
+    }
+    namespace op
+    {
         MV_REGISTER_OP(UPATask)
         .setInputs({"inputs"})
         .setOutputs({"output"})
         .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
-        .setInputCheck(inputCheckFcn)
+        .setInputCheck(op_upa::inputCheckFcn)
         .setInputCheck(false)
-        .setOutputDef(outputDefFcn)
+        .setOutputDef(op_upa::outputDefFcn)
         .setTypeTrait({"executable"})
         .setVariableInputNum(true)
         .setBaseOperation({"Dummy", "Identity", "Softmax", "Proposal", "ROIPooling"})

@@ -40,8 +40,6 @@ namespace mv
         .setOutputs({"output"})
         .setOptionalArg<mv::DType>("dType", mv::DType("Default"))
         .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
-        .setInputCheck(inputCheckFcn)
-        .setOutputDef(outputDefFcn)
         .setInputCheck(op_identity::inputCheckFcn)
         .setOutputDef(op_identity::outputDefFcn)
         .setTypeTrait({"executable", "exposed"});
