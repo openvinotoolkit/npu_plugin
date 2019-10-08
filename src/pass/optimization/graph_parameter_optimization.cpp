@@ -814,6 +814,7 @@ namespace mv
 
                                     StrategySet s;
                                     s["name"] = op.getName();
+                                    //Input sparsity is always enabled/disabled by global switch, except in this case were it is disallowed
                                     if(clustering.get<string>() == "SplitOverK")
                                         s["inputSparsity"] = false;
                                     else
