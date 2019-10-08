@@ -6,7 +6,7 @@
 namespace mv
 {
 
-    namespace attr
+    namespace attr_std_vector_double
     {
 
         static mv::json::Value toJSON(const Attribute& a)
@@ -55,12 +55,16 @@ namespace mv
             return output + "}";
         }
 
+    }
+
+    namespace attr {
         MV_REGISTER_ATTR(std::vector<double>)
-            .setToJSONFunc(toJSON)
-            .setFromJSONFunc(fromJSON)
-            .setToStringFunc(toString)
-            .setToLongStringFunc(toLongString)
+            .setToJSONFunc(attr_std_vector_double::toJSON)
+            .setFromJSONFunc(attr_std_vector_double::fromJSON)
+            .setToStringFunc(attr_std_vector_double::toString)
+            .setToLongStringFunc(attr_std_vector_double::toLongString)
             .setTypeTrait("large");
+
 
     }
 

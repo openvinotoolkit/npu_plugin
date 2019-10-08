@@ -3,7 +3,7 @@
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/target/target_descriptor.hpp"
 #include "include/mcm/utils/custom_math.hpp"
-#include "include/mcm/target/keembay/workloads.hpp"
+#include "include/mcm/target/kmb/workloads.hpp"
 #include <cmath>
 #include <numeric>
 #include <cmath>
@@ -16,6 +16,7 @@ static void storeBarriersNamesInTasksFcn(const mv::pass::PassEntry&, mv::Computa
 static void updateCountsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void hackExecutionScheduleFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element&, mv::Element&);
 static void correctExecutionScheduleFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element&, mv::Element&);
+static void reorderDmasInScheduleFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element&, mv::Element&);
 
 namespace mv
 {
@@ -65,13 +66,20 @@ namespace mv
             "This pass is intended for debug use only"
         );
 
+        MV_REGISTER_PASS(ReorderDmasInSchedule)
+        .setFunc(reorderDmasInScheduleFcn)
+        .setDescription(
+            "This pass reorders DMAs emanating from a given barrier task so that a DMA task consumed earlier will \
+            get a lower scheduling number"
+        );
+
     }
 }
 
 // ASSUMPTION: DMA for weights, weights table, sparsity map and input are swappable in terms of scheduling without causing the model to hang on barriers
 // This basically means that they have the same barrier dependencies
 // ASSUMPTION 2: The correct dma order is: Weights - Sparsity Map (if present) - Weights Table - Input data (if present)
-void correctExecutionScheduleFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element& passArg, mv::Element &)
+void correctExecutionScheduleFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passArg, mv::Element &)
 {
     mv::ControlModel cm(model);
     mv::OpModel om(model);
@@ -173,7 +181,7 @@ void correctExecutionScheduleFcn(const mv::pass::PassEntry& pass, mv::Computatio
 
 }
 
-void hackExecutionScheduleFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element&, mv::Element &)
+void hackExecutionScheduleFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element &)
 {
 
     auto globalParams = model.getGlobalConfigParams();
@@ -569,5 +577,61 @@ void updateCountsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv
                 barrier.setNumConsumers(count);
             }
         }
+    }
+}
+
+void reorderDmasInScheduleFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+{
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
+    mv::ControlModel cm(model);
+
+    std::vector<mv::Control::OpListIterator> dmaSrcTasks;
+    for (auto op = cm.opBegin(); op != cm.opEnd(); ++op)
+    {
+        if (op->getOpType() == "Input" || op->getOpType() == "BarrierTask")
+            dmaSrcTasks.push_back(op);
+    }
+
+    std::sort(dmaSrcTasks.begin(), dmaSrcTasks.end(), [](mv::Control::OpListIterator b1, mv::Control::OpListIterator b2)
+    {
+        return b1->get<unsigned>("layerNumber") < b2->get<unsigned>("layerNumber");
+    });
+
+    for (auto task : dmaSrcTasks)
+    {
+        // create an ordered map frm barrier layerNumber -> associated DMA.
+        std::map<unsigned, std::vector<mv::Control::OpListIterator>> downstreamBarriers;
+        unsigned minSchedulingNumber = INT_MAX;
+        for (auto child = task.leftmostChild(); child != cm.opEnd(); ++child)
+        {
+            if (child->getOpType() == "DMATask" && child->get<mv::DmaDirection>("direction") == mv::DDR2NNCMX)
+            {
+                auto schedNum = child->get<unsigned>("schedulingNumber");
+                if (schedNum < minSchedulingNumber)
+                    minSchedulingNumber = schedNum;
+                for (auto outgoingOp = child.leftmostChild(); outgoingOp != cm.opEnd(); ++outgoingOp)
+                {
+                    if (outgoingOp->getOpType() == "BarrierTask")
+                    {
+                        downstreamBarriers[outgoingOp->get<unsigned>("layerNumber")].push_back(child);
+                    }
+                }
+            }
+        }
+
+        if (downstreamBarriers.empty())
+            continue;
+
+        for (auto it = downstreamBarriers.begin(); it != downstreamBarriers.end(); ++it)
+        {
+            auto dmaOps = it->second;
+
+            for (auto dma: dmaOps)
+            {
+                dma->set<unsigned>("schedulingNumber", minSchedulingNumber);
+                minSchedulingNumber++;
+            }
+        }
+
     }
 }

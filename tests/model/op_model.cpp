@@ -1,5 +1,5 @@
 #include "gtest/gtest.h"
-#include "meta/include/mcm/op_model.hpp"
+#include "include/mcm/op_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
 
 TEST(op_model, failure_sanity)

@@ -3,7 +3,7 @@
 namespace mv
 {
 
-    namespace op
+    namespace op_subtract
     {
 
         static std::function<std::pair<bool, std::size_t>(const std::vector<Data::TensorIterator>&,
@@ -34,17 +34,20 @@ namespace mv
             else
                 outputs.push_back(mv::Tensor(":0",  inputs[0]->getShape(), dTypeToUse, inputs[0]->getOrder(), args.at("quantParams").get<mv::QuantizationParams>()));
         };
+    
 
+    }
+
+    namespace op {
         MV_REGISTER_OP(Subtract)
         .setInputs({"inputs"})
         .setOutputs({"output"})
         .setOptionalArg<mv::DType>("dType", mv::DType("Default"))
         .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
-        .setInputCheck(inputCheckFcn)
-        .setOutputDef(outputDefFcn)
+        .setInputCheck(op_subtract::inputCheckFcn)
+        .setOutputDef(op_subtract::outputDefFcn)
         .setTypeTrait({"executable", "exposed"})
         .setVariableInputNum(true);
-
     }
 
 }

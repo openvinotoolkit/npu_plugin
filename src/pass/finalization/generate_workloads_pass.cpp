@@ -1,18 +1,16 @@
 #include "include/mcm/pass/pass_registry.hpp"
-#include "meta/include/mcm/op_model.hpp"
+#include "include/mcm/op_model.hpp"
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/utils/custom_math.hpp"
 #include "include/mcm/utils/data_generator.hpp"
-#include "include/mcm/target/keembay/workloads.hpp"
-#include "include/mcm/target/keembay/rectangle.hpp"
-#include "include/mcm/target/keembay/workload_struct.hpp"
+#include "include/mcm/target/kmb/workloads.hpp"
+#include "include/mcm/target/kmb/rectangle.hpp"
+#include "include/mcm/target/kmb/workload_struct.hpp"
 #include "include/mcm/graph/graph.hpp"
 #include <algorithm>
 #include <climits>
 #include <math.h>
-#include <metis.h>
-
 
 
 static void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
@@ -24,37 +22,8 @@ namespace mv
         MV_REGISTER_PASS(GenerateWorkloads)
             .setFunc(generateWorkloadsFcn)
             .setDescription(
-                "Generate workloads using the METIS graph partitioning library");
+                "Generate workloads");
     }
-}
-
-/* Note making the call to the METIS library a non-member function of the workloads class.
- *
- * This facilitates linking METIS to the pass CMAKE group and not to the base CMAKE group.
- *
- * The current plan is to port METIS to MCMcompiler in the future. For that reason other METIS related utility fucntions are members of the workloads class,
- * such as (1) generateMetisGraphNodeNumbers() and (2) generateMetisGraph(), which generate the adjacency structure of the graph, a set of arrays,
- * which represents a tensor to be partitioned. These will be required when we port METIS to to MCMcompiler.
- *
-*/
-
-int countNumberOfWorkloadsMetisReturned(int arr[], int n)
-{
-    /*First sort the array so that all occurrences become consecutive*/
-    std::sort(arr, arr + n);
-
-    /*Traverse the sorted array*/
-    int res = 0;
-    for (int i = 0; i < n; i++) {
-
-        /*Move the index ahead while there are duplicates */
-        while (i < n - 1 && arr[i] == arr[i + 1])
-            i++;
-
-        res++;
-    }
-
-    return res;
 }
 
 float workloadPixelCost(mv::Data::OpListIterator opIt)
@@ -66,31 +35,6 @@ float workloadPixelCost(mv::Data::OpListIterator opIt)
  return kh*kw*ic;
 }
 
-std::pair<int,int> partitionTensorWithMETIS(const std::shared_ptr<mv::MetisGraphStructure>& metisGraph, idx_t nWorkloads, const mv::pass::PassEntry& pass)
-{
-
-    /*METIS call*/
-    METIS_SetDefaultOptions(metisGraph->options);
-    int res = METIS_PartGraphRecursive(&metisGraph->m_numberTensorVertices,&metisGraph->nWeights, metisGraph->xadj.get(), metisGraph->adjncy.get(),
-                    metisGraph->vwgt.get(), NULL, NULL, &nWorkloads, NULL,
-                    NULL, metisGraph->options, &metisGraph->objval, metisGraph->part.get());
-
-    pass.log(mv::Logger::MessageType::Debug, "Value of the objective function that was minimized by METIS (should be same as PoC compiler) is: " + std::to_string(metisGraph->objval));
-
-    /* The METIS numbering convention for partitions starts at 0, for number of partitions > 1. i.e. nodes are assinged to partions labelled 0 -> (number partitions -1)
-     * However, the METIS numbering convention for partitions starts at 1, for number of partitions exactly = 1. i.e. nodes are assinged to partions labelled 1
-     * Need to test for this condition here, as it impacts the idexing of logic that calculate the workload coordinates MinX, MaxX, MinY, MaxY
-     * Here, if nWorkloads is 1, then we change the METIS numbering convention to start at 0 so that it is the same as the 'normal' convention.
-     */
-    if(nWorkloads == 1)
-        for (int i=0; i < metisGraph->m_numberTensorVertices; i++)
-            metisGraph->part[i] = 0;
-
-     /*Check if METIS returned fewer than the requested number of partitions - this is an error condition*/
-    int numberOfMetisPartitions = countNumberOfWorkloadsMetisReturned(metisGraph->part.get(), metisGraph->m_numberTensorVertices);
-
-    return {res, numberOfMetisPartitions};
-}
 
 /**
  * @brief Returns the supported Tensor Split Algorithms to be used
@@ -98,7 +42,7 @@ std::pair<int,int> partitionTensorWithMETIS(const std::shared_ptr<mv::MetisGraph
 std::vector<std::string> getTensorSplitAlgorithms(mv::Element& passDesc, const mv::pass::PassEntry& pass)
 {
     /*parse TensorSplitAlgorithms from Compilation Descriptor*/
-    std::vector<std::string> algorithms = {"Metis", "Rectangle", "Z-Tiling"}; //default
+    std::vector<std::string> algorithms = {"Rectangle", "Z-Tiling"}; //default
     if (passDesc.hasAttr("TensorSplitAlgorithms"))
     {
         algorithms.clear();
@@ -108,26 +52,27 @@ std::vector<std::string> getTensorSplitAlgorithms(mv::Element& passDesc, const m
         {
             std::string tempStr;
             std::getline(ss, tempStr, ',');
-            if (tempStr=="Metis" || tempStr=="Rectangle" || tempStr=="Z-Tiling")
+            if (tempStr=="Rectangle" || tempStr=="Z-Tiling")
                 algorithms.push_back(tempStr);
             else
-                pass.log(mv::Logger::MessageType::Warning, "Could not parse the TensorSplitAlgorithms type (only \"Metis, Rectangle, Z-Tiling\" currently supported).");
+                pass.log(mv::Logger::MessageType::Warning, "Could not parse the TensorSplitAlgorithms type (only \"Rectangle, Z-Tiling\" currently supported).");
         }
     }
     else
-        pass.log(mv::Logger::MessageType::Debug, "No TensorSplitAlgorithms specified in descriptor, using  \"Metis, Rectangle, Z-Tiling\"...");
+        pass.log(mv::Logger::MessageType::Debug, "No TensorSplitAlgorithms specified in descriptor, using  \"Rectangle, Z-Tiling\"...");
 
     //if parsing problem, return all 3
     if (algorithms.size() == 0)
-        algorithms = {"Metis", "Rectangle", "Z-Tiling"};
+        algorithms = {"Rectangle", "Z-Tiling"};
     return algorithms;
 }
 
-std::tuple<int,int, int> getGlobalCompilationDescriptorConf(const mv::pass::PassEntry& pass, mv::ComputationModel& model) {
+std::tuple<int,int, int, int> getGlobalCompilationDescriptorConf(const mv::pass::PassEntry& pass, mv::ComputationModel& model) {
 
     int nDPU = 1;
     int nClusters = 1;
     int nWorkloads = 0;
+    int pad = 16;
 
     /*Get nDPUs and nClsuters from gloabl compilation descriptor*/
     std::shared_ptr<mv::Element> globalParams = model.getGlobalConfigParams();
@@ -137,6 +82,8 @@ std::tuple<int,int, int> getGlobalCompilationDescriptorConf(const mv::pass::Pass
         nClusters = globalParams->get<int>("Number_of_Clusters");
     if (globalParams->hasAttr("nWorkloads"))
         nWorkloads= globalParams->get<int>("nWorkloads");
+    if (globalParams->hasAttr("VPU2ChannelPadding"))
+        pad = globalParams->get<int>("VPU2ChannelPadding");
 
     if(nDPU < nClusters)
         throw std::runtime_error("The number of DPUs cannot be less than the number of clusters!, exiting");
@@ -146,7 +93,7 @@ std::tuple<int,int, int> getGlobalCompilationDescriptorConf(const mv::pass::Pass
 
     pass.log(mv::Logger::MessageType::Debug, "Number of DPUs per cluster is: " + std::to_string(nDPUxCluster));
 
-    return std::make_tuple(nDPUxCluster, nWorkloads, nClusters);
+    return std::make_tuple(nDPUxCluster, nWorkloads, nClusters, pad);
 }
 
 void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& , mv::Element& passDesc, mv::Element&)
@@ -155,7 +102,6 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
     mv::OpModel om(model);
 
     mv::DPUModeList dpuModes;
-    std::shared_ptr<mv::MetisGraphStructure> metisGraph;
     std::vector<mv::Workloads> workloadsVector;
     std::vector<int> nWorkloadsSplitPool;
 
@@ -176,6 +122,7 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
     auto nDPUxCluster = std::get<0>(compilationConfigs);
     auto nWorkloadsCompilationDescriptor = std::get<1>(compilationConfigs);
     auto nClusters = std::get<2>(compilationConfigs);
+    auto pad = std::get<3>(compilationConfigs);
 
     for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt)
     {
@@ -214,6 +161,15 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                 /*get the subtensor*/
                 auto subTensor = opIt->getOutputTensor()[0]->getSubTensor(clusterNumber);
 
+                /* Check if subtensor needs to be aligned to 16 channels*/
+                auto subTensorShape = subTensor.getShape();
+                auto subTensorChannels = subTensorShape[mv::IO_CHANNEL_DIMENSION];
+                if (subTensorChannels % pad != 0)
+                {
+                    auto outputChannelsPadded = mv::round_up(subTensorShape[mv::IO_CHANNEL_DIMENSION], pad);
+                    subTensorShape[mv::IO_CHANNEL_DIMENSION] = outputChannelsPadded;
+                }
+
                 /*Sparse tensors don't use z-tiling*/
                 /* This should be moved to a target descriptor*/
                 if(subTensor.isSparse())
@@ -247,60 +203,10 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                     /*For each of the algorithms specified*/
                     for (std::string algorithm : algorithms)
                     {
-                        /*Disabled METIS due to licence*/
-
-                        // if (algorithm == "Metis")
-                        // {
-                        //     /* For each dpu mode and for each workload, attempt to partition with METIS and/or Rectangle and create worklaods*/
-                        //     for (auto dpuMode : dpuModes)
-                        //     {
-                        //         /*Create workload instance*/
-                        //         workloadsVector.emplace_back(mv::Workloads(opIt->getName(), opIt->getOutputTensor()[0]->getShape(), dpuMode));
-
-                        //         /*Populate Metis adjacency structure and partition tensor*/
-                        //         workloadsVector.at(workloadsVectorIndex).generateMetisGraph();
-                        //         metisGraph = workloadsVector.at(workloadsVectorIndex).getMetisGraph();
-
-                        //         metisResult = partitionTensorWithMETIS(metisGraph, nWorkloads, pass);
-
-                        //         /*Store METIS optimization value as attrbute for unit testing and for comparison with POC compiler*/
-                        //         opIt->set<int>("Metis_edge_cut", metisGraph->objval);
-
-                        //         /*Check that Metis returned the exact number of partitions requested. Sometimes it will return less*/
-                        //         if ((metisResult.first == 1) && (metisResult.second == nWorkloads))
-                        //         {
-                        //             workloadsVector.at(workloadsVectorIndex).populateWorkloadsFromPartitions(nWorkloads, pass, dpuMode);
-
-                        //             if(!workloadsVector.at(workloadsVectorIndex).validateWorkloads(opIt->getOutputTensor()[0]->getShape()))
-                        //             {
-                        //                 pass.log(mv::Logger::MessageType::Debug, "Unable to produce valid workloads using METIS for this layer switching to Rectangle Heuristic");
-
-                        //                 /*Remove the original workload created with metis*/
-                        //                 workloadsVector.erase(workloadsVector.begin() + workloadsVectorIndex);
-                        //                 metisFail = true;
-                        //             }
-                        //             else
-                        //             {
-                        //                 workloadsVectorIndex++;
-                        //                 metisFail = false;
-                        //             }
-                        //         }
-                        //         else
-                        //         {
-                        //             pass.log(mv::Logger::MessageType::Debug,"Error partitioning tensor into workloads using METIS");
-
-                        //             /*Remove the original workload created with metis*/
-                        //             workloadsVector.erase(workloadsVector.begin() + workloadsVectorIndex);
-                        //             metisFail = true;
-                        //         }
-                        //     }
-                        // }
-
-                        // Rectangle Reuristic performs the same function as METIS
                         if ((algorithm == "Rectangle") && ((!depthWiseSOHA0Workaround) || nWorkloads > 1))
                         {
                             /*Create workload instance*/
-                            workloadsVector.emplace_back(mv::Workloads(opIt->getName(), subTensor.getShape()));
+                            workloadsVector.emplace_back(mv::Workloads(opIt->getName(), subTensorShape));
 
                             /*Partition tensor into workloads with Rectangle*/
                             rectangleFail = false;
@@ -334,7 +240,7 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                             {
 
                                 /*Check that workloads sum to the orignal output tensor volume*/
-                                if((!workloadsVector.at(workloadsVectorIndex).validateWorkloads(subTensor.getShape())))
+                                if((!workloadsVector.at(workloadsVectorIndex).validateWorkloads(subTensorShape)))
                                 {
                                     pass.log(mv::Logger::MessageType::Debug, "Error producing valid workloads from Rectangle heuristic, the individual workloads do not sum to the original volume or they overlap, erasing this workload instance ");
                                     workloadsVector.erase(workloadsVector.begin() + workloadsVectorIndex);
@@ -355,7 +261,7 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                             && opIt->get<std::string>("taskOp") != "Multiply" && !depthWiseSOHA0Workaround)
                         {
                             /*Create workload instance*/
-                            workloadsVector.emplace_back(mv::Workloads(opIt->getName(), subTensor.getShape()));
+                            workloadsVector.emplace_back(mv::Workloads(opIt->getName(), subTensorShape));
 
                             bool ztilingFail = false;
                             int ztilingResult = 0;
@@ -372,7 +278,7 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                             if(!ztilingFail)
                             {
 
-                                if((!workloadsVector.at(workloadsVectorIndex).validateWorkloads(subTensor.getShape())))
+                                if((!workloadsVector.at(workloadsVectorIndex).validateWorkloads(subTensorShape)))
                                 {
                                     pass.log(mv::Logger::MessageType::Debug, "Error producing valid workloads from Ztiling partitions,erasing this workload instance ");
                                     workloadsVector.erase(workloadsVector.begin() + workloadsVectorIndex);
@@ -465,5 +371,4 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
     }
     pass.log(mv::Logger::MessageType::Debug, "Exiting workload generation pass");
 }
-
 

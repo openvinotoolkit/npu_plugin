@@ -3,7 +3,7 @@
 namespace mv
 {
 
-    namespace op
+    namespace op_prelu
     {
 
         static std::function<std::pair<bool, std::size_t>(const std::vector<Data::TensorIterator>&,
@@ -35,12 +35,17 @@ namespace mv
             outputs.push_back(mv::Tensor(":0", inputs[0]->getShape(), inputs[0]->getDType(), inputs[0]->getOrder()));
 
         };
+    
+    }
 
+
+
+    namespace op {
         MV_REGISTER_OP(Prelu)
         .setInputs({"data", "slope"})
         .setOutputs({"output"})
-        .setInputCheck(inputCheckFcn)
-        .setOutputDef(outputDefFcn)
+        .setInputCheck(op_prelu::inputCheckFcn)
+        .setOutputDef(op_prelu::outputDefFcn)
         .setTypeTrait({"executable", "exposed"});
 
     }

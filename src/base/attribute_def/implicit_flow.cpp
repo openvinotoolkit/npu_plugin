@@ -5,7 +5,7 @@
 
 namespace mv
 {
-    namespace attr
+    namespace attr_implicit_flow
     {
         static mv::json::Value toJSON(const Attribute& a)
         {
@@ -35,10 +35,16 @@ namespace mv
             return std::vector<uint8_t>(1,implicitness.isImplicit());
         }
 
-        MV_REGISTER_ATTR(ImplicitFlow)
-            .setToJSONFunc(toJSON)
-            .setFromJSONFunc(fromJSON)
-            .setToStringFunc(toString)
-            .setToBinaryFunc(toBinary);
     }
+
+    namespace attr {
+        MV_REGISTER_ATTR(ImplicitFlow)
+            .setToJSONFunc(attr_implicit_flow::toJSON)
+            .setFromJSONFunc(attr_implicit_flow::fromJSON)
+            .setToStringFunc(attr_implicit_flow::toString)
+            .setToBinaryFunc(attr_implicit_flow::toBinary);
+    }
+
+
+    
 }

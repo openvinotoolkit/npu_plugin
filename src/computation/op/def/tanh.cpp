@@ -3,7 +3,7 @@
 namespace mv
 {
 
-    namespace op
+    namespace op_tanh
     {
 
         static std::function<std::pair<bool, std::size_t>(const std::vector<Data::TensorIterator>&,
@@ -24,14 +24,16 @@ namespace mv
             outputs.push_back(mv::Tensor(":0", inputs[0]->getShape(), inputs[0]->getDType(), inputs[0]->getOrder()));
 
         };
+    
+    }
 
+    namespace op {
         MV_REGISTER_OP(Tanh)
         .setInputs({"data"})
         .setOutputs({"output"})
-        .setInputCheck(inputCheckFcn)
-        .setOutputDef(outputDefFcn)
+        .setInputCheck(op_tanh::inputCheckFcn)
+        .setOutputDef(op_tanh::outputDefFcn)
         .setTypeTrait({"executable", "exposed"});
-
     }
 
 }

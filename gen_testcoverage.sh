@@ -39,7 +39,7 @@ eval lcov --remove coverage_filtered.info \
         '${MCM_HOME}/tests/op/*' \
         '${MCM_HOME}/tests/pass/*' \
         '${MCM_HOME}/tests/resources/*' \
-        '${MCM_HOME}/tests/target/keembay/*' \
+        '${MCM_HOME}/tests/target/kmb/*' \
         '${MCM_HOME}/tests/tensor/*' \
         '${MCM_HOME}/contrib/koala/base/*' \
         '${MCM_HOME}/contrib/koala/coloring/*' \

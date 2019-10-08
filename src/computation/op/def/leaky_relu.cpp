@@ -3,7 +3,7 @@
 namespace mv
 {
 
-    namespace op
+    namespace op_leaky_relu
     {
 
         static std::function<std::pair<bool, std::size_t>(const std::vector<Data::TensorIterator>&,
@@ -40,14 +40,16 @@ namespace mv
 
         };
 
+    }
+
+    namespace op {
         MV_REGISTER_OP(LeakyRelu)
         .setInputs({"data"})
         .setOptionalArg<double>("alpha", 0)
         .setOutputs({"output"})
-        .setInputCheck(inputCheckFcn)
-        .setOutputDef(outputDefFcn)
+        .setInputCheck(op_leaky_relu::inputCheckFcn)
+        .setOutputDef(op_leaky_relu::outputDefFcn)
         .setTypeTrait({"executable", "exposed"});
-
     }
 
 }

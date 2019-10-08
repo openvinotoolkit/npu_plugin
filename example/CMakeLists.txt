@@ -3,10 +3,13 @@ project(mcmComplier VERSION 0.0.1)
 
 if (MSVC)
 
+    add_executable(templateExample templateExample.cpp $<TARGET_OBJECTS:cm> $<TARGET_OBJECTS:corebase> $<TARGET_OBJECTS:metamodel> $<TARGET_OBJECTS:model>)
     add_executable(z_major_convolution z_major_convolution.cpp $<TARGET_OBJECTS:cm> $<TARGET_OBJECTS:corebase> $<TARGET_OBJECTS:metamodel> $<TARGET_OBJECTS:model>)
 
 else()
 
+    add_executable(templateExample templateExample.cpp)
+    target_link_libraries(templateExample cm)
     add_executable(z_major_convolution z_major_convolution.cpp)
     target_link_libraries(z_major_convolution cm)
 

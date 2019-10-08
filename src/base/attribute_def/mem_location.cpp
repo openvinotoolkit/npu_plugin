@@ -6,7 +6,7 @@
 
 namespace mv
 {
-    namespace attr
+    namespace attr_mem_location
     {
         static mv::json::Value toJSON(const Attribute& a)
         {
@@ -30,10 +30,13 @@ namespace mv
             return elem.toString();
         }
 
-        MV_REGISTER_ATTR(Tensor::MemoryLocation)
-            .setToJSONFunc(toJSON)
-            .setFromJSONFunc(fromJSON)
-            .setToStringFunc(toString);
 
+    }
+
+    namespace attr {
+        MV_REGISTER_ATTR(Tensor::MemoryLocation)
+            .setToJSONFunc(attr_mem_location::toJSON)
+            .setFromJSONFunc(attr_mem_location::fromJSON)
+            .setToStringFunc(attr_mem_location::toString);
     }
 }

@@ -3,14 +3,13 @@
 
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
-#include "meta/include/mcm/op_model.hpp"
-#include "meta/include/mcm/recorded_compositional_model.hpp"
+#include "include/mcm/op_model.hpp"
 #include "include/mcm/logger/log_sender.hpp"
 #include "include/mcm/pass/pass_manager.hpp"
 #include "include/mcm/utils/env_loader.hpp"
 #include "include/mcm/compiler/compilation_descriptor.hpp"
 #include "include/mcm/compiler/compilation_profiler.hpp"
-#include "include/mcm/target/keembay/runtime_model/runtime_model.hpp"
+#include "include/mcm/target/kmb/runtime_model/runtime_model.hpp"
 
 namespace mv
 {
@@ -28,7 +27,6 @@ namespace mv
         static Logger& logger_;
 
         OpModel* model_;
-        RecordedCompositionalModel* recordedModel_;
         PassManager passManager_;
         TargetDescriptor targetDescriptor_;
         CompilationDescriptor compDescriptor_;
@@ -47,9 +45,7 @@ namespace mv
 
         CompilationDescriptor& compilationDescriptor();
         OpModel& model();
-        CompositionalModel& recordedModel();
 
-        void loadModelFromJson(const std::string& path);
         bool initialize();
         Element runStep();
         Element run();

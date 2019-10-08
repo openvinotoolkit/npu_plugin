@@ -1,8 +1,7 @@
 #include "include/mcm/pass/pass_registry.hpp"
-#include "meta/include/mcm/op_model.hpp"
+#include "include/mcm/op_model.hpp"
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
-#include "include/mcm/target/keembay/koala_graph_scheduler.hpp"
 #include <iostream>
 
 static void scheduleHelperPass(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);

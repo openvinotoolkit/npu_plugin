@@ -1,5 +1,5 @@
 #include "include/mcm/pass/pass_registry.hpp"
-#include "meta/include/mcm/op_model.hpp"
+#include "include/mcm/op_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/utils/custom_math.hpp"
 #include "include/mcm/pass/pass_utils.hpp"
@@ -58,8 +58,11 @@ mv::Data::OpListIterator linkNewOperationsReplacement(mv::Data::OpListIterator p
     while(opIt.parentsSize() > 1)
     {
         auto paramOp = opIt.leftmostParent();
-        ++paramOp;
-        om.removeOp(paramOp);
+
+        if (paramOp->getOpType() == "Constant" || paramOp->getOpType() == "ConstantInt" || paramOp->getOpType() == "ConstantDouble")
+        {
+            om.removeOp(paramOp);
+        }
     }
 
     om.removeOp(opIt);
@@ -157,10 +160,11 @@ void fullyConnectedAsConv2DFcn(const mv::pass::PassEntry& pass, mv::ComputationM
                 outputTensorQuantizationParams = opIt->getOutputTensor(0)->get<mv::QuantizationParams>("quantParams");
             }
             auto weights = om.constantDataElement(weightsData, {inputShape[mv::IO_WIDTH_DIMENSION], inputShape[mv::IO_HEIGHT_DIMENSION], inputShape[mv::IO_CHANNEL_DIMENSION],
-            opIt->getInputTensor(1)->getShape()[mv::IO_HEIGHT_DIMENSION]}, sourceTensor->getDType(),
-            mv::Order::getZMajorID(4),weightsTensorQuantizationParams, opIt->getName() + "_weights");
+                opIt->getInputTensor(1)->getShape()[mv::IO_HEIGHT_DIMENSION]}, sourceTensor->getDType(),
+                mv::Order::getZMajorID(4), weightsTensorQuantizationParams, opIt->getName() + "_weights");
 
-            auto conv2D = om.conv(sourceTensor, weights, {1, 1}, {0, 0, 0, 0}, 1, 1, mv::DType("Default"), outputTensorQuantizationParams);
+
+            auto conv2D = om.conv(sourceTensor, weights, {1, 1}, {0, 0, 0, 0}, 1, 1, mv::DType("Default"), outputTensorQuantizationParams,  opIt->getName() + "_2DConv");
             pass.log(Logger::MessageType::Info, "Replaced FullyConnected op " + opIt->getName() + " with " + conv2D->getName());
 
             if (opIt->hasAttr("bias"))

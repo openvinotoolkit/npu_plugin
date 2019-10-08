@@ -3,7 +3,7 @@
 namespace mv
 {
 
-    namespace op
+    namespace op_average_pool
     {
 
         static std::function<std::pair<bool, std::size_t>(const std::vector<Data::TensorIterator>&,
@@ -80,6 +80,10 @@ namespace mv
         static std::string default_auto_pad = ""; // variants: "", "same_upper", "same_lower", "valid"
         static std::string default_rounding_type = "floor"; // variants: "floor", "ceil"
 
+
+    }
+
+    namespace op {
         MV_REGISTER_OP(AveragePool)
         .setInputs({"data"})
         .setOutputs({"output"})
@@ -87,13 +91,14 @@ namespace mv
         .setArg<std::array<unsigned short, 2>>("stride")
         .setArg<std::array<unsigned short, 4>>("padding")
         .setOptionalArg<bool>("exclude_pad", true)
-        .setOptionalArg<std::string>("auto_pad",      default_auto_pad)      // default: ""
-        .setOptionalArg<std::string>("rounding_type", default_rounding_type) // default: "floor"
+        .setOptionalArg<std::string>("auto_pad",      op_average_pool::default_auto_pad)      // default: ""
+        .setOptionalArg<std::string>("rounding_type", op_average_pool::default_rounding_type) // default: "floor"
         .setOptionalArg<mv::DType>("dType", mv::DType("Default"))
         .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
-        .setInputCheck(inputCheckFcn)
-        .setOutputDef(outputDefFcn)
+        .setInputCheck(op_average_pool::inputCheckFcn)
+        .setOutputDef(op_average_pool::outputDefFcn)
         .setTypeTrait({"executable", "exposed"});
+
 
     }
 

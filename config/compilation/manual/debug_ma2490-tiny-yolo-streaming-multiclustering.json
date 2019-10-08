@@ -14,8 +14,6 @@
                 "UpaShaves": 1,
                 "DDRScratch": 31457280,
                 "MemoryHack": false,
-                "ActivationSparsity": false,
-                "WeightsSparsity": false,
                 "CMX_memory_overflow_safety_factor" : 0.925,
                 "cmx": 917504,
                 "split_strategy" :
@@ -148,6 +146,15 @@
                         "mem_location": "CMX"
                     }
                 ],
+                "sparsity_strategy" :
+                [
+                    {
+                        "name_filter": ".*",
+                        "inputActivationSparsity": true,
+                        "outputActivationSparsity": true,
+                        "weightsSparsity": true
+                    }
+                ],
                 "default_tensor_placement" : "DDR",
                 "streaming_strategy" :
                 [
@@ -232,6 +239,7 @@
                 "input": "output/dots/adapt_model.dot"
             },
             "StoreLayerSplitStrategy",
+            "StoreLayerSparsityStrategy",
             "StreamingTiling",
             "StreamBinaryDataWeights",
             {
@@ -265,6 +273,7 @@
             "UpdateImplicitLayersQuantizationParams",
             "PopulateWeightsTablesQuantization",
             "RemoveBiasTensors",
+            "SplittingTensorsAcrossClusters",
             {
                 "name": "GenerateDot",
                 "output": "output/dots/keembay_adapt_model.dot",
@@ -380,7 +389,6 @@
     },
     "finalize": {
         "Singular": [
-            "SplittingTensorsAcrossClusters",
             "AddDeallocationTasks",
             {
                 "name": "GenerateDot",
@@ -551,7 +559,6 @@
         "Singular": [
             "StoreBarriersNamesInTasks",
             "GenerateExecutionSchedule",
-            "CorrectExecutionSchedule",
             "BarrierIndexAssignment",
             "UpdateBarrierRefs",
             {

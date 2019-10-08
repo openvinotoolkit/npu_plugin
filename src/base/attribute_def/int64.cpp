@@ -5,7 +5,7 @@
 namespace mv
 {
 
-    namespace attr
+    namespace attr_int64
     {
 
         static mv::json::Value toJSON(const Attribute& a)
@@ -37,11 +37,14 @@ namespace mv
             return std::vector<uint8_t>(std::begin(tmp.bytes), std::end(tmp.bytes));
         }
 
+    }
+
+    namespace attr {
         MV_REGISTER_ATTR(int64_t)
-            .setToJSONFunc(toJSON)
-            .setFromJSONFunc(fromJSON)
-            .setToStringFunc(toString)
-            .setToBinaryFunc(toBinary);
+            .setToJSONFunc(attr_int64::toJSON)
+            .setFromJSONFunc(attr_int64::fromJSON)
+            .setToStringFunc(attr_int64::toString)
+            .setToBinaryFunc(attr_int64::toBinary);
 
     }
 

@@ -14,8 +14,9 @@ import_array();
 %include "std_string.i"
 %include exception.i
 %{
-    #include <include/mcm/compiler/compilation_unit.hpp>
+    #include "include/mcm/compiler/compilation_unit.hpp"
     #include "include/mcm/tensor/quantization_params.hpp"
+    #include "include/mcm/utils/env_loader.hpp"
     #include <math.h>
     #include <iostream>
 
@@ -23,6 +24,11 @@ import_array();
         /// A simple test to ensure the connection between Python and C++ is working
         int test = 1;
         return test;
+    }
+
+    std::string getProjectPath()
+    {
+        return mv::utils::projectRootPath();
     }
 
     mv::CompilationUnit* getCompilationUnit()
@@ -69,7 +75,7 @@ import_array();
 
     mv::CompositionalModel* getModel(mv::CompilationUnit *unit)
     {
-        return &unit->recordedModel();
+        return &unit->model();
     }
 
     void deleteCompilationUnitObject(mv::CompilationUnit *unit)
@@ -632,6 +638,7 @@ namespace mv
 #define SWIGWORDSIZE64
 
 int testSWIG();
+std::string getProjectPath();
 mv::CompilationUnit* getCompilationUnit();
 mv::CompilationUnit* getCompilationUnit(const std::string& target);
 mv::CompilationUnit* loadCompilationDescriptor(mv::CompilationUnit *unit, const std::string& filepath);

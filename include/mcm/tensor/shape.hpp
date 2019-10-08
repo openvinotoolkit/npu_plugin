@@ -19,6 +19,7 @@ namespace mv
     static const size_t KERNEL_HEIGHT = 1;
     static const size_t KERNEL_INPUT_CHANNELS = 2;
     static const size_t KERNEL_OUTPUT_CHANNELS = 3;
+    static const size_t KERNEL_WEIGHT_SETS = 0;
 
     class Shape : public Printable, public LogSender
     {

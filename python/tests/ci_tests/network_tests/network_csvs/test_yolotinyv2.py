@@ -12,7 +12,7 @@ def main():
     cmd = cmd.split()
     code = subprocess.run(cmd)
 
-    outfile = os.path.join(nroot, "internal/unit_tests/CompilerTestsKeembay/layers/yolo_tiny_v2_weights/quantized_model.tflite")
+    outfile = os.path.join(nroot, "internal/unit_tests/CompilerTestsKmb/layers/yolo_tiny_v2_weights/quantized_model.tflite")
 
     print("\nFILE:"+outfile, end="")
 

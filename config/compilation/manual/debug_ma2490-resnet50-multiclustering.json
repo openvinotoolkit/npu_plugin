@@ -14,8 +14,6 @@
                 "UpaShaves": 1,
                 "DDRScratch": 100352,
                 "MemoryHack": false,
-                "ActivationSparsity": false,
-                "WeightsSparsity": false,
                 "CMX_memory_overflow_safety_factor" : 0.925,
                 "cmx": 917504,
                 "split_strategy" :
@@ -313,6 +311,15 @@
                         "strategy": "SplitOverK"
                     }
                 ],
+                "sparsity_strategy" :
+                [
+                    {
+                        "name_filter": ".*",
+                        "inputActivationSparsity": true,
+                        "outputActivationSparsity": true,
+                        "weightsSparsity": true
+                    }
+                ],
                 "default_tensor_placement" : "NNCMX"
             },
             "ComputeMemory",
@@ -370,6 +377,7 @@
                 "input": "output/dots/adapt_model.dot"
             },
             "StoreLayerSplitStrategy",
+            "StoreLayerSparsityStrategy",
             "StreamingTiling",
             "StreamBinaryDataWeights",
             {
@@ -403,6 +411,7 @@
             "UpdateImplicitLayersQuantizationParams",
             "PopulateWeightsTablesQuantization",
             "RemoveBiasTensors",
+            "SplittingTensorsAcrossClusters",
             {
                 "name": "GenerateDot",
                 "output": "output/dots/keembay_adapt_model.dot",
@@ -487,7 +496,10 @@
                 "name": "ConvertDot",
                 "input": "output/dots/TaskControlFlows_model_transitive_reduction.dot"
             },
-            "HangingDmaControlFlows",
+            {
+                "name": "HangingDmaControlFlows",
+                "weights_prefetch": 2
+            },
             "TransitiveReduction",
             "LayerNumbering",
             {
@@ -518,7 +530,6 @@
     },
     "finalize": {
         "Singular": [
-            "SplittingTensorsAcrossClusters",
             "AddDeallocationTasks",
             {
                 "name": "GenerateDot",
@@ -695,7 +706,6 @@
             
             "StoreBarriersNamesInTasks",
             "GenerateExecutionSchedule",
-            "CorrectExecutionSchedule",
             "BarrierIndexAssignment",
             "UpdateBarrierRefs",
             {

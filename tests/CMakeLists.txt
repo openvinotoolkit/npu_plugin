@@ -49,8 +49,8 @@ file(GLOB hw
     "hw/*.cpp"
 )
 
-file(GLOB keembay
-    "target/keembay/*.cpp"
+file(GLOB kmb
+    "target/kmb/*.cpp"
 )
 
 file(GLOB utils
@@ -69,7 +69,7 @@ add_executable(mcm_unit_tests
     ${pass_src}
     ${compiler_src}
     ${model_src}
-    ${keembay}
+    ${kmb}
     ${utils}
 )
 

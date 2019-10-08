@@ -3,7 +3,7 @@
 namespace mv
 {
 
-    namespace op
+    namespace op_concat
     {
 
         static std::function<std::pair<bool, std::size_t>(const std::vector<Data::TensorIterator>&,
@@ -83,15 +83,19 @@ namespace mv
         // Default axis is channels (like for Intel Inference Engine)
         static std::string channels = "C";
 
+
+    }
+
+    namespace op {
         MV_REGISTER_OP(Concat)
         .setInputs({"inputs"})
         .setOutputs({"output"})
         .setVariableInputNum(true)
-        .setOptionalArg<std::string>("axis", channels)
+        .setOptionalArg<std::string>("axis", op_concat::channels)
         .setOptionalArg<mv::DType>("dType", mv::DType("Default"))
         .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
-        .setInputCheck(inputCheckFcn)
-        .setOutputDef(outputDefFcn)
+        .setInputCheck(op_concat::inputCheckFcn)
+        .setOutputDef(op_concat::outputDefFcn)
         .setTypeTrait({"executable", "exposed"});
 
     }

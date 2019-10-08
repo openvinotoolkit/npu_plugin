@@ -4,7 +4,7 @@
 namespace mv
 {
 
-    namespace op
+    namespace op_elu
     {
 
         static std::function<std::pair<bool, std::size_t>(const std::vector<Data::TensorIterator>&,
@@ -34,14 +34,17 @@ namespace mv
 
         };
 
+
+    }
+
+    namespace op {
         MV_REGISTER_OP(Elu)
         .setInputs({"data"})
         .setOptionalArg<unsigned>("alpha", 1)
         .setOutputs({"output"})
-        .setInputCheck(inputCheckFcn)
-        .setOutputDef(outputDefFcn)
+        .setInputCheck(op_elu::inputCheckFcn)
+        .setOutputDef(op_elu::outputDefFcn)
         .setTypeTrait({"executable", "exposed"});
-
     }
 
 }
