@@ -497,7 +497,8 @@ void FrontEndMcm::getInputData(
 
             if (prevLayer->type == "FakeQuantize")  {
                 auto prevLayerInput =  prevLayer->insData[0].lock();
-                if (prevLayerInput->getCreatorLayer().lock()->type == "Const") {
+                auto prevPrevLayer = prevLayerInput->getCreatorLayer().lock();
+                if (prevPrevLayer == nullptr || prevPrevLayer->type == "Const") {
                     continue;
                 }
 
