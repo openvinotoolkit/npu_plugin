@@ -609,6 +609,9 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model, mv::Dat
         newOp->set<bool>("inputActivationSparsity", op->get<bool>("inputActivationSparsity"));
         newOp->set<bool>("outputActivationSparsity", op->get<bool>("outputActivationSparsity"));
         newOp->set<bool>("weightsSparsity", op->get<bool>("weightsSparsity"));
+        if (op->hasAttr("postOpType"))
+            newOp->set<std::string>("postOpType", op->get<std::string>("postOpType"));
+
 
         convs[split] = newTensor;
 
