@@ -1200,6 +1200,80 @@ std::string pooling_test2 = R"V0G0N(
     </net>
         )V0G0N";
 
+std::string convolution_u8_only = R"V0G0N(
+<net batch="1" name="resnet50-int8" version="6">
+	<layers>
+		<layer id="36" name="input" precision="U8" type="Input">
+			<output>
+				<port id="0">
+					<dim>1</dim>
+					<dim>64</dim>
+					<dim>16</dim>
+					<dim>16</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="42" name="conv2/weights" precision="U8" type="Const">
+			<output>
+				<port id="1">
+					<dim>64</dim>
+					<dim>64</dim>
+					<dim>3</dim>
+					<dim>3</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="0" size="36864"/>
+			</blobs>
+		</layer>
+		<layer id="48" name="bias2" precision="I32" type="Const">
+			<output>
+				<port id="1">
+					<dim>64</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="36864" size="256"/>
+			</blobs>
+		</layer>
+		<layer id="49" name="conv2" precision="U8" type="Convolution">
+			<data kernel="3,3" output="64" strides="1,1" auto_pad="same_upper" dilations="1,1" group="1" pads_begin="1,1" pads_end="1,1" />
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>64</dim>
+					<dim>16</dim>
+					<dim>16</dim>
+				</port>
+				<port id="1">
+					<dim>64</dim>
+					<dim>64</dim>
+					<dim>3</dim>
+					<dim>3</dim>
+				</port>
+				<port id="2">
+					<dim>64</dim>
+				</port>
+			</input>
+			<output>
+				<port id="3">
+					<dim>1</dim>
+					<dim>64</dim>
+					<dim>16</dim>
+					<dim>16</dim>
+				</port>
+			</output>
+		</layer>
+	</layers>
+	<edges>
+		<edge from-layer="36" from-port="0" to-layer="49" to-port="0"/>
+		<edge from-layer="42" from-port="1" to-layer="49" to-port="1"/>
+		<edge from-layer="48" from-port="1" to-layer="49" to-port="2"/>
+	</edges>
+</net>
+        )V0G0N";
+
+
 std::string relu_test_2 = R"V0G0N(
         <net batch="1" name="RELU_TEST" version="2">
             <layers>

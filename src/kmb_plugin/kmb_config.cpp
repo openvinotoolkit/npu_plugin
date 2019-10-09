@@ -47,6 +47,7 @@ KmbConfig::KmbConfig() {
         {VPU_KMB_CONFIG_KEY(MCM_PARSING_ONLY),                  CONFIG_VALUE(NO)},
         {VPU_KMB_CONFIG_KEY(MCM_COMPILATION_RESULTS_PATH),      "."},
         {VPU_KMB_CONFIG_KEY(MCM_COMPILATION_RESULTS),           ""},
+        {VPU_KMB_CONFIG_KEY(LOAD_NETWORK_AFTER_COMPILATION),    CONFIG_VALUE(NO)},
         {VPU_KMB_CONFIG_KEY(THROUGHPUT_STREAMS),                "1"},
     };
 }
@@ -63,6 +64,7 @@ const std::unordered_set<std::string>& KmbConfig::getCompileOptions() const {
         VPU_KMB_CONFIG_KEY(MCM_GENERATE_DOT),
         VPU_KMB_CONFIG_KEY(MCM_COMPILATION_RESULTS_PATH),
         VPU_KMB_CONFIG_KEY(MCM_COMPILATION_RESULTS),
+        VPU_KMB_CONFIG_KEY(LOAD_NETWORK_AFTER_COMPILATION),
     });
 
     return options;

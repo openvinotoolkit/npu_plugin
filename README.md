@@ -88,13 +88,24 @@ wget -q http://nnt-srv01.inn.intel.com/dl_score_engine/thirdparty/linux/keembay/
         ./oecore-x86_64-aarch64-toolchain-1.0.sh -y -d /usr/local/oecore-x86_64 && \
         rm oecore-x86_64-aarch64-toolchain-1.0.sh
 ```
-1. Clone dldt:
+1. Clone and build metis library:
+
+```sh
+(\
+  source /usr/local/oecore-x86_64/environment-setup-aarch64-ese-linux && \
+  mkdir /tmp/metis && wget -P ~/Downloads "http://glaros.dtc.umn.edu/gkhome/fetch/sw/metis/metis-5.1.0.tar.gz" && \
+  tar xvzf ~/Downloads/metis-5.1.0.tar.gz -C ~/Downloads/ && cd ~/Downloads/metis-5.1.0 && \
+  make config prefix=/tmp/metis/ && make install \
+)
+```
+
+2. Clone dldt:
 
 ```sh
 (cd .. && git clone git@gitlab-icv.inn.intel.com:inference-engine/dldt.git)
 ```
 
-2. Configure and build inference engine:
+3. Configure and build inference engine:
 
 Run following command from temporary build folder (e.g. `dldt\inference-engine\build`):
 
@@ -103,23 +114,36 @@ Run following command from temporary build folder (e.g. `dldt\inference-engine\b
   mkdir -p ../dldt/inference-engine/build && \
   cd ../dldt/inference-engine/build && \
   source /usr/local/oecore-x86_64/environment-setup-aarch64-ese-linux && \
-  rm targets*.cmake ; cmake -DENABLE_TESTS=ON .. && \
+  cmake -DENABLE_TESTS=ON .. && \
   cmake --build . --parallel $(nproc) \
 )
 ```
 
-Note: the command attempt to clean the auto-generated `targets*.cmake`. Due to
-bug in in inference engine you need to clean `targets*.cmake` before cmake
-execution.
+4. Clone kmb-plugin:
 
-3. Build plugin:
+```sh
+(cd .. && git@gitlab-icv.inn.intel.com:inference-engine/kmb-plugin.git)
+```
+5. (Optional) Build mcmCompiler to ARM. Need open new terminal (not using yoctoSDK)
+
+```sh
+(\
+    cd kmb-plugin/thirdparty/movidius/mcmCompiler/build && \
+    cmake .. && \
+    cmake --build . --parallel $(nproc) && \
+    rm -rf !(meta) && exit
+)
+```
+
+6. Build kmb-plugin.
 
 Run following command from temporary build folder (e.g. `kmb-plugin\build`):
 
 ```sh
 (\
   source /usr/local/oecore-x86_64/environment-setup-aarch64-ese-linux && \
-  cmake -DInferenceEngineDeveloperPackage_DIR=$(realpath ../../dldt/inference-engine/build) .. &&\
+  cmake -DInferenceEngineDeveloperPackage_DIR=$(realpath ../../dldt/inference-engine/build) \
+  -DENABLE_MCM_COMPILER=ON -DMETIS_DIR=/tmp/metis/ .. && \
   cmake --build . --parallel $(nproc) \
 )
 ```

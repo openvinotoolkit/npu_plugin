@@ -256,6 +256,67 @@ INSTANTIATE_TEST_CASE_P(
                 Values<Compile>(true),
                 Values<Timeout>(600.)),
         KmbNoRegressionCompilationOnly::getTestCaseName);
+
+using kmbLayersTestsConvolution = kmbLayersTests_nightly;
+
+TEST_F(kmbLayersTestsConvolution, compilationLoadNetworkAndInfer) {
+    extern std::string convolution_u8_only;
+    std::string model = convolution_u8_only;
+
+    const size_t convolutionWeightsByteSize = 36864;
+    const size_t convolutionWeightsSize = convolutionWeightsByteSize / sizeof(uint8_t);
+
+    const size_t biasByteSize = 256;
+    const size_t biasSize = biasByteSize / sizeof(int32_t);
+
+    auto convolutionWeightsBuffer = make_shared_blob<uint8_t>({Precision::U8, {convolutionWeightsByteSize + biasByteSize}, Layout::C});
+    convolutionWeightsBuffer->allocate();
+    auto weightsBufferData = convolutionWeightsBuffer->buffer().as<uint8_t*>();
+    for (size_t i = 0; i < convolutionWeightsSize; ++i) {
+        weightsBufferData[i] = 1;
+    }
+
+    uint32_t* biasData = reinterpret_cast<uint32_t*>(convolutionWeightsBuffer->buffer().as<uint8_t*>() + convolutionWeightsSize);
+    for (size_t i = 0; i < biasSize; ++i) {
+        biasData[i] = 1lu;
+    }
+
+    ASSERT_NO_THROW(_net_reader.ReadNetwork(model.data(), model.length()));
+    ASSERT_NO_THROW(_net_reader.SetWeights(convolutionWeightsBuffer));
+    ASSERT_TRUE(_net_reader.isParseSuccess());
+
+    auto network = _net_reader.getNetwork();
+
+    auto _inputsInfo = network.getInputsInfo();
+    _inputsInfo["input"]->setPrecision(Precision::U8);
+
+    auto _outputsInfo = network.getOutputsInfo();
+    _outputsInfo["conv2"]->setPrecision(Precision::U8);
+
+    std::map<std::string, std::string> config;
+    setCommonConfig(config);
+    config[VPU_KMB_CONFIG_KEY(MCM_PARSING_ONLY)] = CONFIG_VALUE(NO);
+    config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_BLOB)] = CONFIG_VALUE(YES);
+    config[VPU_KMB_CONFIG_KEY(LOAD_NETWORK_AFTER_COMPILATION)] = CONFIG_VALUE(YES);
+
+    Core ie;
+    InferenceEngine::ExecutableNetwork exeNetwork;
+    ASSERT_NO_THROW(exeNetwork = ie.LoadNetwork(network, "KMB", config));
+
+    InferenceEngine::InferRequest inferRequest;
+    ASSERT_NO_THROW(inferRequest = exeNetwork.CreateInferRequest());
+
+    std::string input_name = exeNetwork.GetInputsInfo().begin()->first;
+    std::string output_name = exeNetwork.GetOutputsInfo().begin()->first;
+
+    Blob::Ptr inputBlob;
+    ASSERT_NO_THROW(inputBlob = inferRequest.GetBlob(input_name));
+
+    ASSERT_NO_THROW(inferRequest.Infer());
+
+    Blob::Ptr outputBlob;
+    ASSERT_NO_THROW(outputBlob = inferRequest.GetBlob(output_name));
+}
 #endif
 
 #ifdef ENABLE_VPUAL

@@ -123,8 +123,7 @@ void KmbExecutor::initVpualObjects() {
 #endif
 }
 
-void KmbExecutor::allocateGraph(const std::vector<char> &graphFileContent, const char* networkName) {
-    UNUSED(networkName);
+void KmbExecutor::allocateGraph(const std::vector<char> &graphFileContent) {
     auto parsedConfig = _config.getParsedConfig();
     if (parsedConfig[VPU_KMB_CONFIG_KEY(KMB_EXECUTOR)] == "NO") {
         return;
