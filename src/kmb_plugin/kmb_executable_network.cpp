@@ -28,10 +28,7 @@ using namespace InferenceEngine;
 namespace vpu {
 namespace KmbPlugin {
 
-void ExecutableNetwork::ConfigureExecutor() {
-    // TODO: better name
-    const char networkName[1024] = "Network";
-
+void ExecutableNetwork::ConfigureExecutor(const std::string& networkName) {
     if (_config.exclusiveAsyncRequests()) {
         ExecutorManager *executorManager = ExecutorManager::getInstance();
         _taskExecutor = executorManager->getExecutor("KMB");
@@ -66,12 +63,11 @@ ExecutableNetwork::ExecutableNetwork(ICNNNetwork &network, const KmbConfig& conf
         THROW_IE_EXCEPTION << "Plugin doesn't support Tensor Iterator in pure form. "
                               "None TI optimization pattern has been applied successfully";
 
-
         compileMcm(network, _config, *pCompiler, _graphBlob);
         auto parsedConfig = _config.getParsedConfig();
         if (parsedConfig[VPU_KMB_CONFIG_KEY(LOAD_NETWORK_AFTER_COMPILATION)] == CONFIG_VALUE(YES)) {
             LoadBlob();
-            ConfigureExecutor();
+            ConfigureExecutor(network.getName());
         }
 #else
     UNUSED(network);
@@ -90,7 +86,7 @@ ExecutableNetwork::ExecutableNetwork(const std::string &blobFilename, const KmbC
     const std::string& blobContentString = blobContentStream.str();
     std::copy(blobContentString.begin(), blobContentString.end(), std::back_inserter(_graphBlob));
     LoadBlob();
-    ConfigureExecutor();
+    ConfigureExecutor(blobFilename);
 }
 
 void ExecutableNetwork::GetMetric(const std::string &name, Parameter &result, ResponseDesc *resp) const {
