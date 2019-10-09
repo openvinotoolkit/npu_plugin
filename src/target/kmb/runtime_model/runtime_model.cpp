@@ -198,7 +198,7 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
 
     auto underlyingTensor = tensorBufferIt->getData();
     std::vector<uint32_t> dimensions = underlyingTensor->getShape();
-    std::vector<float> numericStrides = underlyingTensor->computeNumericStrides();
+    std::vector<uint32_t> numericStrides = underlyingTensor->computeNumericStrides();
 
     auto masterBuffer = tensorBufferIt->getMaster();
     if (masterBuffer != dm.bufferEnd(*tensorAllocatorName, stg))
@@ -682,7 +682,7 @@ void checkUnstridedDMA(mv::Data::TensorIterator src, int i, MVCNN::NNDMATaskT * 
 
         totalSize *= src->getDType().getSizeInBits() / 8;
         std::vector<uint32_t> dimensions = {totalSize, 1, 1, 1};
-        std::vector<float> strides = {1, 1, 1, 1, 1};
+        std::vector<uint32_t> strides = {1, 1, 1, 1, 1};
         auto dtype = MVCNN::DType::DType_U8;
 
         tmp->src->dimensions = dimensions;
