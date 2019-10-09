@@ -235,7 +235,7 @@ inline void VpuNoRegressionWithCompilation::loadNetworkWrapper(std::map<std::str
 }
 
 #ifdef ENABLE_MCM_COMPILER
-TEST_P(KmbNoRegressionCompilationOnly, IE2MCM) {
+TEST_P(KmbNoRegressionCompilationOnly, DISABLED_IE2MCM) {
     auto toCompile = get<2>(TestParam::GetParam());
     double tm      = get<3>(TestParam::GetParam());
     std::map<std::string, std::string> config(_config);

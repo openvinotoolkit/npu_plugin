@@ -15,6 +15,7 @@
 //
 
 #include "file_reader.h"
+#include "ie_compound_blob.h"
 
 #include <precision_utils.h>
 #include <fstream>
@@ -67,6 +68,45 @@ void fromBinaryFile(std::string input_binary, InferenceEngine::Blob::Ptr blob) {
     } else {
         THROW_IE_EXCEPTION << "File is not good.";
     }
+}
+
+void readNV12FileHelper(const std::string &filePath,
+                        size_t expectedSize,
+                        uint8_t *imageData,
+                        size_t readOffset) {
+    std::ifstream fileReader(filePath, std::ios_base::ate | std::ios_base::binary);
+    if (!fileReader.good()) {
+        throw std::runtime_error("readNV12FileHelper: failed to open file " + filePath);
+    }
+
+    const size_t fileSize = fileReader.tellg();
+    if (fileSize - readOffset < expectedSize) {
+        throw std::runtime_error("readNV12FileHelper: size of " + filePath + " is less than expected");
+    }
+    fileReader.seekg(readOffset, std::ios_base::beg);
+    fileReader.read(reinterpret_cast<char *>(imageData), expectedSize);
+    fileReader.close();
+}
+
+InferenceEngine::Blob::Ptr fromNV12File(const std::string &filePath,
+                                        size_t imageWidth,
+                                        size_t imageHeight,
+                                        std::shared_ptr<vpu::KmbPlugin::utils::VPUAllocator> &allocator) {
+    const size_t expectedSize = imageWidth * (imageHeight * 3 / 2);
+    uint8_t *imageData = reinterpret_cast<uint8_t *>(allocator->allocate(expectedSize));
+    readNV12FileHelper(filePath, expectedSize, imageData, 0);
+
+    InferenceEngine::TensorDesc planeY(InferenceEngine::Precision::U8,
+        {1, 1, imageHeight, imageWidth}, InferenceEngine::Layout::NHWC);
+    InferenceEngine::TensorDesc planeUV(InferenceEngine::Precision::U8,
+        {1, 2, imageHeight / 2, imageWidth / 2}, InferenceEngine::Layout::NHWC);
+    const size_t offset = imageHeight * imageWidth;
+
+    InferenceEngine::Blob::Ptr blobY = InferenceEngine::make_shared_blob<uint8_t>(planeY, imageData);
+    InferenceEngine::Blob::Ptr blobUV = InferenceEngine::make_shared_blob<uint8_t>(planeUV, imageData + offset);
+
+    InferenceEngine::Blob::Ptr nv12Blob = InferenceEngine::make_shared_blob<InferenceEngine::NV12Blob>(blobY, blobUV);
+    return nv12Blob;
 }
 
 }  // namespace utils
