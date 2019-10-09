@@ -1010,7 +1010,7 @@ namespace mv {
             /*Select best MPE mode*/
             if(padding.mode.H == padding.mode.W)
                 workload.MPEMode = mv::Matrix;
-            else if ((padding.mode.W == 1) && (padding.mode.W == 16))
+            else if ((padding.mode.H == 1) && (padding.mode.W == 16))
                 workload.MPEMode = mv::MPE_Mode::Vector;
             else
                 workload.MPEMode = mv::MPE_Mode::Vector_FP16;
