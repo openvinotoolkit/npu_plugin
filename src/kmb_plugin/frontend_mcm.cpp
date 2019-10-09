@@ -35,6 +35,8 @@
 
 
 #ifdef ENABLE_MCM_COMPILER
+
+using namespace InferenceEngine::details;
 namespace vpu {
 
 namespace KmbPlugin {
@@ -312,7 +314,14 @@ void FrontEndMcm::parseNetworkDFS(const ie::ICNNNetwork& network, ParsedNetwork&
 }
 
 void FrontEndMcm::applyQuantizationTransformations(ie::CNNNetwork& network) {
-    InferenceEngine::details::LowPrecisionTransformer transformer(InferenceEngine::details::LowPrecisionTransformer::getAllTransformations(true));
+    auto params = LayerTransformation::Params(true,  // updatePrecisions
+                                              true,  // quantizeOutputs
+                                              true,  // weightsToConst
+                                              LayerTransformation::QuantizedTensorAlignment::UpdateLevel,  // quantizedTensorAlignmentOnActivations
+                                              LayerTransformation::QuantizedTensorAlignment::None,  // quantizedTensorAlignmentOnWeights
+                                              LayerTransformation::PrecisionOnActivations::UnsignedAndSigned,  // precisionOnActivations
+                                              true);  // roundQuantizedValues
+    LowPrecisionTransformer transformer(LowPrecisionTransformer::getAllTransformations(params));
     transformer.transform(network);
 
     for (auto layer : network) {
