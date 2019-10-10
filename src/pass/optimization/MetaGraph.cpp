@@ -51,6 +51,13 @@ double MetaEdge::cost() const
     return cost_;
 }
 
+void MetaGraph::StrategySetPair::operator=(const StrategySetPair& other)
+{
+    parent = other.parent;
+    child = other.child;
+    return;
+}
+
 void MetaGraph::StrategySetPair::print() const
 {
     cout<<  (*parent)["name"].get<string>() <<
@@ -157,15 +164,17 @@ void MetaGraph::addNewLevel(Op& op,
     }
 }
 
-void MetaGraph::fuseMeta(MetaGraph& childGraph)
+void MetaGraph::fuseMeta(shared_ptr<MetaGraph> childGraph)
 {
-    if(childGraph.solved_ == false)
+    if(childGraph->solved_ == false)
     {
         //todo:: throw exception. Cannot fuse an unsolved Meta
     }
 
-    auto& childFirstLevel = childGraph.levels[childGraph.firstLevelIdx_];
-    auto& childLastLevel  = childGraph.levels[childGraph.lastLevelIdx_];
+    childMetaGraphs.push_back(childGraph);
+
+    auto& childFirstLevel = childGraph->levels[childGraph->firstLevelIdx_];
+    auto& childLastLevel  = childGraph->levels[childGraph->lastLevelIdx_];
 
     //when fusing a child meta, we will make the assumption that it has a set of firstLevel and lastLevel nodes.
     //if the childMeta is solved, then we have a criticalPath, between all combinations of firstLevel and lastLevels.
@@ -193,17 +202,19 @@ void MetaGraph::fuseMeta(MetaGraph& childGraph)
             {
                 //todo:: cosnider strategySetPair to take iterators? or consider std::pair?
                 const StrategySetPair path(&(*parent),&(*child));
-                auto elem = childGraph.criticalPaths_.find(path);
+                auto elem = childGraph->criticalPaths_.find(path);
 
-                if(elem == childGraph.criticalPaths_.end())
+                if(elem == childGraph->criticalPaths_.end())
                 {
-                    //todo:: raise exception
+//                    todo:: raise exception
 //                        cout<<"ERROR ERROR COULD NOT FIND CRIPATH IN FUSION" << endl;
-//                        cout<<"searchingFor p " << path.print(); cout<< endl;
+//                        cout<<"searchingFor p "; path.print(); cout<< endl;
 //                        for(auto m : childGraph.criticalPaths_)
-//                            cout<<"Have " << m.first.print(); cout << endl;
+//                        {
+//                            cout<<"Have " ;m.first.print(); cout << "with cost " << m.second.cost <<  endl;
+//                        }
                 }
-//                    cout<<"Found " ; path.print(); cout << endl;
+//                    cout<<"Found " ; path.print(); cout << "with cost " << elem->second.cost <<  endl;
                 //todo: keep criNodes
 
                 auto& criPath = elem->second;
@@ -213,7 +224,7 @@ void MetaGraph::fuseMeta(MetaGraph& childGraph)
                 edgeCostMap.insert(pair<OptimizationGraph::edge_list_iterator, double>(newEdge, criPath.cost));
             }
         firstLevelIdx_ = 0;
-        lastLevelIdx_ = 0;
+        lastLevelIdx_ = 1;
 
         return;
     }
@@ -251,9 +262,9 @@ void MetaGraph::fuseMeta(MetaGraph& childGraph)
 
                     //todo:: cosnider strategySetPair to take iterators? or consider std::pair?
                     const StrategySetPair path(&(*parent),&(*child));
-                    auto elem = childGraph.criticalPaths_.find(path);
+                    auto elem = childGraph->criticalPaths_.find(path);
 
-                    if(elem == childGraph.criticalPaths_.end())
+                    if(elem == childGraph->criticalPaths_.end())
                     {
                         //todo:: raise exception
 //                        cout<<"ERROR ERROR COULD NOT FIND CRIPATH IN FUSION" << endl;
@@ -293,9 +304,9 @@ void MetaGraph::fuseMeta(MetaGraph& childGraph)
                 for(const auto& child : lastLevel.level)
                 {
                     const StrategySetPair path(&(*parent),&(*child));
-                    auto elem = childGraph.criticalPaths_.find(path);
+                    auto elem = childGraph->criticalPaths_.find(path);
 
-                    if(elem == childGraph.criticalPaths_.end())
+                    if(elem == childGraph->criticalPaths_.end())
                     {
                         //todo:: raise exception
 //                        cout<<"ERROR ERROR COULD NOT FIND CRIPATH IN FUSION" << endl;
@@ -344,7 +355,7 @@ void MetaGraph::solve()
                                         endNode,
                                         edgeCostMap);
 
-            auto criticalNodes = make_shared<CriticalPathNodes>(criticalEdges.size());
+            auto criticalNodes = make_shared<CriticalPathNodes>(criticalEdges.size()-1);
             double cost = 0;
 
             //we will not store the actual critical edges, rather we will store the critical nodes, since the node
@@ -358,7 +369,7 @@ void MetaGraph::solve()
             }
             cost = (*criticalEdges[ctr]) + cost;
 
-            //todo:: do we really need to always copy this?
+            //todo:: do we really need to always copy this? but indeed we need to inherit existing edges
             for(const auto edge : criticalEdges)
             {
                 const auto& edgeCriPath = (*edge).criticalPaths();
@@ -379,6 +390,58 @@ void MetaGraph::solve()
 
     name = firstLevel.op->getName() +"==>"+levels[1].op->getName() + "==>" + lastLevel.op->getName();
     solved_ = true;
+}
+
+shared_ptr<MetaGraph::CriticalPath> MetaGraph::getLowestCriticalPathExtended()
+{
+    //this function is a hack-work-around. Normally we would only need the critical path with the lowest cost in the final
+    //stage. But we need to include the Input/Output node strategies too.... Normally we would not want this, since by
+    //principle they should be unique. But currently SplitOverHOverlapped needs to come from the input.... This needs revised
+
+    auto& firstLevel = levels[firstLevelIdx_].level;
+    auto& lastLevel = levels[lastLevelIdx_].level;
+    auto extendedPath = make_shared<CriticalPath>();
+    extendedPath->cost = numeric_limits<double>::infinity();
+    extendedPath->nodes = make_shared<CriticalPathNodes>();
+
+    double bestCost = numeric_limits<double>::infinity();
+    StrategySetPair bestPair;
+    OptimizationGraph::node_list_iterator bestSource,bestSink;
+
+    for(auto parent : firstLevel)
+        for(auto child : lastLevel)
+        {
+            const StrategySetPair path(&(*parent),&(*child));
+            auto elem = criticalPaths_.find(path);
+
+            if(elem == criticalPaths_.end())
+            {
+                //todo:: raise exception
+//                cout<<"ERROR ERROR COULD NOT FIND CRIPATH IN FUSION" << endl;
+//                cout<<"searchingFor p " ; path.print(); cout<< endl;
+//                for(auto m : criticalPaths_)
+//                    cout<<"Have " ; elem->first.print(); cout << endl;
+            }
+//            cout<<"Found " ; path.print(); cout << endl;
+
+            auto& criPath = elem->second;
+            if(criPath.cost < bestCost)
+            {
+                bestCost = criPath.cost;
+                bestPair = path;
+                bestSource = parent;
+                bestSink = child;
+            }
+        }
+
+    auto& bestCriPath = criticalPaths_.find(bestPair)->second;
+
+    extendedPath->cost = bestCriPath.cost;
+    extendedPath->nodes = bestCriPath.nodes;
+    extendedPath->nodes->push_back(bestSource);
+    extendedPath->nodes->push_back(bestSink);
+
+    return extendedPath;
 }
 
 void MetaGraph::write(string dotFileLocation,bool skipInf)

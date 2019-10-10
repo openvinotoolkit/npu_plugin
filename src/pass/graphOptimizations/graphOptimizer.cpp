@@ -815,9 +815,8 @@ static void GraphParameterOptimizationFcn(const mv::pass::PassEntry& pass,
     strategyManager.updateValuesFromJSON();
     strategyManager.updateDefaultValues();
     strategyManager.printStrategy();
-
     strategyManager.readGlobalConfigs();
-//    strategyManager.recursiveDijkstra(om.opBegin());
+
     strategyManager.graphParameterOptimizations();
 
     std::cout << "ran the optimizer" << std::endl;

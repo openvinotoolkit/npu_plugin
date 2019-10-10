@@ -61,7 +61,7 @@ class MetaGraph  {
     using CriticalPathNodes = vector<OptimizationGraph::node_list_iterator>;
     using CriticalEdges     = vector<OptimizationGraph::edge_list_iterator>;
 
-private:
+public:
 
     //helper internal structs
     struct StrategySetPair
@@ -70,6 +70,7 @@ private:
         StrategySet* child;
         StrategySetPair(StrategySet* first,StrategySet* second) : parent(first) , child(second) {} ;
         StrategySetPair() : parent(nullptr) , child(nullptr) {};
+        void operator=(const StrategySetPair& other);
         void print() const;
     };
 
@@ -103,6 +104,8 @@ private:
     vector<shared_ptr<vector<StrategySet>>> levelContainer_;
     unordered_map<StrategySetPair,CriticalPath,StrategySetHash,StrategytSetCompare> criticalPaths_;
 
+    std::vector<shared_ptr<MetaGraph>> childMetaGraphs;
+
     unsigned firstLevelIdx_;
     unsigned lastLevelIdx_;
 
@@ -114,6 +117,7 @@ public:
     MetaGraph() :
         internalGraph_(),
         edgeCostMap(),
+        childMetaGraphs(0),
         firstLevelIdx_(0),
         lastLevelIdx_(0),
         levels(0),
@@ -125,7 +129,8 @@ public:
 
     void addNewLevel(Op& op,shared_ptr<vector<StrategySet>> newLevel,function<double(Op&,Op&,StrategySet&,StrategySet&)> cost);
     void solve();
-    void fuseMeta(MetaGraph& childGraph);
+    void fuseMeta(shared_ptr<MetaGraph> childGraph);
+    shared_ptr<CriticalPath> getLowestCriticalPathExtended();
     void write(string dotFileLocation,bool skipInf);
 };
 
@@ -134,6 +139,8 @@ class StrategyManager : public LogSender
 public:
     using GlobalSetting     = unordered_map<string,Attribute>;
     using StrategySet       = unordered_map<string,Attribute>;
+    using OptimizationGraph = graph<StrategySet&,MetaEdge>;
+    using CriticalPathNodes = vector<OptimizationGraph::node_list_iterator>;
     using LayerStrategySet  = unordered_map<string,StrategySet>;
     using SubGraph = tuple<mv::Data::OpListIterator,mv::Data::OpListIterator,vector<mv::Data::OpListIterator>>;
 
@@ -166,12 +173,14 @@ public:
     void updateValuesFromJSON();
     void updateDefaultValues();
     void printStrategy();
-    std::vector<mv::Element> convertStreamingStrategyToElement(std::vector<StrategySet> &strategiesToConvert, std::shared_ptr<mv::Element> compDesc);
-    std::vector<mv::Element> convertClusteringStrategyToElement(std::vector<StrategySet> &strategiesToConvert, std::shared_ptr<mv::Element> compDesc);
-    std::vector<mv::Element> convertLocationStrategyToElement(std::vector<StrategySet> &strategiesToConvert);
-    std::vector<mv::Element> convertSparsityStrategyToElement(std::vector<StrategySet> &strategiesToConvert);
+    std::vector<mv::Element> convertStreamingStrategyToElement(CriticalPathNodes& strategiesToConvert, std::shared_ptr<mv::Element> compDesc);
+    std::vector<mv::Element> convertClusteringStrategyToElement(CriticalPathNodes& strategiesToConvert, std::shared_ptr<mv::Element> compDesc);
+    std::vector<mv::Element> convertLocationStrategyToElement(CriticalPathNodes& strategiesToConvert);
+    std::vector<mv::Element> convertSparsityStrategyToElement(CriticalPathNodes& strategiesToConvert);
     void saveStrategyToJsonFile(std::vector<mv::Element> &stategiesToSave,std::string jsonOutputFileName);
     void saveStrategyToCompilationDescriptor(vector<mv::Element> &stategiesToSave, std::shared_ptr<mv::Element> compDesc);
+    void saveMetaStrategy(CriticalPathNodes& criticalPathNodes);
+
 //    string strategyString(OptimizationGraphNode n);
 
     //Graph parsing methods
