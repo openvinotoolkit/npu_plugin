@@ -65,7 +65,6 @@ static void kmbQuantizeConversionFcn(const mv::pass::PassEntry& pass, mv::Comput
                         sinkDatatype = mv::DType("Float16");
 
                     auto newOpOutputTensor = om.uPATaskQuantize({sinkInputTensor}, sinkDatatype, quantParams);
-                    newOpOutputTensor->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::DDR);
 
                     auto newOp = om.getSourceOp(newOpOutputTensor);
                     newOp->set<unsigned>("opId", currentId);
@@ -95,7 +94,6 @@ static void kmbQuantizeConversionFcn(const mv::pass::PassEntry& pass, mv::Comput
                         sinkDatatype = mv::DType("UInt8");
 
                     auto newOpOutputTensor = om.uPATaskQuantize({sinkInputTensor}, sinkDatatype, quantParams);
-                    newOpOutputTensor->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::DDR);
 
                     auto newOp = om.getSourceOp(newOpOutputTensor);
                     newOp->set<unsigned>("opId", currentId);

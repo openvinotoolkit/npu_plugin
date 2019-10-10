@@ -154,6 +154,7 @@ void setUPATasksMemoryLocationFcn(const mv::pass::PassEntry& , mv::ComputationMo
     mv::DataModel dm(model);
 
     auto opIt = om.getInput();
+
     while (opIt != om.opEnd())
     {
         std::string opType = opIt->getOpType();
@@ -169,10 +170,11 @@ void setUPATasksMemoryLocationFcn(const mv::pass::PassEntry& , mv::ComputationMo
 
             auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
 
-            if(outputMemoryLocation != mv::Tensor::MemoryLocation::DDR)
+            if(!((outputMemoryLocation == mv::Tensor::MemoryLocation::DDR) || (outputMemoryLocation == mv::Tensor::MemoryLocation::OUTPUT)))
             {
                 auto output = opIt->getOutputTensor(0);
                 output->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::DDR);
+
             }
         }
         ++opIt;
