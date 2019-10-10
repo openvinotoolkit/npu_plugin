@@ -265,18 +265,18 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     {
         auto quantizationParams = t->get<mv::QuantizationParams>("quantParams");
         auto quantZero = quantizationParams.getZeroPoint();
-        toBuild->quant_zero = std::vector<unsigned char>(quantZero.begin(), quantZero.end());
+        toBuild->quant_zero = std::vector<unsigned short int>(quantZero.begin(), quantZero.end());
         std::vector<unsigned> quantScale = {};
         if (quantizationParams.hasAttr("mult"))
             quantScale = quantizationParams.getMult();
 
         quantScale = reduceQuantVector_(quantScale);
         toBuild->quant_scale = std::vector<unsigned short int>(quantScale.begin(), quantScale.end());
-        std::vector<unsigned> quantShift;
-        if (quantizationParams.hasAttr("shift"))
-            quantShift = quantizationParams.getShift();
-        quantShift = reduceQuantVector_(quantShift);
-        toBuild->quant_shift = std::vector<unsigned char>(quantShift.begin(), quantShift.end());
+        //std::vector<unsigned> quantShift;
+        //if (quantizationParams.hasAttr("shift"))
+        //    quantShift = quantizationParams.getShift();
+        //quantShift = reduceQuantVector_(quantShift);
+        //toBuild->quant_shift = std::vector<unsigned char>(quantShift.begin(), quantShift.end());
 
     }
 
@@ -406,18 +406,18 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     {
         auto quantizationParams = t->get<mv::QuantizationParams>("quantParams");
         auto quantZero = quantizationParams.getZeroPoint();
-        toBuild->quant_zero = std::vector<unsigned char>(quantZero.begin(), quantZero.end());
+        toBuild->quant_zero = std::vector<unsigned short int>(quantZero.begin(), quantZero.end());
         std::vector<unsigned> quantScale = {};
         if (quantizationParams.hasAttr("mult"))
             quantScale = quantizationParams.getMult();
 
         quantScale = reduceQuantVector_(quantScale);
         toBuild->quant_scale = std::vector<unsigned short int>(quantScale.begin(), quantScale.end());
-        std::vector<unsigned> quantShift;
-        if (quantizationParams.hasAttr("shift"))
-            quantShift = quantizationParams.getShift();
-        quantShift = reduceQuantVector_(quantShift);
-        toBuild->quant_shift = std::vector<unsigned char>(quantShift.begin(), quantShift.end());
+        //std::vector<unsigned> quantShift;
+        //if (quantizationParams.hasAttr("shift"))
+        //    quantShift = quantizationParams.getShift();
+        //quantShift = reduceQuantVector_(quantShift);
+        //toBuild->quant_shift = std::vector<unsigned char>(quantShift.begin(), quantShift.end());
 
     }
 
