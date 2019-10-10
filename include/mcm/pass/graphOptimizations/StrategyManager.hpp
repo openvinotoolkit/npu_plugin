@@ -7,6 +7,8 @@
 #include <unordered_set>
 #include "tuple"
 #include "limits"
+#include <atomic>
+#include <functional>
 
 namespace mv {
 namespace graphOptimizer  {
@@ -14,24 +16,127 @@ namespace graphOptimizer  {
 using namespace std;
 using namespace std::placeholders;
 
+class MetaEdge
+{
+private:
+    using StrategySet       = unordered_map<string,Attribute>;
+    using OptimizationGraph = graph<StrategySet&,MetaEdge>;
+    using CriticalPathNodes = vector<OptimizationGraph::node_list_iterator>;
+
+    static std::atomic<int> unique_ctr;
+
+    double cost_;
+    CriticalPathNodes criticalPath_;
+    int id;
+
+public:
+
+    MetaEdge(double cost) :
+        cost_(cost),
+        criticalPath_(0)
+    {
+        id = (unique_ctr++);
+    }
+
+    //since current dijkstra works with edgeCostMapping, arithmetic operators will be on cost_ member
+    //and relational operators will work with the unique id
+
+    bool operator==(const MetaEdge& other);
+    bool operator<(const MetaEdge& other);
+    bool operator>(const MetaEdge& other);
+    bool operator!=(const MetaEdge& other);
+
+    double operator+(const double other);
+    double operator+(const MetaEdge& other);
+
+    void extend(const CriticalPathNodes& childCriPath);
+    const CriticalPathNodes& criticalPaths() const;
+    double cost() const;
+};
+
+class MetaGraph  {
+
+    using StrategySet       = unordered_map<string,Attribute>;
+    using OptimizationGraph = graph<StrategySet&,MetaEdge>;
+    using CriticalPathNodes = vector<OptimizationGraph::node_list_iterator>;
+    using CriticalEdges     = vector<OptimizationGraph::edge_list_iterator>;
+
+private:
+
+    //helper internal structs
+    struct StrategySetPair
+    {
+        StrategySet* parent;
+        StrategySet* child;
+        StrategySetPair(StrategySet* first,StrategySet* second) : parent(first) , child(second) {} ;
+        StrategySetPair() : parent(nullptr) , child(nullptr) {};
+        void print() const;
+    };
+
+    struct StrategySetHash { size_t operator()(const StrategySetPair& val) const; };
+    struct StrategytSetCompare { bool operator()(const StrategySetPair& lhs, const StrategySetPair& rhs) const; };
+    struct costEdgeIteratorComp { bool operator()(const OptimizationGraph::edge_list_iterator lhs, const OptimizationGraph::edge_list_iterator rhs) const; };
+    struct costNodeIteratorComp { bool operator()(const OptimizationGraph::node_list_iterator lhs, const OptimizationGraph::node_list_iterator rhs) const; };
+
+    struct GraphLevel
+    {
+        Op* op;
+        vector<OptimizationGraph::node_list_iterator> level;
+        GraphLevel() : op(nullptr),level(0) {};
+        GraphLevel(Op* opPtr) : op(opPtr),level(0) {};
+    };
+
+    struct CriticalPath
+    {
+        shared_ptr<CriticalPathNodes> nodes;
+        double cost;
+        CriticalPath(shared_ptr<CriticalPathNodes> criticalNodes,double pathCost) : nodes(criticalNodes),cost(pathCost) {};
+        CriticalPath() : nodes(0), cost(-1) {};
+    };
+
+    //graphs will need to be uniquely identifieable
+    static std::atomic<int> unique_ctr;
+
+    OptimizationGraph internalGraph_;
+    map<typename OptimizationGraph::edge_list_iterator, double, costEdgeIteratorComp> edgeCostMap;
+    vector<GraphLevel> levels;
+    vector<shared_ptr<vector<StrategySet>>> levelContainer_;
+    unordered_map<StrategySetPair,CriticalPath,StrategySetHash,StrategytSetCompare> criticalPaths_;
+
+    unsigned firstLevelIdx_;
+    unsigned lastLevelIdx_;
+
+    string name;
+    bool solved_;
+
+public:
+
+    MetaGraph() :
+        internalGraph_(),
+        edgeCostMap(),
+        firstLevelIdx_(0),
+        lastLevelIdx_(0),
+        levels(0),
+        levelContainer_(0),
+        name("unnamed"),
+        solved_(false)
+    {
+    }
+
+    void addNewLevel(Op& op,shared_ptr<vector<StrategySet>> newLevel,function<double(Op&,Op&,StrategySet&,StrategySet&)> cost);
+    void solve();
+    void fuseMeta(MetaGraph& childGraph);
+    void write(string dotFileLocation,bool skipInf);
+};
+
 class StrategyManager : public LogSender
 {
 public:
     using GlobalSetting     = unordered_map<string,Attribute>;
     using StrategySet       = unordered_map<string,Attribute>;
     using LayerStrategySet  = unordered_map<string,StrategySet>;
+    using SubGraph = tuple<mv::Data::OpListIterator,mv::Data::OpListIterator,vector<mv::Data::OpListIterator>>;
 
-    using OptimizationGraphNode = std::tuple<mv::Op&,StrategySet,int>; //op, strategies, unique id
-    using OptimizationGraphEdge = std::pair<double,int>; //cost, unique id
-    using OptimizationGraph = mv::graph<OptimizationGraphNode,OptimizationGraphEdge>;
-
-    using MetaGraphNode = OptimizationGraphNode;
-    using MetaGraphEdge = std::tuple<double, vector<StrategySet>, int>; //cost, strategies, unique id
-    using MetaGraph = mv::graph<MetaGraphNode, MetaGraphEdge>;
-
-    using CriticalEdges = std::vector<OptimizationGraph::edge_list_iterator>;
-
-    
     static constexpr auto inf_ = numeric_limits<double>::infinity();
 
     GlobalSetting globalConfig_;
@@ -46,78 +151,44 @@ public:
 
     StrategyManager(OpModel& model,mv::Element& passDesc);
 
+    //strategy management helper getters/setters
+    Attribute& getStrategy(mv::Op op,string strategy);
+    void setGlobalConfig(string& name,Attribute& config);
+    void setGlobalStrategy(string& name, Attribute& strategy);
+    const Attribute& getGlobalConfig(const string& name) const;
+    const Attribute& getGlobalStrategy(const string& name) const;
+    const StrategySet& getLayerStrategySet(const string& name) const;
+    bool hasAttr(const GlobalSetting& map,const string& name) const;
+    bool hasAttr(const LayerStrategySet& map,const string& name) const;
+    std::string getLogID() const;
+
+    //strategy management methods
     void updateValuesFromJSON();
     void updateDefaultValues();
     void printStrategy();
-
     std::vector<mv::Element> convertStreamingStrategyToElement(std::vector<StrategySet> &strategiesToConvert, std::shared_ptr<mv::Element> compDesc);
     std::vector<mv::Element> convertClusteringStrategyToElement(std::vector<StrategySet> &strategiesToConvert, std::shared_ptr<mv::Element> compDesc);
     std::vector<mv::Element> convertLocationStrategyToElement(std::vector<StrategySet> &strategiesToConvert);
     std::vector<mv::Element> convertSparsityStrategyToElement(std::vector<StrategySet> &strategiesToConvert);
     void saveStrategyToJsonFile(std::vector<mv::Element> &stategiesToSave,std::string jsonOutputFileName);
     void saveStrategyToCompilationDescriptor(vector<mv::Element> &stategiesToSave, std::shared_ptr<mv::Element> compDesc);
-    void saveMetaStrategy(std::vector<MetaGraph::edge_list_iterator> cPathEdges);
-    void recursiveDijkstra(mv::Data::OpListIterator opBegin);
-    void recursiveCriticalPath(typename graph<mv::Op, mv::DataFlow>::node_list_iterator modelSource, std::unordered_set<std::string>& recursedNodes, MetaGraph& metaGraph);
+//    string strategyString(OptimizationGraphNode n);
 
-    void writeDot(OptimizationGraph& graph,bool skipInf);
-    void writeMetaDot(MetaGraph& graph, bool skipInf);
-    string strategyString(OptimizationGraphNode n);
+    //Graph parsing methods
+    void initLayerStrategySets();
+    bool isLinearGraph(mv::Data::OpListIterator opBegin,mv::Data::OpListIterator opEnd,vector<mv::Data::OpListIterator> children);
+    mv::Data::OpListIterator naiveLCA(vector<mv::Data::OpListIterator> children,mv::Data::OpListIterator opEnd);
+    mv::Data::OpListIterator naiveLCA(mv::Data::OpListIterator nodeA,mv::Data::OpListIterator nodeB,mv::Data::OpListIterator opEnd);
+    shared_ptr<vector<SubGraph>> extractSubgraphs(mv::Data::OpListIterator opBegin,mv::Data::OpListIterator opEnd,std::vector<mv::Data::OpListIterator> childIdx);
+    std::shared_ptr<MetaGraph> linearGraphSolver(mv::Data::OpDFSIterator opBegin,mv::Data::OpDFSIterator opEnd,mv::Data::OpDFSIterator firstChild);
+    std::shared_ptr<MetaGraph> recursiveGraphSolver(mv::Data::OpListIterator opBegin, mv::Data::OpListIterator opEnd);
+    std::shared_ptr<MetaGraph> recursiveGraphSolver(mv::Data::OpListIterator opBegin, mv::Data::OpListIterator opEnd,std::vector<mv::Data::OpListIterator> childIdx);
+    void graphParameterOptimizations();
 
+    //template methods to be overwritten
     virtual void generateStrategySetForLayer(mv::Op& op,vector<StrategySet>& strategyVec);
     virtual double transitionCost(Op& parentOp,Op& childOp,StrategySet& parent,StrategySet& child);
     virtual ~StrategyManager() {};
-
-    Attribute& getStrategy(mv::Op op,string strategy);
-
-    inline void setGlobalConfig(string& name,Attribute& config)
-    {
-        globalConfig_[name] = config;
-    }
-    inline void  setGlobalStrategy(string& name, Attribute& strategy)
-    {
-        globalStrategies_[name]= strategy;
-    }
-
-    inline const Attribute& getGlobalConfig(const string& name) const
-    {
-        auto it = globalConfig_.find(name);
-        if(it == globalConfig_.end())
-            throw ArgumentError(*this, "name", name, "Undefined attribute");
-        return it->second;
-    }
-
-    inline const Attribute& getGlobalStrategy(const string& name) const
-    {
-        auto it = globalStrategies_.find(name);
-        if(it == globalStrategies_.end())
-            throw ArgumentError(*this, "name", name, "Undefined attribute");
-        return it->second;
-    }
-
-    inline const StrategySet& getLayerStrategySet(const string& name) const
-    {
-        auto it = layerStrategies_.find(name);
-        if(it == layerStrategies_.end())
-            throw ArgumentError(*this, "name", name, "Undefined attribute");
-        return it->second;
-    }
-
-    inline bool hasAttr(const GlobalSetting& map,const string& name) const
-    {
-        return map.find(name) != map.end();
-    }
-
-    inline bool hasAttr(const LayerStrategySet& map,const string& name) const
-    {
-        return map.find(name) != map.end();
-    }
-
-    std::string getLogID() const
-    {
-        return "GraphOptimizer-StrategyManager";
-    };
-
 };
 
 

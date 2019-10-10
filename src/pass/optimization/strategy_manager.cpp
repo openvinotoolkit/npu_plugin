@@ -3,6 +3,7 @@
 #include "chrono"
 
 #include "include/mcm/pass/graphOptimizations/StrategyManager.hpp"
+//#include "include/mcm/pass/graphOptimizations/descartes_product.hpp"
 #include "include/mcm/pass/graphOptimizations/StrategyRegistry.hpp"
 #include "include/mcm/base/element.hpp"
 #include "include/mcm/algorithms/dijkstra.hpp"
@@ -13,11 +14,87 @@ namespace graphOptimizer {
 
 using namespace std;
 
+std::atomic<int> MetaEdge::unique_ctr(0);
+std::atomic<int> MetaGraph::unique_ctr(0);
+
 StrategyManager::StrategyManager(OpModel& model,mv::Element& passDesc) :
         model_(model),passDesc_(passDesc)
 {
 
 }
+
+//TODO:: error if the strategy is not there...
+Attribute& StrategyManager::getStrategy(mv::Op op,string strategy)
+{
+    auto layerEntry = layerStrategies_.find(op.getName());
+
+    if(layerEntry == layerStrategies_.end())
+    {
+        layerEntry = layerStrategies_.find(op.getOpType());
+    }
+
+    if(layerEntry == layerStrategies_.end())
+        throw LogicError(*this, "could not find strategy entry for " + op.getName());
+
+    auto& layerCfg = layerEntry->second;
+
+    auto strategyEntry = layerCfg.find(strategy);
+    if(strategyEntry == layerCfg.end())
+    {
+        strategyEntry = globalStrategies_.find(strategy);
+    }
+
+    return strategyEntry->second;
+}
+
+void  StrategyManager::setGlobalStrategy(string& name, Attribute& strategy)
+{
+    globalStrategies_[name]= strategy;
+}
+
+void StrategyManager::setGlobalConfig(string& name,Attribute& config)
+{
+    globalConfig_[name] = config;
+}
+
+const Attribute& StrategyManager::getGlobalConfig(const string& name) const
+{
+    auto it = globalConfig_.find(name);
+    if(it == globalConfig_.end())
+        throw ArgumentError(*this, "name", name, "Undefined attribute");
+    return it->second;
+}
+
+const Attribute& StrategyManager::getGlobalStrategy(const string& name) const
+{
+    auto it = globalStrategies_.find(name);
+    if(it == globalStrategies_.end())
+        throw ArgumentError(*this, "name", name, "Undefined attribute");
+    return it->second;
+}
+
+const StrategyManager::StrategySet& StrategyManager::getLayerStrategySet(const string& name) const
+{
+    auto it = layerStrategies_.find(name);
+    if(it == layerStrategies_.end())
+        throw ArgumentError(*this, "name", name, "Undefined attribute");
+    return it->second;
+}
+
+bool StrategyManager::hasAttr(const GlobalSetting& map,const string& name) const
+{
+    return map.find(name) != map.end();
+}
+
+bool StrategyManager::hasAttr(const LayerStrategySet& map,const string& name) const
+{
+    return map.find(name) != map.end();
+}
+
+std::string StrategyManager::getLogID() const
+{
+    return "GraphOptimizer-StrategyManager";
+};
 
 void StrategyManager::updateValuesFromJSON()
 {
@@ -50,9 +127,22 @@ void StrategyManager::updateValuesFromJSON()
         for(auto strategySet : strategySets)
         {
             auto strategySetName = strategySet.getName();
+//            auto strategies = strategySet.get<vector<string>>("value");
 
             auto strategyValue = strategySet.get("value");
             layerStrategies_[layerName][strategySetName] = strategyValue;
+//            if(strategiesType == typeid(vector<string>))
+//            {
+//                auto strategies = strategySet.get<vector<string>>("value");
+//                for( auto strategy : strategies)
+//                {
+//                    layerStrategies_[layerName][strategySetName].insert(strategy);
+//                }
+//            }
+//            else
+//            {
+//                layerStrategies_[layerName][strategySetName].insert(strategySet.get("value"));
+//            }
         }
     }
 }
@@ -129,169 +219,19 @@ void StrategyManager::printStrategy()
         for (const auto strategySet : layer.second )
         {
             cout <<"\t"<<strategySet.first << " : " << strategySet.second.toString() << endl;
+//            cout <<"\t " << strategySet.first << "[ ";
+//            for( const auto strategy : strategySet.second)
+//            {
+//                cout << strategy.toString() <<" ";
+//            }
+//            cout << "]" << endl;
         }
     }
 }
-
-
-Attribute& StrategyManager::getStrategy(mv::Op op,string strategy)
-{
-    auto layerEntry = layerStrategies_.find(op.getName());
-
-    if(layerEntry == layerStrategies_.end())
-    {
-        layerEntry = layerStrategies_.find(op.getOpType());
-    }
-
-    if(layerEntry == layerStrategies_.end())
-        throw LogicError(*this, "StrategyManager could not find strategy entry for " + op.getName());
-
-    auto& layerCfg = layerEntry->second;
-
-    auto strategyEntry = layerCfg.find(strategy);
-    if(strategyEntry == layerCfg.end())
-    {
-        strategyEntry = globalStrategies_.find(strategy);
-    }
-
-    return strategyEntry->second;
-}
-
-void StrategyManager::writeMetaDot(MetaGraph& graph, bool skipInf)
-{
-    ofstream ostream;
-
-    utils::validatePath(dotFileLocation);
-
-    string outputFile = dotFileLocation +"_finalMetaGraph.dot";
-    ostream.open(outputFile, std::ios::trunc | std::ios::out);
-    if (!ostream.is_open())
-        throw ArgumentError(model_, "output", dotFileLocation, "Unable to open output file");
-
-
-    ostream.open(outputFile,ios::trunc | ios::out);
-    ostream << "digraph G {\n\tgraph [splines=spline]\n";
-
-    for(auto node = graph.node_begin(); node != graph.node_end(); ++ node)
-    {
-        std::string nodeDef = "\t\"" + get<1>(*node)["name"].get<string>()  + "_" + to_string(get<2>(*node)) + "\" [shape=box,";
-        //TODO:: using an object's address to uniquely identify it is a baaaaaaaaad idea. Come up with something normal
-        //basically, in our graph, we can have multiple nodes with the same name, but cannot have that in the dotfile
-        nodeDef += " label=<<TABLE BORDER=\"0\" CELLPADDING=\"0\" CELLSPACING=\"0\"> \
-                    <TR><TD ALIGN=\"CENTER\" COLSPAN=\"2\"><FONT POINT-SIZE=\"10.0\"><B>"
-                    + get<1>(*node)["name"].get<string>() + "_" + to_string((long long unsigned)(void*)&(*node))
-                    + "</B></FONT></TD></TR>";
-        for(const auto strategy : get<1>(*node))
-        {
-            nodeDef += "<TR><TD ALIGN=\"LEFT\"><FONT POINT-SIZE=\"11.0\">"
-                        + strategy.first
-                        + ": </FONT></TD> <TD ALIGN=\"RIGHT\"><FONT POINT-SIZE=\"11.0\">"
-                        + strategy.second.toString() + "</FONT></TD></TR>";
-        }
-        nodeDef += "</TABLE>>";
-
-        ostream << nodeDef << "];\n";
-    }
-
-    for(auto edge = graph.edge_begin(); edge != graph.edge_end(); ++edge)
-    {
-        if( skipInf and ( get<0>(*edge) == inf_))
-            continue;
-        //TODO:: using an object's address to uniquely identify it is a baaaaaaaaad idea. Come up with something normal
-        std::string edgeDef = "\t\""
-                            + get<1>(*(edge->source()))["name"].get<string>() + "_" + to_string((long long unsigned)(void*)&(*(edge->source())))
-                            + "\" -> \""
-                            + get<1>(*(edge->sink()))["name"].get<string>() + "_" + to_string((long long unsigned)(void*)&(*(edge->sink())))
-                            + "\"";
-
-        edgeDef += " [penwidth=2.0, label=<<TABLE BORDER=\"0\" CELLPADDING=\"0\" \
-                    CELLSPACING=\"0\"><TR><TD ALIGN=\"CENTER\" COLSPAN=\"2\"> \
-                    <FONT POINT-SIZE=\"14.0\"><B>" \
-                    + std::to_string(get<0>(*edge))
-                    + "</B></FONT></TD></TR>";
-
-        edgeDef += "</TABLE>>];";
-
-        ostream << edgeDef << "\n";
-    }
-
-    ostream << "}\n";
-    ostream.close();
-}
-
-unsigned int globalCtr = 0;
-
-
-void StrategyManager::writeDot(OptimizationGraph& optimizationGraph, bool skipInf)
-{
-    ofstream ostream;
-
-    utils::validatePath(dotFileLocation);
-
-    auto start_node = optimizationGraph.node_begin() ;
-    auto start_node_name =  get<1>(*start_node)["name"].get<string>();
-    std::replace(start_node_name.begin(),start_node_name.end(),'/','_');
-
-    string outputFile = dotFileLocation + start_node_name  + "_" + to_string(globalCtr++) + ".dot";
-    ostream.open(outputFile,ios::trunc | ios::out);
-    if (!ostream.is_open())
-        throw ArgumentError(model_, "output", dotFileLocation, "Unable to open output file");
-
-    ostream << "digraph G {\n\tgraph [splines=spline]\n";
-
-    for(auto node = optimizationGraph.node_begin(); node != optimizationGraph.node_end(); ++ node)
-    {
-        std::string nodeDef = "\t\"" + get<1>(*node)["name"].get<string>()  + "_" + to_string((long long unsigned)(void*)&(*node)) + "\" [shape=box,";
-        //TODO:: using an object's address to uniquely identify it is a baaaaaaaaad idea. Come up with something normal
-        //basically, in our graph, we can have multiple nodes with the same name, but cannot have that in the dotfile
-        nodeDef += " label=<<TABLE BORDER=\"0\" CELLPADDING=\"0\" CELLSPACING=\"0\"> \
-                    <TR><TD ALIGN=\"CENTER\" COLSPAN=\"2\"><FONT POINT-SIZE=\"10.0\"><B>"
-                    + get<1>(*node)["name"].get<string>() + "_" + to_string((long long unsigned)(void*)&(*node))
-                    + "</B></FONT></TD></TR>";
-        nodeDef += "<TR><TD ALIGN=\"LEFT\"><FONT POINT-SIZE=\"11.0\">opType: </FONT></TD> <TD ALIGN=\"RIGHT\"><FONT POINT-SIZE=\"11.0\">"
-                        + get<0>(*node).getOpType() + "</FONT></TD></TR>";
-        for(const auto strategy : get<1>(*node))
-        {
-            nodeDef += "<TR><TD ALIGN=\"LEFT\"><FONT POINT-SIZE=\"11.0\">"
-                        + strategy.first
-                        + ": </FONT></TD> <TD ALIGN=\"RIGHT\"><FONT POINT-SIZE=\"11.0\">"
-                        + strategy.second.toString() + "</FONT></TD></TR>";
-        }
-        nodeDef += "</TABLE>>";
-
-        ostream << nodeDef << "];\n";
-    }
-
-    for(auto edge = optimizationGraph.edge_begin(); edge != optimizationGraph.edge_end(); ++edge)
-    {
-        if( skipInf and ( get<0>(*edge)== inf_))
-            continue;
-        //TODO:: using an object's address to uniquely identify it is a baaaaaaaaad idea. Come up with something normal
-        std::string edgeDef = "\t\""
-                            + get<1>(*(edge->source()))["name"].get<string>() + "_" + to_string((long long unsigned)(void*)&(*(edge->source())))
-                            + "\" -> \""
-                            + get<1>(*(edge->sink()))["name"].get<string>() + "_" + to_string((long long unsigned)(void*)&(*(edge->sink())))
-                            + "\"";
-
-        edgeDef += " [penwidth=2.0, label=<<TABLE BORDER=\"0\" CELLPADDING=\"0\" \
-                    CELLSPACING=\"0\"><TR><TD ALIGN=\"CENTER\" COLSPAN=\"2\"> \
-                    <FONT POINT-SIZE=\"14.0\"><B>" \
-                    + std::to_string(get<1>(*edge)) + " : " + std::to_string(get<0>(*edge))
-                    + "</B></FONT></TD></TR>";
-
-        edgeDef += "</TABLE>>];";
-
-        ostream << edgeDef << "\n";
-    }
-
-    ostream << "}\n";
-    ostream.close();
-}
-
 
 std::vector<mv::Element> StrategyManager::convertStreamingStrategyToElement(std::vector<StrategySet> &strategiesToConvert, std::shared_ptr<mv::Element> compDesc)
 {
-    log(Logger::MessageType::Info, "GraphOptimizer: Converting Strategies found to Element");
+    cout << "Converting Strategies to Element" << endl;
 
     auto streamingStrategyList = compDesc->get<std::vector<mv::Element>>("streaming_strategy");
 
@@ -301,7 +241,7 @@ std::vector<mv::Element> StrategyManager::convertStreamingStrategyToElement(std:
     {
         std::string nodeName = s.get<std::string>("name_filter");
         auto splitList = s.get<std::vector<mv::Element>>("splits");
-        for (int i = 0; i < splitList.size(); i++)
+        for (unsigned i = 0; i < splitList.size(); i++)
         {
             if ((splitList[i].hasAttr("C"))||(splitList[i].hasAttr("H"))||(splitList[i].hasAttr("W"))||(splitList[i].hasAttr("K")))
                 hasSpec.push_back(nodeName);
@@ -334,9 +274,10 @@ std::vector<mv::Element> StrategyManager::convertStreamingStrategyToElement(std:
     return streamingStrategyList;
 }
 
-std::vector<mv::Element> StrategyManager::convertClusteringStrategyToElement(std::vector<StrategySet> &strategiesToConvert, std::shared_ptr<mv::Element> compDesc)
+std::vector<mv::Element> StrategyManager::convertClusteringStrategyToElement(std::vector<StrategySet> &strategiesToConvert,
+                                                                                 std::shared_ptr<mv::Element> compDesc)
 {
-    log(Logger::MessageType::Info, "GraphOptimizer: Converting Multiclustering Strategies to Element");
+    cout << "Converting Multiclustering Strategies to Element" << endl;
 
     auto clusteringStrategyList = compDesc->get<std::vector<mv::Element>>("split_strategy");
 
@@ -346,7 +287,10 @@ std::vector<mv::Element> StrategyManager::convertClusteringStrategyToElement(std
     {
         std::string nodeName = s.get<std::string>("name_filter");
         std::string strategyName = s.get<std::string>("strategy");
-        if ((strategyName=="SplitOverH") or (strategyName=="SplitOverK") or (strategyName=="SplitOverHOverlapped") or (strategyName=="HKSwitch"))
+        if ((strategyName=="SplitOverH") or
+            (strategyName=="SplitOverK") or
+            (strategyName=="SplitOverHOverlapped") or
+            (strategyName=="HKSwitch"))
         {
             hasClusterSpec.push_back(nodeName);
         }
@@ -371,7 +315,7 @@ std::vector<mv::Element> StrategyManager::convertClusteringStrategyToElement(std
 
 std::vector<mv::Element> StrategyManager::convertLocationStrategyToElement(std::vector<StrategySet> &strategiesToConvert)
 {
-    log(Logger::MessageType::Info, "GraphOptimizer: Converting Location Strategies to Element");
+    cout << "Converting Location Strategies to Element" << endl;
 
     mv::Element copyLElement("");
     std::vector<mv::Element> locationStrategyList;
@@ -383,7 +327,7 @@ std::vector<mv::Element> StrategyManager::convertLocationStrategyToElement(std::
 
         std::string DDRLocation = "DDR";
         std::string CMXLocation = "CMX";
-
+        
         auto op = model_.getOp(opName);
         if(op->getOpType() == "Output")
             continue;
@@ -393,502 +337,394 @@ std::vector<mv::Element> StrategyManager::convertLocationStrategyToElement(std::
         else
             copyLElement.set("mem_location",CMXLocation);
         copyLElement.set("name_filter", opName);
-
+    
         locationStrategyList.push_back(copyLElement);
     }
 
     return locationStrategyList;
 }
 
-std::vector<mv::Element> StrategyManager::convertSparsityStrategyToElement(std::vector<StrategySet> &strategiesToConvert){
-    log(Logger::MessageType::Info, "GraphOptimizer: Converting Sparsity Strategies to Element");
+//std::string StrategyManager::strategyString(OptimizationGraphNode n)
+//{
+//        auto s = get<1>(n);
+//        auto clustering = s["clustering"].get<string>();
+//        auto streaming = s["streaming"].get<Shape>();
+//        auto o = get<0>(n);
+//        return o.getName() + " " + clustering + " " + streaming.toString();
+//}
 
-    mv::Element copyLElement("");
-    std::vector<mv::Element> sparsityStrategyList;
+//void StrategyManager::saveMetaStrategy(std::vector<`ph::edge_list_iterator> cPathEdges)
+//{
+//
+//    const bool enablePrintStrategyToTerminal = true;
+//    const bool enableSaveStrategyToDescriptor = true;
+//    const bool enableSaveStrategyToJsonFile = true;
+////    const std::string jsonOutputFileName = "./mcm_compiler_strategy_output.json";
+//
+//    vector<StrategySet> allStrategies;
+//    for(auto edge : cPathEdges){
+//        allStrategies.push_back(get<1>(*edge->source())); //add strategy for each node in the metagraph that was chosen
+//        for(auto strategy : get<1>(*edge)){
+//            allStrategies.push_back(strategy); //all the nodes that were eliminated from metagraph get added
+//        }
+//    }
+//
+//    auto lastNode = *cPathEdges.back()->sink();
+//    allStrategies.push_back(get<1>(lastNode)); //last node needs strategy too (one more node than edges)
+//
+//    auto globalParams = model_.getGlobalConfigParams();
+//
+//    std::vector<mv::Element> streamingStrategyElements = convertStreamingStrategyToElement(allStrategies, globalParams);
+//    std::vector<mv::Element> multiClusterStrategyElements = convertClusteringStrategyToElement(allStrategies, globalParams);
+//    std::vector<mv::Element> locationStrategyElements = convertLocationStrategyToElement(allStrategies);
+//
+//    if (enableSaveStrategyToDescriptor)
+//    {
+//        cout << "Saving Strategy to Compilation Descriptor (internal)" << endl;
+//        auto compDesc = model_.getGlobalConfigParams();
+//        compDesc->set("streaming_strategy", streamingStrategyElements);
+//        compDesc->set("split_strategy", multiClusterStrategyElements);
+//    }
+//
+//    if (enableSaveStrategyToJsonFile)
+//    {
+//        cout << "Saving Strategy to JSON file" << endl;
+//        std::ofstream jsonOutputFile ;
+//        jsonOutputFile.open(jsonOutFileName, std::ios::out );
+//        if (!(jsonOutputFile.is_open()))
+//            std::cout << "ERROR: Could not open output file " << jsonOutFileName << std::endl;
+//
+//        auto currentTime= chrono::system_clock::to_time_t(chrono::system_clock::now());
+//        std::string timeStamp(ctime(&currentTime));
+//        if (!timeStamp.empty() && timeStamp[timeStamp.length()-1] == '\n')
+//            timeStamp.erase(timeStamp.length()-1);
+//
+//        mv::Element SSA("Streaming strategies generated by mcmCompiler "+timeStamp);
+//        mv::Element CSA("Clustering strategies generated by mcmCompiler "+timeStamp);
+//        mv::Element LSA("Tensor placement strategies generated by mcmCompiler "+timeStamp);
+//        SSA.set("streaming_strategy",streamingStrategyElements);
+//        CSA.set("split_strategy",multiClusterStrategyElements);
+//        LSA.set("tensor_placement_override",locationStrategyElements);
+//        auto jsonSStrategy = SSA.toJSON(true);
+//        auto jsonCStrategy = CSA.toJSON(true);
+//        auto jsonLStrategy = LSA.toJSON(true);
+//        jsonOutputFile << jsonSStrategy.stringifyPretty() << std::endl ;
+//        jsonOutputFile << jsonCStrategy.stringifyPretty() << std::endl;
+//        jsonOutputFile << jsonLStrategy.stringifyPretty() << std::endl;
+//
+//        jsonOutputFile.close();
+//    }
+//
+//    // attach optimal tensor location (CMX or DDR) attribute to tensor
+//    for(auto strategy : allStrategies)
+//    {
+//        auto spilling = strategy["spilling"].get<bool>();
+//        auto opName   = strategy["name"].get<string>();
+//
+//        auto op = model_.getOp(opName);
+//        if(op->getOpType() == "Output")
+//            continue;
+//
+//        auto outTensor = op->getOutputTensor(0);
+//
+//        if(spilling)
+//            outTensor->set<mv::Tensor::MemoryLocation>("Location",mv::Tensor::MemoryLocation::DDR);
+//        else
+//            outTensor->set<mv::Tensor::MemoryLocation>("Location",mv::Tensor::MemoryLocation::CMX);
+//
+//        std::cout << "Output tensor location (from tensor attribute) for node " << op->getName() << " is " << outTensor->get("Location").toString() << std::endl ;
+//
+//    }
+//
+////    test updated compilation descriptor
+//    auto globalParams2 = model_.getGlobalConfigParams();
+//    auto strategyList2 = globalParams2->get<std::vector<mv::Element>>("streaming_strategy");
+//
+//    for (auto s : strategyList2)
+//    {
+//        std::string nodeName = s.get<std::string>("name_filter");
+//        std::cout <<" Streaming strategy (from compilation descriptor) for node " << s.get<std::string>("name_filter") <<  std::endl ;
+//        auto splitList = s.get<std::vector<mv::Element>>("splits");
+//        for (int i = 0; i < splitList.size(); i++)
+//        {
+//            if (splitList[i].hasAttr("C"))
+//            {
+//                std::cout << "     C : " << splitList[i].get<int>("C") << std::endl;
+//            }
+//            else if (splitList[i].hasAttr("H"))
+//            {
+//                std::cout << "     H : " << splitList[i].get<int>("H") << std::endl;
+//            }
+//            else if (splitList[i].hasAttr("W"))
+//            {
+//                std::cout << "     W : " << splitList[i].get<int>("W") << std::endl;
+//            }
+//            else if (splitList[i].hasAttr("K"))
+//            {
+//                std::cout << "     K : " << splitList[i].get<int>("K") << std::endl;
+//            }
+//        }
+//    }
+//
+//    auto strategyList3 = globalParams2->get<std::vector<mv::Element>>("split_strategy");
+//    for (auto s : strategyList3)
+//    {
+//        std::cout <<" Clustering strategy (from compilation descriptor) for node " << s.get<std::string>("name_filter") << " is " <<  s.get<std::string>("strategy")<< std::endl ;
+//    }
+//
+//}
 
-    for(auto strategy : strategiesToConvert)
-    {
-        auto inputActivationSparsity = strategy["inputSparsity"].get<bool>();
-        auto outputActivationSparsity = strategy["outputSparsity"].get<bool>();
-        auto weightsSparsity = strategy["weightsSparsity"].get<bool>();
-        auto opName   = strategy["name"].get<string>();
-
-        auto op = model_.getOp(opName);
-
-        copyLElement.set("inputActivationSparsity",inputActivationSparsity);
-        copyLElement.set("outputActivationSparsity",outputActivationSparsity);
-        copyLElement.set("weightsSparsity",weightsSparsity);
-        copyLElement.set("name_filter", opName);
-
-        sparsityStrategyList.push_back(copyLElement);
-    }
-
-    return sparsityStrategyList;
-}
-
-void StrategyManager::saveMetaStrategy(std::vector<MetaGraph::edge_list_iterator> cPathEdges)
+void StrategyManager::initLayerStrategySets()
 {
+    for(auto opIt = model_.opBegin(); opIt != model_.opEnd() ; ++ opIt)
+    {
+        const auto& opType = opIt->getOpType();
+        //todo:: have a generic trait marker for "Constant" operations at opDef ( among other generic traits todo's)
+        if ((opType != "Constant") and
+            (opType != "ConstantInt") and
+            (opType != "ConstantDataElement") and
+            (opType != "WeightsTable") and
+            (opType != "SparsityMap"))
+        {
+            auto nodeStrategies = make_shared<vector<StrategySet>>(0);
+            generateStrategySetForLayer(*opIt,*nodeStrategies);
 
-    const bool enablePrintStrategyToTerminal = true;
-    const bool enableSaveStrategyToDescriptor = true;
-    const bool enableSaveStrategyToJsonFile = true;
-
-    vector<StrategySet> allStrategies;
-    for(auto edge : cPathEdges){
-        allStrategies.push_back(get<1>(*edge->source())); //add strategy for each node in the metagraph that was chosen
-        for(auto strategy : get<1>(*edge)){
-            allStrategies.push_back(strategy); //all the nodes that were eliminated from metagraph get added
+            opIt->set<shared_ptr<vector<StrategySet>>>("StrategySet",nodeStrategies);
         }
     }
 
-    auto lastNode = *cPathEdges.back()->sink();
-    allStrategies.push_back(get<1>(lastNode)); //last node needs strategy too (one more node than edges)
+    return;
+}
 
-    auto globalParams = model_.getGlobalConfigParams();
+bool StrategyManager::isLinearGraph(mv::Data::OpListIterator opBegin,
+                                        mv::Data::OpListIterator opEnd,
+                                        vector<mv::Data::OpListIterator> children)
+{
+    if(children.size() > 1)
+        return false;
 
-    std::vector<mv::Element> streamingStrategyElements = convertStreamingStrategyToElement(allStrategies, globalParams);
-    std::vector<mv::Element> multiClusterStrategyElements = convertClusteringStrategyToElement(allStrategies, globalParams);
-    std::vector<mv::Element> locationStrategyElements = convertLocationStrategyToElement(allStrategies);
-    std::vector<mv::Element> sparsityStrategyElements = convertSparsityStrategyToElement(allStrategies);
+    auto modelEnd = model_.opEnd();
 
-    if (enableSaveStrategyToDescriptor)
+    for(mv::Data::OpDFSIterator dfsIterator(children[0]); dfsIterator != opEnd; ++dfsIterator)
     {
-        log(Logger::MessageType::Info, "GraphOptimizer: Saving Strategy to Compilation Descriptor");
-        auto compDesc = model_.getGlobalConfigParams();
-        compDesc->set("streaming_strategy", streamingStrategyElements);
-        compDesc->set("split_strategy", multiClusterStrategyElements);
-        compDesc->set("sparsity_strategy", sparsityStrategyElements);
+        //we will need to check for linearity between 2 nodes; If we get to OpEnd troughout the DFS iteration
+        //then the subGraph builder did some urecoverable logic error
+        if(dfsIterator == modelEnd)
+        {
+            mv::LogicError(*this,"Logic error: recursive graphOptimizer got pivots " +
+                            opBegin->getName() + " to " + opEnd->getName());
+        }
+
+        //While iterating DFS, if we get multiple child ops, then we have a pivot node
+        if(dfsIterator.childrenSize() > 1)
+        {
+            return false;
+        }
     }
 
-    if (enableSaveStrategyToJsonFile)
+    return true;
+}
+
+mv::Data::OpListIterator StrategyManager::naiveLCA(mv::Data::OpListIterator nodeA,mv::Data::OpListIterator nodeB,
+                                                    mv::Data::OpListIterator opEnd)
+{
+    std::set<mv::Op*> nodeAChildren;
+
+    mv::Data::OpDFSIterator naiveA(nodeA);
+    mv::Data::OpDFSIterator naiveB(nodeB);
+
+    do
     {
-        log(Logger::MessageType::Info, "GraphOptimizer: Saving Strategy to JSON file");
-        std::ofstream jsonOutputFile ;
-        jsonOutputFile.open(jsonOutFileName, std::ios::out );
-        if (!(jsonOutputFile.is_open()))
-            log(Logger::MessageType::Info, "GraphOptimizer: Could not open output file " + jsonOutFileName);
+        nodeAChildren.insert( &(*naiveA));
+        ++naiveA;
+    }while(naiveA != opEnd);
 
-        auto currentTime= chrono::system_clock::to_time_t(chrono::system_clock::now());
-        std::string timeStamp(ctime(&currentTime));
-        if (!timeStamp.empty() && timeStamp[timeStamp.length()-1] == '\n')
-            timeStamp.erase(timeStamp.length()-1);
-
-        mv::Element SSA("Streaming strategies generated by mcmCompiler "+timeStamp);
-        mv::Element CSA("Clustering strategies generated by mcmCompiler "+timeStamp);
-        mv::Element LSA("Tensor placement strategies generated by mcmCompiler "+timeStamp);
-        mv::Element SpSA("Sparsity strategies generated by mcmCompiler "+timeStamp);
-        SSA.set("streaming_strategy",streamingStrategyElements);
-        CSA.set("split_strategy",multiClusterStrategyElements);
-        LSA.set("tensor_placement_override",locationStrategyElements);
-        SpSA.set("sparsity_strategy",sparsityStrategyElements);
-        auto jsonSStrategy = SSA.toJSON(true);
-        auto jsonCStrategy = CSA.toJSON(true);
-        auto jsonLStrategy = LSA.toJSON(true);
-        auto jsonSpStrategy = SpSA.toJSON(true);
-        jsonOutputFile << jsonSStrategy.stringifyPretty() << "," << std::endl;
-        jsonOutputFile << jsonCStrategy.stringifyPretty() << "," << std::endl;
-        jsonOutputFile << jsonLStrategy.stringifyPretty()  << "," << std::endl;
-        jsonOutputFile << jsonSpStrategy.stringifyPretty() << std::endl;
-
-        jsonOutputFile.close();
-    }
-
-    auto clusters = globalConfig_["totalClusters"].get<int>();
-    bool singleCluster = false;
-    if(clusters == 1) singleCluster = true;
-    // attach optimal tensor location (CMX or DDR) attribute to tensor
-    for(auto strategy : allStrategies)
+    do
     {
-        auto spilling = strategy["spilling"].get<bool>();
-        auto opName   = strategy["name"].get<string>();
+        if(nodeAChildren.find( &(*naiveB)) != nodeAChildren.end())
+        {
+            return naiveB;
+        }
+        ++naiveB;
+    }while(naiveB != opEnd);
 
-        auto op = model_.getOp(opName);
-        if(op->getOpType() == "Output")
-            continue;
+    return opEnd;
+}
 
-        auto outTensor = op->getOutputTensor(0);
+mv::Data::OpListIterator StrategyManager::naiveLCA(vector<mv::Data::OpListIterator> children,mv::Data::OpListIterator opEnd)
+{
+    auto candidate = naiveLCA(children[0],children[1],opEnd);
 
-        if(spilling)
-            outTensor->set<mv::Tensor::MemoryLocation>("Location",mv::Tensor::MemoryLocation::DDR);
+    for( int childIdx = 2; childIdx < children.size(); childIdx++)
+        candidate = naiveLCA(candidate,children[childIdx],opEnd);
+
+    return candidate;
+}
+
+shared_ptr<vector<StrategyManager::SubGraph>> StrategyManager::extractSubgraphs(mv::Data::OpListIterator opBegin,
+                                                                                    mv::Data::OpListIterator opEnd,
+                                                                                    vector<mv::Data::OpListIterator> children)
+{
+    auto sGraphs = make_shared<vector<SubGraph>>();
+    auto travelingNode = opBegin;
+    auto travelingChildren = children;
+
+    while(travelingNode != opEnd)
+    {
+        if(travelingChildren.size() == 1)
+        {
+            mv::Data::OpDFSIterator it(travelingChildren[0]);
+            for( ;(it.childrenSize() == 1) and (it != opEnd); ++it );
+
+            sGraphs->push_back( SubGraph(travelingNode,it,{travelingChildren[0]}));
+
+//            cout<<"Traveled linear section " << travelingNode->getName() << " -> " << it->getName() << endl;
+            travelingNode = it;
+            travelingChildren.clear();
+
+            for(auto child = travelingNode.leftmostChild(); child != model_.opEnd(); ++child)
+            {
+                travelingChildren.push_back(child);
+            }
+        }
         else
-            outTensor->set<mv::Tensor::MemoryLocation>("Location",mv::Tensor::MemoryLocation::CMX);
+        {
+            auto lcsa = naiveLCA(travelingChildren,opEnd);
+//            cout << "Found branching out section " << travelingNode->getName() << "->" << lcsa->getName() << endl;
 
-        log(Logger::MessageType::Info, "GraphOptimizer: Output tensor location (from tensor attribute) for node " + op->getName() + " is " + outTensor->get("Location").toString());
+//             once we have the LCSA (lowest common SINGLE ancestor), we need to check for exclusivity of the branches.
+//             we will do this via DFS-ing each child branch of the branching node, with the ending contition being the lcsa.
+//             if we found a dfs path that exclusive (i.e. only this path touches the nodes), then it means we have a "good" subgraph
+//             if we found branches with non-exclusive nodes, then they in summary will compose a subGraph.
+//             The "special" scenario will arise, when there are no exclusive branches. This needs to go to the "special handilng"
+//             TODO:: for now assume all child branches are exclusive, and just add them. Need to implement check to
+//                    see if a path trough a specific child is exclusive or not, and group them until they become exclusive
+//             TODO:: implement special case handling. If we cannot group children until they become exclusive, then need
+//                    start removing edges until they do
+
+            for(auto child = travelingNode.leftmostChild(); child != model_.opEnd(); ++child)
+                sGraphs->push_back( SubGraph(travelingNode,lcsa,{child}));
+
+            travelingNode = lcsa;
+
+            travelingChildren.clear();
+            for(auto child = travelingNode.leftmostChild(); child != model_.opEnd(); ++child)
+            {
+                travelingChildren.push_back(child);
+            }
+        }
     }
+    return sGraphs;
 }
 
-void StrategyManager::recursiveDijkstra(mv::Data::OpListIterator opBegin)
+std::shared_ptr<MetaGraph> StrategyManager::linearGraphSolver(mv::Data::OpDFSIterator opBegin,
+                                                                mv::Data::OpDFSIterator opEnd,
+                                                                mv::Data::OpDFSIterator firstChild)
 {
-    struct costEdgeIteratorComp
+//    cout << "Solving Linear Section " << opBegin->getName() << " -> " << opEnd->getName() << " via " << firstChild->getName() << endl;
+    auto linearMeta = make_shared<MetaGraph>();
+    auto modelEnd = model_.opEnd();
+
+    auto cost = [this](Op& parentOp,Op& childOp,StrategySet& a,StrategySet& b) ->double
+            {return this->transitionCost(parentOp,childOp,a,b); };
+
+    //do first pivot out of the loop
     {
-        bool operator()(const MetaGraph::edge_list_iterator lhs, const MetaGraph::edge_list_iterator rhs) const
+        auto nodeStrategies = opBegin->get<shared_ptr<vector<StrategySet>>>("StrategySet");
+        linearMeta->addNewLevel(*opBegin,nodeStrategies,cost);
+    }
+
+    for(auto dfsIterator = firstChild; dfsIterator != opEnd; ++dfsIterator)
+    {
+        //we will need to check for linearity between 2 nodes; If we get to OpEnd troughout the DFS iteration
+        //then the subGraph builder did some urecoverable logic error
+        if(dfsIterator == modelEnd)
         {
-            int x = get<2>(*lhs);
-            int y = get<2>(*rhs);
-            return (x < y);
+            mv::LogicError(*this,"Logic error: recursive graphOptimizer got pivots " +
+                            opBegin->getName() + " to " + opEnd->getName());
         }
-    };
 
-    struct costNodeIteratorComp
+        auto nodeStrategies = dfsIterator->get<shared_ptr<vector<StrategySet>>>("StrategySet");
+        linearMeta->addNewLevel(*dfsIterator,nodeStrategies,cost);
+    }
+
+    //do last pivot out of the loop
     {
-        bool operator()(const MetaGraph::node_list_iterator lhs, const MetaGraph::node_list_iterator rhs) const
-        {
-            int x = get<2>(*lhs) ;
-            int y = get<2>(*rhs) ;
-            return (x < y) ;
-        }
-    };
-
-    std::unordered_set<std::string> recursedNodes;
-    MetaGraph metaGraph;
-
-    recursiveCriticalPath(opBegin, recursedNodes, metaGraph);
-    log(Logger::MessageType::Info, "GraphOptimizer created MetaGraph of strategies. Searching for optimal path.");
-
-    vector<MetaGraph::node_list_iterator> sources, sinks;
-    for (auto it = metaGraph.node_begin(); it != metaGraph.node_end(); ++it)
-    {
-        if(it->parents_size() == 0){
-            sources.push_back(it);
-        }
-        if(it->children_size() == 0){
-            sinks.push_back(it);
-        }
+        auto nodeStrategies = opEnd->get<shared_ptr<vector<StrategySet>>>("StrategySet");
+        linearMeta->addNewLevel(*opEnd,nodeStrategies,cost);
     }
 
-    //build edge cost map required for call to dijkstra
-    map<typename MetaGraph::edge_list_iterator, double, costEdgeIteratorComp> edgeCostMap;
-    for (auto it = metaGraph.edge_begin(); it != metaGraph.edge_end(); ++it){
-        edgeCostMap.insert(std::pair<MetaGraph::edge_list_iterator, double>(it, get<0>(*it)));
-    }
+    linearMeta->solve();
 
-    //call dijkstra on metagraph for each source and sink combo, save best path
-    double max = inf_;
-    vector<MetaGraph::edge_list_iterator> finalCriticalPath;
-    bool foundCriticalPath = false;
-    for(auto source : sources){
-        for(auto sink : sinks) {
-            vector<MetaGraph::edge_list_iterator> criticalPathEdges = dijkstra<std::tuple<mv::Op&,StrategySet,int>,MetaGraphEdge,costNodeIteratorComp,costEdgeIteratorComp, double>(metaGraph,source,sink,edgeCostMap);
-            double cost = 0;
-
-            for (auto edge : criticalPathEdges){
-                cost += get<0>(*edge);
-            }
-            if(cost < max){
-                foundCriticalPath = true;
-                finalCriticalPath = criticalPathEdges;
-                max = cost;
-            }
-        }
-    }
-    if(!foundCriticalPath)
-        throw LogicError(*this, "GraphOptimizer: Unable to find non-infinite path through the MetaGraph. No strategy created.");
-
-    log(Logger::MessageType::Info, "GraphOptimizer: Found optimal path, saving strategies.");
-    saveMetaStrategy(finalCriticalPath);
+    return linearMeta;
 }
 
-/*
-    This function builds a metaGraph by finding linear sections between pivot nodes (nodes with more
-    than input or ouput node). When a pivot node is encountered, build all linear OptimizationGraphs beginning with that node, until
-    the next pivot node is encountered. An OptimizationGraph has multiple nodes for each node in the original model graph, one for
-    each potential strategy for that node.
-
-    To create costs for the metaGraph, each edge will store the cumulative cost of all linear sections between the two pivot nodes as well
-    as the strategies of the nodes along those critical paths. The only nodes in the metaGraph are the pivot nodes of the original graph.
- */
-void StrategyManager::recursiveCriticalPath(typename graph<mv::Op, mv::DataFlow>::node_list_iterator modelSource,
-                                            std::unordered_set<std::string>& recursedNodes, MetaGraph& metaGraph){
-    struct costEdgeIteratorComp2
+std::shared_ptr<MetaGraph> StrategyManager::recursiveGraphSolver(mv::Data::OpListIterator opBegin,
+                                                                    mv::Data::OpListIterator opEnd,
+                                                                    vector<mv::Data::OpListIterator> children)
+{
+    if(isLinearGraph(opBegin,opEnd,children))
     {
-        bool operator()(const OptimizationGraph::edge_list_iterator lhs,
-                        const OptimizationGraph::edge_list_iterator rhs) const
-        {
-            return get<1>(*lhs) < get<1>(*rhs);
-        }
-    };
-
-    struct costNodeIteratorComp
+        return linearGraphSolver(opBegin,opEnd,children[0]);
+    }
+    else
     {
-        bool operator()(const OptimizationGraph::node_list_iterator lhs, const OptimizationGraph::node_list_iterator rhs) const
+        auto subGraphs = extractSubgraphs(opBegin,opEnd,children);
+
+        vector<std::shared_ptr<MetaGraph>> childMetas;
+        auto masterMeta = make_shared<MetaGraph>();
+
+        for( auto sGraph : *(subGraphs.get()) )
         {
-            int x = get<2>(*lhs) ;
-            int y = get<2>(*rhs) ;
-            return (x < y);
+//            cout <<"Found sGraph staringNode " << (get<0>(sGraph))->getName() << " endingNode " << get<1>(sGraph)->getName() << " on children " << endl;
+//            cout << "\t";
+//            for(auto childIdx : get<2>(sGraph))
+//                cout << childIdx->getName() << " ";
+//            cout << endl;
+            auto& sGraphStart = get<0>(sGraph);
+            auto& sGraphEnd   = get<1>(sGraph);
+            auto& sGraphChildren = get<2>(sGraph);
+
+            auto meta = recursiveGraphSolver(sGraphStart,sGraphEnd,sGraphChildren);
+            childMetas.push_back(meta);
         }
-    };
 
-    vector<vector<MetaGraphEdge>> parallelLinearSections;
-    vector<MetaGraphEdge> parallelLinearSection;
-    vector<OptimizationGraph> allOptimizationGraphs;
-    vector<OptimizationGraph::node_list_iterator> first_nodes, last_nodes;
-
-    mv::graph<mv::Op, mv::DataFlow> g;
-    vector<typename graph<mv::Op, mv::DataFlow>::node_list_iterator> next_modelSource;
-
-    //BASE CASE - end of graph, or previously recursed on this source
-    std::string opName = (*modelSource).getName();
-    if(modelSource->leftmost_child() == g.node_end() || recursedNodes.find(opName) != recursedNodes.end() || (*modelSource).getOpType() == "ConstantInt"){
-        return;
-    }
-    int childCtr = 0;
-    int nodeCtr = 0;
-
-    recursedNodes.insert(opName);
-    //RECURSIVE CASE - iterate over the children of source build linear subgraphs, kick off recursion if another pivot node hit
-    for(auto model_edge  = modelSource->leftmost_output(); model_edge !=  g.edge_end(); ++model_edge)
-    {
-        if((*(model_edge->sink())).getOpType() == "ConstantInt")
-            continue;
-        childCtr++;
-         //Create the subgraph to pass to dijkstra, build iteratively until hit next pivot node
-        OptimizationGraph optimizationGraph;
-        vector<vector<StrategySet>> nodeStrategies;
-        vector<OptimizationGraph::node_list_iterator> old_nodes, new_nodes;
-        first_nodes.clear();
-        last_nodes.clear();
-        old_nodes.clear();
-
-        map<typename OptimizationGraph::edge_list_iterator, double, costEdgeIteratorComp2> edgeCostMap;
-        int opCtr = 0;
-        int optionCtr = 0;
-
-        //Add modelSource (start pivot) to the graph
-        vector<StrategySet> nodeStrategy;
-        opCtr++;
-
-        generateStrategySetForLayer(*modelSource,nodeStrategy);
-        if(nodeStrategy.empty()){
-            throw LogicError(*this, "GraphOptimizer did not create any potential strategies for " + (*modelSource).getName());
-        }
-        new_nodes.clear();
-        for(auto strategy : nodeStrategy)
+        for(const auto& meta : childMetas)
         {
-            new_nodes.push_back(optimizationGraph.node_insert(std::tuple<mv::Op&,StrategySet,int>(*modelSource,strategy,optionCtr++)));
-        }
-        first_nodes = new_nodes;
-
-        for(const auto oldNode : old_nodes)
-        {
-            for(const auto newNode : new_nodes)
-            {
-                double edgeCost = transitionCost( get<0>(*oldNode), get<0>(*newNode), get<1>(*oldNode), get<1>(*newNode));
-                auto newEdge = optimizationGraph.edge_insert(oldNode,newNode,OptimizationGraphEdge(edgeCost,nodeCtr));
-                edgeCostMap.insert(std::pair<OptimizationGraph::edge_list_iterator, double>(newEdge, edgeCost));
-                nodeCtr++;
-            }
+            meta->write(dotFileLocation,true);
+            masterMeta->fuseMeta(*meta);
         }
 
-        old_nodes.swap(new_nodes);
-        nodeStrategies.push_back(nodeStrategy);
+        masterMeta->solve();
+        //todo:: implement sanity check function, to verify the metaGraph
 
-        auto model_child = model_edge->sink();
-        auto model_parent = model_edge->source();
-
-        //ITERATE through linear section, building the optimization subgraph, while (model_child is not a pivot node)
-        while ( model_child->children_size() == 1 && ( model_child->parents_size() == 1 || ( model_child->parents_size() == 2 &&
-                ( (*model_child->leftmost_input()->source()).getOpType() == "ConstantInt"  ||
-                (*model_child->rightmost_input()->source()).getOpType() == "ConstantInt" ) )))
-        {
-            vector<StrategySet> nodeStrategy;
-            opCtr++;
-            generateStrategySetForLayer(*model_child,nodeStrategy);
-            if(nodeStrategy.empty()){
-                throw LogicError(*this, "GraphOptimizer did not create any potential strategies for " + (*model_child).getName());
-            }
-            new_nodes.clear();
-            for(auto strategy : nodeStrategy)
-            {
-                new_nodes.push_back(optimizationGraph.node_insert(std::tuple<mv::Op&,StrategySet,int>(*model_child,strategy,optionCtr++)));
-            }
-            for(const auto oldNode : old_nodes){
-                for(const auto newNode : new_nodes)
-                {
-                    double edgeCost = transitionCost( get<0>(*oldNode), get<0>(*newNode), get<1>(*oldNode), get<1>(*newNode));
-                    int edgeCostInt = edgeCost ;
-                    auto newEdge = optimizationGraph.edge_insert(oldNode,newNode,OptimizationGraphEdge(edgeCost,nodeCtr));
-                    edgeCostMap.insert(std::pair<OptimizationGraph::edge_list_iterator, double>(newEdge, edgeCost));
-                    nodeCtr++;
-                }
-            }
-            old_nodes.swap(new_nodes);
-
-            nodeStrategies.push_back(nodeStrategy);
-
-            //move to next child node in this linear section
-            model_child = model_child->leftmost_output()->sink();
-        }
-        //Iteration ends when next pivot node is found, include this pivot node in the graph
-        nodeStrategy.clear();
-        opCtr++;
-        generateStrategySetForLayer(*model_child,nodeStrategy);
-        if(nodeStrategy.empty()){
-            throw LogicError(*this, "GraphOptimizer did not create any potential strategies for " + (*model_child).getName());
-        }
-        new_nodes.clear();
-        for(auto strategy : nodeStrategy)
-        {
-            new_nodes.push_back(optimizationGraph.node_insert(std::tuple<mv::Op&,StrategySet,int>(*model_child,strategy,optionCtr++)));
-        }
-        for(const auto oldNode : old_nodes){
-            for(const auto newNode : new_nodes)
-            {
-                double edgeCost = transitionCost( get<0>(*oldNode), get<0>(*newNode), get<1>(*oldNode), get<1>(*newNode));
-                auto newEdge = optimizationGraph.edge_insert(oldNode,newNode,OptimizationGraphEdge(edgeCost,nodeCtr));
-                edgeCostMap.insert(std::pair<OptimizationGraph::edge_list_iterator, double>(newEdge, edgeCost));
-                nodeCtr++;
-            }
-        }
-        old_nodes.swap(new_nodes);
-        nodeStrategies.push_back(nodeStrategy);
-        last_nodes = old_nodes;
-
-/*
-    Call dijkstra on each source/sink strategy combination in the linear OptimizationGraph found from the modelSource on this  pass
- */
-        allOptimizationGraphs.push_back(optimizationGraph);
-        costEdgeIteratorComp2 costEdgeCompare;
-        auto sinkNodeIt = optimizationGraph.node_begin() ;
-        for (int ii=0; ii<optimizationGraph.node_size()-1; ii++) ++sinkNodeIt;
-
-        int metaGraphEdgeCtr = 0;
-        for(auto startingNode : first_nodes){
-            for( auto endingNode : last_nodes)
-            {
-                CriticalEdges criticalPathEdges = dijkstra<OptimizationGraphNode,OptimizationGraphEdge,costNodeIteratorComp,costEdgeIteratorComp2, double>(optimizationGraph,startingNode,endingNode,edgeCostMap);
-                double cost = 0;
-                vector<StrategySet> strategies;
-
-                for(auto edge : criticalPathEdges){
-                    cost += get<0>(*edge);
-                    strategies.push_back(get<1>(*edge->sink()));
-                }
-                strategies.pop_back();
-                MetaGraphEdge particulars = MetaGraphEdge(cost, strategies, metaGraphEdgeCtr);
-                metaGraphEdgeCtr++;
-                parallelLinearSection.push_back(particulars);
-            }
-        }
-        parallelLinearSections.push_back(parallelLinearSection);
-        parallelLinearSection.clear();
-
-    //TODO add check here for whether we've hit the same pivot (needed for nested parallelism)
-    //TODO recurse if we haven't all hit the same pivot (into the nested parallel branch)
-        next_modelSource.push_back(model_child);
-        //writeDot(optimizationGraph, true); //debug
-        //cout << "Dot at " << (*model_child).getName() << " has " << optimizationGraph.node_size() << " nodes" << endl;
-    }
-
-    //If child counter is 1, we were in a linear section, just add the subgraph to the metaGraph
-    if(childCtr == 1){
-        vector<MetaGraph::node_list_iterator> sources, sinks;
-
-        if(metaGraph.node_size() == 0 ){  //If this is the first branch, add sources to MetaGraph
-            for(auto source : first_nodes){
-                std::tuple<mv::Op&,StrategySet,int> modifiedSource(get<0>(*source), get<1>(*source), metaGraph.node_size());
-                sources.push_back(metaGraph.node_insert(modifiedSource));
-            }
-        }
-        else{
-            for(auto source : first_nodes){ //should be able to find all the sources, since they were previously a sink
-                bool found = false;
-                for(auto iter = metaGraph.node_begin(); iter != metaGraph.node_end() && !found; ++iter){
-                    if(get<0>(*iter).getName() == get<0>(*source).getName() && get<1>(*iter) == get<1>(*source)){
-                        sources.push_back(iter);
-                        found = true;
-                    }
-                }
-                if(!found){
-                    throw LogicError(*this, "GraphOptimizer unable to find MetaGraph source throw" + get<0>(*source).getName());
-                }
-            }
-        }
-        for(auto sink : last_nodes){
-            std::tuple<mv::Op&,StrategySet,int> modifiedSink(get<0>(*sink), get<1>(*sink), metaGraph.node_size());
-            sinks.push_back(metaGraph.node_insert(modifiedSink));
-        }
-        vector<MetaGraphEdge> linearSection = parallelLinearSections[0];
-        bool foundNonInf = false;
-        for(int source = 0; source < sources.size(); source++){
-            for(int sink = 0; sink < sinks.size(); sink++){
-                MetaGraphEdge edgeInfo = linearSection[source*sinks.size() + sink];
-                double cost = get<0>(edgeInfo);
-                vector<StrategySet> strategies = get<1>(edgeInfo);
-                metaGraph.edge_insert(sources[source], sinks[sink], MetaGraphEdge(cost, strategies, metaGraph.edge_size()));
-                if(cost < inf_){
-                    foundNonInf = true;
-                }
-            }
-        }
-        if(!foundNonInf){
-            throw LogicError(*this, "GraphOptimizer: Found only infinite paths in linear section starting at " + get<0>(*sources.front()).getName());
-        }
-    }
-    //In a parallel section, Add the sum of costs all critical edges and their strategies to create a MetaGraph edge
-   if(childCtr > 1){
-        vector<MetaGraph::node_list_iterator> sources, sinks;
-
-        if(metaGraph.node_size() == 0 ){ //If this is the first branch, add sources to MetaGraph
-            for(auto source : first_nodes){
-                MetaGraphNode modifiedSource(get<0>(*source), get<1>(*source), metaGraph.node_size());
-                sources.push_back(metaGraph.node_insert(modifiedSource));
-            }
-        }
-        else{
-            for(auto source : first_nodes){ //Should be able to find all the sources, since they were previously a sink to some branch
-                bool found = false;
-                for(auto iter = metaGraph.node_begin(); iter != metaGraph.node_end() && !found; ++iter){
-                    if(get<0>(*iter).getName() == get<0>(*source).getName() && get<1>(*iter) == get<1>(*source)){
-                        sources.push_back(iter);
-                        found = true;
-                    }
-                }
-                if(!found){
-                    throw LogicError(*this, "GraphOptimizer: Unable to find MetaGraph source " + get<0>(*source).getName());
-                }
-            }
-        }
-        for(auto sink : last_nodes){
-            MetaGraphNode modifiedSink(get<0>(*sink), get<1>(*sink), metaGraph.node_size());
-            sinks.push_back(metaGraph.node_insert(modifiedSink));
-        }
-
-        bool foundNonInf = false;
-        for(int source = 0; source < sources.size(); source++){
-            for(int sink = 0; sink < sinks.size(); sink++){
-                double cost = 0;
-                vector<StrategySet> strategies;
-                for(int sectionIdx = 0; sectionIdx < parallelLinearSections.size(); sectionIdx++)
-                {
-                    MetaGraphEdge edgeInfo = parallelLinearSections[sectionIdx][source*sinks.size() + sink];
-                    cost += get<0>(edgeInfo);
-                    for(auto strategy :  get<1>(edgeInfo)){
-                        strategies.push_back(strategy);
-                    }
-                }
-                metaGraph.edge_insert(sources[source], sinks[sink], MetaGraphEdge(cost, strategies, metaGraph.edge_size()));
-                if(cost < inf_){
-                    foundNonInf = true;
-                }
-                strategies.clear();
-            }
-        }
-        if(!foundNonInf){
-            throw LogicError(*this, "GraphOptimizer: Found only infinite paths in parallel section starting at " + get<0>(*sources.front()).getName());
-        }
-    }
-    for(auto source : next_modelSource)
-    {
-        std::string next_opName = (*source).getName();
-        if((*source).getOpType() != "ConstantInt" && recursedNodes.find(next_opName) == recursedNodes.end()){
-            recursiveCriticalPath(source, recursedNodes, metaGraph);
-        }
+        return masterMeta;
     }
 }
+
+void StrategyManager::graphParameterOptimizations()
+{
+    initLayerStrategySets();
+
+    auto startingNode = model_.getInput();
+    auto endingNode = model_.getOutput();
+    vector<mv::Data::OpListIterator> children;
+
+    for( auto child = startingNode.leftmostChild(); child != model_.opEnd(); ++child)
+        children.push_back(child);
+
+    auto finalMetaGraph = recursiveGraphSolver(startingNode,endingNode,children);
+
+
+
+    finalMetaGraph->write(dotFileLocation,true);
+}
+
 void StrategyManager::generateStrategySetForLayer(mv::Op& op,vector<StrategySet>& strategyVec)
 {
     //TODO:: error
     cout<<"ERROR generateStrategySetForLayer" << endl;
+    return;
 }
 
 double StrategyManager::transitionCost(Op& parentOp,Op& childOp,StrategySet& parent,StrategySet& child)
