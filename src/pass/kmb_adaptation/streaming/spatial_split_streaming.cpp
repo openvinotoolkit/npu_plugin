@@ -785,7 +785,7 @@ void generateSpatialTiling(mv::Data::OpListIterator op,Tiling& tiling, std::vect
 
 
     int outputSize =  inferOutputSize(inputShape[axisToSplit],padStart,padEnd,kernelSize,kernelStride);
-    int newOutputSize = ceil( (double)(outputSize) / (double)numberOfSplits);
+    int newOutputSize = trunc( (double)(outputSize) / (double)numberOfSplits);
     int remainderOutputSize = outputSize - ( newOutputSize *(numberOfSplits -1));
 
     unsigned startCoord = 0;
