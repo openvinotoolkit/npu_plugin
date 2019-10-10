@@ -46,17 +46,29 @@ int main(int argc, char *argv[])
     json j = json::parse(i);
 
     std::string dtype = j["header"]["net_output"][0]["data_dtype"].get<std::string>();
-    int32_t qZero = j["header"]["net_output"][0]["quant_zero"][0].get<int32_t>();
-    int32_t qScale = j["header"]["net_output"][0]["quant_scale"][0].get<int32_t>();
-    // std::cout << dtype << std::endl;
-    // std::cout << qZero << std::endl;
-    // std::cout << qScale << std::endl;
+    int qZero = j["header"]["net_output"][0]["quant_zero"][0].get<int>();
+    int qScale = j["header"]["net_output"][0]["quant_scale"][0].get<int>();
+    std::cout << "Datatype: " << dtype << std::endl;
+    std::cout << "quant_zero: " << qZero << std::endl;
+    std::cout << "quant_scale: " << qScale << std::endl;
 
-    // Read the InferenceManagerDemo output file
-    std::ifstream infile;
-    infile.open("output_cpu.bin", std::ios::out | std::ios::binary);
-    infile.write(reinterpret_cast<char*>(&allResult[0]), allResult.size()*sizeof(std::float_t)); 
-    infile.close();
+    //read size of output tensor
+    int tSize = 1;
+    for (int x=0; x<j["header"]["net_output"][0]["dimensions"].size(); ++x)
+    {
+        tSize *= j["header"]["net_output"][0]["dimensions"][x].get<int>();
+    }
+    std::cout << "Output size: " << tSize << std::endl;
 
-
+    // Read the InferenceManagerDemo output file into a vector
+    std::ifstream file(FLAGS_t, std::ios::binary);
+    file.unsetf(std::ios::skipws);
+    std::vector<unsigned char> outputVector;
+    outputVector.reserve(tSize);
+    outputVector.insert(outputVector.begin(),
+        std::istream_iterator<unsigned char>(file),
+        std::istream_iterator<unsigned char>());
+    
+    for (int i = 0; i < tSize; ++i)
+        std::cout << std::hex << (int)outputVector[i] << " ";
 }
