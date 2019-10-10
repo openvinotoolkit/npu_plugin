@@ -193,17 +193,17 @@ public:
         size_t totalActivationSize = 0;
 
         if(op.getOpType() != "Input")
-//            inputSize = tensorSize(op.getInputTensor(0)->getShape(),{streamConfig["W"],streamConfig["H"],streamConfig["C"],1});
+        {
             inputSize = realTensorSize(op.getInputTensor(0),{streamConfig["W"],streamConfig["H"],streamConfig["C"],1});
+        }
         if(op.getOpType() != "Output")
-//            outputSize = tensorSize(op.getOutputTensor(0)->getShape(),{streamConfig["W"],streamConfig["H"],1,1});
+        {
             outputSize = realTensorSize(op.getOutputTensor(0),{streamConfig["W"],streamConfig["H"],1,1});
+        }
 
         if(op.getOpType() == "Conv" || op.getOpType() == "DepthwiseConv" || op.getOpType() == "DepthWiseConv")
         {
-            //weightTableSize = 16*((op.getInputTensor(1)->getShape()["K"] + (streamConfig["K"]*streamConfig["H"]) - 1) / (streamConfig["K"]* streamConfig["H"])) ;
             weightTableSize = 16*((op.getInputTensor(1)->getShape()["K"] + (streamConfig["K"]) - 1) / (streamConfig["K"])) ;
-//            weightSize += tensorSize(op.getInputTensor(1)->getShape(),{1,1,streamConfig["C"],streamConfig["K"]});
             weightSize += realTensorSize(op.getInputTensor(1),{1,1,streamConfig["C"],streamConfig["K"]});
         } else if(op.getOpType() == "MaxPool")
         {
@@ -213,7 +213,6 @@ public:
         {
             weightTableSize = 0;
             weightSize = 0;
-//            inputSize += tensorSize(op.getInputTensor(1)->getShape(),{streamConfig["W"],streamConfig["H"],streamConfig["C"],1});
             inputSize += realTensorSize(op.getInputTensor(1),{streamConfig["W"],streamConfig["H"],streamConfig["C"],1});
         }
 
@@ -295,7 +294,7 @@ public:
         if(globalEnableStreaming)
         	maxSplits = (clusterOutChannelSize/2);
 
-        std::cout << "maxStreamingSplits for " << op.getName() << " is "<< maxSplits << std::endl;
+//        std::cout << "maxStreamingSplits for " << op.getName() << " is "<< maxSplits << std::endl;
 
         splits.push_back(1);
 
@@ -315,10 +314,10 @@ public:
             splits.push_back(split);
         }
 
-        std::cout << "Streaming options for " << op.getName() << std::endl;
+//        std::cout << "Streaming options for " << op.getName() << std::endl;
         for (auto s:splits)
         {
-            std::cout << "      " << s << std::endl;
+//            std::cout << "      " << s << std::endl;
         }
 
         return splits;
@@ -329,35 +328,6 @@ public:
 
         return 0;
     }
-
-//    int simulateDpuExecutionTime(Op& op,StrategySet strategy)
-//    {
-//        auto opType = op.getOpType();
-//        auto clustering = strategy["clustering"].get<string>();
-//
-//        vector<Shape> contexts;
-//        Shape clusterSplit;
-//
-//        if( (opType == "Pooling") or (opType == "DepthWiseConv")) //TODO:: OR CHMAJOR CONV
-//        {
-//            contexts.push_back({16,1,16,1});
-//        }
-//        else
-//        {
-//            contexts.push_back({4,4,16,1});
-//            contexts.push_back({16,1,16,1});
-//        }
-//
-//        if( (clustering == "SplitOverH") or
-//                (clustering == "SplitOverHOverlapped") or
-//                (clustering == "HKSwitch"))
-//            clusterSplit = {1,totalClusters,1,1};
-//        else if(clustering == "SplitOverK")
-//            clusterSplit = {1,1,totalClusters,1};
-//        else
-//            clusterSplit = {1,1,1,1};
-//
-//    }
 
     double executionTime(Op& op,StrategySet& strategySet)
     {
@@ -480,7 +450,7 @@ public:
         return false;
     }
 
-    double transitionCost(Op& parentOp,Op& childOp,StrategySet& parent,StrategySet& child)
+    double transitionCost (Op& parentOp,Op& childOp,StrategySet& parent,StrategySet& child) override
     {
 
         //TODO: expose these conditionals more cleanly
@@ -738,38 +708,32 @@ public:
                         }
                         else
                         {
-                            unsigned splitsToFit = ceil((double)(activationsSize)/(double)(clusterMemory-weightsSize));
-
-                            if (splitsToFit < 1)     // handle case when weightsSize > clusterMemory
-                                maxSplitOverH = 1;
-                            else
-                                maxSplitOverH = splitsToFit;
-/*
-                            //find smallest split that is even dvisor of H, and >=splitsToFit
-                            maxSplitOverH = 1;
-                            auto inputHeight=op.getInputTensor(0)->getShape()[1]; 
-                        
-                            for (auto findMax=splitsToFit; findMax<=inputHeight/2; findMax++)
-                            {
-                                if ((inputHeight%findMax) == 0)
-                                {
-                                    maxSplitOverH=findMax;
-                                    break;
-                                }
-                                std::cout << "GraphOptimizer ERROR op: " << op.getName() << " input shape: " << op.getInputTensor(0)->getShape().toString() << std::endl;
-                                std::cout << "GraphOptimizer can't find fitting H-split that is even divisor of " << inputHeight << std::endl;
-                            }
-*/
+                             maxSplitOverH = ceil((double)(activationsSize)/(double)(clusterMemory));
                         }
+                            //find smallest split that is even dvisor of H, and >=splitsToFit
+//                            maxSplitOverH = 1;
+//                            auto inputHeight=op.getInputTensor(0)->getShape()[1];
+//
+//                            for (auto findMax=splitsToFit; findMax<=inputHeight/2; findMax++)
+//                            {
+//                                if ((inputHeight%findMax) == 0)
+//                                {
+//                                    maxSplitOverH=findMax;
+//                                    break;
+//                                }
+//                                std::cout << "GraphOptimizer ERROR op: " << op.getName() << " input shape: " << op.getInputTensor(0)->getShape().toString() << std::endl;
+//                                std::cout << "GraphOptimizer can't find fitting H-split that is even divisor of " << inputHeight << std::endl;
+//                            }
                         //cout<<"hasStreamH " << hasStreamOverH << " k " << hasStreamOverK << endl;
                         //cout<<"\tclusterMem " << clusterMemory << " ceil " << ceil((double)activationsSize/(double)clusterMemory) << endl;
-                        cout<<op.getName() << " clusterMem " << clusterMemory << " activationSize " << activationsSize <<" weightsSize " << weightsSize<< " maxSplitH " << maxSplitOverH << endl;
+//                        cout<<op.getName() << " clusterMem " << clusterMemory << " activationSize " << activationsSize <<" weightsSize " << weightsSize<< " maxSplitH " << maxSplitOverH << endl;
 
                         vector<size_t> streamsOverK;
                         if(hasStreamOverK)
                             streamsOverK = getMaxStreamOverK(clustering.get<string>(),op);
                         else
                             streamsOverK.push_back(1);
+
 
                         for(const auto k : streamsOverK)
                         {
