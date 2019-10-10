@@ -224,7 +224,6 @@ std::vector<mv::Workload> mv::Workloads::polygonWorkloadSplit(const mv::pass::Pa
         B* * * * * * * * * * * * * * * * * * * *C
         ------------------------------------------------------------------------------------------------------------
         */
-    using xyz_type = decltype(mv::Workload::MinX);
     std::vector<mv::Workload> workloadFromAreaCheck, finalWorkloadList;
     std::vector<std::pair<int16_t, int16_t>> points_not_in_wl;
     //NB: Interesting points has a boolen value. This value indicates whether the point is at the end of a partition or at the beginning. If starting,
@@ -1011,7 +1010,9 @@ namespace mv {
             /*Select best MPE mode*/
             if(padding.mode.H == padding.mode.W)
                 workload.MPEMode = mv::Matrix;
-            else if ((padding.mode.W == 1) && (padding.mode.W == 16))
+            else if ((padding.mode.H == 1) && (padding.mode.W == 16))
+                workload.MPEMode = mv::MPE_Mode::Vector;
+            else if ((padding.mode.W == 1) && (padding.mode.H == 16))
                 workload.MPEMode = mv::MPE_Mode::Vector;
             else
                 workload.MPEMode = mv::MPE_Mode::Vector_FP16;
@@ -1210,8 +1211,10 @@ int mv::Workloads::partitionTensorWithZsplit(const mv::DPUModeList& mode_list, s
         /*Select best MPE mode*/
         if(best_padding.mode.H == best_padding.mode.W)
             workload.MPEMode = mv::Matrix;
-        else if ((best_padding.mode.W == 1) && (best_padding.mode.W == 16))
-            workload.MPEMode = mv::Vector;
+        else if ((best_padding.mode.H == 1) && (best_padding.mode.W == 16))
+            workload.MPEMode = mv::MPE_Mode::Vector;
+        else if ((best_padding.mode.W == 1) && (best_padding.mode.H == 16))
+            workload.MPEMode = mv::MPE_Mode::Vector;
         else
             workload.MPEMode = mv::Vector_FP16;
 
