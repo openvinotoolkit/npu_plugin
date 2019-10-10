@@ -22,7 +22,7 @@
                         "strategy" : "Example"
                     }
                 ],
-                "default_tensor_placement" : "CMX",
+                "default_tensor_placement" : "NNCMX",
                 "tensor_placement_override" :
                 [
                     {
@@ -174,7 +174,8 @@
         "Singular": [
             "ConcatAsImplicit",
             "StoreWorkloadStrategy",
-            "ConvertOpsToTasks",
+            "ConvertOpsToDPUTasks",
+            "ConvertOpsToUPATasks",
             "ForceSerialize",
             "KMBOrderConversion",
             "AlignUnpopulatedTensors",
@@ -197,8 +198,10 @@
     "dma": {
         "Singular" : [
             "SetDpuTasksMemoryLocation",
+            "SetUPATasksMemoryLocation",
             "ResolveImplicitOperations",
-            "AddWeightsDMATasks",
+            "AddDPUTasksWeightsDMATasks",
+            "AddUPATasksExtraInputsDMATasks",
             "EnsureSplitStrategiesForSpilling"
         ]
     },
@@ -213,7 +216,7 @@
             },
             "TransitiveReduction",
             "LayerNumbering",
-            "cmx2DDRControlFlows",
+            "NNCMX2DDRControlFlows",
             "TransitiveReduction"
         ]
     },
