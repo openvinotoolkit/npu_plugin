@@ -1476,8 +1476,11 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAQuantizeTask(ComputationModel& 
     auto softLayerParamsValue = new MVCNN::QuantizeParamsT();
 
     toBuild->softLayerParams.value = softLayerParamsValue;
-    toBuild->input_data = buildTensorReferenceT(cm, compilationDescriptor, input);
-    toBuild->output_data = buildTensorReferenceT(cm, compilationDescriptor, output);
+
+    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input)));
+
+    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
+
     return toBuild;
 }
 
