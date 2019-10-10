@@ -1360,8 +1360,10 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPASoftmaxTask(ComputationModel& c
         softLayerParamsValue->axis = 2;
     toBuild->softLayerParams.value = softLayerParamsValue;
 
-    toBuild->input_data = buildTensorReferenceT(cm, compilationDescriptor, input);
-    toBuild->output_data = buildTensorReferenceT(cm, compilationDescriptor, output);
+    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input)));
+
+    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
+
     return toBuild;
 }
 
@@ -1400,10 +1402,13 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAProposalTask(ComputationModel& 
         ratio_vector.push_back(mv::fp16_to_fp32(static_cast<uint16_t>(ratio->getIntData().at({i}))));
 
     // Fill in tensors
-    toBuild->input_data = buildTensorReferenceT(cm, compilationDescriptor, cls_pred);
-    toBuild->weights_data = buildTensorReferenceT(cm, compilationDescriptor, bbox_pred);
-    toBuild->weights_table = buildTensorReferenceT(cm, compilationDescriptor, im_info);
-    toBuild->output_data = buildTensorReferenceT(cm, compilationDescriptor, output);
+    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, cls_pred)));
+    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, bbox_pred)));
+    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, im_info)));
+    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, scale)));
+    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, ratio)));
+
+    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
 
     // Fill in required params
     softLayerParamsValue->ratio = ratio_vector;
@@ -1444,9 +1449,10 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAROIPoolingTask(ComputationModel
     auto output = opIt->getOutputTensor(0);
 
     // Fill in tensors
-    toBuild->input_data = buildTensorReferenceT(cm, compilationDescriptor, input);
-    toBuild->weights_data = buildTensorReferenceT(cm, compilationDescriptor, coords);
-    toBuild->output_data = buildTensorReferenceT(cm, compilationDescriptor, output);
+    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input)));
+    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, coords)));
+
+    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
 
     // Fill in required params
     softLayerParamsValue->pooled_w = opIt->get<unsigned>("pooled_w");
@@ -1470,8 +1476,11 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAPassthroughTask(ComputationMode
     auto softLayerParamsValue = new MVCNN::PassthroughParamsT();
     //softLayerParamsValue->min_delay_us = 1000;
     toBuild->softLayerParams.value = softLayerParamsValue;
-    toBuild->input_data = buildTensorReferenceT(cm, compilationDescriptor, input);
-    toBuild->output_data = buildTensorReferenceT(cm, compilationDescriptor, output);
+
+    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input)));
+
+    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
+
     return toBuild;
 }
 
