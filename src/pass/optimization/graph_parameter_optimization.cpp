@@ -327,6 +327,10 @@ namespace mv
                     auto weightsShape = op.getInputTensor(1)->getShape();
                     baseKernelCost = weightsShape[KERNEL_WIDTH] * weightsShape[KERNEL_HEIGHT];
                 }
+                else if (opType == "Softmax")
+                {
+                    baseKernelCost = 1;
+                }
                 else
                 {
                     throw LogicError(*this,"Invalid operation type " + opType);
