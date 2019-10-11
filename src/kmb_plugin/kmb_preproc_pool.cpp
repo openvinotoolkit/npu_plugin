@@ -76,6 +76,11 @@ SippPreprocessorPool& SippPreprocPool::getPool(int w) {
     } else if (_preprocPools.size() > maxPools) {
         THROW_IE_EXCEPTION << "Error: max pool number exceeded!";
     }
+
+    // TODO find a better place for this check
+    if (firstShave + shavesPerPool*maxPools > 16) {
+        THROW_IE_EXCEPTION << "Error: Max number of shaves exceeded!";
+    }
     lock.unlock();
 
     return *_preprocPools[w];
@@ -90,5 +95,8 @@ SippPreprocPool& sippPreprocPool() {
     static SippPreprocPool pool;
     return pool;
 }
+
+unsigned SippPreprocPool::firstShave = (std::getenv("SIPP_FIRST_SHAVE") == nullptr) ? 2 : std::atoi(std::getenv("SIPP_FIRST_SHAVE"));
+
 }  // namespace InferenceEngine
 #endif  // #ifdef ENABLE_VPUAL
