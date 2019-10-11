@@ -14,16 +14,16 @@ int main()
 
     mv::CompilationUnit unit("parserModel");
     mv::OpModel& om = unit.model();
-    auto input0 = om.input({32,32,32,1}, mv::DType("Float64"), mv::Order::getZMajorID(4), {{0},{1.0},{-inf},{inf}}, "input:0#4");
+    auto input0 = om.input({32,32,32,1}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{0},{1.0},{-inf},{inf}}, "input0");
 
-    std::vector<double> weightsData0 = mv::utils::generateSequence<double> (1*1*32*64);
-    auto weights0 = om.constant(weightsData0,{1,1,32,64}, mv::DType("Float64"), mv::Order::getZMajorID(4), {{0},{1.0},{-inf},{inf}}, "conv1/Conv2D#1_weights#2");
-    auto conv0 = om.conv(input0, weights0, {1, 1}, {0, 0, 0, 0}, 1, 1, mv::DType("Float64"), {{0},{1.0},{-inf},{inf}}, "conv1/Conv2D:0#5");
+    std::vector<int64_t> weightsData0 = mv::utils::generateSequence<int64_t> (1*1*32*32);
+    auto weights0 = om.constantInt(weightsData0,{1,1,32,32}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{0},{1.0},{-inf},{inf}}, "weights0");
+    auto conv0 = om.conv(input0, weights0, {1, 1}, {0, 0, 0, 0}, 1, 1, mv::DType("UInt8"), {{0},{1.0},{-inf},{inf}}, "conv0");
 
-    auto softmax0 = om.softmax(conv0);
+    auto softmax0 = om.softmax(conv0, std::string("C"), mv::DType("Float16"));
     om.output(softmax0);
 
-    std::string compDescPath = path + "/config/compilation/debug_ma2490.json";
+    std::string compDescPath = path + "/config/compilation/release_kmb.json";
     unit.loadCompilationDescriptor(compDescPath);
 
     unit.loadTargetDescriptor(mv::Target::ma2490);
