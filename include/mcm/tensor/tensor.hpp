@@ -42,7 +42,7 @@ namespace mv
 
             static std::map<std::string,Location> createNamingMap() {
                     return {{"NNCMX",NNCMX},
-                            {"UPA",UPACMX},
+                            {"UPACMX",UPACMX},
                             {"DDR",DDR},
                             {"INPUT",INPUT},
                             {"OUTPUT",OUTPUT},

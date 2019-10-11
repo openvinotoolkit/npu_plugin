@@ -1017,9 +1017,9 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
         std::vector<unsigned int> locale_index;
         locale_index.push_back(clusterId);
         toBuild->input_data->locale_index = locale_index;
-//        toBuild->out_channel_offset = 0;
-//        for (int i = 0; i < clusterId; i++)
-//            toBuild->out_channel_offset += opIt->getOutputTensor(0)->getSubTensor(i).getShape()[IO_CHANNEL_DIMENSION];
+        toBuild->out_channel_offset = 0;
+        for (int i = 0; i < clusterId; i++)
+            toBuild->out_channel_offset += opIt->getOutputTensor(0)->getSubTensor(i).getShape()[IO_CHANNEL_DIMENSION];
     }
     else
         toBuild->input_data = buildTensorReferenceT(cm, compilationDescriptor, parentInputTensor, clusterId);
