@@ -116,5 +116,14 @@ MV_OPTIMIZER_LAYER_STRATEGY_REGISTRY()
    .registerSet("inputActivationSparsity").insert(false)
    .registerSet("outputActivationSparsity").insert(false)
    .registerSet("weightsSparsity").insert(false);
+
+MV_OPTIMIZER_LAYER_STRATEGY_REGISTRY()
+   .enter("Reshape")
+   .registerSet("streamingStrategies").insert(vector<string>(0))
+   .registerSet("clusteringStrategies").insert(vector<string>{"Clustering"})
+   .registerSet("forceSpilling").insert(true)
+   .registerSet("inputActivationSparsity").insert(false)
+   .registerSet("outputActivationSparsity").insert(false)
+   .registerSet("weightsSparsity").insert(false);
 }
 }

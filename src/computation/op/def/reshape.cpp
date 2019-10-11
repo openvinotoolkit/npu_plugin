@@ -75,6 +75,8 @@ namespace mv
         .setOutputs({"output"})
         .setArg<mv::Shape>("shape")
         .setOptionalArg<std::string>("order", op_reshape::empty)
+        .setOptionalArg<mv::DType>("dType", mv::DType("Default"))
+        .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
         .setInputCheck(op_reshape::inputCheckFcn)
         .setOutputDef(op_reshape::outputDefFcn)
         .setTypeTrait({"executable", "exposed"});

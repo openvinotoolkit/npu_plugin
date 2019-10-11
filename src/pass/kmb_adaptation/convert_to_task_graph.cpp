@@ -501,6 +501,32 @@ void convertOpsToUPATasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& 
             setOutputControlFlow(cm, cm.switchContext(upaQuantizeOp), outputControlFlows);
 
         }
+        else if (opType == "Reshape")
+        {
+            auto input = opIt->getInputTensor(0);
+            auto output = opIt->getOutputTensor(0);
+            auto outputMemoryLocation = output->get<mv::Tensor::MemoryLocation>("Location");
+            unsigned opId = opIt->get<unsigned>("opId");
+            auto shape = opIt->get<mv::Shape>("shape");
+            auto order = opIt->get<std::string>("order");
+            auto dtype = opIt->get<mv::DType>("dType");
+            auto quantParams = opIt->get<mv::QuantizationParams>("quantParams");
+
+            auto inputControlFlows = mv::getInputControlFlow(cm, cm.switchContext(opIt));
+            auto outputControlFlows = mv::getOutputControlFlow(cm, cm.switchContext(opIt));
+            auto outputDataFlows = mv::getOutputDataFlow(om, opIt);
+
+            mv::Data::TensorIterator upaReshape = om.uPATaskReshape({input}, shape, order, dtype, quantParams);
+
+            auto upaReshapeOp = om.getSourceOp(upaReshape);
+            upaReshapeOp->set<unsigned>("opId", opId);
+
+            upaReshape->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
+            setOutputDataFlow(om, upaReshape, outputDataFlows);
+            setInputControlFlow(cm, cm.switchContext(upaReshapeOp), inputControlFlows);
+            setOutputControlFlow(cm, cm.switchContext(upaReshapeOp), outputControlFlows);
+
+        }
         else
             ++opIt;
     }

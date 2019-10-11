@@ -104,6 +104,7 @@ namespace mv
             static MVCNN::UPALayerTaskT * buildUPASoftmaxTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt);
             static MVCNN::UPALayerTaskT * buildUPAPassthroughTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt);
             static MVCNN::UPALayerTaskT * buildUPADummyTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt);
+            static MVCNN::UPALayerTaskT * buildUPAReshapeTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt);
 
 
             // UTILS
