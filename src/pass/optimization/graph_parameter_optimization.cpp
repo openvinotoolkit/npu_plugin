@@ -162,12 +162,17 @@ namespace mv
                 if(op.getOpType() != "Input")
                     inputSize = realTensorSize(op.getInputTensor(0),{streamConfig["W"],streamConfig["H"],streamConfig["C"],1});
                 if(op.getOpType() != "Output")
-                    outputSize = realTensorSize(op.getOutputTensor(0),{streamConfig["W"],streamConfig["H"],1,1});
+                    outputSize = realTensorSize(op.getOutputTensor(0),{streamConfig["W"],streamConfig["H"],streamConfig["K"],1});
 
                 if(op.getOpType() == "Conv" || op.getOpType() == "DepthwiseConv")
                 {
-                    weightTableSize = 16*((op.getInputTensor(1)->getShape()["K"] + (streamConfig["K"]) - 1) / (streamConfig["K"])) ;
-                    weightSize += realTensorSize(op.getInputTensor(1),{1,1,streamConfig["C"],streamConfig["K"]});
+                    size_t alignedFullChannels = roundUpToNearestMultiple(op.getOutputTensor(0)->getShape()[IO_CHANNEL_DIMENSION], 16);
+                    size_t alignedSplittedChannels = roundUpToNearestMultiple(alignedFullChannels/streamConfig["K"], 16);
+                    weightTableSize = 4 * alignedSplittedChannels ;
+                    if (op.getOpType() == "Conv")
+                        weightSize += realTensorSize(op.getInputTensor(1),{1,1,streamConfig["C"],streamConfig["K"]});
+                    else
+                        weightSize += realTensorSize(op.getInputTensor(1),{1,1,streamConfig["C"],1});
                 } else if(op.getOpType() == "MaxPool")
                 {
                     weightTableSize = 0;
@@ -277,8 +282,8 @@ namespace mv
                     maxSplits = (clusterOutChannelSize/2);
                     //maxSplits = (clusterOutChannelSize/16);
 
-                if(maxSplits > 32)
-                    maxSplits = 32;
+               // if(maxSplits > 32)
+                 //   maxSplits = 64;
 
                 splits.push_back(1);
                 //for(unsigned split = 1; split <= maxSplits; split++)
@@ -436,9 +441,11 @@ namespace mv
                 auto streamShape = strategy["streaming"].get<Shape>();
                 auto spilling = strategy["spilling"].get<bool>();
 
-                auto fit = memorySize(op,clustering,false, false,weightsSparsity,streamShape,false);
-                if(fit.first + fit.second > clusterMemory)
-                    return true;
+                if(op.getOpType() != "Output"){
+                    auto fit = memorySize(op,clustering,false, false,weightsSparsity,streamShape,false);
+                    if(fit.first + fit.second > clusterMemory)
+                        return true;
+                }
 
                 if(checkStreamClusterComp(op, strategy))
                     return true;
@@ -489,6 +496,8 @@ namespace mv
 
                 auto parentClustering = parent["clustering"].get<string>();
                 auto childClustering = child["clustering"].get<string>();
+
+                checkForBadStrategy(parentOp,parent);
 
 
                 if((parentClustering == "HKSwitch" or
@@ -614,17 +623,18 @@ namespace mv
                 if(childInputSparsity == false)
                     parentOutputSparsity = false;
 
-
-                auto parentMem = memorySize(parentOp,
+                //If activation sparsity is occuring between this pair, recheck that the increased memory footprint
+                //does not exceed CMX
+                if(childInputSparsity){
+                    auto parentMem = memorySize(parentOp,
                                             parentClustering,
-                                            //parent["inputSparsity"],
                                             false,
                                             parentOutputSparsity,
                                             parent["weightsSparsity"].get<bool>(),
                                             parent["streaming"].get<Shape>(),
                                             false);
 
-                auto childMem = memorySize(childOp,
+                    auto childMem = memorySize(childOp,
                                             child["clustering"],
                                             childInputSparsity,
                                             false,
@@ -633,10 +643,10 @@ namespace mv
                                             false);
 
 
-                if( ((childMem.first + childMem.second) > clusterMemory) or
-                    ((parentMem.first + parentMem.second) > clusterMemory))
+                    if( ((childOp.getOpType() != "Output") and (childMem.first + childMem.second) > clusterMemory) or
+                                                                ((parentMem.first + parentMem.second) > clusterMemory))
                         return INF;
-
+                }
 
                 auto execTime1 = executionTime(parentOp,parent);
                 auto execTime2 = executionTime(childOp,child);
@@ -794,6 +804,17 @@ namespace mv
                                         maxSplitOverH = splitsToFit;
                                 }
                             }
+                            //Max split over H cannot be higher than dimension/kernel
+                            if(op.getOpType() == "Conv"){
+                                auto kernelSize = op.getInputTensor(1)->getShape()["H"];
+                                auto dim = op.getOutputTensor(0)->getShape()["H"];
+                                if(maxSplitOverH > dim/kernelSize){
+                                    maxSplitOverH = dim/kernelSize;
+                                }
+                                if(maxSplitOverH < 1)
+                                    maxSplitOverH = 1;
+                            }
+
                             vector<size_t> streamsOverK;
                             if(hasStreamOverK)
                                 streamsOverK = getMaxStreamOverK(clustering.get<string>(),op);
