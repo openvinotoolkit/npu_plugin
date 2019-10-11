@@ -565,12 +565,18 @@ void tensorGraphColoringFnc(const mv::pass::PassEntry& pass, mv::ComputationMode
     mv::TensorInterferenceGraph ddr_heap_g(pass, model, alignment,
             [](const mv::Data::TensorIterator& t) -> bool
             {
-                return (!t->isPopulated());
+                return (!t->isPopulated() &&
+                    t->get<mv::Tensor::MemoryLocation>("Location") == mv::Tensor::MemoryLocation::DDR);
             },
             [](const mv::Data::OpListIterator& t) -> bool
             {
-                return (t->getOpType() == "DMATask" &&
-                    t->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location") == mv::Tensor::MemoryLocation::DDR);
+
+                if (t->getOpType() == "DMATask" &&
+                    t->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location") == mv::Tensor::MemoryLocation::DDR)
+                    return true;
+                if (t->getOpType() == "UPATask")
+                    return true;
+                return false;
             },
             [](const mv::Data::OpListIterator& opIterator) -> bool
             {
