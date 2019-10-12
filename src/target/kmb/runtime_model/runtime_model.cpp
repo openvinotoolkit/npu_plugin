@@ -1502,6 +1502,32 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAReshapeTask(ComputationModel& c
     return toBuild;
 }
 
+MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPARegionYoloTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt)
+{
+    auto input = opIt->getInputTensor(0);
+    auto output = opIt->getOutputTensor(0);
+    auto toBuild = new MVCNN::UPALayerTaskT();
+    //toBuild->maxShaves = ;
+    toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_RegionYOLOParams;
+    auto softLayerParamsValue = new MVCNN::RegionYOLOParamsT();
+
+    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input)));
+
+    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
+
+    softLayerParamsValue->coords = opIt->get<unsigned>("coords");
+    softLayerParamsValue->classes = opIt->get<unsigned>("classes");
+    softLayerParamsValue->num = opIt->get<unsigned>("num");
+    softLayerParamsValue->do_softmax = opIt->get<bool>("do_softmax");
+    auto mask_uint = opIt->get<std::vector<unsigned>>("mask");
+    std::vector<int> mask(std::begin(mask_uint), std::end(mask_uint));
+    softLayerParamsValue->mask = mask;
+
+    toBuild->softLayerParams.value = softLayerParamsValue;
+
+    return toBuild;
+}
+
 MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAPassthroughTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt)
 {
     auto input = opIt->getInputTensor(0);
@@ -1555,6 +1581,8 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildUPATask(Comput
         toReturn[0]->task.value = buildUPAQuantizeTask(cm, compilationDescriptor, opIt);
     else if(underlyingTask == "Reshape")
         toReturn[0]->task.value = buildUPAReshapeTask(cm, compilationDescriptor, opIt);
+    else if(underlyingTask == "RegionYolo")
+        toReturn[0]->task.value = buildUPARegionYoloTask(cm, compilationDescriptor, opIt);
     // TODO: Add other UPA layers
 
     return toReturn;

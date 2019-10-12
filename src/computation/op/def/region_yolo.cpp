@@ -164,6 +164,8 @@ namespace mv
         .setArg<bool>("do_softmax")
         .setOptionalArg<unsigned>("num", 0)
         .setOptionalArg<std::vector<unsigned>>("mask", op_region_yolo::empty)
+        .setOptionalArg<mv::DType>("dType", mv::DType("Default"))
+        .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
         .setInputCheck(op_region_yolo::inputCheckFcn)
         .setOutputDef(op_region_yolo::outputDefFcn)
         .setTypeTrait({"executable", "exposed"});

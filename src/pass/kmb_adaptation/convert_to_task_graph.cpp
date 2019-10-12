@@ -527,6 +527,35 @@ void convertOpsToUPATasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& 
             setOutputControlFlow(cm, cm.switchContext(upaReshapeOp), outputControlFlows);
 
         }
+        else if (opType == "RegionYolo")
+        {
+            auto input = opIt->getInputTensor(0);
+            auto output = opIt->getOutputTensor(0);
+            auto outputMemoryLocation = output->get<mv::Tensor::MemoryLocation>("Location");
+            unsigned opId = opIt->get<unsigned>("opId");
+            auto coords = opIt->get<unsigned>("coords");
+            auto classes = opIt->get<unsigned>("classes");
+            auto do_softmax = opIt->get<bool>("do_softmax");
+            auto num = opIt->get<unsigned>("num");
+            auto mask = opIt->get<std::vector<unsigned>>("mask");
+            auto dtype = opIt->get<mv::DType>("dType");
+            auto quantParams = opIt->get<mv::QuantizationParams>("quantParams");
+
+            auto inputControlFlows = mv::getInputControlFlow(cm, cm.switchContext(opIt));
+            auto outputControlFlows = mv::getOutputControlFlow(cm, cm.switchContext(opIt));
+            auto outputDataFlows = mv::getOutputDataFlow(om, opIt);
+
+            mv::Data::TensorIterator upaRegionYolo = om.uPATaskRegionYolo({input}, coords, classes, do_softmax, num, mask, dtype, quantParams);
+
+            auto upaRegionYoloOp = om.getSourceOp(upaRegionYolo);
+            upaRegionYoloOp->set<unsigned>("opId", opId);
+
+            upaRegionYolo->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
+            setOutputDataFlow(om, upaRegionYolo, outputDataFlows);
+            setInputControlFlow(cm, cm.switchContext(upaRegionYoloOp), inputControlFlows);
+            setOutputControlFlow(cm, cm.switchContext(upaRegionYoloOp), outputControlFlows);
+
+        }
         else
             ++opIt;
     }

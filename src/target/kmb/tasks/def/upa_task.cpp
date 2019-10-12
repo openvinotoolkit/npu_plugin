@@ -41,7 +41,7 @@ namespace mv
         .setOutputDef(op_upa::outputDefFcn)
         .setTypeTrait({"executable"})
         .setVariableInputNum(true)
-        .setBaseOperation({"Dummy", "Identity", "Softmax", "Proposal", "ROIPooling", "Quantize", "Reshape"})
+        .setBaseOperation({"Dummy", "Identity", "Softmax", "Proposal", "ROIPooling", "Quantize", "Reshape", "RegionYolo"})
         .setExtraInputs(true);
     }
 
