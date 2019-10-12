@@ -344,6 +344,8 @@ namespace mv
                 }
 
                 //the actual compute
+                if (outputShape.ndims() != streaming.ndims())
+                    outputShape = outputShape.augment(outputShape, streaming.ndims());
                 Shape dpuOutShape = ( outputShape / streaming ) / isiSplit;
                 Shape contextsInOp = dpuOutShape / contexts;
                 unsigned numContextsInOp = contextsInOp.totalSize();
@@ -380,8 +382,11 @@ namespace mv
 
                 //this will assume that the first N streams will have the max shape, and the subsequent will have
                 //whatever is remained
-                auto streamedShape = outTensor->getShape() / outStreaming;
-                auto remainderShape = outTensor->getShape() - ((outStreaming - one_shape) * streamedShape);
+                auto outTensor_shape = outTensor->getShape();
+                if (outTensor_shape.ndims() != outStreaming.ndims())
+                    outTensor_shape = outTensor_shape.augment(outTensor_shape, outStreaming.ndims());
+                auto streamedShape = outTensor_shape / outStreaming;
+                auto remainderShape = outTensor_shape - ((outStreaming - one_shape) * streamedShape);
 
                 //todo:: check if needed for inTensor too
                 if( clustering == "SplitOverH" and
