@@ -556,6 +556,31 @@ void convertOpsToUPATasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& 
             setOutputControlFlow(cm, cm.switchContext(upaRegionYoloOp), outputControlFlows);
 
         }
+        else if (opType == "ReorgYolo")
+        {
+            auto input = opIt->getInputTensor(0);
+            auto output = opIt->getOutputTensor(0);
+            auto outputMemoryLocation = output->get<mv::Tensor::MemoryLocation>("Location");
+            unsigned opId = opIt->get<unsigned>("opId");
+            auto stride = opIt->get<unsigned>("stride");
+            auto dtype = opIt->get<mv::DType>("dType");
+            auto quantParams = opIt->get<mv::QuantizationParams>("quantParams");
+
+            auto inputControlFlows = mv::getInputControlFlow(cm, cm.switchContext(opIt));
+            auto outputControlFlows = mv::getOutputControlFlow(cm, cm.switchContext(opIt));
+            auto outputDataFlows = mv::getOutputDataFlow(om, opIt);
+
+            mv::Data::TensorIterator upaReorgYolo = om.uPATaskReorgYolo({input}, stride, dtype, quantParams);
+
+            auto upaReorgYoloOp = om.getSourceOp(upaReorgYolo);
+            upaReorgYoloOp->set<unsigned>("opId", opId);
+
+            upaReorgYolo->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
+            setOutputDataFlow(om, upaReorgYolo, outputDataFlows);
+            setInputControlFlow(cm, cm.switchContext(upaReorgYoloOp), inputControlFlows);
+            setOutputControlFlow(cm, cm.switchContext(upaReorgYoloOp), outputControlFlows);
+
+        }
         else
             ++opIt;
     }

@@ -95,6 +95,8 @@ namespace mv
         .setInputs({"data"})
         .setOutputs({"output"})
         .setArg<unsigned>("stride")
+        .setOptionalArg<mv::DType>("dType", mv::DType("Default"))
+        .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
         .setInputCheck(op_reorg_yolo::inputCheckFcn)
         .setOutputDef(op_reorg_yolo::outputDefFcn)
         .setTypeTrait({"executable", "exposed"});
