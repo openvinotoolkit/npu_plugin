@@ -439,6 +439,7 @@ TEST_P(ConvolutionTest, u8_convolution_only) {
 }
 
 // Assuming input and output are in NCHW layout
+// All parameters after kernel must be consistent with IR
 // {input_dim}, {stride}, {kernel}, {pads_begin}, {pads_end}, {dilation}, "", group, out_c, with_bias, with_weights, quantization_level};
 std::vector<convolution_test_params> test_params = {
         {{1, 64, 16, 16}, {{1, 1}, {2, 2}, {0, 0}, {0, 0}, {0, 0}, "", 1, 256, false, true, ""}},
