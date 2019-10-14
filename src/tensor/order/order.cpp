@@ -124,10 +124,11 @@ std::vector<std::size_t> mv::Order::indToSub(const Shape &s, std::size_t idx) co
 
 }
 
-std::vector<uint32_t> mv::Order::computeWordStrides(const Shape &shape) const
+
+std::vector<unsigned> mv::Order::computeWordStrides(const Shape &shape) const
 {
     unsigned n = shape.ndims();
-    std::vector<uint32_t> realStrides(n, 1);
+    std::vector<unsigned> realStrides(n, 1);
 
     for(unsigned i = 1; i < n; ++i)
         realStrides[contVector_[i]] = realStrides[contVector_[i-1]] * shape[contVector_[i-1]];
@@ -135,10 +136,11 @@ std::vector<uint32_t> mv::Order::computeWordStrides(const Shape &shape) const
     return realStrides;
 }
 
-std::vector<uint32_t> mv::Order::computeByteStrides(const Shape &s, unsigned dataSize) const
+
+std::vector<unsigned> mv::Order::computeByteStrides(const Shape &s, unsigned dataSize) const
 {
-    std::vector<uint32_t> toReturn(computeWordStrides(s));
-    std::transform(toReturn.begin(), toReturn.end(), toReturn.begin(), [dataSize](float n) -> float {return n * dataSize;});
+    std::vector<unsigned> toReturn(computeWordStrides(s));
+    std::transform(toReturn.begin(), toReturn.end(), toReturn.begin(), [dataSize](unsigned n) -> unsigned {return n * dataSize;});
     return toReturn;
 }
 

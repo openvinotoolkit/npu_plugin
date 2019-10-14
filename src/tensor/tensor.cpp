@@ -1,4 +1,4 @@
-#include "include/mcm/tensor/tensor.hpp"
+\#include "include/mcm/tensor/tensor.hpp"
 #include "include/mcm/tensor/math.hpp"
 #include "include/mcm/utils/custom_math.hpp"
 #include "include/mcm/utils/custom_strings.hpp"
@@ -1031,7 +1031,7 @@ std::string mv::Tensor::getLogID() const
     return "Tensor:" + getName();
 }
 
-std::vector<uint32_t> mv::Tensor::computeNumericStrides() const
+std::vector<unsigned> mv::Tensor::computeNumericStrides() const
 {
     return getOrder().computeByteStrides(shape_, getDType().getSizeInBits() / 8);
 }

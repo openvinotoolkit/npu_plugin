@@ -609,6 +609,9 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model, mv::Dat
         newOp->set<bool>("inputActivationSparsity", op->get<bool>("inputActivationSparsity"));
         newOp->set<bool>("outputActivationSparsity", op->get<bool>("outputActivationSparsity"));
         newOp->set<bool>("weightsSparsity", op->get<bool>("weightsSparsity"));
+        if (op->hasAttr("postOpType"))
+            newOp->set<std::string>("postOpType", op->get<std::string>("postOpType"));
+
 
         convs[split] = newTensor;
 
@@ -782,7 +785,7 @@ void generateSpatialTiling(mv::Data::OpListIterator op,Tiling& tiling, std::vect
 
 
     int outputSize =  inferOutputSize(inputShape[axisToSplit],padStart,padEnd,kernelSize,kernelStride);
-    int newOutputSize = ceil( (double)(outputSize) / (double)numberOfSplits);
+    int newOutputSize = trunc( (double)(outputSize) / (double)numberOfSplits);
     int remainderOutputSize = outputSize - ( newOutputSize *(numberOfSplits -1));
 
     unsigned startCoord = 0;

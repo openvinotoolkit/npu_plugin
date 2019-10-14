@@ -354,47 +354,6 @@ namespace mv
                 return contextsPerDpu * streaming.totalSize() * baseKernelCost;
             }
 
-            //check if strategy+streaming+tensorSize is incompatible
-            bool checkStreamClusterComp(Op& op,StrategySet& strategySet)
-            {
-                auto clustering = strategySet["clustering"].get<string>();
-                auto s  = strategySet["streaming"].get<Shape>();
-
-                auto one_shape = Shape({1,1,1,1});
-                //currently we check activations.
-                //for Eltwise we will assume that the 2 inputs are of equal size
-                //TODO:: check only for DPU tasks
-                if(op.getOpType() == "Input" or
-                op.getOpType() == "Output")
-                    return false;
-
-                //stream over K is the C dim for the OutputTensor
-                //steram over C is the C dim for the InputTensor
-                auto outStreaming = mv::Shape({s["W"],s["H"],s["K"],1});
-                auto inStreaming  = mv::Shape({s["W"],s["H"],s["C"],1});
-
-                auto inTensor = op.getInputTensor(0);
-                auto outTensor = op.getOutputTensor(0);
-
-                //this will assume that the first N streams will have the max shape, and the subsequent will have
-                //whatever is remained
-                auto streamedShape = outTensor->getShape() / outStreaming;
-                auto remainderShape = outTensor->getShape() - ((outStreaming - one_shape) * streamedShape);
-
-                //todo:: check if needed for inTensor too
-                if( clustering == "SplitOverH" and
-                        ((streamedShape["H"] % totalClusters) or
-                        (remainderShape["H"] % totalClusters)))
-                    return true;
-
-                if( clustering == "SplitOverK" and
-                        ((streamedShape["C"] % totalClusters) or
-                        (remainderShape["C"] % totalClusters)))
-                    return true;
-
-                return false;
-            }
-
             double transitionCost(Op& parentOp,Op& childOp,StrategySet& parent,StrategySet& child)
             {
 
@@ -430,13 +389,6 @@ namespace mv
                         childClustering == "SplitOverH")
                             return INF;
                 
-
-                if(checkStreamClusterComp(parentOp,parent))
-                    return INF;
-                
-                if(checkStreamClusterComp(childOp,child))
-                    return INF;
-
                 //if child is spilled, HKSwitch makes no sense
                 if( (child["spilling"].get<bool>() == true ) and
                         (childClustering == "HKSwitch"))

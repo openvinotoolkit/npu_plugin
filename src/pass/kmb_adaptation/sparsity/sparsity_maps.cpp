@@ -171,7 +171,7 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
                     auto windowSparsitySize = static_cast<std::size_t>(std::ceil(windowsSize/8.0)); //how many bytes we need per window
                     auto NumberOfRowsSparistyBytes = static_cast<std::size_t>(std::ceil((kernelH * inputChannels * windowSparsitySize) / 16.0 ));
                     perChannelSparsity.resize(NumberOfRowsSparistyBytes * 16);//allocate once
-                    ndims = {16 * NumberOfRowsSparistyBytes, 1, 1, outputChannels};
+                    ndims = {16, NumberOfRowsSparistyBytes, 1, outputChannels};
                 }
 
                 int channelLenght = bitpattern.size();
