@@ -605,7 +605,7 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model, mv::Dat
         if (childTiles[split].childTiles().size() > 1)
         {
             //has chidren. Inherit
-            for (auto i = 0; i < numInputs; i++)
+            for (std::size_t i = 0; i < numInputs; i++)
             {
                 auto inputTensor = op->getInputTensor(i);
                 inputLocation[i].relocate(inputTensor->get<mv::Tensor::MemoryLocation>("Location"));
@@ -619,7 +619,7 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model, mv::Dat
         {
             //no more children.
             //todo:: Expose in JSON config the "Default stream location"
-            for (auto i = 0; i < numInputs; i++)
+            for (std::size_t i = 0; i < numInputs; i++)
             {
                 inputLocation[i].relocate(mv::Tensor::MemoryLocation::NNCMX);
                 inputLocation[i].force();
@@ -630,7 +630,7 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model, mv::Dat
             // std::cout << "No more children deciding " << slices[split]->getName() << " to " << inputLocation.toString() << std::endl;
             // std::cout << "No more children deciding " << convs[split]->getName() << " to " << outputLocation.toString() << std::endl;
         }
-        for (auto i = 0; i < numInputs; i++)
+        for (std::size_t i = 0; i < numInputs; i++)
             slices[split][i]->set<mv::Tensor::MemoryLocation>("Location", inputLocation[i]);
         convs[split]->set<mv::Tensor::MemoryLocation>("Location", outputLocation);
     }
@@ -654,7 +654,7 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model, mv::Dat
     }
     //debug
     std::vector<mv::Shape> final_outputs_deb(number_of_splits);
-    for (int i=0; i < number_of_splits; ++i)
+    for (std::size_t i=0; i < number_of_splits; ++i)
         final_outputs_deb[i] = final_outputs[i]->getShape();
 
     auto concat = om.concat(final_outputs,
@@ -682,7 +682,7 @@ static inline int inferOutputSize( int inputSize, int padding_start, int padding
     return outputSize;
 }
 
-void generateSpatialTiling(mv::Data::OpListIterator op,Tiling& tiling, std::vector<opStreamingSplitDef> opStrategy, int nesting)
+void generateSpatialTiling(mv::Data::OpListIterator op,Tiling& tiling, std::vector<opStreamingSplitDef> opStrategy, unsigned int nesting)
 {
     //std::cout<< "  In generateSpatialTiling, op " << op->getName() << " nesting = " << nesting ;
     auto numberOfSplits = tiling.childTiles().size();
@@ -755,7 +755,7 @@ void generateSpatialTiling(mv::Data::OpListIterator op,Tiling& tiling, std::vect
     int remainderOutputSize = outputSize - ( newOutputSize *(numberOfSplits -1));
 
     unsigned startCoord = 0;
-    for (auto split = 0; split < numberOfSplits; split++)
+    for (std::size_t split = 0; split < numberOfSplits; split++)
     {
         mv::Shape tileStart({0,0,0,0});
         mv::Shape tileSize = inputShape;
@@ -781,9 +781,9 @@ void generateSpatialTiling(mv::Data::OpListIterator op,Tiling& tiling, std::vect
     }
 
     nesting++;
-    if (nesting<opStrategy.size() )
+    if (nesting < opStrategy.size())
     {
-        for( auto& tile : tiling.childTiles())
+        for(auto& tile : tiling.childTiles())
         {
             tile.setAxis( opStrategy[nesting].axis );
             tile.resizeNumberOfTiles(opStrategy[nesting].numSplits) ;
@@ -792,7 +792,7 @@ void generateSpatialTiling(mv::Data::OpListIterator op,Tiling& tiling, std::vect
     }
 }
 
-void generateWeightsTiling(mv::Data::OpListIterator op,Tiling& tiling, std::vector<opStreamingSplitDef> opStrategy, int nesting)
+void generateWeightsTiling(mv::Data::OpListIterator op,Tiling& tiling, std::vector<opStreamingSplitDef> opStrategy, unsigned int nesting)
 {
     auto numberOfSplits = tiling.childTiles().size();
 
@@ -804,7 +804,7 @@ void generateWeightsTiling(mv::Data::OpListIterator op,Tiling& tiling, std::vect
 
     unsigned startCoord = 0;
 
-    for(auto split = 0; split < numberOfSplits; split++)
+    for(std::size_t split = 0; split < numberOfSplits; split++)
     {
         mv::Shape tileStart({0,0,0,0});
         mv::Shape tileSize = parentTileShape;
@@ -813,7 +813,7 @@ void generateWeightsTiling(mv::Data::OpListIterator op,Tiling& tiling, std::vect
 
         startCoord += newSize;
 
-        if( split == (numberOfSplits-1) )
+        if(split == (numberOfSplits-1))
             tileSize[axisToSplit] = remainderSize;
         else
             tileSize[axisToSplit] = newSize;
@@ -838,8 +838,8 @@ void generateWeightsTiling(mv::Data::OpListIterator op,Tiling& tiling, std::vect
 
 void streamingTilingFcn(const mv::pass::PassEntry& pass,
                                 mv::ComputationModel& model,
-                                mv::TargetDescriptor& target,
-                                mv::Element& passDesc,
+                                mv::TargetDescriptor&,
+                                mv::Element& ,
                                 mv::Element&)
 {
 
