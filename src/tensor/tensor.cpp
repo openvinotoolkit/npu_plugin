@@ -1,4 +1,4 @@
-\#include "include/mcm/tensor/tensor.hpp"
+#include "include/mcm/tensor/tensor.hpp"
 #include "include/mcm/tensor/math.hpp"
 #include "include/mcm/utils/custom_math.hpp"
 #include "include/mcm/utils/custom_strings.hpp"
