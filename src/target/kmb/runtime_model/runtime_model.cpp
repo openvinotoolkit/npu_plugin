@@ -236,7 +236,8 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     else
     {
         auto strides = tensorBufferIt->getStrides();
-        auto leading_offset = strides[0] / tensorBufferIt->getDataTypeSize(); //for some reason we get double the value, for now take the proper one.
+//        auto leading_offset = strides[0] / tensorBufferIt->getDataTypeSize(); //for some reason we get double the value, for now take the proper one.
+        auto leading_offset = strides[0]; //for some reason we get double the value, for now take the proper one.
         toBuild->locale_index = std::vector<unsigned int>(1,0);
 
         // This part is for concat
