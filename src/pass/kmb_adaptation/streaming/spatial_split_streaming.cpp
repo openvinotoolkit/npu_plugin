@@ -277,6 +277,9 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model, mv::Dat
 
     size_t biasStartIndex = 0;
     size_t biasEndIndex = 0;
+
+    std::string splitStrategy = op->get<std::string>("splitStrategy");
+
     for (unsigned split = 0; split < number_of_splits; split++)
     {
         mv::Data::TensorIterator slice;
@@ -345,25 +348,19 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model, mv::Dat
 
         newOp->set<bool>("splitted",true);//TODO::temporary hack. To remove once the iteration conditions are updated
         newOp->set<unsigned>("opId",opId);
-        newOp->set<std::string>("splitStrategy", op->get<std::string>("splitStrategy"));
+        newOp->set<std::string>("splitStrategy", splitStrategy);
         newOp->set<bool>("inputActivationSparsity", op->get<bool>("inputActivationSparsity"));
         newOp->set<bool>("outputActivationSparsity", op->get<bool>("outputActivationSparsity"));
         newOp->set<bool>("weightsSparsity", op->get<bool>("weightsSparsity"));
 
         slices[split] = slice;
         convs[split] = conv;
-/*
-        if(op->hasAttr("splitStrategy"))
-        {
-            auto splitStrategy = op->get<std::string>("splitStrategy");
-            //om.addAttr(newOp,"splitStrategy",splitStrategy);
-            //newOp->set<std::string>("splitStrategy", splitStrategy);
-        }
-*/
+
         bool enableSerialStreaming = true;
         if ((split>0)&&(enableSerialStreaming))
             cm.defineFlow(om.getSourceOp(convs[split-1]), om.getSourceOp(convs[split]));
     }
+
     kernelTensor->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::BLOB);
     // decide on the location of the I/O Tensors of the conv;
     // basically, for each operation, if we are the last inside the recursive splitting schema, then we can make the
@@ -424,6 +421,7 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model, mv::Dat
                     op->get<mv::QuantizationParams>("quantParams"),
                     op->getName() + "concat_");
     om.getSourceOp(concat)->set<unsigned>("opId", opId);
+    om.getSourceOp(concat)->set<std::string>("splitStrategy", splitStrategy);
 
     concat->set<mv::Tensor::MemoryLocation>("Location",outputTensor->get<mv::Tensor::MemoryLocation>("Location"));
 
@@ -439,6 +437,7 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model, mv::Dat
     //TODO:: stop hardcoding index....
     auto outputTensor = op->getOutputTensor(0);
     auto opId = op->get<unsigned>("opId");
+    std::string splitStrategy = op->get<std::string>("splitStrategy");
     auto number_of_splits = tiling.childTiles().size();
     auto axisToSplit =  mv::Shape::getAxis(tiling.getAxis());
     auto childTiles = tiling.childTiles();
@@ -580,7 +579,7 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model, mv::Dat
 
         newOp->set<bool>("splitted", true);//TODO::temporary hack. To remove once the iteration conditions are updated
         newOp->set<unsigned>("opId", opId);
-        newOp->set<std::string>("splitStrategy", op->get<std::string>("splitStrategy"));
+        newOp->set<std::string>("splitStrategy", splitStrategy);
         newOp->set<bool>("inputActivationSparsity", op->get<bool>("inputActivationSparsity"));
         newOp->set<bool>("outputActivationSparsity", op->get<bool>("outputActivationSparsity"));
         newOp->set<bool>("weightsSparsity", op->get<bool>("weightsSparsity"));
@@ -590,12 +589,6 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model, mv::Dat
         bool enableSerialStreaming = true;
         if ((split > 0) && enableSerialStreaming)
             cm.defineFlow(om.getSourceOp(convs[split-1]), om.getSourceOp(convs[split]));
-
-        if(op->hasAttr("splitStrategy"))
-        {
-            auto splitStrategy = op->get<std::string>("splitStrategy");
-            //om.addAttr(newOp,"splitStrategy",splitStrategy);
-        }
     }
 
     // decide on the location of the I/O Tensors of the conv;
@@ -670,6 +663,7 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model, mv::Dat
                     op->get<mv::QuantizationParams>("quantParams"),
                     op->getName() + "concat_");
     om.getSourceOp(concat)->set<unsigned>("opId", opId);
+    om.getSourceOp(concat)->set<std::string>("splitStrategy", splitStrategy);
 
     concat->set<mv::Tensor::MemoryLocation>("Location", outputTensor->get<mv::Tensor::MemoryLocation>("Location"));
 
