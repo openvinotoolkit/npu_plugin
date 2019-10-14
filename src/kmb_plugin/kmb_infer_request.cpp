@@ -117,6 +117,24 @@ void KmbInferRequest::InferImpl() {
     InferAsync();
     GetResult();
 }
+
+void KmbInferRequest::dumpInputBlobHelper(const Blob::Ptr& inputBlobPtr, const std::string& dst) {
+    static unsigned dumpInputCounter = 0;
+    std::ostringstream inputFullPath;
+    inputFullPath << dst;
+    inputFullPath << "/input-dump";
+    inputFullPath << dumpInputCounter++;
+    inputFullPath << ".bin";
+    _logger->info("dumpInputBlobHelper: dump to file ", inputFullPath.str());
+    std::ofstream dumper(inputFullPath.str(), std::ios_base::binary);
+    if (dumper.good()) {
+        dumper.write(inputBlobPtr->cbuffer().as<char *>(), inputBlobPtr->byteSize());
+    } else {
+        _logger->warning("dumpInputBlobHelper: failed to open ", inputFullPath.str());
+    }
+    dumper.close();
+}
+
 // TODO a lot of dublications
 void KmbInferRequest::InferAsync() {
     if (!_custom_inputs.empty()) {
@@ -191,6 +209,12 @@ void KmbInferRequest::InferAsync() {
         }
     }
 
+    std::string dumpInputPath = "";
+    const char *dumpInputPathEnv = std::getenv("IE_VPU_KMB_DUMP_INPUT_PATH");
+    if (dumpInputPathEnv != nullptr) {
+        dumpInputPath = dumpInputPathEnv;
+    }
+
     for (const auto& input : _inputs) {
         auto const inputBlobPtr = input.second;
         auto inputBlobPrecision = inputBlobPtr->getTensorDesc().getPrecision();
@@ -199,6 +223,10 @@ void KmbInferRequest::InferAsync() {
             && inputBlobPrecision != Precision::I8
             && inputBlobPrecision != Precision::U8)
             THROW_IE_EXCEPTION << PARAMETER_MISMATCH_str << "Unsupported input blob precision";
+
+            if (!dumpInputPath.empty()) {
+                dumpInputBlobHelper(inputBlobPtr, dumpInputPath);
+            }
     }
     for (const auto& output : _outputs) {
         auto const outputBlobPtr = output.second;
