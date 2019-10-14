@@ -63,6 +63,8 @@ class SippPreprocPool {
     static constexpr unsigned int maxPools = 2;
     static constexpr unsigned int shavesPerPool = 2;
     static constexpr unsigned int pipesPerPool = 1;
+    static std::shared_ptr<SippPreprocPool> _poolInstance;
+    static std::mutex _poolMutex;
 
     static_assert(shavesPerPool % pipesPerPool == 0, "shavesPerPool is not multiple by pipesPerPool!");
 
@@ -72,6 +74,7 @@ class SippPreprocPool {
     SippPreprocessorPool& getPool(int w);
 public:
     void execSIPPDataPreprocessing(const PreprocTask& task);
+    SippPreprocPool();
 };
 
 SippPreprocPool& sippPreprocPool();

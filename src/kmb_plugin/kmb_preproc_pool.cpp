@@ -11,6 +11,7 @@
 #include <condition_variable>
 #include <atomic>
 #include <memory>
+#include <sstream>
 
 namespace InferenceEngine {
 
@@ -76,11 +77,6 @@ SippPreprocessorPool& SippPreprocPool::getPool(int w) {
     } else if (_preprocPools.size() > maxPools) {
         THROW_IE_EXCEPTION << "Error: max pool number exceeded!";
     }
-
-    // TODO find a better place for this check
-    if (firstShave + shavesPerPool*maxPools > 16) {
-        THROW_IE_EXCEPTION << "Error: Max number of shaves exceeded!";
-    }
     lock.unlock();
 
     return *_preprocPools[w];
@@ -91,12 +87,35 @@ void SippPreprocPool::execSIPPDataPreprocessing(const PreprocTask& task) {
     getPool(dims[3]).execSIPPDataPreprocessing(task);
 }
 
-SippPreprocPool& sippPreprocPool() {
-    static SippPreprocPool pool;
-    return pool;
+SippPreprocPool::SippPreprocPool() {
+    std::lock_guard<std::mutex> poolGuard(_poolMutex);
+    if (_poolInstance != nullptr) {
+        THROW_IE_EXCEPTION << "Error: There can be only one SippPreprocPool!";
+    }
+
+    const char *firstShaveEnv = std::getenv("SIPP_FIRST_SHAVE");
+    if (firstShaveEnv == nullptr) {
+        firstShave = 10;
+    } else {
+        std::istringstream str2Integer(firstShaveEnv);
+        str2Integer >> firstShave;
+    }
+
+    if (firstShave + shavesPerPool*maxPools > 16) {
+        THROW_IE_EXCEPTION << "Error: Max number of shaves exceeded!";
+    }
 }
 
-unsigned SippPreprocPool::firstShave = (std::getenv("SIPP_FIRST_SHAVE") == nullptr) ? 2 : std::atoi(std::getenv("SIPP_FIRST_SHAVE"));
+SippPreprocPool& sippPreprocPool() {
+    if (SippPreprocPool::_poolInstance == nullptr) {
+        SippPreprocPool::_poolInstance = std::make_shared<SippPreprocPool>();
+    }
+    return *SippPreprocPool::_poolInstance;
+}
+
+std::shared_ptr<SippPreprocPool> SippPreprocPool::_poolInstance = nullptr;
+unsigned SippPreprocPool::firstShave = 10;
+std::mutex SippPreprocPool::_poolMutex;
 
 }  // namespace InferenceEngine
 #endif  // #ifdef ENABLE_VPUAL
