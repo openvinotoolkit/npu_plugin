@@ -7,7 +7,6 @@
 
 static void AddDPUTasksWeightsDMATasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&);
 static void AddUPATasksExtraInputsDMATasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&);
-static void addFinalDMATaskFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 
 namespace mv
 {
@@ -81,6 +80,9 @@ void AddDPUTasksWeightsDMATasksFcn(const mv::pass::PassEntry& pass, mv::Computat
             for(unsigned i = 0; i < n; ++i)
             {
                 auto inputTensor = opIt->getInputTensor(i);
+                mv::QuantizationParams quantParams = {{},{},{},{}};
+                if(inputTensor->hasAttr("quantParams"))
+                    quantParams = inputTensor->get<mv::QuantizationParams>("quantParams");
                 auto inputOp = om.getSourceOp(inputTensor);
                 if(!isTensorInNNCMX(inputTensor, om))
                 {
