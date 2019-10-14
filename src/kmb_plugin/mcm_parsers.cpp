@@ -22,6 +22,7 @@
 #include <set>
 #include <string>
 #include <algorithm>
+#include <utility>
 #include <unordered_map>
 #include <unordered_set>
 #include <list>
@@ -30,9 +31,11 @@
 
 #include <ie_layers_internal.hpp>
 #include "ie_blob.h"
+#include <blob_factory.hpp>
 
 #include <precision_utils.h>
 #include <dims_parser.hpp>
+#include <buffer_converter.hpp>
 
 #ifdef ENABLE_MCM_COMPILER
 #include "include/mcm/tensor/quantization_params.hpp"
@@ -213,7 +216,7 @@ void FrontEndMcm::parseInputData() {
 
         const auto& dataDesc = ieData->getTensorDesc();
         mv::Shape inputShape(getWHCN(dataDesc).getDims());
-        auto mvInput = _modelMcm.input(inputShape, convert_data_type(dataDesc.getPrecision()), mv::Order("NCHW"), initialQuantParams, netInput->name());
+        auto mvInput = _modelMcm.input(inputShape, convert_data_type(dataDesc.getPrecision()), mv::Order::getZMajorID(4), initialQuantParams, netInput->name());
         bindOutput(mvInput, ieData);
         _logger->debug("Network input '%s'(orig: '%s') parsed to mcmModel", mvInput->getName(), netInput->name());
     }
@@ -412,6 +415,28 @@ void FrontEndMcm::parseConvolution(
                          inputGroupSize,
                          isDepthWiseConv? 1lu : outputGroupSize / groupSize};
     int weightsSize = std::accumulate(weightsShape.begin(), weightsShape.end(), 1, std::multiplies<int>());
+    auto weightsPrecision = weightsBlob->getTensorDesc().getPrecision();
+
+    // Convert weights buffer to z major layout
+    {
+        auto converted_weights = make_blob_with_precision(weightsBlob->getTensorDesc());
+        converted_weights->allocate();
+        if (weightsPrecision == InferenceEngine::Precision::U8) {
+            auto src = weightsBlob->buffer().as<uint8_t *>();
+            auto dst = converted_weights->buffer().as<uint8_t *>();
+
+            kchw_to_khwc(src, dst, weightsBlob->getTensorDesc());
+        } else if (weightsPrecision == InferenceEngine::Precision::FP16) {
+            auto src = weightsBlob->buffer().as<InferenceEngine::ie_fp16*>();
+            auto dst = converted_weights->buffer().as<InferenceEngine::ie_fp16*>();
+
+            kchw_to_khwc(src, dst, weightsBlob->getTensorDesc());
+        } else {
+            THROW_IE_EXCEPTION << "Unsupported weights precision";
+        }
+
+        std::swap(weightsBlob, converted_weights);
+    }
 
     if (isDepthWiseConv) {
         if (is_quantized) {
@@ -419,15 +444,15 @@ void FrontEndMcm::parseConvolution(
             auto weightsData = packBlobToVector<int64_t>(weightsBlob, weightsSize);
             mvWeights = _modelMcm.constantInt(weightsData,
                                               weightsShape,
-                                              mv::DType("Int8"),
-                                              mv::Order(mv::Order::getColMajorID(4)));
+                                              mv::DType(convert_data_type(weightsPrecision)),
+                                              mv::Order(mv::Order::getZMajorID(4)));
             mvWeights->set<mv::QuantizationParams>("quantParams", weightsQuantParams);
         } else {
             auto weightsData = packBlobToVector<double>(weightsBlob, weightsSize);
             mvWeights = _modelMcm.constant(weightsData,
                                            weightsShape,
-                                           mv::DType("Float64"),
-                                           mv::Order(mv::Order::getColMajorID(4)));
+                                           mv::DType(convert_data_type(weightsPrecision)),
+                                           mv::Order(mv::Order::getZMajorID(4)));
         }
 
         mvConv = _modelMcm.depthwiseConv(input->getMcmNode(),
@@ -446,15 +471,15 @@ void FrontEndMcm::parseConvolution(
             auto weightsData = packBlobToVector<int64_t>(weightsBlob, weightsSize);
             mvWeights = _modelMcm.constantInt(weightsData,
                                               weightsShape,
-                                              mv::DType("Int8"),
-                                              mv::Order("NCWH"));
+                                              mv::DType(convert_data_type(weightsPrecision)),
+                                              mv::Order(mv::Order::getZMajorID(4)));
             mvWeights->set<mv::QuantizationParams>("quantParams", weightsQuantParams);
         } else {
             auto weightsData = packBlobToVector<double>(weightsBlob, weightsSize);
             mvWeights = _modelMcm.constant(weightsData,
                                            weightsShape,
-                                           mv::DType("Float64"),
-                                           mv::Order("NCWH"));
+                                           mv::DType(convert_data_type(weightsPrecision)),
+                                           mv::Order(mv::Order::getZMajorID(4)));
         }
         mvConv = _modelMcm.conv(input->getMcmNode(),
                                 mvWeights,

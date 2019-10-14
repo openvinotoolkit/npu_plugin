@@ -1058,7 +1058,7 @@ std::string fq_convolution_only_u8_slim = R"V0G0N(
 			</blobs>
 		</layer>
 		<layer id="49" name="conv2" precision="U8" type="Convolution">
-			<data kernel="_KERNEL_" output="_OUTPUT_CHANNEL_" strides="_STRIDE_" auto_pad="same_upper" dilations="1,1" group="1"   pads_begin="1,1" pads_end="1,1" />
+			<data kernel="_KERNEL_" output="_OUTPUT_CHANNEL_" strides="_STRIDE_" dilations="1,1" group="1"   pads_begin="0,0" pads_end="0,0" />
 			<input>
 				<port id="0">
 					<dim>_INPUT_BATCH_</dim>
