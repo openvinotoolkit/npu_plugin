@@ -147,3 +147,10 @@ export IE_VPU_KMB_MEMORY_ALLOCATOR_TYPE=NATIVE
  ```sh
 ./KmbFunctionalTests --gtest_filter=*compareInferenceOutputWithReference*/0*
  ```
+
+## Misc.
+
+`IE_VPU_KMB_DUMP_INPUT_PATH` environment variable can be used to dump input
+files for debugging purposes. This variable must contain path to any
+writable directory. All input blobs will be written to
+`$IE_VPU_KMB_DUMP_INPUT_PATH/input-dump%d.bin`
