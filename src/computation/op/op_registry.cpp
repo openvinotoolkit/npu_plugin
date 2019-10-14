@@ -886,6 +886,7 @@ void mv::op::OpRegistry::generateCompositionAPI(const std::string& eol, const st
 #include    "src/computation/op/def/matmul.cpp"
 #include    "src/computation/op/def/max_pool.cpp"
 #include    "src/computation/op/def/multiply.cpp"
+#include    "src/computation/op/def/normalize.cpp"
 #include    "src/computation/op/def/output.cpp"
 #include    "src/computation/op/def/permute.cpp"
 #include    "src/computation/op/def/prelu.cpp"

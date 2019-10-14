@@ -1367,7 +1367,28 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPASoftmaxTask(ComputationModel& c
     return toBuild;
 }
 
-MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAProposalTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt)
+MVCNN::UPALayerTaskT *mv::RuntimeModel::buildUPANormalizeTask(ComputationModel &cm, Element &compilationDescriptor, Control::OpListIterator opIt)
+{
+    auto input = opIt->getInputTensor(0);
+    auto output = opIt->getOutputTensor(0);
+    auto toBuild = new MVCNN::UPALayerTaskT();
+    //toBuild->maxShaves = ;
+    toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_NormalizeParams;
+    auto softLayerParamsValue = new MVCNN::NormalizeParamsT();
+
+    softLayerParamsValue->eps = static_cast<float>(opIt->get<double>("eps"));
+    softLayerParamsValue->across_spatial = static_cast<int32_t>(opIt->get<unsigned>("across_spatial"));
+    softLayerParamsValue->channel_shared = static_cast<int32_t>(opIt->get<unsigned>("channel_shared"));
+    
+    toBuild->softLayerParams.value = softLayerParamsValue;
+    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input)));
+
+    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
+
+    return toBuild;
+}
+
+MVCNN::UPALayerTaskT *mv::RuntimeModel::buildUPAProposalTask(ComputationModel &cm, Element &compilationDescriptor, Control::OpListIterator opIt)
 {
 
     auto toBuild = new MVCNN::UPALayerTaskT();
@@ -1628,6 +1649,8 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildUPATask(Comput
         toReturn[0]->task.value = buildUPARegionYoloTask(cm, compilationDescriptor, opIt);
     else if(underlyingTask == "ReorgYolo")
         toReturn[0]->task.value = buildUPAReorgYoloTask(cm, compilationDescriptor, opIt);
+    else if (underlyingTask == "Normalize")
+        toReturn[0]->task.value = buildUPANormalizeTask(cm, compilationDescriptor, opIt);
     // TODO: Add other UPA layers
 
     return toReturn;

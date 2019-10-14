@@ -19,6 +19,9 @@ else()
     add_executable(softmax_only softmax_only.cpp)
     target_link_libraries(softmax_only cm)
 
+    add_executable(normalize_only normalize_only.cpp)
+    target_link_libraries(normalize_only cm)
+
     if(VALIDATION)
     add_executable(caffe_files_generator caffe_files_generator.cpp)
     target_link_libraries(caffe_files_generator cm ${Caffe_LIBRARIES} ${Boost_FILESYSTEM_LIBRARY} ${Boost_SYSTEM_LIBRARY} ${Boost_REGEX_LIBRARY} ${PROTOBUF_LIBRARY})
