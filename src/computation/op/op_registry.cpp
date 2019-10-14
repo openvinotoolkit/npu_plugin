@@ -28,6 +28,7 @@ mv::op::OpRegistry::OpRegistry()
 {
 	typeTraits_.insert("executable");
 	typeTraits_.insert("exposed");
+	typeTraits_.insert("optimizable");
 }
 
 mv::op::OpRegistry& mv::op::OpRegistry::instance()

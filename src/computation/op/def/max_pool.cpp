@@ -104,7 +104,7 @@ namespace mv
         .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
         .setInputCheck(op_max_pool::inputCheckFcn)
         .setOutputDef(op_max_pool::outputDefFcn)
-        .setTypeTrait({"executable", "exposed"});
+        .setTypeTrait({"executable", "exposed", "optimizable"});
 
     }
 

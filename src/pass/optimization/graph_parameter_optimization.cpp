@@ -327,7 +327,7 @@ namespace mv
                     auto weightsShape = op.getInputTensor(1)->getShape();
                     baseKernelCost = weightsShape[KERNEL_WIDTH] * weightsShape[KERNEL_HEIGHT];
                 }
-                else if ((opType == "Softmax") or (opType == "Quantize") or (opType == "Reshape") or (opType == "RegionYolo") or (opType == "ReorgYolo"))
+                else if (!(op.hasTypeTrait("optimizable")))
                 {
                     baseKernelCost = 1;
                 }

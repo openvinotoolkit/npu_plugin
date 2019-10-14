@@ -137,7 +137,13 @@ void StrategyManager::printStrategy()
 //TODO:: error if the strategy is not there...
 Attribute& StrategyManager::getStrategy(mv::Op op,string strategy)
 {
-    auto layerEntry = layerStrategies_.find(op.getName());
+    auto op_name = op.getName();
+    if (!(op.hasTypeTrait("optimizable")))
+    {
+        log(Logger::MessageType::Debug, "StrategyManager: using Default strategy for " + op_name + " op");
+        op_name = "Default";
+    }
+    auto layerEntry = layerStrategies_.find(op_name);
 
     if(layerEntry == layerStrategies_.end())
     {
