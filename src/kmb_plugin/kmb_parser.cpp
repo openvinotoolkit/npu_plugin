@@ -77,7 +77,7 @@ void compileMcm(
         const KmbConfig& config,
         mv::CompilationUnit& unit,
         std::vector<char>& blob) {
-    blob.empty();
+    blob.clear();
     Logger::Ptr _logger = std::make_shared<Logger>("compileMCM", config.logLevel(), consoleOutput());
     mv::OpModel& modelMcm = unit.model();
 
