@@ -289,7 +289,7 @@ static void setCommonConfig(std::map<std::string, std::string>& config)
     config[VPU_KMB_CONFIG_KEY(MCM_COMPILATION_RESULTS)] = test_info->name();
 }
 
-class ConvolutionTest : public ::testing::Test, public testing::WithParamInterface<convolution_test_params> {};
+class ConvolutionTest : public testing::WithParamInterface<convolution_test_params>, public vpuLayersTests {};
 
 // Crash in mcmCompiler during parsing of scaleshift layer
 // Disabled until issue will be resolved
@@ -438,13 +438,121 @@ TEST_P(ConvolutionTest, u8_convolution_only) {
 #endif
 }
 
+void ref_ReLU(Blob::Ptr inTensor) {
+    ASSERT_NE(inTensor, nullptr);
+    uint8_t *blobDataU8 = inTensor->buffer();
+    ASSERT_NE(blobDataU8, nullptr);
+    size_t count = inTensor->size();
+    ASSERT_EQ(count, inTensor->size());
+    for (size_t indx = 0; indx < count; ++indx) {
+        uint8_t inpt = blobDataU8[indx];
+        blobDataU8[indx] = std::max(inpt, static_cast<uint8_t >(0));
+    }
+}
+
+TEST_P(ConvolutionTest, convolution_and_relu_u8) {
+    std::string model = conv_relu_u8_test;
+
+    auto input_dims = GetParam().input_dim;
+    auto conv_params = GetParam().conv_params;
+    SizeVector output_dims;
+    getConvOutShape(input_dims, conv_params, output_dims);
+
+    size_t weightsByteSize = getConvWeightsSize(input_dims, conv_params, "U8");
+    size_t weightsSize = weightsByteSize / sizeof(uint8_t);
+
+    size_t biasByteSize = output_dims[1] * sizeof(int32_t);
+    size_t biasSize = biasByteSize / sizeof(int32_t);
+
+    auto weightsBuffer = make_shared_blob<uint8_t>({Precision::U8, {weightsByteSize + biasByteSize}, Layout::C});
+    weightsBuffer->allocate();
+    auto weightsBufferData = weightsBuffer->buffer().as<uint8_t*>();
+    for (size_t i = 0; i < weightsSize; ++i) {
+        weightsBufferData[i] = 1;
+    }
+
+    uint32_t* biasData = reinterpret_cast<uint32_t*>(weightsBuffer->buffer().as<uint8_t*>() + weightsSize);
+    for (size_t i = 0; i < biasSize; ++i) {
+        biasData[i] = 1lu;
+    }
+
+    REPLACE_WITH_NUM(model, "_INPUT_BATCH_", input_dims[0]);
+    REPLACE_WITH_NUM(model, "_INPUT_CHANNEL_", input_dims[1]);
+    REPLACE_WITH_NUM(model, "_INPUT_HEIGHT_", input_dims[2]);
+    REPLACE_WITH_NUM(model, "_INPUT_WIDTH_", input_dims[3]);
+
+    REPLACE_WITH_NUM(model, "_WEIGHTS_BYTE_SIZE_", weightsByteSize);
+    REPLACE_WITH_NUM(model, "_BIAS_BYTE_SIZE_", biasByteSize);
+    REPLACE_WITH_NUM(model, "_BIAS_OFFSET_", weightsByteSize);
+
+    // Assuming kernel is a square
+    REPLACE_WITH_NUM(model, "_KERNEL_SIZE_", conv_params.kernel[0]);
+    REPLACE_WITH_NUM_VECTOR(model, "_KERNEL_", conv_params.kernel);
+    REPLACE_WITH_NUM_VECTOR(model, "_STRIDE_", conv_params.stride);
+
+    REPLACE_WITH_NUM(model, "_OUTPUT_BATCH_", output_dims[0]);
+    REPLACE_WITH_NUM(model, "_OUTPUT_CHANNEL_", output_dims[1]);
+    REPLACE_WITH_NUM(model, "_OUTPUT_HEIGHT_", output_dims[2]);
+    REPLACE_WITH_NUM(model, "_OUTPUT_WIDTH_", output_dims[3]);
+
+    CNNNetReader reader;
+    ASSERT_NO_THROW(reader.ReadNetwork(model.data(), model.length()));
+    ASSERT_NO_THROW(reader.SetWeights(weightsBuffer));
+    ASSERT_TRUE(reader.isParseSuccess());
+
+    CNNNetwork network = reader.getNetwork();
+
+    auto _inputsInfo = network.getInputsInfo();
+    _inputsInfo["input"]->setPrecision(Precision::U8);
+
+    auto _outputsInfo = network.getOutputsInfo();
+    _outputsInfo["relu"]->setPrecision(Precision::U8);
+
+    std::map<std::string, std::string> config;
+    setCommonConfig(config);
+    config[VPU_KMB_CONFIG_KEY(MCM_PARSING_ONLY)] = CONFIG_VALUE(NO);
+    config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_BLOB)] = CONFIG_VALUE(YES);
+    config[VPU_KMB_CONFIG_KEY(LOAD_NETWORK_AFTER_COMPILATION)] = CONFIG_VALUE(YES);
+
+    Core ie;
+    InferenceEngine::ExecutableNetwork exeNetwork;
+    (exeNetwork = ie.LoadNetwork(network, "KMB", config));
+
+    InferenceEngine::InferRequest inferRequest;
+    ASSERT_NO_THROW(inferRequest = exeNetwork.CreateInferRequest());
+
+    Blob::Ptr inputBlob;
+    ASSERT_NO_THROW(inputBlob = inferRequest.GetBlob(exeNetwork.GetInputsInfo().begin()->first));
+    auto inputDesc = inputBlob->getTensorDesc();
+    auto data = inputBlob->buffer().as<uint8_t*>();
+    std::fill(data, data + inputBlob->byteSize(), 1);
+
+    int8_t* weightsData = weightsBuffer->buffer().as<int8_t*>();
+    int32_t* bias_data = conv_params.with_bias ? reinterpret_cast<int32_t*>(weightsData + weightsSize) : nullptr;
+
+    auto outputBlob = inferRequest.GetBlob(exeNetwork.GetOutputsInfo().begin()->first);
+    auto outputDesc = outputBlob->getTensorDesc();
+    auto refOutputBlob = make_shared_blob<float>({Precision::FP32, outputDesc.getDims(), outputDesc.getLayout()});
+    refOutputBlob->allocate();
+    data = refOutputBlob->buffer().as<uint8_t*>();
+    std::fill(data, data + refOutputBlob->byteSize(), 0);
+
+    ref_conv_common({inputBlob}, *refOutputBlob, weightsData, weightsSize, bias_data, biasSize, conv_params);
+    ref_ReLU(refOutputBlob);
+
+    ASSERT_NO_THROW(inferRequest.Infer());
+
+    Blob::Ptr outputBlobFP32 = ConvertU8ToFP32(outputBlob);
+    Compare(refOutputBlob, outputBlobFP32, 1.1f);
+}
+
 // Assuming input and output are in NCHW layout
 // All parameters after kernel must be consistent with IR
 // {input_dim}, {stride}, {kernel}, {pads_begin}, {pads_end}, {dilation}, "", group, out_c, with_bias, with_weights, quantization_level};
 std::vector<convolution_test_params> test_params = {
-        {{1, 64, 16, 16}, {{1, 1}, {2, 2}, {0, 0}, {0, 0}, {0, 0}, "", 1, 256, false, true, ""}},
-        {{1, 64, 16, 16}, {{1, 1}, {3, 3}, {0, 0}, {0, 0}, {0, 0}, "", 1, 64, false, true, ""}},
-        {{1, 64, 16, 16}, {{1, 1}, {3, 3}, {0, 0}, {0, 0}, {0, 0}, "", 1, 256, false, true, ""}},
+        {{1, 64, 16, 16}, {{1, 1}, {2, 2}, {0, 0}, {0, 0}, {1, 1}, "", 1, 256, false, true, ""}},
+        {{1, 8, 16, 16}, {{1, 1}, {3, 3}, {0, 0}, {0, 0}, {1, 1}, "", 1, 64,  false, true, ""}},
+        {{1, 16, 16, 16}, {{1, 1}, {3, 3}, {0, 0}, {0, 0}, {1, 1}, "", 1, 128, false, true, ""}},
 };
 
 INSTANTIATE_TEST_CASE_P(accuracy, ConvolutionTest, ::testing::ValuesIn(test_params));

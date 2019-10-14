@@ -1311,3 +1311,95 @@ std::string relu_test_2 = R"V0G0N(
             </edges>
         </net>
             )V0G0N";
+
+std::string conv_relu_u8_test = R"V0G0N(
+        <net batch="1" name="RELU_TEST" version="2">
+            <layers>
+                <layer id="0" name="input" precision="U8" type="Input">
+                    <output>
+                        <port id="1">
+                            <dim>_INPUT_BATCH_</dim>
+                            <dim>_INPUT_CHANNEL_</dim>
+                            <dim>_INPUT_HEIGHT_</dim>
+                            <dim>_INPUT_WIDTH_</dim>
+                        </port>
+                    </output>
+		        </layer>
+                <layer id="1" name="weights" precision="U8" type="Const">
+                    <output>
+                        <port id="1">
+                            <dim>_OUTPUT_CHANNEL_</dim>
+                            <dim>_INPUT_CHANNEL_</dim>
+                            <dim>_KERNEL_SIZE_</dim>
+                            <dim>_KERNEL_SIZE_</dim>
+                        </port>
+                    </output>
+                    <blobs>
+                        <custom offset="0" size="_WEIGHTS_BYTE_SIZE_"/>
+                    </blobs>
+                </layer>
+                <layer id="2" name="bias" precision="I32" type="Const">
+                    <output>
+                        <port id="1">
+                            <dim>_OUTPUT_CHANNEL_</dim>
+                        </port>
+                    </output>
+                    <blobs>
+                        <custom offset="_BIAS_OFFSET_" size="_BIAS_BYTE_SIZE_"/>
+                    </blobs>
+                </layer>
+                <layer id="3" name="conv" precision="U8" type="Convolution">
+                    <data kernel="_KERNEL_" output="_OUTPUT_CHANNEL_" strides="_STRIDE_" dilations="1,1" group="1" pads_begin="0,0" pads_end="0,0" />
+                    <input>
+                        <port id="0">
+                            <dim>_INPUT_BATCH_</dim>
+                            <dim>_INPUT_CHANNEL_</dim>
+                            <dim>_INPUT_HEIGHT_</dim>
+                            <dim>_INPUT_WIDTH_</dim>
+                        </port>
+                        <port id="1">
+                            <dim>_OUTPUT_CHANNEL_</dim>
+                            <dim>_INPUT_CHANNEL_</dim>
+                            <dim>_KERNEL_SIZE_</dim>
+                            <dim>_KERNEL_SIZE_</dim>
+                        </port>
+                        <port id="2">
+                            <dim>_OUTPUT_CHANNEL_</dim>
+                        </port>
+                    </input>
+                    <output>
+                        <port id="3">
+                            <dim>_OUTPUT_BATCH_</dim>
+                            <dim>_OUTPUT_CHANNEL_</dim>
+                            <dim>_OUTPUT_HEIGHT_</dim>
+                            <dim>_OUTPUT_WIDTH_</dim>
+                        </port>
+                    </output>
+                </layer>
+                <layer id="4" name="relu" precision="U8" type="ReLU">
+                    <input>
+                        <port id="0">
+                            <dim>_OUTPUT_BATCH_</dim>
+                            <dim>_OUTPUT_CHANNEL_</dim>
+                            <dim>_OUTPUT_HEIGHT_</dim>
+                            <dim>_OUTPUT_WIDTH_</dim>
+                        </port>
+                    </input>
+                    <output>
+                        <port id="1">
+                            <dim>_OUTPUT_BATCH_</dim>
+                            <dim>_OUTPUT_CHANNEL_</dim>
+                            <dim>_OUTPUT_HEIGHT_</dim>
+                            <dim>_OUTPUT_WIDTH_</dim>
+                        </port>
+                    </output>
+                </layer>
+            </layers>
+            <edges>
+                <edge from-layer="0" from-port="1" to-layer="3" to-port="0"/>
+                <edge from-layer="1" from-port="1" to-layer="3" to-port="1"/>
+                <edge from-layer="2" from-port="1" to-layer="3" to-port="2"/>
+                <edge from-layer="3" from-port="3" to-layer="4" to-port="0"/>
+            </edges>
+        </net>
+)V0G0N";
