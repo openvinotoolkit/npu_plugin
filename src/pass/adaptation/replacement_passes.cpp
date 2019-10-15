@@ -4,11 +4,13 @@
 #include "include/mcm/utils/custom_math.hpp"
 #include "include/mcm/pass/pass_utils.hpp"
 
-static const size_t FULLY_CONNECTED_KERNEL = 1;
+const size_t FULLY_CONNECTED_KERNEL = 1;
+const int64_t ZERO_POINT_SHIFTING = 127;
 
 static void fullyConnectedAsConv2DFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void standaloneActivationAsPostOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void tensorsToFP16Fcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+static void tensorsToU8Fcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void averageAsDepthWiseFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 
 namespace mv
@@ -21,6 +23,12 @@ namespace mv
         .setFunc(tensorsToFP16Fcn)
         .setDescription(
             "Replaces full precision tensors with FP16 tensors"
+        );
+
+        MV_REGISTER_PASS(TensorsToU8)
+        .setFunc(tensorsToU8Fcn)
+        .setDescription(
+            "Replaces quantized int8 tensors with U8 tensors"
         );
 
          MV_REGISTER_PASS(FullyConnectedAsConv2D)
@@ -133,6 +141,32 @@ void tensorsToFP16Fcn(const mv::pass::PassEntry&  , mv::ComputationModel& model,
     }
 }
 
+void tensorsToU8Fcn(const mv::pass::PassEntry&  , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+{
+    mv::OpModel om(model);
+
+    for (auto kernelOp = om.getInput(); kernelOp != om.opEnd(); ++kernelOp)
+    {
+        if(kernelOp.outputsSize() > 0)
+        {
+            auto outputTensor = kernelOp->getOutputTensor(0);
+            if(outputTensor->get<mv::DType>("dType") == mv::DType("Int8"))
+            {
+                mv::DType newType = mv::DType("UInt8");
+                outputTensor->setDType(newType);
+                auto& quantParams = outputTensor->get<mv::QuantizationParams>("quantParams");
+                auto& quantParamsZp = quantParams.getZeroPoint();
+                for(auto& zp: quantParamsZp)
+                    zp += ZERO_POINT_SHIFTING;
+                kernelOp->set<mv::DType>("dType",  newType);
+                if (outputTensor->isPopulated())
+                    for(unsigned i = 0; i < outputTensor->size(); ++i)
+                        outputTensor->at(i) += ZERO_POINT_SHIFTING;
+
+            }
+        }
+    }
+}
 
 void fullyConnectedAsConv2DFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {

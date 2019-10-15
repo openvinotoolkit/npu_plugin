@@ -12,10 +12,15 @@ namespace mv
     {
     public:
         QuantizationParams(const json::Value& content);
-        QuantizationParams(std::vector<int64_t> zp, std::vector<double> scale, std::vector<double> min, std::vector<double> max);
-        QuantizationParams(std::vector<int64_t> zp, std::vector<double> scale, std::vector<double> min, std::vector<double> max, std::vector <unsigned> shift, std::vector<unsigned> mult);
+        QuantizationParams(const std::vector<int64_t>& zp, const std::vector<double>& scale, const std::vector<double>& min, const std::vector<double>& max);
+        QuantizationParams(const std::vector<int64_t>& zp, const std::vector<double>& scale, const std::vector<double>& min, const std::vector<double>& max, const std::vector <unsigned>& shift, const std::vector<unsigned>& mult);
 
         inline std::vector<int64_t> getZeroPoint() const
+        {
+            return get<std::vector<int64_t>>("zeroPoint");
+        }
+
+        inline std::vector<int64_t>& getZeroPoint()
         {
             return get<std::vector<int64_t>>("zeroPoint");
         }
