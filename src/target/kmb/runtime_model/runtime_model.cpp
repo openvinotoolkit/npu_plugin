@@ -315,6 +315,14 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     numericStrides.push_back(t->getDType().getSizeInBits() / 8);
     if(*tensorAllocatorName == "VPU_CMX_NN")
     {
+        mv::Shape hackedShape = {0,0,0,0};
+        hackedShape[0] = 240;
+        hackedShape[1] = subtensor.getShape()[1];
+        hackedShape[2] = subtensor.getShape()[2];
+        hackedShape[3] = subtensor.getShape()[3];
+        subtensor.setShape(hackedShape);
+
+
         numericStrides = subtensor.computeNumericStrides();
         numericStrides.push_back(subtensor.getDType().getSizeInBits() / 8);
     }
@@ -1200,23 +1208,28 @@ void mv::RuntimeModel::getWorkloadPadding(Control::OpListIterator opIt, Workload
 std::array <unsigned short, 4>  mv::RuntimeModel::getPadding(Control::OpListIterator opIt, unsigned clusterId)
 {
     std::array <unsigned short, 4> padding = opIt->get<std::array<unsigned short, 4>>("padding");
-    auto subTensor = opIt->getOutputTensor(0)->getSubTensor(clusterId);
-    std::vector<std::size_t> offset = subTensor.get<std::vector<std::size_t>>("offset");
+    
+    //Seems like single cluster case is not supported here?
+    if(clusterId !=0) 
+    {
+        auto subTensor = opIt->getOutputTensor(0)->getSubTensor(clusterId);
+        std::vector<std::size_t> offset = subTensor.get<std::vector<std::size_t>>("offset");
 
-    //NOTE:Padding up
-    if (offset[1] != 0)
-        padding[2] = 0;
+        //NOTE:Padding up
+        if (offset[1] != 0)
+            padding[2] = 0;
 
-    //NOTE:Padding left
-    if (offset[0] != 0)
-        padding[0] = 0;
+        //NOTE:Padding left
+        if (offset[0] != 0)
+            padding[0] = 0;
 
-    //NOTE:Padding down
-    if (subTensor.getShape()[IO_HEIGHT_DIMENSION] + offset[1] != opIt->getOutputTensor(0)->getShape()[IO_HEIGHT_DIMENSION])
-        padding[3] = 0;
+        //NOTE:Padding down
+        if (subTensor.getShape()[IO_HEIGHT_DIMENSION] + offset[1] != opIt->getOutputTensor(0)->getShape()[IO_HEIGHT_DIMENSION])
+            padding[3] = 0;
 
-    if (subTensor.getShape()[IO_WIDTH_DIMENSION] + offset[0] != opIt->getOutputTensor(0)->getShape()[IO_WIDTH_DIMENSION])
-        padding[1] = 0;
+        if (subTensor.getShape()[IO_WIDTH_DIMENSION] + offset[0] != opIt->getOutputTensor(0)->getShape()[IO_WIDTH_DIMENSION])
+            padding[1] = 0;
+    }
 
     return padding;
 }

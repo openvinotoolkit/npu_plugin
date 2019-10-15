@@ -163,6 +163,9 @@ void subTensorsGen(mv::ComputationModel& model, const std::vector <mv::Data::Ten
                 std::array <unsigned short, 4> padding = {0, 0, sinkOperators[0]->get<std::array<unsigned short, 4>>("padding")[2],
                                                        sinkOperators[0]->get<std::array<unsigned short, 4>>("padding")[3]};
                 //Rectangular Heuristc: The workload has only one rectangle in its list, itself
+                
+                //test
+                //std::array <unsigned short, 4> padding = {0,0,0,1};
                 subTensors = Tensor.overlap_and_clip(padding, tensor->getShape());
             }
             else

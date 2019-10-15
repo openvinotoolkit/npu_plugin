@@ -11,16 +11,24 @@
                 "Number_of_DPUs" : 20,
                 "Number_of_Clusters" : 4,
                 "UpaShaves": 1,
+                "nWorkloads": 1,
                 "DDRScratch": 16777216,
                 "MemoryHack": false,
                 "cmx": 917504,
                 "split_strategy" :
                 [
                     {
-                        "name_filter" : "name",
+                        "name_filter" : "input#3",
                         "cluster_filter" : 0,
-                        "strategy" : "Example"
+                        "strategy" : "SplitOverHOverlapped"
+                    },
+                    {
+                        "name_filter" : "conv1/conv1#4",
+                        "cluster_filter" : 0,
+                        "strategy" : "SplitOverH"
                     }
+                    
+                
                 ],
                 "default_tensor_placement" : "CMX",
                 "tensor_placement_override" :
@@ -50,7 +58,7 @@
                 "streaming_strategy" :
                 [
                     {
-                        "name_filter" : "Example_do_not_remove",
+                        "name_filter" : "conv1/conv1#4",
                         "splits" : [
                             {"C" : 1},
                             {"H" : 1},
@@ -82,6 +90,13 @@
     },
     "adapt": {
         "Singular": [
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/original.dot",
+                "scope": "OpModel",
+                "content": "full",
+                "html": true
+            },
             "PopulatedTensorsToFP16",
             "UnpopulatedTensorsToFP16",
             "AverageAsDepthWise",
@@ -189,17 +204,32 @@
             "GenerateEltWiseConstants",
             "StrategyLayersToTensors",
             "ComputeTensorsQuantParams",
-            "UpdateImplicitLayersQuantizationParams",
             "PopulateWeightsTablesQuantization",
-            "RemoveBiasTensors",
-            "SplittingTensorsAcrossClusters"
+            "RemoveBiasTensors"
         ]
     },
     "dma": {
         "Singular" : [
             "SetDpuTasksMemoryLocation",
-            "ResolveImplicitOperations",
             "AddWeightsDMATasks",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/dma.dot",
+                "scope": "OpModel",
+                "content": "full",
+                "html": true
+            },
+            "alignInputForChannelMajorConvolution",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/align_CM_conv.dot",
+                "scope": "OpModel",
+                "content": "full",
+                "html": true
+            },
+            "SplittingTensorsAcrossClusters",
+            "UpdateImplicitLayersQuantizationParams",
+            "ResolveImplicitOperations",
             "EnsureSplitStrategiesForSpilling"
         ]
     },
@@ -269,6 +299,13 @@
             {
                 "name": "GenerateBlobKmb",
                 "output": "output/mcm.blob"
+            },
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/final.dot",
+                "scope": "OpModel",
+                "content": "full",
+                "html": true
             },
             {
                 "name": "ConvertFlatbuffer",

@@ -6,6 +6,8 @@
 #include "include/mcm/utils/custom_strings.hpp"
 #include "include/mcm/pass/pass_utils.hpp"
 #include "include/mcm/tensor/shape.hpp"
+#include "include/mcm/computation/flow/implicit_flow.hpp"
+
 
 static void alignUnpopulatedTensorsFunc(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void alignPopulatedTensorsFunc(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
@@ -16,6 +18,8 @@ static void addAlignOpForInputTensorsFunc(const mv::pass::PassEntry& , mv::Compu
 static void removeCropAlignInCMXFunc(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static mv::Data::OpListIterator fuseCropAlign(mv::Data::OpListIterator parentOpIt, mv::Data::TensorIterator sourceTensor, mv::OpModel om, mv::Data::OpListIterator opIt);
 static void addCropNode(mv::OpModel& om, mv::Data::OpListIterator& opIt, mv::Data::TensorIterator& outputTensor, std::size_t& outputTensorChannels);
+void alignInputForChannelMajorConvolution(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+
 namespace mv
 {
     namespace pass
@@ -38,7 +42,13 @@ namespace mv
         MV_REGISTER_PASS(CropOrPadFinalOutput)
             .setFunc(cropOrPadFinalOutputFunc)
             .setDescription(
-                "Add/Remove implicit Crop Op for final Op based on padOutput value");
+                "Add/Remove implicit Crop Op for final Op based on padOutput value");  
+        
+        MV_REGISTER_PASS(alignInputForChannelMajorConvolution)
+            .setFunc(alignInputForChannelMajorConvolution)
+            .setDescription(
+                "The width of a channel major convolution must be a multiple of 16");
+        
     }
 }
 
@@ -74,6 +84,52 @@ void propagateShapeChange(mv::OpModel& om, const std::string& flowStr)
         auto flows = outputTensor->get<std::set<std::string>>("flows");
         for(auto& flowStri: flows)
             propagateShapeChange(om, flowStri);
+    }
+}
+
+void addCropNodeForWidth(mv::OpModel& om, mv::Data::OpListIterator& opIt, mv::Data::TensorIterator& outputTensor, std::size_t& outputTensorWidth)
+{
+    std::vector<mv::Data::OpListIterator> opsToLink;
+    std::vector<std::size_t> inputSlots;
+    std::vector<mv::Data::FlowSiblingIterator> flowsToRemove;
+
+    auto sourceFlowStart = opIt.leftmostOutput();
+
+    for (mv::Data::FlowSiblingIterator sinkFlow(sourceFlowStart); sinkFlow != om.flowEnd(); ++sinkFlow)
+    {
+        opsToLink.push_back(sinkFlow.sink());
+        inputSlots.push_back(sinkFlow->get<std::size_t>("sinkInput"));
+        flowsToRemove.push_back(sinkFlow);
+    }
+
+    //TODO check if already there's a crop? or maybe move this to separate pass
+    auto cropOpName = outputTensor->getName() + "_crop";
+    mv::QuantizationParams quantParams = {{}, {}, {}, {}};
+
+    if (outputTensor->hasAttr("quantParams"))
+    {
+        quantParams = outputTensor->get<mv::QuantizationParams>("quantParams");
+    }
+    auto croppedTensor = om.crop(outputTensor,
+                        outputTensorWidth,
+                        mv::IO_WIDTH_DIMENSION,
+                        quantParams,
+                        cropOpName);
+    croppedTensor->set<bool>("alignment", true);//TODO remove this, just for testing now
+    auto cropOp = om.getOp(cropOpName);
+    cropOp->set<unsigned>("opId", opIt->get<unsigned>("opId"));
+    if (opIt->hasAttr("splitStrategy"))
+        cropOp->set<std::string>("splitStrategy", opIt->get<std::string>("splitStrategy"));
+
+
+    for (unsigned flowIdx = 0; flowIdx < flowsToRemove.size(); flowIdx++)
+    {
+        om.undefineFlow(flowsToRemove[flowIdx]);
+    }
+    for(unsigned op = 0 ; op < opsToLink.size(); ++op)
+    {
+        opsToLink[op]->setInputTensor(croppedTensor, inputSlots[op], false);
+        om.defineFlow(croppedTensor, opsToLink[op], inputSlots[op]);
     }
 }
 
@@ -226,6 +282,111 @@ void removeCropAlignInCMXFunc(const mv::pass::PassEntry& , mv::ComputationModel&
         if (removeCrop)
             om.removeOp(layer);
 
+    }
+}
+
+void alignInputForChannelMajorConvolution(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+{
+
+    mv::OpModel om(model);
+    mv::DataModel dm(model);
+    const int tensorWidthMultiple = 16;
+
+    auto dpuTasks = om.getOps("DPUTask");
+
+    for(auto vecIt = dpuTasks.begin(); vecIt != dpuTasks.end(); ++vecIt)
+    {
+        auto opIt = *vecIt;
+        auto taskOp = opIt->get<std::string>("taskOp");
+
+        if(taskOp == "ChannelMajorConvolution")
+        {
+
+            auto inputTensor = opIt->getInputTensor(0);
+            auto parentOpIt = om.getSourceOp(inputTensor);
+
+            if (parentOpIt->getOpType() != "Align" && inputTensor->getShape()[mv::IO_WIDTH_DIMENSION] % tensorWidthMultiple != 0)
+            {
+
+                inputTensor->set<bool>("alignWidth16", true);
+                opIt->set<bool>("alignWidth16", true);
+
+                std::vector<mv::Data::OpListIterator> opsToLink;
+                std::vector<std::size_t> inputSlots;
+                std::vector<mv::Data::FlowSiblingIterator> flowsToRemove;
+                
+                auto sourceFlowStart = parentOpIt.leftmostOutput();
+
+                for (mv::Data::FlowSiblingIterator sinkFlow(sourceFlowStart); sinkFlow != om.flowEnd(); ++sinkFlow)
+                {
+                    opsToLink.push_back(sinkFlow.sink());
+                    inputSlots.push_back(sinkFlow->get<std::size_t>("sinkInput"));
+                    flowsToRemove.push_back(sinkFlow);
+                }
+
+                auto alignOpName = inputTensor->getName() + "_align";
+                mv::QuantizationParams quantParams = {{}, {}, {}, {}};
+
+                if (inputTensor->hasAttr("quantParams"))
+                {
+                    quantParams = inputTensor->get<mv::QuantizationParams>("quantParams");
+                }
+
+                auto alignedTensor = om.align(inputTensor,
+                                    mv::IO_WIDTH_DIMENSION,
+                                    tensorWidthMultiple,
+                                    quantParams,
+                                    alignOpName);
+
+                alignedTensor->set<bool>("alignWidth16", true);
+
+                auto alignOp = om.getOp(alignOpName);
+
+                alignOp->set<unsigned>("opId", parentOpIt->get<unsigned>("opId"));
+
+                //Get split padding of previous layer - is this correct for aligned op?
+                if (opIt->hasAttr("padding"))
+                    alignOp->set<std::array<unsigned short, 4>>("padding", opIt->get<std::array<unsigned short, 4>>("padding"));
+                
+                if (opIt->hasAttr("splitStrategy"))
+                    alignOp->set<std::string>("splitStrategy", opIt->get<std::string>("splitStrategy"));
+                
+                //Get split strategy of previous layer
+                if (inputTensor->hasAttr("splitStrategy"))
+                    alignOp->getOutputTensor()[0]->set<std::string>("splitStrategy", inputTensor->get<std::string>("splitStrategy"));
+                
+
+                for (unsigned flowIdx = 0; flowIdx < flowsToRemove.size(); flowIdx++)
+                {
+                    om.undefineFlow(flowsToRemove[flowIdx]);
+                }
+                    
+                for(unsigned op = 0 ; op < opsToLink.size(); ++op)
+                {
+                    opsToLink[op]->setInputTensor(alignedTensor, inputSlots[op], false);
+                    om.defineFlow(alignedTensor, opsToLink[op], inputSlots[op]);
+                }
+            }
+
+            // auto outputTensor = opIt->getOutputTensor(0);
+            // auto outputTensorShape = outputTensor->getShape();
+
+            // //Propagate shape change
+            // // If for whatever reason we pass through this tensor more than once, we
+            // // don't want to overwrite the original dimensions
+            // if(!outputTensor->hasAttr("oldDimensions"))
+            //     outputTensor->set<mv::Shape>("oldDimensions", outputTensor->getShape());
+
+            // outputTensor->setShape(mv::Shape({119, outputTensorShape[mv::IO_HEIGHT_DIMENSION],
+            //                                   outputTensorShape[mv::IO_CHANNEL_DIMENSION], outputTensorShape[mv::IO_BATCH_DIMENSION]}));
+
+            // auto flows = outputTensor->get<std::set<std::string>>("flows");
+
+            // for(auto& flowStr: flows)
+            //     propagateShapeChange(om, flowStr);
+
+            // addCropNodeForWidth(om, opIt, outputTensor,  outputTensorShape[mv::IO_WIDTH_DIMENSION]);
+        }
     }
 }
 
