@@ -285,14 +285,20 @@ void averageAsDepthWiseFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
 
             auto name = opIt->getName();
             mv::Data::TensorIterator weights;
+            std::vector<int64_t> zp = { 0 };
+            std::vector<double> min = { 1 };
+            std::vector<double> max = { 1 };
             if (sourceTensor->isDoubleType())
             {
                 pass.log(Logger::MessageType::Debug, "Input tensor not quantized, generating non-quantized weights");
                 std::vector<double> weightsData(total_shape, value);
+
+                std::vector<double> scale = { 1 };
+                mv::QuantizationParams weightsQuantParams(zp, scale, min, max);
                 weights = om.constant(weightsData,
                                     {kSize[0], kSize[1], inputShape[mv::IO_CHANNEL_DIMENSION], channel_multiplier},
                                     sourceTensor->getDType(),
-                                    Order(Order::getRowMajorID(4)));
+                                    Order(Order::getRowMajorID(4)), weightsQuantParams);
             }
             else
             {
@@ -302,10 +308,7 @@ void averageAsDepthWiseFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
                 int64_t weightsVal = 1;
                 std::vector<int64_t> weightsData(total_shape, weightsVal);
 
-                std::vector<int64_t> zp = { 0 };
                 std::vector<double> scale(1, value);
-                std::vector<double> min = { 1 };
-                std::vector<double> max = { 1 };
                 mv::QuantizationParams weightsQuantParams(zp, scale, min, max);
 
                 weights = om.constantInt(weightsData,
