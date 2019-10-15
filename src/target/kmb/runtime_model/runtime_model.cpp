@@ -1475,7 +1475,24 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAQuantizeTask(ComputationModel& 
     toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_QuantizeParams;
     auto softLayerParamsValue = new MVCNN::QuantizeParamsT();
 
+    auto quantizationParams = (input->hasAttr("quantParams")) ?
+        input->get<mv::QuantizationParams>("quantParams") :
+        opIt->get<mv::QuantizationParams>("quantParams");
+    auto quantScale = quantizationParams.getScale();
+    auto quantZero = quantizationParams.getZeroPoint();
+
+    // Convert vectors to fp16
+    auto scale_vector = std::vector<unsigned short>();
+    for (auto i = 0; i < quantScale.size(); ++i)
+        scale_vector.push_back(mv::fp32_to_fp16(static_cast<float>(quantScale.at({i}))));
+
+    auto zero_vector = std::vector<unsigned short>();
+    for (auto i = 0; i < quantZero.size(); ++i)
+        zero_vector.push_back(mv::fp32_to_fp16(static_cast<float>(quantZero.at({i}))));
+
     toBuild->softLayerParams.value = softLayerParamsValue;
+    softLayerParamsValue->scale = std::vector<unsigned short int>(quantScale.begin(), quantScale.end());
+    softLayerParamsValue->zero = std::vector<unsigned short int>(quantZero.begin(), quantZero.end());
 
     toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input)));
 
