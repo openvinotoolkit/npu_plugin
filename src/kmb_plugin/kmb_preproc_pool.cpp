@@ -87,35 +87,25 @@ void SippPreprocPool::execSIPPDataPreprocessing(const PreprocTask& task) {
     getPool(dims[3]).execSIPPDataPreprocessing(task);
 }
 
-SippPreprocPool::SippPreprocPool() {
-    std::lock_guard<std::mutex> poolGuard(_poolMutex);
-    if (_poolInstance != nullptr) {
-        THROW_IE_EXCEPTION << "Error: There can be only one SippPreprocPool!";
-    }
+SippPreprocPool& sippPreprocPool() {
+    static SippPreprocPool pool;
+    return pool;
+}
 
+unsigned SippPreprocPool::firstShave = [] {
     const char *firstShaveEnv = std::getenv("SIPP_FIRST_SHAVE");
-    if (firstShaveEnv == nullptr) {
-        firstShave = 10;
-    } else {
+    unsigned int shaveNum = SippPreprocPool::defaultFirstShave;
+    if (firstShaveEnv != nullptr) {
         std::istringstream str2Integer(firstShaveEnv);
-        str2Integer >> firstShave;
+        str2Integer >> shaveNum;
     }
 
-    if (firstShave + shavesPerPool*maxPools > 16) {
+    if (shaveNum + SippPreprocPool::shavesPerPool*SippPreprocPool::maxPools > 16) {
         THROW_IE_EXCEPTION << "Error: Max number of shaves exceeded!";
     }
-}
 
-SippPreprocPool& sippPreprocPool() {
-    if (SippPreprocPool::_poolInstance == nullptr) {
-        SippPreprocPool::_poolInstance = std::make_shared<SippPreprocPool>();
-    }
-    return *SippPreprocPool::_poolInstance;
-}
-
-std::shared_ptr<SippPreprocPool> SippPreprocPool::_poolInstance = nullptr;
-unsigned SippPreprocPool::firstShave = 10;
-std::mutex SippPreprocPool::_poolMutex;
+    return shaveNum;
+}();
 
 }  // namespace InferenceEngine
 #endif  // #ifdef ENABLE_VPUAL
