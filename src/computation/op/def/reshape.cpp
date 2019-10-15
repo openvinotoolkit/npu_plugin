@@ -40,13 +40,18 @@ namespace mv
             std::vector<Tensor>&)> outputDefFcn =
             [](const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>& args, std::vector<Tensor>& outputs)
         {
+
+            auto dTypeToUse = args.at("dType").get<mv::DType>();
+            if(dTypeToUse == mv::DType("Default"))
+                dTypeToUse = inputs[0]->getDType();
+
             mv::Order new_order(inputs[0]->getOrder()); // by default: do not change order
 
             auto order_str = args.at("order").get<std::string>();
             if (!order_str.empty())
                 new_order = mv::Order(order_str);
 
-            outputs.push_back(mv::Tensor(":0",  args.at("shape").get<mv::Shape>(), inputs[0]->getDType(), new_order));
+            outputs.push_back(mv::Tensor(":0",  args.at("shape").get<mv::Shape>(), dTypeToUse, new_order));
         };
 
         static std::string empty;
