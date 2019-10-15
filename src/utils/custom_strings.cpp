@@ -51,7 +51,7 @@ std::string mv::createDMATaskNNCMX2DDRName(const std::string& opName)
 
 std::string mv::createDMATaskDDR2NNCMXName(const std::string& opName)
 {
-    return opName + "_DDR2NNCMX";
+    return opName + "_DDR2CMX";
 }
 
 std::string mv::createDMATaskUPACMX2NNCMXName(const std::string& opName)

@@ -34,6 +34,9 @@ void concatAsImplicitFcn(const mv::pass::PassEntry& , mv::ComputationModel& mode
         auto axis = concat->get<std::string>("axis");
         auto name = concat->getName();
         mv::QuantizationParams quantParams = {{}, {}, {}, {}};
+        std::string splitStrategy;
+        if(concat->hasAttr("splitStrategy"))
+            splitStrategy = concat->get<std::string>("splitStrategy");
         if(concat->hasAttr("quantParams"))
             quantParams = concat->get<mv::QuantizationParams>("quantParams");
         auto outputLocation = concat->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
@@ -42,7 +45,8 @@ void concatAsImplicitFcn(const mv::pass::PassEntry& , mv::ComputationModel& mode
         auto implicitConcat = om.implicitConcat(inputs, axis, quantParams, name);
         om.getSourceOp(implicitConcat)->set<unsigned>("opId", opId);
         implicitConcat->set<mv::Tensor::MemoryLocation>("Location", outputLocation);
-
+        if(!splitStrategy.empty())
+            om.getSourceOp(implicitConcat)->set<std::string>("splitStrategy", splitStrategy);
         mv::setOutputDataFlow(om, implicitConcat, outputFlows);
     }
 }
