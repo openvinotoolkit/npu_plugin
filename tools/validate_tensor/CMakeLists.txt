@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.5.0)
-project(convertTensor VERSION 0.0.1)
+project(validateTensor VERSION 0.0.1)
 
 find_package(gflags REQUIRED)
 
@@ -26,8 +26,8 @@ include_directories(${NLOHMAN_INCLUDE_DIR})
 
 link_directories(${NLOHMAN_LIBRARY})
 
-add_executable(convert_tensor 
-    "convert_tensor.cpp"
+add_executable(validate 
+    "validate.cpp"
 )
 # export(EXPORT SomeLib-export NAMESPACE SomeLib:: FILE SomeLibConfig.cmake) # Create SomeLibConfig.cmake
 # export(PACKAGE SomeLib)                                                    # Store location of SomeLibConfig.cmake
