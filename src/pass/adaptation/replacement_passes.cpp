@@ -279,7 +279,7 @@ void averageAsDepthWiseFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
             std::array<unsigned short, 4> padding = opIt->get<std::array<unsigned short, 4>>("padding");
 
             unsigned int total_shape = 1 * inputShape[mv::IO_CHANNEL_DIMENSION] * kSize[1] * kSize[0];
-            double value = 1/double(kSize[0] * kSize[1]);
+            double scaleValue = 1/double(kSize[0] * kSize[1]);
 
             unsigned short channel_multiplier = 1;
 
@@ -288,13 +288,16 @@ void averageAsDepthWiseFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
             std::vector<int64_t> zp = { 0 };
             std::vector<double> min = { 1 };
             std::vector<double> max = { 1 };
+
+            std::vector<double> scale(1, scaleValue);
+            mv::QuantizationParams weightsQuantParams(zp, scale, min, max);
+
             if (sourceTensor->isDoubleType())
             {
+                double weightsValue = 1;
+                std::vector<double> weightsData(total_shape, weightsValue);
+                //NOTE: Weights have to be 1 and scale division, cause of better hardware accuracy
                 pass.log(Logger::MessageType::Debug, "Input tensor not quantized, generating non-quantized weights");
-                std::vector<double> weightsData(total_shape, value);
-
-                std::vector<double> scale = { 1 };
-                mv::QuantizationParams weightsQuantParams(zp, scale, min, max);
                 weights = om.constant(weightsData,
                                     {kSize[0], kSize[1], inputShape[mv::IO_CHANNEL_DIMENSION], channel_multiplier},
                                     sourceTensor->getDType(),
@@ -302,15 +305,11 @@ void averageAsDepthWiseFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
             }
             else
             {
+                int64_t weightsValue = 1;
+                std::vector<int64_t> weightsData(total_shape, weightsValue);
                 pass.log(Logger::MessageType::Debug, "Input tensor quantized, generating quantized weights");
                 // If the input model is quantized, then the replacement pass needs to create
                 // quantization params for the weights parameter of the depthwise convolution.
-                int64_t weightsVal = 1;
-                std::vector<int64_t> weightsData(total_shape, weightsVal);
-
-                std::vector<double> scale(1, value);
-                mv::QuantizationParams weightsQuantParams(zp, scale, min, max);
-
                 weights = om.constantInt(weightsData,
                                     {kSize[0], kSize[1], inputShape[mv::IO_CHANNEL_DIMENSION], channel_multiplier},
                                     sourceTensor->getDType(),
