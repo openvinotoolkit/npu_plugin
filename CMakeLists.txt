@@ -342,17 +342,15 @@ else()
     add_library(corebase SHARED ${base} ${logger})
     add_library(model SHARED ${model})
     target_link_libraries(cm model)
-    if(CMAKE_CROSSCOMPILING)
-        #Flatbuffers not x-compiled yet
-        target_link_libraries(cm corebase metamodel)
-    else()
-        target_link_libraries(cm corebase metamodel flatbuffers ${LEMON_LIBRARY})
+
+    target_link_libraries(cm corebase metamodel flatbuffers ${LEMON_LIBRARY})
+    if(NOT CMAKE_CROSSCOMPILING)
         add_dependencies(cm generate-comp-api)
         add_dependencies(model generate-comp-api)
         add_dependencies(cm generate-graphfile-headers)
         add_subdirectory(python/api)
         add_subdirectory(contrib/googletest)
-    endif(CMAKE_CROSSCOMPILING)
+    endif()
 
 endif(MSVC)
 
