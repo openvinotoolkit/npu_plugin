@@ -1491,8 +1491,8 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAQuantizeTask(ComputationModel& 
         zero_vector.push_back(mv::fp32_to_fp16(static_cast<float>(quantZero.at({i}))));
 
     toBuild->softLayerParams.value = softLayerParamsValue;
-    softLayerParamsValue->scale = std::vector<unsigned short int>(quantScale.begin(), quantScale.end());
-    softLayerParamsValue->zero = std::vector<unsigned short int>(quantZero.begin(), quantZero.end());
+    softLayerParamsValue->scale = std::vector<unsigned short>(scale_vector.begin(), scale_vector.end());
+    softLayerParamsValue->zero = std::vector<unsigned short>(zero_vector.begin(), zero_vector.end());
 
     toBuild->input_data = buildTensorReferenceT(cm, compilationDescriptor, input);
     toBuild->output_data = buildTensorReferenceT(cm, compilationDescriptor, output);
