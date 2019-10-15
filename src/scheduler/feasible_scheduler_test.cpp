@@ -134,6 +134,15 @@ class Operation_Dag {
       return const_operation_iterator_t(adj_map_, itr, itr_next, true);
     }
 
+    const_operation_iterator_t begin_in(const operation_t& op) const {
+      adjacency_map_t::const_iterator itr = inv_adj_map_.find(op), itr_next;
+      if (itr == adj_map_.end()) { return const_operation_iterator_t(); }
+
+      itr_next = itr;
+      ++itr_next;
+      return const_operation_iterator_t(adj_map_, itr, itr_next, true);
+    }
+
     const_operation_iterator_t end(const operation_t& op) const {
       (void) op;
       return const_operation_iterator_t();
@@ -184,6 +193,8 @@ class Operation_Dag {
       return itr->second;
     }
 
+    size_t size() const { return adj_map_.size(); }
+
     ////////////////////////////////////////////////////////////////////////////
     // scheduler_traits //
     static const_operation_iterator_t operations_begin(const dag_t& g) {
@@ -200,6 +211,12 @@ class Operation_Dag {
     static const_operation_iterator_t outgoing_operations_end(const dag_t& g,
         const operation_t& op) { return g.end(op); }
 
+    static const_operation_iterator_t incoming_operations_begin(const dag_t& g,
+        const operation_t& op) { return g.begin_in(op); }
+
+    static const_operation_iterator_t incoming_operations_end(const dag_t& g,
+        const operation_t& op) { return g.end(op); }
+
     static delay_t delay(const dag_t& dag, const operation_t& op) {
       return dag.get_operation_delay(op);
     }
@@ -208,7 +225,6 @@ class Operation_Dag {
     {
       return dag.get_operation_resources(op);
     }
-
     ////////////////////////////////////////////////////////////////////////////
 
   private:
@@ -216,6 +232,21 @@ class Operation_Dag {
     void init() {
       reset_to_uniform_delay_model();
       reset_to_uniform_resource_model();
+      init_inv_adj_map();
+    }
+
+    // Precondition: adj_map_ must be constructed //
+    void init_inv_adj_map() {
+      inv_adj_map_.clear();
+      const_adj_map_iterator_t itr = adj_map_.begin(), itr_end = adj_map_.end();
+
+      for (; itr != itr_end; ++itr) {
+        const_adj_list_iterator_t inv_itr = (itr->second).begin(),
+                                  inv_itr_end = (itr->second).end();
+        for (; inv_itr != inv_itr_end; ++inv_itr) {
+          inv_adj_map_[ *inv_itr ].push_back( itr->first);
+        }
+      }
     }
 
     void reset_to_uniform_delay_model(delay_t d=1) {
@@ -240,8 +271,8 @@ class Operation_Dag {
       }
     }
 
-
     adjacency_map_t adj_map_;
+    adjacency_map_t inv_adj_map_; // all incoming edges of a node //
     delay_cost_model_t delay_cost_model_;
     resource_cost_model_t resource_cost_model_;
 }; // class Operation_Dag //
@@ -381,6 +412,52 @@ TEST(lp_scheduler_unit_test_infra, vertex_iteration_with_edges) {
     ++itr;
   }
   EXPECT_EQ(expected, out);
+}
+
+bool GetIncomingEdges(const dag_t::operation_t& op, const dag_t& dag,
+    dag_t::adjacency_map_t& nodes) {
+  nodes.clear();
+
+  dag_t::const_operation_iterator_t itr = dag.begin_in(op), itr_end;
+  while (itr != itr_end) {
+    if (nodes.find(*itr) != nodes.end()) {
+      // duplicate in coming node //
+      return false;
+    }
+    nodes.insert(std::make_pair(*itr, dag_t::adjacency_list_t()));
+    ++itr;
+  }
+  return true;
+}
+
+TEST(lp_scheduler_unit_test_infra, vertex_iteration_with_incoming_edges) {
+  dag_t::adjacency_map_t in = { {"u", {"e", "f", "g"}  },
+      {"v", {"e"}  }, {"w", {"e", "f"} }, {"e", {}}, {"f", {}}, {"g", {}} };
+  dag_t dag(in);
+
+  {
+    // incoming nodes of e = {v, w, u } //
+    dag_t::adjacency_map_t expected = { {"v", {}}, {"w", {}}, {"u", {}} };
+    dag_t::adjacency_map_t found;
+
+    ASSERT_TRUE(GetIncomingEdges("e", dag, found));
+    EXPECT_EQ(found, expected);
+  }
+
+  {
+    // incoming nodes of f = { w, u } //
+    dag_t::adjacency_map_t expected = { {"w", {}}, {"u", {}} };
+    dag_t::adjacency_map_t found;
+
+    ASSERT_TRUE(GetIncomingEdges("f", dag, found));
+    EXPECT_EQ(found, expected);
+  }
+
+
+  {  // no incoming edges for u and v //
+    ASSERT_TRUE(dag.begin_in("u") == dag.end());
+    ASSERT_TRUE(dag.begin_in("v") == dag.end());
+  }
 }
 
 TEST(lp_scheduler_unit_test_infra, outgoing_edges_of_node) {
@@ -785,3 +862,116 @@ TEST(memory_lp_scheduler, cumulative_version) {
   EXPECT_EQ(start_time_of_c, 2UL);
   EXPECT_EQ(scheduler_begin.current_time(), 4UL);
 }
+
+typedef mv::lp_scheduler::Producer_Consumer_Contiguous_Resource<size_t,
+          std::string>  contiguous_producer_consumer_resource_t;
+
+// Unit tests for Producer_Consumer_Contiguous_Resource state //
+TEST(Producer_Consumer_Contiguous_Resource_State, basic_test) {
+  contiguous_producer_consumer_resource_t resource_state(10UL);
+
+  EXPECT_TRUE(resource_state.is_resource_available(1UL));
+  EXPECT_FALSE(resource_state.is_resource_available(11UL));
+}
+
+
+TEST(Producer_Consumer_Contiguous_Resource_State, simple_dependency) {
+  contiguous_producer_consumer_resource_t resource_state(10UL);
+
+  //  a --> {b, c} //
+  //  f --> {g}
+  //  
+  //  r(a) = 6 , r(f) = 5 , r(b)=2, r(c)=2, r(d)=4, r(g)=2//
+  std::vector<std::string> consumers_of_a = {"b", "c"}, consumers;
+  std::unordered_map<std::string, size_t> r = { {"a", 6UL}, {"f", 5UL},
+    {"b", 2UL}, {"c", 2UL}, {"g", 2UL} };
+
+  EXPECT_TRUE(resource_state.is_resource_available(r["a"]));
+  EXPECT_TRUE(resource_state.is_resource_available(r["f"]));
+
+  // resources of "a" are engaged until "b" , "c" and "d" unassign resources //
+  EXPECT_TRUE(resource_state.assign_resources("a", r["a"],
+        consumers_of_a.begin(), consumers_of_a.end()));
+
+  EXPECT_TRUE(resource_state.is_resource_available(r["b"]));
+  EXPECT_TRUE(resource_state.assign_resources("b", r["b"],
+        consumers.end(), consumers.end()));
+
+  EXPECT_TRUE(resource_state.is_resource_available(r["c"]));
+  EXPECT_TRUE(resource_state.assign_resources("c", r["c"],
+        consumers.end(), consumers.end()));
+
+  // current 5+2+2=9units of resource is engaged //
+
+
+  // NOTE: we dont have 5units of contigous resource //
+  EXPECT_FALSE(resource_state.is_resource_available(r["f"]));
+
+  // unassign resources to "a" but its resources will still be engaged until "b"
+  // and "c" have unassigned resources. Hence resource request for "d" will
+  // still fail.
+  EXPECT_TRUE(resource_state.unassign_resources("a"));
+ 
+  // Since the consumers of "a" have not yet been finished. //
+  EXPECT_FALSE(resource_state.is_resource_available(r["f"]));
+
+  // unassign resources of "b" //
+  EXPECT_TRUE(resource_state.unassign_resources("b"));
+
+  // since both "a" and "c" are using resources //
+  EXPECT_FALSE(resource_state.is_resource_available(r["f"]));
+
+  EXPECT_TRUE(resource_state.unassign_resources("c"));
+
+  // now all resources are available //
+  EXPECT_TRUE(resource_state.is_resource_available(10UL));
+}
+
+TEST(Producer_Consumer_Contiguous_Resource_State,
+    dependency_chain_cascade_deallocation) {
+
+  std::vector<std::string> ops = {"a", "b", "c", "d"};
+  std::vector<std::string>::const_iterator ops_itr = ops.begin();
+  std::vector<size_t> r = {5UL, 3UL, 1UL, 1UL};
+  contiguous_producer_consumer_resource_t resource_state(10UL);
+
+
+  // chain dependency: a->b->c->d //
+  ASSERT_TRUE(resource_state.is_resource_available(10UL));
+  ASSERT_FALSE(resource_state.is_resource_available(11UL));
+
+  // "a" keeps 5units engaged till "b" is finished //
+  ASSERT_TRUE(resource_state.assign_resources(ops[0], r[0],
+        ops_itr+1, ops_itr+2));
+  ASSERT_TRUE(resource_state.unassign_resources(ops[0]));
+  // ref_count[a] = 1 //
+
+  ASSERT_FALSE(resource_state.is_resource_available(6UL));
+  ASSERT_TRUE(resource_state.is_resource_available(5UL));
+
+  ASSERT_TRUE(resource_state.assign_resources(ops[1], r[1],
+        ops_itr+2, ops_itr+3));
+  // ref_count[a] = 1, ref_count[b] = 2 //
+  ASSERT_TRUE(resource_state.unassign_resources(ops[1]));
+  // ref_count[a] = 0, ref_count[b] = 1 we get 5 resources from "a" //
+
+  ASSERT_TRUE(resource_state.is_resource_available(5UL));
+
+  ASSERT_TRUE(resource_state.assign_resources(ops[2], r[2],
+        ops_itr+3, ops_itr+4));
+  // ref_count[b] = 1, ref_count[c] = 2//
+  ASSERT_TRUE(resource_state.unassign_resources(ops[2]));
+  // ref_count[b] = 0, ref_count[c] = 1 we get 3 resources from "b" //
+
+  ASSERT_TRUE(resource_state.is_resource_available(3UL));
+
+  ASSERT_TRUE(resource_state.assign_resources(ops[3], r[3],
+        ops.end(), ops.end()));
+  // ref_count[c] = 1, ref_count[d] = 1 //
+  ASSERT_TRUE(resource_state.unassign_resources(ops[3]));
+  // ref_count[c] = 0, ref_count[d] = 0 //
+
+  ASSERT_TRUE(resource_state.is_resource_available(10UL));
+}
+
+// Feasible scheduler with producer and consumer resource constraints //
