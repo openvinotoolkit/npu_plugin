@@ -28,6 +28,13 @@ struct scheduler_traits {
         const operation_t&);
   static const_operation_iterator_t outgoing_operations_end(const dag_t&,
         const operation_t&);
+
+  // Given v \in V , iterator over { u | (u, v) \in E } 
+  static const_operation_iterator_t incoming_operations_begin(const dag_t&,
+      const operation_t&);
+  static const_operation_iterator_t incoming_operations_end(const dag_t&,
+        const operation_t&);
+
   //////////////////////////////////////////////////////////////////////////////
 
   //////////////////////////////////////////////////////////////////////////////
@@ -55,7 +62,7 @@ struct scheduler_traits {
   static void initialize_resource_upper_bound(const resource_t& upper_bound,
       resource_state_t&);
 
-  static bool is_resource_availble(const resource_t& demand,
+  static bool is_resource_available(const resource_t& demand,
         const resource_state_t&);
   // Precondition: is_resource_available(demand) = true. 
   // Invariant: makes an update in the resource usage of using the operations//
@@ -124,14 +131,15 @@ class Cumulative_Resource_State {
 }; // class Cumulative_Resource_State //
 
 // This models the resource state as disjoint set of integral intervals//
+// 
+// TODO(vkundeti): enforce hashable requirement for the Key //
 template<typename Unit, typename Key>
 class Contiguous_Resource_State {
   public:
     ////////////////////////////////////////////////////////////////////////////
     typedef Unit unit_t;
     typedef Key key_t;
-    typedef const key_t * const_key_ptr_t;
-    typedef Disjoint_Interval_Set<unit_t, const_key_ptr_t> active_resources_t;
+    typedef Disjoint_Interval_Set<unit_t, key_t> active_resources_t;
     typedef typename active_resources_t::free_interval_iterator_t
         free_interval_iterator_t;
 
@@ -146,7 +154,7 @@ class Contiguous_Resource_State {
       interval_info_t(unit_t ibeg, unit_t iend) : begin_(ibeg), end_(iend) {}
     }; // struct interval_info_t //
 
-    typedef std::unordered_map<const_key_ptr_t, interval_info_t> lookup_t;
+    typedef std::unordered_map<key_t, interval_info_t> lookup_t;
     ////////////////////////////////////////////////////////////////////////////
 
     Contiguous_Resource_State() : active_resources_(),
@@ -176,8 +184,7 @@ class Contiguous_Resource_State {
     bool assign_resources(const key_t& op, const unit_t& demand) {
       if (!demand) { return true;}
 
-      const_key_ptr_t op_ptr = &op;
-      typename lookup_t::iterator litr = lookup_.find(op_ptr);
+      typename lookup_t::iterator litr = lookup_.find(op);
 
       if (litr != lookup_.end()) { return false; }
 
@@ -185,17 +192,16 @@ class Contiguous_Resource_State {
 
       unit_t ibeg, iend;
       if (!find_smallest_interval_satisfying_demand(demand, ibeg, iend) ||
-          !active_resources_.insert(ibeg, ibeg+demand-1, op_ptr)) {
+          !active_resources_.insert(ibeg, ibeg+demand-1, op)) {
         return false;
       }
       // found a feasible resource //
-      lookup_.insert(std::make_pair(op_ptr,
-              interval_info_t(ibeg, ibeg+demand-1)));
+      lookup_.insert(std::make_pair(op, interval_info_t(ibeg, ibeg+demand-1)));
       return true;
     }
 
     bool unassign_resources(const key_t& op) {
-      typename lookup_t::iterator litr = lookup_.find(&op);
+      typename lookup_t::iterator litr = lookup_.find(op);
       if (litr == lookup_.end()) { return false; }
       const interval_info_t &interval = litr->second; 
 
@@ -208,7 +214,7 @@ class Contiguous_Resource_State {
 
     // Returns false if the operation is not using any resources //
     interval_info_t get_resource_usage_info(const key_t& op) const {
-      typename lookup_t::iterator litr = lookup_.find(&op);
+      typename lookup_t::iterator litr = lookup_.find(op);
       interval_info_t result;
 
       result.invalidate();
@@ -218,7 +224,7 @@ class Contiguous_Resource_State {
       return result;
     }
 
-  private:
+  protected:
 
     // TODO(vamsikku): the cost of this O(k) where k is the number of active
     // tasking using the contiguous memory.
@@ -285,6 +291,121 @@ class Contiguous_Resource_State {
     unit_t location_end_;
     lookup_t lookup_;
 }; // class Contiguous_Resource_State //
+
+// This models a resource which can have consumers and its engaged until all the
+// consumers are done consuming the resource. Both the producers and consumers
+// are identified Key type objects.
+// 
+// TODO(vkundeti): enforce hashable requirement for the Key type.
+template<typename Unit, typename Key>
+class Producer_Consumer_Contiguous_Resource :
+    public Contiguous_Resource_State<Unit, Key> {
+
+  public:
+
+    ////////////////////////////////////////////////////////////////////////////
+    typedef Unit unit_t;
+    typedef Key key_t;
+    typedef Contiguous_Resource_State<unit_t, key_t> parent_t;
+    typedef key_t consumer_t;
+    typedef key_t producer_t;
+    using parent_t::active_resources_t;
+    using parent_t::active_resources_;
+    typedef std::list<producer_t> producers_t;
+    typedef std::unordered_map<consumer_t, producers_t> consumer_producer_map_t;
+    typedef std::unordered_map<producer_t, size_t> producer_ref_count_t;
+    typedef typename consumer_producer_map_t::const_iterator
+        const_consumer_iterator_t;
+    typedef typename consumer_producer_map_t::iterator consumer_iterator_t;
+    typedef typename producer_ref_count_t::const_iterator
+        const_ref_count_iterator_t;
+    typedef typename producer_ref_count_t::iterator ref_count_iterator_t;
+    ////////////////////////////////////////////////////////////////////////////
+
+    Producer_Consumer_Contiguous_Resource() : parent_t(),
+      consumer_producers_map_(),  producer_ref_count_() {}
+
+    Producer_Consumer_Contiguous_Resource(unit_t upper_bound)
+      : parent_t(upper_bound), consumer_producers_map_(),
+        producer_ref_count_() {}
+
+    // Assign resources to the op (producer) and also add a reference of this
+    // producer to all consumers. Consumers for this producer are passed as an
+    // iterator over the consumers.
+    template<typename ConsumerIterator>
+    bool assign_resources(const key_t& op, const unit_t& demand, 
+        ConsumerIterator consumer_begin=ConsumerIterator(),
+        ConsumerIterator consumer_end=ConsumerIterator()) {
+
+      size_t consumer_count = 1UL;
+      for (;consumer_begin != consumer_end;
+            ++consumer_begin, ++consumer_count) {
+        consumer_producers_map_[*consumer_begin].push_back(producer_t(op));
+      }
+
+      if (producer_ref_count_.find(op) != producer_ref_count_.end()) {
+        return false;
+      }
+
+      producer_ref_count_[producer_t(op)] = consumer_count;
+      // now update the interval tree data structure //
+      parent_t::assign_resources(producer_t(op), demand);
+      return true;
+    }
+
+    // Unassign resources for the op which may not actually unassign until all
+    // its producers are done consuming it.
+    bool unassign_resources(const key_t& op) {
+      ref_count_iterator_t ref_itr, ref_itr_end=producer_ref_count_.end();
+
+      ref_itr = producer_ref_count_.find(op);
+      if ((ref_itr == producer_ref_count_.end()) || !(ref_itr->second)) {
+        // ref count for entries in producer_ref_count_ has to atleast 1 //
+        return false;
+      }
+
+      --(ref_itr->second);
+      if (!(ref_itr->second)) {
+        // no consumers for this op hence unassign its resources //
+        producer_ref_count_.erase(ref_itr);
+        parent_t::unassign_resources(op);
+      } 
+
+      // reduce the ref_count of all the producers //
+      consumer_iterator_t citr = consumer_producers_map_.find(op);
+      consumer_iterator_t citr_end = consumer_producers_map_.end();
+
+      if (citr != citr_end) {
+        const producers_t& producers = citr->second;
+        typename producers_t::const_iterator pitr = producers.begin(),
+                 pitr_next, pitr_end = producers.end();
+
+
+        for(;pitr != pitr_end; ++pitr) {
+          const producer_t& producer = *pitr;
+
+          ref_itr = producer_ref_count_.find(producer); 
+          if (ref_itr == ref_itr_end) { return false; }// Invariant violation //
+          --(ref_itr->second);
+          if (!(ref_itr->second)) {
+            // no consumers for this op hence unassign its resources //
+            producer_ref_count_.erase(ref_itr);
+            parent_t::unassign_resources(producer);
+          }
+        }
+        consumer_producers_map_.erase(citr); 
+      }
+      return true;
+    }
+
+  private:
+
+    consumer_producer_map_t consumer_producers_map_;
+    // ref_count is the number of consumers of this operation + 1 //
+    producer_ref_count_t producer_ref_count_;
+}; // class Producer_Consumer_Contiguous_Resource //
+
+
 
 template<typename T, typename SchedulerTraits=scheduler_traits<T>,
          typename Allocator=std::allocator<T> >
