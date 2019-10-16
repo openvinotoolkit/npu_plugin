@@ -29,6 +29,17 @@ class Operation_Dag {
           itr_begin_(), itr_end_(), itr_adj_begin_(), itr_adj_end_(),
           iterate_edges_(false) {}
 
+        const_operation_iterator_t(const const_operation_iterator_t& o)
+          : adj_map_ptr_(), itr_begin_(), itr_end_(), itr_adj_begin_(),
+            itr_adj_end_(), iterate_edges_(false) {
+            adj_map_ptr_ = o.adj_map_ptr_;
+            itr_begin_ = o.itr_begin_;
+            itr_end_ = o.itr_end_;
+            itr_adj_begin_ = o.itr_adj_begin_;
+            itr_adj_end_ = o.itr_adj_end_;
+            iterate_edges_ = o.iterate_edges_;
+         }
+
         const_operation_iterator_t(const adjacency_map_t& adj_map,
             const_adj_map_iterator_t begin, const_adj_map_iterator_t end,
             bool iterate_edges=false) : adj_map_ptr_(&adj_map), itr_begin_(begin),
@@ -308,7 +319,8 @@ struct scheduler_traits<scheduler_unit_tests::Operation_Dag>
     }
 
     static bool schedule_operation(const operation_t& op,
-        const resource_t& demand, resource_state_t& state) {
+        const resource_t& demand, resource_state_t& state,
+        const_operation_iterator_t, const_operation_iterator_t) {
       return state.assign_resources(op, demand);
     }
 
@@ -756,7 +768,8 @@ struct scheduler_traits<
     }
 
     static bool schedule_operation(const operation_t& op,
-        const resource_t& demand, resource_state_t& state) {
+        const resource_t& demand, resource_state_t& state,
+        const_operation_iterator_t, const_operation_iterator_t) {
       return state.assign_resources(op, demand);
     }
 
@@ -974,4 +987,119 @@ TEST(Producer_Consumer_Contiguous_Resource_State,
   ASSERT_TRUE(resource_state.is_resource_available(10UL));
 }
 
-// Feasible scheduler with producer and consumer resource constraints //
+////////////////////////////////////////////////////////////////////////////////
+// Test scheduler with contiguous resource model with producer and consumers//
+namespace scheduler_unit_tests {
+
+typedef mv::lp_scheduler::Producer_Consumer_Contiguous_Resource<
+    Operation_Dag::resource_t, Operation_Dag::operation_t>
+      producer_consumer_memory_resource_state_t;
+
+struct operation_dag_with_producer_consumer_model_t;
+
+} // namespace scheduler_unit_tests //
+
+namespace mv {
+namespace lp_scheduler {
+
+template<>
+struct scheduler_traits<
+  scheduler_unit_tests::operation_dag_with_producer_consumer_model_t
+  > : public scheduler_unit_tests::Operation_Dag {
+    ////////////////////////////////////////////////////////////////////////////
+    // input graph model and delay model are used from Operation_Dag itself   //
+    using scheduler_unit_tests::Operation_Dag::Operation_Dag;
+
+    ////////////////////////////////////////////////////////////////////////////
+    // define resource update model //
+    typedef scheduler_unit_tests::producer_consumer_memory_resource_state_t
+        resource_state_t;
+
+    static void initialize_resource_upper_bound(const resource_t& upper_bound,
+        resource_state_t& state) {
+      state.initialize_resource_upper_bound(upper_bound);
+    }
+
+    static bool is_resource_available(const resource_t& demand,
+          const resource_state_t& state) {
+      return state.is_resource_available(demand);
+    }
+
+    static bool schedule_operation(const operation_t& op,
+        const resource_t& demand, resource_state_t& state,
+        const_operation_iterator_t op_begin,
+        const_operation_iterator_t op_end) {
+
+      return (op == "start") ?
+        state.assign_resources(op, demand, op_end, op_end) :
+        state.assign_resources(op, demand, op_begin, op_end);
+    }
+
+    static bool unschedule_operation(const operation_t& op,
+        resource_state_t& state) {
+      return state.unassign_resources(op);
+    }
+    ////////////////////////////////////////////////////////////////////////////
+
+}; // specialization for scheduler_unit_tests::dag_t //
+
+} // namespace lp_scheduler
+} // namespace mv
+
+typedef mv::lp_scheduler::Feasible_Schedule_Generator<
+  operation_dag_with_producer_consumer_model_t > producer_consumer_scheduler_t; 
+
+TEST(lp_scheduler_producer_consumer, basic_test) {
+  producer_consumer_scheduler_t schedule_begin, schedule_end;
+
+  EXPECT_TRUE(schedule_begin == schedule_end);
+}
+
+TEST(lp_scheduler_producer_consumer, dependency_test) {
+  dag_t::adjacency_map_t in =  { {"start", {"a", "d"} },
+    {"a", {"b", "c" }}, {"b", {}}, {"c", {}}, {"d", {}} };
+
+  // since "a" generates output of "b" and "c" its memory resources
+  // are locked until both "b" and "c" are finished //
+
+  dag_t::delay_cost_model_t delay = { {"start", 1},
+    {"a", 1}, {"d", 1}, {"c", 10}, {"b", 12} };
+  
+  dag_t::resource_cost_model_t memory = { {"start", 1},
+    {"a", 6}, {"b", 1}, {"d", 5}, {"c", 1} };
+
+  dag_t g(in);
+
+  g.reset_delay_model(delay);
+  g.reset_resource_model(memory);
+
+  producer_consumer_scheduler_t schedule_begin(g, 10), schedule_end;
+
+  size_t iter_count = 0UL; 
+  std::unordered_map<std::string, size_t> start_times;
+
+  while (schedule_begin != schedule_end) {
+    ++iter_count;
+    ASSERT_TRUE(iter_count <= 5UL);
+    ASSERT_TRUE(start_times.find(*schedule_begin) == start_times.end());
+    start_times.insert(std::make_pair(*schedule_begin,
+                                       schedule_begin.current_time()));
+    ++schedule_begin;
+  }
+
+  // scheduler should produce output for each operation //
+  for (auto itr = in.begin(); itr != in.end(); ++itr) {
+    ASSERT_TRUE(start_times.find( itr->first ) != start_times.end());
+  }
+
+  // verify precedence constraints //
+  ASSERT_TRUE(start_times["start"] < start_times["a"]);
+  ASSERT_TRUE(start_times["a"] < start_times["b"]);
+  ASSERT_TRUE(start_times["a"] < start_times["c"]);
+
+  // if "a" starts before "d" then start time of "d" must be atleast 14 
+  // due producer and consumer issue (resources of "a" are locked until
+  // "b" and "c" are finished)
+  ASSERT_TRUE(  (start_times["a"] >= start_times["d"]) ||
+                (start_times["d"] >= 14UL) );
+}

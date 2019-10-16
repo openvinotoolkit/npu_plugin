@@ -68,6 +68,14 @@ struct scheduler_traits {
   // Invariant: makes an update in the resource usage of using the operations//
   static bool schedule_operation(const operation_t&, resource_t demand,
       resource_state_t&);
+
+  static bool schedule_operation(const operation_t& op, resource_t demand,
+      resource_state_t& rstate,
+      const_operation_iterator_t, const_operation_iterator_t) {
+    // default schedule_operation ignores outgoing operations. //
+    return schedule_operation(op, demand, rstate);
+  }
+
   // Precondition: updates the resource state by removing the operation form 
   // the schedule //
   static bool unschedule_operation(const operation_t&, resource_state_t&);
@@ -81,8 +89,7 @@ class Cumulative_Resource_State {
   public:
   typedef Unit unit_t;
   typedef Key key_t;
-  typedef const key_t * const_key_ptr_t;
-  typedef std::unordered_map<const_key_ptr_t, unit_t> lookup_t;
+  typedef std::unordered_map<key_t, unit_t> lookup_t;
 
   Cumulative_Resource_State(const unit_t& bound=unit_t(0))
     : resources_in_use_(unit_t(0)), resource_bound_(bound),
@@ -101,21 +108,19 @@ class Cumulative_Resource_State {
 
   // This assumes a serial execution //
   bool assign_resources(const key_t& op, const unit_t& demand) {
-    const_key_ptr_t key = &op;
     if (!is_resource_available(demand)) { return false; }
 
-    if (active_resources_.find(key) != active_resources_.end()) {
+    if (active_resources_.find(op) != active_resources_.end()) {
       return false;
     }
 
     resources_in_use_ += demand;
-    active_resources_[key] = demand;
+    active_resources_[op] = demand;
     return true;
   }
 
   bool unassign_resources(const key_t& op) {
-    const_key_ptr_t key = &op;
-    typename lookup_t::iterator itr = active_resources_.find(key);
+    typename lookup_t::iterator itr = active_resources_.find(op);
 
     if (itr == active_resources_.end()) { return false; }
 
@@ -555,7 +560,9 @@ class Feasible_Schedule_Generator {
         schedule_time_t op_end_time = current_time_ + op_delay;
         push_to_heap( heap_element_t(&op, op_end_time) );
         candidates_.erase(op_itr);
-        traits::schedule_operation(op, op_resources, resource_state_);
+        traits::schedule_operation(op, op_resources, resource_state_,
+            traits::outgoing_operations_begin(*input_ptr_, op),
+            traits::outgoing_operations_end(*input_ptr_, op));
         schedulable_op_ = &op;
       } else if (!heap_.empty()) {
         // no-op found so move up the schedule time to the smallest completion
