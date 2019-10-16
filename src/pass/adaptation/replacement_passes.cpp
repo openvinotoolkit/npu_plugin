@@ -141,28 +141,25 @@ void tensorsToFP16Fcn(const mv::pass::PassEntry&  , mv::ComputationModel& model,
 }
 
 // Pass logic:
-// We can't do anything about the input tensor, as it comes from DMA. We must handle it's datatype as is
-// What we can do is uniform all the bytes datatype of the other tensors.
-
-// If the input is something different from U8/I8 then we uniform everything to U8. If the input is I8
-// we uniform everything to I8. If the input is U8 then we uniform everything to U8.
+// Runtime will handle the input, we uniform all the rest to UInt8
 void tensorsToU8Fcn(const mv::pass::PassEntry&  , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
     mv::OpModel om(model);
 
-    int64_t zeroPointShift = 127;
+    int64_t zeroPointShift = 128;
     auto sourceDType = mv::DType("Int8");
     auto targetDType = mv::DType("UInt8");
+    bool skipInput = false;
 
-    auto inputType = om.getInput()->getOutputTensor(0)->getDType();
+    auto kernelOp = om.getInput();
+    auto inputType = kernelOp->getOutputTensor(0)->getDType();
     if(inputType == mv::DType("Int8"))
-    {
-        sourceDType = mv::DType("UInt8");
-        targetDType = mv::DType("Int8");
-        zeroPointShift = -zeroPointShift;
-    }
+        skipInput = true;
 
-    for (auto kernelOp = om.getInput(); kernelOp != om.opEnd(); ++kernelOp)
+    if(skipInput)
+        ++kernelOp;
+
+    for (; kernelOp != om.opEnd(); ++kernelOp)
     {
         if(kernelOp.outputsSize() > 0)
         {
@@ -179,7 +176,6 @@ void tensorsToU8Fcn(const mv::pass::PassEntry&  , mv::ComputationModel& model, m
                 if (outputTensor->isPopulated())
                     for(unsigned i = 0; i < outputTensor->size(); ++i)
                         outputTensor->at(i) += zeroPointShift;
-
             }
         }
     }
