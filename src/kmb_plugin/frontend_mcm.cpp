@@ -99,6 +99,31 @@ ie::details::caseless_map<std::string, parser_t> g_mcm_parsers = {
     {"ArgMax",             &FrontEndMcm::parseArgMax},
 };
 
+size_t getDataDimsSize(InferenceEngine::DataPtr data) {
+    if (data->getTensorDesc().getLayout() == InferenceEngine::SCALAR) {
+        return 1;
+    } else {
+        return data->getDims().size();
+    }
+}
+
+size_t getDataDim(InferenceEngine::DataPtr data, size_t nDim) {
+    if (data->getTensorDesc().getLayout() == InferenceEngine::SCALAR) {
+        if (nDim == 0) {
+            return 1;
+        } else {
+            THROW_IE_EXCEPTION << "SCALAR data can not have dim (" << nDim << ")";
+        }
+    } else {
+        if (nDim >= data->getDims().size()) {
+            THROW_IE_EXCEPTION << "Number of dim queried (" << nDim << ") exceeds data dimensionary (" << data->getDims().size() << ")";
+        } else {
+            return data->getDims()[nDim];
+        }
+    }
+    return 0;
+}
+
 }  // namespace
 
 mv::DType convert_data_type(ie::Precision iePrecision) {
@@ -337,8 +362,8 @@ void FrontEndMcm::applyQuantizationTransformations(ie::CNNNetwork& network) {
 
                 size_t axisIdx = 0;
                 int numberOfNonUnit = 0;
-                for (unsigned i = 0; i < edge->getDims().size(); i++) {
-                    if (edge->getDims()[i] > 1) {
+                for (unsigned i = 0; i < getDataDimsSize(edge); i++) {
+                    if (getDataDim(edge, i) > 1) {
                         axisIdx = i;
                         numberOfNonUnit++;
                     }
@@ -376,27 +401,27 @@ void FrontEndMcm::applyQuantizationTransformations(ie::CNNNetwork& network) {
 
             // WA to enable jit implementation
             if (axis == 0) {
-                if (quantizeLayer->insData[1].lock()->getDims()[inputLowAxis] == 1 &&
-                    quantizeLayer->insData[2].lock()->getDims()[inputHighAxis] == 1 &&
-                    quantizeLayer->insData[3].lock()->getDims()[outputLowAxis] == 1 &&
-                    quantizeLayer->insData[4].lock()->getDims()[outputHighAxis] == 1) {
+                if (getDataDim(quantizeLayer->insData[1].lock(), inputLowAxis) == 1 &&
+                    getDataDim(quantizeLayer->insData[2].lock(), inputHighAxis) == 1 &&
+                    getDataDim(quantizeLayer->insData[3].lock(), outputLowAxis) == 1 &&
+                    getDataDim(quantizeLayer->insData[4].lock(), outputHighAxis) == 1) {
                     axis = 1;
                 }
             }
 
-            size_t axisRealSize = layer->insData[0].lock()->getDims()[axis];
+            size_t axisRealSize = getDataDim(layer->insData[0].lock(), axis);
 
             InferenceEngine::DataPtr inputLow = layer->insData[1].lock();
-            bool isInputLowBroadcasted = inputLow->getDims()[inputLowAxis] != axisRealSize;
+            bool isInputLowBroadcasted = getDataDim(inputLow, inputLowAxis) != axisRealSize;
 
             InferenceEngine::DataPtr inputHigh = layer->insData[2].lock();
-            bool isInputHighBroadcasted = inputHigh->getDims()[inputHighAxis] != axisRealSize;
+            bool isInputHighBroadcasted = getDataDim(inputHigh, inputHighAxis) != axisRealSize;
 
             InferenceEngine::DataPtr outputLow = layer->insData[3].lock();
-            bool isOutputLowBroadcasted = outputLow->getDims()[outputLowAxis] != axisRealSize;
+            bool isOutputLowBroadcasted = getDataDim(outputLow, outputLowAxis) != axisRealSize;
 
             InferenceEngine::DataPtr outputHigh = layer->insData[4].lock();
-            bool isOutputHighBroadcasted = outputHigh->getDims()[outputHighAxis] != axisRealSize;
+            bool isOutputHighBroadcasted = getDataDim(outputHigh, outputHighAxis) != axisRealSize;
 
             auto outputHighCreator = outputHigh->getCreatorLayer().lock()->blobs["custom"];
             auto outputHighBlob = dynamic_cast<InferenceEngine::TBlob<float> *>(outputHighCreator.get());
