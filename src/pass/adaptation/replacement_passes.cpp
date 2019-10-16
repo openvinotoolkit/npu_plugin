@@ -5,7 +5,6 @@
 #include "include/mcm/pass/pass_utils.hpp"
 
 const size_t FULLY_CONNECTED_KERNEL = 1;
-const int64_t ZERO_POINT_SHIFTING = 127;
 
 static void fullyConnectedAsConv2DFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void standaloneActivationAsPostOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
@@ -141,27 +140,45 @@ void tensorsToFP16Fcn(const mv::pass::PassEntry&  , mv::ComputationModel& model,
     }
 }
 
+// Pass logic:
+// We can't do anything about the input tensor, as it comes from DMA. We must handle it's datatype as is
+// What we can do is uniform all the bytes datatype of the other tensors.
+
+// If the input is something different from U8/I8 then we uniform everything to U8. If the input is I8
+// we uniform everything to I8. If the input is U8 then we uniform everything to U8.
 void tensorsToU8Fcn(const mv::pass::PassEntry&  , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
     mv::OpModel om(model);
+
+    int64_t zeroPointShift = 127;
+    auto sourceDType = mv::DType("Int8");
+    auto targetDType = mv::DType("UInt8");
+
+    auto inputType = om.getInput()->getOutputTensor(0)->getDType();
+    if(inputType == mv::DType("Int8"))
+    {
+        sourceDType = mv::DType("UInt8");
+        targetDType = mv::DType("Int8");
+        zeroPointShift = -zeroPointShift;
+    }
 
     for (auto kernelOp = om.getInput(); kernelOp != om.opEnd(); ++kernelOp)
     {
         if(kernelOp.outputsSize() > 0)
         {
             auto outputTensor = kernelOp->getOutputTensor(0);
-            if(outputTensor->get<mv::DType>("dType") == mv::DType("Int8"))
+            if(outputTensor->get<mv::DType>("dType") == sourceDType)
             {
-                mv::DType newType = mv::DType("UInt8");
+                mv::DType newType = targetDType;
                 outputTensor->setDType(newType);
                 auto& quantParams = outputTensor->get<mv::QuantizationParams>("quantParams");
                 auto& quantParamsZp = quantParams.getZeroPoint();
                 for(auto& zp: quantParamsZp)
-                    zp += ZERO_POINT_SHIFTING;
+                    zp += zeroPointShift;
                 kernelOp->set<mv::DType>("dType",  newType);
                 if (outputTensor->isPopulated())
                     for(unsigned i = 0; i < outputTensor->size(); ++i)
-                        outputTensor->at(i) += ZERO_POINT_SHIFTING;
+                        outputTensor->at(i) += zeroPointShift;
 
             }
         }
