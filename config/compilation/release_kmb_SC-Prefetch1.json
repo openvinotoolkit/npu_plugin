@@ -82,6 +82,8 @@
     },
     "adapt": {
         "Singular": [
+            "TensorsToU8",
+            "TensorsToFP16",
             "AverageAsDepthWise",
             "FuseBatchNorm",
             "FuseBias",
@@ -89,7 +91,6 @@
             "FuseScale",
             "RemoveDropOut",
             "FullyConnectedAsConv2D",
-            "TensorsToFP16",
             {
                 "name" : "GraphParameterOptimization",
                 "graphOptimizerConfig" : {

@@ -82,8 +82,8 @@
     },
     "adapt": {
         "Singular": [
-            "PopulatedTensorsToFP16",
-            "UnpopulatedTensorsToFP16",
+            "TensorsToU8",
+            "TensorsToFP16",
             "AverageAsDepthWise",
             "FuseBatchNorm",
             "FuseBias",

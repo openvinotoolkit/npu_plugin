@@ -82,6 +82,7 @@
     },
     "adapt": {
         "Singular": [
+            "TensorsToU8",
             "TensorsToFP16",
             "AverageAsDepthWise",
             "FuseBatchNorm",
