@@ -602,6 +602,31 @@ void convertOpsToUPATasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& 
             setOutputControlFlow(cm, cm.switchContext(upaReorgYoloOp), outputControlFlows);
 
         }
+        else if (opType == "Permute")
+        {
+            auto input = opIt->getInputTensor(0);
+            auto output = opIt->getOutputTensor(0);
+            auto outputMemoryLocation = output->get<mv::Tensor::MemoryLocation>("Location");
+            unsigned opId = opIt->get<unsigned>("opId");
+            auto order = opIt->get<mv::Order>("order");
+            auto dtype = opIt->get<mv::DType>("dType");
+            auto quantParams = opIt->get<mv::QuantizationParams>("quantParams");
+
+            auto inputControlFlows = mv::getInputControlFlow(cm, cm.switchContext(opIt));
+            auto outputControlFlows = mv::getOutputControlFlow(cm, cm.switchContext(opIt));
+            auto outputDataFlows = mv::getOutputDataFlow(om, opIt);
+
+            mv::Data::TensorIterator upaPermute = om.uPATaskPermute({input}, order, dtype, quantParams);
+
+            auto upaPermuteOp = om.getSourceOp(upaPermute);
+            upaPermuteOp->set<unsigned>("opId", opId);
+
+            upaPermute->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
+            setOutputDataFlow(om, upaPermute, outputDataFlows);
+            setInputControlFlow(cm, cm.switchContext(upaPermuteOp), inputControlFlows);
+            setOutputControlFlow(cm, cm.switchContext(upaPermuteOp), outputControlFlows);
+
+        }
         else
             ++opIt;
     }

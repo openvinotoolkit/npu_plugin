@@ -1571,6 +1571,45 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAReorgYoloTask(ComputationModel&
     return toBuild;
 }
 
+MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAPermuteTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt)
+{
+    auto input = opIt->getInputTensor(0);
+    auto output = opIt->getOutputTensor(0);
+    auto toBuild = new MVCNN::UPALayerTaskT();
+    //toBuild->maxShaves = ;
+    toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_PermuteParams;
+    auto softLayerParamsValue = new MVCNN::PermuteParamsT();
+
+    // Convert permute order to axes
+    auto new_order = opIt->get<mv::Order>("order");
+    auto old_order = input->getOrder();
+    auto old_order_str = old_order.toString();
+    auto new_order_str = new_order.toString();
+    std::vector<unsigned> permute_order(3);
+    for (auto i=0; i < 3; i++)
+    {
+        for (auto j=0; j < 3; j++)
+        {
+            if (new_order_str[i+1] == old_order_str[j+1])
+                permute_order.at(i) = j;
+        }
+
+    }
+    std::unique_ptr<MVCNN::order3> order3 = std::unique_ptr<MVCNN::order3>(new MVCNN::order3(permute_order.at(0), permute_order.at(1), permute_order.at(2)));
+    softLayerParamsValue->permute_order = std::move(order3);
+
+    toBuild->softLayerParams.value = softLayerParamsValue;
+
+    toBuild->input_data = buildTensorReferenceT(cm, compilationDescriptor, input);
+    toBuild->output_data = buildTensorReferenceT(cm, compilationDescriptor, output);
+
+    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input)));
+
+    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
+
+    return toBuild;
+}
+
 MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAPassthroughTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt)
 {
     auto input = opIt->getInputTensor(0);
@@ -1628,6 +1667,8 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildUPATask(Comput
         toReturn[0]->task.value = buildUPARegionYoloTask(cm, compilationDescriptor, opIt);
     else if(underlyingTask == "ReorgYolo")
         toReturn[0]->task.value = buildUPAReorgYoloTask(cm, compilationDescriptor, opIt);
+    else if(underlyingTask == "Permute")
+        toReturn[0]->task.value = buildUPAPermuteTask(cm, compilationDescriptor, opIt);
     // TODO: Add other UPA layers
 
     return toReturn;
