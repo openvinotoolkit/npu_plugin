@@ -193,11 +193,12 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                 else
                     nWorkloadsSplitPool = mv::Workloads::getWorkloadSplitPool(subTensor, nDPUxCluster, dpuModes, 50);
 
+                // TODO: Needs fixes
                 if(mixedPrecisionA0B0WorkAround)
                 {
-                    nWorkloadsSplitPool.clear();
-                    nWorkloadsSplitPool.push_back(subTensorShape[0]*subTensorShape[1]);
-                    algorithms = {"Rectangle"};
+//                    nWorkloadsSplitPool.clear();
+//                    nWorkloadsSplitPool.push_back(subTensorShape[0]*subTensorShape[1]);
+//                    algorithms = {"Rectangle"};
                 }
 
                 /*if Deptwise operation and SOH trategy, for A0 bug then add these number of worklaods to workload split pool*/
