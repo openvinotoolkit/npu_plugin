@@ -47,67 +47,67 @@ using namespace KmbRegressionTarget;
 namespace
 {
 
-using Compile = bool;
-using Timeout = double;
-using CompilationTestParam = WithParamInterface<std::tuple<std::string, CompilationParameter, Compile, Timeout>>;
+    using Compile = bool;
+    using Timeout = double;
+    using CompilationTestParam = WithParamInterface<std::tuple<std::string, CompilationParameter, Compile, Timeout>>;
 
-class VpuNoRegressionWithCompilation : public Regression::RegressionTests,
-                                       public CompilationTestParam {
-public:
-    using TestParam = WithParamInterface<std::tuple<std::string, CompilationParameter, Compile, Timeout>>;
+    class VpuNoRegressionWithCompilation : public Regression::RegressionTests,
+                                           public CompilationTestParam {
+    public:
+        using TestParam = WithParamInterface<std::tuple<std::string, CompilationParameter, Compile, Timeout>>;
 
-    // Operations
-    static std::string getTestCaseName(TestParamInfo <CompilationTestParam::ParamType> param);
-    inline void loadNetworkWrapper(std::map<std::string, std::string> config, InferenceEngine::StatusCode* st = nullptr);
+        // Operations
+        static std::string getTestCaseName(TestParamInfo <CompilationTestParam::ParamType> param);
+        inline void loadNetworkWrapper(std::map<std::string, std::string> config, InferenceEngine::StatusCode* st = nullptr);
 
-    // Accessors
-    std::string getPluginName() const override ;
-    std::string getDeviceName() const override ;
-    std::map<std::string, std::string> _config;
+        // Accessors
+        std::string getPluginName() const override ;
+        std::string getDeviceName() const override ;
+        std::map<std::string, std::string> _config;
 
-protected:
-    // Data section
-    std::string pluginName;
-    CompilationParameter path_to_files;
+    protected:
+        // Data section
+        std::string pluginName;
+        CompilationParameter path_to_files;
 
-    //Operations
-    void SetUp() override;
-};
+        //Operations
+        void SetUp() override;
+    };
 
-std::string VpuNoRegressionWithCompilation::getTestCaseName(
-        TestParamInfo <CompilationTestParam::ParamType> param) {
-    return std::string("Main_") +
-           get<0>(param.param) +
-           std::string("_") + get<1>(param.param).name +
-           ((get<2>(param.param)) ? std::string("_Compilation") : std::string("_Parsing"));
-}
+    std::string VpuNoRegressionWithCompilation::getTestCaseName(
+            TestParamInfo <CompilationTestParam::ParamType> param) {
+        return std::string("Main_") +
+               get<0>(param.param) +
+               std::string("_") + get<1>(param.param).name +
+               ((get<2>(param.param)) ? std::string("_Compilation") : std::string("_Parsing"));
+    }
 
-void VpuNoRegressionWithCompilation::SetUp() {
-    pluginName = get<0>(TestParam::GetParam());
-    path_to_files = get<1>(TestParam::GetParam());
+    void VpuNoRegressionWithCompilation::SetUp() {
+        pluginName = get<0>(TestParam::GetParam());
+        path_to_files = get<1>(TestParam::GetParam());
 
-    PluginCache::get().reset();
-}
+        PluginCache::get().reset();
+    }
 
-inline std::string VpuNoRegressionWithCompilation::getPluginName() const {
-    return pluginName;
-}
+    inline std::string VpuNoRegressionWithCompilation::getPluginName() const {
+        return pluginName;
+    }
 
-inline std::string VpuNoRegressionWithCompilation::getDeviceName() const {
-    return "";
-}
+    inline std::string VpuNoRegressionWithCompilation::getDeviceName() const {
+        return "";
+    }
 
-class KmbNoRegressionCompilationOnly : public VpuNoRegressionWithCompilation {
-};
+    class KmbNoRegressionCompilationOnly : public VpuNoRegressionWithCompilation {
+    };
 
-std::vector<CompilationParameter> compilation_parameters_unsupported = {
+    std::vector<CompilationParameter> compilation_parameters_unsupported = {
 // TODO: Yolo network can't be parsed into mcmCompiler due to bug in regionYolo parsing
-        CompilationParameter{"darknet_tiny_yolo_voc",
-                             "/KMB_models/INT8/darknet_tiny_yolo_voc/yolov2_IR_i8.xml",
-                             "/KMB_models/INT8/darknet_tiny_yolo_voc/yolov2_IR_i8.bin"},
-        CompilationParameter{"darknet19_yolo_voc",
-                             "/KMB_models/INT8/darknet19_yolo_voc/yolov2_IR_i8.xml",
-                             "/KMB_models/INT8/darknet19_yolo_voc/yolov2_IR_i8.bin"},
+            CompilationParameter{"darknet_tiny_yolo_voc",
+                                 "/KMB_models/INT8/darknet_tiny_yolo_voc/yolov2_IR_i8.xml",
+                                 "/KMB_models/INT8/darknet_tiny_yolo_voc/yolov2_IR_i8.bin"},
+            CompilationParameter{"darknet19_yolo_voc",
+                                 "/KMB_models/INT8/darknet19_yolo_voc/yolov2_IR_i8.xml",
+                                 "/KMB_models/INT8/darknet19_yolo_voc/yolov2_IR_i8.bin"},
 // TODO: SSD512 network can not be parsed into mcmCompiler OpModel due to unsupported layers.
 // Jira:
 //  Feature VPUNND-1468
@@ -122,38 +122,38 @@ std::vector<CompilationParameter> compilation_parameters_unsupported = {
 //     Unsqueeze layer support
 //  Feature VPUNND-1463
 //     Squeeze layer support
-        CompilationParameter{"SSD512_int8_onnx_0001",
-                             "/KMB_models/INT8/SSD512-int8-onnx-0001/SSD512-int8-onnx-0001.xml",
-                             "/KMB_models/INT8/SSD512-int8-onnx-0001/SSD512-int8-onnx-0001.bin"},
-};
+            CompilationParameter{"SSD512_int8_onnx_0001",
+                                 "/KMB_models/INT8/SSD512-int8-onnx-0001/SSD512-int8-onnx-0001.xml",
+                                 "/KMB_models/INT8/SSD512-int8-onnx-0001/SSD512-int8-onnx-0001.bin"},
+    };
 
-std::vector<CompilationParameter> compilation_parameters_kmb = {
-    CompilationParameter{"squeezenetv1_1_int8_onnx_0001",
-                         "/KMB_models/INT8/squeezenetv1.1-int8-onnx-0001/squeezenetv1.1-int8.xml",
-                         "/KMB_models/INT8/squeezenetv1.1-int8-onnx-0001/squeezenetv1.1-int8.bin"},
-    CompilationParameter{"resnet_50_int8_tf_0001",
-                         "/KMB_models/INT8/resnet-50-int8-tf-0001/resnet50-int8.xml",
-                         "/KMB_models/INT8/resnet-50-int8-tf-0001/resnet50-int8.bin"},
-    CompilationParameter{"mobilenetv2_int8_tf_0001",
-                         "/KMB_models/INT8/mobilenetv2-int8-tf-0001/mobilenetv2-int8.xml",
-                         "/KMB_models/INT8/mobilenetv2-int8-tf-0001/mobilenetv2-int8.bin"},
-    CompilationParameter{"inceptionv3_int8_tf_0001",
-                         "/KMB_models/INT8/inceptionv3-int8-tf-0001/inceptionv3-int8.xml",
-                         "/KMB_models/INT8/inceptionv3-int8-tf-0001/inceptionv3-int8.bin"},
-    CompilationParameter{"inceptionv1_int8_tf_0001",
-                         "/KMB_models/INT8/inceptionv1-int8-tf-0001/inceptionv1-int8-tf-0001.xml",
-                         "/KMB_models/INT8/inceptionv1-int8-tf-0001/inceptionv1-int8-tf-0001.bin"},
+    std::vector<CompilationParameter> compilation_parameters_kmb = {
+            CompilationParameter{"squeezenetv1_1_int8_onnx_0001",
+                                 "/KMB_models/INT8/squeezenetv1.1-int8-onnx-0001/squeezenetv1.1-int8.xml",
+                                 "/KMB_models/INT8/squeezenetv1.1-int8-onnx-0001/squeezenetv1.1-int8.bin"},
+            CompilationParameter{"resnet_50_int8_tf_0001",
+                                 "/KMB_models/INT8/resnet-50-int8-tf-0001/resnet50-int8.xml",
+                                 "/KMB_models/INT8/resnet-50-int8-tf-0001/resnet50-int8.bin"},
+            CompilationParameter{"mobilenetv2_int8_tf_0001",
+                                 "/KMB_models/INT8/mobilenetv2-int8-tf-0001/mobilenetv2-int8.xml",
+                                 "/KMB_models/INT8/mobilenetv2-int8-tf-0001/mobilenetv2-int8.bin"},
+            CompilationParameter{"inceptionv3_int8_tf_0001",
+                                 "/KMB_models/INT8/inceptionv3-int8-tf-0001/inceptionv3-int8.xml",
+                                 "/KMB_models/INT8/inceptionv3-int8-tf-0001/inceptionv3-int8.bin"},
+            CompilationParameter{"inceptionv1_int8_tf_0001",
+                                 "/KMB_models/INT8/inceptionv1-int8-tf-0001/inceptionv1-int8-tf-0001.xml",
+                                 "/KMB_models/INT8/inceptionv1-int8-tf-0001/inceptionv1-int8-tf-0001.bin"},
 
-    CompilationParameter{"resnet_v1_50_75.19_fp16",
-                         "/KMB_models/FP16/resnet_v1_50_75.19/resnet50_v1_fp16.xml",
-                         "/KMB_models/FP16/resnet_v1_50_75.19/resnet50_v1_fp16.bin"},
-    CompilationParameter{"mobilenet_v2_1.0_224_frozen_71.74_fp16",
-                         "/KMB_models/FP16/mobilenet_v2_1.0_224_frozen_71.74/mobilenet_v2_1_no_preprocess.xml",
-                         "/KMB_models/FP16/mobilenet_v2_1.0_224_frozen_71.74/mobilenet_v2_1_no_preprocess.bin"},
-    CompilationParameter{"inception_v3_74.19_fp16",
-                         "/KMB_models/FP16/inception_v3_74.19/inception_v3_no_preprocess.xml",
-                         "/KMB_models/FP16/inception_v3_74.19/inception_v3_no_preprocess.bin"},
-};
+            CompilationParameter{"resnet_v1_50_75.19_fp16",
+                                 "/KMB_models/FP16/resnet_v1_50_75.19/resnet50_v1_fp16.xml",
+                                 "/KMB_models/FP16/resnet_v1_50_75.19/resnet50_v1_fp16.bin"},
+            CompilationParameter{"mobilenet_v2_1.0_224_frozen_71.74_fp16",
+                                 "/KMB_models/FP16/mobilenet_v2_1.0_224_frozen_71.74/mobilenet_v2_1_no_preprocess.xml",
+                                 "/KMB_models/FP16/mobilenet_v2_1.0_224_frozen_71.74/mobilenet_v2_1_no_preprocess.bin"},
+            CompilationParameter{"inception_v3_74.19_fp16",
+                                 "/KMB_models/FP16/inception_v3_74.19/inception_v3_no_preprocess.xml",
+                                 "/KMB_models/FP16/inception_v3_74.19/inception_v3_no_preprocess.bin"},
+    };
 
 }  // namespace
 
@@ -227,17 +227,17 @@ INSTANTIATE_TEST_CASE_P(
                 ValuesIn(compilation_parameters_kmb),
                 Values<Compile>(false),
                 Values<Timeout>(60.)),
-                KmbNoRegressionCompilationOnly::getTestCaseName);
+        KmbNoRegressionCompilationOnly::getTestCaseName);
 
 INSTANTIATE_TEST_CASE_P(
         DISABLED_KmbCompilationTest_smoke_nightly,
-        // TODO: mcmCompiler can not compile top 6 KeemBay target networks. Jira: VPUNND-1412, VPUNND-1415, VPUNND-1416, VPUNND-1417, VPUNND-1418
+// TODO: mcmCompiler can not compile top 6 KeemBay target networks. Jira: VPUNND-1412, VPUNND-1415, VPUNND-1416, VPUNND-1417, VPUNND-1418
         KmbNoRegressionCompilationOnly,
         Combine(Values("kmbPlugin"),
                 ValuesIn(compilation_parameters_kmb),
                 Values<Compile>(true),
                 Values<Timeout>(600.)),
-                KmbNoRegressionCompilationOnly::getTestCaseName);
+        KmbNoRegressionCompilationOnly::getTestCaseName);
 
 INSTANTIATE_TEST_CASE_P(
         DISABLED_KmbParsingUnsupportedOnlyTest_smoke_nightly,
@@ -329,21 +329,21 @@ struct modelBlobsInfo {
 };
 
 const static std::vector<modelBlobsInfo> pathToPreCompiledGraph = {
-    {
-        ._graphPath = "/KMB_models/BLOBS/mobilenet/mobilenet.blob",
-        ._inputPath = "/KMB_models/BLOBS/mobilenet/input.dat",
-        ._outputPath = "/KMB_models/BLOBS/mobilenet/output.dat",
-    },
-    {
-        ._graphPath = "/KMB_models/BLOBS/resnet/resnet.blob",
-        ._inputPath = "/KMB_models/BLOBS/resnet/input.dat",
-        ._outputPath = "/KMB_models/BLOBS/resnet/output.dat",
-    },
-    {
-        ._graphPath = "/KMB_models/BLOBS/yolotiny/yolotiny.blob",
-        ._inputPath = "/KMB_models/BLOBS/yolotiny/input.dat",
-        ._outputPath = "/KMB_models/BLOBS/yolotiny/output.dat",
-    }
+        {
+                ._graphPath = "/KMB_models/BLOBS/mobilenet/mobilenet.blob",
+                ._inputPath = "/KMB_models/BLOBS/mobilenet/input.dat",
+                ._outputPath = "/KMB_models/BLOBS/mobilenet/output.dat",
+        },
+        {
+                ._graphPath = "/KMB_models/BLOBS/resnet/resnet.blob",
+                ._inputPath = "/KMB_models/BLOBS/resnet/input.dat",
+                ._outputPath = "/KMB_models/BLOBS/resnet/output.dat",
+        },
+        {
+                ._graphPath = "/KMB_models/BLOBS/yolotiny/yolotiny.blob",
+                ._inputPath = "/KMB_models/BLOBS/yolotiny/input.dat",
+                ._outputPath = "/KMB_models/BLOBS/yolotiny/output.dat",
+        }
 };
 
 
@@ -410,9 +410,9 @@ TEST_P(VpuInferWithPath, compareInferenceOutputWithReference) {
 
         TensorDesc outputBlobTensorDesc = outputBlob->getTensorDesc();
         Blob::Ptr referenceOutputBlob = make_blob_with_precision(TensorDesc(
-            outputBlobTensorDesc.getPrecision(),
-            outputBlobTensorDesc.getDims(),
-            outputBlobTensorDesc.getLayout()));
+                outputBlobTensorDesc.getPrecision(),
+                outputBlobTensorDesc.getDims(),
+                outputBlobTensorDesc.getLayout()));
         referenceOutputBlob->allocate();
 
         std::string referenceOutputFilePath = ModelsPath() + outputSuffix;
@@ -428,7 +428,7 @@ TEST_P(VpuInferWithPath, compareInferenceOutputWithReference) {
 }
 
 class VpuInferAndCompareTestsWithParam: public vpuLayersTests,
-                             public testing::WithParamInterface< std::tuple<bool, modelBlobsInfo> > {
+                                        public testing::WithParamInterface< std::tuple<bool, modelBlobsInfo> > {
 };
 
 TEST_P(VpuInferAndCompareTestsWithParam, multipleInferRequests) {
@@ -500,9 +500,9 @@ TEST_P(VpuInferAndCompareTestsWithParam, multipleInferRequests) {
 
             TensorDesc outputBlobTensorDesc = outputBlob->getTensorDesc();
             Blob::Ptr referenceOutputBlob = make_blob_with_precision(TensorDesc(
-                outputBlobTensorDesc.getPrecision(),
-                outputBlobTensorDesc.getDims(),
-                outputBlobTensorDesc.getLayout()));
+                    outputBlobTensorDesc.getPrecision(),
+                    outputBlobTensorDesc.getDims(),
+                    outputBlobTensorDesc.getLayout()));
             referenceOutputBlob->allocate();
 
             ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(referenceOutputFilePath, referenceOutputBlob));
@@ -564,8 +564,8 @@ TEST_P(VpuInferWithPath, asyncInferCallback) {
     const int MAX_WAIT = 60000;
     auto waitRoutine = [&completedRequests, MAX_WAIT, REQUEST_LIMIT](void)->void {
         std::chrono::system_clock::time_point endTime =
-            std::chrono::system_clock::now() +
-            std::chrono::milliseconds(MAX_WAIT);
+                std::chrono::system_clock::now() +
+                std::chrono::milliseconds(MAX_WAIT);
 
         while (completedRequests < REQUEST_LIMIT) {
             ASSERT_LE(std::chrono::system_clock::now(), endTime);
@@ -586,9 +586,9 @@ TEST_P(VpuInferWithPath, asyncInferCallback) {
 
             TensorDesc outputBlobTensorDesc = outputBlob->getTensorDesc();
             Blob::Ptr referenceOutputBlob = make_blob_with_precision(TensorDesc(
-                outputBlobTensorDesc.getPrecision(),
-                outputBlobTensorDesc.getDims(),
-                outputBlobTensorDesc.getLayout()));
+                    outputBlobTensorDesc.getPrecision(),
+                    outputBlobTensorDesc.getDims(),
+                    outputBlobTensorDesc.getLayout()));
             referenceOutputBlob->allocate();
 
             ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(referenceOutputFilePath, referenceOutputBlob));
@@ -657,9 +657,9 @@ TEST_P(VpuInferWithPath, asyncInferCallbackRecursive) {
 
         TensorDesc outputBlobTensorDesc = outputBlob->getTensorDesc();
         Blob::Ptr referenceOutputBlob = make_blob_with_precision(TensorDesc(
-            outputBlobTensorDesc.getPrecision(),
-            outputBlobTensorDesc.getDims(),
-            outputBlobTensorDesc.getLayout()));
+                outputBlobTensorDesc.getPrecision(),
+                outputBlobTensorDesc.getDims(),
+                outputBlobTensorDesc.getLayout()));
         referenceOutputBlob->allocate();
 
         ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(referenceOutputFilePath, referenceOutputBlob));
@@ -675,14 +675,14 @@ TEST_P(VpuInferWithPath, asyncInferCallbackRecursive) {
 }
 
 const static std::vector<bool> isSyncVec = {
-    false, true
+        false, true
 };
 
 INSTANTIATE_TEST_CASE_P(multipleInference, VpuInferAndCompareTestsWithParam,
-    ::testing::Combine(
-        ::testing::ValuesIn(isSyncVec),
-        ::testing::ValuesIn(pathToPreCompiledGraph)
-    )
+                        ::testing::Combine(
+                                ::testing::ValuesIn(isSyncVec),
+                                ::testing::ValuesIn(pathToPreCompiledGraph)
+                        )
 );
 
 TEST_P(VpuInferWithPath, compareSetBlobAndGetBlob) {
@@ -974,7 +974,7 @@ TEST_F(vpuInferWithSetUp, copyCheckSetBlob) {
 }
 
 INSTANTIATE_TEST_CASE_P(inferenceWithParameters, VpuInferWithPath,
-    ::testing::ValuesIn(pathToPreCompiledGraph)
+                        ::testing::ValuesIn(pathToPreCompiledGraph)
 );
 
 #endif

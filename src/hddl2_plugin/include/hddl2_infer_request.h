@@ -14,25 +14,26 @@
 // stated in the License.
 //
 
-#include <string>
-#include <ie_blob.h>
+#pragma once
 
-#include "allocators.hpp"
+#include <memory>
+#include <map>
+#include <string>
+
+#include <cpp_interfaces/impl/ie_infer_request_internal.hpp>
 
 namespace vpu {
+namespace HDDL2Plugin {
 
-namespace KmbPlugin {
+class HDDL2InferRequest : public InferenceEngine::InferRequestInternal {
+public:
+    HDDL2InferRequest(const InferenceEngine::InputsDataMap &networkInputs,
+                      const InferenceEngine::OutputsDataMap &networkOutputs);
 
-namespace utils {
+    void InferImpl() override;
+    void GetPerformanceCounts(
+            std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> &perfMap) const override;
+};
 
-void fromBinaryFile(std::string input_binary, InferenceEngine::Blob::Ptr blob);
-void readNV12FileHelper(const std::string &filePath, size_t expectedSize, uint8_t *imageData, size_t readOffset);
-InferenceEngine::Blob::Ptr fromNV12File(const std::string &filePath, size_t imageWidth, size_t imageHeight,
-                                        std::shared_ptr<VPUAllocator> &allocator);
-
-}  // namespace utils
-
-}  // namespace KmbPlugin
-
-}  // namespace vpu
-
+}  //  namespace HDDL2Plugin
+}  //  namespace vpu

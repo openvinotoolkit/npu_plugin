@@ -39,8 +39,8 @@ You could use such commands:
 
    ```bash
    cd $DLDT_HOME
-   mkdir -p $DLDT_HOME/inference-engine/build
-   cd $DLDT_HOME/inference-engine/build
+   mkdir -p $DLDT_HOME/build
+   cd $DLDT_HOME/build
    git submodule init
    git submodule update --recursive
    cmake -DENABLE_TESTS=ON -DENABLE_BEH_TESTS=ON -DENABLE_FUNCTIONAL_TESTS=ON -DENABLE_PLUGIN_RPATH=ON -DCMAKE_BUILD_TYPE=Debug ..
@@ -54,7 +54,7 @@ You could use such commands:
    git submodule update --init --recursive
    mkdir -p $KMB_PLUGIN_HOME/build
    cd $KMB_PLUGIN_HOME/build
-   cmake -DInferenceEngineDeveloperPackage_DIR=$DLDT_HOME/inference-engine/build ..
+   cmake -DInferenceEngineDeveloperPackage_DIR=$DLDT_HOME/build ..
    make -j8
    ```
 
@@ -62,7 +62,7 @@ You could use such commands:
    If you built Inference Engine with parameter "-DENABLE_PLUGIN_RPATH=ON" then go to command beginning with "export MCM_HOME..", otherwise enter these commands:
 
    ```bash
-   export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$DLDT_HOME/inference-engine/bin/intel64/Debug/lib
+   export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$DLDT_HOME/bin/intel64/Debug/lib
    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$DLDT_HOME/inference-engine/temp/opencv_4.1.0_ubuntu18/lib
    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$DLDT_HOME/inference-engine/temp/tbb/lib
    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$KMB_PLUGIN_HOME/thirdparty/vsi_cmodel/vpusmm/x86_64
@@ -70,7 +70,7 @@ You could use such commands:
 
    ```bash
    export MCM_HOME=$KMB_PLUGIN_HOME/thirdparty/movidius/mcmCompiler
-   cd $DLDT_HOME/inference-engine/bin/intel64/Debug/
+   cd $DLDT_HOME/bin/intel64/Debug/
    ./KmbBehaviorTests --gtest_filter=*Behavior*orrectLib*kmb*
    ./KmbFunctionalTests
    ```
@@ -107,12 +107,12 @@ wget -q http://nnt-srv01.inn.intel.com/dl_score_engine/thirdparty/linux/keembay/
 
 3. Configure and build inference engine:
 
-Run following command from temporary build folder (e.g. `dldt\inference-engine\build`):
+Run following command from temporary build folder (e.g. `dldt\build`):
 
 ```sh
 (\
-  mkdir -p ../dldt/inference-engine/build && \
-  cd ../dldt/inference-engine/build && \
+  mkdir -p ../dldt/build && \
+  cd ../dldt/build && \
   source /usr/local/oecore-x86_64/environment-setup-aarch64-ese-linux && \
   cmake -DENABLE_TESTS=ON .. && \
   cmake --build . --parallel $(nproc) \
@@ -171,3 +171,10 @@ export IE_VPU_KMB_MEMORY_ALLOCATOR_TYPE=NATIVE
  ```sh
 ./KmbFunctionalTests --gtest_filter=*compareInferenceOutputWithReference*/0*
  ```
+
+## Misc.
+
+`IE_VPU_KMB_DUMP_INPUT_PATH` environment variable can be used to dump input
+files for debugging purposes. This variable must contain path to any
+writable directory. All input blobs will be written to
+`$IE_VPU_KMB_DUMP_INPUT_PATH/input-dump%d.bin`

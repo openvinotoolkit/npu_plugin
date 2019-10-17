@@ -293,20 +293,9 @@ void KmbExecutor::queueInference(void *input_data, size_t input_bytes,
     }
 
 #ifdef ENABLE_VPUAL
-    auto pullFunc = [&]()->void {
-        _outTensorLen = 0;
-        _outTensorAddr = 0;
-        plgTensorOutput_->Pull(&_outTensorAddr, &_outTensorLen);
-    };
-
-    std::thread pullThread(pullFunc);
-    std::this_thread::sleep_for(std::chrono::milliseconds(10));
-
     auto physAddr = getKmbAllocator()->getPhysicalAddress(input_data);
     plgTensorInput_->Push(physAddr, input_bytes);
     _logger->info("Pushed input, size %d", input_bytes);
-
-    pullThread.join();
 #else
     UNUSED(input_data);
     UNUSED(input_bytes);
@@ -324,7 +313,7 @@ void KmbExecutor::getResult(void *result_data, unsigned int result_bytes) {
 #ifdef ENABLE_VPUAL
     uint32_t len = _outTensorLen;
     uint32_t pAddr = _outTensorAddr;
-    /* plgTensorOutput_->Pull(&pAddr, &len); */
+    plgTensorOutput_->Pull(&pAddr, &len);
 
     _logger->info("Output tensor returned of length: %d", len);
 

@@ -114,7 +114,6 @@ void vpuLayersTests::dumpPerformance()
                   return pair1.second.execution_index < pair2.second.execution_index;
               });
 
-    unsigned currentIndex = 0;
     for (auto it = perfVec.begin(); it != perfVec.end(); ++it) {
         std::string layerName = it->first;
         InferenceEngineProfileInfo info = it->second;
@@ -281,15 +280,12 @@ void vpuLayersTests::genXML(const std::string& layer_type,
     }
     std::swap(inputToReshape, _inputTensors);
 
-    size_t layerIndex = inoutIndex;
     if (doReshape) {
         genLayer("reshape", params, &inoutIndex, model, inputToReshape, _inputTensors);
         model += "        </layer>";
     }
     genLayer(layer_type, params, &inoutIndex, model, _inputTensors, _outputTensors);
-    size_t outPortIndex = inoutIndex - 1;
     genWeights(weights_size, biases_size, &inoutIndex, model);
-    size_t extraLayerIndex = inoutIndex;
     model += R"V0G0N(
     </layers>
     <edges>
@@ -436,8 +432,9 @@ void vpuLayersTests::doNetworkInit(const std::string& layer_type,
     genXML(layer_type, params, weights_size, biases_size, xml);
     ASSERT_NO_THROW(_net_reader.ReadNetwork(xml.data(), xml.length()));
     ASSERT_EQ(_net_reader.isParseSuccess(), true);
-    if (weights != nullptr)
+    if (weights != nullptr) {
         ASSERT_NO_THROW(_net_reader.SetWeights(weights));
+    }
     setup(outputPrecision, inputPrecision, useHWOpt);
 }
 
@@ -649,7 +646,7 @@ R"V0G0N(
 
     auto bgn = _testNet.begin();
     std::string& strt = input_dim_prefix;
-    for (int iter = 0; iter < bgn->inDim[0].size(); iter++) {
+    for (size_t iter = 0; iter < bgn->inDim[0].size(); iter++) {
         strt += std::string("<dim>_DIM_") + std::to_string(iter) + std::string("_</dim>\n");
     }
 
@@ -716,7 +713,6 @@ R"V0G0N(
     model += R"V0G0N(
     </layers>)V0G0N";
     model += edges;
-    StatusCode st;
     ASSERT_NO_THROW(_net_reader.ReadNetwork(model.data(), model.length()));
     ASSERT_TRUE(_net_reader.isParseSuccess());
     if (weights_ptr != nullptr) {

@@ -26,6 +26,11 @@ endif()
 
 function(addVpuTest TARGET_NAME PLUGIN_NAME)
     add_executable(${TARGET_NAME} ${TEST_INCLUDE} ${TEST_SRC})
+    target_compile_options(${TARGET_NAME}
+            PRIVATE
+            -Wall
+            -Werror
+            -Wno-unused-variable)
 
     if (INTEGRATION_TESTS_ENABLE_IE)
         add_definitions(-DINTEGRATION_TESTS_ENABLE_IE)

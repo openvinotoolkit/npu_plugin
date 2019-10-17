@@ -83,6 +83,11 @@ function(addVpuTest TARGET_NAME PLUGIN_NAME PLUGIN_TEST_FOLDER PLUGIN_MACRO_NAME
             ${VPU_TEST_DEPENDENCIES}
             ${PLUGIN_NAME})
 
+    target_compile_options(${TARGET_NAME}
+            PRIVATE
+            -Wall
+            -Werror)
+
     target_compile_definitions(${TARGET_NAME} PRIVATE
             ${PLUGIN_MACRO_NAME}=ON
             INSTANTIATE_TESTS=1)
@@ -107,5 +112,8 @@ function(addVpuTest TARGET_NAME PLUGIN_NAME PLUGIN_TEST_FOLDER PLUGIN_MACRO_NAME
     set_property(TEST ${TARGET_NAME} PROPERTY LABELS VPU ${PLUGIN_NAME})
 endfunction()
 
-
 addVpuTest(KmbFunctionalTests kmbPlugin kmb_tests USE_KMB)
+
+if (ENABLE_HDDL2)
+    add_subdirectory(hddl2_tests)
+endif()

@@ -77,6 +77,11 @@ if(ENABLE_TESTS)
         add_dependencies(${TARGET_NAME}_test_static mcmCompiler)
     endif()
 
+    target_compile_options(${TARGET_NAME}_test_static
+            PRIVATE
+            -Wall
+            -Werror)
+
     target_include_directories(${TARGET_NAME}_test_static
         PUBLIC
             "${CMAKE_CURRENT_SOURCE_DIR}"

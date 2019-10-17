@@ -46,6 +46,7 @@ protected:
     InferenceEngine::BlobMap _custom_inputs;
     InferenceEngine::BlobMap _custom_outputs;
     void checkBlobs();
+    void dumpInputBlobHelper(const InferenceEngine::Blob::Ptr& inputBlobPtr, const std::string& dst);
 
 public:
     typedef std::shared_ptr<KmbInferRequest> Ptr;

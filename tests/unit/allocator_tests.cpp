@@ -77,7 +77,7 @@ TEST_F(kmbAllocatorUnitTests, canWriteAndReadAllocatedMemory) {
 
     std::vector<char> actual(size);
     std::memcpy(actual.data(), data, size);
-    ASSERT_TRUE(std::count(actual.begin(), actual.end(), MAGIC_NUMBER) == size);
+    ASSERT_TRUE(static_cast<size_t>(std::count(actual.begin(), actual.end(), MAGIC_NUMBER)) == size);
 }
 
 TEST_F(kmbAllocatorUnitTests, cannotFreeInvalidAddressMemory) {

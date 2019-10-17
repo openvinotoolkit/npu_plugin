@@ -14,18 +14,32 @@
 # stated in the License.
 #
 
-set(TARGET_NAME KmbUnitTests)
+set(TARGET_NAME "HDDL2Plugin")
 
-file(GLOB TEST_SOURCES
-        ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
+file(GLOB_RECURSE SOURCES *.cpp *.hpp *.h)
 
-add_executable(${TARGET_NAME} ${TEST_SOURCES})
+ie_add_plugin(NAME ${TARGET_NAME}
+        SOURCES ${SOURCES}
+        VERSION_DEFINES_FOR src/hddl2_plugin.cpp
+        DEVICE_NAME HDDL2)
 
 target_compile_options(${TARGET_NAME}
         PRIVATE
         -Wall
+        -Wextra
         -Werror)
 
-target_link_libraries(${TARGET_NAME} PRIVATE IE::gtest IE::gtest_main kmbPlugin_test_static)
+ie_register_plugins(MAIN_TARGET ${TARGET_NAME}
+        POSSIBLE_PLUGINS ${TARGET_NAME})
 
-add_test(NAME ${TARGET_NAME} COMMAND ${TARGET_NAME})
+target_include_directories(${TARGET_NAME}
+        PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}/include"
+        SYSTEM PRIVATE
+        "${IE_MAIN_SOURCE_DIR}/include"
+        )
+
+target_link_libraries(${TARGET_NAME}
+        PRIVATE
+        IE::inference_engine
+        )
