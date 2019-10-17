@@ -103,8 +103,14 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             if (opIt->hasAttr("postOpType"))
             {
                 if ((opIt->get<std::string>("postOpType") == "Relu") || (opIt->get<std::string>("postOpType") == "LeakyRelu"))
+                {
                     ppeType = "LRELU";
                     leakyAlpha = opIt->get<double>("alpha");
+                }
+                else if (opIt->get<std::string>("postOpType") == "Sigmoid")
+                {
+                    ppeType = "SIGMOID";
+                }
             }
 
 

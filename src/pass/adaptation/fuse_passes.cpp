@@ -7,6 +7,7 @@
 static void fuseBatchNormFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void fuseBiasFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void fuseReluFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+static void fuseSigmoidFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void fuseScaleFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 
 namespace mv
@@ -39,6 +40,13 @@ namespace mv
         .setDescription(
             "Fuses a relu op to the parent op."
             "Relu op is removed from the model, and a new attribute of type OpType and value relu is defined for parent Op."
+        );
+
+        MV_REGISTER_PASS(FuseSigmoid)
+        .setFunc(fuseSigmoidFcn)
+        .setDescription(
+            "Fuses a sigmoid op to the parent op."
+            "Sigmoid op is removed from the model, and a new attribute of type OpType and value sigmoid is defined for parent Op."
         );
 
         MV_REGISTER_PASS(FuseScale)
@@ -191,6 +199,36 @@ void fuseScaleFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, 
 
         }
 
+    }
+
+}
+
+void fuseSigmoidFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+{
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
+    using namespace mv;
+    OpModel om(model);
+
+    for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt)
+    {
+        if (opIt->getOpType() == "Sigmoid")
+        {
+            auto sigmoidOutputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
+            pass.log(Logger::MessageType::Debug, "Found Sigmoid op " + opIt->getName());
+
+            auto parentOpIt = om.getSourceOp(opIt->getInputTensor(0));
+            parentOpIt->set<std::string>("postOpType", "Sigmoid");
+
+            pass.log(Logger::MessageType::Info, "Fused Sigmoid op " + opIt->getName() + " into " + parentOpIt->getName());
+
+            auto sourceTensor = parentOpIt->getOutputTensor(0);
+
+            opIt = linkNewOperationsFuse(parentOpIt, sourceTensor, om, opIt);
+            if (sigmoidOutputMemoryLocation.isForced())
+            {
+                opIt->getOutputTensor(0)->set<mv::Tensor::MemoryLocation>("Location", sigmoidOutputMemoryLocation);
+            }
+        }
     }
 
 }
