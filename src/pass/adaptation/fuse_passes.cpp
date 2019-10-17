@@ -4,59 +4,89 @@
 #include "include/mcm/tensor/math.hpp"
 #include "include/mcm/utils/custom_strings.hpp"
 
-static void fuseBatchNormFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
-static void fuseBiasFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
-static void fuseReluFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
-static void fuseSigmoidFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
-static void fuseScaleFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+static void fuseBiasFcn(mv::Data::OpListIterator &opIt, mv::DataModel dm, mv::OpModel om);
+static void fuseReluFcn(mv::Data::OpListIterator &opIt, mv::OpModel om);
+static void fuseLeakyReluFcn(mv::Data::OpListIterator &opIt, mv::OpModel om);
+static void fuseSigmoidFcn(mv::Data::OpListIterator &opIt, mv::OpModel om);
+static void fuseScaleFcn(mv::Data::OpListIterator &opIt, mv::DataModel dm, mv::OpModel om);
+static void fuseSigmoidFcn(mv::Data::OpListIterator &opIt, mv::OpModel om);
+static void fuseBatchNormFcn(mv::Data::OpListIterator &opIt, mv::OpModel om);
+static void fusePostOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+
 
 namespace mv
 {
-
     namespace pass
     {
 
-        MV_REGISTER_PASS(FuseBatchNorm)
-        .setFunc(fuseBatchNormFcn)
+        MV_REGISTER_PASS(FusePostOps)
+        .setFunc(fusePostOpsFcn)
         .setDescription(
-            "Replaces a batchnorm op with eltwise ops or their 1d equivalents. "
-            "Following cases are handled:\n"
-            " - batchnorm parameters tensors are n-dimensional - the replacement is a chain of multiply and add (eltwise)\n"
-            " - batchnorm parameters tensors are 1-dimensional and parent op is not of type conv2d - the replacement is chain of scale and bias\n"
-            " - batchnorm parameters tensors are 1-dimensional and parent op is of type conv2d - the replacement is a bias and weights of conv2d are modified]\n"
+            "Fuses all the ops that will be converted to PPE Tasks and can be handled through hardware. "
+            "Scale, Batch Norm from My-X\n"
         );
+    }
+}
 
-        MV_REGISTER_PASS(FuseBias)
-        .setFunc(fuseBiasFcn)
-        .setDescription(
-            "Fuses a bias op to the parent op if this op is of type conv2d. "
-            "Bias op is removed from the model, the biases tensor "
-            " (second input of bias op) is appended to parent op as an attribute "
-            " of type double vector of name 'bias'."
-        );
+void fusePostOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+{
+    using namespace mv;
 
-        MV_REGISTER_PASS(FuseRelu)
-        .setFunc(fuseReluFcn)
-        .setDescription(
-            "Fuses a relu op to the parent op."
-            "Relu op is removed from the model, and a new attribute of type OpType and value relu is defined for parent Op."
-        );
+    OpModel om(model);
+    DataModel dm(model);
+    unsigned bias_nodes = 0, sigmoid_nodes = 0, relu_nodes = 0, leakyRelu_nodes = 0;
+    for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt)
+    {
+        if (opIt->getOpType() == "Bias")
+            bias_nodes++;
+        else if (opIt->getOpType() == "Sigmoid")
+            sigmoid_nodes++;
+        else if (opIt->getOpType() == "Relu")
+            relu_nodes++;
+        else if (opIt->getOpType() == "LeakyRelu")
+            leakyRelu_nodes++;
+    }
 
-        MV_REGISTER_PASS(FuseSigmoid)
-        .setFunc(fuseSigmoidFcn)
-        .setDescription(
-            "Fuses a sigmoid op to the parent op."
-            "Sigmoid op is removed from the model, and a new attribute of type OpType and value sigmoid is defined for parent Op."
-        );
-
-        MV_REGISTER_PASS(FuseScale)
-        .setFunc(fuseScaleFcn)
-        .setDescription(
-            "Fuses a scale op to the parent op is this op is of type conv2d. Scale op is removed from the model and conv2d weights are rescaled. "
-            "If the conv2d has a 'bias' attribute of type double vector it is rescaled as well. In this case the length of scale op parameters tensor and 'bias' attribute "
-            "has to match."
-        );
-
+    auto opIt = om.getInput();
+    while (bias_nodes > 0 || sigmoid_nodes > 0 || relu_nodes > 0 || leakyRelu_nodes > 0)
+    {
+        if (opIt->getOpType() == "Bias")
+        {
+            pass.log(Logger::MessageType::Debug, "Found Bias op " + opIt->getName());
+            fuseBiasFcn(opIt, dm, om);
+            bias_nodes--;
+        }
+        //REMAIN MY-X NOT POSTOP
+//        else if (opIt->getOpType() == "Scale")
+//        {
+//            pass.log(Logger::MessageType::Debug, "Found Scale op " + opIt->getName());
+//            fuseScaleFcn(opIt, dm, om);
+//        }
+        else if (opIt->getOpType() == "Sigmoid")
+        {
+            pass.log(Logger::MessageType::Debug, "Found Sigmoid op " + opIt->getName());
+            fuseSigmoidFcn(opIt, om);
+            sigmoid_nodes--;
+        }
+        else if (opIt->getOpType() == "Relu")
+        {
+            pass.log(Logger::MessageType::Debug, "Found Relu op " + opIt->getName());
+            fuseReluFcn(opIt, om);
+            relu_nodes--;
+        }
+        else if (opIt->getOpType() == "LeakyRelu")
+        {
+            pass.log(Logger::MessageType::Debug, "Found Leaky Relu op " + opIt->getName());
+            fuseLeakyReluFcn(opIt, om);
+            leakyRelu_nodes--;
+        }
+        //REMAIN MY-X NOT POSTOP
+//        else if (opIt->getOpType() == "BatchNormalization")
+//        {
+//            pass.log(Logger::MessageType::Debug, "Found Batch Norm op " + opIt->getName());
+//            fuseBatchNormFcn(opIt, om);
+//        }
+        ++opIt;
     }
 
 }
@@ -91,275 +121,136 @@ mv::Data::OpListIterator linkNewOperationsFuse(mv::Data::OpListIterator parentOp
     return opIt;
 }
 
-void fuseBiasFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+void fuseBiasFcn(mv::Data::OpListIterator &opIt, mv::DataModel dm, mv::OpModel om)
 {
-    
-    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
-    using namespace mv;
-
-    OpModel om(model);
-    DataModel dm(model);
-
-    for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt)
+    auto parentOpIt = om.getSourceOp(opIt->getInputTensor(0));
+    if (parentOpIt->getOpType() == "Conv" ||
+        parentOpIt->getOpType() == "FullyConnected" ||
+        parentOpIt->getOpType() == "DepthwiseConv")
     {
-
-        if (opIt->getOpType() == "Bias")
-        {            
-            pass.log(Logger::MessageType::Debug, "Found Bias op " + opIt->getName());
-
-            auto parentOpIt = om.getSourceOp(opIt->getInputTensor(0));
-            
-            if (parentOpIt->getOpType() == "Conv" ||
-                parentOpIt->getOpType() == "FullyConnected" ||
-                parentOpIt->getOpType() == "DepthwiseConv")
-            {
-
-                auto bias = *opIt->getInputTensor(1);
-                auto biasOutputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
-
-                if (parentOpIt->hasAttr("bias"))
-                {
-                    auto biasTensor = dm.getTensor(parentOpIt->get<std::string>("bias"));
-                    biasTensor->add(bias);
-                    pass.log(Logger::MessageType::Info, "Accumulatively fused bias op " + opIt->getName() + " into " + parentOpIt->getName());
-                }
-                else
-                {
-                    std::string biasTensorName = mv::createBiasName(parentOpIt->getName());
-                    mv::Data::TensorIterator biasTensor;
-
-                    if (bias.hasAttr("quantParams"))
-                        biasTensor = dm.defineTensor(mv::Tensor(biasTensorName, bias.getShape(), bias.getDType(), bias.getOrder(), bias.getData(), bias.get<mv::QuantizationParams>("quantParams")) );
-                    else
-                        biasTensor = dm.defineTensor(mv::Tensor(biasTensorName, bias.getShape(), bias.getDType(), bias.getOrder(), bias.getData()) );
-
-
-                    om.addAttr(parentOpIt, "bias", biasTensor->getName());
-                    pass.log(Logger::MessageType::Info, "Fused bias op " + opIt->getName() + " into " + parentOpIt->getName());
-                }
-
-                auto sourceTensor = parentOpIt->getOutputTensor(0);
-
-                opIt = linkNewOperationsFuse(parentOpIt, sourceTensor, om, opIt);
-                if (biasOutputMemoryLocation.isForced())
-                {
-                    opIt->getOutputTensor(0)->set<mv::Tensor::MemoryLocation>("Location", biasOutputMemoryLocation);
-                }
-            }
-
-        }
-
-    }
-
-}
-
-void fuseScaleFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
-{
-
-    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
-    using namespace mv;
-    OpModel om(model);
-    DataModel dm(model);
-
-    for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt)
-    {
-
-        if (opIt->getOpType() == "Scale")
-        {            
-            pass.log(Logger::MessageType::Debug, "Found Scale op " + opIt->getName());
-
-            auto parentOpIt = om.getSourceOp(opIt->getInputTensor(0));
-            auto scaleOutputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
-
-            if (parentOpIt->getOpType() == "Conv")
-            {
-
-                auto scale = *opIt->getInputTensor(1);
-                parentOpIt->getInputTensor(1)->multiply(scale);
-
-                pass.log(Logger::MessageType::Info, "Fused scale op " + opIt->getName() + " into " + parentOpIt->getName());
-
-                if (parentOpIt->hasAttr("bias"))
-                {
-                    auto biasTensor = dm.getTensor(parentOpIt->get<std::string>("bias"));
-                    biasTensor->multiply(scale);
-                    pass.log(Logger::MessageType::Info, "Fused scale op " + opIt->getName() + " into " + 
-                        parentOpIt->getName() + " bias attribute");
-
-                }
-
-                auto sourceTensor = parentOpIt->getOutputTensor(0);
-
-                opIt = linkNewOperationsFuse(parentOpIt, sourceTensor, om, opIt);
-                if (scaleOutputMemoryLocation.isForced())
-                {
-                    opIt->getOutputTensor(0)->set<mv::Tensor::MemoryLocation>("Location", scaleOutputMemoryLocation);
-                }
-            }
-
-        }
-
-    }
-
-}
-
-void fuseSigmoidFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
-{
-    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
-    using namespace mv;
-    OpModel om(model);
-
-    for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt)
-    {
-        if (opIt->getOpType() == "Sigmoid")
+        auto bias = *opIt->getInputTensor(1);
+        auto biasOutputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
+        if (parentOpIt->hasAttr("bias"))
         {
-            auto sigmoidOutputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
-            pass.log(Logger::MessageType::Debug, "Found Sigmoid op " + opIt->getName());
-
-            auto parentOpIt = om.getSourceOp(opIt->getInputTensor(0));
-            parentOpIt->set<std::string>("postOpType", "Sigmoid");
-
-            pass.log(Logger::MessageType::Info, "Fused Sigmoid op " + opIt->getName() + " into " + parentOpIt->getName());
-
-            auto sourceTensor = parentOpIt->getOutputTensor(0);
-
-            opIt = linkNewOperationsFuse(parentOpIt, sourceTensor, om, opIt);
-            if (sigmoidOutputMemoryLocation.isForced())
-            {
-                opIt->getOutputTensor(0)->set<mv::Tensor::MemoryLocation>("Location", sigmoidOutputMemoryLocation);
-            }
+            auto biasTensor = dm.getTensor(parentOpIt->get<std::string>("bias"));
+            biasTensor->add(bias);
         }
-    }
-
-}
-
-void fuseReluFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
-{
-
-    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
-    using namespace mv;
-    OpModel om(model);
-
-    for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt)
-    {
-        if (opIt->getOpType() == "Relu")
+        else
         {
-            auto reluOutputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
-            pass.log(Logger::MessageType::Debug, "Found ReLU op " + opIt->getName());
-
-            auto parentOpIt = om.getSourceOp(opIt->getInputTensor(0));
-            parentOpIt->set<std::string>("postOpType", "Relu");
-
-            pass.log(Logger::MessageType::Info, "Fused ReLU op " + opIt->getName() + " into " + parentOpIt->getName());
-
-            auto sourceTensor = parentOpIt->getOutputTensor(0);
-
-            opIt = linkNewOperationsFuse(parentOpIt, sourceTensor, om, opIt);
-            if (reluOutputMemoryLocation.isForced())
-            {
-                opIt->getOutputTensor(0)->set<mv::Tensor::MemoryLocation>("Location", reluOutputMemoryLocation);
-            }
-        }
-        else if (opIt->getOpType() == "LeakyRelu")
-        {
-            auto reluOutputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
-            pass.log(Logger::MessageType::Debug, "Found PReLU op " + opIt->getName());
-
-            auto parentOpIt = om.getSourceOp(opIt->getInputTensor(0));
-            parentOpIt->set<std::string>("postOpType", "LeakyRelu");
-            parentOpIt->set<double>("alpha", opIt->get<double>("alpha"));
-
-            pass.log(Logger::MessageType::Info, "Fused Leaky Relu op " + opIt->getName() + " into " + parentOpIt->getName());
-
-            auto sourceTensor = parentOpIt->getOutputTensor(0);
-
-            opIt = linkNewOperationsFuse(parentOpIt, sourceTensor, om, opIt);
-            if (reluOutputMemoryLocation.isForced())
-            {
-                opIt->getOutputTensor(0)->set<mv::Tensor::MemoryLocation>("Location", reluOutputMemoryLocation);
-            }
-        }
-
-    }
-
-}
-
-void fuseBatchNormFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
-{
-
-    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
-    using namespace mv;
-    OpModel om(model);
-
-    for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt)
-    {
-
-        if (opIt->getOpType() == "BatchNormalization")
-        {
-            pass.log(Logger::MessageType::Debug, "Found BatchNorm op " + opIt->getName());
-            auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
-
-            auto batchNormName = opIt->getName();
-            auto parentOpIt = om.getSourceOp(opIt->getInputTensor(0));
-
-            auto bnMean = *opIt->getInputTensor(1);
-            auto bnVar = *opIt->getInputTensor(2);
-            auto bnOffset = *opIt->getInputTensor(3);
-            auto bnScale = *opIt->getInputTensor(4);
-            double bnEps = opIt->get<double>("eps");
-
-            auto scaleParam = math::divide(bnScale, math::sqrt(math::add(bnVar, bnEps)));
-            auto offsetParam = math::subtract(bnOffset, math::multiply(bnMean, scaleParam));
-            auto offset = om.constantDataElement(offsetParam.getData(), offsetParam.getShape(), offsetParam.getDType(),
-                offsetParam.getOrder(),{{},{},{},{}}, batchNormName + "_offset");
-
-            Data::TensorIterator sourceTensor;
-
-            if (bnMean.getShape().ndims() == 1)
-            {
-                if (parentOpIt->getOpType() == "Conv")
-                {
-                    parentOpIt->getInputTensor(1)->multiply(scaleParam);
-                    sourceTensor = parentOpIt->getOutputTensor(0);
-                    pass.log(Logger::MessageType::Info, "Fused multiplicative term of BatchNorm op " + opIt->getName() + 
-                        " into " + parentOpIt->getName());
-                }
-                else
-                {
-                    auto scale = om.constantDataElement(scaleParam.getData(), scaleParam.getShape(), scaleParam.getDType(), scaleParam.getOrder());
-
-                    sourceTensor = om.scale(opIt->getInputTensor(0), scale);
-                    parentOpIt = om.getSourceOp(sourceTensor);
-                    pass.log(Logger::MessageType::Info, "Replaced multiplicative term of BatchNorm op " + opIt->getName() + 
-                        " with " + parentOpIt->getName());
-                }
-            }
+            std::string biasTensorName = mv::createBiasName(parentOpIt->getName());
+            mv::Data::TensorIterator biasTensor;
+            if (bias.hasAttr("quantParams"))
+                biasTensor = dm.defineTensor(mv::Tensor(biasTensorName, bias.getShape(), bias.getDType(), bias.getOrder(), bias.getData(), bias.get<mv::QuantizationParams>("quantParams")) );
             else
-            {
-                auto scale = om.constantDataElement(scaleParam.getData(), scaleParam.getShape(), scaleParam.getDType(), scaleParam.getOrder());
-
-                sourceTensor = om.multiply({opIt->getInputTensor(0), scale});
-                parentOpIt = om.getSourceOp(sourceTensor);
-                pass.log(Logger::MessageType::Info, "Replaced multiplicative term of BatchNorm op " + opIt->getName() + 
-                    " with " + parentOpIt->getName());
-
-            }
-
-            if (offsetParam.getShape().ndims() == 1)
-                sourceTensor = om.bias(sourceTensor, offset);  
-
-            else
-                sourceTensor = om.add({sourceTensor, offset});
-            pass.log(Logger::MessageType::Info, "Replaced additive term of BatchNorm op " + opIt->getName() + 
-                " with " + om.getSourceOp(sourceTensor)->getName());
-
-            opIt = linkNewOperationsFuse(parentOpIt, sourceTensor, om, opIt);
-            if (outputMemoryLocation.isForced())
-            {
-                opIt->getOutputTensor(0)->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
-            }
+                biasTensor = dm.defineTensor(mv::Tensor(biasTensorName, bias.getShape(), bias.getDType(), bias.getOrder(), bias.getData()) );
+            om.addAttr(parentOpIt, "bias", biasTensor->getName());
         }
+        auto sourceTensor = parentOpIt->getOutputTensor(0);
+        opIt = linkNewOperationsFuse(parentOpIt, sourceTensor, om, opIt);
+        if (biasOutputMemoryLocation.isForced())
+        {
+            opIt->getOutputTensor(0)->set<mv::Tensor::MemoryLocation>("Location", biasOutputMemoryLocation);
+        }
+    }
+}
 
+void fuseScaleFcn(mv::Data::OpListIterator &opIt, mv::DataModel dm, mv::OpModel om)
+{
+    auto parentOpIt = om.getSourceOp(opIt->getInputTensor(0));
+    auto scaleOutputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
+    if (parentOpIt->getOpType() == "Conv")
+    {
+        auto scale = *opIt->getInputTensor(1);
+        parentOpIt->getInputTensor(1)->multiply(scale);
+        if (parentOpIt->hasAttr("bias"))
+        {
+            auto biasTensor = dm.getTensor(parentOpIt->get<std::string>("bias"));
+            biasTensor->multiply(scale);
+        }
+        auto sourceTensor = parentOpIt->getOutputTensor(0);
+        opIt = linkNewOperationsFuse(parentOpIt, sourceTensor, om, opIt);
+        if (scaleOutputMemoryLocation.isForced())
+            opIt->getOutputTensor(0)->set<mv::Tensor::MemoryLocation>("Location", scaleOutputMemoryLocation);
+    }
+}
+
+void fuseSigmoidFcn(mv::Data::OpListIterator &opIt, mv::OpModel om)
+{
+    auto sigmoidOutputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
+    auto parentOpIt = om.getSourceOp(opIt->getInputTensor(0));
+    parentOpIt->set<std::string>("postOpType", "Sigmoid");
+    auto sourceTensor = parentOpIt->getOutputTensor(0);
+    opIt = linkNewOperationsFuse(parentOpIt, sourceTensor, om, opIt);
+    if (sigmoidOutputMemoryLocation.isForced())
+        opIt->getOutputTensor(0)->set<mv::Tensor::MemoryLocation>("Location", sigmoidOutputMemoryLocation);
+}
+
+void fuseReluFcn(mv::Data::OpListIterator &opIt, mv::OpModel om)
+{
+    auto reluOutputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
+    auto parentOpIt = om.getSourceOp(opIt->getInputTensor(0));
+    parentOpIt->set<std::string>("postOpType", "Relu");
+    auto sourceTensor = parentOpIt->getOutputTensor(0);
+    opIt = linkNewOperationsFuse(parentOpIt, sourceTensor, om, opIt);
+    if (reluOutputMemoryLocation.isForced())
+        opIt->getOutputTensor(0)->set<mv::Tensor::MemoryLocation>("Location", reluOutputMemoryLocation);
+}
+
+void fuseLeakyReluFcn(mv::Data::OpListIterator &opIt, mv::OpModel om)
+{
+    auto reluOutputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
+    auto parentOpIt = om.getSourceOp(opIt->getInputTensor(0));
+    parentOpIt->set<std::string>("postOpType", "LeakyRelu");
+    parentOpIt->set<double>("alpha", opIt->get<double>("alpha"));
+    auto sourceTensor = parentOpIt->getOutputTensor(0);
+    opIt = linkNewOperationsFuse(parentOpIt, sourceTensor, om, opIt);
+    if (reluOutputMemoryLocation.isForced())
+        opIt->getOutputTensor(0)->set<mv::Tensor::MemoryLocation>("Location", reluOutputMemoryLocation);
+}
+
+void fuseBatchNormFcn(mv::Data::OpListIterator &opIt, mv::OpModel om)
+{
+    auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
+    auto batchNormName = opIt->getName();
+    auto parentOpIt = om.getSourceOp(opIt->getInputTensor(0));
+    auto bnMean = *opIt->getInputTensor(1);
+    auto bnVar = *opIt->getInputTensor(2);
+    auto bnOffset = *opIt->getInputTensor(3);
+    auto bnScale = *opIt->getInputTensor(4);
+    double bnEps = opIt->get<double>("eps");
+    auto scaleParam = mv::math::divide(bnScale, mv::math::sqrt(mv::math::add(bnVar, bnEps)));
+    auto offsetParam = mv::math::subtract(bnOffset, mv::math::multiply(bnMean, scaleParam));
+    auto offset = om.constantDataElement(offsetParam.getData(), offsetParam.getShape(), offsetParam.getDType(),
+        offsetParam.getOrder(),{{},{},{},{}}, batchNormName + "_offset");
+
+    mv::Data::TensorIterator sourceTensor;
+
+    if (bnMean.getShape().ndims() == 1)
+    {
+        if (parentOpIt->getOpType() == "Conv")
+        {
+            parentOpIt->getInputTensor(1)->multiply(scaleParam);
+            sourceTensor = parentOpIt->getOutputTensor(0);
+        }
+        else
+        {
+            auto scale = om.constantDataElement(scaleParam.getData(), scaleParam.getShape(), scaleParam.getDType(), scaleParam.getOrder());
+            sourceTensor = om.scale(opIt->getInputTensor(0), scale);
+            parentOpIt = om.getSourceOp(sourceTensor);
+        }
+    }
+    else
+    {
+        auto scale = om.constantDataElement(scaleParam.getData(), scaleParam.getShape(), scaleParam.getDType(), scaleParam.getOrder());
+        sourceTensor = om.multiply({opIt->getInputTensor(0), scale});
+        parentOpIt = om.getSourceOp(sourceTensor);
     }
 
+    if (offsetParam.getShape().ndims() == 1)
+        sourceTensor = om.bias(sourceTensor, offset);
+    else
+        sourceTensor = om.add({sourceTensor, offset});
+    opIt = linkNewOperationsFuse(parentOpIt, sourceTensor, om, opIt);
+    if (outputMemoryLocation.isForced())
+        opIt->getOutputTensor(0)->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
 }
