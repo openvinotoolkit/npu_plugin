@@ -74,6 +74,7 @@ namespace
         void SetUp() override;
     };
 
+#ifdef ENABLE_MCM_COMPILER
     std::string VpuNoRegressionWithCompilation::getTestCaseName(
             TestParamInfo <CompilationTestParam::ParamType> param) {
         return std::string("Main_") +
@@ -88,6 +89,7 @@ namespace
 
         PluginCache::get().reset();
     }
+#endif
 
     inline std::string VpuNoRegressionWithCompilation::getPluginName() const {
         return pluginName;
