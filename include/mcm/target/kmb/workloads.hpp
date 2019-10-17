@@ -19,9 +19,9 @@
 
 namespace mv
 {
-    /** 
-    * @brief Cost Function types to be used when evaluating execution cycles of a workload 
-    */ 
+    /**
+    * @brief Cost Function types to be used when evaluating execution cycles of a workload
+    */
     enum class CostFunctions
     {
         Balanced,
@@ -48,7 +48,7 @@ namespace mv
      *         |    |     |    |
      *    12   15---16----17---18
      */
-  
+
     struct point
     {
         int16_t x = 0;
@@ -73,7 +73,6 @@ namespace mv
 
     public:
         Workloads(const std::string& name, const mv::Shape& tensorShape);
-        Workloads(const std::string& name, const mv::Shape& tensorShape, mv::DPUMode& mpeMode);
         ~Workloads();
 
         int partitionTensorWithRectangleHeuristic(const mv::DPUModeList& modes,
@@ -83,21 +82,21 @@ namespace mv
                                                             bool         split_symmetric,
                                                   const mv::WorkloadSplitMode& split_mode,
                                                   const mv::pass::PassEntry& pass);
-                                                  
+
         int partitionTensorWithZsplit(const mv::DPUModeList& modes, size_t nWorkloads, const mv::pass::PassEntry& pass);
-        
-        void populateWorkloadsFromPartitions(size_t nWorkloads, 
-                                            const mv::pass::PassEntry& pass, 
+
+        void populateWorkloadsFromPartitions(size_t nWorkloads,
+                                            const mv::pass::PassEntry& pass,
                                             mv::DPUMode& mpeMode);
 
-        std::vector<mv::Workload> polygonWorkloadSplit(const mv::pass::PassEntry& pass, 
-                                                        mv::Workload& workload, 
-                                                        std::vector<mv::Workload>& workloads, 
+        std::vector<mv::Workload> polygonWorkloadSplit(const mv::pass::PassEntry& pass,
+                                                        mv::Workload& workload,
+                                                        std::vector<mv::Workload>& workloads,
                                                         mv::DPUMode& mpeMode);
-        
-        std::vector<mv::Workload> workloadSplitHelper(const mv::pass::PassEntry& pass, 
-                                                        mv::Workload& workload, 
-                                                        std::pair<std::pair<int16_t, int16_t>,bool>& interesting_point, 
+
+        std::vector<mv::Workload> workloadSplitHelper(const mv::pass::PassEntry& pass,
+                                                        mv::Workload& workload,
+                                                        std::pair<std::pair<int16_t, int16_t>,bool>& interesting_point,
                                                         mv::DPUMode& mpeMode);
 
         void add_xy_offset(std::vector<std::size_t>& offset);

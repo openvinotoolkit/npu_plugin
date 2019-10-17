@@ -193,12 +193,11 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                 else
                     nWorkloadsSplitPool = mv::Workloads::getWorkloadSplitPool(subTensor, nDPUxCluster, dpuModes, 50);
 
-                // TODO: Needs fixes
                 if(mixedPrecisionA0B0WorkAround)
                 {
-//                    nWorkloadsSplitPool.clear();
-//                    nWorkloadsSplitPool.push_back(subTensorShape[0]*subTensorShape[1]);
-//                    algorithms = {"Rectangle"};
+                    nWorkloadsSplitPool.clear();
+                    nWorkloadsSplitPool.push_back(subTensorShape[0]*subTensorShape[1]);
+                    algorithms = {"MixedPrecisionA0B0WorkAround"};
                 }
 
                 /*if Deptwise operation and SOH trategy, for A0 bug then add these number of worklaods to workload split pool*/
@@ -219,6 +218,26 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                     /*For each of the algorithms specified*/
                     for (std::string algorithm : algorithms)
                     {
+                        if(algorithm == "MixedPrecisionA0B0WorkAround")
+                        {
+                            workloadsVector.emplace_back(mv::Workloads(opIt->getName(), subTensorShape));
+                            auto& workloads = workloadsVector[workloadsVectorIndex];
+                            for(unsigned w = 0; w < subTensorShape[0]; ++w)
+                            {
+                                for(unsigned h = 0; h < subTensorShape[1]; ++h)
+                                {
+                                    mv::Workload toAdd;
+                                    toAdd.MinX = w;
+                                    toAdd.MaxX = w + 1;
+                                    toAdd.MinY = h;
+                                    toAdd.MaxY = h + 1;
+                                    toAdd.MPEMode = mv::MPE_Mode::Vector_FP16;
+                                    workloads.addWorkload(toAdd);
+                                }
+                            }
+                            workloadsVectorIndex++;
+
+                        }
                         if ((algorithm == "Rectangle") && ((!depthWiseSOHA0Workaround) || nWorkloads > 1))
                         {
                             /*Create workload instance*/
