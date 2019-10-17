@@ -178,3 +178,8 @@ export IE_VPU_KMB_MEMORY_ALLOCATOR_TYPE=NATIVE
 files for debugging purposes. This variable must contain path to any
 writable directory. All input blobs will be written to
 `$IE_VPU_KMB_DUMP_INPUT_PATH/input-dump%d.bin`
+
+`SIPP_FIRST_SHAVE` environment variable can be used to specify the first shave
+to be used for SIPP preprocessing. This variable must contain a positive
+integer from 0 to 12. The number of shaves is 16, maximal number of pipelines
+is 2, maximal number of shaves per pipeline is 2, which makes 16 - 2 * 2 = 12
