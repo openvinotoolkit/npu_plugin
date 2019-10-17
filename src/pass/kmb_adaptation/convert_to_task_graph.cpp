@@ -345,6 +345,7 @@ void convertOpsToUPATasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& 
             auto input = opIt->getInputTensor(0);
             auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
             unsigned opId = opIt->get<unsigned>("opId");
+            auto dtype = opIt->get<mv::DType>("dType");
             auto splitStrategy = opIt->get<std::string>("splitStrategy");
 
             auto axis = opIt->get<std::string>("axis");
@@ -353,7 +354,7 @@ void convertOpsToUPATasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& 
             auto outputControlFlows = mv::getOutputControlFlow(cm, cm.switchContext(opIt));
             auto outputDataFlows = mv::getOutputDataFlow(om, opIt);
 
-            mv::Data::TensorIterator upaTask = om.uPATaskSoftmax({input}, axis);
+            mv::Data::TensorIterator upaTask = om.uPATaskSoftmax({input}, axis, dtype);
 
             auto upaTaskOp = om.getSourceOp(upaTask);
             upaTaskOp->set<unsigned>("opId", opId);
@@ -388,6 +389,7 @@ void convertOpsToUPATasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& 
 
             auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
             unsigned opId = opIt->get<unsigned>("opId");
+            auto dtype = opIt->get<mv::DType>("dType");
 
             // Required params
             auto base_size = opIt->get<unsigned>("base_size");
@@ -413,7 +415,7 @@ void convertOpsToUPATasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& 
 
             mv::Data::TensorIterator upaProposal = om.uPATaskProposal(inputs, base_size, pre_nms_topn, post_nms_topn, nms_thresh, feat_stride, min_size,
                                                                       pre_nms_thresh, clip_before_nms, clip_after_nms, normalize, box_size_scale, box_coordinate_scale, framework, for_deformable,
-                                                                      mv::DType("Default"), quantParams);
+                                                                      dtype, quantParams);
 
             auto upaProposalOp = om.getSourceOp(upaProposal);
             upaProposalOp->set<std::string>("splitStrategy", splitStrategy);
@@ -459,6 +461,7 @@ void convertOpsToUPATasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& 
 
             auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
             unsigned opId = opIt->get<unsigned>("opId");
+            auto dtype = opIt->get<mv::DType>("dType");
 
             auto pooled_w = opIt->get<unsigned>("pooled_w");
             auto pooled_h = opIt->get<unsigned>("pooled_h");
@@ -470,7 +473,7 @@ void convertOpsToUPATasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& 
             auto outputControlFlows = mv::getOutputControlFlow(cm, cm.switchContext(opIt));
             auto outputDataFlows = mv::getOutputDataFlow(om, opIt);
 
-            mv::Data::TensorIterator upaROIPooling = om.uPATaskROIPooling(inputs, pooled_w, pooled_h, spatial_scale, roi_pooling_method, num_rois, mv::DType("Default"), quantParams);
+            mv::Data::TensorIterator upaROIPooling = om.uPATaskROIPooling(inputs, pooled_w, pooled_h, spatial_scale, roi_pooling_method, num_rois, dtype, quantParams);
 
             auto upaROIPoolingOp = om.getSourceOp(upaROIPooling);
             upaROIPoolingOp->set<std::string>("splitStrategy", splitStrategy);
