@@ -498,6 +498,7 @@ void convertOpsToUPATasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& 
             unsigned opId = opIt->get<unsigned>("opId");
             auto dtype = opIt->get<mv::DType>("dType");
             auto quantParams = opIt->get<mv::QuantizationParams>("quantParams");
+            auto splitStrategy = opIt->get<std::string>("splitStrategy");
 
             auto inputControlFlows = mv::getInputControlFlow(cm, cm.switchContext(opIt));
             auto outputControlFlows = mv::getOutputControlFlow(cm, cm.switchContext(opIt));
@@ -507,6 +508,7 @@ void convertOpsToUPATasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& 
 
             auto upaQuantizeOp = om.getSourceOp(upaQuantize);
             upaQuantizeOp->set<unsigned>("opId", opId);
+            upaQuantizeOp->set<std::string>("splitStrategy", splitStrategy);
 
             upaQuantize->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
             setOutputDataFlow(om, upaQuantize, outputDataFlows);
@@ -524,6 +526,7 @@ void convertOpsToUPATasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& 
             auto order = opIt->get<std::string>("order");
             auto dtype = opIt->get<mv::DType>("dType");
             auto quantParams = opIt->get<mv::QuantizationParams>("quantParams");
+            auto splitStrategy = opIt->get<std::string>("splitStrategy");
 
             auto inputControlFlows = mv::getInputControlFlow(cm, cm.switchContext(opIt));
             auto outputControlFlows = mv::getOutputControlFlow(cm, cm.switchContext(opIt));
@@ -533,6 +536,7 @@ void convertOpsToUPATasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& 
 
             auto upaReshapeOp = om.getSourceOp(upaReshape);
             upaReshapeOp->set<unsigned>("opId", opId);
+            upaReshapeOp->set<std::string>("splitStrategy", splitStrategy);
 
             upaReshape->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
             setOutputDataFlow(om, upaReshape, outputDataFlows);
@@ -553,6 +557,7 @@ void convertOpsToUPATasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& 
             auto mask = opIt->get<std::vector<unsigned>>("mask");
             auto dtype = opIt->get<mv::DType>("dType");
             auto quantParams = opIt->get<mv::QuantizationParams>("quantParams");
+            auto splitStrategy = opIt->get<std::string>("splitStrategy");
 
             auto inputControlFlows = mv::getInputControlFlow(cm, cm.switchContext(opIt));
             auto outputControlFlows = mv::getOutputControlFlow(cm, cm.switchContext(opIt));
@@ -562,6 +567,7 @@ void convertOpsToUPATasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& 
 
             auto upaRegionYoloOp = om.getSourceOp(upaRegionYolo);
             upaRegionYoloOp->set<unsigned>("opId", opId);
+            upaRegionYoloOp->set<std::string>("splitStrategy", splitStrategy);
 
             upaRegionYolo->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
             setOutputDataFlow(om, upaRegionYolo, outputDataFlows);
@@ -578,6 +584,7 @@ void convertOpsToUPATasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& 
             auto stride = opIt->get<unsigned>("stride");
             auto dtype = opIt->get<mv::DType>("dType");
             auto quantParams = opIt->get<mv::QuantizationParams>("quantParams");
+            auto splitStrategy = opIt->get<std::string>("splitStrategy");
 
             auto inputControlFlows = mv::getInputControlFlow(cm, cm.switchContext(opIt));
             auto outputControlFlows = mv::getOutputControlFlow(cm, cm.switchContext(opIt));
@@ -587,11 +594,39 @@ void convertOpsToUPATasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& 
 
             auto upaReorgYoloOp = om.getSourceOp(upaReorgYolo);
             upaReorgYoloOp->set<unsigned>("opId", opId);
+            upaReorgYoloOp->set<std::string>("splitStrategy", splitStrategy);
 
             upaReorgYolo->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
             setOutputDataFlow(om, upaReorgYolo, outputDataFlows);
             setInputControlFlow(cm, cm.switchContext(upaReorgYoloOp), inputControlFlows);
             setOutputControlFlow(cm, cm.switchContext(upaReorgYoloOp), outputControlFlows);
+
+        }
+        else if (opType == "Permute")
+        {
+            auto input = opIt->getInputTensor(0);
+            auto output = opIt->getOutputTensor(0);
+            auto outputMemoryLocation = output->get<mv::Tensor::MemoryLocation>("Location");
+            unsigned opId = opIt->get<unsigned>("opId");
+            auto order = opIt->get<mv::Order>("order");
+            auto dtype = opIt->get<mv::DType>("dType");
+            auto quantParams = opIt->get<mv::QuantizationParams>("quantParams");
+            auto splitStrategy = opIt->get<std::string>("splitStrategy");
+
+            auto inputControlFlows = mv::getInputControlFlow(cm, cm.switchContext(opIt));
+            auto outputControlFlows = mv::getOutputControlFlow(cm, cm.switchContext(opIt));
+            auto outputDataFlows = mv::getOutputDataFlow(om, opIt);
+
+            mv::Data::TensorIterator upaPermute = om.uPATaskPermute({input}, order, dtype, quantParams);
+
+            auto upaPermuteOp = om.getSourceOp(upaPermute);
+            upaPermuteOp->set<unsigned>("opId", opId);
+            upaPermuteOp->set<std::string>("splitStrategy", splitStrategy);
+
+            upaPermute->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
+            setOutputDataFlow(om, upaPermute, outputDataFlows);
+            setInputControlFlow(cm, cm.switchContext(upaPermuteOp), inputControlFlows);
+            setOutputControlFlow(cm, cm.switchContext(upaPermuteOp), outputControlFlows);
 
         }
         else

@@ -46,6 +46,10 @@ namespace mv
             [](const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>& args, std::vector<Tensor>& outputs)
         {
 
+            auto dTypeToUse = args.at("dType").get<mv::DType>();
+            if(dTypeToUse == mv::DType("Default"))
+                dTypeToUse = inputs[0]->getDType();
+
             auto input = inputs[0];
             auto outputOrder = input->getOrder();
 
@@ -64,7 +68,7 @@ namespace mv
                 outputShape[(ndims - 1) - i] = inputShape[(ndims - 1) - j]; // NB: inverse enumeration of dimensions
             }
 
-            outputs.push_back(mv::Tensor(":0", outputShape, input->getDType(), outputOrder));
+            outputs.push_back(mv::Tensor(":0", outputShape, dTypeToUse, outputOrder));
         
         };
 
@@ -88,6 +92,8 @@ namespace mv
         .setInputs({"data"})
         .setOutputs({"output"})
         .setArg<mv::Order>("order")
+        .setOptionalArg<mv::DType>("dType", mv::DType("Default"))
+        .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
         .setInputCheck(op_permute::inputCheckFcn)
         .setOutputDef(op_permute::outputDefFcn)
         .setTypeTrait({"executable", "exposed"});
