@@ -149,15 +149,11 @@ void tensorsToU8Fcn(const mv::pass::PassEntry&  , mv::ComputationModel& model, m
     int64_t zeroPointShift = 128;
     auto sourceDType = mv::DType("Int8");
     auto targetDType = mv::DType("UInt8");
-    bool skipInput = false;
 
     auto kernelOp = om.getInput();
     auto inputType = kernelOp->getOutputTensor(0)->getDType();
     if(inputType == mv::DType("Int8"))
-        skipInput = true;
-
-    if(skipInput)
-        ++kernelOp;
+        throw std::runtime_error("Compiler doesn't support I8 inputs for the moment, please rescale your data to U8");
 
     for (; kernelOp != om.opEnd(); ++kernelOp)
     {
