@@ -311,8 +311,8 @@ void KmbExecutor::getResult(void *result_data, unsigned int result_bytes) {
     }
 
 #ifdef ENABLE_VPUAL
-    uint32_t len = _outTensorLen;
-    uint32_t pAddr = _outTensorAddr;
+    uint32_t len = 0;
+    uint32_t pAddr = 0;
     plgTensorOutput_->Pull(&pAddr, &len);
 
     _logger->info("Output tensor returned of length: %d", len);
