@@ -855,6 +855,8 @@ std::unique_ptr<MVCNN::PPEFixedFunctionT> mv::RuntimeModel::buildPPEFixedFunctio
         toBuild->Ops[i] = convertPPELayerType(layers[i]);
     toBuild->Clamp_Low = ppeFixedFunction.getLowClamp();
     toBuild->Clamp_High = ppeFixedFunction.getHighClamp();
+    toBuild->Lrelu_Mult = ppeFixedFunction.getLReluMult();
+    toBuild->Lrelu_Shift = ppeFixedFunction.getLReluShift();
 
     return toBuild;
 }
@@ -877,7 +879,9 @@ std::unique_ptr<MVCNN::PPETaskT> mv::RuntimeModel::buildPPETaskT()
     toBuild->fixed_function->Clamp_High = 2147483647;
     toBuild->fixed_function->Clamp_Low = -2147483648;
     toBuild->fixed_function->Ops = std::vector<MVCNN::PPELayerType>();
-    toBuild->fixed_function->Ops.reserve(3);
+    toBuild->fixed_function->Lrelu_Mult = 0;
+    toBuild->fixed_function->Lrelu_Shift = 0;
+    toBuild->fixed_function->Ops.reserve(5);
 
     return toBuild;
 }

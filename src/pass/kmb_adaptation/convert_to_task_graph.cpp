@@ -11,7 +11,7 @@ static const std::array<unsigned short, 2> FAKE_KERNEL = {1,1};
 static const std::array<unsigned short, 2> FAKE_STRIDE = {1,1};
 
 static void convertOpsToTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
-static void addPpeTask(mv::Data::OpListIterator &opIt, std::string ppeTaskType);
+static void addPpeTask(mv::Data::OpListIterator &opIt, std::string ppeTaskType, double leakyAlpha = 0);
 
 namespace mv
 {
@@ -73,7 +73,8 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             int workloadStrategyNWorkloads = -1;
 
             bool inputActivationSparsity, outputActivationSparsity, weightsSparsity = false;
-
+            //NOTE: LEAKY RELU PARAM
+            double leakyAlpha = 0;
             unsigned group = 1;
             if (opType == "Conv")
                 group = opIt->get<unsigned>("group");
@@ -99,8 +100,13 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             if (opIt->hasAttr("WorkloadStrategy_nWorkloads"))
                 workloadStrategyNWorkloads = opIt->get<int>("WorkloadStrategy_nWorkloads");
             //NOTE: This will become bigger with new ppeTasks
-            if (opIt->hasAttr("postOpType") && opIt->get<std::string>("postOpType") == "Relu")
-                ppeType = "LRELU";
+            if (opIt->hasAttr("postOpType"))
+            {
+                if ((opIt->get<std::string>("postOpType") == "Relu") || (opIt->get<std::string>("postOpType") == "LeakyRelu"))
+                    ppeType = "LRELU";
+                    leakyAlpha = opIt->get<double>("alpha");
+            }
+
 
             std::array<unsigned short, 2> kernelSize = {kernel->getShape()[mv::KERNEL_WIDTH], kernel->getShape()[mv::KERNEL_HEIGHT]};
 
@@ -128,7 +134,7 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             dpuConvOp->set<std::array<unsigned short, 2>>("kSize", kernelSize);
 
             if (!ppeType.empty())
-                addPpeTask(dpuConvOp, ppeType);
+                addPpeTask(dpuConvOp, ppeType, leakyAlpha);
             if(!biasName.empty())
                dpuConvOp->set<std::string>("bias", biasName);
             if(!splitStrategy.empty())
@@ -291,11 +297,30 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
     }
 }
 
-static void addPpeTask(mv::Data::OpListIterator &opIt, std::string ppeTaskType)
+static void addPpeTask(mv::Data::OpListIterator &opIt, std::string ppeTaskType, double leakyAlpha)
 {
     auto ppeLayerType = mv::PPELayerType(ppeTaskType);
+    int8_t ppeMult;
+    uint8_t ppeShift;
     auto ppeFixedFunction = mv::PPEFixedFunction();
+
+    if (ppeTaskType == "LRELU")
+    {
+        if (leakyAlpha != 0)
+        {
+            unsigned bits = 5;
+            int exponent;
+            double mantissa;
+
+            mantissa = std::frexp(leakyAlpha, &exponent);
+            ppeShift = bits - exponent;
+            ppeMult = (mantissa * pow(2, bits));
+        }
+        ppeFixedFunction = mv::PPEFixedFunction(ppeMult, ppeShift);
+    }
+
     ppeFixedFunction.addLayer(ppeLayerType);
     auto ppeTask = mv::PPETask(ppeFixedFunction);
     opIt->set<mv::PPETask>("PPETask", ppeTask);
+
 }

@@ -12,12 +12,16 @@ namespace mv
         private:
             int lowClamp_;
             int highClamp_;
+            int8_t reluMult_;
+            uint8_t reluShift_;
             std::vector<PPELayerType> layers_;
         public:
-            PPEFixedFunction(int lowClamp = -2147483648, int highClamp = 2147483647);
+            PPEFixedFunction(int8_t lRelumult = 0, uint8_t lRelushift = 0, int lowClamp = -2147483648, int highClamp = 2147483647);
 
             int getLowClamp() const;
             int getHighClamp() const ;
+            int8_t getLReluMult() const ;
+            uint8_t getLReluShift() const ;
             const std::vector<mv::PPELayerType>& getLayers() const;
             void addLayer(PPELayerType layer);
 
