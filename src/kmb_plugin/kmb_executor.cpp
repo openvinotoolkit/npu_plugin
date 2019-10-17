@@ -320,11 +320,9 @@ void KmbExecutor::getResult(void *result_data, unsigned int result_bytes) {
     // Convert the physical address we received back to a virtual address we can use.
     uint32_t offset = pAddr - getKmbAllocator()->getPhysicalAddress(rgnAllocatorBuffer);
     unsigned char *data = static_cast<unsigned char *>(rgnAllocatorBuffer) + offset;
-    uint32_t checksum = 0;
-    for (uint32_t k = 0; k < len; k++) checksum += data[k];
 
-    _logger->info("KmbExecutor::getResult memcpy started @%d checksum=%d xlinkChannel=%d, %d ",
-                  offset, checksum, xlinkChannelIn, xlinkChannelOut);
+    _logger->info("KmbExecutor::getResult memcpy started @%d xlinkChannel=%d, %d ",
+                  offset, xlinkChannelIn, xlinkChannelOut);
 
     _logger->info("KmbExecutor::getResult memcpy started");
     std::memcpy(result_data, data, len);
