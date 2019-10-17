@@ -228,9 +228,11 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                                 {
                                     mv::Workload toAdd;
                                     toAdd.MinX = w;
-                                    toAdd.MaxX = w + 1;
+                                    toAdd.MaxX = w;
                                     toAdd.MinY = h;
-                                    toAdd.MaxY = h + 1;
+                                    toAdd.MaxY = h;
+                                    toAdd.MinZ = 0;
+                                    toAdd.MaxZ = subTensorShape[2]-1;
                                     toAdd.MPEMode = mv::MPE_Mode::Vector_FP16;
                                     workloads.addWorkload(toAdd);
                                 }
