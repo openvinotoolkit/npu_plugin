@@ -611,6 +611,7 @@ void convertOpsToUPATasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& 
             auto order = opIt->get<mv::Order>("order");
             auto dtype = opIt->get<mv::DType>("dType");
             auto quantParams = opIt->get<mv::QuantizationParams>("quantParams");
+            auto splitStrategy = opIt->get<std::string>("splitStrategy");
 
             auto inputControlFlows = mv::getInputControlFlow(cm, cm.switchContext(opIt));
             auto outputControlFlows = mv::getOutputControlFlow(cm, cm.switchContext(opIt));
@@ -620,6 +621,7 @@ void convertOpsToUPATasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& 
 
             auto upaPermuteOp = om.getSourceOp(upaPermute);
             upaPermuteOp->set<unsigned>("opId", opId);
+            upaPermuteOp->set<std::string>("splitStrategy", splitStrategy);
 
             upaPermute->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
             setOutputDataFlow(om, upaPermute, outputDataFlows);
