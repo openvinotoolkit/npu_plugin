@@ -8,7 +8,6 @@ function(enable_vpu TARGET_NAME FLAG_NAME PLUGIN_NAME)
             ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/plugin_tests/*.hpp)
 
     file(GLOB TEST_SRC
-            ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/inference_engine_sample_tests/*.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/cpp_wrappers/*.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/plugin_tests/*.cpp
             )
@@ -32,7 +31,7 @@ function(enable_vpu TARGET_NAME FLAG_NAME PLUGIN_NAME)
 
     target_link_libraries(${TARGET_NAME}
         PRIVATE
-      IE::IEBehaviorSharedTests IE::inference_engine_console_core IE::helpers)
+      IE::IEBehaviorSharedTests IE::helpers)
 
     target_include_directories(${TARGET_NAME}
         PRIVATE
