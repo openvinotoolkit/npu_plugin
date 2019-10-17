@@ -503,7 +503,7 @@ std::unique_ptr<MVCNN::ResourcesT> mv::RuntimeModel::buildResourcesT(Computation
     setIfPresent<uint32_t, int>(toBuild->nce2_blocks, *globalConfigurationParams, "Number_of_DPUs");
     setIfPresent<uint32_t, int>(toBuild->upa_shared_cmx, *globalConfigurationParams, "UPASharedCMX");
     uint32_t nn_cmx_per_slice;
-    setIfPresent<uint32_t, unsigned>(nn_cmx_per_slice, *globalConfigurationParams, "cmx");
+    setIfPresent<uint32_t, unsigned>(nn_cmx_per_slice, *globalConfigurationParams, "totalCmx");
     toBuild->nn_cmx_per_slice = nn_cmx_per_slice;
     setIfPresent<uint32_t, unsigned>(toBuild->nn_cmx_slice_amount, *globalConfigurationParams, "clusters");
     setIfPresent<uint32_t, int>(toBuild->ddr_scratch, *globalConfigurationParams, "DDRScratch");
