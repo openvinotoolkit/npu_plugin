@@ -66,7 +66,7 @@ void strategyLayersToTensors(const mv::pass::PassEntry& , mv::ComputationModel& 
     for(auto layer = om.opBegin(); layer != om.opEnd(); ++layer)
     {
         std::string opType = layer->getOpType();
-        if (opType == "ImplicitConcat" || opType == "Concat")
+        if (opType == "ImplicitConcat" || opType == "ImplicitReshape" || opType == "Concat")
         {
             auto opStrategy = layer->getInputTensor(0)->get<std::string>("splitStrategy");
             auto outputTensor = layer->getOutputTensor(0);
