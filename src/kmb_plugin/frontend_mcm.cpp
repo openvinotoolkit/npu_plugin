@@ -354,7 +354,8 @@ void FrontEndMcm::applyQuantizationTransformations(ie::CNNNetwork& network) {
             auto quantizeLayer = std::dynamic_pointer_cast<InferenceEngine::QuantizeLayer>(layer);
             InferenceEngine::DataPtr quantizeLayerFirstInput = quantizeLayer->insData[0].lock();
             auto quantizeLayerDataProducer = quantizeLayerFirstInput->getCreatorLayer().lock();
-            if (quantizeLayerDataProducer->type != "Convolution") {
+            // Now we support only two layers with Quantization params: Conv and FQ
+            if ((quantizeLayerDataProducer->type != "Convolution") && (quantizeLayerDataProducer->type != "FullyConnected")) {
                 continue;
             }
             auto initAxisIdx = [&](size_t edgeIdx) {
