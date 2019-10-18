@@ -139,16 +139,18 @@ void compileMcm(
         }
     }
 
-         if (parsedConfig[VPU_KMB_CONFIG_KEY(MCM_GENERATE_DOT)] == "YES") {
-        try {
-            //--------------------------------------------------------------------------
-            // Setting scope to control-model disables compute model details in dot-file
-            //--------------------------------------------------------------------------
-            // compDesc.setPassArg("GenerateDot", "scope", std::string("ControlModel"));
-            compDesc.setPassArg("GenerateDot", "content", std::string("full"));
-            compDesc.setPassArg("GenerateDot", "html", true);
-        } catch (...) {
-            VPU_THROW_EXCEPTION << "Can't set mcmCompiler arguments for *.dot generation!";
+    if (parsedConfig[VPU_KMB_CONFIG_KEY(MCM_GENERATE_DOT)] == "YES") {
+        if (compDesc.validPass("GenerateDot")) {
+//            try {
+//                //--------------------------------------------------------------------------
+//                // Setting scope to control-model disables compute model details in dot-file
+//                //--------------------------------------------------------------------------
+//                compDesc.setPassArg("GenerateDot", "scope", std::string("ControlModel"));
+//                compDesc.setPassArg("GenerateDot", "content", std::string("full"));
+//                compDesc.setPassArg("GenerateDot", "html", true);
+//            } catch (...) {
+//                VPU_THROW_EXCEPTION << "Can't set mcmCompiler arguments for *.dot generation!";
+//            }
         }
     }
 
