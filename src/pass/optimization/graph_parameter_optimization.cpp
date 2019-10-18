@@ -4,6 +4,7 @@
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/op_model.hpp"
 #include "include/mcm/pass/graphOptimizations/StrategyManager.hpp"
+#include "include/mcm/utils/custom_math.hpp"
 
 
 static void GraphParameterOptimizationFcn(
@@ -148,8 +149,7 @@ namespace mv
                 auto inputTensors = op.getInputTensor();
                 auto outputTensors = op.getOutputTensor();
                 auto div = [](unsigned x,unsigned y) -> unsigned { return (x+y-1)/y; };
-                auto roundUpToNearestMultiple = [](unsigned numberToRound,unsigned multiple) -> unsigned {return ((numberToRound - (numberToRound % multiple)) + multiple);};
-
+                
                 //StreamingPool noSplit( {{'W',1},{'H',1},{'C'},{'K'}});
                 size_t inputSize = 0;
                 size_t outputSize = 0;
@@ -166,8 +166,8 @@ namespace mv
 
                 if(op.getOpType() == "Conv" || op.getOpType() == "DepthwiseConv")
                 {
-                    size_t alignedFullChannels = roundUpToNearestMultiple(op.getOutputTensor(0)->getShape()[IO_CHANNEL_DIMENSION], 16);
-                    size_t alignedSplittedChannels = roundUpToNearestMultiple(alignedFullChannels/streamConfig["K"], 16);
+                    size_t alignedFullChannels = mv::round_up(op.getOutputTensor(0)->getShape()[IO_CHANNEL_DIMENSION], 16);
+                    size_t alignedSplittedChannels = mv::round_up(alignedFullChannels/streamConfig["K"], 16);
                     weightTableSize = 4 * alignedSplittedChannels ;
                     if (op.getOpType() == "Conv")
                         weightSize += realTensorSize(op.getInputTensor(1),{1,1,streamConfig["C"],streamConfig["K"]});
@@ -190,7 +190,7 @@ namespace mv
                     auto sparseInputSize = (op.getInputTensor(0)->getShape()[0] * op.getInputTensor(0)->getShape()[1]* op.getInputTensor(0)->getShape()[2]) / 8;
                     //storage element
                     sparseInputSize += (op.getInputTensor(0)->getShape()[0] * op.getInputTensor(0)->getShape()[1]);
-                    sparseInputSize = roundUpToNearestMultiple(sparseInputSize, 16);
+                    sparseInputSize = mv::round_up(sparseInputSize, 16);
                     inputSize += sparseInputSize;
                 }
                 if(outputActivationSparsity){
@@ -198,13 +198,13 @@ namespace mv
                     auto sparseOutputSize = (op.getOutputTensor(0)->getShape()[0] * op.getOutputTensor(0)->getShape()[1]* op.getOutputTensor(0)->getShape()[2]) / 8;
                     //storage element
                     sparseOutputSize += (op.getOutputTensor(0)->getShape()[0] * op.getOutputTensor(0)->getShape()[1]);
-                    sparseOutputSize = roundUpToNearestMultiple(sparseOutputSize, 16);
+                    sparseOutputSize = mv::round_up(sparseOutputSize, 16);
                     outputSize += sparseOutputSize;
                 }
                 if(weightsSparsity){
                     auto sparseWeightSize = (op.getInputTensor(1)->getShape()[0] * op.getInputTensor(1)->getShape()[1]* op.getInputTensor(1)->getShape()[2]) / 8;
                     sparseWeightSize += (op.getInputTensor(1)->getShape()[0] * op.getInputTensor(1)->getShape()[1]);
-                    sparseWeightSize = roundUpToNearestMultiple(sparseWeightSize, 16);
+                    sparseWeightSize = mv::round_up(sparseWeightSize, 16);
                     weightSize += sparseWeightSize;
                 }
 
@@ -259,8 +259,7 @@ namespace mv
                 size_t clusterOutChannelSize = outputShape["C"];
                 vector<size_t> clusterChannelSizes(totalClusters);
                 auto roundUpToStep = [](unsigned numberToRound,unsigned step) -> unsigned {return (((numberToRound+(step-1))/step)*step);};
-                //auto roundUpToNearestMultiple = [](unsigned numberToRound,unsigned multiple) -> unsigned {return ((numberToRound - (numberToRound % multiple)) + multiple);};
-
+                
                 if(clustering == "SplitOverK")
                     clusterOutChannelSize = clusterOutChannelSize / totalClusters;
 
