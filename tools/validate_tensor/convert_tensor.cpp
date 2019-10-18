@@ -43,13 +43,13 @@ bool compare(std::vector<float>& actualResults, std::vector<float>& expectedResu
     // if (actualResults.size() != expectedResults.size())
     //     return false;
 
-    float max_abs_error = 0;
     size_t actualMaxErrId = 0;
     size_t expectedMaxErrId = 0;
     std::function<void(size_t, size_t)> absoluteErrorUpdater = [&](size_t actualIdx, size_t expectedIdx) {
         auto actual = actualResults[actualIdx];
         auto expected = expectedResults[expectedIdx];
         float abs_error = fabsf(actual - expected);
+        float max_abs_error = expected * (tolerance/100.0f);
         if (abs_error > max_abs_error) {
             max_abs_error = abs_error;
             actualMaxErrId = actualIdx;
