@@ -35,6 +35,7 @@
 #include <mutex>
 #include <condition_variable>
 #include <ie_layers.h>
+#include "kmb_xml_tests.hpp"
 
 #include <file_reader.h>
 
@@ -263,7 +264,6 @@ INSTANTIATE_TEST_CASE_P(
 using kmbLayersTestsConvolution = kmbLayersTests_nightly;
 
 TEST_F(kmbLayersTestsConvolution, compilationLoadNetworkAndInfer) {
-    extern std::string convolution_u8_only;
     std::string model = convolution_u8_only;
 
     const size_t convolutionWeightsByteSize = 36864;
