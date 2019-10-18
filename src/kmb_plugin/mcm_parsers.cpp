@@ -446,7 +446,8 @@ void FrontEndMcm::parseConvolution(
     {
         auto converted_weights = make_blob_with_precision(weightsBlob->getTensorDesc());
         converted_weights->allocate();
-        if (weightsPrecision == InferenceEngine::Precision::U8) {
+        if (weightsPrecision == InferenceEngine::Precision::U8
+         || weightsPrecision == InferenceEngine::Precision::I8) {
             auto src = weightsBlob->buffer().as<uint8_t *>();
             auto dst = converted_weights->buffer().as<uint8_t *>();
 
