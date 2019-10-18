@@ -51,7 +51,15 @@ namespace mv
             if (!order_str.empty())
                 new_order = mv::Order(order_str);
 
-            outputs.push_back(mv::Tensor(":0",  args.at("shape").get<mv::Shape>(), dTypeToUse, new_order));
+            auto new_shape = args.at("shape").get<mv::Shape>();
+            std::cout << "new_shape before: " << new_shape.toString() << std::endl;
+            if (new_shape.ndims() != 4)
+            {
+                new_shape = mv::Shape::augment(new_shape, 4);
+                std::cout << "new_shape after: " << new_shape.toString() << std::endl;
+            }
+
+            outputs.push_back(mv::Tensor(":0",  new_shape, dTypeToUse, new_order));
         };
 
         static std::string empty;

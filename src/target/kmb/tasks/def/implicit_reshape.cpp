@@ -52,10 +52,15 @@ namespace mv
             if (!order_str.empty())
                 new_order = mv::Order(order_str);
 
+            auto new_shape = args.at("shape").get<mv::Shape>();
+            if (new_shape.ndims() != 4)
+            {
+                new_shape = mv::Shape::augment(new_shape, 4);
+            }
             if (args.at("quantParams").get<mv::QuantizationParams>().isEmpty())
-                outputs.push_back(mv::Tensor(":0", args.at("shape").get<mv::Shape>(),  dTypeToUse, inputs[0]->getOrder()));
+                outputs.push_back(mv::Tensor(":0", new_shape,  dTypeToUse, inputs[0]->getOrder()));
             else
-                outputs.push_back(mv::Tensor(":0", args.at("shape").get<mv::Shape>(),  dTypeToUse, inputs[0]->getOrder(), args.at("quantParams").get<mv::QuantizationParams>()));
+                outputs.push_back(mv::Tensor(":0", new_shape,  dTypeToUse, inputs[0]->getOrder(), args.at("quantParams").get<mv::QuantizationParams>()));
 
         };
 
