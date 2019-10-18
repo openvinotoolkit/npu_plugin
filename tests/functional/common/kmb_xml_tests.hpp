@@ -1,8 +1,9 @@
 // Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#pragma once
 
-std::string full_quant_model = R"V0G0N(
+static std::string full_quant_model = R"V0G0N(
     <?xml version="1.0" ?>
     <net batch="1" name="resnet50-int8-fragment" version="5">
     <layers>
@@ -106,7 +107,7 @@ std::string full_quant_model = R"V0G0N(
     </net>
     )V0G0N";
 
-std::string convolution_only = R"V0G0N(
+static std::string convolution_only = R"V0G0N(
     <net batch="1" name="CONVOLUTION_TEST" version="2">
         <layers>
             <layer id="0" name="input" precision="FP16" type="Input">
@@ -149,7 +150,7 @@ std::string convolution_only = R"V0G0N(
     </net>
         )V0G0N";
 
-std::string t_fq_convolution_only_slim = R"V0G0N(
+static std::string t_fq_convolution_only_slim = R"V0G0N(
 <?xml version="1.0" ?>
 <net batch="1" name="resnet50v1-int8-onnx-0001" version="6">
     <layers>
@@ -587,7 +588,7 @@ std::string t_fq_convolution_only_slim = R"V0G0N(
 </net>
 )V0G0N";
 
-std::string fq_convolution_only_slim = R"V0G0N(
+static std::string fq_convolution_only_slim = R"V0G0N(
 <net batch="1" name="resnet50-int8" version="6">
 	<layers>
 		<layer id="36" name="input" precision="FP32" type="Input">
@@ -1021,7 +1022,7 @@ std::string fq_convolution_only_slim = R"V0G0N(
 </net>
         )V0G0N";
 
-std::string fq_convolution_only_u8_slim = R"V0G0N(
+static std::string fq_convolution_only_u8_slim = R"V0G0N(
 <net batch="1" name="resnet50-int8" version="6">
 	<layers>
 		<layer id="36" name="input" precision="U8" type="Input">
@@ -1094,7 +1095,7 @@ std::string fq_convolution_only_u8_slim = R"V0G0N(
 </net>
         )V0G0N";
 
-std::string conv_after_scale_shift = R"V0G0N(
+static std::string conv_after_scale_shift = R"V0G0N(
     <net batch="1" name="CONVOLUTION_TEST" version="2">
         <layers>
             <layer id="0" name="input" precision="FP16" type="Input">
@@ -1161,7 +1162,7 @@ std::string conv_after_scale_shift = R"V0G0N(
         )V0G0N";
 
 
-std::string pooling_test2 = R"V0G0N(
+static std::string pooling_test2 = R"V0G0N(
     <net batch="1" name="POOLING_TEST" version="2">
         <layers>
             <layer id="0" name="input" precision="FP16" type="Input">
@@ -1200,7 +1201,7 @@ std::string pooling_test2 = R"V0G0N(
     </net>
         )V0G0N";
 
-std::string convolution_u8_only = R"V0G0N(
+static std::string convolution_u8_only = R"V0G0N(
 <net batch="1" name="resnet50-int8" version="6">
 	<layers>
 		<layer id="36" name="input" precision="U8" type="Input">
@@ -1274,7 +1275,7 @@ std::string convolution_u8_only = R"V0G0N(
         )V0G0N";
 
 
-std::string relu_test_2 = R"V0G0N(
+static std::string relu_test_2 = R"V0G0N(
         <net batch="1" name="RELU_TEST" version="2">
             <layers>
                 <layer id="0" name="input" precision="FP16" type="Input">
@@ -1312,7 +1313,7 @@ std::string relu_test_2 = R"V0G0N(
         </net>
             )V0G0N";
 
-std::string conv_relu_u8_test = R"V0G0N(
+static std::string conv_relu_u8_test = R"V0G0N(
         <net batch="1" name="RELU_TEST" version="2">
             <layers>
                 <layer id="0" name="input" precision="U8" type="Input">
@@ -1403,3 +1404,456 @@ std::string conv_relu_u8_test = R"V0G0N(
             </edges>
         </net>
 )V0G0N";
+
+static std::string fq_fully_connected_only_slim = R"V0G0N(
+<net batch="1" name="resnet50-int8" version="6">
+	<layers>
+		<layer id="36" name="input" precision="FP32" type="Input">
+			<output>
+				<port id="0">
+					<dim>_INPUT_BATCH_</dim>
+					<dim>_INPUT_CHANNEL_</dim>
+				</port>
+			</output>
+		</layer>
+        <layer id="37" name="conv1/act_quant/FakeQuantWithMinMaxVars/nudged_min" precision="FP32" type="Const">
+			<output>
+				<port id="1">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="0" size="4"/>
+			</blobs>
+		</layer>
+		<layer id="38" name="conv1/act_quant/FakeQuantWithMinMaxVars/nudged_max" precision="FP32" type="Const">
+			<output>
+				<port id="1">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="4" size="4"/>
+			</blobs>
+		</layer>
+		<layer id="39" name="conv1/act_quant/FakeQuantWithMinMaxVars/nudged_min2" precision="FP32" type="Const">
+			<output>
+				<port id="1">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="8" size="4"/>
+			</blobs>
+		</layer>
+		<layer id="40" name="conv1/act_quant/FakeQuantWithMinMaxVars/nudged_max2" precision="FP32" type="Const">
+			<output>
+				<port id="1">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="12" size="4"/>
+			</blobs>
+		</layer>
+		<layer id="41" name="conv1/act_quant/FakeQuantWithMinMaxVars" precision="FP32" type="FakeQuantize">
+			<data levels="256"/>
+			<input>
+				<port id="0">
+					<dim>_INPUT_BATCH_</dim>
+					<dim>_INPUT_CHANNEL_</dim>
+				</port>
+				<port id="1">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+				<port id="2">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+				<port id="3">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+				<port id="4">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</input>
+			<output>
+				<port id="5">
+					<dim>_INPUT_BATCH_</dim>
+					<dim>_INPUT_CHANNEL_</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="42" name="FC/weights" precision="FP32" type="Const">
+			<output>
+				<port id="1">
+					<dim>_OUTPUT_CHANNEL_</dim>
+					<dim>_INPUT_CHANNEL_</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="_WEIGHTS_OFFSET_" size="_WEIGHTS_BYTE_SIZE_"/>
+			</blobs>
+		</layer>
+		<layer id="43" name="conv2/weights_quant/FakeQuantWithMinMaxVars/nudged_min" precision="FP32" type="Const">
+			<output>
+				<port id="1">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="16" size="4"/>
+			</blobs>
+		</layer>
+		<layer id="44" name="conv2/weights_quant/FakeQuantWithMinMaxVars/nudged_max" precision="FP32" type="Const">
+			<output>
+				<port id="1">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="20" size="4"/>
+			</blobs>
+		</layer>
+		<layer id="45" name="conv2/weights_quant/FakeQuantWithMinMaxVars/nudged_min2" precision="FP32" type="Const">
+			<output>
+				<port id="1">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="24" size="4"/>
+			</blobs>
+		</layer>
+		<layer id="46" name="conv2/weights_quant/FakeQuantWithMinMaxVars/nudged_max2" precision="FP32" type="Const">
+			<output>
+				<port id="1">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="28" size="4"/>
+			</blobs>
+		</layer>
+		<layer id="47" name="FC/weights/weights_quant/FakeQuantWithMinMaxVars" precision="FP32" type="FakeQuantize">
+			<data levels="255"/>
+			<input>
+				<port id="0">
+					<dim>_OUTPUT_CHANNEL_</dim>
+					<dim>_INPUT_CHANNEL_</dim>
+				</port>
+				<port id="1">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+				<port id="2">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+				<port id="3">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+				<port id="4">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</input>
+			<output>
+				<port id="5">
+					<dim>_OUTPUT_CHANNEL_</dim>
+					<dim>_INPUT_CHANNEL_</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="48" name="bias2" precision="FP32" type="Const">
+			<output>
+				<port id="1">
+					<dim>_OUTPUT_CHANNEL_</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="_BIAS_OFFSET_" size="_BIAS_BYTE_SIZE_"/>
+			</blobs>
+		</layer>
+		<layer id="49" name="conv2" precision="FP32" type="FullyConnected">
+			<data out-size="_OUTPUT_CHANNEL_"/>
+			<input>
+				<port id="0">
+					<dim>_INPUT_BATCH_</dim>
+					<dim>_INPUT_CHANNEL_</dim>
+				</port>
+				<port id="1">
+					<dim>_OUTPUT_CHANNEL_</dim>
+					<dim>_INPUT_CHANNEL_</dim>
+				</port>
+				<port id="2">
+					<dim>_OUTPUT_CHANNEL_</dim>
+				</port>
+			</input>
+			<output>
+				<port id="3">
+					<dim>_OUTPUT_BATCH_</dim>
+					<dim>_OUTPUT_CHANNEL_</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="50" name="conv2/after_quant/FakeQuantWithMinMaxVars/nudged_min" precision="FP32" type="Const">
+			<output>
+				<port id="1">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="32" size="4"/>
+			</blobs>
+		</layer>
+		<layer id="51" name="conv2/after_quant/FakeQuantWithMinMaxVars/nudged_max" precision="FP32" type="Const">
+			<output>
+				<port id="1">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="36" size="4"/>
+			</blobs>
+		</layer>
+		<layer id="52" name="conv2/after_quant/FakeQuantWithMinMaxVars/nudged_min2" precision="FP32" type="Const">
+			<output>
+				<port id="1">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="40" size="4"/>
+			</blobs>
+		</layer>
+		<layer id="53" name="conv2/after_quant/FakeQuantWithMinMaxVars/nudged_max2" precision="FP32" type="Const">
+			<output>
+				<port id="1">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="44" size="4"/>
+			</blobs>
+		</layer>
+		<layer id="54" name="conv2/after_quant/FakeQuantWithMinMaxVars" precision="FP32" type="FakeQuantize">
+			<data levels="256"/>
+			<input>
+				<port id="0">
+					<dim>_OUTPUT_BATCH_</dim>
+					<dim>_OUTPUT_CHANNEL_</dim>
+				</port>
+				<port id="1">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+				<port id="2">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+				<port id="3">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+				<port id="4">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</input>
+			<output>
+				<port id="5">
+					<dim>_OUTPUT_BATCH_</dim>
+					<dim>_OUTPUT_CHANNEL_</dim>
+				</port>
+			</output>
+		</layer>
+	</layers>
+	<edges>
+		<edge from-layer="36" from-port="0" to-layer="41" to-port="0"/>
+		<edge from-layer="37" from-port="1" to-layer="41" to-port="1"/>
+		<edge from-layer="38" from-port="1" to-layer="41" to-port="2"/>
+		<edge from-layer="39" from-port="1" to-layer="41" to-port="3"/>
+		<edge from-layer="40" from-port="1" to-layer="41" to-port="4"/>
+		<edge from-layer="42" from-port="1" to-layer="47" to-port="0"/>
+		<edge from-layer="43" from-port="1" to-layer="47" to-port="1"/>
+		<edge from-layer="44" from-port="1" to-layer="47" to-port="2"/>
+		<edge from-layer="45" from-port="1" to-layer="47" to-port="3"/>
+		<edge from-layer="46" from-port="1" to-layer="47" to-port="4"/>
+		<edge from-layer="41" from-port="5" to-layer="49" to-port="0"/>
+		<edge from-layer="47" from-port="5" to-layer="49" to-port="1"/>
+		<edge from-layer="48" from-port="1" to-layer="49" to-port="2"/>
+		<edge from-layer="49" from-port="3" to-layer="54" to-port="0"/>
+		<edge from-layer="50" from-port="1" to-layer="54" to-port="1"/>
+		<edge from-layer="51" from-port="1" to-layer="54" to-port="2"/>
+		<edge from-layer="52" from-port="1" to-layer="54" to-port="3"/>
+		<edge from-layer="53" from-port="1" to-layer="54" to-port="4"/>
+	</edges>
+	<meta_data>
+		<MO_version value="unknown version"/>
+		<cli_parameters>
+			<blobs_as_inputs value="True"/>
+			<caffe_parser_path value="DIR"/>
+			<data_type value="FP32"/>
+			<disable_nhwc_to_nchw value="False"/>
+			<disable_omitting_optional value="False"/>
+			<disable_resnet_optimization value="False"/>
+			<enable_concat_optimization value="False"/>
+			<enable_flattening_nested_params value="False"/>
+			<enable_ssd_gluoncv value="False"/>
+			<extensions value="DIR"/>
+			<framework value="tf"/>
+			<freeze_placeholder_with_value value="{}"/>
+			<generate_experimental_IR_V10 value="False"/>
+			<input value="input"/>
+			<input_model value="DIR/resnet50-int8.pb"/>
+			<input_model_is_text value="False"/>
+			<input_shape value="[1, 224, 224, 3]"/>
+			<k value="DIR/CustomLayersMapping.xml"/>
+			<keep_quantize_ops_in_IR value="True"/>
+			<keep_shape_ops value="False"/>
+			<legacy_mxnet_model value="False"/>
+			<log_level value="ERROR"/>
+			<move_to_preprocess value="False"/>
+			<output_dir value="DIR"/>
+			<placeholder_shapes value="{'input': array([  1, 224, 224,   3])}"/>
+			<progress value="False"/>
+			<remove_output_softmax value="False"/>
+			<reverse_input_channels value="True"/>
+			<save_params_from_nd value="False"/>
+			<scale_values value="input[1.0]"/>
+			<silent value="False"/>
+			<stream_output value="False"/>
+			<version value="False"/>
+			<unset unset_cli_parameters="batch, counts, disable_fusing, disable_gfusing, finegrain_fusing, generate_deprecated_IR_V2, input_checkpoint, input_meta_graph, input_proto, input_symbol, mean_file, mean_file_offsets, model_name, nd_prefix_name, output, pretrained_model_name, saved_model_dir, saved_model_tags, scale, tensorboard_logdir, tensorflow_custom_layer_libraries, tensorflow_custom_operations_config_update, tensorflow_object_detection_api_pipeline_config, tensorflow_operation_patterns, tensorflow_subgraph_patterns, tensorflow_use_custom_operations_config"/>
+		</cli_parameters>
+	</meta_data>
+</net>
+        )V0G0N";
+
+static std::string fc_u8_only = R"V0G0N(
+<net batch="1" name="resnet50-int8" version="6">
+	<layers>
+		<layer id="36" name="input" precision="U8" type="Input">
+			<output>
+				<port id="0">
+					<dim>_INPUT_BATCH_</dim>
+					<dim>_INPUT_CHANNEL_</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="42" name="conv2/weights" precision="U8" type="Const">
+			<output>
+				<port id="1">
+					<dim>_OUTPUT_CHANNEL_</dim>
+					<dim>_INPUT_CHANNEL_</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="_WEIGHTS_OFFSET_" size="_WEIGHTS_BYTE_SIZE_"/>
+			</blobs>
+		</layer>
+		<layer id="48" name="bias2" precision="I32" type="Const">
+			<output>
+				<port id="1">
+					<dim>_OUTPUT_CHANNEL_</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="_BIAS_OFFSET_" size="_BIAS_BYTE_SIZE_"/>
+			</blobs>
+		</layer>
+		<layer id="49" name="conv2" precision="U8" type="FullyConnected">
+			<data out-size="_OUTPUT_CHANNEL_"/>
+			<input>
+				<port id="0">
+					<dim>_INPUT_BATCH_</dim>
+					<dim>_INPUT_CHANNEL_</dim>
+				</port>
+				<port id="1">
+					<dim>_OUTPUT_CHANNEL_</dim>
+					<dim>_INPUT_CHANNEL_</dim>
+				</port>
+				<port id="2">
+					<dim>_OUTPUT_CHANNEL_</dim>
+				</port>
+			</input>
+			<output>
+				<port id="3">
+					<dim>_OUTPUT_BATCH_</dim>
+					<dim>_OUTPUT_CHANNEL_</dim>
+				</port>
+			</output>
+		</layer>
+	</layers>
+	<edges>
+		<edge from-layer="36" from-port="0" to-layer="49" to-port="0"/>
+		<edge from-layer="42" from-port="1" to-layer="49" to-port="1"/>
+		<edge from-layer="48" from-port="1" to-layer="49" to-port="2"/>
+	</edges>
+</net>
+        )V0G0N";

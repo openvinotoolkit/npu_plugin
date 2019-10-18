@@ -17,6 +17,7 @@
 #include "tests_timeout.hpp"
 #include "kmb_layers_tests.hpp"
 #include "kmb_regression_target.hpp"
+#include "kmb_xml_tests.hpp"
 
 #include <gtest/gtest.h>
 #include <regression_tests.hpp>
