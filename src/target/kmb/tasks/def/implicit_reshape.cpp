@@ -52,7 +52,11 @@ namespace mv
             if (!order_str.empty())
                 new_order = mv::Order(order_str);
 
-            outputs.push_back(mv::Tensor(":0",  args.at("shape").get<mv::Shape>(), dTypeToUse, new_order));
+            if (args.at("quantParams").get<mv::QuantizationParams>().isEmpty())
+                outputs.push_back(mv::Tensor(":0", args.at("shape").get<mv::Shape>(),  dTypeToUse, inputs[0]->getOrder()));
+            else
+                outputs.push_back(mv::Tensor(":0", args.at("shape").get<mv::Shape>(),  dTypeToUse, inputs[0]->getOrder(), args.at("quantParams").get<mv::QuantizationParams>()));
+
         };
 
         static std::string empty;
