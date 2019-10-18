@@ -363,9 +363,6 @@ void convertOpsToUPATasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& 
             setOutputDataFlow(om, upaTask, outputDataFlows);
             setInputControlFlow(cm, cm.switchContext(upaTaskOp), inputControlFlows);
             setOutputControlFlow(cm, cm.switchContext(upaTaskOp), outputControlFlows);
-
-
-
         }
         else if (opType == "Proposal")
         {
@@ -603,6 +600,34 @@ void convertOpsToUPATasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& 
             setOutputDataFlow(om, upaReorgYolo, outputDataFlows);
             setInputControlFlow(cm, cm.switchContext(upaReorgYoloOp), inputControlFlows);
             setOutputControlFlow(cm, cm.switchContext(upaReorgYoloOp), outputControlFlows);
+        }
+        else if (opType == "Normalize")
+        {
+            auto input = opIt->getInputTensor(0);
+            auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
+            unsigned opId = opIt->get<unsigned>("opId");
+            auto dtype = opIt->get<mv::DType>("dType");
+            auto quantParams = opIt->get<mv::QuantizationParams>("quantParams");
+            auto splitStrategy = opIt->get<std::string>("splitStrategy");
+
+            auto eps = opIt->get<double>("eps");
+            unsigned across_spatial = opIt->get<unsigned>("across_spatial");
+            unsigned channel_shared = opIt->get<unsigned>("channel_shared");
+
+            auto inputControlFlows = mv::getInputControlFlow(cm, cm.switchContext(opIt));
+            auto outputControlFlows = mv::getOutputControlFlow(cm, cm.switchContext(opIt));
+            auto outputDataFlows = mv::getOutputDataFlow(om, opIt);
+
+            mv::Data::TensorIterator upaNormalize = om.uPATaskNormalize({input}, eps, across_spatial, channel_shared, dtype, quantParams);
+
+            auto upaNormalizeOp = om.getSourceOp(upaNormalize);
+            upaNormalizeOp->set<unsigned>("opId", opId);
+            upaNormalizeOp->set<std::string>("splitStrategy", splitStrategy);
+
+            upaNormalize->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
+            setOutputDataFlow(om, upaNormalize, outputDataFlows);
+            setInputControlFlow(cm, cm.switchContext(upaNormalizeOp), inputControlFlows);
+            setOutputControlFlow(cm, cm.switchContext(upaNormalizeOp), outputControlFlows);
 
         }
         else if (opType == "Permute")
