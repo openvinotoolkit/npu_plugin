@@ -159,8 +159,10 @@ void fuseScaleFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, 
         if (opIt->getOpType() == "Scale")
         {            
             pass.log(Logger::MessageType::Debug, "Found Scale op " + opIt->getName());
-
+       
             auto parentOpIt = om.getSourceOp(opIt->getInputTensor(0));
+            pass.log(Logger::MessageType::Debug, "Parent op is " + parentOpIt->getName());
+            pass.log(Logger::MessageType::Debug, "Parent op type is " + parentOpIt->getOpType());
             auto scaleOutputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
 
             if (parentOpIt->getOpType() == "Conv")

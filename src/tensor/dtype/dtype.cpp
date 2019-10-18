@@ -44,6 +44,11 @@ bool mv::DType::isDoubleType() const
     return mv::DTypeRegistry::isDoubleType(dType_);
 }
 
+bool mv::DType::isFloatType() const
+{
+    return mv::DTypeRegistry::isFloatType(dType_);
+}
+
 mv::DType& mv::DType::operator=(const DType& other)
 {
     dType_ = other.dType_;

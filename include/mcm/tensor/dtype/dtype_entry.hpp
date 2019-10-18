@@ -17,6 +17,7 @@ namespace mv
         std::function<BinaryData(const std::vector<mv::DataElement>&)> toBinaryFunc_;
         unsigned size_;
         bool isDoubleType_;
+        bool isFloatType_;
 
     public:
 
@@ -27,6 +28,7 @@ namespace mv
 
         unsigned getSizeInBits() const;
         bool isDoubleType() const;
+        bool isFloatType() const;
 
         const std::function<BinaryData(const std::vector<mv::DataElement>&)>& getToBinaryFunc() const;
     };

@@ -72,6 +72,17 @@
             "ComputeMemory",
             "AssignUniqueOpId",
             {
+                "name": "GenerateDot",
+                "output": "output/dots/original.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/original.dot"
+            },
+            {
                 "name": "CreateSourceStructure",
                 "VersionMajor": 3,
                 "VersionMinor": 11,
@@ -86,11 +97,35 @@
             "UnpopulatedTensorsToFP16",
             "AverageAsDepthWise",
             "FuseBatchNorm",
-            "FuseBias",
             "FuseRelu",
-            "FuseScale",
             "RemoveDropOut",
+            "updateQuantParamsfromOpenVino",
+            "removeExtraScale",
+            "removeExtraBias",
+            "removeReshape",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/afterremovingScaleBias.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/afterremovingScaleBias.dot"
+            },
             "FullyConnectedAsConv2D",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/afterremovingFC.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/afterremovingFC.dot"
+            },
             {
                 "name" : "GraphParameterOptimization",
                 "graphOptimizerConfig" : {
@@ -108,7 +143,8 @@
                         {"name" : "forceSpilling",    "value" : false       },
                         {"name" : "enableStreaming",   "value" : true       },
                         {"name" : "doubleBuffering",   "value" : false      },
-                        {"name" : "enableSparsity",    "value" : false      },
+                        {"name" : "enableActivationSparsity",    "value" : false      },
+                        {"name" : "enableWeightsSparsity",    "value" : false      },
                         {"name" : "clusteringStrategy","value" : "Automatic"}
                     ],
                     "layerStrategies" : [
