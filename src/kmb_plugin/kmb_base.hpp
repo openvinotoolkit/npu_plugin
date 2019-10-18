@@ -17,7 +17,8 @@
 #include <vpu/utils/handle.hpp>
 #include <vpu/utils/attributes_map.hpp>
 #include <vpu/utils/range.hpp>
-#include <vpu/utils/containers.hpp>
+#include <vpu/utils/small_vector.hpp>
+#include <vpu/utils/intrusive_handle_list.hpp>
 
 namespace vpu {
 
