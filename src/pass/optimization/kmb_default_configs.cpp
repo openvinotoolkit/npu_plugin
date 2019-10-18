@@ -55,14 +55,6 @@ MV_OPTIMIZER_LAYER_STRATEGY_REGISTRY()
     .registerSet("weightsSparsity").insert(false);
 
 MV_OPTIMIZER_LAYER_STRATEGY_REGISTRY()
-    .enter("DepthWiseConv")
-    .registerSet("streamingStrategies").insert(vector<string>{"StreamOverH","StreamOverW"})
-    .registerSet("ClusteringStrategies").insert(vector<string>{"Clustering","SplitOverH","SplitOverHOverlapped"})
-    .registerSet("inputActivationSparsity").insert(false)
-    .registerSet("outputActivationSparsity").insert(true)
-    .registerSet("weightsSparsity").insert(false);
-
-MV_OPTIMIZER_LAYER_STRATEGY_REGISTRY()
     .enter("MaxPool")
     .registerSet("streamingStrategies").insert(vector<string>{"StreamOverH","StreamOverW"})
     .registerSet("clusteringStrategies").insert(vector<string>{"Clustering","SplitOverH","HKSwitch"})
