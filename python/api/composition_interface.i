@@ -169,6 +169,11 @@ import_array();
         return order;
     }
 
+    mv::DType * getDtypeFP16(){
+        mv::DType * dtype = new mv::DType("Float16");
+        return dtype;
+    }
+
     std::vector<double> * getData(double * d, std::size_t len){
         /// Populate a Vector with a numpy array.
         std::vector<double> * weightsData = new std::vector<double>(d, d + len);
@@ -600,8 +605,8 @@ import_array();
    mv::Data::TensorIterator divide(mv::CompositionalModel& o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1){
         return o.divide(input0, input1);
     }
-    mv::Data::TensorIterator reshape(mv::CompositionalModel& o,mv::Data::TensorIterator input, const mv::Shape& shape){
-        return o.reshape(input, shape);
+    mv::Data::TensorIterator reshape(mv::CompositionalModel& o,mv::Data::TensorIterator input, const mv::Shape& shape, const std::string& order, const mv::DType dtype){
+        return o.reshape(input, shape, order, dtype);
     }
 
     bool isValid(mv::CompositionalModel& o){
@@ -661,6 +666,7 @@ std::vector<int64_t> * getData(int64_t * d, std::size_t len);
 
 mv::QuantizationParams * getQuantParams(const std::vector<int64_t> &zero_data, const std::vector<double>& scale_data, const std::vector<double>& min,  const std::vector<double>& max);
 mv::Order * getOrder(const std::string& framework_layout);
+mv::DType * getDtypeFP16();
 //Keep the order of the Wrapper
 mv::Data::TensorIterator identity(mv::CompositionalModel&  o,mv::Data::TensorIterator input0, const std::string& type, const mv::QuantizationParams  &quantParams, const std::string &name);
 mv::Data::TensorIterator constant(mv::CompositionalModel&  o, const std::vector<int64_t>& data, const mv::Shape &shape, const mv::Order& order, const mv::QuantizationParams  &quantParams, const std::string &name);
@@ -713,7 +719,7 @@ mv::Data::TensorIterator matMul(mv::CompositionalModel& o, mv::Data::TensorItera
 mv::Data::TensorIterator batchNorm(mv::CompositionalModel& o,mv::Data::TensorIterator input, mv::Data::TensorIterator mean, mv::Data::TensorIterator variance, mv::Data::TensorIterator offset, mv::Data::TensorIterator scale, double varianceEps);
 
 mv::Data::TensorIterator divide(mv::CompositionalModel& o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1);
-mv::Data::TensorIterator reshape(mv::CompositionalModel& o,mv::Data::TensorIterator input, const mv::Shape& shape);
+mv::Data::TensorIterator reshape(mv::CompositionalModel& o,mv::Data::TensorIterator input, const mv::Shape& shape, const std::string& order, const mv::DType dtype);
 mv::Data::TensorIterator prelu(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::Data::TensorIterator negative_slope);
 bool isValid(mv::CompositionalModel& o);
 /** Sets Verbose Logging Level. Values are silent, error, warning, info, debug*/

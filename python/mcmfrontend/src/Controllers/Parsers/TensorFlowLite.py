@@ -35,6 +35,8 @@ from Controllers.Parsers.Parser.Layer import OriginalName, MangledName
 from Controllers.EnumController import throw_error, ErrorTable, compiler_assert
 from collections import OrderedDict
 import numpy as np
+import random
+import os
 
 try:
     # lite module no longer in tf.contrib tf 1.14.0
@@ -212,6 +214,35 @@ class TensorFlowLiteParser(BaseParser):
     def getType(self):
         return self.type
 
+    # get a random input
+    def getInput(self, arguments):
+
+        # Load TFLite model and allocate tensors.
+        self.interpreter = lite.Interpreter(model_path=self.model_path)
+        self.interpreter.allocate_tensors()
+        input_details = self.interpreter.get_input_details()
+
+        if len(input_details) != 1:
+            raise ValueError(
+                "Only a single input is supported (instead found {}".format(
+                    len(input_details)))
+        input_details = input_details[0]
+        shape = input_details['shape']
+        dtype = input_details['dtype']
+    #fixed seed for repeat inputs. 
+        np.random.seed(0)
+        random.seed(0)
+        range_min = 0
+        range_max = 256
+        input_data = np.random.uniform(
+            range_min, range_max, shape).astype(dtype)
+    #hard-coded the path.:( 
+        fp = open("./output/input.dat", 'wb')
+        fp.write((input_data.flatten()).astype(np.uint8).data)
+        fp.close()
+        # convert shape
+        input_data = np.transpose(input_data, (0, 3, 1, 2))
+        return input_data
 
     def loadNetworkObjects(self, graph_path, model_path=None):
         """ Get the tensorflow protobuff model and parse it via tensorflow
@@ -246,7 +277,7 @@ class TensorFlowLiteParser(BaseParser):
             BuiltinOperator.LOGISTIC: tfp.Sigmoid.load,
             BuiltinOperator.PAD: tfp.Pad.load,
             BuiltinOperator.SUB: tfp.Eltwise.load,
-            BuiltinOperator.RESHAPE: tfp.NoOp.load,
+            BuiltinOperator.RESHAPE: tfp.Reshape.load,
             # BuiltinOperator.DIV : None,
             # BuiltinOperator.SLICE : None,
             BuiltinOperator.SUM: tfp.Eltwise.load,
