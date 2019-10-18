@@ -77,12 +77,12 @@ if (ENABLE_MCM_COMPILER)
 
     set(MCM_COMPILER_INCLUDE_PATH "${MCM_BASE_DIR}"
                                   "${MCM_BASE_DIR}/include"
-                                  "${MCM_BASE_DIR}/meta/include" PARENT_SCOPE)
+                                  "${MCM_BASE_DIR}/build/meta" PARENT_SCOPE)
     set(MCM_COMPILER_LIBRARY "${MCM_BASE_DIR}/build/lib/${CMAKE_SHARED_LIBRARY_PREFIX}cm${CMAKE_SHARED_LIBRARY_SUFFIX}" PARENT_SCOPE)
     set(MCM_COMPILER_MODEL_LIBRARY "${MCM_BASE_DIR}/build/lib/${CMAKE_SHARED_LIBRARY_PREFIX}model${CMAKE_SHARED_LIBRARY_SUFFIX}" PARENT_SCOPE)
     set(MCM_COMPILER_METAMODEL_LIBRARY "${MCM_BASE_DIR}/build/lib/${CMAKE_SHARED_LIBRARY_PREFIX}metamodel${CMAKE_SHARED_LIBRARY_SUFFIX}" PARENT_SCOPE)
     set(FLATBUFFERRS_INCLUDE_PATH "${MCM_BASE_DIR}/schema/graphfile/flatbuffers/include/" PARENT_SCOPE)
-    set(MCM_SCHEMA_INCLUDE_PATH "${MCM_BASE_DIR}/meta/schema/graphfile" PARENT_SCOPE)
+    set(MCM_SCHEMA_INCLUDE_PATH "${MCM_BASE_DIR}/build/meta/schema/graphfile" PARENT_SCOPE)
 else()
     message(STATUS "************ Disabling MCM compiler ************")
 endif()
