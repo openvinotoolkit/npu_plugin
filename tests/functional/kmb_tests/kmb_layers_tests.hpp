@@ -25,7 +25,6 @@
 #include <cpp/ie_cnn_net_reader.h>
 #include <inference_engine.hpp>
 #include "tests_common.hpp"
-#include <inference_engine/precision_utils.h>
 #include "tests_common.hpp"
 #include "single_layer_common.hpp"
 
