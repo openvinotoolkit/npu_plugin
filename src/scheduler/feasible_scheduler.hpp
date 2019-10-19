@@ -16,7 +16,8 @@ struct scheduler_traits {
   //////////////////////////////////////////////////////////////////////////////
   // Input: G(V,E) //
   typedef int dag_t;
-  typedef int operation_t;
+  typedef int operation_t; 
+  // Invariant: &(*itr) should remain same constant irrespective of the iterator
   typedef int const_operation_iterator_t;
 
   // iterator v \in V //
@@ -156,6 +157,7 @@ class Contiguous_Resource_State {
         begin_ = std::numeric_limits<unit_t>::max();
         end_ = std::numeric_limits<unit_t>::min();
       }
+      interval_info_t() : begin_(), end_() { invalidate(); }
       interval_info_t(unit_t ibeg, unit_t iend) : begin_(ibeg), end_(iend) {}
     }; // struct interval_info_t //
 
@@ -219,16 +221,14 @@ class Contiguous_Resource_State {
 
     // Returns false if the operation is not using any resources //
     interval_info_t get_resource_usage_info(const key_t& op) const {
-      typename lookup_t::iterator litr = lookup_.find(op);
+      typename lookup_t::const_iterator litr = lookup_.find(op);
       interval_info_t result;
 
-      result.invalidate();
       if (litr != lookup_.end()) {
         result = litr->second;
       }
       return result;
     }
-
   protected:
 
     // TODO(vamsikku): the cost of this O(k) where k is the number of active
@@ -449,6 +449,7 @@ class Feasible_Schedule_Generator {
       const_schedulable_ops_iterator_t;
   typedef typename schedulable_ops_t::iterator schedulable_ops_iterator_t;
   typedef std::unordered_map<const_op_ptr_t, size_t> operation_in_degree_t;
+  typedef std::unordered_map<const_op_ptr_t, size_t> priority_map_t;
   typedef std::unordered_set<const_op_ptr_t> processed_ops_t;
   
   //////////////////////////////////////////////////////////////////////////////
@@ -459,11 +460,11 @@ class Feasible_Schedule_Generator {
   Feasible_Schedule_Generator(const dag_t& in, const resource_t& resource_bound)
     : heap_(), current_time_(0), candidates_(), resource_state_(),
     heap_ordering_(), schedulable_op_(), in_degree_(), processed_ops_(),
-    input_ptr_(&in) { init(resource_bound); }
+    input_ptr_(&in), priority_() { init(resource_bound); }
 
   Feasible_Schedule_Generator() : heap_(), current_time_(0), candidates_(),
     resource_state_(), heap_ordering_(), schedulable_op_(), in_degree_(),
-    processed_ops_(), input_ptr_() {} 
+    processed_ops_(), input_ptr_(), priority_() {} 
 
   void operator++() { next_schedulable_operation(); }
   // Precondition: reached_end() is false //
@@ -499,36 +500,14 @@ class Feasible_Schedule_Generator {
 
   bool init(const resource_t& upper_bound) {
     traits::initialize_resource_upper_bound(upper_bound, resource_state_);
-    in_degree_.clear();
     processed_ops_.clear();
 
-    const_operation_iterator_t itr = traits::operations_begin(*input_ptr_);
-    const_operation_iterator_t itr_end = traits::operations_end(*input_ptr_);
-
-    // compute the in-degree of every node //
-    while (itr != itr_end) {
-      const_operation_iterator_t jtr = traits::outgoing_operations_begin(
-          *input_ptr_, *itr);
-      const_operation_iterator_t jtr_end = traits::outgoing_operations_end(
-            *input_ptr_, *itr);
-
-      while (jtr != jtr_end) { // foreach outgoing edge of *itr //
-        const_op_ptr_t op_ptr = &(*jtr);
-        typename operation_in_degree_t::iterator deg_itr =
-            in_degree_.find(op_ptr);
-        if (deg_itr == in_degree_.end()) {
-          deg_itr = (in_degree_.insert(std::make_pair(op_ptr, 0))).first;
-        }
-        deg_itr->second++;
-        ++jtr;
-      }
-      ++itr;
-    }
+    compute_op_indegree(in_degree_);
 
     // collect the ones with zero-in degree into candidates //
     candidates_.clear();
-    itr = traits::operations_begin(*input_ptr_);
-    itr_end = traits::operations_end(*input_ptr_);
+    const_operation_iterator_t itr = traits::operations_begin(*input_ptr_);
+    const_operation_iterator_t itr_end = traits::operations_end(*input_ptr_);
 
     while (itr != itr_end) {
       const_op_ptr_t op_ptr = &(*itr);
@@ -543,7 +522,108 @@ class Feasible_Schedule_Generator {
             " in-degree means there must be a cycle in the input");
       return false;
     }
+    compute_operation_priorities();
+
     return next_schedulable_operation();
+  }
+
+  void compute_operation_priorities() {
+    operation_in_degree_t in_degree;
+
+    compute_op_indegree(in_degree);
+
+    // assign topological sort level as priority to start with //
+
+    std::list<const_op_ptr_t> zero_in_degree_nodes[2];
+    priority_.clear();
+
+    size_t curr_priority = 0;
+    const_operation_iterator_t itr = traits::operations_begin(*input_ptr_);
+    const_operation_iterator_t itr_end = traits::operations_end(*input_ptr_);
+
+    while (itr != itr_end) {
+      const_op_ptr_t op_ptr = &(*itr);
+      if (in_degree.find(op_ptr) == in_degree_.end()) {
+        zero_in_degree_nodes[curr_priority%2].push_back(op_ptr);
+        priority_[op_ptr] = curr_priority;
+      }
+      ++itr;
+    }
+
+    while (!zero_in_degree_nodes[curr_priority%2].empty()) {
+      // decrement the in-degree 
+      for (auto zitr=zero_in_degree_nodes[curr_priority%2].begin();
+            zitr != zero_in_degree_nodes[curr_priority%2].end(); ++zitr) {
+
+        const_operation_iterator_t jtr = traits::outgoing_operations_begin(
+            *input_ptr_, *(*zitr));
+        const_operation_iterator_t jtr_end = traits::outgoing_operations_end(
+            *input_ptr_, *(*zitr));
+
+        while (jtr != jtr_end) {
+          typename operation_in_degree_t::iterator deg_itr =
+              in_degree.find(&(*jtr));
+          assert((deg_itr != in_degree.end()) && (deg_itr->second > 0));
+          (deg_itr->second)--;
+
+          if (!(deg_itr->second)) {
+            // in-degree of this node has become zero//
+            priority_[deg_itr->first] = (curr_priority+1);
+            zero_in_degree_nodes[(curr_priority+1)%2].push_back(deg_itr->first);
+            in_degree.erase(deg_itr);
+          }
+          ++jtr;
+        }
+      }
+      zero_in_degree_nodes[curr_priority%2].clear();
+      ++curr_priority;
+    }
+
+    for (typename priority_map_t::iterator pitr=priority_.begin();
+          pitr!=priority_.end(); ++pitr) {
+      // set priority to max of all out going priorities //
+      const_operation_iterator_t jtr = traits::outgoing_operations_begin(
+          *input_ptr_, *(pitr->first));
+      const_operation_iterator_t jtr_end = traits::outgoing_operations_end(
+          *input_ptr_, *(pitr->first));
+
+      if (!(pitr->second)) {
+        size_t max=pitr->second;
+        while (jtr != jtr_end) {
+          max = std::max( priority_[ &(*jtr) ], max);
+          ++jtr;
+        }
+        pitr->second = max;
+      }
+    }
+
+  }
+
+  void compute_op_indegree(operation_in_degree_t& in_degree) {
+    in_degree.clear();
+    const_operation_iterator_t itr = traits::operations_begin(*input_ptr_);
+    const_operation_iterator_t itr_end = traits::operations_end(*input_ptr_);
+
+    // compute the in-degree of every node //
+    while (itr != itr_end) {
+      const_operation_iterator_t jtr = traits::outgoing_operations_begin(
+          *input_ptr_, *itr);
+      const_operation_iterator_t jtr_end = traits::outgoing_operations_end(
+            *input_ptr_, *itr);
+
+      while (jtr != jtr_end) { // foreach outgoing edge of *itr //
+        const_op_ptr_t op_ptr = &(*jtr);
+        typename operation_in_degree_t::iterator deg_itr =
+            in_degree.find(op_ptr);
+        if (deg_itr == in_degree.end()) {
+          deg_itr = (in_degree.insert(std::make_pair(op_ptr, 0))).first;
+        }
+        deg_itr->second++;
+        ++jtr;
+      }
+      ++itr;
+    }
+
   }
 
   // Precondition: reached_end() is false //
@@ -589,17 +669,35 @@ class Feasible_Schedule_Generator {
   schedulable_ops_iterator_t find_schedulable_op() {
     schedulable_ops_iterator_t itr=candidates_.end();
 
+    std::list<schedulable_ops_iterator_t> ready_list;
+
     for (itr=candidates_.begin(); itr != candidates_.end(); ++itr){
       resource_t demand = traits::resource_utility(*input_ptr_, *(*itr));
-      if (traits::is_resource_available(demand, resource_state_)) { break; }
+      if (traits::is_resource_available(demand, resource_state_)) {
+        ready_list.push_back(itr);
+      }
     }
 
+    // find the one with lowest priority //
+    if (!ready_list.empty()) {
+      size_t min_priority = std::numeric_limits<size_t>::max();
+      for (auto ritr=ready_list.begin(); ritr!=ready_list.end(); ++ritr) {
+        size_t curr_priority = priority_[*(*ritr)];
+        if (curr_priority < min_priority) {
+          itr = *ritr;
+          min_priority = curr_priority;
+        }
+      }
+    }
     return itr;
   }
 
   void add_outgoing_operations_to_candidate_list(const operation_t& op) {
-    const_operation_iterator_t itr=input_ptr_->begin(op);
-    const_operation_iterator_t itr_end=input_ptr_->end(op);
+    const_operation_iterator_t itr=traits::outgoing_operations_begin(
+          *input_ptr_, op);
+    const_operation_iterator_t itr_end=traits::outgoing_operations_end(
+        *input_ptr_, op);
+
     for (;itr != itr_end; ++itr) {
       // decrement the in-degree of &(*itr) and only add to candidate set
       // if the indegree is zero. This means this op is ready to be scheduled.
@@ -656,6 +754,7 @@ class Feasible_Schedule_Generator {
   operation_in_degree_t in_degree_;
   processed_ops_t processed_ops_;
   const dag_t *input_ptr_;
+  priority_map_t priority_;
   //////////////////////////////////////////////////////////////////////////////
 
 }; // class Feasible_Schedule_Generator //

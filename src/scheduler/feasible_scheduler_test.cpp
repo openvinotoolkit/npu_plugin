@@ -1,5 +1,5 @@
 #include "gtest/gtest.h"
-#include "feasible_scheduler.hpp"
+#include "scheduler/feasible_scheduler.hpp"
 #include <limits>
 #include <unordered_map>
 
@@ -1101,5 +1101,6 @@ TEST(lp_scheduler_producer_consumer, dependency_test) {
   // due producer and consumer issue (resources of "a" are locked until
   // "b" and "c" are finished)
   ASSERT_TRUE(  (start_times["a"] >= start_times["d"]) ||
+
                 (start_times["d"] >= 14UL) );
 }

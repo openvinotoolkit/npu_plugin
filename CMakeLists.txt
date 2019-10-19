@@ -301,12 +301,14 @@ set(pass
     "${PROJECT_SOURCE_DIR}/src/pass/validation/basic_checks.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/validation/generate_dot.cpp"
 
+
     "${PROJECT_SOURCE_DIR}/src/target/target_descriptor.cpp"
 
     "${PROJECT_SOURCE_DIR}/src/graph/tensor_interference_graph.cpp"
+
 )
 
- set(compiler
+set(compiler
     "${PROJECT_SOURCE_DIR}/src/compiler/compilation_descriptor"
     "${PROJECT_SOURCE_DIR}/src/compiler/compilation_unit"
     "${PROJECT_SOURCE_DIR}/src/target/kmb/runtime_model/runtime_model.cpp"
@@ -317,7 +319,6 @@ set(syscalls
    "${PROJECT_SOURCE_DIR}/src/pass/syscalls/convert_flatbuffer.cpp"
 )
 
-add_subdirectory(src/scheduler)
 
 
 
@@ -359,8 +360,20 @@ else()
 
 endif(MSVC)
 
+<<<<<<< HEAD
 if(NOT CMAKE_CROSSCOMPILING)
     #add_subdirectory(tools) # testing without
+=======
+
+add_subdirectory(src/scheduler)
+add_subdirectory(src/pass/lp_scheduler)
+add_dependencies(cm lp_scheduler lp_scheduler_pass)
+target_include_directories(cm INTERFACE lp_scheduler lp_scheduler_pass)
+
+IF(NOT CMAKE_CROSSCOMPILING)
+    add_subdirectory(examples)
+    add_subdirectory(tools)
+>>>>>>> Adding scheduler_traits to run Feasible Schedule Generator (FSG) from MCM data structures
     add_subdirectory(schema)
     add_subdirectory(example)
 endif()
