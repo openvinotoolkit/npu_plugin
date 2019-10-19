@@ -5,7 +5,6 @@
 #pragma once
 
 #include <inference_engine.hpp>
-#include <inference_engine/precision_utils.h>
 
 typedef std::map<std::string, std::string> ParamsStruct;
 

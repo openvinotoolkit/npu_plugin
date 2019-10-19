@@ -19,13 +19,13 @@
 
 #include <gtest/gtest.h>
 #include <regression_tests.hpp>
-#include <inference_engine/precision_utils.h>
 #include <vpu/kmb_plugin_config.hpp>
 #include <vpu/private_plugin_config.hpp>
 
 #include <ie_icnn_network_stats.hpp>
 #include <cnn_network_int8_normalizer.hpp>
 #include <ie_util_internal.hpp>
+#include <blob_factory.hpp>
 
 #include <vpu_layers_tests.hpp>
 

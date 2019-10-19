@@ -2,7 +2,6 @@
 
 #include <gtest/gtest.h>
 #include <regression_tests.hpp>
-#include <inference_engine/precision_utils.h>
 #include <vpu/kmb_plugin_config.hpp>
 #include <vpu/private_plugin_config.hpp>
 

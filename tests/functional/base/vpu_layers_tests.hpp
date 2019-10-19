@@ -11,7 +11,6 @@
 #include "tests_common.hpp"
 #include <algorithm>
 #include <cstddef>
-#include <inference_engine/precision_utils.h>
 #include <tuple>
 #include "tests_common.hpp"
 #include "single_layer_common.hpp"
