@@ -512,7 +512,7 @@ def buildOM(
     elif isinstance(layer, Reshape):
 
         output_tensor_name = layer.getOutputTensors()[0].getName().stringifyName()
-        mv_quant_params = get_parse_quant(layer.getOutputTensors()[0])
+        mv_quant_params = get_parse_quant(layer.getOutputTensors()[0])[0]
         type_value = type_dict[layer.getOutputTensors()[0].dtype](0.0)
         shape = ca.getShape(
             layer.getInputTensors()[0].shape[0],
@@ -525,14 +525,13 @@ def buildOM(
         default_shape = '\"\"'
 
         _ref = ca.reshape(
-            om, in_, shape, str(order), ca.getDtypeFP16())
+            om, in_, shape, order ,order_type_dict[type(type_value)], mv_quant_params, output_tensor_name)
 
         if (output_file is not None):
 
             output_file.write(' ' * 4 + 'auto reshape' + str(dropout_node_id) + ' = om.reshape(' +
                               str(tensor_mapping_dict[layer.getInputTensors()[0].getName().stringifyName()]) +
                               ', ' + str(shape) +
-                              ', ' + str(output) +
                               ', {{' +
                               ', '.join(map(str, get_parse_quant(layer.getOutputTensors()[0])[1])) + '},{' +
                               ', '.join(map(str, get_parse_quant(layer.getOutputTensors()[0])[2])) + '},{' +
