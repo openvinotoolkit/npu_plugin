@@ -28,11 +28,9 @@ namespace mv
             new_order = args.at("order").get<mv::Order>();
 
             auto new_shape = args.at("shape").get<mv::Shape>();
-            std::cout << "new_shape before: " << new_shape.toString() << std::endl;
             if (new_shape.ndims() != 4)
             {
                 new_shape = mv::Shape::augment(new_shape, 4);
-                std::cout << "new_shape after: " << new_shape.toString() << std::endl;
             }
 
             if (args.at("quantParams").get<mv::QuantizationParams>().isEmpty())
