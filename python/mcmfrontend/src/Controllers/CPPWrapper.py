@@ -531,7 +531,12 @@ def buildOM(
 
             output_file.write(' ' * 4 + 'auto reshape' + str(dropout_node_id) + ' = om.reshape(' +
                               str(tensor_mapping_dict[layer.getInputTensors()[0].getName().stringifyName()]) +
-                              ', ' + str(shape) +
+                              ', mv::Shape({' + str(layer.getOutputTensors()[0].shape[0]) +
+                              ', ' + str(layer.getOutputTensors()[0].shape[1]) +
+                              ', ' + str(layer.getOutputTensors()[0].shape[2]) +
+                              ', ' + str(layer.getOutputTensors()[0].shape[3]) + '}), ' +
+                              ' mv::Order::getZMajorID(4), ' +
+                              'mv::DType(\"Float16\")' +
                               ', {{' +
                               ', '.join(map(str, get_parse_quant(layer.getOutputTensors()[0])[1])) + '},{' +
                               ', '.join(map(str, get_parse_quant(layer.getOutputTensors()[0])[2])) + '},{' +
