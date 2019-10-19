@@ -33,7 +33,7 @@ void reshapeAsImplicitFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
         auto inputs = reshape->getInputTensor(0);
         auto outputs = reshape->getOutputTensor();
         auto shape = reshape->get<mv::Shape>("shape");
-        auto order = reshape->get<std::string>("order");
+        auto order = reshape->get<mv::Order>("order");
         auto dtype = reshape->get<mv::DType>("dType");
         mv::QuantizationParams quantParams = {{}, {}, {}, {}};
         std::string splitStrategy;

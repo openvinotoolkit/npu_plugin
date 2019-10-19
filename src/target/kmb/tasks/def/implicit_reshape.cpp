@@ -12,27 +12,6 @@ namespace mv
             std::string& errMsg) -> std::pair<bool, std::size_t>
         {
 
-            auto order_str = args.at("order").get<std::string>();
-            if (!order_str.empty())
-            {
-                try
-                {
-                    mv::Order order(order_str);
-                }
-                catch(...)
-                {
-                    errMsg = "Invalid parameter: order=" + order_str;
-                    return {false, 1};
-                }
-            }
-
-            if (inputs[0]->getShape().totalSize() != args.at("shape").get<mv::Shape>().totalSize())
-            {
-                errMsg = "Invalid conversino of the original shape " + inputs[0]->getShape().toString() + " and the output shape "
-                + args.at("shape").get<mv::Shape>().toString() + " - must have equal total number of elements";
-                return {false, 1};
-            }
-
             return {true, 0};
 
         };
@@ -48,19 +27,18 @@ namespace mv
 
             mv::Order new_order(inputs[0]->getOrder()); // by default: do not change order
 
-            auto order_str = args.at("order").get<std::string>();
-            if (!order_str.empty())
-                new_order = mv::Order(order_str);
+            new_order = args.at("order").get<mv::Order>();
 
             auto new_shape = args.at("shape").get<mv::Shape>();
             if (new_shape.ndims() != 4)
             {
                 new_shape = mv::Shape::augment(new_shape, 4);
             }
+
             if (args.at("quantParams").get<mv::QuantizationParams>().isEmpty())
-                outputs.push_back(mv::Tensor(":0", new_shape,  dTypeToUse, inputs[0]->getOrder()));
+                outputs.push_back(mv::Tensor(":0", new_shape,  dTypeToUse, new_order));
             else
-                outputs.push_back(mv::Tensor(":0", new_shape,  dTypeToUse, inputs[0]->getOrder(), args.at("quantParams").get<mv::QuantizationParams>()));
+                outputs.push_back(mv::Tensor(":0", new_shape,  dTypeToUse, new_order, args.at("quantParams").get<mv::QuantizationParams>()));
 
         };
 
@@ -77,7 +55,7 @@ namespace mv
         //.setVariableInputNum(true)
         //.setOptionalArg<std::string>("axis", op_implicit_reshape::channels)
         .setArg<mv::Shape>("shape")
-        .setOptionalArg<std::string>("order", op_reshape::empty)
+        .setArg<mv::Order>("order")
         .setOptionalArg<mv::DType>("dType", mv::DType("Default"))
         .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
         .setInputCheck(op_implicit_reshape::inputCheckFcn)
