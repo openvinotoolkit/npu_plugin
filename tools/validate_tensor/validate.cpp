@@ -10,7 +10,7 @@ using json = nlohmann::json;
 
 int test()
 {
-    int Q_ZERO_POINT = 10;
+    int Q_ZERO_POINT = 0;
     int Q_SCALE = 16;
 
     //Generate a file with some floats in it for testing
@@ -53,7 +53,6 @@ int test()
         float val = Q_SCALE * (static_cast<int>(data2[i]) - Q_ZERO_POINT);
         std::cout << data2[i] << "\t" << val << std::endl;
     }
-    
     return 0;
 }
 
@@ -149,7 +148,7 @@ int main(int argc, char *argv[])
     std::cout << "  Datatype: " << dtype << std::endl;
     std::cout << "  quant_zero: " << qZero << std::endl;
     std::cout << "  quant_scale: " << qScale << std::endl;
-    //qZero = 10;
+    //qZero = 0;
     //qScale = 16;
 
     // read size of output tensor
@@ -166,6 +165,7 @@ int main(int argc, char *argv[])
    
     file.seekg(0, std::ios::end);
     auto totalActual = file.tellg() / sizeof(unsigned int);
+    totalActual = tSize;
     file.seekg(0, std::ios::beg);
     std::vector<unsigned int> outputVector(totalActual);
     file.read(reinterpret_cast<char*>(&outputVector[0]), totalActual*sizeof(unsigned int));
