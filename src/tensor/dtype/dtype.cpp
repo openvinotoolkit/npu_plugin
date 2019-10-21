@@ -31,6 +31,11 @@ unsigned mv::DType::getSizeInBits() const
     return mv::DTypeRegistry::getSizeInBits(dType_);
 }
 
+unsigned mv::DType::getSizeInBytes() const
+{
+    return getSizeInBits() / 8;
+}
+
 bool mv::DType::isDoubleType() const
 {
     return mv::DTypeRegistry::isDoubleType(dType_);
