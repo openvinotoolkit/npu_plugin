@@ -615,6 +615,24 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model, mv::Dat
             if (newOp->get<std::string>("postOpType") == "LeakyRelu")
                 newOp->set<double>("alpha", op->get<double>("alpha"));
         }
+        else if (op->hasAttr("postOpTypes"))
+        {
+            newOp->set<std::vector<std::string>>("postOpTypes", op->get<std::vector<std::string>>("postOpTypes"));
+            std::vector<std::string> postOpTypes = op->get<std::vector<std::string>>("postOpTypes");
+
+            if (op->getOutputTensor(0)->getDType() ==  mv::DType("Float16"))
+            {
+                newOp->set<double>("minimum", op->get<double>("minimum"));
+                if (std::find(postOpTypes.begin(), postOpTypes.end(), "Maximum") != postOpTypes.end())
+                    newOp->set<double>("maximum", op->get<double>("maximum"));
+            }
+            else
+            {
+                newOp->set<int64_t>("minimum", op->get<int64_t>("minimum"));
+                if (std::find(postOpTypes.begin(), postOpTypes.end(), "Maximum") != postOpTypes.end())
+                    newOp->set<int64_t>("maximum", op->get<int64_t>("maximum"));
+            }
+        }
 
         convs[split] = newTensor;
 

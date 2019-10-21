@@ -12,6 +12,14 @@ static const std::array<unsigned short, 2> FAKE_STRIDE = {1,1};
 
 static void convertOpsToTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void addPpeTask(mv::Data::OpListIterator &opIt, std::string ppeTaskType, double leakyAlpha = 0);
+static void computeClampValues(mv::Data::OpListIterator &opIt);
+union fixed_rep
+{
+    int32_t int_rep;
+    float float_rep;
+};
+static void computeClampMinimum(mv::Data::OpListIterator &opIt, fixed_rep &fixed_min);
+static void computeClampMaximum(mv::Data::OpListIterator &opIt, fixed_rep &fixed_max);
 
 namespace mv
 {
@@ -75,6 +83,9 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             bool inputActivationSparsity, outputActivationSparsity, weightsSparsity = false;
             //NOTE: LEAKY RELU PARAM
             double leakyAlpha = 0;
+            int32_t minimum = std::numeric_limits<int32_t>::min();
+            int32_t maximum = std::numeric_limits<int32_t>::max();
+            std::vector <std::string> postOpTypes = {};
             unsigned group = 1;
             if (opType == "Conv")
                 group = opIt->get<unsigned>("group");
@@ -112,7 +123,15 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
                     ppeType = "SIGMOID";
                 }
             }
-
+            else if (opIt->hasAttr("postOpTypes"))
+            {
+                postOpTypes = opIt->get<std::vector<std::string>>("postOpTypes");
+                computeClampValues(opIt);
+                if (std::find(postOpTypes.begin(), postOpTypes.end(), "Minimum") != postOpTypes.end())
+                    minimum = opIt->get<int32_t>("clampMinimum");
+                if (std::find(postOpTypes.begin(), postOpTypes.end(), "Maximum") != postOpTypes.end())
+                    maximum = opIt->get<int32_t>("clampMaximum");
+            }
 
             std::array<unsigned short, 2> kernelSize = {kernel->getShape()[mv::KERNEL_WIDTH], kernel->getShape()[mv::KERNEL_HEIGHT]};
 
@@ -139,8 +158,25 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             dpuConvOp->set<bool>("hasWeights", true);
             dpuConvOp->set<std::array<unsigned short, 2>>("kSize", kernelSize);
 
-            if (!ppeType.empty())
+            if (!postOpTypes.empty())
+            {
+                auto ppeFixedFunction = mv::PPEFixedFunction(1, 0, minimum, maximum);
+                if (std::find(postOpTypes.begin(), postOpTypes.end(), "Minimum") != postOpTypes.end())
+                {
+                    std::string ppeLayerType0 = "MINIMUM";
+                    ppeFixedFunction.addLayer(ppeLayerType0);
+                }
+                if (std::find(postOpTypes.begin(), postOpTypes.end(), "Maximum") != postOpTypes.end())
+                {
+                    std::string ppeLayerType1 = "MAXIMUM";
+                    ppeFixedFunction.addLayer(ppeLayerType1);
+                }
+                auto ppeTask = mv::PPETask(ppeFixedFunction);
+                dpuConvOp->set<mv::PPETask>("PPETask", ppeTask);
+            }
+            else if (!ppeType.empty())
                 addPpeTask(dpuConvOp, ppeType, leakyAlpha);
+
             if(!biasName.empty())
                dpuConvOp->set<std::string>("bias", biasName);
             if(!splitStrategy.empty())
@@ -329,4 +365,40 @@ static void addPpeTask(mv::Data::OpListIterator &opIt, std::string ppeTaskType, 
     auto ppeTask = mv::PPETask(ppeFixedFunction);
     opIt->set<mv::PPETask>("PPETask", ppeTask);
 
+}
+
+static void computeClampValues(mv::Data::OpListIterator &opIt)
+{
+
+    fixed_rep fixed_obj;
+    computeClampMinimum(opIt, fixed_obj);
+    computeClampMaximum(opIt, fixed_obj);
+}
+
+static void computeClampMinimum(mv::Data::OpListIterator &opIt, fixed_rep &fixed_min)
+{
+    if (opIt->hasAttr("minimum"))
+    {
+        if (opIt->getOutputTensor()[0]->getDType() == mv::DType("Float16"))
+        {
+            fixed_min.float_rep = opIt->get<double>("minimum");
+            opIt->set<int32_t>("clampMinimum", fixed_min.int_rep);
+        }
+        else
+            opIt->set<int32_t>("clampMinimum", opIt->get<int32_t>("minimum"));
+    }
+}
+
+static void computeClampMaximum(mv::Data::OpListIterator &opIt, fixed_rep &fixed_max)
+{
+    if (opIt->hasAttr("maximum"))
+    {
+        if (opIt->getOutputTensor()[0]->getDType() == mv::DType("Float16"))
+        {
+            fixed_max.float_rep = opIt->get<double>("maximum");
+            opIt->set<int32_t>("clampMaximum", fixed_max.int_rep);
+        }
+        else
+            opIt->set<int32_t>("clampMaximum", opIt->get<int32_t>("maximum"));
+    }
 }

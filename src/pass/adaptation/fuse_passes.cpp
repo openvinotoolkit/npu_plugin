@@ -7,7 +7,10 @@
 static void fuseBiasFcn(mv::Data::OpListIterator &opIt, mv::DataModel dm, mv::OpModel om);
 static void fuseReluFcn(mv::Data::OpListIterator &opIt, mv::OpModel om);
 static void fuseLeakyReluFcn(mv::Data::OpListIterator &opIt, mv::OpModel om);
+static void fusePowerFcn(mv::Data::OpListIterator &opIt, mv::OpModel om);
 static void fuseSigmoidFcn(mv::Data::OpListIterator &opIt, mv::OpModel om);
+static void fuseMinimumFcn(mv::Data::OpListIterator &opIt, mv::OpModel om);
+static void fuseMaximumFcn(mv::Data::OpListIterator &opIt, mv::OpModel om);
 static void fuseScaleFcn(mv::Data::OpListIterator &opIt, mv::DataModel dm, mv::OpModel om);
 static void fuseSigmoidFcn(mv::Data::OpListIterator &opIt, mv::OpModel om);
 static void fuseBatchNormFcn(mv::Data::OpListIterator &opIt, mv::OpModel om);
@@ -34,7 +37,8 @@ void fusePostOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model
 
     OpModel om(model);
     DataModel dm(model);
-    unsigned bias_nodes = 0, sigmoid_nodes = 0, relu_nodes = 0, leakyRelu_nodes = 0;
+    unsigned bias_nodes, sigmoid_nodes, relu_nodes, leakyRelu_nodes, power_nodes, minimum_nodes, maximum_nodes;
+    bias_nodes = sigmoid_nodes = relu_nodes = leakyRelu_nodes = power_nodes = minimum_nodes = maximum_nodes = 0;
     for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt)
     {
         if (opIt->getOpType() == "Bias")
@@ -45,10 +49,17 @@ void fusePostOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model
             relu_nodes++;
         else if (opIt->getOpType() == "LeakyRelu")
             leakyRelu_nodes++;
+        else if (opIt->getOpType() == "Power")
+            power_nodes++;
+        else if (opIt->getOpType() == "MinimumDouble" || opIt->getOpType() == "MinimumInt")
+            minimum_nodes++;
+        else if (opIt->getOpType() == "MaximumDouble" || opIt->getOpType() == "MaximumInt")
+            maximum_nodes++;
     }
 
     auto opIt = om.getInput();
-    while (bias_nodes > 0 || sigmoid_nodes > 0 || relu_nodes > 0 || leakyRelu_nodes > 0)
+    while (bias_nodes > 0 || sigmoid_nodes > 0 || relu_nodes > 0 || leakyRelu_nodes > 0
+           || minimum_nodes > 0 || maximum_nodes > 0)
     {
         if (opIt->getOpType() == "Bias")
         {
@@ -79,6 +90,30 @@ void fusePostOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model
             pass.log(Logger::MessageType::Debug, "Found Leaky Relu op " + opIt->getName());
             fuseLeakyReluFcn(opIt, om);
             leakyRelu_nodes--;
+        }
+        else if (opIt->getOpType() == "LeakyRelu")
+        {
+            pass.log(Logger::MessageType::Debug, "Found Leaky Relu op " + opIt->getName());
+            fuseLeakyReluFcn(opIt, om);
+            leakyRelu_nodes--;
+        }
+        else if (opIt->getOpType() == "Power")
+        {
+            pass.log(Logger::MessageType::Debug, "Found Power op " + opIt->getName());
+            fusePowerFcn(opIt, om);
+            power_nodes--;
+        }
+        else if (opIt->getOpType() == "MinimumDouble" || opIt->getOpType() == "MinimumInt")
+        {
+            pass.log(Logger::MessageType::Debug, "Found Minimum op " + opIt->getName());
+            fuseMinimumFcn(opIt, om);
+            minimum_nodes--;
+        }
+        else if (opIt->getOpType() == "MaximumDouble" || opIt->getOpType() == "MaximumInt")
+        {
+            pass.log(Logger::MessageType::Debug, "Found Maximum op " + opIt->getName());
+            fuseMaximumFcn(opIt, om);
+            maximum_nodes--;
         }
         //REMAIN MY-X NOT POSTOP
 //        else if (opIt->getOpType() == "BatchNormalization")
@@ -185,6 +220,43 @@ void fuseSigmoidFcn(mv::Data::OpListIterator &opIt, mv::OpModel om)
         opIt->getOutputTensor(0)->set<mv::Tensor::MemoryLocation>("Location", sigmoidOutputMemoryLocation);
 }
 
+void fuseMinimumFcn(mv::Data::OpListIterator &opIt, mv::OpModel om)
+{
+    auto minimumOutputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
+    auto parentOpIt = om.getSourceOp(opIt->getInputTensor(0));
+    parentOpIt->set<std::vector<std::string>>("postOpTypes", {"Minimum"});
+    auto sourceTensor = parentOpIt->getOutputTensor(0);
+    if (sourceTensor->getDType() == mv::DType("Float16"))
+        parentOpIt->set<double>("minimum", opIt->get<double>("minimum"));
+    else
+        parentOpIt->set<int64_t>("minimum", opIt->get<int64_t>("minimum"));
+
+    opIt = linkNewOperationsFuse(parentOpIt, sourceTensor, om, opIt);
+    if (minimumOutputMemoryLocation.isForced())
+        opIt->getOutputTensor(0)->set<mv::Tensor::MemoryLocation>("Location", minimumOutputMemoryLocation);
+}
+
+void fuseMaximumFcn(mv::Data::OpListIterator &opIt, mv::OpModel om)
+{
+    auto maximumOutputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
+    auto parentOpIt = om.getSourceOp(opIt->getInputTensor(0));
+    std::vector<std::string> postOpTypes = {};
+    if (parentOpIt->hasAttr("postOpTypes"))
+        postOpTypes = parentOpIt->get<std::vector<std::string>>("postOpTypes");
+
+    postOpTypes.push_back("Maximum");
+    parentOpIt->set<std::vector<std::string>>("postOpTypes", postOpTypes);
+    auto sourceTensor = parentOpIt->getOutputTensor(0);
+    if (sourceTensor->getDType() == mv::DType("Float16"))
+        parentOpIt->set<double>("maximum", opIt->get<double>("maximum"));
+    else
+        parentOpIt->set<int64_t>("maximum", opIt->get<int64_t>("maximum"));
+
+    opIt = linkNewOperationsFuse(parentOpIt, sourceTensor, om, opIt);
+    if (maximumOutputMemoryLocation.isForced())
+        opIt->getOutputTensor(0)->set<mv::Tensor::MemoryLocation>("Location", maximumOutputMemoryLocation);
+}
+
 void fuseReluFcn(mv::Data::OpListIterator &opIt, mv::OpModel om)
 {
     auto reluOutputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
@@ -206,6 +278,17 @@ void fuseLeakyReluFcn(mv::Data::OpListIterator &opIt, mv::OpModel om)
     opIt = linkNewOperationsFuse(parentOpIt, sourceTensor, om, opIt);
     if (reluOutputMemoryLocation.isForced())
         opIt->getOutputTensor(0)->set<mv::Tensor::MemoryLocation>("Location", reluOutputMemoryLocation);
+}
+
+void fusePowerFcn(mv::Data::OpListIterator &opIt, mv::OpModel om)
+{
+    auto powerOutputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
+    auto parentOpIt = om.getSourceOp(opIt->getInputTensor(0));
+    parentOpIt->set<std::string>("postOpType", "Power");
+    auto sourceTensor = parentOpIt->getOutputTensor(0);
+    opIt = linkNewOperationsFuse(parentOpIt, sourceTensor, om, opIt);
+    if (powerOutputMemoryLocation.isForced())
+        opIt->getOutputTensor(0)->set<mv::Tensor::MemoryLocation>("Location", powerOutputMemoryLocation);
 }
 
 void fuseBatchNormFcn(mv::Data::OpListIterator &opIt, mv::OpModel om)
