@@ -198,7 +198,7 @@ namespace mv
 
     public:
 
-        MemoryAllocator(std::string name, std::size_t size, unsigned short alignment, unsigned short dataTypeSize);
+        MemoryAllocator(std::string name, std::size_t size, unsigned short alignment);
 
         /**
          * @brief Allocate the tensor in a new buffer for the particular stage

@@ -34,8 +34,6 @@ namespace mv
 
             long long size;
             std::size_t alignment;
-            std::size_t dataTypeSize;
-
         };
 
         struct NceDescriptor
@@ -71,7 +69,7 @@ namespace mv
         bool opSupportedAsPostOp(const std::string& opType) const;
 
 
-        bool defineMemory(const std::string& name, long long size, std::size_t alignment, std::size_t dataTypeSize);
+        bool defineMemory(const std::string& name, long long size, std::size_t alignment);
         bool undefineMemory(const std::string& name);
 
         Target getTarget() const;

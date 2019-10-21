@@ -233,7 +233,7 @@ void mv::MemoryAllocator::placeBuffers_(unsigned stageIdx)
 
 }
 
-mv::MemoryAllocator::MemoryAllocator(std::string name, std::size_t size, unsigned short alignment, unsigned short dataTypeSize) :
+mv::MemoryAllocator::MemoryAllocator(std::string name, std::size_t size, unsigned short alignment) :
 name_(name),
 size_(size),
 alignment_(alignment),
