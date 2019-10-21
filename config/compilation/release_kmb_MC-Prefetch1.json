@@ -85,10 +85,7 @@
             "TensorsToU8",
             "TensorsToFP16",
             "AverageAsDepthWise",
-            "FuseBatchNorm",
-            "FuseBias",
-            "FuseRelu",
-            "FuseScale",
+            "FusePostOps",
             "RemoveDropOut",
             "FullyConnectedAsConv2D",
             {
