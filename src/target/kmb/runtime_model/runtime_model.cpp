@@ -373,7 +373,7 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
         toBuild->data->data_index = starting_address + byte_index;
 
         auto strides = tensorBufferIt->getStrides();
-        auto leading_offset = strides[0] / tensorBufferIt->getDataTypeSize();
+        auto leading_offset = strides[0];
         toBuild->locale_index = std::vector<unsigned int>(1,0);
         if (leading_offset)
             toBuild->data->data_index += leading_offset;
