@@ -90,13 +90,12 @@ public:
     inline void loadNetworkWrapper(std::map<std::string, std::string> config, InferenceEngine::StatusCode* st = nullptr);
 
     // Accessors
-    std::string getPluginName() const override ;
-    std::string getDeviceName() const override ;
+    std::string getDeviceName() const override;
     std::map<std::string, std::string> _config;
 
 protected:
     // Data section
-    std::string pluginName;
+    std::string deviceName;
     CompilationParameter path_to_files;
 
     //Operations
@@ -104,18 +103,14 @@ protected:
 };
 
 void VpuNoRegressionWithCompilation::SetUp() {
-    pluginName = get<0>(TestParam::GetParam());
+    deviceName = get<0>(TestParam::GetParam());
     path_to_files = get<1>(TestParam::GetParam());
 
     PluginCache::get().reset();
 }
 
-inline std::string VpuNoRegressionWithCompilation::getPluginName() const {
-    return pluginName;
-}
-
 inline std::string VpuNoRegressionWithCompilation::getDeviceName() const {
-    return "";
+    return deviceName;
 }
 
 class KmbNoRegressionCompilationOnly : public VpuNoRegressionWithCompilation {
@@ -203,7 +198,7 @@ std::vector<CompilationParameter> compilation_parameters_kmb = {
 inline void VpuNoRegressionWithCompilation::loadNetworkWrapper(std::map<std::string, std::string> config, InferenceEngine::StatusCode* st) {
     StatusCode sts;
     InferenceEngine::ResponseDesc response;
-    InferenceEnginePluginPtr plugin(make_plugin_name(pluginName));
+    InferenceEngine::Core ie;
     CNNNetReader reader;
     reader.ReadNetwork((ModelsPath() + path_to_files.pathToNetwork()).c_str());
     reader.ReadWeights((ModelsPath() + path_to_files.pathToWeights()).c_str());
@@ -221,9 +216,11 @@ inline void VpuNoRegressionWithCompilation::loadNetworkWrapper(std::map<std::str
 
         clonedNetwork = cloneNet(network);
         cnnorm.NormalizeNetwork(*clonedNetwork, *pstats);
-        sts = plugin->LoadNetwork(exeNetwork, *clonedNetwork, config, &response);
+        CNNNetwork wrapper(clonedNetwork);
+
+        exeNetwork = ie.LoadNetwork(wrapper, deviceName, config);
     } else {
-        sts = plugin->LoadNetwork(exeNetwork, network, config, &response);
+        exeNetwork = ie.LoadNetwork(network, deviceName, config);
     }
 
     if (st) {
@@ -266,7 +263,7 @@ TEST_P(KmbNoRegressionCompilationOnly, DISABLED_IE2MCM) {
 INSTANTIATE_TEST_CASE_P(
         KmbParsingOnlyTest_smoke_nightly,
         KmbNoRegressionCompilationOnly,
-        Combine(Values("kmbPlugin"),
+        Combine(Values("KMB"),
                 ValuesIn(compilation_parameters_kmb),
                 Values<Compile>(false),
                 Values<Timeout>(60.)),
@@ -276,7 +273,7 @@ INSTANTIATE_TEST_CASE_P(
         DISABLED_KmbCompilationTest_smoke_nightly,
         // TODO: mcmCompiler can not compile top 6 KeemBay target networks. Jira: VPUNND-1412, VPUNND-1415, VPUNND-1416, VPUNND-1417, VPUNND-1418
         KmbNoRegressionCompilationOnly,
-        Combine(Values("kmbPlugin"),
+        Combine(Values("KMB"),
                 ValuesIn(compilation_parameters_kmb),
                 Values<Compile>(true),
                 Values<Timeout>(600.)),
@@ -285,7 +282,7 @@ INSTANTIATE_TEST_CASE_P(
 INSTANTIATE_TEST_CASE_P(
         DISABLED_KmbParsingUnsupportedOnlyTest_smoke_nightly,
         KmbNoRegressionCompilationOnly,
-        Combine(Values("kmbPlugin"),
+        Combine(Values("KMB"),
                 ValuesIn(compilation_parameters_unsupported),
                 Values<Compile>(false),
                 Values<Timeout>(60.)),
@@ -294,7 +291,7 @@ INSTANTIATE_TEST_CASE_P(
 INSTANTIATE_TEST_CASE_P(
         DISABLED_KmbCompilationParsingUnsupportedTest_smoke_nightly,
         KmbNoRegressionCompilationOnly,
-        Combine(Values("kmbPlugin"),
+        Combine(Values("KMB"),
                 ValuesIn(compilation_parameters_unsupported),
                 Values<Compile>(true),
                 Values<Timeout>(600.)),
@@ -333,26 +330,13 @@ class VpuInferWithPath: public vpuLayersTests,
                         public testing::WithParamInterface< modelBlobsInfo > {
 };
 
-class VpuNoRegressionInference : public Regression::RegressionTests {
-public:
-    std::string getPluginName() const override {
-        return pluginName;
-    }
-
-    std::string getDeviceName() const override {
-        return "";
-    }
-protected:
-    std::string pluginName = "kmbPlugin";
-};
-
 TEST_P(VpuInferWithPath, canDoInferenceOnImportedBlob) {
     modelBlobsInfo blobsInfo = GetParam();
     std::string modelFilePath = ModelsPath() + blobsInfo._graphPath;
 
     Core ie;
     InferenceEngine::ExecutableNetwork importedNetwork;
-    ASSERT_NO_THROW(importedNetwork = ie.ImportNetwork(modelFilePath, "KMB", {}));
+    ASSERT_NO_THROW(importedNetwork = ie.ImportNetwork(modelFilePath, "KMB"));
 
     InferenceEngine::InferRequest inferRequest;
     ASSERT_NO_THROW(inferRequest = importedNetwork.CreateInferRequest());
@@ -368,7 +352,7 @@ TEST_P(VpuInferWithPath, compareInferenceOutputWithReference) {
 
     Core ie;
     InferenceEngine::ExecutableNetwork importedNetwork;
-    ASSERT_NO_THROW(importedNetwork = ie.ImportNetwork(modelFilePath, "KMB", {}));
+    ASSERT_NO_THROW(importedNetwork = ie.ImportNetwork(modelFilePath, "KMB"));
 
     InferenceEngine::InferRequest inferRequest;
     ASSERT_NO_THROW(inferRequest = importedNetwork.CreateInferRequest());
@@ -424,7 +408,7 @@ TEST_P(VpuInferAndCompareTestsWithParam, multipleInferRequests) {
 
     Core ie;
     InferenceEngine::ExecutableNetwork importedNetwork;
-    ASSERT_NO_THROW(importedNetwork = ie.ImportNetwork(modelFilePath, "KMB", {}));
+    ASSERT_NO_THROW(importedNetwork = ie.ImportNetwork(modelFilePath, "KMB"));
 
     std::list<InferenceEngine::InferRequest> requestList;
     const int REQUEST_LIMIT = 10;
@@ -508,7 +492,7 @@ TEST_P(VpuInferWithPath, asyncInferCallback) {
 
     Core ie;
     InferenceEngine::ExecutableNetwork importedNetwork;
-    ASSERT_NO_THROW(importedNetwork = ie.ImportNetwork(modelFilePath, "KMB", {}));
+    ASSERT_NO_THROW(importedNetwork = ie.ImportNetwork(modelFilePath, "KMB"));
 
     std::list<InferenceEngine::InferRequest> requestList;
     const int REQUEST_LIMIT = 10;
@@ -594,7 +578,7 @@ TEST_P(VpuInferWithPath, asyncInferCallbackRecursive) {
 
     Core ie;
     InferenceEngine::ExecutableNetwork importedNetwork;
-    ASSERT_NO_THROW(importedNetwork = ie.ImportNetwork(modelFilePath, "KMB", {}));
+    ASSERT_NO_THROW(importedNetwork = ie.ImportNetwork(modelFilePath, "KMB"));
 
     InferenceEngine::InferRequest inferRequest;
     ASSERT_NO_THROW(inferRequest = importedNetwork.CreateInferRequest());
@@ -674,7 +658,7 @@ TEST_P(VpuInferWithPath, compareSetBlobAndGetBlob) {
 
     Core ie;
     InferenceEngine::ExecutableNetwork importedNetwork;
-    ASSERT_NO_THROW(importedNetwork = ie.ImportNetwork(modelFilePath, "KMB", {}));
+    ASSERT_NO_THROW(importedNetwork = ie.ImportNetwork(modelFilePath, "KMB"));
 
     InferenceEngine::InferRequest inferRequest;
     ASSERT_NO_THROW(inferRequest = importedNetwork.CreateInferRequest());
@@ -709,7 +693,7 @@ TEST_P(VpuInferWithPath, compareSetBlobAndGetBlobAfterInfer) {
 
     Core ie;
     InferenceEngine::ExecutableNetwork importedNetwork;
-    ASSERT_NO_THROW(importedNetwork = ie.ImportNetwork(modelFilePath, "KMB", {}));
+    ASSERT_NO_THROW(importedNetwork = ie.ImportNetwork(modelFilePath, "KMB"));
 
     InferenceEngine::InferRequest inferRequest1;
     ASSERT_NO_THROW(inferRequest1 = importedNetwork.CreateInferRequest());
@@ -771,9 +755,9 @@ TEST_F(kmbSetBlob, compareSetBlobAllocation) {
 
     Core ie;
     InferenceEngine::ExecutableNetwork mobilNImportedNetwork;
-    ASSERT_NO_THROW(mobilNImportedNetwork = ie.ImportNetwork(mobilenetModelFilePath, "KMB", {}));
+    ASSERT_NO_THROW(mobilNImportedNetwork = ie.ImportNetwork(mobilenetModelFilePath, "KMB"));
     InferenceEngine::ExecutableNetwork resNImportedNetwork;
-    ASSERT_NO_THROW(resNImportedNetwork = ie.ImportNetwork(resnetModelFilePath, "KMB", {}));
+    ASSERT_NO_THROW(resNImportedNetwork = ie.ImportNetwork(resnetModelFilePath, "KMB"));
 
 
     InferenceEngine::InferRequest mobilNInferRequest;
@@ -804,9 +788,9 @@ TEST_P(VpuInferWithPath, compareOutputsTwoNetworks) {
 
     Core ie;
     InferenceEngine::ExecutableNetwork importedNetwork1;
-    ASSERT_NO_THROW(importedNetwork1 = ie.ImportNetwork(modelFilePath, "KMB", {}));
+    ASSERT_NO_THROW(importedNetwork1 = ie.ImportNetwork(modelFilePath, "KMB"));
     InferenceEngine::ExecutableNetwork importedNetwork2;
-    ASSERT_NO_THROW(importedNetwork2 = ie.ImportNetwork(modelFilePath, "KMB", {}));
+    ASSERT_NO_THROW(importedNetwork2 = ie.ImportNetwork(modelFilePath, "KMB"));
 
 
     InferenceEngine::InferRequest inferRequest1;
@@ -868,7 +852,7 @@ TEST_P(VpuInferWithPath, compareSetBlobAndInfer) {
 
     Core ie;
     InferenceEngine::ExecutableNetwork importedNetwork;
-    ASSERT_NO_THROW(importedNetwork = ie.ImportNetwork(modelFilePath, "KMB", {}));
+    ASSERT_NO_THROW(importedNetwork = ie.ImportNetwork(modelFilePath, "KMB"));
 
     InferenceEngine::InferRequest inferRequest;
     ASSERT_NO_THROW(inferRequest = importedNetwork.CreateInferRequest());
@@ -932,7 +916,7 @@ TEST_F(vpuInferWithSetUp, copyCheckSetBlob) {
 
     Core ie;
     InferenceEngine::ExecutableNetwork importedNetwork;
-    ASSERT_NO_THROW(importedNetwork = ie.ImportNetwork(modelFilePath, "KMB", {}));
+    ASSERT_NO_THROW(importedNetwork = ie.ImportNetwork(modelFilePath, "KMB"));
 
     InferenceEngine::InferRequest inferRequest;
     ASSERT_NO_THROW(inferRequest = importedNetwork.CreateInferRequest());
