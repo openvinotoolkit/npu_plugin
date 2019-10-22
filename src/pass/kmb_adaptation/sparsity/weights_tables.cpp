@@ -219,16 +219,10 @@ void populateWeightsTablesActivationAndBias(mv::Data::TensorIterator weightsTabl
         }
     }
     std::vector<mv::DataElement> biasData;
-    std::vector<mv::DataElement> reluMultData;
     bool hasBias = dpuTaskOp->hasAttr("bias");
     bool hasRelu = dpuTaskOp->hasAttr("LRELU");
     bool hasReluMult = false;
-    if (hasRelu)
-    {
-        hasReluMult = (dpuTaskOp->get<mv::PPETask>("PPETask").getFixedFunction().getLReluMult() != 1);
-        if (hasReluMult)
-            reluMultData.push_back(dpuTaskOp->get<mv::PPETask>("PPETask").getFixedFunction().getLReluMult());
-    }
+
     mv::Data::TensorIterator bias;
     if (hasBias)
     {
@@ -238,13 +232,19 @@ void populateWeightsTablesActivationAndBias(mv::Data::TensorIterator weightsTabl
 
     unsigned round_mode = 1;
     std::vector<int32_t> round32(outputChannels, round_mode);
+    std::vector<int32_t> reluMultData(outputChannels, 0);
+    if (hasRelu)
+    {
+        hasReluMult = (dpuTaskOp->get<mv::PPETask>("PPETask").getFixedFunction().getLReluMult() != 1);
+        if (hasReluMult)
+            std::fill(reluMultData.begin(), reluMultData.end(), dpuTaskOp->get<mv::PPETask>("PPETask").getFixedFunction().getLReluMult());
+    }
+
     for (size_t i = 0; i < weightsTableData->size(); i+=WT_ELEMENTS_PER_CHANNEL)
     {
-        weightsTableData->at(i+2) = static_cast<long int>((mScaled[i/WT_ELEMENTS_PER_CHANNEL] << 16) | (round32[i/WT_ELEMENTS_PER_CHANNEL] << 14) | (mShift[i/WT_ELEMENTS_PER_CHANNEL]) << 8);
+        weightsTableData->at(i+2) = static_cast<long int>((mScaled[i/WT_ELEMENTS_PER_CHANNEL] << 16) | (round32[i/WT_ELEMENTS_PER_CHANNEL] << 14) | (mShift[i/WT_ELEMENTS_PER_CHANNEL]) << 8) | reluMultData[i/WT_ELEMENTS_PER_CHANNEL];
         if (hasBias)
             weightsTableData->at(i+3) = biasData[i/WT_ELEMENTS_PER_CHANNEL];
-        if (hasReluMult)
-            weightsTableData->at(i) = reluMultData[0];
     }
 }
 static void populateWeightsTablesQuantizationFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
