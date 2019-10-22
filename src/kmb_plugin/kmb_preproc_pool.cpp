@@ -83,6 +83,9 @@ SippPreprocessorPool& SippPreprocPool::getPool(int w) {
 }
 
 void SippPreprocPool::execSIPPDataPreprocessing(const PreprocTask& task) {
+    if  (task.inputs.empty()) {
+        THROW_IE_EXCEPTION << "Inputs are empty.";
+    }
     auto dims = task.inputs.begin()->second->getTensorDesc().getDims();
     getPool(dims[3]).execSIPPDataPreprocessing(task);
 }

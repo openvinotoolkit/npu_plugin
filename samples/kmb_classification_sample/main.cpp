@@ -204,9 +204,12 @@ int main(int argc, char *argv[]) {
                                                   labels);
         classificationResult.print();
 
-        FILE* outFile  = fopen("/output.dat", "wb");
-        fwrite(outputBlob->buffer(), sizeof(u_char), outputBlob->byteSize(), outFile);
-        fclose(outFile);
+        std::fstream outFile;
+        outFile.open("/output.dat", std::ios::in | std::ios::out | std::ios::binary);
+        if (outFile.is_open()) {
+            outFile.write(outputBlob->buffer(), outputBlob->size());
+        }
+        outFile.close();
     }
     catch (const std::exception& error) {
         slog::err << "" << error.what() << slog::endl;
