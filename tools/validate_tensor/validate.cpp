@@ -174,7 +174,8 @@ int main(int argc, char *argv[])
     for(size_t i = 0; i < outputVector.size(); ++i)
     {
         // De-quantize: real_value = scale * (quantized_value - zero_point)
-        float val = qScale * (static_cast<unsigned int>(outputVector[i]) - qZero);
+        //float val = qScale * (static_cast<unsigned int>(outputVector[i]) - qZero);
+        float val = outputVector[i];
         outputFP32.push_back(val);
     }
 
