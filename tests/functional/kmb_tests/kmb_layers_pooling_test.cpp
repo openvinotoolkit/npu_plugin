@@ -14,6 +14,7 @@
 // stated in the License.
 //
 #include <vpu/kmb_plugin_config.hpp>
+#include <pool_ref.hpp>
 
 #include "kmb_layers_tests.hpp"
 
@@ -261,7 +262,7 @@ struct PoolingTestParams {
     pool_common_params pool_params;
 };
 
-class PoolingTest : public KmbPerLayerTest, public testing::WithParamInterface<PoolingTestParams> {};
+class PoolingTest : public testing::WithParamInterface<PoolingTestParams>, public kmbLayersTests_nightly {};
 
 const std::string uint8_pooling = R"V0G0N(
 <net batch="1" name="POOLING_TEST" version="2">
@@ -277,7 +278,7 @@ const std::string uint8_pooling = R"V0G0N(
             </output>
         </layer>
         <layer id="1" name="pooling_test" precision="U8" type="Pooling">
-            <data kernel="_KERNEL_" strides="_STRIDE_" exclude-pad="_EXCLUDE_PAD_" pool-method="max"  auto_pad="same_upper" pads_begin="0,0" pads_end="1,1"/>
+            <data kernel="_KERNEL_" strides="_STRIDE_" exclude-pad="_EXCLUDE_PAD_" pool-method="max" pads_begin="0,0" pads_end="0,0"/>
             <input>
                 <port id="0">
                     <dim>1</dim>
@@ -302,8 +303,6 @@ const std::string uint8_pooling = R"V0G0N(
 </net>
 )V0G0N";
 
-// Disabled due to bug in mcmCompiler with Release build type.
-// Corresponding Jira ticket VPUNND-1910
 TEST_P(PoolingTest, DISABLED_pooling_only) {
     auto model = uint8_pooling;
 
@@ -322,24 +321,63 @@ TEST_P(PoolingTest, DISABLED_pooling_only) {
     REPLACE_WITH_NUM(model, "_OUTPUT_HEIGHT_", outputSize[2]);
     REPLACE_WITH_NUM(model, "_OUTPUT_WIDTH_", outputSize[3]);
 
-
     CNNNetReader reader;
-    reader.ReadNetwork(model.data(), model.length());
+    ASSERT_NO_THROW(reader.ReadNetwork(model.data(), model.length()));
     ASSERT_TRUE(reader.isParseSuccess());
+
+    CNNNetwork network = reader.getNetwork();
+
+    auto _inputsInfo = network.getInputsInfo();
+    _inputsInfo["input"]->setPrecision(Precision::U8);
+
+    auto _outputsInfo = network.getOutputsInfo();
+    _outputsInfo["pooling_test"]->setPrecision(Precision::U8);
 
     Core ie;
     ExecutableNetwork exeNetwork;
 
-    auto config = getCommonConfig();
-    ASSERT_NO_THROW(exeNetwork = ie.LoadNetwork(reader.getNetwork(), "KMB", config));
-    ASSERT_NO_THROW(exeNetwork.Export(getTestResultFilename() + ".blob"));
+    std::map<std::string, std::string> config;
+    setCommonConfig(config);
+    config[VPU_KMB_CONFIG_KEY(MCM_PARSING_ONLY)] = CONFIG_VALUE(NO);
+    config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_BLOB)] = CONFIG_VALUE(YES);
+    config[VPU_KMB_CONFIG_KEY(LOAD_NETWORK_AFTER_COMPILATION)] = CONFIG_VALUE(YES);
+    ASSERT_NO_THROW(exeNetwork = ie.LoadNetwork(network, "KMB", config));
+
+    InferenceEngine::InferRequest inferRequest;
+    ASSERT_NO_THROW(inferRequest = exeNetwork.CreateInferRequest());
+
+    Blob::Ptr inputBlob;
+    ASSERT_NO_THROW(inputBlob = inferRequest.GetBlob(exeNetwork.GetInputsInfo().begin()->first));
+    auto inputDesc = inputBlob->getTensorDesc();
+    auto data = inputBlob->buffer().as<uint8_t*>();
+    fillIntBuffer(data, inputBlob->byteSize(), static_cast<uint8_t>(1), static_cast<uint8_t>(1));
+
+    auto outputBlob = inferRequest.GetBlob(exeNetwork.GetOutputsInfo().begin()->first);
+    auto outputDesc = outputBlob->getTensorDesc();
+
+    Blob::Ptr refInputBlob = make_shared_blob<float>({Precision::FP32, inputDesc.getDims(), inputDesc.getLayout()});
+    refInputBlob->allocate();
+    data = refInputBlob->buffer().as<uint8_t*>();
+    std::fill(data, data + refInputBlob->byteSize(), 1);
+
+    Blob::Ptr refOutputBlob = make_shared_blob<float>({Precision::FP32, outputDesc.getDims(), outputDesc.getLayout()});
+    refOutputBlob->allocate();
+    data = refOutputBlob->buffer().as<uint8_t*>();
+    std::fill(data, data + refOutputBlob->byteSize(), 0);
+    ref_pool_common<float>({refInputBlob}, *refOutputBlob, params);
+
+    ASSERT_NO_THROW(inferRequest.Infer());
+
+    Blob::Ptr outputBlobFP32 = ConvertU8ToFP32(outputBlob);
+    Compare(refOutputBlob, outputBlobFP32, 1.1f);
+
 }
 
 // Assuming input layout have NCHW order
 std::vector<PoolingTestParams> int_pooling_params = {
-        {{1, 3, 224, 224}, {{2, 2}, {2, 2}, {0, 0}, {1, 1}, "same_upper", false, "true"}},
-        {{1, 3, 224, 224}, {{2, 2}, {4, 4}, {0, 0}, {1, 1}, "same_upper", false, "true"}},
-        {{1, 3, 224, 224}, {{2, 2}, {2, 2}, {0, 0}, {1, 1}, "same_upper", false, "false"}},
+        {{1, 1, 128, 128}, {{1, 1}, {4, 4}, {0, 0}, {0, 0}, "same_upper", false, "true"}},
+        {{1, 2048, 7, 7}, {{1, 1}, {7, 7}, {0, 0}, {0, 0}, "same_upper", false, "true"}},
+        {{1, 3, 224, 224}, {{2, 2}, {2, 2}, {0, 0}, {0, 0}, "same_upper", false, "false"}},
 };
 
 INSTANTIATE_TEST_CASE_P(PerLayer, PoolingTest, ::testing::ValuesIn(int_pooling_params));
