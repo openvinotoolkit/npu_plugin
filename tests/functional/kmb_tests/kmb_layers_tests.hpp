@@ -63,3 +63,9 @@ template<class T>
 class kmbLayerTestBaseWithParam: public kmbLayersTests_nightly,
                            public testing::WithParamInterface<T> {
 };
+
+class KmbPerLayerTest : public ::testing::Test {
+public:
+    std::map<std::string, std::string> getCommonConfig() const;
+    std::string getTestResultFilename() const;
+};

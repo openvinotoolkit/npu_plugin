@@ -74,8 +74,9 @@ void Engine::QueryNetwork(const ICNNNetwork& network, const std::map<std::string
     auto parsedConfigCopy = _parsedConfig;
     parsedConfigCopy.update(config);
 
+    auto copyNet = ie::CNNNetwork(InferenceEngine::cloneNet(network));
     auto layerNames = getSupportedLayersMcm(
-        network,
+        copyNet,
         tmpCompiler->model(),
         parsedConfigCopy);
 

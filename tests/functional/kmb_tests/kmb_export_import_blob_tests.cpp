@@ -18,6 +18,7 @@
 #include <vpu/kmb_plugin_config.hpp>
 
 #include "kmb_layers_tests.hpp"
+#include "kmb_xml_tests.hpp"
 
 #include <ie_icnn_network_stats.hpp>
 #include <cnn_network_int8_normalizer.hpp>
@@ -162,7 +163,7 @@ TEST_F(kmbLayersTests_nightly, DISABLED_TestExportImportBlob_resnet50_int8_fragm
 
 // Disabled because LoadNetwork fails to initialize device
 // Jira ticket - CVS-21379
-TEST_F(kmbLayersTests_nightly, TestExportImportBlob_Pooling) {
+TEST_F(kmbLayersTests_nightly, DISABLED_TestExportImportBlob_Pooling) {
     extern std::string pooling_test2;
     const std::string model = pooling_test2;
 

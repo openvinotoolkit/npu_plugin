@@ -11,6 +11,7 @@
 #include <condition_variable>
 #include <atomic>
 #include <memory>
+#include <sstream>
 
 namespace InferenceEngine {
 
@@ -82,6 +83,9 @@ SippPreprocessorPool& SippPreprocPool::getPool(int w) {
 }
 
 void SippPreprocPool::execSIPPDataPreprocessing(const PreprocTask& task) {
+    if  (task.inputs.empty()) {
+        THROW_IE_EXCEPTION << "Inputs are empty.";
+    }
     auto dims = task.inputs.begin()->second->getTensorDesc().getDims();
     getPool(dims[3]).execSIPPDataPreprocessing(task);
 }
@@ -90,5 +94,21 @@ SippPreprocPool& sippPreprocPool() {
     static SippPreprocPool pool;
     return pool;
 }
+
+unsigned SippPreprocPool::firstShave = [] {
+    const char *firstShaveEnv = std::getenv("SIPP_FIRST_SHAVE");
+    unsigned int shaveNum = SippPreprocPool::defaultFirstShave;
+    if (firstShaveEnv != nullptr) {
+        std::istringstream str2Integer(firstShaveEnv);
+        str2Integer >> shaveNum;
+    }
+
+    if (shaveNum + SippPreprocPool::shavesPerPool*SippPreprocPool::maxPools > 16) {
+        THROW_IE_EXCEPTION << "Error: Max number of shaves exceeded!";
+    }
+
+    return shaveNum;
+}();
+
 }  // namespace InferenceEngine
 #endif  // #ifdef ENABLE_VPUAL

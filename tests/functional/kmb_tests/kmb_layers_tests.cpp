@@ -102,3 +102,19 @@ void kmbLayersTests_nightly::doNetworkInit(const std::string& layer_type,
     }
     setup(outputPrecision, inputPrecision, true);
 }
+
+std::map<std::string, std::string> KmbPerLayerTest::getCommonConfig() const {
+    std::map<std::string, std::string> config;
+    config[VPU_KMB_CONFIG_KEY(MCM_PARSING_ONLY)] = CONFIG_VALUE(NO);
+
+    return config;
+}
+
+std::string KmbPerLayerTest::getTestResultFilename() const {
+    std::string testResultFilename = ::testing::UnitTest::GetInstance()->current_test_info()->name();
+    for (auto& letter : testResultFilename) {
+        letter = (letter == '/') ? '_' : letter;
+    }
+
+    return testResultFilename;
+}

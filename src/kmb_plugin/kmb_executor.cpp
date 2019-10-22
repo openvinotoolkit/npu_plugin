@@ -63,15 +63,15 @@ static uint32_t getXlinkChannel(const vpu::Logger::Ptr &_logger) {
     static std::mutex mutex_;
     static int XlinkChannel = -1;
 
-    uint32_t ret;
     std::unique_lock<std::mutex> lock(mutex_);
 
     if (XlinkChannel <= 0) {
         const char * pxc = getenv("IE_VPU_KMB_XC");
         XlinkChannel = pxc ? atoi(pxc):IE_VPU_KMB_XC_DEFAULT;
     }
-    // In this simplified implementation we never reuse the cannel
-    ret = XlinkChannel++;
+    // In this simplified implementation we never reuse the channel
+    uint32_t ret = XlinkChannel++;
+
     // Skipping "0xA: IP control channel (standard channel)"
     if (ret == 10) {
         ret = XlinkChannel++;
@@ -82,7 +82,8 @@ static uint32_t getXlinkChannel(const vpu::Logger::Ptr &_logger) {
 #endif
 
 KmbExecutor::KmbExecutor(const KmbConfig& config)
-            : _config(config), _logger(std::make_shared<Logger>("KmbExecutor", config.logLevel(), consoleOutput())) {
+            : _config(config), _logger(std::make_shared<Logger>("KmbExecutor", config.logLevel(), consoleOutput())),
+              blob_file(nullptr), rgnAllocatorBuffer(nullptr), xlinkChannelIn(0), xlinkChannelOut(0), _outTensorLen(0), _outTensorAddr(0) {
     auto parsedConfig = _config.getParsedConfig();
     if (parsedConfig[VPU_KMB_CONFIG_KEY(KMB_EXECUTOR)] == "NO") {
         return;
@@ -123,8 +124,7 @@ void KmbExecutor::initVpualObjects() {
 #endif
 }
 
-void KmbExecutor::allocateGraph(const std::vector<char> &graphFileContent, const char* networkName) {
-    UNUSED(networkName);
+void KmbExecutor::allocateGraph(const std::vector<char> &graphFileContent) {
     auto parsedConfig = _config.getParsedConfig();
     if (parsedConfig[VPU_KMB_CONFIG_KEY(KMB_EXECUTOR)] == "NO") {
         return;
@@ -304,8 +304,6 @@ void KmbExecutor::queueInference(void *input_data, size_t input_bytes,
 }
 
 void KmbExecutor::getResult(void *result_data, unsigned int result_bytes) {
-    UNUSED(result_data);
-    UNUSED(result_bytes);
     auto parsedConfig = _config.getParsedConfig();
     if (parsedConfig[VPU_KMB_CONFIG_KEY(KMB_EXECUTOR)] == "NO") {
         return;
@@ -326,6 +324,7 @@ void KmbExecutor::getResult(void *result_data, unsigned int result_bytes) {
                   offset, xlinkChannelIn, xlinkChannelOut);
 
     _logger->info("KmbExecutor::getResult memcpy started");
+    IE_ASSERT(result_bytes >= len);
     std::memcpy(result_data, data, len);
     std::memset(data, 0, len);
     _logger->info("KmbExecutor::getResult memcpy finished");

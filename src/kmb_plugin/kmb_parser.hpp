@@ -36,7 +36,11 @@
 #include <kmb_config.h>
 
 #ifdef ENABLE_MCM_COMPILER
-#include <mcm/compiler/compilation_unit.hpp>
+#include "include/mcm/compiler/compilation_unit.hpp"
+#include "include/mcm/utils/data_generator.hpp"
+#include <include/mcm/op_model.hpp>
+#include "include/mcm/utils/hardware_tests.hpp"
+#include "include/mcm/target/target_descriptor.hpp"
 
 namespace vpu {
 namespace KmbPlugin {
@@ -69,7 +73,7 @@ struct CompiledGraph final {
 //
 
 void compileMcm(
-        const ie::ICNNNetwork& network,
+        ie::ICNNNetwork& network,
         const KmbConfig& config,
         mv::CompilationUnit& unit,
         std::vector<char>& blob);
@@ -78,7 +82,7 @@ void compileMcm(
 //
 
 std::set<std::string> getSupportedLayersMcm(
-        const ie::ICNNNetwork& network,
+        ie::ICNNNetwork& network,
         mv::OpModel& pCompiler,
         const KmbConfig& config);
 

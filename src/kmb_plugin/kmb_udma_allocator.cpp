@@ -43,7 +43,7 @@ void *KmbUdmaAllocator::alloc(size_t size) noexcept {
     // Set the sync mode.
     const std::string SYNC_MODE_STR = "3";
     int devFileDesc = -1;
-    if ((devFileDesc  = open(udmabufclassname.c_str(), O_WRONLY)) != -1) {
+    if ((devFileDesc  = open(udmabufclassname.c_str(), O_WRONLY | O_EXCL)) != -1) {
         std::size_t bytesWritten = write(devFileDesc, SYNC_MODE_STR.c_str(), SYNC_MODE_STR.size());
         UNUSED(bytesWritten);
         close(devFileDesc);
@@ -54,7 +54,7 @@ void *KmbUdmaAllocator::alloc(size_t size) noexcept {
     std::size_t regionSize = size;
     // Get the size of the region.
     int bufSizeFileDesc = -1;
-    if ((bufSizeFileDesc  = open(udmabufsize.c_str(), O_RDONLY)) != -1) {
+    if ((bufSizeFileDesc  = open(udmabufsize.c_str(), O_RDONLY | O_EXCL)) != -1) {
         const std::size_t maxRegionSizeLength = 1024;
         std::string regionSizeString(maxRegionSizeLength, 0x0);
 
@@ -70,7 +70,7 @@ void *KmbUdmaAllocator::alloc(size_t size) noexcept {
     // Get the physical address of the region.
     unsigned long physAddress = 0;
     int physAddrFileDesc = -1;
-    if ((physAddrFileDesc  = open(udmabufphysaddr.c_str(), O_RDONLY)) != -1) {
+    if ((physAddrFileDesc  = open(udmabufphysaddr.c_str(), O_RDONLY | O_EXCL)) != -1) {
         const std::size_t maxPhysAddrLength = 1024;
         std::string physAddrString(maxPhysAddrLength, 0x0);
 
@@ -87,20 +87,23 @@ void *KmbUdmaAllocator::alloc(size_t size) noexcept {
     // O_SYNC is important to ensure our data is written through the cache.
     int fileDesc = -1;
     void *virtAddr = nullptr;
-    if ((fileDesc = open(udmabufdevname.c_str(), O_RDWR | O_SYNC)) != -1) {
+    if ((fileDesc = open(udmabufdevname.c_str(), O_RDWR | O_SYNC | O_EXCL)) != -1) {
         virtAddr = static_cast<unsigned char*>(mmap(nullptr, regionSize, PROT_READ|PROT_WRITE, MAP_SHARED, fileDesc, 0));
     } else {
         return nullptr;
     }
 
-    if (virtAddr == MAP_FAILED)
+    if (virtAddr == MAP_FAILED) {
+        close(fileDesc);
         return nullptr;
+    }
 
     MemoryDescriptor memDesc = {
             regionSize,  // size
             fileDesc,    // file descriptor
             physAddress  // physical address
     };
+    close(fileDesc);
     _allocatedMemory[virtAddr] = memDesc;
 
     return virtAddr;

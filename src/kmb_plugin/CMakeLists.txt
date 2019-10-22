@@ -55,6 +55,7 @@ target_include_directories(${TARGET_NAME}
         "${MCM_COMPILER_INCLUDE_PATH}"
         "${FLATBUFFERRS_INCLUDE_PATH}"
         "${MCM_SCHEMA_INCLUDE_PATH}"
+        "${METIS_DIR}/include"
         )
 
 target_link_libraries(${TARGET_NAME}
@@ -67,6 +68,7 @@ target_link_libraries(${TARGET_NAME}
         vpusmm
         ${GAPI_SIPP_LIBRARY}
         kmb_utils
+        ${METIS_DIR}
         )
 
 if(ENABLE_TESTS)
@@ -90,6 +92,7 @@ if(ENABLE_TESTS)
             "${MCM_COMPILER_INCLUDE_PATH}"
             "${FLATBUFFERRS_INCLUDE_PATH}"
             "${MCM_SCHEMA_INCLUDE_PATH}"
+            "${METIS_DIR}/include"
             )
     target_link_libraries(${TARGET_NAME}_test_static
             PUBLIC

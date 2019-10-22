@@ -16,6 +16,7 @@
 #include "single_layer_common.hpp"
 #include <vpu/vpu_plugin_config.hpp>
 #include <vpu/private_plugin_config.hpp>
+#include <random>
 #include "layers_reference_functions.hpp"
 
 #define DEFAULT_SEED_VALUE (43)
@@ -436,4 +437,38 @@ void compareTopClasses(const InferenceEngine::Blob::Ptr &resultBlob,
 inline bool hasFakeXLinkDevice() {
     std::string ldPreloadValue(std::getenv("LD_PRELOAD") != nullptr ? std::getenv("LD_PRELOAD") : "");
     return ldPreloadValue.find("libvpualModel") != ldPreloadValue.npos;
+}
+
+template<typename T, class Generator>
+void fillCommon(T* data, size_t size, const Generator& gen) {
+    for (size_t i = 0; i < size; ++i) {
+        data[i] = gen();
+    }
+}
+
+template<typename T>
+void fillIntBuffer(T* data, size_t size,  T min, T max) {
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<T> dis(min, max);
+
+    fillCommon(data, size, [&](){return dis(gen);});
+}
+
+template<typename T>
+void fillRealBuffer(T* data, size_t size,  T min, T max) {
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_real_distribution<T> dis(min, max);
+
+    fillCommon(data, size, [&](){return dis(gen);});
+}
+
+template<InferenceEngine::ie_fp16>
+void fillRealBuffer(InferenceEngine::ie_fp16* data, size_t size, InferenceEngine::ie_fp16 min, InferenceEngine::ie_fp16 max) {
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_real_distribution<float> dis(min, max);
+
+    fillCommon(data, size, [&](){return InferenceEngine::PrecisionUtils::f32tof16(dis(gen));});
 }
