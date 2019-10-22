@@ -26,6 +26,7 @@ namespace utils {
 
 class VPUAllocator {
 public:
+    virtual ~VPUAllocator() = default;
     virtual void* allocate(size_t requestedSize) = 0;
     virtual void* getAllocatedChunkByIndex(size_t chunkIndex) = 0;
 };

@@ -29,7 +29,8 @@ if (ENABLE_VPUAL)
 
         # TODO: remove some day when all warnings are fixed
         if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-            set_target_properties(${VPUAL_LIBS} PROPERTIES COMPILE_OPTIONS "-Wno-error")
+            set_target_properties(${VPUAL_LIBS} PROPERTIES COMPILE_OPTIONS "-Wno-error"
+                 INTERFACE_COMPILE_OPTIONS "-Wno-error=non-virtual-dtor")
         endif()
 
         # TODO: remove some day when vpualHost will add exports
