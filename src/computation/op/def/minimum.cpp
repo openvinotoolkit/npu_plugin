@@ -62,7 +62,7 @@ namespace mv
         MV_REGISTER_OP(MinimumInt)
         .setInputs({"data"})
         .setOutputs({"output"})
-        .setOptionalArg<int64_t>("minimum", std::numeric_limits<int64_t>::min())
+        .setOptionalArg<int64_t>("minimum", std::numeric_limits<int>::min())
         .setOptionalArg<mv::DType>("dType", mv::DType("Default"))
         .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
         .setInputCheck(op_minimum::inputCheckFcn)
