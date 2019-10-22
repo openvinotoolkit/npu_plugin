@@ -32,7 +32,6 @@ namespace mv
         BinaryData toBinary(const std::vector<DataElement>& data) const;
         unsigned getSizeInBits() const;
         bool isDoubleType() const;
-        bool isFloatType() const;
     };
 
 }

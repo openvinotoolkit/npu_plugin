@@ -38,8 +38,3 @@ bool mv::DTypeEntry::isDoubleType() const
 {
     return isDoubleType_;
 }
-
-bool mv::DTypeEntry::isFloatType() const
-{
-    return isFloatType_;
-}
