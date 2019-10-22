@@ -618,6 +618,7 @@ void FrontEndMcm::parseFullyConnected(
         const McmNodeVector& inputs) {
     auto FClayer = std::dynamic_pointer_cast<ie::FullyConnectedLayer>(layer);
     IE_ASSERT(layer != nullptr);
+    IE_ASSERT(FClayer != nullptr);
 
     logParsingStartHelper(_logger, layer, inputs);
 

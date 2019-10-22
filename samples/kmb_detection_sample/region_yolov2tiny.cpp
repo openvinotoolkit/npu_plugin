@@ -52,7 +52,7 @@ typedef struct {
 static void get_region_boxes(const float *predictions, int *shape4D,
                              int *strides4D, int num_classes, float thresh,
                              box *boxes, const float *anchors);
-static float box_iou(box a, box b);
+static float box_iou(const box &a, const box &b);
 
 static int nms_comparator(const void *pa, const void *pb) {
   sortable_bbox a = *reinterpret_cast<const sortable_bbox *>(pa);
@@ -70,28 +70,32 @@ void do_nms_sort(box *boxes, int total, int classes, float thresh) {
   sortable_bbox *s =
       reinterpret_cast<sortable_bbox *>(calloc(total, sizeof(sortable_bbox)));
 
+  if (s == nullptr) {
+      return;
+  }
+
   for (i = 0; i < total; ++i) {
-    s[i].index = i;
-    s[i].cclass = 0;
-    s[i].probs = boxes[i].probs;
+      s[i].index = i;
+      s[i].cclass = 0;
+      s[i].probs = boxes[i].probs;
   }
 
   for (k = 0; k < classes; ++k) {
-    for (i = 0; i < total; ++i) {
-      s[i].cclass = k;
-    }
-    qsort(s, total, sizeof(sortable_bbox), nms_comparator);
-    for (i = 0; i < total; ++i) {
-      if (s[i].probs[k] == 0)
-        continue;
-      box a = boxes[s[i].index];
-      for (j = i + 1; j < total; ++j) {
-        box b = boxes[s[j].index];
-        if (box_iou(a, b) > thresh) {
-          s[j].probs[k] = 0;
-        }
+      for (i = 0; i < total; ++i) {
+          s[i].cclass = k;
       }
-    }
+      qsort(s, total, sizeof(sortable_bbox), nms_comparator);
+      for (i = 0; i < total; ++i) {
+          if (s[i].probs[k] == 0)
+              continue;
+          box a = boxes[s[i].index];
+          for (j = i + 1; j < total; ++j) {
+              box b = boxes[s[j].index];
+              if (box_iou(a, b) > thresh) {
+                  s[j].probs[k] = 0;
+              }
+          }
+      }
   }
   free(s);
 }
@@ -107,7 +111,7 @@ static float overlap(float x1, float w1, float x2, float w2) {
   return right - left;
 }
 
-static float box_intersection(box a, box b) {
+static float box_intersection(const box &a, const box &b) {
   float w = overlap(a.x, a.w, b.x, b.w);
   float h = overlap(a.y, a.h, b.y, b.h);
   if (w < 0 || h < 0)
@@ -116,13 +120,13 @@ static float box_intersection(box a, box b) {
   return area;
 }
 
-static float box_union(box a, box b) {
+static float box_union(const box &a, const box &b) {
   float i = box_intersection(a, b);
   float u = a.w * a.h + b.w * b.h - i;
   return u;
 }
 
-static float box_iou(box a, box b) {
+static float box_iou(const box &a, const box &b) {
   return box_intersection(a, b) / box_union(a, b);
 }
 
@@ -270,6 +274,9 @@ int yolov2(const float *data, int *shape4D, int *strides4D,
   }
   box *boxes = reinterpret_cast<box *>(malloc(lw * lh * num_anchor * sizeof(box)));
 
+  if (boxes == nullptr) {
+      return -1;
+  }
   get_region_boxes(data, shape4D, strides4D, num_classes, thresh, boxes,
                    anchors);
   do_nms_sort(boxes, lw * lh * num_anchor, num_classes, nms);
@@ -286,40 +293,40 @@ int yolov2(const float *data, int *shape4D, int *strides4D,
   // fill final result array
   int k = 0;
   for (int i = 0; i < lw * lh * num_anchor; ++i) {
-    for (int j = 0; j < num_classes; j++) {
-      box &b = boxes[i];
-      if (b.probs[j] == 0)
-        continue;
+      for (int j = 0; j < num_classes; j++) {
+          box &b = boxes[i];
+          if (b.probs[j] == 0)
+              continue;
 
-      float xmin = b.x - b.w / 2.0;
-      float ymin = b.y - b.h / 2.0;
-      float xmax = xmin + b.w;
-      float ymax = ymin + b.h;
+          float xmin = b.x - b.w / 2.0;
+          float ymin = b.y - b.h / 2.0;
+          float xmax = xmin + b.w;
+          float ymax = ymin + b.h;
 
-      xmin = (xmin * netw - pad_w) / scale;
-      if (xmin < 0)
-        xmin = 0;
-      xmax = (xmax * netw - pad_w) / scale;
-      if (xmax >= image_width)
-        xmax = image_width - 1;
-      ymin = (ymin * neth - pad_h) / scale;
-      if (ymin < 0)
-        ymin = 0;
-      ymax = (ymax * neth - pad_h) / scale;
-      if (ymax >= image_height)
-        ymax = image_height - 1;
+          xmin = (xmin * netw - pad_w) / scale;
+          if (xmin < 0)
+              xmin = 0;
+          xmax = (xmax * netw - pad_w) / scale;
+          if (xmax >= image_width)
+              xmax = image_width - 1;
+          ymin = (ymin * neth - pad_h) / scale;
+          if (ymin < 0)
+              ymin = 0;
+          ymax = (ymax * neth - pad_h) / scale;
+          if (ymax >= image_height)
+              ymax = image_height - 1;
 
-      // image_id, label, confidence, xmin, ymin, xmax, ymax
-      result[k * 7 + 0] = 0;
-      result[k * 7 + 1] = j;
-      result[k * 7 + 2] = b.probs[j];
-      result[k * 7 + 3] = xmin;
-      result[k * 7 + 4] = ymin;
-      result[k * 7 + 5] = xmax;
-      result[k * 7 + 6] = ymax;
+          // image_id, label, confidence, xmin, ymin, xmax, ymax
+          result[k * 7 + 0] = 0;
+          result[k * 7 + 1] = j;
+          result[k * 7 + 2] = b.probs[j];
+          result[k * 7 + 3] = xmin;
+          result[k * 7 + 4] = ymin;
+          result[k * 7 + 5] = xmax;
+          result[k * 7 + 6] = ymax;
 
-      k++;
-    }
+          k++;
+      }
   }
 
   free(boxes);
