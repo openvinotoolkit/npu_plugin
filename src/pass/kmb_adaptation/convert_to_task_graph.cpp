@@ -523,7 +523,7 @@ void convertOpsToUPATasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& 
             auto outputMemoryLocation = output->get<mv::Tensor::MemoryLocation>("Location");
             unsigned opId = opIt->get<unsigned>("opId");
             auto shape = opIt->get<mv::Shape>("shape");
-            auto order = opIt->get<std::string>("order");
+            auto order = opIt->get<mv::Order>("order");
             auto dtype = opIt->get<mv::DType>("dType");
             auto quantParams = opIt->get<mv::QuantizationParams>("quantParams");
             auto splitStrategy = opIt->get<std::string>("splitStrategy");
