@@ -473,3 +473,14 @@ void fillRealBuffer<InferenceEngine::ie_fp16>(InferenceEngine::ie_fp16* data, si
 void Compare(InferenceEngine::Blob::Ptr actual,
              InferenceEngine::Blob::Ptr expected,
              float max_diff);
+
+template<typename T>
+void ref_ReLU(InferenceEngine::Blob::Ptr inTensor) {
+    ASSERT_NE(inTensor, nullptr);
+    T* blobData = inTensor->buffer().as<T*>();
+    ASSERT_NE(blobData, nullptr);
+    size_t count = inTensor->size();
+    for (size_t indx = 0; indx < count; ++indx) {
+        blobData[indx] = std::max(blobData[indx], static_cast<T>(0));
+    }
+}
