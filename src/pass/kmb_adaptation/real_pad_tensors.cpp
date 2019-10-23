@@ -16,6 +16,8 @@ static void addAlignOpForInputTensorsFunc(const mv::pass::PassEntry& , mv::Compu
 static void removeCropAlignInCMXFunc(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static mv::Data::OpListIterator fuseCropAlign(mv::Data::OpListIterator parentOpIt, mv::Data::TensorIterator sourceTensor, mv::OpModel om, mv::Data::OpListIterator opIt);
 static void addCropNode(mv::OpModel& om, mv::Data::OpListIterator& opIt, mv::Data::TensorIterator& outputTensor, std::size_t& outputTensorChannels);
+static int computeAppropriatePadding(mv::Data::TensorIterator tensor);
+
 namespace mv
 {
     namespace pass
@@ -336,8 +338,7 @@ void alignUnpopulatedTensorsFunc(const mv::pass::PassEntry&, mv::ComputationMode
         auto outputTensorShape = outputTensor->getShape();
         auto outputTensorChannels = outputTensorShape[mv::IO_CHANNEL_DIMENSION];
         //auto opStrategy = opIt->get<std::string>("splitStrategy");
-        std::size_t paddingValue = computeAppropriatePadding(outputTensor);
-        pad = computeAppropriatePadding(outputTensor);
+        int pad = computeAppropriatePadding(outputTensor);
         if (outputTensorChannels % pad != 0)
         {
             opIt->set<bool>("alignment", true);

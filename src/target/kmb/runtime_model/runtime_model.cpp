@@ -92,12 +92,12 @@ void setIfPresent(T1& fieldToFill, mv::Element& compilationDescriptor, const std
         fieldToFill = compilationDescriptor.get<T2>(key);
 }
 
-int computeAppropriatePadding(mv::Data::TensorIterator tensor)
+int computeAppropriatePadding(mv::Tensor tensor)
 {
     int pad;
-    if (tensor->getDType() == mv::DType("Float16"))
+    if (tensor.getDType() == mv::DType("Float16"))
         pad = 8;
-    else if (tensor->getDType() == mv::DType("UInt8"))
+    else if (tensor.getDType() == mv::DType("UInt8"))
         pad = 16;
     return pad;
 }
