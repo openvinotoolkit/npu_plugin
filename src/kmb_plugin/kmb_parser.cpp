@@ -185,7 +185,7 @@ void compileMcm(
     }
 
     if (parsedConfig[VPU_KMB_CONFIG_KEY(MCM_GENERATE_BLOB)] == "YES") {
-#ifdef NDEBUG
+#if 1  // rm.getBlob() doesn't work properly: https://jira.devtools.intel.com/browse/VPUNND-1742
         std::ifstream blobFile(resultsFullName + ".blob", std::ios::binary);
         if (blobFile) {
             std::ostringstream blobContentStream;

@@ -64,27 +64,6 @@ void kmbLayersTests_nightly::setup(InferenceEngine::Precision outputPrecision,
 
 }
 
-void kmbLayersTests_nightly::setCommonConfig(std::map<std::string, std::string>& config)
-{
-    config = _config;
-#if 0
-    config[CONFIG_KEY(LOG_LEVEL)] = CONFIG_VALUE(LOG_INFO);
-#endif
-
-#if 0 // TODO: mcmCompiler generate BLOB issue
-
-#endif
-    config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_JSON)] = CONFIG_VALUE(YES);
-    config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_DOT)]  = CONFIG_VALUE(YES);
-
-    const ::testing::TestInfo* const test_info =
-            ::testing::UnitTest::GetInstance()->current_test_info();
-
-    config[VPU_KMB_CONFIG_KEY(MCM_COMPILATION_RESULTS_PATH)] = test_info->test_case_name();
-    config[VPU_KMB_CONFIG_KEY(MCM_COMPILATION_RESULTS)] = test_info->name();
-}
-
-
 void kmbLayersTests_nightly::doNetworkInit(const std::string& layer_type,
                                            std::map<std::string, std::string>* params,
                                            int weights_size,
@@ -117,4 +96,17 @@ std::string KmbPerLayerTest::getTestResultFilename() const {
     }
 
     return testResultFilename;
+}
+
+void kmbLayersTests_nightly::setCommonConfig(std::map<std::string, std::string>& config)
+{
+    config = _config;
+    config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_JSON)] = CONFIG_VALUE(NO);
+    config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_DOT)]  = CONFIG_VALUE(NO);
+
+    const ::testing::TestInfo* const test_info =
+            ::testing::UnitTest::GetInstance()->current_test_info();
+
+    config[VPU_KMB_CONFIG_KEY(MCM_COMPILATION_RESULTS_PATH)] = test_info->test_case_name();
+    config[VPU_KMB_CONFIG_KEY(MCM_COMPILATION_RESULTS)] = test_info->name();
 }
