@@ -19,6 +19,7 @@ if (NOT EXISTS ${CMAKE_BINARY_DIR}/CMakeCache.txt)
 endif()
 
 add_compile_options(-std=c++11)
+add_compile_options(-O3)
 
 SET(PROFILER FALSE CACHE BOOL "Enable integrated profiler")
 SET(LOG TRUE CACHE BOOL "Enable logger")
@@ -350,9 +351,14 @@ SET(pass
     "${PROJECT_SOURCE_DIR}/src/pass/validation/generate_dot.cpp"
 
 
+    "${PROJECT_SOURCE_DIR}/src/pass/lp_scheduler/lp_scheduler_pass.cpp"
+
+
     "${PROJECT_SOURCE_DIR}/src/target/target_descriptor.cpp"
 
     "${PROJECT_SOURCE_DIR}/src/graph/tensor_interference_graph.cpp"
+
+
 
 )
 
@@ -442,7 +448,9 @@ endif(MSVC)
 add_subdirectory(src/scheduler)
 add_subdirectory(src/pass/lp_scheduler)
 add_dependencies(cm lp_scheduler lp_scheduler_pass)
-target_include_directories(cm INTERFACE lp_scheduler lp_scheduler_pass)
+target_include_directories(cm
+    PUBLIC $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src/pass>
+    PUBLIC $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src/>)
 
 IF(NOT CMAKE_CROSSCOMPILING)
     add_subdirectory(examples)

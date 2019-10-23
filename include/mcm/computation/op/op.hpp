@@ -41,6 +41,11 @@ namespace mv
         Data::TensorIterator getOutputTensor(const std::string& label);
         std::vector<Data::TensorIterator> getOutputTensor();
 
+        size_t getOutputSize() const {
+          if (outputs_.empty()) { return 0UL;}
+          return (*outputs_.front()).computeTotalSize();
+        }
+
         std::size_t inputSlots();
         std::size_t outputSlots();
 
