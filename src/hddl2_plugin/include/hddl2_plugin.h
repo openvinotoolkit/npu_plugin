@@ -44,6 +44,11 @@ public:
     InferenceEngine::IExecutableNetwork::Ptr ImportNetwork(
                         const std::string &modelFileName,
                         const std::map <std::string, std::string> &config) override;
+
+    InferenceEngine::ExecutableNetwork ImportNetwork(std::istream& /*networkModel*/,
+                                                     const std::map<std::string, std::string>& /*config*/) override {
+        THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
+    }
 };
 
 }  //  namespace HDDL2Plugin
