@@ -3,18 +3,77 @@
 
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/computation/model/iterator/control_context.hpp"
+#include "meta/include/mcm/op_model.hpp"
 #include "scheduler/feasible_scheduler.hpp"
-
 #include <unordered_map>
 
 namespace mv {
+
+template<typename Model>
+struct model_traits {
+  typedef int const_operation_iterator_t;
+  typedef int const_child_operation_iterator_t;
+  typedef Model model_t;
+
+  static const_operation_iterator_t begin_operations(model_t&);
+  static const_child_operation_iterator_t
+      begin_child_operations(const_operation_iterator_t&);
+  static const_operation_iterator_t end_operations(model_t& model);
+}; // struct model traits //
+
+
+template<>
+struct model_traits<mv::ControlModel> {
+  typedef mv::ControlModel model_t;
+  typedef mv::Control::OpListIterator const_operation_iterator_t;
+  typedef mv::Control::OpChildIterator const_child_operation_iterator_t;
+
+  //TODO(vamsikku): reference to model must be const here //
+  static const_operation_iterator_t begin_operations(model_t& cm) {
+    return cm.getFirst();
+  }
+
+  static const_child_operation_iterator_t begin_child_operations(
+      const_operation_iterator_t& op) {
+    return op.leftmostChild();
+  }
+
+  static const_operation_iterator_t end_operations(model_t& model) {
+    return model.opEnd();
+  }
+}; // struct model_traits<mv::ControlModel> //
+
+template<>
+struct model_traits<mv::OpModel> {
+  typedef mv::OpModel model_t;
+  typedef mv::Data::OpListIterator const_operation_iterator_t;
+  typedef mv::Data::OpChildIterator const_child_operation_iterator_t;
+
+
+  static const_operation_iterator_t begin_operations(model_t& cm) {
+    return cm.getInput();
+  }
+
+  static const_child_operation_iterator_t begin_child_operations(
+      const_operation_iterator_t& itr) {
+    return itr.leftmostChild();
+  }
+
+  static const_operation_iterator_t end_operations(model_t& model) {
+    return model.opEnd();
+  }
+}; // struct model_traits<mv::OpModel> //
+
+
 namespace scheduler {
 
+template<typename Model=mv::OpModel>
 class Operation_Dag {
   public:
 
     ////////////////////////////////////////////////////////////////////////////
-    typedef mv::OpModel model_t;
+    typedef Model model_t;
+    typedef model_traits<model_t> mtraits;
     typedef mv::Data::OpListIterator mv_op_list_iterator_t;
     typedef mv::Data::OpChildIterator mv_op_child_iterator_t;
     typedef mv::Data::OpParentIterator mv_op_parent_iterator_t;
@@ -167,7 +226,7 @@ class Operation_Dag {
       return in.resource_utility(op);
     }
 
-    static delay_t delay(const dag_t& in, const operation_t& op) {
+    static delay_t delay(const dag_t&, const operation_t&) {
       return delay_t(1UL);
     }
     ////////////////////////////////////////////////////////////////////////////
@@ -178,7 +237,11 @@ class Operation_Dag {
       adj_map_.clear();
       ops_.clear();
 
-      for (auto itr = model.getInput(); itr != model.opEnd(); ++itr) {
+      typedef typename mtraits::const_operation_iterator_t op_itr_t;
+      typedef typename mtraits::const_child_operation_iterator_t child_op_itr_t;
+
+      for (op_itr_t itr = mtraits::begin_operations(model);
+            itr != mtraits::end_operations(model); ++itr) {
         operation_t op = &(*itr);
 
         master_op_iterator_t op_itr = ops_.find(op);
@@ -194,7 +257,8 @@ class Operation_Dag {
 
         // adjacency list of the ops //
         op_ref_list_t &adj_list = adj_itr->second;
-        for (auto citr = itr.leftmostChild(); citr != model.opEnd(); ++citr) {
+        for (child_op_itr_t citr = itr.leftmostChild();
+              citr != model.opEnd(); ++citr) {
           operation_t child_op = &(*citr);
 
           op_itr = ops_.find(child_op);
@@ -205,9 +269,19 @@ class Operation_Dag {
           adj_list.push_back( &(*op_itr) );
         }
 
+        resource_t resource_utility; 
+
+        if ((op->getOpType() == "DMATask") && 
+            (op->get<mv::DmaDirection>("direction") 
+              == mv::DmaDirectionEnum::CMX2DDR)) {
+          resource_utility = 0UL;
+        } else {
+          resource_utility = op->getOutputSize();
+        }
+
         // resource utility //
         resource_utility_map_.insert(std::make_pair(op,
-              std::max(unsigned(1), op->getOutputSize()) ));
+              std::max( size_t(1UL), resource_utility) ));
       }
     }
 
@@ -216,8 +290,11 @@ class Operation_Dag {
     resource_utility_map_t resource_utility_map_;
 }; // class Operation_Dag //
 
-typedef mv::lp_scheduler::Feasible_Schedule_Generator<Operation_Dag>
+typedef mv::lp_scheduler::Feasible_Schedule_Generator< Operation_Dag<> >
   mv_lp_scheduler_t;
+
+typedef mv::lp_scheduler::Feasible_Schedule_Generator<
+  Operation_Dag<mv::ControlModel> > mv_control_lp_scheduler_t;
 
 } // namespace scheduler //
 } // namespace mv //
@@ -226,9 +303,22 @@ namespace mv {
 namespace lp_scheduler {
 
 template<>
-struct scheduler_traits<mv::scheduler::Operation_Dag>
-  : public mv::scheduler::Operation_Dag {
-  using mv::scheduler::Operation_Dag::Operation_Dag;
+struct scheduler_traits< mv::scheduler::Operation_Dag<> >
+  : public mv::scheduler::Operation_Dag<> {
+  using mv::scheduler::Operation_Dag<>::Operation_Dag;
+}; // scheduler_traits<mv::scheduler::Operation_Dag> //
+
+}
+}
+
+
+namespace mv {
+namespace lp_scheduler {
+
+template<>
+struct scheduler_traits< mv::scheduler::Operation_Dag<mv::ControlModel> >
+  : public mv::scheduler::Operation_Dag<mv::ControlModel> {
+  using mv::scheduler::Operation_Dag<mv::ControlModel>::Operation_Dag;
 }; // scheduler_traits<mv::scheduler::Operation_Dag> //
 
 }

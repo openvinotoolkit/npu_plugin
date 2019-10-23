@@ -3,7 +3,7 @@
 #include "meta/include/mcm/op_model.hpp"
 #include "pass/lp_scheduler/operation_precedence_dag.hpp"
 
-typedef mv::scheduler::Operation_Dag dag_t;
+typedef mv::scheduler::Operation_Dag<> op_model_dag_t;
 
 
 class Operation_Dag_Test : public ::testing::Test {
@@ -99,7 +99,7 @@ class Operation_Dag_Test : public ::testing::Test {
 TEST_F(Operation_Dag_Test, test_structure_data_dag) {
   mv::OpModel om(three_layer_conv_model());
   //mv::scheduler::Operation_Dag<mv::ControlModel> input(cm);
-  dag_t input(om);
+  op_model_dag_t input(om);
 
   auto itr = input.begin_nodes();
   auto itr_end = input.end_nodes();
@@ -109,7 +109,7 @@ TEST_F(Operation_Dag_Test, test_structure_data_dag) {
          unexpected_op = 0UL;
 
   while (itr != itr_end) {
-    const dag_t::operation_t& op = *itr;
+    const op_model_dag_t::operation_t& op = *itr;
     if (op->getOpType() == "Conv") { conv_op_count++; }
     else if (op->getOpType() == "Input") { input_count++; }
     else if (op->getOpType() == "Bias") { bias_op_count++; }
@@ -131,16 +131,16 @@ TEST_F(Operation_Dag_Test, test_structure_data_dag) {
 }
 
 TEST_F(Operation_Dag_Test, in_degree_test) {
-  typedef std::unordered_map<dag_t::operation_t, size_t> indegree_map_t;
+  typedef std::unordered_map<op_model_dag_t::operation_t, size_t> indegree_map_t;
   indegree_map_t indegree;
 
-  dag_t dag( three_layer_conv_model() );
+  op_model_dag_t dag( three_layer_conv_model() );
   size_t total_iteration_count = 0UL; // should not exceed the edges 13UL //
-  for (dag_t::const_operation_iterator_t itr = dag.begin_nodes();
+  for (op_model_dag_t::const_operation_iterator_t itr = dag.begin_nodes();
       itr != dag.end_nodes(); ++itr) {
 
     // scan the outgoing edges and add the indegree of all outgoing nodes. //
-    for (dag_t::const_operation_iterator_t jtr = dag.begin_nodes(*itr);
+    for (op_model_dag_t::const_operation_iterator_t jtr = dag.begin_nodes(*itr);
           jtr != dag.end_nodes(*itr); ++jtr) {
       indegree_map_t::iterator iitr = indegree.find(*jtr);
       if (iitr == indegree.end()) {
@@ -159,7 +159,7 @@ TEST_F(Operation_Dag_Test, in_degree_test) {
 }
 
 TEST_F(Operation_Dag_Test, mv_lp_scheduler_basic_test) {
-  dag_t dag( three_layer_conv_model() );
+  op_model_dag_t dag( three_layer_conv_model() );
   size_t max_memory = 2000000;
   mv::scheduler::mv_lp_scheduler_t scheduler_begin(dag, max_memory),
       scheduler_end;
@@ -188,6 +188,3 @@ TEST_F(Operation_Dag_Test, mv_lp_scheduler_basic_test) {
     ASSERT_TRUE( mitr->second <= max_memory);
   }
 }
-
-
-
