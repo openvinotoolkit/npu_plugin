@@ -339,6 +339,7 @@ else()
     add_library(cm SHARED ${base} ${logger} ${pass} ${compiler} ${syscalls})
     add_library(corebase SHARED ${base} ${logger})
     add_library(model SHARED ${model})
+    add_dependencies(model project_lemon)
     target_link_libraries(cm model)
 
     target_link_libraries(cm corebase metamodel flatbuffers ${LEMON_LIBRARY})
