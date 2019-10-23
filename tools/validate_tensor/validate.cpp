@@ -110,7 +110,7 @@ bool compare(std::vector<float>& actualResults, std::vector<float>& expectedResu
         if (idx < 50) // print first 50 rows
             std::cout << expected << "\t" << actual << "\t" << abs_error << "\t" << abs_allowed_err << "\t"  << result << std::endl;
     };
-    std::cout << "Printing first 50 rows...\nExp\tAct\tdiff\ttol\tresult" << std::endl;
+    std::cout << "Printing first 50 rows...\nExp\tActual\t\tdiff\t\ttolerence\t\tresult" << std::endl;
     for (size_t n = 0; n < expectedResults.size(); ++n) 
         absoluteErrorUpdater(n);
 
@@ -148,8 +148,6 @@ int main(int argc, char *argv[])
     std::cout << "  Datatype: " << dtype << std::endl;
     std::cout << "  quant_zero: " << qZero << std::endl;
     std::cout << "  quant_scale: " << qScale << std::endl;
-    //qZero = 0;
-    //qScale = 16;
 
     // read size of output tensor
     int tSize = 1;
@@ -161,24 +159,30 @@ int main(int argc, char *argv[])
     // Read the InferenceManagerDemo output file into a vector
     //
     std::cout << "Reading in actual results... ";
-    std::ifstream file(FLAGS_a, std::ios::binary);
-   
+    std::ifstream file(FLAGS_a, std::ios::in | std::ios::binary);
     file.seekg(0, std::ios::end);
-    auto totalActual = file.tellg() / sizeof(unsigned int);
-    totalActual = tSize;
+    auto totalActual = file.tellg() / sizeof(uint8_t);
     file.seekg(0, std::ios::beg);
-    std::vector<unsigned int> outputVector(totalActual);
-    file.read(reinterpret_cast<char*>(&outputVector[0]), totalActual*sizeof(unsigned int));
+
+    std::vector<uint8_t> outputVector(totalActual);
+    file.read(reinterpret_cast<char*>(&outputVector[0]), totalActual*sizeof(uint8_t));
     std::cout << totalActual << std::endl;
+    for(size_t i = 0; i < 20; ++i)  //print first 20 values
+        std::cout << outputVector[i] << ", ";
+    std::cout << std::endl;
+
+    // de-quantize
     std::vector<float> outputFP32;
     for(size_t i = 0; i < outputVector.size(); ++i)
     {
         // De-quantize: real_value = scale * (quantized_value - zero_point)
-        //float val = qScale * (static_cast<unsigned int>(outputVector[i]) - qZero);
-        float val = outputVector[i];
+        float val = qScale * (static_cast<uint8_t>(outputVector[i]) - qZero);
         outputFP32.push_back(val);
     }
-
+    for(size_t i = 0; i < 20; ++i)
+        std::cout << outputFP32[i] << ", ";
+    std::cout << std::endl;
+    
     //
     // Read in expected results tensor into a vector (CPU-plugin)
     //
