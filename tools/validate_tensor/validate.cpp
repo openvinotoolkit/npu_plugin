@@ -16,9 +16,12 @@ int test()
     //Generate a file with some floats in it for testing
     std::ofstream fout("Dequantize.bin", std::ios::binary);
     std::ofstream qout("Quantize.bin", std::ios::binary);
+    std::ofstream testfile("u8vals.bin", std::ios::binary);
 
     for(size_t i = 0; i < 10; ++i)
     {
+        testfile.write(reinterpret_cast<const char*>(144u), sizeof(uint8_t));
+
         float f = 30.14159f * i;
         fout.write(reinterpret_cast<const char*>(&f), sizeof(f));
 
@@ -29,6 +32,20 @@ int test()
     }
     fout.close();
     qout.close();
+
+    //
+    std::cout << "Loading test values: " << std::endl;
+    std::ifstream testIn("u8vals.bin", std::ios::in | std::ios::binary);
+    testIn.seekg(0, std::ios::end);
+    size_t num_vals = testIn.tellg() / sizeof(uint8_t);
+    testIn.seekg(0, std::ios::beg);
+    std::vector<uint8_t> dataTest(num_vals);
+    testIn.read(reinterpret_cast<char*>(&dataTest[0]), num_vals*sizeof(uint8_t));
+    for(size_t i = 0; i < dataTest.size(); ++i)
+        std::cout << dataTest[i] << ", ";
+    testIn.close();
+    return 0;
+    //
 
     std::cout << "Normal vals from file: " << std::endl;
     std::ifstream fin("Dequantize.bin", std::ios::in | std::ios::binary);
@@ -110,7 +127,7 @@ bool compare(std::vector<float>& actualResults, std::vector<float>& expectedResu
         if (idx < 50) // print first 50 rows
             std::cout << expected << "\t" << actual << "\t" << abs_error << "\t" << abs_allowed_err << "\t"  << result << std::endl;
     };
-    std::cout << "Printing first 50 rows...\nExp\tActual\t\tdiff\t\ttolerence\t\tresult" << std::endl;
+    std::cout << "Printing first 50 rows...\nExp\tActual\tdiff\ttolerence\tresult" << std::endl;
     for (size_t n = 0; n < expectedResults.size(); ++n) 
         absoluteErrorUpdater(n);
 
@@ -120,8 +137,8 @@ bool compare(std::vector<float>& actualResults, std::vector<float>& expectedResu
 
 int main(int argc, char *argv[]) 
 {
-    //test();
-    //exit(0);
+    // test();
+    // exit(0);
 
     if (!ParseAndCheckCommandLine(argc, argv)) 
         return 0;
@@ -131,7 +148,7 @@ int main(int argc, char *argv[])
     //
     std::cout << "Converting blob to json... " << std::endl;
     std::string commandline = std::string("flatc -t ") + std::getenv("GRAPHFILE") + std::string("/src/schema/graphfile.fbs --strict-json -- ") + FLAGS_b;
-    //std::cout << commandline << std::endl;
+    std::cout << commandline << std::endl;
     std::system(commandline.c_str());
     
     //
@@ -144,10 +161,12 @@ int main(int argc, char *argv[])
     std::string dtype = j["header"]["net_output"][0]["data_dtype"].get<std::string>();
     int qZero = j["header"]["net_output"][0]["quant_zero"][0].get<int>();
     int qScale = j["header"]["net_output"][0]["quant_scale"][0].get<int>();
+    int qShift = j["header"]["net_output"][0]["quant_shift"][0].get<int>();
     std::cout << "Querying quantization values... " << std::endl;
     std::cout << "  Datatype: " << dtype << std::endl;
     std::cout << "  quant_zero: " << qZero << std::endl;
     std::cout << "  quant_scale: " << qScale << std::endl;
+    std::cout << "  quant_shift: " << qShift << std::endl;
 
     // read size of output tensor
     int tSize = 1;
@@ -175,8 +194,8 @@ int main(int argc, char *argv[])
     std::vector<float> outputFP32;
     for(size_t i = 0; i < outputVector.size(); ++i)
     {
-        // De-quantize: real_value = scale * (quantized_value - zero_point)
-        float val = qScale * (static_cast<uint8_t>(outputVector[i]) - qZero);
+        // De-quantize: bitshift left by qShift then multiply by scale
+        float val = static_cast<uint8_t>(outputVector[i])<<qShift * qScale;
         outputFP32.push_back(val);
     }
     for(size_t i = 0; i < 20; ++i)
