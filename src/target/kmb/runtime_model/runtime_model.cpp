@@ -92,10 +92,20 @@ void setIfPresent(T1& fieldToFill, mv::Element& compilationDescriptor, const std
         fieldToFill = compilationDescriptor.get<T2>(key);
 }
 
+int computeAppropriatePadding(mv::Data::TensorIterator tensor)
+{
+    int pad;
+    if (tensor->getDType() == mv::DType("Float16"))
+        pad = 8;
+    else if (tensor->getDType() == mv::DType("UInt8"))
+        pad = 16;
+    return pad;
+}
+
 void mv::RuntimeModel::alignTensor(mv::ComputationModel& cm, std::unique_ptr<MVCNN::TensorReferenceT>& tensorT, mv::Tensor& tensor, bool padFinalOutput)
 {
         auto globalConfigParams = cm.getGlobalConfigParams();
-        int pad = globalConfigParams->hasAttr("VPU2ChannelPadding") ? globalConfigParams->get<int>("VPU2ChannelPadding") : 16;
+        int pad = computeAppropriatePadding(tensor);
         std::vector<std::size_t> dimensions = tensor.getShape();
         auto outputChannelsPadded = mv::round_up(dimensions[mv::IO_CHANNEL_DIMENSION], pad);
         dimensions = {dimensions[mv::IO_WIDTH_DIMENSION], dimensions[mv::IO_HEIGHT_DIMENSION], outputChannelsPadded, dimensions[mv::IO_BATCH_DIMENSION]};

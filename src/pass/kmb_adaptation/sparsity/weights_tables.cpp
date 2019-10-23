@@ -322,12 +322,20 @@ static void populateWeightsTablesPointersFcn(const mv::pass::PassEntry& , mv::Co
     }
 }
 
+int computeAppropriatePadding(mv::Data::TensorIterator tensor)
+{
+    int pad;
+    if (tensor->getDType() == mv::DType("Float16"))
+        pad = 8;
+    else if (tensor->getDType() == mv::DType("UInt8"))
+        pad = 16;
+    return pad;
+}
+
 static void generateWeightsTablesFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);
-
-    auto pad = om.getGlobalConfigParams()->hasAttr("VPU2ChannelPadding") ? om.getGlobalConfigParams()->get<int>("VPU2ChannelPadding") : 16;
 
     for(auto dpuTaskOp = om.opBegin(); dpuTaskOp != om.opEnd(); ++dpuTaskOp)
     {
@@ -342,6 +350,7 @@ static void generateWeightsTablesFcn(const mv::pass::PassEntry&, mv::Computation
                 std::string opName = dpuTaskOp->getName();
                 std::string kernelWeightsTableName(mv::createWeightTableName(opName));
 
+                int pad = computeAppropriatePadding(dpuTaskOp->getOutputTensor(0));
                 auto outputChannels = dpuTaskOp->getOutputTensor(0)->getShape()[mv::IO_CHANNEL_DIMENSION];
                 outputChannels = mv::round_up(dpuTaskOp->getOutputTensor(0)->getShape()[mv::IO_CHANNEL_DIMENSION], pad);
 
