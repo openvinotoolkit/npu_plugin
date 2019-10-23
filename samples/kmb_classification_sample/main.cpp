@@ -133,8 +133,6 @@ int main(int argc, char *argv[]) {
 
         if (inputInfo.size() != 1) throw std::logic_error("Sample supports topologies only with 1 input");
 
-        Blob::Ptr inputImageBlob;
-        vpu::KmbPlugin::utils::fromBinaryFile(imageFileName, inputImageBlob);
         // -----------------------------------------------------------------------------------------------------
 
         // --------------------------- 4. Create infer request -------------------------------------------------
@@ -143,21 +141,15 @@ int main(int argc, char *argv[]) {
         // -----------------------------------------------------------------------------------------------------
 
         // --------------------------- 5. Prepare input --------------------------------------------------------
-        /** Iterate over all the input blobs **/
-        std::string firstInputName = inputInfo.begin()->first;
         /** Creating input blob **/
+        std::string firstInputName = inputInfo.begin()->first;
         Blob::Ptr inputBlob = inferRequest.GetBlob(firstInputName.c_str());
         if (!inputBlob) {
             throw std::logic_error("Cannot get input blob from inferRequest");
         }
 
         /** Filling input tensor with images. **/
-        if (inputBlob->size() < inputImageBlob->size()) {
-            throw std::logic_error("Input blob doesn't have enough memory to fit input image");
-        }
-
-        auto blobData = inputBlob->buffer().as<PrecisionTrait<Precision::U8>::value_type*>();
-        std::copy_n(inputImageBlob->buffer().as<uint8_t*>(), inputImageBlob->size(), blobData);
+        vpu::KmbPlugin::utils::fromBinaryFile(imageFileName, inputBlob);
 
         inferRequest.Infer();
         slog::info << "inferRequest completed successfully" << slog::endl;
