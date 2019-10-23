@@ -120,34 +120,6 @@ void computeTensorsQuantParams(const mv::pass::PassEntry&, mv::ComputationModel&
                      std::vector <unsigned> ser_shift = std::vector<unsigned>(shift.begin(), shift.end());
                      std::vector <unsigned> ser_scale = std::vector<unsigned>(mScaled.begin(), mScaled.end());
                      outputQuantization.quantize(ser_shift, ser_scale);
-
-                     if (opIt->hasAttr("bias"))
-                     {
-                         auto bias = dm.getTensor(opIt->get<std::string>("bias"));
-                         if (!bias->hasAttr("biasQuantized"))
-                         {
-                            auto data = bias->getData();
-                            //auto biasQuantization = bias->get<mv::QuantizationParams>("quantParams");
-                            //auto Z_bias = biasQuantization.getZeroPoint();
-                            //auto S_bias = biasQuantization.getScale();
-                            std::transform(data.begin(), data.end(), zeroPointScaled.begin(), data.begin(), std::plus<int64_t>());
-                            bias->setDType(mv::DType("Int32"));
-
-                            bias->populate(data);
-                            bias->set<bool>("biasQuantized", true);
-                         }
-                     }
-                     else
-                     {
-                         mv::Order order(mv::Order::getColMajorID(1));
-                         const std::string biasTensorName = opIt->getName() + "_bias";
-                         mv::Shape shape({outputChannels});
-                         std::vector<int64_t> zeroPointScaled64(zeroPointScaled.begin(), zeroPointScaled.end());
-
-                         auto biasTensor = dm.defineTensor(biasTensorName, shape, mv::DType("Int32"), order, zeroPointScaled64);
-                         om.addAttr(opIt, "bias", biasTensor->getName());
-                         biasTensor->set<bool>("biasQuantized", true);
-                     }
                  }
 
             }
