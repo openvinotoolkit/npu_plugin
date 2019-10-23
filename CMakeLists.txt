@@ -355,7 +355,7 @@ else()
 endif(MSVC)
 
 if(NOT CMAKE_CROSSCOMPILING)
-    #add_subdirectory(tools) # testing without
+    add_subdirectory(tools)
     add_subdirectory(schema)
     add_subdirectory(example)
 endif()

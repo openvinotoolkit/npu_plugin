@@ -1,4 +1,6 @@
 #include "validate.hpp"
+#include "include/mcm/utils/env_loader.hpp"
+
 #include <fstream>
 #include <nlohmann/json.hpp>
 #include <sstream>
@@ -118,7 +120,7 @@ bool compare(std::vector<float>& actualResults, std::vector<float>& expectedResu
         float actual = actualResults[idx];
         float expected = expectedResults[idx];
         float abs_error = fabsf(actual - expected);
-        float abs_allowed_err = expected * (tolerance/100.0f);
+        float abs_allowed_err = fabsf(expected * (tolerance/100.0f));
         std::string result = "\tpass";
         if (abs_error > abs_allowed_err) {
             testResult = false;
@@ -147,8 +149,8 @@ int main(int argc, char *argv[])
     // convert blob to json
     //
     std::cout << "Converting blob to json... " << std::endl;
-    std::string commandline = std::string("flatc -t ") + std::getenv("GRAPHFILE") + std::string("/src/schema/graphfile.fbs --strict-json -- ") + FLAGS_b;
-    std::cout << commandline << std::endl;
+    std::string commandline = std::string("flatc -t ") + mv::utils::projectRootPath() +
+        std::string("/schema/graphfile/src/schema/graphfile.fbs --strict-json -- ") + FLAGS_b;
     std::system(commandline.c_str());
     
     //
@@ -185,31 +187,22 @@ int main(int argc, char *argv[])
 
     std::vector<uint8_t> outputVector(totalActual);
     file.read(reinterpret_cast<char*>(&outputVector[0]), totalActual*sizeof(uint8_t));
-    std::cout << totalActual << std::endl;
-    for(size_t i = 0; i < 20; ++i)  //print first 20 values
-        std::cout << outputVector[i] << ", ";
-    std::cout << std::endl;
+    std::cout << totalActual << " bytes" <<  std::endl;
 
     // de-quantize
     std::vector<float> outputFP32;
     for(size_t i = 0; i < outputVector.size(); ++i)
     {
         // De-quantize: bitshift left by qShift then multiply by scale
-        float val = static_cast<uint8_t>(outputVector[i])<<qShift * qScale;
+        float val = outputVector[i] << qShift / qScale;
         outputFP32.push_back(val);
     }
-    for(size_t i = 0; i < 20; ++i)
-        std::cout << outputFP32[i] << ", ";
-    std::cout << std::endl;
     
-    //
-    // Read in expected results tensor into a vector (CPU-plugin)
-    //
     std::cout << "Reading in expected results... ";
     std::ifstream infile(FLAGS_e, std::ios::binary);
     infile.seekg(0, infile.end);
-    auto totalExpected = infile.tellg()  / sizeof(float);
-    std::cout << totalExpected << std::endl;
+    auto totalExpected = infile.tellg() / sizeof(float);
+    std::cout << totalExpected << " bytes" << std::endl;
     infile.seekg(0, infile.beg);
 
     std::vector<float> expectedFP32(totalExpected);
@@ -222,4 +215,5 @@ int main(int argc, char *argv[])
     pass = compare(outputFP32, expectedFP32, FLAGS_t);
     std::cout << "Validation status: " << ((pass) ? "true" : "false"); 
     std::cout << std:: endl;
+
 }

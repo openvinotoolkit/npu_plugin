@@ -40,7 +40,7 @@ MESSAGE(STATUS "FOUND: " ${NLOHMAN_JSON_FOUND})
 
 # set(NLOHMAN_LIB = ${NLOHMAN_LIBRARY}::nlohmann_json)
 # target_link_libraries(convert_tensor gflags ${NLOHMAN_LIB})
-target_link_libraries(validate gflags nlohmann_json::nlohmann_json)
+target_link_libraries(validate gflags nlohmann_json::nlohmann_json corebase)
 # target_link_libraries(convert_tensor gflags nlohmann_json)
 add_dependencies(validate project_nlohmann_json)
 
