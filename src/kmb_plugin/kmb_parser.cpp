@@ -185,29 +185,24 @@ void compileMcm(
     }
 
     if (parsedConfig[VPU_KMB_CONFIG_KEY(MCM_GENERATE_BLOB)] == "YES") {
-#if 1  // rm.getBlob() doesn't work properly: https://jira.devtools.intel.com/browse/VPUNND-1742
-        std::ifstream blobFile(resultsFullName + ".blob", std::ios::binary);
-        if (blobFile) {
-            std::ostringstream blobContentStream;
-            blobContentStream << blobFile.rdbuf();
-            const std::string& blobContentString = blobContentStream.str();
-            std::copy(blobContentString.begin(), blobContentString.end(), std::back_inserter(blob));
-            if (blob.size() == 0) {
-                VPU_THROW_EXCEPTION << "Blob file " << resultsFullName + ".blob" << " created by mcmCompiler is empty!";
+        auto memBlob = unit.getBlob();
+        if (memBlob == nullptr) {
+            std::ifstream blobFile(resultsFullName + ".blob", std::ios::binary);
+            if (blobFile) {
+                std::ostringstream blobContentStream;
+                blobContentStream << blobFile.rdbuf();
+                const std::string& blobContentString = blobContentStream.str();
+                std::copy(blobContentString.begin(), blobContentString.end(), std::back_inserter(blob));
+            } else {
+                VPU_THROW_EXCEPTION << "Can not open blob file " << resultsFullName + ".blob" << ". It was not created by mcmCompiler!";
             }
         } else {
-            VPU_THROW_EXCEPTION << "Can not open blob file " << resultsFullName + ".blob" << ". It was not created by mcmCompiler!";
+            std::copy(memBlob->begin(), memBlob->end(), std::back_inserter(blob));
         }
-#else
-        mv::RuntimeModel& rm = mv::RuntimeModel::getInstance();
-        auto memBlob = rm.getBlob();
-
-        std::copy(memBlob->begin(), memBlob->end(), std::back_inserter(blob));
 
         if (blob.empty()) {
             VPU_THROW_EXCEPTION << "Blob file " << resultsFullName + ".blob" << " created by mcmCompiler is empty!";
         }
-#endif
     }
 }
 
