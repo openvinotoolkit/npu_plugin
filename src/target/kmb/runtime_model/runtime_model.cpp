@@ -92,8 +92,10 @@ void setIfPresent(T1& fieldToFill, mv::Element& compilationDescriptor, const std
         fieldToFill = compilationDescriptor.get<T2>(key);
 }
 
-void mv::RuntimeModel::alignTensor(mv::ComputationModel& cm, std::unique_ptr<MVCNN::TensorReferenceT>& tensorT, mv::Tensor& tensor, bool padFinalOutput)
+void mv::RuntimeModel::alignTensor(mv::ComputationModel& cm, std::unique_ptr<MVCNN::TensorReferenceT>& tensorT, Tensor &tensor, bool padFinalOutput, bool padWidth)
 {
+    if(!padWidth)
+    {
         auto globalConfigParams = cm.getGlobalConfigParams();
         int pad = globalConfigParams->hasAttr("VPU2ChannelPadding") ? globalConfigParams->get<int>("VPU2ChannelPadding") : 16;
         std::vector<std::size_t> dimensions = tensor.getShape();
@@ -104,8 +106,23 @@ void mv::RuntimeModel::alignTensor(mv::ComputationModel& cm, std::unique_ptr<MVC
         std::reverse(dimensions.begin(), dimensions.end());
         std::reverse(numericStrides.begin(), numericStrides.end());
         tensorT->strides = numericStrides; // NOTE: Maybe directly bufferIt->computeStrides() in the future
+
         if(padFinalOutput)
             tensorT->dimensions = std::vector<uint32_t>(dimensions.begin(), dimensions.end());
+    }
+    else
+    {
+        //This should use subtensor
+        std::vector<std::size_t> dimensions = tensor.getShape();
+        auto widthPadded = mv::round_up(dimensions[mv::IO_WIDTH_DIMENSION], 16);
+        dimensions = {widthPadded, dimensions[mv::IO_HEIGHT_DIMENSION],dimensions[mv::IO_CHANNEL_DIMENSION] , dimensions[mv::IO_BATCH_DIMENSION]};
+        auto numericStrides = tensor.getOrder().computeByteStrides(mv::Shape(dimensions), tensor.getDType().getSizeInBits() / 8);
+        numericStrides.push_back(tensor.getDType().getSizeInBits() / 8);
+        std::reverse(dimensions.begin(), dimensions.end());
+        std::reverse(numericStrides.begin(), numericStrides.end());
+        tensorT->strides = numericStrides; // NOTE: Maybe directly bufferIt->computeStrides() in the future
+    }
+        
 }
 
 MVCNN::DType mv::RuntimeModel::convertDtype(const mv::DType& dtype)
@@ -315,12 +332,12 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     numericStrides.push_back(t->getDType().getSizeInBits() / 8);
     if(*tensorAllocatorName == "VPU_CMX_NN")
     {
-        mv::Shape hackedShape = {0,0,0,0};
-        hackedShape[0] = 240;
-        hackedShape[1] = subtensor.getShape()[1];
-        hackedShape[2] = subtensor.getShape()[2];
-        hackedShape[3] = subtensor.getShape()[3];
-        subtensor.setShape(hackedShape);
+        // mv::Shape hackedShape = {0,0,0,0};
+        // hackedShape[0] = 240;
+        // hackedShape[1] = subtensor.getShape()[1];
+        // hackedShape[2] = subtensor.getShape()[2];
+        // hackedShape[3] = subtensor.getShape()[3];
+        // subtensor.setShape(hackedShape);
 
 
         numericStrides = subtensor.computeNumericStrides();
@@ -754,6 +771,13 @@ void mv::RuntimeModel::case2MC(unsigned numTasks, ComputationModel& cm,  mv::Dma
                 alignTensor(cm, tmp->dst, dst->getSubTensor(i), padFinalOutput);
         }
 
+        //Check if DMA is DDR2CMX
+        if (direction == mv::DDR2CMX)
+        {
+            if (dst->hasAttr("alignWidth16"))
+                alignTensor(cm, tmp->dst, dst->getSubTensor(i), false);
+        }
+
         checkUnstridedDMA(src, i, tmp);
 
         tmp->compression =  compression;
@@ -772,7 +796,16 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
     auto padFinalOutput = false;
 
     auto inputTensor = opIt->getInputTensor(0);
-    auto outputTensor = opIt->getOutputTensor(0);
+    //auto outputTensor = opIt->getOutputTensor(0);
+
+    //Added by John
+    // output tensor comes from align layer
+    mv::Data::TensorIterator outputTensor;
+    if(opIt.leftmostChild()->getOpType() == "Align")
+        outputTensor = opIt.leftmostChild()->getOutputTensor(0);
+    else
+        outputTensor = opIt->getOutputTensor(0);
+
     bool sourceIsBroadCasted = inputTensor->isBroadcasted();
 
     bool compression = false;
@@ -820,6 +853,8 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
     else
     {
         std::vector<std::unique_ptr<MVCNN::TaskT>> toReturn;
+        
+        //Pass outputTesnor from Align layer
         case2MC(numTasks, cm, direction, compilationDescriptor, compression, padFinalOutput, toReturn, inputTensor, outputTensor);
         if(inputTensor->isSparse())
         {
