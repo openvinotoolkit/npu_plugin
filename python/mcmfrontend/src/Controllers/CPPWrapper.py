@@ -515,17 +515,17 @@ def buildOM(
         mv_quant_params = get_parse_quant(layer.getOutputTensors()[0])[0]
         type_value = type_dict[layer.getOutputTensors()[0].dtype](0.0)
         shape = ca.getShape(
-            layer.getInputTensors()[0].shape[0],
-            layer.getInputTensors()[0].shape[1],
+            layer.getInputTensors()[0].shape[3],
             layer.getInputTensors()[0].shape[2],
-            layer.getInputTensors()[0].shape[3])
+            layer.getInputTensors()[0].shape[1],
+            layer.getInputTensors()[0].shape[0])
         order = ca.getOrder(mcm_4d_layout[parser])
         pred = list(g.predecessors(gnode_name))
         in_ = reflist[pred[0]]
         default_shape = '\"\"'
 
         _ref = ca.reshape(
-            om, in_, shape, order ,order_type_dict[type(type_value)], mv_quant_params, output_tensor_name)
+            om, in_, shape, order, "Float16", mv_quant_params, output_tensor_name)
 
         if (output_file is not None):
 
