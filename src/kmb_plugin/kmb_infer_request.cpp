@@ -59,7 +59,7 @@ KmbInferRequest::KmbInferRequest(const InferenceEngine::InputsDataMap& networkIn
         InferRequestInternal(networkInputs, networkOutputs), _executor(executor),
         _stagesMetaData(blobMetaData), _config(kmbConfig),
         _logger(std::make_shared<Logger>("KmbInferRequest", kmbConfig.logLevel(), consoleOutput())) {
-    _deviceLayout = NCHW;
+    _deviceLayout = InferenceEngine::Layout::NCHW;
 
     // allocate inputs
     IE_ASSERT(_networkInputs.size() == 1) << "Do not support more than 1 input";
