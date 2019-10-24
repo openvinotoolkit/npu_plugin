@@ -319,6 +319,7 @@ int main(int argc, char *argv[]) {
         // --------------------------- 5. Prepare input --------------------------------------------------------
         /** Iterate over all the input blobs **/
         std::string firstInputName = inputInfo.begin()->first;
+
         /** Creating input blob **/
         Blob::Ptr inputBlob = inferRequest.GetBlob(firstInputName.c_str());
         if (!inputBlob) {
@@ -377,9 +378,12 @@ int main(int argc, char *argv[]) {
             }
         }
 
-        FILE* outFile  = fopen("/output.dat", "wb");
-        fwrite(outputBlob->buffer(), sizeof(u_char), outputBlob->byteSize(), outFile);
-        fclose(outFile);
+        std::fstream outFile;
+        outFile.open("/output.dat", std::ios::in | std::ios::out | std::ios::binary);
+        if (outFile.is_open()) {
+            outFile.write(outputBlob->buffer(), outputBlob->size());
+        }
+        outFile.close();
     }
     catch (const std::exception& error) {
         slog::err << "" << error.what() << slog::endl;

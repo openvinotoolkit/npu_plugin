@@ -59,12 +59,12 @@ public:
 // If there is no free SIPPPreprocessor at the moment, infer request waits until some of preprocessors free.
 
 class SippPreprocPool {
-    static constexpr unsigned int firstShave = 10;
+    static unsigned int firstShave;
+    static constexpr unsigned int defaultFirstShave = 10;
     static constexpr unsigned int maxPools = 2;
     static constexpr unsigned int shavesPerPool = 2;
     static constexpr unsigned int pipesPerPool = 1;
 
-    static_assert(firstShave + shavesPerPool*maxPools <= 16, "Max number of shaves exceeded!");
     static_assert(shavesPerPool % pipesPerPool == 0, "shavesPerPool is not multiple by pipesPerPool!");
 
     friend SippPreprocPool& sippPreprocPool();

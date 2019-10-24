@@ -25,7 +25,7 @@ class kmbLayersTestsBias_nightly: public kmbLayersTests_nightly,
 };
 
 #ifdef ENABLE_MCM_COMPILER
-TEST_P(kmbLayersTestsBias_nightly, TestsBias)
+TEST_P(kmbLayersTestsBias_nightly, DISABLED_TestsBias)
 {
     auto dim = GetParam();
     std::size_t biasesSize = 1;

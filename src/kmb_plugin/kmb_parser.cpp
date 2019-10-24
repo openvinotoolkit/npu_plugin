@@ -66,17 +66,18 @@
 #endif
 
 #ifdef ENABLE_MCM_COMPILER
-#include <mcm/target/keembay/runtime_model/runtime_model.hpp>
+#include <mcm/target/kmb/runtime_model/runtime_model.hpp>
 
 namespace vpu {
 
 namespace KmbPlugin {
 
 void compileMcm(
-        const ie::ICNNNetwork& network,
+        ie::ICNNNetwork& network,
         const KmbConfig& config,
         mv::CompilationUnit& unit,
         std::vector<char>& blob) {
+    blob.clear();
     Logger::Ptr _logger = std::make_shared<Logger>("compileMCM", config.logLevel(), consoleOutput());
     mv::OpModel& modelMcm = unit.model();
 
@@ -122,27 +123,14 @@ void compileMcm(
         // Just now we try two of them
         //-----------------------------------------------------------------------
         bool isBlobFileSet = false;
-        if (compDesc.validPass("GenerateBlob")) {
-            // validPass returns true here but 'setPassArg' attempt causes
-            // 'Trying to set arguments for a non-existent pass' error
-            // so we use try catch
-            try {
-                compDesc.setPassArg("GenerateBlob", "fileName", resultsFullName + ".blob");
-                compDesc.setPassArg("GenerateBlob", "enableFileOutput", true);
-                isBlobFileSet = true;
-            } catch (...) {
-            }
-        }
 
-        if (compDesc.validPass("GenerateBlobKeembay")) {
+        if (compDesc.validPass("GenerateBlobKmb")) {
             // validPass returns true here but 'setPassArg' attempt causes
             // 'Trying to set arguments for a non-existent pass' error
             // so we use try catch
             try {
-                compDesc.setPassArg("GenerateBlobKeembay", "output", resultsFullName + ".blob");
-                compDesc.setPassArg("GenerateBlobKeembay", "enableFileOutput", true);
+                compDesc.setPassArg("GenerateBlobKmb", "output", resultsFullName + ".blob");
                 isBlobFileSet = true;
-//                compDesc.setPassArg("GenerateBlobKeembay", "enableRAMOutput", true);
             } catch (...) {
             }
         }
@@ -152,15 +140,17 @@ void compileMcm(
     }
 
     if (parsedConfig[VPU_KMB_CONFIG_KEY(MCM_GENERATE_DOT)] == "YES") {
-        try {
-            //--------------------------------------------------------------------------
-            // Setting scope to control-model disables compute model details in dot-file
-            //--------------------------------------------------------------------------
-            // compDesc.setPassArg("GenerateDot", "scope", std::string("ControlModel"));
-            compDesc.setPassArg("GenerateDot", "content", std::string("full"));
-            compDesc.setPassArg("GenerateDot", "html", true);
-        } catch (...) {
-            VPU_THROW_EXCEPTION << "Can't set mcmCompiler arguments for *.dot generation!";
+        if (compDesc.validPass("GenerateDot")) {
+//            try {
+//                //--------------------------------------------------------------------------
+//                // Setting scope to control-model disables compute model details in dot-file
+//                //--------------------------------------------------------------------------
+//                compDesc.setPassArg("GenerateDot", "scope", std::string("ControlModel"));
+//                compDesc.setPassArg("GenerateDot", "content", std::string("full"));
+//                compDesc.setPassArg("GenerateDot", "html", true);
+//            } catch (...) {
+//                VPU_THROW_EXCEPTION << "Can't set mcmCompiler arguments for *.dot generation!";
+//            }
         }
     }
 
@@ -183,9 +173,9 @@ void compileMcm(
     auto result = unit.run();
 
     if (parsedConfig[VPU_KMB_CONFIG_KEY(MCM_GENERATE_JSON)] == "YES") {
-        std::fstream file_out(resultsFullName + ".json", std::fstream::out);
-        file_out << result.stringifyPretty() << std::endl;
-        file_out.close();
+         std::fstream file_out(resultsFullName + ".json", std::fstream::out);
+         file_out << result.toString() << std::endl;
+         file_out.close();
     }
 
     if (parsedConfig[VPU_KMB_CONFIG_KEY(MCM_GENERATE_DOT)] == "YES") {
@@ -195,26 +185,34 @@ void compileMcm(
     }
 
     if (parsedConfig[VPU_KMB_CONFIG_KEY(MCM_GENERATE_BLOB)] == "YES") {
+#ifdef NDEBUG
+        std::ifstream blobFile(resultsFullName + ".blob", std::ios::binary);
+        if (blobFile) {
+            std::ostringstream blobContentStream;
+            blobContentStream << blobFile.rdbuf();
+            const std::string& blobContentString = blobContentStream.str();
+            std::copy(blobContentString.begin(), blobContentString.end(), std::back_inserter(blob));
+            if (blob.size() == 0) {
+                VPU_THROW_EXCEPTION << "Blob file " << resultsFullName + ".blob" << " created by mcmCompiler is empty!";
+            }
+        } else {
+            VPU_THROW_EXCEPTION << "Can not open blob file " << resultsFullName + ".blob" << ". It was not created by mcmCompiler!";
+        }
+#else
         mv::RuntimeModel& rm = mv::RuntimeModel::getInstance();
-        int bufferSize = 0;
-        char* memBlob = rm.serialize(bufferSize);
+        auto memBlob = rm.getBlob();
 
-        std::copy(memBlob, memBlob + bufferSize, std::back_inserter(blob));
-        //--------------------------------------------------------------------------
-        // Function char * mv::RuntimeModel::serialize(int& bufferSize)
-        // allocates (new) the char* buffer inside.
-        // We free it after to avoid memory leakage
-        //--------------------------------------------------------------------------
-        // TODO: Remove delete when mv::RuntimeModel::serialize will be implemented properly
-        delete memBlob;
+        std::copy(memBlob->begin(), memBlob->end(), std::back_inserter(blob));
+
         if (blob.empty()) {
             VPU_THROW_EXCEPTION << "Blob file " << resultsFullName + ".blob" << " created by mcmCompiler is empty!";
         }
+#endif
     }
 }
 
 std::set<std::string> getSupportedLayersMcm(
-        const ie::ICNNNetwork& network,
+        ie::ICNNNetwork& network,
         mv::OpModel& pCompiler,
         const KmbConfig& config) {
     auto frontEnd = std::make_shared<FrontEndMcm>(pCompiler, config);

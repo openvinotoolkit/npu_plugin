@@ -23,7 +23,7 @@
 using namespace InferenceEngine;
 
 #ifdef ENABLE_MCM_COMPILER
-TEST_F(kmbLayersTests_nightly, TestsEltwiseAfterScaleShift) {
+TEST_F(kmbLayersTests_nightly, DISABLED_TestsEltwiseAfterScaleShift) {
     // MCM compiler does not support multiple Input layers
     // ScaleShift result is used as the second input to Eltwise
     // TODO find a way to specify several inputs to Eltwise without other layers
@@ -122,7 +122,7 @@ TEST_F(kmbLayersTests_nightly, TestsEltwiseAfterScaleShift) {
     ASSERT_NO_THROW(ie.LoadNetwork(network, "kmb", config));
 }
 
-TEST_F(kmbLayersTests_nightly, TestsEltwiseAfterScaleShiftWithLargeWeight) {
+TEST_F(kmbLayersTests_nightly, DISABLED_TestsEltwiseAfterScaleShiftWithLargeWeight) {
     const std::string model = R"V0G0N(
     <net batch="1" name="ELTWISE_TEST" version="2">
         <layers>

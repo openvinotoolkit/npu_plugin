@@ -81,8 +81,11 @@ KmbInferRequest::KmbInferRequest(const InferenceEngine::InputsDataMap& networkIn
                 precision,
                 dims,
                 layout), getKmbAllocator());
-        inputBlob->allocate();
+        if (inputBlob == nullptr) {
+            THROW_IE_EXCEPTION << "InputBlob is nullptr.";
+        }
 
+        inputBlob->allocate();
         _inputs[networkInput.first] = inputBlob;
     }
     // allocate outputs
@@ -104,6 +107,10 @@ KmbInferRequest::KmbInferRequest(const InferenceEngine::InputsDataMap& networkIn
             precision,
             dims,
             layout), getKmbAllocator());
+
+        if (outputBlob == nullptr) {
+            THROW_IE_EXCEPTION << "InputBlob is nullptr.";
+        }
 
         outputBlob->allocate();
         _outputs[networkOutput.first] = outputBlob;
@@ -239,6 +246,7 @@ void KmbInferRequest::InferAsync() {
     }
 
     auto dataName = _networkInputs.begin()->first;
+
     auto foundInputBlob = _inputs.find(dataName);
     if (foundInputBlob == _inputs.end())
         THROW_IE_EXCEPTION << "Error: input [" << dataName << "] is not provided.";
@@ -253,6 +261,7 @@ void KmbInferRequest::InferAsync() {
 
 void KmbInferRequest::GetResult() {
     auto dataName = _networkOutputs.begin()->first;
+
     auto foundInputBlob = _outputs.find(dataName);
     if (foundInputBlob == _outputs.end())
         THROW_IE_EXCEPTION << "Error: output [" << dataName << "] is not provided.";

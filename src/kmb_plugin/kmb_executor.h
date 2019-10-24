@@ -48,7 +48,7 @@ public:
     explicit KmbExecutor(const KmbConfig& config);
     ~KmbExecutor() = default;
 
-    void allocateGraph(const std::vector<char> &graphFileContent, const char* networkName);
+    void allocateGraph(const std::vector<char> &graphFileContent);
 
     void deallocateGraph();
 

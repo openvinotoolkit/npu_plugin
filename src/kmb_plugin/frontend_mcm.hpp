@@ -34,7 +34,7 @@
 #include <kmb_config.h>
 
 #ifdef ENABLE_MCM_COMPILER
-#include <mcm/op_model.hpp>
+#include <include/mcm/op_model.hpp>
 #include "kmb_base.hpp"
 
 #include <graph_tools.hpp>
@@ -75,9 +75,9 @@ public:
     explicit FrontEndMcm(mv::OpModel& modelMcm, const KmbConfig& config)
              : _modelMcm(modelMcm)
              , _logger(std::make_shared<Logger>("FrontEndMcm", config.logLevel(), consoleOutput())) { }
-    void buildInitialModel(const ie::ICNNNetwork& network);
+    void buildInitialModel(ie::ICNNNetwork& network);
 
-    std::set<std::string> checkSupportedLayers(const ie::ICNNNetwork& network);
+    std::set<std::string> checkSupportedLayers(ie::ICNNNetwork& network);
 
     McmNodePtr output() { return _output; }
 
@@ -86,8 +86,7 @@ public:
 //
 
 private:
-    void runCommonPasses(
-            const ie::ICNNNetwork& network);
+    void runCommonPasses(ie::ICNNNetwork& network);
 
     void parseInputData();
     void parseOutputData();
@@ -160,6 +159,8 @@ private:
         std::vector<ie::CNNLayerPtr> orderedLayers;
     };
     void parseNetworkDFS(const ie::ICNNNetwork& network, ParsedNetwork& parsedNetwork);
+
+    void applyQuantizationTransformations(ie::CNNNetwork& network);
 
 //
 // Internal state

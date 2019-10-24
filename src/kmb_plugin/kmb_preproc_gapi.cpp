@@ -138,6 +138,8 @@ void SIPPPreprocEngine::preprocWithSIPP(const Blob::Ptr &inBlob, Blob::Ptr &outB
     using namespace cv::gapi;
 
     auto inNV12Blob = as<NV12Blob>(inBlob);
+    IE_ASSERT(inNV12Blob != nullptr);
+
     const auto& y_blob = inNV12Blob->y();
     const auto& uv_blob = inNV12Blob->uv();
 

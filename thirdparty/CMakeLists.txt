@@ -62,6 +62,11 @@ if (ENABLE_MCM_COMPILER)
         set(MCM_COMPILER_CMAKE_ARGS -DCMAKE_SKIP_RPATH=ON)
     endif()
 
+    if(DEFINED METIS_DIR)
+        set(METIS_INCLUDE_PATH "-DMETIS_INCLUDE_DIR=${METIS_DIR}/include"
+                               "-DMETIS_LIBRARY=${METIS_DIR}/lib")
+        message(STATUS "METIS_DIR=${METIS_DIR}")
+    endif()
     ExternalProject_Add(
             mcmCompiler
             PREFIX ${MCM_BASE_DIR}
@@ -69,16 +74,16 @@ if (ENABLE_MCM_COMPILER)
             BINARY_DIR ${MCM_BASE_DIR}/build
             STAMP_DIR ${MCM_BASE_DIR}/stamp
             INSTALL_COMMAND ""
-            CMAKE_ARGS ${MCM_COMPILER_CMAKE_ARGS})
+            CMAKE_ARGS ${MCM_COMPILER_CMAKE_ARGS} ${METIS_INCLUDE_PATH})
 
     set(MCM_COMPILER_INCLUDE_PATH "${MCM_BASE_DIR}"
                                   "${MCM_BASE_DIR}/include"
-                                  "${MCM_BASE_DIR}/meta/include" PARENT_SCOPE)
+                                  "${MCM_BASE_DIR}/build/meta" PARENT_SCOPE)
     set(MCM_COMPILER_LIBRARY "${MCM_BASE_DIR}/build/lib/${CMAKE_SHARED_LIBRARY_PREFIX}cm${CMAKE_SHARED_LIBRARY_SUFFIX}" PARENT_SCOPE)
     set(MCM_COMPILER_MODEL_LIBRARY "${MCM_BASE_DIR}/build/lib/${CMAKE_SHARED_LIBRARY_PREFIX}model${CMAKE_SHARED_LIBRARY_SUFFIX}" PARENT_SCOPE)
     set(MCM_COMPILER_METAMODEL_LIBRARY "${MCM_BASE_DIR}/build/lib/${CMAKE_SHARED_LIBRARY_PREFIX}metamodel${CMAKE_SHARED_LIBRARY_SUFFIX}" PARENT_SCOPE)
     set(FLATBUFFERRS_INCLUDE_PATH "${MCM_BASE_DIR}/schema/graphfile/flatbuffers/include/" PARENT_SCOPE)
-    set(MCM_SCHEMA_INCLUDE_PATH "${MCM_BASE_DIR}/meta/schema/graphfile" PARENT_SCOPE)
+    set(MCM_SCHEMA_INCLUDE_PATH "${MCM_BASE_DIR}/build/meta/schema/graphfile" PARENT_SCOPE)
 else()
     message(STATUS "************ Disabling MCM compiler ************")
 endif()

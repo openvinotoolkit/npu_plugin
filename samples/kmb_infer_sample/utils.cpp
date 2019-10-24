@@ -71,6 +71,10 @@ using LayerProcessor = std::function<IE::Blob::Ptr(const IE::CNNLayerPtr, IE::Bl
 IE::Blob::Ptr pooling(const IE::CNNLayerPtr layer, IE::Blob::Ptr src) {
     auto poolLayer = std::dynamic_pointer_cast<IE::PoolingLayer>(layer);
 
+    if (poolLayer == nullptr) {
+        THROW_IE_EXCEPTION << "PoolLayer is nullptr.";
+    }
+
     size_t KW = poolLayer->_kernel_x;
     size_t KH = poolLayer->_kernel_y;
 
@@ -79,6 +83,9 @@ IE::Blob::Ptr pooling(const IE::CNNLayerPtr layer, IE::Blob::Ptr src) {
 
     int PH = poolLayer->_padding_y;
     int PW = poolLayer->_padding_x;
+
+    bool isAvgPooling = (poolLayer->_type == IE::PoolingLayer::PoolType::AVG);
+    bool excludePad = poolLayer->_exclude_pad;
 
     size_t IW, IH, _;
     get_common_dims(src, IW, IH, _, _);
@@ -93,9 +100,6 @@ IE::Blob::Ptr pooling(const IE::CNNLayerPtr layer, IE::Blob::Ptr src) {
 
     const auto *src_data = src->cbuffer().as<const float *>();
     auto *dst_data = dst->buffer().as<float *>();
-
-    bool isAvgPooling = (poolLayer->_type == IE::PoolingLayer::PoolType::AVG);
-    bool excludePad = poolLayer->_exclude_pad;
 
     for (size_t c = 0; c < OC; c++) {
         for (size_t oh = 0; oh < OH; oh++) {
@@ -151,6 +155,10 @@ IE::Blob::Ptr scaleShift(const IE::CNNLayerPtr layer, IE::Blob::Ptr src) {
     auto& in_size = src->getTensorDesc().getDims();
     IE::Layout layout = src->getTensorDesc().getLayout();
 
+    if (scaleLayer == nullptr) {
+        THROW_IE_EXCEPTION << "ScaleLayer is nullptr.";
+    }
+
     auto* weights = scaleLayer->_weights->cbuffer().as<float*>();
     const float* bias_data = nullptr;
     if (scaleLayer->_biases) {
@@ -190,7 +198,12 @@ IE::Blob::Ptr relu(const IE::CNNLayerPtr layer, IE::Blob::Ptr src) {
     auto dst = IE::make_shared_blob<float>(tensorDesc);
     dst->allocate();
 
+    if (reluLayer == nullptr) {
+        THROW_IE_EXCEPTION << "ReluLayer is nullptr.";
+    }
+
     float negative_slope = reluLayer->negative_slope;
+
     float *srcData = src->buffer();
     float *dstData = dst->buffer();
     size_t count = src->size();
@@ -222,6 +235,10 @@ IE::Blob::Ptr softmax(const IE::CNNLayerPtr layer, IE::Blob::Ptr src) {
     auto softmaxLayer = std::dynamic_pointer_cast<IE::SoftMaxLayer>(layer);
     auto dst = IE::make_shared_blob<float>(layer->outData[0]->getTensorDesc());
     dst->allocate();
+
+    if (softmaxLayer == nullptr) {
+        THROW_IE_EXCEPTION << "SoftmaxLayer is nullptr.";
+    }
 
     int axis = softmaxLayer->axis;
 
@@ -308,7 +325,11 @@ IE::Blob::Ptr convolution(const IE::CNNLayerPtr layer, IE::Blob::Ptr src) {
     auto dst = IE::make_shared_blob<float>(tensorDesc);
     dst->allocate();
 
-    const float* bias_data = nullptr;
+    if (convLayer == nullptr) {
+        THROW_IE_EXCEPTION << "ConvolutionLayer is nullptr.";
+    }
+
+    const float *bias_data = nullptr;
     if (convLayer->_biases) {
         bias_data = convLayer->_biases->buffer();
     }
@@ -344,8 +365,8 @@ IE::Blob::Ptr convolution(const IE::CNNLayerPtr layer, IE::Blob::Ptr src) {
     size_t OD = (dst_dims.size() == 5lu) ? dst_dims[2] : 1lu;
     size_t OC = dst_dims[1];
 
-    const auto* src_data = src->cbuffer().as<const float*>();
-    auto* dst_data = dst->buffer().as<float*>();
+    const auto *src_data = src->cbuffer().as<const float *>();
+    auto *dst_data = dst->buffer().as<float *>();
 
     for (uint32_t g = 0; g < GC; g++) {
         for (uint32_t oc = 0; oc < OC / GC; oc++) {
@@ -395,12 +416,12 @@ IE::Blob::Ptr convolution(const IE::CNNLayerPtr layer, IE::Blob::Ptr src) {
     }
 
     if (convLayer->blobs["oi-scale"]) {
-        const float* oScale = convLayer->blobs["oi-scale"]->buffer().as<const float*>();
+        const float *oScale = convLayer->blobs["oi-scale"]->buffer().as<const float *>();
         size_t N, C, H, W;
         get_common_dims(dst, W, H, C, N);
 
         if (layer->outData[0]->getTensorDesc().getPrecision() != IE::Precision::FP32) {
-            for (size_t n =0; n < N; ++n) {
+            for (size_t n = 0; n < N; ++n) {
                 for (size_t c = 0; c < C; ++c) {
                     for (size_t h = 0; h < H; ++h) {
                         for (size_t w = 0; w < W; ++w) {
@@ -428,6 +449,10 @@ IE::Blob::Ptr eltwise(const IE::CNNLayerPtr layer, IE::Blob::Ptr left, IE::Blob:
     float* data = dst->buffer();
     const float* left_data = left->cbuffer().as<const float*>();
     const float* right_data = right->cbuffer().as<const float*>();;
+
+    if (eltwiseLayer == nullptr) {
+        THROW_IE_EXCEPTION << "EltwiseLayer is nullptr.";
+    }
 
     if (eltwiseLayer->_operation == IE::EltwiseLayer::eOperation::Sum) {
         for (size_t i = 0; i < dst->size(); ++i) {
@@ -482,7 +507,11 @@ IE::CNNNetwork getNetwork(const std::string& model_path) {
 IE::Blob::Ptr preprocessUncompiledLayers(const std::string &layersPath, const std::string& data) {
     auto net = getNetwork(layersPath);
 
-    auto inputblob = IE::make_shared_blob<float>(net.getInputsInfo().begin()->second->getTensorDesc());
+    IE::Blob::Ptr inputblob;
+    if (net.getInputsInfo().empty()) {
+        THROW_IE_EXCEPTION << "net.getInputsInfo() is empty!";
+    }
+    inputblob = IE::make_shared_blob<float>(net.getInputsInfo().begin()->second->getTensorDesc());
     auto blobData = inputblob->buffer().as<IE::PrecisionTrait<IE::Precision::U8>::value_type*>();
     std::copy(data.begin(), data.end(), blobData);
 
