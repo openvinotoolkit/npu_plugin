@@ -35,7 +35,7 @@ namespace mv
 
             auto padding = args.at("padding").get<std::array<unsigned short, 4>>();
             auto kSize = args.at("kSize").get<std::array<unsigned short, 2>>();
-            
+
             if (inputs[0]->getShape()[mv::IO_WIDTH_DIMENSION] + padding[0] + padding[1] < kSize[0])
             {
                 errMsg = "Filter kernel width (" + std::to_string(kSize[0]) + ") exceeds the padded input width ("
@@ -52,8 +52,8 @@ namespace mv
 
             return {true, 0};
         };
-                
-        static std::function<void(const std::vector<Data::TensorIterator>&, const std::map<std::string, Attribute>&, 
+
+        static std::function<void(const std::vector<Data::TensorIterator>&, const std::map<std::string, Attribute>&,
             std::vector<Tensor>&)> outputDefFcn =
             [](const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>& args, std::vector<Tensor>& outputs)
         {
@@ -65,10 +65,13 @@ namespace mv
             Shape outputShape({(inputShape[mv::IO_WIDTH_DIMENSION] + padding[0] + padding[1] - kSize[KERNEL_WIDTH]) / stride[0] + 1,
                 (inputShape[mv::IO_HEIGHT_DIMENSION] + padding[2] + padding[3] - kSize[KERNEL_HEIGHT]) / stride[1] + 1, inputShape[mv::IO_CHANNEL_DIMENSION], inputShape[mv::IO_BATCH_DIMENSION]});
 
+            auto dTypeToUse = args.at("dType").get<mv::DType>();
+            if(dTypeToUse == mv::DType("Default"))
+                dTypeToUse = inputs[0]->getDType();
             if (args.at("quantParams").get<mv::QuantizationParams>().isEmpty() == true)
-                outputs.push_back(mv::Tensor(":0", outputShape, inputs[0]->getDType(), inputs[0]->getOrder()));
+                outputs.push_back(mv::Tensor(":0", outputShape, dTypeToUse, inputs[0]->getOrder()));
             else
-                outputs.push_back(mv::Tensor(":0", outputShape, inputs[0]->getDType(), inputs[0]->getOrder(), args.at("quantParams").get<mv::QuantizationParams>()));
+                outputs.push_back(mv::Tensor(":0", outputShape, dTypeToUse, inputs[0]->getOrder(), args.at("quantParams").get<mv::QuantizationParams>()));
 
         };
 
@@ -88,8 +91,9 @@ namespace mv
         .setArg<std::array<unsigned short, 2>>("stride")
         .setArg<std::array<unsigned short, 4>>("padding")
         .setOptionalArg<bool>("exclude_pad", true)
-        .setOptionalArg<std::string>("auto_pad",      op_average_pool::default_auto_pad)      // default: ""
+        .setOptionalArg<std::string>("auto_pad", op_average_pool::default_auto_pad)      // default: ""
         .setOptionalArg<std::string>("rounding_type", op_average_pool::default_rounding_type) // default: "floor"
+        .setOptionalArg<mv::DType>("dType", mv::DType("Default"))
         .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
         .setInputCheck(op_average_pool::inputCheckFcn)
         .setOutputDef(op_average_pool::outputDefFcn)

@@ -15,8 +15,8 @@ namespace mv
             return {true, 0};
 
         };
-                
-        static std::function<void(const std::vector<Data::TensorIterator>&, const std::map<std::string, Attribute>&, 
+
+        static std::function<void(const std::vector<Data::TensorIterator>&, const std::map<std::string, Attribute>&,
             std::vector<Tensor>&)> outputDefFcn =
             [](const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>& args, std::vector<Tensor>& outputs)
         {
@@ -32,10 +32,10 @@ namespace mv
     }
 
     namespace op {
-
         MV_REGISTER_OP(Dropout)
         .setInputs({"input"})
         .setOutputs({"output"})
+        .setOptionalArg<mv::DType>("dType", mv::DType("Default"))
         .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
         .setInputCheck(op_dropout::inputCheckFcn)
         .setOutputDef(op_dropout::outputDefFcn)

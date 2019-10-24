@@ -10,7 +10,7 @@ namespace mv
     {
 
         static mv::json::Value toJSON(const Attribute& a)
-        { 
+        {
             auto d = a.get<DType>();
             return json::Value(d.toString());
         }
@@ -18,15 +18,15 @@ namespace mv
         static Attribute fromJSON(const json::Value& v)
         {
             if (v.valueType() != json::JSONType::String)
-                throw AttributeError(v, "Unable to convert JSON value of type " + json::Value::typeName(v.valueType()) + 
+                throw AttributeError(v, "Unable to convert JSON value of type " + json::Value::typeName(v.valueType()) +
                     " to mv::DType");
-            
+
             return DType(v.get<std::string>());
         }
 
         static std::string toString(const Attribute& a)
         {
-            return "DTypeType::" + a.get<DType>().toString();
+            return "mv::DType(\""+a.get<DType>().toString()+"\")";
         }
     }
 

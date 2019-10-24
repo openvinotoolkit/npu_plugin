@@ -204,8 +204,6 @@ const std::vector<int> mv::Workloads::getWorkloadSplitPool(const Tensor& tensor,
     return splitPool;
 }
 
-
-
 std::vector<mv::Workload> mv::Workloads::polygonWorkloadSplit(const mv::pass::PassEntry &pass, mv::Workload &workload, std::vector<mv::Workload> &workloads_, mv::DPUMode &mpe_mode)
 {
     /*------------------------------------------------------------------------------------------------------------
@@ -451,8 +449,13 @@ void mv::Workloads::generateExecutionCycles(std::vector<mv::Workloads>& workload
 
             std::pair <int,int> mpeMode (4, 4);
 
-            if(itworkload->MPEMode != mv::Matrix)
+            if(itworkload->MPEMode == mv::Vector)
                 mpeMode = {1,16};
+            else if (itworkload->MPEMode == mv::Matrix)
+               mpeMode = {4,4};
+            else
+                mpeMode = {1,4};
+
 
             float height = (itworkload->MaxY+1) - itworkload->MinY; // + mpeMode.first;
             float width = (itworkload->MaxX+1) - itworkload->MinX; // + mpeMode.second;
@@ -1005,10 +1008,12 @@ namespace mv {
             workload.MaxZ = Z ? Z - 1: 0;
 
             /*Select best MPE mode*/
-            if(padding.mode.H == 4)
-                workload.MPEMode = mv::Matrix; 
+            if(padding.mode.H == padding.mode.W)
+                workload.MPEMode = mv::Matrix;
+            else if ((padding.mode.H == 1) && (padding.mode.W == 16))
+                workload.MPEMode = mv::MPE_Mode::Vector;
             else
-                workload.MPEMode = mv::Vector; 
+                workload.MPEMode = mv::MPE_Mode::Vector_FP16;
 
             /*store requested number of workoads*/
             workload.requestedWorkloadNumber = nWorkloads;
@@ -1201,10 +1206,12 @@ int mv::Workloads::partitionTensorWithZsplit(const mv::DPUModeList& mode_list, s
         workload.algorithm = "Z-Tiling";
 
         /*Select best MPE mode*/
-        if(best_padding.mode.H == 4)
+        if(best_padding.mode.H == best_padding.mode.W)
             workload.MPEMode = mv::Matrix; 
+        else if ((best_padding.mode.W == 1) && (best_padding.mode.W == 16))
+            workload.MPEMode = mv::Vector;
         else
-            workload.MPEMode = mv::Vector; 
+            workload.MPEMode = mv::Vector_FP16;
 
         //Check that the z workloads dimension for z tiling are multiple of 16
         if(((workload.MaxZ+1) - workload.MinZ)%16 != 0)

@@ -178,11 +178,6 @@ namespace mv
         unsigned short alignment_;
 
         /**
-         * @brief Size of type of data stored
-         */
-        unsigned short dataTypeSize_;
-
-        /**
          * @brief Current ID for new buffer
          */
         std::size_t currentID_;
@@ -194,7 +189,7 @@ namespace mv
 
         void placeBuffers_(unsigned stageIdx);
         std::deque<std::size_t> computeStrides_(const Order& order, const std::vector<std::size_t>& leftPadding,
-            const std::vector<std::size_t>& rightPadding, const mv::Shape& shape);
+            const std::vector<std::size_t>& rightPadding, const mv::Shape& shape, const unsigned dataTypeSize);
         long computeStrides_(const Order& order, std::size_t idx, const mv::Shape& shape, const std::vector<std::size_t>& leftPadding,
             const std::vector<std::size_t>& rightPadding, std::deque<std::size_t>& leftStrides, std::deque<std::size_t>& rightStrides);
         void padBuffer_(BufferIterator buffer);
@@ -203,7 +198,7 @@ namespace mv
 
     public:
 
-        MemoryAllocator(std::string name, std::size_t size, unsigned short alignment, unsigned short dataTypeSize);
+        MemoryAllocator(std::string name, std::size_t size, unsigned short alignment);
 
         /**
          * @brief Allocate the tensor in a new buffer for the particular stage
@@ -234,7 +229,7 @@ namespace mv
          * dimensionality, data order and data type of the tensor stored in the slaveBuffer has to match the tensor stored in the masterBuffer.
          * Moving will propagated for all slave buffers of slaveBuffer. If slaveBuffer had a master before it will be replaced with masterBuffer (slave
          * buffer will be deleted from its slaveBuffers list). All previously applied paddings will be erased for slaveBuffer.
-         * 
+         *
          * @param slaveBuffer Buffer to be moved into masterBuffer
          * @param masterBuffer Buffer to be overallocated
          * @param leftPadding leftPadding Padding (left-top) between tensor to be allocated and the tensor contained by the given buffer - EXPRESSED IN WORDS

@@ -148,19 +148,7 @@ set(base
 
     "${PROJECT_SOURCE_DIR}/src/computation/model/runtime_binary.cpp"
 
-    "${PROJECT_SOURCE_DIR}/src/computation/op/op_entry.cpp"
-
-    # Single compilation unit for all Kmb attributes and operations in order
-    "${PROJECT_SOURCE_DIR}/src/target/kmb/kmb_registry.cpp"
-
-    "${PROJECT_SOURCE_DIR}/src/target/kmb/barrier_definition.cpp"
-    "${PROJECT_SOURCE_DIR}/src/target/kmb/barrier_deps.cpp"
-    "${PROJECT_SOURCE_DIR}/src/target/kmb/dma_direction.cpp"
-    "${PROJECT_SOURCE_DIR}/src/target/kmb/ppe_fixed_function.cpp"
-    "${PROJECT_SOURCE_DIR}/src/target/kmb/ppe_layer_type.cpp"
-    "${PROJECT_SOURCE_DIR}/src/target/kmb/ppe_task.cpp"
-    "${PROJECT_SOURCE_DIR}/src/target/kmb/workloads.cpp"
-
+    "${PROJECT_SOURCE_DIR}/src/tensor/dtype/dtype_def/default.cpp"
     "${PROJECT_SOURCE_DIR}/src/tensor/dtype/dtype_def/bin.cpp"
     "${PROJECT_SOURCE_DIR}/src/tensor/dtype/dtype_def/float8.cpp"
     "${PROJECT_SOURCE_DIR}/src/tensor/dtype/dtype_def/float16.cpp"
@@ -183,6 +171,18 @@ set(base
     "${PROJECT_SOURCE_DIR}/src/tensor/dtype/dtype_entry.cpp"
     "${PROJECT_SOURCE_DIR}/src/tensor/dtype/dtype_registry.cpp"
     "${PROJECT_SOURCE_DIR}/src/tensor/dtype/dtype.cpp"
+    "${PROJECT_SOURCE_DIR}/src/computation/op/op_entry.cpp"
+
+    # Single compilation unit for all Kmb attributes and operations in order
+    "${PROJECT_SOURCE_DIR}/src/target/kmb/kmb_registry.cpp"
+
+    "${PROJECT_SOURCE_DIR}/src/target/kmb/barrier_definition.cpp"
+    "${PROJECT_SOURCE_DIR}/src/target/kmb/barrier_deps.cpp"
+    "${PROJECT_SOURCE_DIR}/src/target/kmb/dma_direction.cpp"
+    "${PROJECT_SOURCE_DIR}/src/target/kmb/ppe_fixed_function.cpp"
+    "${PROJECT_SOURCE_DIR}/src/target/kmb/ppe_layer_type.cpp"
+    "${PROJECT_SOURCE_DIR}/src/target/kmb/ppe_task.cpp"
+    "${PROJECT_SOURCE_DIR}/src/target/kmb/workloads.cpp"
 
     "${PROJECT_SOURCE_DIR}/src/tensor/order/order_def/1D.cpp"
     "${PROJECT_SOURCE_DIR}/src/tensor/order/order_def/2D.cpp"
@@ -339,6 +339,7 @@ else()
     add_library(cm SHARED ${base} ${logger} ${pass} ${compiler} ${syscalls})
     add_library(corebase SHARED ${base} ${logger})
     add_library(model SHARED ${model})
+    add_dependencies(model project_lemon)
     target_link_libraries(cm model)
 
     target_link_libraries(cm corebase metamodel flatbuffers ${LEMON_LIBRARY})

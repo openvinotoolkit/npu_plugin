@@ -507,8 +507,8 @@ void mv::Tensor::bindData(Tensor& other, const std::vector<std::size_t>& leftPad
     else
         other.get<std::vector<std::string>>("slave").push_back(getName());
 
-    if (other.hasAttr("quantizationParams"))
-        set<mv::QuantizationParams>("quantizationParams", other.get<mv::QuantizationParams>("quantizationParams"));
+    if (other.hasAttr("quantParams"))
+        set<mv::QuantizationParams>("quantParams", other.get<mv::QuantizationParams>("quantParams"));
 }
 
 void mv::Tensor::setOrder(Order order, bool updateSubtensors)
@@ -533,7 +533,7 @@ void mv::Tensor::setSubtensorsOrder_(Order order)
 void mv::Tensor::setDType(DType dtype)
 {
 
-    set<DType>("dtype", dtype);
+    set<DType>("dType", dtype);
     log(Logger::MessageType::Debug, "Changed data type to " + dtype.toString());
     return;
 
@@ -1244,8 +1244,8 @@ void mv::Tensor::splitAcrossClusters(std::vector<mv::Workload> workloads, bool s
                 subTensors_[idx]->set<std::vector<std::size_t>>("offset", offset);
             }
 
-            if (hasAttr("quantizationParams"))
-                subTensors_[idx]->set<mv::QuantizationParams>("quantizationParams", get<mv::QuantizationParams>("quantizationParams"));
+            if (hasAttr("quantParams"))
+                subTensors_[idx]->set<mv::QuantizationParams>("quantParams", get<mv::QuantizationParams>("quantParams"));
             if (isSparse())
                 subTensors_[idx]->setSparse();
 
