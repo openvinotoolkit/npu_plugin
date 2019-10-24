@@ -50,8 +50,11 @@ static void kmbQuantizeConversionFcn(const mv::pass::PassEntry& pass, mv::Comput
             auto sourceType = source->getOpType();
             auto sinkType = sink->getOpType();
 
+            if (sinkType == "Output")
+                continue;
+
             // HW-to-SW
-            if ((sourceType == "DPUTask") && (sinkType == "UPATask"))
+            if ((sourceType != "UPATask") && (sinkType == "UPATask"))
             {
                 auto taskOp = sink->get<std::string>("taskOp");
                 if (taskOp != "Quantize")
@@ -82,7 +85,7 @@ static void kmbQuantizeConversionFcn(const mv::pass::PassEntry& pass, mv::Comput
                 }
             }
             // SW-to-HW
-            else if ((sourceType == "UPATask") && (sinkType == "DPUTask"))
+            else if ((sourceType == "UPATask") && (sinkType != "UPATask"))
             {
                 auto taskOp = source->get<std::string>("taskOp");
                 if (taskOp != "Quantize")
