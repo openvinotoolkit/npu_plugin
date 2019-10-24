@@ -15,6 +15,8 @@ static void generateWeightsTablesFcn(const mv::pass::PassEntry& pass, mv::Comput
 static void populateWeightsTablesPointersFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void populateWeightsTablesQuantizationFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void removeBiasTensorsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+static int computeAppropriatePadding(mv::Data::TensorIterator tensor);
+
 namespace mv
 {
     namespace pass

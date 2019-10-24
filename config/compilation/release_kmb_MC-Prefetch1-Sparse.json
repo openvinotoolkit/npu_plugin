@@ -82,12 +82,12 @@
     },
     "adapt": {
         "Singular": [
-            "TensorsToU8",
-            "TensorsToFP16",
             "AverageAsDepthWise",
-            "FusePostOps",
             "RemoveDropOut",
             "FullyConnectedAsConv2D",
+            "TensorsToU8",
+            "TensorsToFP16",
+            "FusePostOps",
             {
                 "name" : "GraphParameterOptimization",
                 "graphOptimizerConfig" : {
