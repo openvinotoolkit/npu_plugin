@@ -50,5 +50,12 @@ void reshapeAsImplicitFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
         if(!splitStrategy.empty())
             om.getSourceOp(implicitReshape)->set<std::string>("splitStrategy", splitStrategy);
         mv::setOutputDataFlow(om, implicitReshape, outputFlows);
+
+        auto parentInputTensor = om.getSourceOp(implicitReshape)->getInputTensor(0);
+        if(outputLocation == mv::Tensor::MemoryLocation::OUTPUT)
+        {
+            //last op
+            parentInputTensor->set<mv::Tensor::MemoryLocation>("Location", outputLocation);
+        }
     }
 }
