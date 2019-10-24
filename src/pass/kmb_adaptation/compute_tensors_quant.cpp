@@ -24,6 +24,16 @@ namespace mv
     }
 }
 
+int computeAppropriatePadding(mv::Data::TensorIterator tensor)
+{
+    int pad;
+    if (tensor->getDType() == mv::DType("Float16"))
+        pad = 8;
+    else if (tensor->getDType() == mv::DType("UInt8"))
+        pad = 16;
+    return pad;
+}
+
 void computeTensorsQuantParams(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
 
@@ -45,16 +55,15 @@ void computeTensorsQuantParams(const mv::pass::PassEntry&, mv::ComputationModel&
                 auto output = opIt->getOutputTensor(0);
                 auto input = opIt->getInputTensor(0);
                 auto outputChannels = output->getShape()[mv::IO_CHANNEL_DIMENSION];
-                if (outputChannels % 16 != 0)
-                {
-                    outputChannels = mv::round_up(outputChannels, 16);
-                }
-                 std::vector<int> shift(outputChannels, 0);
-                 std::vector<int16_t> mScaled(outputChannels, 0);
+                int pad = computeAppropriatePadding(opIt->getOutputTensor(0));
+                outputChannels = mv::round_up(outputChannels, pad);
 
-                 if (output->hasAttr("quantParams") && input->hasAttr("quantParams") &&
-                     output->isQuantized() && input->isQuantized())
-                 {
+                std::vector<int> shift(outputChannels, 0);
+                std::vector<int16_t> mScaled(outputChannels, 0);
+
+                if (output->hasAttr("quantParams") && input->hasAttr("quantParams") &&
+                 output->isQuantized() && input->isQuantized())
+                {
                      // Quantization for Gemmlowp output
                      // S1 = weight scale
                      // S2 = input activation scale
@@ -120,7 +129,7 @@ void computeTensorsQuantParams(const mv::pass::PassEntry&, mv::ComputationModel&
                      std::vector <unsigned> ser_shift = std::vector<unsigned>(shift.begin(), shift.end());
                      std::vector <unsigned> ser_scale = std::vector<unsigned>(mScaled.begin(), mScaled.end());
                      outputQuantization.quantize(ser_shift, ser_scale);
-                 }
+                }
 
             }
          }
