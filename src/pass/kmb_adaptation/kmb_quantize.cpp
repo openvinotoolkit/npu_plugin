@@ -50,6 +50,9 @@ static void kmbQuantizeConversionFcn(const mv::pass::PassEntry& pass, mv::Comput
             auto sourceType = source->getOpType();
             auto sinkType = sink->getOpType();
 
+            if (sourceType == "Input")
+                continue;
+
             if (sinkType == "Output")
                 continue;
 
