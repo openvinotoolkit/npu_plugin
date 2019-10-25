@@ -137,6 +137,12 @@ namespace mv
             if (out_dims > 1)
                 out_shape[1] = N;    // batch
 
+            if (out_shape.ndims() < 4)
+            {
+                out_shape = mv::Shape::augment(out_shape, 4);
+                out_order = in_order;
+            }
+
             outputs.push_back(mv::Tensor(":0", out_shape, input->getDType(), out_order));
         };
 
