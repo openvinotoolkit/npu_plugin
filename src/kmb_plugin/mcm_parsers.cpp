@@ -821,52 +821,13 @@ void FrontEndMcm::parseScale(
         const McmNodeVector& inputs) {
     IE_ASSERT(inputs.size() == 1);
 
-    auto scaleLayer = std::dynamic_pointer_cast<ie::ScaleShiftLayer>(layer);
-    IE_ASSERT(scaleLayer != nullptr);
-    IE_ASSERT(scaleLayer->_weights != nullptr);
-
-    if (scaleLayer->_broadcast != 0) {
-        VPU_THROW_EXCEPTION <<
-            "Layer " << scaleLayer->name << " doesn't support broadcast param";
-    }
-
     logParsingStartHelper(_logger, layer, inputs);
+    // TODO: WO until mcm fix scale
+    auto mvRelu = _modelMcm.relu(inputs[0]->getMcmNode(), mv::DType("Default"), initialQuantParams, layer->name);
 
-    auto input = inputs[0];
+    bindOutput(mvRelu, layer->outData[0]);
 
-    size_t dimC, stub;
-    parseDims(input->desc(), stub, dimC, stub, stub);
-    int weightsSize = static_cast<int>(dimC);
-    auto weightsData = packBlobToVector<double>(scaleLayer->_weights, weightsSize);
-
-    mv::Shape weightsShape = { dimC };
-    auto mvWeights = _modelMcm.constant(
-            weightsData,
-            weightsShape,
-            mv::DType("Float64"), mv::Order("W"));
-
-    auto mvScale = _modelMcm.scale(input->getMcmNode(), mvWeights, mv::DType("Default"), initialQuantParams, scaleLayer->name);
-    auto mvScaleShift = mvScale;
-
-    _logger->debug("'%s' layer '%s': Scale part (%s) added to mcmModel", scaleLayer->type, scaleLayer->name, mvScaleShift->getName());
-
-    if (scaleLayer->_biases != nullptr) {
-        size_t C, stub;
-        parseDims(input->desc(), stub, C, stub, stub);
-        int biasesSize = static_cast<int>(dimC);
-        auto biasData = packBlobToVector<double>(scaleLayer->_biases, biasesSize);
-
-        auto mvBias = _modelMcm.constant(
-                biasData,
-                weightsShape,
-                mv::DType("Float64"), mv::Order("W"));
-        mvScaleShift = _modelMcm.bias(mvScale, mvBias, mv::DType("Default"), initialQuantParams, scaleLayer->name + ":bias");
-        _logger->debug("'%s' layer '%s': Bias part (%s) added to mcmModel", scaleLayer->type, scaleLayer->name, mvScaleShift->getName());
-    }
-
-    bindOutput(mvScaleShift, layer->outData[0]);
-
-    _logger->debug(FINISH_PARSING_STR, mvScaleShift->getName());
+    _logger->debug(FINISH_PARSING_STR, mvRelu->getName());
 }
 
 void FrontEndMcm::parsePermute(
