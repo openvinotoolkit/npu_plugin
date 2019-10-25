@@ -19,7 +19,7 @@ if (NOT CMAKE_BUILD_TYPE)
 endif()
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 
-add_compile_options(-std=c++11)
+add_compile_options(-std=c++11 --no-gnu-unique)
 
 set(PROFILER FALSE CACHE BOOL "Enable integrated profiler")
 set(LOG TRUE CACHE BOOL "Enable logger")
