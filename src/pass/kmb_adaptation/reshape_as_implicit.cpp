@@ -30,11 +30,31 @@ void reshapeAsImplicitFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
 
     for(auto& reshape: reshapes)
     {
-        auto inputs = reshape->getInputTensor(0);
+        auto input = reshape->getInputTensor(0);
+        auto input_shape = input->getShape();
+        auto output_shape = reshape->get<mv::Shape>("shape");
+        auto is_explicit = true;
+
+        // If input & output are both 1D, reshape can be implicit
+        auto is_input_flat = (input_shape[0] == input_shape.totalSize() ||
+            input_shape[1] == input_shape.totalSize() ||
+            input_shape[2] == input_shape.totalSize() ||
+            input_shape[3] == input_shape.totalSize());
+        auto is_output_flat = (output_shape[0] == output_shape.totalSize() ||
+            output_shape[1] == output_shape.totalSize() ||
+            output_shape[2] == output_shape.totalSize() ||
+            output_shape[3] == output_shape.totalSize());
+        if (is_input_flat && is_output_flat)
+            is_explicit = false;
+
+        // Skip if explicit
+        if (is_explicit)
+            continue;
+
+        // Replace reshape op with implicit reshape
         auto outputs = reshape->getOutputTensor();
-        auto shape = reshape->get<mv::Shape>("shape");
         auto order = reshape->get<mv::Order>("order");
-        auto dtype = inputs->get<mv::DType>("dType");
+        auto dtype = input->get<mv::DType>("dType");
         mv::QuantizationParams quantParams = {{}, {}, {}, {}};
         std::string splitStrategy;
         if(reshape->hasAttr("splitStrategy"))
@@ -44,7 +64,7 @@ void reshapeAsImplicitFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
         auto outputLocation = reshape->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
         auto opId = reshape->get<unsigned>("opId");
         auto outputFlows = mv::getOutputDataFlow(om, reshape);
-        auto implicitReshape = om.implicitReshape(inputs, shape, order, dtype, quantParams);
+        auto implicitReshape = om.implicitReshape(input, output_shape, order, dtype, quantParams);
         om.getSourceOp(implicitReshape)->set<unsigned>("opId", opId);
         implicitReshape->set<mv::Tensor::MemoryLocation>("Location", outputLocation);
         if(!splitStrategy.empty())
