@@ -5,11 +5,20 @@
 #include <sys/stat.h>
 #include <nlohmann/json.hpp>
 #include <sstream>
-
+#include <dirent.h>
 #include <iomanip>
 #include <vector>
 
 using json = nlohmann::json;
+
+/**
+ * Required environmental variables
+ * VPUIP_HOME = <path to vpuip_2 repo>
+ * DLDT_HOME  = <path to DLDT repo>
+ * 
+ * All the filenames are hardcoded. This should be updated.
+ * 
+ */
 
 // Error Code Guide
 const int8_t RESULT_SUCCESS  = 0;
@@ -20,14 +29,6 @@ const int8_t FAIL_RUNTIME    = 4;  // Runtime fails to generate results file    
 const int8_t FAIL_VALIDATION = 5;  // Correctness Error between results files
 const int8_t FAIL_ERROR      = 9;  // Error occured during run, check log
 
-/**
- * Required environmental variables
- * VPUIP_HOME = <path to vpuip_2 repo>
- * DLDT_HOME  = <path to DLDT repo>
- * 
- * All the filenames are hardcoded. This should be updated.
- * 
- */
 
 bool ParseAndCheckCommandLine(int argc, char *argv[]) 
 {
@@ -60,6 +61,27 @@ bool ParseAndCheckCommandLine(int argc, char *argv[])
     return true;
 }
 
+std::string findBlob(std::string folderPath)
+{
+    std::string blobPath("");
+    if (auto dir = opendir(folderPath.c_str())) 
+    {
+        while (auto f = readdir(dir)) 
+        {
+            if (!f->d_name || f->d_name[0] == '.')
+                continue;
+
+            if ( strstr( f->d_name, ".blob" ))
+            {
+                blobPath =  f->d_name;
+                break;
+            }
+        }
+        closedir(dir);
+    }
+    return blobPath;
+}
+
 std::string getFilename(std::string& path)
 {
     std::string base_filename = path.substr(path.find_last_of("/\\") + 1);
@@ -71,7 +93,6 @@ std::string getFilename(std::string& path)
 
 bool compare(std::vector<float>& actualResults, std::vector<float>& expectedResults, float tolerance)
 {
-    bool testResult = true;
     std::cout << "Comparing results ... " << std::endl;
     std::cout << "  Actual Results size: " << actualResults.size() << std::endl;
     std::cout << "  Expected Results size: " << expectedResults.size() << std::endl;
@@ -79,16 +100,16 @@ bool compare(std::vector<float>& actualResults, std::vector<float>& expectedResu
     if (actualResults.size() != expectedResults.size())
         return false;
 
-    size_t actualMaxErrId = 0;
-    size_t expectedMaxErrId = 0;
+    size_t maxErr = 0;
     std::function<void(size_t)> absoluteErrorUpdater = [&](size_t idx) {
         float actual = actualResults[idx];
         float expected = expectedResults[idx];
         float abs_error = fabsf(actual - expected);
         float abs_allowed_err = fabsf(expected * (tolerance/100.0f));
         std::string result = "\tpass";
-        if (abs_error > abs_allowed_err) {
-            testResult = false;
+        if (abs_error > abs_allowed_err) 
+        {
+            if (abs_error > maxErr) maxErr = abs_error;
             result = "\tfail";
         }
         if (idx < 50) // print first 50 rows
@@ -98,7 +119,8 @@ bool compare(std::vector<float>& actualResults, std::vector<float>& expectedResu
     for (size_t n = 0; n < expectedResults.size(); ++n) 
         absoluteErrorUpdater(n);
 
-    return testResult;
+    if (maxErr == 0) return true;
+    else return false;
 }
 
 bool checkFilesExist(std::vector<std::string> filepaths)
@@ -115,13 +137,13 @@ bool checkFilesExist(std::vector<std::string> filepaths)
     return true;
 }
 
-int runEmulator(std::string pathXML, std::string pathImage)
+int runEmulator(std::string pathXML, std::string pathImage, std::string& blobPath)
 {
     //
     // Clean any old files
     std::cout << "Deleting old emulator results files... " << std::endl;
     std::string binFolder = std::getenv("DLDT_HOME") + std::string("/bin/intel64/Debug/");
-    std::vector<std::string> filesDelete = {"output_cpu.bin", "input-0.bin", "mcm.blob"};
+    std::vector<std::string> filesDelete = {"output_cpu.bin", "input-0.bin", "kmb_release/kmb_release/*.blob"};
     for (std::string fDelete : filesDelete)
         remove(binFolder.append(fDelete).c_str());
 
@@ -153,9 +175,14 @@ int runEmulator(std::string pathXML, std::string pathImage)
         std::cout << std::endl << "Error occurred running the classification_sample_async (KMB mode)!" << std::endl;
         return FAIL_ERROR;
     }
-    if (!checkFilesExist({std::getenv("DLDT_HOME") + std::string("/bin/intel64/Debug/mcm.blob")} ))
+    
+    blobPath = findBlob(std::getenv("DLDT_HOME") + std::string("/bin/intel64/Debug/release_kmb/release_kmb/"));
+    if (blobPath == "")
+    {
+        std::cout << "Error! Couldn't find the generated blob in " << std::getenv("DLDT_HOME") << "/bin/intel64/Debug/release_kmb/release_kmb/" << std::endl;
         return FAIL_COMPILER;
-
+    }
+    
     return RESULT_SUCCESS;
 }
 
@@ -172,7 +199,7 @@ bool copyFile(std::string src, std::string dest)
     return true;
 }
 
-int runKmbInference(std::string evmIP)
+int runKmbInference(std::string evmIP, std::string blobPath)
 {
     //
     // Clean old results
@@ -187,9 +214,8 @@ int runKmbInference(std::string evmIP)
     if (!copyFile(inputSrc, inputDest))
         return FAIL_GENERAL;
     
-    std::string blobSrc = std::getenv("DLDT_HOME") + std::string("/bin/intel64/Debug/mcm.blob");
     std::string blobDest = std::getenv("VPUIP_HOME") + std::string("/application/demo/InferenceManagerDemo/test.blob");
-    if (!copyFile(blobSrc, blobDest))
+    if (!copyFile(blobPath, blobDest))
         return FAIL_GENERAL;
 
     // execute the blob
@@ -221,8 +247,8 @@ int validate(std::string blobPath, std::string expectedPath, std::string actualP
     //
     // load json and read quantization values: scale and zeropoint
     std::string json_file = getFilename(blobPath) + std::string(".json");
-    std::ifstream i(json_file);
-    json j = json::parse(i);
+    std::ifstream ifile(json_file);
+    json j = json::parse(ifile);
 
     std::string dtype = j["header"]["net_output"][0]["data_dtype"].get<std::string>();
     int qZero = j["header"]["net_output"][0]["quant_zero"][0].get<int>();
@@ -236,7 +262,7 @@ int validate(std::string blobPath, std::string expectedPath, std::string actualP
 
     // read size of output tensor
     int tSize = 1;
-    for (int x=0; x<j["header"]["net_output"][0]["dimensions"].size(); ++x)
+    for (uint32_t x=0; x<j["header"]["net_output"][0]["dimensions"].size(); ++x)
         tSize *= j["header"]["net_output"][0]["dimensions"][x].get<int>();
     std::cout << "  Output size: " << tSize << std::endl;
 
@@ -309,15 +335,15 @@ int main(int argc, char *argv[])
     //
     // Normal operation
     int result = 0;
-    result = runEmulator(FLAGS_m, FLAGS_i);
+    std::string blobPath("");
+    result = runEmulator(FLAGS_m, FLAGS_i, blobPath);
     if ( result > 0 )
         return result;
 
-    result = runKmbInference(FLAGS_k);
+    result = runKmbInference(FLAGS_k, blobPath);
     if ( result > 0 )
         return result;
 
-    std::string blobPath = std::getenv("VPUIP_HOME") + std::string("/application/demo/InferenceManagerDemo/test.blob");
     std::string expectedPath = std::getenv("DLDT_HOME") + std::string("/bin/intel64/Debug/output_cpu.bin");
     std::string actualPath = std::getenv("VPUIP_HOME") + std::string("/application/demo/InferenceManagerDemo/output-0.bin");
     result = validate(blobPath, expectedPath, actualPath);
