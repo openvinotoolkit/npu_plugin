@@ -291,7 +291,7 @@ int main(int argc, char *argv[])
         return FAIL_GENERAL;
     }
     
-    if(std::getenv("VPUIP_HOMEa") == NULL)
+    if(std::getenv("VPUIP_HOME") == NULL)
     {
         std::cout << "ERROR! Environmental variable VPUIP_HOME must be set with path to VPUIP_2 repo" << std::endl << std::endl;
         return FAIL_GENERAL;
