@@ -31,9 +31,9 @@ namespace mv
                 return {false, 0};
             }
 
-            auto iC = order_str.find("C");
-            auto iH = order_str.find("H");
-            auto iW = order_str.find("W");
+            auto iC = input->getShape().getAxis("C");
+            auto iH = input->getShape().getAxis("H");
+            auto iW = input->getShape().getAxis("W");
 
             if (iC == std::string::npos)
             {
@@ -44,9 +44,9 @@ namespace mv
             auto shape = input->getShape();
             auto ndims = shape.ndims();
 
-            auto C = shape[(ndims - 1) - iC];
-            auto H = iH == std::string::npos ? 1 : shape[(ndims - 1) - iH];
-            auto W = iW == std::string::npos ? 1 : shape[(ndims - 1) - iW];
+            auto C = shape[iC];
+            auto H = shape[iH];
+            auto W = shape[iW];
 
             auto coords = args.at("coords").get<unsigned>();
             auto classes = args.at("classes").get<unsigned>();
@@ -107,9 +107,7 @@ namespace mv
             auto iH = in_order_str.find("H");
             auto iW = in_order_str.find("W");
 
-            mv::Order out_order("NC");
-            if (iN == std::string::npos)
-                out_order = mv::Order("C"); // no batch dimension
+            auto out_order = in_order;
 
             auto out_dims = out_order.toString().size();
 
@@ -131,17 +129,7 @@ namespace mv
 
             auto out_size = H * W * _num_ * (classes + coords + 1);
 
-            mv::Shape out_shape(out_dims);
-
-            out_shape[0] = out_size; // channels
-            if (out_dims > 1)
-                out_shape[1] = N;    // batch
-
-            if (out_shape.ndims() < 4)
-            {
-                out_shape = mv::Shape::augment(out_shape, 4);
-                out_order = in_order;
-            }
+            auto out_shape = input->getShape();
 
             outputs.push_back(mv::Tensor(":0", out_shape, input->getDType(), out_order));
         };
