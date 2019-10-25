@@ -137,11 +137,17 @@ mv::Data::OpListIterator linkNewOperationsFuse(mv::Data::OpListIterator parentOp
         inputSlots.push_back(sinkFlow->get<std::size_t>("sinkInput"));
     }
 
-    while(opIt.parentsSize() > 1)
+    auto paramOp = opIt.leftmostParent();
+    while(paramOp != om.opEnd())
     {
-        auto paramOp = opIt.leftmostParent();
-        ++paramOp;
-        om.removeOp(paramOp);
+        if (paramOp->getOpType() == "Constant" || paramOp->getOpType() == "ConstantInt" || paramOp->getOpType() == "ConstantDataElement")
+        {
+            auto backUp = paramOp;
+            ++paramOp;
+            om.removeOp(backUp);
+        }
+        else
+            ++paramOp;
     }
 
     om.removeOp(opIt);
