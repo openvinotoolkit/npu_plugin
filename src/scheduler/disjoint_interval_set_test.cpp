@@ -1,5 +1,7 @@
-#include "disjoint_interval_set.hpp"
 #include "gtest/gtest.h"
+
+#include "disjoint_interval_set.hpp"
+#include "scheduler/scheduler_unit_test_utils.hpp"
 
 using namespace mv::lp_scheduler;
 
@@ -239,4 +241,170 @@ TEST(Disjoint_Interval, open_intervals_with_typical_case) {
   ++itr_begin;
   ASSERT_TRUE(itr_begin == itr_end);
 }
+
+
+typedef mv_unit_tests::interval_t interval_t;
+typedef mv::lp_scheduler::Interval_Utils<interval_t> interval_utils_t;
+
+TEST(interval_utils, intersects) {
+  interval_t a(1, 8), b(10, 12), c(3,7), d(8,11);
+
+  EXPECT_FALSE(interval_utils_t::intersects(a, b)); 
+  EXPECT_FALSE(interval_utils_t::intersects(b, a)); 
+
+  EXPECT_TRUE(interval_utils_t::intersects(a, d));
+  EXPECT_TRUE(interval_utils_t::intersects(d, a));
+
+  EXPECT_TRUE(interval_utils_t::intersects(a, c));
+  EXPECT_TRUE(interval_utils_t::intersects(c, a));
+
+  EXPECT_TRUE(interval_utils_t::intersects(b, d));
+  EXPECT_TRUE(interval_utils_t::intersects(d, b));
+
+  EXPECT_TRUE(interval_utils_t::intersects(a, a));
+  EXPECT_TRUE(interval_utils_t::intersects(b, b));
+  EXPECT_TRUE(interval_utils_t::intersects(c, c));
+
+}
+
+TEST(interval_utils, interval_intersection) {
+  interval_t a(1, 8), b(10, 12), c(3,7), d(8,11);
+  interval_t result;
+
+  EXPECT_FALSE(interval_utils_t::interval_intersection(a, b, result)); 
+  EXPECT_FALSE(interval_utils_t::interval_intersection(b, a, result)); 
+
+  EXPECT_TRUE(interval_utils_t::interval_intersection(a, d, result));
+  EXPECT_EQ(result, interval_t(8, 8));
+
+  result = interval_t(0,0);
+  EXPECT_TRUE(interval_utils_t::interval_intersection(d, a, result));
+  EXPECT_EQ(result, interval_t(8, 8));
+
+  result = interval_t(0,0);
+  EXPECT_TRUE(interval_utils_t::interval_intersection(a, c, result));
+  EXPECT_EQ(result, interval_t(3, 7));
+
+  result = interval_t(0,0);
+  EXPECT_TRUE(interval_utils_t::interval_intersection(c, a, result));
+  EXPECT_EQ(result, interval_t(3, 7));
+
+  result = interval_t(0,0);
+  EXPECT_TRUE(interval_utils_t::interval_intersection(b, d, result));
+  EXPECT_EQ(result, interval_t(10, 11));
+
+  result = interval_t(0,0);
+  EXPECT_TRUE(interval_utils_t::interval_intersection(d, b, result));
+  EXPECT_EQ(result, interval_t(10, 11));
+}
+
+
+TEST(interval_utils, interval_overlap_union) {
+  interval_t a(1, 8), b(10, 12), c(3,7), d(8,11);
+  interval_t result;
+
+  EXPECT_FALSE(interval_utils_t::interval_overlap_union(a, b, result)); 
+  EXPECT_FALSE(interval_utils_t::interval_overlap_union(b, a, result)); 
+
+  EXPECT_TRUE(interval_utils_t::interval_overlap_union(a, d, result));
+  EXPECT_EQ(result, interval_t(1, 11));
+
+  result = interval_t(0,0);
+  EXPECT_TRUE(interval_utils_t::interval_overlap_union(d, a, result));
+  EXPECT_EQ(result, interval_t(1, 11));
+
+  result = interval_t(0,0);
+  EXPECT_TRUE(interval_utils_t::interval_overlap_union(a, c, result));
+  EXPECT_EQ(result, interval_t(1, 8));
+
+  result = interval_t(0,0);
+  EXPECT_TRUE(interval_utils_t::interval_overlap_union(c, a, result));
+  EXPECT_EQ(result, interval_t(1, 8));
+
+  result = interval_t(0,0);
+  EXPECT_TRUE(interval_utils_t::interval_overlap_union(b, d, result));
+  EXPECT_EQ(result, interval_t(8, 12));
+
+  result = interval_t(0,0);
+  EXPECT_TRUE(interval_utils_t::interval_overlap_union(d, b, result));
+  EXPECT_EQ(result, interval_t(8, 12));
+}
+
+TEST(interval_utils, is_subset) {
+  EXPECT_FALSE(interval_utils_t::is_subset(interval_t(1,10), interval_t(3,8)));
+  EXPECT_TRUE(interval_utils_t::is_subset(interval_t(3,8), interval_t(1,10)));
+
+  EXPECT_TRUE(interval_utils_t::is_subset(interval_t(1,10), interval_t(1,10))); 
+  EXPECT_FALSE(interval_utils_t::is_subset(interval_t(1,10),
+          interval_t(10,20)));
+  EXPECT_FALSE(interval_utils_t::is_subset(interval_t(1,10),
+          interval_t(15,20)));
+}
+
+
+TEST(interval_utils, interval_xor) {
+  interval_t result[2UL];
+
+  EXPECT_EQ(interval_utils_t::interval_xor(interval_t(1,5), interval_t(10,20),
+          result), 2UL);
+  EXPECT_EQ(result[0], interval_t(1,5));
+  EXPECT_EQ(result[1], interval_t(10,20));
+
+  EXPECT_EQ(interval_utils_t::interval_xor(interval_t(1,15), interval_t(10,20),
+        result), 2UL);
+  EXPECT_EQ(result[0], interval_t(1,9));
+  EXPECT_EQ(result[1], interval_t(16,20));
+
+
+  EXPECT_EQ(interval_utils_t::interval_xor(interval_t(1,15), interval_t(10,15),
+        result), 1UL);
+  EXPECT_EQ(result[0], interval_t(1,9));
+
+  EXPECT_EQ(interval_utils_t::interval_xor(interval_t(1,15), interval_t(1,15),
+        result), 0UL);
+}
+
+TEST(interval_utils, interval_xor_overflow) {
+  interval_t result[2UL];
+  int int_max = std::numeric_limits<int>::max();
+  int int_min = std::numeric_limits<int>::min();
+
+  EXPECT_EQ(interval_utils_t::interval_xor(interval_t(int_min, int_max),
+        interval_t(int_min, int_max), result), 0UL);
+
+
+  EXPECT_EQ(interval_utils_t::interval_xor(interval_t((int_max-10),int_max),
+        interval_t(int_max-8,int_max), result), 1UL);
+  EXPECT_EQ(result[0], interval_t(int_max-10,int_max-9));
+
+  EXPECT_EQ(interval_utils_t::interval_xor(interval_t(int_min,int_min+10),
+        interval_t(int_min,int_min+5), result), 1UL);
+  EXPECT_EQ(result[0], interval_t(int_min+6,int_min+10));
+}
+
+
+TEST(interval_utils, interval_xor_overflow_array) {
+  int result_beg[2UL], result_end[2UL];
+  int int_max = std::numeric_limits<int>::max();
+  int int_min = std::numeric_limits<int>::min();
+
+  EXPECT_EQ(interval_utils_t::interval_xor(interval_t(int_min, int_max),
+        interval_t(int_min, int_max), result_beg, result_end), 0UL);
+
+
+  EXPECT_EQ(interval_utils_t::interval_xor(interval_t((int_max-10),int_max),
+        interval_t(int_max-8,int_max), result_beg, result_end), 1UL);
+  EXPECT_EQ(result_beg[0], int_max-10); EXPECT_EQ(result_end[0], int_max-9);
+
+  EXPECT_EQ(interval_utils_t::interval_xor(interval_t(int_min,int_min+10),
+        interval_t(int_min,int_min+5), result_beg, result_end), 1UL);
+  EXPECT_EQ(result_beg[0], int_min+6); EXPECT_EQ(result_end[0], int_min+10);
+
+  EXPECT_EQ(interval_utils_t::interval_xor(interval_t(int_min+1,int_min+10),
+        interval_t(int_min+2,int_min+5), result_beg, result_end), 2UL);
+
+  EXPECT_EQ(result_beg[0], int_min+1); EXPECT_EQ(result_end[0], int_min+1);
+  EXPECT_EQ(result_beg[1], int_min+6); EXPECT_EQ(result_end[1], int_min+10);
+}
+
 
