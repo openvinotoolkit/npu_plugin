@@ -8,6 +8,243 @@
 namespace mv {
 namespace lp_scheduler {
 
+template<typename T>
+struct interval_traits {
+  typedef int unit_t;
+  typedef int interval_t;
+
+  static unit_t interval_begin(const interval_t&);
+  static unit_t interval_end(const interval_t&);
+  static void set_interval(interval_t&, const unit_t& beg, const unit_t& end);
+}; // struct interval_traits //
+
+
+
+//NOTE: these are only for intervals on an integer lattice //
+template<typename T>
+struct Interval_Utils {
+  typedef interval_traits<T> traits;
+  typedef typename traits::interval_t interval_t;
+  typedef typename traits::unit_t unit_t;
+
+  static bool intersects(const unit_t& abeg, const unit_t& aend,
+      const unit_t& bbeg, const unit_t& bend) {
+    assert((abeg <= aend) && (bbeg <= bend));
+    return std::max(abeg, bbeg) <= std::min(aend, bend);
+  }
+
+  static bool intersects(const interval_t& a, const interval_t& b) {
+    unit_t abeg = traits::interval_begin(a);
+    unit_t aend = traits::interval_end(a);
+
+    unit_t bbeg = traits::interval_begin(b);
+    unit_t bend = traits::interval_end(b);
+
+    assert((abeg <= aend) && (bbeg <= bend));
+
+    return std::max(abeg, bbeg) <= std::min(aend, bend);
+  }
+
+  static bool interval_intersection(const interval_t& a, const interval_t& b,
+      interval_t& output) {
+
+    unit_t abeg = traits::interval_begin(a);
+    unit_t aend = traits::interval_end(a);
+
+    unit_t bbeg = traits::interval_begin(b);
+    unit_t bend = traits::interval_end(b);
+
+    assert((abeg <= aend) && (bbeg <= bend));
+
+    unit_t obeg = std::max(abeg, bbeg);
+    unit_t oend = std::min(aend, bend);
+    bool intersects = (obeg <= oend);
+
+
+    if (intersects) {
+      traits::set_interval(output, obeg, oend);
+    }
+
+    return intersects;
+  }
+
+  static bool interval_intersection(const interval_t& a, const interval_t& b,
+      unit_t& obeg, unit_t& oend) {
+
+    unit_t abeg = traits::interval_begin(a);
+    unit_t aend = traits::interval_end(a);
+
+    unit_t bbeg = traits::interval_begin(b);
+    unit_t bend = traits::interval_end(b);
+
+    assert((abeg <= aend) && (bbeg <= bend));
+
+    obeg = std::max(abeg, bbeg);
+    oend = std::min(aend, bend);
+    return (obeg <= oend);
+  }
+
+  static bool interval_overlap_union(const interval_t& a, const interval_t& b,
+      interval_t& result) {
+
+    if (!intersects(a,b)) { return false; }
+
+    unit_t abeg = traits::interval_begin(a);
+    unit_t aend = traits::interval_end(a);
+
+    unit_t bbeg = traits::interval_begin(b);
+    unit_t bend = traits::interval_end(b);
+
+    unit_t ubeg = std::min(abeg, bbeg);
+    unit_t uend = std::max(aend, bend);
+
+    traits::set_interval(result, ubeg, uend);
+    return true;
+  }
+
+  // Checks if interval 'a' is subset of interval 'b' //
+  static bool is_subset(const interval_t& a, const interval_t& b) {
+    if (!intersects(a, b)) { return false; }
+
+    unit_t abeg = traits::interval_begin(a);
+    unit_t aend = traits::interval_end(a);
+
+    unit_t bbeg = traits::interval_begin(b);
+    unit_t bend = traits::interval_end(b);
+
+    unit_t ibeg = std::max(abeg, bbeg);
+    unit_t iend = std::min(aend, bend);
+
+    return (ibeg == abeg) && (iend == aend);
+  }
+
+  static bool is_subset(unit_t abeg, unit_t aend, unit_t bbeg, unit_t bend) {
+    assert((abeg <= aend) && (bbeg <= bend));
+
+    if (std::max(abeg, bbeg) > std::min(aend, bend)) { return false; }
+    unit_t ibeg = std::max(abeg, bbeg);
+    unit_t iend = std::min(aend, bend);
+
+    return (ibeg == abeg) && (iend == aend);
+  }
+
+
+
+  template<typename BackInsertIterator>
+  static size_t interval_xor(const interval_t& a, const interval_t& b,
+      BackInsertIterator out_itr) {
+    size_t ret_size = 0UL;
+    if (!intersects(a, b)) {
+      *out_itr = a; ++out_itr;
+      *out_itr = b; ++out_itr;
+      ret_size = 2UL;
+    } else {
+      unit_t abeg = traits::interval_begin(a);
+      unit_t aend = traits::interval_end(a);
+
+      unit_t bbeg = traits::interval_begin(b);
+      unit_t bend = traits::interval_end(b);
+
+      assert((abeg <= aend) && (bbeg <= bend));
+
+      unit_t obeg = std::max(abeg, bbeg);
+      unit_t oend = std::min(aend, bend);
+      unit_t ubeg = std::min(abeg, bbeg);
+      unit_t uend = std::max(aend, bend);
+
+      // [ubeg,obeg] and [oend,uend] //
+      --obeg; // note: if its not integer lattice this is an open interval //
+      if ((ubeg <= obeg) && (obeg < std::min(aend, bend))) {
+        traits::set_interval(*out_itr, ubeg, obeg);
+        ++out_itr; ++ret_size;
+      }
+
+      ++oend;
+      if ((oend <= uend) && (std::max(abeg, bbeg) < oend)) {
+        traits::set_interval(*out_itr, oend, uend);
+        ++out_itr; ++ret_size;
+      }
+    }
+    return ret_size;
+  }
+
+  static size_t interval_xor(const interval_t& a, const interval_t& b,
+      unit_t (&out_begin)[2UL], unit_t (&out_end)[2UL]) {
+
+    unit_t abeg = traits::interval_begin(a);
+    unit_t aend = traits::interval_end(a);
+
+    unit_t bbeg = traits::interval_begin(b);
+    unit_t bend = traits::interval_end(b);
+
+    assert((abeg <= aend) && (bbeg <= bend));
+
+    size_t ret_size = 0UL;
+
+    if (!intersects(a, b)) {
+      out_begin[0] = abeg; out_end[0] = aend;
+      out_begin[1] = bbeg; out_end[1] = bend;
+      ret_size = 2UL;
+    } else {
+
+      unit_t obeg = std::max(abeg, bbeg);
+      unit_t oend = std::min(aend, bend);
+      unit_t ubeg = std::min(abeg, bbeg);
+      unit_t uend = std::max(aend, bend);
+
+      // [ubeg,obeg] and [oend,uend] //
+      --obeg; // note: if its not integer lattice this is an open interval //
+      if ((ubeg <= obeg) && (obeg < std::min(aend, bend))) {
+        out_begin[ret_size] = ubeg; out_end[ret_size] = obeg;
+        ++ret_size;
+      }
+
+      ++oend;
+      if ((oend <= uend) && (std::max(abeg, bbeg) < oend)) {
+        out_begin[ret_size] = oend; out_end[ret_size] = uend;
+        ++ret_size;
+      }
+    }
+    return ret_size;
+  }
+
+  // NOTE: the return value ensures out_end[0] < out_begin[1] //
+  static size_t interval_xor(const unit_t& abeg, const unit_t& aend,
+      const unit_t& bbeg, const unit_t& bend,
+      unit_t (&out_begin)[2UL], unit_t (&out_end)[2UL]) {
+
+    size_t ret_size = 0UL;
+
+    if (!intersects(abeg, aend, bbeg, bend)) {
+      out_begin[0] = abeg; out_end[0] = aend;
+      out_begin[1] = bbeg; out_end[1] = bend;
+      ret_size = 2UL;
+    } else {
+
+      unit_t obeg = std::max(abeg, bbeg);
+      unit_t oend = std::min(aend, bend);
+      unit_t ubeg = std::min(abeg, bbeg);
+      unit_t uend = std::max(aend, bend);
+
+      // [ubeg,obeg] and [oend,uend] //
+      --obeg; // note: if its not integer lattice this is an open interval //
+      if ((ubeg <= obeg) && (obeg < std::min(aend, bend))) {
+        out_begin[ret_size] = ubeg; out_end[ret_size] = obeg;
+        ++ret_size;
+      }
+
+      ++oend;
+      if ((oend <= uend) && (std::max(abeg, bbeg) < oend)) {
+        out_begin[ret_size] = oend; out_end[ret_size] = uend;
+        ++ret_size;
+      }
+    }
+    return ret_size;
+  }
+
+}; // struct Interval_Utils //
+
+
 // Maintains a set of dynamic disjoint intervals and each interval is
 // associated with a corresponding element. Supports the following operations:
 // 
@@ -62,6 +299,8 @@ class Disjoint_Interval_Set {
         interval_iterator_t(const_end_point_iterator_t begin,
             const_end_point_iterator_t end)
           : itr_begin_(begin), itr_end_(end) {}
+
+        interval_iterator_t(): itr_begin_(), itr_end_() {}
 
         // only invalid iterators are equivalent //
         bool operator==(const interval_iterator_t& o) const {
