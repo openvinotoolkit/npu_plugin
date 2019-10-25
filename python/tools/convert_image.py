@@ -6,13 +6,11 @@ import cv2
 import ast
 import re
 
-# filepath = "mario_16x16.bmp"
+# Changes the order of channels in an input image. Taken from original Fathom project
+#
+# command:
+#   python3 convert_image.py --image <path to image> --shape 1,3,16,16
 
-# im = plt.imread(filepath)
-# np_im = np.array(im)
-# fp = open("input-0.bin", "wb")
-# fp.write((np_im.flatten()).astype(np_im.dtype).data)
-# fp.close
 
 # Apply scale, mean, and channel_swap to array
 def preprocess_img(data, raw_scale=1, mean=None, channel_swap=None):
@@ -137,7 +135,7 @@ def parse_img(path, new_size, raw_scale=1, mean=None, channel_swap=None, dtype=n
     return data
 
 
-def reshape_fathom(image, shape, dtype,
+def reshape(image, shape, dtype,
                 raw_scale=1, mean=0, channel_swap=0,
                 range_min=0, range_max=256):
     import PIL
@@ -159,21 +157,6 @@ def reshape_fathom(image, shape, dtype,
     input_data = input_data.transpose([0, 3, 2, 1])
     return input_data
 
-
-def reshape(image_path, newShape):
-    image=cv2.imread(image_path)
-    image_data = np.expand_dims(image, 0)
-    
-    new_image = image_data.transpose([0,3,2,1])
-    new_image.shape
-
-    reshaped_image = new_image.transpose(int(newShape[0]), int(newShape[1]), int(newShape[2]), int(newShape[3]))
-
-    fp = open("test_reshape.bin", "wb")
-    fp.write ((reshaped_image.flatten()).astype(np.uint8).data)
-    fp.close
-
-
 def arg_as_list(s):
     v = ast.literal_eval(s)
     if type(v) is not list:
@@ -183,14 +166,12 @@ def arg_as_list(s):
 
 parser = argparse.ArgumentParser(description='the image used.')
 parser.add_argument('--image',type = str, required = True, help='an image to test the model')
-# parser.add_argument("--list", type=arg_as_list, default=[], help="List of values")
-parser.add_argument('--list', type=str)
+parser.add_argument('--shape', type=str)
 
 args = parser.parse_args()
-l1_list = args.list.split(',')
+l_list = args.shape.split(',')
 
-#reshape(args.image, l1_list)
-reshaped_data = reshape_fathom(args.image, l1_list, np.uint8)
+reshaped_data = reshape(args.image, l_list, np.uint8)
 fp = open("test_reshape.bin", "wb")
 fp.write ((reshaped_data.flatten()).astype(reshaped_data.dtype).data)
 fp.close
