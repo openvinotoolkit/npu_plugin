@@ -113,11 +113,14 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             //NOTE: This will become bigger with new ppeTasks
             if (opIt->hasAttr("postOpType"))
             {
-                if ((opIt->get<std::string>("postOpType") == "Relu") || (opIt->get<std::string>("postOpType") == "LeakyRelu"))
+                if (opIt->get<std::string>("postOpType") == "LeakyRelu")
                 {
-                    ppeType = "LRELU";
-                    if (opIt->get<std::string>("postOpType") == "LeakyRelu")
-                        leakyAlpha = opIt->get<double>("alpha");
+                    ppeType = "LPRELU";
+                    leakyAlpha = opIt->get<double>("alpha");
+                }
+                else if (opIt->get<std::string>("postOpType") == "Relu")
+                {
+                    ppeType = "RELU";
                 }
                 else if (opIt->get<std::string>("postOpType") == "Sigmoid")
                 {

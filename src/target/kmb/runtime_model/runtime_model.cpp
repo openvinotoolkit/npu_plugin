@@ -63,8 +63,8 @@ const std::unordered_map<mv::PPELayerTypeEnum, MVCNN::PPELayerType, mv::EnumClas
    {PPELayerType_ADD, MVCNN::PPELayerType::PPELayerType_ADD},
    {PPELayerType_SUB, MVCNN::PPELayerType::PPELayerType_SUB},
    {PPELayerType_MULT, MVCNN::PPELayerType::PPELayerType_MULT},
-   {PPELayerType_LRELU, MVCNN::PPELayerType::PPELayerType_LRELU},
-   {PPELayerType_LRELUX, MVCNN::PPELayerType::PPELayerType_LRELUX},
+   {PPELayerType_RELU, MVCNN::PPELayerType::PPELayerType_RELU},
+   {PPELayerType_RELUX, MVCNN::PPELayerType::PPELayerType_RELUX},
    {PPELayerType_LPRELU, MVCNN::PPELayerType::PPELayerType_LPRELU},
    {PPELayerType_MAXIMUM, MVCNN::PPELayerType::PPELayerType_MAXIMUM},
    {PPELayerType_MINIMUM, MVCNN::PPELayerType::PPELayerType_MINIMUM},
@@ -889,7 +889,7 @@ std::unique_ptr<MVCNN::PPETaskT> mv::RuntimeModel::buildPPETaskT()
     toBuild->fixed_function->Clamp_High = 2147483647;
     toBuild->fixed_function->Clamp_Low = -2147483648;
     toBuild->fixed_function->Ops = std::vector<MVCNN::PPELayerType>();
-    toBuild->fixed_function->Lrelu_Mult = 0;
+    toBuild->fixed_function->Lrelu_Mult = 1;
     toBuild->fixed_function->Lrelu_Shift = 0;
     toBuild->fixed_function->Ops.reserve(5);
 

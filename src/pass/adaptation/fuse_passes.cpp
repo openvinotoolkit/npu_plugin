@@ -91,12 +91,6 @@ void fusePostOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model
             fuseLeakyReluFcn(opIt, om);
             leakyRelu_nodes--;
         }
-        else if (opIt->getOpType() == "LeakyRelu")
-        {
-            pass.log(Logger::MessageType::Debug, "Found Leaky Relu op " + opIt->getName());
-            fuseLeakyReluFcn(opIt, om);
-            leakyRelu_nodes--;
-        }
         else if (opIt->getOpType() == "Power")
         {
             pass.log(Logger::MessageType::Debug, "Found Power op " + opIt->getName());
