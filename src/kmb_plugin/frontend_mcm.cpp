@@ -24,6 +24,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
+#include <limits>
 
 #include <graph_tools.hpp>
 #include <ie_profiling.hpp>
@@ -355,7 +356,8 @@ void FrontEndMcm::applyQuantizationTransformations(ie::CNNNetwork& network) {
             InferenceEngine::DataPtr quantizeLayerFirstInput = quantizeLayer->insData[0].lock();
             auto quantizeLayerDataProducer = quantizeLayerFirstInput->getCreatorLayer().lock();
             // Now we support only two layers with Quantization params: Conv and FQ
-            if ((quantizeLayerDataProducer->type != "Convolution") && (quantizeLayerDataProducer->type != "FullyConnected")) {
+            if ((quantizeLayerDataProducer->type != "Convolution") && (quantizeLayerDataProducer->type != "FullyConnected") &&
+                (quantizeLayerDataProducer->type != "Eltwise")) {
                 continue;
             }
             auto initAxisIdx = [&](size_t edgeIdx) {
@@ -440,11 +442,13 @@ void FrontEndMcm::applyQuantizationTransformations(ie::CNNNetwork& network) {
             auto inputLowBlob = dynamic_cast<InferenceEngine::TBlob<float> *>(inputLowCreator.get());
             auto inputLowData = inputLowBlob->buffer().as<float *>();
 
+
+            size_t sizeForQuantParams = 1;  // should be axisRealSize, but MCM doesn't support per-channel scales
             auto dataDescFP = InferenceEngine::TensorDesc(InferenceEngine::Precision::FP32,
-                                                        {axisRealSize},
+                                                        {sizeForQuantParams},
                                                         InferenceEngine::Layout::C);
             auto dataDescInt = InferenceEngine::TensorDesc(InferenceEngine::Precision::I32,
-                                            {axisRealSize},
+                                            {sizeForQuantParams},
                                             InferenceEngine::Layout::C);
 
             auto newActivationInputScale = InferenceEngine::make_shared_blob<float>(dataDescFP);
@@ -462,6 +466,40 @@ void FrontEndMcm::applyQuantizationTransformations(ie::CNNNetwork& network) {
             auto inputShift = newActivationInputShift->buffer().as<int32_t *>();
             auto outputShift = newActivationOutShift->buffer().as<int32_t *>();
 
+#if 1
+            float inputLowMin = std::numeric_limits<float>::max();
+            float outputLowMin = std::numeric_limits<float>::max();
+
+            float inputHighMax = std::numeric_limits<float>::min();
+            float outputHighMax = std::numeric_limits<float>::min();
+
+            for (size_t i = 0; i < axisRealSize; i++) {
+                float il = inputLowData[isInputLowBroadcasted ? 0 : i];
+                float ih = inputHighData[isInputHighBroadcasted ? 0 : i];
+                float ol = outputLowData[isOutputLowBroadcasted ? 0 : i];
+                float oh = outputHighData[isOutputHighBroadcasted ? 0 : i];
+                if (il < inputLowMin) {
+                    inputLowMin = il;
+                }
+
+                if (ol < outputLowMin) {
+                    outputLowMin = ol;
+                }
+
+                if (ih > inputHighMax) {
+                    inputHighMax = ih;
+                }
+
+                if (oh > outputHighMax) {
+                    outputHighMax = oh;
+                }
+            }
+
+            inputScale[0] = static_cast<float>((levels - 1) / (inputHighMax - inputLowMin));
+            inputShift[0] = static_cast<int32_t>(-inputLowMin * (levels - 1) / (inputHighMax - inputLowMin));
+            outputScale[0] = static_cast<float>((outputHighMax - outputLowMin) / (levels - 1));
+            outputShift[0] = static_cast<int32_t>(outputLowMin);
+#else
             for (unsigned i = 0; i < axisRealSize; i++) {
                 float il = inputLowData[isInputLowBroadcasted ? 0 : i];
                 float ih = inputHighData[isInputHighBroadcasted ? 0 : i];
@@ -473,7 +511,7 @@ void FrontEndMcm::applyQuantizationTransformations(ie::CNNNetwork& network) {
                 outputScale[i] = static_cast<float>((oh - ol) / (levels - 1));
                 outputShift[i] = static_cast<int32_t>(ol);
             }
-
+#endif
             quantizeLayerDataProducer->blobs["newActivationInputScale"] = newActivationInputScale;
             quantizeLayerDataProducer->blobs["newActivationOutScale"] = newActivationOutScale;
             quantizeLayerDataProducer->blobs["newActivationInputShift"] = newActivationInputShift;

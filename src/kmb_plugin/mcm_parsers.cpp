@@ -200,12 +200,11 @@ void getOutputScale(const ie::CNNLayerPtr& layer, mv::QuantizationParams &quantP
                     {mv::utils::generateSequence<double>(oScaleDataVector.size(), inf, 0)}};
 }
 
-void fillQuntizationParams(const ie::CNNLayerPtr& layer, mv::QuantizationParams &outputQuantParams) {
+void fillQuntizationParams(const ie::CNNLayerPtr& quantizedLayer, mv::QuantizationParams &outputQuantParams) {
     std::vector<int64_t> inputZeroPointVector;
     std::vector<int64_t> outZeroPointVector;
     std::vector<double> outScaleVector;
 
-    auto quantizedLayer = std::dynamic_pointer_cast<ie::WeightableLayer>(layer);
     IE_ASSERT(quantizedLayer != nullptr);
 
     IE_ASSERT(quantizedLayer->blobs["newActivationInputScale"] != nullptr);
@@ -224,6 +223,27 @@ void fillQuntizationParams(const ie::CNNLayerPtr& layer, mv::QuantizationParams 
                           {mv::utils::generateSequence<double>(outScaleVector.size(), -inf, 0)},
                           {mv::utils::generateSequence<double>(outScaleVector.size(), inf, 0)}};
 }
+
+mv::DType calculateOutputType(const ie::CNNLayerPtr& layer) {
+    bool findFQ = false;
+    mv::DType outType;
+    // We merged FQ and Layer in one, we should use FQ output precision
+    auto outFQ = layer->outData[0]->getInputTo();
+    for (const auto &it : outFQ) {
+        auto nextLayer = it.second;
+        if (nextLayer->type == "FakeQuantize") {
+            outType = convert_data_type(nextLayer->outData[0]->getPrecision());
+            findFQ = true;
+            break;
+        }
+    }
+    if (!findFQ) {
+        VPU_THROW_EXCEPTION << "CNN graph is invalid, in quantize case we must detect FQ layer after "
+                            << layer->name;
+    }
+    return outType;
+}
+
 }  // namespace
 
 void FrontEndMcm::parseInputData() {
@@ -404,28 +424,11 @@ void FrontEndMcm::parseConvolution(
             IE_ASSERT(biasBlob != nullptr);
         }
 
-        if (layer->blobs.size() > 0) {
+        bool isQuantizedLayer = convLayer->blobs.find("newActivationOutScale") != convLayer->blobs.end();
+        if (isQuantizedLayer) {
             // Quantized layer
-            double inf = std::numeric_limits<double>::infinity();
-            inputQuantParams   = initialQuantParams;
+            fillQuntizationParams(layer, outputQuantParams);
             weightsQuantParams = initialQuantParams;
-            IE_ASSERT(layer->blobs["newActivationInputScale"] != nullptr);
-            auto outScaleBlob = layer->blobs.find("newActivationInputScale");
-            std::vector<double> outScaleVector;
-            if (outScaleBlob != layer->blobs.end()) {
-                outScaleVector = packBlobToVector<double>(outScaleBlob->second, outScaleBlob->second->size());
-            }
-            IE_ASSERT(layer->blobs["newActivationInputShift"] != nullptr);
-            auto outZeroPoint = layer->blobs.find("newActivationInputShift");
-            std::vector<int64_t> outZeroPointVector;
-            if (outZeroPoint != layer->blobs.end()) {
-                outZeroPointVector = packBlobToVector<int64_t>(outZeroPoint->second, outZeroPoint->second->size());
-            }
-            outputQuantParams =  {{outZeroPointVector},
-                            {outScaleVector},
-                            {mv::utils::generateSequence<double>(outScaleVector.size(), -inf, 0)},
-                            {mv::utils::generateSequence<double>(outScaleVector.size(), inf, 0)}};
-            biasQuantParams = outputQuantParams;
         }
     }
 
@@ -899,26 +902,12 @@ void FrontEndMcm::parseEltwise(
 
     logParsingStartHelper(_logger, layer, inputs);
 
-    // Quantization parameters
-    mv::QuantizationParams secondInputQuantParams  = initialQuantParams;
+    bool is_quantized = false;
+    auto inputPrecision = eltwiseLayer->insData[0].lock()->getPrecision();
     mv::QuantizationParams outputQuantParams = initialQuantParams;
-
-    if (layer->precision == ie::Precision::I8) {
-        // Quantized layer
-        ie::Blob::Ptr eScaleBlob;
-        IE_ASSERT(layer->blobs["eltwise-sum-scale"] != nullptr);
-
-        auto es = layer->blobs.find("eltwise-sum-scale");
-        if ((layer->outData[0]->getPrecision() == ie::Precision::I8 || layer->outData[0]->getPrecision() == ie::Precision::U8)
-                && es == layer->blobs.end()) {
-            THROW_IE_EXCEPTION << "Internal error of graph quantization - mismatch of intermediate scales and next layer type for convolution "
-                    << layer->name;
-        }
-
-        const double inf = std::numeric_limits<double>::infinity();
-        outputQuantParams   = {{0}, {1}, {-inf}, {inf}};
-        // TODO: insert DW convolution or ScaleShift before non conv input with eltwise-sum-scale
-        secondInputQuantParams  = createQuantParams(layer, "eltwise-sum-scale");
+    if ((inputPrecision== ie::Precision::I8) || (inputPrecision == ie::Precision::U8)) {
+        is_quantized = true;
+        fillQuntizationParams(layer, outputQuantParams);
     }
 
     mv::Data::TensorIterator mvEltwise;
@@ -927,66 +916,36 @@ void FrontEndMcm::parseEltwise(
         mvInputs.push_back(input->getMcmNode());
     }
 
-    auto addCoefficient0 = 1.0f;
-    auto addCoefficient1 = 1.0f;
-    switch (eltwiseLayer->_operation) {
-    case ie::EltwiseLayer::eOperation::Sub:
-        if (inputs.size() > 2) {
-            VPU_THROW_EXCEPTION << eltwiseLayer->name <<
-                    "Eltwise Sub operations with with more than 2 operands is not supported by kmbPlugin";
-        }
-        addCoefficient1 = -1.0f;
-        // fall through
-    case ie::EltwiseLayer::eOperation::Sum:
-        for (size_t i = 0; i < eltwiseLayer->coeff.size(); ++i) {
-            if (std::abs(eltwiseLayer->coeff[i]) != 1.0f) {
-                VPU_THROW_EXCEPTION << eltwiseLayer->name <<
-                        " Eltwise Sum/Sub operations with such coefficients is not supported by kmbPlugin";
-            }
-        }
-        if (inputs.size() == 2) {
-            if (eltwiseLayer->coeff.size() > 0) {
-                addCoefficient0 *= eltwiseLayer->coeff[0];
-            }
-            if (eltwiseLayer->coeff.size() > 1) {
-                addCoefficient1 *= eltwiseLayer->coeff[1];
-            }
-            if (addCoefficient0 == 1.0f && addCoefficient1 == 1.0f) {
-                mvEltwise = _modelMcm.add(mvInputs, mv::DType("Default"), secondInputQuantParams, eltwiseLayer->name);
-            } else if (addCoefficient0 * addCoefficient1 < 0.f) {
-                if (addCoefficient0 == 1.0f && addCoefficient1 == -1.0f) {
-                    mvEltwise = _modelMcm.subtract(mvInputs, mv::DType("Default"), secondInputQuantParams, eltwiseLayer->name);
-                } else {
-                    mvEltwise = _modelMcm.subtract(mvInputs, mv::DType("Default"), secondInputQuantParams, eltwiseLayer->name);
-                }
-            } else {
-                VPU_THROW_EXCEPTION << eltwiseLayer->name <<
-                        " Eltwise Sum/Sub operations with such coefficients is not supported by kmbPlugin";
-            }
-        } else {
-            mvEltwise = _modelMcm.add(mvInputs, mv::DType("Default"), secondInputQuantParams, eltwiseLayer->name);
-        }
-
-        if (eltwiseLayer->coeff.size() > 0) {
-            addCoefficient0 *= eltwiseLayer->coeff[0];
-        }
-        if (eltwiseLayer->coeff.size() > 1) {
-            addCoefficient1 *= eltwiseLayer->coeff[1];
-        }
-        if (std::abs(addCoefficient0) != 1.0f || std::abs(addCoefficient1) != 1.0f ||
-                (addCoefficient0 == -1.0f && addCoefficient1 == -1.0f)) {
-            VPU_THROW_EXCEPTION << eltwiseLayer->name <<
-                    " Eltwise Sum/Sub operations with such coefficients is not supported by kmbPlugin";
-        }
-        break;
-    default:
-        VPU_THROW_EXCEPTION << "Eltwise operation" << eltwiseLayer->_operation << " is not supported";
+    if (inputs.size() > 2) {
+        VPU_THROW_EXCEPTION << eltwiseLayer->name <<
+                            "Eltwise Sub operations with with more than 2 operands is not supported by kmbPlugin";
     }
 
-    mvEltwise->set<mv::DType>("dType", convert_data_type(layer->outData[0]->getPrecision()));
+    for (size_t i = 0; i < eltwiseLayer->coeff.size(); ++i) {
+        if (std::abs(eltwiseLayer->coeff[i]) != 1.0f) {
+            VPU_THROW_EXCEPTION << eltwiseLayer->name <<
+                                " Eltwise Sum/Sub operations with such coefficients is not supported by kmbPlugin";
+        }
+    }
+
+    switch (eltwiseLayer->_operation) {
+        case ie::EltwiseLayer::eOperation::Sub:
+            mvEltwise = _modelMcm.subtract(mvInputs, mv::DType("Default"), outputQuantParams, eltwiseLayer->name);
+            break;
+        case ie::EltwiseLayer::eOperation::Sum:
+            mvEltwise = _modelMcm.add(mvInputs, mv::DType("Default"), outputQuantParams, eltwiseLayer->name);
+            break;
+        default:
+            VPU_THROW_EXCEPTION << "Eltwise operation" << eltwiseLayer->_operation << " is not supported";
+    }
+
+    mv::DType outputType = convert_data_type(layer->outData[0]->getPrecision());
+    if (is_quantized) {
+        outputType = calculateOutputType(layer);
+    }
+    mvEltwise->set<mv::DType>("dType", outputType);
 
     bindOutput(mvEltwise, layer->outData[0]);
-
     _logger->debug(FINISH_PARSING_STR, mvEltwise->getName());
 }
 
