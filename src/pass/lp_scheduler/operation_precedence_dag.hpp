@@ -214,7 +214,10 @@ class Operation_Dag {
         const resource_t& demand, resource_state_t& state,
         const_operation_iterator_t op_begin,
         const_operation_iterator_t op_end) {
-        return state.assign_resources(op, demand, op_begin, op_end);
+
+        return (op->getOpType() == "Input") ?
+          state.assign_resources(op, demand, op_end, op_end) :
+          state.assign_resources(op, demand, op_begin, op_end);
     }
 
     static bool unschedule_operation(const operation_t& op,
@@ -271,16 +274,17 @@ class Operation_Dag {
 
         resource_t resource_utility; 
 
-        if ((op->getOpType() == "DMATask") && 
-            (op->get<mv::DmaDirection>("direction") 
-              == mv::DmaDirectionEnum::CMX2DDR)) {
+        if (((op->getOpType() == "DMATask") && 
+             (op->get<mv::DmaDirection>("direction")
+                == mv::DmaDirectionEnum::CMX2DDR)) ||
+            ( (op->getOpType() == "Input") || (op->getOpType() == "Output")) ) {
           resource_utility = 0UL;
         } else {
           resource_utility = op->getOutputSize();
         }
 
         // resource utility //
-        resource_utility_map_.insert(std::make_pair(op,
+        resource_utility_map_.insert(std::make_pair(op, 
               std::max( size_t(1UL), resource_utility) ));
       }
     }
