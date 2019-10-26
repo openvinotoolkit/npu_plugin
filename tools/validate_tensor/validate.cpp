@@ -143,11 +143,18 @@ int runEmulator(std::string pathXML, std::string pathImage, std::string& blobPat
     // Clean any old files
     std::cout << "Deleting old emulator results files... " << std::endl;
     std::string binFolder = std::getenv("DLDT_HOME") + std::string("/bin/intel64/Debug/");
-    std::vector<std::string> filesDelete = {"output_cpu.bin", "input-0.bin", "kmb_release/kmb_release/*.blob"};
+    std::vector<std::string> filesDelete = {"output_cpu.bin", "input-0.bin"};
     for (std::string fDelete : filesDelete)
-        remove(binFolder.append(fDelete).c_str());
-
-    //
+        remove((binFolder + fDelete).c_str());
+    
+    do
+    {   //delete any previous blobs (different names each time)
+        blobPath = findBlob(std::getenv("DLDT_HOME") + std::string("/bin/intel64/Debug/release_kmb/release_kmb/"));
+        std::string fullBlobPath = binFolder + "release_kmb/release_kmb/" + blobPath;
+        std::cout << "Removing: " << fullBlobPath << std::endl;
+        remove(fullBlobPath.c_str());
+    } while (blobPath != "");
+    
     // execute the classification sample async (CPU-plugin)
     std::cout << "Generating reference results... " << std::endl;
     std::string commandline = std::string("cd ") + std::getenv("DLDT_HOME") + "/bin/intel64/Debug  && " + 
@@ -159,8 +166,7 @@ int runEmulator(std::string pathXML, std::string pathImage, std::string& blobPat
         std::cout << std::endl << "Error occurred running the classification_sample_async (CPU mode)!" << std::endl;
         return FAIL_ERROR;
     }
-    if (!checkFilesExist({std::getenv("DLDT_HOME") + std::string("/bin/intel64/Debug/output_cpu.bin"), 
-                          std::getenv("DLDT_HOME") + std::string("/bin/intel64/Debug/input.bin")} ))
+    if (!checkFilesExist( {std::getenv("DLDT_HOME") + std::string("/bin/intel64/Debug/output_cpu.bin")} ))
         return FAIL_CPU_PLUGIN;
 
     //
@@ -182,7 +188,7 @@ int runEmulator(std::string pathXML, std::string pathImage, std::string& blobPat
         std::cout << "Error! Couldn't find the generated blob in " << std::getenv("DLDT_HOME") << "/bin/intel64/Debug/release_kmb/release_kmb/" << std::endl;
         return FAIL_COMPILER;
     }
-    
+    blobPath = std::getenv("DLDT_HOME") + std::string("/bin/intel64/Debug/release_kmb/release_kmb/") + blobPath;
     return RESULT_SUCCESS;
 }
 
@@ -209,7 +215,7 @@ int runKmbInference(std::string evmIP, std::string blobPath)
 
     //
     // copy the required files to InferenceManagerDemo folder
-    std::string inputSrc = std::getenv("DLDT_HOME") + std::string("/bin/intel64/Debug/input-0.bin");
+    std::string inputSrc = "./test_reshape.bin";
     std::string inputDest = std::getenv("VPUIP_HOME") + std::string("/application/demo/InferenceManagerDemo/input-0.bin");
     if (!copyFile(inputSrc, inputDest))
         return FAIL_GENERAL;
@@ -234,16 +240,25 @@ int runKmbInference(std::string evmIP, std::string blobPath)
     return RESULT_SUCCESS;
 }
 
-int validate(std::string blobPath, std::string expectedPath, std::string actualPath)
+int convertBlobToJson(std::string blobPath)
 {
-    //
     // convert blob to json
     std::cout << "Converting blob to json... " << std::endl;
     std::string commandline = std::string("flatc -t ") + mv::utils::projectRootPath() +
         std::string("/schema/graphfile/src/schema/graphfile.fbs --strict-json -- ") + blobPath;
     std::cout << commandline << std::endl;
-    std::system(commandline.c_str());
-    
+    int result = std::system(commandline.c_str());
+    if (result != 0)
+    {
+        std::cout << "Error occurred trying to convert blob to json. Please check Flatc in path and graphfiles" << std::endl;
+        return FAIL_GENERAL;
+    }
+    else
+        return RESULT_SUCCESS;
+}
+
+int validate(std::string blobPath, std::string expectedPath, std::string actualPath)
+{
     //
     // load json and read quantization values: scale and zeropoint
     std::string json_file = getFilename(blobPath) + std::string(".json");
@@ -309,6 +324,36 @@ int validate(std::string blobPath, std::string expectedPath, std::string actualP
         return FAIL_VALIDATION;
 }
 
+int convertImage(std::string imagePath, std::string blobPath)
+{
+    // load json and read quantization values: scale and zeropoint
+    std::string json_file = getFilename(blobPath) + std::string(".json");
+    std::ifstream ifile(json_file);
+    json j = json::parse(ifile);
+
+    std::cout << "Querying input shape... " << std::endl;
+    std::vector<std::string> inputShape;
+    for (uint32_t x=0; x<j["header"]["net_input"][0]["dimensions"].size(); ++x)
+        inputShape.push_back( std::to_string(j["header"]["net_input"][0]["dimensions"][x].get<int>()) );
+    std::cout << "Input Shape: " << inputShape[0] << "," << inputShape[1] << "," << inputShape[2] << "," << inputShape[3] << std::endl;
+    
+    //
+    // convert image to correct shape and order
+    std::cout << "Converting image ... " << std::endl;
+    std::string commandline = std::string("python3 ") + mv::utils::projectRootPath() +
+        std::string("/python/tools/convert_image.py --image ") + imagePath + " --shape " + 
+        inputShape[0] + "," + inputShape[1] + "," + inputShape[2] + "," + inputShape[3];
+    std::cout << commandline << std::endl;
+    int result = std::system(commandline.c_str());
+    
+    if (result > 0)
+    {
+        std::cout << "Error occured converting image using python script";
+        return FAIL_ERROR;
+    }
+    return RESULT_SUCCESS;    
+}
+
 int main(int argc, char *argv[]) 
 {
     if(std::getenv("DLDT_HOME") == NULL)
@@ -335,14 +380,19 @@ int main(int argc, char *argv[])
     //
     // Normal operation
     int result = 0;
+
     std::string blobPath("");
     result = runEmulator(FLAGS_m, FLAGS_i, blobPath);
-    if ( result > 0 )
-        return result;
+    if ( result > 0 ) return result;
+
+    result = convertBlobToJson(blobPath);
+    if ( result > 0 ) return result;
+
+    result = convertImage(FLAGS_i, blobPath);
+    if ( result > 0 ) return result;
 
     result = runKmbInference(FLAGS_k, blobPath);
-    if ( result > 0 )
-        return result;
+    if ( result > 0 ) return result;
 
     std::string expectedPath = std::getenv("DLDT_HOME") + std::string("/bin/intel64/Debug/output_cpu.bin");
     std::string actualPath = std::getenv("VPUIP_HOME") + std::string("/application/demo/InferenceManagerDemo/output-0.bin");
