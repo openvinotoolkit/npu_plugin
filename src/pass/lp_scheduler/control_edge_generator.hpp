@@ -70,7 +70,7 @@ class Control_Edge_Generator {
           (curr_rem_end <= curr_end));
 
         // output the control edge //
-        output(curr_interval, qinterval);
+        output(qinterval, curr_interval);
         ++edge_count;
 
         // we now have an overlap between [qbeg,qend] and
