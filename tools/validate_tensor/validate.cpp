@@ -1,5 +1,6 @@
 #include "validate.hpp"
 #include "include/mcm/utils/env_loader.hpp"
+#include "include/mcm/utils/custom_math.hpp"
 
 #include <fstream>
 #include <sys/stat.h>
@@ -47,6 +48,8 @@ bool ParseAndCheckCommandLine(int argc, char *argv[])
             throw std::logic_error("Parameter -e must be set in validation mode");
         if (FLAGS_a.empty()) 
             throw std::logic_error("Parameter -a must be set in validation mode");
+        if ((FLAGS_d.compare("U8") != 0 ) && (FLAGS_d.compare("FP16") != 0 ))  
+            throw std::logic_error("Parameter -d is not set correctly");
     }
     else    //normal operation
     {
@@ -56,6 +59,8 @@ bool ParseAndCheckCommandLine(int argc, char *argv[])
             throw std::logic_error("Parameter -i is not set");
         if (FLAGS_k.empty()) 
             throw std::logic_error("Parameter -k is not set");
+        if ((FLAGS_d.compare("U8") != 0 ) && (FLAGS_d.compare("FP16") != 0 ))  
+            throw std::logic_error("Parameter -d is not set correctly");
     }
  
     return true;
@@ -259,47 +264,65 @@ int convertBlobToJson(std::string blobPath)
 
 int validate(std::string blobPath, std::string expectedPath, std::string actualPath)
 {
-    //
-    // load json and read quantization values: scale and zeropoint
-    std::string json_file = getFilename(blobPath) + std::string(".json");
-    std::ifstream ifile(json_file);
-    json j = json::parse(ifile);
-
-    std::string dtype = j["header"]["net_output"][0]["data_dtype"].get<std::string>();
-    int qZero = j["header"]["net_output"][0]["quant_zero"][0].get<int>();
-    int qScale = j["header"]["net_output"][0]["quant_scale"][0].get<int>();
-    int qShift = j["header"]["net_output"][0]["quant_shift"][0].get<int>();
-    std::cout << "Querying quantization values... " << std::endl;
-    std::cout << "  Datatype: " << dtype << std::endl;
-    std::cout << "  quant_zero: " << qZero << std::endl;
-    std::cout << "  quant_scale: " << qScale << std::endl;
-    std::cout << "  quant_shift: " << qShift << std::endl;
-
-    // read size of output tensor
-    int tSize = 1;
-    for (uint32_t x=0; x<j["header"]["net_output"][0]["dimensions"].size(); ++x)
-        tSize *= j["header"]["net_output"][0]["dimensions"][x].get<int>();
-    std::cout << "  Output size: " << tSize << std::endl;
+    uint_fast16_t typesize = (FLAGS_d.compare("U8")==0) ? 1 : 2 ;
 
     //
     // Read the InferenceManagerDemo output file into a vector
     std::cout << "Reading in actual results... ";
     std::ifstream file(actualPath, std::ios::in | std::ios::binary);
     file.seekg(0, std::ios::end);
-    auto totalActual = file.tellg() / sizeof(uint8_t);
+    auto totalActual = file.tellg() / typesize;
     file.seekg(0, std::ios::beg);
 
-    std::vector<uint8_t> outputVector(totalActual);
-    file.read(reinterpret_cast<char*>(&outputVector[0]), totalActual*sizeof(uint8_t));
-    std::cout << totalActual << " elements" <<  std::endl;
-
-    // de-quantize
     std::vector<float> outputFP32;
-    for(size_t i = 0; i < outputVector.size(); ++i)
+    if (FLAGS_d.compare("U8")==0)
     {
-        // De-quantize: bitshift left by qShift then multiply by scale
-        float val = outputVector[i] << qShift / qScale;
-        outputFP32.push_back(val);
+
+        //
+        // load json and read quantization values: scale and zeropoint
+        std::string json_file = getFilename(blobPath) + std::string(".json");
+        std::ifstream ifile(json_file);
+        json j = json::parse(ifile);
+
+        std::string dtype = j["header"]["net_output"][0]["data_dtype"].get<std::string>();
+        int qZero = j["header"]["net_output"][0]["quant_zero"][0].get<int>();
+        int qScale = j["header"]["net_output"][0]["quant_scale"][0].get<int>();
+        int qShift = j["header"]["net_output"][0]["quant_shift"][0].get<int>();
+        std::cout << "Querying quantization values... " << std::endl;
+        std::cout << "  Datatype: " << dtype << std::endl;
+        std::cout << "  quant_zero: " << qZero << std::endl;
+        std::cout << "  quant_scale: " << qScale << std::endl;
+        std::cout << "  quant_shift: " << qShift << std::endl;
+
+        // read size of output tensor
+        int tSize = 1;
+        for (uint32_t x = 0; x < j["header"]["net_output"][0]["dimensions"].size(); ++x)
+            tSize *= j["header"]["net_output"][0]["dimensions"][x].get<int>();
+        std::cout << "  Output size: " << tSize << std::endl;
+
+        std::vector<uint8_t> outputVector(totalActual);
+        file.read(reinterpret_cast<char *>(&outputVector[0]), totalActual * sizeof(uint8_t));
+        std::cout << totalActual << " elements" << std::endl;
+
+        // de-quantize
+        std::vector<float> outputFP32;
+        for (size_t i = 0; i < outputVector.size(); ++i)
+        {
+            // De-quantize: bitshift left by qShift then multiply by scale
+            float val = outputVector[i] << qShift / qScale;
+            outputFP32.push_back(val);
+        }
+    }
+    else if(FLAGS_d.compare("FP16")==0)
+    {
+        std::vector<u_int16_t> outputVector(totalActual);
+        file.read(reinterpret_cast<char *>(&outputVector[0]), totalActual * typesize);
+        std::cout << totalActual << " elements" << std::endl;
+        for (size_t i = 0; i < outputVector.size(); ++i)
+        {
+            float val = mv::fp16_to_fp32(outputVector[i]);
+            outputFP32.push_back(val);
+        }
     }
     
     std::cout << "Reading in expected results... ";

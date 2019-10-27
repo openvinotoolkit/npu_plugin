@@ -58,7 +58,7 @@ DEFINE_string(a, "", a_tensor_message);
 DEFINE_string(e, "", e_tensor_message);
 
 /// @brief Define the datatpye <br>
-DEFINE_string(d, "FP16", dtype_message);
+DEFINE_string(d, "U8", dtype_message);
 
 /// @brief Define quantize message
 DEFINE_bool(q, false, quantize_message);
