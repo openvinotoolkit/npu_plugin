@@ -42,7 +42,7 @@ namespace mv
     namespace op {
 
         MV_REGISTER_OP(Normalize)
-        .setInputs({"data"})
+        .setInputs({"data", "weights"})
         .setOutputs({"output"})
         .setArg<double>("eps")
         .setOptionalArg<unsigned>("across_spatial", 0)
