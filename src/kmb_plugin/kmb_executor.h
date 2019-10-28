@@ -72,8 +72,8 @@ private:
 
         std::shared_ptr<NNFlicPlg> nnPl;
 
-        void *blob_file;
-        void *rgnAllocatorBuffer;
+        void *blob_file = nullptr;
+        void *rgnAllocatorBuffer = nullptr;
         std::shared_ptr<BlobHandle_t> BHandle;
 
         std::shared_ptr<PlgPool<TensorMsg>> plgPoolOutputs;

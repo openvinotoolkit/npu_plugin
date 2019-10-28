@@ -58,26 +58,5 @@ void execSIPPDataPreprocessing(InferenceEngine::BlobMap& inputs,
 }
 }  // namespace SippPreproc
 
-#else
-SIPPPreprocessor::SIPPPreprocessor() {
-    THROW_IE_EXCEPTION << "Error: SIPPPreprocessor::SIPPPreprocessor() "
-                       << "should never be called when ENABLE_VPUAL is OFF";
-}
-SIPPPreprocessor::~SIPPPreprocessor() = default;
-
-bool SIPPPreprocessor::useSIPP() { return false; }
-
-bool SIPPPreprocessor::isApplicable(const InferenceEngine::BlobMap&,
-                  const std::map<std::string, PreProcessDataPtr>&,
-                  InputsDataMap&) {
-    return false;
-}
-
-void SIPPPreprocessor::execSIPPDataPreprocessing(InferenceEngine::BlobMap&,
-                                                 std::map<std::string, PreProcessDataPtr>&,
-                                                 InputsDataMap&, int, bool) {
-    THROW_IE_EXCEPTION << "Error: SIPPPreprocessor::execSIPPDataPreprocessing() "
-                       << "should never be called when ENABLE_VPUAL is OFF";
-}
 #endif
 }  // namespace InferenceEngine
