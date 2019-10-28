@@ -123,5 +123,12 @@ DECLARE_VPU_KMB_CONFIG_KEY(THROUGHPUT_STREAMS);
  * Enable or disable blob transfer to device
  */
 DECLARE_VPU_KMB_CONFIG_KEY(LOAD_NETWORK_AFTER_COMPILATION);
+
+/**
+ * @brief [Only for kmbPlugin]
+ * Type: integer, default is 4.
+ * Number of shaves to be used by SIPP during preprocessing
+ */
+DECLARE_VPU_KMB_CONFIG_KEY(PREPROCESSING_SHAVES);
 }  // namespace VPUConfigParams
 }  // namespace InferenceEngine

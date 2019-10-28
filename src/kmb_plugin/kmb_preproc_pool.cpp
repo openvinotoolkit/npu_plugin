@@ -12,6 +12,7 @@
 #include <atomic>
 #include <memory>
 #include <sstream>
+#include <map>
 
 namespace InferenceEngine {
 
@@ -39,6 +40,7 @@ void SIPPPreprocessor::execSIPPDataPreprocessing(const PreprocTask& t) {
 
 SippPreprocessorPool::SippPreprocessorPool(unsigned int shaveFirst, unsigned int shaveLast, unsigned int nPipelines) {
     _preprocs.resize(nPipelines);
+    _numberOfShaves = shaveLast + 1 - shaveFirst;
     auto shavesPerPipeline = (shaveLast + 1 - shaveFirst) / nPipelines;
     IE_ASSERT(shavesPerPipeline > 0);
     for (unsigned int i = 0; i < nPipelines; i++) {
@@ -67,12 +69,24 @@ void SippPreprocessorPool::execSIPPDataPreprocessing(const PreprocTask& task) {
     _free_cond.notify_one();
 }
 
-SippPreprocessorPool& SippPreprocPool::getPool(int w) {
+unsigned int SippPreprocessorPool::getNumberOfShaves() const {
+    return _numberOfShaves;
+}
+
+SippPreprocessorPool& SippPreprocPool::getPool(int w, unsigned int numberOfShaves) {
     std::unique_lock<std::mutex> lock(_mutex);
     if (_preprocPools.count(w) == 0) {
-        unsigned int firstFreeShave = firstShave + shavesPerPool*_preprocPools.size();
+        auto firstFreeShave = firstShave;
+        for (const auto& pool : _preprocPools) {
+            firstFreeShave += pool.second->getNumberOfShaves();
+        }
+        auto lastShave = firstFreeShave + numberOfShaves - 1;
+
+        IE_ASSERT(lastShave < 16) << "SippPreprocPool error: attempt to execute preprocessing on "
+            << firstFreeShave << "-" << lastShave << " SHAVEs, last SHAVE index must be less than 16";
+
         _preprocPools[w].reset(new SippPreprocessorPool(firstFreeShave,
-                                                        firstFreeShave + shavesPerPool - 1,
+                                                        lastShave,
                                                         pipesPerPool));
     } else if (_preprocPools.size() > maxPools) {
         THROW_IE_EXCEPTION << "Error: max pool number exceeded!";
@@ -82,12 +96,12 @@ SippPreprocessorPool& SippPreprocPool::getPool(int w) {
     return *_preprocPools[w];
 }
 
-void SippPreprocPool::execSIPPDataPreprocessing(const PreprocTask& task) {
+void SippPreprocPool::execSIPPDataPreprocessing(const PreprocTask& task, unsigned int numberOfShaves) {
     if  (task.inputs.empty()) {
         THROW_IE_EXCEPTION << "Inputs are empty.";
     }
     auto dims = task.inputs.begin()->second->getTensorDesc().getDims();
-    getPool(dims[3]).execSIPPDataPreprocessing(task);
+    getPool(dims[3], numberOfShaves).execSIPPDataPreprocessing(task);
 }
 
 SippPreprocPool& sippPreprocPool() {
@@ -102,11 +116,6 @@ unsigned SippPreprocPool::firstShave = [] {
         std::istringstream str2Integer(firstShaveEnv);
         str2Integer >> shaveNum;
     }
-
-    if (shaveNum + SippPreprocPool::shavesPerPool*SippPreprocPool::maxPools > 16) {
-        THROW_IE_EXCEPTION << "Error: Max number of shaves exceeded!";
-    }
-
     return shaveNum;
 }();
 
