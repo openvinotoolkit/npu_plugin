@@ -220,8 +220,8 @@ void populateWeightsTablesActivationAndBias(mv::Data::TensorIterator weightsTabl
     }
     std::vector<mv::DataElement> biasData;
     bool hasBias = dpuTaskOp->hasAttr("bias");
-    bool hasRelu = dpuTaskOp->hasAttr("LRELU");
-    bool hasReluMult = false;
+    bool hasPPETask = dpuTaskOp->hasAttr("PPETask");
+    bool hasLeakyReluMult = false;
 
     mv::Data::TensorIterator bias;
     if (hasBias)
@@ -232,11 +232,11 @@ void populateWeightsTablesActivationAndBias(mv::Data::TensorIterator weightsTabl
 
     unsigned round_mode = 1;
     std::vector<int32_t> round32(outputChannels, round_mode);
-    std::vector<int32_t> reluMultData(outputChannels, 0);
-    if (hasRelu)
+    std::vector<int32_t> reluMultData(outputChannels, 1);
+    if (hasPPETask)
     {
-        hasReluMult = (dpuTaskOp->get<mv::PPETask>("PPETask").getFixedFunction().getLReluMult() != 1);
-        if (hasReluMult)
+        hasLeakyReluMult = (dpuTaskOp->get<mv::PPETask>("PPETask").getFixedFunction().getLReluMult() != 1);
+        if (hasLeakyReluMult)
             std::fill(reluMultData.begin(), reluMultData.end(), dpuTaskOp->get<mv::PPETask>("PPETask").getFixedFunction().getLReluMult());
     }
 

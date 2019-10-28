@@ -350,7 +350,7 @@ static void addPpeTask(mv::Data::OpListIterator &opIt, std::string ppeTaskType, 
     uint8_t ppeShift;
     auto ppeFixedFunction = mv::PPEFixedFunction();
 
-    if (ppeTaskType == "LRELU")
+    if (ppeTaskType == "LPRELU")
     {
         if (leakyAlpha != 0)
         {
