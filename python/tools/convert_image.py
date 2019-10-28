@@ -90,12 +90,12 @@ def parse_img(path, new_size, raw_scale=1, mean=None, channel_swap=None, dtype=n
         if dtype in [np.uint8, np.int8]:
             data = skimage.img_as_ubyte(
                 skimage.io.imread(
-                    path, as_grey=greyscale)).astype(
+                    path, as_gray=greyscale)).astype(
                 dtype)
         else:
             data = skimage.img_as_float(
                 skimage.io.imread(
-                    path, as_grey=greyscale)).astype(
+                    path, as_gray=greyscale)).astype(
                 np.float32)
 
     elif path.split(".")[-1] in ["npy"]:
