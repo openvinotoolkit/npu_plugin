@@ -7,20 +7,23 @@ if (MSVC)
     add_executable(z_major_convolution z_major_convolution.cpp $<TARGET_OBJECTS:cm> $<TARGET_OBJECTS:corebase> $<TARGET_OBJECTS:metamodel> $<TARGET_OBJECTS:model>)
 
 else()
+    add_executable(normalize_only normalize_only.cpp)
+    target_link_libraries(normalize_only cm)
 
-    add_executable(templateExample templateExample.cpp)
-    target_link_libraries(templateExample cm)
-    add_executable(z_major_convolution z_major_convolution.cpp)
-    target_link_libraries(z_major_convolution cm)
+    add_executable(permute_only permute_only.cpp)
+    target_link_libraries(permute_only cm)
 
-    add_executable(conv_softmax conv_softmax.cpp)
-    target_link_libraries(conv_softmax cm)
+#    add_executable(proposal_only proposal_only.cpp)
+#    target_link_libraries(proposal_only cm)
+
+    add_executable(regionyolo_only regionyolo_only.cpp)
+    target_link_libraries(regionyolo_only cm)
+
+    add_executable(reshape_only reshape_only.cpp)
+    target_link_libraries(reshape_only cm)
 
     add_executable(softmax_only softmax_only.cpp)
     target_link_libraries(softmax_only cm)
-
-    add_executable(normalize_only normalize_only.cpp)
-    target_link_libraries(normalize_only cm)
 
     if(VALIDATION)
     add_executable(caffe_files_generator caffe_files_generator.cpp)
