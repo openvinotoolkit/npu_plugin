@@ -1,4 +1,4 @@
-#Validator
+# Validator
 
 Utility to test a network.
 1) It will run the classification_sample_async in CPU mode with the provided input xml and input image
@@ -6,7 +6,7 @@ Utility to test a network.
 3) It deploys the blob and the input.bin to InferenceManagerDemo to run on the EVM
 4) It validates the results of InferenceManagerDemo against the CPU plugin
 
-##Prerequisite:
+## Prerequisite:
 
 sudo apt-get install libgflags-dev
 
@@ -17,11 +17,11 @@ Environmental variables
 
 - VPUIP_HOME path to the vpuip_2 repo
 
-##Build
+## Build
 
 Validator can only be built as part of the main build, so needs to be built from ./build dir under mcmCompiler root directory
 
-##Usage
+## Usage
 
 There are 2 modes of use:
 1) Normal operation
