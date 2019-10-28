@@ -62,6 +62,7 @@ target_link_libraries(${TARGET_NAME}
     PRIVATE
         ${INTEL_ITT_LIBS}
         IE::inference_engine
+        IE::inference_engine_plugin_api
         IE::vpu_common_lib
         ${MCM_COMPILER_LIBRARY}
         ${VPUAL_NN_LIBRARY}
@@ -98,6 +99,7 @@ if(ENABLE_TESTS)
             PUBLIC
                 vpusmm
                 IE::inference_engine
+                IE::inference_engine_plugin_api
             PRIVATE
                 ${INTEL_ITT_LIBS}
                 IE::vpu_common_lib

@@ -87,17 +87,9 @@ if (${CMAKE_CXX_COMPILER_ID} STREQUAL GNU)
 endif()
 ####################################
 
-set (GFLAGS_IS_SUBPROJECT TRUE)
-set (HAVE_SYS_STAT_H 1)
-set (HAVE_INTTYPES_H 1)
-
-add_subdirectory(${IE_MAIN_SAMPLES_DIR}/samples/thirdparty/gflags ${CMAKE_CURRENT_BINARY_DIR}/thirdparty/gflags)
-
 if (${CMAKE_CXX_COMPILER_ID} STREQUAL GNU)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
 endif()
-
-add_subdirectory(${IE_MAIN_SAMPLES_DIR}/samples/common/format_reader ${CMAKE_CURRENT_BINARY_DIR}/common/format_reader)
 
 function(add_samples_to_build)
     # check each passed sample subdirectory
@@ -164,13 +156,9 @@ macro(ie_add_sample)
         target_link_libraries(${IE_SAMPLE_NAME} PRIVATE ${OpenCV_LIBRARIES})
     endif()
 
-    target_link_libraries(${IE_SAMPLE_NAME} PRIVATE ${InferenceEngine_LIBRARIES}
+    target_link_libraries(${IE_SAMPLE_NAME} PRIVATE IE::inference_engine
+                                                    IE::inference_engine_plugin_api
                                                     ${IE_SAMPLE_DEPENDENCIES} gflags kmb_utils)
-
-    if(UNIX)
-        find_package(Threads REQUIRED)
-        target_link_libraries(${IE_SAMPLE_NAME} PRIVATE Threads::Threads)
-    endif()
 
     # create global target with all samples / demo apps
     if(NOT TARGET ie_samples)

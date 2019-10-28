@@ -5,4 +5,4 @@
 ie_add_sample(NAME kmb_classification_sample
               SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/main.cpp"
               HEADERS classification_sample.h
-              DEPENDENCIES format_reader)
+              DEPENDENCIES IE::format_reader)
