@@ -42,10 +42,12 @@ class SippPreprocessorPool {
     std::queue<SIPPPreprocessor*> _free_preprocs;
     std::mutex _mutex;
     std::condition_variable _free_cond;
+    unsigned int _numberOfShaves;
 
 public:
     SippPreprocessorPool(unsigned int shaveFirst, unsigned int shaveLast, unsigned int nPipelines);
     void execSIPPDataPreprocessing(const PreprocTask& task);
+    unsigned int getNumberOfShaves() const;
 };
 
 // SippPreprocPool allows Sipp pipelines to be shared between infer requests
@@ -62,17 +64,15 @@ class SippPreprocPool {
     static unsigned int firstShave;
     static constexpr unsigned int defaultFirstShave = 0;
     static constexpr unsigned int maxPools = 2;
-    static constexpr unsigned int shavesPerPool = 4;
     static constexpr unsigned int pipesPerPool = 1;
-
-    static_assert(shavesPerPool % pipesPerPool == 0, "shavesPerPool is not multiple by pipesPerPool!");
 
     friend SippPreprocPool& sippPreprocPool();
     std::map<int, std::unique_ptr<SippPreprocessorPool>> _preprocPools;
     std::mutex _mutex;
-    SippPreprocessorPool& getPool(int w);
+    SippPreprocessorPool& getPool(int w, unsigned int numberOfShaves);
 public:
     void execSIPPDataPreprocessing(const PreprocTask& task);
+    void execSIPPDataPreprocessing(const PreprocTask& task, unsigned int numberOfShaves);
 };
 
 SippPreprocPool& sippPreprocPool();

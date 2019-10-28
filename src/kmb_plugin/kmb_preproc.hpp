@@ -21,7 +21,8 @@ void execSIPPDataPreprocessing(BlobMap& inputs,
                                std::map<std::string, PreProcessDataPtr>& preprocData,
                                InputsDataMap& networkInputs,
                                int curBatch,
-                               bool serial);
+                               bool serial,
+                               unsigned int numShaves = 4);
 
 }  // namespace SippPreproc
 }  // namespace InferenceEngine

@@ -24,6 +24,7 @@
 
 #include <vpu/utils/perf_report.hpp>
 #include <vpu/utils/ie_helpers.hpp>
+#include <vpu/kmb_plugin_config.hpp>
 
 #include "kmb_executable_network.h"
 #include "kmb_infer_request.h"
@@ -155,7 +156,7 @@ void KmbInferRequest::InferAsync() {
                 inputs[input.first]->allocate();
             }
 
-            SippPreproc::execSIPPDataPreprocessing(inputs, _preProcData, _networkInputs, 1, true);
+            SippPreproc::execSIPPDataPreprocessing(inputs, _preProcData, _networkInputs, 1, true, _config.numberOfSIPPShaves);
 
             for (auto &input : inputs) {
                 auto name = input.first;
@@ -210,7 +211,7 @@ void KmbInferRequest::InferAsync() {
                 }
             }
 
-            SippPreproc::execSIPPDataPreprocessing(_inputs, _preProcData, _networkInputs, 1, true);
+            SippPreproc::execSIPPDataPreprocessing(_inputs, _preProcData, _networkInputs, 1, true, _config.numberOfSIPPShaves);
         } else {
             execDataPreprocessing(_inputs);
         }
