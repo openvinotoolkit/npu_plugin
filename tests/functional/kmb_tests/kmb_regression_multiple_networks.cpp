@@ -35,7 +35,7 @@ class KmbRegressionMultipleNetworks : public vpuLayersTests,
                                       public testing::WithParamInterface< std::tuple<std::string, std::pair<std::string, std::string>> >
 {};
 
-TEST_P(KmbRegressionMultipleNetworks, canRunInferTwoNetworksSeveralIteration) {
+TEST_P(KmbRegressionMultipleNetworks, DISABLED_canRunInferTwoNetworksSeveralIteration) {  // Hangs in Release time to time: CVS-23514
     auto param = GetParam();
     auto models = get<1>(param);
 
