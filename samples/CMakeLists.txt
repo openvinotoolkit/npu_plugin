@@ -113,6 +113,10 @@ function(add_samples_to_build)
     endforeach()
 endfunction(add_samples_to_build)
 
+if(NOT TARGET gflags)
+    find_package(gflags REQUIRED)
+endif()
+
 include(CMakeParseArguments)
 
 macro(ie_add_sample)
