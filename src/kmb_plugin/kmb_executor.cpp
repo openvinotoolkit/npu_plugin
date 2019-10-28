@@ -83,7 +83,7 @@ static uint32_t getXlinkChannel(const vpu::Logger::Ptr &_logger) {
 
 KmbExecutor::KmbExecutor(const KmbConfig& config)
             : _config(config), _logger(std::make_shared<Logger>("KmbExecutor", config.logLevel(), consoleOutput())),
-              blob_file(nullptr), rgnAllocatorBuffer(nullptr), xlinkChannelIn(0), xlinkChannelOut(0), _outTensorLen(0), _outTensorAddr(0) {
+              xlinkChannelIn(0), xlinkChannelOut(0), _outTensorLen(0), _outTensorAddr(0) {
     auto parsedConfig = _config.getParsedConfig();
     if (parsedConfig[VPU_KMB_CONFIG_KEY(KMB_EXECUTOR)] == "NO") {
         return;
@@ -328,6 +328,9 @@ void KmbExecutor::getResult(void *result_data, unsigned int result_bytes) {
     std::memcpy(result_data, data, len);
     std::memset(data, 0, len);
     _logger->info("KmbExecutor::getResult memcpy finished");
+#else
+    UNUSED(result_data);
+    UNUSED(result_bytes);
 #endif
 }
 
