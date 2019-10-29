@@ -322,7 +322,7 @@ static void populateWeightsTablesPointersFcn(const mv::pass::PassEntry& , mv::Co
     }
 }
 
-int computeAppropriatePadding(mv::Data::TensorIterator tensor)
+static int computeAppropriatePadding(mv::Data::TensorIterator tensor)
 {
     int pad;
     if (tensor->getDType() == mv::DType("Float16"))
