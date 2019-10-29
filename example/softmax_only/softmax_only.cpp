@@ -3,10 +3,8 @@
 #include "include/mcm/utils/data_generator.hpp"
 #include "include/mcm/op_model.hpp"
 #include "include/mcm/utils/hardware_tests.hpp"
-
 #include "iostream"
 #include "fstream"
-
 int main()
 {
     std::string path = std::getenv("MCM_HOME");
