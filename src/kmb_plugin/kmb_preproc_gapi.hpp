@@ -7,19 +7,16 @@
 #include <ie_blob.h>
 #include <ie_preprocess.hpp>
 
-#include <opencv2/gapi.hpp>
+#include <memory>
 
 namespace InferenceEngine {
 
 class SIPPPreprocEngine {
-    cv::GCompiled _lastCompiled;
-    SizeVector    _lastInYDims;
-    unsigned int  _shaveFirst;
-    unsigned int  _shaveLast;
-
+    class Priv;
+    std::unique_ptr<Priv> _priv;
 public:
-    SIPPPreprocEngine(unsigned int shaveFirst, unsigned int shaveLast)
-        : _shaveFirst(shaveFirst), _shaveLast(shaveLast) {}
+    SIPPPreprocEngine(unsigned int shaveFirst, unsigned int shaveLast);
+    ~SIPPPreprocEngine();
 
     void preprocWithSIPP(const Blob::Ptr &inBlob, Blob::Ptr &outBlob,
                          const ResizeAlgorithm& algorithm, ColorFormat in_fmt,

@@ -6,8 +6,6 @@
 
 #include <opencv2/core.hpp>
 #include <opencv2/imgproc.hpp>
-#include <opencv2/highgui.hpp>
-#include <opencv2/gapi.hpp>
 
 #include <blob_factory.hpp>
 #include <blob_transform.hpp>
@@ -27,11 +25,11 @@ namespace {
 
 void toPlanar(const cv::Mat& in, cv::Mat& out)
 {
-    GAPI_Assert(out.depth() == in.depth());
-    GAPI_Assert(out.channels() == 1);
-    GAPI_Assert(in.channels() == 3);
-    GAPI_Assert(out.cols == in.cols);
-    GAPI_Assert(out.rows == 3*in.rows);
+    IE_ASSERT(out.depth() == in.depth());
+    IE_ASSERT(out.channels() == 1);
+    IE_ASSERT(in.channels() == 3);
+    IE_ASSERT(out.cols == in.cols);
+    IE_ASSERT(out.rows == 3*in.rows);
 
     std::vector<cv::Mat> outs(3);
     for (int i = 0; i < 3; i++) {
