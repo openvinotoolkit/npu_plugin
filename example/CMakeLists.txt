@@ -25,6 +25,9 @@ else()
     add_executable(reshape_only reshape_only/reshape_only.cpp)
     target_link_libraries(reshape_only cm)
 
+    add_executable(ROIpooling_only ROIpooling_only/ROIpooling_only.cpp)
+    target_link_libraries(ROIpooling_only cm)
+
     add_executable(softmax_only softmax_only/softmax_only.cpp)
     target_link_libraries(softmax_only cm)
 
