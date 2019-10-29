@@ -7,25 +7,25 @@ if (MSVC)
     add_executable(z_major_convolution z_major_convolution.cpp $<TARGET_OBJECTS:cm> $<TARGET_OBJECTS:corebase> $<TARGET_OBJECTS:metamodel> $<TARGET_OBJECTS:model>)
 
 else()
-    add_executable(normalize_only normalize_only.cpp)
+    add_executable(normalize_only normalize_only/normalize_only.cpp)
     target_link_libraries(normalize_only cm)
 
-    add_executable(permute_only permute_only.cpp)
+    add_executable(permute_only permute_only/permute_only.cpp)
     target_link_libraries(permute_only cm)
 
-    add_executable(proposal_only proposal_only.cpp)
+    add_executable(proposal_only proposal_only/proposal_only.cpp)
     target_link_libraries(proposal_only cm)
 
-    add_executable(regionyolo_only regionyolo_only.cpp)
+    add_executable(regionyolo_only regionyolo_only/regionyolo_only.cpp)
     target_link_libraries(regionyolo_only cm)
 
-    add_executable(reorgyolo_only reorgyolo_only.cpp)
+    add_executable(reorgyolo_only reorgyolo_only/reorgyolo_only.cpp)
     target_link_libraries(reorgyolo_only cm)
 
-    add_executable(reshape_only reshape_only.cpp)
+    add_executable(reshape_only reshape_only/reshape_only.cpp)
     target_link_libraries(reshape_only cm)
 
-    add_executable(softmax_only softmax_only.cpp)
+    add_executable(softmax_only softmax_only/softmax_only.cpp)
     target_link_libraries(softmax_only cm)
 
     if(VALIDATION)
