@@ -443,6 +443,8 @@ void FrontEndMcm::parseConvolution(
                          inputGroupSize,
                          isDepthWiseConv? 1lu : outputGroupSize / groupSize};
     int weightsSize = std::accumulate(weightsShape.begin(), weightsShape.end(), 1, std::multiplies<int>());
+
+    IE_ASSERT(weightsBlob != nullptr);
     auto weightsPrecision = weightsBlob->getTensorDesc().getPrecision();
 
     // Convert weights buffer to z major layout

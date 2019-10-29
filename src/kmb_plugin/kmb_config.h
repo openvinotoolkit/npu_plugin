@@ -34,7 +34,7 @@ public:
     std::map<std::string, std::string> getParsedConfig() const {
         return _config;
     }
-    unsigned int numberOfSIPPShaves;
+    unsigned int numberOfSIPPShaves = 4;
 
 protected:
     const std::unordered_set<std::string>& getCompileOptions() const override;
