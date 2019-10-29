@@ -98,7 +98,7 @@ void computeTensorsQuantParams(const mv::pass::PassEntry&, mv::ComputationModel&
 
                      auto m = S2;
 
-                     if (opIt->hasAttr("hasWeights") && opIt->get<bool>("hasWeights"))
+                     if (opIt->hasAttr("hasWeights") && opIt->get<bool>("hasWeights") || taskOp == "Multiply")
                      {
                          auto weights = opIt->getInputTensor(1);
                          auto& weightsQuantization = weights->get<mv::QuantizationParams>("quantParams");
@@ -106,6 +106,15 @@ void computeTensorsQuantParams(const mv::pass::PassEntry&, mv::ComputationModel&
                          std::vector<float> S1(scale.begin(), scale.end());
                          //S1*S2
                          std::transform(m.begin(), m.end(), S1.begin(), m.begin(), std::multiplies<float>());
+                     }
+                     else if (isElementWise) //Add Subtract
+                     {
+                         auto input2 = opIt->getInputTensor(1);
+                         auto& input2Quantization = input2->get<mv::QuantizationParams>("quantParams");
+                         auto input1Scale = inputQuantization.getScale();
+                         auto input2Scale = input2Quantization.getScale();
+                         if (input1Scale != input2Scale)
+                            throw mv::RuntimeError(om, opIt->getName() + ": different values of scales for Add/Subtract is not supported!");
                      }
 
                      // Fuse ReLU into quantization (i.e. make ReLU == saturation), will be done using a separate pass
