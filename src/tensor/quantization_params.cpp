@@ -8,16 +8,6 @@ mv::QuantizationParams::QuantizationParams(const json::Value& content) : Element
 mv::QuantizationParams::QuantizationParams(const std::vector<int64_t>& zp, const std::vector<double>& scale, const std::vector<double>& min, const std::vector<double>& max)
     :Element("quantParams")
 {
-    size_t size = zp.size();
-    if (size != scale.size() || size != min.size() || size != max.size())
-        throw ArgumentError("quantParams", "Quantization params size", "",
-            "Sizes of the different params don't match");
-
-    for (size_t i = 0; i < size; i++)
-        if (max[i] < min[i])
-            throw ArgumentError("quantParams", "Quantization min max params", "max",
-                " Smaller than min " + std::to_string(min[i]));
-
     set<std::vector<int64_t>>("zeroPoint", zp);
     set<std::vector<double>>("scale", scale);
     set<std::vector<double>>("min", min);
