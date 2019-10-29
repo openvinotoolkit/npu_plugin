@@ -1,0 +1,49 @@
+{
+    "model": {
+        "name": "resnet50_int8",
+        "model": "<ORIGINAL_MODEL>",
+        "inputs": [{
+            "input_shape": [1,3,224,224],
+            "mean_values": [123.675,116.28,103.53],
+            "scale_values": [0.0171247538,0.0175070028,0.0174291939],
+            "format": "RGB"
+        }],
+        "outputs": [
+            {
+                "name": "prob"
+            }
+        ]
+    },
+    "engine": {
+        "config": "<ACCURACY_CHECKER_CONFIG>"
+    },
+    "compression": {
+        "target_device": "CPU",
+        "algorithms": [
+            {
+                "name": "NaiveQuantization",
+                "params": {
+                    "target_device": "CPU",
+                    "preset": "accuracy",
+                    "stat_subset_size": 1000,
+                    "weights": {
+                        "bits": 8,
+                        "type": "symmetric",
+                        "scale_type": "pertensor"
+                    },
+                    "activations": {
+                        "bits": 8,
+                        "type": "asymmetric",
+                        "scale_type": "pertensor"
+                    }
+                }
+            },
+            {
+                "name": "BiasCorrection",
+                "params": {
+                    "stat_subset_size": 1000
+                }
+            }
+        ]
+    }
+}
