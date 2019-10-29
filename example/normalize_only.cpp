@@ -17,20 +17,16 @@ int main()
     auto input0 = om.input({16,16,32,1}, mv::DType("Float16"), mv::Order::getZMajorID(4), {{0},{1.0},{-inf},{inf}}, "input:0#1");
 
     std::string weightsPath = path + "/example/normalize_only/normalize.weights";
-
-    std::vector<int64_t> scaleWeights0;
-
+    std::vector<double> scaleWeights0;
+    double weight;
     std::fstream fs;
     fs.open(weightsPath, std::fstream::in);
-
-    for(int i = 0; i < 32; ++i) {
-        int16_t x;
-        fs.read((char*)&x, 2);
-        scaleWeights0.push_back(x);
+    while( fs >> weight ) {
+        scaleWeights0.push_back(weight);
     }
     fs.close();
 
-    auto scales0 = om.constantInt(scaleWeights0,{1,1,32,1}, mv::DType("Float16"), mv::Order::getZMajorID(4), {{0},{1.1524552064656746e-05},{-inf},{inf}}, "scale_weights#0");
+    auto scales0 = om.constant(scaleWeights0,{1,1,32,1}, mv::DType("Float16"), mv::Order::getZMajorID(4), {{0},{1.1524552064656746e-05},{-inf},{inf}}, "scale_weights#0");
     
     double eps = 0.001; 
     auto normalize0 = om.normalize(input0, scales0, eps);

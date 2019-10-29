@@ -13,8 +13,8 @@ else()
     add_executable(permute_only permute_only.cpp)
     target_link_libraries(permute_only cm)
 
-#    add_executable(proposal_only proposal_only.cpp)
-#    target_link_libraries(proposal_only cm)
+    add_executable(proposal_only proposal_only.cpp)
+    target_link_libraries(proposal_only cm)
 
     add_executable(regionyolo_only regionyolo_only.cpp)
     target_link_libraries(regionyolo_only cm)
