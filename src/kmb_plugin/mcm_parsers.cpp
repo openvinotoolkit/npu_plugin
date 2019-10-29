@@ -696,7 +696,7 @@ void FrontEndMcm::parseFullyConnected(
         }
         weightsBlob = FClayer->blobs["weights"];
     }
-
+    IE_ASSERT(weightsBlob != nullptr);
     auto weightsPrecision = weightsBlob->getTensorDesc().getPrecision();
 
     //
