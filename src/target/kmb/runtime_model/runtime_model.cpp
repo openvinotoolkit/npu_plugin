@@ -1703,6 +1703,51 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAPermuteTask(ComputationModel& c
     return toBuild;
 }
 
+MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPADetectionOutputTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt)
+{
+
+    auto toBuild = new MVCNN::UPALayerTaskT();
+    //toBuild->maxShaves = ;
+    toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_DetectionOutputParams;
+    auto softLayerParamsValue = new MVCNN::DetectionOutputParamsT();
+
+    auto box_logits = opIt->getInputTensor(0);
+    auto class_preds = opIt->getInputTensor(1);
+    auto proposals = opIt->getInputTensor(2);
+
+    auto output = opIt->getOutputTensor(0);
+
+    // Fill in tensors
+    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, box_logits)));
+    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, class_preds)));
+    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, proposals)));
+
+    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
+
+    // Fill in required params
+    softLayerParamsValue->num_classes = opIt->get<int64_t>("num_classes");
+    softLayerParamsValue->keep_top_k = opIt->get<int64_t>("keep_top_k");
+    softLayerParamsValue->nms_threshold = static_cast<float>(opIt->get<double>("nms_threshold"));
+    softLayerParamsValue->background_label_id = opIt->get<int64_t>("background_label_id");
+    softLayerParamsValue->top_k = opIt->get<int64_t>("top_k");
+    softLayerParamsValue->variance_encoded_in_target = opIt->get<bool>("variance_encoded_in_target");
+    softLayerParamsValue->code_type = opIt->get<std::string>("code_type");
+    softLayerParamsValue->share_location = opIt->get<bool>("share_location");
+    softLayerParamsValue->confidence_threshold = static_cast<float>(opIt->get<double>("confidence_threshold"));
+    softLayerParamsValue->clip_before_nms = opIt->get<bool>("clip_before_nms");
+    softLayerParamsValue->clip_after_nms = opIt->get<bool>("clip_after_nms");
+    softLayerParamsValue->decrease_label_id = opIt->get<int64_t>("decrease_label_id");
+    softLayerParamsValue->normalized = opIt->get<bool>("normalized");
+    softLayerParamsValue->input_height = opIt->get<int64_t>("input_height");
+    softLayerParamsValue->input_width = opIt->get<int64_t>("input_width");
+    softLayerParamsValue->objectness_score = static_cast<float>(opIt->get<double>("objectness_score"));
+
+    toBuild->softLayerParams.value = softLayerParamsValue;
+
+    return toBuild;
+}
+
+
 MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAPassthroughTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt)
 {
     auto input = opIt->getInputTensor(0);
@@ -1766,6 +1811,8 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildUPATask(Comput
         toReturn[0]->task.value = buildUPAPermuteTask(cm, compilationDescriptor, opIt);
     else if(underlyingTask == "Interp")
         toReturn[0]->task.value = buildUPAInterpTask(cm, compilationDescriptor, opIt);
+    else if(underlyingTask == "DetectionOutput")
+        toReturn[0]->task.value = buildUPADetectionOutputTask(cm, compilationDescriptor, opIt);
     // TODO: Add other UPA layers
 
     return toReturn;

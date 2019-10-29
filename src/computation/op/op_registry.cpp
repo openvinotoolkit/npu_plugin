@@ -875,6 +875,7 @@ void mv::op::OpRegistry::generateCompositionAPI(const std::string& metaDir, cons
 #include    "src/computation/op/def/conversion.cpp"
 #include    "src/computation/op/def/crop.cpp"
 #include    "src/computation/op/def/depthwise_conv.cpp"
+#include    "src/computation/op/def/detection_output.cpp"
 #include    "src/computation/op/def/dropout.cpp"
 #include    "src/computation/op/def/dummy.cpp"
 #include    "src/computation/op/def/elu.cpp"
