@@ -267,6 +267,19 @@ mv::Data::TensorIterator convertDetectionOutputToUPATask(mv::OpModel& om, const 
                                      decrease_label_id, normalized, input_height, input_width, objectness_score, dtype, quantParams);
 }
 
+mv::Data::TensorIterator convertPriorboxToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs, const std::map<std::string, mv::Attribute>& attrs, const std::string& name)
+{
+    auto dtype = attrs.at("dType").get<mv::DType>();
+    auto quantParams = attrs.at("quantParams").get<mv::QuantizationParams>();
+    auto flip = attrs.at("flip").get<unsigned>();
+    auto clip = attrs.at("clip").get<unsigned>();
+    auto step_w = attrs.at("step_w").get<double>();
+    auto step_h = attrs.at("step_h").get<double>();
+    auto offset = attrs.at("offset").get<double>();
+
+    return om.uPATaskPriorbox(inputs, flip, clip, step_w, step_h, offset, dtype, quantParams);
+}
+
 mv::Data::TensorIterator convertPermuteToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs, const std::map<std::string, mv::Attribute>& attrs, const std::string& name)
 {
     auto order = attrs.at("order").get<mv::Order>();
@@ -331,7 +344,7 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
     std::vector<std::string> opsTypesToConvert = {"Conv", "DepthwiseConv", "Eltwise", "MaxPool"};
     std::vector<std::string> opsTypesToConvertToUPA = {"Identity", "Softmax", "Proposal", "ROIPooling",
                                                        "Quantize", "Reshape", "RegionYolo", "ReorgYolo",
-                                                       "Normalize", "DetectionOutput", "Permute", "Interp"};
+                                                       "Normalize", "DetectionOutput", "Priorbox", "Permute", "Interp"};
 
     opsTypesToConvert.insert(opsTypesToConvert.end(), opsTypesToConvertToUPA.begin(), opsTypesToConvertToUPA.end());
     auto opsToConvert = om.getOpsOfTypes(opsTypesToConvert);
@@ -351,8 +364,9 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
     {"ReorgYolo", convertReorgYoloToUPATask},
     {"Normalize", convertNormalizeToUPATask},
     {"DetectionOutput", convertDetectionOutputToUPATask},
-    {"Permute", convertPermuteToUPATask},
-    {"Interp", convertInterpToUPATask}
+    {"Interp", convertInterpToUPATask},
+    {"Priorbox", convertPriorboxToUPATask},
+    {"Permute", convertPermuteToUPATask}
     };
 
     for(auto& opType: opsTypesToConvert)

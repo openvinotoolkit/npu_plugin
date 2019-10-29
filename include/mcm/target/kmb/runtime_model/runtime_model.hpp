@@ -111,6 +111,7 @@ namespace mv
             static MVCNN::UPALayerTaskT * buildUPAPermuteTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt);
             static MVCNN::UPALayerTaskT * buildUPAInterpTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt);
             static MVCNN::UPALayerTaskT * buildUPADetectionOutputTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt);
+            static MVCNN::UPALayerTaskT * buildUPAPriorboxTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt);
 
 
             // UTILS

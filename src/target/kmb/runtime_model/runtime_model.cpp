@@ -1747,6 +1747,61 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPADetectionOutputTask(Computation
     return toBuild;
 }
 
+MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAPriorboxTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt)
+{
+
+    auto toBuild = new MVCNN::UPALayerTaskT();
+    //toBuild->maxShaves = ;
+    toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_PriorboxParams;
+    auto softLayerParamsValue = new MVCNN::PriorboxParamsT();
+
+    auto priorbox = opIt->getInputTensor(0);
+    auto image = opIt->getInputTensor(1);
+    auto min_sizes = opIt->getInputTensor(2);
+    auto max_sizes = opIt->getInputTensor(3);
+    auto aspect_ratios = opIt->getInputTensor(4);
+    auto variances = opIt->getInputTensor(5);
+
+    auto output = opIt->getOutputTensor(0);
+
+    auto min_sizes_vector = std::vector<float>();
+    for (auto i = 0; i < min_sizes->size(); ++i)
+        min_sizes_vector.push_back(static_cast<float>(min_sizes->getData().at({i})));
+
+    auto max_sizes_vector = std::vector<float>();
+    for (auto i = 0; i < max_sizes->size(); ++i)
+        max_sizes_vector.push_back(static_cast<float>(max_sizes->getData().at({i})));
+
+    auto aspect_ratios_vector = std::vector<float>();
+    for (auto i = 0; i < aspect_ratios->size(); ++i)
+        aspect_ratios_vector.push_back(static_cast<float>(aspect_ratios->getData().at({i})));
+
+    auto variances_vector = std::vector<float>();
+    for (auto i = 0; i < variances->size(); ++i)
+        variances_vector.push_back(static_cast<float>(variances->getData().at({i})));
+
+    // Fill in tensors
+    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, priorbox)));
+    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, image)));
+
+    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
+
+    // Fill in required params
+    softLayerParamsValue->min_sizes = std::vector<float>(min_sizes_vector.begin(), min_sizes_vector.end());
+    softLayerParamsValue->max_sizes = std::vector<float>(max_sizes_vector.begin(), max_sizes_vector.end());
+    softLayerParamsValue->aspect_ratios = std::vector<float>(aspect_ratios_vector.begin(), aspect_ratios_vector.end());
+    softLayerParamsValue->variances = std::vector<float>(variances_vector.begin(), variances_vector.end());
+    softLayerParamsValue->flip = opIt->get<unsigned>("flip");
+    softLayerParamsValue->clip = opIt->get<unsigned>("clip");
+    softLayerParamsValue->step_w = static_cast<float>(opIt->get<double>("step_w"));
+    softLayerParamsValue->step_h = static_cast<float>(opIt->get<double>("step_h"));
+    softLayerParamsValue->offset = static_cast<float>(opIt->get<double>("offset"));
+
+    toBuild->softLayerParams.value = softLayerParamsValue;
+
+    return toBuild;
+}
+
 
 MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAPassthroughTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt)
 {
@@ -1813,6 +1868,8 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildUPATask(Comput
         toReturn[0]->task.value = buildUPAInterpTask(cm, compilationDescriptor, opIt);
     else if(underlyingTask == "DetectionOutput")
         toReturn[0]->task.value = buildUPADetectionOutputTask(cm, compilationDescriptor, opIt);
+    else if(underlyingTask == "Priorbox")
+        toReturn[0]->task.value = buildUPAPriorboxTask(cm, compilationDescriptor, opIt);
     // TODO: Add other UPA layers
 
     return toReturn;
