@@ -16,19 +16,28 @@ int main()
     mv::OpModel& om = unit.model();
 
     // Define Params
-    unsigned pooled_w = 0;
-    unsigned pooled_h = 0;
-    double spatial_scale = 0;
-    unsigned roi_pooling_method = 0;
-    unsigned num_rois = 0;
+    unsigned pooled_w = 7;
+    unsigned pooled_h = 7;
+    double spatial_scale = 0.0625;
+    unsigned roi_pooling_method = 1;
+    unsigned num_rois = 5;
 
     // Define tensors
-    //TODO: do something to get the other input, since multi-input
-    auto input0 = om.input({125,13,13,1}, mv::DType("Float16"), mv::Order::getZMajorID(4), {{0},{1.0},{-inf},{inf}}, "input0");
-
+    auto input0 = om.input({14,14,32,1}, mv::DType("Float16"), mv::Order::getZMajorID(4), {{0},{1.0},{-inf},{inf}}, "input0");
+    std::string weightsPath = path + "/example/ROIpooling_only/ROIpooling.in2";
+    std::vector<double> scaleWeights0;
+    double weight;
+    std::fstream fs;
+    fs.open(weightsPath, std::fstream::in);
+    while( fs >> weight ) {
+        scaleWeights0.push_back(weight);
+    }
+    fs.close();
+    auto scales0 = om.constant(scaleWeights0,{5,5,1,1}, mv::DType("Float64"), mv::Order::getZMajorID(4), {{0},{1.0},{-inf},{inf}}, "scale_weights#0");
     // Build inputs vector
     std::vector<mv::Data::TensorIterator> inputs;
     inputs.push_back(input0);
+    inputs.push_back(scales0);
     // Build Model
     auto rOIPooling0 = om.rOIPooling(inputs, pooled_w, pooled_h, spatial_scale, roi_pooling_method, num_rois, mv::DType("Float16"));
     om.output(rOIPooling0);

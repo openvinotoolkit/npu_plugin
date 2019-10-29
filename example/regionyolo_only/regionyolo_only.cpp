@@ -12,6 +12,7 @@ int main()
     mv::CompilationUnit unit("parserModel");
     mv::OpModel& om = unit.model();
     auto input0 = om.input({13,13,125,1}, mv::DType("Float16"), mv::Order::getZMajorID(4), {{0},{1.0},{-inf},{inf}}, "input0");
+    // Define Params
     unsigned coords = 4;
     unsigned classes = 20;
     bool do_softmax = true;
