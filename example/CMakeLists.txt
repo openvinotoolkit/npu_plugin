@@ -19,6 +19,9 @@ else()
     add_executable(regionyolo_only regionyolo_only.cpp)
     target_link_libraries(regionyolo_only cm)
 
+    add_executable(reorgyolo_only reorgyolo_only.cpp)
+    target_link_libraries(reorgyolo_only cm)
+
     add_executable(reshape_only reshape_only.cpp)
     target_link_libraries(reshape_only cm)
 
