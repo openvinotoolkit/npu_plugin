@@ -12,9 +12,6 @@ list(APPEND CMAKE_MODULE_PATH "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/cmake")
 #
 # Build rules
 #
-if (CMAKE_CROSSCOMPILING)
-    set(CMAKE_STAGING_PREFIX "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty")
-endif()
 find_package(InferenceEngineDeveloperPackage REQUIRED)
 
 # resolving dependencies for the current project
