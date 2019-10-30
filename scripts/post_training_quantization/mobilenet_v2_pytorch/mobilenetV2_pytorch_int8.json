@@ -1,23 +1,66 @@
 {
     "model": {
         "name": "mobilenet_v2_int8",
-        "model": "/home/vskvorts/projects/mov/i_engine/model-zoo-models-public/classification/mobilenet/v2/pytorch/mobilenet_v2.onnx",
-        "inputs": [
-            {
-                "input_shape": [1,3,224,224],
-                "mean_values": [123.675, 116.28, 103.53],
-                "scale_values": [0.017057860262008732,0.01750700280112045,0.017429193899782137],
-                "format": "RGB"
-            }
-        ],
+        "model": "<ORIGINAL_MODEL>",
+        "inputs": [{
+            "input_shape": [1,3,224,224],
+            "mean_values": [123.675,116.28,103.53],
+            "scale_values": [0.017057860262008732,0.01750700280112045,0.017429193899782137],
+            "format": "RGB"
+        }],
         "outputs": [
             {
                 "name": "prob"
             }
-	]
+        ]
     },
     "engine": {
-        "config": "./mobilenet-v2-pytorch_int8.yml"
+        "launchers": [
+            {
+                "framework": "dlsdk",
+                "device": "CPU",
+                "adapter": "classification"
+            }
+        ],
+        "datasets": [
+            {
+                "name": "imagenet_1001_classes",
+                "data_source": "<DATASET_PATH>",
+                "annotation_conversion": {
+                    "annotation_file": "<DATASET_ANNOTATION_FILE>",
+                    "converter": "imagenet"
+                },
+                "preprocessing": [
+                    {
+                        "type": "bgr_to_rgb"
+                    },
+                    {
+                        "type": "resize",
+                        "size": 256,
+                        "aspect_ratio_scale": "greater",
+                        "use_pillow": true,
+                        "interpolation": "BILINEAR"
+                    },
+                    {
+                        "type": "crop",
+                        "size": 224,
+                        "use_pillow": true
+                    }
+                ],
+                "metrics": [
+                    {
+                        "type": "accuracy",
+                        "name": "accuracy@top1",
+                        "top_k": 1
+                    },
+                    {
+                        "type": "accuracy",
+                        "name": "acciracy@top5",
+                        "top_k": 5
+                    }
+                ]
+            }
+        ]
     },
     "compression": {
         "target_device": "CPU",
