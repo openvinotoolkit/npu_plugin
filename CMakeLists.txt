@@ -365,6 +365,12 @@ else()
 
 endif(MSVC)
 
+target_include_directories(cm INTERFACE
+    ${PROJECT_SOURCE_DIR}
+    ${PROJECT_SOURCE_DIR}/include
+    ${PROJECT_SOURCE_DIR}/contrib/flatbuffers/include
+    ${META_DIR_PATH})
+
 if(NOT CMAKE_CROSSCOMPILING)
     #add_subdirectory(tools) # testing without
     add_subdirectory(schema)
