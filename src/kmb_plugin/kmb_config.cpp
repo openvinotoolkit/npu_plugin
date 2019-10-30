@@ -37,9 +37,9 @@ KmbConfig::KmbConfig() {
 #else
         {VPU_KMB_CONFIG_KEY(KMB_EXECUTOR),                      CONFIG_VALUE(NO)},
 #endif
-        {VPU_KMB_CONFIG_KEY(MCM_TARGET_DESCRIPTOR_PATH),        "config/target"},
+        {VPU_KMB_CONFIG_KEY(MCM_TARGET_DESCRIPTOR_PATH),        "mcm_config/target"},
         {VPU_KMB_CONFIG_KEY(MCM_TARGET_DESCRIPTOR),             "release_kmb"},
-        {VPU_KMB_CONFIG_KEY(MCM_COMPILATION_DESCRIPTOR_PATH),   "config/compilation"},
+        {VPU_KMB_CONFIG_KEY(MCM_COMPILATION_DESCRIPTOR_PATH),   "mcm_config/compilation"},
         {VPU_KMB_CONFIG_KEY(MCM_COMPILATION_DESCRIPTOR),        "release_kmb"},
         {VPU_KMB_CONFIG_KEY(MCM_GENERATE_BLOB),                 CONFIG_VALUE(YES)},
         {VPU_KMB_CONFIG_KEY(MCM_GENERATE_JSON),                 CONFIG_VALUE(YES)},
