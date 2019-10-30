@@ -223,7 +223,6 @@ void populateWeightsTablesActivationAndBias(mv::Data::TensorIterator weightsTabl
     std::vector<mv::DataElement> biasData;
     bool hasBias = dpuTaskOp->hasAttr("bias");
     bool hasPPETask = dpuTaskOp->hasAttr("PPETask");
-    bool hasLeakyReluMult = false;
 
     mv::Data::TensorIterator bias;
     if (hasBias)
@@ -234,11 +233,12 @@ void populateWeightsTablesActivationAndBias(mv::Data::TensorIterator weightsTabl
 
     unsigned round_mode = 1;
     std::vector<int32_t> round32(outputChannels, round_mode);
-    std::vector<int32_t> reluMultData(outputChannels, 1);
+    std::vector<int32_t> reluMultData(outputChannels, 0);
     if (hasPPETask)
     {
-        hasLeakyReluMult = (dpuTaskOp->get<mv::PPETask>("PPETask").getFixedFunction().getLReluMult() != 1);
-        if (hasLeakyReluMult)
+        auto& ppeLayers = dpuTaskOp->get<mv::PPETask>("PPETask").getFixedFunction().getLayers();
+        auto isLRelu = std::find(ppeLayers.begin(), ppeLayers.end(), mv::PPELayerTypeEnum::PPELayerType_LPRELU) != ppeLayers.end();
+        if (isLRelu)
             std::fill(reluMultData.begin(), reluMultData.end(), dpuTaskOp->get<mv::PPETask>("PPETask").getFixedFunction().getLReluMult());
     }
 
