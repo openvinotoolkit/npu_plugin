@@ -16,8 +16,7 @@
 
 set(TARGET_NAME "kmbPlugin")
 
-if (ENABLE_VPUAL)
-    add_definitions(-DENABLE_VPUAL)
+if(ENABLE_VPUAL)
     set(VPUAL_NN_LIBRARY NN)
     set(GAPI_SIPP_LIBRARY gapi_sipp)
 endif()

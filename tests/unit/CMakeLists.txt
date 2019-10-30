@@ -22,7 +22,7 @@ file(GLOB TEST_SOURCES
 add_executable(${TARGET_NAME} ${TEST_SOURCES})
 
 target_compile_options(${TARGET_NAME}
-        PRIVATE
+    PRIVATE
         -Wall
         -Werror)
 

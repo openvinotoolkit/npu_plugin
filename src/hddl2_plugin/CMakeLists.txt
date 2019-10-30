@@ -19,27 +19,27 @@ set(TARGET_NAME "HDDL2Plugin")
 file(GLOB_RECURSE SOURCES *.cpp *.hpp *.h)
 
 ie_add_plugin(NAME ${TARGET_NAME}
-        SOURCES ${SOURCES}
-        VERSION_DEFINES_FOR src/hddl2_plugin.cpp
-        DEVICE_NAME HDDL2)
+              SOURCES ${SOURCES}
+              VERSION_DEFINES_FOR src/hddl2_plugin.cpp
+              DEVICE_NAME HDDL2)
 
 target_compile_options(${TARGET_NAME}
-        PRIVATE
+    PRIVATE
         -Wall
         -Wextra
         -Werror)
 
 ie_register_plugins(MAIN_TARGET ${TARGET_NAME}
-        POSSIBLE_PLUGINS ${TARGET_NAME})
+                    POSSIBLE_PLUGINS ${TARGET_NAME})
 
 target_include_directories(${TARGET_NAME}
-        PRIVATE
+    PRIVATE
         "${CMAKE_CURRENT_SOURCE_DIR}/include"
-        SYSTEM PRIVATE
+    SYSTEM PRIVATE
         "${IE_MAIN_SOURCE_DIR}/include"
         )
 
 target_link_libraries(${TARGET_NAME}
-        PRIVATE
+    PRIVATE
         IE::inference_engine
         )
