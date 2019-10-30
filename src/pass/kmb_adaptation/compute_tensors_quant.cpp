@@ -131,7 +131,6 @@ void computeTensorsQuantParams(const mv::pass::PassEntry&, mv::ComputationModel&
                      std::vector <unsigned> ser_shift = std::vector<unsigned>(shift.begin(), shift.end());
                      std::vector <unsigned> ser_scale = std::vector<unsigned>(mScaled.begin(), mScaled.end());
                      outputQuantization.quantize(ser_shift, ser_scale);
-
                 }
             }
          }

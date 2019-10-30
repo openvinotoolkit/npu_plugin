@@ -350,11 +350,12 @@ static void addPpeTask(mv::Data::OpListIterator &opIt, std::string ppeTaskType, 
     uint8_t ppeShift;
     auto ppeFixedFunction = mv::PPEFixedFunction();
 
-    if (ppeTaskType == "LRELU")
+    if (ppeTaskType == "LPRELU")
     {
         if (leakyAlpha != 0)
         {
-            unsigned bits = 5;
+            // HW PRELU MULT is I8, so 7 precision bits are available
+            unsigned bits = 7;
             int exponent;
             double mantissa;
 
