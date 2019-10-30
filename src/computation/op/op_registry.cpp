@@ -13,11 +13,6 @@ namespace mv
 
 }
 
-const std::string mv::op::OpRegistry::compAPIHeaderPath_ = std::string(META_DIR) + std::string("/include/mcm/compositional_model.hpp");
-const std::string mv::op::OpRegistry::compAPISourcePath_ = std::string(META_DIR) + std::string("/src/compositional_model.cpp");
-const std::string mv::op::OpRegistry::opModelHeaderPath_ = std::string(META_DIR) + std::string("/include/mcm/op_model.hpp");
-const std::string mv::op::OpRegistry::opModelSourcePath_ = std::string(META_DIR) + std::string("/src/op_model.cpp");
-
 /*const std::set<std::string> mv::op::OpRegistry::typeTraits_ =
 {
     "executable",   // An op is doing some processing of inputs
@@ -707,8 +702,12 @@ std::string mv::op::OpRegistry::getCompositionDef_(const std::string& opType, co
 
 }
 
-void mv::op::OpRegistry::generateCompositionAPI(const std::string& eol, const std::string& tab)
+void mv::op::OpRegistry::generateCompositionAPI(const std::string& metaDir, const std::string& eol, const std::string& tab)
 {
+    const std::string compAPIHeaderPath_ = metaDir + std::string("/include/mcm/compositional_model.hpp");
+    const std::string compAPISourcePath_ = metaDir + std::string("/src/compositional_model.cpp");
+    const std::string opModelHeaderPath_ = metaDir + std::string("/include/mcm/op_model.hpp");
+    const std::string opModelSourcePath_ = metaDir + std::string("/src/op_model.cpp");
 
     std::ofstream incStream(compAPIHeaderPath_, std::ios::out | std::ios::trunc);
     if (!incStream.is_open())
