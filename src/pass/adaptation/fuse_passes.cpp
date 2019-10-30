@@ -184,9 +184,9 @@ void fuseMinimumFcn(mv::Data::OpListIterator &opIt, mv::ComputationModel &model,
     parentOpIt->set<std::vector<std::string>>("postOpTypes", {"Minimum"});
     auto sourceTensor = parentOpIt->getOutputTensor(0);
     if (sourceTensor->getDType() == mv::DType("Float16"))
-        parentOpIt->set<double>("minimum", opIt->get<double>("minimum"));
+        parentOpIt->set<double>("Minimum", opIt->get<double>("minimum"));
     else
-        parentOpIt->set<int64_t>("minimum", opIt->get<int64_t>("minimum"));
+        parentOpIt->set<int64_t>("Minimum", opIt->get<int64_t>("minimum"));
 
     opIt = linkNewOperationsFuse(parentOpIt, sourceTensor, om, opIt);
     if (minimumOutputMemoryLocation.isForced())
@@ -207,9 +207,9 @@ void fuseMaximumFcn(mv::Data::OpListIterator &opIt, mv::ComputationModel &model,
     parentOpIt->set<std::vector<std::string>>("postOpTypes", postOpTypes);
     auto sourceTensor = parentOpIt->getOutputTensor(0);
     if (sourceTensor->getDType() == mv::DType("Float16"))
-        parentOpIt->set<double>("maximum", opIt->get<double>("maximum"));
+        parentOpIt->set<double>("Maximum", opIt->get<double>("maximum"));
     else
-        parentOpIt->set<int64_t>("maximum", opIt->get<int64_t>("maximum"));
+        parentOpIt->set<int64_t>("Maximum", opIt->get<int64_t>("maximum"));
 
     opIt = linkNewOperationsFuse(parentOpIt, sourceTensor, om, opIt);
     if (maximumOutputMemoryLocation.isForced())

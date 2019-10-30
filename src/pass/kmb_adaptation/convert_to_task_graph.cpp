@@ -7,20 +7,15 @@
 #include "include/mcm/utils/custom_strings.hpp"
 #include "include/mcm/pass/pass_utils.hpp"
 
-static const std::array<unsigned short, 2> FAKE_KERNEL = {1,1};
-static const std::array<unsigned short, 2> FAKE_STRIDE = {1,1};
+// Auxiliary structure used by clamp.
+const std::array<unsigned short, 2> FAKE_KERNEL = {1,1};
+const std::array<unsigned short, 2> FAKE_STRIDE = {1,1};
 
 static void convertOpsToDPUTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void convertOpsToUPATasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
-static void addPpeTask(mv::Data::OpListIterator &opIt, std::string ppeTaskType, double leakyAlpha = 0);
-static void computeClampValues(mv::Data::OpListIterator &opIt);
-union fixed_rep
-{
-    int32_t int_rep;
-    float float_rep;
-};
-static void computeClampMinimum(mv::Data::OpListIterator &opIt, fixed_rep &fixed_min);
-static void computeClampMaximum(mv::Data::OpListIterator &opIt, fixed_rep &fixed_max);
+void addPpeTask(mv::Data::OpListIterator &opIt, std::string ppeTaskType, double leakyAlpha = 0);
+void computeClampValues(mv::Data::OpListIterator &opIt);
+void computeClampValue(mv::Data::OpListIterator &opIt, const std::string &key);
 
 namespace mv
 {
@@ -724,7 +719,7 @@ void convertOpsToUPATasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& 
     }
 }
 
-static void addPpeTask(mv::Data::OpListIterator &opIt, std::string ppeTaskType, double leakyAlpha)
+void addPpeTask(mv::Data::OpListIterator &opIt, std::string ppeTaskType, double leakyAlpha)
 {
     auto ppeLayerType = mv::PPELayerType(ppeTaskType);
     int8_t ppeMult;
@@ -753,38 +748,50 @@ static void addPpeTask(mv::Data::OpListIterator &opIt, std::string ppeTaskType, 
 
 }
 
-static void computeClampValues(mv::Data::OpListIterator &opIt)
+void computeClampValues(mv::Data::OpListIterator &opIt)
 {
-
-    fixed_rep fixed_obj;
-    computeClampMinimum(opIt, fixed_obj);
-    computeClampMaximum(opIt, fixed_obj);
+    computeClampValue(opIt, "Minimum");
+    computeClampValue(opIt, "Maximum");
 }
 
-static void computeClampMinimum(mv::Data::OpListIterator &opIt, fixed_rep &fixed_min)
+// ASSUMPTION:
+// A model can give us clamp values either in I32 or FP32
+// If the operation output is U8/I8 we assume U8 clamp
+// If the operation output is FP16 we asssume double precision clamp.
+void computeClampValue(mv::Data::OpListIterator &opIt, const std::string& key)
 {
-    if (opIt->hasAttr("minimum"))
+    if (opIt->hasAttr(key))
     {
-        if (opIt->getOutputTensor()[0]->getDType() == mv::DType("Float16"))
-        {
-            fixed_min.float_rep = opIt->get<double>("minimum");
-            opIt->set<int32_t>("clampMinimum", fixed_min.int_rep);
-        }
-        else
-            opIt->set<int32_t>("clampMinimum", opIt->get<int32_t>("minimum"));
-    }
-}
+        auto computeDType = opIt->getInputTensor(0)->getDType();
+        auto outputDType = opIt->getOutputTensor(0)->getDType();
+        auto U8 = mv::DType("UInt8");
+        auto I8 = mv::DType("Int8");
+        auto FP16 = mv::DType("Float16");
 
-static void computeClampMaximum(mv::Data::OpListIterator &opIt, fixed_rep &fixed_max)
-{
-    if (opIt->hasAttr("maximum"))
-    {
-        if (opIt->getOutputTensor()[0]->getDType() == mv::DType("Float16"))
+        if (outputDType == U8 || outputDType == I8)
         {
-            fixed_max.float_rep = opIt->get<double>("maximum");
-            opIt->set<int32_t>("clampMaximum", fixed_max.int_rep);
+            // NOTE: taking clampValue as double even if integer.
+            double clampValue = opIt->get<int32_t>(key);
+
+            if(computeDType == U8 || computeDType == I8)
+            {
+                // Enforcing the assumption that activation tensor have 1 scale
+                mv::QuantizationParams outputQuantParams = opIt->getOutputTensor(0)->get<mv::QuantizationParams>("quantParams");
+                double outputScale = outputQuantParams.getScale()[0];
+                int32_t quantizedClampValue = static_cast<int32_t>(clampValue/outputScale);
+                opIt->set<int32_t>("clamp"+key, quantizedClampValue);
+            }
+            else if (computeDType == FP16)
+                opIt->set<int32_t>("clamp"+key, static_cast<int32_t>(clampValue * pow(2,16)));
         }
-        else
-            opIt->set<int32_t>("clampMaximum", opIt->get<int32_t>("maximum"));
+
+        else if (outputDType == FP16)
+        {
+            double clampValue = opIt->get<double>(key);
+            if(computeDType == U8 || computeDType == I8)
+                opIt->set<int32_t>("clamp"+key, static_cast<int32_t>(clampValue));
+            else if (computeDType == FP16)
+                opIt->set<int32_t>("clamp"+key, static_cast<int32_t>(clampValue * pow(2,16)));
+        }
     }
 }
