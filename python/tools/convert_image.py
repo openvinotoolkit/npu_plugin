@@ -14,7 +14,7 @@ import re
 
 # Apply scale, mean, and channel_swap to array
 def preprocess_img(data, raw_scale=1, mean=None, channel_swap=None):
-    if raw_scale is not None:
+    if raw_scale is not None and raw_scale != 1:
         data *= raw_scale
 
     if channel_swap is not None:
@@ -125,8 +125,7 @@ def parse_img(path, new_size, raw_scale=1, mean=None, channel_swap=None, dtype=n
         # Add axis for greyscale images (size 1)
         data = data[:, :, np.newaxis]
 
-    data = skimage.transform.resize(
-        data, new_size[2:], preserve_range=True).astype(dtype)
+    data = skimage.transform.resize(data, new_size[2:], preserve_range=True).astype(dtype)
     data = np.transpose(data, (2, 0, 1))
     data = np.reshape(data, (1, data.shape[0], data.shape[1], data.shape[2]))
 
@@ -135,8 +134,8 @@ def parse_img(path, new_size, raw_scale=1, mean=None, channel_swap=None, dtype=n
     return data
 
 
-def reshape(image, shape, dtype,
-                raw_scale=1, mean=0, channel_swap=0,
+def convert_image(image, shape, dtype,
+                raw_scale=1, mean=0, channel_swap=None,
                 range_min=0, range_max=256):
     import PIL
     from PIL import Image
@@ -155,6 +154,7 @@ def reshape(image, shape, dtype,
                             dtype=dtype)
 
     input_data = input_data.transpose([0, 3, 2, 1])
+
     return input_data
 
 def arg_as_list(s):
@@ -164,15 +164,21 @@ def arg_as_list(s):
     return v
 
 
-parser = argparse.ArgumentParser(description='the image used.')
-parser.add_argument('--image',type = str, required = True, help='an image to test the model')
-parser.add_argument('--shape', type=str)
+def main():
+    parser = argparse.ArgumentParser(description='Convert the image used to a format suitable for KMB.')
+    parser.add_argument('--image', type=str, required=True, help='an image to test the model')
+    parser.add_argument('--shape', type=str)
 
-args = parser.parse_args()
-l_list = args.shape.split(',')
+    args = parser.parse_args()
 
-reshaped_data = reshape(args.image, l_list, np.uint8)
-fp = open("test_reshape.bin", "wb")
-fp.write ((reshaped_data.flatten()).astype(reshaped_data.dtype).data)
-fp.close
+    image_shape = args.shape.split(',')
 
+    processed_image = convert_image(args.image, image_shape, np.uint8)
+    # save image in NCHW format
+    converted_image = processed_image.transpose((0, 3, 1, 2))
+    fp = open("converted_image.dat", "wb")
+    fp.write ((converted_image.flatten()).astype('uint8').data)
+    fp.close
+
+if __name__ == "__main__":
+    main()
