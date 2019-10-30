@@ -20,19 +20,20 @@ if(ENABLE_VPUAL)
     set(VPUAL_NN_LIBRARY NN)
     set(GAPI_SIPP_LIBRARY gapi_sipp)
 endif()
+if(ENABLE_MCM_COMPILER)
+    set(MCM_COMPILER_LIBRARY cm)
+endif()
 
 file(GLOB_RECURSE SOURCES *.cpp *.hpp *.h)
+
+set(EXTRA_COMPILE_OPTIONS -Wall -Wextra -Werror)
 
 ie_add_plugin(NAME ${TARGET_NAME}
               SOURCES ${SOURCES}
               VERSION_DEFINES_FOR kmb_plugin.cpp
               DEVICE_NAME KMB)
 
-target_compile_options(${TARGET_NAME}
-        PRIVATE
-        -Wall
-        -Wextra
-        -Werror)
+target_compile_options(${TARGET_NAME} PRIVATE ${EXTRA_COMPILE_OPTIONS})
 
 # TODO: Remove when warnings are fixed in vpualHost
 set_source_files_properties(kmb_preproc_gapi_kernels_sipp.cpp PROPERTIES
@@ -41,80 +42,41 @@ set_source_files_properties(kmb_preproc_gapi_kernels_sipp.cpp PROPERTIES
 ie_register_plugins(MAIN_TARGET ${TARGET_NAME}
                     POSSIBLE_PLUGINS ${TARGET_NAME})
 
-if (ENABLE_MCM_COMPILER)
-    add_dependencies(${TARGET_NAME} mcmCompiler)
-endif()
-
 target_include_directories(${TARGET_NAME}
     PRIVATE
         "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/include"
         "${CMAKE_CURRENT_SOURCE_DIR}"
         )
 
-target_include_directories(${TARGET_NAME}
-    SYSTEM PRIVATE
-        "${MCM_COMPILER_INCLUDE_PATH}"
-        "${FLATBUFFERRS_INCLUDE_PATH}"
-        "${MCM_SCHEMA_INCLUDE_PATH}"
-        "${METIS_DIR}/include"
-        )
-
 target_link_libraries(${TARGET_NAME}
     PRIVATE
-        ${INTEL_ITT_LIBS}
         IE::inference_engine
-        IE::vpu_common_lib
-        ${MCM_COMPILER_LIBRARY}
-        ${VPUAL_NN_LIBRARY}
         vpusmm
-        ${GAPI_SIPP_LIBRARY}
+        IE::vpu_common_lib
         kmb_utils
-        ${METIS_DIR}
-        )
+        ${VPUAL_NN_LIBRARY}
+        ${GAPI_SIPP_LIBRARY}
+        ${MCM_COMPILER_LIBRARY})
 
 if(ENABLE_TESTS)
     add_library(${TARGET_NAME}_test_static STATIC ${SOURCES})
-    if (ENABLE_MCM_COMPILER)
-        add_dependencies(${TARGET_NAME}_test_static mcmCompiler)
-    endif()
 
-    target_compile_options(${TARGET_NAME}_test_static
-            PRIVATE
-            -Wall
-            -Werror)
+    target_compile_options(${TARGET_NAME}_test_static PRIVATE ${EXTRA_COMPILE_OPTIONS})
 
     target_include_directories(${TARGET_NAME}_test_static
         PUBLIC
             "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/include"
             "${CMAKE_CURRENT_SOURCE_DIR}"
             )
-    target_include_directories(${TARGET_NAME}_test_static
-        SYSTEM PRIVATE
-            "${MCM_COMPILER_INCLUDE_PATH}"
-            "${FLATBUFFERRS_INCLUDE_PATH}"
-            "${MCM_SCHEMA_INCLUDE_PATH}"
-            "${METIS_DIR}/include"
-            )
     target_link_libraries(${TARGET_NAME}_test_static
-            PUBLIC
-                vpusmm
-                IE::inference_engine
-                IE::inference_engine_plugin_api
-            PRIVATE
-                ${INTEL_ITT_LIBS}
-                IE::vpu_common_lib
-                ${MCM_COMPILER_LIBRARY}
-                ${VPUAL_NN_LIBRARY}
-                ${GAPI_SIPP_LIBRARY}
-                kmb_utils)
-endif()
-
-if(ENABLE_MCM_COMPILER)
-    # copy mcm compiler library to target directory when the compiler is enabled
-    set(BINARY_OUT_DIR "$<TARGET_FILE_DIR:kmbPlugin>")
-    add_custom_target(mcm_copy_libraries ALL
-        COMMAND "${CMAKE_COMMAND}" -E copy "${MCM_COMPILER_LIBRARY}" "${BINARY_OUT_DIR}"
-        COMMAND "${CMAKE_COMMAND}" -E copy "${MCM_COMPILER_MODEL_LIBRARY}" "${BINARY_OUT_DIR}"
-        COMMAND "${CMAKE_COMMAND}" -E copy "${MCM_COMPILER_METAMODEL_LIBRARY}" "${BINARY_OUT_DIR}"
-        COMMENT "[MCM_COMPILER] Copy mcm compiler libraries to build results")
+        PUBLIC
+            IE::inference_engine
+            IE::inference_engine_plugin_api
+            vpusmm
+        PRIVATE
+            IE::vpu_common_lib
+            kmb_utils
+            ${VPUAL_NN_LIBRARY}
+            ${GAPI_SIPP_LIBRARY}
+            ${MCM_COMPILER_LIBRARY})
 endif()

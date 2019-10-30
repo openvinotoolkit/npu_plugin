@@ -2,6 +2,12 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+# Honor <LANG>_VISIBILITY_PRESET for all target types (including static libraries).
+set(CMAKE_POLICY_DEFAULT_CMP0063 NEW)
+
+# Set PROJECT_VERSION* variables by project command only.
+set(CMAKE_POLICY_DEFAULT_CMP0048 NEW)
+
 cmake_minimum_required(VERSION 3.7.2 FATAL_ERROR)
 
 project(InferenceEngineKMBPlugin)
@@ -12,10 +18,8 @@ list(APPEND CMAKE_MODULE_PATH "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/cmake")
 #
 # Build rules
 #
-find_package(InferenceEngineDeveloperPackage REQUIRED)
 
-# resolving dependencies for the current project
-include(ExternalProject)
+find_package(InferenceEngineDeveloperPackage REQUIRED)
 
 include(features)
 

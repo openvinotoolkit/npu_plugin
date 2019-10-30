@@ -29,7 +29,7 @@
 #include <NN_Types.h>
 #include <NNFlicPlg.h>
 
-#include <graphfile_generated.h>
+#include <schema/graphfile/graphfile_generated.h>
 
 #include <vpu/utils/logger.hpp>
 #include <zconf.h>

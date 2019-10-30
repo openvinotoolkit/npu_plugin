@@ -67,7 +67,7 @@
 #endif
 
 #ifdef ENABLE_MCM_COMPILER
-#include <mcm/target/kmb/runtime_model/runtime_model.hpp>
+#include <include/mcm/target/kmb/runtime_model/runtime_model.hpp>
 
 using namespace InferenceEngine;
 
