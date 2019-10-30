@@ -114,7 +114,8 @@ void computeTensorsQuantParams(const mv::pass::PassEntry&, mv::ComputationModel&
                          auto input1Scale = inputQuantization.getScale();
                          auto input2Scale = input2Quantization.getScale();
                          if (input1Scale != input2Scale)
-                            throw mv::RuntimeError(om, opIt->getName() + ": different values of scales for Add/Subtract is not supported!");
+                            throw mv::RuntimeError(om, opIt->getName() + ": different values of scales for Add/Subtract is not supported!"
+                                                   + std::to_string(input1Scale[0]) + " " + std::to_string(input2Scale[0]));
                      }
 
                      // Fuse ReLU into quantization (i.e. make ReLU == saturation), will be done using a separate pass
