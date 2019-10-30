@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-find_package(OpenCV COMPONENTS gapi)
+find_package(OpenCV QUIET COMPONENTS core imgproc)
 if(NOT OpenCV_FOUND)
     message(WARNING "No suitable OpenCV version detected, " ${TARGET_NAME} " skipped")
     return()
@@ -16,11 +16,12 @@ add_subdirectory(gapi_test_computations)
 set(TARGET gapi_preproc_tests)
 add_executable(${TARGET} ${SOURCES} ${HEADERS})
 
-target_link_libraries(${TARGET} PRIVATE opencv_core
-                                        opencv_imgproc
-                                        gapi_test_computations
-                                        IE::gtest IE::gtest_main
-                                        kmbPlugin_test_static)
+target_link_libraries(${TARGET}
+    PRIVATE
+        gapi_test_computations
+        kmbPlugin_test_static
+        IE::gtest IE::gtest_main
+        opencv_core opencv_imgproc)
 
 if(${GAPI_TEST_PERF})
     target_compile_options(${TARGET}
