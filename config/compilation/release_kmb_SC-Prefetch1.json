@@ -179,6 +179,7 @@
     "kmb_adapt": {
         "Singular": [
             "ConcatAsImplicit",
+            "ReshapeAsImplicit",
             "StoreWorkloadStrategy",
             "ConvertOpsToDPUTasks",
             "ConvertOpsToUPATasks",
