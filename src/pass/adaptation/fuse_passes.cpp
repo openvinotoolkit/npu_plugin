@@ -41,9 +41,7 @@ void fusePostOpsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
     std::unordered_map<std::string, std::vector<mv::Data::OpListIterator>> operationsOfType = om.getOpsOfTypes(fuse_types);
     std::size_t totalPPETasks = 0;
     for (auto it = operationsOfType.begin(); it != operationsOfType.end(); it++)
-    {
         totalPPETasks += it->second.size();
-    }
 
     UNUSED(fuseScaleFcn);
     UNUSED(fuseBatchNormFcn);
