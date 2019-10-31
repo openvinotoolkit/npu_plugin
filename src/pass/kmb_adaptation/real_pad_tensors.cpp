@@ -43,7 +43,6 @@ namespace mv
             .setFunc(cropOrPadFinalOutputFunc)
             .setDescription(
                 "Add/Remove implicit Crop Op for final Op based on padOutput value");  
-        
         MV_REGISTER_PASS(alignInputForChannelMajorConvolution)
             .setFunc(alignInputForChannelMajorConvolution)
             .setDescription(
