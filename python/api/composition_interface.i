@@ -273,20 +273,12 @@ import_array();
         return o.power({input0, input1}, type, quantParams, name);
     }
 
-    mv::Data::TensorIterator minimum(mv::CompositionalModel& o, mv::Data::TensorIterator input, double min, const std::string& type, const mv::QuantizationParams &quantParams, const std::string& name){
-        return o.minimumDouble(input, min, type, quantParams, name);
+    mv::Data::TensorIterator minimum(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::Data::TensorIterator input1, const std::string& name){
+        return o.minimum({input, input1}, name);
     }
 
-    mv::Data::TensorIterator minimum(mv::CompositionalModel& o, mv::Data::TensorIterator input, int64_t min, const std::string& type, const mv::QuantizationParams &quantParams, const std::string& name){
-        return o.minimumInt(input, min, type, quantParams, name);
-    }
-
-    mv::Data::TensorIterator maximum(mv::CompositionalModel& o,mv::Data::TensorIterator input, double max, const std::string& type, const mv::QuantizationParams &quantParams, const std::string& name){
-        return o.maximumDouble(input, max, type, quantParams, name);
-    }
-
-    mv::Data::TensorIterator maximum(mv::CompositionalModel& o,mv::Data::TensorIterator input, int64_t max, const std::string& type, const mv::QuantizationParams &quantParams, const std::string& name){
-        return o.maximumInt(input, max, type, quantParams, name);
+    mv::Data::TensorIterator maximum(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::Data::TensorIterator input1, const std::string& name){
+        return o.maximum({input, input1}, name);
     }
 
     mv::Data::TensorIterator add(mv::CompositionalModel& o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1, const std::string& type, const mv::QuantizationParams &quantParams, const std::string& name){
@@ -710,10 +702,8 @@ mv::Data::TensorIterator leaky_relu(mv::CompositionalModel& o,mv::Data::TensorIt
 mv::Data::TensorIterator sigmoid(mv::CompositionalModel& o,mv::Data::TensorIterator input, const std::string& type, const mv::QuantizationParams &quantParams, const std::string& name);
 mv::Data::TensorIterator dropOut(mv::CompositionalModel& o, mv::Data::TensorIterator input, const std::string& type, const mv::QuantizationParams &quantParams, const std::string& name);
 mv::Data::TensorIterator power(mv::CompositionalModel& o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1, const std::string& type, const mv::QuantizationParams &quantParams, const std::string& name);
-mv::Data::TensorIterator minimum(mv::CompositionalModel& o, mv::Data::TensorIterator input, double min, const std::string& type, const mv::QuantizationParams &quantParams, const std::string& name);
-mv::Data::TensorIterator minimum(mv::CompositionalModel& o, mv::Data::TensorIterator input, int64_t min, const std::string& type, const mv::QuantizationParams &quantParams, const std::string& name);
-mv::Data::TensorIterator maximum(mv::CompositionalModel& o, mv::Data::TensorIterator input, double max, const std::string& type, const mv::QuantizationParams &quantParams, const std::string& name);
-mv::Data::TensorIterator maximum(mv::CompositionalModel& o, mv::Data::TensorIterator input, int64_t max, const std::string& type, const mv::QuantizationParams &quantParams, const std::string& name);
+mv::Data::TensorIterator minimum(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::Data::TensorIterator input1, const std::string& name);
+mv::Data::TensorIterator maximum(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::Data::TensorIterator input1, const std::string& name);
 mv::Data::TensorIterator add(mv::CompositionalModel& o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1, const std::string& type, const mv::QuantizationParams &quantParams, const std::string& name);
 mv::Data::TensorIterator multiply(mv::CompositionalModel& o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1, const std::string& type, const mv::QuantizationParams &quantParams, const std::string& name);
 mv::Data::TensorIterator softmax(mv::CompositionalModel& o,mv::Data::TensorIterator input, const std::string& type, const mv::QuantizationParams  &quantParams, const std::string &name);

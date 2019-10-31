@@ -11,7 +11,12 @@ namespace mv
             [](const std::vector<Data::TensorIterator>&, const std::map<std::string, Attribute>&,
             std::string&) -> std::pair<bool, std::size_t>
         {
-
+            // TODO: modify for multiple inputs
+            if (inputs[0]->getShape() != inputs[1]->getShape())
+            {
+                errMsg = "Does not match the data0 shape " + inputs[1]->getShape().toString();
+                return {false, 1};
+            }
             return {true, 0};
 
         };
@@ -20,27 +25,11 @@ namespace mv
             std::vector<Tensor>&)> outputDefFcn =
             [](const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>& args, std::vector<Tensor>& outputs)
         {
-            auto dTypeToUse = args.at("dType").get<mv::DType>();
-            if(dTypeToUse == mv::DType("Default"))
-                dTypeToUse = inputs[0]->getDType();
-            if (args.at("quantParams").get<mv::QuantizationParams>().isEmpty())
-                outputs.push_back(mv::Tensor(":0", inputs[0]->getShape(), dTypeToUse, inputs[0]->getOrder()));
+            auto input0Quantized = inputs[0]->hasAttr("quantParams");
+            if (!input0Quantized)
+                outputs.push_back(mv::Tensor(":0", inputs[0]->getShape(), inputs[0]->getDType(), inputs[0]->getOrder()));
             else
-                outputs.push_back(mv::Tensor(":0", inputs[0]->getShape(), dTypeToUse, inputs[0]->getOrder(), args.at("quantParams").get<mv::QuantizationParams>()));
-
-        };
-
-        static std::function<void(const std::vector<Data::TensorIterator>&, const std::map<std::string, Attribute>&,
-            std::vector<Tensor>&)> outputIntDefFcn =
-            [](const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>& args, std::vector<Tensor>& outputs)
-        {
-            auto dTypeToUse = args.at("dType").get<mv::DType>();
-            if(dTypeToUse == mv::DType("Default"))
-                dTypeToUse = inputs[0]->getDType();
-            if (args.at("quantParams").get<mv::QuantizationParams>().isEmpty())
-                outputs.push_back(mv::Tensor(":0", inputs[0]->getShape(), dTypeToUse, inputs[0]->getOrder()));
-            else
-                outputs.push_back(mv::Tensor(":0", inputs[0]->getShape(), dTypeToUse, inputs[0]->getOrder(), args.at("quantParams").get<mv::QuantizationParams>()));
+                outputs.push_back(mv::Tensor(":0", inputs[0]->getShape(), inputs[0]->getDType(), inputs[0]->getOrder(), inputs[0]->get<mv::QuantizationParams>("quantParams")));
 
         };
 
@@ -49,25 +38,14 @@ namespace mv
 
 
     namespace op {
-        MV_REGISTER_OP(MinimumDouble)
-        .setInputs({"data"})
+
+        MV_REGISTER_OP(Minimum)
+        .setInputs({"inputs"})
         .setOutputs({"output"})
-        .setOptionalArg<double>("minimum", -std::numeric_limits<double>::infinity())
-        .setOptionalArg<mv::DType>("dType", mv::DType("Default"))
-        .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
         .setInputCheck(op_minimum::inputCheckFcn)
         .setOutputDef(op_minimum::outputDefFcn)
-        .setTypeTrait({"executable", "exposed"});
-
-        MV_REGISTER_OP(MinimumInt)
-        .setInputs({"data"})
-        .setOutputs({"output"})
-        .setOptionalArg<int64_t>("minimum", -2147483647)
-        .setOptionalArg<mv::DType>("dType", mv::DType("Default"))
-        .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
-        .setInputCheck(op_minimum::inputCheckFcn)
-        .setOutputDef(op_minimum::outputIntDefFcn)
-        .setTypeTrait({"executable", "exposed"});
+        .setTypeTrait({"executable", "exposed"})
+        .setVariableInputNum(true);
     }
 
 }
