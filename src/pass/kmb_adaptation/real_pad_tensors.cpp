@@ -16,6 +16,8 @@ static void addAlignOpForInputTensorsFunc(const mv::pass::PassEntry& , mv::Compu
 static void removeCropAlignInCMXFunc(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static mv::Data::OpListIterator fuseCropAlign(mv::Data::OpListIterator parentOpIt, mv::Data::TensorIterator sourceTensor, mv::OpModel om, mv::Data::OpListIterator opIt);
 static void addCropNode(mv::OpModel& om, mv::Data::OpListIterator& opIt, mv::Data::TensorIterator& outputTensor, std::size_t& outputTensorChannels);
+static int computeAppropriatePadding(mv::Data::TensorIterator tensor);
+
 namespace mv
 {
     namespace pass
@@ -244,9 +246,11 @@ void addAlignOpForInputTensorsFunc(const mv::pass::PassEntry& , mv::ComputationM
     {
         auto opIt = *vecIt;
         auto taskOp = opIt->get<std::string>("taskOp");
-        if(taskOp == "Conv" || taskOp == "DepthWiseConv" ||
+        if(taskOp == "Conv" || taskOp == "DepthWiseConv" || taskOp == "MaxPool" ||
             taskOp == "Add" || taskOp == "Subtract" || taskOp == "Multiply")
         {
+            if (opIt->getOutputTensor(0)->getDType() == mv::DType("Float16"))
+                pad = 8;
             auto numInputs = 1;
             if (taskOp == "Add" || taskOp == "Subtract" || taskOp == "Multiply")
                 numInputs = opIt->getInputTensor().size();
@@ -306,13 +310,22 @@ void addAlignOpForInputTensorsFunc(const mv::pass::PassEntry& , mv::ComputationM
     }
 }
 
+int computeAppropriatePadding(mv::Data::TensorIterator tensor)
+{
+    int pad;
+    if (tensor->getDType() == mv::DType("Float16"))
+        pad = 8;
+    else if (tensor->getDType() == mv::DType("UInt8"))
+        pad = 16;
+    return pad;
+}
+
 //NOTE: REAL PADDING IN THE UNALIGNED TENSORS
 void alignUnpopulatedTensorsFunc(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);
     auto globalConfigParams = model.getGlobalConfigParams();
-    int pad = globalConfigParams->hasAttr("VPU2ChannelPadding") ? globalConfigParams->get<int>("VPU2ChannelPadding") : 16;
 
     auto dpuTasks = om.topologicalSort();
     for(auto vecIt = dpuTasks.begin(); vecIt != dpuTasks.end(); ++vecIt)
@@ -325,13 +338,12 @@ void alignUnpopulatedTensorsFunc(const mv::pass::PassEntry&, mv::ComputationMode
         auto outputTensorShape = outputTensor->getShape();
         auto outputTensorChannels = outputTensorShape[mv::IO_CHANNEL_DIMENSION];
         //auto opStrategy = opIt->get<std::string>("splitStrategy");
-
+        int pad = computeAppropriatePadding(outputTensor);
         if (outputTensorChannels % pad != 0)
         {
             opIt->set<bool>("alignment", true);
             outputTensor->set<bool>("alignment", true);
-
-            auto outputChannelsPadded = mv::round_up(outputTensorChannels, pad);
+            std::size_t outputChannelsPadded = mv::round_up(outputTensorChannels, pad);
 
             // If for whatever reason we pass through this tensor more than once, we
             // don't want to overwrite the original dimensions

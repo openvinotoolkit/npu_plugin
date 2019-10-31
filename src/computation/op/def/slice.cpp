@@ -59,6 +59,7 @@ namespace mv
                 std::vector<mv::DataElement> temp(args.at("size").get<mv::Shape>().totalSize(), mv::DataElement(0));
                 outputs[0].populate(temp);
 
+                // NOTE: Sloooooooooooooow
                 auto begin = args.at("begin").get<mv::Shape>();
                 auto size = args.at("size").get<mv::Shape>();
                 for(unsigned oc = begin[mv::KERNEL_OUTPUT_CHANNELS]; oc < begin[mv::KERNEL_OUTPUT_CHANNELS] + size[mv::KERNEL_OUTPUT_CHANNELS]; ++oc)

@@ -16,7 +16,7 @@ namespace mv
             auto inputShape = input->getShape();
             auto scales = inputs[1];
             auto scalesShape = scales->getShape();
-            
+
             if (scalesShape.ndims() != 1)
             {
                 errMsg = "Invalid shape of scales tensor (input 1) - has to be 1-dimensional, received "
@@ -34,15 +34,18 @@ namespace mv
             return {true, 0};
 
         };
-                
-        static std::function<void(const std::vector<Data::TensorIterator>&, const std::map<std::string, Attribute>&, 
+
+        static std::function<void(const std::vector<Data::TensorIterator>&, const std::map<std::string, Attribute>&,
             std::vector<Tensor>&)> outputDefFcn =
             [](const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>& args, std::vector<Tensor>& outputs)
         {
+            auto dTypeToUse = args.at("dType").get<mv::DType>();
+            if(dTypeToUse == mv::DType("Default"))
+                dTypeToUse = inputs[0]->getDType();
             if (args.at("quantParams").get<mv::QuantizationParams>().isEmpty() == true)
-                outputs.push_back(mv::Tensor(":0",  inputs[0]->getShape(), inputs[0]->getDType(), inputs[0]->getOrder()));
+                outputs.push_back(mv::Tensor(":0",  inputs[0]->getShape(), dTypeToUse, inputs[0]->getOrder()));
             else
-                outputs.push_back(mv::Tensor(":0",  inputs[0]->getShape(), inputs[0]->getDType(), inputs[0]->getOrder(), args.at("quantParams").get<mv::QuantizationParams>()));
+                outputs.push_back(mv::Tensor(":0",  inputs[0]->getShape(), dTypeToUse, inputs[0]->getOrder(), args.at("quantParams").get<mv::QuantizationParams>()));
         };
 
     }
@@ -52,6 +55,7 @@ namespace mv
         MV_REGISTER_OP(Scale)
         .setInputs({"data", "weights"})
         .setOutputs({"output"})
+        .setOptionalArg<mv::DType>("dType", mv::DType("Default"))
         .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
         .setInputCheck(op_scale::inputCheckFcn)
         .setOutputDef(op_scale::outputDefFcn)

@@ -49,7 +49,7 @@ namespace mv
         unsigned long long populatedTotalSize() const;
         unsigned long long unpopulatedTotalSize() const;
 
-        bool addAllocator(const std::string& name, std::size_t size, std::size_t alignment, std::size_t dataTypeSize);
+        bool addAllocator(const std::string& name, std::size_t size, std::size_t alignment);
         bool hasAllocator(const std::string& name);
         const MemoryAllocator& getAllocator(const std::string& allocatorName);
         Data::BufferIterator allocateTensor(const std::string& allocatorName, Control::StageIterator& stage, Data::TensorIterator& tensor);

@@ -25,7 +25,7 @@ namespace mv
                     return {false, 1};
                 }
             }
-            
+
             if (inputs[0]->getShape().totalSize() != args.at("shape").get<mv::Shape>().totalSize())
             {
                 errMsg = "Invalid conversino of the original shape " + inputs[0]->getShape().toString() + " and the output shape "
@@ -35,8 +35,8 @@ namespace mv
 
             return {true, 0};
         };
-                
-        static std::function<void(const std::vector<Data::TensorIterator>&, const std::map<std::string, Attribute>&, 
+
+        static std::function<void(const std::vector<Data::TensorIterator>&, const std::map<std::string, Attribute>&,
             std::vector<Tensor>&)> outputDefFcn =
             [](const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>& args, std::vector<Tensor>& outputs)
         {
