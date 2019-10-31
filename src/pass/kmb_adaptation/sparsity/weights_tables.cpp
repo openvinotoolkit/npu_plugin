@@ -15,6 +15,8 @@ static void generateWeightsTablesFcn(const mv::pass::PassEntry& pass, mv::Comput
 static void populateWeightsTablesPointersFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void populateWeightsTablesQuantizationFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void removeBiasTensorsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+static int computeAppropriatePadding(mv::Data::TensorIterator tensor);
+
 namespace mv
 {
     namespace pass
@@ -220,8 +222,7 @@ void populateWeightsTablesActivationAndBias(mv::Data::TensorIterator weightsTabl
     }
     std::vector<mv::DataElement> biasData;
     bool hasBias = dpuTaskOp->hasAttr("bias");
-    bool hasRelu = dpuTaskOp->hasAttr("LRELU");
-    bool hasReluMult = false;
+    bool hasPPETask = dpuTaskOp->hasAttr("PPETask");
 
     mv::Data::TensorIterator bias;
     if (hasBias)
@@ -233,10 +234,11 @@ void populateWeightsTablesActivationAndBias(mv::Data::TensorIterator weightsTabl
     unsigned round_mode = 1;
     std::vector<int32_t> round32(outputChannels, round_mode);
     std::vector<int32_t> reluMultData(outputChannels, 0);
-    if (hasRelu)
+    if (hasPPETask)
     {
-        hasReluMult = (dpuTaskOp->get<mv::PPETask>("PPETask").getFixedFunction().getLReluMult() != 1);
-        if (hasReluMult)
+        auto& ppeLayers = dpuTaskOp->get<mv::PPETask>("PPETask").getFixedFunction().getLayers();
+        auto isLRelu = std::find(ppeLayers.begin(), ppeLayers.end(), mv::PPELayerTypeEnum::PPELayerType_LPRELU) != ppeLayers.end();
+        if (isLRelu)
             std::fill(reluMultData.begin(), reluMultData.end(), dpuTaskOp->get<mv::PPETask>("PPETask").getFixedFunction().getLReluMult());
     }
 
@@ -322,7 +324,7 @@ static void populateWeightsTablesPointersFcn(const mv::pass::PassEntry& , mv::Co
     }
 }
 
-int computeAppropriatePadding(mv::Data::TensorIterator tensor)
+static int computeAppropriatePadding(mv::Data::TensorIterator tensor)
 {
     int pad;
     if (tensor->getDType() == mv::DType("Float16"))

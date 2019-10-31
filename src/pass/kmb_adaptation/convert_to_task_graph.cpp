@@ -113,11 +113,14 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             //NOTE: This will become bigger with new ppeTasks
             if (opIt->hasAttr("postOpType"))
             {
-                if ((opIt->get<std::string>("postOpType") == "Relu") || (opIt->get<std::string>("postOpType") == "LeakyRelu"))
+                if (opIt->get<std::string>("postOpType") == "LeakyRelu")
                 {
-                    ppeType = "LRELU";
-                    if (opIt->get<std::string>("postOpType") == "LeakyRelu")
-                        leakyAlpha = opIt->get<double>("alpha");
+                    ppeType = "LPRELU";
+                    leakyAlpha = opIt->get<double>("alpha");
+                }
+                else if (opIt->get<std::string>("postOpType") == "Relu")
+                {
+                    ppeType = "RELU";
                 }
                 else if (opIt->get<std::string>("postOpType") == "Sigmoid")
                 {
@@ -347,11 +350,12 @@ static void addPpeTask(mv::Data::OpListIterator &opIt, std::string ppeTaskType, 
     uint8_t ppeShift;
     auto ppeFixedFunction = mv::PPEFixedFunction();
 
-    if (ppeTaskType == "LRELU")
+    if (ppeTaskType == "LPRELU")
     {
         if (leakyAlpha != 0)
         {
-            unsigned bits = 5;
+            // HW PRELU MULT is I8, so 7 precision bits are available
+            unsigned bits = 7;
             int exponent;
             double mantissa;
 

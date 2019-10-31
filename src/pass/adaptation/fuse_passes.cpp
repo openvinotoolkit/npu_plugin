@@ -91,12 +91,6 @@ void fusePostOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model
             fuseLeakyReluFcn(opIt, om);
             leakyRelu_nodes--;
         }
-        else if (opIt->getOpType() == "LeakyRelu")
-        {
-            pass.log(Logger::MessageType::Debug, "Found Leaky Relu op " + opIt->getName());
-            fuseLeakyReluFcn(opIt, om);
-            leakyRelu_nodes--;
-        }
         else if (opIt->getOpType() == "Power")
         {
             pass.log(Logger::MessageType::Debug, "Found Power op " + opIt->getName());
@@ -137,11 +131,17 @@ mv::Data::OpListIterator linkNewOperationsFuse(mv::Data::OpListIterator parentOp
         inputSlots.push_back(sinkFlow->get<std::size_t>("sinkInput"));
     }
 
-    while(opIt.parentsSize() > 1)
+    auto paramOp = opIt.leftmostParent();
+    while(paramOp != om.opEnd())
     {
-        auto paramOp = opIt.leftmostParent();
-        ++paramOp;
-        om.removeOp(paramOp);
+        if (paramOp->getOpType() == "Constant" || paramOp->getOpType() == "ConstantInt" || paramOp->getOpType() == "ConstantDataElement")
+        {
+            auto backUp = paramOp;
+            ++paramOp;
+            om.removeOp(backUp);
+        }
+        else
+            ++paramOp;
     }
 
     om.removeOp(opIt);
