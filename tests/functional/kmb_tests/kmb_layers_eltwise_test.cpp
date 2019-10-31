@@ -218,7 +218,8 @@ TEST_F(kmbLayersTests_nightly, DISABLED_TestsEltwiseAfterScaleShiftWithLargeWeig
     ASSERT_NO_THROW(ie.LoadNetwork(network, "kmb", config));
 }
 
-TEST_F(kmbLayersTests_nightly, EltwiseWithFakeQuantize) {
+// corresponding ticket #-23769
+TEST_F(kmbLayersTests_nightly, DISABLED_EltwiseWithFakeQuantize) {
     const std::string model = R"V0G0N(
 <?xml version="1.0" ?>
 <net batch="1" name="EltwiseTest" version="6">
