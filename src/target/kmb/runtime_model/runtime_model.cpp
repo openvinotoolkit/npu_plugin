@@ -1396,11 +1396,13 @@ MVCNN::UPALayerTaskT *mv::RuntimeModel::buildUPANormalizeTask(ComputationModel &
     softLayerParamsValue->eps = static_cast<float>(opIt->get<double>("eps"));
     softLayerParamsValue->across_spatial = static_cast<int32_t>(opIt->get<unsigned>("across_spatial"));
     softLayerParamsValue->channel_shared = static_cast<int32_t>(opIt->get<unsigned>("channel_shared"));
-    
+
     toBuild->softLayerParams.value = softLayerParamsValue;
     toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input)));
 
     toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
+    toBuild->weights_data = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(1));
+
 
     return toBuild;
 }
