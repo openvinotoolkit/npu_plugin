@@ -163,12 +163,13 @@ def arg_as_list(s):
     return v
 
 
-def transpose_image(tensor_data, Zmajor=True):
+def transpose_image(tensor_data, Zmajor):
     layouts_zmajor = (0,2,3,1)
     layouts_chmajor= (0,1,2,3)
 
     layout=layouts_chmajor
-    if Zmajor:
+    if Zmajor is True:
+        print("selecting z major layout for image")
         layout=layouts_zmajor
 
     t_data = np.transpose(tensor_data, layout)
@@ -179,6 +180,7 @@ def main():
     parser = argparse.ArgumentParser(description='Convert the image used to a format suitable for KMB.')
     parser.add_argument('--image', type=str, required=True, help='an image to test the model')
     parser.add_argument('--shape', type=str)
+    parser.add_argument('--zmajor', action='store_true')
 
     args = parser.parse_args()
 
@@ -190,7 +192,7 @@ def main():
     # Fathom generates as input
     processed_image = processed_image.transpose([0, 1, 3, 2])
 
-    transposed_image = transpose_image(processed_image, True)
+    transposed_image = transpose_image(processed_image, args.zmajor)
     
     fp = open("converted_image.dat", "wb")
     fp.write ((transposed_image.flatten()).astype('uint8').data)
