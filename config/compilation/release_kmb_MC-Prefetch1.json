@@ -18,15 +18,11 @@
                 "split_strategy" :
                 [
                     {
-                        "name_filter" : "input#3",
+                        "name_filter" : "name",
                         "cluster_filter" : 0,
                         "strategy" : "SplitOverHOverlapped"
-                    },
-                    {
-                        "name_filter" : "conv1/conv1#4",
-                        "cluster_filter" : 0,
-                        "strategy" : "SplitOverH"
                     }
+                   
                     
                 
                 ],
@@ -58,7 +54,7 @@
                 "streaming_strategy" :
                 [
                     {
-                        "name_filter" : "conv1/conv1#4",
+                        "name_filter" : "example",
                         "splits" : [
                             {"C" : 1},
                             {"H" : 1},
