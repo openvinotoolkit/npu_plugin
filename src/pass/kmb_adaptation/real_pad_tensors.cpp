@@ -47,7 +47,7 @@ namespace mv
         MV_REGISTER_PASS(alignInputForChannelMajorConvolution)
             .setFunc(alignInputForChannelMajorConvolution)
             .setDescription(
-                "The width of a channel major convolution must be a multiple of 16");
+                "Align the input a channel major convolution to a multiple of 16, hardware requirment");
         
     }
 }
