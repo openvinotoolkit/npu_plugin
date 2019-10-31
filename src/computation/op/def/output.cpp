@@ -22,8 +22,7 @@ namespace mv
             [](const std::vector<Data::TensorIterator>&, const std::map<std::string, Attribute>&, std::vector<Tensor>&)
         {
 
-        };
-    
+        };    
     }
 
     namespace op {

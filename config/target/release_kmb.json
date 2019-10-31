@@ -371,49 +371,41 @@
             {
                 "name": "GraphFile",
                 "alignment": 64,
-                "dataTypeSize": 2,
                 "size": 1024000000
             },
 
             {
                 "name": "VPU_DDR_Heap",
                 "alignment": 64,
-                "dataTypeSize": 1,
                 "size": 31457280
             },
 
             {
                 "name": "VPU_CMX_NN",
                 "alignment": 64,
-                "dataTypeSize": 2,
                 "size": 3686400
             },
 
             {
                 "name": "VPU_CMX_UPA",
                 "alignment": 64,
-                "dataTypeSize": 2,
                 "size": 1024000000
             },
 
             {
                 "name": "VPU_DDR_BSS",
                 "alignment": 64,
-                "dataTypeSize": 2,
                 "size": 1024000000
             },
 
             {
                 "name": "ProgrammableInput",
                 "alignment": 64,
-                "dataTypeSize": 2,
                 "size": 1024000000
             },
-
             {
                 "name": "ProgrammableOutput",
                 "alignment": 64,
-                "dataTypeSize": 2,
                 "size": 1024000000
             }
         ],

@@ -32,7 +32,6 @@ namespace mv
     }
 
     namespace op {
-
         MV_REGISTER_OP(Dropout)
         .setInputs({"input"})
         .setOutputs({"output"})

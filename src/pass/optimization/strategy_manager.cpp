@@ -134,7 +134,6 @@ void StrategyManager::printStrategy()
 }
 
 
-//TODO:: error if the strategy is not there...
 Attribute& StrategyManager::getStrategy(mv::Op op,string strategy)
 {
     auto op_name = op.getName();
@@ -416,14 +415,14 @@ std::vector<mv::Element> StrategyManager::convertSparsityStrategyToElement(std::
     for(auto strategy : strategiesToConvert)
     {
         auto inputActivationSparsity = strategy["inputSparsity"].get<bool>();
-        //auto outputActivationSparsity = strategy["outputSparsity"].get<bool>();
+        auto outputActivationSparsity = strategy["outputSparsity"].get<bool>();
         auto weightsSparsity = strategy["weightsSparsity"].get<bool>();
         auto opName   = strategy["name"].get<string>();
 
         auto op = model_.getOp(opName);
 
         copyLElement.set("inputActivationSparsity",inputActivationSparsity);
-       // copyLElement.set("outputActivationSparsity",outputActivationSparsity);
+        copyLElement.set("outputActivationSparsity",outputActivationSparsity);
         copyLElement.set("weightsSparsity",weightsSparsity);
         copyLElement.set("name_filter", opName);
 
@@ -456,7 +455,7 @@ void StrategyManager::saveMetaStrategy(std::vector<MetaGraph::edge_list_iterator
     std::vector<mv::Element> streamingStrategyElements = convertStreamingStrategyToElement(allStrategies, globalParams);
     std::vector<mv::Element> multiClusterStrategyElements = convertClusteringStrategyToElement(allStrategies, globalParams);
     std::vector<mv::Element> locationStrategyElements = convertLocationStrategyToElement(allStrategies);
-    //std::vector<mv::Element> sparsityStrategyElements = convertSparsityStrategyToElement(allStrategies);
+    std::vector<mv::Element> sparsityStrategyElements = convertSparsityStrategyToElement(allStrategies);
 
     if (enableSaveStrategyToDescriptor)
     {
@@ -464,7 +463,7 @@ void StrategyManager::saveMetaStrategy(std::vector<MetaGraph::edge_list_iterator
         auto compDesc = model_.getGlobalConfigParams();
         compDesc->set("streaming_strategy", streamingStrategyElements);
         compDesc->set("split_strategy", multiClusterStrategyElements);
-        //compDesc->set("sparsity_strategy", sparsityStrategyElements);
+        compDesc->set("sparsity_strategy", sparsityStrategyElements);
     }
 
     if (enableSaveStrategyToJsonFile)
@@ -487,15 +486,15 @@ void StrategyManager::saveMetaStrategy(std::vector<MetaGraph::edge_list_iterator
         SSA.set("streaming_strategy",streamingStrategyElements);
         CSA.set("split_strategy",multiClusterStrategyElements);
         LSA.set("tensor_placement_override",locationStrategyElements);
-        //SpSA.set("sparsity_strategy",sparsityStrategyElements);
+        SpSA.set("sparsity_strategy",sparsityStrategyElements);
         auto jsonSStrategy = SSA.toJSON(true);
         auto jsonCStrategy = CSA.toJSON(true);
         auto jsonLStrategy = LSA.toJSON(true);
-        //auto jsonSpStrategy = SpSA.toJSON(true);
+        auto jsonSpStrategy = SpSA.toJSON(true);
         jsonOutputFile << jsonSStrategy.stringifyPretty() << "," << std::endl;
         jsonOutputFile << jsonCStrategy.stringifyPretty() << "," << std::endl;
-        jsonOutputFile << jsonLStrategy.stringifyPretty()  << endl; //<< "," << std::endl;
-        //jsonOutputFile << jsonSpStrategy.stringifyPretty() << std::endl;
+        jsonOutputFile << jsonLStrategy.stringifyPretty()  << "," << std::endl;
+        jsonOutputFile << jsonSpStrategy.stringifyPretty() << std::endl;
 
         jsonOutputFile.close();
     }
@@ -665,6 +664,9 @@ void StrategyManager::recursiveCriticalPath(typename graph<mv::Op, mv::DataFlow>
         opCtr++;
 
         generateStrategySetForLayer(*modelSource,nodeStrategy);
+        if(nodeStrategy.empty()){
+            throw LogicError(*this, "GraphOptimizer did not create any potential strategies for " + (*modelSource).getName());
+        }
         new_nodes.clear();
         for(auto strategy : nodeStrategy)
         {
@@ -697,6 +699,9 @@ void StrategyManager::recursiveCriticalPath(typename graph<mv::Op, mv::DataFlow>
             vector<StrategySet> nodeStrategy;
             opCtr++;
             generateStrategySetForLayer(*model_child,nodeStrategy);
+            if(nodeStrategy.empty()){
+                throw LogicError(*this, "GraphOptimizer did not create any potential strategies for " + (*model_child).getName());
+            }
             new_nodes.clear();
             for(auto strategy : nodeStrategy)
             {
@@ -723,6 +728,9 @@ void StrategyManager::recursiveCriticalPath(typename graph<mv::Op, mv::DataFlow>
         nodeStrategy.clear();
         opCtr++;
         generateStrategySetForLayer(*model_child,nodeStrategy);
+        if(nodeStrategy.empty()){
+            throw LogicError(*this, "GraphOptimizer did not create any potential strategies for " + (*model_child).getName());
+        }
         new_nodes.clear();
         for(auto strategy : nodeStrategy)
         {
@@ -774,6 +782,7 @@ void StrategyManager::recursiveCriticalPath(typename graph<mv::Op, mv::DataFlow>
     //TODO recurse if we haven't all hit the same pivot (into the nested parallel branch)
         next_modelSource.push_back(model_child);
         //writeDot(optimizationGraph, true); //debug
+        //cout << "Dot at " << (*model_child).getName() << " has " << optimizationGraph.node_size() << " nodes" << endl;
     }
 
     //If child counter is 1, we were in a linear section, just add the subgraph to the metaGraph
@@ -796,7 +805,7 @@ void StrategyManager::recursiveCriticalPath(typename graph<mv::Op, mv::DataFlow>
                     }
                 }
                 if(!found){
-                    throw LogicError(*this, "GraphOptimizer unable to find MetaGraph source " + get<0>(*source).getName());
+                    throw LogicError(*this, "GraphOptimizer unable to find MetaGraph source throw" + get<0>(*source).getName());
                 }
             }
         }

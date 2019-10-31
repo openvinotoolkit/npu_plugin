@@ -204,8 +204,6 @@ const std::vector<int> mv::Workloads::getWorkloadSplitPool(const Tensor& tensor,
     return splitPool;
 }
 
-
-
 std::vector<mv::Workload> mv::Workloads::polygonWorkloadSplit(const mv::pass::PassEntry &pass, mv::Workload &workload, std::vector<mv::Workload> &workloads_, mv::DPUMode &mpe_mode)
 {
     /*------------------------------------------------------------------------------------------------------------

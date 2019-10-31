@@ -171,7 +171,7 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
                     auto windowSparsitySize = static_cast<std::size_t>(std::ceil(windowsSize/8.0)); //how many bytes we need per window
                     auto NumberOfRowsSparistyBytes = static_cast<std::size_t>(std::ceil((kernelH * inputChannels * windowSparsitySize) / 16.0 ));
                     perChannelSparsity.resize(NumberOfRowsSparistyBytes * 16);//allocate once
-                    ndims = {16 * NumberOfRowsSparistyBytes, 1, 1, outputChannels};
+                    ndims = {16, NumberOfRowsSparistyBytes, 1, outputChannels};
                 }
 
                 int channelLenght = bitpattern.size();
@@ -258,7 +258,7 @@ bool checkA0SOHSparsityBug(mv::Data::FlowListIterator flow)
 // In the future, these two conditions could change. We have to sync with runtime.
 
 // Eltwise, being the hackiest operation ever, potentially can support sparsity input, sharing the IDU with ZMajorConv, but the runtime currently doesn't allow it.
-// The inner loop of this function must iterate on tensors, not data flows
+
 static void generateSparsityMapsUnpopulatedTensorsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&)
 {
 

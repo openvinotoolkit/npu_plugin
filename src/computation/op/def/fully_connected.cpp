@@ -42,12 +42,10 @@ namespace mv
             else
                 outputs.push_back(mv::Tensor(":0",{1, 1, inputs[1]->getShape()[KERNEL_HEIGHT], 1}, dTypeToUse, inputs[0]->getOrder(), args.at("quantParams").get<mv::QuantizationParams>()));
         };
-    
 
     }
 
     namespace op {
-
         MV_REGISTER_OP(FullyConnected)
         .setInputs({"data", "weights"})
         .setOutputs({"output"})

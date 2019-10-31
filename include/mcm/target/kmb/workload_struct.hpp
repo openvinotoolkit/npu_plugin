@@ -25,7 +25,7 @@ namespace mv
         int16_t MinX = 0;
         int16_t MinY = 0;
         int16_t MinZ = 0;
-        int16_t padLeft = 0; //Are workload paddings different from full tensor padding?
+        int16_t padLeft = 0;
         int16_t padRight = 0;
         int16_t padTop = 0;
         int16_t padBottom = 0;

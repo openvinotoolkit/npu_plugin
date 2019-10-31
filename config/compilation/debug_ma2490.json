@@ -22,7 +22,7 @@
                         "strategy" : "Example"
                     }
                 ],
-                "default_tensor_placement" : "NNCMX",
+                "default_tensor_placement" : "CMX",
                 "tensor_placement_override" :
                 [
                     {
@@ -82,12 +82,12 @@
     },
     "adapt": {
         "Singular": [
-            "AverageAsDepthWise",
-            "RemoveDropOut",
-            "FullyConnectedAsConv2D",
             "TensorsToU8",
             "TensorsToFP16",
+            "AverageAsDepthWise",
             "FusePostOps",
+            "RemoveDropOut",
+            "FullyConnectedAsConv2D",
             {
                 "name" : "GraphParameterOptimization",
                 "graphOptimizerConfig" : {
@@ -105,8 +105,8 @@
                         {"name" : "forceSpilling",    "value" : false       },
                         {"name" : "enableStreaming",   "value" : true       },
                         {"name" : "doubleBuffering",   "value" : false      },
-                        {"name" : "enableActivationSparsity",    "value" : true      },
-                        {"name" : "enableWeightsSparsity",    "value" : true      },
+                        {"name" : "enableActivationSparsity",    "value" : false      },
+                        {"name" : "enableWeightsSparsity",    "value" : false      },
                         {"name" : "clusteringStrategy","value" : "Automatic"}
                     ],
                     "layerStrategies" : [
@@ -173,8 +173,7 @@
         "Singular": [
             "ConcatAsImplicit",
             "StoreWorkloadStrategy",
-            "ConvertOpsToDPUTasks",
-            "ConvertOpsToUPATasks",
+            "ConvertOpsToTasks",
             "ForceSerialize",
             "KMBOrderConversion",
             "AlignUnpopulatedTensors",
@@ -191,18 +190,15 @@
             "UpdateImplicitLayersQuantizationParams",
             "PopulateWeightsTablesQuantization",
             "RemoveBiasTensors",
-            "SplittingTensorsAcrossClusters",
-            "KMBQuantizeConversion"
+            "SplittingTensorsAcrossClusters"
         ]
     },
     "dma": {
         "Singular" : [
             "SetDpuTasksMemoryLocation",
-            "SetUPATasksMemoryLocation",
             "ResolveImplicitOperations",
-            "AddDPUTasksWeightsDMATasks",
-            "AddUPATasksExtraInputsDMATasks",
-            "GenerateSparsityMapsUnpopulatedTensors"
+            "AddWeightsDMATasks",
+            "EnsureSplitStrategiesForSpilling"
         ]
     },
     "control_flows":{
@@ -216,7 +212,7 @@
             },
             "TransitiveReduction",
             "LayerNumbering",
-            "NNCMX2DDRControlFlows",
+            "cmx2DDRControlFlows",
             "TransitiveReduction"
         ]
     },

@@ -124,6 +124,7 @@ std::vector<std::size_t> mv::Order::indToSub(const Shape &s, std::size_t idx) co
 
 }
 
+
 std::vector<unsigned> mv::Order::computeWordStrides(const Shape &shape) const
 {
     unsigned n = shape.ndims();
@@ -134,6 +135,7 @@ std::vector<unsigned> mv::Order::computeWordStrides(const Shape &shape) const
 
     return realStrides;
 }
+
 
 std::vector<unsigned> mv::Order::computeByteStrides(const Shape &s, unsigned dataSize) const
 {

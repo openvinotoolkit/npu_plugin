@@ -31,12 +31,10 @@ namespace mv
             outputs.push_back(mv::Tensor(":0", inputs[0]->getShape(), inputs[0]->getDType(), inputs[0]->getOrder()));
 
         };
-        
 
     }
 
     namespace op {
-
         //NOTE: Myriad X only can recieve bias and size parameters for LRN
         MV_REGISTER_OP(LocalResponseNormalization)
         .setInputs({"data"})

@@ -4,10 +4,12 @@
 #include "include/mcm/utils/custom_math.hpp"
 #include "include/mcm/pass/pass_utils.hpp"
 
+const size_t FULLY_CONNECTED_KERNEL = 1;
 
 static void fullyConnectedAsConv2DFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void standaloneActivationAsPostOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void tensorsToFP16Fcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+static void tensorsToU8Fcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void averageAsDepthWiseFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 
 namespace mv
@@ -20,6 +22,12 @@ namespace mv
         .setFunc(tensorsToFP16Fcn)
         .setDescription(
             "Replaces full precision tensors with FP16 tensors"
+        );
+
+        MV_REGISTER_PASS(TensorsToU8)
+        .setFunc(tensorsToU8Fcn)
+        .setDescription(
+            "Replaces quantized int8 tensors with U8 tensors"
         );
 
          MV_REGISTER_PASS(FullyConnectedAsConv2D)
@@ -49,20 +57,23 @@ mv::Data::OpListIterator linkNewOperationsReplacement(mv::Data::OpListIterator p
     //Important: do not change the order of this ops
     std::vector<mv::Data::OpListIterator> opsToLink;
     std::vector<std::size_t> inputSlots;
-    for (mv::Data::FlowSiblingIterator sinkFlow(opIt.leftmostOutput()); sinkFlow != om.flowEnd(); ++sinkFlow)
+    for (auto sinkFlow = opIt.leftmostOutput(); sinkFlow != om.flowEnd(); ++sinkFlow)
     {
         opsToLink.push_back(sinkFlow.sink());
         inputSlots.push_back(sinkFlow->get<std::size_t>("sinkInput"));
     }
 
-    while(opIt.parentsSize() > 1)
+    auto paramOp = opIt.leftmostParent();
+    while(paramOp != om.opEnd())
     {
-        auto paramOp = opIt.leftmostParent();
-
-        if (paramOp->getOpType() == "Constant" || paramOp->getOpType() == "ConstantInt" || paramOp->getOpType() == "ConstantDouble")
+        if (paramOp->getOpType() == "Constant" || paramOp->getOpType() == "ConstantInt" || paramOp->getOpType() == "ConstantDataElement")
         {
-            om.removeOp(paramOp);
+            auto backUp = paramOp;
+            ++paramOp;
+            om.removeOp(backUp);
         }
+        else
+            ++paramOp;
     }
 
     om.removeOp(opIt);
@@ -129,6 +140,43 @@ void tensorsToFP16Fcn(const mv::pass::PassEntry&  , mv::ComputationModel& model,
     }
 }
 
+// Pass logic:
+// Runtime will handle the input, we uniform all the rest to UInt8
+void tensorsToU8Fcn(const mv::pass::PassEntry&  , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+{
+    mv::OpModel om(model);
+
+    int64_t zeroPointShift = 128;
+    auto sourceDType = mv::DType("Int8");
+    auto targetDType = mv::DType("UInt8");
+
+    auto kernelOp = om.getInput();
+    auto inputType = kernelOp->getOutputTensor(0)->getDType();
+    if(inputType == mv::DType("Int8"))
+        throw std::runtime_error("Compiler doesn't support I8 inputs for the moment, please rescale your data to U8");
+
+    for (; kernelOp != om.opEnd(); ++kernelOp)
+    {
+        if(kernelOp.outputsSize() > 0)
+        {
+            auto outputTensor = kernelOp->getOutputTensor(0);
+            if(outputTensor->get<mv::DType>("dType") == sourceDType)
+            {
+                mv::DType newType = targetDType;
+                outputTensor->setDType(newType);
+                auto& quantParams = outputTensor->get<mv::QuantizationParams>("quantParams");
+                auto& quantParamsZp = quantParams.getZeroPoint();
+                for(auto& zp: quantParamsZp)
+                    zp += zeroPointShift;
+                kernelOp->set<mv::DType>("dType",  newType);
+                if (outputTensor->isPopulated())
+                    for(unsigned i = 0; i < outputTensor->size(); ++i)
+                        outputTensor->at(i) += zeroPointShift;
+            }
+        }
+    }
+}
+
 void fullyConnectedAsConv2DFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
 
@@ -136,58 +184,54 @@ void fullyConnectedAsConv2DFcn(const mv::pass::PassEntry& pass, mv::ComputationM
     using namespace mv;
 
     OpModel om(model);
-    DataModel dm(model);
 
-    for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt)
+    auto fullyConnectedOps = om.getOps("FullyConnected");
+
+    for (auto& opIt : fullyConnectedOps)
     {
+        auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
 
-        if (opIt->getOpType() == "FullyConnected")
+        pass.log(Logger::MessageType::Debug, "Found FullyConnected op " + opIt->getName());
+
+        auto sourceTensor = opIt->getInputTensor(0);
+        auto parentOpIt = om.getSourceOp(sourceTensor);
+        auto weightsData = opIt->getInputTensor(1)->getData();
+        auto inputShape = sourceTensor->getShape();
+        mv::QuantizationParams weightsTensorQuantizationParams = {{},{},{},{}};
+        mv::QuantizationParams outputTensorQuantizationParams = {{},{},{},{}};
+
+        if (opIt->getInputTensor(1)->isQuantized())
         {
-            auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
+            weightsTensorQuantizationParams = opIt->getInputTensor(1)->get<mv::QuantizationParams>("quantParams");
+            outputTensorQuantizationParams = opIt->getOutputTensor(0)->get<mv::QuantizationParams>("quantParams");
+        }
+        auto weights = om.constantDataElement(weightsData, {FULLY_CONNECTED_KERNEL, FULLY_CONNECTED_KERNEL, inputShape[mv::IO_CHANNEL_DIMENSION],
+        opIt->getInputTensor(1)->getShape()[mv::IO_HEIGHT_DIMENSION]}, sourceTensor->getDType(),
+        mv::Order::getZMajorID(4), weightsTensorQuantizationParams, opIt->getName() + "_weights");
+        auto outputTensorType = opIt->getOutputTensor(0)->get<mv::DType>("dType");
 
-            pass.log(Logger::MessageType::Debug, "Found FullyConnected op " + opIt->getName());
+        auto conv2D = om.conv(sourceTensor, weights, {1, 1}, {0, 0, 0, 0}, 1, 1, outputTensorType, outputTensorQuantizationParams,  opIt->getName() + "_2DConv");
+        pass.log(Logger::MessageType::Info, "Replaced FullyConnected op " + opIt->getName() + " with " + conv2D->getName());
 
-            auto parentOpIt = om.getSourceOp(opIt->getInputTensor(0));
-            auto sourceTensor = parentOpIt->getOutputTensor(0);
-            auto weightsData = opIt->getInputTensor(1)->getData();
-            auto inputShape = sourceTensor->getShape();
-            mv::QuantizationParams weightsTensorQuantizationParams = {{},{},{},{}};
-            mv::QuantizationParams outputTensorQuantizationParams = {{},{},{},{}};
-
-            if (opIt->getInputTensor(1)->isQuantized())
-            {
-                weightsTensorQuantizationParams = opIt->getInputTensor(1)->get<mv::QuantizationParams>("quantParams");
-                outputTensorQuantizationParams = opIt->getOutputTensor(0)->get<mv::QuantizationParams>("quantParams");
-            }
-            auto weights = om.constantDataElement(weightsData, {inputShape[mv::IO_WIDTH_DIMENSION], inputShape[mv::IO_HEIGHT_DIMENSION], inputShape[mv::IO_CHANNEL_DIMENSION],
-                opIt->getInputTensor(1)->getShape()[mv::IO_HEIGHT_DIMENSION]}, sourceTensor->getDType(),
-                mv::Order::getZMajorID(4), weightsTensorQuantizationParams, opIt->getName() + "_weights");
-
-
-            auto conv2D = om.conv(sourceTensor, weights, {1, 1}, {0, 0, 0, 0}, 1, 1, mv::DType("Default"), outputTensorQuantizationParams,  opIt->getName() + "_2DConv");
-            pass.log(Logger::MessageType::Info, "Replaced FullyConnected op " + opIt->getName() + " with " + conv2D->getName());
-
-            if (opIt->hasAttr("bias"))
-            {
-                auto biasTensorName = opIt->get<std::string>("bias");
-                om.addAttr(om.getSourceOp(conv2D), "bias", biasTensorName);
-                pass.log(Logger::MessageType::Info, "Moved Bias attribute of FullyConnected op " + opIt->getName() + " to " + conv2D->getName());
-            }
-
-            auto convOp = om.getSourceOp(conv2D);
-            auto weightsOp = om.getSourceOp(weights);
-
-            if(opIt->hasAttr("opId"))
-            {
-                unsigned currentOpId = opIt->get<unsigned>("opId");
-                weightsOp->set<unsigned>("opId", currentOpId);
-                convOp->set<unsigned>("opId", currentOpId);
-            }
-
-            opIt = linkNewOperationsReplacement(parentOpIt, conv2D, om, opIt);
-            conv2D->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
+        if (opIt->hasAttr("bias"))
+        {
+            auto biasTensorName = opIt->get<std::string>("bias");
+            om.addAttr(om.getSourceOp(conv2D), "bias", biasTensorName);
+            pass.log(Logger::MessageType::Info, "Moved Bias attribute of FullyConnected op " + opIt->getName() + " to " + conv2D->getName());
         }
 
+        auto convOp = om.getSourceOp(conv2D);
+        auto weightsOp = om.getSourceOp(weights);
+
+        if(opIt->hasAttr("opId"))
+        {
+            unsigned currentOpId = opIt->get<unsigned>("opId");
+            weightsOp->set<unsigned>("opId", currentOpId);
+            convOp->set<unsigned>("opId", currentOpId);
+        }
+
+        linkNewOperationsReplacement(parentOpIt, conv2D, om, opIt);
+        conv2D->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
     }
 }
 
@@ -195,9 +239,8 @@ void standaloneActivationAsPostOpsFcn(const mv::pass::PassEntry& pass, mv::Compu
 {
 
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
-    using namespace mv;
 
-    OpModel om(model);
+    mv::OpModel om(model);
 
     for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt)
     {
@@ -206,14 +249,14 @@ void standaloneActivationAsPostOpsFcn(const mv::pass::PassEntry& pass, mv::Compu
 
         if(!targetDescriptor.opSupported(opType) && targetDescriptor.opSupportedAsPostOp(opType))
         {
-            pass.log(Logger::MessageType::Debug, "Found " + opType + " - " + opIt->getName());
+            pass.log(mv::Logger::MessageType::Debug, "Found " + opType + " - " + opIt->getName());
 
             auto parentOpIt = om.getSourceOp(opIt->getInputTensor(0));
             auto sourceTensor = parentOpIt->getOutputTensor(0);
 
             auto parentOpItType = parentOpIt->getOpType();
 
-            Data::OpListIterator opToUse;
+            mv::Data::OpListIterator opToUse;
 
             //Input, Costant, Concat are not real operations, so we need to introduce an identity op
             if(parentOpItType == "Input" ||
@@ -223,13 +266,13 @@ void standaloneActivationAsPostOpsFcn(const mv::pass::PassEntry& pass, mv::Compu
                 sourceTensor = om.identity(sourceTensor);
                 auto identityOp = om.getSourceOp(sourceTensor);
                 opToUse = identityOp;
-                pass.log(Logger::MessageType::Info, "Replaced " + opType + " with identity+postOp " + opToUse->getName());
+                pass.log(mv::Logger::MessageType::Info, "Replaced " + opType + " with identity+postOp " + opToUse->getName());
 
             }
             else //no need for identity op, everything can be attached directly to previous op
             {
                 opToUse = parentOpIt;
-                pass.log(Logger::MessageType::Info, "Replaced " + opType + " by fusing it as a postOp to " + opToUse->getName());
+                pass.log(mv::Logger::MessageType::Info, "Replaced " + opType + " by fusing it as a postOp to " + opToUse->getName());
             }
 
             opToUse->set("postOpType", opType);
@@ -252,93 +295,92 @@ void averageAsDepthWiseFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
 {
 
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
-    using namespace mv;
 
-    OpModel om(model);
-    DataModel dm(model);
+    mv::OpModel om(model);
+    mv::DataModel dm(model);
 
-    for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt)
+    auto averagePoolOps = om.getOps("AveragePool");
+
+    for (auto& opIt : averagePoolOps)
     {
-        if (opIt->getOpType() == "AveragePool")
+        pass.log(mv::Logger::MessageType::Debug, "Found AveragePool op " + opIt->getName());
+
+        auto sourceTensor = opIt->getInputTensor(0);
+        auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
+
+        auto parentOpIt = om.getSourceOp(sourceTensor);
+
+        auto inputShape = sourceTensor->getShape();
+        std::array<unsigned short, 2> kSize = opIt->get<std::array<unsigned short, 2>>("kSize");
+        std::array<unsigned short, 2> stride = opIt->get<std::array<unsigned short, 2>>("stride");
+        std::array<unsigned short, 4> padding = opIt->get<std::array<unsigned short, 4>>("padding");
+
+        unsigned int total_shape = 1 * inputShape[mv::IO_CHANNEL_DIMENSION] * kSize[1] * kSize[0];
+        double scaleValue = 1/double(kSize[0] * kSize[1]);
+
+        unsigned short channel_multiplier = 1;
+
+        auto name = opIt->getName();
+        mv::Data::TensorIterator weights;
+        std::vector<int64_t> zp = { 0 };
+        std::vector<double> min = { 1 };
+        std::vector<double> max = { 1 };
+
+        std::vector<double> scale(1, scaleValue);
+        mv::QuantizationParams weightsQuantParams(zp, scale, min, max);
+
+        if (sourceTensor->isDoubleType())
         {
-            pass.log(Logger::MessageType::Debug, "Found AveragePool op " + opIt->getName());
-
-            auto sourceTensor = opIt->getInputTensor(0);
-            auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
-
-            auto parentOpIt = om.getSourceOp(sourceTensor);
-
-            auto inputShape = sourceTensor->getShape();
-            std::array<unsigned short, 2> kSize = opIt->get<std::array<unsigned short, 2>>("kSize");
-            std::array<unsigned short, 2> stride = opIt->get<std::array<unsigned short, 2>>("stride");
-            std::array<unsigned short, 4> padding = opIt->get<std::array<unsigned short, 4>>("padding");
-
-            unsigned int total_shape = 1 * inputShape[mv::IO_CHANNEL_DIMENSION] * kSize[1] * kSize[0];
-            double value = 1/double(kSize[0] * kSize[1]);
-
-            unsigned short channel_multiplier = 1;
-
-            auto name = opIt->getName();
-            mv::Data::TensorIterator weights;
-            if (sourceTensor->isDoubleType())
-            {
-                pass.log(Logger::MessageType::Debug, "Input tensor not quantized, generating non-quantized weights");
-                std::vector<double> weightsData(total_shape, value);
-                weights = om.constant(weightsData,
-                                    {kSize[0], kSize[1], inputShape[mv::IO_CHANNEL_DIMENSION], channel_multiplier},
-                                    sourceTensor->getDType(),
-                                    Order(Order::getRowMajorID(4)));
-            }
-            else
-            {
-                pass.log(Logger::MessageType::Debug, "Input tensor quantized, generating quantized weights");
-                // If the input model is quantized, then the replacement pass needs to create
-                // quantization params for the weights parameter of the depthwise convolution.
-                int64_t weightsVal = 1;
-                std::vector<int64_t> weightsData(total_shape, weightsVal);
-
-                std::vector<int64_t> zp = { 0 };
-                std::vector<double> scale(1, value);
-                std::vector<double> min = { 1 };
-                std::vector<double> max = { 1 };
-                mv::QuantizationParams weightsQuantParams(zp, scale, min, max);
-
-                weights = om.constantInt(weightsData,
-                                    {kSize[0], kSize[1], inputShape[mv::IO_CHANNEL_DIMENSION], channel_multiplier},
-                                    sourceTensor->getDType(),
-                                    Order(Order::getRowMajorID(4)),
-                                    weightsQuantParams);
-            }
-
-            //Check the last argument name!!!
-            mv::Data::TensorIterator depthwise_conv;
-            if (sourceTensor->isQuantized())
-            {
-                pass.log(Logger::MessageType::Debug, "Passing quantization params from input to output");
-                auto quantParams = opIt->get<mv::QuantizationParams>("quantParams");
-                // use default dilation factor
-                depthwise_conv = om.depthwiseConv(sourceTensor, weights, stride, padding, 1, mv::DType("Default"), quantParams, name + "_DepthwiseConv");
-            }
-            else
-            {
-                pass.log(Logger::MessageType::Debug, "No need for quantization params, since input is of a floating point type");
-                mv::QuantizationParams emptyQuantParams({{}, {}, {}, {}});
-                depthwise_conv = om.depthwiseConv(sourceTensor, weights, stride, padding, 1, mv::DType("Default"), emptyQuantParams, name + "_DepthwiseConv");
-            }
-
-            auto depthwiseConvOp = om.getSourceOp(depthwise_conv);
-            auto weightsOp = om.getSourceOp(weights);
-
-            if(opIt->hasAttr("opId"))
-            {
-                unsigned currentOpId = opIt->get<unsigned>("opId");
-                weightsOp->set<unsigned>("opId", currentOpId);
-                depthwiseConvOp->set<unsigned>("opId", currentOpId);
-            }
-            pass.log(Logger::MessageType::Info, "Replaced AveragePool op " + opIt->getName() + " with " + depthwise_conv->getName());
-            depthwise_conv->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
-            opIt = linkNewOperationsReplacement(parentOpIt, depthwise_conv, om, opIt);
-
+            double weightsValue = 1;
+            std::vector<double> weightsData(total_shape, weightsValue);
+            //NOTE: Weights have to be 1 and scale division, cause of better hardware accuracy
+            pass.log(mv::Logger::MessageType::Debug, "Input tensor not quantized, generating non-quantized weights");
+            weights = om.constant(weightsData,
+                                {kSize[0], kSize[1], inputShape[mv::IO_CHANNEL_DIMENSION], channel_multiplier},
+                                sourceTensor->getDType(),
+                                mv::Order(mv::Order::getRowMajorID(4)), weightsQuantParams);
         }
+        else
+        {
+            int64_t weightsValue = 1;
+            std::vector<int64_t> weightsData(total_shape, weightsValue);
+            pass.log(mv::Logger::MessageType::Debug, "Input tensor quantized, generating quantized weights");
+            // If the input model is quantized, then the replacement pass needs to create
+            // quantization params for the weights parameter of the depthwise convolution.
+            weights = om.constantInt(weightsData,
+                                {kSize[0], kSize[1], inputShape[mv::IO_CHANNEL_DIMENSION], channel_multiplier},
+                                sourceTensor->getDType(),
+                                mv::Order(mv::Order::getRowMajorID(4)),
+                                weightsQuantParams);
+        }
+
+        //Check the last argument name!!!
+        mv::Data::TensorIterator depthwise_conv;
+        if (sourceTensor->isQuantized())
+        {
+            pass.log(mv::Logger::MessageType::Debug, "Passing quantization params from input to output");
+            auto quantParams = opIt->get<mv::QuantizationParams>("quantParams");
+            // use default dilation factor
+            depthwise_conv = om.depthwiseConv(sourceTensor, weights, stride, padding, 1, mv::DType("Default"), quantParams, name + "_DepthwiseConv");
+        }
+        else
+        {
+            pass.log(mv::Logger::MessageType::Debug, "No need for quantization params, since input is of a floating point type");
+            mv::QuantizationParams emptyQuantParams({{}, {}, {}, {}});
+            depthwise_conv = om.depthwiseConv(sourceTensor, weights, stride, padding, 1, mv::DType("Default"), emptyQuantParams, name + "_DepthwiseConv");
+        }
+
+        auto depthwiseConvOp = om.getSourceOp(depthwise_conv);
+        auto weightsOp = om.getSourceOp(weights);
+
+        if(opIt->hasAttr("opId"))
+        {
+            unsigned currentOpId = opIt->get<unsigned>("opId");
+            weightsOp->set<unsigned>("opId", currentOpId);
+            depthwiseConvOp->set<unsigned>("opId", currentOpId);
+        }
+        pass.log(mv::Logger::MessageType::Info, "Replaced AveragePool op " + opIt->getName() + " with " + depthwise_conv->getName());
+        depthwise_conv->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
+        linkNewOperationsReplacement(parentOpIt, depthwise_conv, om, opIt);
     }
 }

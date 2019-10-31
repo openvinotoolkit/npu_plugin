@@ -35,12 +35,10 @@ namespace mv
                 outputs.push_back(mv::Tensor(":0",  inputs[0]->getShape(), dTypeToUse, inputs[0]->getOrder(), args.at("quantParams").get<mv::QuantizationParams>()));
 
         };
-    
 
     }
 
     namespace op {
-
         MV_REGISTER_OP(Multiply)
         .setInputs({"inputs"})
         .setOutputs({"output"})

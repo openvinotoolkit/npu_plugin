@@ -155,11 +155,19 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                 opIt->set<std::string>("Depthwise_SOH_A0_bug", "True");
             }
 
+            // Mixed precision A0/B0 workaround
+            auto inputDType = opIt->getInputTensor(0)->getDType();
+            auto outputDType = opIt->getOutputTensor(0)->getDType();
+            bool mixedPrecisionA0B0WorkAround = false;
+
+            if(inputDType != outputDType)
+                mixedPrecisionA0B0WorkAround = true;
+
             /*For multi-clustering we work on subtensors*/
             for(clusterNumber = 0; clusterNumber < nClusters; clusterNumber++)
             {
                 /*get the subtensor*/
-                auto subTensor = opIt->getOutputTensor()[0]->getSubTensor(clusterNumber);
+                auto subTensor = opIt->getOutputTensor(0)->getSubTensor(clusterNumber);
 
                 /* Check if subtensor needs to be aligned to 16 channels*/
                 auto subTensorShape = subTensor.getShape();
@@ -170,7 +178,7 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                     subTensorShape[mv::IO_CHANNEL_DIMENSION] = outputChannelsPadded;
                 }
 
-                /*Sparse tensors don't use z-tiling*/
+                /* Sparse tensors don't use z-tiling*/
                 /* This should be moved to a target descriptor*/
                 if(subTensor.isSparse())
                     algorithms = {"Rectangle"};
@@ -184,6 +192,13 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                     nWorkloadsSplitPool.push_back(nWorkloadsCompilationDescriptor);
                 else
                     nWorkloadsSplitPool = mv::Workloads::getWorkloadSplitPool(subTensor, nDPUxCluster, dpuModes, 50);
+
+                if(mixedPrecisionA0B0WorkAround)
+                {
+                    nWorkloadsSplitPool.clear();
+                    nWorkloadsSplitPool.push_back(subTensorShape[0]*subTensorShape[1]);
+                    algorithms = {"MixedPrecisionA0B0WorkAround"};
+                }
 
                 /*if Deptwise operation and SOH trategy, for A0 bug then add these number of worklaods to workload split pool*/
                 if((opIt->get<std::string>("taskOp") == "DepthwiseConv") && (!nWorkloadsCompilationDescriptor))
@@ -203,6 +218,28 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                     /*For each of the algorithms specified*/
                     for (std::string algorithm : algorithms)
                     {
+                        if(algorithm == "MixedPrecisionA0B0WorkAround")
+                        {
+                            workloadsVector.emplace_back(mv::Workloads(opIt->getName(), subTensorShape));
+                            auto& workloads = workloadsVector[workloadsVectorIndex];
+                            for(unsigned w = 0; w < subTensorShape[0]; ++w)
+                            {
+                                for(unsigned h = 0; h < subTensorShape[1]; ++h)
+                                {
+                                    mv::Workload toAdd;
+                                    toAdd.MinX = w;
+                                    toAdd.MaxX = w;
+                                    toAdd.MinY = h;
+                                    toAdd.MaxY = h;
+                                    toAdd.MinZ = 0;
+                                    toAdd.MaxZ = subTensorShape[2]-1;
+                                    toAdd.MPEMode = mv::MPE_Mode::Vector_FP16;
+                                    workloads.addWorkload(toAdd);
+                                }
+                            }
+                            workloadsVectorIndex++;
+
+                        }
                         if ((algorithm == "Rectangle") && ((!depthWiseSOHA0Workaround) || nWorkloads > 1))
                         {
                             /*Create workload instance*/

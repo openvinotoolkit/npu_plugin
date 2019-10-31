@@ -29,6 +29,7 @@ namespace mv
 
         std::string getLogID() const override;
         unsigned getSizeInBits() const;
+        unsigned getSizeInBytes() const;
         bool isDoubleType() const;
     };
 

@@ -723,6 +723,7 @@ void mv::op::OpRegistry::generateCompositionAPI(const std::string& eol, const st
     incStream << "#include \"include/mcm/computation/model/iterator/data_context.hpp\"" << eol;
     incStream << "#include \"include/mcm/computation/model/iterator/tensor.hpp\"" << eol << eol;
     incStream << "#include \"include/mcm/tensor/quantization_params.hpp\"" << eol << eol;
+    incStream <<  "static double inf = std::numeric_limits<double>::infinity();" << eol << eol;
 
     incStream << "namespace mv" << eol << eol;
     incStream << "{" << eol << eol;
@@ -862,6 +863,7 @@ void mv::op::OpRegistry::generateCompositionAPI(const std::string& eol, const st
 // Define all OPs in a single compilation unit. //
 
 #include    "src/computation/op/def/add.cpp"
+#include    "src/computation/op/def/power.cpp"
 #include    "src/computation/op/def/align.cpp"
 #include    "src/computation/op/def/average_pool.cpp"
 #include    "src/computation/op/def/batch_normalization.cpp"
@@ -885,6 +887,8 @@ void mv::op::OpRegistry::generateCompositionAPI(const std::string& eol, const st
 #include    "src/computation/op/def/local_response_normalization.cpp"
 #include    "src/computation/op/def/matmul.cpp"
 #include    "src/computation/op/def/max_pool.cpp"
+#include    "src/computation/op/def/minimum.cpp"
+#include    "src/computation/op/def/maximum.cpp"
 #include    "src/computation/op/def/multiply.cpp"
 #include    "src/computation/op/def/normalize.cpp"
 #include    "src/computation/op/def/output.cpp"

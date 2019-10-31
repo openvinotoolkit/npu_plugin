@@ -63,8 +63,8 @@ const std::unordered_map<mv::PPELayerTypeEnum, MVCNN::PPELayerType, mv::EnumClas
    {PPELayerType_ADD, MVCNN::PPELayerType::PPELayerType_ADD},
    {PPELayerType_SUB, MVCNN::PPELayerType::PPELayerType_SUB},
    {PPELayerType_MULT, MVCNN::PPELayerType::PPELayerType_MULT},
-   {PPELayerType_LRELU, MVCNN::PPELayerType::PPELayerType_LRELU},
-   {PPELayerType_LRELUX, MVCNN::PPELayerType::PPELayerType_LRELUX},
+   {PPELayerType_RELU, MVCNN::PPELayerType::PPELayerType_RELU},
+   {PPELayerType_RELUX, MVCNN::PPELayerType::PPELayerType_RELUX},
    {PPELayerType_LPRELU, MVCNN::PPELayerType::PPELayerType_LPRELU},
    {PPELayerType_MAXIMUM, MVCNN::PPELayerType::PPELayerType_MAXIMUM},
    {PPELayerType_MINIMUM, MVCNN::PPELayerType::PPELayerType_MINIMUM},
@@ -92,10 +92,20 @@ void setIfPresent(T1& fieldToFill, mv::Element& compilationDescriptor, const std
         fieldToFill = compilationDescriptor.get<T2>(key);
 }
 
+int computeAppropriatePadding(mv::Tensor tensor)
+{
+    int pad;
+    if (tensor.getDType() == mv::DType("Float16"))
+        pad = 8;
+    else if (tensor.getDType() == mv::DType("UInt8"))
+        pad = 16;
+    return pad;
+}
+
 void mv::RuntimeModel::alignTensor(mv::ComputationModel& cm, std::unique_ptr<MVCNN::TensorReferenceT>& tensorT, mv::Tensor& tensor, bool padFinalOutput)
 {
         auto globalConfigParams = cm.getGlobalConfigParams();
-        int pad = globalConfigParams->hasAttr("VPU2ChannelPadding") ? globalConfigParams->get<int>("VPU2ChannelPadding") : 16;
+        int pad = computeAppropriatePadding(tensor);
         std::vector<std::size_t> dimensions = tensor.getShape();
         auto outputChannelsPadded = mv::round_up(dimensions[mv::IO_CHANNEL_DIMENSION], pad);
         dimensions = {dimensions[mv::IO_WIDTH_DIMENSION], dimensions[mv::IO_HEIGHT_DIMENSION], outputChannelsPadded, dimensions[mv::IO_BATCH_DIMENSION]};
@@ -225,7 +235,9 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     {
         toBuild->data->data_index = 0;
         auto strides = tensorBufferIt->getStrides();
-        auto leading_offset = strides[0] / tensorBufferIt->getDataTypeSize();
+        //NOTΕ: Leading offset Computation ???
+//        auto leading_offset = strides[0] / tensorBufferIt->getDataTypeSize();
+        auto leading_offset = strides[0];
         toBuild->locale_index = std::vector<unsigned int>(1,0);
         if (leading_offset)
             toBuild->data->data_index += leading_offset;
@@ -234,7 +246,8 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     else
     {
         auto strides = tensorBufferIt->getStrides();
-        auto leading_offset = strides[0] / tensorBufferIt->getDataTypeSize(); //for some reason we get double the value, for now take the proper one.
+//        auto leading_offset = strides[0] / tensorBufferIt->getDataTypeSize(); //for some reason we get double the value, for now take the proper one.
+        auto leading_offset = strides[0]; //for some reason we get double the value, for now take the proper one.
         toBuild->locale_index = std::vector<unsigned int>(1,0);
 
         // This part is for concat
@@ -370,7 +383,7 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
         toBuild->data->data_index = starting_address + byte_index;
 
         auto strides = tensorBufferIt->getStrides();
-        auto leading_offset = strides[0] / tensorBufferIt->getDataTypeSize();
+        auto leading_offset = strides[0];
         toBuild->locale_index = std::vector<unsigned int>(1,0);
         if (leading_offset)
             toBuild->data->data_index += leading_offset;
@@ -862,6 +875,8 @@ std::unique_ptr<MVCNN::PPEFixedFunctionT> mv::RuntimeModel::buildPPEFixedFunctio
         toBuild->Ops[i] = convertPPELayerType(layers[i]);
     toBuild->Clamp_Low = ppeFixedFunction.getLowClamp();
     toBuild->Clamp_High = ppeFixedFunction.getHighClamp();
+    toBuild->Lrelu_Mult = ppeFixedFunction.getLReluMult();
+    toBuild->Lrelu_Shift = ppeFixedFunction.getLReluShift();
 
     return toBuild;
 }
@@ -884,7 +899,9 @@ std::unique_ptr<MVCNN::PPETaskT> mv::RuntimeModel::buildPPETaskT()
     toBuild->fixed_function->Clamp_High = 2147483647;
     toBuild->fixed_function->Clamp_Low = -2147483648;
     toBuild->fixed_function->Ops = std::vector<MVCNN::PPELayerType>();
-    toBuild->fixed_function->Ops.reserve(3);
+    toBuild->fixed_function->Lrelu_Mult = 1;
+    toBuild->fixed_function->Lrelu_Shift = 0;
+    toBuild->fixed_function->Ops.reserve(5);
 
     return toBuild;
 }

@@ -30,7 +30,6 @@ namespace mv
             outputs.push_back(mv::Tensor(":0", inputs[0]->getShape(), inputs[0]->getDType(), inputs[0]->getOrder()));
 
         };
-    
     }
 
     namespace op {

@@ -24,7 +24,6 @@ namespace mv
             outputs.push_back(mv::Tensor(":0", inputs[0]->getShape(), inputs[0]->getDType(), args.at("order").get<Order>()));
 
         };
-    
 
     }
 

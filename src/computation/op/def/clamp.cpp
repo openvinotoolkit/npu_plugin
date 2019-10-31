@@ -36,12 +36,10 @@ namespace mv
             outputs.push_back(mv::Tensor(":0", inputs[0]->getShape(), inputs[0]->getDType(), inputs[0]->getOrder()));
 
         };
-    
 
     }
 
     namespace op {
-
         MV_REGISTER_OP(Clamp)
         .setInputs({"data"})
         .setOutputs({"output"})

@@ -3,7 +3,7 @@
 namespace mv
 {
 
-    namespace op_add
+    namespace op_power
     {
 
         static std::function<std::pair<bool, std::size_t>(const std::vector<Data::TensorIterator>&,
@@ -35,14 +35,14 @@ namespace mv
     }
 
     namespace op {
-        MV_REGISTER_OP(Add)
+        MV_REGISTER_OP(Power)
         .setInputs({"inputs"})
         .setOutputs({"output"})
         .setOptionalArg<mv::DType>("dType", mv::DType("Default"))
         .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
         .setInputCheck(op_add::inputCheckFcn)
         .setOutputDef(op_add::outputDefFcn)
-        .setTypeTrait({"executable", "exposed", "optimizable"})
+        .setTypeTrait({"executable", "exposed"})
         .setVariableInputNum(true);
 
     }

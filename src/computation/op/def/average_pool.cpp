@@ -91,7 +91,7 @@ namespace mv
         .setArg<std::array<unsigned short, 2>>("stride")
         .setArg<std::array<unsigned short, 4>>("padding")
         .setOptionalArg<bool>("exclude_pad", true)
-        .setOptionalArg<std::string>("auto_pad",      op_average_pool::default_auto_pad)      // default: ""
+        .setOptionalArg<std::string>("auto_pad", op_average_pool::default_auto_pad)      // default: ""
         .setOptionalArg<std::string>("rounding_type", op_average_pool::default_rounding_type) // default: "floor"
         .setOptionalArg<mv::DType>("dType", mv::DType("Default"))
         .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
