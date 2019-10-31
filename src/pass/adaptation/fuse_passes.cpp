@@ -36,20 +36,14 @@ void fusePostOpsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
     OpModel om(model);
     DataModel dm(model);
 
-    std::size_t bias_nodes, sigmoid_nodes, relu_nodes, leakyRelu_nodes, power_nodes, minimum_nodes, maximum_nodes;
-    bias_nodes = sigmoid_nodes = relu_nodes = leakyRelu_nodes = power_nodes = minimum_nodes = maximum_nodes = 0;
     std::vector<std::string> fuse_types = {"Bias", "Sigmoid", "Relu", "LeakyRelu", "Power", "MinimumDouble",
                                            "MinimumInt", "MaximumDouble", "MaximumInt"};
     std::unordered_map<std::string, std::vector<mv::Data::OpListIterator>> operationsOfType = om.getOpsOfTypes(fuse_types);
-    bias_nodes = operationsOfType["Bias"].size();
-    sigmoid_nodes = operationsOfType["Sigmoid"].size();
-    relu_nodes = operationsOfType["Relu"].size();
-    leakyRelu_nodes = operationsOfType["LeakyRelu"].size();
-    power_nodes = operationsOfType["Power"].size();
-    minimum_nodes = operationsOfType["MinimumDouble"].size();
-    minimum_nodes += operationsOfType["MinimumInt"].size();
-    maximum_nodes = operationsOfType["MaximumDouble"].size();
-    maximum_nodes += operationsOfType["MaximumInt"].size();
+    std::size_t totalPPETasks = 0;
+    for (auto it = operationsOfType.begin(); it != operationsOfType.end(); it++)
+    {
+        totalPPETasks += it->second.size();
+    }
 
     UNUSED(fuseScaleFcn);
     UNUSED(fuseBatchNormFcn);
@@ -60,23 +54,6 @@ void fusePostOpsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
     auto fusePower = [](mv::Data::OpListIterator &opIt, mv::ComputationModel& cm, std::string &empty){ return fuseUsualPPEFcn(opIt, cm, empty);};
     auto fuseMinimum = [](mv::Data::OpListIterator &opIt, mv::ComputationModel& cm, std::string &empty){ return fuseMinimumFcn(opIt, cm, empty);};
     auto fuseMaximum = [](mv::Data::OpListIterator &opIt, mv::ComputationModel& cm, std::string &empty){ return fuseMaximumFcn(opIt, cm, empty);};
-
-    std::unordered_map<std::string, std::size_t> nodesNumberMap =
-                                       {{"Bias", bias_nodes},
-                                        {"Sigmoid", sigmoid_nodes},
-                                        {"Relu", relu_nodes},
-                                        {"LeakyRelu", leakyRelu_nodes},
-                                        {"Power", power_nodes},
-                                        {"MinimumDouble", minimum_nodes},
-                                        {"MinimumInt", minimum_nodes},
-                                        {"MaximumDouble", maximum_nodes},
-                                        {"MaximumInt", maximum_nodes}};
-
-    std::size_t totalPPETasks = 0;
-    for (auto it = nodesNumberMap.begin(); it != nodesNumberMap.end(); it++)
-    {
-        totalPPETasks += it->second;
-    }
 
     std::unordered_map<std::string, std::function<void(mv::Data::OpListIterator &, mv::ComputationModel& , std::string &)>> fuseTaskMap =
                                        {{"Bias", fuseBias},
