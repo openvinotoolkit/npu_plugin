@@ -1401,8 +1401,7 @@ MVCNN::UPALayerTaskT *mv::RuntimeModel::buildUPANormalizeTask(ComputationModel &
     toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input)));
 
     toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
-    toBuild->weights_data = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(1));
-
+    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(1))));
 
     return toBuild;
 }
