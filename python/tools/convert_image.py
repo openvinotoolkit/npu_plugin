@@ -126,6 +126,7 @@ def parse_img(path, new_size, raw_scale=1, mean=None, channel_swap=None, dtype=n
         data = data[:, :, np.newaxis]
 
     data = skimage.transform.resize(data, new_size[2:], preserve_range=True).astype(dtype)
+    # transpose to channel major format
     data = np.transpose(data, (2, 0, 1))
     data = np.reshape(data, (1, data.shape[0], data.shape[1], data.shape[2]))
 
@@ -143,17 +144,15 @@ def convert_image(image, shape, dtype,
     width, height = im.size
 
     new_shape = [int(shape[0]),
-                 int(shape[3]),
+                 int(shape[1]),
                  int(shape[2]),
-                 int(shape[1])]
+                 int(shape[3])]
 
     input_data = parse_img(image, new_shape,
                             raw_scale=raw_scale,
                             mean=mean,
                             channel_swap=channel_swap,
                             dtype=dtype)
-
-    input_data = input_data.transpose([0, 3, 2, 1])
 
     return input_data
 
@@ -187,10 +186,12 @@ def main():
 
     processed_image = convert_image(args.image, image_shape, np.uint8)
     
+    # images are in NCHW format --> convert it to NCWH format. For whatever reason, this is what
+    # Fathom generates as input
+    processed_image = processed_image.transpose([0, 1, 3, 2])
+
     transposed_image = transpose_image(processed_image, True)
     
-    # save image in NCHW format
-    # converted_image = processed_image.transpose((0, 3, 1, 2))
     fp = open("converted_image.dat", "wb")
     fp.write ((transposed_image.flatten()).astype('uint8').data)
     fp.close
