@@ -39,6 +39,10 @@ if(ENABLE_VPUAL)
     find_package(vpualHost QUIET)
 endif()
 
+if(UNIX)
+    ie_add_compiler_flags(-Wno-undef)
+endif()
+
 if(ENABLE_MCM_COMPILER)
     add_definitions(-DENABLE_MCM_COMPILER)
 endif()
