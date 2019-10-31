@@ -661,7 +661,11 @@ void convertOpsToUPATasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& 
         }
         else if (opType == "Normalize")
         {
-            auto input = opIt->getInputTensor(0);
+            auto input1 = opIt->getInputTensor(0);
+            auto weights = opIt->getInputTensor(1);
+            std::vector<mv::Data::TensorIterator> inputs;
+            inputs.push_back(input1);
+            inputs.push_back(weights);
             auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
             unsigned opId = opIt->get<unsigned>("opId");
             auto dtype = opIt->get<mv::DType>("dType");
@@ -676,7 +680,7 @@ void convertOpsToUPATasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& 
             auto outputControlFlows = mv::getOutputControlFlow(cm, cm.switchContext(opIt));
             auto outputDataFlows = mv::getOutputDataFlow(om, opIt);
 
-            mv::Data::TensorIterator upaNormalize = om.uPATaskNormalize({input}, eps, across_spatial, channel_shared, dtype, quantParams);
+            mv::Data::TensorIterator upaNormalize = om.uPATaskNormalize(inputs, eps, across_spatial, channel_shared, dtype, quantParams);
 
             auto upaNormalizeOp = om.getSourceOp(upaNormalize);
             upaNormalizeOp->set<unsigned>("opId", opId);
