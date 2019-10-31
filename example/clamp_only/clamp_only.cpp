@@ -12,8 +12,8 @@ int main()
     mv::CompilationUnit unit("parserModel");
     mv::OpModel& om = unit.model();
 
-    double min = -0.5;
-    double max = 0.5;
+    double min = 0;
+    double max = 5;
 
     mv::Data::TensorIterator input0 = om.input({1,1,1000,1}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{0},{1.0},{-inf},{inf}}, "input0");
     auto clamp0 = om.clamp(input0, min, max);

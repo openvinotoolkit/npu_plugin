@@ -13,7 +13,7 @@ int main()
     mv::OpModel& om = unit.model();
 
     auto input0 = om.input({1,1,1000,1}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{0},{1.0},{-inf},{inf}}, "input0");
-    auto relu0 = om.relu0(input0);
+    auto relu0 = om.relu(input0);
     om.output(relu0);
 
     std::string compDescPath = path + "/config/compilation/release_kmb_MC-Prefetch1-Sparse.json";
