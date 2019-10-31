@@ -286,7 +286,7 @@ set(pass
 
     "${PROJECT_SOURCE_DIR}/src/pass/optimization/graph_parameter_optimization.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/optimization/strategy_manager.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/optimizations/MetaGraph.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/optimization/MetaGraph.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/optimization/strategy_registry.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/optimization/kmb_default_configs.cpp"
 

@@ -871,12 +871,16 @@ static void GraphParameterOptimizationFcn(
     mv::Element&
 )
 {
-
     mv::OpModel om(model);
     mv::graphOptimizer::StrategyManagerKmb strategyManager(om,passDesc);
 
     strategyManager.updateValuesFromJSON();
     strategyManager.updateDefaultValues();
+    strategyManager.printStrategy();
     strategyManager.readGlobalConfigs();
-    strategyManager.recursiveDijkstra(om.opBegin());
+
+    strategyManager.graphParameterOptimizations();
+
+    std::cout << "ran the optimizer" << std::endl;
+    return;
 }
