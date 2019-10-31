@@ -74,9 +74,8 @@ class Operation_Dag {
     ////////////////////////////////////////////////////////////////////////////
     typedef Model model_t;
     typedef model_traits<model_t> mtraits;
-    typedef mv::Data::OpListIterator mv_op_list_iterator_t;
-    typedef mv::Data::OpChildIterator mv_op_child_iterator_t;
-    typedef mv::Data::OpParentIterator mv_op_parent_iterator_t;
+    typedef typename mtraits::const_operation_iterator_t op_itr_t;
+    typedef typename mtraits::const_child_operation_iterator_t child_op_itr_t;
 
     typedef Operation_Dag dag_t;
     typedef mv::Op const * operation_t; // &(base_node_class::content_) //
@@ -98,7 +97,7 @@ class Operation_Dag {
     typedef typename resource_utility_map_t::const_iterator
         const_resource_map_iterator_t;
     typedef typename resource_utility_map_t::iterator resource_map_iterator_t;
-
+    typedef std::unordered_map<operation_t, op_itr_t> op_to_iterator_lookup_t;
 
     class const_operation_iterator_t {
       public:
@@ -234,23 +233,39 @@ class Operation_Dag {
     }
     ////////////////////////////////////////////////////////////////////////////
 
+    op_itr_t get_op_iterator(operation_t op) const {
+      typename op_to_iterator_lookup_t::const_iterator itr =
+          op_to_iterator_lookup_.find(op);
+
+      assert(itr != op_to_iterator_lookup_.end());
+      return itr->second;
+    }
+
   private:
+
+    bool is_operation_ignored(operation_t op) const {
+      const std::string& op_type = op->getOpType();
+      return !( (op_type == "DMATask") || (op_type == "DPUTask")  ||
+                (op_type == "Input") || (op_type == "Output") );
+    }
 
     void init_from_model(model_t& model) {
       adj_map_.clear();
       ops_.clear();
+      op_to_iterator_lookup_.clear();
 
-      typedef typename mtraits::const_operation_iterator_t op_itr_t;
-      typedef typename mtraits::const_child_operation_iterator_t child_op_itr_t;
 
       for (op_itr_t itr = mtraits::begin_operations(model);
             itr != mtraits::end_operations(model); ++itr) {
         operation_t op = &(*itr);
+        if (is_operation_ignored(op)) { continue; }
 
         master_op_iterator_t op_itr = ops_.find(op);
+
         if (op_itr == ops_.end()) {
           ops_.insert(op);
         }
+        op_to_iterator_lookup_.insert(std::make_pair(op, itr));
 
         adj_map_iterator_t adj_itr = adj_map_.find(op);
         assert(adj_itr == adj_map_.end());
@@ -263,6 +278,7 @@ class Operation_Dag {
         for (child_op_itr_t citr = itr.leftmostChild();
               citr != model.opEnd(); ++citr) {
           operation_t child_op = &(*citr);
+          if (is_operation_ignored(child_op)) { continue; }
 
           op_itr = ops_.find(child_op);
           if (op_itr == ops_.end()) {
@@ -292,6 +308,8 @@ class Operation_Dag {
     adjacency_map_t adj_map_;
     ops_set_t ops_;
     resource_utility_map_t resource_utility_map_;
+    //TODO(vamsikku): consolidate ops_ and op_to_iterator_lookup_ tables. //
+    op_to_iterator_lookup_t op_to_iterator_lookup_;
 }; // class Operation_Dag //
 
 typedef mv::lp_scheduler::Feasible_Schedule_Generator< Operation_Dag<> >

@@ -1,6 +1,7 @@
 #include <set>
 #include <unordered_set>
 
+#include "include/mcm/computation/model/base_op_model.hpp"
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/pass/pass_registry.hpp"
 #include "lp_scheduler/operation_precedence_dag.hpp"
@@ -73,8 +74,28 @@ class Control_Edge_Set {
     const_edge_iterator_t begin() const { return control_edge_set_.begin(); }
     const_edge_iterator_t end() const { return control_edge_set_.end(); }
 
-  private:
+    // Adds the control edges in this set to the control model //
+    template<typename OpDag>
+    void add_edges_to_control_model(const OpDag& dag,
+          mv::ComputationModel& model) {
 
+      mv::ControlModel cm(model);
+      typename OpDag::op_itr_t oitr_source, oitr_sink;
+      for (const_edge_iterator_t eitr=begin(); eitr!=end(); ++eitr) {
+        oitr_source = dag.get_op_iterator(eitr->source_);
+        oitr_sink = dag.get_op_iterator(eitr->sink_);
+        auto flowIt = cm.checkControlFlow(oitr_source, oitr_sink);
+        if ( (flowIt == cm.flowEnd()) &&
+              !(cm.pathExists(oitr_source, oitr_sink)) ) {
+          mv::Control::FlowListIterator psedge =
+              cm.defineFlow(oitr_source, oitr_sink);
+          psedge->set<bool>("PartialSerialisationEdge", true);
+        } 
+      }
+      printf("[DAG Invariant: %s]\n", cm.isDag() ? "PASSED" : "FAILED");
+    }
+
+  private:
     std::set< control_edge_t > control_edge_set_;
 }; //  class Control_Edge_Set //
 typedef Control_Edge_Set control_edge_set_t;
@@ -96,11 +117,11 @@ struct interval_traits<scheduled_op_t> {
   static unit_t interval_end(const interval_t& interval) {
     return interval.cmx_address_end_;
   }
+
 }; // struct interval_traits<Scheduled_Op> //
 
 } // namespace lp_scheduler //
 } // namespace mv //
-
 
 
 void LpSchedulerPass(const mv::pass::PassEntry& pass,
@@ -110,17 +131,14 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
   mv::ControlModel cm(model);
   control_dag_t input_dag(cm);
   typedef mv::lp_scheduler::scheduler_traits<control_dag_t> traits_t;
-
   auto params = model.getGlobalConfigParams();
 
   control_dag_t::resource_t upper_bound = params->get<unsigned>("cmx");
   std::string output_file = passDesc.get<std::string>("output");
-
   FILE *fptr = fopen(output_file.c_str(), "w");
   assert(fptr);
 
-
-  mv::scheduler::mv_control_lp_scheduler_t scheduler(input_dag, upper_bound ),
+  mv::scheduler::mv_control_lp_scheduler_t scheduler(input_dag, upper_bound),
       end;
   std::list<scheduled_op_t> scheduled_ops;
 
@@ -142,9 +160,9 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
   std::unordered_set<std::string> scheduled_ops_set;
   for (auto itr=scheduled_ops.begin(); itr != scheduled_ops.end(); ++itr) {
     const scheduled_op_t& op = *itr;
-    fprintf(fptr, "scheduled_op: %s time=%lu cmx=[%lu %lu] \n",
-        (op.op_)->getName().c_str(), op.schedule_time_,
-         op.cmx_address_start_, op.cmx_address_end_);
+    fprintf(fptr, "scheduled_op: %s (type=%s) time=%lu cmx=[%lu %lu] \n",
+        (op.op_)->getName().c_str(), ((op.op_)->getOpType()).c_str(),
+         op.schedule_time_, op.cmx_address_start_, op.cmx_address_end_);
     scheduled_ops_set.insert( (op.op_)->getName() );
   }
 
@@ -153,6 +171,8 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
     fprintf(fptr, "control_edge: %s -> %s \n",
           (*itr).source_name(), (*itr).sink_name());
   }
+
+  control_edges.add_edges_to_control_model(input_dag, model);
 
   for (auto itr=traits_t::operations_begin(input_dag);
         itr != traits_t::operations_end(input_dag); ++itr) {
