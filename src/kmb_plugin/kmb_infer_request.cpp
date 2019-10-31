@@ -197,6 +197,8 @@ void KmbInferRequest::InferAsync() {
 
                     if (!getKmbAllocator()->isValidPtr(origYBlob->buffer())) {
                         Blob::Ptr kmbYBlob = make_blob_with_precision(origYBlob->getTensorDesc(), getKmbAllocator());
+                        IE_ASSERT(kmbYBlob != nullptr);
+
                         kmbYBlob->allocate();
                         copyBlob(origYBlob, kmbYBlob);
                         origNV12Blob->y() = kmbYBlob;
@@ -204,6 +206,8 @@ void KmbInferRequest::InferAsync() {
 
                     if (!getKmbAllocator()->isValidPtr(origUVBlob->buffer())) {
                         Blob::Ptr kmbUVBlob = make_blob_with_precision(origUVBlob->getTensorDesc(), getKmbAllocator());
+                        IE_ASSERT(kmbUVBlob != nullptr);
+
                         kmbUVBlob->allocate();
                         copyBlob(origUVBlob, kmbUVBlob);
                         origNV12Blob->uv() = kmbUVBlob;
