@@ -1,13 +1,36 @@
-#include "limits"
-#include "tuple"
-#include "chrono"
+#include <algorithm>
+#include <atomic>
+#include <chrono>
+#include <ctime>
+#include <fstream>
+#include <iostream>
+#include <iterator>
+#include <map>
+#include <memory>
+#include <set>
+#include <string>
+#include <tuple>
+#include <unordered_map>
+#include <utility>
+#include <vector>
 
-#include "include/mcm/pass/graphOptimizations/StrategyManager.hpp"
-//#include "include/mcm/pass/graphOptimizations/descartes_product.hpp"
-#include "include/mcm/pass/graphOptimizations/StrategyRegistry.hpp"
+#include "include/mcm/base/attribute.hpp"
 #include "include/mcm/base/element.hpp"
-#include "include/mcm/algorithms/dijkstra.hpp"
-#include "include/mcm/utils/env_loader.hpp"
+#include "include/mcm/base/exception/argument_error.hpp"
+#include "include/mcm/base/exception/logic_error.hpp"
+#include "include/mcm/base/json/value.hpp"
+#include "include/mcm/base/registry.hpp"
+#include "include/mcm/computation/model/iterator/data_context.hpp"
+#include "include/mcm/computation/model/iterator/model_iterator.hpp"
+#include "include/mcm/computation/op/op.hpp"
+#include "include/mcm/graph/graph.hpp"
+#include "include/mcm/logger/logger.hpp"
+#include "include/mcm/pass/graphOptimizations/StrategyConfig.hpp"
+#include "include/mcm/pass/graphOptimizations/StrategyManager.hpp"
+#include "include/mcm/pass/graphOptimizations/StrategyRegistry.hpp"
+#include "include/mcm/tensor/shape.hpp"
+#include "include/mcm/tensor/tensor.hpp"
+#include "meta/include/mcm/op_model.hpp"
 
 namespace mv {
 namespace graphOptimizer {
@@ -16,6 +39,7 @@ using namespace std;
 
 std::atomic<int> MetaEdge::unique_ctr(0);
 std::atomic<int> MetaGraph::unique_ctr(0);
+std::atomic<int> StrategyManager::unique_ctr(0);
 
 StrategyManager::StrategyManager(OpModel& model,mv::Element& passDesc) :
         model_(model),passDesc_(passDesc)
