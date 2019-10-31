@@ -87,52 +87,6 @@ void propagateShapeChange(mv::OpModel& om, const std::string& flowStr)
     }
 }
 
-void addCropNodeForWidth(mv::OpModel& om, mv::Data::OpListIterator& opIt, mv::Data::TensorIterator& outputTensor, std::size_t& outputTensorWidth)
-{
-    std::vector<mv::Data::OpListIterator> opsToLink;
-    std::vector<std::size_t> inputSlots;
-    std::vector<mv::Data::FlowSiblingIterator> flowsToRemove;
-
-    auto sourceFlowStart = opIt.leftmostOutput();
-
-    for (mv::Data::FlowSiblingIterator sinkFlow(sourceFlowStart); sinkFlow != om.flowEnd(); ++sinkFlow)
-    {
-        opsToLink.push_back(sinkFlow.sink());
-        inputSlots.push_back(sinkFlow->get<std::size_t>("sinkInput"));
-        flowsToRemove.push_back(sinkFlow);
-    }
-
-    //TODO check if already there's a crop? or maybe move this to separate pass
-    auto cropOpName = outputTensor->getName() + "_crop";
-    mv::QuantizationParams quantParams = {{}, {}, {}, {}};
-
-    if (outputTensor->hasAttr("quantParams"))
-    {
-        quantParams = outputTensor->get<mv::QuantizationParams>("quantParams");
-    }
-    auto croppedTensor = om.crop(outputTensor,
-                        outputTensorWidth,
-                        mv::IO_WIDTH_DIMENSION,
-                        quantParams,
-                        cropOpName);
-    croppedTensor->set<bool>("alignment", true);//TODO remove this, just for testing now
-    auto cropOp = om.getOp(cropOpName);
-    cropOp->set<unsigned>("opId", opIt->get<unsigned>("opId"));
-    if (opIt->hasAttr("splitStrategy"))
-        cropOp->set<std::string>("splitStrategy", opIt->get<std::string>("splitStrategy"));
-
-
-    for (unsigned flowIdx = 0; flowIdx < flowsToRemove.size(); flowIdx++)
-    {
-        om.undefineFlow(flowsToRemove[flowIdx]);
-    }
-    for(unsigned op = 0 ; op < opsToLink.size(); ++op)
-    {
-        opsToLink[op]->setInputTensor(croppedTensor, inputSlots[op], false);
-        om.defineFlow(croppedTensor, opsToLink[op], inputSlots[op]);
-    }
-}
-
 void addCropNode(mv::OpModel& om, mv::Data::OpListIterator& opIt, mv::Data::TensorIterator& outputTensor, std::size_t& outputTensorChannels)
 {
     std::vector<mv::Data::OpListIterator> opsToLink;
