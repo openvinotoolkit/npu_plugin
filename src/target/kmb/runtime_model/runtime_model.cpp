@@ -92,8 +92,10 @@ void setIfPresent(T1& fieldToFill, mv::Element& compilationDescriptor, const std
         fieldToFill = compilationDescriptor.get<T2>(key);
 }
 
-void mv::RuntimeModel::alignTensor(mv::ComputationModel& cm, std::unique_ptr<MVCNN::TensorReferenceT>& tensorT, mv::Tensor& tensor, bool padFinalOutput)
+void mv::RuntimeModel::alignTensor(mv::ComputationModel& cm, std::unique_ptr<MVCNN::TensorReferenceT>& tensorT, mv::Tensor& tensor, std::string dimension, bool padFinalOutput)
 {
+    if(dimension == "channel") 
+    {
         auto globalConfigParams = cm.getGlobalConfigParams();
         int pad = globalConfigParams->hasAttr("VPU2ChannelPadding") ? globalConfigParams->get<int>("VPU2ChannelPadding") : 16;
         std::vector<std::size_t> dimensions = tensor.getShape();
@@ -106,20 +108,19 @@ void mv::RuntimeModel::alignTensor(mv::ComputationModel& cm, std::unique_ptr<MVC
         tensorT->strides = numericStrides; // NOTE: Maybe directly bufferIt->computeStrides() in the future
         if(padFinalOutput)
             tensorT->dimensions = std::vector<uint32_t>(dimensions.begin(), dimensions.end());
-}
+    }
+    else if (dimension == "width") 
+    {
+        std::vector<std::size_t> dimensions = tensor.getShape();
+        auto widthPadded = mv::round_up(dimensions[mv::IO_WIDTH_DIMENSION], 16);
+        dimensions = {widthPadded, dimensions[mv::IO_HEIGHT_DIMENSION],dimensions[mv::IO_CHANNEL_DIMENSION] , dimensions[mv::IO_BATCH_DIMENSION]};
+        auto numericStrides = tensor.getOrder().computeByteStrides(mv::Shape(dimensions), tensor.getDType().getSizeInBits() / 8);
+        numericStrides.push_back(tensor.getDType().getSizeInBits() / 8);
+        std::reverse(dimensions.begin(), dimensions.end());
+        std::reverse(numericStrides.begin(), numericStrides.end());
+        tensorT->strides = numericStrides; 
 
-void mv::RuntimeModel::alignTensorWidth(mv::ComputationModel& cm, std::unique_ptr<MVCNN::TensorReferenceT>& tensorT, Tensor &tensor, bool padFinalOutput)
-{
-    //This should use subtensor
-    std::vector<std::size_t> dimensions = tensor.getShape();
-    auto widthPadded = mv::round_up(dimensions[mv::IO_WIDTH_DIMENSION], 16);
-    dimensions = {widthPadded, dimensions[mv::IO_HEIGHT_DIMENSION],dimensions[mv::IO_CHANNEL_DIMENSION] , dimensions[mv::IO_BATCH_DIMENSION]};
-    auto numericStrides = tensor.getOrder().computeByteStrides(mv::Shape(dimensions), tensor.getDType().getSizeInBits() / 8);
-    numericStrides.push_back(tensor.getDType().getSizeInBits() / 8);
-    std::reverse(dimensions.begin(), dimensions.end());
-    std::reverse(numericStrides.begin(), numericStrides.end());
-    tensorT->strides = numericStrides; // NOTE: Maybe directly bufferIt->computeStrides() in the future
-    
+    }
 }
 
 MVCNN::DType mv::RuntimeModel::convertDtype(const mv::DType& dtype)
@@ -479,7 +480,7 @@ std::unique_ptr<MVCNN::SummaryHeaderT> mv::RuntimeModel::buildSummaryHeaderT(Com
     toBuild->net_output = std::vector<std::unique_ptr<MVCNN::TensorReferenceT>>(1);
     toBuild->net_output[0] = buildTensorReferenceT(cm, compilationDescriptor, om.getOutput()->getInputTensor(0));
     if (paddOutput && om.getOutput()->getInputTensor(0)->hasAttr("alignment"))
-        alignTensor(cm, toBuild->net_output[0], *om.getOutput()->getInputTensor(0), paddOutput);
+        alignTensor(cm, toBuild->net_output[0], *om.getOutput()->getInputTensor(0), "channel", paddOutput);
 
     auto taskCount = [](mv::OpModel m)
     {
@@ -729,7 +730,7 @@ void mv::RuntimeModel::case1MC(unsigned numTasks, mv::ComputationModel& cm, mv::
     if (direction != mv::DDR2CMX)
     {
         if (padFinalOutput && dst->hasAttr("alignment"))
-            alignTensor(cm, tmp->dst, *dst, padFinalOutput);
+            alignTensor(cm, tmp->dst, *dst, "channel", padFinalOutput);
     }
 
     std::vector<unsigned int> locale_index;
@@ -765,14 +766,14 @@ void mv::RuntimeModel::case2MC(unsigned numTasks, ComputationModel& cm,  mv::Dma
         if (direction != mv::DDR2CMX)
         {
             if (padFinalOutput && dst->hasAttr("alignment"))
-                alignTensor(cm, tmp->dst, dst->getSubTensor(i), padFinalOutput);
+                alignTensor(cm, tmp->dst, dst->getSubTensor(i), "channel", padFinalOutput);
         }
 
         //Check if DMA is DDR2CMX
         if (direction == mv::DDR2CMX)
         {
-            if (dst->hasAttr("alignWidth16"))
-                alignTensorWidth(cm, tmp->dst, dst->getSubTensor(i), false);
+            if (dst->hasAttr("alignWidth"))
+                alignTensor(cm, tmp->dst, dst->getSubTensor(i), "width", false);
         }
 
         checkUnstridedDMA(src, i, tmp);

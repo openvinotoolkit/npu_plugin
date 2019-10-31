@@ -308,8 +308,8 @@ void alignInputForChannelMajorConvolution(const mv::pass::PassEntry&, mv::Comput
             if (parentOpIt->getOpType() != "Align" && inputTensor->getShape()[mv::IO_WIDTH_DIMENSION] % tensorWidthMultiple != 0)
             {
 
-                inputTensor->set<bool>("alignWidth16", true);
-                opIt->set<bool>("alignWidth16", true);
+                inputTensor->set<bool>("alignWidth", true);
+                opIt->set<bool>("alignWidth", true);
 
                 std::vector<mv::Data::OpListIterator> opsToLink;
                 std::vector<std::size_t> inputSlots;
@@ -338,24 +338,21 @@ void alignInputForChannelMajorConvolution(const mv::pass::PassEntry&, mv::Comput
                                     quantParams,
                                     alignOpName);
 
-                alignedTensor->set<bool>("alignWidth16", true);
+                alignedTensor->set<bool>("alignWidth", true);
 
                 auto alignOp = om.getOp(alignOpName);
 
                 alignOp->set<unsigned>("opId", parentOpIt->get<unsigned>("opId"));
 
-                //Get split padding of previous layer - is this correct for aligned op?
                 if (opIt->hasAttr("padding"))
                     alignOp->set<std::array<unsigned short, 4>>("padding", opIt->get<std::array<unsigned short, 4>>("padding"));
                 
                 if (opIt->hasAttr("splitStrategy"))
                     alignOp->set<std::string>("splitStrategy", opIt->get<std::string>("splitStrategy"));
                 
-                //Get split strategy of previous layer
                 if (inputTensor->hasAttr("splitStrategy"))
                     alignOp->getOutputTensor()[0]->set<std::string>("splitStrategy", inputTensor->get<std::string>("splitStrategy"));
                 
-
                 for (unsigned flowIdx = 0; flowIdx < flowsToRemove.size(); flowIdx++)
                 {
                     om.undefineFlow(flowsToRemove[flowIdx]);
@@ -367,25 +364,6 @@ void alignInputForChannelMajorConvolution(const mv::pass::PassEntry&, mv::Comput
                     om.defineFlow(alignedTensor, opsToLink[op], inputSlots[op]);
                 }
             }
-
-            // auto outputTensor = opIt->getOutputTensor(0);
-            // auto outputTensorShape = outputTensor->getShape();
-
-            // //Propagate shape change
-            // // If for whatever reason we pass through this tensor more than once, we
-            // // don't want to overwrite the original dimensions
-            // if(!outputTensor->hasAttr("oldDimensions"))
-            //     outputTensor->set<mv::Shape>("oldDimensions", outputTensor->getShape());
-
-            // outputTensor->setShape(mv::Shape({119, outputTensorShape[mv::IO_HEIGHT_DIMENSION],
-            //                                   outputTensorShape[mv::IO_CHANNEL_DIMENSION], outputTensorShape[mv::IO_BATCH_DIMENSION]}));
-
-            // auto flows = outputTensor->get<std::set<std::string>>("flows");
-
-            // for(auto& flowStr: flows)
-            //     propagateShapeChange(om, flowStr);
-
-            // addCropNodeForWidth(om, opIt, outputTensor,  outputTensorShape[mv::IO_WIDTH_DIMENSION]);
         }
     }
 }

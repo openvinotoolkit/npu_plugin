@@ -11,7 +11,6 @@
                 "Number_of_DPUs" : 20,
                 "Number_of_Clusters" : 4,
                 "UpaShaves": 1,
-                "nWorkloads": 1,
                 "DDRScratch": 16777216,
                 "MemoryHack": false,
                 "cmx": 917504,
@@ -22,9 +21,6 @@
                         "cluster_filter" : 0,
                         "strategy" : "SplitOverHOverlapped"
                     }
-                   
-                    
-                
                 ],
                 "default_tensor_placement" : "CMX",
                 "tensor_placement_override" :
@@ -86,13 +82,6 @@
     },
     "adapt": {
         "Singular": [
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/original.dot",
-                "scope": "OpModel",
-                "content": "full",
-                "html": true
-            },
             "PopulatedTensorsToFP16",
             "UnpopulatedTensorsToFP16",
             "AverageAsDepthWise",
@@ -208,21 +197,7 @@
         "Singular" : [
             "SetDpuTasksMemoryLocation",
             "AddWeightsDMATasks",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/dma.dot",
-                "scope": "OpModel",
-                "content": "full",
-                "html": true
-            },
             "alignInputForChannelMajorConvolution",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/align_CM_conv.dot",
-                "scope": "OpModel",
-                "content": "full",
-                "html": true
-            },
             "SplittingTensorsAcrossClusters",
             "UpdateImplicitLayersQuantizationParams",
             "ResolveImplicitOperations",
