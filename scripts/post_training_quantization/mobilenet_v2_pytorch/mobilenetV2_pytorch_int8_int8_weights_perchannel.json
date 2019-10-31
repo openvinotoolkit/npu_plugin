@@ -5,8 +5,8 @@
         "inputs": [{
             "input_shape": [1,3,224,224],
             "mean_values": [123.675,116.28,103.53],
-            "scale_values": [0.017057860262008732,0.01750700280112045,0.017429193899782137],
-            "format": "RGB"
+            "scale_values": [58.395,57.12,57.375],
+            "format": "BGR"
         }],
         "outputs": [
             {
@@ -27,13 +27,11 @@
                 "name": "imagenet_1001_classes",
                 "data_source": "<DATASET_PATH>",
                 "annotation_conversion": {
-                    "annotation_file": "<DATASET_ANNOTATION_FILE>",
+                    "annotation_file": "<DATASET_PATH>/val.txt",
                     "converter": "imagenet"
                 },
+                "reader": "pillow_imread",
                 "preprocessing": [
-                    {
-                        "type": "bgr_to_rgb"
-                    },
                     {
                         "type": "resize",
                         "size": 256,
@@ -55,7 +53,7 @@
                     },
                     {
                         "type": "accuracy",
-                        "name": "acciracy@top5",
+                        "name": "accuracy@top5",
                         "top_k": 5
                     }
                 ]
@@ -66,7 +64,7 @@
         "target_device": "CPU",
         "algorithms": [
             {
-                "name": "NaiveQuantization",
+                "name": "DefaultQuantization",
                 "params": {
                     "target_device": "CPU",
                     "preset": "accuracy",
@@ -74,19 +72,13 @@
                     "weights": {
                         "bits": 8,
                         "type": "symmetric",
-                        "scale_type": "pertensor"
+                        "scale_type": "perchannel"
                     },
                     "activations": {
                         "bits": 8,
-                        "type": "asymmetric",
+                        "type": "symmetric",
                         "scale_type": "pertensor"
                     }
-                }
-            },
-            {
-                "name": "BiasCorrection",
-                "params": {
-                    "stat_subset_size": 1000
                 }
             }
         ]
