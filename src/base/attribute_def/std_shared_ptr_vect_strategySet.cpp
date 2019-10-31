@@ -6,7 +6,7 @@ namespace mv
 {
     //todo:: do not replicate the StrategySet definition
     using StrategySet = std::unordered_map<std::string,Attribute>;
-    namespace attr
+    namespace attr_shared_ptr_vect_strategy_set
     {
 
         static mv::json::Value toJSON(const Attribute& a)
@@ -33,11 +33,13 @@ namespace mv
             auto elem = a.get<std::shared_ptr<std::vector<StrategySet>>>();
             return std::to_string(elem->size());
         }
+    }
 
-        MV_REGISTER_DUPLICATE_ATTR(std::shared_ptr<std::vector<StrategySet>>)
-            .setToJSONFunc(toJSON)
-            .setFromJSONFunc(fromJSON)
-            .setToStringFunc(toString);
+    namespace attr {
+        MV_REGISTER_ATTR(std::shared_ptr<std::vector<StrategySet>>)
+            .setToJSONFunc(attr_shared_ptr_vect_strategy_set::toJSON)
+            .setFromJSONFunc(attr_shared_ptr_vect_strategy_set::fromJSON)
+            .setToStringFunc(attr_shared_ptr_vect_strategy_set::toString);
     }
 
 }
