@@ -145,6 +145,7 @@ public:
     using SubGraph = tuple<mv::Data::OpListIterator,mv::Data::OpListIterator,vector<mv::Data::OpListIterator>>;
 
     static constexpr auto inf_ = numeric_limits<double>::infinity();
+    static std::atomic<int> unique_ctr;
 
     GlobalSetting globalConfig_;
     GlobalSetting globalStrategies_;
