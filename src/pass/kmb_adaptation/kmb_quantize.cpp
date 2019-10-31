@@ -22,7 +22,7 @@ namespace mv
 }
 
 
-static void kmbQuantizeConversionFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&)
+static void kmbQuantizeConversionFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&)
 {
 
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
@@ -50,7 +50,7 @@ static void kmbQuantizeConversionFcn(const mv::pass::PassEntry& pass, mv::Comput
             auto sourceType = source->getOpType();
             auto sinkType = sink->getOpType();
 
-            if (sourceType == "Input")
+            if (sourceType == "Input" || sourceType == "Constant" || sourceType == "ConstantInt" || sourceType == "ConstantDataElement")
                 continue;
 
             if (sinkType == "Output")
