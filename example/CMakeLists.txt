@@ -37,6 +37,9 @@ else()
     add_executable(regionyolo_only regionyolo_only/regionyolo_only.cpp)
     target_link_libraries(regionyolo_only cm)
 
+    add_executable(relu_only relu_only/relu_only.cpp)
+    target_link_libraries(relu_only cm)
+
     add_executable(reorgyolo_only reorgyolo_only/reorgyolo_only.cpp)
     target_link_libraries(reorgyolo_only cm)
 
