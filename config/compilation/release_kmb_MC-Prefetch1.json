@@ -19,7 +19,7 @@
                     {
                         "name_filter" : "name",
                         "cluster_filter" : 0,
-                        "strategy" : "SplitOverHOverlapped"
+                        "strategy" : "Example"
                     }
                 ],
                 "default_tensor_placement" : "CMX",
@@ -50,7 +50,7 @@
                 "streaming_strategy" :
                 [
                     {
-                        "name_filter" : "example",
+                        "name_filter" : "Example_do_not_remove",
                         "splits" : [
                             {"C" : 1},
                             {"H" : 1},
@@ -270,13 +270,6 @@
             {
                 "name": "GenerateBlobKmb",
                 "output": "output/mcm.blob"
-            },
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/final.dot",
-                "scope": "OpModel",
-                "content": "full",
-                "html": true
             },
             {
                 "name": "ConvertFlatbuffer",

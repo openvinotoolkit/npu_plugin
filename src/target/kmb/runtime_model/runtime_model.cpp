@@ -330,14 +330,6 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     numericStrides.push_back(t->getDType().getSizeInBits() / 8);
     if(*tensorAllocatorName == "VPU_CMX_NN")
     {
-        // mv::Shape hackedShape = {0,0,0,0};
-        // hackedShape[0] = 240;
-        // hackedShape[1] = subtensor.getShape()[1];
-        // hackedShape[2] = subtensor.getShape()[2];
-        // hackedShape[3] = subtensor.getShape()[3];
-        // subtensor.setShape(hackedShape);
-
-
         numericStrides = subtensor.computeNumericStrides();
         numericStrides.push_back(subtensor.getDType().getSizeInBits() / 8);
     }
@@ -794,9 +786,7 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
     auto padFinalOutput = false;
 
     auto inputTensor = opIt->getInputTensor(0);
-    //auto outputTensor = opIt->getOutputTensor(0);
 
-    //Added by John
     // output tensor comes from align layer
     mv::Data::TensorIterator outputTensor;
     if(opIt.leftmostChild()->getOpType() == "Align")
@@ -852,7 +842,6 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
     {
         std::vector<std::unique_ptr<MVCNN::TaskT>> toReturn;
         
-        //Pass outputTesnor from Align layer
         case2MC(numTasks, cm, direction, compilationDescriptor, compression, padFinalOutput, toReturn, inputTensor, outputTensor);
         if(inputTensor->isSparse())
         {
@@ -1242,7 +1231,6 @@ std::array <unsigned short, 4>  mv::RuntimeModel::getPadding(Control::OpListIter
 {
     std::array <unsigned short, 4> padding = opIt->get<std::array<unsigned short, 4>>("padding");
     
-    //Seems like single cluster case is not supported here?
     if(clusterId !=0) 
     {
         auto subTensor = opIt->getOutputTensor(0)->getSubTensor(clusterId);
