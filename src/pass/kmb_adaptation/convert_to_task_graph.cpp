@@ -280,6 +280,18 @@ mv::Data::TensorIterator convertPriorboxToUPATask(mv::OpModel& om, const std::ve
     return om.uPATaskPriorbox(inputs, flip, clip, step_w, step_h, offset, dtype, quantParams);
 }
 
+mv::Data::TensorIterator convertArgmaxToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs, const std::map<std::string, mv::Attribute>& attrs, const std::string& name)
+{
+    auto dtype = attrs.at("dType").get<mv::DType>();
+    auto quantParams = attrs.at("quantParams").get<mv::QuantizationParams>();
+    auto flip = attrs.at("flip").get<unsigned>();
+    auto out_max_val = attrs.at("out_max_val").get<int64_t>();
+    auto top_k = attrs.at("top_k").get<int64_t>();
+    auto axis = attrs.at("axis").get<int64_t>();
+
+    return om.uPATaskArgmax(inputs, out_max_val, top_k, axis, dtype, quantParams);
+}
+
 mv::Data::TensorIterator convertPermuteToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs, const std::map<std::string, mv::Attribute>& attrs, const std::string& name)
 {
     auto order = attrs.at("order").get<mv::Order>();
@@ -342,7 +354,7 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
     mv::ControlModel cm(model);
 
     std::vector<std::string> opsTypesToConvert = {"Conv", "DepthwiseConv", "Eltwise", "MaxPool"};
-    std::vector<std::string> opsTypesToConvertToUPA = {"Identity", "Softmax", "Proposal", "ROIPooling",
+    std::vector<std::string> opsTypesToConvertToUPA = {"Argmax", "Identity", "Softmax", "Proposal", "ROIPooling",
                                                        "Quantize", "Reshape", "RegionYolo", "ReorgYolo",
                                                        "Normalize", "DetectionOutput", "Priorbox", "Permute", "Interp"};
 
@@ -366,6 +378,7 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
     {"DetectionOutput", convertDetectionOutputToUPATask},
     {"Interp", convertInterpToUPATask},
     {"Priorbox", convertPriorboxToUPATask},
+    {"Argmax", convertArgmaxToUPATask},
     {"Permute", convertPermuteToUPATask}
     };
 

@@ -1802,6 +1802,34 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAPriorboxTask(ComputationModel& 
     return toBuild;
 }
 
+MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAArgmaxTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt)
+{
+    auto input = opIt->getInputTensor(0);
+    auto output = opIt->getOutputTensor(0);
+    auto toBuild = new MVCNN::UPALayerTaskT();
+    //toBuild->maxShaves = ;
+    toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_ArgMaxParams;
+    auto softLayerParamsValue = new MVCNN::ArgMaxParamsT();
+
+    auto out_max_val = static_cast<bool>(opIt->get<int64_t>("out_max_val"));
+    auto top_k = static_cast<unsigned>(opIt->get<int64_t>("top_k"));
+    auto axis = opIt->get<int64_t>("axis");
+
+    softLayerParamsValue->out_max_val = out_max_val;
+    softLayerParamsValue->top_k = top_k;
+    softLayerParamsValue->axis = axis;
+
+    toBuild->softLayerParams.value = softLayerParamsValue;
+
+    toBuild->input_data = buildTensorReferenceT(cm, compilationDescriptor, input);
+    toBuild->output_data = buildTensorReferenceT(cm, compilationDescriptor, output);
+
+    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input)));
+
+    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
+
+    return toBuild;
+}
 
 MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAPassthroughTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt)
 {
@@ -1870,6 +1898,8 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildUPATask(Comput
         toReturn[0]->task.value = buildUPADetectionOutputTask(cm, compilationDescriptor, opIt);
     else if(underlyingTask == "Priorbox")
         toReturn[0]->task.value = buildUPAPriorboxTask(cm, compilationDescriptor, opIt);
+    else if(underlyingTask == "Argmax")
+        toReturn[0]->task.value = buildUPAArgmaxTask(cm, compilationDescriptor, opIt);
     // TODO: Add other UPA layers
 
     return toReturn;
