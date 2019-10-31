@@ -86,7 +86,7 @@ def parse_img(path, new_size, raw_scale=1, mean=None, channel_swap=None, dtype=n
 
     if path.split(".")[-1].lower() in ["png", "jpeg", "jpg", "bmp", "gif"]:
 
-        greyscale = True if new_size[2] == 1 else False
+        greyscale = True if new_size[1] == 1 else False
         if dtype in [np.uint8, np.int8]:
             data = skimage.img_as_ubyte(
                 skimage.io.imread(
