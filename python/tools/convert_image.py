@@ -143,9 +143,9 @@ def convert_image(image, shape, dtype,
     width, height = im.size
 
     new_shape = [int(shape[0]),
-                 int(shape[1]),
+                 int(shape[3]),
                  int(shape[2]),
-                 int(shape[3])]
+                 int(shape[1])]
 
     input_data = parse_img(image, new_shape,
                             raw_scale=raw_scale,
@@ -164,6 +164,18 @@ def arg_as_list(s):
     return v
 
 
+def transpose_image(tensor_data, Zmajor=True):
+    layouts_zmajor = (0,2,3,1)
+    layouts_chmajor= (0,1,2,3)
+
+    layout=layouts_chmajor
+    if Zmajor:
+        layout=layouts_zmajor
+
+    t_data = np.transpose(tensor_data, layout)
+    return t_data
+
+
 def main():
     parser = argparse.ArgumentParser(description='Convert the image used to a format suitable for KMB.')
     parser.add_argument('--image', type=str, required=True, help='an image to test the model')
@@ -174,10 +186,13 @@ def main():
     image_shape = args.shape.split(',')
 
     processed_image = convert_image(args.image, image_shape, np.uint8)
+    
+    transposed_image = transpose_image(processed_image, True)
+    
     # save image in NCHW format
-    converted_image = processed_image.transpose((0, 3, 1, 2))
+    # converted_image = processed_image.transpose((0, 3, 1, 2))
     fp = open("converted_image.dat", "wb")
-    fp.write ((converted_image.flatten()).astype('uint8').data)
+    fp.write ((transposed_image.flatten()).astype('uint8').data)
     fp.close
 
 if __name__ == "__main__":
