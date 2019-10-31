@@ -25,6 +25,10 @@ add_custom_command(
         ${META_DIR_PATH}/src/op_model.cpp
     COMMAND
         gen_composition_api ${META_DIR_PATH}
+    DEPENDS
+        gen_composition_api
+    COMMENT
+        "Generate compositional API"
     VERBATIM
 )
 
@@ -34,6 +38,8 @@ add_custom_target(generate-comp-api
         ${META_DIR_PATH}/include/mcm/op_model.hpp
         ${META_DIR_PATH}/src/compositional_model.cpp
         ${META_DIR_PATH}/src/op_model.cpp
+    COMMENT
+        "Generate compositional API"
 )
 
 if (MSVC)
