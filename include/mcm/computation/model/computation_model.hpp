@@ -118,6 +118,7 @@ namespace mv
         bool checkOp(const std::string& name);
         Data::OpListIterator getOp(const std::string& name);
         std::vector<Data::OpListIterator> getOps(const std::string& opType);
+        std::unordered_map<std::string, std::vector<mv::Data::OpListIterator>> getOpsOfTypes(const std::vector<std::string> &opTypes);
         Data::FlowListIterator getDataFlow(const std::string& name);
         Control::FlowListIterator getControlFlow(const std::string& name);
 
