@@ -51,7 +51,7 @@ namespace mv
 
             // Calculate output shape
             auto keep_top_k = args.at("keep_top_k").get<int64_t>();
-            auto max_detections = keep_top_k;
+            long unsigned int max_detections = keep_top_k;
             outputShape = {7,max_detections,1,1};
 
             if (args.at("quantParams").get<mv::QuantizationParams>().isEmpty())
