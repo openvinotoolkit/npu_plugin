@@ -11,6 +11,5 @@ post-training-compression-tool used: 1fd58499e90601575fada95b6b1124c33652cac0 (d
 
 model-zoo-models-public used: 5ac87af4855c98ed4c43033d6144c368efc57900 (master)
 
-bbc9dbf4b0554109930c446e9803a35f900ae247
+kmb_plugin: c3af3890dc4c3e5781409a874730239270585a81 (kskvorts/post_training)
 
-kmb_plugin: bbc9dbf4b0554109930c446e9803a35f900ae247 (kskvorts/post_training)
