@@ -59,7 +59,7 @@ to prepare quantized (with FakeQuantize layers) IE IRs on the base of original n
     - `./run_post_trainig.sh` - show usage
     - `./run_post_trainig.sh <path to post trainig tool> <path to original model> <path to dataset> <path to post training config(json)> [<path to accuracy checker config(yml)>]`
     - The resulting IR should be in the "results" directory of <post_trainig_json> file directory"
-    - Example (running script from `scripts/post_training_quantizationresnet-50_pytorch` directory):
+    - Example (running script from `scripts/post_training_quantization/resnet-50_pytorch` directory):
       ```
       ../run_post_trainig.sh ../../../../post-training-compression-tool/ ../../../../model-zoo-models-public/classification/resnet/v1/50/pytorch/resnet-v1-50.onnx  ../../../../../Datasets/ImageNet ./resnet-50-pytorch_int8_yml.json ./resnet-50-pytorch_int8.yml -e
 
