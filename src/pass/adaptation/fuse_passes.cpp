@@ -6,14 +6,13 @@
 #include "include/mcm/utils/warning_manager.hpp"
 #include <functional>
 
-static void fuseBiasFcn(mv::Data::OpListIterator &opIt, mv::ComputationModel& model, std::string opType);
-static void fuseUsualPPEFcn(mv::Data::OpListIterator &opIt, mv::ComputationModel &model, std::string opType);
-static void fuseMinimumFcn(mv::Data::OpListIterator &opIt,  mv::ComputationModel& model, std::string opType);
-static void fuseMaximumFcn(mv::Data::OpListIterator &opIt,  mv::ComputationModel& model, std::string opType);
-static void fuseScaleFcn(mv::Data::OpListIterator &opIt,  mv::ComputationModel& model, std::string opType);
-static void fuseBatchNormFcn(mv::Data::OpListIterator &opIt,  mv::ComputationModel& model, std::string opType);
+void fuseBiasFcn(mv::Data::OpListIterator &opIt, mv::ComputationModel& model, std::string opType);
+void fuseUsualPPEFcn(mv::Data::OpListIterator &opIt, mv::ComputationModel &model, std::string opType);
+void fuseMinimumFcn(mv::Data::OpListIterator &opIt,  mv::ComputationModel& model, std::string opType);
+void fuseMaximumFcn(mv::Data::OpListIterator &opIt,  mv::ComputationModel& model, std::string opType);
+void fuseScaleFcn(mv::Data::OpListIterator &opIt,  mv::ComputationModel& model, std::string opType);
+void fuseBatchNormFcn(mv::Data::OpListIterator &opIt,  mv::ComputationModel& model, std::string opType);
 static void fusePostOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
-static std::unordered_map<std::string, std::vector<mv::Data::OpListIterator>> securedOrder(std::unordered_map<std::string, std::vector<mv::Data::OpListIterator>> fuseOperations, std::vector<std::string> types);
 
 namespace mv
 {
@@ -38,8 +37,6 @@ void fusePostOpsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
     std::vector<std::string> fuse_types = {"Bias", "Sigmoid", "Relu", "LeakyRelu", "Power", "MinimumDouble",
                                            "MinimumInt", "MaximumDouble", "MaximumInt"};
     std::unordered_map<std::string, std::vector<mv::Data::OpListIterator>> operationsOfType = om.getOpsOfTypes(fuse_types);
-    //NOTE: Need to be sure that the order of the fuse passes will go like is given in the vector
-    std::unordered_map<std::string, std::vector<mv::Data::OpListIterator>> operationsOfTypeOrdered = securedOrder(operationsOfType, fuse_types);
 
     auto fuseBias = [](mv::Data::OpListIterator &opIt, mv::ComputationModel& cm, std::string &empty){ return fuseBiasFcn(opIt, cm, empty);};
     auto fuseSigmoid = [](mv::Data::OpListIterator &opIt, mv::ComputationModel& cm, std::string &empty){ return fuseUsualPPEFcn(opIt, cm, empty);};
@@ -63,32 +60,11 @@ void fusePostOpsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
     //NOTE: Iterate the fuse_types vector for correct order reason according to map
     for (auto type = fuse_types.begin(); type != fuse_types.end(); type++)
     {
-        for(auto opPairIt = operationsOfTypeOrdered.begin(); opPairIt != operationsOfTypeOrdered.end(); ++opPairIt)
-        {
-            std::string opType = opPairIt->first;
-            if (*type == opType)
-            {
-                auto fuseFunctor = (fuseTaskMap.at(opType));
-                for (auto opIt = opPairIt->second.begin(); opIt != opPairIt->second.end();++opIt)
-                    fuseFunctor(*opIt, model, opType);
-            }
-        }
+        auto fuseFunctor = (fuseTaskMap.at(*type));
+        for (auto opIt = operationsOfType.at(*type).begin(); opIt != operationsOfType.at(*type).end();++opIt)
+            fuseFunctor(*opIt, model, *type);
     }
-
 }
-
-std::unordered_map<std::string, std::vector<mv::Data::OpListIterator>> securedOrder(std::unordered_map<std::string, std::vector<mv::Data::OpListIterator>> fuseOperations, std::vector<std::string> types)
-{
-    std::reverse(types.begin(), types.end());
-    std::unordered_map<std::string, std::vector<mv::Data::OpListIterator>>toReturnOrdered;
-    for (auto it = types.begin(); it != types.end(); it++)
-        for(auto opPairIt = fuseOperations.begin(); opPairIt != fuseOperations.end(); ++opPairIt)
-            if (*it == opPairIt->first)
-                toReturnOrdered[*it] = opPairIt->second;
-
-    return toReturnOrdered;
-}
-
 
 mv::Data::OpListIterator linkNewOperationsFuse(mv::Data::OpListIterator parentOpIt, mv::Data::TensorIterator sourceTensor, mv::OpModel om, mv::Data::OpListIterator opIt)
 {
