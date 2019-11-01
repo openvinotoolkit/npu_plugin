@@ -8,9 +8,19 @@ namespace mv
 
         static std::function<std::pair<bool, std::size_t>(const std::vector<Data::TensorIterator>&,
             const std::map<std::string, Attribute>&, std::string&)> inputCheckFcn =
-            [](const std::vector<Data::TensorIterator>&, const std::map<std::string, Attribute>&,
-            std::string&) -> std::pair<bool, std::size_t>
+            [](const std::vector<Data::TensorIterator>&, const std::map<std::string, Attribute>& args,
+            std::string& errMsg) -> std::pair<bool, std::size_t>
         {
+
+            // Check for valid axis value
+            auto axis = args.at("axis").get<int64_t>();
+            if ((!(axis >= -3) && (axis <= 3)) && (axis != 99))
+            {
+                std::stringstream err;
+                err << "Invalid axis value (must be -3 to 3, or 99 for no axis): " << axis;
+                errMsg = err.str();
+                return {false, 0};
+            }
 
             return {true, 0};
 
@@ -24,12 +34,42 @@ namespace mv
             if(dTypeToUse == mv::DType("Default"))
                 dTypeToUse = inputs[0]->getDType();
 
-            // TODO: modify output shape based on params
+            // Axis is based off NCHW channel ordering, i.e. 0 = N, W=3
+            // This is consistent with the TensorReference ordering of dimensions
+            // 99 to signal nothing specified, since -3..3 including 0 are valid values
+            auto outputShape = inputs[0]->getShape();
+            auto axis = args.at("axis").get<int64_t>();
+            if (axis == 99)
+            {
+                outputShape[3] = 1;
+                outputShape[2] = 1;
+                outputShape[1] = 1;
+                outputShape[0] = 1;
+            }
+            else if (axis < 0)
+            {
+                axis = 4 + axis;
+            }
+            else if (axis == 0)
+            {
+                outputShape[3] = 1;
+                outputShape[2] = 1;
+                outputShape[1] = 1;
+            }
+            else if (axis == 1)
+            {
+                outputShape[3] = 1;
+                outputShape[2] = 1;
+            }
+            else if (axis == 2)
+            {
+                outputShape[3] = 1;
+            }
 
             if (args.at("quantParams").get<mv::QuantizationParams>().isEmpty())
-                outputs.push_back(mv::Tensor(":0",  inputs[0]->getShape(), dTypeToUse, inputs[0]->getOrder()));
+                outputs.push_back(mv::Tensor(":0",  outputShape, dTypeToUse, inputs[0]->getOrder()));
             else
-                outputs.push_back(mv::Tensor(":0",  inputs[0]->getShape(), dTypeToUse, inputs[0]->getOrder(), args.at("quantParams").get<mv::QuantizationParams>()));
+                outputs.push_back(mv::Tensor(":0",  outputShape, dTypeToUse, inputs[0]->getOrder(), args.at("quantParams").get<mv::QuantizationParams>()));
         };
 
     }
@@ -41,7 +81,7 @@ namespace mv
         .setOutputs({"output"})
         .setArg<int64_t>("out_max_val")
         .setArg<int64_t>("top_k")
-        .setArg<int64_t>("axis")
+        .setOptionalArg<int64_t>("axis", 99)
         .setOptionalArg<mv::DType>("dType", mv::DType("Default"))
         .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
         .setInputCheck(op_argmax::inputCheckFcn)
