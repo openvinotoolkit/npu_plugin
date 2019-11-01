@@ -491,7 +491,7 @@ void vpuLayersTests::SetOutputTensors(IN_OUT_desc out_tensors)
 
 void vpuLayersTests::SetFirstInputToRange(float start, float finish)
 {
-    ASSERT_NE(_inputMap.size(), 0);
+    ASSERT_NE(_inputMap.size(), 0u);
     ASSERT_LT(start, finish);
     float range = finish - start;
     /* input data preparation */
@@ -509,7 +509,7 @@ void vpuLayersTests::SetFirstInputToRange(float start, float finish)
 
 void vpuLayersTests::SetInputInOrder()
 {
-    ASSERT_NE(_inputsInfo.size(), 0);
+    ASSERT_NE(_inputsInfo.size(), 0u);
     SizeVector inputDims = _inputsInfo.begin()->second->getTensorDesc().getDims();
     auto inputBlob = _inputMap[_inputsInfo.begin()->first];
     ASSERT_NE(inputBlob, nullptr);
@@ -525,7 +525,7 @@ void vpuLayersTests::SetInputInOrder()
 }
 
 void vpuLayersTests::SetInputInOrderReverse() {
-    ASSERT_NE(_inputsInfo.size(), 0);
+    ASSERT_NE(_inputsInfo.size(), 0u);
     auto inputBlob = _inputMap[_inputsInfo.begin()->first];
     ASSERT_NE(inputBlob, nullptr);
     uint16_t *dstPtr = inputBlob->buffer().as<uint16_t*>();
@@ -541,7 +541,7 @@ void vpuLayersTests::checkBlobs(Blob::Ptr actual, Blob::Ptr expected)
     const auto& actual_dims = actual->getTensorDesc().getDims();
     const auto& expected_dims = expected->getTensorDesc().getDims();
 
-    ASSERT_NE(actual_dims.size(), 0);
+    ASSERT_NE(actual_dims.size(), 0u);
     ASSERT_EQ(actual_dims.size(), expected_dims.size());
     for (size_t i = 0; i < actual_dims.size(); i++) {
         ASSERT_EQ(actual_dims[i], expected_dims[i]);
@@ -600,7 +600,7 @@ void vpuLayersTests::genNetwork(bool useHWOpt, int version) {
     size_t real_offset = 0;
     /* weights & biases calculation */
     for (auto& elem : _testNet) {
-        ASSERT_EQ(elem.inDim.size(), 1);
+        ASSERT_EQ(elem.inDim.size(), 1u);
         if (elem.fillWeights) {
             elem.weights_offset = real_offset;
             real_offset += elem.weights_size;
@@ -726,13 +726,13 @@ void vpuLayersTests::ReferenceGraph() {
     /* data preparation */
     ASSERT_TRUE(!_testNet.empty());
     ASSERT_TRUE(!_referenceGraph.callbacks.empty());
-    ASSERT_EQ(_inputsInfo.size(), 1);
+    ASSERT_EQ(_inputsInfo.size(), 1u);
     ASSERT_EQ(_testNet.size(), _referenceGraph.callbacks.size());
     auto referenceInput = _referenceGraph.callbacks.begin()->input;
     auto realInput = _inputMap[_inputsInfo.begin()->first];
     ASSERT_NE(referenceInput, nullptr);
     ASSERT_NE(realInput, nullptr);
-    int  count = referenceInput->size();
+    size_t  count = referenceInput->size();
     ASSERT_EQ(count, realInput->size());
     uint16_t *inputBlobRawDataFp16 = realInput->buffer();
     uint16_t *refBlobRawDataFp16 = referenceInput->buffer();

@@ -27,7 +27,7 @@ file(GLOB_RECURSE SOURCES *.cpp *.hpp *.h)
 ie_add_plugin(NAME ${TARGET_NAME}
               SOURCES ${SOURCES}
               VERSION_DEFINES_FOR kmb_plugin.cpp
-            DEVICE_NAME KMB)
+              DEVICE_NAME KMB)
 
 target_compile_options(${TARGET_NAME}
         PRIVATE
@@ -48,10 +48,12 @@ endif()
 
 target_include_directories(${TARGET_NAME}
     PRIVATE
-        "${CMAKE_CURRENT_SOURCE_DIR}"
-    SYSTEM PRIVATE
         "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/include"
-        "${IE_MAIN_SOURCE_DIR}/include"
+        "${CMAKE_CURRENT_SOURCE_DIR}"
+        )
+
+target_include_directories(${TARGET_NAME}
+    SYSTEM PRIVATE
         "${MCM_COMPILER_INCLUDE_PATH}"
         "${FLATBUFFERRS_INCLUDE_PATH}"
         "${MCM_SCHEMA_INCLUDE_PATH}"
@@ -84,11 +86,11 @@ if(ENABLE_TESTS)
 
     target_include_directories(${TARGET_NAME}_test_static
         PUBLIC
-            "${CMAKE_CURRENT_SOURCE_DIR}"
-        SYSTEM PRIVATE
             "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/include"
-            "${IE_MAIN_SOURCE_DIR}/include"
-            "${IE_MAIN_SOURCE_DIR}/src/inference_engine"
+            "${CMAKE_CURRENT_SOURCE_DIR}"
+            )
+    target_include_directories(${TARGET_NAME}_test_static
+        SYSTEM PRIVATE
             "${MCM_COMPILER_INCLUDE_PATH}"
             "${FLATBUFFERRS_INCLUDE_PATH}"
             "${MCM_SCHEMA_INCLUDE_PATH}"
@@ -98,6 +100,7 @@ if(ENABLE_TESTS)
             PUBLIC
                 vpusmm
                 IE::inference_engine
+                IE::inference_engine_plugin_api
             PRIVATE
                 ${INTEL_ITT_LIBS}
                 IE::vpu_common_lib
