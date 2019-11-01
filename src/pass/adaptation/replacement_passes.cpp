@@ -6,11 +6,11 @@
 
 const size_t FULLY_CONNECTED_KERNEL = 1;
 
-static void fullyConnectedAsConv2DFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
+static void fullyConnectedAsConv2DFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+static void standaloneActivationAsPostOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void tensorsToFP16Fcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void tensorsToU8Fcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
-static void averageAsDepthWiseFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
-static void replacementOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+static void averageAsDepthWiseFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 
 namespace mv
 {
@@ -30,10 +30,22 @@ namespace mv
             "Replaces quantized int8 tensors with U8 tensors"
         );
 
-        MV_REGISTER_PASS(ReplacementOps)
-        .setFunc(replacementOpsFcn)
+         MV_REGISTER_PASS(FullyConnectedAsConv2D)
+        .setFunc(fullyConnectedAsConv2DFcn)
         .setDescription(
-            "Replaces Average with Depthwise and FullyConnected with Convolution"
+            "Replaces the fullyConnected op with conv2D using 1x1 kernels"
+        );
+
+        MV_REGISTER_PASS(StandaloneActivationAsPostOps)
+        .setFunc(standaloneActivationAsPostOpsFcn)
+        .setDescription(
+            "Replaces unsupported standalone activation operations with identity operation + postOp activation"
+        );
+
+        MV_REGISTER_PASS(AverageAsDepthWise)
+        .setFunc(averageAsDepthWiseFcn)
+        .setDescription(
+            "Replaces average Pooling Layer with a DeptwiseConvolution"
         );
 
     }
@@ -165,13 +177,7 @@ void tensorsToU8Fcn(const mv::pass::PassEntry&  , mv::ComputationModel& model, m
     }
 }
 
-void replacementOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
-{
-    fullyConnectedAsConv2DFcn(pass, model);
-    averageAsDepthWiseFcn(pass, model);
-}
-
-void fullyConnectedAsConv2DFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
+void fullyConnectedAsConv2DFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
 
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
@@ -229,7 +235,63 @@ void fullyConnectedAsConv2DFcn(const mv::pass::PassEntry& pass, mv::ComputationM
     }
 }
 
-void averageAsDepthWiseFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
+void standaloneActivationAsPostOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& targetDescriptor, mv::Element&, mv::Element&)
+{
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
+
+    mv::OpModel om(model);
+
+    for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt)
+    {
+        std::string opType(opIt->getOpType());
+        auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
+
+        if(!targetDescriptor.opSupported(opType) && targetDescriptor.opSupportedAsPostOp(opType))
+        {
+            pass.log(mv::Logger::MessageType::Debug, "Found " + opType + " - " + opIt->getName());
+
+            auto parentOpIt = om.getSourceOp(opIt->getInputTensor(0));
+            auto sourceTensor = parentOpIt->getOutputTensor(0);
+
+            auto parentOpItType = parentOpIt->getOpType();
+
+            mv::Data::OpListIterator opToUse;
+
+            //Input, Costant, Concat are not real operations, so we need to introduce an identity op
+            if(parentOpItType == "Input" ||
+               parentOpItType == "Costant" ||
+               parentOpItType == "Concat")
+            {
+                sourceTensor = om.identity(sourceTensor);
+                auto identityOp = om.getSourceOp(sourceTensor);
+                opToUse = identityOp;
+                pass.log(mv::Logger::MessageType::Info, "Replaced " + opType + " with identity+postOp " + opToUse->getName());
+
+            }
+            else //no need for identity op, everything can be attached directly to previous op
+            {
+                opToUse = parentOpIt;
+                pass.log(mv::Logger::MessageType::Info, "Replaced " + opType + " by fusing it as a postOp to " + opToUse->getName());
+            }
+
+            opToUse->set("postOpType", opType);
+            std::vector<std::string> attrKeys(opIt->attrsKeys());
+
+            for(auto attrKey : attrKeys)
+            {
+                auto attrToSet = opIt->get(attrKey);
+                opToUse->set(attrKey, attrToSet);
+            }
+
+
+            opIt = linkNewOperationsReplacement(parentOpIt, sourceTensor, om, opIt);
+            sourceTensor->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
+        }
+    }
+}
+
+void averageAsDepthWiseFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
 
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)

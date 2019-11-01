@@ -82,7 +82,9 @@
     },
     "adapt": {
         "Singular": [
-            "ReplacementOps",
+            "AverageAsDepthWise",
+            "RemoveDropOut",
+            "FullyConnectedAsConv2D",
             "TensorsToU8",
             "TensorsToFP16",
             "FusePostOps",
