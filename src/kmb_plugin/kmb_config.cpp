@@ -37,9 +37,9 @@ KmbConfig::KmbConfig() {
 #else
         {VPU_KMB_CONFIG_KEY(KMB_EXECUTOR),                      CONFIG_VALUE(NO)},
 #endif
-        {VPU_KMB_CONFIG_KEY(MCM_TARGET_DESCRIPTOR_PATH),        "config/target"},
+        {VPU_KMB_CONFIG_KEY(MCM_TARGET_DESCRIPTOR_PATH),        "mcm_config/target"},
         {VPU_KMB_CONFIG_KEY(MCM_TARGET_DESCRIPTOR),             "release_kmb"},
-        {VPU_KMB_CONFIG_KEY(MCM_COMPILATION_DESCRIPTOR_PATH),   "config/compilation"},
+        {VPU_KMB_CONFIG_KEY(MCM_COMPILATION_DESCRIPTOR_PATH),   "mcm_config/compilation"},
         {VPU_KMB_CONFIG_KEY(MCM_COMPILATION_DESCRIPTOR),        "release_kmb"},
         {VPU_KMB_CONFIG_KEY(MCM_GENERATE_BLOB),                 CONFIG_VALUE(YES)},
         {VPU_KMB_CONFIG_KEY(MCM_GENERATE_JSON),                 CONFIG_VALUE(YES)},
@@ -49,6 +49,7 @@ KmbConfig::KmbConfig() {
         {VPU_KMB_CONFIG_KEY(MCM_COMPILATION_RESULTS),           ""},
         {VPU_KMB_CONFIG_KEY(LOAD_NETWORK_AFTER_COMPILATION),    CONFIG_VALUE(NO)},
         {VPU_KMB_CONFIG_KEY(THROUGHPUT_STREAMS),                "1"},
+        {VPU_KMB_CONFIG_KEY(PREPROCESSING_SHAVES),              "4"},
     };
 }
 
@@ -74,6 +75,7 @@ const std::unordered_set<std::string>& KmbConfig::getRunTimeOptions() const {
     static const std::unordered_set<std::string> options = merge(ParsedConfigBase::getCompileOptions(), {
         VPU_KMB_CONFIG_KEY(KMB_EXECUTOR),
         VPU_KMB_CONFIG_KEY(THROUGHPUT_STREAMS),
+        VPU_KMB_CONFIG_KEY(PREPROCESSING_SHAVES),
     });
 
     return options;
@@ -84,4 +86,10 @@ void KmbConfig::parse(const std::map<std::string, std::string>& config) {
         _config[p.first] = p.second;
     }
     ParsedConfigBase::parse(config);
+
+    std::istringstream strToNum(_config[VPU_KMB_CONFIG_KEY(PREPROCESSING_SHAVES)]);
+    strToNum >> numberOfSIPPShaves;
+    IE_ASSERT(numberOfSIPPShaves > 0 && numberOfSIPPShaves <= 16)
+        << "KmbConfig::parse attempt to set invalid number of shaves for SIPP: '"
+        << _config[VPU_KMB_CONFIG_KEY(PREPROCESSING_SHAVES)] << "', valid numbers are from 1 to 16";
 }

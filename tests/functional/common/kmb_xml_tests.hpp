@@ -1025,9 +1025,9 @@ static std::string fq_convolution_only_slim = R"V0G0N(
 static std::string fq_convolution_only_u8_slim = R"V0G0N(
 <net batch="1" name="resnet50-int8" version="6">
 	<layers>
-		<layer id="36" name="input" precision="U8" type="Input">
+		<layer id="0" name="input" precision="U8" type="Input">
 			<output>
-				<port id="0">
+				<port id="1">
 					<dim>_INPUT_BATCH_</dim>
 					<dim>_INPUT_CHANNEL_</dim>
 					<dim>_INPUT_HEIGHT_</dim>
@@ -1035,7 +1035,7 @@ static std::string fq_convolution_only_u8_slim = R"V0G0N(
 				</port>
 			</output>
 		</layer>
-		<layer id="42" name="conv2/weights" precision="U8" type="Const">
+		<layer id="1" name="conv2/weights" precision="U8" type="Const">
 			<output>
 				<port id="1">
 					<dim>_OUTPUT_CHANNEL_</dim>
@@ -1048,7 +1048,7 @@ static std::string fq_convolution_only_u8_slim = R"V0G0N(
 				<custom offset="0" size="_WEIGHTS_BYTE_SIZE_"/>
 			</blobs>
 		</layer>
-		<layer id="48" name="bias2" precision="I32" type="Const">
+		<layer id="2" name="bias2" precision="I32" type="Const">
 			<output>
 				<port id="1">
 					<dim>_OUTPUT_CHANNEL_</dim>
@@ -1058,8 +1058,8 @@ static std::string fq_convolution_only_u8_slim = R"V0G0N(
 				<custom offset="_BIAS_OFFSET_" size="_BIAS_BYTE_SIZE_"/>
 			</blobs>
 		</layer>
-		<layer id="49" name="conv2" precision="U8" type="Convolution">
-			<data kernel="_KERNEL_" output="_OUTPUT_CHANNEL_" strides="_STRIDE_" dilations="1,1" group="1"   pads_begin="0,0" pads_end="0,0" />
+		<layer id="3" name="conv" precision="U8" type="Convolution">
+			<data kernel="_KERNEL_" output="_OUTPUT_CHANNEL_" strides="_STRIDE_" dilations="1,1" group="1" pads_begin="0,0" pads_end="0,0" />
 			<input>
 				<port id="0">
 					<dim>_INPUT_BATCH_</dim>
@@ -1088,12 +1088,13 @@ static std::string fq_convolution_only_u8_slim = R"V0G0N(
 		</layer>
 	</layers>
 	<edges>
-		<edge from-layer="36" from-port="0" to-layer="49" to-port="0"/>
-		<edge from-layer="42" from-port="1" to-layer="49" to-port="1"/>
-		<edge from-layer="48" from-port="1" to-layer="49" to-port="2"/>
+        <edge from-layer="0" from-port="1" to-layer="3" to-port="0"/>
+        <edge from-layer="1" from-port="1" to-layer="3" to-port="1"/>
+        <edge from-layer="2" from-port="1" to-layer="3" to-port="2"/>
 	</edges>
 </net>
         )V0G0N";
+
 
 static std::string conv_after_scale_shift = R"V0G0N(
     <net batch="1" name="CONVOLUTION_TEST" version="2">

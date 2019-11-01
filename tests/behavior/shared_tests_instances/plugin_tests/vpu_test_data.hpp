@@ -3,6 +3,7 @@
 //
 
 #include "behavior_test_plugin.h"
+#include <vpu/kmb_plugin_config.hpp>
 
 // correct params
 #define BEH_KMB BehTestParams("kmbPlugin", model_path_fp16, weights_path_fp16, Precision::FP32)
@@ -46,6 +47,7 @@ const std::vector<BehTestParams> withCorrectConfValues = {
     BEH_KMB.withConfig({ { KEY_VPU_NUMBER_OF_SHAVES, "5" }, { KEY_VPU_NUMBER_OF_CMX_SLICES, "5" } }),
     BEH_KMB.withConfig({ { KEY_VPU_HW_INJECT_STAGES, "YES" } }),
     BEH_KMB.withConfig({ { KEY_VPU_HW_POOL_CONV_MERGE, "YES" } }),
+    BEH_KMB.withConfig({ { VPU_KMB_CONFIG_KEY(PREPROCESSING_SHAVES), "6" } }),
 };
 
 const std::vector<BehTestParams> withCorrectConfValuesPluginOnly = {
@@ -58,4 +60,5 @@ const BehTestParams withIncorrectConfValues[] = {
     BEH_KMB.withConfig({ { KEY_VPU_COPY_OPTIMIZATION, "ON" } }),
     BEH_KMB.withConfig({ { KEY_LOG_LEVEL, "VERBOSE" } }),
     BEH_KMB.withConfig({ { KEY_VPU_IGNORE_UNKNOWN_LAYERS, "ON" } }),
+    BEH_KMB.withConfig({ { VPU_KMB_CONFIG_KEY(PREPROCESSING_SHAVES), "SIX" } }),
 };

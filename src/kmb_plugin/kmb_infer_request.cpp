@@ -24,6 +24,7 @@
 
 #include <vpu/utils/perf_report.hpp>
 #include <vpu/utils/ie_helpers.hpp>
+#include <vpu/kmb_plugin_config.hpp>
 
 #include "kmb_executable_network.h"
 #include "kmb_infer_request.h"
@@ -59,7 +60,7 @@ KmbInferRequest::KmbInferRequest(const InferenceEngine::InputsDataMap& networkIn
         InferRequestInternal(networkInputs, networkOutputs), _executor(executor),
         _stagesMetaData(blobMetaData), _config(kmbConfig),
         _logger(std::make_shared<Logger>("KmbInferRequest", kmbConfig.logLevel(), consoleOutput())) {
-    _deviceLayout = NCHW;
+    _deviceLayout = InferenceEngine::Layout::NCHW;
 
     // allocate inputs
     IE_ASSERT(_networkInputs.size() == 1) << "Do not support more than 1 input";
@@ -155,7 +156,7 @@ void KmbInferRequest::InferAsync() {
                 inputs[input.first]->allocate();
             }
 
-            SippPreproc::execSIPPDataPreprocessing(inputs, _preProcData, _networkInputs, 1, true);
+            SippPreproc::execSIPPDataPreprocessing(inputs, _preProcData, _networkInputs, 1, true, _config.numberOfSIPPShaves);
 
             for (auto &input : inputs) {
                 auto name = input.first;
@@ -196,6 +197,8 @@ void KmbInferRequest::InferAsync() {
 
                     if (!getKmbAllocator()->isValidPtr(origYBlob->buffer())) {
                         Blob::Ptr kmbYBlob = make_blob_with_precision(origYBlob->getTensorDesc(), getKmbAllocator());
+                        IE_ASSERT(kmbYBlob != nullptr);
+
                         kmbYBlob->allocate();
                         copyBlob(origYBlob, kmbYBlob);
                         origNV12Blob->y() = kmbYBlob;
@@ -203,6 +206,8 @@ void KmbInferRequest::InferAsync() {
 
                     if (!getKmbAllocator()->isValidPtr(origUVBlob->buffer())) {
                         Blob::Ptr kmbUVBlob = make_blob_with_precision(origUVBlob->getTensorDesc(), getKmbAllocator());
+                        IE_ASSERT(kmbUVBlob != nullptr);
+
                         kmbUVBlob->allocate();
                         copyBlob(origUVBlob, kmbUVBlob);
                         origNV12Blob->uv() = kmbUVBlob;
@@ -210,7 +215,7 @@ void KmbInferRequest::InferAsync() {
                 }
             }
 
-            SippPreproc::execSIPPDataPreprocessing(_inputs, _preProcData, _networkInputs, 1, true);
+            SippPreproc::execSIPPDataPreprocessing(_inputs, _preProcData, _networkInputs, 1, true, _config.numberOfSIPPShaves);
         } else {
             execDataPreprocessing(_inputs);
         }

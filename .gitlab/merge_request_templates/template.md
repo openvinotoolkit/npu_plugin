@@ -17,5 +17,5 @@ CI:
 
 (Please replace the links below with your own)
 * [Jenkins](https://dsp-ci-icv.inn.intel.com/job/IE-MDK/job/manual/job/RunFunctionalTests/build?delay=0sec)
-* [TeamCity ARM64](https://teamcity01-ir.devtools.intel.com/viewType.html?buildTypeId=DeepLearningSdk_DeepLearningSdk_InferenceEngineUnifiedRepo_Linux_BuildUnitTest_3)
-* [TeamCity Ubuntu16](https://teamcity01-ir.devtools.intel.com/viewType.html?buildTypeId=DeepLearningSdk_DeepLearningSdk_InferenceEngineUnifiedRepo_Linux_BuildUnitTest_2)
+* [TeamCity Build All](https://teamcity01-ir.devtools.intel.com/viewType.html?buildTypeId=DeepLearningSdk_DeepLearningSdk_InferenceEngineUnifiedRepo_BuildAllKeemBayOnly)
+* [TeamCity Klocwork](https://teamcity01-ir.devtools.intel.com/viewType.html?buildTypeId=DeepLearningSdk_DeepLearningSdk_InferenceEngineUnifiedRepo_Linux_KwScanDevelop)
