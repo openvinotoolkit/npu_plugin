@@ -18,6 +18,22 @@
 #include <vector>
 
 namespace InferenceEngine {
+
+class SIPPPreprocEngine::Priv {
+    cv::GCompiled _lastCompiled;
+    SizeVector    _lastInYDims;
+    unsigned int  _shaveFirst;
+    unsigned int  _shaveLast;
+
+public:
+    Priv(unsigned int shaveFirst, unsigned int shaveLast)
+        : _shaveFirst(shaveFirst), _shaveLast(shaveLast) {}
+
+    void preprocWithSIPP(const Blob::Ptr &inBlob, Blob::Ptr &outBlob,
+                         const ResizeAlgorithm& algorithm, ColorFormat in_fmt,
+                         bool omp_serial, int batch_size);
+};
+
 namespace {
 namespace G {
     struct Strides {int N; int C; int H; int W;};
@@ -128,7 +144,7 @@ cv::gapi::own::Size getFullImageSize(const Blob::Ptr& blob) {
 }
 }  // anonymous namespace
 
-void SIPPPreprocEngine::preprocWithSIPP(const Blob::Ptr &inBlob, Blob::Ptr &outBlob,
+void SIPPPreprocEngine::Priv::preprocWithSIPP(const Blob::Ptr &inBlob, Blob::Ptr &outBlob,
                      const ResizeAlgorithm& algorithm, ColorFormat in_fmt,
                      bool /*omp_serial*/, int batch_size) {
     IE_ASSERT(algorithm == RESIZE_BILINEAR);
@@ -170,6 +186,17 @@ void SIPPPreprocEngine::preprocWithSIPP(const Blob::Ptr &inBlob, Blob::Ptr &outB
         _lastInYDims = y_blob->getTensorDesc().getDims();
     }
     _lastCompiled(gin(inputs_y[0][0], inputs_uv[0][0]), gout(outputs[0][0]));
+}
+
+SIPPPreprocEngine::SIPPPreprocEngine(unsigned int shaveFirst, unsigned int shaveLast)
+    : _priv(new Priv(shaveFirst, shaveLast)) {}
+
+SIPPPreprocEngine::~SIPPPreprocEngine() = default;
+
+void SIPPPreprocEngine::preprocWithSIPP(const Blob::Ptr &inBlob, Blob::Ptr &outBlob,
+                                        const ResizeAlgorithm& algorithm, ColorFormat in_fmt,
+                                        bool omp_serial, int batch_size) {
+    return _priv->preprocWithSIPP(inBlob, outBlob, algorithm, in_fmt, omp_serial, batch_size);
 }
 
 }  // namespace InferenceEngine
