@@ -39,16 +39,20 @@ namespace mv
             // 99 to signal nothing specified, since -3..3 including 0 are valid values
             auto outputShape = inputs[0]->getShape();
             auto axis = args.at("axis").get<int64_t>();
+
+            // Handle negative axis
+            if (axis < 0)
+            {
+                axis = 4 + axis;
+            }
+
+            // Modify outputShape based on axis
             if (axis == 99)
             {
                 outputShape[3] = 1;
                 outputShape[2] = 1;
                 outputShape[1] = 1;
                 outputShape[0] = 1;
-            }
-            else if (axis < 0)
-            {
-                axis = 4 + axis;
             }
             else if (axis == 0)
             {
