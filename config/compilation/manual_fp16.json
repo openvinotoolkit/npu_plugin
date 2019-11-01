@@ -8,8 +8,8 @@
                 "verbose": "Error",
                 "weights_form": "None",
                 "barrier_index_assignment" : "Dynamic",
-                "Number_of_DPUs" : 20,
-                "Number_of_Clusters" : 4,
+                "Number_of_DPUs" : 1,
+                "Number_of_Clusters" : 1,
                 "UpaShaves": 1,
                 "DDRScratch": 16777216,
                 "MemoryHack": false,
@@ -17,9 +17,27 @@
                 "split_strategy" :
                 [
                     {
-                        "name_filter" : "name",
-                        "cluster_filter" : 0,
-                        "strategy" : "Example"
+                        "name_filter" : ".*",
+                        "strategy" : "Clustering"
+                    }
+                ],
+                "address_helper_addresses":
+                [
+                    {
+                        "name_filter" : "output:0#3_copyIn_0:0",
+                        "address":0
+                    },
+                    {
+                        "name_filter" : "output:0#3:0",
+                        "address":65536
+                    },
+                    {
+                        "name_filter" : "output:0#3_weights_table_DDR2CMX:0",
+                        "address":81920
+                    },
+                    {
+                        "name_filter" : "output:0#3_sparse_dw_DDR2CMX:0",
+                        "address":82432
                     }
                 ],
                 "default_tensor_placement" : "CMX",
@@ -57,6 +75,10 @@
                             {"W" : 1},
                             {"K" : 1}
                         ]
+                    },
+                    {
+                        "name_filter" : "output:0#3",
+                        "splits" : [ {"H" : 3} ]
                     }
                 ],
                 "sparsity_strategy" :
@@ -67,99 +89,30 @@
                         "outputActivationSparsity": false,
                         "weightsSparsity": false
                     }
-                ]
+                ],
+                "default_tensor_placement" : "DDR"
             },
             "ComputeMemory",
             "AssignUniqueOpId",
             {
                 "name": "CreateSourceStructure",
                 "VersionMajor": 3,
-                "VersionMinor": 11,
-                "VersionPatch": 0,
-                "VersionHash": "9aa43159420c77d8cf765393954ac2fbb372ab02"
+                "VersionMinor": 15,
+                "VersionPatch": 2,
+                "VersionHash": "a5aeead67d8605f1144bb62acf47c9284fd37025"
             }
         ]
     },
     "adapt": {
         "Singular": [
-            "ReplacementOps",
-            "TensorsToU8",
             "TensorsToFP16",
-            "FusePostOps",
-            {
-                "name" : "GraphParameterOptimization",
-                "graphOptimizerConfig" : {
-                    "globalConfigs" : [
-                        {"name" : "totalClusters",  "value" : 4   },
-                        {"name" : "clusterMemory",  "value" : 896 },
-                        {"name" : "dpuPerCluster",  "value" : 5   },
-                        {"name" : "ddrBandwidth",   "value" : 128 },
-                        {"name" : "systemClockMhz", "value" : 500 },
-                        {"name" : "FathomSafetyFactor", " value" : 0.80},
-                        {"name" : "dotFileLocation", "value" : "./output/"},
-                        {"name" : "jsonOutFileName", "value" : "./output/mcmCompiler_strategy_output.json"}
-                    ],
-                    "globalStrategies" : [
-                        {"name" : "forceSpilling",    "value" : false       },
-                        {"name" : "enableStreaming",   "value" : true       },
-                        {"name" : "doubleBuffering",   "value" : false      },
-                        {"name" : "enableActivationSparsity",    "value" : false      },
-                        {"name" : "enableWeightsSparsity",    "value" : false      },
-                        {"name" : "clusteringStrategy","value" : "Automatic"}
-                    ],
-                    "layerStrategies" : [
-                        {
-                            "name" : "Conv",
-                            "strategies": [
-                                {"name" : "streamingStrategies",  "value" : ["StreamOverH","StreamOverW","StreamOverK"]},
-                                {"name" : "clusteringStrategies", "value" : ["SplitOverH","SplitOverK","HKSwitch","Clustering"]},
-                                {"name" : "inputActivationSparsity",             "value" : true},
-                                {"name" : "outputActivationSparsity",             "value" : true},
-                                {"name" : "weightsSparsity",                      "value" : true}
-                            ]
-                        },
-                        {
-                            "name" : "DepthwiseConv",
-                            "strategies": [
-                                {"name" : "streamingStrategies",  "value" : ["StreamOverH","StreamOverW"]},
-                                {"name" : "clusteringStrategies", "value" : ["SplitOverH","HKSwitch","SplitOverK","Clustering"]},
-                                {"name" : "inputActivationSparsity",             "value" : false},
-                                {"name" : "outputActivationSparsity",             "value" : true},
-                                {"name" : "weightsSparsity",                      "value" : false}
-                            ]
-                        },
-                        {
-                            "name" : "MaxPool",
-                            "strategies": [
-                                {"name" : "streamingStrategies",  "value" : ["StreamOverH","StreamOverW"]},
-                                {"name" : "clusteringStrategies", "value" : ["SplitOverH","HKSwitch","Clustering"]},
-                                {"name" : "inputActivationSparsity",             "value" : false},
-                                {"name" : "outputActivationSparsity",             "value" : true},
-                                {"name" : "weightsSparsity",                      "value" : false}
-                            ]
-                        },
-                        {
-                            "name" : "Concat",
-                            "strategies": [
-                                {"name" : "clusteringStrategies", "value" : ["Clustering"]},
-                                {"name" : "inputActivationSparsity",             "value" : false},
-                                {"name" : "outputActivationSparsity",             "value" : true},
-                                {"name" : "weightsSparsity",                      "value" : false}
-                            ]
-                        },
-                        {
-                            "name" : "Add",
-                            "strategies": [
-                                {"name" : "streamingStrategies",  "value" : ["StreamOverH","StreamOverW"]},
-                                {"name" : "clusteringStrategies", "value" : ["SplitOverH","HKSwitch","Clustering"]},
-                                {"name" : "inputActivationSparsity",             "value" : false},
-                                {"name" : "outputActivationSparsity",             "value" : true},
-                                {"name" : "weightsSparsity",                      "value" : false}
-                            ]
-                        }
-                    ]
-                }
-            },
+            "AverageAsDepthWise",
+            "FuseBatchNorm",
+            "FuseBias",
+            "FuseRelu",
+            "FuseScale",
+            "RemoveDropOut",
+            "FullyConnectedAsConv2D",
             "StoreLayerSplitStrategy",
             "StoreLayerSparsityStrategy",
             "StoreTensorPlacement",
@@ -196,6 +149,13 @@
             "SetDpuTasksMemoryLocation",
             "ResolveImplicitOperations",
             "AddWeightsDMATasks",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/dma_model.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
             "EnsureSplitStrategiesForSpilling"
         ]
     },
@@ -206,7 +166,7 @@
             "LayerNumbering",
             {
                 "name": "HangingDmaControlFlows",
-                "weights_prefetch": 2
+                "weights_prefetch": 1
             },
             "TransitiveReduction",
             "LayerNumbering",
@@ -252,8 +212,6 @@
             "StoreBarriersNamesInTasks",
             "GenerateExecutionSchedule",
             "BarrierIndexAssignment",
-            "LayerNumbering",
-            "ReorderDmasInSchedule",
             "UpdateBarrierRefs"
         ]
     },
