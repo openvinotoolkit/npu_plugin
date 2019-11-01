@@ -1,6 +1,6 @@
-# Post training quantization script
+** Post training quantization script **
 
-Is intended to run [post trainig compression tool](https://gitlab-icv.inn.intel.com/algo/post-training-compression-tool/tree/develop/)
+Is intended to run [post training compression tool](https://gitlab-icv.inn.intel.com/algo/post-training-compression-tool/tree/develop/)
 to prepare quantized (with FakeQuantize layers) IE IRs on the base of original network and dataset
 * Tool uses:
     - OpenVINO IE python_api
@@ -11,7 +11,7 @@ to prepare quantized (with FakeQuantize layers) IE IRs on the base of original n
     ```
     git clone git@gitlab-icv.inn.intel.com:algo/post-training-compression-tool.git
     ```
-    - Learn [instruction from tool repo](https://gitlab-icv.inn.intel.com/algo/post-training-compression-tool/blob/develop/README.md) from tool repo
+    - Learn [instruction from tool repo](https://gitlab-icv.inn.intel.com/algo/post-training-compression-tool/blob/develop/README.md)
     - Besides:
         - OpenVINO IE should be built:
             - on special branch: feature/low_precision/develop_fp (can be changed)
