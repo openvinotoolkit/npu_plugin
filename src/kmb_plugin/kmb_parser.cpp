@@ -59,6 +59,7 @@
 
 #include "kmb_parser.hpp"
 
+#include <ie_util_internal.hpp>
 #include <vpu/kmb_plugin_config.hpp>
 
 #if defined(_WIN32)
@@ -67,6 +68,8 @@
 
 #ifdef ENABLE_MCM_COMPILER
 #include <mcm/target/kmb/runtime_model/runtime_model.hpp>
+
+using namespace InferenceEngine;
 
 namespace vpu {
 
@@ -91,12 +94,12 @@ void compileMcm(
     }
 
     std::string targetName = parsedConfig[VPU_KMB_CONFIG_KEY(MCM_TARGET_DESCRIPTOR)];
-    std::string targetPath = mv::utils::projectRootPath()
-                             + "/" + parsedConfig[VPU_KMB_CONFIG_KEY(MCM_TARGET_DESCRIPTOR_PATH)]
-                             + "/" + parsedConfig[VPU_KMB_CONFIG_KEY(MCM_TARGET_DESCRIPTOR)] + ".json";
+    std::string targetPath = getIELibraryPath()
+                           + "/" + parsedConfig[VPU_KMB_CONFIG_KEY(MCM_TARGET_DESCRIPTOR_PATH)]
+                           + "/" + parsedConfig[VPU_KMB_CONFIG_KEY(MCM_TARGET_DESCRIPTOR)] + ".json";
     std::string compDescName = parsedConfig[VPU_KMB_CONFIG_KEY(MCM_COMPILATION_DESCRIPTOR)];
 
-    std::string compDescPath = mv::utils::projectRootPath()
+    std::string compDescPath = getIELibraryPath()
                              + "/" + parsedConfig[VPU_KMB_CONFIG_KEY(MCM_COMPILATION_DESCRIPTOR_PATH)]
                              + "/" + parsedConfig[VPU_KMB_CONFIG_KEY(MCM_COMPILATION_DESCRIPTOR)] + ".json";
 

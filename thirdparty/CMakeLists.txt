@@ -75,6 +75,11 @@ if (ENABLE_MCM_COMPILER)
             INSTALL_COMMAND ""
             CMAKE_ARGS ${MCM_COMPILER_CMAKE_ARGS} ${METIS_INCLUDE_PATH})
 
+    set(COMPILATION_CONFIG_OUT_DIR "$<TARGET_FILE_DIR:kmbPlugin>")
+    add_custom_target(mcm_compiler_copy_configs ALL
+            COMMAND "${CMAKE_COMMAND}" -E copy_directory "${MCM_BASE_DIR}/config" "${COMPILATION_CONFIG_OUT_DIR}/mcm_config"
+            COMMENT "[MCM Compiler] Copy config files for compilation")
+
     set(MCM_COMPILER_INCLUDE_PATH "${MCM_BASE_DIR}"
                                   "${MCM_BASE_DIR}/include"
                                   "${MCM_BASE_DIR}/build/meta" PARENT_SCOPE)
