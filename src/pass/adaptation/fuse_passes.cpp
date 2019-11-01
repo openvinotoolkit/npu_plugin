@@ -13,7 +13,7 @@ static void fuseMaximumFcn(mv::Data::OpListIterator &opIt,  mv::ComputationModel
 static void fuseScaleFcn(mv::Data::OpListIterator &opIt,  mv::ComputationModel& model, std::string opType);
 static void fuseBatchNormFcn(mv::Data::OpListIterator &opIt,  mv::ComputationModel& model, std::string opType);
 static void fusePostOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
-
+static std::unordered_map<std::string, std::vector<mv::Data::OpListIterator>> securedOrder(std::unordered_map<std::string, std::vector<mv::Data::OpListIterator>> fuseOperations, std::vector<std::string> types);
 
 namespace mv
 {
@@ -31,20 +31,16 @@ namespace mv
 
 void fusePostOpsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
-    using namespace mv;
+    UNUSED(fuseScaleFcn);
+    UNUSED(fuseBatchNormFcn);
 
-    OpModel om(model);
-    DataModel dm(model);
-
+    mv::OpModel om(model);
     std::vector<std::string> fuse_types = {"Bias", "Sigmoid", "Relu", "LeakyRelu", "Power", "MinimumDouble",
                                            "MinimumInt", "MaximumDouble", "MaximumInt"};
     std::unordered_map<std::string, std::vector<mv::Data::OpListIterator>> operationsOfType = om.getOpsOfTypes(fuse_types);
-    std::size_t totalPPETasks = 0;
-    for (auto it = operationsOfType.begin(); it != operationsOfType.end(); it++)
-        totalPPETasks += it->second.size();
+    //NOTE: Need to be sure that the order of the fuse passes will go like is given in the vector
+    std::unordered_map<std::string, std::vector<mv::Data::OpListIterator>> operationsOfTypeOrdered = securedOrder(operationsOfType, fuse_types);
 
-    UNUSED(fuseScaleFcn);
-    UNUSED(fuseBatchNormFcn);
     auto fuseBias = [](mv::Data::OpListIterator &opIt, mv::ComputationModel& cm, std::string &empty){ return fuseBiasFcn(opIt, cm, empty);};
     auto fuseSigmoid = [](mv::Data::OpListIterator &opIt, mv::ComputationModel& cm, std::string &empty){ return fuseUsualPPEFcn(opIt, cm, empty);};
     auto fuseRelu = [](mv::Data::OpListIterator &opIt, mv::ComputationModel& cm, std::string &empty){ return fuseUsualPPEFcn(opIt, cm, empty);};
@@ -64,20 +60,28 @@ void fusePostOpsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
                                         {"MaximumDouble", fuseMaximum},
                                         {"MaximumInt", fuseMaximum}};
 
-    auto opIt = om.getInput();
-    while (totalPPETasks > 0)
+    for(auto opPairIt = operationsOfTypeOrdered.begin(); opPairIt != operationsOfTypeOrdered.end(); ++opPairIt)
     {
-        auto opType = opIt->getOpType();
-        if (fuseTaskMap.find(opType) != fuseTaskMap.end())
-        {
-            auto fuseFunctor = (fuseTaskMap.at(opType));
-            fuseFunctor(opIt, model, opType);
-            totalPPETasks--;
-        }
-        ++opIt;
+        std::string opType = opPairIt->first;
+        auto fuseFunctor = (fuseTaskMap.at(opType));
+        for (auto opIt = opPairIt->second.begin(); opIt != opPairIt->second.end();++opIt)
+            fuseFunctor(*opIt, model, opType);
     }
 
 }
+
+std::unordered_map<std::string, std::vector<mv::Data::OpListIterator>> securedOrder(std::unordered_map<std::string, std::vector<mv::Data::OpListIterator>> fuseOperations, std::vector<std::string> types)
+{
+    std::reverse(types.begin(), types.end());
+    std::unordered_map<std::string, std::vector<mv::Data::OpListIterator>>toReturnOrdered;
+    for (auto it = types.begin(); it != types.end(); it++)
+        for(auto opPairIt = fuseOperations.begin(); opPairIt != fuseOperations.end(); ++opPairIt)
+            if (*it == opPairIt->first)
+                toReturnOrdered[*it] = opPairIt->second;
+
+    return toReturnOrdered;
+}
+
 
 mv::Data::OpListIterator linkNewOperationsFuse(mv::Data::OpListIterator parentOpIt, mv::Data::TensorIterator sourceTensor, mv::OpModel om, mv::Data::OpListIterator opIt)
 {
