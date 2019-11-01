@@ -1474,13 +1474,13 @@ MVCNN::UPALayerTaskT *mv::RuntimeModel::buildUPAProposalTask(ComputationModel &c
 
     // Build scale vector
     auto scale_vector = std::vector<float>();
-    for (auto i = 0; i < scale->size(); ++i)
-        scale_vector.push_back(mv::fp16_to_fp32(static_cast<uint16_t>(scale->getIntData().at({i}))));
+    for (unsigned i = 0; i < scale->size(); ++i)
+        scale_vector.push_back(mv::fp16_to_fp32(static_cast<uint16_t>(scale->getIntData().at(i))));
 
     // Build ratio vector
     auto ratio_vector = std::vector<float>();
-    for (auto i = 0; i < ratio->size(); ++i)
-        ratio_vector.push_back(mv::fp16_to_fp32(static_cast<uint16_t>(ratio->getIntData().at({i}))));
+    for (unsigned i = 0; i < ratio->size(); ++i)
+        ratio_vector.push_back(mv::fp16_to_fp32(static_cast<uint16_t>(ratio->getIntData().at(i))));
 
     // Fill in tensors
     toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, cls_pred)));
@@ -1588,12 +1588,12 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAQuantizeTask(ComputationModel& 
 
     // Convert vectors to fp16
     auto scale_vector = std::vector<unsigned short>();
-    for (auto i = 0; i < quantScale.size(); ++i)
-        scale_vector.push_back(mv::fp32_to_fp16(static_cast<float>(quantScale.at({i}))));
+    for (unsigned i = 0; i < quantScale.size(); ++i)
+        scale_vector.push_back(mv::fp32_to_fp16(static_cast<float>(quantScale.at(i))));
 
     auto zero_vector = std::vector<unsigned short>();
-    for (auto i = 0; i < quantZero.size(); ++i)
-        zero_vector.push_back(mv::fp32_to_fp16(static_cast<float>(quantZero.at({i}))));
+    for (unsigned i = 0; i < quantZero.size(); ++i)
+        zero_vector.push_back(mv::fp32_to_fp16(static_cast<float>(quantZero.at(i))));
 
     toBuild->softLayerParams.value = softLayerParamsValue;
     softLayerParamsValue->scale = std::vector<unsigned short>(scale_vector.begin(), scale_vector.end());
@@ -1765,20 +1765,20 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAPriorboxTask(ComputationModel& 
     auto output = opIt->getOutputTensor(0);
 
     auto min_sizes_vector = std::vector<float>();
-    for (auto i = 0; i < min_sizes->size(); ++i)
-        min_sizes_vector.push_back(static_cast<float>(min_sizes->getData().at({i})));
+    for (unsigned i = 0; i < min_sizes->size(); ++i)
+        min_sizes_vector.push_back(static_cast<float>(min_sizes->getData().at(i)));
 
     auto max_sizes_vector = std::vector<float>();
-    for (auto i = 0; i < max_sizes->size(); ++i)
-        max_sizes_vector.push_back(static_cast<float>(max_sizes->getData().at({i})));
+    for (unsigned i = 0; i < max_sizes->size(); ++i)
+        max_sizes_vector.push_back(static_cast<float>(max_sizes->getData().at(i)));
 
     auto aspect_ratios_vector = std::vector<float>();
-    for (auto i = 0; i < aspect_ratios->size(); ++i)
-        aspect_ratios_vector.push_back(static_cast<float>(aspect_ratios->getData().at({i})));
+    for (unsigned i = 0; i < aspect_ratios->size(); ++i)
+        aspect_ratios_vector.push_back(static_cast<float>(aspect_ratios->getData().at(i)));
 
     auto variances_vector = std::vector<float>();
-    for (auto i = 0; i < variances->size(); ++i)
-        variances_vector.push_back(static_cast<float>(variances->getData().at({i})));
+    for (unsigned i = 0; i < variances->size(); ++i)
+        variances_vector.push_back(static_cast<float>(variances->getData().at(i)));
 
     // Fill in tensors
     toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, priorbox)));
@@ -1851,6 +1851,9 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAPassthroughTask(ComputationMode
 
 MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPADummyTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt)
 {
+    UNUSED(cm);
+    UNUSED(compilationDescriptor);
+    UNUSED(opIt);
     auto toBuild = new MVCNN::UPALayerTaskT();
     //toBuild->maxShaves = ;
     toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_DummyParams;
