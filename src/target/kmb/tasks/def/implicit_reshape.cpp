@@ -11,6 +11,9 @@ namespace mv
             [](const std::vector<Data::TensorIterator>&, const std::map<std::string, Attribute>&,
             std::string&) -> std::pair<bool, std::size_t>
         {
+            UNUSED(inputs);
+            UNUSED(args);
+            UNUSED(errMsg);
 
             return {true, 0};
 
