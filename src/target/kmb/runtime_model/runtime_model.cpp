@@ -92,9 +92,9 @@ void setIfPresent(T1& fieldToFill, mv::Element& compilationDescriptor, const std
         fieldToFill = compilationDescriptor.get<T2>(key);
 }
 
-void mv::RuntimeModel::alignTensor(mv::ComputationModel& cm, std::unique_ptr<MVCNN::TensorReferenceT>& tensorT, mv::Tensor& tensor, std::string dimension, bool padFinalOutput)
+void mv::RuntimeModel::alignTensor(mv::ComputationModel& cm, std::unique_ptr<MVCNN::TensorReferenceT>& tensorT, mv::Tensor& tensor, const size_t dimension, bool padFinalOutput)
 {
-    if(dimension == "channel") 
+    if(dimension == IO_CHANNEL_DIMENSION) 
     {
         auto globalConfigParams = cm.getGlobalConfigParams();
         int pad = globalConfigParams->hasAttr("VPU2ChannelPadding") ? globalConfigParams->get<int>("VPU2ChannelPadding") : 16;
@@ -109,7 +109,7 @@ void mv::RuntimeModel::alignTensor(mv::ComputationModel& cm, std::unique_ptr<MVC
         if(padFinalOutput)
             tensorT->dimensions = std::vector<uint32_t>(dimensions.begin(), dimensions.end());
     }
-    else if (dimension == "width") 
+    else if (dimension == IO_WIDTH_DIMENSION) 
     {
         std::vector<std::size_t> dimensions = tensor.getShape();
         auto widthPadded = mv::round_up(dimensions[mv::IO_WIDTH_DIMENSION], 16);
@@ -472,7 +472,7 @@ std::unique_ptr<MVCNN::SummaryHeaderT> mv::RuntimeModel::buildSummaryHeaderT(Com
     toBuild->net_output = std::vector<std::unique_ptr<MVCNN::TensorReferenceT>>(1);
     toBuild->net_output[0] = buildTensorReferenceT(cm, compilationDescriptor, om.getOutput()->getInputTensor(0));
     if (paddOutput && om.getOutput()->getInputTensor(0)->hasAttr("alignment"))
-        alignTensor(cm, toBuild->net_output[0], *om.getOutput()->getInputTensor(0), "channel", paddOutput);
+        alignTensor(cm, toBuild->net_output[0], *om.getOutput()->getInputTensor(0), IO_CHANNEL_DIMENSION, paddOutput);
 
     auto taskCount = [](mv::OpModel m)
     {
@@ -722,7 +722,7 @@ void mv::RuntimeModel::case1MC(unsigned numTasks, mv::ComputationModel& cm, mv::
     if (direction != mv::DDR2CMX)
     {
         if (padFinalOutput && dst->hasAttr("alignment"))
-            alignTensor(cm, tmp->dst, *dst, "channel", padFinalOutput);
+            alignTensor(cm, tmp->dst, *dst, IO_CHANNEL_DIMENSION, padFinalOutput);
     }
 
     std::vector<unsigned int> locale_index;
@@ -758,14 +758,14 @@ void mv::RuntimeModel::case2MC(unsigned numTasks, ComputationModel& cm,  mv::Dma
         if (direction != mv::DDR2CMX)
         {
             if (padFinalOutput && dst->hasAttr("alignment"))
-                alignTensor(cm, tmp->dst, dst->getSubTensor(i), "channel", padFinalOutput);
+                alignTensor(cm, tmp->dst, dst->getSubTensor(i), IO_CHANNEL_DIMENSION, padFinalOutput);
         }
 
         //Check if DMA is DDR2CMX
         if (direction == mv::DDR2CMX)
         {
             if (dst->hasAttr("alignWidth"))
-                alignTensor(cm, tmp->dst, dst->getSubTensor(i), "width", false);
+                alignTensor(cm, tmp->dst, dst->getSubTensor(i), IO_WIDTH_DIMENSION, false);
         }
 
         checkUnstridedDMA(src, i, tmp);

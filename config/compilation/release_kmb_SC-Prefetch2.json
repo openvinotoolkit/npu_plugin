@@ -189,17 +189,18 @@
             "GenerateEltWiseConstants",
             "StrategyLayersToTensors",
             "ComputeTensorsQuantParams",
-            "UpdateImplicitLayersQuantizationParams",
             "PopulateWeightsTablesQuantization",
-            "RemoveBiasTensors",
-            "SplittingTensorsAcrossClusters"
+            "RemoveBiasTensors"
         ]
     },
     "dma": {
         "Singular" : [
             "SetDpuTasksMemoryLocation",
-            "ResolveImplicitOperations",
             "AddWeightsDMATasks",
+            "alignInputForChannelMajorConvolution",
+            "SplittingTensorsAcrossClusters",
+            "UpdateImplicitLayersQuantizationParams",
+            "ResolveImplicitOperations",
             "EnsureSplitStrategiesForSpilling"
         ]
     },
