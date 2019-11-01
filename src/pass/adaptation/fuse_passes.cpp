@@ -61,7 +61,7 @@ void fusePostOpsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
     for (auto type = fuse_types.begin(); type != fuse_types.end(); type++)
     {
         auto fuseFunctor = (fuseTaskMap.at(*type));
-        for (auto opIt = operationsOfType.at(*type).begin(); opIt != operationsOfType.at(*type).end();++opIt)
+        for (auto opIt = operationsOfType[*type].begin(); opIt != operationsOfType[*type].end();++opIt)
             fuseFunctor(*opIt, model, *type);
     }
 }
