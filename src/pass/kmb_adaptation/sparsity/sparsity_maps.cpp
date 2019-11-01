@@ -40,25 +40,44 @@ mv::Data::TensorIterator createFakeSparsityMap(mv::OpModel om, mv::Data::OpListI
     return sparsityMap;
 }
 
-uint16_t getWindowSize(uint16_t kx, uint16_t sx)
+uint16_t getWindowSize(uint16_t kx, uint16_t sx, mv::DType dataType)
 {
     //Find max mpe where if calc window <= 32
     //return window size for the max mpe
     uint16_t windowSize, maxMpeWindowSize = 64;
     int mpe = 1;
 
-    //mpe in [1,2,4,8,16]
-    while(mpe <= 16)
+    if (dataType == mv::DType("UInt8"))
     {
-        if (sx <= kx)
-            windowSize = kx + sx * (mpe - 1);
-        else
-            windowSize = kx * mpe;
+        //mpe in [1,2,4,8,16] for uint8
+        while(mpe <= 16)
+        {
+            if (sx <= kx)
+                windowSize = kx + sx * (mpe - 1);
+            else
+                windowSize = kx * mpe;
 
-        if (windowSize <= 32)
-            maxMpeWindowSize = windowSize;
+            if (windowSize <= 32)
+                maxMpeWindowSize = windowSize;
 
-        mpe *= 2;
+            mpe *= 2;
+        }
+    }
+    else if (dataType == mv::DType("Float16"))
+    {
+        //mpe in [1,2,4] for float
+        while(mpe <= 4)
+        {
+            if (sx <= kx)
+                windowSize = kx + sx * (mpe - 1);
+            else
+                windowSize = kx * mpe;
+
+            if (windowSize <= 32)
+                maxMpeWindowSize = windowSize;
+
+            mpe *= 2;
+        }
     }
 
     return maxMpeWindowSize;
@@ -80,7 +99,7 @@ std::vector<int8_t> createBitPattern(uint16_t kernelW, uint16_t kernelH, uint16_
 
 // The sparsity maps relative to populated tensors have to be generated BEFORE the dma passes.
 // As they have to be DMAed into CMX.
-static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&)
+static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
 
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
@@ -128,7 +147,11 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
                     kernelH = weightsShape[mv::KERNEL_HEIGHT];
                 }
 
-                auto windowsSize = getWindowSize(kernelW, strides[0]);
+                mv::DType dataType = dpuTask->getInputTensor(0)->get<mv::DType>("dType");
+                if (!isPooling)
+                     dataType = dpuTask->getInputTensor(1)->get<mv::DType>("dType");
+
+                auto windowsSize = getWindowSize(kernelW, strides[0], dataType);
 
                 pass.log(mv::Logger::MessageType::Debug, "windowSize " + std::to_string(windowsSize));
                 pass.log(mv::Logger::MessageType::Debug, "OutputChannels " + std::to_string(outputChannels));
@@ -148,7 +171,7 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
                     auto windowSparsitySize = static_cast<std::size_t>(std::ceil(windowsSize/8.0)); //how many bytes we need per window
                     auto NumberOfRowsSparistyBytes = static_cast<std::size_t>(std::ceil((kernelH * inputChannels * windowSparsitySize) / 16.0 ));
                     perChannelSparsity.resize(NumberOfRowsSparistyBytes * 16);//allocate once
-                    ndims = {16 * NumberOfRowsSparistyBytes, 1, 1, outputChannels};
+                    ndims = {16, NumberOfRowsSparistyBytes, 1, outputChannels};
                 }
 
                 int channelLenght = bitpattern.size();
@@ -235,7 +258,7 @@ bool checkA0SOHSparsityBug(mv::Data::FlowListIterator flow)
 // In the future, these two conditions could change. We have to sync with runtime.
 
 // Eltwise, being the hackiest operation ever, potentially can support sparsity input, sharing the IDU with ZMajorConv, but the runtime currently doesn't allow it.
-// The inner loop of this function must iterate on tensors, not data flows
+
 static void generateSparsityMapsUnpopulatedTensorsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&)
 {
 

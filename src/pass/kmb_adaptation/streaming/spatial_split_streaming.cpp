@@ -157,7 +157,7 @@ static void setStreamingStrategy(const mv::pass::PassEntry &pass, mv::Computatio
     auto globalParams = model.getGlobalConfigParams();
     if (!globalParams->hasAttr("streaming_strategy"))
     {
-        std::cout << "SET STREAMING STRATEGY EXITING: no strategy defined in JSON" << std::endl;
+        std::cout << "No strategy defined in JSON" << std::endl;
         pass.log(mv::Logger::MessageType::Info, "No custom streaming strategy provided");
         return;
     }
@@ -329,6 +329,7 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model, mv::Dat
                                 op->get("padding"),
                                 op->get<unsigned>("dilationFactor"),
                                 op->get<unsigned>("group"),
+                                op->get<mv::DType>("dType"),
                                 op->get<mv::QuantizationParams>("quantParams"),
                                 op->getName() + "_split_" + std::to_string(split));
         if (op->hasAttr("bias"))
@@ -444,6 +445,7 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model, mv::Dat
     auto concat = om.concat(final_outputs,
                     "C",
 //                    tiling.getAxis(),
+                    op->get<mv::DType>("dType"),
                     op->get<mv::QuantizationParams>("quantParams"),
                     op->getName() + "concat_");
     om.getSourceOp(concat)->set<unsigned>("opId", opId);
@@ -537,6 +539,7 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model, mv::Dat
                                 op->get<const bool>("exclude_pad"),
                                 op->get<std::string>("auto_pad"),
                                 op->get<std::string>("rounding_type"),
+                                op->get<mv::DType>("dType"),
                                 op->get<mv::QuantizationParams>("quantParams"),
                                 op->getName() + "_split_" + std::to_string(split));
 
@@ -546,6 +549,7 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model, mv::Dat
                                 kernelStride,
                                 currentPad,
                                 op->get<unsigned>("dilationFactor"),
+                                op->get<mv::DType>("dType"),
                                 op->get<mv::QuantizationParams>("quantParams"),
                                 op->getName() + "_split_" + std::to_string(split));
 
@@ -556,6 +560,7 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model, mv::Dat
                                 currentPad,
                                 op->get<unsigned>("dilationFactor"),
                                 op->get<unsigned>("group"),
+                                op->get<mv::DType>("dType"),
                                 op->get<mv::QuantizationParams>("quantParams"),
                                 op->getName() + "_split_" + std::to_string(split));
             slices[split].push_back(slice);
@@ -574,16 +579,16 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model, mv::Dat
                 om.getSourceOp(slice)->set<unsigned>("opId", opId);
                 slices[split].push_back(slice);
             }
-            auto addFcn = [&om](std::vector< mv::Data::TensorIterator >& vec, const mv::QuantizationParams& quantParams, const std::string& s){ return om.add(vec,quantParams,s);};
-            auto subFcn = [&om](std::vector< mv::Data::TensorIterator >& vec, const mv::QuantizationParams& quantParams, const std::string& s){ return om.subtract(vec,quantParams,s);};
-            auto multFcn = [&om](std::vector< mv::Data::TensorIterator >& vec, const mv::QuantizationParams& quantParams, const std::string& s){ return om.multiply(vec,quantParams,s);};
+            auto addFcn = [&om](std::vector< mv::Data::TensorIterator >& vec, const mv::QuantizationParams& quantParams, const mv::DType& dType, const std::string& s){ return om.add(vec, dType, quantParams, s);};
+            auto subFcn = [&om](std::vector< mv::Data::TensorIterator >& vec, const mv::QuantizationParams& quantParams, const mv::DType& dType, const std::string& s){ return om.subtract(vec, dType, quantParams, s);};
+            auto multFcn = [&om](std::vector< mv::Data::TensorIterator >& vec, const mv::QuantizationParams& quantParams, const mv::DType& dType, const std::string& s){ return om.multiply(vec, dType, quantParams, s);};
 
-            auto dpuTaskMap = std::map<std::string, std::function<mv::Data::TensorIterator (std::vector< mv::Data::TensorIterator >&, const mv::QuantizationParams&, const std::string&)>>
+            auto dpuTaskMap = std::map<std::string, std::function<mv::Data::TensorIterator (std::vector< mv::Data::TensorIterator >&, const mv::QuantizationParams&, const mv::DType&, const std::string&)>>
                                                     {{"Add", addFcn},
                                                     {"Subtract", subFcn},
                                                     {"Multiply", multFcn}};
             auto dpuElementWiseFunctor = (dpuTaskMap.at(opType));
-            newTensor = dpuElementWiseFunctor(slices[split], op->get<mv::QuantizationParams>("quantParams"), op->getName() + "_split_" + std::to_string(split));
+            newTensor = dpuElementWiseFunctor(slices[split], op->get<mv::QuantizationParams>("quantParams"), op->get<mv::DType>("dType"), op->getName() + "_split_" + std::to_string(split));
         }
         else
         {
@@ -604,6 +609,30 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model, mv::Dat
         newOp->set<bool>("inputActivationSparsity", op->get<bool>("inputActivationSparsity"));
         newOp->set<bool>("outputActivationSparsity", op->get<bool>("outputActivationSparsity"));
         newOp->set<bool>("weightsSparsity", op->get<bool>("weightsSparsity"));
+        if (op->hasAttr("postOpType"))
+        {
+            newOp->set<std::string>("postOpType", op->get<std::string>("postOpType"));
+            if (newOp->get<std::string>("postOpType") == "LeakyRelu")
+                newOp->set<double>("alpha", op->get<double>("alpha"));
+        }
+        else if (op->hasAttr("postOpTypes"))
+        {
+            newOp->set<std::vector<std::string>>("postOpTypes", op->get<std::vector<std::string>>("postOpTypes"));
+            std::vector<std::string> postOpTypes = op->get<std::vector<std::string>>("postOpTypes");
+
+            if (op->getOutputTensor(0)->getDType() ==  mv::DType("Float16"))
+            {
+                newOp->set<double>("minimum", op->get<double>("minimum"));
+                if (std::find(postOpTypes.begin(), postOpTypes.end(), "Maximum") != postOpTypes.end())
+                    newOp->set<double>("maximum", op->get<double>("maximum"));
+            }
+            else
+            {
+                newOp->set<int64_t>("minimum", op->get<int64_t>("minimum"));
+                if (std::find(postOpTypes.begin(), postOpTypes.end(), "Maximum") != postOpTypes.end())
+                    newOp->set<int64_t>("maximum", op->get<int64_t>("maximum"));
+            }
+        }
 
         convs[split] = newTensor;
 
@@ -686,6 +715,7 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model, mv::Dat
 
     auto concat = om.concat(final_outputs,
                     tiling.getAxis(),
+                    op->get<mv::DType>("dType"),
                     op->get<mv::QuantizationParams>("quantParams"),
                     op->getName() + "concat_");
     om.getSourceOp(concat)->set<unsigned>("opId", opId);
@@ -776,7 +806,7 @@ void generateSpatialTiling(mv::Data::OpListIterator op,Tiling& tiling, std::vect
 
 
     int outputSize =  inferOutputSize(inputShape[axisToSplit],padStart,padEnd,kernelSize,kernelStride);
-    int newOutputSize = ceil( (double)(outputSize) / (double)numberOfSplits);
+    int newOutputSize = trunc( (double)(outputSize) / (double)numberOfSplits);
     int remainderOutputSize = outputSize - ( newOutputSize *(numberOfSplits -1));
 
     unsigned startCoord = 0;

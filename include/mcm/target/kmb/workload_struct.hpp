@@ -13,7 +13,8 @@ namespace mv
     enum MPE_Mode
     {
         Vector,
-        Matrix
+        Matrix,
+        Vector_FP16
     };
     struct Workload
     {
@@ -24,7 +25,7 @@ namespace mv
         int16_t MinX = 0;
         int16_t MinY = 0;
         int16_t MinZ = 0;
-        int16_t padLeft = 0; //Are workload paddings different from full tensor padding?
+        int16_t padLeft = 0;
         int16_t padRight = 0;
         int16_t padTop = 0;
         int16_t padBottom = 0;
@@ -33,7 +34,7 @@ namespace mv
         int16_t z_offset = 0;
         int16_t requestedWorkloadNumber = 0;
         std::string algorithm = "None";
-        
+
         int16_t area()
         {
           return (MaxX - MinX + 1) * (MaxY - MinY + 1);

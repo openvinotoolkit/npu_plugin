@@ -43,10 +43,6 @@ bool isTensorInCMX(mv::Data::TensorIterator tensor, mv::BaseOpModel& opModel)
     }
     else if(opType == "ConstantInt" || opType == "Constant" || opType == "ConstantDataElement")
         return false;
-    else if(opType == "WeightsTable")
-        return false;
-    else if(opType == "SparsityMap")
-        return false;
     else if(opType == "Input")
         return false;
     else

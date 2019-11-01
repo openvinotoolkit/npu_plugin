@@ -233,31 +233,30 @@ void mv::MemoryAllocator::placeBuffers_(unsigned stageIdx)
 
 }
 
-mv::MemoryAllocator::MemoryAllocator(std::string name, std::size_t size, unsigned short alignment, unsigned short dataTypeSize) :
+mv::MemoryAllocator::MemoryAllocator(std::string name, std::size_t size, unsigned short alignment) :
 name_(name),
 size_(size),
 alignment_(alignment),
-dataTypeSize_(dataTypeSize),
 currentID_(1)
 {
 
 }
 
 std::deque<std::size_t> mv::MemoryAllocator::computeStrides_(const Order& order, const std::vector<std::size_t>& leftPadding,
-    const std::vector<std::size_t>& rightPadding, const Shape& shape)
+    const std::vector<std::size_t>& rightPadding, const Shape& shape, const unsigned dataTypeSize)
 {
     std::deque<std::size_t> leftStrides;
     std::deque<std::size_t> rightStrides;
     computeStrides_(order, order.size() - 1, shape, leftPadding, rightPadding, leftStrides, rightStrides);
     std::deque<std::size_t> strides;
 
-    strides.push_back(leftStrides.back() * dataTypeSize_);
+    strides.push_back(leftStrides.back() * dataTypeSize);
     leftStrides.pop_back();
 
     for (std::size_t i = 0; i < leftStrides.size(); ++i)
-        strides.push_back((leftStrides[i] + rightStrides[i]) * dataTypeSize_);
+        strides.push_back((leftStrides[i] + rightStrides[i]) * dataTypeSize);
 
-    strides.push_back(rightStrides.back() * dataTypeSize_);
+    strides.push_back(rightStrides.back() * dataTypeSize);
 
     return strides;
 }
@@ -317,18 +316,19 @@ void mv::MemoryAllocator::bindData_(BufferIterator slaveBuffer, bool pad)
 
 mv::MemoryAllocator::BufferIterator mv::MemoryAllocator::allocate(Data::TensorIterator tensor, std::size_t stageIdx)
 {
+    unsigned dataTypeSize = tensor->getDType().getSizeInBytes();
 
     if (entries_.find(stageIdx) == entries_.end())
         entries_.emplace(stageIdx, std::set<std::shared_ptr<MemoryBuffer>, BufferOrderComparator>());
 
-    if (!tensor->hasAttr("allocators")) {
-
+    if (!tensor->hasAttr("allocators"))
+    {
         Shape shape(tensor->getShape());
         MemoryBuffer newBuffer;
         newBuffer.id = currentID_++;
         newBuffer.offset = 0;
-        newBuffer.size = shape.totalSize() * dataTypeSize_;
-        newBuffer.blockSize = shape[tensor->getOrder()[0]] * dataTypeSize_;
+        newBuffer.size = shape.totalSize() * dataTypeSize;
+        newBuffer.blockSize = shape[tensor->getOrder()[0]] * dataTypeSize;
         newBuffer.blockNum = newBuffer.size / newBuffer.blockSize;
         newBuffer.postAlign= 0;
         newBuffer.strides = std::deque<std::size_t>(newBuffer.blockNum + 1);
@@ -338,7 +338,7 @@ mv::MemoryAllocator::BufferIterator mv::MemoryAllocator::allocate(Data::TensorIt
         newBuffer.rightPad = std::vector<std::size_t>(shape.ndims());
         newBuffer.masterBuffer = bufferEnd(stageIdx);
         newBuffer.slaveBuffers = {};
-        newBuffer.dataTypeSize = dataTypeSize_;
+        newBuffer.dataTypeSize = dataTypeSize;
 
         std::fill(newBuffer.strides.begin(), newBuffer.strides.end(), 0);
         std::fill(newBuffer.leftPad.begin(), newBuffer.leftPad.end(), 0);
@@ -368,8 +368,8 @@ mv::MemoryAllocator::BufferIterator mv::MemoryAllocator::allocate(Data::TensorIt
             MemoryBuffer newBuffer;
             newBuffer.id = currentID_++;
             newBuffer.offset = 0;
-            newBuffer.size = shape.totalSize() * dataTypeSize_;
-            newBuffer.blockSize = shape[tensor->getOrder()[0]] * dataTypeSize_;
+            newBuffer.size = shape.totalSize() * dataTypeSize;
+            newBuffer.blockSize = shape[tensor->getOrder()[0]] * dataTypeSize;
             newBuffer.blockNum = newBuffer.size / newBuffer.blockSize;
             newBuffer.postAlign= 0;
             newBuffer.strides = std::deque<std::size_t>(newBuffer.blockNum + 1);
@@ -379,7 +379,7 @@ mv::MemoryAllocator::BufferIterator mv::MemoryAllocator::allocate(Data::TensorIt
             newBuffer.rightPad = std::vector<std::size_t>(shape.ndims());
             newBuffer.masterBuffer = bufferEnd(stageIdx);
             newBuffer.slaveBuffers = {};
-            newBuffer.dataTypeSize = dataTypeSize_;
+            newBuffer.dataTypeSize = dataTypeSize;
 
             std::fill(newBuffer.strides.begin(), newBuffer.strides.end(), 0);
             std::fill(newBuffer.leftPad.begin(), newBuffer.leftPad.end(), 0);
@@ -514,14 +514,15 @@ void mv::MemoryAllocator::deallocateAll(std::size_t stageIdx)
 
 void mv::MemoryAllocator::padBuffer_(BufferIterator buffer)
 {
+    unsigned dataTypeSize = (*buffer)->getData()->getDType().getSizeInBytes();
 
     Shape shape((*buffer)->getData()->getShape());
 
     std::deque<size_t> strides = computeStrides_((*buffer)->getData()->getOrder(), (*buffer)->leftPad,
-        (*buffer)->rightPad, shape);
+        (*buffer)->rightPad, shape, dataTypeSize);
 
     (*buffer)->strides = strides;
-    (*buffer)->size = shape.totalSize() * dataTypeSize_;
+    (*buffer)->size = shape.totalSize() * dataTypeSize;
 
     for (auto& stride : strides)
         (*buffer)->size += stride;

@@ -88,7 +88,7 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationMod
         // NOTE: This check must remain as is, can't be replaced by hasTypeTrait("executable") check
         // e.g. concat's output tensor needs deallocation even if it's not executable
         if(inputOp->getOpType() == "Constant" || inputOp->getOpType() == "ConstantInt" || inputOp->getOpType() == "ConstantDataElement" ||
-            inputOp->getOpType() == "WeightsTable" || inputOp->getOpType() == "SparsityMap" || inputOp->getOpType() == "Slice")
+           inputOp->getOpType() == "Slice")
             continue;
 
         auto inputTensor = dataFlowIt->getTensor();

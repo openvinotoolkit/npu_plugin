@@ -14,6 +14,6 @@ cmake ..
 make -j8
 
 # generate cross compile build
-rm -rf *
+# rm -rf * //meta folder now in /build
 cmake -DCMAKE_TOOLCHAIN_FILE=../cmake-modules/Toolchain.cmake ..
 make -j8

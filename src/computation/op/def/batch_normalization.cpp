@@ -13,7 +13,7 @@ namespace mv
         {
 
             auto input = inputs[0];
-            auto inputShape = input->getShape(); 
+            auto inputShape = input->getShape();
 
             if (inputShape.ndims() != 4)
             {
@@ -51,7 +51,7 @@ namespace mv
                         " to dimensionality of the input tensor (tensor 0) which is " + std::to_string(inputShape.ndims());
                     return {false, 1};
                 }
-                
+
                 if (meanShape[0] != inputShape[mv::IO_CHANNEL_DIMENSION])
                 {
                     errMsg = "Invalid shape of the mean tensor (input 1) - if it has 1 dimension, it must be equal"
@@ -65,21 +65,21 @@ namespace mv
                         " to dimensionality of the input tensor (tensor 0) which is " + std::to_string(inputShape.ndims());
                     return {false, 2};
                 }
-                
+
                 if (varianceShape[0] != inputShape[mv::IO_CHANNEL_DIMENSION])
                 {
                     errMsg = "Invalid shape of the variance tensor (input 1) - if it has 1 dimension, it must be equal"
                         " to the last dimension of the input tensor (tensor 0) which is " + std::to_string(inputShape[-1]);
                     return {false, 2};
                 }
-                
+
                 if (offsetShape.ndims() != 1)
                 {
                     errMsg = "Invalid shape of the offset tensor (input 1) - must have a dimensionality equal to 1 or"
                         " to dimensionality of the input tensor (tensor 0) which is " + std::to_string(inputShape.ndims());
                     return {false, 3};
                 }
-                
+
                 if (offsetShape[0] != inputShape[mv::IO_CHANNEL_DIMENSION])
                 {
                     errMsg = "Invalid shape of the offset tensor (input 1) - if it has 1 dimension, it must be equal"
@@ -93,7 +93,7 @@ namespace mv
                         " to dimensionality of the input tensor (tensor 0) which is " + std::to_string(inputShape.ndims());
                     return {false, 4};
                 }
-                
+
                 if (scaleShape[0] != inputShape[mv::IO_CHANNEL_DIMENSION])
                 {
                     errMsg =  "Invalid shape of the scale tensor (input 1) - if it has 1 dimension, it must be equal"
@@ -107,14 +107,17 @@ namespace mv
 
         };
 
-        static std::function<void(const std::vector<Data::TensorIterator>&, const std::map<std::string, Attribute>&, 
+        static std::function<void(const std::vector<Data::TensorIterator>&, const std::map<std::string, Attribute>&,
             std::vector<Tensor>&)> outputDefFcn =
             [](const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>& args, std::vector<Tensor>& outputs)
         {
+            auto dTypeToUse = args.at("dType").get<mv::DType>();
+            if(dTypeToUse == mv::DType("Default"))
+                dTypeToUse = inputs[0]->getDType();
             if (args.at("quantParams").get<mv::QuantizationParams>().isEmpty())
-                outputs.push_back(mv::Tensor(":0", inputs[0]->getShape(), inputs[0]->getDType(), inputs[0]->getOrder()));
+                outputs.push_back(mv::Tensor(":0", inputs[0]->getShape(), dTypeToUse, inputs[0]->getOrder()));
             else
-                outputs.push_back(mv::Tensor(":0", inputs[0]->getShape(), inputs[0]->getDType(), inputs[0]->getOrder(), args.at("quantParams").get<mv::QuantizationParams>()));
+                outputs.push_back(mv::Tensor(":0", inputs[0]->getShape(), dTypeToUse, inputs[0]->getOrder(), args.at("quantParams").get<mv::QuantizationParams>()));
         };
 
 
@@ -127,6 +130,7 @@ namespace mv
         .setInputs({"data", "mean", "variance", "offset", "scale"})
         .setOutputs({"output"})
         .setArg<double>("eps")
+        .setOptionalArg<mv::DType>("dType", mv::DType("Default"))
         .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
         .setInputCheck(op_batch_normalization::inputCheckFcn)
         .setOutputDef(op_batch_normalization::outputDefFcn)

@@ -53,7 +53,7 @@ void addressHelperPass(const mv::pass::PassEntry& pass, mv::ComputationModel& mo
     for (auto e : addressList)
     {
         std::string& name = e.get<std::string>("name_filter");
-        std::size_t address = e.get<std::size_t>("address");
+        std::size_t address = e.get<int>("address");
         pass.log(mv::Logger::MessageType::Debug, "ADDRESS HELPER setting address of "+name+" to "+std::to_string(address));
         try
         {

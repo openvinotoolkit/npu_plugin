@@ -5,8 +5,8 @@ mv::QuantizationParams::QuantizationParams(const json::Value& content) : Element
 {
 
 }
-mv::QuantizationParams::QuantizationParams(std::vector<int64_t> zp, std::vector<double> scale,
-    std::vector<double> min, std::vector<double> max): Element("quantParams")
+mv::QuantizationParams::QuantizationParams(const std::vector<int64_t>& zp, const std::vector<double>& scale, const std::vector<double>& min, const std::vector<double>& max)
+    :Element("quantParams")
 {
     size_t size = zp.size();
     if (size != scale.size() || size != min.size() || size != max.size())
@@ -33,8 +33,8 @@ mv::QuantizationParams::QuantizationParams(std::vector<int64_t> zp, std::vector<
 
 }
 
-mv::QuantizationParams::QuantizationParams(std::vector<int64_t> zp, std::vector<double> scale,
-    std::vector<double> min, std::vector<double> max, std::vector<unsigned> shift, std::vector<unsigned> mult): QuantizationParams(zp, scale, min, max)
+mv::QuantizationParams::QuantizationParams(const std::vector<int64_t>& zp, const std::vector<double>& scale, const std::vector<double>& min, const std::vector<double>& max, const std::vector <unsigned>& shift, const std::vector<unsigned>& mult):
+    QuantizationParams(zp, scale, min, max)
 {
     set<std::vector<unsigned>>("shift", shift);
     set<std::vector<unsigned>>("mult", mult);

@@ -82,15 +82,12 @@
     },
     "adapt": {
         "Singular": [
-            "PopulatedTensorsToFP16",
-            "UnpopulatedTensorsToFP16",
             "AverageAsDepthWise",
-            "FuseBatchNorm",
-            "FuseBias",
-            "FuseRelu",
-            "FuseScale",
             "RemoveDropOut",
             "FullyConnectedAsConv2D",
+            "TensorsToU8",
+            "TensorsToFP16",
+            "FusePostOps",
             {
                 "name" : "GraphParameterOptimization",
                 "graphOptimizerConfig" : {
@@ -100,7 +97,7 @@
                         {"name" : "dpuPerCluster",  "value" : 5   },
                         {"name" : "ddrBandwidth",   "value" : 128 },
                         {"name" : "systemClockMhz", "value" : 500 },
-                        {"name" : "FathomSafetyFactor", " value" : 0.75},
+                        {"name" : "FathomSafetyFactor", " value" : 0.80},
                         {"name" : "dotFileLocation", "value" : "./output/"},
                         {"name" : "jsonOutFileName", "value" : "./output/mcmCompiler_strategy_output.json"}
                     ],
@@ -108,7 +105,8 @@
                         {"name" : "forceSpilling",    "value" : false       },
                         {"name" : "enableStreaming",   "value" : true       },
                         {"name" : "doubleBuffering",   "value" : false      },
-                        {"name" : "enableSparsity",    "value" : false      },
+                        {"name" : "enableActivationSparsity",    "value" : false      },
+                        {"name" : "enableWeightsSparsity",    "value" : false      },
                         {"name" : "clusteringStrategy","value" : "Automatic"}
                     ],
                     "layerStrategies" : [
@@ -168,6 +166,13 @@
             "StoreLayerSparsityStrategy",
             "StoreTensorPlacement",
             "StreamingTiling",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/streaming_tiling.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
             "StreamBinaryDataWeights"
         ]
     },
@@ -183,6 +188,13 @@
             "AlignPopulatedTensors",
             "RemoveCropAlignInCMX",
             "CropOrPadFinalOutput",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/crop_pad.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
             "AlignTaskWeights",
             "GenerateSparsityMapsPopulatedTensors",
             "GenerateWeightsTables",
@@ -267,6 +279,13 @@
     },
     "serialize": {
         "Singular": [
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/before_serialization.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
             {
                 "name": "GenerateBlobKmb",
                 "output": "output/mcm.blob"

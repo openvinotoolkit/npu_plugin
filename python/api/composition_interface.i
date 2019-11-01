@@ -206,24 +206,24 @@ import_array();
         return ret_val;
     }
 
+    mv::Data::TensorIterator constant(mv::CompositionalModel& o, const std::vector<double>& data, const mv::Shape &shape, const mv::Order& order, const mv::QuantizationParams &quantParams, const std::string &name){
+        /// Add a Constant Layer to the CompositionalModel and return the relevant iterator
+        return o.constant(data, shape, mv::DType("Float64"), order, quantParams, name);
+    }
+
+    mv::Data::TensorIterator constant(mv::CompositionalModel& o, const std::vector<int64_t> &data, const mv::Shape &shape, const mv::Order& order, const mv::QuantizationParams &quantParams, const std::string &name){
+        /// Add a Constant Layer to the CompositionalModel and return the relevant iterator
+        return o.constantInt(data, shape, mv::DType("UInt8"), order, quantParams, name);
+    }
+
     mv::Data::TensorIterator input(mv::CompositionalModel& o, const mv::Shape &shape, double type, const mv::Order& order, const mv::QuantizationParams &quantParams, const std::string& name){
         /// Add an Input Layer to the OpModel and return the relevant iterator
-          return o.input(shape, mv::DType("Float16"), order, quantParams, name);
+          return o.input(shape, mv::DType("Float64"), order, quantParams, name);
     }
 
     mv::Data::TensorIterator input(mv::CompositionalModel& o, const mv::Shape &shape, uint64_t type, const mv::Order& order, const mv::QuantizationParams &quantParams, const std::string& name){
         /// Add an Input Layer to the OpModel and return the relevant iterator
         return o.input(shape, mv::DType("UInt8"), order, quantParams, name);
-    }
-
-    mv::Data::TensorIterator input(mv::CompositionalModel& o, const mv::Shape &shape, double type, const mv::Order& order){
-        /// Add an Input Layer to the OpModel and return the relevant iterator
-        return o.input(shape, mv::DType("Float16"), order);
-    }
-
-    mv::Data::TensorIterator output(mv::CompositionalModel& o, mv::Data::TensorIterator input, const std::string& name){
-        /// Add an Output Layer to the OpModel and return the relevant iterator
-        return o.output(input, {{},{},{},{}}, name);
     }
 
     mv::Data::TensorIterator output(mv::CompositionalModel& o, mv::Data::TensorIterator input){
@@ -232,86 +232,167 @@ import_array();
     }
 
     mv::Data::TensorIterator maxpool2D(mv::CompositionalModel& o, mv::Data::TensorIterator input, short unsigned kernelSizeX,
-        short unsigned kernelSizeY, short unsigned strideX, short unsigned strideY, short unsigned padXl, short unsigned padXr,  short unsigned padYu,short unsigned padYd, const mv::QuantizationParams &quantParams, const std::string& name){
+        short unsigned kernelSizeY, short unsigned strideX, short unsigned strideY, short unsigned padXl, short unsigned padXr,  short unsigned padYu,short unsigned padYd, const std::string& type, const mv::QuantizationParams &quantParams, const std::string& name){
         /// Add a Max Pooling Layer to the OpModel and return the relevant iterator
         return o.maxPool(input, {kernelSizeX, kernelSizeY}, {strideX, strideY},
-            {padXl, padXr, padYu, padYd}, false,"","floor", quantParams, name);
+            {padXl, padXr, padYu, padYd}, false,"","floor", type, quantParams, name);
     }
 
-
-    mv::Data::TensorIterator maxpool2D_caffe(mv::CompositionalModel& o, mv::Data::TensorIterator input, short unsigned kernelSizeX,
-        short unsigned kernelSizeY, short unsigned strideX, short unsigned strideY, short unsigned padX, short unsigned padY, const std::string& name)
+    mv::Data::TensorIterator avgpool2D(mv::CompositionalModel& o, mv::Data::TensorIterator input, short unsigned kernelSizeX,
+        short unsigned kernelSizeY, short unsigned strideX, short unsigned strideY, short unsigned padXl, short unsigned padXr,  short unsigned padYu,short unsigned padYd, const std::string& type, const mv::QuantizationParams &quantParams, const std::string& name)
     {
-
-        /// This differs from the above because caffe calculates output sizes differently.
-        /// To compensate, we add values to pad.
-        /// See: https://github.com/BVLC/caffe/issues/1318
-
-        int adj_X = 0, adj_Y = 0;
-        mv::Shape i = input->getShape();
-
-        //if (padX > 0)
-        {
-            double inner_x_calc = (double)i[0] + (double)padX + (double)padX - (double)kernelSizeX;
-            double caffe_x = ceil(inner_x_calc / strideX) + 1;
-            double tensorflow_x = ceil((inner_x_calc +1) / strideX);
-            adj_X = (int)caffe_x - (int)tensorflow_x;
-        }
-
-        //if (padY > 0)
-        {
-            double inner_y_calc = (double)i[1] + (double)padY + (double)padY - (double)kernelSizeY;
-            double caffe_y = ceil(inner_y_calc / strideX) + 1;
-            double tensorflow_y = ceil((inner_y_calc +1) / strideX);
-            adj_Y = (int)caffe_y - (int)tensorflow_y;
-        }
-
-        if (adj_X < 0)
-            adj_X = 0;
-        if (adj_Y < 0)
-            adj_Y = 0;
-
-        return o.maxPool(input, {kernelSizeX, kernelSizeY}, {strideX, strideY},
-            {padX, (short unsigned int)(padX + adj_X), padY, (short unsigned int)(padY + adj_Y)}, false,"","floor",{{},{},{},{}},name);
-
+        return o.averagePool(input, {kernelSizeX, kernelSizeY}, {strideX, strideY}, {padXl, padXr, padYu, padYd}, false,"","floor", type, quantParams, name);
     }
 
-    mv::Data::TensorIterator maxpool2D_caffe(mv::CompositionalModel& o, mv::Data::TensorIterator input, short unsigned kernelSizeX,
-        short unsigned kernelSizeY, short unsigned strideX, short unsigned strideY, short unsigned padX, short unsigned padY)
-    {
-
-        /// This differs from the above because caffe calculates output sizes differently.
-        /// To compensate, we add values to pad.
-        /// See: https://github.com/BVLC/caffe/issues/1318
-
-        int adj_X = 0, adj_Y = 0;
-        mv::Shape i = input->getShape();
-
-        //if (padX > 0)
-        {
-            double inner_x_calc = (double)i[0] + (double)padX + (double)padX - (double)kernelSizeX;
-            double caffe_x = ceil(inner_x_calc / strideX) + 1;
-            double tensorflow_x = ceil((inner_x_calc +1) / strideX);
-            adj_X = (int)caffe_x - (int)tensorflow_x;
-        }
-
-        //if (padY > 0)
-        {
-            double inner_y_calc = (double)i[1] + (double)padY + (double)padY - (double)kernelSizeY;
-            double caffe_y = ceil(inner_y_calc / strideX) + 1;
-            double tensorflow_y = ceil((inner_y_calc +1) / strideX);
-            adj_Y = (int)caffe_y - (int)tensorflow_y;
-        }
-
-        if (adj_X < 0)
-            adj_X = 0;
-        if (adj_Y < 0)
-            adj_Y = 0;
-
-        return o.maxPool(input, {kernelSizeX, kernelSizeY}, {strideX, strideY},
-            {padX, (short unsigned int)(padX + adj_X), padY, (short unsigned int)(padY + adj_Y)});
-
+    mv::Data::TensorIterator relu(mv::CompositionalModel& o, mv::Data::TensorIterator input, const std::string& type, const mv::QuantizationParams &quantParams, const std::string& name){
+        return o.relu(input, type, quantParams, name);
     }
+
+    mv::Data::TensorIterator leaky_relu(mv::CompositionalModel& o, mv::Data::TensorIterator input, double alpha, const std::string& type, const mv::QuantizationParams &quantParams, const std::string& name){
+        return o.leakyRelu(input, alpha, type, quantParams, name);
+    }
+
+    mv::Data::TensorIterator sigmoid(mv::CompositionalModel& o, mv::Data::TensorIterator input, const std::string& type, const mv::QuantizationParams &quantParams, const std::string& name){
+        return o.sigmoid(input, type, quantParams, name);
+    }
+
+    mv::Data::TensorIterator dropOut(mv::CompositionalModel& o, mv::Data::TensorIterator input, const std::string& type, const mv::QuantizationParams &quantParams, const std::string& name){
+        return o.dropout(input, type, quantParams, name);
+    }
+
+    mv::Data::TensorIterator power(mv::CompositionalModel& o, mv::Data::TensorIterator input0, mv::Data::TensorIterator input1, const std::string& type, const mv::QuantizationParams &quantParams, const std::string& name){
+        return o.power({input0, input1}, type, quantParams, name);
+    }
+
+    mv::Data::TensorIterator minimum(mv::CompositionalModel& o, mv::Data::TensorIterator input, double min, const std::string& type, const mv::QuantizationParams &quantParams, const std::string& name){
+        return o.minimumDouble(input, min, type, quantParams, name);
+    }
+
+    mv::Data::TensorIterator minimum(mv::CompositionalModel& o, mv::Data::TensorIterator input, int64_t min, const std::string& type, const mv::QuantizationParams &quantParams, const std::string& name){
+        return o.minimumInt(input, min, type, quantParams, name);
+    }
+
+    mv::Data::TensorIterator maximum(mv::CompositionalModel& o,mv::Data::TensorIterator input, double max, const std::string& type, const mv::QuantizationParams &quantParams, const std::string& name){
+        return o.maximumDouble(input, max, type, quantParams, name);
+    }
+
+    mv::Data::TensorIterator maximum(mv::CompositionalModel& o,mv::Data::TensorIterator input, int64_t max, const std::string& type, const mv::QuantizationParams &quantParams, const std::string& name){
+        return o.maximumInt(input, max, type, quantParams, name);
+    }
+
+    mv::Data::TensorIterator add(mv::CompositionalModel& o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1, const std::string& type, const mv::QuantizationParams &quantParams, const std::string& name){
+        return o.add({input0, input1}, type, quantParams, name);
+    }
+
+    mv::Data::TensorIterator multiply(mv::CompositionalModel& o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1, const std::string& type, const mv::QuantizationParams &quantParams, const std::string& name){
+        return o.multiply({input0, input1}, type, quantParams, name);
+    }
+
+    mv::Data::TensorIterator softmax(mv::CompositionalModel& o,mv::Data::TensorIterator input, const std::string& type, const mv::QuantizationParams  &quantParams, const std::string &name){
+        return o.softmax(input, "C", type, quantParams, name);
+    }
+
+    mv::Data::TensorIterator fullyConnected(mv::CompositionalModel& o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1, const std::string& type, const mv::QuantizationParams  &quantParams, const std::string &name){
+        return o.fullyConnected(input0, input1, type, quantParams, name);
+    }
+
+    mv::Data::TensorIterator conv2D(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::Data::TensorIterator filters,
+        short unsigned strideX, short unsigned strideY, short unsigned padXl, short unsigned padXr,  short unsigned padYu, short unsigned padYd, short unsigned dilationFactor, short unsigned group, const std::string &type, const mv::QuantizationParams  &quantParams, const std::string& name){
+        /// Add a Convolutional Layer to the OpModel and return the relevant iterator
+        return o.conv(input, filters, {strideX, strideY}, {padXl, padXr, padYu, padYd}, dilationFactor, group, type, quantParams, name);
+    }
+
+    mv::Data::TensorIterator bias(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::Data::TensorIterator bias_values, const std::string& type, const mv::QuantizationParams  &quantParams, const std::string &name){
+        return o.bias(input, bias_values, type, quantParams, name);
+    }
+
+    mv::Data::TensorIterator depthwiseConv2D(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::Data::TensorIterator filters,
+        short unsigned strideX, short unsigned strideY, short unsigned padXl, short unsigned padXr,  short unsigned padYu,short unsigned padYd, short unsigned dilationFactor, const std::string& type, const mv::QuantizationParams  &quantParams, const std::string &name){
+        /// Add a Convolutional Layer to the OpModel and return the relevant iterator
+        return o.depthwiseConv(input, filters, {strideX, strideY}, {padXl, padXr, padYu, padYd}, dilationFactor, type, quantParams, name);
+    }
+
+    mv::Data::TensorIterator concat(mv::CompositionalModel& o, std::vector<mv::Data::TensorIterator> * inputs, const std::string& type, const mv::QuantizationParams  &quantParams, const std::string &name){
+        /// Add a Concat Layer to the OpModel and return the relevant iterator.
+        return o.concat(*inputs, "C", type, quantParams, name);
+    }
+
+    mv::Data::TensorIterator scale(mv::CompositionalModel& o,mv::Data::TensorIterator input, mv::Data::TensorIterator scale, const std::string& type, const mv::QuantizationParams &quantParams, const std::string& name){
+        return o.scale(input, scale, type, quantParams, name);
+    }
+//    mv::Data::TensorIterator maxpool2D_caffe(mv::CompositionalModel& o, mv::Data::TensorIterator input, short unsigned kernelSizeX,
+//        short unsigned kernelSizeY, short unsigned strideX, short unsigned strideY, short unsigned padX, short unsigned padY, const std::string& name)
+//    {
+
+//        /// This differs from the above because caffe calculates output sizes differently.
+//        /// To compensate, we add values to pad.
+//        /// See: https://github.com/BVLC/caffe/issues/1318
+
+//        int adj_X = 0, adj_Y = 0;
+//        mv::Shape i = input->getShape();
+
+//        //if (padX > 0)
+//        {
+//            double inner_x_calc = (double)i[0] + (double)padX + (double)padX - (double)kernelSizeX;
+//            double caffe_x = ceil(inner_x_calc / strideX) + 1;
+//            double tensorflow_x = ceil((inner_x_calc +1) / strideX);
+//            adj_X = (int)caffe_x - (int)tensorflow_x;
+//        }
+
+//        //if (padY > 0)
+//        {
+//            double inner_y_calc = (double)i[1] + (double)padY + (double)padY - (double)kernelSizeY;
+//            double caffe_y = ceil(inner_y_calc / strideX) + 1;
+//            double tensorflow_y = ceil((inner_y_calc +1) / strideX);
+//            adj_Y = (int)caffe_y - (int)tensorflow_y;
+//        }
+
+//        if (adj_X < 0)
+//            adj_X = 0;
+//        if (adj_Y < 0)
+//            adj_Y = 0;
+
+//        return o.maxPool(input, {kernelSizeX, kernelSizeY}, {strideX, strideY},
+//            {padX, (short unsigned int)(padX + adj_X), padY, (short unsigned int)(padY + adj_Y)}, false,"","floor",{{},{},{},{}},name);
+
+//    }
+
+//    mv::Data::TensorIterator maxpool2D_caffe(mv::CompositionalModel& o, mv::Data::TensorIterator input, short unsigned kernelSizeX,
+//        short unsigned kernelSizeY, short unsigned strideX, short unsigned strideY, short unsigned padX, short unsigned padY)
+//    {
+
+//        /// This differs from the above because caffe calculates output sizes differently.
+//        /// To compensate, we add values to pad.
+//        /// See: https://github.com/BVLC/caffe/issues/1318
+
+//        int adj_X = 0, adj_Y = 0;
+//        mv::Shape i = input->getShape();
+
+//        //if (padX > 0)
+//        {
+//            double inner_x_calc = (double)i[0] + (double)padX + (double)padX - (double)kernelSizeX;
+//            double caffe_x = ceil(inner_x_calc / strideX) + 1;
+//            double tensorflow_x = ceil((inner_x_calc +1) / strideX);
+//            adj_X = (int)caffe_x - (int)tensorflow_x;
+//        }
+
+//        //if (padY > 0)
+//        {
+//            double inner_y_calc = (double)i[1] + (double)padY + (double)padY - (double)kernelSizeY;
+//            double caffe_y = ceil(inner_y_calc / strideX) + 1;
+//            double tensorflow_y = ceil((inner_y_calc +1) / strideX);
+//            adj_Y = (int)caffe_y - (int)tensorflow_y;
+//        }
+
+//        if (adj_X < 0)
+//            adj_X = 0;
+//        if (adj_Y < 0)
+//            adj_Y = 0;
+
+//        return o.maxPool(input, {kernelSizeX, kernelSizeY}, {strideX, strideY},
+//            {padX, (short unsigned int)(padX + adj_X), padY, (short unsigned int)(padY + adj_Y)});
+
+//    }
 
     std::vector<mv::Data::TensorIterator> * pushVector(std::vector<mv::Data::TensorIterator> * base, mv::Data::TensorIterator data){
         if(base == nullptr)
@@ -319,172 +400,136 @@ import_array();
         base->push_back(data);
         return base;
     }
-    mv::Data::TensorIterator concat(mv::CompositionalModel& o, std::vector<mv::Data::TensorIterator> * inputs){
-        /// Add a Concat Layer to the OpModel and return the relevant iterator.
-        return o.concat(*inputs);
-    }
 
-    mv::Data::TensorIterator concat(mv::CompositionalModel& o, std::vector<mv::Data::TensorIterator> * inputs, const mv::QuantizationParams  &quantParams, const std::string &name){
-        /// Add a Concat Layer to the OpModel and return the relevant iterator.
-        return o.concat(*inputs, "C", quantParams, name);
-    }
+//    mv::Data::TensorIterator conv2D_caffe(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::Data::TensorIterator filters,
+//        short unsigned strideX, short unsigned strideY, short unsigned padX, short unsigned padY, short unsigned dilationFactor)
+//    {
+//        /// This differs from the above because caffe calculates output sizes differently.
+//        /// To compensate, we add values to pad.
 
-    mv::Data::TensorIterator conv2D(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::Data::TensorIterator filters,
-        short unsigned strideX, short unsigned strideY, short unsigned padXl, short unsigned padXr,  short unsigned padYu,short unsigned padYd, short unsigned dilationFactor, short unsigned group, const mv::QuantizationParams  &quantParams, const std::string& name){
-        /// Add a Convolutional Layer to the OpModel and return the relevant iterator
-        return o.conv(input, filters, {strideX, strideY}, {padXl, padXr, padYu, padYd}, dilationFactor, group, quantParams, name);
-    }
+//        int adj_X = 0, adj_Y = 0;
 
-    mv::Data::TensorIterator depthwiseConv2D(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::Data::TensorIterator filters,
-        short unsigned strideX, short unsigned strideY, short unsigned padXl, short unsigned padXr,  short unsigned padYu,short unsigned padYd, short unsigned dilationFactor, const mv::QuantizationParams  &quantParams, const std::string &name){
-        /// Add a Convolutional Layer to the OpModel and return the relevant iterator
-        return o.depthwiseConv(input, filters, {strideX, strideY}, {padXl, padXr, padYu, padYd}, dilationFactor, quantParams, name);
-    }
+//        mv::Shape i = input->getShape();
+//        mv::Shape k = filters->getShape();
 
-    mv::Data::TensorIterator conv2D_caffe(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::Data::TensorIterator filters,
-        short unsigned strideX, short unsigned strideY, short unsigned padX, short unsigned padY, short unsigned dilationFactor)
-    {
-        /// This differs from the above because caffe calculates output sizes differently.
-        /// To compensate, we add values to pad.
+//        int kernelSizeX =  k[0];
+//        int kernelSizeY =  k[1];
 
-        int adj_X = 0, adj_Y = 0;
+//        //if (padX > 0)
+//        {
+//            double inner_x_calc = (double)i[0] + (double)padX + (double)padX - (double)kernelSizeX;
+//            double caffe_x = ceil(inner_x_calc / strideX) + 1;
+//            double tensorflow_x = ceil((inner_x_calc +1) / strideX);
+//            adj_X = (int)caffe_x - (int)tensorflow_x;
+//        }
 
-        mv::Shape i = input->getShape();
-        mv::Shape k = filters->getShape();
+//        //if (padY > 0)
+//        {
+//            double inner_y_calc = (double)i[1] + (double)padY + (double)padY - (double)kernelSizeY;
+//            double caffe_y = ceil(inner_y_calc / strideX) + 1;
+//            double tensorflow_y = ceil((inner_y_calc +1) / strideX);
+//            adj_Y = (int)caffe_y - (int)tensorflow_y;
+//        }
 
-        int kernelSizeX =  k[0];
-        int kernelSizeY =  k[1];
+//        if (adj_X < 0)
+//            adj_X = 0;
+//        if (adj_Y < 0)
+//            adj_Y = 0;
 
-        //if (padX > 0)
-        {
-            double inner_x_calc = (double)i[0] + (double)padX + (double)padX - (double)kernelSizeX;
-            double caffe_x = ceil(inner_x_calc / strideX) + 1;
-            double tensorflow_x = ceil((inner_x_calc +1) / strideX);
-            adj_X = (int)caffe_x - (int)tensorflow_x;
-        }
+//        if (padX == 0)
+//            adj_X = 0;
+//        if (padY == 0)
+//            adj_Y = 0;
 
-        //if (padY > 0)
-        {
-            double inner_y_calc = (double)i[1] + (double)padY + (double)padY - (double)kernelSizeY;
-            double caffe_y = ceil(inner_y_calc / strideX) + 1;
-            double tensorflow_y = ceil((inner_y_calc +1) / strideX);
-            adj_Y = (int)caffe_y - (int)tensorflow_y;
-        }
-
-        if (adj_X < 0)
-            adj_X = 0;
-        if (adj_Y < 0)
-            adj_Y = 0;
-
-        if (padX == 0)
-            adj_X = 0;
-        if (padY == 0)
-            adj_Y = 0;
-
-        return o.conv(input, filters, {strideX, strideY}, {padX , (short unsigned )(padX- adj_X), padY, (short unsigned )(padY - adj_Y)}, dilationFactor);
-    }
+//        return o.conv(input, filters, {strideX, strideY}, {padX , (short unsigned )(padX- adj_X), padY, (short unsigned )(padY - adj_Y)}, dilationFactor);
+//    }
 
 
-    mv::Data::TensorIterator conv2D_caffe(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::Data::TensorIterator filters,
-        short unsigned strideX, short unsigned strideY, short unsigned padX, short unsigned padY, short unsigned dilationFactor, short unsigned group, const std::string& name)
-    {
-        /// This differs from the above because caffe calculates output sizes differently.
-        /// To compensate, we add values to pad.
+//    mv::Data::TensorIterator conv2D_caffe(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::Data::TensorIterator filters,
+//        short unsigned strideX, short unsigned strideY, short unsigned padX, short unsigned padY, short unsigned dilationFactor, short unsigned group, const std::string& name)
+//    {
+//        /// This differs from the above because caffe calculates output sizes differently.
+//        /// To compensate, we add values to pad.
 
-        int adj_X = 0, adj_Y = 0;
+//        int adj_X = 0, adj_Y = 0;
 
-        mv::Shape i = input->getShape();
-        mv::Shape k = filters->getShape();
+//        mv::Shape i = input->getShape();
+//        mv::Shape k = filters->getShape();
 
-        int kernelSizeX =  k[0];
-        int kernelSizeY =  k[1];
+//        int kernelSizeX =  k[0];
+//        int kernelSizeY =  k[1];
 
-        //if (padX > 0)
-        {
-            double inner_x_calc = (double)i[0] + (double)padX + (double)padX - (double)kernelSizeX;
-            double caffe_x = ceil(inner_x_calc / strideX) + 1;
-            double tensorflow_x = ceil((inner_x_calc +1) / strideX);
-            adj_X = (int)caffe_x - (int)tensorflow_x;
-        }
+//        //if (padX > 0)
+//        {
+//            double inner_x_calc = (double)i[0] + (double)padX + (double)padX - (double)kernelSizeX;
+//            double caffe_x = ceil(inner_x_calc / strideX) + 1;
+//            double tensorflow_x = ceil((inner_x_calc +1) / strideX);
+//            adj_X = (int)caffe_x - (int)tensorflow_x;
+//        }
 
-        //if (padY > 0)
-        {
-            double inner_y_calc = (double)i[1] + (double)padY + (double)padY - (double)kernelSizeY;
-            double caffe_y = ceil(inner_y_calc / strideX) + 1;
-            double tensorflow_y = ceil((inner_y_calc +1) / strideX);
-            adj_Y = (int)caffe_y - (int)tensorflow_y;
-        }
+//        //if (padY > 0)
+//        {
+//            double inner_y_calc = (double)i[1] + (double)padY + (double)padY - (double)kernelSizeY;
+//            double caffe_y = ceil(inner_y_calc / strideX) + 1;
+//            double tensorflow_y = ceil((inner_y_calc +1) / strideX);
+//            adj_Y = (int)caffe_y - (int)tensorflow_y;
+//        }
 
-        if (adj_X < 0)
-            adj_X = 0;
-        if (adj_Y < 0)
-            adj_Y = 0;
+//        if (adj_X < 0)
+//            adj_X = 0;
+//        if (adj_Y < 0)
+//            adj_Y = 0;
 
-        if (padX == 0)
-            adj_X = 0;
-        if (padY == 0)
-            adj_Y = 0;
+//        if (padX == 0)
+//            adj_X = 0;
+//        if (padY == 0)
+//            adj_Y = 0;
 
-        return o.conv(input, filters, {strideX, strideY}, {padX , (short unsigned )(padX- adj_X), padY, (short unsigned )(padY - adj_Y)}, dilationFactor, group, {{},{},{},{}}, name);
-    }
+//        return o.conv(input, filters, {strideX, strideY}, {padX , (short unsigned )(padX- adj_X), padY, (short unsigned )(padY - adj_Y)}, dilationFactor, group, {{},{},{},{}}, name);
+//    }
 
-    mv::Data::TensorIterator depthwiseConv2D_caffe(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::Data::TensorIterator filters,
-        short unsigned strideX, short unsigned strideY, short unsigned padX, short unsigned padY)
-    {
-        /// This differs from the above because caffe calculates output sizes differently.
-        /// To compensate, we add values to pad.
+//    mv::Data::TensorIterator depthwiseConv2D_caffe(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::Data::TensorIterator filters,
+//        short unsigned strideX, short unsigned strideY, short unsigned padX, short unsigned padY)
+//    {
+//        /// This differs from the above because caffe calculates output sizes differently.
+//        /// To compensate, we add values to pad.
 
-        int adj_X = 0, adj_Y = 0;
+//        int adj_X = 0, adj_Y = 0;
 
-        mv::Shape i = input->getShape();
-        mv::Shape k = filters->getShape();
+//        mv::Shape i = input->getShape();
+//        mv::Shape k = filters->getShape();
 
-        int kernelSizeX =  k[0];
-        int kernelSizeY =  k[1];
+//        int kernelSizeX =  k[0];
+//        int kernelSizeY =  k[1];
 
-        //if (padX > 0)
-        {
-            double inner_x_calc = (double)i[0] + (double)padX + (double)padX - (double)kernelSizeX;
-            double caffe_x = ceil(inner_x_calc / strideX) + 1;
-            double tensorflow_x = ceil((inner_x_calc +1) / strideX);
-            adj_X = (int)caffe_x - (int)tensorflow_x;
-        }
+//        //if (padX > 0)
+//        {
+//            double inner_x_calc = (double)i[0] + (double)padX + (double)padX - (double)kernelSizeX;
+//            double caffe_x = ceil(inner_x_calc / strideX) + 1;
+//            double tensorflow_x = ceil((inner_x_calc +1) / strideX);
+//            adj_X = (int)caffe_x - (int)tensorflow_x;
+//        }
 
-        //if (padY > 0)
-        {
-            double inner_y_calc = (double)i[1] + (double)padY + (double)padY - (double)kernelSizeY;
-            double caffe_y = ceil(inner_y_calc / strideX) + 1;
-            double tensorflow_y = ceil((inner_y_calc +1) / strideX);
-            adj_Y = (int)caffe_y - (int)tensorflow_y;
-        }
+//        //if (padY > 0)
+//        {
+//            double inner_y_calc = (double)i[1] + (double)padY + (double)padY - (double)kernelSizeY;
+//            double caffe_y = ceil(inner_y_calc / strideX) + 1;
+//            double tensorflow_y = ceil((inner_y_calc +1) / strideX);
+//            adj_Y = (int)caffe_y - (int)tensorflow_y;
+//        }
 
-        if (adj_X < 0)
-            adj_X = 0;
-        if (adj_Y < 0)
-            adj_Y = 0;
+//        if (adj_X < 0)
+//            adj_X = 0;
+//        if (adj_Y < 0)
+//            adj_Y = 0;
 
-        if (padX == 0)
-            adj_X = 0;
-        if (padY == 0)
-            adj_Y = 0;
+//        if (padX == 0)
+//            adj_X = 0;
+//        if (padY == 0)
+//            adj_Y = 0;
 
-        return o.depthwiseConv(input, filters, {strideX, strideY}, {padX , (short unsigned )(padX- adj_X), padY, (short unsigned )(padY - adj_Y)});
-    }
-
-    mv::Data::TensorIterator constant(mv::CompositionalModel& o, const std::vector<double>& data, const mv::Shape &shape){
-        /// Add a Constant Layer to the CompositionalModel and return the relevant iterator
-        return o.constant(data, shape, mv::DType("Float16"), mv::Order(mv::Order::getRowMajorID(shape.ndims())));
-    }
-
-    mv::Data::TensorIterator constant(mv::CompositionalModel& o, const std::vector<double>& data, const mv::Shape &shape, const mv::Order& order, const mv::QuantizationParams &quantParams, const std::string &name){
-        /// Add a Constant Layer to the CompositionalModel and return the relevant iterator
-        return o.constant(data, shape, mv::DType("Float16"), order, quantParams, name);
-    }
-
-    mv::Data::TensorIterator constant(mv::CompositionalModel& o, const std::vector<int64_t> &data, const mv::Shape &shape, const mv::Order& order, const mv::QuantizationParams &quantParams, const std::string &name){
-        /// Add a Constant Layer to the CompositionalModel and return the relevant iterator
-        return o.constantInt(data, shape, mv::DType("UInt8"), order, quantParams, name);
-    }
+//        return o.depthwiseConv(input, filters, {strideX, strideY}, {padX , (short unsigned )(padX- adj_X), padY, (short unsigned )(padY - adj_Y)});
+//    }
 
     mv::Data::OpListIterator getSourceOp(mv::CompositionalModel& o, mv::Data::TensorIterator tensor){
         // Get source operation of a tensor
@@ -495,151 +540,94 @@ import_array();
         return o.matMul(input, weights);
     }
 
-    mv::Data::TensorIterator avgpool2D(mv::CompositionalModel& o, mv::Data::TensorIterator input, short unsigned kernelSizeX,
-        short unsigned kernelSizeY, short unsigned strideX, short unsigned strideY, short unsigned padXl, short unsigned padXr,  short unsigned padYu,short unsigned padYd, const mv::QuantizationParams &quantParams, const std::string& name)
-    {
-        return o.averagePool(input, {kernelSizeX, kernelSizeY}, {strideX, strideY}, {padXl, padXr, padYu, padYd}, false,"","floor", quantParams, name);
-    }
+//    mv::Data::TensorIterator avgpool2D_caffe(mv::CompositionalModel& o, mv::Data::TensorIterator input, short unsigned kernelSizeX,
+//        short unsigned kernelSizeY, short unsigned strideX, short unsigned strideY, short unsigned padX, short unsigned padY, const std::string& name)
+//    {
 
-    mv::Data::TensorIterator avgpool2D_caffe(mv::CompositionalModel& o, mv::Data::TensorIterator input, short unsigned kernelSizeX,
-        short unsigned kernelSizeY, short unsigned strideX, short unsigned strideY, short unsigned padX, short unsigned padY, const std::string& name)
-    {
+//        /// This differs from the above because caffe calculates output sizes differently.
+//        /// To compensate, we add values to pad.
+//        /// See: https://github.com/BVLC/caffe/issues/1318
 
-        /// This differs from the above because caffe calculates output sizes differently.
-        /// To compensate, we add values to pad.
-        /// See: https://github.com/BVLC/caffe/issues/1318
+//        int adj_X = 0, adj_Y = 0;
+//        mv::Shape i = input->getShape();
 
-        int adj_X = 0, adj_Y = 0;
-        mv::Shape i = input->getShape();
+//        //if (padX > 0)
+//        {
+//            double inner_x_calc = (double)i[0] + (double)padX + (double)padX - (double)kernelSizeX;
+//            double caffe_x = ceil(inner_x_calc / strideX) + 1;
+//            double tensorflow_x = ceil((inner_x_calc +1) / strideX);
+//            adj_X = (int)caffe_x - (int)tensorflow_x;
+//        }
 
-        //if (padX > 0)
-        {
-            double inner_x_calc = (double)i[0] + (double)padX + (double)padX - (double)kernelSizeX;
-            double caffe_x = ceil(inner_x_calc / strideX) + 1;
-            double tensorflow_x = ceil((inner_x_calc +1) / strideX);
-            adj_X = (int)caffe_x - (int)tensorflow_x;
-        }
+//        //if (padY > 0)
+//        {
+//            double inner_y_calc = (double)i[1] + (double)padY + (double)padY - (double)kernelSizeY;
+//            double caffe_y = ceil(inner_y_calc / strideX) + 1;
+//            double tensorflow_y = ceil((inner_y_calc +1) / strideX);
+//            adj_Y = (int)caffe_y - (int)tensorflow_y;
+//        }
 
-        //if (padY > 0)
-        {
-            double inner_y_calc = (double)i[1] + (double)padY + (double)padY - (double)kernelSizeY;
-            double caffe_y = ceil(inner_y_calc / strideX) + 1;
-            double tensorflow_y = ceil((inner_y_calc +1) / strideX);
-            adj_Y = (int)caffe_y - (int)tensorflow_y;
-        }
+//        if (adj_X < 0)
+//            adj_X = 0;
+//        if (adj_Y < 0)
+//            adj_Y = 0;
 
-        if (adj_X < 0)
-            adj_X = 0;
-        if (adj_Y < 0)
-            adj_Y = 0;
+//        return o.averagePool(input, {kernelSizeX, kernelSizeY}, {strideX, strideY},
+//            {padX, (short unsigned )(padX+ adj_X), padY, (short unsigned )(padY+ adj_Y)}, false,"","",{{},{},{},{}},name);
+//    }
 
-        return o.averagePool(input, {kernelSizeX, kernelSizeY}, {strideX, strideY},
-            {padX, (short unsigned )(padX+ adj_X), padY, (short unsigned )(padY+ adj_Y)}, false,"","",{{},{},{},{}},name);
-    }
+//    mv::Data::TensorIterator avgpool2D_caffe(mv::CompositionalModel& o, mv::Data::TensorIterator input, short unsigned kernelSizeX,
+//        short unsigned kernelSizeY, short unsigned strideX, short unsigned strideY, short unsigned padX, short unsigned padY)
+//    {
 
-    mv::Data::TensorIterator avgpool2D_caffe(mv::CompositionalModel& o, mv::Data::TensorIterator input, short unsigned kernelSizeX,
-        short unsigned kernelSizeY, short unsigned strideX, short unsigned strideY, short unsigned padX, short unsigned padY)
-    {
+//        /// This differs from the above because caffe calculates output sizes differently.
+//        /// To compensate, we add values to pad.
+//        /// See: https://github.com/BVLC/caffe/issues/1318
 
-        /// This differs from the above because caffe calculates output sizes differently.
-        /// To compensate, we add values to pad.
-        /// See: https://github.com/BVLC/caffe/issues/1318
+//        int adj_X = 0, adj_Y = 0;
+//        mv::Shape i = input->getShape();
 
-        int adj_X = 0, adj_Y = 0;
-        mv::Shape i = input->getShape();
+//        //if (padX > 0)
+//        {
+//            double inner_x_calc = (double)i[0] + (double)padX + (double)padX - (double)kernelSizeX;
+//            double caffe_x = ceil(inner_x_calc / strideX) + 1;
+//            double tensorflow_x = ceil((inner_x_calc +1) / strideX);
+//            adj_X = (int)caffe_x - (int)tensorflow_x;
+//        }
 
-        //if (padX > 0)
-        {
-            double inner_x_calc = (double)i[0] + (double)padX + (double)padX - (double)kernelSizeX;
-            double caffe_x = ceil(inner_x_calc / strideX) + 1;
-            double tensorflow_x = ceil((inner_x_calc +1) / strideX);
-            adj_X = (int)caffe_x - (int)tensorflow_x;
-        }
+//        //if (padY > 0)
+//        {
+//            double inner_y_calc = (double)i[1] + (double)padY + (double)padY - (double)kernelSizeY;
+//            double caffe_y = ceil(inner_y_calc / strideX) + 1;
+//            double tensorflow_y = ceil((inner_y_calc +1) / strideX);
+//            adj_Y = (int)caffe_y - (int)tensorflow_y;
+//        }
 
-        //if (padY > 0)
-        {
-            double inner_y_calc = (double)i[1] + (double)padY + (double)padY - (double)kernelSizeY;
-            double caffe_y = ceil(inner_y_calc / strideX) + 1;
-            double tensorflow_y = ceil((inner_y_calc +1) / strideX);
-            adj_Y = (int)caffe_y - (int)tensorflow_y;
-        }
+//        if (adj_X < 0)
+//            adj_X = 0;
+//        if (adj_Y < 0)
+//            adj_Y = 0;
 
-        if (adj_X < 0)
-            adj_X = 0;
-        if (adj_Y < 0)
-            adj_Y = 0;
-
-        return o.averagePool(input, {kernelSizeX, kernelSizeY}, {strideX, strideY},
-            {padX, (short unsigned )(padX+ adj_X), padY, (short unsigned )(padY+ adj_Y)});
-    }
+//        return o.averagePool(input, {kernelSizeX, kernelSizeY}, {strideX, strideY},
+//            {padX, (short unsigned )(padX+ adj_X), padY, (short unsigned )(padY+ adj_Y)});
+//    }
 
     mv::Data::TensorIterator batchNorm(mv::CompositionalModel& o,mv::Data::TensorIterator input, mv::Data::TensorIterator mean, mv::Data::TensorIterator variance, mv::Data::TensorIterator offset, mv::Data::TensorIterator scale, double varianceEps){
         return o.batchNormalization(input, mean, variance, offset, scale, varianceEps);
     }
-    mv::Data::TensorIterator scale(mv::CompositionalModel& o,mv::Data::TensorIterator input, mv::Data::TensorIterator scale){
-        return o.scale(input, scale);
-    }
-    mv::Data::TensorIterator scale(mv::CompositionalModel& o,mv::Data::TensorIterator input, mv::Data::TensorIterator scale, const mv::QuantizationParams &quantParams, const std::string& name){
-        return o.scale(input, scale, quantParams, name);
-    }
 
-    mv::Data::TensorIterator relu(mv::CompositionalModel& o, mv::Data::TensorIterator input){
-        return o.relu(input);
-    }
 
-    mv::Data::TensorIterator relu(mv::CompositionalModel& o, mv::Data::TensorIterator input, const mv::QuantizationParams &quantParams, const std::string& name){
-        return o.relu(input, quantParams, name);
-    }
-    mv::Data::TensorIterator dropOut(mv::CompositionalModel& o, mv::Data::TensorIterator input){
-        return o.dropout(input);
-    }
-
-    mv::Data::TensorIterator dropOut(mv::CompositionalModel& o, mv::Data::TensorIterator input, const mv::QuantizationParams &quantParams, const std::string& name){
-        return o.dropout(input, quantParams, name);
-    }
     mv::Data::TensorIterator prelu(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::Data::TensorIterator negative_slope){
         return o.prelu(input, negative_slope);
     }
-    mv::Data::TensorIterator softmax(mv::CompositionalModel& o,mv::Data::TensorIterator input){
-        return o.softmax(input);
-    }
-    mv::Data::TensorIterator softmax(mv::CompositionalModel& o,mv::Data::TensorIterator input, const mv::QuantizationParams  &quantParams, const std::string &name){
-        return o.softmax(input, "C", quantParams, name);
-    }
-    mv::Data::TensorIterator add(mv::CompositionalModel& o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1, const mv::QuantizationParams &quantParams, const std::string& name){
-        return o.add({input0, input1}, quantParams, name);
-    }
-    mv::Data::TensorIterator add(mv::CompositionalModel& o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1){
-        return o.add({input0, input1});
-    }
-    mv::Data::TensorIterator subtract(mv::CompositionalModel& o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1){
-        return o.subtract({input0, input1});
-    }
-    mv::Data::TensorIterator multiply(mv::CompositionalModel& o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1, const mv::QuantizationParams &quantParams, const std::string& name){
-        return o.multiply({input0, input1}, quantParams, name);
-    }
-    mv::Data::TensorIterator multiply(mv::CompositionalModel& o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1){
-        return o.multiply({input0, input1});
-    }
 
-    mv::Data::TensorIterator fullyConnected(mv::CompositionalModel& o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1){
-        return o.fullyConnected(input0, input1);
-    }
-    mv::Data::TensorIterator fullyConnected(mv::CompositionalModel& o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1, const mv::QuantizationParams  &quantParams, const std::string &name){
-        return o.fullyConnected(input0, input1, quantParams, name);
-    }
    mv::Data::TensorIterator divide(mv::CompositionalModel& o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1){
         return o.divide(input0, input1);
     }
     mv::Data::TensorIterator reshape(mv::CompositionalModel& o,mv::Data::TensorIterator input, const mv::Shape& shape){
         return o.reshape(input, shape);
     }
-    mv::Data::TensorIterator bias(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::Data::TensorIterator bias_values){
-        return o.bias(input, bias_values);
-    }
-    mv::Data::TensorIterator bias(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::Data::TensorIterator bias_values, const mv::QuantizationParams  &quantParams, const std::string &name){
-        return o.bias(input, bias_values, quantParams, name);
-    }
+
     bool isValid(mv::CompositionalModel& o){
         return o.isValid();
     }
@@ -697,68 +685,58 @@ std::vector<int64_t> * getData(int64_t * d, std::size_t len);
 
 mv::QuantizationParams * getQuantParams(const std::vector<int64_t> &zero_data, const std::vector<double>& scale_data, const std::vector<double>& min,  const std::vector<double>& max);
 mv::Order * getOrder(const std::string& framework_layout);
-
-mv::Data::TensorIterator input(mv::CompositionalModel& o, const mv::Shape &shape, double type, const mv::Order& order, const mv::QuantizationParams &quantParams, const std::string& name);
-mv::Data::TensorIterator input(mv::CompositionalModel& o, const mv::Shape &shape, uint64_t type, const mv::Order& order, const mv::QuantizationParams &quantParams, const std::string& name);
-mv::Data::TensorIterator input(mv::CompositionalModel& o, const mv::Shape &shape, double type, const mv::Order& order);
-
-mv::Data::TensorIterator output(mv::CompositionalModel& o, mv::Data::TensorIterator input, const std::string& name);
-mv::Data::TensorIterator output(mv::CompositionalModel& o, mv::Data::TensorIterator input);
-
-mv::Data::TensorIterator maxpool2D_caffe(mv::CompositionalModel& o, mv::Data::TensorIterator input, short unsigned kernelSizeX,
-                                         short unsigned kernelSizeY, short unsigned strideX, short unsigned strideY, short unsigned padX, short unsigned padY,const std::string& name);
-mv::Data::TensorIterator maxpool2D_caffe(mv::CompositionalModel& o, mv::Data::TensorIterator input, short unsigned kernelSizeX,
-    short unsigned kernelSizeY, short unsigned strideX, short unsigned strideY, short unsigned padX, short unsigned padY);
-mv::Data::TensorIterator maxpool2D(mv::CompositionalModel& o, mv::Data::TensorIterator input, short unsigned kernelSizeX,
-    short unsigned kernelSizeY, short unsigned strideX, short unsigned strideY, short unsigned padXl, short unsigned padXr,  short unsigned padYu,short unsigned padYd, const mv::QuantizationParams &quantParams, const std::string& name);
-mv::Data::TensorIterator avgpool2D_caffe(mv::CompositionalModel& o, mv::Data::TensorIterator input, short unsigned kernelSizeX,
-    short unsigned kernelSizeY, short unsigned strideX, short unsigned strideY, short unsigned padX, short unsigned padY, const std::string& name);
-mv::Data::TensorIterator avgpool2D_caffe(mv::CompositionalModel& o, mv::Data::TensorIterator input, short unsigned kernelSizeX,
-    short unsigned kernelSizeY, short unsigned strideX, short unsigned strideY, short unsigned padX, short unsigned padY);
-mv::Data::TensorIterator avgpool2D(mv::CompositionalModel& o, mv::Data::TensorIterator input, short unsigned kernelSizeX, short unsigned kernelSizeY, short unsigned strideX, short unsigned strideY, short unsigned padXl, short unsigned padXr,  short unsigned padYu,short unsigned padYd, const mv::QuantizationParams &quantParams, const std::string& name);
-
-mv::Data::TensorIterator relu(mv::CompositionalModel& o,mv::Data::TensorIterator input);
-mv::Data::TensorIterator relu(mv::CompositionalModel& o,mv::Data::TensorIterator input, const mv::QuantizationParams &quantParams, const std::string& name);
-
-mv::Data::TensorIterator dropOut(mv::CompositionalModel& o, mv::Data::TensorIterator input);
-mv::Data::TensorIterator dropOut(mv::CompositionalModel& o, mv::Data::TensorIterator input, const mv::QuantizationParams &quantParams, const std::string& name);
-
-mv::Data::TensorIterator add(mv::CompositionalModel& o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1);
-mv::Data::TensorIterator add(mv::CompositionalModel& o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1, const mv::QuantizationParams &quantParams, const std::string& name);
-mv::Data::TensorIterator multiply(mv::CompositionalModel& o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1);
-mv::Data::TensorIterator multiply(mv::CompositionalModel& o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1, const mv::QuantizationParams &quantParams, const std::string& name);
-
-mv::Data::TensorIterator constant(mv::CompositionalModel&  o, const std::vector<double>& data, const mv::Shape &shape);
+//Keep the order of the Wrapper
 mv::Data::TensorIterator constant(mv::CompositionalModel&  o, const std::vector<int64_t>& data, const mv::Shape &shape, const mv::Order& order, const mv::QuantizationParams  &quantParams, const std::string &name);
 mv::Data::TensorIterator constant(mv::CompositionalModel&  o, const std::vector<double>& data, const mv::Shape &shape, const mv::Order& order,  const mv::QuantizationParams  &quantParams,  const std::string &name);
-
-mv::Data::TensorIterator scale(mv::CompositionalModel& o,mv::Data::TensorIterator input, mv::Data::TensorIterator scale);
-mv::Data::TensorIterator scale(mv::CompositionalModel& o,mv::Data::TensorIterator input, mv::Data::TensorIterator scale, const mv::QuantizationParams  &quantParams, const std::string &name);
-
-mv::Data::TensorIterator bias(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::Data::TensorIterator bias_values);
-mv::Data::TensorIterator bias(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::Data::TensorIterator bias_values, const mv::QuantizationParams  &quantParams, const std::string &name);
-
+mv::Data::TensorIterator input(mv::CompositionalModel& o, const mv::Shape &shape, double type, const mv::Order& order, const mv::QuantizationParams &quantParams, const std::string& name);
+mv::Data::TensorIterator input(mv::CompositionalModel& o, const mv::Shape &shape, uint64_t type, const mv::Order& order, const mv::QuantizationParams &quantParams, const std::string& name);
+mv::Data::TensorIterator output(mv::CompositionalModel& o, mv::Data::TensorIterator input);
+mv::Data::TensorIterator maxpool2D(mv::CompositionalModel& o, mv::Data::TensorIterator input, short unsigned kernelSizeX,
+    short unsigned kernelSizeY, short unsigned strideX, short unsigned strideY, short unsigned padXl, short unsigned padXr,  short unsigned padYu,short unsigned padYd, const std::string& type, const mv::QuantizationParams &quantParams, const std::string& name);
+mv::Data::TensorIterator avgpool2D(mv::CompositionalModel& o, mv::Data::TensorIterator input, short unsigned kernelSizeX, short unsigned kernelSizeY, short unsigned strideX, short unsigned strideY, short unsigned padXl, short unsigned padXr,  short unsigned padYu,short unsigned padYd, const std::string& type, const mv::QuantizationParams &quantParams, const std::string& name);
+mv::Data::TensorIterator relu(mv::CompositionalModel& o,mv::Data::TensorIterator input, const std::string& type, const mv::QuantizationParams &quantParams, const std::string& name);
+mv::Data::TensorIterator leaky_relu(mv::CompositionalModel& o,mv::Data::TensorIterator input, double alpha, const std::string& type, const mv::QuantizationParams &quantParams, const std::string& name);
+mv::Data::TensorIterator sigmoid(mv::CompositionalModel& o,mv::Data::TensorIterator input, const std::string& type, const mv::QuantizationParams &quantParams, const std::string& name);
+mv::Data::TensorIterator dropOut(mv::CompositionalModel& o, mv::Data::TensorIterator input, const std::string& type, const mv::QuantizationParams &quantParams, const std::string& name);
+mv::Data::TensorIterator power(mv::CompositionalModel& o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1, const std::string& type, const mv::QuantizationParams &quantParams, const std::string& name);
+mv::Data::TensorIterator minimum(mv::CompositionalModel& o, mv::Data::TensorIterator input, double min, const std::string& type, const mv::QuantizationParams &quantParams, const std::string& name);
+mv::Data::TensorIterator minimum(mv::CompositionalModel& o, mv::Data::TensorIterator input, int64_t min, const std::string& type, const mv::QuantizationParams &quantParams, const std::string& name);
+mv::Data::TensorIterator maximum(mv::CompositionalModel& o, mv::Data::TensorIterator input, double max, const std::string& type, const mv::QuantizationParams &quantParams, const std::string& name);
+mv::Data::TensorIterator maximum(mv::CompositionalModel& o, mv::Data::TensorIterator input, int64_t max, const std::string& type, const mv::QuantizationParams &quantParams, const std::string& name);
+mv::Data::TensorIterator add(mv::CompositionalModel& o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1, const std::string& type, const mv::QuantizationParams &quantParams, const std::string& name);
+mv::Data::TensorIterator multiply(mv::CompositionalModel& o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1, const std::string& type, const mv::QuantizationParams &quantParams, const std::string& name);
+mv::Data::TensorIterator softmax(mv::CompositionalModel& o,mv::Data::TensorIterator input, const std::string& type, const mv::QuantizationParams  &quantParams, const std::string &name);
+mv::Data::TensorIterator fullyConnected(mv::CompositionalModel& o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1, const std::string& type, const mv::QuantizationParams  &quantParams, const std::string &name);
 mv::Data::TensorIterator conv2D(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::Data::TensorIterator filters,
-    short unsigned strideX, short unsigned strideY, short unsigned padXl, short unsigned padXr,  short unsigned padYu,short unsigned padYd, short unsigned dilationFactor, short unsigned group, const mv::QuantizationParams  &quantParams, const std::string& name);
-mv::Data::TensorIterator conv2D_caffe(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::Data::TensorIterator filters,
-    short unsigned strideX, short unsigned strideY, short unsigned padX, short unsigned padY, short unsigned dilationFactor, short unsigned group, const std::string& name);
-mv::Data::TensorIterator conv2D_caffe(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::Data::TensorIterator filters,
-    short unsigned strideX, short unsigned strideY, short unsigned padX, short unsigned padY, short unsigned dilationFactor);
-
+    short unsigned strideX, short unsigned strideY, short unsigned padXl, short unsigned padXr,  short unsigned padYu, short unsigned padYd, short unsigned dilationFactor, short unsigned group,  const std::string& type, const mv::QuantizationParams  &quantParams, const std::string& name);
 mv::Data::TensorIterator depthwiseConv2D(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::Data::TensorIterator filters,
-    short unsigned strideX, short unsigned strideY, short unsigned padXl, short unsigned padXr,  short unsigned padYu,short unsigned padYd, short unsigned dilationFactor, const mv::QuantizationParams  &quantParams, const std::string& name);
-mv::Data::TensorIterator depthwiseConv2D_caffe(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::Data::TensorIterator filters,
-    short unsigned strideX, short unsigned strideY, short unsigned padX, short unsigned padY);
+    short unsigned strideX, short unsigned strideY, short unsigned padXl, short unsigned padXr,  short unsigned padYu,short unsigned padYd, short unsigned dilationFactor, const std::string& type, const mv::QuantizationParams  &quantParams, const std::string& name);
+mv::Data::TensorIterator concat(mv::CompositionalModel& o, std::vector<mv::Data::TensorIterator> * inputs, const std::string& type, const mv::QuantizationParams  &quantParams, const std::string &name);
+mv::Data::TensorIterator scale(mv::CompositionalModel& o,mv::Data::TensorIterator input, mv::Data::TensorIterator scale, const std::string& type, const mv::QuantizationParams  &quantParams, const std::string &name);
+mv::Data::TensorIterator bias(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::Data::TensorIterator bias_values, const std::string& type, const mv::QuantizationParams  &quantParams, const std::string &name);
 
-mv::Data::TensorIterator softmax(mv::CompositionalModel& o,mv::Data::TensorIterator input);
-mv::Data::TensorIterator softmax(mv::CompositionalModel& o,mv::Data::TensorIterator input, const mv::QuantizationParams  &quantParams, const std::string &name);
 
-mv::Data::TensorIterator fullyConnected(mv::CompositionalModel& o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1);
-mv::Data::TensorIterator fullyConnected(mv::CompositionalModel& o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1, const mv::QuantizationParams  &quantParams, const std::string &name);
+//mv::Data::TensorIterator maxpool2D_caffe(mv::CompositionalModel& o, mv::Data::TensorIterator input, short unsigned kernelSizeX,
+//                                         short unsigned kernelSizeY, short unsigned strideX, short unsigned strideY, short unsigned padX, short unsigned padY,const std::string& name);
+//mv::Data::TensorIterator maxpool2D_caffe(mv::CompositionalModel& o, mv::Data::TensorIterator input, short unsigned kernelSizeX,
+//    short unsigned kernelSizeY, short unsigned strideX, short unsigned strideY, short unsigned padX, short unsigned padY);
+//mv::Data::TensorIterator avgpool2D_caffe(mv::CompositionalModel& o, mv::Data::TensorIterator input, short unsigned kernelSizeX,
+//    short unsigned kernelSizeY, short unsigned strideX, short unsigned strideY, short unsigned padX, short unsigned padY, const std::string& name);
+//mv::Data::TensorIterator avgpool2D_caffe(mv::CompositionalModel& o, mv::Data::TensorIterator input, short unsigned kernelSizeX,
+//    short unsigned kernelSizeY, short unsigned strideX, short unsigned strideY, short unsigned padX, short unsigned padY);
+
+
+
+//mv::Data::TensorIterator conv2D_caffe(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::Data::TensorIterator filters,
+//    short unsigned strideX, short unsigned strideY, short unsigned padX, short unsigned padY, short unsigned dilationFactor, short unsigned group, const std::string& name);
+//mv::Data::TensorIterator conv2D_caffe(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::Data::TensorIterator filters,
+//    short unsigned strideX, short unsigned strideY, short unsigned padX, short unsigned padY, short unsigned dilationFactor);
+
+
+//mv::Data::TensorIterator depthwiseConv2D_caffe(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::Data::TensorIterator filters,
+//    short unsigned strideX, short unsigned strideY, short unsigned padX, short unsigned padY);
 
 std::vector<mv::Data::TensorIterator> * pushVector(std::vector<mv::Data::TensorIterator> * base, mv::Data::TensorIterator data);
-mv::Data::TensorIterator concat(mv::CompositionalModel& o, std::vector<mv::Data::TensorIterator> * inputs);
-mv::Data::TensorIterator concat(mv::CompositionalModel& o, std::vector<mv::Data::TensorIterator> * inputs, const mv::QuantizationParams  &quantParams, const std::string &name);
 mv::Data::OpListIterator getSourceOp(mv::CompositionalModel& o, mv::Data::TensorIterator tensor);
 
 mv::Data::TensorIterator matMul(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::Data::TensorIterator weights);

@@ -173,9 +173,9 @@ std::size_t mv::DataModel::tensorsCount() const
     return tensors_->size();
 }
 
-bool mv::DataModel::addAllocator(const std::string& name, std::size_t size, std::size_t alignment, std::size_t dataTypeSize)
+bool mv::DataModel::addAllocator(const std::string& name, std::size_t size, std::size_t alignment)
 {
-    auto result = memoryAllocators_->emplace(name, std::make_shared<MemoryAllocator>(name, size, alignment, dataTypeSize));
+    auto result = memoryAllocators_->emplace(name, std::make_shared<MemoryAllocator>(name, size, alignment));
     if (result.second)
     {
         log(Logger::MessageType::Info, "Defined " + result.first->second->toString());

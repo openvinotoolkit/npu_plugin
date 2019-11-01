@@ -5,7 +5,7 @@
 namespace mv
 {
 
-    // Float16 is actually treatead as Int
+    // Float16 is actually treated as Integer type
     MV_REGISTER_DTYPE(Float16)
     .setIsDoubleType(false)
     .setSizeInBits(16);

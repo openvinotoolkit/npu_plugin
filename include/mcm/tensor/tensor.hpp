@@ -228,8 +228,7 @@ namespace mv
         }
         inline bool isQuantized() const
         {
-            return hasAttr("quantParams") &&
-                !(getDType() == DType("Float16") || getDType() == DType("Float32") || getDType() == DType("Float64"));
+            return hasAttr("quantParams");
         }
 
         inline bool isPopulated() const
