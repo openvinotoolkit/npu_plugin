@@ -220,7 +220,7 @@ int runKmbInference(std::string evmIP, std::string blobPath)
 
     //
     // copy the required files to InferenceManagerDemo folder
-    std::string inputSrc = "./test_reshape.bin";
+    std::string inputSrc = "./converted_image.dat";
     std::string inputDest = std::getenv("VPUIP_HOME") + std::string("/application/demo/InferenceManagerDemo/input-0.bin");
     if (!copyFile(inputSrc, inputDest))
         return FAIL_GENERAL;
@@ -277,7 +277,6 @@ int validate(std::string blobPath, std::string expectedPath, std::string actualP
     std::vector<float> outputFP32;
     if (FLAGS_d.compare("U8")==0)
     {
-
         //
         // load json and read quantization values: scale and zeropoint
         std::string json_file = getFilename(blobPath) + std::string(".json");
@@ -359,13 +358,23 @@ int convertImage(std::string imagePath, std::string blobPath)
     for (uint32_t x=0; x<j["header"]["net_input"][0]["dimensions"].size(); ++x)
         inputShape.push_back( std::to_string(j["header"]["net_input"][0]["dimensions"][x].get<int>()) );
     std::cout << "Input Shape: " << inputShape[0] << "," << inputShape[1] << "," << inputShape[2] << "," << inputShape[3] << std::endl;
-    
+
+    std::cout << "Querying Z/Ch Major conv... " << std::endl;
+    std::vector<std::string> inputStrides;
+    for (uint32_t x=0; x<j["header"]["net_input"][0]["strides"].size(); ++x)
+        inputStrides.push_back( std::to_string(j["header"]["net_input"][0]["strides"][x].get<int>()) );
+    std::cout << "Input Shape: " << inputStrides[0] << "," << inputStrides[1] << "," << inputStrides[2] << "," << inputStrides[3] << std::endl;
+
+    std::string sZMajor("");
+    if (! ((std::stoi(inputShape[1]) < 16) && (inputShape[2] == inputStrides[3]) ))
+        sZMajor = " --zmajor";
+
     //
     // convert image to correct shape and order
     std::cout << "Converting image ... " << std::endl;
     std::string commandline = std::string("python3 ") + mv::utils::projectRootPath() +
         std::string("/python/tools/convert_image.py --image ") + imagePath + " --shape " + 
-        inputShape[0] + "," + inputShape[1] + "," + inputShape[2] + "," + inputShape[3];
+        inputShape[0] + "," + inputShape[1] + "," + inputShape[2] + "," + inputShape[3] + sZMajor;
     std::cout << commandline << std::endl;
     int result = std::system(commandline.c_str());
     
