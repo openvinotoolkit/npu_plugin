@@ -60,12 +60,19 @@ void fusePostOpsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
                                         {"MaximumDouble", fuseMaximum},
                                         {"MaximumInt", fuseMaximum}};
 
-    for(auto opPairIt = operationsOfTypeOrdered.begin(); opPairIt != operationsOfTypeOrdered.end(); ++opPairIt)
+    //NOTE: Iterate the fuse_types vector for correct order reason according to map
+    for (auto type = fuse_types.begin(); type != fuse_types.end(); type++)
     {
-        std::string opType = opPairIt->first;
-        auto fuseFunctor = (fuseTaskMap.at(opType));
-        for (auto opIt = opPairIt->second.begin(); opIt != opPairIt->second.end();++opIt)
-            fuseFunctor(*opIt, model, opType);
+        for(auto opPairIt = operationsOfTypeOrdered.begin(); opPairIt != operationsOfTypeOrdered.end(); ++opPairIt)
+        {
+            std::string opType = opPairIt->first;
+            if (*type == opType)
+            {
+                auto fuseFunctor = (fuseTaskMap.at(opType));
+                for (auto opIt = opPairIt->second.begin(); opIt != opPairIt->second.end();++opIt)
+                    fuseFunctor(*opIt, model, opType);
+            }
+        }
     }
 
 }
