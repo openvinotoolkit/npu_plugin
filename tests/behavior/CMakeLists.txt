@@ -37,7 +37,7 @@ function(enable_vpu TARGET_NAME FLAG_NAME PLUGIN_NAME)
         PRIVATE
             ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/plugin_tests
         SYSTEM PRIVATE
-            ${CMAKE_SOURCE_DIR}/include)
+            ${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/include)
 
     add_test(NAME ${TARGET_NAME}
             COMMAND ${TARGET_NAME})

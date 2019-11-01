@@ -59,9 +59,6 @@ function(addVpuTest TARGET_NAME PLUGIN_NAME PLUGIN_TEST_FOLDER PLUGIN_MACRO_NAME
         source_group("include" FILES ${TEST_INCLUDE} ${KMB_TEST_INCLUDES} ${PLUGIN_TEST_INCLUDES})
         source_group("src" FILES ${TEST_SRC} ${KMB_TEST_SOURCES} ${PLUGIN_TEST_SOURCES})
 
-        message(STATUS "PLUGIN_MACRO_NAME=${PLUGIN_MACRO_NAME}")
-        message(STATUS "${KMB_TEST_INCLUDES}")
-        message(STATUS "${KMB_TEST_SOURCES}")
         add_executable(${TARGET_NAME}
                 ${TEST_INCLUDE} ${TEST_SRC} ${REGRESSION_TESTS}
                 ${KMB_TEST_INCLUDES} ${KMB_TEST_SOURCES}
@@ -74,9 +71,6 @@ function(addVpuTest TARGET_NAME PLUGIN_NAME PLUGIN_TEST_FOLDER PLUGIN_MACRO_NAME
                 ${VPU_TEST_INCLUDES} ${VPU_TEST_SOURCES}
                 ${PLUGIN_TEST_INCLUDES} ${PLUGIN_TEST_SOURCES})
     endif()
-
-    set_property(TARGET ${TARGET_NAME} PROPERTY CXX_STANDARD 11)
-    set_property(TARGET ${TARGET_NAME} PROPERTY CXX_STANDARD_REQUIRED ON)
 
     add_dependencies(${TARGET_NAME}
             ${DEPENDENCIES}
@@ -101,7 +95,7 @@ function(addVpuTest TARGET_NAME PLUGIN_NAME PLUGIN_TEST_FOLDER PLUGIN_MACRO_NAME
             ${IE_MAIN_SOURCE_DIR}/src/inference_engine
             ${IE_MAIN_SOURCE_DIR}/src/vpu/graph_transformer/include
         SYSTEM PRIVATE
-            ${CMAKE_SOURCE_DIR}/include)
+            ${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/include)
 
     target_link_libraries(${TARGET_NAME} PRIVATE
             ${LIBRARIES}

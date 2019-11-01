@@ -7,4 +7,4 @@ file (GLOB SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
 ie_add_sample(NAME kmb_infer_sample
               SOURCES ${SRC}
               HEADERS infer_app.h
-              DEPENDENCIES format_reader)
+              DEPENDENCIES IE::format_reader)
