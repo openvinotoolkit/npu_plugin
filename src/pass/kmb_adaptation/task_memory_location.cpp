@@ -9,6 +9,7 @@
 
 
 static void setDpuTasksMemoryLocationFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+static void setUPATasksMemoryLocationFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 
 namespace mv
 {
@@ -18,6 +19,11 @@ namespace mv
             .setFunc(setDpuTasksMemoryLocationFcn)
             .setDescription(
                 "Set Dpu Task memory location and adds copy ops if needed");
+
+        MV_REGISTER_PASS(SetUPATasksMemoryLocation)
+            .setFunc(setUPATasksMemoryLocationFcn)
+            .setDescription(
+                "Set UPA Task memory location and adds copy ops if needed");
     }
 }
 
@@ -44,7 +50,7 @@ void setDpuTasksMemoryLocationFcn(const mv::pass::PassEntry& , mv::ComputationMo
             {
                 auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
 
-                if(outputMemoryLocation != mv::Tensor::MemoryLocation::CMX)
+                if(outputMemoryLocation != mv::Tensor::MemoryLocation::NNCMX)
                 {
                     auto sink = opIt.leftmostOutput().sink();
                     std::string opTypeAfter = sink->getOpType();
@@ -64,14 +70,20 @@ void setDpuTasksMemoryLocationFcn(const mv::pass::PassEntry& , mv::ComputationMo
                     for (auto flow : flows)
                         om.undefineFlow(flow);
 
-                    output->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::CMX);
+                    output->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::NNCMX);
                     if (opTypeAfter == "Crop")
-                        opItBackup->getOutputTensor(0)->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::CMX);
+                        opItBackup->getOutputTensor(0)->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::NNCMX);
 
                     mv::QuantizationParams outputQuantParams = {{},{},{},{}};
                     if (output->hasAttr("quantParams"))
                         outputQuantParams = output->get<mv::QuantizationParams>("quantParams");
-                    auto dpuCopyOut = om.dMATask(output, mv::DmaDirectionEnum::CMX2DDR,opIt->getName() + "_copyOut");
+
+                    std::string memoryLocation = outputMemoryLocation.toString();
+                    if(memoryLocation == "OUTPUT" || memoryLocation == "INPUT")
+                        memoryLocation = "DDR";
+                    std::string stringDirection("NNCMX2"+memoryLocation);
+                    mv::DmaDirection direction(stringDirection);
+                    auto dpuCopyOut = om.dMATask(output, direction,opIt->getName() + "_copyOut");
                     auto dpuCopyOutOp = om.getSourceOp(dpuCopyOut);
                     dpuCopyOutOp->set<unsigned>("opId", opIt->get<unsigned>("opId"));
                     if (output->hasAttr("quantParams"))
@@ -87,16 +99,22 @@ void setDpuTasksMemoryLocationFcn(const mv::pass::PassEntry& , mv::ComputationMo
                 if (isElementWise)
                     numInputs++;
 
-                for (auto i = 0; i < numInputs; i++)
+                for (size_t i = 0; i < numInputs; i++)
                 {
                     auto inputMemoryLocation = opIt->getInputTensor(i)->get<mv::Tensor::MemoryLocation>("Location");
-                    if(inputMemoryLocation != mv::Tensor::MemoryLocation::CMX)
+                    if(inputMemoryLocation != mv::Tensor::MemoryLocation::NNCMX)
                     {
                         auto input = opIt->getInputTensor(i);
                         mv::QuantizationParams inputQuantParams = {{},{},{},{}};
                         if(input->hasAttr("quantParams"))
                             inputQuantParams = input->get<mv::QuantizationParams>("quantParams");
-                        auto dpuCopyIn = om.dMATask(input, mv::DmaDirectionEnum::DDR2CMX, opIt->getName() + "_copyIn_" + std::to_string(i));
+
+                        std::string memoryLocation = inputMemoryLocation.toString();
+                        if(memoryLocation == "OUTPUT" || memoryLocation == "INPUT" || memoryLocation == "DEFAULT")
+                            memoryLocation = "DDR";
+                        std::string stringDirection(memoryLocation+"2NNCMX");
+                        mv::DmaDirection direction(stringDirection);
+                        auto dpuCopyIn = om.dMATask(input, direction, opIt->getName() + "_copyIn_" + std::to_string(i));
                         auto dpuCopyInOp = om.getSourceOp(dpuCopyIn);
 
                         if(dpuCopyInOp->getOutputTensor(0)->hasAttr("quantParams"))
@@ -120,11 +138,46 @@ void setDpuTasksMemoryLocationFcn(const mv::pass::PassEntry& , mv::ComputationMo
                             }
                         }
 
-                        dpuCopyIn->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::CMX);
+                        dpuCopyIn->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::NNCMX);
                     }
                 }
             }
 
+        }
+        ++opIt;
+    }
+}
+
+void setUPATasksMemoryLocationFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+{
+    mv::OpModel om(model);
+    mv::DataModel dm(model);
+
+    auto opIt = om.getInput();
+
+    while (opIt != om.opEnd())
+    {
+        std::string opType = opIt->getOpType();
+
+        if (opType == "UPATask")
+        {
+            auto taskOp = opIt->get<std::string>("taskOp");
+            if(taskOp == "Dummy")
+            {
+                ++opIt;
+                continue;
+            }
+
+            auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
+            //output of UPATask is ALWAYS in DDR
+            // TODO: we can save 2 DMAs by giving the UPATask input in CMX (if previous op is DPUTask) and writing UPATask Output to CMX if next layer is
+            // DPU task and it fits in CMX.
+            if(!((outputMemoryLocation == mv::Tensor::MemoryLocation::DDR) || (outputMemoryLocation == mv::Tensor::MemoryLocation::OUTPUT)))
+            {
+                auto output = opIt->getOutputTensor(0);
+                output->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::DDR);
+
+            }
         }
         ++opIt;
     }

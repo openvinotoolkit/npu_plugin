@@ -604,7 +604,7 @@ void reorderDmasInScheduleFcn(const mv::pass::PassEntry&, mv::ComputationModel& 
         unsigned minSchedulingNumber = INT_MAX;
         for (auto child = task.leftmostChild(); child != cm.opEnd(); ++child)
         {
-            if (child->getOpType() == "DMATask" && child->get<mv::DmaDirection>("direction") == mv::DDR2CMX)
+            if (child->getOpType() == "DMATask" && child->get<mv::DmaDirection>("direction") == mv::DDR2NNCMX)
             {
                 auto schedNum = child->get<unsigned>("schedulingNumber");
                 if (schedNum < minSchedulingNumber)

@@ -28,6 +28,7 @@ mv::op::OpRegistry::OpRegistry()
 {
 	typeTraits_.insert("executable");
 	typeTraits_.insert("exposed");
+	typeTraits_.insert("optimizable");
 }
 
 mv::op::OpRegistry& mv::op::OpRegistry::instance()
@@ -863,6 +864,7 @@ void mv::op::OpRegistry::generateCompositionAPI(const std::string& eol, const st
 
 #include    "src/computation/op/def/add.cpp"
 #include    "src/computation/op/def/power.cpp"
+#include    "src/computation/op/def/align.cpp"
 #include    "src/computation/op/def/average_pool.cpp"
 #include    "src/computation/op/def/batch_normalization.cpp"
 #include    "src/computation/op/def/bias.cpp"
@@ -872,9 +874,11 @@ void mv::op::OpRegistry::generateCompositionAPI(const std::string& eol, const st
 #include    "src/computation/op/def/constant.cpp"
 #include    "src/computation/op/def/conv.cpp"
 #include    "src/computation/op/def/conversion.cpp"
+#include    "src/computation/op/def/crop.cpp"
 #include    "src/computation/op/def/depthwise_conv.cpp"
 #include    "src/computation/op/def/divide.cpp"
 #include    "src/computation/op/def/dropout.cpp"
+#include    "src/computation/op/def/dummy.cpp"
 #include    "src/computation/op/def/elu.cpp"
 #include    "src/computation/op/def/fully_connected.cpp"
 #include    "src/computation/op/def/identity.cpp"
@@ -886,18 +890,20 @@ void mv::op::OpRegistry::generateCompositionAPI(const std::string& eol, const st
 #include    "src/computation/op/def/minimum.cpp"
 #include    "src/computation/op/def/maximum.cpp"
 #include    "src/computation/op/def/multiply.cpp"
+#include    "src/computation/op/def/normalize.cpp"
 #include    "src/computation/op/def/output.cpp"
 #include    "src/computation/op/def/permute.cpp"
 #include    "src/computation/op/def/prelu.cpp"
+#include    "src/computation/op/def/proposal.cpp"
+#include    "src/computation/op/def/quantize.cpp"
 #include    "src/computation/op/def/region_yolo.cpp"
 #include    "src/computation/op/def/relu.cpp"
 #include    "src/computation/op/def/reorder.cpp"
 #include    "src/computation/op/def/reorg_yolo.cpp"
 #include    "src/computation/op/def/reshape.cpp"
+#include    "src/computation/op/def/roipooling.cpp"
 #include    "src/computation/op/def/scale.cpp"
 #include    "src/computation/op/def/slice.cpp"
-#include    "src/computation/op/def/align.cpp"
-#include    "src/computation/op/def/crop.cpp"
 #include    "src/computation/op/def/sigmoid.cpp"
 #include    "src/computation/op/def/softmax.cpp"
 #include    "src/computation/op/def/subtract.cpp"
