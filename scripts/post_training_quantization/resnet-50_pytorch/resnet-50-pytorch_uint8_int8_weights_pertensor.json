@@ -1,6 +1,6 @@
 {
     "model": {
-        "name": "resnet50_int8",
+        "name": "resnet50_uint8_int8_weights_pertensor",
         "model": "<ORIGINAL_MODEL>",
         "inputs": [{
             "input_shape": [1,3,224,224],

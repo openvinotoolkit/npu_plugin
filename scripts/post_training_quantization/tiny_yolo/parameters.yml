@@ -1,9 +1,0 @@
-%YAML:1.0
-parameters:
-  - version: "v2"
-    dataset: "voc"
-    classes: 20
-    coords: 4
-    side: 13
-    num: 5
-    anchors: [ 1.08, 1.19, 3.42, 4.41, 6.63, 11.38, 9.42, 5.11, 16.62, 10.52 ]

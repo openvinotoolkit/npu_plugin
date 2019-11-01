@@ -1,6 +1,6 @@
 {
     "model": {
-        "name": "mobilenet_v2_int8",
+        "name": "mobilenet_v2_uint8_int8_weights_perchannel",
         "model": "<ORIGINAL_MODEL>",
         "inputs": [{
             "input_shape": [1,3,224,224],

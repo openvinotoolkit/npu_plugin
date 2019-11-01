@@ -1,8 +1,0 @@
-%YAML:1.0
-inputs:
-  - name: "image"
-    type: "image"
-    format: "BGR"
-    path: "voc2012/2008_0000*.jpg"
-    shape: [ 1, 3, 416, 416 ]
-    layout: [ N, C, H, W ]
