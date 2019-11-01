@@ -43,7 +43,6 @@ const std::vector<BehTestParams> withCorrectConfValues = {
     BEH_KMB.withConfig({ { KEY_VPU_IGNORE_UNKNOWN_LAYERS, YES } }),
     BEH_KMB.withConfig({ { KEY_VPU_HW_STAGES_OPTIMIZATION, YES } }),
     BEH_KMB.withConfig({ { KEY_VPU_NONE_LAYERS, "Tile" } }),
-    BEH_KMB.withConfig({ { KEY_VPU_HW_ADAPTIVE_MODE, "YES" } }),
     BEH_KMB.withConfig({ { KEY_VPU_NUMBER_OF_SHAVES, "5" }, { KEY_VPU_NUMBER_OF_CMX_SLICES, "5" } }),
     BEH_KMB.withConfig({ { KEY_VPU_HW_INJECT_STAGES, "YES" } }),
     BEH_KMB.withConfig({ { KEY_VPU_HW_POOL_CONV_MERGE, "YES" } }),
