@@ -304,7 +304,6 @@ int validate(std::string blobPath, std::string expectedPath, std::string actualP
         std::cout << totalActual << " elements" << std::endl;
 
         // de-quantize
-        std::vector<float> outputFP32;
         for (size_t i = 0; i < outputVector.size(); ++i)
         {
             // De-quantize: bitshift left by qShift then multiply by scale

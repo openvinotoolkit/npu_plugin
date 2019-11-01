@@ -22,7 +22,7 @@ static const char a_tensor_message[] = "Required. Path to the actual results ten
 static const char e_tensor_message[] = "Required. Path to the expected results tensor.";
 
 /// @brief message for data type
-static const char dtype_message[] = "Optional. Datatype to convert to, eg, U8 | FP32 only supported. Default is FP32";
+static const char dtype_message[] = "Optional. Datatype to convert to, eg, U8 | FP16 only supported. Default is U8";
 
 /// @brief message for setting quantize or not
 static const char quantize_message[] = "Optional. Default is to de-quantize. Specify --quantize if you wish to quantize";
@@ -98,5 +98,5 @@ static void showUsage() {
     //std::cout << "    -a <path>           " << a_tensor_message << std::endl;
     //std::cout << "    -e <path>           " << e_tensor_message << std::endl;
     //std::cout << "    -q true|false         " << quantize_message << std::endl;
-    //std::cout << "    -d U8|FP16            " << dtype_message << std::endl;    
+    std::cout << "    -d U8|FP16            " << dtype_message << std::endl;    
 }
