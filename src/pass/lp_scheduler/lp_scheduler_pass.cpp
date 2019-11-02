@@ -92,10 +92,67 @@ class Control_Edge_Set {
           psedge->set<bool>("PartialSerialisationEdge", true);
         } 
       }
+      add_control_edges_from_input_dma_tasks(dag, model);
       printf("[DAG Invariant: %s]\n", cm.isDag() ? "PASSED" : "FAILED");
     }
 
   private:
+
+    
+    template<typename OpDag>
+    void add_control_edges_from_input_dma_tasks(const OpDag& dag,
+          mv::ComputationModel& model) {
+
+      typedef typename OpDag::op_itr_t mv_op_itr_t;
+      typedef typename OpDag::operation_t operation_t;
+      typedef typename OpDag::const_operation_iterator_t node_iterator_t;
+      typedef typename std::unordered_set< operation_t > zero_in_t;
+      typedef typename zero_in_t::iterator zero_in_itr_t;
+      typedef typename zero_in_t::const_iterator const_zero_in_itr_t;
+
+
+      mv::ControlModel cm(model);
+
+      zero_in_t zero_in_degree_dmas;
+
+      // find all all DMA tasks with zero in-degree //
+      for (node_iterator_t itr=dag.begin_nodes(), itr_end=dag.end_nodes();
+            itr != itr_end; ++itr) {
+        operation_t op = *itr;
+        if (dag.is_dma_op(op) && !dag.operation_in_degree(op)) {
+          // this DMA task has zero indegree before adding new control edges//
+          zero_in_degree_dmas.insert(op);
+        }
+      }
+
+      // the new control edges may have created a incoming control edge so
+      // eliminate them.
+      for (const_edge_iterator_t eitr=begin(); eitr!=end(); ++eitr) {
+        zero_in_itr_t itr = zero_in_degree_dmas.find(eitr->sink_);
+        if (itr == zero_in_degree_dmas.end()) {
+          zero_in_degree_dmas.erase(eitr->sink_);
+        }
+      }
+
+      operation_t input_op = dag.get_input_op();
+      assert(input_op);
+      mv_op_itr_t op_itr_source = dag.get_op_iterator(input_op), op_itr_sink;
+      assert(op_itr_source != op_itr_sink);
+
+      // now for all the dmas in the set add control edges from input to the
+      // dmas //
+      for (const_zero_in_itr_t itr=zero_in_degree_dmas.begin();
+            itr!=zero_in_degree_dmas.end(); ++itr) {
+        op_itr_sink = dag.get_op_iterator(*itr);
+        auto flowIt = cm.checkControlFlow(op_itr_source, op_itr_sink);
+        if ( flowIt == cm.flowEnd() ) {
+          mv::Control::FlowListIterator psedge =
+              cm.defineFlow(op_itr_source, op_itr_sink);
+          psedge->set<bool>("PartialSerialisationEdge", true);
+        } 
+      }
+    }
+
     std::set< control_edge_t > control_edge_set_;
 }; //  class Control_Edge_Set //
 typedef Control_Edge_Set control_edge_set_t;
@@ -160,9 +217,10 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
   std::unordered_set<std::string> scheduled_ops_set;
   for (auto itr=scheduled_ops.begin(); itr != scheduled_ops.end(); ++itr) {
     const scheduled_op_t& op = *itr;
-    fprintf(fptr, "scheduled_op: %s (type=%s) time=%lu cmx=[%lu %lu] \n",
+    fprintf(fptr, "scheduled_op: %s (type=%s) time=%lu cmx=[%lu %lu] mem=%lu\n",
         (op.op_)->getName().c_str(), ((op.op_)->getOpType()).c_str(),
-         op.schedule_time_, op.cmx_address_start_, op.cmx_address_end_);
+         op.schedule_time_, op.cmx_address_start_, op.cmx_address_end_,
+         (op.cmx_address_end_ - op.cmx_address_start_));
     scheduled_ops_set.insert( (op.op_)->getName() );
   }
 

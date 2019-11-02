@@ -99,6 +99,9 @@ class Operation_Dag {
     typedef typename resource_utility_map_t::iterator resource_map_iterator_t;
     typedef std::unordered_map<operation_t, op_itr_t> op_to_iterator_lookup_t;
 
+    typedef std::unordered_map<operation_t, size_t> in_degree_map_t;
+    typedef typename in_degree_map_t::const_iterator const_in_degree_iterator_t;
+
     class const_operation_iterator_t {
       public:
 
@@ -139,8 +142,7 @@ class Operation_Dag {
         const_ref_op_iterator_t ref_itr_;
         const_master_op_iterator_t master_itr_;
         bool is_ref_type_;
-    };
-
+    }; // class const_operation_iterator_t //
 
     typedef size_t delay_t;
     typedef size_t resource_t;
@@ -148,8 +150,9 @@ class Operation_Dag {
             operation_t> resource_state_t;
     ////////////////////////////////////////////////////////////////////////////
 
-    Operation_Dag(model_t& model) : adj_map_(), ops_(), resource_utility_map_() 
-      { init_from_model(model); }
+    Operation_Dag(model_t& model) : adj_map_(), ops_(), resource_utility_map_(),
+      op_to_iterator_lookup_(), in_degree_map_(), input_op_()
+    { init_from_model(model); }
 
     const_operation_iterator_t begin_nodes() const {
       return const_operation_iterator_t( ops_.begin() );
@@ -240,6 +243,21 @@ class Operation_Dag {
       assert(itr != op_to_iterator_lookup_.end());
       return itr->second;
     }
+    size_t operation_in_degree(operation_t op) const {
+      const_in_degree_iterator_t itr = in_degree_map_.find(op);
+      return (itr == in_degree_map_.end()) ? 0UL : itr->second;
+    }
+    
+    bool is_input_op(operation_t op) const {
+      return op->getOpType() == "Input";
+    }
+
+    operation_t get_input_op() const { return input_op_; }
+
+    bool is_dma_op(operation_t op) const {
+      return op->getOpType() == "DMATask";
+    }
+
 
   private:
 
@@ -253,12 +271,15 @@ class Operation_Dag {
       adj_map_.clear();
       ops_.clear();
       op_to_iterator_lookup_.clear();
+      in_degree_map_.clear();
+      input_op_ = NULL;
 
 
       for (op_itr_t itr = mtraits::begin_operations(model);
             itr != mtraits::end_operations(model); ++itr) {
         operation_t op = &(*itr);
         if (is_operation_ignored(op)) { continue; }
+        if (is_input_op(op)) { input_op_ = op; }
 
         master_op_iterator_t op_itr = ops_.find(op);
 
@@ -285,6 +306,11 @@ class Operation_Dag {
             op_itr = (ops_.insert(child_op)).first;
           }
 
+          if (in_degree_map_.find(child_op) == in_degree_map_.end()) {
+            in_degree_map_[child_op] = 0UL;
+          }
+          in_degree_map_[child_op]++;
+
           adj_list.push_back( &(*op_itr) );
         }
 
@@ -310,6 +336,8 @@ class Operation_Dag {
     resource_utility_map_t resource_utility_map_;
     //TODO(vamsikku): consolidate ops_ and op_to_iterator_lookup_ tables. //
     op_to_iterator_lookup_t op_to_iterator_lookup_;
+    in_degree_map_t in_degree_map_;
+    operation_t input_op_;
 }; // class Operation_Dag //
 
 typedef mv::lp_scheduler::Feasible_Schedule_Generator< Operation_Dag<> >
