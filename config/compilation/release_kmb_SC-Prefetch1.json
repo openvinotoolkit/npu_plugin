@@ -188,13 +188,6 @@
             "AlignPopulatedTensors",
             "RemoveCropAlignInCMX",
             "CropOrPadFinalOutput",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/crop_pad.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            },
             "AlignTaskWeights",
             "GenerateSparsityMapsPopulatedTensors",
             "GenerateWeightsTables",
@@ -202,7 +195,8 @@
             "StrategyLayersToTensors",
             "ComputeTensorsQuantParams",
             "PopulateWeightsTablesQuantization",
-            "RemoveBiasTensors"
+            "RemoveBiasTensors",
+            "SplittingTensorsAcrossClusters"
         ]
     },
     "dma": {
@@ -210,7 +204,6 @@
             "SetDpuTasksMemoryLocation",
             "AddWeightsDMATasks",
             "alignInputForChannelMajorConvolution",
-            "SplittingTensorsAcrossClusters",
             "UpdateImplicitLayersQuantizationParams",
             "ResolveImplicitOperations",
             "EnsureSplitStrategiesForSpilling"

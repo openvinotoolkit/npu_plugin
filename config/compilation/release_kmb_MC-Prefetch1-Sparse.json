@@ -188,7 +188,8 @@
             "StrategyLayersToTensors",
             "ComputeTensorsQuantParams",
             "PopulateWeightsTablesQuantization",
-            "RemoveBiasTensors"
+            "RemoveBiasTensors",
+            "SplittingTensorsAcrossClusters"
         ]
     },
     "dma": {
@@ -196,7 +197,6 @@
             "SetDpuTasksMemoryLocation",
             "AddWeightsDMATasks",
             "alignInputForChannelMajorConvolution",
-            "SplittingTensorsAcrossClusters",
             "UpdateImplicitLayersQuantizationParams",
             "ResolveImplicitOperations",
             "EnsureSplitStrategiesForSpilling"
