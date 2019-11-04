@@ -117,7 +117,7 @@ bool compare(std::vector<float>& actualResults, std::vector<float>& expectedResu
             if (abs_error > maxErr) maxErr = abs_error;
             result = "\tfail";
         }
-        if (idx < 50) // print first 50 rows
+        if (idx < 250 && idx > 200) // print first 50 rows
             std::cout << expected << "\t" << actual << "\t" << abs_error << "\t" << abs_allowed_err << "\t"  << result << std::endl;
     };
     std::cout << "Printing first 50 rows...\nExp\tActual\tdiff\ttolerence\tresult" << std::endl;
@@ -304,8 +304,15 @@ int validate(std::string blobPath, std::string expectedPath, std::string actualP
         std::cout << totalActual << " elements" << std::endl;
 
         // de-quantize
+        uint8_t prevVal = 0;
         for (size_t i = 0; i < outputVector.size(); ++i)
         {
+            //if (i<50) std::cout << outputVector[i] << std::endl;
+            if (prevVal != outputVector[i])
+            {
+                prevVal = outputVector[i];
+                std::cout << std::to_string(prevVal) << std::endl;
+            }
             // De-quantize: bitshift left by qShift then multiply by scale
             float val = outputVector[i] << qShift / qScale;
             outputFP32.push_back(val);
@@ -405,6 +412,7 @@ int main(int argc, char *argv[])
     if (FLAGS_mode == "validate")
     {
         //bypass all and just run the validation function
+        convertBlobToJson(FLAGS_b);
         validate(FLAGS_b, FLAGS_e, FLAGS_a);
         return(0);
     }
