@@ -3,14 +3,23 @@
 namespace mv
 {
 
-    namespace op_power
+    namespace op_eltwise
     {
+        const std::vector<std::string> ELTWISES = {"Add", "Subtract", "Multiply", "Divide", "Pow", "Minimum",
+                                               "Maximum"};
 
         static std::function<std::pair<bool, std::size_t>(const std::vector<Data::TensorIterator>&,
-            const std::map<std::string, Attribute>&, std::string&)> inputCheckFcn =
-            [](const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>&,
+            const std::map<std::string, Attribute>& args, std::string&)> inputCheckFcn =
+            [](const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>& args,
             std::string& errMsg) -> std::pair<bool, std::size_t>
         {
+            auto eltwiseType = args.at("eltwiseType").get<std::string>();
+            if(std::find(ELTWISES.begin(), ELTWISES.end(), eltwiseType) == ELTWISES.end())
+            {
+                errMsg = "Unsupported eltwise";
+                return {false, 1};
+            }
+
             auto inputSize = inputs.size();
             if(inputSize < 2)
             {
@@ -42,6 +51,7 @@ namespace mv
                 }
             }
             return {true, 0};
+
         };
 
         static std::function<void(const std::vector<Data::TensorIterator>&, const std::map<std::string, Attribute>&,
@@ -55,19 +65,19 @@ namespace mv
                 outputs.push_back(mv::Tensor(":0",  inputs[0]->getShape(), dTypeToUse, inputs[0]->getOrder()));
             else
                 outputs.push_back(mv::Tensor(":0",  inputs[0]->getShape(), dTypeToUse, inputs[0]->getOrder(), args.at("quantParams").get<mv::QuantizationParams>()));
-
         };
     }
 
     namespace op {
-        MV_REGISTER_OP(Power)
+        MV_REGISTER_OP(Eltwise)
         .setInputs({"inputs"})
         .setOutputs({"output"})
+        .setArg<std::string>("eltwiseType")
         .setOptionalArg<mv::DType>("dType", mv::DType("Default"))
         .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
-        .setInputCheck(op_add::inputCheckFcn)
-        .setOutputDef(op_add::outputDefFcn)
-        .setTypeTrait({"executable", "exposed"})
+        .setInputCheck(op_eltwise::inputCheckFcn)
+        .setOutputDef(op_eltwise::outputDefFcn)
+        .setTypeTrait({"executable", "exposed", "optimizable"})
         .setVariableInputNum(true);
 
     }

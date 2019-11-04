@@ -18,7 +18,7 @@ const std::string mv::op::OpRegistry::compAPISourcePath_ = std::string(META_DIR)
 const std::string mv::op::OpRegistry::opModelHeaderPath_ = std::string(META_DIR) + std::string("/include/mcm/op_model.hpp");
 const std::string mv::op::OpRegistry::opModelSourcePath_ = std::string(META_DIR) + std::string("/src/op_model.cpp");
 
-/*const std::set<std::string> mv::op::OpRegistry::typeTraits_ = 
+/*const std::set<std::string> mv::op::OpRegistry::typeTraits_ =
 {
     "executable",   // An op is doing some processing of inputs
     "exposed"       // An op definition call is exposed in CompositionAPI
@@ -26,14 +26,14 @@ const std::string mv::op::OpRegistry::opModelSourcePath_ = std::string(META_DIR)
 
 mv::op::OpRegistry::OpRegistry()
 {
-	typeTraits_.insert("executable");
-	typeTraits_.insert("exposed");
-	typeTraits_.insert("optimizable");
+        typeTraits_.insert("executable");
+        typeTraits_.insert("exposed");
+        typeTraits_.insert("optimizable");
 }
 
 mv::op::OpRegistry& mv::op::OpRegistry::instance()
 {
-    
+
     return Registry<OpRegistry, std::string, OpEntry>::instance();
 
 }
@@ -57,7 +57,7 @@ std::vector<std::string> mv::op::OpRegistry::getOpTypes(std::initializer_list<st
             filteredResults.push_back(*typeIt);
     }
     return filteredResults;
-    
+
 }
 
 bool mv::op::OpRegistry::checkOpType(const std::string& opType)
@@ -82,14 +82,14 @@ std::vector<std::string> mv::op::OpRegistry::getArgsList(const std::string& opTy
 {
     if (!checkOpType(opType))
         throw OpError("OpRegistry", "Attempt of obtaining the aandatrguments list for an unregistered op type " + opType);
-    
+
     OpEntry* const opPtr = instance().find(opType);
 
     if (!opPtr)
         throw MasterError("OpRegistry", "Registered op type " + opType + " not found in the op registry");
 
     return opPtr->getArgsList();
-    
+
 }
 
 //method to return list of attributes with default values and the default values
@@ -97,14 +97,14 @@ std::vector<std::pair<std::string, mv::Attribute>> mv::op::OpRegistry::getOption
 {
     if (!checkOpType(opType))
         throw OpError("OpRegistry", "Attempt of obtaining the arguments list for an unregistered op type " + opType);
-    
+
     OpEntry* const opPtr1 = instance().find(opType);
 
     if (!opPtr1)
         throw MasterError("OpRegistry", "Registered op type " + opType + " not found in the op registry");
 
     return opPtr1->getOptionalArgsList();
-    
+
 }
 
 
@@ -113,7 +113,7 @@ std::type_index mv::op::OpRegistry::argType(const std::string& opType, const std
 
     if (!checkOpType(opType))
         throw OpError("OpRegistry", "Attempt of checking the arguments type for an unregistered op type " + opType);
-    
+
     OpEntry* const opPtr = instance().find(opType);
 
     if (!opPtr)
@@ -132,7 +132,7 @@ std::size_t mv::op::OpRegistry::getInputsCount(const std::string& opType)
 {
     if (!checkOpType(opType))
         throw OpError("OpRegistry", "Attempt of checking inputs count for an unregistered op type " + opType);
-    
+
     OpEntry* const opPtr = instance().find(opType);
 
     if (!opPtr)
@@ -147,7 +147,7 @@ std::size_t mv::op::OpRegistry::getOutputsCount(const std::string& opType)
 {
     if (!checkOpType(opType))
         throw OpError("OpRegistry", "Attempt of checking outputs count for an unregistered op type " + opType);
-    
+
     OpEntry* const opPtr = instance().find(opType);
 
     if (!opPtr)
@@ -180,7 +180,7 @@ void mv::op::OpRegistry::getOutputsDef(const std::string& opType, const std::vec
 
     if (!checkOpType(opType))
         throw OpError("OpRegistry", "Attempt of executing an inputs check for an unregistered op type " + opType);
-    
+
     OpEntry* const opPtr = instance().find(opType);
 
     if (!opPtr)
@@ -484,13 +484,13 @@ std::string mv::op::OpRegistry::getCompositionCall_(const std::string& opType)
     return getCompositionDeclSig_(opType, true, false, false, true, false);
 }
 
-std::string mv::op::OpRegistry::getLabelNameStringifyCall_(const std::string& label, const std::string& name, std::size_t idx, 
+std::string mv::op::OpRegistry::getLabelNameStringifyCall_(const std::string& label, const std::string& name, std::size_t idx,
     const std::string& indent, const std::string& eol)
 {
     return indent + "std::string " + name + std::to_string(idx) + " = " + label + "->getName();" + eol +
         indent + "std::transform(" + name + std::to_string(idx) + ".begin()," +
         name +  std::to_string(idx) + ".end(), " + name + std::to_string(idx) + ".begin(), ::tolower);" + eol
-        + indent + "std::replace(" + name + std::to_string(idx) + ".begin(), " + name + std::to_string(idx) + 
+        + indent + "std::replace(" + name + std::to_string(idx) + ".begin(), " + name + std::to_string(idx) +
         ".end(), ':', '_');" + eol;
 }
 
@@ -524,7 +524,7 @@ std::string mv::op::OpRegistry::getStringifiedInputsCall_(const std::string opTy
         else
             output += getLabelNameStringifyCall_(inputLabels.back(), "input", inputLabels.size() - 1, indent, eol);
 
-        
+
     }
 
     return output;
@@ -552,9 +552,9 @@ std::string mv::op::OpRegistry::getStringifiedOutputsCall_(const std::string opT
     {
         for (std::size_t i = 0; i < outputLabels.size() - 1; ++i)
             output += getLabelNameStringifyCall_(outputLabels[i], "output", i, indent, eol);
-        
+
         output += getLabelNameStringifyCall_(outputLabels.back(), "output", outputLabels.size() - 1, indent, eol);
-        
+
     }
 
     return output;
@@ -773,7 +773,7 @@ void mv::op::OpRegistry::generateCompositionAPI(const std::string& eol, const st
     incStream << "*/" << eol << eol;
 
     incStream << "#ifndef MV_OP_MODEL_HPP_" << eol;
-    incStream << "#define MV_OP_MODEL_HPP_" << eol << eol; 
+    incStream << "#define MV_OP_MODEL_HPP_" << eol << eol;
     incStream << "#include \"" << compAPIHeaderPath_ << "\"" << eol;
     incStream << "#include \"include/mcm/computation/model/base_op_model.hpp\"" << eol << eol;
     incStream << "#include \"include/mcm/compiler/compilation_profiler.hpp\"" << eol << eol;
@@ -831,7 +831,7 @@ void mv::op::OpRegistry::generateCompositionAPI(const std::string& eol, const st
 
     for (auto it = opsList.begin(); it != opsList.end(); ++it)
         srcStream << getCompositionDef_(*it, eol, tab) << eol << eol;
-    
+
     srcStream << "mv::Data::OpListIterator mv::OpModel::getSourceOp(Data::TensorIterator tensor)" << eol;
     srcStream << "{" << eol;
     srcStream << tab << "return BaseOpModel::getSourceOp(tensor);" << eol;
@@ -862,8 +862,7 @@ void mv::op::OpRegistry::generateCompositionAPI(const std::string& eol, const st
 
 // Define all OPs in a single compilation unit. //
 
-#include    "src/computation/op/def/add.cpp"
-#include    "src/computation/op/def/power.cpp"
+#include    "src/computation/op/def/eltwise.cpp"
 #include    "src/computation/op/def/align.cpp"
 #include    "src/computation/op/def/average_pool.cpp"
 #include    "src/computation/op/def/batch_normalization.cpp"
@@ -876,7 +875,6 @@ void mv::op::OpRegistry::generateCompositionAPI(const std::string& eol, const st
 #include    "src/computation/op/def/conversion.cpp"
 #include    "src/computation/op/def/crop.cpp"
 #include    "src/computation/op/def/depthwise_conv.cpp"
-#include    "src/computation/op/def/divide.cpp"
 #include    "src/computation/op/def/dropout.cpp"
 #include    "src/computation/op/def/dummy.cpp"
 #include    "src/computation/op/def/elu.cpp"
@@ -887,9 +885,6 @@ void mv::op::OpRegistry::generateCompositionAPI(const std::string& eol, const st
 #include    "src/computation/op/def/local_response_normalization.cpp"
 #include    "src/computation/op/def/matmul.cpp"
 #include    "src/computation/op/def/max_pool.cpp"
-#include    "src/computation/op/def/minimum.cpp"
-#include    "src/computation/op/def/maximum.cpp"
-#include    "src/computation/op/def/multiply.cpp"
 #include    "src/computation/op/def/normalize.cpp"
 #include    "src/computation/op/def/output.cpp"
 #include    "src/computation/op/def/permute.cpp"
@@ -906,5 +901,4 @@ void mv::op::OpRegistry::generateCompositionAPI(const std::string& eol, const st
 #include    "src/computation/op/def/slice.cpp"
 #include    "src/computation/op/def/sigmoid.cpp"
 #include    "src/computation/op/def/softmax.cpp"
-#include    "src/computation/op/def/subtract.cpp"
 #include    "src/computation/op/def/tanh.cpp"
