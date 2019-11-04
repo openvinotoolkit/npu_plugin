@@ -6,6 +6,7 @@
 #include "iostream"
 #include "fstream"
 
+//Test parameters for TENSORFLOW
 int main()
 {
     std::string path = std::getenv("MCM_HOME");
@@ -72,6 +73,7 @@ int main()
     unit.initialize();
     unit.run();
 }
+//Test parameters for CAFFE
 /*
 int main()
 {
