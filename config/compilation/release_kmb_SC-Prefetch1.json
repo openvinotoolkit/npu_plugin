@@ -188,7 +188,6 @@
             "AlignUnpopulatedTensors",
             "AddAlignOpForInputTensors",
             "AlignPopulatedTensors",
-            "alignInputForChannelMajorConvolution",
             "RemoveCropAlignInCMX",
             "CropOrPadFinalOutput",
             "AlignTaskWeights",
