@@ -7,7 +7,6 @@
 #include "include/mcm/utils/custom_strings.hpp"
 #include "include/mcm/pass/pass_utils.hpp"
 
-// Auxiliary structure used by clamp.
 const std::array<unsigned short, 2> FAKE_KERNEL = {1,1};
 const std::array<unsigned short, 2> FAKE_STRIDE = {1,1};
 

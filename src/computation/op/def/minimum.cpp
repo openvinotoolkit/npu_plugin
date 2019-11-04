@@ -8,14 +8,23 @@ namespace mv
 
         static std::function<std::pair<bool, std::size_t>(const std::vector<Data::TensorIterator>&,
             const std::map<std::string, Attribute>&, std::string&)> inputCheckFcn =
-            [](const std::vector<Data::TensorIterator>&, const std::map<std::string, Attribute>&,
-            std::string&) -> std::pair<bool, std::size_t>
+            [](const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>&,
+            std::string& errMsg) -> std::pair<bool, std::size_t>
         {
-            // TODO: modify for multiple inputs
-            if (inputs[0]->getShape() != inputs[1]->getShape())
+            auto inputSize = inputs.size();
+            if(inputSize < 2)
             {
-                errMsg = "Does not match the data0 shape " + inputs[1]->getShape().toString();
+                errMsg = "Eltwise needs at least two inputs";
                 return {false, 1};
+            }
+
+            for(std::size_t i = 1; i < inputSize; ++i)
+            {
+                if (inputs[0]->getShape() != inputs[i]->getShape())
+                {
+                    errMsg = "All the inputs of eltwise ops have to share the same size";
+                    return {false, 1};
+                }
             }
             return {true, 0};
 
@@ -23,7 +32,7 @@ namespace mv
 
         static std::function<void(const std::vector<Data::TensorIterator>&, const std::map<std::string, Attribute>&,
             std::vector<Tensor>&)> outputDefFcn =
-            [](const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>& args, std::vector<Tensor>& outputs)
+            [](const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>&, std::vector<Tensor>& outputs)
         {
             auto input0Quantized = inputs[0]->hasAttr("quantParams");
             if (!input0Quantized)
