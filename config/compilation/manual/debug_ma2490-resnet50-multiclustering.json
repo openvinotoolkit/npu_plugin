@@ -12,7 +12,7 @@
                 "Number_of_DPUs" : 20,
                 "Number_of_Clusters" : 4,
                 "UpaShaves": 1,
-                "DDRScratch": 31457280,
+                "DDRScratch": 100352,
                 "MemoryHack": false,
                 "CMX_memory_overflow_safety_factor" : 0.925,
                 "cmx": 917504,
@@ -20,7 +20,7 @@
                 [
                     {
                         "name_filter": ".*input#.*",
-                        "strategy": "SplitOverHOverlapped"
+                        "strategy": "None"
                     },
                     {
                         "name_filter":".*conv1#.*",
@@ -320,7 +320,7 @@
                         "weightsSparsity": true
                     }
                 ],
-                "default_tensor_placement" : "CMX"
+                "default_tensor_placement" : "NNCMX"
             },
             "ComputeMemory",
             "AssignUniqueOpId",
@@ -397,7 +397,8 @@
         "Singular": [
             "ConcatAsImplicit",
             "StoreWorkloadStrategy",
-            "ConvertOpsToTasks",
+            "ConvertOpsToDPUTasks",
+            "ConvertOpsToUPATasks",
             "ForceSerialize",
             "KMBOrderConversion",
             "AlignTo16Channels",
@@ -427,6 +428,7 @@
     "dma": {
         "Singular" : [
             "SetDpuTasksMemoryLocation",
+            "SetUPATasksMemoryLocation",
             {
                 "name": "GenerateDot",
                 "output": "output/dots/dpu_tasks_location.dot",
@@ -450,7 +452,8 @@
                 "name": "ConvertDot",
                 "input": "output/dots/implicit_operations_model.dot"
             },
-            "AddWeightsDMATasks",
+            "AddDPUTasksWeightsDMATasks",
+            "AddUPATasksExtraInputsDMATasks",
             {
                 "name": "GenerateDot",
                 "output": "output/dots/dma_model.dot",
@@ -510,11 +513,11 @@
                 "name": "ConvertDot",
                 "input": "output/dots/NoHangingDmas.dot"
             },
-            "cmx2DDRControlFlows",
+            "NNCMX2DDRControlFlows",
             "TransitiveReduction",
             {
                 "name": "GenerateDot",
-                "output": "output/dots/cmx2DDRControlFlows.dot",
+                "output": "output/dots/NNCMX2DDRControlFlows.dot",
                 "scope": "ControlModel",
                 "content": "full",
                 "html": true
@@ -688,7 +691,7 @@
             {
                 "name": "GenerateDot",
                 "output": "output/dots/final_model.dot",
-                "scope": "ControlModel",
+                "scope": "OpModel",
                 "content": "full",
                 "html": true
             },
@@ -700,6 +703,7 @@
     },
     "scheduling": {
         "Singular": [
+            
             "StoreBarriersNamesInTasks",
             "GenerateExecutionSchedule",
             "BarrierIndexAssignment",
@@ -714,8 +718,7 @@
             {
                 "name": "ConvertDot",
                 "input": "output/dots/serial_model.dot"
-            }
-        ]
+            }        ]
     },
     "validate": {
         "Singular": [

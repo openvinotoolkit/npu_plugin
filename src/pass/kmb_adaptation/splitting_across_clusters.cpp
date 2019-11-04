@@ -352,7 +352,7 @@ void ensureSplitStrategiesForSpilling(const mv::pass::PassEntry& pass, mv::Compu
                 auto outputTensor = opIt->getOutputTensor(0);
                 auto inputTensor = opIt->getInputTensor(0);
 
-                if (opIt->get<mv::DmaDirection>("direction") == mv::DmaDirectionEnum::DDR2CMX &&
+                if (opIt->get<mv::DmaDirection>("direction") == mv::DmaDirectionEnum::DDR2NNCMX &&
                     !outputTensor->isPopulated())
                 {
                     std::vector<mv::Data::OpListIterator> sinkOperators = findSinkLayers(dm, outputTensor);

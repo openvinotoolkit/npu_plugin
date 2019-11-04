@@ -91,7 +91,7 @@
                     },
                     {
                         "name_filter" : ".*_cmx_.*",
-                        "mem_location" : "CMX"
+                        "mem_location" : "NNCMX"
                     },
                     {
                         "name_filter" : ".*_input_.*",
@@ -259,7 +259,8 @@
         "Singular": [
             "ConcatAsImplicit",
             "StoreWorkloadStrategy",
-            "ConvertOpsToTasks",
+            "ConvertOpsToDPUTasks",
+            "ConvertOpsToUPATasks",
             "ForceSerialize",
             "KMBOrderConversion",
             "AlignTo16Channels",
@@ -289,6 +290,7 @@
     "dma": {
         "Singular" : [
             "SetDpuTasksMemoryLocation",
+            "SetUPATasksMemoryLocation",
             {
                 "name": "GenerateDot",
                 "output": "output/dots/dpu_tasks_location.dot",
@@ -312,7 +314,8 @@
                 "name": "ConvertDot",
                 "input": "output/dots/implicit_operations_model.dot"
             },
-            "AddWeightsDMATasks",
+            "AddDPUTasksWeightsDMATasks",
+            "AddUPATasksExtraInputsDMATasks",
             {
                 "name": "GenerateDot",
                 "output": "output/dots/dma_model.dot",
@@ -369,11 +372,11 @@
                 "name": "ConvertDot",
                 "input": "output/dots/NoHangingDmas.dot"
             },
-            "cmx2DDRControlFlows",
+            "NNCMX2DDRControlFlows",
             "TransitiveReduction",
             {
                 "name": "GenerateDot",
-                "output": "output/dots/cmx2DDRControlFlows.dot",
+                "output": "output/dots/NNCMX2DDRControlFlows.dot",
                 "scope": "ControlModel",
                 "content": "full",
                 "html": true

@@ -565,12 +565,18 @@ void tensorGraphColoringFnc(const mv::pass::PassEntry& pass, mv::ComputationMode
     mv::TensorInterferenceGraph ddr_heap_g(pass, model, alignment,
             [](const mv::Data::TensorIterator& t) -> bool
             {
-                return (!t->isPopulated());
+                return (!t->isPopulated() &&
+                    t->get<mv::Tensor::MemoryLocation>("Location") == mv::Tensor::MemoryLocation::DDR);
             },
             [](const mv::Data::OpListIterator& t) -> bool
             {
-                return (t->getOpType() == "DMATask" &&
-                    t->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location") == mv::Tensor::MemoryLocation::DDR);
+
+                if (t->getOpType() == "DMATask" &&
+                    t->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location") == mv::Tensor::MemoryLocation::DDR)
+                    return true;
+                if (t->getOpType() == "UPATask")
+                    return true;
+                return false;
             },
             [](const mv::Data::OpListIterator& opIterator) -> bool
             {
@@ -605,13 +611,13 @@ void tensorGraphColoringFnc(const mv::pass::PassEntry& pass, mv::ComputationMode
         {
             //Deallocate is a LeonTask
             auto location = opIterator->get<mv::Tensor::MemoryLocation>("Location");
-            return (location == mv::Tensor::MemoryLocation::CMX);
+            return (location == mv::Tensor::MemoryLocation::NNCMX);
         }
         //TODO: it might be that we dont need this condition, dellocate is what we are looking for
         // removing the below condition generated the same mcm blob for a small network
         if (opType  == "DMATask" &&
-            (opIterator->get<mv::DmaDirection>("direction") == mv::DmaDirectionEnum::CMX2DDR ||
-            opIterator->get<mv::DmaDirection>("direction") == mv::DmaDirectionEnum::CMX2UPA))
+            (opIterator->get<mv::DmaDirection>("direction") == mv::DmaDirectionEnum::NNCMX2DDR ||
+            opIterator->get<mv::DmaDirection>("direction") == mv::DmaDirectionEnum::NNCMX2UPACMX))
             return true;
 
         return false;

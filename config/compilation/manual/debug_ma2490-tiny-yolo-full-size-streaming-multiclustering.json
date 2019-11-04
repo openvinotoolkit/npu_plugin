@@ -227,8 +227,7 @@
     },
     "adapt": {
         "Singular": [
-            "PopulatedTensorsToFP16",
-            "UnpopulatedTensorsToFP16",
+            "TensorsToFP16",
             "AverageAsDepthWise",
             "FuseBatchNorm",
             "FuseBias",
@@ -267,12 +266,12 @@
         "Singular": [
             "ConcatAsImplicit",
             "StoreWorkloadStrategy",
-            "ConvertOpsToTasks",
+            "ConvertOpsToDPUTasks",
+            "ConvertOpsToUPATasks",
             "ForceSerialize",
             "KMBOrderConversion",
             "AlignTo16Channels",
             "AlignTaskWeights",
-            "GenerateSparsityMapsUnpopulatedTensors",
             "GenerateSparsityMapsPopulatedTensors",
             "GenerateWeightsTables",
             "GenerateEltWiseConstants",
@@ -298,6 +297,7 @@
     "dma": {
         "Singular" : [
             "SetDpuTasksMemoryLocation",
+            "SetUPATasksMemoryLocation",
             {
                 "name": "GenerateDot",
                 "output": "output/dots/dpu_tasks_location.dot",
@@ -321,8 +321,8 @@
                 "name": "ConvertDot",
                 "input": "output/dots/implicit_operations_model.dot"
             },
-            "AddWeightsDMATasks",
-            "EnsureSplitStrategiesForSpilling",
+            "AddDPUTasksWeightsDMATasks",
+            "AddUPATasksExtraInputsDMATasks",
             {
                 "name": "GenerateDot",
                 "output": "output/dots/dma_model.dot",
@@ -377,18 +377,18 @@
                 "name": "ConvertDot",
                 "input": "output/dots/NoHangingDmas.dot"
             },
-            "cmx2DDRControlFlows",
+            "NNCMX2DDRControlFlows",
             "TransitiveReduction",
             {
                 "name": "GenerateDot",
-                "output": "output/dots/cmx2DDRControlFlows.dot",
+                "output": "output/dots/NNCMX2DDRControlFlows.dot",
                 "scope": "ControlModel",
                 "content": "full",
                 "html": true
             },
             {
                 "name": "ConvertDot",
-                "input": "output/dots/cmx2DDRControlFlows.dot"
+                "input": "output/dots/NNCMX2DDRControlFlows.dot"
             }
         ]
     },

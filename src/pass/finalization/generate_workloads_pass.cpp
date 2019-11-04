@@ -321,7 +321,6 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                                     workloadsVector.erase(workloadsVector.begin() + workloadsVectorIndex);
                                     ztilingFail = true;
                                 }
-
                                 if(!ztilingFail)
                                 {
                                     ztilingFail = false;

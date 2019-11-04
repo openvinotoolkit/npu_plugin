@@ -26,14 +26,23 @@ namespace mv
             outputs[0].setName(":0");
             outputs[0].erase("flows");
 
-            if (args.at("direction").get<mv::DmaDirection>() == mv::DmaDirectionEnum::DDR2CMX)
+            auto direction = args.at("direction").get<mv::DmaDirection>();
+
+            if (direction == mv::DmaDirectionEnum::DDR2NNCMX)
             {
-                mv::Tensor::MemoryLocation outputLocation("CMX");
+                mv::Tensor::MemoryLocation outputLocation("NNCMX");
                 outputs[0].set<mv::Tensor::MemoryLocation>("Location", outputLocation);
             }
-            else if (args.at("direction").get<mv::DmaDirection>() == mv::DmaDirectionEnum::CMX2DDR)
+            else if (direction == mv::DmaDirectionEnum::NNCMX2DDR ||
+                     direction == mv::DmaDirectionEnum::UPACMX2DDR)
             {
                 mv::Tensor::MemoryLocation outputLocation("DDR");
+                outputs[0].set<mv::Tensor::MemoryLocation>("Location", outputLocation);
+            }
+            else if (direction == mv::DmaDirectionEnum::DDR2UPACMX ||
+                     direction == mv::DmaDirectionEnum::NNCMX2UPACMX)
+            {
+                mv::Tensor::MemoryLocation outputLocation("UPACMX");
                 outputs[0].set<mv::Tensor::MemoryLocation>("Location", outputLocation);
             }
         };

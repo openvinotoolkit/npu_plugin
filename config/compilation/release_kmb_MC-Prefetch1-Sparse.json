@@ -22,7 +22,7 @@
                         "strategy" : "Example"
                     }
                 ],
-                "default_tensor_placement" : "CMX",
+                "default_tensor_placement" : "NNCMX",
                 "tensor_placement_override" :
                 [
                     {
@@ -172,13 +172,16 @@
     "kmb_adapt": {
         "Singular": [
             "ConcatAsImplicit",
+            "ReshapeAsImplicit",
             "StoreWorkloadStrategy",
-            "ConvertOpsToTasks",
+            "ConvertOpsToDPUTasks",
+            "ConvertOpsToUPATasks",
             "ForceSerialize",
             "KMBOrderConversion",
             "AlignUnpopulatedTensors",
             "AddAlignOpForInputTensors",
             "AlignPopulatedTensors",
+            "alignInputForChannelMajorConvolution",
             "RemoveCropAlignInCMX",
             "CropOrPadFinalOutput",
             "AlignTaskWeights",
@@ -187,18 +190,20 @@
             "GenerateEltWiseConstants",
             "StrategyLayersToTensors",
             "ComputeTensorsQuantParams",
+            "UpdateImplicitLayersQuantizationParams",
             "PopulateWeightsTablesQuantization",
             "RemoveBiasTensors",
-            "SplittingTensorsAcrossClusters"
+            "SplittingTensorsAcrossClusters",
+            "KMBQuantizeConversion"
         ]
     },
     "dma": {
         "Singular" : [
             "SetDpuTasksMemoryLocation",
-            "AddWeightsDMATasks",
-            "alignInputForChannelMajorConvolution",
-            "UpdateImplicitLayersQuantizationParams",
+            "SetUPATasksMemoryLocation",
             "ResolveImplicitOperations",
+            "AddDPUTasksWeightsDMATasks",
+            "AddUPATasksExtraInputsDMATasks",
             "EnsureSplitStrategiesForSpilling"
         ]
     },
@@ -213,7 +218,7 @@
             },
             "TransitiveReduction",
             "LayerNumbering",
-            "cmx2DDRControlFlows",
+            "NNCMX2DDRControlFlows",
             "TransitiveReduction"
         ]
     },

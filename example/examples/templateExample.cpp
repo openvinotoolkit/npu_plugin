@@ -9,6 +9,7 @@
 
 int main()
 {
+    std::string path = std::getenv("MDK_HOME");
     double inf = std::numeric_limits<double>::infinity();
 
     mv::CompilationUnit unit("parserModel");
