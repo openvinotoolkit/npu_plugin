@@ -34,8 +34,8 @@ void fusePostOpsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
     UNUSED(fuseBatchNormFcn);
 
     mv::OpModel om(model);
-    std::vector<std::string> fuse_types = {"Bias", "Sigmoid", "Relu", "LeakyRelu", "Power", "MinimumDouble",
-                                           "MinimumInt", "MaximumDouble", "MaximumInt"};
+    std::vector<std::string> fuse_types = {"Bias", "Sigmoid", "Relu", "LeakyRelu", "Power",
+                                           "Minimum", "Maximum"};
     std::unordered_map<std::string, std::vector<mv::Data::OpListIterator>> operationsOfType = om.getOpsOfTypes(fuse_types);
 
     auto fuseBias = [](mv::Data::OpListIterator &opIt, mv::ComputationModel& cm, std::string &empty){ return fuseBiasFcn(opIt, cm, empty);};
@@ -52,10 +52,8 @@ void fusePostOpsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
                                         {"Relu", fuseRelu},
                                         {"LeakyRelu", fuseLeakyRelu},
                                         {"Power", fusePower},
-                                        {"MinimumDouble", fuseMinimum},
-                                        {"MinimumInt", fuseMinimum},
-                                        {"MaximumDouble", fuseMaximum},
-                                        {"MaximumInt", fuseMaximum}};
+                                        {"Minimum", fuseMinimum},
+                                        {"Maximum", fuseMaximum}};
 
     //NOTE: Iterate the fuse_types vector for correct order reason according to map
     for (auto type = fuse_types.begin(); type != fuse_types.end(); type++)
