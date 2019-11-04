@@ -26,8 +26,8 @@ namespace mv
         //TODO :: find better place for it !!
         public:
             enum Location {
-                CMX = 0,
-                UPA =1,
+                NNCMX = 0,
+                UPACMX =1,
                 DDR = 2,
                 INPUT = 3,
                 OUTPUT = 4,
@@ -41,8 +41,8 @@ namespace mv
             //bool relocatable need this?
 
             static std::map<std::string,Location> createNamingMap() {
-                    return {{"CMX",CMX},
-                            {"UPA",UPA},
+                    return {{"NNCMX",NNCMX},
+                            {"UPACMX",UPACMX},
                             {"DDR",DDR},
                             {"INPUT",INPUT},
                             {"OUTPUT",OUTPUT},

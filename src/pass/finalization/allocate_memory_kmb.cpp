@@ -144,7 +144,7 @@ static mv::Data::BufferIterator allocateUnpopulatedTensor(const mv::pass::PassEn
 {
     //todo:: stop with the if-else-if-else
     auto logicalLocation = tensorIt->get<mv::Tensor::MemoryLocation>("Location");
-    if( logicalLocation == mv::Tensor::MemoryLocation::CMX)
+    if( logicalLocation == mv::Tensor::MemoryLocation::NNCMX)
     {
         auto toReturn = dm.allocateTensor("VPU_CMX_NN", stageIt, tensorIt);
 
@@ -156,6 +156,10 @@ static mv::Data::BufferIterator allocateUnpopulatedTensor(const mv::pass::PassEn
             dm.allocateTensor("VPU_CMX_NN", stageIt, sparsityMapIterator);
         }
         return toReturn;
+    }
+    else if(logicalLocation == mv::Tensor::MemoryLocation::UPACMX)
+    {
+        return dm.allocateTensor("VPU_CMX_UPA",stageIt, tensorIt);
     }
     else if(logicalLocation == mv::Tensor::MemoryLocation::DDR)
     {
@@ -172,9 +176,13 @@ static mv::Data::BufferIterator allocateUnpopulatedTensor(const mv::pass::PassEn
         if (globalParams->hasAttr("default_tensor_placement"))
         {
             mv::Tensor::MemoryLocation defaultPlace = mv::Tensor::MemoryLocation(globalParams->get<std::string>("default_tensor_placement"));
-            if( defaultPlace == mv::Tensor::MemoryLocation::CMX)
+            if( defaultPlace == mv::Tensor::MemoryLocation::NNCMX)
             {
                 memoryLocation = "VPU_CMX_NN";
+            }
+            else if(defaultPlace == mv::Tensor::MemoryLocation::UPACMX)
+            {
+                memoryLocation = "VPU_CMX_UPA";
             }
             else if(defaultPlace == mv::Tensor::MemoryLocation::DDR)
             {
@@ -362,7 +370,8 @@ void allocateCMXTensorsKmbFcn(const mv::pass::PassEntry& pass, mv::ComputationMo
 
 static std::map<std::string,std::string> location2Allocator =
 {
-        { "CMX", "VPU_CMX_NN" },
+        { "UPACMX", "VPU_CMX_UPA"},
+        { "NNCMX", "VPU_CMX_NN" },
         { "DDR", "VPU_DDR_Heap"},
         { "INPUT", "ProgrammableInput"},
         { "OUTPUT", "ProgrammableOutput"},

@@ -136,7 +136,13 @@ void StrategyManager::printStrategy()
 
 Attribute& StrategyManager::getStrategy(mv::Op op,string strategy)
 {
-    auto layerEntry = layerStrategies_.find(op.getName());
+    auto op_name = op.getName();
+    if (!(op.hasTypeTrait("optimizable")))
+    {
+        log(Logger::MessageType::Debug, "StrategyManager: using Default strategy for " + op_name + " op");
+        op_name = "Default";
+    }
+    auto layerEntry = layerStrategies_.find(op_name);
 
     if(layerEntry == layerStrategies_.end())
     {
@@ -511,7 +517,7 @@ void StrategyManager::saveMetaStrategy(std::vector<MetaGraph::edge_list_iterator
         if(spilling)
             outTensor->set<mv::Tensor::MemoryLocation>("Location",mv::Tensor::MemoryLocation::DDR);
         else
-            outTensor->set<mv::Tensor::MemoryLocation>("Location",mv::Tensor::MemoryLocation::CMX);
+            outTensor->set<mv::Tensor::MemoryLocation>("Location",mv::Tensor::MemoryLocation::NNCMX);
 
         log(Logger::MessageType::Info, "GraphOptimizer: Output tensor location (from tensor attribute) for node " + op->getName() + " is " + outTensor->get("Location").toString());
     }

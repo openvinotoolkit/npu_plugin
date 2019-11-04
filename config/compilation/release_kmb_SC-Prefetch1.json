@@ -22,7 +22,7 @@
                         "strategy" : "Example"
                     }
                 ],
-                "default_tensor_placement" : "CMX",
+                "default_tensor_placement" : "NNCMX",
                 "tensor_placement_override" :
                 [
                     {
@@ -95,7 +95,7 @@
                         {"name" : "dpuPerCluster",  "value" : 5   },
                         {"name" : "ddrBandwidth",   "value" : 128 },
                         {"name" : "systemClockMhz", "value" : 500 },
-                        {"name" : "FathomSafetyFactor", " value" : 0.80},
+                        {"name" : "FathomSafetyFactor", " value" : 0.75},
                         {"name" : "dotFileLocation", "value" : "./output/"},
                         {"name" : "jsonOutFileName", "value" : "./output/mcmCompiler_strategy_output.json"}
                     ],
@@ -177,8 +177,10 @@
     "kmb_adapt": {
         "Singular": [
             "ConcatAsImplicit",
+            "ReshapeAsImplicit",
             "StoreWorkloadStrategy",
-            "ConvertOpsToTasks",
+            "ConvertOpsToDPUTasks",
+            "ConvertOpsToUPATasks",
             "ForceSerialize",
             "KMBOrderConversion",
             "AlignUnpopulatedTensors",
@@ -202,14 +204,17 @@
             "UpdateImplicitLayersQuantizationParams",
             "PopulateWeightsTablesQuantization",
             "RemoveBiasTensors",
-            "SplittingTensorsAcrossClusters"
+            "SplittingTensorsAcrossClusters",
+            "KMBQuantizeConversion"
         ]
     },
     "dma": {
         "Singular" : [
             "SetDpuTasksMemoryLocation",
+            "SetUPATasksMemoryLocation",
             "ResolveImplicitOperations",
-            "AddWeightsDMATasks",
+            "AddDPUTasksWeightsDMATasks",
+            "AddUPATasksExtraInputsDMATasks",
             "EnsureSplitStrategiesForSpilling"
         ]
     },
@@ -224,7 +229,7 @@
             },
             "TransitiveReduction",
             "LayerNumbering",
-            "cmx2DDRControlFlows",
+            "NNCMX2DDRControlFlows",
             "TransitiveReduction"
         ]
     },
