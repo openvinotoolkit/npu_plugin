@@ -786,7 +786,7 @@ void mv::RuntimeModel::case2MC(unsigned numTasks, ComputationModel& cm,  mv::Dma
         }
 
         //Check if DMA is DDR2CMX
-        if (direction == mv::DDR2CMX)
+        if (direction == mv::DDR2NNCMX)
         {
             if (dst->hasAttr("alignWidth"))
                 alignTensor(cm, tmp->dst, dst->getSubTensor(i), IO_WIDTH_DIMENSION, false);
