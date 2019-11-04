@@ -18,12 +18,27 @@ namespace mv
                 return {false, 1};
             }
 
+            // NOTE: Compiler assumption. It's very stupid
+            // for frontend to give element wise of two populated tensors
+            // so we assume that there is one unpopulated tensor and it has
+            // to be in position 0
+            if(inputs[0]->isPopulated())
+            {
+                errMsg = "Input 0 of eltwise needs at least two inputs";
+                return {false, 1};
+            }
+
+            auto input0Shape = inputs[0]->getShape();
             for(std::size_t i = 1; i < inputSize; ++i)
             {
-                if (inputs[0]->getShape() != inputs[i]->getShape())
+                auto inputIShape = inputs[i]->getShape();
+                if ((input0Shape != inputIShape))
                 {
-                    errMsg = "All the inputs of eltwise ops have to share the same size";
-                    return {false, 1};
+                    if(inputIShape.totalSize() != 1 && !inputs[i]->isPopulated())
+                    {
+                        errMsg = "All the inputs of eltwise ops have to share the same size or the other inputs must have size 1 and be populated";
+                        return {false, 1};
+                    }
                 }
             }
             return {true, 0};

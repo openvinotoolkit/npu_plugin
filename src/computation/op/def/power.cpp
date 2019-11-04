@@ -11,12 +11,36 @@ namespace mv
             [](const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>&,
             std::string& errMsg) -> std::pair<bool, std::size_t>
         {
-            if (inputs[0]->getShape() != inputs[1]->getShape())
+            auto inputSize = inputs.size();
+            if(inputSize < 2)
             {
-                errMsg = "Does not match the data0 shape " + inputs[1]->getShape().toString();
+                errMsg = "Eltwise needs at least two inputs";
                 return {false, 1};
             }
 
+            // NOTE: Compiler assumption. It's very stupid
+            // for frontend to give element wise of two populated tensors
+            // so we assume that there is one unpopulated tensor and it has
+            // to be in position 0
+            if(inputs[0]->isPopulated())
+            {
+                errMsg = "Input 0 of eltwise needs at least two inputs";
+                return {false, 1};
+            }
+
+            auto input0Shape = inputs[0]->getShape();
+            for(std::size_t i = 1; i < inputSize; ++i)
+            {
+                auto inputIShape = inputs[i]->getShape();
+                if ((input0Shape != inputIShape))
+                {
+                    if(inputIShape.totalSize() != 1 && !inputs[i]->isPopulated())
+                    {
+                        errMsg = "All the inputs of eltwise ops have to share the same size or the other inputs must have size 1 and be populated";
+                        return {false, 1};
+                    }
+                }
+            }
             return {true, 0};
         };
 
@@ -31,6 +55,7 @@ namespace mv
                 outputs.push_back(mv::Tensor(":0",  inputs[0]->getShape(), dTypeToUse, inputs[0]->getOrder()));
             else
                 outputs.push_back(mv::Tensor(":0",  inputs[0]->getShape(), dTypeToUse, inputs[0]->getOrder(), args.at("quantParams").get<mv::QuantizationParams>()));
+
         };
     }
 
