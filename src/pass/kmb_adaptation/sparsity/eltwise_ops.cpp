@@ -22,6 +22,7 @@ namespace mv
 }
 
 
+// QUESTION: Is this pass really needed or it's just wasting space in our precious CMX????
 static void generateEltWiseConstantsFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
 
@@ -33,9 +34,7 @@ static void generateEltWiseConstantsFcn(const mv::pass::PassEntry& , mv::Computa
     {
         if(eltWiseDpuTaskOp->getOpType() == "DPUTask")
         {
-            if((eltWiseDpuTaskOp->get<std::string>("taskOp") == "Add") ||
-               (eltWiseDpuTaskOp->get<std::string>("taskOp") == "Subtract") ||
-               (eltWiseDpuTaskOp->get<std::string>("taskOp") == "Multiply"))
+            if(eltWiseDpuTaskOp->get<std::string>("taskOp") == "Eltwise")
             {
                 bool hasBias = eltWiseDpuTaskOp->hasAttr("bias");
                 if (hasBias)

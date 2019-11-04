@@ -58,7 +58,7 @@ void propagateShapeChange(mv::OpModel& om, const std::string& flowStr)
     if(opType == "DPUTask")
         opType = sink->get<std::string>("taskOp");
 
-    if(opType == "Add" || opType == "Subtract" || opType == "Multiply" ||
+    if(opType == "Eltwise" ||
        opType == "DepthwiseConv" || opType == "MaxPool")
     {
         auto inputTensor = flow->getTensor();
@@ -247,12 +247,12 @@ void addAlignOpForInputTensorsFunc(const mv::pass::PassEntry& , mv::ComputationM
         auto opIt = *vecIt;
         auto taskOp = opIt->get<std::string>("taskOp");
         if(taskOp == "Conv" || taskOp == "DepthWiseConv" || taskOp == "MaxPool" ||
-            taskOp == "Add" || taskOp == "Subtract" || taskOp == "Multiply")
+            taskOp == "Eltwise")
         {
             if (opIt->getOutputTensor(0)->getDType() == mv::DType("Float16"))
                 pad = 8;
             auto numInputs = 1;
-            if (taskOp == "Add" || taskOp == "Subtract" || taskOp == "Multiply")
+            if (taskOp == "Eltwise")
                 numInputs = opIt->getInputTensor().size();
             for (auto i = 0; i < numInputs; i++)
             {

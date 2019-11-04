@@ -120,7 +120,7 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
             // NOTE by Marco: Checking for Elementwise is necessary, as it is the only operation
             // that does not support neither Real Sparsity or Fake Sparsity (aka Activation Window)
             // being it the hackiest operation ever
-            bool isElementWise = taskOp == "Add" || taskOp == "Subtract" || taskOp == "Multiply";
+            bool isElementWise = taskOp == "Eltwise";
 
             //for max pooling and deptwise convolution and channel-major convolution we need to generate sparsity data
             //even if those layers does not support sparsity.

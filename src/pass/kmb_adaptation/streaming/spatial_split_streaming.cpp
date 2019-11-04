@@ -543,6 +543,7 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model, mv::Dat
         {
             auto inputSlots = op->inputSlots();
             auto eltwiseType = op->get<std::string>("eltwiseType");
+            auto originalDType = op->get<mv::DType>("dType");
             for (auto i = 0; i < inputSlots; i++)
             {
                 auto inputTensor = op->getInputTensor(i);
@@ -556,7 +557,7 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model, mv::Dat
                 slices[split].push_back(slice);
             }
 
-            newTensor = dpuElementWiseFunctor(slices[split], eltwiseType, op->get<mv::QuantizationParams>("quantParams"), op->get<mv::DType>("dType"), op->getName() + "_split_" + std::to_string(split));
+            newTensor = om.eltwise(slices[split], eltwiseType, originalDType, op->get<mv::QuantizationParams>("quantParams"), op->getName() + "_split_" + std::to_string(split));
         }
         else
         {
@@ -894,7 +895,7 @@ void streamingTilingFcn(const mv::pass::PassEntry& pass,
         }
 
         std::string opType = opIt->getOpType();
-        bool isElementWise = (opType == "Add" || opType == "Subtract" || opType == "Multiply");
+        bool isElementWise = opType == "Eltwise";
 
         if ((opType == "Conv" || opType == "DepthwiseConv" ||  (opType == "MaxPool") || isElementWise) && !opIt->hasAttr("splitted") && opHasSplittingStrategy)
         {

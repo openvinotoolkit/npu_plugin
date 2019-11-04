@@ -48,7 +48,7 @@ const std::unordered_map<std::string, MVCNN::DPULayerType> mv::RuntimeModel::dpu
     {"MaxPool",MVCNN::DPULayerType::DPULayerType_MAXPOOL},
     {"AveragePool",MVCNN::DPULayerType::DPULayerType_AVEPOOL},
     {"FullyConnected",MVCNN::DPULayerType::DPULayerType_FCL},
-    {"ElementWise",MVCNN::DPULayerType::DPULayerType_ELTWISE},
+    {"Eltwise",MVCNN::DPULayerType::DPULayerType_ELTWISE},
     {"Identity",MVCNN::DPULayerType::DPULayerType_IDENTITY},
     {"ChannelMajorConvolution",MVCNN::DPULayerType::DPULayerType_CMCONV}
 };
@@ -858,8 +858,6 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNCE1TaskT(Comp
 
 MVCNN::DPULayerType mv::RuntimeModel::convertTaskOp(const std::string& opName)
 {
-    if (opName == "Add" || opName == "Subtract" || opName == "Multiply")
-        return dpuLayerMapping_.at("ElementWise");
     return dpuLayerMapping_.at(opName);
 }
 
@@ -1136,7 +1134,7 @@ bool mv::RuntimeModel::hardwareBugDepthwise(Control::OpListIterator opIt)
 
 void mv::RuntimeModel::getWorkloadPadding(Control::OpListIterator opIt, Workload &workload)
 {
-    if (opIt->get<std::string>("taskOp") == "Add" || opIt->get<std::string>("taskOp") == "Subtract" || opIt->get<std::string>("taskOp") == "Multiply")
+    if (opIt->get<std::string>("taskOp") == "Eltwise")
     {
         workload.padLeft = 0;
         workload.padTop = 0;
@@ -1194,7 +1192,7 @@ std::array<unsigned short, 4> mv::RuntimeModel::getNewPadding(std::array<unsigne
 
 void mv::RuntimeModel::getWorkloadPadding(Control::OpListIterator opIt, Workload &workload, unsigned clusterId)
 {
-    if (opIt->get<std::string>("taskOp") == "Add" || opIt->get<std::string>("taskOp") == "Subtract" || opIt->get<std::string>("taskOp") == "Multiply")
+    if (opIt->get<std::string>("taskOp") == "Eltwise")
     {
         workload.padLeft = 0;
         workload.padTop = 0;

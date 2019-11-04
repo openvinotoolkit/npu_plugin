@@ -50,7 +50,7 @@ void computeTensorsQuantParams(const mv::pass::PassEntry&, mv::ComputationModel&
          if (opIt->getOpType() ==  "DPUTask")
          {
              taskOp = opIt->get<std::string>("taskOp");
-             bool isElementWise = (taskOp == "Add" || taskOp == "Subtract" || taskOp == "Multiply");
+             bool isElementWise = (taskOp == "Eltwise");
              bool isConv = (taskOp == "Conv" || taskOp == "DepthwiseConv" || taskOp == "ChannelMajorConvolution");
              if (isConv || taskOp == "MaxPool" ||  isElementWise)
              {
@@ -98,7 +98,8 @@ void computeTensorsQuantParams(const mv::pass::PassEntry&, mv::ComputationModel&
 
                      auto m = S2;
 
-                     if (opIt->hasAttr("hasWeights") && opIt->get<bool>("hasWeights") || taskOp == "Multiply")
+                     // TODO: Fix for multiply
+                     if (opIt->hasAttr("hasWeights") && opIt->get<bool>("hasWeights"))
                      {
                          auto weights = opIt->getInputTensor(1);
                          auto& weightsQuantization = weights->get<mv::QuantizationParams>("quantParams");

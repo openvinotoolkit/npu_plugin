@@ -294,7 +294,7 @@ void convertOpsToDPUTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& 
             auto outputControlFlows = mv::getOutputControlFlow(cm, cm.switchContext(opIt));
             auto outputDataFlows = mv::getOutputDataFlow(om, opIt);
 
-            auto dpuElementWise = om.dPUTaskEltwise(inputs, eltwiseType, quantParams, mv::createDPUTaskName(name));
+            auto dpuElementWise = om.dPUTaskEltwise(inputs, eltwiseType, mv::DType("Default"), quantParams, mv::createDPUTaskName(name));
             auto dpuElementWiseOp = om.getSourceOp(dpuElementWise);
             dpuElementWiseOp->set<unsigned>("opId", opId);
             dpuElementWiseOp->set<bool>("hasWeights", false);

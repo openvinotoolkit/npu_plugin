@@ -177,7 +177,7 @@ namespace mv
                 {
                     weightTableSize = 0;
                     weightSize = 0;
-                } else if(op.getOpType() == "Add" || op.getOpType() == "Multiply")
+                } else if(op.getOpType() == "Eltwise")
                 {
                     weightTableSize = 0;
                     weightSize = 0;

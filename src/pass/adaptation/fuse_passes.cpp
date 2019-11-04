@@ -10,6 +10,7 @@ void fuseBiasFcn(mv::Data::OpListIterator &opIt, mv::ComputationModel& model, st
 void fuseUsualPPEFcn(mv::Data::OpListIterator &opIt, mv::ComputationModel &model, std::string opType);
 void fuseMinimumFcn(mv::Data::OpListIterator &opIt,  mv::ComputationModel& model, std::string opType);
 void fuseMaximumFcn(mv::Data::OpListIterator &opIt,  mv::ComputationModel& model, std::string opType);
+void fuseEltwiseFcn(mv::Data::OpListIterator &opIt,  mv::ComputationModel& model, std::string opType);
 void fuseScaleFcn(mv::Data::OpListIterator &opIt,  mv::ComputationModel& model, std::string opType);
 void fuseBatchNormFcn(mv::Data::OpListIterator &opIt,  mv::ComputationModel& model, std::string opType);
 static void fusePostOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
@@ -34,26 +35,21 @@ void fusePostOpsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
     UNUSED(fuseBatchNormFcn);
 
     mv::OpModel om(model);
-    std::vector<std::string> fuse_types = {"Bias", "Sigmoid", "Relu", "LeakyRelu", "Power",
-                                           "Minimum", "Maximum"};
+    std::vector<std::string> fuse_types = {"Bias", "Sigmoid", "Relu", "LeakyRelu", "Eltwise"};
     std::unordered_map<std::string, std::vector<mv::Data::OpListIterator>> operationsOfType = om.getOpsOfTypes(fuse_types);
 
     auto fuseBias = [](mv::Data::OpListIterator &opIt, mv::ComputationModel& cm, std::string &empty){ return fuseBiasFcn(opIt, cm, empty);};
     auto fuseSigmoid = [](mv::Data::OpListIterator &opIt, mv::ComputationModel& cm, std::string &empty){ return fuseUsualPPEFcn(opIt, cm, empty);};
     auto fuseRelu = [](mv::Data::OpListIterator &opIt, mv::ComputationModel& cm, std::string &empty){ return fuseUsualPPEFcn(opIt, cm, empty);};
     auto fuseLeakyRelu = [](mv::Data::OpListIterator &opIt, mv::ComputationModel& cm, std::string &empty){ return fuseUsualPPEFcn(opIt, cm, empty);};
-    auto fusePower = [](mv::Data::OpListIterator &opIt, mv::ComputationModel& cm, std::string &empty){ return fuseUsualPPEFcn(opIt, cm, empty);};
-    auto fuseMinimum = [](mv::Data::OpListIterator &opIt, mv::ComputationModel& cm, std::string &empty){ return fuseMinimumFcn(opIt, cm, empty);};
-    auto fuseMaximum = [](mv::Data::OpListIterator &opIt, mv::ComputationModel& cm, std::string &empty){ return fuseMaximumFcn(opIt, cm, empty);};
+    auto fuseEltwise = [](mv::Data::OpListIterator &opIt, mv::ComputationModel& cm, std::string &empty){ return fuseEltwiseFcn(opIt, cm, empty);};
 
     std::unordered_map<std::string, std::function<void(mv::Data::OpListIterator &, mv::ComputationModel& , std::string &)>> fuseTaskMap =
                                        {{"Bias", fuseBias},
                                         {"Sigmoid", fuseSigmoid},
                                         {"Relu", fuseRelu},
                                         {"LeakyRelu", fuseLeakyRelu},
-                                        {"Power", fusePower},
-                                        {"Minimum", fuseMinimum},
-                                        {"Maximum", fuseMaximum}};
+                                        {"Eltwise", fuseEltwise}};
 
     //NOTE: Iterate the fuse_types vector for correct order reason according to map
     for (auto type = fuse_types.begin(); type != fuse_types.end(); type++)
@@ -173,18 +169,41 @@ void fuseUsualPPEFcn(mv::Data::OpListIterator &opIt, mv::ComputationModel &model
         opIt->getOutputTensor(0)->set<mv::Tensor::MemoryLocation>("Location", ppeOutputMemoryLocation);
 }
 
+void fuseEltwiseFcn(mv::Data::OpListIterator &opIt1, mv::ComputationModel &model, std::string opType)
+{
+    UNUSED(opType);
+    auto fusePower = [](mv::Data::OpListIterator &opIt, mv::ComputationModel& cm, std::string &empty){ return fuseUsualPPEFcn(opIt, cm, empty);};
+    auto fuseMinimum = [](mv::Data::OpListIterator &opIt, mv::ComputationModel& cm, std::string &empty){ return fuseMinimumFcn(opIt, cm, empty);};
+    auto fuseMaximum = [](mv::Data::OpListIterator &opIt, mv::ComputationModel& cm, std::string &empty){ return fuseMaximumFcn(opIt, cm, empty);};
+
+    std::unordered_map<std::string, std::function<void(mv::Data::OpListIterator &, mv::ComputationModel& , std::string &)>> fuseEltwiseMap =
+                                       {{"Minimum", fuseMinimum},
+                                        {"Maximum", fuseMaximum},
+                                        {"Power", fusePower}};
+
+    auto eltwiseType = opIt1->get<std::string>("eltwiseType");
+    auto functor = fuseEltwiseMap.find(eltwiseType);
+    if(functor != fuseEltwiseMap.end())
+        functor->second(opIt1, model, eltwiseType);
+}
+
 void fuseMinimumFcn(mv::Data::OpListIterator &opIt, mv::ComputationModel &model, std::string opType)
 {
     UNUSED(opType);
     mv::OpModel om(model);
+    auto secondInput = opIt->getInputTensor(1);
+    if(!secondInput->isPopulated())
+        return;
+
+    auto minimumValue = secondInput->at(0);
     auto minimumOutputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
     auto parentOpIt = om.getSourceOp(opIt->getInputTensor(0));
     parentOpIt->set<std::vector<std::string>>("postOpTypes", {"Minimum"});
     auto sourceTensor = parentOpIt->getOutputTensor(0);
     if (sourceTensor->getDType() == mv::DType("Float16"))
-        parentOpIt->set<double>("Minimum", opIt->get<double>("minimum"));
+        parentOpIt->set<double>("Minimum", static_cast<double>(minimumValue));
     else
-        parentOpIt->set<int64_t>("Minimum", opIt->get<int64_t>("minimum"));
+        parentOpIt->set<int64_t>("Minimum", static_cast<int64_t>(minimumValue));
 
     opIt = linkNewOperationsFuse(parentOpIt, sourceTensor, om, opIt);
     if (minimumOutputMemoryLocation.isForced())
@@ -195,6 +214,11 @@ void fuseMaximumFcn(mv::Data::OpListIterator &opIt, mv::ComputationModel &model,
 {
     UNUSED(opType);
     mv::OpModel om(model);
+    auto secondInput = opIt->getInputTensor(1);
+    if(!secondInput->isPopulated())
+        return;
+
+    auto maximumValue = secondInput->at(0);
     auto maximumOutputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
     auto parentOpIt = om.getSourceOp(opIt->getInputTensor(0));
     std::vector<std::string> postOpTypes = {};
@@ -205,9 +229,9 @@ void fuseMaximumFcn(mv::Data::OpListIterator &opIt, mv::ComputationModel &model,
     parentOpIt->set<std::vector<std::string>>("postOpTypes", postOpTypes);
     auto sourceTensor = parentOpIt->getOutputTensor(0);
     if (sourceTensor->getDType() == mv::DType("Float16"))
-        parentOpIt->set<double>("Maximum", opIt->get<double>("maximum"));
+        parentOpIt->set<double>("Maximum", static_cast<double>(maximumValue));
     else
-        parentOpIt->set<int64_t>("Maximum", opIt->get<int64_t>("maximum"));
+        parentOpIt->set<int64_t>("Maximum", static_cast<int64_t>(maximumValue));
 
     opIt = linkNewOperationsFuse(parentOpIt, sourceTensor, om, opIt);
     if (maximumOutputMemoryLocation.isForced())
@@ -250,14 +274,14 @@ void fuseBatchNormFcn(mv::Data::OpListIterator &opIt, mv::ComputationModel &mode
     else
     {
         auto scale = om.constantDataElement(scaleParam.getData(), scaleParam.getShape(), scaleParam.getDType(), scaleParam.getOrder());
-        sourceTensor = om.multiply({opIt->getInputTensor(0), scale});
+        sourceTensor = om.eltwise({opIt->getInputTensor(0), scale}, "Multiply");
         parentOpIt = om.getSourceOp(sourceTensor);
     }
 
     if (offsetParam.getShape().ndims() == 1)
         sourceTensor = om.bias(sourceTensor, offset);
     else
-        sourceTensor = om.add({sourceTensor, offset});
+        sourceTensor = om.eltwise({sourceTensor, offset}, "Add");
     opIt = linkNewOperationsFuse(parentOpIt, sourceTensor, om, opIt);
     if (outputMemoryLocation.isForced())
         opIt->getOutputTensor(0)->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
