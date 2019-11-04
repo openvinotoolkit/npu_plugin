@@ -1,25 +1,28 @@
-//This file is the parsed network which is created through python.
 #include "include/mcm/compiler/compilation_unit.hpp"
 #include "include/mcm/utils/data_generator.hpp"
 #include "include/mcm/op_model.hpp"
 #include "include/mcm/utils/hardware_tests.hpp"
 #include "iostream"
 #include "fstream"
+
 int main()
 {
-    std::string path = std::getenv("MCM_HOME");
-    double inf = std::numeric_limits<double>::infinity();
     mv::CompilationUnit unit("parserModel");
     mv::OpModel& om = unit.model();
 
     double min = 0;
     double max = 5;
+    auto input0 = om.input({2,1,16,1}, mv::DType("UInt8"), mv::Order::getZMajorID(4),  {{0},{1},{-inf},{inf}}, "input#170");
 
-    mv::Data::TensorIterator input0 = om.input({1,1,1000,1}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{0},{1.0},{-inf},{inf}}, "input0");
-    auto clamp0 = om.clamp(input0, min, max);
+    std::vector<int64_t> weightsData0 = mv::utils::generateSequence<int64_t> (16, 1, 0);
+
+    auto weights0 = om.constantInt(weightsData0,{1,1,16,1}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{0},{1.0},{-inf},{inf}});
+    auto conv0 = om.conv(input0, weights0, {1, 1}, {0, 0, 0, 0}, 1, 1,  mv::DType("UInt8"),{{0},{1},{-inf},{inf}} , "conv");
+    auto clamp0 = om.clamp(conv0, min, max, "clamp0");
     om.output(clamp0);
-    
-    std::string compDescPath = path + "/config/compilation/release_kmb_MC-Prefetch1-Sparse.json";
+
+    std::string path = std::getenv("MCM_HOME");
+    std::string compDescPath = path + "/config/compilation/release_kmb_MC-Prefetch2.json";
     unit.loadCompilationDescriptor(compDescPath);
     unit.loadTargetDescriptor(mv::Target::ma2490);
     unit.initialize();

@@ -7,14 +7,14 @@ if (MSVC)
     add_executable(z_major_convolution z_major_convolution.cpp $<TARGET_OBJECTS:cm> $<TARGET_OBJECTS:corebase> $<TARGET_OBJECTS:metamodel> $<TARGET_OBJECTS:model>)
 
 else()
-#    add_executable(argmax_only argmax_only/argmax_only.cpp)
-#    target_link_libraries(argmax_only cm)
+    add_executable(argmax_only argmax_only/argmax_only.cpp)
+    target_link_libraries(argmax_only cm)
 
     add_executable(clamp_only clamp_only/clamp_only.cpp)
     target_link_libraries(clamp_only cm)
 
-#    add_executable(detectionOutput_only detectionOutput_only/detectionOutput_only.cpp)
-#    target_link_libraries(detectionOutput_only cm)
+    add_executable(detectionOutput_only detectionOutput_only/detectionOutput_only.cpp)
+    target_link_libraries(detectionOutput_only cm)
 
     add_executable(elu_only elu_only/elu_only.cpp)
     target_link_libraries(elu_only cm)
@@ -28,8 +28,8 @@ else()
     add_executable(permute_only permute_only/permute_only.cpp)
     target_link_libraries(permute_only cm)
 
-#    add_executable(priorbox_only priorbox_only/priorbox_only.cpp)
-#    target_link_libraries(priorbox_only cm)
+    add_executable(priorbox_only priorbox_only/priorbox_only.cpp)
+    target_link_libraries(priorbox_only cm)
 
     add_executable(proposal_only proposal_only/proposal_only.cpp)
     target_link_libraries(proposal_only cm)

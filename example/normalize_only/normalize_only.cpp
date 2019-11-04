@@ -1,7 +1,6 @@
-//This file is the parsed network which is created through python.
 #include "include/mcm/compiler/compilation_unit.hpp"
 #include "include/mcm/utils/data_generator.hpp"
-#include "build/meta/include/mcm/op_model.hpp"
+#include "include/mcm/op_model.hpp"
 #include "include/mcm/utils/hardware_tests.hpp"
 
 #include "iostream"
@@ -10,8 +9,6 @@
 int main()
 {
     std::string path = std::getenv("MCM_HOME");
-    double inf = std::numeric_limits<double>::infinity();
-
     mv::CompilationUnit unit("parserModel");
     mv::OpModel& om = unit.model();
     auto input0 = om.input({112,112,32,1}, mv::DType("Float16"), mv::Order::getZMajorID(4), {{0},{1.0},{-inf},{inf}}, "input:0#1");
@@ -33,7 +30,7 @@ int main()
 
     om.output(normalize0);
 
-    std::string compDescPath = path + "/config/compilation/release_kmb.json";
+    std::string compDescPath = path + "/config/compilation/release_kmb_MC-Prefetch2.json";
     unit.loadCompilationDescriptor(compDescPath);
     unit.loadTargetDescriptor(mv::Target::ma2490);
     unit.initialize();

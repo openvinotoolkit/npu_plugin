@@ -1,4 +1,3 @@
-        //This file is the parsed network which is created through python.
 #include "include/mcm/compiler/compilation_unit.hpp"
 #include "include/mcm/utils/data_generator.hpp"
 #include "include/mcm/op_model.hpp"
@@ -8,7 +7,6 @@
 int main()
 {
     std::string path = std::getenv("MCM_HOME");
-    double inf = std::numeric_limits<double>::infinity();
     mv::CompilationUnit unit("parserModel");
     mv::OpModel& om = unit.model();
 
@@ -24,4 +22,3 @@ int main()
     unit.run();
 }
 
-// elu(Data::TensorIterator data, const unsigned& alpha = 1, const std::string& name = "") = 0;
