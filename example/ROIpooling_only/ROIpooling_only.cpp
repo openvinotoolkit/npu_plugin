@@ -19,23 +19,26 @@ int main()
     double spatial_scale = 0.0625;
     unsigned roi_pooling_method = 1;
     unsigned num_rois = 5;
+    std::vector<uint16_t> weightsData(5*5);
 
     // Define tensors
     auto input0 = om.input({14,14,32,1}, mv::DType("Float16"), mv::Order::getZMajorID(4), {{0},{1.0},{-inf},{inf}}, "input0");
-    std::string weightsPath = path + "/example/ROIpooling_only/ROIpooling.in2";
-    std::vector<double> scaleWeights0;
-    double weight;
-    std::fstream fs;
-    fs.open(weightsPath, std::fstream::in);
-    while( fs >> weight ) {
-        scaleWeights0.push_back(weight);
-    }
-    fs.close();
-    auto scales0 = om.constant(scaleWeights0,{5,5,1,1}, mv::DType("Float64"), mv::Order::getZMajorID(4), {{0},{1.0},{-inf},{inf}}, "scale_weights#0");
+    
+    //Load weights from file
+    std::string  weights_filename(path + "/example/ROIpooling_only/ROIpooling.in2");
+    std::ifstream w_file;
+    w_file.open(weights_filename, std::fstream::in | std::fstream::binary);
+    w_file.read((char*)(weightsData.data()), 5*5 * sizeof(uint16_t));
+    std::vector<int64_t> weightsData_converted(5*5);
+    for(unsigned i = 0; i < weightsData.size(); ++i)
+        weightsData_converted[i] = weightsData[i];
+
+    auto weights0 = om.constantInt(weightsData_converted,{1,1,5*5,1}, mv::DType("Float16"), mv::Order::getZMajorID(4), {{0},{1.1524552064656746e-05},{-inf},{inf}}, "weights0");
+
     // Build inputs vector
     std::vector<mv::Data::TensorIterator> inputs;
     inputs.push_back(input0);
-    inputs.push_back(scales0);
+    inputs.push_back(weights0);
     // Build Model
     auto rOIPooling0 = om.rOIPooling(inputs, pooled_w, pooled_h, spatial_scale, roi_pooling_method, num_rois, mv::DType("Float16"));
     om.output(rOIPooling0);
