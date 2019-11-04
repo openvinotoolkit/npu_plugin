@@ -140,6 +140,7 @@ set(base
     "${PROJECT_SOURCE_DIR}/src/base/json/value_content.cpp"
     "${PROJECT_SOURCE_DIR}/src/base/json/value.cpp"
     "${PROJECT_SOURCE_DIR}/src/base/json/json.cpp"
+
     "${PROJECT_SOURCE_DIR}/src/base/attribute_entry.cpp"
     "${PROJECT_SOURCE_DIR}/src/base/binarizable.cpp"
     "${PROJECT_SOURCE_DIR}/src/base/element.cpp"
@@ -148,6 +149,7 @@ set(base
 
     "${PROJECT_SOURCE_DIR}/src/computation/model/runtime_binary.cpp"
 
+    "${PROJECT_SOURCE_DIR}/src/computation/op/op_entry.cpp"
     "${PROJECT_SOURCE_DIR}/src/tensor/dtype/dtype_def/default.cpp"
     "${PROJECT_SOURCE_DIR}/src/tensor/dtype/dtype_def/bin.cpp"
     "${PROJECT_SOURCE_DIR}/src/tensor/dtype/dtype_def/float8.cpp"
@@ -171,7 +173,6 @@ set(base
     "${PROJECT_SOURCE_DIR}/src/tensor/dtype/dtype_entry.cpp"
     "${PROJECT_SOURCE_DIR}/src/tensor/dtype/dtype_registry.cpp"
     "${PROJECT_SOURCE_DIR}/src/tensor/dtype/dtype.cpp"
-    "${PROJECT_SOURCE_DIR}/src/computation/op/op_entry.cpp"
 
     # Single compilation unit for all Kmb attributes and operations in order
     "${PROJECT_SOURCE_DIR}/src/target/kmb/kmb_registry.cpp"
@@ -246,6 +247,7 @@ set(pass
     "${PROJECT_SOURCE_DIR}/src/pass/adaptation/replacement_passes.cpp"
 
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/concat_as_implicit.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/reshape_as_implicit.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/update_implicit_layers_quatization_params.cpp"
 
 
@@ -253,7 +255,7 @@ set(pass
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/kmb_control_flow.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/compute_tensors_quant.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/convert_to_task_graph.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/dpu_task_memory_location.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/task_memory_location.cpp"
 
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/strategy_from_layers_to_tensors.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/kmb_order_conversion.cpp"
@@ -272,6 +274,7 @@ set(pass
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/real_pad_tensors.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/streaming/spatial_split_streaming.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/kmb_align_slice_ops.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/kmb_quantize.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/force_serialize.cpp"
 
     "${PROJECT_SOURCE_DIR}/src/pass/finalization/max_topological_cut.cpp"
@@ -339,7 +342,6 @@ else()
     add_library(cm SHARED ${base} ${logger} ${pass} ${compiler} ${syscalls})
     add_library(corebase SHARED ${base} ${logger})
     add_library(model SHARED ${model})
-    add_dependencies(model project_lemon)
     target_link_libraries(cm model)
 
     target_link_libraries(cm corebase metamodel flatbuffers ${LEMON_LIBRARY})

@@ -10,6 +10,8 @@
 static void computeTensorsQuantParams(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 template <class T>
 std::vector<T> extendToK(size_t size, std::vector<T> value);
+int computeAppropriatePadding(mv::Data::TensorIterator tensor);
+
 namespace mv
 {
 
@@ -22,6 +24,16 @@ namespace mv
             "This pass computes the appropriate quantize params extends and prepares them for serialization."
         );
     }
+}
+
+int computeAppropriatePadding(mv::Data::TensorIterator tensor)
+{
+    int pad;
+    if (tensor->getDType() == mv::DType("Float16"))
+        pad = 8;
+    else if (tensor->getDType() == mv::DType("UInt8"))
+        pad = 16;
+    return pad;
 }
 
 void computeTensorsQuantParams(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
@@ -45,16 +57,15 @@ void computeTensorsQuantParams(const mv::pass::PassEntry&, mv::ComputationModel&
                 auto output = opIt->getOutputTensor(0);
                 auto input = opIt->getInputTensor(0);
                 auto outputChannels = output->getShape()[mv::IO_CHANNEL_DIMENSION];
-                if (outputChannels % 16 != 0)
-                {
-                    outputChannels = mv::round_up(outputChannels, 16);
-                }
-                 std::vector<int> shift(outputChannels, 0);
-                 std::vector<int16_t> mScaled(outputChannels, 0);
+                int pad = computeAppropriatePadding(opIt->getOutputTensor(0));
+                outputChannels = mv::round_up(outputChannels, pad);
 
-                 if (output->hasAttr("quantParams") && input->hasAttr("quantParams") &&
-                     output->isQuantized() && input->isQuantized())
-                 {
+                std::vector<int> shift(outputChannels, 0);
+                std::vector<int16_t> mScaled(outputChannels, 0);
+
+                if (output->hasAttr("quantParams") && input->hasAttr("quantParams") &&
+                 output->isQuantized() && input->isQuantized())
+                {
                      // Quantization for Gemmlowp output
                      // S1 = weight scale
                      // S2 = input activation scale
@@ -87,7 +98,7 @@ void computeTensorsQuantParams(const mv::pass::PassEntry&, mv::ComputationModel&
 
                      auto m = S2;
 
-                     if (opIt->hasAttr("hasWeights") && opIt->get<bool>("hasWeights"))
+                     if (opIt->hasAttr("hasWeights") && opIt->get<bool>("hasWeights") || taskOp == "Multiply")
                      {
                          auto weights = opIt->getInputTensor(1);
                          auto& weightsQuantization = weights->get<mv::QuantizationParams>("quantParams");
@@ -95,6 +106,16 @@ void computeTensorsQuantParams(const mv::pass::PassEntry&, mv::ComputationModel&
                          std::vector<float> S1(scale.begin(), scale.end());
                          //S1*S2
                          std::transform(m.begin(), m.end(), S1.begin(), m.begin(), std::multiplies<float>());
+                     }
+                     else if (isElementWise) //Add Subtract
+                     {
+                         auto input2 = opIt->getInputTensor(1);
+                         auto& input2Quantization = input2->get<mv::QuantizationParams>("quantParams");
+                         auto input1Scale = inputQuantization.getScale();
+                         auto input2Scale = input2Quantization.getScale();
+                         if (input1Scale != input2Scale)
+                            throw mv::RuntimeError(om, opIt->getName() + ": different values of scales for Add/Subtract is not supported!"
+                                                   + std::to_string(input1Scale[0]) + " " + std::to_string(input2Scale[0]));
                      }
 
                      // Fuse ReLU into quantization (i.e. make ReLU == saturation), will be done using a separate pass
@@ -120,36 +141,7 @@ void computeTensorsQuantParams(const mv::pass::PassEntry&, mv::ComputationModel&
                      std::vector <unsigned> ser_shift = std::vector<unsigned>(shift.begin(), shift.end());
                      std::vector <unsigned> ser_scale = std::vector<unsigned>(mScaled.begin(), mScaled.end());
                      outputQuantization.quantize(ser_shift, ser_scale);
-
-                     if (opIt->hasAttr("bias"))
-                     {
-                         auto bias = dm.getTensor(opIt->get<std::string>("bias"));
-                         if (!bias->hasAttr("biasQuantized"))
-                         {
-                            auto data = bias->getData();
-                            //auto biasQuantization = bias->get<mv::QuantizationParams>("quantParams");
-                            //auto Z_bias = biasQuantization.getZeroPoint();
-                            //auto S_bias = biasQuantization.getScale();
-                            std::transform(data.begin(), data.end(), zeroPointScaled.begin(), data.begin(), std::plus<int64_t>());
-                            bias->setDType(mv::DType("Int32"));
-
-                            bias->populate(data);
-                            bias->set<bool>("biasQuantized", true);
-                         }
-                     }
-                     else
-                     {
-                         mv::Order order(mv::Order::getColMajorID(1));
-                         const std::string biasTensorName = opIt->getName() + "_bias";
-                         mv::Shape shape({outputChannels});
-                         std::vector<int64_t> zeroPointScaled64(zeroPointScaled.begin(), zeroPointScaled.end());
-
-                         auto biasTensor = dm.defineTensor(biasTensorName, shape, mv::DType("Int32"), order, zeroPointScaled64);
-                         om.addAttr(opIt, "bias", biasTensor->getName());
-                         biasTensor->set<bool>("biasQuantized", true);
-                     }
-                 }
-
+                }
             }
          }
 
