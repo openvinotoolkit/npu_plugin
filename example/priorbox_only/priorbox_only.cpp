@@ -10,30 +10,42 @@
 int main()
 {
     std::string path = std::getenv("MCM_HOME");
-    double inf = std::numeric_limits<double>::infinity();
 
     mv::CompilationUnit unit("parserModel");
     mv::OpModel& om = unit.model();
 
     // Define Params
-    unsigned imgW = 300
-    unsigned imgH = 300
-    unsigned width = 19
-    unsigned height = 19
-    unsigned crc = 0x726E32BC
+    auto flip = 1;
+    auto clip = 0;
+    auto step_w = 0.0;
+    auto step_h = 0.0;
+    auto offset = 0.5;
 
-    PriorBoxParams params_struct;
-    params_struct.num_min_sizes = 1
-    params_struct.num_max_sizes = 0
-    params_struct.num_aspect_ratios = 1
-    params_struct.num_variances = 4
-    params_struct.flip = 1
-    params_struct.clip = 0
-    params_struct.step_w = 0.0f
-    params_struct.step_h = 0.0f
-    params_struct.offset = 0.5f
-    params_struct.params = {60.0f, 2.0f, 0.1f, 0.1f, 0.2f, 0.2f}
-    params = params_struct
+    std::vector<double> scalesData(10*10, 0);
+    std::vector<double> min_sizesData({105.0});
+    std::vector<double> max_sizesData({150.0});
+    std::vector<double> aspect_ratiosData({2.0,3.0});
+    std::vector<double> variancesData({0.1,0.1,0.2,0.2});
+
+    //define tensors
+    auto input0 = om.input({300,300,1,1}, mv::DType("Float16"), mv::Order::getZMajorID(4), {{0},{1.0},{-inf},{inf}}, "input:0#1");
+    auto scales = om.constant(scalesData, {10,10,1,1}, mv::DType("Float64"), mv::Order::getZMajorID(4), {{0},{1.0},{-inf},{inf}}, "scales");
+    auto min_sizes = om.constant(min_sizesData, {1, min_sizesData.size(), 1, 1}, mv::DType("Float64"), mv::Order::getZMajorID(4), {{0},{1.0},{-inf},{inf}}, "min_sizes");
+    auto max_sizes = om.constant(max_sizesData, {1, max_sizesData.size(), 1, 1}, mv::DType("Float64"), mv::Order::getZMajorID(4), {{0},{1.0},{-inf},{inf}}, "max_sizes");
+    auto aspect_ratios = om.constant(aspect_ratiosData, {1, aspect_ratiosData.size(), 1, 1}, mv::DType("Float64"), mv::Order::getZMajorID(4), {{0},{1.0},{-inf},{inf}}, "aspect_ratios");
+    auto variances = om.constant(variancesData, {1, variancesData.size(), 1, 1}, mv::DType("Float64"), mv::Order::getZMajorID(4), {{0},{1.0},{-inf},{inf}}, "variances");
+
+    //build inputs vector
+    std::vector<mv::Data::TensorIterator> inputs;
+    inputs.push_back(input0);
+    inputs.push_back(scales);
+    inputs.push_back(min_sizes);
+    inputs.push_back(max_sizes);
+    inputs.push_back(aspect_ratios);
+    inputs.push_back(variances);
+
+    auto priorbox0 = om.priorbox(inputs, flip, clip, step_w, step_h, offset, mv::DType("Float16"));
+    om.output(priorbox0);
 
     std::string compDescPath = path + "/config/compilation/release_kmb.json";
     unit.loadCompilationDescriptor(compDescPath);
@@ -41,31 +53,3 @@ int main()
     unit.initialize();
     unit.run();
 }
-
-
-TestCase t1 = {300, 300, 19, 19, 0x726E32BC,
-    { 1, 0, 1, 4, 1, 0, 0.0f, 0.0f, 0.5f, {60.0f, 2.0f, 0.1f, 0.1f, 0.2f, 0.2f}}};
-
-typedef struct
-{
-   u32 num_min_sizes;
-   u32 num_max_sizes;
-   u32 num_aspect_ratios;
-   u32 num_variances;
-   u32 flip;
-   u32 clip;
-   float step_w;
-   float step_h;
-   float offset;
-   float params[8]; // 1 min size, 0/1 max size, always 4 variance, 1 or 2 aspect
-} PriorBoxParams;
-
-typedef struct
-{
-   u32 imgW;
-   u32 imgH;
-   u32 width;
-   u32 height;
-   u32 crc;
-   PriorBoxParams params;
-} TestCase;
