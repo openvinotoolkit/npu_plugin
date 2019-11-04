@@ -23,7 +23,7 @@ int main()
     unsigned num_rois = 5;
 
     // Define tensors
-    auto input0 = om.input({14,14,32,1}, mv::DType("Float16"), mv::Order::getZMajorID(4), {{0},{1.0},{-inf},{inf}}, "input0");
+    auto input0 = om.input({14,14,32,1}, mv::DType("Float16"), mv::Order::getColMajorID(4), {{0},{1.0},{-inf},{inf}}, "input0");
     std::string weightsPath = path + "/example/ROIpooling_only/ROIpooling.in2";
     std::vector<double> scaleWeights0;
     double weight;

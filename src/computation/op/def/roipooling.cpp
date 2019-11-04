@@ -25,18 +25,23 @@ namespace mv
 
         };
 
-        static std::function<void(const std::vector<Data::TensorIterator>&, const std::map<std::string, Attribute>&,
+        static std::function<void(const std::vector<Data::TensorIterator>&, const std::map<std::string, Attribute>& ,
             std::vector<Tensor>&)> outputDefFcn =
-            [](const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>&, std::vector<Tensor>& outputs)
+            [](const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>& args, std::vector<Tensor>& outputs)
         {
 
             auto input = inputs[0];
             auto outputOrder = input->getOrder();
             auto inputShape = input->getShape();
             auto ndims = inputShape.ndims();
-            mv::Shape outputShape(ndims);
+            auto W = args.at("pooled_w").get<unsigned>();
+            auto H = args.at("pooled_h").get<unsigned>();
+            auto C =  inputShape[IO_CHANNEL_DIMENSION];
+            auto N = args.at("num_rois").get<unsigned>();
 
-            outputs.push_back(mv::Tensor(":0", input->getShape(), input->getDType(), input->getOrder()));
+            mv::Shape outputShape({W, H, C, N});;
+            std::cout << outputShape.toString() << std::endl;
+            outputs.push_back(mv::Tensor(":0", outputShape, input->getDType(), mv::Order::getZMajorID(4)));
 
         };
     }
