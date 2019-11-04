@@ -375,7 +375,7 @@ target_include_directories(cm
 
 IF(NOT CMAKE_CROSSCOMPILING)
     add_subdirectory(examples)
-#add_subdirectory(tools)
+    #add_subdirectory(tools)
     add_subdirectory(schema)
     add_subdirectory(example)
 endif()
