@@ -539,9 +539,11 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model, mv::Dat
                                 op->getName() + "_split_" + std::to_string(split));
             slices[split].push_back(slice);
         }
-        else if (opType == "Add" || opType == "Subtract" || opType == "Multiply")
+        else if (opType == "Eltwise")
         {
-            for (auto i = 0; i < 2; i++)
+            auto inputSlots = op->inputSlots();
+            auto eltwiseType = op->get<std::string>("eltwiseType");
+            for (auto i = 0; i < inputSlots; i++)
             {
                 auto inputTensor = op->getInputTensor(i);
 
@@ -553,16 +555,8 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model, mv::Dat
                 om.getSourceOp(slice)->set<unsigned>("opId", opId);
                 slices[split].push_back(slice);
             }
-            auto addFcn = [&om](std::vector< mv::Data::TensorIterator >& vec, const mv::QuantizationParams& quantParams, const mv::DType& dType, const std::string& s){ return om.add(vec, dType, quantParams, s);};
-            auto subFcn = [&om](std::vector< mv::Data::TensorIterator >& vec, const mv::QuantizationParams& quantParams, const mv::DType& dType, const std::string& s){ return om.subtract(vec, dType, quantParams, s);};
-            auto multFcn = [&om](std::vector< mv::Data::TensorIterator >& vec, const mv::QuantizationParams& quantParams, const mv::DType& dType, const std::string& s){ return om.multiply(vec, dType, quantParams, s);};
 
-            auto dpuTaskMap = std::map<std::string, std::function<mv::Data::TensorIterator (std::vector< mv::Data::TensorIterator >&, const mv::QuantizationParams&, const mv::DType&, const std::string&)>>
-                                                    {{"Add", addFcn},
-                                                    {"Subtract", subFcn},
-                                                    {"Multiply", multFcn}};
-            auto dpuElementWiseFunctor = (dpuTaskMap.at(opType));
-            newTensor = dpuElementWiseFunctor(slices[split], op->get<mv::QuantizationParams>("quantParams"), op->get<mv::DType>("dType"), op->getName() + "_split_" + std::to_string(split));
+            newTensor = dpuElementWiseFunctor(slices[split], eltwiseType, op->get<mv::QuantizationParams>("quantParams"), op->get<mv::DType>("dType"), op->getName() + "_split_" + std::to_string(split));
         }
         else
         {

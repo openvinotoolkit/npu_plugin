@@ -42,14 +42,6 @@ void convertOpsToDPUTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& 
     mv::OpModel om(model);
     mv::ControlModel cm(model);
 
-    auto addFcn = [&om](std::vector< mv::Data::TensorIterator >& vec, const mv::QuantizationParams& quantParams, const std::string& s){ return om.dPUTaskAdd(vec, mv::DType("Default"), quantParams,s);};
-    auto subFcn = [&om](std::vector< mv::Data::TensorIterator >& vec, const mv::QuantizationParams& quantParams, const std::string& s){ return om.dPUTaskSubtract(vec, mv::DType("Default"), quantParams,s);};
-    auto multFcn = [&om](std::vector< mv::Data::TensorIterator >& vec, const mv::QuantizationParams& quantParams, const std::string& s){ return om.dPUTaskMultiply(vec, mv::DType("Default"), quantParams,s);};
-
-    auto dpuTaskMap = std::map<std::string, std::function<mv::Data::TensorIterator (std::vector< mv::Data::TensorIterator >&, const mv::QuantizationParams&, const std::string&)>>
-                                               {{"Add", addFcn},
-                                               {"Subtract", subFcn},
-                                               {"Multiply", multFcn}};
     // Pass main assumption is that we are working on the original graph (just AveragePooling substituted)
 
     // While loop is preferred in a loop like this were we are performing eliminations
@@ -271,8 +263,9 @@ void convertOpsToDPUTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& 
             setInputControlFlow(cm, cm.switchContext(dpuPoolOp), inputControlFlows);
             setOutputControlFlow(cm, cm.switchContext(dpuPoolOp), outputControlFlows);
         }
-        else if (opType == "Add" || opType == "Subtract" || opType == "Multiply")
+        else if (opType == "Eltwise")
         {
+            auto eltwiseType = opIt->get<std::string>("eltwiseType");
             auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
             auto outputTensorType = opIt->getOutputTensor(0)->get<mv::DType>("dType");
 
@@ -301,8 +294,7 @@ void convertOpsToDPUTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& 
             auto outputControlFlows = mv::getOutputControlFlow(cm, cm.switchContext(opIt));
             auto outputDataFlows = mv::getOutputDataFlow(om, opIt);
 
-            auto dpuElementWiseFunctor = (dpuTaskMap.at(opType));
-            auto dpuElementWise = dpuElementWiseFunctor(inputs, quantParams, mv::createDPUTaskName(name));
+            auto dpuElementWise = om.dPUTaskEltwise(inputs, eltwiseType, quantParams, mv::createDPUTaskName(name));
             auto dpuElementWiseOp = om.getSourceOp(dpuElementWise);
             dpuElementWiseOp->set<unsigned>("opId", opId);
             dpuElementWiseOp->set<bool>("hasWeights", false);
