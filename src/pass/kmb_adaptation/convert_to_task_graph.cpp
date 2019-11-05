@@ -629,7 +629,7 @@ int32_t computeMinClampValue(mv::Data::OpListIterator &opIt)
     auto I8 = mv::DType("Int8");
     auto FP16 = mv::DType("Float16");
 
-    int32_t clamp = 0;
+    int32_t clamp = -2147483648;
 
     if (outputDType == U8 || outputDType == I8)
     {
@@ -657,12 +657,15 @@ int32_t computeMinClampValue(mv::Data::OpListIterator &opIt)
 
     else if (outputDType == FP16)
     {
-        double clampValue = opIt->get<double>("Minimum");
+        if(opIt->hasAttr("Minimum"))
+        {
+            double clampValue = opIt->get<double>("Minimum");
 
-        if(computeDType == U8 || computeDType == I8)
-            clamp = static_cast<int32_t>(clampValue);
-        else if (computeDType == FP16)
-            clamp = static_cast<int32_t>(clampValue * pow(2,16));
+            if(computeDType == U8 || computeDType == I8)
+                clamp = static_cast<int32_t>(clampValue);
+            else if (computeDType == FP16)
+                clamp = static_cast<int32_t>(clampValue * pow(2,16));
+        }
     }
     return clamp;
 }
@@ -676,7 +679,7 @@ int32_t computeMaxClampValue(mv::Data::OpListIterator &opIt)
     auto I8 = mv::DType("Int8");
     auto FP16 = mv::DType("Float16");
 
-    int32_t clamp = 0;
+    int32_t clamp = 2147483647;
 
     if (outputDType == U8 || outputDType == I8)
     {
@@ -706,12 +709,15 @@ int32_t computeMaxClampValue(mv::Data::OpListIterator &opIt)
 
     else if (outputDType == FP16)
     {
-        double clampValue = opIt->get<double>("Maximum");
+        if(opIt->hasAttr("Maximum"))
+        {
+            double clampValue = opIt->get<double>("Maximum");
 
-        if(computeDType == U8 || computeDType == I8)
-            clamp = static_cast<int32_t>(clampValue);
-        else if (computeDType == FP16)
-            clamp = static_cast<int32_t>(clampValue * pow(2,16));
+            if(computeDType == U8 || computeDType == I8)
+                clamp = static_cast<int32_t>(clampValue);
+            else if (computeDType == FP16)
+                clamp = static_cast<int32_t>(clampValue * pow(2,16));
+        }
     }
     return clamp;
 }
