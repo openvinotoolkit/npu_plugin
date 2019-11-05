@@ -175,6 +175,7 @@
             "ReshapeAsImplicit",
             "StoreWorkloadStrategy",
             "ConvertOpsToDPUTasks",
+            "SetUpPPETasks",
             "ConvertOpsToUPATasks",
             "ForceSerialize",
             "KMBOrderConversion",
