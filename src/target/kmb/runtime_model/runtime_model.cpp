@@ -1765,24 +1765,25 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAPriorboxTask(ComputationModel& 
     auto output = opIt->getOutputTensor(0);
 
     auto min_sizes_vector = std::vector<float>();
+    auto min_sizes_data = min_sizes->getData();
     for (unsigned i = 0; i < min_sizes->size(); ++i)
-        min_sizes_vector.push_back(static_cast<float>(min_sizes->getData().at(i)));
+        min_sizes_vector.push_back(mv::fp16_to_fp32(static_cast<uint16_t>(min_sizes->getIntData().at(i))));
 
     auto max_sizes_vector = std::vector<float>();
     for (unsigned i = 0; i < max_sizes->size(); ++i)
-        max_sizes_vector.push_back(static_cast<float>(max_sizes->getData().at(i)));
+        max_sizes_vector.push_back(mv::fp16_to_fp32(static_cast<uint16_t>(max_sizes->getIntData().at(i))));
 
     auto aspect_ratios_vector = std::vector<float>();
     for (unsigned i = 0; i < aspect_ratios->size(); ++i)
-        aspect_ratios_vector.push_back(static_cast<float>(aspect_ratios->getData().at(i)));
+        aspect_ratios_vector.push_back(mv::fp16_to_fp32(static_cast<uint16_t>(aspect_ratios->getIntData().at(i))));
 
     auto variances_vector = std::vector<float>();
     for (unsigned i = 0; i < variances->size(); ++i)
-        variances_vector.push_back(static_cast<float>(variances->getData().at(i)));
+        variances_vector.push_back(mv::fp16_to_fp32(static_cast<uint16_t>(variances->getIntData().at(i))));
 
     // Fill in tensors
-    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, priorbox)));
     toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, image)));
+    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, priorbox)));
 
     toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
 
