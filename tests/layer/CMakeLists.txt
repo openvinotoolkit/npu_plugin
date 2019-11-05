@@ -10,8 +10,8 @@ else()
     #add_executable(argmax argmax/argmax.cpp)
     #target_link_libraries(argmax cm)
 
-    add_executable(conv_clamp conv_clamp/conv_clamp.cpp)
-    target_link_libraries(conv_clamp cm)
+    #add_executable(conv_clamp conv_clamp/conv_clamp.cpp)
+    #target_link_libraries(conv_clamp cm)
 
     add_executable(conv_leaky_relu conv_leaky_relu/conv_leaky_relu.cpp)
     target_link_libraries(conv_leaky_relu cm)
@@ -25,8 +25,8 @@ else()
     #add_executable(detection_output detection_output/detection_output.cpp)
     #target_link_libraries(detection_output cm)
 
-    add_executable(elu elu/elu.cpp)
-    target_link_libraries(elu cm)
+    #add_executable(elu elu/elu.cpp)
+    #target_link_libraries(elu cm)
     
     add_executable(normalize normalize/normalize.cpp)
     target_link_libraries(normalize cm)
@@ -43,14 +43,14 @@ else()
     add_executable(regionyolo regionyolo/regionyolo.cpp)
     target_link_libraries(regionyolo cm)
 
-    add_executable(reorgyolo reorgyolo/reorgyolo.cpp)
-    target_link_libraries(reorgyolo cm)
+    #add_executable(reorgyolo reorgyolo/reorgyolo.cpp)
+    #target_link_libraries(reorgyolo cm)
 
     add_executable(reshape reshape/reshape.cpp)
     target_link_libraries(reshape cm)
 
-    add_executable(roi_pooling roi_pooling/roi_pooling.cpp)
-    target_link_libraries(roi_pooling cm)
+    #add_executable(roi_pooling roi_pooling/roi_pooling.cpp)
+    #target_link_libraries(roi_pooling cm)
 
     add_executable(softmax softmax/softmax.cpp)
     target_link_libraries(softmax cm)
