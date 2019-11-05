@@ -10,10 +10,12 @@ namespace mv
     //TODO: Add all possibile directions
     enum DmaDirectionEnum
     {
-        DDR2CMX,
-        CMX2DDR,
-        CMX2UPA,
-        UPA2CMX,
+        DDR2NNCMX,
+        DDR2UPACMX,
+        NNCMX2DDR,
+        NNCMX2UPACMX,
+        UPACMX2NNCMX,
+        UPACMX2DDR,
         DDR2DDR,
     };
 

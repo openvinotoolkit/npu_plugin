@@ -1,36 +1,12 @@
-#include <algorithm>
-#include <atomic>
-#include <chrono>
-#include <ctime>
-#include <fstream>
-#include <iostream>
-#include <iterator>
-#include <map>
-#include <memory>
-#include <set>
-#include <string>
-#include <tuple>
-#include <unordered_map>
-#include <utility>
-#include <vector>
+#include "limits"
+#include "tuple"
+#include "chrono"
 
-#include "include/mcm/base/attribute.hpp"
-#include "include/mcm/base/element.hpp"
-#include "include/mcm/base/exception/argument_error.hpp"
-#include "include/mcm/base/exception/logic_error.hpp"
-#include "include/mcm/base/json/value.hpp"
-#include "include/mcm/base/registry.hpp"
-#include "include/mcm/computation/model/iterator/data_context.hpp"
-#include "include/mcm/computation/model/iterator/model_iterator.hpp"
-#include "include/mcm/computation/op/op.hpp"
-#include "include/mcm/graph/graph.hpp"
-#include "include/mcm/logger/logger.hpp"
-#include "include/mcm/pass/graphOptimizations/StrategyConfig.hpp"
 #include "include/mcm/pass/graphOptimizations/StrategyManager.hpp"
 #include "include/mcm/pass/graphOptimizations/StrategyRegistry.hpp"
-#include "include/mcm/tensor/shape.hpp"
-#include "include/mcm/tensor/tensor.hpp"
-#include "meta/include/mcm/op_model.hpp"
+#include "include/mcm/base/element.hpp"
+#include "include/mcm/algorithms/dijkstra.hpp"
+#include "include/mcm/utils/env_loader.hpp"
 
 namespace mv {
 namespace graphOptimizer {
@@ -255,7 +231,6 @@ void StrategyManager::printStrategy()
 
 std::vector<mv::Element> StrategyManager::convertStreamingStrategyToElement(CriticalPathNodes &strategiesToConvert, std::shared_ptr<mv::Element> compDesc)
 {
-    cout << "Converting Strategies to Element" << endl;
 
     auto streamingStrategyList = compDesc->get<std::vector<mv::Element>>("streaming_strategy");
 
@@ -398,22 +373,12 @@ std::vector<mv::Element> StrategyManager::convertSparsityStrategyToElement(Criti
     return sparsityStrategyList;
 }
 
-//std::string StrategyManager::strategyString(OptimizationGraphNode n)
-//{
-//        auto s = get<1>(n);
-//        auto clustering = s["clustering"].get<string>();
-//        auto streaming = s["streaming"].get<Shape>();
-//        auto o = get<0>(n);
-//        return o.getName() + " " + clustering + " " + streaming.toString();
-//}
-
 void StrategyManager::saveMetaStrategy(CriticalPathNodes& criticalPathNodes)
 {
 
     const bool enablePrintStrategyToTerminal = true;
     const bool enableSaveStrategyToDescriptor = true;
     const bool enableSaveStrategyToJsonFile = true;
-//    const std::string jsonOutputFileName = "./mcm_compiler_strategy_output.json";
 
     auto globalParams = model_.getGlobalConfigParams();
 
@@ -424,19 +389,20 @@ void StrategyManager::saveMetaStrategy(CriticalPathNodes& criticalPathNodes)
 
     if (enableSaveStrategyToDescriptor)
     {
-        cout << "Saving Strategy to Compilation Descriptor (internal)" << endl;
+        log(Logger::MessageType::Info, "GraphOptimizer: Saving Strategy to Compilation Descriptor");
         auto compDesc = model_.getGlobalConfigParams();
         compDesc->set("streaming_strategy", streamingStrategyElements);
         compDesc->set("split_strategy", multiClusterStrategyElements);
+        compDesc->set("sparsity_strategy", sparsityStrategyElements);
     }
 
     if (enableSaveStrategyToJsonFile)
     {
-        cout << "Saving Strategy to JSON file" << endl;
+        log(Logger::MessageType::Info, "GraphOptimizer: Saving Strategy to JSON file");
         std::ofstream jsonOutputFile ;
         jsonOutputFile.open(jsonOutFileName, std::ios::out );
         if (!(jsonOutputFile.is_open()))
-            std::cout << "ERROR: Could not open output file " << jsonOutFileName << std::endl;
+            log(Logger::MessageType::Info, "GraphOptimizer: Could not open output file " + jsonOutFileName);
 
         auto currentTime= chrono::system_clock::to_time_t(chrono::system_clock::now());
         std::string timeStamp(ctime(&currentTime));
@@ -455,15 +421,17 @@ void StrategyManager::saveMetaStrategy(CriticalPathNodes& criticalPathNodes)
         auto jsonCStrategy = CSA.toJSON(true);
         auto jsonLStrategy = LSA.toJSON(true);
         auto jsonSpStrategy = SpSA.toJSON(true);
-        jsonOutputFile << jsonSStrategy.stringifyPretty() << std::endl ;
-        jsonOutputFile << jsonCStrategy.stringifyPretty() << std::endl;
-        jsonOutputFile << jsonLStrategy.stringifyPretty() << std::endl;
+        jsonOutputFile << jsonSStrategy.stringifyPretty() << "," << std::endl;
+        jsonOutputFile << jsonCStrategy.stringifyPretty() << "," << std::endl;
+        jsonOutputFile << jsonLStrategy.stringifyPretty()  << "," << std::endl;
         jsonOutputFile << jsonSpStrategy.stringifyPretty() << std::endl;
-
 
         jsonOutputFile.close();
     }
 
+    auto clusters = globalConfig_["totalClusters"].get<int>();
+    bool singleCluster = false;
+    if(clusters == 1) singleCluster = true;
     // attach optimal tensor location (CMX or DDR) attribute to tensor
     for(auto elem : criticalPathNodes)
     {
@@ -480,48 +448,10 @@ void StrategyManager::saveMetaStrategy(CriticalPathNodes& criticalPathNodes)
         if(spilling)
             outTensor->set<mv::Tensor::MemoryLocation>("Location",mv::Tensor::MemoryLocation::DDR);
         else
-            outTensor->set<mv::Tensor::MemoryLocation>("Location",mv::Tensor::MemoryLocation::CMX);
+            outTensor->set<mv::Tensor::MemoryLocation>("Location",mv::Tensor::MemoryLocation::NNCMX);
 
-        std::cout << "Output tensor location (from tensor attribute) for node " << op->getName() << " is " << outTensor->get("Location").toString() << std::endl ;
-
+        log(Logger::MessageType::Info, "GraphOptimizer: Output tensor location (from tensor attribute) for node " + op->getName() + " is " + outTensor->get("Location").toString());
     }
-
-//    test updated compilation descriptor
-    auto globalParams2 = model_.getGlobalConfigParams();
-    auto strategyList2 = globalParams2->get<std::vector<mv::Element>>("streaming_strategy");
-
-    for (auto s : strategyList2)
-    {
-        std::string nodeName = s.get<std::string>("name_filter");
-        std::cout <<" Streaming strategy (from compilation descriptor) for node " << s.get<std::string>("name_filter") <<  std::endl ;
-        auto splitList = s.get<std::vector<mv::Element>>("splits");
-        for (int i = 0; i < splitList.size(); i++)
-        {
-            if (splitList[i].hasAttr("C"))
-            {
-                std::cout << "     C : " << splitList[i].get<int>("C") << std::endl;
-            }
-            else if (splitList[i].hasAttr("H"))
-            {
-                std::cout << "     H : " << splitList[i].get<int>("H") << std::endl;
-            }
-            else if (splitList[i].hasAttr("W"))
-            {
-                std::cout << "     W : " << splitList[i].get<int>("W") << std::endl;
-            }
-            else if (splitList[i].hasAttr("K"))
-            {
-                std::cout << "     K : " << splitList[i].get<int>("K") << std::endl;
-            }
-        }
-    }
-
-    auto strategyList3 = globalParams2->get<std::vector<mv::Element>>("split_strategy");
-    for (auto s : strategyList3)
-    {
-        std::cout <<" Clustering strategy (from compilation descriptor) for node " << s.get<std::string>("name_filter") << " is " <<  s.get<std::string>("strategy")<< std::endl ;
-    }
-
 }
 
 void StrategyManager::initLayerStrategySets()

@@ -12,6 +12,7 @@ namespace mv
     public:
             
         explicit RuntimeError(const LogSender& sender, const std::string& whatArg);
+        explicit RuntimeError(const std::string& senderID, const std::string& whatArg);
         
     };
 

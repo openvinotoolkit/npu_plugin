@@ -110,7 +110,7 @@ def initialize_execution_file(weights="None"):
         exec_file.write(' ' * 4 + 'return return_data;\n}\n\n')
 
     exec_file.write('int main()\n{\n')
-    exec_file.write(' ' * 4 + 'std::string path = std::getenv("MDK_HOME");\n')
+    exec_file.write(' ' * 4 + 'std::string path = std::getenv("MCM_HOME");\n')
     exec_file.write(
         ' ' *
         4 +
@@ -312,6 +312,7 @@ def buildOM(
     from Controllers.Parsers.Parser.BatchNorm import BatchNorm
     from Controllers.Parsers.Parser.Softmax import Softmax
     from Controllers.Parsers.Parser.NoOp import NoOp
+    from Controllers.Parsers.Parser.Reshape import Reshape
 
     _ref = None
 
@@ -491,7 +492,7 @@ def buildOM(
         in_ = reflist[pred[0]]
 
         _ref = ca.dropOut(
-            om, in_, mv_quant_params[0], output_tensor_name)
+            om, in_, type_value, mv_quant_params[0], output_tensor_name)
 
         if (output_file is not None):
 
@@ -505,6 +506,45 @@ def buildOM(
                               str(output_tensor_name) + '");\n\n')
 
             tensor_mapping_dict[output_tensor_name] = 'dropout' + \
+                str(dropout_node_id)
+            dropout_node_id += 1
+
+    elif isinstance(layer, Reshape):
+
+        output_tensor_name = layer.getOutputTensors()[0].getName().stringifyName()
+        mv_quant_params = get_parse_quant(layer.getOutputTensors()[0])[0]
+        type_value = type_dict[layer.getOutputTensors()[0].dtype](0.0)
+        shape = ca.getShape(
+            layer.getInputTensors()[0].shape[3],
+            layer.getInputTensors()[0].shape[2],
+            layer.getInputTensors()[0].shape[1],
+            layer.getInputTensors()[0].shape[0])
+        order = ca.getOrder(mcm_4d_layout[parser])
+        pred = list(g.predecessors(gnode_name))
+        in_ = reflist[pred[0]]
+        default_shape = '\"\"'
+
+        _ref = ca.reshape(
+            om, in_, shape, order, "Float16", mv_quant_params, output_tensor_name)
+
+        if (output_file is not None):
+
+            output_file.write(' ' * 4 + 'auto reshape' + str(dropout_node_id) + ' = om.reshape(' +
+                              str(tensor_mapping_dict[layer.getInputTensors()[0].getName().stringifyName()]) +
+                              ', mv::Shape({' + str(layer.getOutputTensors()[0].shape[0]) +
+                              ', ' + str(layer.getOutputTensors()[0].shape[1]) +
+                              ', ' + str(layer.getOutputTensors()[0].shape[2]) +
+                              ', ' + str(layer.getOutputTensors()[0].shape[3]) + '}), ' +
+                              ' mv::Order::getZMajorID(4), ' +
+                              'mv::DType(\"Float16\")' +
+                              ', {{' +
+                              ', '.join(map(str, get_parse_quant(layer.getOutputTensors()[0])[1])) + '},{' +
+                              ', '.join(map(str, get_parse_quant(layer.getOutputTensors()[0])[2])) + '},{' +
+                              ', '.join(map(str, get_parse_quant(layer.getOutputTensors()[0])[3])) + '},{' +
+                              ', '.join(map(str, get_parse_quant(layer.getOutputTensors()[0])[4])) + '}}, "' +
+                              str(output_tensor_name) + '");\n\n')
+
+            tensor_mapping_dict[output_tensor_name] = 'reshape' + \
                 str(dropout_node_id)
             dropout_node_id += 1
 
