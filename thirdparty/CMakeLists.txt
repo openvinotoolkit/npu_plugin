@@ -46,7 +46,7 @@ if (ENABLE_VPUAL)
         COMMAND "${CMAKE_COMMAND}" -E copy "${VPUSMM_LIB_PATH}*" "${VPUSMM_OUT_DIR}"
         COMMENT "[VPUSMM] Copy vpusmm library to build results")
 
-    add_subdirectory(gapi_sipp)
+    add_subdirectory(gapi_sipp/sipp)
 
     if (ENABLE_TESTS)
         add_subdirectory(tests/integration)
@@ -75,6 +75,11 @@ if (ENABLE_MCM_COMPILER)
             STAMP_DIR ${MCM_BASE_DIR}/stamp
             INSTALL_COMMAND ""
             CMAKE_ARGS ${MCM_COMPILER_CMAKE_ARGS} ${METIS_INCLUDE_PATH})
+
+    set(COMPILATION_CONFIG_OUT_DIR "$<TARGET_FILE_DIR:kmbPlugin>")
+    add_custom_target(mcm_compiler_copy_configs ALL
+            COMMAND "${CMAKE_COMMAND}" -E copy_directory "${MCM_BASE_DIR}/config" "${COMPILATION_CONFIG_OUT_DIR}/mcm_config"
+            COMMENT "[MCM Compiler] Copy config files for compilation")
 
     set(MCM_COMPILER_INCLUDE_PATH "${MCM_BASE_DIR}"
                                   "${MCM_BASE_DIR}/include"

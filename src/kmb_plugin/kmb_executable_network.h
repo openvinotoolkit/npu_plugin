@@ -113,7 +113,7 @@ private:
     const size_t _maxTaskExecutorGetResultCount = 1;
     std::queue<std::string> _taskExecutorGetResultIds;
 
-    void ConfigureExecutor();
+    void ConfigureExecutor(const std::string& networkName);
     void LoadBlob();
 
     InferenceEngine::ITaskExecutor::Ptr getNextTaskExecutor() {

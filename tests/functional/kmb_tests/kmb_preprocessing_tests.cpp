@@ -100,6 +100,32 @@ static void setNV12Preproc(const std::string &inputName,
     ASSERT_NO_THROW(inferRequest.SetBlob(inputName, inputBlob));
 }
 
+static void setRandomNV12(const std::string &inputName,
+                          InferenceEngine::InferRequest &inferRequest,
+                          std::shared_ptr<vpu::KmbPlugin::utils::VPUAllocator> &allocator,
+                          size_t imageWidth,
+                          size_t imageHeight) {
+    const size_t expectedSize = imageWidth * (imageHeight * 3 / 2);
+    uint8_t *imageData = reinterpret_cast<uint8_t *>(allocator->allocate(expectedSize));
+    std::random_device randDev;
+    std::default_random_engine randEngine(randDev());
+    std::uniform_int_distribution<uint8_t> uniformDist(0, 255);
+    for (size_t byteCount = 0; byteCount < expectedSize; byteCount++) {
+        imageData[byteCount] = uniformDist(randEngine);;
+    }
+    InferenceEngine::TensorDesc planeY(InferenceEngine::Precision::U8,
+        {1, 1, imageHeight, imageWidth}, InferenceEngine::Layout::NHWC);
+    InferenceEngine::TensorDesc planeUV(InferenceEngine::Precision::U8,
+        {1, 2, imageHeight / 2, imageWidth / 2}, InferenceEngine::Layout::NHWC);
+    const size_t offset = imageHeight * imageWidth;
+
+    InferenceEngine::Blob::Ptr blobY = InferenceEngine::make_shared_blob<uint8_t>(planeY, imageData);
+    InferenceEngine::Blob::Ptr blobUV = InferenceEngine::make_shared_blob<uint8_t>(planeUV, imageData + offset);
+
+    InferenceEngine::Blob::Ptr nv12Blob = InferenceEngine::make_shared_blob<InferenceEngine::NV12Blob>(blobY, blobUV);
+    inferRequest.SetBlob(inputName, nv12Blob);
+}
+
 Blob::Ptr dequantize(float begin, float end, const Blob::Ptr &quantBlob, std::shared_ptr<vpu::KmbPlugin::utils::VPUAllocator> &allocator) {
     const int QUANT_LEVELS = 256;
     float step = (begin - end)/QUANT_LEVELS;
@@ -640,12 +666,177 @@ TEST_F(vpuLayersTests, allocateNV12TwoImagesGetBlob) {
     ASSERT_NO_THROW(compareTopClasses(dogOutputBlob, dogReferenceOutputBlob, NUMBER_OF_CLASSES));
 }
 
+class VpuPreprocessingShavesTests : public vpuLayersTests,
+                                    public testing::WithParamInterface< const char * > {
+};
+
+TEST_P(VpuPreprocessingShavesTests, DISABLED_shavesNum) {
+    std::string numberOfShaves = GetParam();
+    std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/resnet/resnet.blob";
+
+    std::shared_ptr<vpu::KmbPlugin::utils::VPUAllocator> kmbAllocator =
+        buildAllocator(std::getenv("IE_VPU_KMB_MEMORY_ALLOCATOR_TYPE"));
+
+    Core ie;
+    InferenceEngine::ExecutableNetwork importedNetwork;
+
+    std::map<std::string, std::string> config;
+    config[VPU_KMB_CONFIG_KEY(PREPROCESSING_SHAVES)] = numberOfShaves;
+    ASSERT_NO_THROW(importedNetwork = ie.ImportNetwork(modelFilePath, "KMB", config));
+
+    ConstInputsDataMap inputInfo = importedNetwork.GetInputsInfo();
+
+    for (auto & item : inputInfo) {
+        InputInfo* mutableItem = const_cast<InputInfo*>(item.second.get());
+        setPreprocAlgorithm(mutableItem, PT_RESIZE);
+        setPreprocAlgorithm(mutableItem, PT_NV12);
+    }
+
+    InferenceEngine::InferRequest inferRequest;
+    ASSERT_NO_THROW(inferRequest = importedNetwork.CreateInferRequest());
+
+    inputInfo = importedNetwork.GetInputsInfo();
+    std::string input_name = inputInfo.begin()->first;
+
+    setRandomNV12(input_name, inferRequest, kmbAllocator, 1920, 1080);
+
+    ASSERT_NO_THROW(inferRequest.Infer());
+}
+
+TEST_F(VpuPreprocessingTests, setConfigAndCheckNumShaves) {
+    std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/resnet/resnet.blob";
+
+    Core ie;
+    InferenceEngine::ExecutableNetwork importedNetwork;
+
+    std::map<std::string, std::string> config;
+    config[VPU_KMB_CONFIG_KEY(PREPROCESSING_SHAVES)] = "8";
+    ASSERT_NO_THROW(importedNetwork = ie.ImportNetwork(modelFilePath, "KMB", config));
+}
+
+TEST_F(VpuPreprocessingTests, setInvalidNumShaves) {
+    std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/resnet/resnet.blob";
+
+    Core ie;
+    InferenceEngine::ExecutableNetwork importedNetwork;
+
+    std::map<std::string, std::string> config;
+    config[VPU_KMB_CONFIG_KEY(PREPROCESSING_SHAVES)] = "seventy one";
+    ASSERT_ANY_THROW(importedNetwork = ie.ImportNetwork(modelFilePath, "KMB", config));
+}
+
+TEST_F(VpuPreprocessingTests, DISABLED_setConfigForTwoNetworks) {
+    InferenceEngine::ExecutableNetwork network1;
+    std::string network1Path = ModelsPath() + "/KMB_models/BLOBS/yolotiny/yolotiny.blob";
+    std::map<std::string, std::string> config1;
+    config1[VPU_KMB_CONFIG_KEY(PREPROCESSING_SHAVES)] = "4";
+    ASSERT_NO_THROW(network1 = ie.ImportNetwork(network1Path, "KMB", config1));
+
+    InferenceEngine::ExecutableNetwork network2;
+    std::string network2Path = ModelsPath() + "/KMB_models/BLOBS/resnet/resnet.blob";
+    std::map<std::string, std::string> config2;
+    config2[VPU_KMB_CONFIG_KEY(PREPROCESSING_SHAVES)] = "2";
+    ASSERT_NO_THROW(network2 = ie.ImportNetwork(network2Path, "KMB", config2));
+
+    std::cout << "Created networks\n";
+
+    ASSERT_EQ(1, network1.GetInputsInfo().size());
+    ASSERT_EQ(1, network2.GetInputsInfo().size());
+    std::cout << "Input info is OK\n";
+
+    ConstInputsDataMap inputInfo1 = network1.GetInputsInfo();
+
+    for (auto & item : inputInfo1) {
+        InputInfo* mutableItem = const_cast<InputInfo*>(item.second.get());
+        setPreprocAlgorithm(mutableItem, PT_RESIZE);
+        setPreprocAlgorithm(mutableItem, PT_NV12);
+    }
+
+    ConstInputsDataMap inputInfo2 = network2.GetInputsInfo();
+
+    for (auto & item : inputInfo2) {
+        InputInfo* mutableItem = const_cast<InputInfo*>(item.second.get());
+        setPreprocAlgorithm(mutableItem, PT_RESIZE);
+        setPreprocAlgorithm(mutableItem, PT_NV12);
+    }
+
+    std::shared_ptr<vpu::KmbPlugin::utils::VPUAllocator> kmbAllocator = buildAllocator(std::getenv("IE_VPU_KMB_MEMORY_ALLOCATOR_TYPE"));
+
+    InferenceEngine::InferRequest::Ptr network1InferReqPtr;
+    network1InferReqPtr = network1.CreateInferRequestPtr();
+
+    std::string input1_name = inputInfo1.begin()->first;
+    std::string input1Path = ModelsPath() + "/KMB_models/BLOBS/yolotiny/input-228x228-nv12.dat";
+    setNV12Preproc(input1_name, input1Path, *network1InferReqPtr, kmbAllocator, 228, 228);
+
+    InferenceEngine::InferRequest::Ptr network2InferReqPtr;
+    network2InferReqPtr = network2.CreateInferRequestPtr();
+
+    std::string input2_name = inputInfo2.begin()->first;
+    std::string input2Path = ModelsPath() + "/KMB_models/BLOBS/mobilenet/input-228x228-nv12.dat";
+    setNV12Preproc(input2_name, input2Path, *network2InferReqPtr, kmbAllocator, 228, 228);
+
+    std::cout << "Created inference requests\n";
+
+    ASSERT_EQ(1, network1.GetOutputsInfo().size());
+    ASSERT_EQ(1, network2.GetOutputsInfo().size());
+    std::cout << "Output info is OK\n";
+
+    const auto iterationCount = 5;
+    size_t curIterationNetwork1 = 0;
+    size_t curIterationNet2 = 0;
+    std::condition_variable condVar;
+
+    network1InferReqPtr->SetCompletionCallback(
+            [&] {
+                curIterationNetwork1++;
+                std::cout << "Completed " << curIterationNetwork1 << " async request execution for network1\n";
+                if (curIterationNetwork1 < static_cast<size_t>(iterationCount)) {
+                    Blob::Ptr outputBlob;
+                    std::string output1Name = network1.GetOutputsInfo().begin()->first;
+                    ASSERT_NO_THROW(outputBlob = network1InferReqPtr->GetBlob(output1Name));
+                    network1InferReqPtr->StartAsync();
+                } else {
+                    condVar.notify_one();
+                }
+            });
+    network2InferReqPtr->SetCompletionCallback(
+            [&] {
+                curIterationNet2++;
+                std::cout << "Completed " << curIterationNet2 << " async request execution for network1\n";
+                if (curIterationNet2 < static_cast<size_t>(iterationCount)) {
+                    Blob::Ptr outputBlob;
+                    std::string output2Name = network2.GetOutputsInfo().begin()->first;
+                    ASSERT_NO_THROW(outputBlob = network2InferReqPtr->GetBlob(output2Name));
+                    network2InferReqPtr->StartAsync();
+                } else {
+                    condVar.notify_one();
+                }
+            });
+
+    std::cout << "Start inference (" << iterationCount << " asynchronous executions) for network1" << std::endl;
+    network1InferReqPtr->StartAsync();
+    std::cout << "Start inference (" << iterationCount << " asynchronous executions) for network2" << std::endl;
+    network2InferReqPtr->StartAsync();
+
+    std::mutex mutex;
+    std::unique_lock<std::mutex> lock(mutex);
+    condVar.wait(lock, [&]{
+        return curIterationNetwork1 == static_cast<size_t>(iterationCount) &&
+               curIterationNet2 == static_cast<size_t>(iterationCount);
+    });
+}
+
 const static std::vector<preprocessingType> preprocTypes = {
     PT_RESIZE, PT_NV12
 };
 
 INSTANTIATE_TEST_CASE_P(preprocessing, VpuPreprocessingTestsWithParam,
     ::testing::ValuesIn(preprocTypes)
+);
+
+INSTANTIATE_TEST_CASE_P(preprocessing, VpuPreprocessingShavesTests,
+    ::testing::ValuesIn({"4", "6"})
 );
 
 #endif
