@@ -304,15 +304,8 @@ int validate(std::string blobPath, std::string expectedPath, std::string actualP
         std::cout << totalActual << " elements" << std::endl;
 
         // de-quantize
-        uint8_t prevVal = 0;
         for (size_t i = 0; i < outputVector.size(); ++i)
         {
-            //if (i<50) std::cout << outputVector[i] << std::endl;
-            if (prevVal != outputVector[i])
-            {
-                prevVal = outputVector[i];
-                std::cout << std::to_string(prevVal) << std::endl;
-            }
             // De-quantize: bitshift left by qShift then multiply by scale
             float val = outputVector[i] << qShift / qScale;
             outputFP32.push_back(val);
@@ -369,7 +362,7 @@ int convertImage(std::string imagePath, std::string blobPath)
     std::vector<std::string> inputStrides;
     for (uint32_t x=0; x<j["header"]["net_input"][0]["strides"].size(); ++x)
         inputStrides.push_back( std::to_string(j["header"]["net_input"][0]["strides"][x].get<int>()) );
-    std::cout << "Input Shape: " << inputStrides[0] << "," << inputStrides[1] << "," << inputStrides[2] << "," << inputStrides[3] << std::endl;
+    std::cout << "Input Strides: " << inputStrides[0] << "," << inputStrides[1] << "," << inputStrides[2] << "," << inputStrides[3] << std::endl;
 
     std::string sZMajor("");
     if (! ((std::stoi(inputShape[1]) < 16) && (inputShape[2] == inputStrides[3]) ))
@@ -381,6 +374,45 @@ int convertImage(std::string imagePath, std::string blobPath)
     std::string commandline = std::string("python3 ") + mv::utils::projectRootPath() +
         std::string("/python/tools/convert_image.py --image ") + imagePath + " --shape " + 
         inputShape[0] + "," + inputShape[1] + "," + inputShape[2] + "," + inputShape[3] + sZMajor;
+    std::cout << commandline << std::endl;
+    int result = std::system(commandline.c_str());
+    
+    if (result > 0)
+    {
+        std::cout << "Error occured converting image using python script";
+        return FAIL_ERROR;
+    }
+    return RESULT_SUCCESS;    
+}
+
+int postProcessActualResults(std::string resultsPath, std::string blobPath)
+{
+    // load json to read output size and ch/z major transpose
+    std::string json_file = getFilename(blobPath) + std::string(".json");
+    std::ifstream ifile(json_file);
+    json j = json::parse(ifile);
+
+    std::cout << "Post Processing results... " << std::endl;
+    std::vector<std::string> outputShape;
+    for (uint32_t x=0; x<j["header"]["net_output"][0]["dimensions"].size(); ++x)
+        outputShape.push_back( std::to_string(j["header"]["net_output"][0]["dimensions"][x].get<int>()) );
+    std::cout << "Output Shape: " << outputShape[0] << "," << outputShape[1] << "," << outputShape[2] << "," << outputShape[3] << std::endl;
+
+    std::cout << "Querying Z/Ch Major output... " << std::endl;
+    std::vector<std::string> outputStrides;
+    for (uint32_t x=0; x<j["header"]["net_output"][0]["strides"].size(); ++x)
+        outputStrides.push_back( std::to_string(j["header"]["net_output"][0]["strides"][x].get<int>()) );
+    std::cout << "Output Strides: " << outputStrides[0] << "," << outputStrides[1] << "," << outputStrides[2] << "," << outputStrides[3] << std::endl;
+
+    std::string sZMajor("");
+    if (! ((std::stoi(outputShape[1]) < 16) && (outputShape[2] == outputStrides[3]) ))
+        sZMajor = " --zmajor";
+
+    //
+    // call python script for numpy reshape/transpose
+    std::string commandline = std::string("python3 ") + mv::utils::projectRootPath() +
+        std::string("/python/tools/post_process.py --file ") + resultsPath + " --shape " + 
+        outputShape[0] + "," + outputShape[1] + "," + outputShape[2] + "," + outputShape[3] + sZMajor;
     std::cout << commandline << std::endl;
     int result = std::system(commandline.c_str());
     
@@ -435,7 +467,12 @@ int main(int argc, char *argv[])
 
     std::string expectedPath = std::getenv("DLDT_HOME") + std::string("/bin/intel64/Debug/output_cpu.bin");
     std::string actualPath = std::getenv("VPUIP_HOME") + std::string("/application/demo/InferenceManagerDemo/output-0.bin");
-    result = validate(blobPath, expectedPath, actualPath);
+    std::string actualPathProcessed = "./output_transposed.dat";
+
+    result = postProcessActualResults(actualPath, blobPath);
+    if ( result > 0 ) return result;
+
+    result = validate(blobPath, expectedPath, actualPathProcessed);
     if ( result > 0 )
         return result;
     
