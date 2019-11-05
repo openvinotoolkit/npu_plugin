@@ -106,7 +106,7 @@ void computeTensorsQuantParams(const mv::pass::PassEntry&, mv::ComputationModel&
 
                  auto m = S2;
 
-                 if (opIt->hasAttr("hasWeights") && opIt->get<bool>("hasWeights") || isEltwiseMult)
+                 if ((opIt->hasAttr("hasWeights") && opIt->get<bool>("hasWeights")) || isEltwiseMult)
                  {
                      auto weights = opIt->getInputTensor(1);
                      auto& weightsQuantization = weights->get<mv::QuantizationParams>("quantParams");
