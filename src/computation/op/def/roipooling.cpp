@@ -40,7 +40,6 @@ namespace mv
             auto N = args.at("num_rois").get<unsigned>();
 
             mv::Shape outputShape({W, H, C, N});;
-            std::cout << outputShape.toString() << std::endl;
             outputs.push_back(mv::Tensor(":0", outputShape, input->getDType(), mv::Order::getZMajorID(4)));
 
         };
