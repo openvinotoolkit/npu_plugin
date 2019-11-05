@@ -4,9 +4,7 @@ import csv
 import re 
 def validate_files(ref, test):
 # dump first few lines of the results files
-    print("openning" , ref)
     refBF = open(ref, "rb")
-    print("openning" , test)
     testBF = open(test, "rb")
     for f in [ref, test]:
         print("Partial dump of ", f)
