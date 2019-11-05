@@ -1624,6 +1624,14 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAPermuteTask(ComputationModel& c
     auto old_order = input->getOrder();
     auto old_order_str = old_order.toString();
     auto new_order_str = new_order.toString();
+
+    // Correct order of strings if necessary
+    if (old_order_str[0] != 'N')
+        old_order_str = std::string(old_order_str.rbegin(), old_order_str.rend());
+
+    if (new_order_str[0] != 'N')
+        new_order_str = std::string(new_order_str.rbegin(), new_order_str.rend());
+
     std::vector<unsigned> permute_order(3);
     for (auto i=0; i < 3; i++)
     {
