@@ -442,6 +442,10 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model, mv::Dat
     auto axisToSplit =  mv::Shape::getAxis(tiling.getAxis());
     auto childTiles = tiling.childTiles();
 
+    // NOTE: In the streaming case, we can't just blindly copy everything like we
+    // do in the DPUTask conversion case. We have to overwrite shape, padding, etc.
+    auto attrsToCopy = op->getAttrs({"stride", "padding", "shape"});
+
     std::vector<mv::Shape> spatial_indexes(number_of_splits);
     std::vector<std::vector<mv::Data::TensorIterator>> slices(number_of_splits);
     std::vector<mv::Data::TensorIterator> convs(number_of_splits);
@@ -565,43 +569,8 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model, mv::Dat
         }
 
         auto newOp = om.getSourceOp(newTensor);
-
-        if (op->hasAttr("bias"))
-        {
-            auto biasTensorName = op->get<std::string>("bias");
-            om.addAttr(newOp, "bias", biasTensorName);
-        }
-
+        newOp->setAttrs(attrsToCopy);
         newOp->set<bool>("splitted", true);//TODO::temporary hack. To remove once the iteration conditions are updated
-        newOp->set<unsigned>("opId", opId);
-        newOp->set<std::string>("splitStrategy", splitStrategy);
-        newOp->set<bool>("inputActivationSparsity", op->get<bool>("inputActivationSparsity"));
-        newOp->set<bool>("outputActivationSparsity", op->get<bool>("outputActivationSparsity"));
-        newOp->set<bool>("weightsSparsity", op->get<bool>("weightsSparsity"));
-        if (op->hasAttr("postOpType"))
-        {
-            newOp->set<std::string>("postOpType", op->get<std::string>("postOpType"));
-            if (newOp->get<std::string>("postOpType") == "LeakyRelu")
-                newOp->set<double>("alpha", op->get<double>("alpha"));
-        }
-        else if (op->hasAttr("postOpTypes"))
-        {
-            newOp->set<std::vector<std::string>>("postOpTypes", op->get<std::vector<std::string>>("postOpTypes"));
-            std::vector<std::string> postOpTypes = op->get<std::vector<std::string>>("postOpTypes");
-
-            if (op->getOutputTensor(0)->getDType() ==  mv::DType("Float16"))
-            {
-                newOp->set<double>("minimum", op->get<double>("minimum"));
-                if (std::find(postOpTypes.begin(), postOpTypes.end(), "Maximum") != postOpTypes.end())
-                    newOp->set<double>("maximum", op->get<double>("maximum"));
-            }
-            else
-            {
-                newOp->set<int64_t>("minimum", op->get<int64_t>("minimum"));
-                if (std::find(postOpTypes.begin(), postOpTypes.end(), "Maximum") != postOpTypes.end())
-                    newOp->set<int64_t>("maximum", op->get<int64_t>("maximum"));
-            }
-        }
 
         convs[split] = newTensor;
 

@@ -159,9 +159,13 @@ void fuseUsualPPEFcn(mv::Data::OpListIterator &opIt, mv::ComputationModel &model
     mv::OpModel om(model);
     auto ppeOutputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
     auto parentOpIt = om.getSourceOp(opIt->getInputTensor(0));
-    parentOpIt->set<std::string>("postOpType", opType);
-    if (opType == "LeakyRelu")
-        parentOpIt->set<double>("alpha", opIt->get<double>("alpha"));
+
+    std::vector<std::string> postOpTypes = {};
+    if (parentOpIt->hasAttr("postOpTypes"))
+        postOpTypes = parentOpIt->get<std::vector<std::string>>("postOpTypes");
+
+    postOpTypes.push_back(opType);
+    parentOpIt->set<std::vector<std::string>>("postOpTypes", postOpTypes);
 
     auto sourceTensor = parentOpIt->getOutputTensor(0);
     opIt = linkNewOperationsFuse(parentOpIt, sourceTensor, om, opIt);
@@ -198,7 +202,12 @@ void fuseMinimumFcn(mv::Data::OpListIterator &opIt, mv::ComputationModel &model,
     auto minimumValue = secondInput->at(0);
     auto minimumOutputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
     auto parentOpIt = om.getSourceOp(opIt->getInputTensor(0));
-    parentOpIt->set<std::vector<std::string>>("postOpTypes", {"Minimum"});
+    std::vector<std::string> postOpTypes = {};
+    if (parentOpIt->hasAttr("postOpTypes"))
+        postOpTypes = parentOpIt->get<std::vector<std::string>>("postOpTypes");
+
+    postOpTypes.push_back("Minimum");
+    parentOpIt->set<std::vector<std::string>>("postOpTypes", postOpTypes);
     auto sourceTensor = parentOpIt->getOutputTensor(0);
     if (sourceTensor->getDType() == mv::DType("Float16"))
         parentOpIt->set<double>("Minimum", static_cast<double>(minimumValue));
