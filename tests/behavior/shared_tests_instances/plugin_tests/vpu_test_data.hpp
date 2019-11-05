@@ -6,11 +6,20 @@
 #include <vpu/kmb_plugin_config.hpp>
 
 // correct params
-#define BEH_KMB BehTestParams("kmbPlugin", model_path_fp16, weights_path_fp16, Precision::FP32)
-#define BEH_HETERO BehTestParams("HeteroPlugin", model_path_fp32, weights_path_fp32, Precision::FP32)
+#define BEH_KMB BehTestParams("kmbPlugin", \
+                              convReluNormPoolFcModelFP16.model_xml_str, \
+                              convReluNormPoolFcModelFP16.weights_blob, \
+                              Precision::FP32)
+#define BEH_HETERO BehTestParams("HeteroPlugin", \
+                                 convReluNormPoolFcModelFP32.model_xml_str, \
+                                 convReluNormPoolFcModelFP32.weights_blob, \
+                                 Precision::FP32)
 
 // all parameters are unsupported - reversed
-#define BEH_US_ALL_KMB     BehTestParams("kmbPlugin", model_path_q78, weights_path_q78, Precision::Q78)
+#define BEH_US_ALL_KMB     BehTestParams("kmbPlugin", \
+                                         convReluNormPoolFcModelQ78.model_xml_str, \
+                                         convReluNormPoolFcModelQ78.weights_blob, \
+                                         Precision::Q78)
 
 const BehTestParams supportedValues[] = {
         BEH_KMB,
