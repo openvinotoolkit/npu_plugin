@@ -85,6 +85,7 @@ void convertOpsToDPUTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& 
             auto strides = opIt->get<std::array<unsigned short, 2>>("stride");
             auto padding = opIt->get<std::array<unsigned short, 4>>("padding");
             auto dilationFactor = opIt->get<unsigned>("dilationFactor");
+            opIt->set<bool>("hasWeights", true);
 
             auto name = opIt->getName();
             auto quantParams = opIt->get<mv::QuantizationParams>("quantParams");
@@ -129,6 +130,8 @@ void convertOpsToDPUTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& 
         {
             auto input = opIt->getInputTensor(0);
 
+            opIt->set<bool>("hasWeights", false);
+
             auto strides = opIt->get<std::array<unsigned short, 2>>("stride");
             auto padding = opIt->get<std::array<unsigned short, 4>>("padding");
             auto kernelSize = opIt->get<std::array<unsigned short, 2>>("kSize");
@@ -160,6 +163,7 @@ void convertOpsToDPUTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& 
             auto eltwiseType = opIt->get<std::string>("eltwiseType");
             auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
             auto outputTensorType = opIt->getOutputTensor(0)->get<mv::DType>("dType");
+            opIt->set<bool>("hasWeights", false);
 
             auto input1 = opIt->getInputTensor(0);
             auto input2 = opIt->getInputTensor(1);
