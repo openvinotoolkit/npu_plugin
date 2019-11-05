@@ -375,7 +375,17 @@ std::vector<mv::Element> StrategyManager::convertSparsityStrategyToElement(Criti
 
 void StrategyManager::saveMetaStrategy(CriticalPathNodes& criticalPathNodes)
 {
+    struct {
+        bool operator() (OptimizationGraph::node_list_iterator a,OptimizationGraph::node_list_iterator b) const
+        {
+            auto left = *a;
+            auto right = *b;
 
+            return left["name"].get<string>().compare(right["name"].get<string>()) < 0;
+        }
+    }strategyNameComparator;
+
+    sort(criticalPathNodes.begin(),criticalPathNodes.end(),strategyNameComparator);
     const bool enablePrintStrategyToTerminal = true;
     const bool enableSaveStrategyToDescriptor = true;
     const bool enableSaveStrategyToJsonFile = true;

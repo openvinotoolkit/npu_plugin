@@ -36,6 +36,18 @@ double MetaEdge::operator+(const MetaEdge& other)
     return cost_ + other.cost_;
 }
 
+MetaEdge& MetaEdge::operator+=(const double other)
+{
+    this->cost_ += other;
+    return *this;
+}
+
+MetaEdge& MetaEdge::operator+=(const MetaEdge& other)
+{
+    this->cost_ += other.cost_;
+    return *this;
+}
+
 void MetaEdge::extend(const CriticalPathNodes& childCriticalPath)
 {
     criticalPath_.reserve(criticalPath_.size() + distance(childCriticalPath.begin(),childCriticalPath.end()));
@@ -278,7 +290,7 @@ void MetaGraph::fuseMeta(shared_ptr<MetaGraph> childGraph)
                     const auto cost = criPath.cost;
 
                     //todo::extend with cripath;
-                    (*edge).operator +(cost);
+                    (*edge).operator +=(cost);
                     (*edge).extend(*criPath.nodes);
 
                     edgeCostMap[edge] = (*edge).cost();

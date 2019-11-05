@@ -48,6 +48,8 @@ public:
 
     double operator+(const double other);
     double operator+(const MetaEdge& other);
+    MetaEdge& operator+=(const double other);
+    MetaEdge& operator+=(const MetaEdge& other);
 
     void extend(const CriticalPathNodes& childCriPath);
     const CriticalPathNodes& criticalPaths() const;
