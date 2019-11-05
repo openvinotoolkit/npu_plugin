@@ -40,10 +40,31 @@ namespace mv
             if(dTypeToUse == mv::DType("Default"))
                 dTypeToUse = inputs[0]->getDType();
 
+            // Calculate output shape
+            auto priorboxes = inputs[0];
+            auto image = inputs[1];
+            auto min_sizes = inputs[2];
+            auto max_sizes = inputs[3];
+            auto aspect_ratios = inputs[4];
+            auto num_min_sizes = min_sizes->getShape()[0];
+            auto num_max_sizes = max_sizes->getShape()[0];
+            auto num_aspect_ratios = aspect_ratios->getShape()[0];
+            auto flip = args.at("flip").get<unsigned>();
+            auto clip = args.at("clip").get<unsigned>();
+            //width and height are the size of the priorboxes tensor (i.e. 5x5 or 10x10)
+            auto width = priorboxes->getShape()[0];
+            auto height = priorboxes->getShape()[1];
+
+            auto num_boxes = num_min_sizes + num_max_sizes + num_min_sizes * (num_aspect_ratios * (flip * 2));
+            auto output_buffer_elements = num_boxes * 8 * width * height;
+
+            //Note: follow OpenVINO model output shapes: {xxx,2,1,1}
+            outputShape = {output_buffer_elements/2,2,1,1};
+
             if (args.at("quantParams").get<mv::QuantizationParams>().isEmpty())
-                outputs.push_back(mv::Tensor(":0",  inputShape, dTypeToUse, outputOrder));
+                outputs.push_back(mv::Tensor(":0",  outputShape, dTypeToUse, outputOrder));
             else
-                outputs.push_back(mv::Tensor(":0",  inputShape, dTypeToUse, outputOrder, args.at("quantParams").get<mv::QuantizationParams>()));
+                outputs.push_back(mv::Tensor(":0",  outputShape, dTypeToUse, outputOrder, args.at("quantParams").get<mv::QuantizationParams>()));
 
         };
     }
