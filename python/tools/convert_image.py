@@ -125,7 +125,7 @@ def parse_img(path, new_size, raw_scale=1, mean=None, channel_swap=None, dtype=n
         # Add axis for greyscale images (size 1)
         data = data[:, :, np.newaxis]
 
-    data = skimage.transform.resize(data, new_size[2:], preserve_range=True).astype(dtype)
+    # data = skimage.transform.resize(data, new_size[2:], preserve_range=True).astype(dtype)
     # transpose to channel major format
     data = np.transpose(data, (2, 0, 1))
     data = np.reshape(data, (1, data.shape[0], data.shape[1], data.shape[2]))
@@ -190,7 +190,7 @@ def main():
     
     # images are in NCHW format --> convert it to NCWH format. For whatever reason, this is what
     # Fathom generates as input
-    processed_image = processed_image.transpose([0, 1, 3, 2])
+    # processed_image = processed_image.transpose([0, 1, 3, 2])
 
     transposed_image = transpose_image(processed_image, args.zmajor)
     
