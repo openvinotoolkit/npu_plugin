@@ -61,6 +61,8 @@ if(ENABLE_MCM_COMPILER)
 endif()
 add_subdirectory(thirdparty)
 
+add_subdirectory(tools)
+
 add_subdirectory(src/kmb_plugin)
 
 add_subdirectory(src/utils)
