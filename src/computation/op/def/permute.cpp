@@ -64,9 +64,6 @@ namespace mv
             if (new_order_str[3] != 'N')
                 new_order_str = std::string(new_order_str.rbegin(), new_order_str.rend());
 
-            // Check for explicit permute
-            auto is_explicit = (new_order_str.compare(old_order_str) == 0) ? false : true;
-
             // Permute tensor Shape according to new Order
             // inputShape is WHCN
             // new order is permuted w.r.t. WHCN
