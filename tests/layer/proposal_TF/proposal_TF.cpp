@@ -27,7 +27,7 @@ int main()
     std::vector<uint16_t> imInfoData(3);
 
     // Load weights from file
-    std::string Weights_filename(mv::utils::projectRootPath() + "/tests/layer/proposal/proposal.in2");
+    std::string Weights_filename(mv::utils::projectRootPath() + "/tests/layer/proposal_TF/proposal_TF.in2");
     std::ifstream w_file;
     w_file.open(Weights_filename, std::fstream::in | std::fstream::binary);
     w_file.read((char*)(weightsData.data()), 14*14*48 * sizeof(uint16_t));
@@ -36,7 +36,7 @@ int main()
         weightsData_converted[i] = weightsData[i];
 
     // Load imInfo from file
-    std::string imInfo_filename(mv::utils::projectRootPath() + "/tests/layer/proposal/proposal.in3");
+    std::string imInfo_filename(mv::utils::projectRootPath() + "/tests/layer/proposal_TF/proposal_TF.in3");
     std::ifstream i_file;
     i_file.open(imInfo_filename, std::fstream::in | std::fstream::binary);
     i_file.read((char*)(imInfoData.data()), 3 * sizeof(uint16_t));
