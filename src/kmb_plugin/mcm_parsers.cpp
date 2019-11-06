@@ -980,7 +980,8 @@ void FrontEndMcm::parseReshape(
     // McmCompiler accept only input in WHCN format
     mv::Shape newShape(getWHCN(layerOutput->getTensorDesc()).getDims());
 
-    auto mvReshape = _modelMcm.reshape(inputs[0]->getMcmNode(), newShape, "", layer->name);
+    auto mvReshape = _modelMcm.reshape(inputs[0]->getMcmNode(), newShape, inputs[0]->getMcmNode()->getOrder(),
+                                       mv::DType("Default"), initialQuantParams, layer->name);
     bindOutput(mvReshape, layer->outData[0]);
 
     _logger->debug(FINISH_PARSING_STR, mvReshape->getName());
