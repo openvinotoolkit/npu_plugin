@@ -58,6 +58,81 @@ void setUpPPETasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, 
     }
 }
 
+mv::Data::TensorIterator convertEltwiseToDPUTask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs, const std::map<std::string, mv::Attribute>& attrs, const std::string& name, const std::string&)
+{
+    const std::array<unsigned short, 2> FAKE_KERNEL = {1,1};
+    const std::array<unsigned short, 2> FAKE_STRIDE = {1,1};
+
+    auto eltwiseType = attrs.at("eltwiseType").get<std::string>();
+    auto outputTensorType = attrs.at("dType").get<mv::DType>();
+    auto quantParams = attrs.at("quantParams").get<mv::QuantizationParams>();
+
+    auto dpuElementWise = om.dPUTaskEltwise(inputs, eltwiseType, outputTensorType, quantParams, mv::createDPUTaskName(name));
+    auto dpuElementWiseOp = om.getSourceOp(dpuElementWise);
+    dpuElementWiseOp->set<std::array<unsigned short, 2>>("kSize", FAKE_KERNEL);
+    dpuElementWiseOp->set<std::array<unsigned short, 2>>("stride", FAKE_STRIDE);
+    dpuElementWiseOp->set<bool>("hasWeights", false);
+
+    return dpuElementWise;
+}
+
+mv::Data::TensorIterator convertMaxPoolToDPUTask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs, const std::map<std::string, mv::Attribute>& attrs, const std::string& name, const std::string&)
+{
+    auto input = inputs[0];
+
+    auto strides = attrs.at("stride").get<std::array<unsigned short, 2>>();
+    auto padding = attrs.at("padding").get<std::array<unsigned short, 4>>();
+    auto kernelSize = attrs.at("kSize").get<std::array<unsigned short, 2>>();
+    auto exclude_pad = attrs.at("exclude_pad").get<bool>();
+    auto auto_pad = attrs.at("auto_pad").get<std::string>();
+    auto rounding_type = attrs.at("rounding_type").get<std::string>();
+    auto quantParams = attrs.at("quantParams").get<mv::QuantizationParams>();
+    auto outputTensorType = attrs.at("dType").get<mv::DType>();
+
+    auto dpuPool = om.dPUTaskMaxPool({input}, kernelSize, strides, padding,
+                       exclude_pad, auto_pad, rounding_type, outputTensorType, quantParams, mv::createDPUTaskName(name));
+
+    om.getSourceOp(dpuPool)->set<bool>("hasWeights", false);
+    return dpuPool;
+}
+
+mv::Data::TensorIterator convertConvolutionToDPUTask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs, const std::map<std::string, mv::Attribute>& attrs, const std::string& name, const std::string& opType)
+{
+    auto input = inputs[0];
+    auto kernel = inputs[1];
+
+    auto strides = attrs.at("stride").get<std::array<unsigned short, 2>>();
+    auto padding = attrs.at("padding").get<std::array<unsigned short, 4>>();
+    auto dilationFactor = attrs.at("dilationFactor").get<unsigned>();
+    auto quantParams = attrs.at("quantParams").get<mv::QuantizationParams>();
+    auto outputTensorType = attrs.at("dType").get<mv::DType>();
+
+    unsigned group = 1;
+    if (opType == "Conv")
+        group = attrs.at("group").get<unsigned>();
+
+    mv::Data::TensorIterator dpuConv;
+    if(opType == "Conv")
+        dpuConv = om.dPUTaskConv({input, kernel}, strides, padding, dilationFactor, group, outputTensorType, quantParams, mv::createDPUTaskName(name));
+    else
+        dpuConv = om.dPUTaskDepthwiseConv({input, kernel}, strides, padding, dilationFactor, outputTensorType, quantParams, mv::createDPUTaskName(name));
+
+    auto dpuConvOp = om.getSourceOp(dpuConv);
+    dpuConvOp->set<bool>("hasWeights", true);
+
+    // NOTE: If we want to get rid of ChannelMajorConvolution we have to act here
+    if(opType == "Conv")
+    {
+        if(kernel->getShape()[mv::KERNEL_INPUT_CHANNELS] < 16)
+        {
+            dpuConvOp->erase("taskOp");
+            dpuConvOp->set<std::string>("taskOp", "ChannelMajorConvolution");
+        }
+    }
+
+    return dpuConv;
+}
+
 void convertOpsToDPUTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
 
@@ -65,134 +140,39 @@ void convertOpsToDPUTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& 
     mv::OpModel om(model);
     mv::ControlModel cm(model);
 
-    const std::array<unsigned short, 2> FAKE_KERNEL = {1,1};
-    const std::array<unsigned short, 2> FAKE_STRIDE = {1,1};
+    std::vector<std::string> opsTypesToConvert = {"Conv", "DepthwiseConv", "Eltwise", "MaxPool"};
+    auto opsToConvert = om.getOpsOfTypes(opsTypesToConvert);
 
-    // Pass main assumption is that we are working on the original graph (just AveragePooling substituted)
+    std::unordered_map<std::string, std::function<mv::Data::TensorIterator(mv::OpModel&, const std::vector<mv::Data::TensorIterator>&, const std::map<std::string, mv::Attribute>&, const std::string&, const std::string&)>> opsFunctors;
+    opsFunctors["Conv"] = convertConvolutionToDPUTask;
+    opsFunctors["DepthwiseConv"] = convertConvolutionToDPUTask;
+    opsFunctors["Eltwise"] = convertEltwiseToDPUTask;
+    opsFunctors["MaxPool"] = convertMaxPoolToDPUTask;
 
-    // While loop is preferred in a loop like this were we are performing eliminations
-    // as it gives more flexibility on when to increment the iterator
-    auto opIt = om.getInput();
-    while (opIt != om.opEnd())
+    for(auto& opType: opsTypesToConvert)
     {
-        std::string opType = opIt->getOpType();
-
-        if (opType == "Conv" || opType == "DepthwiseConv")
+        auto ops = opsToConvert[opType];
+        for(auto& opIt: ops)
         {
-            auto input = opIt->getInputTensor(0);
-            auto kernel = opIt->getInputTensor(1);
-
-            auto strides = opIt->get<std::array<unsigned short, 2>>("stride");
-            auto padding = opIt->get<std::array<unsigned short, 4>>("padding");
-            auto dilationFactor = opIt->get<unsigned>("dilationFactor");
-            opIt->set<bool>("hasWeights", true);
-
             auto name = opIt->getName();
-            auto quantParams = opIt->get<mv::QuantizationParams>("quantParams");
-            auto outputTensorType = opIt->getOutputTensor(0)->get<mv::DType>("dType");
-            auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
-
-            unsigned group = 1;
-            if (opType == "Conv")
-                group = opIt->get<unsigned>("group");
             auto attrsToCopy = opIt->getAttrs();
-
-            auto inputControlFlows = mv::getInputControlFlow(cm, cm.switchContext(opIt));
-            auto outputControlFlows = mv::getOutputControlFlow(cm, cm.switchContext(opIt));
-            auto outputDataFlows = mv::getOutputDataFlow(om, opIt);
-
-            mv::Data::TensorIterator dpuConv;
-            if(opType == "Conv")
-                dpuConv = om.dPUTaskConv({input, kernel}, strides, padding, dilationFactor, group, outputTensorType, quantParams, mv::createDPUTaskName(name));
-            else
-                dpuConv = om.dPUTaskDepthwiseConv({input, kernel}, strides, padding, dilationFactor, outputTensorType, quantParams, mv::createDPUTaskName(name));
-
-            dpuConv->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
-            auto dpuConvOp = om.getSourceOp(dpuConv);
-
-            dpuConvOp->setAttrs(attrsToCopy);
-            setOutputDataFlow(om, dpuConv, outputDataFlows);
-            setInputControlFlow(cm, cm.switchContext(dpuConvOp), inputControlFlows);
-            setOutputControlFlow(cm, cm.switchContext(dpuConvOp), outputControlFlows);
-
-            // NOTE: If we want to get rid of ChannelMajorConvolution we have to act here
-            if(opType == "Conv")
-            {
-                if(kernel->getShape()[mv::KERNEL_INPUT_CHANNELS] < 16)
-                {
-                    dpuConvOp->erase("taskOp");
-                    dpuConvOp->set<std::string>("taskOp", "ChannelMajorConvolution");
-                }
-            }
-
-        }
-        else if (opType == "MaxPool")
-        {
-            auto input = opIt->getInputTensor(0);
-
-            opIt->set<bool>("hasWeights", false);
-
-            auto strides = opIt->get<std::array<unsigned short, 2>>("stride");
-            auto padding = opIt->get<std::array<unsigned short, 4>>("padding");
-            auto kernelSize = opIt->get<std::array<unsigned short, 2>>("kSize");
-            auto exclude_pad = opIt->get<bool>("exclude_pad");
-            auto auto_pad = opIt->get<std::string>("auto_pad");
-            auto rounding_type = opIt->get<std::string>("rounding_type");
-            auto name = opIt->getName();
-            auto quantParams = opIt->get<mv::QuantizationParams>("quantParams");
-            auto outputTensorType = opIt->getOutputTensor(0)->get<mv::DType>("dType");
-            auto attrsToCopy = opIt->getAttrs();
+            auto inputs = opIt->getInputTensor();
             auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
 
             auto inputControlFlows = mv::getInputControlFlow(cm, cm.switchContext(opIt));
             auto outputControlFlows = mv::getOutputControlFlow(cm, cm.switchContext(opIt));
             auto outputDataFlows = mv::getOutputDataFlow(om, opIt);
 
-            auto dpuPool = om.dPUTaskMaxPool({input}, kernelSize, strides, padding,
-                               exclude_pad, auto_pad, rounding_type, outputTensorType, quantParams, mv::createDPUTaskName(name));
-            auto dpuPoolOp = om.getSourceOp(dpuPool);
-            dpuPool->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
+            auto newTensor = opsFunctors[opType](om, inputs, attrsToCopy, name, opType);
 
-            dpuPoolOp->setAttrs(attrsToCopy);
-            setOutputDataFlow(om, dpuPool, outputDataFlows);
-            setInputControlFlow(cm, cm.switchContext(dpuPoolOp), inputControlFlows);
-            setOutputControlFlow(cm, cm.switchContext(dpuPoolOp), outputControlFlows);
+            newTensor->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
+            auto newTensorOp = om.getSourceOp(newTensor);
+
+            newTensorOp->setAttrs(attrsToCopy);
+            setOutputDataFlow(om, newTensor, outputDataFlows);
+            setInputControlFlow(cm, cm.switchContext(newTensorOp), inputControlFlows);
+            setOutputControlFlow(cm, cm.switchContext(newTensorOp), outputControlFlows);
         }
-        else if (opType == "Eltwise")
-        {
-            auto eltwiseType = opIt->get<std::string>("eltwiseType");
-            auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
-            auto outputTensorType = opIt->getOutputTensor(0)->get<mv::DType>("dType");
-            opIt->set<bool>("hasWeights", false);
-
-            auto input1 = opIt->getInputTensor(0);
-            auto input2 = opIt->getInputTensor(1);
-            std::vector<mv::Data::TensorIterator> inputs;
-            inputs.push_back(input1);
-            inputs.push_back(input2);
-            auto name = opIt->getName();
-            auto quantParams = opIt->get<mv::QuantizationParams>("quantParams");
-
-            auto attrsToCopy = opIt->getAttrs();
-            auto inputControlFlows = mv::getInputControlFlow(cm, cm.switchContext(opIt));
-            auto outputControlFlows = mv::getOutputControlFlow(cm, cm.switchContext(opIt));
-            auto outputDataFlows = mv::getOutputDataFlow(om, opIt);
-
-            auto dpuElementWise = om.dPUTaskEltwise(inputs, eltwiseType, outputTensorType, quantParams, mv::createDPUTaskName(name));
-            dpuElementWise->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
-
-            auto dpuElementWiseOp = om.getSourceOp(dpuElementWise);
-            dpuElementWiseOp->setAttrs(attrsToCopy);
-
-            dpuElementWiseOp->set<std::array<unsigned short, 2>>("kSize", FAKE_KERNEL);
-            dpuElementWiseOp->set<std::array<unsigned short, 2>>("stride", FAKE_STRIDE);
-
-            mv::setOutputDataFlow(om, dpuElementWise, outputDataFlows);
-            setInputControlFlow(cm, cm.switchContext(dpuElementWiseOp), inputControlFlows);
-            setOutputControlFlow(cm, cm.switchContext(dpuElementWiseOp), outputControlFlows);
-        }
-        else
-            ++opIt;
     }
 }
 
