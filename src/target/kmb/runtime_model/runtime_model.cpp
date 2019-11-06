@@ -1619,30 +1619,10 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAPermuteTask(ComputationModel& c
     toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_PermuteParams;
     auto softLayerParamsValue = new MVCNN::PermuteParamsT();
 
-    // Convert permute order to axes
-    auto new_order = opIt->get<mv::Order>("order");
-    auto old_order = input->getOrder();
-    auto old_order_str = old_order.toString();
-    auto new_order_str = new_order.toString();
-
-    // Correct order of strings if necessary
-    if (old_order_str[0] != 'N')
-        old_order_str = std::string(old_order_str.rbegin(), old_order_str.rend());
-
-    if (new_order_str[0] != 'N')
-        new_order_str = std::string(new_order_str.rbegin(), new_order_str.rend());
-
-    std::vector<unsigned> permute_order(3);
-    for (auto i=0; i < 3; i++)
-    {
-        for (auto j=0; j < 3; j++)
-        {
-            if (new_order_str[i+1] == old_order_str[j+1])
-                permute_order.at(i) = j;
-        }
-
-    }
-    std::unique_ptr<MVCNN::order3> order3 = std::unique_ptr<MVCNN::order3>(new MVCNN::order3(permute_order.at(0), permute_order.at(1), permute_order.at(2)));
+    auto x = opIt->get<unsigned>("permute_order_x");
+    auto y = opIt->get<unsigned>("permute_order_y");
+    auto z = opIt->get<unsigned>("permute_order_z");
+    std::unique_ptr<MVCNN::order3> order3 = std::unique_ptr<MVCNN::order3>(new MVCNN::order3(x,y,z));
     softLayerParamsValue->permute_order = std::move(order3);
 
     toBuild->softLayerParams.value = softLayerParamsValue;
