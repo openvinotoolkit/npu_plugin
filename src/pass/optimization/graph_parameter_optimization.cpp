@@ -352,7 +352,7 @@ namespace mv
                 //naively emulate the workload cost
                 //TODO: find cleaner solution
                 unsigned baseKernelCost;
-                if ((opType == "Add") or (opType == "Concat"))
+                if ((opType == "Eltwise") or (opType == "Concat"))
                 {
                     baseKernelCost = 1;
                 }
