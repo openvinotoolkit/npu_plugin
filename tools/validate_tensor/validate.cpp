@@ -30,6 +30,9 @@ const int8_t FAIL_RUNTIME    = 4;  // Runtime fails to generate results file    
 const int8_t FAIL_VALIDATION = 5;  // Correctness Error between results files
 const int8_t FAIL_ERROR      = 9;  // Error occured during run, check log
 
+// files used
+const std::string FILE_CONVERTED_IMAGE      = "./converted_image.dat";
+
 
 bool ParseAndCheckCommandLine(int argc, char *argv[]) 
 {
@@ -68,6 +71,8 @@ bool ParseAndCheckCommandLine(int argc, char *argv[])
 
 std::string findBlob(std::string folderPath)
 {
+    // OpenVino blob is written to locations based on input xml.
+    // Its probably DLDT/bin/intel64/Debug/release_kmb/release_kmb
     std::string blobPath("");
     if (auto dir = opendir(folderPath.c_str())) 
     {
@@ -130,6 +135,7 @@ bool compare(std::vector<float>& actualResults, std::vector<float>& expectedResu
 
 bool checkFilesExist(std::vector<std::string> filepaths)
 {
+    //checks if files in the supplied vector exist
     for(std::string fPath : filepaths)
     {
         struct stat buffer;
@@ -249,6 +255,11 @@ int convertBlobToJson(std::string blobPath)
 {
     // convert blob to json
     std::cout << "Converting blob to json... " << std::endl;
+    // Clean old file
+    std::cout << "Deleting old json... " << std::endl;
+    std::string outputFile = getFilename(blobPath) + std::string(".json");
+    remove(outputFile.c_str());
+
     std::string commandline = std::string("flatc -t ") + mv::utils::projectRootPath() +
         std::string("/schema/graphfile/src/schema/graphfile.fbs --strict-json -- ") + blobPath;
     std::cout << commandline << std::endl;
@@ -258,8 +269,10 @@ int convertBlobToJson(std::string blobPath)
         std::cout << "Error occurred trying to convert blob to json. Please check Flatc in path and graphfiles" << std::endl;
         return FAIL_GENERAL;
     }
-    else
-        return RESULT_SUCCESS;
+    if (!checkFilesExist({outputFile}))
+         return FAIL_ERROR;
+    
+    return RESULT_SUCCESS;
 }
 
 int validate(std::string blobPath, std::string expectedPath, std::string actualPath)
@@ -347,6 +360,11 @@ int validate(std::string blobPath, std::string expectedPath, std::string actualP
 
 int convertImage(std::string imagePath, std::string blobPath)
 {
+    // Clean old file
+    std::cout << "Deleting old input... " << std::endl;
+    std::string outputFile = "./converted_image.dat";
+    remove(outputFile.c_str());
+
     // load json and read quantization values: scale and zeropoint
     std::string json_file = getFilename(blobPath) + std::string(".json");
     std::ifstream ifile(json_file);
@@ -382,11 +400,19 @@ int convertImage(std::string imagePath, std::string blobPath)
         std::cout << "Error occured converting image using python script";
         return FAIL_ERROR;
     }
+    if (!checkFilesExist({outputFile}))
+         return FAIL_ERROR;
+
     return RESULT_SUCCESS;    
 }
 
 int postProcessActualResults(std::string resultsPath, std::string blobPath)
 {
+    // Clean old file
+    std::cout << "Deleting old output... " << std::endl;
+    std::string outputFile = "./output_transposed.dat";
+    remove(outputFile.c_str());
+    
     // load json to read output size and ch/z major transpose
     std::string json_file = getFilename(blobPath) + std::string(".json");
     std::ifstream ifile(json_file);
@@ -421,6 +447,9 @@ int postProcessActualResults(std::string resultsPath, std::string blobPath)
         std::cout << "Error occured converting image using python script";
         return FAIL_ERROR;
     }
+    if (!checkFilesExist({outputFile}))
+         return FAIL_ERROR;
+
     return RESULT_SUCCESS;    
 }
 
