@@ -531,13 +531,14 @@ std::vector<long unsigned int> packToInt64(const std::vector<T>& origData, mv::D
     unsigned origDataSize = dtype.getSizeInBits();
 
     unsigned nElementToPack = 64 / origDataSize;
-    unsigned finalLength = dataSize / nElementToPack;
+    unsigned finalLength = mv::ceil_division(dataSize , nElementToPack);
 
     std::vector<long unsigned int> toReturn(finalLength, 0);
 
     for(unsigned i = 0; i < finalLength; ++i)
         for(unsigned j = 0; j < nElementToPack; ++j)
-            toReturn[i] ^= origData[i*nElementToPack + j] << (j * origDataSize);
+            if ((i*nElementToPack + j) < dataSize)
+                toReturn[i] ^= origData[i*nElementToPack + j] << (j * origDataSize);
 
     return toReturn;
 }
