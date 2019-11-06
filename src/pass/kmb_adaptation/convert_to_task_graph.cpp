@@ -713,6 +713,31 @@ void convertOpsToUPATasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& 
             upaPermuteOp->set<unsigned>("opId", opId);
             upaPermuteOp->set<std::string>("splitStrategy", splitStrategy);
 
+            // Correct order of strings if necessary
+            auto old_order_str = input->getOrder().toString();
+            auto new_order_str = order.toString();
+
+            if (old_order_str[0] != 'N')
+                old_order_str = std::string(old_order_str.rbegin(), old_order_str.rend());
+
+            if (new_order_str[0] != 'N')
+                new_order_str = std::string(new_order_str.rbegin(), new_order_str.rend());
+
+            // Convert permute order to axes
+            std::vector<unsigned> permute_order(3);
+            for (auto i=0; i < 3; i++)
+            {
+                for (auto j=0; j < 3; j++)
+                {
+                    if (new_order_str[i+1] == old_order_str[j+1])
+                        permute_order.at(i) = j;
+                }
+
+            }
+            upaPermuteOp->set<unsigned>("permute_order_x", permute_order.at(0));
+            upaPermuteOp->set<unsigned>("permute_order_y", permute_order.at(1));
+            upaPermuteOp->set<unsigned>("permute_order_z", permute_order.at(2));
+
             upaPermute->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
             setOutputDataFlow(om, upaPermute, outputDataFlows);
             setInputControlFlow(cm, cm.switchContext(upaPermuteOp), inputControlFlows);
