@@ -124,9 +124,8 @@
         "Singular": [
             "ConcatAsImplicit",
             "StoreWorkloadStrategy",
-            "ConvertOpsToDPUTasks",
+            "ConvertOpsToTasks",
             "SetUpPPETasks",
-            "ConvertOpsToUPATasks",
             "ForceSerialize",
             "KMBOrderConversion",
             "AlignUnpopulatedTensors",

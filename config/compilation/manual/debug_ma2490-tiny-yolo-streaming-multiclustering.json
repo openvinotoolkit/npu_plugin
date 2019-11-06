@@ -259,8 +259,7 @@
         "Singular": [
             "ConcatAsImplicit",
             "StoreWorkloadStrategy",
-            "ConvertOpsToDPUTasks",
-            "ConvertOpsToUPATasks",
+            "ConvertOpsToTasks",
             "ForceSerialize",
             "KMBOrderConversion",
             "AlignTo16Channels",
