@@ -111,6 +111,8 @@ bool compare(std::vector<float>& actualResults, std::vector<float>& expectedResu
         return false;
 
     size_t maxErr = 0;
+    float countErrs = 0;
+    size_t sumDiff = 0;
     std::function<void(size_t)> absoluteErrorUpdater = [&](size_t idx) {
         float actual = actualResults[idx];
         float expected = expectedResults[idx];
@@ -119,15 +121,24 @@ bool compare(std::vector<float>& actualResults, std::vector<float>& expectedResu
         std::string result = "\tpass";
         if (abs_error > abs_allowed_err) 
         {
+            countErrs++;
+            sumDiff+=abs_error;
             if (abs_error > maxErr) maxErr = abs_error;
             result = "\tfail";
         }
-        if (idx < 250 && idx > 200) // print first 50 rows
+        if (idx < 50) // print first 50 rows
             std::cout << expected << "\t" << actual << "\t" << abs_error << "\t" << abs_allowed_err << "\t"  << result << std::endl;
     };
     std::cout << "Printing first 50 rows...\nExp\tActual\tdiff\ttolerence\tresult" << std::endl;
     for (size_t n = 0; n < expectedResults.size(); ++n) 
         absoluteErrorUpdater(n);
+
+    //print results report
+    std::cout << "\nMetric\t\t\tActual\tThreshold\tStatus" << std::endl << "----------------------  ------  ---------\t-------" << std::endl;
+    //printf("Incorrect Values %10s %10s %10s \033[0m\n", ((countErrs/actualResults.size()) * 100), std::to_string(tolerance), ((countErrs==0) ? "\033[1;32mPass" : "\033[1;31mFail")) ;
+    std::cout << "Incorrect Values\t" << ((countErrs/actualResults.size()) * 100) << "%\t" << tolerance << "%\t" << ((countErrs==0) ? "\033[1;32mPass" : "\033[1;31mFail") << "\033[0m" << std::endl;
+    std::cout << "Highest Difference\t" << maxErr << "\t\t0\t" << ((maxErr==0) ? "\033[1;32mPass" : "\033[1;31mFail") << "\033[0m" << std::endl;
+    std::cout << "Global Sum Difference\t" << sumDiff << "\t0\t" << ((sumDiff==0) ? "\033[1;32mPass" : "\033[1;31mFail") << "\033[0m" << std::endl << std::endl;
 
     if (maxErr == 0) return true;
     else return false;
