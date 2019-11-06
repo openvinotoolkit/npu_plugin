@@ -9,7 +9,7 @@ import re
 # Changes the order of channels in an input image. Taken from original Fathom project
 #
 # command:
-#   python3 convert_image.py --image <path to image> --shape 1,3,16,16
+#   python3 convert_image.py --image <path to image> --shape N,C,H,W
 
 
 # Apply scale, mean, and channel_swap to array
@@ -63,7 +63,7 @@ def preprocess_img(data, raw_scale=1, mean=None, channel_swap=None):
             throw_error(ErrorTable.InvalidMean, mean)
     return data
 
-def parse_img(path, new_size, raw_scale=1, mean=None, channel_swap=None, dtype=np.float16):
+def parse_img(path, new_size, raw_scale=1, mean=None, channel_swap=None, dtype=np.uint8):
     """
     Parse an image with the Python Imaging Libary and convert to 4D numpy array
 
@@ -77,60 +77,40 @@ def parse_img(path, new_size, raw_scale=1, mean=None, channel_swap=None, dtype=n
     import skimage.io
     import skimage.transform
 
-    if path == "None" or path is None:
-        return np.ones(new_size)
-
-    if path == "None" or path is None:
-        print("No Image Detected, Using Array of Ones")
-        return np.ones(new_size)
-
     if path.split(".")[-1].lower() in ["png", "jpeg", "jpg", "bmp", "gif"]:
-
-        greyscale = True if new_size[1] == 1 else False
-        if dtype in [np.uint8, np.int8]:
-            data = skimage.img_as_ubyte(
-                skimage.io.imread(
-                    path, as_gray=greyscale)).astype(
-                dtype)
-        else:
-            data = skimage.img_as_float(
-                skimage.io.imread(
-                    path, as_gray=greyscale)).astype(
-                np.float32)
-
-    elif path.split(".")[-1] in ["npy"]:
-        im = np.load(path)
-
-        if (len(im.shape) == 2):
-            if(im.shape[0] != new_size[2] or im.shape[1] != new_size[3]):
-                throw_error(ErrorTable.InvalidInputFile)
-        elif (len(im.shape) == 3):
-            if(im.shape[0] != new_size[2] or im.shape[1] != new_size[3]):
-                throw_error(ErrorTable.InvalidInputFile)
-        else:
-            throw_error(ErrorTable.InvalidInputFile)
-        data = np.asarray(im)
-
-    elif path.split(".")[-1] in ["mat"]:
-        print("Filetype not officially supported use at your own peril: MAT File")
-        import scipy.io
-        im = scipy.io.loadmat(path)
-        data = np.asarray(im)
-
+        # greyscale = True if new_size[1] == 1 else False
+        # if dtype in [np.uint8, np.int8]:
+        #     data = skimage.img_as_ubyte(
+        #         skimage.io.imread(
+        #             path, as_gray=greyscale)).astype(
+        #         dtype)
+        # else:
+        #     data = skimage.img_as_float(
+        #         skimage.io.imread(
+        #             path, as_gray=greyscale)).astype(
+        #         np.float32)
+        data = cv2.imread(path, cv2.IMREAD_UNCHANGED)
     else:
-        print("Unsupported")
-        throw_error(ErrorTable.InputFileUnsupported)
+        throw_error("Exception: Unsupported image type")
 
     if (len(data.shape) == 2):
         # Add axis for greyscale images (size 1)
         data = data[:, :, np.newaxis]
 
+    # this line seems to be troublesome, stripping values from data
     # data = skimage.transform.resize(data, new_size[2:], preserve_range=True).astype(dtype)
+    
+    # resize image
+    if data.shape[2] != new_size[2]:
+        print("Resizing image from " + str(data.shape) + " to (" + str(new_size[2]) + ", " + str(new_size[3]) + ", " + str(new_size[1]) + ")")
+        dim = (new_size[2], new_size[3])
+        data = cv2.resize(data, dim, interpolation = cv2.INTER_AREA)
+    
     # transpose to channel major format
     data = np.transpose(data, (2, 0, 1))
     data = np.reshape(data, (1, data.shape[0], data.shape[1], data.shape[2]))
 
-    data = preprocess_img(data, raw_scale, mean, channel_swap)
+    #data = preprocess_img(data, raw_scale, mean, channel_swap)
 
     return data
 

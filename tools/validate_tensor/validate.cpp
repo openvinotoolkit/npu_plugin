@@ -142,7 +142,7 @@ bool compare(std::vector<float>& actualResults, std::vector<float>& expectedResu
     //printf("Incorrect Values %10s %10s %10s \033[0m\n", ((countErrs/actualResults.size()) * 100), std::to_string(tolerance), ((countErrs==0) ? "\033[1;32mPass" : "\033[1;31mFail")) ;
     std::cout << "Incorrect Values\t" << ((countErrs/actualResults.size()) * 100) << "%\t\t" << tolerance << "%\t" << ((countErrs==0) ? "\033[1;32mPass" : "\033[1;31mFail") << "\033[0m" << std::endl;
     std::cout << "Highest Difference\t" << maxErr << "\t\t0\t" << ((maxErr==0) ? "\033[1;32mPass" : "\033[1;31mFail") << "\033[0m" << std::endl;
-    std::cout << "Global Sum Difference\t" << sumDiff << "\t0\t" << ((sumDiff==0) ? "\033[1;32mPass" : "\033[1;31mFail") << "\033[0m" << std::endl << std::endl;
+    std::cout << "Global Sum Difference\t" << sumDiff << "\t\t0\t" << ((sumDiff==0) ? "\033[1;32mPass" : "\033[1;31mFail") << "\033[0m" << std::endl << std::endl;
 
     if (maxErr == 0) return true;
     else return false;
@@ -364,8 +364,7 @@ int validate(std::string blobPath, std::string expectedPath, std::string actualP
     // compare
     bool pass = false;
     pass = compare(outputFP32, expectedFP32, FLAGS_t);
-    std::cout << "Validation status: " << ((pass) ? "true" : "false"); 
-    std::cout << std:: endl;
+    std::cout << "Validation status: " << ((pass) ? "\033[1;32mPass" : "\033[1;31mFail") << "\033[0m" << std::endl; 
     if (pass)
         return RESULT_SUCCESS;
     else 
