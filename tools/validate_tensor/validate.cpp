@@ -31,7 +31,11 @@ const int8_t FAIL_VALIDATION = 5;  // Correctness Error between results files
 const int8_t FAIL_ERROR      = 9;  // Error occured during run, check log
 
 // files used
-const std::string FILE_CONVERTED_IMAGE      = "./converted_image.dat";
+const std::string FILE_CONVERTED_IMAGE  = "converted_image.dat";
+const std::string FILE_CPU_OUTPUT       = "output_cpu.bin";
+const std::string DLDT_BIN_FOLDER       = "/bin/intel64/Debug/";
+const std::string DLDT_BLOB_LOCATION    = "/release_kmb/release_kmb/";
+
 
 
 bool ParseAndCheckCommandLine(int argc, char *argv[]) 
@@ -136,7 +140,7 @@ bool compare(std::vector<float>& actualResults, std::vector<float>& expectedResu
     //print results report
     std::cout << "\nMetric\t\t\tActual\tThreshold\tStatus" << std::endl << "----------------------  ------  ---------\t-------" << std::endl;
     //printf("Incorrect Values %10s %10s %10s \033[0m\n", ((countErrs/actualResults.size()) * 100), std::to_string(tolerance), ((countErrs==0) ? "\033[1;32mPass" : "\033[1;31mFail")) ;
-    std::cout << "Incorrect Values\t" << ((countErrs/actualResults.size()) * 100) << "%\t" << tolerance << "%\t" << ((countErrs==0) ? "\033[1;32mPass" : "\033[1;31mFail") << "\033[0m" << std::endl;
+    std::cout << "Incorrect Values\t" << ((countErrs/actualResults.size()) * 100) << "%\t\t" << tolerance << "%\t" << ((countErrs==0) ? "\033[1;32mPass" : "\033[1;31mFail") << "\033[0m" << std::endl;
     std::cout << "Highest Difference\t" << maxErr << "\t\t0\t" << ((maxErr==0) ? "\033[1;32mPass" : "\033[1;31mFail") << "\033[0m" << std::endl;
     std::cout << "Global Sum Difference\t" << sumDiff << "\t0\t" << ((sumDiff==0) ? "\033[1;32mPass" : "\033[1;31mFail") << "\033[0m" << std::endl << std::endl;
 
@@ -164,22 +168,22 @@ int runEmulator(std::string pathXML, std::string pathImage, std::string& blobPat
     //
     // Clean any old files
     std::cout << "Deleting old emulator results files... " << std::endl;
-    std::string binFolder = std::getenv("DLDT_HOME") + std::string("/bin/intel64/Debug/");
+    std::string binFolder = std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER;
     std::vector<std::string> filesDelete = {"output_cpu.bin", "input-0.bin"};
     for (std::string fDelete : filesDelete)
         remove((binFolder + fDelete).c_str());
     
     do
     {   //delete any previous blobs (different names each time)
-        blobPath = findBlob(std::getenv("DLDT_HOME") + std::string("/bin/intel64/Debug/release_kmb/release_kmb/"));
-        std::string fullBlobPath = binFolder + "release_kmb/release_kmb/" + blobPath;
+        blobPath = findBlob(std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + DLDT_BLOB_LOCATION);
+        std::string fullBlobPath = binFolder + DLDT_BLOB_LOCATION + blobPath;
         std::cout << "Removing: " << fullBlobPath << std::endl;
         remove(fullBlobPath.c_str());
     } while (blobPath != "");
     
     // execute the classification sample async (CPU-plugin)
     std::cout << "Generating reference results... " << std::endl;
-    std::string commandline = std::string("cd ") + std::getenv("DLDT_HOME") + "/bin/intel64/Debug  && " + 
+    std::string commandline = std::string("cd ") + std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + "  && " + 
         "./classification_sample_async -m " + pathXML + " -i " + pathImage + " -d CPU";
     std::cout << commandline << std::endl; 
     int returnVal = std::system(commandline.c_str());
@@ -188,13 +192,13 @@ int runEmulator(std::string pathXML, std::string pathImage, std::string& blobPat
         std::cout << std::endl << "Error occurred running the classification_sample_async (CPU mode)!" << std::endl;
         return FAIL_ERROR;
     }
-    if (!checkFilesExist( {std::getenv("DLDT_HOME") + std::string("/bin/intel64/Debug/output_cpu.bin")} ))
+    if (!checkFilesExist( {std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_CPU_OUTPUT} ))
         return FAIL_CPU_PLUGIN;
 
     //
     // execute the classification sample async (KMB-plugin)
     std::cout << "Generating mcm blob through kmb-plugin... " << std::endl;
-    commandline = std::string("cd ") + std::getenv("DLDT_HOME") + "/bin/intel64/Debug  && " + 
+    commandline = std::string("cd ") + std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + " && " + 
         "./classification_sample_async -m " + pathXML + " -i " + pathImage + " -d KMB";
     std::cout << commandline << std::endl;
     std::system(commandline.c_str());
@@ -204,13 +208,13 @@ int runEmulator(std::string pathXML, std::string pathImage, std::string& blobPat
         return FAIL_ERROR;
     }
     
-    blobPath = findBlob(std::getenv("DLDT_HOME") + std::string("/bin/intel64/Debug/release_kmb/release_kmb/"));
+    blobPath = findBlob(std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + DLDT_BLOB_LOCATION);
     if (blobPath == "")
     {
-        std::cout << "Error! Couldn't find the generated blob in " << std::getenv("DLDT_HOME") << "/bin/intel64/Debug/release_kmb/release_kmb/" << std::endl;
+        std::cout << "Error! Couldn't find the generated blob in " << std::getenv("DLDT_HOME") << DLDT_BIN_FOLDER << DLDT_BLOB_LOCATION << std::endl;
         return FAIL_COMPILER;
     }
-    blobPath = std::getenv("DLDT_HOME") + std::string("/bin/intel64/Debug/release_kmb/release_kmb/") + blobPath;
+    blobPath = std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + DLDT_BLOB_LOCATION + blobPath;
     return RESULT_SUCCESS;
 }
 
@@ -237,9 +241,8 @@ int runKmbInference(std::string evmIP, std::string blobPath)
 
     //
     // copy the required files to InferenceManagerDemo folder
-    std::string inputSrc = "./converted_image.dat";
     std::string inputDest = std::getenv("VPUIP_HOME") + std::string("/application/demo/InferenceManagerDemo/input-0.bin");
-    if (!copyFile(inputSrc, inputDest))
+    if (!copyFile(FILE_CONVERTED_IMAGE, inputDest))
         return FAIL_GENERAL;
     
     std::string blobDest = std::getenv("VPUIP_HOME") + std::string("/application/demo/InferenceManagerDemo/test.blob");
