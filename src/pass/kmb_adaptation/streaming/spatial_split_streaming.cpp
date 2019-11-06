@@ -262,6 +262,8 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model, mv::Dat
     auto kernelTensor = op->getInputTensor(1);
     auto outputTensor = op->getOutputTensor(0);
 
+    auto attrsToCopy = op->getAttrs({"stride", "padding", "shape", "bias"});
+
     mv::QuantizationParams quantParams = {{},{},{},{}};
     if(inputTensor->hasAttr("quantParams"))
         quantParams = inputTensor->get<mv::QuantizationParams>("quantParams");
@@ -347,11 +349,7 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model, mv::Dat
         auto newOp = om.getSourceOp(conv);
 
         newOp->set<bool>("splitted",true);//TODO::temporary hack. To remove once the iteration conditions are updated
-        newOp->set<unsigned>("opId",opId);
-        newOp->set<std::string>("splitStrategy", splitStrategy);
-        newOp->set<bool>("inputActivationSparsity", op->get<bool>("inputActivationSparsity"));
-        newOp->set<bool>("outputActivationSparsity", op->get<bool>("outputActivationSparsity"));
-        newOp->set<bool>("weightsSparsity", op->get<bool>("weightsSparsity"));
+        newOp->setAttrs(attrsToCopy);
 
         slices[split] = slice;
         convs[split] = conv;
