@@ -1,0 +1,99 @@
+{
+    "model": {
+        "name": "tiny_yolo_v2_uint8_uint8_weights_pertensor",
+        "model": "<ORIGINAL_MODEL>",
+        "tensorflow_use_custom_operations_config": "yolo_v1_v2.json",
+        "inputs": [{
+                "name": "data",
+                "format": "BGR",
+                "input_shape": [1,416,416,3]
+        }],
+        "outputs": [
+            {
+                "name": "output_openvino"
+            }
+        ]
+    },
+    "engine": {
+        "launchers": [
+            {
+                "framework": "dlsdk",
+                "device": "CPU",
+                "adapter": {
+                    "type":"yolo_v2",
+                    "anchors": "tiny_yolo_v2"
+                }
+            }
+        ],
+        "datasets": [
+            {
+                "name": "<DATASET_PATH>",
+                "data_source": "<DATASET_PATH>/JPEGImages",
+                "annotation_conversion": {
+                    "converter": "voc_detection",
+                    "has_background": false,
+                    "annotations_dir": "<DATASET_PATH>/Annotations",
+                    "images_dir": "<DATASET_PATH>/JPEGImages",
+                    "imageset_file": "<DATASET_PATH>/ImageSets/Main/test.txt"
+                },
+                "preprocessing":[
+                    {
+                        "type": "resize",
+                        "size": 416,
+                        "interpolation": "LINEAR"
+                    }
+                ],
+                "postprocessing":[
+                    {
+                        "type": "filter",
+                        "apply_to": "prediction",
+                        "min_confidence": 0.01,
+                        "remove_filtered": true
+                    },
+                    {
+                        "type": "nms",
+                        "overlap": 0.5,
+                        "include_boundaries": false
+                    },
+                    {
+                        "type": "resize_prediction_boxes"
+                    },
+                    {
+                        "type": "clip_boxes",
+                        "apply_to": "prediction"
+                    }
+                ],
+                "metrics": [
+                    {
+                        "type": "map",
+                        "ignore_difficult": true,
+                        "include_boundaries": true,
+                        "allow_multiple_matches_per_ignored": true,
+                        "presenter": "print_scalar"
+                    }
+                ]
+            }
+        ]
+    },
+    "compression": {
+        "target_device": "CPU",
+        "algorithms": [
+            {
+            "name": "NaiveQuantization",
+            "params": {
+                "stat_subset_size": 1000,
+                "weights": {
+                    "bits": 8,
+                    "type": "asymmetric",
+                    "scale_type": "pertensor"
+                },
+                "activations": {
+                    "bits": 8,
+                    "type": "asymmetric",
+                    "scale_type": "pertensor"
+                }
+            }
+        }
+        ]
+    }
+}
