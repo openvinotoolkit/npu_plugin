@@ -13,8 +13,8 @@ int main()
     // lower bound and and a minimum operation with the upper bound
 
     // ASSUMPTION2: Minimum goes always first otherwise fusing will be wrong
-    double lowerBound = 0;
-    double upperBound = 5;
+    double lowerBound = 20;
+    double upperBound = 40;
 
     auto input0 = om.input({2,1,16,1}, mv::DType("UInt8"), mv::Order::getZMajorID(4),  {{0},{1},{-inf},{inf}}, "input#170");
     std::vector<int64_t> weightsData0 = mv::utils::generateSequence<int64_t> (16, 1, 0);
