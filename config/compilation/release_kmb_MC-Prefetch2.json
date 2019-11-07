@@ -82,6 +82,7 @@
     },
     "adapt": {
         "Singular": [
+            "RemoveInterpNoOp",
             "ReplacementOps",
             "TensorsToU8",
             "TensorsToFP16",
