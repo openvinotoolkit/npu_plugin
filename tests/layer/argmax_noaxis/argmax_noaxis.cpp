@@ -14,14 +14,8 @@ int main()
     int out_max_val = 0;
     int top_k = 1;
 
-    // Case #1 - axis=1
-    int axis = 1;
-
     // Case #2 - no axis
-    //int axis = 99;
-
-    // Case #3 - invalid axis
-    //int axis = -4;
+    int axis = 99;
 
     auto argmax0 = om.argmax(input0, out_max_val, top_k, axis, mv::DType("Float16"));
     om.output(argmax0);

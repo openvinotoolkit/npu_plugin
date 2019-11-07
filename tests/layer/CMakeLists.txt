@@ -7,8 +7,11 @@ if (MSVC)
 
 else()
 
-    #add_executable(argmax argmax/argmax.cpp)
-    #target_link_libraries(argmax cm)
+    #add_executable(argmax_noaxis argmax_noaxis/argmax_noaxis.cpp)
+    #target_link_libraries(argmax_noaxis cm)
+
+    #add_executable(argmax_axis argmax_axis/argmax_axis.cpp)
+    #target_link_libraries(argmax_axis cm)
 
     #add_executable(conv_clamp conv_clamp/conv_clamp.cpp)
     #target_link_libraries(conv_clamp cm)
@@ -37,20 +40,23 @@ else()
     #add_executable(priorbox priorbox/priorbox.cpp)
     #target_link_libraries(priorbox cm)
 
-    add_executable(proposal proposal/proposal.cpp)
-    target_link_libraries(proposal cm)
+    add_executable(proposal_TF proposal_TF/proposal_TF.cpp)
+    target_link_libraries(proposal_TF cm)
+
+    add_executable(proposal_caffe proposal_caffe/proposal_caffe.cpp)
+    target_link_libraries(proposal_caffe cm)
 
     add_executable(regionyolo regionyolo/regionyolo.cpp)
     target_link_libraries(regionyolo cm)
 
-    #add_executable(reorgyolo reorgyolo/reorgyolo.cpp)
-    #target_link_libraries(reorgyolo cm)
+    add_executable(reorgyolo reorgyolo/reorgyolo.cpp)
+    target_link_libraries(reorgyolo cm)
 
     add_executable(reshape reshape/reshape.cpp)
     target_link_libraries(reshape cm)
 
-    #add_executable(roi_pooling roi_pooling/roi_pooling.cpp)
-    #target_link_libraries(roi_pooling cm)
+    add_executable(roi_pooling roi_pooling/roi_pooling.cpp)
+    target_link_libraries(roi_pooling cm)
 
     add_executable(softmax softmax/softmax.cpp)
     target_link_libraries(softmax cm)

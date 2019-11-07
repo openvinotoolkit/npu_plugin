@@ -241,7 +241,34 @@ mv::Data::TensorIterator convertPermuteToUPATask(mv::OpModel& om, const std::vec
     auto dtype = attrs.at("dType").get<mv::DType>();
     auto quantParams = attrs.at("quantParams").get<mv::QuantizationParams>();
 
-    return om.uPATaskPermute(inputs, order, dtype, quantParams, name);
+    mv::Data::TensorIterator upaPermute = om.uPATaskPermute(inputs, order, dtype, quantParams, name);
+    // Correct order of strings if necessary
+    auto old_order_str = input->getOrder().toString();
+    auto new_order_str = order.toString();
+
+    if (old_order_str[0] != 'N')
+        old_order_str = std::string(old_order_str.rbegin(), old_order_str.rend());
+
+    if (new_order_str[0] != 'N')
+        new_order_str = std::string(new_order_str.rbegin(), new_order_str.rend());
+
+    // Convert permute order to axes
+    std::vector<unsigned> permute_order(3);
+    for (auto i=0; i < 3; i++)
+    {
+        for (auto j=0; j < 3; j++)
+        {
+            if (new_order_str[i+1] == old_order_str[j+1])
+                permute_order.at(i) = j;
+        }
+
+    }
+
+    upaPermuteOp->set<unsigned>("permute_order_x", permute_order.at(0));
+    upaPermuteOp->set<unsigned>("permute_order_y", permute_order.at(1));
+    upaPermuteOp->set<unsigned>("permute_order_z", permute_order.at(2));
+
+    return upaPermute;
 }
 
 
@@ -391,8 +418,12 @@ int32_t computeMinClampValue(mv::Data::OpListIterator &opIt)
                 clamp = quantizedClampValue;
         }
 
+<<<<<<< HEAD
         if(computeDType == FP16)
             clamp <<= 16;
+=======
+
+>>>>>>> master
     }
 
     else if (outputDType == FP16)

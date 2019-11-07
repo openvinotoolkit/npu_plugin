@@ -17,10 +17,10 @@ int main()
     std::vector<uint16_t> weightsData(5*5);
 
     // Define tensors
-    auto input0 = om.input({14,14,32,1}, mv::DType("Float16"), mv::Order::getZMajorID(4), {{0},{1.0},{-inf},{inf}}, "input0");
-    
+    auto input0 = om.input({14,14,32,1}, mv::DType("Float16"), mv::Order::getColMajorID(4), {{0},{1.0},{-inf},{inf}}, "input0");
+
     //Load weights from file
-    std::string  weights_filename(mv::utils::projectRootPath() + "/tests/layers/roi_pooling/roi_pooling.in2");
+    std::string  weights_filename(mv::utils::projectRootPath() + "/tests/layer/roi_pooling/roi_pooling.in2");
     std::ifstream w_file;
     w_file.open(weights_filename, std::fstream::in | std::fstream::binary);
     w_file.read((char*)(weightsData.data()), 5*5 * sizeof(uint16_t));
