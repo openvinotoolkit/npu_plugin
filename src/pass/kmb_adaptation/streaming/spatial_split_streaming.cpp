@@ -8,7 +8,7 @@
 #include "include/mcm/base/exception/runtime_error.hpp"
 #include "include/mcm/tensor/tiling.hpp"
 
-static void streamingOperations(const mv::pass::PassEntry& pass,
+static void streamingOperationsFcn(const mv::pass::PassEntry& pass,
                                         mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&,
                                         mv::Element&);
 
@@ -20,8 +20,8 @@ namespace mv
 {
     namespace pass
     {
-        MV_REGISTER_PASS(StreamingTiling)
-        .setFunc(streamingTilingFcn)
+        MV_REGISTER_PASS(StreamingOperations)
+        .setFunc(streamingOperationsFcn)
         .setDescription(
                 "Generates New Ops according to Streaming Strategies that the graph provides");
 
@@ -171,11 +171,10 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model, mv::Dat
     mv::OpModel om(model);
     mv::DataModel dm(model);
     mv::ControlModel cm(model);
-
+    bool nestedLayerStreaming = false;
     auto inputTensor = op->getInputTensor("data");
     auto kernelTensor = op->getInputTensor("weights");
     auto outputTensor = op->getOutputTensor("output");
-    auto inputTensor2Conv = inputTensor ;
     mv::QuantizationParams quantParams = {{},{},{},{}};
     if(inputTensor->hasAttr("quantParams"))
         quantParams = inputTensor->get<mv::QuantizationParams>("quantParams");
@@ -227,7 +226,7 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model, mv::Dat
             slice = name_firstStream_sliceOp[keyPair];
         }
         std::string streamingOpName = op->getName() + "_split_" + std::to_string(split);
-        auto conv = om.conv(inputTensor2Conv,
+        auto conv = om.conv(inputTensor,
                                 slice,
                                 op->get("stride"),
                                 op->get("padding"),
@@ -239,6 +238,7 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model, mv::Dat
         //NOTE: Nested streaming case KH
         if (thisGraphStrategy[op->getName()].size() > 1)
         {
+            nestedLayerStreaming = true;
             thisGraphStrategy[streamingOpName].insert(thisGraphStrategy[streamingOpName].begin(), thisGraphStrategy[op->getName()].begin() + 1,
                     thisGraphStrategy[op->getName()].end());
             if (split == 0)
@@ -296,7 +296,7 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model, mv::Dat
     {
         mv::Tensor::MemoryLocation inputLocation;
         mv::Tensor::MemoryLocation outputLocation;
-        if(childTiles[split].childTiles().size() > 1)
+        if(nestedLayerStreaming)
         {
             inputLocation.relocate(inputTensor->get<mv::Tensor::MemoryLocation>("Location"));
             outputLocation.relocate(outputTensor->get<mv::Tensor::MemoryLocation>("Location"));
@@ -343,7 +343,7 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model, mv::Dat
 {
     mv::OpModel om(model);
     mv::ControlModel cm(model);
-
+    bool nestedLayerStreaming = true;
     auto outputTensor = op->getOutputTensor("output");
     auto opId = op->get<unsigned>("opId");
     std::string splitStrategy = op->get<std::string>("splitStrategy");
@@ -491,6 +491,7 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model, mv::Dat
         //NOTE: Nested streaming case
         if (thisGraphStrategy[op->getName()].size() > 1)
         {
+            nestedLayerStreaming = true;
             thisGraphStrategy[streamingOpName].insert(thisGraphStrategy[streamingOpName].begin(), thisGraphStrategy[op->getName()].begin() + 1,
                     thisGraphStrategy[op->getName()].end());
             //NOTE:: If we go HK streaming...
@@ -554,7 +555,7 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model, mv::Dat
         auto numInputs = slices[split].size();
         std::vector<mv::Tensor::MemoryLocation> inputLocation(numInputs);
         mv::Tensor::MemoryLocation outputLocation;
-        if (childTiles[split].childTiles().size() > 1)
+        if (nestedLayerStreaming)
         {
             for (std::size_t i = 0; i < numInputs; i++)
             {
@@ -606,7 +607,7 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model, mv::Dat
     return concat;
 }
 
-void streamingOperations(const mv::pass::PassEntry& pass,
+void streamingOperationsFcn(const mv::pass::PassEntry& pass,
                                 mv::ComputationModel& model,
                                 mv::TargetDescriptor&,
                                 mv::Element&,
