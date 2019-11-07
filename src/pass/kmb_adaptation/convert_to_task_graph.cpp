@@ -242,8 +242,9 @@ mv::Data::TensorIterator convertPermuteToUPATask(mv::OpModel& om, const std::vec
     auto quantParams = attrs.at("quantParams").get<mv::QuantizationParams>();
 
     mv::Data::TensorIterator upaPermute = om.uPATaskPermute(inputs, order, dtype, quantParams, name);
+    auto upaPermuteOp = om.getSourceOp(upaPermute);
     // Correct order of strings if necessary
-    auto old_order_str = input->getOrder().toString();
+    auto old_order_str = inputs[0]->getOrder().toString();
     auto new_order_str = order.toString();
 
     if (old_order_str[0] != 'N')
@@ -418,12 +419,8 @@ int32_t computeMinClampValue(mv::Data::OpListIterator &opIt)
                 clamp = quantizedClampValue;
         }
 
-<<<<<<< HEAD
         if(computeDType == FP16)
             clamp <<= 16;
-=======
-
->>>>>>> master
     }
 
     else if (outputDType == FP16)
