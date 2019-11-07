@@ -8,7 +8,7 @@ namespace mv
 
         static std::function<std::pair<bool, std::size_t>(const std::vector<Data::TensorIterator>&,
             const std::map<std::string, Attribute>&, std::string&)> inputCheckFcn =
-            [](const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>& args,
+            [](const std::vector<Data::TensorIterator>&, const std::map<std::string, Attribute>& args,
             std::string& errMsg) -> std::pair<bool, std::size_t>
         {
 
@@ -85,7 +85,7 @@ namespace mv
                 outputShape[new_dims-1 - (axis)] = flattened_dim_value;
             // Remaining dims
             auto num_flattened_dims = (end_axis==axis) ? 0 : 1;
-            for (auto i=0; i<input_dims-(end_axis+num_flattened_dims); i++)
+            for (unsigned i=0; i<input_dims-(end_axis+num_flattened_dims); i++)
             {
                 outputShape[new_dims-1 - (axis+num_flattened_dims) - i] = inputShape[input_dims-1 - (end_axis) - i];
             }
