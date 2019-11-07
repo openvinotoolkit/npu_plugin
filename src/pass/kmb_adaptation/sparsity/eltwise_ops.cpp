@@ -23,6 +23,7 @@ namespace mv
 
 
 // QUESTION: Is this pass really needed or it's just wasting space in our precious CMX????
+// A: It's not needed.
 static void generateEltWiseConstantsFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
 

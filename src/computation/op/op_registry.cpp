@@ -862,6 +862,8 @@ void mv::op::OpRegistry::generateCompositionAPI(const std::string& eol, const st
 
 // Define all OPs in a single compilation unit. //
 
+#include    "src/computation/op/def/minimum.cpp"
+#include    "src/computation/op/def/maximum.cpp"
 #include    "src/computation/op/def/eltwise.cpp"
 #include    "src/computation/op/def/align.cpp"
 #include    "src/computation/op/def/average_pool.cpp"
