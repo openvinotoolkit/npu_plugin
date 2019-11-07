@@ -64,6 +64,12 @@ mv::Data::TensorIterator convertEltwiseToDPUTask(mv::OpModel& om, const std::vec
     dpuElementWiseOp->set<std::array<unsigned short, 2>>("stride", FAKE_STRIDE);
     dpuElementWiseOp->set<bool>("hasWeights", false);
 
+    std::vector<std::string> postOps;
+    if(dpuElementWiseOp->hasAttr("postOpTypes"))
+        postOps = dpuElementWiseOp->get<std::vector<std::string>>("postOpTypes");
+    postOps.push_back(eltwiseType);
+    dpuElementWiseOp->set<std::vector<std::string>>("postOpTypes", postOps);
+
     return dpuElementWise;
 }
 
