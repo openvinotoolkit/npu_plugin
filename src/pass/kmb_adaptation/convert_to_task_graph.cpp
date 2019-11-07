@@ -354,8 +354,7 @@ std::pair<int32_t, int32_t> computeClampValues(mv::Data::OpListIterator &opIt)
 
 // ASSUMPTION:
 // A model can give us clamp values either in I32 or FP32 or not clamp at all.
-// If the operation output is U8/I8 we assume U8 clamp
-// If the operation output is FP16 we asssume double precision clamp.
+// The assumption is that in any case this clamp value IS NOT quantized.
 
 
 // When outputDType is U8 or I8 we have to compute saturation clamp in every case
@@ -384,7 +383,7 @@ int32_t computeMinClampValue(mv::Data::OpListIterator &opIt)
 
         if(opIt->hasAttr("Minimum"))
         {
-            double clampValue = opIt->get<int32_t>("Minimum");
+            double clampValue = opIt->get<double>("Minimum");
             double outputScale = outputQuantParams.getScale()[0];
             int32_t quantizedClampValue = static_cast<int32_t>(clampValue / outputScale);
 
@@ -436,7 +435,7 @@ int32_t computeMaxClampValue(mv::Data::OpListIterator &opIt)
 
         if(opIt->hasAttr("Maximum"))
         {
-            double clampValue = opIt->get<int32_t>("Maximum");
+            double clampValue = opIt->get<double>("Maximum");
             double outputScale = outputQuantParams.getScale()[0];
             int32_t quantizedClampValue = static_cast<int32_t>(clampValue / outputScale);
 
