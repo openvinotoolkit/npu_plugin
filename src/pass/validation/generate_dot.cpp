@@ -221,10 +221,13 @@ void generateDotFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
                     std::string edgeDef = "\t\"" + opIt->getName() + "\" -> \"" + controlIt.sink()->getName() + "\"";
                     if (htmlLike)
                     {
+                        std::string color = "color=black, style=dashed";
+                        if(controlIt->hasAttr("inMaxCut"))
+                            color = "color=red, style=dashed";
                         if(contentLevel != "full") {
-                            if(controlIt->hasAttr("MemoryRequirement")) {
-
-                                edgeDef += " [penwidth=2.0, style=dashed label=<<TABLE BORDER=\"0\" \
+                            if(controlIt->hasAttr("MemoryRequirement"))
+                            {
+                                edgeDef += " [penwidth=2.0, " + color +", label=<<TABLE BORDER=\"0\" \
                                 CELLPADDING=\"0\" CELLSPACING=\"0\"><TR><TD ALIGN=\"CENTER\" \
                                 COLSPAN=\"2\"><FONT POINT-SIZE=\"14.0\"><B>"
                                 + std::to_string(controlIt->get<int>("MemoryRequirement"))
@@ -236,7 +239,7 @@ void generateDotFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
                         }
                         else
                         {
-                            edgeDef += " [penwidth=2.0, style=dashed label=<<TABLE BORDER=\"0\" \
+                            edgeDef += " [penwidth=2.0, " + color + ", label=<<TABLE BORDER=\"0\" \
                                     CELLPADDING=\"0\" CELLSPACING=\"0\"><TR><TD ALIGN=\"CENTER\" \
                                     COLSPAN=\"2\"><FONT POINT-SIZE=\"14.0\"><B>"
                                     + controlIt->getName()
