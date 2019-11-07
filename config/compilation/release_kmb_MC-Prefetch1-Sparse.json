@@ -165,7 +165,7 @@
             "StoreLayerSplitStrategy",
             "StoreLayerSparsityStrategy",
             "StoreTensorPlacement",
-            "StreamingTiling",
+            "StreamingOperations",
             "StreamBinaryDataWeights"
         ]
     },

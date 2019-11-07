@@ -58,7 +58,10 @@ void maxTopologicalCutAndPartialSerialisationPass(const mv::pass::PassEntry& pas
 
     /*Calculate max topological cut and get the cut edges*/
     auto maxTopologicalCut = flowGraph.calculateMaxTopologicalCut(pass, model);
-    
+    for(auto& edgeDesc : maxTopologicalCut.second)
+        std::cout << edgeDesc.name << " memory requirement " << edgeDesc.memoryRequirement << std::endl;
+
+    std::cout << "Cut value " << maxTopologicalCut.first << std::endl;
     compOutput.set<uint64_t>("maxTopologicalCut", maxTopologicalCut.first);
     mv::DataModel dm(model);
     auto outflow = dm.getOutputFlow();
