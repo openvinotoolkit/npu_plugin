@@ -869,7 +869,6 @@ void mv::op::OpRegistry::generateCompositionAPI(const std::string& eol, const st
 #include    "src/computation/op/def/average_pool.cpp"
 #include    "src/computation/op/def/batch_normalization.cpp"
 #include    "src/computation/op/def/bias.cpp"
-#include    "src/computation/op/def/clamp.cpp"
 #include    "src/computation/op/def/concat.cpp"
 #include    "src/computation/op/def/copy.cpp"
 #include    "src/computation/op/def/constant.cpp"
