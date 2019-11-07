@@ -8,7 +8,7 @@
 #include "include/mcm/base/exception/runtime_error.hpp"
 #include "include/mcm/tensor/tiling.hpp"
 
-static void streamingTilingFcn(const mv::pass::PassEntry& pass,
+static void streamingOperations(const mv::pass::PassEntry& pass,
                                         mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&,
                                         mv::Element&);
 
@@ -77,7 +77,7 @@ std::map<std::string, std::function<mv::Data::TensorIterator(mv::OpModel&, mv::D
 {
 //    {"W",solveSpatialTiling},
     {"H",solveSpatialTiling},
-    {"K",solveWeightsTiling} //TBD: for other operations that conv.
+    {"K",solveWeightsTiling} //NOTE::Only Convolution is supported for SoK now
 };
 
 
@@ -155,7 +155,7 @@ static void setStreamingStrategy(const mv::pass::PassEntry &pass, mv::Computatio
 }
 
 void storeExistingSlice(std::string opName, unsigned streamId, mv::Data::TensorIterator slice,
-                        std::map<std::pair<std::string, unsigned>, mv::Data::TensorIterator>& name_firstStream_sliceOp)
+    std::map<std::pair<std::string, unsigned>, mv::Data::TensorIterator>& name_firstStream_sliceOp)
 {
     std::pair<std::string, unsigned> keyPair;
     keyPair.first = opName;
@@ -163,17 +163,19 @@ void storeExistingSlice(std::string opName, unsigned streamId, mv::Data::TensorI
     name_firstStream_sliceOp[keyPair] = slice;
 }
 
-mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model, mv::Data::OpListIterator op, mv::Tiling& tiling,
-    std::map<std::string, std::vector<opStreamingSplitDef> > &thisGraphStrategy, std::unordered_map<std::string, bool>& createSlicesPerStream, std::map<std::pair<std::string, unsigned>, mv::Data::TensorIterator> &name_firstStream_sliceOp)
+mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model, mv::Data::OpListIterator op,
+    mv::Tiling& tiling, std::map<std::string, std::vector<opStreamingSplitDef> > &thisGraphStrategy,
+    std::unordered_map<std::string, bool>& createSlicesPerStream,
+    std::map<std::pair<std::string, unsigned>, mv::Data::TensorIterator> &name_firstStream_sliceOp)
 {
     mv::OpModel om(model);
     mv::DataModel dm(model);
     mv::ControlModel cm(model);
 
     auto inputTensor = op->getInputTensor("data");
-    auto inputTensor2Conv = inputTensor ;
     auto kernelTensor = op->getInputTensor("weights");
     auto outputTensor = op->getOutputTensor("output");
+    auto inputTensor2Conv = inputTensor ;
     mv::QuantizationParams quantParams = {{},{},{},{}};
     if(inputTensor->hasAttr("quantParams"))
         quantParams = inputTensor->get<mv::QuantizationParams>("quantParams");
@@ -604,7 +606,7 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model, mv::Dat
     return concat;
 }
 
-void streamingTilingFcn(const mv::pass::PassEntry& pass,
+void streamingOperations(const mv::pass::PassEntry& pass,
                                 mv::ComputationModel& model,
                                 mv::TargetDescriptor&,
                                 mv::Element&,
@@ -615,7 +617,11 @@ void streamingTilingFcn(const mv::pass::PassEntry& pass,
     std::map<std::string, std::vector<opStreamingSplitDef>> thisGraphStrategy;
     setStreamingStrategy(pass, model, thisGraphStrategy);
     std::vector<opStreamingSplitDef> thisOpStrategy;
-    //NOTE: PER NAME OF OP AND PER FIRST STREAM ID NEED TO HAVE THE SAME SLICE
+
+    //NOTE: NESTED STREAMING MEANS 2 LEVELS OF STREAMING, eg. HK, Stream Over H will stream
+    //the input Tensor of the Op and then for every new Op have to stream it over K, which
+    //means the weights will be repeated for the second level of streaming, this is why need
+    //the data structures below...to create only one pair of nested slices
     std::unordered_map<std::string, bool> createSlicesPerStream = {};
     std::map<std::pair<std::string, unsigned>, mv::Data::TensorIterator> name_firstStream_sliceOp;
 
@@ -653,7 +659,7 @@ void streamingTilingFcn(const mv::pass::PassEntry& pass,
             auto sourceTensor = opIt->getInputTensor(0);
             auto parentOpIt = om.getSourceOp(sourceTensor);
             auto result = (streamSplit[masterTile.getAxis()])(om, opIt, masterTile,
-                                          thisGraphStrategy, createSlicesPerStream, name_firstStream_sliceOp);
+                               thisGraphStrategy, createSlicesPerStream, name_firstStream_sliceOp);
 
             // reconnect children to subgraph
             std::vector<mv::Data::OpListIterator> opsToLink;
