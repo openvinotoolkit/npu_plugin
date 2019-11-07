@@ -38,18 +38,12 @@ void fusePostOpsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
     std::vector<std::string> fuse_types = {"Bias", "Sigmoid", "Relu", "LeakyRelu", "Eltwise"};
     std::unordered_map<std::string, std::vector<mv::Data::OpListIterator>> operationsOfType = om.getOpsOfTypes(fuse_types);
 
-    auto fuseBias = [](mv::Data::OpListIterator &opIt, mv::ComputationModel& cm, std::string &empty){ return fuseBiasFcn(opIt, cm, empty);};
-    auto fuseSigmoid = [](mv::Data::OpListIterator &opIt, mv::ComputationModel& cm, std::string &empty){ return fuseUsualPPEFcn(opIt, cm, empty);};
-    auto fuseRelu = [](mv::Data::OpListIterator &opIt, mv::ComputationModel& cm, std::string &empty){ return fuseUsualPPEFcn(opIt, cm, empty);};
-    auto fuseLeakyRelu = [](mv::Data::OpListIterator &opIt, mv::ComputationModel& cm, std::string &empty){ return fuseUsualPPEFcn(opIt, cm, empty);};
-    auto fuseEltwise = [](mv::Data::OpListIterator &opIt, mv::ComputationModel& cm, std::string &empty){ return fuseEltwiseFcn(opIt, cm, empty);};
-
     std::unordered_map<std::string, std::function<void(mv::Data::OpListIterator &, mv::ComputationModel& , std::string &)>> fuseTaskMap =
-                                       {{"Bias", fuseBias},
-                                        {"Sigmoid", fuseSigmoid},
-                                        {"Relu", fuseRelu},
-                                        {"LeakyRelu", fuseLeakyRelu},
-                                        {"Eltwise", fuseEltwise}};
+                                       {{"Bias", fuseBiasFcn},
+                                        {"Sigmoid", fuseUsualPPEFcn},
+                                        {"Relu", fuseUsualPPEFcn},
+                                        {"LeakyRelu", fuseUsualPPEFcn},
+                                        {"Eltwise", fuseEltwiseFcn}};
 
     //NOTE: Iterate the fuse_types vector for correct order reason according to map
     for (auto type = fuse_types.begin(); type != fuse_types.end(); type++)
@@ -176,14 +170,11 @@ void fuseUsualPPEFcn(mv::Data::OpListIterator &opIt, mv::ComputationModel &model
 void fuseEltwiseFcn(mv::Data::OpListIterator &opIt1, mv::ComputationModel &model, std::string opType)
 {
     UNUSED(opType);
-    auto fusePower = [](mv::Data::OpListIterator &opIt, mv::ComputationModel& cm, std::string &empty){ return fuseUsualPPEFcn(opIt, cm, empty);};
-    auto fuseMinimum = [](mv::Data::OpListIterator &opIt, mv::ComputationModel& cm, std::string &empty){ return fuseMinimumFcn(opIt, cm, empty);};
-    auto fuseMaximum = [](mv::Data::OpListIterator &opIt, mv::ComputationModel& cm, std::string &empty){ return fuseMaximumFcn(opIt, cm, empty);};
 
     std::unordered_map<std::string, std::function<void(mv::Data::OpListIterator &, mv::ComputationModel& , std::string &)>> fuseEltwiseMap =
-                                       {{"Minimum", fuseMinimum},
-                                        {"Maximum", fuseMaximum},
-                                        {"Power", fusePower}};
+                                       {{"Minimum", fuseMinimumFcn},
+                                        {"Maximum", fuseMaximumFcn},
+                                        {"Power", fuseUsualPPEFcn}};
 
     auto eltwiseType = opIt1->get<std::string>("eltwiseType");
     auto functor = fuseEltwiseMap.find(eltwiseType);
