@@ -129,7 +129,7 @@ bool compare(std::vector<float>& actualResults, std::vector<float>& expectedResu
             if (abs_error > maxErr) maxErr = abs_error;
             result = "\tfail";
         }
-        if (idx < 50) // print first 50 rows
+        if (idx >1000 && idx < 1100) // print first 50 rows
             std::cout << expected << "\t" << actual << "\t" << abs_error << "\t" << abs_allowed_err << "\t"  << result << std::endl;
     };
     std::cout << "Printing first 50 rows...\nExp\tActual\tdiff\ttolerence\tresult" << std::endl;
@@ -246,7 +246,8 @@ int runKmbInference(std::string evmIP, std::string blobPath)
     remove(outputFile.c_str());
 
     // copy the required files to InferenceManagerDemo folder
-    std::string inputCPU = std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_CPU_OUTPUT;
+    std::string inputCPU = std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_CPU_INPUT;
+    //std::string inputCPU = FILE_CONVERTED_IMAGE;
     std::string inputDest = std::getenv("VPUIP_HOME") + std::string("/application/demo/InferenceManagerDemo/input-0.bin");
     //if (!copyFile(FILE_CONVERTED_IMAGE, inputDest)) return FAIL_GENERAL;
     if (!copyFile(inputCPU, inputDest))
@@ -338,10 +339,11 @@ int validate(std::string blobPath, std::string expectedPath, std::string actualP
         // de-quantize
         for (size_t i = 0; i < outputVector.size(); ++i)
         {
+            // Other De-quantize formula: real_value  = Scale * ( quantized_value - zero_point)
+            //float val2 = qScale * (outputVector[i] - qZero);
+
             // De-quantize: bitshift left by qShift then multiply by scale
-            float val = 0;
-            if (outputVector[i] != 0)
-                val = outputVector[i] << qShift / qScale;
+            float val = static_cast<float>(outputVector[i] << qShift) / static_cast<float>(qScale);
             outputFP32.push_back(val);
         }
     }
@@ -507,8 +509,8 @@ int main(int argc, char *argv[])
     result = convertBlobToJson(blobPath);
     if ( result > 0 ) return result;
 
-    result = convertImage(FLAGS_i, blobPath);
-    if ( result > 0 ) return result;
+    // result = convertImage(FLAGS_i, blobPath);
+    // if ( result > 0 ) return result;
 
     result = runKmbInference(FLAGS_k, blobPath);
     if ( result > 0 ) return result;
