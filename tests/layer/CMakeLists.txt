@@ -37,6 +37,9 @@ else()
     #add_executable(detection_output detection_output/detection_output.cpp)
     #target_link_libraries(detection_output cm)
     
+    add_executable(flatten flatten/flatten.cpp)
+    target_link_libraries(flatten cm)
+
     add_executable(normalize normalize/normalize.cpp)
     target_link_libraries(normalize cm)
 
