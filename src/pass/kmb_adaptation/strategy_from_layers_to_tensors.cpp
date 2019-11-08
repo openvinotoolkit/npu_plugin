@@ -43,7 +43,7 @@ void strategyLayersToTensors(const mv::pass::PassEntry& , mv::ComputationModel& 
             unsigned startingIndex = 1;
             auto taskOp = layer->get<std::string>("taskOp");
 
-            if(taskOp == "Add" || taskOp == "Multiply" || taskOp == "Subtract")
+            if(taskOp == "Eltwise")
                 startingIndex = 2;
 
             for(unsigned i = startingIndex; i < n; ++i)

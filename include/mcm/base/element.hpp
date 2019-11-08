@@ -33,6 +33,9 @@ namespace mv
         Element(const std::string& name);
         Element(const char* name);
         Element(const Element& other);
+        virtual std::map<std::string, Attribute> getAttrs(const std::vector<std::string>& forbiddenKeys = {}) const;
+        void setAttrs(const std::map<std::string, Attribute>& attrs);
+
         /**
          * @brief Construct a new Element object from an JSON::Object
          *
