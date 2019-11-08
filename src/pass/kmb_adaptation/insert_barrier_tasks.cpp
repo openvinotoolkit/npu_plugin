@@ -58,9 +58,7 @@ static bool emptySetIntersection(const std::set<std::string>& s1, const std::set
         else if (*it1 < *it2)
             it1++;
         else
-        {
             it2++;
-        }
     }
 
     return true;
@@ -168,12 +166,12 @@ void getBarrierForControlModelOp(mv::ControlModel& cm, mv::Control::OpListIterat
 {
 
     auto ctrlOpType = opIt->getOpType();
-    if ((ctrlOpType == "DMATask") || (ctrlOpType == "DPUTask"))
+    if (ctrlOpType != "Input" && ctrlOpType != "Output")
     {
         for (auto parentOp = opIt.leftmostParent(); parentOp != cm.opEnd(); ++parentOp)
         {
             auto parentOpType = parentOp->getOpType();
-            if ((parentOpType == "DPUTask") || (parentOpType == "DMATask" ))
+            if (parentOpType != "Input")
             {
                 auto sinkOpName = opIt->getName();
                 auto sourceOpName = parentOp->getName();
@@ -187,7 +185,7 @@ void getBarrierForControlModelOp(mv::ControlModel& cm, mv::Control::OpListIterat
                         if (cons != bConsumers.end())
                         {
                             b.addProducer(sourceOpName);
-                            auto updatedList = b.getProducers();
+                            //auto updatedList = b.getProducers();
                         }
                     }
                 }

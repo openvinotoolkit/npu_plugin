@@ -21,13 +21,13 @@ namespace mv
 //TODO:: unify all these enums.....
 static std::map<const std::string,mv::DmaDirectionEnum> dmaDirectionStrings =
 {
-      {"CMX2DDR",mv::DmaDirectionEnum::CMX2DDR},
-      {"DDR2CMX",mv::DmaDirectionEnum::DDR2CMX},
-      {"BLOB2CMX",mv::DmaDirectionEnum::DDR2CMX},
-      {"CMX2UPA",mv::DmaDirectionEnum::CMX2UPA},
-      {"UPA2CMX",mv::DmaDirectionEnum::UPA2CMX},
-      {"INPUT2CMX",mv::DmaDirectionEnum::DDR2CMX},
-      {"CMX2OUTPUT",mv::DmaDirectionEnum::CMX2DDR},
+      {"NNCMX2DDR",mv::DmaDirectionEnum::NNCMX2DDR},
+      {"DDR2NNCMX",mv::DmaDirectionEnum::DDR2NNCMX},
+      {"BLOB2NNCMX",mv::DmaDirectionEnum::DDR2NNCMX},
+      {"NNCMX2UPACMX",mv::DmaDirectionEnum::NNCMX2UPACMX},
+      {"UPACMX2NNCMX",mv::DmaDirectionEnum::UPACMX2NNCMX},
+      {"INPUT2NNCMX",mv::DmaDirectionEnum::DDR2NNCMX},
+      {"NNCMX2OUTPUT",mv::DmaDirectionEnum::NNCMX2DDR},
       {"INPUT2DDR",mv::DmaDirectionEnum::DDR2DDR},
       {"DDR2OUTPUT",mv::DmaDirectionEnum::DDR2DDR}
 };
@@ -44,7 +44,7 @@ void resolveImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::Computati
 
         //TODO::the following attributes need to come either from JSON config or from OP definition
         auto opType = opIt->getOpType();
-        if (opType == "Concat" || opType == "ImplicitConcat")
+        if (opType == "Concat" || opType == "ImplicitConcat" || opType == "ImplicitReshape")
             opIt->set<mv::ImplicitFlow>("ImplicitFlow", mv::ImplicitFlow(mv::ImplicitFlow::INPUT_IN_OUTPUT));
         if (opType == "Slice" || opType == "Crop")
             opIt->set<mv::ImplicitFlow>("ImplicitFlow", mv::ImplicitFlow(mv::ImplicitFlow::OUTPUT_IN_INPUT));

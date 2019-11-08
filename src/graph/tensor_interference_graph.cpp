@@ -151,7 +151,7 @@ void  mv::TensorInterferenceGraph::addWeightsToInterferenceGraph_(const mv::pass
         auto tensor = model.getTensor((*it).name);
         auto tensorMemoryLocation = tensor->get<mv::Tensor::MemoryLocation>("Location");
         // DDR does not need getClusterSize
-        if(tensorMemoryLocation == mv::Tensor::MemoryLocation::CMX)
+        if(tensorMemoryLocation == mv::Tensor::MemoryLocation::NNCMX)
             (*it).weight = tensor->getClusterSize(alignment);
         else
             (*it).weight = tensor->computeTotalSize();

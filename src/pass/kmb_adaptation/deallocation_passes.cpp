@@ -95,7 +95,7 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationMod
         //We just have to check if it was previously deallocated or not.
 
         if(!inputTensor->hasAttr("deallocated") &&
-          ((inputTensor->get<mv::Tensor::MemoryLocation>("Location") == mv::Tensor::MemoryLocation::CMX &&
+          ((inputTensor->get<mv::Tensor::MemoryLocation>("Location") == mv::Tensor::MemoryLocation::NNCMX &&
                 outputOp->hasTypeTrait("executable")) ||
           (inputOp->getOpType() == "DMATask" && inputTensor->get<mv::Tensor::MemoryLocation>("Location") == mv::Tensor::MemoryLocation::DDR)))
         {
@@ -125,7 +125,7 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationMod
             // We start with the control flow that carries the memory requirement.
             // For all cases but Implicit Concat, the rule is pretty simple: There is one control flow
             // coincident with the data flow that carries the memory requirement
-            if(inputTensor->get<mv::Tensor::MemoryLocation>("Location") == mv::Tensor::MemoryLocation::CMX)
+            if(inputTensor->get<mv::Tensor::MemoryLocation>("Location") == mv::Tensor::MemoryLocation::NNCMX)
             {
                 if(inputOp->getOpType() != "ImplicitConcat")
                 {
@@ -161,7 +161,7 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationMod
             }
 
             std::vector<mv::Data::OpListIterator> sinkOperations;
-            if (inputTensor->get<mv::Tensor::MemoryLocation>("Location") == mv::Tensor::MemoryLocation::CMX &&
+            if (inputTensor->get<mv::Tensor::MemoryLocation>("Location") == mv::Tensor::MemoryLocation::NNCMX &&
                 outputOp->hasTypeTrait("executable"))
             {
                 pass.log(mv::Logger::MessageType::Debug, " Collecting Sink Operations for case CMX Dealloc");

@@ -22,7 +22,7 @@
                         "strategy" : "Example"
                     }
                 ],
-                "default_tensor_placement" : "CMX",
+                "default_tensor_placement" : "NNCMX",
                 "tensor_placement_override" :
                 [
                     {
@@ -82,9 +82,7 @@
     },
     "adapt": {
         "Singular": [
-            "AverageAsDepthWise",
-            "RemoveDropOut",
-            "FullyConnectedAsConv2D",
+            "ReplacementOps",
             "TensorsToU8",
             "TensorsToFP16",
             "FusePostOps",
@@ -97,7 +95,7 @@
                         {"name" : "dpuPerCluster",  "value" : 5   },
                         {"name" : "ddrBandwidth",   "value" : 128 },
                         {"name" : "systemClockMhz", "value" : 500 },
-                        {"name" : "FathomSafetyFactor", " value" : 0.80},
+                        {"name" : "FathomSafetyFactor", " value" : 0.75},
                         {"name" : "dotFileLocation", "value" : "./output/"},
                         {"name" : "jsonOutFileName", "value" : "./output/mcmCompiler_strategy_output.json"}
                     ],
@@ -179,8 +177,10 @@
     "kmb_adapt": {
         "Singular": [
             "ConcatAsImplicit",
+            "ReshapeAsImplicit",
             "StoreWorkloadStrategy",
             "ConvertOpsToTasks",
+            "SetUpPPETasks",
             "ForceSerialize",
             "KMBOrderConversion",
             "AlignUnpopulatedTensors",
@@ -188,30 +188,25 @@
             "AlignPopulatedTensors",
             "RemoveCropAlignInCMX",
             "CropOrPadFinalOutput",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/crop_pad.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            },
             "AlignTaskWeights",
             "GenerateSparsityMapsPopulatedTensors",
             "GenerateWeightsTables",
-            "GenerateEltWiseConstants",
             "StrategyLayersToTensors",
             "ComputeTensorsQuantParams",
             "UpdateImplicitLayersQuantizationParams",
             "PopulateWeightsTablesQuantization",
             "RemoveBiasTensors",
-            "SplittingTensorsAcrossClusters"
+            "SplittingTensorsAcrossClusters",
+            "KMBQuantizeConversion"
         ]
     },
     "dma": {
         "Singular" : [
             "SetDpuTasksMemoryLocation",
+            "SetUPATasksMemoryLocation",
             "ResolveImplicitOperations",
-            "AddWeightsDMATasks",
+            "AddDPUTasksWeightsDMATasks",
+            "AddUPATasksExtraInputsDMATasks",
             "EnsureSplitStrategiesForSpilling"
         ]
     },
@@ -226,7 +221,7 @@
             },
             "TransitiveReduction",
             "LayerNumbering",
-            "cmx2DDRControlFlows",
+            "NNCMX2DDRControlFlows",
             "TransitiveReduction"
         ]
     },

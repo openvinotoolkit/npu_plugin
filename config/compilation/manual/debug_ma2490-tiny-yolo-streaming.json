@@ -82,34 +82,10 @@
                     },
                     {
                         "name_filter" : "conv2#36",
-                        "splits" : [ {"H" : 4} ]
-                    },
-                    {
-                        "name_filter" : "pool2/max_pool#37",
                         "splits" : [ {"H" : 2} ]
                     },
                     {
                         "name_filter" : "conv3#38",
-                        "splits" : [ {"H" : 2} ]
-                    },
-                    {
-                        "name_filter" : "conv6#44",
-                        "splits" : [ {"K" : 2} ]
-                    },
-                    {
-                        "name_filter" : "conv7#46",
-                        "splits" : [ {"K" : 8} ]
-                    },
-                    {
-                        "name_filter" : "conv8#47",
-                        "splits" : [ {"K" : 16} ]
-                    },
-                    {
-                        "name_filter" : "conv9/conv9#48",
-                        "splits" : [ {"K" : 2} ]
-                    }
-                ]
-            },
             "ComputeMemory",
             "AssignUniqueOpId",
             {
@@ -192,7 +168,6 @@
             "AlignTaskWeights",
             "GenerateSparsityMapsPopulatedTensors",
             "GenerateWeightsTables",
-            "GenerateEltWiseConstants",
             "StrategyLayersToTensors",
             "ComputeTensorsQuantParams",
             "UpdateImplicitLayersQuantizationParams",
@@ -215,6 +190,7 @@
     "dma": {
         "Singular" : [
             "SetDpuTasksMemoryLocation",
+            "SetUPATasksMemoryLocation",
             {
                 "name": "GenerateDot",
                 "output": "output/dots/dpu_tasks_location.dot",
@@ -238,7 +214,8 @@
                 "name": "ConvertDot",
                 "input": "output/dots/implicit_operations_model.dot"
             },
-            "AddWeightsDMATasks",
+            "AddDPUTasksWeightsDMATasks",
+            "AddUPATasksExtraInputsDMATasks",
             {
                 "name": "GenerateDot",
                 "output": "output/dots/dma_model.dot",
@@ -251,12 +228,12 @@
                 "input": "output/dots/dma_model.dot"
             },
             "GenerateSparsityMapsUnpopulatedTensors"
-
         ]
     },
     "control_flows":{
         "Singular" : [
             "TaskControlFlows",
+            "CompleteControlGraph",
             {
                 "name": "GenerateDot",
                 "output": "output/dots/TaskControlFlows_model.dot",
@@ -295,11 +272,11 @@
                 "name": "ConvertDot",
                 "input": "output/dots/NoHangingDmas.dot"
             },
-            "cmx2DDRControlFlows",
+            "NNCMX2DDRControlFlows",
             "TransitiveReduction",
             {
                 "name": "GenerateDot",
-                "output": "output/dots/cmx2DDRControlFlows.dot",
+                "output": "output/dots/NNCMX2DDRControlFlows.dot",
                 "scope": "ControlModel",
                 "content": "full",
                 "html": true

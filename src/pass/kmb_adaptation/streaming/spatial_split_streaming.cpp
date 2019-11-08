@@ -180,7 +180,7 @@ static void setStreamingStrategy(const mv::pass::PassEntry &pass, mv::Computatio
                     opxSplitx.axis = "H";
                     opxSplitx.numSplits = splitList[i].get<int>("H");
 //                    std::cout << "IN STREAMING PASS : H = " << opxSplitx.numSplits << std::endl ;
-//                    if (opxSplitx.numSplits == (size_t) 3) 
+//                    if (opxSplitx.numSplits == (size_t) 3)
 //                    {
 //                        std::cout << "IN STREAMING PASS : H==3 detected" << std::endl ;
 //                        opxSplitx.numSplits = 4;
@@ -262,34 +262,11 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model, mv::Dat
     auto kernelTensor = op->getInputTensor(1);
     auto outputTensor = op->getOutputTensor(0);
 
-    //add DMA from DDR to CMX, if needed
-
-    auto inputOp = om.getSourceOp(inputTensor);
+    auto attrsToCopy = op->getAttrs({"stride", "padding", "shape", "bias"});
 
     mv::QuantizationParams quantParams = {{},{},{},{}};
     if(inputTensor->hasAttr("quantParams"))
         quantParams = inputTensor->get<mv::QuantizationParams>("quantParams");
-
-    //if(inputTensor->hasAttr("Location"))
-    //{
-    //    std::cout<< "  location of input tensor is " << inputTensor->get<mv::Tensor::MemoryLocation>("Location").toString() <<  std::endl ;
-    //}
-    //else
-    //{
-    //    std::cout<< "  No location attritbute on input tensor to original conv " << std::endl ;
-    //}
-
-    // if (inputTensor->get<mv::Tensor::MemoryLocation>("Location").toString() != "CMX")
-    // {
-    //     //std::cout<< "  adding DMA2CMX on input " <<  std::endl ;
-
-    //     auto flows = inputTensor->get<std::set<std::string>>("flows");
-
-    //     auto inputTensorDma = om.dMATask(inputTensor, mv::DmaDirectionEnum::DDR2CMX, quantParams, mv::createDMATaskDDR2CMXName(inputOp->getName()));
-    //     auto inputTensorDmaOp = om.getSourceOp(inputTensorDma);
-    //     inputTensorDmaOp->set<unsigned>("opId", DMAOpId);
-    //     inputTensor2Conv = inputTensorDma ;
-    // }
 
     auto opId = op->get<unsigned>("opId");
     auto number_of_splits = tiling.childTiles().size();
@@ -302,6 +279,9 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model, mv::Dat
 
     size_t biasStartIndex = 0;
     size_t biasEndIndex = 0;
+
+    std::string splitStrategy = op->get<std::string>("splitStrategy");
+
     for (unsigned split = 0; split < number_of_splits; split++)
     {
         mv::Data::TensorIterator slice;
@@ -369,26 +349,16 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model, mv::Dat
         auto newOp = om.getSourceOp(conv);
 
         newOp->set<bool>("splitted",true);//TODO::temporary hack. To remove once the iteration conditions are updated
-        newOp->set<unsigned>("opId",opId);
-        newOp->set<std::string>("splitStrategy", op->get<std::string>("splitStrategy"));
-        newOp->set<bool>("inputActivationSparsity", op->get<bool>("inputActivationSparsity"));
-        newOp->set<bool>("outputActivationSparsity", op->get<bool>("outputActivationSparsity"));
-        newOp->set<bool>("weightsSparsity", op->get<bool>("weightsSparsity"));
+        newOp->setAttrs(attrsToCopy);
 
         slices[split] = slice;
         convs[split] = conv;
-/* 
-        if(op->hasAttr("splitStrategy"))
-        {
-            auto splitStrategy = op->get<std::string>("splitStrategy");
-            //om.addAttr(newOp,"splitStrategy",splitStrategy);
-            //newOp->set<std::string>("splitStrategy", splitStrategy);
-        }
-*/
+
         bool enableSerialStreaming = true;
         if ((split>0)&&(enableSerialStreaming))
             cm.defineFlow(om.getSourceOp(convs[split-1]), om.getSourceOp(convs[split]));
     }
+
     kernelTensor->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::BLOB);
     // decide on the location of the I/O Tensors of the conv;
     // basically, for each operation, if we are the last inside the recursive splitting schema, then we can make the
@@ -413,8 +383,8 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model, mv::Dat
         {
             //no more children.
             //todo:: Expose in JSON config the "Default stream location"
-            inputLocation.relocate(mv::Tensor::MemoryLocation::CMX);
-            outputLocation.relocate(mv::Tensor::MemoryLocation::CMX);
+            inputLocation.relocate(mv::Tensor::MemoryLocation::NNCMX);
+            outputLocation.relocate(mv::Tensor::MemoryLocation::NNCMX);
             inputLocation.force();
             outputLocation.force();
 
@@ -449,6 +419,7 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model, mv::Dat
                     op->get<mv::QuantizationParams>("quantParams"),
                     op->getName() + "concat_");
     om.getSourceOp(concat)->set<unsigned>("opId", opId);
+    om.getSourceOp(concat)->set<std::string>("splitStrategy", splitStrategy);
 
     concat->set<mv::Tensor::MemoryLocation>("Location",outputTensor->get<mv::Tensor::MemoryLocation>("Location"));
 
@@ -464,9 +435,14 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model, mv::Dat
     //TODO:: stop hardcoding index....
     auto outputTensor = op->getOutputTensor(0);
     auto opId = op->get<unsigned>("opId");
+    std::string splitStrategy = op->get<std::string>("splitStrategy");
     auto number_of_splits = tiling.childTiles().size();
     auto axisToSplit =  mv::Shape::getAxis(tiling.getAxis());
     auto childTiles = tiling.childTiles();
+
+    // NOTE: In the streaming case, we can't just blindly copy everything like we
+    // do in the DPUTask conversion case. We have to overwrite shape, padding, etc.
+    auto attrsToCopy = op->getAttrs({"stride", "padding", "shape"});
 
     std::vector<mv::Shape> spatial_indexes(number_of_splits);
     std::vector<std::vector<mv::Data::TensorIterator>> slices(number_of_splits);
@@ -565,9 +541,12 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model, mv::Dat
                                 op->getName() + "_split_" + std::to_string(split));
             slices[split].push_back(slice);
         }
-        else if (opType == "Add" || opType == "Subtract" || opType == "Multiply")
+        else if (opType == "Eltwise")
         {
-            for (auto i = 0; i < 2; i++)
+            auto inputSlots = op->inputSlots();
+            auto eltwiseType = op->get<std::string>("eltwiseType");
+            auto originalDType = op->get<mv::DType>("dType");
+            for (auto i = 0; i < inputSlots; i++)
             {
                 auto inputTensor = op->getInputTensor(i);
 
@@ -579,16 +558,8 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model, mv::Dat
                 om.getSourceOp(slice)->set<unsigned>("opId", opId);
                 slices[split].push_back(slice);
             }
-            auto addFcn = [&om](std::vector< mv::Data::TensorIterator >& vec, const mv::QuantizationParams& quantParams, const mv::DType& dType, const std::string& s){ return om.add(vec, dType, quantParams, s);};
-            auto subFcn = [&om](std::vector< mv::Data::TensorIterator >& vec, const mv::QuantizationParams& quantParams, const mv::DType& dType, const std::string& s){ return om.subtract(vec, dType, quantParams, s);};
-            auto multFcn = [&om](std::vector< mv::Data::TensorIterator >& vec, const mv::QuantizationParams& quantParams, const mv::DType& dType, const std::string& s){ return om.multiply(vec, dType, quantParams, s);};
 
-            auto dpuTaskMap = std::map<std::string, std::function<mv::Data::TensorIterator (std::vector< mv::Data::TensorIterator >&, const mv::QuantizationParams&, const mv::DType&, const std::string&)>>
-                                                    {{"Add", addFcn},
-                                                    {"Subtract", subFcn},
-                                                    {"Multiply", multFcn}};
-            auto dpuElementWiseFunctor = (dpuTaskMap.at(opType));
-            newTensor = dpuElementWiseFunctor(slices[split], op->get<mv::QuantizationParams>("quantParams"), op->get<mv::DType>("dType"), op->getName() + "_split_" + std::to_string(split));
+            newTensor = om.eltwise(slices[split], eltwiseType, originalDType, op->get<mv::QuantizationParams>("quantParams"), op->getName() + "_split_" + std::to_string(split));
         }
         else
         {
@@ -596,55 +567,14 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model, mv::Dat
         }
 
         auto newOp = om.getSourceOp(newTensor);
-
-        if (op->hasAttr("bias"))
-        {
-            auto biasTensorName = op->get<std::string>("bias");
-            om.addAttr(newOp, "bias", biasTensorName);
-        }
-
+        newOp->setAttrs(attrsToCopy);
         newOp->set<bool>("splitted", true);//TODO::temporary hack. To remove once the iteration conditions are updated
-        newOp->set<unsigned>("opId", opId);
-        newOp->set<std::string>("splitStrategy", op->get<std::string>("splitStrategy"));
-        newOp->set<bool>("inputActivationSparsity", op->get<bool>("inputActivationSparsity"));
-        newOp->set<bool>("outputActivationSparsity", op->get<bool>("outputActivationSparsity"));
-        newOp->set<bool>("weightsSparsity", op->get<bool>("weightsSparsity"));
-        if (op->hasAttr("postOpType"))
-        {
-            newOp->set<std::string>("postOpType", op->get<std::string>("postOpType"));
-            if (newOp->get<std::string>("postOpType") == "LeakyRelu")
-                newOp->set<double>("alpha", op->get<double>("alpha"));
-        }
-        else if (op->hasAttr("postOpTypes"))
-        {
-            newOp->set<std::vector<std::string>>("postOpTypes", op->get<std::vector<std::string>>("postOpTypes"));
-            std::vector<std::string> postOpTypes = op->get<std::vector<std::string>>("postOpTypes");
-
-            if (op->getOutputTensor(0)->getDType() ==  mv::DType("Float16"))
-            {
-                newOp->set<double>("minimum", op->get<double>("minimum"));
-                if (std::find(postOpTypes.begin(), postOpTypes.end(), "Maximum") != postOpTypes.end())
-                    newOp->set<double>("maximum", op->get<double>("maximum"));
-            }
-            else
-            {
-                newOp->set<int64_t>("minimum", op->get<int64_t>("minimum"));
-                if (std::find(postOpTypes.begin(), postOpTypes.end(), "Maximum") != postOpTypes.end())
-                    newOp->set<int64_t>("maximum", op->get<int64_t>("maximum"));
-            }
-        }
 
         convs[split] = newTensor;
 
         bool enableSerialStreaming = true;
         if ((split > 0) && enableSerialStreaming)
             cm.defineFlow(om.getSourceOp(convs[split-1]), om.getSourceOp(convs[split]));
-
-        if(op->hasAttr("splitStrategy"))
-        {
-            auto splitStrategy = op->get<std::string>("splitStrategy");
-            //om.addAttr(newOp,"splitStrategy",splitStrategy);
-        }
     }
 
     // decide on the location of the I/O Tensors of the conv;
@@ -661,7 +591,7 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model, mv::Dat
         if (childTiles[split].childTiles().size() > 1)
         {
             //has chidren. Inherit
-            for (auto i = 0; i < numInputs; i++)
+            for (std::size_t i = 0; i < numInputs; i++)
             {
                 auto inputTensor = op->getInputTensor(i);
                 inputLocation[i].relocate(inputTensor->get<mv::Tensor::MemoryLocation>("Location"));
@@ -675,18 +605,18 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model, mv::Dat
         {
             //no more children.
             //todo:: Expose in JSON config the "Default stream location"
-            for (auto i = 0; i < numInputs; i++)
+            for (std::size_t i = 0; i < numInputs; i++)
             {
-                inputLocation[i].relocate(mv::Tensor::MemoryLocation::CMX);
+                inputLocation[i].relocate(mv::Tensor::MemoryLocation::NNCMX);
                 inputLocation[i].force();
             }
-            outputLocation.relocate(mv::Tensor::MemoryLocation::CMX);
+            outputLocation.relocate(mv::Tensor::MemoryLocation::NNCMX);
             outputLocation.force();
 
             // std::cout << "No more children deciding " << slices[split]->getName() << " to " << inputLocation.toString() << std::endl;
             // std::cout << "No more children deciding " << convs[split]->getName() << " to " << outputLocation.toString() << std::endl;
         }
-        for (auto i = 0; i < numInputs; i++)
+        for (std::size_t i = 0; i < numInputs; i++)
             slices[split][i]->set<mv::Tensor::MemoryLocation>("Location", inputLocation[i]);
         convs[split]->set<mv::Tensor::MemoryLocation>("Location", outputLocation);
     }
@@ -710,7 +640,7 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model, mv::Dat
     }
     //debug
     std::vector<mv::Shape> final_outputs_deb(number_of_splits);
-    for (int i=0; i < number_of_splits; ++i)
+    for (std::size_t i=0; i < number_of_splits; ++i)
         final_outputs_deb[i] = final_outputs[i]->getShape();
 
     auto concat = om.concat(final_outputs,
@@ -719,6 +649,7 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model, mv::Dat
                     op->get<mv::QuantizationParams>("quantParams"),
                     op->getName() + "concat_");
     om.getSourceOp(concat)->set<unsigned>("opId", opId);
+    om.getSourceOp(concat)->set<std::string>("splitStrategy", splitStrategy);
 
     concat->set<mv::Tensor::MemoryLocation>("Location", outputTensor->get<mv::Tensor::MemoryLocation>("Location"));
 
@@ -737,7 +668,7 @@ static inline int inferOutputSize( int inputSize, int padding_start, int padding
     return outputSize;
 }
 
-void generateSpatialTiling(mv::Data::OpListIterator op,Tiling& tiling, std::vector<opStreamingSplitDef> opStrategy, int nesting)
+void generateSpatialTiling(mv::Data::OpListIterator op,Tiling& tiling, std::vector<opStreamingSplitDef> opStrategy, unsigned int nesting)
 {
     //std::cout<< "  In generateSpatialTiling, op " << op->getName() << " nesting = " << nesting ;
     auto numberOfSplits = tiling.childTiles().size();
@@ -810,7 +741,7 @@ void generateSpatialTiling(mv::Data::OpListIterator op,Tiling& tiling, std::vect
     int remainderOutputSize = outputSize - ( newOutputSize *(numberOfSplits -1));
 
     unsigned startCoord = 0;
-    for (auto split = 0; split < numberOfSplits; split++)
+    for (std::size_t split = 0; split < numberOfSplits; split++)
     {
         mv::Shape tileStart({0,0,0,0});
         mv::Shape tileSize = inputShape;
@@ -836,9 +767,9 @@ void generateSpatialTiling(mv::Data::OpListIterator op,Tiling& tiling, std::vect
     }
 
     nesting++;
-    if (nesting<opStrategy.size() )
+    if (nesting < opStrategy.size())
     {
-        for( auto& tile : tiling.childTiles())
+        for(auto& tile : tiling.childTiles())
         {
             tile.setAxis( opStrategy[nesting].axis );
             tile.resizeNumberOfTiles(opStrategy[nesting].numSplits) ;
@@ -847,7 +778,7 @@ void generateSpatialTiling(mv::Data::OpListIterator op,Tiling& tiling, std::vect
     }
 }
 
-void generateWeightsTiling(mv::Data::OpListIterator op,Tiling& tiling, std::vector<opStreamingSplitDef> opStrategy, int nesting)
+void generateWeightsTiling(mv::Data::OpListIterator op,Tiling& tiling, std::vector<opStreamingSplitDef> opStrategy, unsigned int nesting)
 {
     auto numberOfSplits = tiling.childTiles().size();
 
@@ -859,7 +790,7 @@ void generateWeightsTiling(mv::Data::OpListIterator op,Tiling& tiling, std::vect
 
     unsigned startCoord = 0;
 
-    for(auto split = 0; split < numberOfSplits; split++)
+    for(std::size_t split = 0; split < numberOfSplits; split++)
     {
         mv::Shape tileStart({0,0,0,0});
         mv::Shape tileSize = parentTileShape;
@@ -868,7 +799,7 @@ void generateWeightsTiling(mv::Data::OpListIterator op,Tiling& tiling, std::vect
 
         startCoord += newSize;
 
-        if( split == (numberOfSplits-1) )
+        if(split == (numberOfSplits-1))
             tileSize[axisToSplit] = remainderSize;
         else
             tileSize[axisToSplit] = newSize;
@@ -893,8 +824,8 @@ void generateWeightsTiling(mv::Data::OpListIterator op,Tiling& tiling, std::vect
 
 void streamingTilingFcn(const mv::pass::PassEntry& pass,
                                 mv::ComputationModel& model,
-                                mv::TargetDescriptor& target,
-                                mv::Element& passDesc,
+                                mv::TargetDescriptor&,
+                                mv::Element& ,
                                 mv::Element&)
 {
 
@@ -931,7 +862,7 @@ void streamingTilingFcn(const mv::pass::PassEntry& pass,
         }
 
         std::string opType = opIt->getOpType();
-        bool isElementWise = (opType == "Add" || opType == "Subtract" || opType == "Multiply");
+        bool isElementWise = opType == "Eltwise";
 
         if ((opType == "Conv" || opType == "DepthwiseConv" ||  (opType == "MaxPool") || isElementWise) && !opIt->hasAttr("splitted") && opHasSplittingStrategy)
         {

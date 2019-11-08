@@ -46,14 +46,27 @@ namespace mv
             [](const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>& args, std::vector<Tensor>& outputs)
         {
 
+            auto dTypeToUse = args.at("dType").get<mv::DType>();
+            if(dTypeToUse == mv::DType("Default"))
+                dTypeToUse = inputs[0]->getDType();
+
             auto input = inputs[0];
             auto outputOrder = input->getOrder();
-
-            // Permute tensor Shape according to new Order
             auto old_order = input->getOrder();
             auto new_order = args.at("order").get<mv::Order>();
             auto old_order_str = old_order.toString();
             auto new_order_str = new_order.toString();
+
+            // Reverse order strings if necessary
+            if (old_order_str[3] != 'N')
+                old_order_str = std::string(old_order_str.rbegin(), old_order_str.rend());
+
+            if (new_order_str[3] != 'N')
+                new_order_str = std::string(new_order_str.rbegin(), new_order_str.rend());
+
+            // Permute tensor Shape according to new Order
+            // inputShape is WHCN
+            // new order is permuted w.r.t. WHCN
             auto inputShape = input->getShape();
             auto ndims = inputShape.ndims();
             mv::Shape outputShape(ndims);
@@ -61,10 +74,11 @@ namespace mv
             {
                 auto j = old_order_str.find(new_order_str[i]);
                 assert(j != std::string::npos && j < ndims);
-                outputShape[(ndims - 1) - i] = inputShape[(ndims - 1) - j]; // NB: inverse enumeration of dimensions
+                outputShape[i] = inputShape[j];
             }
 
-            outputs.push_back(mv::Tensor(":0", outputShape, input->getDType(), outputOrder));
+            // output tensor uses permuted shape with old order
+            outputs.push_back(mv::Tensor(":0", outputShape, dTypeToUse, old_order));
         
         };
 
@@ -88,6 +102,8 @@ namespace mv
         .setInputs({"data"})
         .setOutputs({"output"})
         .setArg<mv::Order>("order")
+        .setOptionalArg<mv::DType>("dType", mv::DType("Default"))
+        .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
         .setInputCheck(op_permute::inputCheckFcn)
         .setOutputDef(op_permute::outputDefFcn)
         .setTypeTrait({"executable", "exposed"});

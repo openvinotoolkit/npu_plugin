@@ -293,9 +293,8 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                             }
                         }
                         /*Eltwise ops are performed by the PPE, which does not support Z-Tiling*/
-                        if (algorithm == "Z-Tiling" && opIt->get<std::string>("taskOp") != "Add" &&
-                            opIt->get<std::string>("taskOp") != "Subtract" && opIt->get<std::string>("taskOp") != "Divide"
-                            && opIt->get<std::string>("taskOp") != "Multiply" && !depthWiseSOHA0Workaround)
+                        if (algorithm == "Z-Tiling" && opIt->get<std::string>("taskOp") != "Eltwise"
+                            && !depthWiseSOHA0Workaround)
                         {
                             /*Create workload instance*/
                             workloadsVector.emplace_back(mv::Workloads(opIt->getName(), subTensorShape));
@@ -321,7 +320,6 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                                     workloadsVector.erase(workloadsVector.begin() + workloadsVectorIndex);
                                     ztilingFail = true;
                                 }
-
                                 if(!ztilingFail)
                                 {
                                     ztilingFail = false;

@@ -51,18 +51,6 @@
                         "splits" : [ {"H" : 2} ]
                     },
                     {
-                        "name_filter" : "group0/block1/conv1/Relu#188",
-                        "splits" : [ {"H" : 2} ]
-                    },
-                    {
-                        "name_filter" : "group0/block1/conv3/Relu#190",
-                        "splits" : [ {"H" : 2} ]
-                    },
-                    {
-                        "name_filter" : "group0/block2/conv1/Relu#192",
-                        "splits" : [ {"H" : 2} ]
-                    },
-                    {
                         "name_filter" : "group0/block2/conv3/Relu#194",
                         "splits" : [ {"H" : 2} ]
                     },
@@ -72,10 +60,6 @@
                     },
                     {
                         "name_filter" : "group1/block0/conv1/Relu#197",
-                        "splits" : [ {"H" : 2} ]
-                    },
-                    {
-                        "name_filter" : "group2/block0/convshortcut/Relu#213",
                         "splits" : [ {"K" : 2} ]
                     },
                     {
@@ -84,10 +68,6 @@
                     },
                     {
                         "name_filter" : "group3/block0/conv2/Relu#240",
-                        "splits" : [ {"K" : 4} ]
-                    },
-                    {
-                        "name_filter" : "group3/block0/conv3/Relu#241",
                         "splits" : [ {"K" : 2} ]
                     },
                     {
@@ -103,164 +83,7 @@
                         "splits" : [ {"K" : 2} ]
                     },
                     {
-                        "name_filter" : "group3/block2/conv1/Relu#247",
-                        "splits" : [ {"K" : 2} ]
-                    },
-                    {
                         "name_filter" : "group3/block2/conv2/Relu#248",
-                        "splits" : [ {"K" : 4} ]
-                    },
-                    {
-                        "name_filter" : "group3/block2/conv3/Relu#249",
-                        "splits" : [ {"K" : 2} ]
-                    },
-                    {
-                        "name_filter" : "group0/block0/add#187",
-                        "splits" : [ {"H" : 4} ]
-                    },
-                    {
-                        "name_filter" : "group0/block1/add#191",
-                        "splits" : [ {"H" : 4} ]
-                    },
-                    {
-                        "name_filter" : "group0/block2/add#195",
-                        "splits" : [ {"H" : 4} ]
-                    },
-                    {
-                        "name_filter" : "group1/block0/add#200",
-                        "splits" : [ {"H" : 2} ]
-                    },
-                    {
-                        "name_filter" : "group1/block1/add#204",
-                        "splits" : [ {"H" : 2} ]
-                    },
-                    {
-                        "name_filter" : "group1/block2/add#208",
-                        "splits" : [ {"H" : 2} ]
-                    },
-                    {
-                        "name_filter" : "group1/block3/add#212",
-                        "splits" : [ {"H" : 2} ]
-                    },
-                    {
-                        "name_filter" : "linear0/act_quant/FakeQuantWithMinMaxVars#252",
-                        "splits" : [ {"K" : 4} ]
-                    },
-                    {
-                        "name_filter" : "conv1#181",
-                        "splits" : [ {"H" : 2} ]
-                    },
-                    {
-                        "name_filter" : "pool1/max_pool#182",
-                        "splits" : [ {"H" : 2} ]
-                    },
-                    {
-                        "name_filter" : "res2a_branch1#183",
-                        "splits" : [ {"H" : 2} ]
-                    },
-                    {
-                        "name_filter" : "res2a_branch2c#186",
-                        "splits" : [ {"H" : 2} ]
-                    },
-                    {
-                        "name_filter" : "res2b_branch2a#188",
-                        "splits" : [ {"H" : 2} ]
-                    },
-                    {
-                        "name_filter" : "res2b_branch2c#190",
-                        "splits" : [ {"H" : 2} ]
-                    },
-                    {
-                        "name_filter" : "res2c_branch2a#192",
-                        "splits" : [ {"H" : 2} ]
-                    },
-                    {
-                        "name_filter" : "res2c_branch2c#194",
-                        "splits" : [ {"H" : 2} ]
-                    },
-                    {
-                        "name_filter" : "res3a_branch1#196",
-                        "splits" : [ {"H" : 2} ]
-                    },
-                    {
-                        "name_filter" : "res3a_branch2a#197",
-                        "splits" : [ {"H" : 2} ]
-                    },
-                    {
-                        "name_filter" : "res4a_branch1#213",
-                        "splits" : [ {"K" : 2} ]
-                    },
-                    {
-                        "name_filter" : "res5a_branch1#238",
-                        "splits" : [ {"K" : 4} ]
-                    },
-                    {
-                        "name_filter" : "res5a_branch2b#240",
-                        "splits" : [ {"K" : 4} ]
-                    },
-                    {
-                        "name_filter" : "res5a_branch2c#241",
-                        "splits" : [ {"K" : 2} ]
-                    },
-                    {
-                        "name_filter" : "res5b_branch2a#243",
-                        "splits" : [ {"K" : 2} ]
-                    },
-                    {
-                        "name_filter" : "res5b_branch2b#244",
-                        "splits" : [ {"K" : 4} ]
-                    },
-                    {
-                        "name_filter" : "res5b_branch2c#245",
-                        "splits" : [ {"K" : 2} ]
-                    },
-                    {
-                        "name_filter" : "res5c_branch2a#247",
-                        "splits" : [ {"K" : 2} ]
-                    },
-                    {
-                        "name_filter" : "res5c_branch2b#248",
-                        "splits" : [ {"K" : 4} ]
-                    },
-                    {
-                        "name_filter" : "res5c_branch2c#249",
-                        "splits" : [ {"K" : 2} ]
-                    },
-                    {
-                        "name_filter" : "res2a/Relu#187",
-                        "splits" : [ {"H" : 4} ]
-                    },
-                    {
-                        "name_filter" : "res2b/Relu#191",
-                        "splits" : [ {"H" : 4} ]
-                    },
-                    {
-                        "name_filter" : "res2c/Relu#195",
-                        "splits" : [ {"H" : 4} ]
-                    },
-                    {
-                        "name_filter" : "res3a/Relu#200",
-                        "splits" : [ {"H" : 2} ]
-                    },
-                    {
-                        "name_filter" : "res3b/Relu#204",
-                        "splits" : [ {"H" : 2} ]
-                    },
-                    {
-                        "name_filter" : "res3c/Relu#208",
-                        "splits" : [ {"H" : 2} ]
-                    },
-                    {
-                        "name_filter" : "res3d/Relu#212",
-                        "splits" : [ {"H" : 2} ]
-                    },
-                    {
-                        "name_filter" : "fc1000/fc1000#252",
-                        "splits" : [ {"K" : 4} ]
-                    }
-                ],
-                "default_tensor_placement" : "DDR"
-            },
             "ComputeMemory",
             "AssignUniqueOpId",
             {
@@ -343,7 +166,6 @@
             "AlignTaskWeights",
             "GenerateSparsityMapsPopulatedTensors",
             "GenerateWeightsTables",
-            "GenerateEltWiseConstants",
             "StrategyLayersToTensors",
             "ComputeTensorsQuantParams",
             "UpdateImplicitLayersQuantizationParams",
@@ -366,6 +188,7 @@
     "dma": {
         "Singular" : [
             "SetDpuTasksMemoryLocation",
+            "SetUPATasksMemoryLocation",
             {
                 "name": "GenerateDot",
                 "output": "output/dots/dpu_tasks_location.dot",
@@ -389,7 +212,8 @@
                 "name": "ConvertDot",
                 "input": "output/dots/implicit_operations_model.dot"
             },
-            "AddWeightsDMATasks",
+            "AddDPUTasksWeightsDMATasks",
+            "AddUPATasksExtraInputsDMATasks",
             {
                 "name": "GenerateDot",
                 "output": "output/dots/dma_model.dot",
@@ -446,11 +270,11 @@
                 "name": "ConvertDot",
                 "input": "output/dots/NoHangingDmas.dot"
             },
-            "cmx2DDRControlFlows",
+            "NNCMX2DDRControlFlows",
             "TransitiveReduction",
             {
                 "name": "GenerateDot",
-                "output": "output/dots/cmx2DDRControlFlows.dot",
+                "output": "output/dots/NNCMX2DDRControlFlows.dot",
                 "scope": "ControlModel",
                 "content": "full",
                 "html": true

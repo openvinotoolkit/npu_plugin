@@ -1,0 +1,249 @@
+{
+    "initialize": {
+        "Singular": [
+            {
+                "name" : "GlobalConfigParams",
+                "_comment" : "Stores common params accross multiple passes. Access through the Computation Model.",
+                "recorded_model": true,
+                "verbose": "Error",
+                "weights_form": "None",
+                "barrier_index_assignment" : "Dynamic",
+                "Number_of_DPUs" : 1,
+                "Number_of_Clusters" : 1,
+                "UpaShaves": 1,
+                "DDRScratch": 16777216,
+                "MemoryHack": false,
+                "cmx": 917504,
+                "split_strategy" :
+                [
+                    {
+                        "name_filter" : ".*",
+                        "strategy" : "Clustering"
+                    }
+                ],
+                "address_helper_addresses":
+                [
+                    {
+                        "name_filter" : "output:0#3_copyIn_0:0",
+                        "address":0
+                    },
+                    {
+                        "name_filter" : "output:0#3:0",
+                        "address":65536
+                    },
+                    {
+                        "name_filter" : "output:0#3_weights_table_DDR2CMX:0",
+                        "address":81920
+                    },
+                    {
+                        "name_filter" : "output:0#3_sparse_dw_DDR2CMX:0",
+                        "address":82432
+                    }
+                ],
+                "default_tensor_placement" : "CMX",
+                "tensor_placement_override" :
+                [
+                    {
+                        "name_filter" : ".*_ddr_.*",
+                        "mem_location" : "DDR"
+                    },
+                    {
+                        "name_filter" : ".*_cmx_.*",
+                        "mem_location" : "CMX"
+                    },
+                    {
+                        "name_filter" : ".*_input_.*",
+                        "mem_location" : "INPUT"
+                    },
+                    {
+                        "name_filter" : ".*_output_.*",
+                        "mem_location" : "OUTPUT"
+                    },
+                    {
+                        "name_filter" : ".*weights.*",
+                        "mem_location" : "BLOB"
+                    }
+
+                ],
+                "streaming_strategy" :
+                [
+                    {
+                        "name_filter" : "Example_do_not_remove",
+                        "splits" : [
+                            {"C" : 1},
+                            {"H" : 1},
+                            {"W" : 1},
+                            {"K" : 1}
+                        ]
+                    },
+                    {
+                        "name_filter" : "output:0#3",
+                        "splits" : [ {"H" : 3} ]
+                    }
+                ],
+                "sparsity_strategy" :
+                [
+                    {
+                        "name_filter": ".*",
+                        "inputActivationSparsity": false,
+                        "outputActivationSparsity": false,
+                        "weightsSparsity": false
+                    }
+                ],
+                "default_tensor_placement" : "DDR"
+            },
+            "ComputeMemory",
+            "AssignUniqueOpId",
+            {
+                "name": "CreateSourceStructure",
+                "VersionMajor": 3,
+                "VersionMinor": 15,
+                "VersionPatch": 2,
+                "VersionHash": "a5aeead67d8605f1144bb62acf47c9284fd37025"
+            }
+        ]
+    },
+    "adapt": {
+        "Singular": [
+            "TensorsToFP16",
+            "AverageAsDepthWise",
+            "FuseBatchNorm",
+            "FuseBias",
+            "FuseRelu",
+            "FuseScale",
+            "RemoveDropOut",
+            "FullyConnectedAsConv2D",
+            "StoreLayerSplitStrategy",
+            "StoreLayerSparsityStrategy",
+            "StoreTensorPlacement",
+            "StreamingTiling",
+            "StreamBinaryDataWeights"
+        ]
+    },
+    "kmb_adapt": {
+        "Singular": [
+            "ConcatAsImplicit",
+            "StoreWorkloadStrategy",
+            "ConvertOpsToTasks",
+            "SetUpPPETasks",
+            "ForceSerialize",
+            "KMBOrderConversion",
+            "AlignUnpopulatedTensors",
+            "AddAlignOpForInputTensors",
+            "AlignPopulatedTensors",
+            "RemoveCropAlignInCMX",
+            "CropOrPadFinalOutput",
+            "AlignTaskWeights",
+            "GenerateSparsityMapsPopulatedTensors",
+            "GenerateWeightsTables",
+            "StrategyLayersToTensors",
+            "ComputeTensorsQuantParams",
+            "UpdateImplicitLayersQuantizationParams",
+            "PopulateWeightsTablesQuantization",
+            "RemoveBiasTensors",
+            "SplittingTensorsAcrossClusters"
+        ]
+    },
+    "dma": {
+        "Singular" : [
+            "SetDpuTasksMemoryLocation",
+            "ResolveImplicitOperations",
+            "AddWeightsDMATasks",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/dma_model.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
+            "EnsureSplitStrategiesForSpilling"
+        ]
+    },
+    "control_flows":{
+        "Singular" : [
+            "TaskControlFlows",
+            "TransitiveReduction",
+            "LayerNumbering",
+            {
+                "name": "HangingDmaControlFlows",
+                "weights_prefetch": 1
+            },
+            "TransitiveReduction",
+            "LayerNumbering",
+            "cmx2DDRControlFlows",
+            "TransitiveReduction"
+        ]
+    },
+    "finalize": {
+        "Singular": [
+            "GenerateSparsityMapsUnpopulatedTensors",
+            "AddDeallocationTasks",
+            {
+                "name": "TransitiveReduction",
+                "filter": "MemoryRequirement"
+            },
+            "MarkLastNodeForMaxTopologicalCut",
+            "MaxTopologicalCutAndPartialSerialisation",
+            "TransitiveReduction",
+            {
+                "name": "GenerateWorkloads",
+                "costfunction": "greedy",
+                "TensorSplitAlgorithms": "Rectangle, Z-tiling",
+                "_comment": "Supported CostFunctions are: balanced | criticalpath | minmax | greedy. Supported TensorSplitAlgorithms are Rectangle, Z-Tiling"
+            },
+            "ArrangeKmbExecution",
+            "AllocateInputOutputTensorsKmb",
+            "AllocateGraphfileTensorsKmb",
+            "ReAllocateImplicitOperationsKmb",
+            "AllocateCMXTensorsKmb",
+            "TensorGraphColoring",
+            "RemoveDeallocationTasks",
+            "TransitiveReduction",
+            {
+                "name" : "InsertBarrierTasks",
+                "barrier_reuse_window" : 0
+            },
+            "TransitiveReduction",
+            "PopulateWeightsTablesPointers"
+        ]
+    },
+    "scheduling": {
+        "Singular": [
+            "StoreBarriersNamesInTasks",
+            "GenerateExecutionSchedule",
+            "BarrierIndexAssignment",
+            "UpdateBarrierRefs"
+        ]
+    },
+    "validate": {
+        "Singular": [
+            "CheckTensors"
+        ]
+    },
+    "serialize": {
+        "Singular": [
+            {
+                "name": "GenerateBlobKmb",
+                "output": "output/mcm.blob"
+            },
+            {
+                "name": "ConvertFlatbuffer",
+                "input": "output/mcm.blob"
+            }
+
+        ]
+    },
+    "root": {
+        "Singular": [
+            "initialize",
+            "validate",
+            "adapt",
+            "kmb_adapt",
+            "dma",
+            "control_flows",
+            "finalize",
+            "scheduling",
+            "serialize"
+        ]
+    }
+}
