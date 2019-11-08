@@ -102,8 +102,10 @@ int computeAppropriatePadding(mv::Tensor tensor)
     return pad;
 }
 
-void mv::RuntimeModel::alignTensor(mv::ComputationModel& cm, std::unique_ptr<MVCNN::TensorReferenceT>& tensorT, mv::Tensor& tensor, bool padFinalOutput)
+void mv::RuntimeModel::alignTensor(mv::ComputationModel& cm, std::unique_ptr<MVCNN::TensorReferenceT>& tensorT, mv::Tensor& tensor, const size_t dimension, bool padFinalOutput)
 {
+    if(dimension == IO_CHANNEL_DIMENSION) 
+    {
         auto globalConfigParams = cm.getGlobalConfigParams();
         int pad = computeAppropriatePadding(tensor);
         std::vector<std::size_t> dimensions = tensor.getShape();
@@ -116,6 +118,19 @@ void mv::RuntimeModel::alignTensor(mv::ComputationModel& cm, std::unique_ptr<MVC
         tensorT->strides = numericStrides; // NOTE: Maybe directly bufferIt->computeStrides() in the future
         if(padFinalOutput)
             tensorT->dimensions = std::vector<uint32_t>(dimensions.begin(), dimensions.end());
+    }
+    else if (dimension == IO_WIDTH_DIMENSION) 
+    {
+        std::vector<std::size_t> dimensions = tensor.getShape();
+        auto widthPadded = mv::round_up(dimensions[mv::IO_WIDTH_DIMENSION], 16);
+        dimensions = {widthPadded, dimensions[mv::IO_HEIGHT_DIMENSION],dimensions[mv::IO_CHANNEL_DIMENSION] , dimensions[mv::IO_BATCH_DIMENSION]};
+        auto numericStrides = tensor.getOrder().computeByteStrides(mv::Shape(dimensions), tensor.getDType().getSizeInBits() / 8);
+        numericStrides.push_back(tensor.getDType().getSizeInBits() / 8);
+        std::reverse(dimensions.begin(), dimensions.end());
+        std::reverse(numericStrides.begin(), numericStrides.end());
+        tensorT->strides = numericStrides; 
+
+    }
 }
 
 MVCNN::DType mv::RuntimeModel::convertDtype(const mv::DType& dtype)
@@ -471,7 +486,7 @@ std::unique_ptr<MVCNN::SummaryHeaderT> mv::RuntimeModel::buildSummaryHeaderT(Com
     toBuild->net_output = std::vector<std::unique_ptr<MVCNN::TensorReferenceT>>(1);
     toBuild->net_output[0] = buildTensorReferenceT(cm, compilationDescriptor, om.getOutput()->getInputTensor(0));
     if (paddOutput && om.getOutput()->getInputTensor(0)->hasAttr("alignment"))
-        alignTensor(cm, toBuild->net_output[0], *om.getOutput()->getInputTensor(0), paddOutput);
+        alignTensor(cm, toBuild->net_output[0], *om.getOutput()->getInputTensor(0), IO_CHANNEL_DIMENSION, paddOutput);
 
     auto taskCount = [](mv::OpModel m)
     {
@@ -732,7 +747,7 @@ void mv::RuntimeModel::case1MC(unsigned numTasks, mv::ComputationModel& cm, mv::
     if (direction != mv::DDR2NNCMX)
     {
         if (padFinalOutput && dst->hasAttr("alignment"))
-            alignTensor(cm, tmp->dst, *dst, padFinalOutput);
+            alignTensor(cm, tmp->dst, *dst, IO_CHANNEL_DIMENSION, padFinalOutput);
     }
 
     std::vector<unsigned int> locale_index;
@@ -768,7 +783,14 @@ void mv::RuntimeModel::case2MC(unsigned numTasks, ComputationModel& cm,  mv::Dma
         if (direction != mv::DDR2NNCMX)
         {
             if (padFinalOutput && dst->hasAttr("alignment"))
-                alignTensor(cm, tmp->dst, dst->getSubTensor(i), padFinalOutput);
+                alignTensor(cm, tmp->dst, dst->getSubTensor(i), IO_CHANNEL_DIMENSION, padFinalOutput);
+        }
+
+        //Check if DMA is DDR2CMX
+        if (direction == mv::DDR2NNCMX)
+        {
+            if (dst->hasAttr("alignWidth"))
+                alignTensor(cm, tmp->dst, dst->getSubTensor(i), IO_WIDTH_DIMENSION, false);
         }
 
         checkUnstridedDMA(src, i, tmp);
@@ -789,7 +811,14 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
     auto padFinalOutput = false;
 
     auto inputTensor = opIt->getInputTensor(0);
-    auto outputTensor = opIt->getOutputTensor(0);
+
+    // output tensor comes from align layer
+    mv::Data::TensorIterator outputTensor;
+    if(opIt.leftmostChild()->getOpType() == "Align")
+        outputTensor = opIt.leftmostChild()->getOutputTensor(0);
+    else
+        outputTensor = opIt->getOutputTensor(0);
+
     bool sourceIsBroadCasted = inputTensor->isBroadcasted();
 
     bool compression = false;
@@ -837,6 +866,7 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
     else
     {
         std::vector<std::unique_ptr<MVCNN::TaskT>> toReturn;
+        
         case2MC(numTasks, cm, direction, compilationDescriptor, compression, padFinalOutput, toReturn, inputTensor, outputTensor);
         if(inputTensor->isSparse())
         {
@@ -1228,23 +1258,27 @@ void mv::RuntimeModel::getWorkloadPadding(Control::OpListIterator opIt, Workload
 std::array <unsigned short, 4>  mv::RuntimeModel::getPadding(Control::OpListIterator opIt, unsigned clusterId)
 {
     std::array <unsigned short, 4> padding = opIt->get<std::array<unsigned short, 4>>("padding");
-    auto subTensor = opIt->getOutputTensor(0)->getSubTensor(clusterId);
-    std::vector<std::size_t> offset = subTensor.get<std::vector<std::size_t>>("offset");
+    
+    if(clusterId !=0) 
+    {
+        auto subTensor = opIt->getOutputTensor(0)->getSubTensor(clusterId);
+        std::vector<std::size_t> offset = subTensor.get<std::vector<std::size_t>>("offset");
 
-    //NOTE:Padding up
-    if (offset[1] != 0)
-        padding[2] = 0;
+        //NOTE:Padding up
+        if (offset[1] != 0)
+            padding[2] = 0;
 
-    //NOTE:Padding left
-    if (offset[0] != 0)
-        padding[0] = 0;
+        //NOTE:Padding left
+        if (offset[0] != 0)
+            padding[0] = 0;
 
-    //NOTE:Padding down
-    if (subTensor.getShape()[IO_HEIGHT_DIMENSION] + offset[1] != opIt->getOutputTensor(0)->getShape()[IO_HEIGHT_DIMENSION])
-        padding[3] = 0;
+        //NOTE:Padding down
+        if (subTensor.getShape()[IO_HEIGHT_DIMENSION] + offset[1] != opIt->getOutputTensor(0)->getShape()[IO_HEIGHT_DIMENSION])
+            padding[3] = 0;
 
-    if (subTensor.getShape()[IO_WIDTH_DIMENSION] + offset[0] != opIt->getOutputTensor(0)->getShape()[IO_WIDTH_DIMENSION])
-        padding[1] = 0;
+        if (subTensor.getShape()[IO_WIDTH_DIMENSION] + offset[0] != opIt->getOutputTensor(0)->getShape()[IO_WIDTH_DIMENSION])
+            padding[1] = 0;
+    }
 
     return padding;
 }

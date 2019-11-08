@@ -200,7 +200,7 @@
             "ResolveImplicitOperations",
             "AddDPUTasksWeightsDMATasks",
             "AddUPATasksExtraInputsDMATasks",
-            "GenerateSparsityMapsUnpopulatedTensors"
+            "EnsureSplitStrategiesForSpilling"
         ]
     },
     "control_flows":{

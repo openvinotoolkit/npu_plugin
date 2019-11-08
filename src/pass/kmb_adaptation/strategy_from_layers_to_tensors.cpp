@@ -78,9 +78,12 @@ void strategyLayersToTensors(const mv::pass::PassEntry& , mv::ComputationModel& 
         std::string opType = layer->getOpType();
         if (opType == "Slice" || opType == "Align")
         {
-            auto opStrategy = layer->getInputTensor(0)->get<std::string>("splitStrategy");
-            auto outputTensor = layer->getOutputTensor(0);
-            outputTensor->set<std::string>("splitStrategy", opStrategy);
+           if(layer->getInputTensor(0)->hasAttr("splitStrategy"))
+            {
+                auto opStrategy = layer->getInputTensor(0)->get<std::string>("splitStrategy");
+                auto outputTensor = layer->getOutputTensor(0);
+                outputTensor->set<std::string>("splitStrategy", opStrategy);
+            }
         }
     }
 
