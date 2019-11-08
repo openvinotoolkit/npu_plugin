@@ -13,8 +13,8 @@ else()
     #add_executable(argmax_axis argmax_axis/argmax_axis.cpp)
     #target_link_libraries(argmax_axis cm)
 
-    #add_executable(conv_clamp conv_clamp/conv_clamp.cpp)
-    #target_link_libraries(conv_clamp cm)
+    add_executable(conv_clamp conv_clamp/conv_clamp.cpp)
+    target_link_libraries(conv_clamp cm)
 
     add_executable(conv_leaky_relu conv_leaky_relu/conv_leaky_relu.cpp)
     target_link_libraries(conv_leaky_relu cm)

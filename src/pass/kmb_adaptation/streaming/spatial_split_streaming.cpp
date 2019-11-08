@@ -262,6 +262,8 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model, mv::Dat
     auto kernelTensor = op->getInputTensor(1);
     auto outputTensor = op->getOutputTensor(0);
 
+    auto attrsToCopy = op->getAttrs({"stride", "padding", "shape", "bias"});
+
     mv::QuantizationParams quantParams = {{},{},{},{}};
     if(inputTensor->hasAttr("quantParams"))
         quantParams = inputTensor->get<mv::QuantizationParams>("quantParams");
@@ -347,11 +349,7 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model, mv::Dat
         auto newOp = om.getSourceOp(conv);
 
         newOp->set<bool>("splitted",true);//TODO::temporary hack. To remove once the iteration conditions are updated
-        newOp->set<unsigned>("opId",opId);
-        newOp->set<std::string>("splitStrategy", splitStrategy);
-        newOp->set<bool>("inputActivationSparsity", op->get<bool>("inputActivationSparsity"));
-        newOp->set<bool>("outputActivationSparsity", op->get<bool>("outputActivationSparsity"));
-        newOp->set<bool>("weightsSparsity", op->get<bool>("weightsSparsity"));
+        newOp->setAttrs(attrsToCopy);
 
         slices[split] = slice;
         convs[split] = conv;
@@ -441,6 +439,10 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model, mv::Dat
     auto number_of_splits = tiling.childTiles().size();
     auto axisToSplit =  mv::Shape::getAxis(tiling.getAxis());
     auto childTiles = tiling.childTiles();
+
+    // NOTE: In the streaming case, we can't just blindly copy everything like we
+    // do in the DPUTask conversion case. We have to overwrite shape, padding, etc.
+    auto attrsToCopy = op->getAttrs({"stride", "padding", "shape"});
 
     std::vector<mv::Shape> spatial_indexes(number_of_splits);
     std::vector<std::vector<mv::Data::TensorIterator>> slices(number_of_splits);
@@ -539,9 +541,12 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model, mv::Dat
                                 op->getName() + "_split_" + std::to_string(split));
             slices[split].push_back(slice);
         }
-        else if (opType == "Add" || opType == "Subtract" || opType == "Multiply")
+        else if (opType == "Eltwise")
         {
-            for (auto i = 0; i < 2; i++)
+            auto inputSlots = op->inputSlots();
+            auto eltwiseType = op->get<std::string>("eltwiseType");
+            auto originalDType = op->get<mv::DType>("dType");
+            for (auto i = 0; i < inputSlots; i++)
             {
                 auto inputTensor = op->getInputTensor(i);
 
@@ -553,16 +558,8 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model, mv::Dat
                 om.getSourceOp(slice)->set<unsigned>("opId", opId);
                 slices[split].push_back(slice);
             }
-            auto addFcn = [&om](std::vector< mv::Data::TensorIterator >& vec, const mv::QuantizationParams& quantParams, const mv::DType& dType, const std::string& s){ return om.add(vec, dType, quantParams, s);};
-            auto subFcn = [&om](std::vector< mv::Data::TensorIterator >& vec, const mv::QuantizationParams& quantParams, const mv::DType& dType, const std::string& s){ return om.subtract(vec, dType, quantParams, s);};
-            auto multFcn = [&om](std::vector< mv::Data::TensorIterator >& vec, const mv::QuantizationParams& quantParams, const mv::DType& dType, const std::string& s){ return om.multiply(vec, dType, quantParams, s);};
 
-            auto dpuTaskMap = std::map<std::string, std::function<mv::Data::TensorIterator (std::vector< mv::Data::TensorIterator >&, const mv::QuantizationParams&, const mv::DType&, const std::string&)>>
-                                                    {{"Add", addFcn},
-                                                    {"Subtract", subFcn},
-                                                    {"Multiply", multFcn}};
-            auto dpuElementWiseFunctor = (dpuTaskMap.at(opType));
-            newTensor = dpuElementWiseFunctor(slices[split], op->get<mv::QuantizationParams>("quantParams"), op->get<mv::DType>("dType"), op->getName() + "_split_" + std::to_string(split));
+            newTensor = om.eltwise(slices[split], eltwiseType, originalDType, op->get<mv::QuantizationParams>("quantParams"), op->getName() + "_split_" + std::to_string(split));
         }
         else
         {
@@ -570,43 +567,8 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model, mv::Dat
         }
 
         auto newOp = om.getSourceOp(newTensor);
-
-        if (op->hasAttr("bias"))
-        {
-            auto biasTensorName = op->get<std::string>("bias");
-            om.addAttr(newOp, "bias", biasTensorName);
-        }
-
+        newOp->setAttrs(attrsToCopy);
         newOp->set<bool>("splitted", true);//TODO::temporary hack. To remove once the iteration conditions are updated
-        newOp->set<unsigned>("opId", opId);
-        newOp->set<std::string>("splitStrategy", splitStrategy);
-        newOp->set<bool>("inputActivationSparsity", op->get<bool>("inputActivationSparsity"));
-        newOp->set<bool>("outputActivationSparsity", op->get<bool>("outputActivationSparsity"));
-        newOp->set<bool>("weightsSparsity", op->get<bool>("weightsSparsity"));
-        if (op->hasAttr("postOpType"))
-        {
-            newOp->set<std::string>("postOpType", op->get<std::string>("postOpType"));
-            if (newOp->get<std::string>("postOpType") == "LeakyRelu")
-                newOp->set<double>("alpha", op->get<double>("alpha"));
-        }
-        else if (op->hasAttr("postOpTypes"))
-        {
-            newOp->set<std::vector<std::string>>("postOpTypes", op->get<std::vector<std::string>>("postOpTypes"));
-            std::vector<std::string> postOpTypes = op->get<std::vector<std::string>>("postOpTypes");
-
-            if (op->getOutputTensor(0)->getDType() ==  mv::DType("Float16"))
-            {
-                newOp->set<double>("minimum", op->get<double>("minimum"));
-                if (std::find(postOpTypes.begin(), postOpTypes.end(), "Maximum") != postOpTypes.end())
-                    newOp->set<double>("maximum", op->get<double>("maximum"));
-            }
-            else
-            {
-                newOp->set<int64_t>("minimum", op->get<int64_t>("minimum"));
-                if (std::find(postOpTypes.begin(), postOpTypes.end(), "Maximum") != postOpTypes.end())
-                    newOp->set<int64_t>("maximum", op->get<int64_t>("maximum"));
-            }
-        }
 
         convs[split] = newTensor;
 
@@ -900,7 +862,7 @@ void streamingTilingFcn(const mv::pass::PassEntry& pass,
         }
 
         std::string opType = opIt->getOpType();
-        bool isElementWise = (opType == "Add" || opType == "Subtract" || opType == "Multiply");
+        bool isElementWise = opType == "Eltwise";
 
         if ((opType == "Conv" || opType == "DepthwiseConv" ||  (opType == "MaxPool") || isElementWise) && !opIt->hasAttr("splitted") && opHasSplittingStrategy)
         {

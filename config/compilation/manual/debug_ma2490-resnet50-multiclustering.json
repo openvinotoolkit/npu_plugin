@@ -397,15 +397,13 @@
         "Singular": [
             "ConcatAsImplicit",
             "StoreWorkloadStrategy",
-            "ConvertOpsToDPUTasks",
-            "ConvertOpsToUPATasks",
+            "ConvertOpsToTasks",
             "ForceSerialize",
             "KMBOrderConversion",
             "AlignTo16Channels",
             "AlignTaskWeights",
             "GenerateSparsityMapsPopulatedTensors",
             "GenerateWeightsTables",
-            "GenerateEltWiseConstants",
             "StrategyLayersToTensors",
             "ComputeTensorsQuantParams",
             "UpdateImplicitLayersQuantizationParams",
@@ -703,7 +701,7 @@
     },
     "scheduling": {
         "Singular": [
-            
+
             "StoreBarriersNamesInTasks",
             "GenerateExecutionSchedule",
             "BarrierIndexAssignment",
