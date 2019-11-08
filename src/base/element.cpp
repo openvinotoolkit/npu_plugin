@@ -247,6 +247,20 @@ const std::map<std::string, mv::Attribute>& mv::Element::getAttrs_() const
     return attrs_;
 }
 
+std::map<std::string, mv::Attribute> mv::Element::getAttrs(const std::vector<std::string>& forbiddenKeys) const
+{
+    std::map<std::string, Attribute> toReturn(attrs_);
+    for(auto& s: forbiddenKeys)
+        if(toReturn.find(s) != toReturn.end())
+            toReturn.erase(s);
+    return toReturn;
+}
+
+void mv::Element::setAttrs(const std::map<std::string, Attribute>& attrs)
+{
+    attrs_.insert(attrs.begin(), attrs.end());
+}
+
 mv::Attribute& mv::Element::get(const std::string& name)
 {
     if (attrs_.find(name) == attrs_.end())
@@ -286,7 +300,7 @@ mv::json::Value mv::Element::toJSON() const
 mv::json::Value mv::Element::toJSON(bool simplifiedTyping) const
 {
     json::Object result;
-    if (name_ != "") 
+    if (name_ != "")
         result["name"] = name_;
 
     if (!simplifiedTyping)

@@ -42,7 +42,14 @@ void storeStrategy(mv::Data::OpListIterator& opIt, std::vector<mv::Element>& str
         std::string& name_filter = s.get<std::string>("name_filter");
         std::regex exp(name_filter);
         if (std::regex_match(opIt->getName(), exp))
-            opIt->set<std::string>("splitStrategy", s.get<std::string>("strategy"));
+        {
+            auto strategy = s.get<std::string>("strategy");
+            opIt->set<std::string>("splitStrategy", strategy);
+            if(strategy == "SplitOverK" || strategy == "HKSwitch")
+                opIt->set<bool>("multiCast", true);
+            else
+                opIt->set<bool>("multiCast", false);
+        }
     }
 }
 

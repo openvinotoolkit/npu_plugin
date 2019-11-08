@@ -7,11 +7,14 @@ if (MSVC)
 
 else()
 
-    #add_executable(argmax argmax/argmax.cpp)
-    #target_link_libraries(argmax cm)
+    #add_executable(argmax_noaxis argmax_noaxis/argmax_noaxis.cpp)
+    #target_link_libraries(argmax_noaxis cm)
 
-    #add_executable(conv_clamp conv_clamp/conv_clamp.cpp)
-    #target_link_libraries(conv_clamp cm)
+    #add_executable(argmax_axis argmax_axis/argmax_axis.cpp)
+    #target_link_libraries(argmax_axis cm)
+
+    add_executable(conv_clamp conv_clamp/conv_clamp.cpp)
+    target_link_libraries(conv_clamp cm)
 
     add_executable(conv_leaky_relu conv_leaky_relu/conv_leaky_relu.cpp)
     target_link_libraries(conv_leaky_relu cm)

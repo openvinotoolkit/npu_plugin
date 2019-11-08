@@ -55,10 +55,10 @@ int main()
     auto dtype = mv::DType("Float16");
     auto quantParams = mv::QuantizationParams({{128},{0.007843137718737125},{-1.0},{1.0}});
     // Build Model
-    auto proposal0 = om.detectionOutput(inputs, num_classes, keep_top_k, nms_threshold, background_label_id, top_k, variance_encoded_in_target,
+    auto detection0 = om.detectionOutput(inputs, num_classes, keep_top_k, nms_threshold, background_label_id, top_k, variance_encoded_in_target,
                                                                          code_type, share_location, confidence_threshold, clip_before_nms, clip_after_nms,
                                                                          decrease_label_id, normalized, input_height, input_width, objectness_score, dtype, quantParams, "detection_output");
-    om.output(proposal0);
+    om.output(detection0);
     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/release_kmb_MC-Prefetch1.json";
     unit.loadCompilationDescriptor(compDescPath);
     unit.loadTargetDescriptor(mv::Target::ma2490);
