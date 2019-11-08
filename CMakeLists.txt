@@ -401,7 +401,7 @@ endif()
 if(NOT CMAKE_CROSSCOMPILING)
     # add_subdirectory(tools) # testing without
     if(MCM_COMPILER_BUILD_EXAMPLES)
-        add_subdirectory(example)
+        add_subdirectory(examples)
     endif()
     if(MCM_COMPILER_BUILD_TESTS)
         add_subdirectory(tests/layer)
