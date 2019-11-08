@@ -177,7 +177,7 @@ namespace mv
                 {
                     weightTableSize = 0;
                     weightSize = 0;
-                } else if(op.getOpType() == "Add" || op.getOpType() == "Multiply")
+                } else if(op.getOpType() == "Eltwise")
                 {
                     weightTableSize = 0;
                     weightSize = 0;
@@ -352,7 +352,7 @@ namespace mv
                 //naively emulate the workload cost
                 //TODO: find cleaner solution
                 unsigned baseKernelCost;
-                if ((opType == "Add") or (opType == "Concat"))
+                if ((opType == "Eltwise") or (opType == "Concat"))
                 {
                     baseKernelCost = 1;
                 }

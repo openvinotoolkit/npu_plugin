@@ -43,7 +43,7 @@ void strategyLayersToTensors(const mv::pass::PassEntry& , mv::ComputationModel& 
             unsigned startingIndex = 1;
             auto taskOp = layer->get<std::string>("taskOp");
 
-            if(taskOp == "Add" || taskOp == "Multiply" || taskOp == "Subtract")
+            if(taskOp == "Eltwise")
                 startingIndex = 2;
 
             for(unsigned i = startingIndex; i < n; ++i)
@@ -78,9 +78,12 @@ void strategyLayersToTensors(const mv::pass::PassEntry& , mv::ComputationModel& 
         std::string opType = layer->getOpType();
         if (opType == "Slice" || opType == "Align")
         {
-            auto opStrategy = layer->getInputTensor(0)->get<std::string>("splitStrategy");
-            auto outputTensor = layer->getOutputTensor(0);
-            outputTensor->set<std::string>("splitStrategy", opStrategy);
+           if(layer->getInputTensor(0)->hasAttr("splitStrategy"))
+            {
+                auto opStrategy = layer->getInputTensor(0)->get<std::string>("splitStrategy");
+                auto outputTensor = layer->getOutputTensor(0);
+                outputTensor->set<std::string>("splitStrategy", opStrategy);
+            }
         }
     }
 

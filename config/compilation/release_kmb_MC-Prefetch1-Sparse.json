@@ -82,9 +82,7 @@
     },
     "adapt": {
         "Singular": [
-            "AverageAsDepthWise",
-            "RemoveDropOut",
-            "FullyConnectedAsConv2D",
+            "ReplacementOps",
             "TensorsToU8",
             "TensorsToFP16",
             "FusePostOps",
@@ -174,8 +172,8 @@
             "ConcatAsImplicit",
             "ReshapeAsImplicit",
             "StoreWorkloadStrategy",
-            "ConvertOpsToDPUTasks",
-            "ConvertOpsToUPATasks",
+            "ConvertOpsToTasks",
+            "SetUpPPETasks",
             "ForceSerialize",
             "KMBOrderConversion",
             "AlignUnpopulatedTensors",
@@ -186,7 +184,6 @@
             "AlignTaskWeights",
             "GenerateSparsityMapsPopulatedTensors",
             "GenerateWeightsTables",
-            "GenerateEltWiseConstants",
             "StrategyLayersToTensors",
             "ComputeTensorsQuantParams",
             "UpdateImplicitLayersQuantizationParams",
@@ -203,7 +200,7 @@
             "ResolveImplicitOperations",
             "AddDPUTasksWeightsDMATasks",
             "AddUPATasksExtraInputsDMATasks",
-            "GenerateSparsityMapsUnpopulatedTensors"
+            "EnsureSplitStrategiesForSpilling"
         ]
     },
     "control_flows":{
