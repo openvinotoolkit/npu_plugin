@@ -34,7 +34,7 @@ static const char tolerence_message[] = "Optional. Tolerence to use in comparing
 static const char model_message[] = "Required. Path to input model's xml";
 
 /// @brief message for setting quantize or not
-static const char image_message[] = "Required. Path to input image";
+static const char image_message[] = "Optional. Path to input image. If not supplied, one will be generated based on input layer.";
 
 /// @brief message for setting quantize or not
 static const char evm_message[] = "Required. IP address of EVM board to run inference on";
@@ -91,8 +91,8 @@ static void showUsage() {
     std::cout << std::endl;
     std::cout << "    -h                  " << help_message << std::endl;
     std::cout << "    -m <path>           " << model_message << std::endl;
-    std::cout << "    -i <path>           " << image_message << std::endl;
     std::cout << "    -k <ip address>     " << evm_message << std::endl;
+    std::cout << "    -i <path>           " << image_message << std::endl;
     std::cout << "    -t <float>          " << tolerence_message << std::endl;
     //std::cout << "    -b <path>           " << blob_message << std::endl;
     //std::cout << "    -a <path>           " << a_tensor_message << std::endl;

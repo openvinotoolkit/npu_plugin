@@ -33,8 +33,9 @@ const int8_t FAIL_ERROR      = 9;  // Error occured during run, check log
 // files used
 const std::string FILE_CONVERTED_IMAGE  = "converted_image.dat";
 const std::string FILE_CPU_OUTPUT       = "output_cpu.bin";
+const std::string FILE_CPU_INPUT        = "input_cpu.bin";
 const std::string DLDT_BIN_FOLDER       = "/bin/intel64/Debug/";
-const std::string DLDT_BLOB_LOCATION    = "/release_kmb/release_kmb/";
+const std::string DLDT_BLOB_LOCATION    = "release_kmb/release_kmb/";
 
 
 
@@ -56,18 +57,16 @@ bool ParseAndCheckCommandLine(int argc, char *argv[])
         if (FLAGS_a.empty()) 
             throw std::logic_error("Parameter -a must be set in validation mode");
         if ((FLAGS_d.compare("U8") != 0 ) && (FLAGS_d.compare("FP16") != 0 ))  
-            throw std::logic_error("Parameter -d is not set correctly");
+            throw std::logic_error("Parameter -d is not set correctly. Only U8 | FP16 supported");
     }
     else    //normal operation
     {
         if (FLAGS_m.empty()) 
             throw std::logic_error("Parameter -m is not set");
-        if (FLAGS_i.empty()) 
-            throw std::logic_error("Parameter -i is not set");
         if (FLAGS_k.empty()) 
             throw std::logic_error("Parameter -k is not set");
         if ((FLAGS_d.compare("U8") != 0 ) && (FLAGS_d.compare("FP16") != 0 ))  
-            throw std::logic_error("Parameter -d is not set correctly");
+            throw std::logic_error("Parameter -d is not set correctly. Only U8 | FP16 supported"); 
     }
  
     return true;
@@ -111,8 +110,8 @@ bool compare(std::vector<float>& actualResults, std::vector<float>& expectedResu
     std::cout << "  Actual Results size: " << actualResults.size() << std::endl;
     std::cout << "  Expected Results size: " << expectedResults.size() << std::endl;
     std::cout << "  Tolerence: " << tolerance << "%" << std::endl;
-    if (actualResults.size() != expectedResults.size())
-        return false;
+    // if (actualResults.size() != expectedResults.size())
+    //    return false;
 
     size_t maxErr = 0;
     float countErrs = 0;
@@ -139,10 +138,9 @@ bool compare(std::vector<float>& actualResults, std::vector<float>& expectedResu
 
     //print results report
     std::cout << "\nMetric\t\t\tActual\tThreshold\tStatus" << std::endl << "----------------------  ------  ---------\t-------" << std::endl;
-    //printf("Incorrect Values %10s %10s %10s \033[0m\n", ((countErrs/actualResults.size()) * 100), std::to_string(tolerance), ((countErrs==0) ? "\033[1;32mPass" : "\033[1;31mFail")) ;
-    std::cout << "Incorrect Values\t" << ((countErrs/actualResults.size()) * 100) << "%\t\t" << tolerance << "%\t" << ((countErrs==0) ? "\033[1;32mPass" : "\033[1;31mFail") << "\033[0m" << std::endl;
-    std::cout << "Highest Difference\t" << maxErr << "\t\t0\t" << ((maxErr==0) ? "\033[1;32mPass" : "\033[1;31mFail") << "\033[0m" << std::endl;
-    std::cout << "Global Sum Difference\t" << sumDiff << "\t\t0\t" << ((sumDiff==0) ? "\033[1;32mPass" : "\033[1;31mFail") << "\033[0m" << std::endl << std::endl;
+    std::cout << "Incorrect Values\t" << std::setw(7) << ((countErrs/actualResults.size()) * 100) << "%" << std::setw(7) << tolerance << "%" << ((countErrs==0) ? "\t\033[1;32mPass" : "\t\033[1;31mFail") << "\033[0m" << std::endl;
+    std::cout << "Highest Difference\t" << std::setw(8) << maxErr << std::setw(8) << "0" << std::setw(8) << ((maxErr==0) ? "\t\033[1;32mPass" : "\t\033[1;31mFail") << "\033[0m" << std::endl;
+    std::cout << "Global Sum Difference\t" << std::setw(8) << sumDiff << std::setw(8) << "0" << std::setw(8) << ((sumDiff==0) ? "\t\033[1;32mPass" : "\t\033[1;31mFail") << "\033[0m" << std::endl << std::endl;
 
     if (maxErr == 0) return true;
     else return false;
@@ -169,7 +167,7 @@ int runEmulator(std::string pathXML, std::string pathImage, std::string& blobPat
     // Clean any old files
     std::cout << "Deleting old emulator results files... " << std::endl;
     std::string binFolder = std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER;
-    std::vector<std::string> filesDelete = {"output_cpu.bin", "input-0.bin"};
+    std::vector<std::string> filesDelete = {FILE_CPU_OUTPUT, FILE_CPU_INPUT};
     for (std::string fDelete : filesDelete)
         remove((binFolder + fDelete).c_str());
     
@@ -184,27 +182,36 @@ int runEmulator(std::string pathXML, std::string pathImage, std::string& blobPat
     // execute the classification sample async (CPU-plugin)
     std::cout << "Generating reference results... " << std::endl;
     std::string commandline = std::string("cd ") + std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + "  && " + 
-        "./classification_sample_async -m " + pathXML + " -i " + pathImage + " -d CPU";
+        "./test_classification -m " + pathXML + " -d CPU";
+    if (! FLAGS_i.empty() )
+        commandline += (" -i " + pathImage);
+
     std::cout << commandline << std::endl; 
     int returnVal = std::system(commandline.c_str());
     if (returnVal != 0)
     {
-        std::cout << std::endl << "Error occurred running the classification_sample_async (CPU mode)!" << std::endl;
+        std::cout << std::endl << "Error occurred running the test_classification (CPU mode)!" << std::endl;
         return FAIL_ERROR;
     }
     if (!checkFilesExist( {std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_CPU_OUTPUT} ))
+        return FAIL_CPU_PLUGIN;
+    
+    if (!checkFilesExist( {std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_CPU_INPUT} ))
         return FAIL_CPU_PLUGIN;
 
     //
     // execute the classification sample async (KMB-plugin)
     std::cout << "Generating mcm blob through kmb-plugin... " << std::endl;
     commandline = std::string("cd ") + std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + " && " + 
-        "./classification_sample_async -m " + pathXML + " -i " + pathImage + " -d KMB";
+        "./test_classification -m " + pathXML + " -d KMB";
+    if (! FLAGS_i.empty() )
+        commandline += (" -i " + pathImage);
+
     std::cout << commandline << std::endl;
     std::system(commandline.c_str());
     if (returnVal != 0)
     {
-        std::cout << std::endl << "Error occurred running the classification_sample_async (KMB mode)!" << std::endl;
+        std::cout << std::endl << "Error occurred running the test_classification (KMB mode)!" << std::endl;
         return FAIL_ERROR;
     }
     
@@ -233,18 +240,18 @@ bool copyFile(std::string src, std::string dest)
 
 int runKmbInference(std::string evmIP, std::string blobPath)
 {
-    //
     // Clean old results
     std::cout << "Deleting old kmb results files... " << std::endl;
     std::string outputFile = std::getenv("VPUIP_HOME") + std::string("/application/demo/InferenceManagerDemo/output-0.bin");
     remove(outputFile.c_str());
 
-    //
     // copy the required files to InferenceManagerDemo folder
+    std::string inputCPU = std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_CPU_OUTPUT;
     std::string inputDest = std::getenv("VPUIP_HOME") + std::string("/application/demo/InferenceManagerDemo/input-0.bin");
-    if (!copyFile(FILE_CONVERTED_IMAGE, inputDest))
+    //if (!copyFile(FILE_CONVERTED_IMAGE, inputDest)) return FAIL_GENERAL;
+    if (!copyFile(inputCPU, inputDest))
         return FAIL_GENERAL;
-    
+     
     std::string blobDest = std::getenv("VPUIP_HOME") + std::string("/application/demo/InferenceManagerDemo/test.blob");
     if (!copyFile(blobPath, blobDest))
         return FAIL_GENERAL;
@@ -293,7 +300,6 @@ int validate(std::string blobPath, std::string expectedPath, std::string actualP
 {
     uint_fast16_t typesize = (FLAGS_d.compare("U8")==0) ? 1 : 2 ;
 
-    //
     // Read the InferenceManagerDemo output file into a vector
     std::cout << "Reading in actual results... ";
     std::ifstream file(actualPath, std::ios::in | std::ios::binary);
@@ -304,7 +310,6 @@ int validate(std::string blobPath, std::string expectedPath, std::string actualP
     std::vector<float> outputFP32;
     if (FLAGS_d.compare("U8")==0)
     {
-        //
         // load json and read quantization values: scale and zeropoint
         std::string json_file = getFilename(blobPath) + std::string(".json");
         std::ifstream ifile(json_file);
@@ -334,7 +339,9 @@ int validate(std::string blobPath, std::string expectedPath, std::string actualP
         for (size_t i = 0; i < outputVector.size(); ++i)
         {
             // De-quantize: bitshift left by qShift then multiply by scale
-            float val = outputVector[i] << qShift / qScale;
+            float val = 0;
+            if (outputVector[i] != 0)
+                val = outputVector[i] << qShift / qScale;
             outputFP32.push_back(val);
         }
     }
@@ -360,7 +367,6 @@ int validate(std::string blobPath, std::string expectedPath, std::string actualP
     std::vector<float> expectedFP32(totalExpected);
     infile.read(reinterpret_cast<char*>(&expectedFP32[0]), totalExpected*sizeof(float));
 
-    //    
     // compare
     bool pass = false;
     pass = compare(outputFP32, expectedFP32, FLAGS_t);
@@ -490,7 +496,7 @@ int main(int argc, char *argv[])
         validate(FLAGS_b, FLAGS_e, FLAGS_a);
         return(0);
     }
-    //
+
     // Normal operation
     int result = 0;
 
