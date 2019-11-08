@@ -94,7 +94,7 @@ bool StrategyManager::hasAttr(const LayerStrategySet& map,const string& name) co
 std::string StrategyManager::getLogID() const
 {
     return "GraphOptimizer-StrategyManager";
-};
+}
 
 void StrategyManager::updateValuesFromJSON()
 {
@@ -195,40 +195,6 @@ void StrategyManager::updateDefaultValues()
 
 }
 
-void StrategyManager::printStrategy()
-{
-    cout <<"########## Final Strategy Config" << endl;
-
-    cout <<"Global Configs" << endl;
-    for( const auto elem : globalConfig_)
-    {
-        cout <<"\t"<<elem.first << " : " << elem.second.toString() << endl;
-    }
-
-    cout <<"Global Strategies" << endl;
-    for( const auto elem : globalStrategies_)
-    {
-        cout <<"\t"<<elem.first << " : " << elem.second.toString() << endl;
-    }
-
-    cout <<"LayerWise Strategies" << endl;
-    for( const auto layer : layerStrategies_)
-    {
-        cout <<"\t"<<layer.first <<endl;
-
-        for (const auto strategySet : layer.second )
-        {
-            cout <<"\t"<<strategySet.first << " : " << strategySet.second.toString() << endl;
-//            cout <<"\t " << strategySet.first << "[ ";
-//            for( const auto strategy : strategySet.second)
-//            {
-//                cout << strategy.toString() <<" ";
-//            }
-//            cout << "]" << endl;
-        }
-    }
-}
-
 std::vector<mv::Element> StrategyManager::convertStreamingStrategyToElement(CriticalPathNodes &strategiesToConvert, std::shared_ptr<mv::Element> compDesc)
 {
 
@@ -276,8 +242,6 @@ std::vector<mv::Element> StrategyManager::convertStreamingStrategyToElement(Crit
 std::vector<mv::Element> StrategyManager::convertClusteringStrategyToElement(CriticalPathNodes &strategiesToConvert,
                                                                                  std::shared_ptr<mv::Element> compDesc)
 {
-    cout << "Converting Multiclustering Strategies to Element" << endl;
-
     auto clusteringStrategyList = compDesc->get<std::vector<mv::Element>>("split_strategy");
 
     //determine if node already has clustering strategy from JSON text, do not override text specification
@@ -315,8 +279,6 @@ std::vector<mv::Element> StrategyManager::convertClusteringStrategyToElement(Cri
 
 std::vector<mv::Element> StrategyManager::convertLocationStrategyToElement(CriticalPathNodes &strategiesToConvert)
 {
-    cout << "Converting Location Strategies to Element" << endl;
-
     mv::Element copyLElement("");
     std::vector<mv::Element> locationStrategyList;
 
@@ -386,7 +348,6 @@ void StrategyManager::saveMetaStrategy(CriticalPathNodes& criticalPathNodes)
     }strategyNameComparator;
 
     sort(criticalPathNodes.begin(),criticalPathNodes.end(),strategyNameComparator);
-    const bool enablePrintStrategyToTerminal = true;
     const bool enableSaveStrategyToDescriptor = true;
     const bool enableSaveStrategyToJsonFile = true;
 
@@ -439,9 +400,6 @@ void StrategyManager::saveMetaStrategy(CriticalPathNodes& criticalPathNodes)
         jsonOutputFile.close();
     }
 
-    auto clusters = globalConfig_["totalClusters"].get<int>();
-    bool singleCluster = false;
-    if(clusters == 1) singleCluster = true;
     // attach optimal tensor location (CMX or DDR) attribute to tensor
     for(auto elem : criticalPathNodes)
     {
@@ -676,7 +634,8 @@ std::shared_ptr<MetaGraph> StrategyManager::recursiveGraphSolver(mv::Data::OpLis
 
         for(const auto& meta : childMetas)
         {
-            meta->write(dotFileLocation,true);
+            if(createStrategyDots)
+                meta->write(dotFileLocation,true);
             masterMeta->fuseMeta(meta);
         }
 
@@ -699,7 +658,8 @@ void StrategyManager::graphParameterOptimizations()
         children.push_back(child);
 
     auto generalizedLinearMeta = recursiveGraphSolver(startingNode,endingNode,children);
-    generalizedLinearMeta->write(dotFileLocation,true);
+    if(createStrategyDots)
+        generalizedLinearMeta->write(dotFileLocation,true);
 
     auto finalMetaGraph = make_shared<MetaGraph>();
     finalMetaGraph->fuseMeta(generalizedLinearMeta);
@@ -708,7 +668,8 @@ void StrategyManager::graphParameterOptimizations()
     auto bestPath = finalMetaGraph->getLowestCriticalPathExtended();
     saveMetaStrategy(*bestPath->nodes);
 
-    finalMetaGraph->write(dotFileLocation,true);
+    if(createStrategyDots)
+        finalMetaGraph->write(dotFileLocation,true);
 }
 
 void StrategyManager::generateStrategySetForLayer(mv::Op& op,vector<StrategySet>& strategyVec)

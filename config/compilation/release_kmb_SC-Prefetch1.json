@@ -96,7 +96,8 @@
                         {"name" : "ddrBandwidth",   "value" : 128 },
                         {"name" : "systemClockMhz", "value" : 500 },
                         {"name" : "FathomSafetyFactor", " value" : 0.75},
-                        {"name" : "dotFileLocation", "value" : "./output/"},
+                        {"name" : "createStrategyDots", "value" : false},
+                        {"name" : "dotFileLocation", "value" : "./output/dots/strategy/"},
                         {"name" : "jsonOutFileName", "value" : "./output/mcmCompiler_strategy_output.json"}
                     ],
                     "globalStrategies" : [
@@ -239,7 +240,7 @@
             {
                 "name": "GenerateWorkloads",
                 "costfunction": "greedy",
-                "TensorSplitAlgorithms": "Rectangle, Z-tiling",
+                "TensorSplitAlgorithms": "Rectangle, Z-Tiling",
                 "_comment": "Supported CostFunctions are: balanced | criticalpath | minmax | greedy. Supported TensorSplitAlgorithms are Rectangle, Z-Tiling"
             },
             "ArrangeKmbExecution",
