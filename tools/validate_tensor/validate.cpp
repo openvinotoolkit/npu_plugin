@@ -110,7 +110,8 @@ bool compare(std::vector<float>& actualResults, std::vector<float>& expectedResu
     std::cout << "  Actual Results size: " << actualResults.size() << std::endl;
     std::cout << "  Expected Results size: " << expectedResults.size() << std::endl;
     std::cout << "  Tolerence: " << tolerance << "%" << std::endl;
-    // if (actualResults.size() != expectedResults.size())
+    if (actualResults.size() != expectedResults.size())
+        std::cout << "  RESULTS SIZES DO NOT MATCH! Continuing..." << std::endl;
     //    return false;
 
     size_t maxErr = 0;
@@ -247,7 +248,7 @@ int runKmbInference(std::string evmIP, std::string blobPath)
 
     // copy the required files to InferenceManagerDemo folder
     std::string inputCPU = std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_CPU_INPUT;
-    //std::string inputCPU = FILE_CONVERTED_IMAGE;
+    // std::string inputCPU = FILE_CONVERTED_IMAGE;
     std::string inputDest = std::getenv("VPUIP_HOME") + std::string("/application/demo/InferenceManagerDemo/input-0.bin");
     //if (!copyFile(FILE_CONVERTED_IMAGE, inputDest)) return FAIL_GENERAL;
     if (!copyFile(inputCPU, inputDest))
@@ -509,8 +510,8 @@ int main(int argc, char *argv[])
     result = convertBlobToJson(blobPath);
     if ( result > 0 ) return result;
 
-    // result = convertImage(FLAGS_i, blobPath);
-    // if ( result > 0 ) return result;
+    result = convertImage(FLAGS_i, blobPath);
+    if ( result > 0 ) return result;
 
     result = runKmbInference(FLAGS_k, blobPath);
     if ( result > 0 ) return result;
