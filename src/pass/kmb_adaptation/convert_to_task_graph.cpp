@@ -278,7 +278,23 @@ mv::Data::TensorIterator convertPermuteToUPATask(mv::OpModel& om, const std::vec
     return upaPermute;
 }
 
+mv::Data::TensorIterator convertInterpToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs, const std::map<std::string, mv::Attribute>& attrs, const std::string& name)
+{
+    auto quantParams = attrs.at("quantParams").get<mv::QuantizationParams>();
+    auto dtype = attrs.at("dType").get<mv::DType>();
 
+    // Required params
+    auto factor = attrs.at("factor").get<double>();
+    auto pad_beg = attrs.at("pad_beg").get<unsigned>();
+    auto pad_end = attrs.at("pad_end").get<unsigned>();
+
+    // Optional params
+    auto height = attrs.at("height").get<unsigned>();
+    auto width = attrs.at("width").get<unsigned>();
+    auto align_corners = attrs.at("align_corners").get<bool>();
+
+    return om.uPATaskInterp(inputs, factor, pad_beg, pad_end, height, width, align_corners, dtype, quantParams, name);
+}
 void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
 
@@ -289,7 +305,7 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
     std::vector<std::string> opsTypesToConvert = {"Conv", "DepthwiseConv", "Eltwise", "MaxPool"};
     std::vector<std::string> opsTypesToConvertToUPA = {"Identity", "Softmax", "Proposal", "ROIPooling",
                                                        "Quantize", "Reshape", "RegionYolo", "ReorgYolo",
-                                                       "Normalize", "Permute"};
+                                                       "Normalize", "Permute", "Interp"};
 
     opsTypesToConvert.insert(opsTypesToConvert.end(), opsTypesToConvertToUPA.begin(), opsTypesToConvertToUPA.end());
     auto opsToConvert = om.getOpsOfTypes(opsTypesToConvert);
@@ -308,7 +324,8 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
     {"RegionYolo", convertRegionYoloToUPATask},
     {"ReorgYolo", convertReorgYoloToUPATask},
     {"Normalize", convertNormalizeToUPATask},
-    {"Permute", convertPermuteToUPATask}
+    {"Permute", convertPermuteToUPATask},
+    {"Interp", convertNormalizeToUPATask},
     };
 
     for(auto& opType: opsTypesToConvert)
