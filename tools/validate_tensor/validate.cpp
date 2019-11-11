@@ -130,7 +130,7 @@ bool compare(std::vector<float>& actualResults, std::vector<float>& expectedResu
             if (abs_error > maxErr) maxErr = abs_error;
             result = "\tfail";
         }
-        if (idx >1000 && idx < 1100) // print first 50 rows
+        if (idx < 50) // print first 50 rows
             std::cout << expected << "\t" << actual << "\t" << abs_error << "\t" << abs_allowed_err << "\t"  << result << std::endl;
     };
     std::cout << "Printing first 50 rows...\nExp\tActual\tdiff\ttolerence\tresult" << std::endl;
@@ -510,8 +510,11 @@ int main(int argc, char *argv[])
     result = convertBlobToJson(blobPath);
     if ( result > 0 ) return result;
 
-    result = convertImage(FLAGS_i, blobPath);
-    if ( result > 0 ) return result;
+    if (! FLAGS_i.empty()) 
+    {
+        result = convertImage(FLAGS_i, blobPath);
+        if ( result > 0 ) return result;
+    }
 
     result = runKmbInference(FLAGS_k, blobPath);
     if ( result > 0 ) return result;
