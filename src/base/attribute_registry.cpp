@@ -275,6 +275,7 @@ bool mv::attr::AttributeRegistry::checkInstanceTrait(const std::string& trait)
 #include    "src/base/attribute_def/std_array_unsigned_short_4.cpp"
 #include    "src/base/attribute_def/std_map_std_string_element.cpp"
 #include    "src/base/attribute_def/std_set_std_string.cpp"
+#include    "src/base/attribute_def/std_shared_ptr_vect_strategySet.cpp"
 #include    "src/base/attribute_def/std_size_t.cpp"
 #include    "src/base/attribute_def/std_string.cpp"
 #include    "src/base/attribute_def/std_vec_mv_data_element.cpp"
