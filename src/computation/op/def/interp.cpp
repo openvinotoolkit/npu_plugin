@@ -8,10 +8,18 @@ namespace mv
 
         static std::function<std::pair<bool, std::size_t>(const std::vector<Data::TensorIterator>&,
             const std::map<std::string, Attribute>&, std::string&)> inputCheckFcn =
-            [](const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>& args,
+            [](const std::vector<Data::TensorIterator>&, const std::map<std::string, Attribute>& args,
             std::string& errMsg) -> std::pair<bool, std::size_t>
         {
             //TODO add checks to see if outputHeight/Width both scale up or down (have the same factor?)
+            auto factor = args.at("factor").get<double>();
+            if (factor <= 0)
+            {
+                std::stringstream err;
+                err << "factor must be non-zero positive: factor=" << factor;
+                errMsg = err.str();
+                return {false, 0};
+            }
             return {true, 0};
         };
 
@@ -22,24 +30,37 @@ namespace mv
             auto dTypeToUse = args.at("dType").get<mv::DType>();
             if(dTypeToUse == mv::DType("Default"))
                 dTypeToUse = inputs[0]->getDType();
-            auto outHeight = args.at("height").get<unsigned>();
-            auto outWidth = args.at("width").get<unsigned>();
+            auto factor = args.at("factor").get<double>();
+            unsigned outHeight , outWidth;
             auto inputShape = inputs[0]->getShape();
 
-            if (outHeight == 0)
+            if (factor != 1)
             {
                 auto inHeight = inputShape[IO_HEIGHT_DIMENSION];
-                auto padBeg = args.at("pad_beg").get<unsigned>();
-                auto padEnd = args.at("pad_end").get<unsigned>();
-                outHeight = inHeight + padBeg + padEnd;
-            }
-
-            if (outWidth == 0)
-            {
                 auto inWidth = inputShape[IO_WIDTH_DIMENSION];
-                auto padBeg = args.at("pad_beg").get<unsigned>();
-                auto padEnd = args.at("pad_end").get<unsigned>();
-                outWidth = inWidth + padBeg + padEnd;
+                outHeight = inHeight * factor;
+                outWidth = inWidth * factor;
+            }
+            else
+            {
+                outHeight = args.at("height").get<unsigned>();
+                outWidth = args.at("width").get<unsigned>();
+
+                if (outHeight == 0)
+                {
+                    auto inHeight = inputShape[IO_HEIGHT_DIMENSION];
+                    auto padBeg = args.at("pad_beg").get<unsigned>();
+                    auto padEnd = args.at("pad_end").get<unsigned>();
+                    outHeight = inHeight + padBeg + padEnd;
+                }
+
+                if (outWidth == 0)
+                {
+                    auto inWidth = inputShape[IO_WIDTH_DIMENSION];
+                    auto padBeg = args.at("pad_beg").get<unsigned>();
+                    auto padEnd = args.at("pad_end").get<unsigned>();
+                    outWidth = inWidth + padBeg + padEnd;
+                }
             }
 
              mv::Shape outputShape({outWidth, outHeight, inputShape[IO_CHANNEL_DIMENSION], inputShape[IO_BATCH_DIMENSION]});;
@@ -55,6 +76,7 @@ namespace mv
         MV_REGISTER_OP(Interp)
         .setInputs({"data"})
         .setOutputs({"output"})
+        .setArg<double>("factor")
         .setArg<unsigned>("pad_beg")
         .setArg<unsigned>("pad_end")
         .setOptionalArg<unsigned>("height", 0)
