@@ -8,7 +8,7 @@ int main()
 
     // Define Params
     int base_size = 16;
-    int pre_nms_topn = 300;
+    int pre_nms_topn = 6000;
     int post_nms_topn = 300;
     double nms_thresh = 0.7;
     int feat_stride = 16;
@@ -21,7 +21,7 @@ int main()
     float box_coordinate_scale = 1.0;
     std::string framework = "CAFFE";
     bool for_deformable = false;
-    std::vector<double> scaleData({0.25,0.5,1.0,2.0});
+    std::vector<double> scaleData({8.0,16.0,32.0});
     std::vector<double> ratioData({0.5,1.0,2.0});
     std::vector<uint16_t> weightsData(14*14*36);
     std::vector<uint16_t> imInfoData(4);
