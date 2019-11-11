@@ -35,7 +35,6 @@
 #include <mutex>
 #include <condition_variable>
 #include <ie_layers.h>
-#include "kmb_xml_tests.hpp"
 
 #include <file_reader.h>
 

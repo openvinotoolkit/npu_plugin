@@ -436,7 +436,7 @@ void FrontEndMcm::parseConvolution(
     parseDims(input->desc(), stub, inputGroupSize, stub, stub);
     parseDims(outDesc, stub, outputGroupSize, stub, stub);
 
-    bool isDepthWiseConv = groupSize > 1 && groupSize == inputGroupSize && groupSize != outputGroupSize;
+    bool isDepthWiseConv = groupSize > 1 && groupSize == inputGroupSize && groupSize == outputGroupSize;
 
     auto weightsShape = {static_cast<std::size_t>(kernelSizeX),
                          static_cast<std::size_t>(kernelSizeY),

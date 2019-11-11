@@ -12,8 +12,38 @@
 #include "ie_memcpy.h"
 
 #include "blob_factory.hpp"
+#include <vpu/kmb_plugin_config.hpp>
 
 using namespace InferenceEngine;
+
+void setCommonConfig(std::map<std::string, std::string>& config)
+{
+    config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_JSON)] = CONFIG_VALUE(NO);
+    config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_DOT)]  = CONFIG_VALUE(NO);
+
+    const ::testing::TestInfo* const test_info =
+            ::testing::UnitTest::GetInstance()->current_test_info();
+
+    config[VPU_KMB_CONFIG_KEY(MCM_COMPILATION_RESULTS_PATH)] = test_info->test_case_name();
+    config[VPU_KMB_CONFIG_KEY(MCM_COMPILATION_RESULTS)] = test_info->name();
+}
+
+size_t precisionToBytesize(const std::string& precision) {
+    size_t type_size = 1lu;
+    if (precision == "FP32") {
+        type_size = sizeof(float);
+    }
+    else if (precision == "FP16") {
+        type_size = sizeof(ie_fp16);
+    }
+    else if (precision == "U8" || precision == "I8") {
+        type_size = sizeof(uint8_t);
+    }
+    else if (precision == "I32" || precision == "U32") {
+        type_size = sizeof(uint32_t);
+    }
+    return type_size;
+}
 
 void PrintTo(const tensor_test_params& sz, std::ostream* os) {
     *os << "{" << std::setw(2) << sz.n << ", " << std::setw(3) << sz.c << ", "
@@ -791,6 +821,17 @@ uint16_t vpuLayersTests::generate_val<uint16_t>(float min_val, float max_val)
     float scale  = (max_val - min_val) / RAND_MAX;
     float val = rand() * scale + min_val;
     return InferenceEngine::PrecisionUtils::f32tof16(val);
+}
+
+
+
+template<>
+void fillRealBuffer<InferenceEngine::ie_fp16>(InferenceEngine::ie_fp16* data, size_t size, InferenceEngine::ie_fp16 min, InferenceEngine::ie_fp16 max) {
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_real_distribution<float> dis(InferenceEngine::PrecisionUtils::f16tof32(min), InferenceEngine::PrecisionUtils::f16tof32(max));
+
+    fillCommon(data, size, [&](){return InferenceEngine::PrecisionUtils::f32tof16(dis(gen));});
 }
 
 Blob::Ptr ConvertU8ToFP32(const Blob::Ptr &inBlob) {
