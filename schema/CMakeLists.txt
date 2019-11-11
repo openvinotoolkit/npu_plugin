@@ -1,24 +1,35 @@
-cmake_minimum_required(VERSION 3.5.0)
-project(mcmComplier VERSION 0.0.1)
+if(CMAKE_CROSSCOMPILING AND NOT TARGET gen_composition_api)
+    message(STATUS "Cross-compiling, assumes schema/ files already generated...")
+    return()
+endif()
 
-
-set(flatc_path ${CMAKE_BINARY_DIR}/contrib/flatbuffers/flatc)
 file(GLOB fbs_files graphfile/src/schema/*.fbs)
 
+set(output_dir "${META_DIR_PATH}/schema/graphfile")
+
+set(output_files "")
+foreach(fbs_file IN LISTS fbs_files)
+    get_filename_component(file_name_we "${fbs_file}" NAME_WE)
+    set(output_file "${output_dir}/${file_name_we}_generated.h")
+    list(APPEND output_files ${output_file})
+endforeach()
+
 add_custom_command(
-
     OUTPUT
-        ${META_DIR_PATH}/schema/graphfile/graphfile_generated.h
-
+        ${output_files}
     COMMAND
-        ${flatc_path} -o ${META_DIR_PATH}/schema/graphfile ${fbs_files} --cpp --gen-object-api --force-empty
+        flatc -o ${output_dir} --cpp --gen-object-api --force-empty ${fbs_files}
+    DEPENDS
+        ${fbs_files}
+        flatc
+    COMMENT
+        "[flatc] Generate graphfile headers"
     VERBATIM
 )
 
-add_custom_target(
-    generate-graphfile-headers
-    DEPENDS ${META_DIR_PATH}/schema/graphfile/graphfile_generated.h
+add_custom_target(generate-graphfile-headers
+    DEPENDS
+        ${output_files}
+    COMMENT
+        "[flatc] Generate graphfile headers"
 )
-
-add_dependencies(generate-graphfile-headers flatc)
-

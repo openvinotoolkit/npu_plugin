@@ -1324,7 +1324,7 @@ def buildOM(
             vec = ca.pushVector(vec, in1_)
 
         in0_ = ca.concat(
-            om, vec, mv_quant_params[0], output_tensor_name)
+            om, vec,order_type_dict[output_type_value], mv_quant_params[0], output_tensor_name)
 
         if (output_file is not None):
 

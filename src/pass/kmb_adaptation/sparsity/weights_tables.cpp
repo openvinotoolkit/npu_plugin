@@ -366,7 +366,6 @@ static void generateWeightsTablesFcn(const mv::pass::PassEntry&, mv::Computation
                 mv::QuantizationParams quantParams = {{},{},{},{}};
                 auto weightTable = om.constantInt(weightsTableData, shape, mv::DType("Int32"), mv::Order("NHWC"), quantParams, kernelWeightsTableName);
                 om.getSourceOp(weightTable)->set<unsigned>("opId", dpuTaskOp->get<unsigned>("opId"));
-                om.getSourceOp(weightTable)->set<std::string>("populatedTensorType", "weightsTable");
                 unsigned newSize = dpuTaskOp->addInputTensor(weightTable);
                 om.defineFlow(weightTable, dpuTaskOp, newSize - 1);
                 dpuTaskOp->set<size_t>("weightsTableIndex", newSize - 1);

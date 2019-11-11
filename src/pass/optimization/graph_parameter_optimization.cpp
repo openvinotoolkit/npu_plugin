@@ -62,6 +62,7 @@ namespace mv
                 dpuPerCluster = globalConfig_["dpuPerCluster"].get<int>();
                 ddrBandwidth = globalConfig_["ddrBandwidth"].get<int>();
                 sysClock = globalConfig_["systemClockMhz"].get<int>();
+                createStrategyDots = globalConfig_["createStrategyDots"].get<bool>();
                 dotFileLocation = globalConfig_["dotFileLocation"].get<string>();
                 jsonOutFileName = globalConfig_["jsonOutFileName"].get<string>();
                 safetyFactor = globalConfig_["FathomSafetyFactor"].get<double>();
@@ -177,7 +178,7 @@ namespace mv
                 {
                     weightTableSize = 0;
                     weightSize = 0;
-                } else if(op.getOpType() == "Add" || op.getOpType() == "Multiply")
+                } else if(op.getOpType() == "Eltwise")
                 {
                     weightTableSize = 0;
                     weightSize = 0;
@@ -352,7 +353,7 @@ namespace mv
                 //naively emulate the workload cost
                 //TODO: find cleaner solution
                 unsigned baseKernelCost;
-                if ((opType == "Add") or (opType == "Concat"))
+                if ((opType == "Eltwise") or (opType == "Concat"))
                 {
                     baseKernelCost = 1;
                 }
@@ -507,7 +508,10 @@ namespace mv
                 auto parentClustering = parent["clustering"].get<string>();
                 auto childClustering = child["clustering"].get<string>();
 
-                checkForBadStrategy(parentOp,parent);
+                if(createStrategyDots){
+                    if(checkForBadStrategy(parentOp,parent)) return INF;
+                    if(checkForBadStrategy(childOp, child)) return INF;
+                }
 
 
                 if((parentClustering == "HKSwitch" or
@@ -535,33 +539,11 @@ namespace mv
                         childClustering == "SplitOverH")
                             return INF;
 
-/* These rules moved to checkForBadStrategy, TODO remove here
-                if(checkStreamClusterComp(parentOp,parent))
-                    return INF;
-
-                if(checkStreamClusterComp(childOp,child))
-                    return INF;
-
-
-                //if child is spilled, HKSwitch makes no sense
-                if( (child["spilling"].get<bool>() == true ) and
-                        (childClustering == "HKSwitch"))
-                            return INF;
-
-*/
-                //TODO: Only the input can be SOH-Overlapped
 
                 //SOH-Overlapped can only go to SOH layers
                 if( parentClustering == "SplitOverHOverlapped" and
                         (not (childClustering == "SplitOverH")))
                             return INF;
-
-/* These rules moved to checkForBadStrategy, TODO remove here
-                //TODO: SOH channelMajor conv requires SoHOverlapped input
-                if( parentClustering == "SplitOverHOverlapped" and
-                        (not (parentOp.getOpType() == "Input")))
-                            return INF;
-*/
 
                 //TODO child only rules moved to checkForBadStrategy, update to perserve only pair-wise rules
                 if( childOp.getOpType() == "Conv")
@@ -593,21 +575,6 @@ namespace mv
                     if((parent["spilling"].get<bool>()) and (childClustering == "SplitOverH"))
                         return INF;
                 }
-/* These rules moved to checkForBadStrategy, TODO remove here
-                //Input and Output must have Spilled==True
-                if( (parentOp.getOpType() == "Input") and
-                        parent["spilling"].get<bool>() == false)
-                            return INF;
-
-                if( (childOp.getOpType() == "Output") and
-                        child["spilling"].get<bool>() == false)
-                            return INF;
-
-                //iIf the layer is streaming over H or W, output of this layer has to be spilled
-                if( (parent["spilling"].get<bool>() == false) and
-                        ((parent["streaming"].get<Shape>()["H"] * parent["streaming"].get<Shape>()["W"]) > 1))
-                            return INF;
-*/
 
                 //If the child layer is streaming over H or W output of this layer has to be spilled
                 if( (parent["spilling"].get<bool>() == false) and
@@ -845,6 +812,7 @@ namespace mv
 
                                     StrategySet s;
                                     s["name"] = op.getName();
+                                    s["id"] = (unique_ctr++);
                                     //Input sparsity is always enabled/disabled by global switch, except in this case were it is disallowed
                                     if(clustering.get<string>() == "SplitOverK")
                                         s["inputSparsity"] = false;
@@ -858,7 +826,7 @@ namespace mv
                                     s["streaming"] = streamShape;
 
                                     //Function to prune strategies that will have only infinite edges in or out (or both), improves performance
-                                    if(checkForBadStrategy(op,s))
+                                    if(!createStrategyDots and checkForBadStrategy(op,s))
                                         continue;
 
                                     strategyVec.push_back(s);
@@ -882,12 +850,14 @@ static void GraphParameterOptimizationFcn(
     mv::Element&
 )
 {
-
     mv::OpModel om(model);
     mv::graphOptimizer::StrategyManagerKmb strategyManager(om,passDesc);
 
     strategyManager.updateValuesFromJSON();
     strategyManager.updateDefaultValues();
     strategyManager.readGlobalConfigs();
-    strategyManager.recursiveDijkstra(om.opBegin());
+
+    strategyManager.graphParameterOptimizations();
+
+    return;
 }

@@ -21,10 +21,6 @@ namespace mv
         class OpRegistry : public Registry<OpRegistry, std::string, OpEntry>
         {
 
-            static const std::string compAPIHeaderPath_;
-            static const std::string compAPISourcePath_;
-            static const std::string opModelHeaderPath_;
-            static const std::string opModelSourcePath_;
             static const std::string recordedCompModelHeaderPath_;
             static const std::string recordedCompModelSourcePath_;
 
@@ -71,7 +67,7 @@ namespace mv
             static bool checkExtraInputs(const std::string& opType);
 
 
-            static void generateCompositionAPI(const std::string& eol = "\n", const std::string& tab = "    ");
+            static void generateCompositionAPI(const std::string& metaDir, const std::string& eol = "\n", const std::string& tab = "    ");
             
         private:
             static void outputMandatoryArgList(std::vector<std::string>& mandatoryArgsList, OpEntry* const opPtr, std::string& mandatoryArgsDef, bool types);

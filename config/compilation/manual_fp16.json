@@ -17,30 +17,27 @@
                 "split_strategy" :
                 [
                     {
-                        "name_filter" : ".*",
+                        "name_filter" : "input#3",
+                        "strategy" : "Clustering"
+                    },
+                    {
+                        "name_filter" : "res2a_branch2a#4",
+                        "strategy" : "Clustering"
+                    },
+                    {
+                        "name_filter" : "output:0#10",
                         "strategy" : "Clustering"
                     }
                 ],
-                "address_helper_addresses":
+                "streaming_strategy" :
                 [
                     {
-                        "name_filter" : "output:0#3_copyIn_0:0",
-                        "address":0
-                    },
-                    {
-                        "name_filter" : "output:0#3:0",
-                        "address":65536
-                    },
-                    {
-                        "name_filter" : "output:0#3_weights_table_DDR2CMX:0",
-                        "address":81920
-                    },
-                    {
-                        "name_filter" : "output:0#3_sparse_dw_DDR2CMX:0",
-                        "address":82432
+                        "name_filter" : "res2a_branch2a#4",
+                        "splits" : [ {"H" : 2},
+                        {"K" : 2}]
                     }
                 ],
-                "default_tensor_placement" : "CMX",
+                "default_tensor_placement" : "DDR",
                 "tensor_placement_override" :
                 [
                     {
@@ -65,22 +62,6 @@
                     }
 
                 ],
-                "streaming_strategy" :
-                [
-                    {
-                        "name_filter" : "Example_do_not_remove",
-                        "splits" : [
-                            {"C" : 1},
-                            {"H" : 1},
-                            {"W" : 1},
-                            {"K" : 1}
-                        ]
-                    },
-                    {
-                        "name_filter" : "output:0#3",
-                        "splits" : [ {"H" : 3} ]
-                    }
-                ],
                 "sparsity_strategy" :
                 [
                     {
@@ -89,74 +70,115 @@
                         "outputActivationSparsity": false,
                         "weightsSparsity": false
                     }
-                ],
-                "default_tensor_placement" : "DDR"
+                ]
             },
             "ComputeMemory",
             "AssignUniqueOpId",
             {
                 "name": "CreateSourceStructure",
                 "VersionMajor": 3,
-                "VersionMinor": 15,
-                "VersionPatch": 2,
-                "VersionHash": "a5aeead67d8605f1144bb62acf47c9284fd37025"
+                "VersionMinor": 11,
+                "VersionPatch": 0,
+                "VersionHash": "9aa43159420c77d8cf765393954ac2fbb372ab02"
             }
         ]
     },
     "adapt": {
         "Singular": [
+            "ReplacementOps",
+            "TensorsToU8",
             "TensorsToFP16",
-            "AverageAsDepthWise",
-            "FuseBatchNorm",
-            "FuseBias",
-            "FuseRelu",
-            "FuseScale",
-            "RemoveDropOut",
-            "FullyConnectedAsConv2D",
+            "FusePostOps",
             "StoreLayerSplitStrategy",
             "StoreLayerSparsityStrategy",
             "StoreTensorPlacement",
-            "StreamingTiling",
+            "StreamingOperations",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/streaming.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
             "StreamBinaryDataWeights"
         ]
     },
     "kmb_adapt": {
         "Singular": [
             "ConcatAsImplicit",
+            "ReshapeAsImplicit",
             "StoreWorkloadStrategy",
             "ConvertOpsToTasks",
+            "SetUpPPETasks",
             "ForceSerialize",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/after_serialize.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
             "KMBOrderConversion",
             "AlignUnpopulatedTensors",
             "AddAlignOpForInputTensors",
             "AlignPopulatedTensors",
             "RemoveCropAlignInCMX",
             "CropOrPadFinalOutput",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/crop_pad.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
             "AlignTaskWeights",
             "GenerateSparsityMapsPopulatedTensors",
             "GenerateWeightsTables",
-            "GenerateEltWiseConstants",
             "StrategyLayersToTensors",
             "ComputeTensorsQuantParams",
             "UpdateImplicitLayersQuantizationParams",
             "PopulateWeightsTablesQuantization",
             "RemoveBiasTensors",
-            "SplittingTensorsAcrossClusters"
+            "SplittingTensorsAcrossClusters",
+            "KMBQuantizeConversion"
         ]
     },
     "dma": {
         "Singular" : [
-            "SetDpuTasksMemoryLocation",
-            "ResolveImplicitOperations",
-            "AddWeightsDMATasks",
             {
                 "name": "GenerateDot",
-                "output": "output/dots/dma_model.dot",
+                "output": "output/dots/beforeDma.dot",
                 "scope": "OpControlModel",
                 "content": "full",
                 "html": true
             },
-            "EnsureSplitStrategiesForSpilling"
+            "SetDpuTasksMemoryLocation",
+            "SetUPATasksMemoryLocation",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/beforeImplicit.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
+            "ResolveImplicitOperations",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/afterImplicit.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
+            "AddDPUTasksWeightsDMATasks",
+            "AddUPATasksExtraInputsDMATasks",
+            "EnsureSplitStrategiesForSpilling",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/afterDma.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            }
         ]
     },
     "control_flows":{
@@ -170,7 +192,7 @@
             },
             "TransitiveReduction",
             "LayerNumbering",
-            "cmx2DDRControlFlows",
+            "NNCMX2DDRControlFlows",
             "TransitiveReduction"
         ]
     },
@@ -183,7 +205,21 @@
                 "filter": "MemoryRequirement"
             },
             "MarkLastNodeForMaxTopologicalCut",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/beforeMaxcut.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
             "MaxTopologicalCutAndPartialSerialisation",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/afterMaxcut.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
+            },
             "TransitiveReduction",
             {
                 "name": "GenerateWorkloads",
@@ -191,9 +227,23 @@
                 "TensorSplitAlgorithms": "Rectangle, Z-tiling",
                 "_comment": "Supported CostFunctions are: balanced | criticalpath | minmax | greedy. Supported TensorSplitAlgorithms are Rectangle, Z-Tiling"
             },
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/beforeAllocation.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
             "ArrangeKmbExecution",
             "AllocateInputOutputTensorsKmb",
             "AllocateGraphfileTensorsKmb",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/beforereAllocation.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
             "ReAllocateImplicitOperationsKmb",
             "AllocateCMXTensorsKmb",
             "TensorGraphColoring",
@@ -222,6 +272,13 @@
     },
     "serialize": {
         "Singular": [
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/before_serialization.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
             {
                 "name": "GenerateBlobKmb",
                 "output": "output/mcm.blob"
