@@ -63,6 +63,12 @@ struct interp_test_params {
     };
 };
 
+using namespace InferenceEngine;
+using namespace details;
+
+void setCommonConfig(std::map<std::string, std::string>& config);
+size_t precisionToBytesize(const std::string& precision);
+
 void PrintTo(const tensor_test_params& sz, std::ostream* os);
 
 void print_buffer_HWC_fp16(InferenceEngine::ie_fp16 *src_data, int32_t IW, int32_t IH, int32_t IC, const char * tname,
@@ -465,11 +471,5 @@ void fillRealBuffer(T* data, size_t size,  T min, T max) {
     fillCommon(data, size, [&](){return dis(gen);});
 }
 
-template<InferenceEngine::ie_fp16>
-void fillRealBuffer(InferenceEngine::ie_fp16* data, size_t size, InferenceEngine::ie_fp16 min, InferenceEngine::ie_fp16 max) {
-    std::random_device rd;
-    std::mt19937 gen(rd());
-    std::uniform_real_distribution<float> dis(min, max);
-
-    fillCommon(data, size, [&](){return InferenceEngine::PrecisionUtils::f32tof16(dis(gen));});
-}
+template<>
+void fillRealBuffer<InferenceEngine::ie_fp16>(InferenceEngine::ie_fp16* data, size_t size, InferenceEngine::ie_fp16 min, InferenceEngine::ie_fp16 max);

@@ -150,6 +150,79 @@ static std::string convolution_only = R"V0G0N(
     </net>
         )V0G0N";
 
+static std::string convolution_only_with_bias_template = R"V0G0N(
+<net batch="1" name="CONVOLUTION_TEST" version="6">
+    <layers>
+        <layer id="0" name="input" precision="_NET_PRECISION_" type="Input">
+            <output>
+                <port id="1">
+                    <dim>_INPUT_BATCH_</dim>
+                    <dim>_INPUT_CHANNEL_</dim>
+                    <dim>_INPUT_HEIGHT_</dim>
+                    <dim>_INPUT_WIDTH_</dim>
+                </port>
+            </output>
+        </layer>
+        <layer id="1" name="conv_test1/weights" precision="_WEIGHTS_PRECISION_" type="Const">
+            <output>
+                <port id="1">
+                    <dim>_OUTPUT_CHANNEL_</dim>
+                    <dim>_INPUT_CHANNEL_</dim>
+                    <dim>_KERNELY_</dim>
+                    <dim>_KERNELX_</dim>
+                </port>
+            </output>
+            <blobs>
+                <custom offset="0" size="_WEIGHTS_BYTE_SIZE_"/>
+            </blobs>
+        </layer>
+        <layer id="2" name="conv_test1/bias" precision="_BIAS_PRECISION_" type="Const">
+            <output>
+                <port id="1">
+                    <dim>_OUTPUT_CHANNEL_</dim>
+                </port>
+            </output>
+            <blobs>
+                <custom offset="_BIAS_OFFSET_" size="_BIAS_BYTE_SIZE_"/>
+            </blobs>
+        </layer>
+        <layer id="3" name="output" precision="_CONV_PRECISION_" type="Convolution">
+            <data kernel="_KERNEL_" output="_OUTPUT_CHANNEL_" strides="_STRIDE_" dilations="1,1" group="1"   pads_begin="_PADS_BEGIN_" pads_end="_PADS_END_" />
+            <input>
+                <port id="0">
+                    <dim>_INPUT_BATCH_</dim>
+                    <dim>_INPUT_CHANNEL_</dim>
+                    <dim>_INPUT_HEIGHT_</dim>
+                    <dim>_INPUT_WIDTH_</dim>
+                </port>
+                <port id="1">
+                    <dim>_OUTPUT_CHANNEL_</dim>
+                    <dim>_INPUT_CHANNEL_</dim>
+                    <dim>_KERNELY_</dim>
+                    <dim>_KERNELX_</dim>
+                </port>
+                <port id="2">
+                    <dim>_OUTPUT_CHANNEL_</dim>
+                </port>
+            </input>
+            <output>
+                <port id="3">
+                    <dim>_OUTPUT_BATCH_</dim>
+                    <dim>_OUTPUT_CHANNEL_</dim>
+                    <dim>_OUTPUT_HEIGHT_</dim>
+                    <dim>_OUTPUT_WIDTH_</dim>
+                </port>
+            </output>
+        </layer>
+    </layers>
+    <edges>
+        <edge from-layer="0" from-port="1" to-layer="3" to-port="0"/>
+        <edge from-layer="1" from-port="1" to-layer="3" to-port="1"/>
+        <edge from-layer="2" from-port="1" to-layer="3" to-port="2"/>
+    </edges>
+</net>
+            )V0G0N";
+
 static std::string t_fq_convolution_only_slim = R"V0G0N(
 <?xml version="1.0" ?>
 <net batch="1" name="resnet50v1-int8-onnx-0001" version="6">
@@ -1021,80 +1094,6 @@ static std::string fq_convolution_only_slim = R"V0G0N(
 	</meta_data>
 </net>
         )V0G0N";
-
-static std::string fq_convolution_only_u8_slim = R"V0G0N(
-<net batch="1" name="resnet50-int8" version="6">
-	<layers>
-		<layer id="0" name="input" precision="U8" type="Input">
-			<output>
-				<port id="1">
-					<dim>_INPUT_BATCH_</dim>
-					<dim>_INPUT_CHANNEL_</dim>
-					<dim>_INPUT_HEIGHT_</dim>
-					<dim>_INPUT_WIDTH_</dim>
-				</port>
-			</output>
-		</layer>
-		<layer id="1" name="conv2/weights" precision="U8" type="Const">
-			<output>
-				<port id="1">
-					<dim>_OUTPUT_CHANNEL_</dim>
-					<dim>_INPUT_CHANNEL_</dim>
-					<dim>_KERNEL_SIZE_</dim>
-					<dim>_KERNEL_SIZE_</dim>
-				</port>
-			</output>
-			<blobs>
-				<custom offset="0" size="_WEIGHTS_BYTE_SIZE_"/>
-			</blobs>
-		</layer>
-		<layer id="2" name="bias2" precision="I32" type="Const">
-			<output>
-				<port id="1">
-					<dim>_OUTPUT_CHANNEL_</dim>
-				</port>
-			</output>
-			<blobs>
-				<custom offset="_BIAS_OFFSET_" size="_BIAS_BYTE_SIZE_"/>
-			</blobs>
-		</layer>
-		<layer id="3" name="conv" precision="U8" type="Convolution">
-			<data kernel="_KERNEL_" output="_OUTPUT_CHANNEL_" strides="_STRIDE_" dilations="1,1" group="1" pads_begin="0,0" pads_end="0,0" />
-			<input>
-				<port id="0">
-					<dim>_INPUT_BATCH_</dim>
-					<dim>_INPUT_CHANNEL_</dim>
-					<dim>_INPUT_HEIGHT_</dim>
-					<dim>_INPUT_WIDTH_</dim>
-				</port>
-				<port id="1">
-					<dim>_OUTPUT_CHANNEL_</dim>
-					<dim>_INPUT_CHANNEL_</dim>
-					<dim>_KERNEL_SIZE_</dim>
-					<dim>_KERNEL_SIZE_</dim>
-				</port>
-				<port id="2">
-					<dim>_OUTPUT_CHANNEL_</dim>
-				</port>
-			</input>
-			<output>
-				<port id="3">
-					<dim>_OUTPUT_BATCH_</dim>
-					<dim>_OUTPUT_CHANNEL_</dim>
-					<dim>_OUTPUT_HEIGHT_</dim>
-					<dim>_OUTPUT_WIDTH_</dim>
-				</port>
-			</output>
-		</layer>
-	</layers>
-	<edges>
-        <edge from-layer="0" from-port="1" to-layer="3" to-port="0"/>
-        <edge from-layer="1" from-port="1" to-layer="3" to-port="1"/>
-        <edge from-layer="2" from-port="1" to-layer="3" to-port="2"/>
-	</edges>
-</net>
-        )V0G0N";
-
 
 static std::string conv_after_scale_shift = R"V0G0N(
     <net batch="1" name="CONVOLUTION_TEST" version="2">
