@@ -82,6 +82,8 @@ namespace mv
         .setOptionalArg<unsigned>("height", 0)
         .setOptionalArg<unsigned>("width", 0)
         .setOptionalArg<bool>("align_corners", true)
+        .setOptionalArg<mv::DType>("dType", mv::DType("Default"))
+        .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
         .setInputCheck(op_interp::inputCheckFcn)
         .setOutputDef(op_interp::outputDefFcn)
         .setTypeTrait({"executable", "exposed"});
