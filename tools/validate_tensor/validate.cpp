@@ -56,8 +56,6 @@ bool ParseAndCheckCommandLine(int argc, char *argv[])
             throw std::logic_error("Parameter -e must be set in validation mode");
         if (FLAGS_a.empty()) 
             throw std::logic_error("Parameter -a must be set in validation mode");
-        if ((FLAGS_d.compare("U8") != 0 ) && (FLAGS_d.compare("FP16") != 0 ))  
-            throw std::logic_error("Parameter -d is not set correctly. Only U8 | FP16 supported");
     }
     else    //normal operation
     {
@@ -65,8 +63,6 @@ bool ParseAndCheckCommandLine(int argc, char *argv[])
             throw std::logic_error("Parameter -m is not set");
         if (FLAGS_k.empty()) 
             throw std::logic_error("Parameter -k is not set");
-        if ((FLAGS_d.compare("U8") != 0 ) && (FLAGS_d.compare("FP16") != 0 ))  
-            throw std::logic_error("Parameter -d is not set correctly. Only U8 | FP16 supported"); 
     }
  
     return true;
@@ -300,8 +296,23 @@ int convertBlobToJson(std::string blobPath)
 
 int validate(std::string blobPath, std::string expectedPath, std::string actualPath)
 {
-    uint_fast16_t typesize = (FLAGS_d.compare("U8")==0) ? 1 : 2 ;
+    // load json and read quantization values: scale and zeropoint
+    std::string json_file = getFilename(blobPath) + std::string(".json");
+    std::ifstream ifile(json_file);
+    json j = json::parse(ifile);
+    std::string dtype = j["header"]["net_output"][0]["data_dtype"].get<std::string>();
 
+    uint_fast16_t typesize = 1;
+    if (dtype == "U8")
+        typesize = 1;
+    else if (dtype == "FP16")
+        typesize = 2;
+    else
+    {
+        std::cout << "Typesize of output layer is unsupported: " << dtype << std::endl;
+        return FAIL_ERROR;
+    }
+    
     // Read the InferenceManagerDemo output file into a vector
     std::cout << "Reading in actual results... ";
     std::ifstream file(actualPath, std::ios::in | std::ios::binary);
@@ -310,14 +321,8 @@ int validate(std::string blobPath, std::string expectedPath, std::string actualP
     file.seekg(0, std::ios::beg);
 
     std::vector<float> outputFP32;
-    if (FLAGS_d.compare("U8")==0)
+    if (dtype.compare("U8")==0)
     {
-        // load json and read quantization values: scale and zeropoint
-        std::string json_file = getFilename(blobPath) + std::string(".json");
-        std::ifstream ifile(json_file);
-        json j = json::parse(ifile);
-
-        std::string dtype = j["header"]["net_output"][0]["data_dtype"].get<std::string>();
         int qZero = j["header"]["net_output"][0]["quant_zero"][0].get<int>();
         int qScale = j["header"]["net_output"][0]["quant_scale"][0].get<int>();
         int qShift = j["header"]["net_output"][0]["quant_shift"][0].get<int>();
@@ -348,7 +353,7 @@ int validate(std::string blobPath, std::string expectedPath, std::string actualP
             outputFP32.push_back(val);
         }
     }
-    else if(FLAGS_d.compare("FP16")==0)
+    else if(dtype.compare("FP16")==0)
     {
         std::vector<u_int16_t> outputVector(totalActual);
         file.read(reinterpret_cast<char *>(&outputVector[0]), totalActual * typesize);
@@ -441,6 +446,8 @@ int postProcessActualResults(std::string resultsPath, std::string blobPath)
     json j = json::parse(ifile);
 
     std::cout << "Post Processing results... " << std::endl;
+    std::string dtype = j["header"]["net_output"][0]["data_dtype"].get<std::string>();
+    std::cout << "Datatype: " << dtype << std::endl;
     std::vector<std::string> outputShape;
     for (uint32_t x=0; x<j["header"]["net_output"][0]["dimensions"].size(); ++x)
         outputShape.push_back( std::to_string(j["header"]["net_output"][0]["dimensions"][x].get<int>()) );
@@ -459,7 +466,7 @@ int postProcessActualResults(std::string resultsPath, std::string blobPath)
     //
     // call python script for numpy reshape/transpose
     std::string commandline = std::string("python3 ") + mv::utils::projectRootPath() +
-        std::string("/python/tools/post_process.py --file ") + resultsPath + " --shape " + 
+        std::string("/python/tools/post_process.py --file ") + resultsPath + " --dtype " + dtype + " --shape " + 
         outputShape[0] + "," + outputShape[1] + "," + outputShape[2] + "," + outputShape[3] + sZMajor;
     std::cout << commandline << std::endl;
     int result = std::system(commandline.c_str());

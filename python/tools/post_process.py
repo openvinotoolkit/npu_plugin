@@ -33,6 +33,7 @@ def convert_output(file_path, shape, datatype=np.uint8, zmajor=True):
 def main():
     parser = argparse.ArgumentParser(description='Convert result file to format suitable for KMB.')
     parser.add_argument('--file', type=str, required=True, help='path to output-0.bin')
+    parser.add_argument('--dtype', type=str)
     parser.add_argument('--shape', type=str)
     parser.add_argument('--zmajor', action='store_true')
 
@@ -40,7 +41,16 @@ def main():
 
     image_shape = args.shape.split(',')
 
-    convert_output(args.file, image_shape, np.uint8)
+    datatype = np.uint8
+    if args.dtype is not None:
+        if args.dtype == "FP16":
+            datatype = np.float16
+        elif args.dtype == "FP32":
+            datatype = np.float
+        else:
+            datatype = np.uint8
+
+    convert_output(args.file, image_shape, datatype)
     
 if __name__ == "__main__":
     main()

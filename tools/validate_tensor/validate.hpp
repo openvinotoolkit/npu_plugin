@@ -57,9 +57,6 @@ DEFINE_string(a, "", a_tensor_message);
 /// It is a required parameter
 DEFINE_string(e, "", e_tensor_message);
 
-/// @brief Define the datatpye <br>
-DEFINE_string(d, "U8", dtype_message);
-
 /// @brief Define quantize message
 DEFINE_bool(q, false, quantize_message);
 
@@ -98,5 +95,5 @@ static void showUsage() {
     //std::cout << "    -a <path>           " << a_tensor_message << std::endl;
     //std::cout << "    -e <path>           " << e_tensor_message << std::endl;
     //std::cout << "    -q true|false         " << quantize_message << std::endl;
-    std::cout << "    -d U8|FP16            " << dtype_message << std::endl;    
+    std::cout << std::endl << "eg, ./validate -m ~/models/resnet50.xml -k 10.1.1.1" << std::endl;
 }
