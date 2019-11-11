@@ -15,7 +15,7 @@ to prepare quantized (with FakeQuantize layers) IE IRs on the base of original n
     - Besides:
         - OpenVINO IE should be built:
             - on special branch: feature/low_precision/develop_fp (can be changed)
-            - cmake -DENABLE_PYTHON=ON -DPYTHONEXECUTABLE=<path to python3> <path to dldt> && make -j8
+            - `cmake -DENABLE_PYTHON=ON -DPYTHONEXECUTABLE=<path to python3> <path to dldt> && make -j8`
             - module cython is necessary to build IE/python_api (pip3 install cython)
         - Tool uses ModelOptimizer from another dldt branch: as/post_training_compression (can be changed)
         - PYTHONPATH env variable should contain the paths to inference engine/python_api and dldt/model-optimizer
@@ -53,12 +53,12 @@ to prepare quantized (with FakeQuantize layers) IE IRs on the base of original n
           pillow==4.1.1
           sklearn
           onnxruntime
-          ?Nevergrad?
+          Nevergrad (optional, works only if python version >= 3.6)
           ```
 * Using script:
     - `./run_post_trainig.sh` - show usage
     - `./run_post_trainig.sh <path to post trainig tool> <path to original model> <path to dataset> <path to post training config(json)> [<path to accuracy checker config(yml)>]`
-    - The resulting IR should be in the "results" directory of <post_trainig_json> file directory"
+    - The resulting IR should be in the "results" directory of `<post_trainig_json>` file directory"
     - Example (running script from `scripts/post_training_quantization/resnet-50_pytorch` directory):
       ```
       ../run_post_trainig.sh ../../../../post-training-compression-tool/ ../../../../model-zoo-models-public/classification/resnet/v1/50/pytorch/resnet-v1-50.onnx  ../../../../../Datasets/ImageNet ./resnet-50-pytorch_int8_yml.json ./resnet-50-pytorch_int8.yml -e
