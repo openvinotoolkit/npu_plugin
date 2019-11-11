@@ -1,0 +1,190 @@
+Output log dir: ./results/squeezenet1_1_pytorch_uint8_int8_weights_pertensor_DefaultQuantization/2019-11-07_18-24-14
+Creating pipeline:
+Algorithm: DefaultQuantization
+Parameters:
+	target_device              : CPU
+	stat_subset_size           : 1000
+	weights                    : {'scale_type': 'pertensor', 'type': 'symmetric', 'bits': 8}
+	activations                : {'scale_type': 'pertensor', 'type': 'asymmetric', 'bits': 8}
+	preset                     : accuracy
+===========================================================================
+INFO:compression.statistics.statistics_collector:Start computing statistics for algorithms : DefaultQuantization
+INFO:compression.statistics.statistics_collector:Computing statistics finished
+INFO:compression.pipeline.pipeline:Start algorithm: DefaultQuantization
+INFO:compression.statistics.statistics_collector:Start computing statistics for algorithms : ActivationChannelAlignment
+INFO:compression.engines.ac_engine:Start inference of 1000 images
+INFO:compression.engines.ac_engine:Inference finished
+INFO:compression.statistics.statistics_collector:Computing statistics finished
+INFO:compression.statistics.statistics_collector:Start computing statistics for algorithms : NaiveQuantization,BiasCorrection
+WARNING: fake quantize node 58/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 58/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 71/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 106/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 86/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 82/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 82/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 109/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 99/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 97/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 73/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 78/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 111/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 111/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 95/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 80/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 77/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 100/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 111/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 113/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 58/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 77/fq_input_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 99/fq_input_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 113/fq_input_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 60/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 93/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 92/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 75/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 62/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 53/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 92/fq_input_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 90/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 62/fq_input_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 75/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 75/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 104/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 106/fq_input_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 104/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 104/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 82/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 97/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 97/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 63/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 107/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 102/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 114/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 88/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 56/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 65/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 65/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 65/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 88/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 88/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 53/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 67/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+INFO:compression.engines.ac_engine:Start inference of 1000 images
+INFO:compression.engines.ac_engine:Inference finished
+INFO:compression.statistics.statistics_collector:Computing statistics finished
+WARNING: fake quantize node 58/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 58/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 71/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 106/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 86/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 82/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 82/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 109/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 99/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 97/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 73/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 78/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 95/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 80/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 77/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 100/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 111/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 113/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 58/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 77/fq_input_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 99/fq_input_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 113/fq_input_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 60/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 75/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 109/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 109/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 92/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 106/fq_input_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 62/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 53/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 92/fq_input_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 90/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 62/fq_input_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 75/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 75/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 104/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 104/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 104/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 82/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 97/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 97/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 63/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 107/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 102/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 114/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 93/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 88/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 56/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 65/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 65/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 65/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 88/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 88/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 53/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node 67/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+INFO:compression.pipeline.pipeline:Finished: DefaultQuantization
+ ===========================================================================
+INFO:compression.pipeline.pipeline:Evaluation of generated model
+INFO:compression.engines.ac_engine:Start inference on the whole dataset
+Total dataset size: 50000
+1000 / 50000 processed in 8.618s
+2000 / 50000 processed in 8.478s
+3000 / 50000 processed in 8.619s
+4000 / 50000 processed in 8.151s
+5000 / 50000 processed in 8.350s
+6000 / 50000 processed in 8.383s
+7000 / 50000 processed in 8.429s
+8000 / 50000 processed in 8.108s
+9000 / 50000 processed in 8.418s
+10000 / 50000 processed in 8.565s
+11000 / 50000 processed in 8.519s
+12000 / 50000 processed in 8.273s
+13000 / 50000 processed in 8.917s
+14000 / 50000 processed in 8.908s
+15000 / 50000 processed in 8.663s
+16000 / 50000 processed in 8.355s
+17000 / 50000 processed in 8.585s
+18000 / 50000 processed in 9.005s
+19000 / 50000 processed in 8.637s
+20000 / 50000 processed in 8.658s
+21000 / 50000 processed in 8.352s
+22000 / 50000 processed in 8.255s
+23000 / 50000 processed in 8.514s
+24000 / 50000 processed in 8.419s
+25000 / 50000 processed in 8.541s
+26000 / 50000 processed in 8.579s
+27000 / 50000 processed in 8.345s
+28000 / 50000 processed in 8.501s
+29000 / 50000 processed in 8.918s
+30000 / 50000 processed in 8.502s
+31000 / 50000 processed in 8.613s
+32000 / 50000 processed in 8.244s
+33000 / 50000 processed in 8.457s
+34000 / 50000 processed in 8.741s
+35000 / 50000 processed in 8.556s
+36000 / 50000 processed in 8.623s
+37000 / 50000 processed in 8.062s
+38000 / 50000 processed in 8.999s
+39000 / 50000 processed in 8.550s
+40000 / 50000 processed in 8.740s
+41000 / 50000 processed in 8.336s
+42000 / 50000 processed in 8.514s
+43000 / 50000 processed in 8.228s
+44000 / 50000 processed in 8.604s
+45000 / 50000 processed in 8.429s
+46000 / 50000 processed in 8.507s
+47000 / 50000 processed in 8.913s
+48000 / 50000 processed in 8.343s
+49000 / 50000 processed in 9.204s
+50000 / 50000 processed in 8.408s
+50000 objects processed in 426.650 seconds
+INFO:compression.engines.ac_engine:Inference finished
+accuracy@top1              : 0.57382
+accuracy@top5              : 0.80152
