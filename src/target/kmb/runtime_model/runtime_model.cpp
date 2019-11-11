@@ -210,9 +210,8 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     std::vector<uint32_t> dimensions = underlyingTensor->getShape();
     std::vector<uint32_t> numericStrides = underlyingTensor->computeNumericStrides();
 
-    auto masterBuffer = tensorBufferIt->getMaster();
-    if (tensorAllocator.getTopMasterBuffer(tensorBufferIt) != masterBuffer)
-        masterBuffer = tensorAllocator.getTopMasterBuffer(tensorBufferIt);
+    auto masterBuffer = tensorAllocator.getTopMasterBuffer(tensorBufferIt);
+
     if (masterBuffer != dm.bufferEnd(*tensorAllocatorName, stg))
         numericStrides = (*masterBuffer)->getData()->computeNumericStrides();
 

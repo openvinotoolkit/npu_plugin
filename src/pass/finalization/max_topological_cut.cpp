@@ -94,7 +94,6 @@ void maxTopologicalCutAndPartialSerialisationPass(const mv::pass::PassEntry& pas
         {
             // Need to mark the edges, the failure and exit the pass
             markControlFlows(cm, maxTopologicalCut);
-            std::cout << "Cut value " << maxTopologicalCut.first << std::endl;
             pass.log(mv::Logger::MessageType::Info, "MaxTopologicalCut fails");
             return;
         }
