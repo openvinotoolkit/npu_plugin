@@ -344,9 +344,8 @@ void FrontEndMcm::applyQuantizationTransformations(ie::CNNNetwork& network) {
                                               true,  // quantizeOutputs
                                               true,  // weightsToConst
                                               LayerTransformation::QuantizedTensorAlignment::UpdateLevel,  // quantizedTensorAlignmentOnActivations
-                                              LayerTransformation::QuantizedTensorAlignment::None,  // quantizedTensorAlignmentOnWeights
-                                              LayerTransformation::PrecisionOnActivations::UnsignedAndSigned,  // precisionOnActivations
-                                              true);  // roundQuantizedValues
+                                              LayerTransformation::QuantizedTensorAlignment::None);  // quantizedTensorAlignmentOnWeights
+
     LowPrecisionTransformer transformer(LowPrecisionTransformer::getAllTransformations(params));
     transformer.transform(network);
 
