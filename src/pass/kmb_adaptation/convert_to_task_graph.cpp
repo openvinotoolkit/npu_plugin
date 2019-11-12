@@ -11,8 +11,8 @@ static void convertOpsToTasksFcn(const mv::pass::PassEntry& pass, mv::Computatio
 static void setUpPPETasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 
 void addPpeTask(mv::Data::OpListIterator &opIt, const std::vector<std::string> &ppeTaskType, double leakyAlpha = 0);
-int32_t computeMaxClampValue(mv::Data::OpListIterator &opIt);
-int32_t computeMinClampValue(mv::Data::OpListIterator &opIt);
+int32_t computeClampHigh(mv::Data::OpListIterator &opIt);
+int32_t computeClampLow(mv::Data::OpListIterator &opIt);
 std::pair<int32_t, int32_t> computeClampValues(mv::Data::OpListIterator &opIt);
 
 namespace mv
@@ -359,9 +359,8 @@ void addPpeTask(mv::Data::OpListIterator &opIt, const std::vector<std::string>& 
 {
     auto ppeFixedFunction = mv::PPEFixedFunction();
 
-    std::pair<int32_t, int32_t> clampValues = computeClampValues(opIt);
-    ppeFixedFunction.setLowClamp(clampValues.first);
-    ppeFixedFunction.setHighClamp(clampValues.second);
+    ppeFixedFunction.setLowClamp(computeClampLow(opIt));
+    ppeFixedFunction.setHighClamp(computeClampHigh(opIt));
 
     if (std::find(ppeTaskTypes.begin(), ppeTaskTypes.end(), "LPRELU") != ppeTaskTypes.end())
     {
@@ -393,13 +392,6 @@ void addPpeTask(mv::Data::OpListIterator &opIt, const std::vector<std::string>& 
     opIt->set<mv::PPETask>("PPETask", ppeTask);
 }
 
-std::pair<int32_t, int32_t> computeClampValues(mv::Data::OpListIterator &opIt)
-{
-    std::pair<int32_t, int32_t> toReturn;
-    toReturn.first = computeMinClampValue(opIt);
-    toReturn.second = computeMaxClampValue(opIt);
-    return toReturn;
-}
 
 // CLAMP FUNCTIONS FROM HERE
 
@@ -412,7 +404,7 @@ std::pair<int32_t, int32_t> computeClampValues(mv::Data::OpListIterator &opIt)
 // U8 <- [-zp; 255 - zp]
 // I8 <- [-128 - zp; +127 - zp] but ensure that zp is 0
 // The clamp value is stored as is if compute type is U8. Otherwise it must be converted in S16.16
-int32_t computeMinClampValue(mv::Data::OpListIterator &opIt)
+int32_t computeClampLow(mv::Data::OpListIterator &opIt)
 {
     auto computeDType = opIt->getInputTensor(0)->getDType();
     auto outputDType = opIt->getOutputTensor(0)->getDType();
@@ -432,9 +424,9 @@ int32_t computeMinClampValue(mv::Data::OpListIterator &opIt)
 
         clamp = saturationClamp;
 
-        if(opIt->hasAttr("Minimum"))
+        if(opIt->hasAttr("Maximum"))
         {
-            double clampValue = opIt->get<double>("Minimum");
+            double clampValue = opIt->get<double>("Maximum");
             double outputScale = outputQuantParams.getScale()[0];
             int32_t quantizedClampValue = static_cast<int32_t>(clampValue / outputScale);
 
@@ -448,9 +440,9 @@ int32_t computeMinClampValue(mv::Data::OpListIterator &opIt)
 
     else if (outputDType == FP16)
     {
-        if(opIt->hasAttr("Minimum"))
+        if(opIt->hasAttr("Maximum"))
         {
-            double clampValue = opIt->get<double>("Minimum");
+            double clampValue = opIt->get<double>("Maximum");
 
             if(computeDType == U8 || computeDType == I8)
                 clamp = static_cast<int32_t>(clampValue);
@@ -462,7 +454,7 @@ int32_t computeMinClampValue(mv::Data::OpListIterator &opIt)
 }
 
 
-int32_t computeMaxClampValue(mv::Data::OpListIterator &opIt)
+int32_t computeClampHigh(mv::Data::OpListIterator &opIt)
 {
     auto computeDType = opIt->getInputTensor(0)->getDType();
     auto outputDType = opIt->getOutputTensor(0)->getDType();
@@ -484,9 +476,9 @@ int32_t computeMaxClampValue(mv::Data::OpListIterator &opIt)
 
         clamp = saturationClamp;
 
-        if(opIt->hasAttr("Maximum"))
+        if(opIt->hasAttr("Minimum"))
         {
-            double clampValue = opIt->get<double>("Maximum");
+            double clampValue = opIt->get<double>("Minimum");
             double outputScale = outputQuantParams.getScale()[0];
             int32_t quantizedClampValue = static_cast<int32_t>(clampValue / outputScale);
 
@@ -500,9 +492,9 @@ int32_t computeMaxClampValue(mv::Data::OpListIterator &opIt)
 
     else if (outputDType == FP16)
     {
-        if(opIt->hasAttr("Maximum"))
+        if(opIt->hasAttr("Minimum"))
         {
-            double clampValue = opIt->get<double>("Maximum");
+            double clampValue = opIt->get<double>("Minimum");
 
             if(computeDType == U8 || computeDType == I8)
                 clamp = static_cast<int32_t>(clampValue);
