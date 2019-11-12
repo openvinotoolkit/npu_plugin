@@ -67,4 +67,6 @@ else()
     add_executable(softmax softmax/softmax.cpp)
     target_link_libraries(softmax cm)
 
+    add_executable(interp interp/interp.cpp)
+    target_link_libraries(interp cm)
 endif(MSVC)
