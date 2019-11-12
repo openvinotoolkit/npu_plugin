@@ -16,6 +16,9 @@ else()
     add_executable(conv_clamp conv_clamp/conv_clamp.cpp)
     target_link_libraries(conv_clamp cm)
 
+    add_executable(conv_softmax conv_softmax/conv_softmax.cpp)
+    target_link_libraries(conv_softmax cm)
+
     add_executable(conv_fp16output conv_fp16output/conv_fp16output.cpp)
     target_link_libraries(conv_fp16output cm)
 
