@@ -450,16 +450,18 @@ namespace mv
                 auto streamShape = strategy["streaming"].get<Shape>();
                 auto spilling = strategy["spilling"].get<bool>();
 
-                if(op.getOpType() != "Output" &&
+                if((op.getOpType() != "Input") and (op.getOpType() != "Output") and
                     (op.hasTypeTrait("optimizable"))) //SW layers we dont care about size
                 {
                     auto fit = memorySize(op,clustering,false, false,weightsSparsity,streamShape,false);
-                    if(fit.first + fit.second > clusterMemory)
+                    if(fit.first + fit.second > clusterMemory){
                         return true;
+                    }
                 }
 
-                if(checkStreamClusterComp(op, strategy))
+                if(checkStreamClusterComp(op, strategy)){
                     return true;
+                }
 
                 //If spilling, HKSwitch makes no sense
                 if( (spilling) and (clustering == "HKSwitch"))
@@ -755,14 +757,17 @@ namespace mv
                 }
 
                 //TODO:: replace nested loops with clean cartesian product function
-                for( const auto weightsSparsity : weightsSparsityPool){
-                    for( const auto spilling : spillingPool)
-                    {
-                        for( const auto clustering : clusteringStrategyPool)
-                        {
-                            auto mem = memorySize(op,clustering,inputActivationSparsity,outputActivationSparsity,weightsSparsity.get<bool>(),{1,1,1,1},false);
-                            auto activationsSize = mem.first;
-                            auto weightsSize = mem.second;
+                for( const auto weightsSparsity : weightsSparsityPool) {
+                    for( const auto spilling : spillingPool) {
+                        for( const auto clustering : clusteringStrategyPool){
+                            // Determine streaming options
+                            // 1. Determine if streams over H are possible
+                            // 2. Determine if streams over K are possible
+                            // 3. If no streams over H or K will fit, enable nested streaming
+                            // 4. Nested loops over generated streaming options to produce all strategy options
+                            auto memH = memorySize(op,clustering,inputActivationSparsity,outputActivationSparsity,weightsSparsity.get<bool>(),{1,1,1,1},false);
+                            auto activationsSize = memH.first;
+                            auto weightsSize = memH.second;
                             unsigned maxSplitOverH;
                             if(!hasStreamOverH)
                             {
@@ -798,12 +803,25 @@ namespace mv
                             else
                                 streamsOverK.push_back(1);
 
+                            bool enableNestedStreaming = false;
+                            auto maxK = streamsOverK.back();
+                            auto memK = memorySize(op,clustering,inputActivationSparsity,outputActivationSparsity,weightsSparsity.get<bool>(),{1,1,1,maxK},false);
+                            auto memoryMaxK = memK.first + memK.second;
+
+                            //If streaming is enabled, but streaming over k or h alone doesn't fit, enable nested streaming
+                            if(hasStreamOverK and hasStreamOverH and ((maxSplitOverH == 1) and (memoryMaxK > clusterMemory))){
+                                enableNestedStreaming = true;
+                                //TODO Adjust maxSplitOverH and streamsOverK appropriately for nested
+                                streamsOverK.clear();
+                                maxSplitOverH = 4;
+                                streamsOverK = {2, 3, 4, 8};
+                            }
+
                             for(const auto k : streamsOverK)
                             {
                                 for(unsigned h = 1; h <= maxSplitOverH; h++)
                                 {
-                                    //TODO: these are very fast hacks. Delete after we can allow nested streams and
-                                    if( (h>1) and (k>1))
+                                    if( !enableNestedStreaming and (h>1) and (k>1))
                                         continue;
                                     if( ((h*k) > 1) and (spilling.get<bool>() == false))
                                         continue;
@@ -834,6 +852,10 @@ namespace mv
                             }
                         }
                     }
+                }
+                if(strategyVec.empty()){ // No strategies generated for this layer. Throw Error.
+                    //std::cout << "Failed to generate strategies for layer " << op.getName() << std::endl;
+                    throw LogicError(*this, " No potential strategies generated for " + op.getName());
                 }
             }
 
