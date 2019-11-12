@@ -13,7 +13,7 @@ const std::unordered_map<mv::PPELayerTypeEnum, std::string, mv::PPELayerTypeEnum
     {PPELayerType_MULT, "Multiply"},
     {PPELayerType_RELU, "Relu"},
     {PPELayerType_RELUX, "RELUX"},
-    {PPELayerType_LPRELU, "LPRELU"},
+    {PPELayerType_LPRELU, "LeakyRelu"},
     {PPELayerType_MAXIMUM, "Maximum"},
     {PPELayerType_MINIMUM, "Minimum"},
     {PPELayerType_CEIL, "CEIL"},
