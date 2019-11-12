@@ -345,7 +345,7 @@ void addPpeTask(mv::Data::OpListIterator &opIt, const std::vector<std::string>& 
     ppeFixedFunction.setLowClamp(computeClampLow(opIt));
     ppeFixedFunction.setHighClamp(computeClampHigh(opIt));
 
-    if (std::find(ppeTaskTypes.begin(), ppeTaskTypes.end(), "LPRELU") != ppeTaskTypes.end())
+    if (std::find(ppeTaskTypes.begin(), ppeTaskTypes.end(), "LeakyRelu") != ppeTaskTypes.end())
     {
         // NOTE: What are the default values here
         int8_t ppeMult;
