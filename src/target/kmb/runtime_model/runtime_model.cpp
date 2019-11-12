@@ -300,7 +300,7 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
             quantScale = quantizationParams.getMult();
 
         quantScale = reduceQuantVector_(quantScale);
-        toBuild->quant_scale = std::vector<unsigned short int>(quantScale.begin(), quantScale.end());
+        toBuild->quant_scale = std::vector<float>(quantScale.begin(), quantScale.end());
         std::vector<unsigned> quantShift;
         if (quantizationParams.hasAttr("shift"))
             quantShift = quantizationParams.getShift();
@@ -441,7 +441,7 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
             quantScale = quantizationParams.getMult();
 
         quantScale = reduceQuantVector_(quantScale);
-        toBuild->quant_scale = std::vector<unsigned short int>(quantScale.begin(), quantScale.end());
+        toBuild->quant_scale = std::vector<float>(quantScale.begin(), quantScale.end());
         std::vector<unsigned> quantShift;
         if (quantizationParams.hasAttr("shift"))
             quantShift = quantizationParams.getShift();
@@ -1539,6 +1539,30 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAROIPoolingTask(ComputationModel
     return toBuild;
 }
 
+MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAInterpTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt)
+{
+
+    auto toBuild = new MVCNN::UPALayerTaskT();
+
+    toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_InterpParams;
+    auto softLayerParamsValue = new MVCNN::InterpParamsT();
+
+    auto input = opIt->getInputTensor(0);
+    auto output = opIt->getOutputTensor(0);
+
+    // Fill in tensors
+    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input)));
+    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
+
+    // Fill in required params
+    softLayerParamsValue->pad_beg = opIt->get<unsigned>("pad_beg");
+    softLayerParamsValue->pad_end = opIt->get<unsigned>("pad_end");
+    softLayerParamsValue->align_corners = opIt->get<bool>("align_corners");
+    toBuild->softLayerParams.value = softLayerParamsValue;
+
+    return toBuild;
+}
+
 MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAQuantizeTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt)
 {
     auto input = opIt->getInputTensor(0);
@@ -1732,6 +1756,8 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildUPATask(Comput
         toReturn[0]->task.value = buildUPANormalizeTask(cm, compilationDescriptor, opIt);
     else if(underlyingTask == "Permute")
         toReturn[0]->task.value = buildUPAPermuteTask(cm, compilationDescriptor, opIt);
+    else if(underlyingTask == "Interp")
+        toReturn[0]->task.value = buildUPAInterpTask(cm, compilationDescriptor, opIt);
     // TODO: Add other UPA layers
 
     return toReturn;
