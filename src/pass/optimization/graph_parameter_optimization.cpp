@@ -247,6 +247,28 @@ namespace mv
                 return pair<size_t,size_t>(totalActivationSize,totalWeightsSize);
             }
 
+            unsigned getMaxStreamOverH(const string& clustering,mv::Op& op, vector<size_t> streamsOverK){
+                for(auto k : streamsOverK){
+                    auto memH = memorySize(op,clustering,true,true,true,{1,1,1,k},false);
+                    auto activationsSize = memH.first;
+                    auto weightsSize = memH.second;
+                    double availableMemory = (double) clusterMemory - (double) weightsSize;
+                    if (availableMemory > 0){ // Weights can fit, determine number of splits for activations
+                        unsigned splitsToFit = ceil((double)activationsSize/availableMemory);
+                        //Special case for convs: Max split over H cannot be higher than dimension/kernel
+                        if(op.getOpType() == "Conv"){
+                            auto kernelSize = op.getInputTensor(1)->getShape()["H"];
+                            auto dim = op.getOutputTensor(0)->getShape()["H"];
+                            if(splitsToFit < dim/kernelSize){
+                                return splitsToFit;
+                            }
+                        }else{
+                            return splitsToFit;
+                        }
+                    }
+                }
+            }
+
             vector<size_t> getMaxStreamOverK(const string& clustering,mv::Op& op)
             {
                 auto opType = op.getOpType();
@@ -765,18 +787,14 @@ namespace mv
                             // 2. Determine if streams over K are possible
                             // 3. If no streams over H or K will fit, enable nested streaming
                             // 4. Nested loops over generated streaming options to produce all strategy options
-                            auto memH = memorySize(op,clustering,inputActivationSparsity,outputActivationSparsity,weightsSparsity.get<bool>(),{1,1,1,1},false);
-                            auto activationsSize = memH.first;
-                            auto weightsSize = memH.second;
-                            unsigned maxSplitOverH;
-                            if(!hasStreamOverH)
+                            unsigned maxSplitOverH = 1;
+                            if(hasStreamOverH)
                             {
-                                maxSplitOverH = 1;
-                            }
-                            else
-                            {
+                                auto memH = memorySize(op,clustering,inputActivationSparsity,outputActivationSparsity,weightsSparsity.get<bool>(),{1,1,1,1},false);
+                                auto activationsSize = memH.first;
+                                auto weightsSize = memH.second;
                                 double availableMemory = (double) clusterMemory - (double) weightsSize;
-                                if (availableMemory < 0)
+                                if (availableMemory < 0) // Weights don't fit, can't stream over H
                                     maxSplitOverH = 1;
                                 else {
                                     unsigned splitsToFit = ceil((double)activationsSize/availableMemory);
@@ -808,20 +826,20 @@ namespace mv
                             auto memK = memorySize(op,clustering,inputActivationSparsity,outputActivationSparsity,weightsSparsity.get<bool>(),{1,1,1,maxK},false);
                             auto memoryMaxK = memK.first + memK.second;
 
-                            //If streaming is enabled, but streaming over k or h alone doesn't fit, enable nested streaming
+                            // If streaming is enabled, but streaming over k or h alone doesn't fit, enable nested streaming
                             if(hasStreamOverK and hasStreamOverH and ((maxSplitOverH == 1) and (memoryMaxK > clusterMemory))){
                                 enableNestedStreaming = true;
-                                //TODO Adjust maxSplitOverH and streamsOverK appropriately for nested
-                                streamsOverK.clear();
-                                maxSplitOverH = 4;
-                                streamsOverK = {2, 3, 4, 8};
+                                // Adjust maxSplitOverH appropriately for nested, keep streamsOverK the same 
+                                maxSplitOverH = getMaxStreamOverH(clustering.get<string>(),op, streamsOverK);
                             }
 
                             for(const auto k : streamsOverK)
                             {
                                 for(unsigned h = 1; h <= maxSplitOverH; h++)
                                 {
-                                    if( !enableNestedStreaming and (h>1) and (k>1))
+                                    if( !enableNestedStreaming and ((h>1) and (k>1))) // Skip nested streams unless necessary
+                                        continue;
+                                    if( enableNestedStreaming and ((h==1) or (k==1))) // If need nested streams, ignore non-nested
                                         continue;
                                     if( ((h*k) > 1) and (spilling.get<bool>() == false))
                                         continue;
