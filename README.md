@@ -107,12 +107,12 @@ wget -q http://nnt-srv01.inn.intel.com/dl_score_engine/thirdparty/linux/keembay/
 
 3. Configure and build inference engine:
 
-Run following command from temporary build folder (e.g. `dldt\build`):
+Run following command from current folder (build folder will be `dldt/build`):
 
 ```sh
 (\
-  mkdir -p ../dldt/build && \
-  cd ../dldt/build && \
+  mkdir -p ./dldt/build && \
+  cd ./dldt/build && \
   source /usr/local/oecore-x86_64/environment-setup-aarch64-ese-linux && \
   cmake -DENABLE_TESTS=ON .. && \
   cmake --build . --parallel $(nproc) \
