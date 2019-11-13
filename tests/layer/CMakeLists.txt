@@ -16,8 +16,8 @@ else()
     add_executable(conv_clamp conv_clamp/conv_clamp.cpp)
     target_link_libraries(conv_clamp cm)
 
-    add_executable(conv_softmax conv_softmax/conv_softmax.cpp)
-    target_link_libraries(conv_softmax cm)
+    add_executable(conv_elu conv_elu/conv_elu.cpp)
+    target_link_libraries(conv_elu cm)
 
     add_executable(conv_fp16output conv_fp16output/conv_fp16output.cpp)
     target_link_libraries(conv_fp16output cm)
@@ -31,11 +31,11 @@ else()
     add_executable(conv_sigmoid conv_sigmoid/conv_sigmoid.cpp)
     target_link_libraries(conv_sigmoid cm)
 
+    add_executable(conv_softmax conv_softmax/conv_softmax.cpp)
+    target_link_libraries(conv_softmax cm)
+
     #add_executable(detection_output detection_output/detection_output.cpp)
     #target_link_libraries(detection_output cm)
-
-    #add_executable(elu elu/elu.cpp)
-    #target_link_libraries(elu cm)
     
     add_executable(normalize normalize/normalize.cpp)
     target_link_libraries(normalize cm)
