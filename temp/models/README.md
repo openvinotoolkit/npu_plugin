@@ -14,3 +14,22 @@ You can use the following command to dump blob:
 ```
 
 This command will produce blob `uint8_sample_model.blob` which can be used for inference by KMB plugin.
+
+#### Execution
+
+The blob generated on the previous stage should be copied from host, used for compilation, to KMB board.
+You can use an application called `benchmark_app` to run inference of the blob.
+This application is available in ARM package. Command line:
+```
+./benchmark_app -m <path-to-the-model>/uint8_sample_model.blob -nireq 4 -niter 500 -d KMB
+```
+
+Example of output:
+
+```
+[Step 11/11] Dumping statistics report
+Count:      500 iterations
+Duration:   3281.72 ms
+Latency:    26.24 ms
+Throughput: 152.36 FPS
+```
