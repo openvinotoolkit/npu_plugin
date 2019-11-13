@@ -1,5 +1,5 @@
 <?xml version="1.0" ?>
-<net batch="1" name="resnet50_int8" version="6">
+<net batch="1" name="uint8_sample_model" version="6">
 	<layers>
 		<layer id="0" name="data" precision="FP32" type="Input">
 			<output>
