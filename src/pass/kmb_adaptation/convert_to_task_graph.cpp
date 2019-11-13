@@ -284,7 +284,6 @@ mv::Data::TensorIterator convertArgmaxToUPATask(mv::OpModel& om, const std::vect
 {
     auto dtype = attrs.at("dType").get<mv::DType>();
     auto quantParams = attrs.at("quantParams").get<mv::QuantizationParams>();
-    auto flip = attrs.at("flip").get<unsigned>();
     auto out_max_val = attrs.at("out_max_val").get<int64_t>();
     auto top_k = attrs.at("top_k").get<int64_t>();
     auto axis = attrs.at("axis").get<int64_t>();
