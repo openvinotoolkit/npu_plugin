@@ -160,8 +160,6 @@ private:
     };
     void parseNetworkDFS(const ie::ICNNNetwork& network, ParsedNetwork& parsedNetwork);
 
-    void applyQuantizationTransformations(ie::CNNNetwork& network);
-
 //
 // Internal state
 //
@@ -176,8 +174,6 @@ private:
 
     ParsedNetwork _parsedNetwork;
 };
-
 }  // namespace KmbPlugin
-
 }  // namespace vpu
 #endif

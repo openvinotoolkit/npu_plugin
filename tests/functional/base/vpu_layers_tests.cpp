@@ -589,7 +589,7 @@ void vpuLayersTests::checkBlobs(Blob::Ptr actual, Blob::Ptr expected)
     }
 }
 
-void vpuLayersTests::Compare(Blob::Ptr actual,
+void Compare(Blob::Ptr actual,
                                 Blob::Ptr expected,
                                 float tolerance)
 {
