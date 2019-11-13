@@ -1,0 +1,282 @@
+//
+// Copyright (C) 2018-2019 Intel Corporation
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+
+#include <cstdlib>
+#include <iostream>
+#include <algorithm>
+#include <unordered_map>
+#include <map>
+#include <vector>
+#include <string>
+
+#include <gflags/gflags.h>
+
+#include "inference_engine.hpp"
+#include <vpu/kmb_plugin_config.hpp>
+#include "samples/common.hpp"
+#include <vpu/utils/string.hpp>
+
+#include "vpu_tools_common.hpp"
+
+static constexpr char help_message[] = "Optional. Prints a usage message.";
+static constexpr char model_message[] = "Required. File containing xml model.";
+static constexpr char plugin_path_message[] = "Optional. Plugin folder.";
+static constexpr char output_message[] = "Optional. Output blob file. Default value: \"<model_xml_file>.blob\".";
+static constexpr char config_message[] = "Optional. Key-value configuration text file. Default value: \"config\".";
+static constexpr char platform_message[] = "Optional. Specifies movidius platform."
+                                           " Supported values: VPU_2490."
+                                           " Overwrites value from config.\n"
+"                                             This option might be used in order to compile blob"
+                                           " without VPU device connected.";
+static constexpr char inputs_precision_message[] = "Optional. Specifies precision for all input layers of network."
+                                                   " Supported values: FP16, U8. Default value: U8.";
+static constexpr char outputs_precision_message[] = "Optional. Specifies precision for all output layers of network."
+                                                    " Supported values: FP16, U8. Default value: U8.";
+static constexpr char iop_message[] = "Optional. Specifies precision for input/output layers by name.\n"
+"                                             By default all input and output layers have U8 precision.\n"
+"                                             Available precisions: FP16, U8.\n"
+"                                             Example: -iop \"input:FP16, output:FP16\".\n"
+"                                             Notice that quotes are required.\n"
+"                                             Overwrites precision from ip and op options for specified layers.";
+static constexpr char dump_blob_as_json_message[] = "Optional. Dumps generated blob in json representation for debugging.";
+static constexpr char dump_blob_as_dot_message[] = "Optional. Dumps generated blob in dot representation for debugging.";
+static constexpr char mcm_target_descriptor_message[] = "Optional. Compilation target descriptor file.";
+
+DEFINE_bool(h, false, help_message);
+DEFINE_string(m, "", model_message);
+DEFINE_string(pp, "", plugin_path_message);
+DEFINE_string(o, "", output_message);
+DEFINE_string(c, "config", config_message);
+DEFINE_string(ip, "", inputs_precision_message);
+DEFINE_string(op, "", outputs_precision_message);
+DEFINE_string(iop, "", iop_message);
+DEFINE_string(VPU_PLATFORM, "", platform_message);
+DEFINE_bool(GENERATE_JSON, false, dump_blob_as_json_message);
+DEFINE_bool(GENERATE_DOT, false, dump_blob_as_dot_message);
+DEFINE_string(TARGET_DESCRIPTOR, "", mcm_target_descriptor_message);
+
+static const InferenceEngine::Precision defaultPrecision = InferenceEngine::Precision::U8;
+
+static void showUsage() {
+    std::cout << std::endl;
+    std::cout << "vpu2_compile [OPTIONS]" << std::endl;
+    std::cout << "[OPTIONS]:" << std::endl;
+    std::cout << "    -h                                       "   << help_message                 << std::endl;
+    std::cout << "    -m                           <value>     "   << model_message                << std::endl;
+    std::cout << "    -pp                          <value>     "   << plugin_path_message          << std::endl;
+    std::cout << "    -o                           <value>     "   << output_message               << std::endl;
+    std::cout << "    -c                           <value>     "   << config_message               << std::endl;
+    std::cout << "    -ip                          <value>     "   << inputs_precision_message     << std::endl;
+    std::cout << "    -op                          <value>     "   << outputs_precision_message    << std::endl;
+    std::cout << "    -iop                        \"<value>\"    " << iop_message                  << std::endl;
+    std::cout << "    -GENERATE_JSON                           "   << dump_blob_as_json_message << std::endl;
+    std::cout << "    -GENERATE_DOT                            "   << dump_blob_as_dot_message << std::endl;
+    std::cout << "    -TARGET_DESCRIPTOR           <value>     "   << mcm_target_descriptor_message << std::endl;
+    std::cout << std::endl;
+}
+
+static std::string filedirname(const std::string &filepath) {
+    auto pos = filepath.rfind('/');
+    if (pos == std::string::npos) return ".";
+    return filepath.substr(0, pos);
+}
+
+static bool parseCommandLine(int *argc, char ***argv) {
+    gflags::ParseCommandLineNonHelpFlags(argc, argv, true);
+
+    if (FLAGS_h) {
+        showUsage();
+        return false;
+    }
+
+    gflags::CommandLineFlagInfo m;
+    if (!gflags::GetCommandLineFlagInfo("m", &m) || m.is_default) {
+            throw std::invalid_argument("-m is required option");
+    }
+
+    if (1 < *argc) {
+        char ** const args = *argv;
+        std::ostringstream message;
+        message << "Unknown arguments supplied: ";
+        for (auto arg = 1; arg < *argc; arg++) {
+            message << args[arg];
+            if (arg < *argc) {
+                message << " ";
+            }
+        }
+        throw std::invalid_argument(message.str());
+    }
+
+    return true;
+}
+
+static std::map<std::string, std::string> configure(const std::string &configFile, const std::string &xmlFileName) {
+    auto config = parseConfig(configFile);
+
+    if (!FLAGS_VPU_PLATFORM.empty()) {
+        config[VPU_KMB_CONFIG_KEY(PLATFORM)] = FLAGS_VPU_PLATFORM;
+    }
+
+    if (FLAGS_GENERATE_JSON) {
+        config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_JSON)] = CONFIG_VALUE(YES);
+    }
+
+    if (FLAGS_GENERATE_DOT) {
+        config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_DOT)] = CONFIG_VALUE(YES);
+    }
+
+    if (!FLAGS_TARGET_DESCRIPTOR.empty()) {
+        config[VPU_KMB_CONFIG_KEY(MCM_TARGET_DESCRIPTOR)] = FLAGS_TARGET_DESCRIPTOR;
+    }
+
+    if (!FLAGS_o.empty()) {
+        config[VPU_KMB_CONFIG_KEY(MCM_COMPILATION_RESULTS_PATH)] = filedirname(FLAGS_o);
+    }
+    return config;
+}
+
+static std::map<std::string, std::string> parsePrecisions(const std::string &iop) {
+    std::string user_input = iop;
+    user_input.erase(std::remove_if(user_input.begin(), user_input.end(), ::isspace), user_input.end());
+
+    std::vector<std::string> inputs;
+    vpu::splitStringList(user_input, inputs, ',');
+
+    std::map<std::string, std::string> precisions;
+    for (auto &&input : inputs) {
+        std::vector<std::string> precision;
+        vpu::splitStringList(input, precision, ':');
+        if (precision.size() != 2) {
+            throw std::invalid_argument("Invalid precision " + input + ". Expected layer_name : precision_value");
+        }
+
+        precisions[precision[0]] = precision[1];
+    }
+
+    return precisions;
+}
+
+using supported_precisions_t = std::unordered_map<std::string, InferenceEngine::Precision>;
+
+static InferenceEngine::Precision getPrecision(const std::string &value,
+                                               const supported_precisions_t &supported_precisions,
+                                               const std::string& error_report = std::string()) {
+    std::string upper_value = value;
+    std::transform(value.begin(), value.end(), upper_value.begin(), ::toupper);
+    auto precision = supported_precisions.find(upper_value);
+    if (precision == supported_precisions.end()) {
+        std::string report = error_report.empty() ? ("") : (" " + error_report);
+        throw std::logic_error("\"" + value + "\"" + " is not a valid precision" + report);
+    }
+
+    return precision->second;
+}
+
+static InferenceEngine::Precision getInputPrecision(const std::string &value) {
+    static const supported_precisions_t supported_precisions = {
+         { "FP16", InferenceEngine::Precision::FP16 },
+         { "U8",   InferenceEngine::Precision::U8 }
+    };
+    static const InferenceEngine::Precision ip =
+            getPrecision(value, supported_precisions, "for input layer");
+    return ip;
+}
+
+static InferenceEngine::Precision getOutputPrecision(const std::string &value) {
+    static const supported_precisions_t supported_precisions = {
+            { "FP16", InferenceEngine::Precision::FP16 },
+            { "U8",   InferenceEngine::Precision::U8 }
+    };
+    static const InferenceEngine::Precision op =
+        getPrecision(value, supported_precisions, "for output layer");
+    return op;
+}
+
+void setPrecisions(const InferenceEngine::CNNNetwork &network, const std::string &iop) {
+    auto precisions = parsePrecisions(iop);
+    auto inputs = network.getInputsInfo();
+    auto outputs = network.getOutputsInfo();
+
+    for (auto &&layer : precisions) {
+        auto name = layer.first;
+
+        auto input_precision = inputs.find(name);
+        auto output_precision = outputs.find(name);
+
+        if (input_precision != inputs.end()) {
+            input_precision->second->setPrecision(getInputPrecision(layer.second));
+        } else if (output_precision != outputs.end()) {
+            output_precision->second->setPrecision(getOutputPrecision(layer.second));
+        } else {
+            throw std::logic_error(name + " is not an input neither output");
+        }
+    }
+}
+
+static void processPrecisions(InferenceEngine::CNNNetwork &network,
+                              const std::string &inputs_precision, const std::string &outputs_precision,
+                              const std::string &iop) {
+    const auto in_precision = inputs_precision.empty() ? defaultPrecision
+                                                 : getInputPrecision(inputs_precision);
+    for (auto &&layer : network.getInputsInfo()) {
+        layer.second->setPrecision(in_precision);
+    }
+
+    const auto out_precision = outputs_precision.empty() ? defaultPrecision
+            : getOutputPrecision(outputs_precision);
+    for (auto &&layer : network.getOutputsInfo()) {
+        layer.second->setPrecision(out_precision);
+    }
+
+    if (!iop.empty()) {
+        setPrecisions(network, iop);
+    }
+}
+
+int main(int argc, char *argv[]) {
+    try {
+        std::cout << "Inference Engine: " << InferenceEngine::GetInferenceEngineVersion() << std::endl;
+
+        if (!parseCommandLine(&argc, &argv)) {
+            return EXIT_SUCCESS;
+        }
+
+        auto network = readNetwork(FLAGS_m);
+
+        processPrecisions(network, FLAGS_ip, FLAGS_op, FLAGS_iop);
+
+        InferenceEngine::Core ie;
+        auto executableNetwork = ie.LoadNetwork(network, "KMB", configure(FLAGS_c, FLAGS_m));
+
+        std::string outputName = FLAGS_o;
+        if (outputName.empty()) {
+            outputName = fileNameNoExt(FLAGS_m) + ".blob";
+        }
+        executableNetwork.Export(outputName);
+    } catch (const std::invalid_argument &error) {
+        std::cerr << error.what() << std::endl << "Try running with -h for help message" << std::endl;
+        return EXIT_FAILURE;
+    } catch (const std::exception &error) {
+        std::cerr << error.what() << std::endl;
+        return EXIT_FAILURE;
+    } catch (...) {
+        std::cerr << "Unknown/internal exception happened." << std::endl;
+        return EXIT_FAILURE;
+    }
+
+    std::cout << "Done" << std::endl;
+    return EXIT_SUCCESS;
+}

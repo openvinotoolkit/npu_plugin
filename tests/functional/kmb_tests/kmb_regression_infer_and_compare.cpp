@@ -201,26 +201,61 @@ std::vector<TestingNetworkParameters> vpuInferAndCompareTestsNQA = {
                         "/KMB_models/FP16/icnet/caffe/caffe/FP16/1/dldt/icnet.bin",
                         "/1024x2048/frankfurt_001016.bmp"},
 
-        // u8_asymmetric models
-        TestingNetworkParameters{"YoloTiny_v2_u8_asymmetric",
-                        "/KMB_models/NQA/u8_asymmetric/YoloTiny-v2/tiny_yolo_v2_asymmetric.xml",
-                        "/KMB_models/NQA/u8_asymmetric/YoloTiny-v2/tiny_yolo_v2_asymmetric.bin",
+        // post trainig models
+        // To learn where the post trainig IRs from and how to update them (if necessary) see
+        // scripts/post_training_quantization/README.md and
+        // scripts/post_training_quantization/<corresponding network dir>/run.txt files
+        TestingNetworkParameters{"mobilenet_v2_int8_int8_weights_perchannel",
+                        "/KMB_models/NQA/POST_TRAINING/MobileNet_V2/mobilenet_v2_int8_int8_weights_perchannel.xml",
+                        "/KMB_models/NQA/POST_TRAINING/MobileNet_V2/mobilenet_v2_int8_int8_weights_perchannel.bin",
+                        "/224x224/cat3.bmp"},
+        TestingNetworkParameters{"mobilenet_v2_uint8_int8_weights_perchannel",
+                        "/KMB_models/NQA/POST_TRAINING/MobileNet_V2/mobilenet_v2_uint8_int8_weights_perchannel.xml",
+                        "/KMB_models/NQA/POST_TRAINING/MobileNet_V2/mobilenet_v2_uint8_int8_weights_perchannel.bin",
+                        "/224x224/cat3.bmp"},
+        TestingNetworkParameters{"mobilenet_v2_uint8_uint8_weights_perchannel",
+                        "/KMB_models/NQA/POST_TRAINING/MobileNet_V2/mobilenet_v2_uint8_uint8_weights_perchannel.xml",
+                        "/KMB_models/NQA/POST_TRAINING/MobileNet_V2/mobilenet_v2_uint8_uint8_weights_perchannel.bin",
+                        "/224x224/cat3.bmp"},
+        // post trainig models
+        // Folowing 3 tests on resnet50 fail on IE to mcmCompiler parsing stage.
+        // The networks can not be parsed due to Eltwise with FakeQuantize issue CVS-23769
+        TestingNetworkParameters{"resnet50_int8_int8_weights_pertensor",
+                        "/KMB_models/NQA/POST_TRAINING/ResNet-50/resnet50_int8_int8_weights_pertensor.xml",
+                        "/KMB_models/NQA/POST_TRAINING/ResNet-50/resnet50_int8_int8_weights_pertensor.bin",
+                        "/224x224/cat3.bmp"},
+        TestingNetworkParameters{"resnet50_uint8_int8_weights_pertensor",
+                        "/KMB_models/NQA/POST_TRAINING/ResNet-50/resnet50_uint8_int8_weights_pertensor.xml",
+                        "/KMB_models/NQA/POST_TRAINING/ResNet-50/resnet50_uint8_int8_weights_pertensor.bin",
+                        "/224x224/cat3.bmp"},
+        TestingNetworkParameters{"resnet50_uint8_uint8_weights_pertensor",
+                        "/KMB_models/NQA/POST_TRAINING/ResNet-50/resnet50_uint8_uint8_weights_pertensor.xml",
+                        "/KMB_models/NQA/POST_TRAINING/ResNet-50/resnet50_uint8_uint8_weights_pertensor.bin",
+                        "/224x224/cat3.bmp"},
+
+        // post trainig models
+        // Folowing 3 tests on tiny_yolo_v2 fail on IE to mcmCompiler parsing stage.
+        // The networks can not be parsed due to parsing RegionYolo issue CVS-23844
+        TestingNetworkParameters{"tiny_yolo_v2_int8_int8_weights_pertensor",
+                        "/KMB_models/NQA/POST_TRAINING/TinyYolo_V2/tiny_yolo_v2_int8_int8_weights_pertensor.xml",
+                        "/KMB_models/NQA/POST_TRAINING/TinyYolo_V2/tiny_yolo_v2_int8_int8_weights_pertensor.bin",
                         "/416x416/person.bmp"},
+        TestingNetworkParameters{"tiny_yolo_v2_uint8_int8_weights_pertensor",
+                        "/KMB_models/NQA/POST_TRAINING/TinyYolo_V2/tiny_yolo_v2_uint8_int8_weights_pertensor.xml",
+                        "/KMB_models/NQA/POST_TRAINING/TinyYolo_V2/tiny_yolo_v2_uint8_int8_weights_pertensor.bin",
+                        "/416x416/person.bmp"},
+        TestingNetworkParameters{"tiny_yolo_v2_uint8_uint8_weights_pertensor",
+                        "/KMB_models/NQA/POST_TRAINING/TinyYolo_V2/tiny_yolo_v2_uint8_uint8_weights_pertensor.xml",
+                        "/KMB_models/NQA/POST_TRAINING/TinyYolo_V2/tiny_yolo_v2_uint8_uint8_weights_pertensor.bin",
+                        "/416x416/person.bmp"},
+
         TestingNetworkParameters{"YoloTiny_v2_u8_asymmetric_cut",
                         "/KMB_models/NQA/u8_asymmetric/YoloTiny-v2/tiny_yolo_v2_asymmetric_cut.xml",
                         "/KMB_models/NQA/u8_asymmetric/YoloTiny-v2/tiny_yolo_v2_asymmetric.bin",
                         "/416x416/person.bmp"},
-        TestingNetworkParameters{"MobileNet_v2_u8_asymmetric",
-                        "/KMB_models/NQA/u8_asymmetric/MobileNet-v2/mobilenetv2_asymmetric.xml",
-                        "/KMB_models/NQA/u8_asymmetric/MobileNet-v2/mobilenetv2_asymmetric.bin",
-                        "/224x224/cat3.bmp"},
         TestingNetworkParameters{"MobileNet_v2_u8_asymmetric_cut",
                         "/KMB_models/NQA/u8_asymmetric/MobileNet-v2/mobilenetv2_asymmetric_cut.xml",
                         "/KMB_models/NQA/u8_asymmetric/MobileNet-v2/mobilenetv2_asymmetric.bin",
-                        "/224x224/cat3.bmp"},
-        TestingNetworkParameters{"Resnet_50_u8_asymmetric",
-                        "/KMB_models/NQA/u8_asymmetric/ResNet-50/resnet-50-pytorch_asymmetric.xml",
-                        "/KMB_models/NQA/u8_asymmetric/ResNet-50/resnet-50-pytorch_asymmetric.bin",
                         "/224x224/cat3.bmp"},
         TestingNetworkParameters{"Resnet_50_u8_asymmetric_cut",
                         "/KMB_models/NQA/u8_asymmetric/ResNet-50/resnet-50-pytorch_asymmetric_cut.xml",
@@ -238,10 +273,6 @@ std::vector<TestingNetworkParameters> vpuInferAndCompareTestsNQA = {
                         "/KMB_models/NQA/u8_asymmetric/squeezenet1_1/squeezenet1_1.xml",
                         "/KMB_models/NQA/u8_asymmetric/squeezenet1_1/squeezenet1_1.bin",
                         "/224x224/cat3.bmp"},
-        TestingNetworkParameters{"Yolo_v2_asymmetric",
-                        "/KMB_models/NQA/u8_asymmetric/Yolo-v2/yolo_v2_asymmetric.xml",
-                        "/KMB_models/NQA/u8_asymmetric/Yolo-v2/yolo_v2_asymmetric.bin",
-                        "/416x416/person.bmp"},
 };
 
 INSTANTIATE_TEST_CASE_P(InferAndCompareTestsNQA, VpuInferAndCompareTests,

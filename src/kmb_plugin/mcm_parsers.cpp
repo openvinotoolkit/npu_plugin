@@ -16,6 +16,7 @@
 
 #include <frontend_mcm.hpp>
 #include "kmb_config.h"
+#include <quantization_helpers.hpp>
 
 #include <vector>
 #include <memory>
@@ -30,6 +31,7 @@
 #include <functional>
 
 #include <ie_layers_internal.hpp>
+#include <low_precision_transformations/common/network_helper.hpp>
 #include "ie_blob.h"
 #include <blob_factory.hpp>
 
@@ -39,6 +41,10 @@
 
 #ifdef ENABLE_MCM_COMPILER
 #include "include/mcm/tensor/quantization_params.hpp"
+
+using namespace InferenceEngine;
+using namespace InferenceEngine::details;
+
 
 namespace vpu {
 
@@ -140,24 +146,6 @@ std::vector<ResultType> packBlobToVector(
     return blobData;
 }
 
-mv::QuantizationParams createQuantParams(const ie::CNNLayerPtr& layer, std::string bName) {
-    mv::QuantizationParams quantParams = initialQuantParams;
-    double inf = std::numeric_limits<double>::infinity();
-    ie::Blob::Ptr scaleBlob;
-    auto blob = layer->blobs.find(bName);
-
-    if (blob != layer->blobs.end()) {
-        scaleBlob = blob->second;
-        auto scale = packBlobToVector<double>(scaleBlob, scaleBlob->size());
-        quantParams = {{mv::utils::generateSequence<int64_t>(scale.size(), 0, 0)},
-                       {scale},
-                       {mv::utils::generateSequence<double>(scale.size(), -inf, 0)},
-                       {mv::utils::generateSequence<double>(scale.size(), inf, 0)}};
-    }
-
-    return quantParams;
-}
-
 namespace {
 void getOutputScale(const ie::CNNLayerPtr& layer, mv::QuantizationParams &quantParams,
         const Logger::Ptr& logger) {  // TODO: Refactor logging: JIRA: CVS-21492
@@ -200,98 +188,94 @@ void getOutputScale(const ie::CNNLayerPtr& layer, mv::QuantizationParams &quantP
                     {mv::utils::generateSequence<double>(oScaleDataVector.size(), inf, 0)}};
 }
 
-void fillQuntizationParams(const ie::CNNLayerPtr& quantizedLayer, mv::QuantizationParams &outputQuantParams) {
-    std::vector<int64_t> inputZeroPointVector;
-    std::vector<int64_t> outZeroPointVector;
-    std::vector<double> outScaleVector;
-
-    IE_ASSERT(quantizedLayer != nullptr);
-
-    IE_ASSERT(quantizedLayer->blobs["newActivationInputScale"] != nullptr);
-    auto outScaleBlob = quantizedLayer->blobs.find("newActivationInputScale");
-    if (outScaleBlob != quantizedLayer->blobs.end()) {
-        outScaleVector = packBlobToVector<double>(outScaleBlob->second, outScaleBlob->second->size());
-    }
-    IE_ASSERT(quantizedLayer->blobs["newActivationInputShift"] != nullptr);
-    auto outZeroPoint = quantizedLayer->blobs.find("newActivationInputShift");
-    if (outZeroPoint != quantizedLayer->blobs.end()) {
-        outZeroPointVector = packBlobToVector<int64_t>(outZeroPoint->second, outZeroPoint->second->size());
-    }
-
-    outputQuantParams =  {{outZeroPointVector},
-                          {outScaleVector},
-                          {mv::utils::generateSequence<double>(outScaleVector.size(), -inf, 0)},
-                          {mv::utils::generateSequence<double>(outScaleVector.size(), inf, 0)}};
+bool isQuantizationParamsEqual(const mv::QuantizationParams& a, const mv::QuantizationParams& b) {
+    return (a.getScale() == b.getScale() && (a.getZeroPoint() == b.getZeroPoint()));
 }
 
-mv::DType calculateOutputType(const ie::CNNLayerPtr& layer) {
-    bool findFQ = false;
-    mv::DType outType;
-    // We merged FQ and Layer in one, we should use FQ output precision
-    auto outFQ = layer->outData[0]->getInputTo();
-    for (const auto &it : outFQ) {
-        auto nextLayer = it.second;
-        if (nextLayer->type == "FakeQuantize") {
-            outType = convert_data_type(nextLayer->outData[0]->getPrecision());
-            findFQ = true;
-            break;
+void updateParentsQuantizationParamsForEltwise(const std::vector<mv::Data::TensorIterator>& mvInputs,
+                                               const mv::QuantizationParams& resultQuantizationParam,
+                                               mv::OpModel& modelMcm, std::string name) {
+    IE_ASSERT(mvInputs.size() == 2);
+    auto parentOp0 = modelMcm.getSourceOp(mvInputs[0]);
+    auto parentOp1 = modelMcm.getSourceOp(mvInputs[1]);
+
+    parentOp0->set<mv::QuantizationParams>("quantParams", resultQuantizationParam);
+    parentOp1->set<mv::QuantizationParams>("quantParams", resultQuantizationParam);
+
+    if (parentOp0->getOpType() ==  "Bias" || parentOp0->getOpType() ==  "Relu" || parentOp0->getOpType() ==  "Clamp") {
+        auto primaryParent0Op = modelMcm.getSourceOp(parentOp0->getInputTensor(0));
+        auto primaryParent1Op = modelMcm.getSourceOp(primaryParent0Op->getInputTensor(0));
+        if (primaryParent0Op->getOpType() ==  "Conv" || primaryParent0Op->getOpType() ==  "Add") {
+            primaryParent0Op->set<mv::QuantizationParams>("quantParams", resultQuantizationParam);
+        } else if (primaryParent0Op->getOpType() !=  "Conv" || primaryParent0Op->getOpType() !=  "Add") {
+            if (primaryParent1Op->getOpType() ==  "Conv" || primaryParent1Op->getOpType() ==  "Add")
+                primaryParent1Op->set<mv::QuantizationParams>("quantParams", resultQuantizationParam);
+        } else if (primaryParent1Op->getOpType() !=  "Conv" || primaryParent1Op->getOpType() !=  "Add") {
+            VPU_THROW_EXCEPTION << name << "Unable to find parent operation of Bias/Relu/Clamp that is a Convolution";
         }
     }
-    if (!findFQ) {
-        VPU_THROW_EXCEPTION << "CNN graph is invalid, in quantize case we must detect FQ layer after "
-                            << layer->name;
+
+    if (parentOp1->getOpType() ==  "Bias" || parentOp1->getOpType() ==  "Relu" || parentOp1->getOpType() ==  "Clamp") {
+        auto primaryParent0Op = modelMcm.getSourceOp(parentOp1->getInputTensor(0));
+        auto primaryParent1Op = modelMcm.getSourceOp(primaryParent0Op->getInputTensor(0));
+        if (primaryParent0Op->getOpType() ==  "Conv" || primaryParent0Op->getOpType() ==  "Add") {
+            primaryParent0Op->set<mv::QuantizationParams>("quantParams", resultQuantizationParam);
+        } else if (primaryParent0Op->getOpType() !=  "Conv" || primaryParent0Op->getOpType() !=  "Add") {
+            if (primaryParent1Op->getOpType() ==  "Conv" || primaryParent1Op->getOpType() ==  "Add")
+                primaryParent1Op->set<mv::QuantizationParams>("quantParams", resultQuantizationParam);
+        } else if (primaryParent1Op->getOpType() !=  "Conv" || primaryParent1Op->getOpType() !=  "Add") {
+            VPU_THROW_EXCEPTION << name << "Unable to find parent operation of Bias/Relu/Clamp that is a Convolution";
+        }
     }
-    return outType;
 }
 
 }  // namespace
 
 void FrontEndMcm::parseInputData() {
-    _logger->debug("Try to parse network input");
+_logger->debug("Try to parse network input");
 
-    IE_ASSERT(_parsedNetwork.networkInputs.size() == 1);
+IE_ASSERT(_parsedNetwork.networkInputs.size() == 1);
 
-    for (const auto& inputInfo : _parsedNetwork.networkInputs) {
-        auto netInput = inputInfo.second;
-        std::cout << inputInfo.first << std::endl;
-        IE_ASSERT(netInput != nullptr);
+for (const auto& inputInfo : _parsedNetwork.networkInputs) {
+    auto netInput = inputInfo.second;
+    IE_ASSERT(netInput != nullptr);
 
-        auto ieData = netInput->getInputData();
-        IE_ASSERT(ieData != nullptr);
+    auto ieData = netInput->getInputData();
+    IE_ASSERT(ieData != nullptr);
 
-        const auto& dataDesc = ieData->getTensorDesc();
-        mv::Shape inputShape(getWHCN(dataDesc).getDims());
-        auto mvInput = _modelMcm.input(inputShape, convert_data_type(dataDesc.getPrecision()), mv::Order::getZMajorID(4), initialQuantParams, netInput->name());
-        bindOutput(mvInput, ieData);
-        _logger->debug("Network input '%s'(orig: '%s') parsed to mcmModel", mvInput->getName(), netInput->name());
-    }
+    const auto& dataDesc = ieData->getTensorDesc();
+    mv::Shape inputShape(getWHCN(dataDesc).getDims());
+    auto mvInput = _modelMcm.input(inputShape, convert_data_type(dataDesc.getPrecision()), mv::Order::getZMajorID(4), initialQuantParams, netInput->name());
+    bindOutput(mvInput, ieData);
+    _logger->debug("Network input '%s'(orig: '%s') parsed to mcmModel", mvInput->getName(), netInput->name());
+}
 
 #if 0  // TODO: rewrite logic to mcm compiler if this part is needed
-    //
+//
 // Parse constant data
 //
 
-    auto kmbData = model->addInputData(ieData->getName(), kmbDesc);
-    bindData(kmbData, ieData);
+auto kmbData = model->addInputData(ieData->getName(), kmbDesc);
+bindData(kmbData, ieData);
 
-    auto kmbData = model->addConstData(
-        ieData->getName(),
-        kmbDesc,
-        ieBlobContent(ieBlob));
+auto kmbData = model->addConstData(
+    ieData->getName(),
+    kmbDesc,
+    ieBlobContent(ieBlob));
 
-    // User might ask to return the output from Const layer.
-    if (auto kmbOutData = getVpuData(ieData)) {
-        IE_ASSERT(kmbOutData->usage() == DataUsage::Output);
+// User might ask to return the output from Const layer.
+if (auto kmbOutData = getVpuData(ieData)) {
+    IE_ASSERT(kmbOutData->usage() == DataUsage::Output);
 
-        _stageBuilder->addCopyStage(
-            model,
-            formatString("%s@return-const", kmbData->name()),
-            nullptr,
-            kmbData,
-            kmbOutData);
-    }
+    _stageBuilder->addCopyStage(
+        model,
+        formatString("%s@return-const", kmbData->name()),
+        nullptr,
+        kmbData,
+        kmbOutData);
+}
 
-    bindData(kmbData, ieData);
+bindData(kmbData, ieData);
 #endif
 }
 
@@ -368,14 +352,13 @@ void FrontEndMcm::parseConvolution(
     ie::Blob::Ptr weightsBlob = nullptr;
     ie::Blob::Ptr biasBlob = nullptr;
     mv::Shape biasesShape {1};
+    is_quantized = KmbQuantizationHelpers::isWeightableLayerQuantized(convLayer);
 
     if (inputs.size() == 1) {
-    // OLD APPROACH
+        // OLD APPROACH
         if (layer->precision == ie::Precision::I8) {
             // Quantized layer
-            inputQuantParams   = initialQuantParams;
             weightsQuantParams = initialQuantParams;
-            biasQuantParams   = initialQuantParams;
             getOutputScale(layer, outputQuantParams, _logger);
             is_quantized = true;
         }
@@ -399,36 +382,14 @@ void FrontEndMcm::parseConvolution(
             biasesShape[0] = biasBlob->size();
         }
 
-        // extract weights
-
-        InferenceEngine::DataPtr convWeights = convLayer->insData[1].lock();
-        auto convWeightsConstLayer = convWeights->getCreatorLayer().lock();
-        if (convWeights->getPrecision() == InferenceEngine::Precision::I8 || convWeights->getPrecision() == InferenceEngine::Precision::U8) {
-            is_quantized = true;
-        }
-        if (convWeightsConstLayer->type == "Const") {
-            auto constDataWeights = convWeightsConstLayer->outData[0];
-            IE_ASSERT(constDataWeights != nullptr);
-            weightsBlob = convWeightsConstLayer->blobs.begin()->second;
-            IE_ASSERT(biasBlob != nullptr);
+        if (is_quantized) {
+            KmbQuantizationHelpers::fillQuntizationActivationParams(convLayer, outputQuantParams);
+            weightsBlob = KmbQuantizationHelpers::calculateQuntizationWeights(convLayer, weightsQuantParams);
         } else {
-            // WA, weights should be in const layer
-            InferenceEngine::DataPtr convWeightsFQorScaleShift = convLayer->insData[1].lock();
-            auto convWeightsFQorScaleShiftLayer = convWeightsFQorScaleShift->getCreatorLayer().lock();
-            InferenceEngine::DataPtr convWeights = convWeightsFQorScaleShiftLayer->insData[0].lock();
+            InferenceEngine::DataPtr convWeights = convLayer->insData[1].lock();
             auto convWeightsConstLayer = convWeights->getCreatorLayer().lock();
-            auto constDataWeights = convWeightsConstLayer->outData[0];
-
-            IE_ASSERT(constDataWeights != nullptr);
             weightsBlob = convWeightsConstLayer->blobs.begin()->second;
-            IE_ASSERT(biasBlob != nullptr);
-        }
-
-        bool isQuantizedLayer = convLayer->blobs.find("newActivationOutScale") != convLayer->blobs.end();
-        if (isQuantizedLayer) {
-            // Quantized layer
-            fillQuntizationParams(layer, outputQuantParams);
-            weightsQuantParams = initialQuantParams;
+            IE_ASSERT(weightsBlob != nullptr);
         }
     }
 
@@ -436,7 +397,7 @@ void FrontEndMcm::parseConvolution(
     parseDims(input->desc(), stub, inputGroupSize, stub, stub);
     parseDims(outDesc, stub, outputGroupSize, stub, stub);
 
-    bool isDepthWiseConv = groupSize > 1 && groupSize == inputGroupSize && groupSize != outputGroupSize;
+    bool isDepthWiseConv = groupSize > 1 && groupSize == inputGroupSize && groupSize == outputGroupSize;
 
     auto weightsShape = {static_cast<std::size_t>(kernelSizeX),
                          static_cast<std::size_t>(kernelSizeY),
@@ -447,28 +408,6 @@ void FrontEndMcm::parseConvolution(
     IE_ASSERT(weightsBlob != nullptr);
     auto weightsPrecision = weightsBlob->getTensorDesc().getPrecision();
 
-    // Convert weights buffer to z major layout
-    {
-        auto converted_weights = make_blob_with_precision(weightsBlob->getTensorDesc());
-        converted_weights->allocate();
-        if (weightsPrecision == InferenceEngine::Precision::U8
-         || weightsPrecision == InferenceEngine::Precision::I8) {
-            auto src = weightsBlob->buffer().as<uint8_t *>();
-            auto dst = converted_weights->buffer().as<uint8_t *>();
-
-            kchw_to_khwc(src, dst, weightsBlob->getTensorDesc());
-        } else if (weightsPrecision == InferenceEngine::Precision::FP16) {
-            auto src = weightsBlob->buffer().as<InferenceEngine::ie_fp16*>();
-            auto dst = converted_weights->buffer().as<InferenceEngine::ie_fp16*>();
-
-            kchw_to_khwc(src, dst, weightsBlob->getTensorDesc());
-        } else {
-            THROW_IE_EXCEPTION << "Unsupported weights precision";
-        }
-
-        std::swap(weightsBlob, converted_weights);
-    }
-
     if (isDepthWiseConv) {
         if (is_quantized) {
             // TODO: create per layer test
@@ -476,25 +415,24 @@ void FrontEndMcm::parseConvolution(
             mvWeights = _modelMcm.constantInt(weightsData,
                                               weightsShape,
                                               mv::DType(convert_data_type(weightsPrecision)),
-                                              mv::Order(mv::Order::getZMajorID(4)));
-            mvWeights->set<mv::QuantizationParams>("quantParams", weightsQuantParams);
+                                              mv::Order("NCHW"), weightsQuantParams);
         } else {
             auto weightsData = packBlobToVector<double>(weightsBlob, weightsSize);
             mvWeights = _modelMcm.constant(weightsData,
                                            weightsShape,
                                            mv::DType(convert_data_type(weightsPrecision)),
-                                           mv::Order(mv::Order::getZMajorID(4)));
+                                           mv::Order("NCHW"));
         }
 
         mvConv = _modelMcm.depthwiseConv(input->getMcmNode(),
                                          mvWeights,
-                                        {static_cast<uint16_t>(kernelStrideX),
-                                         static_cast<uint16_t>(kernelStrideY)},
-                                        {static_cast<uint16_t>(padLeft),
-                                         static_cast<uint16_t>(padRight),
-                                         static_cast<uint16_t>(padTop),
-                                         static_cast<uint16_t>(padBottom)},
-                                         static_cast<unsigned>(dilationX),
+                                         {static_cast<uint16_t>(kernelStrideX),
+                                          static_cast<uint16_t>(kernelStrideY)},
+                                         {static_cast<uint16_t>(padLeft),
+                                          static_cast<uint16_t>(padRight),
+                                          static_cast<uint16_t>(padTop),
+                                          static_cast<uint16_t>(padBottom)},
+                                          static_cast<unsigned>(dilationX),
                                          mv::DType("Default"),
                                          outputQuantParams,
                                          convLayer->name);
@@ -504,32 +442,27 @@ void FrontEndMcm::parseConvolution(
             mvWeights = _modelMcm.constantInt(weightsData,
                                               weightsShape,
                                               mv::DType(convert_data_type(weightsPrecision)),
-                                              mv::Order(mv::Order::getZMajorID(4)));
-            mvWeights->set<mv::QuantizationParams>("quantParams", weightsQuantParams);
+                                              mv::Order("NCHW"), weightsQuantParams);
         } else {
             auto weightsData = packBlobToVector<double>(weightsBlob, weightsSize);
             mvWeights = _modelMcm.constant(weightsData,
                                            weightsShape,
                                            mv::DType(convert_data_type(weightsPrecision)),
-                                           mv::Order(mv::Order::getZMajorID(4)));
+                                           mv::Order("NCHW"));
         }
         mvConv = _modelMcm.conv(input->getMcmNode(),
                                 mvWeights,
-                               {static_cast<uint16_t>(kernelStrideX),
-                                static_cast<uint16_t>(kernelStrideY)},
-                               {static_cast<uint16_t>(padLeft),
-                                static_cast<uint16_t>(padRight),
-                                static_cast<uint16_t>(padTop),
-                                static_cast<uint16_t>(padBottom)},
+                                {static_cast<uint16_t>(kernelStrideX),
+                                 static_cast<uint16_t>(kernelStrideY)},
+                                {static_cast<uint16_t>(padLeft),
+                                 static_cast<uint16_t>(padRight),
+                                 static_cast<uint16_t>(padTop),
+                                 static_cast<uint16_t>(padBottom)},
                                 static_cast<unsigned>(dilationX),
                                 static_cast<unsigned>(groupSize),
                                 mv::DType("Default"),
                                 outputQuantParams,
                                 convLayer->name);
-    }
-
-    if (is_quantized) {
-        mvConv->set<mv::QuantizationParams>("quantParams", outputQuantParams);
     }
 
     if (with_bias) {
@@ -538,8 +471,8 @@ void FrontEndMcm::parseConvolution(
             mvBiases = _modelMcm.constantInt(
                     biasesData,
                     biasesShape,
-                    mv::DType("Int32"), mv::Order::getColMajorID(1));
-            mvBiases->set<mv::QuantizationParams>("quantParams", biasQuantParams);
+                    mv::DType("UInt8"), mv::Order::getColMajorID(1));
+            mvBiases->set<mv::QuantizationParams>("quantParams", outputQuantParams);
         } else {
             auto biasesData = packBlobToVector<double>(biasBlob, biasBlob->size());
             mvBiases = _modelMcm.constant(
@@ -554,10 +487,7 @@ void FrontEndMcm::parseConvolution(
         _logger->debug("'%s' layer '%s': Bias part (%s) added to mcmModel", convLayer->type, convLayer->name, mvConv->getName());
     }
 
-    mvConv->set<mv::DType>("dType", convert_data_type(layer->outData[0]->getPrecision()));
-
     bindOutput(mvConv, layerOutput);
-
     _logger->debug(FINISH_PARSING_STR, mvConv->getName());
 }
 
@@ -586,37 +516,37 @@ void FrontEndMcm::parsePooling(
 
     auto poolType = poolLayer->_type;
 
+    mv::QuantizationParams outputQuantParams  = initialQuantParams;
+    KmbQuantizationHelpers::fillQuntizationActivationParams(poolLayer, outputQuantParams);
+
     mv::Data::TensorIterator mvPooling;
     if (poolType == ie::PoolingLayer::AVG) {
         mvPooling = _modelMcm.averagePool(inputs[0]->getMcmNode(),
-            {static_cast<uint16_t>(kernelSizeX),
-             static_cast<uint16_t>(kernelSizeY)},
-            {static_cast<uint16_t>(kernelStrideX),
-             static_cast<uint16_t>(kernelStrideY)},
-            {static_cast<uint16_t>(padLeft),
-             static_cast<uint16_t>(padRight),
-             static_cast<uint16_t>(padTop),
-             static_cast<uint16_t>(padBottom)},
-            true, "", "floor", mv::DType("Default"), initialQuantParams,
-            poolLayer->name);
+                                          {static_cast<uint16_t>(kernelSizeX),
+                                           static_cast<uint16_t>(kernelSizeY)},
+                                          {static_cast<uint16_t>(kernelStrideX),
+                                           static_cast<uint16_t>(kernelStrideY)},
+                                          {static_cast<uint16_t>(padLeft),
+                                           static_cast<uint16_t>(padRight),
+                                           static_cast<uint16_t>(padTop),
+                                           static_cast<uint16_t>(padBottom)},
+                                          true, "", "floor", mv::DType("Default"), outputQuantParams,
+                                          poolLayer->name);
     } else {
         mvPooling = _modelMcm.maxPool(inputs[0]->getMcmNode(),
-            {static_cast<uint16_t>(kernelSizeX),
-             static_cast<uint16_t>(kernelSizeY)},
-            {static_cast<uint16_t>(kernelStrideX),
-             static_cast<uint16_t>(kernelStrideY)},
-            {static_cast<uint16_t>(padLeft),
-             static_cast<uint16_t>(padRight),
-             static_cast<uint16_t>(padTop),
-             static_cast<uint16_t>(padBottom)},
-            true, "", "floor", mv::DType("Default"), initialQuantParams,
-            poolLayer->name);
+                                      {static_cast<uint16_t>(kernelSizeX),
+                                       static_cast<uint16_t>(kernelSizeY)},
+                                      {static_cast<uint16_t>(kernelStrideX),
+                                       static_cast<uint16_t>(kernelStrideY)},
+                                      {static_cast<uint16_t>(padLeft),
+                                       static_cast<uint16_t>(padRight),
+                                       static_cast<uint16_t>(padTop),
+                                       static_cast<uint16_t>(padBottom)},
+                                      true, "", "floor", mv::DType("Default"), outputQuantParams,
+                                      poolLayer->name);
     }
 
-    mvPooling->set<mv::DType>("dType", convert_data_type(layer->outData[0]->getPrecision()));
-
     bindOutput(mvPooling, layer->outData[0]);
-
     _logger->debug(FINISH_PARSING_STR, mvPooling->getName());
 }
 
@@ -662,24 +592,19 @@ void FrontEndMcm::parseFullyConnected(
             biasesShape[0] = biasBlob->size();
         }
 
-        // extract weights
-        InferenceEngine::DataPtr FCWeights = FClayer->insData[1].lock();
-        auto FCWeightsConstLayer = FCWeights->getCreatorLayer().lock();
-        if (FCWeights->getPrecision() == InferenceEngine::Precision::I8 || FCWeights->getPrecision() == InferenceEngine::Precision::U8) {
-            is_quantized = true;
-        }
-        if (FCWeightsConstLayer->type == "Const") {
-            auto constDataWeights = FCWeightsConstLayer->outData[0];
-            IE_ASSERT(constDataWeights != nullptr);
-            weightsBlob = FCWeightsConstLayer->blobs.begin()->second;
-            IE_ASSERT(biasBlob != nullptr);
-        }
+        is_quantized = KmbQuantizationHelpers::isWeightableLayerQuantized(FClayer);
 
-        bool isQuantizedLayer = FClayer->blobs.find("newActivationOutScale") != FClayer->blobs.end();
-        if (isQuantizedLayer) {
-            // Quantized layer
-            fillQuntizationParams(layer, outputQuantParams);
-            weightsQuantParams = initialQuantParams;
+        // extract weights
+        if (is_quantized) {
+            KmbQuantizationHelpers::fillQuntizationActivationParams(FClayer, outputQuantParams);
+            weightsBlob = KmbQuantizationHelpers::calculateQuntizationWeights(FClayer, weightsQuantParams);
+        } else {
+            InferenceEngine::DataPtr fcWeights = FClayer->insData[1].lock();
+            auto fcWeightsConstLayer = fcWeights->getCreatorLayer().lock();
+            weightsBlob = fcWeightsConstLayer->blobs.begin()->second;
+            IE_ASSERT(weightsBlob != nullptr);
+
+            auto weightsData = packBlobToVector<double>(weightsBlob, weightsBlob->size());
         }
     } else {
         if (layer->precision == ie::Precision::I8) {
@@ -706,9 +631,8 @@ void FrontEndMcm::parseFullyConnected(
         std::vector<int64_t> weightsData = packBlobToVector<int64_t>(weightsBlob, weightsSize);
         mvWeights = _modelMcm.constantInt(weightsData,
                                           {inputs[0]->getMcmNode()->getShape().totalSize(), static_cast<std::size_t>(FClayer->_out_num)},
-                                          mv::DType(convert_data_type(weightsPrecision)), mv::Order(mv::Order::getColMajorID(2)));
-
-        mvWeights->set<mv::QuantizationParams>("quantParams", weightsQuantParams);
+                                          mv::DType(convert_data_type(weightsPrecision)), mv::Order(mv::Order::getColMajorID(2)),
+                                          weightsQuantParams);
     } else {
         std::vector<double> weightsData = packBlobToVector<double>(weightsBlob, weightsSize);
 
@@ -728,7 +652,7 @@ void FrontEndMcm::parseFullyConnected(
             mvBiases = _modelMcm.constantInt(
                     biasesData,
                     biasesShape,
-                    mv::DType("Int32"), mv::Order::getColMajorID(1));
+                    mv::DType("UInt8"), mv::Order::getColMajorID(1));
             mvBiases->set<mv::QuantizationParams>("quantParams", initialQuantParams);
         } else {
             auto biasesData = packBlobToVector<double>(biasBlob, biasBlob->size());
@@ -741,9 +665,8 @@ void FrontEndMcm::parseFullyConnected(
         auto mvFCOnly = mvFullyConnected;
         mvFullyConnected = _modelMcm.bias(mvFCOnly, mvBiases, mv::DType("Default"), outputQuantParams, FClayer->name + ":bias");
         _logger->debug("'%s' layer '%s': Bias part (%s) added to mcmModel", FClayer->type, FClayer->name,
-                mvFullyConnected->getName());
+                       mvFullyConnected->getName());
     }
-    mvFullyConnected->set<mv::DType>("dType", convert_data_type(layer->outData[0]->getPrecision()));
 
     bindOutput(mvFullyConnected, layer->outData[0]);
 
@@ -762,15 +685,16 @@ void FrontEndMcm::parseReLU(
 
     float negativeSlope = reluLayer->negative_slope;
     mv::Data::TensorIterator mvRelu;
+    auto inputQuantParams = inputs[0]->getMcmNode()->get<mv::QuantizationParams>("quantParams");
     if (std::fabs(negativeSlope) < std::numeric_limits<float>::epsilon()) {
-        mvRelu = _modelMcm.relu(inputs[0]->getMcmNode(), mv::DType("Default"), initialQuantParams, reluLayer->name);
+        mvRelu = _modelMcm.relu(inputs[0]->getMcmNode(), mv::DType("Default"), inputQuantParams, reluLayer->name);
     } else {
         // TODO FIXME: unsigned int alpha should be fixed or clarified
         mvRelu = _modelMcm.leakyRelu(inputs[0]->getMcmNode(),
-                negativeSlope,
-                mv::DType("Default"),
-                initialQuantParams,
-                reluLayer->name);
+                                     negativeSlope,
+                                     mv::DType("Default"),
+                                     initialQuantParams,
+                                     reluLayer->name);
     }
 
     bindOutput(mvRelu, layer->outData[0]);
@@ -810,7 +734,7 @@ void FrontEndMcm::parseNorm(
     logParsingStartHelper(_logger, layer, inputs);
 
     auto mvLRN = _modelMcm.localResponseNormalization(inputs[0]->getMcmNode(),
-            normLayer->_size, normLayer->_k, normLayer->name);
+                                                      normLayer->_size, normLayer->_k, normLayer->name);
 
     bindOutput(mvLRN, layer->outData[0]);
 
@@ -864,19 +788,31 @@ void FrontEndMcm::parseEltwise(
     IE_ASSERT(eltwiseLayer != nullptr);
 
     logParsingStartHelper(_logger, layer, inputs);
-
-    bool is_quantized = false;
-    auto inputPrecision = eltwiseLayer->insData[0].lock()->getPrecision();
     mv::QuantizationParams outputQuantParams = initialQuantParams;
-    if ((inputPrecision== ie::Precision::I8) || (inputPrecision == ie::Precision::U8)) {
-        is_quantized = true;
-        fillQuntizationParams(layer, outputQuantParams);
-    }
 
+    KmbQuantizationHelpers::fillQuntizationActivationParams(eltwiseLayer, outputQuantParams);
     mv::Data::TensorIterator mvEltwise;
     std::vector< mv::Data::TensorIterator > mvInputs;
     for (const auto& input : inputs) {
         mvInputs.push_back(input->getMcmNode());
+    }
+    mv::QuantizationParams input1QuantParams = mvInputs[0]->get<mv::QuantizationParams>("quantParams");
+    mv::QuantizationParams input2QuantParams = mvInputs[1]->get<mv::QuantizationParams>("quantParams");
+
+    if (!isQuantizationParamsEqual(input1QuantParams, input2QuantParams)) {
+        std::vector<CNNLayerPtr> parents = CNNNetworkHelper::getParents(*layer);
+        IE_ASSERT(parents.size() == 2);
+        for (size_t i = 0; i < parents.size(); i++) {
+            if (parents[i]->type != "FakeQuantize") {
+                VPU_THROW_EXCEPTION << eltwiseLayer->name <<
+                                    "Quantize Eltwise  should has FakeQuantize on inputs";
+            }
+        }
+
+        mv::QuantizationParams resultQuantizationParam = initialQuantParams;
+        KmbQuantizationHelpers::reCalculateQuantizationParamsOnActivation(parents[0], parents[1], resultQuantizationParam);
+
+        updateParentsQuantizationParamsForEltwise(mvInputs, resultQuantizationParam, _modelMcm, eltwiseLayer->name);
     }
 
     if (inputs.size() > 2) {
@@ -902,15 +838,10 @@ void FrontEndMcm::parseEltwise(
             VPU_THROW_EXCEPTION << "Eltwise operation" << eltwiseLayer->_operation << " is not supported";
     }
 
-    mv::DType outputType = convert_data_type(layer->outData[0]->getPrecision());
-    if (is_quantized) {
-        outputType = calculateOutputType(layer);
-    }
-    mvEltwise->set<mv::DType>("dType", outputType);
-
     bindOutput(mvEltwise, layer->outData[0]);
     _logger->debug(FINISH_PARSING_STR, mvEltwise->getName());
 }
+
 
 void FrontEndMcm::parseBias(
         const ie::CNNLayerPtr& layer,
@@ -980,7 +911,9 @@ void FrontEndMcm::parseReshape(
     // McmCompiler accept only input in WHCN format
     mv::Shape newShape(getWHCN(layerOutput->getTensorDesc()).getDims());
 
-    auto mvReshape = _modelMcm.reshape(inputs[0]->getMcmNode(), newShape, "", layer->name);
+    auto mvReshape = _modelMcm.reshape(inputs[0]->getMcmNode(), newShape, inputs[0]->getMcmNode()->getOrder(),
+                                       mv::DType("Default"), initialQuantParams, layer->name);
+
     bindOutput(mvReshape, layer->outData[0]);
 
     _logger->debug(FINISH_PARSING_STR, mvReshape->getName());

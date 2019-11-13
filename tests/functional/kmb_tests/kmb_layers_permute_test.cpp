@@ -24,7 +24,8 @@ typedef std::tuple<tensor_test_params, tensor_test_params, std::string> permute_
 typedef kmbLayerTestBaseWithParam< permute_test_params > kmbLayersTestsPermuteParams;
 
 #ifdef ENABLE_MCM_COMPILER
-TEST_P(kmbLayersTestsPermuteParams, TestsPermute) {
+// #-23996
+TEST_P(kmbLayersTestsPermuteParams, DISABLED_TestsPermute) {
     auto param = GetParam();
     tensor_test_params inputTensor = std::get<0>(param);
     tensor_test_params outputTensor = std::get<1>(param);

@@ -1,0 +1,382 @@
+Output log dir: ./results/inception-v1_tf_uint8_uint8_weights_pertensor_DefaultQuantization/2019-11-07_17-00-42
+Creating pipeline:
+Algorithm: DefaultQuantization
+Parameters:
+	target_device              : CPU
+	stat_subset_size           : 1000
+	activations                : {'type': 'asymmetric', 'bits': 8, 'scale_type': 'pertensor'}
+	preset                     : accuracy
+	weights                    : {'type': 'asymmetric', 'bits': 8, 'scale_type': 'pertensor'}
+===========================================================================
+INFO:compression.statistics.statistics_collector:Start computing statistics for algorithms : DefaultQuantization
+INFO:compression.statistics.statistics_collector:Computing statistics finished
+INFO:compression.pipeline.pipeline:Start algorithm: DefaultQuantization
+INFO:compression.statistics.statistics_collector:Start computing statistics for algorithms : ActivationChannelAlignment
+INFO:compression.engines.ac_engine:Start inference of 1000 images
+INFO:compression.engines.ac_engine:Inference finished
+INFO:compression.statistics.statistics_collector:Computing statistics finished
+INFO:compression.statistics.statistics_collector:Start computing statistics for algorithms : NaiveQuantization,BiasCorrection
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4b/concat_v2/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4b/concat_v2/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4b/concat_v2/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_5c/Branch_2/Conv2d_0b_3x3/convolution/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4b/Branch_1/Conv2d_0a_1x1/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4b/Branch_2/Conv2d_0b_3x3/convolution/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_5b/Branch_0/Conv2d_0a_1x1/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4c/concat_v2/fq_input_3 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4c/concat_v2/fq_input_3 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4c/concat_v2/fq_input_3 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_5b/concat_v2/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_5b/concat_v2/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_5b/concat_v2/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4c/Branch_1/Conv2d_0b_3x3/convolution/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4c/Branch_1/Conv2d_0b_3x3/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4d/Branch_1/Conv2d_0a_1x1/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_5c/Branch_2/Conv2d_0b_3x3/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Conv2d_2b_1x1/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4f/Branch_1/Conv2d_0a_1x1/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_5c/Branch_1/Conv2d_0a_1x1/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4d/Branch_2/Conv2d_0b_3x3/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_5b/Branch_2/Conv2d_0a_3x3/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4c/concat_v2/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4c/concat_v2/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4c/concat_v2/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_5b/Branch_2/Conv2d_0a_3x3/convolution/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Conv2d_2c_3x3/convolution/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_3b/Branch_0/Conv2d_0a_1x1/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_5b/Branch_1/Conv2d_0b_3x3/convolution/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_3b/concat_v2/fq_input_3 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_3b/concat_v2/fq_input_3 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_3b/concat_v2/fq_input_3 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4b/Branch_0/Conv2d_0a_1x1/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_5b/Branch_2/Conv2d_0a_1x1/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4d/Branch_2/Conv2d_0a_1x1/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_3c/Branch_3/Conv2d_0b_1x1/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4e/Branch_3/Conv2d_0b_1x1/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_5b/concat_v2/fq_input_2 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_5b/concat_v2/fq_input_2 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_5b/concat_v2/fq_input_2 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4c/Branch_2/Conv2d_0b_3x3/convolution/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4f/Branch_1/Conv2d_0b_3x3/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4c/Branch_3/Conv2d_0b_1x1/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_5c/Branch_1/Conv2d_0b_3x3/convolution/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4c/concat_v2/fq_input_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4c/concat_v2/fq_input_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4c/concat_v2/fq_input_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4e/concat_v2/fq_input_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4e/concat_v2/fq_input_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4e/concat_v2/fq_input_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4e/Branch_0/Conv2d_0a_1x1/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_3b/Branch_1/Conv2d_0b_3x3/convolution/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4c/Branch_2/Conv2d_0a_1x1/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_5c/Branch_3/Conv2d_0b_1x1/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4f/Branch_2/Conv2d_0b_3x3/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_3c/Branch_1/Conv2d_0b_3x3/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4b/Branch_2/Conv2d_0b_3x3/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4d/Branch_3/Conv2d_0b_1x1/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4d/concat_v2/fq_input_2 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4d/concat_v2/fq_input_2 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4d/concat_v2/fq_input_2 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4c/concat_v2/fq_input_2 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4c/concat_v2/fq_input_2 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4c/concat_v2/fq_input_2 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_3c/Branch_2/Conv2d_0a_1x1/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_5c/Branch_1/Conv2d_0b_3x3/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_3b/Branch_3/Conv2d_0b_1x1/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_3b/Branch_2/Conv2d_0a_1x1/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4d/Branch_2/Conv2d_0b_3x3/convolution/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_5b/Branch_3/Conv2d_0b_1x1/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4d/concat_v2/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4d/concat_v2/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4d/concat_v2/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_5c/Branch_0/Conv2d_0a_1x1/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/Logits/Conv2d_0c_1x1/convolution/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_3c/Branch_2/Conv2d_0b_3x3/convolution/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4f/Branch_3/Conv2d_0b_1x1/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Conv2d_1a_7x7/convolution/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Conv2d_1a_7x7/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4f/Branch_2/Conv2d_0b_3x3/convolution/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_3c/Branch_0/Conv2d_0a_1x1/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4c/Branch_2/Conv2d_0b_3x3/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4e/concat_v2/fq_input_3 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4e/concat_v2/fq_input_3 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4e/concat_v2/fq_input_3 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4e/concat_v2/fq_input_2 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4e/concat_v2/fq_input_2 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4e/concat_v2/fq_input_2 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4b/concat_v2/fq_input_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4b/concat_v2/fq_input_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4b/concat_v2/fq_input_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_3b/concat_v2/fq_input_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_3b/concat_v2/fq_input_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_3b/concat_v2/fq_input_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_5b/concat_v2/fq_input_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_5b/concat_v2/fq_input_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_5b/concat_v2/fq_input_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4c/Branch_0/Conv2d_0a_1x1/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_3c/Branch_1/Conv2d_0a_1x1/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4e/Branch_1/Conv2d_0b_3x3/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4e/Branch_1/Conv2d_0a_1x1/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Conv2d_2c_3x3/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4b/Branch_3/Conv2d_0b_1x1/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_5b/Branch_1/Conv2d_0a_1x1/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_3b/Branch_2/Conv2d_0b_3x3/convolution/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_5b/Branch_1/Conv2d_0b_3x3/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4f/Branch_0/Conv2d_0a_1x1/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_3b/Branch_1/Conv2d_0b_3x3/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4b/Branch_2/Conv2d_0a_1x1/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_3b/concat_v2/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_3b/concat_v2/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_3b/concat_v2/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4d/concat_v2/fq_input_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4d/concat_v2/fq_input_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4d/concat_v2/fq_input_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4b/concat_v2/fq_input_3 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4b/concat_v2/fq_input_3 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4b/concat_v2/fq_input_3 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4e/concat_v2/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4e/concat_v2/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4e/concat_v2/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4f/Branch_2/Conv2d_0a_1x1/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_3c/Branch_1/Conv2d_0b_3x3/convolution/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_3b/Branch_2/Conv2d_0b_3x3/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4f/Branch_1/Conv2d_0b_3x3/convolution/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4b/Branch_1/Conv2d_0b_3x3/convolution/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/Logits/Conv2d_0c_1x1/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_5b/concat_v2/fq_input_3 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_5b/concat_v2/fq_input_3 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_5b/concat_v2/fq_input_3 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4b/Branch_1/Conv2d_0b_3x3/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_3c/Branch_2/Conv2d_0b_3x3/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4d/Branch_1/Conv2d_0b_3x3/convolution/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4d/Branch_1/Conv2d_0b_3x3/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_3b/concat_v2/fq_input_2 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_3b/concat_v2/fq_input_2 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_3b/concat_v2/fq_input_2 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_3b/Branch_1/Conv2d_0a_1x1/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_5c/Branch_2/Conv2d_0a_1x1/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4d/Branch_0/Conv2d_0a_1x1/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4e/Branch_1/Conv2d_0b_3x3/convolution/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4e/Branch_2/Conv2d_0a_1x1/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4e/Branch_2/Conv2d_0b_3x3/convolution/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4e/Branch_2/Conv2d_0b_3x3/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4b/concat_v2/fq_input_2 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4b/concat_v2/fq_input_2 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4b/concat_v2/fq_input_2 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4d/concat_v2/fq_input_3 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4d/concat_v2/fq_input_3 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4d/concat_v2/fq_input_3 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4c/Branch_1/Conv2d_0a_1x1/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+INFO:compression.engines.ac_engine:Start inference of 1000 images
+INFO:compression.engines.ac_engine:Inference finished
+INFO:compression.statistics.statistics_collector:Computing statistics finished
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4b/concat_v2/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4b/concat_v2/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4b/concat_v2/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_5c/Branch_2/Conv2d_0b_3x3/convolution/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4b/Branch_1/Conv2d_0a_1x1/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4b/Branch_2/Conv2d_0b_3x3/convolution/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_5b/Branch_0/Conv2d_0a_1x1/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4c/concat_v2/fq_input_3 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4c/concat_v2/fq_input_3 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4c/concat_v2/fq_input_3 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_5b/concat_v2/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_5b/concat_v2/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_5b/concat_v2/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4e/Branch_1/Conv2d_0b_3x3/convolution/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4c/Branch_1/Conv2d_0b_3x3/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4e/concat_v2/fq_input_2 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4e/concat_v2/fq_input_2 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4e/concat_v2/fq_input_2 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_5c/Branch_2/Conv2d_0b_3x3/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Conv2d_2b_1x1/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4f/Branch_1/Conv2d_0a_1x1/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_5c/Branch_1/Conv2d_0a_1x1/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4d/Branch_2/Conv2d_0b_3x3/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_5b/Branch_2/Conv2d_0a_3x3/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4c/concat_v2/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4c/concat_v2/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4c/concat_v2/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_5b/Branch_2/Conv2d_0a_3x3/convolution/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Conv2d_2c_3x3/convolution/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_3b/Branch_0/Conv2d_0a_1x1/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_5b/Branch_1/Conv2d_0b_3x3/convolution/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_3b/concat_v2/fq_input_3 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_3b/concat_v2/fq_input_3 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_3b/concat_v2/fq_input_3 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4b/Branch_0/Conv2d_0a_1x1/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_5b/Branch_2/Conv2d_0a_1x1/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4d/Branch_2/Conv2d_0a_1x1/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_3c/Branch_3/Conv2d_0b_1x1/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4e/Branch_3/Conv2d_0b_1x1/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_5b/concat_v2/fq_input_2 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_5b/concat_v2/fq_input_2 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_5b/concat_v2/fq_input_2 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4c/Branch_2/Conv2d_0b_3x3/convolution/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4e/concat_v2/fq_input_3 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4e/concat_v2/fq_input_3 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4e/concat_v2/fq_input_3 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4c/Branch_3/Conv2d_0b_1x1/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_5c/Branch_1/Conv2d_0b_3x3/convolution/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_3c/Branch_1/Conv2d_0b_3x3/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4e/concat_v2/fq_input_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4e/concat_v2/fq_input_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4e/concat_v2/fq_input_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4e/Branch_0/Conv2d_0a_1x1/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_3b/Branch_1/Conv2d_0b_3x3/convolution/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4c/Branch_2/Conv2d_0a_1x1/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4d/Branch_1/Conv2d_0a_1x1/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_5c/Branch_3/Conv2d_0b_1x1/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4f/Branch_2/Conv2d_0b_3x3/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4c/Branch_1/Conv2d_0b_3x3/convolution/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4c/concat_v2/fq_input_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4c/concat_v2/fq_input_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4c/concat_v2/fq_input_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4b/Branch_2/Conv2d_0b_3x3/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4d/Branch_3/Conv2d_0b_1x1/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4d/concat_v2/fq_input_2 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4d/concat_v2/fq_input_2 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4d/concat_v2/fq_input_2 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4c/concat_v2/fq_input_2 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4c/concat_v2/fq_input_2 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4c/concat_v2/fq_input_2 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_3c/Branch_2/Conv2d_0a_1x1/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_5c/Branch_1/Conv2d_0b_3x3/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_3b/Branch_3/Conv2d_0b_1x1/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_3b/Branch_2/Conv2d_0a_1x1/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4d/Branch_2/Conv2d_0b_3x3/convolution/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4c/Branch_0/Conv2d_0a_1x1/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_5b/Branch_3/Conv2d_0b_1x1/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4d/concat_v2/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4d/concat_v2/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4d/concat_v2/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_5c/Branch_0/Conv2d_0a_1x1/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/Logits/Conv2d_0c_1x1/convolution/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_3c/Branch_2/Conv2d_0b_3x3/convolution/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4f/Branch_3/Conv2d_0b_1x1/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Conv2d_1a_7x7/convolution/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Conv2d_1a_7x7/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4f/Branch_2/Conv2d_0b_3x3/convolution/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_3c/Branch_0/Conv2d_0a_1x1/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4c/Branch_2/Conv2d_0b_3x3/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4f/Branch_1/Conv2d_0b_3x3/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4b/concat_v2/fq_input_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4b/concat_v2/fq_input_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4b/concat_v2/fq_input_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_3b/concat_v2/fq_input_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_3b/concat_v2/fq_input_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_3b/concat_v2/fq_input_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_5b/concat_v2/fq_input_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_5b/concat_v2/fq_input_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_5b/concat_v2/fq_input_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4b/concat_v2/fq_input_3 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4b/concat_v2/fq_input_3 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4b/concat_v2/fq_input_3 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_3c/Branch_1/Conv2d_0a_1x1/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4e/Branch_1/Conv2d_0b_3x3/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4e/Branch_1/Conv2d_0a_1x1/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Conv2d_2c_3x3/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4b/Branch_3/Conv2d_0b_1x1/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_5b/Branch_1/Conv2d_0a_1x1/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_3b/Branch_2/Conv2d_0b_3x3/convolution/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_5b/Branch_1/Conv2d_0b_3x3/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4f/Branch_0/Conv2d_0a_1x1/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_3b/Branch_1/Conv2d_0b_3x3/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4b/Branch_2/Conv2d_0a_1x1/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_3b/concat_v2/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_3b/concat_v2/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_3b/concat_v2/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4d/concat_v2/fq_input_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4d/concat_v2/fq_input_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4d/concat_v2/fq_input_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4e/concat_v2/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4e/concat_v2/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4e/concat_v2/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4f/Branch_2/Conv2d_0a_1x1/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_3c/Branch_1/Conv2d_0b_3x3/convolution/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_3b/Branch_2/Conv2d_0b_3x3/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4f/Branch_1/Conv2d_0b_3x3/convolution/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4b/Branch_1/Conv2d_0b_3x3/convolution/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/Logits/Conv2d_0c_1x1/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_5b/concat_v2/fq_input_3 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_5b/concat_v2/fq_input_3 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_5b/concat_v2/fq_input_3 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4b/Branch_1/Conv2d_0b_3x3/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_3c/Branch_2/Conv2d_0b_3x3/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4d/Branch_1/Conv2d_0b_3x3/convolution/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4d/Branch_1/Conv2d_0b_3x3/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_3b/concat_v2/fq_input_2 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_3b/concat_v2/fq_input_2 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_3b/concat_v2/fq_input_2 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_3b/Branch_1/Conv2d_0a_1x1/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_5c/Branch_2/Conv2d_0a_1x1/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4d/Branch_0/Conv2d_0a_1x1/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4e/Branch_2/Conv2d_0a_1x1/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4e/Branch_2/Conv2d_0b_3x3/convolution/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4e/Branch_2/Conv2d_0b_3x3/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4b/concat_v2/fq_input_2 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4b/concat_v2/fq_input_2 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4b/concat_v2/fq_input_2 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4d/concat_v2/fq_input_3 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4d/concat_v2/fq_input_3 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4d/concat_v2/fq_input_3 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node InceptionV1/InceptionV1/Mixed_4c/Branch_1/Conv2d_0a_1x1/convolution/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+INFO:compression.pipeline.pipeline:Finished: DefaultQuantization
+ ===========================================================================
+INFO:compression.pipeline.pipeline:Evaluation of generated model
+INFO:compression.engines.ac_engine:Start inference on the whole dataset
+Total dataset size: 50000
+1000 / 50000 processed in 11.655s
+2000 / 50000 processed in 11.579s
+3000 / 50000 processed in 12.288s
+4000 / 50000 processed in 11.741s
+5000 / 50000 processed in 13.921s
+6000 / 50000 processed in 13.494s
+7000 / 50000 processed in 13.998s
+8000 / 50000 processed in 12.715s
+9000 / 50000 processed in 13.427s
+10000 / 50000 processed in 13.082s
+11000 / 50000 processed in 12.760s
+12000 / 50000 processed in 12.508s
+13000 / 50000 processed in 12.567s
+14000 / 50000 processed in 11.946s
+15000 / 50000 processed in 11.929s
+16000 / 50000 processed in 11.938s
+17000 / 50000 processed in 12.577s
+18000 / 50000 processed in 12.602s
+19000 / 50000 processed in 12.524s
+20000 / 50000 processed in 12.000s
+21000 / 50000 processed in 12.653s
+22000 / 50000 processed in 11.956s
+23000 / 50000 processed in 12.360s
+24000 / 50000 processed in 12.121s
+25000 / 50000 processed in 12.714s
+26000 / 50000 processed in 13.495s
+27000 / 50000 processed in 12.261s
+28000 / 50000 processed in 12.977s
+29000 / 50000 processed in 12.664s
+30000 / 50000 processed in 12.989s
+31000 / 50000 processed in 13.713s
+32000 / 50000 processed in 13.738s
+33000 / 50000 processed in 12.877s
+34000 / 50000 processed in 12.787s
+35000 / 50000 processed in 13.189s
+36000 / 50000 processed in 12.922s
+37000 / 50000 processed in 12.665s
+38000 / 50000 processed in 13.187s
+39000 / 50000 processed in 12.557s
+40000 / 50000 processed in 13.543s
+41000 / 50000 processed in 13.005s
+42000 / 50000 processed in 13.839s
+43000 / 50000 processed in 12.083s
+44000 / 50000 processed in 13.199s
+45000 / 50000 processed in 12.739s
+46000 / 50000 processed in 12.520s
+47000 / 50000 processed in 12.598s
+48000 / 50000 processed in 12.503s
+49000 / 50000 processed in 12.266s
+50000 / 50000 processed in 13.357s
+50000 objects processed in 636.738 seconds
+INFO:compression.engines.ac_engine:Inference finished
+accuracy@top1              : 0.60266
+accuracy@top5              : 0.83842

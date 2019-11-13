@@ -62,12 +62,18 @@ struct interp_test_params {
     };
 };
 
+using namespace InferenceEngine;
+using namespace details;
+
+void setCommonConfig(std::map<std::string, std::string>& config);
+size_t precisionToBytesize(const std::string& precision);
+
 void PrintTo(const tensor_test_params& sz, std::ostream* os);
 
 void print_buffer_HWC_fp16(InferenceEngine::ie_fp16 *src_data, int32_t IW, int32_t IH, int32_t IC, const char * tname,
-        int32_t iw0=0, int32_t iw1=-1, int32_t ih0=0, int32_t ih1=-1, int32_t ic0=0, int32_t ic1=-1);
+                           int32_t iw0=0, int32_t iw1=-1, int32_t ih0=0, int32_t ih1=-1, int32_t ic0=0, int32_t ic1=-1);
 void print_tensor_HWC_fp16(const InferenceEngine::Blob::Ptr src, const char * tname,
-        int32_t iw0=0, int32_t iw1=-1, int32_t ih0=0, int32_t ih1=-1, int32_t ic0=0, int32_t ic1=-1);
+                           int32_t iw0=0, int32_t iw1=-1, int32_t ih0=0, int32_t ih1=-1, int32_t ic0=0, int32_t ic1=-1);
 
 PRETTY_PARAM(Dims, tensor_test_params);
 PRETTY_PARAM(DimsInput, tensor_test_params);
@@ -118,7 +124,7 @@ protected:
                 int weights_size,
                 int biases_size,
                 std::string& model
-      );
+    );
 
     void genInputBlobs(InferenceEngine::Precision precision);
     void genOutputBlobs(InferenceEngine::Precision precision);
@@ -157,9 +163,6 @@ protected:
     void SetInputInOrderReverse();
     void checkBlobs(InferenceEngine::Blob::Ptr actual, InferenceEngine::Blob::Ptr expected);
     void SetSeed(uint32_t seed);
-    void Compare(InferenceEngine::Blob::Ptr actual,
-                 InferenceEngine::Blob::Ptr expected,
-                 float max_diff);
     void CompareWithNorm(InferenceEngine::Blob::Ptr actual,
                          InferenceEngine::Blob::Ptr expected,
                          float max_diff);
@@ -176,9 +179,9 @@ protected:
     {
         // TODO: pass seed as parameter
         InferenceEngine::TBlob<uint8_t>::Ptr weights = InferenceEngine::make_shared_blob<uint8_t>({
-                                                                                        InferenceEngine::Precision::U8,
-                                                                                        {(sz) * sizeof(T)},
-                                                                                        InferenceEngine::C});
+                                                                                                          InferenceEngine::Precision::U8,
+                                                                                                          {(sz) * sizeof(T)},
+                                                                                                          InferenceEngine::C});
         weights->allocate();
         T *inputBlobRawData = weights->buffer().as<T *>();
 
@@ -209,9 +212,9 @@ protected:
         struct callbackObject
         {
             callbackObject()
-            : weights(nullptr)
-            , weights_size(0)
-            , bias_size(0) {
+                    : weights(nullptr)
+                    , weights_size(0)
+                    , bias_size(0) {
             }
             std::function<void()> callback;
             InferenceEngine::Blob::Ptr input;
@@ -223,34 +226,34 @@ protected:
         };
 
         template<typename func> void Add(const IN_OUT_desc& inDim,
-                                                            const IN_OUT_desc& outDim,
-                                                            calcWeights fillWeights,
-                                                            size_t weights_size,
-                                                            size_t biases_size,
-                                                            func&& cl, const ParamsStruct& params) {
+                                         const IN_OUT_desc& outDim,
+                                         calcWeights fillWeights,
+                                         size_t weights_size,
+                                         size_t biases_size,
+                                         func&& cl, const ParamsStruct& params) {
             callbackObject obj;
             genInputOutput(obj, inDim, outDim);
             obj.weights_size = weights_size;
             obj.bias_size = biases_size;
             InferenceEngine::Blob::Ptr weights = InferenceEngine::make_shared_blob<uint8_t>({InferenceEngine::Precision::U8,
-                                                                                   {(weights_size + biases_size) * sizeof(uint16_t)},
-                                                                                    InferenceEngine::C});
+                                                                                             {(weights_size + biases_size) * sizeof(uint16_t)},
+                                                                                             InferenceEngine::C});
 
             weights->allocate();
             obj.weights_ptr = weights;
             obj.weights = weights->buffer().as<uint16_t *>();
             auto f = std::bind(std::forward<func>(cl), obj.input, obj.output, obj.weights,
-                obj.weights_size, obj.bias_size, params);
+                               obj.weights_size, obj.bias_size, params);
             obj.callback = [f] { f(); };
             callbacks.push_back(obj);
         }
 
         template<typename func> void Add(const IN_OUT_desc& inDim,
-                                                            const IN_OUT_desc& outDim,
-                                                            std::nullptr_t,
-                                                            size_t weights_size,
-                                                            size_t biases_size,
-                                                            func&& cl, const ParamsStruct& params) {
+                                         const IN_OUT_desc& outDim,
+                                         std::nullptr_t,
+                                         size_t weights_size,
+                                         size_t biases_size,
+                                         func&& cl, const ParamsStruct& params) {
             callbackObject obj;
             genInputOutput(obj, inDim, outDim);
             auto f = std::bind(std::forward<func>(cl), obj.input, obj.output, params);
@@ -320,12 +323,12 @@ protected:
                     calcWeights Weights,
                     const IN_OUT_desc& iDim,
                     const IN_OUT_desc& oDim)
-        : layer_type(layer)
-        , weights_size(w_size)
-        , biases_size(b_size)
-        , weights_offset(0)
-        , biases_offset(0)
-        , fillWeights(Weights) {
+                : layer_type(layer)
+                , weights_size(w_size)
+                , biases_size(b_size)
+                , weights_offset(0)
+                , biases_offset(0)
+                , fillWeights(Weights) {
             inDim  = iDim;
             outDim = oDim;
             if (inparams) {
@@ -345,20 +348,20 @@ protected:
     };
     void genNetwork(bool useHWOpt = false, int version = 2);
     void doNetworkInit(const std::string& layer_type,
-            std::map<std::string, std::string>* params = nullptr,
-            int weights_size = 0,
-            int biases_size = 0,
-            InferenceEngine::TBlob<uint8_t>::Ptr weights = nullptr,
-            InferenceEngine::Precision outputPrecision = InferenceEngine::Precision::FP32,
-            InferenceEngine::Precision inputPrecision = InferenceEngine::Precision::FP16,
-            bool useHWOpt = false);
+                       std::map<std::string, std::string>* params = nullptr,
+                       int weights_size = 0,
+                       int biases_size = 0,
+                       InferenceEngine::TBlob<uint8_t>::Ptr weights = nullptr,
+                       InferenceEngine::Precision outputPrecision = InferenceEngine::Precision::FP32,
+                       InferenceEngine::Precision inputPrecision = InferenceEngine::Precision::FP16,
+                       bool useHWOpt = false);
     bool                     _netInitialized;
 protected:
     ReferenceSequence _referenceGraph;
     std::vector<ObjectToGen> _testNet;
     virtual void setup(InferenceEngine::Precision outputPrecision,
-               InferenceEngine::Precision inputPrecision,
-               bool useHWOpt = false);
+                       InferenceEngine::Precision inputPrecision,
+                       bool useHWOpt = false);
 
 };
 
@@ -367,13 +370,13 @@ protected:
 /* with one input and one output                                                    */
 template<typename func>
 void vpuLayersTests::AddLayer(const std::string& layer_type,
-                                 const ParamsStruct* params,
-                                 size_t weights_size,
-                                 size_t biases_size,
-                                 calcWeights fillWeights,
-                                 const IN_OUT_desc& inDim,
-                                 const IN_OUT_desc& outDim,
-                                 func&& cl) {
+                              const ParamsStruct* params,
+                              size_t weights_size,
+                              size_t biases_size,
+                              calcWeights fillWeights,
+                              const IN_OUT_desc& inDim,
+                              const IN_OUT_desc& outDim,
+                              func&& cl) {
     ObjectToGen new_layer(layer_type, params, weights_size,
                           biases_size, fillWeights, inDim, outDim);
     _testNet.push_back(new_layer);
@@ -382,10 +385,10 @@ void vpuLayersTests::AddLayer(const std::string& layer_type,
 
 template<typename func>
 void vpuLayersTests::AddLayer(const std::string& layer_type,
-                                 const ParamsStruct* params,
-                                 const IN_OUT_desc& inDim,
-                                 const IN_OUT_desc& outDim,
-                                 func&& cl) {
+                              const ParamsStruct* params,
+                              const IN_OUT_desc& inDim,
+                              const IN_OUT_desc& outDim,
+                              func&& cl) {
     ObjectToGen new_layer(layer_type, params, 0,
                           0, nullptr, inDim, outDim);
     _testNet.push_back(new_layer);
@@ -464,11 +467,9 @@ void fillRealBuffer(T* data, size_t size,  T min, T max) {
     fillCommon(data, size, [&](){return dis(gen);});
 }
 
-template<InferenceEngine::ie_fp16>
-void fillRealBuffer(InferenceEngine::ie_fp16* data, size_t size, InferenceEngine::ie_fp16 min, InferenceEngine::ie_fp16 max) {
-    std::random_device rd;
-    std::mt19937 gen(rd());
-    std::uniform_real_distribution<float> dis(min, max);
+template<>
+void fillRealBuffer<InferenceEngine::ie_fp16>(InferenceEngine::ie_fp16* data, size_t size, InferenceEngine::ie_fp16 min, InferenceEngine::ie_fp16 max);
 
-    fillCommon(data, size, [&](){return InferenceEngine::PrecisionUtils::f32tof16(dis(gen));});
-}
+void Compare(InferenceEngine::Blob::Ptr actual,
+             InferenceEngine::Blob::Ptr expected,
+             float max_diff);
