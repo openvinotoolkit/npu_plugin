@@ -37,6 +37,7 @@
 #include <ie_layers.h>
 
 #include <file_reader.h>
+#include <blob_factory.hpp>
 
 using namespace ::testing;
 using namespace InferenceEngine;
@@ -62,7 +63,6 @@ namespace
         inline void loadNetworkWrapper(std::map<std::string, std::string> config, InferenceEngine::StatusCode* st = nullptr);
 
         // Accessors
-        std::string getPluginName() const override ;
         std::string getDeviceName() const override ;
         std::map<std::string, std::string> _config;
 
@@ -91,10 +91,6 @@ namespace
         PluginCache::get().reset();
     }
 #endif
-
-    inline std::string VpuNoRegressionWithCompilation::getPluginName() const {
-        return pluginName;
-    }
 
     inline std::string VpuNoRegressionWithCompilation::getDeviceName() const {
         return "";
@@ -355,10 +351,6 @@ class VpuInferWithPath: public vpuLayersTests,
 
 class VpuNoRegressionInference : public Regression::RegressionTests {
 public:
-    std::string getPluginName() const override {
-        return pluginName;
-    }
-
     std::string getDeviceName() const override {
         return "";
     }

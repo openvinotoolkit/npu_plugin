@@ -35,6 +35,10 @@ target_include_directories(${TARGET_NAME} SYSTEM PRIVATE
     ${IE_MAIN_SOURCE_DIR}/src/vpu/common/include
 )
 
+if(NOT TARGET gflags)
+    find_package(gflags REQUIRED)
+endif()
+
 target_link_libraries(${TARGET_NAME} PRIVATE
     IE::inference_engine IE::vpu_common_lib
     gflags

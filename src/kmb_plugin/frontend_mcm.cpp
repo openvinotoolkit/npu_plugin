@@ -100,31 +100,6 @@ ie::details::caseless_map<std::string, parser_t> g_mcm_parsers = {
     {"ArgMax",             &FrontEndMcm::parseArgMax},
 };
 
-size_t getDataDimsSize(InferenceEngine::DataPtr data) {
-    if (data->getTensorDesc().getLayout() == InferenceEngine::SCALAR) {
-        return 1;
-    } else {
-        return data->getDims().size();
-    }
-}
-
-size_t getDataDim(InferenceEngine::DataPtr data, size_t nDim) {
-    if (data->getTensorDesc().getLayout() == InferenceEngine::SCALAR) {
-        if (nDim == 0) {
-            return 1;
-        } else {
-            THROW_IE_EXCEPTION << "SCALAR data can not have dim (" << nDim << ")";
-        }
-    } else {
-        if (nDim >= data->getDims().size()) {
-            THROW_IE_EXCEPTION << "Number of dim queried (" << nDim << ") exceeds data dimensionary (" << data->getDims().size() << ")";
-        } else {
-            return data->getDims()[nDim];
-        }
-    }
-    return 0;
-}
-
 }  // namespace
 
 mv::DType convert_data_type(ie::Precision iePrecision) {

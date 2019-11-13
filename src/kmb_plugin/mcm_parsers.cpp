@@ -31,7 +31,6 @@
 #include <functional>
 
 #include <ie_layers_internal.hpp>
-#include <low_precision_transformations/common/network_helper.hpp>
 #include "ie_blob.h"
 #include <blob_factory.hpp>
 

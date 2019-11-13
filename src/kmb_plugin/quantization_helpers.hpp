@@ -17,8 +17,8 @@
 
 #pragma once
 #include <ie_layers_internal.hpp>
-#include <low_precision_transformations/common/network_helper.hpp>
-#include <low_precision_transformations/common/quantization_details.hpp>
+#include <low_precision_transformations/network_helper.hpp>
+#include <low_precision_transformations/quantization_details.hpp>
 
 #include <vector>
 

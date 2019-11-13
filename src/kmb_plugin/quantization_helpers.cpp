@@ -19,7 +19,6 @@
 #include <vector>
 #include <limits>
 #include <algorithm>
-#include <low_precision_transformations/common/network_helper.hpp>
 
 #ifdef ENABLE_MCM_COMPILER
 #include "include/mcm/tensor/quantization_params.hpp"
