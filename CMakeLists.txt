@@ -1,13 +1,24 @@
 cmake_minimum_required(VERSION 3.10.0)
+
 project(mcmComplier VERSION 1.0.0)
 
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/lib)
+option(MCM_COMPILER_BUILD_PYTHON "Build Python wrappers" ON)
+option(MCM_COMPILER_BUILD_TESTS "Build tests" ON)
+option(MCM_COMPILER_BUILD_EXAMPLES "Build examples" ON)
+option(MCM_COMPILER_BUILD_TOOLS "Build tools" ON)
+
+if (NOT MCM_COMPILER_IS_SUBPROJECT)
+    set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/lib)
+endif()
+
 set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake-modules")
+
 set(CMAKE_VERBOSE_MAKEFILE OFF) # for debugging
+
+add_definitions(-DPROJECT_DIR=\"${PROJECT_SOURCE_DIR}\")
+
 set(META_DIR_PATH "${PROJECT_BINARY_DIR}/meta")
 include_directories(${META_DIR_PATH})
-add_definitions(-DMETA_DIR=\"${META_DIR_PATH}\")
-add_definitions(-DPROJECT_DIR=\"${PROJECT_SOURCE_DIR}\")
 
 #############################################################################################
 ### Setup
@@ -19,7 +30,10 @@ if (NOT CMAKE_BUILD_TYPE)
 endif()
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 
-add_compile_options(-std=c++11)
+add_compile_options(-std=c++11 --no-gnu-unique)
+set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 set(PROFILER FALSE CACHE BOOL "Enable integrated profiler")
 set(LOG TRUE CACHE BOOL "Enable logger")
@@ -31,13 +45,11 @@ set(PROFILE_ALGO TRUE CACHE BOOL "Enable profiling at internal algorithms level"
 set(PROFILE_BULD TRUE CACHE BOOL "Enable profiling at building blocks level")
 set(PROFILE_MATH TRUE CACHE BOOL "Enable profiling at tensor math operations level")
 
-
 if (${LOG})
     add_definitions(-DMV_LOG_ENABLED)
 endif()
 
 if (${PROFILER})
-
     if (${UNIX})
         add_definitions(-DMV_PROFILER_ENABLED)
         include_directories(${PROJECT_SOURCE_DIR}/contrib/easy_profiler/easy_profiler_core/include)
@@ -70,40 +82,50 @@ if (${PROFILER})
         if (${PROFILE_MATH})
             add_definitions(-DMV_PROFILE_MATH_ENABLED)
         endif()
-
     else()
-
         message("Ignoring PROFILER=ON flag, profiling only available for Linux/UNIX")
-
     endif()
-
 endif()
 
 #############################################################################################
 ### Test Coverage - off by default. Pass param CODE_COVERAGE=ON
 ### > cmake -DCODE_COVERAGE=ON -DCMAKE_BUILD_TYPE=Debug ..
 #############################################################################################
+
 include(cmake-modules/code-coverage.cmake)
 add_code_coverage()
 
 #############################################################################################
 ### Find packages - uses Find*.cmake files in /cmake-modules dir
 #############################################################################################
-find_package(LEMON)
-if(LEMON_FOUND)
-    include_directories(${LEMON_INCLUDE_DIR})
-else()
-    message(STATUS "LEMON not found!")
-endif(LEMON_FOUND)
 
-set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+find_package(LEMON QUIET)
+if(LEMON_FOUND)
+    message(STATUS "Found LEMON installed on target system : ${LEMON_LIBRARY}")
+
+    add_library(lemon UNKNOWN IMPORTED)
+    set_target_properties(lemon PROPERTIES
+        IMPORTED_LOCATION "${LEMON_LIBRARY}"
+        INTERFACE_INCLUDE_DIRECTORIES "${LEMON_INCLUDE_DIR}")
+else()
+    message(STATUS "LEMON library is not installed on target system, build it from the sources...")
+    add_subdirectory(contrib/lemon)
+
+    target_include_directories(lemon INTERFACE
+        "${CMAKE_CURRENT_SOURCE_DIR}/contrib/lemon"
+        "${CMAKE_CURRENT_BINARY_DIR}/contrib/lemon")
+endif()
 
 set(FLATBUFFERS_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+if(CMAKE_CROSSCOMPILING)
+    set(FLATBUFFERS_BUILD_FLATC OFF CACHE BOOL "" FORCE)
+endif()
 add_subdirectory(contrib/flatbuffers)
 
 #############################################################################################
 ### Main build
 #############################################################################################
+
 if (MSVC)
     add_compile_options("/W4" "$<$<CONFIG:RELEASE>:/O2>" "/GS")
 else()
@@ -115,7 +137,6 @@ include_directories(${PROJECT_SOURCE_DIR}/include)
 include_directories(${PROJECT_SOURCE_DIR}/contrib/flatbuffers/include)
 
 set(base
-
     "${PROJECT_SOURCE_DIR}/src/base/exception/argument_error.cpp"
     "${PROJECT_SOURCE_DIR}/src/base/exception/attribute_error.cpp"
     "${PROJECT_SOURCE_DIR}/src/base/exception/dtype_error.cpp"
@@ -204,7 +225,6 @@ set(base
     "${PROJECT_SOURCE_DIR}/src/utils/env_loader.cpp"
     "${PROJECT_SOURCE_DIR}/src/utils/custom_math.cpp"
     "${PROJECT_SOURCE_DIR}/src/utils/custom_strings.cpp"
-
 )
 
 set(model
@@ -228,7 +248,6 @@ set(logger
 )
 
 set(pass
-
     "${PROJECT_SOURCE_DIR}/src/pass/pass_entry.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/pass_manager.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/pass_registry.cpp"
@@ -289,6 +308,7 @@ set(pass
 
     "${PROJECT_SOURCE_DIR}/src/pass/optimization/graph_parameter_optimization.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/optimization/strategy_manager.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/optimization/MetaGraph.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/optimization/strategy_registry.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/optimization/kmb_default_configs.cpp"
 
@@ -306,7 +326,7 @@ set(pass
     "${PROJECT_SOURCE_DIR}/src/graph/tensor_interference_graph.cpp"
 )
 
- set(compiler
+set(compiler
     "${PROJECT_SOURCE_DIR}/src/compiler/compilation_descriptor"
     "${PROJECT_SOURCE_DIR}/src/compiler/compilation_unit"
     "${PROJECT_SOURCE_DIR}/src/target/kmb/runtime_model/runtime_model.cpp"
@@ -318,49 +338,78 @@ set(syscalls
 )
 
 if(CMAKE_CROSSCOMPILING)
-    message(STATUS "Cross-compiling, assumes meta/ files already generated...")
-    add_library(metamodel SHARED
-        ${META_DIR_PATH}/src/compositional_model.cpp
-        ${META_DIR_PATH}/src/op_model.cpp
-    )
-    target_link_libraries(metamodel model)
-else()
-    message(STATUS "Standard build...")
-    add_subdirectory(meta)
+    find_file(MCM_COMPILER_EXPORT_FILE mcmCompilerExecutables.cmake DOC "Path to the export file from a native build")
+
+    if(MCM_COMPILER_EXPORT_FILE)
+        message(STATUS "Cross-compiling, using executables from native build : ${MCM_COMPILER_EXPORT_FILE}")
+        include(${MCM_COMPILER_EXPORT_FILE})
+    endif()
+endif()
+
+add_subdirectory(meta)
+add_subdirectory(schema)
+
+if(NOT CMAKE_CROSSCOMPILING)
+    # Export the generator targets to a file, so it can be imported (see above) by another build.
+    export(TARGETS flatc gen_composition_api FILE ${CMAKE_BINARY_DIR}/mcmCompilerExecutables.cmake)
 endif()
 
 if (MSVC)
     add_library(cm OBJECT ${pass} ${compiler} $<TARGET_OBJECTS:corebase> $<TARGET_OBJECTS:metamodel>)
-        target_link_libraries(cm corebase metamodel)
     add_library(corebase OBJECT ${base} ${logger})
     add_library(model OBJECT ${model} $<TARGET_OBJECTS:corebase>)
-    target_link_libraries(model corebase)
+
     add_dependencies(cm generate-comp-api)
     add_dependencies(cm generate-graphfile-headers)
     add_dependencies(model generate-comp-api)
+
+    target_link_libraries(cm PUBLIC corebase metamodel)
+    target_link_libraries(model PUBLIC corebase)
 else()
     add_library(cm SHARED ${base} ${logger} ${pass} ${compiler} ${syscalls})
     add_library(corebase SHARED ${base} ${logger})
     add_library(model SHARED ${model})
-    target_link_libraries(cm model)
 
-    target_link_libraries(cm corebase metamodel flatbuffers ${LEMON_LIBRARY})
-    if(NOT CMAKE_CROSSCOMPILING)
+    if(TARGET generate-comp-api)
         add_dependencies(cm generate-comp-api)
         add_dependencies(model generate-comp-api)
+    endif()
+    if(TARGET generate-graphfile-headers)
         add_dependencies(cm generate-graphfile-headers)
-        add_subdirectory(python/api)
-        add_subdirectory(contrib/googletest)
     endif()
 
-endif(MSVC)
+    target_link_libraries(cm PUBLIC corebase model metamodel flatbuffers)
+    target_link_libraries(model PUBLIC lemon)
 
-if(NOT CMAKE_CROSSCOMPILING)
-    add_subdirectory(tools)
-    add_subdirectory(schema)
-    add_subdirectory(example)
+    if(NOT CMAKE_CROSSCOMPILING)
+        if(MCM_COMPILER_BUILD_PYTHON)
+            add_subdirectory(python/api)
+        endif()
+        if(MCM_COMPILER_BUILD_TESTS)
+            add_subdirectory(contrib/googletest)
+        endif()
+    endif()
 endif()
+
+target_include_directories(cm INTERFACE
+    ${PROJECT_SOURCE_DIR}
+    ${PROJECT_SOURCE_DIR}/include
+    ${PROJECT_SOURCE_DIR}/contrib/flatbuffers/include
+    ${META_DIR_PATH})
 
 if (${PROFILER} AND ${UNIX})
     target_link_libraries(cm easy_profiler)
+endif()
+
+if(NOT CMAKE_CROSSCOMPILING)
+    # add_subdirectory(tools) # testing without
+    if(MCM_COMPILER_BUILD_EXAMPLES)
+        add_subdirectory(examples)
+    endif()
+    if(MCM_COMPILER_BUILD_TESTS)
+        add_subdirectory(tests/layer)
+    endif()
+    if(MCM_COMPILER_BUILD_TOOLS)
+        add_subdirectory(tools)
+    endif()
 endif()

@@ -27,16 +27,19 @@ namespace mv
 
         static std::function<void(const std::vector<Data::TensorIterator>&, const std::map<std::string, Attribute>&,
             std::vector<Tensor>&)> outputDefFcn =
-            [](const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>&, std::vector<Tensor>& outputs)
+            [](const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>& args, std::vector<Tensor>& outputs)
         {
 
             auto input = inputs[0];
             auto outputOrder = input->getOrder();
-            auto inputShape = input->getShape();
-            auto ndims = inputShape.ndims();
-            mv::Shape outputShape(ndims);
+            auto W = args.at("post_nms_topn").get<unsigned>();
+            size_t H = 1;
+            size_t C = 5;
+            size_t N = 1;
 
-            outputs.push_back(mv::Tensor(":0", input->getShape(), input->getDType(), input->getOrder()));
+            mv::Shape outputShape({W, H, C, N});;
+
+            outputs.push_back(mv::Tensor(":0", outputShape, input->getDType(), input->getOrder()));
 
         };
     }

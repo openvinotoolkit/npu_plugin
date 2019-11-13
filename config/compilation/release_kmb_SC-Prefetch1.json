@@ -82,9 +82,7 @@
     },
     "adapt": {
         "Singular": [
-            "AverageAsDepthWise",
-            "RemoveDropOut",
-            "FullyConnectedAsConv2D",
+            "ReplacementOps",
             "TensorsToU8",
             "TensorsToFP16",
             "FusePostOps",
@@ -98,7 +96,8 @@
                         {"name" : "ddrBandwidth",   "value" : 128 },
                         {"name" : "systemClockMhz", "value" : 500 },
                         {"name" : "FathomSafetyFactor", " value" : 0.75},
-                        {"name" : "dotFileLocation", "value" : "./output/"},
+                        {"name" : "createStrategyDots", "value" : false},
+                        {"name" : "dotFileLocation", "value" : "./output/dots/strategy/"},
                         {"name" : "jsonOutFileName", "value" : "./output/mcmCompiler_strategy_output.json"}
                     ],
                     "globalStrategies" : [
@@ -165,14 +164,7 @@
             "StoreLayerSplitStrategy",
             "StoreLayerSparsityStrategy",
             "StoreTensorPlacement",
-            "StreamingTiling",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/streaming_tiling.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            },
+            "StreamingOperations",
             "StreamBinaryDataWeights"
         ]
     },
@@ -181,8 +173,8 @@
             "ConcatAsImplicit",
             "ReshapeAsImplicit",
             "StoreWorkloadStrategy",
-            "ConvertOpsToDPUTasks",
-            "ConvertOpsToUPATasks",
+            "ConvertOpsToTasks",
+            "SetUpPPETasks",
             "ForceSerialize",
             "KMBOrderConversion",
             "AlignUnpopulatedTensors",
@@ -190,17 +182,9 @@
             "AlignPopulatedTensors",
             "RemoveCropAlignInCMX",
             "CropOrPadFinalOutput",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/crop_pad.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            },
             "AlignTaskWeights",
             "GenerateSparsityMapsPopulatedTensors",
             "GenerateWeightsTables",
-            "GenerateEltWiseConstants",
             "StrategyLayersToTensors",
             "ComputeTensorsQuantParams",
             "UpdateImplicitLayersQuantizationParams",
@@ -249,7 +233,7 @@
             {
                 "name": "GenerateWorkloads",
                 "costfunction": "greedy",
-                "TensorSplitAlgorithms": "Rectangle, Z-tiling",
+                "TensorSplitAlgorithms": "Rectangle, Z-Tiling",
                 "_comment": "Supported CostFunctions are: balanced | criticalpath | minmax | greedy. Supported TensorSplitAlgorithms are Rectangle, Z-Tiling"
             },
             "ArrangeKmbExecution",

@@ -66,7 +66,7 @@ namespace mv
 
         void convertMcMGraphToLemonGraph(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
         
-        void performPartialSerialisation(const mv::pass::PassEntry& pass, std::vector<mv::edgeDescription> cutEdges, mv::ComputationModel& model);
+        bool performPartialSerialisation(const mv::pass::PassEntry& pass, std::vector<mv::edgeDescription> cutEdges, mv::ComputationModel& model);
         std::pair<int, std::vector<edgeDescription>> calculateMaxTopologicalCut(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
         uint64_t calculateFMax(mv::ComputationModel& model);
         void insertpartialSerialisationEdgesInMcmGraph(mv::ComputationModel& model);

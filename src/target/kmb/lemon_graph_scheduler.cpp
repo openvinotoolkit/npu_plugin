@@ -271,7 +271,7 @@ void mv::LemonGraphScheduler::insertpartialSerialisationEdgesInMcmGraph(mv::Comp
 //  * @return - 0 success
 //  */
 // void mv::KoalaGraphScheduler::performPartialSerialisation(const mv::pass::PassEntry& pass, std::vector<koalaGraph::PEdge> cutEdges) {
-void mv::LemonGraphScheduler::performPartialSerialisation(const mv::pass::PassEntry& pass, std::vector<mv::edgeDescription> cutEdges, mv::ComputationModel& model) 
+bool mv::LemonGraphScheduler::performPartialSerialisation(const mv::pass::PassEntry& pass, std::vector<mv::edgeDescription> cutEdges, mv::ComputationModel& model)
 {    
     /* Partial serialisation works by getting the source and sink nodes of the cutEdges returned from max topoloigcal cut
      * It then creates a pool of all possible edges that it can add to the graph using these source and sink nodes.
@@ -409,7 +409,7 @@ void mv::LemonGraphScheduler::performPartialSerialisation(const mv::pass::PassEn
                                     pass.log(mv::Logger::MessageType::Debug,
                                             "Graph still DAG after adding TIG partial serialisation edge, recalulating max topological cut value...");
                                     partialSerialisationEdgesAdded_.push_back(newDesc);
-                                    return;
+                                    return true;
                                 }
                                 else
                                 {
@@ -444,7 +444,7 @@ void mv::LemonGraphScheduler::performPartialSerialisation(const mv::pass::PassEn
                 /*keep track of the edges added as these edges will be added to mcmGraph*/
                 pass.log(mv::Logger::MessageType::Debug, "Graph still DAG after adding partial serialisation edge, recalulating max topological cut value...");
                 partialSerialisationEdgesAdded_.push_back(newDesc);
-                return;
+                return true;
             }
             else {
                 pass.log(mv::Logger::MessageType::Debug, "Removing partial serialisation edge as graph is no longer a DAG, from: " + sourceName + " --> " + sinkName );
@@ -452,7 +452,8 @@ void mv::LemonGraphScheduler::performPartialSerialisation(const mv::pass::PassEn
             }
         }
     }
-    throw std::runtime_error("The maximum peak memory requirment of the graph exceeds CMX and the partial serialisation algorithm is unable to reduce parallelism, exiting now, this is normal behaviour");
+    return false;
+    //throw std::runtime_error("The maximum peak memory requirment of the graph exceeds CMX and the partial serialisation algorithm is unable to reduce parallelism, exiting now, this is normal behaviour");
 }
 
 

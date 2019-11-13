@@ -42,7 +42,7 @@ void setDpuTasksMemoryLocationFcn(const mv::pass::PassEntry& , mv::ComputationMo
         if (opType == "DPUTask")
         {
             auto taskOp = opIt->get<std::string>("taskOp");
-            bool isElementWise = (taskOp == "Add" || taskOp == "Subtract" || taskOp == "Multiply");
+            bool isElementWise = taskOp == "Eltwise";
 
             if (taskOp == "ChannelMajorConvolution" ||
                 taskOp == "DepthwiseConv"  ||

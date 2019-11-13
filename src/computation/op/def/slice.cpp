@@ -30,8 +30,7 @@ namespace mv
             // we will need to check if the "sliced" dimensions exist in the inputTensor.
             for(std::size_t dim = 0; dim < inputShape.ndims(); dim++)
             {
-                if(!((0 <= startCoord[dim]) &&
-                    (startCoord[dim] <= startCoord[dim] + outputSize[dim]) &&
+                if(!((startCoord[dim] <= startCoord[dim] + outputSize[dim]) &&
                     (startCoord[dim] + outputSize[dim] <= inputShape[dim])))
                 {
                     errMsg = "Invalid configuration for dimension " + std::to_string(dim) + " Not able to slice : startCoord - outputSize - inputTensor"

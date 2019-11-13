@@ -20,8 +20,8 @@ namespace mv
             argsBackup.erase("taskOp");
             return mv::op::OpRegistry::checkInputs(opIt, inputs, argsBackup, errMsg);
         };
-                
-        static std::function<void(const std::vector<Data::TensorIterator>&, const std::map<std::string, Attribute>&, 
+
+        static std::function<void(const std::vector<Data::TensorIterator>&, const std::map<std::string, Attribute>&,
             std::vector<Tensor>&)> outputDefFcn =
             [](const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>& args, std::vector<Tensor>& outputs)
         {
@@ -42,7 +42,7 @@ namespace mv
         .setOutputDef(op_dpu::outputDefFcn)
         .setTypeTrait({"executable"})
         .setVariableInputNum(true)
-        .setBaseOperation({"Conv", "MaxPool", "DepthwiseConv", "Add", "Subtract", "Multiply"})
+        .setBaseOperation({"Conv", "MaxPool", "DepthwiseConv", "Eltwise"})
         .setExtraInputs(true);
     }
 
