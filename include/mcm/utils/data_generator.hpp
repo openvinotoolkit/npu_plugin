@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <random>
 #include <algorithm>
+#include <fstream>
 
 namespace mv
 {
@@ -57,6 +58,24 @@ namespace mv
 
             return result;
 
+        }
+
+        template <class T_data>
+        std::vector<T_data> readWeightsFromFile(const std::string& fileName)
+        {
+            std::ifstream is (fileName, std::ifstream::binary);
+
+            is.seekg (0, is.end);
+            std::size_t length = is.tellg();
+            is.seekg (0, is.beg);
+            char * buffer = new char [length];
+            is.read (buffer,length);
+            is.close();
+            std::vector<T_data> result(length/sizeof(T_data));
+            memcpy(result.data(), buffer, length);
+            delete[] buffer;
+
+            return result;
         }
 
     }
