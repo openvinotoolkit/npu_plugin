@@ -33,7 +33,7 @@ void addQuantizationLayers(mv::OpModel om, std::vector<mv::Data::OpListIterator>
             auto tensorDType = tensor->getDType();
             if(tensorDType != dtypeNeededInInput && !task->hasAttr("mixedPrecision"))
             {
-                auto quantize = om.uPATaskQuantize({tensor}, outputDType, tensor->get<mv::QuantizationParams>("quantParams"));
+                auto quantize = om.uPATaskQuantize({tensor}, outputDType, tensor->get<mv::QuantizationParams>("quantParams"), "Quantize" + task->getName());
                 auto quantizeOp = om.getSourceOp(quantize);
                 quantizeOp->set<unsigned>("opId", task->get<unsigned>("opId"));
                 auto backup = inputFlow;
