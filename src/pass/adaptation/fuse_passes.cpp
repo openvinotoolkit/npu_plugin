@@ -155,6 +155,8 @@ void fuseUsualPPEFcn(mv::Data::OpListIterator &opIt, mv::ComputationModel &model
     auto ppeOutputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
     auto parentOpIt = om.getSourceOp(opIt->getInputTensor(0));
 
+    if (opType == "LeakyRelu")
+        parentOpIt->set<double>("leakyAlpha", opIt->get<double>("alpha"));
     std::vector<std::string> postOpTypes = {};
     if (parentOpIt->hasAttr("postOpTypes"))
         postOpTypes = parentOpIt->get<std::vector<std::string>>("postOpTypes");
