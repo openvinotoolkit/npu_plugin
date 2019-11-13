@@ -53,39 +53,23 @@ void SplittingTensorsAcrossClusters(const mv::pass::PassEntry& pass, mv::Computa
     if (numClusters > 1)
     {
         std::vector <mv::Data::TensorIterator> tensors;
-        for(auto layer = om.opBegin(); layer != om.opEnd(); ++layer)
+        auto dpuTasks = om.getOps("DPUTask");
+        for(auto layer : dpuTasks)
         {
             std::string opType = layer->getOpType();
-
-            if (opType == "DPUTask")
+            auto outputTensor = layer->getOutputTensor(0);
+            tensors.push_back(outputTensor);
+            for(std::size_t i = 0; i < layer->inputSlots(); ++i)
             {
-                auto outputTensor = layer->getOutputTensor(0);
-                tensors.push_back(outputTensor);
-                for(std::size_t i = 0; i < layer->inputSlots(); ++i)
-                {
-                    auto inputTensor = layer->getInputTensor(i);
-                    tensors.push_back(inputTensor);
+                auto inputTensor = layer->getInputTensor(i);
+                tensors.push_back(inputTensor);
 
-                    // New weights sparsity approach: no explicit costant operation
-                    // for sparsity map is present in the graph.
-                    // So check for sparsity has to be done only here
-                    if(inputTensor->isPopulated() && inputTensor->isSparse())
-                        tensors.push_back(dm.getTensor(inputTensor->getSparsityMap()->getName()));
+                // New weights sparsity approach: no explicit costant operation
+                // for sparsity map is present in the graph.
+                // So check for sparsity has to be done only here
+                if(inputTensor->isPopulated() && inputTensor->isSparse())
+                    tensors.push_back(dm.getTensor(inputTensor->getSparsityMap()->getName()));
 
-                }
-            }
-        }
-        for(auto layer = om.opBegin(); layer != om.opEnd(); ++layer)
-        {
-            std::string opType = layer->getOpType();
-            if (opType == "DMATask")
-            {
-                auto outputTensor = layer->getOutputTensor(0);
-                if (std::find(tensors.begin(), tensors.end(), outputTensor) == tensors.end())
-                    tensors.push_back(outputTensor);
-                auto inputTensor = layer->getInputTensor(0);
-                if (std::find(tensors.begin(), tensors.end(), inputTensor) == tensors.end())
-                    tensors.push_back(inputTensor);
             }
         }
         subTensorsGen(model, tensors, numClusters, pass);
