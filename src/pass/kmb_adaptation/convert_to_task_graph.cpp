@@ -325,7 +325,7 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
     {"ReorgYolo", convertReorgYoloToUPATask},
     {"Normalize", convertNormalizeToUPATask},
     {"Permute", convertPermuteToUPATask},
-    {"Interp", convertNormalizeToUPATask},
+    {"Interp", convertInterpToUPATask},
     };
 
     for(auto& opType: opsTypesToConvert)

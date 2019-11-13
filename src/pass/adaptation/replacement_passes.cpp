@@ -266,7 +266,6 @@ void interpAsAvgPoolingFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
 
             std::array<unsigned short, 2> kSize({factor, factor});
             std::array<unsigned short, 2> stride({factor, factor});
-            std::array<unsigned short, 4> padding;
             auto name = opIt->getName();
 
             //Check the last argument name!!!
@@ -275,13 +274,13 @@ void interpAsAvgPoolingFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
             {
                 pass.log(mv::Logger::MessageType::Debug, "Passing quantization params from input to output");
                 auto quantParams = opIt->get<mv::QuantizationParams>("quantParams");
-                avgPool = om.averagePool(sourceTensor, kSize, stride, padding, false,"","floor",  mv::DType("Default"), quantParams, name + "_AvgPool");
+                avgPool = om.averagePool(sourceTensor, kSize, stride, {0,0,0,0}, false,"","floor",  mv::DType("Default"), quantParams, name + "_AvgPool");
             }
             else
             {
                 pass.log(mv::Logger::MessageType::Debug, "No need for quantization params, since input is of a floating point type");
                 mv::QuantizationParams emptyQuantParams({{}, {}, {}, {}});
-                 avgPool = om.averagePool(sourceTensor, kSize, stride, padding, false,"","floor",  mv::DType("Default"), emptyQuantParams, name + "_AvgPool");
+                 avgPool = om.averagePool(sourceTensor, kSize, stride, {0,0,0,0}, false,"","floor",  mv::DType("Default"), emptyQuantParams, name + "_AvgPool");
             }
 
             auto avgOp = om.getSourceOp(avgPool);
