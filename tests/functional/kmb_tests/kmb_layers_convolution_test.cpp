@@ -128,7 +128,7 @@ std::string instantiateConvTestIR(convolution_test_desc& convTestParam) {
 
 TBlob<uint8_t>::Ptr weightsBiasBlobPrepare(convolution_test_desc& convTestParam) {
     size_t weightsByteSize = getConvWeightsByteSize(convTestParam.input_dim,
-            convTestParam.conv_params, convTestParam.conv_precision);
+                                                    convTestParam.conv_params, convTestParam.conv_precision);
     size_t biasByteSize = getConvBiasesByteSize(convTestParam.conv_params, convTestParam.bias_precision);
 
     TBlob<uint8_t>::Ptr weightsBuffer = make_shared_blob<uint8_t>({Precision::U8, {weightsByteSize + biasByteSize + convTestParam.weightsBufferOffset}, Layout::C});
@@ -136,7 +136,7 @@ TBlob<uint8_t>::Ptr weightsBiasBlobPrepare(convolution_test_desc& convTestParam)
 
     auto data = weightsBuffer->buffer().as<InferenceEngine::ie_fp16*>();
     fillRealBuffer<InferenceEngine::ie_fp16>(data + convTestParam.weightsBufferOffset / sizeof(ie_fp16), (weightsByteSize + biasByteSize) / sizeof(ie_fp16),
-            PrecisionUtils::f32tof16(1.f), PrecisionUtils::f32tof16(1.f));
+                                             PrecisionUtils::f32tof16(1.f), PrecisionUtils::f32tof16(1.f));
 
     return weightsBuffer;
 }
@@ -363,8 +363,8 @@ TEST_P(ConvolutionFP16Test, fp16_convolution_only) {
 #endif
 }
 
-INSTANTIATE_TEST_CASE_P(DISABLED_fp16_per_layer_compilation_fail, ConvolutionFP16Test, ::testing::ValuesIn(convolution_only_fp16),
-        ConvolutionFP16Test::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(DISABLED_fp16_per_layer_compilation_fail, ConvolutionFP16Test,
+        ::testing::ValuesIn(convolution_only_fp16), ConvolutionFP16Test::getTestCaseName);
 
 class ConvolutionTest : public testing::WithParamInterface<convolution_test_params>, public kmbLayersTests_nightly {};
 
@@ -380,11 +380,28 @@ static void testOverflow(const Blob::Ptr& blob) {
     }
 }
 
+template <class Reference>
+void InferAndCompare(ExecutableNetwork& exeNetwork, Reference refFunc, float tolerance) {
+    InferenceEngine::InferRequest inferRequest;
+    ASSERT_NO_THROW(inferRequest = exeNetwork.CreateInferRequest());
+
+    Blob::Ptr inputBlob;
+    ASSERT_NO_THROW(inputBlob = inferRequest.GetBlob(exeNetwork.GetInputsInfo().begin()->first));
+    auto data = inputBlob->buffer().as<uint8_t*>();
+    fillIntBuffer(data, inputBlob->byteSize(), static_cast<uint8_t>(1), static_cast<uint8_t>(1));
+
+    ASSERT_NO_THROW(inferRequest.Infer());
+    auto outputBlob = inferRequest.GetBlob(exeNetwork.GetOutputsInfo().begin()->first);
+    Blob::Ptr outputBlobFP32 = ConvertU8ToFP32(outputBlob);
+
+    auto refBlob = refFunc(inputBlob);
+    Compare(refBlob, outputBlobFP32, tolerance);
+}
+
 // Crash in mcmCompiler during parsing of scaleshift layer
 // Disabled until issue will be resolved
-TEST_P(ConvolutionTest, DISABLED_convolution_only) {
+TEST_P(ConvolutionTest, fq_convolution_only_manual) {
     // Besides weights and biases we need to store FQ blobs as well
-    size_t weightsBufferOffset = 48;
     auto input_dims = GetParam().input_dim;
     auto conv_params = GetParam().conv_params;
     SizeVector output_dims;
@@ -395,10 +412,14 @@ TEST_P(ConvolutionTest, DISABLED_convolution_only) {
     size_t biasByteSize = conv_params.out_c * sizeof(float);
     size_t biasSize = biasByteSize / sizeof(float);
 
-    auto weightsBuffer = make_shared_blob<uint8_t>({Precision::U8, {weightsByteSize + biasByteSize + weightsBufferOffset}, Layout::C});
+    // size_t quantizationParamsOffset = weightsByteSize + biasByteSize;
+    size_t quantizationParamsByteSize = 48;
+    size_t quantizationParamsSize = quantizationParamsByteSize / sizeof(float);
+
+    auto weightsBuffer = make_shared_blob<uint8_t>({Precision::U8, {weightsByteSize + biasByteSize + quantizationParamsByteSize}, Layout::C});
     weightsBuffer->allocate();
     auto weightsBufferData = weightsBuffer->buffer().as<float*>();
-    std::fill(weightsBufferData, weightsBufferData + (weightsSize + biasSize + weightsBufferOffset / sizeof(float)), 1.0f);
+    std::fill(weightsBufferData, weightsBufferData + (weightsSize + biasSize + quantizationParamsSize), 1.0f);
 
     Core ie;
 
@@ -406,9 +427,9 @@ TEST_P(ConvolutionTest, DISABLED_convolution_only) {
     blob_name += ".blob";
     std::replace(blob_name.begin(), blob_name.end(), '/', '_');
 
-    convolution_test_desc allTestParams = {input_dims, conv_params, "FP32", "FP32", "FP32", weightsBufferOffset, "FP32", "", fq_convolution_only_slim};
-
+    convolution_test_desc allTestParams = {input_dims, conv_params, "U8", "U8", "U8", 0, "I32", "", fq_convolution_only_slim};
     std::string model = instantiateConvTestIR(allTestParams);
+    REPLACE_WITH_NUM(model, "_WEIGHTS_OFFSET_", 0);
 
     CNNNetReader reader;
     ASSERT_NO_THROW(reader.ReadNetwork(model.data(), model.length()));
@@ -416,14 +437,21 @@ TEST_P(ConvolutionTest, DISABLED_convolution_only) {
     ASSERT_TRUE(reader.isParseSuccess());
 
     CNNNetwork network = reader.getNetwork();
+    auto _inputsInfo = network.getInputsInfo();
+    _inputsInfo["input"]->setPrecision(Precision::U8);
+
+    auto _outputsInfo = network.getOutputsInfo();
+    _outputsInfo["583"]->setPrecision(Precision::U8);
 
     std::map<std::string, std::string> config;
     setCommonConfig(config);
     config[VPU_KMB_CONFIG_KEY(MCM_PARSING_ONLY)] = CONFIG_VALUE(NO);
 
-    ExecutableNetwork executableNetwork;
-    ASSERT_NO_THROW(executableNetwork = ie.LoadNetwork(network, "kmb", config));
-    ASSERT_NO_THROW( executableNetwork.Export(blob_name));
+    ExecutableNetwork exeNetwork;
+    ASSERT_NO_THROW(exeNetwork = ie.LoadNetwork(network, "KMB", config));
+    ASSERT_NO_THROW(exeNetwork.Export(blob_name));
+
+
 }
 
 TEST_P(ConvolutionTest, u8_convolution_only_manual) {

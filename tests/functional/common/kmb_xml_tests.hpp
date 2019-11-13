@@ -674,101 +674,6 @@ static std::string fq_convolution_only_slim = R"V0G0N(
 				</port>
 			</output>
 		</layer>
-        <layer id="37" name="conv1/act_quant/FakeQuantWithMinMaxVars/nudged_min" precision="FP32" type="Const">
-			<output>
-				<port id="1">
-					<dim>1</dim>
-					<dim>1</dim>
-					<dim>1</dim>
-					<dim>1</dim>
-				</port>
-			</output>
-			<blobs>
-				<custom offset="0" size="4"/>
-			</blobs>
-		</layer>
-		<layer id="38" name="conv1/act_quant/FakeQuantWithMinMaxVars/nudged_max" precision="FP32" type="Const">
-			<output>
-				<port id="1">
-					<dim>1</dim>
-					<dim>1</dim>
-					<dim>1</dim>
-					<dim>1</dim>
-				</port>
-			</output>
-			<blobs>
-				<custom offset="4" size="4"/>
-			</blobs>
-		</layer>
-		<layer id="39" name="conv1/act_quant/FakeQuantWithMinMaxVars/nudged_min2" precision="FP32" type="Const">
-			<output>
-				<port id="1">
-					<dim>1</dim>
-					<dim>1</dim>
-					<dim>1</dim>
-					<dim>1</dim>
-				</port>
-			</output>
-			<blobs>
-				<custom offset="8" size="4"/>
-			</blobs>
-		</layer>
-		<layer id="40" name="conv1/act_quant/FakeQuantWithMinMaxVars/nudged_max2" precision="FP32" type="Const">
-			<output>
-				<port id="1">
-					<dim>1</dim>
-					<dim>1</dim>
-					<dim>1</dim>
-					<dim>1</dim>
-				</port>
-			</output>
-			<blobs>
-				<custom offset="12" size="4"/>
-			</blobs>
-		</layer>
-		<layer id="41" name="conv1/act_quant/FakeQuantWithMinMaxVars" precision="FP32" type="FakeQuantize">
-			<data levels="256"/>
-			<input>
-				<port id="0">
-					<dim>_INPUT_BATCH_</dim>
-					<dim>_INPUT_CHANNEL_</dim>
-					<dim>_INPUT_HEIGHT_</dim>
-					<dim>_INPUT_WIDTH_</dim>
-				</port>
-				<port id="1">
-					<dim>1</dim>
-					<dim>1</dim>
-					<dim>1</dim>
-					<dim>1</dim>
-				</port>
-				<port id="2">
-					<dim>1</dim>
-					<dim>1</dim>
-					<dim>1</dim>
-					<dim>1</dim>
-				</port>
-				<port id="3">
-					<dim>1</dim>
-					<dim>1</dim>
-					<dim>1</dim>
-					<dim>1</dim>
-				</port>
-				<port id="4">
-					<dim>1</dim>
-					<dim>1</dim>
-					<dim>1</dim>
-					<dim>1</dim>
-				</port>
-			</input>
-			<output>
-				<port id="5">
-					<dim>_INPUT_BATCH_</dim>
-					<dim>_INPUT_CHANNEL_</dim>
-					<dim>_INPUT_HEIGHT_</dim>
-					<dim>_INPUT_WIDTH_</dim>
-				</port>
-			</output>
-		</layer>
 		<layer id="42" name="conv2/weights" precision="FP32" type="Const">
 			<output>
 				<port id="1">
@@ -1031,17 +936,12 @@ static std::string fq_convolution_only_slim = R"V0G0N(
         </layer>
 	</layers>
 	<edges>
-		<edge from-layer="36" from-port="0" to-layer="41" to-port="0"/>
-		<edge from-layer="37" from-port="1" to-layer="41" to-port="1"/>
-		<edge from-layer="38" from-port="1" to-layer="41" to-port="2"/>
-		<edge from-layer="39" from-port="1" to-layer="41" to-port="3"/>
-		<edge from-layer="40" from-port="1" to-layer="41" to-port="4"/>
+		<edge from-layer="36" from-port="0" to-layer="49" to-port="0"/>
 		<edge from-layer="42" from-port="1" to-layer="47" to-port="0"/>
 		<edge from-layer="43" from-port="1" to-layer="47" to-port="1"/>
 		<edge from-layer="44" from-port="1" to-layer="47" to-port="2"/>
 		<edge from-layer="45" from-port="1" to-layer="47" to-port="3"/>
 		<edge from-layer="46" from-port="1" to-layer="47" to-port="4"/>
-		<edge from-layer="41" from-port="5" to-layer="49" to-port="0"/>
 		<edge from-layer="47" from-port="5" to-layer="49" to-port="1"/>
 		<edge from-layer="48" from-port="1" to-layer="49" to-port="2"/>
 		<edge from-layer="49" from-port="3" to-layer="54" to-port="0"/>
