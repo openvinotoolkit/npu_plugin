@@ -7,11 +7,11 @@ if (MSVC)
 
 else()
 
-    #add_executable(argmax_noaxis argmax_noaxis/argmax_noaxis.cpp)
-    #target_link_libraries(argmax_noaxis cm)
+    add_executable(argmax_noaxis argmax_noaxis/argmax_noaxis.cpp)
+    target_link_libraries(argmax_noaxis cm)
 
-    #add_executable(argmax_axis argmax_axis/argmax_axis.cpp)
-    #target_link_libraries(argmax_axis cm)
+    add_executable(argmax_axis argmax_axis/argmax_axis.cpp)
+    target_link_libraries(argmax_axis cm)
 
     add_executable(conv_clamp conv_clamp/conv_clamp.cpp)
     target_link_libraries(conv_clamp cm)
@@ -34,8 +34,11 @@ else()
     add_executable(conv_softmax conv_softmax/conv_softmax.cpp)
     target_link_libraries(conv_softmax cm)
 
-    #add_executable(detection_output detection_output/detection_output.cpp)
-    #target_link_libraries(detection_output cm)
+    add_executable(detection_output detection_output/detection_output.cpp)
+    target_link_libraries(detection_output cm)
+
+    #add_executable(elu elu/elu.cpp)
+    #target_link_libraries(elu cm)
     
     add_executable(flatten flatten/flatten.cpp)
     target_link_libraries(flatten cm)
@@ -46,8 +49,8 @@ else()
     add_executable(permute permute/permute.cpp)
     target_link_libraries(permute cm)
 
-    #add_executable(priorbox priorbox/priorbox.cpp)
-    #target_link_libraries(priorbox cm)
+    add_executable(priorbox priorbox/priorbox.cpp)
+    target_link_libraries(priorbox cm)
 
     add_executable(proposal_TF proposal_TF/proposal_TF.cpp)
     target_link_libraries(proposal_TF cm)
