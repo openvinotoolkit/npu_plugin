@@ -722,6 +722,7 @@ void mv::op::OpRegistry::generateCompositionAPI(const std::string& metaDir, cons
     incStream << "#include \"include/mcm/computation/model/iterator/data_context.hpp\"" << eol;
     incStream << "#include \"include/mcm/computation/model/iterator/tensor.hpp\"" << eol << eol;
     incStream << "#include \"include/mcm/tensor/quantization_params.hpp\"" << eol << eol;
+    incStream <<  "static double inf = std::numeric_limits<double>::infinity();" << eol << eol;
 
     incStream << "namespace mv" << eol << eol;
     incStream << "{" << eol << eol;

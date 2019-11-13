@@ -11,7 +11,7 @@ int main()
     auto from_order = mv::Order("NCHW");
     auto to_order = mv::Order("NHWC");
 
-    auto input0 = om.input({12,12,512,1}, mv::DType("Float16"), from_order, {{0},{1.0},{},{}}, "input0");
+    auto input0 = om.input({12,12,512,1}, mv::DType("Float16"), from_order, {{0},{1.0},{-inf},{inf}}, "input0");
     auto permute0 = om.permute(input0, to_order, mv::DType("Float16"));
     om.output(permute0);
 
