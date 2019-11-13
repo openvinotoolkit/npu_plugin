@@ -620,12 +620,12 @@ void streamingOperationsFcn(const mv::pass::PassEntry& pass,
 
             if (axisToSplit == "K")
             {
-                masterTile.setSize(opIt->getInputTensor("weights")->getShape());
+                masterTile.setSize(opIt->getInputTensor(1)->getShape());
                 masterTile.generateWeightsTiling();
             }
             else
             {
-                masterTile.setSize(opIt->getInputTensor("data")->getShape());
+                masterTile.setSize(opIt->getInputTensor(0)->getShape());
                 masterTile.generateSpatialTiling(opIt);
             }
 
