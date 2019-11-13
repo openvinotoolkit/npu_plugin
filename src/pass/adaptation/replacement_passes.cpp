@@ -148,15 +148,19 @@ void tensorsToU8Fcn(const mv::pass::PassEntry&  , mv::ComputationModel& model, m
         if(kernelOp.outputsSize() > 0)
         {
             auto outputTensor = kernelOp->getOutputTensor(0);
-            if(outputTensor->get<mv::DType>("dType") == sourceDType)
+            auto outputTensorDType = outputTensor->get<mv::DType>("dType");
+            if(outputTensorDType == sourceDType)
             {
                 mv::DType newType = targetDType;
-                outputTensor->setDType(newType);
-                auto& quantParams = outputTensor->get<mv::QuantizationParams>("quantParams");
-                auto& quantParamsZp = quantParams.getZeroPoint();
+                auto quantParams = outputTensor->get<mv::QuantizationParams>("quantParams");
+                auto quantParamsZp = quantParams.getZeroPoint();
                 for(auto& zp: quantParamsZp)
                     zp += zeroPointShift;
+                quantParams = mv::QuantizationParams(quantParamsZp, quantParams.getScale(),{},{});
+                outputTensor->setDType(newType);
                 kernelOp->set<mv::DType>("dType",  newType);
+                outputTensor->set<mv::QuantizationParams>("quantParams", quantParams);
+                kernelOp->set<mv::QuantizationParams>("quantParams", quantParams);
                 if (outputTensor->isPopulated())
                     for(unsigned i = 0; i < outputTensor->size(); ++i)
                         outputTensor->at(i) += zeroPointShift;
