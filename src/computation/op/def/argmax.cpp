@@ -14,7 +14,7 @@ namespace mv
 
             // Check for valid axis value
             auto axis = args.at("axis").get<int64_t>();
-            if ((!(axis >= -3) && (axis <= 3)) && (axis != 99))
+            if (!((axis >= -3) && (axis <= 3)) && (axis != 99))
             {
                 std::stringstream err;
                 err << "Invalid axis value (must be -3 to 3, or 99 for no axis): " << axis;
