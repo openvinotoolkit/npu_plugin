@@ -31,7 +31,9 @@ void addQuantizationLayers(mv::OpModel om, std::vector<mv::Data::OpListIterator>
         {
             auto tensor = inputFlow->getTensor();
             auto tensorDType = tensor->getDType();
-            if(tensorDType != dtypeNeededInInput && !task->hasAttr("mixedPrecision"))
+
+            // NOTE: Maybe here a check for mixed precision should be added
+            if(tensorDType != dtypeNeededInInput)
             {
                 auto quantize = om.uPATaskQuantize({tensor}, outputDType, tensor->get<mv::QuantizationParams>("quantParams"), "Quantize" + task->getName());
                 auto quantizeOp = om.getSourceOp(quantize);
@@ -48,7 +50,7 @@ void addQuantizationLayers(mv::OpModel om, std::vector<mv::Data::OpListIterator>
     }
 }
 
-static void kmbQuantizeConversionFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&)
+static void kmbQuantizeConversionFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
 
@@ -58,5 +60,5 @@ static void kmbQuantizeConversionFcn(const mv::pass::PassEntry&, mv::Computation
     auto upaTasks = om.getOps("UPATask");
 
     addQuantizationLayers(om, upaTasks, mv::DType("Float16"));
-    //addQuantizationLayers(om, dpuTasks, mv::DType("U8"));
+    addQuantizationLayers(om, dpuTasks, mv::DType("U8"));
 }
