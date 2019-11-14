@@ -102,6 +102,8 @@ class Operation_Dag {
     typedef std::unordered_map<operation_t, size_t> in_degree_map_t;
     typedef typename in_degree_map_t::const_iterator const_in_degree_iterator_t;
 
+    typedef std::unordered_map<std::string, operation_t> op_name_table_t;
+
     class const_operation_iterator_t {
       public:
 
@@ -150,9 +152,27 @@ class Operation_Dag {
             operation_t> resource_state_t;
     ////////////////////////////////////////////////////////////////////////////
 
-    Operation_Dag(model_t& model) : adj_map_(), ops_(), resource_utility_map_(),
-      op_to_iterator_lookup_(), in_degree_map_(), input_op_()
-    { init_from_model(model); }
+    Operation_Dag(model_t& model) : adj_map_(), adj_map_rev_(),
+      op_name_table_(), ops_(), resource_utility_map_(),
+      op_to_iterator_lookup_(), in_degree_map_(), input_op_() {
+        init_from_model(model);
+    }
+
+    const_operation_iterator_t begin_parent_nodes(const operation_t& op) const {
+      typename adjacency_map_t::const_iterator itr = adj_map_rev_.find(op);
+
+      return (itr == adj_map_rev_.end()) ?
+        const_operation_iterator_t( ops_.end() ) :
+        const_operation_iterator_t( (itr->second).begin() );
+    }
+
+    const_operation_iterator_t end_parent_nodes(const operation_t& op) const {
+      typename adjacency_map_t::const_iterator itr = adj_map_rev_.find(op);
+
+      return (itr == adj_map_rev_.end()) ?
+        const_operation_iterator_t( ops_.end() ) :
+        const_operation_iterator_t( (itr->second).end() );
+    }
 
     const_operation_iterator_t begin_nodes() const {
       return const_operation_iterator_t( ops_.begin() );
@@ -201,6 +221,21 @@ class Operation_Dag {
         const operation_t& op) {
       return in.end_nodes(op);
     }
+
+
+
+    static const_operation_iterator_t incoming_operations_begin(const dag_t& in,
+        const operation_t& op) {
+      return in.begin_parent_nodes(op);
+    }
+    static const_operation_iterator_t incoming_operations_end(const dag_t& in,
+        const operation_t& op) {
+      return in.end_parent_nodes(op);
+    }
+
+
+
+
 
     static void initialize_resource_upper_bound(const resource_t& upper_bound,
         resource_state_t& state) {
@@ -331,6 +366,10 @@ class Operation_Dag {
       return ret_value;
     }
 
+    operation_t get_op_by_name(const char *name) const {
+      op_name_table_t::const_iterator itr = op_name_table_.find(name);
+      return (itr != op_name_table_.end()) ? itr->second : operation_t(NULL);
+    }
 
   private:
 
@@ -353,10 +392,16 @@ class Operation_Dag {
         if (is_operation_ignored(op)) { continue; }
         if (is_input_op(op)) { input_op_ = op; }
 
-        master_op_iterator_t op_itr = ops_.find(op);
+        master_op_iterator_t pop_itr = ops_.find(op), cop_itr;
 
-        if (op_itr == ops_.end()) {
-          ops_.insert(op);
+        if (pop_itr == ops_.end()) {
+          pop_itr = (ops_.insert(op)).first;
+          // op should have an unique name //
+          const char * const op_name = op->getName().c_str();
+          op_name_table_t::iterator nitr =
+              op_name_table_.find(op->getName().c_str());
+          assert(nitr == op_name_table_.end());
+          op_name_table_.insert(std::make_pair(op_name, op));
         }
         op_to_iterator_lookup_.insert(std::make_pair(op, itr));
 
@@ -373,9 +418,14 @@ class Operation_Dag {
           operation_t child_op = &(*citr);
           if (is_operation_ignored(child_op)) { continue; }
 
-          op_itr = ops_.find(child_op);
-          if (op_itr == ops_.end()) {
-            op_itr = (ops_.insert(child_op)).first;
+          cop_itr = ops_.find(child_op);
+          if (cop_itr == ops_.end()) {
+            cop_itr = (ops_.insert(child_op)).first;
+            const char * const child_op_name = child_op->getName().c_str();
+            op_name_table_t::iterator nitr =
+                op_name_table_.find(child_op->getName().c_str());
+            assert(nitr == op_name_table_.end());
+            op_name_table_.insert(std::make_pair(child_op_name, child_op));
           }
 
           if (in_degree_map_.find(child_op) == in_degree_map_.end()) {
@@ -383,7 +433,8 @@ class Operation_Dag {
           }
           in_degree_map_[child_op]++;
 
-          adj_list.push_back( &(*op_itr) );
+          adj_list.push_back( &(*cop_itr) );
+          adj_map_rev_[child_op].push_back( &(*pop_itr) );
         }
 
         resource_t resource_utility; 
@@ -396,8 +447,7 @@ class Operation_Dag {
         }
 
         // resource utility //
-        resource_utility_map_.insert(std::make_pair(op, 
-              std::max( size_t(1UL), resource_utility) ));
+        resource_utility_map_.insert(std::make_pair(op, resource_utility ));
       }
     }
 
@@ -414,10 +464,13 @@ class Operation_Dag {
           (dma_dir == mv::DmaDirectionEnum::UPACMX2DDR);
     }
 
+
+    //TODO(vamsikku): consolidate ops_ and op_to_iterator_lookup_ tables. //
     adjacency_map_t adj_map_;
+    adjacency_map_t adj_map_rev_;
+    op_name_table_t op_name_table_;
     ops_set_t ops_;
     resource_utility_map_t resource_utility_map_;
-    //TODO(vamsikku): consolidate ops_ and op_to_iterator_lookup_ tables. //
     op_to_iterator_lookup_t op_to_iterator_lookup_;
     in_degree_map_t in_degree_map_;
     operation_t input_op_;
@@ -443,7 +496,6 @@ struct scheduler_traits< mv::scheduler::Operation_Dag<> >
 
 }
 }
-
 
 namespace mv {
 namespace lp_scheduler {

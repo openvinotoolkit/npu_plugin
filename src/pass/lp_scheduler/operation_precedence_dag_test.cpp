@@ -199,3 +199,55 @@ TEST_F(Operation_Dag_Test, mv_lp_scheduler_basic_test) {
     ASSERT_TRUE( mitr->second <= max_memory);
   }
 }
+
+TEST_F(Operation_Dag_Test, incoming_edge_iterator) {
+  op_model_dag_t dag( three_layer_conv_model() );
+  typename op_model_dag_t::operation_t op = dag.get_op_by_name("conv_1#11");
+  ASSERT_TRUE(op != NULL);
+
+  std::unordered_set<std::string> expected_parents = {
+      "conv_1#3_weights#4_DDR2CMX",  "conv_1#11_weights_table_DDR2CMX",
+      "conv#10" };
+  typename op_model_dag_t::const_operation_iterator_t itr =
+      dag.begin_parent_nodes(op), itr_end = dag.end_parent_nodes(op);
+
+  ASSERT_TRUE(itr != itr_end);
+
+  std::unordered_set<std::string> found_parents;
+  for (size_t i=0; itr!=itr_end; ++itr,++i) {
+    ASSERT_TRUE(i < expected_parents.size());
+    found_parents.insert((*itr)->getName());
+  }
+  EXPECT_EQ(found_parents, expected_parents);
+
+  op = dag.get_op_by_name("conv#10_sparse_dw_DDR2CMX");
+  ASSERT_TRUE(op != NULL);
+  itr = dag.begin_parent_nodes(op);
+  itr_end = dag.end_parent_nodes(op);
+  EXPECT_EQ(itr, itr_end);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
