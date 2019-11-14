@@ -1,3 +1,5 @@
+#include <stdlib.h>
+
 #include "gtest/gtest.h"
 #include "include/mcm/compiler/compilation_unit.hpp"
 #include "meta/include/mcm/op_model.hpp"
@@ -26,108 +28,113 @@ class Operation_Dag_Test : public ::testing::Test {
     //descriptor instead just create a default JSON structure.
     void setup_three_layer_conv_input() {
       double inf = std::numeric_limits<double>::infinity();
+
+      std::string prefix(getenv("MCM_HOME"));
+
       mv::CompilationUnit &unit = three_layer_conv_input_;
       mv::OpModel& om = unit.model();
       auto input0 = om.input({56,56,3,1}, mv::DType("UInt8"),
-          mv::Order::getZMajorID(4), {{128},{0.007843137718737125},{-1.0},
-          {1.0}}, "input#9");
+          mv::Order::getZMajorID(4), {{128},{0.007843137718737125},{-1.0},{1.0}},
+            "input#9");
+
       std::vector<int64_t> weightsData0 =
           mv::utils::generateSequence<int64_t> (3*3*3*64);
       auto weights0 = om.constantInt(weightsData0,{3,3,3,64},
-          mv::DType("UInt8"), mv::Order::getZMajorID(4),
-          {{135},{0.0025439101736992598},{-0.3435550332069397},
-            {0.3051420748233795}}, "conv#0_weights#1");
+            mv::DType("UInt8"), mv::Order::getZMajorID(4),
+            {{135},{0.0025439101736992598},{-0.3435550332069397},
+              {0.3051420748233795}}, "conv#0_weights#1");
+
       auto conv0 = om.conv(input0, weights0, {1, 1}, {1, 1, 1, 1}, 1, 1,
-          {{0},{0.003921568859368563},{0.0},{1.0}}, "conv#10");
+          mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}},
+            "conv#10");
+
       std::vector<int64_t> biasWeightsData0 =
           mv::utils::generateSequence<int64_t> (64);
       auto biasWeights0 = om.constantInt(biasWeightsData0,{64},
-          mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},
-          {1.9952236470999196e-05},{-inf},{inf}}, "conv#0_bias#2");
-      auto bias_c0 = om.bias(conv0, biasWeights0,
+          mv::DType("UInt8"), mv::Order::getColMajorID(1),
+          {{0},{1.9952236470999196e-05},{-inf},{inf}}, "conv#0_bias#2");
+      auto bias_c0 = om.bias(conv0, biasWeights0, mv::DType("UInt8"),
           {{0},{0.003921568859368563},{0.0},{1.0}});
+
       std::vector<int64_t> weightsData1 =
           mv::utils::generateSequence<int64_t> (3*3*64*128);
       auto weights1 = om.constantInt(weightsData1,{3,3,64,128},
           mv::DType("UInt8"), mv::Order::getZMajorID(4),
           {{125},{0.003295167814940214},{-0.41293057799339294},
-          {0.4273372292518616}}, "conv_1#3_weights#4");
-      auto conv1 = om.conv(bias_c0, weights1,
-          {1, 1}, {1, 1, 1, 1}, 1, 1, {{0},{0.003921568859368563},
-          {0.0},{1.0}}, "conv_1#11");
+            {0.4273372292518616}}, "conv_1#3_weights#4");
+      auto conv1 = om.conv(bias_c0, weights1, {1, 1}, {1, 1, 1, 1}, 1, 1,
+          mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}},
+            "conv_1#11");
 
       std::vector<int64_t> biasWeightsData1 =
           mv::utils::generateSequence<int64_t> (128);
       auto biasWeights1 = om.constantInt(biasWeightsData1,{128},
           mv::DType("UInt8"), mv::Order::getColMajorID(1),
           {{0},{1.292222714255331e-05},{-inf},{inf}}, "conv_1#3_bias#5");
-      auto bias_c1 = om.bias(conv1, biasWeights1,
+      auto bias_c1 = om.bias(conv1, biasWeights1, mv::DType("UInt8"),
           {{0},{0.003921568859368563},{0.0},{1.0}});
-      std::vector<int64_t> weightsData2 =
-          mv::utils::generateSequence<int64_t> (3*3*128*128);
 
+      std::vector<int64_t> weightsData2 =
+        mv::utils::generateSequence<int64_t> (3*3*128*128);
       auto weights2 = om.constantInt(weightsData2,{3,3,128,128},
           mv::DType("UInt8"), mv::Order::getZMajorID(4),
           {{118},{0.0037134578451514244},{-0.44002026319503784},
-          {0.5069115161895752}}, "output#6_weights#7");
+            {0.5069115161895752}}, "output#6_weights#7");
       auto conv2 = om.conv(bias_c1, weights2, {1, 1}, {1, 1, 1, 1}, 1, 1,
-          {{0},{0.003921568859368563},{0.0},{1.0}}, "output#12");
+          mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}},
+          "output#12");
 
       std::vector<int64_t> biasWeightsData2 =
           mv::utils::generateSequence<int64_t> (128);
       auto biasWeights2 = om.constantInt(biasWeightsData2,{128},
           mv::DType("UInt8"), mv::Order::getColMajorID(1),
-          {{0},{1.4562579963239841e-05},{-inf},{inf}}, "output#6_bias#8");
-      auto bias_c2 = om.bias(conv2, biasWeights2,
-          {{0},{0.003921568859368563},{0.0},{1.0}});
+            {{0},{1.4562579963239841e-05},{-inf},{inf}}, "output#6_bias#8");
+      auto bias_c2 = om.bias(conv2, biasWeights2, mv::DType("UInt8"),
+            {{0},{0.003921568859368563},{0.0},{1.0}});
 
       om.output(bias_c2);
 
       //TODO(vamsikku): REMOVE THIS PATH //
       std::string compDescPath =
-        "/home/vamsikku/work/mcmCompilerUsage/debug_kmb_MC-Prefetch2.json";
+        prefix + "/tests/system_tests/lp_scheduler/"
+        "three_layer_conv_model/comp_desc_unit_test.json";
+        
       unit.loadCompilationDescriptor(compDescPath);
 
       unit.loadTargetDescriptor(mv::Target::ma2490);
       unit.initialize();
+      unit.run();
     }
 
     mv::CompilationUnit three_layer_conv_input_;
 }; // class Operation_Dag_Test //
 
 
+typedef mv::scheduler::Operation_Dag<mv::ControlModel> control_dag_t;
 TEST_F(Operation_Dag_Test, test_structure_data_dag) {
-  mv::OpModel om(three_layer_conv_model());
-  //mv::scheduler::Operation_Dag<mv::ControlModel> input(cm);
-  op_model_dag_t input(om);
+  mv::ControlModel cm(three_layer_conv_model());
+  control_dag_t input(cm);
 
   auto itr = input.begin_nodes();
   auto itr_end = input.end_nodes();
 
-  size_t conv_op_count = 0UL, bias_op_count = 0UL, input_count = 0UL,
-         output_count=0UL, total_op_count = 0UL, weight_op_count = 0UL,
-         unexpected_op = 0UL;
+  size_t conv_op_count = 0UL, input_count = 0UL, output_count=0UL,
+         total_op_count = 0UL; 
 
   while (itr != itr_end) {
     const op_model_dag_t::operation_t& op = *itr;
-    if (op->getOpType() == "Conv") { conv_op_count++; }
+    if (op->getOpType() == "DPUTask") { conv_op_count++; }
     else if (op->getOpType() == "Input") { input_count++; }
-    else if (op->getOpType() == "Bias") { bias_op_count++; }
-    else if (op->getOpType() == "ConstantInt") { weight_op_count++; }
     else if (op->getOpType() == "Output") { output_count++; }
-    else { unexpected_op++; }
 
     ++total_op_count;
-    ASSERT_TRUE(total_op_count <= 14UL);
+    ASSERT_TRUE(total_op_count <= 100UL);
     ++itr;
   }
 
-  EXPECT_EQ(conv_op_count, 3UL);
-  EXPECT_EQ(weight_op_count, 6UL);
-  EXPECT_EQ(bias_op_count, 3UL);
+  EXPECT_EQ(conv_op_count, 4UL);
   EXPECT_EQ(input_count, 1UL);
   EXPECT_EQ(output_count, 1UL);
-  EXPECT_EQ(unexpected_op, 0UL);
 }
 
 TEST_F(Operation_Dag_Test, in_degree_test) {
@@ -154,7 +161,10 @@ TEST_F(Operation_Dag_Test, in_degree_test) {
 
   for (indegree_map_t::const_iterator itr=indegree.begin(); itr!=indegree.end();
       ++itr) {
-    ASSERT_TRUE(itr->second <= 2UL);
+    std::string op_type = (itr->first)->getOpType();
+    ASSERT_TRUE((op_type != "DPUTask") ||
+        ((itr->second == 4) || (itr->second == 3)));
+    ASSERT_TRUE((op_type != "DMATask") || (itr->second == 1));
   }
 }
 
@@ -180,6 +190,7 @@ TEST_F(Operation_Dag_Test, mv_lp_scheduler_basic_test) {
     std::cout << "op=" << (*scheduler_begin)->getOpType() << " time="
       << scheduler_begin.current_time() << " mem=[" << rinfo.begin_ << " " << 
         rinfo.end_ << "] " << std::endl;
+
     ++scheduler_begin;
   }
   // make sure memory is within limit at all times //

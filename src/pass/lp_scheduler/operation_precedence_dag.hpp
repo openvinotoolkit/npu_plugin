@@ -259,12 +259,84 @@ class Operation_Dag {
     }
 
 
+    template<typename BackInsertIterator>
+    size_t find_all_ops_exceeding_resource_threshold(resource_t threshold,
+        BackInsertIterator output) {
+      // TODO(vamsikku): the space can be improved by maintaining this table
+      // for current level and previous level.
+      typedef std::unordered_map<operation_t, resource_t> op_size_table_t;
+      op_size_table_t op_size_table;
+      std::list<operation_t> bfs_list;
+      operation_t curr_op;
+
+      // add all zero in-degree nodes //
+      for (const_operation_iterator_t citr=begin_nodes(), citr_end=end_nodes();
+            citr != citr_end; ++citr) {
+        curr_op = *citr;
+        size_t in_degree;
+        if (!(in_degree=operation_in_degree(curr_op))) {
+          printf("zero-degree-node=%s\n", curr_op->getName().c_str());
+          bfs_list.push_back(curr_op);
+        } else {
+          printf("non-zero-degree-node=%s in-degree=%lu\n",
+              curr_op->getName().c_str(), in_degree);
+        }
+      }
+
+
+      while (!bfs_list.empty()) {
+        curr_op = bfs_list.front();
+
+        bfs_list.pop_front();
+        op_size_table_t::iterator itr = op_size_table.find(curr_op);
+
+
+        resource_t curr_op_utility = resource_utility(curr_op);
+
+        if (itr == op_size_table.end()) {
+          // initialize it with its output size //
+          itr = op_size_table.insert(
+                std::make_pair(curr_op, resource_t(0UL))).first;
+        }
+        itr->second += curr_op_utility;
+
+        // for all the out-going edges
+        const_operation_iterator_t citr=begin_nodes(curr_op);
+        const_operation_iterator_t citr_end=end_nodes(curr_op);
+        for (; citr != citr_end; ++citr) {
+          operation_t child_op = *citr;
+          itr = op_size_table.find(child_op);
+
+          if (itr == op_size_table.end()) {
+            // initialize it with its output size //
+            itr = op_size_table.insert(
+                std::make_pair(child_op, resource_t(0UL))).first;
+            // newly discovered node //
+            bfs_list.push_back(child_op);
+          }
+          itr->second += curr_op_utility;
+        }
+
+      } // while (!bfs_list.empty()) //
+
+      size_t ret_value = 0UL;
+      for (op_size_table_t::const_iterator itr=op_size_table.begin();
+            itr != op_size_table.end(); ++itr) {
+        if (itr->second >= threshold) {
+          output = std::make_pair(itr->first, itr->second);
+          ++output;
+          ++ret_value;
+        }
+      }
+      return ret_value;
+    }
+
+
   private:
 
     bool is_operation_ignored(operation_t op) const {
       const std::string& op_type = op->getOpType();
-      return !( (op_type == "DMATask") || (op_type == "DPUTask")  ||
-                (op_type == "Input") || (op_type == "Output") );
+      return (op_type == "ConstantInt") || (op_type == "ConstantDataElement");
     }
 
     void init_from_model(model_t& model) {
@@ -316,10 +388,8 @@ class Operation_Dag {
 
         resource_t resource_utility; 
 
-        if (((op->getOpType() == "DMATask") && 
-             (op->get<mv::DmaDirection>("direction")
-                == mv::DmaDirectionEnum::CMX2DDR)) ||
-            ( (op->getOpType() == "Input") || (op->getOpType() == "Output")) ) {
+        if ( !does_the_op_run_on_hardware(op) ||
+            is_dma_op_moving_data_from_cmx_to_ddr(op) ) {
           resource_utility = 0UL;
         } else {
           resource_utility = op->getOutputSize();
@@ -329,6 +399,19 @@ class Operation_Dag {
         resource_utility_map_.insert(std::make_pair(op, 
               std::max( size_t(1UL), resource_utility) ));
       }
+    }
+
+    bool does_the_op_run_on_hardware(operation_t op) const {
+      return (op->getOpType() == "DMATask") || (op->getOpType() == "DPUTask");
+    }
+
+    bool is_dma_op_moving_data_from_cmx_to_ddr(operation_t op) const {
+      if ((op->getOpType()) != "DMATask") { return false; }
+      
+      mv::DmaDirectionEnum dma_dir = op->get<mv::DmaDirection>("direction");
+
+      return (dma_dir == mv::DmaDirectionEnum::NNCMX2DDR) ||
+          (dma_dir == mv::DmaDirectionEnum::UPACMX2DDR);
     }
 
     adjacency_map_t adj_map_;

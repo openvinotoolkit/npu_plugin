@@ -9,53 +9,53 @@ include_directories(${GTEST_INCLUDE_DIRS})
 #add_executable(graph_container graph_container.cpp ${graph})
 #include_directories(include/mcm/graph)
 
-file(GLOB base_src
-    "base/*.cpp"
-)
-
-file(GLOB op_src
-    "op/*.cpp"
-)
-
-file(GLOB pass_src
-    "pass/*.cpp"
-)
-
-file(GLOB compiler_src
-    "compiler/*.cpp"
-)
-
-file(GLOB model_src
-    "model/*.cpp"
-)
-
-file(GLOB graph_src
-    "graph/*.cpp"
-)
-
-file(GLOB resources
-    "resources/*.cpp"
-)
-
-file(GLOB tensor
-    "tensor/*.cpp"
-)
-
-file(GLOB nce1
-    "nce1/*.cpp"
-)
-
-file(GLOB hw
-    "hw/*.cpp"
-)
-
-file(GLOB kmb
-    "target/kmb/*.cpp"
-)
-
-file(GLOB utils
-    "utils/*.cpp"
-)
+#file(GLOB base_src
+#    "base/*.cpp"
+#)
+#
+#file(GLOB op_src
+#    "op/*.cpp"
+#)
+#
+#file(GLOB pass_src
+#    "pass/*.cpp"
+#)
+#
+#file(GLOB compiler_src
+#    "compiler/*.cpp"
+#)
+#
+#file(GLOB model_src
+#    "model/*.cpp"
+#)
+#
+#file(GLOB graph_src
+#    "graph/*.cpp"
+#)
+#
+#file(GLOB resources
+#    "resources/*.cpp"
+#)
+#
+#file(GLOB tensor
+#    "tensor/*.cpp"
+#)
+#
+#file(GLOB nce1
+#    "nce1/*.cpp"
+#)
+#
+#file(GLOB hw
+#    "hw/*.cpp"
+#)
+#
+#file(GLOB kmb
+#    "target/kmb/*.cpp"
+#)
+#
+#file(GLOB utils
+#    "utils/*.cpp"
+#)
 
 file(GLOB scheduler_unit_tests
   "${CMAKE_SOURCE_DIR}/src/scheduler/*\_test.cpp"
@@ -66,16 +66,16 @@ add_executable(mcm_unit_tests
     mcm_unit_tests.cpp
     #${nce1}
     #${hw}
-    ${graph_src}
-    ${resources}
-    ${base_src}
-    ${tensor}
-    ${op_src}
-    ${pass_src}
-    ${compiler_src}
-    ${model_src}
-    ${kmb}
-    ${utils}
+#    ${graph_src}
+#    ${resources}
+#    ${base_src}
+#    ${tensor}
+#    ${op_src}
+#    ${pass_src}
+#    ${compiler_src}
+#    ${model_src}
+#    ${kmb}
+#    ${utils}
     ${scheduler_unit_tests}
 )
 

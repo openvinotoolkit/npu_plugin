@@ -20,7 +20,7 @@ endif()
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 
 add_compile_options(-std=c++11)
-add_compile_options(-O3)
+#add_compile_options(-O3)
 
 set(PROFILER FALSE CACHE BOOL "Enable integrated profiler")
 set(LOG TRUE CACHE BOOL "Enable logger")
@@ -374,10 +374,10 @@ target_include_directories(cm
     PUBLIC $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src/>)
 
 IF(NOT CMAKE_CROSSCOMPILING)
-    add_subdirectory(examples)
     #add_subdirectory(tools)
     add_subdirectory(schema)
     add_subdirectory(example)
+    add_subdirectory(tests)
 endif()
 
 if (${PROFILER} AND ${UNIX})

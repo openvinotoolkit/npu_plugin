@@ -22,7 +22,7 @@
                         "strategy" : "Example"
                     }
                 ],
-                "default_tensor_placement" : "CMX",
+                "default_tensor_placement" : "NNCMX",
                 "tensor_placement_override" :
                 [
                     {
@@ -72,13 +72,6 @@
             "ComputeMemory",
             "AssignUniqueOpId",
             {
-                "name": "GenerateDot",
-                "output": "output/dots/original_model.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            },
-            {
                 "name": "CreateSourceStructure",
                 "VersionMajor": 3,
                 "VersionMinor": 11,
@@ -89,15 +82,12 @@
     },
     "adapt": {
         "Singular": [
-            "PopulatedTensorsToFP16",
-            "UnpopulatedTensorsToFP16",
             "AverageAsDepthWise",
-            "FuseBatchNorm",
-            "FuseBias",
-            "FuseRelu",
-            "FuseScale",
             "RemoveDropOut",
             "FullyConnectedAsConv2D",
+            "TensorsToU8",
+            "TensorsToFP16",
+            "FusePostOps",
             {
                 "name" : "GraphParameterOptimization",
                 "graphOptimizerConfig" : {
@@ -107,7 +97,7 @@
                         {"name" : "dpuPerCluster",  "value" : 5   },
                         {"name" : "ddrBandwidth",   "value" : 128 },
                         {"name" : "systemClockMhz", "value" : 500 },
-                        {"name" : "FathomSafetyFactor", " value" : 0.85},
+                        {"name" : "FathomSafetyFactor", " value" : 0.80},
                         {"name" : "dotFileLocation", "value" : "./output/"},
                         {"name" : "jsonOutFileName", "value" : "./output/mcmCompiler_strategy_output.json"}
                     ],
@@ -115,7 +105,8 @@
                         {"name" : "forceSpilling",    "value" : false       },
                         {"name" : "enableStreaming",   "value" : true       },
                         {"name" : "doubleBuffering",   "value" : false      },
-                        {"name" : "enableSparsity",    "value" : false     },
+                        {"name" : "enableActivationSparsity",    "value" : false      },
+                        {"name" : "enableWeightsSparsity",    "value" : false      },
                         {"name" : "clusteringStrategy","value" : "Automatic"}
                     ],
                     "layerStrategies" : [
@@ -175,24 +166,23 @@
             "StoreLayerSparsityStrategy",
             "StoreTensorPlacement",
             "StreamingTiling",
-            "StreamBinaryDataWeights",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/adapt_model.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            }
+            "StreamBinaryDataWeights"
         ]
     },
-    "keembay_adapt": {
+    "kmb_adapt": {
         "Singular": [
             "ConcatAsImplicit",
+            "ReshapeAsImplicit",
             "StoreWorkloadStrategy",
-            "ConvertOpsToTasks",
+            "ConvertOpsToDPUTasks",
+            "ConvertOpsToUPATasks",
             "ForceSerialize",
             "KMBOrderConversion",
-            "AlignTo16Channels",
+            "AlignUnpopulatedTensors",
+            "AddAlignOpForInputTensors",
+            "AlignPopulatedTensors",
+            "RemoveCropAlignInCMX",
+            "CropOrPadFinalOutput",
             "AlignTaskWeights",
             "GenerateSparsityMapsPopulatedTensors",
             "GenerateWeightsTables",
@@ -203,28 +193,17 @@
             "PopulateWeightsTablesQuantization",
             "RemoveBiasTensors",
             "SplittingTensorsAcrossClusters",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/keembay_adapt_model.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            }
+            "KMBQuantizeConversion"
         ]
     },
     "dma": {
         "Singular" : [
             "SetDpuTasksMemoryLocation",
+            "SetUPATasksMemoryLocation",
             "ResolveImplicitOperations",
-            "AddWeightsDMATasks",
-            "EnsureSplitStrategiesForSpilling",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/dma_model.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            }
+            "AddDPUTasksWeightsDMATasks",
+            "AddUPATasksExtraInputsDMATasks",
+            "EnsureSplitStrategiesForSpilling"
         ]
     },
     "control_flows":{
@@ -234,19 +213,12 @@
             "LayerNumbering",
             {
                 "name": "HangingDmaControlFlows",
-                "weights_prefetch": 5
+                "weights_prefetch": 2
             },
             "TransitiveReduction",
             "LayerNumbering",
-            "cmx2DDRControlFlows",
-            "TransitiveReduction",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/control_flows_model.dot",
-                "scope": "ControlModel",
-                "content": "full",
-                "html": true
-            }
+            "NNCMX2DDRControlFlows",
+            "TransitiveReduction"
         ]
     },
     "finalize": {
@@ -264,13 +236,13 @@
                 "name": "GenerateWorkloads",
                 "costfunction": "greedy",
                 "TensorSplitAlgorithms": "Rectangle, Z-tiling",
-                "_comment": "Supported CostFunctions are: balanced | criticalpath | minmax | greedy. Supported TensorSplitAlgorithms are Metis, Rectangle, Z-Tiling"
+                "_comment": "Supported CostFunctions are: balanced | criticalpath | minmax | greedy. Supported TensorSplitAlgorithms are Rectangle, Z-Tiling"
             },
-            "ArrangeKeembayExecution",
-            "AllocateInputOutputTensorsKeemBay",
-            "AllocateGraphfileTensorsKeemBayLegacy",
-            "ReAllocateImplicitOperationsKeemBay",
-            "AllocateCMXTensorsKeemBay",
+            "ArrangeKmbExecution",
+            "AllocateInputOutputTensorsKmb",
+            "AllocateGraphfileTensorsKmb",
+            "ReAllocateImplicitOperationsKmb",
+            "AllocateCMXTensorsKmb",
             "TensorGraphColoring",
             "RemoveDeallocationTasks",
             "TransitiveReduction",
@@ -279,14 +251,7 @@
                 "barrier_reuse_window" : 0
             },
             "TransitiveReduction",
-            "PopulateWeightsTablesPointers",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/final_model.dot",
-                "scope": "ControlModel",
-                "content": "full",
-                "html": true
-            }
+            "PopulateWeightsTablesPointers"
         ]
     },
     "scheduling": {
@@ -294,14 +259,9 @@
             "StoreBarriersNamesInTasks",
             "GenerateExecutionSchedule",
             "BarrierIndexAssignment",
-            "UpdateBarrierRefs",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/barrier_model.dot",
-                "scope": "ControlModel",
-                "content": "full",
-                "html": true
-            }
+            "LayerNumbering",
+            "ReorderDmasInSchedule",
+            "UpdateBarrierRefs"
         ]
     },
     "validate": {
@@ -312,24 +272,23 @@
     "serialize": {
         "Singular": [
             {
-                "name": "GenerateBlobKeembay",
-                "output": "default_scheduler.blob"
+                "name": "GenerateBlobKmb",
+                "output": "output/mcm.blob"
             },
             {
                 "name": "ConvertFlatbuffer",
-                "input": "default_scheduler.blob",
-                "output": "output/mcm.json"
+                "input": "output/mcm.blob"
             },
             {
                 "name": "GenerateDot",
-                "output": "output/dots/serial_model.dot",
+                "output": "output/dots/default_serial_model.dot",
                 "scope": "ControlModel",
                 "content": "full",
                 "html": true
             },
             {
                 "name": "GenerateDot",
-                "output": "output/dots/serial_op_model.dot",
+                "output": "output/dots/default_serial_op_model.dot",
                 "scope": "OpControlModel",
                 "content": "full",
                 "html": true
@@ -342,7 +301,7 @@
             "initialize",
             "validate",
             "adapt",
-            "keembay_adapt",
+            "kmb_adapt",
             "dma",
             "control_flows",
             "finalize",
