@@ -316,3 +316,5 @@ build.*
 .local_vimrc
 .ycm_extra_conf.py
 tags
+results/
+tmp.*

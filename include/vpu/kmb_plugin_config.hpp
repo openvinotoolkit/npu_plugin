@@ -51,6 +51,14 @@ DECLARE_VPU_KMB_CONFIG_KEY(MCM_TARGET_DESCRIPTOR_PATH);
 
 /**
  * @brief [Only for kmbPlugin]
+ * Type: Arbitrary string.
+ * This option allows to specify device.
+ * If specified device is not available then creating infer request will throw an exception.
+ */
+DECLARE_VPU_KMB_CONFIG_KEY(PLATFORM);
+
+/**
+ * @brief [Only for kmbPlugin]
  * Type: Arbitrary string. Empty means ("ma2490"), default: "";
  */
 DECLARE_VPU_KMB_CONFIG_KEY(MCM_TARGET_DESCRIPTOR);

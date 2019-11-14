@@ -1,0 +1,37 @@
+Output log dir: ./results/tiny_yolo_v2_NaiveQuantization/2019-10-31_16-35-19
+Creating pipeline:
+Algorithm: NaiveQuantization
+Parameters:
+	weights                    : {'type': 'symmetric', 'bits': 8, 'scale_type': 'pertensor'}
+	activations                : {'type': 'symmetric', 'bits': 8, 'scale_type': 'pertensor'}
+	stat_subset_size           : 1000
+	target_device              : CPU
+===========================================================================
+INFO:compression.pipeline.pipeline:Start algorithm: NaiveQuantization
+WARNING: fake quantize node yolov2/darknet_model/conv1/Conv2D/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node yolov2/darknet_model/conv7/Conv2D/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node yolov2/darknet_model/conv2/Conv2D/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node yolov2/tiny_yolov2_feature/features/conv/Conv2D/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node yolov2/darknet_model/conv6/Conv2D/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node yolov2/darknet_model/conv5/Conv2D/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node yolov2/yolov2_outputs/output_raw/Conv2D/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node yolov2/darknet_model/conv1/Conv2D/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node yolov2/darknet_model/conv3/Conv2D/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node yolov2/yolov2_outputs/output_raw/Conv2D/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node yolov2/darknet_model/conv4/Conv2D/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node yolov2/tiny_yolov2_feature/features/conv/Conv2D/fq_weights_1 doesn't support configuration from tool config file (mismatch with hardware config)
+WARNING: fake quantize node yolov2/darknet_model/conv7/Conv2D/fq_input_0 doesn't support configuration from tool config file (mismatch with hardware config)
+INFO:compression.engines.ac_engine:Start inference of 1000 images
+INFO:compression.engines.ac_engine:Inference finished
+INFO:compression.pipeline.pipeline:Finished: NaiveQuantization
+ ===========================================================================
+INFO:compression.pipeline.pipeline:Evaluation of generated model
+INFO:compression.engines.ac_engine:Start inference on the whole dataset
+Total dataset size: 4952
+1000 / 4952 processed in 86.114s
+2000 / 4952 processed in 87.753s
+3000 / 4952 processed in 87.610s
+4000 / 4952 processed in 89.938s
+4952 objects processed in 437.883 seconds
+INFO:compression.engines.ac_engine:Inference finished
+map                        : 0.5657934669607236

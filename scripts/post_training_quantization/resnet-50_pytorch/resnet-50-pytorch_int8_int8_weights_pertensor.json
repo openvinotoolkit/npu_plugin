@@ -1,0 +1,86 @@
+{
+    "model": {
+        "name": "resnet50_int8_int8_weights_pertensor",
+        "model": "<ORIGINAL_MODEL>",
+        "inputs": [{
+            "input_shape": [1,3,224,224],
+            "mean_values": [123.675,116.28,103.53],
+            "scale_values": [58.395,57.12,57.375],
+            "format": "BGR"
+        }],
+        "outputs": [
+            {
+                "name": "prob"
+            }
+        ]
+    },
+    "engine": {
+        "launchers": [
+            {
+                "framework": "dlsdk",
+                "device": "CPU",
+                "adapter": "classification"
+            }
+        ],
+        "datasets": [
+            {
+                "name": "imagenet_1001_classes",
+                "data_source": "<DATASET_PATH>",
+                "annotation_conversion": {
+                    "annotation_file": "<DATASET_PATH>/val.txt",
+                    "converter": "imagenet"
+                },
+                "reader": "pillow_imread",
+                "preprocessing": [
+                    {
+                        "type": "resize",
+                        "size": 256,
+                        "aspect_ratio_scale": "greater",
+                        "use_pillow": true,
+                        "interpolation": "BILINEAR"
+                    },
+                    {
+                        "type": "crop",
+                        "size": 224,
+                        "use_pillow": true
+                    }
+                ],
+                "metrics": [
+                    {
+                        "type": "accuracy",
+                        "name": "accuracy@top1",
+                        "top_k": 1
+                    },
+                    {
+                        "type": "accuracy",
+                        "name": "accuracy@top5",
+                        "top_k": 5
+                    }
+                ]
+            }
+        ]
+    },
+    "compression": {
+        "target_device": "CPU",
+        "algorithms": [
+            {
+                "name": "DefaultQuantization",
+                "params": {
+                    "target_device": "CPU",
+                    "preset": "accuracy",
+                    "stat_subset_size": 1000,
+                    "weights": {
+                        "bits": 8,
+                        "type": "symmetric",
+                        "scale_type": "pertensor"
+                    },
+                    "activations": {
+                        "bits": 8,
+                        "type": "symmetric",
+                        "scale_type": "pertensor"
+                    }
+                }
+            }
+        ]
+    }
+}

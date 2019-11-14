@@ -26,10 +26,121 @@
 
 #define ERROR_BOUND (.1f)
 
+using namespace ::testing;
 using namespace InferenceEngine;
 using namespace details;
 
-#ifdef ENABLE_MCM_COMPILER
+struct convolution_test_params {
+    SizeVector input_dim;
+    conv_common_params conv_params;
+};
+
+struct convolution_test_desc {
+    SizeVector input_dim;
+    conv_common_params conv_params;
+    std::string net_precision;
+    std::string conv_precision;
+    std::string weights_precision;
+    size_t weightsBufferOffset;
+    std::string bias_precision;
+    std::string test_name;
+    std::string& ir;
+};
+
+size_t getConvWeightsByteSize(const std::vector<size_t>& inShape,
+                            const PropertyVector<unsigned int>& kernel,
+                            const size_t out_c, const size_t group,
+                            const size_t sizeOfPrecision) {
+    if (group != 0lu && out_c != 0lu && kernel.size() != 0lu) {
+
+        int weights_size = sizeOfPrecision * inShape[1] * out_c / group;
+        for (size_t i = 0lu; i < kernel.size(); i++) {
+            weights_size *= kernel[i];
+        }
+
+        return weights_size;
+    }
+
+    return 0lu;
+}
+
+// Wrappers are used because IE functions getConvWeightsSize and getConvBiasesByteSize
+// support only 'FP32', 'FP16' and 'U8' precisions
+size_t getConvWeightsByteSize(const std::vector<size_t>& inShape,
+                          const conv_common_params& params,
+                          const std::string& precision) {
+    return getConvWeightsSize(inShape, params, "U8") * precisionToBytesize(precision);
+}
+
+size_t getConvBiasesByteSize(const conv_common_params& params,
+                          const std::string& precision) {
+    return getConvBiasesSize(params, "U8") * precisionToBytesize(precision);
+}
+
+std::string instantiateConvTestIR(convolution_test_desc& convTestParam) {
+    std::string ir = convTestParam.ir;
+    auto input_dims = convTestParam.input_dim;
+    auto conv_params = convTestParam.conv_params;
+    SizeVector output_dims;
+    getConvOutShape(input_dims, conv_params, output_dims);
+
+    size_t weightsByteSize =
+            getConvWeightsByteSize(convTestParam.input_dim, convTestParam.conv_params, convTestParam.weights_precision);
+    size_t biasByteSize = getConvBiasesByteSize(convTestParam.conv_params, convTestParam.bias_precision);
+
+    REPLACE_WITH_NUM(ir, "_INPUT_BATCH_", input_dims[0]);
+    REPLACE_WITH_NUM(ir, "_INPUT_CHANNEL_", input_dims[1]);
+    REPLACE_WITH_NUM(ir, "_INPUT_HEIGHT_", input_dims[2]);
+    REPLACE_WITH_NUM(ir, "_INPUT_WIDTH_", input_dims[3]);
+
+    REPLACE_WITH_STR(ir, "_NET_PRECISION_", convTestParam.net_precision);
+    REPLACE_WITH_STR(ir, "_CONV_PRECISION_", convTestParam.conv_precision);
+    REPLACE_WITH_STR(ir, "_WEIGHTS_PRECISION_", convTestParam.weights_precision);
+    REPLACE_WITH_STR(ir, "_BIAS_PRECISION_", convTestParam.bias_precision);
+
+    REPLACE_WITH_NUM(ir, "_WEIGHTS_OFFSET_", convTestParam.weightsBufferOffset);
+    REPLACE_WITH_NUM(ir, "_WEIGHTS_BYTE_SIZE_", weightsByteSize);
+
+    REPLACE_WITH_NUM(ir, "_BIAS_OFFSET_", convTestParam.weightsBufferOffset + weightsByteSize);
+    REPLACE_WITH_NUM(ir, "_BIAS_BYTE_SIZE_", biasByteSize);
+
+    REPLACE_WITH_NUM(ir, "_KERNEL_SIZE_", conv_params.kernel[0]);
+    REPLACE_WITH_NUM_VECTOR(ir, "_KERNEL_", conv_params.kernel);
+    REPLACE_WITH_NUM(ir, "_KERNELY_", conv_params.kernel[0]);
+    REPLACE_WITH_NUM(ir, "_KERNELX_", conv_params.kernel[1]);
+    REPLACE_WITH_NUM_VECTOR(ir, "_STRIDE_", conv_params.stride);
+    REPLACE_WITH_NUM_VECTOR(ir, "_PADS_BEGIN_", conv_params.pads_begin);
+    REPLACE_WITH_NUM_VECTOR(ir, "_PADS_END_", conv_params.pads_end);
+
+    REPLACE_WITH_NUM(ir, "_OUTPUT_BATCH_", output_dims[0]);
+    REPLACE_WITH_NUM(ir, "_OUTPUT_CHANNEL_", output_dims[1]);
+    REPLACE_WITH_NUM(ir, "_OUTPUT_HEIGHT_", output_dims[2]);
+    REPLACE_WITH_NUM(ir, "_OUTPUT_WIDTH_", output_dims[3]);
+
+    REPLACE_WITH_NUM(ir, "_WEIGHTS_OFFSET_", convTestParam.weightsBufferOffset);
+    REPLACE_WITH_NUM(ir, "_WEIGHTS_BYTE_SIZE_", weightsByteSize);
+
+    REPLACE_WITH_NUM(ir, "_BIAS_OFFSET_", convTestParam.weightsBufferOffset + weightsByteSize);
+    REPLACE_WITH_NUM(ir, "_BIAS_BYTE_SIZE_", biasByteSize);
+
+    return ir;
+}
+
+TBlob<uint8_t>::Ptr weightsBiasBlobPrepare(convolution_test_desc& convTestParam) {
+    size_t weightsByteSize = getConvWeightsByteSize(convTestParam.input_dim,
+                                                    convTestParam.conv_params, convTestParam.conv_precision);
+    size_t biasByteSize = getConvBiasesByteSize(convTestParam.conv_params, convTestParam.bias_precision);
+
+    TBlob<uint8_t>::Ptr weightsBuffer = make_shared_blob<uint8_t>({Precision::U8, {weightsByteSize + biasByteSize + convTestParam.weightsBufferOffset}, Layout::C});
+    weightsBuffer->allocate();
+
+    auto data = weightsBuffer->buffer().as<InferenceEngine::ie_fp16*>();
+    fillRealBuffer<InferenceEngine::ie_fp16>(data + convTestParam.weightsBufferOffset / sizeof(ie_fp16), (weightsByteSize + biasByteSize) / sizeof(ie_fp16),
+                                             PrecisionUtils::f32tof16(1.f), PrecisionUtils::f32tof16(1.f));
+
+    return weightsBuffer;
+}
+
 TEST_F(kmbLayersTests_nightly, DISABLED_TestsConvolutionAfterScaleShift) {
     // TODO: tests fails. mcmCompiler compilation (Convolution with bias): Segmentation fault. Jira: VPUNND-1474
     const std::string model = conv_after_scale_shift;
@@ -188,124 +299,72 @@ TEST_F(kmbLayersTests_nightly, DISABLED_TestsQuantizedConvolutionAfterScaleShift
 
 }
 
-TEST_F(kmbLayersTests_nightly, DISABLED_TestsConvolutionOnly) {
-    const std::string model = convolution_only;
+std::vector<convolution_test_desc> convolution_only_fp16 = {
+        {{1, 64, 64, 89}, {{1, 1}, {1, 1}, {0, 0}, {0, 0}, {1, 1}, "", 1, 64, true, true, ""},
+        "FP16", "FP16", "FP16",   0,          "FP16", "1x1_64x64x89to64x64x89", convolution_only_with_bias_template},
+        {{1, 3, 224, 224}, {{2, 2},  {3, 3},   {1, 1},   {1, 1},   {1, 1}, "",         1,  64, true, true, ""},
+        "FP16", "FP16",   "FP16", 0,          "FP16", "3x3_3x224x224to64x112x112", convolution_only_with_bias_template},
+        {{1, 100, 100, 100}, {{1, 1},  {3, 3},   {1, 1},   {1, 1},   {1, 1}, "",         100,  100, true, true, ""},
+        "FP16", "FP16",   "FP16", 0,          "FP16", "3x3_100x100x100_depthwise", convolution_only_with_bias_template},
+        {{1, 3, 224, 224}, {{2, 2},  {7, 7},   {3, 3},   {3, 3},   {1, 1}, "",         1,  64, true, true, ""},
+        "FP16", "FP16",   "FP16", 0,          "FP16", "7x7_3x224x224to64x112x112", convolution_only_with_bias_template},
+};
 
-    ASSERT_NO_THROW(_net_reader.ReadNetwork(model.data(), model.length()));
-    ASSERT_TRUE(_net_reader.isParseSuccess());
+using ConvolutionFP16TestParam = testing::WithParamInterface<convolution_test_desc>;
 
-    std::size_t weightSize = 18816;
-    std::size_t biasSize = 128;
-    TBlob<uint8_t>::Ptr weightsBlob(GenWeights<uint16_t >(weightSize + biasSize));
-    ASSERT_NO_THROW(_net_reader.SetWeights(weightsBlob));
+class ConvolutionFP16Test : public ::testing::Test, public ConvolutionFP16TestParam {
+public:
+    using TestParam = ConvolutionFP16TestParam;
 
-    CNNNetwork network = _net_reader.getNetwork();
+    static std::string getTestCaseName(
+            TestParamInfo <ConvolutionFP16TestParam::ParamType> param) {
+        auto testName = (param.param).test_name;
+        std::replace(testName.begin(), testName.end(), '/', '_');
+        std::replace(testName.begin(), testName.end(), '-', '_');
+        return testName;
+    }
+};
 
-    _inputsInfo = network.getInputsInfo();
-    _inputsInfo["input"]->setPrecision(Precision::FP16);
+TEST_P(ConvolutionFP16Test, fp16_convolution_only) {
+    auto convTestParam = GetParam();
 
-    _outputsInfo = network.getOutputsInfo();
-    _outputsInfo["conv_test1"]->setPrecision(Precision::FP16);
+    Core ie;
 
-    // LoadNetwork results in the following message when MCM_PARSING_ONLY is set to 'NO':
-    // The maximum peak memory requirment of the graph exceeds CMX and the partial serialisation algorithm is unable
-    // to reduce parallelism, exiting now, this is normal behaviour
-    // TODO disable 'parse only' and find out why it happens
+    std::string blob_name = ::testing::UnitTest::GetInstance()->current_test_info()->name();
+    blob_name += ".blob";
+    std::replace(blob_name.begin(), blob_name.end(), '/', '_');
+
+    TBlob<uint8_t>::Ptr weightsBuffer = weightsBiasBlobPrepare(convTestParam);
+#ifndef __arm__
+    std::string model = instantiateConvTestIR(convTestParam);
+
+    CNNNetReader reader;
+    ASSERT_NO_THROW(reader.ReadNetwork(model.data(), model.length()));
+    ASSERT_NO_THROW(reader.SetWeights(weightsBuffer));
+    ASSERT_TRUE(reader.isParseSuccess());
+
+    CNNNetwork network = reader.getNetwork();
+
+    auto inputsInfo = network.getInputsInfo();
+    inputsInfo["input"]->setPrecision(Precision::FP16);
+
+    auto outputsInfo = network.getOutputsInfo();
+    outputsInfo["output"]->setPrecision(Precision::FP16);
+
     std::map<std::string, std::string> config;
-    setCommonConfig(config);
-    config[VPU_KMB_CONFIG_KEY(MCM_PARSING_ONLY)] = CONFIG_VALUE(YES);
-
-    ASSERT_NO_THROW(ie.LoadNetwork(network, "kmb", config));
-}
-
-TEST_F(kmbLayersTests_nightly, DISABLED_TestsConvolutionOnlyNoBias) {
-    std::string model = convolution_only;
-    REPLACE_WITH_STR(model, "<biases offset=\"18816\" size=\"128\"/>", " ");
-
-    ASSERT_NO_THROW(_net_reader.ReadNetwork(model.data(), model.length()));
-    ASSERT_TRUE(_net_reader.isParseSuccess());
-
-    std::size_t weightSize = 18816;
-    std::size_t biasSize = 128;
-    TBlob<uint8_t>::Ptr weightsBlob(GenWeights<uint16_t >(weightSize + biasSize));
-    ASSERT_NO_THROW(_net_reader.SetWeights(weightsBlob));
-
-    CNNNetwork network = _net_reader.getNetwork();
-
-    _inputsInfo = network.getInputsInfo();
-    _inputsInfo["input"]->setPrecision(Precision::FP16);
-
-    _outputsInfo = network.getOutputsInfo();
-    _outputsInfo["conv_test1"]->setPrecision(Precision::FP16);
-
-    std::map<std::string, std::string> config;
-    // LoadNetwork results in the following message when MCM_PARSING_ONLY is set to 'NO':
-    // The maximum peak memory requirment of the graph exceeds CMX and the partial serialisation algorithm is unable
-    // to reduce parallelism, exiting now, this is normal behaviour
-    // TODO disable 'parse only' and find out why it happens
     setCommonConfig(config);
     config[VPU_KMB_CONFIG_KEY(MCM_PARSING_ONLY)] = CONFIG_VALUE(NO);
 
-    ASSERT_NO_THROW(ie.LoadNetwork(network, "kmb", config));
-}
+    ExecutableNetwork executableNetwork;
+    ASSERT_NO_THROW(executableNetwork = ie.LoadNetwork(network, "kmb", config));
+    ASSERT_NO_THROW(executableNetwork.Export(blob_name));
+#else
+
 #endif
-
-struct convolution_test_params {
-    SizeVector input_dim;
-    conv_common_params conv_params;
-};
-
-size_t getConvWeightsByteSize(const std::vector<size_t>& inShape,
-                          const conv_common_params& params,
-                          const std::string& precision) {
-    if (params.group != 0lu && params.out_c != 0lu && params.kernel.size() != 0lu) {
-        size_t type_size = 1lu;
-        if (precision == "FP32")
-            type_size = sizeof(float);
-        else if (precision == "FP16") {
-            type_size = sizeof(ie_fp16);
-        }
-
-        int weights_size = type_size * inShape[1] * params.out_c / params.group;
-        for (size_t i = 0lu; i < params.kernel.size(); i++) {
-            weights_size *= params.kernel[i];
-        }
-
-        return weights_size;
-    }
-
-    return 0lu;
 }
 
-static void fillConvolutionIR(std::string& model, const convolution_test_params& params) {
-    auto input_dims = params.input_dim;
-    auto conv_params = params.conv_params;
-
-    SizeVector output_dims;
-    getConvOutShape(input_dims, conv_params, output_dims);
-
-    size_t weightsByteSize = getConvWeightsByteSize(input_dims, conv_params, "U8");
-    size_t biasByteSize = output_dims[1] * sizeof(int32_t);
-
-    REPLACE_WITH_NUM(model, "_INPUT_BATCH_", input_dims[0]);
-    REPLACE_WITH_NUM(model, "_INPUT_CHANNEL_", input_dims[1]);
-    REPLACE_WITH_NUM(model, "_INPUT_HEIGHT_", input_dims[2]);
-    REPLACE_WITH_NUM(model, "_INPUT_WIDTH_", input_dims[3]);
-
-    REPLACE_WITH_NUM(model, "_WEIGHTS_BYTE_SIZE_", weightsByteSize);
-    REPLACE_WITH_NUM(model, "_BIAS_BYTE_SIZE_", biasByteSize);
-    REPLACE_WITH_NUM(model, "_BIAS_OFFSET_", weightsByteSize);
-
-    // Assuming kernel is a square
-    REPLACE_WITH_NUM(model, "_KERNEL_SIZE_", conv_params.kernel[0]);
-    REPLACE_WITH_NUM_VECTOR(model, "_KERNEL_", conv_params.kernel);
-    REPLACE_WITH_NUM_VECTOR(model, "_STRIDE_", conv_params.stride);
-
-    REPLACE_WITH_NUM(model, "_OUTPUT_BATCH_", output_dims[0]);
-    REPLACE_WITH_NUM(model, "_OUTPUT_CHANNEL_", output_dims[1]);
-    REPLACE_WITH_NUM(model, "_OUTPUT_HEIGHT_", output_dims[2]);
-    REPLACE_WITH_NUM(model, "_OUTPUT_WIDTH_", output_dims[3]);
-}
+INSTANTIATE_TEST_CASE_P(DISABLED_fp16_per_layer_compilation_fail, ConvolutionFP16Test,
+        ::testing::ValuesIn(convolution_only_fp16), ConvolutionFP16Test::getTestCaseName);
 
 class ConvolutionTest : public testing::WithParamInterface<convolution_test_params>, public kmbLayersTests_nightly {};
 
@@ -321,11 +380,28 @@ static void testOverflow(const Blob::Ptr& blob) {
     }
 }
 
+template <class Reference>
+void InferAndCompare(ExecutableNetwork& exeNetwork, Reference refFunc, float tolerance) {
+    InferenceEngine::InferRequest inferRequest;
+    ASSERT_NO_THROW(inferRequest = exeNetwork.CreateInferRequest());
+
+    Blob::Ptr inputBlob;
+    ASSERT_NO_THROW(inputBlob = inferRequest.GetBlob(exeNetwork.GetInputsInfo().begin()->first));
+    auto data = inputBlob->buffer().as<uint8_t*>();
+    fillIntBuffer(data, inputBlob->byteSize(), static_cast<uint8_t>(1), static_cast<uint8_t>(1));
+
+    ASSERT_NO_THROW(inferRequest.Infer());
+    auto outputBlob = inferRequest.GetBlob(exeNetwork.GetOutputsInfo().begin()->first);
+    Blob::Ptr outputBlobFP32 = ConvertU8ToFP32(outputBlob);
+
+    auto refBlob = refFunc(inputBlob);
+    Compare(refBlob, outputBlobFP32, tolerance);
+}
+
 // Crash in mcmCompiler during parsing of scaleshift layer
 // Disabled until issue will be resolved
-TEST_P(ConvolutionTest, DISABLED_convolution_only) {
+TEST_P(ConvolutionTest, fq_convolution_only_manual) {
     // Besides weights and biases we need to store FQ blobs as well
-    size_t weightsBufferOffset = 48;
     auto input_dims = GetParam().input_dim;
     auto conv_params = GetParam().conv_params;
     SizeVector output_dims;
@@ -336,10 +412,14 @@ TEST_P(ConvolutionTest, DISABLED_convolution_only) {
     size_t biasByteSize = conv_params.out_c * sizeof(float);
     size_t biasSize = biasByteSize / sizeof(float);
 
-    auto weightsBuffer = make_shared_blob<uint8_t>({Precision::U8, {weightsByteSize + biasByteSize + weightsBufferOffset}, Layout::C});
+    // size_t quantizationParamsOffset = weightsByteSize + biasByteSize;
+    size_t quantizationParamsByteSize = 48;
+    size_t quantizationParamsSize = quantizationParamsByteSize / sizeof(float);
+
+    auto weightsBuffer = make_shared_blob<uint8_t>({Precision::U8, {weightsByteSize + biasByteSize + quantizationParamsByteSize}, Layout::C});
     weightsBuffer->allocate();
     auto weightsBufferData = weightsBuffer->buffer().as<float*>();
-    std::fill(weightsBufferData, weightsBufferData + (weightsSize + biasSize + weightsBufferOffset / sizeof(float)), 1.0f);
+    std::fill(weightsBufferData, weightsBufferData + (weightsSize + biasSize + quantizationParamsSize), 1.0f);
 
     Core ie;
 
@@ -347,28 +427,9 @@ TEST_P(ConvolutionTest, DISABLED_convolution_only) {
     blob_name += ".blob";
     std::replace(blob_name.begin(), blob_name.end(), '/', '_');
 
-#ifndef __arm__
-    std::string model = fq_convolution_only_slim;
-    REPLACE_WITH_NUM(model, "_INPUT_BATCH_", input_dims[0]);
-    REPLACE_WITH_NUM(model, "_INPUT_CHANNEL_", input_dims[1]);
-    REPLACE_WITH_NUM(model, "_INPUT_HEIGHT_", input_dims[2]);
-    REPLACE_WITH_NUM(model, "_INPUT_WIDTH_", input_dims[3]);
-
-    REPLACE_WITH_NUM(model, "_WEIGHTS_OFFSET_", weightsBufferOffset);
-    REPLACE_WITH_NUM(model, "_WEIGHTS_BYTE_SIZE_", weightsByteSize);
-
-    REPLACE_WITH_NUM(model, "_BIAS_OFFSET_", weightsBufferOffset + weightsByteSize);
-    REPLACE_WITH_NUM(model, "_BIAS_BYTE_SIZE_", biasByteSize);
-
-    // Assuming kernel is a square
-    REPLACE_WITH_NUM(model, "_KERNEL_SIZE_", conv_params.kernel[0]);
-    REPLACE_WITH_NUM_VECTOR(model, "_KERNEL_", conv_params.kernel);
-    REPLACE_WITH_NUM_VECTOR(model, "_STRIDE_", conv_params.stride);
-
-    REPLACE_WITH_NUM(model, "_OUTPUT_BATCH_", output_dims[0]);
-    REPLACE_WITH_NUM(model, "_OUTPUT_CHANNEL_", output_dims[1]);
-    REPLACE_WITH_NUM(model, "_OUTPUT_HEIGHT_", output_dims[2]);
-    REPLACE_WITH_NUM(model, "_OUTPUT_WIDTH_", output_dims[3]);
+    convolution_test_desc allTestParams = {input_dims, conv_params, "U8", "U8", "U8", 0, "I32", "", fq_convolution_only_slim};
+    std::string model = instantiateConvTestIR(allTestParams);
+    REPLACE_WITH_NUM(model, "_WEIGHTS_OFFSET_", 0);
 
     CNNNetReader reader;
     ASSERT_NO_THROW(reader.ReadNetwork(model.data(), model.length()));
@@ -376,23 +437,24 @@ TEST_P(ConvolutionTest, DISABLED_convolution_only) {
     ASSERT_TRUE(reader.isParseSuccess());
 
     CNNNetwork network = reader.getNetwork();
+    auto _inputsInfo = network.getInputsInfo();
+    _inputsInfo["input"]->setPrecision(Precision::U8);
+
+    auto _outputsInfo = network.getOutputsInfo();
+    _outputsInfo["583"]->setPrecision(Precision::U8);
 
     std::map<std::string, std::string> config;
     setCommonConfig(config);
     config[VPU_KMB_CONFIG_KEY(MCM_PARSING_ONLY)] = CONFIG_VALUE(NO);
 
-    ExecutableNetwork executableNetwork;
-    ASSERT_NO_THROW(executableNetwork = ie.LoadNetwork(network, "kmb", config));
-    ASSERT_NO_THROW( executableNetwork.Export(blob_name));
+    ExecutableNetwork exeNetwork;
+    ASSERT_NO_THROW(exeNetwork = ie.LoadNetwork(network, "KMB", config));
+    ASSERT_NO_THROW(exeNetwork.Export(blob_name));
 
-#else
 
-#endif
 }
 
 TEST_P(ConvolutionTest, u8_convolution_only_manual) {
-    std::string model = fq_convolution_only_u8_slim;
-
     auto input_dims = GetParam().input_dim;
     auto conv_params = GetParam().conv_params;
     SizeVector output_dims;
@@ -412,7 +474,8 @@ TEST_P(ConvolutionTest, u8_convolution_only_manual) {
     uint32_t* biasData = reinterpret_cast<uint32_t*>(weightsBuffer->buffer().as<uint8_t*>() + weightsSize);
     std::fill_n(biasData, biasSize, static_cast<uint32_t>(1));
 
-    fillConvolutionIR(model, GetParam());
+    convolution_test_desc allTestParams = {input_dims, conv_params, "U8", "U8", "U8", 0, "I32", "", convolution_only_with_bias_template};
+    std::string model = instantiateConvTestIR(allTestParams);
 
     CNNNetReader reader;
     ASSERT_NO_THROW(reader.ReadNetwork(model.data(), model.length()));
@@ -424,7 +487,7 @@ TEST_P(ConvolutionTest, u8_convolution_only_manual) {
     _inputsInfo["input"]->setPrecision(Precision::U8);
 
     auto _outputsInfo = network.getOutputsInfo();
-    _outputsInfo["conv"]->setPrecision(Precision::U8);
+    _outputsInfo["output"]->setPrecision(Precision::U8);
 
     std::map<std::string, std::string> config;
     setCommonConfig(config);
@@ -473,8 +536,6 @@ void ref_ReLU(Blob::Ptr inTensor) {
 }
 
 TEST_P(ConvolutionTest, convolution_and_relu_u8) {
-    std::string model = conv_relu_u8_test;
-
     auto input_dims = GetParam().input_dim;
     auto conv_params = GetParam().conv_params;
     SizeVector output_dims;
@@ -498,7 +559,9 @@ TEST_P(ConvolutionTest, convolution_and_relu_u8) {
         biasData[i] = 1lu;
     }
 
-    fillConvolutionIR(model, GetParam());
+    convolution_test_desc allTestParams = {input_dims, conv_params, "U8", "U8", "U8", 0, "I32", "", conv_relu_u8_test};
+
+    std::string model = instantiateConvTestIR(allTestParams);
 
     CNNNetReader reader;
     ASSERT_NO_THROW(reader.ReadNetwork(model.data(), model.length()));
@@ -556,8 +619,8 @@ TEST_P(ConvolutionTest, convolution_and_relu_u8) {
 // All parameters after kernel must be consistent with IR
 // {input_dim}, {stride}, {kernel}, {pads_begin}, {pads_end}, {dilation}, "", group, out_c, with_bias, with_weights, quantization_level};
 std::vector<convolution_test_params> test_params = {
-         {{1, 16, 16, 16}, {{1, 1}, {3, 3}, {0, 0}, {0, 0}, {1, 1}, "", 1, 128, false, true, ""}},
-         {{1, 8, 16, 16}, {{1, 1}, {3, 3}, {0, 0}, {0, 0}, {1, 1}, "", 1, 64,  false, true, ""}},
+         {{1, 16, 16, 16}, {{1, 1}, {3, 3}, {0, 0}, {0, 0}, {1, 1}, "", 1, 128, true, true, ""}},
+         {{1, 8, 16, 16}, {{1, 1}, {3, 3}, {0, 0}, {0, 0}, {1, 1}, "", 1, 64,  true, true, ""}},
         //{{1, 64, 16, 16}, {{1, 1}, {2, 2}, {0, 0}, {0, 0}, {1, 1}, "", 1, 256, false, true, ""}},
 };
 
