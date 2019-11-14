@@ -34,6 +34,9 @@ const int8_t FAIL_ERROR      = 9;  // Error occured during run, check log
 const std::string FILE_CONVERTED_IMAGE  = "converted_image.dat";
 const std::string FILE_CPU_OUTPUT       = "output_cpu.bin";
 const std::string FILE_CPU_INPUT        = "input_cpu.bin";
+const std::string FILE_CPU_INPUT_FP16   = "input_cpu_fp16.bin";
+const std::string FILE_CPU_INPUT_NCHW   = "input_cpu_nchw.bin";
+const std::string FILE_CPU_INPUT_NHWC   = "input_cpu_nhwc.bin";
 const std::string DLDT_BIN_FOLDER       = "/bin/intel64/Debug/";
 const std::string DLDT_BLOB_LOCATION    = "release_kmb/release_kmb/";
 
@@ -164,7 +167,7 @@ int runEmulator(std::string pathXML, std::string pathImage, std::string& blobPat
     // Clean any old files
     std::cout << "Deleting old emulator results files... " << std::endl;
     std::string binFolder = std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER;
-    std::vector<std::string> filesDelete = {FILE_CPU_OUTPUT, FILE_CPU_INPUT};
+    std::vector<std::string> filesDelete = {FILE_CPU_OUTPUT, FILE_CPU_INPUT_NCHW, FILE_CPU_INPUT_NHWC};
     for (std::string fDelete : filesDelete)
         remove((binFolder + fDelete).c_str());
     
@@ -193,7 +196,10 @@ int runEmulator(std::string pathXML, std::string pathImage, std::string& blobPat
     if (!checkFilesExist( {std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_CPU_OUTPUT} ))
         return FAIL_CPU_PLUGIN;
     
-    if (!checkFilesExist( {std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_CPU_INPUT} ))
+    if (!checkFilesExist( {std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_CPU_INPUT_NCHW} ))
+        return FAIL_CPU_PLUGIN;
+
+    if (!checkFilesExist( {std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_CPU_INPUT_NHWC} ))
         return FAIL_CPU_PLUGIN;
 
     //
@@ -387,11 +393,6 @@ int validate(std::string blobPath, std::string expectedPath, std::string actualP
 
 int convertImage(std::string imagePath, std::string blobPath)
 {
-    // Clean old file
-    std::cout << "Deleting old input... " << std::endl;
-    std::string outputFile = "./converted_image.dat";
-    remove(outputFile.c_str());
-
     // load json and read quantization values: scale and zeropoint
     std::string json_file = getFilename(blobPath) + std::string(".json");
     std::ifstream ifile(json_file);
@@ -413,6 +414,49 @@ int convertImage(std::string imagePath, std::string blobPath)
     if (! ((std::stoi(inputShape[1]) < 16) && (inputShape[2] == inputStrides[3]) ))
         sZMajor = " --zmajor";
 
+    if ((imagePath.find("bin") != std::string::npos))
+    {
+        std::string binFolder = std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER;
+        if(sZMajor == " --zmajor")
+        {
+            remove((binFolder + FILE_CPU_INPUT_NCHW ).c_str());
+            rename((binFolder + FILE_CPU_INPUT_NHWC).c_str(),(binFolder + FILE_CPU_INPUT).c_str() );
+        }
+        else
+        {
+            remove((binFolder + FILE_CPU_INPUT_NHWC ).c_str());
+            rename((binFolder + FILE_CPU_INPUT_NCHW).c_str(),(binFolder + FILE_CPU_INPUT).c_str() );
+        }
+        std::string dtype = j["header"]["net_output"][0]["data_dtype"].get<std::string>();
+        if (dtype == "FP16")
+        {
+        std::string inputDest = std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_CPU_INPUT_FP16;
+        std::string inputSource = std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_CPU_INPUT;
+
+        std::ofstream fileOut(inputDest, std::ios::out | std::ios::binary);
+        std::ifstream fileIn(inputSource, std::ios::in | std::ios::binary);
+
+        fileIn.seekg(0, std::ios::end);
+        auto totalActual = fileIn.tellg() / sizeof(float);
+        fileIn.seekg(0, std::ios::beg);
+        
+        std::vector<u_int16_t> inputVectorFP16;
+        std::vector<float> inputVectorFP32(totalActual);
+        fileIn.read(reinterpret_cast<char *>(&inputVectorFP32[0]), totalActual * sizeof(float));
+        for (size_t i = 0; i < inputVectorFP32.size(); ++i)
+            inputVectorFP16.push_back(mv::fp32_to_fp16(inputVectorFP32[i]));
+        fileOut.write(reinterpret_cast<char *>(&inputVectorFP16[0]), totalActual * sizeof(u_int16_t) );
+        fileOut.close();
+        fileIn.close();
+        rename(inputDest.c_str(), inputSource.c_str());
+        }
+    }
+    else
+    {
+    // Clean old file
+    std::cout << "Deleting old input... " << std::endl;
+    std::string outputFile = "./converted_image.dat";
+    remove(outputFile.c_str());
     //
     // convert image to correct shape and order
     std::cout << "Converting image ... " << std::endl;
@@ -429,6 +473,7 @@ int convertImage(std::string imagePath, std::string blobPath)
     }
     if (!checkFilesExist({outputFile}))
          return FAIL_ERROR;
+    }
 
     return RESULT_SUCCESS;    
 }
@@ -522,7 +567,12 @@ int main(int argc, char *argv[])
         result = convertImage(FLAGS_i, blobPath);
         if ( result > 0 ) return result;
     }
-
+    else
+    {
+        // both Zmajor and Cmajor inputs available. So passing any one is ok to check and delete the unwanted one
+        std::string binPath = std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_CPU_INPUT_NCHW;
+        result = convertImage(binPath, blobPath);
+    }
     result = runKmbInference(FLAGS_k, blobPath);
     if ( result > 0 ) return result;
 
