@@ -1,0 +1,29 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 076531cc..9a365360 100755
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -84,7 +84,6 @@ endif()
+ ### > cmake -DCODE_COVERAGE=ON -DCMAKE_BUILD_TYPE=Debug ..
+ #############################################################################################
+ include(cmake-modules/code-coverage.cmake)
+-add_code_coverage()
+ 
+ #############################################################################################
+ ### Find packages - uses Find*.cmake files in /cmake-modules dir
+diff --git a/config/compilation/release_kmb.json b/config/compilation/release_kmb.json
+index 80630e0a..315e1752 100644
+--- a/config/compilation/release_kmb.json
++++ b/config/compilation/release_kmb.json
+@@ -272,12 +272,7 @@
+             {
+                 "name": "GenerateBlobKmb",
+                 "output": "output/mcm.blob"
+-            },
+-            {
+-                "name": "ConvertFlatbuffer",
+-                "input": "output/mcm.blob"
+             }
+-
+         ]
+     },
+     "root": {

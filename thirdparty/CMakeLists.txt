@@ -57,15 +57,19 @@ if (ENABLE_MCM_COMPILER)
 
     set(MCM_BASE_DIR ${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/thirdparty/movidius/mcmCompiler)
 
+    set(MCM_COMPILER_CMAKE_ARGS "-DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}")
+
     if (NOT ENABLE_PLUGIN_RPATH)
-        set(MCM_COMPILER_CMAKE_ARGS -DCMAKE_SKIP_RPATH=ON)
+        set(MCM_COMPILER_CMAKE_ARGS "${MCM_COMPILER_CMAKE_ARGS}"
+            " -DCMAKE_SKIP_RPATH=ON")
     endif()
 
     if(DEFINED METIS_DIR)
-        set(METIS_INCLUDE_PATH "-DMETIS_INCLUDE_DIR=${METIS_DIR}/include"
-                               "-DMETIS_LIBRARY=${METIS_DIR}/lib")
+        set(MCM_COMPILER_CMAKE_ARGS "${MCM_COMPILER_CMAKE_ARGS}"
+            " -DMETIS_INCLUDE_DIR=${METIS_DIR}/include"
+            " -DMETIS_LIBRARY=${METIS_DIR}/lib")
         message(STATUS "METIS_DIR=${METIS_DIR}")
-    endif()
+    endif()    
     ExternalProject_Add(
             mcmCompiler
             PREFIX ${MCM_BASE_DIR}
@@ -73,7 +77,8 @@ if (ENABLE_MCM_COMPILER)
             BINARY_DIR ${MCM_BASE_DIR}/build
             STAMP_DIR ${MCM_BASE_DIR}/stamp
             INSTALL_COMMAND ""
-            CMAKE_ARGS ${MCM_COMPILER_CMAKE_ARGS} ${METIS_INCLUDE_PATH})
+            PATCH_COMMAND bash -c "cd ${MCM_BASE_DIR} && git diff-index --name-only HEAD | grep -q CMakeLists.txt && echo Skipping remove_code_coverage_flatbuffer_pass.patch || git apply --verbose ${CMAKE_CURRENT_SOURCE_DIR}/remove_code_coverage_flatbuffer_pass.patch"
+            CMAKE_ARGS ${MCM_COMPILER_CMAKE_ARGS})
 
     set(COMPILATION_CONFIG_OUT_DIR "$<TARGET_FILE_DIR:kmbPlugin>")
     add_custom_target(mcm_compiler_copy_configs ALL

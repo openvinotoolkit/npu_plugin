@@ -3,14 +3,14 @@
 #### Prerequisites
 Set up environment for OpenVINO package
 ```
-source ../bin/setupvars.sh
+source <openvino_install_dir>/bin/setupvars.sh
 ```
 
 #### Compilation
 
 You can use the following command to dump blob:
 ```
-../deployment_tools/inference_engine/lib/intel64/vpu2_compile -m ./uint8_sample_model.xml
+<openvino_install_dir>/deployment_tools/inference_engine/bin/vpu2_compile -m ./uint8_sample_model.xml
 ```
 
 This command will produce blob `uint8_sample_model.blob` which can be used for inference by KMB plugin.
