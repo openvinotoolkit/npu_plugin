@@ -60,5 +60,5 @@ static void kmbQuantizeConversionFcn(const mv::pass::PassEntry&, mv::Computation
     auto upaTasks = om.getOps("UPATask");
 
     addQuantizationLayers(om, upaTasks, mv::DType("Float16"));
-    addQuantizationLayers(om, dpuTasks, mv::DType("U8"));
+    addQuantizationLayers(om, dpuTasks, mv::DType("UInt8"));
 }
