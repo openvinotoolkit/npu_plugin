@@ -247,12 +247,9 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
         toBuild->locale_index = std::vector<unsigned int>(1);
         toBuild->locale_index[0] = graphfileIndex;
     }
-    else if(*tensorAllocatorName == "ProgrammableInput" || *tensorAllocatorName == "ProgrammableOutput"||
-            *tensorAllocatorName == "VPU_DDR_BSS" || *tensorAllocatorName == "VPU_DDR_Heap")
+    else if(*tensorAllocatorName == "ProgrammableInput" || *tensorAllocatorName == "ProgrammableOutput")
     {
         toBuild->data->data_index = 0;
-        if (t->hasAttr("address"))
-            toBuild->data->data_index = t->get<std::size_t>("address");
         auto strides = tensorBufferIt->getStrides();
         //NOTΕ: Leading offset Computation ???
 //        auto leading_offset = strides[0] / tensorBufferIt->getDataTypeSize();
