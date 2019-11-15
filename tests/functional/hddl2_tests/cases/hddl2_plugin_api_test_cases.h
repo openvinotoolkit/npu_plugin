@@ -28,7 +28,7 @@
 class HDDL2_Plugin_API : public ::testing::Test {
 public:
     std::string                     device_name = "HDDL2";
-    InferenceEngine::Core           core;
+    InferenceEngine::Core           ie;
     InferenceEngine::CNNNetwork     network;
     InferenceEngine::ExecutableNetwork  executableNetwork;
     InferenceEngine::InferRequest       inferRequest;
@@ -39,3 +39,20 @@ private:
     std::string                     _modelName = "googlenet/bvlc_googlenet_fp16";
     InferenceEngine::CNNNetReader   _netReader;
 };
+
+struct modelBlobsInfo {
+    std::string _graphPath, _inputPath, _outputPath;
+};
+
+const static std::vector<modelBlobsInfo> pathToPreCompiledGraph = {
+        {
+                ._graphPath = "/KMB_models/BLOBS/resnet/resnet.blob",
+                ._inputPath = "/KMB_models/BLOBS/resnet/input.dat",
+                ._outputPath = "/KMB_models/BLOBS/resnet/output.dat",
+        },
+};
+
+class InferWithPath: public HDDL2_Plugin_API,
+                     public testing::WithParamInterface<modelBlobsInfo> {
+};
+

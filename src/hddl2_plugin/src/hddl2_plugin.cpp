@@ -22,6 +22,7 @@
 // Inference Engine include
 #include <cpp_interfaces/base/ie_plugin_base.hpp>
 #include <details/ie_irelease.hpp>
+#include <fstream>
 #include <ie_icore.hpp>
 
 // Plugin include
@@ -29,16 +30,13 @@
 #include "hddl2_helpers.h"
 #include "hddl2_plugin.h"
 
-using namespace InferenceEngine;
 using namespace vpu::HDDL2Plugin;
 
 Engine::Engine() { _pluginName = "HDDL2"; }
 
 ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(
     const ICore* core, ICNNNetwork& network, const std::map<std::string, std::string>& config) {
-    std::cout << "LoadExeNetworkImpl call" << std::endl;
     UNUSED(core);
-    UNUSED(network);
     UNUSED(config);
 
     return std::make_shared<HDDL2Plugin::ExecutableNetwork>(network);
@@ -46,11 +44,13 @@ ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(
 
 IExecutableNetwork::Ptr Engine::ImportNetwork(
     const std::string& modelFileName, const std::map<std::string, std::string>& config) {
-    std::cout << "ImportNetwork call" << std::endl;
-    UNUSED(modelFileName);
     UNUSED(config);
+    std::ifstream blobFile(modelFileName, std::ios::binary);
+    if (!blobFile.is_open()) {
+        THROW_IE_EXCEPTION << InferenceEngine::details::as_status << NETWORK_NOT_READ;
+    }
 
-    const auto executableNetwork = std::make_shared<ExecutableNetwork>();
+    const auto executableNetwork = std::make_shared<ExecutableNetwork>(modelFileName);
 
     return IExecutableNetwork::Ptr(new ExecutableNetworkBase<ExecutableNetworkInternal>(executableNetwork),
         [](InferenceEngine::details::IRelease* p) {
@@ -72,13 +72,13 @@ void Engine::QueryNetwork(const InferenceEngine::ICNNNetwork& network, const std
 IE_SUPPRESS_DEPRECATED_START
 
 // TODO If it's a deprecated way, how we should create plugin correctly?
-INFERENCE_PLUGIN_API(StatusCode) CreatePluginEngine(IInferencePlugin*& plugin, ResponseDesc* resp) noexcept {
+INFERENCE_PLUGIN_API(InferenceEngine::StatusCode)
+CreatePluginEngine(IInferencePlugin*& plugin, ResponseDesc* resp) noexcept {
     try {
-        std::cout << "CreatePluginEngine call" << std::endl;
         plugin = make_ie_compatible_plugin({{2, 1}, CI_BUILD_NUMBER, "HDDL2Plugin"}, std::make_shared<Engine>());
-        return OK;
+        return InferenceEngine::StatusCode ::OK;
     } catch (std::exception& ex) {
-        return DescriptionBuffer(GENERAL_ERROR, resp) << ex.what();
+        return DescriptionBuffer(InferenceEngine::GENERAL_ERROR, resp) << ex.what();
     }
 }
 

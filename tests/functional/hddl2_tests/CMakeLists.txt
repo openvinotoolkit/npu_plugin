@@ -23,6 +23,7 @@ target_compile_options(${TARGET_NAME}
 target_link_libraries(${TARGET_NAME} PRIVATE
         IE::IESharedTests
         HDDL2Plugin
+        HddlUnite
         )
 
 if(ENABLE_KMB_CLANG_FORMAT)
