@@ -227,7 +227,20 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
 
     auto masterBuffer = tensorAllocator.getTopMasterBuffer(tensorBufferIt);
 
-    if (masterBuffer != dm.bufferEnd(*tensorAllocatorName, stg))
+    // If Slice resides in Input buffer, calculate strides from Input
+    if (*tensorAllocatorName == "ProgrammableInput")
+    {
+        mv::OpModel om(model);
+        auto opIt = om.getSourceOp(t);
+        if (opIt->getOpType() == "Slice")
+        {
+            auto inputTensor = opIt->getInputTensor(0);
+            auto inputTensor_opIt = om.getSourceOp(inputTensor);
+            auto inputTensor_strides = inputTensor->computeNumericStrides();
+            numericStrides = inputTensor_strides;
+        }
+    }
+    else if (masterBuffer != dm.bufferEnd(*tensorAllocatorName, stg))
         numericStrides = (*masterBuffer)->getData()->computeNumericStrides();
 
     numericStrides.push_back(underlyingTensor->getDType().getSizeInBits() / 8);
