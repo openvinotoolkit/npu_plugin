@@ -432,6 +432,7 @@ int convertImage(std::string imagePath, std::string blobPath)
         {
         std::string inputDest = std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_CPU_INPUT_FP16;
         std::string inputSource = std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_CPU_INPUT;
+        std::string cpubackup = std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + "input_cpu_fp32.bin";
 
         std::ofstream fileOut(inputDest, std::ios::out | std::ios::binary);
         std::ifstream fileIn(inputSource, std::ios::in | std::ios::binary);
@@ -439,7 +440,7 @@ int convertImage(std::string imagePath, std::string blobPath)
         fileIn.seekg(0, std::ios::end);
         auto totalActual = fileIn.tellg() / sizeof(float);
         fileIn.seekg(0, std::ios::beg);
-        
+
         std::vector<u_int16_t> inputVectorFP16;
         std::vector<float> inputVectorFP32(totalActual);
         fileIn.read(reinterpret_cast<char *>(&inputVectorFP32[0]), totalActual * sizeof(float));
@@ -448,6 +449,7 @@ int convertImage(std::string imagePath, std::string blobPath)
         fileOut.write(reinterpret_cast<char *>(&inputVectorFP16[0]), totalActual * sizeof(u_int16_t) );
         fileOut.close();
         fileIn.close();
+        rename(inputSource.c_str(), cpubackup.c_str());
         rename(inputDest.c_str(), inputSource.c_str());
         }
     }
@@ -580,10 +582,11 @@ int main(int argc, char *argv[])
     std::string actualPath = std::getenv("VPUIP_HOME") + std::string("/application/demo/InferenceManagerDemo/output-0.bin");
     std::string actualPathProcessed = "./output_transposed.dat";
 
-    result = postProcessActualResults(actualPath, blobPath);
-    if ( result > 0 ) return result;
+    //result = postProcessActualResults(actualPath, blobPath);
+    //if ( result > 0 ) return result;
 
-    result = validate(blobPath, expectedPath, actualPathProcessed);
+    //result = validate(blobPath, expectedPath, actualPathProcessed);
+    result = validate(blobPath, expectedPath, actualPath);
     if ( result > 0 )
         return result;
     
