@@ -41,7 +41,6 @@ const std::string DLDT_BIN_FOLDER       = "/bin/intel64/Debug/";
 const std::string DLDT_BLOB_LOCATION    = "release_kmb/release_kmb/";
 
 
-
 bool ParseAndCheckCommandLine(int argc, char *argv[]) 
 {
     gflags::ParseCommandLineNonHelpFlags(&argc, &argv, true);
@@ -252,7 +251,7 @@ int runKmbInference(std::string evmIP, std::string blobPath)
     std::string inputCPU = std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_CPU_INPUT;
     // std::string inputCPU = FILE_CONVERTED_IMAGE;
     std::string inputDest = std::getenv("VPUIP_HOME") + std::string("/application/demo/InferenceManagerDemo/input-0.bin");
-    //if (!copyFile(FILE_CONVERTED_IMAGE, inputDest)) return FAIL_GENERAL;
+    // if (!copyFile(FILE_CONVERTED_IMAGE, inputDest)) return FAIL_GENERAL;
     if (!copyFile(inputCPU, inputDest))
         return FAIL_GENERAL;
      
@@ -366,7 +365,8 @@ int validate(std::string blobPath, std::string expectedPath, std::string actualP
         std::cout << totalActual << " elements" << std::endl;
         for (size_t i = 0; i < outputVector.size(); ++i)
         {
-            float val = mv::fp16_to_fp32(outputVector[i]);
+            //float val = mv::fp16_to_fp32(outputVector[i]);
+            float val = static_cast<uint16_t>(outputVector[i]);
             outputFP32.push_back(val);
         }
     }
@@ -427,54 +427,59 @@ int convertImage(std::string imagePath, std::string blobPath)
             remove((binFolder + FILE_CPU_INPUT_NHWC ).c_str());
             rename((binFolder + FILE_CPU_INPUT_NCHW).c_str(),(binFolder + FILE_CPU_INPUT).c_str() );
         }
+        
         std::string dtype = j["header"]["net_output"][0]["data_dtype"].get<std::string>();
         if (dtype == "FP16")
         {
-        std::string inputDest = std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_CPU_INPUT_FP16;
-        std::string inputSource = std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_CPU_INPUT;
-        std::string cpubackup = std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + "input_cpu_fp32.bin";
+            std::string inputDest = std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_CPU_INPUT_FP16;
+            std::string inputSource = std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_CPU_INPUT;
+            std::string cpubackup = std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + "input_cpu_fp32.bin";
 
-        std::ofstream fileOut(inputDest, std::ios::out | std::ios::binary);
-        std::ifstream fileIn(inputSource, std::ios::in | std::ios::binary);
+            std::ofstream fileOut(inputDest, std::ios::out | std::ios::binary);
+            std::ifstream fileIn(inputSource, std::ios::in | std::ios::binary);
 
-        fileIn.seekg(0, std::ios::end);
-        auto totalActual = fileIn.tellg() / sizeof(float);
-        fileIn.seekg(0, std::ios::beg);
+            fileIn.seekg(0, std::ios::end);
+            auto totalActual = fileIn.tellg() / sizeof(float);
+            fileIn.seekg(0, std::ios::beg);
 
-        std::vector<u_int16_t> inputVectorFP16;
-        std::vector<float> inputVectorFP32(totalActual);
-        fileIn.read(reinterpret_cast<char *>(&inputVectorFP32[0]), totalActual * sizeof(float));
-        for (size_t i = 0; i < inputVectorFP32.size(); ++i)
-            inputVectorFP16.push_back(mv::fp32_to_fp16(inputVectorFP32[i]));
-        fileOut.write(reinterpret_cast<char *>(&inputVectorFP16[0]), totalActual * sizeof(u_int16_t) );
-        fileOut.close();
-        fileIn.close();
-        rename(inputSource.c_str(), cpubackup.c_str());
-        rename(inputDest.c_str(), inputSource.c_str());
+            std::vector<u_int16_t> inputVectorFP16;
+            std::vector<float> inputVectorFP32(totalActual);
+            fileIn.read(reinterpret_cast<char *>(&inputVectorFP32[0]), totalActual * sizeof(float));
+            for (size_t i = 0; i < inputVectorFP32.size(); ++i)
+                inputVectorFP16.push_back(mv::fp32_to_fp16(inputVectorFP32[i]));
+            fileOut.write(reinterpret_cast<char *>(&inputVectorFP16[0]), totalActual * sizeof(u_int16_t) );
+            fileOut.close();
+            fileIn.close();
+            rename(inputSource.c_str(), cpubackup.c_str());
+            rename(inputDest.c_str(), inputSource.c_str());
         }
     }
     else
     {
-    // Clean old file
-    std::cout << "Deleting old input... " << std::endl;
-    std::string outputFile = "./converted_image.dat";
-    remove(outputFile.c_str());
-    //
-    // convert image to correct shape and order
-    std::cout << "Converting image ... " << std::endl;
-    std::string commandline = std::string("python3 ") + mv::utils::projectRootPath() +
-        std::string("/python/tools/convert_image.py --image ") + imagePath + " --shape " + 
-        inputShape[0] + "," + inputShape[1] + "," + inputShape[2] + "," + inputShape[3] + sZMajor;
-    std::cout << commandline << std::endl;
-    int result = std::system(commandline.c_str());
-    
-    if (result > 0)
-    {
-        std::cout << "Error occured converting image using python script";
-        return FAIL_ERROR;
-    }
-    if (!checkFilesExist({outputFile}))
-         return FAIL_ERROR;
+        std::string inNCHW = std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_CPU_INPUT_NCHW;
+        std::string inNCHW_dest = std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_CPU_INPUT;
+        rename(inNCHW.c_str(), inNCHW_dest.c_str());
+
+        // Clean old file
+        std::cout << "Deleting old input... " << std::endl;
+        std::string outputFile = "./converted_image.dat";
+        remove(outputFile.c_str());
+        //
+        // convert image to correct shape and order
+        std::cout << "Converting image ... " << std::endl;
+        std::string commandline = std::string("python3 ") + mv::utils::projectRootPath() +
+            std::string("/python/tools/convert_image.py --image ") + imagePath + " --shape " + 
+            inputShape[0] + "," + inputShape[1] + "," + inputShape[2] + "," + inputShape[3] + sZMajor;
+        std::cout << commandline << std::endl;
+        int result = std::system(commandline.c_str());
+        
+        if (result > 0)
+        {
+            std::cout << "Error occured converting image using python script";
+            return FAIL_ERROR;
+        }
+        if (!checkFilesExist({outputFile}))
+            return FAIL_ERROR;
     }
 
     return RESULT_SUCCESS;    
@@ -575,6 +580,7 @@ int main(int argc, char *argv[])
         std::string binPath = std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_CPU_INPUT_NCHW;
         result = convertImage(binPath, blobPath);
     }
+
     result = runKmbInference(FLAGS_k, blobPath);
     if ( result > 0 ) return result;
 
@@ -582,11 +588,11 @@ int main(int argc, char *argv[])
     std::string actualPath = std::getenv("VPUIP_HOME") + std::string("/application/demo/InferenceManagerDemo/output-0.bin");
     std::string actualPathProcessed = "./output_transposed.dat";
 
-    //result = postProcessActualResults(actualPath, blobPath);
-    //if ( result > 0 ) return result;
+    result = postProcessActualResults(actualPath, blobPath);
+    if ( result > 0 ) return result;
 
-    //result = validate(blobPath, expectedPath, actualPathProcessed);
-    result = validate(blobPath, expectedPath, actualPath);
+    result = validate(blobPath, expectedPath, actualPathProcessed);
+    // result = validate(blobPath, expectedPath, actualPath);
     if ( result > 0 )
         return result;
     
