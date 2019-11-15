@@ -828,10 +828,10 @@ void FrontEndMcm::parseEltwise(
 
     switch (eltwiseLayer->_operation) {
         case ie::EltwiseLayer::eOperation::Sub:
-            mvEltwise = _modelMcm.subtract(mvInputs, mv::DType("Default"), outputQuantParams, eltwiseLayer->name);
+            mvEltwise = _modelMcm.eltwise(mvInputs, "Subtract", mv::DType("Default"), outputQuantParams, eltwiseLayer->name);
             break;
         case ie::EltwiseLayer::eOperation::Sum:
-            mvEltwise = _modelMcm.add(mvInputs, mv::DType("Default"), outputQuantParams, eltwiseLayer->name);
+            mvEltwise = _modelMcm.eltwise(mvInputs, "Add", mv::DType("Default"), outputQuantParams, eltwiseLayer->name);
             break;
         default:
             VPU_THROW_EXCEPTION << "Eltwise operation" << eltwiseLayer->_operation << " is not supported";
@@ -889,10 +889,20 @@ void FrontEndMcm::parseClamp(
 
     logParsingStartHelper(_logger, layer, inputs);
 
-    auto mvClamp = _modelMcm.clamp(inputs[0]->getMcmNode(), clampLayer->min_value, clampLayer->max_value, clampLayer->name);
-    bindOutput(mvClamp, layer->outData[0]);
+    mv::QuantizationParams clampQuantParams(initialQuantParams);
+    auto mvClampMax = _modelMcm.maximum(inputs[0]->getMcmNode(),
+        clampLayer->max_value,
+        mv::DType("Default"),
+        clampQuantParams,
+        clampLayer->name + "clamp-max");
+    auto mvClampMin = _modelMcm.minimum(mvClampMax,
+        clampLayer->min_value,
+        mv::DType("Default"),
+        clampQuantParams,
+        clampLayer->name + "clamp-min");
+    bindOutput(mvClampMin, layer->outData[0]);
 
-    _logger->debug(FINISH_PARSING_STR, mvClamp->getName());
+    _logger->debug(FINISH_PARSING_STR, mvClampMin->getName());
 }
 
 void FrontEndMcm::parseReshape(

@@ -20,11 +20,10 @@ file(GLOB HEADERS *.h)
 set(TARGET_NAME vpualModel)
 
 add_library(${TARGET_NAME} SHARED ${HEADERS} ${SOURCES})
+add_dependencies(${TARGET_NAME} generate-graphfile-headers)
 
-add_dependencies(${TARGET_NAME} mcmCompiler)
-
-target_include_directories(vpualModel PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${MCM_SCHEMA_INCLUDE_PATH} ${FLATBUFFERRS_INCLUDE_PATH})
-target_link_libraries(vpualModel PRIVATE XLink VpualDispatcher NN IE::vpu_common_lib IE::inference_engine)
+target_include_directories(vpualModel PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(vpualModel PRIVATE XLink VpualDispatcher NN IE::vpu_common_lib IE::inference_engine cm)
 
 set_target_properties(${TARGET_NAME} PROPERTIES
     C_VISIBILITY_PRESET       hidden

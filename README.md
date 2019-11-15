@@ -1,56 +1,51 @@
-# kmb-plugin
-
-KMBPlugin for Inference Engine
-
+# KMB plugin for Inference Engine
 
 ## How to build
-There are two variants to build KMBPlugin: build-script and manual.
+
+There are two variants to build kmb-plugin: build-script and manual.
+
 But for both variants you must first of all to build Inference Engine in dldt with
 script "dldt/inference-engine/build-after-clone.sh" or see instructions in "dldt/inference-engine/CONTRIBUTING.md".
 
-## Build with help of script:
+## Build with help of script
+
 1. Clone kmb-plugin from repository: `git clone git@gitlab-icv.inn.intel.com:inference-engine/kmb-plugin.git`
-2. Find bash-script "build_after_clone.sh" in the base directory of KMBPlugin and run it.
+2. Find bash-script `build_after_clone.sh` in the base directory of kmb-plugin and run it.
 3. When build finishes its work check output for possible errors.
-4. Then run script "run_tests_after_build.sh" to check that you have built KMBPlugin correctly.
+4. Then run script `run_tests_after_build.sh` to check that you have built kmb-plugin correctly.
 
-## Manual build:
-1. Create variables with path to base directories of kmb-plugin and dldt:
-You could use such commands:
-- Go to base dldt directory and make `DLDT_HOME` variable with command:
-  `export DLDT_HOME=$(pwd)`
+## Manual build
 
-- Go to base kmb-plugin directory and make `KMB_PLUGIN_HOME` variable with command:
-  `export KMB_PLUGIN_HOME=$(pwd)`
+1. Create variables with path to base directories of kmb-plugin and dldt. You could use such commands.
+    * Go to base dldt directory and make `DLDT_HOME` variable with command:
+      `export DLDT_HOME=$(pwd)`
+    * Go to base kmb-plugin directory and make `KMB_PLUGIN_HOME` variable with command:
+      `export KMB_PLUGIN_HOME=$(pwd)`
 
-
-2. Install additional packages for KMBPlugin:
-
-   * Swig
-   * python3-dev
-   * python-numpy
-   * metis
-     with command:
-
-     `sudo apt install swig python3-dev python-numpy libmetis-dev libmetis5 metis`
+2. Install additional packages for kmb-plugin:
+    * Swig
+    * python3-dev
+    * python-numpy
+    with command: `sudo apt install swig python3-dev python-numpy libmetis-dev libmetis5`
 
 3. Move to dldt base directory and make some building with commands.
-   **Note:**  if you miss `-DCMAKE_BUILD_TYPE=Debug` then you will not be able to debug your code in kmb-plugin:
 
    ```bash
    cd $DLDT_HOME
+   git submodule update --init --recursive
    mkdir -p $DLDT_HOME/build
    cd $DLDT_HOME/build
-   git submodule init
-   git submodule update --recursive
-   cmake -DENABLE_TESTS=ON -DENABLE_BEH_TESTS=ON -DENABLE_FUNCTIONAL_TESTS=ON -DENABLE_PLUGIN_RPATH=ON -DCMAKE_BUILD_TYPE=Debug ..
+   cmake -DENABLE_TESTS=ON -DENABLE_BEH_TESTS=ON -DENABLE_FUNCTIONAL_TESTS=ON -DCMAKE_BUILD_TYPE=Debug ..
    make -j8
    ```
-4. Move to base directory of KMBPlugin and build it with commands:
+
+   **Note:** if you miss `-DCMAKE_BUILD_TYPE=Debug` then you will not be able to debug your code in kmb-plugin.
+   **Note:** you might use another name for build sub-folder.
+
+4. Move to base directory of kmb-plugin and build it with commands:
 
    ```bash
    cd $KMB_PLUGIN_HOME
-   export MCM_HOME=$KMB_PLUGIN_HOME/thirdparty/movidius/mcmCompiler
    git submodule update --init --recursive
    mkdir -p $KMB_PLUGIN_HOME/build
    cd $KMB_PLUGIN_HOME/build
@@ -58,25 +53,19 @@ You could use such commands:
    make -j8
    ```
 
-5. To check results of previous steps it is recommended to execute tests with the following commands:
-   If you built Inference Engine with parameter "-DENABLE_PLUGIN_RPATH=ON" then go to command beginning with "export MCM_HOME..", otherwise enter these commands:
+   **Note:** you might use another name for build sub-folder.
+
+5. To check results of previous steps it is recommended to execute tests with the following commands.
 
    ```bash
-   export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$DLDT_HOME/bin/intel64/Debug/lib
-   export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$DLDT_HOME/inference-engine/temp/opencv_4.1.0_ubuntu18/lib
-   export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$DLDT_HOME/inference-engine/temp/tbb/lib
-   export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$KMB_PLUGIN_HOME/thirdparty/vsi_cmodel/vpusmm/x86_64
-   ```
-
-   ```bash
-   export MCM_HOME=$KMB_PLUGIN_HOME/thirdparty/movidius/mcmCompiler
    cd $DLDT_HOME/bin/intel64/Debug/
    ./KmbBehaviorTests --gtest_filter=*Behavior*orrectLib*kmb*
    ./KmbFunctionalTests
    ```
+
    **Note:** Make sure you are using `/intel64/Debug/` directory for Debug build and `/intel64/Release/` for Release in scripts of this section.
 
-   If you see that all enabled tests are passed then you may congratulate yourself with successful build of KMBPlugin.
+   If you see that all enabled tests are passed then you may congratulate yourself with successful build of kmb-plugin.
 
 ## Cross build for Yocto
 
@@ -88,65 +77,38 @@ wget -q http://nnt-srv01.inn.intel.com/dl_score_engine/thirdparty/linux/keembay/
         ./oecore-x86_64-aarch64-toolchain-1.0.sh -y -d /usr/local/oecore-x86_64 && \
         rm oecore-x86_64-aarch64-toolchain-1.0.sh
 ```
-1. Clone and build metis library:
 
-```sh
-(\
-  source /usr/local/oecore-x86_64/environment-setup-aarch64-ese-linux && \
-  mkdir /tmp/metis && wget -P ~/Downloads "http://glaros.dtc.umn.edu/gkhome/fetch/sw/metis/metis-5.1.0.tar.gz" && \
-  tar xvzf ~/Downloads/metis-5.1.0.tar.gz -C ~/Downloads/ && cd ~/Downloads/metis-5.1.0 && \
-  make config prefix=/tmp/metis/ && make install \
-)
-```
+**Note:** The following steps assumes that you have cloned the dldt and kmb-plugin repositories and setup environment variables as in previous section.
 
-2. Clone dldt:
+1. Configure and cross-compile inference-engine.
 
-```sh
-(cd .. && git clone git@gitlab-icv.inn.intel.com:inference-engine/dldt.git)
-```
+   ```bash
+   source /usr/local/oecore-x86_64/environment-setup-aarch64-ese-linux
+   cd $DLDT_HOME
+   git submodule update --init --recursive
+   mkdir -p $DLDT_HOME/build
+   cd $DLDT_HOME/build
+   cmake -DENABLE_TESTS=ON -DENABLE_BEH_TESTS=ON -DENABLE_FUNCTIONAL_TESTS=ON -DCMAKE_BUILD_TYPE=Debug ..
+   make -j8
+   ```
 
-3. Configure and build inference engine:
+2. Configure and cross-compile kmb-plugin.
 
-Run following command from current folder (build folder will be `dldt/build`):
+   ```bash
+   source /usr/local/oecore-x86_64/environment-setup-aarch64-ese-linux
+   cd $KMB_PLUGIN_HOME
+   git submodule update --init --recursive
+   mkdir -p $KMB_PLUGIN_HOME/build
+   cd $KMB_PLUGIN_HOME/build
+   cmake -DInferenceEngineDeveloperPackage_DIR=$DLDT_HOME/build ..
+   make -j8
+   ```
 
-```sh
-(\
-  mkdir -p ./dldt/build && \
-  cd ./dldt/build && \
-  source /usr/local/oecore-x86_64/environment-setup-aarch64-ese-linux && \
-  cmake -DENABLE_TESTS=ON .. && \
-  cmake --build . --parallel $(nproc) \
-)
-```
+3. To cross-compile mcmCompiler for ARM, perform the following steps:
 
-4. Clone kmb-plugin:
-
-```sh
-(cd .. && git@gitlab-icv.inn.intel.com:inference-engine/kmb-plugin.git)
-```
-5. (Optional) Build mcmCompiler to ARM. Need open new terminal (not using yoctoSDK)
-
-```sh
-(\
-    cd kmb-plugin/thirdparty/movidius/mcmCompiler/build && \
-    cmake .. && \
-    cmake --build . --parallel $(nproc) && \
-    rm -rf !(meta) && exit
-)
-```
-
-6. Build kmb-plugin.
-
-Run following command from temporary build folder (e.g. `kmb-plugin\build`):
-
-```sh
-(\
-  source /usr/local/oecore-x86_64/environment-setup-aarch64-ese-linux && \
-  cmake -DInferenceEngineDeveloperPackage_DIR=$(realpath ../../dldt/inference-engine/build) \
-  -DENABLE_MCM_COMPILER=ON -DMETIS_DIR=/tmp/metis/ .. && \
-  cmake --build . --parallel $(nproc) \
-)
-```
+    1. Build kmb-plugin natively on the host as described in previous section.
+    2. Add the following options to CMake command line for kmb-plugin build:
+        `-DENABLE_MCM_COMPILER=ON -DMCM_COMPILER_EXPORT_FILE=<path-to-kmb-plugin-native-build-dir>/mcmCompilerExecutables.cmake`
 
 ## Testing on x86
 
@@ -158,21 +120,26 @@ a real device.
 To be able to do it please follow the steps:
 
 1. Create a dummy file for the XLink device
-```sh
-sudo touch /dev/xlnk
-sudo chmod 666 /dev/xlnk
-```
-2. Enable corresponding environment to use the model
- ```sh
-export LD_PRELOAD=<path-to-lib-folder-with-ie-binaries>/libvpualModel.so
-export IE_VPU_KMB_MEMORY_ALLOCATOR_TYPE=NATIVE
- ```
-3. Run tests with inference. Example:
- ```sh
-./KmbFunctionalTests --gtest_filter=*compareInferenceOutputWithReference*/0*
- ```
 
-## Misc.
+   ```bash
+   sudo touch /dev/xlnk
+   sudo chmod 666 /dev/xlnk
+   ```
+
+2. Enable corresponding environment to use the model
+
+   ```bash
+   export LD_PRELOAD=<path-to-lib-folder-with-ie-binaries>/libvpualModel.so
+   export IE_VPU_KMB_MEMORY_ALLOCATOR_TYPE=NATIVE
+   ```
+
+3. Run tests with inference. Example:
+
+   ```bash
+   ./KmbFunctionalTests --gtest_filter=*compareInferenceOutputWithReference*/0*
+   ```
+
+## Misc
 
 `IE_VPU_KMB_DUMP_INPUT_PATH` environment variable can be used to dump input
 files for debugging purposes. This variable must contain path to any

@@ -14,28 +14,29 @@
 # stated in the License.
 #
 
+function(add_3rdparty_subdir SUBDIR_NAME)
+    if(NOT EXISTS "${CMAKE_CURRENT_LIST_DIR}/${SUBDIR_NAME}")
+        message(FATAL_ERROR "${SUBDIR_NAME} was not found. Please run `git submodule update --init --recursive`")
+    endif()
+
+    # Remove problematic compiler flags
+    foreach(flag "-Werror" "-fvisibility=hidden" "-fvisibility-inlines-hidden")
+        string(REPLACE ${flag} "" CMAKE_C_FLAGS ${CMAKE_C_FLAGS})
+        string(REPLACE ${flag} "" CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
+    endforeach()
+
+    set(CMAKE_C_VISIBILITY_PRESET default)
+    set(CMAKE_CXX_VISIBILITY_PRESET default)
+
+    add_subdirectory(${SUBDIR_NAME})
+endfunction()
+
 add_subdirectory(vsi_cmodel/vpusmm)
 
-if (ENABLE_VPUAL)
-    if (NOT vpualHost_FOUND)
-        if(NOT EXISTS "${CMAKE_CURRENT_LIST_DIR}/movidius/vpualHost")
-            message(FATAL_ERROR "vpualHost is not found. Please use: git submodule update --init --recursive to get it")
-        endif()
-
-        # including vpualHost/host directory directly not to add vpualHost's examples to the build
-        add_subdirectory(movidius/vpualHost/host)
-
-        set(VPUAL_LIBS XLink VpualDispatcher sipp_custom RemoteFlic NN)
-
-        # TODO: remove some day when all warnings are fixed
-        if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-            set_target_properties(${VPUAL_LIBS} PROPERTIES COMPILE_OPTIONS "-Wno-error"
-                 INTERFACE_COMPILE_OPTIONS "-Wno-error=non-virtual-dtor")
-        endif()
-
-        # TODO: remove some day when vpualHost will add exports
-        set_target_properties(${VPUAL_LIBS} PROPERTIES CXX_VISIBILITY_PRESET default
-                                                         C_VISIBILITY_PRESET default)
+if(ENABLE_VPUAL)
+    if(NOT vpualHost_FOUND)
+        # Including vpualHost/host directory directly not to add vpualHost's examples to the build
+        add_3rdparty_subdir(movidius/vpualHost/host)
     endif()
 
     # copy memory manager library to target directory when vpualHost is enabled
@@ -48,47 +49,24 @@ if (ENABLE_VPUAL)
 
     add_subdirectory(gapi_sipp/sipp)
 
-    if (ENABLE_TESTS)
+    if(ENABLE_TESTS)
         add_subdirectory(tests/integration)
     endif()
 endif()
 
-if (ENABLE_MCM_COMPILER)
-    message(STATUS "************ Enabling MCM compiler ************")
+if(ENABLE_MCM_COMPILER)
+    set(MCM_BASE_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/movidius/mcmCompiler")
+    set(MCM_BASE_BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/movidius/mcmCompiler")
 
-    set(MCM_BASE_DIR ${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/thirdparty/movidius/mcmCompiler)
-
-    if (NOT ENABLE_PLUGIN_RPATH)
-        set(MCM_COMPILER_CMAKE_ARGS -DCMAKE_SKIP_RPATH=ON)
-    endif()
-
-    if(DEFINED METIS_DIR)
-        set(METIS_INCLUDE_PATH "-DMETIS_INCLUDE_DIR=${METIS_DIR}/include"
-                               "-DMETIS_LIBRARY=${METIS_DIR}/lib")
-        message(STATUS "METIS_DIR=${METIS_DIR}")
-    endif()
-    ExternalProject_Add(
-            mcmCompiler
-            PREFIX ${MCM_BASE_DIR}
-            SOURCE_DIR ${MCM_BASE_DIR}
-            BINARY_DIR ${MCM_BASE_DIR}/build
-            STAMP_DIR ${MCM_BASE_DIR}/stamp
-            INSTALL_COMMAND ""
-            CMAKE_ARGS ${MCM_COMPILER_CMAKE_ARGS} ${METIS_INCLUDE_PATH})
+    set(MCM_COMPILER_IS_SUBPROJECT TRUE)
+    set(MCM_COMPILER_BUILD_PYTHON OFF CACHE BOOL "" FORCE)
+    set(MCM_COMPILER_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+    set(MCM_COMPILER_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+    add_3rdparty_subdir(movidius/mcmCompiler)
 
     set(COMPILATION_CONFIG_OUT_DIR "$<TARGET_FILE_DIR:kmbPlugin>")
     add_custom_target(mcm_compiler_copy_configs ALL
-            COMMAND "${CMAKE_COMMAND}" -E copy_directory "${MCM_BASE_DIR}/config" "${COMPILATION_CONFIG_OUT_DIR}/mcm_config"
-            COMMENT "[MCM Compiler] Copy config files for compilation")
+        COMMAND "${CMAKE_COMMAND}" -E copy_directory "${MCM_BASE_SOURCE_DIR}/config" "${COMPILATION_CONFIG_OUT_DIR}/mcm_config"
+        COMMENT "[MCM Compiler] Copy config files for compilation")
 
-    set(MCM_COMPILER_INCLUDE_PATH "${MCM_BASE_DIR}"
-                                  "${MCM_BASE_DIR}/include"
-                                  "${MCM_BASE_DIR}/build/meta" PARENT_SCOPE)
-    set(MCM_COMPILER_LIBRARY "${MCM_BASE_DIR}/build/lib/${CMAKE_SHARED_LIBRARY_PREFIX}cm${CMAKE_SHARED_LIBRARY_SUFFIX}" PARENT_SCOPE)
-    set(MCM_COMPILER_MODEL_LIBRARY "${MCM_BASE_DIR}/build/lib/${CMAKE_SHARED_LIBRARY_PREFIX}model${CMAKE_SHARED_LIBRARY_SUFFIX}" PARENT_SCOPE)
-    set(MCM_COMPILER_METAMODEL_LIBRARY "${MCM_BASE_DIR}/build/lib/${CMAKE_SHARED_LIBRARY_PREFIX}metamodel${CMAKE_SHARED_LIBRARY_SUFFIX}" PARENT_SCOPE)
-    set(FLATBUFFERRS_INCLUDE_PATH "${MCM_BASE_DIR}/schema/graphfile/flatbuffers/include/" PARENT_SCOPE)
-    set(MCM_SCHEMA_INCLUDE_PATH "${MCM_BASE_DIR}/build/meta/schema/graphfile" PARENT_SCOPE)
-else()
-    message(STATUS "************ Disabling MCM compiler ************")
 endif()

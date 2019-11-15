@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+add_subdirectory(unit)
 
 if (ENABLE_FUNCTIONAL_TESTS)
     add_subdirectory(functional)
@@ -10,8 +11,6 @@ endif()
 if (ENABLE_BEH_TESTS)
     add_subdirectory(behavior)
 endif()
-
-add_subdirectory(unit)
 
 if (ENABLE_VPUAL)
     add_subdirectory(gapi_preproc)

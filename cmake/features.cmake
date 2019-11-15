@@ -2,14 +2,14 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-include (options)
+include(options)
 
 # Enable MCM compiler by default
 if(ARM OR AARCH64)
-	ie_option(ENABLE_MCM_COMPILER "Enable mcm compiler" OFF)
+    ie_option(ENABLE_MCM_COMPILER "Enable MCM compiler build" OFF)
 	ie_option(ENABLE_HDDL2 "Enable HDDL2 Plugin" OFF)
 else()
-	ie_option(ENABLE_MCM_COMPILER "Enable mcm compiler" ON)
+    ie_option(ENABLE_MCM_COMPILER "Enable MCM compiler build" ON)
 	ie_option(ENABLE_HDDL2 "Enable HDDL2 Plugin" ON)
 endif()
 
