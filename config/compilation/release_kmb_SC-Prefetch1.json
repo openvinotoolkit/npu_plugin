@@ -192,13 +192,25 @@
             "PopulateWeightsTablesQuantization",
             "RemoveBiasTensors",
             "SplittingTensorsAcrossClusters",
-            "KMBQuantizeConversion"
+            "KMBQuantizeConversion",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/KMBQuantizeConversion.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/KMBQuantizeConversion.dot"
+            }
         ]
     },
     "dma": {
         "Singular" : [
             "SetDpuTasksMemoryLocation",
             "SetUPATasksMemoryLocation",
+            "UpdateImplicitLayersLocation",
             "ResolveImplicitOperations",
             "AddDPUTasksWeightsDMATasks",
             "AddUPATasksExtraInputsDMATasks",
