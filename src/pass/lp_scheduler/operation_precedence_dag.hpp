@@ -234,6 +234,15 @@ class Operation_Dag {
     }
 
 
+    static bool is_data_operation(const dag_t& dag, const operation_t& op) {
+      return dag.is_dma_op(op);
+    }
+    static bool is_compute_operation(const dag_t& dag, const operation_t& op) {
+      // an implicit op is a compute op which takes 0 resources //
+      return !(dag.is_dma_op(op));
+    }
+
+
 
 
 

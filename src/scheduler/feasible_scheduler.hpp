@@ -24,6 +24,11 @@ struct scheduler_traits {
   static const_operation_iterator_t operations_begin(const dag_t&);
   static const_operation_iterator_t operations_end(const dag_t&);
 
+  // Data operations and compute operations //
+  // data operations have no producers and just feed data to compute operations.
+  static bool is_data_operation(const dag_t&, const operation_t&);
+  static bool is_compute_operation(const dag_t&, const operation_t&);
+
   // Given v \in V , iterator over { u | (v, u) \in E } 
   static const_operation_iterator_t outgoing_operations_begin(const dag_t&,
         const operation_t&);
@@ -151,15 +156,34 @@ class Contiguous_Resource_State {
 
     // closed interval [begin_, end_] = { x | begin_ <= x <= end_ }
     struct interval_info_t {
-      unit_t begin_; 
-      unit_t end_;
       void invalidate() { 
         begin_ = std::numeric_limits<unit_t>::max();
         end_ = std::numeric_limits<unit_t>::min();
       }
+
+      size_t length() const {
+        assert(begin_ <= end_);
+        return (end_ - begin_ + 1);
+      }
+
       interval_info_t() : begin_(), end_() { invalidate(); }
       interval_info_t(unit_t ibeg, unit_t iend) : begin_(ibeg), end_(iend) {}
+
+
+      unit_t begin_; 
+      unit_t end_;
     }; // struct interval_info_t //
+
+
+    struct interval_length_ordering_t {
+      bool operator()(const interval_info_t& a,
+          const interval_info_t& b) const {
+        return a.length() > b.length();
+      }
+    }; // struct interval_length_ordering_t //
+    struct demand_ordering_t {
+      bool operator()(const unit_t& a, const unit_t& b) const { return a >b; }
+    }; // struct demand_ordering_t //
 
     typedef std::unordered_map<key_t, interval_info_t> lookup_t;
     ////////////////////////////////////////////////////////////////////////////
@@ -186,6 +210,83 @@ class Contiguous_Resource_State {
     bool is_resource_available(const unit_t& demand) const {
       unit_t ibeg, iend;
       return find_interval_satisfying_demand(demand, ibeg, iend);
+    }
+
+    // Given the current resource state checks if the demands can be
+    // simultaneously (all at once) satisfied.
+    template<typename DemandIterator>
+    bool are_resources_available_simultaneously(DemandIterator ditr_in,
+        DemandIterator ditr_in_end) {
+      typedef typename std::vector<interval_info_t> bins_t;
+      typedef typename std::vector<unit_t> demands_t;
+
+      //TODO(vkundeti): this currently uses a greedy algorithm to make
+      // a decision about the packing. The algorithm is greedy on the size
+      // of the free bins and packs as much demand as it can into the chosen
+      // free bin and moves to the next bin. However its possible that this
+      // can miss a valid packing. To solve it correctly we need to solve a 
+      // 1D bin-packing problem.
+
+      free_interval_iterator_t fitr = active_resources_.begin_free_intervals();
+      free_interval_iterator_t fitr_end =
+          active_resources_.end_free_intervals();
+      if (fitr == fitr_end) { return false; }
+
+      // sort the free bins based on their length //
+      bins_t free_bins;
+      for (; fitr != fitr_end; ++fitr) {
+        // NOTE: the disjoint interval set is on open interval:
+        // (-\infty, +\infty) and will return free intervals which
+        // may not be in the range [location_begin_, location_end_] 
+        unit_t a = std::max(location_begin_-1, fitr.interval_begin());
+        unit_t b = std::min(location_end_+1, fitr.interval_end());
+        if ((b-a) > 1) {
+          // bin has capacity of at least one //
+          free_bins.emplace_back( interval_info_t(a+1, b-1) );
+        }
+      }
+      std::sort(free_bins.begin(), free_bins.end(),
+            interval_length_ordering_t());
+
+      demands_t demands;
+      for (; ditr_in != ditr_in_end; ++ditr_in) {
+        unit_t demand = *ditr_in;
+        if (demand > 0) {
+          demands.emplace_back(*ditr_in);
+        }
+      }
+      std::sort(demands.begin(), demands.end(), demand_ordering_t());
+
+
+      // we should have atleast one bin at this time //
+      typename demands_t::const_iterator ditr = demands.begin();
+      typename demands_t::const_iterator ditr_end = demands.end();
+      typename bins_t::const_iterator bitr = free_bins.begin();
+      typename bins_t::const_iterator bitr_end = free_bins.end();
+      size_t remaining_space_in_curr_bin = (*bitr).length();
+      bool is_fresh_bin = true;
+
+      // In each iterator either we move to next demand or 
+      // we move to next bin or we exit. Hence this loop terminates //
+      while ( (ditr != ditr_end) && (bitr != bitr_end) ) {
+
+        unit_t curr_demand = *ditr;
+        if (curr_demand <=  remaining_space_in_curr_bin) {
+          remaining_space_in_curr_bin -= curr_demand;
+          ++ditr; // move to next demand //
+          if (is_fresh_bin) { is_fresh_bin = false; }
+        } else if (!is_fresh_bin) {
+          ++bitr; // move to next bin //
+          is_fresh_bin = true;
+          remaining_space_in_curr_bin =
+              (bitr == bitr_end) ? 0UL : (*bitr).length();
+        } else { // the demand does not fit in a fresh bin //
+          break;
+        }
+
+      }
+
+      return (ditr == ditr_end); // all bins packed //
     }
 
     bool assign_resources(const key_t& op, const unit_t& demand) {

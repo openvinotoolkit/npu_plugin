@@ -731,6 +731,111 @@ TEST(Contiguous_Resource_State, cumulative_available_but_not_contiguous) {
   EXPECT_FALSE(rstate.is_resource_available(5));
 }
 
+TEST(Contiguous_Resource_State, verify_interval_weak_ordering) {
+  contiguous_resource_state_t::interval_info_t a(0,9), b(1, 1), c(5,5);
+  contiguous_resource_state_t::interval_length_ordering_t weak_order;
+
+  EXPECT_FALSE(weak_order(a,a));
+  EXPECT_TRUE(weak_order(a,b)); EXPECT_FALSE(weak_order(b,a));
+  EXPECT_TRUE(weak_order(a,c)); EXPECT_FALSE(weak_order(c,a));
+  EXPECT_FALSE(weak_order(b,c)); EXPECT_FALSE(weak_order(c,b));
+}
+
+
+TEST(Contiguous_Resource_State, simultaneous_resource_availablity) {
+
+  std::vector<std::string> ops = {"#", "*", "%"};
+
+  contiguous_resource_state_t rstate(10);
+
+  ASSERT_TRUE(rstate.is_resource_available(9));
+  ASSERT_TRUE(rstate.is_resource_available(10));
+  ASSERT_FALSE(rstate.is_resource_available(11));
+
+  {
+    size_t demands[3] = {7,1,1};
+    EXPECT_TRUE(
+        rstate.are_resources_available_simultaneously(demands, demands+3));
+  }
+  {
+    size_t demands[3] = {7,1,3};
+    EXPECT_FALSE(
+        rstate.are_resources_available_simultaneously(demands, demands+3));
+  }
+}
+
+TEST(Contiguous_Resource_State, simultaneous_resource_availablity_typical) {
+
+  std::vector<std::string> ops = {"#", "*", "%"};
+
+  contiguous_resource_state_t rstate(10);
+
+
+  EXPECT_TRUE(rstate.assign_resources(ops[0], 1));
+  {
+    size_t demands[3] = {7,1,1};
+    EXPECT_TRUE(
+        rstate.are_resources_available_simultaneously(demands, demands+3));
+  }
+  {
+    size_t demands[3] = {7,1,2};
+    EXPECT_FALSE(
+        rstate.are_resources_available_simultaneously(demands, demands+3));
+  }
+
+  EXPECT_TRUE(rstate.assign_resources(ops[1], 2));
+  EXPECT_TRUE(rstate.unassign_resources(ops[0]));
+
+  {
+    // total of 8 units available {1 , 7} //
+
+    size_t demands[3] = {7,1,0};
+    EXPECT_TRUE(
+        rstate.are_resources_available_simultaneously(demands, demands+3));
+  }
+
+  {
+    // total of 8 units available {1 , 7} but you cannot pack {6,2} into 
+    // bins of sizes {1, 7} //
+
+    size_t demands[3] = {6,0,2};
+    EXPECT_FALSE(
+        rstate.are_resources_available_simultaneously(demands, demands+3));
+  }
+
+  {
+    // total of 8 units available {1 , 7} //
+
+    size_t demands[3] = {8,0,0};
+    EXPECT_FALSE(
+        rstate.are_resources_available_simultaneously(demands, demands+3));
+  }
+}
+
+TEST(Contiguous_Resource_State, unit_simultaneous_resource_availablity) {
+
+  std::vector<std::string> ops = {"#", "*", "%"};
+
+  contiguous_resource_state_t rstate(1);
+
+  {
+    size_t demands[3] = {0,1,0};
+    EXPECT_TRUE(
+        rstate.are_resources_available_simultaneously(demands, demands+3));
+  }
+  {
+    size_t demands[3] = {1,1,0};
+    EXPECT_FALSE(
+        rstate.are_resources_available_simultaneously(demands, demands+3));
+  }
+  {
+    size_t demands[5] = {0,0,0,0,0};
+    EXPECT_TRUE(
+        rstate.are_resources_available_simultaneously(demands, demands+5));
+  }
+}
+
+
 ////////////////////////////////////////////////////////////////////////////////
 // Test scheduler with contiguous resource model //
 namespace scheduler_unit_tests {
