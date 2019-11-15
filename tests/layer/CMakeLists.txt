@@ -70,6 +70,12 @@ else()
     add_executable(roi_pooling roi_pooling/roi_pooling.cpp)
     target_link_libraries(roi_pooling cm)
 
+    add_executable(slice slice/slice.cpp)
+    target_link_libraries(slice cm)
+
+    add_executable(slice_single slice/slice_single.cpp)
+    target_link_libraries(slice_single cm)
+
     add_executable(softmax softmax/softmax.cpp)
     target_link_libraries(softmax cm)
 
