@@ -174,11 +174,18 @@ class Contiguous_Resource_State {
       interval_info_t() : begin_(), end_() { invalidate(); }
       interval_info_t(unit_t ibeg, unit_t iend) : begin_(ibeg), end_(iend) {}
 
+      bool operator==(const interval_info_t& o) const {
+        return (begin_ == o.begin_) && (end_ == o.end_);
+      }
 
       unit_t begin_; 
       unit_t end_;
     }; // struct interval_info_t //
 
+    struct no_op_back_insert_iterator_t {
+      void operator++() {}
+      void operator=(const interval_info_t&) {} 
+    }; // struct no_op_back_insert_iterator_t //
 
     struct interval_length_ordering_t {
       bool operator()(const interval_info_t& a,
@@ -217,11 +224,14 @@ class Contiguous_Resource_State {
       return find_interval_satisfying_demand(demand, ibeg, iend);
     }
 
+
     // Given the current resource state checks if the demands can be
-    // simultaneously (all at once) satisfied.
-    template<typename DemandIterator>
-    bool are_resources_available_simultaneously(DemandIterator ditr_in,
-        DemandIterator ditr_in_end) {
+    // simultaneously (all at once) satisfied. It also returns the packing into
+    // back insert iterator (of type interval_info_t ) //
+    template<typename DemandIterator, typename OutputIterator>
+    bool pack_demands_into_free_bins(DemandIterator ditr_in,
+        DemandIterator ditr_in_end, OutputIterator output) const {
+
       typedef typename std::vector<interval_info_t> bins_t;
       typedef typename std::vector<unit_t> demands_t;
 
@@ -245,6 +255,7 @@ class Contiguous_Resource_State {
         // may not be in the range [location_begin_, location_end_] 
         unit_t a = std::max(location_begin_-1, fitr.interval_begin());
         unit_t b = std::min(location_end_+1, fitr.interval_end());
+
         if ((b-a) > 1) {
           // bin has capacity of at least one //
           free_bins.emplace_back( interval_info_t(a+1, b-1) );
@@ -278,6 +289,18 @@ class Contiguous_Resource_State {
         unit_t curr_demand = *ditr;
         if (curr_demand <=  remaining_space_in_curr_bin) {
           remaining_space_in_curr_bin -= curr_demand;
+
+          {
+            // compute the addresses of this demand //
+            const interval_info_t& bin_info = *bitr;
+            interval_info_t address_info;
+            address_info.end_ =
+                ((bin_info.end_) - remaining_space_in_curr_bin);
+            address_info.begin_ = (address_info.end_ - curr_demand) + 1;
+            output = address_info;
+            ++output;
+          }
+
           ++ditr; // move to next demand //
           if (is_fresh_bin) { is_fresh_bin = false; }
         } else if (!is_fresh_bin) {
@@ -288,11 +311,40 @@ class Contiguous_Resource_State {
         } else { // the demand does not fit in a fresh bin //
           break;
         }
-
       }
 
       return (ditr == ditr_end); // all bins packed //
     }
+
+    template<typename DemandIterator>
+    bool are_resources_available_simultaneously(
+          DemandIterator ditr, DemandIterator ditr_end) const {
+      return pack_demands_into_free_bins(ditr, ditr_end,
+            no_op_back_insert_iterator_t());
+    }
+
+    /*
+    // Precondition: are_resources_available_simultaneously //
+    template<typename DemandIterator>
+    bool assign_resources_simultaneously(
+        const key_t& op, DemandIterator ditr, DemandIterator ditr_end) {
+
+      typename lookup_t::iterator litr = lookup_.find(op);
+
+      if (litr != lookup_.end()) { return false; }
+
+      // no resources assigned for this operation //
+
+      unit_t ibeg, iend;
+      if (!find_smallest_interval_satisfying_demand(demand, ibeg, iend) ||
+          !active_resources_.insert(ibeg, ibeg+demand-1, op)) {
+        return false;
+      }
+      // found a feasible resource //
+      lookup_.insert(std::make_pair(op, interval_info_t(ibeg, ibeg+demand-1)));
+      return true;
+    }
+    */
 
     bool is_key_using_resources(const key_t& op) const {
       return lookup_.find(op) != lookup_.end();
@@ -900,38 +952,55 @@ class Feasible_Memory_Schedule_Generator {
       schedule_time_t time_;
     }; // struct heap_element_t //
 
-    // Info about the operation output which is getting spilled //
-    struct data_input_operation_t {
-      data_input_operation_t() : op_(), is_spilled_()  {}
+    // Life cycle of a compute operation:
+    // ORIGINAL_COMPUTE_RESULT -> scheduled (processed) 
+    // ORIGINAL_COMPUTE_RESULT -> SPILLED_COMPUTE_RESULT_WRITE (output) ->
+    //          SPILLED_COMPUTE_RESULT_READ (processed)
+    enum op_state_e {
+      ORIGINAL_COMPUTE_RESULT=0, SPILLED_COMPUTE_RESULT_WRITE=1,
+      SPILLED_COMPUTE_RESULT_READ=2, ORIGINAL_DATA_READ=3
+    }; // enum op_state_e //
 
-      data_input_operation_t(const operation_t& op, bool is_spilled)
-        : op_(op), is_spilled_(is_spilled) {}
-      bool is_spilled() const { return is_spilled_; }
+    struct augmented_operation_t {
+      augmented_operation_t(operation_t op, op_state_e state)
+        : op_(op), op_state_(state) {}
 
-      // original operation in the input: if this is a data_operation then
-      // its un-spilled if this is a compute then its a spilled data from
-      // the compute operation. //
-      operation_t op_;
-      bool is_spilled_;
-    }; // struct spilled_output_t //
+      bool operator==(const augmented_operation_t& o) const {
+        return (op_ == o.op_) && (op_state_ == o.op_state_);
+      }
+
+      operation_t op_; // original operation from input //
+      op_state_e op_state_;
+      size_t spilled_write_count_; // makes sense only for compute results //
+      size_t spilled_read_count_;  // makes sense only for compute results //
+    }; // struct augmented_operation_t //
+
+    struct augmented_operation_hash_t {
+      size_t operator()(const augmented_operation_t& op) const {
+        std::hash<operation_t> op_hash;
+        return op_hash(op.op_);
+      }
+    }; // struct augmented_operation_hash_t //
+
 
     typedef std::vector<heap_element_t> schedule_heap_t;
     typedef std::list<operation_t> op_list_t;
-    typedef std::list<data_input_operation_t> ready_data_list_t;
+    typedef std::list<augmented_operation_t> ready_data_list_t;
     typedef std::unordered_set<operation_t> ready_active_list_t; 
+    typedef std::unordered_set<
+        augmented_operation_t, augmented_operation_hash_t> processed_ops_t; 
     typedef std::unordered_map<operation_t, size_t> op_in_degree_t;
     ////////////////////////////////////////////////////////////////////////////
 
     Feasible_Memory_Schedule_Generator(const dag_t& in, const resource_t& bound)
       : scheduled_ops_at_this_time_(), ready_list_(), op_in_degree_(),
-      ready_active_list_(), ready_data_list_(), heap_(), current_time_(),
-      memory_state_(), input_ptr_(&in) {}
+      ready_active_list_(), ready_data_list_(), processed_ops_(), heap_(),
+      current_time_(), memory_state_(), input_ptr_(&in) {}
 
     Feasible_Memory_Schedule_Generator()
       : scheduled_ops_at_this_time_(), ready_list_(), op_in_degree_(),
-      ready_active_list_(), ready_data_list_(), heap_(), current_time_(),
-      memory_state_(), input_ptr_(NULL) {}
-
+      ready_active_list_(), ready_data_list_(), processed_ops_(), heap_(),
+      current_time_(), memory_state_(), input_ptr_(NULL) {}
 
     bool reached_end(void) const {
       return ready_list_.empty() && ready_active_list_.empty();
@@ -996,7 +1065,10 @@ class Feasible_Memory_Schedule_Generator {
 
 
     void move_to_next_schedule_op() {
+      //TODO(vkundeti): take the op from the scheduled ops list if empty
+      //try to refill //
     }
+    
 
     // Also maintains the invariant that the map in_degree_ has no ops
     // with zero in-degree //
@@ -1099,7 +1171,15 @@ class Feasible_Memory_Schedule_Generator {
       return true;
     }
 
+    bool is_operation_output_in_active_memory(operation_t op) const {
+      return memory_state_.is_key_using_resources(op);
+    }
 
+    //
+    // A compute operation is schedulable if there are resources available for
+    // all its inputs and output. Some of its inputs may be in active memory
+    // which has demand 0 //
+    //
     bool is_compute_operation_schedulable(operation_t op) const {
       // first check if output resources for this operation are available //
       resource_t demand = traits::resource_utility(*input_ptr_, op);
@@ -1113,18 +1193,31 @@ class Feasible_Memory_Schedule_Generator {
       const_operation_iterator_t itr = traits::incoming_operations_begin(op);
       const_operation_iterator_t itr_end = traits::incoming_operations_end(op);
 
-      for (; itr != itr_end; ++itr) {
+      std::list<resource_t> demand_list;
+      demand_list.push_back(demand);
 
+      for (; itr != itr_end; ++itr) {
+        const operation_t& pop = *itr;
+        if (is_operation_output_in_active_memory(pop) ||
+            (demand = traits::resource_utility(*input_ptr_, pop) ==
+                resource_t(0)) ) { continue; }
+        demand_list.push_back(demand);
       }
 
+      return memory_state_.are_resources_available(demand_list.begin(),
+            demand_list.end());
     }
  
     bool find_all_schedulable_ops_from_ready_active_list(
         op_list_t& output) const {
-
       for (typename ready_active_list_t::const_iterator
             itr = ready_active_list_.begin(); itr != ready_active_list_.end();
             ++itr) {
+        const operation_t& op = *itr;
+        assert(traits::is_compute_operatin(*input_ptr_, op));
+        if (is_compute_operation_schedulable(op)) {
+          output.push_back(op);
+        }
       }
     }
 
@@ -1153,6 +1246,7 @@ class Feasible_Memory_Schedule_Generator {
     op_in_degree_t op_in_degree_; 
     ready_active_list_t ready_active_list_;
     ready_data_list_t ready_data_list_;
+    processed_ops_t processed_ops_;
     schedule_heap_t heap_;
     schedule_time_t current_time_;
     resource_state_t memory_state_; // state of the memory //

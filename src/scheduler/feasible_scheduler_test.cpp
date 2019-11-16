@@ -1,7 +1,11 @@
-#include "gtest/gtest.h"
-#include "scheduler/feasible_scheduler.hpp"
+#include <iterator>
 #include <limits>
 #include <unordered_map>
+#include <vector>
+
+#include "gtest/gtest.h"
+
+#include "scheduler/feasible_scheduler.hpp"
 
 namespace scheduler_unit_tests {
 
@@ -770,6 +774,36 @@ TEST(Contiguous_Resource_State, simultaneous_resource_availablity) {
   }
 }
 
+TEST(Contiguous_Resource_State, simultaneous_resource_availablity_pack_info) {
+  typedef typename contiguous_resource_state_t::interval_info_t interval_info_t;
+
+  std::vector<std::string> ops = {"#", "*", "%"};
+
+  contiguous_resource_state_t rstate(10);
+
+  ASSERT_TRUE(rstate.is_resource_available(9));
+  ASSERT_TRUE(rstate.is_resource_available(10));
+  ASSERT_FALSE(rstate.is_resource_available(11));
+
+  {
+    std::vector<interval_info_t> found_packing;
+    size_t demands[4] = {7,1,1};
+
+    EXPECT_TRUE(rstate.pack_demands_into_free_bins(demands, demands+4,
+            std::back_inserter(found_packing) ));
+
+    std::vector<interval_info_t> expected_packing = { {1, 7}, {8,8}, {9,9} };
+    EXPECT_EQ(expected_packing, found_packing);
+  }
+
+  {
+    size_t demands[3] = {7,1,3};
+    EXPECT_FALSE(
+        rstate.are_resources_available_simultaneously(demands, demands+3));
+  }
+
+}
+
 TEST(Contiguous_Resource_State, simultaneous_resource_availablity_typical) {
 
   std::vector<std::string> ops = {"#", "*", "%"};
@@ -818,6 +852,7 @@ TEST(Contiguous_Resource_State, simultaneous_resource_availablity_typical) {
   }
 
 }
+
 
 TEST(Contiguous_Resource_State, unit_simultaneous_resource_availablity) {
 
