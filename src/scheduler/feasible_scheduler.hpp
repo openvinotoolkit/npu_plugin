@@ -70,6 +70,11 @@ struct scheduler_traits {
 
   static bool is_resource_available(const resource_t& demand,
         const resource_state_t&);
+
+  template<typename DemandIterator> 
+  static bool are_resources_available(
+      DemandIterator ditr, DemandIterator ditr_end, const resource_state_t&);
+
   // Precondition: is_resource_available(demand) = true. 
   // Invariant: makes an update in the resource usage of using the operations//
   static bool schedule_operation(const operation_t&, resource_t demand,
@@ -289,6 +294,10 @@ class Contiguous_Resource_State {
       return (ditr == ditr_end); // all bins packed //
     }
 
+    bool is_key_using_resources(const key_t& op) const {
+      return lookup_.find(op) != lookup_.end();
+    }
+
     bool assign_resources(const key_t& op, const unit_t& demand) {
       if (!demand) { return true;}
 
@@ -330,6 +339,7 @@ class Contiguous_Resource_State {
       }
       return result;
     }
+
   protected:
 
     // TODO(vamsikku): the cost of this O(k) where k is the number of active
@@ -593,7 +603,7 @@ class Feasible_Schedule_Generator {
 
 
 
-  private:
+  protected:
 
   bool reached_end() const {
     return candidates_.empty()  && heap_.empty();
@@ -820,10 +830,6 @@ class Feasible_Schedule_Generator {
     return !(itr == candidates_.end());
   }
 
-  const heap_element_t* top_element() const {
-    return heap_.empty() ? NULL : heap_.back();
-  }
-
   // Heap operations //
   void push_to_heap(const heap_element_t& elem) {
     heap_.push_back(elem);
@@ -859,6 +865,301 @@ class Feasible_Schedule_Generator {
   //////////////////////////////////////////////////////////////////////////////
 
 }; // class Feasible_Schedule_Generator //
+
+
+// Feasible_Memory_Schedule_Generator: generates a feasible schedule for an 
+// operation DAG on a memory (contiguous resource) model. Also memory model
+// falls into a producer-consumer resource model.
+template<typename T, typename SchedulerTraits=scheduler_traits<T>,
+         typename Allocator=std::allocator<T>>
+class Feasible_Memory_Schedule_Generator {
+  public:
+
+    ////////////////////////////////////////////////////////////////////////////
+    typedef SchedulerTraits traits;
+    typedef typename traits::dag_t dag_t;
+    typedef typename traits::operation_t operation_t;
+    typedef typename traits::resource_t resource_t;
+    typedef typename traits::delay_t delay_t;
+    typedef typename traits::const_operation_iterator_t
+        const_operation_iterator_t;
+    typedef Producer_Consumer_Contiguous_Resource<resource_t, operation_t>
+        resource_state_t;
+    typedef size_t schedule_time_t;
+
+    struct heap_element_t {
+      heap_element_t(operation_t op, schedule_time_t t=0UL)
+        : op_(op), time_(t) {}
+
+      bool operator<(const heap_element_t& o) const { return time_ > o.time_; }
+      bool operator==(const heap_element_t& o) const {
+        return (op_ == o.op_) && (time_ == o.time_);
+      }
+
+      operation_t op_;
+      schedule_time_t time_;
+    }; // struct heap_element_t //
+
+    // Info about the operation output which is getting spilled //
+    struct data_input_operation_t {
+      data_input_operation_t() : op_(), is_spilled_()  {}
+
+      data_input_operation_t(const operation_t& op, bool is_spilled)
+        : op_(op), is_spilled_(is_spilled) {}
+      bool is_spilled() const { return is_spilled_; }
+
+      // original operation in the input: if this is a data_operation then
+      // its un-spilled if this is a compute then its a spilled data from
+      // the compute operation. //
+      operation_t op_;
+      bool is_spilled_;
+    }; // struct spilled_output_t //
+
+    typedef std::vector<heap_element_t> schedule_heap_t;
+    typedef std::list<operation_t> op_list_t;
+    typedef std::list<data_input_operation_t> ready_data_list_t;
+    typedef std::unordered_set<operation_t> ready_active_list_t; 
+    typedef std::unordered_map<operation_t, size_t> op_in_degree_t;
+    ////////////////////////////////////////////////////////////////////////////
+
+    Feasible_Memory_Schedule_Generator(const dag_t& in, const resource_t& bound)
+      : scheduled_ops_at_this_time_(), ready_list_(), op_in_degree_(),
+      ready_active_list_(), ready_data_list_(), heap_(), current_time_(),
+      memory_state_(), input_ptr_(&in) {}
+
+    Feasible_Memory_Schedule_Generator()
+      : scheduled_ops_at_this_time_(), ready_list_(), op_in_degree_(),
+      ready_active_list_(), ready_data_list_(), heap_(), current_time_(),
+      memory_state_(), input_ptr_(NULL) {}
+
+
+    bool reached_end(void) const {
+      return ready_list_.empty() && ready_active_list_.empty();
+    }
+
+    // Only terminated schedulers are equivalent //
+    bool operator==(const Feasible_Memory_Schedule_Generator& o) const {
+      return reached_end() && o.reached_end();
+    }
+
+    Feasible_Memory_Schedule_Generator& operator++() {
+      move_to_next_schedule_op();
+      return *this;
+    }
+
+  protected:
+
+    //////////////////////// schedule heap /////////////////////////////////////
+    heap_element_t const * top_element() const {
+      return heap_.empty() ? NULL : &(heap_.front());
+    }
+
+    void push_to_heap(const heap_element_t& elem) {
+      heap_.push_back(elem);
+      std::push_heap(heap_.begin(), heap_.end());
+    }
+
+    // Precondition: !heap_.empty() //
+    heap_element_t pop_from_heap() {
+      std::pop_heap(heap_.begin(), heap_.end());
+      heap_element_t elem = heap_.back();
+      heap_.pop_back();
+      return elem;
+    }
+
+    template<typename BackInsertIterator>
+    void pop_all_elements_at_this_time(schedule_time_t time_step,
+        BackInsertIterator output) {
+      heap_element_t const *top_ptr = NULL;
+      while ( (top_ptr = top_element()) && (top_ptr->time_ == time_step) ) {
+        output = pop_from_heap();
+        ++output;
+      }
+    }
+    ////////////////////////////////////////////////////////////////////////////
+
+
+    //Precondition: !heap_.empty() //
+    //Note: this also updates the ready_list's //
+    void unschedule_all_ops_ending_at_this_time_step(schedule_time_t time_step){
+      std::vector<heap_element_t> unsched_ops;
+
+      pop_all_elements_at_this_time(time_step, std::back_inserter(unsched_ops));
+
+      for (auto itr = unsched_ops.begin(); itr != unsched_ops.end(); ++itr) {
+        operation_t op = (*itr).op_;
+        traits::unschedule_operation(op, memory_state_);
+        add_outgoing_operations_to_ready_list(op);
+      }
+
+    }
+
+
+    void move_to_next_schedule_op() {
+    }
+
+    // Also maintains the invariant that the map in_degree_ has no ops
+    // with zero in-degree //
+    void reduce_in_degree_of_adjacent_operations(const operation_t& op) {
+      // reduce the in-degree of the adjacent operations //
+      const_operation_iterator_t citr =
+          traits::outgoing_operations_begin(*input_ptr_, op);
+      const_operation_iterator_t citr_end =
+          traits::outgoing_operations_end(*input_ptr_, op);
+      typename op_in_degree_t::iterator deg_itr;
+
+      for (; citr != citr_end; ++citr) {
+        operation_t pop = *citr;
+        deg_itr = op_in_degree_.find(pop);
+
+        assert((deg_itr != op_in_degree_.end()) && (deg_itr->second > 0) );
+
+        if (deg_itr->second == 1) {
+          op_in_degree_.erase(deg_itr);
+        } else {
+          --(deg_itr->second);
+        }
+
+      }
+    }
+
+    void compute_op_in_degree() {
+      op_in_degree_.clear();
+
+      const dag_t& in = *input_ptr_;
+      const_operation_iterator_t op_begin = traits::operations_begin(in);
+      const_operation_iterator_t op_end = traits::operations_end(in);
+
+      for (; op_begin != op_end; ++op_begin) {
+        operation_t op = *op_begin;
+
+        const_operation_iterator_t cop_begin = traits::operations_begin(in, op);
+        const_operation_iterator_t cop_end = traits::operations_end(in, op);
+
+        for (; cop_begin != cop_end; ++cop_begin) {
+          operation_t cop = *cop_begin; // child op //
+          typename op_in_degree_t::iterator ditr = op_in_degree_.find(cop);
+
+          if (ditr == op_in_degree_.end()) {
+            ditr = (op_in_degree_.insert(std::make_pair(cop, 0UL))).first;
+          }
+          ditr->second++;
+
+        }
+      }
+    }
+
+    bool is_zero_in_degree_op(const operation_t& op) const {
+      return (op_in_degree_.find(op) == op_in_degree_.end());
+    }
+
+    void compute_ready_data_list() {
+      const_operation_iterator_t itr, itr_end;
+        
+      itr = traits_operations_begin(*input_ptr_);
+      itr_end = traits::operations_end(*input_ptr_);
+
+      for (itr=traits_operations_begin(*input_ptr_);itr != itr_end; ++itr) {
+        const operation_t & op = *itr;
+        if ( traits::is_data_operation(op) && is_zero_in_degree_op(op) ) {
+          ready_data_list_.push_back(data_input_operation_t(op, false));
+          // this may create new ready compute-ops //
+          reduce_in_degree_of_adjacent_operations(op); 
+        }
+      } // foreach op //
+    }
+
+    void compute_ready_compute_list() {
+      const_operation_iterator_t itr, itr_end;
+        
+      itr = traits_operations_begin(*input_ptr_);
+      itr_end = traits::operations_end(*input_ptr_);
+
+      for (itr=traits_operations_begin(*input_ptr_);itr != itr_end; ++itr) {
+        operation_t op = *itr;
+        if (is_compute_operation(op) && is_zero_in_degree_op(op)) {
+          ready_list_.push_back(op);
+        }
+      } // foreach op //
+    }
+
+    bool init(const resource_t& upper_bound) {
+      traits::initialize_resource_upper_bound(upper_bound, memory_state_);
+
+      current_time_ = schedule_time_t(0);
+      scheduled_ops_at_this_time_.clear();
+      ready_list_.clear();
+      ready_data_list_.clear();
+      ready_active_list_.clear();
+
+      compute_op_in_degree();
+      compute_ready_data_list();
+      compute_ready_compute_list();
+
+      return true;
+    }
+
+
+    bool is_compute_operation_schedulable(operation_t op) const {
+      // first check if output resources for this operation are available //
+      resource_t demand = traits::resource_utility(*input_ptr_, op);
+
+      if (!traits::is_resource_available(demand, memory_state_)) {
+        return false;
+      }
+
+      // All its inputs should be active producers and there should be
+      // resources available for this operation. //
+      const_operation_iterator_t itr = traits::incoming_operations_begin(op);
+      const_operation_iterator_t itr_end = traits::incoming_operations_end(op);
+
+      for (; itr != itr_end; ++itr) {
+
+      }
+
+    }
+ 
+    bool find_all_schedulable_ops_from_ready_active_list(
+        op_list_t& output) const {
+
+      for (typename ready_active_list_t::const_iterator
+            itr = ready_active_list_.begin(); itr != ready_active_list_.end();
+            ++itr) {
+      }
+    }
+
+    // Precondition: scheduled_ops_at_this_time_.empty() //
+    void find_all_schedulable_ops_at_next_time_step() {
+      assert(scheduled_ops_at_this_time_.empty());
+
+      // STEP-0: first establish the schedule time //
+      if (!heap_.empty()) {
+        heap_element_t const *top_ptr = top_element();
+        assert(top_ptr);
+        unschedule_all_ops_ending_at_this_time_step(top_ptr->time_);
+      }
+
+      // STEP-1: find all schedulable ops from active ready list. //
+
+      // STEP-2: find all schedulable ops from. //
+    }
+
+
+    ////////////////////////////////////////////////////////////////////////////
+    op_list_t scheduled_ops_at_this_time_;
+    op_list_t ready_list_;
+    // Invariant: op_in_degree_[op] > 0. If op is not in this map then its
+    // in-degree is zero.//
+    op_in_degree_t op_in_degree_; 
+    ready_active_list_t ready_active_list_;
+    ready_data_list_t ready_data_list_;
+    schedule_heap_t heap_;
+    schedule_time_t current_time_;
+    resource_state_t memory_state_; // state of the memory //
+    const dag_t * const input_ptr_;
+    ////////////////////////////////////////////////////////////////////////////
+
+}; // class Feasible_Memory_Schedule_Generator //
 
 
 } // namespace lp_scheduler //

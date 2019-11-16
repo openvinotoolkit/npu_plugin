@@ -19,6 +19,7 @@ class Operation_Dag {
     // resource cost model //
     typedef size_t resource_t;
     typedef std::unordered_map<operation_t, resource_t> resource_cost_model_t;
+    typedef std::unordered_set<operation_t> data_op_set_t;
     // delay cost model //
     typedef size_t delay_t;
     typedef std::unordered_map<operation_t, delay_t> delay_cost_model_t;
@@ -206,6 +207,10 @@ class Operation_Dag {
 
     size_t size() const { return adj_map_.size(); }
 
+    bool is_data_op(const operation_t& op) const {
+      return !(data_op_set_.find(op) == data_op_set_.end());
+    }
+
     ////////////////////////////////////////////////////////////////////////////
     // scheduler_traits //
     static const_operation_iterator_t operations_begin(const dag_t& g) {
@@ -286,6 +291,7 @@ class Operation_Dag {
     adjacency_map_t inv_adj_map_; // all incoming edges of a node //
     delay_cost_model_t delay_cost_model_;
     resource_cost_model_t resource_cost_model_;
+    data_op_set_t data_op_set_;
 }; // class Operation_Dag //
 
 // Using the Cumulative_Resource_State //
@@ -810,6 +816,7 @@ TEST(Contiguous_Resource_State, simultaneous_resource_availablity_typical) {
     EXPECT_FALSE(
         rstate.are_resources_available_simultaneously(demands, demands+3));
   }
+
 }
 
 TEST(Contiguous_Resource_State, unit_simultaneous_resource_availablity) {
@@ -833,6 +840,21 @@ TEST(Contiguous_Resource_State, unit_simultaneous_resource_availablity) {
     EXPECT_TRUE(
         rstate.are_resources_available_simultaneously(demands, demands+5));
   }
+}
+
+TEST(Contiguous_Resource_State, active_resources_lookup) {
+
+  std::vector<std::string> ops = {"#", "*", "%"};
+
+  contiguous_resource_state_t rstate(10);
+
+  ASSERT_TRUE(rstate.is_resource_available(3));
+  ASSERT_TRUE(rstate.assign_resources(ops[1], 3));
+  ASSERT_FALSE(rstate.is_key_using_resources(ops[0]));
+  ASSERT_FALSE(rstate.is_key_using_resources(ops[2]));
+
+  ASSERT_TRUE(rstate.unassign_resources(ops[1]));
+  ASSERT_FALSE(rstate.is_key_using_resources(ops[1]));
 }
 
 
@@ -1209,3 +1231,107 @@ TEST(lp_scheduler_producer_consumer, dependency_test) {
 
                 (start_times["d"] >= 14UL) );
 }
+
+////////////////////////////////////////////////////////////////////////////////
+typedef mv::lp_scheduler::Feasible_Memory_Schedule_Generator<Operation_Dag>
+  feasible_memory_scheduler_t;
+
+class Test_Fixture_Feasible_Memory_Scheduler
+  : public feasible_memory_scheduler_t, public testing::Test {
+  protected:
+    typedef feasible_memory_scheduler_t::schedule_heap_t heap_t;
+    typedef feasible_memory_scheduler_t::heap_element_t heap_element_t;
+    typedef feasible_memory_scheduler_t::operation_t operation_t;
+
+    void SetUp() override {}
+    void TearDown() override {}
+
+}; // class Test_Fixture_Feasible_Memory_Scheduler //
+
+TEST_F(Test_Fixture_Feasible_Memory_Scheduler, test_heap_ordering) {
+  operation_t o1("a"), o2("b"), o3("c");
+  heap_element_t e1(o1, 4), e2(o2, 1 ), e3(o3, 7);
+
+  EXPECT_TRUE(e1 < e2); // use the time //
+
+  EXPECT_FALSE(e2 < e1); 
+  EXPECT_FALSE(e1 < e1);
+}
+
+TEST_F(Test_Fixture_Feasible_Memory_Scheduler, heap_push_and_pop) {
+  operation_t o1("a"), o2("b"), o3("c");
+  heap_element_t e1(o1, 4), e2(o2, 1 ), e3(o3, 7);
+  const heap_element_t *top_elem = NULL;
+
+
+  {
+    EXPECT_TRUE(top_element() == NULL);
+
+    push_to_heap(e1);
+    top_elem = top_element();
+    ASSERT_EQ(top_elem->time_, 4UL);
+    ASSERT_EQ(top_elem->op_, e1.op_);
+  }
+
+  {
+
+    ASSERT_TRUE(top_element() != NULL);
+    push_to_heap(e2);
+    ASSERT_TRUE(top_element()!= NULL);
+
+    top_elem = top_element();
+    ASSERT_EQ(top_elem->time_, 1UL);
+    ASSERT_EQ(top_elem->op_, e2.op_);
+
+    push_to_heap(e3);
+    top_elem = top_element();
+    ASSERT_EQ(top_elem->time_, 1UL);
+    ASSERT_EQ(top_elem->op_, e2.op_);
+  }
+
+  {
+    heap_element_t e = pop_from_heap();
+    ASSERT_TRUE((e.op_ == e2.op_) && (e.time_ == e2.time_));
+
+    ASSERT_TRUE(top_element()!= NULL);
+    top_elem = top_element();
+    ASSERT_EQ(top_elem->time_, 4UL);
+    ASSERT_EQ(top_elem->op_, e1.op_);
+
+    e = pop_from_heap();
+    ASSERT_TRUE((e.op_ == e1.op_) && (e.time_ == e1.time_));
+
+    ASSERT_TRUE(top_element()!= NULL);
+    top_elem = top_element();
+    ASSERT_EQ(top_elem->time_, 7UL);
+    ASSERT_EQ(top_elem->op_, e3.op_);
+
+    e = pop_from_heap();
+    ASSERT_TRUE((e.op_ == e3.op_) && (e.time_ == e3.time_));
+    ASSERT_TRUE(heap_.empty());
+  }
+}
+
+TEST_F(Test_Fixture_Feasible_Memory_Scheduler, pop_all_elements_at_this_time) {
+  heap_element_t e[5UL] = { {"o1", 7}, {"o2", 7}, {"o3", 1},
+      {"o4", 8}, {"o5", 9}};
+
+  size_t n = 5UL;
+  for (size_t i=0; i<n; i++) { push_to_heap(e[i]); }
+
+  std::vector<heap_element_t> popped;
+  pop_all_elements_at_this_time( 7UL, std::back_inserter(popped) );
+  ASSERT_TRUE(popped.empty()); // since the current time is 1 //
+
+  pop_from_heap(); 
+  pop_all_elements_at_this_time( 7UL, std::back_inserter(popped) );
+  std::vector<heap_element_t> expected = { {"o1", 7}, {"o2", 7} };
+  EXPECT_EQ(expected, popped);
+
+  ASSERT_TRUE(top_element() != NULL);
+  EXPECT_EQ(top_element()->time_, 8UL);
+  EXPECT_EQ(top_element()->op_, "o4");
+}
+
+
+
