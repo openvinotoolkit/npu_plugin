@@ -35,7 +35,10 @@ void addQuantizationLayers(mv::OpModel om, std::vector<mv::Data::OpListIterator>
             // NOTE: Maybe here a check for mixed precision should be added
             if(!tensor->isPopulated() && tensorDType != dtypeNeededInInput)
             {
-                auto quantize = om.uPATaskQuantize({tensor}, outputDType, tensor->get<mv::QuantizationParams>("quantParams"), "Quantize" + task->getName());
+                auto quantize = om.uPATaskQuantize({tensor}, outputDType,
+                            tensor->get<mv::QuantizationParams>("quantParams"), "Quantize" + task->getName());
+                quantize->set<std::string>("splitStrategy",
+                            tensor->get<std::string>("splitStrategy"));
                 auto quantizeOp = om.getSourceOp(quantize);
                 quantizeOp->set<unsigned>("opId", task->get<unsigned>("opId"));
                 auto backup = inputFlow;
