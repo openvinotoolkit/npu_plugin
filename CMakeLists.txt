@@ -48,6 +48,17 @@ add_subdirectory(src/kmb_plugin)
 
 if (ENABLE_HDDL2)
     add_subdirectory(src/hddl2_plugin)
+
+    # downloading HDDL_UNITE archive
+    set(ARCHIVE_VERSION ww44)
+    set_temp_directory(TEMP "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}")
+
+    include(dependency_solver)
+
+    RESOLVE_DEPENDENCY(HDDL_UNITE
+            ARCHIVE_LIN "hddl_unite_${ARCHIVE_VERSION}.tgz"
+            TARGET_PATH "${TEMP}/hddl_unite"
+            ENVIRONMENT "HDDL_UNITE")
 endif()
 
 if(ENABLE_TESTS)
