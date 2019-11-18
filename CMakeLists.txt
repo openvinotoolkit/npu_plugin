@@ -23,13 +23,6 @@ find_package(InferenceEngineDeveloperPackage REQUIRED)
 
 include(features)
 
-# Enable vpualHost by default if target is arm, disable otherwise
-if(ENABLE_VPUAL)
-    # Try to locate external vpualHost (location can be set via vpualHost_DIR).
-    # If no external vpualHost provided, it will be built from thirdparty directory
-    find_package(vpualHost QUIET)
-endif()
-
 if(UNIX)
     ie_add_compiler_flags(-Wno-undef)
 endif()
@@ -64,8 +57,7 @@ endif()
 if(ENABLE_TESTS)
     enable_testing()
 
-    # TODO: do not use model for ARM for now because the model requires mcm compiler which is not build on ARM
-    if(ENABLE_VPUAL AND NOT (ARM OR AARCH64) AND ENABLE_MCM_COMPILER)
+    if(ENABLE_VPUAL AND ENABLE_MCM_COMPILER)
         add_subdirectory(src/vpual_model)
     endif()
 

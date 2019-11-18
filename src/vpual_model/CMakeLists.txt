@@ -22,13 +22,26 @@ set(TARGET_NAME vpualModel)
 add_library(${TARGET_NAME} SHARED ${HEADERS} ${SOURCES})
 add_dependencies(${TARGET_NAME} generate-graphfile-headers)
 
-target_include_directories(vpualModel PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(vpualModel PRIVATE XLink VpualDispatcher NN IE::vpu_common_lib IE::inference_engine cm)
+target_include_directories(vpualModel
+    SYSTEM PRIVATE
+        ${VPUAL_XLINK_INCLUDES}
+        ${VPUAL_NN_INCLUDES}
+        ${VPUAL_DISPATCHER_INCLUDES}
+        ${MCM_COMPILER_INCLUDES}
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(vpualModel
+    PRIVATE
+        IE::vpu_common_lib
+        IE::inference_engine
+        ${VPUAL_XLINK_LIBRARY}
+        ${VPUAL_DISPATCHER_LIBRARY}
+        ${VPUAL_NN_LIBRARY}
+        ${MCM_COMPILER_LIBRARY})
 
 set_target_properties(${TARGET_NAME} PROPERTIES
     C_VISIBILITY_PRESET       hidden
     CXX_VISIBILITY_PRESET     hidden
-    VISIBILITY_INLINES_HIDDEN YES
-)
+    VISIBILITY_INLINES_HIDDEN YES)
 
 add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})

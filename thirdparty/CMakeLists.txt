@@ -34,6 +34,9 @@ endfunction()
 add_subdirectory(vsi_cmodel/vpusmm)
 
 if(ENABLE_VPUAL)
+    # Try to locate external vpualHost (location can be set via vpualHost_DIR).
+    # If no external vpualHost provided, it will be built from thirdparty directory
+    find_package(vpualHost QUIET)
     if(NOT vpualHost_FOUND)
         # Including vpualHost/host directory directly not to add vpualHost's examples to the build
         add_3rdparty_subdir(movidius/vpualHost/host)
@@ -52,6 +55,30 @@ if(ENABLE_VPUAL)
     if(ENABLE_TESTS)
         add_subdirectory(tests/integration)
     endif()
+
+    set(VPUAL_XLINK_LIBRARY XLink CACHE INTERNAL "")
+    set(VPUAL_XLINK_INCLUDES $<TARGET_PROPERTY:XLink,INTERFACE_INCLUDE_DIRECTORIES> CACHE INTERNAL "")
+
+    set(VPUAL_DISPATCHER_LIBRARY VpualDispatcher CACHE INTERNAL "")
+    set(VPUAL_DISPATCHER_INCLUDES $<TARGET_PROPERTY:VpualDispatcher,INTERFACE_INCLUDE_DIRECTORIES> CACHE INTERNAL "")
+
+    set(VPUAL_NN_LIBRARY NN CACHE INTERNAL "")
+    set(VPUAL_NN_INCLUDES $<TARGET_PROPERTY:NN,INTERFACE_INCLUDE_DIRECTORIES> CACHE INTERNAL "")
+
+    set(GAPI_SIPP_LIBRARY gapi_sipp CACHE INTERNAL "")
+    set(GAPI_SIPP_INCLUDES $<TARGET_PROPERTY:gapi_sipp,INTERFACE_INCLUDE_DIRECTORIES> CACHE INTERNAL "")
+else()
+    set(VPUAL_XLINK_LIBRARY "" CACHE INTERNAL "")
+    set(VPUAL_XLINK_INCLUDES "" CACHE INTERNAL "")
+
+    set(VPUAL_DISPATCHER_LIBRARY "" CACHE INTERNAL "")
+    set(VPUAL_DISPATCHER_INCLUDES "" CACHE INTERNAL "")
+
+    set(VPUAL_NN_LIBRARY "" CACHE INTERNAL "")
+    set(VPUAL_NN_INCLUDES "" CACHE INTERNAL "")
+
+    set(GAPI_SIPP_LIBRARY "" CACHE INTERNAL "")
+    set(GAPI_SIPP_INCLUDES "" CACHE INTERNAL "")
 endif()
 
 if(ENABLE_MCM_COMPILER)
@@ -69,4 +96,9 @@ if(ENABLE_MCM_COMPILER)
         COMMAND "${CMAKE_COMMAND}" -E copy_directory "${MCM_BASE_SOURCE_DIR}/config" "${COMPILATION_CONFIG_OUT_DIR}/mcm_config"
         COMMENT "[MCM Compiler] Copy config files for compilation")
 
+    set(MCM_COMPILER_LIBRARY cm CACHE INTERNAL "")
+    set(MCM_COMPILER_INCLUDES $<TARGET_PROPERTY:cm,INTERFACE_INCLUDE_DIRECTORIES> CACHE INTERNAL "")
+else()
+    set(MCM_COMPILER_LIBRARY "" CACHE INTERNAL "")
+    set(MCM_COMPILER_INCLUDES "" CACHE INTERNAL "")
 endif()

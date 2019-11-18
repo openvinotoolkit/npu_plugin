@@ -16,14 +16,6 @@
 
 set(TARGET_NAME "kmbPlugin")
 
-if(ENABLE_VPUAL)
-    set(VPUAL_NN_LIBRARY NN)
-    set(GAPI_SIPP_LIBRARY gapi_sipp)
-endif()
-if(ENABLE_MCM_COMPILER)
-    set(MCM_COMPILER_LIBRARY cm)
-endif()
-
 file(GLOB_RECURSE SOURCES *.cpp *.hpp *.h)
 
 set(EXTRA_COMPILE_OPTIONS -Wall -Wextra -Werror)
@@ -43,20 +35,23 @@ ie_register_plugins(MAIN_TARGET ${TARGET_NAME}
                     POSSIBLE_PLUGINS ${TARGET_NAME})
 
 target_include_directories(${TARGET_NAME}
+    SYSTEM PRIVATE
+        ${VPUAL_NN_INCLUDES}
+        ${GAPI_SIPP_INCLUDES}
+        ${MCM_COMPILER_INCLUDES}
     PRIVATE
         "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/include"
-        "${CMAKE_CURRENT_SOURCE_DIR}"
-        )
+        ${CMAKE_CURRENT_SOURCE_DIR})
 
 target_link_libraries(${TARGET_NAME}
     PRIVATE
         IE::inference_engine
-        vpusmm
         IE::vpu_common_lib
-        kmb_utils
         ${VPUAL_NN_LIBRARY}
         ${GAPI_SIPP_LIBRARY}
-        ${MCM_COMPILER_LIBRARY})
+        ${MCM_COMPILER_LIBRARY}
+        vpusmm
+        kmb_utils)
 
 if(ENABLE_TESTS)
     add_library(${TARGET_NAME}_test_static STATIC ${SOURCES})
@@ -64,10 +59,13 @@ if(ENABLE_TESTS)
     target_compile_options(${TARGET_NAME}_test_static PRIVATE ${EXTRA_COMPILE_OPTIONS})
 
     target_include_directories(${TARGET_NAME}_test_static
+        SYSTEM PRIVATE
+            ${VPUAL_NN_INCLUDES}
+            ${GAPI_SIPP_INCLUDES}
+            ${MCM_COMPILER_INCLUDES}
         PUBLIC
             "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/include"
-            "${CMAKE_CURRENT_SOURCE_DIR}"
-            )
+            ${CMAKE_CURRENT_SOURCE_DIR})
     target_link_libraries(${TARGET_NAME}_test_static
         PUBLIC
             IE::inference_engine
@@ -75,8 +73,8 @@ if(ENABLE_TESTS)
             vpusmm
         PRIVATE
             IE::vpu_common_lib
-            kmb_utils
             ${VPUAL_NN_LIBRARY}
             ${GAPI_SIPP_LIBRARY}
-            ${MCM_COMPILER_LIBRARY})
+            ${MCM_COMPILER_LIBRARY}
+            kmb_utils)
 endif()
