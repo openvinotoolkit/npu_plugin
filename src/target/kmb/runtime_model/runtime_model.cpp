@@ -104,7 +104,7 @@ int computeAppropriatePadding(mv::Tensor tensor)
 
 void mv::RuntimeModel::alignTensor(mv::ComputationModel& cm, std::unique_ptr<MVCNN::TensorReferenceT>& tensorT, mv::Tensor& tensor, const size_t dimension, bool padFinalOutput)
 {
-    if(dimension == IO_CHANNEL_DIMENSION) 
+    if(dimension == IO_CHANNEL_DIMENSION)
     {
         auto globalConfigParams = cm.getGlobalConfigParams();
         int pad = computeAppropriatePadding(tensor);
@@ -119,7 +119,7 @@ void mv::RuntimeModel::alignTensor(mv::ComputationModel& cm, std::unique_ptr<MVC
         if(padFinalOutput)
             tensorT->dimensions = std::vector<uint32_t>(dimensions.begin(), dimensions.end());
     }
-    else if (dimension == IO_WIDTH_DIMENSION) 
+    else if (dimension == IO_WIDTH_DIMENSION)
     {
         std::vector<std::size_t> dimensions = tensor.getShape();
         auto widthPadded = mv::round_up(dimensions[mv::IO_WIDTH_DIMENSION], 16);
@@ -128,7 +128,7 @@ void mv::RuntimeModel::alignTensor(mv::ComputationModel& cm, std::unique_ptr<MVC
         numericStrides.push_back(tensor.getDType().getSizeInBits() / 8);
         std::reverse(dimensions.begin(), dimensions.end());
         std::reverse(numericStrides.begin(), numericStrides.end());
-        tensorT->strides = numericStrides; 
+        tensorT->strides = numericStrides;
 
     }
 }
@@ -867,7 +867,7 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
     else
     {
         std::vector<std::unique_ptr<MVCNN::TaskT>> toReturn;
-        
+
         case2MC(numTasks, cm, direction, compilationDescriptor, compression, padFinalOutput, toReturn, inputTensor, outputTensor);
         if(inputTensor->isSparse())
         {
@@ -1259,8 +1259,8 @@ void mv::RuntimeModel::getWorkloadPadding(Control::OpListIterator opIt, Workload
 std::array <unsigned short, 4>  mv::RuntimeModel::getPadding(Control::OpListIterator opIt, unsigned clusterId)
 {
     std::array <unsigned short, 4> padding = opIt->get<std::array<unsigned short, 4>>("padding");
-    
-    if(clusterId !=0) 
+
+    if(clusterId !=0)
     {
         auto subTensor = opIt->getOutputTensor(0)->getSubTensor(clusterId);
         std::vector<std::size_t> offset = subTensor.get<std::vector<std::size_t>>("offset");
@@ -1845,11 +1845,8 @@ unsigned mv::RuntimeModel::countProducerConsumerTasks(mv::ComputationModel& cm, 
         toReturn *= multiplicator;
     }
     else if(taskType == "UPATask")
-    {
-        if (opIt->hasAttr("BarrierDeps"))
-            if (opIt->get<mv::BarrierDependencies>("BarrierDeps").getWait() != 1)
-                toReturn = 1;
-    }
+        toReturn = 1;
+
     return toReturn;
 }
 
