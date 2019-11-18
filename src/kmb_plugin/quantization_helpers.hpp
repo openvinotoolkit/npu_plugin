@@ -23,13 +23,8 @@
 #include <vector>
 
 #ifdef ENABLE_MCM_COMPILER
-// suppress 'error: ‘inf’ defined but not used'
-// static double inf = std::numeric_limits<double>::infinity();
-// TODO remove when it is fixed in mcmCompiler
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wunused-variable"
+
 #include <include/mcm/op_model.hpp>
-#pragma GCC diagnostic pop
 
 namespace vpu {
 

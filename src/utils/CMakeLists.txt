@@ -22,8 +22,7 @@ add_library(${TARGET_NAME} STATIC ${SOURCES})
 target_link_libraries(${TARGET_NAME} PRIVATE vpusmm)
 
 target_include_directories(${TARGET_NAME}
-    SYSTEM PUBLIC
-        "${CMAKE_CURRENT_SOURCE_DIR}"
+    PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}
         "${IE_MAIN_SOURCE_DIR}/include"
-    PRIVATE
         "${IE_MAIN_SOURCE_DIR}/src/inference_engine")

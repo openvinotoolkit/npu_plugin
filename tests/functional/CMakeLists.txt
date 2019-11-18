@@ -79,11 +79,10 @@ function(addVpuTest TARGET_NAME PLUGIN_NAME PLUGIN_TEST_FOLDER PLUGIN_MACRO_NAME
             ${CMAKE_CURRENT_SOURCE_DIR}/base
             ${CMAKE_CURRENT_SOURCE_DIR}/common
             ${CMAKE_CURRENT_SOURCE_DIR}/regression_tests/helpers
+            ${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/include
             ${IE_MAIN_SOURCE_DIR}/include/vpu
             ${IE_MAIN_SOURCE_DIR}/src/inference_engine
-            ${IE_MAIN_SOURCE_DIR}/src/vpu/graph_transformer/include
-        SYSTEM PRIVATE
-            ${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/include)
+            ${IE_MAIN_SOURCE_DIR}/src/vpu/graph_transformer/include)
 
     target_link_libraries(${TARGET_NAME} PRIVATE
             ${LIBRARIES}

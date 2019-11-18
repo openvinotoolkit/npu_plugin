@@ -23,12 +23,8 @@ target_link_libraries(${TARGET}
         IE::gtest IE::gtest_main
         opencv_core opencv_imgproc)
 
-if(${GAPI_TEST_PERF})
-    target_compile_options(${TARGET}
-            PRIVATE
-            -Wall
-            -Werror)
-    target_compile_definitions(${TARGET} PRIVATE -DPERF_TEST=1)
+if(GAPI_TEST_PERF)
+    target_compile_definitions(${TARGET} PRIVATE PERF_TEST=1)
 else()
-  target_compile_definitions(${TARGET} PRIVATE -DPERF_TEST=0)
+    target_compile_definitions(${TARGET} PRIVATE PERF_TEST=0)
 endif()
