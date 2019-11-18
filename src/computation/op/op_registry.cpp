@@ -890,6 +890,7 @@ void mv::op::OpRegistry::generateCompositionAPI(const std::string& metaDir, cons
 #include    "src/computation/op/def/permute.cpp"
 #include    "src/computation/op/def/prelu.cpp"
 #include    "src/computation/op/def/proposal.cpp"
+#include    "src/computation/op/def/interp.cpp"
 #include    "src/computation/op/def/quantize.cpp"
 #include    "src/computation/op/def/region_yolo.cpp"
 #include    "src/computation/op/def/relu.cpp"
