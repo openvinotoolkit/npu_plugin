@@ -248,7 +248,41 @@ std::vector<TestingNetworkParameters> vpuInferAndCompareTestsNQA = {
                         "/KMB_models/NQA/POST_TRAINING/TinyYolo_V2/tiny_yolo_v2_uint8_uint8_weights_pertensor.xml",
                         "/KMB_models/NQA/POST_TRAINING/TinyYolo_V2/tiny_yolo_v2_uint8_uint8_weights_pertensor.bin",
                         "/416x416/person.bmp"},
+        // post trainig models
+        // Following 3 tests on inception_v1 fail on mcmCompiler compilation stage with following message.
+        // C++ exception with description "GraphOptimizer-StrategyManager -
+        // LogicError: GraphOptimizer did not create any potential strategies for
+        // InceptionV1/InceptionV1/Mixed_3c/concat_v2:step0
+        TestingNetworkParameters{"inception_v1_tf_int8_int8_weights_pertensor",
+                        "/KMB_models/NQA/POST_TRAINING/inception-v1_tf/inception-v1_tf_int8_int8_weights_pertensor.xml",
+                        "/KMB_models/NQA/POST_TRAINING/inception-v1_tf/inception-v1_tf_int8_int8_weights_pertensor.bin",
+                        "/224x224/cat3.bmp"},
+        TestingNetworkParameters{"inception_v1_tf_uint8_int8_weights_pertensor",
+                        "/KMB_models/NQA/POST_TRAINING/inception-v1_tf/inception-v1_tf_uint8_int8_weights_pertensor.xml",
+                        "/KMB_models/NQA/POST_TRAINING/inception-v1_tf/inception-v1_tf_uint8_int8_weights_pertensor.bin",
+                        "/224x224/cat3.bmp"},
+        TestingNetworkParameters{"inception_v1_tf_uint8_uint8_weights_pertensor",
+                        "/KMB_models/NQA/POST_TRAINING/inception-v1_tf/inception-v1_tf_uint8_uint8_weights_pertensor.xml",
+                        "/KMB_models/NQA/POST_TRAINING/inception-v1_tf/inception-v1_tf_uint8_uint8_weights_pertensor.bin",
+                        "/224x224/cat3.bmp"},
+        // post trainig models
+        // Following 3 tests on inception_v1 fail on mcmCompiler compilation stage with following message.
+        // C++ exception with description "GraphOptimizer-StrategyManager -
+        // LogicError: GraphOptimizer did not create any potential strategies for 62:step0 (Layaer '62' is of concat type)
+        TestingNetworkParameters{"squeezenet1_1_pytorch_int8_int8_weights_pertensor",
+                        "/KMB_models/NQA/POST_TRAINING/squeezenet1_1_pytorch/squeezenet1_1_pytorch_int8_int8_weights_pertensor.xml",
+                        "/KMB_models/NQA/POST_TRAINING/squeezenet1_1_pytorch/squeezenet1_1_pytorch_int8_int8_weights_pertensor.bin",
+                        "/224x224/cat3.bmp"},
+        TestingNetworkParameters{"squeezenet1_1_pytorch_uint8_int8_weights_pertensor",
+                        "/KMB_models/NQA/POST_TRAINING/squeezenet1_1_pytorch/squeezenet1_1_pytorch_uint8_int8_weights_pertensor.xml",
+                        "/KMB_models/NQA/POST_TRAINING/squeezenet1_1_pytorch/squeezenet1_1_pytorch_uint8_int8_weights_pertensor.bin",
+                        "/224x224/cat3.bmp"},
+        TestingNetworkParameters{"squeezenet1_1_pytorch_uint8_uint8_weights_pertensor",
+                        "/KMB_models/NQA/POST_TRAINING/squeezenet1_1_pytorch/squeezenet1_1_pytorch_uint8_uint8_weights_pertensor.xml",
+                        "/KMB_models/NQA/POST_TRAINING/squeezenet1_1_pytorch/squeezenet1_1_pytorch_uint8_uint8_weights_pertensor.bin",
+                        "/224x224/cat3.bmp"},
 
+        // cut models
         TestingNetworkParameters{"YoloTiny_v2_u8_asymmetric_cut",
                         "/KMB_models/NQA/u8_asymmetric/YoloTiny-v2/tiny_yolo_v2_asymmetric_cut.xml",
                         "/KMB_models/NQA/u8_asymmetric/YoloTiny-v2/tiny_yolo_v2_asymmetric.bin",
@@ -264,14 +298,6 @@ std::vector<TestingNetworkParameters> vpuInferAndCompareTestsNQA = {
         TestingNetworkParameters{"Resnet_50_u8_asymmetric_cutfc",
                         "/KMB_models/NQA/u8_asymmetric/ResNet-50/resnet-50-pytorch_asymmetric_cutfc.xml",
                         "/KMB_models/NQA/u8_asymmetric/ResNet-50/resnet-50-pytorch_asymmetric_cutfc.bin",
-                        "/224x224/cat3.bmp"},
-        TestingNetworkParameters{"Inception_v1_tf_asymmetric",
-                        "/KMB_models/NQA/u8_asymmetric/inception-v1_tf/inceptionv1.xml",
-                        "/KMB_models/NQA/u8_asymmetric/inception-v1_tf/inceptionv1.bin",
-                        "/224x224/cat3.bmp"},
-        TestingNetworkParameters{"SqueezeNet1_1_asymmetric",
-                        "/KMB_models/NQA/u8_asymmetric/squeezenet1_1/squeezenet1_1.xml",
-                        "/KMB_models/NQA/u8_asymmetric/squeezenet1_1/squeezenet1_1.bin",
                         "/224x224/cat3.bmp"},
 };
 
