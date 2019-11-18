@@ -42,7 +42,7 @@ namespace mv
         MV_REGISTER_PASS(CropOrPadFinalOutput)
             .setFunc(cropOrPadFinalOutputFunc)
             .setDescription(
-                "Add/Remove implicit Crop Op for final Op based on padOutput value");          
+                "Add/Remove implicit Crop Op for final Op based on padOutput value");
     }
 }
 
@@ -251,7 +251,7 @@ void alignInputForChannelMajorConvolution(mv::ComputationModel& model, mv::Data:
         std::vector<mv::Data::OpListIterator> opsToLink;
         std::vector<std::size_t> inputSlots;
         std::vector<mv::Data::FlowSiblingIterator> flowsToRemove;
-                
+
         auto sourceFlowStart = parentOpIt.leftmostOutput();
 
         for (mv::Data::FlowSiblingIterator sinkFlow(sourceFlowStart); sinkFlow != om.flowEnd(); ++sinkFlow)
@@ -266,7 +266,7 @@ void alignInputForChannelMajorConvolution(mv::ComputationModel& model, mv::Data:
 
         if (inputTensor->hasAttr("quantParams"))
             quantParams = inputTensor->get<mv::QuantizationParams>("quantParams");
-                
+
         auto alignedTensor = om.align(inputTensor,
                                 mv::IO_WIDTH_DIMENSION,
                                 tensorWidthMultiple,
@@ -281,23 +281,23 @@ void alignInputForChannelMajorConvolution(mv::ComputationModel& model, mv::Data:
 
         if (opIt->hasAttr("padding"))
                 alignOp->set<std::array<unsigned short, 4>>("padding", opIt->get<std::array<unsigned short, 4>>("padding"));
-                
+
         if (opIt->hasAttr("splitStrategy"))
                 alignOp->set<std::string>("splitStrategy", opIt->get<std::string>("splitStrategy"));
-                
+
         if (inputTensor->hasAttr("splitStrategy"))
                     alignOp->getOutputTensor()[0]->set<std::string>("splitStrategy", inputTensor->get<std::string>("splitStrategy"));
-                
+
         for (unsigned flowIdx = 0; flowIdx < flowsToRemove.size(); flowIdx++)
         {
             om.undefineFlow(flowsToRemove[flowIdx]);
         }
-                    
+
         for(unsigned op = 0 ; op < opsToLink.size(); ++op)
         {
             opsToLink[op]->setInputTensor(alignedTensor, inputSlots[op], false);
             om.defineFlow(alignedTensor, opsToLink[op], inputSlots[op]);
-        }  
+        }
     }
 }
 
@@ -360,6 +360,12 @@ void addAlignOpForInputTensorsFunc(const mv::pass::PassEntry& , mv::ComputationM
                                         quantParams,
                                         alignOpName);
                     alignedTensor->set<bool>("alignment", true);//TODO remove this, just for testing now
+
+                    // This will work because of the implicit flows compensatory DMA passes
+                    //auto outputTensorMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
+                    auto outputTensorMemoryLocation = mv::Tensor::MemoryLocation::NNCMX;
+                    alignedTensor->set<mv::Tensor::MemoryLocation>("Location", outputTensorMemoryLocation);
+
                     auto alignOp = om.getOp(alignOpName);
                     alignOp->set<unsigned>("opId", parentOpIt->get<unsigned>("opId"));
                     if (parentOpIt->hasAttr("splitStrategy"))
