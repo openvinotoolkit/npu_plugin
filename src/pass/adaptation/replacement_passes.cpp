@@ -11,6 +11,7 @@ static void tensorsToFP16Fcn(const mv::pass::PassEntry& , mv::ComputationModel& 
 static void tensorsToU8Fcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void averageAsDepthWiseFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 static void replacementOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+static void scaleAsDepthwiseFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 
 namespace mv
 {
@@ -40,7 +41,7 @@ namespace mv
 
 }
 
-mv::Data::OpListIterator linkNewOperationsReplacement(mv::Data::OpListIterator parentOpIt, mv::Data::TensorIterator sourceTensor, mv::OpModel om, mv::Data::OpListIterator opIt)
+mv::Data::OpListIterator linkNewOperationsReplacement(mv::Data::OpListIterator parentOpIt, mv::Data::TensorIterator sourceTensor, mv::OpModel om, mv::Data::OpListIterator opIt, bool removeCostantOps)
 {
     //Important: do not change the order of this ops
     std::vector<mv::Data::OpListIterator> opsToLink;
@@ -51,17 +52,16 @@ mv::Data::OpListIterator linkNewOperationsReplacement(mv::Data::OpListIterator p
         inputSlots.push_back(sinkFlow->get<std::size_t>("sinkInput"));
     }
 
-    auto paramOp = opIt.leftmostParent();
-    while(paramOp != om.opEnd())
+    auto inputFlow = opIt.leftmostInput();
+    while(inputFlow != om.flowEnd())
     {
-        if (paramOp->getOpType() == "Constant" || paramOp->getOpType() == "ConstantInt" || paramOp->getOpType() == "ConstantDataElement")
-        {
-            auto backUp = paramOp;
-            ++paramOp;
-            om.removeOp(backUp);
-        }
-        else
-            ++paramOp;
+        auto paramOp = inputFlow.sink();
+        auto backup = inputFlow;
+        ++inputFlow;
+        om.undefineFlow(backup);
+        if(removeCostantOps)
+            if (paramOp->getOpType() == "Constant" || paramOp->getOpType() == "ConstantInt" || paramOp->getOpType() == "ConstantDataElement")
+                om.removeOp(paramOp);
     }
 
     om.removeOp(opIt);
@@ -173,6 +173,7 @@ void replacementOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mo
 {
     fullyConnectedAsConv2DFcn(pass, model);
     averageAsDepthWiseFcn(pass, model);
+    scaleAsDepthwiseFcn(pass, model);
 }
 
 void fullyConnectedAsConv2DFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
@@ -228,8 +229,56 @@ void fullyConnectedAsConv2DFcn(const mv::pass::PassEntry& pass, mv::ComputationM
             convOp->set<unsigned>("opId", currentOpId);
         }
 
-        linkNewOperationsReplacement(parentOpIt, conv2D, om, opIt);
+        linkNewOperationsReplacement(parentOpIt, conv2D, om, opIt, true);
         conv2D->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
+    }
+}
+
+void scaleAsDepthwiseFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
+{
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
+
+    mv::OpModel om(model);
+
+    auto scaleOps = om.getOps("Scale");
+
+    for (auto& opIt : scaleOps)
+    {
+        pass.log(mv::Logger::MessageType::Debug, "Found Scale op " + opIt->getName());
+
+        // First of all, we have to check if the scale can be fused in previous operation
+        // According to our fuse_passes.cpp, we can fuse it only if the previous operation is a convolution
+
+        auto sourceTensor = opIt->getInputTensor(0);
+        auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
+        auto parentOpIt = om.getSourceOp(sourceTensor);
+        if (parentOpIt->getOpType() == "Conv")
+            continue;
+
+        // From here on, we can assume unfusable scale, so we have to replace it with depthwise convolution
+        auto scales = opIt->getInputTensor(1);
+        auto scalesShape = scales->getShape();
+        auto name = opIt->getName();
+
+        // Changing the shape of the populated tensor, but it's not risky in this case
+        scales->setShape({1,1,scalesShape[0],1});
+
+        mv::QuantizationParams quantParams({{}, {}, {}, {}});
+        if (sourceTensor->isQuantized())
+            quantParams = opIt->get<mv::QuantizationParams>("quantParams");
+
+        auto depthwiseConv = om.depthwiseConv(sourceTensor, scales, {1,1}, {0,0,0,0}, 1, mv::DType("Default"), quantParams, name + "_DepthwiseConv");
+        auto depthwiseConvOp = om.getSourceOp(depthwiseConv);
+
+        if(opIt->hasAttr("opId"))
+        {
+            unsigned currentOpId = opIt->get<unsigned>("opId");
+            depthwiseConvOp->set<unsigned>("opId", currentOpId);
+        }
+        pass.log(mv::Logger::MessageType::Info, "Replaced unfusable scale op " + opIt->getName() + " with " + depthwiseConvOp->getName());
+        depthwiseConv->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
+        linkNewOperationsReplacement(parentOpIt, depthwiseConv, om, opIt, false);
     }
 }
 
@@ -323,6 +372,6 @@ void averageAsDepthWiseFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
         }
         pass.log(mv::Logger::MessageType::Info, "Replaced AveragePool op " + opIt->getName() + " with " + depthwise_conv->getName());
         depthwise_conv->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
-        linkNewOperationsReplacement(parentOpIt, depthwise_conv, om, opIt);
+        linkNewOperationsReplacement(parentOpIt, depthwise_conv, om, opIt, false);
     }
 }
