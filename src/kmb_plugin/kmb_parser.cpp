@@ -167,12 +167,18 @@ void compileMcm(ie::ICNNNetwork& network, const KmbConfig& config, mv::Compilati
     }
 
     // C++ exception if fails
-    auto result = unit.run();
+    try {
+        auto result = unit.run();
 
-    if (parsedConfig[VPU_KMB_CONFIG_KEY(MCM_GENERATE_JSON)] == "YES") {
-        std::fstream file_out(resultsFullName + ".json", std::fstream::out);
-        file_out << result.toString() << std::endl;
-        file_out.close();
+        if (parsedConfig[VPU_KMB_CONFIG_KEY(MCM_GENERATE_JSON)] == "YES") {
+            std::fstream file_out(resultsFullName + ".json", std::fstream::out);
+            file_out << result.toString() << std::endl;
+            file_out.close();
+        }
+    } catch (const std::runtime_error& re) {
+        VPU_THROW_EXCEPTION << "Caught std::runtime_error during unit run: " << re.what();
+    } catch (...) {
+        VPU_THROW_EXCEPTION << "Unknown exception during unit run";
     }
 
     if (parsedConfig[VPU_KMB_CONFIG_KEY(MCM_GENERATE_DOT)] == "YES") {
