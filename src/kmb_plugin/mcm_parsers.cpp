@@ -245,9 +245,13 @@ for (const auto& inputInfo : _parsedNetwork.networkInputs) {
     const auto& dataDesc = ieData->getTensorDesc();
     mv::Shape inputShape(getWHCN(dataDesc).getDims());
 
+    auto inputLayerPtr = ieData->getCreatorLayer().lock();
+    auto inputQuantParamsOverRide = initialQuantParams;
+    KmbQuantizationHelpers::fillQuntizationActivationParams(inputLayerPtr , inputQuantParamsOverRide);
+
     // TODO: MCMCompiler support only U8 inputs, hardcoded for all networks
     auto mvInput = _modelMcm.input(inputShape, convert_data_type(InferenceEngine::Precision::U8),
-            mv::Order::getZMajorID(4), initialQuantParams, netInput->name());
+            mv::Order::getZMajorID(4), inputQuantParamsOverRide, netInput->name());
     bindOutput(mvInput, ieData);
     _logger->debug("Network input '%s'(orig: '%s') parsed to mcmModel", mvInput->getName(), netInput->name());
 }
@@ -467,13 +471,18 @@ void FrontEndMcm::parseConvolution(
                                 convLayer->name);
     }
 
+    //  Need quantize bias, this logic provide by MCM team, need check
     if (with_bias) {
         if (is_quantized) {
-            auto biasesData = packBlobToVector<int64_t>(biasBlob, biasBlob->size());
+            auto biasQuantParamsOverRide = initialQuantParams;
+            auto inputQuantParams = inputs[0]->getMcmNode()->get<mv::QuantizationParams>("quantParams");
+            auto quantizeBiasesData = KmbQuantizationHelpers::quantizeBiases(inputQuantParams.getScale(),
+                                                                             weightsQuantParams.getScale(),
+                                                                             biasBlob, biasQuantParamsOverRide);
             mvBiases = _modelMcm.constantInt(
-                    biasesData,
+                    quantizeBiasesData,
                     biasesShape,
-                    mv::DType("UInt8"), mv::Order::getColMajorID(1));
+                    mv::DType("Int32"), mv::Order::getColMajorID(1));
             mvBiases->set<mv::QuantizationParams>("quantParams", outputQuantParams);
         } else {
             auto biasesData = packBlobToVector<double>(biasBlob, biasBlob->size());
@@ -520,6 +529,11 @@ void FrontEndMcm::parsePooling(
 
     mv::QuantizationParams outputQuantParams  = initialQuantParams;
     KmbQuantizationHelpers::fillQuntizationActivationParams(poolLayer, outputQuantParams);
+
+    if (isQuantizationParamsEqual(initialQuantParams, outputQuantParams)) {
+        auto inputQuantParams = inputs[0]->getMcmNode()->get<mv::QuantizationParams>("quantParams");
+        outputQuantParams = inputQuantParams;
+    }
 
     mv::Data::TensorIterator mvPooling;
     if (poolType == ie::PoolingLayer::AVG) {
@@ -650,11 +664,15 @@ void FrontEndMcm::parseFullyConnected(
 
     if (with_bias) {
         if (is_quantized) {
-            auto biasesData = packBlobToVector<int64_t>(biasBlob, biasBlob->size());
+            auto biasQuantParamsOverRide = initialQuantParams;
+            auto inputQuantParams = inputs[0]->getMcmNode()->get<mv::QuantizationParams>("quantParams");
+            auto quantizeBiasesData = KmbQuantizationHelpers::quantizeBiases(inputQuantParams.getScale(),
+                                                                             weightsQuantParams.getScale(),
+                                                                             biasBlob, biasQuantParamsOverRide);
             mvBiases = _modelMcm.constantInt(
-                    biasesData,
+                    quantizeBiasesData,
                     biasesShape,
-                    mv::DType("UInt8"), mv::Order::getColMajorID(1));
+                    mv::DType("Int32"), mv::Order::getColMajorID(1));
             mvBiases->set<mv::QuantizationParams>("quantParams", initialQuantParams);
         } else {
             auto biasesData = packBlobToVector<double>(biasBlob, biasBlob->size());

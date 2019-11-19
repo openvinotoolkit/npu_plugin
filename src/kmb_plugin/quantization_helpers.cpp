@@ -71,9 +71,11 @@ int64_t calculateZeroPoint(float high, float low, InferenceEngine::Precision pre
             zepoPoint = 127;
         }
     } else if (precision == InferenceEngine::Precision::U8) {
-        if ((low <= 0.f) && (high >= 0.f)) {
-            zepoPoint = 128;
-        } else if (low > 0.f) {
+        //  MCM team provide this formula, need check
+        if ((low < 0.f) && (high >= 0.f)) {
+            auto x = (high/(fabs(low) + high)) * 255;
+            zepoPoint = ceil(255 - x);
+        } else if (low >= 0.f) {
             zepoPoint = 0;
         } else if (high < 0.f) {
             zepoPoint = 256;
@@ -104,7 +106,7 @@ void reCalculateQuantizationParamsOnActivation(const CNNLayerPtr& quantizedLayer
 void calculateOutputScalesAndZeroPoint(const CNNLayerPtr &fakeQuantizeLayer, std::vector<int64_t> &zeroPoints,
                                        std::vector<double> &scales, bool mergeInOne) {
     auto quantizationParams =  QuantizationDetails::getDetails(*fakeQuantizeLayer);
-    auto levels = fakeQuantizeLayer->GetParamAsUInt("levels");
+    auto levels = quantizationParams.levels;
 
     if (quantizationParams.outputLowValues.size() != quantizationParams.outputHighValues.size()) {
         THROW_IE_EXCEPTION << "Unsupported case, we expect same size for outputLow and outputHigh. Layer "
@@ -215,37 +217,36 @@ Blob::Ptr quantizeWeightsBlob(const CNNLayerPtr& fakeQuantizeOnWeights, Inferenc
 
     auto wQuantParams =  QuantizationDetails::getDetails(*fakeQuantizeOnWeights);
 
-    const bool isInputLowBroadcasted = wQuantParams.inputLowValues.size() != outputsSize;
-    if ((wQuantParams.inputLowValues.size() != 1) && isInputLowBroadcasted) {
-        THROW_IE_EXCEPTION << "Unexpected input low values count " << wQuantParams.inputLowValues.size() <<
-                           " for " << outputsSize << " channels, layer '" << fakeQuantizeOnWeights->name << "'";
-    }
-
-    const bool isInputHighBroadcasted = wQuantParams.inputHighValues.size() != outputsSize;
-    if ((wQuantParams.inputHighValues.size() != 1) && isInputHighBroadcasted) {
-        THROW_IE_EXCEPTION << "Unexpected input high values count " << wQuantParams.inputHighValues.size() <<
-                           " for " << outputsSize << " channels, layer '" << fakeQuantizeOnWeights->name << "'";
-    }
-
     const size_t HW = H * W;
     const size_t IHW = inputsSize * HW;
 
     auto srcData = CNNNetworkHelper::getFloatData(weightsBlob);
     auto dstBuffer = CNNNetworkHelper::getFloatData(targetBlob);
 
-    auto scale = weightsQuantParams.getScale()[0];
-    auto zeroPoint = weightsQuantParams.getZeroPoint()[0];
+    auto scales = weightsQuantParams.getScale();
+    auto zeroPoints = weightsQuantParams.getZeroPoint();
+
+    const bool isWeightsQuantizationBroadcasted = scales.size() != outputsSize;
+
+    if ((scales.size() != 1) && isWeightsQuantizationBroadcasted) {
+        THROW_IE_EXCEPTION << "Unexpected input low values count " << scales.size() <<
+                           " for " << outputsSize << " channels for " << fakeQuantizeOnWeights->name;
+    }
 
     for (size_t outputIndex = 0; outputIndex < outputsSize; ++outputIndex) {
         for (size_t inputIndex = 0; inputIndex < inputsSize; ++inputIndex) {
             for (size_t h = 0; h < H; ++h) {
                 for (size_t w = 0; w < W; ++w) {
                     const size_t idx = outputIndex * IHW + inputIndex * HW + h * W + w;
+
+                    auto scale = scales[isWeightsQuantizationBroadcasted ? 0 : outputIndex];
+                    auto zeroPoint = zeroPoints[isWeightsQuantizationBroadcasted ? 0 : outputIndex];
+
                     if (precision == InferenceEngine::Precision::U8) {
-                        uint8_t value = std::trunc((srcData.get()[idx] + scale * zeroPoint) / scale);
+                        uint8_t value = std::round((srcData.get()[idx] + scale * zeroPoint) / scale);
                         dstBuffer.get()[idx] = value;
                     } else if (precision == InferenceEngine::Precision::I8) {
-                        int8_t value = std::trunc((srcData.get()[idx] + scale * zeroPoint) / scale);
+                        int8_t value = std::round((srcData.get()[idx] + scale * zeroPoint) / scale);
                         dstBuffer.get()[idx] = value;
                     } else {
                         THROW_IE_EXCEPTION << " Unsupported weights precision ";
@@ -285,6 +286,45 @@ Blob::Ptr calculateQuntizationWeights(const CNNLayerPtr& weightableLayer,
 
     //  now we use I8 for weights
     return quantizeWeightsBlob(convWeightsFakeQuantizeLayer, InferenceEngine::Precision::U8, weightsQuantParams);
+}
+
+std::vector<int64_t> quantizeBiases(const std::vector<double>& activationScales, const std::vector<double>& weightsScales,
+                                    const Blob::Ptr biasBlob, mv::QuantizationParams &outputQuantParam) {
+    auto biasCount = biasBlob->size();
+    const bool isWeightsScalesBroadcasted = weightsScales.size() != biasCount;
+    const bool isActivationScalesBroadcasted = activationScales.size() != biasCount;
+
+    if ((weightsScales.size() != 1) && isWeightsScalesBroadcasted) {
+        THROW_IE_EXCEPTION << "Unexpected input low values count " << weightsScales.size() <<
+                           " for " << biasCount << " channels for bias quantization";
+    }
+
+    if ((activationScales.size() != 1) && isActivationScalesBroadcasted) {
+        THROW_IE_EXCEPTION << "Unexpected input high values count " << activationScales.size()  <<
+                           " for " << biasCount << " channels for bias quantization ";
+    }
+
+    const bool isBiasScalesBroadcasted = isWeightsScalesBroadcasted && isActivationScalesBroadcasted;
+
+    auto biasData = biasBlob->buffer().as<float*>();
+    std::vector<int64_t> newBiasData(biasCount, 0);
+    std::vector<double> biasScales;
+    //  ZP = 0
+    //  ScaleBias = ActivationScale * WeightsScale
+    for (size_t i = 0 ; i < biasCount; i++) {
+        double activationScale = activationScales[isActivationScalesBroadcasted ? 0 : i];
+        double weightsScale = weightsScales[isWeightsScalesBroadcasted ? 0 : i];
+        double biasScale = activationScale * weightsScale;
+        biasScales.push_back(biasScale);
+        newBiasData[i] = std::round(biasData[i] / biasScale);
+    }
+    int64_t biasZp = 0;
+    if (isBiasScalesBroadcasted) {
+        biasScales.resize(1);
+    }
+    outputQuantParam = mv::QuantizationParams({{biasZp}, biasScales, {0}, {1}});
+
+    return newBiasData;
 }
 
 }  // namespace KmbQuantizationHelpers

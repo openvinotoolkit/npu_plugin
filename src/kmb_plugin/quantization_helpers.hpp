@@ -57,6 +57,8 @@ InferenceEngine::Blob::Ptr calculateQuntizationWeights(const InferenceEngine::CN
 
 mv::QuantizationParams fillQuantizeParamsForU8orI8weights(const InferenceEngine::CNNLayerPtr& weightableLayer, InferenceEngine::Precision precision);
 
+std::vector<int64_t> quantizeBiases(const std::vector<double>& activationScales, const std::vector<double>& weightsScales,
+                                    const InferenceEngine::Blob::Ptr biasBlob, mv::QuantizationParams &outputQuantParam);
 
 }  // namespace KmbQuantizationHelpers
 }  // namespace KmbPlugin
