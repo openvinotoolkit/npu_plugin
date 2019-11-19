@@ -24,12 +24,6 @@ namespace postprocess {
 const float YOLOV2_TINY_ANCHORS[10] = {1.08f, 1.19f, 3.42f, 4.41f, 6.63f, 11.38f, 9.42f, 5.11f, 16.62f, 10.52f};
 // const float YOLOV2_ANCHORS_80_CLASSES[10] = {0.57273f, 0.677385f, 1.87446f, 2.06253f, 3.33843f, 5.47434f, 7.88282f, 3.52778f, 9.77052f, 9.16828f};
 
-// const char * YOLOV2_TINY_LABELS[20] = {
-//         "aeroplane", "bicycle", "bird", "boat", "bottle", "bus", "car", "cat", "chair",
-//         "cow", "diningtable", "dog", "horse", "motorbike", "person", "pottedplant", "sheep",
-//         "sofa", "train", "tvmonitor"
-//     };
-
 typedef struct {
   // the (x,y) is the center of the bounding box
   // rather than top-left corner

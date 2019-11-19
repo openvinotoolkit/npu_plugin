@@ -370,6 +370,7 @@ int main(int argc, char *argv[]) {
         // imageid,labelid,confidence,x0,y0,x1,y1
         for (size_t i = 0; i < N; i++) {
             if (rawData[i*7 + 2] > 0.001) {
+                slog::info << "label = " << postprocess::YOLOV2_TINY_LABELS.at(rawData[i*7 + 1]) << slog::endl;
                 slog::info << "confidence = " << rawData[i*7 + 2] << slog::endl;
                 slog::info << "x0,y0,x1,y1 = " << rawData[i*7 + 3] << ", "
                     << rawData[i*7 + 4] << ", "
