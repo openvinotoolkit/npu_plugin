@@ -204,12 +204,12 @@ void updateParentsQuantizationParamsForEltwise(const std::vector<mv::Data::Tenso
     if (parentOp0->getOpType() ==  "Bias" || parentOp0->getOpType() ==  "Relu" || parentOp0->getOpType() ==  "Clamp") {
         auto primaryParent0Op = modelMcm.getSourceOp(parentOp0->getInputTensor(0));
         auto primaryParent1Op = modelMcm.getSourceOp(primaryParent0Op->getInputTensor(0));
-        if (primaryParent0Op->getOpType() ==  "Conv" || primaryParent0Op->getOpType() ==  "Add") {
+        if (primaryParent0Op->getOpType() ==  "Conv" || primaryParent0Op->getOpType() ==  "Eltwise") {
             primaryParent0Op->set<mv::QuantizationParams>("quantParams", resultQuantizationParam);
-        } else if (primaryParent0Op->getOpType() !=  "Conv" || primaryParent0Op->getOpType() !=  "Add") {
-            if (primaryParent1Op->getOpType() ==  "Conv" || primaryParent1Op->getOpType() ==  "Add")
+        } else if (primaryParent0Op->getOpType() !=  "Conv" || primaryParent0Op->getOpType() !=  "Eltwise") {
+            if (primaryParent1Op->getOpType() ==  "Conv" || primaryParent1Op->getOpType() ==  "Eltwise")
                 primaryParent1Op->set<mv::QuantizationParams>("quantParams", resultQuantizationParam);
-        } else if (primaryParent1Op->getOpType() !=  "Conv" || primaryParent1Op->getOpType() !=  "Add") {
+        } else if (primaryParent1Op->getOpType() !=  "Conv" || primaryParent1Op->getOpType() !=  "Eltwise") {
             VPU_THROW_EXCEPTION << name << "Unable to find parent operation of Bias/Relu/Clamp that is a Convolution";
         }
     }
@@ -217,12 +217,12 @@ void updateParentsQuantizationParamsForEltwise(const std::vector<mv::Data::Tenso
     if (parentOp1->getOpType() ==  "Bias" || parentOp1->getOpType() ==  "Relu" || parentOp1->getOpType() ==  "Clamp") {
         auto primaryParent0Op = modelMcm.getSourceOp(parentOp1->getInputTensor(0));
         auto primaryParent1Op = modelMcm.getSourceOp(primaryParent0Op->getInputTensor(0));
-        if (primaryParent0Op->getOpType() ==  "Conv" || primaryParent0Op->getOpType() ==  "Add") {
+        if (primaryParent0Op->getOpType() ==  "Conv" || primaryParent0Op->getOpType() ==  "Eltwise") {
             primaryParent0Op->set<mv::QuantizationParams>("quantParams", resultQuantizationParam);
-        } else if (primaryParent0Op->getOpType() !=  "Conv" || primaryParent0Op->getOpType() !=  "Add") {
-            if (primaryParent1Op->getOpType() ==  "Conv" || primaryParent1Op->getOpType() ==  "Add")
+        } else if (primaryParent0Op->getOpType() !=  "Conv" || primaryParent0Op->getOpType() !=  "Eltwise") {
+            if (primaryParent1Op->getOpType() ==  "Conv" || primaryParent1Op->getOpType() ==  "Eltwise")
                 primaryParent1Op->set<mv::QuantizationParams>("quantParams", resultQuantizationParam);
-        } else if (primaryParent1Op->getOpType() !=  "Conv" || primaryParent1Op->getOpType() !=  "Add") {
+        } else if (primaryParent1Op->getOpType() !=  "Conv" || primaryParent1Op->getOpType() !=  "Eltwise") {
             VPU_THROW_EXCEPTION << name << "Unable to find parent operation of Bias/Relu/Clamp that is a Convolution";
         }
     }
@@ -244,7 +244,10 @@ for (const auto& inputInfo : _parsedNetwork.networkInputs) {
 
     const auto& dataDesc = ieData->getTensorDesc();
     mv::Shape inputShape(getWHCN(dataDesc).getDims());
-    auto mvInput = _modelMcm.input(inputShape, convert_data_type(dataDesc.getPrecision()), mv::Order::getZMajorID(4), initialQuantParams, netInput->name());
+
+    // TODO: MCMCompiler support only U8 inputs, hardcoded for all networks
+    auto mvInput = _modelMcm.input(inputShape, convert_data_type(InferenceEngine::Precision::U8),
+            mv::Order::getZMajorID(4), initialQuantParams, netInput->name());
     bindOutput(mvInput, ieData);
     _logger->debug("Network input '%s'(orig: '%s') parsed to mcmModel", mvInput->getName(), netInput->name());
 }
