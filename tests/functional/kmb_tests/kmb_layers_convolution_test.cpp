@@ -366,6 +366,7 @@ TEST_P(ConvolutionFP16Test, fp16_convolution_only) {
 INSTANTIATE_TEST_CASE_P(DISABLED_fp16_per_layer_compilation_fail, ConvolutionFP16Test,
         ::testing::ValuesIn(convolution_only_fp16), ConvolutionFP16Test::getTestCaseName);
 
+
 class ConvolutionTest : public testing::WithParamInterface<convolution_test_params>, public kmbLayersTests_nightly {};
 
 template <class srcType, class dstType>
@@ -622,6 +623,10 @@ std::vector<convolution_test_params> test_params = {
          {{1, 16, 16, 16}, {{1, 1}, {3, 3}, {0, 0}, {0, 0}, {1, 1}, "", 1, 128, true, true, ""}},
          {{1, 8, 16, 16}, {{1, 1}, {3, 3}, {0, 0}, {0, 0}, {1, 1}, "", 1, 64,  true, true, ""}},
         //{{1, 64, 16, 16}, {{1, 1}, {2, 2}, {0, 0}, {0, 0}, {1, 1}, "", 1, 256, false, true, ""}},
+};
+
+const std::vector<InferenceEngine::Layout> test_layouts = {
+    InferenceEngine::Layout::NHWC, InferenceEngine::Layout::NCHW
 };
 
 INSTANTIATE_TEST_CASE_P(accuracy, ConvolutionTest, ::testing::ValuesIn(test_params));

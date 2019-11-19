@@ -271,13 +271,29 @@ void KmbInferRequest::GetResult() {
     if (foundInputBlob == _outputs.end())
         THROW_IE_EXCEPTION << "Error: output [" << dataName << "] is not provided.";
 
-    void* outputPtr = _outputs.begin()->second->buffer();
+    // check that output layout is the same as device layout
+    const InferenceEngine::OutputsDataMap& deviceOutputs = _executor->getNetworkOutputs();
+    IE_ASSERT(deviceOutputs.size() == 1) << "Networks with " << deviceOutputs.size() << " outputs are not supported. "
+                                         << "Only networks with 1 output are supported.";
 
     size_t output_size_total = std::accumulate(_outputs.begin(), _outputs.end(), 0,
                                               [] (size_t sum, InferenceEngine::BlobMap::value_type& outputs)
                                               { return sum + outputs.second->byteSize(); });
 
-    _executor->getResult(outputPtr, output_size_total);
+    Blob::Ptr & outputBlobRef = _outputs.begin()->second;
+    InferenceEngine::TensorDesc deviceTensorDesc = deviceOutputs.begin()->second->getTensorDesc();
+    if (deviceTensorDesc.getLayout() != outputBlobRef->getTensorDesc().getLayout()) {
+        // read result into blobWithResult, then do layout conversion via copyBlob
+        InferenceEngine::Blob::Ptr blobWithResult = make_blob_with_precision(deviceTensorDesc);
+        blobWithResult->allocate();
+        void* outputPtr = blobWithResult->buffer();
+        _executor->getResult(outputPtr, output_size_total);
+        copyBlob(blobWithResult, _outputs.begin()->second);
+    } else {
+        // read result directly into output, do not copy blob
+        void* outputPtr = outputBlobRef->buffer();
+        _executor->getResult(outputPtr, output_size_total);
+    }
 
     if (!_custom_outputs.empty()) {
         for (auto &output : _outputs) {
