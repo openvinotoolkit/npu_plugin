@@ -215,6 +215,8 @@ class Operation_Dag {
       return !(data_op_set_.find(op) == data_op_set_.end());
     }
 
+    void reset_data_op_set(const data_op_set_t& in) { data_op_set_ = in; }
+
     ////////////////////////////////////////////////////////////////////////////
     // scheduler_traits //
     static const_operation_iterator_t operations_begin(const dag_t& g) {
@@ -245,6 +247,15 @@ class Operation_Dag {
     {
       return dag.get_operation_resources(op);
     }
+
+    static bool is_data_operation(const dag_t& dag, const operation_t& op) {
+      return dag.is_data_op(op);
+    }
+
+    static bool is_compute_operation(const dag_t& dag, const operation_t& op) {
+      return !dag.is_data_op(op);
+    }
+
     ////////////////////////////////////////////////////////////////////////////
 
   private:
@@ -853,7 +864,6 @@ TEST(Contiguous_Resource_State, simultaneous_resource_availablity_typical) {
 
 }
 
-
 TEST(Contiguous_Resource_State, unit_simultaneous_resource_availablity) {
 
   std::vector<std::string> ops = {"#", "*", "%"};
@@ -1277,6 +1287,8 @@ class Test_Fixture_Feasible_Memory_Scheduler
     typedef feasible_memory_scheduler_t::schedule_heap_t heap_t;
     typedef feasible_memory_scheduler_t::heap_element_t heap_element_t;
     typedef feasible_memory_scheduler_t::operation_t operation_t;
+    typedef feasible_memory_scheduler_t::ready_data_list_t ready_data_list_t;
+    typedef feasible_memory_scheduler_t::op_list_t op_list_t;
 
     void SetUp() override {}
     void TearDown() override {}
@@ -1369,4 +1381,56 @@ TEST_F(Test_Fixture_Feasible_Memory_Scheduler, pop_all_elements_at_this_time) {
 }
 
 
+TEST_F(Test_Fixture_Feasible_Memory_Scheduler, test_compute_ready_lists) {
+  dag_t::adjacency_map_t in = { {"Input", {"A", "B", "C"} } ,
+    {"A", {"B", "C"}}, {"B", {"C"}}, {"C", {}}, 
+    {"A_input", {"A"}}, {"B_input", {"B"}}, {"C_input", {"C"}} };
+  dag_t::data_op_set_t data_ops ={"A_input", "B_input", "C_input"};
+  dag_t dag(in);
 
+  dag.reset_data_op_set(data_ops);
+
+  feasible_memory_scheduler_t::reset_input(dag);
+  feasible_memory_scheduler_t::compute_op_in_degree();
+  feasible_memory_scheduler_t::compute_ready_data_list();
+
+  ready_data_list_t ready_data = { "A_input", "C_input", "B_input" };
+  
+  EXPECT_EQ(ready_data, ready_data_list_);
+
+  // verify the in-degree of the other nodes in updated network // 
+  EXPECT_EQ(get_op_in_degree("A"), 1UL);
+  EXPECT_EQ(get_op_in_degree("B"), 2UL);
+  EXPECT_EQ(get_op_in_degree("C"), 3UL);
+  EXPECT_EQ(get_op_in_degree("Input"), 0UL);
+
+  // there is only one ready operation at this time which is the Input //
+  feasible_memory_scheduler_t::compute_ready_compute_list();
+  EXPECT_TRUE(ready_active_list_.empty());
+  EXPECT_FALSE(ready_list_.empty());
+  EXPECT_EQ(ready_list_.size(), 1UL);
+
+  {
+    op_list_t expected = { "Input" };
+    EXPECT_EQ(expected, ready_list_);
+  }
+}
+
+
+TEST_F(Test_Fixture_Feasible_Memory_Scheduler, test_compute_in_degree) {
+  dag_t::adjacency_map_t in = { {"Input", {"A", "B", "C"} } ,
+    {"A", {"B", "C"}}, {"B", {"C"}}, {"C", {}}, 
+    {"A_input", {"A"}}, {"B_input", {"B"}}, {"C_input", {"C"}} };
+  dag_t::data_op_set_t data_ops ={"A_input", "B_input", "C_input"};
+  dag_t dag(in);
+
+  dag.reset_data_op_set(data_ops);
+
+  feasible_memory_scheduler_t::reset_input(dag);
+  feasible_memory_scheduler_t::compute_op_in_degree();
+
+  EXPECT_EQ(get_op_in_degree("Input"), 0UL);
+  EXPECT_EQ(get_op_in_degree("A"), 2UL);
+  EXPECT_EQ(get_op_in_degree("B"), 3UL);
+  EXPECT_EQ(get_op_in_degree("C"), 4UL);
+}
