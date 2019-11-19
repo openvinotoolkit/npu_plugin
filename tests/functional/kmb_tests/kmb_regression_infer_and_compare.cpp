@@ -77,7 +77,7 @@ std::string VpuInferAndCompareTests::getTestCaseName(
     return (param.param).name + "_" + inputPath;
 }
 
-TEST_P(VpuInferAndCompareTests, DISABLED_NQA) {  // To be run in manual mode when device is available
+TEST_P(VpuInferAndCompareTests, NQA) {  // To be run in manual mode when device is available
     TestingNetworkParameters path_to_files = TestParam::GetParam();
     std::string irXmlPath = ModelsPath() + path_to_files.path_to_network;
     std::string weightsPath = ModelsPath() + path_to_files.path_to_weights;
@@ -95,9 +95,10 @@ TEST_P(VpuInferAndCompareTests, DISABLED_NQA) {  // To be run in manual mode whe
     }
 
     Core ie;
-    int batch = 1;
 
     InferenceEngine::ExecutableNetwork exeNetwork = ie.LoadNetwork(network, "kmb", {});
+#ifdef __arm__
+    int batch = 1;
 
     Blob::Ptr input;
     Blob::Ptr result;
@@ -130,6 +131,7 @@ TEST_P(VpuInferAndCompareTests, DISABLED_NQA) {  // To be run in manual mode whe
         std::cout << result_checked_value << std::endl;
         EXPECT_NEAR(result_checked_value, 0.697f,  0.01) << "Value out of threshold for batch: " << i;
     }
+#endif
 }
 
 std::vector<TestingNetworkParameters> vpuInferAndCompareTestsNQA = {
@@ -301,9 +303,26 @@ std::vector<TestingNetworkParameters> vpuInferAndCompareTestsNQA = {
                         "/224x224/cat3.bmp"},
 };
 
-INSTANTIATE_TEST_CASE_P(InferAndCompareTestsNQA, VpuInferAndCompareTests,
+std::vector<TestingNetworkParameters> vpuInferAndCompareTargetNetworks = {
+        TestingNetworkParameters{"resnet50_uint8_int8_weights_pertensor",
+                                 "/KMB_models/NQA/POST_TRAINING/ResNet-50/resnet50_uint8_int8_weights_pertensor.xml",
+                                 "/KMB_models/NQA/POST_TRAINING/ResNet-50/resnet50_uint8_int8_weights_pertensor.bin",
+                                 "/224x224/cat3.bmp"},
+
+        TestingNetworkParameters{"squeezenet1_1_pytorch_uint8_int8_weights_pertensor",
+                                 "/KMB_models/NQA/POST_TRAINING/squeezenet1_1_pytorch/squeezenet1_1_pytorch_uint8_int8_weights_pertensor.xml",
+                                 "/KMB_models/NQA/POST_TRAINING/squeezenet1_1_pytorch/squeezenet1_1_pytorch_uint8_int8_weights_pertensor.bin",
+                                 "/224x224/cat3.bmp"},
+};
+
+INSTANTIATE_TEST_CASE_P(DISABLED_InferAndCompareTestsNQA, VpuInferAndCompareTests,
     ::testing::ValuesIn(vpuInferAndCompareTestsNQA),
     VpuInferAndCompareTests::getTestCaseName
+);
+
+INSTANTIATE_TEST_CASE_P(InferAndCompareTestsTargetNetworks, VpuInferAndCompareTests,
+                        ::testing::ValuesIn(vpuInferAndCompareTargetNetworks),
+                        VpuInferAndCompareTests::getTestCaseName
 );
 
 #endif
