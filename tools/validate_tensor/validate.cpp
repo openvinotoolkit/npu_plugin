@@ -102,6 +102,12 @@ std::string getFilename(std::string& path)
     return file_without_extension;
 }
 
+template <typename T> void writeToFile(std::vector<T>& input, const std::string& dst) {
+    std::ofstream dumper(dst, std::ios_base::binary);
+    dumper.write(reinterpret_cast<char *>(&input[0]), input.size()*sizeof(T));
+    dumper.close();
+}
+
 bool compare(std::vector<float>& actualResults, std::vector<float>& expectedResults, float tolerance)
 {
     std::cout << "Comparing results ... " << std::endl;
@@ -205,7 +211,7 @@ int runEmulator(std::string pathXML, std::string pathImage, std::string& blobPat
     // execute the classification sample async (KMB-plugin)
     std::cout << "Generating mcm blob through kmb-plugin... " << std::endl;
     commandline = std::string("cd ") + std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + " && " + 
-        "./test_classification -m " + pathXML + " -d KMB";
+        "./test_classification -m ~/test_models/temp/resnet50-int8_cpu.xml -d KMB";
     if (! FLAGS_i.empty() )
         commandline += (" -i " + pathImage);
 
@@ -329,7 +335,7 @@ int validate(std::string blobPath, std::string expectedPath, std::string actualP
     if (dtype.compare("U8")==0)
     {
         int qZero = j["header"]["net_output"][0]["quant_zero"][0].get<int>();
-        int qScale = j["header"]["net_output"][0]["quant_scale"][0].get<int>();
+        float qScale = j["header"]["net_output"][0]["quant_real_scale"][0].get<float>(); // old val: "quant_scale"
         int qShift = j["header"]["net_output"][0]["quant_shift"][0].get<int>();
         std::cout << "Querying quantization values... " << std::endl;
         std::cout << "  Datatype: " << dtype << std::endl;
@@ -350,11 +356,11 @@ int validate(std::string blobPath, std::string expectedPath, std::string actualP
         // de-quantize
         for (size_t i = 0; i < outputVector.size(); ++i)
         {
-            // Other De-quantize formula: real_value  = Scale * ( quantized_value - zero_point)
-            //float val2 = qScale * (outputVector[i] - qZero);
+            // De-quantize formula (1): real_value  = Scale * ( quantized_value - zero_point)
+            float val = qScale * (outputVector[i] - qZero);
 
-            // De-quantize: bitshift left by qShift then multiply by scale
-            float val = static_cast<float>(outputVector[i] << qShift) / static_cast<float>(qScale);
+            // De-quantize formula (2): bitshift left by qShift then multiply by scale
+            // float val = static_cast<float>(outputVector[i] << (qShift)) / static_cast<float>(qScale);
             outputFP32.push_back(val);
         }
     }
@@ -370,7 +376,8 @@ int validate(std::string blobPath, std::string expectedPath, std::string actualP
             outputFP32.push_back(val);
         }
     }
-    
+    writeToFile(outputFP32, "./output-kmb-dequantized.bin");
+
     std::cout << "Reading in expected results... ";
     std::ifstream infile(expectedPath, std::ios::binary);
     infile.seekg(0, infile.end);
@@ -555,7 +562,10 @@ int main(int argc, char *argv[])
     {
         //bypass all and just run the validation function
         convertBlobToJson(FLAGS_b);
-        validate(FLAGS_b, FLAGS_e, FLAGS_a);
+        std::string outputFile = std::getenv("VPUIP_HOME") + std::string("/application/demo/InferenceManagerDemo/output-0.bin");
+        std::string actualPathProcessed = "./output_transposed.dat";
+        postProcessActualResults(outputFile, FLAGS_b);
+        validate(FLAGS_b, FLAGS_e, actualPathProcessed);
         return(0);
     }
 
