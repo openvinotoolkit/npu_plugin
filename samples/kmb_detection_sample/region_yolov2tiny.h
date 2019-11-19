@@ -15,10 +15,18 @@
 //
 
 #pragma once
+#include <string>
+#include <vector>
+
 namespace postprocess{
-    
     int yolov2(const float *data, int * shape4D, int * strides4D, float thresh, float nms, 
             int num_classes,
             int image_width, int image_height,
-            float * result);	
+            float * result);
+
+    const std::vector<std::string> YOLOV2_TINY_LABELS = {
+         "aeroplane", "bicycle", "bird", "boat", "bottle", "bus", "car", "cat", "chair",
+         "cow", "diningtable", "dog", "horse", "motorbike", "person", "pottedplant", "sheep",
+         "sofa", "train", "tvmonitor"
+    };
 };
