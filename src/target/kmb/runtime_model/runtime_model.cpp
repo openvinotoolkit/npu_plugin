@@ -104,7 +104,7 @@ int computeAppropriatePadding(mv::Tensor tensor)
 
 void mv::RuntimeModel::alignTensor(mv::ComputationModel& cm, std::unique_ptr<MVCNN::TensorReferenceT>& tensorT, mv::Tensor& tensor, const size_t dimension, bool padFinalOutput)
 {
-    if(dimension == IO_CHANNEL_DIMENSION) 
+    if(dimension == IO_CHANNEL_DIMENSION)
     {
         auto globalConfigParams = cm.getGlobalConfigParams();
         int pad = computeAppropriatePadding(tensor);
@@ -119,7 +119,7 @@ void mv::RuntimeModel::alignTensor(mv::ComputationModel& cm, std::unique_ptr<MVC
         if(padFinalOutput)
             tensorT->dimensions = std::vector<uint32_t>(dimensions.begin(), dimensions.end());
     }
-    else if (dimension == IO_WIDTH_DIMENSION) 
+    else if (dimension == IO_WIDTH_DIMENSION)
     {
         std::vector<std::size_t> dimensions = tensor.getShape();
         auto widthPadded = mv::round_up(dimensions[mv::IO_WIDTH_DIMENSION], 16);
@@ -128,7 +128,7 @@ void mv::RuntimeModel::alignTensor(mv::ComputationModel& cm, std::unique_ptr<MVC
         numericStrides.push_back(tensor.getDType().getSizeInBits() / 8);
         std::reverse(dimensions.begin(), dimensions.end());
         std::reverse(numericStrides.begin(), numericStrides.end());
-        tensorT->strides = numericStrides; 
+        tensorT->strides = numericStrides;
 
     }
 }
@@ -293,20 +293,24 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     if(t->isQuantized())
     {
         auto quantizationParams = t->get<mv::QuantizationParams>("quantParams");
+
         auto quantZero = quantizationParams.getZeroPoint();
         toBuild->quant_zero = std::vector<unsigned char>(quantZero.begin(), quantZero.end());
-        std::vector<unsigned> quantScale = {};
-        if (quantizationParams.hasAttr("mult"))
-            quantScale = quantizationParams.getMult();
 
-        quantScale = reduceQuantVector_(quantScale);
-        toBuild->quant_scale = std::vector<unsigned short int>(quantScale.begin(), quantScale.end());
+        auto quantScale = quantizationParams.getScale();
+        toBuild->quant_scale = std::vector<float>(quantScale.begin(), quantScale.end());
+
+        std::vector<unsigned> quantMult = {};
+        if (quantizationParams.hasAttr("mult"))
+            quantMult = quantizationParams.getMult();
+        quantMult = reduceQuantVector_(quantMult);
+        toBuild->quant_mult = std::vector<unsigned short int>(quantMult.begin(), quantMult.end());
+
         std::vector<unsigned> quantShift;
         if (quantizationParams.hasAttr("shift"))
             quantShift = quantizationParams.getShift();
         quantShift = reduceQuantVector_(quantShift);
         toBuild->quant_shift = std::vector<unsigned char>(quantShift.begin(), quantShift.end());
-
     }
 
     return toBuild;
@@ -434,20 +438,24 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     if(t->isQuantized())
     {
         auto quantizationParams = t->get<mv::QuantizationParams>("quantParams");
+
         auto quantZero = quantizationParams.getZeroPoint();
         toBuild->quant_zero = std::vector<unsigned char>(quantZero.begin(), quantZero.end());
-        std::vector<unsigned> quantScale = {};
-        if (quantizationParams.hasAttr("mult"))
-            quantScale = quantizationParams.getMult();
 
-        quantScale = reduceQuantVector_(quantScale);
-        toBuild->quant_scale = std::vector<unsigned short int>(quantScale.begin(), quantScale.end());
+        auto quantScale = quantizationParams.getScale();
+        toBuild->quant_scale = std::vector<float>(quantScale.begin(), quantScale.end());
+
+        std::vector<unsigned> quantMult = {};
+        if (quantizationParams.hasAttr("mult"))
+            quantMult = quantizationParams.getMult();
+        quantMult = reduceQuantVector_(quantMult);
+        toBuild->quant_mult = std::vector<unsigned short int>(quantMult.begin(), quantMult.end());
+
         std::vector<unsigned> quantShift;
         if (quantizationParams.hasAttr("shift"))
             quantShift = quantizationParams.getShift();
         quantShift = reduceQuantVector_(quantShift);
         toBuild->quant_shift = std::vector<unsigned char>(quantShift.begin(), quantShift.end());
-
     }
 
     return toBuild;
@@ -867,7 +875,7 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
     else
     {
         std::vector<std::unique_ptr<MVCNN::TaskT>> toReturn;
-        
+
         case2MC(numTasks, cm, direction, compilationDescriptor, compression, padFinalOutput, toReturn, inputTensor, outputTensor);
         if(inputTensor->isSparse())
         {
@@ -1259,8 +1267,8 @@ void mv::RuntimeModel::getWorkloadPadding(Control::OpListIterator opIt, Workload
 std::array <unsigned short, 4>  mv::RuntimeModel::getPadding(Control::OpListIterator opIt, unsigned clusterId)
 {
     std::array <unsigned short, 4> padding = opIt->get<std::array<unsigned short, 4>>("padding");
-    
-    if(clusterId !=0) 
+
+    if(clusterId !=0)
     {
         auto subTensor = opIt->getOutputTensor(0)->getSubTensor(clusterId);
         std::vector<std::size_t> offset = subTensor.get<std::vector<std::size_t>>("offset");
@@ -1539,6 +1547,30 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAROIPoolingTask(ComputationModel
     return toBuild;
 }
 
+MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAInterpTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt)
+{
+
+    auto toBuild = new MVCNN::UPALayerTaskT();
+
+    toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_InterpParams;
+    auto softLayerParamsValue = new MVCNN::InterpParamsT();
+
+    auto input = opIt->getInputTensor(0);
+    auto output = opIt->getOutputTensor(0);
+
+    // Fill in tensors
+    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input)));
+    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
+
+    // Fill in required params
+    softLayerParamsValue->pad_beg = opIt->get<unsigned>("pad_beg");
+    softLayerParamsValue->pad_end = opIt->get<unsigned>("pad_end");
+    softLayerParamsValue->align_corners = opIt->get<bool>("align_corners");
+    toBuild->softLayerParams.value = softLayerParamsValue;
+
+    return toBuild;
+}
+
 MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAQuantizeTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt)
 {
     auto input = opIt->getInputTensor(0);
@@ -1732,6 +1764,8 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildUPATask(Comput
         toReturn[0]->task.value = buildUPANormalizeTask(cm, compilationDescriptor, opIt);
     else if(underlyingTask == "Permute")
         toReturn[0]->task.value = buildUPAPermuteTask(cm, compilationDescriptor, opIt);
+    else if(underlyingTask == "Interp")
+        toReturn[0]->task.value = buildUPAInterpTask(cm, compilationDescriptor, opIt);
     // TODO: Add other UPA layers
 
     return toReturn;

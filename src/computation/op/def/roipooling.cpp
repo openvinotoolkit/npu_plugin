@@ -33,7 +33,6 @@ namespace mv
             auto input = inputs[0];
             auto outputOrder = input->getOrder();
             auto inputShape = input->getShape();
-            auto ndims = inputShape.ndims();
             auto W = args.at("pooled_w").get<unsigned>();
             auto H = args.at("pooled_h").get<unsigned>();
             auto C =  inputShape[IO_CHANNEL_DIMENSION];
