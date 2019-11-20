@@ -95,8 +95,8 @@ TEST_P(VpuInferAndCompareTests, NQA) {  // To be run in manual mode when device 
     }
 
     Core ie;
-
-    InferenceEngine::ExecutableNetwork exeNetwork = ie.LoadNetwork(network, "kmb", {});
+    InferenceEngine::ExecutableNetwork exeNetwork;
+    ASSERT_NO_THROW(exeNetwork = ie.LoadNetwork(network, "kmb"));
 #ifdef __arm__
     int batch = 1;
 
@@ -236,15 +236,10 @@ std::vector<TestingNetworkParameters> vpuInferAndCompareTestsNQA = {
                         "/224x224/cat3.bmp"},
 
         // post trainig models
-        // Folowing 3 tests on tiny_yolo_v2 fail on IE to mcmCompiler parsing stage.
-        // The networks can not be parsed due to parsing RegionYolo issue CVS-23844
+        // models below are able to be compiled but need to discuss do we really need them all
         TestingNetworkParameters{"tiny_yolo_v2_int8_int8_weights_pertensor",
                         "/KMB_models/NQA/POST_TRAINING/TinyYolo_V2/tiny_yolo_v2_int8_int8_weights_pertensor.xml",
                         "/KMB_models/NQA/POST_TRAINING/TinyYolo_V2/tiny_yolo_v2_int8_int8_weights_pertensor.bin",
-                        "/416x416/person.bmp"},
-        TestingNetworkParameters{"tiny_yolo_v2_uint8_int8_weights_pertensor",
-                        "/KMB_models/NQA/POST_TRAINING/TinyYolo_V2/tiny_yolo_v2_uint8_int8_weights_pertensor.xml",
-                        "/KMB_models/NQA/POST_TRAINING/TinyYolo_V2/tiny_yolo_v2_uint8_int8_weights_pertensor.bin",
                         "/416x416/person.bmp"},
         TestingNetworkParameters{"tiny_yolo_v2_uint8_uint8_weights_pertensor",
                         "/KMB_models/NQA/POST_TRAINING/TinyYolo_V2/tiny_yolo_v2_uint8_uint8_weights_pertensor.xml",
@@ -313,6 +308,11 @@ std::vector<TestingNetworkParameters> vpuInferAndCompareTargetNetworks = {
                                  "/KMB_models/NQA/POST_TRAINING/squeezenet1_1_pytorch/squeezenet1_1_pytorch_uint8_int8_weights_pertensor.xml",
                                  "/KMB_models/NQA/POST_TRAINING/squeezenet1_1_pytorch/squeezenet1_1_pytorch_uint8_int8_weights_pertensor.bin",
                                  "/224x224/cat3.bmp"},
+
+        TestingNetworkParameters{"tiny_yolo_v2_uint8_int8_weights_pertensor",
+                                 "/KMB_models/NQA/POST_TRAINING/TinyYolo_V2/tiny_yolo_v2_uint8_int8_weights_pertensor.xml",
+                                 "/KMB_models/NQA/POST_TRAINING/TinyYolo_V2/tiny_yolo_v2_uint8_int8_weights_pertensor.bin",
+                                 "/416x416/person.bmp"},
 };
 
 INSTANTIATE_TEST_CASE_P(DISABLED_InferAndCompareTestsNQA, VpuInferAndCompareTests,
