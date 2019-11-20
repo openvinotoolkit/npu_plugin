@@ -252,9 +252,8 @@ std::vector<TestingNetworkParameters> vpuInferAndCompareTestsNQA = {
                         "/416x416/person.bmp"},
         // post trainig models
         // Following 3 tests on inception_v1 fail on mcmCompiler compilation stage with following message.
-        // C++ exception with description "GraphOptimizer-StrategyManager -
-        // LogicError: GraphOptimizer did not create any potential strategies for
-        // InceptionV1/InceptionV1/Mixed_3c/concat_v2:step0
+        // Streaming for node: InceptionV1/Logits/Conv2d_0c_1x1/convolution has stream K = 2
+        // ERROR:   checkIsCMXTensor_ - ArgumentError: no allocators for tensor ImplicitReshape_0:0 - no allocators for tensor
         TestingNetworkParameters{"inception_v1_tf_int8_int8_weights_pertensor",
                         "/KMB_models/NQA/POST_TRAINING/inception-v1_tf/inception-v1_tf_int8_int8_weights_pertensor.xml",
                         "/KMB_models/NQA/POST_TRAINING/inception-v1_tf/inception-v1_tf_int8_int8_weights_pertensor.bin",

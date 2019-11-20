@@ -795,7 +795,8 @@ void FrontEndMcm::parsePermute(
         newOrder += DIM_NAMES[ieOrder[ieOrder.size() - 1 - i]];
     }
 
-    auto mvPerm = _modelMcm.permute(inputs[0]->getMcmNode(), mv::Order(newOrder), layer->name);
+    auto mvPerm = _modelMcm.permute(inputs[0]->getMcmNode(), mv::Order(newOrder), mv::DType("Default"),
+            initialQuantParams, layer->name);
     bindOutput(mvPerm, layer->outData[0]);
 
     _logger->debug(FINISH_PARSING_STR, mvPerm->getName());
