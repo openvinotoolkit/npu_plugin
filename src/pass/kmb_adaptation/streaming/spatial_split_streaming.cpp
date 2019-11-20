@@ -350,7 +350,7 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model, mv::Dat
 {
     mv::OpModel om(model);
     mv::ControlModel cm(model);
-    bool nestedLayerStreaming = true;
+    bool nestedLayerStreaming = false;
     auto outputTensor = op->getOutputTensor("output");
     auto opId = op->get<unsigned>("opId");
     std::string splitStrategy = op->get<std::string>("splitStrategy");

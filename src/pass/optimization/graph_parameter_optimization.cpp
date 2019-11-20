@@ -465,7 +465,7 @@ namespace mv
                 if( (spilling) and (clustering == "HKSwitch"))
                     return true;
 
-                if( op.getOpType() == "Conv")
+                if( op.getOpType() == "Conv" || op.getOpType() == "DepthwiseConv")
                 {
                     auto weightsShape = op.getInputTensor(1)->getShape();
                     auto numInChannels = weightsShape[KERNEL_INPUT_CHANNELS];
@@ -519,19 +519,18 @@ namespace mv
                             return INF;
 
                 //Cannot pass directly from SoH to SoK
-                if( parentClustering == "SplitOverH" and
+                if( parentClustering == "SplitOverH" and not parent["spilling"].get<bool>() and
                         childClustering == "SplitOverK")
                             return INF;
 
                 //cannot pass directly from SoK to SoH
-                if( parentClustering == "SplitOverK" and
+                if( parentClustering == "SplitOverK" and not parent["spilling"].get<bool>() and
                         childClustering == "SplitOverH")
                             return INF;
 
-
-                //SOH-Overlapped can only go to SOH layers
-                if( parentClustering == "SplitOverHOverlapped" and
-                        (not (childClustering == "SplitOverH")))
+                //cannot pass directly from Clustering to SoH if I am on cmx
+                if( parentClustering == "Clustering" and not parent["spilling"].get<bool>() and
+                        childClustering == "SplitOverH")
                             return INF;
 
                 //TODO child only rules moved to checkForBadStrategy, update to perserve only pair-wise rules
@@ -541,11 +540,10 @@ namespace mv
                     auto numInChannels = weightsShape[KERNEL_INPUT_CHANNELS];
                     auto numOutChannels = weightsShape[KERNEL_OUTPUT_CHANNELS];
 
-
                     if((parent["spilling"].get<bool>()) and (childClustering == "SplitOverH"))
                         return INF;
-                    if((numOutChannels/totalClusters < 16) and (childClustering == "SplitOverK"))
-                        return INF;
+//                    if((numOutChannels/totalClusters < 16) and (childClustering == "SplitOverK"))
+//                        return INF;
 
                 }
 
