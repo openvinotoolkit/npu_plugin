@@ -126,6 +126,21 @@ void computeTensorsQuantParams(const mv::pass::PassEntry&, mv::ComputationModel&
                                                + std::to_string(input1Scale[0]) + " " + std::to_string(input2Scale[0]));
                  }
 
+                 //Note: There are PPE Types SIGMOID, TAN, EXP, SQRT, RSQRT, FLEXARB that need their output
+                 //quantized to 13-bits, then runtime uses a LUT to correspond to 8-bit
+                 if (opIt->hasAttr("postOpTypes"))
+                 {
+                     auto ppeIterator = std::find(opIt->get<std::vector<std::string>>("postOpTypes").begin(),
+                                               opIt->get<std::vector<std::string>>("postOpTypes").end(),
+                                               "Sigmoid");
+                     if (ppeIterator != opIt->get<std::vector<std::string>>("postOpTypes").end())
+                     {
+                        auto ppeQuantumBits = 5;
+                        auto ppeQuantum = std::pow(2, ppeQuantumBits);
+                        std::transform(m.begin(), m.end(), m.begin(), std::bind(std::multiplies<float>(),
+                                                                                std::placeholders::_1, ppeQuantum));
+                     }
+                }
                  // Fuse ReLU into quantization (i.e. make ReLU == saturation), will be done using a separate pass
 
                  // m / S3
