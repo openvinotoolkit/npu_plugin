@@ -345,6 +345,21 @@ mv::Data::TensorIterator convertInterpToUPATask(mv::OpModel& om, const std::vect
 
     return om.uPATaskInterp(inputs, factor, pad_beg, pad_end, height, width, align_corners, dtype, quantParams, name);
 }
+
+mv::Data::TensorIterator convertNormToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs, const std::map<std::string, mv::Attribute>& attrs, const std::string& name)
+{
+    auto quantParams = attrs.at("quantParams").get<mv::QuantizationParams>();
+    auto dtype = attrs.at("dType").get<mv::DType>();
+
+    // Required params
+    auto alpha = attrs.at("alpha").get<double>();
+    auto beta = attrs.at("beta").get<double>();
+    auto region = attrs.at("region").get<std::string>();
+    auto local_size = attrs.at("local_size").get<unsigned>();
+
+    return om.uPATaskNorm(inputs, alpha, beta, region, local_size, dtype, quantParams, name);
+}
+
 void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
 
@@ -355,7 +370,7 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
     std::vector<std::string> opsTypesToConvert = {"Conv", "DepthwiseConv", "Eltwise", "MaxPool"};
     std::vector<std::string> opsTypesToConvertToUPA = {"Argmax", "Identity", "Softmax", "Proposal", "ROIPooling",
                                                        "Quantize", "Reshape", "RegionYolo", "ReorgYolo",
-                                                       "Normalize", "DetectionOutput", "Priorbox", "Permute", "Interp"};
+                                                       "Normalize", "DetectionOutput", "Priorbox", "Permute", "Interp", "Norm"};
 
     opsTypesToConvert.insert(opsTypesToConvert.end(), opsTypesToConvertToUPA.begin(), opsTypesToConvertToUPA.end());
     auto opsToConvert = om.getOpsOfTypes(opsTypesToConvert);
@@ -376,6 +391,7 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
     {"Normalize", convertNormalizeToUPATask},
     {"DetectionOutput", convertDetectionOutputToUPATask},
     {"Interp", convertInterpToUPATask},
+    {"Norm", convertNormToUPATask},
     {"Priorbox", convertPriorboxToUPATask},
     {"Argmax", convertArgmaxToUPATask},
     {"Permute", convertPermuteToUPATask}

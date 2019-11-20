@@ -1568,6 +1568,31 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAInterpTask(ComputationModel& cm
     return toBuild;
 }
 
+MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPANormTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt)
+{
+
+    auto toBuild = new MVCNN::UPALayerTaskT();
+
+    toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_NormParams;
+    auto softLayerParamsValue = new MVCNN::NormParamsT();
+
+    auto input = opIt->getInputTensor(0);
+    auto output = opIt->getOutputTensor(0);
+
+    // Fill in tensors
+    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input)));
+    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
+
+    // Fill in required params
+    softLayerParamsValue->alpha = opIt->get<double>("alpha");
+    softLayerParamsValue->beta = opIt->get<double>("beta");
+    softLayerParamsValue->region = opIt->get<std::string>("region");
+    softLayerParamsValue->local_size = opIt->get<unsigned>("local_size");
+    toBuild->softLayerParams.value = softLayerParamsValue;
+
+    return toBuild;
+}
+
 MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAQuantizeTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt)
 {
     auto input = opIt->getInputTensor(0);
@@ -1895,6 +1920,8 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildUPATask(Comput
         toReturn[0]->task.value = buildUPAPermuteTask(cm, compilationDescriptor, opIt);
     else if(underlyingTask == "Interp")
         toReturn[0]->task.value = buildUPAInterpTask(cm, compilationDescriptor, opIt);
+    else if(underlyingTask == "Norm")
+        toReturn[0]->task.value = buildUPANormTask(cm, compilationDescriptor, opIt);
     else if(underlyingTask == "DetectionOutput")
         toReturn[0]->task.value = buildUPADetectionOutputTask(cm, compilationDescriptor, opIt);
     else if(underlyingTask == "Priorbox")

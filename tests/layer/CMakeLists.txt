@@ -84,4 +84,8 @@ else()
 
     add_executable(interp_noalign interp_noalign/interp_noalign.cpp)
     target_link_libraries(interp_noalign cm)
+
+    add_executable(norm norm/norm.cpp)
+    target_link_libraries(norm cm)
+
 endif(MSVC)
