@@ -1573,8 +1573,8 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPANormTask(ComputationModel& cm, 
 
     auto toBuild = new MVCNN::UPALayerTaskT();
 
-    toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_NormParams;
-    auto softLayerParamsValue = new MVCNN::NormParamsT();
+    toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_NormLayerParams;
+    auto softLayerParamsValue = new MVCNN::NormLayerParamsT();
 
     auto input = opIt->getInputTensor(0);
     auto output = opIt->getOutputTensor(0);
