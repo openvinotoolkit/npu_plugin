@@ -986,7 +986,7 @@ void FrontEndMcm::parseRegionYolo(
     auto do_softmax = layer->GetParamAsBool("do_softmax");
     auto num = layer->GetParamAsUInt("num");
 
-    auto region = _modelMcm.regionYolo(inputs[0]->getMcmNode(), coords, classes, do_softmax, num, {}, layer->name);
+    auto region = _modelMcm.regionYolo(inputs[0]->getMcmNode(), coords, classes, do_softmax, num, {}, mv::DType("Default"), initialQuantParams, layer->name);
     bindOutput(region, layer->outData[0]);
 
     _logger->debug(FINISH_PARSING_STR, region->getName());
@@ -1001,7 +1001,7 @@ void FrontEndMcm::parseReorgYolo(
 
     auto stride = layer->GetParamAsUInt("stride");
 
-    auto reorg = _modelMcm.reorgYolo(inputs[0]->getMcmNode(), stride, layer->name);
+    auto reorg = _modelMcm.reorgYolo(inputs[0]->getMcmNode(), stride, mv::DType("Default"), initialQuantParams, layer->name);
     bindOutput(reorg, layer->outData[0]);
 
     _logger->debug(FINISH_PARSING_STR, reorg->getName());
