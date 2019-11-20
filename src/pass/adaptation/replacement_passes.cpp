@@ -11,6 +11,7 @@ static void tensorsToFP16Fcn(const mv::pass::PassEntry& , mv::ComputationModel& 
 static void tensorsToU8Fcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void averageAsDepthWiseFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 static void interpAsAvgPoolingFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
+static void flattenAsReshapeFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 static void replacementOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 
 namespace mv
@@ -34,7 +35,7 @@ namespace mv
         MV_REGISTER_PASS(ReplacementOps)
         .setFunc(replacementOpsFcn)
         .setDescription(
-            "Replaces Average with Depthwise and FullyConnected with Convolution"
+            "Replaces Average with Depthwise, FullyConnected with Convolution, & Flatten with Reshape"
         );
 
     }
@@ -175,6 +176,7 @@ void replacementOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mo
     fullyConnectedAsConv2DFcn(pass, model);
     //interpAsAvgPoolingFcn(pass, model); for now we are using SW layer
     averageAsDepthWiseFcn(pass, model);
+    flattenAsReshapeFcn(pass, model);
 }
 
 void fullyConnectedAsConv2DFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
@@ -392,5 +394,47 @@ void averageAsDepthWiseFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
         pass.log(mv::Logger::MessageType::Info, "Replaced AveragePool op " + opIt->getName() + " with " + depthwise_conv->getName());
         depthwise_conv->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
         linkNewOperationsReplacement(parentOpIt, depthwise_conv, om, opIt);
+    }
+}
+
+void flattenAsReshapeFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
+{
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
+    using namespace mv;
+
+    OpModel om(model);
+
+    auto flattenOps = om.getOps("Flatten");
+
+    for (auto& opIt : flattenOps)
+    {
+        auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
+
+        pass.log(Logger::MessageType::Debug, "Found Flatten op " + opIt->getName());
+
+        auto sourceTensor = opIt->getInputTensor(0);
+        auto parentOpIt = om.getSourceOp(sourceTensor);
+        auto inputShape = sourceTensor->getShape();
+        mv::QuantizationParams weightsTensorQuantizationParams = {{},{},{},{}};
+        mv::QuantizationParams outputTensorQuantizationParams = {{},{},{},{}};
+
+        auto outputTensorType = opIt->getOutputTensor(0)->get<mv::DType>("dType");
+        auto outputShape = opIt->getOutputTensor(0)->getShape();
+        auto outputOrder = opIt->getOutputTensor(0)->getOrder();
+
+        auto reshape = om.reshape(sourceTensor, outputShape, outputOrder.toString(), outputTensorType, outputTensorQuantizationParams,  opIt->getName() + "_reshape");
+        pass.log(Logger::MessageType::Info, "Replaced Flatten op " + opIt->getName() + " with " + reshape->getName());
+
+        auto reshapeOp = om.getSourceOp(reshape);
+
+        if(opIt->hasAttr("opId"))
+        {
+            unsigned currentOpId = opIt->get<unsigned>("opId");
+            reshapeOp->set<unsigned>("opId", currentOpId);
+        }
+
+        linkNewOperationsReplacement(parentOpIt, reshape, om, opIt);
+        reshape->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
     }
 }

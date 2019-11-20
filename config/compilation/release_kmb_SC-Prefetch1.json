@@ -199,6 +199,7 @@
         "Singular" : [
             "SetDpuTasksMemoryLocation",
             "SetUPATasksMemoryLocation",
+            "UpdateImplicitLayersLocation",
             "ResolveImplicitOperations",
             "AddDPUTasksWeightsDMATasks",
             "AddUPATasksExtraInputsDMATasks",
@@ -268,13 +269,6 @@
     },
     "serialize": {
         "Singular": [
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/before_serialization.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            },
             {
                 "name": "GenerateBlobKmb",
                 "output": "output/mcm.blob"

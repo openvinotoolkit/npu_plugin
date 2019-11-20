@@ -40,7 +40,6 @@ namespace mv
                 errMsg = "Tensor must have channels dimension: order=" + order_str;
                 return {false, 0};
             }
-
             auto shape = input->getShape();
 
             auto C = shape[iC];
@@ -99,8 +98,6 @@ namespace mv
             auto input = inputs[0];
 
             auto in_order = input->getOrder();
-            auto in_order_str = in_order.toString();
-
             auto out_order = in_order;
             auto out_shape = input->getShape();
 
