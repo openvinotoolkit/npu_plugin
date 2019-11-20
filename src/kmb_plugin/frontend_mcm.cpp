@@ -167,7 +167,6 @@ void FrontEndMcm::buildInitialModel(ie::ICNNNetwork& network) {
         getInputData(layer, inputs);
         (this->*parser)(layer, inputs);
     }
-
     parseOutputData();
 }
 
