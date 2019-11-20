@@ -15,6 +15,7 @@ class Operation_Dag {
   public:
     typedef Operation_Dag dag_t;
     typedef std::string operation_t;
+    typedef std::hash<std::string> operation_hash_t;
     typedef std::vector<operation_t> adjacency_list_t;
     typedef typename adjacency_list_t::const_iterator const_adj_list_iterator_t;
     typedef std::unordered_map<operation_t, adjacency_list_t> adjacency_map_t;
@@ -332,6 +333,10 @@ struct scheduler_traits<scheduler_unit_tests::Operation_Dag>
     static void initialize_resource_upper_bound(const resource_t& upper_bound,
         resource_state_t& state) {
       state.initialize_resource_upper_bound(upper_bound);
+    }
+
+    static bool is_empty_demand(const resource_t& demand) {
+      return (demand == resource_t(0UL));
     }
 
     static bool is_resource_available(const resource_t& demand,
@@ -1289,6 +1294,7 @@ class Test_Fixture_Feasible_Memory_Scheduler
     typedef feasible_memory_scheduler_t::operation_t operation_t;
     typedef feasible_memory_scheduler_t::ready_data_list_t ready_data_list_t;
     typedef feasible_memory_scheduler_t::op_list_t op_list_t;
+    typedef feasible_memory_scheduler_t::resource_t resource_t;
 
     void SetUp() override {}
     void TearDown() override {}
@@ -1433,4 +1439,55 @@ TEST_F(Test_Fixture_Feasible_Memory_Scheduler, test_compute_in_degree) {
   EXPECT_EQ(get_op_in_degree("A"), 2UL);
   EXPECT_EQ(get_op_in_degree("B"), 3UL);
   EXPECT_EQ(get_op_in_degree("C"), 4UL);
+}
+
+TEST_F(Test_Fixture_Feasible_Memory_Scheduler, is_ready_op_schedulable) {
+
+  
+  dag_t::adjacency_map_t in = { {"Input", {"A", "B"} }, {"A", {"B"}},
+    {"B", {}}, {"A_in", {"A"} }, {"B_in", {"B"} } };
+  dag_t::resource_cost_model_t memory = { {"Input", 3UL}, {"A", 3UL},
+    {"A_in",4UL}, {"B_in", 2UL}, {"B", 2UL} };
+
+  dag_t g(in);
+  g.reset_resource_model(memory);
+
+  reset(g, resource_t(10UL));
+
+  EXPECT_TRUE(is_ready_compute_operation_schedulable("Input"));
+  EXPECT_TRUE(schedule_compute_op("Input"));
+
+  // now get the demand list of operation "A" and operation "B" since
+  // both depend on the input. The demand of A = (4 + 3 + 3) - 3 and
+  // the demand of B = (3 + 2 + 2 + 3) - 3 the available demand is 7 
+  {
+    std::vector<resource_t> demand_list;
+    std::vector<resource_t> expected_list = {3, 4};
+
+    ASSERT_EQ(get_non_empty_op_demand_list("A",
+            std::back_inserter(demand_list)), 2UL);
+    std::sort(demand_list.begin(), demand_list.end());
+    EXPECT_EQ(demand_list, expected_list);
+  }
+
+
+  {
+    std::vector<resource_t> demand_list;
+    std::vector<resource_t> expected_list = {2, 2, 3};
+
+    ASSERT_EQ(get_non_empty_op_demand_list("B",
+            std::back_inserter(demand_list)), 3UL);
+    std::sort(demand_list.begin(), demand_list.end());
+    EXPECT_EQ(demand_list, expected_list);
+  }
+
+  // check the heap //
+  {
+    const heap_element_t *top_elem = NULL;
+    heap_element_t expected("Input", 1);
+
+    ASSERT_TRUE(top_element());
+    top_elem = top_element();
+    EXPECT_EQ(*top_elem, expected);
+  }
 }

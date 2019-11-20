@@ -17,6 +17,10 @@ struct scheduler_traits {
   // Input: G(V,E) //
   typedef int dag_t;
   typedef int operation_t; 
+  // should be a function which defines a hash function and is equivalent to
+  // std::hash<operation_t> //
+  typedef int operation_hash_t; 
+
   // Invariant: &(*itr) should remain same constant irrespective of the iterator
   typedef int const_operation_iterator_t;
 
@@ -150,12 +154,15 @@ class Cumulative_Resource_State {
 // This models the resource state as disjoint set of integral intervals//
 // 
 // TODO(vkundeti): enforce hashable requirement for the Key //
-template<typename Unit, typename Key>
+template< typename Unit, typename Key, typename KeyHash=std::hash<Key>,
+         typename KeyEqual=std::equal_to<Key> >
 class Contiguous_Resource_State {
   public:
     ////////////////////////////////////////////////////////////////////////////
     typedef Unit unit_t;
     typedef Key key_t;
+    typedef KeyHash key_hash_t;
+    typedef KeyEqual key_equal_t;
     typedef Disjoint_Interval_Set<unit_t, key_t> active_resources_t;
     typedef typename active_resources_t::free_interval_iterator_t
         free_interval_iterator_t;
@@ -198,7 +205,8 @@ class Contiguous_Resource_State {
       bool operator()(const unit_t& a, const unit_t& b) const { return a >b; }
     }; // struct demand_ordering_t //
 
-    typedef std::unordered_map<key_t, interval_info_t> lookup_t;
+    typedef std::unordered_map<key_t, interval_info_t, key_hash_t,
+              key_equal_t> lookup_t;
     ////////////////////////////////////////////////////////////////////////////
 
     Contiguous_Resource_State() : active_resources_(),
@@ -224,6 +232,7 @@ class Contiguous_Resource_State {
       unit_t ibeg, iend;
       return find_interval_satisfying_demand(demand, ibeg, iend);
     }
+
 
 
     // Given the current resource state checks if the demands can be
@@ -324,29 +333,6 @@ class Contiguous_Resource_State {
             no_op_back_insert_iterator_t());
     }
 
-    /*
-    // Precondition: are_resources_available_simultaneously //
-    template<typename DemandIterator>
-    bool assign_resources_simultaneously(
-        const key_t& op, DemandIterator ditr, DemandIterator ditr_end) {
-
-      typename lookup_t::iterator litr = lookup_.find(op);
-
-      if (litr != lookup_.end()) { return false; }
-
-      // no resources assigned for this operation //
-
-      unit_t ibeg, iend;
-      if (!find_smallest_interval_satisfying_demand(demand, ibeg, iend) ||
-          !active_resources_.insert(ibeg, ibeg+demand-1, op)) {
-        return false;
-      }
-      // found a feasible resource //
-      lookup_.insert(std::make_pair(op, interval_info_t(ibeg, ibeg+demand-1)));
-      return true;
-    }
-    */
-
     bool is_key_using_resources(const key_t& op) const {
       return lookup_.find(op) != lookup_.end();
     }
@@ -367,6 +353,20 @@ class Contiguous_Resource_State {
       }
       // found a feasible resource //
       lookup_.insert(std::make_pair(op, interval_info_t(ibeg, ibeg+demand-1)));
+      return true;
+    }
+
+    bool assign_resources(const key_t& key, unit_t ibeg, unit_t iend) {
+      if ( !( (location_begin_ <= ibeg) && (ibeg <= iend) &&
+              (iend <= location_end_) ) ) { return false; }
+
+      typename lookup_t::iterator litr = lookup_.find(key);
+      if (litr != lookup_.end()) { return false; }
+
+      // insert into the interval tree //
+      if ( !active_resources_.insert(ibeg, iend, key) ) { return false; }
+
+      lookup_.insert( std::make_pair( key, interval_info_t(ibeg, iend) ) );
       return true;
     }
 
@@ -932,19 +932,18 @@ class Feasible_Memory_Schedule_Generator {
     typedef SchedulerTraits traits;
     typedef typename traits::dag_t dag_t;
     typedef typename traits::operation_t operation_t;
+    typedef typename traits::operation_hash_t operation_hash_t;
     typedef typename traits::resource_t resource_t;
     typedef typename traits::delay_t delay_t;
     typedef typename traits::const_operation_iterator_t
         const_operation_iterator_t;
-    typedef Producer_Consumer_Contiguous_Resource<resource_t, operation_t>
-        resource_state_t;
     typedef size_t schedule_time_t;
 
     // The spill op is considered an implicit op //
     enum class op_type_e { ORIGINAL_OP=0, IMPLICIT_OP_READ=1,
-        IMPLICIT_OP_WRITE=3 }; 
+        IMPLICIT_OP_WRITE=3 };
     // The output of the operation is active or spilled until its consumed.
-    enum class operation_output_e { ACTIVE=0, SPILLED=1, CONSUMED=2} ;
+    enum class operation_output_e { ACTIVE=0, SPILLED=1, CONSUMED=2 };
 
     struct op_output_info_t {
       op_output_info_t(operation_output_e state=operation_output_e::CONSUMED,
@@ -953,9 +952,7 @@ class Feasible_Memory_Schedule_Generator {
 
       bool active() const { return state_ == operation_output_e::ACTIVE; }
       bool spilled() const { return state_ == operation_output_e::SPILLED; }
-      bool consumed() const {
-        return state_ == operation_output_e::CONSUMED;
-      }
+      bool consumed() const { return state_ == operation_output_e::CONSUMED; }
 
       operation_output_e state_;
       size_t outstanding_consumers_;
@@ -971,16 +968,41 @@ class Feasible_Memory_Schedule_Generator {
       op_type_e op_type_;
     }; // struct scheduled_op_info_t //
 
-    //TODO(vamsikku): keep track of active results to help with an eviction 
-    //policy.
-    struct active_result_info_t {
-      active_result_info_t(operation_t op, size_t demand_index,
-          resource_t resource_usage) : op_(op), demand_index_(demand_index),
-      resource_usage_(resource_usage) {}
+    struct op_demand_info_t {
+      op_demand_info_t(operation_t op, size_t demand_index)
+        : op_(op), demand_index_(demand_index) {}
+
+      bool operator==(const op_demand_info_t& o) const {
+        return (op_ == o.op_) && (demand_index_ == o.demand_index_);
+      }
 
       operation_t op_;
-      size_t demand_index_; 
-      resource_t resource_usage_;
+      size_t demand_index_;
+    }; // struct op_demand_info_t //
+
+    struct op_demand_info_hash_t {
+      size_t operator()(const op_demand_info_t& op) const {
+        operation_hash_t op_hash;
+        std::hash<size_t> size_hash;
+
+        return op_hash(op.op_) + size_hash(op.demand_index_);
+      }
+    }; // struct op_demand_info_hash_t //
+
+
+    typedef resource_t unit_t;
+    typedef Contiguous_Resource_State<resource_t,
+            op_demand_info_t, op_demand_info_hash_t> resource_state_t;
+    typedef typename resource_state_t::interval_info_t interval_info_t;
+
+    struct active_result_info_t {
+      active_result_info_t(operation_t op, size_t demand_index,
+          const interval_info_t& interval_info)
+        : op_(op), demand_index_(demand_index), interval_info_(interval_info) {}
+
+      operation_t op_;
+      size_t demand_index_;
+      interval_info_t interval_info_;
     }; // struct active_result_info_t //
 
     struct heap_element_t {
@@ -996,8 +1018,16 @@ class Feasible_Memory_Schedule_Generator {
       schedule_time_t time_;
     }; // struct heap_element_t //
 
+    struct eviction_policy_t {
+      bool operator()(const active_result_info_t& a,
+          const active_result_info_t& b) const {
+
+      }
+    }; // struct eviction_policy //
+
 
     //TODO(vamsikku): consolidate all the lookup tables into one //
+    typedef std::vector<active_result_info_t> eviction_heap_t;
     typedef std::vector<heap_element_t> schedule_heap_t;
     typedef std::list<operation_t> op_list_t;
     typedef std::list<operation_t> ready_data_list_t;
@@ -1005,17 +1035,22 @@ class Feasible_Memory_Schedule_Generator {
     typedef std::unordered_set<operation_t> processed_ops_t; 
     typedef std::unordered_map<operation_t, size_t> op_in_degree_t;
     typedef std::unordered_map<operation_t, op_output_info_t> op_output_table_t;
+    typedef std::list<active_result_info_t> active_op_resources_t;
+    typedef std::unordered_map<operation_t, active_op_resources_t>
+        active_resource_table_t;
     ////////////////////////////////////////////////////////////////////////////
 
     Feasible_Memory_Schedule_Generator(const dag_t& in, const resource_t& bound)
       : scheduled_ops_at_this_time_(), ready_list_(), op_in_degree_(),
       ready_active_list_(), ready_data_list_(), processed_ops_(), heap_(),
-      current_time_(), memory_state_(), input_ptr_(&in) {}
+      current_time_(), memory_state_(), op_output_table_(),
+      active_resource_table_(), input_ptr_(&in) {}
 
     Feasible_Memory_Schedule_Generator()
       : scheduled_ops_at_this_time_(), ready_list_(), op_in_degree_(),
       ready_active_list_(), ready_data_list_(), processed_ops_(), heap_(),
-      current_time_(), memory_state_(), input_ptr_(NULL) {}
+      current_time_(), memory_state_(), op_output_table_(),
+      active_resource_table_(), input_ptr_(NULL) {}
 
     bool reached_end(void) const {
       return ready_list_.empty() && ready_active_list_.empty();
@@ -1198,31 +1233,23 @@ class Feasible_Memory_Schedule_Generator {
       return memory_state_.is_key_using_resources(op);
     }
 
-
-    // A compute operation is schedulable if there are resources available for
-    // all its inputs and output. Some of its inputs may be in active memory
-    // which has demand 0 //
-    //
-    // Precondition: this must be a ready operation which means that all its
-    // input compute operations are completed.
-    bool is_ready_compute_operation_schedulable(operation_t op) const {
-      // first check if output resources for this operation are available //
+    template<typename BackInsertIterator>
+    size_t get_non_empty_op_demand_list(const operation_t& op,
+        BackInsertIterator output) const {
       resource_t demand = traits::resource_utility(*input_ptr_, op);
+      size_t op_demand_count = 0UL;
 
-      if (!traits::is_resource_available(demand, memory_state_)) {
-        return false;
+      if (!traits::is_empty_demand(demand)) {
+        output = demand;
+        ++op_demand_count;
       }
 
       // All its inputs should be active producers and there should be
       // resources available for this operation. //
-      const_operation_iterator_t itr = traits::incoming_operations_begin(op);
-      const_operation_iterator_t itr_end = traits::incoming_operations_end(op);
-
-      std::list<resource_t> demand_list;
-      if (!traits::is_empty_demand(demand)) {
-        demand_list.push_back(demand); // push the demand of the current op //
-
-      }
+      const_operation_iterator_t itr =
+          traits::incoming_operations_begin(*input_ptr_, op);
+      const_operation_iterator_t itr_end =
+          traits::incoming_operations_end(*input_ptr_, op);
 
       // if any of the inputs is active then we don't need any demand for that
       // input.
@@ -1235,12 +1262,35 @@ class Feasible_Memory_Schedule_Generator {
               ((out_itr->second).spilled()) ) {
           demand = traits::resource_utility(*input_ptr_, pop);
           if (!traits::is_empty_demand(demand)) {
-            demand_list.push_back(demand);
+            output = demand;
+            ++op_demand_count;
           }
         }
       }
-      return memory_state_.are_resources_available(demand_list.begin(),
-            demand_list.end());
+
+      return op_demand_count;
+    }
+
+
+    // A compute operation is schedulable if there are resources available for
+    // all its inputs and output. Some of its inputs may be in active memory
+    // which has demand 0 //
+    //
+    // Precondition: this must be a ready operation which means that all its
+    // input compute operations are completed.
+    bool is_ready_compute_operation_schedulable(operation_t op) const {
+      // first check if output resources for this operation are available //
+      resource_t demand = traits::resource_utility(*input_ptr_, op);
+
+      if (!memory_state_.is_resource_available(demand)) {
+        return false;
+      }
+
+      std::list<resource_t> demand_list;
+      get_non_empty_op_demand_list(op, std::back_inserter(demand_list));
+
+      return memory_state_.are_resources_available_simultaneously(
+          demand_list.begin(), demand_list.end());
     }
 
     // Returns the number of active ready ops which were scheduled //
@@ -1259,12 +1309,75 @@ class Feasible_Memory_Schedule_Generator {
     }
 
     // Core Schedule Operation:
-    // 1. Update the op_output_table_ to ACTIVE 
-    // 2. Update the resource state 
+    // 1. Update the op_output_table_ and active_resource_table_ // 
+    // 2. Assign resources simultaneously: updates memory_state_ 
+    // 3. Add the operation to the schedule heap : updates heap_//
     //
     // Precondition: is_ready_compute_operation_schedulable(op) is true //
-    // TODO(vamsikku):
-    bool schedule_op(const operation_t& op) { return false; }
+    bool schedule_compute_op(const operation_t& op) {
+      typename op_output_table_t::iterator out_itr = op_output_table_.find(op);
+      assert(out_itr == op_output_table_.end());
+
+      //////////////////////////////////////////////////////////////////////////
+      //STEP-1: add to the output result table. //
+      //TODO(vamsikku): add an additional out_degree datastructure so that this
+      //can done in O(1) time.
+      const_operation_iterator_t citr =
+          traits::outgoing_operations_begin(*input_ptr_, op);
+      const_operation_iterator_t citr_end =
+          traits::outgoing_operations_end(*input_ptr_, op);
+      size_t outstanding_consumers = 0UL;
+      for (; citr != citr_end; ++citr, ++outstanding_consumers) {}
+
+      op_output_table_.insert( std::make_pair(op,
+            op_output_info_t(operation_output_e::ACTIVE,
+                outstanding_consumers)) );
+      //////////////////////////////////////////////////////////////////////////
+
+
+      //////////////////////////////////////////////////////////////////////////
+      //STEP-2: assign resources simultaneously //
+      // get all the info about resource allocations //
+      std::vector<resource_t> op_demands; 
+      get_non_empty_op_demand_list(op, std::back_inserter(op_demands) );
+
+      std::vector<interval_info_t> resource_intervals;
+      memory_state_.pack_demands_into_free_bins(op_demands.begin(),
+          op_demands.end(), std::back_inserter(resource_intervals) );
+
+      typename active_resource_table_t::iterator aitr =
+          active_resource_table_.find(op);
+      assert(aitr == active_resource_table_.end());
+
+      aitr = ( active_resource_table_.insert(
+                std::make_pair(op, active_op_resources_t()) ) ).first;
+
+      active_op_resources_t &active_op_resources = aitr->second;
+
+      size_t demand_idx = 0UL;
+      for (auto itr=resource_intervals.begin(); itr!=resource_intervals.end();
+            ++itr) {
+        const interval_info_t rinfo = *itr;
+        bool assigned = memory_state_.assign_resources(
+            op_demand_info_t(op, demand_idx), rinfo.begin_, rinfo.end_);
+        assert(assigned); 
+
+        // update active resource table //
+        active_op_resources.push_back( 
+              active_result_info_t(op, demand_idx, rinfo) );
+      }
+      //////////////////////////////////////////////////////////////////////////
+
+
+      //////////////////////////////////////////////////////////////////////////
+      //STEP-3: also update the schedule heap //
+      delay_t op_delay = traits::delay(*input_ptr_, op);
+      schedule_time_t op_end_time = current_time_ + op_delay;
+      push_to_heap( heap_element_t(op, op_end_time) );
+      //////////////////////////////////////////////////////////////////////////
+
+      return true;
+    }
 
     // Core Force Schedule Operation:
     // Try to make space for this operation by evicting all active inputs which
@@ -1297,10 +1410,11 @@ class Feasible_Memory_Schedule_Generator {
     }
 
     void reset_input(const dag_t& in) { input_ptr_ = &in; }
+
     void reset(const dag_t& in, const resource_t& upper_bound) {
       input_ptr_ = &in;
       clear_lists();
-      traits::initialize_resource_upper_bound(upper_bound, memory_state_);
+      memory_state_.initialize_resource_upper_bound(upper_bound);
     }
 
     void clear_lists() {
@@ -1323,6 +1437,7 @@ class Feasible_Memory_Schedule_Generator {
     schedule_time_t current_time_;
     resource_state_t memory_state_; // state of the memory //
     op_output_table_t op_output_table_;
+    active_resource_table_t active_resource_table_;
 
     const dag_t * input_ptr_;
     ////////////////////////////////////////////////////////////////////////////
