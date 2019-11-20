@@ -49,7 +49,7 @@ int main()
     //auto end_axis = -1;
 
 
-    auto input0 = om.input(inputShape, mv::DType("Float16"), inputOrder, {{0},{1.0},{-inf},{inf}}, "input0");
+    auto input0 = om.input(inputShape, mv::DType("Float16"), inputOrder, {{0},{1.0},{},{}}, "input0");
     auto flatten0 = om.flatten(input0, axis, end_axis, mv::DType("Float16"));
     om.output(flatten0);
     
