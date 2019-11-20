@@ -89,7 +89,6 @@ void populateWeightsTablesDataPointers(mv::Data::TensorIterator weightsTableData
     // Max pooling does not need DataPointer
     // Eltwise doesn't have weights table at all
     if(taskOp == "Conv" ||
-       taskOp == "ChannelMajorConvolution" ||
        taskOp == "DepthwiseConv")
     {
         auto weights = dpuTaskOp->getInputTensor(1);
@@ -162,8 +161,7 @@ void populateWeightsTablesSparsityPointers(mv::Data::TensorIterator weightsTable
                   weightsTableData->at(i+1) = offset;
         }
     }
-    else if(taskOp == "ChannelMajorConvolution" ||
-            taskOp == "DepthwiseConv"  ||
+    else if(taskOp == "DepthwiseConv"  ||
             taskOp == "MaxPool")
     {
         // We have fake sparsity here! Yuppi!
@@ -259,7 +257,6 @@ static void populateWeightsTablesQuantizationFcn(const mv::pass::PassEntry& , mv
         {
             auto taskOp = dpuTaskOp->get<std::string>("taskOp");
             if(taskOp == "Conv" ||
-               taskOp == "ChannelMajorConvolution" ||
                taskOp == "MaxPool" ||
                taskOp == "DepthwiseConv")
             {
@@ -281,7 +278,6 @@ static void removeBiasTensorsFcn(const mv::pass::PassEntry& , mv::ComputationMod
         {
             auto taskOp = dpuTaskOp->get<std::string>("taskOp");
             if(taskOp == "Conv" ||
-               taskOp == "ChannelMajorConvolution" ||
                taskOp == "MaxPool" ||
                taskOp == "DepthwiseConv")
             {
@@ -312,7 +308,6 @@ static void populateWeightsTablesPointersFcn(const mv::pass::PassEntry& , mv::Co
         {
             auto taskOp = dpuTaskOp->get<std::string>("taskOp");
             if(taskOp == "Conv" ||
-               taskOp == "ChannelMajorConvolution" ||
                taskOp == "MaxPool" ||
                taskOp == "DepthwiseConv")
             {
@@ -345,7 +340,6 @@ static void generateWeightsTablesFcn(const mv::pass::PassEntry&, mv::Computation
         {
             auto taskOp = dpuTaskOp->get<std::string>("taskOp");
             if(taskOp == "Conv" ||
-               taskOp == "ChannelMajorConvolution" ||
                taskOp == "MaxPool" ||
                taskOp == "DepthwiseConv")
             {

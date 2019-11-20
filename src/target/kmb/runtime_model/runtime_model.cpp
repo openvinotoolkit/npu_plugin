@@ -49,8 +49,7 @@ const std::unordered_map<std::string, MVCNN::DPULayerType> mv::RuntimeModel::dpu
     {"AveragePool",MVCNN::DPULayerType::DPULayerType_AVEPOOL},
     {"FullyConnected",MVCNN::DPULayerType::DPULayerType_FCL},
     {"Eltwise",MVCNN::DPULayerType::DPULayerType_ELTWISE},
-    {"Identity",MVCNN::DPULayerType::DPULayerType_IDENTITY},
-    {"ChannelMajorConvolution",MVCNN::DPULayerType::DPULayerType_CMCONV}
+    {"Identity",MVCNN::DPULayerType::DPULayerType_IDENTITY}
 };
 
 const std::unordered_map<mv::PPELayerTypeEnum, MVCNN::PPELayerType, mv::EnumClassHash> mv::RuntimeModel::ppeLayerTypeMapping_ =
@@ -1045,11 +1044,6 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
     if (opIt->hasAttr("padding"))
     {
         auto kernelPadding = opIt->get<std::array<unsigned short, 4>>("padding");
-        if (opIt->get<std::string>("taskOp") == "ChannelMajorConvolution")
-        {
-            unsigned numClusters = cm.getGlobalConfigParams()->get<int>("Number_of_Clusters");
-            kernelPadding = getNewPadding(kernelPadding, clusterId, numClusters);
-        }
 
         toBuild->kernel_padLeft = kernelPadding[0];
         toBuild->kernel_padRight = kernelPadding[1];
@@ -1371,8 +1365,8 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNCE2TaskT(Comp
             toBuild->invariant->output_data->locale_index = locale_index;
             if (opIt->get<std::string>("taskOp") != "MaxPool")
                 toBuild->invariant->weights_data->locale_index = locale_index;
-            else if (opIt->get<std::string>("taskOp") == "MaxPool" || opIt->get<std::string>("taskOp") == "DepthwiseConv" ||
-                     opIt->get<std::string>("taskOp") == "ChannelMajorConvolution")
+            else if (opIt->get<std::string>("taskOp") == "MaxPool" ||
+                     opIt->get<std::string>("taskOp") == "DepthwiseConv")
                 toBuild->invariant->activation_window->locale_index = locale_index;
             else if (opIt->get<std::string>("taskOp") == "ElementWise")
                 toBuild->invariant->weights_table->locale_index = locale_index;

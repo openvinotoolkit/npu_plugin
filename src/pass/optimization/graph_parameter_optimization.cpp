@@ -465,22 +465,12 @@ namespace mv
                 if( (spilling) and (clustering == "HKSwitch"))
                     return true;
 
-                //TODO: SOH channelMajor conv requires SoHOverlapped input
-                if( clustering == "SplitOverHOverlapped" and (not (op.getOpType() == "Input")))
-                    return true;
-
                 if( op.getOpType() == "Conv")
                 {
                     auto weightsShape = op.getInputTensor(1)->getShape();
                     auto numInChannels = weightsShape[KERNEL_INPUT_CHANNELS];
                     auto numOutChannels = weightsShape[KERNEL_OUTPUT_CHANNELS];
 
-                    if(numInChannels < 16)
-                    {
-                        //with this we will assume ChMajorConvolution
-                        if((clustering == "SplitOverH") and (streamShape["H"] > 1))
-                            return true;
-                    }
                     if((numOutChannels/totalClusters < 16) and (clustering == "SplitOverK"))
                         return true;
                 }
@@ -512,7 +502,6 @@ namespace mv
                     if(checkForBadStrategy(parentOp,parent)) return INF;
                     if(checkForBadStrategy(childOp, child)) return INF;
                 }
-
 
                 if((parentClustering == "HKSwitch" or
                         parentClustering == "SplitOverK") and
@@ -552,19 +541,9 @@ namespace mv
                     auto numInChannels = weightsShape[KERNEL_INPUT_CHANNELS];
                     auto numOutChannels = weightsShape[KERNEL_OUTPUT_CHANNELS];
 
-                    if(numInChannels < 16)
-                    {
-                        //with this we will assume ChMajorConvolution
-                        if( (childClustering == "SplitOverH") and
-                                (not (parentClustering == "SplitOverHOverlapped")))
-                                    return INF;
-                        if((childClustering == "SplitOverH") and (child["streaming"].get<Shape>()["H"] > 1))
-                            return INF;
-                    }
-                    else {
-                        if((parent["spilling"].get<bool>()) and (childClustering == "SplitOverH"))
-                            return INF;
-                    }
+
+                    if((parent["spilling"].get<bool>()) and (childClustering == "SplitOverH"))
+                        return INF;
                     if((numOutChannels/totalClusters < 16) and (childClustering == "SplitOverK"))
                         return INF;
 
@@ -581,8 +560,6 @@ namespace mv
                         ((child["streaming"].get<Shape>()["H"] * child["streaming"].get<Shape>()["W"]) > 1))
                             return INF;
 
-
-
                 //These sparsity rules apply pairwise, and effect memory size and execution time.
                 //Make a local decision to get the correct runtime and execution time, but don't persist
                 //Sparsity will not be applied where disallowed in later passes
@@ -594,8 +571,8 @@ namespace mv
                     childInputSparsity = false;
                 }
 
-                if( (childOp.getOpType() == "Conv") and  (childOp.getInputTensor(1)->getShape()[KERNEL_INPUT_CHANNELS] < 16))
-                    childInputSparsity = false;
+//                if( (childOp.getOpType() == "Conv") and  (childOp.getInputTensor(1)->getShape()[KERNEL_INPUT_CHANNELS] < 16))
+//                    childInputSparsity = false;
 
                 if(childInputSparsity == false)
                     parentOutputSparsity = false;
