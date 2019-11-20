@@ -9,7 +9,7 @@ int main()
     mv::OpModel& om = unit.model();
 
     auto inputShape = mv::Shape({16,16,10,1});
-    auto input0 = om.input(inputShape, mv::DType("Float16"), mv::Order::getZMajorID(4), {{0},{1.0},{-inf},{inf}}, "input:0#4");
+    auto input0 = om.input(inputShape, mv::DType("Float16"), mv::Order::getZMajorID(4), {{0},{1.0},{},{}}, "input:0#4");
 
     int out_max_val = 0;
     int top_k = 1;
