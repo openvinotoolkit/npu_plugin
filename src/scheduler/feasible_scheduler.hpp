@@ -1695,12 +1695,6 @@ class Feasible_Memory_Schedule_Generator {
     processed_ops_t processed_ops_;
     heap_t completion_time_heap_;
     heap_t start_time_heap_;
-
-    //TODO(vamsikku): since we dynamically add new read and write spill 
-    // operations we need to have an additional heap to move the current_time
-    // we cannot simply set the current_time to be the time from the schedule
-    // heap.
-    // 
     schedule_time_t current_time_;
     resource_state_t memory_state_; // state of the memory //
     op_output_table_t op_output_table_;
