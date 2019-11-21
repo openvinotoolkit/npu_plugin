@@ -364,6 +364,10 @@ void ensureSplitStrategiesForSpilling(const mv::pass::PassEntry& pass, mv::Compu
         {"SplitOverK", "HKSwitch"},
         {"Clustering", "HKSwitch"}
     };
+    std::pair<std::string, std::string> clusteringToSoH("Clustering", "SplitOverH");
+    std::pair<std::string, std::string> SoKToSoH("SplitOverK", "SplitOverH");
+    std::pair<std::string, std::string> SoHToSoK("SplitOverH", "SplitOverK");
+    std::pair<std::string, std::string> SoHToClustering("SplitOverH", "Clustering");
     auto globalParams = model.getGlobalConfigParams();
     unsigned numClusters = globalParams->get<int>("Number_of_Clusters");
 
@@ -383,7 +387,6 @@ void ensureSplitStrategiesForSpilling(const mv::pass::PassEntry& pass, mv::Compu
                     std::vector<mv::Data::OpListIterator> sinkOperators = findSinkLayers(dm, outputTensor);
 
                     //ASSUMPTION: all sink ops have the same strategy.
-                    //NOTE: SinkOperator could be align/Slice and not have SplitStrategy....
                     auto opStrategy = sinkOperators[0]->get<std::string>("splitStrategy");
                     auto tensorStrategy = outputTensor->get<std::string>("splitStrategy");
 
@@ -392,11 +395,17 @@ void ensureSplitStrategiesForSpilling(const mv::pass::PassEntry& pass, mv::Compu
                     {
                         if (possibleCombination == restrictedCombination)
                         {
-                            // Strategy have to be adjusted...
+                            // Strategies have to be adjusted...
                             outputTensor->set<std::string>("splitStrategy", opStrategy);
-
+                            inputTensor->set<std::string>("splitStrategy", opStrategy);
+                            inputTensor->cleanSubtensors();
+                            outputTensor->cleanSubtensors();
+                            if (possibleCombination == clusteringToSoH || possibleCombination == SoKToSoH)
+                                inputTensor->set<std::string>("overwriteStrategy", "ClusteringToSoH");
+                            else if (possibleCombination == SoHToClustering || possibleCombination == SoHToSoK)
+                                inputTensor->set<std::string>("overwriteStrategy", "SoHToClustering");
                             // ... and splitting has to be done again!!! <- Price for efficiency
-                            subTensorsGen(model, {outputTensor}, numClusters, pass);
+                            subTensorsGen(model, {inputTensor, outputTensor}, numClusters, pass);
                         }
                     }
                 }

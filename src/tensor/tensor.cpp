@@ -1058,7 +1058,7 @@ std::size_t mv::Tensor::getClusterSize(unsigned int alignment, bool isBase) cons
 
         for (size_t tIdx = 0; tIdx < subTensors_.size(); tIdx++)
         {
-            auto size = subTensors_[tIdx]->computeTotalSize(alignment, isBase,isTensorAligned);
+            auto size = subTensors_[tIdx]->computeTotalSize(alignment, isBase, isTensorAligned);
             if (size > res)
                 res = size;
         }
@@ -1071,7 +1071,8 @@ std::size_t mv::Tensor::getClusterSize(unsigned int alignment, bool isBase) cons
     return res;
 }
 
-std::size_t mv::Tensor::computeTotalSize(unsigned int alignment, bool isBase, bool fatherTensorAligned) const
+std::size_t mv::Tensor::computeTotalSize(unsigned int alignment, bool isBase, bool fatherTensorAligned
+                                         , bool graphOptimizer) const
 {
     std::size_t res;
 
@@ -1096,10 +1097,21 @@ std::size_t mv::Tensor::computeTotalSize(unsigned int alignment, bool isBase, bo
 
         }
     }
+    //NOTE :: Graph Optimizer MemorySize does not know about the alignment of the input/output Channels
     bool isTensorAligned = hasAttr("alignment") ? get<bool>("alignment") : false;
     size_t totalSize = shape.totalSize();
     //TODO update that to proper alignment, if this needs to align to 32 (splitOverK, each cluster has the whole tensor size, but need it aligned to 16*numclusters)
     if (isTensorAligned || fatherTensorAligned)
+    {
+        auto pad = alignment;
+        auto outputChannels = shape[mv::IO_CHANNEL_DIMENSION];
+        if (outputChannels % pad != 0)
+        {
+            auto paddedOutputChannels = mv::round_up(outputChannels, pad);
+            totalSize = totalSize / outputChannels * paddedOutputChannels;
+        }
+    }
+    else if (graphOptimizer)
     {
         auto pad = alignment;
         auto outputChannels = shape[mv::IO_CHANNEL_DIMENSION];
@@ -1271,6 +1283,11 @@ void mv::Tensor::splitAcrossClusters(std::vector<mv::Workload> workloads, bool s
 
         set<bool>("broadcasted", (!splitOverH || multicast));
     }
+}
+
+void mv::Tensor::cleanSubtensors()
+{
+        subTensors_ = {};
 }
 
 mv::Shape mv::Tensor::getShape() const

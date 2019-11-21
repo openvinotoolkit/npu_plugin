@@ -792,6 +792,18 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
     auto outputTensor = opIt->getOutputTensor(0);
     bool sourceIsBroadCasted = inputTensor->isBroadcasted();
 
+    //NOTE: When strategy is overwritten
+    if (opIt->get<mv::DmaDirection>("direction") == mv::DmaDirectionEnum::DDR2NNCMX)
+    {
+        if (inputTensor->hasAttr("overwriteStrategy"))
+        {
+            if (inputTensor->get<std::string>("overwriteStrategy") == "ClusteringToSoH")
+                sourceIsBroadCasted = false;
+            else if (inputTensor->get<std::string>("overwriteStrategy") == "SoHToClustering")
+                sourceIsBroadCasted = true;
+        }
+    }
+
     bool compression = false;
     if(opIt->hasAttr("compression"))
         compression = opIt->get<bool>("compression");
