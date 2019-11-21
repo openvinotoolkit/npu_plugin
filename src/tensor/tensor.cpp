@@ -211,6 +211,16 @@ void mv::Tensor::populate(const std::vector<mv::DataElement>& data)
 
 void mv::Tensor::populate(const std::vector<int64_t>& data)
 {
+//         std::cout << "populate" << std::endl;
+//     auto quantParams = get<mv::QuantizationParams>("quantParams");
+//     std::cout << quantParams.getScale()[0] << std::endl;
+//     std::cout << quantParams.getZeroPoint()[0] << std::endl;
+
+//     std::cout << "weights " << std::endl;
+//      for ( auto it=data.begin() ; it < data.end(); it++ )
+//         std::cout << " " << *it << std::endl;
+
+//    exit(1);
     MV_PROFILED_FUNCTION(MV_PROFILE_BULD)
     if (isDoubleType())
         throw ArgumentError(*this, "data vector", "type int", "Unable to populate, data type is not int"
