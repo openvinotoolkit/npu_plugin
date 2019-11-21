@@ -220,6 +220,10 @@ class Operation_Dag {
 
     ////////////////////////////////////////////////////////////////////////////
     // scheduler_traits //
+
+    static const char * operation_name(const operation_t& op) {
+      return op.c_str();
+    }
     static const_operation_iterator_t operations_begin(const dag_t& g) {
       return g.begin();
     }
@@ -242,6 +246,15 @@ class Operation_Dag {
 
     static delay_t delay(const dag_t& dag, const operation_t& op) {
       return dag.get_operation_delay(op);
+    }
+
+    // TODO(vamsikku) : change this to specific values of spilled delay //
+    static delay_t spilled_read_delay(const dag_t& , const operation_t& ) {
+      return delay_t(1);
+    }
+
+    static delay_t spilled_write_delay(const dag_t& , const operation_t& ){
+      return delay_t(1);
     }
 
     static resource_t resource_utility(const dag_t& dag, const operation_t& op)
@@ -1295,6 +1308,9 @@ class Test_Fixture_Feasible_Memory_Scheduler
     typedef feasible_memory_scheduler_t::ready_data_list_t ready_data_list_t;
     typedef feasible_memory_scheduler_t::op_list_t op_list_t;
     typedef feasible_memory_scheduler_t::resource_t resource_t;
+    typedef feasible_memory_scheduler_t::scheduled_op_info_list_t
+        scheduled_op_info_list_t;
+    typedef feasible_memory_scheduler_t::op_type_e op_type_E;
 
     void SetUp() override {}
     void TearDown() override {}
@@ -1442,8 +1458,6 @@ TEST_F(Test_Fixture_Feasible_Memory_Scheduler, test_compute_in_degree) {
 }
 
 TEST_F(Test_Fixture_Feasible_Memory_Scheduler, is_ready_op_schedulable) {
-
-  
   dag_t::adjacency_map_t in = { {"Input", {"A", "B"} }, {"A", {"B"}},
     {"B", {}}, {"A_in", {"A"} }, {"B_in", {"B"} } };
   dag_t::resource_cost_model_t memory = { {"Input", 3UL}, {"A", 3UL},
@@ -1490,4 +1504,76 @@ TEST_F(Test_Fixture_Feasible_Memory_Scheduler, is_ready_op_schedulable) {
     top_elem = top_element();
     EXPECT_EQ(*top_elem, expected);
   }
+}
+
+TEST_F(Test_Fixture_Feasible_Memory_Scheduler,
+      schedule_all_possible_ops_ready_list) {
+
+  dag_t::adjacency_map_t in = { {"A", {"B"}},  {"C", {"B"}},
+    {"B", {}}, {"A_in", {"A"} }, {"B_in", {"B"} }, {"C_in", {"C"}} };
+  dag_t::resource_cost_model_t memory = { {"A", 2UL}, {"A_in",2UL},
+    {"C_in", 2}, {"C", 2}, {"B_in", 4UL}, {"B", 2UL} };
+  dag_t::data_op_set_t data_ops = {"A_in", "B_in", "C_in"}; //data operations //
+
+  dag_t g(in);
+  g.reset_resource_model(memory);
+  g.reset_data_op_set(data_ops);
+
+  reset_input(g);
+  init(resource_t(10));
+
+  {
+    op_list_t expected_ready_list = {"A", "C"};
+    op_list_t sorted_ready_list = ready_list_;
+
+    sorted_ready_list.sort();
+    EXPECT_EQ(expected_ready_list, sorted_ready_list);
+  }
+
+  {
+    EXPECT_EQ(schedule_all_possible_ready_ops(ready_list_.begin(),
+            ready_list_.end()), 2UL);
+    std::list<operation_t> scheduled_ops;
+    get_currently_scheduled_operations(std::back_inserter(scheduled_ops));
+
+    std::list<operation_t> expected_ops = {"A", "C"};
+    scheduled_ops.sort();
+    EXPECT_EQ(expected_ops, scheduled_ops);
+  }
+
+  {
+    EXPECT_TRUE(is_operation_output_in_active_memory("A"));
+    EXPECT_TRUE(is_operation_output_in_active_memory("C"));
+  }
+}
+
+TEST_F(Test_Fixture_Feasible_Memory_Scheduler, test_auto_scheduled_data_ops) {
+
+  dag_t::adjacency_map_t in = { {"A", {"B"}},  {"C", {"B"}},
+    {"B", {}}, {"A_in", {"A"} }, {"B_in", {"B"} }, {"C_in", {"C"}} };
+  dag_t::resource_cost_model_t memory = { {"A", 2UL}, {"A_in",2UL},
+    {"C_in", 2}, {"C", 2}, {"B_in", 4UL}, {"B", 2UL} };
+  dag_t::data_op_set_t data_ops = {"A_in", "B_in", "C_in"}; //data operations //
+
+  dag_t g(in);
+  g.reset_resource_model(memory);
+  g.reset_data_op_set(data_ops);
+
+  reset_input(g);
+  init(resource_t(10));
+
+  // schedule all possible ready_ops this should fire two compute ops//
+  EXPECT_EQ( schedule_all_possible_ready_ops(ready_list_.begin(),
+          ready_list_.end()), 2UL);
+
+  // since "A" and "C" are compute ops their data ops must be automatically 
+  // scheduled.//
+  scheduled_op_info_list_t data_reads =
+      get_scheduled_data_read_ops_at_this_time();
+  scheduled_op_info_list_t expected = { {"A_in", op_type_e::ORIGINAL_OP},
+    {"C_in", op_type_e::ORIGINAL_OP} };
+
+  data_reads.sort(); expected.sort();
+
+  EXPECT_EQ(expected, data_reads);
 }

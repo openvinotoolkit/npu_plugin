@@ -24,6 +24,8 @@ struct scheduler_traits {
   // Invariant: &(*itr) should remain same constant irrespective of the iterator
   typedef int const_operation_iterator_t;
 
+  static const char* operation_name(const operation_t& op);
+
   // iterator v \in V //
   static const_operation_iterator_t operations_begin(const dag_t&);
   static const_operation_iterator_t operations_end(const dag_t&);
@@ -51,6 +53,8 @@ struct scheduler_traits {
   // Delay function = d : V -> N^+ //
   typedef size_t delay_t;
   static delay_t delay(const dag_t&, const operation_t&);
+  static delay_t spilled_read_delay(const dag_t&, const operation_t&);
+  static delay_t spilled_write_delay(const dag_t&, const operation_t&);
   //////////////////////////////////////////////////////////////////////////////
 
   //////////////////////////////////////////////////////////////////////////////
@@ -391,6 +395,11 @@ class Contiguous_Resource_State {
         result = litr->second;
       }
       return result;
+    }
+
+    void clear() {
+      active_resources_.clear();
+      lookup_.clear();
     }
 
   protected:
@@ -954,6 +963,12 @@ class Feasible_Memory_Schedule_Generator {
       bool spilled() const { return state_ == operation_output_e::SPILLED; }
       bool consumed() const { return state_ == operation_output_e::CONSUMED; }
 
+      void decrement_consumers() {
+        assert(outstanding_consumers_ > 0UL);
+        --outstanding_consumers_;
+        if (!outstanding_consumers_) { state_ = operation_output_e::CONSUMED; }
+      }
+
       operation_output_e state_;
       size_t outstanding_consumers_;
     }; // struct op_output_info_t //
@@ -963,6 +978,14 @@ class Feasible_Memory_Schedule_Generator {
       scheduled_op_info_t(operation_t op, op_type_e type)
         : op_(op), op_type_(type) {}
       scheduled_op_info_t() : op_(), op_type_() {}
+
+      bool operator==(const scheduled_op_info_t& o) const {
+        return (o.op_ == op_) && (o.op_type_ == op_type_);
+      }
+
+      bool operator<(const scheduled_op_info_t& o) const {
+        return (op_ != o.op_) ? (op_ < o.op_) : (op_type_ < o.op_type_);
+      }
 
       operation_t op_;
       op_type_e op_type_;
@@ -996,11 +1019,17 @@ class Feasible_Memory_Schedule_Generator {
     typedef typename resource_state_t::interval_info_t interval_info_t;
 
     struct active_result_info_t {
+
       active_result_info_t(operation_t op, size_t demand_index,
-          const interval_info_t& interval_info)
-        : op_(op), demand_index_(demand_index), interval_info_(interval_info) {}
+            const interval_info_t& interval_info) : op_(op), parent_op_(op),
+      demand_index_(demand_index), interval_info_(interval_info) {}
+
+      active_result_info_t(operation_t op, operation_t pop, size_t demand_index,
+            const interval_info_t& interval_info) : op_(op), parent_op_(pop),
+      demand_index_(demand_index), interval_info_(interval_info) {}
 
       operation_t op_;
+      operation_t parent_op_;
       size_t demand_index_;
       interval_info_t interval_info_;
     }; // struct active_result_info_t //
@@ -1030,6 +1059,7 @@ class Feasible_Memory_Schedule_Generator {
     typedef std::vector<active_result_info_t> eviction_heap_t;
     typedef std::vector<heap_element_t> schedule_heap_t;
     typedef std::list<operation_t> op_list_t;
+    typedef std::list<scheduled_op_info_t> scheduled_op_info_list_t;
     typedef std::list<operation_t> ready_data_list_t;
     typedef std::unordered_set<operation_t> ready_active_list_t; 
     typedef std::unordered_set<operation_t> processed_ops_t; 
@@ -1038,13 +1068,19 @@ class Feasible_Memory_Schedule_Generator {
     typedef std::list<active_result_info_t> active_op_resources_t;
     typedef std::unordered_map<operation_t, active_op_resources_t>
         active_resource_table_t;
+
+    struct noop_op_back_insert_iterator_t {
+      void operator++() {}
+      void operator=(const operation_t&) {} 
+    }; // struct noop_op_back_insert_iterator_t //
+
     ////////////////////////////////////////////////////////////////////////////
 
     Feasible_Memory_Schedule_Generator(const dag_t& in, const resource_t& bound)
-      : scheduled_ops_at_this_time_(), ready_list_(), op_in_degree_(),
-      ready_active_list_(), ready_data_list_(), processed_ops_(), heap_(),
-      current_time_(), memory_state_(), op_output_table_(),
-      active_resource_table_(), input_ptr_(&in) {}
+      : scheduled_ops_at_this_time_(), current_scheduled_op_(), ready_list_(),
+      op_in_degree_(), ready_active_list_(), ready_data_list_(),
+      processed_ops_(), heap_(), current_time_(), memory_state_(),
+      op_output_table_(), active_resource_table_(), input_ptr_(&in) {}
 
     Feasible_Memory_Schedule_Generator()
       : scheduled_ops_at_this_time_(), ready_list_(), op_in_degree_(),
@@ -1066,7 +1102,24 @@ class Feasible_Memory_Schedule_Generator {
       return *this;
     }
 
+    template<typename BackInsertIterator>
+    size_t get_currently_scheduled_operations(BackInsertIterator output) const {
+      size_t sched_op_count = 0;
+      // all operations in the heap //
+      for (typename schedule_heap_t::const_iterator hitr=heap_.begin();
+            hitr != heap_.end(); ++hitr) {
+        output = hitr->op_;
+        ++output;
+        ++sched_op_count;
+      }
+      return sched_op_count;
+    }
+
   protected:
+
+    const active_resource_table_t& get_current_active_resource_table() const {
+      return active_resource_table_;
+    }
 
     //////////////////////// schedule heap /////////////////////////////////////
     heap_element_t const * top_element() const {
@@ -1110,13 +1163,18 @@ class Feasible_Memory_Schedule_Generator {
         traits::unschedule_operation(op, memory_state_);
         add_outgoing_operations_to_ready_list(op);
       }
-
     }
 
-
     void move_to_next_schedule_op() {
-      //TODO(vkundeti): take the op from the scheduled ops list if empty
-      //try to refill //
+      for (size_t i=0; i<3UL; i++) {
+        if (!scheduled_ops_at_this_time_[i].empty()) {
+          current_scheduled_op_ = scheduled_ops_at_this_time_[i].front();
+          scheduled_ops_at_this_time_[i].pop_front();
+          if (!(scheduled_ops_at_this_time_[i].empty()) && (i < 2UL)) {
+            ++current_time_;
+          }
+        }
+      }
     }
     
 
@@ -1216,8 +1274,29 @@ class Feasible_Memory_Schedule_Generator {
       } // foreach op //
     }
 
+    void add_to_scheduled_compute_ops_at_this_time(
+        const scheduled_op_info_t& op_info) {
+      scheduled_ops_at_this_time_[2UL].push_back(op_info);
+    }
+
+    void add_to_scheduled_data_read_ops_at_this_time(
+        const scheduled_op_info_t& op_info) {
+      scheduled_ops_at_this_time_[1UL].push_back(op_info);
+    }
+
+    const scheduled_op_info_list_t&
+      get_scheduled_data_read_ops_at_this_time() const {
+        return scheduled_ops_at_this_time_[1UL];
+    }
+
+    void add_to_scheduled_data_write_ops_at_this_time(
+        const scheduled_op_info_t& op_info) {
+      scheduled_ops_at_this_time_[0].push_back(op_info);
+    }
+
     bool init(const resource_t& upper_bound) {
-      traits::initialize_resource_upper_bound(upper_bound, memory_state_);
+      memory_state_.clear();
+      memory_state_.initialize_resource_upper_bound(upper_bound);
 
       current_time_ = schedule_time_t(0);
       clear_lists();
@@ -1230,17 +1309,18 @@ class Feasible_Memory_Schedule_Generator {
     }
 
     bool is_operation_output_in_active_memory(operation_t op) const {
-      return memory_state_.is_key_using_resources(op);
+      return memory_state_.is_key_using_resources(op_demand_info_t(op, 0UL));
     }
 
-    template<typename BackInsertIterator>
+    template<typename DemandBackInsertIterator, typename OpBackInsertIterator>
     size_t get_non_empty_op_demand_list(const operation_t& op,
-        BackInsertIterator output) const {
+        DemandBackInsertIterator output, OpBackInsertIterator output_op) const {
       resource_t demand = traits::resource_utility(*input_ptr_, op);
       size_t op_demand_count = 0UL;
 
       if (!traits::is_empty_demand(demand)) {
         output = demand;
+        output_op = op;
         ++op_demand_count;
       }
 
@@ -1263,6 +1343,7 @@ class Feasible_Memory_Schedule_Generator {
           demand = traits::resource_utility(*input_ptr_, pop);
           if (!traits::is_empty_demand(demand)) {
             output = demand;
+            output_op = pop;
             ++op_demand_count;
           }
         }
@@ -1271,6 +1352,12 @@ class Feasible_Memory_Schedule_Generator {
       return op_demand_count;
     }
 
+    template<typename DemandBackInsertIterator>
+    size_t get_non_empty_op_demand_list(const operation_t& op,
+        DemandBackInsertIterator output) const {
+      noop_op_back_insert_iterator_t noop;
+      return get_non_empty_op_demand_list(op, output, noop);
+    }
 
     // A compute operation is schedulable if there are resources available for
     // all its inputs and output. Some of its inputs may be in active memory
@@ -1294,26 +1381,86 @@ class Feasible_Memory_Schedule_Generator {
     }
 
     // Returns the number of active ready ops which were scheduled //
-    size_t schedule_all_possible_ops_in_active_ready_list() {
-      size_t scount = 0UL;
+    template<typename ReadyListIterator>
+    size_t schedule_all_possible_ready_ops(ReadyListIterator ritr,
+          ReadyListIterator ritr_end) {
+      size_t scheduled_ops_count = 0UL;
+      bool scheduled = false;
 
-      for (typename ready_active_list_t::iterator
-            itr = ready_active_list_.begin(); itr != ready_active_list_.end();
-              ++itr) {
-        const operation_t& op = *itr;
+      for (; ritr != ritr_end; ++ritr) {
+        const operation_t& op = *ritr;
         if (is_ready_compute_operation_schedulable(op)) {
-          // schedule the op //
-          // TODO(vamsikku): //
+          // schedule_compute_op() will also allocate resources for all missing
+          // inputs for this compute op.
+          scheduled = schedule_compute_op(op);
+          assert(scheduled);
+
+          // schedule_data_ops_for_compute_op(): this will load all the inputs
+          // to this compute op in the corresponding resource allocations
+          scheduled = schedule_data_ops_for_compute_op(op);
+          assert(scheduled);
+          scheduled_ops_count++;
         }
+      }
+      return scheduled_ops_count;
+    }
+
+    //Precondition: corresponding compute op must be scheduled //
+    bool schedule_data_ops_for_compute_op(const operation_t& op) {
+      typename active_resource_table_t::iterator aitr =
+          active_resource_table_.find(op);
+
+      assert(aitr != active_resource_table_.end());
+      active_op_resources_t &active_op_resources = aitr->second;
+
+      for (typename active_op_resources_t::const_iterator
+            itr = active_op_resources.begin(); itr != active_op_resources.end();
+              ++itr) {
+
+        if (itr->parent_op_ == op) { continue; }
+
+        // this parent op is either spilled or its original op//
+        const operation_t& pop = itr->parent_op_;
+        typename op_output_table_t::iterator out_itr =
+            op_output_table_.find(pop);
+
+        assert( (out_itr != op_output_table_.end()) ||
+              traits::is_data_operation(*input_ptr_, pop) );
+
+        scheduled_op_info_t scheduled_op_info;
+
+        scheduled_op_info.op_ = pop;
+
+        if ((out_itr != op_output_table_.end()) &&
+              ((out_itr->second).spilled())) {
+          // Add a read operation and change its state //
+          scheduled_op_info.op_type_ = op_type_e::IMPLICIT_OP_READ;
+          (out_itr->second).state_ = operation_output_e::ACTIVE;
+        } else if ((out_itr == op_output_table_.end())) {
+          scheduled_op_info.op_type_ = op_type_e::ORIGINAL_OP;
+        }
+
+        add_to_scheduled_data_read_ops_at_this_time(scheduled_op_info);
       }
     }
 
+    bool is_output_of_this_operation_spilled(const operation_t& op) const {
+      typename op_output_table_t::const_iterator out_itr =
+          op_output_table_.find(op);
+
+      return (out_itr != op_output_table_.end()) &&
+          ((out_itr->second).spilled());
+    }
+
     // Core Schedule Operation:
-    // 1. Update the op_output_table_ and active_resource_table_ // 
-    // 2. Assign resources simultaneously: updates memory_state_ 
-    // 3. Add the operation to the schedule heap : updates heap_//
+    // 1. Update the op_output_table_ and active_resource_table_ 
+    // 2. Assign resources simultaneously: updates memory_state_
+    // 3. Schedule all non-active data ops which provide input to this op 
+    //   3.1 add delay to the op equal to the max of the delays of these input
+    //       ops
+    // 4. Add the operation to the schedule heap : updates heap_
     //
-    // Precondition: is_ready_compute_operation_schedulable(op) is true //
+    // Precondition: is_ready_compute_operation_schedulable(op) is true
     bool schedule_compute_op(const operation_t& op) {
       typename op_output_table_t::iterator out_itr = op_output_table_.find(op);
       assert(out_itr == op_output_table_.end());
@@ -1339,7 +1486,11 @@ class Feasible_Memory_Schedule_Generator {
       //STEP-2: assign resources simultaneously //
       // get all the info about resource allocations //
       std::vector<resource_t> op_demands; 
-      get_non_empty_op_demand_list(op, std::back_inserter(op_demands) );
+      std::vector<operation_t> ops_corresponding_to_demands;
+      get_non_empty_op_demand_list(op, std::back_inserter(op_demands),
+          std::back_inserter(ops_corresponding_to_demands));
+
+      assert(op_demands.size() == ops_corresponding_to_demands.size());
 
       std::vector<interval_info_t> resource_intervals;
       memory_state_.pack_demands_into_free_bins(op_demands.begin(),
@@ -1354,28 +1505,44 @@ class Feasible_Memory_Schedule_Generator {
 
       active_op_resources_t &active_op_resources = aitr->second;
 
+      delay_t max_input_delay = delay_t(0);
       size_t demand_idx = 0UL;
       for (auto itr=resource_intervals.begin(); itr!=resource_intervals.end();
-            ++itr) {
+            ++itr, ++demand_idx) {
         const interval_info_t rinfo = *itr;
         bool assigned = memory_state_.assign_resources(
             op_demand_info_t(op, demand_idx), rinfo.begin_, rinfo.end_);
         assert(assigned); 
 
         // update active resource table //
-        active_op_resources.push_back( 
-              active_result_info_t(op, demand_idx, rinfo) );
+        assert(demand_idx < ops_corresponding_to_demands.size());
+        const operation_t& input_op = ops_corresponding_to_demands[demand_idx];
+
+        active_op_resources.push_back(
+            active_result_info_t(op, ops_corresponding_to_demands[demand_idx],
+                  demand_idx, rinfo) );
+
+        if (input_op != op) {
+          delay_t input_op_delay =
+            is_output_of_this_operation_spilled(input_op) ?
+              traits::spilled_read_delay(*input_ptr_, input_op) : 
+              traits::delay(*input_ptr_, input_op);
+          max_input_delay = std::max(max_input_delay, input_op_delay);
+        }
       }
       //////////////////////////////////////////////////////////////////////////
 
 
       //////////////////////////////////////////////////////////////////////////
       //STEP-3: also update the schedule heap //
-      delay_t op_delay = traits::delay(*input_ptr_, op);
+      delay_t op_delay = traits::delay(*input_ptr_, op) + max_input_delay;
       schedule_time_t op_end_time = current_time_ + op_delay;
+      //TODO(vamsikku): also add this to an intermediate heap //
       push_to_heap( heap_element_t(op, op_end_time) );
       //////////////////////////////////////////////////////////////////////////
 
+      add_to_scheduled_compute_ops_at_this_time(scheduled_op_info_t(op,
+              op_type_e::ORIGINAL_OP));
       return true;
     }
 
@@ -1385,15 +1552,30 @@ class Feasible_Memory_Schedule_Generator {
     // TODO(vamsikku):
     bool force_schedule_op(const operation_t& op) { return false; }
 
+    //
     // Core Un-Schedule Operation:
     // 1. Notify all this producers
     // 2. Update op_output_table_ for all its producers
     //
-    // TODO(vamsikku): this operation completed
-    bool unschedule_completed_op( ) { return false; }
+    bool unschedule_compute_op(const operation_t& op) {
+      const_operation_iterator_t pitr =
+          traits::incoming_operations_begin(*input_ptr_, op);
+      const_operation_iterator_t pitr_end =
+          traits::incoming_operations_end(*input_ptr_, op);
+
+      // decrement the consumer count for all the incoming edges into this
+      // operation.
+      for (; pitr != pitr_end; ++pitr) {
+        const operation_t& pop = *pitr;
+        typename op_output_table_t::iterator itr = op_output_table_.find(pop);
+        assert(itr != op_output_table_.end());
+        itr->decrement_consumers();
+
+      }
+    }
 
 
-    // Precondition: scheduled_ops_at_this_time_.empty() //
+    // Precondition: scheduled_compute_ops_at_this_time_.empty() //
     void find_all_schedulable_ops_at_next_time_step() {
       assert(scheduled_ops_at_this_time_.empty());
 
@@ -1417,15 +1599,21 @@ class Feasible_Memory_Schedule_Generator {
       memory_state_.initialize_resource_upper_bound(upper_bound);
     }
 
+    void clear_all_scheduled_ops() {
+      for (size_t i=0; i<3UL; i++) { scheduled_ops_at_this_time_[i].clear(); }
+    }
+
     void clear_lists() {
-      scheduled_ops_at_this_time_.clear();
+      clear_all_scheduled_ops();
       ready_list_.clear(); // ready to go compute ops with none active inputs.
       ready_data_list_.clear(); // all ready data inputs //
       ready_active_list_.clear(); // compute ops with at least one active input.
     }
 
     ////////////////////////////////////////////////////////////////////////////
-    op_list_t scheduled_ops_at_this_time_;
+    // 0 - write ops , 1 - read ops , 2 - compute ops
+    scheduled_op_info_list_t scheduled_ops_at_this_time_[3];
+    scheduled_op_info_t current_scheduled_op_;
     op_list_t ready_list_;
     // Invariant: op_in_degree_[op] > 0. If op is not in this map then its
     // in-degree is zero.//
@@ -1434,11 +1622,15 @@ class Feasible_Memory_Schedule_Generator {
     ready_data_list_t ready_data_list_;
     processed_ops_t processed_ops_;
     schedule_heap_t heap_;
+    //TODO(vamsikku): since we dynamically add new read and write spill 
+    // operations we need to have an additional heap to move the current_time
+    // we cannot simply set the current_time to be the time from the schedule
+    // heap.
+    // 
     schedule_time_t current_time_;
     resource_state_t memory_state_; // state of the memory //
     op_output_table_t op_output_table_;
     active_resource_table_t active_resource_table_;
-
     const dag_t * input_ptr_;
     ////////////////////////////////////////////////////////////////////////////
 
