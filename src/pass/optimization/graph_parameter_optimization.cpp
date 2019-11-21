@@ -141,7 +141,7 @@ namespace mv
                     streamDivisor=streamDivisor*streamingPool[dim];
                 }
 
-                return tensorToSize->computeTotalSize()/streamDivisor;
+                return tensorToSize->computeTotalSize(16, false, false, true)/streamDivisor;
 
             }
 
@@ -161,7 +161,9 @@ namespace mv
                 size_t totalActivationSize = 0;
 
                 if(op.getOpType() != "Input")
+                {
                     inputSize = realTensorSize(op.getInputTensor(0),{streamConfig["W"],streamConfig["H"],streamConfig["C"],1});
+                }
                 if(op.getOpType() != "Output")
                     outputSize = realTensorSize(op.getOutputTensor(0),{streamConfig["W"],streamConfig["H"],streamConfig["K"],1});
 
