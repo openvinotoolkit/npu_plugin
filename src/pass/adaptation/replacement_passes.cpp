@@ -41,7 +41,44 @@ namespace mv
 
 }
 
-mv::Data::OpListIterator linkNewOperationsReplacement(mv::Data::OpListIterator parentOpIt, mv::Data::TensorIterator sourceTensor, mv::OpModel om, mv::Data::OpListIterator opIt, bool removeCostantOps)
+
+mv::Data::OpListIterator linkNewOperationsReplacement(mv::Data::OpListIterator parentOpIt, mv::Data::TensorIterator sourceTensor, mv::OpModel om, mv::Data::OpListIterator opIt)
+{
+    //Important: do not change the order of this ops
+    std::vector<mv::Data::OpListIterator> opsToLink;
+    std::vector<std::size_t> inputSlots;
+    for (auto sinkFlow = opIt.leftmostOutput(); sinkFlow != om.flowEnd(); ++sinkFlow)
+    {
+        opsToLink.push_back(sinkFlow.sink());
+        inputSlots.push_back(sinkFlow->get<std::size_t>("sinkInput"));
+    }
+
+    auto paramOp = opIt.leftmostParent();
+    while(paramOp != om.opEnd())
+    {
+        if (paramOp->getOpType() == "Constant" || paramOp->getOpType() == "ConstantInt" || paramOp->getOpType() == "ConstantDataElement")
+        {
+            auto backUp = paramOp;
+            ++paramOp;
+            om.removeOp(backUp);
+        }
+        else
+            ++paramOp;
+    }
+
+    om.removeOp(opIt);
+    opIt = parentOpIt;
+
+    for (unsigned j = 0; j < opsToLink.size(); ++j)
+    {
+        opsToLink[j]->setInputTensor(sourceTensor, inputSlots[j]);
+        om.defineFlow(sourceTensor, opsToLink[j], inputSlots[j]);
+    }
+
+    return opIt;
+}
+
+mv::Data::OpListIterator linkNewOperationsReplacementScale(mv::Data::OpListIterator parentOpIt, mv::Data::TensorIterator sourceTensor, mv::OpModel om, mv::Data::OpListIterator opIt, bool removeCostantOps)
 {
     //Important: do not change the order of this ops
     std::vector<mv::Data::OpListIterator> opsToLink;
@@ -229,7 +266,7 @@ void fullyConnectedAsConv2DFcn(const mv::pass::PassEntry& pass, mv::ComputationM
             convOp->set<unsigned>("opId", currentOpId);
         }
 
-        linkNewOperationsReplacement(parentOpIt, conv2D, om, opIt, true);
+        linkNewOperationsReplacement(parentOpIt, conv2D, om, opIt);
         conv2D->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
     }
 }
@@ -278,7 +315,7 @@ void scaleAsDepthwiseFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& 
         }
         pass.log(mv::Logger::MessageType::Info, "Replaced unfusable scale op " + opIt->getName() + " with " + depthwiseConvOp->getName());
         depthwiseConv->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
-        linkNewOperationsReplacement(parentOpIt, depthwiseConv, om, opIt, false);
+        linkNewOperationsReplacementScale(parentOpIt, depthwiseConv, om, opIt, false);
     }
 }
 
@@ -372,6 +409,6 @@ void averageAsDepthWiseFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
         }
         pass.log(mv::Logger::MessageType::Info, "Replaced AveragePool op " + opIt->getName() + " with " + depthwise_conv->getName());
         depthwise_conv->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
-        linkNewOperationsReplacement(parentOpIt, depthwise_conv, om, opIt, false);
+        linkNewOperationsReplacement(parentOpIt, depthwise_conv, om, opIt);
     }
 }
