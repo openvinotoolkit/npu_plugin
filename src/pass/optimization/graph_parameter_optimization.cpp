@@ -282,10 +282,6 @@ namespace mv
 
                 if(globalEnableStreaming)
                     maxSplits = (clusterOutChannelSize/2);
-                    //maxSplits = (clusterOutChannelSize/16);
-
-               // if(maxSplits > 32)
-                 //   maxSplits = 64;
 
                 splits.push_back(1);
                 //for(unsigned split = 1; split <= maxSplits; split++)
@@ -329,7 +325,6 @@ namespace mv
 
                 Shape contexts,isiSplit;
 
-                // TODO:: check for CHMAJOR CONV
                 if( (opType == "MaxPool") or (opType == "DepthwiseConv"))
                 {
                     contexts = {16,1,16,1};
@@ -541,7 +536,6 @@ namespace mv
                         childClustering == "SplitOverH")
                             return INF;
 
-                //TODO child only rules moved to checkForBadStrategy, update to perserve only pair-wise rules
                 if( childOp.getOpType() == "Conv")
                 {
                     auto weightsShape = childOp.getInputTensor(1)->getShape();
