@@ -819,6 +819,8 @@ namespace mv
                         }
                     }
                 }
+                if(strategyVec.empty())
+                    throw LogicError(*this,"No strategies added to the graph for layer " + op.getName());
             }
 
         };
