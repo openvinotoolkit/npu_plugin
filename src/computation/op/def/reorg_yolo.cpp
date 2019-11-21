@@ -73,7 +73,11 @@ namespace mv
             mv::Shape out_shape(in_shape);
             out_shape = {width/stride, height/stride, channels * (stride * stride), 1};
 
-            outputs.push_back(mv::Tensor(":0", out_shape, input->getDType(), order));
+            auto dTypeToUse = args.at("dType").get<mv::DType>();
+            if(dTypeToUse == mv::DType("Default"))
+                dTypeToUse = input->getDType();
+
+            outputs.push_back(mv::Tensor(":0", out_shape, dTypeToUse, order));
         };
 
 
