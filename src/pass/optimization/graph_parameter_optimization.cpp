@@ -518,9 +518,15 @@ namespace mv
                         (not (childClustering == "SplitOverK")))
                             return INF;
 
-                //Cannot pass directly from SoH to SoK
-                if( parentClustering == "SplitOverH" and not parent["spilling"].get<bool>() and
+                //NOTE: Directly H to K is not allowed, normally through Spilling
+                //Code is there for subtensors but that case is not tested
+                //Graph optimizer should not prefer that from HKSwitch as well....
+                if( parentClustering == "SplitOverH" and
                         childClustering == "SplitOverK")
+                            return INF;
+
+                if( parentClustering == "SplitOverH" and
+                        childClustering == "Clustering")
                             return INF;
 
                 //cannot pass directly from SoK to SoH
@@ -540,7 +546,8 @@ namespace mv
                     auto numInChannels = weightsShape[KERNEL_INPUT_CHANNELS];
                     auto numOutChannels = weightsShape[KERNEL_OUTPUT_CHANNELS];
 
-                    if((parent["spilling"].get<bool>()) and (childClustering == "SplitOverH"))
+                    if((parent["spilling"].get<bool>()) and (childClustering == "SplitOverH")
+                            and  weightsShape[KERNEL_WIDTH] > 1)
                         return INF;
 //                    if((numOutChannels/totalClusters < 16) and (childClustering == "SplitOverK"))
 //                        return INF;

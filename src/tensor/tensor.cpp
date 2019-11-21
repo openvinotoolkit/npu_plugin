@@ -1048,7 +1048,7 @@ std::size_t mv::Tensor::getClusterSize(unsigned int alignment, bool isBase) cons
 
         for (size_t tIdx = 0; tIdx < subTensors_.size(); tIdx++)
         {
-            auto size = subTensors_[tIdx]->computeTotalSize(alignment, isBase,isTensorAligned);
+            auto size = subTensors_[tIdx]->computeTotalSize(alignment, isBase, isTensorAligned);
             if (size > res)
                 res = size;
         }
@@ -1261,6 +1261,11 @@ void mv::Tensor::splitAcrossClusters(std::vector<mv::Workload> workloads, bool s
 
         set<bool>("broadcasted", (!splitOverH || multicast));
     }
+}
+
+void mv::Tensor::cleanSubtensors()
+{
+        subTensors_ = {};
 }
 
 mv::Shape mv::Tensor::getShape() const
