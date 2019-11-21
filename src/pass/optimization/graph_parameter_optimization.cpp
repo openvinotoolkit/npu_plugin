@@ -452,7 +452,7 @@ namespace mv
                 auto streamShape = strategy["streaming"].get<Shape>();
                 auto spilling = strategy["spilling"].get<bool>();
 
-                if(op.getOpType() != "Output" &&
+                if(op.getOpType() != "Output" && op.getOpType() != "Input" &&
                     (op.hasTypeTrait("optimizable"))) //SW layers we dont care about size
                 {
                     auto fit = memorySize(op,clustering,false, false,weightsSparsity,streamShape,false);
@@ -605,7 +605,7 @@ namespace mv
 
 
                     if( ((childOp.getOpType() != "Output") and (childMem.first + childMem.second) > clusterMemory) or
-                                                                ((parentMem.first + parentMem.second) > clusterMemory))
+                                                                ((parentOp.getOpType() != "Input") and (parentMem.first + parentMem.second) > clusterMemory))
                         return INF;
                 }
 
