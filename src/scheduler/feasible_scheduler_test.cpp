@@ -1302,7 +1302,7 @@ typedef mv::lp_scheduler::Feasible_Memory_Schedule_Generator<Operation_Dag>
 class Test_Fixture_Feasible_Memory_Scheduler
   : public feasible_memory_scheduler_t, public testing::Test {
   protected:
-    typedef feasible_memory_scheduler_t::schedule_heap_t heap_t;
+    typedef feasible_memory_scheduler_t::heap_t heap_t;
     typedef feasible_memory_scheduler_t::heap_element_t heap_element_t;
     typedef feasible_memory_scheduler_t::operation_t operation_t;
     typedef feasible_memory_scheduler_t::ready_data_list_t ready_data_list_t;
@@ -1311,6 +1311,8 @@ class Test_Fixture_Feasible_Memory_Scheduler
     typedef feasible_memory_scheduler_t::scheduled_op_info_list_t
         scheduled_op_info_list_t;
     typedef feasible_memory_scheduler_t::op_type_e op_type_E;
+    typedef feasible_memory_scheduler_t::completion_time_ordering_t
+        completion_time_ordering_t;
 
     void SetUp() override {}
     void TearDown() override {}
@@ -1320,11 +1322,12 @@ class Test_Fixture_Feasible_Memory_Scheduler
 TEST_F(Test_Fixture_Feasible_Memory_Scheduler, test_heap_ordering) {
   operation_t o1("a"), o2("b"), o3("c");
   heap_element_t e1(o1, 4), e2(o2, 1 ), e3(o3, 7);
+  completion_time_ordering_t order;
 
-  EXPECT_TRUE(e1 < e2); // use the time //
+  EXPECT_TRUE(order(e1, e2)); // use the time //
 
-  EXPECT_FALSE(e2 < e1); 
-  EXPECT_FALSE(e1 < e1);
+  EXPECT_FALSE(order(e2, e1)); 
+  EXPECT_FALSE(order(e1, e1));
 }
 
 TEST_F(Test_Fixture_Feasible_Memory_Scheduler, heap_push_and_pop) {
@@ -1377,7 +1380,7 @@ TEST_F(Test_Fixture_Feasible_Memory_Scheduler, heap_push_and_pop) {
 
     e = pop_from_heap();
     ASSERT_TRUE((e.op_ == e3.op_) && (e.time_ == e3.time_));
-    ASSERT_TRUE(heap_.empty());
+    ASSERT_TRUE(heap_empty());
   }
 }
 
@@ -1498,10 +1501,10 @@ TEST_F(Test_Fixture_Feasible_Memory_Scheduler, is_ready_op_schedulable) {
   // check the heap //
   {
     const heap_element_t *top_elem = NULL;
-    heap_element_t expected("Input", 1);
+    heap_element_t expected("Input", 0);
 
-    ASSERT_TRUE(top_element());
-    top_elem = top_element();
+    ASSERT_TRUE(top_element_start_time());
+    top_elem = top_element_start_time();
     EXPECT_EQ(*top_elem, expected);
   }
 }
@@ -1530,13 +1533,15 @@ TEST_F(Test_Fixture_Feasible_Memory_Scheduler,
     EXPECT_EQ(expected_ready_list, sorted_ready_list);
   }
 
-  {
+  { 
+
+    //current time is zero //
     EXPECT_EQ(schedule_all_possible_ready_ops(ready_list_.begin(),
             ready_list_.end()), 2UL);
     std::list<operation_t> scheduled_ops;
     get_currently_scheduled_operations(std::back_inserter(scheduled_ops));
 
-    std::list<operation_t> expected_ops = {"A", "C"};
+    std::list<operation_t> expected_ops = {"A_in", "C_in"};
     scheduled_ops.sort();
     EXPECT_EQ(expected_ops, scheduled_ops);
   }
@@ -1566,14 +1571,29 @@ TEST_F(Test_Fixture_Feasible_Memory_Scheduler, test_auto_scheduled_data_ops) {
   EXPECT_EQ( schedule_all_possible_ready_ops(ready_list_.begin(),
           ready_list_.end()), 2UL);
 
-  // since "A" and "C" are compute ops their data ops must be automatically 
-  // scheduled.//
-  scheduled_op_info_list_t data_reads =
-      get_scheduled_data_read_ops_at_this_time();
-  scheduled_op_info_list_t expected = { {"A_in", op_type_e::ORIGINAL_OP},
-    {"C_in", op_type_e::ORIGINAL_OP} };
+  {
+    // since "A" and "C" are compute ops their data ops must be automatically 
+    // scheduled.//
 
-  data_reads.sort(); expected.sort();
+    std::list<operation_t> expected = { "A_in", "C_in" };
+    std::list<operation_t> data_reads;
 
-  EXPECT_EQ(expected, data_reads);
+    get_currently_scheduled_operations(std::back_inserter(data_reads));
+    data_reads.sort(); expected.sort();
+
+    EXPECT_EQ(expected, data_reads);
+  }
+
+  {
+    // now get the compute ops scheduled at time=1 //
+    std::list<operation_t> expected = { "A", "C" };
+    std::list<operation_t> compute_ops;
+
+
+    get_scheduled_operations_at_time(schedule_time_t(1),
+          std::back_inserter(compute_ops));
+
+    compute_ops.sort(); expected.sort();
+    EXPECT_EQ(expected, compute_ops);
+  }
 }
