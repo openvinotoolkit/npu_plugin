@@ -544,7 +544,7 @@ void mv::Tensor::setShape(const Shape& shape)
     if(isPopulated())
     {
         log(Logger::MessageType::Warning, "Changing shape of a populated tensor, experimental feature.");
-        if(shape.totalSize() != get<Shape>("shape").totalSize())
+        if(shape.totalSize() != getShape().totalSize())
             throw ArgumentError(*this, "CurrentTensor", "shape", "Unable to change shape of a populated tensor");
     }
     shape_ = shape;
