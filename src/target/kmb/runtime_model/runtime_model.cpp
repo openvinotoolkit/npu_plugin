@@ -223,12 +223,9 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
 
     auto underlyingTensor = tensorBufferIt->getData();
     std::vector<uint32_t> dimensions = underlyingTensor->getShape();
-    std::vector<uint32_t> numericStrides = underlyingTensor->computeNumericStrides();
 
     auto masterBuffer = tensorAllocator.getTopMasterBuffer(tensorBufferIt);
-
-    if (masterBuffer != dm.bufferEnd(*tensorAllocatorName, stg))
-        numericStrides = (*masterBuffer)->getData()->computeNumericStrides();
+    std::vector<uint32_t> numericStrides = (*masterBuffer)->getData()->computeNumericStrides();
 
     numericStrides.push_back(underlyingTensor->getDType().getSizeInBits() / 8);
 
@@ -293,20 +290,24 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     if(t->isQuantized())
     {
         auto quantizationParams = t->get<mv::QuantizationParams>("quantParams");
+
         auto quantZero = quantizationParams.getZeroPoint();
         toBuild->quant_zero = std::vector<unsigned char>(quantZero.begin(), quantZero.end());
-        std::vector<unsigned> quantScale = {};
-        if (quantizationParams.hasAttr("mult"))
-            quantScale = quantizationParams.getMult();
 
-        quantScale = reduceQuantVector_(quantScale);
-        toBuild->quant_scale = std::vector<unsigned short int>(quantScale.begin(), quantScale.end());
+        auto quantScale = quantizationParams.getScale();
+        toBuild->quant_scale = std::vector<float>(quantScale.begin(), quantScale.end());
+
+        std::vector<unsigned> quantMult = {};
+        if (quantizationParams.hasAttr("mult"))
+            quantMult = quantizationParams.getMult();
+        quantMult = reduceQuantVector_(quantMult);
+        toBuild->quant_mult = std::vector<unsigned short int>(quantMult.begin(), quantMult.end());
+
         std::vector<unsigned> quantShift;
         if (quantizationParams.hasAttr("shift"))
             quantShift = quantizationParams.getShift();
         quantShift = reduceQuantVector_(quantShift);
         toBuild->quant_shift = std::vector<unsigned char>(quantShift.begin(), quantShift.end());
-
     }
 
     return toBuild;
@@ -434,20 +435,24 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     if(t->isQuantized())
     {
         auto quantizationParams = t->get<mv::QuantizationParams>("quantParams");
+
         auto quantZero = quantizationParams.getZeroPoint();
         toBuild->quant_zero = std::vector<unsigned char>(quantZero.begin(), quantZero.end());
-        std::vector<unsigned> quantScale = {};
-        if (quantizationParams.hasAttr("mult"))
-            quantScale = quantizationParams.getMult();
 
-        quantScale = reduceQuantVector_(quantScale);
-        toBuild->quant_scale = std::vector<unsigned short int>(quantScale.begin(), quantScale.end());
+        auto quantScale = quantizationParams.getScale();
+        toBuild->quant_scale = std::vector<float>(quantScale.begin(), quantScale.end());
+
+        std::vector<unsigned> quantMult = {};
+        if (quantizationParams.hasAttr("mult"))
+            quantMult = quantizationParams.getMult();
+        quantMult = reduceQuantVector_(quantMult);
+        toBuild->quant_mult = std::vector<unsigned short int>(quantMult.begin(), quantMult.end());
+
         std::vector<unsigned> quantShift;
         if (quantizationParams.hasAttr("shift"))
             quantShift = quantizationParams.getShift();
         quantShift = reduceQuantVector_(quantShift);
         toBuild->quant_shift = std::vector<unsigned char>(quantShift.begin(), quantShift.end());
-
     }
 
     return toBuild;
@@ -1466,13 +1471,13 @@ MVCNN::UPALayerTaskT *mv::RuntimeModel::buildUPAProposalTask(ComputationModel &c
 
     // Build scale vector
     auto scale_vector = std::vector<float>();
-    for (auto i = 0; i < scale->size(); ++i)
-        scale_vector.push_back(mv::fp16_to_fp32(static_cast<uint16_t>(scale->getIntData().at({i}))));
+    for (unsigned i = 0; i < scale->size(); ++i)
+        scale_vector.push_back(mv::fp16_to_fp32(static_cast<uint16_t>(scale->getIntData().at(i))));
 
     // Build ratio vector
     auto ratio_vector = std::vector<float>();
-    for (auto i = 0; i < ratio->size(); ++i)
-        ratio_vector.push_back(mv::fp16_to_fp32(static_cast<uint16_t>(ratio->getIntData().at({i}))));
+    for (unsigned i = 0; i < ratio->size(); ++i)
+        ratio_vector.push_back(mv::fp16_to_fp32(static_cast<uint16_t>(ratio->getIntData().at(i))));
 
     // Fill in tensors
     toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, cls_pred)));
@@ -1539,6 +1544,55 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAROIPoolingTask(ComputationModel
     return toBuild;
 }
 
+MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAInterpTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt)
+{
+
+    auto toBuild = new MVCNN::UPALayerTaskT();
+
+    toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_InterpParams;
+    auto softLayerParamsValue = new MVCNN::InterpParamsT();
+
+    auto input = opIt->getInputTensor(0);
+    auto output = opIt->getOutputTensor(0);
+
+    // Fill in tensors
+    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input)));
+    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
+
+    // Fill in required params
+    softLayerParamsValue->pad_beg = opIt->get<unsigned>("pad_beg");
+    softLayerParamsValue->pad_end = opIt->get<unsigned>("pad_end");
+    softLayerParamsValue->align_corners = opIt->get<bool>("align_corners");
+    toBuild->softLayerParams.value = softLayerParamsValue;
+
+    return toBuild;
+}
+
+MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPANormTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt)
+{
+
+    auto toBuild = new MVCNN::UPALayerTaskT();
+
+    toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_NormLayerParams;
+    auto softLayerParamsValue = new MVCNN::NormLayerParamsT();
+
+    auto input = opIt->getInputTensor(0);
+    auto output = opIt->getOutputTensor(0);
+
+    // Fill in tensors
+    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input)));
+    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
+
+    // Fill in required params
+    softLayerParamsValue->alpha = opIt->get<double>("alpha");
+    softLayerParamsValue->beta = opIt->get<double>("beta");
+    softLayerParamsValue->region = opIt->get<std::string>("region");
+    softLayerParamsValue->local_size = opIt->get<unsigned>("local_size");
+    toBuild->softLayerParams.value = softLayerParamsValue;
+
+    return toBuild;
+}
+
 MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAQuantizeTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt)
 {
     auto input = opIt->getInputTensor(0);
@@ -1556,12 +1610,12 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAQuantizeTask(ComputationModel& 
 
     // Convert vectors to fp16
     auto scale_vector = std::vector<unsigned short>();
-    for (auto i = 0; i < quantScale.size(); ++i)
-        scale_vector.push_back(mv::fp32_to_fp16(static_cast<float>(quantScale.at({i}))));
+    for (unsigned i = 0; i < quantScale.size(); ++i)
+        scale_vector.push_back(mv::fp32_to_fp16(static_cast<float>(quantScale.at(i))));
 
     auto zero_vector = std::vector<unsigned short>();
-    for (auto i = 0; i < quantZero.size(); ++i)
-        zero_vector.push_back(mv::fp32_to_fp16(static_cast<float>(quantZero.at({i}))));
+    for (unsigned i = 0; i < quantZero.size(); ++i)
+        zero_vector.push_back(mv::fp32_to_fp16(static_cast<float>(quantZero.at(i))));
 
     toBuild->softLayerParams.value = softLayerParamsValue;
     softLayerParamsValue->scale = std::vector<unsigned short>(scale_vector.begin(), scale_vector.end());
@@ -1671,6 +1725,135 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAPermuteTask(ComputationModel& c
     return toBuild;
 }
 
+MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPADetectionOutputTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt)
+{
+
+    auto toBuild = new MVCNN::UPALayerTaskT();
+    //toBuild->maxShaves = ;
+    toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_DetectionOutputParams;
+    auto softLayerParamsValue = new MVCNN::DetectionOutputParamsT();
+
+    auto box_logits = opIt->getInputTensor(0);
+    auto class_preds = opIt->getInputTensor(1);
+    auto proposals = opIt->getInputTensor(2);
+
+    auto output = opIt->getOutputTensor(0);
+
+    // Fill in tensors
+    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, box_logits)));
+    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, class_preds)));
+    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, proposals)));
+
+    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
+
+    // Fill in required params
+    softLayerParamsValue->num_classes = opIt->get<int64_t>("num_classes");
+    softLayerParamsValue->keep_top_k = opIt->get<int64_t>("keep_top_k");
+    softLayerParamsValue->nms_threshold = static_cast<float>(opIt->get<double>("nms_threshold"));
+    softLayerParamsValue->background_label_id = opIt->get<int64_t>("background_label_id");
+    softLayerParamsValue->top_k = opIt->get<int64_t>("top_k");
+    softLayerParamsValue->variance_encoded_in_target = opIt->get<bool>("variance_encoded_in_target");
+    softLayerParamsValue->code_type = opIt->get<std::string>("code_type");
+    softLayerParamsValue->share_location = opIt->get<bool>("share_location");
+    softLayerParamsValue->confidence_threshold = static_cast<float>(opIt->get<double>("confidence_threshold"));
+    softLayerParamsValue->clip_before_nms = opIt->get<bool>("clip_before_nms");
+    softLayerParamsValue->clip_after_nms = opIt->get<bool>("clip_after_nms");
+    softLayerParamsValue->decrease_label_id = opIt->get<int64_t>("decrease_label_id");
+    softLayerParamsValue->normalized = opIt->get<bool>("normalized");
+    softLayerParamsValue->input_height = opIt->get<int64_t>("input_height");
+    softLayerParamsValue->input_width = opIt->get<int64_t>("input_width");
+    softLayerParamsValue->objectness_score = static_cast<float>(opIt->get<double>("objectness_score"));
+
+    toBuild->softLayerParams.value = softLayerParamsValue;
+
+    return toBuild;
+}
+
+MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAPriorboxTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt)
+{
+
+    auto toBuild = new MVCNN::UPALayerTaskT();
+    //toBuild->maxShaves = ;
+    toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_PriorboxParams;
+    auto softLayerParamsValue = new MVCNN::PriorboxParamsT();
+
+    auto priorbox = opIt->getInputTensor(0);
+    auto image = opIt->getInputTensor(1);
+    auto min_sizes = opIt->getInputTensor(2);
+    auto max_sizes = opIt->getInputTensor(3);
+    auto aspect_ratios = opIt->getInputTensor(4);
+    auto variances = opIt->getInputTensor(5);
+
+    auto output = opIt->getOutputTensor(0);
+
+    auto min_sizes_vector = std::vector<float>();
+    auto min_sizes_data = min_sizes->getData();
+    for (unsigned i = 0; i < min_sizes->size(); ++i)
+        min_sizes_vector.push_back(mv::fp16_to_fp32(static_cast<uint16_t>(min_sizes->getIntData().at(i))));
+
+    auto max_sizes_vector = std::vector<float>();
+    for (unsigned i = 0; i < max_sizes->size(); ++i)
+        max_sizes_vector.push_back(mv::fp16_to_fp32(static_cast<uint16_t>(max_sizes->getIntData().at(i))));
+
+    auto aspect_ratios_vector = std::vector<float>();
+    for (unsigned i = 0; i < aspect_ratios->size(); ++i)
+        aspect_ratios_vector.push_back(mv::fp16_to_fp32(static_cast<uint16_t>(aspect_ratios->getIntData().at(i))));
+
+    auto variances_vector = std::vector<float>();
+    for (unsigned i = 0; i < variances->size(); ++i)
+        variances_vector.push_back(mv::fp16_to_fp32(static_cast<uint16_t>(variances->getIntData().at(i))));
+
+    // Fill in tensors
+    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, image)));
+    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, priorbox)));
+
+    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
+
+    // Fill in required params
+    softLayerParamsValue->min_sizes = std::vector<float>(min_sizes_vector.begin(), min_sizes_vector.end());
+    softLayerParamsValue->max_sizes = std::vector<float>(max_sizes_vector.begin(), max_sizes_vector.end());
+    softLayerParamsValue->aspect_ratios = std::vector<float>(aspect_ratios_vector.begin(), aspect_ratios_vector.end());
+    softLayerParamsValue->variances = std::vector<float>(variances_vector.begin(), variances_vector.end());
+    softLayerParamsValue->flip = opIt->get<unsigned>("flip");
+    softLayerParamsValue->clip = opIt->get<unsigned>("clip");
+    softLayerParamsValue->step_w = static_cast<float>(opIt->get<double>("step_w"));
+    softLayerParamsValue->step_h = static_cast<float>(opIt->get<double>("step_h"));
+    softLayerParamsValue->offset = static_cast<float>(opIt->get<double>("offset"));
+
+    toBuild->softLayerParams.value = softLayerParamsValue;
+
+    return toBuild;
+}
+
+MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAArgmaxTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt)
+{
+    auto input = opIt->getInputTensor(0);
+    auto output = opIt->getOutputTensor(0);
+    auto toBuild = new MVCNN::UPALayerTaskT();
+    //toBuild->maxShaves = ;
+    toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_ArgMaxParams;
+    auto softLayerParamsValue = new MVCNN::ArgMaxParamsT();
+
+    auto out_max_val = static_cast<bool>(opIt->get<int64_t>("out_max_val"));
+    auto top_k = static_cast<unsigned>(opIt->get<int64_t>("top_k"));
+    auto axis = opIt->get<int64_t>("axis");
+
+    softLayerParamsValue->out_max_val = out_max_val;
+    softLayerParamsValue->top_k = top_k;
+    softLayerParamsValue->axis = axis;
+
+    toBuild->softLayerParams.value = softLayerParamsValue;
+
+    toBuild->input_data = buildTensorReferenceT(cm, compilationDescriptor, input);
+    toBuild->output_data = buildTensorReferenceT(cm, compilationDescriptor, output);
+
+    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input)));
+
+    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
+
+    return toBuild;
+}
+
 MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAPassthroughTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt)
 {
     auto input = opIt->getInputTensor(0);
@@ -1691,6 +1874,9 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAPassthroughTask(ComputationMode
 
 MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPADummyTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt)
 {
+    UNUSED(cm);
+    UNUSED(compilationDescriptor);
+    UNUSED(opIt);
     auto toBuild = new MVCNN::UPALayerTaskT();
     //toBuild->maxShaves = ;
     toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_DummyParams;
@@ -1732,6 +1918,16 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildUPATask(Comput
         toReturn[0]->task.value = buildUPANormalizeTask(cm, compilationDescriptor, opIt);
     else if(underlyingTask == "Permute")
         toReturn[0]->task.value = buildUPAPermuteTask(cm, compilationDescriptor, opIt);
+    else if(underlyingTask == "Interp")
+        toReturn[0]->task.value = buildUPAInterpTask(cm, compilationDescriptor, opIt);
+    else if(underlyingTask == "Norm")
+        toReturn[0]->task.value = buildUPANormTask(cm, compilationDescriptor, opIt);
+    else if(underlyingTask == "DetectionOutput")
+        toReturn[0]->task.value = buildUPADetectionOutputTask(cm, compilationDescriptor, opIt);
+    else if(underlyingTask == "Priorbox")
+        toReturn[0]->task.value = buildUPAPriorboxTask(cm, compilationDescriptor, opIt);
+    else if(underlyingTask == "Argmax")
+        toReturn[0]->task.value = buildUPAArgmaxTask(cm, compilationDescriptor, opIt);
     // TODO: Add other UPA layers
 
     return toReturn;

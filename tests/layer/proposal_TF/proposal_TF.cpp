@@ -44,11 +44,11 @@ int main()
     for(unsigned i = 0; i < imInfoData.size(); ++i)
         imInfoData_converted[i] = imInfoData[i];
 
-    auto cls_pred = om.input({14,14,24,1}, mv::DType("Float16"), mv::Order::getZMajorID(4), {{0},{1.0},{-inf},{inf}}, "cls_pred0");
-    auto weights = om.constantInt(weightsData_converted, {14, 14, 48, 1}, mv::DType("Float16"), mv::Order::getZMajorID(4), {{0},{1.0},{-inf},{inf}}, "weights");
-    auto im_info = om.constantInt(imInfoData_converted, {1,3,1,1}, mv::DType("Float16"), mv::Order::getZMajorID(4), {{0},{1.0},{-inf},{inf}}, "im_info0");
-    auto scale = om.constant(scaleData, {1,scaleData.size(),1,1}, mv::DType("Float64"), mv::Order::getZMajorID(4), {{0},{1.0},{-inf},{inf}}, "scale0");
-    auto ratio = om.constant(ratioData, {1,ratioData.size(),1,1}, mv::DType("Float64"), mv::Order::getZMajorID(4), {{0},{1.0},{-inf},{inf}}, "ratio0");
+    auto cls_pred = om.input({14,14,24,1}, mv::DType("Float16"), mv::Order::getZMajorID(4), {{0},{1.0},{},{}}, "cls_pred0");
+    auto weights = om.constantInt(weightsData_converted, {14, 14, 48, 1}, mv::DType("Float16"), mv::Order::getZMajorID(4), {{0},{1.0},{},{}}, "weights");
+    auto im_info = om.constantInt(imInfoData_converted, {1,3,1,1}, mv::DType("Float16"), mv::Order::getZMajorID(4), {{0},{1.0},{},{}}, "im_info0");
+    auto scale = om.constant(scaleData, {1,scaleData.size(),1,1}, mv::DType("Float64"), mv::Order::getZMajorID(4), {{0},{1.0},{},{}}, "scale0");
+    auto ratio = om.constant(ratioData, {1,ratioData.size(),1,1}, mv::DType("Float64"), mv::Order::getZMajorID(4), {{0},{1.0},{},{}}, "ratio0");
     // Build inputs vector
     std::vector<mv::Data::TensorIterator> inputs;
     inputs.push_back(cls_pred);

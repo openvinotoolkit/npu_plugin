@@ -157,6 +157,16 @@ void fuseUsualPPEFcn(mv::Data::OpListIterator &opIt, mv::ComputationModel &model
 
     if (opType == "LeakyRelu")
         parentOpIt->set<double>("leakyAlpha", opIt->get<double>("alpha"));
+    else if (opType == "Sigmoid")
+    {
+        if (opIt->hasAttr("quantParams"))
+            parentOpIt->set<mv::QuantizationParams>("quantParams", opIt->get<mv::QuantizationParams>("quantParams"));
+        else
+        {
+            if (!parentOpIt->hasAttr("quantParams"))
+                parentOpIt->set<mv::QuantizationParams>("quantParams", {{}, {}, {}, {}});
+        }
+    }
     std::vector<std::string> postOpTypes = {};
     if (parentOpIt->hasAttr("postOpTypes"))
         postOpTypes = parentOpIt->get<std::vector<std::string>>("postOpTypes");

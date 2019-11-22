@@ -7,11 +7,11 @@ if (MSVC)
 
 else()
 
-    #add_executable(argmax_noaxis argmax_noaxis/argmax_noaxis.cpp)
-    #target_link_libraries(argmax_noaxis cm)
+    add_executable(argmax_noaxis argmax_noaxis/argmax_noaxis.cpp)
+    target_link_libraries(argmax_noaxis cm)
 
-    #add_executable(argmax_axis argmax_axis/argmax_axis.cpp)
-    #target_link_libraries(argmax_axis cm)
+    add_executable(argmax_axis argmax_axis/argmax_axis.cpp)
+    target_link_libraries(argmax_axis cm)
 
     add_executable(conv_clamp conv_clamp/conv_clamp.cpp)
     target_link_libraries(conv_clamp cm)
@@ -37,17 +37,23 @@ else()
     add_executable(conv_softmax conv_softmax/conv_softmax.cpp)
     target_link_libraries(conv_softmax cm)
 
-    #add_executable(detection_output detection_output/detection_output.cpp)
-    #target_link_libraries(detection_output cm)
+    add_executable(detection_output detection_output/detection_output.cpp)
+    target_link_libraries(detection_output cm)
+
+    #add_executable(elu elu/elu.cpp)
+    #target_link_libraries(elu cm)
     
+    add_executable(flatten flatten/flatten.cpp)
+    target_link_libraries(flatten cm)
+
     add_executable(normalize normalize/normalize.cpp)
     target_link_libraries(normalize cm)
 
     add_executable(permute permute/permute.cpp)
     target_link_libraries(permute cm)
 
-    #add_executable(priorbox priorbox/priorbox.cpp)
-    #target_link_libraries(priorbox cm)
+    add_executable(priorbox priorbox/priorbox.cpp)
+    target_link_libraries(priorbox cm)
 
     add_executable(proposal_TF proposal_TF/proposal_TF.cpp)
     target_link_libraries(proposal_TF cm)
@@ -67,7 +73,22 @@ else()
     add_executable(roi_pooling roi_pooling/roi_pooling.cpp)
     target_link_libraries(roi_pooling cm)
 
+    add_executable(slice slice/slice.cpp)
+    target_link_libraries(slice cm)
+
+    add_executable(slice_single slice/slice_single.cpp)
+    target_link_libraries(slice_single cm)
+
     add_executable(softmax softmax/softmax.cpp)
     target_link_libraries(softmax cm)
+
+    add_executable(interp interp/interp.cpp)
+    target_link_libraries(interp cm)
+
+    add_executable(interp_noalign interp_noalign/interp_noalign.cpp)
+    target_link_libraries(interp_noalign cm)
+
+    add_executable(norm norm/norm.cpp)
+    target_link_libraries(norm cm)
 
 endif(MSVC)

@@ -44,9 +44,9 @@ int main()
     for(unsigned i = 0; i < proposalsData.size(); ++i)
         proposalsData_converted[i] = proposalsData[i];
     // Define tensors
-    auto bbox_pred = om.input({34928,1,1,1}, mv::DType("Float16"), mv::Order::getZMajorID(4), {{0},{1.0},{-inf},{inf}}, "bbox_pred0");
-    auto cls_pred = om.constantInt(clsPredData_converted,{183372,1,1,1}, mv::DType("Float16"), mv::Order::getZMajorID(4), {{0},{1.0},{-inf},{inf}}, "cls_pred0");
-    auto proposals = om.constantInt(proposalsData_converted, {34928,2,1,1}, mv::DType("Float16"), mv::Order::getZMajorID(4), {{0},{1.0},{-inf},{inf}}, "proposals");
+    auto bbox_pred = om.input({34928,1,1,1}, mv::DType("Float16"), mv::Order::getZMajorID(4), {{0},{1.0},{},{}}, "bbox_pred0");
+    auto cls_pred = om.constantInt(clsPredData_converted,{183372,1,1,1}, mv::DType("Float16"), mv::Order::getZMajorID(4), {{0},{1.0},{},{}}, "cls_pred0");
+    auto proposals = om.constantInt(proposalsData_converted, {34928,2,1,1}, mv::DType("Float16"), mv::Order::getZMajorID(4), {{0},{1.0},{},{}}, "proposals");
     // Build inputs vector
     std::vector<mv::Data::TensorIterator> inputs;
     inputs.push_back(bbox_pred);

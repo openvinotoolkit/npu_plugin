@@ -263,6 +263,24 @@ mv::Shape mv::Shape::augment(const Shape& s, std::size_t ndims)
 
 }
 
+mv::Shape mv::Shape::augment_major(const Shape& s, std::size_t ndims)
+{
+
+    if (ndims <= s.ndims())
+        return s;
+
+    Shape sAug(ndims);
+
+    for (std::size_t i = 0; i < s.ndims(); ++i)
+        sAug[i] = s[i];
+
+    for (unsigned i = 0; i < ndims - s.ndims(); ++i)
+        sAug[i + s.ndims()] = 1;
+
+    return sAug;
+
+}
+
 std::string mv::Shape::getLogID() const
 {
     return "Shape:" + toString();

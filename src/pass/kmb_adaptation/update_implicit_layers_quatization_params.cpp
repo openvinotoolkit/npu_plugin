@@ -5,7 +5,7 @@
 #include "include/mcm/pass/pass_utils.hpp"
 
 static void updateImplicitLayersQuantizationParamsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
-
+static void updateImplicitLayersLocationParamsFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 namespace mv
 {
     namespace pass
@@ -14,6 +14,13 @@ namespace mv
             .setFunc(updateImplicitLayersQuantizationParamsFcn)
             .setDescription(
                 "Update Quantization Params for Implicit Layers output after input layers have been quantized");
+    }
+    namespace pass
+    {
+        MV_REGISTER_PASS(UpdateImplicitLayersLocation)
+            .setFunc(updateImplicitLayersLocationParamsFcn)
+            .setDescription(
+                "Update Location of Implicit Ops");
     }
 }
 
@@ -39,5 +46,28 @@ void updateImplicitLayersQuantizationParamsFcn(const mv::pass::PassEntry& , mv::
                 outputQuantization.quantize(inputQuantization.getShift(), inputQuantization.getMult());
             }
         }
+    }
+}
+
+void updateImplicitLayersLocationParamsFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+{
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
+    mv::OpModel om(model);
+    auto sortedOps = om.topologicalSort();
+    for(auto opIt : sortedOps)
+    {
+         std::string opType = opIt->getOpType();
+
+        if (opType ==  "Slice"
+            || opType ==  "Crop")
+        {
+            auto input = opIt->getInputTensor(0);
+            auto output = opIt->getOutputTensor(0);
+
+            auto inputMemoryLocation = opIt->getInputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
+            opIt->getOutputTensor(0)->set<mv::Tensor::MemoryLocation>("Location", inputMemoryLocation);
+        }
+
     }
 }
