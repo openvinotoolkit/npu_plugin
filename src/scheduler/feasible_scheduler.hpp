@@ -1532,6 +1532,7 @@ class Feasible_Memory_Schedule_Generator {
     //Precondition: corresponding compute op must be scheduled //
     //Precondition: the active resource list for this op does no have any 
     //spilled ops //
+    //TODO(vamsikku): remove this if its unused //
     bool schedule_data_ops_for_compute_op(const operation_t& op) {
       typename active_resource_table_t::iterator aitr =
           active_resource_table_.find(op);
@@ -1690,7 +1691,7 @@ class Feasible_Memory_Schedule_Generator {
     // 2. Clear all its input entries in the active_resources_table_ and if this
     //    op has no consumers just clear it from the active_resources_table_.
     //    This can also happen when the resource utility of the op is zero.
-    bool unschedule_compute_op(const operation_t& op) {
+    void unschedule_compute_op(const operation_t& op) {
 
       const_operation_iterator_t pitr =
           traits::incoming_operations_begin(*input_ptr_, op);
@@ -1702,15 +1703,55 @@ class Feasible_Memory_Schedule_Generator {
 
       for (; pitr != pitr_end; ++pitr) {
         const operation_t& pop = *pitr;
+
+        if (traits::is_data_operation(pop)) { continue; }
+
         typename op_output_table_t::iterator itr = op_output_table_.find(pop);
         assert(itr != op_output_table_.end());
+
         itr->decrement_consumers();
 
         if ( itr->consumed() && is_operation_using_non_empty_resources(op)) {
-          // clear its resources //
+          // clear all its active resources //
+          typename active_resource_table_t::iterator aitr =
+              active_resource_table_.find(op);
+          assert(aitr == active_resource_table_.end());
+          
+          const active_op_resources_t &active_op_resources = aitr->second;
+          assert(active_op_resources.size() == 1UL);
+
+          for (size_t i=0; i<active_op_resources.size(); i++) {
+            // clear out its resources from memory_state_ //
+            const active_result_info_t& active_result = active_op_resources[i];
+            op_demand_info_t demand_key(active_result.op_,
+                  active_result.demand_index_);
+
+            bool unassigned = memory_state_.unassign_resources(demand_key);
+            assert(unassigned);
+          }
+
+          // now delete this consumed operation from the active resources table
+          active_resource_table_.erase(aitr);
         }
       }
 
+      // now clear the resources for the input data operations for this 
+      // operation expect its output //
+      typename active_resource_table_t::iterator aitr =
+          active_resource_table_.find(op);
+      assert(aitr == active_resource_table_.end());
+      const active_op_resources_t &active_op_resources = aitr->second;
+      
+      for (size_t i=0; i<active_op_resources.size(); i++) {
+        const active_result_info_t& active_result = active_op_resources[i];
+        if (active_result.op_ == op) { continue; }
+
+        op_demand_info_t demand_key(active_result.op_,
+              active_result.demand_index_);
+
+        bool unassigned = memory_state_.unassign_resources(demand_key);
+        assert(unassigned);
+      }
     }
 
     // Precondition: at least some ready operations //
@@ -1718,7 +1759,6 @@ class Feasible_Memory_Schedule_Generator {
       assert( scheduled_compute_ops_ < total_compute_ops_);
 
       if (start_time_heap_.empty()) {
-        
         heap_element_t helement = pop_from_heap_start_time();
         current_time_ = helement.time_;
         current_scheduled_op_.op_ = helement.op_;
@@ -1735,17 +1775,21 @@ class Feasible_Memory_Schedule_Generator {
         //
         // STEP-0: clearup all the resources from completion heap until the
         // completion time is less <= current_time //
+        // TODO(vamsikku): 
         const heap_element_t *top = NULL;
 
         while ((top=top_element()) && (top->time_ <= current_time_)) {
-          // unschedule operation and free up the resources//
+          heap_element_t top_element = pop_from_heap();
+          if (traits::is_compute_operation(top_element.op_)) {
+            unschedule_compute_op(top_element.op_);
+            //TODO(vamsikku): update the ready lists //
+          }
         }
 
         if ((top=top_element())) {
           current_time_ = top->time_;
-          unschedule_all_ops_ending_at_this_time_step(current_time_);
-
-
+          //TODO(vamsikku): unschedule all ops at this time //
+          //update the ready lists //
         }
       } 
     }
@@ -1754,6 +1798,7 @@ class Feasible_Memory_Schedule_Generator {
     // Precondition: start_time_heap_.empty() //
     // Precondition: current_time_ has been established //
     void find_all_schedulable_ops_at_this_time_step() {
+      //TODO(vamsikku): //
 
       // STEP-1: find all schedulable ops from active ready list. //
 
