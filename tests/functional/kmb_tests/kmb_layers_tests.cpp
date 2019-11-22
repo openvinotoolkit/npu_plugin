@@ -101,8 +101,10 @@ std::string KmbPerLayerTest::getTestResultFilename() const {
 void kmbLayersTests_nightly::setCommonConfig(std::map<std::string, std::string>& config)
 {
     config = _config;
+    config[VPU_KMB_CONFIG_KEY(LOAD_NETWORK_AFTER_COMPILATION)]  = CONFIG_VALUE(YES);
     config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_JSON)] = CONFIG_VALUE(NO);
     config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_DOT)]  = CONFIG_VALUE(NO);
+    config[VPU_KMB_CONFIG_KEY(MCM_PARSING_ONLY)] = CONFIG_VALUE(NO);
 
     const ::testing::TestInfo* const test_info =
             ::testing::UnitTest::GetInstance()->current_test_info();
