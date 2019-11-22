@@ -13,3 +13,7 @@
 [submodule "tools/validate_tensor/contrib/nlohmann/json"]
 	path = tools/validate_tensor/contrib/nlohmann/json
 	url = https://github.com/nlohmann/json.git
+[submodule "tools/validate_tensor/contrib/gflags"]
+	path = tools/validate_tensor/contrib/gflags
+	url = https://github.com/gflags/gflags.git
+
