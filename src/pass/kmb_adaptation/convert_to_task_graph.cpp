@@ -122,12 +122,13 @@ mv::Data::TensorIterator convertConvolutionToDPUTask(mv::OpModel& om, const std:
     auto dpuConvOp = om.getSourceOp(dpuConv);
     dpuConvOp->set<bool>("hasWeights", true);
 
-    // NOTE: If we want to get rid of ChannelMajorConvolution we have to act here
-    if(inputs[1]->getShape()[mv::KERNEL_INPUT_CHANNELS] < 16)
-    {
-        dpuConvOp->erase("taskOp");
-        dpuConvOp->set<std::string>("taskOp", "ChannelMajorConvolution");
-    }
+    //    NOTE: Thanks to proper padding handling we don't need this anymore
+    //    Leaving it here as an historical note
+    //    if(inputs[1]->getShape()[mv::KERNEL_INPUT_CHANNELS] < 16)
+    //    {
+    //        dpuConvOp->erase("taskOp");
+    //        dpuConvOp->set<std::string>("taskOp", "ChannelMajorConvolution");
+    //    }
 
     return dpuConv;
 }
