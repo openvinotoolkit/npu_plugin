@@ -1553,7 +1553,6 @@ TEST_F(Test_Fixture_Feasible_Memory_Scheduler,
 }
 
 TEST_F(Test_Fixture_Feasible_Memory_Scheduler, test_auto_scheduled_data_ops) {
-
   dag_t::adjacency_map_t in = { {"A", {"B"}},  {"C", {"B"}},
     {"B", {}}, {"A_in", {"A"} }, {"B_in", {"B"} }, {"C_in", {"C"}} };
   dag_t::resource_cost_model_t memory = { {"A", 2UL}, {"A_in",2UL},
