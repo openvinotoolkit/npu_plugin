@@ -246,6 +246,13 @@ std::vector<TestingNetworkParameters> vpuInferAndCompareTestsNQA = {
                         "/KMB_models/NQA/POST_TRAINING/TinyYolo_V2/tiny_yolo_v2_uint8_uint8_weights_pertensor.bin",
                         "/416x416/person.bmp"},
         // post trainig models
+        // Folowing test on yolo_v2 fail on IE to mcmCompiler parsing stage.
+        // The networks can not be parsed due to parsing RegionYolo issue CVS-23844
+        TestingNetworkParameters{"yolo_v2_uint8_int8_weights_pertensor",
+                        "/KMB_models/NQA/POST_TRAINING/Yolo_V2/yolo_v2_uint8_int8_weights_pertensor.xml",
+                        "/KMB_models/NQA/POST_TRAINING/Yolo_V2/yolo_v2_uint8_int8_weights_pertensor.bin",
+                        "/416x416/person.bmp"},
+        // post trainig models
         // Following 3 tests on inception_v1 fail on mcmCompiler compilation stage with following message.
         // Streaming for node: InceptionV1/Logits/Conv2d_0c_1x1/convolution has stream K = 2
         // ERROR:   checkIsCMXTensor_ - ArgumentError: no allocators for tensor ImplicitReshape_0:0 - no allocators for tensor
