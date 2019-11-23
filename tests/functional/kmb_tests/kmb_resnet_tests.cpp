@@ -114,9 +114,17 @@ TEST_P(ResnetTest, resnetAccuracy) {
 
 static const std::vector<resnet_params> resnetTestParams = {
     {
+        "scale-shift.xml", // model
+        "resnet50-weights.bin", // weights
+        "input-cat-224x224-interleaved.bgr.bin", // input
+        "scale-shift-reference.bin", // expected result
+        0.0197619f,
+        128,
+    },
+    {
         "single-convolution.xml", // model
         "resnet50-weights.bin", // weights
-        "input-cat-224x224-planar.bgr.bin", // input
+        "input-cat-224x224-interleaved.bgr.bin", // input
         "single-convolution-reference.bin", // expected result
         0.0127005f,
         0,
@@ -124,7 +132,7 @@ static const std::vector<resnet_params> resnetTestParams = {
     {
         "first-block.xml", // model
         "resnet50-weights.bin", // weights
-        "input-cat-224x224-planar.bgr.bin", // input
+        "input-cat-224x224-interleaved.bgr.bin", // input
         "first-block-reference.bin", // expected result
         0.00880455f,
         0,
@@ -132,7 +140,7 @@ static const std::vector<resnet_params> resnetTestParams = {
     {
         "three-blocks.xml", // model
         "resnet50-weights.bin", // weights
-        "input-cat-224x224-planar.bgr.bin", // input
+        "input-cat-224x224-interleaved.bgr.bin", // input
         "three-blocks-reference.bin", // expected result
         0.0106719f,
         0,
