@@ -1306,13 +1306,15 @@ class Test_Fixture_Feasible_Memory_Scheduler
     typedef feasible_memory_scheduler_t::heap_element_t heap_element_t;
     typedef feasible_memory_scheduler_t::operation_t operation_t;
     typedef feasible_memory_scheduler_t::ready_data_list_t ready_data_list_t;
-    typedef feasible_memory_scheduler_t::op_list_t op_list_t;
+    typedef feasible_memory_scheduler_t::ready_list_t ready_list_t;
     typedef feasible_memory_scheduler_t::resource_t resource_t;
     typedef feasible_memory_scheduler_t::scheduled_op_info_list_t
         scheduled_op_info_list_t;
     typedef feasible_memory_scheduler_t::op_type_e op_type_E;
     typedef feasible_memory_scheduler_t::completion_time_ordering_t
         completion_time_ordering_t;
+    typedef feasible_memory_scheduler_t::scheduled_op_info_t
+        scheduled_op_info_t;
 
     void SetUp() override {}
     void TearDown() override {}
@@ -1436,7 +1438,7 @@ TEST_F(Test_Fixture_Feasible_Memory_Scheduler, test_compute_ready_lists) {
   EXPECT_EQ(ready_list_.size(), 1UL);
 
   {
-    op_list_t expected = { "Input" };
+    ready_list_t expected = { "Input" };
     EXPECT_EQ(expected, ready_list_);
   }
 }
@@ -1526,11 +1528,8 @@ TEST_F(Test_Fixture_Feasible_Memory_Scheduler,
   init(resource_t(10));
 
   {
-    op_list_t expected_ready_list = {"A", "C"};
-    op_list_t sorted_ready_list = ready_list_;
-
-    sorted_ready_list.sort();
-    EXPECT_EQ(expected_ready_list, sorted_ready_list);
+    ready_list_t expected_ready_list = {"A", "C"};
+    EXPECT_EQ(ready_list_, expected_ready_list);
   }
 
   { 
@@ -1596,3 +1595,44 @@ TEST_F(Test_Fixture_Feasible_Memory_Scheduler, test_auto_scheduled_data_ops) {
     EXPECT_EQ(expected, compute_ops);
   }
 }
+
+
+TEST_F(Test_Fixture_Feasible_Memory_Scheduler, simple_spill_test) {
+  dag_t::adjacency_map_t in = { {"In_0", {"A", "C"}}, {"In_1", {"B"}},
+    {"A", {"B"}}, {"B", {"C"}}, {"C", {} } };
+  dag_t::resource_cost_model_t memory = {{"In_0", 5UL}, {"In_1", 4UL},
+    {"A", 5UL}, {"B", 1UL}, {"C", 4UL} };
+  dag_t::data_op_set_t data_ops = {"In_0", "In_1"};
+
+  dag_t g(in);
+  g.reset_resource_model(memory);
+  g.reset_data_op_set(data_ops);
+
+  reset_input(g);
+  init(resource_t(10));
+
+  std::list<scheduled_op_info_t> scheduled_ops;
+  while (!reached_end()){
+    next_schedulable_op();
+    scheduled_ops.push_back(current_scheduled_op_);
+    std::cout << "op=" << current_scheduled_op_.op_ << "type=" <<
+      (int) current_scheduled_op_.op_type_ << " time=" << current_time_ << std::endl;
+  }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
