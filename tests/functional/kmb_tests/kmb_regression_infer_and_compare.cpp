@@ -95,7 +95,7 @@ TEST_P(VpuInferAndCompareTests, NQA) {  // To be run in manual mode when device 
 
     Core ie;
     InferenceEngine::ExecutableNetwork exeNetwork;
-    ASSERT_NO_THROW(exeNetwork = ie.LoadNetwork(network, "kmb"));
+    exeNetwork = ie.LoadNetwork(network, "kmb");
 #ifdef __arm__
     int batch = 1;
 
@@ -182,10 +182,6 @@ std::vector<TestingNetworkParameters> vpuInferAndCompareTestsNQA = {
                         "/KMB_models/NQA/squeezenetv1.1-int8-onnx/squeezenetv1.1-int8.xml",
                         "/KMB_models/NQA/squeezenetv1.1-int8-onnx/squeezenetv1.1-int8.bin",
                         "/224x224/cat3.bmp"},
-        TestingNetworkParameters{"SSD512_onnx_int8",
-                        "/KMB_models/INT8/SSD512-int8-onnx-0001/SSD512-int8-onnx-0001.xml",
-                        "/KMB_models/INT8/SSD512-int8-onnx-0001/SSD512-int8-onnx-0001.bin",
-                        "/512x512/dog_croped512.bmp"},
         TestingNetworkParameters{"Yolo_v2_tf_int8",
                         "/KMB_models/NQA/yolo_v2_tf/yolo_v2.xml",
                         "/KMB_models/NQA/yolo_v2_tf/yolo_v2.bin",
@@ -202,7 +198,7 @@ std::vector<TestingNetworkParameters> vpuInferAndCompareTestsNQA = {
                         "/KMB_models/FP16/icnet/caffe/caffe/FP16/1/dldt/icnet.bin",
                         "/1024x2048/frankfurt_001016.bmp"},
 
-        // post trainig models
+        // post training models
         // To learn where the post trainig IRs from and how to update them (if necessary) see
         // scripts/post_training_quantization/README.md and
         // scripts/post_training_quantization/<corresponding network dir>/run.txt files
@@ -218,7 +214,7 @@ std::vector<TestingNetworkParameters> vpuInferAndCompareTestsNQA = {
                         "/KMB_models/NQA/POST_TRAINING/MobileNet_V2/mobilenet_v2_uint8_uint8_weights_perchannel.xml",
                         "/KMB_models/NQA/POST_TRAINING/MobileNet_V2/mobilenet_v2_uint8_uint8_weights_perchannel.bin",
                         "/224x224/cat3.bmp"},
-        // post trainig models
+        // post training models
         // Folowing 3 tests on resnet50 fail on IE to mcmCompiler parsing stage.
         // The networks can not be parsed due to Eltwise with FakeQuantize issue CVS-23769
         TestingNetworkParameters{"resnet50_int8_int8_weights_pertensor",
@@ -234,7 +230,7 @@ std::vector<TestingNetworkParameters> vpuInferAndCompareTestsNQA = {
                         "/KMB_models/NQA/POST_TRAINING/ResNet-50/resnet50_uint8_uint8_weights_pertensor.bin",
                         "/224x224/cat3.bmp"},
 
-        // post trainig models
+        // post training models
         // models below are able to be compiled but need to discuss do we really need them all
         TestingNetworkParameters{"tiny_yolo_v2_int8_int8_weights_pertensor",
                         "/KMB_models/NQA/POST_TRAINING/TinyYolo_V2/tiny_yolo_v2_int8_int8_weights_pertensor.xml",
@@ -244,14 +240,14 @@ std::vector<TestingNetworkParameters> vpuInferAndCompareTestsNQA = {
                         "/KMB_models/NQA/POST_TRAINING/TinyYolo_V2/tiny_yolo_v2_uint8_uint8_weights_pertensor.xml",
                         "/KMB_models/NQA/POST_TRAINING/TinyYolo_V2/tiny_yolo_v2_uint8_uint8_weights_pertensor.bin",
                         "/416x416/person.bmp"},
-        // post trainig models
+        // post training models
         // Folowing test on yolo_v2 fail on IE to mcmCompiler parsing stage.
         // The networks can not be parsed due to parsing RegionYolo issue CVS-23844
         TestingNetworkParameters{"yolo_v2_uint8_int8_weights_pertensor",
                         "/KMB_models/NQA/POST_TRAINING/Yolo_V2/yolo_v2_uint8_int8_weights_pertensor.xml",
                         "/KMB_models/NQA/POST_TRAINING/Yolo_V2/yolo_v2_uint8_int8_weights_pertensor.bin",
                         "/416x416/person.bmp"},
-        // post trainig models
+        // post training models
         // Following 3 tests on inception_v1 fail on mcmCompiler compilation stage with following message.
         // Streaming for node: InceptionV1/Logits/Conv2d_0c_1x1/convolution has stream K = 2
         // ERROR:   checkIsCMXTensor_ - ArgumentError: no allocators for tensor ImplicitReshape_0:0 - no allocators for tensor
@@ -267,8 +263,8 @@ std::vector<TestingNetworkParameters> vpuInferAndCompareTestsNQA = {
                         "/KMB_models/NQA/POST_TRAINING/inception-v1_tf/inception-v1_tf_uint8_uint8_weights_pertensor.xml",
                         "/KMB_models/NQA/POST_TRAINING/inception-v1_tf/inception-v1_tf_uint8_uint8_weights_pertensor.bin",
                         "/224x224/cat3.bmp"},
-        // post trainig models
-        // Following 3 tests on inception_v1 fail on mcmCompiler compilation stage with following message.
+        // post training models
+        // Following 3 tests on inception_v1 fail on mcmCompiler compilation stage with following message
         // C++ exception with description "GraphOptimizer-StrategyManager -
         // LogicError: GraphOptimizer did not create any potential strategies for 62:step0 (Layaer '62' is of concat type)
         TestingNetworkParameters{"squeezenet1_1_pytorch_int8_int8_weights_pertensor",
@@ -283,7 +279,23 @@ std::vector<TestingNetworkParameters> vpuInferAndCompareTestsNQA = {
                         "/KMB_models/NQA/POST_TRAINING/squeezenet1_1_pytorch/squeezenet1_1_pytorch_uint8_uint8_weights_pertensor.xml",
                         "/KMB_models/NQA/POST_TRAINING/squeezenet1_1_pytorch/squeezenet1_1_pytorch_uint8_uint8_weights_pertensor.bin",
                         "/224x224/cat3.bmp"},
-
+        // post training models
+        // Folowing test on ssd512 fail on IE to mcmCompiler parsing stage with following message
+        // C++ exception with description "Unsupported case, we expect only one child"
+        // Also there are unsupported layers PriorBox and DetectionOutput
+        TestingNetworkParameters{"ssd512_caffe_uint8_int8_weights_pertensor",
+                        "/KMB_models/NQA/POST_TRAINING/ssd512/ssd512_caffe_uint8_int8_weights_pertensor.xml",
+                        "/KMB_models/NQA/POST_TRAINING/ssd512/ssd512_caffe_uint8_int8_weights_pertensor.bin",
+                        "/512x512/dog_croped512.bmp"},
+        // pre trained  model
+        // Folowing test on ssd512 fail on IE to mcmCompiler parsing stage
+        // C++ exception with description "[VPU] Cannot convert layer "368128427914"
+        // due to unsupported layer type "Gather"" thrown in the test body.
+        // Also there are unsupported layers PriorBox and DetectionOutput
+        TestingNetworkParameters{"ssd512_onnx_int8",
+                        "/KMB_models/NQA/POST_TRAINING/ssd512/quantized_in_onnx/RGB/SSD512-int8-onnx-0001.xml",
+                        "/KMB_models/NQA/POST_TRAINING/ssd512/quantized_in_onnx/RGB/SSD512-int8-onnx-0001.bin",
+                        "/512x512/dog_croped512.bmp"},
         // cut models
         TestingNetworkParameters{"YoloTiny_v2_u8_asymmetric_cut",
                         "/KMB_models/NQA/u8_asymmetric/YoloTiny-v2/tiny_yolo_v2_asymmetric_cut.xml",
