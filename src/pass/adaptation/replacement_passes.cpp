@@ -7,6 +7,7 @@
 const size_t FULLY_CONNECTED_KERNEL = 1;
 
 static void fullyConnectedAsConv2DFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
+static void handleEltWiseDifferentScales(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 static void tensorsToFP16Fcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void tensorsToU8Fcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void averageAsDepthWiseFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
@@ -211,6 +212,7 @@ void replacementOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mo
     fullyConnectedAsConv2DFcn(pass, model);
     averageAsDepthWiseFcn(pass, model);
     scaleAsDepthwiseFcn(pass, model);
+    handleEltWiseDifferentScales(pass, model);
 }
 
 void fullyConnectedAsConv2DFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
@@ -268,6 +270,55 @@ void fullyConnectedAsConv2DFcn(const mv::pass::PassEntry& pass, mv::ComputationM
 
         linkNewOperationsReplacement(parentOpIt, conv2D, om, opIt);
         conv2D->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
+    }
+}
+
+//NOTE: This pass will handle cases that we have Convs -> Eltwise for testing ResNet first of all....
+//General solution dequantize the input Tensors of these special Elwise, even with sw de-quantize
+void handleEltWiseDifferentScales(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
+{
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
+    using namespace mv;
+
+    OpModel om(model);
+
+    auto eltWiseOps = om.getOps("Eltwise");
+
+    for (auto& opIt : eltWiseOps)
+    {
+        pass.log(Logger::MessageType::Debug, "Found Eltwise op " + opIt->getName());
+
+        auto firstEltwiseInputTensor = opIt->getInputTensor(0);
+        auto firstEltwiseInputOp = om.getSourceOp(firstEltwiseInputTensor);
+        auto secondEltwiseInputTensor = opIt->getInputTensor(1);
+        auto secondEltwiseInputOp = om.getSourceOp(secondEltwiseInputTensor);
+        auto eltwiseOutputTensor = opIt->getOutputTensor(0);
+
+        mv::QuantizationParams firstEltwiseInputTensorQuantizationParams = {{}, {}, {}, {}};
+        mv::QuantizationParams secondEltwiseInputTensorQuantizationParams = {{}, {}, {}, {}};
+        mv::QuantizationParams neutralQuantParams = mv::QuantizationParams({1}, {double(0.0)},{},{});
+
+        mv::DType newType = mv::DType("Float16");
+
+        if (firstEltwiseInputTensor->isQuantized())
+            firstEltwiseInputTensorQuantizationParams =
+                    firstEltwiseInputTensor->get<mv::QuantizationParams>("quantParams");
+        if (secondEltwiseInputTensor->isQuantized())
+            secondEltwiseInputTensorQuantizationParams =
+                    secondEltwiseInputTensor->get<mv::QuantizationParams>("quantParams");
+
+        if (firstEltwiseInputTensorQuantizationParams.getScale() !=
+                secondEltwiseInputTensorQuantizationParams.getScale())
+        {
+            firstEltwiseInputTensor->setDType(newType);
+            secondEltwiseInputTensor->setDType(newType);
+            eltwiseOutputTensor->setDType(newType);
+            firstEltwiseInputTensor->set<mv::QuantizationParams>("quantParams", neutralQuantParams);
+            secondEltwiseInputTensor->set<mv::QuantizationParams>("quantParams", neutralQuantParams);
+            eltwiseOutputTensor->set<mv::QuantizationParams>("quantParams", neutralQuantParams);
+        }
+
     }
 }
 
