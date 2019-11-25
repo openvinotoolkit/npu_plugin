@@ -251,7 +251,7 @@ for (const auto& inputInfo : _parsedNetwork.networkInputs) {
 
     // TODO: MCMCompiler support only U8 inputs, hardcoded for all networks
     auto mvInput = _modelMcm.input(inputShape, convert_data_type(InferenceEngine::Precision::U8),
-            mv::Order::getZMajorID(4), inputQuantParamsOverRide, netInput->name());
+            mv::Order("NHWC"), inputQuantParamsOverRide, netInput->name());
     bindOutput(mvInput, ieData);
     _logger->debug("Network input '%s'(orig: '%s') parsed to mcmModel", mvInput->getName(), netInput->name());
 }
@@ -769,14 +769,85 @@ void FrontEndMcm::parseScale(
         const ie::CNNLayerPtr& layer,
         const McmNodeVector& inputs) {
     IE_ASSERT(inputs.size() == 1);
+    auto scaleLayer = std::dynamic_pointer_cast<ie::ScaleShiftLayer>(layer);
+    IE_ASSERT(scaleLayer != nullptr);
+    IE_ASSERT(scaleLayer->_weights != nullptr);
+
+    if (scaleLayer->_broadcast != 0) {
+        VPU_THROW_EXCEPTION <<
+                            "Layer " << scaleLayer->name << " doesn't support broadcast param";
+    }
 
     logParsingStartHelper(_logger, layer, inputs);
-    // TODO: WO until mcm fix scale
-    auto mvRelu = _modelMcm.relu(inputs[0]->getMcmNode(), mv::DType("Default"), initialQuantParams, layer->name);
 
-    bindOutput(mvRelu, layer->outData[0]);
+    auto input = inputs[0];
 
-    _logger->debug(FINISH_PARSING_STR, mvRelu->getName());
+    size_t dimC, stub;
+    parseDims(input->desc(), stub, dimC, stub, stub);
+    int weightsSize = static_cast<int>(dimC);
+
+    float minScale = std::numeric_limits<float>::max();
+    float maxScale = std::numeric_limits<float>::min();
+
+    auto scaleData = scaleLayer->_weights->buffer().as<float*>();
+
+    for (size_t i = 0; i < scaleLayer->_weights->size(); i++) {
+        float val = scaleData[i];
+        if (val > maxScale) {
+            maxScale = val;
+        }
+
+        if (val < minScale) {
+            minScale = val;
+        }
+    }
+
+    auto zpScaleWeights  = KmbQuantizationHelpers::calculateZeroPoint(maxScale, minScale, InferenceEngine::Precision::U8);
+    double quantizeScale = (maxScale - minScale) / 255.0;
+    std::vector<int64_t> weightsData(scaleLayer->_weights->size());
+    for (size_t i = 0; i < scaleLayer->_weights->size(); i++) {
+        uint8_t value = std::round((scaleData[i] + quantizeScale * zpScaleWeights) / quantizeScale);
+        weightsData[i] = value;
+    }
+
+    mv::Shape weightsShape = {static_cast<size_t>(weightsSize)};
+    mv::QuantizationParams scalesQuantParams = {{zpScaleWeights}, {quantizeScale}, {minScale}, {maxScale}};
+    auto mvWeights = _modelMcm.constantInt(weightsData,
+                                           weightsShape,
+                                           mv::DType("UInt8"),
+                                           mv::Order::getColMajorID(1),
+                                           scalesQuantParams);
+
+    auto outputQuantParamsOverRide = initialQuantParams;
+    KmbQuantizationHelpers::fillQuntizationActivationParams(scaleLayer, outputQuantParamsOverRide);
+    auto mvScale = _modelMcm.scale(input->getMcmNode(), mvWeights, mv::DType("UInt8"),
+                                   outputQuantParamsOverRide, scaleLayer->name);
+
+    auto mvScaleShift = mvScale;
+    _logger->debug("'%s' layer '%s': Scale part (%s) added to mcmModel", scaleLayer->type, scaleLayer->name, mvScale->getName());
+
+    if (scaleLayer->_biases != nullptr) {
+        auto biasQuantParamsOverRide = initialQuantParams;
+        auto inputQuantParams = inputs[0]->getMcmNode()->get<mv::QuantizationParams>("quantParams");
+        auto quantizeBiasesData = KmbQuantizationHelpers::quantizeBiases(inputQuantParams.getScale(),
+                                                                         scalesQuantParams.getScale(),
+                                                                         scaleLayer->_biases, biasQuantParamsOverRide);
+
+        mv::Shape shiftShape {scaleLayer->_biases->size()};
+        auto shiftData = _modelMcm.constantInt(
+                quantizeBiasesData,
+                shiftShape,
+                mv::DType("Int32"), mv::Order::getColMajorID(1), biasQuantParamsOverRide);
+
+        mvScaleShift = _modelMcm.bias(mvScale, shiftData, mv::DType("Int32"), outputQuantParamsOverRide,
+                                                                                          scaleLayer->name + ":bias");
+
+        _logger->debug("'%s' layer '%s': Bias part (%s) added to mcmModel", scaleLayer->type, scaleLayer->name, mvScaleShift->getName());
+    }
+
+    bindOutput(mvScaleShift, layer->outData[0]);
+
+    _logger->debug(FINISH_PARSING_STR, mvScaleShift->getName());
 }
 
 void FrontEndMcm::parsePermute(
@@ -942,8 +1013,9 @@ void FrontEndMcm::parseReshape(
     // McmCompiler accept only input in WHCN format
     mv::Shape newShape(getWHCN(layerOutput->getTensorDesc()).getDims());
 
+    auto inputQuantParams = inputs[0]->getMcmNode()->get<mv::QuantizationParams>("quantParams");
     auto mvReshape = _modelMcm.reshape(inputs[0]->getMcmNode(), newShape, inputs[0]->getMcmNode()->getOrder(),
-                                       mv::DType("Default"), initialQuantParams, layer->name);
+                                       mv::DType("Default"), inputQuantParams, layer->name);
 
     bindOutput(mvReshape, layer->outData[0]);
 
