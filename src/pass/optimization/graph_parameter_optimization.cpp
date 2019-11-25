@@ -131,21 +131,41 @@ namespace mv
                 return attr;
             }
 
-            size_t realTensorSize(const mv::Data::TensorIterator tensorToSize,const Shape& streamingPool)
+            size_t realTensorSize(const mv::Data::TensorIterator tensorToSize, const Shape& streamingPool)
             {
                 auto div = [](unsigned x,unsigned y) -> unsigned { return (x+y-1)/y; };
 
-                size_t streamDivisor = 1;
-                for( size_t dim = 0; dim <  streamingPool.ndims(); ++dim)
+                Shape worstStreamPool = streamingPool;
+                Shape tensorShape = tensorToSize->getShape();
+                //update the streamingPool to the worst combination, based on slice sizes
+                if (streamingPool[mv::IO_HEIGHT_DIMENSION] != 1)
                 {
-                    streamDivisor=streamDivisor*streamingPool[dim];
+                    auto outputSize = tensorShape[mv::IO_HEIGHT_DIMENSION];
+                    auto numberOfSplits = streamingPool[mv::IO_HEIGHT_DIMENSION];
+
+                    auto newOutputSizes = tileSpatialOutputSize(outputSize, numberOfSplits);
+                    int newOutputSize = newOutputSizes.first;
+
+                    int remainderOutputSize = newOutputSizes.second;
+                    if (remainderOutputSize > newOutputSize)
+                        newOutputSize = remainderOutputSize;
+
+                    auto worstNumberOfSplits = outputSize/newOutputSize;
+                    worstStreamPool[mv::IO_HEIGHT_DIMENSION] = worstNumberOfSplits;
+                }
+
+                //TODO add handling for weights case if we dont align it to 16 always
+                size_t streamDivisor = 1;
+                for(size_t dim = 0; dim <  worstStreamPool.ndims(); ++dim)
+                {
+                    streamDivisor = streamDivisor * worstStreamPool[dim];
                 }
 
                 return tensorToSize->computeTotalSize()/streamDivisor;
-
             }
 
-            pair<size_t,size_t> memorySize(mv::Op& op,const Attribute& clustering,bool inputActivationSparsity,bool outputActivationSparsity,bool weightsSparsity,const Shape& streamConfig, bool prefetch)
+            pair<size_t,size_t> memorySize(mv::Op& op, const Attribute& clustering, bool inputActivationSparsity,
+                                            bool outputActivationSparsity, bool weightsSparsity, const Shape& streamConfig, bool prefetch)
             {
                 auto inputTensors = op.getInputTensor();
                 auto outputTensors = op.getOutputTensor();
@@ -174,11 +194,13 @@ namespace mv
                         weightSize += realTensorSize(op.getInputTensor(1),{1,1,streamConfig["C"],streamConfig["K"]});
                     else
                         weightSize += realTensorSize(op.getInputTensor(1),{1,1,streamConfig["C"],1});
-                } else if(op.getOpType() == "MaxPool")
+                }
+                else if(op.getOpType() == "MaxPool")
                 {
                     weightTableSize = 0;
                     weightSize = 0;
-                } else if(op.getOpType() == "Eltwise")
+                }
+                else if(op.getOpType() == "Eltwise")
                 {
                     weightTableSize = 0;
                     weightSize = 0;
