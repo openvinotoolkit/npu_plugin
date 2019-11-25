@@ -141,6 +141,16 @@ mv::Data::TensorIterator convertIdentityToUPATask(mv::OpModel& om, const std::ve
     return om.uPATaskIdentity(inputs, dtype, quantParams, name);
 }
 
+mv::Data::TensorIterator convertEltwiseFP16ToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs, const std::map<std::string, mv::Attribute>& attrs, const std::string& name)
+{
+    auto quantParams = attrs.at("quantParams").get<mv::QuantizationParams>();
+    auto dtype = attrs.at("dType").get<mv::DType>();
+
+    auto eltwiseType = attrs.at("eltwiseType").get<std::string>();
+
+    return om.uPATaskEltwiseFP16(inputs, eltwiseType, dtype, quantParams, name);
+}
+
 mv::Data::TensorIterator convertSoftmaxToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs, const std::map<std::string, mv::Attribute>& attrs, const std::string& name)
 {
     auto quantParams = attrs.at("quantParams").get<mv::QuantizationParams>();
@@ -290,7 +300,7 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
     std::vector<std::string> opsTypesToConvert = {"Conv", "DepthwiseConv", "Eltwise", "MaxPool"};
     std::vector<std::string> opsTypesToConvertToUPA = {"Identity", "Softmax", "Proposal", "ROIPooling",
                                                        "Quantize", "Reshape", "RegionYolo", "ReorgYolo",
-                                                       "Normalize", "Permute"};
+                                                       "Normalize", "Permute", "EltwiseFP16"};
 
     opsTypesToConvert.insert(opsTypesToConvert.end(), opsTypesToConvertToUPA.begin(), opsTypesToConvertToUPA.end());
     auto opsToConvert = om.getOpsOfTypes(opsTypesToConvert);
@@ -301,6 +311,7 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
     {"Eltwise", convertEltwiseToDPUTask},
     {"MaxPool", convertMaxPoolToDPUTask},
     {"Identity", convertIdentityToUPATask},
+    {"EltwiseFP16", convertEltwiseFP16ToUPATask},
     {"Softmax", convertSoftmaxToUPATask},
     {"Proposal", convertProposalToUPATask},
     {"ROIPooling", convertROIPoolingToUPATask},
