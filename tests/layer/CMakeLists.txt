@@ -70,4 +70,7 @@ else()
     add_executable(softmax softmax/softmax.cpp)
     target_link_libraries(softmax cm)
 
+    add_executable(eltwise_fp16 eltwise_fp16/eltwise_fp16.cpp)
+    target_link_libraries(eltwise_fp16 cm)
+
 endif(MSVC)
