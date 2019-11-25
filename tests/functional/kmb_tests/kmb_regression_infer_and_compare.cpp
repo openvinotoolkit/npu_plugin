@@ -20,7 +20,6 @@
 
 #include <gtest/gtest.h>
 #include <regression_tests.hpp>
-#include <precision_utils.h>
 #include <vpu/kmb_plugin_config.hpp>
 #include <vpu/private_plugin_config.hpp>
 
@@ -302,28 +301,22 @@ std::vector<TestingNetworkParameters> vpuInferAndCompareTestsNQA = {
                         "/KMB_models/NQA/u8_asymmetric/ResNet-50/resnet-50-pytorch_asymmetric_cutfc.xml",
                         "/KMB_models/NQA/u8_asymmetric/ResNet-50/resnet-50-pytorch_asymmetric_cutfc.bin",
                         "/224x224/cat3.bmp"},
+        TestingNetworkParameters{"tiny_yolo_v2_uint8_int8_weights_pertensor",
+                        "/KMB_models/NQA/POST_TRAINING/TinyYolo_V2/tiny_yolo_v2_uint8_int8_weights_pertensor.xml",
+                        "/KMB_models/NQA/POST_TRAINING/TinyYolo_V2/tiny_yolo_v2_uint8_int8_weights_pertensor.bin",
+                        "/416x416/person.bmp"},
 };
 
 std::vector<TestingNetworkParameters> vpuInferAndCompareTargetNetworks = {
         TestingNetworkParameters{"resnet50_uint8_int8_weights_pertensor",
-                                 "/KMB_models/NQA/POST_TRAINING/ResNet-50/resnet50_uint8_int8_weights_pertensor.xml",
-                                 "/KMB_models/NQA/POST_TRAINING/ResNet-50/resnet50_uint8_int8_weights_pertensor.bin",
-                                 "/224x224/cat3.bmp"},
-
-        TestingNetworkParameters{"squeezenet1_1_pytorch_uint8_int8_weights_pertensor",
-                                 "/KMB_models/NQA/POST_TRAINING/squeezenet1_1_pytorch/squeezenet1_1_pytorch_uint8_int8_weights_pertensor.xml",
-                                 "/KMB_models/NQA/POST_TRAINING/squeezenet1_1_pytorch/squeezenet1_1_pytorch_uint8_int8_weights_pertensor.bin",
-                                 "/224x224/cat3.bmp"},
-
-        TestingNetworkParameters{"tiny_yolo_v2_uint8_int8_weights_pertensor",
-                                 "/KMB_models/NQA/POST_TRAINING/TinyYolo_V2/tiny_yolo_v2_uint8_int8_weights_pertensor.xml",
-                                 "/KMB_models/NQA/POST_TRAINING/TinyYolo_V2/tiny_yolo_v2_uint8_int8_weights_pertensor.bin",
-                                 "/416x416/person.bmp"},
+                        "/KMB_models/NQA/POST_TRAINING/ResNet-50/resnet50_uint8_int8_weights_pertensor.xml",
+                        "/KMB_models/NQA/POST_TRAINING/ResNet-50/resnet50_uint8_int8_weights_pertensor.bin",
+                        "/224x224/cat3.bmp"},
 };
 
 INSTANTIATE_TEST_CASE_P(DISABLED_InferAndCompareTestsNQA, VpuInferAndCompareTests,
-    ::testing::ValuesIn(vpuInferAndCompareTestsNQA),
-    VpuInferAndCompareTests::getTestCaseName
+                        ::testing::ValuesIn(vpuInferAndCompareTestsNQA),
+                        VpuInferAndCompareTests::getTestCaseName
 );
 
 INSTANTIATE_TEST_CASE_P(InferAndCompareTestsTargetNetworks, VpuInferAndCompareTests,
