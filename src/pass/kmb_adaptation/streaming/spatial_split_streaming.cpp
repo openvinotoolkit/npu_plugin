@@ -208,7 +208,8 @@ std::tuple<mv::Data::TensorIterator, mv::Data::TensorIterator,mv::Data::TensorIt
         auto foundIt = createSlicesPerStream.find(op->getName());
         if (foundIt != createSlicesPerStream.end())
             foundOpName = true;
-        if ((!foundOpName) || (foundOpName && foundIt->second))
+        if ((!foundOpName) //no nesting case
+            || (foundOpName && foundIt->second))
         {
             if (kernelTensor->hasAttr("quantParams"))
             {
@@ -417,31 +418,20 @@ std::tuple<mv::Data::TensorIterator, mv::Data::TensorIterator,mv::Data::TensorIt
         std::string streamingOpName = op->getName() + "_split_" + std::to_string(split);
         if (opType == "MaxPool" || opType == "Conv" || opType == "DepthwiseConv")
         {
+            //for nested streaming we will duplicate the H slices, since the reason we streamed is that things
+            // dont fit in CMX. If we dont duplicate the H slices, then all the H slices will have to stay in CMX
+            // till we are done with all the first layer nesting (they are used by all the K branches).
+            // it's either this or we add a mechanism to deallocate and reallocate them, but this solution
+            // seems to be cheaper.
             auto inputTensor = op->getInputTensor(0);
-            //NOTE: NESTED STREAM NEEDS SLICE OPS ONLY FOR THE FIRST PART AND RE-USE
-            mv::Data::TensorIterator slice;
-            auto foundIt = createSlicesPerStream.find(op->getName());
-            bool foundOpName = false;
-            //NOTE:THIS OP NAME DOES NOT EXIST SO NO NESTED...GO AND BUILD SLICE
-            if (foundIt != createSlicesPerStream.end())
-                foundOpName = true;
-            if ((!foundOpName) || (foundOpName && foundIt->second))
-            {
-                slice = om.slice(inputTensor,
-                                    childTiles[split].getStartCoord(),
-                                    childTiles[split].getSize(),
-                                    inputTensor->get<mv::QuantizationParams>("quantParams"),
-                                    op->getName() + "_sliceH_" + std::to_string(split));
-                storeExistingSlice(inputTensor->getName(), split, slice, name_firstStream_sliceOp);
-                om.getSourceOp(slice)->set<unsigned>("opId", opId);
-            }
-            else
-            {
-                std::pair<std::string, unsigned> keyPair;
-                keyPair.first = inputTensor->getName();
-                keyPair.second = split;
-                slice = name_firstStream_sliceOp[keyPair];
-            }
+            mv::Data::TensorIterator slice = om.slice(inputTensor,
+                                childTiles[split].getStartCoord(),
+                                childTiles[split].getSize(),
+                                inputTensor->get<mv::QuantizationParams>("quantParams"),
+                                op->getName() + "_sliceH_" + std::to_string(split));
+            storeExistingSlice(inputTensor->getName(), split, slice, name_firstStream_sliceOp);
+            om.getSourceOp(slice)->set<unsigned>("opId", opId);
+
             if (opType == "MaxPool")
                 newTensor = om.maxPool(slice,
                                 op->get<std::array<unsigned short, 2UL>>("kSize"),
