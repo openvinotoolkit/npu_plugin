@@ -142,6 +142,11 @@ static void setStreamingStrategy(const mv::pass::PassEntry &pass, mv::Computatio
                     opxSplitx.axis = "K";
                     opxSplitx.numSplits = splitList[i].get<int>("K");
                     opxSplits.push_back(opxSplitx);
+                    if (nodeHasSplit)
+                    {
+                        std::reverse(opxSplits.begin(),opxSplits.end());
+                    }
+
                     nodeHasSplit = true;
                     std::cout << "Streaming for node: " << nodeName << " has stream K = " << splitList[i].get<int>("K") << std::endl ;
                 }
