@@ -73,4 +73,7 @@ else()
     add_executable(eltwise_fp16 eltwise_fp16/eltwise_fp16.cpp)
     target_link_libraries(eltwise_fp16 cm)
 
+    add_executable(eltwise_replacement eltwise_fp16/eltwise_replacement.cpp)
+    target_link_libraries(eltwise_replacement cm)
+
 endif(MSVC)
