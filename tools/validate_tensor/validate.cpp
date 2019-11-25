@@ -211,7 +211,7 @@ int runEmulator(std::string pathXML, std::string pathImage, std::string& blobPat
     // execute the classification sample async (KMB-plugin)
     std::cout << "Generating mcm blob through kmb-plugin... " << std::endl;
     commandline = std::string("cd ") + std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + " && " + 
-        "./test_classification -m ~/test_models/temp/resnet50-int8_cpu.xml -d KMB";
+        "./test_classification -m " + pathXML + " -d KMB";
     if (! FLAGS_i.empty() )
         commandline += (" -i " + pathImage);
 
