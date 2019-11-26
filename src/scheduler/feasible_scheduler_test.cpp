@@ -1302,6 +1302,7 @@ typedef mv::lp_scheduler::Feasible_Memory_Schedule_Generator<Operation_Dag>
 class Test_Fixture_Feasible_Memory_Scheduler
   : public feasible_memory_scheduler_t, public testing::Test {
   protected:
+    typedef feasible_memory_scheduler_t dynamic_spill_scheduler_t;
     typedef feasible_memory_scheduler_t::heap_t heap_t;
     typedef feasible_memory_scheduler_t::heap_element_t heap_element_t;
     typedef feasible_memory_scheduler_t::operation_t operation_t;
@@ -1524,30 +1525,33 @@ TEST_F(Test_Fixture_Feasible_Memory_Scheduler,
   g.reset_resource_model(memory);
   g.reset_data_op_set(data_ops);
 
-  reset_input(g);
-  init(resource_t(10));
+  init(g, resource_t(10));
 
   {
-    ready_list_t expected_ready_list = {"A", "C"};
-    EXPECT_EQ(ready_list_, expected_ready_list);
+    ready_list_t expected_ready_list = {"A_in", "B_in", "C_in"};
+    EXPECT_EQ(ready_data_list_, expected_ready_list);
   }
 
   { 
 
-    //current time is zero //
-    EXPECT_EQ(schedule_all_possible_ready_ops(ready_list_.begin(),
-            ready_list_.end()), 2UL);
+    //current time is 1 and we can schedule A_in and C_in //
     std::list<operation_t> scheduled_ops;
+    scheduled_ops.push_back(current_scheduled_op_.op_);
     get_currently_scheduled_operations(std::back_inserter(scheduled_ops));
-
     std::list<operation_t> expected_ops = {"A_in", "C_in"};
     scheduled_ops.sort();
     EXPECT_EQ(expected_ops, scheduled_ops);
+
+    // move to time = 2//
+    next_schedulable_op();
   }
 
   {
+    EXPECT_TRUE(is_operation_output_in_active_memory("A_in"));
+    EXPECT_TRUE(is_operation_output_in_active_memory("C_in"));
     EXPECT_TRUE(is_operation_output_in_active_memory("A"));
     EXPECT_TRUE(is_operation_output_in_active_memory("C"));
+    EXPECT_FALSE(is_operation_output_in_active_memory("B"));
   }
 }
 
@@ -1562,12 +1566,7 @@ TEST_F(Test_Fixture_Feasible_Memory_Scheduler, test_auto_scheduled_data_ops) {
   g.reset_resource_model(memory);
   g.reset_data_op_set(data_ops);
 
-  reset_input(g);
-  init(resource_t(10));
-
-  // schedule all possible ready_ops this should fire two compute ops//
-  EXPECT_EQ( schedule_all_possible_ready_ops(ready_list_.begin(),
-          ready_list_.end()), 2UL);
+  init(g, resource_t(10));
 
   {
     // since "A" and "C" are compute ops their data ops must be automatically 
@@ -1576,6 +1575,7 @@ TEST_F(Test_Fixture_Feasible_Memory_Scheduler, test_auto_scheduled_data_ops) {
     std::list<operation_t> expected = { "A_in", "C_in" };
     std::list<operation_t> data_reads;
 
+    data_reads.push_back(current_scheduled_op_.op_);
     get_currently_scheduled_operations(std::back_inserter(data_reads));
     data_reads.sort(); expected.sort();
 
@@ -1588,7 +1588,7 @@ TEST_F(Test_Fixture_Feasible_Memory_Scheduler, test_auto_scheduled_data_ops) {
     std::list<operation_t> compute_ops;
 
 
-    get_scheduled_operations_at_time(schedule_time_t(1),
+    get_scheduled_operations_at_time(schedule_time_t(2),
           std::back_inserter(compute_ops));
 
     compute_ops.sort(); expected.sort();
@@ -1598,6 +1598,9 @@ TEST_F(Test_Fixture_Feasible_Memory_Scheduler, test_auto_scheduled_data_ops) {
 
 
 TEST_F(Test_Fixture_Feasible_Memory_Scheduler, simple_spill_test) {
+
+  //////////////////////////////////////////////////////////////////////////////
+  // Input: Operation DAG and memory requirements of each operation //
   dag_t::adjacency_map_t in = { {"In_0", {"A", "C"}}, {"In_1", {"B"}},
     {"A", {"B"}}, {"B", {"C"}}, {"C", {} } };
   dag_t::resource_cost_model_t memory = {{"In_0", 5UL}, {"In_1", 4UL},
@@ -1607,32 +1610,90 @@ TEST_F(Test_Fixture_Feasible_Memory_Scheduler, simple_spill_test) {
   dag_t g(in);
   g.reset_resource_model(memory);
   g.reset_data_op_set(data_ops);
+  //////////////////////////////////////////////////////////////////////////////
 
-  reset_input(g);
-  init(resource_t(10));
 
-  std::list<scheduled_op_info_t> scheduled_ops;
-  while (!reached_end()){
-    next_schedulable_op();
-    scheduled_ops.push_back(current_scheduled_op_);
-    std::cout << "op=" << current_scheduled_op_.op_ << "type=" <<
-      (int) current_scheduled_op_.op_type_ << " time=" << current_time_ << std::endl;
+  dynamic_spill_scheduler_t scheduler(g, resource_t(10)), scheduler_end;
+  size_t spilled_read_count = 0;
+  size_t spilled_write_count = 0;
+  size_t original_ops = 0;
+
+  for (; scheduler != scheduler_end; ++scheduler) {
+    const scheduled_op_info_t& scheduled_op = *scheduler;
+
+    if (scheduled_op.op_type_name() == std::string("ORIGINAL")) {
+      original_ops++;
+    }
+    if (scheduled_op.op_type_name() == std::string("SPILLED_READ")) {
+      spilled_read_count++;
+    }
+    if (scheduled_op.op_type_name() == std::string("SPILLED_WRITE")) {
+      spilled_write_count++;
+    }
+
+    printf("op = %-10s  type = %-15s  time = %lu ", scheduled_op.op_.c_str(),
+        scheduled_op.op_type_name(), scheduled_op.time_);
+
+    if (scheduled_op.has_active_resource()) {
+      printf(" resource=[%lu %lu]\n", scheduled_op.begin_resource(),
+          scheduled_op.end_resource());
+    } else {
+      printf(" resource=<none>\n");
+    }
   }
+
+  EXPECT_EQ(spilled_read_count, 1UL);
+  EXPECT_EQ(spilled_write_count, 2UL);
+  EXPECT_EQ(original_ops, 5UL);
 }
 
 
+TEST_F(Test_Fixture_Feasible_Memory_Scheduler, simple_spill_test_complex) {
+
+  //////////////////////////////////////////////////////////////////////////////
+  // Input: Operation DAG and memory requirements of each operation //
+  dag_t::adjacency_map_t in = { {"In_0", {"A", "C"}}, {"In_1", {"B"}},
+    {"A", {"B"}}, {"B", {"C"}}, {"C", {} } };
+  dag_t::resource_cost_model_t memory = {{"In_0", 5UL}, {"In_1", 4UL},
+    {"A", 5UL}, {"B", 1UL}, {"C", 4UL} };
+  dag_t::data_op_set_t data_ops = {"In_0", "In_1"};
+
+  dag_t g(in);
+  g.reset_resource_model(memory);
+  g.reset_data_op_set(data_ops);
+  //////////////////////////////////////////////////////////////////////////////
 
 
+  dynamic_spill_scheduler_t scheduler(g, resource_t(10)), scheduler_end;
+  size_t spilled_read_count = 0;
+  size_t spilled_write_count = 0;
+  size_t original_ops = 0;
 
+  for (; scheduler != scheduler_end; ++scheduler) {
+    const scheduled_op_info_t& scheduled_op = *scheduler;
 
+    if (scheduled_op.op_type_name() == std::string("ORIGINAL")) {
+      original_ops++;
+    }
+    if (scheduled_op.op_type_name() == std::string("SPILLED_READ")) {
+      spilled_read_count++;
+    }
+    if (scheduled_op.op_type_name() == std::string("SPILLED_WRITE")) {
+      spilled_write_count++;
+    }
 
+    printf("op = %-10s  type = %-15s  time = %lu ", scheduled_op.op_.c_str(),
+        scheduled_op.op_type_name(), scheduled_op.time_);
 
+    if (scheduled_op.has_active_resource()) {
+      printf(" resource=[%lu %lu]\n", scheduled_op.begin_resource(),
+          scheduled_op.end_resource());
+    } else {
+      printf(" resource=<none>\n");
+    }
+  }
 
-
-
-
-
-
-
-
-
+  EXPECT_EQ(spilled_read_count, 1UL);
+  EXPECT_EQ(spilled_write_count, 2UL);
+  EXPECT_EQ(original_ops, 5UL);
+}

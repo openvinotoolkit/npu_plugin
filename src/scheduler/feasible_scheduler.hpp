@@ -950,7 +950,7 @@ class Feasible_Memory_Schedule_Generator {
 
     // The spill op is considered an implicit op //
     enum class op_type_e { ORIGINAL_OP=0, IMPLICIT_OP_READ=1,
-        IMPLICIT_OP_WRITE=3 };
+        IMPLICIT_OP_WRITE=2 };
     // The output of the operation is active or spilled until its consumed.
     enum class operation_output_e { ACTIVE=0, SPILLED=1, CONSUMED=2 };
 
@@ -1040,6 +1040,13 @@ class Feasible_Memory_Schedule_Generator {
         return (op_ == o.op_) && (time_ == o.time_);
       }
 
+      bool is_original_op() const {
+        return (op_type_ == op_type_e::ORIGINAL_OP);
+      }
+      bool is_implicit_write_op() const {
+        return (op_type_ == op_type_e::IMPLICIT_OP_WRITE);
+      }
+
       //TODO(vamsikku): use scheduled_op_info_t directly instead of
       // maintaining op_ and op_type_ seperately.
       operation_t op_;
@@ -1050,9 +1057,10 @@ class Feasible_Memory_Schedule_Generator {
 
     // This structure helps distinguish between original and implicit ops //
     struct scheduled_op_info_t {
-      scheduled_op_info_t(operation_t op, op_type_e type)
-        : op_(op), op_type_(type) {}
-      scheduled_op_info_t() : op_(), op_type_() {}
+      scheduled_op_info_t(operation_t op, op_type_e type, schedule_time_t time)
+        : op_(op), op_type_(type), time_(time) {}
+
+      scheduled_op_info_t() : op_(), op_type_(), time_() {}
 
       bool operator==(const scheduled_op_info_t& o) const {
         return (o.op_ == op_) && (o.op_type_ == op_type_);
@@ -1067,8 +1075,35 @@ class Feasible_Memory_Schedule_Generator {
         op_type_ = helement.op_type_;
       }
 
-      operation_t op_;
+      const char* op_type_name() const { 
+        const char *ret = NULL;
+
+        switch (op_type_) {
+
+          case op_type_e::ORIGINAL_OP :
+            ret = "ORIGINAL";
+            break;
+          case op_type_e::IMPLICIT_OP_READ:
+            ret = "SPILLED_READ";
+            break;
+          default:
+            ret = "SPILLED_WRITE";
+            break;
+        }
+        return ret;
+      }
+
+      bool has_active_resource() const {
+        return (resource_info_.begin_ <= resource_info_.end_);
+      }
+
+      resource_t begin_resource() const { return resource_info_.begin_; }
+      resource_t end_resource() const { return resource_info_.end_; }
+
+      operation_t op_; 
       op_type_e op_type_;
+      schedule_time_t time_;
+      interval_info_t resource_info_;
     }; // struct scheduled_op_info_t //
 
     struct completion_time_ordering_t {
@@ -1089,6 +1124,7 @@ class Feasible_Memory_Schedule_Generator {
     //minimum active operation for eviction.
     struct default_eviction_policy_t {
       bool operator()(const operation_t& a, const operation_t& b) const {
+        return false;
       }
     }; // struct default_eviction_policy_t //
 
@@ -1118,6 +1154,21 @@ class Feasible_Memory_Schedule_Generator {
       void operator=(const operation_t&) {} 
     }; // struct noop_op_back_insert_iterator_t //
 
+    struct decreasing_demand_ordering_t {
+
+      decreasing_demand_ordering_t(const dag_t& dag) : dag_(dag) {}
+
+      bool operator()(const resource_t& a, const resource_t& b) const {
+        return a > b;
+      }
+
+      bool operator()(const operation_t& a, const operation_t& b) const {
+        return traits::resource_utility(dag_, a) > 
+            traits::resource_utility(dag_, b);
+      }
+      const dag_t& dag_;
+    }; // struct decreasing_demand_ordering_t //
+
     ////////////////////////////////////////////////////////////////////////////
 
     Feasible_Memory_Schedule_Generator(const dag_t& in, const resource_t& bound)
@@ -1125,7 +1176,9 @@ class Feasible_Memory_Schedule_Generator {
       ready_active_list_(), ready_data_list_(), processed_ops_(),
       completion_time_heap_(), start_time_heap_(), current_time_(),
       memory_state_(), op_output_table_(), active_resource_table_(),
-      input_ptr_(&in), total_compute_ops_(0UL), scheduled_compute_ops_(0UL) {}
+      input_ptr_(&in), total_compute_ops_(0UL), scheduled_compute_ops_(0UL){
+        init(in, bound);
+    }
 
 
     Feasible_Memory_Schedule_Generator()
@@ -1144,6 +1197,10 @@ class Feasible_Memory_Schedule_Generator {
     // Only terminated schedulers are equivalent //
     bool operator==(const Feasible_Memory_Schedule_Generator& o) const {
       return reached_end() && o.reached_end();
+    }
+
+    bool operator!=(const Feasible_Memory_Schedule_Generator& o) const {
+      return !(*this == o);
     }
 
     const scheduled_op_info_t& operator*() const {
@@ -1416,7 +1473,8 @@ class Feasible_Memory_Schedule_Generator {
       } // foreach op //
     }
 
-    bool init(const resource_t& upper_bound) {
+    bool init(const dag_t& input, const resource_t& upper_bound) {
+      input_ptr_ = &input;
       memory_state_.clear();
       memory_state_.initialize_resource_upper_bound(upper_bound);
 
@@ -1428,9 +1486,9 @@ class Feasible_Memory_Schedule_Generator {
       compute_ready_compute_list();
       
       schedule_all_possible_ready_ops_and_update(ready_list_);
+      next_schedulable_op();
       return true;
     }
-
 
     template<typename DemandBackInsertIterator, typename OpBackInsertIterator>
     size_t get_non_empty_op_demand_list(const operation_t& op,
@@ -1471,6 +1529,7 @@ class Feasible_Memory_Schedule_Generator {
 
       return op_demand_count;
     }
+
 
     template<typename DemandBackInsertIterator>
     size_t get_non_empty_op_demand_list(const operation_t& op,
@@ -1581,38 +1640,6 @@ class Feasible_Memory_Schedule_Generator {
 
       // schedule the op //
       push_to_heap_start_time(heap_element_t(input_op, current_time_, op_type));
-    }
-
-    //Precondition: corresponding compute op must be scheduled //
-    //Precondition: the active resource list for this op does no have any 
-    //spilled ops //
-    //TODO(vamsikku): remove this if its unused //
-    bool schedule_data_ops_for_compute_op(const operation_t& op) {
-      typename active_resource_table_t::iterator aitr =
-          active_resource_table_.find(op);
-
-      assert(aitr != active_resource_table_.end());
-      active_op_resources_t &active_op_resources = aitr->second;
-
-      for (typename active_op_resources_t::const_iterator
-            itr = active_op_resources.begin(); itr != active_op_resources.end();
-              ++itr) {
-
-        if (itr->parent_op_ == op) { continue; }
-
-        // this parent op is either spilled or its original op//
-        const operation_t& pop = itr->parent_op_;
-        assert(traits::is_data_opeation(*input_ptr_, pop));
-
-        scheduled_op_info_t scheduled_op_info;
-
-        scheduled_op_info.op_ = pop;
-        scheduled_op_info.op_type_ = op_type_e::ORIGINAL_OP;
-
-        push_to_heap_start_time(heap_element_t(scheduled_op_info.op_,
-              current_time_, scheduled_op_info.op_type_));
-      }
-      return true;
     }
 
     bool is_operation_using_non_empty_resources(const operation_t& op) const {
@@ -1750,14 +1777,27 @@ class Feasible_Memory_Schedule_Generator {
       // get all the info about resource allocations //
       std::vector<resource_t> op_demands; 
       std::vector<operation_t> ops_corresponding_to_demands;
+      decreasing_demand_ordering_t demand_ordering(*input_ptr_);
+
       get_non_empty_op_demand_list(op, std::back_inserter(op_demands),
           std::back_inserter(ops_corresponding_to_demands));
 
       assert(op_demands.size() == ops_corresponding_to_demands.size());
 
+      //TODO(vamsikku): this is a small technicality since the function
+      //pack_demands_into_free_bins gives a packing with decreasing demands
+      //we can remove this by reconciling all demand
+      std::sort(op_demands.begin(), op_demands.end(),
+            decreasing_demand_ordering_t(*input_ptr_));
+      std::sort(ops_corresponding_to_demands.begin(),
+          ops_corresponding_to_demands.end(),
+          decreasing_demand_ordering_t(*input_ptr_));
+
       std::vector<interval_info_t> resource_intervals;
       memory_state_.pack_demands_into_free_bins(op_demands.begin(),
           op_demands.end(), std::back_inserter(resource_intervals) );
+
+      // resource_intervals are ordered not according to the demands //
 
       delay_t max_input_delay = delay_t(0);
       size_t demand_idx = 0UL;
@@ -1848,11 +1888,16 @@ class Feasible_Memory_Schedule_Generator {
     // 2. Clear all its input entries in the active_resources_table_ and if this
     //    op has no consumers just clear it from the active_resources_table_.
     //    This can also happen when the resource utility of the op is zero.
-    void unschedule_op(const operation_t& op) {
-      const_operation_iterator_t pitr =
-          traits::incoming_operations_begin(*input_ptr_, op);
-      const_operation_iterator_t pitr_end =
-          traits::incoming_operations_end(*input_ptr_, op);
+    void unschedule_op(const heap_element_t &helement) {
+
+      const operation_t& op = helement.op_;
+      const_operation_iterator_t pitr, pitr_end;
+
+      if (helement.is_original_op()) {
+        // for implicit read or write ops we need not decrement the consumers
+        pitr = traits::incoming_operations_begin(*input_ptr_, op);
+        pitr_end = traits::incoming_operations_end(*input_ptr_, op);
+      }
 
       // decrement the consumer count for all the incoming edges into this
       // operation.
@@ -1872,7 +1917,7 @@ class Feasible_Memory_Schedule_Generator {
           // clear all its active resources //
           typename active_resource_table_t::iterator aitr =
               active_resource_table_.find(pop);
-          assert(aitr == active_resource_table_.end());
+          assert(aitr != active_resource_table_.end());
           
           const active_op_resources_t &active_op_resources = aitr->second;
           for (size_t i=0; i<active_op_resources.size(); i++) {
@@ -1935,10 +1980,11 @@ class Feasible_Memory_Schedule_Generator {
 
       for (auto uitr=unsched_ops.begin(); uitr != unsched_ops.end();
             ++uitr) {
-        const operation_t& op = (*uitr).op_;
-        unschedule_op(op);
+        const operation_t& op = uitr->op_;
 
-        if (is_compute_op(op)) {
+        unschedule_op(*uitr);
+
+        if (is_compute_op(op) && (uitr->is_original_op())) {
           reduce_in_degree_of_adjacent_operations_gen(op,
               std::back_inserter(ready_ops));
         }
@@ -1951,8 +1997,8 @@ class Feasible_Memory_Schedule_Generator {
     void next_schedulable_op() {
       bool found_schedulable_op = false;
 
-      while (!found_schedulable_op) {
 
+      do {
         // pick the min among the start time and completion time heaps //
         const heap_element_t *start_top_ptr = top_element_start_time();
         const heap_element_t *completion_top_ptr = top_element_completion_time();
@@ -1973,7 +2019,16 @@ class Feasible_Memory_Schedule_Generator {
           // output this scheduled operation //
           current_scheduled_op_.op_ = helement.op_;
           current_scheduled_op_.op_type_ = helement.op_type_;
+          current_scheduled_op_.time_ = current_time_;
+          if (!helement.is_implicit_write_op() && 
+                is_operation_using_non_empty_resources(helement.op_)) {
+            current_scheduled_op_.resource_info_ =
+                get_active_resource_info(helement.op_);
+          } else {
+            current_scheduled_op_.resource_info_.invalidate();
+          }
           found_schedulable_op = true; /*break-out*/
+
 
           // now move this scheduled op to the completion heap //
           helement.time_ += traits::delay(*input_ptr_, helement.op_);
@@ -1999,7 +2054,19 @@ class Feasible_Memory_Schedule_Generator {
             force_schedule_active_op_eviction();
           }
         }
-      } // while (!found_schedulable_op) //
+
+      } while (!found_schedulable_op && !reached_end()); 
+
+    }
+
+    const interval_info_t& get_active_resource_info(
+          const operation_t& op) const {
+      typename active_resource_table_t::const_iterator aitr =
+          active_resource_table_.find(op);
+      assert(aitr != active_resource_table_.end());
+      assert(!(aitr->second).empty());
+
+      return (aitr->second).front().interval_info_;
     }
 
    
