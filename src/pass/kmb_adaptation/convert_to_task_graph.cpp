@@ -79,10 +79,7 @@ mv::Data::TensorIterator convertEltwiseToTask(mv::OpModel& om, const std::vector
     else
     {
         //Note: Re-write maybe DPU tasks changed them
-        inputs[0]->setDType(mv::DType("Float16"));
-        inputs[1]->setDType(mv::DType("Float16"));
-        eltwiseTask = om.uPATaskEltwise(inputs, eltwiseType, mv::DType("Float16"), quantParams, name);
-        eltwiseTask->setDType(mv::DType("Float16"));
+        eltwiseTask = om.uPATaskEltwise(inputs, eltwiseType, mv::DType("Float16"), quantParams, mv::createDPUTaskName(name));
     }
     return eltwiseTask;
 }
@@ -328,10 +325,10 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
     std::unordered_map<std::string,
             std::function<mv::Data::TensorIterator(mv::OpModel&, const std::vector<mv::Data::TensorIterator>&,
             const std::map<std::string, mv::Attribute>&, const std::string&, bool &)>> opsFunctors = {
+    {"Eltwise", convertEltwiseToTask},
     {"Conv", convertConvolutionToDPUTask},
     {"DepthwiseConv", convertDepthwiseConvolutionToDPUTask},
     {"MaxPool", convertMaxPoolToDPUTask},
-    {"Eltwise", convertEltwiseToTask},
     {"Identity", convertIdentityToUPATask},
     {"Softmax", convertSoftmaxToUPATask},
     {"Proposal", convertProposalToUPATask},
