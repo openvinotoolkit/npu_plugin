@@ -1,5 +1,5 @@
 //
-// Copyright 2019-2020 Intel Corporation.
+// Copyright 2019 Intel Corporation.
 //
 // This software and the related documents are Intel copyrighted materials,
 // and your use of them is governed by the express license under which they
@@ -16,24 +16,27 @@
 
 #include "quantization_helpers.hpp"
 
-#include <algorithm>
-#include <limits>
 #include <vector>
+#include <limits>
+#include <algorithm>
 
 #ifdef ENABLE_MCM_COMPILER
-#include "include/mcm/tensor/quantization_params.hpp"
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 
 namespace vpu {
 
-namespace QuantizationHelpers {
+namespace KmbPlugin {
+
+namespace KmbQuantizationHelpers {
 
 double inf = std::numeric_limits<double>::infinity();
 mv::QuantizationParams initialQuantParams = {{0}, {1}, {-inf}, {inf}};
 
-static double clamp(const double& v, const double& lo, const double& hi) { return (v < lo) ? lo : (hi < v) ? hi : v; }
+static double clamp(const double& v, const double& lo, const double& hi) {
+    return (v < lo) ? lo : (hi < v) ? hi : v;
+}
 
 bool isPostOp(const InferenceEngine::CNNLayerPtr& layer) {
     return ((layer->type == "ReLU") || (layer->type == "Clamp"));
@@ -50,8 +53,8 @@ bool isWeightableLayerQuantized(const CNNLayerPtr& weightableLayer) {
     InferenceEngine::DataPtr fakeQuantizeData = weightableLayer->insData[1].lock();
     auto weightsFakeQuantizeLayer = fakeQuantizeData->getCreatorLayer().lock();
     return ((weightsFakeQuantizeLayer->type == "FakeQuantize") ||
-            (fakeQuantizeData->getPrecision() == InferenceEngine::Precision::I8) ||
-            (fakeQuantizeData->getPrecision() == InferenceEngine::Precision::U8));
+        (fakeQuantizeData->getPrecision() == InferenceEngine::Precision::I8) ||
+        (fakeQuantizeData->getPrecision() == InferenceEngine::Precision::U8));
 }
 
 bool isRealQuantizeLayer(const InferenceEngine::CNNLayerPtr& layer) {
@@ -59,31 +62,31 @@ bool isRealQuantizeLayer(const InferenceEngine::CNNLayerPtr& layer) {
 }
 
 int64_t calculateZeroPoint(float high, float low, int levels, InferenceEngine::Precision precision) {
-    int64_t zeroPoint = 0;
+    int64_t zepoPoint = 0;
 
     // Typical condition for symmetric case is low < 0, high > 0
     if (precision == InferenceEngine::Precision::I8) {
         if ((low <= 0.f) && (high >= 0.f)) {
             float x = -(levels - 1) * ((high + low) * 0.5f) / (high - low);
-            zeroPoint = ceil(x);  // TODO Why not round?
+            zepoPoint = ceil(x);  // TODO Why not round?
         } else if (low > 0.f) {
-            zeroPoint = 127 - (levels - 1);  // TODO Why not assert?
+            zepoPoint = 127 - (levels - 1);  // TODO Why not assert?
         } else if (high < 0.f) {
-            zeroPoint = 127;  // TODO Why not assert?
+            zepoPoint = 127;  // TODO Why not assert?
         }
     } else if (precision == InferenceEngine::Precision::U8) {
         //  MCM team provide this formula, need check
         if ((low <= 0.f) && (high >= 0.f)) {
-            auto x = (high / (fabs(low) + high)) * (levels - 1);
-            zeroPoint = ceil(levels - 1 - x);  // TODO Why not round?
+            float x = -(levels - 1) * low / (high - low);
+            zepoPoint = ceil(x);  // TODO Why not round?
         } else if (low >= 0.f) {
-            zeroPoint = 0;  // TODO Why not assert?
+            zepoPoint = 0;  // TODO Why not assert?
         } else if (high <= 0.f) {
-            zeroPoint = (levels - 1);  // TODO Why not assert?
+            zepoPoint = (levels - 1);  // TODO Why not assert?
         }
     }
 
-    return zeroPoint;
+    return zepoPoint;
 }
 
 void reCalculateQuantizationParamsOnActivation(
@@ -185,24 +188,8 @@ mv::QuantizationParams fillQuantizeParamsForU8orI8weights(
     return weightsQuantParams;
 }
 
-Blob::Ptr quantizeWeightsBlob(const CNNLayerPtr& fakeQuantizeOnWeights, InferenceEngine::Precision precision,
-    mv::QuantizationParams& weightsQuantParams) {
-    InferenceEngine::DataPtr convWeights = fakeQuantizeOnWeights->insData[0].lock();
-    IE_ASSERT(convWeights != nullptr);
-    auto convWeightsConstLayer = convWeights->getCreatorLayer().lock();
-    IE_ASSERT(convWeightsConstLayer->type == "Const");
-
-    auto weightsBlob = convWeightsConstLayer->blobs.begin()->second;
-    IE_ASSERT(weightsBlob != nullptr);
-
-    const std::vector<size_t>& originalDims = convWeightsConstLayer->outData[0]->getDims();
-    const std::vector<size_t>& dims =
-        originalDims.size() == 2 ? std::vector<size_t>({originalDims[0], originalDims[1], 1, 1}) : originalDims;
-    if (dims.size() != 4) {
-        THROW_IE_EXCEPTION << "Unexpected dimensions count " << dims.size() << " for layer '"
-                           << convWeightsConstLayer->name << "'";
-    }
-
+Blob::Ptr quantizeBlob(Blob::Ptr weightsBlob, std::vector<size_t> dims, mv::QuantizationParams weightsQuantParams,
+    InferenceEngine::Precision precision, const std::string& fqName) {
     const auto& sourceBlobTensorDesc = weightsBlob->getTensorDesc();
     Blob::Ptr targetBlob = make_shared_blob<uint8_t>(
         TensorDesc(precision, sourceBlobTensorDesc.getDims(), sourceBlobTensorDesc.getLayout()));
@@ -213,8 +200,6 @@ Blob::Ptr quantizeWeightsBlob(const CNNLayerPtr& fakeQuantizeOnWeights, Inferenc
     const size_t inputsSize = dims[1];   // I
     const size_t H = dims[2];            // H
     const size_t W = dims[3];            // W
-
-    auto wQuantParams = QuantizationDetails::getDetails(*fakeQuantizeOnWeights);
 
     const size_t HW = H * W;
     const size_t IHW = inputsSize * HW;
@@ -229,7 +214,7 @@ Blob::Ptr quantizeWeightsBlob(const CNNLayerPtr& fakeQuantizeOnWeights, Inferenc
 
     if ((scales.size() != 1) && isWeightsQuantizationBroadcasted) {
         THROW_IE_EXCEPTION << "Unexpected input low values count " << scales.size() << " for " << outputsSize
-                           << " channels for " << fakeQuantizeOnWeights->name;
+                           << " channels for " << fqName;
     }
 
     for (size_t outputIndex = 0; outputIndex < outputsSize; ++outputIndex) {
@@ -259,7 +244,31 @@ Blob::Ptr quantizeWeightsBlob(const CNNLayerPtr& fakeQuantizeOnWeights, Inferenc
     return targetBlob;
 }
 
-Blob::Ptr calculateQuntizationWeights(const CNNLayerPtr& weightableLayer, mv::QuantizationParams& weightsQuantParams) {
+Blob::Ptr quantizeConstLayer(const CNNLayerPtr& fakeQuantizeOnWeights, InferenceEngine::Precision precision,
+    mv::QuantizationParams& weightsQuantParams) {
+    InferenceEngine::DataPtr convWeights = fakeQuantizeOnWeights->insData[0].lock();
+    IE_ASSERT(convWeights != nullptr);
+    auto convWeightsConstLayer = convWeights->getCreatorLayer().lock();
+    IE_ASSERT(convWeightsConstLayer->type == "Const");
+
+    auto weightsBlob = convWeightsConstLayer->blobs.begin()->second;
+    IE_ASSERT(weightsBlob != nullptr);
+
+    const std::vector<size_t>& originalDims = convWeightsConstLayer->outData[0]->getDims();
+    const std::vector<size_t>& dims =
+        originalDims.size() == 2 ? std::vector<size_t>({originalDims[0], originalDims[1], 1, 1}) : originalDims;
+    if (dims.size() != 4) {
+        THROW_IE_EXCEPTION << "Unexpected dimensions count " << dims.size() << " for layer '"
+                           << convWeightsConstLayer->name << "'";
+    }
+
+    auto wQuantParams = QuantizationDetails::getDetails(*fakeQuantizeOnWeights);
+
+    return quantizeBlob(weightsBlob, dims, weightsQuantParams, precision, fakeQuantizeOnWeights->name);
+}
+
+Blob::Ptr calculateQuntizationWeights(const CNNLayerPtr& weightableLayer,
+                                                   mv::QuantizationParams &weightsQuantParams) {
     IE_ASSERT(weightableLayer->insData.size() > 1);
     InferenceEngine::DataPtr fakeQuantizeData = weightableLayer->insData[1].lock();
     auto weightsPrecision = fakeQuantizeData->getPrecision();
@@ -281,7 +290,7 @@ Blob::Ptr calculateQuntizationWeights(const CNNLayerPtr& weightableLayer, mv::Qu
     weightsQuantParams = {zeroPoints, scales, {-inf}, {inf}};
 
     //  now we use I8 for weights
-    return quantizeWeightsBlob(convWeightsFakeQuantizeLayer, InferenceEngine::Precision::U8, weightsQuantParams);
+    return quantizeConstLayer(convWeightsFakeQuantizeLayer, InferenceEngine::Precision::U8, weightsQuantParams);
 }
 
 std::vector<int64_t> quantizeBiases(const std::vector<double>& activationScales,
@@ -290,10 +299,6 @@ std::vector<int64_t> quantizeBiases(const std::vector<double>& activationScales,
     const bool isWeightsScalesBroadcasted = weightsScales.size() != biasCount;
     const bool isActivationScalesBroadcasted = activationScales.size() != biasCount;
     auto biasesPrecision = biasBlob->getTensorDesc().getPrecision();
-
-    //IE_ASSERT(biasBlob->getTensorDesc().getPrecision() == InferenceEngine::Precision::FP32);
-
-    IE_ASSERT(biasBlob->getTensorDesc().getPrecision() == InferenceEngine::Precision::FP32);
 
     if ((weightsScales.size() != 1) && isWeightsScalesBroadcasted) {
         THROW_IE_EXCEPTION << "Unexpected input low values count " << weightsScales.size() << " for " << biasCount
@@ -306,8 +311,6 @@ std::vector<int64_t> quantizeBiases(const std::vector<double>& activationScales,
     }
 
     const bool isBiasScalesBroadcasted = isWeightsScalesBroadcasted && isActivationScalesBroadcasted;
-
-    auto biasData = biasBlob->buffer().as<float*>();
     std::vector<int64_t> newBiasData(biasCount, 0);
     std::vector<double> biasScales;
 
@@ -344,7 +347,8 @@ std::vector<int64_t> quantizeBiases(const std::vector<double>& activationScales,
     return newBiasData;
 }
 
-}  // namespace QuantizationHelpers
+}  // namespace KmbQuantizationHelpers
+}  // namespace KmbPlugin
 }  // namespace vpu
 
 #endif

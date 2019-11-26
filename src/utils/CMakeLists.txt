@@ -28,4 +28,7 @@ target_link_libraries(${TARGET_NAME} PRIVATE vpusmm)
 target_include_directories(${TARGET_NAME}
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}
-        $<TARGET_PROPERTY:IE::inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>)
+        "${CMAKE_CURRENT_SOURCE_DIR}/quantization"
+        $<TARGET_PROPERTY:IE::inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
+    SYSTEM PRIVATE
+        ${MCM_COMPILER_INCLUDES})

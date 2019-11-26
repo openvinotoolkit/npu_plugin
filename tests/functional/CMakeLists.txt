@@ -11,7 +11,7 @@ set(TARGET_NAME "KmbFunctionalTests")
 file(GLOB_RECURSE KMB_TEST_SOURCES *.cpp *.hpp *.h)
 list(FILTER KMB_TEST_SOURCES EXCLUDE REGEX ".*/hddl2_tests/.*")
 
-list(APPEND KMB_TEST_LIBRARIES IE::IESharedTests IE::vpu_common_lib IE::ngraph vpusmm kmb_utils)
+list(APPEND KMB_TEST_LIBRARIES IE::IESharedTests IE::vpu_common_lib IE::ngraph vpusmm kmb_utils kmbPlugin)
 if(ENABLE_VPUAL AND ENABLE_VPUAL_MODEL)
     list(APPEND KMB_TEST_LIBRARIES vpualModel)
 endif()
@@ -52,11 +52,17 @@ target_include_directories(${TARGET_NAME}
         ${CMAKE_CURRENT_SOURCE_DIR}/common
         ${CMAKE_CURRENT_SOURCE_DIR}/regression_tests/helpers
         ${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/include
-        ${IE_MAIN_SOURCE_DIR}/src/vpu/graph_transformer/include)
+        ${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/src/kmb_plugin
+        ${IE_MAIN_SOURCE_DIR}/include/vpu
+        ${IE_MAIN_SOURCE_DIR}/src/inference_engine
+        ${IE_MAIN_SOURCE_DIR}/src/vpu/graph_transformer/include
+    SYSTEM PRIVATE
+        ${MCM_COMPILER_INCLUDES})
 
-target_link_libraries(${TARGET_NAME}
-    PRIVATE
-        ${KMB_TEST_LIBRARIES})
+    target_link_libraries(${TARGET_NAME}
+        PRIVATE
+            ${KMB_TEST_LIBRARIES}
+            ${MCM_COMPILER_LIBRARY})
 
 add_test(NAME ${TARGET_NAME} COMMAND ${TARGET_NAME})
 set_property(TEST ${TARGET_NAME} PROPERTY LABELS VPU KMB)
