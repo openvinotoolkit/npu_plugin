@@ -113,7 +113,6 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
             bool weightsSparsity = dpuTask->hasAttr("weightsSparsity") ? dpuTask->get<bool>("weightsSparsity") : false;
             std::string taskOp = dpuTask->get<std::string>("taskOp");
             pass.log(mv::Logger::MessageType::Debug, " taskOp "  + dpuTask->get<std::string>("taskOp"));
-            bool isChannelMajorConv = taskOp == "ChannelMajorConvolution";
             bool isPooling = taskOp == "MaxPool";
             bool isDepthWiseConv = taskOp == "DepthwiseConv";
 
@@ -122,9 +121,9 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
             // being it the hackiest operation ever
             bool isElementWise = taskOp == "Eltwise";
 
-            //for max pooling and deptwise convolution and channel-major convolution we need to generate sparsity data
+            //for max pooling and deptwise convolution we need to generate sparsity data
             //even if those layers does not support sparsity.
-            if (isPooling || isDepthWiseConv || isChannelMajorConv)
+            if (isPooling || isDepthWiseConv)
             {
                 uint16_t kernelW, kernelH;
 
@@ -164,14 +163,6 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
                     bitpattern = std::move(createBitPattern(kernelW, kernelH, windowsSize, 1));
                     perChannelSparsity.resize(static_cast<std::size_t>(std::ceil(bitpattern.size() / 128.0)) * 16);//allocate once
                     ndims = {16 * static_cast<std::size_t>(std::ceil(bitpattern.size() / 128.0)), 1, 1, inputChannels};
-                }
-                else //isChannelMajorConvolution
-                {
-                    bitpattern = std::move(createBitPattern(kernelW, kernelH, windowsSize, inputChannels));
-                    auto windowSparsitySize = static_cast<std::size_t>(std::ceil(windowsSize/8.0)); //how many bytes we need per window
-                    auto NumberOfRowsSparistyBytes = static_cast<std::size_t>(std::ceil((kernelH * inputChannels * windowSparsitySize) / 16.0 ));
-                    perChannelSparsity.resize(NumberOfRowsSparistyBytes * 16);//allocate once
-                    ndims = {16, NumberOfRowsSparistyBytes, 1, outputChannels};
                 }
 
                 int channelLenght = bitpattern.size();

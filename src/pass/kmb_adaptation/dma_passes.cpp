@@ -5,8 +5,8 @@
 #include "include/mcm/utils/custom_strings.hpp"
 #include "include/mcm/utils/warning_manager.hpp"
 
-static void AddDPUTasksWeightsDMATasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&);
-static void AddUPATasksExtraInputsDMATasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&);
+static void AddDPUTasksWeightsDMATasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+static void AddUPATasksExtraInputsDMATasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 
 namespace mv
 {
@@ -26,81 +26,54 @@ namespace mv
     }
 }
 
-// NOTE: This is not checked using allocators for the simple reason that they are not assigned
-// to tensors yet.
-bool isTensorInNNCMX(mv::Data::TensorIterator tensor, mv::BaseOpModel& opModel)
+bool isTensorInNNCMX(mv::Data::TensorIterator tensor)
 {
-    auto sourceOp = opModel.getSourceOp(tensor);
-    std::string opType(sourceOp->getOpType());
-    if(opType == "DPUTask")
+    if(tensor->get<mv::Tensor::MemoryLocation>("Location") == mv::Tensor::MemoryLocation::NNCMX)
         return true;
-    else if(opType == "DMATask")
-    {
-        auto direction = sourceOp->get<mv::DmaDirection>("direction");
-        if(direction == mv::DmaDirectionEnum::DDR2NNCMX)
-            return true;
-        else if(direction == mv::DmaDirectionEnum::UPACMX2NNCMX)
-            return true;
-    }
     return false;
 }
 
-bool isTensorInUPACMX(mv::Data::TensorIterator tensor, mv::BaseOpModel& opModel)
+bool isTensorInUPACMX(mv::Data::TensorIterator tensor)
 {
-    auto sourceOp = opModel.getSourceOp(tensor);
-    std::string opType(sourceOp->getOpType());
-    if(opType == "DPUTask")
+    if(tensor->get<mv::Tensor::MemoryLocation>("Location") == mv::Tensor::MemoryLocation::UPACMX)
         return true;
-    else if(opType == "DMATask")
-    {
-        auto direction = sourceOp->get<mv::DmaDirection>("direction");
-        if(direction == mv::DmaDirectionEnum::DDR2UPACMX)
-            return true;
-        else if(direction == mv::DmaDirectionEnum::NNCMX2UPACMX)
-            return true;
-    }
     return false;
 }
 
 // Pass role: Add DMA Tasks for weights tensors input of DPUTasks (if needed).
-void AddDPUTasksWeightsDMATasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element& passDesc, mv::Element &)
+void AddDPUTasksWeightsDMATasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element &)
 {
-    UNUSED(pass);
-    UNUSED(target);
     mv::OpModel om(model);
     mv::DataModel dm(model);
 
-    for(auto opIt = om.opBegin(); opIt != om.opEnd(); ++opIt)
+    auto dpuTasks = om.getOps("DPUTask");
+
+    for(auto& opIt : dpuTasks)
     {
-        std::string opType = opIt->getOpType();
-        if (opType == "DPUTask")
+        auto opId = opIt->get<unsigned>("opId");
+        unsigned n = opIt->inputSlots();
+        for(unsigned i = 1; i < n; ++i)
         {
-            auto opId = opIt->get<unsigned>("opId");
-            unsigned n = opIt->inputSlots();
-            for(unsigned i = 0; i < n; ++i)
+            auto inputTensor = opIt->getInputTensor(i);
+            mv::QuantizationParams quantParams = {{},{},{},{}};
+            if(inputTensor->hasAttr("quantParams"))
+                quantParams = inputTensor->get<mv::QuantizationParams>("quantParams");
+            auto inputOp = om.getSourceOp(inputTensor);
+            if(!isTensorInNNCMX(inputTensor))
             {
-                auto inputTensor = opIt->getInputTensor(i);
-                mv::QuantizationParams quantParams = {{},{},{},{}};
-                if(inputTensor->hasAttr("quantParams"))
-                    quantParams = inputTensor->get<mv::QuantizationParams>("quantParams");
-                auto inputOp = om.getSourceOp(inputTensor);
-                if(!isTensorInNNCMX(inputTensor, om))
+                auto flows = inputTensor->get<std::set<std::string>>("flows");
+                mv::Data::TensorIterator inputTensorDma = om.dMATask(inputTensor, mv::DmaDirectionEnum::DDR2NNCMX, mv::createDMATaskDDR2NNCMXName(inputOp->getName()));
+                auto inputTensorDmaOp = om.getSourceOp(inputTensorDma);
+                inputTensorDmaOp->set<unsigned>("opId", opId);
+
+                for(auto flowStr: flows)
                 {
-                    auto flows = inputTensor->get<std::set<std::string>>("flows");
-
-                    mv::Data::TensorIterator inputTensorDma = om.dMATask(inputTensor, mv::DmaDirectionEnum::DDR2NNCMX, mv::createDMATaskDDR2NNCMXName(inputOp->getName()));
-                    auto inputTensorDmaOp = om.getSourceOp(inputTensorDma);
-                    inputTensorDmaOp->set<unsigned>("opId", opId);
-
-                    for(auto flowStr: flows)
-                    {
-                        auto backupFlow = dm.getDataFlow(flowStr);
-                        auto idx = backupFlow->get<std::size_t>("sinkInput");
-                        auto sink = backupFlow.sink();
-                        om.undefineFlow(backupFlow);
-                        sink->setInputTensor(inputTensorDma, idx, false);
-                        om.defineFlow(inputTensorDmaOp, 0, sink, idx);
-                    }
+                    auto backupFlow = dm.getDataFlow(flowStr);
+                    auto idx = backupFlow->get<std::size_t>("sinkInput");
+                    auto sink = backupFlow.sink();
+                    om.undefineFlow(backupFlow);
+                    sink->setInputTensor(inputTensorDma, idx, false);
+                    om.defineFlow(inputTensorDmaOp, 0, sink, idx);
                 }
             }
         }
@@ -108,48 +81,46 @@ void AddDPUTasksWeightsDMATasksFcn(const mv::pass::PassEntry& pass, mv::Computat
 }
 
 // Pass role: Add DMA Tasks for input tensors input of UPATasks (if needed).
-void AddUPATasksExtraInputsDMATasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element& passDesc, mv::Element &)
+void AddUPATasksExtraInputsDMATasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element &)
 {
 
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);
     mv::DataModel dm(model);
 
-    for(auto opIt = om.opBegin(); opIt != om.opEnd(); ++opIt)
+    auto upaTasks = om.getOps("UPATask");
+
+    for(auto& opIt : upaTasks)
     {
-        std::string opType = opIt->getOpType();
-        if (opType == "UPATask")
+        std::string taskOp = opIt->get<std::string>("taskOp");
+        if(taskOp == "Dummy")
+            continue;
+        auto opId = opIt->get<unsigned>("opId");
+        unsigned n = opIt->inputSlots();
+        for(unsigned i = 0; i < n; ++i)
         {
-            std::string taskOp = opIt->get<std::string>("taskOp");
-            if(taskOp == "Dummy")
-                continue;
-            auto opId = opIt->get<unsigned>("opId");
-            unsigned n = opIt->inputSlots();
-            for(unsigned i = 0; i < n; ++i)
+            auto inputTensor = opIt->getInputTensor(i);
+            auto inputOp = om.getSourceOp(inputTensor);
+            if(isTensorInNNCMX(inputTensor) || isTensorInUPACMX(inputTensor))
             {
-                auto inputTensor = opIt->getInputTensor(i);
-                auto inputOp = om.getSourceOp(inputTensor);
-                if(isTensorInNNCMX(inputTensor, om) || isTensorInUPACMX(inputTensor, om))
+                auto flows = inputTensor->get<std::set<std::string>>("flows");
+
+                mv::Data::TensorIterator inputTensorDma;
+                if(isTensorInNNCMX(inputTensor))
+                    inputTensorDma = om.dMATask(inputTensor, mv::DmaDirectionEnum::NNCMX2DDR, mv::createDMATaskNNCMX2DDRName(inputOp->getName()));
+                else if (isTensorInUPACMX(inputTensor))
+                    inputTensorDma = om.dMATask(inputTensor, mv::DmaDirectionEnum::UPACMX2DDR, mv::createDMATaskUPACMX2DDRName(inputOp->getName()));
+                auto inputTensorDmaOp = om.getSourceOp(inputTensorDma);
+                inputTensorDmaOp->set<unsigned>("opId", opId);
+
+                for(auto flowStr: flows)
                 {
-                    auto flows = inputTensor->get<std::set<std::string>>("flows");
-
-                    mv::Data::TensorIterator inputTensorDma;
-                    if(isTensorInNNCMX(inputTensor, om))
-                        inputTensorDma = om.dMATask(inputTensor, mv::DmaDirectionEnum::NNCMX2DDR, mv::createDMATaskNNCMX2DDRName(inputOp->getName()));
-                    else if (isTensorInUPACMX(inputTensor, om))
-                        inputTensorDma = om.dMATask(inputTensor, mv::DmaDirectionEnum::UPACMX2DDR, mv::createDMATaskUPACMX2DDRName(inputOp->getName()));
-                    auto inputTensorDmaOp = om.getSourceOp(inputTensorDma);
-                    inputTensorDmaOp->set<unsigned>("opId", opId);
-
-                    for(auto flowStr: flows)
-                    {
-                        auto backupFlow = dm.getDataFlow(flowStr);
-                        auto idx = backupFlow->get<std::size_t>("sinkInput");
-                        auto sink = backupFlow.sink();
-                        om.undefineFlow(backupFlow);
-                        sink->setInputTensor(inputTensorDma, idx, false);
-                        om.defineFlow(inputTensorDmaOp, 0, sink, idx);
-                    }
+                    auto backupFlow = dm.getDataFlow(flowStr);
+                    auto idx = backupFlow->get<std::size_t>("sinkInput");
+                    auto sink = backupFlow.sink();
+                    om.undefineFlow(backupFlow);
+                    sink->setInputTensor(inputTensorDma, idx, false);
+                    om.defineFlow(inputTensorDmaOp, 0, sink, idx);
                 }
             }
         }

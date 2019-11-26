@@ -161,7 +161,8 @@ namespace mv
                     streamDivisor = streamDivisor * worstStreamPool[dim];
                 }
 
-                return tensorToSize->computeTotalSize()/streamDivisor;
+                return tensorToSize->computeTotalSize(16, false, false, true)/streamDivisor;
+
             }
 
             pair<size_t,size_t> memorySize(mv::Op& op, const Attribute& clustering, bool inputActivationSparsity,
@@ -181,7 +182,9 @@ namespace mv
                 size_t totalActivationSize = 0;
 
                 if(op.getOpType() != "Input")
+                {
                     inputSize = realTensorSize(op.getInputTensor(0),{streamConfig["W"],streamConfig["H"],streamConfig["C"],1});
+                }
                 if(op.getOpType() != "Output")
                     outputSize = realTensorSize(op.getOutputTensor(0),{streamConfig["W"],streamConfig["H"],streamConfig["K"],1});
 
@@ -324,10 +327,6 @@ namespace mv
 
                 if(globalEnableStreaming)
                     maxSplits = (clusterOutChannelSize/2);
-                    //maxSplits = (clusterOutChannelSize/16);
-
-               // if(maxSplits > 32)
-                 //   maxSplits = 64;
 
                 splits.push_back(1);
                 //for(unsigned split = 1; split <= maxSplits; split++)
@@ -371,7 +370,6 @@ namespace mv
 
                 Shape contexts,isiSplit;
 
-                // TODO:: check for CHMAJOR CONV
                 if( (opType == "MaxPool") or (opType == "DepthwiseConv"))
                 {
                     contexts = {16,1,16,1};
@@ -494,39 +492,27 @@ namespace mv
                 auto streamShape = strategy["streaming"].get<Shape>();
                 auto spilling = strategy["spilling"].get<bool>();
 
-                if((op.getOpType() != "Input") and (op.getOpType() != "Output") and
+                if(op.getOpType() != "Output" && op.getOpType() != "Input" &&
                     (op.hasTypeTrait("optimizable"))) //SW layers we dont care about size
                 {
                     auto fit = memorySize(op,clustering,false, false,weightsSparsity,streamShape,false);
-                    if(fit.first + fit.second > clusterMemory){
+                    if(fit.first + fit.second > clusterMemory)
                         return true;
-                    }
                 }
 
-                if(checkStreamClusterComp(op, strategy)){
+                if(checkStreamClusterComp(op, strategy))
                     return true;
-                }
 
                 //If spilling, HKSwitch makes no sense
                 if( (spilling) and (clustering == "HKSwitch"))
                     return true;
 
-                //TODO: SOH channelMajor conv requires SoHOverlapped input
-                if( clustering == "SplitOverHOverlapped" and (not (op.getOpType() == "Input")))
-                    return true;
-
-                if( op.getOpType() == "Conv")
+                if( op.getOpType() == "Conv" || op.getOpType() == "DepthwiseConv")
                 {
                     auto weightsShape = op.getInputTensor(1)->getShape();
                     auto numInChannels = weightsShape[KERNEL_INPUT_CHANNELS];
                     auto numOutChannels = weightsShape[KERNEL_OUTPUT_CHANNELS];
 
-                    if(numInChannels < 16)
-                    {
-                        //with this we will assume ChMajorConvolution
-                        if((clustering == "SplitOverH") and (streamShape["H"] > 1))
-                            return true;
-                    }
                     if((numOutChannels/totalClusters < 16) and (clustering == "SplitOverK"))
                         return true;
                 }
@@ -559,7 +545,6 @@ namespace mv
                     if(checkForBadStrategy(childOp, child)) return INF;
                 }
 
-
                 if((parentClustering == "HKSwitch" or
                         parentClustering == "SplitOverK") and
                         (childClustering == "SplitOverH"))
@@ -575,44 +560,38 @@ namespace mv
                         (not (childClustering == "SplitOverK")))
                             return INF;
 
-                //Cannot pass directly from SoH to SoK
+                //NOTE: Directly H to K is not allowed, normally through Spilling
+                //Code is there for subtensors but that case is not tested
+                //Graph optimizer should not prefer that from HKSwitch as well....
                 if( parentClustering == "SplitOverH" and
                         childClustering == "SplitOverK")
                             return INF;
 
+                if( parentClustering == "SplitOverH" and
+                        childClustering == "Clustering")
+                            return INF;
+
                 //cannot pass directly from SoK to SoH
-                if( parentClustering == "SplitOverK" and
+                if( parentClustering == "SplitOverK" and not parent["spilling"].get<bool>() and
                         childClustering == "SplitOverH")
                             return INF;
 
-
-                //SOH-Overlapped can only go to SOH layers
-                if( parentClustering == "SplitOverHOverlapped" and
-                        (not (childClustering == "SplitOverH")))
+                //cannot pass directly from Clustering to SoH if I am on cmx
+                if( parentClustering == "Clustering" and not parent["spilling"].get<bool>() and
+                        childClustering == "SplitOverH")
                             return INF;
 
-                //TODO child only rules moved to checkForBadStrategy, update to perserve only pair-wise rules
                 if( childOp.getOpType() == "Conv")
                 {
                     auto weightsShape = childOp.getInputTensor(1)->getShape();
                     auto numInChannels = weightsShape[KERNEL_INPUT_CHANNELS];
                     auto numOutChannels = weightsShape[KERNEL_OUTPUT_CHANNELS];
 
-                    if(numInChannels < 16)
-                    {
-                        //with this we will assume ChMajorConvolution
-                        if( (childClustering == "SplitOverH") and
-                                (not (parentClustering == "SplitOverHOverlapped")))
-                                    return INF;
-                        if((childClustering == "SplitOverH") and (child["streaming"].get<Shape>()["H"] > 1))
-                            return INF;
-                    }
-                    else {
-                        if((parent["spilling"].get<bool>()) and (childClustering == "SplitOverH"))
-                            return INF;
-                    }
-                    if((numOutChannels/totalClusters < 16) and (childClustering == "SplitOverK"))
+                    if((parent["spilling"].get<bool>()) and (childClustering == "SplitOverH")
+                            and  weightsShape[KERNEL_WIDTH] > 1)
                         return INF;
+//                    if((numOutChannels/totalClusters < 16) and (childClustering == "SplitOverK"))
+//                        return INF;
 
                 }
 
@@ -627,8 +606,6 @@ namespace mv
                         ((child["streaming"].get<Shape>()["H"] * child["streaming"].get<Shape>()["W"]) > 1))
                             return INF;
 
-
-
                 //These sparsity rules apply pairwise, and effect memory size and execution time.
                 //Make a local decision to get the correct runtime and execution time, but don't persist
                 //Sparsity will not be applied where disallowed in later passes
@@ -640,8 +617,8 @@ namespace mv
                     childInputSparsity = false;
                 }
 
-                if( (childOp.getOpType() == "Conv") and  (childOp.getInputTensor(1)->getShape()[KERNEL_INPUT_CHANNELS] < 16))
-                    childInputSparsity = false;
+//                if( (childOp.getOpType() == "Conv") and  (childOp.getInputTensor(1)->getShape()[KERNEL_INPUT_CHANNELS] < 16))
+//                    childInputSparsity = false;
 
                 if(childInputSparsity == false)
                     parentOutputSparsity = false;
@@ -667,7 +644,7 @@ namespace mv
 
 
                     if( ((childOp.getOpType() != "Output") and (childMem.first + childMem.second) > clusterMemory) or
-                                                                ((parentMem.first + parentMem.second) > clusterMemory))
+                                                                ((parentOp.getOpType() != "Input") and (parentMem.first + parentMem.second) > clusterMemory))
                         return INF;
                 }
 
@@ -893,10 +870,8 @@ namespace mv
                         }
                     }
                 }
-                if(strategyVec.empty()){ // No strategies generated for this layer. Throw Error.
-                    //std::cout << "Failed to generate strategies for layer " << op.getName() << std::endl;
-                    throw LogicError(*this, " No potential strategies generated for " + op.getName());
-                }
+                if(strategyVec.empty())
+                    throw LogicError(*this,"No strategies added to the graph for layer " + op.getName());
             }
 
         };

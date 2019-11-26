@@ -49,8 +49,7 @@ const std::unordered_map<std::string, MVCNN::DPULayerType> mv::RuntimeModel::dpu
     {"AveragePool",MVCNN::DPULayerType::DPULayerType_AVEPOOL},
     {"FullyConnected",MVCNN::DPULayerType::DPULayerType_FCL},
     {"Eltwise",MVCNN::DPULayerType::DPULayerType_ELTWISE},
-    {"Identity",MVCNN::DPULayerType::DPULayerType_IDENTITY},
-    {"ChannelMajorConvolution",MVCNN::DPULayerType::DPULayerType_CMCONV}
+    {"Identity",MVCNN::DPULayerType::DPULayerType_IDENTITY}
 };
 
 const std::unordered_map<mv::PPELayerTypeEnum, MVCNN::PPELayerType, mv::EnumClassHash> mv::RuntimeModel::ppeLayerTypeMapping_ =
@@ -102,35 +101,20 @@ int computeAppropriatePadding(mv::Tensor tensor)
     return pad;
 }
 
-void mv::RuntimeModel::alignTensor(mv::ComputationModel& cm, std::unique_ptr<MVCNN::TensorReferenceT>& tensorT, mv::Tensor& tensor, const size_t dimension, bool padFinalOutput)
+void mv::RuntimeModel::alignTensor(mv::ComputationModel& cm, std::unique_ptr<MVCNN::TensorReferenceT>& tensorT, mv::Tensor& tensor, bool padFinalOutput)
 {
-    if(dimension == IO_CHANNEL_DIMENSION) 
-    {
-        auto globalConfigParams = cm.getGlobalConfigParams();
-        int pad = computeAppropriatePadding(tensor);
-        std::vector<std::size_t> dimensions = tensor.getShape();
-        auto outputChannelsPadded = mv::round_up(dimensions[mv::IO_CHANNEL_DIMENSION], pad);
-        dimensions = {dimensions[mv::IO_WIDTH_DIMENSION], dimensions[mv::IO_HEIGHT_DIMENSION], outputChannelsPadded, dimensions[mv::IO_BATCH_DIMENSION]};
-        auto numericStrides = tensor.getOrder().computeByteStrides(mv::Shape(dimensions), tensor.getDType().getSizeInBits() / 8);
-        numericStrides.push_back(tensor.getDType().getSizeInBits() / 8);
-        std::reverse(dimensions.begin(), dimensions.end());
-        std::reverse(numericStrides.begin(), numericStrides.end());
-        tensorT->strides = numericStrides; // NOTE: Maybe directly bufferIt->computeStrides() in the future
-        if(padFinalOutput)
-            tensorT->dimensions = std::vector<uint32_t>(dimensions.begin(), dimensions.end());
-    }
-    else if (dimension == IO_WIDTH_DIMENSION) 
-    {
-        std::vector<std::size_t> dimensions = tensor.getShape();
-        auto widthPadded = mv::round_up(dimensions[mv::IO_WIDTH_DIMENSION], 16);
-        dimensions = {widthPadded, dimensions[mv::IO_HEIGHT_DIMENSION],dimensions[mv::IO_CHANNEL_DIMENSION] , dimensions[mv::IO_BATCH_DIMENSION]};
-        auto numericStrides = tensor.getOrder().computeByteStrides(mv::Shape(dimensions), tensor.getDType().getSizeInBits() / 8);
-        numericStrides.push_back(tensor.getDType().getSizeInBits() / 8);
-        std::reverse(dimensions.begin(), dimensions.end());
-        std::reverse(numericStrides.begin(), numericStrides.end());
-        tensorT->strides = numericStrides; 
-
-    }
+    auto globalConfigParams = cm.getGlobalConfigParams();
+    int pad = computeAppropriatePadding(tensor);
+    std::vector<std::size_t> dimensions = tensor.getShape();
+    auto outputChannelsPadded = mv::round_up(dimensions[mv::IO_CHANNEL_DIMENSION], pad);
+    dimensions = {dimensions[mv::IO_WIDTH_DIMENSION], dimensions[mv::IO_HEIGHT_DIMENSION], outputChannelsPadded, dimensions[mv::IO_BATCH_DIMENSION]};
+    auto numericStrides = tensor.getOrder().computeByteStrides(mv::Shape(dimensions), tensor.getDType().getSizeInBits() / 8);
+    numericStrides.push_back(tensor.getDType().getSizeInBits() / 8);
+    std::reverse(dimensions.begin(), dimensions.end());
+    std::reverse(numericStrides.begin(), numericStrides.end());
+    tensorT->strides = numericStrides; // NOTE: Maybe directly bufferIt->computeStrides() in the future
+    if(padFinalOutput)
+        tensorT->dimensions = std::vector<uint32_t>(dimensions.begin(), dimensions.end());
 }
 
 MVCNN::DType mv::RuntimeModel::convertDtype(const mv::DType& dtype)
@@ -496,7 +480,7 @@ std::unique_ptr<MVCNN::SummaryHeaderT> mv::RuntimeModel::buildSummaryHeaderT(Com
     toBuild->net_output = std::vector<std::unique_ptr<MVCNN::TensorReferenceT>>(1);
     toBuild->net_output[0] = buildTensorReferenceT(cm, compilationDescriptor, om.getOutput()->getInputTensor(0));
     if (paddOutput && om.getOutput()->getInputTensor(0)->hasAttr("alignment"))
-        alignTensor(cm, toBuild->net_output[0], *om.getOutput()->getInputTensor(0), IO_CHANNEL_DIMENSION, paddOutput);
+        alignTensor(cm, toBuild->net_output[0], *om.getOutput()->getInputTensor(0), paddOutput);
 
     auto taskCount = [](mv::OpModel m)
     {
@@ -757,7 +741,7 @@ void mv::RuntimeModel::case1MC(unsigned numTasks, mv::ComputationModel& cm, mv::
     if (direction != mv::DDR2NNCMX)
     {
         if (padFinalOutput && dst->hasAttr("alignment"))
-            alignTensor(cm, tmp->dst, *dst, IO_CHANNEL_DIMENSION, padFinalOutput);
+            alignTensor(cm, tmp->dst, *dst, padFinalOutput);
     }
 
     std::vector<unsigned int> locale_index;
@@ -793,14 +777,7 @@ void mv::RuntimeModel::case2MC(unsigned numTasks, ComputationModel& cm,  mv::Dma
         if (direction != mv::DDR2NNCMX)
         {
             if (padFinalOutput && dst->hasAttr("alignment"))
-                alignTensor(cm, tmp->dst, dst->getSubTensor(i), IO_CHANNEL_DIMENSION, padFinalOutput);
-        }
-
-        //Check if DMA is DDR2CMX
-        if (direction == mv::DDR2NNCMX)
-        {
-            if (dst->hasAttr("alignWidth"))
-                alignTensor(cm, tmp->dst, dst->getSubTensor(i), IO_WIDTH_DIMENSION, false);
+                alignTensor(cm, tmp->dst, dst->getSubTensor(i), padFinalOutput);
         }
 
         checkUnstridedDMA(src, i, tmp);
@@ -821,15 +798,20 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
     auto padFinalOutput = false;
 
     auto inputTensor = opIt->getInputTensor(0);
-
-    // output tensor comes from align layer
-    mv::Data::TensorIterator outputTensor;
-    if(opIt.leftmostChild()->getOpType() == "Align")
-        outputTensor = opIt.leftmostChild()->getOutputTensor(0);
-    else
-        outputTensor = opIt->getOutputTensor(0);
-
+    auto outputTensor = opIt->getOutputTensor(0);
     bool sourceIsBroadCasted = inputTensor->isBroadcasted();
+
+    //NOTE: When strategy is overwritten
+    if (opIt->get<mv::DmaDirection>("direction") == mv::DmaDirectionEnum::DDR2NNCMX)
+    {
+        if (inputTensor->hasAttr("overwriteStrategy"))
+        {
+            if (inputTensor->get<std::string>("overwriteStrategy") == "ClusteringToSoH")
+                sourceIsBroadCasted = false;
+            else if (inputTensor->get<std::string>("overwriteStrategy") == "SoHToClustering")
+                sourceIsBroadCasted = true;
+        }
+    }
 
     bool compression = false;
     if(opIt->hasAttr("compression"))
@@ -1054,11 +1036,6 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
     if (opIt->hasAttr("padding"))
     {
         auto kernelPadding = opIt->get<std::array<unsigned short, 4>>("padding");
-        if (opIt->get<std::string>("taskOp") == "ChannelMajorConvolution")
-        {
-            unsigned numClusters = cm.getGlobalConfigParams()->get<int>("Number_of_Clusters");
-            kernelPadding = getNewPadding(kernelPadding, clusterId, numClusters);
-        }
 
         toBuild->kernel_padLeft = kernelPadding[0];
         toBuild->kernel_padRight = kernelPadding[1];
@@ -1380,8 +1357,8 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNCE2TaskT(Comp
             toBuild->invariant->output_data->locale_index = locale_index;
             if (opIt->get<std::string>("taskOp") != "MaxPool")
                 toBuild->invariant->weights_data->locale_index = locale_index;
-            else if (opIt->get<std::string>("taskOp") == "MaxPool" || opIt->get<std::string>("taskOp") == "DepthwiseConv" ||
-                     opIt->get<std::string>("taskOp") == "ChannelMajorConvolution")
+            else if (opIt->get<std::string>("taskOp") == "MaxPool" ||
+                     opIt->get<std::string>("taskOp") == "DepthwiseConv")
                 toBuild->invariant->activation_window->locale_index = locale_index;
             else if (opIt->get<std::string>("taskOp") == "ElementWise")
                 toBuild->invariant->weights_table->locale_index = locale_index;

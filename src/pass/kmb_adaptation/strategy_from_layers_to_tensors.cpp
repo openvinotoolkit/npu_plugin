@@ -7,6 +7,7 @@
 #include "include/mcm/pass/pass_utils.hpp"
 
 static void strategyLayersToTensors(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+static std::vector<mv::Data::OpListIterator> findSinkLayers(mv::DataModel &dataModel, const mv::Data::TensorIterator& tensor);
 
 namespace mv
 {
@@ -24,6 +25,8 @@ void strategyLayersToTensors(const mv::pass::PassEntry& , mv::ComputationModel& 
 {
     auto globalParams = model.getGlobalConfigParams();
     mv::OpModel om(model);
+    mv::DataModel dm(model);
+
     for(auto layer = om.opBegin(); layer != om.opEnd(); ++layer)
     {
         std::string opType = layer->getOpType();
@@ -81,19 +84,43 @@ void strategyLayersToTensors(const mv::pass::PassEntry& , mv::ComputationModel& 
             outputTensor->set<std::string>("splitStrategy", opStrategy);
         }
     }
+
     for(auto layer = om.opBegin(); layer != om.opEnd(); ++layer)
     {
         std::string opType = layer->getOpType();
-        if (opType == "Slice" || opType == "Align")
+        if (opType == "Align")
         {
-           if(layer->getInputTensor(0)->hasAttr("splitStrategy"))
-            {
-                auto opStrategy = layer->getInputTensor(0)->get<std::string>("splitStrategy");
-                auto outputTensor = layer->getOutputTensor(0);
-                outputTensor->set<std::string>("splitStrategy", opStrategy);
-            }
+            auto outputTensor = layer->getOutputTensor(0);
+            std::vector<mv::Data::OpListIterator> sinkOperators = findSinkLayers(dm, outputTensor);
+            auto opStrategy = sinkOperators[0]->get<std::string>("splitStrategy");
+            outputTensor->set<std::string>("splitStrategy", opStrategy);
+            layer->set<std::string>("splitStrategy", opStrategy);
+        }
+    }
+
+    for(auto layer = om.opBegin(); layer != om.opEnd(); ++layer)
+    {
+        std::string opType = layer->getOpType();
+        if (opType == "Slice")
+        {
+            auto outputTensor = layer->getOutputTensor(0);
+            std::vector<mv::Data::OpListIterator> sinkOperators = findSinkLayers(dm, outputTensor);
+            auto opStrategy = sinkOperators[0]->get<std::string>("splitStrategy");
+            outputTensor->set<std::string>("splitStrategy", opStrategy);
         }
     }
 
     return;
+}
+
+static std::vector<mv::Data::OpListIterator> findSinkLayers(mv::DataModel &dataModel, const mv::Data::TensorIterator &tensor)
+{
+    std::vector<mv::Data::OpListIterator> sinkOperations;
+    auto flowsNames = (tensor)->get<std::set<std::string>>("flows");
+    for(auto flowName : flowsNames)
+    {
+        auto df = dataModel.getDataFlow(flowName);
+        sinkOperations.push_back(df.sink());
+    }
+    return sinkOperations;
 }
