@@ -126,18 +126,18 @@ bool compare(std::vector<float>& actualResults, std::vector<float>& expectedResu
         float expected = expectedResults[idx];
         float abs_error = fabsf(actual - expected);
         float abs_allowed_err = fabsf(expected * (tolerance/100.0f));
-        std::string result = "\tpass";
+        std::string result = "\t\033[1;32mPass\033[0m";
         if (abs_error > abs_allowed_err) 
         {
             countErrs++;
             sumDiff+=abs_error;
             if (abs_error > maxErr) maxErr = abs_error;
-            result = "\tfail";
+            result = "\t\033[1;31mfail\033[0m";
         }
         if (idx < 50) // print first 50 rows
-            std::cout << expected << "\t" << actual << "\t" << abs_error << "\t" << abs_allowed_err << "\t"  << result << std::endl;
+            std::cout << std::setw(10) << expected << std::setw(12) << actual << std::setw(12) << abs_error << std::setw(12) << abs_allowed_err << std::setw(6) << result << std::endl;
     };
-    std::cout << "Printing first 50 rows...\nExp\tActual\tdiff\ttolerence\tresult" << std::endl;
+    std::cout << "Printing first 50 rows...\nExpected\tActual\tDifference   Tolerence  Result" << std::endl;
     for (size_t n = 0; n < expectedResults.size(); ++n) 
         absoluteErrorUpdater(n);
 
@@ -211,7 +211,7 @@ int runEmulator(std::string pathXML, std::string pathImage, std::string& blobPat
     // execute the classification sample async (KMB-plugin)
     std::cout << "Generating mcm blob through kmb-plugin... " << std::endl;
     commandline = std::string("cd ") + std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + " && " + 
-        "./test_classification -m ~/test_models/temp/resnet50-int8_cpu.xml -d KMB";
+        "./test_classification -m " + pathXML + " -d KMB";
     if (! FLAGS_i.empty() )
         commandline += (" -i " + pathImage);
 
