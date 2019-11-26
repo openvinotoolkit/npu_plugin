@@ -23,15 +23,15 @@ int main()
     auto identity_maxPool1 = om.maxPool(input0, {1,1}, {1,1}, {0,0,0,0}, true, "", "floor", mv::DType("UInt8"), in_qp1, "identity_maxpool1");
 
     // Eltwise, to be replaced with eltwiseFP16 in replacement pass
-    auto eltwise0 = om.eltwise({identity_maxPool0, identity_maxPool1}, "Add", mv::DType("Float16"), out_qp, "eltwise0");
+    auto eltwise0 = om.eltwise({identity_maxPool0, identity_maxPool1}, "Add", mv::DType("UInt8"), out_qp, "eltwise0");
 
     // Re-quantize output
-    auto requantize0 = om.quantize(eltwise0, mv::DType("UInt8"), out_qp, "requantize0");
+    auto outputMaxPool0 = om.maxPool(eltwise0, {1,1}, {1,1}, {0,0,0,0}, true, "", "floor", mv::DType("UInt8"), out_qp, "requantize_output");
 
     // Output
-    auto output0 = om.output(requantize0);
+    auto output0 = om.output(outputMaxPool0);
 
-    std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/release_kmb_MC-Prefetch1.json";
+    std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/release_kmb_SC-Prefetch1.json";
     unit.loadCompilationDescriptor(compDescPath);
     unit.loadTargetDescriptor(mv::Target::ma2490);
     unit.initialize();

@@ -317,6 +317,7 @@ void handleEltWiseDifferentScales(const mv::pass::PassEntry& pass, mv::Computati
             firstEltwiseInputTensor->set<mv::QuantizationParams>("quantParams", neutralQuantParams);
             secondEltwiseInputTensor->set<mv::QuantizationParams>("quantParams", neutralQuantParams);
             eltwiseOutputTensor->set<mv::QuantizationParams>("quantParams", neutralQuantParams);
+            opIt->set<bool>("softwareExecuted", true);
         }
 
     }

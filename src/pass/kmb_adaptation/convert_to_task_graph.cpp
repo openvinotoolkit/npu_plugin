@@ -49,31 +49,47 @@ void setUpPPETasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, 
     }
 }
 
-mv::Data::TensorIterator convertEltwiseToDPUTask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs, const std::map<std::string, mv::Attribute>& attrs, const std::string& name)
+mv::Data::TensorIterator convertEltwiseToTask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs,
+                                                 const std::map<std::string, mv::Attribute>& attrs, const std::string& name, bool software)
 {
-    const std::array<unsigned short, 2> FAKE_KERNEL = {1,1};
-    const std::array<unsigned short, 2> FAKE_STRIDE = {1,1};
-
     auto eltwiseType = attrs.at("eltwiseType").get<std::string>();
     auto outputTensorType = attrs.at("dType").get<mv::DType>();
     auto quantParams = attrs.at("quantParams").get<mv::QuantizationParams>();
+    mv::Data::TensorIterator eltwiseTask;
 
-    auto dpuElementWise = om.dPUTaskEltwise(inputs, eltwiseType, outputTensorType, quantParams, mv::createDPUTaskName(name));
-    auto dpuElementWiseOp = om.getSourceOp(dpuElementWise);
-    dpuElementWiseOp->set<std::array<unsigned short, 2>>("kSize", FAKE_KERNEL);
-    dpuElementWiseOp->set<std::array<unsigned short, 2>>("stride", FAKE_STRIDE);
-    dpuElementWiseOp->set<bool>("hasWeights", false);
+    if (!software)
+    {
+        const std::array<unsigned short, 2> FAKE_KERNEL = {1,1};
+        const std::array<unsigned short, 2> FAKE_STRIDE = {1,1};
 
-    std::vector<std::string> postOps;
-    if(dpuElementWiseOp->hasAttr("postOpTypes"))
-        postOps = dpuElementWiseOp->get<std::vector<std::string>>("postOpTypes");
-    postOps.push_back(eltwiseType);
-    dpuElementWiseOp->set<std::vector<std::string>>("postOpTypes", postOps);
+        auto dpuElementWise = om.dPUTaskEltwise(inputs, eltwiseType, outputTensorType, quantParams,
+                                                mv::createDPUTaskName(name));
+        auto dpuElementWiseOp = om.getSourceOp(dpuElementWise);
+        dpuElementWiseOp->set<std::array<unsigned short, 2>>("kSize", FAKE_KERNEL);
+        dpuElementWiseOp->set<std::array<unsigned short, 2>>("stride", FAKE_STRIDE);
+        dpuElementWiseOp->set<bool>("hasWeights", false);
 
-    return dpuElementWise;
+        std::vector<std::string> postOps;
+        if(dpuElementWiseOp->hasAttr("postOpTypes"))
+            postOps = dpuElementWiseOp->get<std::vector<std::string>>("postOpTypes");
+        postOps.push_back(eltwiseType);
+        dpuElementWiseOp->set<std::vector<std::string>>("postOpTypes", postOps);
+        eltwiseTask = dpuElementWise;
+    }
+    else
+    {
+        //Note: Re-write maybe DPU tasks changed them
+        inputs[0]->setDType(mv::DType("Float16"));
+        inputs[1]->setDType(mv::DType("Float16"));
+        eltwiseTask = om.uPATaskEltwise(inputs, eltwiseType, mv::DType("Float16"), quantParams, name);
+        eltwiseTask->setDType(mv::DType("Float16"));
+    }
+    return eltwiseTask;
 }
 
-mv::Data::TensorIterator convertMaxPoolToDPUTask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs, const std::map<std::string, mv::Attribute>& attrs, const std::string& name)
+
+mv::Data::TensorIterator convertMaxPoolToDPUTask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs,
+                                    const std::map<std::string, mv::Attribute>& attrs, const std::string& name, bool software = false)
 {
     auto strides = attrs.at("stride").get<std::array<unsigned short, 2>>();
     auto padding = attrs.at("padding").get<std::array<unsigned short, 4>>();
@@ -91,7 +107,8 @@ mv::Data::TensorIterator convertMaxPoolToDPUTask(mv::OpModel& om, const std::vec
     return dpuPool;
 }
 
-mv::Data::TensorIterator convertDepthwiseConvolutionToDPUTask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs, const std::map<std::string, mv::Attribute>& attrs, const std::string& name)
+mv::Data::TensorIterator convertDepthwiseConvolutionToDPUTask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs,
+                    const std::map<std::string, mv::Attribute>& attrs, const std::string& name, bool software = false)
 {
     auto strides = attrs.at("stride").get<std::array<unsigned short, 2>>();
     auto padding = attrs.at("padding").get<std::array<unsigned short, 4>>();
@@ -99,7 +116,8 @@ mv::Data::TensorIterator convertDepthwiseConvolutionToDPUTask(mv::OpModel& om, c
     auto quantParams = attrs.at("quantParams").get<mv::QuantizationParams>();
     auto outputTensorType = attrs.at("dType").get<mv::DType>();
 
-    auto dpuConv = om.dPUTaskDepthwiseConv(inputs, strides, padding, dilationFactor, outputTensorType, quantParams, mv::createDPUTaskName(name));
+    auto dpuConv = om.dPUTaskDepthwiseConv(inputs, strides, padding, dilationFactor, outputTensorType, quantParams,
+                                           mv::createDPUTaskName(name));
 
     auto dpuConvOp = om.getSourceOp(dpuConv);
     dpuConvOp->set<bool>("hasWeights", true);
@@ -107,7 +125,8 @@ mv::Data::TensorIterator convertDepthwiseConvolutionToDPUTask(mv::OpModel& om, c
     return dpuConv;
 }
 
-mv::Data::TensorIterator convertConvolutionToDPUTask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs, const std::map<std::string, mv::Attribute>& attrs, const std::string& name)
+mv::Data::TensorIterator convertConvolutionToDPUTask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs,
+                    const std::map<std::string, mv::Attribute>& attrs, const std::string& name, bool software = false)
 {
     auto strides = attrs.at("stride").get<std::array<unsigned short, 2>>();
     auto padding = attrs.at("padding").get<std::array<unsigned short, 4>>();
@@ -133,7 +152,8 @@ mv::Data::TensorIterator convertConvolutionToDPUTask(mv::OpModel& om, const std:
     return dpuConv;
 }
 
-mv::Data::TensorIterator convertIdentityToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs, const std::map<std::string, mv::Attribute>& attrs, const std::string& name)
+mv::Data::TensorIterator convertIdentityToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs,
+                                const std::map<std::string, mv::Attribute>& attrs, const std::string& name, bool software = false)
 {
     auto quantParams = attrs.at("quantParams").get<mv::QuantizationParams>();
     auto dtype = attrs.at("dType").get<mv::DType>();
@@ -141,17 +161,8 @@ mv::Data::TensorIterator convertIdentityToUPATask(mv::OpModel& om, const std::ve
     return om.uPATaskIdentity(inputs, dtype, quantParams, name);
 }
 
-mv::Data::TensorIterator convertEltwiseFP16ToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs, const std::map<std::string, mv::Attribute>& attrs, const std::string& name)
-{
-    auto quantParams = attrs.at("quantParams").get<mv::QuantizationParams>();
-    auto dtype = attrs.at("dType").get<mv::DType>();
-
-    auto eltwiseType = attrs.at("eltwiseType").get<std::string>();
-
-    return om.uPATaskEltwiseFP16(inputs, eltwiseType, dtype, quantParams, name);
-}
-
-mv::Data::TensorIterator convertSoftmaxToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs, const std::map<std::string, mv::Attribute>& attrs, const std::string& name)
+mv::Data::TensorIterator convertSoftmaxToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs,
+                                const std::map<std::string, mv::Attribute>& attrs, const std::string& name, bool software = false)
 {
     auto quantParams = attrs.at("quantParams").get<mv::QuantizationParams>();
     auto axis = attrs.at("axis").get<std::string>();
@@ -160,7 +171,8 @@ mv::Data::TensorIterator convertSoftmaxToUPATask(mv::OpModel& om, const std::vec
    return om.uPATaskSoftmax(inputs, axis, dtype, quantParams, name);
 }
 
-mv::Data::TensorIterator convertProposalToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs, const std::map<std::string, mv::Attribute>& attrs, const std::string& name)
+mv::Data::TensorIterator convertProposalToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs,
+                                const std::map<std::string, mv::Attribute>& attrs, const std::string& name, bool software = false)
 {
     auto quantParams = attrs.at("quantParams").get<mv::QuantizationParams>();
     auto dtype = attrs.at("dType").get<mv::DType>();
@@ -188,7 +200,8 @@ mv::Data::TensorIterator convertProposalToUPATask(mv::OpModel& om, const std::ve
                                                               dtype, quantParams, name);
 }
 
-mv::Data::TensorIterator convertROIPoolingToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs, const std::map<std::string, mv::Attribute>& attrs, const std::string& name)
+mv::Data::TensorIterator convertROIPoolingToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs,
+                                    const std::map<std::string, mv::Attribute>& attrs, const std::string& name, bool software = false)
 {
     auto quantParams = attrs.at("quantParams").get<mv::QuantizationParams>();
     auto dtype = attrs.at("dType").get<mv::DType>();
@@ -201,7 +214,8 @@ mv::Data::TensorIterator convertROIPoolingToUPATask(mv::OpModel& om, const std::
     return om.uPATaskROIPooling(inputs, pooled_w, pooled_h, spatial_scale, roi_pooling_method, num_rois, dtype, quantParams, name);
 }
 
-mv::Data::TensorIterator convertQuantizeToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs, const std::map<std::string, mv::Attribute>& attrs, const std::string& name)
+mv::Data::TensorIterator convertQuantizeToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs,
+                                    const std::map<std::string, mv::Attribute>& attrs, const std::string& name, bool software = false)
 {
     auto dtype = attrs.at("dType").get<mv::DType>();
     auto quantParams = attrs.at("quantParams").get<mv::QuantizationParams>();
@@ -209,7 +223,8 @@ mv::Data::TensorIterator convertQuantizeToUPATask(mv::OpModel& om, const std::ve
     return om.uPATaskQuantize(inputs, dtype, quantParams, name);
 }
 
-mv::Data::TensorIterator convertReshapeToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs, const std::map<std::string, mv::Attribute>& attrs, const std::string& name)
+mv::Data::TensorIterator convertReshapeToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs,
+                                    const std::map<std::string, mv::Attribute>& attrs, const std::string& name, bool software = false)
 {
     auto shape = attrs.at("shape").get<mv::Shape>();
     auto order = attrs.at("order").get<mv::Order>();
@@ -219,7 +234,8 @@ mv::Data::TensorIterator convertReshapeToUPATask(mv::OpModel& om, const std::vec
     return om.uPATaskReshape(inputs, shape, order, dtype, quantParams, name);
 }
 
-mv::Data::TensorIterator convertRegionYoloToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs, const std::map<std::string, mv::Attribute>& attrs, const std::string& name)
+mv::Data::TensorIterator convertRegionYoloToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs,
+                                    const std::map<std::string, mv::Attribute>& attrs, const std::string& name, bool software = false)
 {
     auto coords = attrs.at("coords").get<unsigned>();
     auto classes = attrs.at("classes").get<unsigned>();
@@ -232,7 +248,8 @@ mv::Data::TensorIterator convertRegionYoloToUPATask(mv::OpModel& om, const std::
     return om.uPATaskRegionYolo(inputs, coords, classes, do_softmax, num, mask, dtype, quantParams, name);
 }
 
-mv::Data::TensorIterator convertReorgYoloToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs, const std::map<std::string, mv::Attribute>& attrs, const std::string& name)
+mv::Data::TensorIterator convertReorgYoloToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs,
+                                    const std::map<std::string, mv::Attribute>& attrs, const std::string& name, bool software = false)
 {
     auto stride = attrs.at("stride").get<unsigned>();
     auto dtype = attrs.at("dType").get<mv::DType>();
@@ -241,7 +258,8 @@ mv::Data::TensorIterator convertReorgYoloToUPATask(mv::OpModel& om, const std::v
     return om.uPATaskReorgYolo(inputs, stride, dtype, quantParams, name);
 }
 
-mv::Data::TensorIterator convertNormalizeToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs, const std::map<std::string, mv::Attribute>& attrs, const std::string& name)
+mv::Data::TensorIterator convertNormalizeToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs,
+                                    const std::map<std::string, mv::Attribute>& attrs, const std::string& name, bool software = false)
 {
     auto dtype = attrs.at("dType").get<mv::DType>();
     auto quantParams = attrs.at("quantParams").get<mv::QuantizationParams>();
@@ -252,7 +270,8 @@ mv::Data::TensorIterator convertNormalizeToUPATask(mv::OpModel& om, const std::v
     return om.uPATaskNormalize(inputs, eps, across_spatial, channel_shared, dtype, quantParams, name);
 }
 
-mv::Data::TensorIterator convertPermuteToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs, const std::map<std::string, mv::Attribute>& attrs, const std::string& name)
+mv::Data::TensorIterator convertPermuteToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs,
+                                    const std::map<std::string, mv::Attribute>& attrs, const std::string& name, bool software = false)
 {
     auto order = attrs.at("order").get<mv::Order>();
     auto dtype = attrs.at("dType").get<mv::DType>();
@@ -297,21 +316,23 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
     mv::OpModel om(model);
     mv::ControlModel cm(model);
 
-    std::vector<std::string> opsTypesToConvert = {"Conv", "DepthwiseConv", "Eltwise", "MaxPool"};
+    //Note: Eltwise might be UPA might be DPU task...
+    std::vector<std::string> opsTypesToConvert = {"Conv", "DepthwiseConv", "MaxPool", "Eltwise"};
     std::vector<std::string> opsTypesToConvertToUPA = {"Identity", "Softmax", "Proposal", "ROIPooling",
                                                        "Quantize", "Reshape", "RegionYolo", "ReorgYolo",
-                                                       "Normalize", "Permute", "EltwiseFP16"};
+                                                       "Normalize", "Permute"};
 
     opsTypesToConvert.insert(opsTypesToConvert.end(), opsTypesToConvertToUPA.begin(), opsTypesToConvertToUPA.end());
     auto opsToConvert = om.getOpsOfTypes(opsTypesToConvert);
 
-    std::unordered_map<std::string, std::function<mv::Data::TensorIterator(mv::OpModel&, const std::vector<mv::Data::TensorIterator>&, const std::map<std::string, mv::Attribute>&, const std::string&)>> opsFunctors = {
+    std::unordered_map<std::string,
+            std::function<mv::Data::TensorIterator(mv::OpModel&, const std::vector<mv::Data::TensorIterator>&,
+            const std::map<std::string, mv::Attribute>&, const std::string&, bool &)>> opsFunctors = {
     {"Conv", convertConvolutionToDPUTask},
     {"DepthwiseConv", convertDepthwiseConvolutionToDPUTask},
-    {"Eltwise", convertEltwiseToDPUTask},
     {"MaxPool", convertMaxPoolToDPUTask},
+    {"Eltwise", convertEltwiseToTask},
     {"Identity", convertIdentityToUPATask},
-    {"EltwiseFP16", convertEltwiseFP16ToUPATask},
     {"Softmax", convertSoftmaxToUPATask},
     {"Proposal", convertProposalToUPATask},
     {"ROIPooling", convertROIPoolingToUPATask},
@@ -328,6 +349,10 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
         auto ops = opsToConvert[opType];
         for(auto& opIt: ops)
         {
+            bool software = false;
+            if (opIt->hasAttr("softwareExecuted") && opIt->get<bool>("softwareExecuted"))
+                software = true;
+
             auto name = opIt->getName();
             auto attrsToCopy = opIt->getAttrs();
             auto inputs = opIt->getInputTensor();
@@ -337,7 +362,7 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             auto outputControlFlows = mv::getOutputControlFlow(cm, cm.switchContext(opIt));
             auto outputDataFlows = mv::getOutputDataFlow(om, opIt);
 
-            auto newTensor = opsFunctors[opType](om, inputs, attrsToCopy, name);
+            auto newTensor = opsFunctors[opType](om, inputs, attrsToCopy, name, software);
 
             newTensor->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
             auto newTensorOp = om.getSourceOp(newTensor);

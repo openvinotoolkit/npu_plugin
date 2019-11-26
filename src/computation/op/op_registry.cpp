@@ -878,7 +878,6 @@ void mv::op::OpRegistry::generateCompositionAPI(const std::string& metaDir, cons
 #include    "src/computation/op/def/dropout.cpp"
 #include    "src/computation/op/def/dummy.cpp"
 #include    "src/computation/op/def/elu.cpp"
-#include    "src/computation/op/def/eltwise_fp16.cpp"
 #include    "src/computation/op/def/fully_connected.cpp"
 #include    "src/computation/op/def/identity.cpp"
 #include    "src/computation/op/def/input.cpp"

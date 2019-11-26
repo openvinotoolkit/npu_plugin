@@ -116,7 +116,8 @@ void alignTaskWeightsFcn(const mv::pass::PassEntry& , mv::ComputationModel& mode
             if(paddingDifference != 0)
                 newKernelName = mv::createAlignWeightSetConstantName(kernelName);
             auto outputDataFlows = mv::getOutputDataFlow(om, kernelOp);
-            auto newKernel = om.constantDataElement(newData, newShape, kernelDType, mv::Order("NHWC"), quantParams, newKernelName);
+            auto newKernel = om.constantDataElement(newData, newShape, kernelDType,
+                                                    mv::Order("NHWC"), quantParams, newKernelName);
             auto newKernelOp = om.getSourceOp(newKernel);
             newKernelOp->set<unsigned>("opId", opId);
 
