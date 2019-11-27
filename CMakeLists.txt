@@ -20,7 +20,7 @@ endif()
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 
 add_compile_options(-std=c++11)
-#add_compile_options(-O3)
+add_compile_options(-O3)
 
 set(PROFILER FALSE CACHE BOOL "Enable integrated profiler")
 set(LOG TRUE CACHE BOOL "Enable logger")

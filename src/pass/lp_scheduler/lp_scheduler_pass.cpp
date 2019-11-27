@@ -24,6 +24,7 @@ MV_REGISTER_PASS(LpScheduler)
 } // namespace pass //
 
 typedef mv::scheduler::Operation_Dag<mv::ControlModel> control_dag_t;
+typedef mv::scheduler::Operation_Dag<mv::OpModel> dag_t;
 
 struct Scheduled_Op {
 
@@ -62,10 +63,15 @@ typedef Control_Edge control_edge_t;
 
 class Control_Edge_Set {
   public:
+    typedef mv::Op const * operation_t;
+    typedef mv::model_traits<mv::ControlModel> mtraits;
+    typedef typename mtraits::const_operation_iterator_t op_iterator_t;
     typedef std::set< control_edge_t > edge_set_t;
+    typedef std::unordered_map<operation_t, op_iterator_t> iterator_lookup_t;
     typedef typename edge_set_t::const_iterator const_edge_iterator_t;
 
-    Control_Edge_Set() : control_edge_set_() {}
+    Control_Edge_Set(mv::ControlModel& cmodel)
+      : control_edge_set_(), iterator_lookup_() { init(cmodel); }
 
     void operator()(const scheduled_op_t& a, const scheduled_op_t& b) {
       control_edge_set_.insert( control_edge_t(a.op_, b.op_) );
@@ -80,10 +86,10 @@ class Control_Edge_Set {
           mv::ComputationModel& model) {
 
       mv::ControlModel cm(model);
-      typename OpDag::op_itr_t oitr_source, oitr_sink;
+      op_iterator_t oitr_source, oitr_sink;
       for (const_edge_iterator_t eitr=begin(); eitr!=end(); ++eitr) {
-        oitr_source = dag.get_op_iterator(eitr->source_);
-        oitr_sink = dag.get_op_iterator(eitr->sink_);
+        oitr_source = iterator_lookup_[eitr->source_];
+        oitr_sink = iterator_lookup_[eitr->sink_];
         auto flowIt = cm.checkControlFlow(oitr_source, oitr_sink);
         if ( (flowIt == cm.flowEnd()) &&
               !(cm.pathExists(oitr_source, oitr_sink)) ) {
@@ -98,12 +104,23 @@ class Control_Edge_Set {
 
   private:
 
+    void init(mv::ControlModel& cmodel) {
+      iterator_lookup_.clear();
+
+      for (op_iterator_t itr=mtraits::begin_operations(cmodel);
+          itr!=mtraits::end_operations(cmodel); ++itr) {
+        operation_t op = &(*itr);
+        assert(iterator_lookup_.find(op) == iterator_lookup_.end());
+        iterator_lookup_.insert(std::make_pair(op, itr));
+      }
+
+    }
+
     
     template<typename OpDag>
     void add_control_edges_from_input_dma_tasks(const OpDag& dag,
           mv::ComputationModel& model) {
 
-      typedef typename OpDag::op_itr_t mv_op_itr_t;
       typedef typename OpDag::operation_t operation_t;
       typedef typename OpDag::const_operation_iterator_t node_iterator_t;
       typedef typename std::unordered_set< operation_t > zero_in_t;
@@ -136,14 +153,14 @@ class Control_Edge_Set {
 
       operation_t input_op = dag.get_input_op();
       assert(input_op);
-      mv_op_itr_t op_itr_source = dag.get_op_iterator(input_op), op_itr_sink;
+      op_iterator_t op_itr_source = iterator_lookup_[input_op], op_itr_sink; 
       assert(op_itr_source != op_itr_sink);
 
       // now for all the dmas in the set add control edges from input to the
       // dmas //
       for (const_zero_in_itr_t itr=zero_in_degree_dmas.begin();
             itr!=zero_in_degree_dmas.end(); ++itr) {
-        op_itr_sink = dag.get_op_iterator(*itr);
+        op_itr_sink = iterator_lookup_[*itr];
         auto flowIt = cm.checkControlFlow(op_itr_source, op_itr_sink);
         if ( flowIt == cm.flowEnd() ) {
           mv::Control::FlowListIterator psedge =
@@ -154,7 +171,10 @@ class Control_Edge_Set {
     }
 
     std::set< control_edge_t > control_edge_set_;
+    iterator_lookup_t iterator_lookup_;
 }; //  class Control_Edge_Set //
+
+
 typedef Control_Edge_Set control_edge_set_t;
 typedef mv::pass::Control_Edge_Generator<scheduled_op_t>
   control_edge_generator_t;
@@ -184,43 +204,65 @@ struct interval_traits<scheduled_op_t> {
 void LpSchedulerPass(const mv::pass::PassEntry& pass,
     mv::ComputationModel& model, mv::TargetDescriptor& target,
     mv::Element& passDesc, mv::Element& compOutput) {
+  typedef mv::lp_scheduler::mv_memory_scheduler_with_spilling_t scheduler_t;
+  typedef typename scheduler_t::scheduled_op_info_t scheduled_op_info_t;
 
-  mv::ControlModel cm(model);
-  control_dag_t input_dag(cm);
-  typedef mv::lp_scheduler::scheduler_traits<control_dag_t> traits_t;
+  mv::OpModel cm(model);
+  dag_t input_dag(cm);
+  typedef mv::lp_scheduler::scheduler_traits<dag_t> traits_t;
   auto params = model.getGlobalConfigParams();
 
-  control_dag_t::resource_t upper_bound = params->get<unsigned>("cmx");
+  dag_t::resource_t upper_bound = params->get<unsigned>("cmx");
   std::string output_file = passDesc.get<std::string>("output");
   FILE *fptr = fopen(output_file.c_str(), "w");
   assert(fptr);
 
-  mv::scheduler::mv_control_lp_scheduler_t scheduler(input_dag, upper_bound),
-      end;
+  scheduler_t scheduler(input_dag, upper_bound), scheduler_end;
   std::list<scheduled_op_t> scheduled_ops;
+  bool has_any_implicit_ops = false;
 
-  while (scheduler != end) {
-    mv::Op const *op = *scheduler;
-    auto rstate = scheduler.resource_state();
-    auto rinfo = rstate.get_resource_usage_info(op);
-    scheduled_ops.push_back(scheduled_op_t(op, scheduler.current_time(),
-          rinfo.begin_, rinfo.end_));
+  while (scheduler != scheduler_end) {
+    const scheduled_op_info_t &scheduled_op = *scheduler;
+
+    if (scheduled_op.op_type_name() != std::string("ORIGINAL")) {
+      has_any_implicit_ops = true;
+    }
+
+    mv::Op const *op = scheduled_op.op_;
+    size_t rbegin = scheduled_op.begin_resource();
+    size_t rend = scheduled_op.end_resource();
+
+    scheduled_ops.push_back(scheduled_op_t(op, scheduled_op.time_,
+          rbegin, rend));
+
+    fprintf(fptr, "op = %-20s  type = %-15s  time = %lu ",
+        (scheduled_op.op_)->getName().c_str(), scheduled_op.op_type_name(),
+          scheduled_op.time_);
+
+    if (scheduled_op.has_active_resource()) {
+      fprintf(fptr, " resource=[%lu %lu]\n", scheduled_op.begin_resource(),
+          scheduled_op.end_resource());
+    } else {
+      fprintf(fptr, " resource=<none>\n");
+    }
     ++scheduler;
   }
 
-  control_edge_set_t control_edges;
+  mv::ControlModel cmodel(model);
+  control_edge_set_t control_edges(cmodel);
   control_edge_generator_t algo;
 
-  algo.generate_control_edges(scheduled_ops.begin(), scheduled_ops.end(),
+  if (!has_any_implicit_ops) {
+    algo.generate_control_edges(scheduled_ops.begin(), scheduled_ops.end(),
         control_edges);
+  } else {
+    fprintf(fptr, "WARNING: control edge generation with implicit ops not yet"
+        " implemented\n");
+  }
 
   std::unordered_set<std::string> scheduled_ops_set;
   for (auto itr=scheduled_ops.begin(); itr != scheduled_ops.end(); ++itr) {
     const scheduled_op_t& op = *itr;
-    fprintf(fptr, "scheduled_op: %s (type=%s) time=%lu cmx=[%lu %lu] mem=%lu\n",
-        (op.op_)->getName().c_str(), ((op.op_)->getOpType()).c_str(),
-         op.schedule_time_, op.cmx_address_start_, op.cmx_address_end_,
-         (op.cmx_address_end_ - op.cmx_address_start_));
     scheduled_ops_set.insert( (op.op_)->getName() );
   }
 
@@ -230,7 +272,13 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
           (*itr).source_name(), (*itr).sink_name());
   }
 
-  control_edges.add_edges_to_control_model(input_dag, model);
+
+  if (!has_any_implicit_ops) {
+    control_edges.add_edges_to_control_model(input_dag, model);
+  } else {
+    fprintf(fptr, "WARNING: control edge generation with implicit ops not yet"
+        " implemented\n");
+  }
 
   for (auto itr=traits_t::operations_begin(input_dag);
         itr != traits_t::operations_end(input_dag); ++itr) {

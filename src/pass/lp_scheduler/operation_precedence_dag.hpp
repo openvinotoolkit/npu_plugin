@@ -80,6 +80,7 @@ class Operation_Dag {
     typedef Operation_Dag dag_t;
     typedef mv::Op const * operation_t; // &(base_node_class::content_) //
     typedef operation_t const * const_op_ptr_t;
+    typedef std::hash<operation_t> operation_hash_t;
 
 
     typedef std::list<const_op_ptr_t> op_ref_list_t;
@@ -106,6 +107,8 @@ class Operation_Dag {
 
     class const_operation_iterator_t {
       public:
+        const_operation_iterator_t()
+          : ref_itr_(), master_itr_(), is_ref_type_() {}
 
         const_operation_iterator_t(const const_ref_op_iterator_t& ref_itr) 
           : ref_itr_(ref_itr), master_itr_(), is_ref_type_(true) {}
@@ -235,14 +238,17 @@ class Operation_Dag {
 
 
     static bool is_data_operation(const dag_t& dag, const operation_t& op) {
-      return dag.is_dma_op(op);
+      return dag.is_dma_op(op) &&
+          !(dag.is_dma_op_moving_data_from_cmx_to_ddr(op));
     }
     static bool is_compute_operation(const dag_t& dag, const operation_t& op) {
       // an implicit op is a compute op which takes 0 resources //
-      return !(dag.is_dma_op(op));
+      return !(is_data_operation(dag, op));
     }
 
-
+    static bool is_empty_demand(const resource_t& demand) {
+      return (demand == resource_t(0UL));
+    }
 
 
 
@@ -515,7 +521,13 @@ struct scheduler_traits< mv::scheduler::Operation_Dag<mv::ControlModel> >
   using mv::scheduler::Operation_Dag<mv::ControlModel>::Operation_Dag;
 }; // scheduler_traits<mv::scheduler::Operation_Dag> //
 
-}
-}
+
+typedef Feasible_Memory_Schedule_Generator< mv::scheduler::Operation_Dag<> >
+  mv_memory_scheduler_with_spilling_t;
+
+} // namespace mv //
+} // namespace lp_scheduler //
+
+
 
 #endif

@@ -33,6 +33,9 @@ class Control_Edge_Generator {
         OutputFunctor &output=OutputFunctor()) {
       size_t edge_count = 0UL;
       for (;begin != end; ++begin) {
+        unit_t curr_beg = traits::interval_begin(*begin);
+        unit_t curr_end = traits::interval_end(*begin);
+        if (curr_beg > curr_end) { continue; }
         edge_count += process_next_interval(*begin, output);
       }
       return edge_count;
