@@ -27,6 +27,7 @@
 #include <cpp/ie_cnn_network.h>
 #include <details/caseless.hpp>
 
+#include <vpu/utils/error.hpp>
 #include <vpu/utils/logger.hpp>
 #include <vpu/utils/enums.hpp>
 #include <vpu/utils/attributes_map.hpp>
