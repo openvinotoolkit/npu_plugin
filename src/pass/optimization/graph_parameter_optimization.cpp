@@ -283,8 +283,8 @@ namespace mv
                         unsigned splitsToFit = ceil((double)activationsSize/availableMemory);
                         //Special case for convs: Max split over H cannot be higher than dimension/kernel
                         if(op.getOpType() == "Conv"){
-                            auto kernelSize = op.getInputTensor(1)->getShape()["H"];
-                            auto dim = op.getOutputTensor(0)->getShape()["H"];
+                            auto kernelSize = op.getInputTensor(1)->getShape()[KERNEL_HEIGHT];
+                            auto dim = op.getInputTensor(0)->getShape()[IO_HEIGHT_DIMENSION];
                             if(splitsToFit < dim/kernelSize){
                                 return splitsToFit;
                             }
@@ -847,12 +847,12 @@ namespace mv
                                 }
                             }
                             //Max split over H cannot be higher than dimension/kernel
-                            if(op.getOpType() == "Conv"){
-                                auto kernelSize = op.getInputTensor(1)->getShape()["H"];
-                                auto dim = op.getOutputTensor(0)->getShape()["H"];
-                                if(maxSplitOverH > dim/kernelSize){
+                            if(op.getOpType() == "Conv")
+                            {   
+                                auto kernelSize = op.getInputTensor(1)->getShape()[KERNEL_HEIGHT];
+                                auto dim = op.getInputTensor(0)->getShape()[IO_HEIGHT_DIMENSION];
+                                if(maxSplitOverH > dim/kernelSize)
                                     maxSplitOverH = dim/kernelSize;
-                                }
                                 if(maxSplitOverH < 1)
                                     maxSplitOverH = 1;
                             }
@@ -879,10 +879,10 @@ namespace mv
                             {
                                 for(unsigned h = 1; h <= maxSplitOverH; h++)
                                 {
-                                    if( !enableNestedStreaming and ((h>1) and (k>1))) // Skip nested streams unless necessary
-                                        continue;
-                                    if( enableNestedStreaming and ((h==1) or (k==1))) // If need nested streams, ignore non-nested
-                                        continue;
+                                    // if( !enableNestedStreaming and ((h>1) and (k>1))) // Skip nested streams unless necessary
+                                    //     continue;
+                                    // if( enableNestedStreaming and ((h==1) or (k==1))) // If need nested streams, ignore non-nested
+                                    //     continue;
                                     if( ((h*k) > 1) and (spilling.get<bool>() == false))
                                         continue;
 
