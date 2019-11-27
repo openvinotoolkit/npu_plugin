@@ -77,7 +77,11 @@ namespace mv
             if(dTypeToUse == mv::DType("Default"))
                 dTypeToUse = input->getDType();
 
-            outputs.push_back(mv::Tensor(":0", out_shape, dTypeToUse, order));
+            if (args.at("quantParams").get<mv::QuantizationParams>().isEmpty())
+                outputs.push_back(mv::Tensor(":0",  out_shape, dTypeToUse, order));
+            else
+                outputs.push_back(mv::Tensor(":0",  out_shape, dTypeToUse, order, args.at("quantParams").get<mv::QuantizationParams>()));
+
         };
 
 
