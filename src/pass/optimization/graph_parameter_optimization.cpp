@@ -560,39 +560,60 @@ namespace mv
 
                 if((parentClustering == "HKSwitch" or
                         parentClustering == "SplitOverK") and
-                        (childClustering == "SplitOverH"))
+                        (childClustering == "SplitOverH")){
+                            log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString() 
+                                + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by HK to SOH");
                             return INF;
+                        }
 
                 //HK Switch requires previous layer to be SOH
                 if((not (parentClustering == "SplitOverH")) and
-                        childClustering == "HKSwitch")
+                        childClustering == "HKSwitch"){
+                            log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString() 
+                                + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by !SOH to HK");
                             return INF;
+                        }
 
                 //HK Switch requires next layer to be SOK
                 if( parentClustering == "HKSwitch" and
-                        (not (childClustering == "SplitOverK")))
+                        (not (childClustering == "SplitOverK"))){
+                            log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString() 
+                                + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by HK to !SOK");
                             return INF;
+                        }
 
                 //NOTE: Directly H to K is not allowed, normally through Spilling
                 //Code is there for subtensors but that case is not tested
                 //Graph optimizer should not prefer that from HKSwitch as well....
                 if( parentClustering == "SplitOverH" and
-                        childClustering == "SplitOverK")
+                        childClustering == "SplitOverK"){
+                            log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString() 
+                                + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by SOH to SOK");
                             return INF;
+                        }
 
                 if( parentClustering == "SplitOverH" and
-                        childClustering == "Clustering")
+                        childClustering == "Clustering"){
+                            log(mv::Logger::MessageType::Debug,parent["name"].toString()+"_"+parent["id"].toString() 
+                                + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by SOH to Clustering");
                             return INF;
+                        }
 
                 //cannot pass directly from SoK to SoH
                 if( parentClustering == "SplitOverK" and not parent["spilling"].get<bool>() and
-                        childClustering == "SplitOverH")
+                        childClustering == "SplitOverH"){
+                            log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString() 
+                                + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by SOK+!spill to SOH");
                             return INF;
+                        }
 
                 //cannot pass directly from Clustering to SoH if I am on cmx
                 if( parentClustering == "Clustering" and not parent["spilling"].get<bool>() and
-                        childClustering == "SplitOverH")
+                        childClustering == "SplitOverH"){
+                            log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString() 
+                                + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by Clustering+!spill to SOH");
                             return INF;
+                        }
 
                 if( childOp.getOpType() == "Conv")
                 {
@@ -601,8 +622,11 @@ namespace mv
                     auto numOutChannels = weightsShape[KERNEL_OUTPUT_CHANNELS];
 
                     if((parent["spilling"].get<bool>()) and (childClustering == "SplitOverH")
-                            and  weightsShape[KERNEL_WIDTH] > 1)
-                        return INF;
+                            and  weightsShape[KERNEL_WIDTH] > 1){
+                            log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString() 
+                                + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by spill to SOH conv>1");
+                            return INF;
+                        }
 //                    if((numOutChannels/totalClusters < 16) and (childClustering == "SplitOverK"))
 //                        return INF;
 
@@ -610,14 +634,20 @@ namespace mv
 
                 //disable sparsity for eltwise layer predecessors
                 if(parentOp.getOpType() == "Conv"){
-                    if((parent["spilling"].get<bool>()) and (childClustering == "SplitOverH"))
-                        return INF;
+                    if((parent["spilling"].get<bool>()) and (childClustering == "SplitOverH")){
+                            log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString() 
+                                + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by conv+spill to SOH");
+                            return INF;
+                        }
                 }
 
                 //If the child layer is streaming over H or W output of this layer has to be spilled
                 if( (parent["spilling"].get<bool>() == false) and
-                        ((child["streaming"].get<Shape>()["H"] * child["streaming"].get<Shape>()["W"]) > 1))
+                        ((child["streaming"].get<Shape>()["H"] * child["streaming"].get<Shape>()["W"]) > 1)){
+                            log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString() 
+                                + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by !spill to stream");
                             return INF;
+                        }
 
                 //These sparsity rules apply pairwise, and effect memory size and execution time.
                 //Make a local decision to get the correct runtime and execution time, but don't persist
@@ -657,8 +687,11 @@ namespace mv
 
 
                     if( ((childOp.getOpType() != "Output") and (childMem.first + childMem.second) > clusterMemory) or
-                                                                ((parentOp.getOpType() != "Input") and (parentMem.first + parentMem.second) > clusterMemory))
-                        return INF;
+                            ((parentOp.getOpType() != "Input") and (parentMem.first + parentMem.second) > clusterMemory)){
+                            log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString() 
+                                + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by sparsityMemorySize");
+                            return INF;
+                        }
                 }
 
                 auto execTime1 = executionTime(parentOp,parent);
@@ -754,7 +787,7 @@ namespace mv
                 } else {
                     weightsSparsityPool.push_back({false});
                 }
-                std::cout << "Creating strategies for layer " << op.getName() << std::endl;
+
                 bool inputActivationSparsity, outputActivationSparsity;
                 if(globalEnableActivationSparsity){
                     inputActivationSparsity = createStrategyFromBool(op,"inputActivationSparsity");
