@@ -843,7 +843,7 @@ namespace mv
                                     if (splitsToFit < 1)
                                         maxSplitOverH = 1;
                                     else
-                                        maxSplitOverH = splitsToFit;
+                                        maxSplitOverH = splitsToFit*2; //TODO decide how to consider additional splitsoverH sanely
                                 }
                             }
                             //Max split over H cannot be higher than dimension/kernel
@@ -869,7 +869,7 @@ namespace mv
                             auto memoryMaxK = memK.first + memK.second;
 
                             // If streaming is enabled, but streaming over k or h alone doesn't fit, enable nested streaming
-                            if(hasStreamOverK and hasStreamOverH and ((memoryMaxK > clusterMemory))){
+                            if(hasStreamOverK and hasStreamOverH and ((maxSplitOverH == 1) and (memoryMaxK > clusterMemory))){
                                 enableNestedStreaming = true;
                                 // Adjust maxSplitOverH appropriately for nested, keep streamsOverK the same
                                 maxSplitOverH = getMaxStreamOverH(clustering.get<string>(),op, streamsOverK);
@@ -879,10 +879,10 @@ namespace mv
                             {
                                 for(unsigned h = 1; h <= maxSplitOverH; h++)
                                 {
-                                    // if( !enableNestedStreaming and ((h>1) and (k>1))) // Skip nested streams unless necessary
-                                    //     continue;
-                                    // if( enableNestedStreaming and ((h==1) or (k==1))) // If need nested streams, ignore non-nested
-                                    //     continue;
+                                    if( !enableNestedStreaming and ((h>1) and (k>1))) // Skip nested streams unless necessary
+                                        continue;
+                                    if( enableNestedStreaming and ((h==1) or (k==1))) // If need nested streams, ignore non-nested
+                                        continue;
                                     if( ((h*k) > 1) and (spilling.get<bool>() == false))
                                         continue;
 
