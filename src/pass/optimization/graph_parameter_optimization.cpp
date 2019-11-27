@@ -53,6 +53,7 @@ namespace mv
             bool globalEnableWeightsSparsity;
             double safetyFactor;
             double clusterMemory;
+            std::vector<string> failure_causes = {"Unknown", "MemorySize", "Stream+ClusterComp", "SpillHKSwitch", "SOKNotAlign16", "InputNotSpilled", "OutputNotSpilled", "StreamingNotSpilled"};
 
 
             void readGlobalConfigs()
@@ -486,7 +487,7 @@ namespace mv
 
             //Check to see if a given stategy is internally consistent for performance
             //Strategies that can only have infinite edges because they are illegal should never be added to the graph
-            bool checkForBadStrategy(mv::Op& op,StrategySet& strategy){
+            int checkForBadStrategy(mv::Op& op,StrategySet& strategy){
                 auto clustering = strategy["clustering"].get<string>();
                 auto weightsSparsity = strategy["weightsSparsity"].get<bool>();
                 auto streamShape = strategy["streaming"].get<Shape>();
@@ -497,15 +498,15 @@ namespace mv
                 {
                     auto fit = memorySize(op,clustering,false, false,weightsSparsity,streamShape,false);
                     if(fit.first + fit.second > clusterMemory)
-                        return true;
+                        return 1;
                 }
 
                 if(checkStreamClusterComp(op, strategy))
-                    return true;
+                    return 2;
 
                 //If spilling, HKSwitch makes no sense
                 if( (spilling) and (clustering == "HKSwitch"))
-                    return true;
+                    return 3;
 
                 if( op.getOpType() == "Conv" || op.getOpType() == "DepthwiseConv")
                 {
@@ -514,21 +515,21 @@ namespace mv
                     auto numOutChannels = weightsShape[KERNEL_OUTPUT_CHANNELS];
 
                     if((numOutChannels/totalClusters < 16) and (clustering == "SplitOverK"))
-                        return true;
+                        return 4;
                 }
 
                  //Input and Output must have Spilled==True
                 if( (op.getOpType() == "Input") and (not spilling))
-                    return true;
+                    return 5;
 
                 if( (op.getOpType() == "Output") and (not spilling))
-                    return true;
+                    return 6;
 
                 //iIf the layer is streaming over H or W, output of this layer has to be spilled
                 if( (not spilling) and ((streamShape["H"] * streamShape["W"]) > 1))
-                    return true;
+                    return 7;
 
-                return false; //good strategy
+                return 0; //good strategy
             }
 
             double transitionCost(Op& parentOp,Op& childOp,StrategySet& parent,StrategySet& child)
@@ -541,8 +542,20 @@ namespace mv
                 auto childClustering = child["clustering"].get<string>();
 
                 if(createStrategyDots){
-                    if(checkForBadStrategy(parentOp,parent)) return INF;
-                    if(checkForBadStrategy(childOp, child)) return INF;
+                    int strategyCheck = checkForBadStrategy(parentOp,parent);
+                    if(strategyCheck > 0)
+                    {
+                        const mv::Attribute str = failure_causes[strategyCheck];
+                        parent["infCause"] = str; 
+                        return INF;
+                    }
+                    strategyCheck = checkForBadStrategy(childOp, child);
+                    if(strategyCheck > 0)
+                    {
+                        const mv::Attribute str = failure_causes[strategyCheck];
+                        child["infCause"] = str; 
+                        return INF;
+                    }
                 }
 
                 if((parentClustering == "HKSwitch" or
@@ -741,7 +754,7 @@ namespace mv
                 } else {
                     weightsSparsityPool.push_back({false});
                 }
-
+                std::cout << "Creating strategies for layer " << op.getName() << std::endl;
                 bool inputActivationSparsity, outputActivationSparsity;
                 if(globalEnableActivationSparsity){
                     inputActivationSparsity = createStrategyFromBool(op,"inputActivationSparsity");
@@ -861,7 +874,7 @@ namespace mv
                                     s["streaming"] = streamShape;
 
                                     //Function to prune strategies that will have only infinite edges in or out (or both), improves performance
-                                    if(!createStrategyDots and checkForBadStrategy(op,s))
+                                    if(!createStrategyDots and (checkForBadStrategy(op,s) > 0))
                                         continue;
 
                                     strategyVec.push_back(s);
