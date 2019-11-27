@@ -501,8 +501,8 @@ namespace mv
                         return 1;
                 }
 
-                if(checkStreamClusterComp(op, strategy))
-                    return 2;
+                // if(checkStreamClusterComp(op, strategy))
+                //     return 2;
 
                 //If spilling, HKSwitch makes no sense
                 if( (spilling) and (clustering == "HKSwitch"))
@@ -620,15 +620,13 @@ namespace mv
                     auto numInChannels = weightsShape[KERNEL_INPUT_CHANNELS];
                     auto numOutChannels = weightsShape[KERNEL_OUTPUT_CHANNELS];
 
+                    //kernel > 1 requires sparsity for SOH, so parent can't spill
                     if((parent["spilling"].get<bool>()) and (childClustering == "SplitOverH")
                             and  weightsShape[KERNEL_WIDTH] > 1){
                             log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString() 
                                 + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by spill to SOH conv>1");
                             return INF;
                         }
-//                    if((numOutChannels/totalClusters < 16) and (childClustering == "SplitOverK"))
-//                        return INF;
-
                 }
 
                 //disable sparsity for eltwise layer predecessors
