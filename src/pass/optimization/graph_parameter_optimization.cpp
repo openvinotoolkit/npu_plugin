@@ -558,8 +558,7 @@ namespace mv
                     }
                 }
 
-                if((parentClustering == "HKSwitch" or
-                        parentClustering == "SplitOverK") and
+                if((parentClustering == "HKSwitch") and
                         (childClustering == "SplitOverH")){
                             log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString() 
                                 + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by HK to SOH");
