@@ -124,6 +124,33 @@ void KmbExecutor::initVpualObjects() {
 #endif
 }
 
+static InferenceEngine::Layout getIOLayout(const flicTensorDescriptor_t & descTemp) {
+    InferenceEngine::Layout tensorLayout = InferenceEngine::Layout::NCHW;
+    std::vector<uint32_t> strides {descTemp.heightStride, descTemp.widthStride, descTemp.channelsStride};
+    std::vector<uint32_t>::iterator maxStrideIter = std::max_element(strides.begin(), strides.end());
+    uint32_t maxStrideVal = *maxStrideIter;
+    if (maxStrideVal == descTemp.heightStride) {
+        if (std::max(descTemp.widthStride, descTemp.channelsStride) == descTemp.widthStride) {
+           tensorLayout = InferenceEngine::Layout::NHWC;
+        } else {
+            // NHCW
+            THROW_IE_EXCEPTION << "getIOLayout: NHCW layout is not supported";
+        }
+    } else if (maxStrideVal == descTemp.channelsStride) {
+        if (std::max(descTemp.widthStride, descTemp.heightStride) == descTemp.heightStride) {
+            tensorLayout = InferenceEngine::Layout::NCHW;
+        } else {
+            // NCWH
+            THROW_IE_EXCEPTION << "getIOLayout: NCWH layout is not supported";
+        }
+    } else {
+        // width-major
+        THROW_IE_EXCEPTION << "getIOLayout: W-major layout is not supported";
+    }
+
+    return tensorLayout;
+}
+
 void KmbExecutor::allocateGraph(const std::vector<char> &graphFileContent) {
     auto parsedConfig = _config.getParsedConfig();
     if (parsedConfig[VPU_KMB_CONFIG_KEY(KMB_EXECUTOR)] == "NO") {
@@ -218,7 +245,7 @@ void KmbExecutor::allocateGraph(const std::vector<char> &graphFileContent) {
     tensor_deserializer(descOut);
 
     InferenceEngine::SizeVector inputDims({descIn.n, descIn.c, descIn.h, descIn.w});
-    InferenceEngine::Layout inputLayout = InferenceEngine::Layout::NCHW;
+    InferenceEngine::Layout inputLayout = getIOLayout(descIn);
     // TODO: add proper precision handling
     InferenceEngine::Precision inputPrecision = InferenceEngine::Precision::U8;
     InferenceEngine::TensorDesc inputDesc(inputPrecision, inputDims, inputLayout);
@@ -229,7 +256,7 @@ void KmbExecutor::allocateGraph(const std::vector<char> &graphFileContent) {
     m_networkInputs[inputInfo.name()] = std::make_shared<InferenceEngine::InputInfo>(inputInfo);
 
     InferenceEngine::SizeVector outputDims({descOut.n, descOut.c, descOut.h, descOut.w});
-    InferenceEngine::Layout outputLayout = InferenceEngine::Layout::NCHW;
+    InferenceEngine::Layout outputLayout = getIOLayout(descOut);
     InferenceEngine::Precision outputPrecision = InferenceEngine::Precision::U8;
     InferenceEngine::TensorDesc outputDesc(outputPrecision, outputDims, outputLayout);
     InferenceEngine::Data outputData("output", outputDesc);

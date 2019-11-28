@@ -69,6 +69,7 @@ TEST_P(ResnetTest, resnetAccuracy) {
 
     auto _outputsInfo = network.getOutputsInfo();
     _outputsInfo.begin()->second->setPrecision(Precision::U8);
+    _outputsInfo.begin()->second->setLayout(Layout::NHWC);
 
     std::map<std::string, std::string> config;
     setCommonConfig(config);
