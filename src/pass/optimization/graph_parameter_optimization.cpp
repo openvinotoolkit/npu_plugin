@@ -53,7 +53,8 @@ namespace mv
             bool globalEnableWeightsSparsity;
             double safetyFactor;
             double clusterMemory;
-            std::vector<string> failure_causes = {"Unknown", "MemorySize", "Stream+ClusterComp", "SpillHKSwitch", "SOKNotAlign16", "InputNotSpilled", "OutputNotSpilled", "StreamingNotSpilled"};
+            std::vector<string> failure_causes = {"Unknown", "MemorySize", "Stream+ClusterComp", "SpillHKSwitch", 
+            "SOKNotAlign16", "InputNotSpilled", "OutputNotSpilled", "StreamingNotSpilled", "Workload<KernelSOH"};
 
 
             void readGlobalConfigs()
@@ -137,10 +138,12 @@ namespace mv
                 auto div = [](unsigned x,unsigned y) -> unsigned { return (x+y-1)/y; };
 
                 Shape worstStreamPool = streamingPool;
-                Shape tensorShape = tensorToSize->getShape();
-                //update the streamingPool to the worst combination, based on slice sizes
-                if (streamingPool[mv::IO_HEIGHT_DIMENSION] != 1)
+
+                //TODO harmonize this, for now only consider worst shape for nested streams
+                if(streamingPool["H"] > 1 and streamingPool["K"] > 1)
                 {
+                    Shape tensorShape = tensorToSize->getShape();
+                    //update the streamingPool to the worst combination, based on slice sizes
                     auto outputSize = tensorShape[mv::IO_HEIGHT_DIMENSION];
                     auto numberOfSplits = streamingPool[mv::IO_HEIGHT_DIMENSION];
 
@@ -299,48 +302,30 @@ namespace mv
             {
                 auto opType = op.getOpType();
 
-                if( opType == "Input" or opType == "Output")
+                if( opType == "Input" or opType == "Output" )
                     return vector<size_t>(0);
 
                 auto outputShape = op.getOutputTensor(0)->getShape();
-
-                vector<size_t> splits;
-                size_t clusterOutChannelSize = outputShape["C"];
-                vector<size_t> clusterChannelSizes(totalClusters);
-                auto roundUpToStep = [](unsigned numberToRound,unsigned step) -> unsigned {return (((numberToRound+(step-1))/step)*step);};
+                size_t outputChannelSize = outputShape[IO_CHANNEL_DIMENSION];
+                size_t alignedOutputChannelSize = mv::round_up(outputChannelSize, 16);
 
                 if(clustering == "SplitOverK")
-                    clusterOutChannelSize = clusterOutChannelSize / totalClusters;
+                    alignedOutputChannelSize = alignedOutputChannelSize / totalClusters;
 
-                //TODO::why is this needed?
-                if((clusterOutChannelSize%16) and (clustering == "SplitOverK"))
-                {
-                    clusterOutChannelSize = (totalClusters -1) + roundUpToStep(clusterOutChannelSize,16);
-                    fill_n(clusterChannelSizes.begin(),totalClusters-1,clusterOutChannelSize);
-                    clusterChannelSizes[totalClusters-1] =outputShape["C"] - (totalClusters-1)*clusterOutChannelSize;
-                }
-                else
-                {
-                    fill_n(clusterChannelSizes.begin(),totalClusters,clusterOutChannelSize);
-                }
-
+                vector<size_t> splits;
                 size_t maxSplits = 1;
 
                 if(globalEnableStreaming)
-                    maxSplits = (clusterOutChannelSize/2);
+                    maxSplits = (alignedOutputChannelSize/16);
 
                 splits.push_back(1);
-                //for(unsigned split = 1; split <= maxSplits; split++)
                 for(unsigned split = 2; split <= maxSplits; split=split+2)
-                //for(unsigned split = 2; split <= maxSplits; split++)
                 {
                     bool validSplit = true;
 
-                    for(auto clusterSize : clusterChannelSizes)
-                    {
-                        if( ((clusterSize / split) <16)  or (split > 8 and split%8 != 0) or ((clusterSize / split) %16 != 0) )//((clusterSize%split) !=0) or ((clusterSize/split)%16 != 0))
-                            validSplit = false;
-                    }
+                    if(alignedOutputChannelSize/split < 16)
+                        validSplit = false;
+                    
                     if(!validSplit)
                         continue;
 
@@ -513,9 +498,26 @@ namespace mv
                     auto weightsShape = op.getInputTensor(1)->getShape();
                     auto numInChannels = weightsShape[KERNEL_INPUT_CHANNELS];
                     auto numOutChannels = weightsShape[KERNEL_OUTPUT_CHANNELS];
-
-                    if((numOutChannels/totalClusters < 16) and (clustering == "SplitOverK"))
-                        return 4;
+                    if (op.getOpType() == "Conv")
+                    {
+                        if((numOutChannels/(streamShape["K"] * totalClusters) < 16) and (clustering == "SplitOverK"))
+                            return 4;
+                    }
+                    else
+                    {
+                        if((numInChannels/(streamShape["K"] * totalClusters) < 16) and (clustering == "SplitOverK"))
+                            return 4;
+                    }
+                    if(clustering == "SplitOverH")
+                    {
+                        //Try to guess subtensor height, and avoid situations where kernel is bigger than last workload dimension
+                        auto outputHeight = op.getOutputTensor(0)->getShape()[IO_HEIGHT_DIMENSION]; 
+                        auto workloadHeight = ceil((double)outputHeight / (double)(totalClusters * streamShape["H"]));
+                        if(totalClusters > 1) //last
+                            workloadHeight = outputHeight - (workloadHeight * (totalClusters-1)); //get remaining height
+                        if(workloadHeight < weightsShape[KERNEL_HEIGHT])
+                            return 8;
+                    }
                 }
 
                  //Input and Output must have Spilled==True
@@ -843,7 +845,8 @@ namespace mv
                                     if (splitsToFit < 1)
                                         maxSplitOverH = 1;
                                     else
-                                        maxSplitOverH = splitsToFit*2; //TODO decide how to consider additional splitsoverH sanely
+                                        maxSplitOverH = splitsToFit;
+                                        //maxSplitOverH = splitsToFit*2; //TODO decide how to consider additional splitsoverH sanely
                                 }
                             }
                             //Max split over H cannot be higher than dimension/kernel
@@ -871,7 +874,12 @@ namespace mv
                             // If streaming is enabled, but streaming over k or h alone doesn't fit, enable nested streaming
                             if(hasStreamOverK and hasStreamOverH and ((maxSplitOverH == 1) and (memoryMaxK > clusterMemory))){
                                 enableNestedStreaming = true;
-                                // Adjust maxSplitOverH appropriately for nested, keep streamsOverK the same
+                                //adjust streamsOverK to remove the smallest K possibilities
+                                if(streamsOverK.size() > 2){
+                                    streamsOverK.erase(streamsOverK.begin());
+                                    streamsOverK.erase(streamsOverK.begin());
+                                }
+                                // Adjust maxSplitOverH appropriately for nested
                                 maxSplitOverH = getMaxStreamOverH(clustering.get<string>(),op, streamsOverK);
                             }
 
