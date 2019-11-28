@@ -256,12 +256,30 @@ void KmbInferRequest::InferAsync() {
     if (foundInputBlob == _inputs.end())
         THROW_IE_EXCEPTION << "Error: input [" << dataName << "] is not provided.";
 
-    void* inputPtr = _inputs.begin()->second->buffer();
+    // check that input layout is the same as device layout
+    const InferenceEngine::InputsDataMap& deviceInputs = _executor->getNetworkInputs();
+    IE_ASSERT(deviceInputs.size() == 1) << "Networks with " << deviceInputs.size() << " inputs are not supported. "
+                                        << "Only networks with 1 input are supported.";
+
 
     size_t input_size_total = std::accumulate(_inputs.begin(), _inputs.end(), 0,
                                               [] (size_t sum, InferenceEngine::BlobMap::value_type& input)
                                               { return sum + input.second->byteSize(); });
-    _executor->queueInference(inputPtr, input_size_total, nullptr, 0);
+
+    Blob::Ptr & inputBlobRef = _inputs.begin()->second;
+    InferenceEngine::TensorDesc deviceTensorDesc = deviceInputs.begin()->second->getTensorDesc();
+    if (deviceTensorDesc.getLayout() != inputBlobRef->getTensorDesc().getLayout()) {
+        // do layout conversion with copyBlob
+        InferenceEngine::Blob::Ptr blobWithInput = make_blob_with_precision(deviceTensorDesc, getKmbAllocator());
+        blobWithInput->allocate();
+        copyBlob(inputBlobRef, blobWithInput);
+        void* inputPtr = blobWithInput->buffer();
+        _executor->queueInference(inputPtr, input_size_total, nullptr, 0);
+    } else {
+        // pass input as is, do not convert layout
+        void* inputPtr = inputBlobRef->buffer();
+        _executor->queueInference(inputPtr, input_size_total, nullptr, 0);
+    }
 }
 
 void KmbInferRequest::GetResult() {
