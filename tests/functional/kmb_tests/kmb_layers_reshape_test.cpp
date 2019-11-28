@@ -24,7 +24,7 @@ typedef std::tuple<tensor_test_params, tensor_test_params> reshape_test_params;
 typedef kmbLayerTestBaseWithParam< reshape_test_params > kmbLayersTestsReshapeParams;
 
 #ifdef ENABLE_MCM_COMPILER
-TEST_P(kmbLayersTestsReshapeParams, TestsReshape) {
+TEST_P(kmbLayersTestsReshapeParams, DISABLED_TestsReshape) {
     auto param = GetParam();
     tensor_test_params inputTensor = std::get<0>(param);
     tensor_test_params outputTensor = std::get<1>(param);
