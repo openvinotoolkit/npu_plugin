@@ -1,0 +1,16 @@
+../run_post_trainig.sh ../../../../post-training-compression-tool/ ../../../../model-zoo-models-public/classification/googlenet/v3/tf/inception_v3.frozen.pb ../../../../../Datasets/ImageNet ./inception-v3_tf_fp32_origin.json -e > inception-v3_tf_fp32_origin.log
+
+../run_post_trainig.sh ../../../../post-training-compression-tool/ ../../../../model-zoo-models-public/classification/googlenet/v3/tf/inception_v3.frozen.pb ../../../../../Datasets/ImageNet ./inception-v3_tf_uint8_int8_weights_pertensor.json -e > inception-v3_tf_uint8_int8_weights_pertensor.log
+
+dldt/IE + python_api built: 1bb5784765f52371dbccec6e476e703695bb53bf (feature/low_precision/develop_fp)
+dldt/MO used: 030ecf812ceb792b77f0eb26022c7ade6405712b (as/post_training_compression)
+
+post-training-compression-tool used: 1f13099fcd7bc759c0f96b7f845a3f53e3d97c2b (develop)
+
+model-zoo-models-public used: d08ee97f5fd1f6db96d344f353c647bcaf1e1aca (master)
+
+kmb_plugin: cc63f28c68aab5530a278f4412a883c2fae89c51 (kskvorts/post_training_new_2_nets)
+
+
+
+model-zoo-models-public/classification/googlenet/v3/tf

@@ -1,0 +1,64 @@
+{
+    "model": {
+        "name": "inception-v3_tf_fp32",
+        "model": "<ORIGINAL_MODEL>",
+        "inputs": [
+            {
+                "input_shape": [1,299,299,3],
+                "mean_values": [127.5, 127.5, 127.5],
+                "scale_values": [127.5,127.5,127.5],
+                "name": "input",
+                "format": "BGR"
+            }
+        ],
+        "outputs": [
+            {
+                "name": "InceptionV3/Predictions/Softmax"
+            }
+        ]
+    },
+    "engine": {
+        "launchers": [
+            {
+                "device": "CPU",
+                "framework": "dlsdk",
+                "adapter": "classification"
+            }
+        ],
+        "datasets": [
+            {
+                "name": "imagenet_1001_classes",
+                "data_source": "<DATASET_PATH>",
+                "annotation_conversion": {
+                    "annotation_file": "<DATASET_PATH>/val.txt",
+                    "converter": "imagenet",
+                    "has_background": true
+                },
+                "preprocessing": [
+                    {
+                        "type": "crop",
+                        "central_fraction": 0.875
+                    },
+                    {
+                        "type": "resize",
+                        "size": 299
+                    }
+                ],
+                "metrics": [
+                    {
+                        "type": "accuracy",
+                        "top_k": 1,
+                        "name": "accuracy@top1"
+                    },
+                    {
+                        "type": "accuracy",
+                        "top_k": 5,
+                        "name": "accuracy@top5"
+                    }
+                ]
+            }
+        ]
+    },
+    "compression": {
+    }
+}

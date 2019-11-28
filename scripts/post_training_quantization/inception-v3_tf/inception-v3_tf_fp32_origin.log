@@ -1,0 +1,60 @@
+Output log dir: ./results/inception-v3_tf_fp32/2019-11-21_12-51-13
+Creating pipeline:
+===========================================================================
+INFO:compression.pipeline.pipeline:Evaluation of generated model
+INFO:compression.engines.ac_engine:Start inference on the whole dataset
+Total dataset size: 50000
+1000 / 50000 processed in 55.406s
+2000 / 50000 processed in 57.238s
+3000 / 50000 processed in 55.487s
+4000 / 50000 processed in 56.497s
+5000 / 50000 processed in 56.749s
+6000 / 50000 processed in 55.596s
+7000 / 50000 processed in 55.434s
+8000 / 50000 processed in 55.514s
+9000 / 50000 processed in 57.115s
+10000 / 50000 processed in 56.565s
+11000 / 50000 processed in 56.246s
+12000 / 50000 processed in 55.965s
+13000 / 50000 processed in 55.784s
+14000 / 50000 processed in 56.994s
+15000 / 50000 processed in 55.876s
+16000 / 50000 processed in 56.248s
+17000 / 50000 processed in 56.155s
+18000 / 50000 processed in 56.912s
+19000 / 50000 processed in 56.268s
+20000 / 50000 processed in 57.022s
+21000 / 50000 processed in 57.009s
+22000 / 50000 processed in 55.322s
+23000 / 50000 processed in 56.778s
+24000 / 50000 processed in 55.756s
+25000 / 50000 processed in 56.471s
+26000 / 50000 processed in 56.007s
+27000 / 50000 processed in 56.475s
+28000 / 50000 processed in 56.049s
+29000 / 50000 processed in 57.074s
+30000 / 50000 processed in 56.025s
+31000 / 50000 processed in 56.068s
+32000 / 50000 processed in 55.290s
+33000 / 50000 processed in 56.176s
+34000 / 50000 processed in 55.847s
+35000 / 50000 processed in 55.655s
+36000 / 50000 processed in 56.030s
+37000 / 50000 processed in 56.417s
+38000 / 50000 processed in 57.560s
+39000 / 50000 processed in 55.599s
+40000 / 50000 processed in 56.761s
+41000 / 50000 processed in 56.951s
+42000 / 50000 processed in 55.816s
+43000 / 50000 processed in 56.607s
+44000 / 50000 processed in 57.144s
+45000 / 50000 processed in 55.548s
+46000 / 50000 processed in 55.537s
+47000 / 50000 processed in 57.075s
+48000 / 50000 processed in 56.703s
+49000 / 50000 processed in 56.301s
+50000 / 50000 processed in 55.986s
+50000 objects processed in 2813.120 seconds
+INFO:compression.engines.ac_engine:Inference finished
+accuracy@top1              : 0.69956
+accuracy@top5              : 0.90242
