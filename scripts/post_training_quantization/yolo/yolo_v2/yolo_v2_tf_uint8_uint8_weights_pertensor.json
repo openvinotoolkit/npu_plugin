@@ -1,8 +1,8 @@
 {
     "model": {
-        "name": "tiny_yolo_v2_uint8_uint8_weights_pertensor",
+        "name": "yolo_v2_uint8_uint8_weights_pertensor",
         "model": "<ORIGINAL_MODEL>",
-        "tensorflow_use_custom_operations_config": "yolo_v1_v2.json",
+        "tensorflow_use_custom_operations_config": "../yolo_v1_v2.json",
         "inputs": [{
                 "name": "data",
                 "format": "BGR",
@@ -21,7 +21,7 @@
                 "device": "CPU",
                 "adapter": {
                     "type":"yolo_v2",
-                    "anchors": "tiny_yolo_v2"
+                    "anchors": "yolo_v2"
                 }
             }
         ],

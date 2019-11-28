@@ -1,8 +1,8 @@
 {
     "model": {
-        "name": "tiny_yolo_v2_int8_int8_weights_pertensor",
+        "name": "tiny_yolo_v2_uint8_uint8_weights_pertensor",
         "model": "<ORIGINAL_MODEL>",
-        "tensorflow_use_custom_operations_config": "yolo_v1_v2.json",
+        "tensorflow_use_custom_operations_config": "../yolo_v1_v2.json",
         "inputs": [{
                 "name": "data",
                 "format": "BGR",
@@ -84,12 +84,12 @@
                 "stat_subset_size": 1000,
                 "weights": {
                     "bits": 8,
-                    "type": "symmetric",
+                    "type": "asymmetric",
                     "scale_type": "pertensor"
                 },
                 "activations": {
                     "bits": 8,
-                    "type": "symmetric",
+                    "type": "asymmetric",
                     "scale_type": "pertensor"
                 }
             }
