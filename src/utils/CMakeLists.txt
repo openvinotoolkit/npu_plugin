@@ -24,5 +24,4 @@ target_link_libraries(${TARGET_NAME} PRIVATE vpusmm)
 target_include_directories(${TARGET_NAME}
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}
-        "${IE_MAIN_SOURCE_DIR}/include"
-        "${IE_MAIN_SOURCE_DIR}/src/inference_engine")
+        $<TARGET_PROPERTY:IE::inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>)
