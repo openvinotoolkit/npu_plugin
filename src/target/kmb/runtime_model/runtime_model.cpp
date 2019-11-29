@@ -254,7 +254,8 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
         if(t->hasAttr("address"))
             toBuild->data->data_index = t->getAddress();
         else
-            toBuild->data->data_index = tensorBufferIt->getOffset();
+//            toBuild->data->data_index = tensorBufferIt->getOffset();
+            toBuild->data->data_index = (*masterBuffer)->getOffset();
 
         toBuild->data->data_index += leading_offset;
 

@@ -16,6 +16,7 @@ namespace mv
         size_t neighborsWeight;
         size_t address;
         size_t height;
+        bool isSelected;
         bool isColored;
 
         TensorInterferenceGraphNode() :
@@ -24,6 +25,7 @@ namespace mv
             neighborsWeight(0),
             address(0),
             height(0),
+            isSelected(false),
             isColored(false)
         {
         }
@@ -34,6 +36,7 @@ namespace mv
             neighborsWeight(0),
             address(0),
             height(0),
+            isSelected(false),
             isColored(false)
         {
         }
@@ -44,6 +47,7 @@ namespace mv
             neighborsWeight = rhs.neighborsWeight;
             height = rhs.height;
             address = rhs.address;
+            isSelected = rhs.isSelected;
             isColored = rhs.isColored;
         }
 
@@ -71,12 +75,13 @@ namespace mv
             std::swap(neighborsWeight, rhs.neighborsWeight);
             std::swap(address, rhs.address);
             std::swap(isColored, rhs.isColored);
+            std::swap(isSelected, rhs.isSelected);
         }
         void print() const
         {
             std::cout << " name " << name << " address " << address << " weight "
                 << weight << " neightborsWeight " << neighborsWeight << " height "
-                << height << " isColored " << isColored << std::endl;
+                << height << " isColored " << isColored << " isSelected " << isSelected << std::endl;
         }
     };
     class TensorInterferenceGraph;
