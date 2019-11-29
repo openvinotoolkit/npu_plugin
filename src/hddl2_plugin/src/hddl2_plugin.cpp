@@ -16,29 +16,26 @@
 
 // System include
 #include <map>
-#include <string>
 #include <memory>
+#include <string>
 
 // Inference Engine include
-#include <ie_icore.hpp>
 #include <cpp_interfaces/base/ie_plugin_base.hpp>
 #include <details/ie_irelease.hpp>
+#include <ie_icore.hpp>
 
 // Plugin include
-#include "hddl2_plugin.h"
 #include "hddl2_executable_network.h"
 #include "hddl2_helpers.h"
-
+#include "hddl2_plugin.h"
 
 using namespace InferenceEngine;
 using namespace vpu::HDDL2Plugin;
 
-Engine::Engine() {
-    _pluginName = "HDDL2";
-}
+Engine::Engine() { _pluginName = "HDDL2"; }
 
-ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(const ICore *core, ICNNNetwork &network,
-                                                          const std::map <std::string, std::string> &config) {
+ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(
+    const ICore* core, ICNNNetwork& network, const std::map<std::string, std::string>& config) {
     std::cout << "LoadExeNetworkImpl call" << std::endl;
     UNUSED(core);
     UNUSED(network);
@@ -47,45 +44,40 @@ ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(const ICore *core, ICN
     return std::make_shared<HDDL2Plugin::ExecutableNetwork>(network);
 }
 
-
-IExecutableNetwork::Ptr Engine::ImportNetwork(const std::string &modelFileName,
-                                              const std::map <std::string, std::string> &config) {
+IExecutableNetwork::Ptr Engine::ImportNetwork(
+    const std::string& modelFileName, const std::map<std::string, std::string>& config) {
     std::cout << "ImportNetwork call" << std::endl;
     UNUSED(modelFileName);
     UNUSED(config);
 
-    const auto executableNetwork =
-            std::make_shared<ExecutableNetwork>();
+    const auto executableNetwork = std::make_shared<ExecutableNetwork>();
 
-    return IExecutableNetwork::Ptr(
-            new ExecutableNetworkBase<ExecutableNetworkInternal>(executableNetwork),
-            [](InferenceEngine::details::IRelease *p) {p->Release();});
+    return IExecutableNetwork::Ptr(new ExecutableNetworkBase<ExecutableNetworkInternal>(executableNetwork),
+        [](InferenceEngine::details::IRelease* p) {
+            p->Release();
+        });
 }
 
-void Engine::SetConfig(const std::map<std::string, std::string> &config) {
+void Engine::SetConfig(const std::map<std::string, std::string>& config) {
     std::cout << "SetConfig call" << std::endl;
     UNUSED(config);
 }
 
-void Engine::QueryNetwork(const InferenceEngine::ICNNNetwork &network,
-                          const std::map<std::string, std::string> &config,
-                          InferenceEngine::QueryNetworkResult &res) const {
+void Engine::QueryNetwork(const InferenceEngine::ICNNNetwork& network, const std::map<std::string, std::string>& config,
+    InferenceEngine::QueryNetworkResult& res) const {
     std::cout << "QueryNetwork call" << std::endl;
     InferencePluginInternal::QueryNetwork(network, config, res);
 }
 
-
 IE_SUPPRESS_DEPRECATED_START
 
 // TODO If it's a deprecated way, how we should create plugin correctly?
-INFERENCE_PLUGIN_API(StatusCode) CreatePluginEngine(IInferencePlugin *&plugin, ResponseDesc *resp) noexcept {
+INFERENCE_PLUGIN_API(StatusCode) CreatePluginEngine(IInferencePlugin*& plugin, ResponseDesc* resp) noexcept {
     try {
         std::cout << "CreatePluginEngine call" << std::endl;
-        plugin = make_ie_compatible_plugin({{2, 1}, CI_BUILD_NUMBER, "HDDL2Plugin"},
-                std::make_shared<Engine>());
+        plugin = make_ie_compatible_plugin({{2, 1}, CI_BUILD_NUMBER, "HDDL2Plugin"}, std::make_shared<Engine>());
         return OK;
-    }
-    catch (std::exception &ex) {
+    } catch (std::exception& ex) {
         return DescriptionBuffer(GENERAL_ERROR, resp) << ex.what();
     }
 }

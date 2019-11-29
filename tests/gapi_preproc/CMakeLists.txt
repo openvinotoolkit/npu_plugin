@@ -28,3 +28,7 @@ if(GAPI_TEST_PERF)
 else()
     target_compile_definitions(${TARGET} PRIVATE PERF_TEST=0)
 endif()
+
+if(ENABLE_KMB_CLANG_FORMAT)
+    add_clang_format_target_kmb(clang_format_${TARGET} FOR_TARGETS ${TARGET})
+endif()

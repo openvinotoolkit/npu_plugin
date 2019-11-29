@@ -14,6 +14,9 @@
 // stated in the License.
 //
 
+// clang-format off
+// Can get compile error, if the order of the headers will be changed.
+
 #include <algorithm>
 #include <utility>
 
@@ -23,6 +26,8 @@
 #include <net_pass.h>
 #include "vpu/kmb_plugin_config.hpp"
 
+// clang-format on
+
 using namespace InferenceEngine;
 
 namespace vpu {
@@ -30,7 +35,7 @@ namespace KmbPlugin {
 
 void ExecutableNetwork::ConfigureExecutor(const std::string& networkName) {
     if (_config.exclusiveAsyncRequests()) {
-        ExecutorManager *executorManager = ExecutorManager::getInstance();
+        ExecutorManager* executorManager = ExecutorManager::getInstance();
         _taskExecutor = executorManager->getExecutor("KMB");
     }
     for (size_t i = 0; i < _maxTaskExecutorGetResultCount; i++) {
@@ -42,11 +47,11 @@ void ExecutableNetwork::ConfigureExecutor(const std::string& networkName) {
 
 void ExecutableNetwork::LoadBlob() {
     _executor->allocateGraph(_graphBlob);
-    _networkInputs  = _executor->getNetworkInputs();
+    _networkInputs = _executor->getNetworkInputs();
     _networkOutputs = _executor->getNetworkOutputs();
 }
 
-ExecutableNetwork::ExecutableNetwork(ICNNNetwork &network, const KmbConfig& config) : _config(config) {
+ExecutableNetwork::ExecutableNetwork(ICNNNetwork& network, const KmbConfig& config): _config(config) {
     _logger = std::make_shared<Logger>("ExecutableNetwork", _config.logLevel(), consoleOutput());
     _executor = std::make_shared<KmbExecutor>(_config);
 
@@ -63,21 +68,19 @@ ExecutableNetwork::ExecutableNetwork(ICNNNetwork &network, const KmbConfig& conf
         THROW_IE_EXCEPTION << "Plugin doesn't support Tensor Iterator in pure form. "
                               "None TI optimization pattern has been applied successfully";
 
-        compileMcm(network, _config, *pCompiler, _graphBlob);
-        auto parsedConfig = _config.getParsedConfig();
-        if (parsedConfig[VPU_KMB_CONFIG_KEY(LOAD_NETWORK_AFTER_COMPILATION)] == CONFIG_VALUE(YES)) {
-            LoadBlob();
-            ConfigureExecutor(network.getName());
-        }
+    compileMcm(network, _config, *pCompiler, _graphBlob);
+    auto parsedConfig = _config.getParsedConfig();
+    if (parsedConfig[VPU_KMB_CONFIG_KEY(LOAD_NETWORK_AFTER_COMPILATION)] == CONFIG_VALUE(YES)) {
+        LoadBlob();
+        ConfigureExecutor(network.getName());
+    }
 #else
     UNUSED(network);
 #endif
-    _supportedMetrics = {
-            METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)
-    };
+    _supportedMetrics = {METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)};
 }
 
-ExecutableNetwork::ExecutableNetwork(const std::string &blobFilename, const KmbConfig& config) : _config(config) {
+ExecutableNetwork::ExecutableNetwork(const std::string& blobFilename, const KmbConfig& config): _config(config) {
     _logger = std::make_shared<Logger>("ExecutableNetwork", _config.logLevel(), consoleOutput());
     _executor = std::make_shared<KmbExecutor>(_config);
     std::ifstream blobFile(blobFilename, std::ios::binary);
@@ -89,7 +92,7 @@ ExecutableNetwork::ExecutableNetwork(const std::string &blobFilename, const KmbC
     ConfigureExecutor(blobFilename);
 }
 
-void ExecutableNetwork::GetMetric(const std::string &name, Parameter &result, ResponseDesc *resp) const {
+void ExecutableNetwork::GetMetric(const std::string& name, Parameter& result, ResponseDesc* resp) const {
     UNUSED(resp);
     if (name == METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)) {
         result = IE_SET_METRIC(OPTIMAL_NUMBER_OF_INFER_REQUESTS, static_cast<unsigned int>(4u));
@@ -97,7 +100,6 @@ void ExecutableNetwork::GetMetric(const std::string &name, Parameter &result, Re
         THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
     }
 }
-
 
 }  // namespace KmbPlugin
 }  // namespace vpu

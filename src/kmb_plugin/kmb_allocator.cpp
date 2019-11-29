@@ -14,34 +14,31 @@
 // stated in the License.
 //
 
-#include <vpusmm.h>
-#include <sys/mman.h>
-#include <sys/ioctl.h>
-#include <unistd.h>
-
-
 #include "kmb_allocator.h"
-#include "kmb_udma_allocator.h"
-#include "kmb_native_allocator.h"
-#include "kmb_vpusmm_allocator.h"
+
+#include <sys/ioctl.h>
+#include <sys/mman.h>
+#include <unistd.h>
+#include <vpusmm.h>
 
 #include <iostream>
 #include <string>
 
+#include "kmb_native_allocator.h"
+#include "kmb_udma_allocator.h"
+#include "kmb_vpusmm_allocator.h"
+
 using namespace vpu::KmbPlugin;
 
-void *KmbAllocator::lock(void *handle, InferenceEngine::LockOp) noexcept {
-    if (_allocatedMemory.find(handle) == _allocatedMemory.end())
-        return nullptr;
+void* KmbAllocator::lock(void* handle, InferenceEngine::LockOp) noexcept {
+    if (_allocatedMemory.find(handle) == _allocatedMemory.end()) return nullptr;
 
     return handle;
 }
 
-void KmbAllocator::unlock(void *handle) noexcept {
-    UNUSED(handle);
-}
+void KmbAllocator::unlock(void* handle) noexcept { UNUSED(handle); }
 
-unsigned long KmbAllocator::getPhysicalAddress(void *handle) noexcept {
+unsigned long KmbAllocator::getPhysicalAddress(void* handle) noexcept {
     auto memoryIt = _allocatedMemory.find(handle);
     if (memoryIt == _allocatedMemory.end()) {
         return 0;
@@ -51,14 +48,12 @@ unsigned long KmbAllocator::getPhysicalAddress(void *handle) noexcept {
     return memoryDesc.physAddr;
 }
 
-bool KmbAllocator::isValidPtr(void* ptr) noexcept {
-    return ptr != nullptr;
-}
+bool KmbAllocator::isValidPtr(void* ptr) noexcept { return ptr != nullptr; }
 
 std::shared_ptr<KmbAllocator>& vpu::KmbPlugin::getKmbAllocator() {
     static std::shared_ptr<KmbAllocator> allocator;
     if (allocator == nullptr) {
-        const char *allocatorEnvPtr = std::getenv("IE_VPU_KMB_MEMORY_ALLOCATOR_TYPE");
+        const char* allocatorEnvPtr = std::getenv("IE_VPU_KMB_MEMORY_ALLOCATOR_TYPE");
         std::string allocatorType;
         if (allocatorEnvPtr) {
             allocatorType = allocatorEnvPtr;

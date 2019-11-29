@@ -14,38 +14,36 @@
 // stated in the License.
 //
 
-#include <iostream>
-#include <fstream>
-#include <vector>
-#include <mutex>
-#include <map>
-#include <algorithm>
-#include <utility>
-#include <cstring>
+#include "kmb_executor.h"
 
 #include <fcntl.h>
-#include <sys/stat.h>
-#include <chrono>
+#include <ie_common.h>
 #include <stdio.h>
+#include <sys/stat.h>
 #include <unistd.h>
 
-#include <ie_common.h>
+#include <algorithm>
+#include <chrono>
+#include <cstring>
+#include <fstream>
+#include <iostream>
+#include <map>
+#include <mutex>
 #include <thread>
-
+#include <utility>
+#include <vector>
 #include <vpu/kmb_plugin_config.hpp>
 #include <vpu/utils/extra.hpp>
 #include <vpu/utils/logger.hpp>
 
-#include "kmb_executor.h"
 #include "kmb_config.h"
-
-#include "kmb_vpusmm_allocator.h"
-#include "kmb_udma_allocator.h"
 #include "kmb_native_allocator.h"
+#include "kmb_udma_allocator.h"
+#include "kmb_vpusmm_allocator.h"
 
 #ifndef _WIN32
-# include <libgen.h>
-# include <dlfcn.h>
+#include <dlfcn.h>
+#include <libgen.h>
 #endif
 
 using namespace vpu::KmbPlugin;
@@ -59,15 +57,15 @@ const uint32_t POOL_SIZE = 30 * 1024 * 1024;
 const uint32_t IE_VPU_KMB_XC_DEFAULT = 3;
 
 // Get free XLink channel
-static uint32_t getXlinkChannel(const vpu::Logger::Ptr &_logger) {
+static uint32_t getXlinkChannel(const vpu::Logger::Ptr& _logger) {
     static std::mutex mutex_;
     static int XlinkChannel = -1;
 
     std::unique_lock<std::mutex> lock(mutex_);
 
     if (XlinkChannel <= 0) {
-        const char * pxc = getenv("IE_VPU_KMB_XC");
-        XlinkChannel = pxc ? atoi(pxc):IE_VPU_KMB_XC_DEFAULT;
+        const char* pxc = getenv("IE_VPU_KMB_XC");
+        XlinkChannel = pxc ? atoi(pxc) : IE_VPU_KMB_XC_DEFAULT;
     }
     // In this simplified implementation we never reuse the channel
     uint32_t ret = XlinkChannel++;
@@ -82,8 +80,12 @@ static uint32_t getXlinkChannel(const vpu::Logger::Ptr &_logger) {
 #endif
 
 KmbExecutor::KmbExecutor(const KmbConfig& config)
-            : _config(config), _logger(std::make_shared<Logger>("KmbExecutor", config.logLevel(), consoleOutput())),
-              xlinkChannelIn(0), xlinkChannelOut(0), _outTensorLen(0), _outTensorAddr(0) {
+    : _config(config),
+      _logger(std::make_shared<Logger>("KmbExecutor", config.logLevel(), consoleOutput())),
+      xlinkChannelIn(0),
+      xlinkChannelOut(0),
+      _outTensorLen(0),
+      _outTensorAddr(0) {
     auto parsedConfig = _config.getParsedConfig();
     if (parsedConfig[VPU_KMB_CONFIG_KEY(KMB_EXECUTOR)] == "NO") {
         return;
@@ -98,7 +100,7 @@ KmbExecutor::KmbExecutor(const KmbConfig& config)
 void KmbExecutor::initVpualObjects() {
 #ifdef ENABLE_VPUAL
     if (!RgnAlloc) {
-        RgnAlloc  = make_shared<RgnAllocator>();
+        RgnAlloc = make_shared<RgnAllocator>();
     }
     if (!nnPl) {
         nnPl = make_shared<NNFlicPlg>();
@@ -124,14 +126,14 @@ void KmbExecutor::initVpualObjects() {
 #endif
 }
 
-static InferenceEngine::Layout getIOLayout(const flicTensorDescriptor_t & descTemp) {
+static InferenceEngine::Layout getIOLayout(const flicTensorDescriptor_t& descTemp) {
     InferenceEngine::Layout tensorLayout = InferenceEngine::Layout::NCHW;
     std::vector<uint32_t> strides {descTemp.heightStride, descTemp.widthStride, descTemp.channelsStride};
     std::vector<uint32_t>::iterator maxStrideIter = std::max_element(strides.begin(), strides.end());
     uint32_t maxStrideVal = *maxStrideIter;
     if (maxStrideVal == descTemp.heightStride) {
         if (std::max(descTemp.widthStride, descTemp.channelsStride) == descTemp.widthStride) {
-           tensorLayout = InferenceEngine::Layout::NHWC;
+            tensorLayout = InferenceEngine::Layout::NHWC;
         } else {
             // NHCW
             THROW_IE_EXCEPTION << "getIOLayout: NHCW layout is not supported";
@@ -151,7 +153,7 @@ static InferenceEngine::Layout getIOLayout(const flicTensorDescriptor_t & descTe
     return tensorLayout;
 }
 
-void KmbExecutor::allocateGraph(const std::vector<char> &graphFileContent) {
+void KmbExecutor::allocateGraph(const std::vector<char>& graphFileContent) {
     auto parsedConfig = _config.getParsedConfig();
     if (parsedConfig[VPU_KMB_CONFIG_KEY(KMB_EXECUTOR)] == "NO") {
         return;
@@ -209,7 +211,6 @@ void KmbExecutor::allocateGraph(const std::vector<char> &graphFileContent) {
 
     // Plugins:
 
-
     // Pool plugins (to allocate memory for the plugins which require some):
 
     _logger->info("Instantiated Plugins...");
@@ -231,14 +232,15 @@ void KmbExecutor::allocateGraph(const std::vector<char> &graphFileContent) {
         return;
     }
 
-    auto tensor_deserializer = [&](const flicTensorDescriptor_t & descriptor)->void {
-        _logger->info("{ n: %d, c: %d, h: %d, w: %d, totalSize: %d, widthStride: %d, heightStride: %d, channelsStride: %d}",
-                      descriptor.n, descriptor.c, descriptor.h, descriptor.w,
-                      descriptor.totalSize, descriptor.widthStride, descriptor.heightStride, descriptor.channelsStride);
+    auto tensor_deserializer = [&](const flicTensorDescriptor_t& descriptor) -> void {
+        _logger->info(
+            "{ n: %d, c: %d, h: %d, w: %d, totalSize: %d, widthStride: %d, heightStride: %d, channelsStride: %d}",
+            descriptor.n, descriptor.c, descriptor.h, descriptor.w, descriptor.totalSize, descriptor.widthStride,
+            descriptor.heightStride, descriptor.channelsStride);
     };
 
     flicTensorDescriptor_t descOut = nnPl->GetOutputTensorDescriptor(0);
-    flicTensorDescriptor_t  descIn = nnPl->GetInputTensorDescriptor(0);
+    flicTensorDescriptor_t descIn = nnPl->GetInputTensorDescriptor(0);
     _logger->info("Deserializing descriptors:\nInput: ");
     tensor_deserializer(descIn);
     _logger->info("Output: ");
@@ -310,9 +312,7 @@ void KmbExecutor::allocateGraph(const std::vector<char> &graphFileContent) {
 #endif
 }
 
-
-void KmbExecutor::queueInference(void *input_data, size_t input_bytes,
-                    void *result_data, size_t result_bytes) {
+void KmbExecutor::queueInference(void* input_data, size_t input_bytes, void* result_data, size_t result_bytes) {
     UNUSED(result_data);
     UNUSED(result_bytes);
     auto parsedConfig = _config.getParsedConfig();
@@ -330,7 +330,7 @@ void KmbExecutor::queueInference(void *input_data, size_t input_bytes,
 #endif
 }
 
-void KmbExecutor::getResult(void *result_data, unsigned int result_bytes) {
+void KmbExecutor::getResult(void* result_data, unsigned int result_bytes) {
     auto parsedConfig = _config.getParsedConfig();
     if (parsedConfig[VPU_KMB_CONFIG_KEY(KMB_EXECUTOR)] == "NO") {
         return;
@@ -345,10 +345,10 @@ void KmbExecutor::getResult(void *result_data, unsigned int result_bytes) {
 
     // Convert the physical address we received back to a virtual address we can use.
     uint32_t offset = pAddr - getKmbAllocator()->getPhysicalAddress(rgnAllocatorBuffer);
-    unsigned char *data = static_cast<unsigned char *>(rgnAllocatorBuffer) + offset;
+    unsigned char* data = static_cast<unsigned char*>(rgnAllocatorBuffer) + offset;
 
-    _logger->info("KmbExecutor::getResult memcpy started @%d xlinkChannel=%d, %d ",
-                  offset, xlinkChannelIn, xlinkChannelOut);
+    _logger->info(
+        "KmbExecutor::getResult memcpy started @%d xlinkChannel=%d, %d ", offset, xlinkChannelIn, xlinkChannelOut);
 
     _logger->info("KmbExecutor::getResult memcpy started");
     IE_ASSERT(result_bytes >= len);

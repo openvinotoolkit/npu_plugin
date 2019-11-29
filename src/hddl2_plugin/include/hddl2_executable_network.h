@@ -28,15 +28,13 @@ public:
     using Ptr = std::shared_ptr<ExecutableNetwork>;
 
     // TODO Temporary stub for LoadNetwork
-    explicit ExecutableNetwork(InferenceEngine::ICNNNetwork &network);
+    explicit ExecutableNetwork(InferenceEngine::ICNNNetwork& network);
 
     // TODO Temporary stub for ImportNetwork
     ExecutableNetwork();
 
-    InferenceEngine::InferRequestInternal::Ptr
-    CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
-                           InferenceEngine::OutputsDataMap
-                           networkOutputs) override;
+    InferenceEngine::InferRequestInternal::Ptr CreateInferRequestImpl(
+        InferenceEngine::InputsDataMap networkInputs, InferenceEngine::OutputsDataMap networkOutputs) override;
 };
 
 }  //  namespace HDDL2Plugin
