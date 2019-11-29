@@ -281,21 +281,36 @@ namespace mv
                     auto memH = memorySize(op,clustering,true,true,true,{1,1,1,k},false);
                     auto activationsSize = memH.first;
                     auto weightsSize = memH.second;
+
                     double availableMemory = (double) clusterMemory - (double) weightsSize;
+
                     if (availableMemory > 0){ // Weights can fit, determine number of splits for activations
                         unsigned splitsToFit = ceil((double)activationsSize/availableMemory);
+
                         //Special case for convs: Max split over H cannot be higher than dimension/kernel
-                        if(op.getOpType() == "Conv"){
+                        if(op.getOpType() == "Conv")
+                        {
                             auto kernelSize = op.getInputTensor(1)->getShape()[KERNEL_HEIGHT];
                             auto dim = op.getInputTensor(0)->getShape()[IO_HEIGHT_DIMENSION];
-                            if(splitsToFit < dim/kernelSize){
+                            if(splitsToFit < dim/kernelSize)
+                            {
+                                for(auto iter = streamsOverK.begin(); iter != streamsOverK.end(); )
+                                    if(*iter < k) iter = streamsOverK.erase(iter);
                                 return splitsToFit;
+                            }else
+                            {
+                                return dim/kernelSize; // return this and try to mix with high values of k for viable strategy
                             }
-                        }else{
+                        }
+                        else //normal case, return just enough splits to fit
+                        {
+                            for(auto iter = streamsOverK.begin(); iter != streamsOverK.end(); )
+                                if(*iter < k) iter = streamsOverK.erase(iter);
                             return splitsToFit;
                         }
                     }
                 }
+                throw LogicError(*this,"Unable to generate nested streaming strategies for layer " + op.getName());
             }
 
             vector<size_t> getMaxStreamOverK(const string& clustering,mv::Op& op)
@@ -846,7 +861,6 @@ namespace mv
                                         maxSplitOverH = 1;
                                     else
                                         maxSplitOverH = splitsToFit;
-                                        //maxSplitOverH = splitsToFit*2; //TODO decide how to consider additional splitsoverH sanely
                                 }
                             }
                             //Max split over H cannot be higher than dimension/kernel
@@ -870,6 +884,7 @@ namespace mv
                             auto maxK = streamsOverK.back();
                             auto memK = memorySize(op,clustering,inputActivationSparsity,outputActivationSparsity,weightsSparsity.get<bool>(),{1,1,1,maxK},false);
                             auto memoryMaxK = memK.first + memK.second;
+
 
                             // If streaming is enabled, but streaming over k or h alone doesn't fit, enable nested streaming
                             if(hasStreamOverK and hasStreamOverH and ((maxSplitOverH == 1) and (memoryMaxK > clusterMemory))){
