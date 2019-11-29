@@ -294,8 +294,8 @@ namespace mv
                             auto dim = op.getInputTensor(0)->getShape()[IO_HEIGHT_DIMENSION];
                             if(splitsToFit < dim/kernelSize)
                             {
-                                for(auto iter = streamsOverK.begin(); iter != streamsOverK.end(); )
-                                    if(*iter < k) iter = streamsOverK.erase(iter);
+                               // for(auto iter = streamsOverK.begin(); iter != streamsOverK.end(); )
+                                 //   if(*iter < k) iter = streamsOverK.erase(iter);
                                 return splitsToFit;
                             }else
                             {
@@ -304,8 +304,8 @@ namespace mv
                         }
                         else //normal case, return just enough splits to fit
                         {
-                            for(auto iter = streamsOverK.begin(); iter != streamsOverK.end(); )
-                                if(*iter < k) iter = streamsOverK.erase(iter);
+                           // for(auto iter = streamsOverK.begin(); iter != streamsOverK.end(); )
+                             //   if(*iter < k) iter = streamsOverK.erase(iter);
                             return splitsToFit;
                         }
                     }
@@ -811,6 +811,8 @@ namespace mv
                     outputActivationSparsity = false;
                 }
 
+		//std::cout  << "Generating strategies for layer " << op.getName() << std::endl;
+
                 vector<Attribute> doubleBufferPool = createTFStrategyPoolFromBool(op,"doubleBuffering");
                 vector<Attribute> spillingPool = createTStrategyPoolFromBool(op,"forceSpilling");
 
@@ -841,7 +843,8 @@ namespace mv
                 for( const auto weightsSparsity : weightsSparsityPool) {
                     for( const auto spilling : spillingPool) {
                         for( const auto clustering : clusteringStrategyPool){
-                            // Determine streaming options
+//std::cout << "Enter clustering loop " << std::endl;                            
+			// Determine streaming options
                             // 1. Determine if streams over H are possible
                             // 2. Determine if streams over K are possible
                             // 3. If no streams over H or K will fit, enable nested streaming
@@ -888,7 +891,12 @@ namespace mv
 
                             // If streaming is enabled, but streaming over k or h alone doesn't fit, enable nested streaming
                             if(hasStreamOverK and hasStreamOverH and ((maxSplitOverH == 1) and (memoryMaxK > clusterMemory))){
-                                enableNestedStreaming = true;
+                                //If we're doing nested streaming, only consider SOK for multicluster, hack for decrease compile time
+				if(totalClusters > 1 and clustering.get<string>() != "SplitOverK"){
+					//std::cout << "Skipping strategy for " << clustering.toString() << ", spilling " << spilling.toString() << std::endl;
+					continue;
+				}
+				enableNestedStreaming = true;
                                 //adjust streamsOverK to remove the smallest K possibilities
                                 if(streamsOverK.size() > 2){
                                     streamsOverK.erase(streamsOverK.begin());
@@ -897,6 +905,8 @@ namespace mv
                                 // Adjust maxSplitOverH appropriately for nested
                                 maxSplitOverH = getMaxStreamOverH(clustering.get<string>(),op, streamsOverK);
                             }
+
+			//std::cout << "Considering strategy for " << clustering.toString() << ", spilling " << spilling.toString() << ", maxH " << maxSplitOverH << ", numK " << streamsOverK.size() << std::endl;
 
                             for(const auto k : streamsOverK)
                             {
@@ -936,6 +946,7 @@ namespace mv
                         }
                     }
                 }
+		//std::cout << "Generated " << strategyVec.size() << " stratgies for layer " << op.getName() << std::endl;
                 if(strategyVec.empty())
                     throw LogicError(*this,"No strategies added to the graph for layer " + op.getName());
             }
