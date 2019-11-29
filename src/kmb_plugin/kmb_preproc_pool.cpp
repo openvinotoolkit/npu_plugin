@@ -5,14 +5,15 @@
 #ifdef ENABLE_VPUAL
 
 #include "kmb_preproc_pool.hpp"
-#include "kmb_preproc_gapi.hpp"
 
-#include <vector>
-#include <condition_variable>
 #include <atomic>
+#include <condition_variable>
+#include <map>
 #include <memory>
 #include <sstream>
-#include <map>
+#include <vector>
+
+#include "kmb_preproc_gapi.hpp"
 
 namespace InferenceEngine {
 
@@ -28,12 +29,8 @@ void SIPPPreprocessor::execSIPPDataPreprocessing(const PreprocTask& t) {
         auto it = t.preprocData.find(blobName);
         if (it != t.preprocData.end()) {
             const auto& preprocInfo = t.networkInputs.at(blobName)->getPreProcess();
-            _preproc->preprocWithSIPP(t.preprocData.at(blobName)->getRoiBlob(),
-                                      input.second,
-                                      preprocInfo.getResizeAlgorithm(),
-                                      preprocInfo.getColorFormat(),
-                                      t.serial,
-                                      t.curBatch);
+            _preproc->preprocWithSIPP(t.preprocData.at(blobName)->getRoiBlob(), input.second,
+                preprocInfo.getResizeAlgorithm(), preprocInfo.getColorFormat(), t.serial, t.curBatch);
         }
     }
 }
@@ -44,7 +41,7 @@ SippPreprocessorPool::SippPreprocessorPool(unsigned int shaveFirst, unsigned int
     auto shavesPerPipeline = (shaveLast + 1 - shaveFirst) / nPipelines;
     IE_ASSERT(shavesPerPipeline > 0);
     for (unsigned int i = 0; i < nPipelines; i++) {
-        unsigned int sf = shaveFirst + i*shavesPerPipeline;
+        unsigned int sf = shaveFirst + i * shavesPerPipeline;
         unsigned int sl = sf + shavesPerPipeline - 1;
         _preprocs[i].reset(new SIPPPreprocessor(sf, sl));
         _free_preprocs.push(_preprocs[i].get());
@@ -54,8 +51,9 @@ SippPreprocessorPool::SippPreprocessorPool(unsigned int shaveFirst, unsigned int
 void SippPreprocessorPool::execSIPPDataPreprocessing(const PreprocTask& task) {
     std::unique_lock<std::mutex> lock(_mutex);
     if (_free_preprocs.empty()) {
-        _free_cond.wait(lock, [&](){
-            return !_free_preprocs.empty(); });
+        _free_cond.wait(lock, [&]() {
+            return !_free_preprocs.empty();
+        });
     }
     auto& preproc = _free_preprocs.front();
     _free_preprocs.pop();
@@ -69,9 +67,7 @@ void SippPreprocessorPool::execSIPPDataPreprocessing(const PreprocTask& task) {
     _free_cond.notify_one();
 }
 
-unsigned int SippPreprocessorPool::getNumberOfShaves() const {
-    return _numberOfShaves;
-}
+unsigned int SippPreprocessorPool::getNumberOfShaves() const { return _numberOfShaves; }
 
 SippPreprocessorPool& SippPreprocPool::getPool(int w, unsigned int numberOfShaves) {
     std::unique_lock<std::mutex> lock(_mutex);
@@ -82,12 +78,10 @@ SippPreprocessorPool& SippPreprocPool::getPool(int w, unsigned int numberOfShave
         }
         auto lastShave = firstFreeShave + numberOfShaves - 1;
 
-        IE_ASSERT(lastShave < 16) << "SippPreprocPool error: attempt to execute preprocessing on "
-            << firstFreeShave << "-" << lastShave << " SHAVEs, last SHAVE index must be less than 16";
+        IE_ASSERT(lastShave < 16) << "SippPreprocPool error: attempt to execute preprocessing on " << firstFreeShave
+                                  << "-" << lastShave << " SHAVEs, last SHAVE index must be less than 16";
 
-        _preprocPools[w].reset(new SippPreprocessorPool(firstFreeShave,
-                                                        lastShave,
-                                                        pipesPerPool));
+        _preprocPools[w].reset(new SippPreprocessorPool(firstFreeShave, lastShave, pipesPerPool));
     } else if (_preprocPools.size() > maxPools) {
         THROW_IE_EXCEPTION << "Error: max pool number exceeded!";
     }
@@ -97,7 +91,7 @@ SippPreprocessorPool& SippPreprocPool::getPool(int w, unsigned int numberOfShave
 }
 
 void SippPreprocPool::execSIPPDataPreprocessing(const PreprocTask& task, unsigned int numberOfShaves) {
-    if  (task.inputs.empty()) {
+    if (task.inputs.empty()) {
         THROW_IE_EXCEPTION << "Inputs are empty.";
     }
     auto dims = task.inputs.begin()->second->getTensorDesc().getDims();
@@ -110,7 +104,7 @@ SippPreprocPool& sippPreprocPool() {
 }
 
 unsigned SippPreprocPool::firstShave = [] {
-    const char *firstShaveEnv = std::getenv("SIPP_FIRST_SHAVE");
+    const char* firstShaveEnv = std::getenv("SIPP_FIRST_SHAVE");
     unsigned int shaveNum = SippPreprocPool::defaultFirstShave;
     if (firstShaveEnv != nullptr) {
         std::istringstream str2Integer(firstShaveEnv);

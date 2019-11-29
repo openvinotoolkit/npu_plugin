@@ -16,24 +16,24 @@
 
 #include "kmb_native_allocator.h"
 
-#include <iostream>
-#include <string>
-#include <sstream>
-
+#include <fcntl.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
-#include <fcntl.h>
 #include <zconf.h>
+
+#include <iostream>
+#include <sstream>
+#include <string>
 
 using namespace vpu::KmbPlugin;
 
-void *KmbNativeAllocator::alloc(size_t size) noexcept {
-    void *virtAddr = nullptr;
+void* KmbNativeAllocator::alloc(size_t size) noexcept {
+    void* virtAddr = nullptr;
     int fileDesc = -1;
-    virtAddr = static_cast<unsigned char*>(mmap(nullptr, size, PROT_READ|PROT_WRITE, MAP_SHARED|MAP_ANONYMOUS, fileDesc, 0));
+    virtAddr = static_cast<unsigned char*>(
+        mmap(nullptr, size, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, fileDesc, 0));
 
-    if (virtAddr == MAP_FAILED)
-        return nullptr;
+    if (virtAddr == MAP_FAILED) return nullptr;
 
     auto getShiftBase2 = [](long num) -> size_t {
         size_t shiftCount = 0;
@@ -46,16 +46,16 @@ void *KmbNativeAllocator::alloc(size_t size) noexcept {
     uint32_t physAddr = reinterpret_cast<unsigned long>(virtAddr) >> getShiftBase2(getpagesize());
 
     MemoryDescriptor memDesc = {
-            size,  // size
-            fileDesc,    // file descriptor
-            physAddr  // physical address
+        size,      // size
+        fileDesc,  // file descriptor
+        physAddr   // physical address
     };
     _allocatedMemory[virtAddr] = memDesc;
 
     return virtAddr;
 }
 
-bool KmbNativeAllocator::free(void *handle) noexcept {
+bool KmbNativeAllocator::free(void* handle) noexcept {
     auto memoryIt = _allocatedMemory.find(handle);
     if (memoryIt == _allocatedMemory.end()) {
         return false;

@@ -60,8 +60,7 @@ static const std::string model_regionYolo = R"V0G0N(
 
 #ifdef ENABLE_MCM_COMPILER
 // #-23844
-TEST_F(kmbLayersTests_nightly, DISABLED_TestReorgYolo)
-{
+TEST_F(kmbLayersTests_nightly, DISABLED_TestReorgYolo) {
     std::string model = model_regionYolo;
 
     ASSERT_NO_THROW(_net_reader.ReadNetwork(model.data(), model.length()));

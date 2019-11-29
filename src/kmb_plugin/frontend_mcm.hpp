@@ -16,31 +16,27 @@
 
 #pragma once
 
+#include <cpp/ie_cnn_network.h>
+#include <kmb_config.h>
+
+#include <details/caseless.hpp>
 #include <memory>
+#include <set>
 #include <string>
-#include <vector>
+#include <tuple>
 #include <unordered_map>
 #include <unordered_set>
-#include <tuple>
-#include <set>
-
-#include <cpp/ie_cnn_network.h>
-#include <details/caseless.hpp>
-
-#include <vpu/utils/error.hpp>
-#include <vpu/utils/logger.hpp>
-#include <vpu/utils/enums.hpp>
+#include <vector>
 #include <vpu/utils/attributes_map.hpp>
-
-#include <kmb_config.h>
+#include <vpu/utils/enums.hpp>
+#include <vpu/utils/logger.hpp>
 
 #ifdef ENABLE_MCM_COMPILER
 
+#include <graph_tools.hpp>
 #include <include/mcm/op_model.hpp>
 
 #include "kmb_base.hpp"
-
-#include <graph_tools.hpp>
 
 namespace vpu {
 
@@ -48,11 +44,10 @@ namespace KmbPlugin {
 
 mv::DType convert_data_type(ie::Precision iePrecision);
 
-class McmNodeObject final :
-        public EnableHandle,
-        public EnableCustomAttributes {
+class McmNodeObject final : public EnableHandle, public EnableCustomAttributes {
 public:
-    explicit McmNodeObject(mv::Data::TensorIterator node, InferenceEngine::TensorDesc desc) : _desc(desc), _mcmNode(node) {}
+    explicit McmNodeObject(mv::Data::TensorIterator node, InferenceEngine::TensorDesc desc)
+        : _desc(desc), _mcmNode(node) {}
     KMB_MODEL_ATTRIBUTE(InferenceEngine::TensorDesc, desc, InferenceEngine::TensorDesc())
     KMB_MODEL_ATTRIBUTE(ie::DataPtr, origData, nullptr)
 
@@ -68,25 +63,24 @@ KMB_DEFINE_MODEL_TYPES(McmNode, Object)
 namespace ie = InferenceEngine;
 
 class FrontEndMcm final : public std::enable_shared_from_this<FrontEndMcm> {
-//
-// Public API
-//
+    //
+    // Public API
+    //
 
 public:
     using Ptr = std::shared_ptr<FrontEndMcm>;
 
     explicit FrontEndMcm(mv::OpModel& modelMcm, const KmbConfig& config)
-             : _modelMcm(modelMcm)
-             , _logger(std::make_shared<Logger>("FrontEndMcm", config.logLevel(), consoleOutput())) { }
+        : _modelMcm(modelMcm), _logger(std::make_shared<Logger>("FrontEndMcm", config.logLevel(), consoleOutput())) {}
     void buildInitialModel(ie::ICNNNetwork& network);
 
     std::set<std::string> checkSupportedLayers(ie::ICNNNetwork& network);
 
     McmNodePtr output() { return _output; }
 
-//
-// Passes
-//
+    //
+    // Passes
+    //
 
 private:
     void runCommonPasses(ie::ICNNNetwork& network);
@@ -94,9 +88,9 @@ private:
     void parseInputData();
     void parseOutputData();
 
-//
-// IR Parsers
-//
+    //
+    // IR Parsers
+    //
 
 public:
     void parseConvolution(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
@@ -143,17 +137,15 @@ public:
     void parseConcat(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
     void parseSplit(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
 
-//
-// Utility
-//
+    //
+    // Utility
+    //
 
 private:
     McmNode getMcmData(const ie::DataPtr& ieData);
     void bindData(const McmNode& data, const ie::DataPtr& ieData);
     void bindOutput(mv::Data::TensorIterator node, ie::DataPtr& layerOutput);
-    void getInputData(
-            const ie::CNNLayerPtr& layer,
-            McmNodeVector& inputs);
+    void getInputData(const ie::CNNLayerPtr& layer, McmNodeVector& inputs);
 
     struct ParsedNetwork {
         ie::InputsDataMap networkInputs;
@@ -163,9 +155,9 @@ private:
     };
     void parseNetworkDFS(const ie::ICNNNetwork& network, ParsedNetwork& parsedNetwork);
 
-//
-// Internal state
-//
+    //
+    // Internal state
+    //
 
 private:
     mv::OpModel& _modelMcm;

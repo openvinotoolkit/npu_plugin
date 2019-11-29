@@ -23,10 +23,8 @@ using namespace InferenceEngine;
 struct clamp_test_params {
     float min;
     float max;
-    friend std::ostream& operator<<(std::ostream& os, clamp_test_params const& tst)
-    {
-        return os << " min=" << tst.min
-                  << ", max=" << tst.max;
+    friend std::ostream& operator<<(std::ostream& os, clamp_test_params const& tst) {
+        return os << " min=" << tst.min << ", max=" << tst.max;
     };
 };
 
@@ -38,12 +36,11 @@ TEST_P(kmbLayersTestsClampParams_nightly, DISABLED_TestsClamp) {
     tensor_test_params tensor = std::get<0>(param);
     clamp_test_params p = std::get<1>(param);
 
+    const ::testing::TestInfo* const test_info = ::testing::UnitTest::GetInstance()->current_test_info();
 
-    const ::testing::TestInfo* const test_info =
-      ::testing::UnitTest::GetInstance()->current_test_info();
-
-    std::cout << ::testing::UnitTest::GetInstance()->current_test_info()->name() << " test_info->name()=" <<
-            test_info->name() << " test_info->test_case_name() " << test_info->test_case_name() << std::endl;
+    std::cout << ::testing::UnitTest::GetInstance()->current_test_info()->name()
+              << " test_info->name()=" << test_info->name() << " test_info->test_case_name() "
+              << test_info->test_case_name() << std::endl;
 
     std::map<std::string, std::string> params;
     params["min"] = std::to_string(p.min);
@@ -54,24 +51,20 @@ TEST_P(kmbLayersTestsClampParams_nightly, DISABLED_TestsClamp) {
     _config[VPU_KMB_CONFIG_KEY(MCM_PARSING_ONLY)] = CONFIG_VALUE(YES);
     SetInputTensor(tensor);
     SetOutputTensor(tensor);
-    NetworkInit("Clamp",
-                &params,
-                0,
-                0,
-                nullptr,
-                InferenceEngine::Precision::FP16 // output precision
+    NetworkInit("Clamp", &params, 0, 0, nullptr,
+        InferenceEngine::Precision::FP16  // output precision
     );
     /* input data preparation */
-//    SetFirstInputToRange(-100.f, 100.f);
-//    ASSERT_TRUE(Infer());
-//
-//    /* output check */
-//    auto outputBlob =_outputMap[_outputsInfo.begin()->first];
-//    auto inputBlob  = _inputMap[_inputsInfo.begin()->first];
+    //    SetFirstInputToRange(-100.f, 100.f);
+    //    ASSERT_TRUE(Infer());
+    //
+    //    /* output check */
+    //    auto outputBlob =_outputMap[_outputsInfo.begin()->first];
+    //    auto inputBlob  = _inputMap[_inputsInfo.begin()->first];
 
-//    ref_Clamp(inputBlob, _refBlob, p.min, p.max);
-//
-//    Compare(outputBlob, _refBlob, ERROR_BOUND);
+    //    ref_Clamp(inputBlob, _refBlob, p.min, p.max);
+    //
+    //    Compare(outputBlob, _refBlob, ERROR_BOUND);
 }
 
 static std::vector<Dims> s_clampTensors = {
@@ -80,14 +73,10 @@ static std::vector<Dims> s_clampTensors = {
 };
 
 static std::vector<clamp_test_params> s_clampParams = {
-    {0.f, 6.0f},
-    {1.f, 3.0f},
-//    {-10.f, 17.0f}
+    {0.f, 6.0f}, {1.f, 3.0f},
+    //    {-10.f, 17.0f}
 };
 
 INSTANTIATE_TEST_CASE_P(accuracy, kmbLayersTestsClampParams_nightly,
-    ::testing::Combine(
-        ::testing::ValuesIn(s_clampTensors),
-        ::testing::ValuesIn(s_clampParams))
-);
+    ::testing::Combine(::testing::ValuesIn(s_clampTensors), ::testing::ValuesIn(s_clampParams)));
 #endif

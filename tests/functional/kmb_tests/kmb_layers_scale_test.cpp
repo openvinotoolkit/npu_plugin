@@ -14,13 +14,14 @@
 // stated in the License.
 //
 #include <memory>
+
 #include "kmb_layers_tests.hpp"
 
 #define ERROR_BOUND (.1f)
 
 using namespace InferenceEngine;
 
-typedef kmbLayerTestBaseWithParam< Dims > kmbLayersTestsScaleParams;
+typedef kmbLayerTestBaseWithParam<Dims> kmbLayersTestsScaleParams;
 
 #ifdef ENABLE_MCM_COMPILER
 TEST_P(kmbLayersTestsScaleParams, DISABLED_TestsScale) {
@@ -29,14 +30,14 @@ TEST_P(kmbLayersTestsScaleParams, DISABLED_TestsScale) {
     std::size_t weightsSize = tensor.n * tensor.c * sizeof(uint16_t);
     std::size_t biasesSize = 0;
 
-    const ::testing::TestInfo* const test_info =
-      ::testing::UnitTest::GetInstance()->current_test_info();
+    const ::testing::TestInfo* const test_info = ::testing::UnitTest::GetInstance()->current_test_info();
 
-    std::cout << ::testing::UnitTest::GetInstance()->current_test_info()->name() << " test_info->name()=" <<
-            test_info->name() << " test_info->test_case_name() " << test_info->test_case_name() << std::endl;
+    std::cout << ::testing::UnitTest::GetInstance()->current_test_info()->name()
+              << " test_info->name()=" << test_info->name() << " test_info->test_case_name() "
+              << test_info->test_case_name() << std::endl;
 
     std::map<std::string, std::string> params;
-    TBlob<uint8_t>::Ptr weightsBlob(GenWeights<uint16_t >(weightsSize + biasesSize));
+    TBlob<uint8_t>::Ptr weightsBlob(GenWeights<uint16_t>(weightsSize + biasesSize));
 
     // Parsing only is enabled because mcmCompiler can't compile layers.
     // TODO: turn off parsing only when mcmCompiler will be able to compile this layers.
@@ -44,12 +45,8 @@ TEST_P(kmbLayersTestsScaleParams, DISABLED_TestsScale) {
 
     SetInputTensor(tensor);
     SetOutputTensor(tensor);
-    NetworkInit("ScaleShift",
-                &params,
-                weightsSize,
-                biasesSize,
-                weightsBlob,
-                Precision::FP16 // output precision
+    NetworkInit("ScaleShift", &params, weightsSize, biasesSize, weightsBlob,
+        Precision::FP16  // output precision
     );
 }
 
@@ -58,7 +55,5 @@ const static std::vector<Dims> scaleTensors = {
     {{1, 6, 112, 112}},
 };
 
-INSTANTIATE_TEST_CASE_P(accuracy, kmbLayersTestsScaleParams,
-    ::testing::ValuesIn(scaleTensors)
-);
+INSTANTIATE_TEST_CASE_P(accuracy, kmbLayersTestsScaleParams, ::testing::ValuesIn(scaleTensors));
 #endif

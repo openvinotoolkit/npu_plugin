@@ -14,71 +14,73 @@
 // stated in the License.
 //
 
-#include <string>
+#include "kmb_config.h"
+
+#include <cpp_interfaces/exception2status.hpp>
 #include <map>
+#include <string>
 #include <unordered_map>
 #include <unordered_set>
 #include <vpu/kmb_plugin_config.hpp>
-#include <cpp_interfaces/exception2status.hpp>
-
-#include "kmb_config.h"
 
 using namespace vpu::KmbPlugin;
 
 KmbConfig::KmbConfig() {
     _config = {
 #ifdef NDEBUG
-        {CONFIG_KEY(LOG_LEVEL),                                 CONFIG_VALUE(LOG_NONE)},
+        {CONFIG_KEY(LOG_LEVEL), CONFIG_VALUE(LOG_NONE)},
 #else
-        {CONFIG_KEY(LOG_LEVEL),                                 CONFIG_VALUE(LOG_DEBUG)},
+        {CONFIG_KEY(LOG_LEVEL), CONFIG_VALUE(LOG_DEBUG)},
 #endif
 #ifdef ENABLE_VPUAL
-        {VPU_KMB_CONFIG_KEY(KMB_EXECUTOR),                      CONFIG_VALUE(YES)},
+        {VPU_KMB_CONFIG_KEY(KMB_EXECUTOR), CONFIG_VALUE(YES)},
 #else
-        {VPU_KMB_CONFIG_KEY(KMB_EXECUTOR),                      CONFIG_VALUE(NO)},
+        {VPU_KMB_CONFIG_KEY(KMB_EXECUTOR), CONFIG_VALUE(NO)},
 #endif
-        {VPU_KMB_CONFIG_KEY(MCM_TARGET_DESCRIPTOR_PATH),        "mcm_config/target"},
-        {VPU_KMB_CONFIG_KEY(MCM_TARGET_DESCRIPTOR),             "release_kmb"},
-        {VPU_KMB_CONFIG_KEY(MCM_COMPILATION_DESCRIPTOR_PATH),   "mcm_config/compilation"},
-        {VPU_KMB_CONFIG_KEY(MCM_COMPILATION_DESCRIPTOR),        "release_kmb"},
-        {VPU_KMB_CONFIG_KEY(MCM_GENERATE_BLOB),                 CONFIG_VALUE(YES)},
-        {VPU_KMB_CONFIG_KEY(MCM_GENERATE_JSON),                 CONFIG_VALUE(YES)},
-        {VPU_KMB_CONFIG_KEY(MCM_GENERATE_DOT),                  CONFIG_VALUE(NO)},
-        {VPU_KMB_CONFIG_KEY(MCM_PARSING_ONLY),                  CONFIG_VALUE(NO)},
-        {VPU_KMB_CONFIG_KEY(MCM_COMPILATION_RESULTS_PATH),      "."},
-        {VPU_KMB_CONFIG_KEY(MCM_COMPILATION_RESULTS),           ""},
-        {VPU_KMB_CONFIG_KEY(LOAD_NETWORK_AFTER_COMPILATION),    CONFIG_VALUE(NO)},
-        {VPU_KMB_CONFIG_KEY(THROUGHPUT_STREAMS),                "1"},
-        {VPU_KMB_CONFIG_KEY(PREPROCESSING_SHAVES),              "4"},
-        {VPU_KMB_CONFIG_KEY(PLATFORM),                          "VPU_2490"},
+        {VPU_KMB_CONFIG_KEY(MCM_TARGET_DESCRIPTOR_PATH), "mcm_config/target"},
+        {VPU_KMB_CONFIG_KEY(MCM_TARGET_DESCRIPTOR), "release_kmb"},
+        {VPU_KMB_CONFIG_KEY(MCM_COMPILATION_DESCRIPTOR_PATH), "mcm_config/compilation"},
+        {VPU_KMB_CONFIG_KEY(MCM_COMPILATION_DESCRIPTOR), "release_kmb"},
+        {VPU_KMB_CONFIG_KEY(MCM_GENERATE_BLOB), CONFIG_VALUE(YES)},
+        {VPU_KMB_CONFIG_KEY(MCM_GENERATE_JSON), CONFIG_VALUE(YES)},
+        {VPU_KMB_CONFIG_KEY(MCM_GENERATE_DOT), CONFIG_VALUE(NO)},
+        {VPU_KMB_CONFIG_KEY(MCM_PARSING_ONLY), CONFIG_VALUE(NO)},
+        {VPU_KMB_CONFIG_KEY(MCM_COMPILATION_RESULTS_PATH), "."},
+        {VPU_KMB_CONFIG_KEY(MCM_COMPILATION_RESULTS), ""},
+        {VPU_KMB_CONFIG_KEY(LOAD_NETWORK_AFTER_COMPILATION), CONFIG_VALUE(NO)},
+        {VPU_KMB_CONFIG_KEY(THROUGHPUT_STREAMS), "1"},
+        {VPU_KMB_CONFIG_KEY(PREPROCESSING_SHAVES), "4"},
+        {VPU_KMB_CONFIG_KEY(PLATFORM), "VPU_2490"},
     };
 }
 
 const std::unordered_set<std::string>& KmbConfig::getCompileOptions() const {
-    static const std::unordered_set<std::string> options = merge(ParsedConfigBase::getCompileOptions(), {
-        VPU_KMB_CONFIG_KEY(MCM_TARGET_DESCRIPTOR_PATH),
-        VPU_KMB_CONFIG_KEY(MCM_TARGET_DESCRIPTOR),
-        VPU_KMB_CONFIG_KEY(MCM_COMPILATION_DESCRIPTOR_PATH),
-        VPU_KMB_CONFIG_KEY(MCM_COMPILATION_DESCRIPTOR),
-        VPU_KMB_CONFIG_KEY(MCM_GENERATE_BLOB),
-        VPU_KMB_CONFIG_KEY(MCM_PARSING_ONLY),
-        VPU_KMB_CONFIG_KEY(MCM_GENERATE_JSON),
-        VPU_KMB_CONFIG_KEY(MCM_GENERATE_DOT),
-        VPU_KMB_CONFIG_KEY(MCM_COMPILATION_RESULTS_PATH),
-        VPU_KMB_CONFIG_KEY(MCM_COMPILATION_RESULTS),
-        VPU_KMB_CONFIG_KEY(LOAD_NETWORK_AFTER_COMPILATION),
-        VPU_KMB_CONFIG_KEY(PLATFORM),
-    });
+    static const std::unordered_set<std::string> options =
+        merge(ParsedConfigBase::getCompileOptions(), {
+                                                         VPU_KMB_CONFIG_KEY(MCM_TARGET_DESCRIPTOR_PATH),
+                                                         VPU_KMB_CONFIG_KEY(MCM_TARGET_DESCRIPTOR),
+                                                         VPU_KMB_CONFIG_KEY(MCM_COMPILATION_DESCRIPTOR_PATH),
+                                                         VPU_KMB_CONFIG_KEY(MCM_COMPILATION_DESCRIPTOR),
+                                                         VPU_KMB_CONFIG_KEY(MCM_GENERATE_BLOB),
+                                                         VPU_KMB_CONFIG_KEY(MCM_PARSING_ONLY),
+                                                         VPU_KMB_CONFIG_KEY(MCM_GENERATE_JSON),
+                                                         VPU_KMB_CONFIG_KEY(MCM_GENERATE_DOT),
+                                                         VPU_KMB_CONFIG_KEY(MCM_COMPILATION_RESULTS_PATH),
+                                                         VPU_KMB_CONFIG_KEY(MCM_COMPILATION_RESULTS),
+                                                         VPU_KMB_CONFIG_KEY(LOAD_NETWORK_AFTER_COMPILATION),
+                                                         VPU_KMB_CONFIG_KEY(PLATFORM),
+                                                     });
 
     return options;
 }
 
 const std::unordered_set<std::string>& KmbConfig::getRunTimeOptions() const {
-    static const std::unordered_set<std::string> options = merge(ParsedConfigBase::getCompileOptions(), {
-        VPU_KMB_CONFIG_KEY(KMB_EXECUTOR),
-        VPU_KMB_CONFIG_KEY(THROUGHPUT_STREAMS),
-        VPU_KMB_CONFIG_KEY(PREPROCESSING_SHAVES),
-    });
+    static const std::unordered_set<std::string> options =
+        merge(ParsedConfigBase::getCompileOptions(), {
+                                                         VPU_KMB_CONFIG_KEY(KMB_EXECUTOR),
+                                                         VPU_KMB_CONFIG_KEY(THROUGHPUT_STREAMS),
+                                                         VPU_KMB_CONFIG_KEY(PREPROCESSING_SHAVES),
+                                                     });
 
     return options;
 }

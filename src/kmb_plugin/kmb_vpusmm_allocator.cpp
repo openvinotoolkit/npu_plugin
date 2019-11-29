@@ -14,18 +14,18 @@
 // stated in the License.
 //
 
-#include <vpusmm.h>
-#include <sys/mman.h>
-#include <sys/ioctl.h>
-#include <unistd.h>
-
 #include "kmb_vpusmm_allocator.h"
+
+#include <sys/ioctl.h>
+#include <sys/mman.h>
+#include <unistd.h>
+#include <vpusmm.h>
 
 #include <iostream>
 
 using namespace vpu::KmbPlugin;
 
-void *KmbVpusmmAllocator::alloc(size_t size) noexcept {
+void* KmbVpusmmAllocator::alloc(size_t size) noexcept {
     long pageSize = getpagesize();
     size_t realSize = size + (size % pageSize ? (pageSize - size % pageSize) : 0);
 
@@ -33,22 +33,21 @@ void *KmbVpusmmAllocator::alloc(size_t size) noexcept {
 
     auto physAddr = vpusmm_import_dmabuf(fd, VPU_DEFAULT);
 
-    void *virtAddr = mmap(nullptr, realSize, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+    void* virtAddr = mmap(nullptr, realSize, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
 
-    if (virtAddr == MAP_FAILED)
-        return nullptr;
+    if (virtAddr == MAP_FAILED) return nullptr;
 
     MemoryDescriptor memDesc = {
-            realSize,  // size
-            fd,        // file descriptor
-            physAddr   // physical address
+        realSize,  // size
+        fd,        // file descriptor
+        physAddr   // physical address
     };
     _allocatedMemory[virtAddr] = memDesc;
 
     return virtAddr;
 }
 
-bool KmbVpusmmAllocator::free(void *handle) noexcept {
+bool KmbVpusmmAllocator::free(void* handle) noexcept {
     auto memoryIt = _allocatedMemory.find(handle);
     if (memoryIt == _allocatedMemory.end()) {
         return false;
@@ -69,6 +68,4 @@ bool KmbVpusmmAllocator::free(void *handle) noexcept {
     return true;
 }
 
-bool KmbVpusmmAllocator::isValidPtr(void* ptr) noexcept {
-    return ptr != nullptr && vpusmm_ptr_to_vpu(ptr) != 0;
-}
+bool KmbVpusmmAllocator::isValidPtr(void* ptr) noexcept { return ptr != nullptr && vpusmm_ptr_to_vpu(ptr) != 0; }

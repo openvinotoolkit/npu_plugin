@@ -36,6 +36,8 @@ if (ENABLE_VPUAL)
     add_definitions(-DENABLE_VPUAL)
 endif()
 
+include(clang_format_kmb)
+
 add_subdirectory(src/utils)
 add_subdirectory(src/kmb_plugin)
 

@@ -5,15 +5,15 @@
 #ifdef ENABLE_VPUAL
 
 #include <ie_blob.h>
-#include <ie_preprocess_data.hpp>
 
-#include <vector>
-#include <condition_variable>
 #include <atomic>
+#include <condition_variable>
+#include <ie_preprocess_data.hpp>
 #include <map>
 #include <memory>
-#include <string>
 #include <queue>
+#include <string>
+#include <vector>
 
 namespace InferenceEngine {
 
@@ -70,6 +70,7 @@ class SippPreprocPool {
     std::map<int, std::unique_ptr<SippPreprocessorPool>> _preprocPools;
     std::mutex _mutex;
     SippPreprocessorPool& getPool(int w, unsigned int numberOfShaves);
+
 public:
     void execSIPPDataPreprocessing(const PreprocTask& task);
     void execSIPPDataPreprocessing(const PreprocTask& task, unsigned int numberOfShaves);

@@ -21,7 +21,7 @@
 using namespace InferenceEngine;
 
 typedef std::tuple<tensor_test_params, tensor_test_params> reshape_test_params;
-typedef kmbLayerTestBaseWithParam< reshape_test_params > kmbLayersTestsReshapeParams;
+typedef kmbLayerTestBaseWithParam<reshape_test_params> kmbLayersTestsReshapeParams;
 
 #ifdef ENABLE_MCM_COMPILER
 TEST_P(kmbLayersTestsReshapeParams, DISABLED_TestsReshape) {
@@ -29,11 +29,11 @@ TEST_P(kmbLayersTestsReshapeParams, DISABLED_TestsReshape) {
     tensor_test_params inputTensor = std::get<0>(param);
     tensor_test_params outputTensor = std::get<1>(param);
 
-    const ::testing::TestInfo* const test_info =
-      ::testing::UnitTest::GetInstance()->current_test_info();
+    const ::testing::TestInfo* const test_info = ::testing::UnitTest::GetInstance()->current_test_info();
 
-    std::cout << ::testing::UnitTest::GetInstance()->current_test_info()->name() << " test_info->name()=" <<
-            test_info->name() << " test_info->test_case_name() " << test_info->test_case_name() << std::endl;
+    std::cout << ::testing::UnitTest::GetInstance()->current_test_info()->name()
+              << " test_info->name()=" << test_info->name() << " test_info->test_case_name() "
+              << test_info->test_case_name() << std::endl;
 
     std::map<std::string, std::string> params;
 
@@ -43,24 +43,17 @@ TEST_P(kmbLayersTestsReshapeParams, DISABLED_TestsReshape) {
 
     SetInputTensor(inputTensor);
     SetOutputTensor(outputTensor);
-    NetworkInit("Reshape",
-                &params,
-                0,
-                0,
-                nullptr,
-                InferenceEngine::Precision::FP16 // output precision
+    NetworkInit("Reshape", &params, 0, 0, nullptr,
+        InferenceEngine::Precision::FP16  // output precision
     );
 }
 
 // TODO: Add more tests on compilation reshape, squeeze, unsqueeze: Jira: CVS-20409
 static const reshape_test_params paramsTable[] = {
-    std::make_tuple<tensor_test_params, tensor_test_params>(
-        {1, 1, 1, 1000},  // input tensor
-        {1, 1000, 1, 1}   // output tensor
-    ),
+    std::make_tuple<tensor_test_params, tensor_test_params>({1, 1, 1, 1000},  // input tensor
+        {1, 1000, 1, 1}                                                       // output tensor
+        ),
 };
 
-INSTANTIATE_TEST_CASE_P(loadNetworkNoThrow, kmbLayersTestsReshapeParams,
-    ::testing::ValuesIn(paramsTable)
-);
+INSTANTIATE_TEST_CASE_P(loadNetworkNoThrow, kmbLayersTestsReshapeParams, ::testing::ValuesIn(paramsTable));
 #endif

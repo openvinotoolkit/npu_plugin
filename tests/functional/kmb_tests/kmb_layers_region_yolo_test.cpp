@@ -58,8 +58,7 @@ static const std::string model_regionYolo = R"V0G0N(
 
 // TODO: enable test when mcmCompiler will be able to compile it
 #ifdef ENABLE_MCM_COMPILER
-TEST_F(kmbLayersTests_nightly, DISABLED_TestRegionYolo)
-{
+TEST_F(kmbLayersTests_nightly, DISABLED_TestRegionYolo) {
     std::string model = model_regionYolo;
 
     ASSERT_NO_THROW(_net_reader.ReadNetwork(model.data(), model.length()));

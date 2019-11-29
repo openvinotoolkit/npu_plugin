@@ -16,15 +16,14 @@
 
 #pragma once
 
-#include <thread>
-#include <chrono>
-#include <sstream>
 #include <signal.h>
 
+#include <chrono>
 #include <functional>
+#include <sstream>
+#include <thread>
 
-namespace TestsTimeout
-{
+namespace TestsTimeout {
 
 enum RunStatus {
     OK = 0,
@@ -40,13 +39,13 @@ enum RunStatus {
  * and supposes that signals are not used by the testing (target) function
  * Supposes that tests are not executed in parallel (several tests in different threads)
  */
-int runWithTimeout (
-        const std::function<void(int& childExitStatus)>& runFunc,  // Lambda wrapper of target (tested with timeout) function
-        // Places in childExitStatus one of the negative values from RunStatus enum if corresponding reason occurs
-        // or some another (positive) value that can be interpreted by particular test itself.
-        // See the example KmbNoRegressionCompilationOnly test in tests/functional/kmb_tests/kmb_regression_target.cpp
-        std::string& statusMessage,
-        // Timeout in seconds. Run without timeout if dSecRunTimeout == 0,
-        double dSecRunTimeout);
+int runWithTimeout(const std::function<void(int& childExitStatus)>&
+                       runFunc,  // Lambda wrapper of target (tested with timeout) function
+    // Places in childExitStatus one of the negative values from RunStatus enum if corresponding reason occurs
+    // or some another (positive) value that can be interpreted by particular test itself.
+    // See the example KmbNoRegressionCompilationOnly test in tests/functional/kmb_tests/kmb_regression_target.cpp
+    std::string& statusMessage,
+    // Timeout in seconds. Run without timeout if dSecRunTimeout == 0,
+    double dSecRunTimeout);
 
-} // namespace TestsTimeout
+}  // namespace TestsTimeout

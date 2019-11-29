@@ -14,25 +14,23 @@
 // stated in the License.
 //
 
+#include "hddl2_infer_request.h"
+
 #include <map>
 #include <string>
 
-#include "hddl2_infer_request.h"
 #include "hddl2_helpers.h"
 
 vpu::HDDL2Plugin::HDDL2InferRequest::HDDL2InferRequest(
-        const InferenceEngine::InputsDataMap &networkInputs,
-        const InferenceEngine::OutputsDataMap &networkOutputs) : InferRequestInternal(
-        networkInputs, networkOutputs) {
+    const InferenceEngine::InputsDataMap& networkInputs, const InferenceEngine::OutputsDataMap& networkOutputs)
+    : InferRequestInternal(networkInputs, networkOutputs) {
     std::cout << "HDDL2InferRequest costr call" << std::endl;
 }
 
-void vpu::HDDL2Plugin::HDDL2InferRequest::InferImpl() {
-    std::cout << "InferImpl call" << std::endl;
-}
+void vpu::HDDL2Plugin::HDDL2InferRequest::InferImpl() { std::cout << "InferImpl call" << std::endl; }
 
 void vpu::HDDL2Plugin::HDDL2InferRequest::GetPerformanceCounts(
-        std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> &perfMap) const {
+    std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>& perfMap) const {
     UNUSED(perfMap);
     std::cout << "GetPerformanceCounts call" << std::endl;
 }

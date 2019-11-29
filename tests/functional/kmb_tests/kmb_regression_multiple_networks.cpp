@@ -15,37 +15,38 @@
 //
 #ifdef ENABLE_VPUAL
 
+#include <file_reader.h>
 #include <gtest/gtest.h>
-#include <vpu_layers_tests.hpp>
-#include <regression_tests.hpp>
-#include <memory>
-#include <sstream>
 
 #include <condition_variable>
+#include <memory>
 #include <mutex>
-#include "kmb_layers_tests.hpp"
+#include <regression_tests.hpp>
+#include <sstream>
+#include <vpu_layers_tests.hpp>
 
-#include <file_reader.h>
+#include "kmb_layers_tests.hpp"
 
 using namespace std;
 using namespace InferenceEngine;
 using namespace ::testing;
 
-class KmbRegressionMultipleNetworks : public vpuLayersTests,
-                                      public testing::WithParamInterface< std::tuple<std::string, std::pair<std::string, std::string>> >
-{};
+class KmbRegressionMultipleNetworks :
+    public vpuLayersTests,
+    public testing::WithParamInterface<std::tuple<std::string, std::pair<std::string, std::string>>> {};
 
-TEST_P(KmbRegressionMultipleNetworks, DISABLED_canRunInferTwoNetworksSeveralIteration) {  // Hangs in Release time to time: CVS-23514
+TEST_P(KmbRegressionMultipleNetworks,
+    DISABLED_canRunInferTwoNetworksSeveralIteration) {  // Hangs in Release time to time: CVS-23514
     auto param = GetParam();
     auto models = get<1>(param);
 
     InferenceEngine::ExecutableNetwork network1;
     stringstream network1StrStream;
-    network1StrStream << "/KMB_models/BLOBS/" << get<0>(models) << "/" << get<0> (models)<< ".blob";
+    network1StrStream << "/KMB_models/BLOBS/" << get<0>(models) << "/" << get<0>(models) << ".blob";
     ASSERT_NO_THROW(network1 = ie.ImportNetwork(ModelsPath() + network1StrStream.str(), "KMB", {}));
 
     stringstream network2StrStream;
-    network2StrStream << "/KMB_models/BLOBS/" << get<1>(models) << "/" << get<1> (models)<< ".blob";
+    network2StrStream << "/KMB_models/BLOBS/" << get<1>(models) << "/" << get<1>(models) << ".blob";
     InferenceEngine::ExecutableNetwork network2;
     ASSERT_NO_THROW(network2 = ie.ImportNetwork(ModelsPath() + network2StrStream.str(), "KMB", {}));
 
@@ -55,7 +56,8 @@ TEST_P(KmbRegressionMultipleNetworks, DISABLED_canRunInferTwoNetworksSeveralIter
     ASSERT_EQ(1, network2.GetInputsInfo().size());
     std::cout << "Input info is OK\n";
 
-    auto createInferRequestAndWriteData = [](ExecutableNetwork &network, const std::string &filename) -> InferRequest::Ptr {
+    auto createInferRequestAndWriteData = [](ExecutableNetwork& network,
+                                              const std::string& filename) -> InferRequest::Ptr {
         InferenceEngine::InferRequest::Ptr inferRequestPtr;
         inferRequestPtr = network.CreateInferRequestPtr();
 
@@ -74,16 +76,14 @@ TEST_P(KmbRegressionMultipleNetworks, DISABLED_canRunInferTwoNetworksSeveralIter
 
     InferRequest::Ptr network1InferReqPtr;
     ASSERT_NO_THROW(
-        network1InferReqPtr = createInferRequestAndWriteData(network1,
-                ModelsPath() + input1StrStream.str()));
+        network1InferReqPtr = createInferRequestAndWriteData(network1, ModelsPath() + input1StrStream.str()));
 
     stringstream input2StrStream;
     input2StrStream << "/KMB_models/BLOBS/" << get<1>(models) << "/input.dat";
 
     InferRequest::Ptr network2InferReqPtr;
     ASSERT_NO_THROW(
-        network2InferReqPtr = createInferRequestAndWriteData(network2,
-                ModelsPath() + input2StrStream.str()));
+        network2InferReqPtr = createInferRequestAndWriteData(network2, ModelsPath() + input2StrStream.str()));
 
     std::cout << "Created inference requests\n";
 
@@ -104,32 +104,30 @@ TEST_P(KmbRegressionMultipleNetworks, DISABLED_canRunInferTwoNetworksSeveralIter
         size_t curIterationNet2 = 0;
         std::condition_variable condVar;
 
-        network1InferReqPtr->SetCompletionCallback(
-                [&] {
-                    curIterationNetwork1++;
-                    std::cout << "Completed " << curIterationNetwork1 << " async request execution for network1\n";
-                    if (curIterationNetwork1 < static_cast<size_t>(iterationCount)) {
-                        Blob::Ptr outputBlob;
-                        std::string output1Name = network1.GetOutputsInfo().begin()->first;
-                        ASSERT_NO_THROW(outputBlob = network1InferReqPtr->GetBlob(output1Name));
-                        network1InferReqPtr->StartAsync();
-                    } else {
-                        condVar.notify_one();
-                    }
-                });
-        network2InferReqPtr->SetCompletionCallback(
-                [&] {
-                    curIterationNet2++;
-                    std::cout << "Completed " << curIterationNet2 << " async request execution for network1\n";
-                    if (curIterationNet2 < static_cast<size_t>(iterationCount)) {
-                        Blob::Ptr outputBlob;
-                        std::string output2Name = network2.GetOutputsInfo().begin()->first;
-                        ASSERT_NO_THROW(outputBlob = network2InferReqPtr->GetBlob(output2Name));
-                        network2InferReqPtr->StartAsync();
-                    } else {
-                        condVar.notify_one();
-                    }
-                });
+        network1InferReqPtr->SetCompletionCallback([&] {
+            curIterationNetwork1++;
+            std::cout << "Completed " << curIterationNetwork1 << " async request execution for network1\n";
+            if (curIterationNetwork1 < static_cast<size_t>(iterationCount)) {
+                Blob::Ptr outputBlob;
+                std::string output1Name = network1.GetOutputsInfo().begin()->first;
+                ASSERT_NO_THROW(outputBlob = network1InferReqPtr->GetBlob(output1Name));
+                network1InferReqPtr->StartAsync();
+            } else {
+                condVar.notify_one();
+            }
+        });
+        network2InferReqPtr->SetCompletionCallback([&] {
+            curIterationNet2++;
+            std::cout << "Completed " << curIterationNet2 << " async request execution for network1\n";
+            if (curIterationNet2 < static_cast<size_t>(iterationCount)) {
+                Blob::Ptr outputBlob;
+                std::string output2Name = network2.GetOutputsInfo().begin()->first;
+                ASSERT_NO_THROW(outputBlob = network2InferReqPtr->GetBlob(output2Name));
+                network2InferReqPtr->StartAsync();
+            } else {
+                condVar.notify_one();
+            }
+        });
 
         std::cout << "Start inference (" << iterationCount << " asynchronous executions) for network1" << std::endl;
         network1InferReqPtr->StartAsync();
@@ -138,19 +136,19 @@ TEST_P(KmbRegressionMultipleNetworks, DISABLED_canRunInferTwoNetworksSeveralIter
 
         std::mutex mutex;
         std::unique_lock<std::mutex> lock(mutex);
-        condVar.wait(lock, [&]{ return curIterationNetwork1 == static_cast<size_t>(iterationCount) && curIterationNet2 == static_cast<size_t>(iterationCount); });
+        condVar.wait(lock, [&] {
+            return curIterationNetwork1 == static_cast<size_t>(iterationCount) &&
+                   curIterationNet2 == static_cast<size_t>(iterationCount);
+        });
     }
 }
 
-
 const static std::vector<std::string> executionMode = {"sync", "async"};
 
-const static std::vector<std::pair<std::string, std::string>> modelPairs =
-        { {"mobilenet", "yolotiny"},
-          {"mobilenet", "resnet"},
-          {"resnet", "yolotiny"} };
+const static std::vector<std::pair<std::string, std::string>> modelPairs = {
+    {"mobilenet", "yolotiny"}, {"mobilenet", "resnet"}, {"resnet", "yolotiny"}};
 
-INSTANTIATE_TEST_CASE_P(inference, KmbRegressionMultipleNetworks,
-                        Combine(ValuesIn(executionMode), ValuesIn(modelPairs)));
+INSTANTIATE_TEST_CASE_P(
+    inference, KmbRegressionMultipleNetworks, Combine(ValuesIn(executionMode), ValuesIn(modelPairs)));
 
 #endif

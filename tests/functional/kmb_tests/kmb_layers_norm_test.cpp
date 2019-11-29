@@ -21,7 +21,7 @@
 using namespace InferenceEngine;
 
 typedef std::tuple<tensor_test_params, float, float, size_t, std::string> norm_test_params;
-typedef kmbLayerTestBaseWithParam< norm_test_params > kmbLayersTestsNormParams;
+typedef kmbLayerTestBaseWithParam<norm_test_params> kmbLayersTestsNormParams;
 
 #ifdef ENABLE_MCM_COMPILER
 TEST_P(kmbLayersTestsNormParams, DISABLED_TestsNorm) {
@@ -32,11 +32,11 @@ TEST_P(kmbLayersTestsNormParams, DISABLED_TestsNorm) {
     unsigned long localSize = std::get<3>(param);
     std::string region = std::get<4>(param);
 
-    const ::testing::TestInfo* const test_info =
-      ::testing::UnitTest::GetInstance()->current_test_info();
+    const ::testing::TestInfo* const test_info = ::testing::UnitTest::GetInstance()->current_test_info();
 
-    std::cout << ::testing::UnitTest::GetInstance()->current_test_info()->name() << " test_info->name()=" <<
-            test_info->name() << " test_info->test_case_name() " << test_info->test_case_name() << std::endl;
+    std::cout << ::testing::UnitTest::GetInstance()->current_test_info()->name()
+              << " test_info->name()=" << test_info->name() << " test_info->test_case_name() "
+              << test_info->test_case_name() << std::endl;
 
     std::map<std::string, std::string> params;
 
@@ -51,26 +51,19 @@ TEST_P(kmbLayersTestsNormParams, DISABLED_TestsNorm) {
 
     SetInputTensor(tensor);
     SetOutputTensor(tensor);
-    NetworkInit("Norm",
-                &params,
-                0,
-                0,
-                nullptr,
-                InferenceEngine::Precision::FP16 // output precision
+    NetworkInit("Norm", &params, 0, 0, nullptr,
+        InferenceEngine::Precision::FP16  // output precision
     );
 }
 
 static const norm_test_params paramsTable[] = {
-    std::make_tuple<tensor_test_params, float, float, size_t, std::string>(
-        {1, 96, 6, 6},  // input and output tensors
-        9.9999997e-05,  // alpha
-        0.75,           // beta
-        5,              // local-size
-        "across"        // region
-    ),
+    std::make_tuple<tensor_test_params, float, float, size_t, std::string>({1, 96, 6, 6},  // input and output tensors
+        9.9999997e-05,                                                                     // alpha
+        0.75,                                                                              // beta
+        5,                                                                                 // local-size
+        "across"                                                                           // region
+        ),
 };
 
-INSTANTIATE_TEST_CASE_P(loadNetworkNoThrow, kmbLayersTestsNormParams,
-    ::testing::ValuesIn(paramsTable)
-);
+INSTANTIATE_TEST_CASE_P(loadNetworkNoThrow, kmbLayersTestsNormParams, ::testing::ValuesIn(paramsTable));
 #endif

@@ -14,26 +14,24 @@
 // stated in the License.
 //
 
-#include <frontend_mcm.hpp>
+#include <graph_transformer.h>
 
-#include <memory>
-#include <string>
-#include <set>
-#include <vector>
 #include <algorithm>
+#include <dims_parser.hpp>
+#include <frontend_mcm.hpp>
+#include <graph_tools.hpp>
+#include <ie_profiling.hpp>
+#include <ie_util_internal.hpp>
+#include <limits>
+#include <low_precision_transformations/transformer.hpp>
+#include <memory>
+#include <set>
+#include <string>
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
-#include <limits>
-
-#include <graph_tools.hpp>
-#include <ie_profiling.hpp>
-
-#include <dims_parser.hpp>
-#include <low_precision_transformations/transformer.hpp>
-#include <ie_util_internal.hpp>
-#include <graph_transformer.h>
-
+#include <vector>
+#include <vpu/utils/error.hpp>
 
 #ifdef ENABLE_MCM_COMPILER
 
@@ -44,9 +42,9 @@ namespace KmbPlugin {
 
 namespace {
 
-typedef void (FrontEndMcm::*parser_t)(
-        const ie::CNNLayerPtr& layer,
-        const McmNodeVector& inputs);
+typedef void (FrontEndMcm::*parser_t)(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
+
+// clang-format off
 
 ie::details::caseless_map<std::string, parser_t> g_mcm_parsers = {
     {"Convolution",        &FrontEndMcm::parseConvolution},
@@ -100,6 +98,8 @@ ie::details::caseless_map<std::string, parser_t> g_mcm_parsers = {
     {"ArgMax",             &FrontEndMcm::parseArgMax},
 };
 
+// clang-format on
+
 }  // namespace
 
 mv::DType convert_data_type(ie::Precision iePrecision) {
@@ -152,12 +152,8 @@ void FrontEndMcm::buildInitialModel(ie::ICNNNetwork& network) {
 
         auto it = g_mcm_parsers.find(layer->type);
         if (it == g_mcm_parsers.end()) {
-            VPU_THROW_EXCEPTION
-                    << "Cannot convert layer \""
-                    << layer->name
-                    << "\" due to unsupported layer type \""
-                    << layer->type
-                    << "\"";
+            VPU_THROW_EXCEPTION << "Cannot convert layer \"" << layer->name << "\" due to unsupported layer type \""
+                                << layer->type << "\"";
         }
 
         auto parser = it->second;
@@ -233,21 +229,16 @@ void FrontEndMcm::parseNetworkDFS(const ie::ICNNNetwork& network, ParsedNetwork&
     for (const auto& layer : ie::CNNNetGetAllInputLayers(network)) {
         IE_ASSERT(layer != nullptr);
 
-        if (!cmp(layer->type, "Const"))
-            continue;
+        if (!cmp(layer->type, "Const")) continue;
 
         if (layer->outData.size() != 1) {
-            VPU_THROW_EXCEPTION
-                    << "Const layer " << layer->name
-                    << " has unsupported number of outputs "
-                    << layer->outData.size();
+            VPU_THROW_EXCEPTION << "Const layer " << layer->name << " has unsupported number of outputs "
+                                << layer->outData.size();
         }
 
         if (layer->blobs.size() != 1) {
-            VPU_THROW_EXCEPTION
-                    << "Const layer " << layer->name
-                    << " has unsupported number of blobs "
-                    << layer->blobs.size();
+            VPU_THROW_EXCEPTION << "Const layer " << layer->name << " has unsupported number of blobs "
+                                << layer->blobs.size();
         }
 
         auto constData = layer->outData[0];
@@ -273,8 +264,7 @@ void FrontEndMcm::parseNetworkDFS(const ie::ICNNNetwork& network, ParsedNetwork&
             auto initialLayer = consumer.second;
             IE_ASSERT(initialLayer != nullptr);
 
-            if (visitedInitialLayers.count(initialLayer) > 0)
-                continue;
+            if (visitedInitialLayers.count(initialLayer) > 0) continue;
 
             bool allInputsAvailable = true;
             for (const auto& in : initialLayer->insData) {
@@ -300,21 +290,24 @@ void FrontEndMcm::parseNetworkDFS(const ie::ICNNNetwork& network, ParsedNetwork&
     // Run recursive DFS algorithm.
     //
 
-    std::sort(initialLayers.begin(), initialLayers.end(),
-              [](const ie::CNNLayerPtr& left, const ie::CNNLayerPtr& right) {
-                  ie::details::CaselessLess<std::string> cmp;
-                  return cmp(left->name, right->name);
-              });
+    std::sort(
+        initialLayers.begin(), initialLayers.end(), [](const ie::CNNLayerPtr& left, const ie::CNNLayerPtr& right) {
+            ie::details::CaselessLess<std::string> cmp;
+            return cmp(left->name, right->name);
+        });
 
-    InferenceEngine::CNNNetForestDFS(initialLayers, [&parsedNetwork](const ie::CNNLayerPtr& layer) {
-        parsedNetwork.orderedLayers.emplace_back(layer);
-    }, false);
+    InferenceEngine::CNNNetForestDFS(
+        initialLayers,
+        [&parsedNetwork](const ie::CNNLayerPtr& layer) {
+            parsedNetwork.orderedLayers.emplace_back(layer);
+        },
+        false);
 
     std::reverse(parsedNetwork.orderedLayers.begin(), parsedNetwork.orderedLayers.end());
 }
 
 void FrontEndMcm::runCommonPasses(ie::ICNNNetwork& network) {
-    auto cnnNet = ie::CNNNetwork(std::shared_ptr<ie::ICNNNetwork>(&network, [](ie::ICNNNetwork*){}));
+    auto cnnNet = ie::CNNNetwork(std::shared_ptr<ie::ICNNNetwork>(&network, [](ie::ICNNNetwork*) {}));
     parseNetworkDFS(cnnNet, _parsedNetwork);
     parseInputData();
 }
@@ -343,9 +336,7 @@ void FrontEndMcm::bindOutput(mv::Data::TensorIterator node, ie::DataPtr& layerOu
     bindData(layer, layerOutput);
 }
 
-void FrontEndMcm::getInputData(
-        const ie::CNNLayerPtr& layer,
-        McmNodeVector& inputs) {
+void FrontEndMcm::getInputData(const ie::CNNLayerPtr& layer, McmNodeVector& inputs) {
     IE_ASSERT(layer != nullptr);
 
     inputs.resize(layer->insData.size());
@@ -356,12 +347,13 @@ void FrontEndMcm::getInputData(
         auto prevLayer = layerInput->getCreatorLayer().lock();
         if (prevLayer != nullptr) {
             // WA for ScaleShift on Weights, should be remove
-            if ((prevLayer->type == "Const") || (layer->type == "Const") || (prevLayer->type == "ScaleShift" && i != 0)) {
+            if ((prevLayer->type == "Const") || (layer->type == "Const") ||
+                (prevLayer->type == "ScaleShift" && i != 0)) {
                 continue;
             }
 
-            if (prevLayer->type == "FakeQuantize")  {
-                auto prevLayerInput =  prevLayer->insData[0].lock();
+            if (prevLayer->type == "FakeQuantize") {
+                auto prevLayerInput = prevLayer->insData[0].lock();
                 auto prevPrevLayer = prevLayerInput->getCreatorLayer().lock();
                 if (prevPrevLayer == nullptr || prevPrevLayer->type == "Const") {
                     continue;

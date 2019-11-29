@@ -16,6 +16,9 @@
 
 #pragma once
 
+// clang-format off
+// Can get compile error, if the order of the headers will be changed.
+
 #include "inference_engine.hpp"
 #include "description_buffer.hpp"
 #include "kmb_executable_network.h"
@@ -26,6 +29,8 @@
 #include <cpp_interfaces/impl/ie_plugin_internal.hpp>
 #include "kmb_config.h"
 
+// clang-format on
+
 namespace vpu {
 namespace KmbPlugin {
 
@@ -33,16 +38,18 @@ class Engine : public InferenceEngine::InferencePluginInternal {
 public:
     Engine();
 
-    InferenceEngine::ExecutableNetworkInternal::Ptr LoadExeNetworkImpl(const InferenceEngine::ICore * core, InferenceEngine::ICNNNetwork &network,
-                                                                       const std::map<std::string, std::string> &config) override;
+    InferenceEngine::ExecutableNetworkInternal::Ptr LoadExeNetworkImpl(const InferenceEngine::ICore* core,
+        InferenceEngine::ICNNNetwork& network, const std::map<std::string, std::string>& config) override;
 
-    void SetConfig(const std::map<std::string, std::string> &config) override;
-    void QueryNetwork(const InferenceEngine::ICNNNetwork& network,
-                      const std::map<std::string, std::string>& config, InferenceEngine::QueryNetworkResult& res) const override;
+    void SetConfig(const std::map<std::string, std::string>& config) override;
+    void QueryNetwork(const InferenceEngine::ICNNNetwork& network, const std::map<std::string, std::string>& config,
+        InferenceEngine::QueryNetworkResult& res) const override;
 
-    InferenceEngine::IExecutableNetwork::Ptr ImportNetwork(const std::string &modelFileName, const std::map<std::string, std::string> &config) override;
+    InferenceEngine::IExecutableNetwork::Ptr ImportNetwork(
+        const std::string& modelFileName, const std::map<std::string, std::string>& config) override;
 
-    InferenceEngine::ExecutableNetwork ImportNetwork(std::istream& /*networkModel*/, const std::map<std::string, std::string>& /*config*/) override {
+    InferenceEngine::ExecutableNetwork ImportNetwork(
+        std::istream& /*networkModel*/, const std::map<std::string, std::string>& /*config*/) override {
         THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
     }
 

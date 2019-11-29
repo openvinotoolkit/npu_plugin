@@ -15,20 +15,17 @@
 //
 
 #include "tests_timeout.hpp"
+
 #include <unistd.h>
 
-namespace TestsTimeout
-{
+namespace TestsTimeout {
 
-int runWithTimeout (
-        const std::function<void(int&)>& runFunc,
-        std::string& statusMessage,
-        double dSecRunTimeout) {
+int runWithTimeout(const std::function<void(int&)>& runFunc, std::string& statusMessage, double dSecRunTimeout) {
     std::ostringstream statusMessageStream;
 
     int runStatus;
     int retStatus = RunStatus::UNKNOWN;
-    if (dSecRunTimeout == 0.) { // without timeout
+    if (dSecRunTimeout == 0.) {  // without timeout
         runFunc(retStatus);
     } else {
         sigset_t sigset;
@@ -62,26 +59,27 @@ int runWithTimeout (
                 // because is is undefined which thread catch the signal.
                 // 1 test and 1 thread of parent process should be executed in each one moment
                 signo = sigtimedwait(&sigset, &info, &timeout);
-                if(-1 == signo) {
-                    if(EAGAIN == errno) { // Timed out.
+                if (-1 == signo) {
+                    if (EAGAIN == errno) {  // Timed out.
                         kill(chPid, SIGKILL);
                         statusMessageStream << "TIMEOUT: " << dSecRunTimeout << " s";
                         retStatus = RunStatus::TIMEOUT;
                     } else {
-                        statusMessageStream << "UNEXPECTED SIGNAL CAUGHT: sigtimedwait response: " << signo << " errno: " << errno;
+                        statusMessageStream << "UNEXPECTED SIGNAL CAUGHT: sigtimedwait response: " << signo
+                                            << " errno: " << errno;
                         retStatus = RunStatus::UNEXPECTED;
                     }
-                } else { // The child has terminated.
+                } else {  // The child has terminated.
                     if (info.si_pid == chPid) {
                         statusMessageStream << "";
                         retStatus = info.si_status;
                     }
                 }
-            } while(retStatus == RunStatus::UNKNOWN);
+            } while (retStatus == RunStatus::UNKNOWN);
         }
     }
     statusMessage = statusMessageStream.str();
     return retStatus;
 }
 
-} // namespace TestsTimeout
+}  // namespace TestsTimeout
