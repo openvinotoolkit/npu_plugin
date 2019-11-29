@@ -333,7 +333,10 @@ namespace mv
                 if(globalEnableStreaming)
                     maxSplits = (alignedOutputChannelSize/16);
 
-                splits.push_back(1);
+                if(maxSplits > 64)
+			maxSplits = 64;
+		
+		splits.push_back(1);
                 for(unsigned split = 2; split <= maxSplits; split=split+2)
                 {
                     bool validSplit = true;
