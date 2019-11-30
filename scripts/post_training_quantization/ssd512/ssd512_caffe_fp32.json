@@ -1,0 +1,64 @@
+{
+    "model": {
+        "name": "ssd512_caffe_fp32_tmp",
+        "framework": "caffe",
+        "model": "<ORIGINAL_MODEL>/ssd_512.caffemodel",
+        "proto": "<ORIGINAL_MODEL>/deploy.prototxt",
+        "inputs": [{
+            "name": "data",
+            "input_shape": [1,3,512,512],
+            "mean_values": [123.0,117.0,104.0],
+            "format": "BGR"
+        }],
+        "outputs": [
+            {
+                "name": "detection_out"
+            }
+        ]
+    },
+    "engine": {
+        "launchers": [
+            {
+                "framework": "dlsdk",
+                "device": "CPU",
+                "adapter": "ssd"
+            }
+        ],
+        "datasets": [
+            {
+                "name": "<DATASET_PATH>",
+                "data_source": "<DATASET_PATH>/JPEGImages",
+                "annotation": "voc12.pickle",
+                "dataset_meta": "voc12.json",
+                "annotation_conversion": {
+                    "converter": "voc_detection",
+                    "annotations_dir": "<DATASET_PATH>/Annotations",
+                    "images_dir": "<DATASET_PATH>/JPEGImages",
+                    "imageset_file": "<DATASET_PATH>/ImageSets/Main/val.txt",
+                    "has_background": true
+                },
+                "annotation": "voc12.pickle",
+                "dataset_meta": "voc12.json",
+                "preprocessing":[
+                    {
+                        "type": "resize",
+                        "size": 512
+                    }
+                ],
+                "postprocessing":[{
+                    "type": "resize_prediction_boxes"
+                }],
+                "metrics": [
+                    {
+                        "type": "map",
+                        "integral": "11point",
+                        "ignore_difficult": true,
+                        "presenter": "print_scalar"
+                    }
+                ]
+            }
+        ]
+    },
+    "compression": {
+    }
+}
