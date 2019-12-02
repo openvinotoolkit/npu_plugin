@@ -264,8 +264,9 @@ std::vector<TestingNetworkParameters> vpuInferAndCompareTestsNQA = {
                         "/KMB_models/NQA/POST_TRAINING/inception-v1_tf/inception-v1_tf_uint8_uint8_weights_pertensor.bin",
                         "/224x224/cat3.bmp"},
         // post trainig models
-        // Following test on inception_v3 fail on mcmCompiler compilation stage with following message.
-        // ERROR:   QuantizationPass - ArgumentError: extendToK parameters dimensions doesn't match size of output_channels or 1 - 80
+        // Folowing test on inception_v3 fails on IE to mcmCompiler parsing stage with following message
+        // C++ exception with description "Tensor:InceptionV3/Logits/Conv2d_1c_1x1/convolution/Transpose:0 - ArgumentError:
+        // attribute identifer quantParams - Undefined identifier
         TestingNetworkParameters{"inception_v3_tf_uint8_int8_weights_pertensor",
                         "/KMB_models/NQA/POST_TRAINING/inception-v3_tf/inception-v3_tf_uint8_int8_weights_pertensor.xml",
                         "/KMB_models/NQA/POST_TRAINING/inception-v3_tf/inception-v3_tf_uint8_int8_weights_pertensor.bin",
