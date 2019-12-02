@@ -1545,8 +1545,10 @@ class Feasible_Memory_Schedule_Generator {
     // Precondition: this must be a ready operation which means that all its
     // input compute operations are completed.
     bool is_ready_compute_operation_schedulable(operation_t op) const {
+      if (!is_operation_using_non_empty_resources(op)) { return true; }
       // first check if output resources for this operation are available //
       resource_t demand = traits::resource_utility(*input_ptr_, op);
+
 
       if (!memory_state_.is_resource_available(demand)) {
         return false;
@@ -1957,6 +1959,12 @@ class Feasible_Memory_Schedule_Generator {
         if (is_data_op(op)) {
           assert(ready_data_list_.find(op) == ready_data_list_.end());
           ready_data_list_.insert(op);
+
+          std::list<operation_t> ready_ops;
+          reduce_in_degree_of_adjacent_operations_gen(op,
+              std::back_inserter(ready_ops));
+          // assert all the ready ops are compute ops //
+          distribute_ready_ops(ready_ops.begin(), ready_ops.end());
         } else if (is_compute_op_with_some_active_inputs(op)) {
           assert(ready_active_list_.find(op) == ready_active_list_.end());
           ready_active_list_.insert(op);

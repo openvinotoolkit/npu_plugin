@@ -65,7 +65,9 @@ class Control_Edge_Set {
   public:
     typedef mv::Op const * operation_t;
     typedef mv::model_traits<mv::ControlModel> mtraits;
+    typedef mv::model_traits<mv::OpModel> mtraits_op;
     typedef typename mtraits::const_operation_iterator_t op_iterator_t;
+    typedef typename mtraits::const_child_operation_iterator_t child_op_itr_t;
     typedef std::set< control_edge_t > edge_set_t;
     typedef std::unordered_map<operation_t, op_iterator_t> iterator_lookup_t;
     typedef typename edge_set_t::const_iterator const_edge_iterator_t;
@@ -92,17 +94,84 @@ class Control_Edge_Set {
         oitr_sink = iterator_lookup_[eitr->sink_];
         auto flowIt = cm.checkControlFlow(oitr_source, oitr_sink);
         if ( (flowIt == cm.flowEnd()) &&
-              !(cm.pathExists(oitr_source, oitr_sink)) ) {
+              !(cm.pathExists(oitr_source, oitr_sink))) {
+
+          if (!cm.pathExists(oitr_sink, oitr_source)) {
+            // adding this edge to the control model creates a cycle //
+            continue;
+          }
+
           mv::Control::FlowListIterator psedge =
               cm.defineFlow(oitr_source, oitr_sink);
           psedge->set<bool>("PartialSerialisationEdge", true);
         } 
       }
       add_control_edges_from_input_dma_tasks(dag, model);
-      printf("[DAG Invariant: %s]\n", cm.isDag() ? "PASSED" : "FAILED");
+    }
+
+    template<typename OpDag>
+    void add_edges_to_fresh_control_model(const OpDag& dag,
+          mv::ComputationModel& model) {
+
+      mv::ControlModel cm(model);
+      clear_all_edges_in_control_model(model);
+      add_edges_from_op_model(model);
+
+      op_iterator_t oitr_source, oitr_sink;
+      for (const_edge_iterator_t eitr=begin(); eitr!=end(); ++eitr) {
+        oitr_source = iterator_lookup_[eitr->source_];
+        oitr_sink = iterator_lookup_[eitr->sink_];
+        auto flowIt = cm.checkControlFlow(oitr_source, oitr_sink);
+        if ( (flowIt == cm.flowEnd()) &&
+              !(cm.pathExists(oitr_source, oitr_sink))) {
+
+          assert(!cm.pathExists(oitr_sink, oitr_source));
+
+          //if (cm.pathExists(oitr_sink, oitr_source)) { continue; }
+
+          mv::Control::FlowListIterator psedge =
+              cm.defineFlow(oitr_source, oitr_sink);
+          psedge->set<bool>("PartialSerialisationEdge", true);
+        } 
+      }
+      add_control_edges_from_input_dma_tasks(dag, model);
     }
 
   private:
+
+    void clear_all_edges_in_control_model(mv::ComputationModel& model) const {
+      mv::ControlModel cm(model);
+      mv::Control::FlowListIterator fitr, fitr_next;
+      for (fitr=cm.flowBegin(); fitr!=cm.flowEnd();) {
+        fitr_next = fitr; ++fitr_next;
+        cm.undefineFlow(fitr);
+        fitr = fitr_next;
+      }
+    }
+
+    void add_edges_from_op_model(mv::ComputationModel& model) {
+      mv::ControlModel cm(model);
+      mv::OpModel dm(model);
+
+      op_iterator_t oitr_source, oitr_sink;
+
+      for (auto itr = mtraits_op::begin_operations(dm);
+            itr != mtraits_op::end_operations(dm); ++itr) {
+        operation_t parent_op = &(*itr);
+        oitr_source = iterator_lookup_[parent_op];
+
+        for (auto citr = itr.leftmostChild(); citr != dm.opEnd(); ++citr) {
+          operation_t child_op = &(*citr);
+          oitr_sink = iterator_lookup_[child_op];
+          auto flowIt = cm.checkControlFlow(oitr_source, oitr_sink);
+          if (flowIt == cm.flowEnd()) {
+            mv::Control::FlowListIterator psedge =
+                cm.defineFlow(oitr_source, oitr_sink);
+            psedge->set<bool>("PartialSerialisationEdge", true);
+          }
+        }
+      }
+    }
 
     void init(mv::ControlModel& cmodel) {
       iterator_lookup_.clear();
@@ -278,6 +347,13 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
   } else {
     fprintf(fptr, "WARNING: control edge generation with implicit ops not yet"
         " implemented\n");
+  }
+
+
+  {
+    mv::ControlModel cmodel(model);
+    fprintf(fptr, "[DAG Invariant: %s]\n",
+          cmodel.isDag() ? "PASSED" : "FAILED");
   }
 
   for (auto itr=traits_t::operations_begin(input_dag);
