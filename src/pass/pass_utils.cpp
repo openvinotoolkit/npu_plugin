@@ -30,7 +30,7 @@ void mv::setOutputDataFlow(mv::OpModel& om, mv::Data::TensorIterator &dpuTaskOut
     }
 }
 
-std::vector<mv::Control::OpListIterator> mv::getInputControlFlow(mv::ControlModel& cm, mv::Control::OpListIterator opIt)
+std::vector<mv::Control::OpListIterator> mv::getOutputControlFlow(mv::ControlModel& cm, mv::Control::OpListIterator opIt)
 {
     std::vector<mv::Control::OpListIterator> toReturn;
 
@@ -39,7 +39,7 @@ std::vector<mv::Control::OpListIterator> mv::getInputControlFlow(mv::ControlMode
     return toReturn;
 }
 
-std::vector<mv::Control::OpListIterator> mv::getOutputControlFlow(mv::ControlModel& cm, mv::Control::OpListIterator opIt)
+std::vector<mv::Control::OpListIterator> mv::getInputControlFlow(mv::ControlModel& cm, mv::Control::OpListIterator opIt)
 {
     std::vector<mv::Control::OpListIterator> toReturn;
 

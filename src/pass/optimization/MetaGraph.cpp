@@ -419,7 +419,8 @@ shared_ptr<MetaGraph::CriticalPath> MetaGraph::getLowestCriticalPathExtended()
     double bestCost = numeric_limits<double>::infinity();
     StrategySetPair bestPair;
     OptimizationGraph::node_list_iterator bestSource,bestSink;
-
+    bool foundPath = false;
+    
     for(auto parent : firstLevel)
         for(auto child : lastLevel)
         {
@@ -429,7 +430,7 @@ shared_ptr<MetaGraph::CriticalPath> MetaGraph::getLowestCriticalPathExtended()
             if(elem == criticalPaths_.end())
             {
                 //todo:: raise exception
-//                cout<<"ERROR ERROR COULD NOT FIND CRIPATH IN FUSION" << endl;
+                // cout<<"ERROR ERROR COULD NOT FIND CRIPATH IN FUSION" << endl;
 //                cout<<"searchingFor p " ; path.print(); cout<< endl;
 //                for(auto m : criticalPaths_)
 //                    cout<<"Have " ; elem->first.print(); cout << endl;
@@ -443,8 +444,13 @@ shared_ptr<MetaGraph::CriticalPath> MetaGraph::getLowestCriticalPathExtended()
                 bestPair = path;
                 bestSource = parent;
                 bestSink = child;
+                foundPath = true;
             }
         }
+    if(!foundPath){
+        cout<< "Unable to find non-infinite path between pivot nodes"<< endl;
+        //TODO throw exception
+    }
 
     auto& bestCriPath = criticalPaths_.find(bestPair)->second;
 

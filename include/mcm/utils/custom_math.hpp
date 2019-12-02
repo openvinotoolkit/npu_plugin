@@ -2,6 +2,7 @@
 #define CUSTOM_MATH_HPP
 
 #include <stdint.h>
+#include <utility>
 
 namespace mv
 {
@@ -9,7 +10,7 @@ namespace mv
     unsigned ceil_division(unsigned x, unsigned d);
     unsigned count_bits(unsigned number);
     unsigned next_greater_power_of_2(unsigned number);
-
+    std::pair<std::size_t, std::size_t> tileSpatialOutputSize(std::size_t outputSize , std::size_t numberOfSplits);
 
     // FP16 Conversion
     union bit_field32
