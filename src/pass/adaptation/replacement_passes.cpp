@@ -42,7 +42,8 @@ namespace mv
 }
 
 
-mv::Data::OpListIterator linkNewOperationsReplacementFully(mv::Data::OpListIterator parentOpIt, mv::Data::TensorIterator sourceTensor, mv::OpModel om, mv::Data::OpListIterator opIt)
+mv::Data::OpListIterator linkNewOperationsReplacementFully(mv::Data::OpListIterator parentOpIt,
+                        mv::Data::TensorIterator sourceTensor, mv::OpModel om, mv::Data::OpListIterator opIt)
 {
     //Important: do not change the order of this ops
     std::vector<mv::Data::OpListIterator> opsToLink;
@@ -56,7 +57,8 @@ mv::Data::OpListIterator linkNewOperationsReplacementFully(mv::Data::OpListItera
     auto paramOp = opIt.leftmostParent();
     while(paramOp != om.opEnd())
     {
-        if (paramOp->getOpType() == "Constant" || paramOp->getOpType() == "ConstantInt" || paramOp->getOpType() == "ConstantDataElement")
+        if (paramOp->getOpType() == "Constant" || paramOp->getOpType() == "ConstantInt"
+                || paramOp->getOpType() == "ConstantDataElement")
         {
             auto backUp = paramOp;
             ++paramOp;
@@ -82,7 +84,7 @@ mv::Data::OpListIterator linkNewOperationsReplacementAverage(mv::Data::OpListIte
                             mv::Data::TensorIterator sourceTensor, mv::OpModel om, mv::Data::OpListIterator opIt)
 {
     //Important: do not change the order of this ops
-    bool cascading = true;
+    bool cascading = false;
     std::vector<mv::Data::OpListIterator> opsToLink;
     std::vector<std::size_t> outputSlots;
     for (auto sinkFlow = opIt.leftmostOutput(); sinkFlow != om.flowEnd(); ++sinkFlow)
@@ -90,14 +92,10 @@ mv::Data::OpListIterator linkNewOperationsReplacementAverage(mv::Data::OpListIte
         opsToLink.push_back(sinkFlow.sink());
         outputSlots.push_back(sinkFlow->get<std::size_t>("sinkInput"));
     }
-    //NOTE: if your removing op is going to one op no reason for cascading
-    if (outputSlots.size() == 1)
-        cascading = false;
-    auto paramOp = opIt.leftmostParent();
 
     om.removeOp(opIt);
     opIt = parentOpIt;
-
+    //Average pool to depthwise will never change the shape of the output tensor, no cascade
     for (unsigned j = 0; j < opsToLink.size(); ++j)
     {
         opsToLink[j]->setInputTensor(sourceTensor, outputSlots[j], cascading);
@@ -106,7 +104,8 @@ mv::Data::OpListIterator linkNewOperationsReplacementAverage(mv::Data::OpListIte
     return opIt;
 }
 
-mv::Data::OpListIterator linkNewOperationsReplacementScale(mv::Data::OpListIterator parentOpIt, mv::Data::TensorIterator sourceTensor, mv::OpModel om, mv::Data::OpListIterator opIt, bool removeCostantOps)
+mv::Data::OpListIterator linkNewOperationsReplacementScale(mv::Data::OpListIterator parentOpIt,
+                mv::Data::TensorIterator sourceTensor, mv::OpModel om, mv::Data::OpListIterator opIt, bool removeCostantOps)
 {
     //Important: do not change the order of this ops
     std::vector<mv::Data::OpListIterator> opsToLink;
@@ -125,7 +124,8 @@ mv::Data::OpListIterator linkNewOperationsReplacementScale(mv::Data::OpListItera
         ++inputFlow;
         om.undefineFlow(backup);
         if(removeCostantOps)
-            if (paramOp->getOpType() == "Constant" || paramOp->getOpType() == "ConstantInt" || paramOp->getOpType() == "ConstantDataElement")
+            if (paramOp->getOpType() == "Constant" || paramOp->getOpType() == "ConstantInt" ||
+                    paramOp->getOpType() == "ConstantDataElement")
                 om.removeOp(paramOp);
     }
 
@@ -141,7 +141,7 @@ mv::Data::OpListIterator linkNewOperationsReplacementScale(mv::Data::OpListItera
     return opIt;
 }
 
-void tensorsToFP16Fcn(const mv::pass::PassEntry&  , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+void tensorsToFP16Fcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
     using namespace mv;
     OpModel om(model);
