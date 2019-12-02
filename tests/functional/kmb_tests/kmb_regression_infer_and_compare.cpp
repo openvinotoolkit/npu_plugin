@@ -248,6 +248,13 @@ std::vector<TestingNetworkParameters> vpuInferAndCompareTestsNQA = {
                         "/KMB_models/NQA/POST_TRAINING/Yolo_V2/yolo_v2_uint8_int8_weights_pertensor.bin",
                         "/416x416/person.bmp"},
         // post training models
+        // Following test on ssd_mobilenet_v1_coco fails on IE to mcmCompiler parsing stage with message:
+        // C++ exception with description "Power layer is not supported by kmbPlugin
+        TestingNetworkParameters{"ssd_mobilenet_v1_coco_uint8_int8_weights_pertensor",
+                        "/KMB_models/NQA/POST_TRAINING/ssd_mobilenet_v1_coco/ssd_mobilenet_v1_coco_uint8_int8_weights_pertensor.xml",
+                        "/KMB_models/NQA/POST_TRAINING/ssd_mobilenet_v1_coco/ssd_mobilenet_v1_coco_uint8_int8_weights_pertensor.bin",
+                        "/300x300/dog.bmp"},
+        // post trainig models
         // Following 3 tests on inception_v1 fail on mcmCompiler compilation stage with following message.
         // Streaming for node: InceptionV1/Logits/Conv2d_0c_1x1/convolution has stream K = 2
         // ERROR:   checkIsCMXTensor_ - ArgumentError: no allocators for tensor ImplicitReshape_0:0 - no allocators for tensor
