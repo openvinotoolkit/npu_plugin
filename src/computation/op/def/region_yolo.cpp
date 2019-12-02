@@ -93,7 +93,7 @@ namespace mv
 
         static std::function<void(const std::vector<Data::TensorIterator>&, const std::map<std::string, Attribute>&,
             std::vector<Tensor>&)> outputDefFcn =
-            [](const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>&, std::vector<Tensor>& outputs)
+            [](const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>& args, std::vector<Tensor>& outputs)
         {
             auto input = inputs[0];
 
@@ -101,7 +101,15 @@ namespace mv
             auto out_order = in_order;
             auto out_shape = input->getShape();
 
-            outputs.push_back(mv::Tensor(":0", out_shape, input->getDType(), out_order));
+            auto dTypeToUse = args.at("dType").get<mv::DType>();
+            if(dTypeToUse == mv::DType("Default"))
+                dTypeToUse = input->getDType();
+
+            if (args.at("quantParams").get<mv::QuantizationParams>().isEmpty())
+                outputs.push_back(mv::Tensor(":0", out_shape, dTypeToUse, out_order));
+            else
+                outputs.push_back(mv::Tensor(":0", out_shape, dTypeToUse, out_order, args.at("quantParams").get<mv::QuantizationParams>()));
+
         };
 
         static std::vector<unsigned> empty;
