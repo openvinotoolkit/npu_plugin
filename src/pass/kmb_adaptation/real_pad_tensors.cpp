@@ -293,7 +293,6 @@ void addAlignOpForInputTensorsFunc(const mv::pass::PassEntry& , mv::ComputationM
                                         quantParams,
                                         alignOpName);
                     alignedTensor->set<bool>("alignment", true);//TODO remove this, just for testing now
-
                     // This will work because of the implicit flows compensatory DMA passes
                     //auto outputTensorMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
                     auto outputTensorMemoryLocation = mv::Tensor::MemoryLocation::NNCMX;

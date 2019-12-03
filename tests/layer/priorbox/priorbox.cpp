@@ -21,13 +21,13 @@ int main()
     auto priorboxesShape = mv::Shape({10,10,1,1});
 
     // Define tensors
-    auto image = om.input(imageShape, mv::DType("Float16"), mv::Order::getZMajorID(4), {{0},{1.0},{-inf},{inf}}, "image");
+    auto image = om.input(imageShape, mv::DType("Float16"), mv::Order::getZMajorID(4), {{0},{1.0},{},{}}, "image");
     std::vector<int64_t> priorboxesData0 = mv::utils::generateSequence<int64_t> (priorboxesShape[0]*priorboxesShape[1]*priorboxesShape[2]*priorboxesShape[3]);
-    auto priorboxes = om.constantInt(priorboxesData0,priorboxesShape, mv::DType("Float16"), mv::Order::getZMajorID(4), {{0},{1.0},{-inf},{inf}}, "priorboxes");
-    auto minSizes = om.constant(minSizesData,{minSizesData.size(),1,1,1}, mv::DType("Float64"), mv::Order::getZMajorID(4), {{0},{1.0},{-inf},{inf}}, "minSizes");
-    auto maxSizes = om.constant(maxSizesData,{maxSizesData.size(),1,1,1}, mv::DType("Float64"), mv::Order::getZMajorID(4), {{0},{1.0},{-inf},{inf}}, "maxSizes");
-    auto aspectRatios = om.constant(aspectRatiosData,{aspectRatiosData.size(),1,1,1}, mv::DType("Float64"), mv::Order::getZMajorID(4), {{0},{1.0},{-inf},{inf}}, "aspectRatios");
-    auto variances = om.constant(variancesData,{variancesData.size(),1,1,1}, mv::DType("Float64"), mv::Order::getZMajorID(4), {{0},{1.0},{-inf},{inf}}, "variances");
+    auto priorboxes = om.constantInt(priorboxesData0,priorboxesShape, mv::DType("Float16"), mv::Order::getZMajorID(4), {{0},{1.0},{},{}}, "priorboxes");
+    auto minSizes = om.constant(minSizesData,{minSizesData.size(),1,1,1}, mv::DType("Float64"), mv::Order::getZMajorID(4), {{0},{1.0},{},{}}, "minSizes");
+    auto maxSizes = om.constant(maxSizesData,{maxSizesData.size(),1,1,1}, mv::DType("Float64"), mv::Order::getZMajorID(4), {{0},{1.0},{},{}}, "maxSizes");
+    auto aspectRatios = om.constant(aspectRatiosData,{aspectRatiosData.size(),1,1,1}, mv::DType("Float64"), mv::Order::getZMajorID(4), {{0},{1.0},{},{}}, "aspectRatios");
+    auto variances = om.constant(variancesData,{variancesData.size(),1,1,1}, mv::DType("Float64"), mv::Order::getZMajorID(4), {{0},{1.0},{},{}}, "variances");
 
     // Build inputs vector
     std::vector<mv::Data::TensorIterator> inputs;

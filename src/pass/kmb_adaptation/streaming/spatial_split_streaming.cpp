@@ -7,6 +7,8 @@
 #include "include/mcm/utils/custom_strings.hpp"
 #include "include/mcm/base/exception/runtime_error.hpp"
 #include "include/mcm/tensor/tiling.hpp"
+#include "include/mcm/pass/pass_utils.hpp"
+
 
 static void streamingOperationsFcn(const mv::pass::PassEntry& pass,
                                         mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&,
@@ -70,19 +72,15 @@ struct opStreamingSplitDef
     size_t numSplits ;
 };
 
-mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model, mv::Data::OpListIterator op, mv::Tiling& tiling, std::map<std::string, std::vector<opStreamingSplitDef>>& thisGraphStrategy, std::unordered_map<std::string, bool> &createSlicesPerStream, std::map<std::pair<std::string, unsigned>, mv::Data::TensorIterator> &name_firstStream_sliceOp);
-mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model, mv::Data::OpListIterator op, mv::Tiling& tiling, std::map<std::string, std::vector<opStreamingSplitDef>>& thisGraphStrategy, std::unordered_map<std::string, bool> &createSlicesPerStream, std::map<std::pair<std::string, unsigned>, mv::Data::TensorIterator> &name_firstStream_sliceOp);
+std::tuple<mv::Data::TensorIterator, mv::Data::TensorIterator,mv::Data::TensorIterator> solveWeightsTiling(mv::ComputationModel& model, mv::Data::OpListIterator op, mv::Tiling& tiling, std::map<std::string, std::vector<opStreamingSplitDef>>& thisGraphStrategy, std::unordered_map<std::string, bool> &createSlicesPerStream, std::map<std::pair<std::string, unsigned>, mv::Data::TensorIterator> &name_firstStream_sliceOp);
+std::tuple<mv::Data::TensorIterator, mv::Data::TensorIterator,mv::Data::TensorIterator> solveSpatialTiling(mv::ComputationModel& model, mv::Data::OpListIterator op, mv::Tiling& tiling, std::map<std::string, std::vector<opStreamingSplitDef>>& thisGraphStrategy, std::unordered_map<std::string, bool> &createSlicesPerStream, std::map<std::pair<std::string, unsigned>, mv::Data::TensorIterator> &name_firstStream_sliceOp);
 
-std::map<std::string, std::function<mv::Data::TensorIterator(mv::OpModel&, mv::Data::OpListIterator, mv::Tiling&, std::map<std::string, std::vector<opStreamingSplitDef>>&, std::unordered_map<std::string, bool>& createSlicesPerStream, std::map<std::pair<std::string, unsigned>, mv::Data::TensorIterator> &name_firstStream_sliceOp)>> streamSplit =
+std::map<std::string, std::function<std::tuple<mv::Data::TensorIterator, mv::Data::TensorIterator,mv::Data::TensorIterator>(mv::OpModel&, mv::Data::OpListIterator, mv::Tiling&, std::map<std::string, std::vector<opStreamingSplitDef>>&, std::unordered_map<std::string, bool>& createSlicesPerStream, std::map<std::pair<std::string, unsigned>, mv::Data::TensorIterator> &name_firstStream_sliceOp)>> streamSplit =
 {
 //    {"W",solveSpatialTiling},
     {"H",solveSpatialTiling},
     {"K",solveWeightsTiling} //NOTE::Only Convolution is supported for SoK now
 };
-
-
-std::function<mv::Data::TensorIterator(mv::OpModel&, mv::Data::OpListIterator, mv::Tiling&, std::map<std::string, std::vector<opStreamingSplitDef>> &, std::unordered_map<std::string, bool>& createSlicesPerStream, std::map<std::pair<std::string, unsigned>, mv::Data::TensorIterator> &name_firstStream_sliceOp)> convSpatialTiling = solveSpatialTiling;
-std::function<mv::Data::TensorIterator(mv::OpModel&, mv::Data::OpListIterator, mv::Tiling&, std::map<std::string, std::vector<opStreamingSplitDef>> &, std::unordered_map<std::string, bool>& createSlicesPerStream, std::map<std::pair<std::string, unsigned>, mv::Data::TensorIterator> &name_firstStream_sliceOp)> convOutChannelTiling = solveWeightsTiling;
 
 static void setStreamingStrategy(const mv::pass::PassEntry &pass, mv::ComputationModel &model, std::map<std::string, std::vector<opStreamingSplitDef>> &thisGraphStrategy)
 {
@@ -144,6 +142,11 @@ static void setStreamingStrategy(const mv::pass::PassEntry &pass, mv::Computatio
                     opxSplitx.axis = "K";
                     opxSplitx.numSplits = splitList[i].get<int>("K");
                     opxSplits.push_back(opxSplitx);
+                    if (nodeHasSplit)
+                    {
+                        std::reverse(opxSplits.begin(),opxSplits.end());
+                    }
+
                     nodeHasSplit = true;
                     std::cout << "Streaming for node: " << nodeName << " has stream K = " << splitList[i].get<int>("K") << std::endl ;
                 }
@@ -163,7 +166,7 @@ void storeExistingSlice(std::string opName, unsigned streamId, mv::Data::TensorI
     name_firstStream_sliceOp[keyPair] = slice;
 }
 
-mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model, mv::Data::OpListIterator op,
+std::tuple<mv::Data::TensorIterator, mv::Data::TensorIterator,mv::Data::TensorIterator> solveWeightsTiling(mv::ComputationModel& model, mv::Data::OpListIterator op,
     mv::Tiling& tiling, std::map<std::string, std::vector<opStreamingSplitDef> > &thisGraphStrategy,
     std::unordered_map<std::string, bool>& createSlicesPerStream,
     std::map<std::pair<std::string, unsigned>, mv::Data::TensorIterator> &name_firstStream_sliceOp)
@@ -205,7 +208,8 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model, mv::Dat
         auto foundIt = createSlicesPerStream.find(op->getName());
         if (foundIt != createSlicesPerStream.end())
             foundOpName = true;
-        if ((!foundOpName) || (foundOpName && foundIt->second))
+        if ((!foundOpName) //no nesting case
+            || (foundOpName && foundIt->second))
         {
             if (kernelTensor->hasAttr("quantParams"))
             {
@@ -324,8 +328,9 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model, mv::Dat
         mv::Data::TensorIterator out;
         if(childTiles[split].childTiles().size() > 1)
         {
-            out = (streamSplit[childTiles[split].getAxis()])(om,om.getSourceOp(convs[split]),childTiles[split], thisGraphStrategy, createSlicesPerStream, name_firstStream_sliceOp);
-            om.removeOp( om.getSourceOp(convs[split]));
+            auto temp = (streamSplit[childTiles[split].getAxis()])(om,om.getSourceOp(convs[split]),childTiles[split], thisGraphStrategy, createSlicesPerStream, name_firstStream_sliceOp);
+            out = std::get<2>(temp);
+            om.removeOp(om.getSourceOp(convs[split]));
         }
         else
             out = convs[split];
@@ -342,10 +347,10 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model, mv::Dat
 
     concat->set<mv::Tensor::MemoryLocation>("Location",outputTensor->get<mv::Tensor::MemoryLocation>("Location"));
 
-    return concat;
+    return std::make_tuple(convs[0], convs[number_of_splits-1], concat);
 }
 
-mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model, mv::Data::OpListIterator op, mv::Tiling& tiling, std::map<std::string,
+std::tuple<mv::Data::TensorIterator, mv::Data::TensorIterator,mv::Data::TensorIterator>  solveSpatialTiling(mv::ComputationModel& model, mv::Data::OpListIterator op, mv::Tiling& tiling, std::map<std::string,
                 std::vector<opStreamingSplitDef> > &thisGraphStrategy, std::unordered_map<std::string, bool>& createSlicesPerStream, std::map<std::pair<std::string, unsigned>, mv::Data::TensorIterator> &name_firstStream_sliceOp)
 {
     mv::OpModel om(model);
@@ -413,31 +418,20 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model, mv::Dat
         std::string streamingOpName = op->getName() + "_split_" + std::to_string(split);
         if (opType == "MaxPool" || opType == "Conv" || opType == "DepthwiseConv")
         {
+            //for nested streaming we will duplicate the H slices, since the reason we streamed is that things
+            // dont fit in CMX. If we dont duplicate the H slices, then all the H slices will have to stay in CMX
+            // till we are done with all the first layer nesting (they are used by all the K branches).
+            // it's either this or we add a mechanism to deallocate and reallocate them, but this solution
+            // seems to be cheaper.
             auto inputTensor = op->getInputTensor(0);
-            //NOTE: NESTED STREAM NEEDS SLICE OPS ONLY FOR THE FIRST PART AND RE-USE
-            mv::Data::TensorIterator slice;
-            auto foundIt = createSlicesPerStream.find(op->getName());
-            bool foundOpName = false;
-            //NOTE:THIS OP NAME DOES NOT EXIST SO NO NESTED...GO AND BUILD SLICE
-            if (foundIt != createSlicesPerStream.end())
-                foundOpName = true;
-            if ((!foundOpName) || (foundOpName && foundIt->second))
-            {
-                slice = om.slice(inputTensor,
-                                    childTiles[split].getStartCoord(),
-                                    childTiles[split].getSize(),
-                                    inputTensor->get<mv::QuantizationParams>("quantParams"),
-                                    op->getName() + "_sliceH_" + std::to_string(split));
-                storeExistingSlice(inputTensor->getName(), split, slice, name_firstStream_sliceOp);
-                om.getSourceOp(slice)->set<unsigned>("opId", opId);
-            }
-            else
-            {
-                std::pair<std::string, unsigned> keyPair;
-                keyPair.first = inputTensor->getName();
-                keyPair.second = split;
-                slice = name_firstStream_sliceOp[keyPair];
-            }
+            mv::Data::TensorIterator slice = om.slice(inputTensor,
+                                childTiles[split].getStartCoord(),
+                                childTiles[split].getSize(),
+                                inputTensor->get<mv::QuantizationParams>("quantParams"),
+                                op->getName() + "_sliceH_" + std::to_string(split));
+            storeExistingSlice(inputTensor->getName(), split, slice, name_firstStream_sliceOp);
+            om.getSourceOp(slice)->set<unsigned>("opId", opId);
+
             if (opType == "MaxPool")
                 newTensor = om.maxPool(slice,
                                 op->get<std::array<unsigned short, 2UL>>("kSize"),
@@ -557,7 +551,8 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model, mv::Dat
         mv::Data::TensorIterator out;
         if (childTiles[split].childTiles().size() > 1)
         {
-            out = (streamSplit[childTiles[split].getAxis()])(om, om.getSourceOp(convs[split]), childTiles[split], thisGraphStrategy, createSlicesPerStream, name_firstStream_sliceOp);
+            auto temp = (streamSplit[childTiles[split].getAxis()])(om, om.getSourceOp(convs[split]), childTiles[split], thisGraphStrategy, createSlicesPerStream, name_firstStream_sliceOp);
+            out = std::get<2>(temp);
             om.removeOp(om.getSourceOp(convs[split]));
         }
         else
@@ -576,7 +571,7 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model, mv::Dat
     om.getSourceOp(concat)->set<unsigned>("opId", opId);
     om.getSourceOp(concat)->set<std::string>("splitStrategy", splitStrategy);
     concat->set<mv::Tensor::MemoryLocation>("Location", outputTensor->get<mv::Tensor::MemoryLocation>("Location"));
-    return concat;
+    return std::make_tuple(convs[0], convs[number_of_splits-1], concat);
 }
 
 void streamingOperationsFcn(const mv::pass::PassEntry& pass,
@@ -587,6 +582,7 @@ void streamingOperationsFcn(const mv::pass::PassEntry& pass,
 {
 
     mv::OpModel om(model);
+    mv::ControlModel cm(model);
     std::map<std::string, std::vector<opStreamingSplitDef>> thisGraphStrategy;
     setStreamingStrategy(pass, model, thisGraphStrategy);
     std::vector<opStreamingSplitDef> thisOpStrategy;
@@ -642,12 +638,19 @@ void streamingOperationsFcn(const mv::pass::PassEntry& pass,
                 opsToLink.push_back(sinkFlow.sink());
                 inputSlots.push_back(sinkFlow->get<std::size_t>("sinkInput"));
             }
+
+            auto inputControlFlows = mv::getInputControlFlow(cm, cm.switchContext(opIt));
+            auto outputControlFlows = mv::getOutputControlFlow(cm, cm.switchContext(opIt));
+
             om.removeOp(opIt);
             for (unsigned j = 0; j < opsToLink.size(); ++j)
             {
-                opsToLink[j]->setInputTensor(result, inputSlots[j], false);
-                om.defineFlow(result, opsToLink[j], inputSlots[j]);
+                opsToLink[j]->setInputTensor(std::get<2>(result), inputSlots[j], false);
+                om.defineFlow(std::get<2>(result), opsToLink[j], inputSlots[j]);
             }
+
+            setInputControlFlow(cm, cm.switchContext(om.getSourceOp(std::get<0>(result))), inputControlFlows);
+            setOutputControlFlow(cm, cm.switchContext(om.getSourceOp(std::get<1>(result))), outputControlFlows);
         }
     }
 }

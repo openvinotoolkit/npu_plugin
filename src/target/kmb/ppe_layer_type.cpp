@@ -26,7 +26,7 @@ const std::unordered_map<mv::PPELayerTypeEnum, std::string, mv::PPELayerTypeEnum
     {PPELayerType_NEG, "NEG"},
     {PPELayerType_POW, "POW"},
     {PPELayerType_EXP, "EXP"},
-    {PPELayerType_SIGMOID, "SIGMOID"},
+    {PPELayerType_SIGMOID, "Sigmoid"},
     {PPELayerType_TANH, "TANH"},
     {PPELayerType_SQRT, "SQRT"},
     {PPELayerType_RSQRT, "RSQRT"},

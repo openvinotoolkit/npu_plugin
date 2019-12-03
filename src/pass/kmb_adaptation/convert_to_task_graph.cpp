@@ -242,6 +242,56 @@ mv::Data::TensorIterator convertNormalizeToUPATask(mv::OpModel& om, const std::v
     return om.uPATaskNormalize(inputs, eps, across_spatial, channel_shared, dtype, quantParams, name);
 }
 
+mv::Data::TensorIterator convertDetectionOutputToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs, const std::map<std::string, mv::Attribute>& attrs, const std::string& name)
+{
+    auto dtype = attrs.at("dType").get<mv::DType>();
+    auto quantParams = attrs.at("quantParams").get<mv::QuantizationParams>();
+    auto num_classes = attrs.at("num_classes").get<int64_t>();
+    auto keep_top_k = attrs.at("keep_top_k").get<int64_t>();
+    auto nms_threshold = attrs.at("nms_threshold").get<double>();
+    auto background_label_id = attrs.at("background_label_id").get<int64_t>();
+    auto top_k = attrs.at("top_k").get<int64_t>();
+    auto variance_encoded_in_target = attrs.at("variance_encoded_in_target").get<bool>();
+    auto code_type = attrs.at("code_type").get<std::string>();
+    auto share_location = attrs.at("share_location").get<bool>();
+    auto confidence_threshold = attrs.at("confidence_threshold").get<double>();
+    auto clip_before_nms = attrs.at("clip_before_nms").get<bool>();
+    auto clip_after_nms = attrs.at("clip_after_nms").get<bool>();
+    auto decrease_label_id = attrs.at("decrease_label_id").get<int64_t>();
+    auto normalized = attrs.at("normalized").get<bool>();
+    auto input_height = attrs.at("input_height").get<int64_t>();
+    auto input_width = attrs.at("input_width").get<int64_t>();
+    auto objectness_score = attrs.at("objectness_score").get<double>();
+
+    return om.uPATaskDetectionOutput(inputs, num_classes, keep_top_k, nms_threshold, background_label_id, top_k, variance_encoded_in_target,
+                                     code_type, share_location, confidence_threshold, clip_before_nms, clip_after_nms,
+                                     decrease_label_id, normalized, input_height, input_width, objectness_score, dtype, quantParams);
+}
+
+mv::Data::TensorIterator convertPriorboxToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs, const std::map<std::string, mv::Attribute>& attrs, const std::string& name)
+{
+    auto dtype = attrs.at("dType").get<mv::DType>();
+    auto quantParams = attrs.at("quantParams").get<mv::QuantizationParams>();
+    auto flip = attrs.at("flip").get<unsigned>();
+    auto clip = attrs.at("clip").get<unsigned>();
+    auto step_w = attrs.at("step_w").get<double>();
+    auto step_h = attrs.at("step_h").get<double>();
+    auto offset = attrs.at("offset").get<double>();
+
+    return om.uPATaskPriorbox(inputs, flip, clip, step_w, step_h, offset, dtype, quantParams);
+}
+
+mv::Data::TensorIterator convertArgmaxToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs, const std::map<std::string, mv::Attribute>& attrs, const std::string& name)
+{
+    auto dtype = attrs.at("dType").get<mv::DType>();
+    auto quantParams = attrs.at("quantParams").get<mv::QuantizationParams>();
+    auto out_max_val = attrs.at("out_max_val").get<int64_t>();
+    auto top_k = attrs.at("top_k").get<int64_t>();
+    auto axis = attrs.at("axis").get<int64_t>();
+
+    return om.uPATaskArgmax(inputs, out_max_val, top_k, axis, dtype, quantParams);
+}
+
 mv::Data::TensorIterator convertPermuteToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs, const std::map<std::string, mv::Attribute>& attrs, const std::string& name)
 {
     auto order = attrs.at("order").get<mv::Order>();
@@ -279,6 +329,37 @@ mv::Data::TensorIterator convertPermuteToUPATask(mv::OpModel& om, const std::vec
     return upaPermute;
 }
 
+mv::Data::TensorIterator convertInterpToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs, const std::map<std::string, mv::Attribute>& attrs, const std::string& name)
+{
+    auto quantParams = attrs.at("quantParams").get<mv::QuantizationParams>();
+    auto dtype = attrs.at("dType").get<mv::DType>();
+
+    // Required params
+    auto factor = attrs.at("factor").get<double>();
+    auto pad_beg = attrs.at("pad_beg").get<unsigned>();
+    auto pad_end = attrs.at("pad_end").get<unsigned>();
+
+    // Optional params
+    auto height = attrs.at("height").get<unsigned>();
+    auto width = attrs.at("width").get<unsigned>();
+    auto align_corners = attrs.at("align_corners").get<bool>();
+
+    return om.uPATaskInterp(inputs, factor, pad_beg, pad_end, height, width, align_corners, dtype, quantParams, name);
+}
+
+mv::Data::TensorIterator convertNormToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs, const std::map<std::string, mv::Attribute>& attrs, const std::string& name)
+{
+    auto quantParams = attrs.at("quantParams").get<mv::QuantizationParams>();
+    auto dtype = attrs.at("dType").get<mv::DType>();
+
+    // Required params
+    auto alpha = attrs.at("alpha").get<double>();
+    auto beta = attrs.at("beta").get<double>();
+    auto region = attrs.at("region").get<std::string>();
+    auto local_size = attrs.at("local_size").get<unsigned>();
+
+    return om.uPATaskNorm(inputs, alpha, beta, region, local_size, dtype, quantParams, name);
+}
 
 void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
@@ -288,9 +369,9 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
     mv::ControlModel cm(model);
 
     std::vector<std::string> opsTypesToConvert = {"Conv", "DepthwiseConv", "Eltwise", "MaxPool"};
-    std::vector<std::string> opsTypesToConvertToUPA = {"Identity", "Softmax", "Proposal", "ROIPooling",
+    std::vector<std::string> opsTypesToConvertToUPA = {"Argmax", "Identity", "Softmax", "Proposal", "ROIPooling",
                                                        "Quantize", "Reshape", "RegionYolo", "ReorgYolo",
-                                                       "Normalize", "Permute"};
+                                                       "Normalize", "DetectionOutput", "Priorbox", "Permute", "Interp", "Norm"};
 
     opsTypesToConvert.insert(opsTypesToConvert.end(), opsTypesToConvertToUPA.begin(), opsTypesToConvertToUPA.end());
     auto opsToConvert = om.getOpsOfTypes(opsTypesToConvert);
@@ -309,6 +390,11 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
     {"RegionYolo", convertRegionYoloToUPATask},
     {"ReorgYolo", convertReorgYoloToUPATask},
     {"Normalize", convertNormalizeToUPATask},
+    {"DetectionOutput", convertDetectionOutputToUPATask},
+    {"Interp", convertInterpToUPATask},
+    {"Norm", convertNormToUPATask},
+    {"Priorbox", convertPriorboxToUPATask},
+    {"Argmax", convertArgmaxToUPATask},
     {"Permute", convertPermuteToUPATask}
     };
 
