@@ -74,3 +74,16 @@ float mv::fp16_to_fp32(uint16_t value){
     v.si |= sign;
     return v.fp;
 }
+
+std::pair<std::size_t, std::size_t> mv::tileSpatialOutputSize(std::size_t outputSize , std::size_t numberOfSplits)
+{
+    int newOutputSize = round( (double)(outputSize) / (double)numberOfSplits);
+    int remainderOutputSize = outputSize - (newOutputSize *(numberOfSplits -1));
+    if (remainderOutputSize <= 0)
+    {
+        newOutputSize = trunc( (double)(outputSize) / (double)numberOfSplits);
+        remainderOutputSize = outputSize - (newOutputSize *(numberOfSplits -1));
+    }
+
+    return std::make_pair(newOutputSize, remainderOutputSize);
+}
