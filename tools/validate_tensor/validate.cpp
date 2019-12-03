@@ -1,7 +1,6 @@
 #include "validate.hpp"
 #include "include/mcm/utils/env_loader.hpp"
 #include "include/mcm/utils/custom_math.hpp"
-
 #include <fstream>
 #include <sys/stat.h>
 #include <nlohmann/json.hpp>
@@ -463,10 +462,13 @@ int convertImage(std::string imagePath, std::string blobPath)
     }
     else
     {
-        std::string inNCHW = std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_CPU_INPUT_NCHW;
-        std::string inNCHW_dest = std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_CPU_INPUT;
-        rename(inNCHW.c_str(), inNCHW_dest.c_str());
+        // as of compiler v2.2.2, all input must be in NHWC order
+        std::string inNHWC = std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_CPU_INPUT_NHWC;
+        std::string inNHWC_dest = std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_CPU_INPUT;
+        copyFile(inNHWC, inNHWC_dest);
 
+        // this section converts the image using a python script for comparison purposes only.
+        // the output file "converted_image.dat" is not used by this utility
         // Clean old file
         std::cout << "Deleting old input... " << std::endl;
         std::string outputFile = "./converted_image.dat";
