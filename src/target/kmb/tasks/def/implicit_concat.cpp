@@ -71,10 +71,13 @@ namespace mv
                 inputShape0[numericAxisToConcat] += inputShape[numericAxisToConcat];
             }
 
+            // TODO: set DType to Float16 if all inputs are from SW layers
+            auto dTypeToUse = mv::DType("UInt8");
+
             if (args.at("quantParams").get<mv::QuantizationParams>().isEmpty())
-                outputs.push_back(mv::Tensor(":0", mv::Shape(inputShape0), inputs[0]->getDType(), inputs[0]->getOrder()));
+                outputs.push_back(mv::Tensor(":0", mv::Shape(inputShape0), dTypeToUse, inputs[0]->getOrder()));
             else
-                outputs.push_back(mv::Tensor(":0", mv::Shape(inputShape0), inputs[0]->getDType(), inputs[0]->getOrder(), args.at("quantParams").get<mv::QuantizationParams>()));
+                outputs.push_back(mv::Tensor(":0", mv::Shape(inputShape0), dTypeToUse, inputs[0]->getOrder(), args.at("quantParams").get<mv::QuantizationParams>()));
         };
 
         // Default axis is channels (like for Intel Inference Engine)
