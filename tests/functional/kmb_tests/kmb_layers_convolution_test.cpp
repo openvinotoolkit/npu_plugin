@@ -715,6 +715,15 @@ const std::vector<InferenceEngine::Layout> test_layouts = {
 
 INSTANTIATE_TEST_CASE_P(accuracy, ConvolutionTest, ::testing::ValuesIn(test_params));
 
+// These parameters show that compilation crashes when number of output channels is not factor of 16
+std::vector<convolution_test_params> sigsegv_due_to_low_output_channels_number_test_params = {
+    {{1, 3, 16, 16}, {{1, 1}, {3, 3}, {0, 0}, {0, 0}, {1, 1}, "", 1, 3, true, true, ""}},
+    {{1, 3, 16, 16}, {{1, 1}, {3, 3}, {0, 0}, {0, 0}, {1, 1}, "", 1, 9, true, true, ""}},
+    {{1, 3, 16, 16}, {{1, 1}, {3, 3}, {0, 0}, {0, 0}, {1, 1}, "", 1, 20, true, true, ""}},
+};
+
+INSTANTIATE_TEST_CASE_P(DISABLED_accuracy_low_OC, ConvolutionTest, ::testing::ValuesIn(sigsegv_due_to_low_output_channels_number_test_params));
+
 struct convolution_and_pooling_test_params {
     SizeVector input_dim;
     conv_common_params conv_params;
