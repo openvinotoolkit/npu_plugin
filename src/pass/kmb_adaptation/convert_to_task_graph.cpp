@@ -49,7 +49,7 @@ void setUpPPETasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, 
 }
 
 mv::Data::TensorIterator convertEltwiseToTask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs,
-                                                 const std::map<std::string, mv::Attribute>& attrs, const std::string& name, bool software)
+                                const std::map<std::string, mv::Attribute>& attrs, const std::string& name, bool software)
 {
     auto eltwiseType = attrs.at("eltwiseType").get<std::string>();
     auto outputTensorType = attrs.at("dType").get<mv::DType>();
@@ -266,7 +266,7 @@ mv::Data::TensorIterator convertNormalizeToUPATask(mv::OpModel& om, const std::v
     return om.uPATaskNormalize(inputs, eps, across_spatial, channel_shared, dtype, quantParams, name);
 }
 
-mv::Data::TensorIterator convertDetectionOutputToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs, const std::map<std::string, mv::Attribute>& attrs, const std::string& name)
+mv::Data::TensorIterator convertDetectionOutputToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs, const std::map<std::string, mv::Attribute>& attrs, const std::string& name, bool software = false)
 {
     auto dtype = attrs.at("dType").get<mv::DType>();
     auto quantParams = attrs.at("quantParams").get<mv::QuantizationParams>();
@@ -292,7 +292,7 @@ mv::Data::TensorIterator convertDetectionOutputToUPATask(mv::OpModel& om, const 
                                      decrease_label_id, normalized, input_height, input_width, objectness_score, dtype, quantParams);
 }
 
-mv::Data::TensorIterator convertPriorboxToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs, const std::map<std::string, mv::Attribute>& attrs, const std::string& name)
+mv::Data::TensorIterator convertPriorboxToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs, const std::map<std::string, mv::Attribute>& attrs, const std::string& name, bool software = false)
 {
     auto dtype = attrs.at("dType").get<mv::DType>();
     auto quantParams = attrs.at("quantParams").get<mv::QuantizationParams>();
@@ -305,7 +305,7 @@ mv::Data::TensorIterator convertPriorboxToUPATask(mv::OpModel& om, const std::ve
     return om.uPATaskPriorbox(inputs, flip, clip, step_w, step_h, offset, dtype, quantParams);
 }
 
-mv::Data::TensorIterator convertArgmaxToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs, const std::map<std::string, mv::Attribute>& attrs, const std::string& name)
+mv::Data::TensorIterator convertArgmaxToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs, const std::map<std::string, mv::Attribute>& attrs, const std::string& name, bool software = false)
 {
     auto dtype = attrs.at("dType").get<mv::DType>();
     auto quantParams = attrs.at("quantParams").get<mv::QuantizationParams>();
@@ -354,7 +354,7 @@ mv::Data::TensorIterator convertPermuteToUPATask(mv::OpModel& om, const std::vec
     return upaPermute;
 }
 
-mv::Data::TensorIterator convertInterpToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs, const std::map<std::string, mv::Attribute>& attrs, const std::string& name)
+mv::Data::TensorIterator convertInterpToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs, const std::map<std::string, mv::Attribute>& attrs, const std::string& name, bool software = false)
 {
     auto quantParams = attrs.at("quantParams").get<mv::QuantizationParams>();
     auto dtype = attrs.at("dType").get<mv::DType>();
@@ -372,7 +372,7 @@ mv::Data::TensorIterator convertInterpToUPATask(mv::OpModel& om, const std::vect
     return om.uPATaskInterp(inputs, factor, pad_beg, pad_end, height, width, align_corners, dtype, quantParams, name);
 }
 
-mv::Data::TensorIterator convertNormToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs, const std::map<std::string, mv::Attribute>& attrs, const std::string& name)
+mv::Data::TensorIterator convertNormToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs, const std::map<std::string, mv::Attribute>& attrs, const std::string& name, bool software = false)
 {
     auto quantParams = attrs.at("quantParams").get<mv::QuantizationParams>();
     auto dtype = attrs.at("dType").get<mv::DType>();
@@ -405,10 +405,10 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
     std::unordered_map<std::string,
             std::function<mv::Data::TensorIterator(mv::OpModel&, const std::vector<mv::Data::TensorIterator>&,
             const std::map<std::string, mv::Attribute>&, const std::string&, bool &)>> opsFunctors = {
-    {"Eltwise", convertEltwiseToTask},
     {"Conv", convertConvolutionToDPUTask},
     {"DepthwiseConv", convertDepthwiseConvolutionToDPUTask},
     {"MaxPool", convertMaxPoolToDPUTask},
+    {"Eltwise", convertEltwiseToTask},
     {"Identity", convertIdentityToUPATask},
     {"Softmax", convertSoftmaxToUPATask},
     {"Proposal", convertProposalToUPATask},
