@@ -52,26 +52,28 @@ void SplittingTensorsAcrossClusters(const mv::pass::PassEntry& pass, mv::Computa
 
     if (numClusters > 1)
     {
+        std::set <std::string> tensorNames;
         std::vector <mv::Data::TensorIterator> tensors;
         auto dpuTasks = om.getOps("DPUTask");
         for(auto layer : dpuTasks)
         {
-            std::string opType = layer->getOpType();
-            auto outputTensor = layer->getOutputTensor(0);
-            tensors.push_back(outputTensor);
+            auto outputTensorName = layer->getOutputTensor(0)->getName();
+            tensorNames.insert(outputTensorName);
             for(std::size_t i = 0; i < layer->inputSlots(); ++i)
             {
+                auto inputTensorName = layer->getInputTensor(i)->getName();
                 auto inputTensor = layer->getInputTensor(i);
-                tensors.push_back(inputTensor);
+                tensorNames.insert(inputTensorName);
 
                 // New weights sparsity approach: no explicit costant operation
                 // for sparsity map is present in the graph.
                 // So check for sparsity has to be done only here
                 if(inputTensor->isPopulated() && inputTensor->isSparse())
-                    tensors.push_back(dm.getTensor(inputTensor->getSparsityMap()->getName()));
-
+                    tensorNames.insert(inputTensor->getSparsityMap()->getName());
             }
         }
+        for (auto tensorName : tensorNames)
+            tensors.push_back(dm.getTensor(tensorName));
         subTensorsGen(model, tensors, numClusters, pass);
     }
     return;

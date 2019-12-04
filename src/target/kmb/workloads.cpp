@@ -418,7 +418,7 @@ void mv::Workloads::setExecutionCycles(std::vector<float> val)
     executionCycles_ = val;
 }
 
-void mv::Workloads::generateExecutionCycles(std::vector<mv::Workloads>& workloadsVector, int nDPUxCluster, CostFunctions costFunction, float pixelCost)
+void mv::Workloads::generateExecutionCycles(std::vector<mv::Workloads>& workloadsVector, int nDPUxCluster, CostFunctions costFunction, float pixelCost, int workloadCost)
 {
     /* Execution time is bounded by
      * sum(WL)/DPU <= T <= max(WL_max)*(P-1)/P
@@ -450,7 +450,7 @@ void mv::Workloads::generateExecutionCycles(std::vector<mv::Workloads>& workload
             if(itworkload->MPEMode == mv::Vector)
                 mpeMode = {1,16};
             else if (itworkload->MPEMode == mv::Matrix)
-               mpeMode = {4,4};
+                mpeMode = {4,4};
             else
                 mpeMode = {1,4};
 
@@ -459,6 +459,7 @@ void mv::Workloads::generateExecutionCycles(std::vector<mv::Workloads>& workload
             float width = (itworkload->MaxX+1) - itworkload->MinX; // + mpeMode.second;
 
             sumExeCycles = ceil((itworkload->MaxZ-itworkload->MinZ)/16.0) * ceil(height / mpeMode.first) * ceil(width / mpeMode.second) * pixelCost;
+            sumExeCycles += workloadCost;
             workloadsExecutionCycles.push_back(sumExeCycles);
         }
 

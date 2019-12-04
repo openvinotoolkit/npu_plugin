@@ -10,6 +10,7 @@
                 "barrier_index_assignment" : "Dynamic",
                 "Number_of_DPUs" : 20,
                 "Number_of_Clusters" : 4,
+                "WorkloadCost" : 0,
                 "UpaShaves": 1,
                 "DDRScratch": 16777216,
                 "MemoryHack": false,
