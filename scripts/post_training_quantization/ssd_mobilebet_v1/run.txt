@@ -1,0 +1,13 @@
+../run_post_trainig.sh ../../../../post-training-compression-tool/ ../../../../open_model_zoo/tools/downloader/public/ssd_mobilenet_v1_coco/ssd_mobilenet_v1_coco_2018_01_28  ../../../../../Datasets/ ./ssd_mobilenet_v1_coco_uint8_int8_weights_pertensor.json -e > ssd_mobilenet_v1_coco_uint8_int8_weights_pertensor.log
+
+../run_post_trainig.sh ../../../../post-training-compression-tool/ ../../../../open_model_zoo/tools/downloader/public/ssd_mobilenet_v1_coco/ssd_mobilenet_v1_coco_2018_01_28  ../../../../../Datasets/ ./ssd_mobilenet_v1_coco_fp32_original.json -e > ssd_mobilenet_v1_coco_fp32_original.log
+
+dldt/IE + python_api built: d2c70620539579ea3419cfc8bd2fd2748ba9bac5 (feature/low_precision/develop_fp)
+dldt/MO used: 76a0c71e65db1b7a6e67f17a48adc8496e5ccfe0 (as/post_training_compression)
+
+post-training-compression-tool used: 8b574d13c22fb51bcba5f0188027ffdcb2aeddd3 (develop)
+
+open_model_zoo used: e372d4173e50741a6828cda415d55c37320f89cd (master)
+
+kmb_plugin: 5b7b093b50e9a3a49678aed6702fc81f54e5d8b3 (kskvorts/post_training_ssd_mobilenet_scripts)
+
