@@ -138,6 +138,9 @@ std::vector<TestingNetworkParameters> vpuInferAndCompareTestsNQA = {
                         "/KMB_models/NQA/ResNet-50-tf/resnet50-int8.xml",
                         "/KMB_models/NQA/ResNet-50-tf/resnet50-int8.bin",
                         "/224x224/cat3.bmp"},
+        // Following test fails on IE to mcmCompiler parsing stage with message
+        // C++ exception with description "quant_model/resnet_v1_50/block1/unit_3/bottleneck_v1/addQuantize Eltwise
+        // should has FakeQuantize on inputs
         TestingNetworkParameters{"ResNet_50_v1_tf_int8_sparse",
                         "/KMB_models/NQA/ResNet-50-tf/resnetv1-int8-sparse-v2-tf-0001.xml",
                         "/KMB_models/NQA/ResNet-50-tf/resnetv1-int8-sparse-v2-tf-0001.bin",
@@ -146,6 +149,9 @@ std::vector<TestingNetworkParameters> vpuInferAndCompareTestsNQA = {
                         "/KMB_models/NQA/ResNet-50-onnx/resnet50-v1-int8.xml",
                         "/KMB_models/NQA/ResNet-50-onnxf/resnet50-v1-int8.bin",
                         "/224x224/cat3.bmp"},
+        // Following test fails on mcmCompiler compilation stage with message
+        // C++ exception with description "QuantizationPass - ArgumentError: extendToK parameters
+        // dimensions doesn't match size of output_channels or 1 - 1024
         TestingNetworkParameters{"ResNet_50_v1_onnx_int8_sparse",
                         "/KMB_models/NQA/ResNet-50-onnx/resnet50-int8-sparse-v2.xml",
                         "/KMB_models/NQA/ResNet-50-onnx/resnet50-int8-sparse-v2.bin",
@@ -154,21 +160,33 @@ std::vector<TestingNetworkParameters> vpuInferAndCompareTestsNQA = {
                         "/KMB_models/NQA/GoogLeNet-v1-tf/inceptionv1-int8-tf-0001.xml",
                         "/KMB_models/NQA/GoogLeNet-v1-tf/inceptionv1-int8-tf-0001.bin",
                         "/224x224/cat3.bmp"},
+        // Following test fails on mcmCompiler compilation stage with message
+        // C++ exception with description "std::bad_alloc
+        // after 14m57.881s compilation time spent
+        TestingNetworkParameters{"GoogLeNet_v1_tf_int8_sparse",
+                        "/KMB_models/NQA/GoogLeNet-v1-tf/inceptionv1-int8-sparse-tf-0001.xml",
+                        "/KMB_models/NQA/GoogLeNet-v1-tf/inceptionv1-int8-sparse-tf-0001.bin",
+                        "/224x224/cat3.bmp"},
         TestingNetworkParameters{"MobileNet_v2_tf_int8_dense",
                         "/KMB_models/NQA/MoblieNet-v2-tf/mobilenetv2-int8.xml",
                         "/KMB_models/NQA/Moblie Net-v2-tf/mobilenetv2-int8.bin",
                         "/224x224/cat3.bmp"},
+        // Following test fails on mcmCompiler compilation stage with message
+        // C++ exception with description "std::bad_alloc
         TestingNetworkParameters{"MobileNet_v2_tf_int8_sparse",
-                        "/KMB_models/NQA/MoblieNet-v2-onnx/mobilenetv2-int8-sparse-v2-tf-0001.xml",
-                        "/KMB_models/NQA/MoblieNet-v2-onnx/mobilenetv2-int8-sparse-v2-tf-0001.bin",
+                        "/KMB_models/NQA/MoblieNet-v2-tf/mobilenetv2-int8-sparse-v2-tf-0001.xml",
+                        "/KMB_models/NQA/MoblieNet-v2-tf/mobilenetv2-int8-sparse-v2-tf-0001.bin",
                         "/224x224/cat3.bmp"},
         TestingNetworkParameters{"MobileNet_v2_onnx_int8_dense",
                         "/KMB_models/NQA/MoblieNet-v2-onnx/mobilenetv2-int8.xml",
                         "/KMB_models/NQA/MoblieNet-v2-onnx/mobilenetv2-int8.bin",
                         "/224x224/cat3.bmp"},
+        // Following test fails on mcmCompiler compilation stage with message
+        // C++ exception with description "QuantizationPass - ArgumentError: extendToK parameters dimensions
+        // doesn't match size of output_channels or 1 - 24
         TestingNetworkParameters{"MobileNet_v2_onnx_int8_sparse",
-                        "/KMB_models/NQA/MoblieNet-v2-tf/mobilenetv2-int8-sparse-v2.xml",
-                        "/KMB_models/NQA/MoblieNet-v2-tf/mobilenetv2-int8-sparse-v2.bin",
+                        "/KMB_models/NQA/MoblieNet-v2-onnx/mobilenetv2-int8-sparse-v2.xml",
+                        "/KMB_models/NQA/MoblieNet-v2-onnx/mobilenetv2-int8-sparse-v2.bin",
                         "/224x224/cat3.bmp"},
         TestingNetworkParameters{"YoloTiny_v2_tf_int8",
                         "/KMB_models/NQA/YoloTiny-v2-tf/tiny_yolo_v2.xml",
@@ -181,6 +199,13 @@ std::vector<TestingNetworkParameters> vpuInferAndCompareTestsNQA = {
         TestingNetworkParameters{"SqueezeNetv1.1_onnx_int8",
                         "/KMB_models/NQA/squeezenetv1.1-int8-onnx/squeezenetv1.1-int8.xml",
                         "/KMB_models/NQA/squeezenetv1.1-int8-onnx/squeezenetv1.1-int8.bin",
+                        "/224x224/cat3.bmp"},
+        // Following test fails on mcmCompiler compilation stage with message
+        // C++ exception with description "Op:326/reduce_DepthwiseConv_split_0 -
+        // OpError: Invalid input weights (1) - Height exceeds padded input height 12
+        TestingNetworkParameters{"SqueezeNetv1.1_onnx_int8_sparse",
+                        "/KMB_models/NQA/squeezenetv1.1-int8-onnx/squeezenetv1.1-int8-sparse-v2.xml",
+                        "/KMB_models/NQA/squeezenetv1.1-int8-onnx/squeezenetv1.1-int8-sparse-v2.bin",
                         "/224x224/cat3.bmp"},
         TestingNetworkParameters{"Yolo_v2_tf_int8",
                         "/KMB_models/NQA/yolo_v2_tf/yolo_v2.xml",
@@ -241,7 +266,7 @@ std::vector<TestingNetworkParameters> vpuInferAndCompareTestsNQA = {
                         "/KMB_models/NQA/POST_TRAINING/TinyYolo_V2/tiny_yolo_v2_uint8_uint8_weights_pertensor.bin",
                         "/416x416/person.bmp"},
         // post training models
-        // Folowing test on yolo_v2 fail on IE to mcmCompiler parsing stage.
+        // Following test on yolo_v2 fails on IE to mcmCompiler parsing stage.
         // The networks can not be parsed due to parsing RegionYolo issue CVS-23844
         TestingNetworkParameters{"yolo_v2_uint8_int8_weights_pertensor",
                         "/KMB_models/NQA/POST_TRAINING/Yolo_V2/yolo_v2_uint8_int8_weights_pertensor.xml",
