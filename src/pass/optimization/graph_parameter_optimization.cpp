@@ -875,8 +875,9 @@ namespace mv
                                         continue;
                                     if( ((h*k) > 1) and (spilling.get<bool>() == false))
                                         continue;
-                                    if ((spilling.get<bool>() == true) and (h*k == 1) and op.getOpType() != "Input"
-                                            and op.getOpType() != "Output" and op.getOpType() != "Concat")
+                                    if ((spilling.get<bool>() == true) and (h*k == 1)
+                                        and op.getOpType() != "Input" and op.getOpType() != "Output"
+                                        and op.getOpType() != "Concat" and (op.hasTypeTrait("optimizable")))
                                         continue;
 
                                     Shape streamShape({1,h,1,k});//Stream over W and C are 1 for now . TODO: implement stream W/C
