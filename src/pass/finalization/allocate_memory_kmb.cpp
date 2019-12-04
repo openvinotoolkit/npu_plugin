@@ -632,6 +632,7 @@ void allocateImplicitOperationsKmbFcn(const mv::pass::PassEntry& pass,
             }
             else
             {
+                auto outputTensor = opIterator->getOutputTensor(0);
                 pass.log(mv::Logger::MessageType::Warning, "Tensor " + outputTensor->getName() +
                             " has implicit flow but was not assigned an allocator.");
             }
