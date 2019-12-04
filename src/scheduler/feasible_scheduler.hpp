@@ -2116,6 +2116,73 @@ class Feasible_Memory_Schedule_Generator {
 }; // class Feasible_Memory_Schedule_Generator //
 
 
+// Given a DAG, G=(V,E) and a vertex v\in V returns an iterator over all
+// vertices in V which are connected by some path (atleast one colored vertex)
+// with only using the colored vertices.
+template<typename DagType, typename DagTraits=scheduler_traits<DagType> >
+class Color_Connected_Vertices {
+  public:
+    ////////////////////////////////////////////////////////////////////////////
+    typedef DagTraits traits;
+    typedef typename traits::dag_t dag_t;
+    typedef typename traits::operation_t vertex_t;
+    typedef typename traits::operation_hash_t vertex_hash_t;
+    typedef typename traits::const_operation_iterator_t const_vertex_iterator_t;
+    ////////////////////////////////////////////////////////////////////////////
+
+    Color_Connected_Vertices(const dag_t& input) : input_(input) {}
+
+    template<typename VertexColorClassifier, typename BackInsertIterator>
+    void compute_connected_vertices(const vertex_t& v,
+        BackInsertIterator output,
+        const VertexColorClassifier& vertex_selector=VertexColorClassifier()) {
+
+      std::unordered_set<vertex_t, vertex_hash_t> explored;
+      std::list<vertex_t> colored_bfs_list;
+      const_vertex_iterator_t citr =
+          traits::outgoing_operations_begin(input_, v);
+      const_vertex_iterator_t citr_end =
+          traits::outgoing_operations_end(input_, v);
+
+      // init //
+      for (; citr != citr_end; ++citr) {
+        const vertex_t& u = *citr;
+        if (vertex_selector(input_, u)) {
+          colored_bfs_list.push_back(u);
+        }
+      }
+      explored.insert(v); 
+
+      while (!colored_bfs_list.empty()) {
+        vertex_t w = colored_bfs_list.front();
+        colored_bfs_list.pop_front();
+
+        citr = traits::outgoing_operations_begin(input_, w);
+        citr_end = traits::outgoing_operations_end(input_, w);
+
+        for (; citr != citr_end; ++citr) {
+          const vertex_t& u = *citr;
+
+          if (explored.find(u) != explored.end()) { continue; }
+
+          if (vertex_selector(input_, u)) {
+            colored_bfs_list.push_back(u);
+            explored.insert(u);
+          } else {
+            output = u;
+          }
+        }
+        explored.insert(w); 
+      } // while (!colored_bfs_list.empty() //
+      
+    }
+
+  private:
+
+    const dag_t& input_;
+}; // class Color_Connected_Vertices //
+
+
 } // namespace lp_scheduler //
 
 } // namespace mv //

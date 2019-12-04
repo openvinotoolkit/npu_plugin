@@ -1697,3 +1697,96 @@ TEST_F(Test_Fixture_Feasible_Memory_Scheduler, simple_spill_test_complex) {
   EXPECT_EQ(spilled_write_count, 2UL);
   EXPECT_EQ(original_ops, 5UL);
 }
+
+////////////////////////////////////////////////////////////////////////////////
+typedef mv::lp_scheduler::Color_Connected_Vertices<dag_t>
+  color_connected_vertices_t;
+typedef typename color_connected_vertices_t::vertex_t vertex_t;
+
+struct noop_color_classifier_t {
+  bool operator()(const dag_t&, const vertex_t&) const { return true; }
+}; // struct noop_color_classifier_t //
+
+TEST(Color_Connected_Vertices, single_element_graph) {
+  dag_t::adjacency_map_t in = {{"A", {} }};
+  dag_t dag(in);
+
+  color_connected_vertices_t connector(dag);
+  std::list<vertex_t> output;
+
+  connector.compute_connected_vertices("A", std::back_inserter(output),
+      noop_color_classifier_t());
+  EXPECT_TRUE(output.empty());
+}
+
+struct prefix_name_classifier_t {
+  prefix_name_classifier_t(const char *prefix)
+    : prefix_(prefix), prefix_len_(strlen(prefix)) {}
+
+  bool operator()(const dag_t&, const vertex_t& vertex) const {
+    return !strncmp(vertex.c_str(), prefix_, prefix_len_);
+  }
+  const char *prefix_;
+  size_t prefix_len_;
+}; // struct prefix_name_classifier_t //
+
+TEST(Color_Connected_Vertices, connected_with_name_prefix) {
+  dag_t::adjacency_map_t in = {
+      {"Input", {"B", "C"}}, {"B", {"Impop_1", "H"}},
+      {"Impop_1", {"F", "Impop_2"} }, {"F", {"Impop_4"} }, {"Impop_4", {"H"}},
+      {"Impop_2", {"D", "Impop_3"}} , {"C", {"Impop_3"} },
+      { "Impop_3",{"E", "D"}}, {"E", {"A"}}, {"A", {}}, {"H", {}}, {"D", {},},
+      { "A", {"M"} }
+  };
+
+  dag_t dag(in);
+  color_connected_vertices_t connector(dag);
+
+  { // vertex E is connected "A" but has no vertices "Impop" between them. //
+    std::unordered_set<vertex_t> output;
+
+    connector.compute_connected_vertices("E",
+        std::inserter(output, output.begin()),
+        prefix_name_classifier_t("Impop"));
+
+    EXPECT_TRUE(output.empty());
+  }
+
+  {
+    // vertex B //
+    std::unordered_set<vertex_t> output, expected = {"F", "D", "E"};
+    connector.compute_connected_vertices("B",
+        std::inserter(output, output.begin()),
+        prefix_name_classifier_t("Impop"));
+    EXPECT_EQ(expected, output);
+  }
+
+  {
+    // vertex F //
+    std::unordered_set<vertex_t> output, expected = {"H"};
+    connector.compute_connected_vertices("F",
+        std::inserter(output, output.begin()),
+        prefix_name_classifier_t("Impop"));
+    EXPECT_EQ(expected, output);
+  }
+
+  {
+    // vertex C //
+    std::unordered_set<vertex_t> output, expected = {"D", "E"};
+    connector.compute_connected_vertices("C",
+        std::inserter(output, output.begin()),
+        prefix_name_classifier_t("Impop"));
+    EXPECT_EQ(expected, output);
+  }
+
+  {
+    // vertex Input //
+    std::unordered_set<vertex_t> output;
+    connector.compute_connected_vertices("Input",
+        std::inserter(output, output.begin()),
+        prefix_name_classifier_t("Impop"));
+    EXPECT_TRUE(output.empty());
+  }
+}
+
+
