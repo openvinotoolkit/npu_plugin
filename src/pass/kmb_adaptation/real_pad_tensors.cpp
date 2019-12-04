@@ -250,7 +250,7 @@ void addAlignOpForInputTensorsFunc(const mv::pass::PassEntry& , mv::ComputationM
     {
         auto opIt = *vecIt;
         auto taskOp = opIt->get<std::string>("taskOp");
-        if(taskOp == "Conv" || taskOp == "DepthWiseConv" || taskOp == "MaxPool" ||
+        if(taskOp == "Conv" || taskOp == "DepthwiseConv" || taskOp == "MaxPool" ||
             taskOp == "Eltwise")
         {
             if (opIt->getOutputTensor(0)->getDType() == mv::DType("Float16"))

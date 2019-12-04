@@ -4,16 +4,22 @@
 
 int main()
 {
+    // Input data for this test has to be generated using
+    // ScaleShiftInput.py
 
     mv::CompilationUnit unit("UnfusableScaleModel");
     mv::OpModel& om = unit.model();
 
-    auto input0 = om.input({8,1,4,1}, mv::DType("UInt8"), mv::Order::getZMajorID(4),  {{0},{1.0},{},{}}, "input#170");
-    std::vector<int64_t> scalesData0 = mv::utils::generateSequence<int64_t> (4, 2, 2);
+    auto input0 = om.input({4,4,3,1}, mv::DType("UInt8"), mv::Order::getZMajorID(4),  {{0},{1.0},{},{}}, "input#170");
+    std::vector<int64_t> scalesData0 = {1, 1, 1};
 
-    auto scales0 = om.constantInt(scalesData0,{4}, mv::DType("UInt8"), mv::Order::getRowMajorID(1), {{0},{1.0},{},{}});
-    auto scale = om.scale(input0, scales0, mv::DType("UInt8"), {{0},{1.0},{},{}}, "scale0");
-    om.output(scale);
+    auto scales0 = om.constantInt(scalesData0,{3}, mv::DType("UInt8"), mv::Order::getRowMajorID(1), {{0},{0.0174292, 0.017507,  0.0171248},{},{}});
+    auto scale = om.scale(input0, scales0, mv::DType("UInt8"), {{118}, {0.0172290776471}, {}, {}}, "scale0");
+
+    std::vector<int64_t> biasData0 = {-104, -116, -124};
+    auto bias0 = om.constantInt(biasData0, {3}, mv::DType("Int32"), mv::Order::getRowMajorID(1), {{0}, {0.0174292, 0.017507,  0.0171248}, {}, {}});
+    auto bias = om.bias(scale, bias0, mv::DType("UInt8"), {{118}, {0.0172290776471}, {}, {}});
+    om.output(bias);
 
     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/release_kmb_MC-Prefetch1.json";
     unit.loadCompilationDescriptor(compDescPath);
