@@ -623,15 +623,6 @@ namespace mv
                         }
                 }
 
-                //sparsity SOH workaround also applies to depthwise conv
-                if( childOp.getOpType() == "DepthwiseConv" )
-                {
-                    if((parent["spilling"].get<bool>()) and (childClustering == "SplitOverH"))
-                    {
-                        return INF;
-                    }
-                }
-
                 //These sparsity rules apply pairwise, and effect memory size and execution time.
                 //Make a local decision to get the correct runtime and execution time, but don't persist
                 //Sparsity will not be applied where disallowed in later passes
