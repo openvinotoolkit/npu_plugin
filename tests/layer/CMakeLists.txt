@@ -31,6 +31,9 @@ else()
     add_executable(unfusable_scale unfusable_scale/unfusable_scale.cpp)
     target_link_libraries(unfusable_scale cm)
 
+    add_executable(conv_relu_channel_scaling conv_relu_channel_scaling/conv_relu_channel_scaling.cpp)
+    target_link_libraries(conv_relu_channel_scaling cm)
+
     add_executable(conv_sigmoid conv_sigmoid/conv_sigmoid.cpp)
     target_link_libraries(conv_sigmoid cm)
 
