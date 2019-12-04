@@ -936,16 +936,12 @@ void FrontEndMcm::parseEltwise(
         }
     }
 
-    // Because mcmCompiler is unable to generate a valid strategy when mv::DType("Default") is used as the Dtype
-    // the workaround is to explicity to set the DType as UInt8 in the API.
-    // VPUNND-2240 has been opened to fix this in the compiler. When this is complete the DType can be mv::DType("Default")
-
     switch (eltwiseLayer->_operation) {
         case ie::EltwiseLayer::eOperation::Sub:
-            mvEltwise = _modelMcm.eltwise(mvInputs, "Subtract", mv::DType("UInt8"), outputQuantParams, eltwiseLayer->name);
+            mvEltwise = _modelMcm.eltwise(mvInputs, "Subtract", mv::DType("Default"), outputQuantParams, eltwiseLayer->name);
             break;
         case ie::EltwiseLayer::eOperation::Sum:
-            mvEltwise = _modelMcm.eltwise(mvInputs, "Add", mv::DType("UInt8"), outputQuantParams, eltwiseLayer->name);
+            mvEltwise = _modelMcm.eltwise(mvInputs, "Add", mv::DType("Default"), outputQuantParams, eltwiseLayer->name);
             break;
         default:
             VPU_THROW_EXCEPTION << "Eltwise operation" << eltwiseLayer->_operation << " is not supported";
