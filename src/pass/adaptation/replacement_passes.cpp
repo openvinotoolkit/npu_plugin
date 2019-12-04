@@ -73,7 +73,7 @@ mv::Data::OpListIterator linkNewOperationsReplacement(mv::Data::OpListIterator p
 
     for (unsigned j = 0; j < opsToLink.size(); ++j)
     {
-        opsToLink[j]->setInputTensor(sourceTensor, inputSlots[j]);
+        opsToLink[j]->setInputTensor(sourceTensor, inputSlots[j], false);
         om.defineFlow(sourceTensor, opsToLink[j], inputSlots[j]);
     }
 
