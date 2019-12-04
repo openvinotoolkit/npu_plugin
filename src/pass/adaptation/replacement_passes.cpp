@@ -44,8 +44,8 @@ namespace mv
 }
 
 
-mv::Data::OpListIterator linkNewOperationsReplacementFully(mv::Data::OpListIterator parentOpIt,
-                                        mv::Data::TensorIterator sourceTensor, mv::OpModel om, mv::Data::OpListIterator opIt)
+mv::Data::OpListIterator linkNewOperationsReplacement(mv::Data::OpListIterator parentOpIt,
+                            mv::Data::TensorIterator sourceTensor, mv::OpModel om, mv::Data::OpListIterator opIt)
 {
     //Important: do not change the order of this ops
     std::vector<mv::Data::OpListIterator> opsToLink;
@@ -68,66 +68,6 @@ mv::Data::OpListIterator linkNewOperationsReplacementFully(mv::Data::OpListItera
         }
         else
             ++paramOp;
-    }
-
-    om.removeOp(opIt);
-    opIt = parentOpIt;
-
-    for (unsigned j = 0; j < opsToLink.size(); ++j)
-    {
-        opsToLink[j]->setInputTensor(sourceTensor, inputSlots[j], false);
-        om.defineFlow(sourceTensor, opsToLink[j], inputSlots[j]);
-    }
-
-    return opIt;
-}
-
-mv::Data::OpListIterator linkNewOperationsReplacementAverage(mv::Data::OpListIterator parentOpIt,
-                            mv::Data::TensorIterator sourceTensor, mv::OpModel om, mv::Data::OpListIterator opIt)
-{
-    //Important: do not change the order of this ops
-    std::vector<mv::Data::OpListIterator> opsToLink;
-    std::vector<std::size_t> outputSlots;
-    for (auto sinkFlow = opIt.leftmostOutput(); sinkFlow != om.flowEnd(); ++sinkFlow)
-    {
-        opsToLink.push_back(sinkFlow.sink());
-        outputSlots.push_back(sinkFlow->get<std::size_t>("sinkInput"));
-    }
-
-    om.removeOp(opIt);
-    opIt = parentOpIt;
-    //Average pool to depthwise will never change the shape of the output tensor, no cascade
-    for (unsigned j = 0; j < opsToLink.size(); ++j)
-    {
-        opsToLink[j]->setInputTensor(sourceTensor, outputSlots[j], false);
-        om.defineFlow(sourceTensor, opsToLink[j], outputSlots[j]);
-    }
-    return opIt;
-}
-
-
-mv::Data::OpListIterator linkNewOperationsReplacementScale(mv::Data::OpListIterator parentOpIt, mv::Data::TensorIterator sourceTensor, mv::OpModel om, mv::Data::OpListIterator opIt, bool removeCostantOps)
-{
-    //Important: do not change the order of this ops
-    std::vector<mv::Data::OpListIterator> opsToLink;
-    std::vector<std::size_t> inputSlots;
-    for (auto sinkFlow = opIt.leftmostOutput(); sinkFlow != om.flowEnd(); ++sinkFlow)
-    {
-        opsToLink.push_back(sinkFlow.sink());
-        inputSlots.push_back(sinkFlow->get<std::size_t>("sinkInput"));
-    }
-
-    auto inputFlow = opIt.leftmostInput();
-    while(inputFlow != om.flowEnd())
-    {
-        auto paramOp = inputFlow.sink();
-        auto backup = inputFlow;
-        ++inputFlow;
-        om.undefineFlow(backup);
-        if(removeCostantOps)
-            if (paramOp->getOpType() == "Constant" || paramOp->getOpType() == "ConstantInt"
-                    || paramOp->getOpType() == "ConstantDataElement")
-                om.removeOp(paramOp);
     }
 
     om.removeOp(opIt);
@@ -235,7 +175,8 @@ void tensorsToU8Fcn(const mv::pass::PassEntry&  , mv::ComputationModel& model, m
     }
 }
 
-void replacementOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+void replacementOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model,
+                       mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
     fullyConnectedAsConv2DFcn(pass, model);
     //interpAsAvgPoolingFcn(pass, model); for now we are using SW layer
@@ -297,7 +238,7 @@ void fullyConnectedAsConv2DFcn(const mv::pass::PassEntry& pass, mv::ComputationM
             convOp->set<unsigned>("opId", currentOpId);
         }
 
-        linkNewOperationsReplacementFully(parentOpIt, conv2D, om, opIt);
+        linkNewOperationsReplacement(parentOpIt, conv2D, om, opIt);
         conv2D->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
     }
 }
@@ -363,7 +304,7 @@ void interpAsAvgPoolingFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
             }
             pass.log(mv::Logger::MessageType::Info, "Replaced Interp op " + opIt->getName() + " with " + avgOp->getName());
             avgOp->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
-            linkNewOperationsReplacementAverage(parentOpIt, avgPool, om, opIt);
+            linkNewOperationsReplacement(parentOpIt, avgPool, om, opIt);
         }
     }
 }
@@ -423,7 +364,7 @@ void scaleAsDepthwiseFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& 
             convOp->set<unsigned>("opId", currentOpId);
         }
 
-        linkNewOperationsReplacementScale(parentOpIt, conv2D, om, opIt);
+        linkNewOperationsReplacement(parentOpIt, conv2D, om, opIt);
         conv2D->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
     }
 }
@@ -518,7 +459,7 @@ void averageAsDepthWiseFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
         }
         pass.log(mv::Logger::MessageType::Info, "Replaced AveragePool op " + opIt->getName() + " with " + depthwise_conv->getName());
         depthwise_conv->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
-        linkNewOperationsReplacementAverage(parentOpIt, depthwise_conv, om, opIt);
+        linkNewOperationsReplacement(parentOpIt, depthwise_conv, om, opIt);
     }
 }
 
@@ -559,7 +500,7 @@ void flattenAsReshapeFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& 
             reshapeOp->set<unsigned>("opId", currentOpId);
         }
         //flatten reshape no weights so use the same replacement with average->dwise
-        linkNewOperationsReplacementAverage(parentOpIt, reshape, om, opIt);
+        linkNewOperationsReplacement(parentOpIt, reshape, om, opIt);
         reshape->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
     }
 }
