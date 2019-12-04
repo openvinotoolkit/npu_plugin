@@ -423,7 +423,7 @@ void scaleAsDepthwiseFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& 
             convOp->set<unsigned>("opId", currentOpId);
         }
 
-        linkNewOperationsReplacementFully(parentOpIt, conv2D, om, opIt);
+        linkNewOperationsReplacementScale(parentOpIt, conv2D, om, opIt);
         conv2D->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
     }
 }
