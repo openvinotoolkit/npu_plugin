@@ -606,8 +606,9 @@ void allocateImplicitOperationsKmbFcn(const mv::pass::PassEntry& pass,
                 }
 
             }
-            else if(opType == "ImplicitReshape"){
-                 auto outputTensor = opIterator->getOutputTensor(0);
+            else if(opType == "ImplicitReshape")
+            {
+                auto outputTensor = opIterator->getOutputTensor(0);
                 auto inputTensor = opIterator->getInputTensor(0);
                 auto inputLocation = inputTensor->get<mv::Tensor::MemoryLocation>("Location");
                 auto outputLocation = outputTensor->get<mv::Tensor::MemoryLocation>("Location");
@@ -620,11 +621,6 @@ void allocateImplicitOperationsKmbFcn(const mv::pass::PassEntry& pass,
                     pass.log(mv::Logger::MessageType::Warning, "Tensor " + outputTensor->getName() + ""
                             " Has no allocator. Will attempt to allocate based on logical location");
                 }
-                else
-                {
-                    inputBuffer = dm.getBuffer(location2Allocator[inputLocation.toString()],
-                                                stageIt, inputTensor);
-                }
 
                 if( !outputTensor->hasAttr("allocators"))
                 {
@@ -632,12 +628,14 @@ void allocateImplicitOperationsKmbFcn(const mv::pass::PassEntry& pass,
                             " Has no allocator. Will attempt to allocate based on logical location");
                     outputBuffer = allocateUnpopulatedTensor(pass, dm, stageIt, outputTensor);
                 }
-                else
-                {
-                    outputBuffer = dm.getBuffer(location2Allocator[outputLocation.toString()],
-                                                stageIt, outputTensor);
-                }
+
             }
+            else
+            {
+                pass.log(mv::Logger::MessageType::Warning, "Tensor " + outputTensor->getName() +
+                            " has implicit flow but was not assigned an allocator.");
+            }
+            
         }
     }
 }
