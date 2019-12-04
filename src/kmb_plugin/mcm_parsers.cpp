@@ -851,7 +851,7 @@ void FrontEndMcm::parseScale(
                 shiftShape,
                 mv::DType("Int32"), mv::Order::getColMajorID(1), biasQuantParamsOverRide);
 
-        mvScaleShift = _modelMcm.bias(mvScale, shiftData, mv::DType("Int32"), outputQuantParamsOverRide,
+        mvScaleShift = _modelMcm.bias(mvScale, shiftData, mv::DType("Default"), outputQuantParamsOverRide,
                                                                                           scaleLayer->name + ":bias");
 
         _logger->debug("'%s' layer '%s': Bias part (%s) added to mcmModel", scaleLayer->type, scaleLayer->name, mvScaleShift->getName());
