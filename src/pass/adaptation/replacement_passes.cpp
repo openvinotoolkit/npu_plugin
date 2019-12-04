@@ -44,7 +44,8 @@ namespace mv
 }
 
 
-mv::Data::OpListIterator linkNewOperationsReplacement(mv::Data::OpListIterator parentOpIt, mv::Data::TensorIterator sourceTensor, mv::OpModel om, mv::Data::OpListIterator opIt)
+mv::Data::OpListIterator linkNewOperationsReplacement(mv::Data::OpListIterator parentOpIt,
+                            mv::Data::TensorIterator sourceTensor, mv::OpModel om, mv::Data::OpListIterator opIt)
 {
     //Important: do not change the order of this ops
     std::vector<mv::Data::OpListIterator> opsToLink;
@@ -58,7 +59,8 @@ mv::Data::OpListIterator linkNewOperationsReplacement(mv::Data::OpListIterator p
     auto paramOp = opIt.leftmostParent();
     while(paramOp != om.opEnd())
     {
-        if (paramOp->getOpType() == "Constant" || paramOp->getOpType() == "ConstantInt" || paramOp->getOpType() == "ConstantDataElement")
+        if (paramOp->getOpType() == "Constant" || paramOp->getOpType() == "ConstantInt"
+                || paramOp->getOpType() == "ConstantDataElement")
         {
             auto backUp = paramOp;
             ++paramOp;
@@ -73,7 +75,7 @@ mv::Data::OpListIterator linkNewOperationsReplacement(mv::Data::OpListIterator p
 
     for (unsigned j = 0; j < opsToLink.size(); ++j)
     {
-        opsToLink[j]->setInputTensor(sourceTensor, inputSlots[j]);
+        opsToLink[j]->setInputTensor(sourceTensor, inputSlots[j], false);
         om.defineFlow(sourceTensor, opsToLink[j], inputSlots[j]);
     }
 
@@ -173,7 +175,8 @@ void tensorsToU8Fcn(const mv::pass::PassEntry&  , mv::ComputationModel& model, m
     }
 }
 
-void replacementOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+void replacementOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model,
+                       mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
     fullyConnectedAsConv2DFcn(pass, model);
     //interpAsAvgPoolingFcn(pass, model); for now we are using SW layer
@@ -496,7 +499,6 @@ void flattenAsReshapeFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& 
             unsigned currentOpId = opIt->get<unsigned>("opId");
             reshapeOp->set<unsigned>("opId", currentOpId);
         }
-
         linkNewOperationsReplacement(parentOpIt, reshape, om, opIt);
         reshape->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
     }
