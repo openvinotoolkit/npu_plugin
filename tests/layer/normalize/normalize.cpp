@@ -7,7 +7,7 @@ int main()
 
     mv::CompilationUnit unit("NormalizeModel");
     mv::OpModel& om = unit.model();
-    auto input0 = om.input({112,112,32,1}, mv::DType("Float16"), mv::Order::getZMajorID(4), {{0},{1.0},{-inf},{inf}}, "input0");
+    auto input0 = om.input({112,112,32,1}, mv::DType("Float16"), mv::Order::getZMajorID(4), {{0},{1.0},{},{}}, "input0");
     std::vector<uint16_t> weightsData(32);
 
     //Load weights tensor from file
@@ -19,7 +19,7 @@ int main()
     for(unsigned i = 0; i < weightsData.size(); ++i)
         weightsData_converted[i] = weightsData[i];
 
-    auto weights0 = om.constantInt(weightsData_converted,{1,1,32,1}, mv::DType("Float16"), mv::Order::getZMajorID(4), {{0},{1.1524552064656746e-05},{-inf},{inf}}, "weights0");
+    auto weights0 = om.constantInt(weightsData_converted,{1,1,32,1}, mv::DType("Float16"), mv::Order::getZMajorID(4), {{0},{1.1524552064656746e-05},{},{}}, "weights0");
     
     double eps = 0.001; 
     auto normalize0 = om.normalize(input0, weights0, eps, 0, 0, mv::DType("Float16"));

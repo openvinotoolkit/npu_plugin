@@ -722,7 +722,6 @@ void mv::op::OpRegistry::generateCompositionAPI(const std::string& metaDir, cons
     incStream << "#include \"include/mcm/computation/model/iterator/data_context.hpp\"" << eol;
     incStream << "#include \"include/mcm/computation/model/iterator/tensor.hpp\"" << eol << eol;
     incStream << "#include \"include/mcm/tensor/quantization_params.hpp\"" << eol << eol;
-    incStream <<  "static double inf = std::numeric_limits<double>::infinity();" << eol << eol;
 
     incStream << "namespace mv" << eol << eol;
     incStream << "{" << eol << eol;
@@ -865,6 +864,7 @@ void mv::op::OpRegistry::generateCompositionAPI(const std::string& metaDir, cons
 #include    "src/computation/op/def/maximum.cpp"
 #include    "src/computation/op/def/eltwise.cpp"
 #include    "src/computation/op/def/align.cpp"
+#include    "src/computation/op/def/argmax.cpp"
 #include    "src/computation/op/def/average_pool.cpp"
 #include    "src/computation/op/def/batch_normalization.cpp"
 #include    "src/computation/op/def/bias.cpp"
@@ -875,9 +875,11 @@ void mv::op::OpRegistry::generateCompositionAPI(const std::string& metaDir, cons
 #include    "src/computation/op/def/conversion.cpp"
 #include    "src/computation/op/def/crop.cpp"
 #include    "src/computation/op/def/depthwise_conv.cpp"
+#include    "src/computation/op/def/detection_output.cpp"
 #include    "src/computation/op/def/dropout.cpp"
 #include    "src/computation/op/def/dummy.cpp"
 #include    "src/computation/op/def/elu.cpp"
+#include    "src/computation/op/def/flatten.cpp"
 #include    "src/computation/op/def/fully_connected.cpp"
 #include    "src/computation/op/def/identity.cpp"
 #include    "src/computation/op/def/input.cpp"
@@ -886,10 +888,13 @@ void mv::op::OpRegistry::generateCompositionAPI(const std::string& metaDir, cons
 #include    "src/computation/op/def/matmul.cpp"
 #include    "src/computation/op/def/max_pool.cpp"
 #include    "src/computation/op/def/normalize.cpp"
+#include    "src/computation/op/def/norm.cpp"
 #include    "src/computation/op/def/output.cpp"
 #include    "src/computation/op/def/permute.cpp"
 #include    "src/computation/op/def/prelu.cpp"
+#include    "src/computation/op/def/priorbox.cpp"
 #include    "src/computation/op/def/proposal.cpp"
+#include    "src/computation/op/def/interp.cpp"
 #include    "src/computation/op/def/quantize.cpp"
 #include    "src/computation/op/def/region_yolo.cpp"
 #include    "src/computation/op/def/relu.cpp"

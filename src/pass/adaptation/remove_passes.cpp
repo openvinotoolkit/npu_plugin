@@ -3,6 +3,7 @@
 #include "include/mcm/computation/model/data_model.hpp"
 
 static void removeDropOut(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+static void removeInterpNoOpFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 
 namespace mv
 {
@@ -14,6 +15,12 @@ namespace mv
         .setFunc(removeDropOut)
         .setDescription(
             "Removes dropout layers from the network"
+        );
+
+        MV_REGISTER_PASS(RemoveInterpNoOp)
+        .setFunc(removeInterpNoOpFcn)
+        .setDescription(
+            "Removes Interp layers that do nothing"
         );
 
     }
@@ -72,6 +79,34 @@ void removeDropOut(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::
             if (outputMemoryLocation.isForced())
             {
                 opIt->getOutputTensor(0)->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
+            }
+        }
+    }
+}
+
+void removeInterpNoOpFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+{
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
+    using namespace mv;
+
+    OpModel om(model);
+
+    for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt)
+    {
+        if (opIt->getOpType() == "Interp")
+        {
+            auto inputShape = opIt->getInputTensor(0)->getShape();
+            auto outputShape = opIt->getOutputTensor(0)->getShape();
+            if (inputShape == outputShape)
+            {
+                auto parentOpIt = om.getSourceOp(opIt->getInputTensor(0));
+                auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
+
+                auto sourceTensor = parentOpIt->getOutputTensor(0);
+
+                opIt = linkNewOperationsRemove(parentOpIt, sourceTensor, om, opIt);
+                if (outputMemoryLocation.isForced())
+                    opIt->getOutputTensor(0)->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
             }
         }
     }

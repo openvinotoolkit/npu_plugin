@@ -52,7 +52,8 @@ void AddDPUTasksWeightsDMATasksFcn(const mv::pass::PassEntry&, mv::ComputationMo
     {
         auto opId = opIt->get<unsigned>("opId");
         unsigned n = opIt->inputSlots();
-        for(unsigned i = 1; i < n; ++i)
+        //Note: Adds dmas not only for weights like the name says...
+        for(unsigned i = 0; i < n; ++i)
         {
             auto inputTensor = opIt->getInputTensor(i);
             mv::QuantizationParams quantParams = {{},{},{},{}};

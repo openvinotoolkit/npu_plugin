@@ -42,6 +42,7 @@ namespace mv
 
         static Shape broadcast(const Shape& s1, const Shape& s2);
         static Shape augment(const Shape& s, std::size_t ndims);
+        static Shape augment_major(const Shape& s, std::size_t ndims);
 
         const std::size_t& operator[](int ndim) const;
         const std::size_t& operator[](const std::string& ndim) const;

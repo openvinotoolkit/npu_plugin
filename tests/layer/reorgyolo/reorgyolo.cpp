@@ -7,7 +7,7 @@ int main()
 
     mv::CompilationUnit unit("ReorgYoloModel");
     mv::OpModel& om = unit.model();
-    auto input0 = om.input({26,26,64,1}, mv::DType("Float16"), mv::Order::getZMajorID(4), {{0},{1.0},{-inf},{inf}}, "input0");
+    auto input0 = om.input({26,26,64,1}, mv::DType("Float16"), mv::Order::getZMajorID(4), {{0},{1.0},{},{}}, "input0");
 
     unsigned stride = 2;
 

@@ -82,6 +82,7 @@
     },
     "adapt": {
         "Singular": [
+            "RemoveInterpNoOp",
             "ReplacementOps",
             "TensorsToU8",
             "TensorsToFP16",
@@ -198,6 +199,7 @@
         "Singular" : [
             "SetDpuTasksMemoryLocation",
             "SetUPATasksMemoryLocation",
+            "UpdateImplicitLayersLocation",
             "ResolveImplicitOperations",
             "AddDPUTasksWeightsDMATasks",
             "AddUPATasksExtraInputsDMATasks",
