@@ -499,7 +499,6 @@ void flattenAsReshapeFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& 
             unsigned currentOpId = opIt->get<unsigned>("opId");
             reshapeOp->set<unsigned>("opId", currentOpId);
         }
-        //flatten reshape no weights so use the same replacement with average->dwise
         linkNewOperationsReplacement(parentOpIt, reshape, om, opIt);
         reshape->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
     }
