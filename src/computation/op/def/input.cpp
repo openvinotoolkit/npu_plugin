@@ -8,10 +8,11 @@ namespace mv
 
         static std::function<std::pair<bool, std::size_t>(const std::vector<Data::TensorIterator>&,
             const std::map<std::string, Attribute>&, std::string&)> inputCheckFcn =
-            [](const std::vector<Data::TensorIterator>&, const std::map<std::string, Attribute>&,
+            [](const std::vector<Data::TensorIterator>&, const std::map<std::string, Attribute>& args,
             std::string&) -> std::pair<bool, std::size_t>
         {
-
+            if(args.at("dType").get<mv::DType>() == mv::DType("Default"))
+                return {false, 1};
             return {true, 0};
 
         };
