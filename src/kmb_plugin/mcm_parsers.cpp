@@ -832,7 +832,7 @@ void FrontEndMcm::parseScale(
 
     auto outputQuantParamsOverRide = initialQuantParams;
     KmbQuantizationHelpers::fillQuntizationActivationParams(scaleLayer, outputQuantParamsOverRide);
-    auto mvScale = _modelMcm.scale(input->getMcmNode(), mvWeights, mv::DType("UInt8"),
+    auto mvScale = _modelMcm.scale(input->getMcmNode(), mvWeights, mv::DType("Default"),
                                    outputQuantParamsOverRide, scaleLayer->name);
 
     auto mvScaleShift = mvScale;
