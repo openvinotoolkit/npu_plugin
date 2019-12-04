@@ -868,6 +868,11 @@ void FrontEndMcm::parsePermute(
 
     auto mvPerm = _modelMcm.permute(inputs[0]->getMcmNode(), mv::Order(newOrder), mv::DType("Default"),
             initialQuantParams, layer->name);
+
+    // Workaround to avoid parsing stage crash 'ArgumentError: attribute identifer quantParams - Undefined identifier'
+    // VPUNND-2237,
+    mvPerm->set<mv::QuantizationParams>("quantParams", initialQuantParams);
+
     bindOutput(mvPerm, layer->outData[0]);
 
     _logger->debug(FINISH_PARSING_STR, mvPerm->getName());
