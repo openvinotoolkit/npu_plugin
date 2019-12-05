@@ -59,7 +59,7 @@ void computeTensorsQuantParams(const mv::pass::PassEntry&, mv::ComputationModel&
              if(eltwiseType == "Multiply")
                  isEltwiseMult = true;
          }
-         bool isConv = (taskOp == "Conv" || taskOp == "DepthwiseConv" || taskOp == "ChannelMajorConvolution");
+         bool isConv = (taskOp == "Conv" || taskOp == "DepthwiseConv");
          if (isConv || taskOp == "MaxPool" || isEltwiseMult || isEltwiseAddSub)
          {
             auto output = opIt->getOutputTensor(0);
@@ -175,6 +175,16 @@ std::vector<T> extendToK(size_t size, std::vector<T> value)
 {
     if (value.size() == 1)
         return mv::utils::generateSequence<T>(size, static_cast<T>(value[0]) , 0);
+
+    // We enter in this case if and only if we specified multi channel scales and
+    // the tensor has been aligned
+    if (value.size() < size)
+    {
+        auto toReturn = mv::utils::generateSequence<T>(size, static_cast<T>(0) , 0);
+        for(unsigned i = 0; i < value.size(); ++i)
+            toReturn[i] = value[i];
+        return toReturn;
+    }
 
     if (value.size() == size)
         return value;

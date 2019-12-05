@@ -93,7 +93,7 @@ void alignTaskWeightsFcn(const mv::pass::PassEntry& , mv::ComputationModel& mode
             auto weightsDType = kernel->get<mv::DType>("dType");
             auto weightSetDimensionPadded = mv::round_up(weightSetDimension, 16);
             if (weightsDType == mv::DType("Float16"))
-                    weightSetDimensionPadded = mv::round_up(weightSetDimension, 8);
+                weightSetDimensionPadded = mv::round_up(weightSetDimension, 8);
             auto paddingDifference = weightSetDimensionPadded - weightSetDimension;
 
             mv::Shape newShape({weightSetDimensionPadded, 1, 1, outputChannels});
@@ -116,7 +116,8 @@ void alignTaskWeightsFcn(const mv::pass::PassEntry& , mv::ComputationModel& mode
             if(paddingDifference != 0)
                 newKernelName = mv::createAlignWeightSetConstantName(kernelName);
             auto outputDataFlows = mv::getOutputDataFlow(om, kernelOp);
-            auto newKernel = om.constantDataElement(newData, newShape, kernelDType, mv::Order("NHWC"), quantParams, newKernelName);
+            auto newKernel = om.constantDataElement(newData, newShape, kernelDType,
+                                                    mv::Order("NHWC"), quantParams, newKernelName);
             auto newKernelOp = om.getSourceOp(newKernel);
             newKernelOp->set<unsigned>("opId", opId);
 

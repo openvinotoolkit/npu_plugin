@@ -7,12 +7,14 @@
 const size_t FULLY_CONNECTED_KERNEL = 1;
 
 static void fullyConnectedAsConv2DFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
+static void handleEltWiseDifferentScales(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 static void tensorsToFP16Fcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void tensorsToU8Fcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void averageAsDepthWiseFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 static void interpAsAvgPoolingFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 static void flattenAsReshapeFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 static void replacementOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+static void scaleAsDepthwiseFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 
 namespace mv
 {
@@ -35,14 +37,16 @@ namespace mv
         MV_REGISTER_PASS(ReplacementOps)
         .setFunc(replacementOpsFcn)
         .setDescription(
-            "Replaces Average with Depthwise, FullyConnected with Convolution, & Flatten with Reshape"
+            "Replaces Average with Depthwise and FullyConnected with Convolution"
         );
 
     }
 
 }
 
-mv::Data::OpListIterator linkNewOperationsReplacement(mv::Data::OpListIterator parentOpIt, mv::Data::TensorIterator sourceTensor, mv::OpModel om, mv::Data::OpListIterator opIt)
+
+mv::Data::OpListIterator linkNewOperationsReplacement(mv::Data::OpListIterator parentOpIt,
+                            mv::Data::TensorIterator sourceTensor, mv::OpModel om, mv::Data::OpListIterator opIt)
 {
     //Important: do not change the order of this ops
     std::vector<mv::Data::OpListIterator> opsToLink;
@@ -56,7 +60,8 @@ mv::Data::OpListIterator linkNewOperationsReplacement(mv::Data::OpListIterator p
     auto paramOp = opIt.leftmostParent();
     while(paramOp != om.opEnd())
     {
-        if (paramOp->getOpType() == "Constant" || paramOp->getOpType() == "ConstantInt" || paramOp->getOpType() == "ConstantDataElement")
+        if (paramOp->getOpType() == "Constant" || paramOp->getOpType() == "ConstantInt"
+                || paramOp->getOpType() == "ConstantDataElement")
         {
             auto backUp = paramOp;
             ++paramOp;
@@ -71,12 +76,13 @@ mv::Data::OpListIterator linkNewOperationsReplacement(mv::Data::OpListIterator p
 
     for (unsigned j = 0; j < opsToLink.size(); ++j)
     {
-        opsToLink[j]->setInputTensor(sourceTensor, inputSlots[j]);
+        opsToLink[j]->setInputTensor(sourceTensor, inputSlots[j], false);
         om.defineFlow(sourceTensor, opsToLink[j], inputSlots[j]);
     }
 
     return opIt;
 }
+
 
 void tensorsToFP16Fcn(const mv::pass::PassEntry&  , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
@@ -171,11 +177,14 @@ void tensorsToU8Fcn(const mv::pass::PassEntry&  , mv::ComputationModel& model, m
     }
 }
 
-void replacementOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+void replacementOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model,
+                       mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
     fullyConnectedAsConv2DFcn(pass, model);
     //interpAsAvgPoolingFcn(pass, model); for now we are using SW layer
     averageAsDepthWiseFcn(pass, model);
+    scaleAsDepthwiseFcn(pass, model);
+    handleEltWiseDifferentScales(pass, model);
     flattenAsReshapeFcn(pass, model);
 }
 
@@ -234,6 +243,44 @@ void fullyConnectedAsConv2DFcn(const mv::pass::PassEntry& pass, mv::ComputationM
 
         linkNewOperationsReplacement(parentOpIt, conv2D, om, opIt);
         conv2D->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
+    }
+}
+
+//NOTE: This pass will handle cases that we have Convs -> Eltwise for testing ResNet first of all....
+//General solution dequantize the input Tensors of these special Elwise, even with sw de-quantize
+void handleEltWiseDifferentScales(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
+{
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
+
+    mv::OpModel om(model);
+
+    auto eltWiseOps = om.getOps("Eltwise");
+
+    for (auto& opIt : eltWiseOps)
+    {
+        auto eltwiseType = opIt->get<std::string>("eltwiseType");
+        if(eltwiseType == "Mult" || eltwiseType == "Divide")
+            continue;
+        pass.log(mv::Logger::MessageType::Debug, "Found Eltwise op " + opIt->getName());
+
+        auto firstEltwiseInputTensor = opIt->getInputTensor(0);
+        auto secondEltwiseInputTensor = opIt->getInputTensor(1);
+
+        mv::QuantizationParams firstEltwiseInputTensorQuantizationParams = {{}, {}, {}, {}};
+        mv::QuantizationParams secondEltwiseInputTensorQuantizationParams = {{}, {}, {}, {}};
+
+        if (firstEltwiseInputTensor->isQuantized())
+            firstEltwiseInputTensorQuantizationParams =
+                    firstEltwiseInputTensor->get<mv::QuantizationParams>("quantParams");
+        if (secondEltwiseInputTensor->isQuantized())
+            secondEltwiseInputTensorQuantizationParams =
+                    secondEltwiseInputTensor->get<mv::QuantizationParams>("quantParams");
+
+        if (firstEltwiseInputTensorQuantizationParams.getScale() !=
+                secondEltwiseInputTensorQuantizationParams.getScale())
+            opIt->set<bool>("softwareExecuted", true);
+
     }
 }
 
@@ -300,6 +347,66 @@ void interpAsAvgPoolingFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
             avgOp->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
             linkNewOperationsReplacement(parentOpIt, avgPool, om, opIt);
         }
+    }
+}
+
+void scaleAsDepthwiseFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
+{
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
+
+    mv::OpModel om(model);
+
+    auto scaleOps = om.getOps("Scale");
+
+    for (auto& opIt : scaleOps)
+    {
+        auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
+
+        pass.log(mv::Logger::MessageType::Debug, "Found FullyConnected op " + opIt->getName());
+
+        auto sourceTensor = opIt->getInputTensor(0);
+        auto parentOpIt = om.getSourceOp(sourceTensor);
+        auto weightsData = opIt->getInputTensor(1)->getData();
+        auto inputShape = sourceTensor->getShape();
+        mv::QuantizationParams weightsTensorQuantizationParams = {{},{},{},{}};
+        mv::QuantizationParams outputTensorQuantizationParams = {{},{},{},{}};
+
+        if (opIt->getInputTensor(1)->isQuantized())
+        {
+            weightsTensorQuantizationParams = opIt->getInputTensor(1)->get<mv::QuantizationParams>("quantParams");
+            outputTensorQuantizationParams = opIt->getOutputTensor(0)->get<mv::QuantizationParams>("quantParams");
+        }
+
+        if (parentOpIt->getOpType() == "Conv")
+            continue;
+
+        auto weights = om.constantDataElement(weightsData, {FULLY_CONNECTED_KERNEL, FULLY_CONNECTED_KERNEL, inputShape[mv::IO_CHANNEL_DIMENSION],
+        1}, sourceTensor->getDType(),
+        mv::Order::getZMajorID(4), weightsTensorQuantizationParams, opIt->getName() + "_weights");
+        auto outputTensorType = opIt->getOutputTensor(0)->get<mv::DType>("dType");
+
+        auto conv2D = om.depthwiseConv(sourceTensor, weights, {1, 1}, {0, 0, 0, 0}, 1, outputTensorType, outputTensorQuantizationParams,  opIt->getName() + "_DepthwiseConv");
+        pass.log(mv::Logger::MessageType::Info, "Replaced scale op " + opIt->getName() + " with " + conv2D->getName());
+
+        if (opIt->hasAttr("bias"))
+        {
+            auto biasTensorName = opIt->get<std::string>("bias");
+            om.addAttr(om.getSourceOp(conv2D), "bias", biasTensorName);
+            pass.log(mv::Logger::MessageType::Info, "Moved Bias attribute of scale op " + opIt->getName() + " to " + conv2D->getName());
+        }
+
+        auto convOp = om.getSourceOp(conv2D);
+        auto weightsOp = om.getSourceOp(weights);
+
+        if(opIt->hasAttr("opId"))
+        {
+            unsigned currentOpId = opIt->get<unsigned>("opId");
+            weightsOp->set<unsigned>("opId", currentOpId);
+            convOp->set<unsigned>("opId", currentOpId);
+        }
+
+        linkNewOperationsReplacement(parentOpIt, conv2D, om, opIt);
+        conv2D->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
     }
 }
 
@@ -433,7 +540,6 @@ void flattenAsReshapeFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& 
             unsigned currentOpId = opIt->get<unsigned>("opId");
             reshapeOp->set<unsigned>("opId", currentOpId);
         }
-
         linkNewOperationsReplacement(parentOpIt, reshape, om, opIt);
         reshape->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
     }

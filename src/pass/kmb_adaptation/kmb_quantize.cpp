@@ -27,6 +27,7 @@ void addQuantizationLayers(mv::OpModel om, std::vector<mv::Data::OpListIterator>
     {
         auto inputFlow = task.leftmostInput();
         auto outputDType = task->getOutputTensor(0)->getDType();
+        std::size_t id = 0;
         while(inputFlow != om.flowEnd())
         {
             auto tensor = inputFlow->getTensor();
@@ -36,7 +37,7 @@ void addQuantizationLayers(mv::OpModel om, std::vector<mv::Data::OpListIterator>
             if(!tensor->isPopulated() && tensorDType != dtypeNeededInInput)
             {
                 auto quantize = om.uPATaskQuantize({tensor}, outputDType,
-                            tensor->get<mv::QuantizationParams>("quantParams"), "Quantize" + task->getName());
+                            tensor->get<mv::QuantizationParams>("quantParams"), "Quantize" + task->getName() + std::to_string(id));
                 quantize->set<std::string>("splitStrategy",
                             tensor->get<std::string>("splitStrategy"));
                 auto quantizeOp = om.getSourceOp(quantize);
@@ -46,6 +47,7 @@ void addQuantizationLayers(mv::OpModel om, std::vector<mv::Data::OpListIterator>
                 om.undefineFlow(backup);
                 om.defineFlow(quantize, task, 0);
                 task->setInputTensor(quantize, 0, false);
+                id++;
             }
             else
                 ++inputFlow;

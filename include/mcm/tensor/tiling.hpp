@@ -3,10 +3,11 @@
 
 #include "include/mcm/base/element.hpp"
 #include "include/mcm/tensor/shape.hpp"
+#include "include/mcm/utils/custom_math.hpp"
+
 
 namespace mv
 {
-
     class Tiling {
     private:
         Shape start_;
@@ -157,8 +158,10 @@ namespace mv
             }
 
             int outputSize =  inferOutputSize(inputShape[axisToSplit],padStart,padEnd,kernelSize,kernelStride);
-            int newOutputSize = trunc( (double)(outputSize) / (double)numberOfSplits);
-            int remainderOutputSize = outputSize - ( newOutputSize *(numberOfSplits -1));
+            auto newOutputSizes = tileSpatialOutputSize(outputSize, numberOfSplits);
+            int newOutputSize = newOutputSizes.first;
+            int remainderOutputSize = newOutputSizes.second;
+
             unsigned startCoord = 0;
             for (std::size_t split = 0; split < numberOfSplits; split++)
             {

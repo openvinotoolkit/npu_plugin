@@ -52,26 +52,28 @@ void SplittingTensorsAcrossClusters(const mv::pass::PassEntry& pass, mv::Computa
 
     if (numClusters > 1)
     {
+        std::set <std::string> tensorNames;
         std::vector <mv::Data::TensorIterator> tensors;
         auto dpuTasks = om.getOps("DPUTask");
         for(auto layer : dpuTasks)
         {
-            std::string opType = layer->getOpType();
-            auto outputTensor = layer->getOutputTensor(0);
-            tensors.push_back(outputTensor);
+            auto outputTensorName = layer->getOutputTensor(0)->getName();
+            tensorNames.insert(outputTensorName);
             for(std::size_t i = 0; i < layer->inputSlots(); ++i)
             {
+                auto inputTensorName = layer->getInputTensor(i)->getName();
                 auto inputTensor = layer->getInputTensor(i);
-                tensors.push_back(inputTensor);
+                tensorNames.insert(inputTensorName);
 
                 // New weights sparsity approach: no explicit costant operation
                 // for sparsity map is present in the graph.
                 // So check for sparsity has to be done only here
                 if(inputTensor->isPopulated() && inputTensor->isSparse())
-                    tensors.push_back(dm.getTensor(inputTensor->getSparsityMap()->getName()));
-
+                    tensorNames.insert(inputTensor->getSparsityMap()->getName());
             }
         }
+        for (auto tensorName : tensorNames)
+            tensors.push_back(dm.getTensor(tensorName));
         subTensorsGen(model, tensors, numClusters, pass);
     }
     return;
@@ -147,7 +149,7 @@ void subTensorsGen(mv::ComputationModel& model, const std::vector <mv::Data::Ten
                 std::array <unsigned short, 4> padding = {0, 0, sinkOperators[0]->get<std::array<unsigned short, 4>>("padding")[2],
                                                        sinkOperators[0]->get<std::array<unsigned short, 4>>("padding")[3]};
                 //Rectangular Heuristc: The workload has only one rectangle in its list, itself
-                
+
                 subTensors = Tensor.overlap_and_clip(padding, tensor->getShape());
             }
             else
@@ -232,38 +234,79 @@ static std::vector<mv::Workload> fixRectangularHeuristicBug(std::vector<mv::Work
 
     if (!tensor->isPopulated())
     {
-        std::vector<size_t> z_sizes(nWorkloads);
-
-        auto totalZ = subTensors[0].MaxX;
-        for(size_t i=1; i<subTensors.size();i++)
-            if (subTensors[i].MaxX > totalZ)
-                totalZ = subTensors[i].MaxX;
-        totalZ++;
-
-        int t=0;
-        while (totalZ > 0)
+        if (subTensors.empty())
         {
-            z_sizes[t] += 16;
-            totalZ -= 16;
-            t++;
-            if (t == nWorkloads)
-                t = 0;
-        }
-        for (int i = 0; i < nWorkloads; i++)
-        {
-            mv::Workload subTensor = subTensors[0];
-
-            if (i==0)
+            mv::Shape tensorShape = tensor->getShape();
+            std::size_t outputChannels = tensorShape[mv::IO_CHANNEL_DIMENSION];
+            std::size_t quantumofAlignedChannels, equalSlice, remainingSlice = 0;
+            //NOTE: Normally this value is not 16 depends on the dtype but not merged yet
+            if (outputChannels % 16 == 0)
             {
-                subTensor.MinX = 0;
-                subTensor.MaxX = z_sizes[i] - 1;
+                quantumofAlignedChannels = outputChannels/16;
+                equalSlice = quantumofAlignedChannels/nWorkloads;
+                remainingSlice = quantumofAlignedChannels%nWorkloads;
             }
             else
+                throw std::string("Trying to compute SubTensors for an unaligned Tensor");
+            for (int n = 0; n < nWorkloads; n++)
             {
-                subTensor.MinX = newSubTensors[i - 1].MaxX + 1;
-                subTensor.MaxX = subTensor.MinX + z_sizes[i] - 1;
+                mv::Workload subTensor;
+                if (n != nWorkloads - 1)
+                {
+                    subTensor.MaxX = tensor->getShape()[mv::IO_WIDTH_DIMENSION];
+                    subTensor.MinX = 0;
+                    subTensor.MaxZ = equalSlice * (n+1) * 16;
+                    subTensor.MinZ = equalSlice * n * 16;
+                    subTensor.MaxY = tensor->getShape()[mv::IO_HEIGHT_DIMENSION];
+                    subTensor.MinY = 0;
+                }
+                else
+                {
+                    subTensor.MaxX = tensor->getShape()[mv::IO_WIDTH_DIMENSION];
+                    subTensor.MinX = 0;
+                    subTensor.MaxZ = (equalSlice + remainingSlice) * (n+1) * 16;
+                    subTensor.MinZ = equalSlice * n;
+                    subTensor.MaxY = tensor->getShape()[mv::IO_HEIGHT_DIMENSION];
+                    subTensor.MinY = 0;
+                }
+                newSubTensors.push_back(subTensor);
             }
-            newSubTensors.push_back(subTensor);
+        }
+        else
+        {
+            std::vector<size_t> z_sizes(nWorkloads);
+
+            auto totalZ = subTensors[0].MaxX;
+            for(size_t i=1; i<subTensors.size();i++)
+                if (subTensors[i].MaxX > totalZ)
+                    totalZ = subTensors[i].MaxX;
+            totalZ++;
+
+            int t=0;
+            while (totalZ > 0)
+            {
+                z_sizes[t] += 16;
+                totalZ -= 16;
+                t++;
+                if (t == nWorkloads)
+                    t = 0;
+            }
+            for (int i = 0; i < nWorkloads; i++)
+            {
+                mv::Workload subTensor = subTensors[0];
+
+                if (i==0)
+                {
+                    subTensor.MinX = 0;
+                    subTensor.MaxX = z_sizes[i] - 1;
+                }
+                else
+                {
+                    subTensor.MinX = newSubTensors[i - 1].MaxX + 1;
+                    subTensor.MaxX = subTensor.MinX + z_sizes[i] - 1;
+                }
+                newSubTensors.push_back(subTensor);
+            }
         }
     }
     else
@@ -323,6 +366,10 @@ void ensureSplitStrategiesForSpilling(const mv::pass::PassEntry& pass, mv::Compu
         {"SplitOverK", "HKSwitch"},
         {"Clustering", "HKSwitch"}
     };
+    std::pair<std::string, std::string> clusteringToSoH("Clustering", "SplitOverH");
+    std::pair<std::string, std::string> SoKToSoH("SplitOverK", "SplitOverH");
+    std::pair<std::string, std::string> SoHToSoK("SplitOverH", "SplitOverK");
+    std::pair<std::string, std::string> SoHToClustering("SplitOverH", "Clustering");
     auto globalParams = model.getGlobalConfigParams();
     unsigned numClusters = globalParams->get<int>("Number_of_Clusters");
 
@@ -350,11 +397,17 @@ void ensureSplitStrategiesForSpilling(const mv::pass::PassEntry& pass, mv::Compu
                     {
                         if (possibleCombination == restrictedCombination)
                         {
-                            // Strategy have to be adjusted...
+                            // Strategies have to be adjusted...
                             outputTensor->set<std::string>("splitStrategy", opStrategy);
-
+                            inputTensor->set<std::string>("splitStrategy", opStrategy);
+                            inputTensor->cleanSubtensors();
+                            outputTensor->cleanSubtensors();
+                            if (possibleCombination == clusteringToSoH || possibleCombination == SoKToSoH)
+                                inputTensor->set<std::string>("overwriteStrategy", "ClusteringToSoH");
+                            else if (possibleCombination == SoHToClustering || possibleCombination == SoHToSoK)
+                                inputTensor->set<std::string>("overwriteStrategy", "SoHToClustering");
                             // ... and splitting has to be done again!!! <- Price for efficiency
-                            subTensorsGen(model, {outputTensor}, numClusters, pass);
+                            subTensorsGen(model, {inputTensor, outputTensor}, numClusters, pass);
                         }
                     }
                 }

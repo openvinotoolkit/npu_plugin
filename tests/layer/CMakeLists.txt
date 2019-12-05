@@ -31,6 +31,12 @@ else()
     add_executable(conv_relu conv_relu/conv_relu.cpp)
     target_link_libraries(conv_relu cm)
 
+    add_executable(unfusable_scale unfusable_scale/unfusable_scale.cpp)
+    target_link_libraries(unfusable_scale cm)
+
+    add_executable(conv_relu_channel_scaling conv_relu_channel_scaling/conv_relu_channel_scaling.cpp)
+    target_link_libraries(conv_relu_channel_scaling cm)
+
     add_executable(conv_sigmoid conv_sigmoid/conv_sigmoid.cpp)
     target_link_libraries(conv_sigmoid cm)
 
@@ -81,6 +87,9 @@ else()
 
     add_executable(softmax softmax/softmax.cpp)
     target_link_libraries(softmax cm)
+
+    add_executable(eltwise_replacement eltwise_fp16/eltwise_replacement.cpp)
+    target_link_libraries(eltwise_replacement cm)
 
     add_executable(interp interp/interp.cpp)
     target_link_libraries(interp cm)
