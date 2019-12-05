@@ -722,7 +722,8 @@ std::vector<convolution_test_params> sigsegv_due_to_low_output_channels_number_t
     {{1, 3, 16, 16}, {{1, 1}, {3, 3}, {0, 0}, {0, 0}, {1, 1}, "", 1, 20, true, true, ""}},
 };
 
-INSTANTIATE_TEST_CASE_P(DISABLED_accuracy_low_OC, ConvolutionTest, ::testing::ValuesIn(sigsegv_due_to_low_output_channels_number_test_params));
+INSTANTIATE_TEST_CASE_P(DISABLED_accuracy_low_OC, ConvolutionTest,
+    ::testing::ValuesIn(sigsegv_due_to_low_output_channels_number_test_params));
 
 struct convolution_and_pooling_test_params {
     SizeVector input_dim;
