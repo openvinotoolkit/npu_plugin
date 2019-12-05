@@ -4,6 +4,7 @@
 #include "include/mcm/op_model.hpp"
 
 void checkTensorsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element& compOutput);
+void integerTensorsBoundaryCheckFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element& compOutput);
 
 namespace mv
 {
@@ -23,10 +24,52 @@ namespace mv
             " - Populated tensor holding no data"
         );
 
-    }
+        MV_REGISTER_PASS(CheckIntegerTensors)
+        .setFunc(integerTensorsBoundaryCheckFcn)
+        .setDescription(
+            "Check if all the integer tensors passed during composition are valid"
+        );
 
+    }
 }
 
+void integerTensorsBoundaryCheckFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element& compOutput)
+{
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
+
+    auto constantInts = model.getOps("ConstantInt");
+    for(auto& op: constantInts)
+    {
+        auto populatedTensor = op->getOutputTensor(0);
+        auto populatedTensorDType = populatedTensor->getDType();
+        if(populatedTensorDType == mv::DType("Float16") || populatedTensorDType == mv::DType("Float8"))
+            continue;
+        if(populatedTensorDType == mv::DType("Int64") || populatedTensorDType == mv::DType("UInt64"))
+            continue;
+        unsigned DTypeBits = populatedTensorDType.getSizeInBits();
+        bool isDTypeSigned = populatedTensorDType.isSigned();
+
+        long int upperBound = 0;
+        long int lowerBound = 0;
+
+        if(isDTypeSigned)
+        {
+            upperBound = (1 << (DTypeBits - 1)) - 1;
+            lowerBound = -(1 << (DTypeBits - 1));
+        }
+        else
+            upperBound = 1 << DTypeBits;
+
+        for(unsigned i = 0; i < populatedTensor->size(); ++i)
+        {
+            int64_t currentValue = static_cast<int64_t>(populatedTensor->at(i));
+            if(currentValue < lowerBound || currentValue > upperBound)
+                throw std::runtime_error("Populated tensor with DType " + populatedTensorDType.toString() + " with out of bound value " + std::to_string(currentValue));
+        }
+    }
+}
+
+// NOTE: This pass is super obsolete.
 void checkTensorsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element& compOutput)
 {
 
@@ -47,7 +90,7 @@ void checkTensorsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv
         if (it->getOpType() == "Constant")
         {
 
-            
+
 
             if (!it->getOutputTensor(0)->isPopulated())
             {
@@ -56,7 +99,7 @@ void checkTensorsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv
                 compOutput.get<std::vector<std::string>>("unpopulatedConstOpOutput").push_back(it->getOutputTensor(0)->getName());
 
             }
-            
+
         }
         else
         {
@@ -73,7 +116,7 @@ void checkTensorsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv
                 }
 
             }
-            
+
         }
 
     }
@@ -88,7 +131,7 @@ void checkTensorsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv
 
             compOutput.set<bool>("valid", false);
             compOutput.get<std::vector<std::string>>("populatedNonConstDataFlow").push_back(it->getTensor()->getName());
-        
+
         }
 
     }
@@ -101,7 +144,7 @@ void checkTensorsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv
 
             compOutput.set<bool>("valid", false);
             compOutput.get<std::vector<std::string>>("emptyPopulated").push_back(it->getName());
-            
+
         }
 
     }
