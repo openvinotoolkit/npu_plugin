@@ -213,6 +213,12 @@ std::vector<TestingNetworkParameters> vpuInferAndCompareTestsNQA = {
     TestingNetworkParameters {"yolo_v2_uint8_int8_weights_pertensor",
         "/KMB_models/NQA/POST_TRAINING/Yolo_V2/yolo_v2_uint8_int8_weights_pertensor.xml",
         "/KMB_models/NQA/POST_TRAINING/Yolo_V2/yolo_v2_uint8_int8_weights_pertensor.bin", "/416x416/person.bmp"},
+    // post training models
+    // Following test on yolo_v3 fails on IE to mcmCompiler parsing stage with message.
+    // C++ exception with description "Resample layer is not supported by kmbPlugin
+    TestingNetworkParameters{"yolo_v3_uint8_int8_weights_pertensor",
+        "/KMB_models/NQA/POST_TRAINING/Yolo_V3/yolo_v3_uint8_int8_weights_pertensor.xml",
+        "/KMB_models/NQA/POST_TRAINING/Yolo_V3/yolo_v3_uint8_int8_weights_pertensor.bin", "/416x416/person.bmp"},
     // post trainig models
     // Following 3 tests on inception_v1 fail on mcmCompiler compilation stage with following message.
     // Streaming for node: InceptionV1/Logits/Conv2d_0c_1x1/convolution has stream K = 2
