@@ -334,9 +334,9 @@ namespace mv
                     maxSplits = (alignedOutputChannelSize/16);
 
                 if(maxSplits > 64)
-			maxSplits = 64;
-		
-		splits.push_back(1);
+                    maxSplits = 64;
+
+                splits.push_back(1);
                 for(unsigned split = 2; split <= maxSplits; split=split+2)
                 {
                     bool validSplit = true;
@@ -577,62 +577,43 @@ namespace mv
                         return INF;
                     }
                 }
-
-                if((parentClustering == "HKSwitch") and
-                        (childClustering == "SplitOverH")){
-                            log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString() 
-                                + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by HK to SOH");
+                //NOTE: If you Spill a parent a child can be everything...the only thing
+                //that has no sense if is your parent is spilling to be HKSwitch as
+                //this strategy exists in order to reverse strategies in CMX
+                if (parent["spilling"].get<bool>())
+                {
+                    if (childClustering == "HKSwitch")
+                        return INF;
+                    //NOTE: For now I disable parent spill SOH->child (Clustering, K)
+                    if (parentClustering == "SplitOverH" and (childClustering == "Clustering" ||
+                                                              childClustering == "SplitOverK"))
+                        return INF;
+                }
+                else
+                {
+                    //NOTE: If your parent is SplitOverH, your childs should be only Soh,HKSwitch
+                    if (parentClustering == "SplitOverH")
+                    {
+                        if (childClustering == "SplitOverK" || childClustering == "Clustering")
                             return INF;
-                        }
-
-                //HK Switch requires previous layer to be SOH
-                if((not (parentClustering == "SplitOverH")) and
-                        childClustering == "HKSwitch"){
-                            log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString() 
-                                + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by !SOH to HK");
+                    }
+                    if (parentClustering == "SplitOverK" || parentClustering == "Clustering"
+                            || parentClustering == "HKSwitch")
+                    {
+                        if (childClustering == "SplitOverH" || childClustering == "HKSwitch")
                             return INF;
-                        }
-
-                //HK Switch requires next layer to be SOK
-                if( parentClustering == "HKSwitch" and
-                        (not (childClustering == "SplitOverK"))){
-                            log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString() 
-                                + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by HK to !SOK");
+                    }
+                    //NOTE: If the child layer is streamed over H the parent/input tensors needs to be in DDR
+                    if ((child["streaming"].get<Shape>()["H"] * child["streaming"].get<Shape>()["W"]) > 1)
+                        return INF;
+                    //NOTE: Temporary Hack for InceptionV3...General solution change rectHeuristic
+                    if (parentClustering == "SplitOverH")
+                    {
+                        if (childClustering == "SplitOverH" &&
+                                childOp.getInputTensor(0)->getShape()[mv::IO_HEIGHT_DIMENSION] == 73)
                             return INF;
-                        }
-
-                //NOTE: Directly H to K is not allowed, normally through Spilling
-                //Code is there for subtensors but that case is not tested
-                //Graph optimizer should not prefer that from HKSwitch as well....
-                if( parentClustering == "SplitOverH" and
-                        childClustering == "SplitOverK"){
-                            log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString() 
-                                + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by SOH to SOK");
-                            return INF;
-                        }
-
-                if( parentClustering == "SplitOverH" and
-                        childClustering == "Clustering"){
-                            log(mv::Logger::MessageType::Debug,parent["name"].toString()+"_"+parent["id"].toString() 
-                                + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by SOH to Clustering");
-                            return INF;
-                        }
-
-                //cannot pass directly from SoK to SoH
-                if( parentClustering == "SplitOverK" and not parent["spilling"].get<bool>() and
-                        childClustering == "SplitOverH"){
-                            log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString() 
-                                + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by SOK+!spill to SOH");
-                            return INF;
-                        }
-
-                //cannot pass directly from Clustering to SoH if I am on cmx
-                if( parentClustering == "Clustering" and not parent["spilling"].get<bool>() and
-                        childClustering == "SplitOverH"){
-                            log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString() 
-                                + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by Clustering+!spill to SOH");
-                            return INF;
-                        }
+                    }
+                }
 
                 if( childOp.getOpType() == "Conv")
                 {
@@ -649,23 +630,6 @@ namespace mv
                         }
                 }
 
-                //disable sparsity for eltwise layer predecessors
-                if(parentOp.getOpType() == "Conv"){
-                    if((parent["spilling"].get<bool>()) and (childClustering == "SplitOverH")){
-                            log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString() 
-                                + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by conv+spill to SOH");
-                            return INF;
-                        }
-                }
-
-                //If the child layer is streaming over H or W output of this layer has to be spilled
-                if( (parent["spilling"].get<bool>() == false) and
-                        ((child["streaming"].get<Shape>()["H"] * child["streaming"].get<Shape>()["W"]) > 1)){
-                            log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString() 
-                                + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by !spill to stream");
-                            return INF;
-                        }
-
                 //These sparsity rules apply pairwise, and effect memory size and execution time.
                 //Make a local decision to get the correct runtime and execution time, but don't persist
                 //Sparsity will not be applied where disallowed in later passes
@@ -677,15 +641,13 @@ namespace mv
                     childInputSparsity = false;
                 }
 
-//                if( (childOp.getOpType() == "Conv") and  (childOp.getInputTensor(1)->getShape()[KERNEL_INPUT_CHANNELS] < 16))
-//                    childInputSparsity = false;
-
                 if(childInputSparsity == false)
                     parentOutputSparsity = false;
 
                 //If activation sparsity is occuring between this pair, recheck that the increased memory footprint
                 //does not exceed CMX
-                if(childInputSparsity){
+                if(childInputSparsity)
+                {
                     auto parentMem = memorySize(parentOp,
                                             parentClustering,
                                             false,
@@ -704,11 +666,12 @@ namespace mv
 
 
                     if( ((childOp.getOpType() != "Output") and (childMem.first + childMem.second) > clusterMemory) or
-                            ((parentOp.getOpType() != "Input") and (parentMem.first + parentMem.second) > clusterMemory)){
+                            ((parentOp.getOpType() != "Input") and (parentMem.first + parentMem.second) > clusterMemory))
+                    {
                             log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString() 
                                 + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by sparsityMemorySize");
                             return INF;
-                        }
+                    }
                 }
 
                 auto execTime1 = executionTime(parentOp,parent);
@@ -814,8 +777,6 @@ namespace mv
                     outputActivationSparsity = false;
                 }
 
-		//std::cout  << "Generating strategies for layer " << op.getName() << std::endl;
-
                 vector<Attribute> doubleBufferPool = createTFStrategyPoolFromBool(op,"doubleBuffering");
                 vector<Attribute> spillingPool = createTStrategyPoolFromBool(op,"forceSpilling");
 
@@ -847,7 +808,7 @@ namespace mv
                     for( const auto spilling : spillingPool) {
                         for( const auto clustering : clusteringStrategyPool){
 //std::cout << "Enter clustering loop " << std::endl;                            
-			// Determine streaming options
+// Determine streaming options
                             // 1. Determine if streams over H are possible
                             // 2. Determine if streams over K are possible
                             // 3. If no streams over H or K will fit, enable nested streaming
@@ -920,6 +881,10 @@ namespace mv
                                     if( enableNestedStreaming and ((h==1) or (k==1))) // If need nested streams, ignore non-nested
                                         continue;
                                     if( ((h*k) > 1) and (spilling.get<bool>() == false))
+                                        continue;
+                                    if ((spilling.get<bool>() == true) and (h*k == 1)
+                                        and op.getOpType() != "Input" and op.getOpType() != "Output"
+                                        and op.getOpType() != "Concat" and (op.hasTypeTrait("optimizable")))
                                         continue;
 
                                     Shape streamShape({1,h,1,k});//Stream over W and C are 1 for now . TODO: implement stream W/C

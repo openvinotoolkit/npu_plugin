@@ -13,7 +13,6 @@ static void setUpPPETasksFcn(const mv::pass::PassEntry& pass, mv::ComputationMod
 void addPpeTask(mv::Data::OpListIterator &opIt, const std::vector<std::string> &ppeTaskType, double leakyAlpha = 0);
 int32_t computeClampHigh(mv::Data::OpListIterator &opIt);
 int32_t computeClampLow(mv::Data::OpListIterator &opIt);
-std::pair<int32_t, int32_t> computeClampValues(mv::Data::OpListIterator &opIt);
 
 namespace mv
 {
