@@ -49,16 +49,15 @@ void integerTensorsBoundaryCheckFcn(const mv::pass::PassEntry&, mv::ComputationM
         unsigned DTypeBits = populatedTensorDType.getSizeInBits();
         bool isDTypeSigned = populatedTensorDType.isSigned();
 
-        long int upperBound = 0;
-        long int lowerBound = 0;
+        int64_t upperBound = 0;
+        int64_t lowerBound = 0;
 
         if(isDTypeSigned)
         {
-            upperBound = (1 << (DTypeBits - 1)) - 1;
-            lowerBound = -(1 << (DTypeBits - 1));
+            --DTypeBits;
+            lowerBound = -(1 << DTypeBits);
         }
-        else
-            upperBound = 1 << DTypeBits;
+        upperBound = (1 << DTypeBits) - 1;
 
         for(unsigned i = 0; i < populatedTensor->size(); ++i)
         {
