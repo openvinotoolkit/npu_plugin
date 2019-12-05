@@ -216,7 +216,7 @@ std::vector<TestingNetworkParameters> vpuInferAndCompareTestsNQA = {
     // post training models
     // Following test on yolo_v3 fails on IE to mcmCompiler parsing stage with message.
     // C++ exception with description "Resample layer is not supported by kmbPlugin
-    TestingNetworkParameters{"yolo_v3_uint8_int8_weights_pertensor",
+    TestingNetworkParameters {"yolo_v3_uint8_int8_weights_pertensor",
         "/KMB_models/NQA/POST_TRAINING/Yolo_V3/yolo_v3_uint8_int8_weights_pertensor.xml",
         "/KMB_models/NQA/POST_TRAINING/Yolo_V3/yolo_v3_uint8_int8_weights_pertensor.bin", "/416x416/person.bmp"},
     // post trainig models
