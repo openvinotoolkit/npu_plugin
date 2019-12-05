@@ -7,6 +7,7 @@
 const size_t FULLY_CONNECTED_KERNEL = 1;
 
 static void fullyConnectedAsConv2DFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
+static void handleEltWiseDifferentScales(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 static void tensorsToFP16Fcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void tensorsToU8Fcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void averageAsDepthWiseFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
@@ -81,6 +82,7 @@ mv::Data::OpListIterator linkNewOperationsReplacement(mv::Data::OpListIterator p
 
     return opIt;
 }
+
 
 void tensorsToFP16Fcn(const mv::pass::PassEntry&  , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
@@ -182,6 +184,7 @@ void replacementOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mo
     //interpAsAvgPoolingFcn(pass, model); for now we are using SW layer
     averageAsDepthWiseFcn(pass, model);
     scaleAsDepthwiseFcn(pass, model);
+    handleEltWiseDifferentScales(pass, model);
     flattenAsReshapeFcn(pass, model);
 }
 
@@ -240,6 +243,44 @@ void fullyConnectedAsConv2DFcn(const mv::pass::PassEntry& pass, mv::ComputationM
 
         linkNewOperationsReplacement(parentOpIt, conv2D, om, opIt);
         conv2D->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
+    }
+}
+
+//NOTE: This pass will handle cases that we have Convs -> Eltwise for testing ResNet first of all....
+//General solution dequantize the input Tensors of these special Elwise, even with sw de-quantize
+void handleEltWiseDifferentScales(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
+{
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
+
+    mv::OpModel om(model);
+
+    auto eltWiseOps = om.getOps("Eltwise");
+
+    for (auto& opIt : eltWiseOps)
+    {
+        auto eltwiseType = opIt->get<std::string>("eltwiseType");
+        if(eltwiseType == "Mult" || eltwiseType == "Divide")
+            continue;
+        pass.log(mv::Logger::MessageType::Debug, "Found Eltwise op " + opIt->getName());
+
+        auto firstEltwiseInputTensor = opIt->getInputTensor(0);
+        auto secondEltwiseInputTensor = opIt->getInputTensor(1);
+
+        mv::QuantizationParams firstEltwiseInputTensorQuantizationParams = {{}, {}, {}, {}};
+        mv::QuantizationParams secondEltwiseInputTensorQuantizationParams = {{}, {}, {}, {}};
+
+        if (firstEltwiseInputTensor->isQuantized())
+            firstEltwiseInputTensorQuantizationParams =
+                    firstEltwiseInputTensor->get<mv::QuantizationParams>("quantParams");
+        if (secondEltwiseInputTensor->isQuantized())
+            secondEltwiseInputTensorQuantizationParams =
+                    secondEltwiseInputTensor->get<mv::QuantizationParams>("quantParams");
+
+        if (firstEltwiseInputTensorQuantizationParams.getScale() !=
+                secondEltwiseInputTensorQuantizationParams.getScale())
+            opIt->set<bool>("softwareExecuted", true);
+
     }
 }
 
