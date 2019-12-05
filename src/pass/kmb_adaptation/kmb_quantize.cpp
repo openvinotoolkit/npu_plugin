@@ -61,7 +61,6 @@ static void kmbQuantizeConversionFcn(const mv::pass::PassEntry&, mv::Computation
 
     mv::OpModel om(model);
 
-    //Note: We add eltwise support for fp16 as well...
     auto dpuTasks = om.getOps("DPUTask");
     auto upaTasks = om.getOps("UPATask");
 

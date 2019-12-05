@@ -252,27 +252,23 @@ void handleEltWiseDifferentScales(const mv::pass::PassEntry& pass, mv::Computati
 {
 
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
-    using namespace mv;
 
-    OpModel om(model);
+    mv::OpModel om(model);
 
     auto eltWiseOps = om.getOps("Eltwise");
 
     for (auto& opIt : eltWiseOps)
     {
-        pass.log(Logger::MessageType::Debug, "Found Eltwise op " + opIt->getName());
+        auto eltwiseType = opIt->get<std::string>("eltwiseType");
+        if(eltwiseType == "Mult" || eltwiseType == "Divide")
+            continue;
+        pass.log(mv::Logger::MessageType::Debug, "Found Eltwise op " + opIt->getName());
 
         auto firstEltwiseInputTensor = opIt->getInputTensor(0);
-        auto firstEltwiseInputOp = om.getSourceOp(firstEltwiseInputTensor);
         auto secondEltwiseInputTensor = opIt->getInputTensor(1);
-        auto secondEltwiseInputOp = om.getSourceOp(secondEltwiseInputTensor);
-        auto eltwiseOutputTensor = opIt->getOutputTensor(0);
 
         mv::QuantizationParams firstEltwiseInputTensorQuantizationParams = {{}, {}, {}, {}};
         mv::QuantizationParams secondEltwiseInputTensorQuantizationParams = {{}, {}, {}, {}};
-        mv::QuantizationParams neutralQuantParams = mv::QuantizationParams({1}, {double(0.0)},{},{});
-
-        mv::DType newType = mv::DType("Float16");
 
         if (firstEltwiseInputTensor->isQuantized())
             firstEltwiseInputTensorQuantizationParams =
@@ -283,15 +279,8 @@ void handleEltWiseDifferentScales(const mv::pass::PassEntry& pass, mv::Computati
 
         if (firstEltwiseInputTensorQuantizationParams.getScale() !=
                 secondEltwiseInputTensorQuantizationParams.getScale())
-        {
-            firstEltwiseInputTensor->setDType(newType);
-            secondEltwiseInputTensor->setDType(newType);
-            eltwiseOutputTensor->setDType(newType);
-            firstEltwiseInputTensor->set<mv::QuantizationParams>("quantParams", neutralQuantParams);
-            secondEltwiseInputTensor->set<mv::QuantizationParams>("quantParams", neutralQuantParams);
-            eltwiseOutputTensor->set<mv::QuantizationParams>("quantParams", neutralQuantParams);
             opIt->set<bool>("softwareExecuted", true);
-        }
+
     }
 }
 
