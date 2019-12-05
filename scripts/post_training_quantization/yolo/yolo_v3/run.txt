@@ -1,0 +1,11 @@
+../../run_post_trainig.sh ../../../../../post-training-compression-tool/ ../../../../../model-zoo-models-intel/PublicInHouse/object_detection/common/yolo/v3/tf/frozen_darknet_yolov3.pb     ../../../../../../Datasets/MSCOCO/  ./yolo_v3_tf_fp32_origin.json -e > yolo_v3_tf_fp32_origin.log
+
+../../run_post_trainig.sh ../../../../../post-training-compression-tool/ ../../../../../model-zoo-models-intel/PublicInHouse/object_detection/common/yolo/v3/tf/frozen_darknet_yolov3.pb     ../../../../../../Datasets/MSCOCO/  ./yolo_v3_tf_uint8_int8_weights_pertensor.json -e > yolo_v3_tf_uint8_int8_weights_pertensor.log
+
+dldt/IE + python_api built: d2c70620539579ea3419cfc8bd2fd2748ba9bac5 (feature/low_precision/develop_fp)
+dldt/MO used: 76a0c71e65db1b7a6e67f17a48adc8496e5ccfe0 (as/post_training_compression)
+
+post-training-compression-tool used: 5d56d9b60804e96ceebcf8f62ff0d6086df71401 (develop)
+
+kmb_plugin: 08a2415aa0fd8483d618fa27b45b72b585a8b800 (kskvorts/post_training_yolo_v3)
+
