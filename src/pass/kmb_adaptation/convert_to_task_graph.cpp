@@ -449,6 +449,12 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             newTensor->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
             auto newTensorOp = om.getSourceOp(newTensor);
 
+            if (newTensorOp->getOpType() == "DPUTask")
+                newTensor->set<mv::DType>("dType", mv::DType("UInt8"));
+            else
+                newTensor->set<mv::DType>("dType", mv::DType("Float16"));
+
+
             newTensorOp->setAttrs(attrsToCopy);
             setOutputDataFlow(om, newTensor, outputDataFlows);
             setInputControlFlow(cm, cm.switchContext(newTensorOp), inputControlFlows);
