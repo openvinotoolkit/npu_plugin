@@ -6,12 +6,28 @@ namespace mv
     namespace op_constant
     {
 
+        // NOTE: InputCheckFcn has to be different from ConstantInt and Constant
+        // This is because ConstantInt cannot accept non integer DTypes
         static std::function<std::pair<bool, std::size_t>(const std::vector<Data::TensorIterator>&,
             const std::map<std::string, Attribute>&, std::string&)> inputCheckFcn =
             [](const std::vector<Data::TensorIterator>&, const std::map<std::string, Attribute>& args,
             std::string&) -> std::pair<bool, std::size_t>
         {
             if(args.at("dType").get<mv::DType>() == mv::DType("Default"))
+                return {false, 1};
+            return {true, 0};
+
+        };
+
+        static std::function<std::pair<bool, std::size_t>(const std::vector<Data::TensorIterator>&,
+            const std::map<std::string, Attribute>&, std::string&)> inputCheckFcnConstantInt =
+            [](const std::vector<Data::TensorIterator>&, const std::map<std::string, Attribute>& args,
+            std::string&) -> std::pair<bool, std::size_t>
+        {
+            auto dType = args.at("dType").get<mv::DType>();
+            if(dType == mv::DType("Default"))
+                return {false, 1};
+            if(dType.isDoubleType())
                 return {false, 1};
             return {true, 0};
 
@@ -86,7 +102,7 @@ namespace mv
         .setArg<mv::DType>("dType")
         .setArg<mv::Order>("order")
         .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
-        .setInputCheck(op_constant::inputCheckFcn)
+        .setInputCheck(op_constant::inputCheckFcnConstantInt)
         .setOutputDef(op_constant::outputIntDefFcn)
         .setTypeTrait({"exposed"});
 
