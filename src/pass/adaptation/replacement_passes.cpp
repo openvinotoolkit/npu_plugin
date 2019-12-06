@@ -14,6 +14,7 @@ static void interpAsAvgPoolingFcn(const mv::pass::PassEntry& pass, mv::Computati
 static void flattenAsReshapeFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 static void replacementOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void scaleAsDepthwiseFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
+static void removeIdentityOps(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 
 namespace mv
 {
@@ -71,9 +72,12 @@ mv::Data::OpListIterator linkNewOperationsReplacement(mv::Data::OpListIterator p
     om.removeOp(opIt);
     opIt = parentOpIt;
 
+    if(sourceTensor == om.tensorEnd())
+        sourceTensor = parentOpIt->getOutputTensor(0);
+
     for (unsigned j = 0; j < opsToLink.size(); ++j)
     {
-        opsToLink[j]->setInputTensor(sourceTensor, inputSlots[j]);
+        opsToLink[j]->setInputTensor(sourceTensor, inputSlots[j], false);
         om.defineFlow(sourceTensor, opsToLink[j], inputSlots[j]);
     }
 
@@ -210,11 +214,33 @@ void tensorsToU8Fcn(const mv::pass::PassEntry&  , mv::ComputationModel& model, m
 
 void replacementOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
+    removeIdentityOps(pass, model);
     fullyConnectedAsConv2DFcn(pass, model);
     //interpAsAvgPoolingFcn(pass, model); for now we are using SW layer
     averageAsDepthWiseFcn(pass, model);
     scaleAsDepthwiseFcn(pass, model);
     flattenAsReshapeFcn(pass, model);
+}
+
+void removeIdentityOps(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
+{
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
+
+    mv::OpModel om(model);
+
+    auto identityOps = om.getOps("Identity");
+
+    for (auto& opIt : identityOps)
+    {
+
+        pass.log(mv::Logger::MessageType::Debug, "Found Identity op " + opIt->getName());
+
+        auto sourceTensor = opIt->getInputTensor(0);
+        auto parentOpIt = om.getSourceOp(sourceTensor);
+
+        linkNewOperationsReplacement(parentOpIt, om.tensorEnd(), om, opIt);
+    }
 }
 
 void fullyConnectedAsConv2DFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
