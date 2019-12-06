@@ -43,10 +43,11 @@ void addQuantizationLayers(mv::OpModel om, std::vector<mv::Data::OpListIterator>
                 auto quantizeOp = om.getSourceOp(quantize);
                 quantizeOp->set<unsigned>("opId", task->get<unsigned>("opId"));
                 auto backup = inputFlow;
+                auto slot = backup->get<size_t>("sinkInput");
                 ++inputFlow;
                 om.undefineFlow(backup);
-                om.defineFlow(quantize, task, 0);
-                task->setInputTensor(quantize, 0, false);
+                task->setInputTensor(quantize, slot, false);
+                om.defineFlow(quantize, task, slot);
                 id++;
             }
             else
