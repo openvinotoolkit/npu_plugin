@@ -63,7 +63,17 @@ static void kmbQuantizeConversionFcn(const mv::pass::PassEntry&, mv::Computation
 
     auto dpuTasks = om.getOps("DPUTask");
     auto upaTasks = om.getOps("UPATask");
+    auto concats = om.getOps("Concat");
+    auto implicitConcats = om.getOps("ImplicitConcat");
+
+    concats.insert(concats.end(), implicitConcats.begin(), implicitConcats.end());
 
     addQuantizationLayers(om, upaTasks, mv::DType("Float16"));
     addQuantizationLayers(om, dpuTasks, mv::DType("UInt8"));
+
+    // NOTE: For now let's do all the concats in UInt8
+    // For the future, it might be good to optimize this to
+    // insert the smallest number possible of Quantization Layers.
+    addQuantizationLayers(om, concats, mv::DType("UInt8"));
+
 }
