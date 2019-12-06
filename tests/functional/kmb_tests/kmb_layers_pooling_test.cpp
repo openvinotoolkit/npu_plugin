@@ -303,7 +303,7 @@ const std::string uint8_pooling = R"V0G0N(
 </net>
 )V0G0N";
 
-TEST_P(PoolingTest, DISABLED_pooling_only) {
+TEST_P(PoolingTest, pooling_only) {
     auto model = uint8_pooling;
 
     auto params = GetParam().pool_params;
