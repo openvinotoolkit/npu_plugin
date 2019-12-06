@@ -63,7 +63,7 @@
                 "sparsity_strategy" :
                 [
                     {
-                        "name_filter": ".*",
+                        "name_filter": "Example_do_not_remove",
                         "inputActivationSparsity": false,
                         "outputActivationSparsity": false,
                         "weightsSparsity": false
