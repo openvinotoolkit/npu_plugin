@@ -5,7 +5,7 @@
 #include "pass/lp_scheduler/control_edge_generator.hpp"
 #include "scheduler/scheduler_unit_test_utils.hpp"
 
-typedef mv::pass::Control_Edge_Generator<mv_unit_tests::interval_t>
+typedef mv::lp_scheduler::Control_Edge_Generator<mv_unit_tests::interval_t>
   control_edge_generator_t;
 
 class Control_Edge_Generator_Test

@@ -207,6 +207,48 @@ class Operation_Dag {
       return itr->second; 
     }
 
+    bool op_has_unit_out_degree(const operation_t& op) const {
+      const_operation_iterator_t citr = begin_nodes(op),
+                                 citr_end = end_nodes(op);
+      if (citr == citr_end) { return false; }
+      ++citr;
+      return (citr == citr_end);
+    }
+
+    // Precondition: out degree of op >= 1 //
+    operation_t get_first_child_op(const operation_t& op) const {
+      const_operation_iterator_t citr = begin_nodes(op);
+      return *citr;
+    }
+
+
+    // checks if there is a DMATask which relocates the output of this op to DDR
+    bool is_output_of_this_compute_op_relocated(const operation_t& op) const {
+      if (!is_dpu_op(op) || !op_has_unit_out_degree(op)) { return false; }
+
+      // does this have out degree 1 and connected to a DMATask which
+      // moves data from CMX2DDR //
+
+      operation_t cop = get_first_child_op(op); 
+
+      if ((cop->getOpType() == "Crop") && op_has_unit_out_degree(cop)) {
+        cop = get_first_child_op(cop);
+      }
+
+      return is_dma_op_moving_data_from_cmx_to_ddr(cop);
+    }
+
+    // Precondition: is_output_of_this_compute_op_relocated(op) = true //
+    operation_t get_output_relocating_dma_op(const operation_t& op) const {
+      assert(is_output_of_this_compute_op_relocated(op));
+
+      operation_t cop = get_first_child_op(op); 
+      if ((cop->getOpType() == "Crop") && op_has_unit_out_degree(cop)) {
+        cop = get_first_child_op(cop);
+      }
+      return cop;
+    }
+
     ////////////////////////////////////////////////////////////////////////////
 
     static const_operation_iterator_t operations_begin(const dag_t& in) {
@@ -308,6 +350,10 @@ class Operation_Dag {
       return op->getOpType() == "DMATask";
     }
 
+    bool is_dpu_op(operation_t op) const {
+      return op->getOpType() == "DPUTask";
+    }
+
 
     template<typename BackInsertIterator>
     size_t find_all_ops_exceeding_resource_threshold(resource_t threshold,
@@ -384,6 +430,67 @@ class Operation_Dag {
     operation_t get_op_by_name(const char *name) const {
       op_name_table_t::const_iterator itr = op_name_table_.find(name);
       return (itr != op_name_table_.end()) ? itr->second : operation_t(NULL);
+    }
+
+    bool is_implicit_op(operation_t op) const {
+      return (op->getOpType() == "ImplicitConcat") || 
+          (op->getOpType() == "Slice") || (op->getOpType() == "Crop");
+    }
+
+
+    bool short_circuit_unit_indegree_unit_outdegree_op(operation_t& op) {
+      operation_t parent_op, child_op;
+
+      {
+        adjacency_map_t::const_iterator adj_rev_itr = adj_map_rev_.find(op);
+        adjacency_map_t::const_iterator adj_itr = adj_map_.find(op);
+
+        if ((adj_rev_itr == adj_map_rev_.end()) ||
+              (adj_itr == adj_map_.end()) ) {
+          return false;
+        }
+
+        const op_ref_list_t& parent_list = adj_rev_itr->second;
+        const op_ref_list_t& child_list = adj_itr->second;
+
+        if ((parent_list.size() != 1UL) || (child_list.size() != 1UL)) {
+          return false;
+        }
+
+        parent_op = *(parent_list.front());
+        child_op = *(child_list.front());
+      }
+
+      printf("[Short-Circuiting: (%s) -> (%s) -> (%s)]\n",
+          parent_op->getName().c_str(), op->getName().c_str(),
+          child_op->getName().c_str());
+      fflush(stdout);
+
+      // remove this op from the DAG //
+      remove_op_from_dag(op);
+
+      // add an edge between parent_op and child_op //
+      return add_directed_edge(parent_op, child_op);
+    }
+
+    bool short_circuit_all_unit_indegree_outdegree_ops_of_this_type(
+        const std::string& op_type) {
+      std::list<operation_t> remove_list;
+
+      for (const_operation_iterator_t itr=begin_nodes(); itr!=end_nodes();
+            ++itr) {
+        const operation_t& op = *itr;
+        if (op->getOpType() == op_type) {
+          remove_list.push_back(op);
+        }
+      }
+
+      for (auto oitr=remove_list.begin(); oitr!=remove_list.end(); ++oitr) {
+        if (!short_circuit_unit_indegree_unit_outdegree_op(*oitr)) {
+          return false;
+        }
+      }
+      return true;
     }
 
   private:
@@ -466,6 +573,125 @@ class Operation_Dag {
       }
     }
 
+    // Removes the op from the DAG and removes all incoming and outgoing edges
+    void remove_op_from_dag(operation_t op) {
+      // STEP-0: Find from op_set_ //
+      master_op_iterator_t op_itr = ops_.find(op);
+      assert(op_itr != ops_.end());
+
+      // STEP-2: Remove from the indegree map //
+      in_degree_map_.erase(op);
+
+      // STEP-3: Remove this op from the adj_map_ of parent //
+      {
+        adjacency_map_t::iterator parent_itr = adj_map_rev_.find(op);
+
+        if (parent_itr != adj_map_rev_.end()) {
+          op_ref_list_t& parent_list = parent_itr->second;
+
+          for(op_ref_list_t::const_iterator parent=parent_list.begin();
+                parent!=parent_list.end(); ++parent) { //foreach parent //
+
+            // find the adjacency list of this parent and remove op from it //
+            adjacency_map_t::iterator parent_adj_itr =
+                adj_map_.find(*(*parent));
+            assert(parent_adj_itr != adj_map_.end());
+
+            // remove op from this parent adjacency list //
+            (parent_adj_itr->second).remove(&(*op_itr));
+          }
+        }
+
+      }
+        
+      // STEP-4: Remove this op from the adj_map_rev_ of all its children //
+      {
+        adjacency_map_t::iterator child_itr = adj_map_.find(op);
+
+        if (child_itr != adj_map_rev_.end()) {
+          op_ref_list_t& child_list = child_itr->second;
+
+          for(op_ref_list_t::const_iterator child=child_list.begin();
+                child!=child_list.end(); ++child) { //foreach child//
+
+            // find the rev-adjacency list of this child and remove op from it 
+            adjacency_map_t::iterator child_adj_itr =
+                adj_map_rev_.find(*(*child));
+            assert(child_adj_itr != adj_map_rev_.end());
+
+            // remove op from this child rev-adjacency list //
+            (child_adj_itr->second).remove(&(*op_itr));
+
+            // STEP-4.1: reduce the in-degree of the child //
+            in_degree_map_t::iterator indegree_itr =
+                in_degree_map_.find(*(*child));
+            assert(indegree_itr != in_degree_map_.end());
+            assert(indegree_itr->second >= 1);
+
+            --(indegree_itr->second);
+            if (!(indegree_itr->second)) {
+              in_degree_map_.erase(indegree_itr);
+            }
+
+          }
+        }
+      }
+
+      // STEP-1 //
+      ops_.erase(op_itr);
+      op_name_table_.erase(op->getName().c_str());
+    } 
+
+    bool add_directed_edge(operation_t source_op, operation_t sink_op) {
+
+      master_op_iterator_t itr_source = ops_.find(source_op);
+      master_op_iterator_t itr_sink = ops_.find(sink_op);
+
+      if ((itr_source == ops_.end()) || (itr_sink == ops_.end())) {
+        return false;
+      }
+
+      // add sink_op to adj_list of source_op //
+      op_ref_list_t *child_list_ptr = NULL, *parent_list_ptr = NULL;
+      {
+        adjacency_map_t::iterator adj_itr = adj_map_.find(source_op);
+        assert(adj_itr != adj_map_.end());
+
+        op_ref_list_t& child_list = adj_itr->second;
+        for (op_ref_list_t::const_iterator child=child_list.begin();
+              child!=child_list.end(); ++child) {
+          if (*child == &(*itr_sink)) { return false; }
+        }
+        child_list_ptr = &child_list;
+      }
+
+      // add source_op to rev_adj_list of sink_op //
+      {
+        adjacency_map_t::iterator adj_rev_itr = adj_map_rev_.find(sink_op);
+        assert(adj_rev_itr != adj_map_rev_.end());
+
+        op_ref_list_t& parent_list = adj_rev_itr->second;
+        for (op_ref_list_t::const_iterator parent=parent_list.begin();
+              parent!=parent_list.end(); ++parent) {
+          if (*parent == &(*itr_source)) { return false; }
+        }
+        parent_list_ptr = &parent_list;
+      }
+
+      child_list_ptr->push_back(&(*itr_sink));
+      parent_list_ptr->push_back(&(*itr_source));
+
+      // update the indegree of sink_op //
+      in_degree_map_t::iterator in_degree_itr = in_degree_map_.find(sink_op);
+
+      if (in_degree_itr == in_degree_map_.end()) {
+        in_degree_map_.insert(std::make_pair(sink_op, 1UL));
+      } else {
+        in_degree_itr->second++;
+      }
+    }
+
+
     bool does_the_op_run_on_hardware(operation_t op) const {
       return (op->getOpType() == "DMATask") || (op->getOpType() == "DPUTask");
     }
@@ -490,6 +716,7 @@ class Operation_Dag {
     in_degree_map_t in_degree_map_;
     operation_t input_op_;
 }; // class Operation_Dag //
+
 
 typedef mv::lp_scheduler::Feasible_Schedule_Generator< Operation_Dag<> >
   mv_lp_scheduler_t;
@@ -525,9 +752,8 @@ struct scheduler_traits< mv::scheduler::Operation_Dag<mv::ControlModel> >
 typedef Feasible_Memory_Schedule_Generator< mv::scheduler::Operation_Dag<> >
   mv_memory_scheduler_with_spilling_t;
 
-} // namespace mv //
 } // namespace lp_scheduler //
-
+} // namespace mv //
 
 
 #endif

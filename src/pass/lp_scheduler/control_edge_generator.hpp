@@ -5,7 +5,7 @@
 
 
 namespace mv {
-namespace pass {
+namespace lp_scheduler {
 
 // Given an iterator over sorted intervals the algorithm produces control
 // edges which are defined in the following document:
@@ -211,12 +211,11 @@ class Control_Edge_Generator {
       }
     }
 
-
     interval_tree_t interval_tree_;
 }; // class Control_Edge_Generator //
 
 
-} // namespace pass //
+} // namespace lp_scheduler//
 } // namespace mv  //
 
 
