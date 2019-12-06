@@ -43,10 +43,11 @@ void addQuantizationLayers(mv::OpModel om, std::vector<mv::Data::OpListIterator>
                 auto quantizeOp = om.getSourceOp(quantize);
                 quantizeOp->set<unsigned>("opId", task->get<unsigned>("opId"));
                 auto backup = inputFlow;
+                auto slot = backup->get<size_t>("sinkInput");
                 ++inputFlow;
                 om.undefineFlow(backup);
-                om.defineFlow(quantize, task, 0);
-                task->setInputTensor(quantize, 0, false);
+                task->setInputTensor(quantize, slot, false);
+                om.defineFlow(quantize, task, slot);
                 id++;
             }
             else
@@ -63,7 +64,17 @@ static void kmbQuantizeConversionFcn(const mv::pass::PassEntry&, mv::Computation
 
     auto dpuTasks = om.getOps("DPUTask");
     auto upaTasks = om.getOps("UPATask");
+    auto concats = om.getOps("Concat");
+    auto implicitConcats = om.getOps("ImplicitConcat");
+
+    concats.insert(concats.end(), implicitConcats.begin(), implicitConcats.end());
 
     addQuantizationLayers(om, upaTasks, mv::DType("Float16"));
     addQuantizationLayers(om, dpuTasks, mv::DType("UInt8"));
+
+    // NOTE: For now let's do all the concats in UInt8
+    // For the future, it might be good to optimize this to
+    // insert the smallest number possible of Quantization Layers.
+    addQuantizationLayers(om, concats, mv::DType("UInt8"));
+
 }
