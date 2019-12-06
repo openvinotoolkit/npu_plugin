@@ -57,7 +57,7 @@ namespace mv
             double safetyFactor;
             double clusterMemory;
             std::vector<string> failure_causes = {"Unknown", "MemorySize", "Stream+ClusterComp", "SpillHKSwitch", 
-            "SOKNotAlign16", "InputNotSpilled", "OutputNotSpilled", "StreamingNotSpilled", "Workload<KernelSOH", "ChannelMjr"};
+            "SOKNotAlign16", "InputNotSpilled", "OutputNotSpilled", "StreamingNotSpilled", "Workload<KernelSOH", "ChannelMjr1", "ChannelMjr2"};
 
 
             void readGlobalConfigs()
@@ -560,7 +560,7 @@ namespace mv
                     auto numInChannels = weightsShape[KERNEL_INPUT_CHANNELS];
                     if ( numInChannels < 16 ) //assume channel major conv
                         if(clustering == "SplitOverH" and streamShape["H"] > 1)
-                            return 9;
+                            return 10;
                 }
 
                 return 0; //good strategy
@@ -597,11 +597,19 @@ namespace mv
                 if (parent["spilling"].get<bool>())
                 {
                     if (childClustering == "HKSwitch")
-                        return INF;
+                    {
+                        log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString() 
+                                + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by spilling before HKSwitch");
+                            return INF;
+                    }
                     //NOTE: For now I disable parent spill SOH->child (Clustering, K)
                     if (parentClustering == "SplitOverH" and (childClustering == "Clustering" ||
                                                               childClustering == "SplitOverK"))
-                        return INF;
+                    {
+                        log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString() 
+                                + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by SOH to SOK/clustering");
+                            return INF;
+                    }
                 }
                 else
                 {
@@ -609,17 +617,29 @@ namespace mv
                     if (parentClustering == "SplitOverH")
                     {
                         if (childClustering == "SplitOverK" || childClustering == "Clustering")
-                            return INF;
+                        {
+                            log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString() 
+                                + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by incompatible clustering strategies");
+                                return INF;
+                        }
                     }
                     if (parentClustering == "SplitOverK" || parentClustering == "Clustering"
                             || parentClustering == "HKSwitch")
                     {
                         if (childClustering == "SplitOverH" || childClustering == "HKSwitch")
-                            return INF;
+                        {
+                            log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString() 
+                                + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by incompatible clustering strategies");
+                                return INF;
+                        }
                     }
                     //NOTE: If the child layer is streamed over H the parent/input tensors needs to be in DDR
                     if ((child["streaming"].get<Shape>()["H"] * child["streaming"].get<Shape>()["W"]) > 1)
-                        return INF;
+                    {
+                        log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString() 
+                                + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by stream after not spilling");
+                            return INF;
+                    }
                     //NOTE: Temporary Hack for InceptionV3...General solution change rectHeuristic
                     if (parentClustering == "SplitOverH")
                     {
@@ -635,19 +655,28 @@ namespace mv
                     auto numInChannels = weightsShape[KERNEL_INPUT_CHANNELS];
                     auto numOutChannels = weightsShape[KERNEL_OUTPUT_CHANNELS];
 
-                    //kernel > 1 requires sparsity for SOH, so parent can't spill
-                    if((parent["spilling"].get<bool>()) and (childClustering == "SplitOverH")
-                            and  weightsShape[KERNEL_WIDTH] > 1)
-                    {
-                        log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString() 
-                                + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by spill to SOH conv>1");
-                            return INF;
-                    }
-
                     //This rule only relevant for channel major convs
                     if( enableChannelMajorConv and numInChannels < 16)
                     {
                         if(childClustering == "SplitOverH" and not (parentClustering == "SplitOverHOverlapped"))
+                        {
+                            log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString() 
+                                + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by SOH chmjconv");
+                                return INF;
+                        }
+                        if(parentClustering == "SplitOverHOverlapped" and not (childClustering == "SplitOverH"))
+                        {
+                            log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString() 
+                                + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by SOH chmjconv");
+                                return INF;
+                        }
+                    }
+                    //If we aren't CM conv, kernel > 1 requires sparsity for SOH, so parent can't spill
+                    else if((parent["spilling"].get<bool>()) and (childClustering == "SplitOverH")
+                            and  weightsShape[KERNEL_WIDTH] > 1)
+                    {
+                        log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString() 
+                                + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by spill to SOH conv>1");
                             return INF;
                     }
                 }
@@ -768,6 +797,9 @@ namespace mv
                     double factor = estimateSparsityPerformanceBoost(childOp);
                     execTime2 = execTime2 * factor;
                 }
+
+                if(parentClustering == "SplitOverHOverlapped")
+                    execTime1 = execTime1 - 1;
 
                 return execTime1 + execTime2;
             }
