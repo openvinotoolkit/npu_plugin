@@ -46,11 +46,14 @@ else()
     add_executable(detection_output detection_output/detection_output.cpp)
     target_link_libraries(detection_output cm)
 
-    #add_executable(elu elu/elu.cpp)
-    #target_link_libraries(elu cm)
+    add_executable(depthwise_channel_scaling depthwise_channel_scaling/depthwise_channel_scaling.cpp)
+    target_link_libraries(depthwise_channel_scaling cm)
     
     add_executable(flatten flatten/flatten.cpp)
     target_link_libraries(flatten cm)
+
+    add_executable(fully_connected_channel_scaling fully_connected_channel_scaling/fully_connected_channel_scaling.cpp)
+    target_link_libraries(fully_connected_channel_scaling cm)
 
     add_executable(normalize normalize/normalize.cpp)
     target_link_libraries(normalize cm)
