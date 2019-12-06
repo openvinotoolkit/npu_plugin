@@ -606,13 +606,6 @@ namespace mv
                     //NOTE: If the child layer is streamed over H the parent/input tensors needs to be in DDR
                     if ((child["streaming"].get<Shape>()["H"] * child["streaming"].get<Shape>()["W"]) > 1)
                         return INF;
-                    //NOTE: Temporary Hack for InceptionV3...General solution change rectHeuristic
-                    if (parentClustering == "SplitOverH")
-                    {
-                        if (childClustering == "SplitOverH" &&
-                                childOp.getInputTensor(0)->getShape()[mv::IO_HEIGHT_DIMENSION] == 73)
-                            return INF;
-                    }
                 }
 
                 if( childOp.getOpType() == "Conv")
