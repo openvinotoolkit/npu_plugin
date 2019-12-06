@@ -41,6 +41,8 @@ namespace mv
             StrategyManagerKmb(OpModel& model,mv::Element& passDesc) :
                 StrategyManager(model,passDesc)
             {
+                auto globalParams = model.getGlobalConfigParams();
+                enableChannelMajorConv = globalParams->get<bool>("enable_channel_major_conv");
             }
 
             size_t totalClusters;
@@ -69,7 +71,6 @@ namespace mv
                 dotFileLocation = globalConfig_["dotFileLocation"].get<string>();
                 jsonOutFileName = globalConfig_["jsonOutFileName"].get<string>();
                 safetyFactor = globalConfig_["FathomSafetyFactor"].get<double>();
-                enableChannelMajorConv = globalConfig_["enable_channel_major_conv"].get<bool>();
                 //Input is in Kb
                 clusterMemory = (double)clusterMemoryKb * 1024.0 * safetyFactor;
 
