@@ -15,6 +15,7 @@
                 "DDRScratch": 16777216,
                 "MemoryHack": false,
                 "cmx": 917504,
+                "enable_channel_major_conv": true,
                 "split_strategy" :
                 [
                     {

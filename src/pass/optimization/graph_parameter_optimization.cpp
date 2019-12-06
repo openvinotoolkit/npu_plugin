@@ -51,10 +51,11 @@ namespace mv
             bool globalEnableStreaming;
             bool globalEnableActivationSparsity;
             bool globalEnableWeightsSparsity;
+            bool enableChannelMajorConv;
             double safetyFactor;
             double clusterMemory;
             std::vector<string> failure_causes = {"Unknown", "MemorySize", "Stream+ClusterComp", "SpillHKSwitch", 
-            "SOKNotAlign16", "InputNotSpilled", "OutputNotSpilled", "StreamingNotSpilled", "Workload<KernelSOH"};
+            "SOKNotAlign16", "InputNotSpilled", "OutputNotSpilled", "StreamingNotSpilled", "Workload<KernelSOH", "NotChMjr+SOHOverlapped"};
 
 
             void readGlobalConfigs()
@@ -68,6 +69,7 @@ namespace mv
                 dotFileLocation = globalConfig_["dotFileLocation"].get<string>();
                 jsonOutFileName = globalConfig_["jsonOutFileName"].get<string>();
                 safetyFactor = globalConfig_["FathomSafetyFactor"].get<double>();
+                enableChannelMajorConv = globalConfig_["enable_channel_major_conv"].get<bool>();
                 //Input is in Kb
                 clusterMemory = (double)clusterMemoryKb * 1024.0 * safetyFactor;
 
@@ -186,9 +188,7 @@ namespace mv
                 size_t totalActivationSize = 0;
 
                 if(op.getOpType() != "Input")
-                {
                     inputSize = realTensorSize(op.getInputTensor(0),{streamConfig["W"],streamConfig["H"],streamConfig["C"],1});
-                }
                 if(op.getOpType() != "Output")
                     outputSize = realTensorSize(op.getOutputTensor(0),{streamConfig["W"],streamConfig["H"],streamConfig["K"],1});
 
@@ -549,6 +549,9 @@ namespace mv
                 if( (not spilling) and ((streamShape["H"] * streamShape["W"]) > 1))
                     return 7;
 
+                if( !enableChannelMajorConv and clustering == "SplitOverHOverlapped")
+                    return 9;
+
                 return 0; //good strategy
             }
 
@@ -614,6 +617,10 @@ namespace mv
                             return INF;
                     }
                 }
+
+                //Only applicable to the optional channel major conv input, enable switch already checked in checkForBadStrategy()
+                if(parentClustering == "SplitOverHOverlapped" and childClustering != "SplitOverH")
+                    return INF;
 
                 if( childOp.getOpType() == "Conv")
                 {
