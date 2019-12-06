@@ -991,16 +991,16 @@ void FrontEndMcm::parseClamp(
 
     logParsingStartHelper(_logger, layer, inputs);
 
-    mv::QuantizationParams clampQuantParams(initialQuantParams);
+    auto inputQuantParams = inputs[0]->getMcmNode()->get<mv::QuantizationParams>("quantParams");
     auto mvClampMax = _modelMcm.maximum(inputs[0]->getMcmNode(),
         clampLayer->max_value,
         mv::DType("Default"),
-        clampQuantParams,
+        inputQuantParams,
         clampLayer->name + "clamp-max");
     auto mvClampMin = _modelMcm.minimum(mvClampMax,
         clampLayer->min_value,
         mv::DType("Default"),
-        clampQuantParams,
+        inputQuantParams,
         clampLayer->name + "clamp-min");
     bindOutput(mvClampMin, layer->outData[0]);
 
