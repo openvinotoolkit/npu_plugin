@@ -55,7 +55,7 @@ namespace mv
             double safetyFactor;
             double clusterMemory;
             std::vector<string> failure_causes = {"Unknown", "MemorySize", "Stream+ClusterComp", "SpillHKSwitch", 
-            "SOKNotAlign16", "InputNotSpilled", "OutputNotSpilled", "StreamingNotSpilled", "Workload<KernelSOH", "NotChMjr+SOHOverlapped"};
+            "SOKNotAlign16", "InputNotSpilled", "OutputNotSpilled", "StreamingNotSpilled", "Workload<KernelSOH", "ChannelMjr"};
 
 
             void readGlobalConfigs()
@@ -549,8 +549,18 @@ namespace mv
                 if( (not spilling) and ((streamShape["H"] * streamShape["W"]) > 1))
                     return 7;
 
+                //Special rules for Channel Major Convolutions
+                //No need for SOHOverlapped input unless using channel major
                 if( !enableChannelMajorConv and clustering == "SplitOverHOverlapped")
                     return 9;
+                
+                if( enableChannelMajorConv and op.getOpType() == "Conv"){
+                    auto weightsShape = op.getInputTensor(1)->getShape();
+                    auto numInChannels = weightsShape[KERNEL_INPUT_CHANNELS];
+                    if ( numInChannels < 16 ) //assume channel major conv
+                        if(clustering == "SplitOverH" and streamShape["H"] > 1)
+                            return 9;
+                }
 
                 return 0; //good strategy
             }
@@ -618,10 +628,6 @@ namespace mv
                     }
                 }
 
-                //Only applicable to the optional channel major conv input, enable switch already checked in checkForBadStrategy()
-                if(parentClustering == "SplitOverHOverlapped" and childClustering != "SplitOverH")
-                    return INF;
-
                 if( childOp.getOpType() == "Conv")
                 {
                     auto weightsShape = childOp.getInputTensor(1)->getShape();
@@ -630,11 +636,19 @@ namespace mv
 
                     //kernel > 1 requires sparsity for SOH, so parent can't spill
                     if((parent["spilling"].get<bool>()) and (childClustering == "SplitOverH")
-                            and  weightsShape[KERNEL_WIDTH] > 1){
-                            log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString() 
+                            and  weightsShape[KERNEL_WIDTH] > 1)
+                    {
+                        log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString() 
                                 + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by spill to SOH conv>1");
                             return INF;
-                        }
+                    }
+
+                    //This rule only relevant for channel major convs
+                    if( enableChannelMajorConv and numInChannels < 16)
+                    {
+                        if(childClustering == "SplitOverH" and not (parentClustering == "SplitOverHOverlapped"))
+                            return INF;
+                    }
                 }
 
                 //These sparsity rules apply pairwise, and effect memory size and execution time.
@@ -647,6 +661,10 @@ namespace mv
                     parentOutputSparsity = false;
                     childInputSparsity = false;
                 }
+
+                //Channel major conv cannot have sparsity
+                if( (childOp.getOpType() == "Conv") and  (childOp.getInputTensor(1)->getShape()[KERNEL_INPUT_CHANNELS] < 16))
+                    childInputSparsity = false;
 
                 if(childInputSparsity == false)
                     parentOutputSparsity = false;
