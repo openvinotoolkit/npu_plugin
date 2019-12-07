@@ -1,11 +1,13 @@
 #ifndef OPERATION_PRECEDENCE_DAG_HPP
 #define OPERATION_PRECEDENCE_DAG_HPP
 
+#include <cassert>
+#include <unordered_map>
+
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/computation/model/iterator/control_context.hpp"
 #include "meta/include/mcm/op_model.hpp"
 #include "scheduler/feasible_scheduler.hpp"
-#include <unordered_map>
 
 namespace mv {
 
@@ -222,7 +224,9 @@ class Operation_Dag {
     }
 
 
-    // checks if there is a DMATask which relocates the output of this op to DDR
+    // Checks if there is a DMATask which relocates the output of this op to DDR
+    // Precondition: all implicit ops ("Slice" or "Crop") must be short
+    // circuited.
     bool is_output_of_this_compute_op_relocated(const operation_t& op) const {
       if (!is_dpu_op(op) || !op_has_unit_out_degree(op)) { return false; }
 
@@ -230,23 +234,13 @@ class Operation_Dag {
       // moves data from CMX2DDR //
 
       operation_t cop = get_first_child_op(op); 
-
-      if ((cop->getOpType() == "Crop") && op_has_unit_out_degree(cop)) {
-        cop = get_first_child_op(cop);
-      }
-
       return is_dma_op_moving_data_from_cmx_to_ddr(cop);
     }
 
     // Precondition: is_output_of_this_compute_op_relocated(op) = true //
     operation_t get_output_relocating_dma_op(const operation_t& op) const {
       assert(is_output_of_this_compute_op_relocated(op));
-
-      operation_t cop = get_first_child_op(op); 
-      if ((cop->getOpType() == "Crop") && op_has_unit_out_degree(cop)) {
-        cop = get_first_child_op(cop);
-      }
-      return cop;
+      return get_first_child_op(op);
     }
 
     ////////////////////////////////////////////////////////////////////////////
@@ -440,7 +434,6 @@ class Operation_Dag {
 
     bool short_circuit_unit_indegree_unit_outdegree_op(operation_t& op) {
       operation_t parent_op, child_op;
-
       {
         adjacency_map_t::const_iterator adj_rev_itr = adj_map_rev_.find(op);
         adjacency_map_t::const_iterator adj_itr = adj_map_.find(op);
@@ -486,9 +479,9 @@ class Operation_Dag {
       }
 
       for (auto oitr=remove_list.begin(); oitr!=remove_list.end(); ++oitr) {
-        if (!short_circuit_unit_indegree_unit_outdegree_op(*oitr)) {
-          return false;
-        }
+        bool short_circuited =
+            short_circuit_unit_indegree_unit_outdegree_op(*oitr);
+        assert(short_circuited);
       }
       return true;
     }
@@ -689,6 +682,7 @@ class Operation_Dag {
       } else {
         in_degree_itr->second++;
       }
+      return true;
     }
 
 

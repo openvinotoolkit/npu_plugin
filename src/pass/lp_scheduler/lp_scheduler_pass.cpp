@@ -115,6 +115,13 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
     size_t rbegin = scheduled_op.begin_resource();
     size_t rend = scheduled_op.end_resource();
 
+    if (input_dag.is_input_op(op)) {
+      // explicitly set the resource bounds so that the prefetch edges can 
+      // be done as high as possible.
+      rbegin = 1UL;
+      rend = upper_bound;
+    }
+
     scheduled_ops.push_back(scheduled_op_t(op, scheduled_op.time_,
           rbegin, rend));
 

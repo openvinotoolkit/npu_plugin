@@ -103,11 +103,14 @@ class Control_Edge_Set {
     typedef Scheduled_Op scheduled_op_t;
     typedef std::set< control_edge_t > edge_set_t;
     typedef std::unordered_map<operation_t, op_iterator_t> iterator_lookup_t;
+    typedef std::unordered_map<operation_t, operation_t> relocating_dma_map_t;
+    typedef std::unordered_map<operation_t, size_t> control_in_degree_map_t;
     typedef typename edge_set_t::const_iterator const_edge_iterator_t;
     ////////////////////////////////////////////////////////////////////////////
 
     Control_Edge_Set(mv::ControlModel& cmodel)
-      : control_edge_set_(), iterator_lookup_() { init(cmodel); }
+      : control_edge_set_(), iterator_lookup_(), relocating_dma_map_(),
+      in_degree_() { init(cmodel); }
 
     void operator()(const scheduled_op_t& a, const scheduled_op_t& b) {
       control_edge_set_.insert( control_edge_t(a.op_, b.op_) );
@@ -150,51 +153,44 @@ class Control_Edge_Set {
       mv::OpModel om(model);
 
       clear_all_edges_in_control_model(model);
-      // first add temporal control edges //
+      add_control_edges_between_inputs_and_compute_ops(dag, model);
+      add_control_edges_between_compute_ops_and_relocating_dmas(dag, model);
 
-      add_implicit_op_closure_control_edges(dag, model); 
-      add_temporal_control_edges(dag, sbegin, send, model);
-
-      op_iterator_t oitr_source, oitr_sink;
 
       for (const_edge_iterator_t eitr=begin(); eitr!=end(); ++eitr) {
         // control model node iterators //
-        oitr_source = iterator_lookup_[eitr->source_];
-        oitr_sink = iterator_lookup_[eitr->sink_];
+        operation_t source_op = get_redirected_source(eitr->source_);
+        operation_t sink_op = eitr->sink_;
 
-        auto flowIt = cm.checkControlFlow(oitr_source, oitr_sink);
-        if ( (flowIt == cm.flowEnd()) &&
-              !(cm.pathExists(oitr_source, oitr_sink)) ) {
-
-          assert(!cm.pathExists(oitr_sink, oitr_source));
-
-          mv::Control::FlowListIterator psedge =
-              cm.defineFlow(oitr_source, oitr_sink);
-          psedge->set<bool>("PartialSerialisationEdge", true);
-        }
+        add_control_edge(source_op, sink_op, model);
+        if (dag.is_input_op(source_op)) { continue; }
 
         // now for all the ops (non-empty resource) which consume 
-
-        operation_t source_op = eitr->source_;
-        operation_t sink_op = eitr->sink_;
         for (typename dag_t::const_operation_iterator_t
               dop_itr=dag.begin_nodes(source_op);
               dop_itr != dag.end_nodes(source_op); ++dop_itr) {
           operation_t consumer_op = *dop_itr;
           if (!dag.resource_utility(consumer_op)) { continue; }
 
+
+          operation_t redirected_consumer_op =
+              get_redirected_source(consumer_op);
+
           bool consumer_control_edge =
-              add_control_edge(consumer_op, sink_op, model);
+              add_control_edge(redirected_consumer_op, sink_op, model);
+
           if (consumer_control_edge) {
             printf("[ConsumerControl: (%s) -> (%s)]\n",
-                consumer_op->getName().c_str(),
+                redirected_consumer_op->getName().c_str(),
                 sink_op->getName().c_str());
           }
         }
 
 
       }
-      add_control_edges_from_input_dma_tasks(dag, model);
+
+      add_temporal_control_edges(dag, sbegin, send, model);
+      //add_control_edges_from_input_dma_tasks(dag, model);
     }
 
     template<typename OpDag>
@@ -246,7 +242,7 @@ class Control_Edge_Set {
     template<typename OpDag, typename ScheduledOpIterator>
     size_t add_temporal_control_edges(const OpDag& input_dag,
         ScheduledOpIterator sbegin, ScheduledOpIterator send,
-        mv::ComputationModel& model) const {
+        mv::ComputationModel& model) {
 
       static_assert(std::is_same<typename ScheduledOpIterator::value_type,
           scheduled_op_t>::value, "Invalid ScheduledOpIterator");
@@ -264,7 +260,9 @@ class Control_Edge_Set {
         if ((curr_op.schedule_time_) != curr_time) {
           assert(curr_op.schedule_time_ > curr_time); // monotonic //
 
-          prev_scheduled_real_ops = curr_scheduled_real_ops;
+          if (!curr_scheduled_real_ops.empty()) {
+            prev_scheduled_real_ops = curr_scheduled_real_ops;
+          }
           curr_time = curr_op.schedule_time_;
           curr_scheduled_real_ops.clear();
         }
@@ -272,21 +270,25 @@ class Control_Edge_Set {
 
         if (!input_dag.is_implicit_op(curr_op.op_)) {
           curr_scheduled_real_ops.push_back(curr_op);
-          // add control edges between prev scheduled real ops and current
-          // real op.
-          for (auto oitr=prev_scheduled_real_ops.begin();
-                oitr!=prev_scheduled_real_ops.end(); ++oitr ) {
-            add_control_edge(oitr->op_, curr_op.op_, model);
-            ++total_temporal_control_edges;
-          } 
-        }
 
+          if (in_degree_.find(curr_op.op_) == in_degree_.end()) {
+            // add control edges between prev scheduled real ops and current
+            // real op.
+            for (auto oitr=prev_scheduled_real_ops.begin();
+                  oitr!=prev_scheduled_real_ops.end(); ++oitr ) {
+              add_control_edge(oitr->op_, curr_op.op_, model);
+              ++total_temporal_control_edges;
+            } 
+          }
+
+        }
       }
+
       return total_temporal_control_edges;
     }
 
     bool add_control_edge(const operation_t& source, const operation_t& sink,
-        mv::ComputationModel& model) const {
+        mv::ComputationModel& model) {
       mv::ControlModel cmodel(model);
       iterator_lookup_t::const_iterator source_itr =
         iterator_lookup_.find(source);
@@ -302,14 +304,31 @@ class Control_Edge_Set {
       bool edge_added = false;
       if ( (flow_itr == cmodel.flowEnd()) &&
           !(cmodel.pathExists(oitr_source, oitr_sink)) ) {
+        if (cmodel.pathExists(oitr_sink, oitr_source)) {
+          printf("[cycle : edge (sink<-source) = (%s <- %s)]\n",
+              sink->getName().c_str(), source->getName().c_str());
+          fflush(stdout);
+        }
         assert(!cmodel.pathExists(oitr_sink, oitr_source));
         cmodel.defineFlow(oitr_source, oitr_sink);
         edge_added = true;
       }
+
+      if (edge_added) {
+        typename control_in_degree_map_t::iterator in_degree_itr =
+            in_degree_.find(sink);
+
+        if (in_degree_itr == in_degree_.end()) {
+          in_degree_itr = (in_degree_.insert(std::make_pair(sink, 0UL))).first;
+        }
+        (in_degree_itr->second)++;
+      }
+
       return edge_added;
     }
 
-    void clear_all_edges_in_control_model(mv::ComputationModel& model) const {
+    void clear_all_edges_in_control_model(mv::ComputationModel& model) {
+      in_degree_.clear();
       mv::ControlModel cm(model);
       mv::Control::FlowListIterator fitr, fitr_next;
       for (fitr=cm.flowBegin(); fitr!=cm.flowEnd();) {
@@ -319,46 +338,66 @@ class Control_Edge_Set {
       }
     }
 
+    template<typename OpDag>
+    void add_control_edges_between_inputs_and_compute_ops(const OpDag& dag,
+        mv::ComputationModel& model) {
+      typedef OpDag dag_t;
+
+      for (typename dag_t::const_operation_iterator_t itr=dag.begin_nodes();
+          itr!=dag.end_nodes(); ++itr) {
+        operation_t op = *itr;
+        if (!dag.is_dpu_op(op)) { continue; }
+
+        // add control edges from inputs to this compute op //
+
+        for (typename dag_t::const_operation_iterator_t
+            pitr=dag.begin_parent_nodes(op); pitr != dag.end_parent_nodes(op);
+              ++pitr) {
+          operation_t parent_op = *pitr;
+          if (!dag.resource_utility(parent_op)) { continue; }
+          add_control_edge(parent_op, op, model);
+        }
+      }
+    }
+
     // Since the DMATasks which copy data from CMX2DDR does not use any 
     // resource the control edges will be missing. So we detect this case
     // and add control edges.
     template<typename OpDag>
     void add_control_edges_between_compute_ops_and_relocating_dmas(
-        const OpDag& dag, mv::ControlModel& cmodel) {
+        const OpDag& dag, mv::ComputationModel& model) {
+      typedef OpDag dag_t;
 
-      for (op_iterator_t itr=mtraits::begin_operations(cmodel);
-            itr!=mtraits::end_operations(cmodel); ++itr) {
-        operation_t op = &(*itr);
+
+      for (typename dag_t::const_operation_iterator_t itr=dag.begin_nodes();
+          itr!=dag.end_nodes(); ++itr) {
+
+        operation_t op = *itr;
         if (!dag.is_output_of_this_compute_op_relocated(op)) { continue; }
 
         operation_t cop = dag.get_output_relocating_dma_op(op);
 
         // add a control edge between op and cop //
-        iterator_lookup_t::iterator lookup_op_itr, lookup_cop_itr;
+        add_control_edge(op, cop, model);
 
-        lookup_op_itr = iterator_lookup_.find(op);
-        lookup_cop_itr = iterator_lookup_.find(cop);
+        relocating_dma_map_t::const_iterator map_itr =
+            relocating_dma_map_.find(op);
 
-        assert(lookup_op_itr != iterator_lookup_.end());
-        assert(lookup_cop_itr != iterator_lookup_.end());
-        
-        op_iterator_t oitr_source = lookup_op_itr->second,
-                      oitr_sink = lookup_cop_itr->second;
+        assert(map_itr == relocating_dma_map_.end());
 
-        auto flowIt = cmodel.checkControlFlow(oitr_source, oitr_sink);
-        if ( (flowIt == cmodel.flowEnd()) &&
-              !(cmodel.pathExists(oitr_source, oitr_sink))) {
-          mv::Control::FlowListIterator psedge =
-              cmodel.defineFlow(oitr_source, oitr_sink);
-          psedge->set<bool>("PartialSerialisationEdge", true);
-        }
+        relocating_dma_map_.insert(std::make_pair(op, cop));
 
         // update iterator so that it redirects to cop //
-        lookup_op_itr->second = oitr_sink;
-        printf("[redirecting %s to %s]\n",
-            ((lookup_op_itr->first)->getName()).c_str(),
-            ((lookup_op_itr->second)->getName()).c_str());
+        printf("[redirecting %s to %s]\n", (op->getName()).c_str(),
+              (cop->getName()).c_str());
       }
+    }
+
+    operation_t get_redirected_source(operation_t source) const {
+      relocating_dma_map_t::const_iterator map_itr =
+          relocating_dma_map_.find(source);
+      return (map_itr == relocating_dma_map_.end()) ? source :
+          map_itr->second;
     }
 
     void add_edges_from_op_model(mv::ComputationModel& model) {
@@ -448,10 +487,10 @@ class Control_Edge_Set {
       }
     }
 
-
-
     std::set< control_edge_t > control_edge_set_;
     iterator_lookup_t iterator_lookup_;
+    relocating_dma_map_t relocating_dma_map_;
+    control_in_degree_map_t in_degree_;
 }; //  class Control_Edge_Set //
 
 
