@@ -16,7 +16,7 @@ int main()
     {
         if (i%2==0)
         {
-            scale[i] = 1;
+            scale[i] = 1.0;
         }
         else
         {
@@ -24,8 +24,8 @@ int main()
         }
     }
 
-    auto weights1 = om.constantInt(weightsData, {1, 1, 3, 1}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{0},{1.0},{},{}});
-    auto depthwiseConv = om.depthwiseConv(input, weights1, {1, 1}, {0, 0, 0, 0}, 1, mv::DType("UInt8"), {{0},{scale},{},{}});
+    auto weights1 = om.constantInt(weightsData, {1, 1, 3, 1}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{0},{scale},{},{}});
+    auto depthwiseConv = om.depthwiseConv(input, weights1, {1, 1}, {0, 0, 0, 0}, 1, mv::DType("UInt8"), {{0},{1.0},{},{}});
     auto output = om.output(depthwiseConv);
 
     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/release_kmb_MC-Prefetch1.json";
