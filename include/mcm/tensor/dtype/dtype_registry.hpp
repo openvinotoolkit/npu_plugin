@@ -50,31 +50,13 @@ namespace mv
             if (!checkDType(typeID))
             {
                 throw DTypeError("DTypeRegistry",
-                        "Attempt of obtaining type information for an unregistered dtype " + typeID);
+                        "Attempt of obtaining size in bytes for an unregistered dtype " + typeID);
             }
 
             mv::DTypeEntry* const typePtr = instance().find(typeID);
 
             if (typePtr)
                 return typePtr->isDoubleType();
-
-            throw MasterError("DTypeRegistry", "Registered dtype " + typeID +
-                " not found in the dtype registry");
-        }
-
-        static bool isSigned(const std::string& typeID)
-        {
-
-            if (!checkDType(typeID))
-            {
-                throw DTypeError("DTypeRegistry",
-                        "Attempt of obtaining sign of an unregistered " + typeID);
-            }
-
-            mv::DTypeEntry* const typePtr = instance().find(typeID);
-
-            if (typePtr)
-                return typePtr->isSigned();
 
             throw MasterError("DTypeRegistry", "Registered dtype " + typeID +
                 " not found in the dtype registry");
