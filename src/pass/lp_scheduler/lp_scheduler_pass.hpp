@@ -302,8 +302,13 @@ class Control_Edge_Set {
       auto flow_itr = cmodel.checkControlFlow(oitr_source, oitr_sink);
 
       bool edge_added = false;
+      //TODO(vamsikku): there is no-need for check
+      // !comodel.pathExists(oitr_sink, oitr_source), however the calling the
+      // calling this (CosumerControl) need to check avoiding edges between
+      // the sibiling and then this check can be removed.
       if ( (flow_itr == cmodel.flowEnd()) &&
-          !(cmodel.pathExists(oitr_source, oitr_sink)) ) {
+          !(cmodel.pathExists(oitr_source, oitr_sink)) &&
+          !(cmodel.pathExists(oitr_sink, oitr_source)) ) {
         if (cmodel.pathExists(oitr_sink, oitr_source)) {
           printf("[cycle : edge (sink<-source) = (%s <- %s)]\n",
               sink->getName().c_str(), source->getName().c_str());
