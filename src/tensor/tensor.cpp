@@ -17,8 +17,6 @@ blockSize_(shape[shape.ndims() - 1])
     if(order.size() != shape.ndims())
         throw OrderError(*this, "Order and shape size are mismatching " + std::to_string(order.size()) + " vs " + std::to_string(shape.ndims()));
     set<Order>("order", order);
-    if(dType == mv::DType("Default"))
-        throw std::runtime_error("Tensors cannot be instantiated with default DType");
     set<DType>("dType", dType);
     set<bool>("populated", false);
     set<MemoryLocation>("Location",MemoryLocation::DEFAULT);

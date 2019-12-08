@@ -5,6 +5,5 @@ namespace mv
 {
     MV_REGISTER_DTYPE(UInt64)
     .setIsDoubleType(false)
-    .setIsSigned(false)
     .setSizeInBits(64);
 }

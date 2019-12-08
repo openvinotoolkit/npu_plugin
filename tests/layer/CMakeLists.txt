@@ -85,9 +85,6 @@ else()
     add_executable(softmax softmax/softmax.cpp)
     target_link_libraries(softmax cm)
 
-    add_executable(eltwise_replacement eltwise_fp16/eltwise_replacement.cpp)
-    target_link_libraries(eltwise_replacement cm)
-
     add_executable(interp interp/interp.cpp)
     target_link_libraries(interp cm)
 

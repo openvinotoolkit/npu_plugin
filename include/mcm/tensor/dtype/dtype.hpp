@@ -31,7 +31,6 @@ namespace mv
         unsigned getSizeInBits() const;
         unsigned getSizeInBytes() const;
         bool isDoubleType() const;
-        bool isSigned() const;
     };
 
 }

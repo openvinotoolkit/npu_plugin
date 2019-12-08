@@ -63,25 +63,25 @@ namespace mv
             auto stride = args.at("stride").get<unsigned>();
 
             auto input = inputs[0];
-
             auto order = input->getOrder();
-            auto order_str = order.toString();
-            auto C_idx = order_str.find("C");
-            auto H_idx = order_str.find("H");
-            auto W_idx = order_str.find("W");
-
             auto in_shape = input->getShape();
-            auto ndims = in_shape.ndims();
-            auto width    = in_shape[(ndims - 1) - W_idx];
-            auto height   = in_shape[(ndims - 1) - H_idx];
-            auto channels = in_shape[(ndims - 1) - C_idx];
+
+            auto width    = in_shape[IO_WIDTH_DIMENSION];
+            auto height   = in_shape[IO_HEIGHT_DIMENSION];
+            auto channels = in_shape[IO_CHANNEL_DIMENSION];
 
             mv::Shape out_shape(in_shape);
-            out_shape[(ndims - 1) - W_idx] = width    /  stride;
-            out_shape[(ndims - 1) - H_idx] = height   /  stride;
-            out_shape[(ndims - 1) - C_idx] = channels * (stride * stride);
+            out_shape = {width/stride, height/stride, channels * (stride * stride), 1};
 
-            outputs.push_back(mv::Tensor(":0", out_shape, input->getDType(), order));
+            auto dTypeToUse = args.at("dType").get<mv::DType>();
+            if(dTypeToUse == mv::DType("Default"))
+                dTypeToUse = input->getDType();
+
+            if (args.at("quantParams").get<mv::QuantizationParams>().isEmpty())
+                outputs.push_back(mv::Tensor(":0",  out_shape, dTypeToUse, order));
+            else
+                outputs.push_back(mv::Tensor(":0",  out_shape, dTypeToUse, order, args.at("quantParams").get<mv::QuantizationParams>()));
+
         };
 
 
