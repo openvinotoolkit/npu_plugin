@@ -189,7 +189,8 @@ void replacementOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mo
     //interpAsAvgPoolingFcn(pass, model); for now we are using SW layer
     averageAsDepthWiseFcn(pass, model);
     scaleAsDepthwiseFcn(pass, model);
-    handleEltWiseDifferentScales(pass, model);
+    //TODO enable this when SW Eltwise is implemented
+    //handleEltWiseDifferentScales(pass, model);
     flattenAsReshapeFcn(pass, model);
 }
 
