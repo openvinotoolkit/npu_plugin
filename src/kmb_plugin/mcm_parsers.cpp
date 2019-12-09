@@ -223,7 +223,9 @@ void updateParentsQuantizationParamsForEltwise(const std::vector<mv::Data::Tenso
 void FrontEndMcm::parseInputData() {
     _logger->debug("Try to parse network input");
 
-    IE_ASSERT(_parsedNetwork.networkInputs.size() == 1);
+    if (_parsedNetwork.networkInputs.size() != 1) {
+        THROW_IE_EXCEPTION << "Only single input is supported currently";
+    }
 
     for (const auto& inputInfo : _parsedNetwork.networkInputs) {
         auto netInput = inputInfo.second;
