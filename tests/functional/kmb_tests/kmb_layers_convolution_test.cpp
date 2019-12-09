@@ -14,10 +14,14 @@
 // stated in the License.
 //
 
+#include <ie_common.h>
+#include <ie_layers.h>
+
 #include <cnn_network_int8_normalizer.hpp>
 #include <conv_ref.hpp>
 #include <ie_icnn_network_stats.hpp>
 #include <ie_util_internal.hpp>
+#include <kmb_conv_utils.hpp>
 #include <pool_ref.hpp>
 #include <vpu/kmb_plugin_config.hpp>
 
@@ -34,92 +38,6 @@ struct convolution_test_params {
     SizeVector input_dim;
     conv_common_params conv_params;
 };
-
-struct convolution_test_desc {
-    SizeVector input_dim;
-    conv_common_params conv_params;
-    std::string net_precision;
-    std::string conv_precision;
-    std::string weights_precision;
-    size_t weightsBufferOffset;
-    std::string bias_precision;
-    std::string test_name;
-    std::string& ir;
-};
-
-size_t getConvWeightsByteSize(const std::vector<size_t>& inShape, const PropertyVector<unsigned int>& kernel,
-    const size_t out_c, const size_t group, const size_t sizeOfPrecision) {
-    if (group != 0lu && out_c != 0lu && kernel.size() != 0lu) {
-        int weights_size = sizeOfPrecision * inShape[1] * out_c / group;
-        for (size_t i = 0lu; i < kernel.size(); i++) {
-            weights_size *= kernel[i];
-        }
-
-        return weights_size;
-    }
-
-    return 0lu;
-}
-
-// Wrappers are used because IE functions getConvWeightsSize and getConvBiasesByteSize
-// support only 'FP32', 'FP16' and 'U8' precisions
-size_t getConvWeightsByteSize(
-    const std::vector<size_t>& inShape, const conv_common_params& params, const std::string& precision) {
-    return getConvWeightsSize(inShape, params, "U8") * precisionToBytesize(precision);
-}
-
-size_t getConvBiasesByteSize(const conv_common_params& params, const std::string& precision) {
-    return getConvBiasesSize(params, "U8") * precisionToBytesize(precision);
-}
-
-std::string instantiateConvTestIR(convolution_test_desc& convTestParam) {
-    std::string ir = convTestParam.ir;
-    auto input_dims = convTestParam.input_dim;
-    auto conv_params = convTestParam.conv_params;
-    SizeVector output_dims;
-    getConvOutShape(input_dims, conv_params, output_dims);
-
-    size_t weightsByteSize =
-        getConvWeightsByteSize(convTestParam.input_dim, convTestParam.conv_params, convTestParam.weights_precision);
-    size_t biasByteSize = getConvBiasesByteSize(convTestParam.conv_params, convTestParam.bias_precision);
-
-    REPLACE_WITH_NUM(ir, "_INPUT_BATCH_", input_dims[0]);
-    REPLACE_WITH_NUM(ir, "_INPUT_CHANNEL_", input_dims[1]);
-    REPLACE_WITH_NUM(ir, "_INPUT_HEIGHT_", input_dims[2]);
-    REPLACE_WITH_NUM(ir, "_INPUT_WIDTH_", input_dims[3]);
-
-    REPLACE_WITH_STR(ir, "_NET_PRECISION_", convTestParam.net_precision);
-    REPLACE_WITH_STR(ir, "_CONV_PRECISION_", convTestParam.conv_precision);
-    REPLACE_WITH_STR(ir, "_WEIGHTS_PRECISION_", convTestParam.weights_precision);
-    REPLACE_WITH_STR(ir, "_BIAS_PRECISION_", convTestParam.bias_precision);
-
-    REPLACE_WITH_NUM(ir, "_WEIGHTS_OFFSET_", convTestParam.weightsBufferOffset);
-    REPLACE_WITH_NUM(ir, "_WEIGHTS_BYTE_SIZE_", weightsByteSize);
-
-    REPLACE_WITH_NUM(ir, "_BIAS_OFFSET_", convTestParam.weightsBufferOffset + weightsByteSize);
-    REPLACE_WITH_NUM(ir, "_BIAS_BYTE_SIZE_", biasByteSize);
-
-    REPLACE_WITH_NUM(ir, "_KERNEL_SIZE_", conv_params.kernel[0]);
-    REPLACE_WITH_NUM_VECTOR(ir, "_KERNEL_", conv_params.kernel);
-    REPLACE_WITH_NUM(ir, "_KERNELY_", conv_params.kernel[0]);
-    REPLACE_WITH_NUM(ir, "_KERNELX_", conv_params.kernel[1]);
-    REPLACE_WITH_NUM_VECTOR(ir, "_STRIDE_", conv_params.stride);
-    REPLACE_WITH_NUM_VECTOR(ir, "_PADS_BEGIN_", conv_params.pads_begin);
-    REPLACE_WITH_NUM_VECTOR(ir, "_PADS_END_", conv_params.pads_end);
-
-    REPLACE_WITH_NUM(ir, "_OUTPUT_BATCH_", output_dims[0]);
-    REPLACE_WITH_NUM(ir, "_OUTPUT_CHANNEL_", output_dims[1]);
-    REPLACE_WITH_NUM(ir, "_OUTPUT_HEIGHT_", output_dims[2]);
-    REPLACE_WITH_NUM(ir, "_OUTPUT_WIDTH_", output_dims[3]);
-
-    REPLACE_WITH_NUM(ir, "_WEIGHTS_OFFSET_", convTestParam.weightsBufferOffset);
-    REPLACE_WITH_NUM(ir, "_WEIGHTS_BYTE_SIZE_", weightsByteSize);
-
-    REPLACE_WITH_NUM(ir, "_BIAS_OFFSET_", convTestParam.weightsBufferOffset + weightsByteSize);
-    REPLACE_WITH_NUM(ir, "_BIAS_BYTE_SIZE_", biasByteSize);
-
-    return ir;
-}
 
 TBlob<uint8_t>::Ptr weightsBiasBlobPrepare(convolution_test_desc& convTestParam) {
     size_t weightsByteSize =
@@ -724,6 +642,165 @@ std::vector<convolution_test_params> sigsegv_due_to_low_output_channels_number_t
 
 INSTANTIATE_TEST_CASE_P(DISABLED_accuracy_low_OC, ConvolutionTest,
     ::testing::ValuesIn(sigsegv_due_to_low_output_channels_number_test_params));
+
+struct convolution_input_fill_test_params {
+    SizeVector input_dim;
+    conv_common_params conv_params;
+    void (*fillBlob)(Blob::Ptr&, uint8_t);
+    uint8_t fillSeed;
+};
+
+void fillBlobWithSameValue(Blob::Ptr& inputBlob, uint8_t val) {
+    uint8_t* inDataU8 = inputBlob->buffer().as<uint8_t*>();
+    fillIntBuffer(inDataU8, inputBlob->byteSize(), static_cast<uint8_t>(val), static_cast<uint8_t>(val));
+}
+
+// Each channel will have seed value multiplied by the number of channel
+void fillBlobChannelByChannel(Blob::Ptr& inputBlob, uint8_t val) {
+    uint8_t* inDataU8 = inputBlob->buffer().as<uint8_t*>();
+    const auto input_dims = inputBlob->getTensorDesc().getDims();
+    const size_t planeSize = input_dims[2] * input_dims[3];
+    const size_t channelSize = input_dims[1] * planeSize;
+    for (size_t n = 0; n < input_dims[0]; ++n) {
+        for (size_t c = 0; c < input_dims[1]; ++c) {
+            IE_ASSERT(n * channelSize + c * planeSize < inputBlob->byteSize());
+            fillIntBuffer(inDataU8 + n * channelSize + c * planeSize, planeSize, static_cast<uint8_t>(val * c),
+                static_cast<uint8_t>(val * c));
+        }
+    }
+}
+
+class ConvolutionTestIdent :
+    public testing::WithParamInterface<convolution_input_fill_test_params>,
+    public kmbLayersTests_nightly {};
+
+TEST_P(ConvolutionTestIdent, u8_convolution_identity) {
+    auto input_dims = GetParam().input_dim;
+    auto conv_params = GetParam().conv_params;
+    SizeVector output_dims;
+    getConvOutShape(input_dims, conv_params, output_dims);
+
+    size_t weightsByteSize = getConvWeightsSize(input_dims, conv_params, "U8");
+    size_t weightsSize = weightsByteSize / sizeof(uint8_t);
+
+    size_t biasByteSize = output_dims[1] * sizeof(int32_t);
+    size_t biasSize = biasByteSize / sizeof(int32_t);
+
+    auto weightsBuffer = make_shared_blob<uint8_t>({Precision::U8, {weightsByteSize + biasByteSize}, Layout::C});
+    weightsBuffer->allocate();
+    uint8_t* weightsBufferData = weightsBuffer->buffer().as<uint8_t*>();
+    std::fill_n(weightsBufferData, weightsSize, static_cast<uint8_t>(0));
+
+    uint32_t* biasData = reinterpret_cast<uint32_t*>(weightsBuffer->buffer().as<uint8_t*>() + weightsSize);
+    std::fill_n(biasData, biasSize, static_cast<uint32_t>(0));
+
+    convolution_test_desc allTestParams = {
+        input_dims, conv_params, "U8", "U8", "U8", 0, "I32", "", convolution_only_with_bias_template};
+    std::string model = instantiateConvTestIR(allTestParams);
+
+    CNNNetReader reader;
+    ASSERT_NO_THROW(reader.ReadNetwork(model.data(), model.length()));
+    ASSERT_NO_THROW(reader.SetWeights(weightsBuffer));
+    ASSERT_TRUE(reader.isParseSuccess());
+    CNNNetwork network = reader.getNetwork();
+
+    auto _inputsInfo = network.getInputsInfo();
+    _inputsInfo["input"]->setPrecision(Precision::U8);
+    _inputsInfo["input"]->setLayout(Layout::NCHW);
+
+    CNNLayerPtr convPtr = network.getLayerByName("output");
+    ConvolutionLayer* convLayer = dynamic_cast<ConvolutionLayer*>(convPtr.get());
+
+    // build identity kernel which transforms the tensor to copy of itself
+    DataPtr kernelWeights = convLayer->insData[1].lock();
+    CNNLayer::Ptr kernelWeightsLayer = kernelWeights->getCreatorLayer().lock();
+    Blob::Ptr kernelWeightsBlob = kernelWeightsLayer->blobs.begin()->second;
+    IE_ASSERT(kernelWeightsBlob != nullptr);
+    IE_ASSERT(kernelWeightsBlob->getTensorDesc().getLayout() == Layout::NCHW);
+    fillDiagonalKernel(kernelWeightsBlob, static_cast<uint8_t>(1u));
+
+    auto _outputsInfo = network.getOutputsInfo();
+    _outputsInfo["output"]->setPrecision(Precision::U8);
+    _outputsInfo["output"]->setLayout(Layout::NCHW);
+
+    std::map<std::string, std::string> config;
+    setCommonConfig(config);
+    config[VPU_KMB_CONFIG_KEY(MCM_PARSING_ONLY)] = CONFIG_VALUE(NO);
+    config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_BLOB)] = CONFIG_VALUE(YES);
+    config[VPU_KMB_CONFIG_KEY(LOAD_NETWORK_AFTER_COMPILATION)] = CONFIG_VALUE(YES);
+
+    Core ie;
+    InferenceEngine::ExecutableNetwork exeNetwork;
+    exeNetwork = ie.LoadNetwork(network, "KMB", config);
+    ASSERT_NO_THROW(exeNetwork = ie.LoadNetwork(network, "KMB", config));
+    InferenceEngine::InferRequest inferRequest;
+    ASSERT_NO_THROW(inferRequest = exeNetwork.CreateInferRequest());
+    Blob::Ptr inputBlob;
+    ASSERT_NO_THROW(inputBlob = inferRequest.GetBlob(exeNetwork.GetInputsInfo().begin()->first));
+
+    // fill input with some meaningful data
+    GetParam().fillBlob(inputBlob, static_cast<uint8_t>(GetParam().fillSeed));
+
+    int8_t* weightsData = weightsBuffer->buffer().as<int8_t*>();
+    int32_t* bias_data = conv_params.with_bias ? reinterpret_cast<int32_t*>(weightsData + weightsSize) : nullptr;
+
+    auto outputBlobU8 = inferRequest.GetBlob(exeNetwork.GetOutputsInfo().begin()->first);
+    auto outputDesc = outputBlobU8->getTensorDesc();
+
+    {
+        // calc reference FP32 output to make sure it will not overflow U8 range
+        auto refOutputBlobFP32 =
+            make_shared_blob<float>({Precision::FP32, outputDesc.getDims(), outputDesc.getLayout()});
+        refOutputBlobFP32->allocate();
+        uint8_t* refOutDataU8 = refOutputBlobFP32->buffer().as<uint8_t*>();
+        std::fill(refOutDataU8, refOutDataU8 + refOutputBlobFP32->byteSize(), 0);
+
+        ref_conv_common({inputBlob}, *refOutputBlobFP32, weightsData, weightsSize, bias_data, biasSize, conv_params);
+
+        testOverflow<float, uint8_t>(refOutputBlobFP32);
+    }
+
+    // calc reference U8 output
+    auto refOutputBlobU8 = make_shared_blob<uint8_t>({Precision::U8, outputDesc.getDims(), outputDesc.getLayout()});
+    refOutputBlobU8->allocate();
+    uint8_t* refOutDataU8 = refOutputBlobU8->buffer().as<uint8_t*>();
+    std::fill(refOutDataU8, refOutDataU8 + refOutputBlobU8->byteSize(), 0);
+
+    ref_conv_common_prec(
+        {inputBlob}, *refOutputBlobU8, weightsData, weightsSize, bias_data, biasSize, conv_params, Precision::U8);
+
+    // make sure that tensor identity is preserved for reference output
+    CompareCommonExactTyped<uint8_t>(inputBlob, refOutputBlobU8);
+
+    const Blob::Ptr refOutputBlobFP32 = ConvertU8ToFP32(refOutputBlobU8);
+    testOverflow<float, uint8_t>(refOutputBlobFP32);
+
+    ASSERT_NO_THROW(inferRequest.Infer());
+
+    // make sure that tensor identity is preserved for device output
+    if (!hasFakeXLinkDevice()) {
+        CompareCommonExactTyped<uint8_t>(inputBlob, outputBlobU8);
+    }
+}
+
+// Assuming input and output are in NCHW layout
+// All parameters after kernel must be consistent with IR
+// {input_dim}, {stride}, {kernel}, {pads_begin}, {pads_end}, {dilation}, "", group, out_c, with_bias, with_weights,
+// quantization_level};
+std::vector<convolution_input_fill_test_params> test_params_identity_kernel_1x1 = {
+    {{1, 16, 16, 16}, {{1, 1}, {1, 1}, {0, 0}, {0, 0}, {1, 1}, "", 1, 16, true, true, ""}, fillBlobWithSameValue, 1},
+    {{1, 16, 32, 32}, {{1, 1}, {1, 1}, {0, 0}, {0, 0}, {1, 1}, "", 1, 16, true, true, ""}, fillBlobWithSameValue, 1},
+    {{1, 16, 20, 20}, {{1, 1}, {1, 1}, {0, 0}, {0, 0}, {1, 1}, "", 1, 16, true, true, ""}, fillBlobWithSameValue, 1},
+    {{1, 16, 18, 20}, {{1, 1}, {1, 1}, {0, 0}, {0, 0}, {1, 1}, "", 1, 16, true, true, ""}, fillBlobWithSameValue, 1},
+    {{1, 16, 18, 20}, {{1, 1}, {1, 1}, {0, 0}, {0, 0}, {1, 1}, "", 1, 16, true, true, ""}, fillBlobWithSameValue, 2},
+    {{1, 16, 16, 16}, {{1, 1}, {1, 1}, {0, 0}, {0, 0}, {1, 1}, "", 1, 16, true, true, ""}, fillBlobChannelByChannel, 1},
+    {{1, 16, 32, 32}, {{1, 1}, {1, 1}, {0, 0}, {0, 0}, {1, 1}, "", 1, 16, true, true, ""}, fillBlobChannelByChannel, 1},
+    {{1, 16, 20, 20}, {{1, 1}, {1, 1}, {0, 0}, {0, 0}, {1, 1}, "", 1, 16, true, true, ""}, fillBlobChannelByChannel, 1},
+    {{1, 16, 18, 20}, {{1, 1}, {1, 1}, {0, 0}, {0, 0}, {1, 1}, "", 1, 16, true, true, ""}, fillBlobChannelByChannel, 1},
+    {{1, 16, 18, 20}, {{1, 1}, {1, 1}, {0, 0}, {0, 0}, {1, 1}, "", 1, 16, true, true, ""}, fillBlobChannelByChannel, 2},
+};
+
+INSTANTIATE_TEST_CASE_P(accuracy, ConvolutionTestIdent, ::testing::ValuesIn(test_params_identity_kernel_1x1));
 
 struct convolution_and_pooling_test_params {
     SizeVector input_dim;
