@@ -4,7 +4,7 @@
 
 int main()
 {
-    mv::CompilationUnit unit("parserModel");
+    mv::CompilationUnit unit("DepthwiseChannelScalingModel");
     mv::OpModel& om = unit.model();
 
     auto input = om.input({4, 4, 3, 1}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{0},{1.0},{},{}});

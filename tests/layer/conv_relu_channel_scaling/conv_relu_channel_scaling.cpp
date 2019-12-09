@@ -5,7 +5,7 @@
 int main()
 {
     double inf = std::numeric_limits<double>::infinity();
-    mv::CompilationUnit unit("parserModel");
+    mv::CompilationUnit unit("ConvReluChannelScalingModel");
     mv::OpModel& om = unit.model();
 
 
