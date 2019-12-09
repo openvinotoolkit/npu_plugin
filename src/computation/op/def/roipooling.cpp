@@ -38,8 +38,15 @@ namespace mv
             auto C =  inputShape[IO_CHANNEL_DIMENSION];
             auto N = args.at("num_rois").get<unsigned>();
 
+            auto dTypeToUse = args.at("dType").get<mv::DType>();
+            if(dTypeToUse == mv::DType("Default"))
+                dTypeToUse = input->getDType();
+
             mv::Shape outputShape({W, H, C, N});;
-            outputs.push_back(mv::Tensor(":0", outputShape, input->getDType(), mv::Order::getZMajorID(4)));
+            if (args.at("quantParams").get<mv::QuantizationParams>().isEmpty())
+                outputs.push_back(mv::Tensor(":0", outputShape, dTypeToUse, outputOrder));
+            else
+                outputs.push_back(mv::Tensor(":0", outputShape, dTypeToUse, outputOrder, args.at("quantParams").get<mv::QuantizationParams>()));
 
         };
     }
