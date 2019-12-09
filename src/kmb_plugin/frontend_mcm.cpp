@@ -346,9 +346,8 @@ void FrontEndMcm::getInputData(const ie::CNNLayerPtr& layer, McmNodeVector& inpu
 
         auto prevLayer = layerInput->getCreatorLayer().lock();
         if (prevLayer != nullptr) {
-            // WA for ScaleShift on Weights, should be remove
-            if ((prevLayer->type == "Const") || (layer->type == "Const") ||
-                (prevLayer->type == "ScaleShift" && i != 0)) {
+            // TODO: think about better solution, this one is going to make inputs vector inconsistent
+            if ((prevLayer->type == "Const") || (layer->type == "Const")) {
                 continue;
             }
 
@@ -356,6 +355,7 @@ void FrontEndMcm::getInputData(const ie::CNNLayerPtr& layer, McmNodeVector& inpu
                 auto prevLayerInput = prevLayer->insData[0].lock();
                 auto prevPrevLayer = prevLayerInput->getCreatorLayer().lock();
                 if (prevPrevLayer == nullptr || prevPrevLayer->type == "Const") {
+                    // TODO: think about better solution, this one is going to make inputs vector inconsistent
                     continue;
                 }
 
