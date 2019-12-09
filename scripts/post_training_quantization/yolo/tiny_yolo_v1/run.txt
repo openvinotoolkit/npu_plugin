@@ -9,5 +9,5 @@ post-training-compression-tool used: 1fd58499e90601575fada95b6b1124c33652cac0 (d
 
 model-zoo-models-intel used: d1aca1bfd51bbeea7d3e82983ab1e5db53d59f18 (master)
 
-kmb_plugin: 0b5b7b2f4b09efacd7d587550a4ae425b4de42ce (kskvorts/post_training_tiny_yolo_v1_caffe_scrips)
+kmb_plugin: ec3746974eb0c1e08c88136cd2ee3ced877276f0 (kskvorts/post_training_tiny_yolo_v1_caffe_scrips)
 
