@@ -1,0 +1,13 @@
+../../run_post_trainig.sh ../../../../../post-training-compression-tool/ ../../../../../model-zoo-models-intel/PublicInHouse/object_detection/common/yolo/v1_tiny/caffe ../../../../../../Datasets/VOC2007/  ./tiny_yolo_v1_caffe_fp32.json -e > tiny_yolo_v1_caffe_fp32.log
+
+../../run_post_trainig.sh ../../../../../post-training-compression-tool/ ../../../../../model-zoo-models-intel/PublicInHouse/object_detection/common/yolo/v1_tiny/caffe ../../../../../../Datasets/VOC2007/  ./tiny_yolo_v1_caffe_uint8_int8_weights_pertensor.json -e > tiny_yolo_v1_caffe_uint8_int8_weights_pertensor.log
+
+dldt/IE + python_api built: c8ff0e6d2be7258779f2463223a17e82aec8b1d4 (feature/low_precision/develop_fp)
+dldt/MO used: 40f858654220a8409c68ff52ea958fd83570e2f1 (as/post_training_compression)
+
+post-training-compression-tool used: 1fd58499e90601575fada95b6b1124c33652cac0 (develop)
+
+model-zoo-models-intel used: d1aca1bfd51bbeea7d3e82983ab1e5db53d59f18 (master)
+
+kmb_plugin: 0b5b7b2f4b09efacd7d587550a4ae425b4de42ce (kskvorts/post_training_tiny_yolo_v1_caffe_scrips)
+
