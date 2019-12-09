@@ -50,6 +50,19 @@ void fillDiagonalKernel(Blob::Ptr kernelWeightsBlob, T value) {
     }
 }
 
+template <class srcType, class dstType>
+static void testOverflow(const Blob::Ptr& blob) {
+    auto data = blob->buffer().as<srcType*>();
+    auto maxValue = std::numeric_limits<dstType>::max();
+    auto minValue = std::numeric_limits<dstType>::min();
+    for (size_t i = 0; i < blob->size(); ++i) {
+        if (data[i] < minValue || maxValue < data[i]) {
+            THROW_IE_EXCEPTION << "Blob contains value " << data[i] << " that exceeds desired range [" << minValue
+                               << ", " << maxValue << "]";
+        }
+    }
+}
+
 // ref_conv_common copy with explicit precision for source and destination
 template <typename wei_data_t, typename bias_data_t>
 void ref_conv_common_prec(const std::vector<InferenceEngine::Blob::Ptr> srcs, Blob& dst, const wei_data_t* weights_data,

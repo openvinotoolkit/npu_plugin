@@ -223,6 +223,172 @@ static std::string convolution_only_with_bias_template = R"V0G0N(
 </net>
             )V0G0N";
 
+static std::string elt_on_same_input_with_bias_template = R"V0G0N(
+<net batch="1" name="CONVOLUTION_TEST" version="6">
+    <layers>
+        <layer id="0" name="input" precision="_NET_PRECISION_" type="Input">
+            <output>
+                <port id="1">
+                    <dim>_INPUT_BATCH_</dim>
+                    <dim>_INPUT_CHANNEL_</dim>
+                    <dim>_INPUT_HEIGHT_</dim>
+                    <dim>_INPUT_WIDTH_</dim>
+                </port>
+            </output>
+        </layer>
+        <layer id="5" name="output" precision="_CONV_PRECISION_" type="Eltwise">
+            <data operation="sum"/>
+            <input>
+                <port id="0">
+                    <dim>_INPUT_BATCH_</dim>
+                    <dim>_INPUT_CHANNEL_</dim>
+                    <dim>_INPUT_HEIGHT_</dim>
+                    <dim>_INPUT_WIDTH_</dim>
+                 </port>
+                <port id="1">
+                    <dim>_INPUT_BATCH_</dim>
+                    <dim>_INPUT_CHANNEL_</dim>
+                    <dim>_INPUT_HEIGHT_</dim>
+                    <dim>_INPUT_WIDTH_</dim>
+                 </port>
+            </input>
+            <output>
+                <port id="2">
+                    <dim>_INPUT_BATCH_</dim>
+                    <dim>_INPUT_CHANNEL_</dim>
+                    <dim>_INPUT_HEIGHT_</dim>
+                    <dim>_INPUT_WIDTH_</dim>
+                 </port>
+            </output>
+        </layer>
+    </layers>
+    <edges>
+        <edge from-layer="0" from-port="1" to-layer="5" to-port="0"/>
+        <edge from-layer="0" from-port="1" to-layer="5" to-port="1"/>
+    </edges>
+</net>
+            )V0G0N";
+static std::string elt_on_two_inputs_with_bias_template = R"V0G0N(
+<net batch="1" name="CONVOLUTION_TEST" version="6">
+    <layers>
+        <layer id="0" name="input" precision="_NET_PRECISION_" type="Input">
+            <output>
+                <port id="1">
+                    <dim>_INPUT_BATCH_</dim>
+                    <dim>_INPUT_CHANNEL_</dim>
+                    <dim>_INPUT_HEIGHT_</dim>
+                    <dim>_INPUT_WIDTH_</dim>
+                </port>
+            </output>
+        </layer>
+        <layer id="1" name="input2" precision="_NET_PRECISION_" type="Input">
+            <output>
+                <port id="1">
+                    <dim>_INPUT_BATCH_</dim>
+                    <dim>_INPUT_CHANNEL_</dim>
+                    <dim>_INPUT_HEIGHT_</dim>
+                    <dim>_INPUT_WIDTH_</dim>
+                </port>
+            </output>
+        </layer>
+        <layer id="5" name="output" precision="_CONV_PRECISION_" type="Eltwise">
+            <data operation="sum"/>
+            <input>
+                <port id="0">
+                    <dim>_INPUT_BATCH_</dim>
+                    <dim>_INPUT_CHANNEL_</dim>
+                    <dim>_INPUT_HEIGHT_</dim>
+                    <dim>_INPUT_WIDTH_</dim>
+                 </port>
+                <port id="1">
+                    <dim>_INPUT_BATCH_</dim>
+                    <dim>_INPUT_CHANNEL_</dim>
+                    <dim>_INPUT_HEIGHT_</dim>
+                    <dim>_INPUT_WIDTH_</dim>
+                 </port>
+            </input>
+            <output>
+                <port id="2">
+                    <dim>_INPUT_BATCH_</dim>
+                    <dim>_INPUT_CHANNEL_</dim>
+                    <dim>_INPUT_HEIGHT_</dim>
+                    <dim>_INPUT_WIDTH_</dim>
+                 </port>
+            </output>
+        </layer>
+    </layers>
+    <edges>
+        <edge from-layer="0" from-port="1" to-layer="5" to-port="0"/>
+        <edge from-layer="1" from-port="1" to-layer="5" to-port="1"/>
+    </edges>
+</net>
+            )V0G0N";
+
+static std::string elt_on_input_and_scaleshift = R"V0G0N(
+    <net batch="1" name="ELTWISE_TEST" version="2">
+        <layers>
+            <layer id="0" name="input" precision="U8" type="Input">
+                <output>
+                    <port id="0">
+                    <dim>_INPUT_BATCH_</dim>
+                    <dim>_INPUT_CHANNEL_</dim>
+                    <dim>_INPUT_HEIGHT_</dim>
+                    <dim>_INPUT_WIDTH_</dim>
+                    </port>
+                </output>
+            </layer>
+            <layer id="1" name="scale_shift1" precision="U8" type="ScaleShift">
+                <input>
+                    <port id="0">
+                    <dim>_INPUT_BATCH_</dim>
+                    <dim>_INPUT_CHANNEL_</dim>
+                    <dim>_INPUT_HEIGHT_</dim>
+                    <dim>_INPUT_WIDTH_</dim>
+                    </port>
+                </input>
+                <output>
+                    <port id="3">
+                    <dim>_INPUT_BATCH_</dim>
+                    <dim>_INPUT_CHANNEL_</dim>
+                    <dim>_INPUT_HEIGHT_</dim>
+                    <dim>_INPUT_WIDTH_</dim>
+                    </port>
+                </output>
+            </layer>
+            <layer id="2" name="output" precision="U8" type="Eltwise">
+                <data operation="sum"/>
+                <input>
+                    <port id="0">
+                        <dim>_INPUT_BATCH_</dim>
+                        <dim>_INPUT_CHANNEL_</dim>
+                        <dim>_INPUT_HEIGHT_</dim>
+                        <dim>_INPUT_WIDTH_</dim>
+                    </port>
+                    <port id="1">
+                        <dim>_INPUT_BATCH_</dim>
+                        <dim>_INPUT_CHANNEL_</dim>
+                        <dim>_INPUT_HEIGHT_</dim>
+                        <dim>_INPUT_WIDTH_</dim>
+                    </port>
+                </input>
+                <output>
+                    <port id="2">
+                        <dim>_INPUT_BATCH_</dim>
+                        <dim>_INPUT_CHANNEL_</dim>
+                        <dim>_INPUT_HEIGHT_</dim>
+                        <dim>_INPUT_WIDTH_</dim>
+                    </port>
+                </output>
+            </layer>
+        </layers>
+        <edges>
+            <edge from-layer="0" from-port="0" to-layer="1" to-port="0"/>
+            <edge from-layer="0" from-port="0" to-layer="2" to-port="0"/>
+            <edge from-layer="1" from-port="3" to-layer="2" to-port="1"/>
+        </edges>
+    </net>
+        )V0G0N";
+
 static std::string t_fq_convolution_only_slim = R"V0G0N(
 <?xml version="1.0" ?>
 <net batch="1" name="resnet50v1-int8-onnx-0001" version="6">

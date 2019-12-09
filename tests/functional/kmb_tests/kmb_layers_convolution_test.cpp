@@ -311,19 +311,6 @@ static void fillConvolutionIR(std::string& model, const convolution_test_params&
 
 class ConvolutionTest : public testing::WithParamInterface<convolution_test_params>, public kmbLayersTests_nightly {};
 
-template <class srcType, class dstType>
-static void testOverflow(const Blob::Ptr& blob) {
-    auto data = blob->buffer().as<srcType*>();
-    auto maxValue = std::numeric_limits<dstType>::max();
-    auto minValue = std::numeric_limits<dstType>::min();
-    for (size_t i = 0; i < blob->size(); ++i) {
-        if (data[i] < minValue || maxValue < data[i]) {
-            THROW_IE_EXCEPTION << "Blob contains value " << data[i] << " that exceeds desired range [" << minValue
-                               << ", " << maxValue << "]";
-        }
-    }
-}
-
 template <class Reference>
 void InferAndCompare(ExecutableNetwork& exeNetwork, Reference refFunc, float tolerance) {
     InferenceEngine::InferRequest inferRequest;

@@ -14,200 +14,178 @@
 // stated in the License.
 //
 
+#include <kmb_conv_utils.hpp>
 #include <memory>
 #include <vpu/kmb_plugin_config.hpp>
 
 #include "kmb_layers_tests.hpp"
+#include "kmb_xml_tests.hpp"
 
 #define ERROR_BOUND (.1f)
 
 using namespace InferenceEngine;
 
 #ifdef ENABLE_MCM_COMPILER
-TEST_F(kmbLayersTests_nightly, DISABLED_TestsEltwiseAfterScaleShift) {
-    // MCM compiler does not support multiple Input layers
-    // ScaleShift result is used as the second input to Eltwise
-    // TODO find a way to specify several inputs to Eltwise without other layers
-    const std::string model = R"V0G0N(
-    <net batch="1" name="ELTWISE_TEST" version="2">
-        <layers>
-            <layer id="0" name="input" precision="FP16" type="Input">
-                <output>
-                    <port id="0">
-                        <dim>1</dim>
-                        <dim>6</dim>
-                        <dim>56</dim>
-                        <dim>56</dim>
-                    </port>
-                </output>
-            </layer>
-            <layer id="1" name="scale_shift1" precision="FP16" type="ScaleShift">
-                <input>
-                    <port id="0">
-                        <dim>1</dim>
-                        <dim>6</dim>
-                        <dim>56</dim>
-                        <dim>56</dim>
-                    </port>
-                </input>
-                <output>
-                    <port id="3">
-                        <dim>1</dim>
-                        <dim>6</dim>
-                        <dim>56</dim>
-                        <dim>56</dim>
-                    </port>
-                </output>
-                <blobs>
-                    <weights offset="0" size="12"/>
-                    <biases offset="12" size="0"/>
-                </blobs>
-            </layer>
-            <layer id="2" name="eltwise1" precision="FP16" type="Eltwise">
-                <data operation="sum"/>
-                <input>
-                    <port id="0">
-                        <dim>1</dim>
-                        <dim>6</dim>
-                        <dim>56</dim>
-                        <dim>56</dim>
-                    </port>
-                    <port id="1">
-                        <dim>1</dim>
-                        <dim>6</dim>
-                        <dim>56</dim>
-                        <dim>56</dim>
-                    </port>
-                </input>
-                <output>
-                    <port id="2">
-                        <dim>1</dim>
-                        <dim>6</dim>
-                        <dim>56</dim>
-                        <dim>56</dim>
-                    </port>
-                </output>
-            </layer>
-        </layers>
-        <edges>
-            <edge from-layer="0" from-port="0" to-layer="1" to-port="0"/>
-            <edge from-layer="0" from-port="0" to-layer="2" to-port="0"/>
-            <edge from-layer="1" from-port="3" to-layer="2" to-port="1"/>
-        </edges>
-    </net>
-        )V0G0N";
 
-    std::size_t weightSize = 12;
-    std::size_t biasSize = 0;
-    TBlob<uint8_t>::Ptr weightsBlob(GenWeights<uint16_t>(weightSize + biasSize));
+// TODO find a way to specify several inputs to Eltwise without other layers
 
-    ASSERT_NO_THROW(_net_reader.ReadNetwork(model.data(), model.length()));
-    ASSERT_TRUE(_net_reader.isParseSuccess());
-    ASSERT_NO_THROW(_net_reader.SetWeights(weightsBlob));
+struct eltwise_test_params {
+    SizeVector input_dim;
+    conv_common_params conv_params;
+};
 
-    CNNNetwork network = _net_reader.getNetwork();
+class EltwiseTest : public testing::WithParamInterface<eltwise_test_params>, public kmbLayersTests_nightly {
+public:
+    const SizeVector& input_dims() { return GetParam().input_dim; }
+    const conv_common_params& conv_params() { return GetParam().conv_params; }
+};
 
-    _inputsInfo = network.getInputsInfo();
-    _inputsInfo["input"]->setPrecision(Precision::FP16);
+// MCM compiler does not support multiple Input layers
+// This test throws when single input is bound to both ports of eltwise
+TEST_P(EltwiseTest, TestsEltwiseOnTheSameInputToBothPortsNegative_Test) {
+    SizeVector output_dims;
+    getConvOutShape(input_dims(), conv_params(), output_dims);
 
-    _outputsInfo = network.getOutputsInfo();
-    _outputsInfo["eltwise1"]->setPrecision(Precision::FP16);
+    const size_t weightsByteSize = getConvWeightsSize(input_dims(), conv_params(), "U8");
+    const size_t weightsSize = weightsByteSize / sizeof(uint8_t);
+
+    const size_t biasByteSize = output_dims[1] * sizeof(int32_t);
+    const size_t biasSize = biasByteSize / sizeof(int32_t);
+
+    const auto weightsBuffer = make_shared_blob<uint8_t>({Precision::U8, {weightsByteSize + biasByteSize}, Layout::C});
+    weightsBuffer->allocate();
+    const auto weightsBufferData = weightsBuffer->buffer().as<uint8_t*>();
+    std::fill_n(weightsBufferData, weightsSize, static_cast<uint8_t>(1));
+
+    uint32_t* biasData = reinterpret_cast<uint32_t*>(weightsBuffer->buffer().as<uint8_t*>() + weightsSize);
+    std::fill_n(biasData, biasSize, static_cast<uint32_t>(1));
+
+    const convolution_test_desc allTestParams = {
+        input_dims(), conv_params(), "U8", "U8", "U8", 0, "I32", "", elt_on_same_input_with_bias_template};
+    const std::string model = instantiateConvTestIR(allTestParams);
+
+    CNNNetReader reader;
+    ASSERT_NO_THROW(reader.ReadNetwork(model.data(), model.length()));
+    ASSERT_NO_THROW(reader.SetWeights(weightsBuffer));
+    ASSERT_TRUE(reader.isParseSuccess());
+    const CNNNetwork network = reader.getNetwork();
+
+    auto _inputsInfo = network.getInputsInfo();
+    _inputsInfo["input"]->setPrecision(Precision::U8);
+
+    auto _outputsInfo = network.getOutputsInfo();
+    _outputsInfo["output"]->setPrecision(Precision::U8);
 
     std::map<std::string, std::string> config;
     setCommonConfig(config);
     config[VPU_KMB_CONFIG_KEY(MCM_PARSING_ONLY)] = CONFIG_VALUE(NO);
     config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_BLOB)] = CONFIG_VALUE(YES);
-    config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_DOT)] = CONFIG_VALUE(YES);
-    config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_JSON)] = CONFIG_VALUE(YES);
+    config[VPU_KMB_CONFIG_KEY(LOAD_NETWORK_AFTER_COMPILATION)] = CONFIG_VALUE(YES);
 
-    ASSERT_NO_THROW(ie.LoadNetwork(network, "kmb", config));
+    Core ie;
+    InferenceEngine::ExecutableNetwork exeNetwork;
+    ASSERT_ANY_THROW(exeNetwork = ie.LoadNetwork(network, "KMB", config));
 }
 
-TEST_F(kmbLayersTests_nightly, DISABLED_TestsEltwiseAfterScaleShiftWithLargeWeight) {
-    const std::string model = R"V0G0N(
-    <net batch="1" name="ELTWISE_TEST" version="2">
-        <layers>
-            <layer id="0" name="input" precision="FP16" type="Input">
-                <output>
-                    <port id="0">
-                        <dim>1</dim>
-                        <dim>256</dim>
-                        <dim>56</dim>
-                        <dim>56</dim>
-                    </port>
-                </output>
-            </layer>
-            <layer id="1" name="scale_shift1" precision="FP16" type="ScaleShift">
-                <input>
-                    <port id="0">
-                        <dim>1</dim>
-                        <dim>256</dim>
-                        <dim>56</dim>
-                        <dim>56</dim>
-                    </port>
-                </input>
-                <output>
-                    <port id="3">
-                        <dim>1</dim>
-                        <dim>256</dim>
-                        <dim>56</dim>
-                        <dim>56</dim>
-                    </port>
-                </output>
-                <blobs>
-                    <weights offset="0" size="512"/>
-                    <biases offset="512" size="0"/>
-                </blobs>
-            </layer>
-            <layer id="2" name="eltwise1" precision="FP16" type="Eltwise">
-                <data operation="sum"/>
-                <input>
-                    <port id="0">
-                        <dim>1</dim>
-                        <dim>256</dim>
-                        <dim>56</dim>
-                        <dim>56</dim>
-                    </port>
-                    <port id="1">
-                        <dim>1</dim>
-                        <dim>256</dim>
-                        <dim>56</dim>
-                        <dim>56</dim>
-                    </port>
-                </input>
-                <output>
-                    <port id="2">
-                        <dim>1</dim>
-                        <dim>256</dim>
-                        <dim>56</dim>
-                        <dim>56</dim>
-                    </port>
-                </output>
-            </layer>
-        </layers>
-        <edges>
-            <edge from-layer="0" from-port="0" to-layer="1" to-port="0"/>
-            <edge from-layer="0" from-port="0" to-layer="2" to-port="0"/>
-            <edge from-layer="1" from-port="3" to-layer="2" to-port="1"/>
-        </edges>
-    </net>
-        )V0G0N";
+// MCM compiler does not support multiple Input layers
+// This test throws due to two inputs in the network
+TEST_P(EltwiseTest, TestsEltwiseOnTwoDifferentInputsNegative_Test) {
+    SizeVector output_dims;
+    getConvOutShape(input_dims(), conv_params(), output_dims);
 
-    std::size_t weightSize = 512;
-    std::size_t biasSize = 0;
-    TBlob<uint8_t>::Ptr weightsBlob(GenWeights<uint16_t>(weightSize + biasSize));
+    const size_t weightsByteSize = getConvWeightsSize(input_dims(), conv_params(), "U8");
+    const size_t weightsSize = weightsByteSize / sizeof(uint8_t);
 
-    ASSERT_NO_THROW(_net_reader.ReadNetwork(model.data(), model.length()));
-    ASSERT_TRUE(_net_reader.isParseSuccess());
-    ASSERT_NO_THROW(_net_reader.SetWeights(weightsBlob));
+    const size_t biasByteSize = output_dims[1] * sizeof(int32_t);
+    const size_t biasSize = biasByteSize / sizeof(int32_t);
 
-    CNNNetwork network = _net_reader.getNetwork();
+    const auto weightsBuffer = make_shared_blob<uint8_t>({Precision::U8, {weightsByteSize + biasByteSize}, Layout::C});
+    weightsBuffer->allocate();
+    const auto weightsBufferData = weightsBuffer->buffer().as<uint8_t*>();
+    std::fill_n(weightsBufferData, weightsSize, static_cast<uint8_t>(1));
 
-    _inputsInfo = network.getInputsInfo();
-    _inputsInfo["input"]->setPrecision(Precision::FP16);
+    uint32_t* biasData = reinterpret_cast<uint32_t*>(weightsBuffer->buffer().as<uint8_t*>() + weightsSize);
+    std::fill_n(biasData, biasSize, static_cast<uint32_t>(1));
 
-    _outputsInfo = network.getOutputsInfo();
-    _outputsInfo["eltwise1"]->setPrecision(Precision::FP16);
+    const convolution_test_desc allTestParams = {
+        input_dims(), conv_params(), "U8", "U8", "U8", 0, "I32", "", elt_on_two_inputs_with_bias_template};
+    const std::string model = instantiateConvTestIR(allTestParams);
+
+    CNNNetReader reader;
+    ASSERT_NO_THROW(reader.ReadNetwork(model.data(), model.length()));
+    ASSERT_NO_THROW(reader.SetWeights(weightsBuffer));
+    ASSERT_TRUE(reader.isParseSuccess());
+    const CNNNetwork network = reader.getNetwork();
+
+    auto _inputsInfo = network.getInputsInfo();
+    _inputsInfo["input"]->setPrecision(Precision::U8);
+    _inputsInfo["input2"]->setPrecision(Precision::U8);
+
+    auto _outputsInfo = network.getOutputsInfo();
+    _outputsInfo["output"]->setPrecision(Precision::U8);
+
+    std::map<std::string, std::string> config;
+    setCommonConfig(config);
+    config[VPU_KMB_CONFIG_KEY(MCM_PARSING_ONLY)] = CONFIG_VALUE(NO);
+    config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_BLOB)] = CONFIG_VALUE(YES);
+    config[VPU_KMB_CONFIG_KEY(LOAD_NETWORK_AFTER_COMPILATION)] = CONFIG_VALUE(YES);
+
+    Core ie;
+    InferenceEngine::ExecutableNetwork exeNetwork;
+    ASSERT_ANY_THROW(exeNetwork = ie.LoadNetwork(network, "KMB", config));
+}
+
+static std::vector<eltwise_test_params> test_params = {
+    {{1, 16, 16, 16}, {{1, 1}, {3, 3}, {0, 0}, {0, 0}, {1, 1}, "", 1, 128, true, true, ""}},
+};
+
+// MCM compiler does not support multiple Input layers
+// ScaleShift result is used as the second input to Eltwise
+TEST_P(EltwiseTest, TestsEltwiseAfterScaleShift) {
+    SizeVector output_dims;
+    getConvOutShape(input_dims(), conv_params(), output_dims);
+
+    const size_t weightsByteSize = getConvWeightsSize(input_dims(), conv_params(), "U8");
+    const size_t weightsSize = weightsByteSize / sizeof(uint8_t);
+
+    const size_t biasByteSize = output_dims[1] * sizeof(int32_t);
+    const size_t biasSize = biasByteSize / sizeof(int32_t);
+
+    const auto weightsBuffer = make_shared_blob<uint8_t>({Precision::U8, {weightsByteSize + biasByteSize}, Layout::C});
+    weightsBuffer->allocate();
+    const auto weightsBufferData = weightsBuffer->buffer().as<uint8_t*>();
+    std::fill_n(weightsBufferData, weightsSize, static_cast<uint8_t>(1));
+
+    uint32_t* biasData = reinterpret_cast<uint32_t*>(weightsBuffer->buffer().as<uint8_t*>() + weightsSize);
+    std::fill_n(biasData, biasSize, static_cast<uint32_t>(1));
+
+    const convolution_test_desc allTestParams = {
+        input_dims(), conv_params(), "U8", "U8", "U8", 0, "I32", "", elt_on_input_and_scaleshift};
+
+    const std::string model = instantiateConvTestIR(allTestParams);
+
+    CNNNetReader reader;
+    ASSERT_NO_THROW(reader.ReadNetwork(model.data(), model.length()));
+    ASSERT_NO_THROW(reader.SetWeights(weightsBuffer));
+    ASSERT_TRUE(reader.isParseSuccess());
+    const CNNNetwork network = reader.getNetwork();
+
+    auto _inputsInfo = network.getInputsInfo();
+    _inputsInfo["input"]->setPrecision(Precision::U8);
+
+    auto _outputsInfo = network.getOutputsInfo();
+    _outputsInfo["output"]->setPrecision(Precision::U8);
+
+    // set up weights fot the scale shift layer
+    const size_t ssWeightsByteSize = sizeof(uint8_t) * input_dims()[1];
+    CNNLayerPtr cnl = network.getLayerByName("scale_shift1");
+    std::shared_ptr<ScaleShiftLayer> ssl = std::static_pointer_cast<ScaleShiftLayer>(cnl);
+    ssl->_weights.reset(
+        new InferenceEngine::TBlob<uint8_t>(TensorDesc({Precision::U8, {ssWeightsByteSize}, Layout::C})));
+    const auto ssWeightsBuffer = ssl->_weights;
+    ssWeightsBuffer->allocate();
+    const auto ssWeightsBufferData = ssWeightsBuffer->buffer().as<uint8_t*>();
+    std::fill_n(ssWeightsBufferData, ssWeightsByteSize, static_cast<uint8_t>(1));
 
     std::map<std::string, std::string> config;
     setCommonConfig(config);
@@ -510,4 +488,7 @@ TEST_F(kmbLayersTests_nightly, DISABLED_EltwiseWithFakeQuantize) {
     ExecutableNetwork executableNetwork;
     ASSERT_NO_THROW(executableNetwork = ie.LoadNetwork(network, "kmb", config));
 }
+
+INSTANTIATE_TEST_CASE_P(accuracy, EltwiseTest, ::testing::ValuesIn(test_params));
+
 #endif
