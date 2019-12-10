@@ -249,6 +249,18 @@ for (const auto& inputInfo : _parsedNetwork.networkInputs) {
     auto inputQuantParamsOverRide = initialQuantParams;
     KmbQuantizationHelpers::fillQuntizationActivationParams(inputLayerPtr , inputQuantParamsOverRide);
 
+    // Workaround for Input->ScaleShift->Conv pattern
+    if (_layerToQuantParams.count(inputLayerPtr->name)) {
+        // We have basic assumption that input can only be in uin8_t foramt
+
+        auto scaleShiftOverride = _layerToQuantParams[inputLayerPtr->name];
+        float new_min = std::numeric_limits<uint8_t>::min() * scaleShiftOverride.scale + scaleShiftOverride.bias;
+        float new_max = std::numeric_limits<uint8_t>::max() * scaleShiftOverride.scale + scaleShiftOverride.bias;
+        auto zp = KmbQuantizationHelpers::calculateZeroPoint(new_max, new_min, Precision::U8);
+
+        inputQuantParamsOverRide = {{zp}, {scaleShiftOverride.scale}, {-inf}, {inf}};
+    }
+
     // TODO: MCMCompiler support only U8 inputs, hardcoded for all networks
     auto mvInput = _modelMcm.input(inputShape, convert_data_type(InferenceEngine::Precision::U8),
             mv::Order("NHWC"), inputQuantParamsOverRide, netInput->name());
