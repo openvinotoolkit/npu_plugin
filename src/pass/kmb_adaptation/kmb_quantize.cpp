@@ -25,6 +25,9 @@ void addQuantizationLayers(mv::OpModel om, std::vector<mv::Data::OpListIterator>
 {
     for(auto& task : tasks)
     {
+        if (task->get<std::string>("taskOp") == "Quantize")
+            continue;
+
         auto inputFlow = task.leftmostInput();
         auto outputDType = task->getOutputTensor(0)->getDType();
         std::size_t id = 0;

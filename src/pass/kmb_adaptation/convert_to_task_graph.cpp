@@ -451,6 +451,10 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
 
             if (newTensorOp->getOpType() == "DPUTask")
                 newTensor->set<mv::DType>("dType", mv::DType("UInt8"));
+            else if (newTensorOp->get<std::string>("taskOp") == "Quantize")
+            {
+                //Skip case of explicitly-added om.quantize()
+            }
             else
                 newTensor->set<mv::DType>("dType", mv::DType("Float16"));
 
