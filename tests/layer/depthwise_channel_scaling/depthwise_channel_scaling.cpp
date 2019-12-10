@@ -41,7 +41,7 @@ int main()
     auto d_weights0 = om.constantInt(d_weightsData0,{1,1,16,1}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{145},{scale},{-0.2301538735628128},{0.17448118329048157}}, "dwconv0#0_weights#1");
     auto depthConv0 = om.depthwiseConv(input0, d_weights0, {1, 1}, {0, 0, 0, 0}, 1, mv::DType("UInt8"), {{128},{0.007843137718737125},{-1.003921627998352},{0.9960784316062927}}, "dwconv0#4");
 
-    auto biasdWeights0 = om.constantInt(biasd_WeightsData0,{16}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{1.2445522770576645e-05},{-inf},{inf}}, "dwconv0#0_bias#2");
+    auto biasdWeights0 = om.constantInt(biasd_WeightsData0,{16}, mv::DType("Int32"), mv::Order::getColMajorID(1), {{0},{1.2445522770576645e-05},{-inf},{inf}}, "dwconv0#0_bias#2");
     auto bias_cd0 = om.bias(depthConv0, biasdWeights0, mv::DType("UInt8"), {{128},{0.007843137718737125},{-1.003921627998352},{0.9960784316062927}});
 
     om.output(bias_cd0);
