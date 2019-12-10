@@ -17,6 +17,9 @@
 #include "kmb_layers_tests.hpp"
 #include "kmb_xml_tests.hpp"
 
+// TODO https://jira.devtools.intel.com/browse/VPUNND-2304
+//  resnet-50 has 2d output, but mcmCompiler returns 4d one, therefore tests failed with assert (inDims == outDims)
+
 #define ERROR_BOUND (.1f)
 
 using namespace InferenceEngine;
@@ -83,6 +86,73 @@ size_t getFCWeightsByteSize(const size_t inChannels, const size_t outChannels, c
     return inChannels * outChannels * type_size;
 }
 
+void ref_fc(const Blob::Ptr src, const uint8_t* weights, const size_t weightsSize, const int32_t* biases,
+    const size_t biasSize, Blob::Ptr dst, uint32_t out_c, SizeVector input_dims) {
+    size_t IW = 1;
+    size_t IH = 1;
+    size_t IC = 1;
+
+    size_t OC = out_c;
+
+    switch (src->getTensorDesc().getLayout()) {
+    case NCHW:
+        IW = input_dims[3];
+        IH = input_dims[2];
+        IC = input_dims[1];
+        break;
+    case NHWC:
+        IC = input_dims[3];
+        IW = input_dims[2];
+        IH = input_dims[1];
+        break;
+    case NC:
+        IC = input_dims[1];
+        break;
+    default:
+        THROW_IE_EXCEPTION << "Unsupported layout: " << src->getTensorDesc().getLayout();
+    }
+
+    const auto* src_data = src->buffer().as<const uint8_t*>();
+    auto* dst_data = dst->buffer().as<float*>();
+
+    IE_ASSERT(IW * IH * IC * OC == weightsSize);
+    IE_ASSERT(OC == dst->getTensorDesc().getDims()[1]);
+
+    for (size_t oc = 0; oc < OC; oc++) {
+        if (biases != nullptr) dst_data[oc] = biases[oc];
+        for (size_t ic = 0; ic < IC; ic++) {
+            for (size_t kh = 0; kh < IH; kh++) {
+                for (size_t kw = 0; kw < IW; kw++) {
+                    size_t iidx = ic * IH * IW + kh * IW + kw;
+                    size_t widx = oc * IC * IH * IW + ic * IH * IW + kh * IW + kw;
+
+                    dst_data[oc] += src_data[iidx] * weights[widx];
+                }
+            }
+        }
+    }
+}
+
+static void fillFcIR(std::string& model, SizeVector input_dims, size_t weightsBufferOffset, size_t weightsByteSize,
+    size_t biasBufferOffset, size_t biasByteSize, uint32_t out_channels) {
+    REPLACE_WITH_NUM(model, "_INPUT_BATCH_", input_dims[0]);
+    REPLACE_WITH_NUM(model, "_INPUT_CHANNEL_", input_dims[1]);
+
+    if (input_dims.size() == 4) {
+        REPLACE_WITH_NUM(model, "_INPUT_HEIGHT_", input_dims[2]);
+        REPLACE_WITH_NUM(model, "_INPUT_WIDTH_", input_dims[3]);
+    }
+
+    REPLACE_WITH_NUM(model, "_WEIGHTS_OFFSET_", weightsBufferOffset);
+    REPLACE_WITH_NUM(model, "_WEIGHTS_BYTE_SIZE_", weightsByteSize);
+
+    REPLACE_WITH_NUM(model, "_BIAS_OFFSET_", biasBufferOffset);
+    REPLACE_WITH_NUM(model, "_BIAS_BYTE_SIZE_", biasByteSize);
+
+    REPLACE_WITH_NUM(model, "_OUTPUT_BATCH_", input_dims[0]);
+    REPLACE_WITH_NUM(model, "_OUTPUT_CHANNEL_", out_channels);
+}
+
 typedef kmbLayerTestBaseWithParam<fullyConnected_test_params> kmbLayersTestsFullyConnectedWithIR;
 
 TEST_P(kmbLayersTestsFullyConnectedWithIR, DISABLED_fc_only) {
@@ -110,6 +180,7 @@ TEST_P(kmbLayersTestsFullyConnectedWithIR, DISABLED_fc_only) {
     std::replace(blob_name.begin(), blob_name.end(), '/', '_');
 
     std::string model = fq_fully_connected_only_slim;
+
     REPLACE_WITH_NUM(model, "_INPUT_BATCH_", input_dims[0]);
     REPLACE_WITH_NUM(model, "_INPUT_CHANNEL_", input_dims[1]);
 
@@ -150,13 +221,11 @@ TEST_P(kmbLayersTestsFullyConnectedWithIR, DISABLED_fc_only_u8) {
     auto weightsBuffer = make_shared_blob<uint8_t>({Precision::U8, {weightsByteSize + biasByteSize}, Layout::C});
     weightsBuffer->allocate();
     auto weightsBufferData = weightsBuffer->buffer().as<uint8_t*>();
-    for (size_t i = 0; i < weightsSize; ++i) {
-        weightsBufferData[i] = 1;
-    }
+    fillIntBuffer(weightsBufferData, weightsByteSize, static_cast<uint8_t>(0), static_cast<uint8_t>(4));
 
-    uint32_t* biasData = reinterpret_cast<uint32_t*>(weightsBuffer->buffer().as<uint8_t*>() + weightsSize);
+    uint32_t* biasData = reinterpret_cast<uint32_t*>(weightsBuffer->buffer().as<uint8_t*>() + weightsByteSize);
     for (size_t i = 0; i < biasSize; ++i) {
-        biasData[i] = 1lu;
+        biasData[i] = 1;
     }
 
     Core ie;
@@ -165,18 +234,15 @@ TEST_P(kmbLayersTestsFullyConnectedWithIR, DISABLED_fc_only_u8) {
     blob_name += ".blob";
     std::replace(blob_name.begin(), blob_name.end(), '/', '_');
 
-    std::string model = fc_u8_only;
-    REPLACE_WITH_NUM(model, "_INPUT_BATCH_", input_dims[0]);
-    REPLACE_WITH_NUM(model, "_INPUT_CHANNEL_", input_dims[1]);
+    std::string model;
 
-    REPLACE_WITH_NUM(model, "_WEIGHTS_OFFSET_", 0);
-    REPLACE_WITH_NUM(model, "_WEIGHTS_BYTE_SIZE_", weightsByteSize);
+    if (input_dims.size() == 4) {
+        model = fc_u8_only_4d;
+    } else {
+        model = fc_u8_only;
+    }
 
-    REPLACE_WITH_NUM(model, "_BIAS_OFFSET_", weightsByteSize);
-    REPLACE_WITH_NUM(model, "_BIAS_BYTE_SIZE_", biasByteSize);
-
-    REPLACE_WITH_NUM(model, "_OUTPUT_BATCH_", input_dims[0]);
-    REPLACE_WITH_NUM(model, "_OUTPUT_CHANNEL_", outChannels);
+    fillFcIR(model, input_dims, 0, weightsByteSize, weightsByteSize, biasByteSize, outChannels);
 
     CNNNetReader reader;
     ASSERT_NO_THROW(reader.ReadNetwork(model.data(), model.length()));
@@ -196,13 +262,41 @@ TEST_P(kmbLayersTestsFullyConnectedWithIR, DISABLED_fc_only_u8) {
     config[VPU_KMB_CONFIG_KEY(MCM_PARSING_ONLY)] = CONFIG_VALUE(NO);
 
     ExecutableNetwork executableNetwork;
-    ASSERT_NO_THROW(executableNetwork = ie.LoadNetwork(network, "kmb", config));
+    (executableNetwork = ie.LoadNetwork(network, "KMB", config));
     ASSERT_NO_THROW(executableNetwork.Export(blob_name));
+
+    InferenceEngine::InferRequest inferRequest;
+    ASSERT_NO_THROW(inferRequest = executableNetwork.CreateInferRequest());
+
+    Blob::Ptr inputBlob;
+    ASSERT_NO_THROW(inputBlob = inferRequest.GetBlob(executableNetwork.GetInputsInfo().begin()->first));
+    auto data = inputBlob->buffer().as<uint8_t*>();
+    fillIntBuffer(data, inputBlob->byteSize(), static_cast<uint8_t>(0), static_cast<uint8_t>(4));
+
+    auto weightsData = weightsBuffer->buffer().as<uint8_t*>();
+    auto bias_data = GetParam().with_bias ? reinterpret_cast<int32_t*>(weightsData + weightsSize) : nullptr;
+
+    auto outputBlob = inferRequest.GetBlob(executableNetwork.GetOutputsInfo().begin()->first);
+    auto outputDesc = outputBlob->getTensorDesc();
+
+    auto refOutputBlob = make_shared_blob<float>({Precision::FP32, outputDesc.getDims(), outputDesc.getLayout()});
+    refOutputBlob->allocate();
+    data = refOutputBlob->buffer().as<uint8_t*>();
+    std::fill(data, data + refOutputBlob->byteSize(), 0);
+
+    ref_fc(inputBlob, weightsData, weightsSize, bias_data, biasSize, refOutputBlob, outChannels, input_dims);
+
+    ASSERT_NO_THROW(inferRequest.Infer());
+    Blob::Ptr outputBlobFP32 = ConvertU8ToFP32(outputBlob);
+
+    Compare(refOutputBlob, outputBlobFP32, 1.1f);
 }
 // Assuming input and output are in NCHW layout
 // {input_dim}, out_c, with_bias, with_weights, quantization_level};
 std::vector<fullyConnected_test_params> test_params_fc = {
-    {{1, 16, 1, 1}, 16, false, true, ""},
+    {{1, 16, 1, 1}, 16, true, true, ""},
+    {{1, 8, 1, 1}, 16, false, true, ""},
+    {{1, 16}, 8, false, true, ""},
 };
 
 INSTANTIATE_TEST_CASE_P(accuracy, kmbLayersTestsFullyConnectedWithIR, ::testing::ValuesIn(test_params_fc));

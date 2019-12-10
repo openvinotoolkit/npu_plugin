@@ -289,6 +289,7 @@ std::vector<int64_t> quantizeBiases(const std::vector<double>& activationScales,
     auto biasCount = biasBlob->size();
     const bool isWeightsScalesBroadcasted = weightsScales.size() != biasCount;
     const bool isActivationScalesBroadcasted = activationScales.size() != biasCount;
+    auto biasesPrecision = biasBlob->getTensorDesc().getPrecision();
 
     if ((weightsScales.size() != 1) && isWeightsScalesBroadcasted) {
         THROW_IE_EXCEPTION << "Unexpected input low values count " << weightsScales.size() << " for " << biasCount
@@ -301,24 +302,38 @@ std::vector<int64_t> quantizeBiases(const std::vector<double>& activationScales,
     }
 
     const bool isBiasScalesBroadcasted = isWeightsScalesBroadcasted && isActivationScalesBroadcasted;
-
-    auto biasData = biasBlob->buffer().as<float*>();
     std::vector<int64_t> newBiasData(biasCount, 0);
     std::vector<double> biasScales;
-    //  ZP = 0
-    //  ScaleBias = ActivationScale * WeightsScale
-    for (size_t i = 0; i < biasCount; i++) {
-        double activationScale = activationScales[isActivationScalesBroadcasted ? 0 : i];
-        double weightsScale = weightsScales[isWeightsScalesBroadcasted ? 0 : i];
-        double biasScale = activationScale * weightsScale;
-        biasScales.push_back(biasScale);
-        newBiasData[i] = std::round(biasData[i] / biasScale);
+
+    if (biasesPrecision == InferenceEngine::Precision::FP32) {
+        auto biasData = biasBlob->buffer().as<float*>();
+        //  ZP = 0
+        //  ScaleBias = ActivationScale * WeightsScale
+        for (size_t i = 0; i < biasCount; i++) {
+            double activationScale = activationScales[isActivationScalesBroadcasted ? 0 : i];
+            double weightsScale = weightsScales[isWeightsScalesBroadcasted ? 0 : i];
+            double biasScale = activationScale * weightsScale;
+            biasScales.push_back(biasScale);
+            newBiasData[i] = std::round(biasData[i] / biasScale);
+        }
+        int64_t biasZp = 0;
+        if (isBiasScalesBroadcasted) {
+            biasScales.resize(1);
+        }
+        outputQuantParam = mv::QuantizationParams({{biasZp}, biasScales, {0}, {1}});
     }
-    int64_t biasZp = 0;
-    if (isBiasScalesBroadcasted) {
-        biasScales.resize(1);
+
+    if (biasesPrecision == InferenceEngine::Precision::I32) {
+        auto biasData = biasBlob->buffer().as<int32_t*>();
+        for (size_t i = 0; i < biasCount; i++) {
+            newBiasData[i] = biasData[i];
+        }
+        outputQuantParam = initialQuantParams;
     }
-    outputQuantParam = mv::QuantizationParams({{biasZp}, biasScales, {0}, {1}});
+
+    if (biasesPrecision != InferenceEngine::Precision::FP32 && biasesPrecision != InferenceEngine::Precision::I32) {
+        THROW_IE_EXCEPTION << "Unexpected biases precision";
+    }
 
     return newBiasData;
 }

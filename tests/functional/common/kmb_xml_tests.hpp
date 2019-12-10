@@ -1836,6 +1836,73 @@ static std::string fc_u8_only = R"V0G0N(
 </net>
         )V0G0N";
 
+static std::string fc_u8_only_4d = R"V0G0N(
+<net batch="1" name="resnet50-int8-4d" version="6">
+	<layers>
+		<layer id="36" name="input" precision="U8" type="Input">
+			<output>
+				<port id="0">
+					<dim>_INPUT_BATCH_</dim>
+					<dim>_INPUT_CHANNEL_</dim>
+                                        <dim>_INPUT_HEIGHT_</dim>
+                                        <dim>_INPUT_WIDTH_</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="42" name="conv2/weights" precision="U8" type="Const">
+			<output>
+				<port id="1">
+					<dim>_OUTPUT_CHANNEL_</dim>
+					<dim>_INPUT_CHANNEL_</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="_WEIGHTS_OFFSET_" size="_WEIGHTS_BYTE_SIZE_"/>
+			</blobs>
+		</layer>
+		<layer id="48" name="bias2" precision="I32" type="Const">
+			<output>
+				<port id="1">
+					<dim>_OUTPUT_CHANNEL_</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="_BIAS_OFFSET_" size="_BIAS_BYTE_SIZE_"/>
+			</blobs>
+		</layer>
+		<layer id="49" name="conv2" precision="U8" type="FullyConnected">
+			<data out-size="_OUTPUT_CHANNEL_"/>
+			<input>
+				<port id="0">
+					<dim>_INPUT_BATCH_</dim>
+					<dim>_INPUT_CHANNEL_</dim>
+                                        <dim>_INPUT_HEIGHT_</dim>
+                                        <dim>_INPUT_WIDTH_</dim>
+				</port>
+				<port id="1">
+					<dim>_OUTPUT_CHANNEL_</dim>
+					<dim>_INPUT_CHANNEL_</dim>
+				</port>
+				<port id="2">
+					<dim>_OUTPUT_CHANNEL_</dim>
+				</port>
+			</input>
+			<output>
+				<port id="3">
+					<dim>_OUTPUT_BATCH_</dim>
+					<dim>_OUTPUT_CHANNEL_</dim>
+				</port>
+			</output>
+		</layer>
+	</layers>
+	<edges>
+		<edge from-layer="36" from-port="0" to-layer="49" to-port="0"/>
+		<edge from-layer="42" from-port="1" to-layer="49" to-port="1"/>
+		<edge from-layer="48" from-port="1" to-layer="49" to-port="2"/>
+	</edges>
+</net>
+        )V0G0N";
+
 static std::string conv_pool_u8_test = R"V0G0N(
         <net batch="1" name="POOL_TEST" version="2">
             <layers>
