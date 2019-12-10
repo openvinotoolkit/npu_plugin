@@ -102,5 +102,4 @@ else()
 
     add_executable(norm norm/norm.cpp)
     target_link_libraries(norm cm)
-
 endif(MSVC)
