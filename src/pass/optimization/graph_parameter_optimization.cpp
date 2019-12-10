@@ -136,7 +136,7 @@ namespace mv
                 return attr;
             }
 
-            size_t realTensorSize(const mv::Data::TensorIterator tensorToSize, const Shape& streamingPool)
+            size_t realTensorSize(const mv::Data::TensorIterator tensorToSize, const Shape& streamingPool, bool isCMConv)
             {
                 auto div = [](unsigned x,unsigned y) -> unsigned { return (x+y-1)/y; };
 
@@ -168,15 +168,15 @@ namespace mv
                     streamDivisor = streamDivisor * worstStreamPool[dim];
                 }
 
-                return tensorToSize->computeTotalSize(16, false, false, true)/streamDivisor;
+                if(isCMConv)
+                    return tensorToSize->computeTotalSize(16, false, false, false)/streamDivisor;
 
+                return tensorToSize->computeTotalSize(16, false, false, true)/streamDivisor;
             }
 
             pair<size_t,size_t> memorySize(mv::Op& op, const Attribute& clustering, bool inputActivationSparsity,
                                             bool outputActivationSparsity, bool weightsSparsity, const Shape& streamConfig, bool prefetch)
             {
-                auto inputTensors = op.getInputTensor();
-                auto outputTensors = op.getOutputTensor();
                 auto div = [](unsigned x,unsigned y) -> unsigned { return (x+y-1)/y; };
 
                 //StreamingPool noSplit( {{'W',1},{'H',1},{'C'},{'K'}});
@@ -187,11 +187,16 @@ namespace mv
 
                 size_t totalWeightsSize = 0;
                 size_t totalActivationSize = 0;
+                auto isCMConv = false;
+
+                if(enableChannelMajorConv and op.getOpType() == "Conv" and 
+                    op.getInputTensor(1)->getShape()[mv::KERNEL_INPUT_CHANNELS] < 16)
+                        isCMConv = true;
 
                 if(op.getOpType() != "Input")
-                    inputSize = realTensorSize(op.getInputTensor(0),{streamConfig["W"],streamConfig["H"],streamConfig["C"],1});
+                    inputSize = realTensorSize(op.getInputTensor(0),{streamConfig["W"],streamConfig["H"],streamConfig["C"],1}, isCMConv);
                 if(op.getOpType() != "Output")
-                    outputSize = realTensorSize(op.getOutputTensor(0),{streamConfig["W"],streamConfig["H"],streamConfig["K"],1});
+                    outputSize = realTensorSize(op.getOutputTensor(0),{streamConfig["W"],streamConfig["H"],streamConfig["K"],1}, isCMConv);
 
                 if(op.getOpType() == "Conv" || op.getOpType() == "DepthwiseConv")
                 {
@@ -199,9 +204,9 @@ namespace mv
                     size_t alignedSplittedChannels = mv::round_up(alignedFullChannels/streamConfig["K"], 16);
                     weightTableSize = 4 * alignedSplittedChannels ;
                     if (op.getOpType() == "Conv")
-                        weightSize += realTensorSize(op.getInputTensor(1),{1,1,streamConfig["C"],streamConfig["K"]});
+                        weightSize += realTensorSize(op.getInputTensor(1),{1,1,streamConfig["C"],streamConfig["K"]}, isCMConv);
                     else
-                        weightSize += realTensorSize(op.getInputTensor(1),{1,1,streamConfig["C"],1});
+                        weightSize += realTensorSize(op.getInputTensor(1),{1,1,streamConfig["C"],1}, isCMConv);
                 }
                 else if(op.getOpType() == "MaxPool")
                 {
@@ -212,7 +217,7 @@ namespace mv
                 {
                     weightTableSize = 0;
                     weightSize = 0;
-                    inputSize += realTensorSize(op.getInputTensor(1),{streamConfig["W"],streamConfig["H"],streamConfig["C"],1});
+                    inputSize += realTensorSize(op.getInputTensor(1),{streamConfig["W"],streamConfig["H"],streamConfig["C"],1}, isCMConv);
                 }
 
                 //Additional memory footprint for sparsity
@@ -501,6 +506,7 @@ namespace mv
                     (op.hasTypeTrait("optimizable"))) //SW layers we dont care about size
                 {
                     auto fit = memorySize(op,clustering,false, false,weightsSparsity,streamShape,false);
+                   // std::cout << op.getName() << ": [" <<clustering << "][" <<streamShape.toString()<<"]    " << fit.first << " + " << fit.second << " = " << fit.first + fit.second << std::endl;
                     if(fit.first + fit.second > clusterMemory)
                         return 1;
                 }
