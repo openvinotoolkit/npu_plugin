@@ -31,6 +31,7 @@
 
 #include <dims_parser.hpp>
 #include <low_precision_transformations/transformer.hpp>
+#include <low_precision_transformations/network_helper.hpp>
 #include <ie_util_internal.hpp>
 #include <graph_transformer.h>
 
@@ -313,8 +314,40 @@ void FrontEndMcm::parseNetworkDFS(const ie::ICNNNetwork& network, ParsedNetwork&
     std::reverse(parsedNetwork.orderedLayers.begin(), parsedNetwork.orderedLayers.end());
 }
 
+void FrontEndMcm::removeInputScaleShiftPattern(ie::CNNNetwork& network) {
+    for (auto& layer : network) {
+        if (layer->type == "Input") {
+            IE_ASSERT(CNNNetworkHelper::getChildren(*layer).size() == 1);
+            auto child = CNNNetworkHelper::getChildren(*layer)[0];
+            if (child->type == "ScaleShift") {
+                auto scaleShiftLayer = std::dynamic_pointer_cast<ie::ScaleShiftLayer>(child);
+
+                IE_ASSERT(CNNNetworkHelper::getChildren(*child).size() == 1);
+                child = CNNNetworkHelper::getChildren(*child)[0];
+                if (child->type != "Convolution") {
+                    return;
+                }
+
+                auto scaleData = scaleShiftLayer->_weights->buffer().as<float*>();
+                float scaleValue =  std::accumulate(scaleData, scaleData + scaleShiftLayer->_weights->size(), 0.0f);
+                scaleValue /= scaleShiftLayer->_weights->size();
+
+                auto shiftsData = scaleShiftLayer->_biases->buffer().as<float*>();
+                float shiftValue =  std::accumulate(shiftsData, shiftsData + scaleShiftLayer->_biases->size(), 0.0f);
+                shiftValue /= scaleShiftLayer->_biases->size();
+
+                _layerToQuantParams[layer->name] = {scaleValue, shiftValue};
+
+                CNNNetworkHelper::removeLayer(network, scaleShiftLayer);
+                return;
+            }
+        }
+    }
+}
+
 void FrontEndMcm::runCommonPasses(ie::ICNNNetwork& network) {
     auto cnnNet = ie::CNNNetwork(std::shared_ptr<ie::ICNNNetwork>(&network, [](ie::ICNNNetwork*){}));
+    removeInputScaleShiftPattern(cnnNet);
     parseNetworkDFS(cnnNet, _parsedNetwork);
     parseInputData();
 }

@@ -23,6 +23,7 @@
 #include <unordered_set>
 #include <tuple>
 #include <set>
+#include <map>
 
 #include <cpp/ie_cnn_network.h>
 #include <details/caseless.hpp>
@@ -168,6 +169,14 @@ private:
 //
 
 private:
+    struct LayerQuantParams {
+        float scale;
+        float bias;
+    };
+
+    void removeInputScaleShiftPattern(ie::CNNNetwork& network);
+    std::map<std::string, LayerQuantParams> _layerToQuantParams;
+
     mv::OpModel& _modelMcm;
     McmNodePtrList _nodes;
     McmNodePtr _output;
