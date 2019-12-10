@@ -11,7 +11,7 @@ int main()
 {
     double inf = std::numeric_limits<double>::infinity();
 
-    mv::CompilationUnit unit("parserModel");
+    mv::CompilationUnit unit("DepthwiseChannelScalingModel");
     mv::OpModel& om = unit.model();
     auto input0 = om.input({16,16,16,1}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{128},{0.007843137718737125},{-1.0},{1.0}}, "input#3");
 
