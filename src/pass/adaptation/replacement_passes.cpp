@@ -556,7 +556,7 @@ void flattenAsReshapeFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& 
         auto outputShape = opIt->getOutputTensor(0)->getShape();
         auto outputOrder = opIt->getOutputTensor(0)->getOrder();
 
-        auto reshape = om.reshape(sourceTensor, outputShape, outputOrder.toString(), outputTensorType, outputTensorQuantizationParams,  opIt->getName() + "_reshape");
+        auto reshape = om.reshape(sourceTensor, outputShape, outputTensorType, outputTensorQuantizationParams,  opIt->getName() + "_reshape");
         pass.log(Logger::MessageType::Info, "Replaced Flatten op " + opIt->getName() + " with " + reshape->getName());
 
         auto reshapeOp = om.getSourceOp(reshape);

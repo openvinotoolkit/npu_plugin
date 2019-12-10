@@ -223,11 +223,10 @@ mv::Data::TensorIterator convertReshapeToUPATask(mv::OpModel& om, const std::vec
                                     const std::map<std::string, mv::Attribute>& attrs, const std::string& name, bool software = false)
 {
     auto shape = attrs.at("shape").get<mv::Shape>();
-    auto order = attrs.at("order").get<mv::Order>();
     auto dtype = attrs.at("dType").get<mv::DType>();
     auto quantParams = attrs.at("quantParams").get<mv::QuantizationParams>();
 
-    return om.uPATaskReshape(inputs, shape, order, dtype, quantParams, name);
+    return om.uPATaskReshape(inputs, shape, dtype, quantParams, name);
 }
 
 mv::Data::TensorIterator convertRegionYoloToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs,
