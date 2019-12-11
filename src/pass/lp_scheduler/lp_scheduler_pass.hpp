@@ -112,7 +112,7 @@ class Control_Edge_Set {
 
     Control_Edge_Set(mv::ControlModel& cmodel)
       : control_edge_set_(), iterator_lookup_(), relocating_dma_map_(),
-      in_degree_() { init(cmodel); }
+      in_degree_(), zero_indegree_temporal_control_(false) { init(cmodel); }
 
     void operator()(const scheduled_op_t& a, const scheduled_op_t& b) {
       control_edge_set_.insert( control_edge_t(a.op_, b.op_) );
@@ -121,27 +121,8 @@ class Control_Edge_Set {
     const_edge_iterator_t begin() const { return control_edge_set_.begin(); }
     const_edge_iterator_t end() const { return control_edge_set_.end(); }
 
-    // Adds the control edges in this set to the control model //
-    template<typename OpDag>
-    void add_edges_to_control_model(const OpDag& dag,
-          mv::ComputationModel& model) {
-
-      mv::ControlModel cm(model);
-      op_iterator_t oitr_source, oitr_sink;
-      for (const_edge_iterator_t eitr=begin(); eitr!=end(); ++eitr) {
-        oitr_source = iterator_lookup_[eitr->source_];
-        oitr_sink = iterator_lookup_[eitr->sink_];
-        auto flowIt = cm.checkControlFlow(oitr_source, oitr_sink);
-        if ( (flowIt == cm.flowEnd()) &&
-              !(cm.pathExists(oitr_source, oitr_sink))) {
-          assert(!cm.pathExists(oitr_sink, oitr_source));
-
-          mv::Control::FlowListIterator psedge =
-              cm.defineFlow(oitr_source, oitr_sink);
-          psedge->set<bool>("PartialSerialisationEdge", true);
-        } 
-      }
-      add_control_edges_from_input_dma_tasks(dag, model);
+    void set_zero_indegree_temporal_control(bool flag) {
+      zero_indegree_temporal_control_ = flag;
     }
 
 
@@ -155,9 +136,7 @@ class Control_Edge_Set {
       mv::OpModel om(model);
 
       clear_all_edges_in_control_model(model);
-      add_control_edges_between_inputs_and_compute_ops(dag, model);
       add_control_edges_between_compute_ops_and_relocating_dmas(dag, model);
-
 
       for (const_edge_iterator_t eitr=begin(); eitr!=end(); ++eitr) {
         // control model node iterators //
@@ -165,7 +144,9 @@ class Control_Edge_Set {
         operation_t sink_op = eitr->sink_;
 
         add_control_edge(source_op, sink_op, model);
-        if (dag.is_input_op(source_op)) { continue; }
+#if 0 
+        if (dag.is_input_op(source_op) ||
+            dag.has_edge_between_ops(source_op, sink_op)) { continue; }
 
         // now for all the ops (non-empty resource) which consume 
         for (typename dag_t::const_operation_iterator_t
@@ -187,56 +168,14 @@ class Control_Edge_Set {
                 sink_op->getName().c_str());
           }
         }
-
+#endif
 
       }
-
-      add_temporal_control_edges(dag, sbegin, send, model);
-      //add_control_edges_from_input_dma_tasks(dag, model);
+      add_control_edges_between_inputs_and_compute_ops(dag, model);
+      add_temporal_control_edges(dag, sbegin, send, model,
+            zero_indegree_temporal_control_);
     }
 
-    template<typename OpDag>
-    struct implicit_op_color_functor_t {
-      bool operator()(const OpDag& dag, const operation_t& op) const {
-        return dag.is_implicit_op(op);
-      }
-    }; // struct implicit_op_color_functor_t //
-
-    template<typename OpDag>
-    void add_implicit_op_closure_control_edges(const OpDag& dag,
-        mv::ComputationModel& model) {
-
-      mv::ControlModel cmodel(model);
-      typedef typename OpDag::const_operation_iterator_t
-          const_operation_iterator_t;
-      typedef mv::lp_scheduler::Color_Connected_Vertices<OpDag>
-          color_closure_t;
-
-      color_closure_t color_closure_algo(dag);
-      for (const_operation_iterator_t itr=dag.begin_nodes();
-            itr!=dag.end_nodes(); ++itr) {
-
-        // compute the color-closure of DMATask or DPUTask //
-        operation_t pop = *itr;
-        if (!((pop->getOpType() == "DMATask") || (pop->getOpType() == "DPUTask")
-              || (pop->getOpType() == "Input") )) { continue; }
-
-        std::list<operation_t> color_closure;
-        color_closure_algo.compute_connected_vertices(pop,
-              std::back_inserter(color_closure),
-              implicit_op_color_functor_t<OpDag>() );
-
-        if (!color_closure.empty()) {
-          for (auto citr=color_closure.begin(); citr!=color_closure.end();
-                ++citr) {
-            const operation_t& cop = *citr;
-            // add a control edge between (pop, cop) //
-            add_control_edge(pop, cop, model);
-          }
-        }
-
-      }
-    }
 
   private:
 
@@ -244,7 +183,7 @@ class Control_Edge_Set {
     template<typename OpDag, typename ScheduledOpIterator>
     size_t add_temporal_control_edges(const OpDag& input_dag,
         ScheduledOpIterator sbegin, ScheduledOpIterator send,
-        mv::ComputationModel& model) {
+        mv::ComputationModel& model, bool zero_indegree_temporal_edges=false) {
 
       static_assert(std::is_same<typename ScheduledOpIterator::value_type,
           scheduled_op_t>::value, "Invalid ScheduledOpIterator");
@@ -273,7 +212,8 @@ class Control_Edge_Set {
         if (!input_dag.is_implicit_op(curr_op.op_)) {
           curr_scheduled_real_ops.push_back(curr_op);
 
-          if (in_degree_.find(curr_op.op_) == in_degree_.end()) {
+          if (!zero_indegree_temporal_edges || 
+              (in_degree_.find(curr_op.op_) == in_degree_.end()) ) {
             // add control edges between prev scheduled real ops and current
             // real op.
             for (auto oitr=prev_scheduled_real_ops.begin();
@@ -282,7 +222,6 @@ class Control_Edge_Set {
               ++total_temporal_control_edges;
             } 
           }
-
         }
       }
 
@@ -353,16 +292,17 @@ class Control_Edge_Set {
       for (typename dag_t::const_operation_iterator_t itr=dag.begin_nodes();
           itr!=dag.end_nodes(); ++itr) {
         operation_t op = *itr;
-        if (!dag.is_dpu_op(op)) { continue; }
+        if (dag.is_dpu_op(op) || !dag.resource_utility(op)) { continue; }
 
         // add control edges from inputs to this compute op //
-
         for (typename dag_t::const_operation_iterator_t
-            pitr=dag.begin_parent_nodes(op); pitr != dag.end_parent_nodes(op);
-              ++pitr) {
-          operation_t parent_op = *pitr;
-          if (!dag.resource_utility(parent_op)) { continue; }
-          add_control_edge(parent_op, op, model);
+            citr=dag.begin_nodes(op); citr != dag.end_nodes(op); ++citr) {
+          operation_t child_op = *citr;
+          if (!dag.is_dpu_op(child_op)) { continue; }
+
+          printf("[AddInputEdges(%s -> %s)]\n", (op->getName()).c_str(),
+              (child_op->getName()).c_str());
+          add_control_edge(op, child_op, model);
         }
       }
     }
@@ -407,29 +347,6 @@ class Control_Edge_Set {
           map_itr->second;
     }
 
-    void add_edges_from_op_model(mv::ComputationModel& model) {
-      mv::ControlModel cm(model);
-      mv::OpModel dm(model);
-
-      op_iterator_t oitr_source, oitr_sink;
-
-      for (auto itr = mtraits_op::begin_operations(dm);
-            itr != mtraits_op::end_operations(dm); ++itr) {
-        operation_t parent_op = &(*itr);
-        oitr_source = iterator_lookup_[parent_op];
-
-        for (auto citr = itr.leftmostChild(); citr != dm.opEnd(); ++citr) {
-          operation_t child_op = &(*citr);
-          oitr_sink = iterator_lookup_[child_op];
-          auto flowIt = cm.checkControlFlow(oitr_source, oitr_sink);
-          if (flowIt == cm.flowEnd()) {
-            mv::Control::FlowListIterator psedge =
-                cm.defineFlow(oitr_source, oitr_sink);
-          }
-        }
-      }
-    }
-
     void init(mv::ControlModel& cmodel) {
       iterator_lookup_.clear();
       for (op_iterator_t itr=mtraits::begin_operations(cmodel);
@@ -440,64 +357,12 @@ class Control_Edge_Set {
       }
     }
 
-    
-    template<typename OpDag>
-    void add_control_edges_from_input_dma_tasks(const OpDag& dag,
-          mv::ComputationModel& model) {
-
-      typedef typename OpDag::operation_t operation_t;
-      typedef typename OpDag::const_operation_iterator_t node_iterator_t;
-      typedef typename std::unordered_set< operation_t > zero_in_t;
-      typedef typename zero_in_t::iterator zero_in_itr_t;
-      typedef typename zero_in_t::const_iterator const_zero_in_itr_t;
-
-
-      mv::ControlModel cm(model);
-
-      zero_in_t zero_in_degree_dmas;
-
-      // find all all DMA tasks with zero in-degree //
-      for (node_iterator_t itr=dag.begin_nodes(), itr_end=dag.end_nodes();
-            itr != itr_end; ++itr) {
-        operation_t op = *itr;
-        if (dag.is_dma_op(op) && !dag.operation_in_degree(op)) {
-          // this DMA task has zero indegree before adding new control edges//
-          zero_in_degree_dmas.insert(op);
-        }
-      }
-
-      // the new control edges may have created a incoming control edge so
-      // eliminate them.
-      for (const_edge_iterator_t eitr=begin(); eitr!=end(); ++eitr) {
-        zero_in_itr_t itr = zero_in_degree_dmas.find(eitr->sink_);
-        if (itr == zero_in_degree_dmas.end()) {
-          zero_in_degree_dmas.erase(eitr->sink_);
-        }
-      }
-
-      operation_t input_op = dag.get_input_op();
-      assert(input_op);
-      op_iterator_t op_itr_source = iterator_lookup_[input_op], op_itr_sink; 
-      assert(op_itr_source != op_itr_sink);
-
-      // now for all the dmas in the set add control edges from input to the
-      // dmas //
-      for (const_zero_in_itr_t itr=zero_in_degree_dmas.begin();
-            itr!=zero_in_degree_dmas.end(); ++itr) {
-        op_itr_sink = iterator_lookup_[*itr];
-        auto flowIt = cm.checkControlFlow(op_itr_source, op_itr_sink);
-        if ( flowIt == cm.flowEnd() ) {
-          mv::Control::FlowListIterator psedge =
-              cm.defineFlow(op_itr_source, op_itr_sink);
-          psedge->set<bool>("PartialSerialisationEdge", true);
-        } 
-      }
-    }
-
+   
     std::set< control_edge_t > control_edge_set_;
     iterator_lookup_t iterator_lookup_;
     relocating_dma_map_t relocating_dma_map_;
     control_in_degree_map_t in_degree_;
+    bool zero_indegree_temporal_control_;
 }; //  class Control_Edge_Set //
 
 

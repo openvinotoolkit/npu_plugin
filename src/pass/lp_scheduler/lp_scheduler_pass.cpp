@@ -65,6 +65,11 @@ void LpSchedulerAllocatorPass(mv::ComputationModel& model) {
   }
 }
 
+void LpSchedulerBuildTimeStamp(FILE *fptr) {
+  assert(fptr);
+  fprintf(fptr, "[LpScheduler: build %s %s]\n", __DATE__, __TIME__);
+}
+
 
 void LpSchedulerPass(const mv::pass::PassEntry& pass,
     mv::ComputationModel& model, mv::TargetDescriptor& target,
@@ -72,6 +77,7 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
 
   if (passDesc.hasAttr("allocator_mode")) {
     LpSchedulerAllocatorPass(model);
+    return;
   }
 
   typedef mv::lp_scheduler::mv_memory_scheduler_with_spilling_t scheduler_t;
@@ -88,14 +94,18 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
         *short_circuit_itr);
   }
 
+  //input_dag.perform_implicit_op_color_closure();
+
   typedef mv::lp_scheduler::scheduler_traits<dag_t> traits_t;
   auto params = model.getGlobalConfigParams();
 
   dag_t::resource_t upper_bound = params->get<unsigned>("cmx");
+  printf("[upper_bound = %lu]\n", upper_bound);
   std::string output_file = passDesc.get<std::string>("output");
   FILE *fptr = fopen(output_file.c_str(), "w");
   assert(fptr);
 
+  LpSchedulerBuildTimeStamp(fptr);
 
   // generate tensor addresses //
   mv::lp_scheduler::Tensor_Address_Assignment<scheduler_t>
@@ -144,6 +154,9 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
   mv::ControlModel cmodel(model);
   control_edge_set_t control_edges(cmodel);
   control_edge_generator_t algo;
+
+  control_edges.set_zero_indegree_temporal_control(
+      passDesc.hasAttr("zero_degree_temporal_edges") );
 
   if (!has_any_implicit_ops) {
     algo.generate_control_edges(scheduled_ops.begin(), scheduled_ops.end(),
