@@ -970,19 +970,19 @@ TEST_F(vpuInferWithSetUp, copyCheckSetBlob) {
 
 const static std::vector<modelBlobsInfo> pathToTop3PreCompiledGraph = {
         {
-                ._graphPath = "/kmb-plugin/temp/models/test_blobs/mobilenet-v2-dpu/mobilenet-v2-dpu.blob",
-                ._inputPath = "/kmb-plugin/temp/models/test_blobs/mobilenet-v2-dpu/input.bin",
-                ._outputPath = "/kmb-plugin/temp/models/test_blobs/mobilenet-v2-dpu/output.bin",
+                ._graphPath = "/KMB_models/BLOBS/mobilenet-v2-dpu/mobilenet-v2-dpu.blob",
+                ._inputPath = "/KMB_models/BLOBS/mobilenet-v2-dpu/input.bin",
+                ._outputPath = "/KMB_models/BLOBS/mobilenet-v2-dpu/output.bin",
         },
         {
-                ._graphPath = "/kmb-plugin/temp/models/test_blobs/resnet-50-dpu/resnet-50-dpu.blob",
-                ._inputPath = "/kmb-plugin/temp/models/test_blobs/resnet-50-dpu/input.bin",
-                ._outputPath = "/kmb-plugin/temp/models/test_blobs/resnet-50-dpu/output.bin",
+                ._graphPath = "/KMB_models/BLOBS/resnet-50-dpu/resnet-50-dpu.blob",
+                ._inputPath = "/KMB_models/BLOBS/resnet-50-dpu/input.bin",
+                ._outputPath = "/KMB_models/BLOBS/resnet-50-dpu/output.bin",
         },
         {
-                ._graphPath = "/kmb-plugin/temp/models/test_blobs/tiny-yolo-v2-dpu/tiny-yolo-v2-dpu.blob",
-                ._inputPath = "/kmb-plugin/temp/models/test_blobs/tiny-yolo-v2-dpu/input.bin",
-                ._outputPath = "/kmb-plugin/temp/models/test_blobs/tiny-yolo-v2-dpu/output.bin",
+                ._graphPath = "/KMB_models/BLOBS/tiny-yolo-v2-dpu/tiny-yolo-v2-dpu.blob",
+                ._inputPath = "/KMB_models/BLOBS/tiny-yolo-v2-dpu/input.bin",
+                ._outputPath = "/KMB_models/BLOBS/tiny-yolo-v2-dpu/output.bin",
         }
 };
 
