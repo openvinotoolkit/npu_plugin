@@ -31,6 +31,13 @@ This command will produce blob `resnet-50-dpu.blob` which can be used for infere
 ```
 This command will produce blob `tiny-yolo-v2-dpu.blob` which can be used for inference by KMB plugin.
 
+3. You can compile `mobilenet-v2-dpu` net, using command:
+
+```
+../deployment_tools/inference_engine/lib/intel64/vpu2_compile -m ./mobilenet-v2-dpu.xml
+```
+This command will produce blob `mobilenet-v2-dpu.blob` which can be used for inference by KMB plugin.
+
 #### Execution
 
 The `<neural-net-file-name>.blob` generated on the previous stage should be copied from host, used for compilation, to KMB board.
@@ -52,6 +59,11 @@ Examples:
 ./benchmark_app -m <path-to-the-produced-blob>/tiny-yolo-v2-dpu.blob -nireq 4 -niter 500 -d KMB
 ```
 
+3. For `mobilenet-v2-dpu` net:
+```
+./benchmark_app -m <path-to-the-produced-blob>/mobilenet-v2-dpu.blob -nireq 4 -niter 500 -d KMB
+```
+
 Example of output:
 
 1. For `resnet-50-dpu` net:
@@ -70,4 +82,13 @@ Count:      500 iterations
 Duration:   3606.67 ms
 Latency:    28.83 ms
 Throughput: 138.63 FPS
+```
+
+3. For `mobilenet-v2-dpu` net:
+```
+[Step 11/11] Dumping statistics report
+Count:      500 iterations
+Duration:   1438.71 ms
+Latency:    11.49 ms
+Throughput: 347.53 FPS
 ```
