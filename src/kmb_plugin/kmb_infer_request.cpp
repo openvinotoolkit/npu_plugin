@@ -47,6 +47,11 @@ static T product(std::vector<T, A> const &vec) {
     return ret;
 }
 
+static bool is2DTensor(const InferenceEngine::SizeVector& dims) {
+    size_t ones = std::count(dims.begin(), dims.end(), 1);
+    return (dims.size() - ones) == 1;
+}
+
 using namespace vpu::KmbPlugin;
 using namespace InferenceEngine;
 
@@ -268,7 +273,11 @@ void KmbInferRequest::InferAsync() {
 
     Blob::Ptr & inputBlobRef = _inputs.begin()->second;
     InferenceEngine::TensorDesc deviceTensorDesc = deviceInputs.begin()->second->getTensorDesc();
-    if (deviceTensorDesc.getLayout() != inputBlobRef->getTensorDesc().getLayout()) {
+
+    // is2DTensor is a workaround for NHWC -> NC case
+    // TODO: remove when mcm will support different input layout
+    if (deviceTensorDesc.getLayout() != inputBlobRef->getTensorDesc().getLayout() &&
+        !is2DTensor(inputBlobRef->getTensorDesc().getDims())) {
         // do layout conversion with copyBlob
         InferenceEngine::Blob::Ptr blobWithInput = make_blob_with_precision(deviceTensorDesc, getKmbAllocator());
         blobWithInput->allocate();
@@ -300,7 +309,11 @@ void KmbInferRequest::GetResult() {
 
     Blob::Ptr & outputBlobRef = _outputs.begin()->second;
     InferenceEngine::TensorDesc deviceTensorDesc = deviceOutputs.begin()->second->getTensorDesc();
-    if (deviceTensorDesc.getLayout() != outputBlobRef->getTensorDesc().getLayout()) {
+
+    // is2DTensor is a workaround for NHWC -> NC case
+    // TODO: remove when mcm will support different output layout
+    if (deviceTensorDesc.getLayout() != outputBlobRef->getTensorDesc().getLayout() &&
+        !is2DTensor(outputBlobRef->getTensorDesc().getDims())) {
         // read result into blobWithResult, then do layout conversion via copyBlob
         InferenceEngine::Blob::Ptr blobWithResult = make_blob_with_precision(deviceTensorDesc);
         blobWithResult->allocate();
