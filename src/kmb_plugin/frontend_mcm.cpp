@@ -393,6 +393,7 @@ void FrontEndMcm::getInputData(
 
             if (prevLayer->type == "FakeQuantize")  {
                 auto prevLayerInput =  prevLayer->insData[0].lock();
+                IE_ASSERT(prevLayerInput != nullptr);
                 auto prevPrevLayer = prevLayerInput->getCreatorLayer().lock();
                 if (prevPrevLayer == nullptr || prevPrevLayer->type == "Const") {
                     continue;

@@ -280,6 +280,7 @@ void KmbInferRequest::InferAsync() {
         !is2DTensor(inputBlobRef->getTensorDesc().getDims())) {
         // do layout conversion with copyBlob
         InferenceEngine::Blob::Ptr blobWithInput = make_blob_with_precision(deviceTensorDesc, getKmbAllocator());
+        IE_ASSERT(blobWithInput != nullptr);
         blobWithInput->allocate();
         copyBlob(inputBlobRef, blobWithInput);
         void* inputPtr = blobWithInput->buffer();
