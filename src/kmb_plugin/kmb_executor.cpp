@@ -153,6 +153,21 @@ static InferenceEngine::Layout getIOLayout(const flicTensorDescriptor_t& descTem
     return tensorLayout;
 }
 
+static const std::map<precision_t, InferenceEngine::Precision> precisionMap = {
+    std::pair<precision_t, InferenceEngine::Precision>(precision_t::FP32, InferenceEngine::Precision::FP32),
+    std::pair<precision_t, InferenceEngine::Precision>(precision_t::FP16, InferenceEngine::Precision::FP16),
+    std::pair<precision_t, InferenceEngine::Precision>(precision_t::U8, InferenceEngine::Precision::U8),
+};
+
+static InferenceEngine::Precision getIOPrecision(const flicTensorDescriptor_t& descTemp) {
+    precision_t flicPrecision = static_cast<precision_t>(descTemp.dtype);
+    std::map<precision_t, InferenceEngine::Precision>::const_iterator found = precisionMap.find(flicPrecision);
+    if (found == precisionMap.end()) {
+        THROW_IE_EXCEPTION << "getIOPrecision: failed to convert FLIC precision " << flicPrecision;
+    }
+    return found->second;
+}
+
 void KmbExecutor::allocateGraph(const std::vector<char>& graphFileContent) {
     auto parsedConfig = _config.getParsedConfig();
     if (parsedConfig[VPU_KMB_CONFIG_KEY(KMB_EXECUTOR)] == "NO") {
@@ -248,8 +263,7 @@ void KmbExecutor::allocateGraph(const std::vector<char>& graphFileContent) {
 
     InferenceEngine::SizeVector inputDims({descIn.n, descIn.c, descIn.h, descIn.w});
     InferenceEngine::Layout inputLayout = getIOLayout(descIn);
-    // TODO: add proper precision handling
-    InferenceEngine::Precision inputPrecision = InferenceEngine::Precision::U8;
+    InferenceEngine::Precision inputPrecision = getIOPrecision(descIn);
     InferenceEngine::TensorDesc inputDesc(inputPrecision, inputDims, inputLayout);
     InferenceEngine::Data inputData("input", inputDesc);
 
@@ -259,7 +273,7 @@ void KmbExecutor::allocateGraph(const std::vector<char>& graphFileContent) {
 
     InferenceEngine::SizeVector outputDims({descOut.n, descOut.c, descOut.h, descOut.w});
     InferenceEngine::Layout outputLayout = getIOLayout(descOut);
-    InferenceEngine::Precision outputPrecision = InferenceEngine::Precision::U8;
+    InferenceEngine::Precision outputPrecision = getIOPrecision(descOut);
     InferenceEngine::TensorDesc outputDesc(outputPrecision, outputDims, outputLayout);
     InferenceEngine::Data outputData("output", outputDesc);
 

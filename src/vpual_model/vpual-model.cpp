@@ -30,6 +30,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <utility>
 #include <vpu/utils/logger.hpp>
 
 using namespace vpu;
@@ -75,6 +76,20 @@ std::string operationModeToStr(xlink_opmode operationMode) {
         return "RXN_TXB";
     }
     return "Unknown operation mode";
+}
+
+static const std::map<MVCNN::DType, precision_t> dataTypeMap = {
+    std::pair<MVCNN::DType, precision_t>(MVCNN::DType::DType_FP32, precision_t::FP32),
+    std::pair<MVCNN::DType, precision_t>(MVCNN::DType::DType_FP16, precision_t::FP16),
+    std::pair<MVCNN::DType, precision_t>(MVCNN::DType::DType_U8, precision_t::U8),
+};
+
+static precision_t convertDTypeToPrecision(const MVCNN::DType& dataType) {
+    std::map<MVCNN::DType, precision_t>::const_iterator foundType = dataTypeMap.find(dataType);
+    if (foundType == dataTypeMap.end()) {
+        return precision_t::NOTKNOWN;
+    }
+    return foundType->second;
 }
 
 class FakeDevice {
@@ -140,6 +155,8 @@ public:
                 descOut.h = (*dimsOut)[2];
                 descOut.w = (*dimsOut)[3];
                 descOut.totalSize = descOut.n * descOut.c * descOut.h * descOut.w * sizeof(uint8_t);
+                MVCNN::DType dataTypeOut = output->data_dtype();
+                descOut.dtype = convertDTypeToPrecision(dataTypeOut);
 
                 auto input = (*inputs)[0];
                 auto dimsIn = input->dimensions();
@@ -150,6 +167,8 @@ public:
                 descIn.h = (*dimsIn)[2];
                 descIn.w = (*dimsIn)[3];
                 descIn.totalSize = descIn.n * descIn.c * descIn.h * descIn.w * sizeof(uint8_t);
+                MVCNN::DType dataTypeIn = input->data_dtype();
+                descIn.dtype = convertDTypeToPrecision(dataTypeIn);
             }
         }
     }
