@@ -16,7 +16,11 @@
 
 #pragma once
 
+#include <hddlunite/Inference.h>
+
 #include <memory>
+#include <string>
+#include <vector>
 
 #include "cpp_interfaces/impl/ie_executable_network_thread_safe_default.hpp"
 
@@ -27,14 +31,17 @@ class ExecutableNetwork : public InferenceEngine::ExecutableNetworkThreadSafeDef
 public:
     using Ptr = std::shared_ptr<ExecutableNetwork>;
 
-    // TODO Temporary stub for LoadNetwork
     explicit ExecutableNetwork(InferenceEngine::ICNNNetwork& network);
-
-    // TODO Temporary stub for ImportNetwork
-    ExecutableNetwork();
+    explicit ExecutableNetwork(const std::string& blobFilename);
 
     InferenceEngine::InferRequestInternal::Ptr CreateInferRequestImpl(
         InferenceEngine::InputsDataMap networkInputs, InferenceEngine::OutputsDataMap networkOutputs) override;
+
+private:
+    std::vector<char> _graphBlob;
+
+    std::vector<HddlUnite::Device> _devices;
+    HddlUnite::Inference::Graph::Ptr _graph;
 };
 
 }  //  namespace HDDL2Plugin
