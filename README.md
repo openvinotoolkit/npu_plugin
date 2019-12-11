@@ -61,7 +61,7 @@ script `dldt/inference-engine/build-after-clone.sh` or see instructions in `dldt
 
     ```bash
     cd $DLDT_HOME/bin/intel64/Debug/
-    ./KmbBehaviorTests --gtest_filter=*Behavior*orrectLib*kmb*
+    ./KmbBehaviorTests --gtest_filter=*Behavior*orrectLib*kmb*  // no valid gtest-filter anymore
     ./KmbFunctionalTests
     ```
 
