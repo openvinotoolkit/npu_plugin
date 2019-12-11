@@ -86,7 +86,7 @@ TEST_P(VpuInferAndCompareTests, NQA) {  // To be run in manual mode when device 
 
     Core ie;
     InferenceEngine::ExecutableNetwork exeNetwork;
-    ASSERT_NO_THROW(exeNetwork = ie.LoadNetwork(network, "kmb"));
+    exeNetwork = ie.LoadNetwork(network, "kmb");
 #ifdef __arm__
     int batch = 1;
 
@@ -219,6 +219,13 @@ std::vector<TestingNetworkParameters> vpuInferAndCompareTestsNQA = {
     TestingNetworkParameters {"yolo_v3_uint8_int8_weights_pertensor",
         "/KMB_models/NQA/POST_TRAINING/Yolo_V3/yolo_v3_uint8_int8_weights_pertensor.xml",
         "/KMB_models/NQA/POST_TRAINING/Yolo_V3/yolo_v3_uint8_int8_weights_pertensor.bin", "/416x416/person.bmp"},
+    // post training models
+    // Following test on tiny_yolo_v1 fails on mcmCompiler compilation stage with following message
+    // C++ exception with description "Tensor:fc9/WithoutBiases_2DConv_split_28_copyIn_0:0 - ArgumentError:
+    // attribute identifer splitStrategy - Undefined identifier
+    TestingNetworkParameters {"tiny_yolo_v1_uint8_int8_weights_pertensor",
+        "/KMB_models/NQA/POST_TRAINING/YoloTiny-v1-caffe/tiny_yolo_v1_caffe_uint8_int8_weights_per_tensor.xml",
+        "/KMB_models/NQA/POST_TRAINING/YoloTiny-v1-caffe/tiny_yolo_v1_caffe_uint8_int8_weights_per_tensor.bin", "/448x448/cat3.bmp"},
     // post trainig models
     // Following 3 tests on inception_v1 fail on mcmCompiler compilation stage with following message.
     // Streaming for node: InceptionV1/Logits/Conv2d_0c_1x1/convolution has stream K = 2
