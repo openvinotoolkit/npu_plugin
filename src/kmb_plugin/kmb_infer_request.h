@@ -66,6 +66,7 @@ public:
     void Infer() override;
 
 private:
+    InferenceEngine::Blob::Ptr _blobWithResult;
     Logger::Ptr _logger;
 };
 

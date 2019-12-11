@@ -246,6 +246,104 @@ TEST_P(LayoutConversionTest, layoutConversionTest_manual) {
     Compare(refOutputBlob, outputBlobFP32, 1.1f);
 }
 
+class PrecisionConversionTest :
+    public testing::WithParamInterface<std::tuple<InferenceEngine::Layout, InferenceEngine::Layout>>,
+    public kmbLayersTests_nightly {
+public:
+    PrecisionConversionTest()
+        : _network(),
+          _weightsBuffer(nullptr),
+          _weightsSize(0),
+          _biasSize(0),
+          _convParams({{1, 1}, {3, 3}, {0, 0}, {0, 0}, {1, 1}, "", 1, 128, true, true, ""}) {
+        const std::vector<size_t> input_dims = {1, 16, 16, 16};
+        const conv_common_params conv_params = {{1, 1}, {3, 3}, {0, 0}, {0, 0}, {1, 1}, "", 1, 128, true, true, ""};
+        SizeVector output_dims;
+        getConvOutShape(input_dims, _convParams, output_dims);
+
+        size_t weightsByteSize = getConvWeightsSize(input_dims, _convParams, "U8");
+        _weightsSize = weightsByteSize / sizeof(uint8_t);
+
+        size_t biasByteSize = output_dims[1] * sizeof(int32_t);
+        _biasSize = biasByteSize / sizeof(int32_t);
+
+        _weightsBuffer = make_shared_blob<uint8_t>({Precision::U8, {weightsByteSize + biasByteSize}, Layout::C});
+        _weightsBuffer->allocate();
+        uint8_t* weightsBufferData = _weightsBuffer->buffer().as<uint8_t*>();
+        std::fill_n(weightsBufferData, _weightsSize, static_cast<uint8_t>(1));
+
+        uint32_t* biasData = reinterpret_cast<uint32_t*>(_weightsBuffer->buffer().as<uint8_t*>() + _weightsSize);
+        std::fill_n(biasData, _biasSize, static_cast<uint32_t>(1));
+
+        const std::string& model = layout_conversion_model;
+
+        CNNNetReader reader;
+        reader.ReadNetwork(model.data(), model.length());
+        reader.SetWeights(_weightsBuffer);
+        reader.isParseSuccess();
+
+        _network = reader.getNetwork();
+    }
+
+    CNNNetwork _network;
+    InferenceEngine::TBlob<uint8_t>::Ptr _weightsBuffer;
+    size_t _weightsSize;
+    size_t _biasSize;
+    const conv_common_params _convParams;
+};
+
+TEST_F(PrecisionConversionTest, precisionConversionTest_manual) {
+    auto _inputsInfo = _network.getInputsInfo();
+    _inputsInfo["input"]->setPrecision(Precision::U8);
+
+    auto _outputsInfo = _network.getOutputsInfo();
+    _outputsInfo["output"]->setPrecision(Precision::FP32);
+
+    std::map<std::string, std::string> config;
+    setCommonConfig(config);
+    config[VPU_KMB_CONFIG_KEY(MCM_PARSING_ONLY)] = CONFIG_VALUE(NO);
+    config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_BLOB)] = CONFIG_VALUE(YES);
+    config[VPU_KMB_CONFIG_KEY(LOAD_NETWORK_AFTER_COMPILATION)] = CONFIG_VALUE(YES);
+
+    Core ie;
+    InferenceEngine::ExecutableNetwork exeNetwork;
+    ASSERT_NO_THROW(exeNetwork = ie.LoadNetwork(_network, "KMB", config));
+    InferenceEngine::InferRequest inferRequest;
+    ASSERT_NO_THROW(inferRequest = exeNetwork.CreateInferRequest());
+    Blob::Ptr inputBlob;
+    ASSERT_NO_THROW(inputBlob = inferRequest.GetBlob(exeNetwork.GetInputsInfo().begin()->first));
+    auto data = inputBlob->buffer().as<uint8_t*>();
+    fillIntBuffer(data, inputBlob->byteSize(), static_cast<uint8_t>(0), static_cast<uint8_t>(1));
+
+    auto weightsData = _weightsBuffer->buffer().as<int8_t*>();
+    auto bias_data = _convParams.with_bias ? reinterpret_cast<int32_t*>(weightsData + _weightsSize) : nullptr;
+
+    auto outputBlob = inferRequest.GetBlob(exeNetwork.GetOutputsInfo().begin()->first);
+    auto outputDesc = outputBlob->getTensorDesc();
+    auto convOutputBlob =
+        make_shared_blob<float>({Precision::FP32, outputDesc.getDims(), InferenceEngine::Layout::NCHW});
+    convOutputBlob->allocate();
+    data = convOutputBlob->buffer().as<uint8_t*>();
+    std::fill(data, data + convOutputBlob->byteSize(), 0);
+
+    TensorDesc inputBlobTensorDesc = inputBlob->getTensorDesc();
+    InferenceEngine::Blob::Ptr nchwBlobForReference = make_blob_with_precision(
+        TensorDesc(inputBlobTensorDesc.getPrecision(), inputBlobTensorDesc.getDims(), InferenceEngine::Layout::NCHW));
+    nchwBlobForReference->allocate();
+    vpu::copyBlob(inputBlob, nchwBlobForReference);
+    ref_conv_common(
+        {nchwBlobForReference}, *convOutputBlob, weightsData, _weightsSize, bias_data, _biasSize, _convParams);
+    testOverflow<float, uint8_t>(convOutputBlob);
+    inferRequest.Infer();
+    Blob::Ptr& outputBlobFP32 = outputBlob;
+
+    auto refOutputBlob = make_shared_blob<float>({Precision::FP32, outputDesc.getDims(), outputDesc.getLayout()});
+    refOutputBlob->allocate();
+    vpu::copyBlob(convOutputBlob, refOutputBlob);
+
+    Compare(refOutputBlob, outputBlobFP32, 1.1f);
+}
+
 TEST_P(LayoutConversionTest, DISABLED_layoutConversionTestPooling_manual) {
     InferenceEngine::Layout input_layout = std::get<0>(GetParam());
     InferenceEngine::Layout output_layout = std::get<1>(GetParam());

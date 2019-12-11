@@ -57,6 +57,7 @@ KmbInferRequest::KmbInferRequest(const InferenceEngine::InputsDataMap& networkIn
       _executor(executor),
       _stagesMetaData(blobMetaData),
       _config(kmbConfig),
+      _blobWithResult(nullptr),
       _logger(std::make_shared<Logger>("KmbInferRequest", kmbConfig.logLevel(), consoleOutput())) {
     _deviceLayout = InferenceEngine::Layout::NCHW;
 
@@ -265,6 +266,32 @@ void KmbInferRequest::InferAsync() {
     }
 }
 
+static Blob::Ptr convertPrecision(
+    const InferenceEngine::Blob::Ptr& sourceData, const InferenceEngine::TensorDesc& targetDesc) {
+    InferenceEngine::TensorDesc sourceTensorDesc = sourceData->getTensorDesc();
+    InferenceEngine::Precision targetPrecision = targetDesc.getPrecision();
+    InferenceEngine::Precision sourcePrecision = sourceTensorDesc.getPrecision();
+    if (sourcePrecision == targetPrecision) {
+        return sourceData;
+    }
+
+    Blob::Ptr target =
+        make_blob_with_precision(TensorDesc(targetPrecision, sourceTensorDesc.getDims(), sourceTensorDesc.getLayout()));
+    target->allocate();
+    if (sourcePrecision == InferenceEngine::Precision::FP16 && targetPrecision == InferenceEngine::Precision::FP32) {
+        InferenceEngine::PrecisionUtils::f16tof32Arrays(
+            target->buffer(), sourceData->cbuffer().as<ie_fp16*>(), sourceData->size(), 1.0f, 0.0f);
+    } else if (sourcePrecision == InferenceEngine::Precision::FP32 &&
+               targetPrecision == InferenceEngine::Precision::FP16) {
+        InferenceEngine::PrecisionUtils::f32tof16Arrays(
+            target->buffer(), sourceData->cbuffer().as<float*>(), sourceData->size());
+    } else {
+        THROW_IE_EXCEPTION << "Error: output precision conversion from " << sourcePrecision << " to " << targetPrecision
+                           << " is not supported.";
+    }
+    return target;
+}
+
 void KmbInferRequest::GetResult() {
     auto dataName = _networkOutputs.begin()->first;
 
@@ -283,17 +310,29 @@ void KmbInferRequest::GetResult() {
 
     Blob::Ptr& outputBlobRef = _outputs.begin()->second;
     InferenceEngine::TensorDesc deviceTensorDesc = deviceOutputs.begin()->second->getTensorDesc();
-    if (deviceTensorDesc.getLayout() != outputBlobRef->getTensorDesc().getLayout()) {
-        // read result into blobWithResult, then do layout conversion via copyBlob
-        InferenceEngine::Blob::Ptr blobWithResult = make_blob_with_precision(deviceTensorDesc);
-        blobWithResult->allocate();
-        void* outputPtr = blobWithResult->buffer();
-        _executor->getResult(outputPtr, output_size_total);
-        copyBlob(blobWithResult, _outputs.begin()->second);
-    } else {
+    InferenceEngine::TensorDesc outputTensorDesc = outputBlobRef->getTensorDesc();
+
+    InferenceEngine::Precision devicePrecision = deviceTensorDesc.getPrecision();
+    InferenceEngine::Precision outputPrecision = outputTensorDesc.getPrecision();
+    InferenceEngine::Layout deviceLayout = deviceTensorDesc.getLayout();
+    InferenceEngine::Layout outputLayout = outputTensorDesc.getLayout();
+    if (devicePrecision == outputPrecision && deviceLayout == outputLayout) {
         // read result directly into output, do not copy blob
         void* outputPtr = outputBlobRef->buffer();
         _executor->getResult(outputPtr, output_size_total);
+    } else {
+        // read result into _blobWithResult
+        if (_blobWithResult == nullptr) {
+            _blobWithResult = make_blob_with_precision(deviceTensorDesc);
+            _blobWithResult->allocate();
+        }
+        void* outputPtr = _blobWithResult->buffer();
+        _executor->getResult(outputPtr, output_size_total);
+        // do precision conversion when necessary
+        Blob::Ptr blobWithCorrectPrecision = convertPrecision(_blobWithResult, outputTensorDesc);
+        // copy blob with correct precision to the output blob
+        // copyBlob does layout conversion on its own
+        copyBlob(blobWithCorrectPrecision, _outputs.begin()->second);
     }
 
     if (!_custom_outputs.empty()) {

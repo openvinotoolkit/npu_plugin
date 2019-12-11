@@ -335,6 +335,18 @@ void FrontEndMcm::parseConvolution(const ie::CNNLayerPtr& layer, const McmNodeVe
     mv::QuantizationParams biasQuantParams = initialQuantParams;
 
     auto layerOutput = layer->outData[0];
+    mv::DType convolutionDataType("Default");
+
+    // TODO find a better way to set output precision, now it works only when convolution is the last layer
+    bool isLastLayer = (CNNNetworkHelper::getChildren(*layer).size() == 0);
+    if (isLastLayer) {
+        InferenceEngine::Precision outputPrecision =
+            _parsedNetwork.networkOutputs.begin()->second->getTensorDesc().getPrecision();
+        if (outputPrecision == InferenceEngine::Precision::FP16 ||
+            outputPrecision == InferenceEngine::Precision::FP32) {
+            convolutionDataType = mv::DType("Float16");
+        }
+    }
 
     IE_ASSERT(layerOutput != nullptr);
     auto outDesc = layerOutput->getTensorDesc();
@@ -416,7 +428,7 @@ void FrontEndMcm::parseConvolution(const ie::CNNLayerPtr& layer, const McmNodeVe
             {static_cast<uint16_t>(kernelStrideX), static_cast<uint16_t>(kernelStrideY)},
             {static_cast<uint16_t>(padLeft), static_cast<uint16_t>(padRight), static_cast<uint16_t>(padTop),
                 static_cast<uint16_t>(padBottom)},
-            static_cast<unsigned>(dilationX), mv::DType("Default"), outputQuantParams, convLayer->name);
+            static_cast<unsigned>(dilationX), convolutionDataType, outputQuantParams, convLayer->name);
     } else {
         if (is_quantized) {
             auto weightsData = packBlobToVector<int64_t>(weightsBlob, weightsSize);
@@ -431,7 +443,7 @@ void FrontEndMcm::parseConvolution(const ie::CNNLayerPtr& layer, const McmNodeVe
             {static_cast<uint16_t>(kernelStrideX), static_cast<uint16_t>(kernelStrideY)},
             {static_cast<uint16_t>(padLeft), static_cast<uint16_t>(padRight), static_cast<uint16_t>(padTop),
                 static_cast<uint16_t>(padBottom)},
-            static_cast<unsigned>(dilationX), static_cast<unsigned>(groupSize), mv::DType("Default"), outputQuantParams,
+            static_cast<unsigned>(dilationX), static_cast<unsigned>(groupSize), convolutionDataType, outputQuantParams,
             convLayer->name);
     }
 
