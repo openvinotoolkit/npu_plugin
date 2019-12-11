@@ -317,12 +317,10 @@ void FrontEndMcm::parseNetworkDFS(const ie::ICNNNetwork& network, ParsedNetwork&
 void FrontEndMcm::removeInputScaleShiftPattern(ie::CNNNetwork& network) {
     for (auto& layer : network) {
         if (layer->type == "Input") {
-            IE_ASSERT(CNNNetworkHelper::getChildren(*layer).size() == 1);
             auto child = CNNNetworkHelper::getChildren(*layer)[0];
             if (child->type == "ScaleShift") {
                 auto scaleShiftLayer = std::dynamic_pointer_cast<ie::ScaleShiftLayer>(child);
 
-                IE_ASSERT(CNNNetworkHelper::getChildren(*child).size() == 1);
                 child = CNNNetworkHelper::getChildren(*child)[0];
                 if (child->type != "Convolution") {
                     return;
