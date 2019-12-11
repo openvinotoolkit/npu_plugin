@@ -54,10 +54,20 @@ Examples:
 
 Example of output:
 
+1. For `resnet-50-dpu` net:
 ```
 [Step 11/11] Dumping statistics report
 Count:      500 iterations
-Duration:   3281.72 ms
-Latency:    26.24 ms
-Throughput: 152.36 FPS
+Duration:   2866.88 ms
+Latency:    22.91 ms
+Throughput: 174.41 FPS
+```
+
+2. For `tiny-yolo-v2-dpu` net:
+```
+[Step 11/11] Dumping statistics report
+Count:      500 iterations
+Duration:   3606.67 ms
+Latency:    28.83 ms
+Throughput: 138.63 FPS
 ```
