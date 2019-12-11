@@ -832,7 +832,7 @@ void FrontEndMcm::parseScale(
 
     auto outputQuantParamsOverRide = initialQuantParams;
     KmbQuantizationHelpers::fillQuntizationActivationParams(scaleLayer, outputQuantParamsOverRide);
-    auto mvScale = _modelMcm.scale(input->getMcmNode(), mvWeights, mv::DType("UInt8"),
+    auto mvScale = _modelMcm.scale(input->getMcmNode(), mvWeights, mv::DType("Default"),
                                    outputQuantParamsOverRide, scaleLayer->name);
 
     auto mvScaleShift = mvScale;
@@ -851,7 +851,7 @@ void FrontEndMcm::parseScale(
                 shiftShape,
                 mv::DType("Int32"), mv::Order::getColMajorID(1), biasQuantParamsOverRide);
 
-        mvScaleShift = _modelMcm.bias(mvScale, shiftData, mv::DType("Int32"), outputQuantParamsOverRide,
+        mvScaleShift = _modelMcm.bias(mvScale, shiftData, mv::DType("Default"), outputQuantParamsOverRide,
                                                                                           scaleLayer->name + ":bias");
 
         _logger->debug("'%s' layer '%s': Bias part (%s) added to mcmModel", scaleLayer->type, scaleLayer->name, mvScaleShift->getName());
@@ -936,16 +936,12 @@ void FrontEndMcm::parseEltwise(
         }
     }
 
-    // Because mcmCompiler is unable to generate a valid strategy when mv::DType("Default") is used as the Dtype
-    // the workaround is to explicity to set the DType as UInt8 in the API.
-    // VPUNND-2240 has been opened to fix this in the compiler. When this is complete the DType can be mv::DType("Default")
-
     switch (eltwiseLayer->_operation) {
         case ie::EltwiseLayer::eOperation::Sub:
-            mvEltwise = _modelMcm.eltwise(mvInputs, "Subtract", mv::DType("UInt8"), outputQuantParams, eltwiseLayer->name);
+            mvEltwise = _modelMcm.eltwise(mvInputs, "Subtract", mv::DType("Default"), outputQuantParams, eltwiseLayer->name);
             break;
         case ie::EltwiseLayer::eOperation::Sum:
-            mvEltwise = _modelMcm.eltwise(mvInputs, "Add", mv::DType("UInt8"), outputQuantParams, eltwiseLayer->name);
+            mvEltwise = _modelMcm.eltwise(mvInputs, "Add", mv::DType("Default"), outputQuantParams, eltwiseLayer->name);
             break;
         default:
             VPU_THROW_EXCEPTION << "Eltwise operation" << eltwiseLayer->_operation << " is not supported";
