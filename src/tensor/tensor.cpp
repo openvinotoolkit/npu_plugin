@@ -739,6 +739,33 @@ const std::vector<int64_t> mv::Tensor::getDataPacked()
     return orderedDataPacked;
 }
 
+int mv::Tensor::getNumZeroPoints()
+{
+    int numZeroPoints = 0; 
+
+    auto shape = getShape();
+    std::vector<std::size_t> sub(shape.ndims());
+    std::vector<int64_t> zeroPoint = getZeroPointsPerChannel();
+
+    int64_t datai;
+    size_t outputChannels = shape[mv::KERNEL_OUTPUT_CHANNELS];
+    size_t outputChannelSize = shape.totalSize() / outputChannels;
+
+    // Filling the data on a per channel basis
+    for (std::size_t k = 0; k < outputChannels; ++k)
+    {
+        for (std::size_t i = 0; i < outputChannelSize; i++)
+        {
+            sub = getOrder().indToSub(shape, k*outputChannelSize + i);
+            datai = static_cast<int64_t>(data_->at(internalOrder_.subToInd(shape, sub)));
+            if ( datai == zeroPoint[sub[mv::KERNEL_OUTPUT_CHANNELS]] )
+                numZeroPoints++;
+        }
+    }
+
+    return numZeroPoints;
+}
+
 std::vector<int64_t> mv::Tensor::getIntData()
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_BULD)
