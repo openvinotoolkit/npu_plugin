@@ -993,15 +993,15 @@ class VpuInferWithPathForTop3Net: public vpuLayersTests,
 
 TEST_P(VpuInferWithPathForTop3Net, DISABLED_canDoInferenceOnTop3ImportedBlobs) {
     modelBlobsInfo blobsInfo = GetParam();
-    std::cout << "ModelPath " << blobsInfo._graphPath << std::endl;
-//
-//    Core ie;
-//    InferenceEngine::ExecutableNetwork importedNetwork;
-//    ASSERT_NO_THROW(importedNetwork = ie.ImportNetwork(modelFilePath, "KMB"));
-//
-//    InferenceEngine::InferRequest inferRequest;
-//    ASSERT_NO_THROW(inferRequest = importedNetwork.CreateInferRequest());
-//    ASSERT_NO_THROW(inferRequest.Infer());
+    std::string modelFilePath = ModelsPath() + blobsInfo._graphPath;
+
+    Core ie;
+    InferenceEngine::ExecutableNetwork importedNetwork;
+    ASSERT_NO_THROW(importedNetwork = ie.ImportNetwork(modelFilePath, "KMB"));
+
+    InferenceEngine::InferRequest inferRequest;
+    ASSERT_NO_THROW(inferRequest = importedNetwork.CreateInferRequest());
+    ASSERT_NO_THROW(inferRequest.Infer());
 }
 
 
