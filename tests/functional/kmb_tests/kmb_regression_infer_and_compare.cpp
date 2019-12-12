@@ -259,6 +259,23 @@ std::vector<TestingNetworkParameters> vpuInferAndCompareTestsNQA = {
         "/KMB_models/NQA/POST_TRAINING/squeezenet1_1_pytorch/squeezenet1_1_pytorch_uint8_uint8_weights_pertensor.xml",
         "/KMB_models/NQA/POST_TRAINING/squeezenet1_1_pytorch/squeezenet1_1_pytorch_uint8_uint8_weights_pertensor.bin",
         "/224x224/cat3.bmp"},
+    // post training models
+    // Following test on road-segmentation-adas-0001 fails on IE to mcmCompiler parsing stage with following message
+    // C++ exception with description "OpEntry:Eltwise - IndexError: index 1 -
+    // Passed input index exceeds inputs count registered for the op type Eltwise
+    TestingNetworkParameters{"road_segmentation_adas_0001_uint8_int8_weights_pertensor",
+        "/KMB_models/NQA/POST_TRAINING/road-segmentation-adas-0001/road-segmentation-adas-0001-uint8-int8-weights-pertensor.xml",
+        "/KMB_models/NQA/POST_TRAINING/road-segmentation-adas-0001/road-segmentation-adas-0001-uint8-int8-weights-pertensor.bin",
+        // TODO : use 512x896 image when it will be added in validation set
+        // and when inference part of the test will be implemented
+        "/512x512/dog_croped512.bmp"},
+    // post training models
+    // Following test on person-vehicle-bike-detection-crossroad-0078 fails on IE to mcmCompiler parsing stage with following message
+    // C++ exception with description "ELU layer is not supported by kmbPlugin
+    TestingNetworkParameters{"person_vehicle_bike_detection_crossroad_0078_uint8_int8_weights_pertensor",
+        "/KMB_models/NQA/POST_TRAINING/person-vehicle-bike-detection-crossroad-0078/person-vehicle-bike-detection-crossroad-0078-uint8-int8-weights-pertensor.xml",
+        "/KMB_models/NQA/POST_TRAINING/person-vehicle-bike-detection-crossroad-0078/person-vehicle-bike-detection-crossroad-0078-uint8-int8-weights-pertensor.bin",
+        "/1024x1024/frankfurt_001016.png"},
 
     // cut models
     TestingNetworkParameters {"YoloTiny_v2_u8_asymmetric_cut",
