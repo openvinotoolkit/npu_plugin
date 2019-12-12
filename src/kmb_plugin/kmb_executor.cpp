@@ -126,7 +126,10 @@ void KmbExecutor::initVpualObjects() {
 #endif
 }
 
-static InferenceEngine::Layout getIOLayout(const flicTensorDescriptor_t& descTemp) {
+#ifdef ENABLE_VPUAL
+namespace {
+
+InferenceEngine::Layout getIOLayout(const flicTensorDescriptor_t& descTemp) {
     InferenceEngine::Layout tensorLayout = InferenceEngine::Layout::NCHW;
     std::vector<uint32_t> strides {descTemp.heightStride, descTemp.widthStride, descTemp.channelsStride};
     std::vector<uint32_t>::iterator maxStrideIter = std::max_element(strides.begin(), strides.end());
@@ -153,13 +156,13 @@ static InferenceEngine::Layout getIOLayout(const flicTensorDescriptor_t& descTem
     return tensorLayout;
 }
 
-static const std::map<precision_t, InferenceEngine::Precision> precisionMap = {
+const std::map<precision_t, InferenceEngine::Precision> precisionMap = {
     std::pair<precision_t, InferenceEngine::Precision>(precision_t::FP32, InferenceEngine::Precision::FP32),
     std::pair<precision_t, InferenceEngine::Precision>(precision_t::FP16, InferenceEngine::Precision::FP16),
     std::pair<precision_t, InferenceEngine::Precision>(precision_t::U8, InferenceEngine::Precision::U8),
 };
 
-static InferenceEngine::Precision getIOPrecision(const flicTensorDescriptor_t& descTemp) {
+InferenceEngine::Precision getIOPrecision(const flicTensorDescriptor_t& descTemp) {
     precision_t flicPrecision = static_cast<precision_t>(descTemp.dtype);
     std::map<precision_t, InferenceEngine::Precision>::const_iterator found = precisionMap.find(flicPrecision);
     if (found == precisionMap.end()) {
@@ -167,6 +170,9 @@ static InferenceEngine::Precision getIOPrecision(const flicTensorDescriptor_t& d
     }
     return found->second;
 }
+
+}  // namespace
+#endif
 
 void KmbExecutor::allocateGraph(const std::vector<char>& graphFileContent) {
     auto parsedConfig = _config.getParsedConfig();
