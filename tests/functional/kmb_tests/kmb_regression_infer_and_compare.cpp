@@ -225,7 +225,8 @@ std::vector<TestingNetworkParameters> vpuInferAndCompareTestsNQA = {
     // attribute identifer splitStrategy - Undefined identifier
     TestingNetworkParameters {"tiny_yolo_v1_uint8_int8_weights_pertensor",
         "/KMB_models/NQA/POST_TRAINING/YoloTiny-v1-caffe/tiny_yolo_v1_caffe_uint8_int8_weights_per_tensor.xml",
-        "/KMB_models/NQA/POST_TRAINING/YoloTiny-v1-caffe/tiny_yolo_v1_caffe_uint8_int8_weights_per_tensor.bin", "/448x448/cat3.bmp"},
+        "/KMB_models/NQA/POST_TRAINING/YoloTiny-v1-caffe/tiny_yolo_v1_caffe_uint8_int8_weights_per_tensor.bin",
+        "/448x448/cat3.bmp"},
     // post trainig models
     // Following 3 tests on inception_v1 fail on mcmCompiler compilation stage with following message.
     // Streaming for node: InceptionV1/Logits/Conv2d_0c_1x1/convolution has stream K = 2
