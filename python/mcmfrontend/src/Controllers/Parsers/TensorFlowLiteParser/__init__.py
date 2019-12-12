@@ -37,13 +37,14 @@ import Controllers.Parsers.TensorFlowLiteParser.LRN
 import Controllers.Parsers.TensorFlowLiteParser.MatMul
 # import Controllers.Parsers.TensorFlowLiteParser.BiasAdd
 import Controllers.Parsers.TensorFlowLiteParser.Concat
-import Controllers.Parsers.TensorFlowLiteParser.Reshape
+# import Controllers.Parsers.TensorFlowLiteParser.Reshape
 # import Controllers.Parsers.TensorFlowLiteParser.FusedBatchNorm
 import Controllers.Parsers.TensorFlowLiteParser.Softmax
 import Controllers.Parsers.TensorFlowLiteParser.Tanh
-import Controllers.Parsers.TensorFlowLiteParser.Sigmoid
+import Controllers.Parsers.TensorFlowLiteParser.Logistic
 # import Controllers.Parsers.TensorFlowLiteParser.Identity
 # import Controllers.Parsers.TensorFlowLiteParser.Slice
 import Controllers.Parsers.TensorFlowLiteParser.Pad
+import Controllers.Parsers.TensorFlowLiteParser.SpaceToDepth
 # import Controllers.Parsers.TensorFlowLiteParser.RealDiv
 import Controllers.Parsers.TensorFlowLiteParser.Mean

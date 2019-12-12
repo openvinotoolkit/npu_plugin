@@ -98,22 +98,17 @@ class Pooling(Layer):
         layer.setPadStyle(self.padStyle)
         layer.setBiasEnabled(False)
 
-        if layer.getInputTensors()[0].isQuantized():
-            weights_data = np.ones(
-                (1,
-                 self.getOutputTensors()[0].shape[1],
-                 self.kernelHeight,
-                 self.kernelWidth)).astype(
-                np.uint8)
-            weights_range = [(1, 1)] * len(weights_data.shape)
-        else:
-            weights_data = np.ones(
-                (1,
-                 self.getOutputTensors()[0].shape[1],
-                 self.kernelHeight,
-                 self.kernelWidth)).astype(
-                np.float16) / (
-                self.kernelHeight * self.kernelWidth)
+        # FP16: Doing the divion operation by way of
+        # post processing: bias, scale, shift
+        # is proven to be better in terms of precision
+        # than doing the division by way of FP16 weights data
+        weights_data = np.ones(
+            (1,
+                self.getOutputTensors()[0].shape[1],
+                self.kernelHeight,
+                self.kernelWidth)).astype(
+                self.getInputTensors()[0].dtype.nptype)
+        weights_range = [(1, 1)] * len(weights_data.shape)
 
         layer.weights = PopulatedTensor(weights_data)
         layer.weights.name = MangledName(
@@ -121,14 +116,11 @@ class Pooling(Layer):
                 self.name.stringifyOriginalName() +
                 "_weights"))
 
-        if layer.getInputTensors()[0].isQuantized():
-            scale = np.array(
-                [1 / (self.kernelHeight * self.kernelWidth)]).astype(np.float32)
-            zero_point = np.array([0]).astype(np.int32)
-            layer.weights.setQuantizationParameters(QuantizationParameters(
-                scale, zero_point, weights_data.dtype, weights_range))
-        else:
-            q = QuantizationParameters(np.array([1]), np.array([0]))
-            layer.weights.setQuantizationParameters(q)
+        # Scale division proved to be better than weights data
+        scale = np.array(
+            [1 / (self.kernelHeight * self.kernelWidth)]).astype(np.float32)
+        zero_point = np.array([0]).astype(np.int32)
+        layer.weights.setQuantizationParameters(QuantizationParameters(
+            scale, zero_point, weights_data.dtype, weights_range))
 
         return layer
