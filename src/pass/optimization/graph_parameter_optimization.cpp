@@ -289,24 +289,15 @@ namespace mv
                             auto kernelSize = op.getInputTensor(1)->getShape()[KERNEL_HEIGHT];
                             auto dim = op.getInputTensor(0)->getShape()[IO_HEIGHT_DIMENSION];
                             if(splitsToFit < dim/kernelSize)
-                            {
-                               // for(auto iter = streamsOverK.begin(); iter != streamsOverK.end(); )
-                                 //   if(*iter < k) iter = streamsOverK.erase(iter);
                                 return splitsToFit;
-                            }else
-                            {
+                            else
                                 return dim/kernelSize; // return this and try to mix with high values of k for viable strategy
-                            }
                         }
                         else //normal case, return just enough splits to fit
-                        {
-                           // for(auto iter = streamsOverK.begin(); iter != streamsOverK.end(); )
-                             //   if(*iter < k) iter = streamsOverK.erase(iter);
                             return splitsToFit;
-                        }
                     }
                 }
-                throw LogicError(*this,"Unable to generate nested streaming strategies for layer " + op.getName());
+                throw LogicError(*this,"Unable to generate nested streaming strategies for layer " + op.getName() + ". Layer size is unsupported.");
             }
 
             vector<size_t> getMaxStreamOverK(const string& clustering,mv::Op& op)
@@ -351,7 +342,6 @@ namespace mv
 
             size_t getMaxSplitsOverSpatial(const string& clustering,const Shape& shape,char dim)
             {
-
                 return 0;
             }
 
@@ -861,9 +851,9 @@ namespace mv
                 return execTime1 + execTime2;
             }
 
-            bool decideWeightsSparsity(mv::Op op, const string& clustering)
+            bool decideWeightsSparsity(mv::Op op)
             {
-                double SPARSITY_CMX = .3;
+                double SPARSITY_CMX = .2;
                 double SPARSITY_ZEROPOINTS = .5;
                 // Only Z-major convolutions support weights sparsity, this is codified in the compilation descriptors
                 if( !createStrategyFromBool(op,"weightsSparsity") )
@@ -879,6 +869,11 @@ namespace mv
                 auto weightsSize = realTensorSize(op.getInputTensor(1), {1,1,1,1}, false);
 
                 if(weightsSize < (clusterMemory * SPARSITY_CMX))
+                    return false;
+
+                auto zeroPoints = op.getInputTensor(1)->getNumZeroPoints();
+
+                if(((double) zeroPoints/ (double)weightsSize) < SPARSITY_ZEROPOINTS)
                     return false;
 
                 return true;
@@ -925,12 +920,15 @@ namespace mv
                     hasStreamOverH = findStrategy(streamingStrategyPool,"StreamOverH");
                 }
 
+                bool weightsSparsity = false;
+                if(globalEnableWeightsSparsity)
+                    weightsSparsity = decideWeightsSparsity(op);
+
                 //TODO:: replace nested loops with clean cartesian product function
-                for( const auto spilling : spillingPool) {
-                    for( const auto clustering : clusteringStrategyPool){
-                        bool weightsSparsity = false;
-                        if(globalEnableWeightsSparsity)
-                            weightsSparsity = decideWeightsSparsity(op, clustering.get<string>());
+                for( const auto spilling : spillingPool)
+                {
+                    for( const auto clustering : clusteringStrategyPool)
+                    {
                           
                         // Determine streaming options
                         // 1. Determine if streams over H are possible
