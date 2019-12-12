@@ -1,0 +1,18 @@
+Network title: "road-segmentation-adas-0001"
+
+Results is obtained with:
+
+dldt/IE + python_api built: b4a9ae3d5c97166289bd1e620ba37de6fe0ad94d (feature/low_precision/develop_fp)
+dldt/MO used: 76a0c71e65db1b7a6e67f17a48adc8496e5ccfe0 (as/post_training_compression)
+post-training-compression-tool: fb04b91b71ae1182762bf3160f04a08609636e5d (develop)
+model-zoo-models-intel: e5d15089edcf58ee6224b0303d020640af143583 (master)
+kmb_plugin: 5e3244872ce3efe75588adaaaf188da385576899 (atarakan/Script_for_road-segmentation-adas-0001)
+
+
+Command lines for run 
+(Edit it with your local pathes, 
+Look at ../README.md and ../../README.md to setup environment variables properly):
+
+../../run_PTT.sh <PATH_TO_MODELS>/model-zoo-models-intel/Transportation/segmentation/curbs/release1/caffe ./road-segmentation-adas-0001-fp32.json -e > road-segmentation-adas-0001-fp32.log
+
+../../run_PTT.sh <PATH_TO_MODELS>/model-zoo-models-intel/Transportation/segmentation/curbs/release1/caffe ./road-segmentation-adas-0001-uint8-int8-weights-pertensor.json -e > road-segmentation-adas-0001-uint8-int8-weights-pertensor.log

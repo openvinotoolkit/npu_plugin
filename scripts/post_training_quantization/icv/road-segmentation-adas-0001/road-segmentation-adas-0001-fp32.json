@@ -1,0 +1,59 @@
+{
+    "model": {
+        "name": "road-segmentation-adas-0001-fp32",
+	"model": "<ORIGINAL_MODEL>/model.caffemodel",
+        "proto": "<ORIGINAL_MODEL>/model.prototxt",
+        "inputs": [{
+            "input_shape": [1,3,512,896],
+            "format": "BGR"
+        }],
+        "outputs": [
+            {
+                "name": "L0317_ReWeight_SoftMax"
+            }
+        ]
+    },
+    "engine": {
+        "launchers": [
+            {
+                "framework": "dlsdk",
+                "device": "CPU",
+                "adapter": "segmentation"
+            }
+        ],
+        "datasets": [
+            {
+                "name": "mighty",
+                "data_source": "<DATASET_PATH>/mighty",
+                "annotation_conversion": {
+                    "converter": "mighty",
+                    "annotation_file": "<DATASET_PATH>/mighty/val.txt"
+                },
+                "preprocessing":[
+                    {
+                        "type": "resize",
+                        "dst_width": 896,
+                        "dst_height": 512
+                    }
+                ],
+              "postprocessing":[
+                {
+                  "type": "resize_segmentation_mask",
+                  "apply_to": "annotation",
+                  "dst_height": 512,
+                  "dst_width": 896}],
+              "metrics": [
+                 {
+                   "type": "mean_iou",
+                   "presenter": "print_vector"
+                 },
+                 {
+                   "type": "mean_accuracy",
+                   "presenter": "print_vector"
+                 }
+              ]
+            }
+        ]},
+    "compression": {
+    }
+}

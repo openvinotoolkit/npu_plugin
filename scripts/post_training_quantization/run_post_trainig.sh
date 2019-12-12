@@ -1,3 +1,9 @@
+echo " !!! Deprecated !!! "
+echo ""
+echo "Please review README.md"
+echo "and use run_PTT.sh instead"
+echo ""
+echo ""
 if [ -z "$1" -o -z "$2"  -o -z "$3"  -o -z "$4" ]
 then
 echo "You have not set some arguments"
@@ -47,7 +53,9 @@ if [ -f "$accuracy_checker_config" ]
 then
 sed -i "s/<ACCURACY_CHECKER_CONFIG>/tmp.yml/" tmp.json
 sed "s/<DATASET_PATH>/$dataset_path/" $accuracy_checker_config > tmp.yml
-python3 $post_trainig_tool/main.py -c tmp.json $6 $7 $8
+python3 $post_trainig_tool/main.py -c tmp.json --save-model $6 $7 $8
+#python3 $post_trainig_tool/main.py -c tmp.json --save-model --log-level DEBUG $6 $7 $8
 else
-python3 $post_trainig_tool/main.py -c tmp.json $5 $6 $7
+python3 $post_trainig_tool/main.py -c tmp.json --save-model $5 $6 $7
+#python3 $post_trainig_tool/main.py -c tmp.json --save-model --log-level DEBUG $5 $6 $7
 fi
