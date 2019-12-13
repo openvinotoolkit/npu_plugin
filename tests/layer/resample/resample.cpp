@@ -9,7 +9,7 @@ int main()
     mv::OpModel& om = unit.model();
 
     auto interpolation = std::string("NEAREST");
-    int antialias = 0;
+    bool antialias = false;
     int factor = 2;
 
     // Calculate output shape

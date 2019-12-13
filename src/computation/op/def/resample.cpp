@@ -1,3 +1,4 @@
+
 #include "include/mcm/computation/op/op_registry.hpp"
 
 namespace mv
@@ -49,7 +50,7 @@ namespace mv
         .setInputs({"input"})
         .setOutputs({"output"})
         .setArg<std::string>("interpolation")
-        .setArg<int64_t>("antialias")
+        .setArg<bool>("antialias")
         .setArg<mv::Shape>("output_shape")
         .setOptionalArg<mv::DType>("dType", mv::DType("Default"))
         .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))

@@ -1620,7 +1620,7 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAResampleTask(ComputationModel& 
     else
         softLayerParamsValue->interpolation = MVCNN::InterpolationMethod_NEAREST;
 
-    softLayerParamsValue->antialias = opIt->get<int64_t>("antialias");
+    softLayerParamsValue->antialias = opIt->get<bool>("antialias");
 
     toBuild->softLayerParams.value = softLayerParamsValue;
 

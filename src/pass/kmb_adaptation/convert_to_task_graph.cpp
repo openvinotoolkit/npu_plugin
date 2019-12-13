@@ -225,7 +225,7 @@ mv::Data::TensorIterator convertResampleToUPATask(mv::OpModel& om, const std::ve
                                     const std::map<std::string, mv::Attribute>& attrs, const std::string& name, bool software = false)
 {
     auto interpolation = attrs.at("interpolation").get<std::string>();
-    auto antialias = attrs.at("antialias").get<int64_t>();
+    auto antialias = attrs.at("antialias").get<bool>();
     auto output_shape = attrs.at("output_shape").get<mv::Shape>();
     auto dtype = attrs.at("dType").get<mv::DType>();
     auto quantParams = attrs.at("quantParams").get<mv::QuantizationParams>();
