@@ -71,8 +71,8 @@ static void kmbQuantizeConversionFcn(const mv::pass::PassEntry&, mv::Computation
     auto U8 = mv::DType("UInt8");
     auto FP16 = mv::DType("Float16");
 
-    addQuantizationLayers(om, upaTasks, U8);
-    addQuantizationLayers(om, dpuTasks, FP16);
+    addQuantizationLayers(om, upaTasks, FP16);
+    addQuantizationLayers(om, dpuTasks, U8);
 
     // NOTE: Concat have the extra requirement that output tensor and input tensor have to match their DType, so
     // we split them in two vectors
