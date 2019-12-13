@@ -391,7 +391,7 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);
     mv::ControlModel cm(model);
-
+    std::shared_ptr<mv::Element> globalParams = model.getGlobalConfigParams();
     //Note: Eltwise might be UPA might be DPU task...
     std::vector<std::string> opsTypesToConvert = {"Conv", "DepthwiseConv", "MaxPool", "Eltwise"};
     std::vector<std::string> opsTypesToConvertToUPA = {"Argmax", "Identity", "Softmax", "Proposal", "ROIPooling",
@@ -425,15 +425,18 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
     {"Permute", convertPermuteToUPATask}
     };
 
+    bool DPUTasksinSW = globalParams->hasAttr("DPUTasksinFloat") ? globalParams->get<bool>("DPUTasksinFloat") : false;
+
     for(auto& opType: opsTypesToConvert)
     {
         auto ops = opsToConvert[opType];
         for(auto& opIt: ops)
         {
             bool software = false;
+            //Note: That condition is coming due to limitations like add with different scales
             if (opIt->hasAttr("softwareExecuted") && opIt->get<bool>("softwareExecuted"))
                 software = true;
-
+            software = (software || DPUTasksinSW);
             auto name = opIt->getName();
             auto attrsToCopy = opIt->getAttrs();
             auto inputs = opIt->getInputTensor();
@@ -449,10 +452,14 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             auto newTensorOp = om.getSourceOp(newTensor);
 
             if (newTensorOp->getOpType() == "DPUTask")
-                newTensor->set<mv::DType>("dType", mv::DType("UInt8"));
+            {
+                if (!software)
+                    newTensor->set<mv::DType>("dType", mv::DType("UInt8"));
+                else
+                    newTensor->set<mv::DType>("dType", mv::DType("Float16"));
+            }
             else
                 newTensor->set<mv::DType>("dType", mv::DType("Float16"));
-
 
             newTensorOp->setAttrs(attrsToCopy);
             setOutputDataFlow(om, newTensor, outputDataFlows);
