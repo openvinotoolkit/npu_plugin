@@ -253,8 +253,6 @@ void addAlignOpForInputTensorsFunc(const mv::pass::PassEntry& , mv::ComputationM
         if(taskOp == "Conv" || taskOp == "DepthwiseConv" || taskOp == "MaxPool" ||
             taskOp == "Eltwise")
         {
-            if (opIt->getOutputTensor(0)->getDType() == mv::DType("Float16"))
-                pad = 8;
             auto numInputs = 1;
             if (taskOp == "Eltwise")
                 numInputs = opIt->getInputTensor().size();
@@ -318,14 +316,9 @@ void addAlignOpForInputTensorsFunc(const mv::pass::PassEntry& , mv::ComputationM
     }
 }
 
-int computeAppropriatePadding(mv::Data::TensorIterator tensor)
+int computeAppropriatePadding(mv::Data::TensorIterator)
 {
-    int pad;
-    if (tensor->getDType() == mv::DType("Float16"))
-        pad = 8;
-    else if (tensor->getDType() == mv::DType("UInt8"))
-        pad = 16;
-    return pad;
+    return 16;
 }
 
 //NOTE: REAL PADDING IN THE UNALIGNED TENSORS
