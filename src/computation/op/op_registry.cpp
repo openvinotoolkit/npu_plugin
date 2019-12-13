@@ -900,6 +900,7 @@ void mv::op::OpRegistry::generateCompositionAPI(const std::string& metaDir, cons
 #include    "src/computation/op/def/relu.cpp"
 #include    "src/computation/op/def/reorder.cpp"
 #include    "src/computation/op/def/reorg_yolo.cpp"
+#include    "src/computation/op/def/resample.cpp"
 #include    "src/computation/op/def/reshape.cpp"
 #include    "src/computation/op/def/roipooling.cpp"
 #include    "src/computation/op/def/scale.cpp"

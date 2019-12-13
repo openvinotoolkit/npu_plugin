@@ -221,6 +221,18 @@ mv::Data::TensorIterator convertQuantizeToUPATask(mv::OpModel& om, const std::ve
     return om.uPATaskQuantize(inputs, dtype, quantParams, name);
 }
 
+mv::Data::TensorIterator convertResampleToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs,
+                                    const std::map<std::string, mv::Attribute>& attrs, const std::string& name, bool software = false)
+{
+    auto interpolation = attrs.at("interpolation").get<std::string>();
+    auto antialias = attrs.at("antialias").get<int64_t>();
+    auto output_shape = attrs.at("output_shape").get<mv::Shape>();
+    auto dtype = attrs.at("dType").get<mv::DType>();
+    auto quantParams = attrs.at("quantParams").get<mv::QuantizationParams>();
+
+    return om.uPATaskResample(inputs, interpolation, antialias, output_shape, dtype, quantParams, name);
+}
+
 mv::Data::TensorIterator convertReshapeToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs,
                                     const std::map<std::string, mv::Attribute>& attrs, const std::string& name, bool software = false)
 {
@@ -397,7 +409,7 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
     //Note: Eltwise might be UPA might be DPU task...
     std::vector<std::string> opsTypesToConvert = {"Conv", "DepthwiseConv", "MaxPool", "Eltwise"};
     std::vector<std::string> opsTypesToConvertToUPA = {"Argmax", "Identity", "Softmax", "Proposal", "ROIPooling",
-                                                       "Quantize", "Reshape", "RegionYolo", "ReorgYolo",
+                                                       "Quantize", "Resample", "Reshape", "RegionYolo", "ReorgYolo",
                                                        "Normalize", "DetectionOutput", "Priorbox", "Permute", "Interp", "Norm"};
 
     opsTypesToConvert.insert(opsTypesToConvert.end(), opsTypesToConvertToUPA.begin(), opsTypesToConvertToUPA.end());
@@ -415,6 +427,7 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
     {"Proposal", convertProposalToUPATask},
     {"ROIPooling", convertROIPoolingToUPATask},
     {"Quantize", convertQuantizeToUPATask},
+    {"Resample", convertResampleToUPATask},
     {"Reshape", convertReshapeToUPATask},
     {"RegionYolo", convertRegionYoloToUPATask},
     {"ReorgYolo", convertReorgYoloToUPATask},

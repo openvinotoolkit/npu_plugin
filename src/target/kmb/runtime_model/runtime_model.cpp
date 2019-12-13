@@ -1604,6 +1604,37 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAQuantizeTask(ComputationModel& 
     return toBuild;
 }
 
+MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAResampleTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt)
+{
+    auto input = opIt->getInputTensor(0);
+    auto output = opIt->getOutputTensor(0);
+    auto toBuild = new MVCNN::UPALayerTaskT();
+    //toBuild->maxShaves = ;
+    toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_ResampleParams;
+    auto softLayerParamsValue = new MVCNN::ResampleParamsT();
+    std::string interpolation = opIt->get<std::string>("interpolation");
+    if (interpolation.compare(std::string("BILINEAR")) == 0)
+        softLayerParamsValue->interpolation = MVCNN::InterpolationMethod_BILINEAR;
+    else if (interpolation.compare(std::string("BICUBIC")) == 0)
+        softLayerParamsValue->interpolation = MVCNN::InterpolationMethod_BICUBIC;
+    else
+        softLayerParamsValue->interpolation = MVCNN::InterpolationMethod_NEAREST;
+
+    softLayerParamsValue->antialias = opIt->get<int64_t>("antialias");
+
+    toBuild->softLayerParams.value = softLayerParamsValue;
+
+    toBuild->input_data = buildTensorReferenceT(cm, compilationDescriptor, input);
+    toBuild->output_data = buildTensorReferenceT(cm, compilationDescriptor, output);
+
+    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input)));
+
+    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
+
+    return toBuild;
+}
+
+
 MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAReshapeTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt)
 {
     auto input = opIt->getInputTensor(0);
@@ -1904,6 +1935,8 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildUPATask(Comput
         toReturn[0]->task.value = buildUPAROIPoolingTask(cm, compilationDescriptor, opIt);
     else if(underlyingTask == "Quantize")
         toReturn[0]->task.value = buildUPAQuantizeTask(cm, compilationDescriptor, opIt);
+    else if(underlyingTask == "Resample")
+        toReturn[0]->task.value = buildUPAResampleTask(cm, compilationDescriptor, opIt);
     else if(underlyingTask == "Reshape")
         toReturn[0]->task.value = buildUPAReshapeTask(cm, compilationDescriptor, opIt);
     else if(underlyingTask == "RegionYolo")
