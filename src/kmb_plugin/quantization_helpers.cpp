@@ -35,6 +35,10 @@ namespace KmbQuantizationHelpers {
 double inf = std::numeric_limits<double>::infinity();
 mv::QuantizationParams initialQuantParams = {{0}, {1}, {-inf}, {inf}};
 
+static double clamp(const double& v, const double& lo, const double& hi) {
+    return (v < lo) ? lo : (hi < v) ? hi : v;
+}
+
 bool isPostOp(const InferenceEngine::CNNLayerPtr& layer) {
     return ((layer->type == "ReLU") || (layer->type == "Clamp"));
 }
@@ -243,10 +247,10 @@ Blob::Ptr quantizeWeightsBlob(const CNNLayerPtr& fakeQuantizeOnWeights, Inferenc
                     auto zeroPoint = zeroPoints[isWeightsQuantizationBroadcasted ? 0 : outputIndex];
 
                     if (precision == InferenceEngine::Precision::U8) {
-                        uint8_t value = std::round((srcData.get()[idx] + scale * zeroPoint) / scale);
+                        uint8_t value = clamp(std::round((srcData.get()[idx] + scale * zeroPoint) / scale), 0, 255);
                         dstBuffer.get()[idx] = value;
                     } else if (precision == InferenceEngine::Precision::I8) {
-                        int8_t value = std::round((srcData.get()[idx] + scale * zeroPoint) / scale);
+                        int8_t value = clamp(std::round((srcData.get()[idx] + scale * zeroPoint) / scale), -128, 127);
                         dstBuffer.get()[idx] = value;
                     } else {
                         THROW_IE_EXCEPTION << " Unsupported weights precision ";
