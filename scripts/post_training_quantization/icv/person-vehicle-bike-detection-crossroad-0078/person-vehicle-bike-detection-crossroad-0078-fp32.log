@@ -1,0 +1,14 @@
+Output log dir: ./results/person-vehicle-bike-detection-crossroad-0078-fp32/2019-12-06_19-21-12
+Creating pipeline:
+===========================================================================
+INFO:compression.pipeline.pipeline:Evaluation of generated model
+INFO:compression.engines.ac_engine:Start inference on the whole dataset
+Total dataset size: 5000
+1000 / 5000 processed in 41.372s
+2000 / 5000 processed in 39.935s
+3000 / 5000 processed in 42.214s
+4000 / 5000 processed in 41.008s
+5000 / 5000 processed in 41.201s
+5000 objects processed in 205.739 seconds
+INFO:compression.engines.ac_engine:Inference finished
+map                        : 0.6550018771654239
