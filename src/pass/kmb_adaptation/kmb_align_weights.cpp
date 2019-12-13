@@ -92,8 +92,6 @@ void alignTaskWeightsFcn(const mv::pass::PassEntry& , mv::ComputationModel& mode
                 weightSetDimension = kernelWidth * kernelHeight;
             auto weightsDType = kernel->get<mv::DType>("dType");
             auto weightSetDimensionPadded = mv::round_up(weightSetDimension, 16);
-            if (weightsDType == mv::DType("Float16"))
-                weightSetDimensionPadded = mv::round_up(weightSetDimension, 8);
             auto paddingDifference = weightSetDimensionPadded - weightSetDimension;
 
             mv::Shape newShape({weightSetDimensionPadded, 1, 1, outputChannels});
