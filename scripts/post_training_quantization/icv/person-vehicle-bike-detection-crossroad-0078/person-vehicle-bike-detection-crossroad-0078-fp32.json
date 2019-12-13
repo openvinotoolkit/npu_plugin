@@ -1,0 +1,76 @@
+{
+    "model": {
+        "name": "person-vehicle-bike-detection-crossroad-0078-fp32",
+        "model": "<ORIGINAL_MODEL>/_iter_200000.caffemodel",
+        "proto": "<ORIGINAL_MODEL>/deploy.prototxt",
+        "inputs": [{
+	        "name": "data",
+            "input_shape": [1,3,1024,1024],
+            "format": "BGR",
+            "mean_values": [ 104, 117, 123 ]
+        }],
+        "outputs": [
+            {
+                "name": "detection_out"
+            }
+        ]
+    },
+    "engine": {
+        "launchers": [
+            {
+                "framework": "dlsdk",
+                "device": "CPU",
+                "adapter": "ssd"
+            }
+        ],
+        "datasets": [
+            {
+                "name": "crossroad_dataset",
+                "data_source": "<DATASET_PATH>/crossroad_extra/annotation_val/data",
+                "annotation_conversion": {
+                    "converter": "crossroad",
+                    "annotation_file": "<DATASET_PATH>/crossroad_extra/annotation_val/annotation.json"
+                },
+                "subsample_size": 5000,
+                "preprocessing":[
+                    {
+                        "type": "resize",
+                        "dst_width": 1024,
+                        "dst_height": 1024,
+                      "interpolation": "LINEAR"
+                    }
+                ],
+                "postprocessing":[
+                  {
+                    "type": "resize_prediction_boxes"
+                  },
+                  {
+                    "type": "cast_to_int"
+                  },
+                  {
+                    "type": "filter",
+                    "apply_to": "annotation",
+                    "area_ratio": 0.034722222222222224
+                  },
+                  {
+                    "type": "filter",
+                    "apply_to": "prediction",
+                    "min_confidence": 0.05,
+                    "is_empty": true
+                  }
+                ],
+                "metrics": [
+                    {
+                      "type": "map",
+                      "presenter": "print_vector",
+                      "ignore_difficult": true,
+                      "include_boundaries": true,
+                      "allow_multiple_matches_per_ignored": true,
+                      "use_filtered_tp": false
+                    }
+                ]
+            }
+        ]},
+    "compression": {
+    }
+}
