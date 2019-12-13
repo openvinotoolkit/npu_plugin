@@ -608,6 +608,8 @@ void tensorGraphColoringFnc(const mv::pass::PassEntry& pass, mv::ComputationMode
                     auto location = opIterator->get<mv::Tensor::MemoryLocation>("Location");
                     return (location == mv::Tensor::MemoryLocation::DDR);
                 }
+                if (opType == "UPATask")
+                    return true;
 
                 return false;
             },
