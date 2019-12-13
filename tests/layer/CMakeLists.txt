@@ -76,6 +76,9 @@ else()
     add_executable(reorgyolo reorgyolo/reorgyolo.cpp)
     target_link_libraries(reorgyolo cm)
 
+    add_executable(resample resample/resample.cpp)
+    target_link_libraries(resample cm)
+
     add_executable(reshape reshape/reshape.cpp)
     target_link_libraries(reshape cm)
 
