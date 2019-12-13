@@ -14,6 +14,7 @@
                 "DDRScratch": 16777216,
                 "MemoryHack": false,
                 "cmx": 917504,
+                "DPUTasksinFloat": false,
                 "split_strategy" :
                 [
                     {
@@ -83,7 +84,7 @@
     "adapt": {
         "Singular": [
             "CheckIntegerTensors",
-            "RemoveInterpNoOp",
+            "RemoveOps",
             "ReplacementOps",
             "TensorsToU8",
             "TensorsToFP16",
