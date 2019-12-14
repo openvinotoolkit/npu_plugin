@@ -782,8 +782,12 @@ namespace mv
 
             bool decideWeightsSparsity(mv::Op op)
             {
-                double SPARSITY_CMX = .2;
-                double SPARSITY_ZEROPOINTS = .5;
+		//These values come from empircal data using three layer tests
+		//For performance, implemented as piece-wise if/else rather than polynomial
+                double CMX_THRESHOLD_LOW = .05;
+		double CMX_THRESHOLD_HIGH = .5;
+                double ZEROPOINT_THRESHOLD_LOW = .3;
+		double ZEROPOINT_THRESHOLD_HIGH = .2;
                 // Only Z-major convolutions support weights sparsity, this is codified in the compilation descriptors
                 if( !createStrategyFromBool(op,"weightsSparsity") )
                     return false;
@@ -793,16 +797,25 @@ namespace mv
                    op.getInputTensor(1)->getShape()[mv::KERNEL_INPUT_CHANNELS] < 16)
                     return false;
 
-                //TODO determine if weights sparsity will help in this case
-                //Size of weights, actual sparsity of tensor all factors
+                //Size of weights, actual sparsity of tensor determine speedup
                 auto weightsSize = realTensorSize(op.getInputTensor(1), {1,1,1,1}, false);
 
-                if(weightsSize < (clusterMemory * SPARSITY_CMX))
+		//If weights are less than 5% of CMX, sparsity benefit does not outweigh overhead
+		//no matter how sparse the weights are
+                if(weightsSize < (clusterMemory * CMX_THRESHOLD_LOW))
                     return false;
 
                 auto zeroPoints = op.getInputTensor(1)->getNumZeroPoints();
+		double actualSparsity = (double) zeroPoints/ (double)weightsSize;
 
-                if(((double) zeroPoints/ (double)weightsSize) < SPARSITY_ZEROPOINTS)
+		//Weights between 5% and 50% of CMX, enable sparsity at threshold 30% sparse weights
+		if(weightsSize < (clusterMemory * CMX_THRESHOLD_HIGH) and
+			actualSparsity < ZEROPOINT_THRESHOLD_LOW)
+                    return false;
+
+		//Weights larger than 50% of CMX, enable sparsity at threshold 20% sparse weights
+                if(weightsSize >= (clusterMemory * CMX_THRESHOLD_HIGH) and
+			actualSparsity < ZEROPOINT_THRESHOLD_HIGH)
                     return false;
 
                 return true;
