@@ -281,6 +281,17 @@ std::vector<TestingNetworkParameters> vpuInferAndCompareTestsNQA = {
         "/KMB_models/NQA/POST_TRAINING/person-vehicle-bike-detection-crossroad-0078/"
         "person-vehicle-bike-detection-crossroad-0078-uint8-int8-weights-pertensor.bin",
         "/1024x1024/frankfurt_001016.png"},
+    // post training models
+    // Following test on vehicle-license-plate-detection-barrier-0106 fails on IE to mcmCompiler parsing stage with following message
+    // C++ exception with description "Tensor:SSD/ssd_head/layer_14/output_mbox_loc/Conv2D/Transpose:0 - ArgumentError: attribute identifer quantParams - Undefined identifier
+    // or
+    // C++ exception with description "DetectionOutput layer is not supported by kmbPlugin
+    TestingNetworkParameters{"vehicle_license_plate_detection_barrier_0106_uint8_int8_weights_pertensor",
+        "/KMB_models/NQA/POST_TRAINING/vehicle-license-plate-detection-barrier-0106/vehicle-license-plate-detection-barrier-0106-uint8_int8_weights_pertensor.xml",
+        "/KMB_models/NQA/POST_TRAINING/vehicle-license-plate-detection-barrier-0106/vehicle-license-plate-detection-barrier-0106-uint8_int8_weights_pertensor.bin",
+        // TODO : use more relevant for network image when it will be added in validation set
+        // and when inference part of the test will be implemented
+        "/300x300/dog.bmp"},
 
     // cut models
     TestingNetworkParameters {"YoloTiny_v2_u8_asymmetric_cut",
