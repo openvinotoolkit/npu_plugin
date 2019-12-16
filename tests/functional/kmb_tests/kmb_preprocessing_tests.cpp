@@ -666,12 +666,13 @@ TEST_F(vpuLayersTests, allocateNV12TwoImagesGetBlob) {
     ASSERT_NO_THROW(compareTopClasses(dogOutputBlob, dogReferenceOutputBlob, NUMBER_OF_CLASSES));
 }
 
-class VpuPreprocessingShavesTests : public vpuLayersTests,
-                                    public testing::WithParamInterface< const char * > {
-};
+class VpuPreprocessingConfigAndInferTests :
+    public vpuLayersTests,
+    public testing::WithParamInterface<std::tuple<const char*, const char*>> {};
+TEST_P(VpuPreprocessingConfigAndInferTests, DISABLED_setConfigAndInfer) {
+    std::string key, value;
+    std::tie(key, value) = GetParam();
 
-TEST_P(VpuPreprocessingShavesTests, DISABLED_shavesNum) {
-    std::string numberOfShaves = GetParam();
     std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/resnet/resnet.blob";
 
     std::shared_ptr<vpu::KmbPlugin::utils::VPUAllocator> kmbAllocator =
@@ -681,7 +682,7 @@ TEST_P(VpuPreprocessingShavesTests, DISABLED_shavesNum) {
     InferenceEngine::ExecutableNetwork importedNetwork;
 
     std::map<std::string, std::string> config;
-    config[VPU_KMB_CONFIG_KEY(PREPROCESSING_SHAVES)] = numberOfShaves;
+    config[key] = value;
     ASSERT_NO_THROW(importedNetwork = ie.ImportNetwork(modelFilePath, "KMB", config));
 
     ConstInputsDataMap inputInfo = importedNetwork.GetInputsInfo();
@@ -703,26 +704,26 @@ TEST_P(VpuPreprocessingShavesTests, DISABLED_shavesNum) {
     ASSERT_NO_THROW(inferRequest.Infer());
 }
 
-TEST_F(VpuPreprocessingTests, setConfigAndCheckNumShaves) {
+class VpuPreprocessingConfigTests :
+    public vpuLayersTests,
+    public testing::WithParamInterface<std::tuple<const char*, const char*, bool>> {};
+TEST_P(VpuPreprocessingConfigTests, setConfigAndCheck) {
+    std::string key, value;
+    bool valid;
+    std::tie(key, value, valid) = GetParam();
     std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/resnet/resnet.blob";
 
     Core ie;
     InferenceEngine::ExecutableNetwork importedNetwork;
 
     std::map<std::string, std::string> config;
-    config[VPU_KMB_CONFIG_KEY(PREPROCESSING_SHAVES)] = "8";
-    ASSERT_NO_THROW(importedNetwork = ie.ImportNetwork(modelFilePath, "KMB", config));
-}
+    config[key] = value;
 
-TEST_F(VpuPreprocessingTests, setInvalidNumShaves) {
-    std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/resnet/resnet.blob";
-
-    Core ie;
-    InferenceEngine::ExecutableNetwork importedNetwork;
-
-    std::map<std::string, std::string> config;
-    config[VPU_KMB_CONFIG_KEY(PREPROCESSING_SHAVES)] = "seventy one";
-    ASSERT_ANY_THROW(importedNetwork = ie.ImportNetwork(modelFilePath, "KMB", config));
+    if (valid) {
+        ASSERT_NO_THROW(importedNetwork = ie.ImportNetwork(modelFilePath, "KMB", config));
+    } else {
+        ASSERT_ANY_THROW(importedNetwork = ie.ImportNetwork(modelFilePath, "KMB", config));
+    }
 }
 
 TEST_F(VpuPreprocessingTests, DISABLED_setConfigForTwoNetworks) {
@@ -730,12 +731,14 @@ TEST_F(VpuPreprocessingTests, DISABLED_setConfigForTwoNetworks) {
     std::string network1Path = ModelsPath() + "/KMB_models/BLOBS/yolotiny/yolotiny.blob";
     std::map<std::string, std::string> config1;
     config1[VPU_KMB_CONFIG_KEY(PREPROCESSING_SHAVES)] = "4";
+    config1[VPU_KMB_CONFIG_KEY(PREPROCESSING_LPI)] = "4";
     ASSERT_NO_THROW(network1 = ie.ImportNetwork(network1Path, "KMB", config1));
 
     InferenceEngine::ExecutableNetwork network2;
     std::string network2Path = ModelsPath() + "/KMB_models/BLOBS/resnet/resnet.blob";
     std::map<std::string, std::string> config2;
     config2[VPU_KMB_CONFIG_KEY(PREPROCESSING_SHAVES)] = "2";
+    config2[VPU_KMB_CONFIG_KEY(PREPROCESSING_LPI)] = "8";
     ASSERT_NO_THROW(network2 = ie.ImportNetwork(network2Path, "KMB", config2));
 
     std::cout << "Created networks\n";
@@ -835,8 +838,18 @@ INSTANTIATE_TEST_CASE_P(preprocessing, VpuPreprocessingTestsWithParam,
     ::testing::ValuesIn(preprocTypes)
 );
 
-INSTANTIATE_TEST_CASE_P(preprocessing, VpuPreprocessingShavesTests,
-    ::testing::ValuesIn({"4", "6"})
-);
+using namespace testing;
+INSTANTIATE_TEST_CASE_P(preprocessingShaves, VpuPreprocessingConfigAndInferTests,
+    Combine(Values("VPU_KMB_PREPROCESSING_SHAVES"), Values("4", "6")));
+
+INSTANTIATE_TEST_CASE_P(preprocessingLpi, VpuPreprocessingConfigAndInferTests,
+    Combine(Values("VPU_KMB_PREPROCESSING_LPI"), Values("4", "8")));
+
+INSTANTIATE_TEST_CASE_P(preprocessing, VpuPreprocessingConfigTests,
+    Values(std::make_tuple("VPU_KMB_PREPROCESSING_SHAVES", "8", true),
+        std::make_tuple("VPU_KMB_PREPROCESSING_SHAVES", "seventy one", false),
+        std::make_tuple("VPU_KMB_PREPROCESSING_LPI", "16", true),
+        std::make_tuple("VPU_KMB_PREPROCESSING_LPI", "3", false),
+        std::make_tuple("VPU_KMB_PREPROCESSING_LPI", "seventeen", false)));
 
 #endif

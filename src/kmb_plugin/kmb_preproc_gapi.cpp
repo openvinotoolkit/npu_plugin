@@ -21,13 +21,14 @@ namespace InferenceEngine {
 
 class SIPPPreprocEngine::Priv {
     cv::GCompiled _lastCompiled;
-    SizeVector    _lastInYDims;
-    unsigned int  _shaveFirst;
-    unsigned int  _shaveLast;
+    SizeVector _lastInYDims;
+    unsigned int _shaveFirst;
+    unsigned int _shaveLast;
+    unsigned int _lpi;
 
 public:
-    Priv(unsigned int shaveFirst, unsigned int shaveLast)
-        : _shaveFirst(shaveFirst), _shaveLast(shaveLast) {}
+    Priv(unsigned int shaveFirst, unsigned int shaveLast, unsigned int lpi)
+        : _shaveFirst(shaveFirst), _shaveLast(shaveLast), _lpi(lpi) {}
 
     void preprocWithSIPP(const Blob::Ptr &inBlob, Blob::Ptr &outBlob,
                          const ResizeAlgorithm& algorithm, ColorFormat in_fmt,
@@ -173,11 +174,10 @@ void SIPPPreprocEngine::Priv::preprocWithSIPP(const Blob::Ptr &inBlob, Blob::Ptr
         auto out = gapi::resizeP(rgb, out_sz);
 
         _lastCompiled = GComputation(GIn(in_y, in_uv), GOut(out))
-                                    .compile(own::descr_of(inputs_y[0][0]), own::descr_of(inputs_uv[0][0]),
-                                             compile_args(InferenceEngine::gapi::preproc::sipp::kernels(),
-                                                          GSIPPBackendInitInfo{_shaveFirst, _shaveLast, 8},
-                                                          GSIPPMaxFrameSizes{{getFullImageSize(y_blob),
-                                                                              getFullImageSize(uv_blob)}}));
+                            .compile(own::descr_of(inputs_y[0][0]), own::descr_of(inputs_uv[0][0]),
+                                compile_args(InferenceEngine::gapi::preproc::sipp::kernels(),
+                                    GSIPPBackendInitInfo {_shaveFirst, _shaveLast, _lpi},
+                                    GSIPPMaxFrameSizes {{getFullImageSize(y_blob), getFullImageSize(uv_blob)}}));
     } else if (y_blob->getTensorDesc().getDims() != _lastInYDims) {
         cv::GMetaArgs meta(2);
         meta[0] = own::descr_of(inputs_y[0][0]);
@@ -188,8 +188,8 @@ void SIPPPreprocEngine::Priv::preprocWithSIPP(const Blob::Ptr &inBlob, Blob::Ptr
     _lastCompiled(gin(inputs_y[0][0], inputs_uv[0][0]), gout(outputs[0][0]));
 }
 
-SIPPPreprocEngine::SIPPPreprocEngine(unsigned int shaveFirst, unsigned int shaveLast)
-    : _priv(new Priv(shaveFirst, shaveLast)) {}
+SIPPPreprocEngine::SIPPPreprocEngine(unsigned int shaveFirst, unsigned int shaveLast, unsigned int lpi)
+    : _priv(new Priv(shaveFirst, shaveLast, lpi)) {}
 
 SIPPPreprocEngine::~SIPPPreprocEngine() = default;
 

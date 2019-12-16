@@ -35,6 +35,7 @@ public:
         return _config;
     }
     unsigned int numberOfSIPPShaves = 4;
+    unsigned int SIPPLpi = 8;
 
 protected:
     const std::unordered_set<std::string>& getCompileOptions() const override;

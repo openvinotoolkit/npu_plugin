@@ -31,7 +31,7 @@ class SIPPPreprocessor {
     std::unique_ptr<SIPPPreprocEngine> _preproc;
 
 public:
-    SIPPPreprocessor(unsigned int shaveFirst, unsigned int shaveLast);
+    SIPPPreprocessor(unsigned int shaveFirst, unsigned int shaveLast, unsigned int lpi);
     ~SIPPPreprocessor();
 
     void execSIPPDataPreprocessing(const PreprocTask& task);
@@ -45,7 +45,7 @@ class SippPreprocessorPool {
     unsigned int _numberOfShaves;
 
 public:
-    SippPreprocessorPool(unsigned int shaveFirst, unsigned int shaveLast, unsigned int nPipelines);
+    SippPreprocessorPool(unsigned int shaveFirst, unsigned int shaveLast, unsigned int nPipelines, unsigned int lpi);
     void execSIPPDataPreprocessing(const PreprocTask& task);
     unsigned int getNumberOfShaves() const;
 };
@@ -69,10 +69,10 @@ class SippPreprocPool {
     friend SippPreprocPool& sippPreprocPool();
     std::map<int, std::unique_ptr<SippPreprocessorPool>> _preprocPools;
     std::mutex _mutex;
-    SippPreprocessorPool& getPool(int w, unsigned int numberOfShaves);
+    SippPreprocessorPool& getPool(int w, unsigned int numberOfShaves, unsigned int lpi);
+
 public:
-    void execSIPPDataPreprocessing(const PreprocTask& task);
-    void execSIPPDataPreprocessing(const PreprocTask& task, unsigned int numberOfShaves);
+    void execSIPPDataPreprocessing(const PreprocTask& task, unsigned int numberOfShaves, unsigned int lpi);
 };
 
 SippPreprocPool& sippPreprocPool();
