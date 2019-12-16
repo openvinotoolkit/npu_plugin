@@ -80,3 +80,7 @@ vpu::HDDL2Plugin::ExecutableNetwork::ExecutableNetwork(const std::string& blobFi
 }
 
 vpu::HDDL2Plugin::ExecutableNetwork::ExecutableNetwork(InferenceEngine::ICNNNetwork& network) { UNUSED(network); }
+
+vpu::HDDL2Plugin::ExecutableNetwork::~ExecutableNetwork() {
+    if (_graph != nullptr) unloadGraph(_graph, _devices);
+}
