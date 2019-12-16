@@ -256,7 +256,7 @@ for (const auto& inputInfo : _parsedNetwork.networkInputs) {
         auto scaleShiftOverride = _layerToQuantParams[inputLayerPtr->name];
         float new_min = std::numeric_limits<uint8_t>::min() * scaleShiftOverride.scale + scaleShiftOverride.bias;
         float new_max = std::numeric_limits<uint8_t>::max() * scaleShiftOverride.scale + scaleShiftOverride.bias;
-        auto zp = KmbQuantizationHelpers::calculateZeroPoint(new_max, new_min, Precision::U8);
+        auto zp = KmbQuantizationHelpers::calculateZeroPoint(new_max, new_min, 256, Precision::U8);
 
         inputQuantParamsOverRide = {{zp}, {scaleShiftOverride.scale}, {-inf}, {inf}};
     }
@@ -814,7 +814,7 @@ void FrontEndMcm::parseScale(
         }
     }
 
-    auto zpScaleWeights  = KmbQuantizationHelpers::calculateZeroPoint(maxScale, minScale, InferenceEngine::Precision::U8);
+    auto zpScaleWeights  = KmbQuantizationHelpers::calculateZeroPoint(maxScale, minScale, 256, InferenceEngine::Precision::U8);
     double quantizeScale = (maxScale - minScale) / 255.0;
     std::vector<int64_t> weightsData(scaleLayer->_weights->size());
     for (size_t i = 0; i < scaleLayer->_weights->size(); i++) {

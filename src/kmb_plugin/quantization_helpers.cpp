@@ -62,27 +62,28 @@ bool isRealQuantizeLayer(const InferenceEngine::CNNLayerPtr& layer) {
     return ((layer->type == "Convolution") || (layer->type == "Eltwise") || (layer->type == "FullyConnected"));
 }
 
-int64_t calculateZeroPoint(float high, float low, InferenceEngine::Precision precision) {
+int64_t calculateZeroPoint(float high, float low, int levels, InferenceEngine::Precision precision) {
     int64_t zepoPoint = 0;
 
     // Typical condition for symmetric case is low < 0, high > 0
     if (precision == InferenceEngine::Precision::I8) {
         if ((low <= 0.f) && (high >= 0.f)) {
-            zepoPoint = 0;
+            float x = -(levels - 1)*((high + low)*0.5f) / (high - low);
+            zepoPoint = ceil(x);  // TODO Why not round?
         } else if (low > 0.f) {
-            zepoPoint = -128;
+            zepoPoint = 127 - (levels - 1);  // TODO Why not assert?
         } else if (high < 0.f) {
-            zepoPoint = 127;
+            zepoPoint = 127;  // TODO Why not assert?
         }
     } else if (precision == InferenceEngine::Precision::U8) {
         //  MCM team provide this formula, need check
-        if ((low < 0.f) && (high >= 0.f)) {
-            auto x = (high/(fabs(low) + high)) * 255;
-            zepoPoint = ceil(255 - x);
+        if ((low <= 0.f) && (high >= 0.f)) {
+            float x = -(levels - 1) * low / (high - low);
+            zepoPoint = ceil(x);  // TODO Why not round?
         } else if (low >= 0.f) {
-            zepoPoint = 0;
-        } else if (high < 0.f) {
-            zepoPoint = 256;
+            zepoPoint = 0;  // TODO Why not assert?
+        } else if (high <= 0.f) {
+            zepoPoint = (levels - 1);  // TODO Why not assert?
         }
     }
 
@@ -102,7 +103,7 @@ void reCalculateQuantizationParamsOnActivation(const CNNLayerPtr& quantizedLayer
     float totalHighMax = std::max(quantizationParams1.maxOutputHigh(), quantizationParams2.maxOutputHigh());
     float totalHighLow = std::min(quantizationParams1.minOutputLow(), quantizationParams2.minOutputLow());
 
-    int64_t zepoPoint = calculateZeroPoint(totalHighMax, totalHighLow, InferenceEngine::Precision::U8);
+    int64_t zepoPoint = calculateZeroPoint(totalHighMax, totalHighLow, levels, InferenceEngine::Precision::U8);
     double scale = static_cast<double>((totalHighMax - totalHighLow) / (levels - 1));
     outputQuantParams = {{zepoPoint}, {scale}, {-inf}, {inf}};
 }
@@ -122,7 +123,7 @@ void calculateOutputScalesAndZeroPoint(const CNNLayerPtr &fakeQuantizeLayer, std
         float outputLowMin = quantizationParams.minOutputLow();
         float outputHighMax = quantizationParams.maxOutputHigh();
 
-        int64_t zepoPoint = calculateZeroPoint(outputHighMax, outputLowMin, InferenceEngine::Precision::U8);
+        int64_t zepoPoint = calculateZeroPoint(outputHighMax, outputLowMin, levels, InferenceEngine::Precision::U8);
 
         scales.push_back(static_cast<double>((outputHighMax - outputLowMin) / (levels - 1)));
         zeroPoints.push_back(static_cast<int64_t>(zepoPoint));
@@ -134,7 +135,7 @@ void calculateOutputScalesAndZeroPoint(const CNNLayerPtr &fakeQuantizeLayer, std
             scales.push_back(static_cast<double>((oh - ol) / (levels - 1)));
 
             // re-calculate ZP for weights, we use I8 for weights
-            int64_t zepoPoint = calculateZeroPoint(oh, ol, InferenceEngine::Precision::U8);
+            int64_t zepoPoint = calculateZeroPoint(oh, ol, levels, InferenceEngine::Precision::U8);
             zeroPoints.push_back(static_cast<int64_t>(zepoPoint));
         }
     }
@@ -175,14 +176,14 @@ void fillQuntizationActivationParams(const CNNLayerPtr& quantizedLayer, mv::Quan
     outputQuantParams = {zeroPoints, scales, {-inf}, {inf}};
 }
 
-mv::QuantizationParams fillQuantizeParamsForU8orI8weights(const CNNLayerPtr& weightsLayer, InferenceEngine::Precision precision) {
+mv::QuantizationParams fillQuantizeParamsForU8orI8weights(const CNNLayerPtr& weightsLayer, int levels, InferenceEngine::Precision precision) {
     IE_ASSERT(weightsLayer->type == "Const");
     auto weightsData = getBlobValue(weightsLayer);
 
     float weightsLowMin = *std::min_element(weightsData.begin(), weightsData.end());
     float weightsHighMax = *std::max_element(weightsData.begin(), weightsData.end());
 
-    int64_t zepoPoint = calculateZeroPoint(weightsLowMin, weightsHighMax, precision);
+    int64_t zepoPoint = calculateZeroPoint(weightsLowMin, weightsHighMax, levels, precision);
     mv::QuantizationParams weightsQuantParams = {{zepoPoint}, {1}, {-inf}, {inf}};
 
     return weightsQuantParams;
@@ -270,13 +271,11 @@ Blob::Ptr calculateQuntizationWeights(const CNNLayerPtr& weightableLayer,
     InferenceEngine::DataPtr fakeQuantizeData = weightableLayer->insData[1].lock();
     auto weightsPrecision = fakeQuantizeData->getPrecision();
 
-    Blob::Ptr weightsBlob;
-
     //  U8/I8 weights is already quantized, we should calculate only ZP
     if ((weightsPrecision == InferenceEngine::Precision::U8) || (weightsPrecision == InferenceEngine::Precision::I8)) {
         auto convWeightsConst = fakeQuantizeData->getCreatorLayer().lock();
-        weightsBlob = convWeightsConst->blobs.begin()->second;
-        weightsQuantParams = fillQuantizeParamsForU8orI8weights(convWeightsConst, weightsPrecision);
+        Blob::Ptr weightsBlob = convWeightsConst->blobs.begin()->second;
+        weightsQuantParams = fillQuantizeParamsForU8orI8weights(convWeightsConst, 256, weightsPrecision);
         return weightsBlob;
     }
 
