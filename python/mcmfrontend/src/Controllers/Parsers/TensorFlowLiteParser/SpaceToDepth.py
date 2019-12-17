@@ -17,10 +17,9 @@
 # approved by Intel in writing.
 
 import numpy as np
-from Controllers.Parsers.Parser.ReLU import ReLU, LeakyReLU
-from Controllers.Parsers.Parser.PReLU import PReLU
+from Controllers.Parsers.Parser.SpaceToDepth import SpaceToDepth
 from Controllers.Parsers.TensorFlowLiteParser.tflite.BuiltinOperator import BuiltinOperator
-from Controllers.Parsers.TensorFlowLiteParser.tflite.LeakyReluOptions import LeakyReluOptions
+from Controllers.Parsers.TensorFlowLiteParser.tflite.SpaceToDepthOptions import SpaceToDepthOptions
 
 
 from .Helpers import getPadding, findTensorValue, getTensorIndices, decodePadding, setTensorShape, getActivation
@@ -36,16 +35,12 @@ def load(obj, op_type, tensors, buffers):
     activation = tensors[in_tensors[0]]
     out = tensors[out_tensors[0]]
 
-    if op_type in [BuiltinOperator.RELU, BuiltinOperator.RELU6]:
-        x = ReLU(out.Name(), [activation.Name()], [out.Name()])
-    elif op_type in [BuiltinOperator.LEAKY_RELU, BuiltinOperator.PRELU]:
-        # The difference between the two is only at training stage...
-        x = LeakyReLU(out.Name(), [activation.Name()], [out.Name()])
-        options = LeakyReluOptions()
-        options.Init(obj.BuiltinOptions().Bytes, obj.BuiltinOptions().Pos)
-        x.loadAlpha(options.Alpha())
-    else:
-        raise ValueError("Layer {} not supported".format(op_type))
+    x = SpaceToDepth(out.Name(), [activation.Name()], [out.Name()])
+
+    options = SpaceToDepthOptions()
+    options.Init(obj.BuiltinOptions().Bytes, obj.BuiltinOptions().Pos)
+
+    x.loadBlockSize(options.BlockSize())
 
     setTensorShape(x, [activation], [out])
 

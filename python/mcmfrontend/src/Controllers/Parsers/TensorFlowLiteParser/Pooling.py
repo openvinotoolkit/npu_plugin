@@ -16,13 +16,14 @@
 # Any license under such intellectual property rights must be express and
 # approved by Intel in writing.
 
-import numpy as np
 from Controllers.Parsers.Parser.Pooling import Pooling
 from Controllers.Parsers.TensorFlowLiteParser.tflite.BuiltinOperator import BuiltinOperator
 
 from Controllers.Parsers.TensorFlowLiteParser.tflite.Pool2DOptions import Pool2DOptions
 
-from .Helpers import getPadding, findTensorValue, getTensorIndices, decodePadding, setTensorShape, getActivation
+from .Helpers import getPadding, getTensorIndices, decodePadding, setTensorShape, getActivation
+from Controllers.EnumController import throw_error
+from Models.EnumDeclarations import ErrorTable
 
 
 def load(obj, op_type, tensors, buffers):
@@ -44,7 +45,7 @@ def load(obj, op_type, tensors, buffers):
     elif op_type == BuiltinOperator.MAX_POOL_2D:
         x.loadType(Pooling.Type.MAX)
     else:  # else not supported layer
-        assert(False, "Pooling type not supported: " + op_type)
+        throw_error(ErrorTable.StageDetailsNotSupported, op_type)
 
     pool.Init(obj.BuiltinOptions().Bytes, obj.BuiltinOptions().Pos)
 

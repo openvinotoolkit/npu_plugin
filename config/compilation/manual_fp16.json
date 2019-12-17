@@ -85,7 +85,6 @@
     },
     "adapt": {
         "Singular": [
-            "CheckIntegerTensors",
             "ReplacementOps",
             "TensorsToU8",
             "TensorsToFP16",

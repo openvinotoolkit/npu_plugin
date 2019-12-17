@@ -252,8 +252,6 @@ void addAlignOpForInputTensorsFunc(const mv::pass::PassEntry& , mv::ComputationM
         if(taskOp == "Conv" || taskOp == "DepthwiseConv" || taskOp == "MaxPool" ||
             taskOp == "Eltwise")
         {
-            if (opIt->getOutputTensor(0)->getDType() == mv::DType("Float16"))
-                pad = 8;
             auto numInputs = 1;
             if (taskOp == "Eltwise")
                 numInputs = opIt->getInputTensor().size();
