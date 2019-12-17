@@ -220,8 +220,8 @@ import_array();
         return o.constant(data, shape, mv::DType("Float64"), order, quantParams, name);
     }
 
-    mv::Data::TensorIterator constant(mv::CompositionalModel& o, const std::vector<int64_t> &data, std::string dataType, const mv::Shape &shape, const mv::Order& order, const mv::QuantizationParams &quantParams, const std::string &name){
-        return o.constantInt(data, shape, mv::DType(dataType), order, quantParams, name);
+    mv::Data::TensorIterator constant(mv::CompositionalModel& o, const std::vector<int64_t> &data, const mv::Shape &shape, const mv::Order& order, const mv::QuantizationParams &quantParams, const std::string &name){
+        return o.constantInt(data, shape, mv::DType("UInt8"), order, quantParams, name);
     }
 
     mv::Data::TensorIterator input(mv::CompositionalModel& o, const mv::Shape &shape, double type, const mv::Order& order, const mv::QuantizationParams &quantParams, const std::string& name){
@@ -424,7 +424,7 @@ mv::Order * getOrder(const std::string& framework_layout);
 mv::DType * getDtypeFP16();
 //Keep the order of the Wrapper
 mv::Data::TensorIterator identity(mv::CompositionalModel&  o,mv::Data::TensorIterator input0, const std::string& type, const mv::QuantizationParams  &quantParams, const std::string &name);
-mv::Data::TensorIterator constant(mv::CompositionalModel&  o, const std::vector<int64_t>& data, const std::string dataType, const mv::Shape &shape, const mv::Order& order, const mv::QuantizationParams  &quantParams, const std::string &name);
+mv::Data::TensorIterator constant(mv::CompositionalModel&  o, const std::vector<int64_t>& data, const mv::Shape &shape, const mv::Order& order, const mv::QuantizationParams  &quantParams, const std::string &name);
 mv::Data::TensorIterator constant(mv::CompositionalModel&  o, const std::vector<double>& data, const mv::Shape &shape, const mv::Order& order,  const mv::QuantizationParams  &quantParams,  const std::string &name);
 mv::Data::TensorIterator input(mv::CompositionalModel& o, const mv::Shape &shape, double type, const mv::Order& order, const mv::QuantizationParams &quantParams, const std::string& name);
 mv::Data::TensorIterator input(mv::CompositionalModel& o, const mv::Shape &shape, uint64_t type, const mv::Order& order, const mv::QuantizationParams &quantParams, const std::string& name);
