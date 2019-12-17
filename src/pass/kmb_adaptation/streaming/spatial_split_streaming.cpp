@@ -89,7 +89,7 @@ static void setStreamingStrategy(const mv::pass::PassEntry &pass, mv::Computatio
     if (!globalParams->hasAttr("streaming_strategy"))
     {
         std::cout << "No strategy defined in JSON" << std::endl;
-        pass.log(mv::Logger::MessageType::Info, "No custom streaming strategy provided");
+        pass.log(mv::Logger::MessageType::Debug, "No custom streaming strategy provided");
         return;
     }
     auto strategyList = globalParams->get<std::vector<mv::Element>>("streaming_strategy");

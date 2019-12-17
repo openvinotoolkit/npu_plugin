@@ -69,7 +69,7 @@ void resolveImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::Computati
             continue;
         }
 
-        pass.log(mv::Logger::MessageType::Info, "Solving: # " + opIt->getName() + " #");
+        pass.log(mv::Logger::MessageType::Debug, "Solving: # " + opIt->getName() + " #");
 
         //currently this phase will assume that memory locality is the only solution for implicitness.
         //TODO:: if other conditions appear, then structure them separately
@@ -94,8 +94,8 @@ void resolveImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::Computati
             {
                 auto inputTensor = sourceFlow->getTensor();
                 auto inputLocation = inputTensor->get<mv::Tensor::MemoryLocation>("Location");
-                pass.log(mv::Logger::MessageType::Info, "Input tensor " + inputTensor->getName() + " location " + inputLocation.toString());
-                pass.log(mv::Logger::MessageType::Info, "Output tensor " + outputTensor->getName() + " location " + outputLocation.toString());
+                pass.log(mv::Logger::MessageType::Debug, "Input tensor " + inputTensor->getName() + " location " + inputLocation.toString());
+                pass.log(mv::Logger::MessageType::Debug, "Output tensor " + outputTensor->getName() + " location " + outputLocation.toString());
 
                 if (inputLocation != outputLocation)
                 {
@@ -113,7 +113,7 @@ void resolveImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::Computati
                     compensatorOutput->set<mv::Tensor::MemoryLocation>("Location", outputLocation);
                     auto sinkIdx = sourceFlow->get<std::size_t>("sinkInput");
 
-                    pass.log(mv::Logger::MessageType::Info, "Adding new DMA OP: # " + compensatorOutput->getName() +
+                    pass.log(mv::Logger::MessageType::Debug, "Adding new DMA OP: # " + compensatorOutput->getName() +
                                                                 " # after tensor: # " + inputTensor->getName() + " #");
                     om.getSourceOp(compensatorOutput)->set<unsigned>("opId", opIt->get<unsigned>("opId"));
 
@@ -126,7 +126,7 @@ void resolveImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::Computati
             }
             for (unsigned flowIdx = 0; flowIdx < flowsToRemove.size() ; flowIdx++)
             {
-                pass.log(mv::Logger::MessageType::Info,"Setting # " + compensationOutputs[flowIdx]->getName() +
+                pass.log(mv::Logger::MessageType::Debug,"Setting # " + compensationOutputs[flowIdx]->getName() +
                                                         " # as input at slotIdx: " + std::to_string(sinkIndexes[flowIdx]));
                 opIt->setInputTensor(compensationOutputs[flowIdx],sinkIndexes[flowIdx], false);
                 om.undefineFlow(flowsToRemove[flowIdx]);
@@ -148,8 +148,8 @@ void resolveImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::Computati
 
             auto inputTensor = inputTensors[0];
             auto inputLocation = inputTensor->get<mv::Tensor::MemoryLocation>("Location");
-            pass.log(mv::Logger::MessageType::Info, "Input tensor " + inputTensor->getName() + " location " + inputLocation.toString());
-            pass.log(mv::Logger::MessageType::Info, "Output tensor " + outputTensor->getName() + " location " + outputLocation.toString());
+            pass.log(mv::Logger::MessageType::Debug, "Input tensor " + inputTensor->getName() + " location " + inputLocation.toString());
+            pass.log(mv::Logger::MessageType::Debug, "Output tensor " + outputTensor->getName() + " location " + outputLocation.toString());
 
             if(inputLocation != outputLocation)
             {
@@ -177,7 +177,7 @@ void resolveImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::Computati
                 if (compensatorOutput->hasAttr("quantParams"))
                     compensatorOutput->get<mv::QuantizationParams>("quantParams").quantize(outQuantParams.getShift(), outQuantParams.getMult());
 
-                pass.log(mv::Logger::MessageType::Info,"Adding new DMA OP: # " + compensatorOutput->getName() +
+                pass.log(mv::Logger::MessageType::Debug,"Adding new DMA OP: # " + compensatorOutput->getName() +
                                                             " as output to # " + opIt->getName());
                 om.getSourceOp(compensatorOutput)->set<unsigned>("opId", opIt->get<unsigned>("opId"));
 
@@ -198,7 +198,7 @@ void resolveImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::Computati
                 }
                 for(unsigned op = 0 ; op < opsToLink.size(); ++op)
                 {
-                    pass.log(mv::Logger::MessageType::Info," Setting # " + compensatorOutput->getName() +
+                    pass.log(mv::Logger::MessageType::Debug," Setting # " + compensatorOutput->getName() +
                                                                 "# as input to: # " + opsToLink[op]->getName() +
                                                                 "# at slotIdx: " + std::to_string(inputSlots[op]));
 

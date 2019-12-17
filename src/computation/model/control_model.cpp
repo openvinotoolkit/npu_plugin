@@ -186,7 +186,7 @@ mv::Control::FlowListIterator mv::ControlModel::defineFlow(Control::OpListIterat
     if (flow != *controlFlowEnd_)
     {
         controlFlows_->emplace(flow->getName(), flow);
-        log(Logger::MessageType::Info, "Defined " + flow->toString());
+        log(Logger::MessageType::Debug, "Defined " + flow->toString());
         return flow;
     }
     else

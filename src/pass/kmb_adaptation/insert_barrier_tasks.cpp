@@ -78,7 +78,7 @@ static void combineRedundantBarriers(mv::ComputationModel& model,
             // combine barriers with same producers into 1 barrier
             if ((b->getProducers() == c->getProducers()) && (c->hasConsumers()) && (b->hasConsumers()))
             {
-                pass.log(mv::Logger::MessageType::Info,
+                pass.log(mv::Logger::MessageType::Debug,
                         "combining redundant barriers: " + std::to_string(b->getID())
                         + " and " + std::to_string(c->getID()));
                 // move c consumers to b
@@ -93,7 +93,7 @@ static void combineRedundantBarriers(mv::ComputationModel& model,
                     && (c->getNumConsumers() == 1)
                     && (b->getConsumers() == c->getConsumers()))
             {
-                pass.log(mv::Logger::MessageType::Info,
+                pass.log(mv::Logger::MessageType::Debug,
                         " combining redundant barriers: " + std::to_string(b->getID())
                         + " and " + std::to_string(c->getID())
                         + " : they have have a single consumer and share that consumer");
@@ -134,7 +134,7 @@ static void combineRedundantBarriers(mv::ComputationModel& model,
 
                     if (noPath)
                     {
-                        pass.log(mv::Logger::MessageType::Info,
+                        pass.log(mv::Logger::MessageType::Debug,
                                 "combining redundant barriers: " + std::to_string(b->getID())
                                 + " and " + std::to_string(c->getID()));
 
@@ -289,7 +289,7 @@ void removeExtraProducers(const mv::pass::PassEntry& pass,
                 {
                     if (cm.pathExists(cm.switchContext(om.getOp(p1)), cm.switchContext(om.getOp(p2))))
                     {
-                        pass.log(mv::Logger::MessageType::Info,
+                        pass.log(mv::Logger::MessageType::Debug,
                             "path exists between " + p1 + " and " + p2 +
                             "..., removing " + p2 + " from barrier's producer list");
                         toRemove.push_back(p1);

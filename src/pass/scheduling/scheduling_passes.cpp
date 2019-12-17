@@ -187,7 +187,7 @@ void hackExecutionScheduleFcn(const mv::pass::PassEntry& pass, mv::ComputationMo
     auto globalParams = model.getGlobalConfigParams();
     if (!globalParams->hasAttr("schedule_helper_indices"))
     {
-        pass.log(mv::Logger::MessageType::Info, "No schedule helper indices provided");
+        pass.log(mv::Logger::MessageType::Debug, "No schedule helper indices provided");
         return;
     }
 
