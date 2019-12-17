@@ -629,6 +629,12 @@ namespace mv
                             return INF;
                         }
                 }
+                //Note: last op should not be HKSwitch
+                else if (childOp.getOpType() == "Output")
+                {
+                    if (parentClustering == "HKSwitch")
+                        return INF;
+                }
 
                 //These sparsity rules apply pairwise, and effect memory size and execution time.
                 //Make a local decision to get the correct runtime and execution time, but don't persist
