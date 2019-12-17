@@ -19,3 +19,5 @@ endif()
 ie_option(ENABLE_VPUAL "Enable VPUAL" ON)
 
 ie_option(ENABLE_KMB_SAMPLES "Enable KMB samples" ON)
+
+ie_option(ENABLE_KMB_CLANG_FORMAT "Enable KMB clang-format checks during the build" ON)
