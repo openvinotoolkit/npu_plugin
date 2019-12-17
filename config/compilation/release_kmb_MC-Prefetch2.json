@@ -83,7 +83,6 @@
     },
     "adapt": {
         "Singular": [
-            "CheckIntegerTensors",
             "RemoveOps",
             "ReplacementOps",
             "TensorsToU8",
