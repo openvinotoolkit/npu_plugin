@@ -91,14 +91,9 @@ void setIfPresent(T1& fieldToFill, mv::Element& compilationDescriptor, const std
         fieldToFill = compilationDescriptor.get<T2>(key);
 }
 
-int computeAppropriatePadding(mv::Tensor tensor)
+int computeAppropriatePadding(mv::Tensor)
 {
-    int pad;
-    if (tensor.getDType() == mv::DType("Float16"))
-        pad = 8;
-    else if (tensor.getDType() == mv::DType("UInt8"))
-        pad = 16;
-    return pad;
+    return 16;
 }
 
 void mv::RuntimeModel::alignTensor(mv::ComputationModel& cm, std::unique_ptr<MVCNN::TensorReferenceT>& tensorT, mv::Tensor& tensor, bool padFinalOutput)
@@ -1850,6 +1845,28 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAPassthroughTask(ComputationMode
     return toBuild;
 }
 
+MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAEltwiseFP16Task(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt)
+{
+    auto input0 = opIt->getInputTensor(0);
+    auto input1 = opIt->getInputTensor(1);
+    auto output = opIt->getOutputTensor(0);
+    auto toBuild = new MVCNN::UPALayerTaskT();
+    //toBuild->maxShaves = ;
+
+    //TODO: EltwiseFP16 has no params; using ReshapeParams for now to avoid schema change
+    toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_ReshapeParams;
+    auto softLayerParamsValue = new MVCNN::ReshapeParamsT();
+
+    toBuild->softLayerParams.value = softLayerParamsValue;
+
+    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input0)));
+    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input1)));
+
+    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
+
+    return toBuild;
+}
+
 MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPADummyTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt)
 {
     UNUSED(cm);
@@ -1896,6 +1913,8 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildUPATask(Comput
         toReturn[0]->task.value = buildUPANormalizeTask(cm, compilationDescriptor, opIt);
     else if(underlyingTask == "Permute")
         toReturn[0]->task.value = buildUPAPermuteTask(cm, compilationDescriptor, opIt);
+    else if(underlyingTask == "Eltwise")
+        toReturn[0]->task.value = buildUPAEltwiseFP16Task(cm, compilationDescriptor, opIt);
     else if(underlyingTask == "Interp")
         toReturn[0]->task.value = buildUPAInterpTask(cm, compilationDescriptor, opIt);
     else if(underlyingTask == "Norm")
@@ -2019,11 +2038,8 @@ unsigned mv::RuntimeModel::countProducerConsumerTasks(mv::ComputationModel& cm, 
         toReturn *= multiplicator;
     }
     else if(taskType == "UPATask")
-    {
-        if (opIt->hasAttr("BarrierDeps"))
-            if (opIt->get<mv::BarrierDependencies>("BarrierDeps").getWait() != 1)
-                toReturn = 1;
-    }
+        toReturn = 1;
+
     return toReturn;
 }
 

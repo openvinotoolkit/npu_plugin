@@ -239,7 +239,6 @@ static std::vector<mv::Workload> fixRectangularHeuristicBug(std::vector<mv::Work
             mv::Shape tensorShape = tensor->getShape();
             std::size_t outputChannels = tensorShape[mv::IO_CHANNEL_DIMENSION];
             std::size_t quantumofAlignedChannels, equalSlice, remainingSlice = 0;
-            //NOTE: Normally this value is not 16 depends on the dtype but not merged yet
             if (outputChannels % 16 == 0)
             {
                 quantumofAlignedChannels = outputChannels/16;

@@ -7,22 +7,22 @@
 
 namespace mv
 {
-    class DType;
-
     class DTypeEntry
     {
         std::string name_;
         unsigned size_;
         bool isDoubleType_;
-
+        bool isSigned_;
     public:
 
         DTypeEntry(const std::string& name);
         DTypeEntry& setSizeInBits(unsigned size);
         DTypeEntry& setIsDoubleType(bool isDouble);
+        DTypeEntry& setIsSigned(bool isSigned);
 
         unsigned getSizeInBits() const;
         bool isDoubleType() const;
+        bool isSigned() const;
     };
 
 }
