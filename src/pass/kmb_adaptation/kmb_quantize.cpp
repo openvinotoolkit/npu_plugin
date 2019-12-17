@@ -25,7 +25,7 @@ void addQuantizationLayers(mv::OpModel om, std::vector<mv::Data::OpListIterator>
 {
     for(auto& task : tasks)
     {
-        if (task->get<std::string>("taskOp") == "Quantize")
+        if (task->hasAttr("taskOp") && task->get<std::string>("taskOp") == "Quantize")
         {
             auto quantParams = task->get<mv::QuantizationParams>("quantParams");
             auto output = task->getOutputTensor(0);
