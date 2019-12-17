@@ -91,14 +91,9 @@ void setIfPresent(T1& fieldToFill, mv::Element& compilationDescriptor, const std
         fieldToFill = compilationDescriptor.get<T2>(key);
 }
 
-int computeAppropriatePadding(mv::Tensor tensor)
+int computeAppropriatePadding(mv::Tensor)
 {
-    int pad;
-    if (tensor.getDType() == mv::DType("Float16"))
-        pad = 8;
-    else if (tensor.getDType() == mv::DType("UInt8"))
-        pad = 16;
-    return pad;
+    return 16;
 }
 
 void mv::RuntimeModel::alignTensor(mv::ComputationModel& cm, std::unique_ptr<MVCNN::TensorReferenceT>& tensorT, mv::Tensor& tensor, bool padFinalOutput)

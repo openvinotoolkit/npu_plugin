@@ -17,35 +17,24 @@
 # approved by Intel in writing.
 
 
-from .Layer import Layer
-import Models.Layouts as Layouts
 from Controllers.TensorFormat import TensorFormat
+import Models.Layouts as Layouts
+from .Layer import Layer
 
 
-class ReLU(Layer):
+class SpaceToDepth(Layer):
     def __init__(self, *args):
         super().__init__(*args)
 
         # Set the supported layouts
-        tfCM = TensorFormat(Layouts.NHWC, (2,))
-        tfIV = TensorFormat(Layouts.NHCW, (1, 3))
-        self.formatPool = [(tfCM, tfCM), (tfIV, tfIV)]
-        self.reluX = 0
+        tfCM = TensorFormat(Layouts.NHWC, (1,))
+        self.formatPool = [(tfCM, tfCM)]
 
-        self.negativeSlope = 0.0
+    def loadBlockSize(self, blockSize):
+        """
+        Set blockSize of SpaceToDepth op.
+        """
+        self.blockSize = blockSize
 
-    def loadReluX(self, X):
-        self.reluX = X
-
-    def loadNegativeSlope(self, nSlope):
-        self.negativeSlope = nSlope
-
-
-class LeakyReLU(ReLU):
-
-    def loadAlpha(self, alpha):
-        self.alpha = alpha
-
-    def getAlpha(self):
-        return self.alpha
-
+    def getBlockSize(self):
+        return self.blockSize

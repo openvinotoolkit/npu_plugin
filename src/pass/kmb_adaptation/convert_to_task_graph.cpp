@@ -450,12 +450,18 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             auto newTensorOp = om.getSourceOp(newTensor);
 
             if (newTensorOp->getOpType() == "DPUTask")
-                newTensor->set<mv::DType>("dType", mv::DType("UInt8"));
+            {
+                auto dTypeNeeded = newTensorOp->get<mv::DType>("dType");
+                if(dTypeNeeded == mv::DType("Default"))
+                    newTensor->set<mv::DType>("dType", mv::DType("UInt8"));
+                else
+                    newTensor->set<mv::DType>("dType", dTypeNeeded);
+            }
             else if (newTensorOp->get<std::string>("taskOp") == "Quantize")
             {
                 //Skip case of explicitly-added om.quantize()
             }
-            else
+            else if(newTensorOp->getOpType() == "UPATask") // UPA
                 newTensor->set<mv::DType>("dType", mv::DType("Float16"));
 
 
