@@ -45,13 +45,13 @@ public:
     void QueryNetwork(const InferenceEngine::ICNNNetwork& network, const std::map<std::string, std::string>& config,
         InferenceEngine::QueryNetworkResult& res) const override;
 
+    using ie::InferencePluginInternal::ImportNetwork;
+
     InferenceEngine::IExecutableNetwork::Ptr ImportNetwork(
         const std::string& modelFileName, const std::map<std::string, std::string>& config) override;
 
-    InferenceEngine::ExecutableNetwork ImportNetwork(
-        std::istream& /*networkModel*/, const std::map<std::string, std::string>& /*config*/) override {
-        THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
-    }
+    InferenceEngine::ExecutableNetwork ImportNetworkImpl(
+        std::istream& networkModel, const std::map<std::string, std::string>& config) override;
 
 private:
     KmbConfig _parsedConfig;

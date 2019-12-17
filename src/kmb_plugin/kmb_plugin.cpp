@@ -104,15 +104,20 @@ IExecutableNetwork::Ptr Engine::ImportNetwork(
         THROW_IE_EXCEPTION << InferenceEngine::details::as_status << NETWORK_NOT_READ;
     }
 
+    return ImportNetworkImpl(blobFile, config);
+}
+
+InferenceEngine::ExecutableNetwork Engine::ImportNetworkImpl(
+    std::istream& networkModel, const std::map<std::string, std::string>& config) {
     auto parsedConfigCopy = _parsedConfig;
     parsedConfigCopy.update(config, ConfigMode::RunTime);
 
-    const auto executableNetwork = std::make_shared<ExecutableNetwork>(modelFileName, parsedConfigCopy);
+    const auto executableNetwork = std::make_shared<ExecutableNetwork>(networkModel, parsedConfigCopy);
 
-    return IExecutableNetwork::Ptr(
+    return InferenceEngine::ExecutableNetwork {IExecutableNetwork::Ptr(
         new ExecutableNetworkBase<ExecutableNetworkInternal>(executableNetwork), [](ie::details::IRelease* p) {
             p->Release();
-        });
+        })};
 }
 
 IE_SUPPRESS_DEPRECATED_START

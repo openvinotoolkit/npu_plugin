@@ -80,16 +80,16 @@ ExecutableNetwork::ExecutableNetwork(ICNNNetwork& network, const KmbConfig& conf
     _supportedMetrics = {METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)};
 }
 
-ExecutableNetwork::ExecutableNetwork(const std::string& blobFilename, const KmbConfig& config): _config(config) {
+ExecutableNetwork::ExecutableNetwork(std::istream& strm, const KmbConfig& config): _config(config) {
     _logger = std::make_shared<Logger>("ExecutableNetwork", _config.logLevel(), consoleOutput());
     _executor = std::make_shared<KmbExecutor>(_config);
-    std::ifstream blobFile(blobFilename, std::ios::binary);
+
     std::ostringstream blobContentStream;
-    blobContentStream << blobFile.rdbuf();
+    blobContentStream << strm.rdbuf();
     const std::string& blobContentString = blobContentStream.str();
     std::copy(blobContentString.begin(), blobContentString.end(), std::back_inserter(_graphBlob));
     LoadBlob();
-    ConfigureExecutor(blobFilename);
+    ConfigureExecutor("ExecutableNetwork");
 }
 
 void ExecutableNetwork::GetMetric(const std::string& name, Parameter& result, ResponseDesc* resp) const {
