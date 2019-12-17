@@ -16,6 +16,9 @@
 
 #pragma once
 
+// clang-format off
+// Can get compile error, if the order of the headers will be changed.
+
 #include "inference_engine.hpp"
 #include "description_buffer.hpp"
 #include "kmb_executable_network.h"
@@ -25,6 +28,8 @@
 #include <map>
 #include <cpp_interfaces/impl/ie_plugin_internal.hpp>
 #include "kmb_config.h"
+
+// clang-format on
 
 namespace vpu {
 namespace KmbPlugin {

@@ -4,6 +4,9 @@
 
 #pragma once
 
+// clang-format off
+// Can get compile error, if the order of the headers will be changed.
+
 #include <gtest/gtest.h>
 #include <ie_version.hpp>
 #include <cpp/ie_cnn_net_reader.h>
@@ -18,6 +21,8 @@
 #include <vpu/private_plugin_config.hpp>
 #include <random>
 #include "layers_reference_functions.hpp"
+
+// clang-format on
 
 #define DEFAULT_SEED_VALUE (43)
 

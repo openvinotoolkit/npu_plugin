@@ -49,6 +49,8 @@ typedef void (FrontEndMcm::*parser_t)(
         const ie::CNNLayerPtr& layer,
         const McmNodeVector& inputs);
 
+// clang-format off
+
 ie::details::caseless_map<std::string, parser_t> g_mcm_parsers = {
     {"Convolution",        &FrontEndMcm::parseConvolution},
     {"Pooling",            &FrontEndMcm::parsePooling},
@@ -100,6 +102,8 @@ ie::details::caseless_map<std::string, parser_t> g_mcm_parsers = {
     {"Resample",           &FrontEndMcm::parseResample},
     {"ArgMax",             &FrontEndMcm::parseArgMax},
 };
+
+// clang-format on
 
 }  // namespace
 

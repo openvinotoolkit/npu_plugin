@@ -14,6 +14,9 @@
 // stated in the License.
 //
 
+// clang-format off
+// Can get compile error, if the order of the headers will be changed.
+
 #include <algorithm>
 #include <utility>
 
@@ -22,6 +25,8 @@
 #include <kmb_executable_network.h>
 #include <net_pass.h>
 #include "vpu/kmb_plugin_config.hpp"
+
+// clang-format on
 
 using namespace InferenceEngine;
 

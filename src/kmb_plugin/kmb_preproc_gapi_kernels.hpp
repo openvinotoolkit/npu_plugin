@@ -10,6 +10,9 @@ namespace InferenceEngine {
 namespace gapi {
 namespace preproc {
 
+// clang-format off
+// we can't let clang-format tool work with this code. It would ruin everything
+
 G_TYPED_KERNEL(GNV12toRGBp, <cv::GMatP(cv::GMat, cv::GMat)>, "ie.preproc.nv12torgbp") {
     static cv::GMatDesc outMeta(cv::GMatDesc inY, cv::GMatDesc inUV) {
         GAPI_Assert(inY.depth == CV_8U);
@@ -47,6 +50,9 @@ G_TYPED_KERNEL(GResizeP, <cv::GMatP(cv::GMatP, cv::gapi::own::Size, int)>, "ie.p
         return in.withSize(sz);
     }
 };
+
+// clang-format on
+
 }  // namespace preproc
 
 // FIXME? remove?

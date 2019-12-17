@@ -15,6 +15,9 @@ namespace InferenceEngine {
 namespace gapi {
 namespace preproc {
 
+// clang-format off
+// we can't let clang-format tool work with this code. It would ruin everything
+
 GAPI_SIPP_KERNEL(GSippNV12toRGBp, GNV12toRGBp) {
     static cv::gimpl::GSIPPKernel::InitInfo Init(cv::GMatDesc, cv::GMatDesc) {
         return {SVU_SYM(svucvtColorNV12toRGB), 0, 1, 1, SIPP_RESIZE};
@@ -49,6 +52,8 @@ GAPI_SIPP_KERNEL(GSippResizeP, GResizeP) {
         sippSendFilterConfig(ctx.filter, &sclParams, sizeof(ScaleBilinearPlanarParams));
     }
 };
+
+// clang-format on
 
 namespace sipp {
     cv::gapi::GKernelPackage kernels() {
