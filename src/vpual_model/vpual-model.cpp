@@ -91,7 +91,6 @@ static precision_t convertDTypeToPrecision(const MVCNN::DType& dataType) {
     }
     return foundType->second;
 }
-
 class FakeDevice {
     flicTensorDescriptor_t descOut {}, descIn {};
     int msgType {-1};

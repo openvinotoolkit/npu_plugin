@@ -209,7 +209,7 @@ TEST_P(kmbLayersTestsFullyConnectedWithIR, DISABLED_fc_only) {
     ASSERT_NO_THROW(executableNetwork.Export(blob_name));
 }
 
-TEST_P(kmbLayersTestsFullyConnectedWithIR, DISABLED_fc_only_u8) {
+TEST_P(kmbLayersTestsFullyConnectedWithIR, fc_only_u8) {
     auto input_dims = GetParam().input_dim;
     uint32_t outChannels = GetParam().out_channels;
 

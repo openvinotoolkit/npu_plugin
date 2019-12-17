@@ -1,0 +1,23 @@
+../run_post_trainig.sh ../../../../post-training-compression-tool/ ../../../../model-zoo-models-public/object_detection/common/s
+sd/512/caffe/ ../../../../../Datasets/VOC2012/ ./ssd512_caffe_fp32.json -e > ssd512_caffe_fp32.log
+
+../run_post_trainig.sh ../../../../post-training-compression-tool/ ../../../../model-zoo-models-public/object_detection/common/s
+sd/512/caffe/ ../../../../../Datasets/VOC2012/ ./ssd512_caffe_uint8_int8_weights_pertensor.json -e > ssd512_caffe_uint8_int8_weights_pertensor.log
+
+../run_post_trainig.sh ../../../../post-training-compression-tool/ ../../../../model-zoo-models-public/object_detection/common/s
+sd/512/caffe/ ../../../../../Datasets/VOC2012/ ./ssd512_caffe_uint8_int8_weights_perchannel.json -e > ssd512_caffe_uint8_int8_weights_perchannel.log
+
+python3 ../../../../../dldt/model-optimizer/mo.py --output_dir ./RGB --framework=onnx --data_type=FP32 --input=input_.2 --input_shape=[1,3,512,512] --mean_values=input_.2[123.675,116.28,103.53] --scale_values=input_.2[0.0171,0.0175,0.0174]  --output=828 --input_model=../../../../../model-zoo-models-intel/PublicCompressed/detection/SSD512/int8/SSD512-int8-onnx-0001.onnx --generate_deprecated_IR_V7
+
+python3 ../../../../../dldt/model-optimizer/mo.py --output_dir ./BGR --framework=onnx --data_type=FP32 --input=input_.2 --input_shape=[1,3,512,512] --mean_values=input_.2[123.675,116.28,103.53] --scale_values=input_.2[0.0171,0.0175,0.0174]  --output=828 --input_model=../../../../../model-zoo-models-intel/PublicCompressed/detection/SSD512/int8/SSD512-int8-onnx-0001.onnx --generate_deprecated_IR_V7 --reverse_input_channels
+
+dldt/IE + python_api built: 5214e0b53f3747a382913257192be0b40af46d65 (feature/low_precision/develop_fp)
+dldt/MO used: 36550bf6161d8ba21126b9c7afda13a7d3f5e361 (as/post_training_compression)
+
+post-training-compression-tool used: 11f5cc62514e58604d11b0f50923e715e5c48149 (develop)
+
+model-zoo-models-public used: 903778283b013ac485026e485fb621a6ceb2593a (master)
+
+model-zoo-models-intel used: e04bacf9ce4283d7196f03be5f8bc813aa051582 (master)
+
+kmb_plugin: f29ffb8e8269dc5baea9f6984014b14714af8af7 (kskvorts/post_training_new_2_nets)

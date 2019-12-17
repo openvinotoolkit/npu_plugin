@@ -921,6 +921,41 @@ TEST_F(vpuInferWithSetUp, copyCheckSetBlob) {
     ASSERT_TRUE(out.str().find(strToCheck) == std::string::npos);
 }
 
+const static std::vector<modelBlobsInfo> pathToTop3PreCompiledGraph = {
+    {
+        ._graphPath = "/KMB_models/BLOBS/mobilenet-v2-dpu/mobilenet-v2-dpu.blob",
+        ._inputPath = "/KMB_models/BLOBS/mobilenet-v2-dpu/input.bin",
+        ._outputPath = "/KMB_models/BLOBS/mobilenet-v2-dpu/output.bin",
+    },
+    {
+        ._graphPath = "/KMB_models/BLOBS/resnet-50-dpu/resnet-50-dpu.blob",
+        ._inputPath = "/KMB_models/BLOBS/resnet-50-dpu/input.bin",
+        ._outputPath = "/KMB_models/BLOBS/resnet-50-dpu/output.bin",
+    },
+    {
+        ._graphPath = "/KMB_models/BLOBS/tiny-yolo-v2-dpu/tiny-yolo-v2-dpu.blob",
+        ._inputPath = "/KMB_models/BLOBS/tiny-yolo-v2-dpu/input.bin",
+        ._outputPath = "/KMB_models/BLOBS/tiny-yolo-v2-dpu/output.bin",
+    }};
+
+class VpuInferWithPathForTop3Net : public vpuLayersTests, public testing::WithParamInterface<modelBlobsInfo> {};
+
+TEST_P(VpuInferWithPathForTop3Net, DISABLED_canDoInferenceOnTop3ImportedBlobs) {
+    modelBlobsInfo blobsInfo = GetParam();
+    std::string modelFilePath = ModelsPath() + blobsInfo._graphPath;
+
+    Core ie;
+    InferenceEngine::ExecutableNetwork importedNetwork;
+    ASSERT_NO_THROW(importedNetwork = ie.ImportNetwork(modelFilePath, "KMB"));
+
+    InferenceEngine::InferRequest inferRequest;
+    ASSERT_NO_THROW(inferRequest = importedNetwork.CreateInferRequest());
+    ASSERT_NO_THROW(inferRequest.Infer());
+}
+
 INSTANTIATE_TEST_CASE_P(inferenceWithParameters, VpuInferWithPath, ::testing::ValuesIn(pathToPreCompiledGraph));
+
+INSTANTIATE_TEST_CASE_P(
+    inferenceWithTop3Networks, VpuInferWithPathForTop3Net, ::testing::ValuesIn(pathToTop3PreCompiledGraph));
 
 #endif

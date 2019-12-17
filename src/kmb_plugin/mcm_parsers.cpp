@@ -241,6 +241,18 @@ void FrontEndMcm::parseInputData() {
         auto inputQuantParamsOverRide = initialQuantParams;
         KmbQuantizationHelpers::fillQuntizationActivationParams(inputLayerPtr, inputQuantParamsOverRide);
 
+        // Workaround for Input->ScaleShift->Conv pattern
+        if (_layerToQuantParams.count(inputLayerPtr->name)) {
+            // We have basic assumption that input can only be in uin8_t foramt
+
+            auto scaleShiftOverride = _layerToQuantParams[inputLayerPtr->name];
+            float new_min = std::numeric_limits<uint8_t>::min() * scaleShiftOverride.scale + scaleShiftOverride.bias;
+            float new_max = std::numeric_limits<uint8_t>::max() * scaleShiftOverride.scale + scaleShiftOverride.bias;
+            auto zp = KmbQuantizationHelpers::calculateZeroPoint(new_max, new_min, 256, Precision::U8);
+
+            inputQuantParamsOverRide = {{zp}, {scaleShiftOverride.scale}, {-inf}, {inf}};
+        }
+
         // TODO: MCMCompiler support only U8 inputs, hardcoded for all networks
         auto mvInput = _modelMcm.input(inputShape, convert_data_type(InferenceEngine::Precision::U8), mv::Order("NHWC"),
             inputQuantParamsOverRide, netInput->name());
@@ -747,7 +759,7 @@ void FrontEndMcm::parseScale(const ie::CNNLayerPtr& layer, const McmNodeVector& 
     }
 
     auto zpScaleWeights =
-        KmbQuantizationHelpers::calculateZeroPoint(maxScale, minScale, InferenceEngine::Precision::U8);
+        KmbQuantizationHelpers::calculateZeroPoint(maxScale, minScale, 256, InferenceEngine::Precision::U8);
     double quantizeScale = (maxScale - minScale) / 255.0;
     std::vector<int64_t> weightsData(scaleLayer->_weights->size());
     for (size_t i = 0; i < scaleLayer->_weights->size(); i++) {
@@ -763,7 +775,7 @@ void FrontEndMcm::parseScale(const ie::CNNLayerPtr& layer, const McmNodeVector& 
     auto outputQuantParamsOverRide = initialQuantParams;
     KmbQuantizationHelpers::fillQuntizationActivationParams(scaleLayer, outputQuantParamsOverRide);
     auto mvScale = _modelMcm.scale(
-        input->getMcmNode(), mvWeights, mv::DType("UInt8"), outputQuantParamsOverRide, scaleLayer->name);
+        input->getMcmNode(), mvWeights, mv::DType("Default"), outputQuantParamsOverRide, scaleLayer->name);
 
     auto mvScaleShift = mvScale;
     _logger->debug(
@@ -780,7 +792,7 @@ void FrontEndMcm::parseScale(const ie::CNNLayerPtr& layer, const McmNodeVector& 
             quantizeBiasesData, shiftShape, mv::DType("Int32"), mv::Order::getColMajorID(1), biasQuantParamsOverRide);
 
         mvScaleShift = _modelMcm.bias(
-            mvScale, shiftData, mv::DType("Int32"), outputQuantParamsOverRide, scaleLayer->name + ":bias");
+            mvScale, shiftData, mv::DType("Default"), outputQuantParamsOverRide, scaleLayer->name + ":bias");
 
         _logger->debug("'%s' layer '%s': Bias part (%s) added to mcmModel", scaleLayer->type, scaleLayer->name,
             mvScaleShift->getName());
@@ -807,6 +819,11 @@ void FrontEndMcm::parsePermute(const ie::CNNLayerPtr& layer, const McmNodeVector
 
     auto mvPerm = _modelMcm.permute(
         inputs[0]->getMcmNode(), mv::Order(newOrder), mv::DType("Default"), initialQuantParams, layer->name);
+
+    // Workaround to avoid parsing stage crash 'ArgumentError: attribute identifer quantParams - Undefined identifier'
+    // VPUNND-2237,
+    mvPerm->set<mv::QuantizationParams>("quantParams", initialQuantParams);
+
     bindOutput(mvPerm, layer->outData[0]);
 
     _logger->debug(FINISH_PARSING_STR, mvPerm->getName());
@@ -856,17 +873,13 @@ void FrontEndMcm::parseEltwise(const ie::CNNLayerPtr& layer, const McmNodeVector
         }
     }
 
-    // Because mcmCompiler is unable to generate a valid strategy when mv::DType("Default") is used as the Dtype
-    // the workaround is to explicity to set the DType as UInt8 in the API.
-    // VPUNND-2240 has been opened to fix this in the compiler. When this is complete the DType can be
-    // mv::DType("Default")
-
     switch (eltwiseLayer->_operation) {
     case ie::EltwiseLayer::eOperation::Sub:
-        mvEltwise = _modelMcm.eltwise(mvInputs, "Subtract", mv::DType("UInt8"), outputQuantParams, eltwiseLayer->name);
+        mvEltwise =
+            _modelMcm.eltwise(mvInputs, "Subtract", mv::DType("Default"), outputQuantParams, eltwiseLayer->name);
         break;
     case ie::EltwiseLayer::eOperation::Sum:
-        mvEltwise = _modelMcm.eltwise(mvInputs, "Add", mv::DType("UInt8"), outputQuantParams, eltwiseLayer->name);
+        mvEltwise = _modelMcm.eltwise(mvInputs, "Add", mv::DType("Default"), outputQuantParams, eltwiseLayer->name);
         break;
     default:
         VPU_THROW_EXCEPTION << "Eltwise operation" << eltwiseLayer->_operation << " is not supported";
@@ -918,14 +931,14 @@ void FrontEndMcm::parseClamp(const ie::CNNLayerPtr& layer, const McmNodeVector& 
 
     logParsingStartHelper(_logger, layer, inputs);
 
-    mv::QuantizationParams clampQuantParams(initialQuantParams);
-    auto mvClampMax = _modelMcm.maximum(inputs[0]->getMcmNode(), clampLayer->max_value, mv::DType("Default"),
-        clampQuantParams, clampLayer->name + "clamp-max");
-    auto mvClampMin = _modelMcm.minimum(
-        mvClampMax, clampLayer->min_value, mv::DType("Default"), clampQuantParams, clampLayer->name + "clamp-min");
-    bindOutput(mvClampMin, layer->outData[0]);
+    auto inputQuantParams = inputs[0]->getMcmNode()->get<mv::QuantizationParams>("quantParams");
+    auto mvClampMin = _modelMcm.minimum(inputs[0]->getMcmNode(), clampLayer->max_value, mv::DType("Default"),
+        inputQuantParams, clampLayer->name + "clamp-min");
+    auto mvClampMax = _modelMcm.maximum(
+        mvClampMin, clampLayer->min_value, mv::DType("Default"), inputQuantParams, clampLayer->name + "clamp-max");
+    bindOutput(mvClampMax, layer->outData[0]);
 
-    _logger->debug(FINISH_PARSING_STR, mvClampMin->getName());
+    _logger->debug(FINISH_PARSING_STR, mvClampMax->getName());
 }
 
 void FrontEndMcm::parseReshape(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs) {

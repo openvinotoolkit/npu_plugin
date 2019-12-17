@@ -1,0 +1,83 @@
+{
+    "model": {
+        "name": "ssd_mobilenet_v1_coco_uint8_int8_weights_pertensor",
+        "model": "<ORIGINAL_MODEL>/frozen_inference_graph.pb",
+        "framework": "tf",
+        "tensorflow_object_detection_api_pipeline_config": "<ORIGINAL_MODEL>/pipeline.config",
+        "tensorflow_use_custom_operations_config": "../../../../dldt/model-optimizer/extensions/front/tf/ssd_v2_support.json",
+        "generate_deprecated_IR_V7": true,
+        "inputs": [
+            {
+                "input_shape": [1,300,300,3],
+                "name": "image_tensor",
+		        "format": "BGR"
+            }
+        ],
+        "output": "detection_scores,detection_boxes,num_detections"
+    },
+    "engine": {
+        "launchers": [
+            {
+                "framework": "dlsdk",
+                "device": "CPU",
+                "adapter": {
+                    "type":"ssd"
+                }
+            }
+        ],
+        "datasets": [
+            {
+                "name": "ms_coco_detection_91_classes",
+                "data_source": "<DATASET_PATH>/MSCOCO/val2017",
+                "annotation_conversion": {
+                    "converter": "mscoco_detection",
+                    "annotation_file": "<DATASET_PATH>/MSCOCO/annotations/instances_val2017.json",
+                    "has_background": true,
+                    "use_full_label_map": true
+                },
+                "preprocessing":[
+                    {
+                        "type": "bgr_to_rgb"
+                    },
+                    {
+                        "type": "resize",
+                        "size": 300
+                    }
+                ],
+                "postprocessing":[
+                    {
+                        "type": "resize_prediction_boxes"
+                    }
+                ],
+                "metrics": [
+                    {
+                        "type": "coco_orig_precision"
+                    }
+                ]
+            }
+        ]
+    },
+    "compression": {
+        "algorithms": [
+            {
+                "name": "DefaultQuantization",
+                "params": {
+                    "activations": {
+                        "bits": 8,
+                        "scale_type": "pertensor",
+                        "type": "asymmetric"
+                    },
+                    "metric_name": "coco_orig_precision",
+                    "preset": "accuracy",
+                    "stat_subset_size": 300,
+                    "target_device": "CPU",
+                    "weights": {
+                        "bits": 8,
+                        "scale_type": "pertensor",
+                        "type": "symmetric"
+                    }
+                }
+            }
+        ]
+    }
+}
