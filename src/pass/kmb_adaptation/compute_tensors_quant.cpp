@@ -10,7 +10,6 @@
 static void computeTensorsQuantParams(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 template <class T>
 std::vector<T> extendToK(size_t size, std::vector<T> value);
-int computeAppropriatePadding(mv::Data::TensorIterator);
 
 namespace mv
 {
@@ -24,11 +23,6 @@ namespace mv
             "This pass computes the appropriate quantize params extends and prepares them for serialization."
         );
     }
-}
-
-int computeAppropriatePadding(mv::Data::TensorIterator)
-{
-    return 16;
 }
 
 void computeTensorsQuantParams(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
@@ -60,8 +54,7 @@ void computeTensorsQuantParams(const mv::pass::PassEntry&, mv::ComputationModel&
             auto output = opIt->getOutputTensor(0);
             auto input = opIt->getInputTensor(0);
             auto outputChannels = output->getShape()[mv::IO_CHANNEL_DIMENSION];
-            int pad = computeAppropriatePadding(opIt->getOutputTensor(0));
-            outputChannels = mv::round_up(outputChannels, pad);
+            outputChannels = mv::round_up(outputChannels, 16);
 
             std::vector<int> shift(outputChannels, 0);
             std::vector<int16_t> mScaled(outputChannels, 0);

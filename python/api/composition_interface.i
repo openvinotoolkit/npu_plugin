@@ -221,7 +221,6 @@ import_array();
     }
 
     mv::Data::TensorIterator constant(mv::CompositionalModel& o, const std::vector<int64_t> &data, const mv::Shape &shape, const mv::Order& order, const mv::QuantizationParams &quantParams, const std::string &name){
-        /// Add a Constant Layer to the CompositionalModel and return the relevant iterator
         return o.constantInt(data, shape, mv::DType("UInt8"), order, quantParams, name);
     }
 
@@ -357,8 +356,8 @@ import_array();
     }
 
 
-    mv::Data::TensorIterator reshape(mv::CompositionalModel& o,mv::Data::TensorIterator input, const mv::Shape& shape, const mv::Order& order, const std::string& type, const mv::QuantizationParams &quantParams, const std::string& name){
-        return o.reshape(input, shape, order, type, quantParams, name);
+    mv::Data::TensorIterator reshape(mv::CompositionalModel& o,mv::Data::TensorIterator input, const mv::Shape& shape, const std::string& type, const mv::QuantizationParams &quantParams, const std::string& name){
+        return o.reshape(input, shape, type, quantParams, name);
     }
 
     mv::Data::TensorIterator reorgYolo(mv::CompositionalModel& o,mv::Data::TensorIterator input, const unsigned& stride, const std::string& type, const mv::QuantizationParams &quantParams, const std::string& name){
@@ -460,8 +459,9 @@ mv::Data::OpListIterator getSourceOp(mv::CompositionalModel& o, mv::Data::Tensor
 mv::Data::TensorIterator matMul(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::Data::TensorIterator weights);
 mv::Data::TensorIterator batchNorm(mv::CompositionalModel& o,mv::Data::TensorIterator input, mv::Data::TensorIterator mean, mv::Data::TensorIterator variance, mv::Data::TensorIterator offset, mv::Data::TensorIterator scale, double varianceEps);
 
-mv::Data::TensorIterator reshape(mv::CompositionalModel& o,mv::Data::TensorIterator input, const mv::Shape& shape, const mv::Order& order, const std::string& type, const mv::QuantizationParams &quantParams, const std::string& name);
+mv::Data::TensorIterator reshape(mv::CompositionalModel& o,mv::Data::TensorIterator input, const mv::Shape& shape, const std::string& type, const mv::QuantizationParams &quantParams, const std::string& name);
 mv::Data::TensorIterator reorgYolo(mv::CompositionalModel& o,mv::Data::TensorIterator input, const unsigned& stride, const std::string& type, const mv::QuantizationParams &quantParams, const std::string& name);
+
 mv::Data::TensorIterator prelu(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::Data::TensorIterator negative_slope);
 bool isValid(mv::CompositionalModel& o);
 /** Sets Verbose Logging Level. Values are silent, error, warning, info, debug*/
