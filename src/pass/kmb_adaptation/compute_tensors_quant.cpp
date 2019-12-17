@@ -25,7 +25,7 @@ namespace mv
     }
 }
 
-void computeTensorsQuantParams(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+void computeTensorsQuantParams(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
 
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
@@ -54,9 +54,7 @@ void computeTensorsQuantParams(const mv::pass::PassEntry& pass, mv::ComputationM
             auto output = opIt->getOutputTensor(0);
             auto input = opIt->getInputTensor(0);
             auto outputChannels = output->getShape()[mv::IO_CHANNEL_DIMENSION];
-            pass.log(mv::Logger::MessageType::Info, "Dpu task, " + opIt->getName() + "before alignment " + std::to_string(outputChannels));
             outputChannels = mv::round_up(outputChannels, 16);
-            pass.log(mv::Logger::MessageType::Info,  "Dpu task, " + opIt->getName() + "after alignment " + std::to_string(outputChannels));
 
             std::vector<int> shift(outputChannels, 0);
             std::vector<int16_t> mScaled(outputChannels, 0);

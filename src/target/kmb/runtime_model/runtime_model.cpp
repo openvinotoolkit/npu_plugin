@@ -263,12 +263,10 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     // future generations say that needs to be serialized even in case of 0s and 1s(z_p, sc)
     if(t->isQuantized())
     {
-        Logger::log(mv::Logger::MessageType::Info, "RuntimeModel", "Tensor with name " + t->getName());
         auto quantizationParams = t->get<mv::QuantizationParams>("quantParams");
 
         auto quantZero = quantizationParams.getZeroPoint();
         toBuild->quant_zero = std::vector<unsigned char>(quantZero.begin(), quantZero.end());
-        Logger::log(mv::Logger::MessageType::Info, "Runtime", " after zero point " + t->getName());
 
         auto quantScale = quantizationParams.getScale();
 
@@ -411,13 +409,10 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     // leaving this comment here for future generations
     if(t->isQuantized())
     {
-        Logger::log(mv::Logger::MessageType::Info, "RuntimeModel", "Tensor with name " + t->getName());
         auto quantizationParams = t->get<mv::QuantizationParams>("quantParams");
 
         auto quantZero = quantizationParams.getZeroPoint();
         toBuild->quant_zero = std::vector<unsigned char>(quantZero.begin(), quantZero.end());
-        Logger::log(mv::Logger::MessageType::Info, "Runtime", " after zero point " + t->getName());
-
 
         auto quantScale = quantizationParams.getScale();
         toBuild->quant_scale = std::vector<float>(quantScale.begin(), quantScale.end());
@@ -433,7 +428,6 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
             quantShift = quantizationParams.getShift();
         quantShift = reduceQuantVector_(quantShift);
         toBuild->quant_shift = std::vector<unsigned char>(quantShift.begin(), quantShift.end());
-        Logger::log(mv::Logger::MessageType::Info, "Runtime", " Finished build Tensor Reference " + t->getName());
 
     }
 
@@ -475,7 +469,6 @@ std::unique_ptr<MVCNN::SummaryHeaderT> mv::RuntimeModel::buildSummaryHeaderT(Com
     toBuild->net_output[0] = buildTensorReferenceT(cm, compilationDescriptor, om.getOutput()->getInputTensor(0));
     if (paddOutput && om.getOutput()->getInputTensor(0)->hasAttr("alignment"))
         alignTensor(cm, toBuild->net_output[0], *om.getOutput()->getInputTensor(0), paddOutput);
-    Logger::log(mv::Logger::MessageType::Info, "Runtime", " Finished alignment Before tasks ");
     auto taskCount = [](mv::OpModel m)
     {
         unsigned i = 0;
@@ -492,7 +485,6 @@ std::unique_ptr<MVCNN::SummaryHeaderT> mv::RuntimeModel::buildSummaryHeaderT(Com
 
     toBuild->layer_count = originalHeader->layer_count;
     toBuild->task_count = taskCount(om);
-    Logger::log(mv::Logger::MessageType::Info, "Runtime", " Finished summary before return ");
 
     return toBuild;
 }
@@ -1577,7 +1569,6 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAQuantizeTask(ComputationModel& 
     //toBuild->maxShaves = ;
     toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_QuantizeParams;
     auto softLayerParamsValue = new MVCNN::QuantizeParamsT();
-    Logger::log(mv::Logger::MessageType::Info, "RuntimeModel", "UPA with name " + opIt->getName());
 
     auto quantizationParams = (input->hasAttr("quantParams")) ?
         input->get<mv::QuantizationParams>("quantParams") :
@@ -2132,15 +2123,12 @@ void mv::RuntimeModel::buildGraphFile(ComputationModel& cm, mv::Element& compila
 
         }
     }
-    Logger::log(mv::Logger::MessageType::Info, "Runtime", " Finished with Binary data sparsity maps ");
     std::sort(toSort.begin(), toSort.end(), [](mv::Tensor * t1, mv::Tensor * t2){return (t1->get<unsigned>("graphFileIndex") < t2->get<unsigned>("graphFileIndex"));});
     for(auto& tIt : toSort)
     {
-        Logger::log(mv::Logger::MessageType::Info, "Runtime", " Tenosr with name " + tIt->getName());
         //std::cout << "Serializing to binary data section " << tensorIt->getName() << std::endl;
         graphFile_.binary_data.push_back(buildBinaryDataT(cm, compilationDescriptor, *tIt));
     }
-    Logger::log(mv::Logger::MessageType::Info, "Runtime", " Binary data pushed ");
     // TASKS
     graphFile_.task_lists = buildTaskListT(cm, compilationDescriptor);
 

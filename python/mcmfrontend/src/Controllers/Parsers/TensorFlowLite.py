@@ -257,6 +257,7 @@ class TensorFlowLiteParser(BaseParser):
         return
 
     def parse(self, arguments):
+
         # Define which subparser needs to be called for each layer
         subParsers = {
             BuiltinOperator.AVERAGE_POOL_2D: tfp.Pooling.load,
@@ -274,16 +275,17 @@ class TensorFlowLiteParser(BaseParser):
             BuiltinOperator.PRELU: tfp.ReLU.load,
             BuiltinOperator.SOFTMAX: tfp.Softmax.load,
             BuiltinOperator.TANH: tfp.Tanh.load,
-            BuiltinOperator.LOGISTIC: tfp.Sigmoid.load,
+            BuiltinOperator.LOGISTIC: tfp.Logistic.load,
             BuiltinOperator.PAD: tfp.Pad.load,
             BuiltinOperator.SUB: tfp.Eltwise.load,
-            BuiltinOperator.RESHAPE: tfp.Reshape.load,
+            BuiltinOperator.RESHAPE: tfp.NoOp.load,
             # BuiltinOperator.DIV : None,
             # BuiltinOperator.SLICE : None,
             BuiltinOperator.SUM: tfp.Eltwise.load,
             BuiltinOperator.TRANSPOSE_CONV: tfp.Convolution.load,
             # BuiltinOperator.SQRT : None
             BuiltinOperator.MEAN: tfp.Mean.load,
+            BuiltinOperator.SPACE_TO_DEPTH: tfp.SpaceToDepth.load,
         }
 
         parsedLayers = []

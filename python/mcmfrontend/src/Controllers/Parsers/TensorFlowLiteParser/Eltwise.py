@@ -16,7 +16,6 @@
 # Any license under such intellectual property rights must be express and
 # approved by Intel in writing.
 
-import numpy as np
 from Controllers.Parsers.Parser.Eltwise import Eltwise
 from Controllers.Parsers.TensorFlowLiteParser.tflite.BuiltinOperator import BuiltinOperator
 
@@ -24,9 +23,9 @@ from Controllers.Parsers.TensorFlowLiteParser.tflite.MulOptions import MulOption
 from Controllers.Parsers.TensorFlowLiteParser.tflite.SubOptions import SubOptions
 from Controllers.Parsers.TensorFlowLiteParser.tflite.AddOptions import AddOptions
 
-from Controllers.Parsers.TensorFlowLiteParser.tflite.DepthwiseConv2DOptions import DepthwiseConv2DOptions
-
-from .Helpers import getPadding, findTensorValue, getTensorIndices, decodePadding, setTensorShape, getActivation
+from .Helpers import getTensorIndices, setTensorShape, getActivation
+from Controllers.EnumController import throw_error
+from Models.EnumDeclarations import ErrorTable
 
 
 def load(obj, op_type, tensors, buffers):
@@ -60,7 +59,7 @@ def load(obj, op_type, tensors, buffers):
         x.loadType(Eltwise.Type.WSUM)
         x.loadCoefficients([1] + [-1] * (len(in_tensors) - 1))
     else:  # else not supported layer
-        assert(False, "Layer type not supported: " + op_type)
+        throw_error(ErrorTable.StageDetailsNotSupported, op_type)
 
     options.Init(obj.BuiltinOptions().Bytes, obj.BuiltinOptions().Pos)
 

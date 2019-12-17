@@ -360,6 +360,10 @@ import_array();
         return o.reshape(input, shape, type, quantParams, name);
     }
 
+    mv::Data::TensorIterator reorgYolo(mv::CompositionalModel& o,mv::Data::TensorIterator input, const unsigned& stride, const std::string& type, const mv::QuantizationParams &quantParams, const std::string& name){
+        return o.reorgYolo(input, stride, type, quantParams, name);
+    }
+
     bool isValid(mv::CompositionalModel& o){
         return o.isValid();
     }
@@ -456,6 +460,7 @@ mv::Data::TensorIterator matMul(mv::CompositionalModel& o, mv::Data::TensorItera
 mv::Data::TensorIterator batchNorm(mv::CompositionalModel& o,mv::Data::TensorIterator input, mv::Data::TensorIterator mean, mv::Data::TensorIterator variance, mv::Data::TensorIterator offset, mv::Data::TensorIterator scale, double varianceEps);
 
 mv::Data::TensorIterator reshape(mv::CompositionalModel& o,mv::Data::TensorIterator input, const mv::Shape& shape, const std::string& type, const mv::QuantizationParams &quantParams, const std::string& name);
+mv::Data::TensorIterator reorgYolo(mv::CompositionalModel& o,mv::Data::TensorIterator input, const unsigned& stride, const std::string& type, const mv::QuantizationParams &quantParams, const std::string& name);
 mv::Data::TensorIterator prelu(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::Data::TensorIterator negative_slope);
 bool isValid(mv::CompositionalModel& o);
 /** Sets Verbose Logging Level. Values are silent, error, warning, info, debug*/

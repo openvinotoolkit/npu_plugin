@@ -48,7 +48,7 @@ sigmoid_node_id = 0
 minimum_node_id = 0
 maximum_node_id = 0
 power_node_id = 0
-reshape_node_id = 0
+reorgYolo_node_id = 0
 text = re.compile(r"\w*[Tt]\w*[Ee]\w*[Xx]\w*[Tt]")
 binary = re.compile(r"\w*[Bb]\w*[Ii]\w*[Nn]\w*[Aa]\w*[Rr]\w*[Yy]")
 none = re.compile(r"\w*[Nn]\w*[Oo]\w*[Nn]\w*[Ee]")
@@ -351,15 +351,17 @@ def buildOM(
     from Controllers.Parsers.Parser.Eltwise import Eltwise
     from Controllers.Parsers.Parser.ReLU import ReLU, LeakyReLU
     from Controllers.Parsers.Parser.Sigmoid import Sigmoid
+    from Controllers.Parsers.Parser.Power import Power
+    from Controllers.Parsers.Parser.Minimum import Minimum
+    from Controllers.Parsers.Parser.Maximum import Maximum
     # from Controllers.Parsers.Parser.PReLU import PReLU
     from Controllers.Parsers.Parser.Concat import Concat
     from Controllers.Parsers.Parser.Scale import Scale
     from Controllers.Parsers.Parser.Bias import Bias
     from Controllers.Parsers.Parser.BatchNorm import BatchNorm
     from Controllers.Parsers.Parser.Softmax import Softmax
+    from Controllers.Parsers.Parser.SpaceToDepth import SpaceToDepth
     from Controllers.Parsers.Parser.NoOp import NoOp
-    from Controllers.Parsers.Parser.Reshape import Reshape
-
 
     _ref = None
 
@@ -372,10 +374,20 @@ def buildOM(
         np.dtype('float16'): np.float64
     }
 
+    sw_layers_type_dict = {
+        np.uint8: np.uint8,
+        np.float16: np.float16,
+    }
+
     order_type_dict = {
         np.int: "UInt8",
         np.float16: "Float64",
         np.float64: "Float64"
+    }
+
+    sw_layers_order_type_dict = {
+        np.uint8: "UInt8",
+        np.float16: "Float16"
     }
 
     clip_registers = {
@@ -419,8 +431,8 @@ def buildOM(
 
     global convolution_node_id, pooling_node_id, relu_node_id, leaky_relu_node_id, \
         dropout_node_id, eltwise_node_id, softmax_node_id, depthwise_node_id,   \
-        concat_node_id, scale_node_id, fully_node_id, sigmoid_node_id, reshape_node_id, \
-        minimum_node_id, maximum_node_id
+        concat_node_id, scale_node_id, fully_node_id, sigmoid_node_id, power_node_id, \
+        minimum_node_id, maximum_node_id, reorgYolo_node_id
 
     if isinstance(layer, Bias):
         assert 0, "Standalone Bias Layer currently unsupported by C++ API"
@@ -574,6 +586,58 @@ def buildOM(
                 str(sigmoid_node_id)
             sigmoid_node_id += 1
 
+    elif isinstance(layer, Minimum):
+
+        output_tensor_name = layer.getOutputTensors()[0].getName().stringifyName()
+        mv_quant_params = get_parse_quant(layer.getOutputTensors()[0])
+        type_value = type_dict[layer.getOutputTensors()[0].dtype](0.0)
+        minimum = layer.getMinimum()
+        minimum = minimum.astype(clip_registers[type(minimum)])
+        ##NOTE: THIS NEEDS TO BE USED FOR Sigmoid ON PPE TASKS
+        pred = list(g.predecessors(gnode_name))
+        in_ = reflist[pred[0]]
+        _ref = ca.minimum(om, in_, minimum, order_type_dict[type(type_value)], mv_quant_params[0], output_tensor_name)
+        if (output_file is not None):
+
+            output_file.write(' ' * 4 + 'auto minimum' + str(minimum_node_id) + ' = om.' + str(minimum_type[type(minimum)]) + '(' +
+                              str(tensor_mapping_dict[layer.getInputTensors()[0].getName().stringifyName()]) +
+                              ', '+ str(minimum) +', mv::DType("' + order_type_dict[type(type_value)] + '"), {{' +
+                              ', '.join(map(str, get_parse_quant(layer.getOutputTensors()[0])[1])) + '},{' +
+                              ', '.join(map(str, get_parse_quant(layer.getOutputTensors()[0])[2])) + '},{' +
+                              ', '.join(map(str, get_parse_quant(layer.getOutputTensors()[0])[3])) + '},{' +
+                              ', '.join(map(str, get_parse_quant(layer.getOutputTensors()[0])[4])) + '}}, "' +
+                              str(output_tensor_name) + '");\n\n')
+
+            tensor_mapping_dict[output_tensor_name] = 'minimum' + \
+                str(minimum_node_id)
+            minimum_node_id += 1
+
+    elif isinstance(layer, Maximum):
+
+        output_tensor_name = layer.getOutputTensors()[0].getName().stringifyName()
+        mv_quant_params = get_parse_quant(layer.getOutputTensors()[0])
+        type_value = type_dict[layer.getOutputTensors()[0].dtype](0.0)
+        maximum = layer.getMaximum()
+        maximum = maximum.astype(clip_registers[type(maximum)])
+        ##NOTE: THIS NEEDS TO BE USED FOR Sigmoid ON PPE TASKS
+        pred = list(g.predecessors(gnode_name))
+        in_ = reflist[pred[0]]
+        _ref = ca.maximum(om, in_, maximum, order_type_dict[type(type_value)], mv_quant_params[0], output_tensor_name)
+
+        if (output_file is not None):
+
+            output_file.write(' ' * 4 + 'auto maximum' + str(maximum_node_id) + ' = om.' + str(maximum_type[type(maximum)]) + '(' +
+                              str(tensor_mapping_dict[layer.getInputTensors()[0].getName().stringifyName()]) +
+                              ',' + str(maximum) + ', mv::DType("' + order_type_dict[type(type_value)] + '"), {{' +
+                              ', '.join(map(str, get_parse_quant(layer.getOutputTensors()[0])[1])) + '},{' +
+                              ', '.join(map(str, get_parse_quant(layer.getOutputTensors()[0])[2])) + '},{' +
+                              ', '.join(map(str, get_parse_quant(layer.getOutputTensors()[0])[3])) + '},{' +
+                              ', '.join(map(str, get_parse_quant(layer.getOutputTensors()[0])[4])) + '}}, "' +
+                              str(output_tensor_name) + '");\n\n')
+
+            tensor_mapping_dict[output_tensor_name] = 'maximum' + \
+                str(maximum_node_id)
+            maximum_node_id += 1
 
     elif isinstance(layer, ReLU):
         output_tensor_name = layer.getOutputTensors()[0].getName().stringifyName()
@@ -601,6 +665,39 @@ def buildOM(
                 str(relu_node_id)
             relu_node_id += 1
 
+    elif isinstance(layer, Power):
+        output_tensor_name = layer.getOutputTensors()[0].getName().stringifyName()
+        mv_quant_params = get_parse_quant(layer.getOutputTensors()[0])
+        type_value = type_dict[layer.getOutputTensors()[0].dtype](0.0)
+        ##NOTE: THIS NEEDS TO BE USED FOR RELUX ON PPE TASKS
+        ##(layer.reluX)
+        pred = list(g.predecessors(gnode_name))
+        in1_ = reflist[pred[0]]
+
+        if len(pred) == 1:
+            in2_ = reflist[pred[0]]  # Same input.
+        else:
+            in2_ = reflist[pred[1]]
+
+
+        _ref = ca.power(om, in1_, in2_, order_type_dict[type(type_value)], mv_quant_params[0], output_tensor_name)
+
+        if (output_file is not None):
+
+            output_file.write(' ' * 4 + 'auto power' + str(power_node_id) + ' = om.power({' +
+                              str(tensor_mapping_dict[layer.getInputTensors()[0].getName().stringifyName()]) +
+                              ', ' + str(tensor_mapping_dict[layer.getInputTensors()[1].getName().stringifyName()]) + '}, ' 
+                              + 'mv::DType("' + order_type_dict[type(type_value)] + '"), {{' +
+                              ', '.join(map(str, get_parse_quant(layer.getOutputTensors()[0])[1])) + '},{' +
+                              ', '.join(map(str, get_parse_quant(layer.getOutputTensors()[0])[2])) + '},{' +
+                              ', '.join(map(str, get_parse_quant(layer.getOutputTensors()[0])[3])) + '},{' +
+                              ', '.join(map(str, get_parse_quant(layer.getOutputTensors()[0])[4])) + '}}, "' +
+                              str(output_tensor_name) + '");\n\n')
+
+            tensor_mapping_dict[output_tensor_name] = 'power' + \
+                str(power_node_id)
+            power_node_id += 1
+
     elif isinstance(layer, NoOp):
 
         output_tensor_name = layer.getOutputTensors()[0].getName().stringifyName()
@@ -610,13 +707,13 @@ def buildOM(
         in_ = reflist[pred[0]]
 
         _ref = ca.identity(
-            om, in_, order_type_dict[type(type_value)], mv_quant_params[0], output_tensor_name)
+            om, in_, "Float16", mv_quant_params[0], output_tensor_name)
 
         if (output_file is not None):
 
             output_file.write(' ' * 4 + 'auto identity' + str(dropout_node_id) + ' = om.identity(' +
                               str(tensor_mapping_dict[layer.getInputTensors()[0].getName().stringifyName()]) +
-                              ', mv::DType("' + str(order_type_dict[type(type_value)]) + '"), {{' +
+                              ', mv::DType("' + "Float16" + '"), {{' +
                               ', '.join(map(str, get_parse_quant(layer.getOutputTensors()[0])[1])) + '},{' +
                               ', '.join(map(str, get_parse_quant(layer.getOutputTensors()[0])[2])) + '},{' +
                               ', '.join(map(str, get_parse_quant(layer.getOutputTensors()[0])[3])) + '},{' +
@@ -626,45 +723,6 @@ def buildOM(
             tensor_mapping_dict[output_tensor_name] = 'identity' + \
                 str(dropout_node_id)
             dropout_node_id += 1
-
-    elif isinstance(layer, Reshape):
-
-        output_tensor_name = layer.getOutputTensors()[0].getName().stringifyName()
-        mv_quant_params = get_parse_quant(layer.getOutputTensors()[0])[0]
-        type_value = type_dict[layer.getOutputTensors()[0].dtype](0.0)
-        shape = ca.getShape(
-            layer.getInputTensors()[0].shape[3],
-            layer.getInputTensors()[0].shape[2],
-            layer.getInputTensors()[0].shape[1],
-            layer.getInputTensors()[0].shape[0])
-        order = ca.getOrder(mcm_4d_layout[parser])
-        pred = list(g.predecessors(gnode_name))
-        in_ = reflist[pred[0]]
-        default_shape = '\"\"'
-
-        _ref = ca.reshape(
-            om, in_, shape, order, "Float16", mv_quant_params, output_tensor_name)
-
-        if (output_file is not None):
-
-            output_file.write(' ' * 4 + 'auto reshape' + str(reshape_node_id) + ' = om.reshape(' +
-                              str(tensor_mapping_dict[layer.getInputTensors()[0].getName().stringifyName()]) +
-                              ', mv::Shape({' + str(layer.getOutputTensors()[0].shape[0]) +
-                              ', ' + str(layer.getOutputTensors()[0].shape[1]) +
-                              ', ' + str(layer.getOutputTensors()[0].shape[2]) +
-                              ', ' + str(layer.getOutputTensors()[0].shape[3]) + '}), ' +
-                              ' mv::Order::getZMajorID(4), ' +
-                              'mv::DType(\"Float16\")' +
-                              ', {{' +
-                              ', '.join(map(str, get_parse_quant(layer.getOutputTensors()[0])[1])) + '},{' +
-                              ', '.join(map(str, get_parse_quant(layer.getOutputTensors()[0])[2])) + '},{' +
-                              ', '.join(map(str, get_parse_quant(layer.getOutputTensors()[0])[3])) + '},{' +
-                              ', '.join(map(str, get_parse_quant(layer.getOutputTensors()[0])[4])) + '}}, "' +
-                              str(output_tensor_name) + '");\n\n')
-
-            tensor_mapping_dict[output_tensor_name] = 'reshape' + \
-                str(reshape_node_id)
-            reshape_node_id += 1
 
     elif isinstance(layer, Eltwise):
 
@@ -963,6 +1021,36 @@ def buildOM(
                 str(softmax_node_id)
             softmax_node_id += 1
 
+    elif isinstance(layer, SpaceToDepth):
+
+        output_tensor_name = layer.getOutputTensors()[0].getName().stringifyName()
+        mv_quant_params = get_parse_quant(layer.getOutputTensors()[0])
+        pred = list(g.predecessors(gnode_name))
+        in_ = reflist[pred[0]]
+
+        tensor_dtype = layer.getOutputTensors()[0].dtype
+        type_value = sw_layers_type_dict[tensor_dtype]
+
+        stride = layer.getBlockSize()
+
+        _ref = ca.reorgYolo(
+            om, in_, stride, "Float16", mv_quant_params[0], output_tensor_name)
+
+        if (output_file is not None):
+            output_file.write(' ' * 4 + 'auto reorgYolo' + str(reorgYolo_node_id) + ' = om.reorgYolo(' +
+                              str(tensor_mapping_dict[layer.getInputTensors()[0].getName().stringifyName()]) +
+                              ', ' + str(stride) +
+                              ', mv::DType("' + "Float16" + '"), {{' +
+                              ', '.join(map(str, get_parse_quant(layer.getOutputTensors()[0])[1])) +
+                              '},{' + ', '.join(map(str, get_parse_quant(layer.getOutputTensors()[0])[2])) +
+                              '},{' + ', '.join(map(str, get_parse_quant(layer.getOutputTensors()[0])[3])) +
+                              '},{' + ', '.join(map(str, get_parse_quant(layer.getOutputTensors()[0])[4])) +
+                              '}}, "' + str(output_tensor_name) + '");\n\n')
+
+            tensor_mapping_dict[output_tensor_name] = 'reorgYolo' + \
+                str(reorgYolo_node_id)
+            reorgYolo_node_id += 1
+
     elif isinstance(layer, InnerProduct):
 
         pred = list(g.predecessors(gnode_name))
@@ -990,7 +1078,7 @@ def buildOM(
             if (keep_weights != "None"):
                 call_recored_weights(keep_weights, w_orig,
                                      layer.getWeights().getName().stringifyName())
-                output_file.write(' ' * 4 + 'std::vector<' + dir_c_type(weight_type_value) + '> fcweightsData' +
+                output_file.write(' ' * 4 + 'std::vector<' + dir_c_type(weight_type_value) + '> weightsData' +
                                   str(fully_node_id) + ' = read_weights_from_file<' +
                                   dir_c_type(weight_type_value) +
                                   '>(path + "/projects/Fathom/src2/weights_bias/' +
@@ -1004,7 +1092,7 @@ def buildOM(
                                   '> ({}*{});\n'.format(w_orig.shape[1], w_orig.shape[2] * w_orig.shape[3] * w_orig.shape[0]))
 
             output_file.write(' ' * 4 + 'auto weights' + str(fully_node_id) + ' = om.' + constant_type[dir_c_type(weight_type_value)] +
-                              '(fcweightsData' + str(fully_node_id) + ',{' + str(w_orig.shape[1]) +
+                              '(weightsData' + str(fully_node_id) + ',{' + str(w_orig.shape[1]) +
                               ',' + str(w_orig.shape[2] * w_orig.shape[3] * w_orig.shape[0]) +
                               '}, mv::DType("' + order_type_dict[weight_type_value] + '"), ' + 'mv::Order("' + mcm_2d_layout[parser] + '"), ' +
                               '{{' + ', '.join(map(str, get_parse_quant(layer.getWeights())[1])) +
@@ -1040,19 +1128,19 @@ def buildOM(
                 if (keep_weights != "None"):
                     call_recored_weights(keep_weights, b.data, layer.getBias().getName().stringifyName())
                     output_file.write(' ' * 4 + 'std::vector<' + dir_c_type(bias_type_value) +
-                                      '> fcbiasWeightsData' + str(fully_node_id) +
+                                      '> biasWeightsData' + str(fully_node_id) +
                                       ' = read_weights_from_file<' + dir_c_type(bias_type_value) +
                                       '>(path + "/projects/Fathom/src2/weights_bias/' +
                                       str(layer.getBias().getName().stringifyName()) + '.dat");\n')
 
                 else:
                     output_file.write(' ' * 4 + 'std::vector<' + dir_c_type(bias_type_value) +
-                                      '> fcbiasWeightsData' + str(fully_node_id) +
+                                      '> biasWeightsData' + str(fully_node_id) +
                                       ' = mv::utils::generateSequence<' + dir_c_type(bias_type_value) + '> ({});\n'.format(b.shape[0]))
 
                 output_file.write(' ' * 4 + 'auto biasWeights' + str(fully_node_id) +
                                   ' = om.' + constant_type[dir_c_type(bias_type_value)] +
-                                  '(fcbiasWeightsData' + str(fully_node_id) +
+                                  '(biasWeightsData' + str(fully_node_id) +
                                   ',{' + str(b.shape[0]) + '}, mv::DType("' +
                                   order_type_dict[bias_type_value] +
                                   '"), ' + 'mv::Order::getColMajorID(1), ' +
@@ -1394,16 +1482,29 @@ def buildOM(
     elif isinstance(layer, Concat):
 
         pred = list(g.predecessors(gnode_name))
-        in0_ = reflist[pred[0]]
+        # Reorder the pred names based on input tensors order
+        input_tensors = layer.getInputTensors()
+        ordered_pred = []
+        for in_i in input_tensors:
+            tensor_name = in_i.getName().stringifyName()
+            for l_name in pred:
+                l = g.node[l_name]['ref']
+                if (l.getOutputTensors()[0].getName().stringifyName() == tensor_name):
+                    ordered_pred.append(l.name.stringifyName())
+                    break
+
+        print('pred:', pred)
+        print('ordered_pred:', ordered_pred)
+        in0_ = reflist[ordered_pred[0]]
         output_tensor_name = layer.getOutputTensors()[0].getName().stringifyName()
         mv_quant_params = get_parse_quant(layer.getOutputTensors()[0])
-        output_type_value = type(type_dict[layer.getOutputTensors()[0].dtype](0.0))
+        output_type_value = type_dict[layer.getOutputTensors()[0].dtype]
+
         vec = ca.pushVector(None, in0_)
 
-        for pair in range(1, len(pred)):
-            in1_ = reflist[pred[pair]]
+        for pair in range(1, len(ordered_pred)):
+            in1_ = reflist[ordered_pred[pair]]
             vec = ca.pushVector(vec, in1_)
-
         in0_ = ca.concat(
             om, vec,order_type_dict[output_type_value], mv_quant_params[0], output_tensor_name)
 
@@ -1418,7 +1519,7 @@ def buildOM(
                 mcm_inputs.append(tensor_mapping_dict[str(i)])
 
             output_file.write(' ' * 4 + 'auto concat' + str(concat_node_id) + ' = om.concat({' +
-                              ', '.join(map(str, mcm_inputs)) + '}, "C", ' + ', mv::DType("' + order_type_dict[output_type_value] + '"), ' +
+                              ', '.join(map(str, mcm_inputs)) + '}, "C", ' + 'mv::DType("' + order_type_dict[output_type_value] + '"), ' +
                               '{{' + ', '.join(map(str, get_parse_quant(layer.getOutputTensors()[0])[1])) +
                               '},{' + ', '.join(map(str, get_parse_quant(layer.getOutputTensors()[0])[2])) +
                               '},{' + ', '.join(map(str, get_parse_quant(layer.getOutputTensors()[0])[3])) +
