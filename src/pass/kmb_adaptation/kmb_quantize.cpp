@@ -79,8 +79,12 @@ static void kmbQuantizeConversionFcn(const mv::pass::PassEntry&, mv::Computation
     auto U8 = mv::DType("UInt8");
     auto FP16 = mv::DType("Float16");
 
+    std::shared_ptr<mv::Element> globalParams = model.getGlobalConfigParams();
     addQuantizationLayers(om, upaTasks, FP16);
-    addQuantizationLayers(om, dpuTasks, U8);
+
+    bool DPUTasksinSW = globalParams->hasAttr("DPUTasksinFloat") ? globalParams->get<bool>("DPUTasksinFloat") : false;
+    if (!DPUTasksinSW)
+        addQuantizationLayers(om, dpuTasks, U8);
 
     // NOTE: Concat have the extra requirement that output tensor and input tensor have to match their DType, so
     // we split them in two vectors
