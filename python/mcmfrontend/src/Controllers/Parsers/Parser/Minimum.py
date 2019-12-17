@@ -22,7 +22,7 @@ import Models.Layouts as Layouts
 from Controllers.TensorFormat import TensorFormat
 
 
-class ReLU(Layer):
+class Minimum(Layer):
     def __init__(self, *args):
         super().__init__(*args)
 
@@ -30,22 +30,10 @@ class ReLU(Layer):
         tfCM = TensorFormat(Layouts.NHWC, (2,))
         tfIV = TensorFormat(Layouts.NHCW, (1, 3))
         self.formatPool = [(tfCM, tfCM), (tfIV, tfIV)]
-        self.reluX = 0
+        self.minimum = float('-inf')
 
-        self.negativeSlope = 0.0
+    def loadMinimum(self, X):
+        self.minimum = X.eval()
 
-    def loadReluX(self, X):
-        self.reluX = X
-
-    def loadNegativeSlope(self, nSlope):
-        self.negativeSlope = nSlope
-
-
-class LeakyReLU(ReLU):
-
-    def loadAlpha(self, alpha):
-        self.alpha = alpha
-
-    def getAlpha(self):
-        return self.alpha
-
+    def getMinimum(self):
+        return self.minimum

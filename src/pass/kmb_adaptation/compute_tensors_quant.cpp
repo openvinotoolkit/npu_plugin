@@ -10,7 +10,7 @@
 static void computeTensorsQuantParams(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 template <class T>
 std::vector<T> extendToK(size_t size, std::vector<T> value);
-int computeAppropriatePadding(mv::Data::TensorIterator tensor);
+int computeAppropriatePadding(mv::Data::TensorIterator);
 
 namespace mv
 {
@@ -26,14 +26,9 @@ namespace mv
     }
 }
 
-int computeAppropriatePadding(mv::Data::TensorIterator tensor)
+int computeAppropriatePadding(mv::Data::TensorIterator)
 {
-    int pad;
-    if (tensor->getDType() == mv::DType("Float16"))
-        pad = 8;
-    else if (tensor->getDType() == mv::DType("UInt8"))
-        pad = 16;
-    return pad;
+    return 16;
 }
 
 void computeTensorsQuantParams(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)

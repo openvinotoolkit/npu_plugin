@@ -15,7 +15,7 @@ static void generateWeightsTablesFcn(const mv::pass::PassEntry& pass, mv::Comput
 static void populateWeightsTablesPointersFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void populateWeightsTablesQuantizationFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void removeBiasTensorsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
-static int computeAppropriatePadding(mv::Data::TensorIterator tensor);
+static int computeAppropriatePadding(mv::Data::TensorIterator);
 
 namespace mv
 {
@@ -319,14 +319,9 @@ static void populateWeightsTablesPointersFcn(const mv::pass::PassEntry& , mv::Co
     }
 }
 
-static int computeAppropriatePadding(mv::Data::TensorIterator tensor)
+static int computeAppropriatePadding(mv::Data::TensorIterator)
 {
-    int pad;
-    if (tensor->getDType() == mv::DType("Float16"))
-        pad = 8;
-    else if (tensor->getDType() == mv::DType("UInt8"))
-        pad = 16;
-    return pad;
+    return 16;
 }
 
 static void generateWeightsTablesFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
