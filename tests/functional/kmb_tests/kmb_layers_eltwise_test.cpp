@@ -16,6 +16,7 @@
 
 #include <memory>
 #include <vpu/kmb_plugin_config.hpp>
+
 #include "kmb_layers_tests.hpp"
 
 #define ERROR_BOUND (.1f)
@@ -98,7 +99,7 @@ TEST_F(kmbLayersTests_nightly, DISABLED_TestsEltwiseAfterScaleShift) {
 
     std::size_t weightSize = 12;
     std::size_t biasSize = 0;
-    TBlob<uint8_t>::Ptr weightsBlob(GenWeights<uint16_t >(weightSize + biasSize));
+    TBlob<uint8_t>::Ptr weightsBlob(GenWeights<uint16_t>(weightSize + biasSize));
 
     ASSERT_NO_THROW(_net_reader.ReadNetwork(model.data(), model.length()));
     ASSERT_TRUE(_net_reader.isParseSuccess());
@@ -194,7 +195,7 @@ TEST_F(kmbLayersTests_nightly, DISABLED_TestsEltwiseAfterScaleShiftWithLargeWeig
 
     std::size_t weightSize = 512;
     std::size_t biasSize = 0;
-    TBlob<uint8_t>::Ptr weightsBlob(GenWeights<uint16_t >(weightSize + biasSize));
+    TBlob<uint8_t>::Ptr weightsBlob(GenWeights<uint16_t>(weightSize + biasSize));
 
     ASSERT_NO_THROW(_net_reader.ReadNetwork(model.data(), model.length()));
     ASSERT_TRUE(_net_reader.isParseSuccess());
@@ -494,7 +495,7 @@ TEST_F(kmbLayersTests_nightly, DISABLED_EltwiseWithFakeQuantize) {
 
     std::size_t weightSize = 512;
     std::size_t biasSize = 0;
-    TBlob<uint8_t>::Ptr weightsBlob(GenWeights<uint16_t >(weightSize + biasSize));
+    TBlob<uint8_t>::Ptr weightsBlob(GenWeights<uint16_t>(weightSize + biasSize));
 
     ASSERT_NO_THROW(_net_reader.ReadNetwork(model.data(), model.length()));
     ASSERT_TRUE(_net_reader.isParseSuccess());

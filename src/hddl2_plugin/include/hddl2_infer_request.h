@@ -16,23 +16,22 @@
 
 #pragma once
 
-#include <memory>
-#include <map>
-#include <string>
-
 #include <cpp_interfaces/impl/ie_infer_request_internal.hpp>
+#include <map>
+#include <memory>
+#include <string>
 
 namespace vpu {
 namespace HDDL2Plugin {
 
 class HDDL2InferRequest : public InferenceEngine::InferRequestInternal {
 public:
-    HDDL2InferRequest(const InferenceEngine::InputsDataMap &networkInputs,
-                      const InferenceEngine::OutputsDataMap &networkOutputs);
+    HDDL2InferRequest(
+        const InferenceEngine::InputsDataMap& networkInputs, const InferenceEngine::OutputsDataMap& networkOutputs);
 
     void InferImpl() override;
     void GetPerformanceCounts(
-            std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> &perfMap) const override;
+        std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>& perfMap) const override;
 };
 
 }  //  namespace HDDL2Plugin

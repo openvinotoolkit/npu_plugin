@@ -20,7 +20,7 @@
 
 using namespace InferenceEngine;
 
-typedef kmbLayerTestBaseWithParam< std::tuple<Dims, size_t> > kmbLayersTestsSoftMaxParams;
+typedef kmbLayerTestBaseWithParam<std::tuple<Dims, size_t>> kmbLayersTestsSoftMaxParams;
 
 #ifdef ENABLE_MCM_COMPILER
 TEST_P(kmbLayersTestsSoftMaxParams, TestsSoftMax) {
@@ -28,11 +28,11 @@ TEST_P(kmbLayersTestsSoftMaxParams, TestsSoftMax) {
     tensor_test_params tensor = std::get<0>(param);
     size_t axis = std::get<1>(param);
 
-    const ::testing::TestInfo* const test_info =
-      ::testing::UnitTest::GetInstance()->current_test_info();
+    const ::testing::TestInfo* const test_info = ::testing::UnitTest::GetInstance()->current_test_info();
 
-    std::cout << ::testing::UnitTest::GetInstance()->current_test_info()->name() << " test_info->name()=" <<
-            test_info->name() << " test_info->test_case_name() " << test_info->test_case_name() << std::endl;
+    std::cout << ::testing::UnitTest::GetInstance()->current_test_info()->name()
+              << " test_info->name()=" << test_info->name() << " test_info->test_case_name() "
+              << test_info->test_case_name() << std::endl;
 
     std::map<std::string, std::string> params;
     params["axis"] = std::to_string(axis);
@@ -43,12 +43,8 @@ TEST_P(kmbLayersTestsSoftMaxParams, TestsSoftMax) {
 
     SetInputTensor(tensor);
     SetOutputTensor(tensor);
-    NetworkInit("SoftMax",
-                &params,
-                0,
-                0,
-                nullptr,
-                InferenceEngine::Precision::FP16 // output precision
+    NetworkInit("SoftMax", &params, 0, 0, nullptr,
+        InferenceEngine::Precision::FP16  // output precision
     );
 }
 
@@ -58,9 +54,5 @@ static std::vector<Dims> s_softMaxTensors = {
 };
 
 INSTANTIATE_TEST_CASE_P(accuracy, kmbLayersTestsSoftMaxParams,
-    ::testing::Combine(
-        ::testing::ValuesIn(s_softMaxTensors),
-        ::testing::Values(1, 2)
-    )
-);
+    ::testing::Combine(::testing::ValuesIn(s_softMaxTensors), ::testing::Values(1, 2)));
 #endif

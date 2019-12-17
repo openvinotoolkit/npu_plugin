@@ -3,13 +3,13 @@
 //
 
 #ifdef ENABLE_VPUAL
-#include "kmb_preproc_gapi_kernels.hpp"
-#include <opencv2/gapi.hpp>
-
-#include <opencv2/gapi_sipp/gsippkernel.hpp>
-
 #include <sippDefs.h>
 #include <sippSWConfig.h>
+
+#include <opencv2/gapi.hpp>
+#include <opencv2/gapi_sipp/gsippkernel.hpp>
+
+#include "kmb_preproc_gapi_kernels.hpp"
 
 namespace InferenceEngine {
 namespace gapi {
@@ -56,14 +56,10 @@ GAPI_SIPP_KERNEL(GSippResizeP, GResizeP) {
 // clang-format on
 
 namespace sipp {
-    cv::gapi::GKernelPackage kernels() {
-        static auto pkg = cv::gapi::kernels
-            < GSippNV12toBGRp
-            , GSippNV12toRGBp
-            , GSippResizeP
-            >();
-        return pkg;
-    }
+cv::gapi::GKernelPackage kernels() {
+    static auto pkg = cv::gapi::kernels<GSippNV12toBGRp, GSippNV12toRGBp, GSippResizeP>();
+    return pkg;
+}
 }  // namespace sipp
 }  // namespace preproc
 }  // namespace gapi

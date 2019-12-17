@@ -56,8 +56,8 @@ G_TYPED_KERNEL(GResizeP, <cv::GMatP(cv::GMatP, cv::gapi::own::Size, int)>, "ie.p
 }  // namespace preproc
 
 // FIXME? remove?
-cv::GMatP NV12toRGBp(const cv::GMat &src_y, const cv::GMat &src_uv);
-cv::GMatP NV12toBGRp(const cv::GMat &src_y, const cv::GMat &src_uv);
+cv::GMatP NV12toRGBp(const cv::GMat& src_y, const cv::GMat& src_uv);
+cv::GMatP NV12toBGRp(const cv::GMat& src_y, const cv::GMat& src_uv);
 cv::GMatP resizeP(const cv::GMatP& src, const cv::gapi::own::Size& dsize, int interpolation = cv::INTER_LINEAR);
 
 }  // namespace gapi

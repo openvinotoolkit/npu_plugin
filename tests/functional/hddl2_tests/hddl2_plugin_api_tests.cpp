@@ -14,9 +14,9 @@
 // stated in the License.
 //
 
-#include "hddl2_plugin_api_test_cases.h"
-
 #include <ie_core.hpp>
+
+#include "hddl2_plugin_api_test_cases.h"
 
 TEST_F(HDDL2_Plugin_API, CanFindPlugin) {
     LoadModel();

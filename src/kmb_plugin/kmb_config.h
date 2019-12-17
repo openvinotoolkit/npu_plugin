@@ -21,7 +21,6 @@
 #include <map>
 #include <string>
 #include <unordered_set>
-
 #include <vpu/parsed_config_base.hpp>
 
 namespace vpu {
@@ -31,9 +30,7 @@ class KmbConfig final : public ParsedConfigBase {
 public:
     KmbConfig();
 
-    std::map<std::string, std::string> getParsedConfig() const {
-        return _config;
-    }
+    std::map<std::string, std::string> getParsedConfig() const { return _config; }
     unsigned int numberOfSIPPShaves = 4;
 
 protected:

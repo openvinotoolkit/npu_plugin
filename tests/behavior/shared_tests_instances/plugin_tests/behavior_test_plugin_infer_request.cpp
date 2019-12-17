@@ -3,6 +3,8 @@
 //
 
 #include "behavior_test_plugin_infer_request.hpp"
+
 #include "vpu_test_data.hpp"
 
-INSTANTIATE_TEST_CASE_P(BehaviorTest, BehaviorPluginTestInferRequest, ValuesIn(requestsSupportedValues), getTestCaseName);
+INSTANTIATE_TEST_CASE_P(
+    BehaviorTest, BehaviorPluginTestInferRequest, ValuesIn(requestsSupportedValues), getTestCaseName);

@@ -1,41 +1,33 @@
 #ifdef ENABLE_VPUAL
 
+#include <fcntl.h>
+#include <file_reader.h>
 #include <gtest/gtest.h>
+#include <ie_compound_blob.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+
+#include <cnn_network_int8_normalizer.hpp>
+#include <condition_variable>
+#include <ie_icnn_network_stats.hpp>
+#include <ie_util_internal.hpp>
+#include <mutex>
 #include <regression_tests.hpp>
 #include <vpu/kmb_plugin_config.hpp>
 #include <vpu/private_plugin_config.hpp>
-
-#include <ie_icnn_network_stats.hpp>
-#include <cnn_network_int8_normalizer.hpp>
-#include <ie_util_internal.hpp>
-#include <ie_compound_blob.h>
-
 #include <vpu_layers_tests.hpp>
 
 #include "vpusmm.h"
-
-#include <sys/mman.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-
-#include <mutex>
-#include <condition_variable>
-
-#include <file_reader.h>
 
 using namespace ::testing;
 using namespace InferenceEngine;
 using namespace Regression::Matchers;
 using namespace InferenceEngine::details;
 
-enum preprocessingType {
-    PT_RESIZE, PT_NV12
-};
+enum preprocessingType { PT_RESIZE, PT_NV12 };
 
-class VpuPreprocessingTestsWithParam : public vpuLayersTests,
-                                       public testing::WithParamInterface< preprocessingType > {
-};
+class VpuPreprocessingTestsWithParam : public vpuLayersTests, public testing::WithParamInterface<preprocessingType> {};
 
 static std::string composePreprocInputPath(preprocessingType preprocType) {
     std::string baseName = ModelsPath() + "/KMB_models/BLOBS/mobilenet/";
@@ -61,62 +53,53 @@ static void setPreprocAlgorithm(InputInfo* mutableItem, preprocessingType prepro
     }
 }
 
-static void setPreprocForInputBlob(const std::string &inputName,
-                                   const TensorDesc &inputTensor,
-                                   const std::string &inputFilePath,
-                                   InferenceEngine::InferRequest &inferRequest,
-                                   std::shared_ptr<vpu::KmbPlugin::utils::VPUAllocator> &allocator,
-                                   preprocessingType preprocType) {
+static void setPreprocForInputBlob(const std::string& inputName, const TensorDesc& inputTensor,
+    const std::string& inputFilePath, InferenceEngine::InferRequest& inferRequest,
+    std::shared_ptr<vpu::KmbPlugin::utils::VPUAllocator>& allocator, preprocessingType preprocType) {
     Blob::Ptr inputBlob;
     switch (preprocType) {
     case PT_RESIZE: {
-            uint8_t *imageData = reinterpret_cast<uint8_t*>(allocator->allocate(3 * 227 * 227));
-            InferenceEngine::TensorDesc preprocTensor(
-                inputTensor.getPrecision(),
-                {1, 3, 227, 227},
-                inputTensor.getLayout());
-            inputBlob = make_shared_blob<uint8_t>(preprocTensor, imageData);
-            ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(inputFilePath, inputBlob));
-        }
-        break;
+        uint8_t* imageData = reinterpret_cast<uint8_t*>(allocator->allocate(3 * 227 * 227));
+        InferenceEngine::TensorDesc preprocTensor(
+            inputTensor.getPrecision(), {1, 3, 227, 227}, inputTensor.getLayout());
+        inputBlob = make_shared_blob<uint8_t>(preprocTensor, imageData);
+        ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(inputFilePath, inputBlob));
+    } break;
     case PT_NV12:
         const InferenceEngine::SizeVector dims = inputTensor.getDims();
         const size_t expectedWidth = dims.at(2);
         const size_t expectedHeight = dims.at(3);
-        ASSERT_NO_THROW(inputBlob = vpu::KmbPlugin::utils::fromNV12File(inputFilePath, expectedWidth, expectedHeight, allocator));
+        ASSERT_NO_THROW(
+            inputBlob = vpu::KmbPlugin::utils::fromNV12File(inputFilePath, expectedWidth, expectedHeight, allocator));
         break;
     }
     ASSERT_NO_THROW(inferRequest.SetBlob(inputName, inputBlob));
 }
 
-static void setNV12Preproc(const std::string &inputName,
-                                   const std::string &inputFilePath,
-                                   InferenceEngine::InferRequest &inferRequest,
-                                   std::shared_ptr<vpu::KmbPlugin::utils::VPUAllocator> &allocator,
-                                   size_t expectedWidth,
-                                   size_t expectedHeight) {
+static void setNV12Preproc(const std::string& inputName, const std::string& inputFilePath,
+    InferenceEngine::InferRequest& inferRequest, std::shared_ptr<vpu::KmbPlugin::utils::VPUAllocator>& allocator,
+    size_t expectedWidth, size_t expectedHeight) {
     Blob::Ptr inputBlob;
-    ASSERT_NO_THROW(inputBlob = vpu::KmbPlugin::utils::fromNV12File(inputFilePath, expectedWidth, expectedHeight, allocator));
+    ASSERT_NO_THROW(
+        inputBlob = vpu::KmbPlugin::utils::fromNV12File(inputFilePath, expectedWidth, expectedHeight, allocator));
     ASSERT_NO_THROW(inferRequest.SetBlob(inputName, inputBlob));
 }
 
-static void setRandomNV12(const std::string &inputName,
-                          InferenceEngine::InferRequest &inferRequest,
-                          std::shared_ptr<vpu::KmbPlugin::utils::VPUAllocator> &allocator,
-                          size_t imageWidth,
-                          size_t imageHeight) {
+static void setRandomNV12(const std::string& inputName, InferenceEngine::InferRequest& inferRequest,
+    std::shared_ptr<vpu::KmbPlugin::utils::VPUAllocator>& allocator, size_t imageWidth, size_t imageHeight) {
     const size_t expectedSize = imageWidth * (imageHeight * 3 / 2);
-    uint8_t *imageData = reinterpret_cast<uint8_t *>(allocator->allocate(expectedSize));
+    uint8_t* imageData = reinterpret_cast<uint8_t*>(allocator->allocate(expectedSize));
     std::random_device randDev;
     std::default_random_engine randEngine(randDev());
     std::uniform_int_distribution<uint8_t> uniformDist(0, 255);
     for (size_t byteCount = 0; byteCount < expectedSize; byteCount++) {
-        imageData[byteCount] = uniformDist(randEngine);;
+        imageData[byteCount] = uniformDist(randEngine);
+        ;
     }
-    InferenceEngine::TensorDesc planeY(InferenceEngine::Precision::U8,
-        {1, 1, imageHeight, imageWidth}, InferenceEngine::Layout::NHWC);
-    InferenceEngine::TensorDesc planeUV(InferenceEngine::Precision::U8,
-        {1, 2, imageHeight / 2, imageWidth / 2}, InferenceEngine::Layout::NHWC);
+    InferenceEngine::TensorDesc planeY(
+        InferenceEngine::Precision::U8, {1, 1, imageHeight, imageWidth}, InferenceEngine::Layout::NHWC);
+    InferenceEngine::TensorDesc planeUV(
+        InferenceEngine::Precision::U8, {1, 2, imageHeight / 2, imageWidth / 2}, InferenceEngine::Layout::NHWC);
     const size_t offset = imageHeight * imageWidth;
 
     InferenceEngine::Blob::Ptr blobY = InferenceEngine::make_shared_blob<uint8_t>(planeY, imageData);
@@ -126,16 +109,15 @@ static void setRandomNV12(const std::string &inputName,
     inferRequest.SetBlob(inputName, nv12Blob);
 }
 
-Blob::Ptr dequantize(float begin, float end, const Blob::Ptr &quantBlob, std::shared_ptr<vpu::KmbPlugin::utils::VPUAllocator> &allocator) {
+Blob::Ptr dequantize(float begin, float end, const Blob::Ptr& quantBlob,
+    std::shared_ptr<vpu::KmbPlugin::utils::VPUAllocator>& allocator) {
     const int QUANT_LEVELS = 256;
-    float step = (begin - end)/QUANT_LEVELS;
+    float step = (begin - end) / QUANT_LEVELS;
     const TensorDesc quantTensor = quantBlob->getTensorDesc();
-    const TensorDesc outTensor = TensorDesc(
-        InferenceEngine::Precision::FP32,
-        quantTensor.getDims(),
-        quantTensor.getLayout());
-    const uint8_t *quantRaw = quantBlob->cbuffer().as<const uint8_t *>();
-    float *outRaw = reinterpret_cast<float *>(allocator->allocate(quantBlob->byteSize() * sizeof(float)));
+    const TensorDesc outTensor =
+        TensorDesc(InferenceEngine::Precision::FP32, quantTensor.getDims(), quantTensor.getLayout());
+    const uint8_t* quantRaw = quantBlob->cbuffer().as<const uint8_t*>();
+    float* outRaw = reinterpret_cast<float*>(allocator->allocate(quantBlob->byteSize() * sizeof(float)));
 
     for (size_t pos = 0; pos < quantBlob->byteSize(); pos++) {
         outRaw[pos] = begin + quantRaw[pos] * step;
@@ -144,7 +126,7 @@ Blob::Ptr dequantize(float begin, float end, const Blob::Ptr &quantBlob, std::sh
     return outputBlob;
 }
 
-std::shared_ptr<vpu::KmbPlugin::utils::VPUAllocator> buildAllocator(const char * allocatorType) {
+std::shared_ptr<vpu::KmbPlugin::utils::VPUAllocator> buildAllocator(const char* allocatorType) {
     if (allocatorType == nullptr) {
         return std::make_shared<vpu::KmbPlugin::utils::VPUSMMAllocator>();
     }
@@ -160,12 +142,13 @@ std::shared_ptr<vpu::KmbPlugin::utils::VPUAllocator> buildAllocator(const char *
     return std::make_shared<vpu::KmbPlugin::utils::VPUSMMAllocator>();
 }
 
-
-TEST_P(VpuPreprocessingTestsWithParam, DISABLED_importWithPreprocessing) {  // To be run in manual mode when device is available
+TEST_P(VpuPreprocessingTestsWithParam,
+    DISABLED_importWithPreprocessing) {  // To be run in manual mode when device is available
     preprocessingType preprocType = GetParam();
     std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet/mobilenet.blob";
 
-    std::shared_ptr<vpu::KmbPlugin::utils::VPUAllocator> kmbAllocator = buildAllocator(std::getenv("IE_VPU_KMB_MEMORY_ALLOCATOR_TYPE"));
+    std::shared_ptr<vpu::KmbPlugin::utils::VPUAllocator> kmbAllocator =
+        buildAllocator(std::getenv("IE_VPU_KMB_MEMORY_ALLOCATOR_TYPE"));
 
     Core ie;
     InferenceEngine::ExecutableNetwork importedNetwork;
@@ -173,7 +156,7 @@ TEST_P(VpuPreprocessingTestsWithParam, DISABLED_importWithPreprocessing) {  // T
 
     ConstInputsDataMap inputInfo = importedNetwork.GetInputsInfo();
 
-    for (auto & item : inputInfo) {
+    for (auto& item : inputInfo) {
         InputInfo* mutableItem = const_cast<InputInfo*>(item.second.get());
         setPreprocAlgorithm(mutableItem, preprocType);
     }
@@ -183,7 +166,7 @@ TEST_P(VpuPreprocessingTestsWithParam, DISABLED_importWithPreprocessing) {  // T
 
     std::string inputFilePath = composePreprocInputPath(preprocType);
 
-    for (auto & item : inputInfo) {
+    for (auto& item : inputInfo) {
         std::string inputName = item.first;
         InferenceEngine::TensorDesc inputTensor = item.second->getTensorDesc();
         setPreprocForInputBlob(inputName, inputTensor, inputFilePath, inferRequest, kmbAllocator, preprocType);
@@ -195,7 +178,7 @@ TEST_P(VpuPreprocessingTestsWithParam, DISABLED_importWithPreprocessing) {  // T
     ASSERT_NO_THROW(outputInfo = importedNetwork.GetOutputsInfo());
 
     std::string referenceOutputFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet/output.dat";
-    for (auto & item : outputInfo) {
+    for (auto& item : outputInfo) {
         Blob::Ptr outputBlob;
         ASSERT_NO_THROW(outputBlob = inferRequest.GetBlob(item.first.c_str()));
 
@@ -215,7 +198,8 @@ using VpuPreprocessingTests = vpuLayersTests;
 TEST_F(VpuPreprocessingTests, DISABLED_correctPreprocessing) {
     std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet/mobilenet.blob";
 
-    std::shared_ptr<vpu::KmbPlugin::utils::VPUAllocator> kmbAllocator = buildAllocator(std::getenv("IE_VPU_KMB_MEMORY_ALLOCATOR_TYPE"));
+    std::shared_ptr<vpu::KmbPlugin::utils::VPUAllocator> kmbAllocator =
+        buildAllocator(std::getenv("IE_VPU_KMB_MEMORY_ALLOCATOR_TYPE"));
 
     Core ie;
     InferenceEngine::ExecutableNetwork importedNetwork;
@@ -223,7 +207,7 @@ TEST_F(VpuPreprocessingTests, DISABLED_correctPreprocessing) {
 
     ConstInputsDataMap inputInfo = importedNetwork.GetInputsInfo();
 
-    for (auto & item : inputInfo) {
+    for (auto& item : inputInfo) {
         InputInfo* mutableItem = const_cast<InputInfo*>(item.second.get());
         setPreprocAlgorithm(mutableItem, PT_RESIZE);
         setPreprocAlgorithm(mutableItem, PT_NV12);
@@ -245,7 +229,7 @@ TEST_F(VpuPreprocessingTests, DISABLED_correctPreprocessing) {
     ASSERT_NO_THROW(outputInfo = importedNetwork.GetOutputsInfo());
 
     std::string referenceOutputFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet/output.dat";
-    for (auto & item : outputInfo) {
+    for (auto& item : outputInfo) {
         Blob::Ptr outputBlob;
         ASSERT_NO_THROW(outputBlob = inferRequest.GetBlob(item.first.c_str()));
 
@@ -263,7 +247,8 @@ TEST_F(VpuPreprocessingTests, DISABLED_correctPreprocessing) {
 TEST_F(VpuPreprocessingTests, DISABLED_multiThreadCorrectPreprocessing) {
     std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet/mobilenet.blob";
 
-    std::shared_ptr<vpu::KmbPlugin::utils::VPUAllocator> kmbAllocator = buildAllocator(std::getenv("IE_VPU_KMB_MEMORY_ALLOCATOR_TYPE"));
+    std::shared_ptr<vpu::KmbPlugin::utils::VPUAllocator> kmbAllocator =
+        buildAllocator(std::getenv("IE_VPU_KMB_MEMORY_ALLOCATOR_TYPE"));
 
     Core ie;
     InferenceEngine::ExecutableNetwork importedNetwork;
@@ -271,7 +256,7 @@ TEST_F(VpuPreprocessingTests, DISABLED_multiThreadCorrectPreprocessing) {
 
     ConstInputsDataMap inputInfo = importedNetwork.GetInputsInfo();
 
-    for (auto & item : inputInfo) {
+    for (auto& item : inputInfo) {
         InputInfo* mutableItem = const_cast<InputInfo*>(item.second.get());
         setPreprocAlgorithm(mutableItem, PT_RESIZE);
         setPreprocAlgorithm(mutableItem, PT_NV12);
@@ -302,7 +287,7 @@ TEST_F(VpuPreprocessingTests, DISABLED_multiThreadCorrectPreprocessing) {
     ASSERT_NO_THROW(outputInfo = importedNetwork.GetOutputsInfo());
 
     std::string referenceOutputFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet/output.dat";
-    for (auto & item : outputInfo) {
+    for (auto& item : outputInfo) {
         Blob::Ptr outputBlob;
         ASSERT_NO_THROW(outputBlob = inferRequest.GetBlob(item.first.c_str()));
 
@@ -320,7 +305,8 @@ TEST_F(VpuPreprocessingTests, DISABLED_multiThreadCorrectPreprocessing) {
 TEST_F(VpuPreprocessingTests, DISABLED_twoRequestsWithPreprocessing) {
     std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet/mobilenet.blob";
 
-    std::shared_ptr<vpu::KmbPlugin::utils::VPUAllocator> kmbAllocator = buildAllocator(std::getenv("IE_VPU_KMB_MEMORY_ALLOCATOR_TYPE"));
+    std::shared_ptr<vpu::KmbPlugin::utils::VPUAllocator> kmbAllocator =
+        buildAllocator(std::getenv("IE_VPU_KMB_MEMORY_ALLOCATOR_TYPE"));
 
     Core ie;
     InferenceEngine::ExecutableNetwork importedNetwork;
@@ -328,7 +314,7 @@ TEST_F(VpuPreprocessingTests, DISABLED_twoRequestsWithPreprocessing) {
 
     ConstInputsDataMap inputInfo = importedNetwork.GetInputsInfo();
 
-    for (auto & item : inputInfo) {
+    for (auto& item : inputInfo) {
         InputInfo* mutableItem = const_cast<InputInfo*>(item.second.get());
         setPreprocAlgorithm(mutableItem, PT_RESIZE);
         setPreprocAlgorithm(mutableItem, PT_NV12);
@@ -348,14 +334,8 @@ TEST_F(VpuPreprocessingTests, DISABLED_twoRequestsWithPreprocessing) {
     volatile std::size_t iterationCount = 0;
     std::condition_variable waitCompletion;
 
-    auto onComplete = [
-                        &input_name,
-                        &kmbAllocator,
-                        &waitCompletion,
-                        &iterationCount,
-                        &inferRequest,
-                        &inputFilePath
-                        ](void)->void {
+    auto onComplete = [&input_name, &kmbAllocator, &waitCompletion, &iterationCount, &inferRequest, &inputFilePath](
+                          void) -> void {
         iterationCount++;
         if (iterationCount < MAX_ITERATIONS) {
             setNV12Preproc(input_name, inputFilePath, inferRequest, kmbAllocator, 228, 228);
@@ -371,13 +351,15 @@ TEST_F(VpuPreprocessingTests, DISABLED_twoRequestsWithPreprocessing) {
 
     std::mutex execGuard;
     std::unique_lock<std::mutex> execLocker(execGuard);
-    waitCompletion.wait(execLocker, [&]{ return iterationCount == MAX_ITERATIONS; });
+    waitCompletion.wait(execLocker, [&] {
+        return iterationCount == MAX_ITERATIONS;
+    });
 
     ConstOutputsDataMap outputInfo;
     ASSERT_NO_THROW(outputInfo = importedNetwork.GetOutputsInfo());
 
     std::string referenceOutputFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet/output.dat";
-    for (auto & item : outputInfo) {
+    for (auto& item : outputInfo) {
         Blob::Ptr outputBlob;
         ASSERT_NO_THROW(outputBlob = inferRequest.GetBlob(item.first.c_str()));
 
@@ -409,7 +391,7 @@ TEST_F(VpuPreprocessingTests, twoNetworksWithPreprocessing) {
 
     ConstInputsDataMap inputInfo1 = network1.GetInputsInfo();
 
-    for (auto & item : inputInfo1) {
+    for (auto& item : inputInfo1) {
         InputInfo* mutableItem = const_cast<InputInfo*>(item.second.get());
         setPreprocAlgorithm(mutableItem, PT_RESIZE);
         setPreprocAlgorithm(mutableItem, PT_NV12);
@@ -417,13 +399,14 @@ TEST_F(VpuPreprocessingTests, twoNetworksWithPreprocessing) {
 
     ConstInputsDataMap inputInfo2 = network2.GetInputsInfo();
 
-    for (auto & item : inputInfo2) {
+    for (auto& item : inputInfo2) {
         InputInfo* mutableItem = const_cast<InputInfo*>(item.second.get());
         setPreprocAlgorithm(mutableItem, PT_RESIZE);
         setPreprocAlgorithm(mutableItem, PT_NV12);
     }
 
-    std::shared_ptr<vpu::KmbPlugin::utils::VPUAllocator> kmbAllocator = buildAllocator(std::getenv("IE_VPU_KMB_MEMORY_ALLOCATOR_TYPE"));
+    std::shared_ptr<vpu::KmbPlugin::utils::VPUAllocator> kmbAllocator =
+        buildAllocator(std::getenv("IE_VPU_KMB_MEMORY_ALLOCATOR_TYPE"));
 
     InferenceEngine::InferRequest::Ptr network1InferReqPtr;
     network1InferReqPtr = network1.CreateInferRequestPtr();
@@ -450,32 +433,30 @@ TEST_F(VpuPreprocessingTests, twoNetworksWithPreprocessing) {
     size_t curIterationNet2 = 0;
     std::condition_variable condVar;
 
-    network1InferReqPtr->SetCompletionCallback(
-            [&] {
-                curIterationNetwork1++;
-                std::cout << "Completed " << curIterationNetwork1 << " async request execution for network1\n";
-                if (curIterationNetwork1 < static_cast<size_t>(iterationCount)) {
-                    Blob::Ptr outputBlob;
-                    std::string output1Name = network1.GetOutputsInfo().begin()->first;
-                    ASSERT_NO_THROW(outputBlob = network1InferReqPtr->GetBlob(output1Name));
-                    network1InferReqPtr->StartAsync();
-                } else {
-                    condVar.notify_one();
-                }
-            });
-    network2InferReqPtr->SetCompletionCallback(
-            [&] {
-                curIterationNet2++;
-                std::cout << "Completed " << curIterationNet2 << " async request execution for network1\n";
-                if (curIterationNet2 < static_cast<size_t>(iterationCount)) {
-                    Blob::Ptr outputBlob;
-                    std::string output2Name = network2.GetOutputsInfo().begin()->first;
-                    ASSERT_NO_THROW(outputBlob = network2InferReqPtr->GetBlob(output2Name));
-                    network2InferReqPtr->StartAsync();
-                } else {
-                    condVar.notify_one();
-                }
-            });
+    network1InferReqPtr->SetCompletionCallback([&] {
+        curIterationNetwork1++;
+        std::cout << "Completed " << curIterationNetwork1 << " async request execution for network1\n";
+        if (curIterationNetwork1 < static_cast<size_t>(iterationCount)) {
+            Blob::Ptr outputBlob;
+            std::string output1Name = network1.GetOutputsInfo().begin()->first;
+            ASSERT_NO_THROW(outputBlob = network1InferReqPtr->GetBlob(output1Name));
+            network1InferReqPtr->StartAsync();
+        } else {
+            condVar.notify_one();
+        }
+    });
+    network2InferReqPtr->SetCompletionCallback([&] {
+        curIterationNet2++;
+        std::cout << "Completed " << curIterationNet2 << " async request execution for network1\n";
+        if (curIterationNet2 < static_cast<size_t>(iterationCount)) {
+            Blob::Ptr outputBlob;
+            std::string output2Name = network2.GetOutputsInfo().begin()->first;
+            ASSERT_NO_THROW(outputBlob = network2InferReqPtr->GetBlob(output2Name));
+            network2InferReqPtr->StartAsync();
+        } else {
+            condVar.notify_one();
+        }
+    });
 
     std::cout << "Start inference (" << iterationCount << " asynchronous executions) for network1" << std::endl;
     network1InferReqPtr->StartAsync();
@@ -484,7 +465,10 @@ TEST_F(VpuPreprocessingTests, twoNetworksWithPreprocessing) {
 
     std::mutex mutex;
     std::unique_lock<std::mutex> lock(mutex);
-    condVar.wait(lock, [&]{ return curIterationNetwork1 == static_cast<size_t>(iterationCount) && curIterationNet2 == static_cast<size_t>(iterationCount); });
+    condVar.wait(lock, [&] {
+        return curIterationNetwork1 == static_cast<size_t>(iterationCount) &&
+               curIterationNet2 == static_cast<size_t>(iterationCount);
+    });
 }
 
 TEST_F(vpuLayersTests, allocateNV12WithNative) {
@@ -496,7 +480,7 @@ TEST_F(vpuLayersTests, allocateNV12WithNative) {
 
     ConstInputsDataMap inputInfo1 = network1.GetInputsInfo();
 
-    for (auto & item : inputInfo1) {
+    for (auto& item : inputInfo1) {
         InputInfo* mutableItem = const_cast<InputInfo*>(item.second.get());
         setPreprocAlgorithm(mutableItem, PT_RESIZE);
         setPreprocAlgorithm(mutableItem, PT_NV12);
@@ -541,7 +525,7 @@ TEST_F(vpuLayersTests, allocateNV12TwoImages) {
 
     ConstInputsDataMap inputInfo1 = network1.GetInputsInfo();
 
-    for (auto & item : inputInfo1) {
+    for (auto& item : inputInfo1) {
         InputInfo* mutableItem = const_cast<InputInfo*>(item.second.get());
         setPreprocAlgorithm(mutableItem, PT_RESIZE);
         setPreprocAlgorithm(mutableItem, PT_NV12);
@@ -604,7 +588,7 @@ TEST_F(vpuLayersTests, allocateNV12TwoImagesGetBlob) {
 
     ConstInputsDataMap inputInfo1 = network1.GetInputsInfo();
 
-    for (auto & item : inputInfo1) {
+    for (auto& item : inputInfo1) {
         InputInfo* mutableItem = const_cast<InputInfo*>(item.second.get());
         setPreprocAlgorithm(mutableItem, PT_RESIZE);
         setPreprocAlgorithm(mutableItem, PT_NV12);
@@ -643,15 +627,17 @@ TEST_F(vpuLayersTests, allocateNV12TwoImagesGetBlob) {
     // set another image via GetBlob
     std::string inputDogPath = ModelsPath() + "/KMB_models/BLOBS/resnet/input-dog-1080x1080-nv12.bin";
 
-    IInferRequest::Ptr inferReqInterfacePtr = static_cast<IInferRequest::Ptr &>(*commonInferReqPtr);
+    IInferRequest::Ptr inferReqInterfacePtr = static_cast<IInferRequest::Ptr&>(*commonInferReqPtr);
     Blob::Ptr dogInputBlobPtr;
     ResponseDesc resp;
     inferReqInterfacePtr->GetBlob(input1_name.c_str(), dogInputBlobPtr, &resp);
     NV12Blob::Ptr dogNV12blobPtr = as<NV12Blob>(dogInputBlobPtr);
-    Blob::Ptr & dogYPlane = dogNV12blobPtr->y();
-    Blob::Ptr & dogUVPlane = dogNV12blobPtr->uv();
-    ASSERT_NO_THROW(vpu::KmbPlugin::utils::readNV12FileHelper(inputDogPath, 1080 * 1080, dogYPlane->buffer().as<uint8_t *>(), 0));
-    ASSERT_NO_THROW(vpu::KmbPlugin::utils::readNV12FileHelper(inputDogPath, 1080 * 1080 / 2, dogUVPlane->buffer().as<uint8_t *>(), 1080 * 1080));
+    Blob::Ptr& dogYPlane = dogNV12blobPtr->y();
+    Blob::Ptr& dogUVPlane = dogNV12blobPtr->uv();
+    ASSERT_NO_THROW(
+        vpu::KmbPlugin::utils::readNV12FileHelper(inputDogPath, 1080 * 1080, dogYPlane->buffer().as<uint8_t*>(), 0));
+    ASSERT_NO_THROW(vpu::KmbPlugin::utils::readNV12FileHelper(
+        inputDogPath, 1080 * 1080 / 2, dogUVPlane->buffer().as<uint8_t*>(), 1080 * 1080));
 
     ASSERT_NO_THROW(commonInferReqPtr->Infer());
 
@@ -666,9 +652,7 @@ TEST_F(vpuLayersTests, allocateNV12TwoImagesGetBlob) {
     ASSERT_NO_THROW(compareTopClasses(dogOutputBlob, dogReferenceOutputBlob, NUMBER_OF_CLASSES));
 }
 
-class VpuPreprocessingShavesTests : public vpuLayersTests,
-                                    public testing::WithParamInterface< const char * > {
-};
+class VpuPreprocessingShavesTests : public vpuLayersTests, public testing::WithParamInterface<const char*> {};
 
 TEST_P(VpuPreprocessingShavesTests, DISABLED_shavesNum) {
     std::string numberOfShaves = GetParam();
@@ -686,7 +670,7 @@ TEST_P(VpuPreprocessingShavesTests, DISABLED_shavesNum) {
 
     ConstInputsDataMap inputInfo = importedNetwork.GetInputsInfo();
 
-    for (auto & item : inputInfo) {
+    for (auto& item : inputInfo) {
         InputInfo* mutableItem = const_cast<InputInfo*>(item.second.get());
         setPreprocAlgorithm(mutableItem, PT_RESIZE);
         setPreprocAlgorithm(mutableItem, PT_NV12);
@@ -746,7 +730,7 @@ TEST_F(VpuPreprocessingTests, DISABLED_setConfigForTwoNetworks) {
 
     ConstInputsDataMap inputInfo1 = network1.GetInputsInfo();
 
-    for (auto & item : inputInfo1) {
+    for (auto& item : inputInfo1) {
         InputInfo* mutableItem = const_cast<InputInfo*>(item.second.get());
         setPreprocAlgorithm(mutableItem, PT_RESIZE);
         setPreprocAlgorithm(mutableItem, PT_NV12);
@@ -754,13 +738,14 @@ TEST_F(VpuPreprocessingTests, DISABLED_setConfigForTwoNetworks) {
 
     ConstInputsDataMap inputInfo2 = network2.GetInputsInfo();
 
-    for (auto & item : inputInfo2) {
+    for (auto& item : inputInfo2) {
         InputInfo* mutableItem = const_cast<InputInfo*>(item.second.get());
         setPreprocAlgorithm(mutableItem, PT_RESIZE);
         setPreprocAlgorithm(mutableItem, PT_NV12);
     }
 
-    std::shared_ptr<vpu::KmbPlugin::utils::VPUAllocator> kmbAllocator = buildAllocator(std::getenv("IE_VPU_KMB_MEMORY_ALLOCATOR_TYPE"));
+    std::shared_ptr<vpu::KmbPlugin::utils::VPUAllocator> kmbAllocator =
+        buildAllocator(std::getenv("IE_VPU_KMB_MEMORY_ALLOCATOR_TYPE"));
 
     InferenceEngine::InferRequest::Ptr network1InferReqPtr;
     network1InferReqPtr = network1.CreateInferRequestPtr();
@@ -787,32 +772,30 @@ TEST_F(VpuPreprocessingTests, DISABLED_setConfigForTwoNetworks) {
     size_t curIterationNet2 = 0;
     std::condition_variable condVar;
 
-    network1InferReqPtr->SetCompletionCallback(
-            [&] {
-                curIterationNetwork1++;
-                std::cout << "Completed " << curIterationNetwork1 << " async request execution for network1\n";
-                if (curIterationNetwork1 < static_cast<size_t>(iterationCount)) {
-                    Blob::Ptr outputBlob;
-                    std::string output1Name = network1.GetOutputsInfo().begin()->first;
-                    ASSERT_NO_THROW(outputBlob = network1InferReqPtr->GetBlob(output1Name));
-                    network1InferReqPtr->StartAsync();
-                } else {
-                    condVar.notify_one();
-                }
-            });
-    network2InferReqPtr->SetCompletionCallback(
-            [&] {
-                curIterationNet2++;
-                std::cout << "Completed " << curIterationNet2 << " async request execution for network1\n";
-                if (curIterationNet2 < static_cast<size_t>(iterationCount)) {
-                    Blob::Ptr outputBlob;
-                    std::string output2Name = network2.GetOutputsInfo().begin()->first;
-                    ASSERT_NO_THROW(outputBlob = network2InferReqPtr->GetBlob(output2Name));
-                    network2InferReqPtr->StartAsync();
-                } else {
-                    condVar.notify_one();
-                }
-            });
+    network1InferReqPtr->SetCompletionCallback([&] {
+        curIterationNetwork1++;
+        std::cout << "Completed " << curIterationNetwork1 << " async request execution for network1\n";
+        if (curIterationNetwork1 < static_cast<size_t>(iterationCount)) {
+            Blob::Ptr outputBlob;
+            std::string output1Name = network1.GetOutputsInfo().begin()->first;
+            ASSERT_NO_THROW(outputBlob = network1InferReqPtr->GetBlob(output1Name));
+            network1InferReqPtr->StartAsync();
+        } else {
+            condVar.notify_one();
+        }
+    });
+    network2InferReqPtr->SetCompletionCallback([&] {
+        curIterationNet2++;
+        std::cout << "Completed " << curIterationNet2 << " async request execution for network1\n";
+        if (curIterationNet2 < static_cast<size_t>(iterationCount)) {
+            Blob::Ptr outputBlob;
+            std::string output2Name = network2.GetOutputsInfo().begin()->first;
+            ASSERT_NO_THROW(outputBlob = network2InferReqPtr->GetBlob(output2Name));
+            network2InferReqPtr->StartAsync();
+        } else {
+            condVar.notify_one();
+        }
+    });
 
     std::cout << "Start inference (" << iterationCount << " asynchronous executions) for network1" << std::endl;
     network1InferReqPtr->StartAsync();
@@ -821,22 +804,16 @@ TEST_F(VpuPreprocessingTests, DISABLED_setConfigForTwoNetworks) {
 
     std::mutex mutex;
     std::unique_lock<std::mutex> lock(mutex);
-    condVar.wait(lock, [&]{
+    condVar.wait(lock, [&] {
         return curIterationNetwork1 == static_cast<size_t>(iterationCount) &&
                curIterationNet2 == static_cast<size_t>(iterationCount);
     });
 }
 
-const static std::vector<preprocessingType> preprocTypes = {
-    PT_RESIZE, PT_NV12
-};
+const static std::vector<preprocessingType> preprocTypes = {PT_RESIZE, PT_NV12};
 
-INSTANTIATE_TEST_CASE_P(preprocessing, VpuPreprocessingTestsWithParam,
-    ::testing::ValuesIn(preprocTypes)
-);
+INSTANTIATE_TEST_CASE_P(preprocessing, VpuPreprocessingTestsWithParam, ::testing::ValuesIn(preprocTypes));
 
-INSTANTIATE_TEST_CASE_P(preprocessing, VpuPreprocessingShavesTests,
-    ::testing::ValuesIn({"4", "6"})
-);
+INSTANTIATE_TEST_CASE_P(preprocessing, VpuPreprocessingShavesTests, ::testing::ValuesIn({"4", "6"}));
 
 #endif

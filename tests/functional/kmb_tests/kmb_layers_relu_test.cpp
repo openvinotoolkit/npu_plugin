@@ -22,7 +22,7 @@
 
 using namespace InferenceEngine;
 
-typedef kmbLayerTestBaseWithParam< tensor_test_params > kmbLayersTestsReLUParams;
+typedef kmbLayerTestBaseWithParam<tensor_test_params> kmbLayersTestsReLUParams;
 
 #ifdef ENABLE_MCM_COMPILER
 TEST_F(kmbLayersTests_nightly, DISABLED_TestsReLUAfterConvolution) {
@@ -114,7 +114,7 @@ TEST_F(kmbLayersTests_nightly, DISABLED_TestsReLUAfterConvolution) {
 
     std::size_t weightSize = 6 + 18816;
     std::size_t biasSize = 6 + 128;
-    TBlob<uint8_t>::Ptr weightsBlob(GenWeights<uint16_t >(weightSize + biasSize));
+    TBlob<uint8_t>::Ptr weightsBlob(GenWeights<uint16_t>(weightSize + biasSize));
 
     ASSERT_NO_THROW(_net_reader.ReadNetwork(model.data(), model.length()));
     ASSERT_TRUE(_net_reader.isParseSuccess());
@@ -180,7 +180,6 @@ TEST_F(kmbLayersTests_nightly, TestsReLUOnly) {
     </net>
         )V0G0N";
 
-
     ASSERT_NO_THROW(_net_reader.ReadNetwork(model.data(), model.length()));
     ASSERT_TRUE(_net_reader.isParseSuccess());
 
@@ -205,11 +204,11 @@ TEST_P(kmbLayersTestsReLUParams, TestsReLUNetInit) {
     auto param = GetParam();
     tensor_test_params tensor = param;
 
-    const ::testing::TestInfo* const test_info =
-      ::testing::UnitTest::GetInstance()->current_test_info();
+    const ::testing::TestInfo* const test_info = ::testing::UnitTest::GetInstance()->current_test_info();
 
-    std::cout << ::testing::UnitTest::GetInstance()->current_test_info()->name() << " test_info->name()=" <<
-            test_info->name() << " test_info->test_case_name() " << test_info->test_case_name() << std::endl;
+    std::cout << ::testing::UnitTest::GetInstance()->current_test_info()->name()
+              << " test_info->name()=" << test_info->name() << " test_info->test_case_name() "
+              << test_info->test_case_name() << std::endl;
 
     std::map<std::string, std::string> params;
 
@@ -225,7 +224,7 @@ TEST_P(kmbLayersTestsReLUParams, TestsReLUNetInit) {
 
     CNNNetwork network = _net_reader.getNetwork();
     _inputsInfo = network.getInputsInfo();
-    for (const auto & in : _inputsInfo){
+    for (const auto& in : _inputsInfo) {
         in.second->setPrecision(Precision::FP16);
     }
     _outputsInfo = network.getOutputsInfo();
@@ -244,7 +243,5 @@ static const tensor_test_params paramsTable[] = {
     {1, 64, 112, 112},  // input and output tensors
 };
 
-INSTANTIATE_TEST_CASE_P(loadNetworkNoThrow, kmbLayersTestsReLUParams,
-    ::testing::ValuesIn(paramsTable)
-);
+INSTANTIATE_TEST_CASE_P(loadNetworkNoThrow, kmbLayersTestsReLUParams, ::testing::ValuesIn(paramsTable));
 #endif

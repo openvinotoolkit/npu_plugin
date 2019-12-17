@@ -14,17 +14,17 @@
 // stated in the License.
 //
 
+#include <file_reader.h>
+
+#include <blob_factory.hpp>
+#include <cnn_network_int8_normalizer.hpp>
+#include <conv_ref.hpp>
+#include <ie_icnn_network_stats.hpp>
+#include <ie_util_internal.hpp>
 #include <vpu/kmb_plugin_config.hpp>
 
 #include "kmb_layers_tests.hpp"
 #include "kmb_xml_tests.hpp"
-
-#include <ie_icnn_network_stats.hpp>
-#include <cnn_network_int8_normalizer.hpp>
-#include <ie_util_internal.hpp>
-#include <conv_ref.hpp>
-#include <file_reader.h>
-#include <blob_factory.hpp>
 
 using namespace ::testing;
 using namespace InferenceEngine;
@@ -36,16 +36,14 @@ struct resnet_params {
     uint8_t shift;
 };
 
-class ResnetTest : public kmbLayersTests_nightly, public testing::WithParamInterface< resnet_params > {};
+class ResnetTest : public kmbLayersTests_nightly, public testing::WithParamInterface<resnet_params> {};
 
-Blob::Ptr dequantize(const Blob::Ptr & blobIn, float scale, uint8_t shift) {
+Blob::Ptr dequantize(const Blob::Ptr& blobIn, float scale, uint8_t shift) {
     Blob::Ptr blobOut = make_blob_with_precision(TensorDesc(
-        InferenceEngine::Precision::FP32,
-        blobIn->getTensorDesc().getDims(),
-        blobIn->getTensorDesc().getLayout()));
+        InferenceEngine::Precision::FP32, blobIn->getTensorDesc().getDims(), blobIn->getTensorDesc().getLayout()));
     blobOut->allocate();
-    const uint8_t * rawBufferIn = blobIn->cbuffer().as<uint8_t *>();
-    float * rawBufferOut = blobOut->buffer().as<float *>();
+    const uint8_t* rawBufferIn = blobIn->cbuffer().as<uint8_t*>();
+    float* rawBufferOut = blobOut->buffer().as<float*>();
     for (size_t byteIdx = 0; byteIdx < blobIn->size(); byteIdx++) {
         rawBufferOut[byteIdx] = (rawBufferIn[byteIdx] - shift) * scale;
     }
@@ -93,14 +91,12 @@ TEST_P(ResnetTest, resnetAccuracy) {
     ConstOutputsDataMap outputInfo;
     outputInfo = exeNetwork.GetOutputsInfo();
 
-    for (auto & item : outputInfo) {
+    for (auto& item : outputInfo) {
         Blob::Ptr outputBlob = inferRequest.GetBlob(item.first.c_str());
 
         TensorDesc outputBlobTensorDesc = outputBlob->getTensorDesc();
         Blob::Ptr referenceOutputBlob = make_blob_with_precision(TensorDesc(
-            InferenceEngine::Precision::FP32,
-            outputBlobTensorDesc.getDims(),
-            outputBlobTensorDesc.getLayout()));
+            InferenceEngine::Precision::FP32, outputBlobTensorDesc.getDims(), outputBlobTensorDesc.getLayout()));
         referenceOutputBlob->allocate();
 
         std::string referenceOutputFilePath = ModelsPath() + "/KMB_models/resnet50/" + test_params.exepectedResPath;
@@ -115,34 +111,34 @@ TEST_P(ResnetTest, resnetAccuracy) {
 
 static const std::vector<resnet_params> resnetTestParams = {
     {
-        "scale-shift.xml", // model
-        "resnet50-weights.bin", // weights
-        "input-cat-224x224-interleaved.bgr.bin", // input
-        "scale-shift-reference.bin", // expected result
+        "scale-shift.xml",                        // model
+        "resnet50-weights.bin",                   // weights
+        "input-cat-224x224-interleaved.bgr.bin",  // input
+        "scale-shift-reference.bin",              // expected result
         0.0197619f,
         128,
     },
     {
-        "single-convolution.xml", // model
-        "resnet50-weights.bin", // weights
-        "input-cat-224x224-interleaved.bgr.bin", // input
-        "single-convolution-reference.bin", // expected result
+        "single-convolution.xml",                 // model
+        "resnet50-weights.bin",                   // weights
+        "input-cat-224x224-interleaved.bgr.bin",  // input
+        "single-convolution-reference.bin",       // expected result
         0.0127005f,
         0,
     },
     {
-        "first-block.xml", // model
-        "resnet50-weights.bin", // weights
-        "input-cat-224x224-interleaved.bgr.bin", // input
-        "first-block-reference.bin", // expected result
+        "first-block.xml",                        // model
+        "resnet50-weights.bin",                   // weights
+        "input-cat-224x224-interleaved.bgr.bin",  // input
+        "first-block-reference.bin",              // expected result
         0.00880455f,
         0,
     },
     {
-        "three-blocks.xml", // model
-        "resnet50-weights.bin", // weights
-        "input-cat-224x224-interleaved.bgr.bin", // input
-        "three-blocks-reference.bin", // expected result
+        "three-blocks.xml",                       // model
+        "resnet50-weights.bin",                   // weights
+        "input-cat-224x224-interleaved.bgr.bin",  // input
+        "three-blocks-reference.bin",             // expected result
         0.0106719f,
         0,
     },

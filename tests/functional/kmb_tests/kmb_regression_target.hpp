@@ -18,20 +18,12 @@
 
 #include <string>
 
-namespace KmbRegressionTarget
-{
+namespace KmbRegressionTarget {
 
 struct CompilationParameter {
     CompilationParameter() = default;
-    CompilationParameter(
-            std::string pName,
-            std::string pathToNetwork,
-            std::string pathToWeights):
-            name(pName),
-            path_to_network(pathToNetwork),
-            path_to_weights(pathToWeights)
-    {
-    };
+    CompilationParameter(std::string pName, std::string pathToNetwork, std::string pathToWeights)
+        : name(pName), path_to_network(pathToNetwork), path_to_weights(pathToWeights) {};
 
     std::string name;
     std::string path_to_network;

@@ -14,20 +14,18 @@
 // stated in the License.
 //
 
-#include <memory>
-
 #include <hddl2_executable_network.h>
 #include <hddl2_helpers.h>
 #include <hddl2_infer_request.h>
 
-InferenceEngine::InferRequestInternal::Ptr
-vpu::HDDL2Plugin::ExecutableNetwork::CreateInferRequestImpl(
-                                        InferenceEngine::InputsDataMap networkInputs,
-                                        InferenceEngine::OutputsDataMap networkOutputs) {
+#include <memory>
+
+InferenceEngine::InferRequestInternal::Ptr vpu::HDDL2Plugin::ExecutableNetwork::CreateInferRequestImpl(
+    InferenceEngine::InputsDataMap networkInputs, InferenceEngine::OutputsDataMap networkOutputs) {
     return std::make_shared<HDDL2InferRequest>(networkInputs, networkOutputs);
 }
 
-vpu::HDDL2Plugin::ExecutableNetwork::ExecutableNetwork(InferenceEngine::ICNNNetwork &network) {
+vpu::HDDL2Plugin::ExecutableNetwork::ExecutableNetwork(InferenceEngine::ICNNNetwork& network) {
     std::cout << "ExecutableNetwork with ICNN netw constr call" << std::endl;
     UNUSED(network);
 }

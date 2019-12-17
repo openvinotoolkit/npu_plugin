@@ -30,36 +30,34 @@
 // suppliers or licensors in any way.
 //
 
-#include <climits>
-#include <cstring>
-
-#include <string>
-#include <memory>
-#include <list>
-#include <vector>
-#include <array>
-#include <unordered_set>
-#include <set>
-#include <unordered_map>
-#include <fstream>
-#include <utility>
-#include <algorithm>
-#include <map>
-#include <streambuf>
-#include <tuple>
-#include <sstream>
-#include <iomanip>
-#include <atomic>
-#include <sys/stat.h>
-
-#include <precision_utils.h>
-#include <details/caseless.hpp>
-#include <graph_tools.hpp>
-#include <description_buffer.hpp>
-
 #include "kmb_parser.hpp"
 
+#include <precision_utils.h>
+#include <sys/stat.h>
+
+#include <algorithm>
+#include <array>
+#include <atomic>
+#include <climits>
+#include <cstring>
+#include <description_buffer.hpp>
+#include <details/caseless.hpp>
+#include <fstream>
+#include <graph_tools.hpp>
 #include <ie_util_internal.hpp>
+#include <iomanip>
+#include <list>
+#include <map>
+#include <memory>
+#include <set>
+#include <sstream>
+#include <streambuf>
+#include <string>
+#include <tuple>
+#include <unordered_map>
+#include <unordered_set>
+#include <utility>
+#include <vector>
 #include <vpu/kmb_plugin_config.hpp>
 
 #if defined(_WIN32)
@@ -75,11 +73,7 @@ namespace vpu {
 
 namespace KmbPlugin {
 
-void compileMcm(
-        ie::ICNNNetwork& network,
-        const KmbConfig& config,
-        mv::CompilationUnit& unit,
-        std::vector<char>& blob) {
+void compileMcm(ie::ICNNNetwork& network, const KmbConfig& config, mv::CompilationUnit& unit, std::vector<char>& blob) {
     blob.clear();
     Logger::Ptr _logger = std::make_shared<Logger>("compileMCM", config.logLevel(), consoleOutput());
     mv::OpModel& modelMcm = unit.model();
@@ -94,14 +88,13 @@ void compileMcm(
     }
 
     std::string targetName = parsedConfig[VPU_KMB_CONFIG_KEY(MCM_TARGET_DESCRIPTOR)];
-    std::string targetPath = getIELibraryPath()
-                           + "/" + parsedConfig[VPU_KMB_CONFIG_KEY(MCM_TARGET_DESCRIPTOR_PATH)]
-                           + "/" + parsedConfig[VPU_KMB_CONFIG_KEY(MCM_TARGET_DESCRIPTOR)] + ".json";
+    std::string targetPath = getIELibraryPath() + "/" + parsedConfig[VPU_KMB_CONFIG_KEY(MCM_TARGET_DESCRIPTOR_PATH)] +
+                             "/" + parsedConfig[VPU_KMB_CONFIG_KEY(MCM_TARGET_DESCRIPTOR)] + ".json";
     std::string compDescName = parsedConfig[VPU_KMB_CONFIG_KEY(MCM_COMPILATION_DESCRIPTOR)];
 
-    std::string compDescPath = getIELibraryPath()
-                             + "/" + parsedConfig[VPU_KMB_CONFIG_KEY(MCM_COMPILATION_DESCRIPTOR_PATH)]
-                             + "/" + parsedConfig[VPU_KMB_CONFIG_KEY(MCM_COMPILATION_DESCRIPTOR)] + ".json";
+    std::string compDescPath = getIELibraryPath() + "/" +
+                               parsedConfig[VPU_KMB_CONFIG_KEY(MCM_COMPILATION_DESCRIPTOR_PATH)] + "/" +
+                               parsedConfig[VPU_KMB_CONFIG_KEY(MCM_COMPILATION_DESCRIPTOR)] + ".json";
 
     std::string resultsPath = parsedConfig[VPU_KMB_CONFIG_KEY(MCM_COMPILATION_RESULTS_PATH)];
     std::string resultNames = parsedConfig[VPU_KMB_CONFIG_KEY(MCM_COMPILATION_RESULTS)];
@@ -116,7 +109,7 @@ void compileMcm(
 
     IE_ASSERT(unit.loadTargetDescriptor(targetPath));
     IE_ASSERT(unit.loadCompilationDescriptor(compDescPath));
-    auto &compDesc = unit.compilationDescriptor();
+    auto& compDesc = unit.compilationDescriptor();
 
     _logger->info("Path for results: %s (%s)", resultsFullName, std::strerror(errno));
 
@@ -144,16 +137,16 @@ void compileMcm(
 
     if (parsedConfig[VPU_KMB_CONFIG_KEY(MCM_GENERATE_DOT)] == "YES") {
         if (compDesc.validPass("GenerateDot")) {
-//            try {
-//                //--------------------------------------------------------------------------
-//                // Setting scope to control-model disables compute model details in dot-file
-//                //--------------------------------------------------------------------------
-//                compDesc.setPassArg("GenerateDot", "scope", std::string("ControlModel"));
-//                compDesc.setPassArg("GenerateDot", "content", std::string("full"));
-//                compDesc.setPassArg("GenerateDot", "html", true);
-//            } catch (...) {
-//                VPU_THROW_EXCEPTION << "Can't set mcmCompiler arguments for *.dot generation!";
-//            }
+            //            try {
+            //                //--------------------------------------------------------------------------
+            //                // Setting scope to control-model disables compute model details in dot-file
+            //                //--------------------------------------------------------------------------
+            //                compDesc.setPassArg("GenerateDot", "scope", std::string("ControlModel"));
+            //                compDesc.setPassArg("GenerateDot", "content", std::string("full"));
+            //                compDesc.setPassArg("GenerateDot", "html", true);
+            //            } catch (...) {
+            //                VPU_THROW_EXCEPTION << "Can't set mcmCompiler arguments for *.dot generation!";
+            //            }
         }
     }
 
@@ -176,15 +169,15 @@ void compileMcm(
     auto result = unit.run();
 
     if (parsedConfig[VPU_KMB_CONFIG_KEY(MCM_GENERATE_JSON)] == "YES") {
-         std::fstream file_out(resultsFullName + ".json", std::fstream::out);
-         file_out << result.toString() << std::endl;
-         file_out.close();
+        std::fstream file_out(resultsFullName + ".json", std::fstream::out);
+        file_out << result.toString() << std::endl;
+        file_out.close();
     }
 
     if (parsedConfig[VPU_KMB_CONFIG_KEY(MCM_GENERATE_DOT)] == "YES") {
         rename("original_model.dot", (resultsFullName + "_original.dot").c_str());
-        rename("adapt_model.dot"   , (resultsFullName +    "_adapt.dot").c_str());
-        rename("final_model.dot"   , (resultsFullName +          ".dot").c_str());
+        rename("adapt_model.dot", (resultsFullName + "_adapt.dot").c_str());
+        rename("final_model.dot", (resultsFullName + ".dot").c_str());
     }
 
     if (parsedConfig[VPU_KMB_CONFIG_KEY(MCM_GENERATE_BLOB)] == "YES") {
@@ -197,22 +190,21 @@ void compileMcm(
                 const std::string& blobContentString = blobContentStream.str();
                 std::copy(blobContentString.begin(), blobContentString.end(), std::back_inserter(blob));
             } else {
-                VPU_THROW_EXCEPTION << "Can not open blob file " << resultsFullName + ".blob" << ". It was not created by mcmCompiler!";
+                VPU_THROW_EXCEPTION << "Can not open blob file " << resultsFullName + ".blob"
+                                    << ". It was not created by mcmCompiler!";
             }
         } else {
             std::copy(memBlob->begin(), memBlob->end(), std::back_inserter(blob));
         }
 
         if (blob.empty()) {
-            VPU_THROW_EXCEPTION << "Blob file " << resultsFullName + ".blob" << " created by mcmCompiler is empty!";
+            VPU_THROW_EXCEPTION << "Blob file " << resultsFullName + ".blob"
+                                << " created by mcmCompiler is empty!";
         }
     }
 }
 
-std::set<std::string> getSupportedLayersMcm(
-        ie::ICNNNetwork& network,
-        mv::OpModel& pCompiler,
-        const KmbConfig& config) {
+std::set<std::string> getSupportedLayersMcm(ie::ICNNNetwork& network, mv::OpModel& pCompiler, const KmbConfig& config) {
     auto frontEnd = std::make_shared<FrontEndMcm>(pCompiler, config);
 
     return frontEnd->checkSupportedLayers(network);

@@ -14,19 +14,18 @@
 // stated in the License.
 //
 
+#include <cnn_network_int8_normalizer.hpp>
+#include <conv_ref.hpp>
+#include <ie_icnn_network_stats.hpp>
+#include <ie_util_internal.hpp>
+#include <pool_ref.hpp>
 #include <vpu/kmb_plugin_config.hpp>
+#include <vpu/utils/ie_helpers.hpp>
 
+#include "blob_factory.hpp"
 #include "kmb_layers_tests.hpp"
 #include "kmb_xml_tests.hpp"
-
-#include <ie_icnn_network_stats.hpp>
-#include <cnn_network_int8_normalizer.hpp>
-#include <ie_util_internal.hpp>
-#include <conv_ref.hpp>
-#include <pool_ref.hpp>
 #include "layout_tests.hpp"
-#include "blob_factory.hpp"
-#include <vpu/utils/ie_helpers.hpp>
 
 #define ERROR_BOUND (.1f)
 
@@ -148,9 +147,8 @@ static const std::string layout_conversion_pooling_model = R"V0G0N(
     )V0G0N";
 
 class LayoutConversionTest :
-    public testing::WithParamInterface< std::tuple < InferenceEngine::Layout, InferenceEngine::Layout> >,
-    public kmbLayersTests_nightly {
-};
+    public testing::WithParamInterface<std::tuple<InferenceEngine::Layout, InferenceEngine::Layout>>,
+    public kmbLayersTests_nightly {};
 
 template <class srcType, class dstType>
 static void testOverflow(const Blob::Ptr& blob) {
@@ -159,7 +157,8 @@ static void testOverflow(const Blob::Ptr& blob) {
     auto minValue = std::numeric_limits<dstType>::min();
     for (size_t i = 0; i < blob->size(); ++i) {
         if (data[i] < minValue || maxValue < data[i]) {
-            THROW_IE_EXCEPTION << "Blob contains value " << data[i] <<  " that exceeds desired range [" << minValue << ", " << maxValue << "]";
+            THROW_IE_EXCEPTION << "Blob contains value " << data[i] << " that exceeds desired range [" << minValue
+                               << ", " << maxValue << "]";
         }
     }
 }
@@ -186,7 +185,7 @@ TEST_P(LayoutConversionTest, layoutConversionTest_manual) {
     uint32_t* biasData = reinterpret_cast<uint32_t*>(weightsBuffer->buffer().as<uint8_t*>() + weightsSize);
     std::fill_n(biasData, biasSize, static_cast<uint32_t>(1));
 
-    const std::string & model = layout_conversion_model;
+    const std::string& model = layout_conversion_model;
 
     CNNNetReader reader;
     reader.ReadNetwork(model.data(), model.length());
@@ -223,18 +222,19 @@ TEST_P(LayoutConversionTest, layoutConversionTest_manual) {
 
     auto outputBlob = inferRequest.GetBlob(exeNetwork.GetOutputsInfo().begin()->first);
     auto outputDesc = outputBlob->getTensorDesc();
-    auto convOutputBlob = make_shared_blob<float>({Precision::FP32, outputDesc.getDims(), InferenceEngine::Layout::NCHW});
+    auto convOutputBlob =
+        make_shared_blob<float>({Precision::FP32, outputDesc.getDims(), InferenceEngine::Layout::NCHW});
     convOutputBlob->allocate();
     data = convOutputBlob->buffer().as<uint8_t*>();
     std::fill(data, data + convOutputBlob->byteSize(), 0);
 
     TensorDesc inputBlobTensorDesc = inputBlob->getTensorDesc();
     InferenceEngine::Blob::Ptr nchwBlobForReference = make_blob_with_precision(
-        TensorDesc(inputBlobTensorDesc.getPrecision(), inputBlobTensorDesc.getDims(), InferenceEngine::Layout::NCHW)
-    );
+        TensorDesc(inputBlobTensorDesc.getPrecision(), inputBlobTensorDesc.getDims(), InferenceEngine::Layout::NCHW));
     nchwBlobForReference->allocate();
     vpu::copyBlob(inputBlob, nchwBlobForReference);
-    ref_conv_common({nchwBlobForReference}, *convOutputBlob, weightsData, weightsSize, bias_data, biasSize, conv_params);
+    ref_conv_common(
+        {nchwBlobForReference}, *convOutputBlob, weightsData, weightsSize, bias_data, biasSize, conv_params);
     testOverflow<float, uint8_t>(convOutputBlob);
     ASSERT_NO_THROW(inferRequest.Infer());
     Blob::Ptr outputBlobFP32 = ConvertU8ToFP32(outputBlob);
@@ -250,18 +250,11 @@ TEST_P(LayoutConversionTest, DISABLED_layoutConversionTestPooling_manual) {
     InferenceEngine::Layout input_layout = std::get<0>(GetParam());
     InferenceEngine::Layout output_layout = std::get<1>(GetParam());
     const std::vector<size_t> input_dims = {1, 1, 1, 16};
-    std::map<std::string, std::string> pool_params = {
-        {"kernel-x", "1"},
-        {"kernel-y", "1"},
-        {"stride-x", "1"},
-        {"stride-y", "1"},
-        {"pad-x", "0"},
-        {"pad-y", "0"},
-        {"pool-method", "max"}
-    };
+    std::map<std::string, std::string> pool_params = {{"kernel-x", "1"}, {"kernel-y", "1"}, {"stride-x", "1"},
+        {"stride-y", "1"}, {"pad-x", "0"}, {"pad-y", "0"}, {"pool-method", "max"}};
     SizeVector output_dims = {1, 1, 1, 16};
 
-    const std::string & model = layout_conversion_pooling_model;
+    const std::string& model = layout_conversion_pooling_model;
 
     CNNNetReader reader;
     reader.ReadNetwork(model.data(), model.length());
@@ -294,18 +287,18 @@ TEST_P(LayoutConversionTest, DISABLED_layoutConversionTestPooling_manual) {
 
     auto outputBlob = inferRequest.GetBlob(exeNetwork.GetOutputsInfo().begin()->first);
     auto outputDesc = outputBlob->getTensorDesc();
-    Blob::Ptr poolingOutputBlob = make_shared_blob<float>({Precision::FP32, outputDesc.getDims(), InferenceEngine::Layout::NCHW});
+    Blob::Ptr poolingOutputBlob =
+        make_shared_blob<float>({Precision::FP32, outputDesc.getDims(), InferenceEngine::Layout::NCHW});
     poolingOutputBlob->allocate();
     data = poolingOutputBlob->buffer().as<uint8_t*>();
     std::fill(data, data + poolingOutputBlob->byteSize(), 0);
 
     TensorDesc inputBlobTensorDesc = inputBlob->getTensorDesc();
     InferenceEngine::Blob::Ptr nchwBlobForReference = make_blob_with_precision(
-        TensorDesc(inputBlobTensorDesc.getPrecision(), inputBlobTensorDesc.getDims(), InferenceEngine::Layout::NCHW)
-    );
+        TensorDesc(inputBlobTensorDesc.getPrecision(), inputBlobTensorDesc.getDims(), InferenceEngine::Layout::NCHW));
     nchwBlobForReference->allocate();
     vpu::copyBlob(inputBlob, nchwBlobForReference);
-    common_ref_pool_wrap<float>({ nchwBlobForReference }, poolingOutputBlob, pool_params);
+    common_ref_pool_wrap<float>({nchwBlobForReference}, poolingOutputBlob, pool_params);
     ASSERT_NO_THROW(inferRequest.Infer());
     Blob::Ptr outputBlobFP32 = ConvertU8ToFP32(outputBlob);
 
@@ -337,7 +330,7 @@ TEST_P(LayoutConversionTest, setLayoutAndCompareWithExeNetwork_manual) {
     uint32_t* biasData = reinterpret_cast<uint32_t*>(weightsBuffer->buffer().as<uint8_t*>() + weightsSize);
     std::fill_n(biasData, biasSize, static_cast<uint32_t>(1));
 
-    const std::string & model = layout_conversion_model;
+    const std::string& model = layout_conversion_model;
 
     CNNNetReader reader;
     ASSERT_NO_THROW(reader.ReadNetwork(model.data(), model.length()));
@@ -390,7 +383,7 @@ TEST_P(LayoutConversionTest, DISABLED_setLayoutExportImportAndCompare_manual) {
     uint32_t* biasData = reinterpret_cast<uint32_t*>(weightsBuffer->buffer().as<uint8_t*>() + weightsSize);
     std::fill_n(biasData, biasSize, static_cast<uint32_t>(1));
 
-    const std::string & model = layout_conversion_model;
+    const std::string& model = layout_conversion_model;
 
     CNNNetReader reader;
     ASSERT_NO_THROW(reader.ReadNetwork(model.data(), model.length()));
@@ -425,23 +418,15 @@ TEST_P(LayoutConversionTest, DISABLED_setLayoutExportImportAndCompare_manual) {
 }
 
 const std::vector<InferenceEngine::Layout> test_layouts = {
-    InferenceEngine::Layout::NHWC, InferenceEngine::Layout::NCHW
-};
+    InferenceEngine::Layout::NHWC, InferenceEngine::Layout::NCHW};
 
 INSTANTIATE_TEST_CASE_P(accuracy, LayoutConversionTest,
-    ::testing::Combine(
-        ::testing::ValuesIn(test_layouts),  // inputs
-        ::testing::ValuesIn(test_layouts)   // outputs
-    )
-);
+    ::testing::Combine(::testing::ValuesIn(test_layouts),  // inputs
+        ::testing::ValuesIn(test_layouts)                  // outputs
+        ));
 
-static auto params = Combine(
-    Values(conv_p),
-    Values(std::make_pair(Precision::FP32, 1e-5)),
-    Values(NCHW, NHWC),
-    Values(NCHW, NHWC),
-    Values(Precision::U8, Precision::U8, Precision::U8)
-);
+static auto params = Combine(Values(conv_p), Values(std::make_pair(Precision::FP32, 1e-5)), Values(NCHW, NHWC),
+    Values(NCHW, NHWC), Values(Precision::U8, Precision::U8, Precision::U8));
 
 // PLUGING_CASE(KMB, LayoutTTTest, params); // uncomment to fix CVS-24575
 #endif

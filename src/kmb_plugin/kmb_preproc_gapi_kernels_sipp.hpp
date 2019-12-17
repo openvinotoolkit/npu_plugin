@@ -10,7 +10,7 @@ namespace InferenceEngine {
 namespace gapi {
 namespace preproc {
 namespace sipp {
-    cv::gapi::GKernelPackage kernels();
+cv::gapi::GKernelPackage kernels();
 }  // namespace sipp
 }  // namespace preproc
 }  // namespace gapi

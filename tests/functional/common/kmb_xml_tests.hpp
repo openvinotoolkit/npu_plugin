@@ -1141,7 +1141,6 @@ static std::string conv_after_scale_shift = R"V0G0N(
     </net>
         )V0G0N";
 
-
 static std::string pooling_test2 = R"V0G0N(
     <net batch="1" name="POOLING_TEST" version="2">
         <layers>
@@ -1253,7 +1252,6 @@ static std::string convolution_u8_only = R"V0G0N(
 	</edges>
 </net>
         )V0G0N";
-
 
 static std::string relu_test_2 = R"V0G0N(
         <net batch="1" name="RELU_TEST" version="2">

@@ -16,21 +16,19 @@
 
 #pragma once
 
+#include <ie_common.h>
+
+#include <cpp_interfaces/impl/ie_executable_network_internal.hpp>
+#include <cpp_interfaces/impl/ie_infer_request_internal.hpp>
 #include <map>
+#include <memory>
 #include <string>
 #include <vector>
-#include <memory>
-
-#include <ie_common.h>
-#include <cpp_interfaces/impl/ie_infer_request_internal.hpp>
-#include <cpp_interfaces/impl/ie_executable_network_internal.hpp>
-
 #include <vpu/utils/logger.hpp>
 #include <vpu/utils/perf_report.hpp>
 
-#include "kmb_executor.h"
 #include "kmb_config.h"
-
+#include "kmb_executor.h"
 #include "kmb_preproc.hpp"
 
 namespace vpu {
@@ -52,20 +50,18 @@ public:
     typedef std::shared_ptr<KmbInferRequest> Ptr;
 
     explicit KmbInferRequest(const InferenceEngine::InputsDataMap& networkInputs,
-                                const InferenceEngine::OutputsDataMap& networkOutputs,
-                                const std::vector<StageMetaInfo> &blobMetaData,
-                                const KmbConfig &kmbConfig,
-                                const KmbExecutorPtr &executor);
+        const InferenceEngine::OutputsDataMap& networkOutputs, const std::vector<StageMetaInfo>& blobMetaData,
+        const KmbConfig& kmbConfig, const KmbExecutorPtr& executor);
 
     void InferImpl() override;
     void InferAsync();
     void GetResult();
 
-    void
-    GetPerformanceCounts(std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> &perfMap) const override;
+    void GetPerformanceCounts(
+        std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>& perfMap) const override;
 
-    void SetBlob(const char *name, const InferenceEngine::Blob::Ptr &data) override;
-    void GetBlob(const char *name, InferenceEngine::Blob::Ptr &data) override;
+    void SetBlob(const char* name, const InferenceEngine::Blob::Ptr& data) override;
+    void GetBlob(const char* name, InferenceEngine::Blob::Ptr& data) override;
 
     void Infer() override;
 

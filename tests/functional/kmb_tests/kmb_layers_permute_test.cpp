@@ -21,7 +21,7 @@
 using namespace InferenceEngine;
 
 typedef std::tuple<tensor_test_params, tensor_test_params, std::string> permute_test_params;
-typedef kmbLayerTestBaseWithParam< permute_test_params > kmbLayersTestsPermuteParams;
+typedef kmbLayerTestBaseWithParam<permute_test_params> kmbLayersTestsPermuteParams;
 
 #ifdef ENABLE_MCM_COMPILER
 // #-23996
@@ -31,11 +31,11 @@ TEST_P(kmbLayersTestsPermuteParams, DISABLED_TestsPermute) {
     tensor_test_params outputTensor = std::get<1>(param);
     std::string order = std::get<2>(param);
 
-    const ::testing::TestInfo* const test_info =
-      ::testing::UnitTest::GetInstance()->current_test_info();
+    const ::testing::TestInfo* const test_info = ::testing::UnitTest::GetInstance()->current_test_info();
 
-    std::cout << ::testing::UnitTest::GetInstance()->current_test_info()->name() << " test_info->name()=" <<
-            test_info->name() << " test_info->test_case_name() " << test_info->test_case_name() << std::endl;
+    std::cout << ::testing::UnitTest::GetInstance()->current_test_info()->name()
+              << " test_info->name()=" << test_info->name() << " test_info->test_case_name() "
+              << test_info->test_case_name() << std::endl;
 
     std::map<std::string, std::string> params;
     params["order"] = order;
@@ -46,24 +46,17 @@ TEST_P(kmbLayersTestsPermuteParams, DISABLED_TestsPermute) {
 
     SetInputTensor(inputTensor);
     SetOutputTensor(outputTensor);
-    NetworkInit("Permute",
-                &params,
-                0,
-                0,
-                nullptr,
-                InferenceEngine::Precision::FP16 // output precision
+    NetworkInit("Permute", &params, 0, 0, nullptr,
+        InferenceEngine::Precision::FP16  // output precision
     );
 }
 
 static const permute_test_params paramsTable[] = {
-    std::make_tuple<tensor_test_params, tensor_test_params, std::string>(
-        {1, 1000, 1, 1},  // input tensor
-        {1, 1, 1, 1000},  // output tensor
-        "0,2,3,1"         // order
-    ),
+    std::make_tuple<tensor_test_params, tensor_test_params, std::string>({1, 1000, 1, 1},  // input tensor
+        {1, 1, 1, 1000},                                                                   // output tensor
+        "0,2,3,1"                                                                          // order
+        ),
 };
 
-INSTANTIATE_TEST_CASE_P(loadNetworkNoThrow, kmbLayersTestsPermuteParams,
-    ::testing::ValuesIn(paramsTable)
-);
+INSTANTIATE_TEST_CASE_P(loadNetworkNoThrow, kmbLayersTestsPermuteParams, ::testing::ValuesIn(paramsTable));
 #endif

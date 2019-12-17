@@ -25,7 +25,7 @@
 using namespace InferenceEngine;
 
 typedef std::tuple<tensor_test_params, tensor_test_params, size_t> fully_connected_test_params;
-typedef kmbLayerTestBaseWithParam< fully_connected_test_params > kmbLayersTestsFullyConnectedParams;
+typedef kmbLayerTestBaseWithParam<fully_connected_test_params> kmbLayersTestsFullyConnectedParams;
 
 #ifdef ENABLE_MCM_COMPILER
 TEST_P(kmbLayersTestsFullyConnectedParams, DISABLED_TestsFullyConnected) {
@@ -37,44 +37,37 @@ TEST_P(kmbLayersTestsFullyConnectedParams, DISABLED_TestsFullyConnected) {
     size_t weightsSize = outSize * inputTensor.n * inputTensor.c * inputTensor.h * inputTensor.w * sizeof(uint16_t);
     size_t biasesSize = 0;
 
-    const ::testing::TestInfo* const test_info =
-            ::testing::UnitTest::GetInstance()->current_test_info();
+    const ::testing::TestInfo* const test_info = ::testing::UnitTest::GetInstance()->current_test_info();
 
-    std::cout << ::testing::UnitTest::GetInstance()->current_test_info()->name() << " test_info->name()=" <<
-              test_info->name() << " test_info->test_case_name() " << test_info->test_case_name() << std::endl;
+    std::cout << ::testing::UnitTest::GetInstance()->current_test_info()->name()
+              << " test_info->name()=" << test_info->name() << " test_info->test_case_name() "
+              << test_info->test_case_name() << std::endl;
 
     std::map<std::string, std::string> params;
     params["out-size"] = std::to_string(outSize);
 
-    Blob::Ptr weightsBlob(GenWeights<uint16_t >(weightsSize + biasesSize));
+    Blob::Ptr weightsBlob(GenWeights<uint16_t>(weightsSize + biasesSize));
 
     SetInputTensor(inputTensor);
     SetOutputTensor(outputTensor);
-    NetworkInit("FullyConnected",
-                &params,
-                weightsSize,
-                biasesSize,
-                std::static_pointer_cast<TBlob<uint8_t> >(weightsBlob),
-                Precision::FP16 // output precision
+    NetworkInit(
+        "FullyConnected", &params, weightsSize, biasesSize, std::static_pointer_cast<TBlob<uint8_t>>(weightsBlob),
+        Precision::FP16  // output precision
     );
 }
 
 static const fully_connected_test_params paramsTable[] = {
-        std::make_tuple<tensor_test_params, tensor_test_params, size_t>(
-                {1, 128, 2, 2},  // input tensor
-                {1, 1024, 1, 1}, // output tensor
-                128              // out-size
+    std::make_tuple<tensor_test_params, tensor_test_params, size_t>({1, 128, 2, 2},  // input tensor
+        {1, 1024, 1, 1},                                                             // output tensor
+        128                                                                          // out-size
         ),
-        std::make_tuple<tensor_test_params, tensor_test_params, size_t>(
-                {1, 64, 2, 2}, // input tensor
-                {1, 2048, 1, 1}, // output tensor
-                64               // out-size
+    std::make_tuple<tensor_test_params, tensor_test_params, size_t>({1, 64, 2, 2},  // input tensor
+        {1, 2048, 1, 1},                                                            // output tensor
+        64                                                                          // out-size
         ),
 };
 
-INSTANTIATE_TEST_CASE_P(loadNetworkNoThrow, kmbLayersTestsFullyConnectedParams,
-                        ::testing::ValuesIn(paramsTable)
-);
+INSTANTIATE_TEST_CASE_P(loadNetworkNoThrow, kmbLayersTestsFullyConnectedParams, ::testing::ValuesIn(paramsTable));
 struct fullyConnected_test_params {
     SizeVector input_dim;
     uint32_t out_channels;
@@ -83,9 +76,7 @@ struct fullyConnected_test_params {
     std::string quantization_level;
 };
 
-size_t getFCWeightsByteSize(const size_t inChannels,
-                            const size_t outChannels,
-                            const std::string& precision) {
+size_t getFCWeightsByteSize(const size_t inChannels, const size_t outChannels, const std::string& precision) {
     size_t type_size = 1lu;
     if (precision == "FP32")
         type_size = sizeof(float);
@@ -162,7 +153,7 @@ static void fillFcIR(std::string& model, SizeVector input_dims, size_t weightsBu
     REPLACE_WITH_NUM(model, "_OUTPUT_CHANNEL_", out_channels);
 }
 
-typedef kmbLayerTestBaseWithParam< fullyConnected_test_params > kmbLayersTestsFullyConnectedWithIR;
+typedef kmbLayerTestBaseWithParam<fullyConnected_test_params> kmbLayersTestsFullyConnectedWithIR;
 
 TEST_P(kmbLayersTestsFullyConnectedWithIR, DISABLED_fc_only) {
     // Besides weights and biases we need to store FQ blobs as well
@@ -175,10 +166,12 @@ TEST_P(kmbLayersTestsFullyConnectedWithIR, DISABLED_fc_only) {
     size_t biasByteSize = outChannels * sizeof(float);
     size_t biasSize = outChannels;
 
-    auto weightsBuffer = make_shared_blob<uint8_t>({Precision::U8, {weightsByteSize + biasByteSize + weightsBufferOffset}, Layout::C});
+    auto weightsBuffer =
+        make_shared_blob<uint8_t>({Precision::U8, {weightsByteSize + biasByteSize + weightsBufferOffset}, Layout::C});
     weightsBuffer->allocate();
     auto weightsBufferData = weightsBuffer->buffer().as<float*>();
-    std::fill(weightsBufferData, weightsBufferData + (weightsSize + biasSize + weightsBufferOffset / sizeof(float)), 1.0f);
+    std::fill(
+        weightsBufferData, weightsBufferData + (weightsSize + biasSize + weightsBufferOffset / sizeof(float)), 1.0f);
 
     Core ie;
 

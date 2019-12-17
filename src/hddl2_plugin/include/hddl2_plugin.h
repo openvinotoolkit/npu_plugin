@@ -19,8 +19,8 @@
 #include <map>
 #include <string>
 
-#include "inference_engine.hpp"
 #include "cpp_interfaces/impl/ie_plugin_internal.hpp"
+#include "inference_engine.hpp"
 
 namespace vpu {
 namespace HDDL2Plugin {
@@ -31,22 +31,19 @@ public:
 
     InferenceEngine::ExecutableNetworkInternal::Ptr
 
-    LoadExeNetworkImpl(const InferenceEngine::ICore *core,
-                       InferenceEngine::ICNNNetwork &network,
-                       const std::map <std::string, std::string> &config) override;
+    LoadExeNetworkImpl(const InferenceEngine::ICore* core, InferenceEngine::ICNNNetwork& network,
+        const std::map<std::string, std::string>& config) override;
 
-    void SetConfig(const std::map<std::string, std::string> &config) override;
+    void SetConfig(const std::map<std::string, std::string>& config) override;
 
-    void QueryNetwork(const InferenceEngine::ICNNNetwork &network,
-                      const std::map<std::string, std::string> &config,
-                      InferenceEngine::QueryNetworkResult &res) const override;
+    void QueryNetwork(const InferenceEngine::ICNNNetwork& network, const std::map<std::string, std::string>& config,
+        InferenceEngine::QueryNetworkResult& res) const override;
 
     InferenceEngine::IExecutableNetwork::Ptr ImportNetwork(
-                        const std::string &modelFileName,
-                        const std::map <std::string, std::string> &config) override;
+        const std::string& modelFileName, const std::map<std::string, std::string>& config) override;
 
-    InferenceEngine::ExecutableNetwork ImportNetwork(std::istream& /*networkModel*/,
-                                                     const std::map<std::string, std::string>& /*config*/) override {
+    InferenceEngine::ExecutableNetwork ImportNetwork(
+        std::istream& /*networkModel*/, const std::map<std::string, std::string>& /*config*/) override {
         THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
     }
 };

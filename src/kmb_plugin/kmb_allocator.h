@@ -21,25 +21,25 @@
 #endif
 
 #include <ie_allocator.hpp>
-#include <unordered_map>
 #include <memory>
+#include <unordered_map>
 
 namespace vpu {
 namespace KmbPlugin {
 
 class KmbAllocator : public InferenceEngine::IAllocator {
 public:
-    void * lock(void * handle, InferenceEngine::LockOp)  noexcept override;
+    void* lock(void* handle, InferenceEngine::LockOp) noexcept override;
 
-    void  unlock(void * handle) noexcept override;
+    void unlock(void* handle) noexcept override;
 
-    virtual void * alloc(size_t size) noexcept = 0;
+    virtual void* alloc(size_t size) noexcept = 0;
 
-    virtual bool   free(void* handle) noexcept = 0;
+    virtual bool free(void* handle) noexcept = 0;
 
-    void Release() noexcept override { }
+    void Release() noexcept override {}
 
-    unsigned long getPhysicalAddress(void *handle) noexcept;
+    unsigned long getPhysicalAddress(void* handle) noexcept;
 
     virtual bool isValidPtr(void* ptr) noexcept;
 
@@ -51,7 +51,7 @@ protected:
         int fd;
         unsigned long physAddr;
     };
-    std::unordered_map<void *, MemoryDescriptor> _allocatedMemory;
+    std::unordered_map<void*, MemoryDescriptor> _allocatedMemory;
 };
 
 std::shared_ptr<KmbAllocator>& getKmbAllocator();

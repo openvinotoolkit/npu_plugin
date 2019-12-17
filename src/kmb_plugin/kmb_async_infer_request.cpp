@@ -14,32 +14,28 @@
 // stated in the License.
 //
 
-#include <memory>
 #include "kmb_async_infer_request.h"
+
+#include <memory>
 
 using namespace vpu::KmbPlugin;
 using namespace InferenceEngine;
 
-KmbAsyncInferRequest::KmbAsyncInferRequest(const KmbInferRequest::Ptr &request,
-                                                 const InferenceEngine::ITaskExecutor::Ptr &taskExecutorStart,
-                                                 const InferenceEngine::ITaskExecutor::Ptr &taskExecutorGetResult,
-                                                 const InferenceEngine::ITaskExecutor::Ptr &callbackExecutor,
-                                                 const Logger::Ptr &log)
-        : InferenceEngine::AsyncInferRequestThreadSafeDefault(request,
-                                                              taskExecutorStart,
-                                                              callbackExecutor),
-          _logger(log), _request(request), _taskExecutorGetResult(taskExecutorGetResult) {
-    _pipeline = {
-        {_requestExecutor, [this] {
-            _request->InferAsync();
-        }},
+KmbAsyncInferRequest::KmbAsyncInferRequest(const KmbInferRequest::Ptr& request,
+    const InferenceEngine::ITaskExecutor::Ptr& taskExecutorStart,
+    const InferenceEngine::ITaskExecutor::Ptr& taskExecutorGetResult,
+    const InferenceEngine::ITaskExecutor::Ptr& callbackExecutor, const Logger::Ptr& log)
+    : InferenceEngine::AsyncInferRequestThreadSafeDefault(request, taskExecutorStart, callbackExecutor),
+      _logger(log),
+      _request(request),
+      _taskExecutorGetResult(taskExecutorGetResult) {
+    _pipeline = {{_requestExecutor,
+                     [this] {
+                         _request->InferAsync();
+                     }},
         {_taskExecutorGetResult, [this] {
-            _request->GetResult();
-        }}
-    };
+             _request->GetResult();
+         }}};
 }
 
-KmbAsyncInferRequest::~KmbAsyncInferRequest() {
-    StopAndWait();
-}
-
+KmbAsyncInferRequest::~KmbAsyncInferRequest() { StopAndWait(); }

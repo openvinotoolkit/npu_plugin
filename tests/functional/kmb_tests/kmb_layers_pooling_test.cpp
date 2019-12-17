@@ -13,8 +13,8 @@
 // express or implied warranties, other than those that are expressly
 // stated in the License.
 //
-#include <vpu/kmb_plugin_config.hpp>
 #include <pool_ref.hpp>
+#include <vpu/kmb_plugin_config.hpp>
 
 #include "kmb_layers_tests.hpp"
 
@@ -22,8 +22,10 @@
 
 using namespace InferenceEngine;
 
-typedef std::tuple<tensor_test_params, std::string, std::string, std::string, param_size, param_size, param_size, param_size> pooling_test_params;
-typedef kmbLayerTestBaseWithParam< pooling_test_params > kmbLayersTestsPoolingParams;
+typedef std::tuple<tensor_test_params, std::string, std::string, std::string, param_size, param_size, param_size,
+    param_size>
+    pooling_test_params;
+typedef kmbLayerTestBaseWithParam<pooling_test_params> kmbLayersTestsPoolingParams;
 
 #ifdef ENABLE_MCM_COMPILER
 TEST_F(kmbLayersTests_nightly, DISABLED_TestsPoolingAfterConvolution) {
@@ -114,7 +116,7 @@ TEST_F(kmbLayersTests_nightly, DISABLED_TestsPoolingAfterConvolution) {
     </net>
         )V0G0N";
 
-    TBlob<uint8_t>::Ptr weightsBlob(GenWeights<uint16_t >(18828 + 128));
+    TBlob<uint8_t>::Ptr weightsBlob(GenWeights<uint16_t>(18828 + 128));
 
     ASSERT_NO_THROW(_net_reader.ReadNetwork(model.data(), model.length()));
     ASSERT_TRUE(_net_reader.isParseSuccess());
@@ -213,11 +215,11 @@ TEST_P(kmbLayersTestsPoolingParams, DISABLED_TestsPoolingNetInit) {
     param_size padsEnd = std::get<6>(param);
     param_size strides = std::get<7>(param);
 
-    const ::testing::TestInfo* const test_info =
-      ::testing::UnitTest::GetInstance()->current_test_info();
+    const ::testing::TestInfo* const test_info = ::testing::UnitTest::GetInstance()->current_test_info();
 
-    std::cout << ::testing::UnitTest::GetInstance()->current_test_info()->name() << " test_info->name()=" <<
-            test_info->name() << " test_info->test_case_name() " << test_info->test_case_name() << std::endl;
+    std::cout << ::testing::UnitTest::GetInstance()->current_test_info()->name()
+              << " test_info->name()=" << test_info->name() << " test_info->test_case_name() "
+              << test_info->test_case_name() << std::endl;
 
     std::map<std::string, std::string> params;
 
@@ -231,31 +233,25 @@ TEST_P(kmbLayersTestsPoolingParams, DISABLED_TestsPoolingNetInit) {
 
     SetInputTensor(tensor);
     SetOutputTensor(tensor);
-    NetworkInit("Pooling",
-                &params,
-                0,
-                0,
-                nullptr,
-                Precision::FP16 // output precision
+    NetworkInit("Pooling", &params, 0, 0, nullptr,
+        Precision::FP16  // output precision
     );
 }
 
 static const pooling_test_params paramsTable[] = {
-    std::make_tuple<tensor_test_params, std::string, std::string, std::string, param_size, param_size, param_size, param_size>(
-        {1, 3, 224, 224},  // input and output tensors
-        "same_upper",       // auto_pad
-        "true",             // exclude-pad
-        "max",              // pool-method
-        {3, 3},             // kernel
-        {0, 0},             // pads_begin
-        {1, 1},             // pads_end
-        {2, 2}              // strides
-    ),
+    std::make_tuple<tensor_test_params, std::string, std::string, std::string, param_size, param_size, param_size,
+        param_size>({1, 3, 224, 224},  // input and output tensors
+        "same_upper",                  // auto_pad
+        "true",                        // exclude-pad
+        "max",                         // pool-method
+        {3, 3},                        // kernel
+        {0, 0},                        // pads_begin
+        {1, 1},                        // pads_end
+        {2, 2}                         // strides
+        ),
 };
 
-INSTANTIATE_TEST_CASE_P(loadNetworkNoThrow, kmbLayersTestsPoolingParams,
-    ::testing::ValuesIn(paramsTable)
-);
+INSTANTIATE_TEST_CASE_P(loadNetworkNoThrow, kmbLayersTestsPoolingParams, ::testing::ValuesIn(paramsTable));
 
 struct PoolingTestParams {
     SizeVector input_size;
@@ -370,14 +366,13 @@ TEST_P(PoolingTest, pooling_only) {
 
     Blob::Ptr outputBlobFP32 = ConvertU8ToFP32(outputBlob);
     Compare(refOutputBlob, outputBlobFP32, 1.1f);
-
 }
 
 // Assuming input layout have NCHW order
 std::vector<PoolingTestParams> int_pooling_params = {
-        {{1, 1, 128, 128}, {{1, 1}, {4, 4}, {0, 0}, {0, 0}, "same_upper", false, "true"}},
-        {{1, 2048, 7, 7}, {{1, 1}, {7, 7}, {0, 0}, {0, 0}, "same_upper", false, "true"}},
-        {{1, 3, 224, 224}, {{2, 2}, {2, 2}, {0, 0}, {0, 0}, "same_upper", false, "false"}},
+    {{1, 1, 128, 128}, {{1, 1}, {4, 4}, {0, 0}, {0, 0}, "same_upper", false, "true"}},
+    {{1, 2048, 7, 7}, {{1, 1}, {7, 7}, {0, 0}, {0, 0}, "same_upper", false, "true"}},
+    {{1, 3, 224, 224}, {{2, 2}, {2, 2}, {0, 0}, {0, 0}, "same_upper", false, "false"}},
 };
 
 INSTANTIATE_TEST_CASE_P(PerLayer, PoolingTest, ::testing::ValuesIn(int_pooling_params));
