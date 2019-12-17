@@ -15,7 +15,7 @@ class SIPPPreprocEngine {
     class Priv;
     std::unique_ptr<Priv> _priv;
 public:
-    SIPPPreprocEngine(unsigned int shaveFirst, unsigned int shaveLast);
+    SIPPPreprocEngine(unsigned int shaveFirst, unsigned int shaveLast, unsigned int lpi);
     ~SIPPPreprocEngine();
 
     void preprocWithSIPP(const Blob::Ptr &inBlob, Blob::Ptr &outBlob,
