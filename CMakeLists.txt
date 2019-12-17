@@ -31,6 +31,7 @@ add_subdirectory(thirdparty)
 
 if(ENABLE_MCM_COMPILER)
     add_definitions(-DENABLE_MCM_COMPILER)
+    add_subdirectory(tools)
 endif()
 if (ENABLE_VPUAL)
     add_definitions(-DENABLE_VPUAL)
