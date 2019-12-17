@@ -1,0 +1,20 @@
+Network title: "face-detection-retail-0004_fp32"
+
+Results is obtained with:
+
+dldt/IE + python_api built: 28c28a9df88cabc48977dc733e7ef05ccdea0299 (feature/low_precision/develop_fp)
+dldt/MO used: 40f858654220a8409c68ff52ea958fd83570e2f1 (as/post_training_compression)
+post-training-compression-tool: 1d4d8c1fda11cd27e27ef517361a53873f232248 (develop)
+annotation_converters_ext: 3f04f586a724862413c8f96270bbf9e49a99d7bb (master)
+model-zoo-models-intel: 5399a92275431288ae63a1fea868e4b8c0981081 (master)
+kmb_plugin: c5c7855e95bd39e5cfe406f80a74b7091627057d (kskvorts/post_training_face_detection_retail_004)
+
+
+Command lines for run 
+(Edit it with your local pathes, 
+Look at ../README.md and ../../README.md to setup environment variables properly):
+
+../../run_PTT.sh <PATH_TO_MODELS>/model-zoo-models-intel/Retail/object_detection/face/sqnet1.0modif-ssd/0004/caffe ./face-detection-retail-0004_fp32.json -e > face-detection-retail-0004_fp32.log
+
+../../run_PTT.sh <PATH_TO_MODELS>/model-zoo-models-intel/Retail/object_detection/face/sqnet1.0modif-ssd/0004/caffe ./face-detection-retail-0004_uint8_int8_weights_pertensor.json -e  > face-detection-retail-0004_uint8_int8_weights_pertensor.log
+

@@ -100,10 +100,10 @@ export PATH=$PATH:$post_trainig_tool:$DATA_DIR:$DLDT_DIR
 
 
 original_model=`readlink -f $1`
-echo "original_model=$original_model"
 if ! [ -e "$original_model" ]
 then
-  echo "You have not set ORIGINAL_MODEL argument"
+  echo "Wrong 'original_model' argument"
+  echo "original_model=$original_model"
   PrintUsageAndExit
 fi
 original_model=${original_model//\//\\\/}
@@ -113,7 +113,8 @@ post_trainig_json_dir=`dirname $post_trainig_json`
 
 if ! [ -f "$post_trainig_json" ]
 then
-  echo "You have not set POST_TRAINING_JSON argument"
+  echo "Wrong 'post_trainig_json' argument"
+  echo "post_trainig_json=$post_trainig_json"
   PrintUsageAndExit
 fi
 

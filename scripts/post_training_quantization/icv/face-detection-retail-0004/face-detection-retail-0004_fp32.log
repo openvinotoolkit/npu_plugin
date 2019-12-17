@@ -1,0 +1,13 @@
+running install_as_extension
+Output log dir: ./results/face-detection-retail-0004-fp32/2019-12-13_09-52-07
+Creating pipeline:
+===========================================================================
+INFO:compression.pipeline.pipeline:Evaluation of generated model
+INFO:compression.engines.ac_engine:Start inference on the whole dataset
+Total dataset size: 3226
+1000 / 3226 processed in 22.890s
+2000 / 3226 processed in 22.324s
+3000 / 3226 processed in 22.236s
+3226 objects processed in 72.680 seconds
+INFO:compression.engines.ac_engine:Inference finished
+map                        : 0.8300761514093273
