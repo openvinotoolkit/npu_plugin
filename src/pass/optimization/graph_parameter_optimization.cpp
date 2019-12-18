@@ -41,6 +41,8 @@ namespace mv
             StrategyManagerKmb(OpModel& model,mv::Element& passDesc) :
                 StrategyManager(model,passDesc)
             {
+                auto globalParams = model.getGlobalConfigParams();
+                enableChannelMajorConv = globalParams->get<bool>("enable_channel_major_conv");
             }
 
             size_t totalClusters;
@@ -51,10 +53,11 @@ namespace mv
             bool globalEnableStreaming;
             bool globalEnableActivationSparsity;
             bool globalEnableWeightsSparsity;
+            bool enableChannelMajorConv;
             double safetyFactor;
             double clusterMemory;
             std::vector<string> failure_causes = {"Unknown", "MemorySize", "Stream+ClusterComp", "SpillHKSwitch", 
-            "SOKNotAlign16", "InputNotSpilled", "OutputNotSpilled", "StreamingNotSpilled", "Workload<KernelSOH"};
+            "SOKNotAlign16", "InputNotSpilled", "OutputNotSpilled", "StreamingNotSpilled", "Workload<KernelSOH", "ChannelMjr1", "ChannelMjr2"};
 
 
             void readGlobalConfigs()
@@ -133,7 +136,7 @@ namespace mv
                 return attr;
             }
 
-            size_t realTensorSize(const mv::Data::TensorIterator tensorToSize, const Shape& streamingPool)
+            size_t realTensorSize(const mv::Data::TensorIterator tensorToSize, const Shape& streamingPool, bool isCMConv)
             {
                 auto div = [](unsigned x,unsigned y) -> unsigned { return (x+y-1)/y; };
 
@@ -165,15 +168,15 @@ namespace mv
                     streamDivisor = streamDivisor * worstStreamPool[dim];
                 }
 
-                return tensorToSize->computeTotalSize(16, false, false, true)/streamDivisor;
+                if(isCMConv)
+                    return tensorToSize->computeTotalSize(16, false, false, false)/streamDivisor;
 
+                return tensorToSize->computeTotalSize(16, false, false, true)/streamDivisor;
             }
 
             pair<size_t,size_t> memorySize(mv::Op& op, const Attribute& clustering, bool inputActivationSparsity,
                                             bool outputActivationSparsity, bool weightsSparsity, const Shape& streamConfig, bool prefetch)
             {
-                auto inputTensors = op.getInputTensor();
-                auto outputTensors = op.getOutputTensor();
                 auto div = [](unsigned x,unsigned y) -> unsigned { return (x+y-1)/y; };
 
                 //StreamingPool noSplit( {{'W',1},{'H',1},{'C'},{'K'}});
@@ -184,13 +187,16 @@ namespace mv
 
                 size_t totalWeightsSize = 0;
                 size_t totalActivationSize = 0;
+                auto isCMConv = false;
+
+                if(enableChannelMajorConv and op.getOpType() == "Conv" and 
+                    op.getInputTensor(1)->getShape()[mv::KERNEL_INPUT_CHANNELS] < 16)
+                        isCMConv = true;
 
                 if(op.getOpType() != "Input")
-                {
-                    inputSize = realTensorSize(op.getInputTensor(0),{streamConfig["W"],streamConfig["H"],streamConfig["C"],1});
-                }
+                    inputSize = realTensorSize(op.getInputTensor(0),{streamConfig["W"],streamConfig["H"],streamConfig["C"],1}, isCMConv);
                 if(op.getOpType() != "Output")
-                    outputSize = realTensorSize(op.getOutputTensor(0),{streamConfig["W"],streamConfig["H"],streamConfig["K"],1});
+                    outputSize = realTensorSize(op.getOutputTensor(0),{streamConfig["W"],streamConfig["H"],streamConfig["K"],1}, isCMConv);
 
                 if(op.getOpType() == "Conv" || op.getOpType() == "DepthwiseConv")
                 {
@@ -198,9 +204,9 @@ namespace mv
                     size_t alignedSplittedChannels = mv::round_up(alignedFullChannels/streamConfig["K"], 16);
                     weightTableSize = 4 * alignedSplittedChannels ;
                     if (op.getOpType() == "Conv")
-                        weightSize += realTensorSize(op.getInputTensor(1),{1,1,streamConfig["C"],streamConfig["K"]});
+                        weightSize += realTensorSize(op.getInputTensor(1),{1,1,streamConfig["C"],streamConfig["K"]}, isCMConv);
                     else
-                        weightSize += realTensorSize(op.getInputTensor(1),{1,1,streamConfig["C"],1});
+                        weightSize += realTensorSize(op.getInputTensor(1),{1,1,streamConfig["C"],1}, isCMConv);
                 }
                 else if(op.getOpType() == "MaxPool")
                 {
@@ -211,7 +217,7 @@ namespace mv
                 {
                     weightTableSize = 0;
                     weightSize = 0;
-                    inputSize += realTensorSize(op.getInputTensor(1),{streamConfig["W"],streamConfig["H"],streamConfig["C"],1});
+                    inputSize += realTensorSize(op.getInputTensor(1),{streamConfig["W"],streamConfig["H"],streamConfig["C"],1}, isCMConv);
                 }
 
                 //Additional memory footprint for sparsity
@@ -500,6 +506,7 @@ namespace mv
                     (op.hasTypeTrait("optimizable"))) //SW layers we dont care about size
                 {
                     auto fit = memorySize(op,clustering,false, false,weightsSparsity,streamShape,false);
+                   // std::cout << op.getName() << ": [" <<clustering << "][" <<streamShape.toString()<<"]    " << fit.first << " + " << fit.second << " = " << fit.first + fit.second << std::endl;
                     if(fit.first + fit.second > clusterMemory)
                         return 1;
                 }
@@ -549,6 +556,19 @@ namespace mv
                 if( (not spilling) and ((streamShape["H"] * streamShape["W"]) > 1))
                     return 7;
 
+                //Special rules for Channel Major Convolutions
+                //No need for SOHOverlapped input unless using channel major
+                if( !enableChannelMajorConv and clustering == "SplitOverHOverlapped")
+                    return 9;
+                
+                if( enableChannelMajorConv and op.getOpType() == "Conv"){
+                    auto weightsShape = op.getInputTensor(1)->getShape();
+                    auto numInChannels = weightsShape[KERNEL_INPUT_CHANNELS];
+                    if ( numInChannels < 16 ) //assume channel major conv
+                        if(clustering == "SplitOverH" and streamShape["H"] > 1)
+                            return 10;
+                }
+
                 return 0; //good strategy
             }
 
@@ -583,11 +603,19 @@ namespace mv
                 if (parent["spilling"].get<bool>())
                 {
                     if (childClustering == "HKSwitch")
-                        return INF;
+                    {
+                        log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString() 
+                                + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by spilling before HKSwitch");
+                            return INF;
+                    }
                     //NOTE: For now I disable parent spill SOH->child (Clustering, K)
-                    if (parentClustering == "SplitOverH" and (childClustering == "Clustering" ||
+                    if (parentClustering == "SplitOverH" and ((childClustering == "Clustering" and childOp.getOpType() !=  "Output") ||
                                                               childClustering == "SplitOverK"))
-                        return INF;
+                    {
+                        log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString() 
+                                + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by SOH to SOK/clustering");
+                            return INF;
+                    }
                 }
                 else
                 {
@@ -595,17 +623,29 @@ namespace mv
                     if (parentClustering == "SplitOverH")
                     {
                         if (childClustering == "SplitOverK" || childClustering == "Clustering")
-                            return INF;
+                        {
+                            log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString() 
+                                + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by incompatible clustering strategies");
+                                return INF;
+                        }
                     }
                     if (parentClustering == "SplitOverK" || parentClustering == "Clustering"
                             || parentClustering == "HKSwitch")
                     {
                         if (childClustering == "SplitOverH" || childClustering == "HKSwitch")
-                            return INF;
+                        {
+                            log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString() 
+                                + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by incompatible clustering strategies");
+                                return INF;
+                        }
                     }
                     //NOTE: If the child layer is streamed over H the parent/input tensors needs to be in DDR
                     if ((child["streaming"].get<Shape>()["H"] * child["streaming"].get<Shape>()["W"]) > 1)
-                        return INF;
+                    {
+                        log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString() 
+                                + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by stream after not spilling");
+                            return INF;
+                    }
                     //NOTE: Temporary Hack for InceptionV3...General solution change rectHeuristic
                     if (parentClustering == "SplitOverH")
                     {
@@ -621,13 +661,36 @@ namespace mv
                     auto numInChannels = weightsShape[KERNEL_INPUT_CHANNELS];
                     auto numOutChannels = weightsShape[KERNEL_OUTPUT_CHANNELS];
 
-                    //kernel > 1 requires sparsity for SOH, so parent can't spill
-                    if((parent["spilling"].get<bool>()) and (childClustering == "SplitOverH")
-                            and  weightsShape[KERNEL_WIDTH] > 1){
+                    //This rule only relevant for channel major convs
+                    if( enableChannelMajorConv and numInChannels < 16)
+                    {
+                        if(childClustering == "SplitOverH" and not (parentClustering == "SplitOverHOverlapped"))
+                        {
                             log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString() 
+                                + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by SOH chmjconv");
+                                return INF;
+                        }
+                        if(parentClustering == "SplitOverHOverlapped" and not (childClustering == "SplitOverH"))
+                        {
+                            log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString() 
+                                + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by SOH chmjconv");
+                                return INF;
+                        }
+                    }
+                    //If we aren't CM conv, kernel > 1 requires sparsity for SOH, so parent can't spill
+                    else if((parent["spilling"].get<bool>()) and (childClustering == "SplitOverH")
+                            and  weightsShape[KERNEL_WIDTH] > 1)
+                    {
+                        log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString() 
                                 + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by spill to SOH conv>1");
                             return INF;
-                        }
+                    }
+                }
+                //Note: last op should not be HKSwitch
+                else if (childOp.getOpType() == "Output")
+                {
+                    if (parentClustering == "HKSwitch")
+                        return INF;
                 }
                 //Note: The last Op has no sense to be HKSwitch
                 else if (childOp.getOpType() == "Output")
@@ -647,6 +710,10 @@ namespace mv
                     parentOutputSparsity = false;
                     childInputSparsity = false;
                 }
+
+                //Channel major conv cannot have sparsity
+                if( (childOp.getOpType() == "Conv") and  (childOp.getInputTensor(1)->getShape()[KERNEL_INPUT_CHANNELS] < 16))
+                    childInputSparsity = false;
 
                 if(childInputSparsity == false)
                     parentOutputSparsity = false;
@@ -749,6 +816,9 @@ namespace mv
                     double factor = estimateSparsityPerformanceBoost(childOp);
                     execTime2 = execTime2 * factor;
                 }
+
+                if(parentClustering == "SplitOverHOverlapped")
+                    execTime1 = execTime1 - 1;
 
                 return execTime1 + execTime2;
             }
@@ -889,10 +959,10 @@ namespace mv
                                         continue;
                                     if( ((h*k) > 1) and (spilling.get<bool>() == false))
                                         continue;
-                                    if ((spilling.get<bool>() == true) and (h*k == 1)
-                                        and op.getOpType() != "Input" and op.getOpType() != "Output"
-                                        and op.getOpType() != "Concat" and (op.hasTypeTrait("optimizable")))
-                                        continue;
+                                    // if ((spilling.get<bool>() == true) and (h*k == 1)
+                                    //     and op.getOpType() != "Input" and op.getOpType() != "Output"
+                                    //     and op.getOpType() != "Concat" and (op.hasTypeTrait("optimizable")))
+                                    //     continue;
 
                                     Shape streamShape({1,h,1,k});//Stream over W and C are 1 for now . TODO: implement stream W/C
 

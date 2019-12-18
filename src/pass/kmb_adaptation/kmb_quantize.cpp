@@ -21,7 +21,7 @@ namespace mv
 
 }
 
-void addQuantizationLayers(mv::OpModel om, std::vector<mv::Data::OpListIterator>& tasks, mv::DType dtypeNeededInInput)
+void addQuantizationLayers(mv::OpModel om, std::vector<mv::Data::OpListIterator>& tasks, const mv::DType& dtypeNeededInInput)
 {
     for(auto& task : tasks)
     {
@@ -65,11 +65,14 @@ static void kmbQuantizeConversionFcn(const mv::pass::PassEntry&, mv::Computation
     auto dpuTasks = om.getOps("DPUTask");
     auto upaTasks = om.getOps("UPATask");
 
+    // NOTE: At this moment in the model, all the concats are implicit
     auto implicitConcats = om.getOps("ImplicitConcat");
-    std::shared_ptr<mv::Element> globalParams = model.getGlobalConfigParams();
 
     auto U8 = mv::DType("UInt8");
     auto FP16 = mv::DType("Float16");
+
+    std::shared_ptr<mv::Element> globalParams = model.getGlobalConfigParams();
+    addQuantizationLayers(om, upaTasks, FP16);
 
     bool DPUTasksinSW = globalParams->hasAttr("DPUTasksinFloat") ? globalParams->get<bool>("DPUTasksinFloat") : false;
     if (!DPUTasksinSW)
