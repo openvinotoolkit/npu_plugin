@@ -251,12 +251,7 @@ TEST_P(ConvolutionFP16Test, fp16_convolution_only) {
 #ifndef __arm__
     std::string model = instantiateConvTestIR(convTestParam);
 
-    CNNNetReader reader;
-    ASSERT_NO_THROW(reader.ReadNetwork(model.data(), model.length()));
-    ASSERT_NO_THROW(reader.SetWeights(weightsBuffer));
-    ASSERT_TRUE(reader.isParseSuccess());
-
-    CNNNetwork network = reader.getNetwork();
+    CNNNetwork network = ie.ReadNetwork(model, weightsBuffer);
 
     auto inputsInfo = network.getInputsInfo();
     inputsInfo["input"]->setPrecision(Precision::FP16);
@@ -395,12 +390,7 @@ TEST_P(ConvolutionTest, fq_convolution_only_manual) {
         "FP32", "", fq_convolution_only_slim};
     std::string model = instantiateConvTestIR(allTestParams);
 
-    CNNNetReader reader;
-    ASSERT_NO_THROW(reader.ReadNetwork(model.data(), model.length()));
-    ASSERT_NO_THROW(reader.SetWeights(weightsBuffer));
-    ASSERT_TRUE(reader.isParseSuccess());
-
-    CNNNetwork network = reader.getNetwork();
+    CNNNetwork network = ie.ReadNetwork(model, weightsBuffer);
     auto inputsInfo = network.getInputsInfo();
     inputsInfo["input"]->setPrecision(Precision::U8);
 
@@ -484,11 +474,8 @@ TEST_P(ConvolutionTest, u8_convolution_only_manual) {
         input_dims, conv_params, "U8", "U8", "U8", 0, "I32", "", convolution_only_with_bias_template};
     std::string model = instantiateConvTestIR(allTestParams);
 
-    CNNNetReader reader;
-    ASSERT_NO_THROW(reader.ReadNetwork(model.data(), model.length()));
-    ASSERT_NO_THROW(reader.SetWeights(weightsBuffer));
-    ASSERT_TRUE(reader.isParseSuccess());
-    CNNNetwork network = reader.getNetwork();
+    Core ie;
+    CNNNetwork network = ie.ReadNetwork(model, weightsBuffer);
 
     auto _inputsInfo = network.getInputsInfo();
     _inputsInfo["input"]->setPrecision(Precision::U8);
@@ -502,7 +489,6 @@ TEST_P(ConvolutionTest, u8_convolution_only_manual) {
     config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_BLOB)] = CONFIG_VALUE(YES);
     config[VPU_KMB_CONFIG_KEY(LOAD_NETWORK_AFTER_COMPILATION)] = CONFIG_VALUE(YES);
 
-    Core ie;
     InferenceEngine::ExecutableNetwork exeNetwork;
     ASSERT_NO_THROW(exeNetwork = ie.LoadNetwork(network, "KMB", config));
     InferenceEngine::InferRequest inferRequest;
@@ -553,12 +539,8 @@ TEST_P(ConvolutionTest, convolution_and_relu_u8) {
     std::string model = conv_relu_u8_test;
     fillConvolutionIR(model, {input_dims, conv_params});
 
-    CNNNetReader reader;
-    ASSERT_NO_THROW(reader.ReadNetwork(model.data(), model.length()));
-    ASSERT_NO_THROW(reader.SetWeights(weightsBuffer));
-    ASSERT_TRUE(reader.isParseSuccess());
-
-    CNNNetwork network = reader.getNetwork();
+    Core ie;
+    CNNNetwork network = ie.ReadNetwork(model, weightsBuffer);
 
     auto _inputsInfo = network.getInputsInfo();
     _inputsInfo["input"]->setPrecision(Precision::U8);
@@ -572,7 +554,6 @@ TEST_P(ConvolutionTest, convolution_and_relu_u8) {
     config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_BLOB)] = CONFIG_VALUE(YES);
     config[VPU_KMB_CONFIG_KEY(LOAD_NETWORK_AFTER_COMPILATION)] = CONFIG_VALUE(YES);
 
-    Core ie;
     InferenceEngine::ExecutableNetwork exeNetwork;
     (exeNetwork = ie.LoadNetwork(network, "KMB", config));
 
@@ -685,11 +666,8 @@ TEST_P(ConvolutionTestIdent, u8_convolution_identity) {
         input_dims, conv_params, "U8", "U8", "U8", 0, "I32", "", convolution_only_with_bias_template};
     std::string model = instantiateConvTestIR(allTestParams);
 
-    CNNNetReader reader;
-    ASSERT_NO_THROW(reader.ReadNetwork(model.data(), model.length()));
-    ASSERT_NO_THROW(reader.SetWeights(weightsBuffer));
-    ASSERT_TRUE(reader.isParseSuccess());
-    CNNNetwork network = reader.getNetwork();
+    Core ie;
+    CNNNetwork network = ie.ReadNetwork(model, weightsBuffer);
 
     auto _inputsInfo = network.getInputsInfo();
     _inputsInfo["input"]->setPrecision(Precision::U8);
@@ -716,7 +694,6 @@ TEST_P(ConvolutionTestIdent, u8_convolution_identity) {
     config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_BLOB)] = CONFIG_VALUE(YES);
     config[VPU_KMB_CONFIG_KEY(LOAD_NETWORK_AFTER_COMPILATION)] = CONFIG_VALUE(YES);
 
-    Core ie;
     InferenceEngine::ExecutableNetwork exeNetwork;
     exeNetwork = ie.LoadNetwork(network, "KMB", config);
     ASSERT_NO_THROW(exeNetwork = ie.LoadNetwork(network, "KMB", config));
@@ -866,12 +843,8 @@ TEST_P(ConvolutionAndPoolingTest, convolution_and_pooling_u8) {
 
     fillConvAndPoolIR(model, {input_dims, conv_params, pool_params});
 
-    CNNNetReader reader;
-    ASSERT_NO_THROW(reader.ReadNetwork(model.data(), model.length()));
-    ASSERT_NO_THROW(reader.SetWeights(weightsBuffer));
-    ASSERT_TRUE(reader.isParseSuccess());
-
-    CNNNetwork network = reader.getNetwork();
+    Core ie;
+    CNNNetwork network = ie.ReadNetwork(model, weightsBuffer);
 
     auto _inputsInfo = network.getInputsInfo();
     _inputsInfo["input"]->setPrecision(Precision::U8);
@@ -885,7 +858,6 @@ TEST_P(ConvolutionAndPoolingTest, convolution_and_pooling_u8) {
     config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_BLOB)] = CONFIG_VALUE(YES);
     config[VPU_KMB_CONFIG_KEY(LOAD_NETWORK_AFTER_COMPILATION)] = CONFIG_VALUE(YES);
 
-    Core ie;
     InferenceEngine::ExecutableNetwork exeNetwork;
     ASSERT_NO_THROW(exeNetwork = ie.LoadNetwork(network, "KMB", config));
 
