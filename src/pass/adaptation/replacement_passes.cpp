@@ -274,14 +274,19 @@ void handleEltWiseDifferentScales(const mv::pass::PassEntry& pass, mv::Computati
         if (secondEltwiseInputTensor->isQuantized())
             secondEltwiseInputTensorQuantizationParams =
                     secondEltwiseInputTensor->get<mv::QuantizationParams>("quantParams");
-        std::vector <float> scaleDifference, absRelativeErrorScale, relativeErrorScale;
-        std::transform(firstEltwiseInputTensorQuantizationParams.getScale().begin(),
-                       firstEltwiseInputTensorQuantizationParams.getScale().end(),
-                secondEltwiseInputTensorQuantizationParams.getScale().begin(), scaleDifference.begin(), std::minus<float>());
-        float (*fabs)(float) = &std::abs;
+        auto scale1 = firstEltwiseInputTensorQuantizationParams.getScale();
+        auto scale2 = secondEltwiseInputTensorQuantizationParams.getScale();
+
+        auto size = scale1.size();
+        std::vector <double> scaleDifference(size), absRelativeErrorScale(size), relativeErrorScale(size);
+        std::transform(scale1.begin(),
+                       scale1.end(),
+                        scale2.begin(), scaleDifference.begin(), std::minus<double>());
+
+        double (*fabs)(double) = &std::abs;
         std::transform(scaleDifference.begin(), scaleDifference.end(),
-                       firstEltwiseInputTensorQuantizationParams.getScale().begin(), relativeErrorScale.begin(),
-                       std::divides<float>());
+                       scale1.begin(), relativeErrorScale.begin(),
+                       std::divides<double>());
         std::transform(relativeErrorScale.begin(),relativeErrorScale.end(),
                 absRelativeErrorScale.begin(), fabs);
         for (auto it = absRelativeErrorScale.begin(); it != absRelativeErrorScale.end(); it++)
