@@ -150,7 +150,7 @@ void KmbInferRequest::InferAsync() {
             }
 
             SippPreproc::execSIPPDataPreprocessing(
-                inputs, _preProcData, _networkInputs, 1, true, _config.numberOfSIPPShaves);
+                inputs, _preProcData, _networkInputs, 1, true, _config.numberOfSIPPShaves, _config.SIPPLpi);
 
             for (auto& input : inputs) {
                 auto name = input.first;
@@ -209,7 +209,7 @@ void KmbInferRequest::InferAsync() {
             }
 
             SippPreproc::execSIPPDataPreprocessing(
-                _inputs, _preProcData, _networkInputs, 1, true, _config.numberOfSIPPShaves);
+                _inputs, _preProcData, _networkInputs, 1, true, _config.numberOfSIPPShaves, _config.SIPPLpi);
         } else {
             execDataPreprocessing(_inputs);
         }
