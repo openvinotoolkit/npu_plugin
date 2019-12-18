@@ -21,7 +21,7 @@ namespace mv
 
 }
 
-void addQuantizationLayers(mv::OpModel om, std::vector<mv::Data::OpListIterator>& tasks, mv::DType dtypeNeededInInput)
+void addQuantizationLayers(mv::OpModel om, std::vector<mv::Data::OpListIterator>& tasks, const mv::DType& dtypeNeededInInput)
 {
     for(auto& task : tasks)
     {
@@ -64,17 +64,35 @@ static void kmbQuantizeConversionFcn(const mv::pass::PassEntry&, mv::Computation
 
     auto dpuTasks = om.getOps("DPUTask");
     auto upaTasks = om.getOps("UPATask");
-    auto concats = om.getOps("Concat");
+
+    // NOTE: At this moment in the model, all the concats are implicit
     auto implicitConcats = om.getOps("ImplicitConcat");
 
-    concats.insert(concats.end(), implicitConcats.begin(), implicitConcats.end());
+    auto U8 = mv::DType("UInt8");
+    auto FP16 = mv::DType("Float16");
 
-    addQuantizationLayers(om, upaTasks, mv::DType("Float16"));
-    addQuantizationLayers(om, dpuTasks, mv::DType("UInt8"));
+    std::shared_ptr<mv::Element> globalParams = model.getGlobalConfigParams();
+    addQuantizationLayers(om, upaTasks, FP16);
 
-    // NOTE: For now let's do all the concats in UInt8
-    // For the future, it might be good to optimize this to
-    // insert the smallest number possible of Quantization Layers.
-    addQuantizationLayers(om, concats, mv::DType("UInt8"));
+    bool DPUTasksinSW = globalParams->hasAttr("DPUTasksinFloat") ? globalParams->get<bool>("DPUTasksinFloat") : false;
+    if (!DPUTasksinSW)
+        addQuantizationLayers(om, dpuTasks, U8);
 
+    // NOTE: Concat have the extra requirement that output tensor and input tensor have to match their DType, so
+    // we split them in two vectors
+
+    std::vector<mv::Data::OpListIterator> implicitConcatsU8;
+    std::vector<mv::Data::OpListIterator> implicitConcatsFP16;
+
+    for(auto& implicitConcat: implicitConcats)
+    {
+        auto outputDType = implicitConcat->getOutputTensor(0)->getDType();
+        if(outputDType == U8)
+            implicitConcatsU8.push_back(implicitConcat);
+        else if(outputDType == FP16)
+            implicitConcatsFP16.push_back(implicitConcat);
+    }
+
+    addQuantizationLayers(om, implicitConcatsU8, U8);
+    addQuantizationLayers(om, implicitConcatsFP16, FP16);
 }

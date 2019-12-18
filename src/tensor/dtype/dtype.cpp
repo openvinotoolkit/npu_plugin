@@ -41,6 +41,12 @@ bool mv::DType::isDoubleType() const
     return mv::DTypeRegistry::isDoubleType(dType_);
 }
 
+bool mv::DType::isSigned() const
+{
+    return mv::DTypeRegistry::isSigned(dType_);
+}
+
+
 mv::DType& mv::DType::operator=(const DType& other)
 {
     dType_ = other.dType_;

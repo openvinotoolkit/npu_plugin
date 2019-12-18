@@ -29,10 +29,11 @@ namespace mv
     }
 }
 
-void fusePostOpsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+void fusePostOpsFcn(const mv::pass::PassEntry&pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
     UNUSED(fuseScaleFcn);
     UNUSED(fuseBatchNormFcn);
+    pass.log(mv::Logger::MessageType::Debug, "Fuse passes are starting");
 
     mv::OpModel om(model);
     std::vector<std::string> fuse_types = {"Bias", "Sigmoid", "Relu", "LeakyRelu", "Minimum", "Maximum"};
@@ -183,7 +184,6 @@ void fuseUsualPPEFcn(mv::Data::OpListIterator &opIt, mv::ComputationModel &model
 void fuseEltwiseFcn(mv::Data::OpListIterator &opIt1, mv::ComputationModel &model, std::string opType)
 {
     UNUSED(opType);
-
     std::unordered_map<std::string, std::function<void(mv::Data::OpListIterator &, mv::ComputationModel& , std::string &)>> fuseEltwiseMap =
                                        {{"Minimum", fuseMinimumFcn},
                                         {"Maximum", fuseMaximumFcn},

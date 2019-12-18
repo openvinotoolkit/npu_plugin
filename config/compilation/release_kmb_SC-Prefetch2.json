@@ -83,7 +83,7 @@
     },
     "adapt": {
         "Singular": [
-            "RemoveInterpNoOp",
+            "RemoveOps",
             "ReplacementOps",
             "TensorsToU8",
             "TensorsToFP16",
@@ -115,7 +115,7 @@
                             "name" : "Conv",
                             "strategies": [
                                 {"name" : "streamingStrategies",  "value" : ["StreamOverH","StreamOverW","StreamOverK"]},
-                                {"name" : "clusteringStrategies", "value" : ["SplitOverH","SplitOverK","Clustering"]},
+                                {"name" : "clusteringStrategies", "value" : ["SplitOverH","SplitOverK", "Clustering"]},
                                 {"name" : "inputActivationSparsity",             "value" : true},
                                 {"name" : "outputActivationSparsity",             "value" : true},
                                 {"name" : "weightsSparsity",                      "value" : true}

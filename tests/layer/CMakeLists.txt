@@ -22,6 +22,9 @@ else()
     add_executable(conv_fp16output conv_fp16output/conv_fp16output.cpp)
     target_link_libraries(conv_fp16output cm)
 
+    add_executable(conv_fp16input conv_fp16input/conv_fp16input.cpp)
+    target_link_libraries(conv_fp16input cm)
+
     add_executable(conv_leaky_relu conv_leaky_relu/conv_leaky_relu.cpp)
     target_link_libraries(conv_leaky_relu cm)
 
@@ -43,11 +46,14 @@ else()
     add_executable(detection_output detection_output/detection_output.cpp)
     target_link_libraries(detection_output cm)
 
-    #add_executable(elu elu/elu.cpp)
-    #target_link_libraries(elu cm)
+    add_executable(depthwise_channel_scaling depthwise_channel_scaling/depthwise_channel_scaling.cpp)
+    target_link_libraries(depthwise_channel_scaling cm)
     
     add_executable(flatten flatten/flatten.cpp)
     target_link_libraries(flatten cm)
+
+    add_executable(fully_connected_channel_scaling fully_connected_channel_scaling/fully_connected_channel_scaling.cpp)
+    target_link_libraries(fully_connected_channel_scaling cm)
 
     add_executable(normalize normalize/normalize.cpp)
     target_link_libraries(normalize cm)
@@ -85,6 +91,9 @@ else()
     add_executable(softmax softmax/softmax.cpp)
     target_link_libraries(softmax cm)
 
+    add_executable(eltwise_replacement eltwise_fp16/eltwise_replacement.cpp)
+    target_link_libraries(eltwise_replacement cm)
+
     add_executable(interp interp/interp.cpp)
     target_link_libraries(interp cm)
 
@@ -93,5 +102,4 @@ else()
 
     add_executable(norm norm/norm.cpp)
     target_link_libraries(norm cm)
-
 endif(MSVC)

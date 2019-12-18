@@ -13,10 +13,11 @@ internalOrder_(Order(Order::getRowMajorID(shape.ndims()))),
 blockSize_(shape[shape.ndims() - 1])
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_BASE)
-    log(Logger::MessageType::Debug, "Initialized");
     if(order.size() != shape.ndims())
         throw OrderError(*this, "Order and shape size are mismatching " + std::to_string(order.size()) + " vs " + std::to_string(shape.ndims()));
     set<Order>("order", order);
+    if(dType == mv::DType("Default"))
+        throw std::runtime_error("Tensors cannot be instantiated with default DType");
     set<DType>("dType", dType);
     set<bool>("populated", false);
     set<MemoryLocation>("Location",MemoryLocation::DEFAULT);
@@ -83,7 +84,6 @@ noneZeroElements_(other.noneZeroElements_)
 {
 
     MV_PROFILED_FUNCTION(MV_PROFILE_BASE)
-    log(Logger::MessageType::Debug, "Copied");
 
     if (other.isPopulated())
     {
@@ -94,7 +94,6 @@ noneZeroElements_(other.noneZeroElements_)
 
 mv::Tensor::~Tensor()
 {
-    log(Logger::MessageType::Debug, "Deleted");
 }
 
 std::vector<std::size_t> mv::Tensor::indToSub_(const Shape& s, unsigned index) const
@@ -166,7 +165,6 @@ void mv::Tensor::populate(const std::vector<double>& data)
 
 
     set("populated", true);
-    log(Logger::MessageType::Debug, "Populated");
 
     //if sparse then call sparsify
     if (isSparse())
@@ -202,7 +200,6 @@ void mv::Tensor::populate(const std::vector<mv::DataElement>& data)
     }
 
     set("populated", true);
-    log(Logger::MessageType::Debug, "Populated");
 
     //if sparse then call sparsify
     if (isSparse())
@@ -242,7 +239,6 @@ void mv::Tensor::populate(const std::vector<int64_t>& data)
             data_->at(i) = data[i];
 
     set("populated", true);
-    log(Logger::MessageType::Debug, "Populated");
 
     //if sparse then call sparsify
     if (isSparse())
@@ -288,7 +284,6 @@ void mv::Tensor::unpopulate()
         kernelDataOffsets_.clear();
     }
 
-    log(Logger::MessageType::Debug, "Unpopulated");
 }
 
 // NOTE: why a reference? Otherwise return *this trick doesn't work
@@ -516,7 +511,6 @@ void mv::Tensor::setOrder(Order order, bool updateSubtensors)
     if(order != getOrder())
     {
         set<Order>("order", order);
-        log(Logger::MessageType::Debug, "Reorderd to " + order.toString());
 
         //If the data order changes, the packed data is invalid
         if (updateSubtensors)
@@ -534,7 +528,6 @@ void mv::Tensor::setDType(DType dtype)
 {
 
     set<DType>("dType", dtype);
-    log(Logger::MessageType::Debug, "Changed data type to " + dtype.toString());
     return;
 
 }
@@ -543,12 +536,10 @@ void mv::Tensor::setShape(const Shape& shape)
 {
     if(isPopulated())
     {
-        log(Logger::MessageType::Warning, "Changing shape of a populated tensor, experimental feature.");
         if(shape.totalSize() != getShape().totalSize())
             throw ArgumentError(*this, "CurrentTensor", "shape", "Unable to change shape of a populated tensor");
     }
     shape_ = shape;
-    log(Logger::MessageType::Debug, "Changed shape to " + shape_.toString());
     return;
 }
 

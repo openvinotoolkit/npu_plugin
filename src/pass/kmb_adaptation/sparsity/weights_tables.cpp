@@ -15,7 +15,6 @@ static void generateWeightsTablesFcn(const mv::pass::PassEntry& pass, mv::Comput
 static void populateWeightsTablesPointersFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void populateWeightsTablesQuantizationFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void removeBiasTensorsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
-static int computeAppropriatePadding(mv::Data::TensorIterator tensor);
 
 namespace mv
 {
@@ -323,16 +322,6 @@ static void populateWeightsTablesPointersFcn(const mv::pass::PassEntry& , mv::Co
     }
 }
 
-static int computeAppropriatePadding(mv::Data::TensorIterator tensor)
-{
-    int pad;
-    if (tensor->getDType() == mv::DType("Float16"))
-        pad = 8;
-    else if (tensor->getDType() == mv::DType("UInt8"))
-        pad = 16;
-    return pad;
-}
-
 static void generateWeightsTablesFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
@@ -351,9 +340,8 @@ static void generateWeightsTablesFcn(const mv::pass::PassEntry&, mv::Computation
                 std::string opName = dpuTaskOp->getName();
                 std::string kernelWeightsTableName(mv::createWeightTableName(opName));
 
-                int pad = computeAppropriatePadding(dpuTaskOp->getOutputTensor(0));
                 auto outputChannels = dpuTaskOp->getOutputTensor(0)->getShape()[mv::IO_CHANNEL_DIMENSION];
-                outputChannels = mv::round_up(dpuTaskOp->getOutputTensor(0)->getShape()[mv::IO_CHANNEL_DIMENSION], pad);
+                outputChannels = mv::round_up(dpuTaskOp->getOutputTensor(0)->getShape()[mv::IO_CHANNEL_DIMENSION], 16);
 
                 // per channel layout:
                 // 3 -> bias

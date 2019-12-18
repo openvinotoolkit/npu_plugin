@@ -3,7 +3,8 @@
 mv::DTypeEntry::DTypeEntry(const std::string& name):
 name_(name),
 size_(0),
-isDoubleType_(false)
+isDoubleType_(false),
+isSigned_(true)
 {
 
 }
@@ -20,6 +21,12 @@ mv::DTypeEntry& mv::DTypeEntry::setIsDoubleType(bool isDouble)
     return *this;
 }
 
+mv::DTypeEntry& mv::DTypeEntry::setIsSigned(bool isSigned)
+{
+    isSigned_ = isSigned;
+    return *this;
+}
+
 unsigned mv::DTypeEntry::getSizeInBits() const
 {
     return size_;
@@ -28,4 +35,9 @@ unsigned mv::DTypeEntry::getSizeInBits() const
 bool mv::DTypeEntry::isDoubleType() const
 {
     return isDoubleType_;
+}
+
+bool mv::DTypeEntry::isSigned() const
+{
+    return isSigned_;
 }
