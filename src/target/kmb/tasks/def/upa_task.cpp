@@ -47,7 +47,7 @@ namespace mv
         .setVariableInputNum(true)
         .setBaseOperation({"Dummy", "Identity", "Softmax", "Proposal", "ROIPooling", "Quantize", "Reshape",
                            "RegionYolo", "ReorgYolo", "Normalize", "Permute", "Eltwise", "Interp",
-                           "DetectionOutput", "Priorbox", "Argmax", "Norm", "Resample"})
+                           "DetectionOutput", "Priorbox", "Argmax", "Norm", "Resample", "FakeQuantize"})
         .setExtraInputs(true);
     }
 
