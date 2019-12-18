@@ -30,7 +30,7 @@ float workloadPixelCost(mv::Data::OpListIterator opIt)
 {
  auto kh = opIt->get<std::array<unsigned short, 2>>("kSize")[0];
  auto kw = opIt->get<std::array<unsigned short, 2>>("kSize")[1];
- auto ic = opIt->get<std::string>("taskOp") == "DepthwiseConv" || opIt->get<std::string>("taskOp") == "Conv" ? opIt->getInputTensor()[0]->getShape()[2] : 1;
+ auto ic = opIt->get<std::string>("taskOp") == "ChannelMajorConvolution" || opIt->get<std::string>("taskOp") == "DepthwiseConv" || opIt->get<std::string>("taskOp") == "Conv" ? opIt->getInputTensor()[0]->getShape()[2] : 1;
 
  return kh*kw*ic;
 }
@@ -145,7 +145,8 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
             /* For Deptwise convolution, Max pooling and CM convolution MPE mode must be (1,16)*/
             /* This should be moved to a target descriptor*/
 
-            if((opIt->get<std::string>("taskOp") == "DepthwiseConv") || (opIt->get<std::string>("taskOp") == "MaxPool"))
+            if((opIt->get<std::string>("taskOp") == "DepthwiseConv") || (opIt->get<std::string>("taskOp") == "MaxPool") 
+                || (opIt->get<std::string>("taskOp") == "ChannelMajorConvolution"))
                 dpuModes = {{1, 16}};
             else
                 dpuModes = {{4,4},{1, 16}};
