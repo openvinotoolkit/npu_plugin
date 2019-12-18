@@ -14,6 +14,7 @@
                 "DDRScratch": 16777216,
                 "MemoryHack": false,
                 "cmx": 917504,
+                "enable_channel_major_conv": false,
                 "split_strategy" :
                 [
                     {
@@ -62,7 +63,7 @@
                 "sparsity_strategy" :
                 [
                     {
-                        "name_filter": ".*",
+                        "name_filter": "Example_do_not_remove",
                         "inputActivationSparsity": false,
                         "outputActivationSparsity": false,
                         "weightsSparsity": false

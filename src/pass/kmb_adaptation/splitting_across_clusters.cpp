@@ -228,6 +228,7 @@ static std::vector<mv::Data::OpListIterator> findSinkLayers(mv::DataModel &dataM
     return sinkOperations;
 }
 
+//TODO re-enable this version
 static std::vector<mv::Workload> fixRectangularHeuristicBug(std::vector<mv::Workload> subTensors, const mv::Data::TensorIterator &tensor, int nWorkloads)
 {
     std::vector<mv::Workload> newSubTensors;

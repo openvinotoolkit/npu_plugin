@@ -129,6 +129,8 @@ mv::Data::TensorIterator convertConvolutionToDPUTask(mv::OpModel& om, const std:
     auto dilationFactor = attrs.at("dilationFactor").get<unsigned>();
     auto quantParams = attrs.at("quantParams").get<mv::QuantizationParams>();
     auto outputTensorType = attrs.at("dType").get<mv::DType>();
+    auto globalParams = om.getGlobalConfigParams();
+    bool enableChannelMajor = globalParams->get<bool>("enable_channel_major_conv");
 
     unsigned group = attrs.at("group").get<unsigned>();
 
@@ -138,12 +140,12 @@ mv::Data::TensorIterator convertConvolutionToDPUTask(mv::OpModel& om, const std:
     dpuConvOp->set<bool>("hasWeights", true);
 
     //    NOTE: Thanks to proper padding handling we don't need this anymore
-    //    Leaving it here as an historical note
-    //    if(inputs[1]->getShape()[mv::KERNEL_INPUT_CHANNELS] < 16)
-    //    {
-    //        dpuConvOp->erase("taskOp");
-    //        dpuConvOp->set<std::string>("taskOp", "ChannelMajorConvolution");
-    //    }
+    //    Leaving it here as an historical note... and now it's back as an option
+    if(enableChannelMajor and inputs[1]->getShape()[mv::KERNEL_INPUT_CHANNELS] < 16)
+    {
+           dpuConvOp->erase("taskOp");
+           dpuConvOp->set<std::string>("taskOp", "ChannelMajorConvolution");
+    }
 
     return dpuConv;
 }
