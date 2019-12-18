@@ -38,19 +38,19 @@ KmbConfig::KmbConfig() {
 #else
         {VPU_KMB_CONFIG_KEY(KMB_EXECUTOR), CONFIG_VALUE(NO)},
 #endif
-        {VPU_KMB_CONFIG_KEY(MCM_TARGET_DESCRIPTOR_PATH),        "mcm_config/target"},
-        {VPU_KMB_CONFIG_KEY(MCM_TARGET_DESCRIPTOR),             "release_kmb"},
-        {VPU_KMB_CONFIG_KEY(MCM_COMPILATION_DESCRIPTOR_PATH),   "mcm_config/compilation"},
-        {VPU_KMB_CONFIG_KEY(MCM_COMPILATION_DESCRIPTOR),        "release_kmb"},
-        {VPU_KMB_CONFIG_KEY(MCM_GENERATE_BLOB),                 CONFIG_VALUE(YES)},
-        {VPU_KMB_CONFIG_KEY(MCM_GENERATE_JSON),                 CONFIG_VALUE(YES)},
-        {VPU_KMB_CONFIG_KEY(MCM_GENERATE_DOT),                  CONFIG_VALUE(NO)},
-        {VPU_KMB_CONFIG_KEY(MCM_PARSING_ONLY),                  CONFIG_VALUE(NO)},
-        {VPU_KMB_CONFIG_KEY(MCM_COMPILATION_RESULTS_PATH),      "."},
-        {VPU_KMB_CONFIG_KEY(MCM_COMPILATION_RESULTS),           ""},
-        {VPU_KMB_CONFIG_KEY(LOAD_NETWORK_AFTER_COMPILATION),    CONFIG_VALUE(NO)},
-        {VPU_KMB_CONFIG_KEY(THROUGHPUT_STREAMS),                "1"},
-        {VPU_KMB_CONFIG_KEY(PLATFORM),                          "VPU_2490"},
+        {VPU_KMB_CONFIG_KEY(MCM_TARGET_DESCRIPTOR_PATH), "mcm_config/target"},
+        {VPU_KMB_CONFIG_KEY(MCM_TARGET_DESCRIPTOR), "release_kmb"},
+        {VPU_KMB_CONFIG_KEY(MCM_COMPILATION_DESCRIPTOR_PATH), "mcm_config/compilation"},
+        {VPU_KMB_CONFIG_KEY(MCM_COMPILATION_DESCRIPTOR), "release_kmb"},
+        {VPU_KMB_CONFIG_KEY(MCM_GENERATE_BLOB), CONFIG_VALUE(YES)},
+        {VPU_KMB_CONFIG_KEY(MCM_GENERATE_JSON), CONFIG_VALUE(YES)},
+        {VPU_KMB_CONFIG_KEY(MCM_GENERATE_DOT), CONFIG_VALUE(NO)},
+        {VPU_KMB_CONFIG_KEY(MCM_PARSING_ONLY), CONFIG_VALUE(NO)},
+        {VPU_KMB_CONFIG_KEY(MCM_COMPILATION_RESULTS_PATH), "."},
+        {VPU_KMB_CONFIG_KEY(MCM_COMPILATION_RESULTS), ""},
+        {VPU_KMB_CONFIG_KEY(LOAD_NETWORK_AFTER_COMPILATION), CONFIG_VALUE(NO)},
+        {VPU_KMB_CONFIG_KEY(THROUGHPUT_STREAMS), "1"},
+        {VPU_KMB_CONFIG_KEY(PLATFORM), "VPU_2490"},
     };
 }
 
@@ -75,12 +75,13 @@ const std::unordered_set<std::string>& KmbConfig::getCompileOptions() const {
 }
 
 const std::unordered_set<std::string>& KmbConfig::getRunTimeOptions() const {
-    static const std::unordered_set<std::string> options = merge(ParsedConfigBase::getCompileOptions(), {
-        VPU_KMB_CONFIG_KEY(KMB_EXECUTOR),
-        VPU_KMB_CONFIG_KEY(THROUGHPUT_STREAMS),
-        VPU_KMB_CONFIG_KEY(PREPROCESSING_SHAVES),
-        VPU_KMB_CONFIG_KEY(PREPROCESSING_LPI),
-    });
+    static const std::unordered_set<std::string> options =
+        merge(ParsedConfigBase::getCompileOptions(), {
+                                                         VPU_KMB_CONFIG_KEY(KMB_EXECUTOR),
+                                                         VPU_KMB_CONFIG_KEY(THROUGHPUT_STREAMS),
+                                                         VPU_KMB_CONFIG_KEY(PREPROCESSING_SHAVES),
+                                                         VPU_KMB_CONFIG_KEY(PREPROCESSING_LPI),
+                                                     });
 
     return options;
 }
