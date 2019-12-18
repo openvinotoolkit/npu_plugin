@@ -44,7 +44,7 @@ public:
 
     explicit ExecutableNetwork(InferenceEngine::ICNNNetwork& network, const KmbConfig& config);
 
-    explicit ExecutableNetwork(const std::string& blobFilename, const KmbConfig& config);
+    explicit ExecutableNetwork(std::istream& strm, const KmbConfig& config);
 
     ~ExecutableNetwork() {
         try {
@@ -80,11 +80,13 @@ public:
         asyncTreadSafeImpl->SetPointerToPublicInterface(asyncRequest);
     }
 
+    void ExportImpl(std::ostream& model) override { model.write(_graphBlob.data(), _graphBlob.size()); }
+
     void Export(const std::string& modelFileName) override {
         std::ofstream modelFile(modelFileName, std::ios::out | std::ios::binary);
 
         if (modelFile.is_open()) {
-            modelFile.write(_graphBlob.data(), _graphBlob.size());
+            ExportImpl(modelFile);
         } else {
             THROW_IE_EXCEPTION << "The " << modelFileName << " file can not be opened for export";
         }
