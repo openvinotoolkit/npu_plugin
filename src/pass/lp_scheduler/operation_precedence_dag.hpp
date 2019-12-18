@@ -159,8 +159,19 @@ class Operation_Dag {
 
     Operation_Dag(model_t& model) : adj_map_(), adj_map_rev_(),
       op_name_table_(), ops_(), resource_utility_map_(),
-      op_to_iterator_lookup_(), in_degree_map_(), input_op_() {
+      op_to_iterator_lookup_(), in_degree_map_(), input_op_(),
+      implicit_op_types_( {"Slice", "Crop"} ) {
         init_from_model(model);
+    }
+
+    void reset(model_t& model) { init_from_model(model); }
+
+    template<typename OpTypeIterator>
+    void set_implicit_op_types(OpTypeIterator begin, OpTypeIterator end) {
+      static_assert(std::is_same<typename OpTypeIterator::value_type,
+          std::string>::value, "Invalid OpTypeIterator");
+      implicit_op_types_.clear();
+      for (; begin != end; ++begin) { implicit_op_types_.push_back(*begin); }
     }
 
     const_operation_iterator_t begin_parent_nodes(const operation_t& op) const {
@@ -348,6 +359,14 @@ class Operation_Dag {
       return op->getOpType() == "DPUTask";
     }
 
+    bool has_edge_between_ops(operation_t a, operation_t b) const {
+      const_operation_iterator_t citr = begin_nodes(a), citr_end = end_nodes(a);
+      for (; citr != citr_end; ++citr) {
+        if (*citr == b) { return true; }
+      }
+      return false;
+    }
+
 
     template<typename BackInsertIterator>
     size_t find_all_ops_exceeding_resource_threshold(resource_t threshold,
@@ -426,6 +445,39 @@ class Operation_Dag {
       return (itr != op_name_table_.end()) ? itr->second : operation_t(NULL);
     }
 
+    bool is_spilled_op(operation_t op) const {
+      return does_opname_ends_with(op, "spilledWrite") ||
+        does_opname_have_substring(op, "_spilledRead");
+    }
+    bool ops_of_same_category(operation_t op_a, operation_t op_b) const {
+      if (op_a->getOpType() != op_b->getOpType()) { return false; }
+
+      if (op_a->getOpType() == "DMATask") {
+        return (op_a->get<mv::DmaDirection>("direction")) ==
+            (op_b->get<mv::DmaDirection>("direction"));
+      }
+      return true;
+    }
+    bool does_opname_have_substring(operation_t op, const char *substr) const {
+      const std::string& op_name = op->getName();
+      return !(op_name.find(substr) == std::string::npos);
+    }
+
+    bool does_opname_ends_with(operation_t op, const char *suffix) const {
+      /*checks if the name ends with _spilledWrite*/
+      const char *name = (op->getName()).c_str();
+      size_t name_len = strlen(name), suffix_len = strlen(suffix);
+      if (name_len < suffix_len) { return false; }
+      if (!suffix_len) {  return true; }
+
+      const char *rev_name_ptr = &name[name_len - 1UL];
+      const char *rev_suffix_ptr = &suffix[suffix_len - 1UL];
+      for (size_t i=0; i<suffix_len; i++, --rev_name_ptr, --rev_suffix_ptr) {
+        if (*rev_name_ptr != *rev_suffix_ptr) { return false; }
+      }
+      return true;
+    }
+
     bool is_implicit_op(operation_t op) const {
       return (op->getOpType() == "ImplicitConcat") || 
           (op->getOpType() == "Slice") || (op->getOpType() == "Crop");
@@ -486,6 +538,63 @@ class Operation_Dag {
       return true;
     }
 
+    struct implicit_op_color_functor_t {
+      bool operator()(const dag_t& dag, const operation_t& op) const {
+        return dag.is_implicit_op(op);
+      }
+    }; // struct implicit_op_color_functor_t //
+
+
+    // Takes a operation precedence DAG with some colored ops (implicit)
+    // and removes them from the DAG by adding more edges to retain operation
+    // precedence invariant.
+    void perform_implicit_op_color_closure() {
+      typedef mv::lp_scheduler::Color_Connected_Vertices<dag_t>
+          color_closure_t;
+
+      color_closure_t color_closure_algo(*this);
+      for (const_operation_iterator_t itr=begin_nodes(); itr!=end_nodes();
+          ++itr) {
+
+        // compute the color-closure of DMATask or DPUTask //
+        operation_t pop = *itr;
+        if (is_implicit_op(pop)) { continue; }
+
+        std::list<operation_t> color_closure;
+        color_closure_algo.compute_connected_vertices(pop,
+            std::back_inserter(color_closure), implicit_op_color_functor_t() );
+
+        printf("[ColorClosure(%s) : {", (pop->getName()).c_str());
+
+        if (!color_closure.empty()) {
+          for (auto citr=color_closure.begin(); citr!=color_closure.end();
+                ++citr) {
+            const operation_t& cop = *citr;
+            add_directed_edge(pop, cop);
+            printf(" %s ", (cop->getName()).c_str());
+          }
+        }
+        printf("}\n");
+
+      } // foreach implicit op in the input DAG //
+
+
+      for (const_operation_iterator_t itr=begin_nodes(); itr!=end_nodes();) {
+        operation_t pop = *itr;
+        if (is_implicit_op(pop)) {
+          const_operation_iterator_t itr_next = itr;
+          ++itr_next;
+          printf("[Removed %s]\n", ((*itr)->getName()).c_str());
+          remove_op_from_dag(*itr);
+          itr = itr_next;
+        } else {
+          ++itr;
+        }
+      }
+    }
+
+
+
   private:
 
     bool is_operation_ignored(operation_t op) const {
@@ -495,17 +604,22 @@ class Operation_Dag {
 
     void init_from_model(model_t& model) {
       adj_map_.clear();
+      adj_map_rev_.clear();
+      op_name_table_.clear();
       ops_.clear();
+      resource_utility_map_.clear();
       op_to_iterator_lookup_.clear();
       in_degree_map_.clear();
       input_op_ = NULL;
 
-
+      size_t num_ops=0UL;
       for (op_itr_t itr = mtraits::begin_operations(model);
             itr != mtraits::end_operations(model); ++itr) {
         operation_t op = &(*itr);
         if (is_operation_ignored(op)) { continue; }
         if (is_input_op(op)) { input_op_ = op; }
+
+        ++num_ops;
 
         master_op_iterator_t pop_itr = ops_.find(op), cop_itr;
 
@@ -564,6 +678,15 @@ class Operation_Dag {
         // resource utility //
         resource_utility_map_.insert(std::make_pair(op, resource_utility ));
       }
+
+      // short circuit implicit ops //
+      for (auto short_circuit_itr=implicit_op_types_.begin();
+          short_circuit_itr!=implicit_op_types_.end(); ++short_circuit_itr) {
+        short_circuit_all_unit_indegree_outdegree_ops_of_this_type(
+            *short_circuit_itr);
+      }
+
+      printf("[Initfrom Model] op count = %lu\n", num_ops);
     }
 
     // Removes the op from the DAG and removes all incoming and outgoing edges
@@ -709,6 +832,7 @@ class Operation_Dag {
     op_to_iterator_lookup_t op_to_iterator_lookup_;
     in_degree_map_t in_degree_map_;
     operation_t input_op_;
+    std::vector<std::string> implicit_op_types_;
 }; // class Operation_Dag //
 
 
