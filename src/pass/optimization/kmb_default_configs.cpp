@@ -48,7 +48,7 @@ MV_OPTIMIZER_LAYER_STRATEGY_REGISTRY()
 
 MV_OPTIMIZER_LAYER_STRATEGY_REGISTRY()
     .enter("DepthwiseConv")
-    .registerSet("streamingStrategies").insert(vector<string>{"StreamOverH","StreamOverW"})
+    .registerSet("streamingStrategies").insert(vector<string>{"StreamOverH","StreamOverK"})
     .registerSet("ClusteringStrategies").insert(vector<string>{"Clustering","SplitOverH"})
     .registerSet("inputActivationSparsity").insert(false)
     .registerSet("outputActivationSparsity").insert(true)

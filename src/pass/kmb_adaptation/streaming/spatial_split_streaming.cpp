@@ -238,15 +238,30 @@ std::tuple<mv::Data::TensorIterator, mv::Data::TensorIterator,mv::Data::TensorIt
             slice = name_firstStream_sliceOp[keyPair];
         }
         std::string streamingOpName = op->getName() + "_split_" + std::to_string(split);
-        auto conv = om.conv(inputTensor,
+        mv::Data::TensorIterator conv;
+        if (op->getOpType() == "Conv")
+        {
+            conv = om.conv(inputTensor,
+                                    slice,
+                                    op->get("stride"),
+                                    op->get("padding"),
+                                    op->get<unsigned>("dilationFactor"),
+                                    op->get<unsigned>("group"),
+                                    op->get<mv::DType>("dType"),
+                                    op->get<mv::QuantizationParams>("quantParams"),
+                                    streamingOpName);
+        }
+        else if (op->getOpType() == "DepthwiseConv")
+        {
+            conv = om.depthwiseConv(inputTensor,
                                 slice,
                                 op->get("stride"),
                                 op->get("padding"),
                                 op->get<unsigned>("dilationFactor"),
-                                op->get<unsigned>("group"),
                                 op->get<mv::DType>("dType"),
                                 op->get<mv::QuantizationParams>("quantParams"),
                                 streamingOpName);
+        }
         //NOTE: Nested streaming case KH
         if (thisGraphStrategy[op->getName()].size() > 1)
         {
