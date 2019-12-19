@@ -92,13 +92,13 @@ void KmbConfig::parse(const std::map<std::string, std::string>& config) {
     }
     ParsedConfigBase::parse(config);
 
-    setOption(numberOfSIPPShaves, _config, VPU_KMB_CONFIG_KEY(PREPROCESSING_SHAVES), parseInt);
+    setOption(numberOfSIPPShaves, config, VPU_KMB_CONFIG_KEY(PREPROCESSING_SHAVES), parseInt);
     IE_ASSERT(numberOfSIPPShaves > 0 && numberOfSIPPShaves <= 16)
         << "KmbConfig::parse attempt to set invalid number of shaves for SIPP: '"
-        << _config[VPU_KMB_CONFIG_KEY(PREPROCESSING_SHAVES)] << "', valid numbers are from 1 to 16";
+        << numberOfSIPPShaves << "', valid numbers are from 1 to 16";
 
-    setOption(SIPPLpi, _config, VPU_KMB_CONFIG_KEY(PREPROCESSING_LPI), parseInt);
+    setOption(SIPPLpi, config, VPU_KMB_CONFIG_KEY(PREPROCESSING_LPI), parseInt);
     IE_ASSERT(0 < SIPPLpi && SIPPLpi <= 16 && isPowerOfTwo(SIPPLpi))
         << "KmbConfig::parse attempt to set invalid lpi value for SIPP: '"
-        << _config[VPU_KMB_CONFIG_KEY(PREPROCESSING_LPI)] << "',  valid values are 1, 2, 4, 8, 16";
+        << SIPPLpi << "',  valid values are 1, 2, 4, 8, 16";
 }
