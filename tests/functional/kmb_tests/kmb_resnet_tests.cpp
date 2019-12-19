@@ -53,14 +53,10 @@ Blob::Ptr dequantize(const Blob::Ptr& blobIn, float scale, uint8_t shift) {
 TEST_P(ResnetTest, resnetAccuracy) {
     resnet_params test_params = GetParam();
     std::string fullPathToModelXML = ModelsPath() + "/KMB_models/resnet50/" + test_params.modelPath;
-    CNNNetReader reader;
-    reader.ReadNetwork(fullPathToModelXML);
-
     std::string fullPathToWeights = ModelsPath() + "/KMB_models/resnet50/" + test_params.weightsPath;
-    reader.ReadWeights(fullPathToWeights);
-    ASSERT_TRUE(reader.isParseSuccess());
 
-    CNNNetwork network = reader.getNetwork();
+    Core ie;
+    CNNNetwork network = ie.ReadNetwork(fullPathToModelXML, fullPathToWeights);
 
     auto _inputsInfo = network.getInputsInfo();
     _inputsInfo.begin()->second->setPrecision(Precision::U8);
@@ -75,7 +71,6 @@ TEST_P(ResnetTest, resnetAccuracy) {
     config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_BLOB)] = CONFIG_VALUE(YES);
     config[VPU_KMB_CONFIG_KEY(LOAD_NETWORK_AFTER_COMPILATION)] = CONFIG_VALUE(YES);
 
-    Core ie;
     InferenceEngine::ExecutableNetwork exeNetwork;
     exeNetwork = ie.LoadNetwork(network, "KMB", config);
 

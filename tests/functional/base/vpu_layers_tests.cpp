@@ -101,7 +101,9 @@ void vpuLayersTests::TearDown() {
 
             std::string xmlName = filename + ".xml";
             std::string weightsName = filename + ".bin";
+            IE_SUPPRESS_DEPRECATED_START
             _net_reader.getNetwork().serialize(xmlName, weightsName);
+            IE_SUPPRESS_DEPRECATED_END
 
             std::string blobName = filename + ".blob";
             _exeNetwork.Export(blobName);
@@ -377,7 +379,9 @@ void vpuLayersTests::genOutputBlobs(Precision precision) {
 }
 
 void vpuLayersTests::setup(Precision outputPrecision, Precision inputPrecision, bool useHWOpt) {
+    IE_SUPPRESS_DEPRECATED_START
     CNNNetwork network = _net_reader.getNetwork();
+    IE_SUPPRESS_DEPRECATED_END
     _inputsInfo = network.getInputsInfo();
     for (const auto& in : _inputsInfo) {
         in.second->setPrecision(inputPrecision);
@@ -419,11 +423,13 @@ void vpuLayersTests::doNetworkInit(const std::string& layer_type, std::map<std::
     bool useHWOpt) {
     std::string xml;
     genXML(layer_type, params, weights_size, biases_size, xml);
+    IE_SUPPRESS_DEPRECATED_START
     ASSERT_NO_THROW(_net_reader.ReadNetwork(xml.data(), xml.length()));
     ASSERT_EQ(_net_reader.isParseSuccess(), true);
     if (weights != nullptr) {
         ASSERT_NO_THROW(_net_reader.SetWeights(weights));
     }
+    IE_SUPPRESS_DEPRECATED_END
     setup(outputPrecision, inputPrecision, useHWOpt);
 }
 
@@ -666,11 +672,13 @@ void vpuLayersTests::genNetwork(bool useHWOpt, int version) {
     model += R"V0G0N(
     </layers>)V0G0N";
     model += edges;
+    IE_SUPPRESS_DEPRECATED_START
     ASSERT_NO_THROW(_net_reader.ReadNetwork(model.data(), model.length()));
     ASSERT_TRUE(_net_reader.isParseSuccess());
     if (weights_ptr != nullptr) {
         _net_reader.SetWeights(weights_ptr);
     }
+    IE_SUPPRESS_DEPRECATED_END
     setup(Precision::FP16, Precision::FP16, useHWOpt);
     _netInitialized = true;
 }
@@ -691,7 +699,9 @@ void vpuLayersTests::ReferenceGraph() {
     uint16_t* refBlobRawDataFp16 = referenceInput->buffer();
     ASSERT_NE(inputBlobRawDataFp16, nullptr);
     ie_memcpy(refBlobRawDataFp16, realInput->byteSize(), inputBlobRawDataFp16, count * sizeof(uint16_t));
+    IE_SUPPRESS_DEPRECATED_START
     ICNNNetwork& network = _net_reader.getNetwork();
+    IE_SUPPRESS_DEPRECATED_END
     for (size_t ind = 0; ind < _testNet.size(); ++ind) {
         if (_testNet[ind].fillWeights != nullptr) {
             auto& refLayer = _referenceGraph.callbacks[ind];

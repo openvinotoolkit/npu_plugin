@@ -145,10 +145,12 @@ inline void VpuNoRegressionWithCompilation::loadNetworkWrapper(
     StatusCode sts;
     InferenceEngine::ResponseDesc response;
     InferenceEnginePluginPtr plugin(make_plugin_name(pluginName));
+    IE_SUPPRESS_DEPRECATED_START
     CNNNetReader reader;
     reader.ReadNetwork((ModelsPath() + path_to_files.path_to_network).c_str());
     reader.ReadWeights((ModelsPath() + path_to_files.path_to_weights).c_str());
     CNNNetwork network = reader.getNetwork();
+    IE_SUPPRESS_DEPRECATED_END
 
     ExecutableNetwork exeNetwork;
 
