@@ -159,7 +159,9 @@ protected:
         return weights;
     }
 
+    IE_SUPPRESS_DEPRECATED_START
     InferenceEngine::CNNNetReader _net_reader;
+    IE_SUPPRESS_DEPRECATED_END
     InferenceEngine::ResponseDesc _resp;
     InferenceEngine::InputsDataMap _inputsInfo;
     InferenceEngine::BlobMap _inputMap;
