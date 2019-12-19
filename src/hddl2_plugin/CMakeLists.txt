@@ -75,6 +75,23 @@ target_link_libraries(${TARGET_NAME}
         IE::inference_engine
         HddlUnite)
 
+
+add_library(${TARGET_NAME}_test_static STATIC ${SOURCES})
+
+target_compile_options(${TARGET_NAME}_test_static PRIVATE ${EXTRA_COMPILE_OPTIONS})
+
+target_include_directories(${TARGET_NAME}_test_static
+    PUBLIC
+        "${CMAKE_CURRENT_SOURCE_DIR}/include"
+        "${IE_MAIN_SOURCE_DIR}/include")
+
+target_link_libraries(${TARGET_NAME}_test_static
+    PUBLIC
+        IE::inference_engine
+        IE::inference_engine_plugin_api
+    PRIVATE
+        HddlUnite)
+
 if(ENABLE_KMB_CLANG_FORMAT)
     add_clang_format_target_kmb(clang_format_${TARGET_NAME} FOR_TARGETS ${TARGET_NAME})
 endif()

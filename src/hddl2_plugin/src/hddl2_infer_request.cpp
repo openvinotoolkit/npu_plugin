@@ -22,8 +22,6 @@
 #include <string>
 #include <vector>
 
-#include "hddl2_helpers.h"
-
 /**
  * @brief multiply vector's values
  * @param vec - vector with values
@@ -101,8 +99,6 @@ vpu::HDDL2Plugin::HDDL2InferRequest::HDDL2InferRequest(const InferenceEngine::In
     if (_networkOutputs.empty() || _networkInputs.empty())
         THROW_IE_EXCEPTION << "Internal error: no information about network's output/input";
 }
-
-vpu::HDDL2Plugin::HDDL2InferRequest::~HDDL2InferRequest() { unloadGraph(_graph, _devices); }
 
 void vpu::HDDL2Plugin::HDDL2InferRequest::InferImpl() {
     InferSync();

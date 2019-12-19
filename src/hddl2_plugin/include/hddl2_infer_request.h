@@ -31,7 +31,6 @@ class HDDL2InferRequest : public InferenceEngine::InferRequestInternal {
 public:
     HDDL2InferRequest(const InferenceEngine::InputsDataMap& networkInputs,
         const InferenceEngine::OutputsDataMap& networkOutputs, HddlUnite::Inference::Graph::Ptr graph);
-    ~HDDL2InferRequest() override;
 
     void InferImpl() override;
     void GetPerformanceCounts(

@@ -4,6 +4,10 @@
 
 add_subdirectory(unit)
 
+if(NOT ARM AND NOT AARCH64)
+    add_subdirectory(unit/hddl2_tests)
+endif()
+
 if (ENABLE_FUNCTIONAL_TESTS)
     add_subdirectory(functional)
 endif()

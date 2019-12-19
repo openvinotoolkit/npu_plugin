@@ -33,6 +33,7 @@ public:
 
     explicit ExecutableNetwork(InferenceEngine::ICNNNetwork& network);
     explicit ExecutableNetwork(const std::string& blobFilename);
+    ~ExecutableNetwork() override;
 
     InferenceEngine::InferRequestInternal::Ptr CreateInferRequestImpl(
         InferenceEngine::InputsDataMap networkInputs, InferenceEngine::OutputsDataMap networkOutputs) override;
