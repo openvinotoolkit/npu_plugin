@@ -5,7 +5,7 @@
 There are two variants to build kmb-plugin: build-script and manual.
 
 But for both variants you must first of all to build Inference Engine in dldt with
-script "dldt/inference-engine/build-after-clone.sh" or see instructions in "dldt/inference-engine/CONTRIBUTING.md".
+script `dldt/inference-engine/build-after-clone.sh` or see instructions in `dldt/inference-engine/CONTRIBUTING.md`.
 
 ## Build with help of script
 
@@ -16,99 +16,123 @@ script "dldt/inference-engine/build-after-clone.sh" or see instructions in "dldt
 
 ## Manual build
 
+### Common setup
+
 1. Create variables with path to base directories of kmb-plugin and dldt. You could use such commands.
-    * Go to base dldt directory and make `DLDT_HOME` variable with command:
-      `export DLDT_HOME=$(pwd)`
-    * Go to base kmb-plugin directory and make `KMB_PLUGIN_HOME` variable with command:
-      `export KMB_PLUGIN_HOME=$(pwd)`
+    * Go to base dldt directory and make `DLDT_HOME` variable with command: `export DLDT_HOME=$(pwd)`
+    * Go to base kmb-plugin directory and make `KMB_PLUGIN_HOME` variable with command: `export KMB_PLUGIN_HOME=$(pwd)`
 
-2. Install additional packages for kmb-plugin:
-    * Swig
-    * python3-dev
-    * python-numpy
-    with command: `sudo apt install swig python3-dev python-numpy libmetis-dev libmetis5`
+2. Update git sub-modules in both dldt and kmb-plugin:
 
-3. Move to dldt base directory and make some building with commands.
+    ```bash
+    cd $DLDT_HOME
+    git submodule update --init --recursive
+    cd $KMB_PLUGIN_HOME
+    git submodule update --init --recursive
+    ```
 
-   ```bash
-   cd $DLDT_HOME
-   git submodule update --init --recursive
-   mkdir -p $DLDT_HOME/build
-   cd $DLDT_HOME/build
-   cmake -DENABLE_TESTS=ON -DENABLE_BEH_TESTS=ON -DENABLE_FUNCTIONAL_TESTS=ON -DCMAKE_BUILD_TYPE=Debug ..
-   make -j8
-   ```
+### Native build
 
-   **Note:** if you miss `-DCMAKE_BUILD_TYPE=Debug` then you will not be able to debug your code in kmb-plugin.
-   **Note:** you might use another name for build sub-folder.
+1. Move to dldt base directory and build it with commands:
 
-4. Move to base directory of kmb-plugin and build it with commands:
+    ```bash
+    mkdir -p $DLDT_HOME/build
+    cd $DLDT_HOME/build
+    cmake \
+        -D ENABLE_TESTS=ON \
+        -D ENABLE_BEH_TESTS=ON \
+        -D ENABLE_FUNCTIONAL_TESTS=ON \
+        ..
+    make -j8
+    ```
 
-   ```bash
-   cd $KMB_PLUGIN_HOME
-   git submodule update --init --recursive
-   mkdir -p $KMB_PLUGIN_HOME/build
-   cd $KMB_PLUGIN_HOME/build
-   cmake -DInferenceEngineDeveloperPackage_DIR=$DLDT_HOME/build ..
-   make -j8
-   ```
+2. Move to base directory of kmb-plugin and build it with commands:
 
-   **Note:** you might use another name for build sub-folder.
+    ```bash
+    mkdir -p $KMB_PLUGIN_HOME/build
+    cd $KMB_PLUGIN_HOME/build
+    cmake \
+        -D InferenceEngineDeveloperPackage_DIR=$DLDT_HOME/build \
+        ..
+    make -j8
+    ```
 
-5. To check results of previous steps it is recommended to execute tests with the following commands.
+3. To check results of previous steps it is recommended to execute tests with the following commands.
 
-   ```bash
-   cd $DLDT_HOME/bin/intel64/Debug/
-   ./KmbBehaviorTests --gtest_filter=*Behavior*orrectLib*kmb*
-   ./KmbFunctionalTests
-   ```
+    ```bash
+    cd $DLDT_HOME/bin/intel64/Debug/
+    ./KmbBehaviorTests --gtest_filter=*Behavior*orrectLib*kmb*
+    ./KmbFunctionalTests
+    ```
 
-   **Note:** Make sure you are using `/intel64/Debug/` directory for Debug build and `/intel64/Release/` for Release in scripts of this section.
+    **Note:** Make sure you are using `/intel64/Debug/` directory for Debug build and `/intel64/Release/` for Release in scripts of this section.
 
-   If you see that all enabled tests are passed then you may congratulate yourself with successful build of kmb-plugin.
+    If you see that all enabled tests are passed then you may congratulate yourself with successful build of kmb-plugin.
 
-## Cross build for Yocto
+### Cross build for Yocto
 
 Cross build use Yocto SDK. You can install it with:
 
-``` sh
+```bash
 wget -q http://nnt-srv01.inn.intel.com/dl_score_engine/thirdparty/linux/keembay/stable/ww28.5/oecore-x86_64-aarch64-toolchain-1.0.sh && \
         chmod +x oecore-x86_64-aarch64-toolchain-1.0.sh && \
         ./oecore-x86_64-aarch64-toolchain-1.0.sh -y -d /usr/local/oecore-x86_64 && \
         rm oecore-x86_64-aarch64-toolchain-1.0.sh
 ```
 
-**Note:** The following steps assumes that you have cloned the dldt and kmb-plugin repositories and setup environment variables as in previous section.
+1. Build mcmCompiler for **x86** (needed for cross-compilation).
 
-1. Configure and cross-compile inference-engine.
+    **Note:** Skip this step, if you don't want to cross-compile mcmCompiler for ARM.
 
-   ```bash
-   source /usr/local/oecore-x86_64/environment-setup-aarch64-ese-linux
-   cd $DLDT_HOME
-   git submodule update --init --recursive
-   mkdir -p $DLDT_HOME/build
-   cd $DLDT_HOME/build
-   cmake -DENABLE_TESTS=ON -DENABLE_BEH_TESTS=ON -DENABLE_FUNCTIONAL_TESTS=ON -DCMAKE_BUILD_TYPE=Debug ..
-   make -j8
+    **Note:** Skip this step, if you have full **x86** build of kmb-plugin as described in previous section.
+
+    ```bash
+    mkdir -p $KMB_PLUGIN_HOME/mcmCompiler-build-x86
+    cd $KMB_PLUGIN_HOME/mcmCompiler-build-x86
+    cmake \
+        -D MCM_COMPILER_BUILD_PYTHON=OFF \
+        -D MCM_COMPILER_BUILD_TESTS=OFF \
+        -D MCM_COMPILER_BUILD_EXAMPLES=OFF \
+        ../thirdparty/movidius/mcmCompiler
+    make flatc gen_composition_api -j8
+    ```
+
+2. Configure and cross-compile inference-engine for ARM.
+
+    ```bash
+    ( \
+        source /usr/local/oecore-x86_64/environment-setup-aarch64-ese-linux ; \
+        mkdir -p $DLDT_HOME/build-aarch64 ; \
+        cd $DLDT_HOME/build-aarch64 ; \
+        cmake \
+            -D ENABLE_TESTS=ON \
+            -D ENABLE_BEH_TESTS=ON \
+            -D ENABLE_FUNCTIONAL_TESTS=ON \
+            .. ; \
+        make -j8 ; \
+    )
+    ```
+
+3. Configure and cross-compile kmb-plugin.
+
+    ```bash
+    ( \
+        source /usr/local/oecore-x86_64/environment-setup-aarch64-ese-linux ; \
+        mkdir -p $KMB_PLUGIN_HOME/build-aarch64 ; \
+        cd $KMB_PLUGIN_HOME/build-aarch64 ; \
+        cmake \
+            -D InferenceEngineDeveloperPackage_DIR=$DLDT_HOME/build-aarch64 \
+            -D MCM_COMPILER_EXPORT_FILE=../mcmCompiler-build-x86/mcmCompilerExecutables.cmake \
+            .. ; \
+        make -j8 ; \
+    )
    ```
 
-2. Configure and cross-compile kmb-plugin.
+    **Note:** If you don't want to cross-compile mcmCompiler for ARM,
+      remove `MCM_COMPILER_EXPORT_FILE` from configure command.
 
-   ```bash
-   source /usr/local/oecore-x86_64/environment-setup-aarch64-ese-linux
-   cd $KMB_PLUGIN_HOME
-   git submodule update --init --recursive
-   mkdir -p $KMB_PLUGIN_HOME/build
-   cd $KMB_PLUGIN_HOME/build
-   cmake -DInferenceEngineDeveloperPackage_DIR=$DLDT_HOME/build ..
-   make -j8
-   ```
-
-3. To cross-compile mcmCompiler for ARM, perform the following steps:
-
-    1. Build kmb-plugin natively on the host as described in previous section.
-    2. Add the following options to CMake command line for kmb-plugin build:
-        `-DENABLE_MCM_COMPILER=ON -DMCM_COMPILER_EXPORT_FILE=<path-to-kmb-plugin-native-build-dir>/mcmCompilerExecutables.cmake`
+    **Note:** If you have full **x86** build of kmb-plugin use
+      `-D MCM_COMPILER_EXPORT_FILE=<kmb-plugin-x86-build-dir>/mcmCompilerExecutables.cmake` option.
 
 ## Testing on x86
 
@@ -121,23 +145,23 @@ To be able to do it please follow the steps:
 
 1. Create a dummy file for the XLink device
 
-   ```bash
-   sudo touch /dev/xlnk
-   sudo chmod 666 /dev/xlnk
-   ```
+    ```bash
+    sudo touch /dev/xlnk
+    sudo chmod 666 /dev/xlnk
+    ```
 
 2. Enable corresponding environment to use the model
 
-   ```bash
-   export LD_PRELOAD=<path-to-lib-folder-with-ie-binaries>/libvpualModel.so
-   export IE_VPU_KMB_MEMORY_ALLOCATOR_TYPE=NATIVE
-   ```
+    ```bash
+    export LD_PRELOAD=<path-to-lib-folder-with-ie-binaries>/libvpualModel.so
+    export IE_VPU_KMB_MEMORY_ALLOCATOR_TYPE=NATIVE
+    ```
 
 3. Run tests with inference. Example:
 
-   ```bash
-   ./KmbFunctionalTests --gtest_filter=*compareInferenceOutputWithReference*/0*
-   ```
+    ```bash
+    ./KmbFunctionalTests --gtest_filter=*compareInferenceOutputWithReference*/0*
+    ```
 
 ## Misc
 

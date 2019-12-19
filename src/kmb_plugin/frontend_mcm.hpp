@@ -20,6 +20,7 @@
 #include <kmb_config.h>
 
 #include <details/caseless.hpp>
+#include <map>
 #include <memory>
 #include <set>
 #include <string>
@@ -29,6 +30,7 @@
 #include <vector>
 #include <vpu/utils/attributes_map.hpp>
 #include <vpu/utils/enums.hpp>
+#include <vpu/utils/error.hpp>
 #include <vpu/utils/logger.hpp>
 
 #ifdef ENABLE_MCM_COMPILER
@@ -160,6 +162,14 @@ private:
     //
 
 private:
+    struct LayerQuantParams {
+        float scale;
+        float bias;
+    };
+
+    void removeInputScaleShiftPattern(ie::CNNNetwork& network);
+    std::map<std::string, LayerQuantParams> _layerToQuantParams;
+
     mv::OpModel& _modelMcm;
     McmNodePtrList _nodes;
     McmNodePtr _output;

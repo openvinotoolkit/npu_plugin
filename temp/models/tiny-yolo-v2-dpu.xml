@@ -1,0 +1,2466 @@
+<?xml version="1.0" ?>
+<net batch="1" name="tinyv2" precision="FP32" version="7">
+	<layers>
+		<layer id="0" name="input_1" type="Input">
+			<output>
+				<port id="0" precision="FP32">
+					<dim>1</dim>
+					<dim>3</dim>
+					<dim>416</dim>
+					<dim>416</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="1" name="model/conv_1/mul_fold/Output_0/Data__const" type="Const">
+			<output>
+				<port id="1" precision="FP32">
+					<dim>16</dim>
+					<dim>3</dim>
+					<dim>3</dim>
+					<dim>3</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="0" precision="FP32" size="1728"/>
+			</blobs>
+		</layer>
+		<layer id="2" name="Copy_model/conv_1/weights_quant/FakeQuantWithMinMaxVars/nudged_min/Output_0/Data_/copy_const" type="Const">
+			<output>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="1728" precision="FP32" size="4"/>
+			</blobs>
+		</layer>
+		<layer id="3" name="Copy_model/conv_1/weights_quant/FakeQuantWithMinMaxVars/nudged_max/Output_0/Data_/copy_const" type="Const">
+			<output>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="1732" precision="FP32" size="4"/>
+			</blobs>
+		</layer>
+		<layer id="4" name="Copy_model/conv_1/weights_quant/FakeQuantWithMinMaxVars/nudged_min/Output_0/Data_1873/copy_const" type="Const">
+			<output>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="1728" precision="FP32" size="4"/>
+			</blobs>
+		</layer>
+		<layer id="5" name="Copy_model/conv_1/weights_quant/FakeQuantWithMinMaxVars/nudged_max/Output_0/Data_1875/copy_const" type="Const">
+			<output>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="1732" precision="FP32" size="4"/>
+			</blobs>
+		</layer>
+		<layer id="6" name="model/conv_1/weights_quant/FakeQuantWithMinMaxVars" type="FakeQuantize">
+			<data levels="255"/>
+			<input>
+				<port id="0">
+					<dim>16</dim>
+					<dim>3</dim>
+					<dim>3</dim>
+					<dim>3</dim>
+				</port>
+				<port id="1">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+				<port id="2">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+				<port id="3">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+				<port id="4">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</input>
+			<output>
+				<port id="5" precision="FP32">
+					<dim>16</dim>
+					<dim>3</dim>
+					<dim>3</dim>
+					<dim>3</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="7" name="bias_data4299_const" type="Const">
+			<output>
+				<port id="1" precision="FP32">
+					<dim>16</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="1736" precision="FP32" size="64"/>
+			</blobs>
+		</layer>
+		<layer id="8" name="model/conv_1/Conv2D_Fold" type="Convolution">
+			<data auto_pad="same_upper" dilations="1,1" group="1" kernel="3,3" output="16" pads_begin="1,1" pads_end="1,1" strides="1,1"/>
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>3</dim>
+					<dim>416</dim>
+					<dim>416</dim>
+				</port>
+				<port id="1">
+					<dim>16</dim>
+					<dim>3</dim>
+					<dim>3</dim>
+					<dim>3</dim>
+				</port>
+				<port id="2">
+					<dim>16</dim>
+				</port>
+			</input>
+			<output>
+				<port id="3" precision="FP32">
+					<dim>1</dim>
+					<dim>16</dim>
+					<dim>416</dim>
+					<dim>416</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="9" name="Copy_model/conv_1/act_quant/FakeQuantWithMinMaxVars/nudged_min/Output_0/Data_/copy_const" type="Const">
+			<output>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="1800" precision="FP32" size="4"/>
+			</blobs>
+		</layer>
+		<layer id="10" name="Copy_model/conv_1/act_quant/FakeQuantWithMinMaxVars/nudged_max/Output_0/Data_/copy_const" type="Const">
+			<output>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="1804" precision="FP32" size="4"/>
+			</blobs>
+		</layer>
+		<layer id="11" name="Copy_model/conv_1/act_quant/FakeQuantWithMinMaxVars/nudged_min/Output_0/Data_1905/copy_const" type="Const">
+			<output>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="1800" precision="FP32" size="4"/>
+			</blobs>
+		</layer>
+		<layer id="12" name="Copy_model/conv_1/act_quant/FakeQuantWithMinMaxVars/nudged_max/Output_0/Data_1907/copy_const" type="Const">
+			<output>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="1804" precision="FP32" size="4"/>
+			</blobs>
+		</layer>
+		<layer id="13" name="model/conv_1/act_quant/FakeQuantWithMinMaxVars" type="FakeQuantize">
+			<data levels="256"/>
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>16</dim>
+					<dim>416</dim>
+					<dim>416</dim>
+				</port>
+				<port id="1">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+				<port id="2">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+				<port id="3">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+				<port id="4">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</input>
+			<output>
+				<port id="5" precision="FP32">
+					<dim>1</dim>
+					<dim>16</dim>
+					<dim>416</dim>
+					<dim>416</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="14" name="model/max_pooling2d/MaxPool" type="Pooling">
+			<data auto_pad="valid" exclude-pad="true" kernel="2,2" pads_begin="0,0" pads_end="0,0" pool-method="max" strides="2,2"/>
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>16</dim>
+					<dim>416</dim>
+					<dim>416</dim>
+				</port>
+			</input>
+			<output>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+					<dim>16</dim>
+					<dim>208</dim>
+					<dim>208</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="15" name="model/conv_2/mul_fold/Output_0/Data__const" type="Const">
+			<output>
+				<port id="1" precision="FP32">
+					<dim>32</dim>
+					<dim>16</dim>
+					<dim>3</dim>
+					<dim>3</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="1808" precision="FP32" size="18432"/>
+			</blobs>
+		</layer>
+		<layer id="16" name="Copy_model/conv_2/weights_quant/FakeQuantWithMinMaxVars/nudged_min/Output_0/Data_/copy_const" type="Const">
+			<output>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="20240" precision="FP32" size="4"/>
+			</blobs>
+		</layer>
+		<layer id="17" name="Copy_model/conv_2/weights_quant/FakeQuantWithMinMaxVars/nudged_max/Output_0/Data_/copy_const" type="Const">
+			<output>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="20244" precision="FP32" size="4"/>
+			</blobs>
+		</layer>
+		<layer id="18" name="Copy_model/conv_2/weights_quant/FakeQuantWithMinMaxVars/nudged_min/Output_0/Data_1937/copy_const" type="Const">
+			<output>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="20240" precision="FP32" size="4"/>
+			</blobs>
+		</layer>
+		<layer id="19" name="Copy_model/conv_2/weights_quant/FakeQuantWithMinMaxVars/nudged_max/Output_0/Data_1939/copy_const" type="Const">
+			<output>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="20244" precision="FP32" size="4"/>
+			</blobs>
+		</layer>
+		<layer id="20" name="model/conv_2/weights_quant/FakeQuantWithMinMaxVars" type="FakeQuantize">
+			<data levels="255"/>
+			<input>
+				<port id="0">
+					<dim>32</dim>
+					<dim>16</dim>
+					<dim>3</dim>
+					<dim>3</dim>
+				</port>
+				<port id="1">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+				<port id="2">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+				<port id="3">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+				<port id="4">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</input>
+			<output>
+				<port id="5" precision="FP32">
+					<dim>32</dim>
+					<dim>16</dim>
+					<dim>3</dim>
+					<dim>3</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="21" name="bias_data43004301_const" type="Const">
+			<output>
+				<port id="1" precision="FP32">
+					<dim>32</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="20248" precision="FP32" size="128"/>
+			</blobs>
+		</layer>
+		<layer id="22" name="model/conv_2/Conv2D_Fold" type="Convolution">
+			<data auto_pad="same_upper" dilations="1,1" group="1" kernel="3,3" output="32" pads_begin="1,1" pads_end="1,1" strides="1,1"/>
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>16</dim>
+					<dim>208</dim>
+					<dim>208</dim>
+				</port>
+				<port id="1">
+					<dim>32</dim>
+					<dim>16</dim>
+					<dim>3</dim>
+					<dim>3</dim>
+				</port>
+				<port id="2">
+					<dim>32</dim>
+				</port>
+			</input>
+			<output>
+				<port id="3" precision="FP32">
+					<dim>1</dim>
+					<dim>32</dim>
+					<dim>208</dim>
+					<dim>208</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="23" name="Copy_model/conv_2/act_quant/FakeQuantWithMinMaxVars/nudged_min/Output_0/Data_/copy_const" type="Const">
+			<output>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="1800" precision="FP32" size="4"/>
+			</blobs>
+		</layer>
+		<layer id="24" name="Copy_model/conv_2/act_quant/FakeQuantWithMinMaxVars/nudged_max/Output_0/Data_/copy_const" type="Const">
+			<output>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="20376" precision="FP32" size="4"/>
+			</blobs>
+		</layer>
+		<layer id="25" name="Copy_model/conv_2/act_quant/FakeQuantWithMinMaxVars/nudged_min/Output_0/Data_1897/copy_const" type="Const">
+			<output>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="1800" precision="FP32" size="4"/>
+			</blobs>
+		</layer>
+		<layer id="26" name="Copy_model/conv_2/act_quant/FakeQuantWithMinMaxVars/nudged_max/Output_0/Data_1899/copy_const" type="Const">
+			<output>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="20376" precision="FP32" size="4"/>
+			</blobs>
+		</layer>
+		<layer id="27" name="model/conv_2/act_quant/FakeQuantWithMinMaxVars" type="FakeQuantize">
+			<data levels="256"/>
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>32</dim>
+					<dim>208</dim>
+					<dim>208</dim>
+				</port>
+				<port id="1">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+				<port id="2">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+				<port id="3">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+				<port id="4">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</input>
+			<output>
+				<port id="5" precision="FP32">
+					<dim>1</dim>
+					<dim>32</dim>
+					<dim>208</dim>
+					<dim>208</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="28" name="model/max_pooling2d_1/MaxPool" type="Pooling">
+			<data auto_pad="valid" exclude-pad="true" kernel="2,2" pads_begin="0,0" pads_end="0,0" pool-method="max" strides="2,2"/>
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>32</dim>
+					<dim>208</dim>
+					<dim>208</dim>
+				</port>
+			</input>
+			<output>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+					<dim>32</dim>
+					<dim>104</dim>
+					<dim>104</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="29" name="model/conv_3/mul_fold/Output_0/Data__const" type="Const">
+			<output>
+				<port id="1" precision="FP32">
+					<dim>64</dim>
+					<dim>32</dim>
+					<dim>3</dim>
+					<dim>3</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="20380" precision="FP32" size="73728"/>
+			</blobs>
+		</layer>
+		<layer id="30" name="Copy_model/conv_3/weights_quant/FakeQuantWithMinMaxVars/nudged_min/Output_0/Data_/copy_const" type="Const">
+			<output>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="94108" precision="FP32" size="4"/>
+			</blobs>
+		</layer>
+		<layer id="31" name="Copy_model/conv_3/weights_quant/FakeQuantWithMinMaxVars/nudged_max/Output_0/Data_/copy_const" type="Const">
+			<output>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="94112" precision="FP32" size="4"/>
+			</blobs>
+		</layer>
+		<layer id="32" name="Copy_model/conv_3/weights_quant/FakeQuantWithMinMaxVars/nudged_min/Output_0/Data_1893/copy_const" type="Const">
+			<output>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="94108" precision="FP32" size="4"/>
+			</blobs>
+		</layer>
+		<layer id="33" name="Copy_model/conv_3/weights_quant/FakeQuantWithMinMaxVars/nudged_max/Output_0/Data_1895/copy_const" type="Const">
+			<output>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="94112" precision="FP32" size="4"/>
+			</blobs>
+		</layer>
+		<layer id="34" name="model/conv_3/weights_quant/FakeQuantWithMinMaxVars" type="FakeQuantize">
+			<data levels="255"/>
+			<input>
+				<port id="0">
+					<dim>64</dim>
+					<dim>32</dim>
+					<dim>3</dim>
+					<dim>3</dim>
+				</port>
+				<port id="1">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+				<port id="2">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+				<port id="3">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+				<port id="4">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</input>
+			<output>
+				<port id="5" precision="FP32">
+					<dim>64</dim>
+					<dim>32</dim>
+					<dim>3</dim>
+					<dim>3</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="35" name="bias_data43024303_const" type="Const">
+			<output>
+				<port id="1" precision="FP32">
+					<dim>64</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="94116" precision="FP32" size="256"/>
+			</blobs>
+		</layer>
+		<layer id="36" name="model/conv_3/Conv2D_Fold" type="Convolution">
+			<data auto_pad="same_upper" dilations="1,1" group="1" kernel="3,3" output="64" pads_begin="1,1" pads_end="1,1" strides="1,1"/>
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>32</dim>
+					<dim>104</dim>
+					<dim>104</dim>
+				</port>
+				<port id="1">
+					<dim>64</dim>
+					<dim>32</dim>
+					<dim>3</dim>
+					<dim>3</dim>
+				</port>
+				<port id="2">
+					<dim>64</dim>
+				</port>
+			</input>
+			<output>
+				<port id="3" precision="FP32">
+					<dim>1</dim>
+					<dim>64</dim>
+					<dim>104</dim>
+					<dim>104</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="37" name="Copy_model/conv_3/act_quant/FakeQuantWithMinMaxVars/nudged_min/Output_0/Data_/copy_const" type="Const">
+			<output>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="1800" precision="FP32" size="4"/>
+			</blobs>
+		</layer>
+		<layer id="38" name="Copy_model/conv_3/act_quant/FakeQuantWithMinMaxVars/nudged_max/Output_0/Data_/copy_const" type="Const">
+			<output>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="94372" precision="FP32" size="4"/>
+			</blobs>
+		</layer>
+		<layer id="39" name="Copy_model/conv_3/act_quant/FakeQuantWithMinMaxVars/nudged_min/Output_0/Data_1929/copy_const" type="Const">
+			<output>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="1800" precision="FP32" size="4"/>
+			</blobs>
+		</layer>
+		<layer id="40" name="Copy_model/conv_3/act_quant/FakeQuantWithMinMaxVars/nudged_max/Output_0/Data_1931/copy_const" type="Const">
+			<output>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="94372" precision="FP32" size="4"/>
+			</blobs>
+		</layer>
+		<layer id="41" name="model/conv_3/act_quant/FakeQuantWithMinMaxVars" type="FakeQuantize">
+			<data levels="256"/>
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>64</dim>
+					<dim>104</dim>
+					<dim>104</dim>
+				</port>
+				<port id="1">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+				<port id="2">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+				<port id="3">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+				<port id="4">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</input>
+			<output>
+				<port id="5" precision="FP32">
+					<dim>1</dim>
+					<dim>64</dim>
+					<dim>104</dim>
+					<dim>104</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="42" name="model/max_pooling2d_2/MaxPool" type="Pooling">
+			<data auto_pad="valid" exclude-pad="true" kernel="2,2" pads_begin="0,0" pads_end="0,0" pool-method="max" strides="2,2"/>
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>64</dim>
+					<dim>104</dim>
+					<dim>104</dim>
+				</port>
+			</input>
+			<output>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+					<dim>64</dim>
+					<dim>52</dim>
+					<dim>52</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="43" name="model/conv_4/mul_fold/Output_0/Data__const" type="Const">
+			<output>
+				<port id="1" precision="FP32">
+					<dim>128</dim>
+					<dim>64</dim>
+					<dim>3</dim>
+					<dim>3</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="94376" precision="FP32" size="294912"/>
+			</blobs>
+		</layer>
+		<layer id="44" name="Copy_model/conv_4/weights_quant/FakeQuantWithMinMaxVars/nudged_min/Output_0/Data_/copy_const" type="Const">
+			<output>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="389288" precision="FP32" size="4"/>
+			</blobs>
+		</layer>
+		<layer id="45" name="Copy_model/conv_4/weights_quant/FakeQuantWithMinMaxVars/nudged_max/Output_0/Data_/copy_const" type="Const">
+			<output>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="389292" precision="FP32" size="4"/>
+			</blobs>
+		</layer>
+		<layer id="46" name="Copy_model/conv_4/weights_quant/FakeQuantWithMinMaxVars/nudged_min/Output_0/Data_1925/copy_const" type="Const">
+			<output>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="389288" precision="FP32" size="4"/>
+			</blobs>
+		</layer>
+		<layer id="47" name="Copy_model/conv_4/weights_quant/FakeQuantWithMinMaxVars/nudged_max/Output_0/Data_1927/copy_const" type="Const">
+			<output>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="389292" precision="FP32" size="4"/>
+			</blobs>
+		</layer>
+		<layer id="48" name="model/conv_4/weights_quant/FakeQuantWithMinMaxVars" type="FakeQuantize">
+			<data levels="255"/>
+			<input>
+				<port id="0">
+					<dim>128</dim>
+					<dim>64</dim>
+					<dim>3</dim>
+					<dim>3</dim>
+				</port>
+				<port id="1">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+				<port id="2">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+				<port id="3">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+				<port id="4">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</input>
+			<output>
+				<port id="5" precision="FP32">
+					<dim>128</dim>
+					<dim>64</dim>
+					<dim>3</dim>
+					<dim>3</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="49" name="bias_data43044305_const" type="Const">
+			<output>
+				<port id="1" precision="FP32">
+					<dim>128</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="389296" precision="FP32" size="512"/>
+			</blobs>
+		</layer>
+		<layer id="50" name="model/conv_4/Conv2D_Fold" type="Convolution">
+			<data auto_pad="same_upper" dilations="1,1" group="1" kernel="3,3" output="128" pads_begin="1,1" pads_end="1,1" strides="1,1"/>
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>64</dim>
+					<dim>52</dim>
+					<dim>52</dim>
+				</port>
+				<port id="1">
+					<dim>128</dim>
+					<dim>64</dim>
+					<dim>3</dim>
+					<dim>3</dim>
+				</port>
+				<port id="2">
+					<dim>128</dim>
+				</port>
+			</input>
+			<output>
+				<port id="3" precision="FP32">
+					<dim>1</dim>
+					<dim>128</dim>
+					<dim>52</dim>
+					<dim>52</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="51" name="Copy_model/conv_4/act_quant/FakeQuantWithMinMaxVars/nudged_min/Output_0/Data_/copy_const" type="Const">
+			<output>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="1800" precision="FP32" size="4"/>
+			</blobs>
+		</layer>
+		<layer id="52" name="Copy_model/conv_4/act_quant/FakeQuantWithMinMaxVars/nudged_max/Output_0/Data_/copy_const" type="Const">
+			<output>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="389808" precision="FP32" size="4"/>
+			</blobs>
+		</layer>
+		<layer id="53" name="Copy_model/conv_4/act_quant/FakeQuantWithMinMaxVars/nudged_min/Output_0/Data_1869/copy_const" type="Const">
+			<output>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="1800" precision="FP32" size="4"/>
+			</blobs>
+		</layer>
+		<layer id="54" name="Copy_model/conv_4/act_quant/FakeQuantWithMinMaxVars/nudged_max/Output_0/Data_1871/copy_const" type="Const">
+			<output>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="389808" precision="FP32" size="4"/>
+			</blobs>
+		</layer>
+		<layer id="55" name="model/conv_4/act_quant/FakeQuantWithMinMaxVars" type="FakeQuantize">
+			<data levels="256"/>
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>128</dim>
+					<dim>52</dim>
+					<dim>52</dim>
+				</port>
+				<port id="1">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+				<port id="2">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+				<port id="3">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+				<port id="4">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</input>
+			<output>
+				<port id="5" precision="FP32">
+					<dim>1</dim>
+					<dim>128</dim>
+					<dim>52</dim>
+					<dim>52</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="56" name="model/max_pooling2d_3/MaxPool" type="Pooling">
+			<data auto_pad="valid" exclude-pad="true" kernel="2,2" pads_begin="0,0" pads_end="0,0" pool-method="max" strides="2,2"/>
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>128</dim>
+					<dim>52</dim>
+					<dim>52</dim>
+				</port>
+			</input>
+			<output>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+					<dim>128</dim>
+					<dim>26</dim>
+					<dim>26</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="57" name="model/conv_5/mul_fold/Output_0/Data__const" type="Const">
+			<output>
+				<port id="1" precision="FP32">
+					<dim>256</dim>
+					<dim>128</dim>
+					<dim>3</dim>
+					<dim>3</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="389812" precision="FP32" size="1179648"/>
+			</blobs>
+		</layer>
+		<layer id="58" name="Copy_model/conv_5/weights_quant/FakeQuantWithMinMaxVars/nudged_min/Output_0/Data_/copy_const" type="Const">
+			<output>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="1569460" precision="FP32" size="4"/>
+			</blobs>
+		</layer>
+		<layer id="59" name="Copy_model/conv_5/weights_quant/FakeQuantWithMinMaxVars/nudged_max/Output_0/Data_/copy_const" type="Const">
+			<output>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="1569464" precision="FP32" size="4"/>
+			</blobs>
+		</layer>
+		<layer id="60" name="Copy_model/conv_5/weights_quant/FakeQuantWithMinMaxVars/nudged_min/Output_0/Data_1881/copy_const" type="Const">
+			<output>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="1569460" precision="FP32" size="4"/>
+			</blobs>
+		</layer>
+		<layer id="61" name="Copy_model/conv_5/weights_quant/FakeQuantWithMinMaxVars/nudged_max/Output_0/Data_1883/copy_const" type="Const">
+			<output>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="1569464" precision="FP32" size="4"/>
+			</blobs>
+		</layer>
+		<layer id="62" name="model/conv_5/weights_quant/FakeQuantWithMinMaxVars" type="FakeQuantize">
+			<data levels="255"/>
+			<input>
+				<port id="0">
+					<dim>256</dim>
+					<dim>128</dim>
+					<dim>3</dim>
+					<dim>3</dim>
+				</port>
+				<port id="1">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+				<port id="2">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+				<port id="3">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+				<port id="4">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</input>
+			<output>
+				<port id="5" precision="FP32">
+					<dim>256</dim>
+					<dim>128</dim>
+					<dim>3</dim>
+					<dim>3</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="63" name="bias_data43064307_const" type="Const">
+			<output>
+				<port id="1" precision="FP32">
+					<dim>256</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="1569468" precision="FP32" size="1024"/>
+			</blobs>
+		</layer>
+		<layer id="64" name="model/conv_5/Conv2D_Fold" type="Convolution">
+			<data auto_pad="same_upper" dilations="1,1" group="1" kernel="3,3" output="256" pads_begin="1,1" pads_end="1,1" strides="1,1"/>
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>128</dim>
+					<dim>26</dim>
+					<dim>26</dim>
+				</port>
+				<port id="1">
+					<dim>256</dim>
+					<dim>128</dim>
+					<dim>3</dim>
+					<dim>3</dim>
+				</port>
+				<port id="2">
+					<dim>256</dim>
+				</port>
+			</input>
+			<output>
+				<port id="3" precision="FP32">
+					<dim>1</dim>
+					<dim>256</dim>
+					<dim>26</dim>
+					<dim>26</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="65" name="Copy_model/conv_5/act_quant/FakeQuantWithMinMaxVars/nudged_min/Output_0/Data_/copy_const" type="Const">
+			<output>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="1800" precision="FP32" size="4"/>
+			</blobs>
+		</layer>
+		<layer id="66" name="Copy_model/conv_5/act_quant/FakeQuantWithMinMaxVars/nudged_max/Output_0/Data_/copy_const" type="Const">
+			<output>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="1570492" precision="FP32" size="4"/>
+			</blobs>
+		</layer>
+		<layer id="67" name="Copy_model/conv_5/act_quant/FakeQuantWithMinMaxVars/nudged_min/Output_0/Data_1889/copy_const" type="Const">
+			<output>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="1800" precision="FP32" size="4"/>
+			</blobs>
+		</layer>
+		<layer id="68" name="Copy_model/conv_5/act_quant/FakeQuantWithMinMaxVars/nudged_max/Output_0/Data_1891/copy_const" type="Const">
+			<output>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="1570492" precision="FP32" size="4"/>
+			</blobs>
+		</layer>
+		<layer id="69" name="model/conv_5/act_quant/FakeQuantWithMinMaxVars" type="FakeQuantize">
+			<data levels="256"/>
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>256</dim>
+					<dim>26</dim>
+					<dim>26</dim>
+				</port>
+				<port id="1">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+				<port id="2">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+				<port id="3">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+				<port id="4">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</input>
+			<output>
+				<port id="5" precision="FP32">
+					<dim>1</dim>
+					<dim>256</dim>
+					<dim>26</dim>
+					<dim>26</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="70" name="model/max_pooling2d_4/MaxPool" type="Pooling">
+			<data auto_pad="valid" exclude-pad="true" kernel="2,2" pads_begin="0,0" pads_end="0,0" pool-method="max" strides="2,2"/>
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>256</dim>
+					<dim>26</dim>
+					<dim>26</dim>
+				</port>
+			</input>
+			<output>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+					<dim>256</dim>
+					<dim>13</dim>
+					<dim>13</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="71" name="model/conv_6/mul_fold/Output_0/Data__const" type="Const">
+			<output>
+				<port id="1" precision="FP32">
+					<dim>512</dim>
+					<dim>256</dim>
+					<dim>3</dim>
+					<dim>3</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="1570496" precision="FP32" size="4718592"/>
+			</blobs>
+		</layer>
+		<layer id="72" name="Copy_model/conv_6/weights_quant/FakeQuantWithMinMaxVars/nudged_min/Output_0/Data_/copy_const" type="Const">
+			<output>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="6289088" precision="FP32" size="4"/>
+			</blobs>
+		</layer>
+		<layer id="73" name="Copy_model/conv_6/weights_quant/FakeQuantWithMinMaxVars/nudged_max/Output_0/Data_/copy_const" type="Const">
+			<output>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="6289092" precision="FP32" size="4"/>
+			</blobs>
+		</layer>
+		<layer id="74" name="Copy_model/conv_6/weights_quant/FakeQuantWithMinMaxVars/nudged_min/Output_0/Data_1913/copy_const" type="Const">
+			<output>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="6289088" precision="FP32" size="4"/>
+			</blobs>
+		</layer>
+		<layer id="75" name="Copy_model/conv_6/weights_quant/FakeQuantWithMinMaxVars/nudged_max/Output_0/Data_1915/copy_const" type="Const">
+			<output>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="6289092" precision="FP32" size="4"/>
+			</blobs>
+		</layer>
+		<layer id="76" name="model/conv_6/weights_quant/FakeQuantWithMinMaxVars" type="FakeQuantize">
+			<data levels="255"/>
+			<input>
+				<port id="0">
+					<dim>512</dim>
+					<dim>256</dim>
+					<dim>3</dim>
+					<dim>3</dim>
+				</port>
+				<port id="1">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+				<port id="2">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+				<port id="3">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+				<port id="4">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</input>
+			<output>
+				<port id="5" precision="FP32">
+					<dim>512</dim>
+					<dim>256</dim>
+					<dim>3</dim>
+					<dim>3</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="77" name="bias_data43084309_const" type="Const">
+			<output>
+				<port id="1" precision="FP32">
+					<dim>512</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="6289096" precision="FP32" size="2048"/>
+			</blobs>
+		</layer>
+		<layer id="78" name="model/conv_6/Conv2D_Fold" type="Convolution">
+			<data auto_pad="same_upper" dilations="1,1" group="1" kernel="3,3" output="512" pads_begin="1,1" pads_end="1,1" strides="1,1"/>
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>256</dim>
+					<dim>13</dim>
+					<dim>13</dim>
+				</port>
+				<port id="1">
+					<dim>512</dim>
+					<dim>256</dim>
+					<dim>3</dim>
+					<dim>3</dim>
+				</port>
+				<port id="2">
+					<dim>512</dim>
+				</port>
+			</input>
+			<output>
+				<port id="3" precision="FP32">
+					<dim>1</dim>
+					<dim>512</dim>
+					<dim>13</dim>
+					<dim>13</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="79" name="Copy_model/conv_6/act_quant/FakeQuantWithMinMaxVars/nudged_min/Output_0/Data_/copy_const" type="Const">
+			<output>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="1800" precision="FP32" size="4"/>
+			</blobs>
+		</layer>
+		<layer id="80" name="Copy_model/conv_6/act_quant/FakeQuantWithMinMaxVars/nudged_max/Output_0/Data_/copy_const" type="Const">
+			<output>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="6291144" precision="FP32" size="4"/>
+			</blobs>
+		</layer>
+		<layer id="81" name="Copy_model/conv_6/act_quant/FakeQuantWithMinMaxVars/nudged_min/Output_0/Data_1885/copy_const" type="Const">
+			<output>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="1800" precision="FP32" size="4"/>
+			</blobs>
+		</layer>
+		<layer id="82" name="Copy_model/conv_6/act_quant/FakeQuantWithMinMaxVars/nudged_max/Output_0/Data_1887/copy_const" type="Const">
+			<output>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="6291144" precision="FP32" size="4"/>
+			</blobs>
+		</layer>
+		<layer id="83" name="model/conv_6/act_quant/FakeQuantWithMinMaxVars" type="FakeQuantize">
+			<data levels="256"/>
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>512</dim>
+					<dim>13</dim>
+					<dim>13</dim>
+				</port>
+				<port id="1">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+				<port id="2">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+				<port id="3">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+				<port id="4">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</input>
+			<output>
+				<port id="5" precision="FP32">
+					<dim>1</dim>
+					<dim>512</dim>
+					<dim>13</dim>
+					<dim>13</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="84" name="model/max_pooling2d_5/MaxPool" type="Pooling">
+			<data auto_pad="same_upper" exclude-pad="true" kernel="2,2" pads_begin="0,0" pads_end="1,1" pool-method="max" strides="1,1"/>
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>512</dim>
+					<dim>13</dim>
+					<dim>13</dim>
+				</port>
+			</input>
+			<output>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+					<dim>512</dim>
+					<dim>13</dim>
+					<dim>13</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="85" name="model/conv_7/mul_fold/Output_0/Data__const" type="Const">
+			<output>
+				<port id="1" precision="FP32">
+					<dim>1024</dim>
+					<dim>512</dim>
+					<dim>3</dim>
+					<dim>3</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="6291148" precision="FP32" size="18874368"/>
+			</blobs>
+		</layer>
+		<layer id="86" name="Copy_model/conv_7/weights_quant/FakeQuantWithMinMaxVars/nudged_min/Output_0/Data_/copy_const" type="Const">
+			<output>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="25165516" precision="FP32" size="4"/>
+			</blobs>
+		</layer>
+		<layer id="87" name="Copy_model/conv_7/weights_quant/FakeQuantWithMinMaxVars/nudged_max/Output_0/Data_/copy_const" type="Const">
+			<output>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="25165520" precision="FP32" size="4"/>
+			</blobs>
+		</layer>
+		<layer id="88" name="Copy_model/conv_7/weights_quant/FakeQuantWithMinMaxVars/nudged_min/Output_0/Data_1909/copy_const" type="Const">
+			<output>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="25165516" precision="FP32" size="4"/>
+			</blobs>
+		</layer>
+		<layer id="89" name="Copy_model/conv_7/weights_quant/FakeQuantWithMinMaxVars/nudged_max/Output_0/Data_1911/copy_const" type="Const">
+			<output>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="25165520" precision="FP32" size="4"/>
+			</blobs>
+		</layer>
+		<layer id="90" name="model/conv_7/weights_quant/FakeQuantWithMinMaxVars" type="FakeQuantize">
+			<data levels="255"/>
+			<input>
+				<port id="0">
+					<dim>1024</dim>
+					<dim>512</dim>
+					<dim>3</dim>
+					<dim>3</dim>
+				</port>
+				<port id="1">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+				<port id="2">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+				<port id="3">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+				<port id="4">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</input>
+			<output>
+				<port id="5" precision="FP32">
+					<dim>1024</dim>
+					<dim>512</dim>
+					<dim>3</dim>
+					<dim>3</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="91" name="bias_data43104311_const" type="Const">
+			<output>
+				<port id="1" precision="FP32">
+					<dim>1024</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="25165524" precision="FP32" size="4096"/>
+			</blobs>
+		</layer>
+		<layer id="92" name="model/conv_7/Conv2D_Fold" type="Convolution">
+			<data auto_pad="same_upper" dilations="1,1" group="1" kernel="3,3" output="1024" pads_begin="1,1" pads_end="1,1" strides="1,1"/>
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>512</dim>
+					<dim>13</dim>
+					<dim>13</dim>
+				</port>
+				<port id="1">
+					<dim>1024</dim>
+					<dim>512</dim>
+					<dim>3</dim>
+					<dim>3</dim>
+				</port>
+				<port id="2">
+					<dim>1024</dim>
+				</port>
+			</input>
+			<output>
+				<port id="3" precision="FP32">
+					<dim>1</dim>
+					<dim>1024</dim>
+					<dim>13</dim>
+					<dim>13</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="93" name="Copy_model/conv_7/act_quant/FakeQuantWithMinMaxVars/nudged_min/Output_0/Data_/copy_const" type="Const">
+			<output>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="1800" precision="FP32" size="4"/>
+			</blobs>
+		</layer>
+		<layer id="94" name="Copy_model/conv_7/act_quant/FakeQuantWithMinMaxVars/nudged_max/Output_0/Data_/copy_const" type="Const">
+			<output>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="25169620" precision="FP32" size="4"/>
+			</blobs>
+		</layer>
+		<layer id="95" name="Copy_model/conv_7/act_quant/FakeQuantWithMinMaxVars/nudged_min/Output_0/Data_1921/copy_const" type="Const">
+			<output>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="1800" precision="FP32" size="4"/>
+			</blobs>
+		</layer>
+		<layer id="96" name="Copy_model/conv_7/act_quant/FakeQuantWithMinMaxVars/nudged_max/Output_0/Data_1923/copy_const" type="Const">
+			<output>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="25169620" precision="FP32" size="4"/>
+			</blobs>
+		</layer>
+		<layer id="97" name="model/conv_7/act_quant/FakeQuantWithMinMaxVars" type="FakeQuantize">
+			<data levels="256"/>
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>1024</dim>
+					<dim>13</dim>
+					<dim>13</dim>
+				</port>
+				<port id="1">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+				<port id="2">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+				<port id="3">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+				<port id="4">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</input>
+			<output>
+				<port id="5" precision="FP32">
+					<dim>1</dim>
+					<dim>1024</dim>
+					<dim>13</dim>
+					<dim>13</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="98" name="model/conv_8/mul_fold/Output_0/Data__const" type="Const">
+			<output>
+				<port id="1" precision="FP32">
+					<dim>1024</dim>
+					<dim>1024</dim>
+					<dim>3</dim>
+					<dim>3</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="25169624" precision="FP32" size="37748736"/>
+			</blobs>
+		</layer>
+		<layer id="99" name="Copy_model/conv_8/weights_quant/FakeQuantWithMinMaxVars/nudged_min/Output_0/Data_/copy_const" type="Const">
+			<output>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="62918360" precision="FP32" size="4"/>
+			</blobs>
+		</layer>
+		<layer id="100" name="Copy_model/conv_8/weights_quant/FakeQuantWithMinMaxVars/nudged_max/Output_0/Data_/copy_const" type="Const">
+			<output>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="62918364" precision="FP32" size="4"/>
+			</blobs>
+		</layer>
+		<layer id="101" name="Copy_model/conv_8/weights_quant/FakeQuantWithMinMaxVars/nudged_min/Output_0/Data_1901/copy_const" type="Const">
+			<output>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="62918360" precision="FP32" size="4"/>
+			</blobs>
+		</layer>
+		<layer id="102" name="Copy_model/conv_8/weights_quant/FakeQuantWithMinMaxVars/nudged_max/Output_0/Data_1903/copy_const" type="Const">
+			<output>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="62918364" precision="FP32" size="4"/>
+			</blobs>
+		</layer>
+		<layer id="103" name="model/conv_8/weights_quant/FakeQuantWithMinMaxVars" type="FakeQuantize">
+			<data levels="255"/>
+			<input>
+				<port id="0">
+					<dim>1024</dim>
+					<dim>1024</dim>
+					<dim>3</dim>
+					<dim>3</dim>
+				</port>
+				<port id="1">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+				<port id="2">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+				<port id="3">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+				<port id="4">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</input>
+			<output>
+				<port id="5" precision="FP32">
+					<dim>1024</dim>
+					<dim>1024</dim>
+					<dim>3</dim>
+					<dim>3</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="104" name="bias_data43124313_const" type="Const">
+			<output>
+				<port id="1" precision="FP32">
+					<dim>1024</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="62918368" precision="FP32" size="4096"/>
+			</blobs>
+		</layer>
+		<layer id="105" name="model/conv_8/Conv2D_Fold" type="Convolution">
+			<data auto_pad="same_upper" dilations="1,1" group="1" kernel="3,3" output="1024" pads_begin="1,1" pads_end="1,1" strides="1,1"/>
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>1024</dim>
+					<dim>13</dim>
+					<dim>13</dim>
+				</port>
+				<port id="1">
+					<dim>1024</dim>
+					<dim>1024</dim>
+					<dim>3</dim>
+					<dim>3</dim>
+				</port>
+				<port id="2">
+					<dim>1024</dim>
+				</port>
+			</input>
+			<output>
+				<port id="3" precision="FP32">
+					<dim>1</dim>
+					<dim>1024</dim>
+					<dim>13</dim>
+					<dim>13</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="106" name="Copy_model/conv_8/act_quant/FakeQuantWithMinMaxVars/nudged_min/Output_0/Data_/copy_const" type="Const">
+			<output>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="1800" precision="FP32" size="4"/>
+			</blobs>
+		</layer>
+		<layer id="107" name="Copy_model/conv_8/act_quant/FakeQuantWithMinMaxVars/nudged_max/Output_0/Data_/copy_const" type="Const">
+			<output>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="62922464" precision="FP32" size="4"/>
+			</blobs>
+		</layer>
+		<layer id="108" name="Copy_model/conv_8/act_quant/FakeQuantWithMinMaxVars/nudged_min/Output_0/Data_1933/copy_const" type="Const">
+			<output>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="1800" precision="FP32" size="4"/>
+			</blobs>
+		</layer>
+		<layer id="109" name="Copy_model/conv_8/act_quant/FakeQuantWithMinMaxVars/nudged_max/Output_0/Data_1935/copy_const" type="Const">
+			<output>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="62922464" precision="FP32" size="4"/>
+			</blobs>
+		</layer>
+		<layer id="110" name="model/conv_8/act_quant/FakeQuantWithMinMaxVars" type="FakeQuantize">
+			<data levels="256"/>
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>1024</dim>
+					<dim>13</dim>
+					<dim>13</dim>
+				</port>
+				<port id="1">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+				<port id="2">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+				<port id="3">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+				<port id="4">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</input>
+			<output>
+				<port id="5" precision="FP32">
+					<dim>1</dim>
+					<dim>1024</dim>
+					<dim>13</dim>
+					<dim>13</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="111" name="Det/Conv2D/ReadVariableOp/Output_0/Data__const" type="Const">
+			<output>
+				<port id="1" precision="FP32">
+					<dim>125</dim>
+					<dim>1024</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="62922468" precision="FP32" size="512000"/>
+			</blobs>
+		</layer>
+		<layer id="112" name="Copy_Det/weights_quant/FakeQuantWithMinMaxVars/nudged_min/Output_0/Data_/copy_const" type="Const">
+			<output>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="63434468" precision="FP32" size="4"/>
+			</blobs>
+		</layer>
+		<layer id="113" name="Copy_Det/weights_quant/FakeQuantWithMinMaxVars/nudged_max/Output_0/Data_/copy_const" type="Const">
+			<output>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="63434472" precision="FP32" size="4"/>
+			</blobs>
+		</layer>
+		<layer id="114" name="Copy_Det/weights_quant/FakeQuantWithMinMaxVars/nudged_min/Output_0/Data_1877/copy_const" type="Const">
+			<output>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="63434468" precision="FP32" size="4"/>
+			</blobs>
+		</layer>
+		<layer id="115" name="Copy_Det/weights_quant/FakeQuantWithMinMaxVars/nudged_max/Output_0/Data_1879/copy_const" type="Const">
+			<output>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="63434472" precision="FP32" size="4"/>
+			</blobs>
+		</layer>
+		<layer id="116" name="Det/weights_quant/FakeQuantWithMinMaxVars" type="FakeQuantize">
+			<data levels="255"/>
+			<input>
+				<port id="0">
+					<dim>125</dim>
+					<dim>1024</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+				<port id="1">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+				<port id="2">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+				<port id="3">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+				<port id="4">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</input>
+			<output>
+				<port id="5" precision="FP32">
+					<dim>125</dim>
+					<dim>1024</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="117" name="bias_data43144315_const" type="Const">
+			<output>
+				<port id="1" precision="FP32">
+					<dim>125</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="63434476" precision="FP32" size="500"/>
+			</blobs>
+		</layer>
+		<layer id="118" name="Det/Conv2D" type="Convolution">
+			<data auto_pad="same_upper" dilations="1,1" group="1" kernel="1,1" output="125" pads_begin="0,0" pads_end="0,0" strides="1,1"/>
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>1024</dim>
+					<dim>13</dim>
+					<dim>13</dim>
+				</port>
+				<port id="1">
+					<dim>125</dim>
+					<dim>1024</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+				<port id="2">
+					<dim>125</dim>
+				</port>
+			</input>
+			<output>
+				<port id="3" precision="FP32">
+					<dim>1</dim>
+					<dim>125</dim>
+					<dim>13</dim>
+					<dim>13</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="120" name="Det/act_quant/FakeQuantWithMinMaxVars/Transpose65326533_const" type="Const">
+			<output>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="63434976" precision="FP32" size="4"/>
+			</blobs>
+		</layer>
+		<layer id="121" name="Det/act_quant/FakeQuantWithMinMaxVars/Transpose65346535_const" type="Const">
+			<output>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="63434980" precision="FP32" size="4"/>
+			</blobs>
+		</layer>
+		<layer id="122" name="Det/act_quant/FakeQuantWithMinMaxVars/Transpose65366537_const" type="Const">
+			<output>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="63434976" precision="FP32" size="4"/>
+			</blobs>
+		</layer>
+		<layer id="123" name="Det/act_quant/FakeQuantWithMinMaxVars/Transpose65386539_const" type="Const">
+			<output>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="63434980" precision="FP32" size="4"/>
+			</blobs>
+		</layer>
+		<layer id="124" name="Det/act_quant/FakeQuantWithMinMaxVars" type="FakeQuantize">
+			<data levels="256"/>
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>125</dim>
+					<dim>13</dim>
+					<dim>13</dim>
+				</port>
+				<port id="1">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+				<port id="2">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+				<port id="3">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+				<port id="4">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>1</dim>
+				</port>
+			</input>
+			<output>
+				<port id="5" precision="FP32">
+					<dim>1</dim>
+					<dim>125</dim>
+					<dim>13</dim>
+					<dim>13</dim>
+				</port>
+			</output>
+		</layer>
+	</layers>
+	<edges>
+		<edge from-layer="1" from-port="1" to-layer="6" to-port="0"/>
+		<edge from-layer="2" from-port="1" to-layer="6" to-port="1"/>
+		<edge from-layer="3" from-port="1" to-layer="6" to-port="2"/>
+		<edge from-layer="4" from-port="1" to-layer="6" to-port="3"/>
+		<edge from-layer="5" from-port="1" to-layer="6" to-port="4"/>
+		<edge from-layer="0" from-port="0" to-layer="8" to-port="0"/>
+		<edge from-layer="6" from-port="5" to-layer="8" to-port="1"/>
+		<edge from-layer="7" from-port="1" to-layer="8" to-port="2"/>
+		<edge from-layer="8" from-port="3" to-layer="13" to-port="0"/>
+		<edge from-layer="9" from-port="1" to-layer="13" to-port="1"/>
+		<edge from-layer="10" from-port="1" to-layer="13" to-port="2"/>
+		<edge from-layer="11" from-port="1" to-layer="13" to-port="3"/>
+		<edge from-layer="12" from-port="1" to-layer="13" to-port="4"/>
+		<edge from-layer="13" from-port="5" to-layer="14" to-port="0"/>
+		<edge from-layer="15" from-port="1" to-layer="20" to-port="0"/>
+		<edge from-layer="16" from-port="1" to-layer="20" to-port="1"/>
+		<edge from-layer="17" from-port="1" to-layer="20" to-port="2"/>
+		<edge from-layer="18" from-port="1" to-layer="20" to-port="3"/>
+		<edge from-layer="19" from-port="1" to-layer="20" to-port="4"/>
+		<edge from-layer="14" from-port="1" to-layer="22" to-port="0"/>
+		<edge from-layer="20" from-port="5" to-layer="22" to-port="1"/>
+		<edge from-layer="21" from-port="1" to-layer="22" to-port="2"/>
+		<edge from-layer="22" from-port="3" to-layer="27" to-port="0"/>
+		<edge from-layer="23" from-port="1" to-layer="27" to-port="1"/>
+		<edge from-layer="24" from-port="1" to-layer="27" to-port="2"/>
+		<edge from-layer="25" from-port="1" to-layer="27" to-port="3"/>
+		<edge from-layer="26" from-port="1" to-layer="27" to-port="4"/>
+		<edge from-layer="27" from-port="5" to-layer="28" to-port="0"/>
+		<edge from-layer="29" from-port="1" to-layer="34" to-port="0"/>
+		<edge from-layer="30" from-port="1" to-layer="34" to-port="1"/>
+		<edge from-layer="31" from-port="1" to-layer="34" to-port="2"/>
+		<edge from-layer="32" from-port="1" to-layer="34" to-port="3"/>
+		<edge from-layer="33" from-port="1" to-layer="34" to-port="4"/>
+		<edge from-layer="28" from-port="1" to-layer="36" to-port="0"/>
+		<edge from-layer="34" from-port="5" to-layer="36" to-port="1"/>
+		<edge from-layer="35" from-port="1" to-layer="36" to-port="2"/>
+		<edge from-layer="36" from-port="3" to-layer="41" to-port="0"/>
+		<edge from-layer="37" from-port="1" to-layer="41" to-port="1"/>
+		<edge from-layer="38" from-port="1" to-layer="41" to-port="2"/>
+		<edge from-layer="39" from-port="1" to-layer="41" to-port="3"/>
+		<edge from-layer="40" from-port="1" to-layer="41" to-port="4"/>
+		<edge from-layer="41" from-port="5" to-layer="42" to-port="0"/>
+		<edge from-layer="43" from-port="1" to-layer="48" to-port="0"/>
+		<edge from-layer="44" from-port="1" to-layer="48" to-port="1"/>
+		<edge from-layer="45" from-port="1" to-layer="48" to-port="2"/>
+		<edge from-layer="46" from-port="1" to-layer="48" to-port="3"/>
+		<edge from-layer="47" from-port="1" to-layer="48" to-port="4"/>
+		<edge from-layer="42" from-port="1" to-layer="50" to-port="0"/>
+		<edge from-layer="48" from-port="5" to-layer="50" to-port="1"/>
+		<edge from-layer="49" from-port="1" to-layer="50" to-port="2"/>
+		<edge from-layer="50" from-port="3" to-layer="55" to-port="0"/>
+		<edge from-layer="51" from-port="1" to-layer="55" to-port="1"/>
+		<edge from-layer="52" from-port="1" to-layer="55" to-port="2"/>
+		<edge from-layer="53" from-port="1" to-layer="55" to-port="3"/>
+		<edge from-layer="54" from-port="1" to-layer="55" to-port="4"/>
+		<edge from-layer="55" from-port="5" to-layer="56" to-port="0"/>
+		<edge from-layer="57" from-port="1" to-layer="62" to-port="0"/>
+		<edge from-layer="58" from-port="1" to-layer="62" to-port="1"/>
+		<edge from-layer="59" from-port="1" to-layer="62" to-port="2"/>
+		<edge from-layer="60" from-port="1" to-layer="62" to-port="3"/>
+		<edge from-layer="61" from-port="1" to-layer="62" to-port="4"/>
+		<edge from-layer="56" from-port="1" to-layer="64" to-port="0"/>
+		<edge from-layer="62" from-port="5" to-layer="64" to-port="1"/>
+		<edge from-layer="63" from-port="1" to-layer="64" to-port="2"/>
+		<edge from-layer="64" from-port="3" to-layer="69" to-port="0"/>
+		<edge from-layer="65" from-port="1" to-layer="69" to-port="1"/>
+		<edge from-layer="66" from-port="1" to-layer="69" to-port="2"/>
+		<edge from-layer="67" from-port="1" to-layer="69" to-port="3"/>
+		<edge from-layer="68" from-port="1" to-layer="69" to-port="4"/>
+		<edge from-layer="69" from-port="5" to-layer="70" to-port="0"/>
+		<edge from-layer="71" from-port="1" to-layer="76" to-port="0"/>
+		<edge from-layer="72" from-port="1" to-layer="76" to-port="1"/>
+		<edge from-layer="73" from-port="1" to-layer="76" to-port="2"/>
+		<edge from-layer="74" from-port="1" to-layer="76" to-port="3"/>
+		<edge from-layer="75" from-port="1" to-layer="76" to-port="4"/>
+		<edge from-layer="70" from-port="1" to-layer="78" to-port="0"/>
+		<edge from-layer="76" from-port="5" to-layer="78" to-port="1"/>
+		<edge from-layer="77" from-port="1" to-layer="78" to-port="2"/>
+		<edge from-layer="78" from-port="3" to-layer="83" to-port="0"/>
+		<edge from-layer="79" from-port="1" to-layer="83" to-port="1"/>
+		<edge from-layer="80" from-port="1" to-layer="83" to-port="2"/>
+		<edge from-layer="81" from-port="1" to-layer="83" to-port="3"/>
+		<edge from-layer="82" from-port="1" to-layer="83" to-port="4"/>
+		<edge from-layer="83" from-port="5" to-layer="84" to-port="0"/>
+		<edge from-layer="85" from-port="1" to-layer="90" to-port="0"/>
+		<edge from-layer="86" from-port="1" to-layer="90" to-port="1"/>
+		<edge from-layer="87" from-port="1" to-layer="90" to-port="2"/>
+		<edge from-layer="88" from-port="1" to-layer="90" to-port="3"/>
+		<edge from-layer="89" from-port="1" to-layer="90" to-port="4"/>
+		<edge from-layer="84" from-port="1" to-layer="92" to-port="0"/>
+		<edge from-layer="90" from-port="5" to-layer="92" to-port="1"/>
+		<edge from-layer="91" from-port="1" to-layer="92" to-port="2"/>
+		<edge from-layer="92" from-port="3" to-layer="97" to-port="0"/>
+		<edge from-layer="93" from-port="1" to-layer="97" to-port="1"/>
+		<edge from-layer="94" from-port="1" to-layer="97" to-port="2"/>
+		<edge from-layer="95" from-port="1" to-layer="97" to-port="3"/>
+		<edge from-layer="96" from-port="1" to-layer="97" to-port="4"/>
+		<edge from-layer="98" from-port="1" to-layer="103" to-port="0"/>
+		<edge from-layer="99" from-port="1" to-layer="103" to-port="1"/>
+		<edge from-layer="100" from-port="1" to-layer="103" to-port="2"/>
+		<edge from-layer="101" from-port="1" to-layer="103" to-port="3"/>
+		<edge from-layer="102" from-port="1" to-layer="103" to-port="4"/>
+		<edge from-layer="97" from-port="5" to-layer="105" to-port="0"/>
+		<edge from-layer="103" from-port="5" to-layer="105" to-port="1"/>
+		<edge from-layer="104" from-port="1" to-layer="105" to-port="2"/>
+		<edge from-layer="105" from-port="3" to-layer="110" to-port="0"/>
+		<edge from-layer="106" from-port="1" to-layer="110" to-port="1"/>
+		<edge from-layer="107" from-port="1" to-layer="110" to-port="2"/>
+		<edge from-layer="108" from-port="1" to-layer="110" to-port="3"/>
+		<edge from-layer="109" from-port="1" to-layer="110" to-port="4"/>
+		<edge from-layer="111" from-port="1" to-layer="116" to-port="0"/>
+		<edge from-layer="112" from-port="1" to-layer="116" to-port="1"/>
+		<edge from-layer="113" from-port="1" to-layer="116" to-port="2"/>
+		<edge from-layer="114" from-port="1" to-layer="116" to-port="3"/>
+		<edge from-layer="115" from-port="1" to-layer="116" to-port="4"/>
+		<edge from-layer="110" from-port="5" to-layer="118" to-port="0"/>
+		<edge from-layer="116" from-port="5" to-layer="118" to-port="1"/>
+		<edge from-layer="117" from-port="1" to-layer="118" to-port="2"/>
+		<edge from-layer="118" from-port="3" to-layer="124" to-port="0"/>
+		<edge from-layer="120" from-port="1" to-layer="124" to-port="1"/>
+		<edge from-layer="121" from-port="1" to-layer="124" to-port="2"/>
+		<edge from-layer="122" from-port="1" to-layer="124" to-port="3"/>
+		<edge from-layer="123" from-port="1" to-layer="124" to-port="4"/>
+	</edges>
+	<meta_data>
+		<MO_version value="unknown version"/>
+		<cli_parameters>
+			<batch value="1"/>
+			<blobs_as_inputs value="True"/>
+			<caffe_parser_path value="DIR"/>
+			<data_type value="float"/>
+			<disable_nhwc_to_nchw value="False"/>
+			<disable_omitting_optional value="False"/>
+			<disable_resnet_optimization value="False"/>
+			<enable_concat_optimization value="False"/>
+			<enable_flattening_nested_params value="False"/>
+			<enable_ssd_gluoncv value="False"/>
+			<extensions value="DIR"/>
+			<framework value="tf"/>
+			<freeze_placeholder_with_value value="{}"/>
+			<generate_deprecated_IR_V2 value="False"/>
+			<generate_deprecated_IR_V7 value="True"/>
+			<generate_experimental_IR_V10 value="False"/>
+			<generate_new_TI value="False"/>
+			<input_model value="DIR/tinyv2.pb"/>
+			<input_model_is_text value="False"/>
+			<k value="DIR/CustomLayersMapping.xml"/>
+			<keep_quantize_ops_in_IR value="True"/>
+			<keep_shape_ops value="False"/>
+			<legacy_mxnet_model value="False"/>
+			<log_level value="ERROR"/>
+			<mean_scale_values value="{}"/>
+			<mean_values value="()"/>
+			<model_name value="tinyv2"/>
+			<move_to_preprocess value="False"/>
+			<output_dir value="DIR"/>
+			<progress value="False"/>
+			<remove_memory value="False"/>
+			<remove_output_softmax value="False"/>
+			<reverse_input_channels value="False"/>
+			<save_params_from_nd value="False"/>
+			<scale_values value="()"/>
+			<silent value="False"/>
+			<stream_output value="False"/>
+			<unset unset_cli_parameters="counts, disable_fusing, disable_gfusing, finegrain_fusing, input, input_checkpoint, input_meta_graph, input_proto, input_shape, input_symbol, mean_file, mean_file_offsets, nd_prefix_name, output, placeholder_shapes, pretrained_model_name, saved_model_dir, saved_model_tags, scale, tensorboard_logdir, tensorflow_custom_layer_libraries, tensorflow_custom_operations_config_update, tensorflow_object_detection_api_pipeline_config, tensorflow_operation_patterns, tensorflow_subgraph_patterns, tensorflow_use_custom_operations_config, transformations_config"/>
+		</cli_parameters>
+	</meta_data>
+</net>

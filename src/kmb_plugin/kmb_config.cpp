@@ -22,6 +22,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <vpu/kmb_plugin_config.hpp>
+#include <vpu/utils/numeric.hpp>
 
 using namespace vpu::KmbPlugin;
 
@@ -49,7 +50,6 @@ KmbConfig::KmbConfig() {
         {VPU_KMB_CONFIG_KEY(MCM_COMPILATION_RESULTS), ""},
         {VPU_KMB_CONFIG_KEY(LOAD_NETWORK_AFTER_COMPILATION), CONFIG_VALUE(NO)},
         {VPU_KMB_CONFIG_KEY(THROUGHPUT_STREAMS), "1"},
-        {VPU_KMB_CONFIG_KEY(PREPROCESSING_SHAVES), "4"},
         {VPU_KMB_CONFIG_KEY(PLATFORM), "VPU_2490"},
     };
 }
@@ -80,6 +80,7 @@ const std::unordered_set<std::string>& KmbConfig::getRunTimeOptions() const {
                                                          VPU_KMB_CONFIG_KEY(KMB_EXECUTOR),
                                                          VPU_KMB_CONFIG_KEY(THROUGHPUT_STREAMS),
                                                          VPU_KMB_CONFIG_KEY(PREPROCESSING_SHAVES),
+                                                         VPU_KMB_CONFIG_KEY(PREPROCESSING_LPI),
                                                      });
 
     return options;
@@ -91,9 +92,13 @@ void KmbConfig::parse(const std::map<std::string, std::string>& config) {
     }
     ParsedConfigBase::parse(config);
 
-    std::istringstream strToNum(_config[VPU_KMB_CONFIG_KEY(PREPROCESSING_SHAVES)]);
-    strToNum >> numberOfSIPPShaves;
+    setOption(numberOfSIPPShaves, config, VPU_KMB_CONFIG_KEY(PREPROCESSING_SHAVES), parseInt);
     IE_ASSERT(numberOfSIPPShaves > 0 && numberOfSIPPShaves <= 16)
-        << "KmbConfig::parse attempt to set invalid number of shaves for SIPP: '"
-        << _config[VPU_KMB_CONFIG_KEY(PREPROCESSING_SHAVES)] << "', valid numbers are from 1 to 16";
+        << "KmbConfig::parse attempt to set invalid number of shaves for SIPP: '" << numberOfSIPPShaves
+        << "', valid numbers are from 1 to 16";
+
+    setOption(SIPPLpi, config, VPU_KMB_CONFIG_KEY(PREPROCESSING_LPI), parseInt);
+    IE_ASSERT(0 < SIPPLpi && SIPPLpi <= 16 && isPowerOfTwo(SIPPLpi))
+        << "KmbConfig::parse attempt to set invalid lpi value for SIPP: '" << SIPPLpi
+        << "',  valid values are 1, 2, 4, 8, 16";
 }

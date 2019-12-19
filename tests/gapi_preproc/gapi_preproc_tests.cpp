@@ -421,7 +421,10 @@ TEST_P(KmbSippPreprocEngineTest, TestNV12Resize) {
     auto uv_blob = img2Blob<prec>(uv_mat, Layout::NHWC, allocator);
     auto out_blob = img2Blob<prec>(out_mat, out_layout, allocator);
 
-    SIPPPreprocEngine pe(0, 1);
+    unsigned int shaveFirst = 0;
+    unsigned int shaveLast = 1;
+    unsigned int lpi = 8;
+    SIPPPreprocEngine pe(shaveFirst, shaveLast, lpi);
 
     for (int i = 0; i < 100; i++) {
         auto y_roi = getRandomRoi(y_size);
@@ -534,7 +537,10 @@ TEST_P(KmbSippPreprocPoolTest, TestNV12Resize) {
             ctx.preprocDatas[ctx.inName]->setRoiBlob(in_blob);
             ctx.netInputs[ctx.inName] = ctx.out_blob;
 
-            SippPreproc::execSIPPDataPreprocessing(ctx.netInputs, ctx.preprocDatas, ctx.inputInfos, 1, true);
+            unsigned int nShaves = 4;
+            unsigned int lpi = 8;
+            SippPreproc::execSIPPDataPreprocessing(
+                ctx.netInputs, ctx.preprocDatas, ctx.inputInfos, 1, true, nShaves, lpi);
         }
 
 #if 0

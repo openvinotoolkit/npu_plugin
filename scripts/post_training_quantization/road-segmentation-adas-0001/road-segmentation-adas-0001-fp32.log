@@ -1,0 +1,18 @@
+Output log dir: /home/tan/projects/kmb-plugin/scripts/post_training_quantization/road-segmentation-adas-0001/results/road-segmentation-adas-0001-fp32/2019-11-29_17-12-34
+Creating pipeline:
+===========================================================================
+[ WARNING ]  
+Detected not satisfied dependencies:
+	protobuf: installed: 3.10.0, required: 3.6.1
+
+Please install required versions of components or use install_prerequisites script
+/home/tan/projects/dldt/model-optimizer/install_prerequisites/install_prerequisites_caffe.sh
+Note that install_prerequisites scripts may install additional components.
+INFO:compression.pipeline.pipeline:Evaluation of generated model
+INFO:compression.engines.ac_engine:Start inference on the whole dataset
+Total dataset size: 500
+500 objects processed in 26.633 seconds
+INFO:compression.engines.ac_engine:Inference finished
+mean_iou                   : 0.8436773844560667
+mean_accuracy              : 0.8994595890559296
+
