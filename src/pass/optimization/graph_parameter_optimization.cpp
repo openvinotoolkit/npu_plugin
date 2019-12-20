@@ -635,12 +635,12 @@ namespace mv
 
                 auto parentClustering = parent["clustering"].get<string>();
                 auto childClustering = child["clustering"].get<string>();
-                int8_t success = checkHWUnsupportedOp(parentOp);
-                if (success != 0)
-                {
-                    log(mv::Logger::MessageType::Warning, "The limitation of the tensor dimension 8192 might be hitted with the \
-                        operation " + parentOp.getName());
-                }
+//                int8_t success = checkHWUnsupportedOp(parentOp);
+//                if (success != 0)
+//                {
+//                    log(mv::Logger::MessageType::Warning, "The limitation of the tensor dimension 8192 might be hitted with the \
+//                        operation " + parentOp.getName());
+//                }
                 if(createStrategyDots)
                 {
                     int strategyCheck = checkForBadStrategy(parentOp,parent);
@@ -716,10 +716,10 @@ namespace mv
                     }
                 }
 
-                if (childOp.getOpType() == "Conv" || childOp.getOpType() == "DepthwiseConv")
+                if (parentOp.getOpType() == "DepthwiseConv")
                 {
-                    if ((childOp.getInputTensor(0)->getShape()[mv::IO_CHANNEL_DIMENSION] > 8192)
-                            && (child["streaming"].get<Shape>()["K"] == 1))
+                    if ((parentOp.getInputTensor(0)->getShape()[mv::IO_CHANNEL_DIMENSION] > 8192)
+                            && (parent["streaming"].get<Shape>()["K"] == 1))
                         return INF;
                 }
 
@@ -985,6 +985,10 @@ namespace mv
                                 streamsOverK = getMaxStreamOverK(clustering.get<string>(),op);
                             else
                                 streamsOverK.push_back(1);
+                            if (op.getOpType() == "DepthwiseConv")
+                            {
+                                streamsOverK = {1,2};
+                            }
 
                             bool enableNestedStreaming = false;
                             auto maxK = streamsOverK.back();

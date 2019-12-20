@@ -79,7 +79,8 @@ std::map<std::string, std::function<std::tuple<mv::Data::TensorIterator, mv::Dat
 {
 //    {"W",solveSpatialTiling},
     {"H",solveSpatialTiling},
-    {"K",solveWeightsTiling} //NOTE::Only Convolution is supported for SoK now
+    {"K",solveWeightsTiling}, //NOTE::Only Convolution is supported for SoK now
+    {"C",solveWeightsTiling} //NOTE::Only Convolution is supported for SoK now
 };
 
 static void setStreamingStrategy(const mv::pass::PassEntry &pass, mv::ComputationModel &model, std::map<std::string, std::vector<opStreamingSplitDef>> &thisGraphStrategy)
@@ -213,6 +214,8 @@ std::tuple<mv::Data::TensorIterator, mv::Data::TensorIterator,mv::Data::TensorIt
         {
             if (kernelTensor->hasAttr("quantParams"))
             {
+                auto vbegin = childTiles[split].getStartCoord();
+                auto vsize = childTiles[split].getSize();
                 slice = om.slice(kernelTensor,
                                 childTiles[split].getStartCoord(),
                                 childTiles[split].getSize(),
@@ -253,7 +256,20 @@ std::tuple<mv::Data::TensorIterator, mv::Data::TensorIterator,mv::Data::TensorIt
         }
         else if (op->getOpType() == "DepthwiseConv")
         {
-            conv = om.depthwiseConv(inputTensor,
+            //Note the Channel dimensions for weights will always be the same with the input
+            std::size_t start_width = 0;
+            std::size_t start_height = 0;
+            std::size_t start_channels = childTiles[split].getStartCoord()[mv::KERNEL_INPUT_CHANNELS];
+            std::size_t size_width = inputTensor->getShape()[mv::IO_WIDTH_DIMENSION];
+            std::size_t size_height = inputTensor->getShape()[mv::IO_HEIGHT_DIMENSION];
+            std::size_t size_channels =  childTiles[split].getSize()[mv::KERNEL_INPUT_CHANNELS];
+            mv::Data::TensorIterator sliceInput = om.slice(inputTensor,
+                                {start_width, start_height, start_channels, 0}, //childTiles[split].getStartCoord()
+                                {size_width, size_height, size_channels, 1}, //childTiles[split].getSize()
+                                inputTensor->get<mv::QuantizationParams>("quantParams"),
+                                op->getName() + "_sliceH_" + std::to_string(split));
+
+            conv = om.depthwiseConv(sliceInput,
                                 slice,
                                 op->get("stride"),
                                 op->get("padding"),
@@ -632,7 +648,11 @@ void streamingOperationsFcn(const mv::pass::PassEntry& pass,
             if (axisToSplit == "K")
             {
                 masterTile.setSize(opIt->getInputTensor(1)->getShape());
-                masterTile.generateWeightsTiling();
+                if (opType == "DepthwiseConv")
+                {
+                    masterTile.setAxis("C");
+                    masterTile.generateWeightsTiling();
+                }
             }
             else
             {
