@@ -40,6 +40,7 @@ namespace mv
         Data::TensorIterator getOutputTensor(std::size_t idx);
         Data::TensorIterator getOutputTensor(const std::string& label);
         std::vector<Data::TensorIterator> getOutputTensor();
+        std::map<std::string, mv::Attribute> getAttrs(const std::vector<std::string>& forbiddenKeys = {}) const;
 
         size_t getOutputSize() const {
           if (outputs_.empty()) { return 0UL;}

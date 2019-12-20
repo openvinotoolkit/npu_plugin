@@ -8,8 +8,8 @@ namespace mv
 
         static std::function<std::pair<bool, std::size_t>(const std::vector<Data::TensorIterator>&,
             const std::map<std::string, Attribute>&, std::string&)> inputCheckFcn =
-            [](const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>& args,
-            std::string& errMsg) -> std::pair<bool, std::size_t>
+            [](const std::vector<Data::TensorIterator>&, const std::map<std::string, Attribute>&,
+            std::string&) -> std::pair<bool, std::size_t>
         {
 
             return {true, 0};
@@ -24,8 +24,7 @@ namespace mv
             if(dTypeToUse == mv::DType("Default"))
                 dTypeToUse = inputs[0]->getDType();
 
-            mv::Order new_order(inputs[0]->getOrder()); // by default: do not change order
-            new_order = args.at("order").get<mv::Order>();
+            mv::Order order(inputs[0]->getOrder());
 
             auto new_shape = args.at("shape").get<mv::Shape>();
             if (new_shape.ndims() != 4)
@@ -34,9 +33,9 @@ namespace mv
             }
 
             if (args.at("quantParams").get<mv::QuantizationParams>().isEmpty())
-                outputs.push_back(mv::Tensor(":0",  new_shape, dTypeToUse, new_order));
+                outputs.push_back(mv::Tensor(":0",  new_shape, dTypeToUse, order));
             else
-                outputs.push_back(mv::Tensor(":0",  new_shape, dTypeToUse, new_order, args.at("quantParams").get<mv::QuantizationParams>()));
+                outputs.push_back(mv::Tensor(":0",  new_shape, dTypeToUse, order, args.at("quantParams").get<mv::QuantizationParams>()));
 
         };
 
@@ -48,24 +47,14 @@ namespace mv
 
         // Reshape:
         // Change tensor shape w/o physically moving data
-        //
-        // By default, tensor's order remains not changed.
-        // If you need to change tensor's order as well,
-        // please provide a not-empty "order" parameter.
-        //
-        // For example:
-        // Given NxCxHxW input tensor, you may reshape it
-        // into Nx(C*H*W) with parameters: order="NC" and
-        // shape=mv::Shape({C*H*W, N})
 
-        // TODO: introduce "undefined" value of mv::Order
-        // Undefined new order means: do not change order
+        // Order is constant, never changes, needs an argument
+        // of the outputTensorShape like tf logic
 
         MV_REGISTER_OP(Reshape)
-        .setInputs({"data0"})
+        .setInputs({"data"})
         .setOutputs({"output"})
         .setArg<mv::Shape>("shape")
-        .setArg<mv::Order>("order")
         .setOptionalArg<mv::DType>("dType", mv::DType("Default"))
         .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
         .setInputCheck(op_reshape::inputCheckFcn)

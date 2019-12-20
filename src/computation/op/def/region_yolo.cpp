@@ -40,9 +40,7 @@ namespace mv
                 errMsg = "Tensor must have channels dimension: order=" + order_str;
                 return {false, 0};
             }
-
             auto shape = input->getShape();
-            auto ndims = shape.ndims();
 
             auto C = shape[iC];
             auto H = shape[iH];
@@ -76,7 +74,7 @@ namespace mv
                     << ", width=" << W << ", height=" << H << ", channels=" << C
                     << ", coords=" << coords << ", classes=" << classes
                     << ", do_softmax=" << do_softmax;
-                    
+
                 if (do_softmax)
                 {
                     err << ", num=" << num;
@@ -100,38 +98,18 @@ namespace mv
             auto input = inputs[0];
 
             auto in_order = input->getOrder();
-            auto in_order_str = in_order.toString();
-
-            auto iN = in_order_str.find("N");
-        //  auto iC = in_order_str.find("C");
-            auto iH = in_order_str.find("H");
-            auto iW = in_order_str.find("W");
-
             auto out_order = in_order;
-
-            auto out_dims = out_order.toString().size();
-
-            auto shape = input->getShape();
-            auto in_dims = shape.ndims();
-
-            auto N = iN == std::string::npos ? 1 : shape[(in_dims - 1) - iN];
-        //  auto C = iC == std::string::npos ? 1 : shape[(in_dims - 1) - iC];
-            auto H = iH == std::string::npos ? 1 : shape[(in_dims - 1) - iH];
-            auto W = iW == std::string::npos ? 1 : shape[(in_dims - 1) - iW];
-
-            auto coords = args.at("coords").get<unsigned>();
-            auto classes = args.at("classes").get<unsigned>();
-            auto do_softmax = args.at("do_softmax").get<bool>();
-            auto num = args.at("num").get<unsigned>();
-            auto mask = args.at("mask").get<std::vector<unsigned>>();
-
-            size_t _num_ = do_softmax ? num : mask.size();
-
-            auto out_size = H * W * _num_ * (classes + coords + 1);
-
             auto out_shape = input->getShape();
 
-            outputs.push_back(mv::Tensor(":0", out_shape, input->getDType(), out_order));
+            auto dTypeToUse = args.at("dType").get<mv::DType>();
+            if(dTypeToUse == mv::DType("Default"))
+                dTypeToUse = input->getDType();
+
+            if (args.at("quantParams").get<mv::QuantizationParams>().isEmpty())
+                outputs.push_back(mv::Tensor(":0", out_shape, dTypeToUse, out_order));
+            else
+                outputs.push_back(mv::Tensor(":0", out_shape, dTypeToUse, out_order, args.at("quantParams").get<mv::QuantizationParams>()));
+
         };
 
         static std::vector<unsigned> empty;

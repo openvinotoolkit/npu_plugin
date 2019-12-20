@@ -27,6 +27,7 @@ void kmbOrderConversion(const mv::pass::PassEntry& pass, mv::ComputationModel& m
     {
         if(dpuTask->getOpType() == "DPUTask")
         {
+            //handle channel major convolution (only possible if enabled in comp descriptor)
             auto taskOp = dpuTask->get<std::string>("taskOp");
             if (taskOp == "ChannelMajorConvolution")
             {
@@ -47,11 +48,9 @@ void kmbOrderConversion(const mv::pass::PassEntry& pass, mv::ComputationModel& m
                     auto kernelImplicitOp = om.getSourceOp(dpuTask->getInputTensor(1));
                     kernelImplicitOp->getInputTensor(0)->setOrder(targetOrder);
                 }
-
             }
-            else
+            else 
             {
-                // All DPU tasks except ChannelMajor convolution (handled above) act with input tensor in ZMajor
                 dpuTask->getInputTensor(0)->setOrder(mv::Order(mv::Order::getZMajorID(4)));
                 if (om.getSourceOp(dpuTask->getInputTensor(0))->getOpType() == "Slice")
                 {

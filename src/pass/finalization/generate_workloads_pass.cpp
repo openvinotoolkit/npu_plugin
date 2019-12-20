@@ -67,11 +67,12 @@ std::vector<std::string> getTensorSplitAlgorithms(mv::Element& passDesc, const m
     return algorithms;
 }
 
-std::tuple<int,int, int, int> getGlobalCompilationDescriptorConf(const mv::pass::PassEntry& pass, mv::ComputationModel& model) {
+std::tuple<int,int, int, int, int> getGlobalCompilationDescriptorConf(const mv::pass::PassEntry& pass, mv::ComputationModel& model) {
 
     int nDPU = 1;
     int nClusters = 1;
     int nWorkloads = 0;
+    int workloadCost = 0;
     int pad = 16;
 
     /*Get nDPUs and nClsuters from gloabl compilation descriptor*/
@@ -82,6 +83,8 @@ std::tuple<int,int, int, int> getGlobalCompilationDescriptorConf(const mv::pass:
         nClusters = globalParams->get<int>("Number_of_Clusters");
     if (globalParams->hasAttr("nWorkloads"))
         nWorkloads= globalParams->get<int>("nWorkloads");
+    if (globalParams->hasAttr("WorkloadCost"))
+        workloadCost = globalParams->get<int>("WorkloadCost");
     if (globalParams->hasAttr("VPU2ChannelPadding"))
         pad = globalParams->get<int>("VPU2ChannelPadding");
 
@@ -93,7 +96,7 @@ std::tuple<int,int, int, int> getGlobalCompilationDescriptorConf(const mv::pass:
 
     pass.log(mv::Logger::MessageType::Debug, "Number of DPUs per cluster is: " + std::to_string(nDPUxCluster));
 
-    return std::make_tuple(nDPUxCluster, nWorkloads, nClusters, pad);
+    return std::make_tuple(nDPUxCluster, nWorkloads, nClusters, pad, workloadCost);
 }
 
 void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& , mv::Element& passDesc, mv::Element&)
@@ -123,6 +126,7 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
     auto nWorkloadsCompilationDescriptor = std::get<1>(compilationConfigs);
     auto nClusters = std::get<2>(compilationConfigs);
     auto pad = std::get<3>(compilationConfigs);
+    auto workloadCost = std::get<4>(compilationConfigs);
 
     for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt)
     {
@@ -141,7 +145,8 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
             /* For Deptwise convolution, Max pooling and CM convolution MPE mode must be (1,16)*/
             /* This should be moved to a target descriptor*/
 
-            if((opIt->get<std::string>("taskOp") == "DepthwiseConv") || (opIt->get<std::string>("taskOp") == "MaxPool") || (opIt->get<std::string>("taskOp") == "ChannelMajorConvolution"))
+            if((opIt->get<std::string>("taskOp") == "DepthwiseConv") || (opIt->get<std::string>("taskOp") == "MaxPool") 
+                || (opIt->get<std::string>("taskOp") == "ChannelMajorConvolution"))
                 dpuModes = {{1, 16}};
             else
                 dpuModes = {{4,4},{1, 16}};
@@ -293,9 +298,8 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                             }
                         }
                         /*Eltwise ops are performed by the PPE, which does not support Z-Tiling*/
-                        if (algorithm == "Z-Tiling" && opIt->get<std::string>("taskOp") != "Add" &&
-                            opIt->get<std::string>("taskOp") != "Subtract" && opIt->get<std::string>("taskOp") != "Divide"
-                            && opIt->get<std::string>("taskOp") != "Multiply" && !depthWiseSOHA0Workaround)
+                        if (algorithm == "Z-Tiling" && opIt->get<std::string>("taskOp") != "Eltwise"
+                            && !depthWiseSOHA0Workaround)
                         {
                             /*Create workload instance*/
                             workloadsVector.emplace_back(mv::Workloads(opIt->getName(), subTensorShape));
@@ -335,7 +339,7 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                 float pixelCost = workloadPixelCost(opIt);
 
                 /*Calculate execution cycles for each valid workload for this particular subtensor*/
-                mv::Workloads::generateExecutionCycles(workloadsVector, nDPUxCluster, costFuntion, pixelCost);
+                mv::Workloads::generateExecutionCycles(workloadsVector, nDPUxCluster, costFuntion, pixelCost, workloadCost);
 
                 /*Sort on number of workloads */
                 std::sort(workloadsVector.begin(), workloadsVector.end(),

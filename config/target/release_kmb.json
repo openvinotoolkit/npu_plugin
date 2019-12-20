@@ -3,7 +3,6 @@
     "target": "ma2490",
 
     "ops":
-
     {
         "Conv" : {
             "MvTensor":{
@@ -221,7 +220,7 @@
                 ]
             }
         },
-        "Add":{
+        "Eltwise":{
             "MvTensor":{
                 "serial_description":[
                     "Tensor:0:0",
@@ -235,33 +234,6 @@
                 "serial_description":[
                     "Tensor:0:0",
                     "Tensor:1:0"
-                ]
-            }
-        },
-        "Subtract":{
-            "MvTensor":{
-                "serial_description":[
-                    "Tensor:0:0",
-                    "Tensor:1:0",
-                    "Tensor:0:1"
-                ]
-            }
-        },
-        "Multiply":{
-            "MvTensor":{
-                "serial_description":[
-                    "Tensor:0:0",
-                    "Tensor:1:0",
-                    "Tensor:0:1"
-                ]
-            }
-        },
-        "Divide":{
-            "MvTensor":{
-                "serial_description":[
-                    "Tensor:0:0",
-                    "Tensor:1:0",
-                    "Tensor:0:1"
                 ]
             }
         },

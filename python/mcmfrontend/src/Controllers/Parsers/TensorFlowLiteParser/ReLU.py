@@ -41,9 +41,9 @@ def load(obj, op_type, tensors, buffers):
     elif op_type in [BuiltinOperator.LEAKY_RELU, BuiltinOperator.PRELU]:
         # The difference between the two is only at training stage...
         x = LeakyReLU(out.Name(), [activation.Name()], [out.Name()])
-        options = ConcatenationOptions()
+        options = LeakyReluOptions()
         options.Init(obj.BuiltinOptions().Bytes, obj.BuiltinOptions().Pos)
-        x.loadNegativeSlope(options.Alpha())
+        x.loadAlpha(options.Alpha())
     else:
         raise ValueError("Layer {} not supported".format(op_type))
 

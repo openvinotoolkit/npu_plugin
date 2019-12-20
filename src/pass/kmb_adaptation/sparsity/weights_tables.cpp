@@ -15,7 +15,6 @@ static void generateWeightsTablesFcn(const mv::pass::PassEntry& pass, mv::Comput
 static void populateWeightsTablesPointersFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void populateWeightsTablesQuantizationFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void removeBiasTensorsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
-static int computeAppropriatePadding(mv::Data::TensorIterator tensor);
 
 namespace mv
 {
@@ -88,8 +87,7 @@ void populateWeightsTablesDataPointers(mv::Data::TensorIterator weightsTableData
 
     // Max pooling does not need DataPointer
     // Eltwise doesn't have weights table at all
-    if(taskOp == "Conv" ||
-       taskOp == "ChannelMajorConvolution" ||
+    if(taskOp == "Conv" || taskOp == "ChannelMajorConvolution" ||
        taskOp == "DepthwiseConv")
     {
         auto weights = dpuTaskOp->getInputTensor(1);
@@ -162,8 +160,8 @@ void populateWeightsTablesSparsityPointers(mv::Data::TensorIterator weightsTable
                   weightsTableData->at(i+1) = offset;
         }
     }
-    else if(taskOp == "ChannelMajorConvolution" ||
-            taskOp == "DepthwiseConv"  ||
+    else if(taskOp == "DepthwiseConv"  ||
+            taskOp == "ChannelMajorConvolution" ||
             taskOp == "MaxPool")
     {
         // We have fake sparsity here! Yuppi!
@@ -324,16 +322,6 @@ static void populateWeightsTablesPointersFcn(const mv::pass::PassEntry& , mv::Co
     }
 }
 
-static int computeAppropriatePadding(mv::Data::TensorIterator tensor)
-{
-    int pad;
-    if (tensor->getDType() == mv::DType("Float16"))
-        pad = 8;
-    else if (tensor->getDType() == mv::DType("UInt8"))
-        pad = 16;
-    return pad;
-}
-
 static void generateWeightsTablesFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
@@ -352,9 +340,8 @@ static void generateWeightsTablesFcn(const mv::pass::PassEntry&, mv::Computation
                 std::string opName = dpuTaskOp->getName();
                 std::string kernelWeightsTableName(mv::createWeightTableName(opName));
 
-                int pad = computeAppropriatePadding(dpuTaskOp->getOutputTensor(0));
                 auto outputChannels = dpuTaskOp->getOutputTensor(0)->getShape()[mv::IO_CHANNEL_DIMENSION];
-                outputChannels = mv::round_up(dpuTaskOp->getOutputTensor(0)->getShape()[mv::IO_CHANNEL_DIMENSION], pad);
+                outputChannels = mv::round_up(dpuTaskOp->getOutputTensor(0)->getShape()[mv::IO_CHANNEL_DIMENSION], 16);
 
                 // per channel layout:
                 // 3 -> bias
@@ -366,7 +353,6 @@ static void generateWeightsTablesFcn(const mv::pass::PassEntry&, mv::Computation
                 mv::QuantizationParams quantParams = {{},{},{},{}};
                 auto weightTable = om.constantInt(weightsTableData, shape, mv::DType("Int32"), mv::Order("NHWC"), quantParams, kernelWeightsTableName);
                 om.getSourceOp(weightTable)->set<unsigned>("opId", dpuTaskOp->get<unsigned>("opId"));
-                om.getSourceOp(weightTable)->set<std::string>("populatedTensorType", "weightsTable");
                 unsigned newSize = dpuTaskOp->addInputTensor(weightTable);
                 om.defineFlow(weightTable, dpuTaskOp, newSize - 1);
                 dpuTaskOp->set<size_t>("weightsTableIndex", newSize - 1);

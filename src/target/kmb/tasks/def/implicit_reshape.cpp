@@ -8,8 +8,8 @@ namespace mv
 
         static std::function<std::pair<bool, std::size_t>(const std::vector<Data::TensorIterator>&,
             const std::map<std::string, Attribute>&, std::string&)> inputCheckFcn =
-            [](const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>& args,
-            std::string& errMsg) -> std::pair<bool, std::size_t>
+            [](const std::vector<Data::TensorIterator>&, const std::map<std::string, Attribute>&,
+            std::string&) -> std::pair<bool, std::size_t>
         {
 
             return {true, 0};
@@ -25,9 +25,7 @@ namespace mv
             if(dTypeToUse == mv::DType("Default"))
                 dTypeToUse = inputs[0]->getDType();
 
-            mv::Order new_order(inputs[0]->getOrder()); // by default: do not change order
-
-            new_order = args.at("order").get<mv::Order>();
+            mv::Order order(inputs[0]->getOrder()); // by default: do not change order
 
             auto new_shape = args.at("shape").get<mv::Shape>();
             if (new_shape.ndims() != 4)
@@ -36,9 +34,9 @@ namespace mv
             }
 
             if (args.at("quantParams").get<mv::QuantizationParams>().isEmpty())
-                outputs.push_back(mv::Tensor(":0", new_shape,  dTypeToUse, new_order));
+                outputs.push_back(mv::Tensor(":0", new_shape,  dTypeToUse, order));
             else
-                outputs.push_back(mv::Tensor(":0", new_shape,  dTypeToUse, new_order, args.at("quantParams").get<mv::QuantizationParams>()));
+                outputs.push_back(mv::Tensor(":0", new_shape,  dTypeToUse, order, args.at("quantParams").get<mv::QuantizationParams>()));
 
         };
 
@@ -55,7 +53,6 @@ namespace mv
         //.setVariableInputNum(true)
         //.setOptionalArg<std::string>("axis", op_implicit_reshape::channels)
         .setArg<mv::Shape>("shape")
-        .setArg<mv::Order>("order")
         .setOptionalArg<mv::DType>("dType", mv::DType("Default"))
         .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
         .setInputCheck(op_implicit_reshape::inputCheckFcn)

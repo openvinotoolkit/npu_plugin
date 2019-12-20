@@ -120,11 +120,11 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
             // NOTE by Marco: Checking for Elementwise is necessary, as it is the only operation
             // that does not support neither Real Sparsity or Fake Sparsity (aka Activation Window)
             // being it the hackiest operation ever
-            bool isElementWise = taskOp == "Add" || taskOp == "Subtract" || taskOp == "Multiply";
+            bool isElementWise = taskOp == "Eltwise";
 
-            //for max pooling and deptwise convolution and channel-major convolution we need to generate sparsity data
-            //even if those layers does not support sparsity.
-            if (isPooling || isDepthWiseConv || isChannelMajorConv)
+            //for max pooling and deptwise convolution (and CM conv, if enabled) we need to 
+            //generate sparsity data even if those layers do not support sparsity.
+            if (isPooling || isDepthWiseConv || isChannelMajorConv) 
             {
                 uint16_t kernelW, kernelH;
 
@@ -149,7 +149,7 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
 
                 mv::DType dataType = dpuTask->getInputTensor(0)->get<mv::DType>("dType");
                 if (!isPooling)
-                     dataType = dpuTask->getInputTensor(1)->get<mv::DType>("dType");
+                    dataType = dpuTask->getInputTensor(1)->get<mv::DType>("dType");
 
                 auto windowsSize = getWindowSize(kernelW, strides[0], dataType);
 
@@ -165,13 +165,13 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
                     perChannelSparsity.resize(static_cast<std::size_t>(std::ceil(bitpattern.size() / 128.0)) * 16);//allocate once
                     ndims = {16 * static_cast<std::size_t>(std::ceil(bitpattern.size() / 128.0)), 1, 1, inputChannels};
                 }
-                else //isChannelMajorConvolution
-                {
-                    bitpattern = std::move(createBitPattern(kernelW, kernelH, windowsSize, inputChannels));
-                    auto windowSparsitySize = static_cast<std::size_t>(std::ceil(windowsSize/8.0)); //how many bytes we need per window
-                    auto NumberOfRowsSparistyBytes = static_cast<std::size_t>(std::ceil((kernelH * inputChannels * windowSparsitySize) / 16.0 ));
-                    perChannelSparsity.resize(NumberOfRowsSparistyBytes * 16);//allocate once
-                    ndims = {16, NumberOfRowsSparistyBytes, 1, outputChannels};
+                else //isChannelMajorConvolution	
+                {	
+                    bitpattern = std::move(createBitPattern(kernelW, kernelH, windowsSize, inputChannels));	
+                    auto windowSparsitySize = static_cast<std::size_t>(std::ceil(windowsSize/8.0)); //how many bytes we need per window	
+                    auto NumberOfRowsSparistyBytes = static_cast<std::size_t>(std::ceil((kernelH * inputChannels * windowSparsitySize) / 16.0 ));	
+                    perChannelSparsity.resize(NumberOfRowsSparistyBytes * 16);//allocate once	
+                    ndims = {16, NumberOfRowsSparistyBytes, 1, outputChannels};	
                 }
 
                 int channelLenght = bitpattern.size();
@@ -305,7 +305,6 @@ static void generateSparsityMapsUnpopulatedTensorsFcn(const mv::pass::PassEntry&
             inputActivationSparsity |= sink->hasAttr("inputActivationSparsity") ? sink->get<bool>("inputActivationSparsity") : false;
             if(source->getOpType() != "DPUTask" ||
                source->get<std::string>("splitStrategy") == "SplitOverK" ||
-               source->get<std::string>("taskOp") == "DepthwiseConv" || //TESTING ONLY!
                sink->getOpType() != "DPUTask" ||
                sink->get<std::string>("taskOp") != "Conv" ||
                sink->get<std::string>("splitStrategy") == "SplitOverK")

@@ -43,5 +43,9 @@ class ReLU(Layer):
 
 class LeakyReLU(ReLU):
 
-    def loadNegativeSlope(self, nSlope):
-        self.negativeSlope = nSlope
+    def loadAlpha(self, alpha):
+        self.alpha = alpha
+
+    def getAlpha(self):
+        return self.alpha
+

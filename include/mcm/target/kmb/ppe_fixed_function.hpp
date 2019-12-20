@@ -22,6 +22,12 @@ namespace mv
             int getHighClamp() const ;
             int8_t getLReluMult() const ;
             uint8_t getLReluShift() const ;
+
+            void setLowClamp(int lowClamp);
+            void setHighClamp(int highClamp);
+            void setLReluMult(int8_t lRelumult);
+            void setLReluShift(uint8_t lRelushift);
+
             const std::vector<mv::PPELayerType>& getLayers() const;
             void addLayer(PPELayerType layer);
 

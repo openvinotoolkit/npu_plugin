@@ -41,6 +41,26 @@ const std::vector<mv::PPELayerType>& mv::PPEFixedFunction::getLayers() const
     return layers_;
 }
 
+void mv::PPEFixedFunction::setLowClamp(int lowClamp)
+{
+    lowClamp_ = lowClamp;
+}
+
+void mv::PPEFixedFunction::setHighClamp(int highClamp)
+{
+    highClamp_ = highClamp;
+}
+
+void mv::PPEFixedFunction::setLReluMult(int8_t lRelumult)
+{
+    reluMult_ = lRelumult;
+}
+
+void mv::PPEFixedFunction::setLReluShift(uint8_t lRelushift)
+{
+    reluShift_ = lRelushift;
+}
+
 std::string mv::PPEFixedFunction::toString() const
 {
     std::string output = "";
@@ -49,7 +69,7 @@ std::string mv::PPEFixedFunction::toString() const
     output += "High clamp " + std::to_string(highClamp_) + "\n";
     for(auto layer : layers_)
         output += "PPELayerType " + layer.toString() + "\n";
-    
+
     return output;
 }
 

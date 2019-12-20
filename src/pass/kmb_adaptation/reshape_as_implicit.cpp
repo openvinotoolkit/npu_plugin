@@ -53,7 +53,6 @@ void reshapeAsImplicitFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
 
         // Replace reshape op with implicit reshape
         auto outputs = reshape->getOutputTensor();
-        auto order = reshape->get<mv::Order>("order");
         auto dtype = input->get<mv::DType>("dType");
         mv::QuantizationParams quantParams = {{}, {}, {}, {}};
         std::string splitStrategy;
@@ -64,7 +63,7 @@ void reshapeAsImplicitFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
         auto outputLocation = reshape->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
         auto opId = reshape->get<unsigned>("opId");
         auto outputFlows = mv::getOutputDataFlow(om, reshape);
-        auto implicitReshape = om.implicitReshape(input, output_shape, order, dtype, quantParams);
+        auto implicitReshape = om.implicitReshape(input, output_shape, dtype, quantParams);
         om.getSourceOp(implicitReshape)->set<unsigned>("opId", opId);
         implicitReshape->set<mv::Tensor::MemoryLocation>("Location", outputLocation);
         if(!splitStrategy.empty())

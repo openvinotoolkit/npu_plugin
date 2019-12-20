@@ -145,13 +145,6 @@ def quantizeLayer(layer, bits=15):
 
     S2 = extend_to_K(layer.getInputTensors()[0].quantization.getScale())
     S3 = extend_to_K(layer.getOutputTensors()[0].quantization.getScale())
-    zeroPoint = extend_to_K(
-        layer.getOutputTensors()[0].quantization.getZeroPoint()).astype(
-        np.int32)
-    from Controllers.Parsers.Parser.Hw import HwPooling
-    if isinstance(layer, HwPooling):
-        zeroPoint -= extend_to_K(layer.getInputTensors()
-                                 [0].quantization.getZeroPoint()).astype(np.int32)
 
     from Controllers.Parsers.Parser.Hw import HwEltwise
     if layer.hasWeights():
@@ -177,7 +170,6 @@ def quantizeLayer(layer, bits=15):
     mantissa, exp = np.frexp(m)
     shift = bits - exp
     mScaled = (mantissa * np.power(2, bits)).astype(np.uint16)
-    zeroPointScaled = (zeroPoint / m).astype(np.int32)
 
     shift = np.uint8(shift)
     scale = np.uint16(mScaled)
@@ -192,14 +184,14 @@ def quantizeLayer(layer, bits=15):
         assert(Z_bias == 0)
 
         bias = (layer.getBias().data).astype(np.int32)
-        layer.setBias(bias + zeroPointScaled)
+        layer.setBias(bias)
     else:
-        bias = PopulatedTensor(np.int32(zeroPointScaled))
+        bias = PopulatedTensor(extend_to_K(np.int32(0)))
         bias.name = MangledName(
             OriginalName(
                 layer.name.stringifyOriginalName() +
                 "_bias"))
-        layer.bias = bias
+        layer.setBias(bias.data)
 
     # Hw Elementwise does not have Weights table
     from Controllers.Parsers.Parser.Hw import HwEltwise

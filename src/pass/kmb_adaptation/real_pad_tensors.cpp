@@ -7,6 +7,7 @@
 #include "include/mcm/pass/pass_utils.hpp"
 #include "include/mcm/tensor/shape.hpp"
 
+
 static void alignUnpopulatedTensorsFunc(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void alignPopulatedTensorsFunc(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void alignWeightsTensor(mv::OpModel& om, const mv::Data::TensorIterator &weightsTensor, mv::Shape alignedShape);
@@ -16,7 +17,6 @@ static void addAlignOpForInputTensorsFunc(const mv::pass::PassEntry& , mv::Compu
 static void removeCropAlignInCMXFunc(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static mv::Data::OpListIterator fuseCropAlign(mv::Data::OpListIterator parentOpIt, mv::Data::TensorIterator sourceTensor, mv::OpModel om, mv::Data::OpListIterator opIt);
 static void addCropNode(mv::OpModel& om, mv::Data::OpListIterator& opIt, mv::Data::TensorIterator& outputTensor, std::size_t& outputTensorChannels);
-static int computeAppropriatePadding(mv::Data::TensorIterator tensor);
 
 namespace mv
 {
@@ -58,7 +58,7 @@ void propagateShapeChange(mv::OpModel& om, const std::string& flowStr)
     if(opType == "DPUTask")
         opType = sink->get<std::string>("taskOp");
 
-    if(opType == "Add" || opType == "Subtract" || opType == "Multiply" ||
+    if(opType == "Eltwise" ||
        opType == "DepthwiseConv" || opType == "MaxPool")
     {
         auto inputTensor = flow->getTensor();
@@ -137,7 +137,7 @@ void cropOrPadFinalOutputFunc(const mv::pass::PassEntry& , mv::ComputationModel&
     auto outputOp = om.getOutput();
     auto inputTensor = outputOp->getInputTensor(0);
     auto parentOpIt = om.getSourceOp(inputTensor);
-
+    //Note: We should not always have a Crop Operation (case. 3 Input Channels aligns->alignedOutputChannels)
     if (padOutput)
     {
         //remove Crop layer if it's there
@@ -152,8 +152,11 @@ void cropOrPadFinalOutputFunc(const mv::pass::PassEntry& , mv::ComputationModel&
         //make sure there's a crop layer
         if (parentOpIt->hasAttr("alignment") && parentOpIt->getOpType() != "Crop")
         {
-            auto oldDimensions = inputTensor->get<mv::Shape>("oldDimensions");
-            addCropNode(om, parentOpIt, inputTensor, oldDimensions[mv::IO_CHANNEL_DIMENSION]);
+            if (inputTensor->hasAttr("oldDimensions"))
+            {
+                auto oldDimensions = inputTensor->get<mv::Shape>("oldDimensions");
+                addCropNode(om, parentOpIt, inputTensor, oldDimensions[mv::IO_CHANNEL_DIMENSION]);
+            }
         }
     }
 
@@ -246,13 +249,11 @@ void addAlignOpForInputTensorsFunc(const mv::pass::PassEntry& , mv::ComputationM
     {
         auto opIt = *vecIt;
         auto taskOp = opIt->get<std::string>("taskOp");
-        if(taskOp == "Conv" || taskOp == "DepthWiseConv" || taskOp == "MaxPool" ||
-            taskOp == "Add" || taskOp == "Subtract" || taskOp == "Multiply")
+        if(taskOp == "Conv" || taskOp == "DepthwiseConv" || taskOp == "MaxPool" ||
+            taskOp == "Eltwise")
         {
-            if (opIt->getOutputTensor(0)->getDType() == mv::DType("Float16"))
-                pad = 8;
             auto numInputs = 1;
-            if (taskOp == "Add" || taskOp == "Subtract" || taskOp == "Multiply")
+            if (taskOp == "Eltwise")
                 numInputs = opIt->getInputTensor().size();
             for (auto i = 0; i < numInputs; i++)
             {
@@ -281,15 +282,19 @@ void addAlignOpForInputTensorsFunc(const mv::pass::PassEntry& , mv::ComputationM
                     mv::QuantizationParams quantParams = {{}, {}, {}, {}};
 
                     if (inputTensor->hasAttr("quantParams"))
-                    {
                         quantParams = inputTensor->get<mv::QuantizationParams>("quantParams");
-                    }
+
                     auto alignedTensor = om.align(inputTensor,
                                         mv::IO_CHANNEL_DIMENSION,
                                         pad,
                                         quantParams,
                                         alignOpName);
                     alignedTensor->set<bool>("alignment", true);//TODO remove this, just for testing now
+                    // This will work because of the implicit flows compensatory DMA passes
+                    //auto outputTensorMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
+                    auto outputTensorMemoryLocation = mv::Tensor::MemoryLocation::NNCMX;
+                    alignedTensor->set<mv::Tensor::MemoryLocation>("Location", outputTensorMemoryLocation);
+
                     auto alignOp = om.getOp(alignOpName);
                     alignOp->set<unsigned>("opId", parentOpIt->get<unsigned>("opId"));
                     if (parentOpIt->hasAttr("splitStrategy"))
@@ -310,16 +315,6 @@ void addAlignOpForInputTensorsFunc(const mv::pass::PassEntry& , mv::ComputationM
     }
 }
 
-int computeAppropriatePadding(mv::Data::TensorIterator tensor)
-{
-    int pad;
-    if (tensor->getDType() == mv::DType("Float16"))
-        pad = 8;
-    else if (tensor->getDType() == mv::DType("UInt8"))
-        pad = 16;
-    return pad;
-}
-
 //NOTE: REAL PADDING IN THE UNALIGNED TENSORS
 void alignUnpopulatedTensorsFunc(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
@@ -334,16 +329,16 @@ void alignUnpopulatedTensorsFunc(const mv::pass::PassEntry&, mv::ComputationMode
         if(opIt->getOpType() != "DPUTask")
             continue;
 
+        auto taskOp = opIt->get<std::string>("taskOp");
         auto outputTensor = opIt->getOutputTensor(0);
         auto outputTensorShape = outputTensor->getShape();
         auto outputTensorChannels = outputTensorShape[mv::IO_CHANNEL_DIMENSION];
         //auto opStrategy = opIt->get<std::string>("splitStrategy");
-        int pad = computeAppropriatePadding(outputTensor);
-        if (outputTensorChannels % pad != 0)
+        if (outputTensorChannels % 16 != 0)
         {
             opIt->set<bool>("alignment", true);
             outputTensor->set<bool>("alignment", true);
-            std::size_t outputChannelsPadded = mv::round_up(outputTensorChannels, pad);
+            std::size_t outputChannelsPadded = mv::round_up(outputTensorChannels, 16);
 
             // If for whatever reason we pass through this tensor more than once, we
             // don't want to overwrite the original dimensions
@@ -386,10 +381,8 @@ void alignPopulatedTensorsFunc(const mv::pass::PassEntry& , mv::ComputationModel
             std::size_t outputChannelsPadded = outputTensorShape[mv::IO_CHANNEL_DIMENSION];
 
             if (taskOp == "Conv")
-            {
                 alignedShape = mv::Shape({weightsTensorShape[mv::KERNEL_WIDTH], weightsTensorShape[mv::KERNEL_HEIGHT],
                                                     inputTensorShape[mv::IO_CHANNEL_DIMENSION], outputTensorShape[mv::IO_CHANNEL_DIMENSION]});
-            }
             else if (taskOp == "DepthwiseConv")
             {
                 alignedShape = mv::Shape({weightsTensorShape[mv::KERNEL_WIDTH], weightsTensorShape[mv::KERNEL_HEIGHT],
