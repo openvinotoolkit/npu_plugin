@@ -312,6 +312,28 @@ void mv::TensorInterferenceGraph::genIntereferenceGraph_(const mv::pass::PassEnt
                     }
                 }
             }
+            //input-to-input edges
+            for (std::unordered_set<std::string>::const_iterator src = inputTensorNames.begin( ); src != inputTensorNames.end( ); ++src)
+            {
+                auto ni = nodeIteratorsMap_.find(*src)->second;
+
+                for (std::unordered_set<std::string>::const_iterator target = inputTensorNames.begin( ); target != inputTensorNames.end( ); ++target)
+                {
+                    if (*src != *target)
+                    {
+                        auto nj = nodeIteratorsMap_.find(*target)->second;
+
+                        auto pair = std::make_pair(*src, *target);
+                        auto inserted = addedEdges.insert(pair);
+                        if (inserted.second)
+                        {
+                            this->edge_insert(ni, nj, 2*nodeId);
+                            //this->edge_insert(nj, ni, 2*nodeId+1);    //b->a case is already handled by for loops
+                            nodeId++;
+                        }
+                    }
+                }
+            }
 
         }
     }

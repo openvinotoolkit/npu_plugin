@@ -90,6 +90,7 @@
             "TensorsToU8",
             "TensorsToFP16",
             "FusePostOps",
+            "EltwiseToSWEltwise",
             "StoreLayerSplitStrategy",
             "StoreLayerSparsityStrategy",
             "StoreTensorPlacement",

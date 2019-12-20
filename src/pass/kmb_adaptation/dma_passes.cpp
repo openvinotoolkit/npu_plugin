@@ -119,6 +119,8 @@ void AddUPATasksExtraInputsDMATasksFcn(const mv::pass::PassEntry&, mv::Computati
                     auto backupFlow = dm.getDataFlow(flowStr);
                     auto idx = backupFlow->get<std::size_t>("sinkInput");
                     auto sink = backupFlow.sink();
+                    if (sink->getOpType() != "UPATask")
+                        continue;
                     om.undefineFlow(backupFlow);
                     sink->setInputTensor(inputTensorDma, idx, false);
                     om.defineFlow(inputTensorDmaOp, 0, sink, idx);

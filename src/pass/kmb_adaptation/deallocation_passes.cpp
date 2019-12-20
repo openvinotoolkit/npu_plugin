@@ -97,7 +97,8 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationMod
         if(!inputTensor->hasAttr("deallocated") &&
           ((inputTensor->get<mv::Tensor::MemoryLocation>("Location") == mv::Tensor::MemoryLocation::NNCMX &&
                 outputOp->hasTypeTrait("executable")) ||
-          (inputOp->getOpType() == "DMATask" && inputTensor->get<mv::Tensor::MemoryLocation>("Location") == mv::Tensor::MemoryLocation::DDR)))
+          ((inputOp->getOpType() == "DMATask" || inputOp->getOpType() == "UPATask") &&
+                inputTensor->get<mv::Tensor::MemoryLocation>("Location") == mv::Tensor::MemoryLocation::DDR)))
         {
 
             auto opType = inputOp->getOpType();
