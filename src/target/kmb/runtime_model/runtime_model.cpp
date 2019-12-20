@@ -1577,9 +1577,7 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAQuantizeTask(ComputationModel& 
     toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_QuantizeParams;
     auto softLayerParamsValue = new MVCNN::QuantizeParamsT();
 
-    auto quantizationParams = (input->hasAttr("quantParams")) ?
-        input->get<mv::QuantizationParams>("quantParams") :
-        opIt->get<mv::QuantizationParams>("quantParams");
+    auto quantizationParams = opIt->get<mv::QuantizationParams>("quantParams");
     auto quantScale = quantizationParams.getScale();
     auto quantZero = quantizationParams.getZeroPoint();
 
@@ -1854,12 +1852,13 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAEltwiseFP16Task(ComputationMode
     auto output = opIt->getOutputTensor(0);
     auto toBuild = new MVCNN::UPALayerTaskT();
     //toBuild->maxShaves = ;
-
-    //TODO: EltwiseFP16 has no params; using ReshapeParams for now to avoid schema change
-    toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_ReshapeParams;
-    auto softLayerParamsValue = new MVCNN::ReshapeParamsT();
+    toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_EltwiseParams;
+    auto softLayerParamsValue = new MVCNN::EltwiseParamsT();
 
     toBuild->softLayerParams.value = softLayerParamsValue;
+    std::string operation = opIt->get<std::string>("eltwiseType");
+    if (operation.compare(std::string("Add")) == 0)
+        softLayerParamsValue->operation = "sum";
 
     toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input0)));
     toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input1)));

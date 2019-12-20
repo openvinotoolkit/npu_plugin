@@ -197,6 +197,7 @@ namespace mv
                     inputSize = realTensorSize(op.getInputTensor(0),{streamConfig["W"],streamConfig["H"],streamConfig["C"],1}, isCMConv);
                 if(op.getOpType() != "Output")
                     outputSize = realTensorSize(op.getOutputTensor(0),{streamConfig["W"],streamConfig["H"],streamConfig["K"],1}, isCMConv);
+                auto software = op.hasAttr("softwareExecuted") && op.get<bool>("softwareExecuted");
 
                 if(op.getOpType() == "Conv" || op.getOpType() == "DepthwiseConv")
                 {
@@ -213,7 +214,7 @@ namespace mv
                     weightTableSize = 0;
                     weightSize = 0;
                 }
-                else if(op.getOpType() == "Eltwise")
+                else if(op.getOpType() == "Eltwise" && !software)
                 {
                     weightTableSize = 0;
                     weightSize = 0;
@@ -405,7 +406,9 @@ namespace mv
                 //naively emulate the workload cost
                 //TODO: find cleaner solution
                 unsigned baseKernelCost;
-                if ((opType == "Eltwise") or (opType == "Concat"))
+                auto software = op.hasAttr("softwareExecuted") && op.get<bool>("softwareExecuted");
+
+                if ((opType == "Eltwise" && !(software)) or (opType == "Concat"))
                 {
                     baseKernelCost = 1;
                 }
@@ -419,7 +422,7 @@ namespace mv
                     auto weightsShape = op.getInputTensor(1)->getShape();
                     baseKernelCost = weightsShape[KERNEL_WIDTH] * weightsShape[KERNEL_HEIGHT];
                 }
-                else if (!(op.hasTypeTrait("optimizable")))
+                else if (!(op.hasTypeTrait("optimizable")) || software)
                 {
                     baseKernelCost = 1;
                 }
@@ -555,9 +558,10 @@ namespace mv
                 auto weightsSparsity = strategy["weightsSparsity"].get<bool>();
                 auto streamShape = strategy["streaming"].get<Shape>();
                 auto spilling = strategy["spilling"].get<bool>();
+                auto software = op.hasAttr("softwareExecuted") && op.get<bool>("softwareExecuted");
 
                 if(op.getOpType() != "Output" && op.getOpType() != "Input" &&
-                    (op.hasTypeTrait("optimizable"))) //SW layers we dont care about size
+                    (op.hasTypeTrait("optimizable") && !software)) //SW layers we dont care about size
                 {
                     auto fit = memorySize(op,clustering,false, false,weightsSparsity,streamShape,false);
                    // std::cout << op.getName() << ": [" <<clustering << "][" <<streamShape.toString()<<"]    " << fit.first << " + " << fit.second << " = " << fit.first + fit.second << std::endl;

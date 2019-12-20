@@ -8,7 +8,7 @@
 const size_t FULLY_CONNECTED_KERNEL = 1;
 
 void fullyConnectedAsConv2DFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
-void handleEltWiseDifferentScales(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
+static void handleEltWiseDifferentScales(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 void tensorsToFP16Fcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 void tensorsToU8Fcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 void averageAsDepthWiseFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
@@ -41,6 +41,11 @@ namespace mv
             "Replaces Operations"
         );
 
+        MV_REGISTER_PASS(EltwiseToSWEltwise)
+        .setFunc(handleEltWiseDifferentScales)
+        .setDescription(
+            "Replaces Eltwise with SW Layer Eltwise in case scales of inputs are different"
+        );
     }
 
 }
@@ -189,8 +194,6 @@ void replacementOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mo
     //interpAsAvgPoolingFcn(pass, model); for now we are using SW layer
     averageAsDepthWiseFcn(pass, model);
     scaleAsDepthwiseFcn(pass, model);
-    // TODO enable this when SW Eltwise is implemented
-    // handleEltWiseDifferentScales(pass, model);
     flattenAsReshapeFcn(pass, model);
 }
 
@@ -248,7 +251,7 @@ void fullyConnectedAsConv2DFcn(const mv::pass::PassEntry& pass, mv::ComputationM
 
 //NOTE: This pass will handle cases that we have Convs -> Eltwise for testing ResNet first of all....
 //General solution dequantize the input Tensors of these special Elwise, even with sw de-quantize
-void handleEltWiseDifferentScales(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
+void handleEltWiseDifferentScales(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
 
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
@@ -275,14 +278,19 @@ void handleEltWiseDifferentScales(const mv::pass::PassEntry& pass, mv::Computati
         if (secondEltwiseInputTensor->isQuantized())
             secondEltwiseInputTensorQuantizationParams =
                     secondEltwiseInputTensor->get<mv::QuantizationParams>("quantParams");
-        std::vector <float> scaleDifference, absRelativeErrorScale, relativeErrorScale;
-        std::transform(firstEltwiseInputTensorQuantizationParams.getScale().begin(),
-                       firstEltwiseInputTensorQuantizationParams.getScale().end(),
-                secondEltwiseInputTensorQuantizationParams.getScale().begin(), scaleDifference.begin(), std::minus<float>());
-        float (*fabs)(float) = &std::abs;
+        auto scale1 = firstEltwiseInputTensorQuantizationParams.getScale();
+        auto scale2 = secondEltwiseInputTensorQuantizationParams.getScale();
+
+        auto size = scale1.size();
+        std::vector <double> scaleDifference(size), absRelativeErrorScale(size), relativeErrorScale(size);
+        std::transform(scale1.begin(),
+                       scale1.end(),
+                        scale2.begin(), scaleDifference.begin(), std::minus<double>());
+
+        double (*fabs)(double) = &std::abs;
         std::transform(scaleDifference.begin(), scaleDifference.end(),
-                       firstEltwiseInputTensorQuantizationParams.getScale().begin(), relativeErrorScale.begin(),
-                       std::divides<float>());
+                       scale1.begin(), relativeErrorScale.begin(),
+                       std::divides<double>());
         std::transform(relativeErrorScale.begin(),relativeErrorScale.end(),
                 absRelativeErrorScale.begin(), fabs);
         for (auto it = absRelativeErrorScale.begin(); it != absRelativeErrorScale.end(); it++)
