@@ -4,7 +4,7 @@
 
 add_subdirectory(unit)
 
-if(NOT ARM AND NOT AARCH64)
+if(ENABLE_HDDL2)
     add_subdirectory(unit/hddl2_tests)
 endif()
 
