@@ -8,8 +8,8 @@
                 "verbose": "Error",
                 "weights_form": "None",
                 "barrier_index_assignment" : "Dynamic",
-                "Number_of_DPUs" : 5,
-                "Number_of_Clusters" : 1,
+                "Number_of_DPUs" : 20,
+                "Number_of_Clusters" : 4,
                 "UpaShaves": 1,
                 "DDRScratch": 16777216,
                 "MemoryHack": false,
@@ -92,7 +92,7 @@
                 "name" : "GraphParameterOptimization",
                 "graphOptimizerConfig" : {
                     "globalConfigs" : [
-                        {"name" : "totalClusters",  "value" : 1   },
+                        {"name" : "totalClusters",  "value" : 4   },
                         {"name" : "clusterMemory",  "value" : 896 },
                         {"name" : "dpuPerCluster",  "value" : 5   },
                         {"name" : "ddrBandwidth",   "value" : 128 },
@@ -166,13 +166,6 @@
             "StoreLayerSparsityStrategy",
             "StoreTensorPlacement",
             "StreamingTiling",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/streaming_tiling.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            },
             "StreamBinaryDataWeights"
         ]
     },
@@ -183,19 +176,13 @@
             "StoreWorkloadStrategy",
             "ConvertOpsToDPUTasks",
             "ConvertOpsToUPATasks",
+            "ForceSerialize",
             "KMBOrderConversion",
             "AlignUnpopulatedTensors",
             "AddAlignOpForInputTensors",
             "AlignPopulatedTensors",
             "RemoveCropAlignInCMX",
             "CropOrPadFinalOutput",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/crop_pad.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            },
             "AlignTaskWeights",
             "GenerateSparsityMapsPopulatedTensors",
             "GenerateWeightsTables",
@@ -224,6 +211,10 @@
             "TaskControlFlows",
             "TransitiveReduction",
             "LayerNumbering",
+            {
+                "name": "HangingDmaControlFlows",
+                "weights_prefetch": 1
+            },
             "TransitiveReduction",
             "LayerNumbering",
             "NNCMX2DDRControlFlows",
@@ -233,43 +224,13 @@
     "finalize": {
         "Singular": [
             "GenerateSparsityMapsUnpopulatedTensors",
-
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/lp_scheduler_input_op_model.dot",
-                "scope": "OpModel",
-                "content": "full",
-                "html": true
-            },
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/lp_scheduler_input_control_model.dot",
-                "scope": "ControlModel",
-                "content": "full",
-                "html": true
-            },
-            { "name": "LpScheduler",
-              "output" : "output/lp_scheduler_output.txt" 
-            },
-            "TransitiveReduction",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/lp_scheduler_output.dot",
-                "scope": "ControlModel",
-                "content": "full",
-                "html": true
-            },
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/lp_scheduler_opmodel_output.dot",
-                "scope": "OpModel",
-                "content": "full",
-                "html": true
-            },
+            "AddDeallocationTasks",
             {
                 "name": "TransitiveReduction",
                 "filter": "MemoryRequirement"
             },
+            "MarkLastNodeForMaxTopologicalCut",
+            "MaxTopologicalCutAndPartialSerialisation",
             "TransitiveReduction",
             {
                 "name": "GenerateWorkloads",
@@ -282,22 +243,12 @@
             "AllocateGraphfileTensorsKmb",
             "ReAllocateImplicitOperationsKmb",
             "AllocateCMXTensorsKmb",
-            {
-              "name": "LpScheduler",
-              "output" : "output/lp_scheduler_output.txt",
-              "allocator_mode": true
-            },
+            "TensorGraphColoring",
+            "RemoveDeallocationTasks",
             "TransitiveReduction",
             {
                 "name" : "InsertBarrierTasks",
                 "barrier_reuse_window" : 0
-            },
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/control_model_after_barrier_tasks.dot",
-                "scope": "ControlModel",
-                "content": "full",
-                "html": true
             },
             "TransitiveReduction",
             "PopulateWeightsTablesPointers"
@@ -318,20 +269,6 @@
     },
     "serialize": {
         "Singular": [
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/before_serialization_control.dot",
-                "scope": "ControlModel",
-                "content": "full",
-                "html": true
-            },
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/before_serialization_opcontrol.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            },
             {
                 "name": "GenerateBlobKmb",
                 "output": "output/mcm.blob"
