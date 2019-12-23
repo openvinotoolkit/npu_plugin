@@ -79,8 +79,8 @@ std::map<std::string, std::function<std::tuple<mv::Data::TensorIterator, mv::Dat
 {
 //    {"W",solveSpatialTiling},
     {"H",solveSpatialTiling},
-    {"K",solveWeightsTiling}, //NOTE::Only Convolution is supported for SoK now
-    {"C",solveWeightsTiling} //NOTE::Only Convolution is supported for SoK now
+    {"K",solveWeightsTiling},
+    {"C",solveWeightsTiling} //NOTE::Only Convolution/Depthwise is supported for SoK now
 };
 
 static void setStreamingStrategy(const mv::pass::PassEntry &pass, mv::ComputationModel &model, std::map<std::string, std::vector<opStreamingSplitDef>> &thisGraphStrategy)
@@ -651,10 +651,8 @@ void streamingOperationsFcn(const mv::pass::PassEntry& pass,
             {
                 masterTile.setSize(opIt->getInputTensor(1)->getShape());
                 if (opType == "DepthwiseConv")
-                {
                     masterTile.setAxis("C");
-                    masterTile.generateWeightsTiling();
-                }
+                masterTile.generateWeightsTiling();
             }
             else
             {

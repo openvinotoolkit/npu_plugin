@@ -85,12 +85,12 @@
     },
     "adapt": {
         "Singular": [
-            "CheckIntegerTensors",
             "RemoveOps",
             "ReplacementOps",
             "TensorsToU8",
             "TensorsToFP16",
             "FusePostOps",
+            "EltwiseToSWEltwise",
             {
                 "name" : "GraphParameterOptimization",
                 "graphOptimizerConfig" : {
