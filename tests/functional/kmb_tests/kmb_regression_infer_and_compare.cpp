@@ -67,7 +67,7 @@ std::string VpuInferAndCompareTests::getTestCaseName(TestParamInfo<VpuInferAndCo
     return (param.param).name + "_" + inputPath;
 }
 
-TEST_P(VpuInferAndCompareTests, NQA) {  // To be run in manual mode when device is available
+TEST_P(VpuInferAndCompareTests, TargetCompilation) {  // To be run in manual mode when device is available
     TestingNetworkParameters path_to_files = TestParam::GetParam();
     std::string irXmlPath = ModelsPath() + path_to_files.path_to_network;
     std::string weightsPath = ModelsPath() + path_to_files.path_to_weights;
@@ -120,70 +120,36 @@ TEST_P(VpuInferAndCompareTests, NQA) {  // To be run in manual mode when device 
 #endif
 }
 
-std::vector<TestingNetworkParameters> vpuInferAndCompareTestsNQA = {
-    TestingNetworkParameters {"ResNet_50_v1_tf_int8_dense", "/KMB_models/NQA/ResNet-50-tf/resnet50-int8.xml",
-        "/KMB_models/NQA/ResNet-50-tf/resnet50-int8.bin", "/224x224/cat3.bmp"},
-    // Following test fails on IE to mcmCompiler parsing stage with message
+std::vector<TestingNetworkParameters> vpuCompileTargetNetworksFail = {
+    // Fails on IE to mcmCompiler parsing stage with message
     // C++ exception with description "quant_model/resnet_v1_50/block1/unit_3/bottleneck_v1/addQuantize Eltwise
     // should has FakeQuantize on inputs
     TestingNetworkParameters {"ResNet_50_v1_tf_int8_sparse",
-        "/KMB_models/NQA/ResNet-50-tf/resnetv1-int8-sparse-v2-tf-0001.xml",
-        "/KMB_models/NQA/ResNet-50-tf/resnetv1-int8-sparse-v2-tf-0001.bin", "/224x224/cat3.bmp"},
-    TestingNetworkParameters {"ResNet_50_v1_onnx_int8_dense", "/KMB_models/NQA/ResNet-50-onnx/resnet50-v1-int8.xml",
-        "/KMB_models/NQA/ResNet-50-onnxf/resnet50-v1-int8.bin", "/224x224/cat3.bmp"},
-    // Following test fails on mcmCompiler compilation stage with message
-    // C++ exception with description "QuantizationPass - ArgumentError: extendToK parameters
-    // dimensions doesn't match size of output_channels or 1 - 1024
+        "/KMB_models/INT8/not_in_omz/sparse/ResNet-50-tf/resnetv1-int8-sparse-v2-tf-0001.xml",
+        "/KMB_models/INT8/not_in_omz/sparse/ResNet-50-tf/resnetv1-int8-sparse-v2-tf-0001.bin", "/224x224/cat3.bmp"},
+    // Fails on mcmCompiler compilation stage with message
+    // C++ exception with description "Caught std::runtime_error during unit run:
+    // Populated tensor with DType Int32 with out of bound value -9223372036854775808
     TestingNetworkParameters {"ResNet_50_v1_onnx_int8_sparse",
-        "/KMB_models/NQA/ResNet-50-onnx/resnet50-int8-sparse-v2.xml",
-        "/KMB_models/NQA/ResNet-50-onnx/resnet50-int8-sparse-v2.bin", "/224x224/cat3.bmp"},
-    TestingNetworkParameters {"GoogLeNet_v1_tf_int8", "/KMB_models/NQA/GoogLeNet-v1-tf/inceptionv1-int8-tf-0001.xml",
-        "/KMB_models/NQA/GoogLeNet-v1-tf/inceptionv1-int8-tf-0001.bin", "/224x224/cat3.bmp"},
-    // Following test fails on mcmCompiler compilation stage with message
-    // C++ exception with description "std::bad_alloc
-    // after 14m57.881s compilation time spent
-    TestingNetworkParameters {"GoogLeNet_v1_tf_int8_sparse",
-        "/KMB_models/NQA/GoogLeNet-v1-tf/inceptionv1-int8-sparse-tf-0001.xml",
-        "/KMB_models/NQA/GoogLeNet-v1-tf/inceptionv1-int8-sparse-tf-0001.bin", "/224x224/cat3.bmp"},
-    TestingNetworkParameters {"MobileNet_v2_tf_int8_dense", "/KMB_models/NQA/MoblieNet-v2-tf/mobilenetv2-int8.xml",
-        "/KMB_models/NQA/Moblie Net-v2-tf/mobilenetv2-int8.bin", "/224x224/cat3.bmp"},
-    // Following test fails on mcmCompiler compilation stage with message
-    // C++ exception with description "std::bad_alloc
-    TestingNetworkParameters {"MobileNet_v2_tf_int8_sparse",
-        "/KMB_models/NQA/MoblieNet-v2-tf/mobilenetv2-int8-sparse-v2-tf-0001.xml",
-        "/KMB_models/NQA/MoblieNet-v2-tf/mobilenetv2-int8-sparse-v2-tf-0001.bin", "/224x224/cat3.bmp"},
-    TestingNetworkParameters {"MobileNet_v2_onnx_int8_dense", "/KMB_models/NQA/MoblieNet-v2-onnx/mobilenetv2-int8.xml",
-        "/KMB_models/NQA/MoblieNet-v2-onnx/mobilenetv2-int8.bin", "/224x224/cat3.bmp"},
-    // Following test fails on mcmCompiler compilation stage with message
-    // C++ exception with description "QuantizationPass - ArgumentError: extendToK parameters dimensions
-    // doesn't match size of output_channels or 1 - 24
+        "/KMB_models/INT8/not_in_omz/sparse/ResNet-50-onnx/resnet50-int8-sparse-v2.xml",
+        "/KMB_models/INT8/not_in_omz/sparse/ResNet-50-onnx/resnet50-int8-sparse-v2.bin", "/224x224/cat3.bmp"},
+    // Fails on mcmCompiler compilation stage with message
+    // C++ exception with description "Caught std::runtime_error during unit run:
+    // Populated tensor with DType Int32 with out of bound value -4315556704
     TestingNetworkParameters {"MobileNet_v2_onnx_int8_sparse",
-        "/KMB_models/NQA/MoblieNet-v2-onnx/mobilenetv2-int8-sparse-v2.xml",
-        "/KMB_models/NQA/MoblieNet-v2-onnx/mobilenetv2-int8-sparse-v2.bin", "/224x224/cat3.bmp"},
-    TestingNetworkParameters {"YoloTiny_v2_tf_int8", "/KMB_models/NQA/YoloTiny-v2-tf/tiny_yolo_v2.xml",
-        "/KMB_models/NQA/YoloTiny-v2-tf/tiny_yolo_v2.bin", "/416x416/person.bmp"},
-    TestingNetworkParameters {"Inceptionv3_onnx_int8", "/KMB_models/NQA/inceptionv3-onnx/inceptionv3-int8.xml",
-        "/KMB_models/NQA/inceptionv3-onnx/inceptionv3-int8.bin", "/299x299/lassy_googlenet_big.bmp"},
-    TestingNetworkParameters {"SqueezeNetv1.1_onnx_int8",
-        "/KMB_models/NQA/squeezenetv1.1-int8-onnx/squeezenetv1.1-int8.xml",
-        "/KMB_models/NQA/squeezenetv1.1-int8-onnx/squeezenetv1.1-int8.bin", "/224x224/cat3.bmp"},
-    // Following test fails on mcmCompiler compilation stage with message
-    // C++ exception with description "Op:326/reduce_DepthwiseConv_split_0 -
-    // OpError: Invalid input weights (1) - Height exceeds padded input height 12
-    TestingNetworkParameters {"SqueezeNetv1.1_onnx_int8_sparse",
-        "/KMB_models/NQA/squeezenetv1.1-int8-onnx/squeezenetv1.1-int8-sparse-v2.xml",
-        "/KMB_models/NQA/squeezenetv1.1-int8-onnx/squeezenetv1.1-int8-sparse-v2.bin", "/224x224/cat3.bmp"},
-    TestingNetworkParameters {"SSD512_onnx_int8", "/KMB_models/INT8/SSD512-int8-onnx-0001/SSD512-int8-onnx-0001.xml",
-        "/KMB_models/INT8/SSD512-int8-onnx-0001/SSD512-int8-onnx-0001.bin", "/512x512/dog_croped512.bmp"},
-    TestingNetworkParameters {"Yolo_v2_tf_int8", "/KMB_models/NQA/yolo_v2_tf/yolo_v2.xml",
-        "/KMB_models/NQA/yolo_v2_tf/yolo_v2.bin", "/416x416/person.bmp"},
+        "/KMB_models/INT8/not_in_omz/sparse/MoblieNet-v2-onnx/mobilenetv2-int8-sparse-v2.xml",
+        "/KMB_models/INT8/not_in_omz/sparse/MoblieNet-v2-onnx/mobilenetv2-int8-sparse-v2.bin", "/224x224/cat3.bmp"},
 
-    //  IRs from DL_benchmarking_models
+    // IRs from DL_benchmarking_models
+    // Fails on IE to mcmCompiler parsing stage with message
+    // C++ exception with description "Only single input is supported currently
     TestingNetworkParameters {"FasterRcnnResnet101_tf_fp16",
         "/KMB_models/FP16/faster_rcnn_resnet101_coco/tf/tf_frozen/FP16/1/dldt/faster_rcnn_resnet101_coco.xml",
         "/KMB_models/FP16/faster_rcnn_resnet101_coco/tf/tf_frozen/FP16/1/dldt/faster_rcnn_resnet101_coco.bin",
         // TODO: Add and use 600x600 picture the input size of network
         "/512x512/dog_croped512.bmp"},
+    // Fails on IE to mcmCompiler parsing stage with message
+    // C++ exception with description "Unexpected biases precision
     TestingNetworkParameters {"ICNet_caffe_fp16", "/KMB_models/FP16/icnet/caffe/caffe/FP16/1/dldt/icnet.xml",
         "/KMB_models/FP16/icnet/caffe/caffe/FP16/1/dldt/icnet.bin", "/1024x2048/frankfurt_001016.bmp"},
 
@@ -191,160 +157,79 @@ std::vector<TestingNetworkParameters> vpuInferAndCompareTestsNQA = {
     // To learn where the post trainig IRs from and how to update them (if necessary) see
     // scripts/post_training_quantization/README.md and
     // scripts/post_training_quantization/<corresponding network dir>/run.txt files
-    TestingNetworkParameters {"mobilenet_v2_int8_int8_weights_perchannel",
-        "/KMB_models/NQA/POST_TRAINING/MobileNet_V2/mobilenet_v2_int8_int8_weights_perchannel.xml",
-        "/KMB_models/NQA/POST_TRAINING/MobileNet_V2/mobilenet_v2_int8_int8_weights_perchannel.bin",
-        "/224x224/cat3.bmp"},
-    TestingNetworkParameters {"mobilenet_v2_uint8_int8_weights_perchannel",
-        "/KMB_models/NQA/POST_TRAINING/MobileNet_V2/mobilenet_v2_uint8_int8_weights_perchannel.xml",
-        "/KMB_models/NQA/POST_TRAINING/MobileNet_V2/mobilenet_v2_uint8_int8_weights_perchannel.bin",
-        "/224x224/cat3.bmp"},
-    TestingNetworkParameters {"mobilenet_v2_uint8_uint8_weights_perchannel",
-        "/KMB_models/NQA/POST_TRAINING/MobileNet_V2/mobilenet_v2_uint8_uint8_weights_perchannel.xml",
-        "/KMB_models/NQA/POST_TRAINING/MobileNet_V2/mobilenet_v2_uint8_uint8_weights_perchannel.bin",
-        "/224x224/cat3.bmp"},
-    // post training models
-    // Folowing 3 tests on resnet50 fail on IE to mcmCompiler parsing stage.
-    // The networks can not be parsed due to Eltwise with FakeQuantize issue CVS-23769
-    TestingNetworkParameters {"resnet50_int8_int8_weights_pertensor",
-        "/KMB_models/NQA/POST_TRAINING/ResNet-50/resnet50_int8_int8_weights_pertensor.xml",
-        "/KMB_models/NQA/POST_TRAINING/ResNet-50/resnet50_int8_int8_weights_pertensor.bin", "/224x224/cat3.bmp"},
-    TestingNetworkParameters {"resnet50_uint8_int8_weights_pertensor",
-        "/KMB_models/NQA/POST_TRAINING/ResNet-50/resnet50_uint8_int8_weights_pertensor.xml",
-        "/KMB_models/NQA/POST_TRAINING/ResNet-50/resnet50_uint8_int8_weights_pertensor.bin", "/224x224/cat3.bmp"},
-    TestingNetworkParameters {"resnet50_uint8_uint8_weights_pertensor",
-        "/KMB_models/NQA/POST_TRAINING/ResNet-50/resnet50_uint8_uint8_weights_pertensor.xml",
-        "/KMB_models/NQA/POST_TRAINING/ResNet-50/resnet50_uint8_uint8_weights_pertensor.bin", "/224x224/cat3.bmp"},
 
-    // post training models
-    // models below are able to be compiled but need to discuss do we really need them all
-    TestingNetworkParameters {"tiny_yolo_v2_int8_int8_weights_pertensor",
-        "/KMB_models/NQA/POST_TRAINING/TinyYolo_V2/tiny_yolo_v2_int8_int8_weights_pertensor.xml",
-        "/KMB_models/NQA/POST_TRAINING/TinyYolo_V2/tiny_yolo_v2_int8_int8_weights_pertensor.bin",
-        "/416x416/person.bmp"},
-    TestingNetworkParameters {"tiny_yolo_v2_uint8_uint8_weights_pertensor",
-        "/KMB_models/NQA/POST_TRAINING/TinyYolo_V2/tiny_yolo_v2_uint8_uint8_weights_pertensor.xml",
-        "/KMB_models/NQA/POST_TRAINING/TinyYolo_V2/tiny_yolo_v2_uint8_uint8_weights_pertensor.bin",
-        "/416x416/person.bmp"},
-    // post training models
-    // Following test on yolo_v2 fails on IE to mcmCompiler parsing stage.
-    // The networks can not be parsed due to parsing RegionYolo issue CVS-23844
-    TestingNetworkParameters {"yolo_v2_uint8_int8_weights_pertensor",
-        "/KMB_models/NQA/POST_TRAINING/Yolo_V2/yolo_v2_uint8_int8_weights_pertensor.xml",
-        "/KMB_models/NQA/POST_TRAINING/Yolo_V2/yolo_v2_uint8_int8_weights_pertensor.bin", "/416x416/person.bmp"},
+    // Fails on mcmCompiler compilation stage with message
+    // C++ exception with description "Caught std::runtime_error during unit run:
+    // quantParams - ArgumentError: channel 24 - Invalid index: channel is greater than zeroPoint vector
+    TestingNetworkParameters {"mobilenet_v2_uint8_int8_weights_perchannel",
+        "/KMB_models/INT8/in_omz/MobileNet_V2/mobilenet_v2_uint8_int8_weights_perchannel.xml",
+        "/KMB_models/INT8/in_omz/MobileNet_V2/mobilenet_v2_uint8_int8_weights_perchannel.bin",
+        "/224x224/cat3.bmp"},
+
     // post training models
     // Following test on yolo_v3 fails on IE to mcmCompiler parsing stage with message.
     // C++ exception with description "Resample layer is not supported by kmbPlugin
     TestingNetworkParameters {"yolo_v3_uint8_int8_weights_pertensor",
-        "/KMB_models/NQA/POST_TRAINING/Yolo_V3/yolo_v3_uint8_int8_weights_pertensor.xml",
-        "/KMB_models/NQA/POST_TRAINING/Yolo_V3/yolo_v3_uint8_int8_weights_pertensor.bin", "/416x416/person.bmp"},
-    // post training models
-    // Following test on tiny_yolo_v1 fails on mcmCompiler compilation stage with following message
-    // C++ exception with description "Tensor:fc9/WithoutBiases_2DConv_split_28_copyIn_0:0 - ArgumentError:
-    // attribute identifer splitStrategy - Undefined identifier
-    TestingNetworkParameters {"tiny_yolo_v1_uint8_int8_weights_pertensor",
-        "/KMB_models/NQA/POST_TRAINING/YoloTiny-v1-caffe/tiny_yolo_v1_caffe_uint8_int8_weights_per_tensor.xml",
-        "/KMB_models/NQA/POST_TRAINING/YoloTiny-v1-caffe/tiny_yolo_v1_caffe_uint8_int8_weights_per_tensor.bin",
-        "/448x448/cat3.bmp"},
-    // Following test on ssd_mobilenet_v1_coco fails on IE to mcmCompiler parsing stage with message:
+        "/KMB_models/INT8/not_in_omz/Yolo_V3/yolo_v3_uint8_int8_weights_pertensor.xml",
+        "/KMB_models/INT8/not_in_omz/Yolo_V3/yolo_v3_uint8_int8_weights_pertensor.bin", "/416x416/person.bmp"},
+    // Test on ssd_mobilenet_v1_coco fails on IE to mcmCompiler parsing stage with message:
     // C++ exception with description "Power layer is not supported by kmbPlugin
     TestingNetworkParameters {"ssd_mobilenet_v1_coco_uint8_int8_weights_pertensor",
-        "/KMB_models/NQA/POST_TRAINING/ssd_mobilenet_v1_coco/ssd_mobilenet_v1_coco_uint8_int8_weights_pertensor.xml",
-        "/KMB_models/NQA/POST_TRAINING/ssd_mobilenet_v1_coco/ssd_mobilenet_v1_coco_uint8_int8_weights_pertensor.bin",
+        "/KMB_models/INT8/in_omz/ssd_mobilenet_v1_coco/ssd_mobilenet_v1_coco_uint8_int8_weights_pertensor.xml",
+        "/KMB_models/INT8/in_omz/ssd_mobilenet_v1_coco/ssd_mobilenet_v1_coco_uint8_int8_weights_pertensor.bin",
         "/300x300/dog.bmp"},
     // post trainig models
-    // Following 3 tests on inception_v1 fail on mcmCompiler compilation stage with following message.
-    // Streaming for node: InceptionV1/Logits/Conv2d_0c_1x1/convolution has stream K = 2
-    // ERROR:   checkIsCMXTensor_ - ArgumentError: no allocators for tensor ImplicitReshape_0:0 - no allocators for
-    // tensor
-    TestingNetworkParameters {"inception_v1_tf_int8_int8_weights_pertensor",
-        "/KMB_models/NQA/POST_TRAINING/inception-v1_tf/inception-v1_tf_int8_int8_weights_pertensor.xml",
-        "/KMB_models/NQA/POST_TRAINING/inception-v1_tf/inception-v1_tf_int8_int8_weights_pertensor.bin",
-        "/224x224/cat3.bmp"},
+    // Test on inception_v1 fails on mcmCompiler compilation stage with message.
+    // C++ exception with description "Caught std::runtime_error during unit run:
+    // Populated tensor with DType Int32 with out of bound value -9223372036854775808
     TestingNetworkParameters {"inception_v1_tf_uint8_int8_weights_pertensor",
-        "/KMB_models/NQA/POST_TRAINING/inception-v1_tf/inception-v1_tf_uint8_int8_weights_pertensor.xml",
-        "/KMB_models/NQA/POST_TRAINING/inception-v1_tf/inception-v1_tf_uint8_int8_weights_pertensor.bin",
-        "/224x224/cat3.bmp"},
-    TestingNetworkParameters {"inception_v1_tf_uint8_uint8_weights_pertensor",
-        "/KMB_models/NQA/POST_TRAINING/inception-v1_tf/inception-v1_tf_uint8_uint8_weights_pertensor.xml",
-        "/KMB_models/NQA/POST_TRAINING/inception-v1_tf/inception-v1_tf_uint8_uint8_weights_pertensor.bin",
-        "/224x224/cat3.bmp"},
-    // post trainig models
-    // Folowing test on inception_v3 fails on IE to mcmCompiler parsing stage with following message
-    // C++ exception with description "Tensor:InceptionV3/Logits/Conv2d_1c_1x1/convolution/Transpose:0 - ArgumentError:
-    // attribute identifer quantParams - Undefined identifier
-    TestingNetworkParameters {"inception_v3_tf_uint8_int8_weights_pertensor",
-        "/KMB_models/NQA/POST_TRAINING/inception-v3_tf/inception-v3_tf_uint8_int8_weights_pertensor.xml",
-        "/KMB_models/NQA/POST_TRAINING/inception-v3_tf/inception-v3_tf_uint8_int8_weights_pertensor.bin",
+        "/KMB_models/INT8/not_in_omz/inception-v1_tf/inception-v1_tf_uint8_int8_weights_pertensor.xml",
+        "/KMB_models/INT8/not_in_omz/inception-v1_tf/inception-v1_tf_uint8_int8_weights_pertensor.bin",
         "/224x224/cat3.bmp"},
     // post training models
-    // Following 3 tests on inception_v1 fail on mcmCompiler compilation stage with following message
-    // C++ exception with description "GraphOptimizer-StrategyManager -
-    // LogicError: GraphOptimizer did not create any potential strategies for 62:step0 (Layaer '62' is of concat type)
-    TestingNetworkParameters {"squeezenet1_1_pytorch_int8_int8_weights_pertensor",
-        "/KMB_models/NQA/POST_TRAINING/squeezenet1_1_pytorch/squeezenet1_1_pytorch_int8_int8_weights_pertensor.xml",
-        "/KMB_models/NQA/POST_TRAINING/squeezenet1_1_pytorch/squeezenet1_1_pytorch_int8_int8_weights_pertensor.bin",
-        "/224x224/cat3.bmp"},
-    TestingNetworkParameters {"squeezenet1_1_pytorch_uint8_int8_weights_pertensor",
-        "/KMB_models/NQA/POST_TRAINING/squeezenet1_1_pytorch/squeezenet1_1_pytorch_uint8_int8_weights_pertensor.xml",
-        "/KMB_models/NQA/POST_TRAINING/squeezenet1_1_pytorch/squeezenet1_1_pytorch_uint8_int8_weights_pertensor.bin",
-        "/224x224/cat3.bmp"},
-    TestingNetworkParameters {"squeezenet1_1_pytorch_uint8_uint8_weights_pertensor",
-        "/KMB_models/NQA/POST_TRAINING/squeezenet1_1_pytorch/squeezenet1_1_pytorch_uint8_uint8_weights_pertensor.xml",
-        "/KMB_models/NQA/POST_TRAINING/squeezenet1_1_pytorch/squeezenet1_1_pytorch_uint8_uint8_weights_pertensor.bin",
+    // Test on inception_v3 fails on mcmCompiler compilation stage with message
+    // C++ exception with description "Caught std::runtime_error during unit run:
+    // Populated tensor with DType Int32 with out of bound value -9223372036854775808
+    TestingNetworkParameters {"inception_v3_tf_uint8_int8_weights_pertensor",
+        "/KMB_models/INT8/in_omz/inception-v3_tf/inception-v3_tf_uint8_int8_weights_pertensor.xml",
+        "/KMB_models/INT8/in_omz/inception-v3_tf/inception-v3_tf_uint8_int8_weights_pertensor.bin",
         "/224x224/cat3.bmp"},
     // post training models
     // Following test on road-segmentation-adas-0001 fails on IE to mcmCompiler parsing stage with following message
     // C++ exception with description "OpEntry:Eltwise - IndexError: index 1 -
     // Passed input index exceeds inputs count registered for the op type Eltwise
     TestingNetworkParameters {"road_segmentation_adas_0001_uint8_int8_weights_pertensor",
-        "/KMB_models/NQA/POST_TRAINING/road-segmentation-adas-0001/"
+        "/KMB_models/INT8/icv/road-segmentation-adas-0001/"
         "road-segmentation-adas-0001-uint8-int8-weights-pertensor.xml",
-        "/KMB_models/NQA/POST_TRAINING/road-segmentation-adas-0001/"
+        "/KMB_models/INT8/icv/road-segmentation-adas-0001/"
         "road-segmentation-adas-0001-uint8-int8-weights-pertensor.bin",
         // TODO : use 512x896 image when it will be added in validation set
         // and when inference part of the test will be implemented
         "/512x512/dog_croped512.bmp"},
     // post training models
     // Following test on person-vehicle-bike-detection-crossroad-0078 fails on IE to mcmCompiler parsing stage with
-    // following message C++ exception with description "ELU layer is not supported by kmbPlugin
+    // message C++ exception with description "ELU layer is not supported by kmbPlugin
     TestingNetworkParameters {"person_vehicle_bike_detection_crossroad_0078_uint8_int8_weights_pertensor",
-        "/KMB_models/NQA/POST_TRAINING/person-vehicle-bike-detection-crossroad-0078/"
+        "/KMB_models/INT8/icv/person-vehicle-bike-detection-crossroad-0078/"
         "person-vehicle-bike-detection-crossroad-0078-uint8-int8-weights-pertensor.xml",
-        "/KMB_models/NQA/POST_TRAINING/person-vehicle-bike-detection-crossroad-0078/"
+        "/KMB_models/INT8/icv/person-vehicle-bike-detection-crossroad-0078/"
         "person-vehicle-bike-detection-crossroad-0078-uint8-int8-weights-pertensor.bin",
         "/1024x1024/frankfurt_001016.png"},
     // post training models
-    // Following test on vehicle-license-plate-detection-barrier-0106 fails on IE to mcmCompiler parsing stage with
-    // following message C++ exception with description "Tensor:SSD/ssd_head/layer_14/output_mbox_loc/Conv2D/Transpose:0
+    // Test on vehicle-license-plate-detection-barrier-0106 fails on IE to mcmCompiler parsing stage with
+    // message C++ exception with description "Tensor:SSD/ssd_head/layer_14/output_mbox_loc/Conv2D/Transpose:0
     // - ArgumentError: attribute identifer quantParams - Undefined identifier or C++ exception with description
     // "DetectionOutput layer is not supported by kmbPlugin
     TestingNetworkParameters {"vehicle_license_plate_detection_barrier_0106_uint8_int8_weights_pertensor",
-        "/KMB_models/NQA/POST_TRAINING/vehicle-license-plate-detection-barrier-0106/"
+        "/KMB_models/INT8/icv/vehicle-license-plate-detection-barrier-0106/"
         "vehicle-license-plate-detection-barrier-0106-uint8_int8_weights_pertensor.xml",
-        "/KMB_models/NQA/POST_TRAINING/vehicle-license-plate-detection-barrier-0106/"
+        "/KMB_models/INT8/icv/vehicle-license-plate-detection-barrier-0106/"
         "vehicle-license-plate-detection-barrier-0106-uint8_int8_weights_pertensor.bin",
         // TODO : use more relevant for network image when it will be added in validation set
         // and when inference part of the test will be implemented
         "/300x300/dog.bmp"},
-    // Folowing test on ssd512 fail on IE to mcmCompiler parsing stage with following message
-    // C++ exception with description "Unsupported case, we expect only one child"
-    // Also there are unsupported layers PriorBox and DetectionOutput
-    TestingNetworkParameters {"ssd512_caffe_uint8_int8_weights_pertensor",
-        "/KMB_models/NQA/POST_TRAINING/ssd512/ssd512_caffe_uint8_int8_weights_pertensor.xml",
-        "/KMB_models/NQA/POST_TRAINING/ssd512/ssd512_caffe_uint8_int8_weights_pertensor.bin",
-        "/512x512/dog_croped512.bmp"},
-    // pre trained  model
-    // Folowing test on ssd512 fail on IE to mcmCompiler parsing stage
-    // C++ exception with description "[VPU] Cannot convert layer "368128427914"
-    // due to unsupported layer type "Gather"" thrown in the test body.
-    // Also there are unsupported layers PriorBox and DetectionOutput
-    TestingNetworkParameters {"ssd512_onnx_int8",
-        "/KMB_models/NQA/POST_TRAINING/ssd512/quantized_in_onnx/RGB/SSD512-int8-onnx-0001.xml",
-        "/KMB_models/NQA/POST_TRAINING/ssd512/quantized_in_onnx/RGB/SSD512-int8-onnx-0001.bin",
-        "/512x512/dog_croped512.bmp"},
     // post training models
-    // Following test on face-detection-retail-0004 fails on IE to mcmCompiler parsing stage with following message
+    // Test on face-detection-retail-0004 fails on IE to mcmCompiler parsing stage with message
     // C++ exception with description "PriorBoxClustered layer is not supported by kmbPlugin
     TestingNetworkParameters {"face_detection_retail_0004_uint8_int8_weights_pertensor",
         "/KMB_models/NQA/POST_TRAINING/face-detection-retail-0004/"
@@ -354,35 +239,67 @@ std::vector<TestingNetworkParameters> vpuInferAndCompareTestsNQA = {
         // TODO : use more relevant for network image when it will be added in validation set
         // and when inference part of the test will be implemented
         "/300x300/dog.bmp"},
-    // cut models
-    TestingNetworkParameters {"YoloTiny_v2_u8_asymmetric_cut",
-        "/KMB_models/NQA/u8_asymmetric/YoloTiny-v2/tiny_yolo_v2_asymmetric_cut.xml",
-        "/KMB_models/NQA/u8_asymmetric/YoloTiny-v2/tiny_yolo_v2_asymmetric.bin", "/416x416/person.bmp"},
-    TestingNetworkParameters {"MobileNet_v2_u8_asymmetric_cut",
-        "/KMB_models/NQA/u8_asymmetric/MobileNet-v2/mobilenetv2_asymmetric_cut.xml",
-        "/KMB_models/NQA/u8_asymmetric/MobileNet-v2/mobilenetv2_asymmetric.bin", "/224x224/cat3.bmp"},
-    TestingNetworkParameters {"Resnet_50_u8_asymmetric_cut",
-        "/KMB_models/NQA/u8_asymmetric/ResNet-50/resnet-50-pytorch_asymmetric_cut.xml",
-        "/KMB_models/NQA/u8_asymmetric/ResNet-50/resnet-50-pytorch_asymmetric.bin", "/224x224/cat3.bmp"},
-    TestingNetworkParameters {"Resnet_50_u8_asymmetric_cutfc",
-        "/KMB_models/NQA/u8_asymmetric/ResNet-50/resnet-50-pytorch_asymmetric_cutfc.xml",
-        "/KMB_models/NQA/u8_asymmetric/ResNet-50/resnet-50-pytorch_asymmetric_cutfc.bin", "/224x224/cat3.bmp"},
-    TestingNetworkParameters {"tiny_yolo_v2_uint8_int8_weights_pertensor",
-        "/KMB_models/NQA/POST_TRAINING/TinyYolo_V2/tiny_yolo_v2_uint8_int8_weights_pertensor.xml",
-        "/KMB_models/NQA/POST_TRAINING/TinyYolo_V2/tiny_yolo_v2_uint8_int8_weights_pertensor.bin",
-        "/416x416/person.bmp"},
+    // Test on ssd512 fail on IE to mcmCompiler parsing stage with message
+    // C++ exception with description "Unsupported case, we expect only one child"
+    // Also there are unsupported layers PriorBox and DetectionOutput
+    TestingNetworkParameters {"ssd512_caffe_uint8_int8_weights_pertensor",
+        "/KMB_models/INT8/in_omz/ssd512/ssd512_caffe_uint8_int8_weights_pertensor.xml",
+        "/KMB_models/INT8/in_omz/ssd512/ssd512_caffe_uint8_int8_weights_pertensor.bin",
+        "/512x512/dog_croped512.bmp"},
+    // post training models
+    // Test on caffe based inception_v1 fails on IE to mcmCompiler parsing stage
+    // C++ exception with description "Op:pool5/7x7_s1 - OpError: Invalid input data (0) -
+    // Filter kernel width (7) exceeds the padded input width (6)
+    TestingNetworkParameters{"inception_v1_caffe_benchmark",
+        "/KMB_models/INT8/in_omz/inception-v1_caffe/googlenet-v1.xml",
+        "/KMB_models/INT8/in_omz/inception-v1_caffe/googlenet-v1.bin",
+        "/224x224/cat3.bmp"},
+    // post training models
+    // Following test on caffe based squeezenet1_1 fails on IE to mcmCompiler parsing stage
+    // with message
+    // C++ exception with description "Op:pool10 - OpError: Invalid input data (0) -
+    // Filter kernel width (14) exceeds the padded input width (13)
+    TestingNetworkParameters{"squeezenet1_1_caffe_benchmark",
+        "/KMB_models/INT8/in_omz/squeezenet1_1_caffe/squeezenet1.1.xml",
+        "/KMB_models/INT8/in_omz/squeezenet1_1_caffe/squeezenet1.1.bin",
+        "/227x227/cat3.bmp"},
 };
 
-std::vector<TestingNetworkParameters> vpuInferAndCompareTargetNetworks = {
+std::vector<TestingNetworkParameters> vpuCompileTargetNetworks = {
     TestingNetworkParameters {"resnet50_uint8_int8_weights_pertensor",
-        "/KMB_models/NQA/POST_TRAINING/ResNet-50/resnet50_uint8_int8_weights_pertensor.xml",
-        "/KMB_models/NQA/POST_TRAINING/ResNet-50/resnet50_uint8_int8_weights_pertensor.bin", "/224x224/cat3.bmp"},
+        "/KMB_models/INT8/in_omz/ResNet-50/resnet50_uint8_int8_weights_pertensor.xml",
+        "/KMB_models/INT8/in_omz/ResNet-50/resnet50_uint8_int8_weights_pertensor.bin", "/224x224/cat3.bmp"},
+    TestingNetworkParameters {"GoogLeNet_v1_tf_int8_sparse",
+        "/KMB_models/INT8/not_in_omz/sparse/GoogLeNet-v1-tf/inceptionv1-int8-sparse-tf-0001.xml",
+        "/KMB_models/INT8/not_in_omz/sparse/GoogLeNet-v1-tf/inceptionv1-int8-sparse-tf-0001.bin", "/224x224/cat3.bmp"},
+    TestingNetworkParameters {"MobileNet_v2_tf_int8_sparse",
+        "/KMB_models/INT8/not_in_omz/sparse/MoblieNet-v2-tf/mobilenetv2-int8-sparse-v2-tf-0001.xml",
+        "/KMB_models/INT8/not_in_omz/sparse/MoblieNet-v2-tf/mobilenetv2-int8-sparse-v2-tf-0001.bin", "/224x224/cat3.bmp"},
+    TestingNetworkParameters {"tiny_yolo_v2_uint8_int8_weights_pertensor",
+        "/KMB_models/INT8/ava/TinyYolo_V2/tiny_yolo_v2_uint8_int8_weights_pertensor.xml",
+        "/KMB_models/INT8/ava/TinyYolo_V2/tiny_yolo_v2_uint8_int8_weights_pertensor.bin",
+        "/416x416/person.bmp"},
+    TestingNetworkParameters {"yolo_v2_uint8_int8_weights_pertensor",
+        "/KMB_models/INT8/ava/Yolo_V2/yolo_v2_uint8_int8_weights_pertensor.xml",
+        "/KMB_models/INT8/ava/Yolo_V2/yolo_v2_uint8_int8_weights_pertensor.bin", "/416x416/person.bmp"},
+    TestingNetworkParameters {"tiny_yolo_v1_uint8_int8_weights_pertensor",
+        "/KMB_models/INT8/not_in_omz/YoloTiny-v1-caffe/tiny_yolo_v1_caffe_uint8_int8_weights_per_tensor.xml",
+        "/KMB_models/INT8/not_in_omz/YoloTiny-v1-caffe/tiny_yolo_v1_caffe_uint8_int8_weights_per_tensor.bin",
+        "/448x448/cat3.bmp"},
+    TestingNetworkParameters {"squeezenet1_1_pytorch_uint8_int8_weights_pertensor",
+        "/KMB_models/INT8/not_in_omz/squeezenet1_1_pytorch/squeezenet1_1_pytorch_uint8_int8_weights_pertensor.xml",
+        "/KMB_models/INT8/not_in_omz/squeezenet1_1_pytorch/squeezenet1_1_pytorch_uint8_int8_weights_pertensor.bin",
+        "/224x224/cat3.bmp"},
+    TestingNetworkParameters {"SqueezeNetv1.1_onnx_int8_sparse",
+        "/KMB_models/INT8/not_in_omz/sparse/squeezenetv1.1-int8-onnx/squeezenetv1.1-int8-sparse-v2.xml",
+        "/KMB_models/INT8/not_in_omz/sparse/squeezenetv1.1-int8-onnx/squeezenetv1.1-int8-sparse-v2.bin",
+        "/224x224/cat3.bmp"},
 };
 
-INSTANTIATE_TEST_CASE_P(DISABLED_InferAndCompareTestsNQA, VpuInferAndCompareTests,
-    ::testing::ValuesIn(vpuInferAndCompareTestsNQA), VpuInferAndCompareTests::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(DISABLED_CompileTargetNetworksFail, VpuInferAndCompareTests,
+    ::testing::ValuesIn(vpuCompileTargetNetworksFail), VpuInferAndCompareTests::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(InferAndCompareTestsTargetNetworks, VpuInferAndCompareTests,
-    ::testing::ValuesIn(vpuInferAndCompareTargetNetworks), VpuInferAndCompareTests::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(CompileTargetNetworks, VpuInferAndCompareTests,
+    ::testing::ValuesIn(vpuCompileTargetNetworks), VpuInferAndCompareTests::getTestCaseName);
 
 #endif
