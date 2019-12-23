@@ -505,7 +505,7 @@ namespace mv
                 {
                     for (std::size_t input_gates = 0; input_gates < op.getInputTensor().size(); input_gates++)
                     {
-                        if (input_gates == 0 || (input_gates == 1 && op.getOpType() == "Eltwise"))
+                        if (input_gates == 0)
                         {
                             if (op.getInputTensor(input_gates)->getShape()[mv::IO_WIDTH_DIMENSION] > 8192 ||
                                 op.getInputTensor(input_gates)->getShape()[mv::IO_HEIGHT_DIMENSION] > 8192 ||
@@ -513,38 +513,26 @@ namespace mv
                                 op.getOutputTensor(input_gates)->getShape()[mv::IO_WIDTH_DIMENSION] > 8192 ||
                                 op.getOutputTensor(input_gates)->getShape()[mv::IO_HEIGHT_DIMENSION] > 8192 ||
                                 op.getOutputTensor(input_gates)->getShape()[mv::IO_CHANNEL_DIMENSION] > 8192 )
-                            {
-                                if (input_gates == 0)
-                                {
                                     executableInHW = 1;
-                                    if (op.getOpType() != "Eltwise")
-                                    {
-                                        if (op.getInputTensor(input_gates)->getShape()[mv::IO_WIDTH_DIMENSION]
-                                                == op.getInputTensor(input_gates)->getShape()[mv::KERNEL_WIDTH] &&
-                                                    op.getInputTensor(1)->getShape()[mv::IO_HEIGHT_DIMENSION]
-                                                     == op.getInputTensor(1)->getShape()[mv::KERNEL_HEIGHT])
-                                            executableInHW = 2;
-                                        else if (op.getInputTensor(1)->getShape()[mv::KERNEL_HEIGHT] <
-                                                 op.getInputTensor(1)->getShape()[mv::IO_HEIGHT_DIMENSION])
-                                            executableInHW = 3;
-                                        else if (op.getInputTensor(1)->getShape()[mv::KERNEL_WIDTH] <
-                                                 op.getInputTensor(1)->getShape()[mv::IO_WIDTH_DIMENSION])
-                                            executableInHW = 4;
-                                    }
-                                }
-                            }
                         }
-                        else
+                        else if (input_gates == 1 && op.getOpType() == "Eltwise")
+                        {
+                            if (op.getInputTensor(input_gates)->getShape()[mv::IO_WIDTH_DIMENSION] > 8192 ||
+                                op.getInputTensor(input_gates)->getShape()[mv::IO_HEIGHT_DIMENSION] > 8192 ||
+                                op.getInputTensor(input_gates)->getShape()[mv::IO_CHANNEL_DIMENSION] > 8192)
+                                executableInHW = 1;
+                        }
+                        else if (op.getOpType() != "MaxPool" && op.getOpType() != "Eltwise")
                         //Note: all the ops have maximum a second input (weights) at G.O stage
                         {
                             if (op.getInputTensor(input_gates)->getShape()[mv::KERNEL_WIDTH] > 11 ||
                                 op.getInputTensor(input_gates)->getShape()[mv::KERNEL_HEIGHT] > 11 ||
                                 op.getInputTensor(input_gates)->getShape()[mv::KERNEL_INPUT_CHANNELS] > 8192 ||
                                 op.getInputTensor(input_gates)->getShape()[mv::KERNEL_OUTPUT_CHANNELS] > 8192)
-                                executableInHW = 5;
+                                executableInHW = 2;
                             auto stride_array = op.getAttrs().at("stride").get<std::array<unsigned short, 2>>();
                             if (stride_array[0] > 8 || stride_array[1] > 8)
-                                executableInHW = 6;
+                                executableInHW = 3;
                         }
                     }
                 }
@@ -639,12 +627,16 @@ namespace mv
 
                 auto parentClustering = parent["clustering"].get<string>();
                 auto childClustering = child["clustering"].get<string>();
-//                int8_t success = checkHWUnsupportedOp(parentOp);
-//                if (success != 0)
-//                {
-//                    log(mv::Logger::MessageType::Warning, "The limitation of the tensor dimension 8192 might be hitted with the \
-//                        operation " + parentOp.getName());
-//                }
+                int8_t success = checkHWUnsupportedOp(parentOp);
+                if (success != 0)
+                {
+                    if (success == 1)
+                        log(mv::Logger::MessageType::Warning, "The limitation of the tensor dimension 8192 might be hitted with the \
+                            operation " + parentOp.getName());
+                     else
+                        log(mv::Logger::MessageType::Error, "Unsupported kernel/stride combination for DpuTask for \
+                            the operation " + parentOp.getName());
+                }
                 if(createStrategyDots)
                 {
                     int strategyCheck = checkForBadStrategy(parentOp,parent);

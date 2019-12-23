@@ -267,7 +267,7 @@ std::tuple<mv::Data::TensorIterator, mv::Data::TensorIterator,mv::Data::TensorIt
                                 {start_width, start_height, start_channels, 0}, //childTiles[split].getStartCoord()
                                 {size_width, size_height, size_channels, 1}, //childTiles[split].getSize()
                                 inputTensor->get<mv::QuantizationParams>("quantParams"),
-                                op->getName() + "_sliceH_" + std::to_string(split));
+                                op->getName() + "_sliceHK_" + std::to_string(split));
 
             conv = om.depthwiseConv(sliceInput,
                                 slice,
@@ -277,7 +277,9 @@ std::tuple<mv::Data::TensorIterator, mv::Data::TensorIterator,mv::Data::TensorIt
                                 op->get<mv::DType>("dType"),
                                 op->get<mv::QuantizationParams>("quantParams"),
                                 streamingOpName);
+            om.getSourceOp(sliceInput)->set<unsigned>("opId", opId);
         }
+        om.getSourceOp(conv)->set<unsigned>("opId", opId);
         //NOTE: Nested streaming case KH
         if (thisGraphStrategy[op->getName()].size() > 1)
         {
