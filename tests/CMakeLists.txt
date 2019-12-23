@@ -98,22 +98,24 @@ target_include_directories(mcm_unit_tests PRIVATE utils
       INTERFACE lp_scheduler lp_scheduler_pass)
 target_link_libraries(mcm_unit_tests lp_scheduler lp_scheduler_pass)
 
+add_subdirectory(layer)
+add_subdirectory(system_tests/lp_scheduler/three_layer_conv_model)
+#add_subdirectory(system_tests/lp_scheduler/resnet)
+add_subdirectory(system_tests/lp_scheduler/tiny_yolo)
+#add_subdirectory(system_tests/lp_scheduler/mobilenet)
+
 set(CMAKE_CXX_IMPLICIT_LINK_LIBRARIES stdc++)
 set(CMAKE_CXX_IMPLICIT_LINK_DIRECTORIES "")
 set_target_properties(mcm_unit_tests PROPERTIES LINKER_LANGUAGE C)
 
+#file(GLOB layers
+#    "layers/*.cpp"
+#)
 #
-# Regression tests
+#add_executable(regression_tests
+#    mcm_unit_tests.cpp
+#    ${layers}
+#)
 #
-
-file(GLOB layers
-    "layers/*.cpp"
-)
-
-add_executable(regression_tests
-    mcm_unit_tests.cpp
-    ${layers}
-)
-
-target_link_libraries (regression_tests gtest)
-target_link_libraries (regression_tests cm)
+#target_link_libraries (regression_tests gtest)
+#target_link_libraries (regression_tests cm)
