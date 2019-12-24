@@ -125,6 +125,7 @@
                         {
                             "name" : "DepthwiseConv",
                             "strategies": [
+
                                 {"name" : "streamingStrategies",  "value" : ["StreamOverH","StreamOverW"]},
                                 {"name" : "clusteringStrategies", "value" : ["SplitOverH","SplitOverK","Clustering"]},
                                 {"name" : "inputActivationSparsity",             "value" : false},
@@ -334,7 +335,6 @@
     "root": {
         "Singular": [
             "initialize",
-            "validate",
             "adapt",
             "kmb_adapt",
             "dma",

@@ -46,6 +46,7 @@ void alignTaskWeightsFcn(const mv::pass::PassEntry& , mv::ComputationModel& mode
 
         std::vector<mv::Data::OpListIterator> toUpdate;
         bool hasAtLeastOneDPUTask = false;
+        bool hasAtLeastOneUPATask = false;
         bool hasSliceOp = false;
         std::string dpuTaskType;
         for(auto opIt = kernelOp.leftmostChild(); opIt != om.opEnd(); ++opIt)
@@ -58,6 +59,10 @@ void alignTaskWeightsFcn(const mv::pass::PassEntry& , mv::ComputationModel& mode
                     dpuTaskType = opIt->get<std::string>("taskOp");
                 else if(dpuTaskType != opIt->get<std::string>("taskOp"))
                     throw "Assumption violated!";
+            }
+            else if(opIt->getOpType() == "UPATask")
+            {
+                hasAtLeastOneUPATask = true;
             }
             else if (opIt->getOpType() == "Slice")
             {
@@ -135,5 +140,12 @@ void alignTaskWeightsFcn(const mv::pass::PassEntry& , mv::ComputationModel& mode
                 flowPair.first->set<mv::QuantizationParams>("quantParams", quantParams);
             }
         }
+        else if (hasAtLeastOneUPATask)
+        {
+            auto kernel = kernelOp->getOutputTensor(0);
+            kernel->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation("DEFAULT"));
+        }
+
+
     }
 }

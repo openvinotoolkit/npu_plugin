@@ -497,9 +497,51 @@ namespace mv
                 return false;
             }
 
+            int8_t checkHWUnsupportedOp(mv::Op& op)
+            {
+                int8_t executableInHW = 0;
+                if (op.getOpType() == "Conv" || op.getOpType() == "DepthwiseConv" || op.getOpType() == "MaxPool"
+                        || op.getOpType() == "Eltwise")
+                {
+                    for (std::size_t input_gates = 0; input_gates < op.getInputTensor().size(); input_gates++)
+                    {
+                        if (input_gates == 0)
+                        {
+                            if (op.getInputTensor(input_gates)->getShape()[mv::IO_WIDTH_DIMENSION] > 8192 ||
+                                op.getInputTensor(input_gates)->getShape()[mv::IO_HEIGHT_DIMENSION] > 8192 ||
+                                op.getInputTensor(input_gates)->getShape()[mv::IO_CHANNEL_DIMENSION] > 8192 ||
+                                op.getOutputTensor(input_gates)->getShape()[mv::IO_WIDTH_DIMENSION] > 8192 ||
+                                op.getOutputTensor(input_gates)->getShape()[mv::IO_HEIGHT_DIMENSION] > 8192 ||
+                                op.getOutputTensor(input_gates)->getShape()[mv::IO_CHANNEL_DIMENSION] > 8192 )
+                                    executableInHW = 1;
+                        }
+                        else if (input_gates == 1 && op.getOpType() == "Eltwise")
+                        {
+                            if (op.getInputTensor(input_gates)->getShape()[mv::IO_WIDTH_DIMENSION] > 8192 ||
+                                op.getInputTensor(input_gates)->getShape()[mv::IO_HEIGHT_DIMENSION] > 8192 ||
+                                op.getInputTensor(input_gates)->getShape()[mv::IO_CHANNEL_DIMENSION] > 8192)
+                                executableInHW = 1;
+                        }
+                        else if (op.getOpType() != "MaxPool" && op.getOpType() != "Eltwise")
+                        //Note: all the ops have maximum a second input (weights) at G.O stage
+                        {
+                            if (op.getInputTensor(input_gates)->getShape()[mv::KERNEL_WIDTH] > 11 ||
+                                op.getInputTensor(input_gates)->getShape()[mv::KERNEL_HEIGHT] > 11 ||
+                                op.getInputTensor(input_gates)->getShape()[mv::KERNEL_INPUT_CHANNELS] > 8192 ||
+                                op.getInputTensor(input_gates)->getShape()[mv::KERNEL_OUTPUT_CHANNELS] > 8192)
+                                executableInHW = 2;
+                            auto stride_array = op.getAttrs().at("stride").get<std::array<unsigned short, 2>>();
+                            if (stride_array[0] > 8 || stride_array[1] > 8)
+                                executableInHW = 3;
+                        }
+                    }
+                }
+                return executableInHW;
+            }
             //Check to see if a given stategy is internally consistent for performance
             //Strategies that can only have infinite edges because they are illegal should never be added to the graph
-            int checkForBadStrategy(mv::Op& op,StrategySet& strategy){
+            int checkForBadStrategy(mv::Op& op,StrategySet& strategy)
+            {
                 auto clustering = strategy["clustering"].get<string>();
                 auto weightsSparsity = strategy["weightsSparsity"].get<bool>();
                 auto streamShape = strategy["streaming"].get<Shape>();
@@ -565,7 +607,8 @@ namespace mv
                 if( !enableChannelMajorConv and clustering == "SplitOverHOverlapped")
                     return 9;
                 
-                if( enableChannelMajorConv and op.getOpType() == "Conv"){
+                if( enableChannelMajorConv and op.getOpType() == "Conv")
+                {
                     auto weightsShape = op.getInputTensor(1)->getShape();
                     auto numInChannels = weightsShape[KERNEL_INPUT_CHANNELS];
                     if ( numInChannels < 16 ) //assume channel major conv
@@ -584,8 +627,18 @@ namespace mv
 
                 auto parentClustering = parent["clustering"].get<string>();
                 auto childClustering = child["clustering"].get<string>();
-
-                if(createStrategyDots){
+                int8_t success = checkHWUnsupportedOp(parentOp);
+                if (success != 0)
+                {
+                    if (success == 1)
+                        log(mv::Logger::MessageType::Warning, "The limitation of the tensor dimension 8192 might be hitted with the \
+                            operation " + parentOp.getName());
+                     else
+                        log(mv::Logger::MessageType::Error, "Unsupported kernel/stride combination for DpuTask for \
+                            the operation " + parentOp.getName());
+                }
+                if(createStrategyDots)
+                {
                     int strategyCheck = checkForBadStrategy(parentOp,parent);
                     if(strategyCheck > 0)
                     {
@@ -659,6 +712,13 @@ namespace mv
                     }
                 }
 
+                if (parentOp.getOpType() == "DepthwiseConv")
+                {
+                    if ((parentOp.getInputTensor(0)->getShape()[mv::IO_CHANNEL_DIMENSION] > 8192)
+                            && (parent["streaming"].get<Shape>()["K"] == 1))
+                        return INF;
+                }
+
                 if( childOp.getOpType() == "Conv")
                 {
                     auto weightsShape = childOp.getInputTensor(1)->getShape();
@@ -696,6 +756,7 @@ namespace mv
                     if (parentClustering == "HKSwitch")
                         return INF;
                 }
+
 
                 //These sparsity rules apply pairwise, and effect memory size and execution time.
                 //Make a local decision to get the correct runtime and execution time, but don't persist
@@ -920,6 +981,13 @@ namespace mv
                                 streamsOverK = getMaxStreamOverK(clustering.get<string>(),op);
                             else
                                 streamsOverK.push_back(1);
+                            //Note: This is a kind of hack, StreamOverK has no sense for Depthwise convolution
+                            //because there is no K dimension. However StreamOverK for now from graph optimizer
+                            //side, in the streaming pass will be translated StreamOverC.
+                            if (op.getOpType() == "DepthwiseConv")
+                            {
+                                streamsOverK = {1,2};
+                            }
 
                             bool enableNestedStreaming = false;
                             auto maxK = streamsOverK.back();

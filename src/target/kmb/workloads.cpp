@@ -399,7 +399,7 @@ mv::CostFunctions mv::Workloads::getCostFunction(mv::Element& passDesc, const mv
             pass.log(mv::Logger::MessageType::Warning, "Could not parse the Cost Function type (only \"balanced | criticalpath | minmax | greedy\" currently supported). Using \"Balanced\"...");
     }
     else
-        pass.log(mv::Logger::MessageType::Info, "No Cost Function specified in descriptor, using \"Balanced\"...");
+        pass.log(mv::Logger::MessageType::Debug, "No Cost Function specified in descriptor, using \"Balanced\"...");
     return costFunction;
 }
 

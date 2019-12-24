@@ -9,7 +9,7 @@
 
 static void computeTensorsQuantParams(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 template <class T>
-std::vector<T> extendToK(size_t size, std::vector<T> value);
+std::vector<T> extendToK(size_t size, std::vector<T> value, std::string tensorName);
 
 namespace mv
 {
@@ -73,21 +73,21 @@ void computeTensorsQuantParams(const mv::pass::PassEntry&, mv::ComputationModel&
                  auto& inputQuantization = input->get<mv::QuantizationParams>("quantParams");
                  //inputQuantization.extendParamsToOutputChannelSize(outputChannels);
 
-                 auto scale = extendToK(outputChannels, inputQuantization.getScale());
+                 auto scale = extendToK(outputChannels, inputQuantization.getScale(), input->getName());
                  std::vector<float> S2(scale.begin(), scale.end());
 
                  mv::QuantizationParams &outputQuantization = output->get<mv::QuantizationParams>("quantParams");
-                 scale = extendToK(outputChannels, outputQuantization.getScale());
+                 scale = extendToK(outputChannels, outputQuantization.getScale(), output->getName());
                  std::vector<float> S3(scale.begin(), scale.end());
 
-                 auto zeroPointU =  extendToK(outputChannels, outputQuantization.getZeroPoint());
+                 auto zeroPointU =  extendToK(outputChannels, outputQuantization.getZeroPoint(), output->getName());
                  std::vector<int32_t> zeroPoint(zeroPointU.begin(), zeroPointU.end());
 
                  bool isPooling = taskOp == "MaxPool";
                  //Workaround for HW bug #227
                  if (isPooling)
                  {
-                     auto inZP = extendToK(outputChannels, inputQuantization.getZeroPoint());
+                     auto inZP = extendToK(outputChannels, inputQuantization.getZeroPoint(), input->getName());
                      std::vector<int32_t> inputZeroPoint(inZP.begin(), inZP.end());
                      std::transform(zeroPoint.begin(), zeroPoint.end(), inputZeroPoint.begin(), zeroPoint.begin(), std::minus<int32_t>());
                  }
@@ -98,7 +98,7 @@ void computeTensorsQuantParams(const mv::pass::PassEntry&, mv::ComputationModel&
                  {
                      auto weights = opIt->getInputTensor(1);
                      auto& weightsQuantization = weights->get<mv::QuantizationParams>("quantParams");
-                     scale = extendToK(outputChannels, weightsQuantization.getScale());
+                     scale = extendToK(outputChannels, weightsQuantization.getScale(), weights->getName());
                      std::vector<float> S1(scale.begin(), scale.end());
                      //S1*S2
                      std::transform(m.begin(), m.end(), S1.begin(), m.begin(), std::multiplies<float>());
@@ -159,7 +159,7 @@ void computeTensorsQuantParams(const mv::pass::PassEntry&, mv::ComputationModel&
 }
 
 template <class T>
-std::vector<T> extendToK(size_t size, std::vector<T> value)
+std::vector<T> extendToK(size_t size, std::vector<T> value, std::string tensorName)
 {
     if (value.size() == 1)
         return mv::utils::generateSequence<T>(size, static_cast<T>(value[0]) , 0);
@@ -177,6 +177,6 @@ std::vector<T> extendToK(size_t size, std::vector<T> value)
     if (value.size() == size)
         return value;
 
-    throw mv::ArgumentError("QuantizationPass", "extendToK", "parameters dimensions doesn't match size of output_channels or 1",
+    throw mv::ArgumentError("QuantizationPass", "extendToK", "parameters for " + tensorName + " dimensions doesn't match size of output_channels or 1",
                 std::to_string(value.size()));
 }

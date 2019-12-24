@@ -61,7 +61,7 @@ void storeLayerSplitStrategyFcn(const mv::pass::PassEntry& pass, mv::Computation
 
     if (!globalParams->hasAttr("split_strategy"))
     {
-        pass.log(mv::Logger::MessageType::Info, "No custom splitting strategy provided, exiting...");
+        pass.log(mv::Logger::MessageType::Debug, "No custom splitting strategy provided, exiting...");
         return;
     }
 
@@ -76,12 +76,12 @@ void storeLayerSplitStrategyFcn(const mv::pass::PassEntry& pass, mv::Computation
             storeStrategy(opIt, strategyList);
     }
 
-    pass.log(mv::Logger::MessageType::Info, "----splitting strategies for individual layers----");
+    pass.log(mv::Logger::MessageType::Debug, "----splitting strategies for individual layers----");
     for (auto opIt = om.opBegin(); opIt != om.opEnd(); ++opIt)
     {
         if (opIt->hasAttr("splitStrategy"))
         {
-            pass.log(mv::Logger::MessageType::Info, "op: " + opIt->getName() +
+            pass.log(mv::Logger::MessageType::Debug, "op: " + opIt->getName() +
                         " | strategy = " + opIt->get<std::string>("splitStrategy"));
         }
     }
@@ -95,7 +95,7 @@ void storeLayerSparsityStrategyFcn(const mv::pass::PassEntry& pass, mv::Computat
 
     if (!globalParams->hasAttr("sparsity_strategy"))
     {
-        pass.log(mv::Logger::MessageType::Info, "No custom sparsity strategy provided, exiting...");
+        pass.log(mv::Logger::MessageType::Debug, "No custom sparsity strategy provided, exiting...");
         return;
     }
 
@@ -180,7 +180,7 @@ void storeTensorPlacementFcn(const mv::pass::PassEntry& pass,
                     found = true;
                     mv::Tensor::MemoryLocation location(memLocation,forced);
                     tensorIt->set<mv::Tensor::MemoryLocation>("Location",location);
-                    pass.log(mv::Logger::MessageType::Info,"setting tensor " +
+                    pass.log(mv::Logger::MessageType::Debug,"setting tensor " +
                                 tensorIt->getName() + " as " + location.toString());
                 }
             }
@@ -188,13 +188,13 @@ void storeTensorPlacementFcn(const mv::pass::PassEntry& pass,
             if((not found) and (not tensorIt->hasAttr("Location")))
             {
                 tensorIt->set<mv::Tensor::MemoryLocation>("Location",mv::Tensor::MemoryLocation::DEFAULT);
-                pass.log(mv::Logger::MessageType::Info,"tensor " + tensorIt->getName() + "not found. setting to DEFAULT");
+                pass.log(mv::Logger::MessageType::Debug,"tensor " + tensorIt->getName() + "not found. setting to DEFAULT");
             }
         }
     }
     else
     {
-        pass.log(mv::Logger::MessageType::Info, "No tensor placement override provided, exiting...");
+        pass.log(mv::Logger::MessageType::Debug, "No tensor placement override provided, exiting...");
 
     }
 
