@@ -214,10 +214,33 @@ std::tuple<mv::Data::TensorIterator, mv::Data::TensorIterator,mv::Data::TensorIt
         {
             if (kernelTensor->hasAttr("quantParams"))
             {
+                auto sliceQuantParams = kernelTensor->get<mv::QuantizationParams>("quantParams");
+                if (kernelTensor->get<mv::QuantizationParams>("quantParams").getScale().size())
+                {
+                    std::size_t outputChannelsofSlice, starting_point;
+                    if (op->getOpType() == "Conv")
+                    {
+                        outputChannelsofSlice = childTiles[split].getSize()[mv::KERNEL_OUTPUT_CHANNELS];
+                        starting_point = childTiles[split].getStartCoord()[mv::KERNEL_OUTPUT_CHANNELS];
+                    }
+                    else if (op->getOpType() == "DepthwiseConv")
+                    {
+                        outputChannelsofSlice = childTiles[split].getSize()[mv::KERNEL_INPUT_CHANNELS];
+                        starting_point = childTiles[split].getStartCoord()[mv::KERNEL_INPUT_CHANNELS];
+                    }
+                    std::vector<double> scales(outputChannelsofSlice);
+                    std::vector<int64_t> zeros(outputChannelsofSlice);
+                    for (std::size_t i = starting_point; i < starting_point + outputChannelsofSlice; i++)
+                    {
+                        scales.at(i - starting_point) = sliceQuantParams.getScale()[i];
+                        zeros.at(i - starting_point) = sliceQuantParams.getZeroPoint()[i];
+                    }
+                    sliceQuantParams = mv::QuantizationParams(zeros, scales, sliceQuantParams.getMin(), sliceQuantParams.getMax());
+                }
                 slice = om.slice(kernelTensor,
                                 childTiles[split].getStartCoord(),
                                 childTiles[split].getSize(),
-                                kernelTensor->get<mv::QuantizationParams>("quantParams"),
+                                sliceQuantParams,
                                 kernelTensor->getName() + inputTensor->getName() + "_sliceK_" + std::to_string(split));
             }
             else
