@@ -46,7 +46,7 @@ void storeWorkloadStrategyFcn(const mv::pass::PassEntry& pass, mv::ComputationMo
 
     if (!globalParams->hasAttr("workload_strategy"))
     {
-        pass.log(mv::Logger::MessageType::Info, "No custom workload strategy provided, exiting...");
+        pass.log(mv::Logger::MessageType::Debug, "No custom workload strategy provided, exiting...");
         return;
     }
 

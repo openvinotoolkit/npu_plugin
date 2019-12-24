@@ -270,6 +270,7 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
         toBuild->quant_zero = std::vector<unsigned char>(quantZero.begin(), quantZero.end());
 
         auto quantScale = quantizationParams.getScale();
+
         toBuild->quant_scale = std::vector<float>(quantScale.begin(), quantScale.end());
 
         std::vector<unsigned> quantMult = {};
@@ -428,6 +429,7 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
             quantShift = quantizationParams.getShift();
         quantShift = reduceQuantVector_(quantShift);
         toBuild->quant_shift = std::vector<unsigned char>(quantShift.begin(), quantShift.end());
+
     }
 
     return toBuild;
@@ -468,7 +470,6 @@ std::unique_ptr<MVCNN::SummaryHeaderT> mv::RuntimeModel::buildSummaryHeaderT(Com
     toBuild->net_output[0] = buildTensorReferenceT(cm, compilationDescriptor, om.getOutput()->getInputTensor(0));
     if (paddOutput && om.getOutput()->getInputTensor(0)->hasAttr("alignment"))
         alignTensor(cm, toBuild->net_output[0], *om.getOutput()->getInputTensor(0), paddOutput);
-
     auto taskCount = [](mv::OpModel m)
     {
         unsigned i = 0;
@@ -2134,7 +2135,6 @@ void mv::RuntimeModel::buildGraphFile(ComputationModel& cm, mv::Element& compila
         //std::cout << "Serializing to binary data section " << tensorIt->getName() << std::endl;
         graphFile_.binary_data.push_back(buildBinaryDataT(cm, compilationDescriptor, *tIt));
     }
-
     // TASKS
     graphFile_.task_lists = buildTaskListT(cm, compilationDescriptor);
 
@@ -2157,7 +2157,7 @@ void mv::RuntimeModel::serialize(const std::string& filename)
 {
     serialize();
     if (flatbuffers::SaveFile((filename).c_str(), binaryData_->data(), binaryData_->size(), true))
-        Logger::log(mv::Logger::MessageType::Info, "RuntimeModel", "File successfully written to: " + filename);
+        Logger::log(mv::Logger::MessageType::Debug, "RuntimeModel", "File successfully written to: " + filename);
     else
         Logger::log(mv::Logger::MessageType::Error, "RuntimeModel", "File was not created. Check configuration");
 }
@@ -2181,7 +2181,7 @@ void mv::RuntimeModel::deserialize(char * dataBuffer, int length)
     flatbuffers::Verifier verifier(reinterpret_cast<const unsigned char*>(dataBuffer), length);
     if (!MVCNN::VerifyGraphFileBuffer(verifier))
         throw ArgumentError("tools:GraphComparator", "file:content", "invalid", "GraphFile verification failed");
-    Logger::log(mv::Logger::MessageType::Info, "RuntimeModel", "GraphFile verification successful");
+    Logger::log(mv::Logger::MessageType::Debug, "RuntimeModel", "GraphFile verification successful");
     const MVCNN::GraphFile *graphPtr = MVCNN::GetGraphFile(dataBuffer);
     graphPtr->UnPackTo(&graphFile_);
 }

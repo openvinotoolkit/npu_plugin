@@ -12,7 +12,7 @@ int main()
     mv::Shape new_shape({21,1,1917,1});
     auto reshape0 = om.reshape(input0, new_shape, mv::DType("Float16"));
     om.output(reshape0);
-    
+
     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/release_kmb_MC-Prefetch1.json";
     unit.loadCompilationDescriptor(compDescPath);
     unit.loadTargetDescriptor(mv::Target::ma2490);

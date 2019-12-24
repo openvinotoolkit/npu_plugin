@@ -45,7 +45,7 @@ void addressHelperPass(const mv::pass::PassEntry& pass, mv::ComputationModel& mo
     auto globalParams = model.getGlobalConfigParams();
     if (!globalParams->hasAttr("address_helper_addresses"))
     {
-        pass.log(mv::Logger::MessageType::Info, "No address helper addresses provided");
+        pass.log(mv::Logger::MessageType::Debug, "No address helper addresses provided");
         return;
     }
 
@@ -82,7 +82,7 @@ void graphfileIndexHelperPass(const mv::pass::PassEntry& pass, mv::ComputationMo
     auto globalParams = model.getGlobalConfigParams();
     if (!globalParams->hasAttr("graphfile_index_helper_addresses"))
     {
-        pass.log(mv::Logger::MessageType::Info, "No address helper addresses provided");
+        pass.log(mv::Logger::MessageType::Debug, "No address helper addresses provided");
         return;
     }
 
@@ -115,7 +115,7 @@ void scheduleHelperPass(const mv::pass::PassEntry& pass, mv::ComputationModel& m
     auto globalParams = model.getGlobalConfigParams();
     if (!globalParams->hasAttr("schedule_helper_edges"))
     {
-        pass.log(mv::Logger::MessageType::Info, "No schedule helper edges provided");
+        pass.log(mv::Logger::MessageType::Debug, "No schedule helper edges provided");
         return;
     }
 

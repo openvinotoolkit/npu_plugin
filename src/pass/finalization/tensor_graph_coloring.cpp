@@ -582,7 +582,7 @@ void tensorGraphColoringFnc(const mv::pass::PassEntry& pass, mv::ComputationMode
 //    bestFitMemoryAllocation(model, agOrder, ddr_bss_g, memsize);
 //    //ddr_bss_g.drawGraph("ddr_bss_memory");
     auto alignment = 16; //memDefs.find("VPU_DDR_Heap")->second.alignment;//TODO for now POC uses 16 for all memory
-    pass.log(mv::Logger::MessageType::Info, " Generating Heap Tig");
+    pass.log(mv::Logger::MessageType::Debug, " Generating Heap Tig");
     mv::TensorInterferenceGraph ddr_heap_g(pass, model, alignment,
             [](const mv::Data::TensorIterator& t) -> bool
             {
@@ -623,7 +623,7 @@ void tensorGraphColoringFnc(const mv::pass::PassEntry& pass, mv::ComputationMode
         ddr_heap_g.drawGraph(passDesc.get<std::string>("heapOutput"));
 
     alignment = 16; //memDefs.find("VPU_CMX_NN")->second.alignment;//TODO for now POC uses 16 for all memory
-    pass.log(mv::Logger::MessageType::Info, " generating cmx TIG");
+    pass.log(mv::Logger::MessageType::Debug, " generating cmx TIG");
     mv::TensorInterferenceGraph nncmx_g(pass, model, alignment, nullptr, nullptr,
     [](const mv::Data::OpListIterator& opIterator) -> bool
     {
@@ -646,13 +646,13 @@ void tensorGraphColoringFnc(const mv::pass::PassEntry& pass, mv::ComputationMode
     false, true);
 
     memsize = globalConfigParams->get<unsigned>("totalCmx");
-    pass.log(mv::Logger::MessageType::Info, " Calling AggressiveSimplify");
+    pass.log(mv::Logger::MessageType::Debug, " Calling AggressiveSimplify");
 
     agOrder = aggressiveSimplify(pass, nncmx_g, memsize, mv::OrderingStrategy::IG_LARGEST_NEIGHBORS_FIRST);
     //printASOrder(agOrder, "NNCMX");
-    pass.log(mv::Logger::MessageType::Info, " Calling bestFitMemoryAllocation");
+    pass.log(mv::Logger::MessageType::Debug, " Calling bestFitMemoryAllocation");
     bestFitMemoryAllocation(pass, model, agOrder, nncmx_g, memsize, !isHeap);
-    pass.log(mv::Logger::MessageType::Info, " Calling DrawGraph");
+    pass.log(mv::Logger::MessageType::Debug, " Calling DrawGraph");
     if(passDesc.hasAttr("cmxOutput"))
         nncmx_g.drawGraph(passDesc.get<std::string>("cmxOutput"));
 

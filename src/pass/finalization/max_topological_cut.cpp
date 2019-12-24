@@ -77,7 +77,7 @@ void maxTopologicalCutAndPartialSerialisationPass(const mv::pass::PassEntry& pas
     networkMemoryRequirement = maxTopologicalCut.first / 1024;
     percentageMemory = (maxTopologicalCut.first / cmxMemory) * 100.00;
 
-    pass.log(mv::Logger::MessageType::Info, "The network requires " + std::to_string(networkMemoryRequirement) + " kB of available CMX memory " + std::to_string(percentageMemory) + "%");
+    pass.log(mv::Logger::MessageType::Debug, "The network requires " + std::to_string(networkMemoryRequirement) + " kB of available CMX memory " + std::to_string(percentageMemory) + "%");
 
     /*Repeat partial serialisation until max topological cut is less than CMX memory*/
     while (maxTopologicalCut.first > cmxMemory)
@@ -88,13 +88,13 @@ void maxTopologicalCutAndPartialSerialisationPass(const mv::pass::PassEntry& pas
             maxTopologicalCut = flowGraph.calculateMaxTopologicalCut(pass, model);
             networkMemoryRequirement = maxTopologicalCut.first / 1024;
             percentageMemory = (maxTopologicalCut.first / cmxMemory) * 100;
-            pass.log(mv::Logger::MessageType::Info, "The network requires " + std::to_string(networkMemoryRequirement) + " kB of available CMX memory " + std::to_string(percentageMemory) + "%");
+            pass.log(mv::Logger::MessageType::Debug, "The network requires " + std::to_string(networkMemoryRequirement) + " kB of available CMX memory " + std::to_string(percentageMemory) + "%");
         }
         else
         {
             // Need to mark the edges, the failure and exit the pass
             markControlFlows(cm, maxTopologicalCut);
-            pass.log(mv::Logger::MessageType::Info, "MaxTopologicalCut fails");
+            pass.log(mv::Logger::MessageType::Debug, "MaxTopologicalCut fails");
             return;
         }
     }
@@ -115,11 +115,11 @@ void maxTopologicalCutAndPartialSerialisationPass(const mv::pass::PassEntry& pas
     networkMemoryRequirement = maxTopologicalCut.first / 1024;
     percentageMemory = (maxTopologicalCut.first / cmxMemory) * 100.00;
 
-    pass.log(mv::Logger::MessageType::Info, "After PS the network now requires " + std::to_string(networkMemoryRequirement) + " kB of available CMX memory " + std::to_string(percentageMemory) + "%");
+    pass.log(mv::Logger::MessageType::Debug, "After PS the network now requires " + std::to_string(networkMemoryRequirement) + " kB of available CMX memory " + std::to_string(percentageMemory) + "%");
     
     if(maxTopologicalCut.first > cmxMemory)
         throw std::runtime_error("The maximum peak memory requirment of the graph exceeds CMX after PS, logic is broken!!!");
     
-    pass.log(mv::Logger::MessageType::Info, "Exiting max cut pass ");
+    pass.log(mv::Logger::MessageType::Debug, "Exiting max cut pass ");
 
 }

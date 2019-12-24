@@ -317,7 +317,10 @@ std::vector<int64_t> mv::Tensor::getZeroPointsPerChannel() const
     {
         auto quantParams = get<mv::QuantizationParams>("quantParams");
         for (size_t t=0; t < zeroPoint.size(); t++)
-            zeroPoint[t] = quantParams.getZeroPoint(t);
+        {
+            //Note: For now support of 1 channel zero point
+            zeroPoint[t] = quantParams.getZeroPoint(0);
+        }
     }
     return zeroPoint;
 }
