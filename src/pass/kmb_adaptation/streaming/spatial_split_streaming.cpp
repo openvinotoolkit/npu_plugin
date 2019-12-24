@@ -214,8 +214,6 @@ std::tuple<mv::Data::TensorIterator, mv::Data::TensorIterator,mv::Data::TensorIt
         {
             if (kernelTensor->hasAttr("quantParams"))
             {
-                auto vbegin = childTiles[split].getStartCoord();
-                auto vsize = childTiles[split].getSize();
                 slice = om.slice(kernelTensor,
                                 childTiles[split].getStartCoord(),
                                 childTiles[split].getSize(),
@@ -650,6 +648,8 @@ void streamingOperationsFcn(const mv::pass::PassEntry& pass,
             if (axisToSplit == "K")
             {
                 masterTile.setSize(opIt->getInputTensor(1)->getShape());
+                //Note: StreamOverK for depthwise convolution has no sense, but is handled
+                //like StreamOverC...
                 if (opType == "DepthwiseConv")
                     masterTile.setAxis("C");
                 masterTile.generateWeightsTiling();

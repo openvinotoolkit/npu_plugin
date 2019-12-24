@@ -981,6 +981,9 @@ namespace mv
                                 streamsOverK = getMaxStreamOverK(clustering.get<string>(),op);
                             else
                                 streamsOverK.push_back(1);
+                            //Note: This is a kind of hack, StreamOverK has no sense for Depthwise convolution
+                            //because there is no K dimension. However StreamOverK for now from graph optimizer
+                            //side, in the streaming pass will be translated StreamOverC.
                             if (op.getOpType() == "DepthwiseConv")
                             {
                                 streamsOverK = {1,2};

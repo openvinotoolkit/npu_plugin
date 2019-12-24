@@ -87,18 +87,10 @@ void addSliceQuantizationLayer(mv::OpModel om, std::vector<mv::Data::OpListItera
             }
         }
     }
-    for(auto& task : slices)
+    for(auto& slice : slices)
     {
-        if (task->hasAttr("taskOp") && task->get<std::string>("taskOp") == "Quantize")
-        {
-            auto quantParams = task->get<mv::QuantizationParams>("quantParams");
-            auto output = task->getOutputTensor(0);
-            output->set<mv::QuantizationParams>("quantParams", quantParams);
-            continue;
-        }
-
-        auto inputFlow = task.leftmostInput();
-        auto outputDType = task->getOutputTensor(0)->getDType();
+        auto inputFlow = slice.leftmostInput();
+        auto outputDType = slice->getOutputTensor(0)->getDType();
         std::size_t id = 0;
         while(inputFlow != om.flowEnd())
         {
@@ -109,21 +101,20 @@ void addSliceQuantizationLayer(mv::OpModel om, std::vector<mv::Data::OpListItera
             if(!tensor->isPopulated() && tensorDType != dtypeNeededInInput)
             {
                 auto quantize = om.uPATaskQuantize({tensor}, outputDType,
-                            tensor->get<mv::QuantizationParams>("quantParams"), "Quantize" + task->getName() + std::to_string(id));
+                            tensor->get<mv::QuantizationParams>("quantParams"), "Quantize" + slice->getName() + std::to_string(id));
                 quantize->set<std::string>("splitStrategy",
                             tensor->get<std::string>("splitStrategy"));
                 auto quantizeOp = om.getSourceOp(quantize);
-                quantizeOp->set<unsigned>("opId", task->get<unsigned>("opId"));
+                quantizeOp->set<unsigned>("opId", slice->get<unsigned>("opId"));
                 auto backup = inputFlow;
                 auto slot = backup->get<size_t>("sinkInput");
                 ++inputFlow;
-//                om.undefineFlow(backup);
                 for (auto flow:sliceFlows[tensor->getName()])
                 {
                     om.undefineFlow(flow);
                 }
-                task->setInputTensor(quantize, slot, false);
-                om.defineFlow(quantize, task, slot);
+                slice->setInputTensor(quantize, slot, false);
+                om.defineFlow(quantize, slice, slot);
                 for (auto op:sliceLeafs[tensor->getName()])
                 {
                     op->setInputTensor(quantize, slot, false);
