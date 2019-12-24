@@ -436,10 +436,10 @@ void KmbInferRequest::SetBlob(const char* name, const InferenceEngine::Blob::Ptr
                                << "Failed to set Blob with precision not corresponding to user output precision";
         }
         if (getKmbAllocator()->isValidPtr(data->buffer())) {
-            _inputs[name] = data;
+            _outputs[name] = data;
         } else {
-            _logger->info("isValidPtr(): Input blob will be copied");
-            _custom_inputs[name] = data;
+            _logger->info("isValidPtr(): Output blob will be copied");
+            _custom_outputs[name] = data;
         }
     }
 }

@@ -633,7 +633,7 @@ const static std::vector<bool> isSyncVec = {false, true};
 INSTANTIATE_TEST_CASE_P(multipleInference, VpuInferAndCompareTestsWithParam,
     ::testing::Combine(::testing::ValuesIn(isSyncVec), ::testing::ValuesIn(pathToPreCompiledGraph)));
 
-TEST_P(VpuInferWithPath, compareSetBlobAndGetBlob) {
+TEST_P(VpuInferWithPath, compareSetBlobAndGetBlobInput) {
     modelBlobsInfo blobsInfo = GetParam();
     std::string graphSuffix = blobsInfo._graphPath;
     std::string modelFilePath = ModelsPath() + graphSuffix;
@@ -655,14 +655,55 @@ TEST_P(VpuInferWithPath, compareSetBlobAndGetBlob) {
                         {Precision::U8, inputTensorDesc.getDims(), Layout::NCHW}));
     inputBlob->allocate();
 
-    u_int8_t* ptr = inputBlob->buffer();
-    memset(ptr, 0xFF, inputBlob->byteSize());
+    auto inputBufferData = inputBlob->buffer().as<uint8_t*>();
+    std::fill(inputBufferData, inputBufferData + inputBlob->byteSize(), 0xFF);
+
     ASSERT_NO_THROW(inferRequest.SetBlob(input_name, inputBlob));
     Blob::Ptr newInputBlob;
     ASSERT_NO_THROW(newInputBlob = inferRequest.GetBlob(input_name));
 
-    ASSERT_EQ(StatusCode::OK, memcmp(inputBlob->buffer(), newInputBlob->buffer(), inputBlob->byteSize()));
+    ASSERT_TRUE(std::equal(static_cast<u_int8_t*>(inputBlob->buffer()),
+        static_cast<u_int8_t*>(inputBlob->buffer()) + inputBlob->byteSize(),
+        static_cast<u_int8_t*>(newInputBlob->buffer())));
     ASSERT_EQ((void*)inputBlob->buffer(), (void*)newInputBlob->buffer());
+}
+
+TEST_P(VpuInferWithPath, compareSetBlobAndGetBlobOutput) {
+    modelBlobsInfo blobsInfo = GetParam();
+    std::string graphSuffix = blobsInfo._graphPath;
+    std::string modelFilePath = ModelsPath() + graphSuffix;
+
+    Core ie;
+    InferenceEngine::ExecutableNetwork importedNetwork;
+    ASSERT_NO_THROW(importedNetwork = ie.ImportNetwork(modelFilePath, "KMB"));
+
+    InferenceEngine::InferRequest inferRequest;
+    ASSERT_NO_THROW(inferRequest = importedNetwork.CreateInferRequest());
+
+    ConstOutputsDataMap outputInfo = importedNetwork.GetOutputsInfo();
+
+    ASSERT_TRUE(!outputInfo.empty());
+
+    std::string output_name = outputInfo.begin()->first;
+
+    InferenceEngine::TensorDesc outputTensorDesc = inferRequest.GetBlob(output_name)->getTensorDesc();
+
+    Blob::Ptr outputBlob;
+    ASSERT_NO_THROW(outputBlob = InferenceEngine::make_shared_blob<uint8_t>(
+                        {Precision::U8, outputTensorDesc.getDims(), Layout::NCHW}));
+    outputBlob->allocate();
+
+    auto outputBufferData = outputBlob->buffer().as<uint8_t*>();
+    std::fill(outputBufferData, outputBufferData + outputBlob->byteSize(), 0xFF);
+
+    ASSERT_NO_THROW(inferRequest.SetBlob(output_name, outputBlob));
+    Blob::Ptr newOutputBlob;
+    ASSERT_NO_THROW(newOutputBlob = inferRequest.GetBlob(output_name));
+
+    ASSERT_TRUE(std::equal(static_cast<u_int8_t*>(outputBlob->buffer()),
+        static_cast<u_int8_t*>(outputBlob->buffer()) + outputBlob->byteSize(),
+        static_cast<u_int8_t*>(newOutputBlob->buffer())));
+    ASSERT_EQ((void*)outputBlob->buffer(), (void*)newOutputBlob->buffer());
 }
 
 TEST_P(VpuInferWithPath, compareSetBlobAndGetBlobAfterInfer) {
