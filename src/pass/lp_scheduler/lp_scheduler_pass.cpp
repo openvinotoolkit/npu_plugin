@@ -94,6 +94,21 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
   FILE *fptr = fopen(output_file.c_str(), "w");
   assert(fptr);
 
+  // precondition check //
+  {
+    std::list< std::pair<dag_t::operation_t, size_t> > exceeding_ops;
+
+    input_dag.find_all_ops_exceeding_resource_threshold(upper_bound,
+        std::back_inserter(exceeding_ops));
+
+    for (auto itr=exceeding_ops.begin(); itr!=exceeding_ops.end(); ++itr) {
+      printf("[exceeding op:] %s resource=%lu\n",
+          (itr->first)->getName().c_str(), (itr->second));
+    }
+    assert(exceeding_ops.empty());
+  }
+
+
   LpSchedulerBuildTimeStamp(fptr);
 
   // generate tensor addresses //

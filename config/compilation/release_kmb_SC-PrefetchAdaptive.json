@@ -213,10 +213,6 @@
             "TaskControlFlows",
             "TransitiveReduction",
             "LayerNumbering",
-            {
-                "name": "HangingDmaControlFlows",
-                "weights_prefetch": 1
-            },
             "TransitiveReduction",
             "LayerNumbering",
             "NNCMX2DDRControlFlows",
@@ -320,6 +316,13 @@
             {
                 "name": "GenerateBlobKmb",
                 "output": "output/mcm.blob"
+            },
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/before_after_serialization_control.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
             },
             {
                 "name": "ConvertFlatbuffer",
