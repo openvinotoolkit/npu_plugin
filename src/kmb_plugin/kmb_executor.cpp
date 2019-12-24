@@ -139,7 +139,7 @@ void KmbExecutor::initVpualObjects() {
     }
 #endif
 }
-
+#ifdef ENABLE_VPUAL
 static InferenceEngine::Layout getIOLayout(const flicTensorDescriptor_t & descTemp) {
     InferenceEngine::Layout tensorLayout = InferenceEngine::Layout::NCHW;
     std::vector<uint32_t> strides {descTemp.heightStride, descTemp.widthStride, descTemp.channelsStride};
@@ -166,6 +166,7 @@ static InferenceEngine::Layout getIOLayout(const flicTensorDescriptor_t & descTe
 
     return tensorLayout;
 }
+#endif
 
 void KmbExecutor::allocateGraph(const std::vector<char> &graphFileContent) {
     auto parsedConfig = _config.getParsedConfig();
