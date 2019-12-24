@@ -215,7 +215,7 @@ std::tuple<mv::Data::TensorIterator, mv::Data::TensorIterator,mv::Data::TensorIt
             if (kernelTensor->hasAttr("quantParams"))
             {
                 auto sliceQuantParams = kernelTensor->get<mv::QuantizationParams>("quantParams");
-                if (kernelTensor->get<mv::QuantizationParams>("quantParams").getScale().size())
+                if (kernelTensor->get<mv::QuantizationParams>("quantParams").getScale().size() > 1)
                 {
                     std::size_t outputChannelsofSlice, starting_point;
                     if (op->getOpType() == "Conv")
