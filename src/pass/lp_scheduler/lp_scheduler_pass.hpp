@@ -134,7 +134,9 @@ struct Tensor_Allocator_Assignment {
     auto tensor_alloc= dm.getAllocator(*tensor_alloc_name);
     mv::Data::BufferIterator tensor_buffer_itr =
         tensor_alloc.getBuffer(0, tensor_itr);
-    tensor_buffer_itr->setOffset(tensor_itr->get<size_t>("address"));
+    mv::Data::BufferIterator master_tensor_buffer_itr =
+        tensor_alloc.getTopMasterBuffer(tensor_buffer_itr);
+    master_tensor_buffer_itr->setOffset((tensor_itr->get<size_t>("address")));
   }
 
   mv::ComputationModel &model_;

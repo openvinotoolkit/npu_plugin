@@ -88,7 +88,7 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
   dag_t input_dag(cm);
   auto params = model.getGlobalConfigParams();
 
-  dag_t::resource_t upper_bound = params->get<unsigned>("cmx");
+  dag_t::resource_t upper_bound = params->get<unsigned>("totalCmx");
   printf("[upper_bound = %lu]\n", upper_bound);
   std::string output_file = passDesc.get<std::string>("output");
   FILE *fptr = fopen(output_file.c_str(), "w");
@@ -105,6 +105,8 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
 
 
   std::string scheduled_op_type;
+  std::unordered_set<mv::Op const *> spilled_writes;
+
   while (scheduler != scheduler_end) {
     const scheduled_op_info_t &scheduled_op = *scheduler;
     mv::Op const *op = scheduled_op.op_;
@@ -122,7 +124,8 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
 
     
     mv::lp_scheduler::op_type_e scheduled_op_enum;
-    
+   
+    bool select_op = true;
     if (scheduled_op_type == "ORIGINAL") {
       scheduled_op_enum = mv::lp_scheduler::op_type_e::ORIGINAL_OP;
     } else if (scheduled_op_type == "SPILLED_READ") {
@@ -131,24 +134,32 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
     } else {
       scheduled_op_enum = mv::lp_scheduler::op_type_e::SPILLED_WRITE_OP;
       has_any_dynamic_spill_ops = true;
+      if (spilled_writes.find(op) == spilled_writes.end() ) {
+        spilled_writes.insert(op);
+      } else {
+        select_op = false;
+      }
     }
+    
 
-    scheduled_ops.push_back(scheduled_op_t(op, scheduled_op.time_,
-          rbegin, rend, scheduled_op_enum));
+    if (select_op) {
+      scheduled_ops.push_back(scheduled_op_t(op, scheduled_op.time_,
+            rbegin, rend, scheduled_op_enum));
 
-    fprintf(fptr, "op = %-20s  type = %-15s  time = %lu",
-        (scheduled_op.op_)->getName().c_str(), scheduled_op.op_type_name(),
-          scheduled_op.time_);
-    fflush(fptr);
+      fprintf(fptr, "op = %-20s  type = %-15s  time = %lu",
+          (scheduled_op.op_)->getName().c_str(), scheduled_op.op_type_name(),
+            scheduled_op.time_);
+      fflush(fptr);
 
-    if (scheduled_op.has_active_resource()) {
-      fprintf(fptr, " resource=[%lu %lu]\n", scheduled_op.begin_resource(),
-          scheduled_op.end_resource());
-    } else {
-      fprintf(fptr, " resource=<none>\n");
+      if (scheduled_op.has_active_resource()) {
+        fprintf(fptr, " resource=[%lu %lu]\n", scheduled_op.begin_resource(),
+            scheduled_op.end_resource());
+      } else {
+        fprintf(fptr, " resource=<none>\n");
+      }
+
+      cmx_address_alloc(scheduled_op);
     }
-
-    cmx_address_alloc(scheduled_op);
     ++scheduler;
   }
 
