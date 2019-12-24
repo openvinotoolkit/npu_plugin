@@ -317,11 +317,9 @@ TEST_P(PoolingTest, pooling_only) {
     REPLACE_WITH_NUM(model, "_OUTPUT_HEIGHT_", outputSize[2]);
     REPLACE_WITH_NUM(model, "_OUTPUT_WIDTH_", outputSize[3]);
 
-    CNNNetReader reader;
-    ASSERT_NO_THROW(reader.ReadNetwork(model.data(), model.length()));
-    ASSERT_TRUE(reader.isParseSuccess());
-
-    CNNNetwork network = reader.getNetwork();
+    Core ie;
+    InferenceEngine::Blob::CPtr weights;
+    CNNNetwork network = ie.ReadNetwork(model, weights);
 
     auto _inputsInfo = network.getInputsInfo();
     _inputsInfo["input"]->setPrecision(Precision::U8);
@@ -329,7 +327,6 @@ TEST_P(PoolingTest, pooling_only) {
     auto _outputsInfo = network.getOutputsInfo();
     _outputsInfo["pooling_test"]->setPrecision(Precision::U8);
 
-    Core ie;
     ExecutableNetwork exeNetwork;
 
     std::map<std::string, std::string> config;

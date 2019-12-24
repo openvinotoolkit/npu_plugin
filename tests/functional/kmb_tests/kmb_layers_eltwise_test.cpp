@@ -64,11 +64,8 @@ TEST_P(EltwiseTest, TestsEltwiseOnTheSameInputToBothPortsNegative_Test) {
         input_dims(), conv_params(), "U8", "U8", "U8", 0, "I32", "", elt_on_same_input_with_bias_template};
     const std::string model = instantiateConvTestIR(allTestParams);
 
-    CNNNetReader reader;
-    ASSERT_NO_THROW(reader.ReadNetwork(model.data(), model.length()));
-    ASSERT_NO_THROW(reader.SetWeights(weightsBuffer));
-    ASSERT_TRUE(reader.isParseSuccess());
-    const CNNNetwork network = reader.getNetwork();
+    Core ie;
+    CNNNetwork network = ie.ReadNetwork(model, weightsBuffer);
 
     auto _inputsInfo = network.getInputsInfo();
     _inputsInfo["input"]->setPrecision(Precision::U8);
@@ -82,7 +79,6 @@ TEST_P(EltwiseTest, TestsEltwiseOnTheSameInputToBothPortsNegative_Test) {
     config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_BLOB)] = CONFIG_VALUE(YES);
     config[VPU_KMB_CONFIG_KEY(LOAD_NETWORK_AFTER_COMPILATION)] = CONFIG_VALUE(YES);
 
-    Core ie;
     InferenceEngine::ExecutableNetwork exeNetwork;
     ASSERT_ANY_THROW(exeNetwork = ie.LoadNetwork(network, "KMB", config));
 }
@@ -111,11 +107,8 @@ TEST_P(EltwiseTest, TestsEltwiseOnTwoDifferentInputsNegative_Test) {
         input_dims(), conv_params(), "U8", "U8", "U8", 0, "I32", "", elt_on_two_inputs_with_bias_template};
     const std::string model = instantiateConvTestIR(allTestParams);
 
-    CNNNetReader reader;
-    ASSERT_NO_THROW(reader.ReadNetwork(model.data(), model.length()));
-    ASSERT_NO_THROW(reader.SetWeights(weightsBuffer));
-    ASSERT_TRUE(reader.isParseSuccess());
-    const CNNNetwork network = reader.getNetwork();
+    Core ie;
+    CNNNetwork network = ie.ReadNetwork(model, weightsBuffer);
 
     auto _inputsInfo = network.getInputsInfo();
     _inputsInfo["input"]->setPrecision(Precision::U8);
@@ -130,7 +123,6 @@ TEST_P(EltwiseTest, TestsEltwiseOnTwoDifferentInputsNegative_Test) {
     config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_BLOB)] = CONFIG_VALUE(YES);
     config[VPU_KMB_CONFIG_KEY(LOAD_NETWORK_AFTER_COMPILATION)] = CONFIG_VALUE(YES);
 
-    Core ie;
     InferenceEngine::ExecutableNetwork exeNetwork;
     ASSERT_ANY_THROW(exeNetwork = ie.LoadNetwork(network, "KMB", config));
 }
@@ -164,11 +156,13 @@ TEST_P(EltwiseTest, TestsEltwiseAfterScaleShift) {
 
     const std::string model = instantiateConvTestIR(allTestParams);
 
+    IE_SUPPRESS_DEPRECATED_START
     CNNNetReader reader;
     ASSERT_NO_THROW(reader.ReadNetwork(model.data(), model.length()));
     ASSERT_NO_THROW(reader.SetWeights(weightsBuffer));
     ASSERT_TRUE(reader.isParseSuccess());
     const CNNNetwork network = reader.getNetwork();
+    IE_SUPPRESS_DEPRECATED_END
 
     auto _inputsInfo = network.getInputsInfo();
     _inputsInfo["input"]->setPrecision(Precision::U8);

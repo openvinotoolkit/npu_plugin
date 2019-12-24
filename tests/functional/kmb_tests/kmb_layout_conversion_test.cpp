@@ -187,11 +187,8 @@ TEST_P(LayoutConversionTest, layoutConversionTest_manual) {
 
     const std::string& model = layout_conversion_model;
 
-    CNNNetReader reader;
-    reader.ReadNetwork(model.data(), model.length());
-    reader.SetWeights(weightsBuffer);
-    reader.isParseSuccess();
-    CNNNetwork network = reader.getNetwork();
+    Core ie;
+    CNNNetwork network = ie.ReadNetwork(model, weightsBuffer);
 
     auto _inputsInfo = network.getInputsInfo();
     _inputsInfo["input"]->setPrecision(Precision::U8);
@@ -207,7 +204,6 @@ TEST_P(LayoutConversionTest, layoutConversionTest_manual) {
     config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_BLOB)] = CONFIG_VALUE(YES);
     config[VPU_KMB_CONFIG_KEY(LOAD_NETWORK_AFTER_COMPILATION)] = CONFIG_VALUE(YES);
 
-    Core ie;
     InferenceEngine::ExecutableNetwork exeNetwork;
     ASSERT_NO_THROW(exeNetwork = ie.LoadNetwork(network, "KMB", config));
     InferenceEngine::InferRequest inferRequest;
@@ -277,12 +273,14 @@ public:
 
         const std::string& model = layout_conversion_model;
 
+        IE_SUPPRESS_DEPRECATED_START
         CNNNetReader reader;
         reader.ReadNetwork(model.data(), model.length());
         reader.SetWeights(_weightsBuffer);
         reader.isParseSuccess();
 
         _network = reader.getNetwork();
+        IE_SUPPRESS_DEPRECATED_END
     }
 
     CNNNetwork _network;
@@ -354,10 +352,9 @@ TEST_P(LayoutConversionTest, DISABLED_layoutConversionTestPooling_manual) {
 
     const std::string& model = layout_conversion_pooling_model;
 
-    CNNNetReader reader;
-    reader.ReadNetwork(model.data(), model.length());
-    reader.isParseSuccess();
-    CNNNetwork network = reader.getNetwork();
+    Core ie;
+    Blob::CPtr weightsBuffer;
+    CNNNetwork network = ie.ReadNetwork(model, weightsBuffer);
 
     auto _inputsInfo = network.getInputsInfo();
     _inputsInfo["input"]->setPrecision(Precision::U8);
@@ -373,7 +370,6 @@ TEST_P(LayoutConversionTest, DISABLED_layoutConversionTestPooling_manual) {
     config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_BLOB)] = CONFIG_VALUE(YES);
     config[VPU_KMB_CONFIG_KEY(LOAD_NETWORK_AFTER_COMPILATION)] = CONFIG_VALUE(YES);
 
-    Core ie;
     InferenceEngine::ExecutableNetwork exeNetwork;
     ASSERT_NO_THROW(exeNetwork = ie.LoadNetwork(network, "KMB", config));
     InferenceEngine::InferRequest inferRequest;
@@ -430,11 +426,8 @@ TEST_P(LayoutConversionTest, setLayoutAndCompareWithExeNetwork_manual) {
 
     const std::string& model = layout_conversion_model;
 
-    CNNNetReader reader;
-    ASSERT_NO_THROW(reader.ReadNetwork(model.data(), model.length()));
-    ASSERT_NO_THROW(reader.SetWeights(weightsBuffer));
-    ASSERT_TRUE(reader.isParseSuccess());
-    CNNNetwork network = reader.getNetwork();
+    Core ie;
+    CNNNetwork network = ie.ReadNetwork(model, weightsBuffer);
 
     auto _inputsInfo = network.getInputsInfo();
     _inputsInfo["input"]->setPrecision(Precision::U8);
@@ -450,7 +443,6 @@ TEST_P(LayoutConversionTest, setLayoutAndCompareWithExeNetwork_manual) {
     config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_BLOB)] = CONFIG_VALUE(YES);
     config[VPU_KMB_CONFIG_KEY(LOAD_NETWORK_AFTER_COMPILATION)] = CONFIG_VALUE(YES);
 
-    Core ie;
     InferenceEngine::ExecutableNetwork exeNetwork;
     ASSERT_NO_THROW(exeNetwork = ie.LoadNetwork(network, "KMB", config));
 
@@ -483,11 +475,8 @@ TEST_P(LayoutConversionTest, DISABLED_setLayoutExportImportAndCompare_manual) {
 
     const std::string& model = layout_conversion_model;
 
-    CNNNetReader reader;
-    ASSERT_NO_THROW(reader.ReadNetwork(model.data(), model.length()));
-    ASSERT_NO_THROW(reader.SetWeights(weightsBuffer));
-    ASSERT_TRUE(reader.isParseSuccess());
-    CNNNetwork network = reader.getNetwork();
+    Core ie;
+    CNNNetwork network = ie.ReadNetwork(model, weightsBuffer);
 
     auto _inputsInfo = network.getInputsInfo();
     _inputsInfo["input"]->setPrecision(Precision::U8);
@@ -503,7 +492,6 @@ TEST_P(LayoutConversionTest, DISABLED_setLayoutExportImportAndCompare_manual) {
     config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_BLOB)] = CONFIG_VALUE(YES);
     config[VPU_KMB_CONFIG_KEY(LOAD_NETWORK_AFTER_COMPILATION)] = CONFIG_VALUE(YES);
 
-    Core ie;
     InferenceEngine::ExecutableNetwork exportNetwork = ie.LoadNetwork(network, "KMB", config);
 
     std::string blobPath = "compiled.blob";
