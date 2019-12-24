@@ -163,8 +163,7 @@ std::vector<TestingNetworkParameters> vpuCompileTargetNetworksFail = {
     // quantParams - ArgumentError: channel 24 - Invalid index: channel is greater than zeroPoint vector
     TestingNetworkParameters {"mobilenet_v2_uint8_int8_weights_perchannel",
         "/KMB_models/INT8/in_omz/MobileNet_V2/mobilenet_v2_uint8_int8_weights_perchannel.xml",
-        "/KMB_models/INT8/in_omz/MobileNet_V2/mobilenet_v2_uint8_int8_weights_perchannel.bin",
-        "/224x224/cat3.bmp"},
+        "/KMB_models/INT8/in_omz/MobileNet_V2/mobilenet_v2_uint8_int8_weights_perchannel.bin", "/224x224/cat3.bmp"},
 
     // post training models
     // Following test on yolo_v3 fails on IE to mcmCompiler parsing stage with message.
@@ -232,9 +231,9 @@ std::vector<TestingNetworkParameters> vpuCompileTargetNetworksFail = {
     // Test on face-detection-retail-0004 fails on IE to mcmCompiler parsing stage with message
     // C++ exception with description "PriorBoxClustered layer is not supported by kmbPlugin
     TestingNetworkParameters {"face_detection_retail_0004_uint8_int8_weights_pertensor",
-        "/KMB_models/NQA/POST_TRAINING/face-detection-retail-0004/"
+        "/KMB_models/INT8/icv/face-detection-retail-0004/"
         "face-detection-retail-0004-uint8_int8_weights_pertensor.xml",
-        "/KMB_models/NQA/POST_TRAINING/face-detection-retail-0004/"
+        "/KMB_models/INT8/icv/face-detection-retail-0004/"
         "face-detection-retail-0004-uint8_int8_weights_pertensor.bin",
         // TODO : use more relevant for network image when it will be added in validation set
         // and when inference part of the test will be implemented
@@ -244,25 +243,22 @@ std::vector<TestingNetworkParameters> vpuCompileTargetNetworksFail = {
     // Also there are unsupported layers PriorBox and DetectionOutput
     TestingNetworkParameters {"ssd512_caffe_uint8_int8_weights_pertensor",
         "/KMB_models/INT8/in_omz/ssd512/ssd512_caffe_uint8_int8_weights_pertensor.xml",
-        "/KMB_models/INT8/in_omz/ssd512/ssd512_caffe_uint8_int8_weights_pertensor.bin",
-        "/512x512/dog_croped512.bmp"},
+        "/KMB_models/INT8/in_omz/ssd512/ssd512_caffe_uint8_int8_weights_pertensor.bin", "/512x512/dog_croped512.bmp"},
     // post training models
     // Test on caffe based inception_v1 fails on IE to mcmCompiler parsing stage
     // C++ exception with description "Op:pool5/7x7_s1 - OpError: Invalid input data (0) -
     // Filter kernel width (7) exceeds the padded input width (6)
-    TestingNetworkParameters{"inception_v1_caffe_benchmark",
+    TestingNetworkParameters {"inception_v1_caffe_benchmark",
         "/KMB_models/INT8/in_omz/inception-v1_caffe/googlenet-v1.xml",
-        "/KMB_models/INT8/in_omz/inception-v1_caffe/googlenet-v1.bin",
-        "/224x224/cat3.bmp"},
+        "/KMB_models/INT8/in_omz/inception-v1_caffe/googlenet-v1.bin", "/224x224/cat3.bmp"},
     // post training models
     // Following test on caffe based squeezenet1_1 fails on IE to mcmCompiler parsing stage
     // with message
     // C++ exception with description "Op:pool10 - OpError: Invalid input data (0) -
     // Filter kernel width (14) exceeds the padded input width (13)
-    TestingNetworkParameters{"squeezenet1_1_caffe_benchmark",
+    TestingNetworkParameters {"squeezenet1_1_caffe_benchmark",
         "/KMB_models/INT8/in_omz/squeezenet1_1_caffe/squeezenet1.1.xml",
-        "/KMB_models/INT8/in_omz/squeezenet1_1_caffe/squeezenet1.1.bin",
-        "/227x227/cat3.bmp"},
+        "/KMB_models/INT8/in_omz/squeezenet1_1_caffe/squeezenet1.1.bin", "/227x227/cat3.bmp"},
 };
 
 std::vector<TestingNetworkParameters> vpuCompileTargetNetworks = {
@@ -274,11 +270,11 @@ std::vector<TestingNetworkParameters> vpuCompileTargetNetworks = {
         "/KMB_models/INT8/not_in_omz/sparse/GoogLeNet-v1-tf/inceptionv1-int8-sparse-tf-0001.bin", "/224x224/cat3.bmp"},
     TestingNetworkParameters {"MobileNet_v2_tf_int8_sparse",
         "/KMB_models/INT8/not_in_omz/sparse/MoblieNet-v2-tf/mobilenetv2-int8-sparse-v2-tf-0001.xml",
-        "/KMB_models/INT8/not_in_omz/sparse/MoblieNet-v2-tf/mobilenetv2-int8-sparse-v2-tf-0001.bin", "/224x224/cat3.bmp"},
+        "/KMB_models/INT8/not_in_omz/sparse/MoblieNet-v2-tf/mobilenetv2-int8-sparse-v2-tf-0001.bin",
+        "/224x224/cat3.bmp"},
     TestingNetworkParameters {"tiny_yolo_v2_uint8_int8_weights_pertensor",
         "/KMB_models/INT8/ava/TinyYolo_V2/tiny_yolo_v2_uint8_int8_weights_pertensor.xml",
-        "/KMB_models/INT8/ava/TinyYolo_V2/tiny_yolo_v2_uint8_int8_weights_pertensor.bin",
-        "/416x416/person.bmp"},
+        "/KMB_models/INT8/ava/TinyYolo_V2/tiny_yolo_v2_uint8_int8_weights_pertensor.bin", "/416x416/person.bmp"},
     TestingNetworkParameters {"yolo_v2_uint8_int8_weights_pertensor",
         "/KMB_models/INT8/ava/Yolo_V2/yolo_v2_uint8_int8_weights_pertensor.xml",
         "/KMB_models/INT8/ava/Yolo_V2/yolo_v2_uint8_int8_weights_pertensor.bin", "/416x416/person.bmp"},
@@ -299,7 +295,7 @@ std::vector<TestingNetworkParameters> vpuCompileTargetNetworks = {
 INSTANTIATE_TEST_CASE_P(DISABLED_CompileTargetNetworksFail, VpuInferAndCompareTests,
     ::testing::ValuesIn(vpuCompileTargetNetworksFail), VpuInferAndCompareTests::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(CompileTargetNetworks, VpuInferAndCompareTests,
-    ::testing::ValuesIn(vpuCompileTargetNetworks), VpuInferAndCompareTests::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(CompileTargetNetworks, VpuInferAndCompareTests, ::testing::ValuesIn(vpuCompileTargetNetworks),
+    VpuInferAndCompareTests::getTestCaseName);
 
 #endif

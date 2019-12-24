@@ -715,6 +715,11 @@ void FrontEndMcm::parseNorm(const ie::CNNLayerPtr& layer, const McmNodeVector& i
     auto mvLRN =
         _modelMcm.localResponseNormalization(inputs[0]->getMcmNode(), normLayer->_size, normLayer->_k, normLayer->name);
 
+    // Workaround to avoid parsing stage crash 'ArgumentError: attribute identifer quantParams - Undefined identifier'
+    // in "inception_v1_caffe_benchmark" test
+    // VPUNND-2284, VPUNND-2237,
+    mvLRN->set<mv::QuantizationParams>("quantParams", initialQuantParams);
+
     bindOutput(mvLRN, layer->outData[0]);
 
     _logger->debug(FINISH_PARSING_STR, mvLRN->getName());
@@ -821,7 +826,7 @@ void FrontEndMcm::parsePermute(const ie::CNNLayerPtr& layer, const McmNodeVector
         inputs[0]->getMcmNode(), mv::Order(newOrder), mv::DType("Default"), initialQuantParams, layer->name);
 
     // Workaround to avoid parsing stage crash 'ArgumentError: attribute identifer quantParams - Undefined identifier'
-    // VPUNND-2237,
+    // VPUNND-2284, VPUNND-2237,
     mvPerm->set<mv::QuantizationParams>("quantParams", initialQuantParams);
 
     bindOutput(mvPerm, layer->outData[0]);
