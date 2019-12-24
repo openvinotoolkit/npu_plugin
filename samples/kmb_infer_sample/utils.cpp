@@ -498,10 +498,12 @@ IE::Blob::Ptr processNetwork(const IE::CNNNetwork& network, const IE::Blob::Ptr 
 }
 
 IE::CNNNetwork getNetwork(const std::string& model_path) {
+    IE_SUPPRESS_DEPRECATED_START
     IE::CNNNetReader reader;
     reader.ReadNetwork(model_path);
     reader.ReadWeights(fileNameNoExt(model_path) + ".bin");
     return reader.getNetwork();
+    IE_SUPPRESS_DEPRECATED_END
 }
 
 IE::Blob::Ptr preprocessUncompiledLayers(const std::string &layersPath, const std::string& data) {
