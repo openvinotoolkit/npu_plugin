@@ -37,7 +37,9 @@ public:
 
 private:
     std::string                     _modelName = "googlenet/bvlc_googlenet_fp16";
+    IE_SUPPRESS_DEPRECATED_START
     InferenceEngine::CNNNetReader   _netReader;
+    IE_SUPPRESS_DEPRECATED_END
 };
 
 struct modelBlobsInfo {

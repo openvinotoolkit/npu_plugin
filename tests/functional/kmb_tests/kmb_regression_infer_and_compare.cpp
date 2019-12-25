@@ -73,18 +73,14 @@ TEST_P(VpuInferAndCompareTests, NQA) {  // To be run in manual mode when device 
     std::string weightsPath = ModelsPath() + path_to_files.path_to_weights;
     std::string inputPath = get_data_path() + path_to_files.path_to_input;
 
-    CNNNetReader netReader;
-    netReader.ReadNetwork(irXmlPath);
-    netReader.ReadWeights(weightsPath);
-
-    CNNNetwork network = netReader.getNetwork();
+    Core ie;
+    CNNNetwork network = ie.ReadNetwork(irXmlPath, weightsPath);
 
     InputsDataMap inputInfo = network.getInputsInfo();
     for (auto& item : inputInfo) {
         item.second->getPreProcess().setResizeAlgorithm(RESIZE_BILINEAR);
     }
 
-    Core ie;
     InferenceEngine::ExecutableNetwork exeNetwork;
     exeNetwork = ie.LoadNetwork(network, "kmb");
 #ifdef __arm__

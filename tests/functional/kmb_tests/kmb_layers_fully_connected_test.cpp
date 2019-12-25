@@ -193,12 +193,7 @@ TEST_P(kmbLayersTestsFullyConnectedWithIR, DISABLED_fc_only) {
     REPLACE_WITH_NUM(model, "_OUTPUT_BATCH_", input_dims[0]);
     REPLACE_WITH_NUM(model, "_OUTPUT_CHANNEL_", outChannels);
 
-    CNNNetReader reader;
-    ASSERT_NO_THROW(reader.ReadNetwork(model.data(), model.length()));
-    ASSERT_NO_THROW(reader.SetWeights(weightsBuffer));
-    ASSERT_NO_THROW(reader.isParseSuccess());
-
-    CNNNetwork network = reader.getNetwork();
+    CNNNetwork network = ie.ReadNetwork(model, weightsBuffer);
 
     std::map<std::string, std::string> config;
     setCommonConfig(config);
@@ -244,12 +239,7 @@ TEST_P(kmbLayersTestsFullyConnectedWithIR, fc_only_u8) {
 
     fillFcIR(model, input_dims, 0, weightsByteSize, weightsByteSize, biasByteSize, outChannels);
 
-    CNNNetReader reader;
-    ASSERT_NO_THROW(reader.ReadNetwork(model.data(), model.length()));
-    ASSERT_NO_THROW(reader.SetWeights(weightsBuffer));
-    ASSERT_NO_THROW(reader.isParseSuccess());
-
-    CNNNetwork network = reader.getNetwork();
+    CNNNetwork network = ie.ReadNetwork(model, weightsBuffer);
 
     auto _inputsInfo = network.getInputsInfo();
     _inputsInfo["input"]->setPrecision(Precision::U8);
