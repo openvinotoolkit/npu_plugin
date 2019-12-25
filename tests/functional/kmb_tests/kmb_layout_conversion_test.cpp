@@ -292,7 +292,8 @@ public:
     const conv_common_params _convParams;
 };
 
-TEST_F(PrecisionConversionTest, precisionConversionTest_manual) {
+// Find details in VPUNND-2376
+TEST_F(PrecisionConversionTest, DISABLED_precisionConversionTest_manual) {
     auto _inputsInfo = _network.getInputsInfo();
     _inputsInfo["input"]->setPrecision(Precision::U8);
 

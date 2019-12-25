@@ -955,8 +955,9 @@ void FrontEndMcm::parseReshape(const ie::CNNLayerPtr& layer, const McmNodeVector
     mv::Shape newShape(getWHCN(layerOutput->getTensorDesc()).getDims());
 
     auto inputQuantParams = inputs[0]->getMcmNode()->get<mv::QuantizationParams>("quantParams");
-    auto mvReshape = _modelMcm.reshape(inputs[0]->getMcmNode(), newShape, inputs[0]->getMcmNode()->getOrder(),
-        mv::DType("Default"), inputQuantParams, layer->name);
+
+    auto mvReshape =
+        _modelMcm.reshape(inputs[0]->getMcmNode(), newShape, mv::DType("Default"), inputQuantParams, layer->name);
 
     bindOutput(mvReshape, layer->outData[0]);
 
