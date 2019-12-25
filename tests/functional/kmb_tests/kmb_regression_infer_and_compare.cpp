@@ -347,6 +347,17 @@ std::vector<TestingNetworkParameters> vpuInferAndCompareTestsNQA = {
         "/KMB_models/NQA/POST_TRAINING/ssd512/quantized_in_onnx/RGB/SSD512-int8-onnx-0001.xml",
         "/KMB_models/NQA/POST_TRAINING/ssd512/quantized_in_onnx/RGB/SSD512-int8-onnx-0001.bin",
         "/512x512/dog_croped512.bmp"},
+    // post training models
+    // Following test on face-detection-retail-0004 fails on IE to mcmCompiler parsing stage with following message
+    // C++ exception with description "PriorBoxClustered layer is not supported by kmbPlugin
+    TestingNetworkParameters {"face_detection_retail_0004_uint8_int8_weights_pertensor",
+        "/KMB_models/NQA/POST_TRAINING/face-detection-retail-0004/"
+        "face-detection-retail-0004-uint8_int8_weights_pertensor.xml",
+        "/KMB_models/NQA/POST_TRAINING/face-detection-retail-0004/"
+        "face-detection-retail-0004-uint8_int8_weights_pertensor.bin",
+        // TODO : use more relevant for network image when it will be added in validation set
+        // and when inference part of the test will be implemented
+        "/300x300/dog.bmp"},
     // cut models
     TestingNetworkParameters {"YoloTiny_v2_u8_asymmetric_cut",
         "/KMB_models/NQA/u8_asymmetric/YoloTiny-v2/tiny_yolo_v2_asymmetric_cut.xml",
