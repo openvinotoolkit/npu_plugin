@@ -16,6 +16,8 @@
 
 #include "hddl2_infer_request.h"
 
+#include <InferBlob.h>
+
 #include <algorithm>
 #include <functional>
 #include <map>
@@ -49,18 +51,14 @@ vpu::HDDL2Plugin::HDDL2InferRequest::HDDL2InferRequest(const InferenceEngine::In
             networkOutput.second->getTensorDesc().getDims().end(), 1, std::multiplies<size_t>());
     }
 
-    HddlStatusCode code = getAvailableDevices(_devices);
-    if (code != HddlStatusCode::HDDL_OK) {
-        THROW_IE_EXCEPTION << "getAvailableDevices != StatusCode::OK; " << code;
-    }
-    if (!_devices.empty()) {
-        _inferData = makeInferData(types);
-        if (_inferData.get() == nullptr) THROW_IE_EXCEPTION << "inferData == nullptr";
-        _inputRemoteMemory = HddlUnite::SMM::allocate(_devices[0], _inputSize);
-        _outputRemoteMemory = HddlUnite::SMM::allocate(_devices[0], _outputSize);
-    } else {
-        THROW_IE_EXCEPTION << "No available devices";
-    }
+    _inferData = makeInferData(types);
+    if (_inferData.get() == nullptr) THROW_IE_EXCEPTION << "inferData == nullptr";
+
+    _inferData->createBlob(
+        "input", HddlUnite::Inference::BlobDesc(HddlUnite::Inference::Precision::U8, false, true, _inputSize), true);
+
+    _inferData->createBlob(
+        "output", HddlUnite::Inference::BlobDesc(HddlUnite::Inference::Precision::U8, false, true, _outputSize), false);
 
     IE_ASSERT(_networkInputs.size() == 1) << "Do not support more than 1 input";
     for (auto& networkInput : _networkInputs) {
@@ -120,9 +118,8 @@ void vpu::HDDL2Plugin::HDDL2InferRequest::GetResult() {
 
     if (_outputSize != foundOutputBlob->second->byteSize()) THROW_IE_EXCEPTION << "_outputSize != data->byteSize()";
 
-    HddlStatusCode retCode =
-        _outputRemoteMemory->syncFromDevice(foundOutputBlob->second->buffer().as<void*>(), _outputSize);
-    if (retCode != HddlStatusCode::HDDL_OK) THROW_IE_EXCEPTION << retCode;
+    auto outputBlob = _inferData->getOutputBlob("output");
+    auto outputData = outputBlob->getData();
 }
 
 void vpu::HDDL2Plugin::HDDL2InferRequest::InferSync() {
@@ -130,13 +127,17 @@ void vpu::HDDL2Plugin::HDDL2InferRequest::InferSync() {
     auto foundInputBlob = _inputs.find(dataName);
     if (foundInputBlob == _inputs.end()) THROW_IE_EXCEPTION << "Error: input [" << dataName << "] is not provided.";
 
-    HddlUnite::Inference::InBlob& inputBlob = _inferData->getInputBlob();
-    HddlUnite::Inference::OutBlob& outputBlob = _inferData->getOutputBlob();
-    inputBlob.setRemoteMemory(_inputRemoteMemory);
-    outputBlob.setRemoteMemory(_outputRemoteMemory);
+    auto inputBlob = _inferData->getInputBlob("input");
+    auto outputBlob = _inferData->getOutputBlob("output");
 
-    if (_inputSize != foundInputBlob->second->byteSize()) THROW_IE_EXCEPTION << "_inputSize != data->byteSize()";
-    _inputRemoteMemory->syncToDevice(foundInputBlob->second->buffer().as<void*>(), foundInputBlob->second->byteSize());
+    HddlUnite::Inference::BlobDesc inputDesc(HddlUnite::Inference::Precision::U8, false, true, _inputSize);
+    // TODO: parameters rectangle (image size): x, y, width, height
+    inputDesc.m_rect.push_back({0, 0, 224, 224});
+    for (auto& networkInput : _networkInputs) {
+        inputDesc.m_srcPtr = _inputs[networkInput.first]->buffer().as<void*>();
+        inputDesc.m_dataSize = _inputs[networkInput.first]->byteSize();
+    }
+    inputBlob->updateBlob(inputDesc);
 
     HddlStatusCode syncCode = inferSync(*(_graph.get()), _inferData);
     if (syncCode != HddlStatusCode::HDDL_OK) THROW_IE_EXCEPTION << "InferSync FAILED! return code:" << syncCode;

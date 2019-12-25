@@ -15,8 +15,8 @@
 //
 
 #pragma once
-#include <hddlunite/HddlUnite.h>
-#include <hddlunite/RemoteMemory.h>
+#include <HddlUnite.h>
+#include <RemoteMemory.h>
 
 #include <atomic>
 #include <ie_allocator.hpp>
