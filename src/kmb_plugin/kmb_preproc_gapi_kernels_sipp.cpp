@@ -36,7 +36,7 @@ GAPI_SIPP_KERNEL(GSippNV12toBGRp, GNV12toBGRp) {
 GAPI_SIPP_KERNEL(GSippResizeP, GResizeP) {
     static cv::gimpl::GSIPPKernel::InitInfo Init(cv::GMatDesc, cv::gapi::own::Size, int) {
         int paramSize = sizeof(ScaleBilinearPlanarParams);
-        return {SVU_SYM(svuScaleBilinearPlanar), paramSize, 2, 2, SIPP_RESIZE, true};
+        return {SVU_SYM(svuScaleBilinearPlanar), paramSize, 2, 2, SIPP_RESIZE_OPEN_CV, true};
     }
 
     static void Configure(cv::GMatDesc, cv::gapi::own::Size, int, const cv::GSippConfigUserContext& ctx) {

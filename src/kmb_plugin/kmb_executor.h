@@ -29,6 +29,8 @@
 #include <GraphManagerPlg.h>
 #include <PlgStreamResult.h>
 #include <PlgTensorSource.h>
+#include <PlgInferenceInput.h>
+#include <PlgInferenceOutput.h>
 
 #include <NNFlicPlg.h>
 #include <Pool.h>
@@ -68,7 +70,10 @@ private:
         std::shared_ptr<GraphManagerPlg> gg;
         std::shared_ptr<PlgTensorSource> plgTensorInput_;
         std::shared_ptr<PlgStreamResult> plgTensorOutput_;
+        std::shared_ptr<PlgInferenceInput> plgInferenceInput_;
+        std::shared_ptr<PlgInferenceOutput> plgInferenceOutput_;
         std::shared_ptr<RgnAllocator> RgnAlloc;
+        std::shared_ptr<HeapAllocator> HeapAlloc;
 
         std::shared_ptr<NNFlicPlg> nnPl;
 
@@ -77,6 +82,7 @@ private:
         std::shared_ptr<BlobHandle_t> BHandle;
 
         std::shared_ptr<PlgPool<TensorMsg>> plgPoolOutputs;
+        std::shared_ptr<PlgPool<InferenceMsg>> plgPoolInferenceMsg;
 
         std::shared_ptr<Pipeline> pipe;
 #endif
@@ -89,8 +95,12 @@ private:
         int xlinkChannelIn;
         int xlinkChannelOut;
 
+        int _xlinkChannelInferenceInput;
+        int _xlinkChannelInferenceOutput;
+
         uint32_t _outTensorLen;
         uint32_t _outTensorAddr;
+        uint32_t * _inferenceVirtAddr;
 };
 
 typedef std::shared_ptr<KmbExecutor> KmbExecutorPtr;
