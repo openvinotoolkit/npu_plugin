@@ -19,6 +19,7 @@
 #include <inference_engine.hpp>
 #include <random>
 #include <vpu/utils/io.hpp>
+#include <cstddef>
 
 using namespace InferenceEngine;
 
