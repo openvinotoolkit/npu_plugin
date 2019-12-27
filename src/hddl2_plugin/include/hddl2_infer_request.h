@@ -16,7 +16,8 @@
 
 #pragma once
 
-#include <hddlunite/Inference.h>
+#include <HddlUnite.h>
+#include <Inference.h>
 
 #include <cpp_interfaces/impl/ie_infer_request_internal.hpp>
 #include <map>
@@ -42,16 +43,12 @@ public:
 private:
     void GetResult();
 
-    std::vector<HddlUnite::Device> _devices;
     HddlUnite::Inference::Graph::Ptr _graph;
     std::vector<HddlUnite::Inference::AuxBlob::Type> types {HddlUnite::Inference::AuxBlob::Type::TimeTaken};
     HddlUnite::Inference::InferData::Ptr _inferData;
 
     size_t _inputSize;
     size_t _outputSize;
-
-    HddlUnite::SMM::RemoteMemory::Ptr _inputRemoteMemory;
-    HddlUnite::SMM::RemoteMemory::Ptr _outputRemoteMemory;
 };
 
 }  //  namespace HDDL2Plugin

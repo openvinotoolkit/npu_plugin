@@ -14,7 +14,7 @@
 // stated in the License.
 //
 
-#include <hddlunite/Inference.h>
+#include <Inference.h>
 
 #include <fstream>
 #include <ie_core.hpp>

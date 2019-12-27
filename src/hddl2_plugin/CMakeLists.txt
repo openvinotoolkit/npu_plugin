@@ -17,7 +17,7 @@
 set(TARGET_NAME "HDDL2Plugin")
 
 # downloading HDDL_UNITE archive
-set(ARCHIVE_VERSION ww50)
+set(ARCHIVE_VERSION ww52)
 set_temp_directory(TEMP "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}")
 
 include(dependency_solver)

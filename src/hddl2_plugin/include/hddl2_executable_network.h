@@ -16,7 +16,7 @@
 
 #pragma once
 
-#include <hddlunite/Inference.h>
+#include <Inference.h>
 
 #include <memory>
 #include <string>
