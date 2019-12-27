@@ -45,6 +45,6 @@ set_target_properties(${TARGET_NAME} PROPERTIES
     VISIBILITY_INLINES_HIDDEN YES)
 
 add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
-if(ENABLE_KMB_CLANG_FORMAT)
-    add_clang_format_target_kmb(clang_format_${TARGET_NAME} FOR_TARGETS ${TARGET_NAME})
+if(ENABLE_CLANG_FORMAT)
+    add_clang_format_target(clang_format_${TARGET_NAME} FOR_TARGETS ${TARGET_NAME} ALL)
 endif()

@@ -20,6 +20,6 @@ target_link_libraries(gapi_test_computations
 
 target_compile_definitions(gapi_test_computations PRIVATE IMPLEMENT_GAPI_COMPUTATION_API)
 
-if(ENABLE_KMB_CLANG_FORMAT)
-    add_clang_format_target_kmb(clang_format_gapi_test_computations FOR_TARGETS gapi_test_computations)
+if(ENABLE_CLANG_FORMAT)
+    add_clang_format_target(clang_format_gapi_test_computations FOR_TARGETS gapi_test_computations ALL)
 endif()

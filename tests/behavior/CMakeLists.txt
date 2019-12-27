@@ -40,8 +40,8 @@ function(enable_vpu TARGET_NAME FLAG_NAME PLUGIN_NAME)
     add_test(NAME ${TARGET_NAME}
             COMMAND ${TARGET_NAME})
 
-    if(ENABLE_KMB_CLANG_FORMAT)
-        add_clang_format_target_kmb(clang_format_${TARGET_NAME} FOR_TARGETS ${TARGET_NAME})
+    if(ENABLE_CLANG_FORMAT)
+        add_clang_format_target(clang_format_${TARGET_NAME} FOR_TARGETS ${TARGET_NAME} ALL)
     endif()
 endfunction(enable_vpu)
 
