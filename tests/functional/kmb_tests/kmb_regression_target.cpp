@@ -914,28 +914,38 @@ TEST_F(vpuInferWithSetUp, copyCheckSetBlob) {
     ASSERT_TRUE(out.str().find(strToCheck) == std::string::npos);
 }
 
-const static std::vector<modelBlobsInfo> pathToTop3PreCompiledGraph = {
-    {
-        ._graphPath = "/KMB_models/BLOBS/mobilenet-v2-dpu/mobilenet-v2-dpu.blob",
-        ._inputPath = "/KMB_models/BLOBS/mobilenet-v2-dpu/input.bin",
-        ._outputPath = "/KMB_models/BLOBS/mobilenet-v2-dpu/output.bin",
-    },
-    {
-        ._graphPath = "/KMB_models/BLOBS/resnet-50-dpu/resnet-50-dpu.blob",
-        ._inputPath = "/KMB_models/BLOBS/resnet-50-dpu/input.bin",
-        ._outputPath = "/KMB_models/BLOBS/resnet-50-dpu/output.bin",
-    },
-    {
-        ._graphPath = "/KMB_models/BLOBS/tiny-yolo-v2-dpu/tiny-yolo-v2-dpu.blob",
-        ._inputPath = "/KMB_models/BLOBS/tiny-yolo-v2-dpu/input.bin",
-        ._outputPath = "/KMB_models/BLOBS/tiny-yolo-v2-dpu/output.bin",
-    }};
+struct TopNetTest {
+    modelBlobsInfo info;
+    bool isComparable;
+};
 
-class VpuInferWithPathForTop3Net : public vpuLayersTests, public testing::WithParamInterface<modelBlobsInfo> {};
+const static std::vector<TopNetTest> pathToTop3PreCompiledGraph = {
+    {{
+         ._graphPath = "/KMB_models/BLOBS/mobilenet-v2-dpu/mobilenet-v2-dpu.blob",
+         ._inputPath = "/KMB_models/BLOBS/mobilenet-v2-dpu/input.bin",
+         ._outputPath = "/KMB_models/BLOBS/mobilenet-v2-dpu/output.bin",
+     },
+        true},
+    {{
+         ._graphPath = "/KMB_models/BLOBS/resnet-50-dpu/resnet-50-dpu.blob",
+         ._inputPath = "/KMB_models/BLOBS/resnet-50-dpu/input.bin",
+         ._outputPath = "/KMB_models/BLOBS/resnet-50-dpu/output.bin",
+     },
+        true},
+    {{
+         ._graphPath = "/KMB_models/BLOBS/tiny-yolo-v2-dpu/tiny-yolo-v2-dpu.blob",
+         ._inputPath = "/KMB_models/BLOBS/tiny-yolo-v2-dpu/input.bin",
+         ._outputPath = "/KMB_models/BLOBS/tiny-yolo-v2-dpu/output.bin",
+     },
+        false}};
+
+class VpuInferWithPathForTop3Net : public vpuLayersTests, public testing::WithParamInterface<TopNetTest> {};
 
 TEST_P(VpuInferWithPathForTop3Net, DISABLED_canDoInferenceOnTop3ImportedBlobs) {
-    modelBlobsInfo blobsInfo = GetParam();
+    modelBlobsInfo blobsInfo = GetParam().info;
     std::string modelFilePath = ModelsPath() + blobsInfo._graphPath;
+    std::string inputDataPath = ModelsPath() + blobsInfo._inputPath;
+    std::string refOutputPath = ModelsPath() + blobsInfo._outputPath;
 
     Core ie;
     InferenceEngine::ExecutableNetwork importedNetwork;
@@ -943,12 +953,28 @@ TEST_P(VpuInferWithPathForTop3Net, DISABLED_canDoInferenceOnTop3ImportedBlobs) {
 
     InferenceEngine::InferRequest inferRequest;
     ASSERT_NO_THROW(inferRequest = importedNetwork.CreateInferRequest());
+    auto inputBlobName = importedNetwork.GetInputsInfo().begin()->first;
+    auto inputBlob = inferRequest.GetBlob(inputBlobName);
+    vpu::KmbPlugin::utils::fromBinaryFile(inputDataPath, inputBlob);
+
     ASSERT_NO_THROW(inferRequest.Infer());
+
+    if (!GetParam().isComparable) return;
+
+    auto outputBlobName = importedNetwork.GetOutputsInfo().begin()->first;
+    auto outputBlob = inferRequest.GetBlob(outputBlobName);
+
+    auto refBlob = make_blob_with_precision(outputBlob->getTensorDesc());
+    refBlob->allocate();
+    vpu::KmbPlugin::utils::fromBinaryFile(refOutputPath, refBlob);
+
+    ASSERT_TRUE(outputBlob->byteSize() == refBlob->byteSize());
+    ASSERT_TRUE(outputBlob->getTensorDesc().getPrecision() == Precision::U8);
+    ASSERT_NO_THROW(compareTopClasses(outputBlob, refBlob, NUMBER_OF_TOP_CLASSES));
 }
 
 INSTANTIATE_TEST_CASE_P(inferenceWithParameters, VpuInferWithPath, ::testing::ValuesIn(pathToPreCompiledGraph));
 
 INSTANTIATE_TEST_CASE_P(
     inferenceWithTop3Networks, VpuInferWithPathForTop3Net, ::testing::ValuesIn(pathToTop3PreCompiledGraph));
-
 #endif
