@@ -90,44 +90,7 @@ inline std::string VpuNoRegressionWithCompilation::getDeviceName() const { retur
 
 class KmbNoRegressionCompilationOnly : public VpuNoRegressionWithCompilation {};
 
-std::vector<CompilationParameter> compilation_parameters_unsupported = {
-    // TODO: Yolo network can't be parsed into mcmCompiler due to bug in regionYolo parsing
-    CompilationParameter {"darknet_tiny_yolo_voc", "/KMB_models/INT8/darknet_tiny_yolo_voc/yolov2_IR_i8.xml",
-        "/KMB_models/INT8/darknet_tiny_yolo_voc/yolov2_IR_i8.bin"},
-    CompilationParameter {"darknet19_yolo_voc", "/KMB_models/INT8/darknet19_yolo_voc/yolov2_IR_i8.xml",
-        "/KMB_models/INT8/darknet19_yolo_voc/yolov2_IR_i8.bin"},
-    // TODO: SSD512 network can not be parsed into mcmCompiler OpModel due to unsupported layers.
-    // Jira:
-    //  Feature VPUNND-1468
-    //     Normalize layer support
-    //  Feature VPUNND-1467
-    //     PriorBox layer support
-    //  Feature VPUNND-1466
-    //     Gather layer support
-    //  Feature VPUNND-1465
-    //     DetectionOutput layer support
-    //  Feature VPUNND-1464
-    //     Unsqueeze layer support
-    //  Feature VPUNND-1463
-    //     Squeeze layer support
-    CompilationParameter {"SSD512_int8_onnx_0001", "/KMB_models/INT8/SSD512-int8-onnx-0001/SSD512-int8-onnx-0001.xml",
-        "/KMB_models/INT8/SSD512-int8-onnx-0001/SSD512-int8-onnx-0001.bin"},
-};
-
 std::vector<CompilationParameter> compilation_parameters_kmb = {
-    CompilationParameter {"squeezenetv1_1_int8_onnx_0001",
-        "/KMB_models/INT8/squeezenetv1.1-int8-onnx-0001/squeezenetv1.1-int8.xml",
-        "/KMB_models/INT8/squeezenetv1.1-int8-onnx-0001/squeezenetv1.1-int8.bin"},
-    CompilationParameter {"resnet_50_int8_tf_0001", "/KMB_models/INT8/resnet-50-int8-tf-0001/resnet50-int8.xml",
-        "/KMB_models/INT8/resnet-50-int8-tf-0001/resnet50-int8.bin"},
-    CompilationParameter {"mobilenetv2_int8_tf_0001", "/KMB_models/INT8/mobilenetv2-int8-tf-0001/mobilenetv2-int8.xml",
-        "/KMB_models/INT8/mobilenetv2-int8-tf-0001/mobilenetv2-int8.bin"},
-    CompilationParameter {"inceptionv3_int8_tf_0001", "/KMB_models/INT8/inceptionv3-int8-tf-0001/inceptionv3-int8.xml",
-        "/KMB_models/INT8/inceptionv3-int8-tf-0001/inceptionv3-int8.bin"},
-    CompilationParameter {"inceptionv1_int8_tf_0001",
-        "/KMB_models/INT8/inceptionv1-int8-tf-0001/inceptionv1-int8-tf-0001.xml",
-        "/KMB_models/INT8/inceptionv1-int8-tf-0001/inceptionv1-int8-tf-0001.bin"},
-
     CompilationParameter {"resnet_v1_50_75.19_fp16", "/KMB_models/FP16/resnet_v1_50_75.19/resnet50_v1_fp16.xml",
         "/KMB_models/FP16/resnet_v1_50_75.19/resnet50_v1_fp16.bin"},
     CompilationParameter {"mobilenet_v2_1.0_224_frozen_71.74_fp16",
@@ -209,21 +172,8 @@ INSTANTIATE_TEST_CASE_P(KmbParsingOnlyTest_smoke_nightly, KmbNoRegressionCompila
     Combine(Values("kmbPlugin"), ValuesIn(compilation_parameters_kmb), Values<Compile>(false), Values<Timeout>(60.)),
     KmbNoRegressionCompilationOnly::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(DISABLED_KmbCompilationTest_smoke_nightly,
-    // TODO: mcmCompiler can not compile top 6 KeemBay target networks. Jira: VPUNND-1412, VPUNND-1415, VPUNND-1416,
-    // VPUNND-1417, VPUNND-1418
-    KmbNoRegressionCompilationOnly,
-    Combine(Values("kmbPlugin"), ValuesIn(compilation_parameters_kmb), Values<Compile>(true), Values<Timeout>(600.)),
-    KmbNoRegressionCompilationOnly::getTestCaseName);
-
-INSTANTIATE_TEST_CASE_P(DISABLED_KmbParsingUnsupportedOnlyTest_smoke_nightly, KmbNoRegressionCompilationOnly,
-    Combine(Values("kmbPlugin"), ValuesIn(compilation_parameters_unsupported), Values<Compile>(false),
-        Values<Timeout>(60.)),
-    KmbNoRegressionCompilationOnly::getTestCaseName);
-
-INSTANTIATE_TEST_CASE_P(DISABLED_KmbCompilationParsingUnsupportedTest_smoke_nightly, KmbNoRegressionCompilationOnly,
-    Combine(Values("kmbPlugin"), ValuesIn(compilation_parameters_unsupported), Values<Compile>(true),
-        Values<Timeout>(600.)),
+INSTANTIATE_TEST_CASE_P(DISABLED_KmbParsingOnlyTest_smoke_nightly, KmbNoRegressionCompilationOnly,
+    Combine(Values("kmbPlugin"), ValuesIn(compilation_parameters_kmb), Values<Compile>(true), Values<Timeout>(60.)),
     KmbNoRegressionCompilationOnly::getTestCaseName);
 
 using kmbLayersTestsConvolution = kmbLayersTests_nightly;
