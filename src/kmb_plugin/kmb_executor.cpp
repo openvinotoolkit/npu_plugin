@@ -271,6 +271,7 @@ void KmbExecutor::allocateGraph(const std::vector<char> &graphFileContent) {
     InferenceEngine::InputInfo inputInfo;
     inputInfo.setInputData(std::make_shared<InferenceEngine::Data>(inputData));
     m_networkInputs[inputInfo.name()] = std::make_shared<InferenceEngine::InputInfo>(inputInfo);
+    _inputNetworkLayout = inputLayout;
 
     InferenceEngine::SizeVector outputDims({descOut.n, descOut.c, descOut.h, descOut.w});
     InferenceEngine::Layout outputLayout = getIOLayout(descOut);

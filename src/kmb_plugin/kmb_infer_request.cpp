@@ -275,6 +275,7 @@ void KmbInferRequest::InferAsync() {
 
     Blob::Ptr & inputBlobRef = _inputs.begin()->second;
     InferenceEngine::TensorDesc deviceTensorDesc = deviceInputs.begin()->second->getTensorDesc();
+    deviceTensorDesc.setLayout(_executor->_inputNetworkLayout);
 
     // is2DTensor is a workaround for NHWC -> NC case
     // TODO: remove when mcm will support different input layout
