@@ -134,7 +134,9 @@ struct Tensor_Allocator_Assignment {
     auto tensor_alloc= dm.getAllocator(*tensor_alloc_name);
     mv::Data::BufferIterator tensor_buffer_itr =
         tensor_alloc.getBuffer(0, tensor_itr);
-    tensor_buffer_itr->setOffset(tensor_itr->get<size_t>("address"));
+    mv::Data::BufferIterator master_tensor_buffer_itr =
+        tensor_alloc.getTopMasterBuffer(tensor_buffer_itr);
+    master_tensor_buffer_itr->setOffset((tensor_itr->get<size_t>("address")));
   }
 
   mv::ComputationModel &model_;
@@ -184,6 +186,17 @@ class Control_Edge_Set {
 
     }
 
+    // TODO(vamsikku): 
+    // Given two ops (op1, op2) such that op1 (t1) is scheduled before op2 (t2) 
+    // and their CMX addresses overlap we need to add control edges between
+    // all consumers of op1 scheduled between [t1, t2] and op2 //
+    template<typename OpDag, typename ScheduledOpIterator>
+    void add_consumer_control_edges(ScheduledOpIterator sbegin,
+        ScheduledOpIterator send, operation_t source, operation_t sink) {
+      std::unordered_map<operation_t, size_t> op_schedule_info;
+
+
+    }
 
     template<typename OpDag, typename ScheduledOpIterator>
     void add_edges_to_fresh_control_model(

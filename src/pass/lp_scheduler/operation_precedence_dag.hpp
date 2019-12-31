@@ -160,7 +160,7 @@ class Operation_Dag {
     Operation_Dag(model_t& model) : adj_map_(), adj_map_rev_(),
       op_name_table_(), ops_(), resource_utility_map_(),
       op_to_iterator_lookup_(), in_degree_map_(), input_op_(),
-      implicit_op_types_( {"Slice", "Crop"} ) {
+      implicit_op_types_( {"Slice", "Crop", "Align"} ) {
         init_from_model(model);
     }
 
@@ -286,7 +286,8 @@ class Operation_Dag {
 
     static bool is_data_operation(const dag_t& dag, const operation_t& op) {
       return dag.is_dma_op(op) &&
-          !(dag.is_dma_op_moving_data_from_cmx_to_ddr(op));
+          !(dag.is_dma_op_moving_data_from_cmx_to_ddr(op)) &&
+          dag.op_has_unit_out_degree(op);
     }
     static bool is_compute_operation(const dag_t& dag, const operation_t& op) {
       // an implicit op is a compute op which takes 0 resources //
@@ -480,7 +481,8 @@ class Operation_Dag {
 
     bool is_implicit_op(operation_t op) const {
       return (op->getOpType() == "ImplicitConcat") || 
-          (op->getOpType() == "Slice") || (op->getOpType() == "Crop");
+          (op->getOpType() == "Slice") || (op->getOpType() == "Crop") ||
+          (op->getOpType() == "Align");
     }
 
 
@@ -594,12 +596,69 @@ class Operation_Dag {
     }
 
 
-
   private:
+
+    template<typename model_t>
+    bool is_aligned_dma_op(model_t& model, operation_t op) const { 
+      typedef model_traits<model_t> mtraits;
+      typedef typename mtraits::const_operation_iterator_t op_itr_t;
+
+      if (!is_dma_op_moving_data_from_cmx_to_ddr(op)) { return false; }
+      
+      op_itr_t pop_itr = model.getOp(op->getName());
+      
+      // out degree should be one //
+      size_t out_degree = 0UL;
+      for (op_itr_t cop_itr=mtraits::begin_child_operations(pop_itr);
+            (cop_itr != mtraits::end_operations(model)) && (out_degree <= 1UL);
+            ++cop_itr, ++out_degree) { }
+
+      if (out_degree > 1UL) { return false; }
+
+      op_itr_t cop_itr = mtraits::begin_child_operations(pop_itr);
+
+      return (cop_itr->getOpType() == "Align");
+    }
+
+    // Precondition: is_aligned_dma_op() //
+    template<typename model_t>
+    size_t get_aligned_dma_op_resource_utility(model_t& model,
+          operation_t op) const {
+      typedef model_traits<model_t> mtraits;
+      typedef typename mtraits::const_operation_iterator_t op_itr_t;
+
+
+      assert(is_aligned_dma_op(model, op));
+
+      op_itr_t pop_itr = model.getOp(op->getName());
+      op_itr_t cop_itr = mtraits::begin_child_operations(pop_itr);
+      return cop_itr->getOutputSize();
+    }
+
 
     bool is_operation_ignored(operation_t op) const {
       const std::string& op_type = op->getOpType();
       return (op_type == "ConstantInt") || (op_type == "ConstantDataElement");
+    }
+
+    // For all the DMA ops moving data from DDR2CMX followed by an Align
+    // implicit op use the output of Align op as the resource utility of this
+    // DMA op.
+    template<typename model_t>
+    void update_resource_utility_for_aligned_dma_ops(model_t& model) {
+      for (typename resource_utility_map_t::iterator
+            ritr = resource_utility_map_.begin();
+            ritr != resource_utility_map_.end(); ++ritr) {
+
+        if (is_aligned_dma_op(model, ritr->first)) {
+          size_t utility_before = ritr->second;
+          ritr->second =
+              get_aligned_dma_op_resource_utility(model, ritr->first);
+
+          printf("[AlignedResourceUpdate]:%s before=%lu after=%lu\n", 
+              (ritr->first)->getName().c_str(), utility_before, ritr->second);
+        }
+      }
     }
 
     void init_from_model(model_t& model) {
@@ -677,6 +736,17 @@ class Operation_Dag {
 
         // resource utility //
         resource_utility_map_.insert(std::make_pair(op, resource_utility ));
+      }
+
+      // connect all non-unit outdegree DMAS to input //
+      for (op_itr_t itr = mtraits::begin_operations(model);
+            itr != mtraits::end_operations(model); ++itr) {
+        operation_t op = &(*itr);
+        if (is_operation_ignored(op)) { continue; }
+        if (!is_dma_op(op)) { continue; }
+        if (is_dma_op_moving_data_from_cmx_to_ddr(op)) {continue;}
+        if (op_has_unit_out_degree(op)) { continue; }
+        add_directed_edge_from_input(op);
       }
 
       // short circuit implicit ops //
@@ -758,6 +828,7 @@ class Operation_Dag {
       op_name_table_.erase(op->getName().c_str());
     } 
 
+  public:
     bool add_directed_edge(operation_t source_op, operation_t sink_op) {
 
       master_op_iterator_t itr_source = ops_.find(source_op);
@@ -807,6 +878,45 @@ class Operation_Dag {
       }
       return true;
     }
+
+    bool add_directed_edge_from_input(operation_t sink_op) {
+
+      operation_t source_op = get_input_op();
+      master_op_iterator_t itr_source = ops_.find(source_op);
+      master_op_iterator_t itr_sink = ops_.find(sink_op);
+
+      if ((itr_source == ops_.end()) || (itr_sink == ops_.end())) {
+        return false;
+      }
+
+      // add sink_op to adj_list of source_op //
+      op_ref_list_t *child_list_ptr = NULL, *parent_list_ptr = NULL;
+      {
+        adjacency_map_t::iterator adj_itr = adj_map_.find(source_op);
+        assert(adj_itr != adj_map_.end());
+
+        op_ref_list_t& child_list = adj_itr->second;
+        for (op_ref_list_t::const_iterator child=child_list.begin();
+              child!=child_list.end(); ++child) {
+          if (*child == &(*itr_sink)) { return false; }
+        }
+        child_list_ptr = &child_list;
+      }
+
+      child_list_ptr->push_back(&(*itr_sink));
+
+      // update the indegree of sink_op //
+      in_degree_map_t::iterator in_degree_itr = in_degree_map_.find(sink_op);
+
+      if (in_degree_itr == in_degree_map_.end()) {
+        in_degree_map_.insert(std::make_pair(sink_op, 1UL));
+      } else {
+        in_degree_itr->second++;
+      }
+      return true;
+    }
+
+  private:
 
 
     bool does_the_op_run_on_hardware(operation_t op) const {
