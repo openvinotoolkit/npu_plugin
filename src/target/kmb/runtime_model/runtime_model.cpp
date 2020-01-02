@@ -815,7 +815,7 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
 
     bool compression = false;
     if(inputTensor->hasAttr("Compression"))
-        compression = opIt->get<bool>("compression");
+        compression = inputTensor->get<bool>("Compression");
 
     auto tensorAllocatorName = outputTensor->get<std::set<std::string>>("allocators").begin();
     if (*tensorAllocatorName == "ProgrammableOutput")
