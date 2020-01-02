@@ -26,6 +26,15 @@ namespace mv
         Unknown
     };
 
+    struct HdeDescriptor
+    {
+        std::size_t numberOfHDEModules;
+        std::size_t bitPerSymbol;
+        std::size_t blockSize;
+        std::size_t maxNumberEncodedSymbols;
+        bool bypassMode;
+    };
+
     class TargetDescriptor : public LogSender
     {
 
@@ -50,9 +59,10 @@ namespace mv
         std::set<std::string> ops_;
         std::set<std::string> postOps_;
         std::map<std::string, MemoryDescriptor> memoryDefs_;
+        HdeDescriptor hdeDef_;
         std::map<std::string, NceDescriptor> nceDefs_;
         std::map<std::string, mv::Element> serialDescriptions_;
-
+        
     public:
 
         TargetDescriptor(const std::string& filePath = "");
@@ -79,6 +89,7 @@ namespace mv
 
         const std::map<std::string, MemoryDescriptor>& memoryDefs() const;
         const std::map<std::string, NceDescriptor>& nceDefs() const;
+        const HdeDescriptor& hdeDef() const;
 
         std::string getLogID() const override;
 

@@ -545,11 +545,22 @@ std::unique_ptr<MVCNN::BinaryDataT> mv::RuntimeModel::buildBinaryDataT(Computati
 {
     std::unique_ptr<MVCNN::BinaryDataT> toBuild = std::unique_ptr<MVCNN::BinaryDataT>(new MVCNN::BinaryDataT());
 
-    auto dataPacked = t.getDataPacked();
-    // Compression code goes here
-    toBuild->data = packToInt64(dataPacked, t.getDType());
-    toBuild->length = dataPacked.size() * t.getDType().getSizeInBits() / 8;
-    toBuild->underlying_type = MVCNN::DType::DType_U8;
+    //Huffman compression call for Uint8 data
+    if(t.getDType().toString() == "UInt8" && huffmanCompressWeights == true) 
+    {
+        auto dataPacked = t.getDataPacked();
+        auto compressedData = huffmanCompress(dataPacked);
+        toBuild->data = packToInt64(compressedData, t.getDType());
+        toBuild->length = compressedData.size();
+        t.set<bool>("Compression", true);
+    }
+    else 
+    {
+        auto dataPacked = t.getDataPacked();
+        toBuild->data = packToInt64(dataPacked, t.getDType());
+        toBuild->length = dataPacked.size() * t.getDType().getSizeInBits() / 8;
+        toBuild->underlying_type = MVCNN::DType::DType_U8;
+    }
 
     return toBuild;
 }
@@ -803,7 +814,7 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
     }
 
     bool compression = false;
-    if(opIt->hasAttr("compression"))
+    if(inputTensor->hasAttr("Compression"))
         compression = opIt->get<bool>("compression");
 
     auto tensorAllocatorName = outputTensor->get<std::set<std::string>>("allocators").begin();
@@ -2223,4 +2234,14 @@ void mv::RuntimeModel::deserialize(char * dataBuffer, int length)
 std::shared_ptr<std::vector<char>> mv::RuntimeModel::getBlob()
 {
     return binaryData_;
+}
+
+std::vector<uint8_t> mv::RuntimeModel::huffmanCompress(std::vector<int64_t>& inputData) 
+{
+    std::vector<uint8_t> castedIntData(inputData.begin(),inputData.end());
+    auto compressedBufferSize = inputData.size() + 2 * (std::ceil(inputData.size() / 4096) + 1);
+    std::vector<uint8_t> compressedDataBuffer (compressedBufferSize, 0); 
+    codec_->huffmanCodecCompressArray(&castedIntData[0],(int)castedIntData.size(),&compressedDataBuffer[0],(int)compressedBufferSize);
+    
+    return compressedDataBuffer;
 }

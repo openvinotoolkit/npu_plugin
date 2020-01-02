@@ -123,6 +123,7 @@ if(CMAKE_CROSSCOMPILING)
     set(FLATBUFFERS_BUILD_FLATC OFF CACHE BOOL "" FORCE)
 endif()
 add_subdirectory(contrib/flatbuffers)
+add_subdirectory(contrib/huffman_encoding)
 
 #############################################################################################
 ### Main build
@@ -137,6 +138,7 @@ endif()
 include_directories(${PROJECT_SOURCE_DIR})
 include_directories(${PROJECT_SOURCE_DIR}/include)
 include_directories(${PROJECT_SOURCE_DIR}/contrib/flatbuffers/include)
+include_directories(${PROJECT_SOURCE_DIR}/contrib/huffman_encoding/include)
 
 set(base
     "${PROJECT_SOURCE_DIR}/src/base/exception/argument_error.cpp"
@@ -388,7 +390,7 @@ else()
         add_dependencies(cm generate-graphfile-headers)
     endif()
 
-    target_link_libraries(cm PUBLIC corebase model metamodel flatbuffers)
+    target_link_libraries(cm PUBLIC corebase model metamodel flatbuffers hde)
     target_link_libraries(model PUBLIC lemon)
 
     if(NOT CMAKE_CROSSCOMPILING)
