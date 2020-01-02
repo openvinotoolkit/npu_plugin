@@ -13,6 +13,8 @@
 #include "include/mcm/target/kmb/ppe_layer_type.hpp"
 #include "include/mcm/target/kmb/ppe_fixed_function.hpp"
 #include "include/mcm/tensor/quantization_params.hpp"
+#include "contrib/huffman_encoding/include/Huffman.hpp"
+#include "contrib/huffman_encoding/include/huffmanCodec.hpp"
 
 namespace mv
 {
@@ -28,7 +30,17 @@ namespace mv
     class RuntimeModel
     {
         private:
-            RuntimeModel() {}
+            RuntimeModel(bool huffmanCompression, mv::TargetDescriptor& td)
+            {
+                if(huffmanCompression) {
+                    auto hdeDef = td.hdeDef();
+                    codec_.reset(new huffmanCodec(hdeDef.bitPerSymbol, hdeDef.maxNumberEncodedSymbols, 0, hdeDef.blockSize, false, hdeDef.bypassMode));
+                    huffmanCompressWeights = true;
+                }
+            }
+            
+            bool huffmanCompressWeights = false;
+            std::unique_ptr<huffmanCodec> codec_ = nullptr;
             MVCNN::GraphFileT graphFile_;
             std::shared_ptr<std::vector<char>> binaryData_;
             static const std::unordered_map<std::string, MVCNN::DType> dTypeMapping_;
@@ -39,9 +51,9 @@ namespace mv
             static std::vector<unsigned> reduceQuantVector_(std::vector<unsigned> inVec);
 
         public:
-            static RuntimeModel& getInstance()
+            static RuntimeModel& getInstance(bool huffmanCompression, mv::TargetDescriptor& td)
             {
-                static RuntimeModel instance;
+                static RuntimeModel instance(huffmanCompression, td);
                 return instance;
             }
             RuntimeModel(RuntimeModel const&) = delete;
@@ -125,6 +137,7 @@ namespace mv
             void deserialize(char * buffer, int length);
             void buildGraphFile(ComputationModel& cm, Element& compilationDescriptor);
             void buildHeader(ComputationModel& cm, Element& compilationDescriptor);
+            std::vector<uint8_t> huffmanCompress(std::vector<int64_t>& inputData);
             std::shared_ptr<std::vector<char>> getBlob();
             static void case1MC(unsigned numTasks, ComputationModel& cm, mv::DmaDirection direction, mv::Element &compilationDescriptor, bool compression, bool padFinalOutput, std::vector<std::unique_ptr<MVCNN::TaskT>>& toReturn, Data::TensorIterator src, Data::TensorIterator dst, const std::string &srcAllocator = "", const std::string &dstAllocator = "");
             static void case2MC(unsigned numTasks, ComputationModel& cm, mv::DmaDirection direction, mv::Element &compilationDescriptor, bool compression, bool padFinalOutput, std::vector<std::unique_ptr<MVCNN::TaskT> > &toReturn, Data::TensorIterator src, Data::TensorIterator dst, const std::string &srcAllocator = "", const std::string &dstAllocator = "");

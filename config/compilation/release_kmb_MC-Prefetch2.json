@@ -16,6 +16,7 @@
                 "MemoryHack": false,
                 "cmx": 917504,
                 "enable_channel_major_conv": false,
+                "HuffmanCompression": false,
                 "split_strategy" :
                 [
                     {
