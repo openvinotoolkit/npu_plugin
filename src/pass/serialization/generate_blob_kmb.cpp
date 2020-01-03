@@ -23,9 +23,7 @@ void generateBlobKmbFcn(const mv::pass::PassEntry&, mv::ComputationModel& model,
 {   
 
     MV_PROFILED_FUNCTION(MV_PROFILE_PHASE)
-    auto returnedParams = model.getGlobalConfigParams();
-    auto huffmanCompression = returnedParams->get<bool>("HuffmanCompression");
-    mv::RuntimeModel& rm = mv::RuntimeModel::getInstance(huffmanCompression, td);
+    mv::RuntimeModel& rm = mv::RuntimeModel::getInstance(td);
     rm.buildGraphFile(model, passDesc);
 
     if (!passDesc.hasAttr("output"))

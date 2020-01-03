@@ -541,17 +541,18 @@ std::vector<long unsigned int> packToInt64(const std::vector<T>& origData, mv::D
     return toReturn;
 }
 
-std::unique_ptr<MVCNN::BinaryDataT> mv::RuntimeModel::buildBinaryDataT(ComputationModel&, mv::Element&, mv::Tensor& t)
+std::unique_ptr<MVCNN::BinaryDataT> mv::RuntimeModel::buildBinaryDataT(ComputationModel&, mv::Element&, mv::Tensor& t, bool huffmanCompression)
 {
     std::unique_ptr<MVCNN::BinaryDataT> toBuild = std::unique_ptr<MVCNN::BinaryDataT>(new MVCNN::BinaryDataT());
 
     //Huffman compression call for Uint8 data
-    if(t.getDType().toString() == "UInt8" && huffmanCompressWeights == true) 
+    if(t.getDType().toString() == "UInt8" && huffmanCompression) 
     {
         auto dataPacked = t.getDataPacked();
         auto compressedData = huffmanCompress(dataPacked);
         toBuild->data = packToInt64(compressedData, t.getDType());
         toBuild->length = compressedData.size();
+        toBuild->underlying_type = MVCNN::DType::DType_U8;
         t.set<bool>("Compression", true);
     }
     else 
@@ -2142,6 +2143,7 @@ void mv::RuntimeModel::buildGraphFile(ComputationModel& cm, mv::Element& compila
     unsigned numClusters = dm.getGlobalConfigParams()->get<int>("Number_of_Clusters");
 
     auto globalConfigurationParameters = cm.getGlobalConfigParams();
+    auto huffmanCompression = globalConfigurationParameters->get<bool>("HuffmanCompression");
 
     graphFile_.header = buildSummaryHeaderT(cm, compilationDescriptor, std::move(graphFile_.header));
 
@@ -2178,7 +2180,7 @@ void mv::RuntimeModel::buildGraphFile(ComputationModel& cm, mv::Element& compila
     for(auto& tIt : toSort)
     {
         //std::cout << "Serializing to binary data section " << tensorIt->getName() << std::endl;
-        graphFile_.binary_data.push_back(buildBinaryDataT(cm, compilationDescriptor, *tIt));
+        graphFile_.binary_data.push_back(buildBinaryDataT(cm, compilationDescriptor, *tIt, huffmanCompression));
     }
     // TASKS
     graphFile_.task_lists = buildTaskListT(cm, compilationDescriptor);
@@ -2244,4 +2246,13 @@ std::vector<uint8_t> mv::RuntimeModel::huffmanCompress(std::vector<int64_t>& inp
     codec_->huffmanCodecCompressArray(&castedIntData[0],(int)castedIntData.size(),&compressedDataBuffer[0],(int)compressedBufferSize);
     
     return compressedDataBuffer;
+}
+
+std::vector<uint8_t> mv::RuntimeModel::huffmanDecompress(std::vector<uint8_t>& compressedData) 
+{
+    auto deCompressedBufferSize = compressedData.size() * 5;
+    std::vector<uint8_t> deCompressedDataBuffer (deCompressedBufferSize, 0); 
+    codec_->huffmanCodecDecompressArray(&compressedData[0],(int)compressedData.size(),&deCompressedDataBuffer[0],(int)deCompressedBufferSize);
+    
+    return deCompressedDataBuffer;
 }

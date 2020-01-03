@@ -21,8 +21,6 @@ void CreateSourceStructureFcn(const mv::pass::PassEntry&, mv::ComputationModel& 
 {
 
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
-    auto returnedParams = model.getGlobalConfigParams();
-    auto huffmanCompression = returnedParams->get<bool>("HuffmanCompression");
-    mv::RuntimeModel& rm = mv::RuntimeModel::getInstance(huffmanCompression, td);
+    mv::RuntimeModel& rm = mv::RuntimeModel::getInstance(td);
     rm.buildHeader(model, compilationDescriptor);
 }
