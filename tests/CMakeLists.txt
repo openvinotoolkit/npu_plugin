@@ -62,6 +62,11 @@ file(GLOB scheduler_unit_tests
   "${CMAKE_SOURCE_DIR}/src/pass/lp_scheduler/*\_test.cpp"
 )
 
+file(GLOB hde_unit_tests
+  "${CMAKE_SOURCE_DIR}/src/tests/target/keembay/hde.cpp"
+  
+)
+
 add_executable(mcm_unit_tests
     mcm_unit_tests.cpp
     #${nce1}
@@ -77,6 +82,7 @@ add_executable(mcm_unit_tests
 #    ${kmb}
 #    ${utils}
     ${scheduler_unit_tests}
+    ${hde_unit_tests}
 )
 
 if(VALIDATION)

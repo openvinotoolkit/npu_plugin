@@ -178,13 +178,8 @@ std::string mv::CompilationUnit::getLogID() const
 
 std::shared_ptr<std::vector<char>> mv::CompilationUnit::getBlob() const
 {
-    // This is called by openvino
-    // Which CD do they use?
-    // Setting compression here for now until CD is accessible here
-    // bool huffmanCompression = false;
-
-    // if(!completed())
-    //     log(Logger::MessageType::Warning, "Getting a blob from compilation unit before completion");
-    // mv::RuntimeModel& rm = mv::RuntimeModel::getInstance(huffmanCompression);
-    // return rm.getBlob();
+    if(!completed())
+        log(Logger::MessageType::Warning, "Getting a blob from compilation unit before completion");
+    mv::RuntimeModel& rm = mv::RuntimeModel::getInstance(targetDescriptor_);
+    return rm.getBlob();
 }
