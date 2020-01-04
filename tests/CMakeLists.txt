@@ -63,8 +63,7 @@ file(GLOB scheduler_unit_tests
 )
 
 file(GLOB hde_unit_tests
-  "${CMAKE_SOURCE_DIR}/src/tests/target/keembay/hde.cpp"
-  
+  "${CMAKE_SOURCE_DIR}/tests/unit/target/kmb/hde/hde.cpp"
 )
 
 add_executable(mcm_unit_tests
