@@ -94,55 +94,55 @@ namespace
         return out;
     }
 
-    void printParam(std::ostream& codeOut, std::ostream& dataOut, const std::string& paramName, const mv::Data::TensorIterator& tensor)
+    void printParam(std::ostream* codeOut, std::ostream* dataOut, const std::string& paramName, const mv::Data::TensorIterator& tensor)
     {
-        codeOut << varName(tensor->getName());
+        *codeOut << varName(tensor->getName());
     }
-    void printParam(std::ostream& codeOut, std::ostream& dataOut, const std::string& paramName, const std::vector<mv::Data::TensorIterator>& tensors)
+    void printParam(std::ostream* codeOut, std::ostream* dataOut, const std::string& paramName, const std::vector<mv::Data::TensorIterator>& tensors)
     {
-        codeOut << "{";
+        *codeOut << "{";
         if (!tensors.empty())
         {
-            codeOut << varName(tensors[0]->getName());
+            *codeOut << varName(tensors[0]->getName());
         }
         for (size_t i = 1; i < tensors.size(); ++i)
         {
-            codeOut << ", " << varName(tensors[i]->getName());
+            *codeOut << ", " << varName(tensors[i]->getName());
         }
-        codeOut << "}";
+        *codeOut << "}";
     }
     template <typename T>
-    void printParam(std::ostream& codeOut, std::ostream& dataOut, const std::string& paramName, const std::vector<T>& attr)
+    void printParam(std::ostream* codeOut, std::ostream* dataOut, const std::string& paramName, const std::vector<T>& attr)
     {
         if (attr.size() < 8)
         {
-            codeOut << mv::Attribute(attr).toLongString();
+            *codeOut << mv::Attribute(attr).toLongString();
         }
         else
         {
-            codeOut << paramName;
-            dataOut << "const std::vector<" << mv::Attribute(attr[0]).getTypeName() << "> " << paramName << mv::Attribute(attr).toLongString() << ";" << std::endl;
-            dataOut << std::endl;
+            *codeOut << paramName;
+            *dataOut << "const std::vector<" << mv::Attribute(attr[0]).getTypeName() << "> " << paramName << mv::Attribute(attr).toLongString() << ";" << std::endl;
+            *dataOut << std::endl;
         }
     }
     template <typename T>
-    void printParam(std::ostream& codeOut, std::ostream& dataOut, const std::string& paramName, const T& attr)
+    void printParam(std::ostream* codeOut, std::ostream* dataOut, const std::string& paramName, const T& attr)
     {
-        codeOut << mv::Attribute(attr).toLongString();
+        *codeOut << mv::Attribute(attr).toLongString();
     }
 
     template <std::size_t I = 0, typename ParamTuple>
     typename std::enable_if<I == std::tuple_size<typename std::decay<ParamTuple>::type>::value, void>::type
-    printParams(std::ostream& codeOut, std::ostream& dataOut, const std::string& outVarName, const std::vector<std::string>& paramNames, const ParamTuple& paramValues)
+    printParams(std::ostream* codeOut, std::ostream* dataOut, const std::string& outVarName, const std::vector<std::string>& paramNames, const ParamTuple& paramValues)
     {
     }
     template <std::size_t I = 0, typename ParamTuple>
     typename std::enable_if<I < std::tuple_size<typename std::decay<ParamTuple>::type>::value, void>::type
-    printParams(std::ostream& codeOut, std::ostream& dataOut, const std::string& outVarName, const std::vector<std::string>& paramNames, const ParamTuple& paramValues)
+    printParams(std::ostream* codeOut, std::ostream* dataOut, const std::string& outVarName, const std::vector<std::string>& paramNames, const ParamTuple& paramValues)
     {
         if (I > 0)
         {
-            codeOut << ", ";
+            *codeOut << ", ";
         }
 
         printParam(codeOut, dataOut, outVarName + "_" + paramNames.at(I), std::get<I>(paramValues));
@@ -152,18 +152,18 @@ namespace
 
     template <typename... Args>
     void printOp(
-            std::ostream& codeOut, std::ostream& dataOut,
+            std::ostream* codeOut, std::ostream* dataOut,
             const std::string& outVarName,
             const std::string& opName,
             const std::string& name,
             const std::string& paramStr,
             Args&&... args)
     {
-        codeOut << "    const auto " << outVarName << " = model." << opName << "(";
+        *codeOut << "    const auto " << outVarName << " = model." << opName << "(";
         const auto paramNames = splitStringList(paramStr, ',');
         const auto paramValues = std::forward_as_tuple(std::forward<Args>(args)...);
         printParams(codeOut, dataOut, outVarName, paramNames, paramValues);
-        codeOut << ", \"" << name << "\");" << std::endl;
+        *codeOut << ", \"" << name << "\");" << std::endl;
     }
 
     const std::string OUT_START_TEMPL = R"cppinttempl(
@@ -1018,8 +1018,8 @@ void mv::op::OpRegistry::generateCompositionAPI(const std::string& metaDir, cons
     incStream << tab << "class OpModel: public BaseOpModel, public CompositionalModel" << eol;
     incStream << tab << "{" << eol << eol;
     incStream << tab << "private:" << eol;
-    incStream << tab << tab << "std::ofstream codeOut_;" << eol;
-    incStream << tab << tab << "std::ofstream dataOut_;" << eol;
+    incStream << tab << tab << "std::ofstream* codeOut_;" << eol;
+    incStream << tab << tab << "std::ofstream* dataOut_;" << eol;
     incStream << tab << tab << "void init(const std::string& outFileName);" << eol << eol;
 
     incStream << tab << "public:" << eol << eol;
@@ -1101,22 +1101,27 @@ void mv::op::OpRegistry::generateCompositionAPI(const std::string& metaDir, cons
     srcStream << tab << "return BaseOpModel::getName();" << eol;
     srcStream << "}" << eol << eol;
     srcStream << "void mv::OpModel::init(const std::string& outFileName) " << eol << "{" << eol;
+    srcStream << tab << "codeOut_ = new std::ofstream();" << eol;
+    srcStream << tab << "dataOut_ = new std::ofstream();" << eol;
+    srcStream << tab << "std::cout << \"Initializing RecordedModel...\" << std::endl;" << eol;
     srcStream << tab << "const auto dataFileName = removeFileExt(outFileName) + \".data.inc\";" << eol;
-    srcStream << tab << "codeOut_.open(outFileName, std::ios_base::out | std::ios_base::trunc);" << eol;
-    srcStream << tab << "assert(codeOut_.is_open());" << eol;
-    srcStream << tab << "dataOut_.open(dataFileName, std::ios_base::out | std::ios_base::trunc);" << eol;
-    srcStream << tab << "assert(dataOut_.is_open());" << eol;
+    srcStream << tab << "codeOut_->open(outFileName, std::ios_base::out | std::ios_base::trunc);" << eol;
+    srcStream << tab << "assert(codeOut_->is_open());" << eol;
+    srcStream << tab << "dataOut_->open(dataFileName, std::ios_base::out | std::ios_base::trunc);" << eol;
+    srcStream << tab << "assert(dataOut_->is_open());" << eol;
     srcStream << tab << "auto outStart = OUT_START_TEMPL;" << eol;
     srcStream << tab << "setTemplParam(outStart, \"@DATA_FILE_NAME@\", dataFileName);" << eol;
     srcStream << tab << "setTemplParam(outStart, \"@MODEL_NAME@\", varName(getName()));" << eol;
-    srcStream << tab << "codeOut_ << outStart;" << eol;
+    srcStream << tab << "*codeOut_ << outStart;" << eol;
     srcStream << "}" << eol;
 
     srcStream << "mv::OpModel::~OpModel()" << eol;
     srcStream << "{" << eol;
     srcStream << tab << "auto outMain = OUT_MAIN_FUNC;" << eol;
     srcStream << tab << "setTemplParam(outMain, \"@MODEL_NAME@\", varName(getName()));" << eol;
-    srcStream << tab << "codeOut_ << \"}\" << std::endl << outMain << std::endl;" << eol;
+    srcStream << tab << "*codeOut_ << \"}\" << std::endl << outMain << std::endl;" << eol;
+    srcStream << tab << "delete codeOut_;" << eol;
+    srcStream << tab << "delete dataOut_;" << eol;
     srcStream << "}" << eol << eol;    
     srcStream.close();
 
