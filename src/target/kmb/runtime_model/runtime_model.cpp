@@ -2240,19 +2240,21 @@ std::shared_ptr<std::vector<char>> mv::RuntimeModel::getBlob()
 
 std::vector<uint8_t> mv::RuntimeModel::huffmanCompress(std::vector<int64_t>& inputData) 
 {
-    std::vector<uint8_t> castedIntData(inputData.begin(),inputData.end());
+    std::vector<uint8_t> uint8InputData(inputData.begin(),inputData.end());
+    uint32_t size = uint8InputData.size();
     auto compressedBufferSize = inputData.size() + 2 * (std::ceil(inputData.size() / 4096) + 1);
     std::vector<uint8_t> compressedDataBuffer (compressedBufferSize, 0); 
-    codec_->huffmanCodecCompressArray(&castedIntData[0],(int)castedIntData.size(),&compressedDataBuffer[0],(int)compressedBufferSize);
-    
+    codec_->huffmanCodecCompressArray(size, &uint8InputData[0], &compressedDataBuffer[0]);
+
     return compressedDataBuffer;
 }
 
 std::vector<uint8_t> mv::RuntimeModel::huffmanDecompress(std::vector<uint8_t>& compressedData) 
 {
+    uint32_t size = compressedData.size();
     auto deCompressedBufferSize = compressedData.size() * 5;
     std::vector<uint8_t> deCompressedDataBuffer (deCompressedBufferSize, 0); 
-    codec_->huffmanCodecDecompressArray(&compressedData[0],(int)compressedData.size(),&deCompressedDataBuffer[0],(int)deCompressedBufferSize);
+    codec_->huffmanCodecDecompressArray(size, &compressedData[0], &deCompressedDataBuffer[0]);
     
     return deCompressedDataBuffer;
 }

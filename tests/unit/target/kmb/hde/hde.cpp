@@ -14,8 +14,7 @@ TEST(hde, self_test)
     int randomSize;
     int randomNumber;
     std::vector<uint8_t> uncompressedData;
-    std::unique_ptr<huffmanCodec> codec_ = nullptr;
-    codec_.reset(new huffmanCodec(8, 16, 0, 4096, false, false));
+    std::unique_ptr<huffmanCodec> codec_(new huffmanCodec(8, 16, 0, 4096, false, false));
 
     /* initialize random seed: */
     srand (time(NULL));
@@ -31,13 +30,14 @@ TEST(hde, self_test)
 
     /*compress data*/
     auto compressedBufferSize = uncompressedData.size() + 2 * (std::ceil(uncompressedData.size() / 4096) + 1);
+    uint32_t size = uncompressedData.size();
     std::vector<uint8_t> compressedData (compressedBufferSize, 0); 
-    codec_->huffmanCodecCompressArray(&uncompressedData[0],(int)uncompressedData.size(),&compressedData[0],(int)compressedBufferSize);
+    codec_->huffmanCodecCompressArray(size, &uncompressedData[0], &compressedData[0]);
 
     /*decompress data*/
     auto deCompressedBufferSize = compressedData.size() * 5;
     std::vector<uint8_t> deCompressedDataBuffer (deCompressedBufferSize, 0); 
-    codec_->huffmanCodecDecompressArray(&compressedData[0],(int)compressedData.size(),&deCompressedDataBuffer[0],(int)deCompressedBufferSize);
+    codec_->huffmanCodecDecompressArray(size, &compressedData[0], &deCompressedDataBuffer[0]);
 
     /*test that decompressed data equals original data*/
     for(unsigned i = 0; i < randomSize; ++i)
