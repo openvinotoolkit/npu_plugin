@@ -1018,8 +1018,8 @@ void mv::op::OpRegistry::generateCompositionAPI(const std::string& metaDir, cons
     incStream << tab << "class OpModel: public BaseOpModel, public CompositionalModel" << eol;
     incStream << tab << "{" << eol << eol;
     incStream << tab << "private:" << eol;
-    incStream << tab << tab << "std::ofstream* codeOut_;" << eol;
-    incStream << tab << tab << "std::ofstream* dataOut_;" << eol;
+    incStream << tab << tab << "std::ofstream* codeOut_ = 0;" << eol;
+    incStream << tab << tab << "std::ofstream* dataOut_ = 0;" << eol;
     incStream << tab << tab << "void init(const std::string& outFileName);" << eol << eol;
 
     incStream << tab << "public:" << eol << eol;
@@ -1068,7 +1068,7 @@ void mv::op::OpRegistry::generateCompositionAPI(const std::string& metaDir, cons
     srcStream << "mv::OpModel::OpModel(ComputationModel& other) :" << eol;
     srcStream << "BaseOpModel(other)" << eol;
     srcStream << "{" << eol;
-    srcStream << tab << "init(\"templateExampleNew.cpp\");" << eol;
+    // srcStream << tab << "init(\"templateExampleNew.cpp\");" << eol;
     srcStream << "}" << eol << eol;
 
     srcStream << RECORDED_OP_MODEL_CPP_BODY << eol;
@@ -1117,11 +1117,16 @@ void mv::op::OpRegistry::generateCompositionAPI(const std::string& metaDir, cons
 
     srcStream << "mv::OpModel::~OpModel()" << eol;
     srcStream << "{" << eol;
+    srcStream << tab << "std::cout << \"Deleting...\" << std::endl;" << eol;
     srcStream << tab << "auto outMain = OUT_MAIN_FUNC;" << eol;
     srcStream << tab << "setTemplParam(outMain, \"@MODEL_NAME@\", varName(getName()));" << eol;
-    srcStream << tab << "*codeOut_ << \"}\" << std::endl << outMain << std::endl;" << eol;
-    srcStream << tab << "delete codeOut_;" << eol;
-    srcStream << tab << "delete dataOut_;" << eol;
+    srcStream << tab << "if (codeOut_) {" << eol;
+    srcStream << tab << tab <<"std::cout << \"1\" << std::endl;" << eol;
+    srcStream << tab << tab << "*codeOut_ << \"}\" << std::endl << outMain << std::endl;" << eol;
+    srcStream << tab << tab << "std::cout << \"2\" << std::endl;" << eol;
+    srcStream << tab << tab << "delete codeOut_;" << eol;
+    srcStream << tab << tab << "delete dataOut_;" << eol;
+    srcStream << tab << "} else std::cout << \" null\" << std::endl;" << eol;
     srcStream << "}" << eol << eol;    
     srcStream.close();
 
