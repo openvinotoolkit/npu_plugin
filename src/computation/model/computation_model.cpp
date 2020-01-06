@@ -185,7 +185,7 @@ mv::GroupIterator mv::ComputationModel::addGroup(const std::string &name)
         auto result = groups_->emplace(name, std::make_shared<Group>(*this, name));
         if (result.second)
         {
-            log(Logger::MessageType::Info, "Defined " + result.first->second->toString());
+            log(Logger::MessageType::Debug, "Defined " + result.first->second->toString());
             return result.first;
         }
         return groupEnd();

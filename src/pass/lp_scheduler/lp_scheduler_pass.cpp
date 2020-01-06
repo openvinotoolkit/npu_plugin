@@ -1,0 +1,266 @@
+#include "include/mcm/computation/model/data_model.hpp"
+#include "include/mcm/computation/resource/memory_allocator.hpp"
+#include "include/mcm/pass/pass_registry.hpp"
+#include "include/mcm/tensor/tensor.hpp"
+#include "lp_scheduler/lp_scheduler_pass.hpp"
+#include "pass/lp_scheduler/control_edge_generator.hpp"
+#include "scheduler/feasible_scheduler.hpp"
+
+
+static void LpSchedulerPass(const mv::pass::PassEntry& , mv::ComputationModel&,
+    mv::TargetDescriptor& , mv::Element&, mv::Element&);
+
+namespace mv {
+namespace pass {
+
+MV_REGISTER_PASS(LpScheduler)
+  .setFunc(LpSchedulerPass)
+  .defineArg(json::JSONType::String, "output")
+  .setDescription("Run Feasible Scheduler Algorithm.");
+
+} // namespace mv //
+} // namespace pass //
+
+typedef mv::scheduler::Operation_Dag<mv::ControlModel> control_dag_t;
+typedef mv::scheduler::Operation_Dag<mv::OpModel> dag_t;
+typedef mv::lp_scheduler::Scheduled_Op scheduled_op_t;
+typedef mv::lp_scheduler::Control_Edge control_edge_t;
+typedef mv::lp_scheduler::Control_Edge_Set control_edge_set_t;
+typedef mv::lp_scheduler::Control_Edge_Generator<scheduled_op_t>
+  control_edge_generator_t;
+
+namespace mv {
+namespace lp_scheduler {
+
+template<>
+struct interval_traits<scheduled_op_t> {
+  typedef size_t unit_t;
+  typedef scheduled_op_t interval_t;
+
+  static unit_t interval_begin(const interval_t& interval) {
+    return interval.cmx_address_start_;
+  }
+
+  static unit_t interval_end(const interval_t& interval) {
+    return interval.cmx_address_end_;
+  }
+
+}; // struct interval_traits<Scheduled_Op> //
+
+} // namespace lp_scheduler //
+} // namespace mv //
+
+void LpSchedulerAllocatorPass(mv::ComputationModel& model) {
+  mv::lp_scheduler::Tensor_Allocator_Assignment alloc(model);
+  mv::OpModel om(model);
+
+  for (auto itr=om.getInput(); itr!=om.opEnd(); ++itr) {
+    mv::Op &op = *itr;
+    if (!op.outputSlots()) { continue; }
+
+    printf("[op=%s]\n", op.getName().c_str());
+    fflush(stdout);
+    mv::Data::TensorIterator tensor_itr = op.getOutputTensor(0UL);
+    alloc(tensor_itr);
+  }
+}
+
+
+void LpSchedulerBuildTimeStamp(FILE *fptr) {
+  assert(fptr);
+  fprintf(fptr, "[LpScheduler: build %s %s]\n", __DATE__, __TIME__);
+}
+
+
+void LpSchedulerPass(const mv::pass::PassEntry& pass,
+    mv::ComputationModel& model, mv::TargetDescriptor& target,
+    mv::Element& passDesc, mv::Element& compOutput) {
+  typedef mv::lp_scheduler::mv_memory_scheduler_with_spilling_t scheduler_t;
+  typedef typename scheduler_t::scheduled_op_info_t scheduled_op_info_t;
+  typedef mv::lp_scheduler::scheduler_traits<dag_t> traits_t;
+
+  if (passDesc.hasAttr("allocator_mode")) {
+    LpSchedulerAllocatorPass(model);
+    return;
+  }
+
+  mv::OpModel cm(model);
+  dag_t input_dag(cm);
+  auto params = model.getGlobalConfigParams();
+
+  dag_t::resource_t upper_bound = params->get<unsigned>("totalCmx");
+  printf("[upper_bound = %lu]\n", upper_bound);
+  std::string output_file = passDesc.get<std::string>("output");
+  FILE *fptr = fopen(output_file.c_str(), "w");
+  assert(fptr);
+
+  // precondition check //
+  {
+    std::list< std::pair<dag_t::operation_t, size_t> > exceeding_ops;
+
+    input_dag.find_all_ops_exceeding_resource_threshold(upper_bound,
+        std::back_inserter(exceeding_ops));
+
+    for (auto itr=exceeding_ops.begin(); itr!=exceeding_ops.end(); ++itr) {
+      printf("[exceeding op:] %s resource=%lu\n",
+          (itr->first)->getName().c_str(), (itr->second));
+    }
+    assert(exceeding_ops.empty());
+  }
+
+
+  LpSchedulerBuildTimeStamp(fptr);
+
+  // generate tensor addresses //
+  mv::lp_scheduler::Tensor_Address_Assignment<scheduler_t>
+      cmx_address_alloc(model);
+  scheduler_t scheduler(input_dag, upper_bound), scheduler_end;
+  std::list<scheduled_op_t> scheduled_ops;
+  bool has_any_dynamic_spill_ops = false;
+
+
+  std::string scheduled_op_type;
+  std::unordered_set<mv::Op const *> spilled_writes;
+
+  while (scheduler != scheduler_end) {
+    const scheduled_op_info_t &scheduled_op = *scheduler;
+    mv::Op const *op = scheduled_op.op_;
+    size_t rbegin = scheduled_op.begin_resource();
+    size_t rend = scheduled_op.end_resource();
+
+    scheduled_op_type = scheduled_op.op_type_name();
+
+    if (input_dag.is_input_op(op)) {
+      // explicitly set the resource bounds so that the prefetch edges can 
+      // be done as high as possible.
+      rbegin = 1UL;
+      rend = upper_bound;
+    }
+
+    
+    mv::lp_scheduler::op_type_e scheduled_op_enum;
+   
+    bool select_op = true;
+    if (scheduled_op_type == "ORIGINAL") {
+      scheduled_op_enum = mv::lp_scheduler::op_type_e::ORIGINAL_OP;
+    } else if (scheduled_op_type == "SPILLED_READ") {
+      scheduled_op_enum = mv::lp_scheduler::op_type_e::SPILLED_READ_OP;
+      has_any_dynamic_spill_ops = true;
+    } else {
+      scheduled_op_enum = mv::lp_scheduler::op_type_e::SPILLED_WRITE_OP;
+      has_any_dynamic_spill_ops = true;
+      if (spilled_writes.find(op) == spilled_writes.end() ) {
+        spilled_writes.insert(op);
+      } else {
+        select_op = false;
+      }
+    }
+    
+
+    if (select_op) {
+      scheduled_ops.push_back(scheduled_op_t(op, scheduled_op.time_,
+            rbegin, rend, scheduled_op_enum));
+
+      fprintf(fptr, "op = %-20s  type = %-15s  time = %lu",
+          (scheduled_op.op_)->getName().c_str(), scheduled_op.op_type_name(),
+            scheduled_op.time_);
+      fflush(fptr);
+
+      if (scheduled_op.has_active_resource()) {
+        fprintf(fptr, " resource=[%lu %lu]\n", scheduled_op.begin_resource(),
+            scheduled_op.end_resource());
+      } else {
+        fprintf(fptr, " resource=<none>\n");
+      }
+
+      cmx_address_alloc(scheduled_op);
+    }
+    ++scheduler;
+  }
+
+  std::vector<control_edge_t> dynamic_spill_control_edges;
+  if (has_any_dynamic_spill_ops) {
+    printf("[Dynamic_Spill_Node_Inserter] adding dynamic spill nodes\n");
+    mv::lp_scheduler::Dynamic_Spill_Node_Inserter dynamic_spill(model);
+
+    dynamic_spill.add_spill_read_write_ops(input_dag,
+        scheduled_ops.begin(), scheduled_ops.end());
+
+    // update the scheduled ops with new info of the ops //
+    dynamic_spill.update_scheduled_ops_with_new_read_write_ops(
+        scheduled_ops.begin(), scheduled_ops.end(),
+        std::back_inserter(dynamic_spill_control_edges));
+
+    // update the input_dag with updated opModel
+    mv::OpModel updated_om(model);
+    input_dag.reset(updated_om);
+
+    // updated schedule //
+    fprintf(fptr, "\n\n\n======================\n");
+    for (auto sitr=scheduled_ops.begin(); sitr!=scheduled_ops.end(); ++sitr) {
+      const scheduled_op_t& scheduled_op = *sitr;
+      assert( scheduled_op.is_original_op() );
+      fprintf(fptr, "[updated] op = %-20s  type = %-15s  time = %lu ",
+          (scheduled_op.op_)->getName().c_str(), scheduled_op.op_type_name(),
+          scheduled_op.schedule_time_);
+
+      if (scheduled_op.has_valid_address()) {
+        fprintf(fptr, " resource=[%lu %lu] \n", scheduled_op.cmx_address_start_,
+            scheduled_op.cmx_address_end_);
+      } else {
+        fprintf(fptr, " resource=<none> \n");
+      }
+      cmx_address_alloc(scheduled_op);
+    }
+    has_any_dynamic_spill_ops = false;
+
+  }
+
+  mv::ControlModel cmodel(model);
+  control_edge_set_t control_edges(cmodel);
+  control_edge_generator_t algo;
+
+  control_edges.set_zero_indegree_temporal_control(
+      passDesc.hasAttr("zero_degree_temporal_edges") );
+
+  algo.generate_control_edges(scheduled_ops.begin(), scheduled_ops.end(),
+      control_edges);
+
+  std::unordered_set<std::string> scheduled_ops_set;
+  for (auto itr=scheduled_ops.begin(); itr != scheduled_ops.end(); ++itr) {
+    const scheduled_op_t& op = *itr;
+    scheduled_ops_set.insert( (op.op_)->getName() );
+  }
+
+  fprintf(fptr, "\n\n");
+  for (auto itr=control_edges.begin(); itr != control_edges.end(); ++itr) {
+    fprintf(fptr, "control_edge: %s -> %s \n",
+          (*itr).source_name(), (*itr).sink_name());
+  }
+
+
+  { 
+    control_edges.add_edges_to_fresh_control_model(input_dag, model, 
+        scheduled_ops.begin(), scheduled_ops.end());
+    printf("[Dynamic Spill Control Edge Count]: %lu\n",
+        dynamic_spill_control_edges.size());
+    control_edges.add_control_edges(model, dynamic_spill_control_edges.begin(),
+        dynamic_spill_control_edges.end());
+  }
+
+
+  {
+    mv::ControlModel cmodel_local(model);
+    fprintf(fptr, "[DAG Invariant: %s]\n",
+          cmodel_local.isDag() ? "PASSED" : "FAILED");
+  }
+
+
+  for (auto itr=traits_t::operations_begin(input_dag);
+        itr != traits_t::operations_end(input_dag); ++itr) {
+    if (scheduled_ops_set.find((*itr)->getName()) == scheduled_ops_set.end()) {
+      fprintf(fptr, "[unscheduled_op]: op=%s\n", (*itr)->getName().c_str());
+    }
+  }
+  fclose(fptr);
+}

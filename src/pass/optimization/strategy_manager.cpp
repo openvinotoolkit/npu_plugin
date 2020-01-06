@@ -316,7 +316,7 @@ std::vector<mv::Element> StrategyManager::convertLocationStrategyToElement(Criti
 }
 
 std::vector<mv::Element> StrategyManager::convertSparsityStrategyToElement(CriticalPathNodes &strategiesToConvert){
-    log(Logger::MessageType::Info, "GraphOptimizer: Converting Sparsity Strategies to Element");
+    log(Logger::MessageType::Debug, "GraphOptimizer: Converting Sparsity Strategies to Element");
 
     mv::Element copyLElement("");
     std::vector<mv::Element> sparsityStrategyList;
@@ -367,7 +367,7 @@ void StrategyManager::saveMetaStrategy(CriticalPathNodes& criticalPathNodes)
 
     if (enableSaveStrategyToDescriptor)
     {
-        log(Logger::MessageType::Info, "GraphOptimizer: Saving Strategy to Compilation Descriptor");
+        log(Logger::MessageType::Debug, "GraphOptimizer: Saving Strategy to Compilation Descriptor");
         auto compDesc = model_.getGlobalConfigParams();
         compDesc->set("streaming_strategy", streamingStrategyElements);
         compDesc->set("split_strategy", multiClusterStrategyElements);
@@ -376,11 +376,11 @@ void StrategyManager::saveMetaStrategy(CriticalPathNodes& criticalPathNodes)
 
     if (enableSaveStrategyToJsonFile)
     {
-        log(Logger::MessageType::Info, "GraphOptimizer: Saving Strategy to JSON file");
+        log(Logger::MessageType::Debug, "GraphOptimizer: Saving Strategy to JSON file");
         std::ofstream jsonOutputFile ;
         jsonOutputFile.open(jsonOutFileName, std::ios::out );
         if (!(jsonOutputFile.is_open()))
-            log(Logger::MessageType::Info, "GraphOptimizer: Could not open output file " + jsonOutFileName);
+            log(Logger::MessageType::Debug, "GraphOptimizer: Could not open output file " + jsonOutFileName);
 
         auto currentTime= chrono::system_clock::to_time_t(chrono::system_clock::now());
         std::string timeStamp(ctime(&currentTime));
@@ -425,7 +425,7 @@ void StrategyManager::saveMetaStrategy(CriticalPathNodes& criticalPathNodes)
         else
             outTensor->set<mv::Tensor::MemoryLocation>("Location",mv::Tensor::MemoryLocation::NNCMX);
 
-        log(Logger::MessageType::Info, "GraphOptimizer: Output tensor location (from tensor attribute) for node " + op->getName() + " is " + outTensor->get("Location").toString());
+        log(Logger::MessageType::Debug, "GraphOptimizer: Output tensor location (from tensor attribute) for node " + op->getName() + " is " + outTensor->get("Location").toString());
     }
 }
 

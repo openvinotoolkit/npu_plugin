@@ -144,7 +144,7 @@ std::size_t  mv::TensorInterferenceGraph::getNeighborsWeight_(std::string& inode
 
 void  mv::TensorInterferenceGraph::addWeightsToInterferenceGraph_(const mv::pass::PassEntry& pass, mv::ComputationModel& model, std::size_t alignment)
 {
-    pass.log(mv::Logger::MessageType::Info, " \tcalc weights for nodes");
+    pass.log(mv::Logger::MessageType::Debug, " \tcalc weights for nodes");
 
     for (mv::TensorInterferenceGraph::node_list_iterator it = this->node_begin(); it != this->node_end(); ++it)
     {
@@ -157,7 +157,7 @@ void  mv::TensorInterferenceGraph::addWeightsToInterferenceGraph_(const mv::pass
             (*it).weight = tensor->computeTotalSize();
     }
 
-    pass.log(mv::Logger::MessageType::Info, " \tcalc neighbors weights");
+    pass.log(mv::Logger::MessageType::Debug, " \tcalc neighbors weights");
     for (mv::TensorInterferenceGraph::node_list_iterator it = this->node_begin(); it != this->node_end(); ++it)
         (*it).neighborsWeight = getNeighborsWeight_((*it).name) + (*it).weight;
 
@@ -173,11 +173,11 @@ mv::TensorInterferenceGraph::TensorInterferenceGraph(const mv::pass::PassEntry& 
     }
     else
     {
-        pass.log(mv::Logger::MessageType::Info, " calling genIntereferenceGraph_");
+        pass.log(mv::Logger::MessageType::Debug, " calling genIntereferenceGraph_");
 
         genIntereferenceGraph_(pass, model , tensorFilter, taskFilter, sinkFilter, isDMA);
     }
-    pass.log(mv::Logger::MessageType::Info, " calling addWeightsToInterferenceGraph_");
+    pass.log(mv::Logger::MessageType::Debug, " calling addWeightsToInterferenceGraph_");
     addWeightsToInterferenceGraph_(pass, model, alignment);
 }
 
@@ -259,7 +259,7 @@ void mv::TensorInterferenceGraph::genIntereferenceGraph_(const mv::pass::PassEnt
 
     std::unordered_set<std::pair<std::string, std::string>, pair_hash> addedEdges;
     //Collect all input/output tensor names
-    pass.log(mv::Logger::MessageType::Info, "\t collecting nodes and  obvious edges");
+    pass.log(mv::Logger::MessageType::Debug, "\t collecting nodes and  obvious edges");
 
     for(auto opIterator = om.opBegin(); opIterator != om.opEnd(); ++opIterator)
     {
@@ -338,7 +338,7 @@ void mv::TensorInterferenceGraph::genIntereferenceGraph_(const mv::pass::PassEnt
         }
     }
 
-    pass.log(mv::Logger::MessageType::Info, "\t creating source/sink maps");
+    pass.log(mv::Logger::MessageType::Debug, "\t creating source/sink maps");
 
     //for each 2 nodes, if they are not yet connected (neighbors) in the undirected graph
     // and dont have a path from one to the other in the directed graph, then check if they
@@ -364,7 +364,7 @@ void mv::TensorInterferenceGraph::genIntereferenceGraph_(const mv::pass::PassEnt
     //create transitive closure for all nodes in graph
     cmTransitiveClosure_(model);
 
-    pass.log(mv::Logger::MessageType::Info, "\t adding more edges (current Number of edges) " + std::to_string(nodeId));
+    pass.log(mv::Logger::MessageType::Debug, "\t adding more edges (current Number of edges) " + std::to_string(nodeId));
 
     for (std::unordered_set<std::string>::const_iterator source = nodeNames.begin( ); source != nodeNames.end( ); ++source)
     {
@@ -385,7 +385,7 @@ void mv::TensorInterferenceGraph::genIntereferenceGraph_(const mv::pass::PassEnt
             }
         }
     }
-    pass.log(mv::Logger::MessageType::Info, "\t Done - adding more edges (current Number of edges now) " + std::to_string(nodeId));
+    pass.log(mv::Logger::MessageType::Debug, "\t Done - adding more edges (current Number of edges now) " + std::to_string(nodeId));
 
 }
 

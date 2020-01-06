@@ -20,6 +20,7 @@ add_definitions(-DPROJECT_DIR=\"${PROJECT_SOURCE_DIR}\")
 set(META_DIR_PATH "${PROJECT_BINARY_DIR}/meta")
 include_directories(${META_DIR_PATH})
 
+
 #############################################################################################
 ### Setup
 #############################################################################################
@@ -31,6 +32,8 @@ endif()
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 
 add_compile_options(-std=c++11 --no-gnu-unique)
+#TODO(vamsikku): enable this for faster compilation times.
+#add_compile_options(-O3)
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
@@ -321,9 +324,16 @@ set(pass
     "${PROJECT_SOURCE_DIR}/src/pass/validation/basic_checks.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/validation/generate_dot.cpp"
 
+
+    "${PROJECT_SOURCE_DIR}/src/pass/lp_scheduler/lp_scheduler_pass.cpp"
+
+
     "${PROJECT_SOURCE_DIR}/src/target/target_descriptor.cpp"
 
     "${PROJECT_SOURCE_DIR}/src/graph/tensor_interference_graph.cpp"
+
+
+
 )
 
 set(compiler
@@ -391,6 +401,14 @@ else()
     endif()
 endif()
 
+add_subdirectory(src/scheduler)
+add_subdirectory(src/pass/lp_scheduler)
+add_dependencies(cm lp_scheduler lp_scheduler_pass)
+target_include_directories(cm
+    PUBLIC $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src/pass>
+    PUBLIC $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src/>)
+
+
 target_include_directories(cm INTERFACE
     ${PROJECT_SOURCE_DIR}
     ${PROJECT_SOURCE_DIR}/include
@@ -407,7 +425,7 @@ if(NOT CMAKE_CROSSCOMPILING)
         add_subdirectory(examples)
     endif()
     if(MCM_COMPILER_BUILD_TESTS)
-        add_subdirectory(tests/layer)
+        add_subdirectory(tests)
     endif()
     if(MCM_COMPILER_BUILD_TOOLS)
         add_subdirectory(tools)

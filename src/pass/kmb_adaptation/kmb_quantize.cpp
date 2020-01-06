@@ -64,6 +64,70 @@ void addQuantizationLayers(mv::OpModel om, std::vector<mv::Data::OpListIterator>
     }
 }
 
+void addSliceQuantizationLayer(mv::OpModel om, std::vector<mv::Data::OpListIterator>& slices, const mv::DType& dtypeNeededInInput)
+{
+    std::vector <mv::Data::TensorIterator> sliceInputs = {};
+    std::map <std::string, std::vector<mv::Data::OpListIterator>> sliceLeafs;
+    std::map <std::string, std::vector<mv::Data::FlowListIterator>> sliceFlows;
+    for (auto& slice : slices)
+    {
+        auto it = std::find (sliceInputs.begin(), sliceInputs.end(), slice->getInputTensor()[0]);
+        if (it != sliceInputs.end())
+        {
+            sliceLeafs[slice->getInputTensor()[0]->getName()].push_back(slice);
+            slices.erase(std::remove(slices.begin(), slices.end(), slice), slices.end());
+        }
+        else
+        {
+            sliceInputs.push_back(slice->getInputTensor()[0]);
+            auto previousOpIt = om.getSourceOp(slice->getInputTensor(0));
+            for (auto sinkFlow = previousOpIt.leftmostOutput(); sinkFlow != om.flowEnd(); ++sinkFlow)
+            {
+                sliceFlows[slice->getInputTensor()[0]->getName()].push_back(sinkFlow);
+            }
+        }
+    }
+    for(auto& slice : slices)
+    {
+        auto inputFlow = slice.leftmostInput();
+        auto outputDType = slice->getOutputTensor(0)->getDType();
+        std::size_t id = 0;
+        while(inputFlow != om.flowEnd())
+        {
+            auto tensor = inputFlow->getTensor();
+            auto tensorDType = tensor->getDType();
+
+            // NOTE: Maybe here a check for mixed precision should be added
+            if(!tensor->isPopulated() && tensorDType != dtypeNeededInInput)
+            {
+                auto quantize = om.uPATaskQuantize({tensor}, outputDType,
+                            tensor->get<mv::QuantizationParams>("quantParams"), "Quantize" + slice->getName() + std::to_string(id));
+                quantize->set<std::string>("splitStrategy",
+                            tensor->get<std::string>("splitStrategy"));
+                auto quantizeOp = om.getSourceOp(quantize);
+                quantizeOp->set<unsigned>("opId", slice->get<unsigned>("opId"));
+                auto backup = inputFlow;
+                auto slot = backup->get<size_t>("sinkInput");
+                ++inputFlow;
+                for (auto flow:sliceFlows[tensor->getName()])
+                {
+                    om.undefineFlow(flow);
+                }
+                slice->setInputTensor(quantize, slot, false);
+                om.defineFlow(quantize, slice, slot);
+                for (auto op:sliceLeafs[tensor->getName()])
+                {
+                    op->setInputTensor(quantize, slot, false);
+                    om.defineFlow(quantize, op, slot);
+                }
+                id++;
+            }
+            else
+                ++inputFlow;
+        }
+    }
+}
+
 static void kmbQuantizeConversionFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
@@ -75,6 +139,8 @@ static void kmbQuantizeConversionFcn(const mv::pass::PassEntry&, mv::Computation
 
     // NOTE: At this moment in the model, all the concats are implicit
     auto implicitConcats = om.getOps("ImplicitConcat");
+    // NOTE: For now only operations with U8/DPU Tasks are streamed
+    auto slices = om.getOps("Slice");
 
     auto U8 = mv::DType("UInt8");
     auto FP16 = mv::DType("Float16");
@@ -84,8 +150,10 @@ static void kmbQuantizeConversionFcn(const mv::pass::PassEntry&, mv::Computation
 
     bool DPUTasksinSW = globalParams->hasAttr("DPUTasksinFloat") ? globalParams->get<bool>("DPUTasksinFloat") : false;
     if (!DPUTasksinSW)
+    {
         addQuantizationLayers(om, dpuTasks, U8);
-
+        addSliceQuantizationLayer(om, slices, U8);
+    }
     // NOTE: Concat have the extra requirement that output tensor and input tensor have to match their DType, so
     // we split them in two vectors
 

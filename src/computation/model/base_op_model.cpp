@@ -65,7 +65,7 @@ mv::Data::TensorIterator mv::BaseOpModel::defineOp(const std::string& opType, co
     for (std::size_t i = 0; i < (*opNode).inputSlots(); ++i)
         defineFlow(inputs[i], opNode, i);
 
-    log(Logger::MessageType::Info, "Defined " + (*opNode).toString());
+    log(Logger::MessageType::Debug, "Defined " + (*opNode).toString());
 
     // Assumes single input/output
     if (opType == "Input")
@@ -125,7 +125,7 @@ void mv::BaseOpModel::removeOp(Data::OpListIterator op)
     decrementOpsInstanceCounter_(op->getOpType());
     ops_->erase(op->getName());
 
-    log(Logger::MessageType::Info, "Removed " + op->toString());
+    log(Logger::MessageType::Debug, "Removed " + op->toString());
     dataGraph_.node_erase(op);
 
 }
@@ -153,7 +153,7 @@ mv::Data::FlowListIterator mv::BaseOpModel::defineFlow(Data::TensorIterator sour
 
     sourceTensor->get<std::set<std::string>>("flows").insert(inputFlow->getName());
     dataFlows_->emplace(inputFlow->getName(), inputFlow);
-    log(Logger::MessageType::Info, "Defined " + inputFlow->toString());
+    log(Logger::MessageType::Debug, "Defined " + inputFlow->toString());
     return inputFlow;
 
 }
@@ -214,7 +214,7 @@ void mv::BaseOpModel::undefineFlow(Data::FlowListIterator flow)
     if (!ComputationModel::isValid(flow))
         throw ArgumentError(*this, "flow:iterator", "invalid", "Invalid flow passed for deletion");
 
-    log(Logger::MessageType::Info, "Removed " + flow->toString());
+    log(Logger::MessageType::Debug, "Removed " + flow->toString());
 
     if(!flow->getTensor()->hasAttr("flows"))
         log(Logger::MessageType::Error, flow->getTensor()->getName() + " is in a flow but has no attribute flows");

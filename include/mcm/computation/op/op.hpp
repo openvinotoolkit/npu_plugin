@@ -42,6 +42,11 @@ namespace mv
         std::vector<Data::TensorIterator> getOutputTensor();
         std::map<std::string, mv::Attribute> getAttrs(const std::vector<std::string>& forbiddenKeys = {}) const;
 
+        size_t getOutputSize() const {
+          if (outputs_.empty()) { return 0UL;}
+          return (*outputs_.front()).computeTotalSize();
+        }
+
         std::size_t inputSlots();
         std::size_t outputSlots();
 
