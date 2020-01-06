@@ -271,6 +271,7 @@
     },
     "serialize": {
         "Singular": [
+            "RemoveRedundantUpdateBarriers",
             {
                 "name": "GenerateBlobKmb",
                 "output": "output/mcm.blob"

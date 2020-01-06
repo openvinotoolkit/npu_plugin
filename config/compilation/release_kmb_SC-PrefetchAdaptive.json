@@ -98,7 +98,7 @@
                         {"name" : "dpuPerCluster",  "value" : 5   },
                         {"name" : "ddrBandwidth",   "value" : 128 },
                         {"name" : "systemClockMhz", "value" : 500 },
-                        {"name" : "FathomSafetyFactor", " value" : 1.0},
+                        {"name" : "FathomSafetyFactor", " value" : 0.925},
                         {"name" : "createStrategyDots", "value" : false},
                         {"name" : "dotFileLocation", "value" : "./output/dots/strategy/"},
                         {"name" : "jsonOutFileName", "value" : "./output/mcmCompiler_strategy_output.json"}
@@ -300,6 +300,7 @@
     },
     "serialize": {
         "Singular": [
+            "RemoveRedundantUpdateBarriers",
             {
                 "name": "GenerateDot",
                 "output": "output/dots/before_serialization_control.dot",

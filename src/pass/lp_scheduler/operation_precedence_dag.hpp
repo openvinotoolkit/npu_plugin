@@ -82,13 +82,20 @@ class Operation_Dag {
     typedef Operation_Dag dag_t;
     typedef mv::Op const * operation_t; // &(base_node_class::content_) //
     typedef operation_t const * const_op_ptr_t;
-    typedef std::hash<operation_t> operation_hash_t;
+    // use the operation name as the hash key to reduce any non-determinism with
+    // the virtual address //
+    struct operation_hash_t {
+      size_t operator()(const operation_t& op) const {
+        return name_hash_(op->getName());
+      }
+      std::hash<std::string> name_hash_;
+    }; // struct operation_hash_t //
 
 
     typedef std::list<const_op_ptr_t> op_ref_list_t;
     typedef op_ref_list_t::const_iterator const_ref_op_iterator_t;
 
-    typedef std::unordered_set<operation_t> ops_set_t;
+    typedef std::unordered_set<operation_t, operation_hash_t> ops_set_t;
     typedef typename ops_set_t::const_iterator const_master_op_iterator_t;
     typedef typename ops_set_t::iterator master_op_iterator_t;
 
@@ -255,6 +262,9 @@ class Operation_Dag {
     }
 
     ////////////////////////////////////////////////////////////////////////////
+    static const char* operation_name(const operation_t& op) {
+      return (op->getName()).c_str();
+    }
 
     static const_operation_iterator_t operations_begin(const dag_t& in) {
       return in.begin_nodes();

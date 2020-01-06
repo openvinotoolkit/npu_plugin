@@ -202,7 +202,8 @@ class Contiguous_Resource_State {
     struct interval_length_ordering_t {
       bool operator()(const interval_info_t& a,
           const interval_info_t& b) const {
-        return a.length() > b.length();
+        return (a.length() != b.length()) ? (a.length() > b.length()) :
+          (a.begin_ < b.begin_);
       }
     }; // struct interval_length_ordering_t //
     struct demand_ordering_t {
@@ -1066,10 +1067,6 @@ class Feasible_Memory_Schedule_Generator {
         return (o.op_ == op_) && (o.op_type_ == op_type_);
       }
 
-      bool operator<(const scheduled_op_info_t& o) const {
-        return (op_ != o.op_) ? (op_ < o.op_) : (op_type_ < o.op_type_);
-      }
-
       const scheduled_op_info_t& operator=(const heap_element_t& helement) {
         op_ = helement.op_;
         op_type_ = helement.op_type_;
@@ -1106,18 +1103,15 @@ class Feasible_Memory_Schedule_Generator {
       interval_info_t resource_info_;
     }; // struct scheduled_op_info_t //
 
+
     struct completion_time_ordering_t {
       bool operator()(const heap_element_t& a, const heap_element_t& b) const {
-        return a.time_ > b.time_;
+        return (a.time_ != b.time_) ? (a.time_ > b.time_) :
+            (::strcmp(traits::operation_name(a.op_),
+                        traits::operation_name(b.op_)) < 0);
       }
     }; // struct completion_time_ordering_t //
-
-    struct start_time_ordering_t {
-      bool operator()(const heap_element_t& a, const heap_element_t& b) const {
-        return a.time_ > b.time_;
-      }
-    }; // struct start_time_ordering_t //
-
+    typedef completion_time_ordering_t start_time_ordering_t;
 
 
     //TODO(vamsikku): the purpose of a eviction policy is to choose the 
@@ -1136,17 +1130,21 @@ class Feasible_Memory_Schedule_Generator {
     typedef std::list<scheduled_op_info_t> scheduled_op_info_list_t;
 
     // ready lists //
-    typedef std::unordered_set<operation_t> ready_data_list_t;
-    typedef std::unordered_set<operation_t> ready_active_list_t; 
-    typedef std::unordered_set<operation_t> ready_list_t; 
+    typedef std::unordered_set<operation_t, operation_hash_t> ready_data_list_t;
+    typedef std::unordered_set<operation_t, operation_hash_t>
+        ready_active_list_t; 
+    typedef std::unordered_set<operation_t, operation_hash_t> ready_list_t; 
 
-    typedef std::unordered_set<operation_t> processed_ops_t; 
-    typedef std::unordered_map<operation_t, size_t> op_in_degree_t;
-    typedef std::unordered_map<operation_t, op_output_info_t> op_output_table_t;
+    typedef std::unordered_set<operation_t, operation_hash_t> processed_ops_t; 
+    typedef std::unordered_map<operation_t, size_t, operation_hash_t>
+        op_in_degree_t;
+    typedef std::unordered_map<operation_t, op_output_info_t,
+              operation_hash_t> op_output_table_t;
     typedef std::vector<active_result_info_t> active_op_resources_t;
     // NOTE: the reason for the active_op_resources_t is to consider any future 
     // possibility of one operation generating multiple outputs.
-    typedef std::unordered_map<operation_t, active_op_resources_t>
+    typedef std::unordered_map<operation_t, active_op_resources_t,
+              operation_hash_t>
         active_resource_table_t;
 
     struct noop_op_back_insert_iterator_t {
@@ -1163,8 +1161,11 @@ class Feasible_Memory_Schedule_Generator {
       }
 
       bool operator()(const operation_t& a, const operation_t& b) const {
-        return traits::resource_utility(dag_, a) > 
-            traits::resource_utility(dag_, b);
+        return (traits::resource_utility(dag_, a) !=
+              traits::resource_utility(dag_, b))
+          ? (traits::resource_utility(dag_, a) > 
+                traits::resource_utility(dag_, b)) : 
+          (::strcmp(traits::operation_name(a), traits::operation_name(b)) < 0);
       }
       const dag_t& dag_;
     }; // struct decreasing_demand_ordering_t //
@@ -1685,11 +1686,17 @@ class Feasible_Memory_Schedule_Generator {
 
       auto aitr = active_resource_table_.begin();
       candidate = aitr->first;
+      size_t curr_input_count,
+             candidate_input_count = get_active_input_count(candidate);
 
       for (++aitr; aitr!=active_resource_table_.end(); ++aitr) {
-        if (get_active_input_count(aitr->first) < 
-              get_active_input_count(candidate)) {
+        curr_input_count = get_active_input_count(aitr->first);
+        if ((curr_input_count < candidate_input_count) ||
+            ((curr_input_count == candidate_input_count) &&
+             (strcmp(traits::operation_name(aitr->first),
+                     traits::operation_name(candidate)) < 0))) {
           candidate = aitr->first; 
+          candidate_input_count = curr_input_count;
         }
       }
       return true;
@@ -1702,6 +1709,7 @@ class Feasible_Memory_Schedule_Generator {
 
       //TODO(vamsikku): update ready lists since some of the ready ops in
       //ready_active_list_ may no longer be active.
+
 
       push_to_heap_start_time(heap_element_t(candidate, current_time_,
             op_type_e::IMPLICIT_OP_WRITE));
@@ -1874,7 +1882,8 @@ class Feasible_Memory_Schedule_Generator {
           traits::incoming_operations_end(*input_ptr_, op);
       size_t acount = 0UL;
       for (; itr!=itr_end; ++itr) {
-        if (!(active_resource_table_.find(*itr) == active_resource_table_.end())) {
+        if (!(active_resource_table_.find(*itr) ==
+                active_resource_table_.end())) {
           ++acount;
         }
       }
