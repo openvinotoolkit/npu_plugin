@@ -57,6 +57,18 @@ namespace mv
             return output;
         }
 
+        static std::string toLongString(const Attribute& a)
+        {
+            std::string output = "{[";
+            auto vec = a.get<std::vector<mv::DataElement>>();
+            if (vec.size() > 0)
+            {
+                for (std::size_t i = 0; i < vec.size() - 1; ++i)
+                    output += "\"" + static_cast<std::string>(vec[i]) + "\", ";
+            }
+            output += "]}";
+            return output;
+        }
 
         static std::string toString(const Attribute& a)
         {
