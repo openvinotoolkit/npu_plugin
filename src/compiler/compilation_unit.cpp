@@ -12,6 +12,12 @@ model_(new OpModel(modelName))
     MV_PROFILER_START;
 }
 
+mv::CompilationUnit::CompilationUnit(const std::string& modelName, const bool recordModel) :
+model_(new OpModel(modelName, recordModel))
+{
+    MV_PROFILER_START;
+}
+
 mv::CompilationUnit::~CompilationUnit()
 {
     MV_PROFILER_FINISH("profiler_output.prof");
@@ -132,7 +138,6 @@ mv::Element mv::CompilationUnit::runStep()
 
 mv::Element mv::CompilationUnit::run()
 {
-
     MV_PROFILED_FUNCTION(MV_PROFILE_PHASE);
     Element output("CompilationOutput");
     output.set<std::string>("ModelName", model_->getName());

@@ -36,6 +36,7 @@ namespace mv
         std::shared_ptr<std::vector<char> > getBlob() const;
 
         CompilationUnit(const std::string& modelName);
+        CompilationUnit(const std::string& modelName, const bool recordModel);
         ~CompilationUnit();
 
         bool loadTargetDescriptor(const std::string& path);
