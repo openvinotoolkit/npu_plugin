@@ -63,9 +63,14 @@ std::string mv::BaseOpModel::varName(std::string name)
 
 void mv::BaseOpModel::initRecordingFile(const std::string& outFileName) 
 {
+    // std::cout << "Initializing RecordedModel..." << std::endl;
+    delete codeOut_;
+    delete dataOut_;
+
     codeOut_ = new std::ofstream();
     dataOut_ = new std::ofstream();
-    // std::cout << "Initializing RecordedModel..." << std::endl;
+    this->recordModel = true;
+
     const auto dataFileName = removeFileExt(outFileName) + ".data.inc";
     codeOut_->open(outFileName, std::ios_base::out | std::ios_base::trunc);
     assert(codeOut_->is_open());

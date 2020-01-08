@@ -12,12 +12,6 @@ model_(new OpModel(modelName))
     MV_PROFILER_START;
 }
 
-mv::CompilationUnit::CompilationUnit(const std::string& modelName, const bool recordModel) :
-model_(new OpModel(modelName, recordModel))
-{
-    MV_PROFILER_START;
-}
-
 mv::CompilationUnit::~CompilationUnit()
 {
     MV_PROFILER_FINISH("profiler_output.prof");
@@ -52,6 +46,15 @@ bool mv::CompilationUnit::loadCompilationDescriptor(const std::string& filePath)
         return false;
     }
 
+    try 
+    {   // parse recording on/off, but don't fail. Log message.
+        if (compDescriptor_.getPassArg("initialize", "Singular", "GlobalConfigParams", "recorded_model"))
+            model_->initRecordingFile("templateExampleNew.cpp");
+    }
+    catch (mv::AttributeError& e)
+    {
+        log(Logger::MessageType::Warning, "Could not find 'recorded_model' entry in 'GlobalConfigParams' section. Recording not enabled.");
+    }
     return true;
 }
 
