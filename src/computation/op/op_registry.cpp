@@ -977,7 +977,6 @@ void mv::op::OpRegistry::generateCompositionAPI(const std::string& metaDir, cons
 
     incStream << tab << "public:" << eol << eol;
     incStream << tab << tab << "OpModel(const std::string& name);" << eol;
-    // incStream << tab << tab << "OpModel(const std::string& name, const bool recordModel);" << eol;
     incStream << tab << tab << "OpModel(ComputationModel& model);" << eol;
     incStream << tab << tab << "virtual ~OpModel();" << eol << eol;
 
@@ -1018,12 +1017,6 @@ void mv::op::OpRegistry::generateCompositionAPI(const std::string& metaDir, cons
     srcStream << "BaseOpModel(name)" << eol;
     srcStream << "{" << eol;
     srcStream << "}" << eol << eol;
-    // srcStream << "mv::OpModel::OpModel(const std::string& name, const bool recordModel) :" << eol;
-    // srcStream << "BaseOpModel(name)" << eol;
-    // srcStream << "{" << eol;
-    // srcStream << tab << "if (recordModel)" << eol;
-    // srcStream << tab << tab << "BaseOpModel::initRecordingFile(\"templateExampleNew.cpp\");" << eol;
-    // srcStream << "}" << eol << eol;
     srcStream << "mv::OpModel::OpModel(ComputationModel& other) :" << eol;
     srcStream << "BaseOpModel(other)" << eol;
     srcStream << "{" << eol;
