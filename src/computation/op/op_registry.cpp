@@ -977,6 +977,7 @@ void mv::op::OpRegistry::generateCompositionAPI(const std::string& metaDir, cons
 
     incStream << tab << "public:" << eol << eol;
     incStream << tab << tab << "OpModel(const std::string& name);" << eol;
+    // incStream << tab << tab << "OpModel(const std::string& name, const bool recordModel);" << eol;
     incStream << tab << tab << "OpModel(ComputationModel& model);" << eol;
     incStream << tab << tab << "virtual ~OpModel();" << eol << eol;
 
@@ -1017,6 +1018,12 @@ void mv::op::OpRegistry::generateCompositionAPI(const std::string& metaDir, cons
     srcStream << "BaseOpModel(name)" << eol;
     srcStream << "{" << eol;
     srcStream << "}" << eol << eol;
+    // srcStream << "mv::OpModel::OpModel(const std::string& name, const bool recordModel) :" << eol;
+    // srcStream << "BaseOpModel(name)" << eol;
+    // srcStream << "{" << eol;
+    // srcStream << tab << "if (recordModel)" << eol;
+    // srcStream << tab << tab << "BaseOpModel::initRecordingFile(\"templateExampleNew.cpp\");" << eol;
+    // srcStream << "}" << eol << eol;
     srcStream << "mv::OpModel::OpModel(ComputationModel& other) :" << eol;
     srcStream << "BaseOpModel(other)" << eol;
     srcStream << "{" << eol;
@@ -1054,14 +1061,7 @@ void mv::op::OpRegistry::generateCompositionAPI(const std::string& metaDir, cons
 
     srcStream << "mv::OpModel::~OpModel()" << eol;
     srcStream << "{" << eol;
-    // srcStream << tab << "auto outMain = OUT_MAIN_FUNC;" << eol;
-    // srcStream << tab << "setTemplParam(outMain, \"@MODEL_NAME@\", varName(getName()));" << eol;
-    // srcStream << tab << "if (codeOut_) {" << eol;
-    // srcStream << tab << tab << "*codeOut_ << \"}\" << std::endl << outMain << std::endl;" << eol;
-    // srcStream << tab << tab << "delete codeOut_;" << eol;
-    // srcStream << tab << tab << "delete dataOut_;" << eol;
-    // srcStream << tab << "}" << eol;
-    srcStream << "}" << eol << eol;    
+    srcStream << "}" << eol << eol;
     srcStream.close();
 }
 
