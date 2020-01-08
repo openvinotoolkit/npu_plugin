@@ -37,6 +37,9 @@ import_array();
         auto unit = new mv::CompilationUnit("pySwigCU");
         unit->loadTargetDescriptor(mv::Target::ma2490);
         unit->loadCompilationDescriptor(mv::Target::ma2490);
+        
+        if (unit->compilationDescriptor().getPassArg("initialize", "Singular", "GlobalConfigParams", "recorded_model"))
+            unit->model().initRecordingFile("templateExampleNew.cpp");
 
         return unit;
     }
@@ -60,6 +63,9 @@ import_array();
             PyErr_SetString(PyExc_Exception, "Target descriptor type not supported. Only ma2480 and ma2490 supported.");
         }
 
+        if (unit->compilationDescriptor().getPassArg("initialize", "Singular", "GlobalConfigParams", "recorded_model"))
+            unit->model().initRecordingFile("templateExampleNew.cpp");
+
         return unit;
     }
 
@@ -69,6 +75,9 @@ import_array();
         //remove default descriptor and load a user defined descriptor
         unit->compilationDescriptor().clear();
         unit->loadCompilationDescriptor(filepath);
+
+        if (unit->compilationDescriptor().getPassArg("initialize", "Singular", "GlobalConfigParams", "recorded_model"))
+            unit->model().initRecordingFile("templateExampleNew.cpp");
 
         return unit;
     }

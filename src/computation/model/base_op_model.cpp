@@ -19,6 +19,24 @@ void build_@MODEL_NAME@(mv::OpModel& model)
 
 )cppinttempl";
 
+const std::string OUT_MAIN_FUNC = R"cppinttempl(
+int main()
+{
+    mv::CompilationUnit unit("parserModel");
+    mv::OpModel& om = unit.model();
+    build_@MODEL_NAME@(om);
+
+    std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/release_kmb_MC-Prefetch1.json";
+    unit.loadCompilationDescriptor(compDescPath);
+
+    unit.loadTargetDescriptor(mv::Target::ma2490);
+    unit.initialize();
+    unit.run();
+
+    return 0;
+}
+)cppinttempl";
+
 mv::BaseOpModel::BaseOpModel(const std::string& name) :
 ComputationModel(name)
 {
@@ -34,6 +52,14 @@ ComputationModel(other)
 mv::BaseOpModel::~BaseOpModel()
 {
     log(Logger::MessageType::Debug, "Deleted");
+    // close up recorded model, if enabled
+    if (codeOut_) {
+        auto outMain = OUT_MAIN_FUNC;
+        setTemplParam(outMain, "@MODEL_NAME@", varName(getName()));
+        *codeOut_ << "}" << std::endl << outMain << std::endl;
+        delete codeOut_;
+        delete dataOut_;
+    }
 }
 
 void mv::BaseOpModel::setTemplParam(std::string& str, const std::string& paramName, const std::string& paramValue)
@@ -63,9 +89,14 @@ std::string mv::BaseOpModel::varName(std::string name)
 
 void mv::BaseOpModel::initRecordingFile(const std::string& outFileName) 
 {
+    // std::cout << "Initializing RecordedModel..." << std::endl;
+    delete codeOut_;
+    delete dataOut_;
+
     codeOut_ = new std::ofstream();
     dataOut_ = new std::ofstream();
-    // std::cout << "Initializing RecordedModel..." << std::endl;
+    this->recordModel = true;
+
     const auto dataFileName = removeFileExt(outFileName) + ".data.inc";
     codeOut_->open(outFileName, std::ios_base::out | std::ios_base::trunc);
     assert(codeOut_->is_open());
