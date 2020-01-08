@@ -38,7 +38,7 @@ int main()
     // Output
     om.output(sigmoid0);
 
-    std::string compDescPath = "/home/psdurley/work/mcmCompiler/config/compilation/release_kmb_MC-Prefetch1.json";
+    std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/release_kmb_MC-Prefetch1.json";
     unit.loadCompilationDescriptor(compDescPath);
     unit.loadTargetDescriptor(mv::Target::ma2490);
     unit.initialize();
