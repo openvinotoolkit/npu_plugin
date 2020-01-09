@@ -16,30 +16,29 @@
 
 #pragma once
 
-#include <string>
-#include <vector>
-#include <memory>
-#include <map>
-#include <iomanip>
-#include <utility>
-
 #include <ie_icnn_network.hpp>
+#include <iomanip>
+#include <map>
+#include <memory>
+#include <string>
+#include <utility>
+#include <vector>
 
 #ifdef ENABLE_VPUAL
 #include <GraphManagerPlg.h>
-#include <PlgStreamResult.h>
-#include <PlgTensorSource.h>
+#include <MemAllocator.h>
+#include <NNFlicPlg.h>
 #include <PlgInferenceInput.h>
 #include <PlgInferenceOutput.h>
-
-#include <NNFlicPlg.h>
+#include <PlgStreamResult.h>
+#include <PlgTensorSource.h>
 #include <Pool.h>
 #include <cma_allocation_helper.h>
-#include <MemAllocator.h>
 #include <mvMacros.h>
 #endif
 
 #include <kmb_config.h>
+
 #include "kmb_allocator.h"
 
 namespace vpu {
@@ -52,13 +51,13 @@ public:
     explicit KmbExecutor(const KmbConfig& config);
     ~KmbExecutor() = default;
 
-    void allocateGraph(const std::vector<char> &graphFileContent);
+    void allocateGraph(const std::vector<char>& graphFileContent);
 
     void deallocateGraph();
 
-    void queueInference(void *input_data, size_t input_bytes, void *result_data, size_t result_bytes);
+    void queueInference(void* input_data, size_t input_bytes, void* result_data, size_t result_bytes);
 
-    void getResult(void *result_data, unsigned int result_bytes);
+    void getResult(void* result_data, unsigned int result_bytes);
 
     const InferenceEngine::InputsDataMap& getNetworkInputs() const { return m_networkInputs; }
     const InferenceEngine::OutputsDataMap& getNetworkOutputs() const { return m_networkOutputs; }
@@ -66,43 +65,43 @@ public:
     const KmbConfig& _config;
 
 private:
-        unsigned int _numStages = 0;
-        Logger::Ptr _logger;
+    unsigned int _numStages = 0;
+    Logger::Ptr _logger;
 #ifdef ENABLE_VPUAL
-        std::shared_ptr<GraphManagerPlg> gg;
-        std::shared_ptr<PlgTensorSource> plgTensorInput_;
-        std::shared_ptr<PlgStreamResult> plgTensorOutput_;
-        std::shared_ptr<PlgInferenceInput> plgInferenceInput_;
-        std::shared_ptr<PlgInferenceOutput> plgInferenceOutput_;
-        std::shared_ptr<RgnAllocator> RgnAlloc;
-        std::shared_ptr<HeapAllocator> HeapAlloc;
+    std::shared_ptr<GraphManagerPlg> gg;
+    std::shared_ptr<PlgTensorSource> plgTensorInput_;
+    std::shared_ptr<PlgStreamResult> plgTensorOutput_;
+    std::shared_ptr<PlgInferenceInput> plgInferenceInput_;
+    std::shared_ptr<PlgInferenceOutput> plgInferenceOutput_;
+    std::shared_ptr<RgnAllocator> RgnAlloc;
+    std::shared_ptr<HeapAllocator> HeapAlloc;
 
-        std::shared_ptr<NNFlicPlg> nnPl;
+    std::shared_ptr<NNFlicPlg> nnPl;
 
-        void *blob_file = nullptr;
-        void *rgnAllocatorBuffer = nullptr;
-        std::shared_ptr<BlobHandle_t> BHandle;
+    void* blob_file = nullptr;
+    void* rgnAllocatorBuffer = nullptr;
+    std::shared_ptr<BlobHandle_t> BHandle;
 
-        std::shared_ptr<PlgPool<TensorMsg>> plgPoolOutputs;
-        std::shared_ptr<PlgPool<InferenceMsg>> plgPoolInferenceMsg;
+    std::shared_ptr<PlgPool<TensorMsg>> plgPoolOutputs;
+    std::shared_ptr<PlgPool<InferenceMsg>> plgPoolInferenceMsg;
 
-        std::shared_ptr<Pipeline> pipe;
+    std::shared_ptr<Pipeline> pipe;
 #endif
-        InferenceEngine::InputsDataMap  m_networkInputs;
-        InferenceEngine::OutputsDataMap m_networkOutputs;
+    InferenceEngine::InputsDataMap m_networkInputs;
+    InferenceEngine::OutputsDataMap m_networkOutputs;
 
-        std::shared_ptr<KmbAllocator> allocator;
-        void initVpualObjects();
+    std::shared_ptr<KmbAllocator> allocator;
+    void initVpualObjects();
 
-        int xlinkChannelIn;
-        int xlinkChannelOut;
+    int xlinkChannelIn;
+    int xlinkChannelOut;
 
-        int _xlinkChannelInferenceInput;
-        int _xlinkChannelInferenceOutput;
+    int _xlinkChannelInferenceInput;
+    int _xlinkChannelInferenceOutput;
 
-        uint32_t _outTensorLen;
-        uint32_t _outTensorAddr;
-        uint32_t * _inferenceVirtAddr;
+    uint32_t _outTensorLen;
+    uint32_t _outTensorAddr;
+    uint32_t* _inferenceVirtAddr;
 };
 
 typedef std::shared_ptr<KmbExecutor> KmbExecutorPtr;

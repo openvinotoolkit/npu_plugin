@@ -146,7 +146,7 @@ void KmbInferRequest::dumpOutputBlobHelper(const Blob::Ptr& outputBlobPtr, const
     _logger->info("dumpOutputBlobHelper: dump to file ", inputFullPath.str());
     std::ofstream dumper(inputFullPath.str(), std::ios_base::binary);
     if (dumper.good()) {
-        dumper.write(outputBlobPtr->cbuffer().as<char *>(), outputBlobPtr->byteSize());
+        dumper.write(outputBlobPtr->cbuffer().as<char*>(), outputBlobPtr->byteSize());
     } else {
         _logger->warning("dumpOutputBlobHelper: failed to open ", inputFullPath.str());
     }
@@ -339,7 +339,7 @@ void KmbInferRequest::GetResult() {
         }
     }
 
-    const char *dumpOutputPathEnv = std::getenv("IE_VPU_KMB_DUMP_OUTPUT_PATH");
+    const char* dumpOutputPathEnv = std::getenv("IE_VPU_KMB_DUMP_OUTPUT_PATH");
     if (dumpOutputPathEnv != nullptr) {
         dumpOutputBlobHelper(outputBlobRef, dumpOutputPathEnv);
     }
