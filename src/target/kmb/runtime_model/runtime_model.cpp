@@ -768,6 +768,13 @@ void mv::RuntimeModel::case2MC(unsigned numTasks, ComputationModel& cm,  mv::Dma
                 alignTensor(cm, tmp->dst, dst->getSubTensor(i), padFinalOutput);
         }
 
+        //Align input to Z-Major DPU task
+        if (direction == mv::DDR2NNCMX)
+        {
+            if (dst->hasAttr("alignment"))
+                alignTensor(cm, tmp->dst, dst->getSubTensor(i), padFinalOutput);
+        }
+
         checkUnstridedDMA(src, i, tmp);
 
         tmp->compression =  compression;
