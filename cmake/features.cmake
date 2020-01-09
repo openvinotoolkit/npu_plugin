@@ -12,11 +12,11 @@ endif()
 
 if(ARM OR AARCH64)
     ie_option(ENABLE_HDDL2 "Enable HDDL2 Plugin" OFF)
+    ie_option(ENABLE_VPUAL "Enable VPUAL" ON)
 else()
     ie_option(ENABLE_HDDL2 "Enable HDDL2 Plugin" ON)
+    ie_option(ENABLE_VPUAL "Enable VPUAL" OFF)
 endif()
-
-ie_option(ENABLE_VPUAL "Enable VPUAL" ON)
 
 ie_option(ENABLE_KMB_SAMPLES "Enable KMB samples" ON)
 

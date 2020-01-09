@@ -51,17 +51,17 @@ Examples:
 
 1. For `resnet-50-dpu` net:
 ```
-./benchmark_app -m <path-to-the-produced-blob>/resnet-50-dpu.blob -nireq 4 -niter 500 -d KMB
+./benchmark_app -m <path-to-the-produced-blob>/resnet-50-dpu.blob -nireq 4 -niter 1000 -d KMB
 ```
 
 2. For `tiny-yolo-v2-dpu` net:
 ```
-./benchmark_app -m <path-to-the-produced-blob>/tiny-yolo-v2-dpu.blob -nireq 4 -niter 500 -d KMB
+./benchmark_app -m <path-to-the-produced-blob>/tiny-yolo-v2-dpu.blob -nireq 4 -niter 1000 -d KMB
 ```
 
 3. For `mobilenet-v2-dpu` net:
 ```
-./benchmark_app -m <path-to-the-produced-blob>/mobilenet-v2-dpu.blob -nireq 4 -niter 500 -d KMB
+./benchmark_app -m <path-to-the-produced-blob>/mobilenet-v2-dpu.blob -nireq 4 -niter 1000 -d KMB
 ```
 
 Example of output:
@@ -69,26 +69,26 @@ Example of output:
 1. For `resnet-50-dpu` net:
 ```
 [Step 11/11] Dumping statistics report
-Count:      500 iterations
-Duration:   2866.88 ms
-Latency:    22.91 ms
-Throughput: 174.41 FPS
+Count:      1000 iterations
+Duration:   5451.45 ms
+Latency:    21.79 ms
+Throughput: 183.44 FPS
 ```
 
 2. For `tiny-yolo-v2-dpu` net:
 ```
 [Step 11/11] Dumping statistics report
-Count:      500 iterations
-Duration:   3606.67 ms
-Latency:    28.83 ms
-Throughput: 138.63 FPS
+Count:      1000 iterations
+Duration:   7102.96 ms
+Latency:    28.39 ms
+Throughput: 140.79 FPS
 ```
 
 3. For `mobilenet-v2-dpu` net:
 ```
 [Step 11/11] Dumping statistics report
-Count:      500 iterations
-Duration:   1438.71 ms
-Latency:    11.49 ms
-Throughput: 347.53 FPS
+Count:      1000 iterations
+Duration:   2126.29 ms
+Latency:    8.49 ms
+Throughput: 470.30 FPS
 ```

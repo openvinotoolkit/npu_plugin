@@ -136,6 +136,23 @@ void KmbInferRequest::dumpInputBlobHelper(const Blob::Ptr& inputBlobPtr, const s
     dumper.close();
 }
 
+void KmbInferRequest::dumpOutputBlobHelper(const Blob::Ptr& outputBlobPtr, const std::string& dst) {
+    static unsigned dumpOutputCounter = 0;
+    std::ostringstream inputFullPath;
+    inputFullPath << dst;
+    inputFullPath << "/output-dump";
+    inputFullPath << dumpOutputCounter++;
+    inputFullPath << ".bin";
+    _logger->info("dumpOutputBlobHelper: dump to file ", inputFullPath.str());
+    std::ofstream dumper(inputFullPath.str(), std::ios_base::binary);
+    if (dumper.good()) {
+        dumper.write(outputBlobPtr->cbuffer().as<char *>(), outputBlobPtr->byteSize());
+    } else {
+        _logger->warning("dumpOutputBlobHelper: failed to open ", inputFullPath.str());
+    }
+    dumper.close();
+}
+
 // TODO a lot of dublications
 void KmbInferRequest::InferAsync() {
     if (!_custom_inputs.empty()) {
@@ -256,6 +273,7 @@ void KmbInferRequest::InferAsync() {
 
     Blob::Ptr& inputBlobRef = _inputs.begin()->second;
     InferenceEngine::TensorDesc deviceTensorDesc = deviceInputs.begin()->second->getTensorDesc();
+    deviceTensorDesc.setLayout(_executor->_inputNetworkLayout);
 
     // is2DTensor is a workaround for NHWC -> NC case
     // TODO: remove when mcm will support different input layout
@@ -319,6 +337,11 @@ void KmbInferRequest::GetResult() {
 
             copyBlob(outputBlob, custom_outputBlob);
         }
+    }
+
+    const char *dumpOutputPathEnv = std::getenv("IE_VPU_KMB_DUMP_OUTPUT_PATH");
+    if (dumpOutputPathEnv != nullptr) {
+        dumpOutputBlobHelper(outputBlobRef, dumpOutputPathEnv);
     }
 }
 
