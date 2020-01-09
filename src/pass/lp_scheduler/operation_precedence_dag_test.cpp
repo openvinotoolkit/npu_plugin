@@ -2,7 +2,7 @@
 
 #include "gtest/gtest.h"
 #include "include/mcm/compiler/compilation_unit.hpp"
-#include "meta/include/mcm/op_model.hpp"
+#include "include/mcm/op_model.hpp"
 #include "pass/lp_scheduler/operation_precedence_dag.hpp"
 
 typedef mv::scheduler::Operation_Dag<> op_model_dag_t;

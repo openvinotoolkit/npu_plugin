@@ -5,7 +5,7 @@
 
 #include "include/mcm/computation/model/iterator/data_context.hpp"
 #include "include/mcm/logger/logger.hpp"
-#include "meta/include/mcm/op_model.hpp"
+#include "include/mcm/op_model.hpp"
 
 namespace mv {
 namespace lp_scheduler {

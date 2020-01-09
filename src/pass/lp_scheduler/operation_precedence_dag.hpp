@@ -6,7 +6,7 @@
 
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/computation/model/iterator/control_context.hpp"
-#include "meta/include/mcm/op_model.hpp"
+#include "include/mcm/op_model.hpp"
 #include "scheduler/feasible_scheduler.hpp"
 
 namespace mv {
