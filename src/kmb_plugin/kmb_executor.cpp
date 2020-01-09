@@ -141,7 +141,7 @@ void KmbExecutor::initVpualObjects() {
     }
 #endif
 }
-#ifdef ENABLE_VPUAL
+
 #ifdef ENABLE_VPUAL
 namespace {
 
@@ -171,7 +171,6 @@ InferenceEngine::Layout getIOLayout(const flicTensorDescriptor_t& descTemp) {
 
     return tensorLayout;
 }
-#endif
 
 const std::map<precision_t, InferenceEngine::Precision> precisionMap = {
     std::pair<precision_t, InferenceEngine::Precision>(precision_t::FP32, InferenceEngine::Precision::FP32),
