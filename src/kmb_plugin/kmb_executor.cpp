@@ -94,6 +94,7 @@ KmbExecutor::KmbExecutor(const KmbConfig& config)
 #ifdef ENABLE_VPUAL
     blob_file = nullptr;
     rgnAllocatorBuffer = nullptr;
+    _inferenceVirtAddr = nullptr;
 #endif
 }
 
@@ -101,6 +102,9 @@ void KmbExecutor::initVpualObjects() {
 #ifdef ENABLE_VPUAL
     if (!RgnAlloc) {
         RgnAlloc = make_shared<RgnAllocator>();
+    }
+    if (!HeapAlloc) {
+        HeapAlloc = make_shared<HeapAllocator>();
     }
     if (!nnPl) {
         nnPl = make_shared<NNFlicPlg>();
@@ -114,14 +118,26 @@ void KmbExecutor::initVpualObjects() {
     if (!plgTensorOutput_) {
         plgTensorOutput_ = make_shared<PlgStreamResult>();
     }
+    if (!plgInferenceInput_) {
+        plgInferenceInput_ = make_shared<PlgInferenceInput>();
+    }
+    if (!plgInferenceOutput_) {
+        plgInferenceOutput_ = make_shared<PlgInferenceOutput>();
+    }
     if (!plgPoolOutputs) {
         plgPoolOutputs = make_shared<PlgPool<TensorMsg>>();
+    }
+    if (!plgPoolInferenceMsg) {
+        plgPoolInferenceMsg = make_shared<PlgPool<InferenceMsg>>();
     }
     if (!BHandle) {
         BHandle = make_shared<BlobHandle_t>();
     }
     if (!pipe) {
         pipe = make_shared<Pipeline>();
+    }
+    if (!_inferenceVirtAddr) {
+        _inferenceVirtAddr = reinterpret_cast<uint32_t*>(getKmbAllocator()->alloc(sizeof(uint32_t)));
     }
 #endif
 }
@@ -276,6 +292,7 @@ void KmbExecutor::allocateGraph(const std::vector<char>& graphFileContent) {
     InferenceEngine::InputInfo inputInfo;
     inputInfo.setInputData(std::make_shared<InferenceEngine::Data>(inputData));
     m_networkInputs[inputInfo.name()] = std::make_shared<InferenceEngine::InputInfo>(inputInfo);
+    _inputNetworkLayout = inputLayout;
 
     InferenceEngine::SizeVector outputDims({descOut.n, descOut.c, descOut.h, descOut.w});
     InferenceEngine::Layout outputLayout = getIOLayout(descOut);
@@ -302,6 +319,10 @@ void KmbExecutor::allocateGraph(const std::vector<char>& graphFileContent) {
     plgPoolOutputs->Create(RgnAlloc.get(), 1, 3 * outputTensorSize);
     _logger->info("Created plgPoolOutputs");
 
+    unsigned int inferenceIDSize = ROUND_UP(sizeof(uint32_t), shavel2CacheLineSize);
+    plgPoolInferenceMsg->Create(HeapAlloc.get(), 1, 3 * inferenceIDSize);
+    _logger->info("Created plgPoolInferenceMsg");
+
     xlinkChannelIn = getXlinkChannel(_logger);
     xlinkChannelOut = getXlinkChannel(_logger);
     plgTensorInput_->Create(descIn.totalSize, xlinkChannelIn, descIn);
@@ -310,12 +331,23 @@ void KmbExecutor::allocateGraph(const std::vector<char>& graphFileContent) {
     plgTensorOutput_->Create(descOut.totalSize, xlinkChannelOut, descOut);
     _logger->info("Created plgTensorOutput");
 
+    _xlinkChannelInferenceInput = getXlinkChannel(_logger);
+    _xlinkChannelInferenceOutput = getXlinkChannel(_logger);
+    plgInferenceInput_->Create(3 * inferenceIDSize, _xlinkChannelInferenceInput);
+    _logger->info("Created plgInferenceInput_");
+
+    plgInferenceOutput_->Create(3 * inferenceIDSize, _xlinkChannelInferenceOutput);
+    _logger->info("Created plgInferenceOutput_");
+
     _logger->info("Created all Plugins");
 
     // Add the plugins to the pipeline:
     pipe->Add(plgPoolOutputs.get());
     pipe->Add(plgTensorInput_.get());
     pipe->Add(plgTensorOutput_.get());
+    pipe->Add(plgPoolInferenceMsg.get());
+    pipe->Add(plgInferenceInput_.get());
+    pipe->Add(plgInferenceOutput_.get());
     pipe->Add(nnPl.get());
 
     _logger->info("Added Plugins to Pipeline");
@@ -324,6 +356,11 @@ void KmbExecutor::allocateGraph(const std::vector<char>& graphFileContent) {
     plgPoolOutputs->out.Link(&nnPl->resultInput);
     plgTensorInput_->tensorOut.Link(&nnPl->tensorInput);
     nnPl->output.Link(&plgTensorOutput_->dataIn);
+
+    plgPoolInferenceMsg->out.Link(&nnPl->inferenceResult);
+    plgInferenceInput_->inferenceOut.Link(&nnPl->inferenceInput);
+    nnPl->inferenceOutput.Link(&plgInferenceOutput_->inferenceIn);
+
     _logger->info("Linked Plugins...");
     pipe->Start();
     _logger->info("Started FLIC pipeline...");
@@ -344,6 +381,11 @@ void KmbExecutor::queueInference(void* input_data, size_t input_bytes, void* res
     auto physAddr = getKmbAllocator()->getPhysicalAddress(input_data);
     plgTensorInput_->Push(physAddr, input_bytes);
     _logger->info("Pushed input, size %d", input_bytes);
+
+    uint32_t inferenceInputID = 1;
+    _inferenceVirtAddr[0] = inferenceInputID;
+    auto inferencePhysAddr = getKmbAllocator()->getPhysicalAddress(_inferenceVirtAddr);
+    plgInferenceInput_->PushInferenceID(inferencePhysAddr, sizeof(inferenceInputID));
 #else
     UNUSED(input_data);
     UNUSED(input_bytes);
@@ -357,6 +399,10 @@ void KmbExecutor::getResult(void* result_data, unsigned int result_bytes) {
     }
 
 #ifdef ENABLE_VPUAL
+    uint32_t len_inferenceId = 0;
+    uint32_t pAddr_inferenceId = 0;
+    plgInferenceOutput_->PullInferenceID(&pAddr_inferenceId, &len_inferenceId);
+
     uint32_t len = 0;
     uint32_t pAddr = 0;
     plgTensorOutput_->Pull(&pAddr, &len);
@@ -414,6 +460,18 @@ void KmbExecutor::deallocateGraph() {
     }
     if (rgnAllocatorBuffer) {
         getKmbAllocator()->free(rgnAllocatorBuffer);
+    }
+    if (plgInferenceInput_) {
+        plgInferenceInput_->Delete();
+    }
+    if (plgInferenceOutput_) {
+        plgInferenceOutput_->Delete();
+    }
+    if (plgPoolInferenceMsg) {
+        plgPoolInferenceMsg->Delete();
+    }
+    if (_inferenceVirtAddr) {
+        getKmbAllocator()->free(_inferenceVirtAddr);
     }
 #endif
 }
