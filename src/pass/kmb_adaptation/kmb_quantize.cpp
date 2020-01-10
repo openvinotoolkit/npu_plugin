@@ -69,13 +69,15 @@ void addSliceQuantizationLayer(mv::OpModel om, std::vector<mv::Data::OpListItera
     std::vector <mv::Data::TensorIterator> sliceInputs = {};
     std::map <std::string, std::vector<mv::Data::OpListIterator>> sliceLeafs;
     std::map <std::string, std::vector<mv::Data::FlowListIterator>> sliceFlows;
+    std::vector<mv::Data::OpListIterator> slicesToRemove;
+
     for (auto& slice : slices)
     {
         auto it = std::find (sliceInputs.begin(), sliceInputs.end(), slice->getInputTensor()[0]);
         if (it != sliceInputs.end())
         {
             sliceLeafs[slice->getInputTensor()[0]->getName()].push_back(slice);
-            slices.erase(std::remove(slices.begin(), slices.end(), slice), slices.end());
+            slicesToRemove.push_back(slice);
         }
         else
         {
@@ -87,6 +89,12 @@ void addSliceQuantizationLayer(mv::OpModel om, std::vector<mv::Data::OpListItera
             }
         }
     }
+
+    for (auto slice: slicesToRemove)
+    {
+        slices.erase(std::remove(slices.begin(), slices.end(), slice), slices.end());
+    }
+
     for(auto& slice : slices)
     {
         auto inputFlow = slice.leftmostInput();
