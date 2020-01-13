@@ -20,10 +20,12 @@
 
 #include <tests_common.hpp>
 
-#include "test_model/kmb_test_utils.hpp"
-#include "test_model/kmb_test_model.hpp"
-#include "test_model/kmb_test_convolution_def.hpp"
-#include "test_model/kmb_test_fake_quantize_def.hpp"
+#include "kmb_test_utils.hpp"
+#include "kmb_test_model.hpp"
+
+#include "kmb_test_add_def.hpp"
+#include "kmb_test_convolution_def.hpp"
+#include "kmb_test_fake_quantize_def.hpp"
 
 using namespace InferenceEngine;
 

@@ -14,7 +14,7 @@
 // stated in the License.
 //
 
-#include "kmb_tests_base.hpp"
+#include "test_model/kmb_tests_base.hpp"
 
 struct ConvTestParams final {
     SizeVector _inDims;
