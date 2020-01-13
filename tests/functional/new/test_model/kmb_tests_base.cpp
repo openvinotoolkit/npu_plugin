@@ -98,6 +98,14 @@ const std::string REFS_PATH = []() -> std::string {
     return std::string();
 }();
 
+const bool RAW_EXPORT = []() -> bool {
+    if (const auto var = std::getenv("IE_KMB_TESTS_RAW_EXPORT")) {
+        return std::stoi(var);
+    }
+
+    return false;
+}();
+
 namespace {
 
 std::string cleanName(std::string name) {
@@ -300,21 +308,33 @@ void KmbTestBase::runTest(
 void KmbTestBase::exportNetwork(ExecutableNetwork& exeNet) {
     IE_ASSERT(!BLOBS_PATH.empty());
 
-    std::ofstream file(
-        vpu::formatString("%v/%v", BLOBS_PATH, dumpBaseName), std::ios_base::out | std::ios_base::binary);
-    IE_ASSERT(file.is_open());
+    const auto fileName = vpu::formatString("%v/%v", BLOBS_PATH, dumpBaseName);
 
-    exeNet.Export(file);
+    if (RAW_EXPORT) {
+        exeNet.Export(fileName);
+    } else {
+        std::ofstream file(
+            fileName, std::ios_base::out | std::ios_base::binary);
+        IE_ASSERT(file.is_open());
+
+        exeNet.Export(file);
+    }
 }
 
 ExecutableNetwork KmbTestBase::importNetwork() {
     IE_ASSERT(!BLOBS_PATH.empty());
 
-    std::ifstream file(
-        vpu::formatString("%v/%v", BLOBS_PATH, dumpBaseName), std::ios_base::in | std::ios_base::binary);
-    IE_ASSERT(file.is_open());
+    const auto fileName = vpu::formatString("%v/%v", BLOBS_PATH, dumpBaseName);
 
-    return core->ImportNetwork(file, DEVICE_NAME);
+    if (RAW_EXPORT) {
+        return core->ImportNetwork(fileName, DEVICE_NAME);
+    } else {
+        std::ifstream file(
+            vpu::formatString("%v/%v", BLOBS_PATH, dumpBaseName), std::ios_base::in | std::ios_base::binary);
+        IE_ASSERT(file.is_open());
+
+        return core->ImportNetwork(file, DEVICE_NAME);
+    }
 }
 
 void KmbTestBase::dumpBlobs(const BlobMap& blobs) {

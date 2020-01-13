@@ -40,6 +40,7 @@ extern const bool RUN_REF_CODE;
 extern const bool RUN_INFER;
 extern const std::string BLOBS_PATH;
 extern const std::string REFS_PATH;
+extern const bool RAW_EXPORT;
 
 class KmbTestBase : public TestsCommon {
 public:
