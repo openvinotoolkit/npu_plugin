@@ -69,14 +69,15 @@ ExecutableNetwork::ExecutableNetwork(ICNNNetwork& network, const KmbConfig& conf
                               "None TI optimization pattern has been applied successfully";
 
     compileMcm(network, _config, *pCompiler, _graphBlob);
-    auto parsedConfig = _config.getParsedConfig();
-    if (parsedConfig[VPU_KMB_CONFIG_KEY(LOAD_NETWORK_AFTER_COMPILATION)] == CONFIG_VALUE(YES)) {
+
+    if (_config.loadNetworkAfterCompilation()) {
         LoadBlob();
         ConfigureExecutor(network.getName());
     }
 #else
     UNUSED(network);
 #endif
+
     _supportedMetrics = {METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)};
 }
 

@@ -26,35 +26,6 @@
 
 using namespace vpu::KmbPlugin;
 
-KmbConfig::KmbConfig() {
-    _config = {
-#ifdef NDEBUG
-        {CONFIG_KEY(LOG_LEVEL), CONFIG_VALUE(LOG_NONE)},
-#else
-        {CONFIG_KEY(LOG_LEVEL), CONFIG_VALUE(LOG_DEBUG)},
-#endif
-#ifdef ENABLE_VPUAL
-        {VPU_KMB_CONFIG_KEY(KMB_EXECUTOR), CONFIG_VALUE(YES)},
-#else
-        {VPU_KMB_CONFIG_KEY(KMB_EXECUTOR), CONFIG_VALUE(NO)},
-#endif
-        {VPU_KMB_CONFIG_KEY(MCM_TARGET_DESCRIPTOR_PATH), "mcm_config/target"},
-        {VPU_KMB_CONFIG_KEY(MCM_TARGET_DESCRIPTOR), "release_kmb"},
-        {VPU_KMB_CONFIG_KEY(MCM_COMPILATION_DESCRIPTOR_PATH), "mcm_config/compilation"},
-        {VPU_KMB_CONFIG_KEY(MCM_COMPILATION_DESCRIPTOR), "release_kmb"},
-        {VPU_KMB_CONFIG_KEY(MCM_GENERATE_BLOB), CONFIG_VALUE(YES)},
-        {VPU_KMB_CONFIG_KEY(MCM_GENERATE_JSON), CONFIG_VALUE(YES)},
-        {VPU_KMB_CONFIG_KEY(MCM_GENERATE_DOT), CONFIG_VALUE(NO)},
-        {VPU_KMB_CONFIG_KEY(MCM_PARSING_ONLY), CONFIG_VALUE(NO)},
-        {VPU_KMB_CONFIG_KEY(MCM_COMPILATION_RESULTS_PATH), "."},
-        {VPU_KMB_CONFIG_KEY(MCM_COMPILATION_RESULTS), ""},
-        {VPU_KMB_CONFIG_KEY(MCM_LOG_LEVEL), CONFIG_VALUE(LOG_NONE)},
-        {VPU_KMB_CONFIG_KEY(LOAD_NETWORK_AFTER_COMPILATION), CONFIG_VALUE(NO)},
-        {VPU_KMB_CONFIG_KEY(THROUGHPUT_STREAMS), "1"},
-        {VPU_KMB_CONFIG_KEY(PLATFORM), "VPU_2490"},
-    };
-}
-
 const std::unordered_set<std::string>& KmbConfig::getCompileOptions() const {
     static const std::unordered_set<std::string> options =
         merge(ParsedConfigBase::getCompileOptions(), {
@@ -89,18 +60,45 @@ const std::unordered_set<std::string>& KmbConfig::getRunTimeOptions() const {
 }
 
 void KmbConfig::parse(const std::map<std::string, std::string>& config) {
-    for (const auto& p : config) {
-        _config[p.first] = p.second;
-    }
+    static const std::unordered_map<std::string, LogLevel> logLevels = {{CONFIG_VALUE(LOG_NONE), LogLevel::None},
+        {CONFIG_VALUE(LOG_ERROR), LogLevel::Error}, {CONFIG_VALUE(LOG_WARNING), LogLevel::Warning},
+        {CONFIG_VALUE(LOG_INFO), LogLevel::Info}, {CONFIG_VALUE(LOG_DEBUG), LogLevel::Debug},
+        {CONFIG_VALUE(LOG_TRACE), LogLevel::Trace}};
+
     ParsedConfigBase::parse(config);
 
-    setOption(numberOfSIPPShaves, config, VPU_KMB_CONFIG_KEY(PREPROCESSING_SHAVES), parseInt);
-    IE_ASSERT(numberOfSIPPShaves > 0 && numberOfSIPPShaves <= 16)
-        << "KmbConfig::parse attempt to set invalid number of shaves for SIPP: '" << numberOfSIPPShaves
+    setOption(_useKmbExecutor, switches, config, VPU_KMB_CONFIG_KEY(KMB_EXECUTOR));
+
+    setOption(_mcmLogLevel, logLevels, config, VPU_KMB_CONFIG_KEY(MCM_LOG_LEVEL));
+
+    setOption(_mcmTargetDesciptorPath, config, VPU_KMB_CONFIG_KEY(MCM_TARGET_DESCRIPTOR_PATH));
+    setOption(_mcmTargetDesciptor, config, VPU_KMB_CONFIG_KEY(MCM_TARGET_DESCRIPTOR));
+
+    setOption(_mcmCompilationDesciptorPath, config, VPU_KMB_CONFIG_KEY(MCM_COMPILATION_DESCRIPTOR_PATH));
+    setOption(_mcmCompilationDesciptor, config, VPU_KMB_CONFIG_KEY(MCM_COMPILATION_DESCRIPTOR));
+
+    setOption(_mcmGenerateBlob, switches, config, VPU_KMB_CONFIG_KEY(MCM_GENERATE_BLOB));
+    setOption(_mcmGenerateJSON, switches, config, VPU_KMB_CONFIG_KEY(MCM_GENERATE_JSON));
+    setOption(_mcmGenerateDOT, switches, config, VPU_KMB_CONFIG_KEY(MCM_GENERATE_DOT));
+
+    setOption(_mcmParseOnly, switches, config, VPU_KMB_CONFIG_KEY(MCM_PARSING_ONLY));
+
+    setOption(_mcmCompilationResultsPath, config, VPU_KMB_CONFIG_KEY(MCM_COMPILATION_RESULTS_PATH));
+    setOption(_mcmCompilationResults, config, VPU_KMB_CONFIG_KEY(MCM_COMPILATION_RESULTS));
+
+    setOption(_loadNetworkAfterCompilation, switches, config, VPU_KMB_CONFIG_KEY(LOAD_NETWORK_AFTER_COMPILATION));
+
+    setOption(_throghputStreams, config, VPU_KMB_CONFIG_KEY(THROUGHPUT_STREAMS), parseInt);
+
+    setOption(_platform, switches, config, VPU_KMB_CONFIG_KEY(PLATFORM));
+
+    setOption(_numberOfSIPPShaves, config, VPU_KMB_CONFIG_KEY(PREPROCESSING_SHAVES), parseInt);
+    IE_ASSERT(_numberOfSIPPShaves > 0 && _numberOfSIPPShaves <= 16)
+        << "KmbConfig::parse attempt to set invalid number of shaves for SIPP: '" << _numberOfSIPPShaves
         << "', valid numbers are from 1 to 16";
 
-    setOption(SIPPLpi, config, VPU_KMB_CONFIG_KEY(PREPROCESSING_LPI), parseInt);
-    IE_ASSERT(0 < SIPPLpi && SIPPLpi <= 16 && isPowerOfTwo(SIPPLpi))
-        << "KmbConfig::parse attempt to set invalid lpi value for SIPP: '" << SIPPLpi
+    setOption(_SIPPLpi, config, VPU_KMB_CONFIG_KEY(PREPROCESSING_LPI), parseInt);
+    IE_ASSERT(0 < _SIPPLpi && _SIPPLpi <= 16 && isPowerOfTwo(_SIPPLpi))
+        << "KmbConfig::parse attempt to set invalid lpi value for SIPP: '" << _SIPPLpi
         << "',  valid values are 1, 2, 4, 8, 16";
 }
