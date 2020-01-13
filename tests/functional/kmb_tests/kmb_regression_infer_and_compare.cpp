@@ -125,20 +125,20 @@ std::vector<TestingNetworkParameters> vpuCompileTargetNetworksFail = {
     // C++ exception with description "quant_model/resnet_v1_50/block1/unit_3/bottleneck_v1/addQuantize Eltwise
     // should has FakeQuantize on inputs
     TestingNetworkParameters {"ResNet_50_v1_tf_int8_sparse",
-        "/KMB_models/INT8/not_in_omz/sparse/ResNet-50-tf/resnetv1-int8-sparse-v2-tf-0001.xml",
-        "/KMB_models/INT8/not_in_omz/sparse/ResNet-50-tf/resnetv1-int8-sparse-v2-tf-0001.bin", "/224x224/cat3.bmp"},
+        "/KMB_models/INT8/public/sparse/ResNet-50-tf/resnetv1-int8-sparse-v2-tf-0001.xml",
+        "/KMB_models/INT8/public/sparse/ResNet-50-tf/resnetv1-int8-sparse-v2-tf-0001.bin", "/224x224/cat3.bmp"},
     // Fails on mcmCompiler compilation stage with message
     // C++ exception with description "Caught std::runtime_error during unit run:
     // Populated tensor with DType Int32 with out of bound value -9223372036854775808
     TestingNetworkParameters {"ResNet_50_v1_onnx_int8_sparse",
-        "/KMB_models/INT8/not_in_omz/sparse/ResNet-50-onnx/resnet50-int8-sparse-v2.xml",
-        "/KMB_models/INT8/not_in_omz/sparse/ResNet-50-onnx/resnet50-int8-sparse-v2.bin", "/224x224/cat3.bmp"},
+        "/KMB_models/INT8/public/sparse/ResNet-50-onnx/resnet50-int8-sparse-v2.xml",
+        "/KMB_models/INT8/public/sparse/ResNet-50-onnx/resnet50-int8-sparse-v2.bin", "/224x224/cat3.bmp"},
     // Fails on mcmCompiler compilation stage with message
     // C++ exception with description "Caught std::runtime_error during unit run:
     // Populated tensor with DType Int32 with out of bound value -4315556704
     TestingNetworkParameters {"MobileNet_v2_onnx_int8_sparse",
-        "/KMB_models/INT8/not_in_omz/sparse/MoblieNet-v2-onnx/mobilenetv2-int8-sparse-v2.xml",
-        "/KMB_models/INT8/not_in_omz/sparse/MoblieNet-v2-onnx/mobilenetv2-int8-sparse-v2.bin", "/224x224/cat3.bmp"},
+        "/KMB_models/INT8/public/sparse/MoblieNet-v2-onnx/mobilenetv2-int8-sparse-v2.xml",
+        "/KMB_models/INT8/public/sparse/MoblieNet-v2-onnx/mobilenetv2-int8-sparse-v2.bin", "/224x224/cat3.bmp"},
 
     // IRs from DL_benchmarking_models
     // Fails on IE to mcmCompiler parsing stage with message
@@ -162,36 +162,36 @@ std::vector<TestingNetworkParameters> vpuCompileTargetNetworksFail = {
     // C++ exception with description "Caught std::runtime_error during unit run:
     // quantParams - ArgumentError: channel 24 - Invalid index: channel is greater than zeroPoint vector
     TestingNetworkParameters {"mobilenet_v2_uint8_int8_weights_perchannel",
-        "/KMB_models/INT8/in_omz/MobileNet_V2/mobilenet_v2_uint8_int8_weights_perchannel.xml",
-        "/KMB_models/INT8/in_omz/MobileNet_V2/mobilenet_v2_uint8_int8_weights_perchannel.bin", "/224x224/cat3.bmp"},
+        "/KMB_models/INT8/public/MobileNet_V2/mobilenet_v2_uint8_int8_weights_perchannel.xml",
+        "/KMB_models/INT8/public/MobileNet_V2/mobilenet_v2_uint8_int8_weights_perchannel.bin", "/224x224/cat3.bmp"},
 
     // post training models
     // Following test on yolo_v3 fails on IE to mcmCompiler parsing stage with message.
     // C++ exception with description "Resample layer is not supported by kmbPlugin
     TestingNetworkParameters {"yolo_v3_uint8_int8_weights_pertensor",
-        "/KMB_models/INT8/not_in_omz/Yolo_V3/yolo_v3_uint8_int8_weights_pertensor.xml",
-        "/KMB_models/INT8/not_in_omz/Yolo_V3/yolo_v3_uint8_int8_weights_pertensor.bin", "/416x416/person.bmp"},
+        "/KMB_models/INT8/public/Yolo_V3/yolo_v3_uint8_int8_weights_pertensor.xml",
+        "/KMB_models/INT8/public/Yolo_V3/yolo_v3_uint8_int8_weights_pertensor.bin", "/416x416/person.bmp"},
     // Test on ssd_mobilenet_v1_coco fails on IE to mcmCompiler parsing stage with message:
     // C++ exception with description "Power layer is not supported by kmbPlugin
     TestingNetworkParameters {"ssd_mobilenet_v1_coco_uint8_int8_weights_pertensor",
-        "/KMB_models/INT8/in_omz/ssd_mobilenet_v1_coco/ssd_mobilenet_v1_coco_uint8_int8_weights_pertensor.xml",
-        "/KMB_models/INT8/in_omz/ssd_mobilenet_v1_coco/ssd_mobilenet_v1_coco_uint8_int8_weights_pertensor.bin",
+        "/KMB_models/INT8/public/ssd_mobilenet_v1_coco/ssd_mobilenet_v1_coco_uint8_int8_weights_pertensor.xml",
+        "/KMB_models/INT8/public/ssd_mobilenet_v1_coco/ssd_mobilenet_v1_coco_uint8_int8_weights_pertensor.bin",
         "/300x300/dog.bmp"},
     // post trainig models
     // Test on inception_v1 fails on mcmCompiler compilation stage with message.
     // C++ exception with description "Caught std::runtime_error during unit run:
     // Populated tensor with DType Int32 with out of bound value -9223372036854775808
     TestingNetworkParameters {"inception_v1_tf_uint8_int8_weights_pertensor",
-        "/KMB_models/INT8/not_in_omz/inception-v1_tf/inception-v1_tf_uint8_int8_weights_pertensor.xml",
-        "/KMB_models/INT8/not_in_omz/inception-v1_tf/inception-v1_tf_uint8_int8_weights_pertensor.bin",
+        "/KMB_models/INT8/public/inception-v1_tf/inception-v1_tf_uint8_int8_weights_pertensor.xml",
+        "/KMB_models/INT8/public/inception-v1_tf/inception-v1_tf_uint8_int8_weights_pertensor.bin",
         "/224x224/cat3.bmp"},
     // post training models
     // Test on inception_v3 fails on mcmCompiler compilation stage with message
     // C++ exception with description "Caught std::runtime_error during unit run:
     // Populated tensor with DType Int32 with out of bound value -9223372036854775808
     TestingNetworkParameters {"inception_v3_tf_uint8_int8_weights_pertensor",
-        "/KMB_models/INT8/in_omz/inception-v3_tf/inception-v3_tf_uint8_int8_weights_pertensor.xml",
-        "/KMB_models/INT8/in_omz/inception-v3_tf/inception-v3_tf_uint8_int8_weights_pertensor.bin",
+        "/KMB_models/INT8/public/inception-v3_tf/inception-v3_tf_uint8_int8_weights_pertensor.xml",
+        "/KMB_models/INT8/public/inception-v3_tf/inception-v3_tf_uint8_int8_weights_pertensor.bin",
         "/224x224/cat3.bmp"},
     // post training models
     // Following test on road-segmentation-adas-0001 fails on IE to mcmCompiler parsing stage with following message
@@ -242,36 +242,35 @@ std::vector<TestingNetworkParameters> vpuCompileTargetNetworksFail = {
     // C++ exception with description "Unsupported case, we expect only one child"
     // Also there are unsupported layers PriorBox and DetectionOutput
     TestingNetworkParameters {"ssd512_caffe_uint8_int8_weights_pertensor",
-        "/KMB_models/INT8/in_omz/ssd512/ssd512_caffe_uint8_int8_weights_pertensor.xml",
-        "/KMB_models/INT8/in_omz/ssd512/ssd512_caffe_uint8_int8_weights_pertensor.bin", "/512x512/dog_croped512.bmp"},
+        "/KMB_models/INT8/public/ssd512/ssd512_caffe_uint8_int8_weights_pertensor.xml",
+        "/KMB_models/INT8/public/ssd512/ssd512_caffe_uint8_int8_weights_pertensor.bin", "/512x512/dog_croped512.bmp"},
     // post training models
     // Test on caffe based inception_v1 fails on IE to mcmCompiler parsing stage
     // C++ exception with description "Op:pool5/7x7_s1 - OpError: Invalid input data (0) -
     // Filter kernel width (7) exceeds the padded input width (6)
     TestingNetworkParameters {"inception_v1_caffe_benchmark",
-        "/KMB_models/INT8/in_omz/inception-v1_caffe/googlenet-v1.xml",
-        "/KMB_models/INT8/in_omz/inception-v1_caffe/googlenet-v1.bin", "/224x224/cat3.bmp"},
+        "/KMB_models/INT8/public/inception-v1_caffe/googlenet-v1.xml",
+        "/KMB_models/INT8/public/inception-v1_caffe/googlenet-v1.bin", "/224x224/cat3.bmp"},
     // post training models
     // Following test on caffe based squeezenet1_1 fails on IE to mcmCompiler parsing stage
     // with message
     // C++ exception with description "Op:pool10 - OpError: Invalid input data (0) -
     // Filter kernel width (14) exceeds the padded input width (13)
     TestingNetworkParameters {"squeezenet1_1_caffe_benchmark",
-        "/KMB_models/INT8/in_omz/squeezenet1_1_caffe/squeezenet1.1.xml",
-        "/KMB_models/INT8/in_omz/squeezenet1_1_caffe/squeezenet1.1.bin", "/227x227/cat3.bmp"},
+        "/KMB_models/INT8/public/squeezenet1_1_caffe/squeezenet1.1.xml",
+        "/KMB_models/INT8/public/squeezenet1_1_caffe/squeezenet1.1.bin", "/227x227/cat3.bmp"},
 };
 
 std::vector<TestingNetworkParameters> vpuCompileTargetNetworks = {
     TestingNetworkParameters {"resnet50_uint8_int8_weights_pertensor",
-        "/KMB_models/INT8/in_omz/ResNet-50/resnet50_uint8_int8_weights_pertensor.xml",
-        "/KMB_models/INT8/in_omz/ResNet-50/resnet50_uint8_int8_weights_pertensor.bin", "/224x224/cat3.bmp"},
+        "/KMB_models/INT8/public/ResNet-50/resnet50_uint8_int8_weights_pertensor.xml",
+        "/KMB_models/INT8/public/ResNet-50/resnet50_uint8_int8_weights_pertensor.bin", "/224x224/cat3.bmp"},
     TestingNetworkParameters {"GoogLeNet_v1_tf_int8_sparse",
-        "/KMB_models/INT8/not_in_omz/sparse/GoogLeNet-v1-tf/inceptionv1-int8-sparse-tf-0001.xml",
-        "/KMB_models/INT8/not_in_omz/sparse/GoogLeNet-v1-tf/inceptionv1-int8-sparse-tf-0001.bin", "/224x224/cat3.bmp"},
+        "/KMB_models/INT8/public/sparse/GoogLeNet-v1-tf/inceptionv1-int8-sparse-tf-0001.xml",
+        "/KMB_models/INT8/public/sparse/GoogLeNet-v1-tf/inceptionv1-int8-sparse-tf-0001.bin", "/224x224/cat3.bmp"},
     TestingNetworkParameters {"MobileNet_v2_tf_int8_sparse",
-        "/KMB_models/INT8/not_in_omz/sparse/MoblieNet-v2-tf/mobilenetv2-int8-sparse-v2-tf-0001.xml",
-        "/KMB_models/INT8/not_in_omz/sparse/MoblieNet-v2-tf/mobilenetv2-int8-sparse-v2-tf-0001.bin",
-        "/224x224/cat3.bmp"},
+        "/KMB_models/INT8/public/sparse/MoblieNet-v2-tf/mobilenetv2-int8-sparse-v2-tf-0001.xml",
+        "/KMB_models/INT8/public/sparse/MoblieNet-v2-tf/mobilenetv2-int8-sparse-v2-tf-0001.bin", "/224x224/cat3.bmp"},
     TestingNetworkParameters {"tiny_yolo_v2_uint8_int8_weights_pertensor",
         "/KMB_models/INT8/ava/TinyYolo_V2/tiny_yolo_v2_uint8_int8_weights_pertensor.xml",
         "/KMB_models/INT8/ava/TinyYolo_V2/tiny_yolo_v2_uint8_int8_weights_pertensor.bin", "/416x416/person.bmp"},
@@ -279,16 +278,16 @@ std::vector<TestingNetworkParameters> vpuCompileTargetNetworks = {
         "/KMB_models/INT8/ava/Yolo_V2/yolo_v2_uint8_int8_weights_pertensor.xml",
         "/KMB_models/INT8/ava/Yolo_V2/yolo_v2_uint8_int8_weights_pertensor.bin", "/416x416/person.bmp"},
     TestingNetworkParameters {"tiny_yolo_v1_uint8_int8_weights_pertensor",
-        "/KMB_models/INT8/not_in_omz/YoloTiny-v1-caffe/tiny_yolo_v1_caffe_uint8_int8_weights_per_tensor.xml",
-        "/KMB_models/INT8/not_in_omz/YoloTiny-v1-caffe/tiny_yolo_v1_caffe_uint8_int8_weights_per_tensor.bin",
+        "/KMB_models/INT8/public/YoloTiny-v1-caffe/tiny_yolo_v1_caffe_uint8_int8_weights_per_tensor.xml",
+        "/KMB_models/INT8/public/YoloTiny-v1-caffe/tiny_yolo_v1_caffe_uint8_int8_weights_per_tensor.bin",
         "/448x448/cat3.bmp"},
     TestingNetworkParameters {"squeezenet1_1_pytorch_uint8_int8_weights_pertensor",
-        "/KMB_models/INT8/not_in_omz/squeezenet1_1_pytorch/squeezenet1_1_pytorch_uint8_int8_weights_pertensor.xml",
-        "/KMB_models/INT8/not_in_omz/squeezenet1_1_pytorch/squeezenet1_1_pytorch_uint8_int8_weights_pertensor.bin",
+        "/KMB_models/INT8/public/squeezenet1_1_pytorch/squeezenet1_1_pytorch_uint8_int8_weights_pertensor.xml",
+        "/KMB_models/INT8/public/squeezenet1_1_pytorch/squeezenet1_1_pytorch_uint8_int8_weights_pertensor.bin",
         "/224x224/cat3.bmp"},
     TestingNetworkParameters {"SqueezeNetv1.1_onnx_int8_sparse",
-        "/KMB_models/INT8/not_in_omz/sparse/squeezenetv1.1-int8-onnx/squeezenetv1.1-int8-sparse-v2.xml",
-        "/KMB_models/INT8/not_in_omz/sparse/squeezenetv1.1-int8-onnx/squeezenetv1.1-int8-sparse-v2.bin",
+        "/KMB_models/INT8/public/sparse/squeezenetv1.1-int8-onnx/squeezenetv1.1-int8-sparse-v2.xml",
+        "/KMB_models/INT8/public/sparse/squeezenetv1.1-int8-onnx/squeezenetv1.1-int8-sparse-v2.bin",
         "/224x224/cat3.bmp"},
 };
 
