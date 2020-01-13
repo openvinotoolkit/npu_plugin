@@ -245,9 +245,13 @@ void KmbTestBase::compareOutputs(
     const auto printCount = std::min<size_t>(refOutput->size(), 10);
 
     for (size_t i = 0; i < printCount; ++i) {
-        std::cout << "        " << i << " : "
-                  << "ref:" << std::setw(10) << refPtr[i]
-                     << " actual:" << std::setw(10) << actualPtr[i] << std::endl;
+        const auto absdiff = std::fabs(refPtr[i] - actualPtr[i]);
+
+        std::cout << "        " << i << " :"
+                  << " ref : " << std::setw(10) << refPtr[i]
+                  << " actual : " << std::setw(10) << actualPtr[i]
+                  << " absdiff : " << std::setw(10) << absdiff
+                  << std::endl;
     }
 
     EXPECT_NO_FATAL_FAILURE(compareBlobs(actualOutput, refOutput, tolerance, method));
