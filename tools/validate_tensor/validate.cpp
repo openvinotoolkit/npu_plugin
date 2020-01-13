@@ -349,7 +349,7 @@ int validate(std::string blobPath, std::string expectedPath, std::string actualP
     if (dtype == MVCNN::DType::DType_U8)
     {
         int qZero = graphFile.header->net_output[0]->quant_zero[0];
-        double qScale = graphFile.header->net_output[0]->quant_real_scale[0];
+        double qScale = graphFile.header->net_output[0]->quant_scale[0]; // was quant_real_scale[0];
         int qShift = graphFile.header->net_output[0]->quant_shift[0];
         std::cout << "Querying quantization values... " << std::endl;
         std::cout << "  Datatype: " << dtype << std::endl;
