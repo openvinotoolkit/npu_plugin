@@ -109,12 +109,31 @@ void addSliceQuantizationLayer(mv::OpModel om, std::vector<mv::Data::OpListItera
             // NOTE: Maybe here a check for mixed precision should be added
             if(!tensor->isPopulated() && tensorDType != dtypeNeededInInput)
             {
-                auto quantize = om.uPATaskQuantize({tensor}, outputDType,
+                //before adding UPATask, check if any of the other outputs of the tensor has already been quantized
+                auto previousOpIt = om.getSourceOp(tensor);
+                mv::Data::TensorIterator quantize;
+                bool alreadyQuantized = false;
+                for (auto sinkFlow = previousOpIt.leftmostOutput(); sinkFlow != om.flowEnd(); ++sinkFlow)
+                {
+                    auto task = sinkFlow.sink();
+                    if (task->getOpType() == "UPATask" && task->hasAttr("taskOp") && task->get<std::string>("taskOp") == "Quantize")
+                    {
+                        quantize = task->getOutputTensor()[0];
+                        alreadyQuantized = true;
+                        break;
+                    }
+
+                }
+
+                if (!alreadyQuantized)
+                {
+                    quantize = om.uPATaskQuantize({tensor}, outputDType,
                             tensor->get<mv::QuantizationParams>("quantParams"), "Quantize" + slice->getName() + std::to_string(id));
-                quantize->set<std::string>("splitStrategy",
+                    quantize->set<std::string>("splitStrategy",
                             tensor->get<std::string>("splitStrategy"));
-                auto quantizeOp = om.getSourceOp(quantize);
-                quantizeOp->set<unsigned>("opId", slice->get<unsigned>("opId"));
+                    auto quantizeOp = om.getSourceOp(quantize);
+                    quantizeOp->set<unsigned>("opId", slice->get<unsigned>("opId"));
+                }
                 auto backup = inputFlow;
                 auto slot = backup->get<size_t>("sinkInput");
                 ++inputFlow;
