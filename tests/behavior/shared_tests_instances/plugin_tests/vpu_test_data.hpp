@@ -61,6 +61,7 @@ const std::vector<BehTestParams> withCorrectConfValues = {
     BEH_KMB.withConfig({{KEY_VPU_HW_POOL_CONV_MERGE, "YES"}}),
     BEH_KMB.withConfig({{VPU_KMB_CONFIG_KEY(PREPROCESSING_SHAVES), "6"}}),
     BEH_KMB.withConfig({{VPU_KMB_CONFIG_KEY(PREPROCESSING_LPI), "8"}}),
+    BEH_KMB.withConfig({{VPU_KMB_CONFIG_KEY(MCM_LOG_LEVEL), LOG_DEBUG}}),
 };
 
 const std::vector<BehTestParams> withCorrectConfValuesPluginOnly = {};
@@ -73,4 +74,5 @@ const BehTestParams withIncorrectConfValues[] = {
     BEH_KMB.withConfig({{KEY_VPU_IGNORE_UNKNOWN_LAYERS, "ON"}}),
     BEH_KMB.withConfig({{VPU_KMB_CONFIG_KEY(PREPROCESSING_SHAVES), "SIX"}}),
     BEH_KMB.withConfig({{VPU_KMB_CONFIG_KEY(PREPROCESSING_LPI), "EIGHT"}}),
+    BEH_KMB.withConfig({{VPU_KMB_CONFIG_KEY(MCM_LOG_LEVEL), "debug"}}),
 };

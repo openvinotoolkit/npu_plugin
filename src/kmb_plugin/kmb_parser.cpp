@@ -153,16 +153,18 @@ void compileMcm(ie::ICNNNetwork& network, const KmbConfig& config, mv::Compilati
 
     IE_ASSERT(unit.initialize());
 
-    if (parsedConfig[CONFIG_KEY(LOG_LEVEL)] == CONFIG_VALUE(LOG_NONE)) {
+    if (parsedConfig[VPU_KMB_CONFIG_KEY(MCM_LOG_LEVEL)] == CONFIG_VALUE(LOG_NONE) ||
+        parsedConfig[VPU_KMB_CONFIG_KEY(MCM_LOG_LEVEL)] == CONFIG_VALUE(LOG_ERROR)) {
         compDesc.setPassArg("GlobalConfigParams", "verbose", std::string("Error"));
     }
-    if (parsedConfig[CONFIG_KEY(LOG_LEVEL)] == CONFIG_VALUE(LOG_WARNING)) {
+    if (parsedConfig[VPU_KMB_CONFIG_KEY(MCM_LOG_LEVEL)] == CONFIG_VALUE(LOG_WARNING)) {
         compDesc.setPassArg("GlobalConfigParams", "verbose", std::string("Warning"));
     }
-    if (parsedConfig[CONFIG_KEY(LOG_LEVEL)] == CONFIG_VALUE(LOG_INFO)) {
+    if (parsedConfig[VPU_KMB_CONFIG_KEY(MCM_LOG_LEVEL)] == CONFIG_VALUE(LOG_INFO) ||
+        parsedConfig[VPU_KMB_CONFIG_KEY(MCM_LOG_LEVEL)] == CONFIG_VALUE(LOG_TRACE)) {
         compDesc.setPassArg("GlobalConfigParams", "verbose", std::string("Info"));
     }
-    if (parsedConfig[CONFIG_KEY(LOG_LEVEL)] == CONFIG_VALUE(LOG_DEBUG)) {
+    if (parsedConfig[VPU_KMB_CONFIG_KEY(MCM_LOG_LEVEL)] == CONFIG_VALUE(LOG_DEBUG)) {
         compDesc.setPassArg("GlobalConfigParams", "verbose", std::string("Debug"));
     }
 
