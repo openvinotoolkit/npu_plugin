@@ -132,15 +132,46 @@ Blob::Ptr genBlobNormal(const TensorDesc& desc, std::default_random_engine& rd, 
     return blob;
 }
 
-Blob::Ptr makeScalarBlob(float val) {
-    const TensorDesc outDesc(Precision::FP32, {1}, Layout::C);
+Blob::Ptr makeScalarBlob(float val, const Precision& precision, size_t numDims) {
+    const auto dims = SizeVector(numDims, 1);
+    const auto outDesc = TensorDesc(precision, dims, TensorDesc::getLayoutByDims(dims));
     const auto out = make_blob_with_precision(outDesc);
     out->allocate();
 
-    const auto outPtr = out->buffer().as<float*>();
-    IE_ASSERT(outPtr != nullptr);
-
-    *outPtr = val;
+    switch (precision) {
+    case Precision::FP32: {
+        const auto outPtr = out->buffer().as<float*>();
+        IE_ASSERT(outPtr != nullptr);
+        *outPtr = val;
+        break;
+    }
+    case Precision::FP16: {
+        const auto outPtr = out->buffer().as<ie_fp16*>();
+        IE_ASSERT(outPtr != nullptr);
+        *outPtr = PrecisionUtils::f32tof16(val);
+        break;
+    }
+    case Precision::I32: {
+        const auto outPtr = out->buffer().as<int32_t*>();
+        IE_ASSERT(outPtr != nullptr);
+        *outPtr = static_cast<int32_t>(val);
+        break;
+    }
+    case Precision::U8: {
+        const auto outPtr = out->buffer().as<uint8_t*>();
+        IE_ASSERT(outPtr != nullptr);
+        *outPtr = static_cast<uint8_t>(val);
+        break;
+    }
+    case Precision::I8: {
+        const auto outPtr = out->buffer().as<int8_t*>();
+        IE_ASSERT(outPtr != nullptr);
+        *outPtr = static_cast<int8_t>(val);
+        break;
+    }
+    default:
+        THROW_IE_EXCEPTION << "Unsupported precision " << precision;
+    }
 
     return out;
 }
