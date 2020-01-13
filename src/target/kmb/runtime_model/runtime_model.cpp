@@ -322,7 +322,8 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     numericStrides.push_back(t->getDType().getSizeInBits() / 8);
     if(*tensorAllocatorName == "VPU_CMX_NN")
     {
-        numericStrides = subtensor.computeNumericStrides();
+        auto masterBuffer = tensorAllocator.getTopMasterBuffer(tensorBufferIt);
+        numericStrides = (*masterBuffer)->getData()->getSubTensor(clusterId).computeNumericStrides();
         numericStrides.push_back(subtensor.getDType().getSizeInBits() / 8);
     }
 
@@ -765,13 +766,6 @@ void mv::RuntimeModel::case2MC(unsigned numTasks, ComputationModel& cm,  mv::Dma
         if (direction != mv::DDR2NNCMX)
         {
             if (padFinalOutput && dst->hasAttr("alignment"))
-                alignTensor(cm, tmp->dst, dst->getSubTensor(i), padFinalOutput);
-        }
-
-        //Align input to Z-Major DPU task
-        if (direction == mv::DDR2NNCMX)
-        {
-            if (dst->hasAttr("alignment"))
                 alignTensor(cm, tmp->dst, dst->getSubTensor(i), padFinalOutput);
         }
 
