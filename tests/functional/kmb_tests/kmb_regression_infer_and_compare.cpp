@@ -259,6 +259,12 @@ std::vector<TestingNetworkParameters> vpuCompileTargetNetworksFail = {
     TestingNetworkParameters {"squeezenet1_1_caffe_benchmark",
         "/KMB_models/INT8/public/squeezenet1_1_caffe/squeezenet1.1.xml",
         "/KMB_models/INT8/public/squeezenet1_1_caffe/squeezenet1.1.bin", "/227x227/cat3.bmp"},
+
+    // very long time compilation
+    TestingNetworkParameters {"tiny_yolo_v1_uint8_int8_weights_pertensor",
+        "/KMB_models/INT8/public/YoloTiny-v1-caffe/tiny_yolo_v1_caffe_uint8_int8_weights_per_tensor.xml",
+        "/KMB_models/INT8/public/YoloTiny-v1-caffe/tiny_yolo_v1_caffe_uint8_int8_weights_per_tensor.bin",
+        "/448x448/cat3.bmp"},
 };
 
 std::vector<TestingNetworkParameters> vpuCompileTargetNetworks = {
@@ -277,10 +283,6 @@ std::vector<TestingNetworkParameters> vpuCompileTargetNetworks = {
     TestingNetworkParameters {"yolo_v2_uint8_int8_weights_pertensor",
         "/KMB_models/INT8/ava/Yolo_V2/yolo_v2_uint8_int8_weights_pertensor.xml",
         "/KMB_models/INT8/ava/Yolo_V2/yolo_v2_uint8_int8_weights_pertensor.bin", "/416x416/person.bmp"},
-    TestingNetworkParameters {"tiny_yolo_v1_uint8_int8_weights_pertensor",
-        "/KMB_models/INT8/public/YoloTiny-v1-caffe/tiny_yolo_v1_caffe_uint8_int8_weights_per_tensor.xml",
-        "/KMB_models/INT8/public/YoloTiny-v1-caffe/tiny_yolo_v1_caffe_uint8_int8_weights_per_tensor.bin",
-        "/448x448/cat3.bmp"},
     TestingNetworkParameters {"squeezenet1_1_pytorch_uint8_int8_weights_pertensor",
         "/KMB_models/INT8/public/squeezenet1_1_pytorch/squeezenet1_1_pytorch_uint8_int8_weights_pertensor.xml",
         "/KMB_models/INT8/public/squeezenet1_1_pytorch/squeezenet1_1_pytorch_uint8_int8_weights_pertensor.bin",

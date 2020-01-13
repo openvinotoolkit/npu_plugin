@@ -106,6 +106,9 @@ ie::details::caseless_map<std::string, parser_t> g_mcm_parsers = {
 mv::DType convert_data_type(ie::Precision iePrecision) {
     mv::DType mvType;
     switch (iePrecision) {
+    case ie::Precision::UNSPECIFIED:
+        mvType = mv::DType("Default");
+        break;
     case ie::Precision::I8:
         mvType = mv::DType("Int8");
         break;

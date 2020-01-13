@@ -310,6 +310,21 @@ void FrontEndMcm::parseOutputData() {
     }
 }
 
+// TODO find a better way to set output precision, now it works only when convolution is the last layer
+InferenceEngine::Precision FrontEndMcm::getDefaultLayerPrecision(
+    const ParsedNetwork& net, const ie::CNNLayerPtr& layer) {
+    bool isLastLayer = (CNNNetworkHelper::getChildren(*layer).size() == 0);
+    if (isLastLayer) {
+        InferenceEngine::Precision outputPrecision = net.networkOutputs.begin()->second->getTensorDesc().getPrecision();
+        if (outputPrecision == InferenceEngine::Precision::FP16 ||
+            outputPrecision == InferenceEngine::Precision::FP32) {
+            return InferenceEngine::Precision::FP16;
+        }
+    }
+
+    return InferenceEngine::Precision::UNSPECIFIED;
+}
+
 void FrontEndMcm::parseConvolution(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs) {
     auto input = inputs[0];
     bool is_quantized = false;
@@ -349,18 +364,7 @@ void FrontEndMcm::parseConvolution(const ie::CNNLayerPtr& layer, const McmNodeVe
     mv::QuantizationParams biasQuantParams = initialQuantParams;
 
     auto layerOutput = layer->outData[0];
-    mv::DType convolutionDataType("Default");
-
-    // TODO find a better way to set output precision, now it works only when convolution is the last layer
-    bool isLastLayer = (CNNNetworkHelper::getChildren(*layer).size() == 0);
-    if (isLastLayer) {
-        InferenceEngine::Precision outputPrecision =
-            _parsedNetwork.networkOutputs.begin()->second->getTensorDesc().getPrecision();
-        if (outputPrecision == InferenceEngine::Precision::FP16 ||
-            outputPrecision == InferenceEngine::Precision::FP32) {
-            convolutionDataType = mv::DType("Float16");
-        }
-    }
+    mv::DType convolutionDataType = convert_data_type(getDefaultLayerPrecision(_parsedNetwork, layer));
 
     IE_ASSERT(layerOutput != nullptr);
     auto outDesc = layerOutput->getTensorDesc();
@@ -631,8 +635,9 @@ void FrontEndMcm::parseFullyConnected(const ie::CNNLayerPtr& layer, const McmNod
     auto layerOutput = FClayer->outData[0];
     IE_ASSERT(layerOutput != nullptr);
 
-    auto mvFullyConnected = _modelMcm.fullyConnected(
-        input->getMcmNode(), mvWeights, mv::DType("Default"), outputQuantParams, FClayer->name);
+    mv::DType layerDataType = convert_data_type(getDefaultLayerPrecision(_parsedNetwork, layer));
+    auto mvFullyConnected =
+        _modelMcm.fullyConnected(input->getMcmNode(), mvWeights, layerDataType, outputQuantParams, FClayer->name);
 
     if (with_bias) {
         if (is_quantized) {
@@ -648,9 +653,8 @@ void FrontEndMcm::parseFullyConnected(const ie::CNNLayerPtr& layer, const McmNod
             mvBiases = _modelMcm.constant(biasesData, biasesShape, mv::DType("Float64"), mv::Order::getColMajorID(1));
         }
 
-        auto mvFCOnly = mvFullyConnected;
-        mvFullyConnected =
-            _modelMcm.bias(mvFCOnly, mvBiases, mv::DType("Default"), outputQuantParams, FClayer->name + ":bias");
+        mvFullyConnected = _modelMcm.bias(
+            mvFullyConnected, mvBiases, mv::DType("Default"), outputQuantParams, FClayer->name + ":bias");
         _logger->debug("'%s' layer '%s': Bias part (%s) added to mcmModel", FClayer->type, FClayer->name,
             mvFullyConnected->getName());
     }

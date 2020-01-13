@@ -167,6 +167,7 @@ private:
         float bias;
     };
 
+    InferenceEngine::Precision getDefaultLayerPrecision(const ParsedNetwork& net, const ie::CNNLayerPtr& layer);
     void removeInputScaleShiftPattern(ie::CNNNetwork& network);
     std::map<std::string, LayerQuantParams> _layerToQuantParams;
 

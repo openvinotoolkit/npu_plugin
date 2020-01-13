@@ -115,6 +115,15 @@ DECLARE_VPU_KMB_CONFIG_KEY(MCM_COMPILATION_RESULTS);
 
 /**
  * @brief [Only for kmbPlugin]
+ * Describe log level for mcmCompiler
+ * This option should be used with values: PluginConfigParams::LOG_INFO (default),
+ * PluginConfigParams::LOG_ERROR, PluginConfigParams::LOG_WARNING,
+ * PluginConfigParams::LOG_NONE, PluginConfigParams::LOG_DEBUG, PluginConfigParams::LOG_TRACE
+ */
+DECLARE_VPU_KMB_CONFIG_KEY(MCM_LOG_LEVEL);
+
+/**
+ * @brief [Only for kmbPlugin]
  * Type: "YES/NO", default is "NO".
  */
 DECLARE_VPU_KMB_CONFIG_KEY(KMB_EXECUTOR);
