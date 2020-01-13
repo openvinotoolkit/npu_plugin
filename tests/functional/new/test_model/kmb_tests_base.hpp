@@ -24,6 +24,8 @@
 #include "kmb_test_model.hpp"
 
 #include "kmb_test_add_def.hpp"
+#include "kmb_test_mul_def.hpp"
+#include "kmb_test_scale_shift_def.hpp"
 #include "kmb_test_convolution_def.hpp"
 #include "kmb_test_fake_quantize_def.hpp"
 
