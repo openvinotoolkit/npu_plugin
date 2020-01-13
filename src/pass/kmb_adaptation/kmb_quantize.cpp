@@ -85,7 +85,8 @@ void addSliceQuantizationLayer(mv::OpModel om, std::vector<mv::Data::OpListItera
             auto previousOpIt = om.getSourceOp(slice->getInputTensor(0));
             for (auto sinkFlow = previousOpIt.leftmostOutput(); sinkFlow != om.flowEnd(); ++sinkFlow)
             {
-                sliceFlows[slice->getInputTensor()[0]->getName()].push_back(sinkFlow);
+                if (sinkFlow.sink()->getOpType() == "Slice")
+                    sliceFlows[slice->getInputTensor()[0]->getName()].push_back(sinkFlow);
             }
         }
     }
