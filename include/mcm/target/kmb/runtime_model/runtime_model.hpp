@@ -134,7 +134,7 @@ namespace mv
             void deserialize(char * buffer, int length);
             void buildGraphFile(ComputationModel& cm, Element& compilationDescriptor);
             void buildHeader(ComputationModel& cm, Element& compilationDescriptor);
-            std::vector<uint8_t> huffmanCompress(std::vector<int64_t>& inputData);
+            std::vector<uint8_t> huffmanCompress(std::vector<int64_t>& inputData, mv::Tensor& t);
             std::vector<uint8_t> huffmanDecompress(std::vector<uint8_t>& compressedData);
             std::shared_ptr<std::vector<char>> getBlob();
             static void case1MC(unsigned numTasks, ComputationModel& cm, mv::DmaDirection direction, mv::Element &compilationDescriptor, bool compression, bool padFinalOutput, std::vector<std::unique_ptr<MVCNN::TaskT>>& toReturn, Data::TensorIterator src, Data::TensorIterator dst, const std::string &srcAllocator = "", const std::string &dstAllocator = "");
