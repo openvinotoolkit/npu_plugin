@@ -5,7 +5,7 @@
                 "name" : "GlobalConfigParams",
                 "_comment" : "Stores common params accross multiple passes. Access through the Computation Model.",
                 "recorded_model": true,
-                "verbose": "Error",
+                "verbose": "Debug",
                 "weights_form": "None",
                 "barrier_index_assignment" : "Dynamic",
                 "Number_of_DPUs" : 20,
@@ -16,7 +16,7 @@
                 "MemoryHack": false,
                 "cmx": 917504,
                 "enable_channel_major_conv": false,
-                "HuffmanCompression": false,
+                "HuffmanCompression": true,
                 "DPUTasksinFloat": false,
                 "split_strategy" :
                 [
@@ -274,6 +274,17 @@
     },
     "serialize": {
         "Singular": [
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/final_model.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/final_model.dot"
+            },
             {
                 "name": "GenerateBlobKmb",
                 "output": "output/mcm.blob"

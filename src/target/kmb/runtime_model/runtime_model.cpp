@@ -548,9 +548,10 @@ std::unique_ptr<MVCNN::BinaryDataT> mv::RuntimeModel::buildBinaryDataT(Computati
     if(t.getDType().toString() == "UInt8" && huffmanCompression) 
     {
         auto dataPacked = t.getDataPacked();
-        auto compressedData = huffmanCompress(dataPacked);
+        auto compressedData = huffmanCompress(dataPacked, t); 
         toBuild->data = packToInt64(compressedData, t.getDType());
-        toBuild->length = compressedData.size();
+        int length = t.get<int>("CompressedSize");
+        toBuild->length = length;
         toBuild->underlying_type = MVCNN::DType::DType_U8;
         t.set<bool>("Compression", true);
     }
@@ -710,11 +711,18 @@ void checkUnstridedDMA(mv::Data::TensorIterator src, int i, MVCNN::NNDMATaskT * 
     if(tmp->src->locale == MVCNN::MemoryLocation_GraphFile)
     {
         unsigned totalSize = src->getSubTensor(i).getShape().totalSize();
+        unsigned totalSizeDst = src->getSubTensor(i).getShape().totalSize();
         if(src->isSparse())
             totalSize = src->getSubTensor(i).dataPackedSize();
-
-        totalSize *= src->getDType().getSizeInBits() / 8;
+        
+        if(src->hasAttr("CompressedSize"))
+            totalSize = src->get<int>("CompressedSize");
+        else 
+            totalSize *= src->getDType().getSizeInBits() / 8;
+        
         std::vector<uint32_t> dimensions = {totalSize, 1, 1, 1};
+        totalSizeDst *= src->getDType().getSizeInBits() / 8;
+        std::vector<uint32_t> dimensionsdst = {totalSizeDst, 1, 1, 1};
         std::vector<uint32_t> strides = {1, 1, 1, 1, 1};
         auto dtype = MVCNN::DType::DType_U8;
 
@@ -722,7 +730,8 @@ void checkUnstridedDMA(mv::Data::TensorIterator src, int i, MVCNN::NNDMATaskT * 
         tmp->src->strides = strides;
         tmp->src->data_dtype = dtype;
 
-        tmp->dst->dimensions = dimensions;
+
+        tmp->dst->dimensions = dimensionsdst;
         tmp->dst->strides = strides;
         tmp->dst->data_dtype = dtype;
     }
@@ -777,6 +786,13 @@ void mv::RuntimeModel::case2MC(unsigned numTasks, ComputationModel& cm,  mv::Dma
         if (direction != mv::DDR2NNCMX)
         {
             if (padFinalOutput && dst->hasAttr("alignment"))
+                alignTensor(cm, tmp->dst, dst->getSubTensor(i), padFinalOutput);
+        }
+
+             //Align input to Z-Major DPU task
+        if (direction == mv::DDR2NNCMX)
+        {
+            if (dst->hasAttr("alignment"))
                 alignTensor(cm, tmp->dst, dst->getSubTensor(i), padFinalOutput);
         }
 
@@ -2204,14 +2220,17 @@ std::shared_ptr<std::vector<char>> mv::RuntimeModel::getBlob()
     return binaryData_;
 }
 
-std::vector<uint8_t> mv::RuntimeModel::huffmanCompress(std::vector<int64_t>& inputData) 
+std::vector<uint8_t> mv::RuntimeModel::huffmanCompress(std::vector<int64_t>& inputData, mv::Tensor& t) 
 {
     std::vector<uint8_t> uint8InputData(inputData.begin(),inputData.end());
-    uint32_t size = uint8InputData.size();
-    auto compressedBufferSize = inputData.size() + 2 * (std::ceil(inputData.size() / 4096) + 1);
+    uint32_t originalsize = uint8InputData.size();
+    auto compressedBufferSize = originalsize + 2 * (std::ceil(originalsize / 4096.0) + 1);
     std::vector<uint8_t> compressedDataBuffer (compressedBufferSize, 0); 
-    codec_->huffmanCodecCompressArray(size, &uint8InputData[0], &compressedDataBuffer[0]);
-
+    uint32_t compressedsize = codec_->huffmanCodecCompressArray(originalsize, &uint8InputData[0], &compressedDataBuffer[0]);
+    std::cout << t.getName() << std::endl;
+    t.set<int>("CompressedSize", compressedsize);
+  
+       
     return compressedDataBuffer;
 }
 
@@ -2221,6 +2240,6 @@ std::vector<uint8_t> mv::RuntimeModel::huffmanDecompress(std::vector<uint8_t>& c
     auto deCompressedBufferSize = compressedData.size() * 5;
     std::vector<uint8_t> deCompressedDataBuffer (deCompressedBufferSize, 0); 
     codec_->huffmanCodecDecompressArray(size, &compressedData[0], &deCompressedDataBuffer[0]);
-    
+
     return deCompressedDataBuffer;
 }
