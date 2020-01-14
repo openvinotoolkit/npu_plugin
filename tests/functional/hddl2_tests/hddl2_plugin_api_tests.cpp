@@ -15,12 +15,67 @@
 //
 
 #include <Inference.h>
+#include <cpp/ie_cnn_net_reader.h>
+#include <gtest/gtest.h>
 
 #include <fstream>
 #include <ie_core.hpp>
+#include <test_model_path.hpp>
 #include <vector>
 
-#include "hddl2_plugin_api_test_cases.h"
+//------------------------------------------------------------------------------
+//      class HDDL2_Plugin_API Declaration
+//------------------------------------------------------------------------------
+class HDDL2_Plugin_API : public ::testing::Test {
+public:
+    std::string device_name = "HDDL2";
+    InferenceEngine::Core ie;
+    InferenceEngine::CNNNetwork network;
+    InferenceEngine::ExecutableNetwork executableNetwork;
+    InferenceEngine::InferRequest inferRequest;
+
+    void LoadModel();
+
+private:
+    std::string _modelName = "googlenet/bvlc_googlenet_fp16";
+    IE_SUPPRESS_DEPRECATED_START
+    InferenceEngine::CNNNetReader _netReader;
+    IE_SUPPRESS_DEPRECATED_END
+};
+
+struct modelBlobsInfo {
+    std::string _graphPath, _inputPath, _outputPath;
+};
+
+const static std::vector<modelBlobsInfo> pathToPreCompiledGraph = {
+    {
+        ._graphPath = "/KMB_models/BLOBS/resnet/resnet.blob",
+        ._inputPath = "/KMB_models/BLOBS/resnet/input.dat",
+        ._outputPath = "/KMB_models/BLOBS/resnet/output.dat",
+    },
+};
+
+class InferWithPath : public HDDL2_Plugin_API, public testing::WithParamInterface<modelBlobsInfo> {};
+
+//------------------------------------------------------------------------------
+//      Implementation of class HDDL2_Plugin_API
+//------------------------------------------------------------------------------
+void HDDL2_Plugin_API::LoadModel() {
+    std::ostringstream modelFile;
+    modelFile << "/" << _modelName << ".xml";
+
+    std::ostringstream weightsFile;
+    weightsFile << "/" << _modelName << ".bin";
+
+    std::string modelFilePath = ModelsPath() + modelFile.str();
+    std::string weightsFilePath = ModelsPath() + weightsFile.str();
+
+    ASSERT_NO_THROW(_netReader.ReadNetwork(modelFilePath));
+    ASSERT_TRUE(_netReader.isParseSuccess());
+    ASSERT_NO_THROW(_netReader.ReadWeights(weightsFilePath));
+
+    network = _netReader.getNetwork();
+}
 
 TEST_F(HDDL2_Plugin_API, getVpusmmDriver) {
     bool isVPUSMMDriverFound = false;
