@@ -411,6 +411,52 @@ TEST_P(ResizePTestGAPI, AccuracyTest)
 INSTANTIATE_TEST_CASE_P(ResizePTestSIPP, ResizePTestGAPI,
                         Values(TEST_SIZES_PREPROC));
 
+
+struct Merge3PTestGAPI: public testing::TestWithParam<cv::Size> {};
+TEST_P(Merge3PTestGAPI, AccuracyTest)
+{
+    auto sz = GetParam();
+    cv::Size sz_in_p (sz.width, sz.height *3);
+
+    auto allocMat = [](cv::Size sz, int type, AllocHelper& allocator) {
+        return cv::Mat(sz, type, allocator.alloc(sz.width*sz.height*CV_ELEM_SIZE(type)));
+    };
+
+    AllocHelper allocator;
+
+    cv::Mat in_mat = allocMat(sz_in_p, CV_8UC1, allocator);
+    cv::randn(in_mat, cv::Scalar::all(127), cv::Scalar::all(40.f));
+
+    cv::Mat out_mat_gapi = allocMat(sz, CV_8UC3, allocator);
+    cv::Mat out_mat_ocv  = allocMat(sz, CV_8UC3, allocator);
+
+    // G-API code //////////////////////////////////////////////////////////////
+    MergeComputation mc(to_test(in_mat), to_test(out_mat_gapi));
+    mc.warmUp();
+
+    // OpenCV code /////////////////////////////////////////////////////////////
+    {
+        constexpr const int planeNum = 3;
+        std::array<cv::Mat, planeNum> ins;
+        for (int i = 0; i < planeNum; i++) {
+            ins[i] = in_mat(cv::Rect(0, i*sz.height, sz.width, sz.height));
+        }
+        cv::merge(ins, out_mat_ocv);
+    }
+    // Comparison //////////////////////////////////////////////////////////////
+    {
+        cv::Mat absDiff;
+        cv::absdiff(out_mat_gapi, out_mat_ocv, absDiff);
+        EXPECT_EQ(0, cv::countNonZero(absDiff > 1));
+    }
+
+    std::cout << in_mat << std::endl << std::endl;
+    std::cout << out_mat_ocv << std::endl;
+}
+
+INSTANTIATE_TEST_CASE_P(Merge3PTestSIPP, Merge3PTestGAPI,
+                        Values(cv::Size(32, 8)));
+
 using namespace testing;
 
 struct KmbSippPreprocEngineTest: public TestWithParam<std::pair<cv::Size, cv::Size>> {};

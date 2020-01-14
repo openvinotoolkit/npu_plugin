@@ -159,7 +159,7 @@ void SIPPPreprocEngine::Priv::preprocWithSIPP(const Blob::Ptr &inBlob, Blob::Ptr
             out = gapi::resizeP(rgb, out_sz);
         } else {
             auto resized = gapi::resizeP(rgb, out_sz);
-            out = gapi::mergeP(resized);
+            out = gapi::merge3p(resized);
         }
 
         _lastCompiled = GComputation(GIn(in_y, in_uv), GOut(out))
