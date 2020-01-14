@@ -38,19 +38,20 @@ std::ostream& operator<<(std::ostream& os, const ConvTestParams& p) {
 
 class KmbConvolutionLayerTests : public KmbTestBase, public testing::WithParamInterface<ConvTestParams> {};
 
-TEST_P(KmbConvolutionLayerTests, FP16) {
+TEST_P(KmbConvolutionLayerTests, DISABLED_FP16) {
     const auto& p = GetParam();
 
     const auto netPresicion = Precision::FP32;
 
-    const auto userInDesc = TensorDesc(Precision::U8, p._inDims, Layout::NCHW);
-    const auto userOutDesc = TensorDesc(Precision::FP16, {}, Layout::NCHW);
+    const auto userInDesc = TensorDesc(Precision::U8, p._inDims, Layout::NHWC);
+    const auto userOutDesc = TensorDesc(Precision::FP16, Layout::NHWC);
+
+    const auto inputRange = std::make_pair(0.0f, 3.0f);
 
     const auto weightsRange = std::make_pair(-1.0f, 1.0f);
     const auto biasesRange = std::make_pair(-1.0f, 1.0f);
-    const auto inputRange = std::make_pair(0.0f, 3.0f);
 
-    const auto tolerance = 1e-2f;  // obtained based on CPU plugin
+    const auto tolerance = 1e-3f;  // obtained based on CPU plugin
 
     const auto weights = genConvWeights(p._convParams, p._inDims.at(1), netPresicion, rd, weightsRange.first, weightsRange.second);
     const auto biases = genConvBiases(p._convParams, netPresicion, rd, biasesRange.first, biasesRange.second);
@@ -76,19 +77,26 @@ TEST_P(KmbConvolutionLayerTests, FP16) {
     runTest(testNet, inputsGenerator, tolerance, CompareMethod::Absolute);
 }
 
-TEST_P(KmbConvolutionLayerTests, FakeQuantize) {
+TEST_P(KmbConvolutionLayerTests, FakeQuantize_ScaleShift) {
     const auto& p = GetParam();
 
     const auto netPresicion = Precision::FP32;
 
-    const auto userInDesc = TensorDesc(Precision::U8, p._inDims, Layout::NCHW);
-    const auto userOutDesc = TensorDesc(Precision::FP16, {}, Layout::NCHW);
+    const auto userInDesc = TensorDesc(Precision::U8, p._inDims, Layout::NHWC);
+    const auto userOutDesc = TensorDesc(Precision::FP16, Layout::NHWC);
+
+    const auto inputRange = std::make_pair(0.0f, 255.0f);
+
+    const auto inputScale = 1.0f / (inputRange.second - inputRange.first);
+    const auto inputShift = 0.0f; // -0.5f;
 
     const auto weightsRange = std::make_pair(-1.0f, 1.0f);
     const auto biasesRange = std::make_pair(-1.0f, 1.0f);
-    const auto inputRange = std::make_pair(0.0f, 3.0f);
 
-    const auto tolerance = 1.0f;  // obtained based on CPU plugin
+    const auto tolerance = 1e-3f;  // obtained based on CPU plugin
+
+    const auto scales = makeSingleValueBlob(TensorDesc(netPresicion, {1, p._inDims.at(1), 1, 1}, Layout::NCHW), inputScale);
+    const auto shift = makeSingleValueBlob(TensorDesc(netPresicion, {1, p._inDims.at(1), 1, 1}, Layout::NCHW), inputShift);
 
     const auto weights = genConvWeights(p._convParams, p._inDims.at(1), netPresicion, rd, weightsRange.first, weightsRange.second);
     const auto biases = genConvBiases(p._convParams, netPresicion, rd, biasesRange.first, biasesRange.second);
@@ -99,8 +107,8 @@ TEST_P(KmbConvolutionLayerTests, FakeQuantize) {
         .addNetInput("input", userInDesc.getDims(), netPresicion)
         .addLayer<ScaleShiftLayerDef>("input_scale_shift")
             .input("input")
-            .scale(1.0f / (inputRange.second - inputRange.first), netPresicion, userInDesc.getDims().size())
-            .shift(-0.5f, netPresicion, userInDesc.getDims().size())
+            .scale(scales)
+            .shift(shift)
             .build()
         .addConst("weights", weights)
         .addLayer<FakeQuantizeLayerDef>("weights_quantize", 256)
@@ -127,8 +135,8 @@ TEST_P(KmbConvolutionLayerTests, FakeQuantize) {
 
 const std::vector<ConvTestParams> convParams {
     ConvTestParams()
-        .inDims({1, 256, 56, 56})
-        .convParams(ConvolutionParams().outChannels(128).kernel({1, 1}).strides({2, 2}).pad({0, 0, 0, 0}))
+        .inDims({1, 32, 16, 16})
+        .convParams(ConvolutionParams().outChannels(16).kernel({1, 1}).strides({2, 2}).pad({0, 0, 0, 0}))
 };
 
 INSTANTIATE_TEST_CASE_P(SomeCase, KmbConvolutionLayerTests, testing::ValuesIn(convParams));
