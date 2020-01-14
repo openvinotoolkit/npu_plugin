@@ -44,7 +44,7 @@ namespace mv
 
         size_t getOutputSize() const {
           if (outputs_.empty()) { return 0UL;}
-          return (*outputs_.front()).computeTotalSize();
+          return (*outputs_.front()).getClusterSize();
         }
 
         std::size_t inputSlots() const;
