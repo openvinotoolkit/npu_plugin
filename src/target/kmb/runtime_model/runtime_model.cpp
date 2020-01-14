@@ -322,7 +322,8 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     numericStrides.push_back(t->getDType().getSizeInBits() / 8);
     if(*tensorAllocatorName == "VPU_CMX_NN")
     {
-        numericStrides = subtensor.computeNumericStrides();
+        auto masterBuffer = tensorAllocator.getTopMasterBuffer(tensorBufferIt);
+        numericStrides = (*masterBuffer)->getData()->getSubTensor(clusterId).computeNumericStrides();
         numericStrides.push_back(subtensor.getDType().getSizeInBits() / 8);
     }
 
