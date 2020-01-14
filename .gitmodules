@@ -10,10 +10,6 @@
 [submodule "contrib/easy_profiler"]
 	path = contrib/easy_profiler
 	url = https://github.com/yse/easy_profiler.git
-[submodule "tools/validate_tensor/contrib/nlohmann/json"]
-	path = tools/validate_tensor/contrib/nlohmann/json
-	url = https://github.com/nlohmann/json.git
 [submodule "tools/validate_tensor/contrib/gflags"]
 	path = tools/validate_tensor/contrib/gflags
 	url = https://github.com/gflags/gflags.git
-

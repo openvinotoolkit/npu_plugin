@@ -326,7 +326,7 @@ set(pass
 
     "${PROJECT_SOURCE_DIR}/src/pass/lp_scheduler/lp_scheduler_pass.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/lp_scheduler/remove_redundant_update_barriers.cpp"
-
+    "${PROJECT_SOURCE_DIR}/src/pass/lp_scheduler/op_model_cutter.cpp"
 
     "${PROJECT_SOURCE_DIR}/src/target/target_descriptor.cpp"
 

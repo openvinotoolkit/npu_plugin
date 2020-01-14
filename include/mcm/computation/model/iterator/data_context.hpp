@@ -19,7 +19,7 @@ namespace mv
         using OpDFSIterator = IteratorDetail::OpIterator<dataGraph, dataGraph::node_dfs_iterator, Op, DataFlow>;
         using OpBFSIterator = IteratorDetail::OpIterator<dataGraph, dataGraph::node_bfs_iterator, Op, DataFlow>;
         using OpChildIterator = IteratorDetail::OpIterator<dataGraph, dataGraph::node_child_iterator, Op, DataFlow>;
-        using OpParentIterator = IteratorDetail::OpIterator<dataGraph, dataGraph::node_child_iterator, Op, DataFlow>;
+        using OpParentIterator = IteratorDetail::OpIterator<dataGraph, dataGraph::node_parent_iterator, Op, DataFlow>;
         using OpSiblingIterator = IteratorDetail::OpIterator<dataGraph, dataGraph::node_sibling_iterator, Op, DataFlow>;
         
         using FlowListIterator = IteratorDetail::FlowIterator<dataGraph, dataGraph::edge_list_iterator, DataFlow, Op>;
