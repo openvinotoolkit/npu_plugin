@@ -16,10 +16,6 @@
 
 #pragma once
 
-#include <gtest/gtest.h>
-
-#include <tests_common.hpp>
-
 #include "kmb_test_utils.hpp"
 #include "kmb_test_model.hpp"
 
@@ -28,6 +24,12 @@
 #include "kmb_test_scale_shift_def.hpp"
 #include "kmb_test_convolution_def.hpp"
 #include "kmb_test_fake_quantize_def.hpp"
+
+#include <vpu/kmb_plugin_config.hpp>
+
+#include <tests_common.hpp>
+
+#include <gtest/gtest.h>
 
 using namespace InferenceEngine;
 

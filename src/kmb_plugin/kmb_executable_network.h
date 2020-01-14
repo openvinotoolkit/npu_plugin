@@ -30,7 +30,6 @@
 
 #include "kmb_async_infer_request.h"
 #include "kmb_config.h"
-#include "kmb_executable_network.h"
 #include "kmb_executor.h"
 #include "kmb_infer_request.h"
 #include "mcm_adapter.hpp"

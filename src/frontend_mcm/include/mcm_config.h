@@ -52,6 +52,8 @@ public:
 
     bool inputScaleShiftRemoving() const { return _inputScaleShiftRemoving; }
 
+    bool useNGraphParser() const { return _useNGraphParser; }
+
 protected:
     const std::unordered_set<std::string>& getCompileOptions() const override;
     void parse(const std::map<std::string, std::string>& config) override;
@@ -76,6 +78,8 @@ private:
 
     bool _inputsScalesAlignment = false;
     bool _inputScaleShiftRemoving = true;
+
+    bool _useNGraphParser = false;
 };
 
 }  // namespace vpu
