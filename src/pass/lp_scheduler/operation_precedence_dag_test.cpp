@@ -2,7 +2,7 @@
 
 #include "gtest/gtest.h"
 #include "include/mcm/compiler/compilation_unit.hpp"
-#include "meta/include/mcm/op_model.hpp"
+#include "include/mcm/op_model.hpp"
 #include "pass/lp_scheduler/operation_precedence_dag.hpp"
 
 typedef mv::scheduler::Operation_Dag<> op_model_dag_t;
@@ -12,6 +12,11 @@ class Operation_Dag_Test : public ::testing::Test {
   protected:
 
     void SetUp() override {
+      //TODO(vamsikku): REMOVE THIS PATH DEPENDENCY. Create a JSON file
+      //programatically//
+      std::string prefix(getenv("MCM_HOME"));
+      comp_desc_path_ = prefix + 
+          "/config/compilation/release_kmb_SC-PrefetchAdaptive.json";
       setup_three_layer_conv_input();
     }
 
@@ -29,7 +34,6 @@ class Operation_Dag_Test : public ::testing::Test {
     void setup_three_layer_conv_input() {
       double inf = std::numeric_limits<double>::infinity();
 
-      std::string prefix(getenv("MCM_HOME"));
 
       mv::CompilationUnit &unit = three_layer_conv_input_;
       mv::OpModel& om = unit.model();
@@ -94,11 +98,7 @@ class Operation_Dag_Test : public ::testing::Test {
 
       om.output(bias_c2);
 
-      //TODO(vamsikku): REMOVE THIS PATH //
-      std::string compDescPath =
-        prefix + "/tests/system_tests/lp_scheduler/"
-        "three_layer_conv_model/comp_desc_unit_test.json";
-        
+      std::string compDescPath(comp_desc_path_);
       unit.loadCompilationDescriptor(compDescPath);
 
       unit.loadTargetDescriptor(mv::Target::ma2490);
@@ -107,13 +107,13 @@ class Operation_Dag_Test : public ::testing::Test {
     }
 
     mv::CompilationUnit three_layer_conv_input_;
+    std::string comp_desc_path_;
 }; // class Operation_Dag_Test //
 
 
 typedef mv::scheduler::Operation_Dag<mv::ControlModel> control_dag_t;
 TEST_F(Operation_Dag_Test, test_structure_data_dag) {
-  mv::ControlModel cm(three_layer_conv_model());
-  control_dag_t input(cm);
+  op_model_dag_t input(three_layer_conv_model());
 
   auto itr = input.begin_nodes();
   auto itr_end = input.end_nodes();
@@ -220,34 +220,9 @@ TEST_F(Operation_Dag_Test, incoming_edge_iterator) {
   }
   EXPECT_EQ(found_parents, expected_parents);
 
-  op = dag.get_op_by_name("conv#10_sparse_dw_DDR2CMX");
+  op = dag.get_op_by_name("input#9");
   ASSERT_TRUE(op != NULL);
   itr = dag.begin_parent_nodes(op);
   itr_end = dag.end_parent_nodes(op);
   EXPECT_EQ(itr, itr_end);
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

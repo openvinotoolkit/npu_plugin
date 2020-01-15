@@ -293,9 +293,6 @@ class Control_Edge_Set {
             // real op.
             for (auto oitr=prev_scheduled_real_ops.begin();
                   oitr!=prev_scheduled_real_ops.end(); ++oitr ) {
-              if (input_dag.ops_of_same_category(oitr->op_, curr_op.op_)) {
-                continue;
-              }
               add_control_edge(oitr->op_, curr_op.op_, model);
               ++total_temporal_control_edges;
             } 

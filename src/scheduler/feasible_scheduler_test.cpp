@@ -777,7 +777,9 @@ TEST(Contiguous_Resource_State, verify_interval_weak_ordering) {
   EXPECT_FALSE(weak_order(a,a));
   EXPECT_TRUE(weak_order(a,b)); EXPECT_FALSE(weak_order(b,a));
   EXPECT_TRUE(weak_order(a,c)); EXPECT_FALSE(weak_order(c,a));
-  EXPECT_FALSE(weak_order(b,c)); EXPECT_FALSE(weak_order(c,b));
+  // if the intervals are of same length the one with smaller coordinate value
+  // comes first.
+  EXPECT_TRUE(weak_order(b,c)); EXPECT_FALSE(weak_order(c,b)); 
 }
 
 
@@ -1317,6 +1319,12 @@ class Test_Fixture_Feasible_Memory_Scheduler
     typedef feasible_memory_scheduler_t::scheduled_op_info_t
         scheduled_op_info_t;
 
+    struct heap_element_ordering_t {
+      bool operator() (const heap_element_t& a, const heap_element_t& b) const {
+        return a.op_ < b.op_;
+      }
+    }; // struct heap_element_ordering_t //
+
     void SetUp() override {}
     void TearDown() override {}
 
@@ -1387,6 +1395,7 @@ TEST_F(Test_Fixture_Feasible_Memory_Scheduler, heap_push_and_pop) {
   }
 }
 
+
 TEST_F(Test_Fixture_Feasible_Memory_Scheduler, pop_all_elements_at_this_time) {
   heap_element_t e[5UL] = { {"o1", 7}, {"o2", 7}, {"o3", 1},
       {"o4", 8}, {"o5", 9}};
@@ -1401,6 +1410,9 @@ TEST_F(Test_Fixture_Feasible_Memory_Scheduler, pop_all_elements_at_this_time) {
   pop_from_heap(); 
   pop_all_elements_at_this_time( 7UL, std::back_inserter(popped) );
   std::vector<heap_element_t> expected = { {"o1", 7}, {"o2", 7} };
+
+  std::sort(expected.begin(), expected.end(), heap_element_ordering_t());
+  std::sort(popped.begin(), popped.end(), heap_element_ordering_t());
   EXPECT_EQ(expected, popped);
 
   ASSERT_TRUE(top_element() != NULL);
