@@ -41,8 +41,9 @@
 #include "kmb_base.hpp"
 
 namespace vpu {
-
 namespace KmbPlugin {
+
+namespace ie = InferenceEngine;
 
 mv::DType convert_data_type(ie::Precision iePrecision);
 
@@ -180,6 +181,8 @@ private:
 
     ParsedNetwork _parsedNetwork;
 };
+
 }  // namespace KmbPlugin
 }  // namespace vpu
+
 #endif
