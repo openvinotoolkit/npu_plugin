@@ -88,7 +88,7 @@ TEST_P(KmbConvolutionLayerTests, DISABLED_FP16) {
     runTest(testNet, tolerance, CompareMethod::Absolute);
 }
 
-TEST_P(KmbConvolutionLayerTests, FakeQuantize_ScaleShift) {
+TEST_P(KmbConvolutionLayerTests, DISABLED_FakeQuantize_ScaleShift) {
     const auto& p = GetParam();
 
     const auto netPresicion = Precision::FP32;
