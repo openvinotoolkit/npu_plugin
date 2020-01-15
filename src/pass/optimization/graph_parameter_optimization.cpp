@@ -218,8 +218,8 @@ namespace mv
                         weightSize += alignedWeightsSize(op.getInputTensor(1),{1,1,streamConfig["C"],streamConfig["K"]});
                         //weightSize += realTensorSize(op.getInputTensor(1),{1,1,streamConfig["C"],streamConfig["K"]}, isCMConv);
                     }
-                    else
-                        weightSize += realTensorSize(op.getInputTensor(1),{1,1,streamConfig["C"],1}, isCMConv);
+                    else  //TODO change K to C when stream over C hack removed
+                        weightSize += realTensorSize(op.getInputTensor(1),{1,1,streamConfig["K"],1}, isCMConv);
                 }
                 else if(op.getOpType() == "MaxPool")
                 {
@@ -564,7 +564,7 @@ namespace mv
                     (op.hasTypeTrait("optimizable") && !software)) //SW layers we dont care about size
                 {
                     auto fit = memorySize(op,clustering,false, false,weightsSparsity,streamShape,false);
-                    std::cout << op.getName() << ": [" <<clustering << "][" <<streamShape.toString()<<"]    " << fit.first << " + " << fit.second << " = " << fit.first + fit.second << std::endl;
+                    // std::cout << op.getName() << ": [" <<clustering << "][" <<streamShape.toString()<<"]    " << fit.first << " + " << fit.second << " = " << fit.first + fit.second << std::endl;
                     if(fit.first + fit.second > clusterMemory)
                         return 1;
                 }
