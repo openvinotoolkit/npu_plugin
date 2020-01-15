@@ -19,7 +19,7 @@
 #include <gtest/gtest.h>
 #include <HddlUnite.h>
 #include <hddl2_remote_context.h>
-#include "hddl2_remote_allocator.h"
+#include "helper_remote_allocator.h"
 #include "ie_layouts.h"
 
 namespace vpu {

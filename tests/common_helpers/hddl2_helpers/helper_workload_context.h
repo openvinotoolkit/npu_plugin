@@ -30,7 +30,8 @@ public:
     static void destroyHddlUniteContext(const WorkloadID& id);
     static bool isValidWorkloadContext(const WorkloadID& id);
 
-    WorkloadID getWorkloadId();
+    WorkloadID getWorkloadId() const;
+    HddlUnite::WorkloadContext::Ptr getWorkloadContext() const;
 protected:
     WorkloadID _workloadId;
 };
@@ -66,11 +67,15 @@ inline void WorkloadContext_Helper::destroyHddlUniteContext(const WorkloadID &id
     HddlUnite::unregisterWorkloadContext(id);
 }
 
-inline WorkloadID WorkloadContext_Helper::getWorkloadId() {
+inline WorkloadID WorkloadContext_Helper::getWorkloadId() const {
     return _workloadId;
 }
 
 inline bool WorkloadContext_Helper::isValidWorkloadContext(const WorkloadID &id) {
     HddlUnite::WorkloadContext::Ptr workloadContext = HddlUnite::queryWorkloadContext(id);
     return workloadContext != nullptr;
+}
+
+inline HddlUnite::WorkloadContext::Ptr WorkloadContext_Helper::getWorkloadContext() const {
+    return HddlUnite::queryWorkloadContext(_workloadId);
 }
