@@ -31,6 +31,8 @@
 // KmbTestBase
 //
 
+namespace {
+
 const std::string DEVICE_NAME = []() -> std::string {
     if (const auto var = std::getenv("IE_KMB_TESTS_DEVICE_NAME")) {
         return var;
@@ -83,8 +85,8 @@ const bool RUN_INFER = []() -> bool {
 #endif
 }();
 
-const std::string BLOBS_PATH = []() -> std::string {
-    if (const auto var = std::getenv("IE_KMB_TESTS_BLOBS_PATH")) {
+const std::string DUMP_PATH = []() -> std::string {
+    if (const auto var = std::getenv("IE_KMB_TESTS_DUMP_PATH")) {
         return var;
     }
 
@@ -98,8 +100,6 @@ const bool RAW_EXPORT = []() -> bool {
 
     return false;
 }();
-
-namespace {
 
 std::string cleanName(std::string name) {
     std::replace_if(
@@ -136,8 +136,8 @@ void KmbTestBase::SetUp() {
     std::cout << "[ MODE     ] " << DEVICE_NAME << " / " << (RUN_INFER ? "RUN INFER AND CHECK" : "NO INFER") << " / "
               << (RUN_COMPILER ? "COMPILE NETWORK" : "IMPORT BLOB") << " / "
               << (RUN_REF_CODE ? "CALC REF" : "IMPORT REF") << std::endl;
-    if (!BLOBS_PATH.empty()) {
-        std::cout << "[ BLOBS    ] " << BLOBS_PATH << std::endl;
+    if (!DUMP_PATH.empty()) {
+        std::cout << "[ DUMP PATH] " << DUMP_PATH << std::endl;
     }
 
 #ifndef ENABLE_MCM_COMPILER
@@ -163,7 +163,7 @@ Blob::Ptr KmbTestBase::getBlobByName(const std::string& blobName) {
         blob = blobGenerators.at(blobName).second(blobDesc);
         IE_ASSERT(blob->getTensorDesc() == blobDesc);
 
-        if (!BLOBS_PATH.empty()) {
+        if (!DUMP_PATH.empty()) {
             std::cout << "    === EXPORT BLOB " << blobName << std::endl;
 
             dumpBlob(blobName, blob);
@@ -200,7 +200,7 @@ ExecutableNetwork KmbTestBase::getExecNetwork(
 
         exeNet = core->LoadNetwork(net, DEVICE_NAME, config);
 
-        if (!BLOBS_PATH.empty()) {
+        if (!DUMP_PATH.empty()) {
             std::cout << "    === EXPORT NETWORK" << std::endl;
 
             exportNetwork(exeNet);
@@ -224,7 +224,7 @@ BlobMap KmbTestBase::getRefOutputs(
 
         refOutputs = testNet.calcRef(inputs);
 
-        if (!BLOBS_PATH.empty()) {
+        if (!DUMP_PATH.empty()) {
             std::cout << "    === EXPORT REFERENCE" << std::endl;
 
             dumpBlobs(refOutputs);
@@ -349,9 +349,9 @@ void KmbTestBase::runTest(
 }
 
 void KmbTestBase::exportNetwork(ExecutableNetwork& exeNet) {
-    IE_ASSERT(!BLOBS_PATH.empty());
+    IE_ASSERT(!DUMP_PATH.empty());
 
-    const auto fileName = vpu::formatString("%v/%v.netblob", BLOBS_PATH, dumpBaseName);
+    const auto fileName = vpu::formatString("%v/%v.net", DUMP_PATH, dumpBaseName);
 
     if (RAW_EXPORT) {
         exeNet.Export(fileName);
@@ -364,9 +364,9 @@ void KmbTestBase::exportNetwork(ExecutableNetwork& exeNet) {
 }
 
 ExecutableNetwork KmbTestBase::importNetwork() {
-    IE_ASSERT(!BLOBS_PATH.empty());
+    IE_ASSERT(!DUMP_PATH.empty());
 
-    const auto fileName = vpu::formatString("%v/%v.netblob", BLOBS_PATH, dumpBaseName);
+    const auto fileName = vpu::formatString("%v/%v.net", DUMP_PATH, dumpBaseName);
 
     if (RAW_EXPORT) {
         return core->ImportNetwork(fileName, DEVICE_NAME);
@@ -379,9 +379,9 @@ ExecutableNetwork KmbTestBase::importNetwork() {
 }
 
 void KmbTestBase::dumpBlob(const std::string& blobName, const Blob::Ptr& blob) {
-    IE_ASSERT(!BLOBS_PATH.empty());
+    IE_ASSERT(!DUMP_PATH.empty());
 
-    const auto fileName = vpu::formatString("%v/%v_%v.blob", BLOBS_PATH, dumpBaseName, cleanName(blobName));
+    const auto fileName = vpu::formatString("%v/%v_%v.blob", DUMP_PATH, dumpBaseName, cleanName(blobName));
 
     std::ofstream file(fileName, std::ios_base::out | std::ios_base::binary);
     IE_ASSERT(file.is_open());
@@ -390,7 +390,7 @@ void KmbTestBase::dumpBlob(const std::string& blobName, const Blob::Ptr& blob) {
 }
 
 void KmbTestBase::dumpBlobs(const BlobMap& blobs) {
-    IE_ASSERT(!BLOBS_PATH.empty());
+    IE_ASSERT(!DUMP_PATH.empty());
 
     for (const auto& p : blobs) {
         dumpBlob(p.first, p.second);
@@ -398,12 +398,12 @@ void KmbTestBase::dumpBlobs(const BlobMap& blobs) {
 }
 
 Blob::Ptr KmbTestBase::importBlob(const std::string& name, const TensorDesc& desc) {
-    IE_ASSERT(!BLOBS_PATH.empty());
+    IE_ASSERT(!DUMP_PATH.empty());
 
     const auto blob = make_blob_with_precision(desc);
     blob->allocate();
 
-    std::ifstream file(vpu::formatString("%v/%v_%v.blob", BLOBS_PATH, dumpBaseName, cleanName(name)),
+    std::ifstream file(vpu::formatString("%v/%v_%v.blob", DUMP_PATH, dumpBaseName, cleanName(name)),
         std::ios_base::in | std::ios_base::binary);
     IE_ASSERT(file.is_open());
 
@@ -525,7 +525,7 @@ void KmbNetworkTest::runClassifyNetworkTest(
         const auto refTopKDesc = TensorDesc(Precision::FP32, {topK, 2}, Layout::NC);
         const auto refTopKBlob = make_blob_with_precision(refTopKDesc, refTopK.data());
 
-        if (!BLOBS_PATH.empty()) {
+        if (!DUMP_PATH.empty()) {
             std::cout << "    === EXPORT REFERENCE" << std::endl;
 
             dumpBlob(outputName, refTopKBlob);

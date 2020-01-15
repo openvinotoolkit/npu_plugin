@@ -35,14 +35,6 @@ using namespace InferenceEngine;
 // KmbTestBase
 //
 
-extern const std::string DEVICE_NAME;
-extern const std::string REF_DEVICE_NAME;
-extern const bool RUN_COMPILER;
-extern const bool RUN_REF_CODE;
-extern const bool RUN_INFER;
-extern const std::string BLOBS_PATH;
-extern const bool RAW_EXPORT;
-
 class KmbTestBase : public TestsCommon {
 public:
     using BlobGenerator = std::function<Blob::Ptr(const TensorDesc& desc)>;
