@@ -81,10 +81,10 @@ TestNetwork& ConvolutionLayerDef::build() {
     }
 }
 
-Blob::Ptr genConvWeights(const ConvolutionParams& params, size_t inChannels, Precision precision, std::default_random_engine& rd, float min, float max) {
-    return genBlobUniform({precision, {params._outChannels, inChannels, params._kernel.y, params._kernel.x}, Layout::NCHW}, rd, min, max);
+TensorDesc getConvWeightsDesc(const ConvolutionParams& params, size_t inChannels, Precision precision) {
+    return {precision, {params._outChannels, inChannels, params._kernel.y, params._kernel.x}, Layout::NCHW};
 }
 
-Blob::Ptr genConvBiases(const ConvolutionParams& params, Precision precision, std::default_random_engine& rd, float min, float max) {
-    return genBlobUniform({precision, {1, params._outChannels, 1, 1}, Layout::NCHW}, rd, min, max);
+TensorDesc getConvBiasesDesc(const ConvolutionParams& params, Precision precision) {
+    return {precision, {1, params._outChannels, 1, 1}, Layout::NCHW};
 }

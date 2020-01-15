@@ -116,5 +116,5 @@ struct ConvolutionLayerDef final {
     TestNetwork& build();
 };
 
-Blob::Ptr genConvWeights(const ConvolutionParams& params, size_t inChannels, Precision precision, std::default_random_engine& rd, float min, float max);
-Blob::Ptr genConvBiases(const ConvolutionParams& params, Precision precision, std::default_random_engine& rd, float min, float max);
+TensorDesc getConvWeightsDesc(const ConvolutionParams& params, size_t inChannels, Precision precision);
+TensorDesc getConvBiasesDesc(const ConvolutionParams& params, Precision precision);

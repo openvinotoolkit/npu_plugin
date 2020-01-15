@@ -41,14 +41,21 @@ extern const bool RUN_COMPILER;
 extern const bool RUN_REF_CODE;
 extern const bool RUN_INFER;
 extern const std::string BLOBS_PATH;
-extern const std::string REFS_PATH;
 extern const bool RAW_EXPORT;
 
 class KmbTestBase : public TestsCommon {
 public:
-    using BlobMapGenerator = std::function<BlobMap()>;
+    using BlobGenerator = std::function<Blob::Ptr(const TensorDesc& desc)>;
 
     void SetUp() override;
+
+    void registerBlobGenerator(
+            const std::string& blobName,
+            const TensorDesc& desc,
+            const BlobGenerator& generator) {
+        blobGenerators[blobName] = {desc, generator};
+    }
+    Blob::Ptr getBlobByName(const std::string& blobName);
 
     void runTest(
             TestNetwork& testNet,
@@ -56,12 +63,9 @@ public:
             float tolerance, CompareMethod method = CompareMethod::Absolute);
     void runTest(
             TestNetwork& testNet,
-            const BlobMapGenerator& inputsGenerator,
             float tolerance, CompareMethod method = CompareMethod::Absolute);
 
-    BlobMap getInputs(
-            TestNetwork& testNet,
-            const BlobMapGenerator& generator);
+    BlobMap getInputs(TestNetwork& testNet);
 
     ExecutableNetwork getExecNetwork(
             const CNNNetwork& net,
@@ -87,6 +91,7 @@ public:
 protected:
     void exportNetwork(ExecutableNetwork& exeNet);
     ExecutableNetwork importNetwork();
+    void dumpBlob(const std::string& blobName, const Blob::Ptr& blob);
     void dumpBlobs(const BlobMap& blobs);
     Blob::Ptr importBlob(const std::string& name, const TensorDesc& desc);
     BlobMap runInfer(ExecutableNetwork& exeNet, const BlobMap& inputs);
@@ -95,6 +100,8 @@ protected:
     std::default_random_engine rd;
     std::shared_ptr<Core> core;
     std::string dumpBaseName;
+    std::unordered_map<std::string, Blob::Ptr> blobs;
+    std::unordered_map<std::string, std::pair<TensorDesc, BlobGenerator>> blobGenerators;
 };
 
 //
