@@ -531,6 +531,8 @@ void mv::Tensor::setDType(DType dtype)
 {
 
     set<DType>("dType", dtype);
+    for (size_t tIdx = 0; tIdx < subTensors_.size(); tIdx++)
+        subTensors_[tIdx]->setDType(dtype);
     return;
 
 }
