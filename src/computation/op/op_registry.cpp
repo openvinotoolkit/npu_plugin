@@ -19,6 +19,147 @@ namespace mv
     "exposed"       // An op definition call is exposed in CompositionAPI
 };*/
 
+namespace
+{
+    void setTemplParam(std::string& str, const std::string& paramName, const std::string& paramValue)
+    {
+        auto pos = std::string::npos;
+        while ((pos = str.find(paramName)) != std::string::npos)
+        {
+            str.replace(pos, paramName.length(), paramValue);
+        }
+    }
+
+const std::string RECORDED_OP_MODEL_CPP_BODY = R"cpptempl(
+namespace
+{
+    std::string varName(std::string name)
+    {
+        std::replace_if(name.begin(), name.end(), [](char c) { return !std::isalnum(c) && c != '_'; }, '_');
+        if (!name.empty() && !std::isalpha(name[0]))
+        {
+            name[0] = '_';
+        }
+        return name;
+    }
+
+    std::string ltrim(std::string str)
+    {
+        str.erase(str.begin(), std::find_if(str.begin(), str.end(), [](char c) { return !std::isspace(c); }));
+        return str;
+    }
+    std::string rtrim(std::string str)
+    {
+        str.erase(std::find_if(str.rbegin(), str.rend(), [](char c) { return !std::isspace(c); }).base(), str.end());
+        return str;
+    }
+    std::string trim(std::string str)
+    {
+        return ltrim(rtrim(str));
+    }
+    std::vector<std::string> splitStringList(const std::string& str, char delim)
+    {
+        std::vector<std::string> out;
+
+        std::istringstream istr(str);
+        std::string elem;
+
+        while (std::getline(istr, elem, delim))
+        {
+            elem = trim(elem);
+
+            if (elem.empty())
+            {
+                continue;
+            }
+
+            out.push_back(elem);
+        }
+
+        return out;
+    }
+
+    void printParam(std::ostream* codeOut, std::ostream* dataOut, const std::string& paramName, const mv::Data::TensorIterator& tensor)
+    {
+        *codeOut << varName(tensor->getName());
+    }
+    void printParam(std::ostream* codeOut, std::ostream* dataOut, const std::string& paramName, const std::vector<mv::Data::TensorIterator>& tensors)
+    {
+        *codeOut << "{";
+        if (!tensors.empty())
+        {
+            *codeOut << varName(tensors[0]->getName());
+        }
+        for (size_t i = 1; i < tensors.size(); ++i)
+        {
+            *codeOut << ", " << varName(tensors[i]->getName());
+        }
+        *codeOut << "}";
+    }
+    template <typename T>
+    void printParam(std::ostream* codeOut, std::ostream* dataOut, const std::string& paramName, const std::vector<T>& attr)
+    {
+        if (attr.size() < 8)
+        {
+            *codeOut << mv::Attribute(attr).toLongString();
+        }
+        else
+        {
+            *codeOut << paramName;
+            *dataOut << "const std::vector<" << mv::Attribute(attr[0]).getTypeName() << "> " << paramName << mv::Attribute(attr).toLongString() << ";" << std::endl;
+            *dataOut << std::endl;
+        }
+    }
+    template <typename T>
+    void printParam(std::ostream* codeOut, std::ostream* dataOut, const std::string& paramName, const T& attr)
+    {
+        *codeOut << mv::Attribute(attr).toLongString();
+    }
+
+    template <std::size_t I = 0, typename ParamTuple>
+    typename std::enable_if<I == std::tuple_size<typename std::decay<ParamTuple>::type>::value, void>::type
+    printParams(std::ostream* codeOut, std::ostream* dataOut, const std::string& outVarName, const std::vector<std::string>& paramNames, const ParamTuple& paramValues)
+    {
+    }
+    template <std::size_t I = 0, typename ParamTuple>
+    typename std::enable_if<I < std::tuple_size<typename std::decay<ParamTuple>::type>::value, void>::type
+    printParams(std::ostream* codeOut, std::ostream* dataOut, const std::string& outVarName, const std::vector<std::string>& paramNames, const ParamTuple& paramValues)
+    {
+        if (I > 0)
+        {
+            *codeOut << ", ";
+        }
+
+        printParam(codeOut, dataOut, outVarName + "_" + paramNames.at(I), std::get<I>(paramValues));
+
+        printParams<I + 1>(codeOut, dataOut, outVarName, paramNames, paramValues);
+    }
+
+    template <typename... Args>
+    void printOp(
+            std::ostream* codeOut, std::ostream* dataOut,
+            const std::string& outVarName,
+            const std::string& opName,
+            const std::string& name,
+            const std::string& paramStr,
+            Args&&... args)
+    {
+        if (codeOut)
+        {
+            *codeOut << "    const auto " << outVarName << " = model." << opName << "(";
+            const auto paramNames = splitStringList(paramStr, ',');
+            const auto paramValues = std::forward_as_tuple(std::forward<Args>(args)...);
+            printParams(codeOut, dataOut, outVarName, paramNames, paramValues);
+            *codeOut << ", \"" << name << "\");" << std::endl;
+        }
+    }
+
+}
+
+)cpptempl";
+
+}
+
 mv::op::OpRegistry::OpRegistry()
 {
         typeTraits_.insert("executable");
@@ -584,20 +725,29 @@ std::vector<std::string> mv::op::OpRegistry::getStringifiedArgsCall_(const std::
 void mv::op::OpRegistry::defineOpOutput(std::string& output, const std::string& eol, const std::string& opType, OpEntry* const opPtr, std::string token, bool inputVectorTypes, bool checkInputs, bool copiedOp, const std::string& tab)
 {
     output += token + eol + "{" + eol + tab + "MV_PROFILED_FUNCTION(MV_PROFILE_COMP)" +
-        eol + tab + "return defineOp(" + eol + tab + tab + "\"" + opType + "\"," + eol + tab + tab;
+        eol + tab + "auto output = defineOp(" + eol + tab + tab + "\"" + opType + "\"," + eol + tab + tab;
     if(!inputVectorTypes)
         output += "{";
 
+    std::ostringstream opParams;
     auto inputLabels = opPtr->getInputLabel();
     if(inputVectorTypes)
+    {
         output += "inputs,";
+        opParams << "inputs, ";
+    }
     else if (inputLabels.size() > 0)
     {
         for (std::size_t i = 0; i < inputLabels.size() - 1; ++i)
+        {
             output +=  eol + tab + tab + tab + inputLabels[i] + ",";
+            opParams << inputLabels[i] << ", ";
+        }
         output +=  eol + tab + tab + tab + inputLabels.back();
+        opParams << inputLabels.back() << ",";
     }
     output += eol + tab + tab;
+
     if(!inputVectorTypes)
     {
         output += + "}";
@@ -608,24 +758,38 @@ void mv::op::OpRegistry::defineOpOutput(std::string& output, const std::string& 
 
     auto mandatoryArgsList = opPtr->getArgsList();
     if(copiedOp)
+    {
         output +=  eol + tab + tab + tab + "{ \"taskOp\", std::string(\"" + opPtr->getName() + "\") },";
+        opParams << "taskOp, ";
+    }
 
     if (mandatoryArgsList.size() > 0)
     {
         for (std::size_t i = 0; i < mandatoryArgsList.size() - 1; ++i)
+        {
             output +=  eol + tab + tab + tab + "{ \"" + mandatoryArgsList[i] + "\", " + mandatoryArgsList[i] + " },";
+            opParams << mandatoryArgsList[i] << ", ";
+        }
         output +=  eol + tab + tab + tab + "{ \"" + mandatoryArgsList.back() + "\", " + mandatoryArgsList.back() + " }";
+        opParams << mandatoryArgsList.back();
     }
 
     auto optionalArgsList = opPtr->getOptionalArgsList();
     if (optionalArgsList.size() > 0)
     {
         if (mandatoryArgsList.size() > 0)
-            output += ",";
+        {
+            output += ", ";
+            opParams << ", ";
+        }
 
         for (std::size_t i = 0; i < optionalArgsList.size() - 1; ++i)
+        {
             output +=  eol + tab + tab + tab + "{ \"" + optionalArgsList[i].first + "\", " + optionalArgsList[i].first + " },";
+            opParams << optionalArgsList[i].first + ", ";
+        }
         output +=  eol + tab + tab + tab + "{ \"" + optionalArgsList.back().first + "\", " + optionalArgsList.back().first + " }";
+        opParams << optionalArgsList.back().first;
     }
     output += eol + tab + tab;
 
@@ -645,7 +809,27 @@ void mv::op::OpRegistry::defineOpOutput(std::string& output, const std::string& 
 
     output += eol + tab;
 
-    output += ");";
+    output += ");" + eol;
+    //
+    OpEntry* opPtrInstance = instance().find(opType);
+    if (opPtrInstance->hasTypeTrait("exposed")) 
+    {   // Do not add recording code to non-exposed methods
+        std::ostringstream opFuncName;
+        opFuncName << char(std::tolower(opType[0]));
+        opFuncName << opType.substr(1);
+
+        //clean up finishing on a comma
+        std::string opParamstr = opParams.str();
+        if (opParams.str().substr(opParams.str().length()-1) == "," )
+            opParamstr = opParams.str().substr(0, opParams.str().length() -1);
+
+        output += tab + "if (recordModel) { " + eol;
+        output += tab + tab + "const auto outputName = output != tensorEnd() ? varName(output->getName()) : (!name.empty() ? name : \"" + opFuncName.str() + "\");" + eol;
+        output += tab + tab + "printOp(codeOut_, dataOut_, outputName, \"" + opFuncName.str() + "\", name, \"" + opParamstr + "\", " + opParamstr + ");" + eol;
+        output += tab + "}" + eol;
+    }
+    output += tab + "return output;";
+    //
     output += eol + "}";
 }
 
@@ -709,6 +893,9 @@ void mv::op::OpRegistry::generateCompositionAPI(const std::string& metaDir, cons
     const std::string opModelHeaderPath_ = metaDir + std::string("/include/mcm/op_model.hpp");
     const std::string opModelSourcePath_ = metaDir + std::string("/src/op_model.cpp");
 
+    //
+    // compositional_model.hpp
+    //
     std::ofstream incStream(compAPIHeaderPath_, std::ios::out | std::ios::trunc);
     if (!incStream.is_open())
         throw MasterError("OpRegistry", "Unable to create the CompositionalModel header file during the CompositionAPI generation");
@@ -748,6 +935,9 @@ void mv::op::OpRegistry::generateCompositionAPI(const std::string& metaDir, cons
     incStream << "#endif //MV_COMPOSITIONAL_MODEL_HPP_" << eol;
     incStream.close();
 
+    //
+    // compositional_model.cpp
+    //
     std::ofstream srcStream(compAPISourcePath_, std::ios::out | std::ios::trunc);
     if (!srcStream.is_open())
         throw MasterError("OpRegistry", "Unable to create the CompositionalModel source file during the CompositionAPI generation");
@@ -762,6 +952,9 @@ void mv::op::OpRegistry::generateCompositionAPI(const std::string& metaDir, cons
     srcStream << "}" << eol << eol;
     srcStream.close();
 
+    //
+    // op_model.hpp
+    //
     incStream.open(opModelHeaderPath_, std::ios::out | std::ios::trunc);
     if (!incStream.is_open())
         throw MasterError("OpRegistry", "Unable to create the OpModel header file during the CompositionAPI generation");
@@ -780,6 +973,8 @@ void mv::op::OpRegistry::generateCompositionAPI(const std::string& metaDir, cons
     incStream << "{" << eol << eol;
     incStream << tab << "class OpModel: public BaseOpModel, public CompositionalModel" << eol;
     incStream << tab << "{" << eol << eol;
+    incStream << tab << "private:" << eol;
+
     incStream << tab << "public:" << eol << eol;
     incStream << tab << tab << "OpModel(const std::string& name);" << eol;
     incStream << tab << tab << "OpModel(ComputationModel& model);" << eol;
@@ -806,6 +1001,9 @@ void mv::op::OpRegistry::generateCompositionAPI(const std::string& metaDir, cons
     incStream << "#endif //MV_OP_MODEL_HPP_" << eol;
     incStream.close();
 
+    //
+    // op_model.cpp
+    //
     srcStream.open(opModelSourcePath_, std::ios::out | std::ios::trunc);
     if (!srcStream.is_open())
         throw MasterError("OpRegistry", "Unable to create the OpModel source file during the CompositionAPI generation");
@@ -817,15 +1015,14 @@ void mv::op::OpRegistry::generateCompositionAPI(const std::string& metaDir, cons
 
     srcStream << "mv::OpModel::OpModel(const std::string& name) :" << eol;
     srcStream << "BaseOpModel(name)" << eol;
-    srcStream << "{" << eol << eol;
+    srcStream << "{" << eol;
     srcStream << "}" << eol << eol;
     srcStream << "mv::OpModel::OpModel(ComputationModel& other) :" << eol;
     srcStream << "BaseOpModel(other)" << eol;
-    srcStream << "{" << eol << eol;
+    srcStream << "{" << eol;
     srcStream << "}" << eol << eol;
-    srcStream << "mv::OpModel::~OpModel()" << eol;
-    srcStream << "{" << eol << eol;
-    srcStream << "}" << eol << eol;
+
+    srcStream << RECORDED_OP_MODEL_CPP_BODY << eol;
 
     for (auto it = opsList.begin(); it != opsList.end(); ++it)
         srcStream << getCompositionDef_(*it, eol, tab) << eol << eol;
@@ -853,9 +1050,12 @@ void mv::op::OpRegistry::generateCompositionAPI(const std::string& metaDir, cons
     srcStream << "std::string mv::OpModel::getName() const" << eol;
     srcStream << "{" << eol;
     srcStream << tab << "return BaseOpModel::getName();" << eol;
-    srcStream << "}" << eol;
-    srcStream.close();
+    srcStream << "}" << eol << eol;
 
+    srcStream << "mv::OpModel::~OpModel()" << eol;
+    srcStream << "{" << eol;
+    srcStream << "}" << eol << eol;
+    srcStream.close();
 }
 
 // Define all OPs in a single compilation unit. //
