@@ -194,7 +194,8 @@
             "PopulateWeightsTablesQuantization",
             "RemoveBiasTensors",
             "SplittingTensorsAcrossClusters",
-            "KMBQuantizeConversion"
+            "KMBQuantizeConversion",
+            "ConfigureOutputPrecision"
         ]
     },
     "dma": {
