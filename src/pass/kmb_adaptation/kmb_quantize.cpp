@@ -44,18 +44,42 @@ void addQuantizationLayers(mv::OpModel om, std::vector<mv::Data::OpListIterator>
             // NOTE: Maybe here a check for mixed precision should be added
             if(!tensor->isPopulated() && tensorDType != dtypeNeededInInput)
             {
+                //if the previous Op is "Align" need to place it after the quantize
+                auto previousOpIt = om.getSourceOp(tensor);
+                bool alignCase = false;
+                if (previousOpIt->getOpType() == "Align")
+                {
+                    tensor = previousOpIt->getInputTensor()[0];
+                    alignCase = true;
+                }
                 auto quantize = om.uPATaskQuantize({tensor}, outputDType,
                             tensor->get<mv::QuantizationParams>("quantParams"), "Quantize" + task->getName() + std::to_string(id));
                 quantize->set<std::string>("splitStrategy",
                             tensor->get<std::string>("splitStrategy"));
                 auto quantizeOp = om.getSourceOp(quantize);
                 quantizeOp->set<unsigned>("opId", task->get<unsigned>("opId"));
-                auto backup = inputFlow;
-                auto slot = backup->get<size_t>("sinkInput");
-                ++inputFlow;
-                om.undefineFlow(backup);
-                task->setInputTensor(quantize, slot, false);
-                om.defineFlow(quantize, task, slot);
+
+                if (alignCase)
+                {
+                    auto backup = previousOpIt.leftmostInput();
+                    auto slot = backup->get<size_t>("sinkInput");
+                    ++inputFlow;
+                    om.undefineFlow(backup);
+                    previousOpIt->setInputTensor(quantize, slot, false);
+                    previousOpIt->getOutputTensor(0)->setDType(outputDType);
+                    om.defineFlow(quantize, previousOpIt, slot);
+                }
+                else
+                {
+                    auto backup = inputFlow;
+                    auto slot = backup->get<size_t>("sinkInput");
+                    ++inputFlow;
+                    om.undefineFlow(backup);
+                    task->setInputTensor(quantize, slot, false);
+                    om.defineFlow(quantize, task, slot);
+                }
+
+
                 id++;
             }
             else
