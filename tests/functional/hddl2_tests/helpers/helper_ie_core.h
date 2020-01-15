@@ -19,9 +19,9 @@
 #include "ie_core.hpp"
 
 //------------------------------------------------------------------------------
-//      class HDDL2_IE_Core_Helper
+//      class IE_Core_Helper
 //------------------------------------------------------------------------------
-class HDDL2_IE_Core_Helper {
+class IE_Core_Helper {
 public:
     InferenceEngine::Core ie;
 

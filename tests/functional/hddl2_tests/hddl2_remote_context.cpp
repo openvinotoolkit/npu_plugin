@@ -14,12 +14,11 @@
 // stated in the License.
 //
 
-#include "helpers/hddl2_remote_context.h"
-
 #include "gtest/gtest.h"
 #include "hddl2_core_api.h"
-#include "hddl2_helpers/hddl2_workload_context.h"
+#include "hddl2_helpers/helper_workload_context.h"
 #include "hddl2_params.hpp"
+#include "helper_remote_context.h"
 
 using namespace vpu::HDDL2Plugin;
 using namespace InferenceEngine;
@@ -34,7 +33,7 @@ class HDDL2_Remote_Context_Tests : public HDDL2_Core_API_Tests {};
 //      class HDDL2_Remote_Context_Tests Initiation
 //------------------------------------------------------------------------------
 TEST_F(HDDL2_Remote_Context_Tests, CanCreateContextFromParams) {
-    WorkloadID workloadId = HDDL2_WorkloadContext_Helper::createAndRegisterWorkloadContext();
+    WorkloadID workloadId = WorkloadContext_Helper::createAndRegisterWorkloadContext();
 
     // Store id param_map
     InferenceEngine::ParamMap paramMap = {{IE::HDDL2_PARAM_KEY(WORKLOAD_CONTEXT_ID), workloadId}};
@@ -45,7 +44,7 @@ TEST_F(HDDL2_Remote_Context_Tests, CanCreateContextFromParams) {
     EXPECT_NE(remoteContextPtr.get(), nullptr);
 
     // Destroy after finishing working with context
-    HDDL2_WorkloadContext_Helper::destroyHddlUniteContext(workloadId);
+    WorkloadContext_Helper::destroyHddlUniteContext(workloadId);
 }
 
 //------------------------------------------------------------------------------
@@ -57,12 +56,12 @@ public:
     InferenceEngine::ParamMap params;
 
 private:
-    HDDL2_WorkloadContext_Helper workloadContextHelper;
+    WorkloadContext_Helper workloadContextHelper;
 };
 
 void HDDL2_Remote_Context_Manipulation_Tests::SetUp() {
     WorkloadID workloadId = workloadContextHelper.getWorkloadId();
-    params = HDDL2_Remote_Context_Helper::wrapWorkloadIdToMap(workloadId);
+    params = Remote_Context_Helper::wrapWorkloadIdToMap(workloadId);
 }
 
 //------------------------------------------------------------------------------

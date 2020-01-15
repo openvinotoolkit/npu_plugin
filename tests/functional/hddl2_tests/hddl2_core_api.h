@@ -21,7 +21,7 @@
 #include <ie_core.hpp>
 #include <test_model_path.hpp>
 
-#include "helpers/hddl2_ie_core.h"
+#include "helper_ie_core.h"
 
 namespace vpu {
 namespace HDDL2Plugin {
@@ -30,7 +30,7 @@ namespace HDDL2Plugin {
 //      class HDDL2_Core_API_Tests Declaration
 //------------------------------------------------------------------------------
 class HDDL2_Core_API_Tests : public ::testing::Test,
-                             public HDDL2_IE_Core_Helper {
+                             public IE_Core_Helper {
 public:
     InferenceEngine::CNNNetwork network;
     InferenceEngine::ExecutableNetwork executableNetwork;

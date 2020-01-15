@@ -10,6 +10,7 @@ file(GLOB_RECURSE HDDL2_UNIT_TESTS_SOURCES "*.cpp")
 add_executable(${TARGET_NAME} ${HDDL2_UNIT_TESTS_SOURCES})
 
 target_include_directories(${TARGET_NAME} PRIVATE
+        "helpers"
         "../../common_helpers"
         )
 

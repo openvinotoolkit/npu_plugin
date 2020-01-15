@@ -19,12 +19,12 @@
 #include "WorkloadContext.h"
 
 //------------------------------------------------------------------------------
-//      class HDDL2_WorkloadContext_Helper
+//      class WorkloadContext_Helper
 //------------------------------------------------------------------------------
-class HDDL2_WorkloadContext_Helper {
+class WorkloadContext_Helper {
 public:
-    HDDL2_WorkloadContext_Helper();
-    ~HDDL2_WorkloadContext_Helper();
+    WorkloadContext_Helper();
+    ~WorkloadContext_Helper();
 
     static WorkloadID createAndRegisterWorkloadContext();
     static void destroyHddlUniteContext(const WorkloadID& id);
@@ -36,17 +36,17 @@ protected:
 };
 
 //------------------------------------------------------------------------------
-//      class HDDL2_WorkloadContext_Helper Implementation
+//      class WorkloadContext_Helper Implementation
 //------------------------------------------------------------------------------
-inline HDDL2_WorkloadContext_Helper::HDDL2_WorkloadContext_Helper() {
+inline WorkloadContext_Helper::WorkloadContext_Helper() {
     _workloadId = createAndRegisterWorkloadContext();
 }
 
-inline HDDL2_WorkloadContext_Helper::~HDDL2_WorkloadContext_Helper() {
+inline WorkloadContext_Helper::~WorkloadContext_Helper() {
     destroyHddlUniteContext(_workloadId);
 }
 
-inline WorkloadID HDDL2_WorkloadContext_Helper::createAndRegisterWorkloadContext() {
+inline WorkloadID WorkloadContext_Helper::createAndRegisterWorkloadContext() {
     WorkloadID id = -1;
     auto context = HddlUnite::createWorkloadContext();
 
@@ -62,15 +62,15 @@ inline WorkloadID HDDL2_WorkloadContext_Helper::createAndRegisterWorkloadContext
     return id;
 }
 
-inline void HDDL2_WorkloadContext_Helper::destroyHddlUniteContext(const WorkloadID &id) {
+inline void WorkloadContext_Helper::destroyHddlUniteContext(const WorkloadID &id) {
     HddlUnite::unregisterWorkloadContext(id);
 }
 
-inline WorkloadID HDDL2_WorkloadContext_Helper::getWorkloadId() {
+inline WorkloadID WorkloadContext_Helper::getWorkloadId() {
     return _workloadId;
 }
 
-inline bool HDDL2_WorkloadContext_Helper::isValidWorkloadContext(const WorkloadID &id) {
+inline bool WorkloadContext_Helper::isValidWorkloadContext(const WorkloadID &id) {
     HddlUnite::WorkloadContext::Ptr workloadContext = HddlUnite::queryWorkloadContext(id);
     return workloadContext != nullptr;
 }

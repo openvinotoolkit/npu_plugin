@@ -16,41 +16,37 @@
 
 #pragma once
 
-#include "hddl2_helpers/hddl2_workload_context.h"
-#include "hddl2_remote_context.h"
+#include "Inference.h"
+#include <HddlUnite.h>
+#include <WorkloadContext.h>
+#include <hddl2_helpers/helper_workload_context.h>
+
 #include "hddl2_params.hpp"
-
-namespace vpu {
-namespace HDDL2Plugin {
+#include "helper_ie_core.h"
 
 //------------------------------------------------------------------------------
-//      class HDDL2_With_RemoteContext_Helper
+//      class Remote_Context_Helper
 //------------------------------------------------------------------------------
-class HDDL2_With_RemoteContext_Helper {
+class Remote_Context_Helper: public IE_Core_Helper {
 public:
-    HDDL2_With_RemoteContext_Helper();
+    Remote_Context_Helper();
 
     static InferenceEngine::ParamMap wrapWorkloadIdToMap(const WorkloadID &id);
-
-    HDDL2RemoteContext::Ptr remoteContextPtr = nullptr;
+    InferenceEngine::RemoteContext::Ptr remoteContextPtr = nullptr;
 
 protected:
-    // TODO Use stub instead of creating "default" workloadContext
-    HDDL2_WorkloadContext_Helper workloadContext;
+    WorkloadContext_Helper workloadContext;
 };
 
 //------------------------------------------------------------------------------
-//      class HDDL2_With_RemoteContext_Helper Implementation
+//      class Remote_Context_Helper Implementation
 //------------------------------------------------------------------------------
-inline HDDL2_With_RemoteContext_Helper::HDDL2_With_RemoteContext_Helper() {
-    auto param = wrapWorkloadIdToMap(workloadContext.getWorkloadId());
-    remoteContextPtr = std::make_shared<HDDL2RemoteContext>(param);
+inline Remote_Context_Helper::Remote_Context_Helper() {
+    auto params = wrapWorkloadIdToMap(workloadContext.getWorkloadId());
+    remoteContextPtr = ie.CreateContext(pluginName, params);
 }
 
 inline InferenceEngine::ParamMap
-HDDL2_With_RemoteContext_Helper::wrapWorkloadIdToMap(const WorkloadID &id) {
+Remote_Context_Helper::wrapWorkloadIdToMap(const WorkloadID &id) {
     return {{InferenceEngine::HDDL2_PARAM_KEY(WORKLOAD_CONTEXT_ID), id}};
-}
-
-}
 }

@@ -14,15 +14,14 @@
 // stated in the License.
 //
 
-#include "helpers/hddl2_remote_context.h"
-
 #include <gtest/gtest-param-test.h>
 #include <gtest/gtest.h>
 
-#include "hddl2_helpers/hddl2_workload_context.h"
+#include "hddl2_helpers/helper_workload_context.h"
 #include "hddl2_params.hpp"
 #include "hddl2_plugin.h"
-#include "helpers/hddl2_device_emulator.h"
+#include "helper_device_emulator.h"
+#include "helper_remote_context.h"
 
 using namespace vpu::HDDL2Plugin;
 namespace IE = InferenceEngine;
@@ -35,7 +34,7 @@ public:
     void SetUp() override;
 
     InferenceEngine::ParamMap params;
-    HDDL2_WorkloadContext_Helper workloadContextHelper;
+    WorkloadContext_Helper workloadContextHelper;
 };
 
 //------------------------------------------------------------------------------
@@ -43,7 +42,7 @@ public:
 //------------------------------------------------------------------------------
 void HDDL2_RemoteContext_UnitTests::SetUp() {
     WorkloadID id = workloadContextHelper.getWorkloadId();
-    params = HDDL2_With_RemoteContext_Helper::wrapWorkloadIdToMap(id);
+    params = RemoteContext_Helper::wrapWorkloadIdToMap(id);
 }
 
 //------------------------------------------------------------------------------
@@ -87,7 +86,7 @@ TEST_F(HDDL2_RemoteContext_UnitTests, constructor_fromNotExistsContext_ThrowExce
     const int badWorkloadId = UINT32_MAX;
     EXPECT_FALSE(workloadContextHelper.isValidWorkloadContext(badWorkloadId));
 
-    InferenceEngine::ParamMap notExistsParams = HDDL2_With_RemoteContext_Helper::wrapWorkloadIdToMap(badWorkloadId);
+    InferenceEngine::ParamMap notExistsParams = RemoteContext_Helper::wrapWorkloadIdToMap(badWorkloadId);
 
     ASSERT_ANY_THROW(HDDL2RemoteContext context(notExistsParams));
 }
@@ -97,7 +96,7 @@ TEST_F(HDDL2_RemoteContext_UnitTests, constructor_fromNotExistsContext_ThrowExce
 //------------------------------------------------------------------------------
 TEST_F(HDDL2_RemoteContext_UnitTests, destructor_workloadContextNotUnregistered) {
     int workloadId = workloadContextHelper.getWorkloadId();
-    auto params = HDDL2_With_RemoteContext_Helper::wrapWorkloadIdToMap(workloadId);
+    auto params = RemoteContext_Helper::wrapWorkloadIdToMap(workloadId);
 
     { HDDL2RemoteContext context(params); }
     ASSERT_TRUE(workloadContextHelper.isValidWorkloadContext(workloadId));

@@ -12,6 +12,7 @@ file(GLOB_RECURSE HDDL2_TESTS_SOURCES
 add_executable(${TARGET_NAME} ${HDDL2_TESTS_SOURCES})
 
 target_include_directories(${TARGET_NAME} PRIVATE
+        "helpers"
         "../../common_helpers"
         "${IE_MAIN_SOURCE_DIR}/include"
         "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/include/hddl2"

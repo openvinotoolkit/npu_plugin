@@ -16,36 +16,43 @@
 
 #pragma once
 
-#include "Inference.h"
-#include <HddlUnite.h>
-#include <WorkloadContext.h>
+#include "ie_remote_context.hpp"
 
+#include "hddl2_helpers/helper_workload_context.h"
+#include "hddl2_remote_context.h"
 #include "hddl2_params.hpp"
-#include "hddl2_ie_core.h"
+
+namespace vpu {
+namespace HDDL2Plugin {
 
 //------------------------------------------------------------------------------
-//      class HDDL2_Remote_Context_Helper
+//      class RemoteContext_Helper
 //------------------------------------------------------------------------------
-class HDDL2_Remote_Context_Helper: public HDDL2_IE_Core_Helper {
+class RemoteContext_Helper {
 public:
-    HDDL2_Remote_Context_Helper();
+    RemoteContext_Helper();
 
     static InferenceEngine::ParamMap wrapWorkloadIdToMap(const WorkloadID &id);
-    InferenceEngine::RemoteContext::Ptr remoteContextPtr = nullptr;
+
+    HDDL2RemoteContext::Ptr remoteContextPtr = nullptr;
 
 protected:
-    HDDL2_WorkloadContext_Helper workloadContext;
+    // TODO Use stub instead of creating "default" workloadContext
+    WorkloadContext_Helper workloadContext;
 };
 
 //------------------------------------------------------------------------------
-//      class HDDL2_Remote_Context_Helper Implementation
+//      class RemoteContext_Helper Implementation
 //------------------------------------------------------------------------------
-inline HDDL2_Remote_Context_Helper::HDDL2_Remote_Context_Helper() {
-    auto params = wrapWorkloadIdToMap(workloadContext.getWorkloadId());
-    remoteContextPtr = ie.CreateContext(pluginName, params);
+inline RemoteContext_Helper::RemoteContext_Helper() {
+    auto param = wrapWorkloadIdToMap(workloadContext.getWorkloadId());
+    remoteContextPtr = std::make_shared<HDDL2RemoteContext>(param);
 }
 
 inline InferenceEngine::ParamMap
-HDDL2_Remote_Context_Helper::wrapWorkloadIdToMap(const WorkloadID &id) {
+RemoteContext_Helper::wrapWorkloadIdToMap(const WorkloadID &id) {
     return {{InferenceEngine::HDDL2_PARAM_KEY(WORKLOAD_CONTEXT_ID), id}};
+}
+
+}
 }
