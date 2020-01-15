@@ -41,6 +41,10 @@
 #ifdef ENABLE_MCM_COMPILER
 #include "include/mcm/tensor/quantization_params.hpp"
 
+#ifndef UNUSED
+#define UNUSED(var) (void)var
+#endif
+
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 

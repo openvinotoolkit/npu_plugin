@@ -16,8 +16,6 @@
 
 #pragma once
 
-#define UNUSED(var) (void)var
-
 #include <map>
 #include <string>
 #include <unordered_set>
@@ -28,11 +26,39 @@ namespace KmbPlugin {
 
 class KmbConfig final : public ParsedConfigBase {
 public:
-    KmbConfig();
+    bool useKmbExecutor() const { return _useKmbExecutor; }
 
-    std::map<std::string, std::string> getParsedConfig() const { return _config; }
-    unsigned int numberOfSIPPShaves = 4;
-    unsigned int SIPPLpi = 8;
+    LogLevel mcmLogLevel() const { return _mcmLogLevel; }
+
+    const std::string& mcmTargetDesciptorPath() const { return _mcmTargetDesciptorPath; }
+
+    const std::string& mcmTargetDesciptor() const { return _mcmTargetDesciptor; }
+
+    const std::string& mcmCompilationDesciptorPath() const { return _mcmCompilationDesciptorPath; }
+
+    const std::string& mcmCompilationDesciptor() const { return _mcmCompilationDesciptor; }
+
+    bool mcmGenerateBlob() const { return _mcmGenerateBlob; }
+
+    bool mcmGenerateJSON() const { return _mcmGenerateJSON; }
+
+    bool mcmGenerateDOT() const { return _mcmGenerateDOT; }
+
+    bool mcmParseOnly() const { return _mcmParseOnly; }
+
+    const std::string& mcmCompilationResultsPath() const { return _mcmCompilationResultsPath; }
+
+    const std::string& mcmCompilationResults() const { return _mcmCompilationResults; }
+
+    bool loadNetworkAfterCompilation() const { return _loadNetworkAfterCompilation; }
+
+    int throghputStreams() const { return _throghputStreams; }
+
+    const std::string& platform() const { return _platform; }
+
+    int numberOfSIPPShaves() const { return _numberOfSIPPShaves; }
+
+    int SIPPLpi() const { return _SIPPLpi; }
 
 protected:
     const std::unordered_set<std::string>& getCompileOptions() const override;
@@ -40,7 +66,36 @@ protected:
     void parse(const std::map<std::string, std::string>& config) override;
 
 private:
-    std::map<std::string, std::string> _config;
+#ifdef ENABLE_VPUAL
+    bool _useKmbExecutor = true;
+#else
+    bool _useKmbExecutor = false;
+#endif
+
+    LogLevel _mcmLogLevel = LogLevel::None;
+
+    std::string _mcmTargetDesciptorPath = "mcm_config/target";
+    std::string _mcmTargetDesciptor = "release_kmb";
+
+    std::string _mcmCompilationDesciptorPath = "mcm_config/compilation";
+    std::string _mcmCompilationDesciptor = "release_kmb";
+
+    bool _mcmGenerateBlob = true;
+    bool _mcmGenerateJSON = true;
+    bool _mcmGenerateDOT = false;
+
+    bool _mcmParseOnly = false;
+
+    std::string _mcmCompilationResultsPath = ".";
+    std::string _mcmCompilationResults = "";
+
+    bool _loadNetworkAfterCompilation = false;
+    int _throghputStreams = 1;
+
+    std::string _platform = "VPU_2490";
+
+    int _numberOfSIPPShaves = 4;
+    int _SIPPLpi = 8;
 };
 
 }  // namespace KmbPlugin

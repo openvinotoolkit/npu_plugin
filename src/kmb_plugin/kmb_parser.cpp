@@ -74,6 +74,34 @@ namespace vpu {
 
 namespace KmbPlugin {
 
+namespace {
+
+std::string getMcmLogLevel(LogLevel lvl) {
+    switch (lvl) {
+    case LogLevel::None:
+        return "Silent";
+
+    case LogLevel::Fatal:
+    case LogLevel::Error:
+        return "Error";
+
+    case LogLevel::Warning:
+        return "Warning";
+
+    case LogLevel::Info:
+        return "Info";
+
+    case LogLevel::Debug:
+    case LogLevel::Trace:
+        return "Debug";
+
+    default:
+        return "Silent";
+    }
+}
+
+}  // namespace
+
 void compileMcm(ie::ICNNNetwork& network, const KmbConfig& config, mv::CompilationUnit& unit, std::vector<char>& blob) {
     blob.clear();
     Logger::Ptr _logger = std::make_shared<Logger>("compileMCM", config.logLevel(), consoleOutput());
@@ -82,23 +110,20 @@ void compileMcm(ie::ICNNNetwork& network, const KmbConfig& config, mv::Compilati
     auto frontEnd = std::make_shared<FrontEndMcm>(modelMcm, config);
     frontEnd->buildInitialModel(network);
 
-    auto parsedConfig = config.getParsedConfig();
-
-    if (parsedConfig[VPU_KMB_CONFIG_KEY(MCM_PARSING_ONLY)] == "YES") {
+    if (config.mcmParseOnly()) {
         return;
     }
 
-    std::string targetName = parsedConfig[VPU_KMB_CONFIG_KEY(MCM_TARGET_DESCRIPTOR)];
-    std::string targetPath = getIELibraryPath() + "/" + parsedConfig[VPU_KMB_CONFIG_KEY(MCM_TARGET_DESCRIPTOR_PATH)] +
-                             "/" + parsedConfig[VPU_KMB_CONFIG_KEY(MCM_TARGET_DESCRIPTOR)] + ".json";
-    std::string compDescName = parsedConfig[VPU_KMB_CONFIG_KEY(MCM_COMPILATION_DESCRIPTOR)];
+    const auto& targetName = config.mcmTargetDesciptor();
+    const auto targetPath =
+        getIELibraryPath() + "/" + config.mcmTargetDesciptorPath() + "/" + config.mcmTargetDesciptor() + ".json";
 
-    std::string compDescPath = getIELibraryPath() + "/" +
-                               parsedConfig[VPU_KMB_CONFIG_KEY(MCM_COMPILATION_DESCRIPTOR_PATH)] + "/" +
-                               parsedConfig[VPU_KMB_CONFIG_KEY(MCM_COMPILATION_DESCRIPTOR)] + ".json";
+    const auto& compDescName = config.mcmCompilationDesciptor();
+    const auto compDescPath = getIELibraryPath() + "/" + config.mcmCompilationDesciptorPath() + "/" +
+                              config.mcmCompilationDesciptor() + ".json";
 
-    std::string resultsPath = parsedConfig[VPU_KMB_CONFIG_KEY(MCM_COMPILATION_RESULTS_PATH)];
-    std::string resultNames = parsedConfig[VPU_KMB_CONFIG_KEY(MCM_COMPILATION_RESULTS)];
+    const auto& resultsPath = config.mcmCompilationResultsPath();
+    auto resultNames = config.mcmCompilationResults();
     resultNames = (resultNames == "") ? network.getName() : resultNames;
 
     /*IE_ASSERT(*/
@@ -114,7 +139,7 @@ void compileMcm(ie::ICNNNetwork& network, const KmbConfig& config, mv::Compilati
 
     _logger->info("Path for results: %s (%s)", resultsFullName, std::strerror(errno));
 
-    if (parsedConfig[VPU_KMB_CONFIG_KEY(MCM_GENERATE_BLOB)] == "YES") {
+    if (config.mcmGenerateBlob()) {
         //-----------------------------------------------------------------------
         // Note: There are different passes in different Compilation Descriptors
         // Just now we try two of them
@@ -136,7 +161,7 @@ void compileMcm(ie::ICNNNetwork& network, const KmbConfig& config, mv::Compilati
         }
     }
 
-    if (parsedConfig[VPU_KMB_CONFIG_KEY(MCM_GENERATE_DOT)] == "YES") {
+    if (config.mcmGenerateDOT()) {
         if (compDesc.validPass("GenerateDot")) {
             //            try {
             //                //--------------------------------------------------------------------------
@@ -151,28 +176,15 @@ void compileMcm(ie::ICNNNetwork& network, const KmbConfig& config, mv::Compilati
         }
     }
 
-    IE_ASSERT(unit.initialize());
+    compDesc.setPassArg("GlobalConfigParams", "verbose", getMcmLogLevel(config.mcmLogLevel()));
 
-    if (parsedConfig[VPU_KMB_CONFIG_KEY(MCM_LOG_LEVEL)] == CONFIG_VALUE(LOG_NONE) ||
-        parsedConfig[VPU_KMB_CONFIG_KEY(MCM_LOG_LEVEL)] == CONFIG_VALUE(LOG_ERROR)) {
-        compDesc.setPassArg("GlobalConfigParams", "verbose", std::string("Error"));
-    }
-    if (parsedConfig[VPU_KMB_CONFIG_KEY(MCM_LOG_LEVEL)] == CONFIG_VALUE(LOG_WARNING)) {
-        compDesc.setPassArg("GlobalConfigParams", "verbose", std::string("Warning"));
-    }
-    if (parsedConfig[VPU_KMB_CONFIG_KEY(MCM_LOG_LEVEL)] == CONFIG_VALUE(LOG_INFO) ||
-        parsedConfig[VPU_KMB_CONFIG_KEY(MCM_LOG_LEVEL)] == CONFIG_VALUE(LOG_TRACE)) {
-        compDesc.setPassArg("GlobalConfigParams", "verbose", std::string("Info"));
-    }
-    if (parsedConfig[VPU_KMB_CONFIG_KEY(MCM_LOG_LEVEL)] == CONFIG_VALUE(LOG_DEBUG)) {
-        compDesc.setPassArg("GlobalConfigParams", "verbose", std::string("Debug"));
-    }
+    IE_ASSERT(unit.initialize());
 
     // C++ exception if fails
     try {
         auto result = unit.run();
 
-        if (parsedConfig[VPU_KMB_CONFIG_KEY(MCM_GENERATE_JSON)] == "YES") {
+        if (config.mcmGenerateJSON()) {
             std::fstream file_out(resultsFullName + ".json", std::fstream::out);
             file_out << result.toString() << std::endl;
             file_out.close();
@@ -183,13 +195,13 @@ void compileMcm(ie::ICNNNetwork& network, const KmbConfig& config, mv::Compilati
         VPU_THROW_EXCEPTION << "Unknown exception during unit run";
     }
 
-    if (parsedConfig[VPU_KMB_CONFIG_KEY(MCM_GENERATE_DOT)] == "YES") {
+    if (config.mcmGenerateDOT()) {
         rename("original_model.dot", (resultsFullName + "_original.dot").c_str());
         rename("adapt_model.dot", (resultsFullName + "_adapt.dot").c_str());
         rename("final_model.dot", (resultsFullName + ".dot").c_str());
     }
 
-    if (parsedConfig[VPU_KMB_CONFIG_KEY(MCM_GENERATE_BLOB)] == "YES") {
+    if (config.mcmGenerateBlob()) {
         auto memBlob = unit.getBlob();
         if (memBlob == nullptr) {
             std::ifstream blobFile(resultsFullName + ".blob", std::ios::binary);

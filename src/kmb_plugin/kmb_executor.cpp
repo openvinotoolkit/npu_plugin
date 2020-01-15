@@ -86,8 +86,7 @@ KmbExecutor::KmbExecutor(const KmbConfig& config)
       xlinkChannelOut(0),
       _outTensorLen(0),
       _outTensorAddr(0) {
-    auto parsedConfig = _config.getParsedConfig();
-    if (parsedConfig[VPU_KMB_CONFIG_KEY(KMB_EXECUTOR)] == "NO") {
+    if (!_config.useKmbExecutor()) {
         return;
     }
 
@@ -191,15 +190,14 @@ InferenceEngine::Precision getIOPrecision(const flicTensorDescriptor_t& descTemp
 #endif
 
 void KmbExecutor::allocateGraph(const std::vector<char>& graphFileContent) {
-    auto parsedConfig = _config.getParsedConfig();
-    if (parsedConfig[VPU_KMB_CONFIG_KEY(KMB_EXECUTOR)] == "NO") {
+    if (!_config.useKmbExecutor()) {
         return;
     }
 
 #ifdef ENABLE_VPUAL
     initVpualObjects();
     static int graphId_main = 1;
-    int nThreads = std::stoi(parsedConfig[VPU_KMB_CONFIG_KEY(THROUGHPUT_STREAMS)]);
+    int nThreads = _config.throghputStreams();
     int nShaves = 16;
 
     _logger->info("Initiating verification of use case 1");
@@ -372,8 +370,8 @@ void KmbExecutor::allocateGraph(const std::vector<char>& graphFileContent) {
 void KmbExecutor::queueInference(void* input_data, size_t input_bytes, void* result_data, size_t result_bytes) {
     UNUSED(result_data);
     UNUSED(result_bytes);
-    auto parsedConfig = _config.getParsedConfig();
-    if (parsedConfig[VPU_KMB_CONFIG_KEY(KMB_EXECUTOR)] == "NO") {
+
+    if (!_config.useKmbExecutor()) {
         return;
     }
 
@@ -393,8 +391,7 @@ void KmbExecutor::queueInference(void* input_data, size_t input_bytes, void* res
 }
 
 void KmbExecutor::getResult(void* result_data, unsigned int result_bytes) {
-    auto parsedConfig = _config.getParsedConfig();
-    if (parsedConfig[VPU_KMB_CONFIG_KEY(KMB_EXECUTOR)] == "NO") {
+    if (!_config.useKmbExecutor()) {
         return;
     }
 
@@ -428,10 +425,10 @@ void KmbExecutor::getResult(void* result_data, unsigned int result_bytes) {
 }
 
 void KmbExecutor::deallocateGraph() {
-    auto parsedConfig = _config.getParsedConfig();
-    if (parsedConfig[VPU_KMB_CONFIG_KEY(KMB_EXECUTOR)] == "NO") {
+    if (!_config.useKmbExecutor()) {
         return;
     }
+
 #ifdef ENABLE_VPUAL
     if (pipe) {
         pipe->Stop();
