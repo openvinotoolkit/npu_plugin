@@ -49,8 +49,8 @@ struct FakeQuantizeLayerDef final {
         testNet.addConst(inputLowLayerName, blob);
         return inputLow(inputLowLayerName);
     }
-    FakeQuantizeLayerDef& inputLow(float val) {
-        const auto inputLowBlob = makeScalarBlob(val);
+    FakeQuantizeLayerDef& inputLow(float val, const Precision& precision) {
+        const auto inputLowBlob = makeScalarBlob(val, precision);
         return inputLow(inputLowBlob);
     }
 
@@ -63,8 +63,8 @@ struct FakeQuantizeLayerDef final {
         testNet.addConst(inputHighLayerName, blob);
         return inputHigh(inputHighLayerName);
     }
-    FakeQuantizeLayerDef& inputHigh(float val) {
-        const auto inputHighBlob = makeScalarBlob(val);
+    FakeQuantizeLayerDef& inputHigh(float val, const Precision& precision) {
+        const auto inputHighBlob = makeScalarBlob(val, precision);
         return inputHigh(inputHighBlob);
     }
 
@@ -77,8 +77,8 @@ struct FakeQuantizeLayerDef final {
         testNet.addConst(outputLowLayerName, blob);
         return outputLow(outputLowLayerName);
     }
-    FakeQuantizeLayerDef& outputLow(float val) {
-        const auto outputLowBlob = makeScalarBlob(val);
+    FakeQuantizeLayerDef& outputLow(float val, const Precision& precision) {
+        const auto outputLowBlob = makeScalarBlob(val, precision);
         return outputLow(outputLowBlob);
     }
 
@@ -91,8 +91,8 @@ struct FakeQuantizeLayerDef final {
         testNet.addConst(outputHighLayerName, blob);
         return outputHigh(outputHighLayerName);
     }
-    FakeQuantizeLayerDef& outputHigh(float val) {
-        const auto outputHighBlob = makeScalarBlob(val);
+    FakeQuantizeLayerDef& outputHigh(float val, const Precision& precision) {
+        const auto outputHighBlob = makeScalarBlob(val, precision);
         return outputHigh(outputHighBlob);
     }
 
@@ -108,8 +108,8 @@ struct FakeQuantizeLayerDef final {
         outputLow(lowLayerName);
         return *this;
     }
-    FakeQuantizeLayerDef& low(float val) {
-        const auto lowBlob = makeScalarBlob(val);
+    FakeQuantizeLayerDef& low(float val, const Precision& precision) {
+        const auto lowBlob = makeScalarBlob(val, precision);
         inputLow(lowBlob);
         outputLow(lowBlob);
         return *this;
@@ -127,8 +127,8 @@ struct FakeQuantizeLayerDef final {
         outputHigh(highLayerName);
         return *this;
     }
-    FakeQuantizeLayerDef& high(float val) {
-        const auto highBlob = makeScalarBlob(val);
+    FakeQuantizeLayerDef& high(float val, const Precision& precision) {
+        const auto highBlob = makeScalarBlob(val, precision);
         inputHigh(highBlob);
         outputHigh(highBlob);
         return *this;

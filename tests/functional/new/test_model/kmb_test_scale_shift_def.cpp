@@ -14,11 +14,18 @@
 // stated in the License.
 //
 
-#include "test_model/kmb_tests_base.hpp"
+#include "kmb_test_scale_shift_def.hpp"
+#include "kmb_test_add_def.hpp"
+#include "kmb_test_mul_def.hpp"
 
-TEST_F(KmbNetworkTest, DISABLED_ResNet50) {
-    runClassifyNetworkTest(
-        "resnet50_tf_int8/0d/resnet-50-int8-tf-0001",
-        "224x224/cat3.bmp",
-        1, 5.0f);
+TestNetwork& ScaleShiftLayerDef::build() {
+    return testNet
+        .addLayer<MultiplyLayerDef>(name + "_mul")
+            .input1(inputPort.layerName, inputPort.index)
+            .input2(scalePort.layerName, scalePort.index)
+            .build()
+        .addLayer<AddLayerDef>(name)
+            .input1(name + "_mul")
+            .input2(shiftPort.layerName, shiftPort.index)
+            .build();
 }

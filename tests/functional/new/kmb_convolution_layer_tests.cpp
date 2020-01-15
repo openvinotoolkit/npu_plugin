@@ -14,7 +14,7 @@
 // stated in the License.
 //
 
-#include "kmb_tests_base.hpp"
+#include "test_model/kmb_tests_base.hpp"
 
 struct ConvTestParams final {
     SizeVector _inDims;
@@ -38,167 +38,136 @@ std::ostream& operator<<(std::ostream& os, const ConvTestParams& p) {
 
 class KmbConvolutionLayerTests : public KmbTestBase, public testing::WithParamInterface<ConvTestParams> {};
 
-TEST_P(KmbConvolutionLayerTests, DISABLED_Single_FP16) {
+TEST_P(KmbConvolutionLayerTests, DISABLED_FP16) {
     const auto& p = GetParam();
 
-    const auto inDesc = TensorDesc(Precision::FP32, p._inDims, Layout::NCHW);
+    const auto netPresicion = Precision::FP32;
 
-    const auto weights = genConvWeights(p._convParams, p._inDims.at(1), Precision::FP32, rd, -1.0f, 1.0f);
-    const auto biases = genConvBiases(p._convParams, Precision::FP32, rd, -1.0f, 1.0f);
+    const auto userInDesc = TensorDesc(Precision::U8, p._inDims, Layout::NHWC);
+    const auto userOutDesc = TensorDesc(Precision::FP16, Layout::NHWC);
+
+    const auto inputRange = std::make_pair(0.0f, 3.0f);
+
+    const auto weightsRange = std::make_pair(-1.0f, 1.0f);
+    const auto biasesRange = std::make_pair(-1.0f, 1.0f);
+
+    const auto tolerance = 1e-3f;  // obtained based on CPU plugin
+
+    registerBlobGenerator(
+        "input", userInDesc,
+        [&](const TensorDesc& desc) {
+            return genBlobUniform(desc, rd, inputRange.first, inputRange.second);
+        }
+    );
+    registerBlobGenerator(
+        "weights", getConvWeightsDesc(p._convParams, p._inDims.at(1), netPresicion),
+        [&](const TensorDesc& desc) {
+            return genBlobUniform(desc, rd, weightsRange.first, weightsRange.second);
+        }
+    );
+    registerBlobGenerator(
+        "biases", getConvBiasesDesc(p._convParams, netPresicion),
+        [&](const TensorDesc& desc) {
+            return genBlobUniform(desc, rd, biasesRange.first, biasesRange.second);
+        }
+    );
 
     TestNetwork testNet;
     testNet
-        .setUserInput("input", inDesc.getPrecision(), inDesc.getLayout())
-        .addNetInput("input", inDesc.getDims(), Precision::FP32)
+        .setUserInput("input", userInDesc.getPrecision(), userInDesc.getLayout())
+        .addNetInput("input", userInDesc.getDims(), netPresicion)
         .addLayer<ConvolutionLayerDef>("conv", p._convParams)
             .input("input")
-            .weights(weights)
-            .biases(biases)
+            .weights(getBlobByName("weights"))
+            .biases(getBlobByName("biases"))
             .build()
         .addNetOutput(PortInfo("conv"))
+        .setUserOutput(PortInfo("conv"), userOutDesc.getPrecision(), userOutDesc.getLayout())
         .finalize();
 
-    const auto inputsGenerator = [&]() -> BlobMap {
-        const auto input = genBlobUniform(inDesc, rd, -1.0f, 1.0f);
-        return {{"input", input}};
-    };
-
-    runTest(testNet, inputsGenerator, 0.2f, CompareMethod::Absolute);
+    runTest(testNet, tolerance, CompareMethod::Absolute);
 }
 
-TEST_P(KmbConvolutionLayerTests, DISABLED_Single_FakeQuantize) {
+TEST_P(KmbConvolutionLayerTests, DISABLED_FakeQuantize_ScaleShift) {
     const auto& p = GetParam();
 
-    const auto inDesc = TensorDesc(Precision::FP32, p._inDims, Layout::NCHW);
+    const auto netPresicion = Precision::FP32;
 
-    const auto weights = genConvWeights(p._convParams, p._inDims.at(1), Precision::FP32, rd, -1.0f, 1.0f);
-    const auto biases = genConvBiases(p._convParams, Precision::FP32, rd, -1.0f, 1.0f);
+    const auto userInDesc = TensorDesc(Precision::U8, p._inDims, Layout::NHWC);
+    const auto userOutDesc = TensorDesc(Precision::FP16, Layout::NHWC);
+
+    const auto inputRange = std::make_pair(0.0f, 255.0f);
+
+    const auto inputScale = 1.0f / (inputRange.second - inputRange.first);
+    const auto inputShift = 0.0f; // -0.5f;
+
+    const auto weightsRange = std::make_pair(-1.0f, 1.0f);
+    const auto biasesRange = std::make_pair(-1.0f, 1.0f);
+
+    const auto tolerance = 1e-3f;  // obtained based on CPU plugin
+
+    registerBlobGenerator(
+        "input", userInDesc,
+        [&](const TensorDesc& desc) {
+            return genBlobUniform(desc, rd, inputRange.first, inputRange.second);
+        }
+    );
+    registerBlobGenerator(
+        "scales", TensorDesc(netPresicion, {1, p._inDims.at(1), 1, 1}, Layout::NCHW),
+        [&](const TensorDesc& desc) {
+            return makeSingleValueBlob(desc, inputScale);
+        }
+    );
+    registerBlobGenerator(
+        "shift", TensorDesc(netPresicion, {1, p._inDims.at(1), 1, 1}, Layout::NCHW),
+        [&](const TensorDesc& desc) {
+            return makeSingleValueBlob(desc, inputShift);
+        }
+    );
+    registerBlobGenerator(
+        "weights", getConvWeightsDesc(p._convParams, p._inDims.at(1), netPresicion),
+        [&](const TensorDesc& desc) {
+            return genBlobUniform(desc, rd, weightsRange.first, weightsRange.second);
+        }
+    );
+    registerBlobGenerator(
+        "biases", getConvBiasesDesc(p._convParams, netPresicion),
+        [&](const TensorDesc& desc) {
+            return genBlobUniform(desc, rd, biasesRange.first, biasesRange.second);
+        }
+    );
 
     TestNetwork testNet;
     testNet
-        .setUserInput("input", inDesc.getPrecision(), inDesc.getLayout())
-        .addNetInput("input", inDesc.getDims(), Precision::FP32)
-        .addConst("weights", weights)
-        .addLayer<FakeQuantizeLayerDef>("input_quantize", 256)
+        .setUserInput("input", userInDesc.getPrecision(), userInDesc.getLayout())
+        .addNetInput("input", userInDesc.getDims(), netPresicion)
+        .addLayer<ScaleShiftLayerDef>("input_scale_shift")
             .input("input")
-            .low(-1.0f)
-            .high(1.0f)
+            .scale(getBlobByName("scales"))
+            .shift(getBlobByName("shift"))
             .build()
+        .addConst("weights", getBlobByName("weights"))
         .addLayer<FakeQuantizeLayerDef>("weights_quantize", 256)
             .input("weights")
-            .low(-1.0f)
-            .high(1.0f)
+            .low(weightsRange.first, netPresicion)
+            .high(weightsRange.second, netPresicion)
             .build()
         .addLayer<ConvolutionLayerDef>("conv", p._convParams)
-            .input("input_quantize")
+            .input("input_scale_shift")
             .weights("weights_quantize")
-            .biases(biases)
+            .biases(getBlobByName("biases"))
             .build()
         .addNetOutput(PortInfo("conv"))
+        .setUserOutput(PortInfo("conv"), userOutDesc.getPrecision(), userOutDesc.getLayout())
         .finalize();
 
-    const auto inputsGenerator = [&]() -> BlobMap {
-        const auto input = genBlobUniform(inDesc, rd, -1.0f, 1.0f);
-        return {{"input", input}};
-    };
-
-    runTest(testNet, inputsGenerator, 0.0001f, CompareMethod::Absolute);
-}
-
-TEST_P(KmbConvolutionLayerTests, Single_FakeQuantize_U8) {
-    const auto& p = GetParam();
-
-    const auto inDesc = TensorDesc(Precision::U8, p._inDims, Layout::NCHW);
-
-    const auto weights = genConvWeights(p._convParams, p._inDims.at(1), Precision::FP32, rd, -1.0f, 1.0f);
-    const auto biases = genConvBiases(p._convParams, Precision::FP32, rd, -1.0f, 1.0f);
-
-    TestNetwork testNet;
-    testNet
-        .setUserInput("input", inDesc.getPrecision(), inDesc.getLayout())
-        .addNetInput("input", inDesc.getDims(), Precision::FP32)
-        .addConst("weights", weights)
-        .addLayer<FakeQuantizeLayerDef>("input_quantize", 256)
-            .input("input")
-            .low(0.0f)
-            .high(255.0f)
-            .build()
-        .addLayer<FakeQuantizeLayerDef>("weights_quantize", 256)
-            .input("weights")
-            .low(-1.0f)
-            .high(1.0f)
-            .build()
-        .addLayer<ConvolutionLayerDef>("conv", p._convParams)
-            .input("input_quantize")
-            .weights("weights_quantize")
-            .biases(biases)
-            .build();
-
-    const auto inputsGenerator = [&]() -> BlobMap {
-        const auto input = genBlobUniform(inDesc, rd, 0.0f, 255.0f);
-        return {{"input", input}};
-    };
-
-    const auto inputs = getInputs(testNet, inputsGenerator);
-
-    const auto convStats = [&]() {
-        if (!RUN_REF_CODE) {
-            return std::make_pair(0.0f, 1.0f);
-        } else {
-            std::cout << "=== COLLECT CONVOLUTION STATS" << std::endl;
-
-            TestNetwork refNet = testNet;
-            refNet
-                .addNetOutput(PortInfo("conv"))
-                .finalize();
-
-            const auto refOutputs = refNet.calcRef(inputs);
-
-            const auto& refOutput = refOutputs.at("conv");
-            const auto refOutputPtr = refOutput->cbuffer().as<const float*>();
-            IE_ASSERT(refOutputPtr != nullptr);
-
-            const auto refOutputMinPtr = std::min_element(refOutputPtr, refOutputPtr + refOutput->size());
-            const auto refOutputMaxPtr = std::max_element(refOutputPtr, refOutputPtr + refOutput->size());
-
-            std::cout << "    Convolution stats: low:" << *refOutputMinPtr << " high:" << *refOutputMaxPtr << std::endl;
-
-            return std::make_pair(*refOutputMinPtr, *refOutputMaxPtr);
-        }
-    }();
-
-    testNet
-        .addLayer<FakeQuantizeLayerDef>("conv_quantize", 256)
-            .input("conv")
-            .low(convStats.first)
-            .high(convStats.second)
-            .build()
-        .addNetOutput(PortInfo("conv_quantize"))
-        .setUserOutput(PortInfo("conv_quantize"), Precision::U8, Layout::NCHW)
-        .finalize();
-
-    auto exeNet = getExecNetwork(testNet);
-
-    const auto refOutputs = getRefOutputs(testNet, inputs);
-
-    if (RUN_INFER) {
-        auto actualOutputs = runInfer(exeNet, inputs);
-
-        if (DEVICE_NAME == "KMB") {
-            // HACK: KMB plugin doesn't support dequantized FP32 output.
-            IE_ASSERT(actualOutputs.size() == 1);
-            auto& actualOutput = actualOutputs.begin()->second;
-            actualOutput = dequantize(actualOutput, convStats.first, convStats.second, 256);
-        }
-
-        compareWithReference(actualOutputs, refOutputs, 0.0001f, CompareMethod::Absolute);
-    }
+    runTest(testNet, tolerance, CompareMethod::Absolute);
 }
 
 const std::vector<ConvTestParams> convParams {
     ConvTestParams()
-        .inDims({1, 256, 56, 56})
-        .convParams(ConvolutionParams().outChannels(128).kernel({1, 1}).strides({2, 2}).pad({0, 0, 0, 0}))
+        .inDims({1, 32, 8, 8})
+        .convParams(ConvolutionParams().outChannels(16).kernel({1, 1}).strides({2, 2}).pad({0, 0, 0, 0}))
 };
 
 INSTANTIATE_TEST_CASE_P(SomeCase, KmbConvolutionLayerTests, testing::ValuesIn(convParams));

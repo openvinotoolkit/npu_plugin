@@ -28,12 +28,20 @@ using namespace InferenceEngine;
 //
 
 void fillUniform(const Blob::Ptr& blob, std::default_random_engine& rd, float min, float max);
+void fillUniform(const Blob::Ptr& blob, std::default_random_engine& rd, int min, int max);
+
 void fillNormal(const Blob::Ptr& blob, std::default_random_engine& rd, float mean, float stddev);
 
 Blob::Ptr genBlobUniform(const TensorDesc& desc, std::default_random_engine& rd, float min, float max);
+Blob::Ptr genBlobUniform(const TensorDesc& desc, std::default_random_engine& rd, int min, int max);
+
 Blob::Ptr genBlobNormal(const TensorDesc& desc, std::default_random_engine& rd, float mean, float stddev);
 
-Blob::Ptr makeScalarBlob(float val);
+Blob::Ptr makeSingleValueBlob(const TensorDesc& desc, float val);
+Blob::Ptr makeSingleValueBlob(const TensorDesc& desc, int val);
+
+Blob::Ptr makeScalarBlob(float val, const Precision& precision = Precision::FP32, size_t numDims = 1);
+Blob::Ptr makeScalarBlob(int val, const Precision& precision = Precision::I32, size_t numDims = 1);
 
 Blob::Ptr toFP32(const Blob::Ptr& in);
 Blob::Ptr toFP16(const Blob::Ptr& in);
