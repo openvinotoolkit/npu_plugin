@@ -200,6 +200,7 @@ std::tuple<mv::Data::TensorIterator, mv::Data::TensorIterator,mv::Data::TensorIt
     size_t biasStartIndex = 0;
     size_t biasEndIndex = 0;
     std::string splitStrategy = op->get<std::string>("splitStrategy");
+    bool hkSliceCase = false;
 
     for (unsigned split = 0; split < number_of_splits; split++)
     {
@@ -289,6 +290,7 @@ std::tuple<mv::Data::TensorIterator, mv::Data::TensorIterator,mv::Data::TensorIt
                                 {size_width, size_height, size_channels, 1}, //childTiles[split].getSize()
                                 inputTensor->get<mv::QuantizationParams>("quantParams"),
                                 op->getName() + "_sliceHK_" + std::to_string(split));
+            hkSliceCase = true;
 
             conv = om.depthwiseConv(sliceInput,
                                 slice,
@@ -400,6 +402,8 @@ std::tuple<mv::Data::TensorIterator, mv::Data::TensorIterator,mv::Data::TensorIt
     om.getSourceOp(concat)->set<std::string>("splitStrategy", splitStrategy);
 
     concat->set<mv::Tensor::MemoryLocation>("Location",outputTensor->get<mv::Tensor::MemoryLocation>("Location"));
+    if (hkSliceCase)
+        inputTensor->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::DDR);
 
     return std::make_tuple(convs[0], convs[number_of_splits-1], concat);
 }
