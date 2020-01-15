@@ -18,6 +18,7 @@
 #include <vector>
 #include <string>
 #include <algorithm>
+#include <limits>
 
 #include <inference_engine.hpp>
 
@@ -27,6 +28,7 @@
 
 #include "classification_sample.h"
 #include <file_reader.h>
+#include <format_reader_ptr.h>
 
 using namespace InferenceEngine;
 
@@ -149,7 +151,20 @@ int main(int argc, char *argv[]) {
         }
 
         /** Filling input tensor with images. **/
-        vpu::KmbPlugin::utils::fromBinaryFile(imageFileName, inputBlob);
+        FormatReader::ReaderPtr image_reader(imageFileName.c_str());
+        if (image_reader.get() == nullptr) {
+            throw std::logic_error("Image " + imageFileName + " cannot be read!");
+        }
+
+        std::vector<size_t> inputBlobDims = inputBlob->getTensorDesc().getDims();
+        size_t imageWidth = inputBlobDims.at(3);
+        size_t imageHeight = inputBlobDims.at(2);
+
+        Blob::Ptr imageBlob = make_shared_blob<uint8_t>(TensorDesc(Precision::U8,
+            inputBlobDims,
+            Layout::NHWC), image_reader->getData(imageWidth, imageHeight).get());
+
+        inferRequest.SetBlob(firstInputName.c_str(), imageBlob);
 
         inferRequest.Infer();
         slog::info << "inferRequest completed successfully" << slog::endl;
@@ -184,10 +199,14 @@ int main(int argc, char *argv[]) {
         const size_t printedResultsCount = resultsCount > maxNumOfTop ? maxNumOfTop : resultsCount;
 
         // de-Quantization
-        uint8_t zeroPoint = static_cast<uint8_t>(FLAGS_z);
-        float scale = static_cast<float>(FLAGS_s);
-        slog::info<< "zeroPoint" << zeroPoint << slog::endl;
-        slog::info<< "scale" << scale << slog::endl;
+        int zeroPoint = FLAGS_z;
+        if (zeroPoint < std::numeric_limits<uint8_t>::min() || zeroPoint > std::numeric_limits<uint8_t>::max()) {
+            slog::warn << "zeroPoint value " << zeroPoint << " overflows byte. Setting default." << slog::endl;
+            zeroPoint = 221;
+        }
+        float scale = FLAGS_s;
+        slog::info << "zeroPoint: " << zeroPoint << slog::endl;
+        slog::info << "scale: " << scale << slog::endl;
 
         Blob::Ptr dequantOut = deQuantize(outputBlob, scale, zeroPoint);
 
@@ -196,10 +215,12 @@ int main(int argc, char *argv[]) {
                                                   labels);
         classificationResult.print();
 
-        std::fstream outFile;
-        outFile.open("/output.dat", std::ios::in | std::ios::out | std::ios::binary);
+        std::string outFilePath = "./output.dat";
+        std::ofstream outFile(outFilePath, std::ios::binary);
         if (outFile.is_open()) {
             outFile.write(outputBlob->buffer(), outputBlob->size());
+        } else {
+            slog::warn << "Failed to open '" << outFilePath << "'" << slog::endl;
         }
         outFile.close();
     }
