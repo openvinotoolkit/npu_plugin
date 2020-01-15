@@ -25,6 +25,9 @@ else()
     add_executable(conv_fp16input conv_fp16input/conv_fp16input.cpp)
     target_link_libraries(conv_fp16input cm)
 
+    add_executable(conv_with_precision conv_with_precision/conv_with_precision.cpp)
+    target_link_libraries(conv_with_precision cm)
+
     add_executable(conv_leaky_relu conv_leaky_relu/conv_leaky_relu.cpp)
     target_link_libraries(conv_leaky_relu cm)
 

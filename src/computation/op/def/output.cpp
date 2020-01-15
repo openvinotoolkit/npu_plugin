@@ -28,6 +28,7 @@ namespace mv
     namespace op {
         MV_REGISTER_OP(Output)
         .setInputs({"data"})
+        .setOptionalArg<mv::DType>("precision", mv::DType("Default"))
         .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
         .setInputCheck(op_output::inputCheckFcn)
         .setOutputDef(op_output::outputDefFcn)
