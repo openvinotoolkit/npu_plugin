@@ -26,12 +26,28 @@
 #include <test_model_path.hpp>
 #include <single_layer_common.hpp>
 #include <format_reader_ptr.h>
+#include <vpu/utils/error.hpp>
 
 //
 // KmbTestBase
 //
 
 namespace {
+
+int sToI(const std::string& str, const std::string& err = "") {
+    try {
+        return std::stoi(str);
+    }
+
+    catch (const std::invalid_argument& ia) {
+        if(err == "") {
+            VPU_THROW_EXCEPTION << "Bad int value";
+        } else {
+            VPU_THROW_EXCEPTION << err;
+        }
+        return 0;
+    }
+}
 
 const std::string DEVICE_NAME = []() -> std::string {
     if (const auto var = std::getenv("IE_KMB_TESTS_DEVICE_NAME")) {
@@ -51,10 +67,10 @@ const std::string REF_DEVICE_NAME = []() -> std::string {
 
 const bool RUN_COMPILER = []() -> bool {
     if (const auto var = std::getenv("IE_KMB_TESTS_RUN_COMPILER")) {
-        return std::stoi(var);
+        return sToI(var, "IE_KMB_TESTS_RUN_COMPILER should be 0 | 1");
     }
 
-#ifdef PLATFORM_ARM
+#if defined(PLATFORM_ARM) || !defined(ENABLE_MCM_COMPILER)
     return false;
 #else
     return true;
@@ -63,7 +79,7 @@ const bool RUN_COMPILER = []() -> bool {
 
 const bool RUN_REF_CODE = []() -> bool {
     if (const auto var = std::getenv("IE_KMB_TESTS_RUN_REF_CODE")) {
-        return std::stoi(var);
+        return sToI(var, "IE_KMB_TESTS_RUN_REF_CODE should be 0 | 1");
     }
 
 #ifdef PLATFORM_ARM
@@ -75,7 +91,7 @@ const bool RUN_REF_CODE = []() -> bool {
 
 const bool RUN_INFER = []() -> bool {
     if (const auto var = std::getenv("IE_KMB_TESTS_RUN_INFER")) {
-        return std::stoi(var);
+        return sToI(var, "IE_KMB_TESTS_RUN_INFER should be 0 | 1");
     }
 
 #ifdef PLATFORM_ARM
@@ -95,7 +111,7 @@ const std::string DUMP_PATH = []() -> std::string {
 
 const bool RAW_EXPORT = []() -> bool {
     if (const auto var = std::getenv("IE_KMB_TESTS_RAW_EXPORT")) {
-        return std::stoi(var);
+        return sToI(var, "IE_KMB_TESTS_RAW_EXPORT should be 0 | 1");
     }
 
     return false;
