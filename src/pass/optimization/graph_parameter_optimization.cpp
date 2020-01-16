@@ -943,19 +943,20 @@ namespace mv
                 bool hasStreamOverK = findStrategy(streamingStrategyPool,"StreamOverK");
                 bool hasStreamOverW = findStrategy(streamingStrategyPool,"StreamOverW");
                 bool hasStreamOverH = findStrategy(streamingStrategyPool,"StreamOverH");
+                bool hasStreamOverC = findStrategy(streamingStrategyPool,"StreamOverC");
                 if(globalEnableStreaming == false)
                 {
                     hasStreamOverH = false;
                     hasStreamOverW = false;
                     hasStreamOverK = false;
+                    hasStreamOverC = false;
                 }
 
                 //TODO:: replace nested loops with clean cartesian product function
                 for( const auto weightsSparsity : weightsSparsityPool) {
                     for( const auto spilling : spillingPool) {
-                        for( const auto clustering : clusteringStrategyPool){
-//std::cout << "Enter clustering loop " << std::endl;                            
-// Determine streaming options
+                        for( const auto clustering : clusteringStrategyPool){                           
+                            // Determine streaming options
                             // 1. Determine if streams over H are possible
                             // 2. Determine if streams over K are possible
                             // 3. If no streams over H or K will fit, enable nested streaming
@@ -996,10 +997,11 @@ namespace mv
                             //Note: This is a kind of hack, StreamOverK has no sense for Depthwise convolution
                             //because there is no K dimension. However StreamOverK for now from graph optimizer
                             //side, in the streaming pass will be translated StreamOverC.
-                            if (op.getOpType() == "DepthwiseConv")
-                            {
-                                streamsOverK = {1,2};
-                            }
+                            vector<size_t> streamsOverC;
+                            if (hasStreamOverC)
+                                streamsOverC = {1,2};
+                            else
+                                streamsOverC.push_back(1);
 
                             bool enableNestedStreaming = false;
                             auto maxK = streamsOverK.back();
@@ -1010,11 +1012,10 @@ namespace mv
                             // If streaming is enabled, but streaming over k or h alone doesn't fit, enable nested streaming
                             if(hasStreamOverK and hasStreamOverH and ((maxSplitOverH == 1) and (memoryMaxK > clusterMemory))){
                                 //If we're doing nested streaming, only consider SOK for multicluster, hack for decrease compile time
-				if(totalClusters > 1 and clustering.get<string>() != "SplitOverK"){
-					//std::cout << "Skipping strategy for " << clustering.toString() << ", spilling " << spilling.toString() << std::endl;
-					continue;
-				}
-				enableNestedStreaming = true;
+				                if(totalClusters > 1 and clustering.get<string>() != "SplitOverK"){
+					                continue;
+				                }
+				                enableNestedStreaming = true;
                                 //adjust streamsOverK to remove the smallest K possibilities
                                 if(streamsOverK.size() > 2){
                                     streamsOverK.erase(streamsOverK.begin());
@@ -1024,12 +1025,12 @@ namespace mv
                                 maxSplitOverH = getMaxStreamOverH(clustering.get<string>(),op, streamsOverK);
                             }
 
-			//std::cout << "Considering strategy for " << clustering.toString() << ", spilling " << spilling.toString() << ", maxH " << maxSplitOverH << ", numK " << streamsOverK.size() << std::endl;
-
                             for(const auto k : streamsOverK)
                             {
                                 for(unsigned h = 1; h <= maxSplitOverH; h++)
                                 {
+                                    for(const auto c : streamsOverC)
+                                    {
                                     if( !enableNestedStreaming and ((h>1) and (k>1))) // Skip nested streams unless necessary
                                         continue;
                                     if( enableNestedStreaming and ((h==1) or (k==1))) // If need nested streams, ignore non-nested
@@ -1041,7 +1042,7 @@ namespace mv
                                     //     and op.getOpType() != "Concat" and (op.hasTypeTrait("optimizable")))
                                     //     continue;
 
-                                    Shape streamShape({1,h,1,k});//Stream over W and C are 1 for now . TODO: implement stream W/C
+                                    Shape streamShape({1,h,c,k});//Stream over W and C are 1 for now . TODO: implement stream W/C
 
                                     StrategySet s;
                                     s["name"] = op.getName();
@@ -1063,6 +1064,7 @@ namespace mv
                                         continue;
 
                                     strategyVec.push_back(s);
+                                    }
                                 }
                             }
                         }
