@@ -543,7 +543,7 @@ namespace mv
                     (op.hasTypeTrait("optimizable") && !software)) //SW layers we dont care about size
                 {
                     auto fit = memorySize(op,clustering,false, false,weightsSparsity,streamShape);
-                    std::cout << op.getName() << ": [" <<clustering << "][" <<streamShape.toString()<<"]    " << fit.first << " + " << fit.second << " = " << fit.first + fit.second << std::endl;
+                    // std::cout << op.getName() << ": [" <<clustering << "][" <<streamShape.toString()<<"]    " << fit.first << " + " << fit.second << " = " << fit.first + fit.second << std::endl;
                     if(fit.first + fit.second > clusterMemory)
                         return 1;
                 }
@@ -854,6 +854,29 @@ namespace mv
                     execTime2 += (((double)(iSize + oSize) / (double)childStreamOverH) / (double)ddrBandwidth)  * (extra_stream_decay * childStreamOverH);
                 }
 
+                //When streaming C we have to stream both activations and weights, so include both in cost
+                //Note, only ops with weights should be trying to stream C (depthwise only enabled)
+                auto parentStreamOverC = parent["streaming"].get<Shape>()["C"];
+                if(parentStreamOverC > 1)
+                {
+                    auto iSize = parentOp.getInputTensor(0)->getShape().totalSize();
+                    auto oSize = parentOp.getOutputTensor(0)->getShape().totalSize();
+                    auto WSize = parentOp.getInputTensor(1)->getShape().totalSize();
+
+                    execTime1 += ((WSize / parentStreamOverC) / ddrBandwidth);
+                    execTime1 += (((double)(iSize + oSize) / (double)parentStreamOverC) / (double)ddrBandwidth) * (extra_stream_decay * parentStreamOverC);
+                }
+                auto childStreamOverC = child["streaming"].get<Shape>()["C"];
+                if(childStreamOverC > 1)
+                {
+                    auto iSize = childOp.getInputTensor(0)->getShape().totalSize();
+                    auto oSize = childOp.getOutputTensor(0)->getShape().totalSize();
+                    auto WSize = childOp.getInputTensor(1)->getShape().totalSize();
+
+                    execTime2 += ((WSize / childStreamOverC) / ddrBandwidth);
+                    execTime2 += (((double)(iSize + oSize) / (double)childStreamOverC) / (double)ddrBandwidth)  * (extra_stream_decay * childStreamOverC);
+                }
+
                 //TODO remove this hack. currently ensures when cluster and soh are equal, soh occurs. only matters for CMconv
                 if(parentClustering == "SplitOverHOverlapped")
                     execTime1 = execTime1 - 1;
@@ -1043,7 +1066,7 @@ namespace mv
                                     //     and op.getOpType() != "Concat" and (op.hasTypeTrait("optimizable")))
                                     //     continue;
 
-                                    Shape streamShape({c,h,1,k});//Stream over W and C are 1 for now . TODO: implement stream W/C
+                                    Shape streamShape({1,h,c,k});//Stream over W and C are 1 for now . TODO: implement stream W/C
 
                                     StrategySet s;
                                     s["name"] = op.getName();
