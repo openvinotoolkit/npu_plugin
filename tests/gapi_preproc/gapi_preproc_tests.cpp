@@ -454,7 +454,7 @@ TEST_P(KmbSippPreprocEngineTest, TestNV12Resize)
 
         auto in_blob = make_shared_blob<NV12Blob>(y_roi_blob, uv_roi_blob);
 
-        pe.preprocWithSIPP(in_blob, out_blob, interp, in_fmt, true, 1);
+        pe.preprocWithSIPP(in_blob, out_blob, interp, in_fmt);
 
         Blob2Img<prec>(out_blob, out_mat, out_layout);
 

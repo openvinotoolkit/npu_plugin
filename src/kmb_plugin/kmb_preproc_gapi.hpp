@@ -19,8 +19,7 @@ public:
     ~SIPPPreprocEngine();
 
     void preprocWithSIPP(const Blob::Ptr &inBlob, Blob::Ptr &outBlob,
-                         const ResizeAlgorithm& algorithm, ColorFormat in_fmt,
-                         bool omp_serial, int batch_size);
+                         const ResizeAlgorithm& algorithm, ColorFormat in_fmt);
 };
 
 }  // namespace InferenceEngine

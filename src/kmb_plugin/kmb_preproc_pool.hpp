@@ -21,8 +21,6 @@ struct PreprocTask {
     InferenceEngine::BlobMap& inputs;
     std::map<std::string, PreProcessDataPtr>& preprocData;
     InferenceEngine::InputsDataMap& networkInputs;
-    int curBatch;
-    bool serial;
 };
 
 class SIPPPreprocEngine;
