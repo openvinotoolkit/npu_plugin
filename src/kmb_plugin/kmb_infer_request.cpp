@@ -294,19 +294,30 @@ void KmbInferRequest::InferAsync() {
     InferenceEngine::TensorDesc deviceTensorDesc = deviceInputs.begin()->second->getTensorDesc();
     deviceTensorDesc.setLayout(_executor->_inputNetworkLayout);
 
-    // is2DTensor is a workaround for NHWC -> NC case
-    // TODO: remove when mcm will support different input layout
-    if (deviceTensorDesc.getLayout() != inputBlobRef->getTensorDesc().getLayout() &&
-        !is2DTensor(inputBlobRef->getTensorDesc().getDims())) {
-        // do layout conversion with copyBlob
-        InferenceEngine::Blob::Ptr blobWithInput = make_blob_with_precision(deviceTensorDesc, getKmbAllocator());
-        IE_ASSERT(blobWithInput != nullptr);
-        blobWithInput->allocate();
-        copyBlob(inputBlobRef, blobWithInput);
-        void* inputPtr = blobWithInput->buffer();
-        _executor->queueInference(inputPtr, input_size_total, nullptr, 0);
+    static const bool forceRepack = [](const char *str) -> bool {
+        std::string var(str ? str : "");
+        return var == "Y" || var == "YES" || var == "ON" || var == "1";
+    } (std::getenv("IE_VPU_KMB_FORCE_ARM_REPACK"));
+
+    if (forceRepack) {
+        if (deviceTensorDesc.getLayout() != inputBlobRef->getTensorDesc().getLayout() &&
+            // is2DTensor is a workaround for NHWC -> NC case
+            // TODO: remove when mcm will support different input layout
+            !is2DTensor(inputBlobRef->getTensorDesc().getDims())) {
+            // do layout conversion with copyBlob
+            InferenceEngine::Blob::Ptr blobWithInput = make_blob_with_precision(deviceTensorDesc, getKmbAllocator());
+            IE_ASSERT(blobWithInput != nullptr);
+            blobWithInput->allocate();
+            copyBlob(inputBlobRef, blobWithInput);
+            void* inputPtr = blobWithInput->buffer();
+            _executor->queueInference(inputPtr, input_size_total, nullptr, 0);
+        } else {
+            // pass input as is, do not convert layout
+            void* inputPtr = inputBlobRef->buffer();
+            _executor->queueInference(inputPtr, input_size_total, nullptr, 0);
+        }
     } else {
-        // pass input as is, do not convert layout
+        // pass input as is
         void* inputPtr = inputBlobRef->buffer();
         _executor->queueInference(inputPtr, input_size_total, nullptr, 0);
     }
