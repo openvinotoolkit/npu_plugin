@@ -20,8 +20,6 @@
 #include "hddl2_params.hpp"
 #include "helper_remote_context.h"
 
-using namespace vpu::HDDL2Plugin;
-using namespace InferenceEngine;
 namespace IE = InferenceEngine;
 
 //------------------------------------------------------------------------------
@@ -38,7 +36,7 @@ TEST_F(HDDL2_Remote_Context_Tests, CanCreateContextFromParams) {
     // Store id param_map
     InferenceEngine::ParamMap paramMap = {{IE::HDDL2_PARAM_KEY(WORKLOAD_CONTEXT_ID), workloadId}};
 
-    RemoteContext::Ptr remoteContextPtr;
+    IE::RemoteContext::Ptr remoteContextPtr;
     // Create context from ParamMap
     EXPECT_NO_THROW(remoteContextPtr = ie.CreateContext(pluginName, paramMap));
     EXPECT_NE(remoteContextPtr.get(), nullptr);

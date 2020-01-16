@@ -16,17 +16,5 @@
 
 #pragma once
 
-#include <gtest/gtest.h>
-#include <HddlUnite.h>
-#include <hddl2_remote_context.h>
-#include "helper_remote_allocator.h"
-#include "ie_layouts.h"
-
-namespace vpu {
-namespace HDDL2Plugin {
-    
 const std::string emulatorDeviceName = "127.0.0.1:10086";
 const std::string emulatorDeviceNameInPlugin = "HDDL2." + emulatorDeviceName;
-
-}  // namespace HDDL2Plugin
-}  // namespace vpu

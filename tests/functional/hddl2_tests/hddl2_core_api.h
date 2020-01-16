@@ -23,9 +23,6 @@
 
 #include "helper_ie_core.h"
 
-namespace vpu {
-namespace HDDL2Plugin {
-
 //------------------------------------------------------------------------------
 //      class HDDL2_Core_API_Tests Declaration
 //------------------------------------------------------------------------------
@@ -36,6 +33,3 @@ public:
     InferenceEngine::ExecutableNetwork executableNetwork;
     InferenceEngine::InferRequest inferRequest;
 };
-
-}
-}

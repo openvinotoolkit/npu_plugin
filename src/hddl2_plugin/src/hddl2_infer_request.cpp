@@ -66,11 +66,6 @@ vpu::HDDL2Plugin::HDDL2InferRequest::HDDL2InferRequest(const InferenceEngine::In
         InferenceEngine::Precision precision = networkInput.second->getTensorDesc().getPrecision();
         InferenceEngine::Layout layout = networkInput.second->getTensorDesc().getLayout();
 
-        if (precision != InferenceEngine::Precision::U8) {
-            THROW_IE_EXCEPTION << PARAMETER_MISMATCH_str << "Unsupported input precision: " << precision
-                               << "! Supported precisions only U8";
-        }
-
         _inputs[networkInput.first] = make_blob_with_precision(InferenceEngine::TensorDesc(precision, dims, layout));
         if (_inputs[networkInput.first] == nullptr) THROW_IE_EXCEPTION << "InputBlob is nullptr.";
         _inputs[networkInput.first]->allocate();

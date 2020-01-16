@@ -57,7 +57,7 @@ TEST_F(HDDL2_RemoteAllocator_UnitTests, constructor_NullContext_Throw) {
 //------------------------------------------------------------------------------
 //      class HDDL2_RemoteAllocator_UnitTests Initiations - wrapRemoteMemory
 //------------------------------------------------------------------------------
-// TODO Not working, should be fixed on HddlUnite side?
+// TODO Not working - HddlUnite problem
 TEST_F(HDDL2_RemoteAllocator_UnitTests, DISABLED_wrapRemoteMemory_IncorrectMemoryFD_ReturnNull) {
     auto allocatorPtr = std::make_shared<HDDL2RemoteAllocator>(workloadContextPtr);
 
@@ -258,15 +258,6 @@ TEST_P(HDDL2_Allocator_Manipulations_UnitTests, free_LockedMemory_ReturnFalse) {
     allocator->lock(memoryHandle);
 
     ASSERT_FALSE(allocator->free(memoryHandle));
-}
-
-// Unfortunately due to API this will never works
-TEST_P(HDDL2_Allocator_Manipulations_UnitTests, DISABLED_free_CorrectCall_HandleWillBeNullAfter) {
-    auto memoryHandle = allocatorHelper->createMemory(correctSize);
-    auto allocator = allocatorHelper->allocatorPtr;
-
-    allocator->free(memoryHandle);
-    ASSERT_EQ(memoryHandle, nullptr);
 }
 
 //------------------------------------------------------------------------------

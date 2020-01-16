@@ -69,9 +69,10 @@ IE::RemoteBlob::Ptr HDDL2RemoteContext::CreateBlob(
     }
     try {
         return std::make_shared<HDDL2RemoteBlob>(tensorDesc, shared_from_this(), params);
-    } catch (...) {
+    } catch (const std::exception& ex) {
         printf("Incorrect parameters for CreateBlob call.\n"
-               "Please make sure remote memory fd is correct.\n");
+               "Please make sure remote memory fd is correct.\nError: %s\n",
+            ex.what());
         return nullptr;
     }
 }

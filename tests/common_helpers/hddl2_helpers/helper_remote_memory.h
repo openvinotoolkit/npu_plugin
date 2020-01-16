@@ -16,9 +16,15 @@
 
 #pragma once
 
+#include "WorkloadContext.h"
+#include "RemoteMemory.h"
+#include "ie_layouts.h"
+
 //------------------------------------------------------------------------------
 //      class RemoteMemory_Helper
 //------------------------------------------------------------------------------
+#include <ie_algorithm.hpp>
+
 using RemoteMemoryFd = uint64_t ;
 // Emulator limit 4MB
 constexpr size_t EMULATOR_MAX_ALLOC_SIZE = static_cast<size_t>(0x1u << 22u);
@@ -26,6 +32,8 @@ constexpr size_t EMULATOR_MAX_ALLOC_SIZE = static_cast<size_t>(0x1u << 22u);
 class RemoteMemory_Helper {
 public:
     RemoteMemoryFd allocateRemoteMemory(const WorkloadID &id, const size_t& size);
+    RemoteMemoryFd allocateRemoteMemory(const WorkloadID &id,
+            const InferenceEngine::TensorDesc& tensorDesc);
     void destroyRemoteMemory();
 
     std::string getRemoteMemory(const size_t &size);
@@ -47,6 +55,13 @@ private:
 //------------------------------------------------------------------------------
 inline RemoteMemory_Helper::~RemoteMemory_Helper() {
     destroyRemoteMemory();
+}
+
+inline RemoteMemoryFd RemoteMemory_Helper::allocateRemoteMemory(const WorkloadID &id,
+                                                                const InferenceEngine::TensorDesc& tensorDesc) {
+    const size_t size = InferenceEngine::details::product(
+            tensorDesc.getDims().begin(), tensorDesc.getDims().end());
+    return allocateRemoteMemory(id, size);
 }
 
 inline RemoteMemoryFd
