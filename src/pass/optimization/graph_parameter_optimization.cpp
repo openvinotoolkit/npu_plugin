@@ -174,7 +174,7 @@ namespace mv
             }
 
             pair<size_t,size_t> memorySize(mv::Op& op, const Attribute& clustering, bool inputActivationSparsity,
-                                            bool outputActivationSparsity, bool weightsSparsity, const Shape& streamConfig, bool prefetch)
+                                            bool outputActivationSparsity, bool weightsSparsity, const Shape& streamConfig)
             {
                 auto div = [](unsigned x,unsigned y) -> unsigned { return (x+y-1)/y; };
 
@@ -286,7 +286,7 @@ namespace mv
 
             unsigned getMaxStreamOverH(const string& clustering,mv::Op& op, vector<size_t> streamsOverK){
                 for(auto k : streamsOverK){
-                    auto memH = memorySize(op,clustering,true,true,true,{1,1,1,k},false);
+                    auto memH = memorySize(op,clustering,true,true,true,{1,1,1,k});
                     auto activationsSize = memH.first;
                     auto weightsSize = memH.second;
 
@@ -542,7 +542,7 @@ namespace mv
                 if(op.getOpType() != "Output" && op.getOpType() != "Input" &&
                     (op.hasTypeTrait("optimizable") && !software)) //SW layers we dont care about size
                 {
-                    auto fit = memorySize(op,clustering,false, false,weightsSparsity,streamShape,false);
+                    auto fit = memorySize(op,clustering,false, false,weightsSparsity,streamShape);
                     std::cout << op.getName() << ": [" <<clustering << "][" <<streamShape.toString()<<"]    " << fit.first << " + " << fit.second << " = " << fit.first + fit.second << std::endl;
                     if(fit.first + fit.second > clusterMemory)
                         return 1;
@@ -777,16 +777,14 @@ namespace mv
                                             false,
                                             parentOutputSparsity,
                                             parent["weightsSparsity"].get<bool>(),
-                                            parent["streaming"].get<Shape>(),
-                                            false);
+                                            parent["streaming"].get<Shape>());
 
                     auto childMem = memorySize(childOp,
                                             child["clustering"],
                                             childInputSparsity,
                                             false,
                                             child["weightsSparsity"].get<bool>(),
-                                            child["streaming"].get<Shape>(),
-                                            false);
+                                            child["streaming"].get<Shape>());
 
 
                     if( ((childOp.getOpType() != "Output") and (childMem.first + childMem.second) > clusterMemory) or
@@ -812,7 +810,6 @@ namespace mv
                         execTime2 += ((double)output->getShape().totalSize()) / ((double)ddrBandwidth);
                 }
 
-                //TODO:: do the prefetching
                 double extra_stream_decay = 1.5; //TODO: expose in config
                 if(parentOp.getOpType() == "Conv")
                 {
@@ -967,7 +964,7 @@ namespace mv
                         unsigned maxSplitOverH = 1;
                         if(hasStreamOverH)
                         {
-                            auto memH = memorySize(op,clustering,inputActivationSparsity,outputActivationSparsity,weightsSparsity,{1,1,1,1},false);
+                            auto memH = memorySize(op,clustering,inputActivationSparsity,outputActivationSparsity,weightsSparsity,{1,1,1,1});
                             auto activationsSize = memH.first;
                             auto weightsSize = memH.second;
                             double availableMemory = (double) clusterMemory - (double) weightsSize;
@@ -1007,7 +1004,7 @@ namespace mv
 
                         bool enableNestedStreaming = false;
                         auto maxK = streamsOverK.back();
-                        auto memK = memorySize(op,clustering,inputActivationSparsity,outputActivationSparsity,weightsSparsity,{1,1,1,maxK},false);
+                        auto memK = memorySize(op,clustering,inputActivationSparsity,outputActivationSparsity,weightsSparsity,{1,1,1,maxK});
                         auto memoryMaxK = memK.first + memK.second;
 
 
@@ -1033,7 +1030,7 @@ namespace mv
                             {
                                 for(const auto c : streamsOverC)
                                 {
-                                    if((h > 1) and (c > 1)) //disable nested streaming with C, TODO implement this
+                                    if((h > 1) and (c > 1)) //Fast hack to disable nested streaming with C
                                         continue;
                                     if( !enableNestedStreaming and ((h>1) and (k>1))) // Skip nested streams unless necessary
                                         continue;
@@ -1058,7 +1055,6 @@ namespace mv
                                         s["inputSparsity"] = inputActivationSparsity;
                                     s["outputSparsity"] = outputActivationSparsity;
                                     s["weightsSparsity"] = weightsSparsity;
-                                    //s["doubleBuffering"] = doubleBuffering;
                                     s["spilling"] = spilling;
                                     s["clustering"] = clustering;
                                     s["streaming"] = streamShape;
