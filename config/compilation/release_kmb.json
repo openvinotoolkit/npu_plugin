@@ -127,7 +127,7 @@
                         {
                             "name" : "DepthwiseConv",
                             "strategies": [
-                                {"name" : "streamingStrategies",  "value" : ["StreamOverH","StreamOverK"]},
+                                {"name" : "streamingStrategies",  "value" : ["StreamOverH","StreamOverC"]},
                                 {"name" : "clusteringStrategies", "value" : ["SplitOverH","Clustering","StreamOverC"]},
                                 {"name" : "inputActivationSparsity",             "value" : false},
                                 {"name" : "outputActivationSparsity",             "value" : true},
