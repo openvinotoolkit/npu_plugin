@@ -139,20 +139,25 @@ bool compare(std::vector<float>& actualResults, std::vector<float>& expectedResu
     std::function<void(size_t)> absoluteErrorUpdater = [&](size_t idx) {
         float actual = actualResults[idx];
         float expected = expectedResults[idx];
+
         float abs_error = fabsf(actual - expected);
-        
+        float relative_error = fabsf(abs_error / expected);
         float abs_allowed_err = fabsf(expected * (tolerance/100.0f));
         sumSquareDiffs += pow(abs_error, 2);
         sumDiff+=abs_error;
+
         std::string result = "\t\033[1;32mPass\033[0m";
-        if (abs_error > abs_allowed_err) 
+        //if (abs_error > abs_allowed_err) 
+        if ((relative_error*100) > tolerance)
         {
             countErrs++;
-            if (abs_error > maxErr) maxErr = abs_error;
+            // if (abs_error > maxErr) maxErr = abs_error;
+            if (relative_error > maxErr) maxErr = relative_error;
             result = "\t\033[1;31mfail\033[0m";
         }
         if (idx < 50) // print first 50 rows
-            std::cout << std::setw(10) << expected << std::setw(12) << actual << std::setw(12) << abs_error << std::setw(12) << abs_allowed_err << std::setw(6) << result << std::endl;
+            std::cout << std::setw(10) << expected << std::setw(12) << actual << std::setw(12) << relative_error << std::setw(12) << tolerance << std::setw(6) << result << std::endl;
+            // std::cout << std::setw(10) << expected << std::setw(12) << actual << std::setw(12) << abs_error << std::setw(12) << abs_allowed_err << std::setw(6) << result << std::endl;
     };
 
     std::cout << "Printing first 50 rows...\nExpected\tActual\tDifference   Tolerence  Result" << std::endl;
@@ -165,12 +170,13 @@ bool compare(std::vector<float>& actualResults, std::vector<float>& expectedResu
     float countErrsPcent = (countErrs/actualResults.size()) * 100;;
     
     //print results report
-    std::cout << "\nMetric\t\t\tActual\t  Threshold\tStatus" << std::endl << "----------------------  ------    ---------\t-------" << std::endl;   
-    std::cout << "Min Pixel Accuracy\t" << std::setw(6) << maxErr << std::setw(9) << tolerance << "%" << std::setw(8) << ((maxErr>tolerance) ? "\t\033[1;32mPass" : "\t\033[1;31mFail") << "\033[0m" << std::endl;
+    std::cout << "\nMetric\t\t\t  Actual  Threshold\tStatus" << std::endl << "----------------------    ------  ---------\t-------" << std::endl;   
+    //std::cout << "Min Pixel Accuracy\t" << std::setw(7) << maxErr << std::setw(11) << tolerance << "%" << std::setw(8) << ((maxErr>tolerance) ? "\t\033[1;32mPass" : "\t\033[1;31mFail") << "\033[0m" << std::endl;
+    std::cout << "Min Pixel Accuracy\t" << std::setw(7) << maxErr << std::setw(11) << tolerance << "%" << std::setw(8) << ((maxErr>tolerance) ? "\t\033[1;32mPass" : "\t\033[1;31mFail") << "\033[0m" << std::endl;
     std::cout << "Average Pixel Accuracy\t" << std::setw(8) << avgPixelAccuracy << std::setw(10) << tolerance << "%" << std::setw(8) << ((avgPixelAccuracy<tolerance) ? "\t\033[1;32mPass" : "\t\033[1;31mFail") << "\033[0m" << std::endl;
     std::cout << "% of Wrong Values\t" << std::setw(7) << countErrsPcent << "%" << std::setw(10) << tolerance << "%" << ((countErrsPcent<tolerance) ? "\t\033[1;32mPass" : "\t\033[1;31mFail") << "\033[0m" << std::endl;
-    std::cout << "Pixel-wise L2 Error\t" << std::setw(6) << (l2_err * 100) << "%" << std::setw(7) << tolerance << "%" << ((l2_err<tolerance) ? "\t\033[1;32mPass" : "\t\033[1;31mFail") << "\033[0m" << std::endl;
-    std::cout << "Global Sum Difference\t" << std::setw(7) << sumDiff << std::setw(12) << "inf" << std::setw(8) << "\t\033[1;32mPass\033[0m" << std::endl << std::endl;
+    std::cout << "Pixel-wise L2 Error\t" << std::setw(6) << (l2_err * 100) << "%" << std::setw(10) << tolerance << "%" << ((l2_err<tolerance) ? "\t\033[1;32mPass" : "\t\033[1;31mFail") << "\033[0m" << std::endl;
+    std::cout << "Global Sum Difference\t" << std::setw(8) << sumDiff << std::setw(11) << "inf" << std::setw(8) << "\t\033[1;32mPass\033[0m" << std::endl << std::endl;
 
     if (maxErr == 0) return true;
     else return false;
@@ -356,7 +362,6 @@ int validate(std::string blobPath, std::string expectedPath, std::string actualP
     file.seekg(0, std::ios::beg);
 
     std::vector<float> outputFP32;
-    // if (dtype.compare("U8")==0)
     if (dtype == MVCNN::DType::DType_U8)
     {
         int qZero = graphFile.header->net_output[0]->quant_zero[0];
@@ -389,7 +394,6 @@ int validate(std::string blobPath, std::string expectedPath, std::string actualP
             outputFP32.push_back(val);
         }
     }
-    // else if(dtype.compare("FP16")==0)
     else if (dtype == MVCNN::DType::DType_FP16)
     {
         std::vector<u_int16_t> outputVector(totalActual);
@@ -532,7 +536,7 @@ int postProcessActualResults(std::string resultsPath, std::string blobPath)
 
     std::cout << "Post Processing results... " << std::endl;
     MVCNN::DType dtype = graphFile.header->net_output[0]->data_dtype;
-    std::cout << "Datatype: " << dtype << std::endl;
+    std::cout << "Datatype: " << MVCNN::EnumNameDType(dtype) << std::endl;
     std::vector<int> outputShape;
     for (uint32_t x=0; x<graphFile.header->net_output[0]->dimensions.size(); ++x)
         outputShape.push_back( graphFile.header->net_output[0]->dimensions[x] );
@@ -589,9 +593,8 @@ int main(int argc, char *argv[])
     {
         //bypass all and just run the validation function
         convertBlobToJson(FLAGS_b);
-        std::string outputFile = std::getenv("VPUIP_HOME") + std::string("/application/demo/InferenceManagerDemo/output-0.bin");
         std::string actualPathProcessed = "./output_transposed.dat";
-        postProcessActualResults(outputFile, FLAGS_b);
+        postProcessActualResults(FLAGS_a, FLAGS_b);
         validate(FLAGS_b, FLAGS_e, actualPathProcessed);
         return(0);
     }
@@ -629,7 +632,6 @@ int main(int argc, char *argv[])
     if ( result > 0 ) return result;
 
     result = validate(blobPath, expectedPath, actualPathProcessed);
-    // result = validate(blobPath, expectedPath, actualPath);
     if ( result > 0 )
         return result;
     
