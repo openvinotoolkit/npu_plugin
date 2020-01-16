@@ -101,4 +101,6 @@ void KmbConfig::parse(const std::map<std::string, std::string>& config) {
     IE_ASSERT(0 < _SIPPLpi && _SIPPLpi <= 16 && isPowerOfTwo(_SIPPLpi))
         << "KmbConfig::parse attempt to set invalid lpi value for SIPP: '" << _SIPPLpi
         << "',  valid values are 1, 2, 4, 8, 16";
+
+    setOption(_eltwiseScalesAligment, switches, config, VPU_KMB_CONFIG_KEY(ELTWISE_SCALES_ALIGNMENT));
 }

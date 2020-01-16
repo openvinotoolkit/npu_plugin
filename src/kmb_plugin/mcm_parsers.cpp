@@ -843,23 +843,26 @@ void FrontEndMcm::parseEltwise(const ie::CNNLayerPtr& layer, const McmNodeVector
     for (const auto& input : inputs) {
         mvInputs.push_back(input->getMcmNode());
     }
-    mv::QuantizationParams input1QuantParams = mvInputs[0]->get<mv::QuantizationParams>("quantParams");
-    mv::QuantizationParams input2QuantParams = mvInputs[1]->get<mv::QuantizationParams>("quantParams");
 
-    if (!isQuantizationParamsEqual(input1QuantParams, input2QuantParams)) {
-        std::vector<CNNLayerPtr> parents = CNNNetworkHelper::getParents(*layer);
-        IE_ASSERT(parents.size() == 2);
-        for (size_t i = 0; i < parents.size(); i++) {
-            if (parents[i]->type != "FakeQuantize") {
-                VPU_THROW_EXCEPTION << eltwiseLayer->name << "Quantize Eltwise  should has FakeQuantize on inputs";
+    if (_config.eltwiseScalesAligment()) {
+        mv::QuantizationParams input1QuantParams = mvInputs[0]->get<mv::QuantizationParams>("quantParams");
+        mv::QuantizationParams input2QuantParams = mvInputs[1]->get<mv::QuantizationParams>("quantParams");
+
+        if (!isQuantizationParamsEqual(input1QuantParams, input2QuantParams)) {
+            std::vector<CNNLayerPtr> parents = CNNNetworkHelper::getParents(*layer);
+            IE_ASSERT(parents.size() == 2);
+            for (size_t i = 0; i < parents.size(); i++) {
+                if (parents[i]->type != "FakeQuantize") {
+                    VPU_THROW_EXCEPTION << eltwiseLayer->name << "Quantize Eltwise  should has FakeQuantize on inputs";
+                }
             }
+
+            mv::QuantizationParams resultQuantizationParam = initialQuantParams;
+            KmbQuantizationHelpers::reCalculateQuantizationParamsOnActivation(
+                parents[0], parents[1], resultQuantizationParam);
+
+            updateParentsQuantizationParamsForEltwise(mvInputs, resultQuantizationParam, _modelMcm, eltwiseLayer->name);
         }
-
-        mv::QuantizationParams resultQuantizationParam = initialQuantParams;
-        KmbQuantizationHelpers::reCalculateQuantizationParamsOnActivation(
-            parents[0], parents[1], resultQuantizationParam);
-
-        updateParentsQuantizationParamsForEltwise(mvInputs, resultQuantizationParam, _modelMcm, eltwiseLayer->name);
     }
 
     if (inputs.size() > 2) {
