@@ -156,6 +156,7 @@ int main(int argc, char *argv[]) {
             throw std::logic_error("Image " + imageFileName + " cannot be read!");
         }
 
+        /** Image reader is expected to return interlaced (NHWC) BGR image **/
         std::vector<size_t> inputBlobDims = inputBlob->getTensorDesc().getDims();
         size_t imageWidth = inputBlobDims.at(3);
         size_t imageHeight = inputBlobDims.at(2);
@@ -204,7 +205,7 @@ int main(int argc, char *argv[]) {
             slog::warn << "zeroPoint value " << zeroPoint << " overflows byte. Setting default." << slog::endl;
             zeroPoint = 221;
         }
-        float scale = FLAGS_s;
+        float scale = static_cast<float>(FLAGS_s);
         slog::info << "zeroPoint: " << zeroPoint << slog::endl;
         slog::info << "scale: " << scale << slog::endl;
 
