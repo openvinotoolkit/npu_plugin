@@ -4,6 +4,7 @@
 
 
 static void kmbQuantizeConversionFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+static void configureOutputPrecisionFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 
 namespace mv
 {
@@ -17,6 +18,11 @@ namespace mv
             "This pass inserts Quantize conversion layers between DPUTask-to-UPATask transitions (& vice-versa)."
         );
 
+        MV_REGISTER_PASS(ConfigureOutputPrecision)
+        .setFunc(configureOutputPrecisionFcn)
+        .setDescription(
+            "This pass inserts Quantize conversion layers in order to guarantee the appropriate precision."
+        );
     }
 
 }
@@ -85,7 +91,8 @@ void addSliceQuantizationLayer(mv::OpModel om, std::vector<mv::Data::OpListItera
             auto previousOpIt = om.getSourceOp(slice->getInputTensor(0));
             for (auto sinkFlow = previousOpIt.leftmostOutput(); sinkFlow != om.flowEnd(); ++sinkFlow)
             {
-                sliceFlows[slice->getInputTensor()[0]->getName()].push_back(sinkFlow);
+                if (sinkFlow.sink()->getOpType() == "Slice")
+                    sliceFlows[slice->getInputTensor()[0]->getName()].push_back(sinkFlow);
             }
         }
     }
@@ -108,12 +115,31 @@ void addSliceQuantizationLayer(mv::OpModel om, std::vector<mv::Data::OpListItera
             // NOTE: Maybe here a check for mixed precision should be added
             if(!tensor->isPopulated() && tensorDType != dtypeNeededInInput)
             {
-                auto quantize = om.uPATaskQuantize({tensor}, outputDType,
+                //before adding UPATask, check if any of the other outputs of the tensor has already been quantized
+                auto previousOpIt = om.getSourceOp(tensor);
+                mv::Data::TensorIterator quantize;
+                bool alreadyQuantized = false;
+                for (auto sinkFlow = previousOpIt.leftmostOutput(); sinkFlow != om.flowEnd(); ++sinkFlow)
+                {
+                    auto task = sinkFlow.sink();
+                    if (task->getOpType() == "UPATask" && task->hasAttr("taskOp") && task->get<std::string>("taskOp") == "Quantize")
+                    {
+                        quantize = task->getOutputTensor()[0];
+                        alreadyQuantized = true;
+                        break;
+                    }
+
+                }
+
+                if (!alreadyQuantized)
+                {
+                    quantize = om.uPATaskQuantize({tensor}, outputDType,
                             tensor->get<mv::QuantizationParams>("quantParams"), "Quantize" + slice->getName() + std::to_string(id));
-                quantize->set<std::string>("splitStrategy",
+                    quantize->set<std::string>("splitStrategy",
                             tensor->get<std::string>("splitStrategy"));
-                auto quantizeOp = om.getSourceOp(quantize);
-                quantizeOp->set<unsigned>("opId", slice->get<unsigned>("opId"));
+                    auto quantizeOp = om.getSourceOp(quantize);
+                    quantizeOp->set<unsigned>("opId", slice->get<unsigned>("opId"));
+                }
                 auto backup = inputFlow;
                 auto slot = backup->get<size_t>("sinkInput");
                 ++inputFlow;
@@ -179,4 +205,45 @@ static void kmbQuantizeConversionFcn(const mv::pass::PassEntry&, mv::Computation
 
     addQuantizationLayers(om, implicitConcatsU8, U8);
     addQuantizationLayers(om, implicitConcatsFP16, FP16);
+}
+
+static void configureOutputPrecisionFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+{
+    //Note: The idea is that this pass is used mainly for validation when different precision is needed, so no problem
+    //to do always the type conversion with quantize
+    mv::OpModel om(model);
+    //Note: Always a vector of one element
+    auto outputOp = om.getOps("Output");
+    if (outputOp[0]->hasAttr("precision") && outputOp[0]->get<mv::DType>("precision") != mv::DType("Default"))
+    {
+        if (om.getSourceOp(outputOp[0]->getInputTensor(0))->getOpType() != "DPUTask")
+        {
+            auto inputTypeofOutput = outputOp[0]->getInputTensor(0)->getDType();
+            auto wantedPrecision = outputOp[0]->get<mv::DType>("precision");
+            if (inputTypeofOutput != wantedPrecision)
+            {
+                auto quantize = om.uPATaskQuantize({outputOp[0]->getInputTensor(0)}, wantedPrecision,
+                            outputOp[0]->get<mv::QuantizationParams>("quantParams"), "Precision" + outputOp[0]->getName());
+                quantize->set<std::string>("splitStrategy",
+                            outputOp[0]->getInputTensor(0)->get<std::string>("splitStrategy"));
+                auto quantizeOp = om.getSourceOp(quantize);
+                quantizeOp->set<unsigned>("opId", outputOp[0]->get<unsigned>("opId") - 1);
+                om.undefineFlow(outputOp[0].leftmostInput());
+                outputOp[0]->setInputTensor(quantize, 0, false);
+                om.defineFlow(quantize, outputOp[0], 0);
+            }
+        }
+        else
+        {
+            if (outputOp[0]->get<mv::DType>("precision") == mv::DType("Float16"))
+            {
+                std::vector<int64_t> zp(outputOp[0]->getInputTensor(0)->getShape()[mv::IO_CHANNEL_DIMENSION], 0);
+                std::vector<double> sc(outputOp[0]->getInputTensor(0)->getShape()[mv::IO_CHANNEL_DIMENSION], 1.0);
+                mv::QuantizationParams quantParams = {zp,sc,{},{}};
+                outputOp[0]->getInputTensor(0)->set<mv::QuantizationParams>("quantParams", quantParams);
+            }
+        }
+    }
+    else
+        return;
 }
