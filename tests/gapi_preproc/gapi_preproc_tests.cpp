@@ -519,7 +519,9 @@ TEST_P(KmbSippPreprocEngineTest, TestNV12Resize)
 INSTANTIATE_TEST_CASE_P(Preproc, KmbSippPreprocEngineTest,
                         Values(TEST_SIZES_PREPROC));
 
-struct KmbSippPreprocPoolTest: public TestWithParam<std::tuple<cv::Size, cv::Size, cv::Size>> {};
+struct KmbSippPreprocPoolTest: public TestWithParam<std::tuple<
+    std::tuple<cv::Size, cv::Size, cv::Size>,
+    InferenceEngine::Layout>> {};
 TEST_P(KmbSippPreprocPoolTest, TestNV12Resize)
 {
     using namespace InferenceEngine;
@@ -529,7 +531,8 @@ TEST_P(KmbSippPreprocPoolTest, TestNV12Resize)
     Layout in_layout = Layout::NCHW;
     Layout out_layout = in_layout;
     ColorFormat in_fmt = ColorFormat::NV12;
-    auto sizes = GetParam();
+    std::tuple<cv::Size,cv::Size,cv::Size> sizes;
+    std::tie(sizes, out_layout) = GetParam();
     cv::Size y_size, detect_size, classify_size;
     std::tie(y_size, detect_size, classify_size) = sizes;
 
@@ -642,9 +645,11 @@ TEST_P(KmbSippPreprocPoolTest, TestNV12Resize)
     }
 }
 
+using testing::Combine;
 INSTANTIATE_TEST_CASE_P(Preproc, KmbSippPreprocPoolTest,
-                        Values(std::make_tuple(cv::Size(1920, 1080),
-                                               cv::Size(224, 224),
-                                               cv::Size(416, 416))
-                               ));
+                        Combine(Values(std::make_tuple(cv::Size(1920, 1080),
+                                                       cv::Size(224, 224),
+                                                       cv::Size(416, 416))),
+                                Values(InferenceEngine::Layout::NCHW,
+                                       InferenceEngine::Layout::NHWC)));
 
