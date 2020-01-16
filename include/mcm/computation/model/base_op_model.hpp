@@ -10,16 +10,23 @@ namespace mv
 
     class BaseOpModel : public ComputationModel
     {
-    	friend class CompositionalModelRecorder;
+        friend class CompositionalModelRecorder;
         /*bool defineDefaultControlFlow_(Data::OpListIterator op);
         bool defaultStage_(Data::OpListIterator op);*/
-        
+
+    protected:
+        std::ofstream* codeOut_ = 0;
+        std::ofstream* dataOut_ = 0;
+        bool recordModel = false;
+
     public:
 
         BaseOpModel(const std::string& name);
         BaseOpModel(ComputationModel& model);
         BaseOpModel(mv::json::Value& value);
         virtual ~BaseOpModel() = 0;
+
+        void initRecordingFile(const std::string& outFileName);
 
         Data::OpListIterator switchContext(Control::OpListIterator other);
 
@@ -55,6 +62,10 @@ namespace mv
         std::size_t dataFlowsCount() const;
 
         long long unsigned parametersCount() const;
+
+        void setTemplParam(std::string& str, const std::string& paramName, const std::string& paramValue);
+        std::string removeFileExt(const std::string& filePath);
+        std::string varName(std::string name);
 
         virtual std::string getLogID() const override;
 
