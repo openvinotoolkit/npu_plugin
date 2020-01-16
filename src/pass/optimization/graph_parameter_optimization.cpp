@@ -207,8 +207,8 @@ namespace mv
                         weightSize += alignedWeightsSize(op.getInputTensor(1),{1,1,streamConfig["C"],streamConfig["K"]});
                         //weightSize += realTensorSize(op.getInputTensor(1),{1,1,streamConfig["C"],streamConfig["K"]}, isCMConv);
                     }
-                    else  //TODO change K to C when stream over C hack removed
-                        weightSize += realTensorSize(op.getInputTensor(1),{1,1,streamConfig["K"],1}, isCMConv);
+                    else
+                        weightSize += realTensorSize(op.getInputTensor(1),{1,1,streamConfig["C"],1}, isCMConv);
                 }
                 else if(op.getOpType() == "MaxPool")
                 {
