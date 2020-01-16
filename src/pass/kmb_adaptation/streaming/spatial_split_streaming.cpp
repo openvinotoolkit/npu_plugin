@@ -126,16 +126,18 @@ static void setStreamingStrategy(const mv::pass::PassEntry &pass, mv::Computatio
 //                    nodeHasSplit=true;
 //                }
 //            }
-//            else if (splitList[i].hasAttr("C"))
-//            {
-//                if (splitList[i].get<int>("C")>1)
-//                {
-//                    opxSplitx.axis = "C";
-//                    opxSplitx.numSplits = splitList[i].get<int>("C");
-//                    opxSplits.push_back(opxSplitx);
-//                    nodeHasSplit=true;
-//                }
-//            }
+            //Note: Streaming over channels now allowed for depthwise conv, nested streaming including C disallowed in G.O.
+            if (splitList[i].hasAttr("C"))
+            {
+                if (splitList[i].get<int>("C")>1)
+                {    
+                    opxSplitx.axis = "C";
+                    opxSplitx.numSplits = splitList[i].get<int>("C");
+                    opxSplits.push_back(opxSplitx);
+                    nodeHasSplit=true;
+                    std::cout << "Streaming for node: " << nodeName << " has stream C = " << opxSplitx.numSplits << std::endl ;
+                }
+            }
             if (splitList[i].hasAttr("K"))
             {
                 if (splitList[i].get<int>("K") > 1)

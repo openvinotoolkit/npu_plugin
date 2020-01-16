@@ -543,7 +543,7 @@ namespace mv
                     (op.hasTypeTrait("optimizable") && !software)) //SW layers we dont care about size
                 {
                     auto fit = memorySize(op,clustering,false, false,weightsSparsity,streamShape,false);
-                    // std::cout << op.getName() << ": [" <<clustering << "][" <<streamShape.toString()<<"]    " << fit.first << " + " << fit.second << " = " << fit.first + fit.second << std::endl;
+                    std::cout << op.getName() << ": [" <<clustering << "][" <<streamShape.toString()<<"]    " << fit.first << " + " << fit.second << " = " << fit.first + fit.second << std::endl;
                     if(fit.first + fit.second > clusterMemory)
                         return 1;
                 }
@@ -1033,6 +1033,8 @@ namespace mv
                             {
                                 for(const auto c : streamsOverC)
                                 {
+                                    if((h > 1) and (c > 1)) //disable nested streaming with C, TODO implement this
+                                        continue;
                                     if( !enableNestedStreaming and ((h>1) and (k>1))) // Skip nested streams unless necessary
                                         continue;
                                     if( enableNestedStreaming and ((h==1) or (k==1))) // If need nested streams, ignore non-nested
@@ -1044,7 +1046,7 @@ namespace mv
                                     //     and op.getOpType() != "Concat" and (op.hasTypeTrait("optimizable")))
                                     //     continue;
 
-                                    Shape streamShape({1,h,c,k});//Stream over W and C are 1 for now . TODO: implement stream W/C
+                                    Shape streamShape({c,h,1,k});//Stream over W and C are 1 for now . TODO: implement stream W/C
 
                                     StrategySet s;
                                     s["name"] = op.getName();
