@@ -68,7 +68,8 @@ add_dependencies(${TARGET_NAME} hddl_unite_copy_library)
 target_include_directories(${TARGET_NAME}
     PRIVATE
         "${CMAKE_CURRENT_SOURCE_DIR}/include"
-        "${IE_MAIN_SOURCE_DIR}/include")
+        "${IE_MAIN_SOURCE_DIR}/include"
+        "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/include/hddl2")
 
 target_link_libraries(${TARGET_NAME}
     PRIVATE
@@ -76,22 +77,25 @@ target_link_libraries(${TARGET_NAME}
         HddlUnite)
 
 
-add_library(${TARGET_NAME}_test_static STATIC ${SOURCES})
+if (ENABLE_TESTS)
+    add_library(${TARGET_NAME}_test_static STATIC ${SOURCES})
 
-target_compile_options(${TARGET_NAME}_test_static PRIVATE ${EXTRA_COMPILE_OPTIONS})
+    target_compile_options(${TARGET_NAME}_test_static PRIVATE ${EXTRA_COMPILE_OPTIONS})
 
-target_include_directories(${TARGET_NAME}_test_static
-    PUBLIC
-        "${CMAKE_CURRENT_SOURCE_DIR}/include"
-        "${IE_MAIN_SOURCE_DIR}/include")
+    target_include_directories(${TARGET_NAME}_test_static
+        PUBLIC
+            "${CMAKE_CURRENT_SOURCE_DIR}/include"
+            "${IE_MAIN_SOURCE_DIR}/include"
+            "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/include/hddl2")
 
-target_link_libraries(${TARGET_NAME}_test_static
-    PUBLIC
-        IE::inference_engine
-        IE::inference_engine_plugin_api
-    PRIVATE
-        HddlUnite)
+    target_link_libraries(${TARGET_NAME}_test_static
+        PUBLIC
+            IE::inference_engine
+            IE::inference_engine_plugin_api
+        PRIVATE
+            HddlUnite)
 
-if(ENABLE_CLANG_FORMAT)
-    add_clang_format_target(clang_format_${TARGET_NAME} FOR_TARGETS ${TARGET_NAME} ALL)
+    if(ENABLE_CLANG_FORMAT)
+        add_clang_format_target(clang_format_${TARGET_NAME} FOR_TARGETS ${TARGET_NAME} ALL)
+    endif()
 endif()

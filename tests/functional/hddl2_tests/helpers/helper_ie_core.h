@@ -14,24 +14,16 @@
 // stated in the License.
 //
 
-#include "hddl2_plugin_api_test_cases.h"
+#pragma once
+
+#include "ie_core.hpp"
 
 //------------------------------------------------------------------------------
-//      Implementation of class HDDL2_Plugin_API
+//      class IE_Core_Helper
 //------------------------------------------------------------------------------
-void HDDL2_Plugin_API::LoadModel() {
-    std::ostringstream modelFile;
-    modelFile << "/" << _modelName << ".xml";
+class IE_Core_Helper {
+public:
+    InferenceEngine::Core ie;
 
-    std::ostringstream weightsFile;
-    weightsFile << "/" << _modelName << ".bin";
-
-    std::string modelFilePath = ModelsPath() + modelFile.str();
-    std::string weightsFilePath = ModelsPath() + weightsFile.str();
-
-    ASSERT_NO_THROW(_netReader.ReadNetwork(modelFilePath));
-    ASSERT_TRUE(_netReader.isParseSuccess());
-    ASSERT_NO_THROW(_netReader.ReadWeights(weightsFilePath));
-
-    network = _netReader.getNetwork();
-}
+    const std::string pluginName = "HDDL2";
+};

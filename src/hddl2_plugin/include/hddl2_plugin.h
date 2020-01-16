@@ -46,6 +46,13 @@ public:
         std::istream& /*networkModel*/, const std::map<std::string, std::string>& /*config*/) override {
         THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
     }
+
+    /**
+     * @brief Create context form param map. Will reuse already created workloadContext (workload
+     * context id should be specified in param map)
+     * @note Params can be found in hddl2_params.h file
+     */
+    RemoteContext::Ptr CreateContext(const ParamMap& map) override;
 };
 
 }  //  namespace HDDL2Plugin

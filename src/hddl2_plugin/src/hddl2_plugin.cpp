@@ -29,6 +29,7 @@
 #include "hddl2_executable_network.h"
 #include "hddl2_helpers.h"
 #include "hddl2_plugin.h"
+#include "hddl2_remote_context.h"
 
 using namespace vpu::HDDL2Plugin;
 
@@ -67,6 +68,10 @@ void Engine::QueryNetwork(const InferenceEngine::ICNNNetwork& network, const std
     InferenceEngine::QueryNetworkResult& res) const {
     std::cout << "QueryNetwork call" << std::endl;
     InferencePluginInternal::QueryNetwork(network, config, res);
+}
+
+RemoteContext::Ptr Engine::CreateContext(const ParamMap& map) {
+    return std::make_shared<HDDL2Plugin::HDDL2RemoteContext>(map);
 }
 
 IE_SUPPRESS_DEPRECATED_START
