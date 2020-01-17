@@ -317,7 +317,11 @@ void FrontEndMcm::removeInputScaleShiftPattern(ie::CNNNetwork& network) {
             if (child->type == "ScaleShift") {
                 auto scaleShiftLayer = std::dynamic_pointer_cast<ie::ScaleShiftLayer>(child);
 
-                child = CNNNetworkHelper::getChildren(*child)[0];
+                auto childrens = CNNNetworkHelper::getChildren(*child);
+                if (childrens.empty()) {
+                    return;
+                }
+                child = childrens[0];
                 if (child->type != "Convolution") {
                     return;
                 }
