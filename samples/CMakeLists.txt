@@ -162,7 +162,7 @@ macro(ie_add_sample)
 
     target_link_libraries(${IE_SAMPLE_NAME} PRIVATE IE::inference_engine
                                                     IE::inference_engine_plugin_api
-                                                    ${IE_SAMPLE_DEPENDENCIES} gflags kmb_utils)
+                                                    ${IE_SAMPLE_DEPENDENCIES} gflags)
 
     # create global target with all samples / demo apps
     if(NOT TARGET ie_samples)

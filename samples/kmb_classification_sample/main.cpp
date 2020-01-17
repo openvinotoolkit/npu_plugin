@@ -27,7 +27,6 @@
 #include <samples/classification_results.h>
 
 #include "classification_sample.h"
-#include <file_reader.h>
 #include <format_reader_ptr.h>
 
 using namespace InferenceEngine;
@@ -144,12 +143,6 @@ int main(int argc, char *argv[]) {
 
         // --------------------------- 5. Prepare input --------------------------------------------------------
         /** Creating input blob **/
-        std::string firstInputName = inputInfo.begin()->first;
-        Blob::Ptr inputBlob = inferRequest.GetBlob(firstInputName.c_str());
-        if (!inputBlob) {
-            throw std::logic_error("Cannot get input blob from inferRequest");
-        }
-
         /** Filling input tensor with images. **/
         FormatReader::ReaderPtr image_reader(imageFileName.c_str());
         if (image_reader.get() == nullptr) {
@@ -157,7 +150,8 @@ int main(int argc, char *argv[]) {
         }
 
         /** Image reader is expected to return interlaced (NHWC) BGR image **/
-        std::vector<size_t> inputBlobDims = inputBlob->getTensorDesc().getDims();
+        TensorDesc inputDataDesc = inputInfo.begin()->second->getTensorDesc();
+        std::vector<size_t> inputBlobDims = inputDataDesc.getDims();
         size_t imageWidth = inputBlobDims.at(3);
         size_t imageHeight = inputBlobDims.at(2);
 
@@ -165,6 +159,7 @@ int main(int argc, char *argv[]) {
             inputBlobDims,
             Layout::NHWC), image_reader->getData(imageWidth, imageHeight).get());
 
+        std::string firstInputName = inputInfo.begin()->first;
         inferRequest.SetBlob(firstInputName.c_str(), imageBlob);
 
         inferRequest.Infer();
@@ -203,7 +198,7 @@ int main(int argc, char *argv[]) {
         int zeroPoint = FLAGS_z;
         if (zeroPoint < std::numeric_limits<uint8_t>::min() || zeroPoint > std::numeric_limits<uint8_t>::max()) {
             slog::warn << "zeroPoint value " << zeroPoint << " overflows byte. Setting default." << slog::endl;
-            zeroPoint = 221;
+            zeroPoint = DEFAULT_ZERO_POINT;
         }
         float scale = static_cast<float>(FLAGS_s);
         slog::info << "zeroPoint: " << zeroPoint << slog::endl;
