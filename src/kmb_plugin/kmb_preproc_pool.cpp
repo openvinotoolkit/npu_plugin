@@ -31,9 +31,7 @@ void SIPPPreprocessor::execSIPPDataPreprocessing(const PreprocTask& t) {
             _preproc->preprocWithSIPP(t.preprocData.at(blobName)->getRoiBlob(),
                                       input.second,
                                       preprocInfo.getResizeAlgorithm(),
-                                      preprocInfo.getColorFormat(),
-                                      t.serial,
-                                      t.curBatch);
+                                      preprocInfo.getColorFormat());
         }
     }
 }

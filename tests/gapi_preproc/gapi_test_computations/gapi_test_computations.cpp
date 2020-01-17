@@ -94,3 +94,37 @@ NV12toRGBComputation::NV12toRGBComputation(test::Mat inMat_y, test::Mat inMat_uv
                                ,{to_own(outMat)}
                                })
 {}
+
+struct MergeComputation::MergePriv
+{
+    cv::GCompiled m_cc;
+};
+
+static cv::GComputation buildMergeComputation()
+{
+    cv::GMatP in;
+    auto out = InferenceEngine::gapi::merge3p(in);
+    return cv::GComputation(in, out);
+}
+
+MergeComputation::MergeComputation(test::Mat inMat, test::Mat outMat)
+    : ComputationBase(new Priv{buildMergeComputation()
+                               ,{to_own(inMat)}
+                               ,{to_own(outMat)}
+                               })
+    , m_mergePriv(new MergePriv)
+{}
+
+MergeComputation::~MergeComputation() = default;
+
+void MergeComputation::warmUp()
+{
+    m_mergePriv->m_cc = m_priv->m_c.compile(cv::gapi::own::descr_of(m_priv->m_v_in[0]).asPlanar(3),
+                                             cv::compile_args(InferenceEngine::gapi::preproc::sipp::kernels()));
+    apply();
+}
+
+void MergeComputation::apply()
+{
+    m_mergePriv->m_cc(cv::gin(m_priv->m_v_in[0]), cv::gout(m_priv->m_v_out[0]));
+}

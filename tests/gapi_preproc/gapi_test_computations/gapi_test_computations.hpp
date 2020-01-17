@@ -72,4 +72,15 @@ public:
     NV12toRGBComputation(test::Mat inMat_y, test::Mat inMat_uv, test::Mat outMat);
 };
 
+class GAPI_COMPUTATION_VISIBILITY MergeComputation : public ComputationBase
+{
+    struct MergePriv;
+    std::unique_ptr<MergePriv> m_mergePriv;
+public:
+    MergeComputation(test::Mat inMat, test::Mat outMat);
+    ~MergeComputation();
+    void warmUp();
+    void apply();
+};
+
 #endif // GAPI_TEST_COMPUTATIONS_HPP

@@ -20,6 +20,10 @@ cv::GMatP resizeP(const cv::GMatP& src, const cv::gapi::own::Size& dsize, int in
     return preproc::GResizeP::on(src, dsize, interpolation);
 }
 
+cv::GMat merge3p(const cv::GMatP& src) {
+    return preproc::GMerge3p::on(src);
+}
+
 }  // namespace gapi
 }  // namespace InferenceEngine
 #endif
