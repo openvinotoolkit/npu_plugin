@@ -27,7 +27,7 @@ reset_deps_cache(HDDL_UNITE_DIR HDDL_UNITE_LIBRARY)
 RESOLVE_DEPENDENCY(HDDL_UNITE_DIR
         ARCHIVE_LIN "hddl_unite/hddl_unite_${ARCHIVE_VERSION}.tgz"
         ENVIRONMENT "HDDL_UNITE_DIR"
-        TARGET_PATH "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/temp/hddl_unite")
+        TARGET_PATH "${TEMP}/hddl_unite")
 
 find_library(HDDL_UNITE_LIBRARY
         NAMES  HddlUnite
@@ -36,7 +36,7 @@ find_library(HDDL_UNITE_LIBRARY
 add_library(HddlUnite SHARED IMPORTED GLOBAL)
 
 set_target_properties(HddlUnite PROPERTIES
-        INTERFACE_INCLUDE_DIRECTORIES "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/temp/hddl_unite/kmb_hddl/include"
+        INTERFACE_INCLUDE_DIRECTORIES "${TEMP}/hddl_unite/kmb_hddl/include"
         IMPORTED_LOCATION ${HDDL_UNITE_LIBRARY}
         IMPORTED_NO_SONAME TRUE)
 
