@@ -74,15 +74,23 @@ void SplittingTensorsAcrossClusters(const mv::pass::PassEntry& pass, mv::Computa
             }
         }
         //Also need to generate subtensors for output tensor of input operation, and the input tensor of output operation
-        auto inOutputTensorName = om.getInput()->getOutputTensor(0)->getName();
-        tensorNames.insert(inOutputTensorName);
+        //Only compute subtensors if tensor is already aligned (SOH tensors will be)
+        auto inOutputTensor = om.getInput()->getOutputTensor(0);
+        if(inOutputTensor->getShape()[mv::IO_CHANNEL_DIMENSION] % 16 == 0)
+        {
+            auto inOutputTensorName = inOutputTensor->getName();
+            tensorNames.insert(inOutputTensorName);
+        }
 
         auto outInputTensor = om.getOutput()->getInputTensor(0);
-        auto outInputTensorName = outInputTensor->getName();
-        tensorNames.insert(outInputTensorName);
-        //Note: Output can't take input activation sparsity, so this code shouldn't be needed
-        // if(outInputTensor->isPopulated() && outInputTensor->isSparse())
-        //     tensorNames.insert(outInputTensor->getSparsityMap()->getName());
+        if(outInputTensor->getShape()[mv::IO_CHANNEL_DIMENSION] % 16 == 0)
+        {
+            auto outInputTensorName = outInputTensor->getName();
+            tensorNames.insert(outInputTensorName);
+            //Note: Output can't take input activation sparsity, so this code shouldn't be needed
+            // if(outInputTensor->isPopulated() && outInputTensor->isSparse())
+            //     tensorNames.insert(outInputTensor->getSparsityMap()->getName());
+        }
         
         for (auto tensorName : tensorNames)
             tensors.push_back(dm.getTensor(tensorName));
