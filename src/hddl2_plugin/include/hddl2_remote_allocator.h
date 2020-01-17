@@ -37,22 +37,13 @@ namespace HDDL2Plugin {
 //      struct HDDL2RemoteMemoryContainer
 //------------------------------------------------------------------------------
 struct HDDL2RemoteMemoryContainer {
-    /**
-     * @brief Type of lock operation
-     */
-    InferenceEngine::LockOp lockOp;
+    explicit HDDL2RemoteMemoryContainer(const HddlUnite::SMM::RemoteMemory::Ptr& remoteMemory);
 
+    InferenceEngine::LockOp lockOp;
     bool isLocked = false;
 
-    /**
-     * @brief Smart pointer to remote memory
-     */
-    HddlUnite::SMM::RemoteMemory::Ptr remoteMemory = nullptr;
-
-    /**
-     * @brief Pointer to local memory
-     */
     std::vector<uint8_t> localMemory;
+    HddlUnite::SMM::RemoteMemory::Ptr remoteMemory = nullptr;
 };
 
 //------------------------------------------------------------------------------
@@ -63,46 +54,42 @@ struct HDDL2RemoteMemoryContainer {
  */
 class HDDL2RemoteAllocator : public InferenceEngine::IAllocator {
 public:
-    /**
-     * @brief Smart pointer to allocator
-     */
     using Ptr = std::shared_ptr<HDDL2RemoteAllocator>;
 
-    /**
-     * @brief Create allocator based on device
-     * @param device Smart pointer to HDDL Unite device
-     */
-    explicit HDDL2RemoteAllocator(HddlUnite::Device::Ptr& device);
+    explicit HDDL2RemoteAllocator(const HddlUnite::WorkloadContext::Ptr& contextPtr);
 
-    // TODO Destroy all associated RemoteBlobs on destruction?
     ~HDDL2RemoteAllocator() override = default;
 
     /**
      * @brief Lock memory and synchronize local buffer with remote
-     * @param handle Remote memory handle
      * @return Pointer to local memory buffer
      */
-    void* lock(void* handle, InferenceEngine::LockOp = InferenceEngine::LOCK_FOR_WRITE) noexcept override;
+    void* lock(void* remoteMemoryHandle, InferenceEngine::LockOp = InferenceEngine::LOCK_FOR_WRITE) noexcept override;
 
     /**
      * @brief Unlock and synchronize memory from host to device if locked for write
-     * @param handle Remote memory handle
      */
-    void unlock(void* handle) noexcept override;
+    void unlock(void* remoteMemoryHandle) noexcept override;
 
+    // TODO alloc function should provide somehow bufFd of created memory, otherwise it's not
+    //  possible to use it in another application.
     /**
      * @brief Allocate remote memory on device
-     * @param size Memory to allocate
-     * @return Handler to allocated memory
+     * @return Handle to allocated memory
      */
     void* alloc(size_t size) noexcept override;
 
     /**
-     * @brief Free up remote memory on device
-     * @param Handler to allocated memory
+     * @brief Wrap already allocated on device memory
+     * @return Handle to allocated memory
+     */
+    void* wrapRemoteMemory(const int& remoteMemoryFd, const size_t& size) noexcept;
+
+    /**
+     * @brief Free local memory and remote if we are owner
      * @return True if successful otherwise false
      */
-    bool free(void* handle) noexcept override;
+    bool free(void* remoteMemoryHandle) noexcept override;
 
     /**
      * @brief Free all memory
@@ -110,9 +97,10 @@ public:
     void Release() noexcept override;
 
 private:
-    HddlUnite::Device::Ptr _devicePtr;
+    HddlUnite::WorkloadContext::Ptr _contextPtr = nullptr;
+
     std::map<void*, HDDL2RemoteMemoryContainer> _memoryStorage;
-    std::mutex memStorMutex;
+    std::mutex memStorageMutex;
 };
 
 }  // namespace HDDL2Plugin
