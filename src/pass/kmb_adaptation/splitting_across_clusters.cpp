@@ -78,6 +78,21 @@ void SplittingTensorsAcrossClusters(const mv::pass::PassEntry& pass, mv::Computa
                     tensorNames.insert(inputTensor->getSparsityMap()->getName());
             }
         }
+        //Also need to generate subtensors for output tensor of input operation, and the input tensor of output operation
+        auto inOutputTensorName = om.getInput()->getOutputTensor(0)->getName();
+        tensorNames.insert(inOutputTensorName);
+
+        auto outputLayer = om.getOutput();
+        for(std::size_t i = 0; i < outputLayer->inputSlots(); ++i)
+        {
+            auto inputTensorName = outputLayer->getInputTensor(i)->getName();
+            auto inputTensor = outputLayer->getInputTensor(i);
+            tensorNames.insert(inputTensorName);
+
+            if(inputTensor->isPopulated() && inputTensor->isSparse())
+                tensorNames.insert(inputTensor->getSparsityMap()->getName());
+        }
+
         for (auto tensorName : tensorNames)
             tensors.push_back(dm.getTensor(tensorName));
         subTensorsGen(model, tensors, numClusters, pass);
