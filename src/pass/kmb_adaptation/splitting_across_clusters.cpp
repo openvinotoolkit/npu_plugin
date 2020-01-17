@@ -23,7 +23,6 @@ static void populatedSplitOverH(const unsigned nClusters, std::vector<mv::Worklo
 static std::vector<mv::Data::OpListIterator> findSinkLayers(mv::DataModel &dataModel, const mv::Data::TensorIterator& tensor);
 static std::vector<mv::Workload> fixRectangularHeuristicBug(std::vector<mv::Workload> subTensors, const mv::Data::TensorIterator &tensor, int nWorkloads);
 static void ensureSplitStrategiesForSpilling(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
-static void ensureBroadcastForSOHTensors(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 
 namespace mv
 {
@@ -41,10 +40,6 @@ namespace mv
             .setDescription(
                "Ensures Split Strategies still valid after Spilling cases");
 
-        MV_REGISTER_PASS(EnsureBroadcastForSOHTensors)
-            .setFunc(ensureBroadcastForSOHTensors)
-            .setDescription(
-               "Ensures SOH unpopulated tensors from non-dpu tasks get broadcasted");
     }
 }
 
@@ -82,17 +77,13 @@ void SplittingTensorsAcrossClusters(const mv::pass::PassEntry& pass, mv::Computa
         auto inOutputTensorName = om.getInput()->getOutputTensor(0)->getName();
         tensorNames.insert(inOutputTensorName);
 
-        auto outputLayer = om.getOutput();
-        for(std::size_t i = 0; i < outputLayer->inputSlots(); ++i)
-        {
-            auto inputTensorName = outputLayer->getInputTensor(i)->getName();
-            auto inputTensor = outputLayer->getInputTensor(i);
-            tensorNames.insert(inputTensorName);
-
-            if(inputTensor->isPopulated() && inputTensor->isSparse())
-                tensorNames.insert(inputTensor->getSparsityMap()->getName());
-        }
-
+        auto outInputTensor = om.getOutput()->getInputTensor(0);
+        auto outInputTensorName = outInputTensor->getName();
+        tensorNames.insert(outInputTensorName);
+        //Note: Output can't take input activation sparsity, so this code shouldn't be needed
+        // if(outInputTensor->isPopulated() && outInputTensor->isSparse())
+        //     tensorNames.insert(outInputTensor->getSparsityMap()->getName());
+        
         for (auto tensorName : tensorNames)
             tensors.push_back(dm.getTensor(tensorName));
         subTensorsGen(model, tensors, numClusters, pass);
@@ -436,28 +427,5 @@ void ensureSplitStrategiesForSpilling(const mv::pass::PassEntry& pass, mv::Compu
         }
     }
     return;
-
-}
-
-// Pass role: Ensure tensors that are not input/output of dpu task but are SOH have broadcast attribute set correctly
-void ensureBroadcastForSOHTensors(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
-{
-    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
-    mv::OpModel om(model);
-    mv::DataModel dm(model);
-
-    for(auto tensor = dm.tensorBegin(); tensor != dm.tensorEnd(); ++tensor)
-    {
-        // Already has broadcast set, skip
-        if(tensor->hasAttr("broadcasted"))
-            continue;
-
-        // Populated tensor, skip
-        if(tensor->isPopulated())
-            continue;
-
-        if(tensor->hasAttr("splitStrategy") and tensor->get<std::string>("splitStrategy") == "SplitOverH")
-            tensor->set<bool>("broadcasted", false);
-    }
 
 }
