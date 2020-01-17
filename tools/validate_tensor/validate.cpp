@@ -397,8 +397,8 @@ int validate(std::string blobPath, std::string expectedPath, std::string actualP
         std::cout << totalActual << " elements" << std::endl;
         for (size_t i = 0; i < outputVector.size(); ++i)
         {
-            //float val = mv::fp16_to_fp32(outputVector[i]);
-            float val = static_cast<uint16_t>(outputVector[i]);
+            float val = mv::fp16_to_fp32(outputVector[i]);
+            // float val = static_cast<uint16_t>(outputVector[i]);
             outputFP32.push_back(val);
         }
     }
