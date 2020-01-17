@@ -16,15 +16,29 @@
 
 #pragma once
 
-#include <cpp_interfaces/exception2status.hpp>
+#include <memory>
+
+#include "InferGraph.h"
+#include "hddl2_graph.h"
+#include "hddl2_remote_context.h"
 
 namespace vpu {
 namespace HDDL2Plugin {
 
-#define HDDLUNITE_ERROR_str std::string("[HDDLUNITE_ERROR] ")
-#define FILES_ERROR_str std::string("[FILES_ERROR] ")
-#define CONFIG_ERROR_str std::string("[INVALID CONFIG] ")
-#define CONTEXT_ERROR_str std::string("[INVALID REMOTE CONTEXT] ")
+class HddlUniteGraph {
+public:
+    using Ptr = std::shared_ptr<HddlUniteGraph>;
+    explicit HddlUniteGraph(const HDDL2Graph::Ptr& graph, const HDDL2RemoteContext::Ptr& context = nullptr);
+    ~HddlUniteGraph();
 
-}  //  namespace HDDL2Plugin
-}  //  namespace vpu
+private:
+    HddlUnite::Inference::Graph::Ptr _graphPtr = nullptr;
+
+    /**
+     * @brief Smart pointer to remote context if we are working with remote memory
+     */
+    HDDL2RemoteContext::Ptr _contextPtr = nullptr;
+};
+
+}  // namespace HDDL2Plugin
+}  // namespace vpu

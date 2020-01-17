@@ -16,15 +16,29 @@
 
 #pragma once
 
-#include <cpp_interfaces/exception2status.hpp>
+#include <hddl2_helpers/helper_precompiled_resnet.h>
+#include "hddl2_graph.h"
 
 namespace vpu {
 namespace HDDL2Plugin {
 
-#define HDDLUNITE_ERROR_str std::string("[HDDLUNITE_ERROR] ")
-#define FILES_ERROR_str std::string("[FILES_ERROR] ")
-#define CONFIG_ERROR_str std::string("[INVALID CONFIG] ")
-#define CONTEXT_ERROR_str std::string("[INVALID REMOTE CONTEXT] ")
+class ImportedGraph_Helper {
+public:
+    ImportedGraph_Helper();
+    HDDL2Graph::Ptr getGraph();
 
-}  //  namespace HDDL2Plugin
-}  //  namespace vpu
+protected:
+    const std::string _modelToImport = PrecompiledResNet_Helper::resnet.graphPath;
+    HDDL2Graph::Ptr _graphPtr = nullptr;
+};
+
+inline ImportedGraph_Helper::ImportedGraph_Helper() {
+    _graphPtr= std::make_shared<HDDL2ImportedGraph>(_modelToImport);
+}
+
+HDDL2Graph::Ptr ImportedGraph_Helper::getGraph() {
+    return _graphPtr;
+}
+
+}
+}

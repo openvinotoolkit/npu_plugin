@@ -26,7 +26,7 @@ using namespace vpu::HDDL2Plugin;
 namespace IE = InferenceEngine;
 
 //------------------------------------------------------------------------------
-//      class  Implementation
+//      class HDDL2BlobParams Implementation
 //------------------------------------------------------------------------------
 HDDL2BlobParams::HDDL2BlobParams(const InferenceEngine::ParamMap& params) {
     if (params.empty()) {

@@ -12,6 +12,7 @@ add_executable(${TARGET_NAME} ${HDDL2_UNIT_TESTS_SOURCES})
 target_include_directories(${TARGET_NAME} PRIVATE
         "helpers"
         "../../common_helpers"
+        "${IE_MAIN_SOURCE_DIR}/include"
         )
 
 target_compile_options(${TARGET_NAME}
@@ -21,6 +22,7 @@ target_compile_options(${TARGET_NAME}
 
 target_link_libraries(${TARGET_NAME}
     PRIVATE
+        IE::IESharedTests
         HDDL2Plugin_test_static
         HddlUnite
         IE::gtest

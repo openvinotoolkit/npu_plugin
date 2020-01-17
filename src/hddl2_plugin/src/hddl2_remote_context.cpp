@@ -87,3 +87,5 @@ std::string HDDL2RemoteContext::getDeviceName() const noexcept {
 IE::ParamMap HDDL2RemoteContext::getParams() const { return _contextParams.getParamMap(); }
 
 HDDL2RemoteAllocator::Ptr HDDL2RemoteContext::getAllocator() { return _allocatorPtr; }
+
+HddlUnite::WorkloadContext::Ptr HDDL2RemoteContext::getHddlUniteWorkloadContext() const { return _workloadContext; }

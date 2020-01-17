@@ -18,8 +18,8 @@
 
 #include "helper_ie_core.h"
 #include <gtest/gtest.h>
-#include "helper_precompiled_resnet.h"
-#include "helper_model_loader.h"
+#include "hddl2_helpers/helper_precompiled_resnet.h"
+#include "hddl2_helpers/helper_model_loader.h"
 
 //------------------------------------------------------------------------------
 //      class Executable_Network_Parametric Params

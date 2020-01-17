@@ -18,8 +18,8 @@
 
 #include "file_reader.h"
 #include "gtest/gtest.h"
-#include "parametric_executable_network.h"
 #include "ie_blob.h"
+#include "parametric_executable_network.h"
 
 namespace IE = InferenceEngine;
 

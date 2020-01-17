@@ -18,7 +18,7 @@
 
 #include "gtest/gtest.h"
 #include "hddl2_core_api.h"
-#include "helper_model_loader.h"
+#include "hddl2_helpers/helper_model_loader.h"
 #include "helper_remote_context.h"
 
 using namespace InferenceEngine;
