@@ -141,26 +141,23 @@ bool compare(std::vector<float>& actualResults, std::vector<float>& expectedResu
         float expected = expectedResults[idx];
 
         float abs_error = fabsf(actual - expected);
-        float relative_error = fabsf(abs_error / expected);
+        float relative_error = fabsf(abs_error / (1 + expected));
         float abs_allowed_err = fabsf(expected * (tolerance/100.0f));
         sumSquareDiffs += pow(abs_error, 2);
         sumDiff+=abs_error;
 
         std::string result = "\t\033[1;32mPass\033[0m";
-        //if (abs_error > abs_allowed_err) 
         if ((relative_error*100) > tolerance)
         {
             countErrs++;
-            // if (abs_error > maxErr) maxErr = abs_error;
             if (relative_error > maxErr) maxErr = relative_error;
             result = "\t\033[1;31mfail\033[0m";
         }
         if (idx < 50) // print first 50 rows
             std::cout << std::setw(10) << expected << std::setw(12) << actual << std::setw(12) << relative_error << std::setw(12) << abs_allowed_err << std::setw(6) << result << std::endl;
-            // std::cout << std::setw(10) << expected << std::setw(12) << actual << std::setw(12) << abs_error << std::setw(12) << abs_allowed_err << std::setw(6) << result << std::endl;
     };
 
-    std::cout << "Printing first 50 rows...\nExpected\tActual\tDifference   Tolerence  Result" << std::endl;
+    std::cout << "Printing first 50 rows...\nExpected\tActual\tRelative Err Tolerence  Result" << std::endl;
     for (size_t n = 0; n < expectedResults.size(); ++n)
         absoluteErrorUpdater(n);
 
@@ -171,14 +168,13 @@ bool compare(std::vector<float>& actualResults, std::vector<float>& expectedResu
     
     //print results report
     std::cout << "\nMetric\t\t\t  Actual  Threshold\tStatus" << std::endl << "----------------------    ------  ---------\t-------" << std::endl;   
-    //std::cout << "Min Pixel Accuracy\t" << std::setw(7) << maxErr << std::setw(11) << tolerance << "%" << std::setw(8) << ((maxErr < tolerance) ? "\t\033[1;32mPass" : "\t\033[1;31mFail") << "\033[0m" << std::endl;
     std::cout << "Min Pixel Accuracy\t" << std::setw(7) << (int)(maxErr * 10000.0)/10000.0 << "%" << std::setw(10) << tolerance << "%" << std::setw(8) << ((maxErr < tolerance) ? "\t\033[1;32mPass" : "\t\033[1;31mFail") << "\033[0m" << std::endl;
     std::cout << "Average Pixel Accuracy\t" << std::setw(7) << (int)(avgPixelAccuracy * 10000.0) / 10000.0 << "%" << std::setw(10) << tolerance << "%" << std::setw(8) << ((avgPixelAccuracy < tolerance) ? "\t\033[1;32mPass" : "\t\033[1;31mFail") << "\033[0m" << std::endl;
-    std::cout << "% of Wrong Values\t" << std::setw(7) << countErrsPcent << "%" << std::setw(10) << tolerance << "%" << ((countErrsPcent < tolerance) ? "\t\033[1;32mPass" : "\t\033[1;31mFail") << "\033[0m" << std::endl;
+    std::cout << "% of Wrong Values\t" << std::setw(7) << (int)(countErrsPcent * 10000.0) / 10000.0 << "%" << std::setw(10) << tolerance << "%" << ((countErrsPcent < tolerance) ? "\t\033[1;32mPass" : "\t\033[1;31mFail") << "\033[0m" << std::endl;
     std::cout << "Pixel-wise L2 Error\t" << std::setw(7) << (int)((l2_err * 100) * 10000.0)/10000.0 << "%" << std::setw(10) << tolerance << "%" << ((l2_err < tolerance) ? "\t\033[1;32mPass" : "\t\033[1;31mFail") << "\033[0m" << std::endl;
     std::cout << "Global Sum Difference\t" << std::setw(8) << sumDiff << std::setw(11) << "inf" << std::setw(8) << "\t\033[1;32mPass\033[0m" << std::endl << std::endl;
 
-    if (maxErr == 0) return true;
+    if (avgPixelAccuracy < tolerance) return true;
     else return false;
 }
 
