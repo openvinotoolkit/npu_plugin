@@ -227,6 +227,12 @@ namespace mv
                 flag = true;
             return flag;
         }
+
+        inline size_t numSubTensors() const
+        {
+            return subTensors_.size();
+        }
+
         inline bool isQuantized() const
         {
             return hasAttr("quantParams");

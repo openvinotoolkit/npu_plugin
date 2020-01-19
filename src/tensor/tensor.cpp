@@ -78,12 +78,20 @@ internalOrder_(other.internalOrder_),
 blockSize_(other.blockSize_),
 sparsityMap_(other.sparsityMap_),
 storageElement_(other.storageElement_),
-subTensors_(other.subTensors_),
 kernelDataOffsets_(other.kernelDataOffsets_),
 noneZeroElements_(other.noneZeroElements_)
 {
 
     MV_PROFILED_FUNCTION(MV_PROFILE_BASE)
+
+    if (other.hasSubTensors())
+    {
+        for (std::size_t i = 0; i < other.numSubTensors(); i++)
+        {
+            subTensors_.push_back(std::make_shared<mv::Tensor>(*other.subTensors_[i]));
+        }
+    }
+
 
     if (other.isPopulated())
     {
