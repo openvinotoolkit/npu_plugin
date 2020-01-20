@@ -1069,7 +1069,7 @@ namespace mv
                                         continue;
                                     if( enableNestedStreaming and ((h==1) or (k==1))) // If need nested streams, ignore non-nested
                                         continue;
-                                    if( ((h*k) > 1) and (spilling.get<bool>() == false))
+                                    if( ((h*k*c) > 1) and (spilling.get<bool>() == false))
                                         continue;
                                     // if ((spilling.get<bool>() == true) and (h*k == 1)
                                     //     and op.getOpType() != "Input" and op.getOpType() != "Output"
