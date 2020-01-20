@@ -39,6 +39,7 @@ namespace mv
             .setFunc(ensureSplitStrategiesForSpilling)
             .setDescription(
                "Ensures Split Strategies still valid after Spilling cases");
+
     }
 }
 
@@ -72,6 +73,25 @@ void SplittingTensorsAcrossClusters(const mv::pass::PassEntry& pass, mv::Computa
                     tensorNames.insert(inputTensor->getSparsityMap()->getName());
             }
         }
+        //Also need to generate subtensors for output tensor of input operation, and the input tensor of output operation
+        //Only compute subtensors if tensor is already aligned (SOH tensors will be)
+        auto inOutputTensor = om.getInput()->getOutputTensor(0);
+        if(inOutputTensor->get<std::string>("splitStrategy") == "SplitOverH")
+        {
+            auto inOutputTensorName = inOutputTensor->getName();
+            tensorNames.insert(inOutputTensorName);
+        }
+
+        auto outInputTensor = om.getOutput()->getInputTensor(0);
+        if(outInputTensor->get<std::string>("splitStrategy") == "SplitOverH")
+        {
+            auto outInputTensorName = outInputTensor->getName();
+            tensorNames.insert(outInputTensorName);
+            //Note: Output can't take input activation sparsity, so this code shouldn't be needed
+            // if(outInputTensor->isPopulated() && outInputTensor->isSparse())
+            //     tensorNames.insert(outInputTensor->getSparsityMap()->getName());
+        }
+        
         for (auto tensorName : tensorNames)
             tensors.push_back(dm.getTensor(tensorName));
         subTensorsGen(model, tensors, numClusters, pass);
