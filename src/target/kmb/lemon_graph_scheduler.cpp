@@ -41,7 +41,7 @@ void  mv::LemonGraphScheduler::convertMcMGraphToLemonGraph(const mv::pass::PassE
         bool nodeAdded = false;
         /*Check if node is a DMA task "CMX to DDR" (this is the sink node in Lemon graph and we need to keep track of it) */
         //if (opIt->hasAttr("lastDMAOp") && opIt->get<bool>("lastDMAOp"))
-        if (opIt->hasAttr("lastOpKoala") && opIt->get<bool>("lastOpKoala"))
+        if (opIt->hasAttr("MaxCutSinkNode") && opIt->get<bool>("MaxCutSinkNode"))
         {
             this->log(mv::Logger::MessageType::Debug, "Adding vertex to Lemon graph: " + opIt->getName());
 
