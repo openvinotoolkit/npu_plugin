@@ -755,35 +755,23 @@ void FrontEndMcm::parseScale(const ie::CNNLayerPtr& layer, const McmNodeVector& 
     parseDims(input->desc(), stub, dimC, stub, stub);
     int weightsSize = static_cast<int>(dimC);
 
-    float minScale = std::numeric_limits<float>::max();
-    float maxScale = std::numeric_limits<float>::min();
-
     auto scaleData = scaleLayer->_weights->buffer().as<float*>();
 
-    for (size_t i = 0; i < scaleLayer->_weights->size(); i++) {
-        float val = scaleData[i];
-        if (val > maxScale) {
-            maxScale = val;
-        }
+    std::vector<int64_t> quantizedWeightsData;
+    std::vector<int64_t> zpScaleWeights = {0};
+    std::vector<double> quantizeScale;
 
-        if (val < minScale) {
-            minScale = val;
-        }
+    for (size_t i = 0; i < scaleLayer->_weights->size(); i++) {
+        quantizeScale.push_back(scaleData[i]);
     }
-
-    auto zpScaleWeights =
-        KmbQuantizationHelpers::calculateZeroPoint(maxScale, minScale, 256, InferenceEngine::Precision::U8);
-    double quantizeScale = (maxScale - minScale) / 255.0;
-    std::vector<int64_t> weightsData(scaleLayer->_weights->size());
     for (size_t i = 0; i < scaleLayer->_weights->size(); i++) {
-        uint8_t value = std::round((scaleData[i] + quantizeScale * zpScaleWeights) / quantizeScale);
-        weightsData[i] = value;
+        quantizedWeightsData.push_back(1);
     }
 
     mv::Shape weightsShape = {static_cast<size_t>(weightsSize)};
-    mv::QuantizationParams scalesQuantParams = {{zpScaleWeights}, {quantizeScale}, {minScale}, {maxScale}};
+    mv::QuantizationParams scalesQuantParams = {zpScaleWeights, quantizeScale, {-inf}, {inf}};
     auto mvWeights = _modelMcm.constantInt(
-        weightsData, weightsShape, mv::DType("UInt8"), mv::Order::getColMajorID(1), scalesQuantParams);
+        quantizedWeightsData, weightsShape, mv::DType("UInt8"), mv::Order::getColMajorID(1), scalesQuantParams);
 
     auto outputQuantParamsOverRide = initialQuantParams;
     KmbQuantizationHelpers::fillQuntizationActivationParams(scaleLayer, outputQuantParamsOverRide);
