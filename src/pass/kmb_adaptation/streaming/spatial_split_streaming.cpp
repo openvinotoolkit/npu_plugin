@@ -202,6 +202,7 @@ std::tuple<mv::Data::TensorIterator, mv::Data::TensorIterator,mv::Data::TensorIt
     size_t biasStartIndex = 0;
     size_t biasEndIndex = 0;
     std::string splitStrategy = op->get<std::string>("splitStrategy");
+    bool hkSliceCase = false;
 
     for (unsigned split = 0; split < number_of_splits; split++)
     {
@@ -291,6 +292,7 @@ std::tuple<mv::Data::TensorIterator, mv::Data::TensorIterator,mv::Data::TensorIt
                                 {size_width, size_height, size_channels, 1}, //childTiles[split].getSize()
                                 inputTensor->get<mv::QuantizationParams>("quantParams"),
                                 op->getName() + "_sliceHK_" + std::to_string(split));
+            hkSliceCase = true;
 
             conv = om.depthwiseConv(sliceInput,
                                 slice,
@@ -351,7 +353,6 @@ std::tuple<mv::Data::TensorIterator, mv::Data::TensorIterator,mv::Data::TensorIt
         if ((split>0)&&(enableSerialStreaming))
             cm.defineFlow(om.getSourceOp(convs[split-1]), om.getSourceOp(convs[split]));
     }
-
     kernelTensor->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::BLOB);
     // decide on the location of the I/O Tensors of the conv;
     // basically, for each operation, if we are the last inside the recursive splitting schema, then we can make the
@@ -402,6 +403,8 @@ std::tuple<mv::Data::TensorIterator, mv::Data::TensorIterator,mv::Data::TensorIt
     om.getSourceOp(concat)->set<std::string>("splitStrategy", splitStrategy);
 
     concat->set<mv::Tensor::MemoryLocation>("Location",outputTensor->get<mv::Tensor::MemoryLocation>("Location"));
+    if (hkSliceCase)
+        inputTensor->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::DDR);
 
     return std::make_tuple(convs[0], convs[number_of_splits-1], concat);
 }
