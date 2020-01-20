@@ -21,6 +21,9 @@
 #include <gflags/gflags.h>
 #include <iostream>
 
+const int DEFAULT_ZERO_POINT = 0;
+const float DEFAULT_SCALE = 1.0;
+
 /// @brief message for help argument
 static const char help_message[] = "Print a usage message.";
 
@@ -34,10 +37,10 @@ static const char model_message[] = "Required. Path to a .blob file compiled fro
 static const char plugin_message[] = "Enables messages from a plugin";
 
 /// @brief message for scale
-static const char scale_message[] = "Scale of output from fully connected layer. Default value is 0.3371347486972809";
+static const char scale_message[] = "Scale of output from fully connected layer. Default value is 1.0";
 
 /// @brief message for zero point
-static const char zeropoint_message[] = "Zero point of output from fully connected layer. Default value is 221";
+static const char zeropoint_message[] = "Zero point of output from fully connected layer. Default value is 0";
 
 /// @brief Define flag for showing help message <br>
 DEFINE_bool(h, false, help_message);
@@ -54,10 +57,10 @@ DEFINE_string(m, "", model_message);
 DEFINE_bool(p_msg, false, plugin_message);
 
 /// @brief message for scale
-DEFINE_double(s, 0.3371347486972809, scale_message);
+DEFINE_double(s, DEFAULT_SCALE, scale_message);
 
 /// @brief message for zero point
-DEFINE_int32(z, 221, zeropoint_message);
+DEFINE_int32(z, DEFAULT_ZERO_POINT, zeropoint_message);
 
 /**
 * @brief This function show a help message

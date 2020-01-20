@@ -18,6 +18,7 @@
 #include <vector>
 #include <string>
 #include <algorithm>
+#include <limits>
 
 #include <inference_engine.hpp>
 
@@ -26,7 +27,7 @@
 #include <samples/classification_results.h>
 
 #include "classification_sample.h"
-#include <file_reader.h>
+#include <format_reader_ptr.h>
 
 using namespace InferenceEngine;
 
@@ -142,14 +143,24 @@ int main(int argc, char *argv[]) {
 
         // --------------------------- 5. Prepare input --------------------------------------------------------
         /** Creating input blob **/
-        std::string firstInputName = inputInfo.begin()->first;
-        Blob::Ptr inputBlob = inferRequest.GetBlob(firstInputName.c_str());
-        if (!inputBlob) {
-            throw std::logic_error("Cannot get input blob from inferRequest");
+        /** Filling input tensor with images. **/
+        FormatReader::ReaderPtr image_reader(imageFileName.c_str());
+        if (image_reader.get() == nullptr) {
+            throw std::logic_error("Image " + imageFileName + " cannot be read!");
         }
 
-        /** Filling input tensor with images. **/
-        vpu::KmbPlugin::utils::fromBinaryFile(imageFileName, inputBlob);
+        /** Image reader is expected to return interlaced (NHWC) BGR image **/
+        TensorDesc inputDataDesc = inputInfo.begin()->second->getTensorDesc();
+        std::vector<size_t> inputBlobDims = inputDataDesc.getDims();
+        size_t imageWidth = inputBlobDims.at(3);
+        size_t imageHeight = inputBlobDims.at(2);
+
+        Blob::Ptr imageBlob = make_shared_blob<uint8_t>(TensorDesc(Precision::U8,
+            inputBlobDims,
+            Layout::NHWC), image_reader->getData(imageWidth, imageHeight).get());
+
+        std::string firstInputName = inputInfo.begin()->first;
+        inferRequest.SetBlob(firstInputName.c_str(), imageBlob);
 
         inferRequest.Infer();
         slog::info << "inferRequest completed successfully" << slog::endl;
@@ -184,10 +195,14 @@ int main(int argc, char *argv[]) {
         const size_t printedResultsCount = resultsCount > maxNumOfTop ? maxNumOfTop : resultsCount;
 
         // de-Quantization
-        uint8_t zeroPoint = static_cast<uint8_t>(FLAGS_z);
+        int zeroPoint = FLAGS_z;
+        if (zeroPoint < std::numeric_limits<uint8_t>::min() || zeroPoint > std::numeric_limits<uint8_t>::max()) {
+            slog::warn << "zeroPoint value " << zeroPoint << " overflows byte. Setting default." << slog::endl;
+            zeroPoint = DEFAULT_ZERO_POINT;
+        }
         float scale = static_cast<float>(FLAGS_s);
-        slog::info<< "zeroPoint" << zeroPoint << slog::endl;
-        slog::info<< "scale" << scale << slog::endl;
+        slog::info << "zeroPoint: " << zeroPoint << slog::endl;
+        slog::info << "scale: " << scale << slog::endl;
 
         Blob::Ptr dequantOut = deQuantize(outputBlob, scale, zeroPoint);
 
@@ -196,10 +211,12 @@ int main(int argc, char *argv[]) {
                                                   labels);
         classificationResult.print();
 
-        std::fstream outFile;
-        outFile.open("/output.dat", std::ios::in | std::ios::out | std::ios::binary);
+        std::string outFilePath = "./output.dat";
+        std::ofstream outFile(outFilePath, std::ios::binary);
         if (outFile.is_open()) {
             outFile.write(outputBlob->buffer(), outputBlob->size());
+        } else {
+            slog::warn << "Failed to open '" << outFilePath << "'" << slog::endl;
         }
         outFile.close();
     }
