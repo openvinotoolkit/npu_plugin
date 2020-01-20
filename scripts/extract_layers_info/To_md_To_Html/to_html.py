@@ -144,7 +144,7 @@ def createNetworkLayerList(dirName, fileName):
     if xml_root.tag != 'net':
         return
 
-    output_file = open(xmlToHtmlFile, 'w')
+    output_file = open(str(xmlToHtmlFile), 'w')
     print("""<html>
 <title>
 IR of network
@@ -161,7 +161,7 @@ IR of network
             line = line.rstrip()
             match = re.search(r'^\s*<layer\s+id\s*=\s*\"\d+', line)
             if match:
-                anchor = '<a href id="' + get_anchor_id(re.search(r'\d+', match[0])[0]) + '"></a>'
+                anchor = '<a href id="' + get_anchor_id(re.search(r'\d+', match.group(0)).group(0)) + '"></a>'
                 print("</xmp>" + anchor + "<xmp>", file=output_file)
 
             print(line, file=output_file)

@@ -87,7 +87,7 @@ def createNetworkLayerList(dirName, fileName):
         return
     print("FILE: " + str(os.path.join(dirName, fileName)))
 
-    output_file = open(xmlToMdFileName, 'w')
+    output_file = open(str(xmlToMdFileName), 'w')
 
     with xmlFile.open() as file:
         nLine = 0
