@@ -53,9 +53,9 @@
                     {
                         "name_filter" : "Example_do_not_remove",
                         "splits" : [
-                            {"C" : 1},
-                            {"H" : 1},
                             {"W" : 1},
+                            {"H" : 1},
+                            {"C" : 1},
                             {"K" : 1}
                         ]
                     }
