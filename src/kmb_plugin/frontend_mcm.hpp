@@ -74,7 +74,9 @@ public:
     using Ptr = std::shared_ptr<FrontEndMcm>;
 
     explicit FrontEndMcm(mv::OpModel& modelMcm, const KmbConfig& config)
-        : _modelMcm(modelMcm), _config(config), _logger(std::make_shared<Logger>("FrontEndMcm", config.logLevel(), consoleOutput())) {}
+        : _modelMcm(modelMcm),
+          _config(config),
+          _logger(std::make_shared<Logger>("FrontEndMcm", config.logLevel(), consoleOutput())) {}
     void buildInitialModel(ie::ICNNNetwork& network);
 
     std::set<std::string> checkSupportedLayers(ie::ICNNNetwork& network);

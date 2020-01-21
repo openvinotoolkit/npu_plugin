@@ -32,8 +32,8 @@
 #include <unordered_set>
 #include <utility>
 #include <vector>
-#include <vpu/utils/error.hpp>
 #include <vpu/kmb_plugin_config.hpp>
+#include <vpu/utils/error.hpp>
 
 #ifdef ENABLE_MCM_COMPILER
 
@@ -370,24 +370,20 @@ void FrontEndMcm::alignEltwiseScales(ie::CNNNetwork& network) {
                         shouldBeAligned = true;
                     }
                 }
-                if (quantizationParams1.levels != quantizationParams2.levels)
-                    shouldBeAligned = true;
+                if (quantizationParams1.levels != quantizationParams2.levels) shouldBeAligned = true;
             }
-            if (!shouldBeAligned)
-                continue;
+            if (!shouldBeAligned) continue;
 
             size_t maxLevels = 0;
             std::vector<double> maxRange(maxValues, 0.0);
             for (const auto& input : inputs) {
                 auto quantizationParams = QuantizationDetails::getDetails(*input);
-                if (maxLevels < quantizationParams.levels)
-                    maxLevels = quantizationParams.levels;
+                if (maxLevels < quantizationParams.levels) maxLevels = quantizationParams.levels;
 
                 for (size_t i = 0; i < maxValues; i++) {
                     size_t c = quantizationParams.outputHighValues.size() == 1 ? 0 : i;
                     double range = quantizationParams.outputHighValues[c] - quantizationParams.outputLowValues[c];
-                    if (maxRange[i] < range)
-                        maxRange[i] = range;
+                    if (maxRange[i] < range) maxRange[i] = range;
                 }
             }
 
@@ -397,7 +393,7 @@ void FrontEndMcm::alignEltwiseScales(ie::CNNNetwork& network) {
                 std::vector<float> scaledInputHighValues;
                 for (size_t i = 0; i < quantizationParams.inputLowValues.size(); i++) {
                     double range = quantizationParams.inputHighValues[i] - quantizationParams.inputLowValues[i];
-                    double updatedInputLow = quantizationParams.inputLowValues[i]*maxRange[i]/range;
+                    double updatedInputLow = quantizationParams.inputLowValues[i] * maxRange[i] / range;
                     scaledInputLowValues.push_back(static_cast<float>(updatedInputLow));
                     scaledInputHighValues.push_back(static_cast<float>(updatedInputLow + maxRange[i]));
                 }
@@ -406,7 +402,7 @@ void FrontEndMcm::alignEltwiseScales(ie::CNNNetwork& network) {
                 std::vector<float> scaledOutputHighValues;
                 for (size_t i = 0; i < quantizationParams.outputLowValues.size(); i++) {
                     double range = quantizationParams.outputHighValues[i] - quantizationParams.outputLowValues[i];
-                    double updatedOutputLow = quantizationParams.outputLowValues[i]*maxRange[i]/range;
+                    double updatedOutputLow = quantizationParams.outputLowValues[i] * maxRange[i] / range;
                     scaledOutputLowValues.push_back(static_cast<float>(updatedOutputLow));
                     scaledOutputHighValues.push_back(static_cast<float>(updatedOutputLow + maxRange[i]));
                 }
