@@ -185,43 +185,6 @@ void getOutputScale(const ie::CNNLayerPtr& layer, mv::QuantizationParams& quantP
 bool isQuantizationParamsEqual(const mv::QuantizationParams& a, const mv::QuantizationParams& b) {
     return (a.getScale() == b.getScale() && (a.getZeroPoint() == b.getZeroPoint()));
 }
-
-void updateParentsQuantizationParamsForEltwise(const std::vector<mv::Data::TensorIterator>& mvInputs,
-    const mv::QuantizationParams& resultQuantizationParam, mv::OpModel& modelMcm, std::string name) {
-    IE_ASSERT(mvInputs.size() == 2);
-    auto parentOp0 = modelMcm.getSourceOp(mvInputs[0]);
-    auto parentOp1 = modelMcm.getSourceOp(mvInputs[1]);
-
-    parentOp0->set<mv::QuantizationParams>("quantParams", resultQuantizationParam);
-    parentOp1->set<mv::QuantizationParams>("quantParams", resultQuantizationParam);
-
-    if (parentOp0->getOpType() == "Bias" || parentOp0->getOpType() == "Relu" || parentOp0->getOpType() == "Clamp") {
-        auto primaryParent0Op = modelMcm.getSourceOp(parentOp0->getInputTensor(0));
-        auto primaryParent1Op = modelMcm.getSourceOp(primaryParent0Op->getInputTensor(0));
-        if (primaryParent0Op->getOpType() == "Conv" || primaryParent0Op->getOpType() == "Eltwise") {
-            primaryParent0Op->set<mv::QuantizationParams>("quantParams", resultQuantizationParam);
-        } else if (primaryParent0Op->getOpType() != "Conv" || primaryParent0Op->getOpType() != "Eltwise") {
-            if (primaryParent1Op->getOpType() == "Conv" || primaryParent1Op->getOpType() == "Eltwise")
-                primaryParent1Op->set<mv::QuantizationParams>("quantParams", resultQuantizationParam);
-        } else if (primaryParent1Op->getOpType() != "Conv" || primaryParent1Op->getOpType() != "Eltwise") {
-            VPU_THROW_EXCEPTION << name << "Unable to find parent operation of Bias/Relu/Clamp that is a Convolution";
-        }
-    }
-
-    if (parentOp1->getOpType() == "Bias" || parentOp1->getOpType() == "Relu" || parentOp1->getOpType() == "Clamp") {
-        auto primaryParent0Op = modelMcm.getSourceOp(parentOp1->getInputTensor(0));
-        auto primaryParent1Op = modelMcm.getSourceOp(primaryParent0Op->getInputTensor(0));
-        if (primaryParent0Op->getOpType() == "Conv" || primaryParent0Op->getOpType() == "Eltwise") {
-            primaryParent0Op->set<mv::QuantizationParams>("quantParams", resultQuantizationParam);
-        } else if (primaryParent0Op->getOpType() != "Conv" || primaryParent0Op->getOpType() != "Eltwise") {
-            if (primaryParent1Op->getOpType() == "Conv" || primaryParent1Op->getOpType() == "Eltwise")
-                primaryParent1Op->set<mv::QuantizationParams>("quantParams", resultQuantizationParam);
-        } else if (primaryParent1Op->getOpType() != "Conv" || primaryParent1Op->getOpType() != "Eltwise") {
-            VPU_THROW_EXCEPTION << name << "Unable to find parent operation of Bias/Relu/Clamp that is a Convolution";
-        }
-    }
-}
-
 }  // namespace
 
 void FrontEndMcm::parseInputData() {
@@ -842,27 +805,6 @@ void FrontEndMcm::parseEltwise(const ie::CNNLayerPtr& layer, const McmNodeVector
     std::vector<mv::Data::TensorIterator> mvInputs;
     for (const auto& input : inputs) {
         mvInputs.push_back(input->getMcmNode());
-    }
-
-    if (_config.eltwiseScalesAligment()) {
-        mv::QuantizationParams input1QuantParams = mvInputs[0]->get<mv::QuantizationParams>("quantParams");
-        mv::QuantizationParams input2QuantParams = mvInputs[1]->get<mv::QuantizationParams>("quantParams");
-
-        if (!isQuantizationParamsEqual(input1QuantParams, input2QuantParams)) {
-            std::vector<CNNLayerPtr> parents = CNNNetworkHelper::getParents(*layer);
-            IE_ASSERT(parents.size() == 2);
-            for (size_t i = 0; i < parents.size(); i++) {
-                if (parents[i]->type != "FakeQuantize") {
-                    VPU_THROW_EXCEPTION << eltwiseLayer->name << "Quantize Eltwise  should has FakeQuantize on inputs";
-                }
-            }
-
-            mv::QuantizationParams resultQuantizationParam = initialQuantParams;
-            KmbQuantizationHelpers::reCalculateQuantizationParamsOnActivation(
-                parents[0], parents[1], resultQuantizationParam);
-
-            updateParentsQuantizationParamsForEltwise(mvInputs, resultQuantizationParam, _modelMcm, eltwiseLayer->name);
-        }
     }
 
     if (inputs.size() > 2) {

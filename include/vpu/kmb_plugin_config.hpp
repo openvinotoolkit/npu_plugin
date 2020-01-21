@@ -162,5 +162,12 @@ DECLARE_VPU_KMB_CONFIG_KEY(PREPROCESSING_LPI);
  */
 DECLARE_VPU_KMB_CONFIG_KEY(ELTWISE_SCALES_ALIGNMENT);
 
+
+/**
+ * @brief [Only for kmbPlugin]
+ * Type: "YES/NO", default is "NO".
+ * Enable or disable Input->ScaleShift pattern removing
+ */
+DECLARE_VPU_KMB_CONFIG_KEY(INPUT_SCALE_SHIFT_REMOVING);
 }  // namespace VPUConfigParams
 }  // namespace InferenceEngine

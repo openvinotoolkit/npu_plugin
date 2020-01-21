@@ -42,6 +42,8 @@ const std::unordered_set<std::string>& KmbConfig::getCompileOptions() const {
                                                          VPU_KMB_CONFIG_KEY(MCM_LOG_LEVEL),
                                                          VPU_KMB_CONFIG_KEY(LOAD_NETWORK_AFTER_COMPILATION),
                                                          VPU_KMB_CONFIG_KEY(PLATFORM),
+                                                         VPU_KMB_CONFIG_KEY(ELTWISE_SCALES_ALIGNMENT),
+                                                         VPU_KMB_CONFIG_KEY(INPUT_SCALE_SHIFT_REMOVING),
                                                      });
 
     return options;
@@ -102,5 +104,6 @@ void KmbConfig::parse(const std::map<std::string, std::string>& config) {
         << "KmbConfig::parse attempt to set invalid lpi value for SIPP: '" << _SIPPLpi
         << "',  valid values are 1, 2, 4, 8, 16";
 
-    setOption(_eltwiseScalesAligment, switches, config, VPU_KMB_CONFIG_KEY(ELTWISE_SCALES_ALIGNMENT));
+    setOption(_eltwiseScalesAlignment, switches, config, VPU_KMB_CONFIG_KEY(ELTWISE_SCALES_ALIGNMENT));
+    setOption(_inputScaleShiftRemoving, switches, config, VPU_KMB_CONFIG_KEY(INPUT_SCALE_SHIFT_REMOVING));
 }

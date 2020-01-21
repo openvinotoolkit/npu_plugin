@@ -74,9 +74,7 @@ public:
     using Ptr = std::shared_ptr<FrontEndMcm>;
 
     explicit FrontEndMcm(mv::OpModel& modelMcm, const KmbConfig& config)
-        : _modelMcm(modelMcm),
-          _logger(std::make_shared<Logger>("FrontEndMcm", config.logLevel(), consoleOutput())),
-          _config(config) {}
+        : _modelMcm(modelMcm), _config(config), _logger(std::make_shared<Logger>("FrontEndMcm", config.logLevel(), consoleOutput())) {}
     void buildInitialModel(ie::ICNNNetwork& network);
 
     std::set<std::string> checkSupportedLayers(ie::ICNNNetwork& network);
@@ -172,13 +170,14 @@ private:
 
     InferenceEngine::Precision getDefaultLayerPrecision(const ParsedNetwork& net, const ie::CNNLayerPtr& layer);
     void removeInputScaleShiftPattern(ie::CNNNetwork& network);
+    void alignEltwiseScales(ie::CNNNetwork& network);
     std::map<std::string, LayerQuantParams> _layerToQuantParams;
 
     mv::OpModel& _modelMcm;
+    const KmbConfig& _config;
     McmNodePtrList _nodes;
     McmNodePtr _output;
     Logger::Ptr _logger;
-    const KmbConfig& _config;
 
     std::unordered_map<ie::DataPtr, McmNode> _ieToMcmMap;
 
