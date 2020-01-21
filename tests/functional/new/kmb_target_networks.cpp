@@ -100,7 +100,7 @@ TEST_F(KmbNetworkTest, GoogLeNet_v1_tf_int8_sparse) {
         "224x224/cat3.bmp",
         1, 5.0f);
 }
-TEST_F(KmbNetworkTest, MobileNet_v2_tf_int8_sparse_v2) {  // 59.3% sparsity
+TEST_F(KmbNetworkTest, DISABLED_MobileNet_v2_tf_int8_sparse_v2) {  // 59.3% sparsity
     runClassifyNetworkTest(
         "KMB_models/INT8/public/sparse/MoblieNet-v2-tf/mobilenetv2-int8-sparse-v2-tf-0001",
         "224x224/cat3.bmp",
