@@ -3,6 +3,7 @@
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/utils/custom_math.hpp"
 #include "include/mcm/pass/pass_utils.hpp"
+#include "include/mcm/base/exception/logic_error.hpp"
 #include <cmath>
 
 const size_t FULLY_CONNECTED_KERNEL = 1;
@@ -16,6 +17,7 @@ void interpAsAvgPoolingFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
 void flattenAsReshapeFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 static void replacementOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 void scaleAsDepthwiseFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
+void avgPoolAsMultipleAvgPoolFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 
 namespace mv
 {
@@ -91,7 +93,6 @@ mv::Data::OpListIterator linkNewOperationsReplacement(mv::Data::OpListIterator p
 
     return opIt;
 }
-
 
 void tensorsToFP16Fcn(const mv::pass::PassEntry&  , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
@@ -191,6 +192,7 @@ void replacementOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mo
 {
     pass.log(mv::Logger::MessageType::Debug, "Replacement passes are starting");
     fullyConnectedAsConv2DFcn(pass, model);
+    avgPoolAsMultipleAvgPoolFcn(pass, model);
     //interpAsAvgPoolingFcn(pass, model); for now we are using SW layer
     averageAsDepthWiseFcn(pass, model);
     scaleAsDepthwiseFcn(pass, model);
@@ -537,5 +539,101 @@ void flattenAsReshapeFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& 
         }
         linkNewOperationsReplacement(parentOpIt, reshape, om, opIt);
         reshape->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
+    }
+}
+
+// Check for average pooling layers with kernels bigger than supported by hardware (11x11)
+// and replace with equivalent two average pooling (approx equiv in case of prime kernel i.e. 13x13)
+void avgPoolAsMultipleAvgPoolFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
+{
+     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
+
+    mv::OpModel om(model);
+    mv::DataModel dm(model);
+
+    auto averagePoolOps = om.getOps("AveragePool");
+
+    for (auto& opIt : averagePoolOps)
+    {
+        auto sourceTensor = opIt->getInputTensor(0);
+        auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
+
+        auto parentOpIt = om.getSourceOp(sourceTensor);
+
+        auto inputShape = sourceTensor->getShape();
+        std::array<unsigned short, 2> kSize = opIt->get<std::array<unsigned short, 2>>("kSize");
+        std::array<unsigned short, 2> stride = opIt->get<std::array<unsigned short, 2>>("stride");
+        std::array<unsigned short, 4> padding = opIt->get<std::array<unsigned short, 4>>("padding");
+
+        if((kSize[0] != kSize[1]) and (kSize[0] > 11 or kSize[1] > 11))
+        {
+            // TODO deal with asymetric kernels too large
+            continue;
+        }
+
+        if(kSize[0] > 11)
+        {
+            std::cout << "Found an average pool kSize: " << kSize[0] << ", " << kSize[1] << std::endl;
+            std::cout << "   stride: " << stride[0] << ", " << stride[1] << std::endl;
+            std::cout << "   padding: " << padding[0] << ", " << padding[1] << ", " << padding[2] << ", " << padding[3] << std::endl;
+
+            // Find factors
+
+            // Add new pools to op model
+        }
+
+        if(kSize[0] == 14)
+        {
+            auto name = opIt->getName();
+            mv::QuantizationParams quantParams({{}, {}, {}, {}});
+            if (sourceTensor->isQuantized())
+                quantParams = opIt->get<mv::QuantizationParams>("quantParams");
+
+            auto firstPool = om.averagePool(sourceTensor, {7, 7}, {7, 7}, {0, 0, 0, 0}, true, "", "floor", mv::DType("Default"), quantParams, name + "_APsplit0");
+        
+            auto firstPoolOp = om.getSourceOp(firstPool);
+
+            unsigned currentOpId = 0;
+            if(opIt->hasAttr("opId"))
+            {
+                currentOpId = opIt->get<unsigned>("opId");
+                firstPoolOp->set<unsigned>("opId", currentOpId);
+            }
+
+            // First pool replaces original pool
+            linkNewOperationsReplacement(parentOpIt, firstPool, om, opIt);
+
+            std::vector<mv::Data::OpListIterator> opsToLink;
+            std::vector<std::size_t> inputSlots;
+            std::vector<mv::Data::FlowSiblingIterator> flowsToRemove;
+
+
+            auto sourceFlowStart = firstPoolOp.leftmostOutput();
+
+            for (mv::Data::FlowSiblingIterator sinkFlow(sourceFlowStart); sinkFlow != om.flowEnd(); ++sinkFlow)
+            {
+                opsToLink.push_back(sinkFlow.sink());
+                inputSlots.push_back(sinkFlow->get<std::size_t>("sinkInput"));
+                flowsToRemove.push_back(sinkFlow);
+            }
+
+            for (unsigned flowIdx = 0; flowIdx < flowsToRemove.size(); flowIdx++)
+            {
+                om.undefineFlow(flowsToRemove[flowIdx]);
+            }
+
+            // Second pool is new operation to the model
+            auto secondPool = om.averagePool(firstPool, {2, 2}, {2, 2}, {0, 0, 0, 0}, true, "", "floor", mv::DType("Default"), quantParams, name + "_APsplit1");
+            auto secondPoolOp = om.getSourceOp(secondPool);
+            secondPoolOp->set<unsigned>("opId", currentOpId);
+            
+        
+            for(unsigned op = 0 ; op < opsToLink.size(); ++op)
+            {
+                opsToLink[op]->setInputTensor(secondPool, inputSlots[op], false);
+                om.defineFlow(secondPool, opsToLink[op], inputSlots[op]);
+            }
+        }
+
     }
 }
