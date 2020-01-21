@@ -58,7 +58,7 @@ namespace mv
             double clusterMemory;
             std::vector<string> failure_causes = {"Unknown", "MemorySize", "Stream+ClusterComp", 
             "SpillHKSwitch", "SOKNotAlign16", "InputNotSpilled", "OutputNotSpilled", "StreamingNotSpilled", 
-            "Workload<KernelSOH", "ChannelMjr1", "ChannelMjr2"};
+            "Workload<KernelSOH", "ChannelMjr1", "ChannelMjr2", "DWChannels"};
 
 
             void readGlobalConfigs()
@@ -595,6 +595,14 @@ namespace mv
                             return 10;
                 }
 
+
+                if (op.getOpType() == "DepthwiseConv")
+                {
+                    if ((op.getInputTensor(0)->getShape()[mv::IO_CHANNEL_DIMENSION] > 8192)
+                            && (streamShape["K"] == 1))
+                        return 11;
+                }
+
                 return 0; //good strategy
             }
 
@@ -691,13 +699,6 @@ namespace mv
                     }
                 }
 
-                if (parentOp.getOpType() == "DepthwiseConv")
-                {
-                    if ((parentOp.getInputTensor(0)->getShape()[mv::IO_CHANNEL_DIMENSION] > 8192)
-                            && (parent["streaming"].get<Shape>()["K"] == 1))
-                        return INF;
-                }
-
                 if( childOp.getOpType() == "Conv")
                 {
                     auto weightsShape = childOp.getInputTensor(1)->getShape();
@@ -733,6 +734,15 @@ namespace mv
                 else if (childOp.getOpType() == "Output")
                 {
                     if (parentClustering == "HKSwitch")
+                        return INF;
+                }
+
+                //Note: Input clustering strategy should match first layer, if it is Z-major
+                if(parentOp.getOpType() == "Input" and not
+                    (childOp.getOpType() == "Conv" and enableChannelMajorConv 
+                    and childOp.getInputTensor(1)->getShape()[KERNEL_INPUT_CHANNELS] < 16))
+                {
+                    if(parentClustering != childClustering)
                         return INF;
                 }
 
