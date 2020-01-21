@@ -16,8 +16,7 @@
 
 set(TARGET_NAME "HDDL2Plugin")
 
-# downloading HDDL_UNITE archive
-set(ARCHIVE_VERSION ww52)
+set(HDDLUNITE_ARCHIVE_VERSION ww03_release)
 set_temp_directory(TEMP "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}")
 
 include(dependency_solver)
@@ -25,7 +24,7 @@ include(dependency_solver)
 reset_deps_cache(HDDL_UNITE_DIR HDDL_UNITE_LIBRARY)
 
 RESOLVE_DEPENDENCY(HDDL_UNITE_DIR
-        ARCHIVE_LIN "hddl_unite/hddl_unite_${ARCHIVE_VERSION}.tgz"
+        ARCHIVE_LIN "hddl_unite/hddl_unite_${HDDLUNITE_ARCHIVE_VERSION}.tgz"
         ENVIRONMENT "HDDL_UNITE_DIR"
         TARGET_PATH "${TEMP}/hddl_unite")
 
