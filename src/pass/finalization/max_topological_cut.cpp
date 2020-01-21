@@ -38,16 +38,22 @@ void markLastNodeForMaxTopologicalCutFcn(const mv::pass::PassEntry& pass, mv::Co
     // is last op a software eltwise?
     std::vector<mv::Data::OpListIterator> upaTasks = om.getOps("UPATask");
     bool lastOpSwElt = false;
-    mv::Data::OpListIterator upaTask = upaTasks.back();
-    if (upaTask->hasAttr("taskOp") && upaTask->get<std::string>("taskOp") == "Eltwise")
-        lastOpSwElt = true;
+    if (! upaTasks.empty()) 
+    {
+        mv::Data::OpListIterator upaTask = upaTasks.back();
+        if (upaTask->hasAttr("taskOp") && upaTask->get<std::string>("taskOp") == "Eltwise")
+            lastOpSwElt = true;
+    }
 
     // is last op a hardware eltwise?
     std::vector<mv::Data::OpListIterator> dpuTasks = om.getOps("DPUTask");
     bool lastOpHwElt = false;
-    mv::Data::OpListIterator dpuTask = dpuTasks.back();
-    if (dpuTask->hasAttr("taskOp") && upaTask->get<std::string>("taskOp") == "Eltwise")
-        lastOpHwElt = true;
+    if (!dpuTasks.empty())
+    {
+        mv::Data::OpListIterator dpuTask = dpuTasks.back();
+        if (dpuTask->hasAttr("taskOp") && dpuTask->get<std::string>("taskOp") == "Eltwise")
+            lastOpHwElt = true;
+    }
 
     // cannot end on an eltwise. Was setting "MaxCutSinkNode" to be a Dealloc task
     if(lastOpSwElt || lastOpHwElt)
