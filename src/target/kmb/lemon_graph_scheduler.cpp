@@ -87,7 +87,7 @@ void  mv::LemonGraphScheduler::convertMcMGraphToLemonGraph(const mv::pass::PassE
 
             auto sourceName = flowIt.source()->getName();
             auto sinkName  = flowIt.sink()->getName();
-            if ( (sinkName.substr(0,6) == "Output") && (!flowIt->hasAttr("MaxCutSinkNode")) )
+            if ((sinkName.substr(0,6) == "Output") && ( !flowIt.sink()->hasAttr("MaxCutSinkNode") )) 
                 continue;   // keep graphs small. Only add edge to "output" if its the MaxcutSinkNode
 
             /*If the control flow has a memoryRequirment attribute add it to edges*/
