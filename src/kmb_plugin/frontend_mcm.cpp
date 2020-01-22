@@ -32,6 +32,7 @@
 #include <unordered_set>
 #include <utility>
 #include <vector>
+#include <vpu/kmb_plugin_config.hpp>
 #include <vpu/utils/error.hpp>
 
 #ifdef ENABLE_MCM_COMPILER
@@ -343,9 +344,88 @@ void FrontEndMcm::removeInputScaleShiftPattern(ie::CNNNetwork& network) {
     }
 }
 
+void FrontEndMcm::alignEltwiseScales(ie::CNNNetwork& network) {
+    for (auto& layer : network) {
+        if (layer->type == "Eltwise") {
+            auto inputs = CNNNetworkHelper::getParents(*layer);
+            size_t maxValues = 1;
+            size_t maxValuesIdx = 0;
+            for (size_t i = 0; i < inputs.size(); i++) {
+                assert(inputs[i]->type == "FakeQuantize");
+                if (maxValues < QuantizationDetails::getDetails(*inputs[i]).outputLowValues.size()) {
+                    maxValues = QuantizationDetails::getDetails(*inputs[i]).outputLowValues.size();
+                    maxValuesIdx = i;
+                }
+            }
+
+            bool shouldBeAligned = false;
+            for (size_t i = 0; i < inputs.size(); i++) {
+                auto quantizationParams1 = QuantizationDetails::getDetails(*inputs[i]);
+                auto quantizationParams2 = QuantizationDetails::getDetails(*inputs[maxValuesIdx]);
+                for (size_t c = 0; c < maxValues; c++) {
+                    size_t c1 = quantizationParams1.outputHighValues.size() == 1 ? 0 : c;
+                    size_t c2 = c;
+                    if ((quantizationParams1.outputHighValues[c1] - quantizationParams1.outputLowValues[c1]) !=
+                        (quantizationParams2.outputHighValues[c2] - quantizationParams2.outputLowValues[c2])) {
+                        shouldBeAligned = true;
+                    }
+                }
+                if (quantizationParams1.levels != quantizationParams2.levels) shouldBeAligned = true;
+            }
+            if (!shouldBeAligned) continue;
+
+            size_t maxLevels = 0;
+            std::vector<double> maxRange(maxValues, 0.0);
+            for (const auto& input : inputs) {
+                auto quantizationParams = QuantizationDetails::getDetails(*input);
+                if (maxLevels < quantizationParams.levels) maxLevels = quantizationParams.levels;
+
+                for (size_t i = 0; i < maxValues; i++) {
+                    size_t c = quantizationParams.outputHighValues.size() == 1 ? 0 : i;
+                    double range = quantizationParams.outputHighValues[c] - quantizationParams.outputLowValues[c];
+                    if (maxRange[i] < range) maxRange[i] = range;
+                }
+            }
+
+            for (const auto& input : inputs) {
+                auto quantizationParams = QuantizationDetails::getDetails(*input);
+                std::vector<float> scaledInputLowValues;
+                std::vector<float> scaledInputHighValues;
+                for (size_t i = 0; i < quantizationParams.inputLowValues.size(); i++) {
+                    double range = quantizationParams.inputHighValues[i] - quantizationParams.inputLowValues[i];
+                    double updatedInputLow = quantizationParams.inputLowValues[i] * maxRange[i] / range;
+                    scaledInputLowValues.push_back(static_cast<float>(updatedInputLow));
+                    scaledInputHighValues.push_back(static_cast<float>(updatedInputLow + maxRange[i]));
+                }
+
+                std::vector<float> scaledOutputLowValues;
+                std::vector<float> scaledOutputHighValues;
+                for (size_t i = 0; i < quantizationParams.outputLowValues.size(); i++) {
+                    double range = quantizationParams.outputHighValues[i] - quantizationParams.outputLowValues[i];
+                    double updatedOutputLow = quantizationParams.outputLowValues[i] * maxRange[i] / range;
+                    scaledOutputLowValues.push_back(static_cast<float>(updatedOutputLow));
+                    scaledOutputHighValues.push_back(static_cast<float>(updatedOutputLow + maxRange[i]));
+                }
+
+                input->params["levels"] = std::to_string(maxLevels);
+                CNNNetworkHelper::updateBlobs(*input, 1, scaledInputLowValues);
+                CNNNetworkHelper::updateBlobs(*input, 2, scaledInputHighValues);
+                CNNNetworkHelper::updateBlobs(*input, 3, scaledOutputLowValues);
+                CNNNetworkHelper::updateBlobs(*input, 4, scaledOutputHighValues);
+            }
+        }
+    }
+}
+
 void FrontEndMcm::runCommonPasses(ie::ICNNNetwork& network) {
     auto cnnNet = ie::CNNNetwork(std::shared_ptr<ie::ICNNNetwork>(&network, [](ie::ICNNNetwork*) {}));
-    removeInputScaleShiftPattern(cnnNet);
+
+    if (_config.inputScaleShiftRemoving()) {
+        removeInputScaleShiftPattern(cnnNet);
+    }
+    if (_config.eltwiseScalesAlignment()) {
+        alignEltwiseScales(cnnNet);
+    }
     parseNetworkDFS(cnnNet, _parsedNetwork);
     parseInputData();
 }

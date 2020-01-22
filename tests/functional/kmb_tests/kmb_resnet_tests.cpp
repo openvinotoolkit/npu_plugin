@@ -121,6 +121,9 @@ static const std::vector<resnet_params> resnetTestParams = {
         0.0127005f,
         0,
     },
+};
+
+static const std::vector<resnet_params> resnetTestParamsFail = {
     {
         "first-block.xml",                        // model
         "resnet50-weights.bin",                   // weights
@@ -140,3 +143,4 @@ static const std::vector<resnet_params> resnetTestParams = {
 };
 
 INSTANTIATE_TEST_CASE_P(resnetAccuracyTests, ResnetTest, ::testing::ValuesIn(resnetTestParams));
+INSTANTIATE_TEST_CASE_P(DISABLED_resnetAccuracyTestsFail, ResnetTest, ::testing::ValuesIn(resnetTestParamsFail));

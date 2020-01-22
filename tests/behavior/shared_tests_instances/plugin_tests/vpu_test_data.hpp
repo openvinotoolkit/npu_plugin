@@ -62,6 +62,8 @@ const std::vector<BehTestParams> withCorrectConfValues = {
     BEH_KMB.withConfig({{VPU_KMB_CONFIG_KEY(PREPROCESSING_SHAVES), "6"}}),
     BEH_KMB.withConfig({{VPU_KMB_CONFIG_KEY(PREPROCESSING_LPI), "8"}}),
     BEH_KMB.withConfig({{VPU_KMB_CONFIG_KEY(MCM_LOG_LEVEL), LOG_DEBUG}}),
+    BEH_KMB.withConfig({{VPU_KMB_CONFIG_KEY(ELTWISE_SCALES_ALIGNMENT), NO}}),
+    BEH_KMB.withConfig({{VPU_KMB_CONFIG_KEY(INPUT_SCALE_SHIFT_REMOVING), YES}}),
 };
 
 const std::vector<BehTestParams> withCorrectConfValuesPluginOnly = {};
@@ -75,4 +77,6 @@ const BehTestParams withIncorrectConfValues[] = {
     BEH_KMB.withConfig({{VPU_KMB_CONFIG_KEY(PREPROCESSING_SHAVES), "SIX"}}),
     BEH_KMB.withConfig({{VPU_KMB_CONFIG_KEY(PREPROCESSING_LPI), "EIGHT"}}),
     BEH_KMB.withConfig({{VPU_KMB_CONFIG_KEY(MCM_LOG_LEVEL), "debug"}}),
+    BEH_KMB.withConfig({{VPU_KMB_CONFIG_KEY(ELTWISE_SCALES_ALIGNMENT), "NOP"}}),
+    BEH_KMB.withConfig({{VPU_KMB_CONFIG_KEY(INPUT_SCALE_SHIFT_REMOVING), "YEP"}}),
 };

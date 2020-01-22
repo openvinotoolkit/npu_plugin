@@ -154,5 +154,20 @@ DECLARE_VPU_KMB_CONFIG_KEY(PREPROCESSING_SHAVES);
  * Lines per iteration value to be used by SIPP during preprocessing
  */
 DECLARE_VPU_KMB_CONFIG_KEY(PREPROCESSING_LPI);
+
+/**
+ * @brief [Only for kmbPlugin]
+ * Type: "YES/NO", default is "NO".
+ * Enable or disable eltwise scales alignment
+ */
+DECLARE_VPU_KMB_CONFIG_KEY(ELTWISE_SCALES_ALIGNMENT);
+
+
+/**
+ * @brief [Only for kmbPlugin]
+ * Type: "YES/NO", default is "NO".
+ * Enable or disable Input->ScaleShift pattern removing
+ */
+DECLARE_VPU_KMB_CONFIG_KEY(INPUT_SCALE_SHIFT_REMOVING);
 }  // namespace VPUConfigParams
 }  // namespace InferenceEngine

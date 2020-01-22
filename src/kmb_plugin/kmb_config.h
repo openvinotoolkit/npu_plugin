@@ -60,6 +60,10 @@ public:
 
     int SIPPLpi() const { return _SIPPLpi; }
 
+    bool eltwiseScalesAlignment() const { return _eltwiseScalesAlignment; }
+
+    bool inputScaleShiftRemoving() const { return _inputScaleShiftRemoving; }
+
 protected:
     const std::unordered_set<std::string>& getCompileOptions() const override;
     const std::unordered_set<std::string>& getRunTimeOptions() const override;
@@ -96,6 +100,9 @@ private:
 
     int _numberOfSIPPShaves = 4;
     int _SIPPLpi = 8;
+
+    bool _eltwiseScalesAlignment = false;
+    bool _inputScaleShiftRemoving = true;
 };
 
 }  // namespace KmbPlugin
