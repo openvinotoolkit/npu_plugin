@@ -673,10 +673,6 @@ void streamingOperationsFcn(const mv::pass::PassEntry& pass,
             if (axisToSplit == "K" || axisToSplit == "C")
             {
                 masterTile.setSize(opIt->getInputTensor(1)->getShape());
-                //Note: StreamOverK for depthwise convolution has no sense, but is handled
-                //like StreamOverC...
-                // if (opType == "DepthwiseConv")
-                //     masterTile.setAxis("C");
                 masterTile.generateWeightsTiling();
             }
             else
