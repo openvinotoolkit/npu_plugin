@@ -109,9 +109,20 @@ void computeTensorsQuantParams(const mv::pass::PassEntry&, mv::ComputationModel&
                      auto& input2Quantization = input2->get<mv::QuantizationParams>("quantParams");
                      auto input1Scale = inputQuantization.getScale();
                      auto input2Scale = input2Quantization.getScale();
-                     if (input1Scale != input2Scale)
-                        throw mv::RuntimeError(om, opIt->getName() + ": different values of scales for Add/Subtract is not supported!"
+                     
+                    auto size = input1Scale.size();
+                    std::vector <double> scaleDifference(size), absRelativeErrorScale(size), relativeErrorScale(size);
+                    std::transform(input1Scale.begin(), input1Scale.end(), input2Scale.begin(), scaleDifference.begin(), std::minus<double>());
+
+                    double (*fabs)(double) = &std::abs;
+                    std::transform(scaleDifference.begin(), scaleDifference.end(), input1Scale.begin(), relativeErrorScale.begin(), std::divides<double>());
+                    std::transform(relativeErrorScale.begin(),relativeErrorScale.end(), absRelativeErrorScale.begin(), fabs);
+                    for (auto it = absRelativeErrorScale.begin(); it != absRelativeErrorScale.end(); it++)
+                    {
+                        if (*it > 0.01)
+                            throw mv::RuntimeError(om, opIt->getName() + ": different values of scales for Add/Subtract is not supported!"
                                                + std::to_string(input1Scale[0]) + " " + std::to_string(input2Scale[0]));
+                    }
                  }
 
                  //Note: There are PPE Types SIGMOID, TAN, EXP, SQRT, RSQRT, FLEXARB that need their output
