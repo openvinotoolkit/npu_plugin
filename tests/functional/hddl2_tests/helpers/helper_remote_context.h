@@ -31,22 +31,28 @@ class Remote_Context_Helper: public IE_Core_Helper {
 public:
     Remote_Context_Helper();
 
-    static InferenceEngine::ParamMap wrapWorkloadIdToMap(const WorkloadID &id);
     InferenceEngine::RemoteContext::Ptr remoteContextPtr = nullptr;
+    static InferenceEngine::ParamMap wrapWorkloadIdToMap(const WorkloadID &id);
+
+    WorkloadID getWorkloadId() const;
 
 protected:
-    WorkloadContext_Helper workloadContext;
+    WorkloadContext_Helper _workloadContext;
 };
 
 //------------------------------------------------------------------------------
 //      class Remote_Context_Helper Implementation
 //------------------------------------------------------------------------------
 inline Remote_Context_Helper::Remote_Context_Helper() {
-    auto params = wrapWorkloadIdToMap(workloadContext.getWorkloadId());
+    auto params = wrapWorkloadIdToMap(_workloadContext.getWorkloadId());
     remoteContextPtr = ie.CreateContext(pluginName, params);
 }
 
 inline InferenceEngine::ParamMap
 Remote_Context_Helper::wrapWorkloadIdToMap(const WorkloadID &id) {
     return {{InferenceEngine::HDDL2_PARAM_KEY(WORKLOAD_CONTEXT_ID), id}};
+}
+
+inline WorkloadID Remote_Context_Helper::getWorkloadId() const {
+    return _workloadContext.getWorkloadId();
 }

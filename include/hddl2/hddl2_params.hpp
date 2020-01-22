@@ -49,5 +49,11 @@ namespace HDDL2ContextParams {
      */
     DECLARE_HDDL2_PARAM_KEY(WORKLOAD_CONTEXT_ID, uint64_t);
 
+    /**
+     * @brief HddlUnite Remote memory fd
+     */
+    DECLARE_HDDL2_PARAM_KEY(REMOTE_MEMORY_FD, uint64_t);
+
+
 }  // namespace HDDL2ContextParams
 }  // namespace InferenceEngine
