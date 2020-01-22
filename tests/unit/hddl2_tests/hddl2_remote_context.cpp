@@ -17,6 +17,8 @@
 #include <gtest/gtest-param-test.h>
 #include <gtest/gtest.h>
 
+#include "hddl2_helpers/helper_remote_blob.h"
+#include "hddl2_helpers/helper_tensor_description.h"
 #include "hddl2_helpers/helper_workload_context.h"
 #include "hddl2_params.hpp"
 #include "hddl2_plugin.h"
@@ -135,4 +137,94 @@ TEST_F(HDDL2_RemoteContext_UnitTests, getParams_containsSameWorkloadId) {
 
     const uint64_t correctWorkloadId = workloadContextHelper.getWorkloadId();
     ASSERT_EQ(correctWorkloadId, workloadId);
+}
+
+//------------------------------------------------------------------------------
+//      class HDDL2_RemoteContext_CreateBlob_UnitTests
+//------------------------------------------------------------------------------
+class HDDL2_RemoteContext_CreateBlob_UnitTests : public HDDL2_RemoteContext_UnitTests {
+public:
+    void SetUp() override;
+    void TearDown() override;
+
+    InferenceEngine::ParamMap blobParams;
+    InferenceEngine::TensorDesc tensorDesc;
+
+protected:
+    TensorDescription_Helper _tensorDescriptionHelper;
+    RemoteMemory_Helper _remoteMemoryHelper;
+};
+
+void HDDL2_RemoteContext_CreateBlob_UnitTests::SetUp() {
+    HDDL2_RemoteContext_UnitTests::SetUp();
+    tensorDesc = _tensorDescriptionHelper.tensorDesc;
+    RemoteMemoryFd remoteMemoryFd =
+        _remoteMemoryHelper.allocateRemoteMemory(workloadContextHelper.getWorkloadId(), EMULATOR_MAX_ALLOC_SIZE);
+    blobParams = RemoteBlob_Helper::wrapRemoteFdToMap(remoteMemoryFd);
+}
+
+void HDDL2_RemoteContext_CreateBlob_UnitTests::TearDown() { _remoteMemoryHelper.destroyRemoteMemory(); }
+
+//------------------------------------------------------------------------------
+//      class HDDL2_RemoteContext_CreateBlob_UnitTests Initiations
+//------------------------------------------------------------------------------
+TEST_F(HDDL2_RemoteContext_CreateBlob_UnitTests, CreateBlob_WithParams_ReturnNotNull) {
+    HDDL2RemoteContext::Ptr context = std::make_shared<HDDL2RemoteContext>(params);
+
+    auto blob = context->CreateBlob(tensorDesc, blobParams);
+    ASSERT_NE(nullptr, blob);
+}
+
+TEST_F(HDDL2_RemoteContext_CreateBlob_UnitTests, CreateBlob_NoParams_ReturnNull) {
+    HDDL2RemoteContext::Ptr context = std::make_shared<HDDL2RemoteContext>(params);
+    InferenceEngine::ParamMap emptyBlobParams = {};
+
+    auto blob = context->CreateBlob(tensorDesc, emptyBlobParams);
+
+    ASSERT_EQ(nullptr, blob);
+}
+
+TEST_F(HDDL2_RemoteContext_CreateBlob_UnitTests, CreateBlob_InvalidParams_ReturnNull) {
+    HDDL2RemoteContext::Ptr context = std::make_shared<HDDL2RemoteContext>(params);
+    InferenceEngine::ParamMap invalidBlobParams = {{"Invalid key", "Invalid value"}};
+
+    auto blob = context->CreateBlob(tensorDesc, invalidBlobParams);
+
+    ASSERT_EQ(nullptr, blob);
+}
+
+// TODO Provide more information to user that this way should not be used
+TEST_F(HDDL2_RemoteContext_CreateBlob_UnitTests, CreatBlob_NotFromPointer_ReturnNull) {
+    HDDL2RemoteContext context(params);
+
+    auto blob = context.CreateBlob(tensorDesc, blobParams);
+    ASSERT_EQ(nullptr, blob);
+}
+
+TEST_F(HDDL2_RemoteContext_CreateBlob_UnitTests, CreateBlob_Default_IsRemoteBlob) {
+    HDDL2RemoteContext::Ptr context = std::make_shared<HDDL2RemoteContext>(params);
+
+    auto blob = context->CreateBlob(tensorDesc, blobParams);
+    ASSERT_TRUE(blob->is<IE::RemoteBlob>());
+}
+
+TEST_F(HDDL2_RemoteContext_CreateBlob_UnitTests, CreateBlob_Default_CanAllocate) {
+    HDDL2RemoteContext::Ptr context = std::make_shared<HDDL2RemoteContext>(params);
+
+    auto blob = context->CreateBlob(tensorDesc, blobParams);
+
+    ASSERT_NO_FATAL_FAILURE(blob->allocate());
+}
+
+TEST_F(HDDL2_RemoteContext_CreateBlob_UnitTests, CreateBlob_Default_LockedMemoryNotNull) {
+    HDDL2RemoteContext::Ptr context = std::make_shared<HDDL2RemoteContext>(params);
+
+    auto blob = context->CreateBlob(tensorDesc, blobParams);
+
+    blob->allocate();
+
+    auto lockedMemory = blob->buffer();
+    auto data = lockedMemory.as<IE::PrecisionTrait<InferenceEngine::Precision::U8>::value_type*>();
+
+    EXPECT_NE(nullptr, data);
 }

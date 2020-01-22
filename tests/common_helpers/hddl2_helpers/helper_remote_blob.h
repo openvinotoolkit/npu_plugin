@@ -16,14 +16,11 @@
 
 #pragma once
 
-#include <cpp_interfaces/exception2status.hpp>
+#include "hddl2_params.hpp"
+#include "ie_remote_context.hpp"
 
-namespace vpu {
-namespace HDDL2Plugin {
-
-#define HDDLUNITE_ERROR_str std::string("[HDDLUNITE_ERROR] ")
-#define CONFIG_ERROR_str std::string("[INVALID CONFIG] ")
-#define CONTEXT_ERROR_str std::string("[INVALID REMOTE CONTEXT] ")
-
-}  //  namespace HDDL2Plugin
-}  //  namespace vpu
+namespace RemoteBlob_Helper {
+    static InferenceEngine::ParamMap wrapRemoteFdToMap(const uint64_t &remoteMemoryFd) {
+        return {{InferenceEngine::HDDL2_PARAM_KEY(REMOTE_MEMORY_FD), remoteMemoryFd}};
+    }
+}

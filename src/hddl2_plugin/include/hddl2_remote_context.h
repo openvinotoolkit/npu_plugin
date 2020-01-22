@@ -1,5 +1,5 @@
 //
-// Copyright 2019 Intel Corporation.
+// Copyright 2020 Intel Corporation.
 //
 // This software and the related documents are Intel copyrighted materials,
 // and your use of them is governed by the express license under which they
@@ -69,7 +69,6 @@ public:
 
     InferenceEngine::ParamMap getParams() const override;
     HDDL2RemoteAllocator::Ptr getAllocator();
-    HddlUnite::WorkloadContext::Ptr getHddlUniteWorkloadContext() const;
 
 protected:
     HDDL2ContextParams _contextParams;

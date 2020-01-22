@@ -19,8 +19,8 @@
 #include <hddl2_plugin.h>
 #include <hddl2_remote_allocator.h>
 
+#include "hddl2_helpers/helper_remote_memory.h"
 #include "helpers/helper_remote_allocator.h"
-#include "helpers/helper_remote_memory.h"
 
 using namespace vpu::HDDL2Plugin;
 using namespace InferenceEngine;

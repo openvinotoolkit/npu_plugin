@@ -31,27 +31,31 @@ namespace HDDL2Plugin {
 class RemoteContext_Helper {
 public:
     RemoteContext_Helper();
-
     static InferenceEngine::ParamMap wrapWorkloadIdToMap(const WorkloadID &id);
+    WorkloadID getWorkloadId() const;
 
     HDDL2RemoteContext::Ptr remoteContextPtr = nullptr;
 
 protected:
-    // TODO Use stub instead of creating "default" workloadContext
-    WorkloadContext_Helper workloadContext;
+    // TODO Use stub instead of creating "default" _workloadContext
+    WorkloadContext_Helper _workloadContext;
 };
 
 //------------------------------------------------------------------------------
 //      class RemoteContext_Helper Implementation
 //------------------------------------------------------------------------------
 inline RemoteContext_Helper::RemoteContext_Helper() {
-    auto param = wrapWorkloadIdToMap(workloadContext.getWorkloadId());
+    auto param = wrapWorkloadIdToMap(_workloadContext.getWorkloadId());
     remoteContextPtr = std::make_shared<HDDL2RemoteContext>(param);
 }
 
 inline InferenceEngine::ParamMap
 RemoteContext_Helper::wrapWorkloadIdToMap(const WorkloadID &id) {
     return {{InferenceEngine::HDDL2_PARAM_KEY(WORKLOAD_CONTEXT_ID), id}};
+}
+
+inline WorkloadID RemoteContext_Helper::getWorkloadId() const {
+    return _workloadContext.getWorkloadId();
 }
 
 }

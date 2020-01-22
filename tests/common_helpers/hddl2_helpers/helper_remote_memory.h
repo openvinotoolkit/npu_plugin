@@ -1,5 +1,5 @@
 //
-// Copyright 2019 Intel Corporation.
+// Copyright 2020 Intel Corporation.
 //
 // This software and the related documents are Intel copyrighted materials,
 // and your use of them is governed by the express license under which they
@@ -16,13 +16,12 @@
 
 #pragma once
 
-namespace vpu {
-namespace HDDL2Plugin {
-
 //------------------------------------------------------------------------------
 //      class RemoteMemory_Helper
 //------------------------------------------------------------------------------
-using RemoteMemoryFd = int;
+using RemoteMemoryFd = uint64_t ;
+// Emulator limit 4MB
+constexpr size_t EMULATOR_MAX_ALLOC_SIZE = static_cast<size_t>(0x1u << 22u);
 
 class RemoteMemory_Helper {
 public:
@@ -30,8 +29,12 @@ public:
     void destroyRemoteMemory();
 
     std::string getRemoteMemory(const size_t &size);
+    bool isRemoteTheSame(const std::string &dataToCompare);
+    void setRemoteMemory(const std::string& dataToSet);
 
     RemoteMemoryFd getMemoryFd();
+
+    virtual ~RemoteMemory_Helper();
 
 private:
     HddlUnite::SMM::RemoteMemory::Ptr _memory = nullptr;
@@ -42,6 +45,10 @@ private:
 //------------------------------------------------------------------------------
 //      class RemoteMemory_Helper Implementation
 //------------------------------------------------------------------------------
+inline RemoteMemory_Helper::~RemoteMemory_Helper() {
+    destroyRemoteMemory();
+}
+
 inline RemoteMemoryFd
 RemoteMemory_Helper::allocateRemoteMemory(const WorkloadID &id, const size_t &size) {
     if (_memory != nullptr) {
@@ -58,7 +65,7 @@ RemoteMemory_Helper::allocateRemoteMemory(const WorkloadID &id, const size_t &si
     _memory = HddlUnite::SMM::allocate(*context, size);
     _memoryFd = _memory->getDmaBufFd();
 
-    printf("Memory fd: %d\n", _memoryFd);
+    printf("Memory fd: %lu\n", _memoryFd);
     return _memoryFd;
 }
 
@@ -72,12 +79,26 @@ inline RemoteMemoryFd RemoteMemory_Helper::getMemoryFd() {
 }
 
 inline std::string RemoteMemory_Helper::getRemoteMemory(const size_t &size) {
-    char tempBuffer[MAX_ALLOC_SIZE] = {};
+    char tempBuffer[EMULATOR_MAX_ALLOC_SIZE] = {};
     auto retCode = _memory->syncFromDevice(tempBuffer, size);
     if (retCode != HDDL_OK) {
+        printf("[ERROR] Failed to sync memory from device!\n");
         return "";
     }
     return std::string(tempBuffer);
 }
-}  // namespace HDDL2Plugin
-}  // namespace vpu
+
+inline bool RemoteMemory_Helper::isRemoteTheSame(const std::string &dataToCompare) {
+    const size_t size = dataToCompare.size();
+    const std::string remoteMemory = getRemoteMemory(size);
+    if (dataToCompare != remoteMemory) {
+        std::cout << "Handle: " << _memoryFd << " Remote memory " << remoteMemory
+                     << " != local memory " << dataToCompare << std::endl;
+        return false;
+    }
+    return true;
+}
+
+inline void RemoteMemory_Helper::setRemoteMemory(const std::string& dataToSet) {
+    _memory->syncToDevice(dataToSet.data(), dataToSet.size());
+}

@@ -16,7 +16,7 @@
 
 #pragma once
 
-#include "helper_remote_memory.h"
+#include "hddl2_helpers/helper_remote_memory.h"
 
 namespace vpu {
 namespace HDDL2Plugin {
@@ -76,7 +76,7 @@ inline Allocator_WrappedRemoteMemory_Helper::
 Allocator_WrappedRemoteMemory_Helper(WorkloadContextPtr& workloadContextPtr)
                                         : Allocator_Helper(workloadContextPtr) {
     WorkloadID workloadId = workloadContextPtr->getWorkloadContextID();
-    _memoryFd = _remoteMemoryHelper.allocateRemoteMemory(workloadId, MAX_ALLOC_SIZE);
+    _memoryFd = _remoteMemoryHelper.allocateRemoteMemory(workloadId, EMULATOR_MAX_ALLOC_SIZE);
 }
 
 inline std::string Allocator_WrappedRemoteMemory_Helper::getRemoteMemory(const size_t &size) {

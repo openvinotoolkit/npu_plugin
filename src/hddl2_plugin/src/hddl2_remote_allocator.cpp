@@ -1,5 +1,5 @@
 //
-// Copyright 2019 Intel Corporation.
+// Copyright 2020 Intel Corporation.
 //
 // This software and the related documents are Intel copyrighted materials,
 // and your use of them is governed by the express license under which they
@@ -17,6 +17,7 @@
 #include "hddl2_remote_allocator.h"
 
 #include <memory>
+#include <string>
 
 using namespace vpu::HDDL2Plugin;
 
@@ -34,6 +35,17 @@ bool static isValidRemoteMemoryFd(const int& remoteMemoryFd) {
         return false;
     }
     return true;
+}
+
+static std::string lockOpToStr(const InferenceEngine::LockOp& lockOp) {
+    switch (lockOp) {
+    case InferenceEngine::LOCK_FOR_READ:
+        return "LOCK_FOR_READ";
+    case InferenceEngine::LOCK_FOR_WRITE:
+        return "LOCK_FOR_WRITE (Read&Write)";
+    default:
+        return "Unknown Op Mode";
+    }
 }
 
 HDDL2RemoteMemoryContainer::HDDL2RemoteMemoryContainer(const HddlUnite::SMM::RemoteMemory::Ptr& remoteMemory)
@@ -114,7 +126,7 @@ bool HDDL2RemoteAllocator::free(void* remoteMemoryHandle) noexcept {
 
 void HDDL2RemoteAllocator::Release() noexcept { delete this; }
 
-// FIXME LOCK_FOR_READ behavior when we will have lock for read-write
+// TODO LOCK_FOR_READ behavior when we will have lock for read-write
 /**
  * LOCK_FOR_READ - do not sync to device on this call
  * LOCK_FOR_WRITE - default behavior - read&write option
@@ -149,11 +161,11 @@ void* HDDL2RemoteAllocator::lock(void* remoteMemoryHandle, InferenceEngine::Lock
         return nullptr;
     }
 
-    printf("%s: LockOp: %d\n", __FUNCTION__, lockOp);
+    printf("%s: LockOp: %s\n", __FUNCTION__, lockOpToStr(lockOp).c_str());
 
-    // FIXME Do this step only on R+W and R operations, not for Write
-    printf("%s: Sync %d memory from device, remoteMemoryHandle %p\n", __FUNCTION__,
-        static_cast<int>(memory->localMemory.size()), remoteMemoryHandle);
+    // TODO Do this step only on R+W and R operations, not for Write
+    printf("%s: Sync %d memory from device, remoteMemoryHandle %p, fd %d\n", __FUNCTION__,
+        static_cast<int>(memory->localMemory.size()), remoteMemoryHandle, memory->remoteMemory->getDmaBufFd());
 
     HddlStatusCode statusCode =
         memory->remoteMemory->syncFromDevice(memory->localMemory.data(), memory->localMemory.size());
@@ -179,7 +191,6 @@ void HDDL2RemoteAllocator::unlock(void* remoteMemoryHandle) noexcept {
         // Sync memory to device
         printf("%s: Sync %d memory to device, remoteMemoryHandle %p\n", __FUNCTION__,
             static_cast<int>(memory->localMemory.size()), remoteMemoryHandle);
-
         memory->remoteMemory->syncToDevice(memory->localMemory.data(), memory->localMemory.size());
     } else {
         printf("%s: LOCK_FOR_READ, Memory %d will NOT be synced, remoteMemoryHandle %p\n", __FUNCTION__,

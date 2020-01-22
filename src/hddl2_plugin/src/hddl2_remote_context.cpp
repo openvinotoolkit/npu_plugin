@@ -1,5 +1,5 @@
 //
-// Copyright 2019 Intel Corporation.
+// Copyright 2020 Intel Corporation.
 //
 // This software and the related documents are Intel copyrighted materials,
 // and your use of them is governed by the express license under which they
@@ -14,6 +14,7 @@
 // stated in the License.
 //
 
+#include <hddl2_remote_blob.h>
 #include <hddl2_remote_context.h>
 
 #include <cpp_interfaces/exception2status.hpp>
@@ -55,13 +56,24 @@ HDDL2RemoteContext::HDDL2RemoteContext(const InferenceEngine::ParamMap& paramMap
     if (_workloadContext == nullptr) {
         THROW_IE_EXCEPTION << HDDLUNITE_ERROR_str << "context is not found";
     }
+    _allocatorPtr = std::make_shared<HDDL2RemoteAllocator>(_workloadContext);
 }
 
 IE::RemoteBlob::Ptr HDDL2RemoteContext::CreateBlob(
     const IE::TensorDesc& tensorDesc, const IE::ParamMap& params) noexcept {
-    UNUSED(tensorDesc);
-    UNUSED(params);
-    return nullptr;
+    try {
+        auto smart_this = shared_from_this();
+    } catch (...) {
+        printf("Please use smart ptr to context instead of instance of class\n");
+        return nullptr;
+    }
+    try {
+        return std::make_shared<HDDL2RemoteBlob>(tensorDesc, shared_from_this(), params);
+    } catch (...) {
+        printf("Incorrect parameters for CreateBlob call.\n"
+               "Please make sure remote memory fd is correct.\n");
+        return nullptr;
+    }
 }
 
 std::string HDDL2RemoteContext::getDeviceName() const noexcept {
@@ -74,5 +86,3 @@ std::string HDDL2RemoteContext::getDeviceName() const noexcept {
 IE::ParamMap HDDL2RemoteContext::getParams() const { return _contextParams.getParamMap(); }
 
 HDDL2RemoteAllocator::Ptr HDDL2RemoteContext::getAllocator() { return _allocatorPtr; }
-
-HddlUnite::WorkloadContext::Ptr HDDL2RemoteContext::getHddlUniteWorkloadContext() const { return _workloadContext; }
