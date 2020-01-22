@@ -17,7 +17,7 @@ void interpAsAvgPoolingFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
 void flattenAsReshapeFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 static void replacementOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 void scaleAsDepthwiseFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
-void avgPoolAsMultipleAvgPoolFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
+void replaceLargeAvgPoolFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 
 namespace mv
 {
@@ -192,7 +192,7 @@ void replacementOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mo
 {
     pass.log(mv::Logger::MessageType::Debug, "Replacement passes are starting");
     fullyConnectedAsConv2DFcn(pass, model);
-    avgPoolAsMultipleAvgPoolFcn(pass, model);
+    replaceLargeAvgPoolFcn(pass, model);
     //interpAsAvgPoolingFcn(pass, model); for now we are using SW layer
     averageAsDepthWiseFcn(pass, model);
     scaleAsDepthwiseFcn(pass, model);
@@ -569,7 +569,7 @@ std::vector<std::pair<unsigned short, unsigned short>> getFactors(unsigned short
 
 // Check for average pooling layers with kernels bigger than supported by hardware (11x11)
 // and replace with equivalent two average pooling (approx equiv in case of prime kernel i.e. 13x13)
-void avgPoolAsMultipleAvgPoolFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
+void replaceLargeAvgPoolFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
 {
      MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
 
@@ -589,8 +589,8 @@ void avgPoolAsMultipleAvgPoolFcn(const mv::pass::PassEntry& pass, mv::Computatio
 
         auto inputShape = sourceTensor->getShape();
         std::array<unsigned short, 2> kSize = opIt->get<std::array<unsigned short, 2>>("kSize");
-        std::array<unsigned short, 2> stride = opIt->get<std::array<unsigned short, 2>>("stride");
-        std::array<unsigned short, 4> padding = opIt->get<std::array<unsigned short, 4>>("padding");
+        // std::array<unsigned short, 2> stride = opIt->get<std::array<unsigned short, 2>>("stride");
+        // std::array<unsigned short, 4> padding = opIt->get<std::array<unsigned short, 4>>("padding");
 
         if((kSize[0] != kSize[1]) and (kSize[0] > MAX_KERNEL or kSize[1] > MAX_KERNEL))
         {
@@ -695,13 +695,9 @@ void avgPoolAsMultipleAvgPoolFcn(const mv::pass::PassEntry& pass, mv::Computatio
             double paddedSize0 = ceil(eachSize0) * factors.first;
             unsigned short pad0 = paddedSize0 - inputShape[mv::IO_HEIGHT_DIMENSION];
             std::array<unsigned short, 4> padding0 = {pad0, 0, pad0, 0};
-
-            // //double paddedSize1 = (double) kSize[0]/factors.second;
-            // double paddedSize1 = paddedSize0 / factors.first; // dim of output tensor of first dw
-            // unsigned short pad1 = (ceil(paddedSize1) * factors.second) - inputShape[mv::IO_HEIGHT_DIMENSION];
             std::array<unsigned short, 4> padding1 = {0,0,0,0};
 
-            std::cout << "Using factors for prime " << kSize[0] << ": " << factors.first << ", " << factors.second << " .... " << paddedSize0 << std::endl;
+            // std::cout << "Using factors for prime " << kSize[0] << ": " << factors.first << ", " << factors.second << " .... " << paddedSize0 << std::endl;
 
             unsigned int total_shape0 = 1 * inputShape[mv::IO_CHANNEL_DIMENSION] * factors.first * factors.first;
 
