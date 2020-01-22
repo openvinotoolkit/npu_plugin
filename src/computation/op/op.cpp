@@ -200,7 +200,7 @@ unsigned mv::Op::addInputTensor(Data::TensorIterator tensor)
         throw OpError(*this, "This operation does not support extra inputs after creation");
 }
 
-mv::Data::TensorIterator mv::Op::getInputTensor(std::size_t idx)
+mv::Data::TensorIterator mv::Op::getInputTensor(std::size_t idx) 
 {
     if (idx >= inputs_.size())
         throw IndexError(*this, idx, "Exceeds the number of inputs");
@@ -275,12 +275,12 @@ std::vector<mv::Data::TensorIterator> mv::Op::getOutputTensor()
     return outputs_;
 }
 
-std::size_t mv::Op::inputSlots()
+std::size_t mv::Op::inputSlots() const 
 {
     return inputs_.size();
 }
 
-std::size_t mv::Op::outputSlots()
+std::size_t mv::Op::outputSlots() const
 {
     return outputs_.size();
 }

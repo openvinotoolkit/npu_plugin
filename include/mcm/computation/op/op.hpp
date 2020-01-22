@@ -47,8 +47,8 @@ namespace mv
           return (*outputs_.front()).computeTotalSize();
         }
 
-        std::size_t inputSlots();
-        std::size_t outputSlots();
+        std::size_t inputSlots() const;
+        std::size_t outputSlots() const;
 
         std::string getLogID() const override;
 

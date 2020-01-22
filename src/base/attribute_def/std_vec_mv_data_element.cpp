@@ -57,6 +57,18 @@ namespace mv
             return output;
         }
 
+        static std::string toLongString(const Attribute& a)
+        {
+            std::string output = "{[";
+            auto vec = a.get<std::vector<mv::DataElement>>();
+            if (vec.size() > 0)
+            {
+                for (std::size_t i = 0; i < vec.size() - 1; ++i)
+                    output += "\"" + static_cast<std::string>(vec[i]) + "\", ";
+            }
+            output += "]}";
+            return output;
+        }
 
         static std::string toString(const Attribute& a)
         {
@@ -71,7 +83,8 @@ namespace mv
         MV_REGISTER_ATTR(std::vector<mv::DataElement>)
             .setToJSONFunc(attr_std_vec_mv_data::toJSON)
             .setFromJSONFunc(attr_std_vec_mv_data::fromJSON)
-            .setToStringFunc(attr_std_vec_mv_data::toString);
+            .setToStringFunc(attr_std_vec_mv_data::toString)
+            .setToLongStringFunc(attr_std_vec_mv_data::toLongString);
     }
 
 }
