@@ -1,0 +1,44 @@
+table {
+font-family: "Lucida Sans Unicode", "Lucida Grande", Sans-Serif;
+font-size: 14px;
+border-radius: 5px;
+border-spacing: 2px;
+padding: 5px 4px;
+text-align: center;
+}
+th {
+background: #BCEBDD;
+padding: 5px 4px;
+text-align: left;
+font-size: smaller;
+}
+th, td {
+border-style: solid;
+border-width: 0 1px 1px 0;
+}
+th:first-child, td:first-child {
+text-align: left;
+font-size: smaller;
+}
+th:first-child {
+border-top-left-radius: 5px;
+}
+th:last-child {
+border-top-right-radius: 5px;
+border-right: none;
+}
+td {
+padding: 2px 4px;
+background: #F8E391;
+font-size: larger;
+}
+tr:last-child td:first-child {
+border-radius: 0 0 0 5px;
+}
+tr:last-child td:last-child {
+border-radius: 0 0 5px 0;
+}
+tr td:last-child {
+border-right: none;
+}
+
