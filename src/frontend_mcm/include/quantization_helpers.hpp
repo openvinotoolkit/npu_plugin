@@ -1,5 +1,5 @@
 //
-// Copyright 2019 Intel Corporation.
+// Copyright 2019-2020 Intel Corporation.
 //
 // This software and the related documents are Intel copyrighted materials,
 // and your use of them is governed by the express license under which they
@@ -26,9 +26,7 @@
 
 namespace vpu {
 
-namespace KmbPlugin {
-
-namespace KmbQuantizationHelpers {
+namespace QuantizationHelpers {
 
 bool isPostOp(const InferenceEngine::CNNLayerPtr& layer);
 std::vector<float> getBlobValue(const InferenceEngine::CNNLayerPtr& constantLayer);
@@ -60,8 +58,7 @@ std::vector<int64_t> quantizeBiases(const std::vector<double>& activationScales,
     const std::vector<double>& weightsScales, const InferenceEngine::Blob::Ptr biasBlob,
     mv::QuantizationParams& outputQuantParam);
 
-}  // namespace KmbQuantizationHelpers
-}  // namespace KmbPlugin
+}  // namespace QuantizationHelpers
 }  // namespace vpu
 
 #endif

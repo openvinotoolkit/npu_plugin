@@ -38,7 +38,8 @@ target_include_directories(${TARGET_NAME}
     SYSTEM PRIVATE
         ${VPUAL_NN_INCLUDES}
         ${GAPI_SIPP_INCLUDES}
-        ${MCM_COMPILER_INCLUDES}
+    PUBLIC
+        "${IE_FRONTEND_MCM_INCLUDE_DIR}"
     PRIVATE
         "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/include"
         ${CMAKE_CURRENT_SOURCE_DIR})
@@ -46,13 +47,12 @@ target_include_directories(${TARGET_NAME}
 target_link_libraries(${TARGET_NAME}
     PRIVATE
         IE::inference_engine
-        IE::inference_engine_lp_transformations
         IE::vpu_common_lib
         ${VPUAL_NN_LIBRARY}
         ${GAPI_SIPP_LIBRARY}
-        ${MCM_COMPILER_LIBRARY}
         vpusmm
-        kmb_utils)
+        kmb_utils
+        frontend_mcm)
 
 if(ENABLE_CLANG_FORMAT)
     add_clang_format_target(clang_format_${TARGET_NAME} FOR_TARGETS ${TARGET_NAME} ALL)
@@ -67,7 +67,7 @@ if(ENABLE_TESTS)
         SYSTEM PRIVATE
             ${VPUAL_NN_INCLUDES}
             ${GAPI_SIPP_INCLUDES}
-            ${MCM_COMPILER_INCLUDES}
+            "${IE_FRONTEND_MCM_INCLUDE_DIR}"
         PUBLIC
             "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/include"
             ${CMAKE_CURRENT_SOURCE_DIR})
@@ -81,6 +81,6 @@ if(ENABLE_TESTS)
             IE::vpu_common_lib
             ${VPUAL_NN_LIBRARY}
             ${GAPI_SIPP_LIBRARY}
-            ${MCM_COMPILER_LIBRARY}
-            kmb_utils)
+            kmb_utils
+            frontend_mcm)
 endif()

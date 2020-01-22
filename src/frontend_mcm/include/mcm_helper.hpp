@@ -1,5 +1,17 @@
-// Copyright (C) 2018-2019 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+//
+// Copyright 2020 Intel Corporation.
+//
+// This software and the related documents are Intel copyrighted materials,
+// and your use of them is governed by the express license under which they
+// were provided to you (End User License Agreement for the Intel(R) Software
+// Development Products (Version May 2017)). Unless the License provides
+// otherwise, you may not use, modify, copy, publish, distribute, disclose or
+// transmit this software or the related documents without Intel's prior
+// written permission.
+//
+// This software and the related documents are provided as is, with no
+// express or implied warranties, other than those that are expressly
+// stated in the License.
 //
 
 #pragma once
@@ -21,13 +33,7 @@
 
 namespace vpu {
 
-namespace KmbPlugin {
-
-//
-// KMB_DEFINE_MODEL_TYPES
-//
-
-#define KMB_DEFINE_MODEL_TYPES(type, postfix)                                        \
+#define MCM_DEFINE_MODEL_TYPES(type, postfix)                                        \
     using type = Handle<VPU_COMBINE(type, postfix)>;                                 \
                                                                                      \
     using VPU_COMBINE(type, Vector) = SmallVector<type>;                             \
@@ -43,23 +49,12 @@ namespace KmbPlugin {
                                                                                      \
     using VPU_COMBINE(type, PtrList) = std::list<VPU_COMBINE(type, Ptr)>;
 
-//
-// KMB_MODEL_ATTRIBUTE
-//
 
-#define KMB_MODEL_ATTRIBUTE(type, name, defVal) \
+#define MCM_MODEL_ATTRIBUTE(type, name, defVal) \
 protected:                                      \
     type VPU_COMBINE(_, name) = defVal;         \
                                                 \
 public:                                         \
     inline const type& name() const { return VPU_COMBINE(_, name); }
 
-#define KMB_MODEL_ATTRIBUTE_PTR_RANGE(type, name) \
-protected:                                        \
-    type VPU_COMBINE(_, name);                    \
-                                                  \
-public:                                           \
-    inline auto name() const->decltype(contRange(VPU_COMBINE(_, name))) { return contRange(VPU_COMBINE(_, name)); }
-
-}  // namespace KmbPlugin
 }  // namespace vpu

@@ -23,6 +23,7 @@
 #include <vector>
 
 #include "cpp_interfaces/impl/ie_executable_network_thread_safe_default.hpp"
+#include "hddl2_config.h"
 
 namespace vpu {
 namespace HDDL2Plugin {
@@ -31,8 +32,8 @@ class ExecutableNetwork : public InferenceEngine::ExecutableNetworkThreadSafeDef
 public:
     using Ptr = std::shared_ptr<ExecutableNetwork>;
 
-    explicit ExecutableNetwork(InferenceEngine::ICNNNetwork& network);
-    explicit ExecutableNetwork(const std::string& blobFilename);
+    explicit ExecutableNetwork(InferenceEngine::ICNNNetwork& network, const HDDL2Config& config);
+    explicit ExecutableNetwork(const std::string& blobFilename, const HDDL2Config& config);
     ~ExecutableNetwork() override;
 
     InferenceEngine::InferRequestInternal::Ptr CreateInferRequestImpl(
@@ -40,7 +41,7 @@ public:
 
 private:
     std::vector<char> _graphBlob;
-
+    HDDL2Config _config;
     std::vector<HddlUnite::Device> _devices;
     HddlUnite::Inference::Graph::Ptr _graph;
 };

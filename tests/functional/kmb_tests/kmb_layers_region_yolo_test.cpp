@@ -74,7 +74,7 @@ TEST_F(kmbLayersTests_nightly, DISABLED_TestRegionYolo) {
 
     std::map<std::string, std::string> config;
     setCommonConfig(config);
-    config[VPU_KMB_CONFIG_KEY(MCM_PARSING_ONLY)] = CONFIG_VALUE(YES);
+    config[VPU_COMPILER_CONFIG_KEY(PARSING_ONLY)] = CONFIG_VALUE(YES);
 
     ASSERT_NO_THROW(ie.LoadNetwork(network, "kmb", config));
 };

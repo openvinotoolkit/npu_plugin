@@ -45,82 +45,11 @@ namespace VPUConfigParams {
 
 /**
  * @brief [Only for kmbPlugin]
- * Type: Arbitrary string. Empty means ("config/target"), default: "";
- */
-DECLARE_VPU_KMB_CONFIG_KEY(MCM_TARGET_DESCRIPTOR_PATH);
-
-/**
- * @brief [Only for kmbPlugin]
  * Type: Arbitrary string.
  * This option allows to specify device.
  * If specified device is not available then creating infer request will throw an exception.
  */
 DECLARE_VPU_KMB_CONFIG_KEY(PLATFORM);
-
-/**
- * @brief [Only for kmbPlugin]
- * Type: Arbitrary string. Empty means ("ma2490"), default: "";
- */
-DECLARE_VPU_KMB_CONFIG_KEY(MCM_TARGET_DESCRIPTOR);
-
-/**
- * @brief [Only for kmbPlugin]
- * Type: Arbitrary string. Empty means ("config/compilation"), default: "";
- */
-DECLARE_VPU_KMB_CONFIG_KEY(MCM_COMPILATION_DESCRIPTOR_PATH);
-
-/**
- * @brief [Only for kmbPlugin]
- * Type: Arbitrary string. Empty means ("debug_ma2490"), default: "";
- */
-DECLARE_VPU_KMB_CONFIG_KEY(MCM_COMPILATION_DESCRIPTOR);
-
-/**
- * @brief [Only for kmbPlugin]
- * Type: "YES/NO", default is "YES".
- */
-DECLARE_VPU_KMB_CONFIG_KEY(MCM_GENERATE_BLOB);
-/**
- * @brief [Only for kmbPlugin]
- * Type: "YES/NO", default is "YES".
- */
-DECLARE_VPU_KMB_CONFIG_KEY(MCM_PARSING_ONLY);
-
-/**
- * @brief [Only for kmbPlugin]
- * Type: "YES/NO", default is "YES".
- */
-DECLARE_VPU_KMB_CONFIG_KEY(MCM_GENERATE_JSON);
-
-/**
- * @brief [Only for kmbPlugin]
- * Type: "YES/NO", default is "NO".
- */
-DECLARE_VPU_KMB_CONFIG_KEY(MCM_GENERATE_DOT);
-
-/**
- * @brief [Only for kmbPlugin]
- * Type: Arbitrary string. Empty means ("."), default: "";
- * path where the mcmCompilator resulting files (blob, json, dot and png) should be placed
- * in folders named "<MCM_TARGET_DESCRIPTOR>/<MCM_COMPILATION_DESCRIPTOR>"
- */
-DECLARE_VPU_KMB_CONFIG_KEY(MCM_COMPILATION_RESULTS_PATH);
-
-/**
- * @brief [Only for kmbPlugin]
- * Type: Arbitrary string. Empty means ("<network name>"), default: "";
- * name of mcmCompilator resulting files (blob, json, dot and png)
- */
-DECLARE_VPU_KMB_CONFIG_KEY(MCM_COMPILATION_RESULTS);
-
-/**
- * @brief [Only for kmbPlugin]
- * Describe log level for mcmCompiler
- * This option should be used with values: PluginConfigParams::LOG_INFO (default),
- * PluginConfigParams::LOG_ERROR, PluginConfigParams::LOG_WARNING,
- * PluginConfigParams::LOG_NONE, PluginConfigParams::LOG_DEBUG, PluginConfigParams::LOG_TRACE
- */
-DECLARE_VPU_KMB_CONFIG_KEY(MCM_LOG_LEVEL);
 
 /**
  * @brief [Only for kmbPlugin]
@@ -155,19 +84,5 @@ DECLARE_VPU_KMB_CONFIG_KEY(PREPROCESSING_SHAVES);
  */
 DECLARE_VPU_KMB_CONFIG_KEY(PREPROCESSING_LPI);
 
-/**
- * @brief [Only for kmbPlugin]
- * Type: "YES/NO", default is "NO".
- * Enable or disable eltwise scales alignment
- */
-DECLARE_VPU_KMB_CONFIG_KEY(ELTWISE_SCALES_ALIGNMENT);
-
-
-/**
- * @brief [Only for kmbPlugin]
- * Type: "YES/NO", default is "NO".
- * Enable or disable Input->ScaleShift pattern removing
- */
-DECLARE_VPU_KMB_CONFIG_KEY(INPUT_SCALE_SHIFT_REMOVING);
 }  // namespace VPUConfigParams
 }  // namespace InferenceEngine

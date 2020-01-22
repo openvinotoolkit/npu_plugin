@@ -26,6 +26,7 @@
 
 #include "inference_engine.hpp"
 #include <vpu/kmb_plugin_config.hpp>
+#include <vpu/vpu_compiler_config.hpp>
 #include "samples/common.hpp"
 #include <vpu/utils/string.hpp>
 
@@ -131,19 +132,19 @@ static std::map<std::string, std::string> configure(const std::string &configFil
     }
 
     if (FLAGS_GENERATE_JSON) {
-        config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_JSON)] = CONFIG_VALUE(YES);
+        config[VPU_COMPILER_CONFIG_KEY(GENERATE_JSON)] = CONFIG_VALUE(YES);
     }
 
     if (FLAGS_GENERATE_DOT) {
-        config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_DOT)] = CONFIG_VALUE(YES);
+        config[VPU_COMPILER_CONFIG_KEY(GENERATE_DOT)] = CONFIG_VALUE(YES);
     }
 
     if (!FLAGS_TARGET_DESCRIPTOR.empty()) {
-        config[VPU_KMB_CONFIG_KEY(MCM_TARGET_DESCRIPTOR)] = FLAGS_TARGET_DESCRIPTOR;
+        config[VPU_COMPILER_CONFIG_KEY(TARGET_DESCRIPTOR)] = FLAGS_TARGET_DESCRIPTOR;
     }
 
     if (!FLAGS_o.empty()) {
-        config[VPU_KMB_CONFIG_KEY(MCM_COMPILATION_RESULTS_PATH)] = filedirname(FLAGS_o);
+        config[VPU_COMPILER_CONFIG_KEY(COMPILATION_RESULTS_PATH)] = filedirname(FLAGS_o);
     }
     return config;
 }

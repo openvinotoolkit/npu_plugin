@@ -17,9 +17,11 @@
 #include <hddl2_executable_network.h>
 #include <hddl2_helpers.h>
 #include <hddl2_infer_request.h>
+#include <net_pass.h>
 
 #include <algorithm>
 #include <fstream>
+#include <mcm_adapter.hpp>
 #include <memory>
 #include <string>
 #include <vector>
@@ -56,7 +58,8 @@ InferenceEngine::InferRequestInternal::Ptr vpu::HDDL2Plugin::ExecutableNetwork::
     return std::make_shared<HDDL2InferRequest>(networkInputs, networkOutputs, _graph);
 }
 
-vpu::HDDL2Plugin::ExecutableNetwork::ExecutableNetwork(const std::string& blobFilename) {
+vpu::HDDL2Plugin::ExecutableNetwork::ExecutableNetwork(const std::string& blobFilename, const HDDL2Config& config)
+    : _config(config) {
     HddlStatusCode code = getAvailableDevices(_devices);
     if (code != HddlStatusCode::HDDL_OK) {
         THROW_IE_EXCEPTION << "getAvailableDevices != StatusCode::OK; " << code;
@@ -79,7 +82,20 @@ vpu::HDDL2Plugin::ExecutableNetwork::ExecutableNetwork(const std::string& blobFi
     this->_networkOutputs = getCustomOutputInfo();
 }
 
-vpu::HDDL2Plugin::ExecutableNetwork::ExecutableNetwork(InferenceEngine::ICNNNetwork& network) { UNUSED(network); }
+vpu::HDDL2Plugin::ExecutableNetwork::ExecutableNetwork(InferenceEngine::ICNNNetwork& network, const HDDL2Config& config)
+    : _config(config) {
+#ifdef ENABLE_MCM_COMPILER
+    vpu::MCMAdapter::compileNetwork(network, _config, _graphBlob);
+
+    HddlStatusCode status = loadGraph(_graph, "resnet", _graphBlob.data(), _graphBlob.size(), _devices);
+    if (status != HddlStatusCode::HDDL_OK) THROW_IE_EXCEPTION << "[ERROR] -load graph error: " << status;
+
+    network.getInputsInfo(_networkInputs);
+    network.getOutputsInfo(_networkOutputs);
+#else
+    UNUSED(network);
+#endif
+}
 
 vpu::HDDL2Plugin::ExecutableNetwork::~ExecutableNetwork() {
     if (_graph != nullptr) unloadGraph(_graph, _devices);

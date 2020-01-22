@@ -61,17 +61,11 @@ void Engine::SetConfig(const std::map<std::string, std::string>& config) {
 void Engine::QueryNetwork(
     const ICNNNetwork& network, const std::map<std::string, std::string>& config, QueryNetworkResult& res) const {
 #ifdef ENABLE_MCM_COMPILER
-    std::shared_ptr<mv::CompilationUnit> tmpCompiler = std::make_shared<mv::CompilationUnit>(network.getName());
-    if (tmpCompiler == nullptr) {
-        THROW_IE_EXCEPTION << "CompilationUnit have not been created.\n"
-                           << "Supported format: FP32 and FP16.";
-    }
-
     auto parsedConfigCopy = _parsedConfig;
     parsedConfigCopy.update(config);
 
     auto copyNet = ie::CNNNetwork(InferenceEngine::cloneNet(network));
-    auto layerNames = getSupportedLayersMcm(copyNet, tmpCompiler->model(), parsedConfigCopy);
+    auto layerNames = MCMAdapter::getSupportedLayers(copyNet, parsedConfigCopy);
 
     for (auto&& layerName : layerNames) {
         res.supportedLayersMap.insert({layerName, GetName()});
@@ -88,10 +82,8 @@ Engine::Engine() {
     _pluginName = "KMB";
 
 #ifdef ENABLE_MCM_COMPILER
-    std::shared_ptr<mv::CompilationUnit> tmpCompiler = std::make_shared<mv::CompilationUnit>("testModel");
-    if (tmpCompiler == nullptr) {
-        THROW_IE_EXCEPTION << "CompilationUnit have not been created.\n"
-                           << "Supported format: FP32 and FP16.";
+    if (!MCMAdapter::isMCMCompilerAvailable()) {
+        THROW_IE_EXCEPTION << "Compiler not found";
     }
 #endif
 }

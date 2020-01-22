@@ -3,6 +3,7 @@
 //
 
 #include <vpu/kmb_plugin_config.hpp>
+#include <vpu/vpu_compiler_config.hpp>
 
 #include "behavior_test_plugin.h"
 
@@ -61,9 +62,9 @@ const std::vector<BehTestParams> withCorrectConfValues = {
     BEH_KMB.withConfig({{KEY_VPU_HW_POOL_CONV_MERGE, "YES"}}),
     BEH_KMB.withConfig({{VPU_KMB_CONFIG_KEY(PREPROCESSING_SHAVES), "6"}}),
     BEH_KMB.withConfig({{VPU_KMB_CONFIG_KEY(PREPROCESSING_LPI), "8"}}),
-    BEH_KMB.withConfig({{VPU_KMB_CONFIG_KEY(MCM_LOG_LEVEL), LOG_DEBUG}}),
-    BEH_KMB.withConfig({{VPU_KMB_CONFIG_KEY(ELTWISE_SCALES_ALIGNMENT), NO}}),
-    BEH_KMB.withConfig({{VPU_KMB_CONFIG_KEY(INPUT_SCALE_SHIFT_REMOVING), YES}}),
+    BEH_KMB.withConfig({{VPU_COMPILER_CONFIG_KEY(LOG_LEVEL), LOG_DEBUG}}),
+    BEH_KMB.withConfig({{VPU_COMPILER_CONFIG_KEY(ELTWISE_SCALES_ALIGNMENT), NO}}),
+    BEH_KMB.withConfig({{VPU_COMPILER_CONFIG_KEY(INPUT_SCALE_SHIFT_REMOVING), YES}}),
 };
 
 const std::vector<BehTestParams> withCorrectConfValuesPluginOnly = {};
@@ -76,7 +77,7 @@ const BehTestParams withIncorrectConfValues[] = {
     BEH_KMB.withConfig({{KEY_VPU_IGNORE_UNKNOWN_LAYERS, "ON"}}),
     BEH_KMB.withConfig({{VPU_KMB_CONFIG_KEY(PREPROCESSING_SHAVES), "SIX"}}),
     BEH_KMB.withConfig({{VPU_KMB_CONFIG_KEY(PREPROCESSING_LPI), "EIGHT"}}),
-    BEH_KMB.withConfig({{VPU_KMB_CONFIG_KEY(MCM_LOG_LEVEL), "debug"}}),
-    BEH_KMB.withConfig({{VPU_KMB_CONFIG_KEY(ELTWISE_SCALES_ALIGNMENT), "NOP"}}),
-    BEH_KMB.withConfig({{VPU_KMB_CONFIG_KEY(INPUT_SCALE_SHIFT_REMOVING), "YEP"}}),
+    BEH_KMB.withConfig({{VPU_COMPILER_CONFIG_KEY(LOG_LEVEL), "debug"}}),
+    BEH_KMB.withConfig({{VPU_COMPILER_CONFIG_KEY(ELTWISE_SCALES_ALIGNMENT), "NOP"}}),
+    BEH_KMB.withConfig({{VPU_COMPILER_CONFIG_KEY(INPUT_SCALE_SHIFT_REMOVING), "YEP"}}),
 };

@@ -1,0 +1,44 @@
+#
+# Copyright 2020 Intel Corporation.
+#
+# This software and the related documents are Intel copyrighted materials,
+# and your use of them is governed by the express license under which they
+# were provided to you (End User License Agreement for the Intel(R) Software
+# Development Products (Version May 2017)). Unless the License provides
+# otherwise, you may not use, modify, copy, publish, distribute, disclose or
+# transmit this software or the related documents without Intel's prior
+# written permission.
+#
+# This software and the related documents are provided as is, with no
+# express or implied warranties, other than those that are expressly
+# stated in the License.
+#
+
+set(TARGET_NAME "frontend_mcm")
+set(IE_FRONTEND_MCM_INCLUDE_DIR
+        ${CMAKE_CURRENT_SOURCE_DIR}/inlude CACHE INTERNAL "IE_FRONTEND_MCM_INCLUDE_DIR")
+
+file(GLOB_RECURSE SOURCES *.cpp)
+
+add_library(${TARGET_NAME} STATIC ${SOURCES})
+
+target_include_directories(${TARGET_NAME}
+    SYSTEM PRIVATE
+        ${MCM_COMPILER_INCLUDES}
+    PUBLIC
+        "include"
+        ${CMAKE_CURRENT_SOURCE_DIR}
+        ${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/include)
+
+target_link_libraries(${TARGET_NAME}
+    PUBLIC
+        IE::inference_engine
+        IE::inference_engine_lp_transformations
+    PRIVATE
+        IE::vpu_common_lib
+        kmb_utils
+        ${MCM_COMPILER_LIBRARY})
+
+if(ENABLE_CLANG_FORMAT)
+    add_clang_format_target(clang_format_${TARGET_NAME} FOR_TARGETS ${TARGET_NAME} ALL)
+endif()

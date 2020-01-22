@@ -20,6 +20,7 @@
 #include <iostream>
 #include <thread>
 #include <vpu/kmb_plugin_config.hpp>
+#include <vpu/vpu_compiler_config.hpp>
 
 #include "plugin_cache.hpp"
 
@@ -64,7 +65,7 @@ void kmbLayersTests_nightly::doNetworkInit(const std::string& layer_type, std::m
 
 std::map<std::string, std::string> KmbPerLayerTest::getCommonConfig() const {
     std::map<std::string, std::string> config;
-    config[VPU_KMB_CONFIG_KEY(MCM_PARSING_ONLY)] = CONFIG_VALUE(NO);
+    config[VPU_COMPILER_CONFIG_KEY(PARSING_ONLY)] = CONFIG_VALUE(NO);
 
     return config;
 }
@@ -81,14 +82,14 @@ std::string KmbPerLayerTest::getTestResultFilename() const {
 void kmbLayersTests_nightly::setCommonConfig(std::map<std::string, std::string>& config) {
     config = _config;
     config[VPU_KMB_CONFIG_KEY(LOAD_NETWORK_AFTER_COMPILATION)] = CONFIG_VALUE(YES);
-    config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_JSON)] = CONFIG_VALUE(NO);
-    config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_DOT)] = CONFIG_VALUE(NO);
-    config[VPU_KMB_CONFIG_KEY(MCM_PARSING_ONLY)] = CONFIG_VALUE(NO);
-    config[VPU_KMB_CONFIG_KEY(ELTWISE_SCALES_ALIGNMENT)] = CONFIG_VALUE(NO);
-    config[VPU_KMB_CONFIG_KEY(INPUT_SCALE_SHIFT_REMOVING)] = CONFIG_VALUE(YES);
+    config[VPU_COMPILER_CONFIG_KEY(GENERATE_JSON)] = CONFIG_VALUE(NO);
+    config[VPU_COMPILER_CONFIG_KEY(GENERATE_DOT)] = CONFIG_VALUE(NO);
+    config[VPU_COMPILER_CONFIG_KEY(PARSING_ONLY)] = CONFIG_VALUE(NO);
+    config[VPU_COMPILER_CONFIG_KEY(ELTWISE_SCALES_ALIGNMENT)] = CONFIG_VALUE(NO);
+    config[VPU_COMPILER_CONFIG_KEY(INPUT_SCALE_SHIFT_REMOVING)] = CONFIG_VALUE(YES);
 
     const ::testing::TestInfo* const test_info = ::testing::UnitTest::GetInstance()->current_test_info();
 
-    config[VPU_KMB_CONFIG_KEY(MCM_COMPILATION_RESULTS_PATH)] = test_info->test_case_name();
-    config[VPU_KMB_CONFIG_KEY(MCM_COMPILATION_RESULTS)] = test_info->name();
+    config[VPU_COMPILER_CONFIG_KEY(COMPILATION_RESULTS_PATH)] = test_info->test_case_name();
+    config[VPU_COMPILER_CONFIG_KEY(COMPILATION_RESULTS)] = test_info->name();
 }
