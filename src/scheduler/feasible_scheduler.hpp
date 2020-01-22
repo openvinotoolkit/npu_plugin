@@ -1928,13 +1928,6 @@ class Feasible_Memory_Schedule_Generator {
           // clear all its active resources //
           typename active_resource_table_t::iterator aitr =
               active_resource_table_.find(pop);
-
-          if (aitr == active_resource_table_.end()) {
-            printf("[Assertion] pop_name=%s op=%s compute_op=%s\n",
-                traits::operation_name(pop), traits::operation_name(op),
-                traits::is_compute_operation(*input_ptr_, pop) ? "YES" : "NO");
-            fflush(stdout);
-          }
           assert(aitr != active_resource_table_.end());
           
           const active_op_resources_t &active_op_resources = aitr->second;
