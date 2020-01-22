@@ -115,14 +115,12 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
   mv::lp_scheduler::Tensor_Address_Assignment<scheduler_t>
       cmx_address_alloc(model);
   scheduler_t scheduler(input_dag, upper_bound), scheduler_end;
-  std::list<scheduled_op_t> scheduled_ops;
-  bool has_any_dynamic_spill_ops = false;
+  typedef std::list<scheduled_op_t> scheduled_op_list_t;
+  typedef typename scheduled_op_list_t::iterator scheduled_op_list_iterator_t;
+  scheduled_op_list_t scheduled_ops;
 
-
-  std::string scheduled_op_type;
-  std::unordered_set<mv::Op const *> spilled_writes;
-
-  while (scheduler != scheduler_end) {
+  std::string scheduled_op_type; 
+  while (scheduler != scheduler_end) { // collect original schedule //
     const scheduled_op_info_t &scheduled_op = *scheduler;
     mv::Op const *op = scheduled_op.op_;
     size_t rbegin = scheduled_op.begin_resource();
@@ -137,59 +135,83 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
       rend = upper_bound;
     }
 
-    
     mv::lp_scheduler::op_type_e scheduled_op_enum;
-   
-    bool select_op = true;
     if (scheduled_op_type == "ORIGINAL") {
       scheduled_op_enum = mv::lp_scheduler::op_type_e::ORIGINAL_OP;
     } else if (scheduled_op_type == "SPILLED_READ") {
       scheduled_op_enum = mv::lp_scheduler::op_type_e::SPILLED_READ_OP;
-      has_any_dynamic_spill_ops = true;
     } else {
       scheduled_op_enum = mv::lp_scheduler::op_type_e::SPILLED_WRITE_OP;
-      has_any_dynamic_spill_ops = true;
-      if (spilled_writes.find(op) == spilled_writes.end() ) {
-        spilled_writes.insert(op);
-      } else {
-        select_op = false;
-      }
     }
-    
+    scheduled_ops.push_back(scheduled_op_t(op, scheduled_op.time_,
+          rbegin, rend, scheduled_op_enum));
+    ++scheduler;
+  } // while (scheduler != scheduler_end) //
 
-    if (select_op) {
-      scheduled_ops.push_back(scheduled_op_t(op, scheduled_op.time_,
-            rbegin, rend, scheduled_op_enum));
+  { 
+    std::list<scheduled_op_t> new_scheduled_ops;
 
+    mv::lp_scheduler::Remove_Redundant_Spill_Writes::remove(
+        scheduled_ops.begin(), scheduled_ops.end(),
+          std::back_inserter(new_scheduled_ops));
+
+    scheduled_ops = new_scheduled_ops;
+  }
+
+
+  bool has_any_dynamic_spill_ops = false;
+  {
+    for (auto shed_itr=scheduled_ops.begin(); shed_itr!=scheduled_ops.end();
+        ++shed_itr) {
+      const scheduled_op_t& scheduled_op = *shed_itr;
+
+      cmx_address_alloc(scheduled_op);
+
+      if (!scheduled_op.is_original_op()) { has_any_dynamic_spill_ops = true; }
+
+      //////////////////////////////////////////////////////////////////////////
       fprintf(fptr, "op = %-20s  type = %-15s  time = %lu",
           (scheduled_op.op_)->getName().c_str(), scheduled_op.op_type_name(),
-            scheduled_op.time_);
+            scheduled_op.schedule_time_);
       fflush(fptr);
 
       if (scheduled_op.has_active_resource()) {
-        fprintf(fptr, " resource=[%lu %lu]\n", scheduled_op.begin_resource(),
-            scheduled_op.end_resource());
+        fprintf(fptr, " resource=[%lu %lu]\n", scheduled_op.cmx_address_start_,
+            scheduled_op.cmx_address_end_);
       } else {
         fprintf(fptr, " resource=<none>\n");
       }
-
-      cmx_address_alloc(scheduled_op);
+      //////////////////////////////////////////////////////////////////////////
     }
-    ++scheduler;
   }
+
 
   std::vector<control_edge_t> dynamic_spill_control_edges;
   if (has_any_dynamic_spill_ops) {
     printf("[Dynamic_Spill_Node_Inserter] adding dynamic spill nodes\n");
-    mv::lp_scheduler::Dynamic_Spill_Node_Inserter dynamic_spill(model);
+    mv::lp_scheduler::Dynamic_Spill_Node_Inserter<dag_t> dynamic_spill(
+          input_dag, model);
 
-    dynamic_spill.add_spill_read_write_ops(input_dag,
-        scheduled_ops.begin(), scheduled_ops.end());
+    dynamic_spill.add_spill_read_write_ops(scheduled_ops.begin(),
+          scheduled_ops.end());
 
-    // update the scheduled ops with new info of the ops //
+    // Update the scheduled ops with new info of the ops //
     dynamic_spill.update_scheduled_ops_with_new_read_write_ops(
         scheduled_ops.begin(), scheduled_ops.end(),
         std::back_inserter(dynamic_spill_control_edges));
+
+    { // Erase any redundant spilled writes //
+      scheduled_op_list_iterator_t sched_itr=scheduled_ops.begin(),
+                                   sched_itr_next;
+      while (sched_itr != scheduled_ops.end()) {
+        sched_itr_next = sched_itr; ++sched_itr_next;
+        if ((*sched_itr).op_ == NULL) {
+          scheduled_ops.erase(sched_itr);
+        }
+        sched_itr = sched_itr_next;
+      }
+    }
+    dynamic_spill.print_redundant_spilled_ops(fptr);
 
     // update the input_dag with updated opModel
     mv::OpModel updated_om(model);
@@ -210,6 +232,9 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
       } else {
         fprintf(fptr, " resource=<none> \n");
       }
+
+      fflush(fptr);
+
       cmx_address_alloc(scheduled_op);
     }
     has_any_dynamic_spill_ops = false;

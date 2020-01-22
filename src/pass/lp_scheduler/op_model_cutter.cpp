@@ -3,6 +3,7 @@
 
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/computation/model/iterator/data_context.hpp"
+#include "include/mcm/logger/logger.hpp"
 #include "include/mcm/op_model.hpp"
 #include "include/mcm/pass/pass_registry.hpp"
 #include "include/mcm/tensor/tensor.hpp"
@@ -54,13 +55,17 @@ void FindAllOpsWhichConnectToThisOp(mv::OpModel& omodel,
   }
 } 
 
-//InceptionV3/InceptionV3/Mixed_7a/concat#411
 void OpModelCutter(const mv::pass::PassEntry& , mv::ComputationModel& model,
     mv::TargetDescriptor& , mv::Element& passDesc, mv::Element& ) {
 
   mv::OpModel omodel(model);
   std::string cut_op_name = passDesc.get<std::string>("op_name");
-  printf("[OpModelCutter] op_name=%s\n", cut_op_name.c_str());
+
+  { 
+    std::ostringstream log_stream;
+    log_stream << "[OpModelCutter] cut_op_name=" << cut_op_name << std::endl;
+    passDesc.log(mv::Logger::MessageType::Info, log_stream.str());
+  }
 
   mv::Data::OpListIterator output_op_itr;
 
@@ -71,8 +76,12 @@ void OpModelCutter(const mv::pass::PassEntry& , mv::ComputationModel& model,
     if (itr->getOpType() != "Output") { continue; }
 
     if (itr->getName() == cut_op_name) {
-      printf("[OpModelCutter] mv::OpModel already ends at =%s\n",
-          cut_op_name.c_str());
+      { 
+        std::ostringstream log_stream;
+        log_stream << "[OpModelCutter] mv::OpModel already ends at = %s" <<
+          cut_op_name << std::endl;
+        passDesc.log(mv::Logger::MessageType::Info, log_stream.str());
+      }
       return;
     }
 
@@ -85,22 +94,31 @@ void OpModelCutter(const mv::pass::PassEntry& , mv::ComputationModel& model,
   //STEP-1: remove all children for the op which wants to be the output //
   mv::Data::OpListIterator new_oitr = omodel.getOp(cut_op_name);
   if (new_oitr == omodel.opEnd()) { 
-    printf("[OpModelCutter] op %s does not exist in the mv::OpModel\n",
-          cut_op_name.c_str());
+    { 
+      std::ostringstream log_stream;
+      log_stream << "[OpModelCutter] op " << cut_op_name <<
+          "does not exist in mv::OpModel" << std::endl;
+      passDesc.log(mv::Logger::MessageType::Info, log_stream.str());
+    }
     return;
   }
 
   {
+    std::ostringstream log_stream;
     std::list<std::string> ops_to_remove;
     for (mv::Data::OpChildIterator citr=new_oitr.leftmostChild();
           citr!=omodel.opEnd(); ++citr) {
-      printf("[removeOp(%s)]\n", citr->getName().c_str());
+      { // log //
+        log_stream << "[removedOp] op="<< citr->getName() << std::endl;;
+      }
       ops_to_remove.push_back(citr->getName());
     }
     for (auto nitr=ops_to_remove.begin(); nitr!=ops_to_remove.end(); ++nitr) {
       mv::Data::OpListIterator opitr = omodel.getOp(*nitr);
       omodel.removeOp(opitr);
     }
+
+    passDesc.log(mv::Logger::MessageType::Info, log_stream.str());
   }
 
   //STEP-2: compute connected components

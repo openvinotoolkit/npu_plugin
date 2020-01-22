@@ -74,7 +74,6 @@ void SplittingTensorsAcrossClusters(const mv::pass::PassEntry& pass, mv::Computa
             }
         }
         //Also need to generate subtensors for output tensor of input operation, and the input tensor of output operation
-        //Only compute subtensors if tensor is already aligned (SOH tensors will be)
         auto inOutputTensor = om.getInput()->getOutputTensor(0);
         if(inOutputTensor->get<std::string>("splitStrategy") == "SplitOverH")
         {

@@ -1,6 +1,7 @@
 #ifndef LP_SCHEDULER_PASS_H
 #define LP_SCHEDULER_PASS_H
 
+#include <cstdio>
 #include <set>
 #include <string>
 #include <type_traits>
@@ -18,7 +19,8 @@ enum class op_type_e {ORIGINAL_OP=0, SPILLED_WRITE_OP=1, SPILLED_READ_OP=2};
 
 struct Scheduled_Op {
 
-  Scheduled_Op() : op_(), schedule_time_(), schedule_end_time_(),
+  Scheduled_Op() : op_(NULL),
+    schedule_time_(std::numeric_limits<size_t>::max()), schedule_end_time_(),
   cmx_address_start_(), cmx_address_end_(), op_type_() {}
 
   Scheduled_Op(mv::Op const *op, size_t t, size_t start, size_t end,
@@ -48,6 +50,8 @@ struct Scheduled_Op {
   bool has_valid_address() const { 
     return (cmx_address_start_ <= cmx_address_end_);
   }
+
+  bool has_active_resource() const { return has_valid_address(); }
 
   mv::Op const * op_;
   size_t schedule_time_;
@@ -443,11 +447,15 @@ class Control_Edge_Set {
 
 
 // Given a sequence (schedule) of scheduled ops (Scheduled_Op) with some //
+template<typename OpDag>
 class Dynamic_Spill_Node_Inserter {
   public:
     ////////////////////////////////////////////////////////////////////////////
+    typedef OpDag dag_t;
     typedef Scheduled_Op scheduled_op_t;
-    typedef mv::Op const * operation_t;
+    typedef typename dag_t::operation_t operation_t;
+    typedef typename dag_t::const_operation_iterator_t
+        const_operation_iterator_t;
     typedef std::list<operation_t> op_list_t;
 
     struct spilled_read_subtree_t {
@@ -467,7 +475,6 @@ class Dynamic_Spill_Node_Inserter {
           printf(" %s ", (*itr)->getName().c_str());
         }
         printf(" }\n");
-
       }
 
       operation_t read_op_;
@@ -496,6 +503,7 @@ class Dynamic_Spill_Node_Inserter {
         return (children_.find(op) != children_.end());
       }
 
+      //Precondition: has_valid_write() //
       void print() const {
         printf("[write_op=%s]\n", spilled_write_op_->getName().c_str());
         for (auto ritr=read_subtrees_.begin(); ritr!=read_subtrees_.end();
@@ -505,31 +513,48 @@ class Dynamic_Spill_Node_Inserter {
         printf("\n");
       }
 
+      bool has_valid_write() const { return spilled_write_op_ != NULL; }
+
       operation_t spilled_write_op_;
       spilled_read_subtrees_t read_subtrees_;
       std::unordered_set<operation_t> children_;
     }; // struct spilled_subtree_t //
 
     typedef std::unordered_map<operation_t, spilled_subtree_t> spilled_op_map_t;
+    typedef typename spilled_op_map_t::const_iterator
+        spilled_op_map_const_iterator_t;
+    typedef std::unordered_map<operation_t, std::string> redundant_spill_map_t;
     ////////////////////////////////////////////////////////////////////////////
 
-    Dynamic_Spill_Node_Inserter(mv::ComputationModel& model)
-      : model_(model), spilled_op_map_() {}
+    Dynamic_Spill_Node_Inserter(
+        const dag_t& input_dag, mv::ComputationModel& model)
+      : model_(model), spilled_op_map_(), input_dag_(input_dag),
+        redundant_spill_map_() {}
 
-    template<typename OpDag, typename ScheduledOpIterator>
-    size_t add_spill_read_write_ops(const OpDag& dag,
+    template<typename ScheduledOpIterator>
+    size_t add_spill_read_write_ops(
         ScheduledOpIterator sbegin, ScheduledOpIterator send) {
-      compute_spill_subtrees(dag, sbegin, send);
+
+      compute_spill_subtrees(sbegin, send);
 
       // now for each subtree structure update the model //
-      for (spilled_op_map_t::iterator itr = spilled_op_map_.begin();
+      for (typename spilled_op_map_t::iterator itr = spilled_op_map_.begin();
             itr != spilled_op_map_.end(); ++itr) {
-        create_spill_subtree_structure_in_model(itr->first, itr->second);
+        const operation_t& spilled_op = itr->first;
+
+        if (input_dag_.is_op_reading_weights(spilled_op)) {
+          create_spill_read_forest_structure_in_model(spilled_op, itr->second);
+        } else {
+          // this is for compute ops //
+          create_spill_subtree_structure_in_model(spilled_op, itr->second);
+        }
       }
     }
 
-
-    //NOTE: this will update the scheduled_op_t 
+    //NOTE: this will update the scheduled_op_t entries in the schedule. For
+    //non-redundant spilled reads and writes a new mv::Op is created and for the
+    //reundant ops in the schedule the corresponding corresponding op_ is set to
+    //NULL. The client can use this to purge redundant ops in the schedule.//
     template<typename ScheduledOpIterator, typename ControlEdgeBackInserter>
     void update_scheduled_ops_with_new_read_write_ops(
         ScheduledOpIterator sbegin, ScheduledOpIterator send,
@@ -546,23 +571,39 @@ class Dynamic_Spill_Node_Inserter {
 
       for (schedule_iterator_t sitr=sbegin; sitr!= send; ++sitr) {
         scheduled_op_t &sop = *sitr;
+        if (!has_its_output_spilled(sop.op_)) { continue; }
 
+        // CASE-1: Handle the original spilled op in the schedule.//
         if (sop.is_original_op()){
-          if (spilled_op_map_.find(sop.op_) != spilled_op_map_.end() ) {
+          if (!is_redundant_spill(sop.op_)) {
+            // save the schedule info to lookup later while handling
+            // corresponding spilled read or spilled write.
             spilled_op_schedule[sop.op_] = sop;
+          } else {
+            sop.op_ = NULL; // redundant ops are erased //
           }
           continue;
-        }
+        } 
 
-
-        // handle a spilled read and write op //
-        spilled_op_map_t::iterator itr = spilled_op_map_.find(sop.op_);
+        // CASE-2: Handle a spilled read and write op in the schedule.//
+        typename spilled_op_map_t::iterator itr = spilled_op_map_.find(sop.op_);
         spilled_subtree_t &subtree = itr->second;
-
+        bool is_original_spilled_op_redundant = is_redundant_spill(sop.op_);
+        
         if (sop.is_spilled_write()) {
-          assert(spilled_op_schedule.find(sop.op_) !=
-                spilled_op_schedule.end());
-          // transfer its CMX addresess to generate control edges //
+          // spilled write //
+
+          // CASE-2.1: If this spilled write corresponds to a redundant orignal
+          // op then this write becomes redundant as well.
+          if (is_original_spilled_op_redundant) {
+            assert(subtree.spilled_write_op_ == NULL);
+            sop.op_ = NULL;
+            continue;
+          }
+
+          // CASE-2.2: Typical case of non-redundant spilled write. //
+
+          // Transfer its CMX addresess to generate control edges //
           const scheduled_op_t &sinfo = spilled_op_schedule[sop.op_]; 
           sop.cmx_address_start_ = sinfo.cmx_address_start_;
           sop.cmx_address_end_ = sinfo.cmx_address_end_;
@@ -572,8 +613,13 @@ class Dynamic_Spill_Node_Inserter {
           // spilled read //
           assert(!((subtree.read_subtrees_).empty()));
           operation_t new_read_op = ((subtree.read_subtrees_).front()).read_op_;
+
           // write edge from write to read op//
-          coutput = control_edge_t(subtree.spilled_write_op_, new_read_op);
+          if (!is_original_spilled_op_redundant) {
+            assert(subtree.spilled_write_op_);
+            coutput = control_edge_t(subtree.spilled_write_op_, new_read_op);
+          }
+
           // add edges from read ops to consumer ops //
           const op_list_t& consumers = 
               (subtree.read_subtrees_).front().consumer_list_;
@@ -582,23 +628,41 @@ class Dynamic_Spill_Node_Inserter {
             coutput = control_edge_t(new_read_op, *consumer_itr);
           }
           sop.op_ = new_read_op;
-          (subtree.read_subtrees_).pop_front();
+          (subtree.read_subtrees_).pop_front(); // subtrees are ordered //
         }
+
         sop.op_type_ = op_type_e::ORIGINAL_OP;
       }
-    }
+
+    } // update_scheduled_ops_with_new_read_write_ops //
 
     void print() const {
       for (auto itr=spilled_op_map_.begin(); itr!=spilled_op_map_.end();
             ++itr) {
         printf("========================\n");
-        printf("[spilled_op=%s]\n", (itr->first)->getName().c_str());
-        (itr->second).print();
+        if (!has_redundant_spilled_write(itr)) {
+          printf("[spilled_op=%s]\n", (itr->first)->getName().c_str());
+          (itr->second).print();
+        } 
         printf("========================\n");
       }
     }
 
+    void print_redundant_spilled_ops(FILE *out_fptr=stdout) const {
+      typename redundant_spill_map_t::const_iterator itr;
+      for (itr=redundant_spill_map_.begin(); itr!=redundant_spill_map_.end();
+            ++itr) {
+        fprintf(out_fptr, "[Redundant Spill] op=%s\n", (itr->second).c_str());
+      }
+    }
+
   private:
+
+    bool has_redundant_spilled_write(spilled_op_map_const_iterator_t itr) const
+    {
+      assert(itr != spilled_op_map_.end());
+      return (itr->second).has_valid_write();
+    }
 
     // Takes a schedule and computes the following structure for each op
     // which got spilled:
@@ -630,9 +694,9 @@ class Dynamic_Spill_Node_Inserter {
     //                               +----->[spill_read]-+---->{c5}
     //                                                   |
     //                                                   +---->{c6}
-    template<typename OpDag, typename ScheduledOpIterator>
-    void compute_spill_subtrees(const OpDag& dag,
-        ScheduledOpIterator sbegin, ScheduledOpIterator send) {
+    template<typename ScheduledOpIterator>
+    void compute_spill_subtrees(ScheduledOpIterator sbegin,
+          ScheduledOpIterator send) {
       typedef typename OpDag::const_operation_iterator_t
           const_operation_iterator_t;
 
@@ -645,23 +709,24 @@ class Dynamic_Spill_Node_Inserter {
 
         if (sched_op.is_original_op()){
 
-          if (!dag.is_dpu_op(op)) { continue; }
+          if (!input_dag_.is_dpu_op(op)) { continue; }
 
           // We have DPU Task we need to check if any of its inputs are spilled
-          for (const_operation_iterator_t pitr=dag.begin_parent_nodes(op);
-                pitr != dag.end_parent_nodes(op); ++pitr) {
+          for (const_operation_iterator_t
+                pitr=input_dag_.begin_parent_nodes(op);
+                pitr != input_dag_.end_parent_nodes(op); ++pitr) {
 
             operation_t pop = *pitr;
             if (!has_its_output_spilled(pop)) { continue; }
 
-            spilled_op_map_t::iterator itr = spilled_op_map_.find(pop);
+            typename spilled_op_map_t::iterator itr = spilled_op_map_.find(pop);
             assert(itr != spilled_op_map_.end());
 
             //now add this op to the spill tree structure //
             (itr->second).add_spill_read_consumer(op);
           }
         } else if (sched_op.is_spilled_read()) {
-          spilled_op_map_t::iterator itr = spilled_op_map_.find(op);
+          typename spilled_op_map_t::iterator itr = spilled_op_map_.find(op);
 
           // since spilled write must come before this //
           assert(itr != spilled_op_map_.end()); 
@@ -669,7 +734,7 @@ class Dynamic_Spill_Node_Inserter {
         } else {
           // spilled write op //
 
-          spilled_op_map_t::iterator itr = spilled_op_map_.find(op);
+          typename spilled_op_map_t::iterator itr = spilled_op_map_.find(op);
           // since the activation data is not changing we don't need to 
           // write it back to DDR .
           if (itr != spilled_op_map_.end()) { continue; }
@@ -788,13 +853,190 @@ class Dynamic_Spill_Node_Inserter {
       }
     }
 
-    bool has_its_output_spilled(operation_t dpu_op) const {
-      return (spilled_op_map_.find(dpu_op) != spilled_op_map_.end());
+    // Creates a read-spill forest without a spilled write op to the DDR //
+    //
+    //
+    //   (read)----->consumer1
+    //          | 
+    //          |
+    //          ---->consumer2
+    //
+    //   (read2)----->consumer3
+    //          |
+    //          ....
+    //          |
+    //          +----->consumer-n
+    //
+    //
+    void create_spill_read_forest_structure_in_model(operation_t spilled_op_in,
+        spilled_subtree_t& spilled_sub_tree) {
+
+      mv::Op *spilled_op = const_cast<mv::Op *>(spilled_op_in);
+      mv::OpModel om(model_);
+      mv::DataModel dm(model_);
+
+      // Precondition: this must be a data op. //
+      assert(spilled_op->inputSlots() == 1UL);
+
+
+      //////////////////////////////////////////////////////////////////////////
+      // STEP-1: get the input tensor corresponding to the original read-op //
+      mv::Data::TensorIterator spilled_op_input_tensor_itr = 
+          spilled_op->getInputTensor(0UL);
+
+      // A NULL spilled_write_op_ means the write op is redundant//
+      spilled_sub_tree.spilled_write_op_ = NULL;
+
+
+      //////////////////////////////////////////////////////////////////////////
+      // STEP-2: for all the outgoing ops connected to this op determine the 
+      // input tensor indexes 
+      //
+      // TODO(vamsikku): this is a common operations between forest and subtree
+      // code it should be a function on its own.
+      std::unordered_map<operation_t, size_t> input_tensor_index_map;
+      {
+        mv::Data::OpListIterator spilled_op_itr =
+          om.getOp(spilled_op->getName());
+        for(auto outputFlow = spilled_op_itr.leftmostOutput();
+          outputFlow != om.flowEnd(); ++outputFlow) {
+          size_t idx = outputFlow->get<size_t>("sinkInput");
+          operation_t sink_op = &(*(outputFlow.sink()));
+          input_tensor_index_map[sink_op] = idx;
+        }
+      }
+
+
+      bool is_spilled_read_redundant = false;
+      //////////////////////////////////////////////////////////////////////////
+      // STEP-3: erase all outgoing flows from the spilled op and children in 
+      // spill sub tree
+      {
+        mv::Data::OpListIterator spilled_op_itr =
+            om.getOp(spilled_op->getName());
+        std::vector<mv::Data::FlowListIterator> undef_flows;
+        size_t spilled_op_out_degree = 0UL;
+
+        for (auto outputFlow = spilled_op_itr.leftmostOutput();
+          outputFlow != om.flowEnd(); ++outputFlow, ++spilled_op_out_degree) {
+          operation_t sink_op = &(*(outputFlow.sink()));
+          if (spilled_sub_tree.has_child(sink_op)) {
+            undef_flows.push_back(outputFlow);
+          }
+        }
+
+        is_spilled_read_redundant =
+            (undef_flows.size() == spilled_op_out_degree);
+
+        for (auto flow : undef_flows) om.undefineFlow(flow);
+      }
+
+      //////////////////////////////////////////////////////////////////////////
+      // STEP-3.1: postpone erase the of redundant spilled_op to avoid automatic
+      // ref-count base removal of the underlying source tensor.
+      
+
+      //////////////////////////////////////////////////////////////////////////
+      // STEP-4: create a new spill read subtrees ops using the input_tensor of
+      // the original spilled op //
+      //
+      //
+      // TODO(vamsikku): the only change from the subtree structure is the input
+      // tensor for each of the reads so create a function to reuse the same
+      // function across both methods.
+      size_t read_index = 0UL;
+      mv::DmaDirection read_dma_direction(std::string("DDR2NNCMX"));
+      spilled_read_subtrees_t &read_subtrees = spilled_sub_tree.read_subtrees_;
+      std::string dma_op_name;
+
+      for (typename spilled_read_subtrees_t::iterator
+            spill_read_itr=read_subtrees.begin();
+              spill_read_itr!=read_subtrees.end(); ++spill_read_itr) {
+
+        dma_op_name = spilled_op->getName() + "_spilledReadForest" +
+            std::to_string(read_index++);
+        mv::Data::TensorIterator spill_read_tensor_itr = om.dMATask(
+            spilled_op_input_tensor_itr, read_dma_direction, dma_op_name);
+        Data::OpListIterator read_op_itr =
+            om.getSourceOp(spill_read_tensor_itr);
+        read_op_itr->setInputTensor(spilled_op_input_tensor_itr, 0UL, false);
+        spill_read_tensor_itr->set<std::size_t>("address",
+              std::numeric_limits<size_t>::max());
+
+        // save the read op //
+        spill_read_itr->read_op_ = &(*read_op_itr); 
+
+        // now connect output of this read all ops in this subtree //
+        const op_list_t &children = spill_read_itr->consumer_list_;
+        for (auto child=children.begin(); child!=children.end(); ++child) {
+          operation_t child_op = *child;
+          Data::OpListIterator child_op_itr = om.getOp(child_op->getName());
+          assert(child_op_itr != om.opEnd());
+
+          // find the input index in the original spilled op //
+          auto idx_itr = input_tensor_index_map.find(child_op);
+          assert(idx_itr != input_tensor_index_map.end());
+          size_t idx = idx_itr->second;
+          child_op_itr->setInputTensor(spill_read_tensor_itr, idx, false);
+          om.defineFlow(spill_read_tensor_itr, child_op_itr, idx);
+        }
+      }
+
+      if (is_spilled_read_redundant) {
+        Data::OpListIterator spilled_op_itr = om.getOp(spilled_op->getName());
+        assert(spilled_op_itr != om.opEnd());
+        assert(redundant_spill_map_.find(spilled_op) ==
+              redundant_spill_map_.end());
+        redundant_spill_map_.insert(
+            std::make_pair(spilled_op, spilled_op->getName()));
+        om.removeOp(spilled_op_itr);
+      }
+    }
+
+    bool has_its_output_spilled(operation_t op) const {
+      return (spilled_op_map_.find(op) != spilled_op_map_.end());
+    }
+
+    bool is_redundant_spill(const operation_t& op) const {
+      return (redundant_spill_map_.find(op) != redundant_spill_map_.end());
     }
 
     mv::ComputationModel& model_;
     spilled_op_map_t spilled_op_map_;
+    dag_t input_dag_;
+    redundant_spill_map_t redundant_spill_map_;
 }; // class Dynamic_Spill_Node_Inserter //
+
+
+struct Remove_Redundant_Spill_Writes {
+  typedef mv::Op const * operation_t;
+  typedef Scheduled_Op scheduled_op_t;
+
+  template<typename InputScheduledOpIterator,
+    typename BackInsertScheduledOpIterator>
+  static void remove(
+      InputScheduledOpIterator begin, InputScheduledOpIterator end,
+      BackInsertScheduledOpIterator output) {
+    std::unordered_map<operation_t, scheduled_op_t> spilled_writes;
+    for (; begin != end; ++begin) {
+      const scheduled_op_t& sop = *begin;
+      const operation_t& op = sop.op_;
+
+      if (!sop.is_spilled_write() ||
+          (spilled_writes.find(op) == spilled_writes.end())) {
+        if (sop.is_spilled_write()) {
+          spilled_writes.insert(std::make_pair(op, sop));
+        }
+        output = sop;
+      }
+    }
+  }
+
+}; // class Remove_Redundant_Spill_Writes //
+
+
+
+
 
 
 } // namespace lp_schdeduler //
