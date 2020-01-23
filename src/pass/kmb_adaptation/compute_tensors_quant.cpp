@@ -120,7 +120,7 @@ void computeTensorsQuantParams(const mv::pass::PassEntry&, mv::ComputationModel&
                     for (auto it = absRelativeErrorScale.begin(); it != absRelativeErrorScale.end(); it++)
                     {
                         if (*it > 0.01)
-                            throw mv::RuntimeError(om, opIt->getName() + ": different values of scales for Add/Subtract is not supported!"
+                            throw mv::RuntimeError(om, opIt->getName() + ": The relative difference in the input scales is > 1%. This is not supported for Eltwise operation."
                                                + std::to_string(input1Scale[0]) + " " + std::to_string(input2Scale[0]));
                     }
                  }
