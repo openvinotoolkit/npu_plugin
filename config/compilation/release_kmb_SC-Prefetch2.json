@@ -53,9 +53,9 @@
                     {
                         "name_filter" : "Example_do_not_remove",
                         "splits" : [
-                            {"C" : 1},
-                            {"H" : 1},
                             {"W" : 1},
+                            {"H" : 1},
+                            {"C" : 1},
                             {"K" : 1}
                         ]
                     }
@@ -125,7 +125,7 @@
                         {
                             "name" : "DepthwiseConv",
                             "strategies": [
-                                {"name" : "streamingStrategies",  "value" : ["StreamOverH","StreamOverW"]},
+                                {"name" : "streamingStrategies",  "value" : ["StreamOverH","StreamOverW","StreamOverC"]},
                                 {"name" : "clusteringStrategies", "value" : ["SplitOverH","SplitOverK","Clustering"]},
                                 {"name" : "inputActivationSparsity",             "value" : false},
                                 {"name" : "outputActivationSparsity",             "value" : true},
