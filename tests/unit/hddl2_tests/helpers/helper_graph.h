@@ -16,7 +16,7 @@
 
 #pragma once
 
-#include <hddl2_helpers/helper_precompiled_resnet.h>
+#include <hddl2_helpers/models/precompiled_resnet.h>
 #include "hddl2_graph.h"
 
 namespace vpu {

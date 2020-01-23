@@ -1,5 +1,5 @@
 //
-// Copyright 2019 Intel Corporation.
+// Copyright 2020 Intel Corporation.
 //
 // This software and the related documents are Intel copyrighted materials,
 // and your use of them is governed by the express license under which they
@@ -21,14 +21,14 @@
 #include "test_model_path.hpp"
 
 //------------------------------------------------------------------------------
-//      class PrecompiledResNet_Helper parameters
+//      PrecompiledResNet_Helper parameters
 //------------------------------------------------------------------------------
 struct modelBlobInfo {
     std::string graphName, graphPath, inputPath, outputPath;
 };
 
 //------------------------------------------------------------------------------
-//      class PrecompiledResNet_Helper Declaration
+//      PrecompiledResNet_Helper Declaration
 //------------------------------------------------------------------------------
 namespace PrecompiledResNet_Helper {
     static const modelBlobInfo resnet =

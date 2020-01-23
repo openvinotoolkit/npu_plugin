@@ -17,8 +17,8 @@
 #include "hddl2_graph.h"
 
 #include "gtest/gtest.h"
-#include "hddl2_helpers/helper_model_loader.h"
-#include "hddl2_helpers/helper_precompiled_resnet.h"
+#include "hddl2_helpers/models/model_loader.h"
+#include "hddl2_helpers/models/precompiled_resnet.h"
 #include "hddl2_plugin.h"
 
 using namespace vpu::HDDL2Plugin;

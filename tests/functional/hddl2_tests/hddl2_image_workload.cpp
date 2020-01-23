@@ -42,11 +42,6 @@ public:
  */
 
 TEST_P(HDDL2_ImageWorkload_Tests, SyncInference) {
-    // FIXME TODO Fix load network case
-    if (GetParam() == LoadNetwork) {
-        SKIP();
-    }
-
     // ---- Load inference engine instance
     InferenceEngine::Core ie;
 
@@ -67,16 +62,12 @@ TEST_P(HDDL2_ImageWorkload_Tests, SyncInference) {
         auto size = inputBlob->size();
         printf("=== Size %lu\n", size);
         ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(inputFilePath, inputBlob));
+        inferRequest.SetBlob("input", inputBlob);
     }
 
     // ---- Run the request synchronously
     ASSERT_NO_THROW(inferRequest.Infer());
-
     // FIXME Unfinished
-    // TODO How to check that data is correct ?
-    IE::Blob::Ptr outputBlob = inferRequest.GetBlob("output");
-    auto data = outputBlob->buffer().as<uint8_t*>();
-    (void)data;
 }
 
 //------------------------------------------------------------------------------

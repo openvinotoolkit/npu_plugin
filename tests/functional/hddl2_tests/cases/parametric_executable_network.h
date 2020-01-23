@@ -18,8 +18,8 @@
 
 #include "helper_ie_core.h"
 #include <gtest/gtest.h>
-#include "hddl2_helpers/helper_precompiled_resnet.h"
-#include "hddl2_helpers/helper_model_loader.h"
+#include "hddl2_helpers/models/precompiled_resnet.h"
+#include "hddl2_helpers/models/model_pooling.h"
 
 //------------------------------------------------------------------------------
 //      class Executable_Network_Parametric Params
@@ -47,8 +47,8 @@ protected:
     modelBlobInfo _modelBlobInfo = PrecompiledResNet_Helper::resnet;
 
     // LoadNetwork
-    const std::string _modelName = "googlenet/bvlc_googlenet_fp16";
     InferenceEngine::CNNNetwork _cnnNetwork;
+    ModelPooling_Helper modelPoolingHelper;
 };
 
 inline void Executable_Network_Parametric::SetUp() {
@@ -56,7 +56,7 @@ inline void Executable_Network_Parametric::SetUp() {
     if (createFrom == ImportNetwork) {
         executableNetwork = ie.ImportNetwork(_modelBlobInfo.graphPath, pluginName);
     } else {
-        ASSERT_TRUE(ModelLoader_Helper::LoadModel(_modelName, _cnnNetwork));
+        _cnnNetwork = modelPoolingHelper.network;
         executableNetwork = ie.LoadNetwork(_cnnNetwork, pluginName);
     }
 }

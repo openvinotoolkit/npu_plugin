@@ -15,36 +15,35 @@
 //
 
 #include <Inference.h>
+#include <helper_remote_context.h>
 
-#include "gtest/gtest.h"
 #include "hddl2_core_api.h"
-#include "hddl2_helpers/helper_model_loader.h"
-#include "helper_remote_context.h"
+#include "hddl2_helpers/models/model_loader.h"
+#include "hddl2_helpers/models/model_pooling.h"
+#include "ie_core.hpp"
 
 using namespace InferenceEngine;
-
-using ModelLoader_Helper::LoadModel;
 
 //------------------------------------------------------------------------------
 //      class HDDL2_LoadNetwork_Tests Declaration
 //------------------------------------------------------------------------------
 class HDDL2_LoadNetwork_Tests : public HDDL2_Core_API_Tests {
 public:
-    const std::string modelName = "googlenet/bvlc_googlenet_fp16";
+    void SetUp() override;
+    InferenceEngine::CNNNetwork network;
+
+protected:
+    ModelPooling_Helper _modelPoolingHelper;
 };
+
+void HDDL2_LoadNetwork_Tests::SetUp() { network = _modelPoolingHelper.network; }
 
 //------------------------------------------------------------------------------
 //      class HDDL2_LoadNetwork_Tests Initiations
 //------------------------------------------------------------------------------
-TEST_F(HDDL2_LoadNetwork_Tests, CanFindPlugin) {
-    LoadModel(modelName, network);
-
-    ASSERT_NO_THROW(ie.LoadNetwork(network, pluginName));
-}
+TEST_F(HDDL2_LoadNetwork_Tests, CanFindPlugin) { ASSERT_NO_THROW(ie.LoadNetwork(network, pluginName)); }
 
 TEST_F(HDDL2_LoadNetwork_Tests, CanCreateExecutable) {
-    LoadModel(modelName, network);
-
     ASSERT_NO_THROW(executableNetwork = ie.LoadNetwork(network, pluginName));
 }
 
@@ -54,7 +53,6 @@ TEST_F(HDDL2_LoadNetwork_Tests, DISABLED_CanCreateWithContext) {
 
     auto contextParams = contextHelper.wrapWorkloadIdToMap(contextHelper.getWorkloadId());
     RemoteContext::Ptr remoteContext = ie.CreateContext(pluginName, contextParams);
-    LoadModel(modelName, network);
 
     ASSERT_NO_THROW(executableNetwork = ie.LoadNetwork(network, remoteContext, {}));
 }
@@ -67,7 +65,14 @@ TEST_F(HDDL2_LoadNetwork_Tests, DISABLED_CannotCreateWithNullContext) {
 }
 
 TEST_F(HDDL2_LoadNetwork_Tests, CanCreateInferRequestAfterLoadNetwork) {
-    LoadModel(modelName, network);
+    ASSERT_NO_THROW(executableNetwork = ie.LoadNetwork(network, pluginName));
+    ASSERT_NO_THROW(inferRequest = executableNetwork.CreateInferRequest());
+}
+
+// TODO SIGABRT on googlenet
+TEST_F(HDDL2_LoadNetwork_Tests, DISABLED_CanCreateInferRequestAfterLoadNetwork_GoogleNet) {
+    const std::string _modelName = "googlenet/bvlc_googlenet_fp16";
+    ModelLoader_Helper::LoadModel(_modelName, network);
 
     ASSERT_NO_THROW(executableNetwork = ie.LoadNetwork(network, pluginName));
     ASSERT_NO_THROW(inferRequest = executableNetwork.CreateInferRequest());

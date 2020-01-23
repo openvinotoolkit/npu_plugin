@@ -134,6 +134,8 @@ void vpu::HDDL2Plugin::HDDL2InferRequest::InferSync() {
     }
     inputBlob->updateBlob(inputDesc);
 
-    HddlStatusCode syncCode = inferSync(*(_graph.get()), _inferData);
+    IE_ASSERT(_graph != nullptr);
+
+    HddlStatusCode syncCode = inferSync(*_graph, _inferData);
     if (syncCode != HddlStatusCode::HDDL_OK) THROW_IE_EXCEPTION << "InferSync FAILED! return code:" << syncCode;
 }

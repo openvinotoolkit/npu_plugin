@@ -18,7 +18,7 @@
 
 #include "gtest/gtest.h"
 #include "hddl2_core_api.h"
-#include "hddl2_helpers/helper_precompiled_resnet.h"
+#include "hddl2_helpers/models/precompiled_resnet.h"
 
 namespace IE = InferenceEngine;
 

@@ -15,19 +15,13 @@
 //
 
 #include <Inference.h>
-#include <hddl2_helpers/helper_model_loader.h>
-#include <hddl2_helpers/helper_precompiled_resnet.h>
+#include <hddl2_helpers/helper_remote_blob.h>
+#include <hddl2_helpers/helper_remote_memory.h>
+#include <hddl2_helpers/helper_workload_context.h>
+#include <helper_remote_context.h>
+#include <parametric_executable_network.h>
 
 #include <ie_core.hpp>
-
-#include "gtest/gtest.h"
-#include "hddl2_core_api.h"
-#include "hddl2_helpers/helper_remote_blob.h"
-#include "hddl2_helpers/helper_remote_memory.h"
-#include "hddl2_helpers/helper_workload_context.h"
-#include "helper_remote_context.h"
-#include "ie_blob.h"
-#include "parametric_executable_network.h"
 
 namespace IE = InferenceEngine;
 
