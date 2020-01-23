@@ -9,6 +9,7 @@ const size_t FULLY_CONNECTED_KERNEL = 1;
 
 void fullyConnectedAsConv2DFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 static void handleEltWiseDifferentScales(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+static void decideTasksPrecisionFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 void tensorsToFP16Fcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 void tensorsToU8Fcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 void averageAsDepthWiseFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
@@ -45,6 +46,12 @@ namespace mv
         .setFunc(handleEltWiseDifferentScales)
         .setDescription(
             "Replaces Eltwise with SW Layer Eltwise in case scales of inputs are different"
+        );
+
+        MV_REGISTER_PASS(DecideTasksPrecision)
+        .setFunc(decideTasksPrecisionFcn)
+        .setDescription(
+            "Replaces DPU Tasks with no Quant Params with float DPU Tasks"
         );
     }
 
@@ -253,7 +260,6 @@ void fullyConnectedAsConv2DFcn(const mv::pass::PassEntry& pass, mv::ComputationM
 //General solution dequantize the input Tensors of these special Elwise, even with sw de-quantize
 void handleEltWiseDifferentScales(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
-
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
 
     mv::OpModel om(model);
@@ -298,6 +304,40 @@ void handleEltWiseDifferentScales(const mv::pass::PassEntry& pass, mv::Computati
             if (*it > 0.01)
                 opIt->set<bool>("softwareExecuted", true);
         }
+    }
+}
+
+void decideTasksPrecisionFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+{
+    //Note: This pass will be dis-abled and enabled only for cases that we want to execute fp16 precision dpu tasks
+    //these tasks are marked cause they have no quant params...Important here is that the Z-major Convolution has
+    //the limitation of sparse tensors, so we need to have a maxpool(neutral) before that
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
+
+    mv::OpModel om(model);
+    std::vector<std::string> futere_dpu_types = {"Eltwise", "DepthwiseConv","MaxPool"};
+    std::unordered_map<std::string, std::vector<mv::Data::OpListIterator>> operationsOfType
+            = om.getOpsOfTypes(futere_dpu_types);
+    mv::QuantizationParams emptyQuantizationParams = {{}, {}, {}, {}};
+    mv::QuantizationParams neutralQuantizationParams = {{0}, {1.0}, {}, {}};
+    std::vector<mv::Data::OpListIterator> simpleDpuCases = operationsOfType["Eltwise"];
+    std::merge(operationsOfType["DepthwiseConv"].begin(), operationsOfType["DepthwiseConv"].end(),
+            operationsOfType["MaxPool"].begin(), operationsOfType["MaxPool"].end(), simpleDpuCases.begin());
+
+    for (auto& opIt : simpleDpuCases)
+    {
+        if(opIt->get<bool>("softwareExecuted"))
+            continue;
+
+        if (opIt->get<mv::QuantizationParams>("quantParams").isEmpty())
+            opIt->set<bool>("softwareExecuted", true);
+    }
+
+    auto convOps = om.getOps("Conv");
+    for (auto& opIt : convOps)
+    {
+        if (opIt->get<mv::QuantizationParams>("quantParams").isEmpty())
+            opIt->set<bool>("softwareExecuted", true);
     }
 }
 

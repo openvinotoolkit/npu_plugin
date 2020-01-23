@@ -771,6 +771,14 @@ namespace mv
                     childInputSparsity = false;
                 }
 
+                //An fp16 Conv Z-major must have activation sparsity
+                if ((childOp.getOpType() == "Conv") and  (childOp.getInputTensor(1)->getShape()[KERNEL_INPUT_CHANNELS] >= 16)
+                        and childOp.get<mv::DType>("dType") == mv::DType("Float16"))
+                {
+                    parentOutputSparsity = true;
+                    childInputSparsity = true;
+                }
+
                 //Channel major conv cannot have sparsity
                 if( (childOp.getOpType() == "Conv") and  (childOp.getInputTensor(1)->getShape()[KERNEL_INPUT_CHANNELS] < 16))
                     childInputSparsity = false;
@@ -896,12 +904,12 @@ namespace mv
 
             bool decideWeightsSparsity(mv::Op op)
             {
-		        //These values come from empircal data using three layer tests, in a matrix of size vs. sparsity
-		        //For performance, implemented as piece-wise if/else rather than polynomial
+                //These values come from empircal data using three layer tests, in a matrix of size vs. sparsity
+                //For performance, implemented as piece-wise if/else rather than polynomial
                 double CMX_THRESHOLD_LOW = .05;
-		        double CMX_THRESHOLD_HIGH = .5;
+                double CMX_THRESHOLD_HIGH = .5;
                 double ZEROPOINT_THRESHOLD_LOW = .3;
-		        double ZEROPOINT_THRESHOLD_HIGH = .2;
+                double ZEROPOINT_THRESHOLD_HIGH = .2;
                 
                 // Only Z-major convolutions support weights sparsity, this is codified in the compilation descriptors
                 if( !createStrategyFromBool(op,"weightsSparsity") )
@@ -912,25 +920,31 @@ namespace mv
                    op.getInputTensor(1)->getShape()[mv::KERNEL_INPUT_CHANNELS] < 16)
                     return false;
 
+                // If Z-major Conv in Float precision then need to have weights Sparsity
+                if(op.getOpType() == "Conv" and
+                        op.getInputTensor(1)->getShape()[mv::KERNEL_INPUT_CHANNELS] >= 16 and
+                        op.get<mv::DType>("dType") == mv::DType("Float16"))
+                    return true;
+
                 //Size of weights, actual sparsity of tensor determine speedup
                 auto weightsSize = realTensorSize(op.getInputTensor(1), {1,1,1,1}, false);
 
-		        //If weights are less than 5% of CMX, sparsity benefit does not outweigh overhead
-		        //no matter how sparse the weights are
+                //If weights are less than 5% of CMX, sparsity benefit does not outweigh overhead
+                //no matter how sparse the weights are
                 if(weightsSize < (clusterMemory * CMX_THRESHOLD_LOW))
                     return false;
 
                 auto zeroPoints = op.getInputTensor(1)->getNumZeroPoints();
-		        double actualSparsity = (double) zeroPoints/ (double)weightsSize;
+                double actualSparsity = (double) zeroPoints/ (double)weightsSize;
 
-		        //Weights between 5% and 50% of CMX, enable sparsity at threshold 30% sparse weights
-		        if(weightsSize < (clusterMemory * CMX_THRESHOLD_HIGH) and
-			       actualSparsity < ZEROPOINT_THRESHOLD_LOW)
+                //Weights between 5% and 50% of CMX, enable sparsity at threshold 30% sparse weights
+                if(weightsSize < (clusterMemory * CMX_THRESHOLD_HIGH) and
+                    actualSparsity < ZEROPOINT_THRESHOLD_LOW)
                     return false;
 
-		        //Weights larger than 50% of CMX, enable sparsity at threshold 20% sparse weights
+                //Weights larger than 50% of CMX, enable sparsity at threshold 20% sparse weights
                 if(weightsSize >= (clusterMemory * CMX_THRESHOLD_HIGH) and
-			       actualSparsity < ZEROPOINT_THRESHOLD_HIGH)
+                    actualSparsity < ZEROPOINT_THRESHOLD_HIGH)
                     return false;
 
                 return true;
@@ -1014,7 +1028,7 @@ namespace mv
                         }
                         //Max split over H cannot be higher than dimension/kernel
                         if(op.getOpType() == "Conv")
-                        {   
+                        {
                             auto kernelSize = op.getInputTensor(1)->getShape()[KERNEL_HEIGHT];
                             auto dim = op.getInputTensor(0)->getShape()[IO_HEIGHT_DIMENSION];
                             if(maxSplitOverH > dim/kernelSize)
@@ -1044,10 +1058,10 @@ namespace mv
                         // If streaming is enabled, but streaming over k or h alone doesn't fit, enable nested streaming
                         if(hasStreamOverK and hasStreamOverH and ((maxSplitOverH == 1) and (memoryMaxK > clusterMemory))){
                             //If we're doing nested streaming, only consider SOK for multicluster, hack for decrease compile time
-			                if(totalClusters > 1 and clustering.get<string>() != "SplitOverK"){
-				                continue;
-			                }
-			                enableNestedStreaming = true;
+                            if(totalClusters > 1 and clustering.get<string>() != "SplitOverK"){
+                                continue;
+                            }
+                            enableNestedStreaming = true;
                             //adjust streamsOverK to remove the smallest K possibilities
                             if(streamsOverK.size() > 2){
                                 streamsOverK.erase(streamsOverK.begin());
