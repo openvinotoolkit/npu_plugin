@@ -320,23 +320,30 @@ Blob::Ptr toFP16(const Blob::Ptr& in) {
     return out;
 }
 
-Blob::Ptr toDefLayout(const Blob::Ptr& in) {
+Blob::Ptr toLayout(const Blob::Ptr& in, Layout layout) {
     IE_ASSERT(in != nullptr);
 
     const auto& inDesc = in->getTensorDesc();
-    const auto defLayout = TensorDesc::getLayoutByDims(inDesc.getDims());
-
-    if (inDesc.getLayout() == defLayout) {
+    if (inDesc.getLayout() == layout) {
         return in;
     }
 
-    const auto outDesc = TensorDesc(inDesc.getPrecision(), inDesc.getDims(), defLayout);
+    const auto outDesc = TensorDesc(inDesc.getPrecision(), inDesc.getDims(), layout);
     const auto out = make_blob_with_precision(outDesc);
     out->allocate();
 
     blob_copy(in, out);
 
     return out;
+}
+
+Blob::Ptr toDefLayout(const Blob::Ptr& in) {
+    IE_ASSERT(in != nullptr);
+
+    const auto& inDesc = in->getTensorDesc();
+    const auto defLayout = TensorDesc::getLayoutByDims(inDesc.getDims());
+
+    return toLayout(in, defLayout);
 }
 
 void compareBlobs(const Blob::Ptr& actual, const Blob::Ptr& expected, float tolerance, CompareMethod method) {

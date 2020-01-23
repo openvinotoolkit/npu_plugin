@@ -46,6 +46,7 @@ Blob::Ptr makeScalarBlob(int val, const Precision& precision = Precision::I32, s
 Blob::Ptr toFP32(const Blob::Ptr& in);
 Blob::Ptr toFP16(const Blob::Ptr& in);
 
+Blob::Ptr toLayout(const Blob::Ptr& in, Layout layout);
 Blob::Ptr toDefLayout(const Blob::Ptr& in);
 
 enum class CompareMethod { Absolute, Relative, Combined };
