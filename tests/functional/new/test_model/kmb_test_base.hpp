@@ -39,29 +39,36 @@ class KmbTestBase : public TestsCommon {
 public:
     using BlobGenerator = std::function<Blob::Ptr(const TensorDesc& desc)>;
 
-    void SetUp() override;
-
+public:
     void registerBlobGenerator(
             const std::string& blobName,
             const TensorDesc& desc,
             const BlobGenerator& generator) {
         blobGenerators[blobName] = {desc, generator};
     }
+
     Blob::Ptr getBlobByName(const std::string& blobName);
 
     void runTest(
             TestNetwork& testNet,
-            const BlobMap& inputs,
-            float tolerance, CompareMethod method = CompareMethod::Absolute);
-    void runTest(
-            TestNetwork& testNet,
             float tolerance, CompareMethod method = CompareMethod::Absolute);
 
+protected:
+    void SetUp() override;
+
+protected:
+    void runTest(
+            TestNetwork& testNet,
+            const BlobMap& inputs,
+            float tolerance, CompareMethod method = CompareMethod::Absolute);
+
+protected:
     BlobMap getInputs(TestNetwork& testNet);
 
     ExecutableNetwork getExecNetwork(
             const CNNNetwork& net,
             const std::map<std::string, std::string>& config = {});
+
     ExecutableNetwork getExecNetwork(
             TestNetwork& testNet) {
         return getExecNetwork(testNet.getCNNNetwork(), testNet.compileConfig());
@@ -82,10 +89,15 @@ public:
 
 protected:
     void exportNetwork(ExecutableNetwork& exeNet);
+
     ExecutableNetwork importNetwork();
+
     void dumpBlob(const std::string& blobName, const Blob::Ptr& blob);
+
     void dumpBlobs(const BlobMap& blobs);
+
     Blob::Ptr importBlob(const std::string& name, const TensorDesc& desc);
+
     BlobMap runInfer(ExecutableNetwork& exeNet, const BlobMap& inputs);
 
 protected:
@@ -103,21 +115,24 @@ protected:
 class KmbNetworkTest : public KmbTestBase {
 public:
     void runClassifyNetworkTest(
-            const CNNNetwork& net,
-            const Blob::Ptr& inputBlob,
-            const std::vector<std::pair<int, float>>& refTopK, float probTolerance);
-    void runClassifyNetworkTest(
-            const std::string& modelFileName,
-            const std::string& inputFileName,
-            const std::vector<std::pair<int, float>>& refTopK, float probTolerance);
-    void runClassifyNetworkTest(
             const std::string& modelFileName,
             const std::string& inputFileName,
             size_t topK, float probTolerance);
 
 protected:
-    CNNNetwork loadNetwork(const std::string& modelFileName);
-    Blob::Ptr loadImage(const std::string& imageFileName);
+    void runClassifyNetworkTest(
+            const CNNNetwork& net,
+            const Blob::Ptr& inputBlob,
+            const std::vector<std::pair<int, float>>& refTopK, float probTolerance);
+
+    void runClassifyNetworkTest(
+            const std::string& modelFileName,
+            const std::string& inputFileName,
+            const std::vector<std::pair<int, float>>& refTopK, float probTolerance);
 
     std::vector<std::pair<int, float>> parseClassifyOutput(const Blob::Ptr& blob);
+
+protected:
+    CNNNetwork loadNetwork(const std::string& modelFileName);
+    Blob::Ptr loadImage(const std::string& imageFileName);
 };
