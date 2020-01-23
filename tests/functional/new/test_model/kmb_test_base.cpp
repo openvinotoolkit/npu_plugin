@@ -14,7 +14,7 @@
 // stated in the License.
 //
 
-#include "kmb_tests_base.hpp"
+#include "kmb_test_base.hpp"
 
 #include <iostream>
 #include <fstream>

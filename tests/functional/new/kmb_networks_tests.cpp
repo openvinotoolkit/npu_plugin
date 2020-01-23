@@ -14,7 +14,7 @@
 // stated in the License.
 //
 
-#include "test_model/kmb_tests_base.hpp"
+#include "test_model/kmb_test_base.hpp"
 
 TEST_F(KmbNetworkTest, DISABLED_ResNet50) {
     runClassifyNetworkTest(

@@ -14,7 +14,7 @@
 // stated in the License.
 //
 
-#include "test_model/kmb_tests_base.hpp"
+#include "test_model/kmb_test_base.hpp"
 
 #ifdef ENABLE_MCM_COMPILER
 
