@@ -32,7 +32,6 @@
 #include <thread>
 #include <utility>
 #include <vector>
-#include <vpu/kmb_plugin_config.hpp>
 #include <vpu/utils/extra.hpp>
 #include <vpu/utils/logger.hpp>
 

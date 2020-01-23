@@ -1,5 +1,5 @@
 #
-# Copyright 2019 Intel Corporation.
+# Copyright 2019-2020 Intel Corporation.
 #
 # This software and the related documents are Intel copyrighted materials,
 # and your use of them is governed by the express license under which they
@@ -66,6 +66,7 @@ add_dependencies(${TARGET_NAME} hddl_unite_copy_library)
 
 target_include_directories(${TARGET_NAME}
     PRIVATE
+        "${IE_FRONTEND_MCM_INCLUDE_DIR}"
         "${CMAKE_CURRENT_SOURCE_DIR}/include"
         "${IE_MAIN_SOURCE_DIR}/include"
         "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/include/hddl2")
@@ -73,7 +74,10 @@ target_include_directories(${TARGET_NAME}
 target_link_libraries(${TARGET_NAME}
     PRIVATE
         IE::inference_engine
-        HddlUnite)
+        HddlUnite
+        IE::vpu_common_lib
+        kmb_utils
+        frontend_mcm)
 
 
 if (ENABLE_TESTS)
@@ -83,6 +87,7 @@ if (ENABLE_TESTS)
 
     target_include_directories(${TARGET_NAME}_test_static
         PUBLIC
+            "${IE_FRONTEND_MCM_INCLUDE_DIR}"
             "${CMAKE_CURRENT_SOURCE_DIR}/include"
             "${IE_MAIN_SOURCE_DIR}/include"
             "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/include/hddl2")
@@ -90,9 +95,12 @@ if (ENABLE_TESTS)
     target_link_libraries(${TARGET_NAME}_test_static
         PUBLIC
             IE::inference_engine
+            IE::vpu_common_lib
             IE::inference_engine_plugin_api
         PRIVATE
-            HddlUnite)
+            HddlUnite
+            kmb_utils
+            frontend_mcm)
 
     if(ENABLE_CLANG_FORMAT)
         add_clang_format_target(clang_format_${TARGET_NAME} FOR_TARGETS ${TARGET_NAME} ALL)

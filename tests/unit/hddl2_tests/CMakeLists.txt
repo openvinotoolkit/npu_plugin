@@ -25,6 +25,7 @@ target_link_libraries(${TARGET_NAME}
         HddlUnite
         IE::gtest
         IE::gtest_main
+        frontend_mcm
         )
 
 add_test(NAME ${TARGET_NAME} COMMAND ${TARGET_NAME})

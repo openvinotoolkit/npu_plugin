@@ -116,7 +116,7 @@ void vpu::HDDL2Plugin::HDDL2InferRequest::GetResult() {
     auto foundOutputBlob = _outputs.find(dataName);
     if (foundOutputBlob == _outputs.end()) THROW_IE_EXCEPTION << "Error: output [" << dataName << "] is not provided.";
 
-    if (_outputSize != foundOutputBlob->second->byteSize()) THROW_IE_EXCEPTION << "_outputSize != data->byteSize()";
+    if (_outputSize != foundOutputBlob->second->size()) THROW_IE_EXCEPTION << "outputSize != data->Size()";
 
     auto outputBlob = _inferData->getOutputBlob("output");
     auto outputData = outputBlob->getData();

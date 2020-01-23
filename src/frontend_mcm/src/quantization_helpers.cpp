@@ -1,5 +1,5 @@
 //
-// Copyright 2019 Intel Corporation.
+// Copyright 2019-2020 Intel Corporation.
 //
 // This software and the related documents are Intel copyrighted materials,
 // and your use of them is governed by the express license under which they
@@ -14,9 +14,10 @@
 // stated in the License.
 //
 
+#include "quantization_helpers.hpp"
+
 #include <algorithm>
 #include <limits>
-#include <quantization_helpers.hpp>
 #include <vector>
 
 #ifdef ENABLE_MCM_COMPILER
@@ -27,9 +28,7 @@ using namespace InferenceEngine::details;
 
 namespace vpu {
 
-namespace KmbPlugin {
-
-namespace KmbQuantizationHelpers {
+namespace QuantizationHelpers {
 
 double inf = std::numeric_limits<double>::infinity();
 mv::QuantizationParams initialQuantParams = {{0}, {1}, {-inf}, {inf}};
@@ -339,8 +338,7 @@ std::vector<int64_t> quantizeBiases(const std::vector<double>& activationScales,
     return newBiasData;
 }
 
-}  // namespace KmbQuantizationHelpers
-}  // namespace KmbPlugin
+}  // namespace QuantizationHelpers
 }  // namespace vpu
 
 #endif

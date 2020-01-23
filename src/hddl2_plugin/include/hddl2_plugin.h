@@ -20,6 +20,7 @@
 #include <string>
 
 #include "cpp_interfaces/impl/ie_plugin_internal.hpp"
+#include "hddl2_config.h"
 #include "inference_engine.hpp"
 
 namespace vpu {
@@ -53,6 +54,9 @@ public:
      * @note Params can be found in hddl2_params.h file
      */
     RemoteContext::Ptr CreateContext(const ParamMap& map) override;
+
+private:
+    HDDL2Config _parsedConfig;
 };
 
 }  //  namespace HDDL2Plugin

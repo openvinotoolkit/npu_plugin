@@ -1,5 +1,5 @@
 //
-// Copyright 2016-2019 Intel Corporation.
+// Copyright 2020 Intel Corporation.
 //
 // This software and the related documents are Intel copyrighted materials,
 // and your use of them is governed by the express license under which they
@@ -14,19 +14,18 @@
 // stated in the License.
 //
 
+#include <graph_transformer.h>
 #include <precision_utils.h>
 
 #include <algorithm>
-#include <blob_factory.hpp>
-#include <buffer_converter.hpp>
-#include <dims_parser.hpp>
 #include <frontend_mcm.hpp>
-#include <functional>
-#include <ie_layers_internal.hpp>
+#include <graph_tools.hpp>
+#include <ie_profiling.hpp>
+#include <ie_util_internal.hpp>
 #include <limits>
-#include <list>
+#include <low_precision_transformations/network_helper.hpp>
+#include <low_precision_transformations/transformer.hpp>
 #include <memory>
-#include <quantization_helpers.hpp>
 #include <set>
 #include <string>
 #include <unordered_map>
@@ -35,24 +34,465 @@
 #include <vector>
 #include <vpu/utils/error.hpp>
 
-#include "ie_blob.h"
-#include "kmb_config.h"
-
-#ifdef ENABLE_MCM_COMPILER
-#include "include/mcm/tensor/quantization_params.hpp"
+#include "dims_parser.hpp"
+#include "quantization_helpers.hpp"
 
 #ifndef UNUSED
 #define UNUSED(var) (void)var
 #endif
 
+#ifdef ENABLE_MCM_COMPILER
+
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
-
 namespace vpu {
 
-namespace KmbPlugin {
-
 namespace {
+
+typedef void (FrontEndMcm::*parser_t)(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
+
+// clang-format off
+
+        ie::details::caseless_map<std::string, parser_t> g_mcm_parsers = {
+                {"Convolution",        &FrontEndMcm::parseConvolution},
+                {"Pooling",            &FrontEndMcm::parsePooling},
+                {"ReLU",               &FrontEndMcm::parseReLU},
+                {"Clamp",              &FrontEndMcm::parseClamp},
+                {"FullyConnected",     &FrontEndMcm::parseFullyConnected},
+                {"SoftMax",            &FrontEndMcm::parseSoftMax},
+                {"GRN",                &FrontEndMcm::parseGRN},
+                {"MVN",                &FrontEndMcm::parseMVN},
+                {"Norm",               &FrontEndMcm::parseNorm},
+                {"Concat",             &FrontEndMcm::parseConcat},
+                {"Eltwise",            &FrontEndMcm::parseEltwise},
+                {"Split",              &FrontEndMcm::parseSplit},
+                {"Sigmoid",            &FrontEndMcm::parseSigmoid},
+                {"TanH",               &FrontEndMcm::parseTanH},
+                {"PReLU",              &FrontEndMcm::parsePReLU},
+                {"Bias",               &FrontEndMcm::parseBias},
+                // Caffe Slice is transformed to Split by IE
+                {"Slice",              &FrontEndMcm::parseSplit},
+                {"BatchNormalization", &FrontEndMcm::parseBatchNorm},
+                {"ScaleShift",         &FrontEndMcm::parseScale},
+                {"Deconvolution",      &FrontEndMcm::parseDeconvolution},
+                {"Power",              &FrontEndMcm::parsePower},
+                {"Copy",               &FrontEndMcm::parseCopy},
+                {"Reshape",            &FrontEndMcm::parseReshape},
+                {"Squeeze",            &FrontEndMcm::parseReshape},
+                {"Unsqueeze",          &FrontEndMcm::parseReshape},
+                {"ELU",                &FrontEndMcm::parseELU},
+                // Flatten is represented as Reshape in KMB model
+                {"Flatten",            &FrontEndMcm::parseReshape},
+                {"Crop",               &FrontEndMcm::parseCrop},
+                {"Tile",               &FrontEndMcm::parseTile},
+                {"Normalize",          &FrontEndMcm::parseNormalize},
+                {"PriorBox",           &FrontEndMcm::parsePriorBox},
+                {"PriorBoxClustered",  &FrontEndMcm::parsePriorBoxClustered},
+                {"Permute",            &FrontEndMcm::parsePermute},
+                {"DetectionOutput",    &FrontEndMcm::parseDetectionOutput},
+                {"RegionYolo",         &FrontEndMcm::parseRegionYolo},
+                {"ReorgYolo",          &FrontEndMcm::parseReorgYolo},
+                {"CTCGreedyDecoder",   &FrontEndMcm::parseCTCDecoder},
+                {"Proposal",           &FrontEndMcm::parseProposal},
+                {"ROIPooling",         &FrontEndMcm::parseROIPooling},
+                {"PSROIPooling",       &FrontEndMcm::parsePSROIPooling},
+                {"Interp",             &FrontEndMcm::parseInterp},
+                {"Custom",             &FrontEndMcm::parseCustom},
+                {"MTCNN",              &FrontEndMcm::parseMTCNN},
+                {"LSTMCell",           &FrontEndMcm::parseLSTMCell},
+                {"Pad",                &FrontEndMcm::parsePad},
+                {"Resample",           &FrontEndMcm::parseResample},
+                {"ArgMax",             &FrontEndMcm::parseArgMax},
+        };
+
+// clang-format on
+
+}  // namespace
+
+mv::DType convert_data_type(ie::Precision iePrecision) {
+    mv::DType mvType;
+    switch (iePrecision) {
+    case ie::Precision::UNSPECIFIED:
+        mvType = mv::DType("Default");
+        break;
+    case ie::Precision::I8:
+        mvType = mv::DType("Int8");
+        break;
+    case ie::Precision::U8:
+        mvType = mv::DType("UInt8");
+        break;
+    case ie::Precision::I32:
+        mvType = mv::DType("Int32");
+        break;
+    case ie::Precision::FP16:
+        mvType = mv::DType("Float16");
+        break;
+    case ie::Precision::FP32:
+        mvType = mv::DType("Float32");
+        break;
+    default:
+        VPU_THROW_EXCEPTION << "Data type handling is not implemented" << iePrecision.name();
+    }
+    return mvType;
+}
+
+void FrontEndMcm::buildInitialModel(ie::ICNNNetwork& network) {
+    runCommonPasses(network);
+
+    for (const auto& layer : _parsedNetwork.orderedLayers) {
+        IE_ASSERT(layer != nullptr);
+
+        _logger->debug("Try to parse layer %s", layer->name);
+
+        if (layer->type == "FakeQuantize") {
+            continue;
+        }
+
+        if (layer->type == "ScaleShift") {
+            auto layerInput = layer->insData[0].lock();
+            IE_ASSERT(layerInput != nullptr);
+
+            auto prevLayer = layerInput->getCreatorLayer().lock();
+            if (prevLayer != nullptr) {
+                if (prevLayer->type == "Const") {
+                    continue;
+                }
+            }
+        }
+
+        auto it = g_mcm_parsers.find(layer->type);
+        if (it == g_mcm_parsers.end()) {
+            VPU_THROW_EXCEPTION << "Cannot convert layer \"" << layer->name << "\" due to unsupported layer type \""
+                                << layer->type << "\"";
+        }
+
+        auto parser = it->second;
+        IE_ASSERT(parser != nullptr);
+
+        McmNodeVector inputs;
+        getInputData(layer, inputs);
+        (this->*parser)(layer, inputs);
+    }
+    parseOutputData();
+}
+
+std::set<std::string> FrontEndMcm::checkSupportedLayers(ie::ICNNNetwork& network) {
+    runCommonPasses(network);
+
+    std::set<std::string> layerNames;
+
+    for (const auto& layer : _parsedNetwork.orderedLayers) {
+        IE_ASSERT(layer != nullptr);
+
+        _logger->debug("Try to parse layer %s", layer->name);
+
+        McmNodeVector inputs;
+        getInputData(layer, inputs);
+
+        auto it = g_mcm_parsers.find(layer->type);
+        if (it != g_mcm_parsers.end()) {
+            try {
+                // If we can create and have not thrown exception, then layer is supported.
+                auto parser = it->second;
+                IE_ASSERT(parser != nullptr);
+
+                (this->*parser)(layer, inputs);
+
+                layerNames.insert(layer->name);
+            } catch (const ie::details::InferenceEngineException&) {
+                // TODO: continue instead?
+                break;
+            }
+        }
+    }
+
+    return layerNames;
+}
+
+void FrontEndMcm::parseNetworkDFS(const ie::ICNNNetwork& network, ParsedNetwork& parsedNetwork) {
+    IE_PROFILING_AUTO_SCOPE(parseNetworkDFS);
+
+    ie::details::CaselessEq<std::string> cmp;
+
+    //
+    // Collect all network input data.
+    //
+
+    network.getInputsInfo(parsedNetwork.networkInputs);
+    network.getOutputsInfo(parsedNetwork.networkOutputs);
+
+    std::unordered_set<ie::DataPtr> allInputDatas;
+    for (const auto& netInput : parsedNetwork.networkInputs) {
+        auto inputInfo = netInput.second;
+        IE_ASSERT(inputInfo != nullptr);
+
+        auto inputData = inputInfo->getInputData();
+        IE_ASSERT(inputData != nullptr);
+
+        allInputDatas.insert(inputData);
+    }
+
+    //
+    // Collect all network const data.
+    //
+
+    for (const auto& layer : ie::CNNNetGetAllInputLayers(network)) {
+        IE_ASSERT(layer != nullptr);
+
+        if (!cmp(layer->type, "Const")) continue;
+
+        if (layer->outData.size() != 1) {
+            VPU_THROW_EXCEPTION << "Const layer " << layer->name << " has unsupported number of outputs "
+                                << layer->outData.size();
+        }
+
+        if (layer->blobs.size() != 1) {
+            VPU_THROW_EXCEPTION << "Const layer " << layer->name << " has unsupported number of blobs "
+                                << layer->blobs.size();
+        }
+
+        auto constData = layer->outData[0];
+        IE_ASSERT(constData != nullptr);
+
+        auto constBlob = layer->blobs.begin()->second;
+        IE_ASSERT(constBlob != nullptr);
+
+        parsedNetwork.constDatas[constData] = constBlob;
+
+        allInputDatas.insert(constData);
+    }
+
+    //
+    // Collect initial layers.
+    //
+
+    std::unordered_set<ie::CNNLayerPtr> visitedInitialLayers;
+    SmallVector<ie::CNNLayerPtr> initialLayers;
+
+    for (const auto& inputData : allInputDatas) {
+        for (const auto& consumer : inputData->getInputTo()) {
+            auto initialLayer = consumer.second;
+            IE_ASSERT(initialLayer != nullptr);
+
+            if (visitedInitialLayers.count(initialLayer) > 0) continue;
+
+            bool allInputsAvailable = true;
+            for (const auto& in : initialLayer->insData) {
+                auto input = in.lock();
+                IE_ASSERT(input != nullptr);
+
+                if (allInputDatas.count(input) == 0) {
+                    allInputsAvailable = false;
+                    break;
+                }
+            }
+
+            if (allInputsAvailable) {
+                visitedInitialLayers.insert(initialLayer);
+                initialLayers.emplace_back(std::move(initialLayer));
+            }
+        }
+    }
+
+    IE_ASSERT(!initialLayers.empty());
+
+    //
+    // Run recursive DFS algorithm.
+    //
+
+    std::sort(
+        initialLayers.begin(), initialLayers.end(), [](const ie::CNNLayerPtr& left, const ie::CNNLayerPtr& right) {
+            ie::details::CaselessLess<std::string> cmp;
+            return cmp(left->name, right->name);
+        });
+
+    InferenceEngine::CNNNetForestDFS(
+        initialLayers,
+        [&parsedNetwork](const ie::CNNLayerPtr& layer) {
+            parsedNetwork.orderedLayers.emplace_back(layer);
+        },
+        false);
+
+    std::reverse(parsedNetwork.orderedLayers.begin(), parsedNetwork.orderedLayers.end());
+}
+
+void FrontEndMcm::removeInputScaleShiftPattern(ie::CNNNetwork& network) {
+    for (auto& layer : network) {
+        if (layer->type == "Input") {
+            auto child = CNNNetworkHelper::getChildren(*layer)[0];
+            if (child->type == "ScaleShift") {
+                auto scaleShiftLayer = std::dynamic_pointer_cast<ie::ScaleShiftLayer>(child);
+
+                auto childrens = CNNNetworkHelper::getChildren(*child);
+                if (childrens.empty()) {
+                    return;
+                }
+                child = childrens[0];
+                if (child->type != "Convolution") {
+                    return;
+                }
+
+                auto scaleData = scaleShiftLayer->_weights->buffer().as<float*>();
+                float scaleValue = std::accumulate(scaleData, scaleData + scaleShiftLayer->_weights->size(), 0.0f);
+                scaleValue /= scaleShiftLayer->_weights->size();
+
+                auto shiftsData = scaleShiftLayer->_biases->buffer().as<float*>();
+                float shiftValue = std::accumulate(shiftsData, shiftsData + scaleShiftLayer->_biases->size(), 0.0f);
+                shiftValue /= scaleShiftLayer->_biases->size();
+
+                _layerToQuantParams[layer->name] = {scaleValue, shiftValue};
+
+                CNNNetworkHelper::removeLayer(network, scaleShiftLayer);
+                return;
+            }
+        }
+    }
+}
+
+void FrontEndMcm::alignEltwiseScales(ie::CNNNetwork& network) {
+    for (auto& layer : network) {
+        if (layer->type == "Eltwise") {
+            auto inputs = CNNNetworkHelper::getParents(*layer);
+            size_t maxValues = 1;
+            size_t maxValuesIdx = 0;
+            for (size_t i = 0; i < inputs.size(); i++) {
+                assert(inputs[i]->type == "FakeQuantize");
+                if (maxValues < QuantizationDetails::getDetails(*inputs[i]).outputLowValues.size()) {
+                    maxValues = QuantizationDetails::getDetails(*inputs[i]).outputLowValues.size();
+                    maxValuesIdx = i;
+                }
+            }
+
+            bool shouldBeAligned = false;
+            for (size_t i = 0; i < inputs.size(); i++) {
+                auto quantizationParams1 = QuantizationDetails::getDetails(*inputs[i]);
+                auto quantizationParams2 = QuantizationDetails::getDetails(*inputs[maxValuesIdx]);
+                for (size_t c = 0; c < maxValues; c++) {
+                    size_t c1 = quantizationParams1.outputHighValues.size() == 1 ? 0 : c;
+                    size_t c2 = c;
+                    if ((quantizationParams1.outputHighValues[c1] - quantizationParams1.outputLowValues[c1]) !=
+                        (quantizationParams2.outputHighValues[c2] - quantizationParams2.outputLowValues[c2])) {
+                        shouldBeAligned = true;
+                    }
+                }
+                if (quantizationParams1.levels != quantizationParams2.levels) shouldBeAligned = true;
+            }
+            if (!shouldBeAligned) continue;
+
+            size_t maxLevels = 0;
+            std::vector<double> maxRange(maxValues, 0.0);
+            for (const auto& input : inputs) {
+                auto quantizationParams = QuantizationDetails::getDetails(*input);
+                if (maxLevels < quantizationParams.levels) maxLevels = quantizationParams.levels;
+
+                for (size_t i = 0; i < maxValues; i++) {
+                    size_t c = quantizationParams.outputHighValues.size() == 1 ? 0 : i;
+                    double range = quantizationParams.outputHighValues[c] - quantizationParams.outputLowValues[c];
+                    if (maxRange[i] < range) maxRange[i] = range;
+                }
+            }
+
+            for (const auto& input : inputs) {
+                auto quantizationParams = QuantizationDetails::getDetails(*input);
+                std::vector<float> scaledInputLowValues;
+                std::vector<float> scaledInputHighValues;
+                for (size_t i = 0; i < quantizationParams.inputLowValues.size(); i++) {
+                    double range = quantizationParams.inputHighValues[i] - quantizationParams.inputLowValues[i];
+                    double updatedInputLow = quantizationParams.inputLowValues[i] * maxRange[i] / range;
+                    scaledInputLowValues.push_back(static_cast<float>(updatedInputLow));
+                    scaledInputHighValues.push_back(static_cast<float>(updatedInputLow + maxRange[i]));
+                }
+
+                std::vector<float> scaledOutputLowValues;
+                std::vector<float> scaledOutputHighValues;
+                for (size_t i = 0; i < quantizationParams.outputLowValues.size(); i++) {
+                    double range = quantizationParams.outputHighValues[i] - quantizationParams.outputLowValues[i];
+                    double updatedOutputLow = quantizationParams.outputLowValues[i] * maxRange[i] / range;
+                    scaledOutputLowValues.push_back(static_cast<float>(updatedOutputLow));
+                    scaledOutputHighValues.push_back(static_cast<float>(updatedOutputLow + maxRange[i]));
+                }
+
+                input->params["levels"] = std::to_string(maxLevels);
+                CNNNetworkHelper::updateBlobs(*input, 1, scaledInputLowValues);
+                CNNNetworkHelper::updateBlobs(*input, 2, scaledInputHighValues);
+                CNNNetworkHelper::updateBlobs(*input, 3, scaledOutputLowValues);
+                CNNNetworkHelper::updateBlobs(*input, 4, scaledOutputHighValues);
+            }
+        }
+    }
+}
+
+void FrontEndMcm::runCommonPasses(ie::ICNNNetwork& network) {
+    auto cnnNet = ie::CNNNetwork(std::shared_ptr<ie::ICNNNetwork>(&network, [](ie::ICNNNetwork*) {}));
+
+    if (_config.inputScaleShiftRemoving()) {
+        removeInputScaleShiftPattern(cnnNet);
+    }
+    if (_config.eltwiseScalesAlignment()) {
+        alignEltwiseScales(cnnNet);
+    }
+
+    removeInputScaleShiftPattern(cnnNet);
+    parseNetworkDFS(cnnNet, _parsedNetwork);
+    parseInputData();
+}
+
+McmNode FrontEndMcm::getMcmData(const ie::DataPtr& ieData) {
+    IE_ASSERT(ieData != nullptr);
+    auto it = _ieToMcmMap.find(ieData);
+    if (it == _ieToMcmMap.end()) {
+        return nullptr;
+    }
+
+    return it->second;
+}
+
+void FrontEndMcm::bindData(const McmNode& data, const ie::DataPtr& ieData) {
+    IE_ASSERT(_modelMcm.isValid(data->getMcmNode()));
+    IE_ASSERT(_modelMcm.isValid(_modelMcm.getSourceOp(data->getMcmNode())));
+    _ieToMcmMap[ieData] = data;
+    data->setOrigData(ieData);
+}
+
+void FrontEndMcm::bindOutput(mv::Data::TensorIterator node, ie::DataPtr& layerOutput) {
+    IE_ASSERT(layerOutput != nullptr);
+    auto layer = std::make_shared<McmNodeObject>(node, layerOutput->getTensorDesc());
+    _nodes.push_back(layer);
+    bindData(layer, layerOutput);
+}
+
+void FrontEndMcm::getInputData(const ie::CNNLayerPtr& layer, McmNodeVector& inputs) {
+    IE_ASSERT(layer != nullptr);
+
+    inputs.resize(layer->insData.size());
+    for (size_t i = 0; i < layer->insData.size(); ++i) {
+        auto layerInput = layer->insData[i].lock();
+        IE_ASSERT(layerInput != nullptr);
+
+        auto prevLayer = layerInput->getCreatorLayer().lock();
+        if (prevLayer != nullptr) {
+            // TODO: think about better solution, this one is going to make inputs vector inconsistent
+            if ((prevLayer->type == "Const") || (layer->type == "Const")) {
+                continue;
+            }
+
+            if (prevLayer->type == "FakeQuantize") {
+                auto prevLayerInput = prevLayer->insData[0].lock();
+                IE_ASSERT(prevLayerInput != nullptr);
+                auto prevPrevLayer = prevLayerInput->getCreatorLayer().lock();
+                if (prevPrevLayer == nullptr || prevPrevLayer->type == "Const") {
+                    // TODO: think about better solution, this one is going to make inputs vector inconsistent
+                    continue;
+                }
+
+                layerInput = prevLayerInput;
+            }
+        }
+
+        inputs[i] = getMcmData(layerInput);
+        IE_ASSERT(inputs[i] != nullptr);
+    }
+}
 
 std::unordered_map<int, char> DIM_NAMES({{3, 'W'}, {2, 'H'}, {1, 'C'}, {0, 'N'}});
 
@@ -71,8 +511,6 @@ void logParsingStartHelper(Logger::Ptr logger, const ie::CNNLayerPtr& layer, con
 
 double inf = std::numeric_limits<double>::infinity();
 mv::QuantizationParams initialQuantParams = {{0}, {1}, {-inf}, {inf}};
-
-}  // namespace
 
 template <typename ResultType>
 std::vector<ResultType> packBlobToVector(ie::Blob::Ptr blobPtr, size_t expectedSize) {
@@ -141,7 +579,6 @@ std::vector<ResultType> packBlobToVector(ie::Blob::Ptr blobPtr, size_t expectedS
     return blobData;
 }
 
-namespace {
 void getOutputScale(const ie::CNNLayerPtr& layer, mv::QuantizationParams& quantParams,
     const Logger::Ptr& logger) {  // TODO: Refactor logging: JIRA: CVS-21492
     std::vector<double> oiScaleData, wScaleData;
@@ -185,7 +622,6 @@ void getOutputScale(const ie::CNNLayerPtr& layer, mv::QuantizationParams& quantP
 bool isQuantizationParamsEqual(const mv::QuantizationParams& a, const mv::QuantizationParams& b) {
     return (a.getScale() == b.getScale() && (a.getZeroPoint() == b.getZeroPoint()));
 }
-}  // namespace
 
 void FrontEndMcm::parseInputData() {
     _logger->debug("Try to parse network input");
@@ -206,7 +642,7 @@ void FrontEndMcm::parseInputData() {
 
         auto inputLayerPtr = ieData->getCreatorLayer().lock();
         auto inputQuantParamsOverRide = initialQuantParams;
-        KmbQuantizationHelpers::fillQuntizationActivationParams(inputLayerPtr, inputQuantParamsOverRide);
+        QuantizationHelpers::fillQuntizationActivationParams(inputLayerPtr, inputQuantParamsOverRide);
 
         // Workaround for Input->ScaleShift->Conv pattern
         if (_layerToQuantParams.count(inputLayerPtr->name)) {
@@ -215,7 +651,7 @@ void FrontEndMcm::parseInputData() {
             auto scaleShiftOverride = _layerToQuantParams[inputLayerPtr->name];
             float new_min = std::numeric_limits<uint8_t>::min() * scaleShiftOverride.scale + scaleShiftOverride.bias;
             float new_max = std::numeric_limits<uint8_t>::max() * scaleShiftOverride.scale + scaleShiftOverride.bias;
-            auto zp = KmbQuantizationHelpers::calculateZeroPoint(new_max, new_min, 256, Precision::U8);
+            auto zp = QuantizationHelpers::calculateZeroPoint(new_max, new_min, 256, Precision::U8);
 
             inputQuantParamsOverRide = {{zp}, {scaleShiftOverride.scale}, {-inf}, {inf}};
         }
@@ -228,7 +664,7 @@ void FrontEndMcm::parseInputData() {
     }
 
 #if 0  // TODO: rewrite logic to mcm compiler if this part is needed
-//
+       //
 // Parse constant data
 //
 
@@ -236,20 +672,20 @@ auto kmbData = model->addInputData(ieData->getName(), kmbDesc);
 bindData(kmbData, ieData);
 
 auto kmbData = model->addConstData(
-    ieData->getName(),
-    kmbDesc,
-    ieBlobContent(ieBlob));
+ieData->getName(),
+kmbDesc,
+ieBlobContent(ieBlob));
 
 // User might ask to return the output from Const layer.
 if (auto kmbOutData = getVpuData(ieData)) {
-    IE_ASSERT(kmbOutData->usage() == DataUsage::Output);
+IE_ASSERT(kmbOutData->usage() == DataUsage::Output);
 
-    _stageBuilder->addCopyStage(
-        model,
-        formatString("%s@return-const", kmbData->name()),
-        nullptr,
-        kmbData,
-        kmbOutData);
+_stageBuilder->addCopyStage(
+    model,
+    formatString("%s@return-const", kmbData->name()),
+    nullptr,
+    kmbData,
+    kmbOutData);
 }
 
 bindData(kmbData, ieData);
@@ -343,7 +779,7 @@ void FrontEndMcm::parseConvolution(const ie::CNNLayerPtr& layer, const McmNodeVe
     ie::Blob::Ptr weightsBlob = nullptr;
     ie::Blob::Ptr biasBlob = nullptr;
     mv::Shape biasesShape {1};
-    is_quantized = KmbQuantizationHelpers::isWeightableLayerQuantized(convLayer);
+    is_quantized = QuantizationHelpers::isWeightableLayerQuantized(convLayer);
 
     if (inputs.size() == 1) {
         // OLD APPROACH
@@ -374,8 +810,8 @@ void FrontEndMcm::parseConvolution(const ie::CNNLayerPtr& layer, const McmNodeVe
         }
 
         if (is_quantized) {
-            KmbQuantizationHelpers::fillQuntizationActivationParams(convLayer, outputQuantParams);
-            weightsBlob = KmbQuantizationHelpers::calculateQuntizationWeights(convLayer, weightsQuantParams);
+            QuantizationHelpers::fillQuntizationActivationParams(convLayer, outputQuantParams);
+            weightsBlob = QuantizationHelpers::calculateQuntizationWeights(convLayer, weightsQuantParams);
         } else {
             InferenceEngine::DataPtr convWeights = convLayer->insData[1].lock();
             auto convWeightsConstLayer = convWeights->getCreatorLayer().lock();
@@ -437,7 +873,7 @@ void FrontEndMcm::parseConvolution(const ie::CNNLayerPtr& layer, const McmNodeVe
         if (is_quantized) {
             auto biasQuantParamsOverRide = initialQuantParams;
             auto inputQuantParams = inputs[0]->getMcmNode()->get<mv::QuantizationParams>("quantParams");
-            auto quantizeBiasesData = KmbQuantizationHelpers::quantizeBiases(
+            auto quantizeBiasesData = QuantizationHelpers::quantizeBiases(
                 inputQuantParams.getScale(), weightsQuantParams.getScale(), biasBlob, biasQuantParamsOverRide);
             mvBiases =
                 _modelMcm.constantInt(quantizeBiasesData, biasesShape, mv::DType("Int32"), mv::Order::getColMajorID(1));
@@ -483,7 +919,7 @@ void FrontEndMcm::parsePooling(const ie::CNNLayerPtr& layer, const McmNodeVector
     auto poolType = poolLayer->_type;
 
     mv::QuantizationParams outputQuantParams = initialQuantParams;
-    KmbQuantizationHelpers::fillQuntizationActivationParams(poolLayer, outputQuantParams);
+    QuantizationHelpers::fillQuntizationActivationParams(poolLayer, outputQuantParams);
 
     if (isQuantizationParamsEqual(initialQuantParams, outputQuantParams)) {
         auto inputQuantParams = inputs[0]->getMcmNode()->get<mv::QuantizationParams>("quantParams");
@@ -551,12 +987,12 @@ void FrontEndMcm::parseFullyConnected(const ie::CNNLayerPtr& layer, const McmNod
             biasesShape[0] = biasBlob->size();
         }
 
-        is_quantized = KmbQuantizationHelpers::isWeightableLayerQuantized(FClayer);
+        is_quantized = QuantizationHelpers::isWeightableLayerQuantized(FClayer);
 
         // extract weights
         if (is_quantized) {
-            KmbQuantizationHelpers::fillQuntizationActivationParams(FClayer, outputQuantParams);
-            weightsBlob = KmbQuantizationHelpers::calculateQuntizationWeights(FClayer, weightsQuantParams);
+            QuantizationHelpers::fillQuntizationActivationParams(FClayer, outputQuantParams);
+            weightsBlob = QuantizationHelpers::calculateQuntizationWeights(FClayer, weightsQuantParams);
         } else {
             InferenceEngine::DataPtr fcWeights = FClayer->insData[1].lock();
             auto fcWeightsConstLayer = fcWeights->getCreatorLayer().lock();
@@ -610,7 +1046,7 @@ void FrontEndMcm::parseFullyConnected(const ie::CNNLayerPtr& layer, const McmNod
         if (is_quantized) {
             auto biasQuantParamsOverRide = initialQuantParams;
             auto inputQuantParams = inputs[0]->getMcmNode()->get<mv::QuantizationParams>("quantParams");
-            auto quantizeBiasesData = KmbQuantizationHelpers::quantizeBiases(
+            auto quantizeBiasesData = QuantizationHelpers::quantizeBiases(
                 inputQuantParams.getScale(), weightsQuantParams.getScale(), biasBlob, biasQuantParamsOverRide);
             mvBiases =
                 _modelMcm.constantInt(quantizeBiasesData, biasesShape, mv::DType("Int32"), mv::Order::getColMajorID(1));
@@ -737,7 +1173,7 @@ void FrontEndMcm::parseScale(const ie::CNNLayerPtr& layer, const McmNodeVector& 
         quantizedWeightsData, weightsShape, mv::DType("UInt8"), mv::Order::getColMajorID(1), scalesQuantParams);
 
     auto outputQuantParamsOverRide = initialQuantParams;
-    KmbQuantizationHelpers::fillQuntizationActivationParams(scaleLayer, outputQuantParamsOverRide);
+    QuantizationHelpers::fillQuntizationActivationParams(scaleLayer, outputQuantParamsOverRide);
     auto mvScale = _modelMcm.scale(
         input->getMcmNode(), mvWeights, mv::DType("Default"), outputQuantParamsOverRide, scaleLayer->name);
 
@@ -748,7 +1184,7 @@ void FrontEndMcm::parseScale(const ie::CNNLayerPtr& layer, const McmNodeVector& 
     if (scaleLayer->_biases != nullptr) {
         auto biasQuantParamsOverRide = initialQuantParams;
         auto inputQuantParams = inputs[0]->getMcmNode()->get<mv::QuantizationParams>("quantParams");
-        auto quantizeBiasesData = KmbQuantizationHelpers::quantizeBiases(
+        auto quantizeBiasesData = QuantizationHelpers::quantizeBiases(
             inputQuantParams.getScale(), scalesQuantParams.getScale(), scaleLayer->_biases, biasQuantParamsOverRide);
 
         mv::Shape shiftShape {scaleLayer->_biases->size()};
@@ -800,7 +1236,7 @@ void FrontEndMcm::parseEltwise(const ie::CNNLayerPtr& layer, const McmNodeVector
     logParsingStartHelper(_logger, layer, inputs);
     mv::QuantizationParams outputQuantParams = initialQuantParams;
 
-    KmbQuantizationHelpers::fillQuntizationActivationParams(eltwiseLayer, outputQuantParams);
+    QuantizationHelpers::fillQuntizationActivationParams(eltwiseLayer, outputQuantParams);
     mv::Data::TensorIterator mvEltwise;
     std::vector<mv::Data::TensorIterator> mvInputs;
     for (const auto& input : inputs) {
@@ -1133,8 +1569,6 @@ void FrontEndMcm::parseSplit(const ie::CNNLayerPtr& layer, const McmNodeVector& 
     UNUSED(layer);
     VPU_THROW_EXCEPTION << "Split layer is not supported by kmbPlugin";
 }
-
-}  // namespace KmbPlugin
 
 }  // namespace vpu
 #endif

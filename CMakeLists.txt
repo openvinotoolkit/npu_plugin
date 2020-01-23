@@ -33,6 +33,11 @@ if(ENABLE_MCM_COMPILER)
     add_definitions(-DENABLE_MCM_COMPILER)
     add_subdirectory(tools)
 endif()
+
+# TODO Fronend mcm lib should be built only if mcm compiler enabled, but now we have some
+#   dependencies, like mcm_config
+add_subdirectory(src/frontend_mcm)
+
 if (ENABLE_VPUAL)
     add_definitions(-DENABLE_VPUAL)
 endif()

@@ -15,6 +15,7 @@
 //
 
 #include <vpu/kmb_plugin_config.hpp>
+#include <vpu/vpu_compiler_config.hpp>
 
 #include "kmb_layers_tests.hpp"
 
@@ -109,10 +110,10 @@ TEST_F(kmbLayersTests_nightly, TestsConcatenationAfterSoftmax) {
 
     // Parsing only is enabled because mcmCompiler can't compile layers.
     // TODO: turn off parsing only when mcmCompiler will be able to compile this layers.
-    config[VPU_KMB_CONFIG_KEY(MCM_PARSING_ONLY)] = CONFIG_VALUE(YES);
-    config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_BLOB)] = CONFIG_VALUE(YES);
-    config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_DOT)] = CONFIG_VALUE(YES);
-    config[VPU_KMB_CONFIG_KEY(MCM_GENERATE_JSON)] = CONFIG_VALUE(YES);
+    config[VPU_COMPILER_CONFIG_KEY(PARSING_ONLY)] = CONFIG_VALUE(YES);
+    config[VPU_COMPILER_CONFIG_KEY(GENERATE_BLOB)] = CONFIG_VALUE(YES);
+    config[VPU_COMPILER_CONFIG_KEY(GENERATE_DOT)] = CONFIG_VALUE(YES);
+    config[VPU_COMPILER_CONFIG_KEY(GENERATE_JSON)] = CONFIG_VALUE(YES);
 
     ASSERT_NO_THROW(ie.LoadNetwork(network, "kmb", config));
 }

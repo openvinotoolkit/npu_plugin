@@ -24,39 +24,16 @@
 
 namespace vpu {
 
-class KmbConfig final : public MCMConfig {
+class HDDL2Config final : public MCMConfig {
 public:
-    bool useKmbExecutor() const { return _useKmbExecutor; }
-
-    bool loadNetworkAfterCompilation() const { return _loadNetworkAfterCompilation; }
-
-    int throghputStreams() const { return _throghputStreams; }
-
     const std::string& platform() const { return _platform; }
-
-    int numberOfSIPPShaves() const { return _numberOfSIPPShaves; }
-
-    int SIPPLpi() const { return _SIPPLpi; }
 
 protected:
     const std::unordered_set<std::string>& getCompileOptions() const override;
-    const std::unordered_set<std::string>& getRunTimeOptions() const override;
     void parse(const std::map<std::string, std::string>& config) override;
 
 private:
-#ifdef ENABLE_VPUAL
-    bool _useKmbExecutor = true;
-#else
-    bool _useKmbExecutor = false;
-#endif
-
-    bool _loadNetworkAfterCompilation = false;
-    int _throghputStreams = 1;
-
-    std::string _platform = "VPU_2490";
-
-    int _numberOfSIPPShaves = 4;
-    int _SIPPLpi = 8;
+    std::string _platform = "HDDL2";
 };
 
 }  // namespace vpu

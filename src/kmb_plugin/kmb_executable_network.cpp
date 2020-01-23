@@ -24,7 +24,6 @@
 #include <ie_plugin_config.hpp>
 #include <kmb_executable_network.h>
 #include <net_pass.h>
-#include "vpu/kmb_plugin_config.hpp"
 
 // clang-format on
 
@@ -56,19 +55,7 @@ ExecutableNetwork::ExecutableNetwork(ICNNNetwork& network, const KmbConfig& conf
     _executor = std::make_shared<KmbExecutor>(_config);
 
 #ifdef ENABLE_MCM_COMPILER
-    pCompiler = std::make_shared<mv::CompilationUnit>(network.getName());  // unit("testModel");
-
-    if (pCompiler == nullptr) {
-        THROW_IE_EXCEPTION << "CompilationUnit have not been created.";
-    }
-
-    _logger->debug("CompilationUnit and model '%s' are created", pCompiler->model().getName());
-    bool ti_proc_ok = !NetPass::CombineRNNSeq(network) ? NetPass::UnrollTI(network) : true;
-    if (!ti_proc_ok)
-        THROW_IE_EXCEPTION << "Plugin doesn't support Tensor Iterator in pure form. "
-                              "None TI optimization pattern has been applied successfully";
-
-    compileMcm(network, _config, *pCompiler, _graphBlob);
+    MCMAdapter::compileNetwork(network, _config, _graphBlob);
 
     if (_config.loadNetworkAfterCompilation()) {
         LoadBlob();

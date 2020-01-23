@@ -25,6 +25,7 @@
 #include <inference_engine.hpp>
 #include <tuple>
 #include <vpu/kmb_plugin_config.hpp>
+#include <vpu/vpu_compiler_config.hpp>
 
 #include "single_layer_common.hpp"
 #include "tests_common.hpp"

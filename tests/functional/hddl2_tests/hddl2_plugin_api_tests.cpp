@@ -98,33 +98,6 @@ TEST_F(HDDL2_Plugin_API, getAvailableDevices) {
     ASSERT_EQ(code, HddlStatusCode::HDDL_OK);
 }
 
-TEST_F(HDDL2_Plugin_API, CanFindPlugin) {
-    LoadModel();
-
-    ASSERT_NO_THROW(ie.LoadNetwork(network, device_name));
-}
-
-TEST_F(HDDL2_Plugin_API, CanCreateExecutableNetworkLoadNetwork) {
-    LoadModel();
-
-    ASSERT_NO_THROW(executableNetwork = ie.LoadNetwork(network, device_name));
-}
-
-TEST_F(HDDL2_Plugin_API, DISABLED_CanCreateInferRequestAfterLoadNetwork) {
-    LoadModel();
-
-    ASSERT_NO_THROW(executableNetwork = ie.LoadNetwork(network, device_name));
-    ASSERT_NO_THROW(inferRequest = executableNetwork.CreateInferRequest());
-}
-
-TEST_F(HDDL2_Plugin_API, DISABLED_CanCallInfer) {
-    LoadModel();
-    ASSERT_NO_THROW(executableNetwork = ie.LoadNetwork(network, device_name));
-    ASSERT_NO_THROW(inferRequest = executableNetwork.CreateInferRequest());
-
-    ASSERT_NO_THROW(inferRequest.Infer());
-}
-
 TEST_P(InferWithPath, CanCreateExecutableNetworkImportMethod) {
     modelBlobsInfo blobsInfo = GetParam();
     std::string graphSuffix = blobsInfo._graphPath;

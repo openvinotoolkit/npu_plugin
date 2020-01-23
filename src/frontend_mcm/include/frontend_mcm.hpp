@@ -1,5 +1,5 @@
 //
-// Copyright 2019 Intel Corporation.
+// Copyright 2019-2020 Intel Corporation.
 //
 // This software and the related documents are Intel copyrighted materials,
 // and your use of them is governed by the express license under which they
@@ -17,7 +17,6 @@
 #pragma once
 
 #include <cpp/ie_cnn_network.h>
-#include <kmb_config.h>
 
 #include <details/caseless.hpp>
 #include <map>
@@ -37,11 +36,10 @@
 
 #include <graph_tools.hpp>
 #include <include/mcm/op_model.hpp>
-
-#include "kmb_base.hpp"
+#include "mcm_helper.hpp"
+#include "mcm_config.h"
 
 namespace vpu {
-namespace KmbPlugin {
 
 namespace ie = InferenceEngine;
 
@@ -51,8 +49,8 @@ class McmNodeObject final : public EnableHandle, public EnableCustomAttributes {
 public:
     explicit McmNodeObject(mv::Data::TensorIterator node, InferenceEngine::TensorDesc desc)
         : _desc(desc), _mcmNode(node) {}
-    KMB_MODEL_ATTRIBUTE(InferenceEngine::TensorDesc, desc, InferenceEngine::TensorDesc())
-    KMB_MODEL_ATTRIBUTE(ie::DataPtr, origData, nullptr)
+    MCM_MODEL_ATTRIBUTE(InferenceEngine::TensorDesc, desc, InferenceEngine::TensorDesc())
+    MCM_MODEL_ATTRIBUTE(ie::DataPtr, origData, nullptr)
 
     mv::Data::TensorIterator& getMcmNode() { return _mcmNode; }
     void setOrigData(const ie::DataPtr& origData) { _origData = origData; }
@@ -61,7 +59,7 @@ private:
     mv::Data::TensorIterator _mcmNode;
 };
 
-KMB_DEFINE_MODEL_TYPES(McmNode, Object)
+MCM_DEFINE_MODEL_TYPES(McmNode, Object)
 
 namespace ie = InferenceEngine;
 
@@ -73,10 +71,11 @@ class FrontEndMcm final : public std::enable_shared_from_this<FrontEndMcm> {
 public:
     using Ptr = std::shared_ptr<FrontEndMcm>;
 
-    explicit FrontEndMcm(mv::OpModel& modelMcm, const KmbConfig& config)
+    explicit FrontEndMcm(mv::OpModel& modelMcm, const MCMConfig& config)
         : _modelMcm(modelMcm),
-          _config(config),
-          _logger(std::make_shared<Logger>("FrontEndMcm", config.logLevel(), consoleOutput())) {}
+          _logger(std::make_shared<Logger>("FrontEndMcm", config.mcmLogLevel(), consoleOutput())),
+          _config(config) {};
+
     void buildInitialModel(ie::ICNNNetwork& network);
 
     std::set<std::string> checkSupportedLayers(ie::ICNNNetwork& network);
@@ -176,7 +175,6 @@ private:
     std::map<std::string, LayerQuantParams> _layerToQuantParams;
 
     mv::OpModel& _modelMcm;
-    const KmbConfig& _config;
     McmNodePtrList _nodes;
     McmNodePtr _output;
     Logger::Ptr _logger;
@@ -184,9 +182,9 @@ private:
     std::unordered_map<ie::DataPtr, McmNode> _ieToMcmMap;
 
     ParsedNetwork _parsedNetwork;
+    MCMConfig _config;
 };
 
-}  // namespace KmbPlugin
 }  // namespace vpu
 
 #endif

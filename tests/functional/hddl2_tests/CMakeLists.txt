@@ -29,7 +29,12 @@ target_link_libraries(${TARGET_NAME} PRIVATE
         HDDL2Plugin
         HddlUnite
         kmb_utils
+        frontend_mcm
         )
+
+if(ENABLE_MCM_COMPILER)
+    add_dependencies(${TARGET_NAME} mcm_compiler_copy_configs)
+endif()
 
 if(ENABLE_CLANG_FORMAT)
     add_clang_format_target(clang_format_${TARGET_NAME} FOR_TARGETS ${TARGET_NAME} ALL)

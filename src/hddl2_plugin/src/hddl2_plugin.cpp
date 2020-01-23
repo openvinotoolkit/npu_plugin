@@ -36,22 +36,39 @@ using namespace vpu::HDDL2Plugin;
 Engine::Engine() { _pluginName = "HDDL2"; }
 
 ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(
-    const ICore* core, ICNNNetwork& network, const std::map<std::string, std::string>& config) {
-    UNUSED(core);
-    UNUSED(config);
+    const ICore* /*core*/, ICNNNetwork& network, const std::map<std::string, std::string>& config) {
+    InputsDataMap networkInputs;
+    OutputsDataMap networkOutputs;
 
-    return std::make_shared<HDDL2Plugin::ExecutableNetwork>(network);
+    network.getInputsInfo(networkInputs);
+    network.getOutputsInfo(networkOutputs);
+
+    for (auto networkInput : networkInputs) {
+        auto input_precision = networkInput.second->getPrecision();
+
+        if (input_precision != Precision::FP16 && input_precision != Precision::FP32 &&
+            input_precision != Precision::U8) {
+            THROW_IE_EXCEPTION << "Input image format " << input_precision << " is not supported yet.\n"
+                               << "Supported formats:F16, FP32 and U8.";
+        }
+    }
+    auto parsedConfigCopy = _parsedConfig;
+    parsedConfigCopy.update(config);
+
+    return std::make_shared<HDDL2Plugin::ExecutableNetwork>(network, parsedConfigCopy);
 }
 
 IExecutableNetwork::Ptr Engine::ImportNetwork(
     const std::string& modelFileName, const std::map<std::string, std::string>& config) {
-    UNUSED(config);
+    auto parsedConfigCopy = _parsedConfig;
+    parsedConfigCopy.update(config, ConfigMode::RunTime);
+
     std::ifstream blobFile(modelFileName, std::ios::binary);
     if (!blobFile.is_open()) {
         THROW_IE_EXCEPTION << InferenceEngine::details::as_status << NETWORK_NOT_READ;
     }
 
-    const auto executableNetwork = std::make_shared<ExecutableNetwork>(modelFileName);
+    const auto executableNetwork = std::make_shared<ExecutableNetwork>(modelFileName, parsedConfigCopy);
 
     return IExecutableNetwork::Ptr(new ExecutableNetworkBase<ExecutableNetworkInternal>(executableNetwork),
         [](InferenceEngine::details::IRelease* p) {

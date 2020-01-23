@@ -33,7 +33,7 @@
 #include "kmb_executable_network.h"
 #include "kmb_executor.h"
 #include "kmb_infer_request.h"
-#include "kmb_parser.hpp"
+#include "mcm_adapter.hpp"
 
 namespace vpu {
 namespace KmbPlugin {
@@ -100,9 +100,6 @@ public:
 
 private:
     Logger::Ptr _logger;
-#ifdef ENABLE_MCM_COMPILER
-    std::shared_ptr<mv::CompilationUnit> pCompiler;
-#endif
     KmbExecutorPtr _executor;
     std::vector<char> _graphBlob;
     std::vector<StageMetaInfo> _stagesMetaData;
