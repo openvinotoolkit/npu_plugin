@@ -1,5 +1,5 @@
 //
-// Copyright 2019 Intel Corporation.
+// Copyright 2019-2020 Intel Corporation.
 //
 // This software and the related documents are Intel copyrighted materials,
 // and your use of them is governed by the express license under which they
@@ -82,7 +82,7 @@ public:
         _func = std::make_shared<ngraph::Function>(_results, _params);
     }
 
-    CNNNetwork toCNNNetwork() const;
+    CNNNetwork getCNNNetwork() const;
 
     BlobMap calcRef(const BlobMap& inputs) const;
 

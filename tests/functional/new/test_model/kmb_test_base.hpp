@@ -1,5 +1,5 @@
 //
-// Copyright 2019 Intel Corporation.
+// Copyright 2019-2020 Intel Corporation.
 //
 // This software and the related documents are Intel copyrighted materials,
 // and your use of them is governed by the express license under which they
@@ -64,7 +64,7 @@ public:
             const std::map<std::string, std::string>& config = {});
     ExecutableNetwork getExecNetwork(
             TestNetwork& testNet) {
-        return getExecNetwork(testNet.toCNNNetwork(), testNet.compileConfig());
+        return getExecNetwork(testNet.getCNNNetwork(), testNet.compileConfig());
     }
 
     BlobMap getRefOutputs(
