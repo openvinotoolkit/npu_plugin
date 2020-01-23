@@ -34,18 +34,15 @@
 
 namespace {
 
-int sToI(const std::string& str, const std::string& err = "") {
+bool strToBool(const char* varName, const char* varValue) {
     try {
-        return std::stoi(str);
-    }
-
-    catch (const std::invalid_argument& ia) {
-        if(err == "") {
-            VPU_THROW_EXCEPTION << "Bad int value";
-        } else {
-            VPU_THROW_EXCEPTION << err;
+        const auto intVal = std::stoi(varValue);
+        if (intVal != 0 && intVal != 1) {
+            throw std::invalid_argument("Only 0 and 1 values are supported");
         }
-        return 0;
+        return (intVal != 0);
+    } catch (const std::exception& e) {
+        THROW_IE_EXCEPTION << "Environment variable " << varName << " has wrong value : " << e.what();
     }
 }
 
@@ -67,7 +64,7 @@ const std::string REF_DEVICE_NAME = []() -> std::string {
 
 const bool RUN_COMPILER = []() -> bool {
     if (const auto var = std::getenv("IE_KMB_TESTS_RUN_COMPILER")) {
-        return sToI(var, "IE_KMB_TESTS_RUN_COMPILER should be 0 | 1");
+        return strToBool("IE_KMB_TESTS_RUN_COMPILER", var);
     }
 
 #if defined(PLATFORM_ARM) || !defined(ENABLE_MCM_COMPILER)
@@ -79,7 +76,7 @@ const bool RUN_COMPILER = []() -> bool {
 
 const bool RUN_REF_CODE = []() -> bool {
     if (const auto var = std::getenv("IE_KMB_TESTS_RUN_REF_CODE")) {
-        return sToI(var, "IE_KMB_TESTS_RUN_REF_CODE should be 0 | 1");
+        return strToBool("IE_KMB_TESTS_RUN_REF_CODE", var);
     }
 
 #ifdef PLATFORM_ARM
@@ -91,7 +88,7 @@ const bool RUN_REF_CODE = []() -> bool {
 
 const bool RUN_INFER = []() -> bool {
     if (const auto var = std::getenv("IE_KMB_TESTS_RUN_INFER")) {
-        return sToI(var, "IE_KMB_TESTS_RUN_INFER should be 0 | 1");
+        return strToBool("IE_KMB_TESTS_RUN_INFER", var);
     }
 
 #ifdef PLATFORM_ARM
@@ -111,7 +108,7 @@ const std::string DUMP_PATH = []() -> std::string {
 
 const bool RAW_EXPORT = []() -> bool {
     if (const auto var = std::getenv("IE_KMB_TESTS_RAW_EXPORT")) {
-        return sToI(var, "IE_KMB_TESTS_RAW_EXPORT should be 0 | 1");
+        return strToBool("IE_KMB_TESTS_RAW_EXPORT", var);
     }
 
     return false;
