@@ -100,7 +100,7 @@
                         {"name" : "dpuPerCluster",  "value" : 5   },
                         {"name" : "ddrBandwidth",   "value" : 128 },
                         {"name" : "systemClockMhz", "value" : 500 },
-                        {"name" : "FathomSafetyFactor", " value" : 0.75},
+                        {"name" : "FathomSafetyFactor", " value" : 0.6},
                         {"name" : "createStrategyDots", "value" : false},
                         {"name" : "dotFileLocation", "value" : "./output/dots/strategy/"},
                         {"name" : "jsonOutFileName", "value" : "./output/mcmCompiler_strategy_output.json"}
