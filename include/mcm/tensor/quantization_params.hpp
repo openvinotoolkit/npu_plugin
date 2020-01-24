@@ -56,6 +56,7 @@ namespace mv
         virtual std::string getLogID() const override;
         virtual std::string toString() const override;
         virtual bool isEmpty() const;
+        virtual bool isNeutral() const;
     };
 
 }

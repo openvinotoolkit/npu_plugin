@@ -331,6 +331,11 @@ void decideTasksPrecisionFcn(const mv::pass::PassEntry& pass, mv::ComputationMod
 
         if (opIt->get<mv::QuantizationParams>("quantParams").isEmpty())
             opIt->set<bool>("softwareExecuted", true);
+        else
+        {
+            if (opIt->get<mv::QuantizationParams>("quantParams").isNeutral())
+                opIt->set<bool>("softwareExecuted", true);
+        }
     }
 
     auto convOps = om.getOps("Conv");
@@ -338,6 +343,11 @@ void decideTasksPrecisionFcn(const mv::pass::PassEntry& pass, mv::ComputationMod
     {
         if (opIt->get<mv::QuantizationParams>("quantParams").isEmpty())
             opIt->set<bool>("softwareExecuted", true);
+        else
+        {
+            if (opIt->get<mv::QuantizationParams>("quantParams").isNeutral())
+                opIt->set<bool>("softwareExecuted", true);
+        }
     }
 }
 

@@ -63,3 +63,27 @@ bool mv::QuantizationParams:: isEmpty() const
         is_empty = true;
     return is_empty;
 }
+
+bool mv::QuantizationParams:: isNeutral() const
+{
+    bool is_neutral = false;
+    bool zero_point_neutral = false;
+    bool scale_neutral = true;
+    int64_t sum_of_elems = std::accumulate(get<std::vector<int64_t>>("zeroPoint").begin(),
+                                           get<std::vector<int64_t>>("zeroPoint").end(), 0);
+    if (sum_of_elems == 0)
+        zero_point_neutral = true;
+    std::vector<double> neutral_scale(get<std::vector<double>>("scale").size(), 1.0f);
+    std::vector<double> absRelativeErrorScale;
+    for (std::size_t i =0; i < get<std::vector<double>>("scale").size(); i ++)
+        absRelativeErrorScale.push_back(std::abs(get<std::vector<double>>("scale")[i] - neutral_scale[i]));
+
+    for (auto it = absRelativeErrorScale.begin(); it != absRelativeErrorScale.end(); it++)
+    {
+        if (*it > 0.01f)
+            scale_neutral = false;
+    }
+
+    is_neutral = (zero_point_neutral&&scale_neutral);
+    return is_neutral;
+}
