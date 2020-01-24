@@ -86,6 +86,7 @@
         "Singular": [
             "RemoveOps",
             "ReplacementOps",
+            "DecideTasksPrecision",
             "TensorsToU8",
             "TensorsToFP16",
             "FusePostOps",
