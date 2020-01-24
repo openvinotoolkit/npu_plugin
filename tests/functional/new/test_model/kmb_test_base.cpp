@@ -114,6 +114,14 @@ const bool RAW_EXPORT = []() -> bool {
     return false;
 }();
 
+const std::string LOG_LEVEL = []() -> std::string {
+    if (const auto var = std::getenv("IE_KMB_TESTS_LOG_LEVEL")) {
+        return var;
+    }
+
+    return std::string();
+}();
+
 std::string cleanName(std::string name) {
     std::replace_if(
         name.begin(), name.end(),
@@ -135,7 +143,9 @@ void KmbTestBase::SetUp() {
     rd.seed();
 
     core = PluginCache::get().ie(DEVICE_NAME);
-    core->SetConfig({{CONFIG_KEY(LOG_LEVEL), CONFIG_VALUE(LOG_INFO)}}, DEVICE_NAME);
+    if (!LOG_LEVEL.empty()) {
+        core->SetConfig({{CONFIG_KEY(LOG_LEVEL), LOG_LEVEL}}, DEVICE_NAME);
+    }
 
     dumpBaseName = cleanName(vpu::formatString("%v_%v", testInfo->test_case_name(), testInfo->name()));
 
