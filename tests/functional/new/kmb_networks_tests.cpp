@@ -16,9 +16,31 @@
 
 #include "test_model/kmb_test_base.hpp"
 
-TEST_F(KmbNetworkTest, DISABLED_ResNet50) {
-    runClassifyNetworkTest(
-        "resnet50_tf_int8/0d/resnet-50-int8-tf-0001",
+TEST_F(KmbClassifyNetworkTest, DISABLED_ResNet50) {
+    TestNetworkDesc net("ResNet-50/ResNet-50_fp32.xml");
+
+    net
+        .setUserInputPresision("input", Precision::U8)
+        .setUserInputLayout("input", Layout::NHWC)
+        .setUserOutputPresision("output", Precision::FP32);
+
+    runTest(
+        net,
         "224x224/cat3.bmp",
-        1, 5.0f);
+        1, 0.05f);
+}
+
+TEST_F(KmbDetectionNetworkTest, DISABLED_SSD300) {
+    TestNetworkDesc net("SSD_300/ssd_300_fp16.xml");
+
+    net
+        .setUserInputPresision("input", Precision::U8)
+        .setUserInputLayout("input", Layout::NHWC)
+        .setUserOutputPresision("output", Precision::FP32);
+
+    runTest(
+        net,
+        "300x300/dog.bmp",
+        0.3f,
+        0.85f, 0.1f);
 }

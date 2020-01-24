@@ -111,27 +111,121 @@ protected:
 // KmbNetworkTest
 //
 
-class KmbNetworkTest : public KmbTestBase {
+class TestNetworkDesc final {
 public:
-    void runClassifyNetworkTest(
-            const std::string& modelFileName,
+    explicit TestNetworkDesc(std::string irFileName) : _irFileName(std::move(irFileName)) {}
+
+    TestNetworkDesc& setUserInputPresision(
+            const std::string& name,
+            const Precision& precision) {
+        _inputPrecisions[name] = precision;
+        return *this;
+    }
+    TestNetworkDesc& setUserInputLayout(
+            const std::string& name,
+            const Layout& layout) {
+        _inputLayouts[name] = layout;
+        return *this;
+    }
+
+    TestNetworkDesc& setUserOutputPresision(
+            const std::string& name,
+            const Precision& precision) {
+        _outputPrecisions[name] = precision;
+        return *this;
+    }
+    TestNetworkDesc& setUserOutputLayout(
+            const std::string& name,
+            const Layout& layout) {
+        _outputLayouts[name] = layout;
+        return *this;
+    }
+
+    TestNetworkDesc& setCompileConfig(const std::map<std::string, std::string>& compileConfig) {
+        _compileConfig = compileConfig;
+        return *this;
+    }
+
+    const std::string& irFileName() const {
+        return _irFileName;
+    }
+
+    void fillUserInputInfo(InputsDataMap& info) const;
+    void fillUserOutputInfo(OutputsDataMap& info) const;
+
+    const std::map<std::string, std::string>& compileConfig() const {
+        return _compileConfig;
+    }
+
+private:
+    std::string _irFileName;
+
+    std::unordered_map<std::string, Precision> _inputPrecisions;
+    std::unordered_map<std::string, Layout> _inputLayouts;
+
+    std::unordered_map<std::string, Precision> _outputPrecisions;
+    std::unordered_map<std::string, Layout> _outputLayouts;
+
+    std::map<std::string, std::string> _compileConfig;
+};
+
+class KmbNetworkTestBase : public KmbTestBase {
+protected:
+    using CheckCallback = std::function<void(const Blob::Ptr& actualBlob, const Blob::Ptr& refBlob, const TensorDesc& inputDesc)>;
+
+protected:
+    static Blob::Ptr loadImage(const std::string& imageFilePath);
+
+    CNNNetwork readNetwork(const TestNetworkDesc& netDesc);
+
+    ExecutableNetwork getExecNetwork(
+            const TestNetworkDesc& netDesc);
+
+    void runTest(
+            const TestNetworkDesc& netDesc,
+            const std::string& inputFileName,
+            const CheckCallback& checkCallback);
+};
+
+class KmbClassifyNetworkTest : public KmbNetworkTestBase {
+public:
+    void runTest(
+            const TestNetworkDesc& netDesc,
             const std::string& inputFileName,
             size_t topK, float probTolerance);
 
 protected:
-    void runClassifyNetworkTest(
-            const CNNNetwork& net,
-            const Blob::Ptr& inputBlob,
-            const std::vector<std::pair<int, float>>& refTopK, float probTolerance);
+    static std::vector<std::pair<int, float>> parseOutput(const Blob::Ptr& blob);
+};
 
-    void runClassifyNetworkTest(
-            const std::string& modelFileName,
+class KmbDetectionNetworkTest : public KmbNetworkTestBase {
+public:
+    void runTest(
+            const TestNetworkDesc& netDesc,
             const std::string& inputFileName,
-            const std::vector<std::pair<int, float>>& refTopK, float probTolerance);
-
-    std::vector<std::pair<int, float>> parseClassifyOutput(const Blob::Ptr& blob);
+            float confThresh,
+            float boxTolerance, float probTolerance);
 
 protected:
-    CNNNetwork loadNetwork(const std::string& modelFileName);
-    Blob::Ptr loadImage(const std::string& imageFileName);
+    struct Box final {
+        float x, y, w, h;
+    };
+
+    struct BBox final {
+        float left, right, top, bottom;
+        float prob;
+        int idx;
+    };
+
+protected:
+    static std::vector<BBox> parseOutput(
+            const Blob::Ptr& blob,
+            size_t imgWidth, size_t imgHeight,
+            float confThresh);
+
+protected:
+    static float overlap(float x1, float w1, float x2, float w2);
+    static float box_intersection(const Box& a, const Box& b);
+    static float box_union(const Box& a, const Box& b);
+    static float box_iou(const Box& a, const Box& b);
 };
