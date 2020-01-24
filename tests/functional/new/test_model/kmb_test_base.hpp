@@ -176,7 +176,9 @@ protected:
 protected:
     static Blob::Ptr loadImage(const std::string& imageFilePath);
 
-    CNNNetwork readNetwork(const TestNetworkDesc& netDesc);
+    CNNNetwork readNetwork(
+            const TestNetworkDesc& netDesc,
+            bool fillUserInfo);
 
     ExecutableNetwork getExecNetwork(
             const TestNetworkDesc& netDesc);

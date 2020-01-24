@@ -544,17 +544,19 @@ Blob::Ptr KmbNetworkTestBase::loadImage(const std::string& imageFilePath) {
     return blob;
 }
 
-CNNNetwork KmbNetworkTestBase::readNetwork(const TestNetworkDesc& netDesc) {
+CNNNetwork KmbNetworkTestBase::readNetwork(const TestNetworkDesc& netDesc, bool fillUserInfo) {
     ModelsPath modelPath;
     modelPath << "/" << netDesc.irFileName();
 
     auto net = core->ReadNetwork(modelPath);
 
-    auto inputsInfo = net.getInputsInfo();
-    auto outputsInfo = net.getOutputsInfo();
+    if (fillUserInfo) {
+        auto inputsInfo = net.getInputsInfo();
+        auto outputsInfo = net.getOutputsInfo();
 
-    netDesc.fillUserInputInfo(inputsInfo);
-    netDesc.fillUserOutputInfo(outputsInfo);
+        netDesc.fillUserInputInfo(inputsInfo);
+        netDesc.fillUserOutputInfo(outputsInfo);
+    }
 
     return net;
 }
@@ -563,7 +565,7 @@ ExecutableNetwork KmbNetworkTestBase::getExecNetwork(
         const TestNetworkDesc& netDesc) {
     return KmbTestBase::getExecNetwork(
         [&netDesc, this]() {
-            return readNetwork(netDesc);
+            return readNetwork(netDesc, true);
         },
         [&netDesc]() {
             return netDesc.compileConfig();
@@ -610,8 +612,8 @@ void KmbNetworkTestBase::runTest(
     if (RUN_REF_CODE) {
         std::cout << "=== CALC REFERENCE WITH " << REF_DEVICE_NAME << std::endl;
 
-        const auto net = readNetwork(netDesc);
-        auto refExeNet = core->LoadNetwork(net, REF_DEVICE_NAME);
+        const auto refNet = readNetwork(netDesc, false);
+        auto refExeNet = core->LoadNetwork(refNet, REF_DEVICE_NAME);
 
         const auto refInputsInfo = refExeNet.GetInputsInfo();
         const auto refOutputsInfo = refExeNet.GetOutputsInfo();
@@ -620,8 +622,11 @@ void KmbNetworkTestBase::runTest(
         IE_ASSERT(refOutputsInfo.size() == 1);
 
         const auto& refInputName = refInputsInfo.begin()->first;
+        const auto& refInputInfo = refInputsInfo.begin()->second;
 
-        const auto refOutputs = runInfer(refExeNet, {{refInputName, inputBlob}});
+        const auto refInputBlob = toLayout(toPrecision(inputBlob, refInputInfo->getTensorDesc().getPrecision()), refInputInfo->getTensorDesc().getLayout());
+
+        const auto refOutputs = runInfer(refExeNet, {{refInputName, refInputBlob}});
         IE_ASSERT(refOutputs.size() == 1);
 
         refOutputBlob = refOutputs.begin()->second;
