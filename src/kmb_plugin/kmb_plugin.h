@@ -60,7 +60,7 @@ public:
 
 private:
     KmbConfig _parsedConfig;
-    std::shared_ptr<KmbMetrics> _metrics;
+    KmbMetrics _metrics;
 };
 
 }  // namespace KmbPlugin

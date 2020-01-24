@@ -84,7 +84,7 @@ void Engine::QueryNetwork(
 #endif
 }
 
-Engine::Engine(): _metrics(std::make_shared<KmbMetrics>()) {
+Engine::Engine(): _metrics() {
     _pluginName = "KMB";
 
 #ifdef ENABLE_MCM_COMPILER
@@ -123,9 +123,9 @@ InferenceEngine::ExecutableNetwork Engine::ImportNetworkImpl(
 InferenceEngine::Parameter Engine::GetMetric(
     const std::string& name, const std::map<std::string, InferenceEngine::Parameter>&) const {
     if (name == METRIC_KEY(AVAILABLE_DEVICES)) {
-        IE_SET_METRIC_RETURN(AVAILABLE_DEVICES, _metrics->AvailableDevicesNames());
+        IE_SET_METRIC_RETURN(AVAILABLE_DEVICES, _metrics.AvailableDevicesNames());
     } else if (name == METRIC_KEY(SUPPORTED_METRICS)) {
-        IE_SET_METRIC_RETURN(SUPPORTED_METRICS, _metrics->SupportedMetrics());
+        IE_SET_METRIC_RETURN(SUPPORTED_METRICS, _metrics.SupportedMetrics());
     }
     THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
 }
