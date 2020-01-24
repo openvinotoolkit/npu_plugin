@@ -191,6 +191,7 @@
             "GenerateSparsityMapsPopulatedTensors",
             "GenerateWeightsTables",
             "StrategyLayersToTensors",
+            "UpdateOutputQuantParams",
             "ComputeTensorsQuantParams",
             "UpdateImplicitLayersQuantizationParams",
             "PopulateWeightsTablesQuantization",
