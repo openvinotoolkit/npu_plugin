@@ -586,9 +586,13 @@ void KmbNetworkTestBase::runTest(
     const auto& inputInfo = inputsInfo.begin()->second;
     const auto& outputInfo = outputsInfo.begin()->second;
 
+    // HACK: to overcome IE bug with incorrect TensorDesc::setLayout
+    const auto inputTensorDesc = TensorDesc(inputInfo->getTensorDesc().getPrecision(), inputInfo->getTensorDesc().getDims(), inputInfo->getTensorDesc().getLayout());
+    const auto outputTensorDesc = TensorDesc(outputInfo->getTensorDesc().getPrecision(), outputInfo->getTensorDesc().getDims(), outputInfo->getTensorDesc().getLayout());
+
     registerBlobGenerator(
         "input",
-        inputInfo->getTensorDesc(),
+        inputTensorDesc,
         [&inputFileName](const TensorDesc& desc) {
             std::ostringstream inputFilePath;
             inputFilePath << get_data_path() << "/" << inputFileName;
@@ -630,7 +634,7 @@ void KmbNetworkTestBase::runTest(
     } else if (RUN_INFER) {
         std::cout << "=== IMPORT REFERENCE" << std::endl;
 
-        refOutputBlob = importBlob("output", outputInfo->getTensorDesc());
+        refOutputBlob = importBlob("output", outputTensorDesc);
     }
 
     if (RUN_INFER) {
@@ -643,7 +647,7 @@ void KmbNetworkTestBase::runTest(
 
         const auto actualOutputBlob = actualOutputs.begin()->second;
 
-        checkCallback(actualOutputBlob, refOutputBlob, inputBlob->getTensorDesc());
+        checkCallback(actualOutputBlob, refOutputBlob, inputTensorDesc);
     }
 }
 
