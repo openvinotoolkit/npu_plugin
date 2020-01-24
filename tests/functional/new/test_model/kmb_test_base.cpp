@@ -214,14 +214,14 @@ BlobMap KmbTestBase::getInputs(TestNetwork& testNet) {
 }
 
 ExecutableNetwork KmbTestBase::getExecNetwork(
-        const CNNNetwork& net,
-        const std::map<std::string, std::string>& config) {
+        const std::function<CNNNetwork()>& netCreator,
+        const std::function<CompileConfig()>& configCreator) {
     ExecutableNetwork exeNet;
 
     if (RUN_COMPILER) {
         std::cout << "=== COMPILE NETWORK" << std::endl;
 
-        exeNet = core->LoadNetwork(net, DEVICE_NAME, config);
+        exeNet = core->LoadNetwork(netCreator(), DEVICE_NAME, configCreator());
 
         if (!DUMP_PATH.empty()) {
             std::cout << "    === EXPORT NETWORK" << std::endl;
@@ -235,6 +235,17 @@ ExecutableNetwork KmbTestBase::getExecNetwork(
     }
 
     return exeNet;
+}
+
+ExecutableNetwork KmbTestBase::getExecNetwork(
+        TestNetwork& testNet) {
+    return getExecNetwork(
+        [&testNet]() {
+            return testNet.getCNNNetwork();
+        },
+        [&testNet]() {
+            return testNet.compileConfig();
+        });
 }
 
 BlobMap KmbTestBase::getRefOutputs(
@@ -358,6 +369,8 @@ void KmbTestBase::runTest(
     const auto refOutputs = getRefOutputs(testNet, inputs);
 
     if (RUN_INFER) {
+        std::cout << "=== INFER" << std::endl;
+
         const auto actualOutputs = runInfer(exeNet, inputs);
 
         compareWithReference(actualOutputs, refOutputs, tolerance, method);
@@ -436,8 +449,6 @@ Blob::Ptr KmbTestBase::importBlob(const std::string& name, const TensorDesc& des
 }
 
 BlobMap KmbTestBase::runInfer(ExecutableNetwork& exeNet, const BlobMap& inputs) {
-    std::cout << "=== INFER" << std::endl;
-
     auto inferRequest = exeNet.CreateInferRequest();
 
     for (const auto& p : inputs) {

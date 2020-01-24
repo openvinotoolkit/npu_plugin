@@ -38,6 +38,7 @@ using namespace InferenceEngine;
 class KmbTestBase : public TestsCommon {
 public:
     using BlobGenerator = std::function<Blob::Ptr(const TensorDesc& desc)>;
+    using CompileConfig = std::map<std::string, std::string>;
 
 public:
     void registerBlobGenerator(
@@ -66,13 +67,11 @@ protected:
     BlobMap getInputs(TestNetwork& testNet);
 
     ExecutableNetwork getExecNetwork(
-            const CNNNetwork& net,
-            const std::map<std::string, std::string>& config = {});
+            const std::function<CNNNetwork()>& netCreator,
+            const std::function<CompileConfig()>& configCreator);
 
     ExecutableNetwork getExecNetwork(
-            TestNetwork& testNet) {
-        return getExecNetwork(testNet.getCNNNetwork(), testNet.compileConfig());
-    }
+            TestNetwork& testNet);
 
     BlobMap getRefOutputs(
             TestNetwork& testNet,
