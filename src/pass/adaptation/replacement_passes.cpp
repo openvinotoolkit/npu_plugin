@@ -17,6 +17,7 @@ void interpAsAvgPoolingFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
 void flattenAsReshapeFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 static void replacementOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 void scaleAsDepthwiseFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
+void placeNeutralMaxPoolBefore(mv::OpModel om, mv::Data::OpListIterator task);
 
 namespace mv
 {
@@ -99,6 +100,18 @@ mv::Data::OpListIterator linkNewOperationsReplacement(mv::Data::OpListIterator p
     return opIt;
 }
 
+void placeNeutralMaxPoolBefore(mv::OpModel om, mv::Data::OpListIterator task)
+{
+    auto inputFlow = task.leftmostInput();
+    auto neutralMaxPool = om.maxPool(task->getInputTensor(0), {1,1}, {1,1}, {0, 0, 0, 0},
+                                     false, "", "floor", mv::DType("Float16"), {{0}, {1.0f}, {}, {}}, task->getName() + "MaxPool");
+    auto maxPoolOp = om.getSourceOp(neutralMaxPool);
+    maxPoolOp->set<unsigned>("opId", task->get<unsigned>("opId"));
+    maxPoolOp->set<bool>("softwareExecuted", true);
+    om.undefineFlow(inputFlow);
+    task->setInputTensor(neutralMaxPool, 0, false);
+    om.defineFlow(neutralMaxPool, task, 0);
+}
 
 void tensorsToFP16Fcn(const mv::pass::PassEntry&  , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
@@ -347,6 +360,11 @@ void decideTasksPrecisionFcn(const mv::pass::PassEntry& pass, mv::ComputationMod
         {
             if (opIt->get<mv::QuantizationParams>("quantParams").isNeutral())
                 opIt->set<bool>("softwareExecuted", true);
+        }
+        if (opIt->hasAttr("softwareExecuted"))
+        {
+             if (opIt->get<bool>("softwareExecuted"))
+                placeNeutralMaxPoolBefore(om, opIt);
         }
     }
 }

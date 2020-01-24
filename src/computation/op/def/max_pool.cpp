@@ -100,7 +100,7 @@ namespace mv
         .setOptionalArg<bool>("exclude_pad", true)
         .setOptionalArg<std::string>("auto_pad", default_auto_pad)      // default: ""
         .setOptionalArg<std::string>("rounding_type", default_rounding_type) // default: "floor"
-         .setOptionalArg<mv::DType>("dType", mv::DType("Default"))
+        .setOptionalArg<mv::DType>("dType", mv::DType("Default"))
         .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
         .setInputCheck(op_max_pool::inputCheckFcn)
         .setOutputDef(op_max_pool::outputDefFcn)
