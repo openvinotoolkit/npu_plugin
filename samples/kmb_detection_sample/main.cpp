@@ -21,6 +21,8 @@
 #include <algorithm>
 #include <tuple>
 #include <list>
+#include <limits>
+#include <memory>
 
 #include <inference_engine.hpp>
 
@@ -34,6 +36,7 @@
 #include <cnn_network_int8_normalizer.hpp>
 #include <ie_util_internal.hpp>
 #include <ie_compound_blob.h>
+#include <format_reader_ptr.h>
 
 #include "vpusmm.h"
 
@@ -153,12 +156,10 @@ static Blob::Ptr fromNV12File(const std::string &filePath,
 }
 
 static void setPreprocForInputBlob(const std::string &inputName,
-                                   const TensorDesc &inputTensor,
                                    const std::string &inputFilePath,
                                    InferenceEngine::InferRequest &inferRequest,
                                    VPUAllocator &allocator) {
     Blob::Ptr inputBlobNV12;
-    const InferenceEngine::SizeVector dims = inputTensor.getDims();
     const size_t expectedWidth = FLAGS_iw;
     const size_t expectedHeight = FLAGS_ih;
     inputBlobNV12 = fromNV12File(inputFilePath, expectedWidth, expectedHeight, allocator);
@@ -186,10 +187,14 @@ Blob::Ptr deQuantize(const Blob::Ptr &quantBlob, float scale, uint8_t zeroPoint)
     return outputBlob;
 }
 
-Blob::Ptr yoloLayer_yolov2tiny(const Blob::Ptr &lastBlob, int inputHeight, int inputWidth) {
+Blob::Ptr yoloLayer_yolov2tiny(const Blob::Ptr &lastBlob, const SizeVector &inDims, const SizeVector &outDims,
+        std::size_t origImageWidth, std::size_t origImageHeight) {
+    const std::size_t &outWidth = outDims.at(3);
+    const std::size_t &outHeight = outDims.at(2);
+    const std::size_t &outFeatures = outDims.at(1);
     const TensorDesc quantTensor = lastBlob->getTensorDesc();
     const TensorDesc outTensor = TensorDesc(InferenceEngine::Precision::FP32,
-        {1, 1, 13*13*20*5, 7},
+        {1, 1, outWidth*outHeight*20*5, 7},
         lastBlob->getTensorDesc().getLayout());
     Blob::Ptr outputBlob = make_shared_blob<float>(outTensor);
     outputBlob->allocate();
@@ -197,10 +202,10 @@ Blob::Ptr yoloLayer_yolov2tiny(const Blob::Ptr &lastBlob, int inputHeight, int i
     const float *inputRawData = lastBlob->cbuffer().as<const float *>();
     float *outputRawData = outputBlob->buffer().as<PrecisionTrait<Precision::FP32>::value_type *>();
 
-    int shape[]={13, 13, 5, 25};
-    int strides[]={13*128, 128, 25, 1};
+    std::size_t shape[]={outWidth, outHeight, 5, 25};
+    std::size_t strides[]={outWidth*outFeatures, outFeatures, 25, 1};
     postprocess::yolov2(inputRawData, shape, strides,
-        0.4f, 0.45f, 20, 416, 416, outputRawData);
+        0.4f, 0.45f, 20, origImageWidth, origImageHeight, inDims.at(2), inDims.at(3), outputRawData);
 
     return outputBlob;
 }
@@ -224,12 +229,14 @@ bool ParseAndCheckCommandLine(int argc, char *argv[]) {
         throw std::logic_error("Parameter -m is not set");
     }
 
-    if (FLAGS_iw == 0) {
-        throw std::logic_error("Parameter -iw is not set");
-    }
+    if (fileExt(FLAGS_i) == "yuv") {
+        if (FLAGS_iw == 0) {
+            throw std::logic_error("Parameter -iw is not set");
+        }
 
-    if (FLAGS_ih == 0) {
-        throw std::logic_error("Parameter -ih is not set");
+        if (FLAGS_ih == 0) {
+            throw std::logic_error("Parameter -ih is not set");
+        }
     }
 
     return true;
@@ -304,8 +311,9 @@ int main(int argc, char *argv[]) {
         // --------------------------- 3. Configure input & output ---------------------------------------------
         ConstInputsDataMap inputInfo = importedNetwork.GetInputsInfo();
 
-        for (auto & item : inputInfo) {
-            InputInfo* mutableItem = const_cast<InputInfo*>(item.second.get());
+        InputInfo* mutableItem = const_cast<InputInfo*>(inputInfo.begin()->second.get());
+        bool isYUVInput = fileExt(FLAGS_i) == "yuv";
+        if (isYUVInput) {
             setPreprocAlgorithm(mutableItem, PT_NV12);
             setPreprocAlgorithm(mutableItem, PT_RESIZE);
         }
@@ -317,19 +325,36 @@ int main(int argc, char *argv[]) {
         // -----------------------------------------------------------------------------------------------------
 
         // --------------------------- 5. Prepare input --------------------------------------------------------
-        /** Iterate over all the input blobs **/
+        /** Use first input blob **/
         std::string firstInputName = inputInfo.begin()->first;
 
-        /** Creating input blob **/
-        Blob::Ptr inputBlob = inferRequest.GetBlob(firstInputName.c_str());
-        if (!inputBlob) {
-            throw std::logic_error("Cannot get input blob from inferRequest");
-        }
+        std::size_t originalImageWidth = 0;
+        std::size_t originalImageHeight = 0;
+        std::shared_ptr<uint8_t> imageData(nullptr);
+        if (isYUVInput) {
+            setPreprocForInputBlob(firstInputName, imageFileName, inferRequest, kmbAllocator);
+            originalImageWidth = FLAGS_iw;
+            originalImageHeight = FLAGS_ih;
+        } else {
+            FormatReader::ReaderPtr image_reader(imageFileName.c_str());
+            if (image_reader.get() == nullptr) {
+                throw std::logic_error("Image " + imageFileName + " cannot be read!");
+            }
+            originalImageWidth = image_reader->width();
+            originalImageHeight = image_reader->height();
 
-        for (auto & item : inputInfo) {
-            std::string inputName = item.first;
-            InferenceEngine::TensorDesc inputTensor = item.second->getTensorDesc();
-            setPreprocForInputBlob(inputName, inputTensor, imageFileName, inferRequest, kmbAllocator);
+            /** Image reader is expected to return interlaced (NHWC) BGR image **/
+            TensorDesc inputDataDesc = inputInfo.begin()->second->getTensorDesc();
+            std::vector<size_t> inputBlobDims = inputDataDesc.getDims();
+            size_t imageWidth = inputBlobDims.at(3);
+            size_t imageHeight = inputBlobDims.at(2);
+
+            imageData = image_reader->getData(imageWidth, imageHeight);
+            Blob::Ptr imageBlob = make_shared_blob<uint8_t>(TensorDesc(Precision::U8,
+                inputBlobDims,
+                Layout::NHWC), imageData.get());
+
+            inferRequest.SetBlob(firstInputName.c_str(), imageBlob);
         }
 
         inferRequest.Infer();
@@ -350,16 +375,32 @@ int main(int argc, char *argv[]) {
         }
 
         // de-Quantization
-        uint8_t zeroPoint = static_cast<uint8_t>(FLAGS_z);
+        int zeroPoint = FLAGS_z;
+        if (zeroPoint < std::numeric_limits<uint8_t>::min() || zeroPoint > std::numeric_limits<uint8_t>::max()) {
+            slog::warn << "zeroPoint value " << zeroPoint << " overflows byte. Setting default." << slog::endl;
+            zeroPoint = DEFAULT_ZERO_POINT;
+        }
         float scale = static_cast<float>(FLAGS_s);
+        slog::info << "zeroPoint: " << zeroPoint << slog::endl;
+        slog::info << "scale: " << scale << slog::endl;
+
+        std::string outfilepath = "./output.dat";
+        std::ofstream outfile(outfilepath, std::ios::binary);
+        if (outfile.is_open()) {
+            outfile.write(outputBlob->buffer(), outputBlob->size());
+        } else {
+            slog::warn << "failed to open '" << outfilepath << "'" << slog::endl;
+        }
+        outfile.close();
 
         // Real data layer
         Blob::Ptr dequantOut = deQuantize(outputBlob, scale, zeroPoint);
 
         // Region YOLO layer
-        int inputHeight = inputBlob->getTensorDesc().getDims()[2];
-        int inputWidth = inputBlob->getTensorDesc().getDims()[3];
-        Blob::Ptr detectResult = yoloLayer_yolov2tiny(dequantOut, inputHeight, inputWidth);
+        Blob::Ptr detectResult = yoloLayer_yolov2tiny(dequantOut,
+            inputInfo.begin()->second->getTensorDesc().getDims(),
+            outputInfo.begin()->second->getTensorDesc().getDims(),
+            originalImageHeight, originalImageWidth);
 
         // Print result.
         size_t N = detectResult->getTensorDesc().getDims()[2];
@@ -378,13 +419,6 @@ int main(int argc, char *argv[]) {
                     << rawData[i*7 + 6] << slog::endl;
             }
         }
-
-        std::fstream outFile;
-        outFile.open("/output.dat", std::ios::in | std::ios::out | std::ios::binary);
-        if (outFile.is_open()) {
-            outFile.write(outputBlob->buffer(), outputBlob->size());
-        }
-        outFile.close();
     }
     catch (const std::exception& error) {
         slog::err << "" << error.what() << slog::endl;

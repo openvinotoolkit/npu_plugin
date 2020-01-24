@@ -19,9 +19,8 @@
 #include <vector>
 
 namespace postprocess{
-    int yolov2(const float *data, int * shape4D, int * strides4D, float thresh, float nms, 
-            int num_classes,
-            int image_width, int image_height,
+    int yolov2(const float *data, std::size_t * shape4D, std::size_t * strides4D, float thresh, float nms,
+            std::size_t num_classes, int image_width, int image_height, int net_width, int net_height,
             float * result);
 
     const std::vector<std::string> YOLOV2_TINY_LABELS = {

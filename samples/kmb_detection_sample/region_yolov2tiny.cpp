@@ -43,8 +43,8 @@ typedef struct {
   float *probs;
 } sortable_bbox;
 
-static void get_region_boxes(const float *predictions, int *shape4D,
-                             int *strides4D, int num_classes, float thresh,
+static void get_region_boxes(const float *predictions, std::size_t *shape4D,
+                             std::size_t *strides4D, std::size_t num_classes, float thresh,
                              box *boxes, const float *anchors);
 static float box_iou(const box &a, const box &b);
 
@@ -200,14 +200,14 @@ static void _softmax(float *x, int cnt) {
 }
 
 // predictions is a tensor of shape (13,13,5,25), but stride is 128,
-static void get_region_boxes(const float *predictions, int *shape4D,
-                             int *strides4D, int num_classes, float thresh,
+static void get_region_boxes(const float *predictions, std::size_t *shape4D,
+                             std::size_t *strides4D, std::size_t num_classes, float thresh,
                              box *boxes, const float *anchors) {
-  int i, j, n;
-  int lh = shape4D[0];
-  int lw = shape4D[1];
-  int num_anchor = shape4D[2];
-  int num_entry = shape4D[3];
+  std::size_t i, j, n;
+  std::size_t lh = shape4D[0];
+  std::size_t lw = shape4D[1];
+  std::size_t num_anchor = shape4D[2];
+  std::size_t num_entry = shape4D[3];
   float raw_netout[MAX_CLASSES + 5];
 // LAYOUT of predictions
 // by cell, by (loc_4,conf_1,probs_classes), by anchor
@@ -217,12 +217,12 @@ static void get_region_boxes(const float *predictions, int *shape4D,
 
 #define BOX_IDX(anchor_idx, cell_idx) (anchor_idx * (lw * lh) + cell_idx)
 
-  int kkk = 0;
+  std::size_t kkk = 0;
   for (i = 0; i < lw * lh; ++i) {
-    int row = i / lw;
-    int col = i % lw;
+    std::size_t row = i / lw;
+    std::size_t col = i % lw;
     for (n = 0; n < num_anchor; ++n) {
-      int index = BOX_IDX(n, i);
+      std::size_t index = BOX_IDX(n, i);
       box *pb = &boxes[index];
       // LAYOUT of boxes:
       // by cell then by anchor
@@ -254,13 +254,12 @@ static void get_region_boxes(const float *predictions, int *shape4D,
   // correct_region_boxes(boxes, lw * lh * lnum, w, h, netw, neth, relative);
 }
 
-int yolov2(const float *data, int *shape4D, int *strides4D,
-           float thresh, float nms, int num_classes,
-           int image_width, int image_height, float *result) {
-  int lh = shape4D[0];
-  int lw = shape4D[1];
-  int num_anchor = shape4D[2];
-  // int num_entry  = shape4D[3];
+int yolov2(const float *data, std::size_t *shape4D, std::size_t *strides4D,
+           float thresh, float nms, std::size_t num_classes,
+           int image_width, int image_height, int net_width, int net_height, float *result) {
+  std::size_t lh = shape4D[0];
+  std::size_t lw = shape4D[1];
+  std::size_t num_anchor = shape4D[2];
   const float *anchors = YOLOV2_TINY_ANCHORS;
 
   if (data == nullptr || anchors == nullptr) {
@@ -275,8 +274,8 @@ int yolov2(const float *data, int *shape4D, int *strides4D,
                    anchors);
   do_nms_sort(boxes, lw * lh * num_anchor, num_classes, nms);
 
-  int netw = 416;
-  int neth = 416;
+  int netw = net_width;
+  int neth = net_height;
   float scalew = static_cast<float>(netw) / image_width;
   float scaleh = static_cast<float>(neth) / image_height;
   float scale = scalew < scaleh ? scalew : scaleh;
@@ -286,8 +285,8 @@ int yolov2(const float *data, int *shape4D, int *strides4D,
   float pad_h = (neth - new_height) / 2.0;
   // fill final result array
   int k = 0;
-  for (int i = 0; i < lw * lh * num_anchor; ++i) {
-      for (int j = 0; j < num_classes; j++) {
+  for (std::size_t i = 0; i < lw * lh * num_anchor; ++i) {
+      for (std::size_t j = 0; j < num_classes; j++) {
           box &b = boxes[i];
           if (b.probs[j] == 0)
               continue;
