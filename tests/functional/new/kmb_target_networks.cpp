@@ -16,6 +16,8 @@
 
 #include "test_model/kmb_tests_base.hpp"
 
+#ifdef ENABLE_MCM_COMPILER
+
 // Fails on IE to mcmCompiler parsing stage with message
 // C++ exception with description "quant_model/resnet_v1_50/block1/unit_3/bottleneck_v1/addQuantize Eltwise
 // should has FakeQuantize on inputs
@@ -124,3 +126,5 @@ TEST_F(KmbNetworkTest, SqueezeNetv1_1_onnx_int8_sparse) {
         "224x224/cat3.bmp",
         1, 5.0f);
 }
+
+#endif

@@ -4,7 +4,7 @@
 
 #include "holders_tests.hpp"
 
-INSTANTIATE_TEST_CASE_P(ReleaseOrderTests, CPP_HoldersTests,
+INSTANTIATE_TEST_CASE_P(DISABLED_ReleaseOrderTests, CPP_HoldersTests,
     testing::ValuesIn(std::vector<std::vector<int>> {
         // 0 - plugin
         // 1 - executable_network

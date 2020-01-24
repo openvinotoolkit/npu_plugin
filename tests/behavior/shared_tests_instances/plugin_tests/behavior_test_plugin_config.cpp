@@ -6,14 +6,14 @@
 
 #include "vpu_test_data.hpp"
 
-INSTANTIATE_TEST_CASE_P(BehaviorTest, BehaviorPluginCorrectConfigTest,
+INSTANTIATE_TEST_CASE_P(DISABLED_BehaviorTest, BehaviorPluginCorrectConfigTest,
     ValuesIn(BehTestParams::concat(withCorrectConfValues, withCorrectConfValuesPluginOnly)), getTestCaseName);
 
 INSTANTIATE_TEST_CASE_P(
-    BehaviorTest, BehaviorPluginIncorrectConfigTest, ValuesIn(withIncorrectConfValues), getTestCaseName);
+    DISABLED_BehaviorTest, BehaviorPluginIncorrectConfigTest, ValuesIn(withIncorrectConfValues), getTestCaseName);
+
+INSTANTIATE_TEST_CASE_P(DISABLED_BehaviorTest, BehaviorPluginIncorrectConfigTestInferRequestAPI,
+    ValuesIn(supportedValues), getTestCaseName);
 
 INSTANTIATE_TEST_CASE_P(
-    BehaviorTest, BehaviorPluginIncorrectConfigTestInferRequestAPI, ValuesIn(supportedValues), getTestCaseName);
-
-INSTANTIATE_TEST_CASE_P(
-    BehaviorTest, BehaviorPluginCorrectConfigTestInferRequestAPI, ValuesIn(supportedValues), getTestCaseName);
+    DISABLED_BehaviorTest, BehaviorPluginCorrectConfigTestInferRequestAPI, ValuesIn(supportedValues), getTestCaseName);

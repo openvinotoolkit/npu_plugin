@@ -141,7 +141,7 @@ TEST_F(kmbLayersTests_nightly, DISABLED_TestsReLUAfterConvolution) {
     ASSERT_NO_THROW(_exeNetwork = ie.LoadNetwork(network, "kmb", config));
 }
 
-TEST_F(kmbLayersTests_nightly, TestsReLUOnly) {
+TEST_F(kmbLayersTests_nightly, DISABLED_TestsReLUOnly) {
     const std::string model = R"V0G0N(
     <net batch="1" name="RELU_TEST" version="2">
         <layers>

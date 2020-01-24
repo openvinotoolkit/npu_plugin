@@ -232,7 +232,11 @@ std::vector<TestingNetworkParameters> vpuCompileTargetNetworks = {
 INSTANTIATE_TEST_CASE_P(DISABLED_CompileTargetNetworksFail, VpuInferAndCompareTests,
     ::testing::ValuesIn(vpuCompileTargetNetworksFail), VpuInferAndCompareTests::getTestCaseName);
 
+#ifdef ENABLE_MCM_COMPILER
+
 INSTANTIATE_TEST_CASE_P(CompileTargetNetworks, VpuInferAndCompareTests, ::testing::ValuesIn(vpuCompileTargetNetworks),
     VpuInferAndCompareTests::getTestCaseName);
+
+#endif
 
 #endif

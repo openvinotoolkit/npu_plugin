@@ -5,8 +5,8 @@
 
 #include "vpu_test_data.hpp"
 
-INSTANTIATE_TEST_CASE_P(BehaviorTest, BehaviorPluginTestInferRequestConfig,
+INSTANTIATE_TEST_CASE_P(DISABLED_BehaviorTest, BehaviorPluginTestInferRequestConfig,
     ValuesIn(BehTestParams::concat(withCorrectConfValues, withCorrectConfValuesNetworkOnly)), getConfigTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(
-    BehaviorTest, BehaviorPluginTestInferRequestConfigExclusiveAsync, ValuesIn(supportedValues), getConfigTestCaseName);
+INSTANTIATE_TEST_CASE_P(DISABLED_BehaviorTest, BehaviorPluginTestInferRequestConfigExclusiveAsync,
+    ValuesIn(supportedValues), getConfigTestCaseName);

@@ -50,8 +50,8 @@ struct modelBlobsInfo {
 const static std::vector<modelBlobsInfo> pathToPreCompiledGraph = {
     {
         ._graphPath = "/KMB_models/BLOBS/resnet/resnet.blob",
-        ._inputPath = "/KMB_models/BLOBS/resnet/input.dat",
-        ._outputPath = "/KMB_models/BLOBS/resnet/output.dat",
+        ._inputPath = "/KMB_models/BLOBS/resnet/input.bin",
+        ._outputPath = "/KMB_models/BLOBS/resnet/output.bin",
     },
 };
 
