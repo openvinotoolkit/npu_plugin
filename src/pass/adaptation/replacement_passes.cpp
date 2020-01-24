@@ -699,8 +699,6 @@ void replaceLargeAvgPoolFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
             std::array<unsigned short, 4> padding0 = {0, pad0, 0, pad0};
             std::array<unsigned short, 4> padding1 = {0,0,0,0};
 
-            // std::cout << "Using factors for prime " << kSize[0] << ": " << factors.first << ", " << factors.second << " .... " << paddedSize0 << std::endl;
-
             unsigned int total_shape0 = 1 * inputShape[mv::IO_CHANNEL_DIMENSION] * factors.first * factors.first;
 
             unsigned short channel_multiplier = 1;
