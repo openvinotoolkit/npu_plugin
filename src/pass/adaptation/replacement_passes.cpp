@@ -604,7 +604,8 @@ void replaceLargeAvgPoolFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
         if(kSize[0] > MAX_KERNEL and !isPrime(kSize[0]))
         {
             std::vector<std::pair<unsigned short, unsigned short>> allFactors = getFactors(kSize[0]);
-            std::pair<unsigned short, unsigned short> factors = allFactors.back(); // Get the most equal factors
+            std::pair<unsigned short, unsigned short> factors = allFactors.front(); // Get the most equal factors
+           //std::pair<unsigned short, unsigned short> factors = {ret.second, ret.first};
             if ( factors.first > MAX_KERNEL or factors.second > MAX_KERNEL)
             {
                 //TODO throw error, unable to split into appropriate size
@@ -618,7 +619,7 @@ void replaceLargeAvgPoolFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
             double eachSize0 = (double) kSize[0]/factors.first;
             double paddedSize0 = ceil(eachSize0) * factors.first;
             unsigned short pad0 = paddedSize0 - inputShape[mv::IO_HEIGHT_DIMENSION];
-            std::array<unsigned short, 4> padding0 = {pad0, 0, pad0, 0};
+            std::array<unsigned short, 4> padding0 = {0, pad0, 0, pad0};
             std::array<unsigned short, 4> padding1 = {0,0,0,0};
 
             auto name = opIt->getName();
@@ -680,6 +681,10 @@ void replaceLargeAvgPoolFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
             std::vector<std::pair<unsigned short, unsigned short>> allFactors = getFactors(kSize[0] - 1);
             std::pair<unsigned short, unsigned short> factors = allFactors.back(); // Get the most equal factors
 
+            auto temp = factors.first;
+            factors.first = factors.second;
+            factors.second = temp;
+
             factors.second++;
 
             if ( factors.first > MAX_KERNEL or factors.second > MAX_KERNEL)
@@ -694,7 +699,7 @@ void replaceLargeAvgPoolFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
             double eachSize0 = (double) kSize[0]/factors.first;
             double paddedSize0 = ceil(eachSize0) * factors.first;
             unsigned short pad0 = paddedSize0 - inputShape[mv::IO_HEIGHT_DIMENSION];
-            std::array<unsigned short, 4> padding0 = {pad0, 0, pad0, 0};
+            std::array<unsigned short, 4> padding0 = {0, pad0, 0, pad0};
             std::array<unsigned short, 4> padding1 = {0,0,0,0};
 
             // std::cout << "Using factors for prime " << kSize[0] << ": " << factors.first << ", " << factors.second << " .... " << paddedSize0 << std::endl;
