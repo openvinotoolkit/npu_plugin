@@ -926,6 +926,20 @@ class Operation_Dag {
       return true;
     }
 
+    bool is_op_reading_weights(const operation_t& op) const {
+      mv::Op * op_ptr = const_cast<mv::Op *>(op);
+
+      if (op->getOpType() != "DMATask") { return false; }
+
+      mv::Data::TensorIterator input_tensor = op_ptr->getInputTensor(0UL);
+      mv::Tensor::MemoryLocation location =
+        input_tensor->get<mv::Tensor::MemoryLocation>("Location");
+
+      return ( (location == std::string("BLOB")) ||
+            (location == std::string("DEFAULT")) );
+    }
+
+
   private:
 
 

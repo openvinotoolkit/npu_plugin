@@ -234,9 +234,9 @@ std::vector<mv::Element> StrategyManager::convertStreamingStrategyToElement(Crit
         if ( std::find(hasSpec.begin(), hasSpec.end(), newName) == hasSpec.end())
         {
             copyElement.set("name_filter",newName);
-            copySplits[0].set<int>("C", newStrategy[0]);
+            copySplits[0].set<int>("W", newStrategy[0]);
             copySplits[1].set<int>("H", newStrategy[1]);
-            copySplits[2].set<int>("W", newStrategy[2]);
+            copySplits[2].set<int>("C", newStrategy[2]);
             copySplits[3].set<int>("K", newStrategy[3]);
             copyElement.set("splits",copySplits);
             streamingStrategyList.push_back(copyElement);
