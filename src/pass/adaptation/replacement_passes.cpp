@@ -561,7 +561,8 @@ std::vector<std::pair<unsigned short, unsigned short>> getFactors(unsigned short
     {
         if(n % i == 0)
         {
-            factors.push_back(std::make_pair(i, n/i));
+            // factors.push_back(std::make_pair(i, n/i)); // smaller, larger
+	    factors.push_back(std::make_pair(n/i, i)); // larger, smaller
         }
     }
     return factors;
@@ -589,8 +590,6 @@ void replaceLargeAvgPoolFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
 
         auto inputShape = sourceTensor->getShape();
         std::array<unsigned short, 2> kSize = opIt->get<std::array<unsigned short, 2>>("kSize");
-        // std::array<unsigned short, 2> stride = opIt->get<std::array<unsigned short, 2>>("stride");
-        // std::array<unsigned short, 4> padding = opIt->get<std::array<unsigned short, 4>>("padding");
 
         if((kSize[0] != kSize[1]) and (kSize[0] > MAX_KERNEL or kSize[1] > MAX_KERNEL))
         {
@@ -604,8 +603,8 @@ void replaceLargeAvgPoolFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
         if(kSize[0] > MAX_KERNEL and !isPrime(kSize[0]))
         {
             std::vector<std::pair<unsigned short, unsigned short>> allFactors = getFactors(kSize[0]);
-            std::pair<unsigned short, unsigned short> factors = allFactors.front(); // Get the most equal factors
-           //std::pair<unsigned short, unsigned short> factors = {ret.second, ret.first};
+            std::pair<unsigned short, unsigned short> factors = allFactors.back(); // Get the most equal factors
+ 
             if ( factors.first > MAX_KERNEL or factors.second > MAX_KERNEL)
             {
                 //TODO throw error, unable to split into appropriate size
@@ -616,11 +615,13 @@ void replaceLargeAvgPoolFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
             std::array<unsigned short, 2> stride0 = {factors.first, factors.first};
             std::array<unsigned short, 2> stride1 = {factors.second, factors.second};
 
+	    // Padding relationship is (input size + pad ) / k = output size
+            // pad = output*k - input
             double eachSize0 = (double) kSize[0]/factors.first;
             double paddedSize0 = ceil(eachSize0) * factors.first;
             unsigned short pad0 = paddedSize0 - inputShape[mv::IO_HEIGHT_DIMENSION];
             std::array<unsigned short, 4> padding0 = {0, pad0, 0, pad0};
-            std::array<unsigned short, 4> padding1 = {0,0,0,0};
+            std::array<unsigned short, 4> padding1 = {0,0,0,0}; // Assumes output size is equal to second factor
 
             auto name = opIt->getName();
             mv::QuantizationParams quantParams({{}, {}, {}, {}});
@@ -681,11 +682,7 @@ void replaceLargeAvgPoolFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
             std::vector<std::pair<unsigned short, unsigned short>> allFactors = getFactors(kSize[0] - 1);
             std::pair<unsigned short, unsigned short> factors = allFactors.back(); // Get the most equal factors
 
-            auto temp = factors.first;
-            factors.first = factors.second;
-            factors.second = temp;
-
-            factors.second++;
+            factors.second++; // These factors are for ksize - 1, so increase smaller factor by 1
 
             if ( factors.first > MAX_KERNEL or factors.second > MAX_KERNEL)
             {
