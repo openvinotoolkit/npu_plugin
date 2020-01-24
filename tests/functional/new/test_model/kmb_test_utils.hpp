@@ -43,16 +43,25 @@ Blob::Ptr makeSingleValueBlob(const TensorDesc& desc, int val);
 Blob::Ptr makeScalarBlob(float val, const Precision& precision = Precision::FP32, size_t numDims = 1);
 Blob::Ptr makeScalarBlob(int val, const Precision& precision = Precision::I32, size_t numDims = 1);
 
-Blob::Ptr toFP32(const Blob::Ptr& in);
-Blob::Ptr toFP16(const Blob::Ptr& in);
+void cvtBlobPrecision(const Blob::Ptr& in, const Blob::Ptr& out);
+Blob::Ptr toPrecision(const Blob::Ptr& in, const Precision& precision);
+inline Blob::Ptr toFP32(const Blob::Ptr& in) {
+    return toPrecision(in, Precision::FP32);
+}
+inline Blob::Ptr toFP16(const Blob::Ptr& in) {
+    return toPrecision(in, Precision::FP16);
+}
 
 Blob::Ptr toLayout(const Blob::Ptr& in, Layout layout);
 Blob::Ptr toDefLayout(const Blob::Ptr& in);
 
 enum class CompareMethod { Absolute, Relative, Combined };
 
-void compareBlobs(const Blob::Ptr& actual, const Blob::Ptr& expected, float tolerance,
-    CompareMethod method = CompareMethod::Absolute);
+void compareBlobs(
+        const Blob::Ptr& actual,
+        const Blob::Ptr& expected,
+        float tolerance,
+        CompareMethod method = CompareMethod::Absolute);
 
 //
 // Helper structs
