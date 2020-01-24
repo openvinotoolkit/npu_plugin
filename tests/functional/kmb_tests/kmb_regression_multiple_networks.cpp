@@ -36,7 +36,7 @@ class KmbRegressionMultipleNetworks :
     public testing::WithParamInterface<std::tuple<std::string, std::pair<std::string, std::string>>> {};
 
 TEST_P(KmbRegressionMultipleNetworks,
-    DISABLED_canRunInferTwoNetworksSeveralIteration) {  // Hangs in Release time to time: CVS-23514
+    canRunInferTwoNetworksSeveralIteration) {  // Hangs in Release time to time: CVS-23514
     auto param = GetParam();
     auto models = get<1>(param);
 
@@ -72,14 +72,14 @@ TEST_P(KmbRegressionMultipleNetworks,
     };
 
     stringstream input1StrStream;
-    input1StrStream << "/KMB_models/BLOBS/" << get<0>(models) << "/input.dat";
+    input1StrStream << "/KMB_models/BLOBS/" << get<0>(models) << "/input.bin";
 
     InferRequest::Ptr network1InferReqPtr;
     ASSERT_NO_THROW(
         network1InferReqPtr = createInferRequestAndWriteData(network1, ModelsPath() + input1StrStream.str()));
 
     stringstream input2StrStream;
-    input2StrStream << "/KMB_models/BLOBS/" << get<1>(models) << "/input.dat";
+    input2StrStream << "/KMB_models/BLOBS/" << get<1>(models) << "/input.bin";
 
     InferRequest::Ptr network2InferReqPtr;
     ASSERT_NO_THROW(
@@ -146,7 +146,7 @@ TEST_P(KmbRegressionMultipleNetworks,
 const static std::vector<std::string> executionMode = {"sync", "async"};
 
 const static std::vector<std::pair<std::string, std::string>> modelPairs = {
-    {"mobilenet", "yolotiny"}, {"mobilenet", "resnet"}, {"resnet", "yolotiny"}};
+    {"mobilenet-v2-dpu", "tiny-yolo-v2-dpu"}, {"mobilenet-v2-dpu", "resnet-50-dpu"}, {"resnet-50-dpu", "tiny-yolo-v2-dpu"}};
 
 INSTANTIATE_TEST_CASE_P(
     inference, KmbRegressionMultipleNetworks, Combine(ValuesIn(executionMode), ValuesIn(modelPairs)));

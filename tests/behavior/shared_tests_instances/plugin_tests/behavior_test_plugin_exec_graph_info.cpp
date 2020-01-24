@@ -6,4 +6,5 @@
 
 #include "vpu_test_data.hpp"
 
-INSTANTIATE_TEST_CASE_P(BehaviorTest, BehaviorPluginTestExecGraphInfo, ValuesIn(supportedValues), getTestCaseName);
+INSTANTIATE_TEST_CASE_P(
+    DISABLED_BehaviorTest, BehaviorPluginTestExecGraphInfo, ValuesIn(supportedValues), getTestCaseName);

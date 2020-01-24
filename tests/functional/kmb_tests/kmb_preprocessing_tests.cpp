@@ -30,13 +30,13 @@ enum preprocessingType { PT_RESIZE, PT_NV12 };
 class VpuPreprocessingTestsWithParam : public vpuLayersTests, public testing::WithParamInterface<preprocessingType> {};
 
 static std::string composePreprocInputPath(preprocessingType preprocType) {
-    std::string baseName = ModelsPath() + "/KMB_models/BLOBS/mobilenet/";
+    std::string baseName = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2-dpu/";
     switch (preprocType) {
     case PT_RESIZE:
-        baseName += "input-227x227.dat";
+        baseName += "input-227x227.bin";
         break;
     case PT_NV12:
-        baseName += "input-nv12.dat";
+        baseName += "input-228x228-nv12.bin";
         break;
     }
     return baseName;
@@ -145,7 +145,7 @@ std::shared_ptr<vpu::KmbPlugin::utils::VPUAllocator> buildAllocator(const char* 
 TEST_P(VpuPreprocessingTestsWithParam,
     DISABLED_importWithPreprocessing) {  // To be run in manual mode when device is available
     preprocessingType preprocType = GetParam();
-    std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet/mobilenet.blob";
+    std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2-dpu/mobilenet-v2-dpu.blob";
 
     std::shared_ptr<vpu::KmbPlugin::utils::VPUAllocator> kmbAllocator =
         buildAllocator(std::getenv("IE_VPU_KMB_MEMORY_ALLOCATOR_TYPE"));
@@ -177,7 +177,7 @@ TEST_P(VpuPreprocessingTestsWithParam,
     ConstOutputsDataMap outputInfo;
     ASSERT_NO_THROW(outputInfo = importedNetwork.GetOutputsInfo());
 
-    std::string referenceOutputFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet/output.dat";
+    std::string referenceOutputFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2-dpu/output-228x228-nv12.bin";
     for (auto& item : outputInfo) {
         Blob::Ptr outputBlob;
         ASSERT_NO_THROW(outputBlob = inferRequest.GetBlob(item.first.c_str()));
@@ -195,8 +195,8 @@ TEST_P(VpuPreprocessingTestsWithParam,
 
 using VpuPreprocessingTests = vpuLayersTests;
 
-TEST_F(VpuPreprocessingTests, DISABLED_correctPreprocessing) {
-    std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet/mobilenet.blob";
+TEST_F(VpuPreprocessingTests, correctPreprocessing) {
+    std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2-dpu/mobilenet-v2-dpu.blob";
 
     std::shared_ptr<vpu::KmbPlugin::utils::VPUAllocator> kmbAllocator =
         buildAllocator(std::getenv("IE_VPU_KMB_MEMORY_ALLOCATOR_TYPE"));
@@ -219,7 +219,7 @@ TEST_F(VpuPreprocessingTests, DISABLED_correctPreprocessing) {
     inputInfo = importedNetwork.GetInputsInfo();
     std::string input_name = inputInfo.begin()->first;
 
-    std::string inputFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet/input-228x228-nv12.dat";
+    std::string inputFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2-dpu/input-228x228-nv12.bin";
 
     setNV12Preproc(input_name, inputFilePath, inferRequest, kmbAllocator, 228, 228);
 
@@ -228,7 +228,7 @@ TEST_F(VpuPreprocessingTests, DISABLED_correctPreprocessing) {
     ConstOutputsDataMap outputInfo;
     ASSERT_NO_THROW(outputInfo = importedNetwork.GetOutputsInfo());
 
-    std::string referenceOutputFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet/output.dat";
+    std::string referenceOutputFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2-dpu/output-228x228-nv12.bin";
     for (auto& item : outputInfo) {
         Blob::Ptr outputBlob;
         ASSERT_NO_THROW(outputBlob = inferRequest.GetBlob(item.first.c_str()));
@@ -244,8 +244,8 @@ TEST_F(VpuPreprocessingTests, DISABLED_correctPreprocessing) {
     }
 }
 
-TEST_F(VpuPreprocessingTests, DISABLED_multiThreadCorrectPreprocessing) {
-    std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet/mobilenet.blob";
+TEST_F(VpuPreprocessingTests, multiThreadCorrectPreprocessing) {
+    std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2-dpu/mobilenet-v2-dpu.blob";
 
     std::shared_ptr<vpu::KmbPlugin::utils::VPUAllocator> kmbAllocator =
         buildAllocator(std::getenv("IE_VPU_KMB_MEMORY_ALLOCATOR_TYPE"));
@@ -271,7 +271,7 @@ TEST_F(VpuPreprocessingTests, DISABLED_multiThreadCorrectPreprocessing) {
     inputInfo = importedNetwork.GetInputsInfo();
     std::string input_name = inputInfo.begin()->first;
 
-    std::string inputFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet/input-228x228-nv12.dat";
+    std::string inputFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2-dpu/input-228x228-nv12.bin";
 
     setNV12Preproc(input_name, inputFilePath, inferRequest, kmbAllocator, 228, 228);
     setNV12Preproc(input_name, inputFilePath, inferRequest2, kmbAllocator, 228, 228);
@@ -286,7 +286,7 @@ TEST_F(VpuPreprocessingTests, DISABLED_multiThreadCorrectPreprocessing) {
     ConstOutputsDataMap outputInfo;
     ASSERT_NO_THROW(outputInfo = importedNetwork.GetOutputsInfo());
 
-    std::string referenceOutputFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet/output.dat";
+    std::string referenceOutputFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2-dpu/output-228x228-nv12.bin";
     for (auto& item : outputInfo) {
         Blob::Ptr outputBlob;
         ASSERT_NO_THROW(outputBlob = inferRequest.GetBlob(item.first.c_str()));
@@ -302,8 +302,8 @@ TEST_F(VpuPreprocessingTests, DISABLED_multiThreadCorrectPreprocessing) {
     }
 }
 
-TEST_F(VpuPreprocessingTests, DISABLED_twoRequestsWithPreprocessing) {
-    std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet/mobilenet.blob";
+TEST_F(VpuPreprocessingTests, twoRequestsWithPreprocessing) {
+    std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2-dpu/mobilenet-v2-dpu.blob";
 
     std::shared_ptr<vpu::KmbPlugin::utils::VPUAllocator> kmbAllocator =
         buildAllocator(std::getenv("IE_VPU_KMB_MEMORY_ALLOCATOR_TYPE"));
@@ -326,7 +326,7 @@ TEST_F(VpuPreprocessingTests, DISABLED_twoRequestsWithPreprocessing) {
     inputInfo = importedNetwork.GetInputsInfo();
     std::string input_name = inputInfo.begin()->first;
 
-    std::string inputFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet/input-228x228-nv12.dat";
+    std::string inputFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2-dpu/input-228x228-nv12.bin";
 
     setNV12Preproc(input_name, inputFilePath, inferRequest, kmbAllocator, 228, 228);
 
@@ -358,7 +358,7 @@ TEST_F(VpuPreprocessingTests, DISABLED_twoRequestsWithPreprocessing) {
     ConstOutputsDataMap outputInfo;
     ASSERT_NO_THROW(outputInfo = importedNetwork.GetOutputsInfo());
 
-    std::string referenceOutputFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet/output.dat";
+    std::string referenceOutputFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2-dpu/output-228x228-nv12.bin";
     for (auto& item : outputInfo) {
         Blob::Ptr outputBlob;
         ASSERT_NO_THROW(outputBlob = inferRequest.GetBlob(item.first.c_str()));
@@ -376,10 +376,10 @@ TEST_F(VpuPreprocessingTests, DISABLED_twoRequestsWithPreprocessing) {
 
 TEST_F(VpuPreprocessingTests, twoNetworksWithPreprocessing) {
     InferenceEngine::ExecutableNetwork network1;
-    std::string network1Path = ModelsPath() + "/KMB_models/BLOBS/mobilenet/mobilenet.blob";
+    std::string network1Path = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2-dpu/mobilenet-v2-dpu.blob";
     ASSERT_NO_THROW(network1 = ie.ImportNetwork(network1Path, "KMB", {}));
 
-    std::string network2Path = ModelsPath() + "/KMB_models/BLOBS/yolotiny/yolotiny.blob";
+    std::string network2Path = ModelsPath() + "/KMB_models/BLOBS/tiny-yolo-v2-dpu/tiny-yolo-v2-dpu.blob";
     InferenceEngine::ExecutableNetwork network2;
     ASSERT_NO_THROW(network2 = ie.ImportNetwork(network2Path, "KMB", {}));
 
@@ -412,14 +412,14 @@ TEST_F(VpuPreprocessingTests, twoNetworksWithPreprocessing) {
     network1InferReqPtr = network1.CreateInferRequestPtr();
 
     std::string input1_name = inputInfo1.begin()->first;
-    std::string input1Path = ModelsPath() + "/KMB_models/BLOBS/mobilenet/input-228x228-nv12.dat";
+    std::string input1Path = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2-dpu/input-228x228-nv12.bin";
     setNV12Preproc(input1_name, input1Path, *network1InferReqPtr, kmbAllocator, 228, 228);
 
     InferenceEngine::InferRequest::Ptr network2InferReqPtr;
     network2InferReqPtr = network2.CreateInferRequestPtr();
 
     std::string input2_name = inputInfo2.begin()->first;
-    std::string input2Path = ModelsPath() + "/KMB_models/BLOBS/yolotiny/input-228x228-nv12.dat";
+    std::string input2Path = ModelsPath() + "/KMB_models/BLOBS/tiny-yolo-v2-dpu/input-228x228-nv12.bin";
     setNV12Preproc(input2_name, input2Path, *network2InferReqPtr, kmbAllocator, 228, 228);
 
     std::cout << "Created inference requests\n";
@@ -473,7 +473,7 @@ TEST_F(VpuPreprocessingTests, twoNetworksWithPreprocessing) {
 
 TEST_F(vpuLayersTests, allocateNV12WithNative) {
     InferenceEngine::ExecutableNetwork network1;
-    std::string network1Path = ModelsPath() + "/KMB_models/BLOBS/resnet/resnet.blob";
+    std::string network1Path = ModelsPath() + "/KMB_models/BLOBS/resnet-50-dpu/resnet-50-dpu.blob";
     ASSERT_NO_THROW(network1 = ie.ImportNetwork(network1Path, "KMB", {}));
 
     ASSERT_EQ(1, network1.GetInputsInfo().size());
@@ -492,7 +492,7 @@ TEST_F(vpuLayersTests, allocateNV12WithNative) {
     network1InferReqPtr = network1.CreateInferRequestPtr();
 
     std::string input1_name = inputInfo1.begin()->first;
-    std::string input1Path = ModelsPath() + "/KMB_models/BLOBS/resnet/input-cat-1080x1080-nv12.bin";
+    std::string input1Path = ModelsPath() + "/KMB_models/BLOBS/resnet-50-dpu/input-cat-1080x1080-nv12.bin";
     setNV12Preproc(input1_name, input1Path, *network1InferReqPtr, nativeAllocator, 1080, 1080);
 
     ASSERT_NO_THROW(network1InferReqPtr->Infer());
@@ -507,7 +507,7 @@ TEST_F(vpuLayersTests, allocateNV12WithNative) {
 
     TensorDesc outputBlobTensorDesc = outputBlob->getTensorDesc();
 
-    std::string referenceOutputFilePath = ModelsPath() + "/KMB_models/BLOBS/resnet/output-cat.bin";
+    std::string referenceOutputFilePath = ModelsPath() + "/KMB_models/BLOBS/resnet-50-dpu/output-cat-1080x1080-nv12.bin";
     uint8_t* outputRefData = reinterpret_cast<uint8_t*>(nativeAllocator->allocate(outputBlob->byteSize()));
     Blob::Ptr referenceOutputBlob = make_shared_blob<uint8_t>(outputBlobTensorDesc, outputRefData);
     ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(referenceOutputFilePath, referenceOutputBlob));
@@ -518,7 +518,7 @@ TEST_F(vpuLayersTests, allocateNV12WithNative) {
 
 TEST_F(vpuLayersTests, allocateNV12TwoImages) {
     InferenceEngine::ExecutableNetwork network1;
-    std::string network1Path = ModelsPath() + "/KMB_models/BLOBS/resnet/resnet.blob";
+    std::string network1Path = ModelsPath() + "/KMB_models/BLOBS/resnet-50-dpu/resnet-50-dpu.blob";
     ASSERT_NO_THROW(network1 = ie.ImportNetwork(network1Path, "KMB", {}));
 
     ASSERT_EQ(1, network1.GetInputsInfo().size());
@@ -538,7 +538,7 @@ TEST_F(vpuLayersTests, allocateNV12TwoImages) {
 
     std::string input1_name = inputInfo1.begin()->first;
 
-    std::string inputCatPath = ModelsPath() + "/KMB_models/BLOBS/resnet/input-cat-1080x1080-nv12.bin";
+    std::string inputCatPath = ModelsPath() + "/KMB_models/BLOBS/resnet-50-dpu/input-cat-1080x1080-nv12.bin";
     setNV12Preproc(input1_name, inputCatPath, *commonInferReqPtr, nativeAllocator, 1080, 1080);
 
     ASSERT_NO_THROW(commonInferReqPtr->Infer());
@@ -553,7 +553,7 @@ TEST_F(vpuLayersTests, allocateNV12TwoImages) {
 
     TensorDesc outputBlobTensorDesc = catOutputBlob->getTensorDesc();
 
-    std::string catOutputFilePath = ModelsPath() + "/KMB_models/BLOBS/resnet/output-cat.bin";
+    std::string catOutputFilePath = ModelsPath() + "/KMB_models/BLOBS/resnet-50-dpu/output-cat-1080x1080-nv12.bin";
     uint8_t* catOutputRefData = reinterpret_cast<uint8_t*>(nativeAllocator->allocate(catOutputBlob->byteSize()));
     Blob::Ptr catReferenceOutputBlob = make_shared_blob<uint8_t>(outputBlobTensorDesc, catOutputRefData);
     ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(catOutputFilePath, catReferenceOutputBlob));
@@ -562,7 +562,7 @@ TEST_F(vpuLayersTests, allocateNV12TwoImages) {
     ASSERT_NO_THROW(compareTopClasses(catOutputBlob, catReferenceOutputBlob, NUMBER_OF_CLASSES));
 
     // set another image to already allocated chunk
-    std::string inputDogPath = ModelsPath() + "/KMB_models/BLOBS/resnet/input-dog-1080x1080-nv12.bin";
+    std::string inputDogPath = ModelsPath() + "/KMB_models/BLOBS/resnet-50-dpu/input-dog-1080x1080-nv12.bin";
     uint8_t* inputMemPtr = reinterpret_cast<uint8_t*>(nativeAllocator->getAllocatedChunkByIndex(0));
     ASSERT_NO_THROW(vpu::KmbPlugin::utils::readNV12FileHelper(inputDogPath, (1080 * 1080 * 3) / 2, inputMemPtr, 0));
 
@@ -571,7 +571,7 @@ TEST_F(vpuLayersTests, allocateNV12TwoImages) {
     Blob::Ptr dogOutputBlob;
     ASSERT_NO_THROW(dogOutputBlob = commonInferReqPtr->GetBlob(firstOutputName));
 
-    std::string dogOutputFilePath = ModelsPath() + "/KMB_models/BLOBS/resnet/output-dog.bin";
+    std::string dogOutputFilePath = ModelsPath() + "/KMB_models/BLOBS/resnet-50-dpu/output-dog-1080x1080-nv12.bin";
     uint8_t* dogOutputRefData = reinterpret_cast<uint8_t*>(nativeAllocator->allocate(dogOutputBlob->byteSize()));
     Blob::Ptr dogReferenceOutputBlob = make_shared_blob<uint8_t>(outputBlobTensorDesc, dogOutputRefData);
     ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(dogOutputFilePath, dogReferenceOutputBlob));
@@ -581,7 +581,7 @@ TEST_F(vpuLayersTests, allocateNV12TwoImages) {
 
 TEST_F(vpuLayersTests, allocateNV12TwoImagesGetBlob) {
     InferenceEngine::ExecutableNetwork network1;
-    std::string network1Path = ModelsPath() + "/KMB_models/BLOBS/resnet/resnet.blob";
+    std::string network1Path = ModelsPath() + "/KMB_models/BLOBS/resnet-50-dpu/resnet-50-dpu.blob";
     ASSERT_NO_THROW(network1 = ie.ImportNetwork(network1Path, "KMB", {}));
 
     ASSERT_EQ(1, network1.GetInputsInfo().size());
@@ -601,7 +601,7 @@ TEST_F(vpuLayersTests, allocateNV12TwoImagesGetBlob) {
 
     std::string input1_name = inputInfo1.begin()->first;
 
-    std::string inputCatPath = ModelsPath() + "/KMB_models/BLOBS/resnet/input-cat-1080x1080-nv12.bin";
+    std::string inputCatPath = ModelsPath() + "/KMB_models/BLOBS/resnet-50-dpu/input-cat-1080x1080-nv12.bin";
     setNV12Preproc(input1_name, inputCatPath, *commonInferReqPtr, nativeAllocator, 1080, 1080);
 
     ASSERT_NO_THROW(commonInferReqPtr->Infer());
@@ -616,7 +616,7 @@ TEST_F(vpuLayersTests, allocateNV12TwoImagesGetBlob) {
 
     TensorDesc outputBlobTensorDesc = catOutputBlob->getTensorDesc();
 
-    std::string catOutputFilePath = ModelsPath() + "/KMB_models/BLOBS/resnet/output-cat.bin";
+    std::string catOutputFilePath = ModelsPath() + "/KMB_models/BLOBS/resnet-50-dpu/output-cat-1080x1080-nv12.bin";
     uint8_t* catOutputRefData = reinterpret_cast<uint8_t*>(nativeAllocator->allocate(catOutputBlob->byteSize()));
     Blob::Ptr catReferenceOutputBlob = make_shared_blob<uint8_t>(outputBlobTensorDesc, catOutputRefData);
     ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(catOutputFilePath, catReferenceOutputBlob));
@@ -625,7 +625,7 @@ TEST_F(vpuLayersTests, allocateNV12TwoImagesGetBlob) {
     ASSERT_NO_THROW(compareTopClasses(catOutputBlob, catReferenceOutputBlob, NUMBER_OF_CLASSES));
 
     // set another image via GetBlob
-    std::string inputDogPath = ModelsPath() + "/KMB_models/BLOBS/resnet/input-dog-1080x1080-nv12.bin";
+    std::string inputDogPath = ModelsPath() + "/KMB_models/BLOBS/resnet-50-dpu/input-dog-1080x1080-nv12.bin";
 
     IInferRequest::Ptr inferReqInterfacePtr = static_cast<IInferRequest::Ptr&>(*commonInferReqPtr);
     Blob::Ptr dogInputBlobPtr;
@@ -644,7 +644,7 @@ TEST_F(vpuLayersTests, allocateNV12TwoImagesGetBlob) {
     Blob::Ptr dogOutputBlob;
     ASSERT_NO_THROW(dogOutputBlob = commonInferReqPtr->GetBlob(firstOutputName));
 
-    std::string dogOutputFilePath = ModelsPath() + "/KMB_models/BLOBS/resnet/output-dog.bin";
+    std::string dogOutputFilePath = ModelsPath() + "/KMB_models/BLOBS/resnet-50-dpu/output-dog-1080x1080-nv12.bin";
     uint8_t* dogOutputRefData = reinterpret_cast<uint8_t*>(nativeAllocator->allocate(dogOutputBlob->byteSize()));
     Blob::Ptr dogReferenceOutputBlob = make_shared_blob<uint8_t>(outputBlobTensorDesc, dogOutputRefData);
     ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(dogOutputFilePath, dogReferenceOutputBlob));
@@ -655,11 +655,11 @@ TEST_F(vpuLayersTests, allocateNV12TwoImagesGetBlob) {
 class VpuPreprocessingConfigAndInferTests :
     public vpuLayersTests,
     public testing::WithParamInterface<std::tuple<const char*, const char*>> {};
-TEST_P(VpuPreprocessingConfigAndInferTests, DISABLED_setConfigAndInfer) {
+TEST_P(VpuPreprocessingConfigAndInferTests, setConfigAndInfer) {
     std::string key, value;
     std::tie(key, value) = GetParam();
 
-    std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/resnet/resnet.blob";
+    std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/resnet-50-dpu/resnet-50-dpu.blob";
 
     std::shared_ptr<vpu::KmbPlugin::utils::VPUAllocator> kmbAllocator =
         buildAllocator(std::getenv("IE_VPU_KMB_MEMORY_ALLOCATOR_TYPE"));
@@ -697,7 +697,7 @@ TEST_P(VpuPreprocessingConfigTests, setConfigAndCheck) {
     std::string key, value;
     bool valid;
     std::tie(key, value, valid) = GetParam();
-    std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/resnet/resnet.blob";
+    std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/resnet-50-dpu/resnet-50-dpu.blob";
 
     Core ie;
     InferenceEngine::ExecutableNetwork importedNetwork;
@@ -712,16 +712,16 @@ TEST_P(VpuPreprocessingConfigTests, setConfigAndCheck) {
     }
 }
 
-TEST_F(VpuPreprocessingTests, DISABLED_setConfigForTwoNetworks) {
+TEST_F(VpuPreprocessingTests, setConfigForTwoNetworks) {
     InferenceEngine::ExecutableNetwork network1;
-    std::string network1Path = ModelsPath() + "/KMB_models/BLOBS/yolotiny/yolotiny.blob";
+    std::string network1Path = ModelsPath() + "/KMB_models/BLOBS/tiny-yolo-v2-dpu/tiny-yolo-v2-dpu.blob";
     std::map<std::string, std::string> config1;
     config1[VPU_KMB_CONFIG_KEY(PREPROCESSING_SHAVES)] = "4";
     config1[VPU_KMB_CONFIG_KEY(PREPROCESSING_LPI)] = "4";
     ASSERT_NO_THROW(network1 = ie.ImportNetwork(network1Path, "KMB", config1));
 
     InferenceEngine::ExecutableNetwork network2;
-    std::string network2Path = ModelsPath() + "/KMB_models/BLOBS/resnet/resnet.blob";
+    std::string network2Path = ModelsPath() + "/KMB_models/BLOBS/resnet-50-dpu/resnet-50-dpu.blob";
     std::map<std::string, std::string> config2;
     config2[VPU_KMB_CONFIG_KEY(PREPROCESSING_SHAVES)] = "2";
     config2[VPU_KMB_CONFIG_KEY(PREPROCESSING_LPI)] = "8";
@@ -756,14 +756,14 @@ TEST_F(VpuPreprocessingTests, DISABLED_setConfigForTwoNetworks) {
     network1InferReqPtr = network1.CreateInferRequestPtr();
 
     std::string input1_name = inputInfo1.begin()->first;
-    std::string input1Path = ModelsPath() + "/KMB_models/BLOBS/yolotiny/input-228x228-nv12.dat";
+    std::string input1Path = ModelsPath() + "/KMB_models/BLOBS/tiny-yolo-v2-dpu/input-228x228-nv12.bin";
     setNV12Preproc(input1_name, input1Path, *network1InferReqPtr, kmbAllocator, 228, 228);
 
     InferenceEngine::InferRequest::Ptr network2InferReqPtr;
     network2InferReqPtr = network2.CreateInferRequestPtr();
 
     std::string input2_name = inputInfo2.begin()->first;
-    std::string input2Path = ModelsPath() + "/KMB_models/BLOBS/mobilenet/input-228x228-nv12.dat";
+    std::string input2Path = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2-dpu/input-228x228-nv12.bin";
     setNV12Preproc(input2_name, input2Path, *network2InferReqPtr, kmbAllocator, 228, 228);
 
     std::cout << "Created inference requests\n";

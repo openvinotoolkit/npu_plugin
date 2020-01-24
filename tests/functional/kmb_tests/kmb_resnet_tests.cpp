@@ -50,6 +50,8 @@ Blob::Ptr dequantize(const Blob::Ptr& blobIn, float scale, uint8_t shift) {
     return blobOut;
 }
 
+#ifdef ENABLE_MCM_COMPILER
+
 TEST_P(ResnetTest, resnetAccuracy) {
     resnet_params test_params = GetParam();
     std::string fullPathToModelXML = ModelsPath() + "/KMB_models/resnet50/" + test_params.modelPath;
@@ -144,3 +146,5 @@ static const std::vector<resnet_params> resnetTestParamsFail = {
 
 INSTANTIATE_TEST_CASE_P(resnetAccuracyTests, ResnetTest, ::testing::ValuesIn(resnetTestParams));
 INSTANTIATE_TEST_CASE_P(DISABLED_resnetAccuracyTestsFail, ResnetTest, ::testing::ValuesIn(resnetTestParamsFail));
+
+#endif

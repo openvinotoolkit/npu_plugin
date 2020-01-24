@@ -24,7 +24,7 @@
 using namespace InferenceEngine;
 
 #ifdef ENABLE_MCM_COMPILER
-TEST_F(kmbLayersTests_nightly, TestsConcatenationAfterSoftmax) {
+TEST_F(kmbLayersTests_nightly, DISABLED_TestsConcatenationAfterSoftmax) {
     // MCM compiler does not support multiple Input layers
     // SoftMax result is used as the second input to Concat
     // TODO find a way to specify several inputs to Concat without other layers

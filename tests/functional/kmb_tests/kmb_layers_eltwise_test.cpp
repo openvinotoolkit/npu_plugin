@@ -133,7 +133,7 @@ static std::vector<eltwise_test_params> test_params = {
 
 // MCM compiler does not support multiple Input layers
 // ScaleShift result is used as the second input to Eltwise
-TEST_P(EltwiseTest, TestsEltwiseAfterScaleShift) {
+TEST_P(EltwiseTest, DISABLED_TestsEltwiseAfterScaleShift) {
     SizeVector output_dims;
     getConvOutShape(input_dims(), conv_params(), output_dims);
 

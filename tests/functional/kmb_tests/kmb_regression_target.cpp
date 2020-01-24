@@ -242,7 +242,7 @@ TEST_F(kmbLayersTestsConvolution, compilationLoadNetworkAndInfer) {
 #ifdef ENABLE_VPUAL
 
 const size_t NUMBER_OF_TOP_CLASSES = 5;
-const std::string YOLO_GRAPH_NAME = "yolotiny.blob";
+const std::string YOLO_GRAPH_NAME = "tiny-yolo-v2-dpu.blob";
 
 struct modelBlobsInfo {
     std::string _graphPath, _inputPath, _outputPath;
@@ -250,19 +250,19 @@ struct modelBlobsInfo {
 
 const static std::vector<modelBlobsInfo> pathToPreCompiledGraph = {
     {
-        ._graphPath = "/KMB_models/BLOBS/mobilenet/mobilenet.blob",
-        ._inputPath = "/KMB_models/BLOBS/mobilenet/input.dat",
-        ._outputPath = "/KMB_models/BLOBS/mobilenet/output.dat",
+        ._graphPath = "/KMB_models/BLOBS/mobilenet-v2-dpu/mobilenet-v2-dpu.blob",
+        ._inputPath = "/KMB_models/BLOBS/mobilenet-v2-dpu/input.bin",
+        ._outputPath = "/KMB_models/BLOBS/mobilenet-v2-dpu/output.bin",
     },
     {
-        ._graphPath = "/KMB_models/BLOBS/resnet/resnet.blob",
-        ._inputPath = "/KMB_models/BLOBS/resnet/input.dat",
-        ._outputPath = "/KMB_models/BLOBS/resnet/output.dat",
+        ._graphPath = "/KMB_models/BLOBS/resnet-50-dpu/resnet-50-dpu.blob",
+        ._inputPath = "/KMB_models/BLOBS/resnet-50-dpu/input.bin",
+        ._outputPath = "/KMB_models/BLOBS/resnet-50-dpu/output.bin",
     },
     {
-        ._graphPath = "/KMB_models/BLOBS/yolotiny/yolotiny.blob",
-        ._inputPath = "/KMB_models/BLOBS/yolotiny/input.dat",
-        ._outputPath = "/KMB_models/BLOBS/yolotiny/output.dat",
+        ._graphPath = "/KMB_models/BLOBS/tiny-yolo-v2-dpu/tiny-yolo-v2-dpu.blob",
+        ._inputPath = "/KMB_models/BLOBS/tiny-yolo-v2-dpu/input.bin",
+        ._outputPath = "/KMB_models/BLOBS/tiny-yolo-v2-dpu/output.bin",
     }};
 
 class VpuInferWithPath : public vpuLayersTests, public testing::WithParamInterface<modelBlobsInfo> {};
@@ -656,7 +656,7 @@ TEST_P(VpuInferWithPath, compareSetBlobAndGetBlobOutput) {
     ASSERT_EQ((void*)outputBlob->buffer(), (void*)newOutputBlob->buffer());
 }
 
-TEST_P(VpuInferWithPath, compareSetBlobAndGetBlobAfterInfer) {
+TEST_P(VpuInferWithPath, DISABLED_compareSetBlobAndGetBlobAfterInfer) {
     modelBlobsInfo blobsInfo = GetParam();
     std::string graphSuffix = blobsInfo._graphPath;
     std::string inputSuffix = blobsInfo._inputPath;
@@ -724,9 +724,10 @@ TEST_P(VpuInferWithPath, compareSetBlobAndGetBlobAfterInfer) {
 using kmbSetBlob = vpuLayersTests;
 
 TEST_F(kmbSetBlob, compareSetBlobAllocation) {
-    std::string mobilenetModelFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet/mobilenet.blob";
-    std::string resnetModelFilePath = ModelsPath() + "/KMB_models/BLOBS/resnet/resnet.blob";
-    std::string inputNameFilePath = ModelsPath() + "/KMB_models/BLOBS/resnet/input.dat";
+    std::string mobilenetModelFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2-dpu/mobilenet-v2-dpu.blob";
+    std::string resnetModelFilePath = ModelsPath() + "/KMB_models/BLOBS/resnet-50-dpu/resnet-50-dpu.blob";
+
+    std::string inputNameFilePath = ModelsPath() + "/KMB_models/BLOBS/resnet-50-dpu/input.bin";
 
     Core ie;
     InferenceEngine::ExecutableNetwork mobilNImportedNetwork;
@@ -751,7 +752,7 @@ TEST_F(kmbSetBlob, compareSetBlobAllocation) {
     ASSERT_EQ((void*)mobilNInputBlob->buffer(), (void*)resNInputBlob->buffer());
 }
 
-TEST_P(VpuInferWithPath, compareOutputsTwoNetworks) {
+TEST_P(VpuInferWithPath, DISABLED_compareOutputsTwoNetworks) {
     modelBlobsInfo blobsInfo = GetParam();
     std::string graphSuffix = blobsInfo._graphPath;
     std::string inputSuffix = blobsInfo._inputPath;
@@ -815,7 +816,7 @@ TEST_P(VpuInferWithPath, compareOutputsTwoNetworks) {
     }
 }
 
-TEST_P(VpuInferWithPath, compareSetBlobAndInfer) {
+TEST_P(VpuInferWithPath, DISABLED_compareSetBlobAndInfer) {
     modelBlobsInfo blobsInfo = GetParam();
     std::string graphSuffix = blobsInfo._graphPath;
     std::string inputSuffix = blobsInfo._inputPath;
@@ -880,12 +881,12 @@ public:
 
 TEST_F(vpuInferWithSetUp, copyCheckSetBlob) {
     std::string strToCheck = "isValidPtr(): Input blob will be copied";
-    std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet/mobilenet.blob";
-    std::string inputNameFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet/input.dat";
-    std::string outputNameFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet/output.dat";
+    std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2-dpu/mobilenet-v2-dpu.blob";
+    std::string inputNameFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2-dpu/input.bin";
+    std::string outputNameFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2-dpu/output.bin";
 
     Blob::Ptr fileOutputBlob =
-        InferenceEngine::make_shared_blob<uint8_t>({Precision::U8, {1, 1, 1, 1024}, Layout::NCHW});
+        InferenceEngine::make_shared_blob<uint8_t>({Precision::U8, {1, 1, 1, 1001}, Layout::NCHW});
     fileOutputBlob->allocate();
     ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(outputNameFilePath, fileOutputBlob));
 
@@ -941,7 +942,7 @@ const static std::vector<TopNetTest> pathToTop3PreCompiledGraph = {
 
 class VpuInferWithPathForTop3Net : public vpuLayersTests, public testing::WithParamInterface<TopNetTest> {};
 
-TEST_P(VpuInferWithPathForTop3Net, DISABLED_canDoInferenceOnTop3ImportedBlobs) {
+TEST_P(VpuInferWithPathForTop3Net, canDoInferenceOnTop3ImportedBlobs) {
     modelBlobsInfo blobsInfo = GetParam().info;
     std::string modelFilePath = ModelsPath() + blobsInfo._graphPath;
     std::string inputDataPath = ModelsPath() + blobsInfo._inputPath;

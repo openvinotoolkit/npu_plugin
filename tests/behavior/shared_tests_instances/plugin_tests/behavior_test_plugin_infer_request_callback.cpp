@@ -7,4 +7,4 @@
 #include "vpu_test_data.hpp"
 
 INSTANTIATE_TEST_CASE_P(
-    BehaviorTest, BehaviorPluginTestInferRequestCallback, ValuesIn(requestsSupportedValues), getTestCaseName);
+    DISABLED_BehaviorTest, BehaviorPluginTestInferRequestCallback, ValuesIn(requestsSupportedValues), getTestCaseName);

@@ -155,7 +155,7 @@ static void fillFcIR(std::string& model, SizeVector input_dims, size_t weightsBu
 
 typedef kmbLayerTestBaseWithParam<fullyConnected_test_params> kmbLayersTestsFullyConnectedWithIR;
 
-TEST_P(kmbLayersTestsFullyConnectedWithIR, DISABLED_fc_only) {
+TEST_P(kmbLayersTestsFullyConnectedWithIR, fc_only) {
     // Besides weights and biases we need to store FQ blobs as well
     size_t weightsBufferOffset = 48;
     auto input_dims = GetParam().input_dim;
