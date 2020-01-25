@@ -26,7 +26,7 @@ namespace mv
             "This pass computes the appropriate quantize params extends and prepares them for serialization."
         );
 
-        MV_REGISTER_PASS(UpdateOutputQuantParamsTasos)
+        MV_REGISTER_PASS(UpdateOutputQuantParams)
         .setFunc(updateOutputQuantParamsTasos)
         .setDescription(
             "The pass will estimate output tensor quantization param where quantization is needed."
@@ -34,7 +34,7 @@ namespace mv
     }
 }
 
-bool isQuantizationParamsAreNeutral(mv::QuantizationParams& quants)
+bool isQuantizationParamNeutral(mv::QuantizationParams& quants)
 {
     auto scale = quants.getScale();
     for (size_t i = 0; i < scale.size(); i++)
@@ -74,7 +74,7 @@ void updateOutputQuantParams(const mv::pass::PassEntry&, mv::ComputationModel& m
             std::vector<int> shift(outputChannels, 0);
             std::vector<int16_t> mScaled(outputChannels, 0);
 
-            if (!output->hasAttr("quantParams") || isQuantizationParamsAreNeutral(output->get<mv::QuantizationParams>("quantParams")))
+            if (!output->hasAttr("quantParams") || isQuantizationParamNeutral(output->get<mv::QuantizationParams>("quantParams")))
             {
 
                 auto& inputQuantization = input->get<mv::QuantizationParams>("quantParams");
@@ -168,9 +168,11 @@ void updateOutputQuantParamsTasos(const mv::pass::PassEntry&, mv::ComputationMod
 
             std::vector<int> shift(outputChannels, 0);
             std::vector<int16_t> mScaled(outputChannels, 0);
-
+            double inf = std::numeric_limits<double>::infinity();
+            double outputMin = inf;
+            double outputMax = -inf;
             if (!output->hasAttr("quantParams")
-                    || isQuantizationParamsAreNeutral(output->get<mv::QuantizationParams>("quantParams")))
+                    || isQuantizationParamNeutral(output->get<mv::QuantizationParams>("quantParams")))
             {
 
                 auto& inputQuantization = input->get<mv::QuantizationParams>("quantParams");
@@ -181,27 +183,29 @@ void updateOutputQuantParamsTasos(const mv::pass::PassEntry&, mv::ComputationMod
                 auto& weightsQuantization = weights->get<mv::QuantizationParams>("quantParams");
                 auto weights_scale = extendToK(outputChannels, weightsQuantization.getScale(), weights->getName());
                 auto weights_zp = extendToK(outputChannels, weightsQuantization.getZeroPoint(), weights->getName());
-                std::vector<double> outMin(outputChannels, -inf);
-                std::vector<double> outMax(outputChannels, inf);
-                std::vector<double> outScale(outputChannels);
-                std::vector<int64_t> outZp(outputChannels);
+
+                //input/output quantization are per tensor, weights quantization are per channel
+                std::vector<double> outScale(1);
+                std::vector<int64_t> outZp(1);
 
                 auto fullkernelSize = weights->getShape().totalSize()/outputChannels;
 
-                auto minIn = extendToK(outputChannels, inputQuantization.getMin(), input->getName());
-                auto maxIn = extendToK(outputChannels, inputQuantization.getMax(), input->getName());
-                auto minWeights = extendToK(outputChannels, weightsQuantization.getMin(), weights->getName());
-                auto maxWeights = extendToK(outputChannels, weightsQuantization.getMax(), weights->getName());
-                std::vector<double> bias_min;
-                std::vector<double> bias_max;
+                auto minIn = inputQuantization.getMin();
+                auto maxIn = inputQuantization.getMax();
+                std::cout << " minIN " << std::to_string(minIn[0]) << std::endl;
+                std::cout << " maxIN " << std::to_string(maxIn[0]) << std::endl;
+                //auto minWeights = extendToK(outputChannels, weightsQuantization.getMin(), weights->getName());
+                //auto maxWeights = extendToK(outputChannels, weightsQuantization.getMax(), weights->getName());
+
                 bool hasBias = opIt->hasAttr("bias");
+                mv::QuantizationParams biasQuantization({},{},{},{});
                 mv::Data::TensorIterator bias;
+                std::vector<double> biasScale;
+                std::vector<uint64_t> biasZp;
                 if (hasBias)
                 {
                     bias = dm.getTensor(opIt->get<std::string>("bias"));
-                    auto& biasQuantization = bias->get<mv::QuantizationParams>("quantParams");
-                    bias_min = extendToK(outputChannels, biasQuantization.getMin(), weights->getName());
-                    bias_max = extendToK(outputChannels, weightsQuantization.getMax(), weights->getName());
+                    biasQuantization = bias->get<mv::QuantizationParams>("quantParams");
                 }
                 double_t real_weight, real_bias;
                 for (size_t c = 0; c < outputChannels; c++)
@@ -209,26 +213,51 @@ void updateOutputQuantParamsTasos(const mv::pass::PassEntry&, mv::ComputationMod
                     double sum_weight = 0;
 //                    outMax[c] = maxIn[c] * fullkernelSize * maxWeights[c];
 //                    outMin[c] = minIn[c] * fullkernelSize * minWeights[c];
-                    for (size_t index = 0; index < weights->getShape().totalSize(); index++)
+                    double outputMinC = 0;
+                    double outputMaxC = 0;
+                    for (size_t index = 0; index < fullkernelSize; index++)
                     {
-                        real_weight = ((int64_t) weights->at(index) - weights_zp[c]) * weights_scale[c];
+                        real_weight = ((int64_t) weights->at(index + c*fullkernelSize) - weights_zp[c]) * weights_scale[c];
+                        if (real_weight < weightsQuantization.getMin()[0])
+                            std::cout << " smaller than min : channel " << std::to_string(c) << " real_weight " << std::to_string(index) << " : " << std::to_string(real_weight) << std::endl;
+                        if (real_weight > weightsQuantization.getMax()[0])
+                            std::cout << " smaller than max : channel " << std::to_string(c) << " real_weight " << std::to_string(index) << " : " << std::to_string(real_weight) << std::endl;
                         sum_weight += real_weight;
                     }
-                    outMax[c] = maxIn[c] * sum_weight;
-                    outMin[c] = minIn[c] * sum_weight;
+                    outputMaxC = maxIn[0] * sum_weight;
+                    outputMinC = minIn[0] * sum_weight;
+                    if (outputMinC > outputMaxC)
+                    //could happen if weight is negative
+                    {
+                        auto temp = outputMaxC;
+                        outputMaxC = outputMinC;
+                        outputMinC = temp;
+                    }
+                    std::cout << " before bias channel " << std::to_string(c) << " out Min " << std::to_string(outputMinC) << std::endl;
+                    std::cout << " before bias channel " << std::to_string(c) << " out Max " << std::to_string(outputMaxC) << std::endl;
                     if (hasBias)
                     {
-                        outMin[c] += bias_min[c];
-                        outMax[c] += bias_max[c];
+                        real_bias = ((int64_t) bias->at(c)) * biasQuantization.getScale()[0];
+                        std::cout << " channel " << std::to_string(c) << " real_bias " << std::to_string(real_bias) << std::endl;
+
+                        outputMinC += real_bias;
+                        outputMaxC += real_bias;
                     }
-                    outScale[c] = (outMax[c] - outMin[c])/255;
-                    std::cout << " channel " << std::to_string(c) << " scale " << std::to_string(outScale[c]) << std::endl;
-                    if ((outMax[c] > 0.0 && outMin[c] > 0.0)||(outMax[c] < 0.0 && outMin[c] < 0.0))
-                        outZp[c] = 0;
-                    else if ((outMax[c] > 0.0 && outMin[c] < 0.0))
-                        outZp[c] = 128;
-                    std::cout << " channel " << std::to_string(c) << " zp " << std::to_string(outZp[c]) << std::endl;
+                    std::cout << " channel " << std::to_string(c) << " out Min " << std::to_string(outputMinC) << std::endl;
+                    std::cout << " channel " << std::to_string(c) << " out Max " << std::to_string(outputMaxC) << std::endl;
+                    if (outputMinC < outputMin)
+                        outputMin = outputMinC;
+
+                    if (outputMaxC > outputMax)
+                        outputMax = outputMaxC;
                 }
+                outScale[0] = (outputMax - outputMin)/255;
+                std::cout << " scale " << std::to_string(outScale[0]) << std::endl;
+                if ((outputMax > 0.0 && outputMin > 0.0)||(outputMax < 0.0 && outputMin < 0.0))
+                    outZp[0] = 0;
+                else if ((outputMax > 0.0 && outputMin < 0.0))
+                    outZp[0] = 128;
+                std::cout <<  " zp " << std::to_string(outZp[0]) << std::endl;
             }
         }
 
