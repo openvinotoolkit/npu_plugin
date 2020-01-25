@@ -171,6 +171,9 @@ void updateOutputQuantParamsTasos(const mv::pass::PassEntry&, mv::ComputationMod
             double inf = std::numeric_limits<double>::infinity();
             double outputMin = inf;
             double outputMax = -inf;
+
+            std::vector<double> outMin(outputChannels, inf);
+            std::vector<double> outMax(outputChannels, -inf);
             if (!output->hasAttr("quantParams")
                     || isQuantizationParamNeutral(output->get<mv::QuantizationParams>("quantParams")))
             {
@@ -243,6 +246,9 @@ void updateOutputQuantParamsTasos(const mv::pass::PassEntry&, mv::ComputationMod
                         outputMinC += real_bias;
                         outputMaxC += real_bias;
                     }
+                    outMax[c] = outputMaxC;
+                    outMin[c] = outputMinC;
+
                     std::cout << " channel " << std::to_string(c) << " out Min " << std::to_string(outputMinC) << std::endl;
                     std::cout << " channel " << std::to_string(c) << " out Max " << std::to_string(outputMaxC) << std::endl;
                     if (outputMinC < outputMin)
@@ -251,6 +257,21 @@ void updateOutputQuantParamsTasos(const mv::pass::PassEntry&, mv::ComputationMod
                     if (outputMaxC > outputMax)
                         outputMax = outputMaxC;
                 }
+
+                //avg min/max
+                double avgMin = 0;
+                double avgMax = 0;
+                for (size_t c = 0; c<outputChannels; c++)
+                {
+                    avgMin += outMin[c];
+                    avgMax += outMax[c];
+                }
+                outputMin = avgMin / outputChannels;
+                outputMax = avgMax / outputChannels;
+
+                std::cout <<  " out Min " << std::to_string(outputMin) << std::endl;
+                std::cout << " out Max " << std::to_string(outputMax) << std::endl;
+
                 outScale[0] = (outputMax - outputMin)/255;
                 std::cout << " scale " << std::to_string(outScale[0]) << std::endl;
                 if ((outputMax > 0.0 && outputMin > 0.0)||(outputMax < 0.0 && outputMin < 0.0))
