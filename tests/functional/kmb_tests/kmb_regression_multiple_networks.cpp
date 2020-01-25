@@ -145,8 +145,8 @@ TEST_P(KmbRegressionMultipleNetworks,
 
 const static std::vector<std::string> executionMode = {"sync", "async"};
 
-const static std::vector<std::pair<std::string, std::string>> modelPairs = {
-    {"mobilenet-v2-dpu", "tiny-yolo-v2-dpu"}, {"mobilenet-v2-dpu", "resnet-50-dpu"}, {"resnet-50-dpu", "tiny-yolo-v2-dpu"}};
+const static std::vector<std::pair<std::string, std::string>> modelPairs = {{"mobilenet-v2-dpu", "tiny-yolo-v2-dpu"},
+    {"mobilenet-v2-dpu", "resnet-50-dpu"}, {"resnet-50-dpu", "tiny-yolo-v2-dpu"}};
 
 INSTANTIATE_TEST_CASE_P(
     inference, KmbRegressionMultipleNetworks, Combine(ValuesIn(executionMode), ValuesIn(modelPairs)));
