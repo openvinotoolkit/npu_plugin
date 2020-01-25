@@ -507,7 +507,8 @@ TEST_F(vpuLayersTests, allocateNV12WithNative) {
 
     TensorDesc outputBlobTensorDesc = outputBlob->getTensorDesc();
 
-    std::string referenceOutputFilePath = ModelsPath() + "/KMB_models/BLOBS/resnet-50-dpu/output-cat-1080x1080-nv12.bin";
+    std::string referenceOutputFilePath =
+        ModelsPath() + "/KMB_models/BLOBS/resnet-50-dpu/output-cat-1080x1080-nv12.bin";
     uint8_t* outputRefData = reinterpret_cast<uint8_t*>(nativeAllocator->allocate(outputBlob->byteSize()));
     Blob::Ptr referenceOutputBlob = make_shared_blob<uint8_t>(outputBlobTensorDesc, outputRefData);
     ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(referenceOutputFilePath, referenceOutputBlob));
