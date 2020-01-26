@@ -23,10 +23,10 @@ add_executable(${TARGET_NAME} ${TEST_SOURCES})
 
 target_compile_options(${TARGET_NAME}
         PRIVATE
-        -Wall
-        -Werror)
+            -Wall
+            -Werror)
 
-target_link_libraries(${TARGET_NAME} PRIVATE IE::gtest IE::gtest_main kmbPlugin_test_static)
+target_link_libraries(${TARGET_NAME} PRIVATE IE::gtest IE::gmock IE::gtest_main kmbPlugin_test_static)
 
 add_test(NAME ${TARGET_NAME} COMMAND ${TARGET_NAME})
 

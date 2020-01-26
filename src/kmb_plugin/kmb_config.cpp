@@ -24,7 +24,7 @@
 #include <vpu/kmb_plugin_config.hpp>
 #include <vpu/utils/numeric.hpp>
 
-using namespace vpu;
+using namespace vpu::KmbPlugin;
 
 const std::unordered_set<std::string>& KmbConfig::getCompileOptions() const {
     static const std::unordered_set<std::string> options =
