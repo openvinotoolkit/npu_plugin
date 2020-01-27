@@ -535,9 +535,10 @@ std::vector<long unsigned int> packToInt64(const std::vector<T>& origData, mv::D
 
     for(unsigned i = 0; i < finalLength; ++i)
         for(unsigned j = 0; j < nElementToPack; ++j)
-            if ((i*nElementToPack + j) < dataSize)
+            if ((i*nElementToPack + j) < dataSize) {
                 toReturn[i] ^= origData[i*nElementToPack + j] << (j * origDataSize);
-
+            }
+    
     return toReturn;
 }
 
@@ -549,12 +550,21 @@ std::unique_ptr<MVCNN::BinaryDataT> mv::RuntimeModel::buildBinaryDataT(Computati
     if(t.getDType().toString() == "UInt8" && huffmanCompression) 
     {
         auto dataPacked = t.getDataPacked();
-        auto compressedData = huffmanCompress(dataPacked, t); 
-        toBuild->data = packToInt64(compressedData, t.getDType());
-        int length = t.get<int>("CompressedSize");
-        toBuild->length = length;
-        toBuild->underlying_type = MVCNN::DType::DType_U8;
-        t.set<bool>("Compression", true);
+        auto sizeKb = t.computeTotalSize() / 1024;
+        if(sizeKb > 4) {
+            auto compressedData = huffmanCompress(dataPacked, t); 
+            toBuild->data = packToInt64(compressedData, t.getDType());
+            int length = t.get<int>("CompressedSize");
+            toBuild->length = length;
+            toBuild->underlying_type = MVCNN::DType::DType_U8;
+            t.set<bool>("Compression", true);
+        }
+        else {
+            auto dataPacked = t.getDataPacked();
+            toBuild->data = packToInt64(dataPacked, t.getDType());
+            toBuild->length = dataPacked.size() * t.getDType().getSizeInBits() / 8;
+            toBuild->underlying_type = MVCNN::DType::DType_U8;
+        }
     }
     else 
     {
@@ -2254,18 +2264,23 @@ std::shared_ptr<std::vector<char>> mv::RuntimeModel::getBlob()
     return binaryData_;
 }
 
-std::vector<uint8_t> mv::RuntimeModel::huffmanCompress(std::vector<int64_t>& inputData, mv::Tensor& t) 
+std::vector<int64_t> mv::RuntimeModel::huffmanCompress(std::vector<int64_t>& inputData, mv::Tensor& t) 
 {
     std::vector<uint8_t> uint8InputData(inputData.begin(),inputData.end());
     uint32_t originalsize = uint8InputData.size();
     auto compressedBufferSize = originalsize + 2 * (std::ceil(originalsize / 4096.0) + 1);
     std::vector<uint8_t> compressedDataBuffer (compressedBufferSize, 0); 
-    uint32_t compressedsize = codec_->huffmanCodecCompressArray(originalsize, &uint8InputData[0], &compressedDataBuffer[0]);
+    uint32_t compressedSize = codec_->huffmanCodecCompressArray(originalsize, &uint8InputData[0], &compressedDataBuffer[0]);
+
+    vector<uint8_t>::iterator endDataIterator = compressedDataBuffer.begin() + compressedSize;
+    compressedDataBuffer.erase(endDataIterator,compressedDataBuffer.end());
+
     std::cout << t.getName() << std::endl;
-    t.set<int>("CompressedSize", compressedsize);
-  
+    t.set<int>("CompressedSize", compressedSize);
+
+    std::vector<int64_t> toReturn(compressedDataBuffer.begin(),compressedDataBuffer.end());
        
-    return compressedDataBuffer;
+    return toReturn;
 }
 
 std::vector<uint8_t> mv::RuntimeModel::huffmanDecompress(std::vector<uint8_t>& compressedData) 
