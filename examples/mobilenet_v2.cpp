@@ -14,19 +14,23 @@ int main()
 
     mv::CompilationUnit unit("MobileNetV2");
     mv::OpModel& om = unit.model();
+    std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/release_kmb.json";
+    unit.loadCompilationDescriptor(compDescPath);
+    unit.loadTargetDescriptor(mv::Target::ma2490);
+
     auto input0 = om.input({224,224,3,1}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{128},{0.007843137718737125},{-1.0},{1.0}}, "input#170");
 
     std::vector<int64_t> weightsData0 = mv::utils::generateSequence<int64_t> (1*1*3*16);
     auto weights0 = om.constantInt(weightsData0,{1,1,3,16}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{143},{0.04871978983283043},{-6.9027419090271},{5.472084999084473}}, "MobilenetV2/Conv/Relu6#0_weights#1");
     auto conv0 = om.conv(input0, weights0, {1, 1}, {0, 1, 0, 1}, 1, 1, mv::DType("UInt8"), {{0},{0.023528477177023888},{0.0},{5.999761581420898}}, "MobilenetV2/Conv/Relu6#171");
 
-    // std::vector<int64_t> biasWeightsData0 = mv::utils::generateSequence<int64_t> (48);
-    // auto biasWeights0 = om.constantInt(biasWeightsData0,{48}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{0.00038211600622162223},{-inf},{inf}}, "MobilenetV2/Conv/Relu6#0_bias#2");
-    // auto bias_c0 = om.bias(conv0, biasWeights0, mv::DType("UInt8"), {{0},{0.023528477177023888},{0.0},{5.999761581420898}});
-
-    // std::vector<int64_t> d_weightsData0 = mv::utils::generateSequence<int64_t> (3*3*48*1);
-    // auto d_weights0 = om.constantInt(d_weightsData0,{3,3,48,1}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{95},{0.4666302800178528},{-44.04890823364258},{74.47518157958984}}, "MobilenetV2/expanded_conv/depthwise/Relu6#3_weights#4");
-    // auto depthConv0 = om.depthwiseConv(bias_c0, d_weights0, {1, 1}, {1, 1, 1, 1}, 1, mv::DType("UInt8"), {{0},{0.023528477177023888},{0.0},{5.999761581420898}}, "MobilenetV2/expanded_conv/depthwise/Relu6#172");
+    std::vector<int64_t> biasWeightsData0 = mv::utils::generateSequence<int64_t> (48);
+    auto biasWeights0 = om.constantInt(biasWeightsData0,{48}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{0.00038211600622162223},{-inf},{inf}}, "MobilenetV2/Conv/Relu6#0_bias#2");
+    auto bias_c0 = om.bias(conv0, biasWeights0, mv::DType("UInt8"), {{0},{0.023528477177023888},{0.0},{5.999761581420898}});
+    
+    std::vector<int64_t> d_weightsData0 = mv::utils::generateSequence<int64_t> (3*3*48*1);
+    auto d_weights0 = om.constantInt(d_weightsData0,{3,3,48,1}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{95},{0.4666302800178528},{-44.04890823364258},{74.47518157958984}}, "MobilenetV2/expanded_conv/depthwise/Relu6#3_weights#4");
+    auto depthConv0 = om.depthwiseConv(bias_c0, d_weights0, {1, 1}, {1, 1, 1, 1}, 1, mv::DType("UInt8"), {{0},{0.023528477177023888},{0.0},{5.999761581420898}}, "MobilenetV2/expanded_conv/depthwise/Relu6#172");
 
     // std::vector<int64_t> biasd_WeightsData0 = mv::utils::generateSequence<int64_t> (48);
     // auto biasdWeights0 = om.constantInt(biasd_WeightsData0,{48}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{0.010979099199175835},{-inf},{inf}}, "MobilenetV2/expanded_conv/depthwise/Relu6#3_bias#5");
@@ -462,14 +466,8 @@ int main()
     // auto biasWeights35 = om.constantInt(biasWeightsData35,{1001}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{3.644251773948781e-05},{-inf},{inf}}, "MobilenetV2/Logits/Conv2d_1c_1x1/act_quant/FakeQuantWithMinMaxVars#167_bias#169");
     // auto bias_c35 = om.bias(conv35, biasWeights35, mv::DType("UInt8"), {{70},{0.09544266015291214},{-6.680986404418945},{17.656892776489258}});
 
-    om.output(conv0);
-
-    std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/release_kmb.json";
-    unit.loadCompilationDescriptor(compDescPath);
-
-    unit.loadTargetDescriptor(mv::Target::ma2490);
+    om.output(depthConv0);
+    
     unit.initialize();
     unit.run();
-
 }
-

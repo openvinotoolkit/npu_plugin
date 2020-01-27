@@ -46,6 +46,15 @@ bool mv::CompilationUnit::loadCompilationDescriptor(const std::string& filePath)
         return false;
     }
 
+    try 
+    {   // parse recording on/off, but don't fail. Log message.
+        if (compDescriptor_.getPassArg("initialize", "Singular", "GlobalConfigParams", "recorded_model"))
+            model_->initRecordingFile("templateExampleNew.cpp");
+    }
+    catch (mv::AttributeError& e)
+    {
+        log(Logger::MessageType::Warning, "Could not find 'recorded_model' entry in 'GlobalConfigParams' section. Recording not enabled.");
+    }
     return true;
 }
 
@@ -132,7 +141,6 @@ mv::Element mv::CompilationUnit::runStep()
 
 mv::Element mv::CompilationUnit::run()
 {
-
     MV_PROFILED_FUNCTION(MV_PROFILE_PHASE);
     Element output("CompilationOutput");
     output.set<std::string>("ModelName", model_->getName());

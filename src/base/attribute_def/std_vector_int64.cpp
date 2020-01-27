@@ -85,7 +85,8 @@ namespace mv
             .setFromJSONFunc(attr_std_vector_int64::fromJSON)
             .setToStringFunc(attr_std_vector_int64::toString)
             .setToLongStringFunc(attr_std_vector_int64::toLongString)
-            .setToBinaryFunc(attr_std_vector_int64::toBinary);
+            .setToBinaryFunc(attr_std_vector_int64::toBinary)
+            .setTypeTrait("large");
 
 
     }
