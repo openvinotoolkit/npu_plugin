@@ -180,7 +180,9 @@ void KmbTestBase::SetUp() {
         std::cout << "[ PARAMS   ] " << valueParam << std::endl;
     }
 
-    std::cout << "[ MODE     ] " << DEVICE_NAME << " / " << (RUN_INFER ? "RUN INFER AND CHECK" : "NO INFER") << " / "
+    std::cout << "[ MODE     ] "
+              << DEVICE_NAME << " / "
+              << (RUN_INFER ? "RUN INFER AND CHECK" : "NO INFER") << " / "
               << (RUN_COMPILER ? "COMPILE NETWORK" : "IMPORT BLOB") << " / "
               << (RUN_REF_CODE ? "CALC REF" : "IMPORT REF") << std::endl;
     if (!DUMP_PATH.empty()) {
@@ -189,7 +191,7 @@ void KmbTestBase::SetUp() {
 
 #ifndef ENABLE_MCM_COMPILER
     if (RUN_COMPILER) {
-        THROW_IE_EXCEPTION << "KMB Plugin was built without mcmCompiler";
+        FAIL() << "KMB Plugin was built without mcmCompiler";
     }
 #endif
 }
@@ -359,8 +361,6 @@ void KmbTestBase::compareWithReference(
         const BlobMap& actualOutputs,
         const BlobMap& refOutputs,
         float tolerance, CompareMethod method) {
-    std::cout << "=== COMPARE WITH REFERENCE" << std::endl;
-
     if (refOutputs.size() == 1) {
         // HACK: currently blob names are lost after Export, do not use them for single output case.
 
@@ -396,6 +396,8 @@ void KmbTestBase::runTest(
         std::cout << "=== INFER" << std::endl;
 
         const auto actualOutputs = runInfer(exeNet, inputs);
+
+        std::cout << "=== COMPARE WITH REFERENCE" << std::endl;
 
         compareWithReference(actualOutputs, refOutputs, tolerance, method);
     }
