@@ -1,0 +1,45 @@
+//
+// Copyright 2020 Intel Corporation.
+//
+// This software and the related documents are Intel copyrighted materials,
+// and your use of them is governed by the express license under which they
+// were provided to you (End User License Agreement for the Intel(R) Software
+// Development Products (Version May 2017)). Unless the License provides
+// otherwise, you may not use, modify, copy, publish, distribute, disclose or
+// transmit this software or the related documents without Intel's prior
+// written permission.
+//
+// This software and the related documents are provided as is, with no
+// express or implied warranties, other than those that are expressly
+// stated in the License.
+//
+
+#include "kmb_metrics.h"
+
+#include <algorithm>
+#include <vpu/utils/error.hpp>
+
+using namespace vpu::KmbPlugin;
+using namespace InferenceEngine::VPUConfigParams;
+using namespace InferenceEngine::PluginConfigParams;
+
+//------------------------------------------------------------------------------
+// Implementation of methods of class KmbMetrics
+//------------------------------------------------------------------------------
+
+KmbMetrics::KmbMetrics() {
+    _supportedMetrics = {
+        METRIC_KEY(SUPPORTED_METRICS),
+        METRIC_KEY(AVAILABLE_DEVICES),
+    };
+}
+
+std::vector<std::string> KmbMetrics::AvailableDevicesNames() const {
+    // TODO replace with xlink_get_device_list filtered via xlink_get_device_status when API becomes available
+    std::vector<std::string> availableDevices = {"Gen3 Intel(R) Movidius(TM) VPU code-named Keem Bay"};
+
+    std::sort(availableDevices.begin(), availableDevices.end());
+    return availableDevices;
+}
+
+const std::vector<std::string>& KmbMetrics::SupportedMetrics() const { return _supportedMetrics; }

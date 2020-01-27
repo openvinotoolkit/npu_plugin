@@ -19,9 +19,11 @@
 // clang-format off
 // Can get compile error, if the order of the headers will be changed.
 
+#include <ie_metric_helpers.hpp>
 #include "inference_engine.hpp"
 #include "description_buffer.hpp"
 #include "kmb_executable_network.h"
+#include "kmb_metrics.h"
 #include <memory>
 #include <string>
 #include <vector>
@@ -53,8 +55,12 @@ public:
     InferenceEngine::ExecutableNetwork ImportNetworkImpl(
         std::istream& networkModel, const std::map<std::string, std::string>& config) override;
 
+    InferenceEngine::Parameter GetMetric(
+        const std::string& name, const std::map<std::string, InferenceEngine::Parameter>& options) const override;
+
 private:
     KmbConfig _parsedConfig;
+    KmbMetrics _metrics;
 };
 
 }  // namespace KmbPlugin
