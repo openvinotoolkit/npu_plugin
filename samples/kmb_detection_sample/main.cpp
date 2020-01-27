@@ -107,17 +107,6 @@ VPUAllocator::~VPUAllocator() {
     }
 }
 
-static void setPreprocAlgorithm(InputInfo* mutableItem, preprocessingType preprocType) {
-    switch (preprocType) {
-    case PT_RESIZE:
-        mutableItem->getPreProcess().setResizeAlgorithm(RESIZE_BILINEAR);
-        break;
-    case PT_NV12:
-        mutableItem->getPreProcess().setColorFormat(ColorFormat::NV12);
-        break;
-    }
-}
-
 static Blob::Ptr fromNV12File(const std::string &filePath,
                        size_t imageWidth,
                        size_t imageHeight,
@@ -163,8 +152,10 @@ static void setPreprocForInputBlob(const std::string &inputName,
     const size_t expectedWidth = FLAGS_iw;
     const size_t expectedHeight = FLAGS_ih;
     inputBlobNV12 = fromNV12File(inputFilePath, expectedWidth, expectedHeight, allocator);
-
-    inferRequest.SetBlob(inputName, inputBlobNV12);
+    PreProcessInfo preprocInfo = inferRequest.GetPreProcess(inputName);
+    preprocInfo.setResizeAlgorithm(RESIZE_BILINEAR);
+    preprocInfo.setColorFormat(ColorFormat::NV12);
+    inferRequest.SetBlob(inputName, inputBlobNV12, preprocInfo);
 }
 
 Blob::Ptr deQuantize(const Blob::Ptr &quantBlob, float scale, uint8_t zeroPoint) {
@@ -311,12 +302,6 @@ int main(int argc, char *argv[]) {
         // --------------------------- 3. Configure input & output ---------------------------------------------
         ConstInputsDataMap inputInfo = importedNetwork.GetInputsInfo();
 
-        InputInfo* mutableItem = const_cast<InputInfo*>(inputInfo.begin()->second.get());
-        bool isYUVInput = fileExt(FLAGS_i) == "yuv";
-        if (isYUVInput) {
-            setPreprocAlgorithm(mutableItem, PT_NV12);
-            setPreprocAlgorithm(mutableItem, PT_RESIZE);
-        }
         // -----------------------------------------------------------------------------------------------------
 
         // --------------------------- 4. Create infer request -------------------------------------------------
@@ -331,6 +316,7 @@ int main(int argc, char *argv[]) {
         std::size_t originalImageWidth = 0;
         std::size_t originalImageHeight = 0;
         std::shared_ptr<uint8_t> imageData(nullptr);
+        bool isYUVInput = fileExt(FLAGS_i) == "yuv";
         if (isYUVInput) {
             setPreprocForInputBlob(firstInputName, imageFileName, inferRequest, kmbAllocator);
             originalImageWidth = FLAGS_iw;
