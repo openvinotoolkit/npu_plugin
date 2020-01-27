@@ -34,27 +34,14 @@ static bool LoadModel(const std::string& modelName, InferenceEngine::CNNNetwork&
     std::string modelFilePath = ModelsPath() + modelFile.str();
     std::string weightsFilePath = ModelsPath() + weightsFile.str();
 
-    IE_SUPPRESS_DEPRECATED_START
-    InferenceEngine::CNNNetReader _netReader;
-    IE_SUPPRESS_DEPRECATED_END
-
-    bool readingPassed = false;
     try {
-        _netReader.ReadNetwork(modelFilePath);
-        bool parsingPassed = _netReader.isParseSuccess();
-        _netReader.ReadWeights(weightsFilePath);
-        if (parsingPassed) readingPassed = true;
-    } catch (...) {
-        readingPassed = false;
-    }
-
-    if (readingPassed) {
-        network = _netReader.getNetwork();
-        return true;
-    } else {
-        std::cout << "Network reading failed!" << std::endl;
+        InferenceEngine::Core ie;
+        network = ie.ReadNetwork(modelFilePath, weightsFilePath);
+    } catch (const std::exception& ex) {
+        std::cout << "Failed to read network! Error: " << ex.what() << std::endl;
         return false;
     }
+    return true;
 }
 
 }

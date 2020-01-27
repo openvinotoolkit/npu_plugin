@@ -44,10 +44,10 @@ public:
 
 protected:
     // TODO Use real input instead
-    const size_t inputSize = 200000;
+    const size_t _inputSize = 200000;
 
     HddlUnite::SMM::RemoteMemory::Ptr _remoteMemoryPtr = nullptr;
-    WorkloadID workloadId = -1;
+    WorkloadID _workloadId = -1;
 };
 
 //------------------------------------------------------------------------------
@@ -57,7 +57,7 @@ bool VideoPipeline::createVideoPipeline(
     WorkloadID& workloadContextID, uint64_t& remoteMemoryFd, const std::string& data) {
     auto context = HddlUnite::createWorkloadContext();
 
-    auto ret = context->setContext(workloadId);
+    auto ret = context->setContext(_workloadId);
     if (ret != HDDL_OK) {
         printf("Error: WorkloadContext set context failed");
         return false;
@@ -68,7 +68,7 @@ bool VideoPipeline::createVideoPipeline(
         return false;
     }
 
-    _remoteMemoryPtr = HddlUnite::SMM::allocate(*context, inputSize);
+    _remoteMemoryPtr = HddlUnite::SMM::allocate(*context, _inputSize);
 
     if (_remoteMemoryPtr == nullptr) {
         return false;
@@ -76,13 +76,13 @@ bool VideoPipeline::createVideoPipeline(
 
     _remoteMemoryPtr->syncToDevice(data.data(), data.size());
 
-    workloadContextID = workloadId;
+    workloadContextID = _workloadId;
     remoteMemoryFd = _remoteMemoryPtr->getDmaBufFd();
 
     return true;
 }
 
-VideoPipeline::~VideoPipeline() { HddlUnite::unregisterWorkloadContext(workloadId); }
+VideoPipeline::~VideoPipeline() { HddlUnite::unregisterWorkloadContext(_workloadId); }
 
 //------------------------------------------------------------------------------
 //      class HDDL2_VideoWorkload_Tests Initiation
@@ -130,66 +130,3 @@ TEST_F(HDDL2_VideoWorkload_Tests, CanGetInputFromCreatedVideoPipeline) {
     }
     ASSERT_EQ(data_str, first_output);
 }
-
-/**
- * 1. Create video pipeline
- * 2. Create remote context from workload id
- * 3. Create executable network using context
- * 4. Create remote blob from dma fd and set it to executable network (infer request?)
- * // TODO ???
- * . Check that input for inference the same as video pipeline provided
- */
-// FIXME Replace ImportNetwork with load network
-// TEST_F(HDDL2_VideoWorkload_Tests, SyncInferenceOnOneFrame) {
-//    std::string workloadContextID_str;
-//    std::string dmaFd_str;
-//    const std::string data_str = "Hello HDDL2 Plugin";
-//
-//    // ---- Create video pipeline mock
-//    VideoPipeline videoPipeline;
-//    ASSERT_TRUE(videoPipeline.createVideoPipeline(workloadContextID_str, dmaFd_str, data_str));
-//
-//    // ---- Load inference engine instance
-//    InferenceEngine::Core ie;
-//
-//    // ---- Init context map and create context based on it
-//    IE::ParamMap paramMap = {
-//            { IE::HDDL2_PARAM_KEY(WORKLOAD_CONTEXT_ID), workloadContextID_str}
-//    };
-//    IE::RemoteContext::Ptr contextPtr = ie.CreateContext("HDDL2", paramMap);
-//
-//    // ---- Import network providing context as input and get input information
-//    auto modelFilePath = PrecompiledResNet_Helper::resnet.graphPath;
-//    IE::ExecutableNetwork executableNetwork = ie.ImportNetwork(modelFilePath, contextPtr);
-//
-//    const std::string inputName = executableNetwork.GetInputsInfo().begin()->first;
-//    IE::InputInfo::CPtr inputInfoPtr = executableNetwork.GetInputsInfo().begin()->second;
-//
-//    // ---- Create infer request
-//    InferenceEngine::InferRequest inferRequest;
-//    ASSERT_NO_THROW(inferRequest = executableNetwork.CreateInferRequest());
-//
-//    // ---- Create remote blob by using already exists fd
-//    IE::ParamMap blobParamMap = {
-//            { IE::HDDL2_PARAM_KEY(REMOTE_MEMORY_FD), dmaFd_str}
-//    };
-//    IE::RemoteBlob::Ptr remoteBlobPtr = contextPtr->CreateBlob(inputInfoPtr->getTensorDesc(),
-//                                                               blobParamMap);
-//    ASSERT_NE(nullptr, remoteBlobPtr);
-//    // TODO add allocate if required function ? Which will be called before lock.
-//    remoteBlobPtr->allocate();
-//
-//    // ---- Set remote blob as input for infer request
-//    inferRequest.SetBlob(inputName, remoteBlobPtr);
-//
-//    // ---- Run the request synchronously
-//    ASSERT_NO_THROW(inferRequest.Infer());
-//
-//
-//    // TODO How to check that data is correct ?
-//
-////    auto lockedMemory = remoteBlobPtr->buffer();
-////    auto data = lockedMemory.as<char* >();
-////    std::string first_output(data);
-//}
-//
