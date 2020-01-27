@@ -51,16 +51,16 @@ public:
     explicit KmbExecutor(const KmbConfig& config);
     ~KmbExecutor() = default;
 
-    void allocateGraph(const std::vector<char>& graphFileContent);
+    virtual void allocateGraph(const std::vector<char>& graphFileContent);
 
-    void deallocateGraph();
+    virtual void deallocateGraph();
 
-    void queueInference(void* input_data, size_t input_bytes, void* result_data, size_t result_bytes);
+    virtual void queueInference(void* input_data, size_t input_bytes, void* result_data, size_t result_bytes);
 
-    void getResult(void* result_data, unsigned int result_bytes);
+    virtual void getResult(void* result_data, unsigned int result_bytes);
 
-    const InferenceEngine::InputsDataMap& getNetworkInputs() const { return m_networkInputs; }
-    const InferenceEngine::OutputsDataMap& getNetworkOutputs() const { return m_networkOutputs; }
+    virtual const InferenceEngine::InputsDataMap& getNetworkInputs() const { return m_networkInputs; }
+    virtual const InferenceEngine::OutputsDataMap& getNetworkOutputs() const { return m_networkOutputs; }
 
     const KmbConfig& _config;
 
