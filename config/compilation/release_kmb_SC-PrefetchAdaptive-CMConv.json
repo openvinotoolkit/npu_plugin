@@ -8,15 +8,14 @@
                 "verbose": "Error",
                 "weights_form": "None",
                 "barrier_index_assignment" : "Dynamic",
-                "Number_of_DPUs" : 20,
-                "Number_of_Clusters" : 4,
+                "Number_of_DPUs" : 5,
+                "Number_of_Clusters" : 1,
                 "UpaShaves": 1,
                 "WorkloadCost": 300,
                 "DDRScratch": 16777216,
                 "MemoryHack": false,
                 "cmx": 917504,
-                "enable_channel_major_conv": false,
-                "DPUTasksinFloat": false,
+                "enable_channel_major_conv": true,
                 "split_strategy" :
                 [
                     {
@@ -95,12 +94,12 @@
                 "name" : "GraphParameterOptimization",
                 "graphOptimizerConfig" : {
                     "globalConfigs" : [
-                        {"name" : "totalClusters",  "value" : 4   },
+                        {"name" : "totalClusters",  "value" : 1   },
                         {"name" : "clusterMemory",  "value" : 896 },
                         {"name" : "dpuPerCluster",  "value" : 5   },
                         {"name" : "ddrBandwidth",   "value" : 128 },
                         {"name" : "systemClockMhz", "value" : 500 },
-                        {"name" : "FathomSafetyFactor", " value" : 0.6},
+                        {"name" : "FathomSafetyFactor", " value" : 1.0},
                         {"name" : "createStrategyDots", "value" : false},
                         {"name" : "dotFileLocation", "value" : "./output/dots/strategy/"},
                         {"name" : "jsonOutFileName", "value" : "./output/mcmCompiler_strategy_output.json"}
@@ -127,8 +126,9 @@
                         {
                             "name" : "DepthwiseConv",
                             "strategies": [
-                                {"name" : "streamingStrategies",  "value" : ["StreamOverH","StreamOverC"]},
-                                {"name" : "clusteringStrategies", "value" : ["SplitOverH","Clustering"]},
+
+                                {"name" : "streamingStrategies",  "value" : ["StreamOverH","StreamOverW","StreamOverC"]},
+                                {"name" : "clusteringStrategies", "value" : ["SplitOverH","SplitOverK","Clustering"]},
                                 {"name" : "inputActivationSparsity",             "value" : false},
                                 {"name" : "outputActivationSparsity",             "value" : true},
                                 {"name" : "weightsSparsity",                      "value" : false}
@@ -216,10 +216,6 @@
             "TaskControlFlows",
             "TransitiveReduction",
             "LayerNumbering",
-            {
-                "name": "HangingDmaControlFlows",
-                "weights_prefetch": 2
-            },
             "TransitiveReduction",
             "LayerNumbering",
             "NNCMX2DDRControlFlows",
@@ -229,14 +225,43 @@
     "finalize": {
         "Singular": [
             "GenerateSparsityMapsUnpopulatedTensors",
-            "AddDeallocationTasks",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/lp_scheduler_input_op_model.dot",
+                "scope": "OpModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/lp_scheduler_input_control_model.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
+            },
+            { "name": "LpScheduler",
+              "output" : "output/lp_scheduler_output.txt" 
+            },
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/lp_scheduler_output.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/lp_scheduler_opmodel_output.dot",
+                "scope": "OpModel",
+                "content": "full",
+                "html": true
+            },
             {
                 "name": "TransitiveReduction",
                 "filter": "MemoryRequirement"
             },
-            "MarkLastNodeForMaxTopologicalCut",
-            "MaxTopologicalCutAndPartialSerialisation",
             "TransitiveReduction",
+            "LayerNumbering",
             {
                 "name": "GenerateWorkloads",
                 "costfunction": "greedy",
@@ -248,8 +273,11 @@
             "AllocateGraphfileTensorsKmb",
             "ReAllocateImplicitOperationsKmb",
             "AllocateCMXTensorsKmb",
-            "TensorGraphColoring",
-            "RemoveDeallocationTasks",
+            {
+              "name": "LpScheduler",
+              "output" : "output/lp_scheduler_output.txt",
+              "allocator_mode": true
+            },
             "TransitiveReduction",
             {
                 "name" : "InsertBarrierTasks",
@@ -276,8 +304,29 @@
         "Singular": [
             "RemoveRedundantUpdateBarriers",
             {
+                "name": "GenerateDot",
+                "output": "output/dots/before_serialization_control.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/before_serialization_opcontrol.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
                 "name": "GenerateBlobKmb",
                 "output": "output/mcm.blob"
+            },
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/before_after_serialization_control.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
             },
             {
                 "name": "ConvertFlatbuffer",
