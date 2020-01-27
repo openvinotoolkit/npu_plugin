@@ -596,6 +596,29 @@ ExecutableNetwork KmbNetworkTestBase::getExecNetwork(
         });
 }
 
+Blob::Ptr KmbNetworkTestBase::calcRefOutput(
+        const TestNetworkDesc& netDesc,
+        const Blob::Ptr& inputBlob) {
+    const auto refNet = readNetwork(netDesc, false);
+    auto refExeNet = core->LoadNetwork(refNet, REF_DEVICE_NAME);
+
+    const auto refInputsInfo = refNet.getInputsInfo();
+    const auto refOutputsInfo = refNet.getOutputsInfo();
+
+    IE_ASSERT(refInputsInfo.size() == 1);
+    IE_ASSERT(refOutputsInfo.size() == 1);
+
+    const auto& refInputName = refInputsInfo.begin()->first;
+    const auto& refInputInfo = refInputsInfo.begin()->second;
+
+    const auto refInputBlob = toLayout(toPrecision(inputBlob, refInputInfo->getTensorDesc().getPrecision()), refInputInfo->getTensorDesc().getLayout());
+
+    const auto refOutputs = runInfer(refExeNet, {{refInputName, refInputBlob}});
+    IE_ASSERT(refOutputs.size() == 1);
+
+    return refOutputs.begin()->second;
+}
+
 void KmbNetworkTestBase::runTest(
         const TestNetworkDesc& netDesc,
         const std::string& inputFileName,
@@ -608,13 +631,9 @@ void KmbNetworkTestBase::runTest(
     IE_ASSERT(inputsInfo.size() == 1);
     IE_ASSERT(outputsInfo.size() == 1);
 
-    const auto& inputName = inputsInfo.begin()->first;
-    const auto& inputInfo = inputsInfo.begin()->second;
-    const auto& outputInfo = outputsInfo.begin()->second;
-
     // HACK: to overcome IE bug with incorrect TensorDesc::setLayout
+    const auto& inputInfo = inputsInfo.begin()->second;
     const auto inputTensorDesc = TensorDesc(inputInfo->getTensorDesc().getPrecision(), inputInfo->getTensorDesc().getDims(), inputInfo->getTensorDesc().getLayout());
-    const auto outputTensorDesc = TensorDesc(outputInfo->getTensorDesc().getPrecision(), outputInfo->getTensorDesc().getDims(), outputInfo->getTensorDesc().getLayout());
 
     registerBlobGenerator(
         "input",
@@ -636,24 +655,7 @@ void KmbNetworkTestBase::runTest(
     if (RUN_REF_CODE) {
         std::cout << "=== CALC REFERENCE WITH " << REF_DEVICE_NAME << std::endl;
 
-        const auto refNet = readNetwork(netDesc, false);
-        auto refExeNet = core->LoadNetwork(refNet, REF_DEVICE_NAME);
-
-        const auto refInputsInfo = refExeNet.GetInputsInfo();
-        const auto refOutputsInfo = refExeNet.GetOutputsInfo();
-
-        IE_ASSERT(refInputsInfo.size() == 1);
-        IE_ASSERT(refOutputsInfo.size() == 1);
-
-        const auto& refInputName = refInputsInfo.begin()->first;
-        const auto& refInputInfo = refInputsInfo.begin()->second;
-
-        const auto refInputBlob = toLayout(toPrecision(inputBlob, refInputInfo->getTensorDesc().getPrecision()), refInputInfo->getTensorDesc().getLayout());
-
-        const auto refOutputs = runInfer(refExeNet, {{refInputName, refInputBlob}});
-        IE_ASSERT(refOutputs.size() == 1);
-
-        refOutputBlob = refOutputs.begin()->second;
+        refOutputBlob = toDefLayout(toFP32(calcRefOutput(netDesc, inputBlob)));
 
         if (EXPORT_BLOBS) {
             std::cout << "    === EXPORT REFERENCE" << std::endl;
@@ -663,18 +665,25 @@ void KmbNetworkTestBase::runTest(
     } else if (RUN_INFER) {
         std::cout << "=== IMPORT REFERENCE" << std::endl;
 
-        refOutputBlob = importBlob("output", outputTensorDesc);
+        const auto& outputInfo = outputsInfo.begin()->second;
+        const auto& outputDims = outputInfo->getTensorDesc().getDims();
+
+        const auto refOutputTensorDesc = TensorDesc(Precision::FP32, outputDims, TensorDesc::getLayoutByDims(outputDims));
+
+        refOutputBlob = importBlob("output", refOutputTensorDesc);
     }
 
     if (RUN_INFER) {
         std::cout << "=== INFER" << std::endl;
 
+        const auto& inputName = inputsInfo.begin()->first;
+
         const auto actualOutputs = runInfer(exeNet, {{inputName, inputBlob}});
         IE_ASSERT(actualOutputs.size() == 1);
 
-        std::cout << "=== COMPARE WITH REFERENCE" << std::endl;
-
         const auto actualOutputBlob = actualOutputs.begin()->second;
+
+        std::cout << "=== COMPARE WITH REFERENCE" << std::endl;
 
         checkCallback(actualOutputBlob, refOutputBlob, inputTensorDesc);
     }

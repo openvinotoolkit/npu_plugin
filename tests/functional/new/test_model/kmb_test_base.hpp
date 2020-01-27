@@ -183,6 +183,10 @@ protected:
     ExecutableNetwork getExecNetwork(
             const TestNetworkDesc& netDesc);
 
+    Blob::Ptr calcRefOutput(
+            const TestNetworkDesc& netDesc,
+            const Blob::Ptr& inputBlob);
+
     void runTest(
             const TestNetworkDesc& netDesc,
             const std::string& inputFileName,
