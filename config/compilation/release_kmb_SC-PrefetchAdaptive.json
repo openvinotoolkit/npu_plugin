@@ -11,6 +11,7 @@
                 "Number_of_DPUs" : 5,
                 "Number_of_Clusters" : 1,
                 "UpaShaves": 1,
+                "WorkloadCost": 300,
                 "DDRScratch": 16777216,
                 "MemoryHack": false,
                 "cmx": 917504,
@@ -18,7 +19,7 @@
                 "split_strategy" :
                 [
                     {
-                        "name_filter" : "name",
+                        "name_filter" : "Example",
                         "cluster_filter" : 0,
                         "strategy" : "Example"
                     }
@@ -51,7 +52,7 @@
                 "streaming_strategy" :
                 [
                     {
-                        "name_filter" : "Example_do_not_remove",
+                        "name_filter" : "Example",
                         "splits" : [
                             {"W" : 1},
                             {"H" : 1},
@@ -63,7 +64,7 @@
                 "sparsity_strategy" :
                 [
                     {
-                        "name_filter": ".*",
+                        "name_filter": "Example",
                         "inputActivationSparsity": false,
                         "outputActivationSparsity": false,
                         "weightsSparsity": false
