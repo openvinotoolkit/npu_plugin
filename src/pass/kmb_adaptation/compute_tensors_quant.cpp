@@ -9,7 +9,6 @@
 
 static void computeTensorsQuantParams(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void updateOutputQuantParams(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
-static void updateOutputQuantParamsTasos(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 
 template <class T>
 std::vector<T> extendToK(size_t size, std::vector<T> value, std::string tensorName);
@@ -27,7 +26,7 @@ namespace mv
         );
 
         MV_REGISTER_PASS(UpdateOutputQuantParams)
-        .setFunc(updateOutputQuantParamsTasos)
+        .setFunc(updateOutputQuantParams)
         .setDescription(
             "The pass will estimate output tensor quantization param where quantization is needed."
         );
@@ -53,86 +52,6 @@ bool isQuantizationParamNeutral(mv::QuantizationParams& quants)
 
 void updateOutputQuantParams(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
-
-    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
-    mv::OpModel om(model);
-    mv::DataModel dm(model);
-
-    auto dpuTasks = om.getOps("DPUTask");
-
-    for(auto& opIt : dpuTasks)
-    {
-         std::string taskOp = opIt->get<std::string>("taskOp");
-         bool isConv = (taskOp == "Conv" || taskOp == "DepthwiseConv" || taskOp == "ChannelMajorConvolution");
-         if (isConv || taskOp == "MaxPool")
-         {
-            auto output = opIt->getOutputTensor(0);
-            auto input = opIt->getInputTensor(0);
-            auto outputChannels = output->getShape()[mv::IO_CHANNEL_DIMENSION];
-            outputChannels = mv::round_up(outputChannels, 16);
-
-            std::vector<int> shift(outputChannels, 0);
-            std::vector<int16_t> mScaled(outputChannels, 0);
-
-            if (!output->hasAttr("quantParams") || isQuantizationParamNeutral(output->get<mv::QuantizationParams>("quantParams")))
-            {
-
-                auto& inputQuantization = input->get<mv::QuantizationParams>("quantParams");
-                mv::QuantizationParams &outputQuantization = output->get<mv::QuantizationParams>("quantParams");
-                double inf = std::numeric_limits<double>::infinity();
-
-                auto weights = opIt->getInputTensor(1);
-                auto& weightsQuantization = weights->get<mv::QuantizationParams>("quantParams");
-                auto weights_scale = extendToK(outputChannels, weightsQuantization.getScale(), weights->getName());
-                auto weights_zp = extendToK(outputChannels, weightsQuantization.getZeroPoint(), weights->getName());
-                std::vector<double> outMin(outputChannels, inf);
-                std::vector<double> outMax(outputChannels, -inf);
-                std::vector<double> outScale(outputChannels);
-                std::vector<int64_t> outZp(outputChannels);
-
-                auto kernelSize = weights->getShape().totalSize()/outputChannels;
-
-                auto minIn = extendToK(outputChannels, inputQuantization.getMin(), input->getName());
-                auto maxIn = extendToK(outputChannels, inputQuantization.getMax(), input->getName());
-                bool hasBias = opIt->hasAttr("bias");
-                mv::Data::TensorIterator bias;
-                if (hasBias)
-                {
-                    bias = dm.getTensor(opIt->get<std::string>("bias"));
-                }
-                size_t index = 0;
-                for (size_t c = 0; c < outputChannels; c++)
-                {
-                    for (size_t i = 0; i < kernelSize; i++)
-                    {
-                        auto real_weight = ((int64_t) weights->at(index) - weights_zp[c]) * weights_scale[c];
-                        auto localMin = minIn[c] * real_weight;
-                        auto localMax = maxIn[c] * real_weight;
-                        if (hasBias)
-                        {
-                            localMin += (int64_t) bias->at(c);
-                            localMax += (int64_t) bias->at(c);
-                        }
-                        if (localMin < outMin[c])
-                            outMin[c] = localMin;
-                        if (localMax > outMax[c])
-                            outMax[c] = localMax;
-                        index++;
-                    }
-                    outScale[c] = (outMax[c] - outMin[c])/255;
-                    std::cout << " channel " << std::to_string(c) << " scale " << std::to_string(outScale[c]) << std::endl;
-                    outZp[c] = floor(outMin[c]/255);
-                    std::cout << " channel " << std::to_string(c) << " zp " << std::to_string(outZp[c]) << std::endl;
-
-                }
-            }
-        }
-
-    }
-}
-
-void updateOutputQuantParamsTasos(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
-{
     //NOTE: This pass will generate output Quantization Params when they are not defined...
     //Here we search for the minimum, maximum possible solution (better range) for the output Activation Tensor
     //Input(Imin,Imax)     Weights(Wmin,Wmax)
@@ -153,135 +72,113 @@ void updateOutputQuantParamsTasos(const mv::pass::PassEntry&, mv::ComputationMod
     mv::OpModel om(model);
     mv::DataModel dm(model);
 
-    auto dpuTasks = om.getOps("DPUTask");
-
-    for(auto& opIt : dpuTasks)
+    std::vector<std::string> convolution_types = {"Conv", "DepthwiseConv", "ChannelMajorConvolution"};
+    std::unordered_map<std::string, std::vector<mv::Data::OpListIterator>> operationsOfConvolution = om.getOpsOfTypes(convolution_types);
+    std::vector <mv::Data::OpListIterator> convolutions = {};
+    convolutions.reserve(operationsOfConvolution["Conv"].size() + operationsOfConvolution["Depthwise"].size() + operationsOfConvolution["ChannelMajorConvolution"].size());
+    convolutions.insert(convolutions.end(), operationsOfConvolution["Conv"].begin(), operationsOfConvolution["Conv"].end());
+    for(auto& opIt : convolutions)
     {
-        //Pool will just propagate...
-         std::string taskOp = opIt->get<std::string>("taskOp");
-         bool isConv = (taskOp == "Conv" || taskOp == "DepthwiseConv" || taskOp == "ChannelMajorConvolution");
-         if (isConv)
-         {
-            auto output = opIt->getOutputTensor(0);
-            auto input = opIt->getInputTensor(0);
-            auto outputChannels = output->getShape()[mv::IO_CHANNEL_DIMENSION];
+        auto output = opIt->getOutputTensor(0);
+        auto input = opIt->getInputTensor(0);
+        auto outputChannels = output->getShape()[mv::IO_CHANNEL_DIMENSION];
 
-            std::vector<int> shift(outputChannels, 0);
-            std::vector<int16_t> mScaled(outputChannels, 0);
-            double inf = std::numeric_limits<double>::infinity();
-            double outputMin = inf;
-            double outputMax = -inf;
+        double inf = std::numeric_limits<double>::infinity();
+        double outputMin = inf;
+        double outputMax = -inf;
 
-            std::vector<double> outMin(outputChannels, inf);
-            std::vector<double> outMax(outputChannels, -inf);
-            if (!output->hasAttr("quantParams")
-                    || isQuantizationParamNeutral(output->get<mv::QuantizationParams>("quantParams")))
+        std::vector<double> outMin(outputChannels, inf);
+        std::vector<double> outMax(outputChannels, -inf);
+        if (!output->hasAttr("quantParams")
+                || isQuantizationParamNeutral(output->get<mv::QuantizationParams>("quantParams")))
+        {
+            auto& inputQuantization = input->get<mv::QuantizationParams>("quantParams");
+            auto weights = opIt->getInputTensor("weights");
+            auto& weightsQuantization = weights->get<mv::QuantizationParams>("quantParams");
+            auto weights_scale = extendToK(outputChannels, weightsQuantization.getScale(), weights->getName());
+            auto weights_zp = extendToK(outputChannels, weightsQuantization.getZeroPoint(), weights->getName());
+
+            //input/output quantization are per tensor, weights, bias quantization are per channel
+            std::vector<double> outScale(1);
+            std::vector<int64_t> outZp(1);
+            auto fullkernelSize = weights->getShape().totalSize()/outputChannels;
+
+            auto minIn = inputQuantization.getMin();
+            auto maxIn = inputQuantization.getMax();
+
+            bool hasBias = opIt->hasAttr("bias");
+            mv::QuantizationParams biasQuantization({},{},{},{});
+            mv::Data::TensorIterator bias;
+            std::vector<double> biasScale;
+            std::vector<uint64_t> biasZp;
+            if (hasBias)
             {
-
-                auto& inputQuantization = input->get<mv::QuantizationParams>("quantParams");
-                mv::QuantizationParams &outputQuantization = output->get<mv::QuantizationParams>("quantParams");
-                double inf = std::numeric_limits<double>::infinity();
-
-                auto weights = opIt->getInputTensor(1);
-                auto& weightsQuantization = weights->get<mv::QuantizationParams>("quantParams");
-                auto weights_scale = extendToK(outputChannels, weightsQuantization.getScale(), weights->getName());
-                auto weights_zp = extendToK(outputChannels, weightsQuantization.getZeroPoint(), weights->getName());
-
-                //input/output quantization are per tensor, weights quantization are per channel
-                std::vector<double> outScale(1);
-                std::vector<int64_t> outZp(1);
-
-                auto fullkernelSize = weights->getShape().totalSize()/outputChannels;
-
-                auto minIn = inputQuantization.getMin();
-                auto maxIn = inputQuantization.getMax();
-                std::cout << " minIN " << std::to_string(minIn[0]) << std::endl;
-                std::cout << " maxIN " << std::to_string(maxIn[0]) << std::endl;
-                //auto minWeights = extendToK(outputChannels, weightsQuantization.getMin(), weights->getName());
-                //auto maxWeights = extendToK(outputChannels, weightsQuantization.getMax(), weights->getName());
-
-                bool hasBias = opIt->hasAttr("bias");
-                mv::QuantizationParams biasQuantization({},{},{},{});
-                mv::Data::TensorIterator bias;
-                std::vector<double> biasScale;
-                std::vector<uint64_t> biasZp;
+                bias = dm.getTensor(opIt->get<std::string>("bias"));
+                biasQuantization = bias->get<mv::QuantizationParams>("quantParams");
+            }
+            double_t real_weight, real_bias;
+            for (size_t c = 0; c < outputChannels; c++)
+            {
+                double sum_weight = 0;
+                double outputMinC = 0;
+                double outputMaxC = 0;
+                for (size_t index = 0; index < fullkernelSize; index++)
+                {
+                    real_weight = ((int64_t) weights->at(index + c*fullkernelSize) - weights_zp[c]) * weights_scale[c];
+                    sum_weight += real_weight;
+                }
+                outputMaxC = maxIn[0] * sum_weight;
+                outputMinC = minIn[0] * sum_weight;
+                if (outputMinC > outputMaxC)
+                //could happen if weight is negative
+                {
+                    auto temp = outputMaxC;
+                    outputMaxC = outputMinC;
+                    outputMinC = temp;
+                }
+//                std::cout << " before bias channel " << std::to_string(c) << " out Min " << std::to_string(outputMinC) << std::endl;
+//                std::cout << " before bias channel " << std::to_string(c) << " out Max " << std::to_string(outputMaxC) << std::endl;
                 if (hasBias)
                 {
-                    bias = dm.getTensor(opIt->get<std::string>("bias"));
-                    biasQuantization = bias->get<mv::QuantizationParams>("quantParams");
+                    real_bias = ((int64_t) bias->at(c)) * biasQuantization.getScale()[0];
+//                    std::cout << " channel " << std::to_string(c) << " real_bias " << std::to_string(real_bias) << std::endl;
+
+                    outputMinC += real_bias;
+                    outputMaxC += real_bias;
                 }
-                double_t real_weight, real_bias;
-                for (size_t c = 0; c < outputChannels; c++)
-                {
-                    double sum_weight = 0;
-//                    outMax[c] = maxIn[c] * fullkernelSize * maxWeights[c];
-//                    outMin[c] = minIn[c] * fullkernelSize * minWeights[c];
-                    double outputMinC = 0;
-                    double outputMaxC = 0;
-                    for (size_t index = 0; index < fullkernelSize; index++)
-                    {
-                        real_weight = ((int64_t) weights->at(index + c*fullkernelSize) - weights_zp[c]) * weights_scale[c];
-                        if (real_weight < weightsQuantization.getMin()[0])
-                            std::cout << " smaller than min : channel " << std::to_string(c) << " real_weight " << std::to_string(index) << " : " << std::to_string(real_weight) << std::endl;
-                        if (real_weight > weightsQuantization.getMax()[0])
-                            std::cout << " smaller than max : channel " << std::to_string(c) << " real_weight " << std::to_string(index) << " : " << std::to_string(real_weight) << std::endl;
-                        sum_weight += real_weight;
-                    }
-                    outputMaxC = maxIn[0] * sum_weight;
-                    outputMinC = minIn[0] * sum_weight;
-                    if (outputMinC > outputMaxC)
-                    //could happen if weight is negative
-                    {
-                        auto temp = outputMaxC;
-                        outputMaxC = outputMinC;
-                        outputMinC = temp;
-                    }
-                    std::cout << " before bias channel " << std::to_string(c) << " out Min " << std::to_string(outputMinC) << std::endl;
-                    std::cout << " before bias channel " << std::to_string(c) << " out Max " << std::to_string(outputMaxC) << std::endl;
-                    if (hasBias)
-                    {
-                        real_bias = ((int64_t) bias->at(c)) * biasQuantization.getScale()[0];
-                        std::cout << " channel " << std::to_string(c) << " real_bias " << std::to_string(real_bias) << std::endl;
+//                std::cout << " after bias channel " << std::to_string(c) << " out Min " << std::to_string(outputMinC) << std::endl;
+//                std::cout << " after bias channel " << std::to_string(c) << " out Max " << std::to_string(outputMaxC) << std::endl;
+                outMax[c] = outputMaxC;
+                outMin[c] = outputMinC;
+                if (outputMinC < outputMin)
+                    outputMin = outputMinC;
 
-                        outputMinC += real_bias;
-                        outputMaxC += real_bias;
-                    }
-                    outMax[c] = outputMaxC;
-                    outMin[c] = outputMinC;
-
-                    std::cout << " channel " << std::to_string(c) << " out Min " << std::to_string(outputMinC) << std::endl;
-                    std::cout << " channel " << std::to_string(c) << " out Max " << std::to_string(outputMaxC) << std::endl;
-                    if (outputMinC < outputMin)
-                        outputMin = outputMinC;
-
-                    if (outputMaxC > outputMax)
-                        outputMax = outputMaxC;
-                }
-
-                //avg min/max
-                double avgMin = 0;
-                double avgMax = 0;
-                for (size_t c = 0; c<outputChannels; c++)
-                {
-                    avgMin += outMin[c];
-                    avgMax += outMax[c];
-                }
-                outputMin = avgMin / outputChannels;
-                outputMax = avgMax / outputChannels;
-
-                std::cout <<  " out Min " << std::to_string(outputMin) << std::endl;
-                std::cout << " out Max " << std::to_string(outputMax) << std::endl;
-
-                outScale[0] = (outputMax - outputMin)/255;
-                std::cout << " scale " << std::to_string(outScale[0]) << std::endl;
-                if ((outputMax > 0.0 && outputMin > 0.0)||(outputMax < 0.0 && outputMin < 0.0))
-                    outZp[0] = 0;
-                else if ((outputMax > 0.0 && outputMin < 0.0))
-                    outZp[0] = 128;
-                std::cout <<  " zp " << std::to_string(outZp[0]) << std::endl;
+                if (outputMaxC > outputMax)
+                    outputMax = outputMaxC;
             }
-        }
 
+            outputMin = *std::min_element(outMin.begin(), outMin.end());
+            outputMax = *std::max_element(outMax.begin(), outMax.end());
+
+//            std::cout <<  " out Min " << std::to_string(outputMin) << std::endl;
+//            std::cout << " out Max " << std::to_string(outputMax) << std::endl;
+
+            outScale[0] = (outputMax - outputMin)/255;
+            if (outputMin > 0.0)
+                outZp[0] = 0;
+            else if (outputMax < 0.0)
+                outZp[0] = 255;
+            else if ((outputMin < 0.0) && (outputMax > 0.0))
+            {
+                auto max_diff = (outputMax/(std::abs(outputMin) + outputMax)) * 255;
+                outZp[0] = std::lround(255 - max_diff);
+            }
+//            std::cout << " scale " << std::to_string(outScale[0]) << std::endl;
+//            std::cout <<  " zp " << std::to_string(outZp[0]) << std::endl;
+            mv::QuantizationParams newOutputQuantization = {outZp,outScale,{outputMin},{outputMax}};
+            output->set<mv::QuantizationParams>("quantParams", newOutputQuantization);
+            opIt->set<mv::QuantizationParams>("quantParams", newOutputQuantization);
+        }
     }
 }
 

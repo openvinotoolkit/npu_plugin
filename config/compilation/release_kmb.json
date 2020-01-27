@@ -90,6 +90,7 @@
             "TensorsToU8",
             "TensorsToFP16",
             "FusePostOps",
+            "UpdateOutputQuantParams",
             "EltwiseToSWEltwise",
             {
                 "name" : "GraphParameterOptimization",
