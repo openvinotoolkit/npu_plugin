@@ -15,7 +15,7 @@
                 "DDRScratch": 16777216,
                 "MemoryHack": false,
                 "cmx": 917504,
-                "enable_channel_major_conv": false,
+                "enable_channel_major_conv": true,
                 "DPUTasksinFloat": false,
                 "split_strategy" :
                 [
@@ -100,7 +100,7 @@
                         {"name" : "dpuPerCluster",  "value" : 5   },
                         {"name" : "ddrBandwidth",   "value" : 128 },
                         {"name" : "systemClockMhz", "value" : 500 },
-                        {"name" : "FathomSafetyFactor", " value" : 0.6},
+                        {"name" : "FathomSafetyFactor", " value" : 0.75},
                         {"name" : "createStrategyDots", "value" : false},
                         {"name" : "dotFileLocation", "value" : "./output/dots/strategy/"},
                         {"name" : "jsonOutFileName", "value" : "./output/mcmCompiler_strategy_output.json"}
@@ -218,7 +218,7 @@
             "LayerNumbering",
             {
                 "name": "HangingDmaControlFlows",
-                "weights_prefetch": 2
+                "weights_prefetch": 1
             },
             "TransitiveReduction",
             "LayerNumbering",
