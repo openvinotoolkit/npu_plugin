@@ -106,12 +106,36 @@ const std::string DUMP_PATH = []() -> std::string {
     return std::string();
 }();
 
+const bool EXPORT_NETWORK = []() -> bool {
+    if (const auto var = std::getenv("IE_KMB_TESTS_EXPORT_NETWORK")) {
+        return strToBool("IE_KMB_TESTS_EXPORT_NETWORK", var);
+    }
+
+    return RUN_COMPILER && !DUMP_PATH.empty();
+}();
+
 const bool RAW_EXPORT = []() -> bool {
     if (const auto var = std::getenv("IE_KMB_TESTS_RAW_EXPORT")) {
         return strToBool("IE_KMB_TESTS_RAW_EXPORT", var);
     }
 
     return false;
+}();
+
+const bool GENERATE_BLOBS = []() -> bool {
+    if (const auto var = std::getenv("IE_KMB_TESTS_GENERATE_BLOBS")) {
+        return strToBool("IE_KMB_TESTS_GENERATE_BLOBS", var);
+    }
+
+    return RUN_REF_CODE;
+}();
+
+const bool EXPORT_BLOBS = []() -> bool {
+    if (const auto var = std::getenv("IE_KMB_TESTS_EXPORT_BLOBS")) {
+        return strToBool("IE_KMB_TESTS_EXPORT_BLOBS", var);
+    }
+
+    return GENERATE_BLOBS && !DUMP_PATH.empty();
 }();
 
 const std::string LOG_LEVEL = []() -> std::string {
@@ -180,13 +204,13 @@ Blob::Ptr KmbTestBase::getBlobByName(const std::string& blobName) {
 
     Blob::Ptr blob;
 
-    if (RUN_REF_CODE) {
+    if (GENERATE_BLOBS) {
         std::cout << "=== GENERATE BLOB " << blobName << std::endl;
 
         blob = blobGenerators.at(blobName).second(blobDesc);
         IE_ASSERT(blob->getTensorDesc() == blobDesc);
 
-        if (!DUMP_PATH.empty()) {
+        if (EXPORT_BLOBS) {
             std::cout << "    === EXPORT BLOB " << blobName << std::endl;
 
             dumpBlob(blobName, blob);
@@ -223,7 +247,7 @@ ExecutableNetwork KmbTestBase::getExecNetwork(
 
         exeNet = core->LoadNetwork(netCreator(), DEVICE_NAME, configCreator());
 
-        if (!DUMP_PATH.empty()) {
+        if (EXPORT_NETWORK) {
             std::cout << "    === EXPORT NETWORK" << std::endl;
 
             exportNetwork(exeNet);
@@ -258,7 +282,7 @@ BlobMap KmbTestBase::getRefOutputs(
 
         refOutputs = testNet.calcRef(inputs);
 
-        if (!DUMP_PATH.empty()) {
+        if (EXPORT_BLOBS) {
             std::cout << "    === EXPORT REFERENCE" << std::endl;
 
             dumpBlobs(refOutputs);
@@ -631,7 +655,7 @@ void KmbNetworkTestBase::runTest(
 
         refOutputBlob = refOutputs.begin()->second;
 
-        if (!DUMP_PATH.empty()) {
+        if (EXPORT_BLOBS) {
             std::cout << "    === EXPORT REFERENCE" << std::endl;
 
             dumpBlob("output", refOutputBlob);
