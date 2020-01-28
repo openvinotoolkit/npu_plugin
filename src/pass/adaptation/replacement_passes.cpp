@@ -451,16 +451,17 @@ void averageAsDepthWiseFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
 
         std::vector<double> scale(1, scaleValue);
         mv::QuantizationParams weightsQuantParams(zp, scale, min, max);
+        mv::QuantizationParams emptyWeightsQuantParams = {{},{},{},{}};
 
         if (sourceTensor->isDoubleType())
         {
-            double weightsValue = 1;
+            double weightsValue = scaleValue;
             std::vector<double> weightsData(total_shape, weightsValue);
-            //NOTE: Weights have to be 1 and scale division, cause of better hardware accuracy
+            //NOTE: For FP, weights quant params not used - put divisor in weights directly instead of scale
             weights = om.constant(weightsData,
                                 {kSize[0], kSize[1], inputShape[mv::IO_CHANNEL_DIMENSION], channel_multiplier},
                                 sourceTensor->getDType(),
-                                mv::Order(mv::Order::getRowMajorID(4)), weightsQuantParams);
+                                mv::Order(mv::Order::getRowMajorID(4)), emptyWeightsQuantParams);
         }
         else
         {
@@ -578,16 +579,18 @@ mv::Data::TensorIterator createPartialDepthwise(mv::OpModel om, mv::Data::OpList
     double scaleValue = 1/double(originalKernel);
     std::vector<double> scale(1, scaleValue);
     mv::QuantizationParams weightsQuantParams(zp, scale, min, max);
+    mv::QuantizationParams emptyWeightsQuantParams = {{},{},{},{}};
+
 
     // Create weights tensor
     if (sourceTensor->isDoubleType())
 	{
-		double weightsValue = 1;
+		double weightsValue = scaleValue;
 		std::vector<double> weightsData(total_shape, weightsValue);
-		//NOTE: Weights have to be 1 and scale division, cause of better hardware accuracy
+		//NOTE: For FP, weights quant params not used - put divisor in weights directly instead of scale
 		weights = om.constant(weightsData,
                                 {newKernel, newKernel, inputShape[mv::IO_CHANNEL_DIMENSION], channel_multiplier},
-                                sourceTensor->getDType(), mv::Order(mv::Order::getRowMajorID(4)), weightsQuantParams);
+                                sourceTensor->getDType(), mv::Order(mv::Order::getRowMajorID(4)), emptyWeightsQuantParams);
     }
 	else
     {
