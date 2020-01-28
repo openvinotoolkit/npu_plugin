@@ -3,7 +3,6 @@
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/utils/custom_math.hpp"
 #include "include/mcm/pass/pass_utils.hpp"
-#include "include/mcm/base/exception/logic_error.hpp"
 #include <cmath>
 
 const size_t FULLY_CONNECTED_KERNEL = 1;
@@ -542,18 +541,6 @@ void flattenAsReshapeFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& 
     }
 }
 
-bool isPrime(unsigned short n) 
-{ 
-    // Check for existence of factor
-    for(int i = 2; i < n; i++)
-    {
-        if (n % i == 0)
-            return false;
-    }
-  
-    return true; 
-}
-
 std::vector<std::pair<unsigned short, unsigned short>> getFactors(unsigned short n)
 {
     std::vector<std::pair<unsigned short, unsigned short>> factors;
@@ -562,14 +549,92 @@ std::vector<std::pair<unsigned short, unsigned short>> getFactors(unsigned short
         if(n % i == 0)
         {
             // factors.push_back(std::make_pair(i, n/i)); // smaller, larger
-	    factors.push_back(std::make_pair(n/i, i)); // larger, smaller
+	        factors.push_back(std::make_pair(n/i, i)); // larger, smaller
         }
     }
     return factors;
 }
 
+mv::Data::TensorIterator createPartialDepthwise(mv::OpModel om, mv::Data::OpListIterator opIt, mv::Data::TensorIterator sourceTensor,
+                                                 std::string name, unsigned short originalKernel, unsigned short newKernel, 
+                                                 std::array<unsigned short, 4> padding)
+{
+    //auto sourceTensor = opIt->getInputTensor(0);
+    auto inputShape = sourceTensor->getShape();
+
+    // Calculate strides and padding based on new kernel sizes
+    std::array<unsigned short, 2> stride = {newKernel, newKernel};
+
+    unsigned int total_shape = 1 * inputShape[mv::IO_CHANNEL_DIMENSION] * newKernel * newKernel;
+
+    unsigned short channel_multiplier = 1;
+
+    mv::Data::TensorIterator weights;
+    std::vector<int64_t> zp = { 0 };
+    std::vector<double> min = { 1 };
+    std::vector<double> max = { 1 };
+    // Both depthwise will take 1/original_kernel_size as a scale (if was 1 dw would be kernel^2)
+    // Note: For non-prime kernels, could take scale of each exactly replacing ap/dw, 
+	// but using original kernel for scale improves observed accuracy
+    double scaleValue = 1/double(newKernel);
+    std::vector<double> scale(1, scaleValue);
+    mv::QuantizationParams weightsQuantParams(zp, scale, min, max);
+
+    // Create weights tensor
+    if (sourceTensor->isDoubleType())
+	{
+		double weightsValue = 1;
+		std::vector<double> weightsData(total_shape, weightsValue);
+		//NOTE: Weights have to be 1 and scale division, cause of better hardware accuracy
+		weights = om.constant(weightsData,
+                                {newKernel, newKernel, inputShape[mv::IO_CHANNEL_DIMENSION], channel_multiplier},
+                                sourceTensor->getDType(), mv::Order(mv::Order::getRowMajorID(4)), weightsQuantParams);
+    }
+	else
+    {
+		int64_t weightsValue = 1;
+		std::vector<int64_t> weightsData(total_shape, weightsValue);
+		// If the input model is quantized, then the replacement pass needs to create
+		// quantization params for the weights parameter of the depthwise convolution.
+		weights = om.constantInt(weightsData,
+                                {newKernel, newKernel, inputShape[mv::IO_CHANNEL_DIMENSION], channel_multiplier},
+                                sourceTensor->getDType(), mv::Order(mv::Order::getRowMajorID(4)), weightsQuantParams);
+	}
+    // Create depthwise conv
+	mv::Data::TensorIterator depthwise_conv;
+	if (sourceTensor->isQuantized())
+	{
+        auto quantParams = opIt->get<mv::QuantizationParams>("quantParams");
+        // use default dilation factor
+        depthwise_conv = om.depthwiseConv(sourceTensor, weights, stride, padding, 1, mv::DType("Default"), quantParams, name);
+	}
+	else
+	{
+        mv::QuantizationParams emptyQuantParams({{}, {}, {}, {}});
+        depthwise_conv = om.depthwiseConv(sourceTensor, weights, stride, padding, 1, mv::DType("Default"), emptyQuantParams, name);
+ 	}
+
+    // Add depthwise conv to op model
+	auto depthwiseOp = om.getSourceOp(depthwise_conv);
+	auto weightsOp = om.getSourceOp(weights);
+
+	if(opIt->hasAttr("opId"))
+	{
+        unsigned currentOpId = opIt->get<unsigned>("opId");
+        weightsOp->set<unsigned>("opId", currentOpId);
+        depthwiseOp->set<unsigned>("opId", currentOpId);
+	}
+    auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
+	depthwise_conv->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
+    
+    return depthwise_conv;
+}
+
 // Check for average pooling layers with kernels bigger than supported by hardware (11x11)
 // and replace with equivalent two average pooling (approx equiv in case of prime kernel i.e. 13x13)
+// Example: 13x13 kernel is replaced with 2 depthwise convolutions, each 4x4 kernel, stride 4, scale 1/13
+// Example: 14x14 kernel is replaced with 1 depthwise 7x7 kernel, stride 7, scale 1/14 followed by
+// depthwise 2x2 kernel, stride 2, scale 1/14 
 void replaceLargeAvgPoolFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
 {
      MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
@@ -583,13 +648,10 @@ void replaceLargeAvgPoolFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
 
     for (auto& opIt : averagePoolOps)
     {
-        auto sourceTensor = opIt->getInputTensor(0);
-        auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
-
-        auto parentOpIt = om.getSourceOp(sourceTensor);
-
-        auto inputShape = sourceTensor->getShape();
         std::array<unsigned short, 2> kSize = opIt->get<std::array<unsigned short, 2>>("kSize");
+
+        if(kSize[0] < MAX_KERNEL and kSize[1] < MAX_KERNEL) // can do as single depthwise, skip
+            continue; 
 
         if((kSize[0] != kSize[1]) and (kSize[0] > MAX_KERNEL or kSize[1] > MAX_KERNEL))
         {
@@ -597,189 +659,85 @@ void replaceLargeAvgPoolFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
             continue;
         }
 
-	std::vector<std::pair<unsigned short, unsigned short>> allFactors ;
-            std::pair<unsigned short, unsigned short> factors ;
+        auto name = opIt->getName();
+        auto sourceTensor = opIt->getInputTensor(0);
+
+        auto parentOpIt = om.getSourceOp(sourceTensor);
+
+        auto inputShape = sourceTensor->getShape();
+
+	    std::vector<std::pair<unsigned short, unsigned short>> allFactors ;
+        std::pair<unsigned short, unsigned short> factors ;
 
         // If average pool kernel size is greater than 11, we will turn it in to multiple depthwise convs here
-        // Does the kernel size have two factors that are both less than 11? If so, use those kernel sizes and create
-        // 2 new average pools to replace the existing average pool
-        if(kSize[0] > MAX_KERNEL and !isPrime(kSize[0]))
-        {
-            // Get the most equal factors
-	    allFactors = getFactors(kSize[0]);
-	    factors = allFactors.back();
-        }
-        // Else the kernel size is a prime number and we will approximate kernels and use weights scaling
-        // Note: approximate kernel sizes should be designed so the output tensor of the second depthwise
+        // Note: Kernel sizes should be chosen so the output tensor of the second depthwise
         // is the correct size for the network. The division scale of the weights will be used to improve accuracy.
-        else if (kSize[0] > MAX_KERNEL and isPrime(kSize[0]))
+
+	    allFactors = getFactors(kSize[0]);
+
+        if (allFactors.empty()) // Original kernel size IS PRIME
         {
             // Use the factors for kernel size - 1, this is guaranteed to have factors, as it will be an even number > 11
-	    allFactors = getFactors(kSize[0] - 1);
-	    factors = allFactors.back(); // Get the most equal factors
+	        allFactors = getFactors(kSize[0] - 1);
+	        factors = allFactors.back(); // Get the most equal factors
 
-            factors.second++; // These factors are for ksize - 1, so increase smaller factor by 1
-	}
-	else
-	{
-	     // TODO error
-	     continue;
-	}
+            // These factors are for ksize - 1, so increase smaller factor by 1
+            if( factors.first == factors.second)
+                factors.first++;
+            else
+                factors.second++;
+	    } 
+        else // Original kernel size NOT PRIME
+        {
+            factors = allFactors.back(); // Get the most equal factors
+        }
 
-
-	if ( factors.first > MAX_KERNEL or factors.second > MAX_KERNEL)
+	    if ( factors.first > MAX_KERNEL or factors.second > MAX_KERNEL)
         {
        	     //TODO throw error, unable to split into appropriate size
              continue;
-	}
-        // Calculate strides and padding based on new kernel sizes
-        std::array<unsigned short, 2> stride0 = {factors.first, factors.first};
-        std::array<unsigned short, 2> stride1 = {factors.second, factors.second};
+	    }
 
-	// Padding relationship is (input size + pad ) / k = output size
+        // Padding relationship is (input size + pad ) / k = output size
         // pad = output*k - input
-        double eachSize0 = (double) kSize[0]/factors.first;
-        double paddedSize0 = ceil(eachSize0) * factors.first;
-        unsigned short pad0 = paddedSize0 - inputShape[mv::IO_HEIGHT_DIMENSION];
-        std::array<unsigned short, 4> padding0 = {0, pad0, 0, pad0};
-        std::array<unsigned short, 4> padding1 = {0,0,0,0};
+        double eachSize = (double) kSize[0] / factors.first;
+        double paddedSize = ceil(eachSize) * factors.first;
+        unsigned short pad = paddedSize - inputShape[mv::IO_HEIGHT_DIMENSION];
+        std::array<unsigned short, 4> padding = {0, pad, 0, pad};
 
-        unsigned int total_shape0 = 1 * inputShape[mv::IO_CHANNEL_DIMENSION] * factors.first * factors.first;
+        mv::Data::TensorIterator depthwise_conv0 = createPartialDepthwise(om, opIt, sourceTensor, name + "_DepthwiseConv0", 
+                                                                            kSize[0], factors.first, padding);
 
-        unsigned short channel_multiplier = 1;
+	    linkNewOperationsReplacement(parentOpIt, depthwise_conv0, om, opIt);
 
-        auto name = opIt->getName();
-        mv::Data::TensorIterator weights0;
-        std::vector<int64_t> zp = { 0 };
-        std::vector<double> min = { 1 };
-        std::vector<double> max = { 1 };
-        // Both depthwise will take 1/original_kernel_size as a scale (if was 1 dw would be kernel^2)
-	// Note: For non-prime kernels, could take scale of each exactly replacing ap/dw, 
-	// but using original scale improves observed accuracy
-        double scaleValue = 1/double(kSize[0]);
-        std::vector<double> scale(1, scaleValue);
-        mv::QuantizationParams weightsQuantParams(zp, scale, min, max);
+	    // Remove old flow, remember to it to put next depthwise into model in correct place
+	    std::vector<mv::Data::OpListIterator> opsToLink;
+	    std::vector<std::size_t> inputSlots;
+	    std::vector<mv::Data::FlowSiblingIterator> flowsToRemove;
 
-        // Create weights tensor
-        if (sourceTensor->isDoubleType())
-	{
-		double weightsValue = 1;
-		std::vector<double> weightsData(total_shape0, weightsValue);
-		//NOTE: Weights have to be 1 and scale division, cause of better hardware accuracy
-		weights0 = om.constant(weightsData,
-                                {factors.first, factors.first, inputShape[mv::IO_CHANNEL_DIMENSION], channel_multiplier},
-                                sourceTensor->getDType(), mv::Order(mv::Order::getRowMajorID(4)), weightsQuantParams);
-        }
-	else
-        {
-		int64_t weightsValue = 1;
-		std::vector<int64_t> weightsData(total_shape0, weightsValue);
-		// If the input model is quantized, then the replacement pass needs to create
-		// quantization params for the weights parameter of the depthwise convolution.
-		weights0 = om.constantInt(weightsData,
-                                {factors.first, factors.first, inputShape[mv::IO_CHANNEL_DIMENSION], channel_multiplier},
-                                sourceTensor->getDType(), mv::Order(mv::Order::getRowMajorID(4)), weightsQuantParams);
-	}
+        auto depthwiseOp0 = om.getSourceOp(depthwise_conv0);
+	    auto sourceFlowStart = depthwiseOp0.leftmostOutput();
 
-	// Create first depthwise conv
-	mv::Data::TensorIterator depthwise_conv0;
-	if (sourceTensor->isQuantized())
-	{
-                auto quantParams = opIt->get<mv::QuantizationParams>("quantParams");
-                // use default dilation factor
-                depthwise_conv0 = om.depthwiseConv(sourceTensor, weights0, stride0, padding0, 1, mv::DType("Default"), quantParams, name + "_DepthwiseConv0");
-	}
-	else
-	{
-                mv::QuantizationParams emptyQuantParams({{}, {}, {}, {}});
-                depthwise_conv0 = om.depthwiseConv(sourceTensor, weights0, stride0, padding0, 1, mv::DType("Default"), emptyQuantParams, name + "_DepthwiseConv0");
- 	}
+ 	    for (mv::Data::FlowSiblingIterator sinkFlow(sourceFlowStart); sinkFlow != om.flowEnd(); ++sinkFlow)
+	    {
+            opsToLink.push_back(sinkFlow.sink());
+            inputSlots.push_back(sinkFlow->get<std::size_t>("sinkInput"));
+            flowsToRemove.push_back(sinkFlow);
+	    }
+ 	    // Remove old flow before creating new dw
+	    for (unsigned flowIdx = 0; flowIdx < flowsToRemove.size(); flowIdx++)
+	    {
+		    om.undefineFlow(flowsToRemove[flowIdx]);
+	    }
 
-	// Add first depthwise conv to op model
-	auto depthwiseOp0 = om.getSourceOp(depthwise_conv0);
-	auto weightsOp0 = om.getSourceOp(weights0);
+	    // Now generate the second depthwise conv
+        mv::Data::TensorIterator depthwise_conv1 = createPartialDepthwise(om, depthwiseOp0, depthwise_conv0, 
+                                                                        name + "_DepthwiseConv1", kSize[0], factors.second, {0,0,0,0});
 
-	if(opIt->hasAttr("opId"))
-	{
-                unsigned currentOpId = opIt->get<unsigned>("opId");
-                weightsOp0->set<unsigned>("opId", currentOpId);
-                depthwiseOp0->set<unsigned>("opId", currentOpId);
-	}
-	depthwise_conv0->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
-	linkNewOperationsReplacement(parentOpIt, depthwise_conv0, om, opIt);
-
-	// Remove old flow, remember to it to put next depthwise into model in correct place
-	std::vector<mv::Data::OpListIterator> opsToLink;
-	std::vector<std::size_t> inputSlots;
-	std::vector<mv::Data::FlowSiblingIterator> flowsToRemove;
-
-	auto sourceFlowStart = depthwiseOp0.leftmostOutput();
-
- 	for (mv::Data::FlowSiblingIterator sinkFlow(sourceFlowStart); sinkFlow != om.flowEnd(); ++sinkFlow)
-	{
-                opsToLink.push_back(sinkFlow.sink());
-                inputSlots.push_back(sinkFlow->get<std::size_t>("sinkInput"));
-                flowsToRemove.push_back(sinkFlow);
-	}
- 	// Remove old flow before creating new dw
-	for (unsigned flowIdx = 0; flowIdx < flowsToRemove.size(); flowIdx++)
-	{
-		om.undefineFlow(flowsToRemove[flowIdx]);
-	}
-
-	// Now generate the second depthwise conv, some parameters reused from above
-	unsigned int total_shape1 = 1 * inputShape[mv::IO_CHANNEL_DIMENSION] * factors.second * factors.second;
-	mv::Data::TensorIterator weights1;
-
- 	if (sourceTensor->isDoubleType())
-	{
-                double weightsValue = 1;
-                std::vector<double> weightsData(total_shape1, weightsValue);
-                //NOTE: Weights have to be 1 and scale division, cause of better hardware accuracy
-		weights1 = om.constant(weightsData,
-                                {factors.second, factors.second, inputShape[mv::IO_CHANNEL_DIMENSION], channel_multiplier},
-                                sourceTensor->getDType(), mv::Order(mv::Order::getRowMajorID(4)), weightsQuantParams);
-	}
-	else
-	{
-                int64_t weightsValue = 1;
-                std::vector<int64_t> weightsData(total_shape1, weightsValue);
-                // If the input model is quantized, then the replacement pass needs to create
-                // quantization params for the weights parameter of the depthwise convolution.
- 		weights1 = om.constantInt(weightsData,
-                                {factors.second, factors.second, inputShape[mv::IO_CHANNEL_DIMENSION], channel_multiplier},
-                                sourceTensor->getDType(), mv::Order(mv::Order::getRowMajorID(4)), weightsQuantParams);
- 	}
-
-	mv::Data::TensorIterator depthwise_conv1;
-	if (sourceTensor->isQuantized())
-	{
-                auto quantParams = depthwiseOp0->get<mv::QuantizationParams>("quantParams");
-                depthwise_conv1 = om.depthwiseConv(depthwise_conv0, weights1, stride1, padding1, 1, mv::DType("Default"), quantParams, name + "_DepthwiseConv1");
-	}
-	else
-        {
-                mv::QuantizationParams emptyQuantParams({{}, {}, {}, {}});
-		depthwise_conv1 = om.depthwiseConv(depthwise_conv0, weights1, stride1, padding1, 1, mv::DType("Default"), emptyQuantParams, name + "_DepthwiseConv1");
-	}
-
-	// Link up op model correctly
-	auto depthwiseOp1 = om.getSourceOp(depthwise_conv1);
-	auto weightsOp1 = om.getSourceOp(weights1);
-
-	if(depthwiseOp0->hasAttr("opId"))
-	{
-                unsigned currentOpId = depthwiseOp0->get<unsigned>("opId");
-                weightsOp1->set<unsigned>("opId", currentOpId);
- 		depthwiseOp1->set<unsigned>("opId", currentOpId);
-	}
-	depthwise_conv1->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
-
-	for(unsigned op = 0 ; op < opsToLink.size(); ++op)
+	    for(unsigned op = 0 ; op < opsToLink.size(); ++op)
         {
         	opsToLink[op]->setInputTensor(depthwise_conv1, inputSlots[op], false);
-                om.defineFlow(depthwise_conv1, opsToLink[op], inputSlots[op]);
-	}
-
+            om.defineFlow(depthwise_conv1, opsToLink[op], inputSlots[op]);
+	    }
     } // end for 
 }
