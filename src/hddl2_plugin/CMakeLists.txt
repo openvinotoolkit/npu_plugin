@@ -14,6 +14,10 @@
 # stated in the License.
 #
 
+if(ENABLE_LTO)
+    ie_enable_lto()
+endif()
+
 set(TARGET_NAME "HDDL2Plugin")
 
 set(HDDLUNITE_ARCHIVE_VERSION ww03_release)

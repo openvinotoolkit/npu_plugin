@@ -14,6 +14,10 @@
 # stated in the License.
 #
 
+if(ENABLE_LTO)
+    ie_enable_lto()
+endif()
+
 set(TARGET_NAME "frontend_mcm")
 set(IE_FRONTEND_MCM_INCLUDE_DIR
         ${CMAKE_CURRENT_SOURCE_DIR}/inlude CACHE INTERNAL "IE_FRONTEND_MCM_INCLUDE_DIR")

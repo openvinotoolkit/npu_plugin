@@ -14,6 +14,10 @@
 # stated in the License.
 #
 
+if(ENABLE_LTO)
+    ie_enable_lto()
+endif()
+
 file(GLOB SOURCES *.cpp)
 file(GLOB HEADERS *.h)
 
