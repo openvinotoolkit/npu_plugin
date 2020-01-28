@@ -14,6 +14,10 @@
 # stated in the License.
 #
 
+if(ENABLE_LTO)
+    ie_enable_lto()
+endif()
+
 set(TARGET_NAME "kmb_utils")
 
 file(GLOB_RECURSE SOURCES *.cpp *.hpp *.h)
