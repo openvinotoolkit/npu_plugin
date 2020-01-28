@@ -21,6 +21,7 @@
 #include <string>
 #include <vector>
 
+#include "blob_parser.hpp"
 #include "hddl2_exceptions.h"
 #include "hddl2_helpers.h"
 #include "mcm_adapter.hpp"
@@ -64,43 +65,27 @@ CompiledGraph::CompiledGraph(IE::ICNNNetwork& network, const MCMConfig& config) 
 //------------------------------------------------------------------------------
 //      class ImportedGraph Implementation
 //------------------------------------------------------------------------------
-// TODO Hardcoded resnet until parsing imported blob will be supported #-25765
-static InferenceEngine::InputsDataMap hardcodedResNetInputs() {
-    InferenceEngine::InputsDataMap m_networkInputs;
-    InferenceEngine::SizeVector inputDims({1, 3, 224, 224});
-    InferenceEngine::Layout inputLayout = InferenceEngine::Layout::NCHW;
-    InferenceEngine::Precision inputPrecision = InferenceEngine::Precision::U8;
-    InferenceEngine::TensorDesc inputDesc(inputPrecision, inputDims, inputLayout);
-    InferenceEngine::Data inputData("input", inputDesc);
-
-    InferenceEngine::InputInfo inputInfo;
-    inputInfo.setInputData(std::make_shared<InferenceEngine::Data>(inputData));
-    m_networkInputs[inputInfo.name()] = std::make_shared<InferenceEngine::InputInfo>(inputInfo);
-    return m_networkInputs;
-}
-
-// TODO Hardcoded resnet until parsing imported blob will be supported #-25765
-static InferenceEngine::OutputsDataMap hardcodedResNetOutputs() {
-    InferenceEngine::OutputsDataMap m_networkOutputs;
-    // TODO Hack for output to align with emulator
-    InferenceEngine::SizeVector outputDims({1, 512, 1, 1});
-    InferenceEngine::Layout outputLayout = InferenceEngine::Layout::NCHW;
-    // TODO Should it be FP32?
-    InferenceEngine::Precision outputPrecision = InferenceEngine::Precision::U8;
-    InferenceEngine::TensorDesc outputDesc(outputPrecision, outputDims, outputLayout);
-
-    InferenceEngine::Data outputData("output", outputDesc);
-    m_networkOutputs[outputData.getName()] = std::make_shared<InferenceEngine::Data>(outputData);
-    return m_networkOutputs;
+static std::string ExtractFileName(const std::string& fullPath) {
+    const size_t lastSlashIndex = fullPath.find_last_of("/\\");
+    return fullPath.substr(lastSlashIndex + 1);
 }
 
 ImportedGraph::ImportedGraph(const std::string& blobFilename, const MCMConfig& config) {
     // TODO find usage for mcmConfig in case of imported network
     UNUSED(config);
 
-    // TODO Hardcoded resnet until parsing imported blob will be supported #-25765
-    _graphName = "resNet";
-    _networkInputs = hardcodedResNetInputs();
-    _networkOutputs = hardcodedResNetOutputs();
+    std::ifstream blobFile(blobFilename, std::ios::binary);
+    if (!blobFile.is_open()) {
+        THROW_IE_EXCEPTION << "[ERROR] *Could not open file: " << blobFilename;
+    }
+
+    std::ostringstream blobContentStream;
+    blobContentStream << blobFile.rdbuf();
+    const std::string& blobContentString = blobContentStream.str();
+
+    _graphName = ExtractFileName(blobFilename);
+    MCMAdapter::getNetworkInputs(blobContentString.c_str(), _networkInputs);
+    MCMAdapter::getNetworkOutputs(blobContentString.c_str(), _networkOutputs);
+
     loadFileToString(blobFilename, _blobContentString);
 }

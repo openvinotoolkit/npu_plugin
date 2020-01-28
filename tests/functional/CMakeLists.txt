@@ -6,10 +6,15 @@ if (ENABLE_HDDL2)
     add_subdirectory(hddl2_tests)
 endif()
 
+if (ENABLE_MCM_COMPILER)
+    add_subdirectory(frontend_mcm)
+endif()
+
 set(TARGET_NAME "KmbFunctionalTests")
 
 file(GLOB_RECURSE KMB_TEST_SOURCES *.cpp *.hpp *.h)
 list(FILTER KMB_TEST_SOURCES EXCLUDE REGEX ".*/hddl2_tests/.*")
+list(FILTER KMB_TEST_SOURCES EXCLUDE REGEX ".*/frontend_mcm/.*")
 
 list(APPEND KMB_TEST_LIBRARIES IE::IESharedTests IE::vpu_common_lib IE::ngraph vpusmm kmb_utils)
 if(ENABLE_VPUAL AND ENABLE_VPUAL_MODEL)

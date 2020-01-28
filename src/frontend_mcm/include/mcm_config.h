@@ -24,58 +24,58 @@
 
 namespace vpu {
 
-    class MCMConfig : public ParsedConfigBase {
-    public:
-        LogLevel mcmLogLevel() const { return _mcmLogLevel; }
+class MCMConfig : public ParsedConfigBase {
+public:
+    LogLevel mcmLogLevel() const { return _mcmLogLevel; }
 
-        const std::string& mcmTargetDesciptorPath() const { return _mcmTargetDesciptorPath; }
+    const std::string& mcmTargetDesciptorPath() const { return _mcmTargetDesciptorPath; }
 
-        const std::string& mcmTargetDesciptor() const { return _mcmTargetDesciptor; }
+    const std::string& mcmTargetDesciptor() const { return _mcmTargetDesciptor; }
 
-        const std::string& mcmCompilationDesciptorPath() const { return _mcmCompilationDesciptorPath; }
+    const std::string& mcmCompilationDesciptorPath() const { return _mcmCompilationDesciptorPath; }
 
-        const std::string& mcmCompilationDesciptor() const { return _mcmCompilationDesciptor; }
+    const std::string& mcmCompilationDesciptor() const { return _mcmCompilationDesciptor; }
 
-        bool mcmGenerateBlob() const { return _mcmGenerateBlob; }
+    bool mcmGenerateBlob() const { return _mcmGenerateBlob; }
 
-        bool mcmGenerateJSON() const { return _mcmGenerateJSON; }
+    bool mcmGenerateJSON() const { return _mcmGenerateJSON; }
 
-        bool mcmGenerateDOT() const { return _mcmGenerateDOT; }
+    bool mcmGenerateDOT() const { return _mcmGenerateDOT; }
 
-        bool mcmParseOnly() const { return _mcmParseOnly; }
+    bool mcmParseOnly() const { return _mcmParseOnly; }
 
-        const std::string& mcmCompilationResultsPath() const { return _mcmCompilationResultsPath; }
+    const std::string& mcmCompilationResultsPath() const { return _mcmCompilationResultsPath; }
 
-        const std::string& mcmCompilationResults() const { return _mcmCompilationResults; }
+    const std::string& mcmCompilationResults() const { return _mcmCompilationResults; }
 
-        bool eltwiseScalesAlignment() const { return _eltwiseScalesAlignment; }
+    bool eltwiseScalesAlignment() const { return _eltwiseScalesAlignment; }
 
-        bool inputScaleShiftRemoving() const { return _inputScaleShiftRemoving; }
+    bool inputScaleShiftRemoving() const { return _inputScaleShiftRemoving; }
 
-    protected:
-        const std::unordered_set<std::string>& getCompileOptions() const override;
-        void parse(const std::map<std::string, std::string>& config) override;
+protected:
+    const std::unordered_set<std::string>& getCompileOptions() const override;
+    void parse(const std::map<std::string, std::string>& config) override;
 
-    private:
-        LogLevel _mcmLogLevel = LogLevel::None;
+private:
+    LogLevel _mcmLogLevel = LogLevel::None;
 
-        std::string _mcmTargetDesciptorPath = "mcm_config/target";
-        std::string _mcmTargetDesciptor = "release_kmb";
+    std::string _mcmTargetDesciptorPath = "mcm_config/target";
+    std::string _mcmTargetDesciptor = "release_kmb";
 
-        std::string _mcmCompilationDesciptorPath = "mcm_config/compilation";
-        std::string _mcmCompilationDesciptor = "release_kmb";
+    std::string _mcmCompilationDesciptorPath = "mcm_config/compilation";
+    std::string _mcmCompilationDesciptor = "release_kmb";
 
-        bool _mcmGenerateBlob = true;
-        bool _mcmGenerateJSON = true;
-        bool _mcmGenerateDOT = false;
+    bool _mcmGenerateBlob = true;
+    bool _mcmGenerateJSON = true;
+    bool _mcmGenerateDOT = false;
 
-        bool _mcmParseOnly = false;
+    bool _mcmParseOnly = false;
 
-        std::string _mcmCompilationResultsPath = ".";
-        std::string _mcmCompilationResults = "";
+    std::string _mcmCompilationResultsPath = ".";
+    std::string _mcmCompilationResults = "";
 
-        bool _eltwiseScalesAlignment = false;
-        bool _inputScaleShiftRemoving = true;
-    };
+    bool _eltwiseScalesAlignment = false;
+    bool _inputScaleShiftRemoving = true;
+};
 
 }  // namespace vpu

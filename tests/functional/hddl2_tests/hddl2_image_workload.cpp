@@ -63,7 +63,7 @@ TEST_P(HDDL2_ImageWorkload_Tests, SyncInference) {
         auto lockedMemory = inputBlob->buffer();
         auto memory = lockedMemory.as<char*>();
         memset(memory, 1, inputBlob->byteSize() / sizeof(int));
-        inferRequest.SetBlob("input", inputBlob);
+        inferRequest.SetBlob(item.first, inputBlob);
     }
 
     // ---- Run the request synchronously

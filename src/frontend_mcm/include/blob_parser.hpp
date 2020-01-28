@@ -16,18 +16,13 @@
 
 #pragma once
 
-#include "ie_core.hpp"
-#include "mcm_config.h"
+#include <ie_data.h>
+#include <ie_input_info.hpp>
+#include <ie_icnn_network.hpp>
 
 namespace vpu {
 namespace MCMAdapter {
-bool isMCMCompilerAvailable();
-
-#ifdef ENABLE_MCM_COMPILER
-void compileNetwork(InferenceEngine::ICNNNetwork& network, const MCMConfig& config, std::vector<char>& blob);
-
-std::set<std::string> getSupportedLayers(InferenceEngine::ICNNNetwork& network, const MCMConfig& config);
-#endif
-
+void getNetworkInputs(const void* data, InferenceEngine::InputsDataMap& networkInputs);
+void getNetworkOutputs(const void* data, InferenceEngine::OutputsDataMap& networkOutputs);
 }  // namespace MCMAdapter
 }  // namespace vpu
