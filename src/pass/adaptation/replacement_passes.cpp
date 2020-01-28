@@ -559,10 +559,9 @@ mv::Data::TensorIterator createPartialDepthwise(mv::OpModel om, mv::Data::OpList
                                                  std::string name, unsigned short originalKernel, unsigned short newKernel, 
                                                  std::array<unsigned short, 4> padding)
 {
-    //auto sourceTensor = opIt->getInputTensor(0);
     auto inputShape = sourceTensor->getShape();
 
-    // Calculate strides and padding based on new kernel sizes
+    // Calculate strides based on new kernel sizes
     std::array<unsigned short, 2> stride = {newKernel, newKernel};
 
     unsigned int total_shape = 1 * inputShape[mv::IO_CHANNEL_DIMENSION] * newKernel * newKernel;
@@ -576,7 +575,7 @@ mv::Data::TensorIterator createPartialDepthwise(mv::OpModel om, mv::Data::OpList
     // Both depthwise will take 1/original_kernel_size as a scale (if was 1 dw would be kernel^2)
     // Note: For non-prime kernels, could take scale of each exactly replacing ap/dw, 
 	// but using original kernel for scale improves observed accuracy
-    double scaleValue = 1/double(newKernel);
+    double scaleValue = 1/double(originalKernel);
     std::vector<double> scale(1, scaleValue);
     mv::QuantizationParams weightsQuantParams(zp, scale, min, max);
 
