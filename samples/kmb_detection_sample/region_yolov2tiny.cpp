@@ -217,7 +217,6 @@ static void get_region_boxes(const float *predictions, std::size_t *shape4D,
 
 #define BOX_IDX(anchor_idx, cell_idx) (anchor_idx * (lw * lh) + cell_idx)
 
-  std::size_t kkk = 0;
   for (i = 0; i < lw * lh; ++i) {
     std::size_t row = i / lw;
     std::size_t col = i % lw;
@@ -235,7 +234,6 @@ static void get_region_boxes(const float *predictions, std::size_t *shape4D,
         if (raw_netout[5 + j] <= thresh)
           raw_netout[5 + j] = 0;
       }
-      kkk++;
 
       pb->x = (col + _sigmoid(raw_netout[0])) / lw;
       pb->y = (row + _sigmoid(raw_netout[1])) / lh;
