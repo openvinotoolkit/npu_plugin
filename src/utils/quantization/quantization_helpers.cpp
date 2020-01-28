@@ -27,9 +27,7 @@ using namespace InferenceEngine::details;
 
 namespace vpu {
 
-namespace KmbPlugin {
-
-namespace KmbQuantizationHelpers {
+namespace QuantizationHelpers {
 
 double inf = std::numeric_limits<double>::infinity();
 mv::QuantizationParams initialQuantParams = {{0}, {1}, {-inf}, {inf}};
@@ -347,8 +345,7 @@ std::vector<int64_t> quantizeBiases(const std::vector<double>& activationScales,
     return newBiasData;
 }
 
-}  // namespace KmbQuantizationHelpers
-}  // namespace KmbPlugin
+}  // namespace QuantizationHelpers
 }  // namespace vpu
 
 #endif

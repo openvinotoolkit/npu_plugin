@@ -26,9 +26,7 @@
 
 namespace vpu {
 
-namespace KmbPlugin {
-
-namespace KmbQuantizationHelpers {
+namespace QuantizationHelpers {
 
 bool isPostOp(const InferenceEngine::CNNLayerPtr& layer);
 std::vector<float> getBlobValue(const InferenceEngine::CNNLayerPtr& constantLayer);
@@ -63,8 +61,7 @@ InferenceEngine::Blob::Ptr quantizeBlob(InferenceEngine::Blob::Ptr weightsBlob, 
 InferenceEngine::Blob::Ptr quantizeConstLayer(const InferenceEngine::CNNLayerPtr& fakeQuantizeOnWeights,
     InferenceEngine::Precision precision, mv::QuantizationParams& weightsQuantParams);
 
-}  // namespace KmbQuantizationHelpers
-}  // namespace KmbPlugin
+}  // namespace QuantizationHelpers
 }  // namespace vpu
 
 #endif

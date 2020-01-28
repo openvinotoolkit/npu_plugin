@@ -148,11 +148,11 @@ void ref_fc(const Blob::Ptr src, const wei_data_t* weights, const size_t weights
 }
 
 static void fillFcIR(std::string& model, SizeVector input_dims, size_t weightsBufferOffset, size_t weightsByteSize,
-    size_t biasBufferOffset, size_t biasByteSize, uint32_t out_channels, bool withFQ = false) {
+    size_t biasBufferOffset, size_t biasByteSize, uint32_t out_channels) {
     REPLACE_WITH_NUM(model, "_INPUT_BATCH_", input_dims[0]);
     REPLACE_WITH_NUM(model, "_INPUT_CHANNEL_", input_dims[1]);
 
-    if (input_dims.size() == 4 && !withFQ) {
+    if (input_dims.size() == 4) {
         REPLACE_WITH_NUM(model, "_INPUT_HEIGHT_", input_dims[2]);
         REPLACE_WITH_NUM(model, "_INPUT_WIDTH_", input_dims[3]);
     }
@@ -169,13 +169,11 @@ static void fillFcIR(std::string& model, SizeVector input_dims, size_t weightsBu
 
 typedef kmbLayerTestBaseWithParam<fullyConnected_test_params> kmbLayersTestsFullyConnectedWithIR;
 
-Blob::Ptr getQuantizedBlob(Blob::Ptr blob, size_t blobSize, float min, float max)
-{
+Blob::Ptr getQuantizedBlob(Blob::Ptr blob, size_t blobSize, float min, float max) {
     double inf = std::numeric_limits<double>::infinity();
     double scales = (max - min) / 255;
-    int64_t zeroPoint =
-        vpu::KmbPlugin::KmbQuantizationHelpers::calculateZeroPoint(max, min, 256, Precision::U8);
-    return vpu::KmbPlugin::KmbQuantizationHelpers::quantizeBlob(
+    int64_t zeroPoint = vpu::QuantizationHelpers::calculateZeroPoint(max, min, 256, Precision::U8);
+    return vpu::QuantizationHelpers::quantizeBlob(
         blob, {1, blobSize, 1, 1}, {{zeroPoint}, {scales}, {-inf}, {inf}}, Precision::U8, " ");
 }
 
@@ -189,88 +187,71 @@ TEST_P(kmbLayersTestsFullyConnectedWithIR, fc_only) {
     size_t biasByteSize = outChannels * sizeof(float);
     size_t biasSize = outChannels;
 
-    float min_weight = 0.0f;
-    float max_weight = 1.0f;
-
     auto weightsBuffer =
         make_shared_blob<uint8_t>({Precision::U8, {weightsByteSize + biasByteSize + weightsBufferOffset}, Layout::C});
     weightsBuffer->allocate();
     auto weightsBufferData = weightsBuffer->buffer().as<float*>();
-    fillRealBuffer(weightsBufferData, weightsBuffer->byteSize() / sizeof(float), min_weight, max_weight);
+    fillRealBuffer(weightsBufferData, weightsBuffer->byteSize() / sizeof(float), 1.0f, 1.0f);
     float* weightsDataStart = weightsBufferData + weightsBufferOffset / sizeof(float);
 
     auto weightsData = weightsDataStart;
     auto bias_data = GetParam().with_bias ? weightsData + weightsSize : nullptr;
 
-    auto weights_blob = getQuantizedBlob(weightsBuffer, weightsSize, min_weight, max_weight);
-
-    float min_input = 0.0f;
-    float max_input = 1.0f;
-
     const auto desc = TensorDesc(Precision::U8, input_dims, TensorDesc::getLayoutByDims(input_dims));
     auto inBlobForReference = make_blob_with_precision(desc);
     inBlobForReference->allocate();
     auto inputData = inBlobForReference->buffer().as<uint8_t*>();
-    fillIntBuffer(
-        inputData, inBlobForReference->byteSize(), static_cast<uint8_t>(min_input), static_cast<uint8_t>(max_input));
+    fillIntBuffer(inputData, inBlobForReference->byteSize(), static_cast<uint8_t>(0.0f), static_cast<uint8_t>(1.0f));
 
     auto inputBlobFP32 = ConvertU8ToFP32(inBlobForReference);
 
     auto refOutputBlob = make_shared_blob<float>({Precision::FP32, {1, outChannels}, Layout::NC});
     refOutputBlob->allocate();
-    auto data_ref = refOutputBlob->buffer().as<uint8_t*>();
-    std::fill(data_ref, data_ref + refOutputBlob->byteSize(), 0);
+    auto data_ref = refOutputBlob->buffer().as<float*>();
+    fillRealBuffer(data_ref, refOutputBlob->byteSize() / sizeof(float), 0.0f, 0.0f);
 
     // calc reference blob
     ref_fc(inputBlobFP32, weightsData, weightsSize, bias_data, biasSize, refOutputBlob, outChannels, input_dims);
 
-    auto result = std::minmax_element(
-        refOutputBlob->buffer().as<float*>(), refOutputBlob->buffer().as<float*>() + refOutputBlob->size());
-
-    float min_output = *result.first;
-    float max_output = *result.second;
-
-    auto fq_ref_blob = getQuantizedBlob(refOutputBlob, outChannels, min_output, max_output);
-
     float* fqParamsData = weightsBufferData;
 
     // weights quantization params
-    fqParamsData[0] = min_weight;
-    fqParamsData[1] = max_weight;
+    fqParamsData[0] = 0.0;
+    fqParamsData[1] = 255.0;
     fqParamsData[2] = fqParamsData[0];
     fqParamsData[3] = fqParamsData[1];
 
     // output quantization params
-    fqParamsData[4] = min_output;
-    fqParamsData[5] = max_output;
+    fqParamsData[4] = 0.0f;
+    fqParamsData[5] = 255.0f;
     fqParamsData[6] = fqParamsData[4];
     fqParamsData[7] = fqParamsData[5];
 
     // input quantization params
-    fqParamsData[8] = min_input;
-    fqParamsData[9] = max_input;
+    fqParamsData[8] = 0.0;
+    fqParamsData[9] = 255.0;
     fqParamsData[10] = fqParamsData[8];
     fqParamsData[11] = fqParamsData[9];
 
-    std::string model = fq_fully_connected_only_slim;
+    std::string model = fully_connected_only_slim;
 
-    fillFcIR(model, input_dims, weightsBufferOffset,
-        weightsByteSize, weightsBufferOffset + weightsByteSize, biasByteSize, outChannels, true);
+    fillFcIR(model, input_dims, weightsBufferOffset, weightsByteSize, weightsBufferOffset + weightsByteSize,
+        biasByteSize, outChannels);
 
     CNNNetwork network = ie.ReadNetwork(model, weightsBuffer);
 
     auto _inputsInfo = network.getInputsInfo();
     _inputsInfo["input"]->setPrecision(Precision::U8);
     auto _outputsInfo = network.getOutputsInfo();
-    _outputsInfo["conv2/after_quant/FakeQuantWithMinMaxVars"]->setPrecision(Precision::U8);
+    _outputsInfo["conv2"]->setPrecision(Precision::U8);
 
     std::map<std::string, std::string> config;
     setCommonConfig(config);
     config[VPU_COMPILER_CONFIG_KEY(PARSING_ONLY)] = CONFIG_VALUE(NO);
 
-    Core ie;
     ExecutableNetwork executableNetwork;
-    ASSERT_NO_THROW(executableNetwork = ie.LoadNetwork(network, "kmb", config));
+    ASSERT_NO_THROW(executableNetwork = ie.LoadNetwork(network, "KMB", config));
+
     InferenceEngine::InferRequest inferRequest;
     ASSERT_NO_THROW(inferRequest = executableNetwork.CreateInferRequest());
 
@@ -283,11 +264,9 @@ TEST_P(kmbLayersTestsFullyConnectedWithIR, fc_only) {
 
     auto outputBlob = inferRequest.GetBlob(executableNetwork.GetOutputsInfo().begin()->first);
     ASSERT_NO_THROW(inferRequest.Infer());
+    Blob::Ptr outputBlobFP32 = ConvertU8ToFP32(outputBlob);
 
-    Blob::Ptr deqOutput = dequantize(outputBlob, min_output, max_output, 256);
-    Blob::Ptr deqRef = dequantize(fq_ref_blob, min_output, max_output, 256);
-
-    Compare(deqRef, deqOutput, 1.1f);
+    Compare(refOutputBlob, outputBlobFP32, 1.0f);
 }
 
 TEST_P(kmbLayersTestsFullyConnectedWithIR, fc_only_u8) {

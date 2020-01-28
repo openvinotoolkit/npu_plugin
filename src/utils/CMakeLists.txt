@@ -23,7 +23,7 @@ set(TARGET_NAME "kmb_utils")
 file(GLOB_RECURSE SOURCES *.cpp *.hpp *.h)
 
 add_library(${TARGET_NAME} STATIC ${SOURCES})
-target_link_libraries(${TARGET_NAME} PRIVATE vpusmm)
+target_link_libraries(${TARGET_NAME} PRIVATE vpusmm PUBLIC IE::inference_engine_lp_transformations)
 
 target_include_directories(${TARGET_NAME}
     PUBLIC
