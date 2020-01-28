@@ -127,7 +127,7 @@ TEST_F(KmbClassifyNetworkTest, resnet50_uint8_int8_weights_pertensor) {
         1, 0.7f);
 }
 
-TEST_F(KmbClassifyNetworkTest, GoogLeNet_v1_tf_int8_sparse) {
+TEST_F(KmbClassifyNetworkTest, DISABLED_GoogLeNet_v1_tf_int8_sparse) {
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/sparse/GoogLeNet-v1-tf/inceptionv1-int8-sparse-tf-0001.xml")
             .setUserInputPresision("input", Precision::U8)
@@ -147,7 +147,7 @@ TEST_F(KmbClassifyNetworkTest, DISABLED_MobileNet_v2_tf_int8_sparse_v2) {  // 59
         1, 0.05f);
 }
 
-TEST_F(KmbClassifyNetworkTest, MobileNet_v2_tf_int8_sparse_v1) {  // 30.8% sparsity
+TEST_F(KmbClassifyNetworkTest, DISABLED_MobileNet_v2_tf_int8_sparse_v1) {  // 30.8% sparsity
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/sparse/MoblieNet-v2-tf/mobilenetv2-int8-sparse-v1-tf-0001.xml")
             .setUserInputPresision("input", Precision::U8)
@@ -157,7 +157,7 @@ TEST_F(KmbClassifyNetworkTest, MobileNet_v2_tf_int8_sparse_v1) {  // 30.8% spars
         1, 0.05f);
 }
 
-TEST_F(KmbClassifyNetworkTest, squeezenet1_1_pytorch_uint8_int8_weights_pertensor) {
+TEST_F(KmbClassifyNetworkTest, DISABLED_squeezenet1_1_pytorch_uint8_int8_weights_pertensor) {
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/squeezenet1_1_pytorch/squeezenet1_1_pytorch_uint8_int8_weights_pertensor.xml")
             .setUserInputPresision("input", Precision::U8)
@@ -167,7 +167,7 @@ TEST_F(KmbClassifyNetworkTest, squeezenet1_1_pytorch_uint8_int8_weights_pertenso
         1, 0.05f);
 }
 
-TEST_F(KmbClassifyNetworkTest, SqueezeNetv1_1_onnx_int8_sparse) {
+TEST_F(KmbClassifyNetworkTest, DISABLED_SqueezeNetv1_1_onnx_int8_sparse) {
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/sparse/squeezenetv1.1-int8-onnx/squeezenetv1.1-int8-sparse-v2.xml")
             .setUserInputPresision("input", Precision::U8)
