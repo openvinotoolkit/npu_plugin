@@ -243,7 +243,7 @@ TEST_F(HDDL2_RemoteBlob_UnitTests, buffer_AllocatedBlob_CannotBeChanged) {
 TEST_F(HDDL2_RemoteBlob_UnitTests, rwlock_NotAllocatedBlob_ReturnNotNullLocked) {
     remoteBlobPtr = std::make_shared<HDDL2RemoteBlob>(tensorDesc, remoteContextPtr, blobParamMap);
 
-    auto lockedMemory = remoteBlobPtr->rwlock();
+    auto lockedMemory = remoteBlobPtr->rwmap();
     auto data = lockedMemory.as<IE::PrecisionTrait<InferenceEngine::Precision::U8>::value_type*>();
 
     ASSERT_NE(data, nullptr);
@@ -253,7 +253,7 @@ TEST_F(HDDL2_RemoteBlob_UnitTests, rwlock_AllocatedBlob_ReturnNotNullLocked) {
     remoteBlobPtr = std::make_shared<HDDL2RemoteBlob>(tensorDesc, remoteContextPtr, blobParamMap);
     remoteBlobPtr->allocate();
 
-    auto lockedMemory = remoteBlobPtr->rwlock();
+    auto lockedMemory = remoteBlobPtr->rwmap();
     auto data = lockedMemory.as<IE::PrecisionTrait<InferenceEngine::Precision::U8>::value_type*>();
 
     ASSERT_NE(nullptr, data);
@@ -263,12 +263,12 @@ TEST_F(HDDL2_RemoteBlob_UnitTests, rwlock_ChangeAllocatedBlob_ShouldStoreNewData
     remoteBlobPtr = std::make_shared<HDDL2RemoteBlob>(tensorDesc, remoteContextPtr, blobParamMap);
 
     {
-        auto lockedMemory = remoteBlobPtr->rwlock();
+        auto lockedMemory = remoteBlobPtr->rwmap();
         auto data = lockedMemory.as<IE::PrecisionTrait<InferenceEngine::Precision::FP32>::value_type*>();
         data[0] = value;
     }
     {
-        auto lockedMemory = remoteBlobPtr->rwlock();
+        auto lockedMemory = remoteBlobPtr->rwmap();
         auto data = lockedMemory.as<IE::PrecisionTrait<InferenceEngine::Precision::FP32>::value_type*>();
         ASSERT_EQ(data[0], value);
     }
@@ -280,7 +280,7 @@ TEST_F(HDDL2_RemoteBlob_UnitTests, rwlock_ChangeAllocatedBlob_ShouldStoreNewData
 TEST_F(HDDL2_RemoteBlob_UnitTests, rlock_NotAllocatedBlob_ReturnNotNullLocked) {
     remoteBlobPtr = std::make_shared<HDDL2RemoteBlob>(tensorDesc, remoteContextPtr, blobParamMap);
 
-    auto lockedMemory = remoteBlobPtr->rlock();
+    auto lockedMemory = remoteBlobPtr->rmap();
     auto data = lockedMemory.as<IE::PrecisionTrait<InferenceEngine::Precision::U8>::value_type*>();
 
     ASSERT_NE(data, nullptr);
@@ -290,7 +290,7 @@ TEST_F(HDDL2_RemoteBlob_UnitTests, rlock_AllocatedBlob_ReturnNotNullLocked) {
     remoteBlobPtr = std::make_shared<HDDL2RemoteBlob>(tensorDesc, remoteContextPtr, blobParamMap);
     remoteBlobPtr->allocate();
 
-    auto lockedMemory = remoteBlobPtr->rlock();
+    auto lockedMemory = remoteBlobPtr->rmap();
     auto data = lockedMemory.as<IE::PrecisionTrait<InferenceEngine::Precision::U8>::value_type*>();
 
     ASSERT_NE(nullptr, data);
@@ -299,12 +299,12 @@ TEST_F(HDDL2_RemoteBlob_UnitTests, rlock_AllocatedBlob_ReturnNotNullLocked) {
 TEST_F(HDDL2_RemoteBlob_UnitTests, rlock_ChangeAllocatedBlob_ShouldNotChangeRemote) {
     remoteBlobPtr = std::make_shared<HDDL2RemoteBlob>(tensorDesc, remoteContextPtr, blobParamMap);
     {
-        auto lockedMemory = remoteBlobPtr->rlock();
+        auto lockedMemory = remoteBlobPtr->rmap();
         auto data = lockedMemory.as<IE::PrecisionTrait<InferenceEngine::Precision::FP32>::value_type*>();
         data[0] = value;
     }
     {
-        auto lockedMemory = remoteBlobPtr->rlock();
+        auto lockedMemory = remoteBlobPtr->rmap();
         auto data = lockedMemory.as<IE::PrecisionTrait<InferenceEngine::Precision::FP32>::value_type*>();
         ASSERT_NE(data[0], value);
     }
@@ -316,7 +316,7 @@ TEST_F(HDDL2_RemoteBlob_UnitTests, rlock_ChangeAllocatedBlob_ShouldNotChangeRemo
 TEST_F(HDDL2_RemoteBlob_UnitTests, wlock_NotAllocatedBlob_ReturnNotNullLocked) {
     remoteBlobPtr = std::make_shared<HDDL2RemoteBlob>(tensorDesc, remoteContextPtr, blobParamMap);
 
-    auto lockedMemory = remoteBlobPtr->wlock();
+    auto lockedMemory = remoteBlobPtr->wmap();
     auto data = lockedMemory.as<IE::PrecisionTrait<InferenceEngine::Precision::U8>::value_type*>();
 
     ASSERT_NE(data, nullptr);
@@ -326,7 +326,7 @@ TEST_F(HDDL2_RemoteBlob_UnitTests, wlock_AllocatedBlob_ReturnNotNullLocked) {
     remoteBlobPtr = std::make_shared<HDDL2RemoteBlob>(tensorDesc, remoteContextPtr, blobParamMap);
     remoteBlobPtr->allocate();
 
-    auto lockedMemory = remoteBlobPtr->wlock();
+    auto lockedMemory = remoteBlobPtr->wmap();
     auto data = lockedMemory.as<IE::PrecisionTrait<InferenceEngine::Precision::U8>::value_type*>();
 
     ASSERT_NE(nullptr, data);
@@ -335,12 +335,12 @@ TEST_F(HDDL2_RemoteBlob_UnitTests, wlock_AllocatedBlob_ReturnNotNullLocked) {
 TEST_F(HDDL2_RemoteBlob_UnitTests, wlock_ChangeAllocatedBlob_ShouldChangeRemote) {
     remoteBlobPtr = std::make_shared<HDDL2RemoteBlob>(tensorDesc, remoteContextPtr, blobParamMap);
     {
-        auto lockedMemory = remoteBlobPtr->wlock();
+        auto lockedMemory = remoteBlobPtr->wmap();
         auto data = lockedMemory.as<IE::PrecisionTrait<InferenceEngine::Precision::FP32>::value_type*>();
         data[0] = value;
     }
     {
-        auto lockedMemory = remoteBlobPtr->rlock();
+        auto lockedMemory = remoteBlobPtr->rmap();
         auto data = lockedMemory.as<IE::PrecisionTrait<InferenceEngine::Precision::FP32>::value_type*>();
         ASSERT_EQ(data[0], value);
     }
@@ -355,7 +355,7 @@ TEST_F(HDDL2_RemoteBlob_UnitTests, DISABLED_wlock_OnLocking_WillNotSyncDataFromD
 
     std::string result;
     {
-        auto lockedMemory = remoteBlobPtr->wlock();
+        auto lockedMemory = remoteBlobPtr->wmap();
         auto lockedData = lockedMemory.as<char*>();
         result = std::string(lockedData);
     }

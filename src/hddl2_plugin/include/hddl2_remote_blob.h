@@ -71,11 +71,11 @@ public:
 
     InferenceEngine::LockedMemory<const void> cbuffer() const noexcept override;
 
-    InferenceEngine::LockedMemory<void> rwlock() noexcept override;
+    InferenceEngine::LockedMemory<void> rwmap() noexcept override;
 
-    InferenceEngine::LockedMemory<const void> rlock() const noexcept override;
+    InferenceEngine::LockedMemory<const void> rmap() const noexcept override;
 
-    InferenceEngine::LockedMemory<void> wlock() noexcept override;
+    InferenceEngine::LockedMemory<void> wmap() noexcept override;
 
     std::shared_ptr<InferenceEngine::RemoteContext> getContext() const noexcept override;
 

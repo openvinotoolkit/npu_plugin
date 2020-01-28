@@ -87,15 +87,15 @@ InferenceEngine::LockedMemory<const void> HDDL2RemoteBlob::cbuffer() const noexc
     return IE::LockedMemory<const void>(reinterpret_cast<IE::IAllocator*>(_allocatorPtr.get()), _memoryHandle, 0);
 }
 
-InferenceEngine::LockedMemory<void> HDDL2RemoteBlob::rwlock() noexcept {
+InferenceEngine::LockedMemory<void> HDDL2RemoteBlob::rwmap() noexcept {
     return IE::LockedMemory<void>(reinterpret_cast<IE::IAllocator*>(_allocatorPtr.get()), _memoryHandle, 0);
 }
 
-InferenceEngine::LockedMemory<const void> HDDL2RemoteBlob::rlock() const noexcept {
+InferenceEngine::LockedMemory<const void> HDDL2RemoteBlob::rmap() const noexcept {
     return IE::LockedMemory<const void>(reinterpret_cast<IE::IAllocator*>(_allocatorPtr.get()), _memoryHandle, 0);
 }
 
-InferenceEngine::LockedMemory<void> HDDL2RemoteBlob::wlock() noexcept {
+InferenceEngine::LockedMemory<void> HDDL2RemoteBlob::wmap() noexcept {
     return IE::LockedMemory<void>(reinterpret_cast<IE::IAllocator*>(_allocatorPtr.get()), _memoryHandle, 0);
 }
 
