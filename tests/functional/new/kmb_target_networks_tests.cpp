@@ -14,9 +14,9 @@
 // stated in the License.
 //
 
-#include "test_model/kmb_test_base.hpp"
-
 #ifdef ENABLE_MCM_COMPILER
+
+#include "test_model/kmb_test_base.hpp"
 
 // Fails on IE to mcmCompiler parsing stage with message
 // C++ exception with description "quant_model/resnet_v1_50/block1/unit_3/bottleneck_v1/addQuantize Eltwise
