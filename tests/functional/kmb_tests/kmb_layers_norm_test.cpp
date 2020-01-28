@@ -24,6 +24,7 @@ typedef std::tuple<tensor_test_params, float, float, size_t, std::string> norm_t
 typedef kmbLayerTestBaseWithParam<norm_test_params> kmbLayersTestsNormParams;
 
 #ifdef ENABLE_MCM_COMPILER
+// [Track number: S#27222]
 TEST_P(kmbLayersTestsNormParams, DISABLED_TestsNorm) {
     auto param = GetParam();
     tensor_test_params tensor = std::get<0>(param);

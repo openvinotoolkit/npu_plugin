@@ -141,6 +141,7 @@ inline void VpuNoRegressionWithCompilation::loadNetworkWrapper(
 }
 
 #ifdef ENABLE_MCM_COMPILER
+// [Track number: S#27242]
 TEST_P(KmbNoRegressionCompilationOnly, DISABLED_IE2MCM) {
     auto toCompile = get<2>(TestParam::GetParam());
     double tm = get<3>(TestParam::GetParam());
@@ -172,6 +173,7 @@ INSTANTIATE_TEST_CASE_P(KmbParsingOnlyTest_smoke_nightly, KmbNoRegressionCompila
     Combine(Values("kmbPlugin"), ValuesIn(compilation_parameters_kmb), Values<Compile>(false), Values<Timeout>(60.)),
     KmbNoRegressionCompilationOnly::getTestCaseName);
 
+// [Track number: S#27242]
 INSTANTIATE_TEST_CASE_P(DISABLED_KmbParsingOnlyTest_smoke_nightly, KmbNoRegressionCompilationOnly,
     Combine(Values("kmbPlugin"), ValuesIn(compilation_parameters_kmb), Values<Compile>(true), Values<Timeout>(60.)),
     KmbNoRegressionCompilationOnly::getTestCaseName);
@@ -656,6 +658,7 @@ TEST_P(VpuInferWithPath, compareSetBlobAndGetBlobOutput) {
     ASSERT_EQ((void*)outputBlob->buffer(), (void*)newOutputBlob->buffer());
 }
 
+// [Track number: S#27179]
 TEST_P(VpuInferWithPath, DISABLED_compareSetBlobAndGetBlobAfterInfer) {
     modelBlobsInfo blobsInfo = GetParam();
     std::string graphSuffix = blobsInfo._graphPath;
@@ -752,6 +755,7 @@ TEST_F(kmbSetBlob, compareSetBlobAllocation) {
     ASSERT_EQ((void*)mobilNInputBlob->buffer(), (void*)resNInputBlob->buffer());
 }
 
+// [Track number: S#27180]
 TEST_P(VpuInferWithPath, DISABLED_compareOutputsTwoNetworks) {
     modelBlobsInfo blobsInfo = GetParam();
     std::string graphSuffix = blobsInfo._graphPath;
@@ -816,6 +820,7 @@ TEST_P(VpuInferWithPath, DISABLED_compareOutputsTwoNetworks) {
     }
 }
 
+// [Track number: S#27181]
 TEST_P(VpuInferWithPath, DISABLED_compareSetBlobAndInfer) {
     modelBlobsInfo blobsInfo = GetParam();
     std::string graphSuffix = blobsInfo._graphPath;

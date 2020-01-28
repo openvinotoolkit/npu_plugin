@@ -56,7 +56,8 @@ TEST_F(KmbClassifyNetworkTest, INT8_SparseV1_TF_IRv7_ResNet_50) {  // 28.4% spar
         1, 0.05f);
 }
 
-// KMB : Hangs on infer stage [Track number: D#2245]
+// KMB : Hangs on infer stage 
+// [Track number: D#2245]
 TEST_F(KmbClassifyNetworkTest, INT8_SparseV2_TF_IRv7_ResNet_50) {  // 60.4% sparsity
     SKIP_INFER_ON("KMB", "hang on infer");
 
@@ -69,7 +70,8 @@ TEST_F(KmbClassifyNetworkTest, INT8_SparseV2_TF_IRv7_ResNet_50) {  // 60.4% spar
         1, 0.05f);
 }
 
-// KMB : Bad inference results. [Track number: D#2245]
+// KMB : Bad inference results.
+// Track number: D#2245]
 TEST_F(KmbClassifyNetworkTest, INT8_SparseV2_ONNX_IRv7_ResNet_50) {
     SKIP_INFER_ON("KMB", "bad results");
 
@@ -113,7 +115,8 @@ TEST_F(KmbClassifyNetworkTest, INT8_Dense_PyTorch_IRv10_MobileNet_V2) {
         3, 1e-5f);
 }
 
-// KMB : Bad inference results. [Track number: D#2473]
+// KMB : Bad inference results. 
+// [Track number: D#2473]
 TEST_F(KmbClassifyNetworkTest, INT8_Dense_PyTorch_IRv7_MobileNet_V2) {
     SKIP_INFER_ON("KMB", "bad results");
 
@@ -126,7 +129,8 @@ TEST_F(KmbClassifyNetworkTest, INT8_Dense_PyTorch_IRv7_MobileNet_V2) {
         1, 0.05f);
 }
 
-// KMB : Bad inference results. [Track number: D#2246]
+// KMB : Bad inference results. 
+// [Track number: D#2246]
 TEST_F(KmbClassifyNetworkTest, INT8_SparseV1_TF_IRv7_MobileNet_V2) {  // 30.8% sparsity
     SKIP_INFER_ON("KMB", "bad results");
 
@@ -139,7 +143,8 @@ TEST_F(KmbClassifyNetworkTest, INT8_SparseV1_TF_IRv7_MobileNet_V2) {  // 30.8% s
         1, 0.05f);
 }
 
-// KMB : Bad inference results. [Track number: D#2246]
+// KMB : Bad inference results. 
+// [Track number: D#2246]
 TEST_F(KmbClassifyNetworkTest, INT8_SparseV2_TF_IRv7_MobileNet_V2) {  // 59.3% sparsity
     SKIP_INFER_ON("KMB", "bad results");
 
@@ -152,7 +157,8 @@ TEST_F(KmbClassifyNetworkTest, INT8_SparseV2_TF_IRv7_MobileNet_V2) {  // 59.3% s
         1, 0.05f);
 }
 
-// KMB : Bad inference results. [Track number: D#2246]
+// KMB : Bad inference results. 
+// [Track number: D#2246]
 TEST_F(KmbClassifyNetworkTest, INT8_SparseV2_ONNX_IRv7_MobileNet_V2) {
     SKIP_INFER_ON("KMB", "bad results");
 
@@ -185,7 +191,7 @@ TEST_F(KmbClassifyNetworkTest, INT8_Dense_Caffe_IRv10_Inception_V1) {
 // KMB : Test on caffe based inception_v1 fails on IE to mcmCompiler parsing stage
 // KMB : C++ exception with description "Op:pool5/7x7_s1 - OpError: Invalid input data (0) -
 // KMB : Filter kernel width (7) exceeds the padded input width (6)
-// KMB : [Track number: S#25483, D#2374]
+// [Track number: S#25483/D#2374]
 TEST_F(KmbClassifyNetworkTest, INT8_Dense_Caffe_IRv7_Inception_V1) {
     SKIP_ON("KMB", "compile error");
 
@@ -198,6 +204,8 @@ TEST_F(KmbClassifyNetworkTest, INT8_Dense_Caffe_IRv7_Inception_V1) {
         1, 0.05f);
 }
 
+// KMB : Bad inference results. 
+// [Track number: D#2475]
 TEST_F(KmbClassifyNetworkTest, INT8_Dense_TF_IRv7_Inception_V1) {
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/inception-v1_tf/inception-v1_tf_uint8_int8_weights_pertensor.xml")
@@ -208,7 +216,8 @@ TEST_F(KmbClassifyNetworkTest, INT8_Dense_TF_IRv7_Inception_V1) {
         1, 0.05f);
 }
 
-// KMB : Hangs on infer stage [Track number: D#2293]
+// KMB : Hangs on infer stage 
+// [Track number: D#2293]
 TEST_F(KmbClassifyNetworkTest, INT8_Sparse_TF_IRv7_Inception_V1) {
     SKIP_INFER_ON("KMB", "hang on infer");
 
@@ -251,7 +260,8 @@ TEST_F(KmbClassifyNetworkTest, INT8_Dense_TF_IRv10_Inception_V3) {
         1, 1e-1f);
 }
 
-// KMB : Bad inference results. [Track number: D#2474]
+// KMB : Bad inference results. 
+// [Track number: D#2474]
 TEST_F(KmbClassifyNetworkTest, INT8_Dense_TF_IRv7_Inception_V3) {
     SKIP_INFER_ON("KMB", "bad results");
 
@@ -285,7 +295,7 @@ TEST_F(KmbClassifyNetworkTest, DISABLED_INT8_Dense_Caffe2_IRv10_SqueezeNet_1_1) 
 // KMB : with message
 // KMB : C++ exception with description "Op:pool10 - OpError: Invalid input data (0) -
 // KMB : Filter kernel width (14) exceeds the padded input width (13)
-// KMB : [Track number: S#25483, D#2374]
+// [Track number: S#25483/D#2374]
 TEST_F(KmbClassifyNetworkTest, INT8_Dense_Caffe_IRv7_SqueezeNet_1_1) {
     SKIP_INFER_ON("KMB", "bad results");  // TODO: create JIRA ticket
 
@@ -308,7 +318,8 @@ TEST_F(KmbClassifyNetworkTest, INT8_Dense_PyTorch_IRv7_SqueezeNet_1_1) {
         1, 1.2f);
 }
 
-// KMB : Inference hangs.  [Track number: D#2476]
+// KMB : Inference hangs.
+// [Track number: D#2476]
 TEST_F(KmbClassifyNetworkTest, INT8_Sparse_ONNX_IRv7_SqueezeNet_1_1) {
     SKIP_INFER_ON("KMB", "hang on infer");
 
