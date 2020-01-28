@@ -124,7 +124,7 @@ TEST_F(KmbClassifyNetworkTest, resnet50_uint8_int8_weights_pertensor) {
             .setUserInputLayout("input", Layout::NHWC)
             .setUserOutputPresision("output", Precision::FP32),
         "224x224/cat3.bmp",
-        1, 0.05f);
+        1, 0.7f);
 }
 
 TEST_F(KmbClassifyNetworkTest, GoogLeNet_v1_tf_int8_sparse) {
