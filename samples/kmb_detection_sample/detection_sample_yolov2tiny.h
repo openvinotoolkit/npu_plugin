@@ -21,11 +21,14 @@
 #include <gflags/gflags.h>
 #include <iostream>
 
+const int DEFAULT_ZERO_POINT = 0;
+const float DEFAULT_SCALE = 1.0;
+
 /// @brief message for help argument
 static const char help_message[] = "Print a usage message.";
 
 /// @brief message for images argument
-static const char image_message[] = "Required. Path to a binary input file";
+static const char image_message[] = "Required. Path to input image.";
 
 /// @brief message for model argument
 static const char model_message[] = "Required. Path to a .blob file compiled from .xml file with a trained model.";
@@ -34,16 +37,16 @@ static const char model_message[] = "Required. Path to a .blob file compiled fro
 static const char plugin_message[] = "Enables messages from a plugin";
 
 /// @brief message for scale
-static const char scale_message[] = "Scale of output from FC";
+static const char scale_message[] = "Scale of output";
 
 /// @brief message for zero point
-static const char zeropoint_message[] = "Zero point of output from FC";
+static const char zeropoint_message[] = "Zero point of output";
 
 /// @brief message for nv12 image width.
-static const char nv12_width_message[] = "Input NV12 image width";
+static const char nv12_width_message[] = "Input NV12 image width (must have *.yuv extension)";
 
 /// @brief message for nv12 image height.
-static const char nv12_height_message[] = "Input NV12 image height";
+static const char nv12_height_message[] = "Input NV12 image height (must have *.yuv extension)";
 
 /// @brief Define flag for showing help message <br>
 DEFINE_bool(h, false, help_message);
@@ -60,10 +63,10 @@ DEFINE_string(m, "", model_message);
 DEFINE_bool(p_msg, false, plugin_message);
 
 /// @brief message for scale
-DEFINE_double(s, 0.3371347486972809, scale_message);
+DEFINE_double(s, DEFAULT_SCALE, scale_message);
 
 /// @brief message for zero point
-DEFINE_int32(z, 221, zeropoint_message);
+DEFINE_int32(z, DEFAULT_ZERO_POINT, zeropoint_message);
 
 /// @brief message for nv12 image width.
 DEFINE_int32(iw, 0, nv12_width_message);
