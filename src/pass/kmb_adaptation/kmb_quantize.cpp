@@ -244,12 +244,19 @@ static void configureOutputPrecisionFcn(const mv::pass::PassEntry&, mv::Computat
         auto wantedPrecision = outputOp[0]->get<mv::DType>("precision");
         if (inputTypeofOutput != wantedPrecision)
         {
-            outputOp[0]->getInputTensor(0)->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::DDR);
+            if (om.getSourceOp(outputOp[0]->getInputTensor(0))->isImplicit())
+            {
+                for (std::size_t i = 0; i < om.getSourceOp(outputOp[0]->getInputTensor(0))->getInputTensor().size(); i++)
+                    om.getSourceOp(outputOp[0]->getInputTensor(0))->getInputTensor(i)->set<mv::Tensor::MemoryLocation>("Location",mv::Tensor::MemoryLocation::DDR);
+            }
+            mv::QuantizationParams neutralQuantParams = {{0},{1.0},{},{}, {1}, {0}};
             auto quantize = om.uPATaskQuantize({outputOp[0]->getInputTensor(0)}, wantedPrecision,
-                        outputOp[0]->get<mv::QuantizationParams>("quantParams"), "Precision" + outputOp[0]->getName());
+                        neutralQuantParams, "Precision" + outputOp[0]->getName());
             quantize->set<std::string>("splitStrategy",
                         outputOp[0]->getInputTensor(0)->get<std::string>("splitStrategy"));
             quantize->set<mv::Tensor::MemoryLocation>("Location",mv::Tensor::MemoryLocation::OUTPUT);
+            outputOp[0]->getInputTensor(0)->set<mv::Tensor::MemoryLocation>("Location",mv::Tensor::MemoryLocation::DDR);
+            outputOp[0]->getInputTensor(0)->set<mv::QuantizationParams>("quantParams", neutralQuantParams);
             auto quantizeOp = om.getSourceOp(quantize);
             quantizeOp->set<unsigned>("opId", outputOp[0]->get<unsigned>("opId") - 1);
             om.undefineFlow(outputOp[0].leftmostInput());
