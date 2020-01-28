@@ -51,14 +51,23 @@ G_TYPED_KERNEL(GResizeP, <cv::GMatP(cv::GMatP, cv::gapi::own::Size, int)>, "ie.p
     }
 };
 
-// clang-format on
-
+G_TYPED_KERNEL(GMerge3p, <cv::GMat(cv::GMatP)>, "ie.preproc.merge3p") {
+    static cv::GMatDesc outMeta(cv::GMatDesc in) {
+        GAPI_Assert(in.depth == CV_8U);
+        GAPI_Assert(in.chan == 3);
+        GAPI_Assert(in.planar);
+        return in.asInterleaved();
+    }
+};
 }  // namespace preproc
 
 // FIXME? remove?
 cv::GMatP NV12toRGBp(const cv::GMat& src_y, const cv::GMat& src_uv);
 cv::GMatP NV12toBGRp(const cv::GMat& src_y, const cv::GMat& src_uv);
 cv::GMatP resizeP(const cv::GMatP& src, const cv::gapi::own::Size& dsize, int interpolation = cv::INTER_LINEAR);
+cv::GMat merge3p(const cv::GMatP& src);
+
+// clang-format on
 
 }  // namespace gapi
 }  // namespace InferenceEngine

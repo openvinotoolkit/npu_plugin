@@ -15,6 +15,7 @@
 
 #include "kmb_preproc_gapi.hpp"
 
+// clang-format off
 namespace InferenceEngine {
 
 SIPPPreprocessor::SIPPPreprocessor(unsigned int shaveFirst, unsigned int shaveLast, unsigned int lpi)
@@ -29,8 +30,10 @@ void SIPPPreprocessor::execSIPPDataPreprocessing(const PreprocTask& t) {
         auto it = t.preprocData.find(blobName);
         if (it != t.preprocData.end()) {
             const auto& preprocInfo = t.networkInputs.at(blobName)->getPreProcess();
-            _preproc->preprocWithSIPP(t.preprocData.at(blobName)->getRoiBlob(), input.second,
-                preprocInfo.getResizeAlgorithm(), preprocInfo.getColorFormat(), t.serial, t.curBatch);
+            _preproc->preprocWithSIPP(t.preprocData.at(blobName)->getRoiBlob(),
+                                      input.second,
+                                      preprocInfo.getResizeAlgorithm(),
+                                      preprocInfo.getColorFormat());
         }
     }
 }
@@ -115,4 +118,5 @@ unsigned SippPreprocPool::firstShave = [] {
 }();
 
 }  // namespace InferenceEngine
+// clang-format on
 #endif  // #ifdef ENABLE_VPUAL

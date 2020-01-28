@@ -16,6 +16,7 @@
 #include "kmb_preproc_gapi_kernels.hpp"
 #include "kmb_preproc_gapi_kernels_sipp.hpp"
 
+// clang-format off
 namespace InferenceEngine {
 
 class SIPPPreprocEngine::Priv {
@@ -29,8 +30,8 @@ public:
     Priv(unsigned int shaveFirst, unsigned int shaveLast, unsigned int lpi)
         : _shaveFirst(shaveFirst), _shaveLast(shaveLast), _lpi(lpi) {}
 
-    void preprocWithSIPP(const Blob::Ptr& inBlob, Blob::Ptr& outBlob, const ResizeAlgorithm& algorithm,
-        ColorFormat in_fmt, bool omp_serial, int batch_size);
+    void preprocWithSIPP(const Blob::Ptr &inBlob, Blob::Ptr &outBlob,
+                         const ResizeAlgorithm& algorithm, ColorFormat in_fmt);
 };
 
 namespace {
@@ -96,18 +97,15 @@ inline int get_cv_depth(const TensorDesc& ie_desc) {
     }
 }
 
-std::vector<std::vector<cv::gapi::own::Mat>> bind_to_blob(const Blob::Ptr& blob, int batch_size) {
-    const auto& ie_desc = blob->getTensorDesc();
+cv::gapi::own::Mat bind_to_blob(const Blob::Ptr& blob) {
+    const auto& ie_desc     = blob->getTensorDesc();
     const auto& ie_desc_blk = ie_desc.getBlockingDesc();
-    const auto desc = G::decompose(blob);
-    const auto cv_depth = get_cv_depth(ie_desc);
-    const auto stride = desc.s.H * blob->element_size();
-    const auto planeSize = cv::gapi::own::Size(desc.d.W, desc.d.H);
+    const auto     desc     = G::decompose(blob);
+    const auto cv_depth     = get_cv_depth(ie_desc);
+    const auto stride       = desc.s.H*blob->element_size();
+    const auto size    = cv::gapi::own::Size(desc.d.W, desc.d.H);
     // Note: operating with strides (desc.s) rather than dimensions (desc.d) which is vital for ROI
     //       blobs (data buffer is shared but dimensions are different due to ROI != original image)
-    const auto batch_offset = desc.s.N * blob->element_size();
-
-    std::vector<std::vector<cv::gapi::own::Mat>> result(batch_size);
 
     uint8_t* blob_ptr = static_cast<uint8_t*>(blob->buffer());
     if (blob_ptr == nullptr) {
@@ -115,30 +113,18 @@ std::vector<std::vector<cv::gapi::own::Mat>> bind_to_blob(const Blob::Ptr& blob,
     }
     blob_ptr += blob->element_size() * ie_desc_blk.getOffsetPadding();
 
-    for (int i = 0; i < batch_size; ++i) {
-        uint8_t* curr_data_ptr = blob_ptr + i * batch_offset;
-
-        std::vector<cv::gapi::own::Mat> planes;
-        if (ie_desc.getLayout() == Layout::NHWC) {
-            planes.emplace_back(
-                planeSize.height, planeSize.width, CV_MAKETYPE(cv_depth, desc.d.C), curr_data_ptr, stride);
-        } else {  // NCHW
-            if (desc.d.C <= 0) {
-                THROW_IE_EXCEPTION << "Invalid number of channels in blob tensor descriptor, "
-                                      "expected >0, actual: "
-                                   << desc.d.C;
-            }
-            const auto planeType = CV_MAKETYPE(cv_depth, 1);
-            for (int ch = 0; ch < desc.d.C; ch++) {
-                cv::gapi::own::Mat plane(planeSize.height * 3, planeSize.width, planeType,
-                    curr_data_ptr + ch * desc.s.C * blob->element_size(), stride);
-                planes.emplace_back(plane);
-            }
+    if (ie_desc.getLayout() == Layout::NHWC) {
+        return {size.height, size.width, CV_MAKETYPE(cv_depth, desc.d.C),
+            blob_ptr, stride};
+    } else {  // NCHW
+        if (desc.d.C != 3) {
+            THROW_IE_EXCEPTION << "Invalid number of channels in blob tensor descriptor, "
+                                  "expected 3, actual: " << desc.d.C;
         }
-
-        result[i] = std::move(planes);
+        const auto planeType = CV_MAKETYPE(cv_depth, 1);
+            return {size.height*desc.d.C, size.width, planeType,
+                blob_ptr, stride};
     }
-    return result;
 }
 
 cv::gapi::own::Size getFullImageSize(const Blob::Ptr& blob) {
@@ -153,8 +139,8 @@ cv::gapi::own::Size getFullImageSize(const Blob::Ptr& blob) {
 }
 }  // anonymous namespace
 
-void SIPPPreprocEngine::Priv::preprocWithSIPP(const Blob::Ptr& inBlob, Blob::Ptr& outBlob,
-    const ResizeAlgorithm& algorithm, ColorFormat in_fmt, bool /*omp_serial*/, int batch_size) {
+void SIPPPreprocEngine::Priv::preprocWithSIPP(const Blob::Ptr &inBlob, Blob::Ptr &outBlob,
+                     const ResizeAlgorithm& algorithm, ColorFormat in_fmt) {
     IE_ASSERT(algorithm == RESIZE_BILINEAR);
     IE_ASSERT(in_fmt == NV12);
 
@@ -167,32 +153,38 @@ void SIPPPreprocEngine::Priv::preprocWithSIPP(const Blob::Ptr& inBlob, Blob::Ptr
     const auto& y_blob = inNV12Blob->y();
     const auto& uv_blob = inNV12Blob->uv();
 
-    auto inputs_y = bind_to_blob(y_blob, batch_size);
-    auto inputs_uv = bind_to_blob(uv_blob, batch_size);
-    auto outputs = bind_to_blob(outBlob, batch_size);
+    auto input_y  = bind_to_blob(y_blob);
+    auto input_uv = bind_to_blob(uv_blob);
+    auto output   = bind_to_blob(outBlob);
 
     // FIXME: add batch
 
     if (!_lastCompiled) {
-        GMat in_y, in_uv;
-        own::Size out_sz {outputs[0][0].cols, outputs[0][0].rows / 3};
+        GMat in_y, in_uv, out;
+        own::Size out_sz{output.cols, output.rows};
 
         auto rgb = gapi::NV12toBGRp(in_y, in_uv);
-        auto out = gapi::resizeP(rgb, out_sz);
+        if (outBlob->getTensorDesc().getLayout() == NCHW) {
+            out_sz.height /= 3;
+            out = gapi::resizeP(rgb, out_sz);
+        } else {
+            auto resized = gapi::resizeP(rgb, out_sz);
+            out = gapi::merge3p(resized);
+        }
 
         _lastCompiled = GComputation(GIn(in_y, in_uv), GOut(out))
-                            .compile(own::descr_of(inputs_y[0][0]), own::descr_of(inputs_uv[0][0]),
+                            .compile(own::descr_of(input_y), own::descr_of(input_uv),
                                 compile_args(InferenceEngine::gapi::preproc::sipp::kernels(),
                                     GSIPPBackendInitInfo {_shaveFirst, _shaveLast, _lpi},
                                     GSIPPMaxFrameSizes {{getFullImageSize(y_blob), getFullImageSize(uv_blob)}}));
     } else if (y_blob->getTensorDesc().getDims() != _lastInYDims) {
         cv::GMetaArgs meta(2);
-        meta[0] = own::descr_of(inputs_y[0][0]);
-        meta[1] = own::descr_of(inputs_uv[0][0]);
+        meta[0] = own::descr_of(input_y);
+        meta[1] = own::descr_of(input_uv);
         _lastCompiled.reshape(meta, {});
         _lastInYDims = y_blob->getTensorDesc().getDims();
     }
-    _lastCompiled(gin(inputs_y[0][0], inputs_uv[0][0]), gout(outputs[0][0]));
+    _lastCompiled(gin(input_y, input_uv), gout(output));
 }
 
 SIPPPreprocEngine::SIPPPreprocEngine(unsigned int shaveFirst, unsigned int shaveLast, unsigned int lpi)
@@ -200,10 +192,11 @@ SIPPPreprocEngine::SIPPPreprocEngine(unsigned int shaveFirst, unsigned int shave
 
 SIPPPreprocEngine::~SIPPPreprocEngine() = default;
 
-void SIPPPreprocEngine::preprocWithSIPP(const Blob::Ptr& inBlob, Blob::Ptr& outBlob, const ResizeAlgorithm& algorithm,
-    ColorFormat in_fmt, bool omp_serial, int batch_size) {
-    return _priv->preprocWithSIPP(inBlob, outBlob, algorithm, in_fmt, omp_serial, batch_size);
+void SIPPPreprocEngine::preprocWithSIPP(const Blob::Ptr &inBlob, Blob::Ptr &outBlob,
+                                        const ResizeAlgorithm& algorithm, ColorFormat in_fmt) {
+    return _priv->preprocWithSIPP(inBlob, outBlob, algorithm, in_fmt);
 }
 
 }  // namespace InferenceEngine
+// clang-format on
 #endif
