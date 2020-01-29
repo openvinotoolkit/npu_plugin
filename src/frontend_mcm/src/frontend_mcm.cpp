@@ -1095,9 +1095,8 @@ void FrontEndMcm::parseReLU(const ie::CNNLayerPtr& layer, const McmNodeVector& i
     if (std::fabs(negativeSlope) < std::numeric_limits<float>::epsilon()) {
         mvRelu = _modelMcm.relu(inputs[0]->getMcmNode(), mv::DType("Default"), inputQuantParams, reluLayer->name);
     } else {
-        // TODO FIXME: unsigned int alpha should be fixed or clarified
         mvRelu = _modelMcm.leakyRelu(
-            inputs[0]->getMcmNode(), negativeSlope, mv::DType("Default"), initialQuantParams, reluLayer->name);
+            inputs[0]->getMcmNode(), negativeSlope, mv::DType("Default"), inputQuantParams, reluLayer->name);
     }
 
     bindOutput(mvRelu, layer->outData[0]);
