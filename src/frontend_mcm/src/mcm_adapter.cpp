@@ -76,11 +76,6 @@ void MCMAdapter::compileNetwork(
     mv::OpModel& modelMcm = unit->model();
 
     auto frontEnd = std::make_shared<FrontEndMcm>(modelMcm, config);
-    frontEnd->buildInitialModel(network);
-
-    if (config.mcmParseOnly()) {
-        return;
-    }
 
     const auto& targetName = config.mcmTargetDesciptor();
     const auto targetPath =
@@ -108,6 +103,12 @@ void MCMAdapter::compileNetwork(
         THROW_IE_EXCEPTION << "Compilation description loading failed! Path: " << compDescPath;
     };
     auto& compDesc = unit->compilationDescriptor();
+
+    // parse model after loading config
+    frontEnd->buildInitialModel(network);
+    if (config.mcmParseOnly()) {
+        return;
+    }
 
     _logger->info("Path for results: %s (%s)", resultsFullName, std::strerror(errno));
 
