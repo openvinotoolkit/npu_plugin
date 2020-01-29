@@ -154,6 +154,22 @@ void KmbInferRequest::dumpOutputBlobHelper(const Blob::Ptr& outputBlobPtr, const
     dumper.close();
 }
 
+static Blob::Ptr reallocateBlob(const std::shared_ptr<KmbAllocator>& allocator, const Blob::Ptr& origBlob) {
+    // do nothing if the buffer has already been allocated properly
+    if (allocator->isValidPtr(origBlob->buffer())) {
+        return origBlob;
+    }
+
+    // otherwise, do reallocation
+    Blob::Ptr kmbBlob = make_blob_with_precision(origBlob->getTensorDesc(), allocator);
+    IE_ASSERT(kmbBlob != nullptr);
+
+    kmbBlob->allocate();
+    vpu::copyBlob(origBlob, kmbBlob);
+
+    return kmbBlob;
+}
+
 // TODO a lot of dublications
 void KmbInferRequest::InferAsync() {
     if (!_custom_inputs.empty()) {
@@ -191,6 +207,7 @@ void KmbInferRequest::InferAsync() {
     } else {
         // execute input pre-processing
         if (SippPreproc::useSIPP() && SippPreproc::isApplicable(_inputs, _preProcData, _networkInputs)) {
+            std::map<std::string, PreProcessDataPtr> preprocDataRealloc;
             for (const auto& input : _inputs) {
                 const std::string& inputName = input.first;
                 auto preProcDataIter = _preProcData.find(inputName);
@@ -198,6 +215,7 @@ void KmbInferRequest::InferAsync() {
                     continue;
                 }
 
+                preprocDataRealloc[preProcDataIter->first] = CreatePreprocDataHelper();
                 Blob::Ptr blobData = preProcDataIter->second->getRoiBlob();
                 if (blobData->is<NV12Blob>()) {
                     // check if planes of nv12 blob were allocated with KMB allocator
@@ -205,28 +223,20 @@ void KmbInferRequest::InferAsync() {
                     Blob::Ptr& origYBlob = origNV12Blob->y();
                     Blob::Ptr& origUVBlob = origNV12Blob->uv();
 
-                    if (!getKmbAllocator()->isValidPtr(origYBlob->buffer())) {
-                        Blob::Ptr kmbYBlob = make_blob_with_precision(origYBlob->getTensorDesc(), getKmbAllocator());
-                        IE_ASSERT(kmbYBlob != nullptr);
+                    Blob::Ptr kmbYBlob = reallocateBlob(getKmbAllocator(), origYBlob);
+                    Blob::Ptr kmbUVBlob = reallocateBlob(getKmbAllocator(), origUVBlob);
 
-                        kmbYBlob->allocate();
-                        copyBlob(origYBlob, kmbYBlob);
-                        origNV12Blob->y() = kmbYBlob;
-                    }
-
-                    if (!getKmbAllocator()->isValidPtr(origUVBlob->buffer())) {
-                        Blob::Ptr kmbUVBlob = make_blob_with_precision(origUVBlob->getTensorDesc(), getKmbAllocator());
-                        IE_ASSERT(kmbUVBlob != nullptr);
-
-                        kmbUVBlob->allocate();
-                        copyBlob(origUVBlob, kmbUVBlob);
-                        origNV12Blob->uv() = kmbUVBlob;
-                    }
+                    InferenceEngine::Blob::Ptr nv12Blob =
+                        InferenceEngine::make_shared_blob<InferenceEngine::NV12Blob>(kmbYBlob, kmbUVBlob);
+                    preprocDataRealloc[preProcDataIter->first]->setRoiBlob(nv12Blob);
+                } else {
+                    Blob::Ptr kmbBlob = reallocateBlob(getKmbAllocator(), blobData);
+                    preprocDataRealloc[preProcDataIter->first]->setRoiBlob(blobData);
                 }
             }
 
             SippPreproc::execSIPPDataPreprocessing(
-                _inputs, _preProcData, _networkInputs, 1, true, _config.numberOfSIPPShaves(), _config.SIPPLpi());
+                _inputs, preprocDataRealloc, _networkInputs, 1, true, _config.numberOfSIPPShaves(), _config.SIPPLpi());
         } else {
             execDataPreprocessing(_inputs);
         }
