@@ -90,7 +90,6 @@
             "TensorsToU8",
             "TensorsToFP16",
             "FusePostOps",
-            {
             "PostTrainingQuantize",
             "EltwiseToSWEltwise",
             {
