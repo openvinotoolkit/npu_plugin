@@ -25,7 +25,7 @@ namespace mv
             "This pass computes the appropriate quantize params extends and prepares them for serialization."
         );
 
-        MV_REGISTER_PASS(UpdateOutputQuantParams)
+        MV_REGISTER_PASS(PostTrainingQuantize)
         .setFunc(updateOutputQuantParams)
         .setDescription(
             "The pass will estimate output tensor quantization param where quantization is needed."
@@ -92,24 +92,20 @@ void updateOutputQuantParams(const mv::pass::PassEntry&, mv::ComputationModel& m
         if (!output->hasAttr("quantParams")
                 || isQuantizationParamNeutral(output->get<mv::QuantizationParams>("quantParams")))
         {
-            std::cout << "Could not found quant params for node: " << output->getName() <<  std::endl ;
-
             auto& inputQuantization = input->get<mv::QuantizationParams>("quantParams");
             //Note: if input Tensor has min, max of infs...we need to compute them
             if (inputQuantization.infinitelimits())
             {
-                double maximumFloat = std::round(inputQuantization.getScale()[0] * (255 - inputQuantization.getZeroPoint()[0]));
-                double minimumFloat = -std::round(inputQuantization.getZeroPoint()[0] * inputQuantization.getScale()[0]);
+                //Quantization equation Real = scale(Quantized - zeroPoint)
+                double maximumFloat = inputQuantization.getScale()[0] * (255 - inputQuantization.getZeroPoint()[0]);
+                double minimumFloat = -inputQuantization.getZeroPoint()[0] * inputQuantization.getScale()[0];
                 if (minimumFloat == -0)
                     minimumFloat = 0;
                 mv::QuantizationParams newInputQuantization(inputQuantization.getZeroPoint(),
                                                             inputQuantization.getScale(),{minimumFloat},{maximumFloat});
-                std::cout << " input minimum " << std::to_string(minimumFloat) << std::endl;
-                std::cout << " input maximum " << std::to_string(maximumFloat) <<  std::endl;
                 input->set<mv::QuantizationParams>("quantParams", newInputQuantization);
             }
             auto& newInputQuantization = input->get<mv::QuantizationParams>("quantParams");
-
             auto weights = opIt->getInputTensor("weights");
             auto& weightsQuantization = weights->get<mv::QuantizationParams>("quantParams");
             auto weights_scale = extendToK(outputChannels, weightsQuantization.getScale(), weights->getName());
@@ -119,12 +115,8 @@ void updateOutputQuantParams(const mv::pass::PassEntry&, mv::ComputationModel& m
             std::vector<double> outScale(1);
             std::vector<int64_t> outZp(1);
             auto fullkernelSize = weights->getShape().totalSize()/outputChannels;
-
             auto minIn = newInputQuantization.getMin();
             auto maxIn = newInputQuantization.getMax();
-
-            std::cout << " input minimum " << std::to_string(minIn[0]) << std::endl;
-            std::cout << " input maximum " << std::to_string(maxIn[0]) <<  std::endl;
 
             bool hasBias = opIt->hasAttr("bias");
             mv::QuantizationParams biasQuantization({},{},{},{});
@@ -136,8 +128,6 @@ void updateOutputQuantParams(const mv::pass::PassEntry&, mv::ComputationModel& m
                 bias = dm.getTensor(opIt->get<std::string>("bias"));
                 biasQuantization = bias->get<mv::QuantizationParams>("quantParams");
             }
-            std::cout << "FullKernelSize size is" << std::to_string(fullkernelSize) << std::endl;
-
             double_t real_weight, real_bias;
             for (size_t c = 0; c < outputChannels; c++)
             {
@@ -149,8 +139,6 @@ void updateOutputQuantParams(const mv::pass::PassEntry&, mv::ComputationModel& m
                     real_weight = ((int64_t) weights->at(index + c*fullkernelSize) - weights_zp[c]) * weights_scale[c];
                     sum_weight += real_weight;
                 }
-                std::cout << " input minimum " << std::to_string(minIn[0]) << std::endl;
-                std::cout << " sum of weights " << std::to_string(sum_weight) <<  std::endl;
                 outputMaxC = maxIn[0] * sum_weight;
                 outputMinC = minIn[0] * sum_weight;
                 if (outputMinC > outputMaxC)
@@ -160,33 +148,17 @@ void updateOutputQuantParams(const mv::pass::PassEntry&, mv::ComputationModel& m
                     outputMaxC = outputMinC;
                     outputMinC = temp;
                 }
-                std::cout << " before bias channel " << std::to_string(c) << " out Min " << std::to_string(outputMinC) << std::endl;
-                std::cout << " before bias channel " << std::to_string(c) << " out Max " << std::to_string(outputMaxC) << std::endl;
                 if (hasBias)
                 {
                     real_bias = ((int64_t) bias->at(c)) * biasQuantization.getScale()[0];
-                    std::cout << " channel " << std::to_string(c) << " real_bias " << std::to_string(real_bias) << std::endl;
-
                     outputMinC += real_bias;
                     outputMaxC += real_bias;
                 }
-                std::cout << " after bias channel " << std::to_string(c) << " out Min " << std::to_string(outputMinC) << std::endl;
-                std::cout << " after bias channel " << std::to_string(c) << " out Max " << std::to_string(outputMaxC) << std::endl;
                 outMax[c] = outputMaxC;
                 outMin[c] = outputMinC;
-                if (outputMinC < outputMin)
-                    outputMin = outputMinC;
-
-                if (outputMaxC > outputMax)
-                    outputMax = outputMaxC;
             }
-
             outputMin = *std::min_element(outMin.begin(), outMin.end());
             outputMax = *std::max_element(outMax.begin(), outMax.end());
-
-            std::cout <<  " out Min " << std::to_string(outputMin) << std::endl;
-            std::cout << " out Max " << std::to_string(outputMax) << std::endl;
-
             outScale[0] = (outputMax - outputMin)/255;
             if (outputMin > 0.0)
                 outZp[0] = 0;
@@ -195,10 +167,8 @@ void updateOutputQuantParams(const mv::pass::PassEntry&, mv::ComputationModel& m
             else if ((outputMin < 0.0) && (outputMax > 0.0))
             {
                 auto max_diff = (outputMax/(std::abs(outputMin) + outputMax)) * 255;
-                outZp[0] = std::lround(255 - max_diff);
+                outZp[0] = std::ceil(255 - max_diff);
             }
-            std::cout << " scale " << std::to_string(outScale[0]) << std::endl;
-            std::cout <<  " zp " << std::to_string(outZp[0]) << std::endl;
             mv::QuantizationParams newOutputQuantization = {outZp,outScale,{outputMin},{outputMax}};
             output->set<mv::QuantizationParams>("quantParams", newOutputQuantization);
             opIt->set<mv::QuantizationParams>("quantParams", newOutputQuantization);
