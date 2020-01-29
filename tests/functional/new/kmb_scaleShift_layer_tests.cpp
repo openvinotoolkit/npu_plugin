@@ -14,7 +14,9 @@
 // stated in the License.
 //
 
-#include "test_model/kmb_tests_base.hpp"
+#ifdef ENABLE_MCM_COMPILER
+
+#include "test_model/kmb_test_base.hpp"
 
 struct ScaleShiftTestParams final {
     SizeVector _inDims;
@@ -114,3 +116,5 @@ const std::vector<ScaleShiftTestParams> scaleShiftParams {
 };
 
 INSTANTIATE_TEST_CASE_P(SomeCase, KmbScaleShiftLayerTests, testing::ValuesIn(scaleShiftParams));
+
+#endif

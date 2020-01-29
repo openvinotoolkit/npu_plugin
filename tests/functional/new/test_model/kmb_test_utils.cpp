@@ -242,80 +242,204 @@ Blob::Ptr makeScalarBlob(int val, const Precision& precision, size_t numDims) {
     return makeScalarBlob_(val, precision, numDims);
 }
 
-Blob::Ptr toFP32(const Blob::Ptr& in) {
-    IE_ASSERT(in != nullptr);
+namespace {
 
-    const auto& inDesc = in->getTensorDesc();
+template <typename InT, typename OutT>
+void cvtBlobPrecision_(const Blob::Ptr& in, const Blob::Ptr& out) {
+    const auto inPtr = in->cbuffer().as<const InT*>();
+    IE_ASSERT(inPtr != nullptr);
 
-    if (inDesc.getPrecision() == Precision::FP32) {
-        return in;
-    }
+    const auto outPtr = out->buffer().as<OutT*>();
+    IE_ASSERT(outPtr != nullptr);
 
-    const auto outDesc = TensorDesc(Precision::FP32, inDesc.getDims(), inDesc.getLayout());
-    const auto out = make_blob_with_precision(outDesc);
-    out->allocate();
+    std::copy_n(inPtr, in->size(), outPtr);
+}
+
+template <>
+void cvtBlobPrecision_<ie_fp16, float>(const Blob::Ptr& in, const Blob::Ptr& out) {
+    const auto inPtr = in->cbuffer().as<const ie_fp16*>();
+    IE_ASSERT(inPtr != nullptr);
 
     const auto outPtr = out->buffer().as<float*>();
     IE_ASSERT(outPtr != nullptr);
 
-    switch (inDesc.getPrecision()) {
-    case Precision::FP16: {
-        const auto inPtr = in->cbuffer().as<const ie_fp16*>();
-        IE_ASSERT(inPtr != nullptr);
-
-        PrecisionUtils::f16tof32Arrays(outPtr, inPtr, in->size());
-        break;
-    }
-    case Precision::I32: {
-        const auto inPtr = in->cbuffer().as<const int32_t*>();
-        IE_ASSERT(inPtr != nullptr);
-
-        std::copy_n(inPtr, in->size(), outPtr);
-        break;
-    }
-    case Precision::U8: {
-        const auto inPtr = in->cbuffer().as<const uint8_t*>();
-        IE_ASSERT(inPtr != nullptr);
-
-        std::copy_n(inPtr, in->size(), outPtr);
-        break;
-    }
-    case Precision::I8: {
-        const auto inPtr = in->cbuffer().as<const int8_t*>();
-        IE_ASSERT(inPtr != nullptr);
-
-        std::copy_n(inPtr, in->size(), outPtr);
-        break;
-    }
-    default:
-        THROW_IE_EXCEPTION << "Unsupported precision " << inDesc.getPrecision();
-    }
-
-    return out;
+    PrecisionUtils::f16tof32Arrays(outPtr, inPtr, in->size());
 }
 
-Blob::Ptr toFP16(const Blob::Ptr& in) {
-    IE_ASSERT(in != nullptr);
-
-    const auto& inDesc = in->getTensorDesc();
-
-    if (inDesc.getPrecision() == Precision::FP16) {
-        return in;
-    }
-
-    const auto inFP32 = toFP32(in);
-
-    const auto outDesc = TensorDesc(Precision::FP16, inDesc.getDims(), inDesc.getLayout());
-    const auto out = make_blob_with_precision(outDesc);
-    out->allocate();
-
-    const auto inPtr = inFP32->cbuffer().as<const float*>();
+template <>
+void cvtBlobPrecision_<float, ie_fp16>(const Blob::Ptr& in, const Blob::Ptr& out) {
+    const auto inPtr = in->cbuffer().as<const float*>();
     IE_ASSERT(inPtr != nullptr);
 
     const auto outPtr = out->buffer().as<ie_fp16*>();
     IE_ASSERT(outPtr != nullptr);
 
     PrecisionUtils::f32tof16Arrays(outPtr, inPtr, in->size());
+}
+
+}  // namespace
+
+void cvtBlobPrecision(const Blob::Ptr& in, const Blob::Ptr& out) {
+    IE_ASSERT(in != nullptr && out != nullptr);
+
+    IE_ASSERT(in->getTensorDesc().getDims() == out->getTensorDesc().getDims());
+    IE_ASSERT(in->getTensorDesc().getLayout() == out->getTensorDesc().getLayout());
+
+    const auto& inPrecision = in->getTensorDesc().getPrecision();
+    const auto& outPrecision = out->getTensorDesc().getPrecision();
+
+    switch (inPrecision) {
+    case Precision::FP32: {
+        switch (outPrecision) {
+        case Precision::FP16: {
+            cvtBlobPrecision_<float, ie_fp16>(in, out);
+            break;
+        }
+        case Precision::I32: {
+            cvtBlobPrecision_<float, int32_t>(in, out);
+            break;
+        }
+        case Precision::U8: {
+            cvtBlobPrecision_<float, uint8_t>(in, out);
+            break;
+        }
+        case Precision::I8: {
+            cvtBlobPrecision_<float, int8_t>(in, out);
+            break;
+        }
+        default:
+            THROW_IE_EXCEPTION << "Unsupported combination of precisions " << inPrecision << " -> " << outPrecision;
+        }
+        break;
+    }
+    case Precision::FP16: {
+        switch (outPrecision) {
+        case Precision::FP32: {
+            cvtBlobPrecision_<ie_fp16, float>(in, out);
+            break;
+        }
+        case Precision::I32: {
+            cvtBlobPrecision_<float, int32_t>(toPrecision(in, Precision::FP32), out);
+            break;
+        }
+        case Precision::U8: {
+            cvtBlobPrecision_<float, uint8_t>(toPrecision(in, Precision::FP32), out);
+            break;
+        }
+        case Precision::I8: {
+            cvtBlobPrecision_<float, int8_t>(toPrecision(in, Precision::FP32), out);
+            break;
+        }
+        default:
+            THROW_IE_EXCEPTION << "Unsupported combination of precisions " << inPrecision << " -> " << outPrecision;
+        }
+        break;
+    }
+    case Precision::I32: {
+        switch (outPrecision) {
+        case Precision::FP32: {
+            cvtBlobPrecision_<int32_t, float>(in, out);
+            break;
+        }
+        case Precision::FP16: {
+            cvtBlobPrecision_<float, ie_fp16>(toPrecision(in, Precision::FP32), out);
+            break;
+        }
+        case Precision::U8: {
+            cvtBlobPrecision_<int32_t, uint8_t>(in, out);
+            break;
+        }
+        case Precision::I8: {
+            cvtBlobPrecision_<int32_t, int8_t>(in, out);
+            break;
+        }
+        default:
+            THROW_IE_EXCEPTION << "Unsupported combination of precisions " << inPrecision << " -> " << outPrecision;
+        }
+        break;
+    }
+    case Precision::U8: {
+        switch (outPrecision) {
+        case Precision::FP32: {
+            cvtBlobPrecision_<uint8_t, float>(in, out);
+            break;
+        }
+        case Precision::FP16: {
+            cvtBlobPrecision_<float, ie_fp16>(toPrecision(in, Precision::FP32), out);
+            break;
+        }
+        case Precision::I32: {
+            cvtBlobPrecision_<uint8_t, int32_t>(in, out);
+            break;
+        }
+        case Precision::I8: {
+            cvtBlobPrecision_<uint8_t, int8_t>(in, out);
+            break;
+        }
+        default:
+            THROW_IE_EXCEPTION << "Unsupported combination of precisions " << inPrecision << " -> " << outPrecision;
+        }
+        break;
+    }
+    case Precision::I8: {
+        switch (outPrecision) {
+        case Precision::FP32: {
+            cvtBlobPrecision_<int8_t, float>(in, out);
+            break;
+        }
+        case Precision::FP16: {
+            cvtBlobPrecision_<float, ie_fp16>(toPrecision(in, Precision::FP32), out);
+            break;
+        }
+        case Precision::I32: {
+            cvtBlobPrecision_<int8_t, int32_t>(in, out);
+            break;
+        }
+        case Precision::U8: {
+            cvtBlobPrecision_<int8_t, uint8_t>(in, out);
+            break;
+        }
+        default:
+            THROW_IE_EXCEPTION << "Unsupported combination of precisions " << inPrecision << " -> " << outPrecision;
+        }
+        break;
+    }
+    default:
+        THROW_IE_EXCEPTION << "Unsupported combination of precisions " << inPrecision << " -> " << outPrecision;
+    }
+}
+
+Blob::Ptr toPrecision(const Blob::Ptr& in, const Precision& precision) {
+    IE_ASSERT(in != nullptr);
+
+    const auto& inDesc = in->getTensorDesc();
+
+    if (inDesc.getPrecision() == precision) {
+        return in;
+    }
+
+    const auto outDesc = TensorDesc(precision, inDesc.getDims(), inDesc.getLayout());
+    const auto out = make_blob_with_precision(outDesc);
+    out->allocate();
+
+    cvtBlobPrecision(in, out);
+
+    return out;
+}
+
+Blob::Ptr toLayout(const Blob::Ptr& in, Layout layout) {
+    IE_ASSERT(in != nullptr);
+
+    const auto& inDesc = in->getTensorDesc();
+    if (inDesc.getLayout() == layout) {
+        return in;
+    }
+
+    const auto outDesc = TensorDesc(inDesc.getPrecision(), inDesc.getDims(), layout);
+    const auto out = make_blob_with_precision(outDesc);
+    out->allocate();
+
+    blob_copy(in, out);
 
     return out;
 }
@@ -326,17 +450,7 @@ Blob::Ptr toDefLayout(const Blob::Ptr& in) {
     const auto& inDesc = in->getTensorDesc();
     const auto defLayout = TensorDesc::getLayoutByDims(inDesc.getDims());
 
-    if (inDesc.getLayout() == defLayout) {
-        return in;
-    }
-
-    const auto outDesc = TensorDesc(inDesc.getPrecision(), inDesc.getDims(), defLayout);
-    const auto out = make_blob_with_precision(outDesc);
-    out->allocate();
-
-    blob_copy(in, out);
-
-    return out;
+    return toLayout(in, defLayout);
 }
 
 void compareBlobs(const Blob::Ptr& actual, const Blob::Ptr& expected, float tolerance, CompareMethod method) {

@@ -14,7 +14,9 @@
 // stated in the License.
 //
 
-#include "test_model/kmb_tests_base.hpp"
+#ifdef ENABLE_MCM_COMPILER
+
+#include "test_model/kmb_test_base.hpp"
 
 struct ConvTestParams final {
     SizeVector _inDims;
@@ -171,3 +173,5 @@ const std::vector<ConvTestParams> convParams {
 };
 
 INSTANTIATE_TEST_CASE_P(SomeCase, KmbConvolutionLayerTests, testing::ValuesIn(convParams));
+
+#endif
