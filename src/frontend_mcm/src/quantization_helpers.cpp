@@ -64,25 +64,26 @@ int64_t calculateZeroPoint(float high, float low, int levels, InferenceEngine::P
     // Typical condition for symmetric case is low < 0, high > 0
     if (precision == InferenceEngine::Precision::I8) {
         if ((low <= 0.f) && (high >= 0.f)) {
-            float x = -(levels - 1) * ((high + low) * 0.5f) / (high - low);
-            zepoPoint = ceil(x);  // TODO Why not round?
+            zepoPoint = 0;
+
         } else if (low > 0.f) {
-            zepoPoint = 127 - (levels - 1);  // TODO Why not assert?
+            zepoPoint = -128;
         } else if (high < 0.f) {
-            zepoPoint = 127;  // TODO Why not assert?
+            zepoPoint = 127;
         }
     } else if (precision == InferenceEngine::Precision::U8) {
         //  MCM team provide this formula, need check
-        if ((low <= 0.f) && (high >= 0.f)) {
-            float x = -(levels - 1) * low / (high - low);
-            zepoPoint = ceil(x);  // TODO Why not round?
+        if ((low < 0.f) && (high >= 0.f)) {
+            auto x = (high/(fabs(low) + high)) * 255;
+            zepoPoint = ceil(255 - x);
         } else if (low >= 0.f) {
-            zepoPoint = 0;  // TODO Why not assert?
-        } else if (high <= 0.f) {
-            zepoPoint = (levels - 1);  // TODO Why not assert?
+            zepoPoint = 0;
+        } else if (high < 0.f) {
+            zepoPoint = 256;
         }
     }
-
+    IE_ASSERT(zepoPoint >= 0);
+    IE_ASSERT(zepoPoint < 256);
     return zepoPoint;
 }
 
