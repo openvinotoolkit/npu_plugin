@@ -16,13 +16,14 @@
 
 #include <gtest/gtest-param-test.h>
 #include <gtest/gtest.h>
+#include <hddl2_helpers/helper_remote_memory.h>
 
+#include "hddl2_helpers/helper_device_emulator.h"
 #include "hddl2_helpers/helper_remote_blob.h"
 #include "hddl2_helpers/helper_tensor_description.h"
 #include "hddl2_helpers/helper_workload_context.h"
 #include "hddl2_params.hpp"
 #include "hddl2_plugin.h"
-#include "helper_device_emulator.h"
 #include "helper_remote_context.h"
 
 using namespace vpu::HDDL2Plugin;

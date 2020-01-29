@@ -23,7 +23,6 @@
 #include "helper_remote_context.h"
 
 namespace IE = InferenceEngine;
-using namespace vpu::HDDL2Plugin;
 
 //------------------------------------------------------------------------------
 //      class HDDL2_Remote_Blob_Tests

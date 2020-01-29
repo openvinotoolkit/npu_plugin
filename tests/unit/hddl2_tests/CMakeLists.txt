@@ -21,6 +21,7 @@ target_compile_options(${TARGET_NAME}
 
 target_link_libraries(${TARGET_NAME}
     PRIVATE
+        IE::IESharedTests
         HDDL2Plugin_test_static
         HddlUnite
         IE::gtest

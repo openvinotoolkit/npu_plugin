@@ -1,5 +1,5 @@
 //
-// Copyright 2019 Intel Corporation.
+// Copyright 2020 Intel Corporation.
 //
 // This software and the related documents are Intel copyrighted materials,
 // and your use of them is governed by the express license under which they
@@ -16,20 +16,29 @@
 
 #pragma once
 
-#include <Inference.h>
-#include <gtest/gtest.h>
-#include <ie_core.hpp>
-#include <test_model_path.hpp>
+#include <memory>
 
-#include "helper_ie_core.h"
+#include "InferGraph.h"
+#include "hddl2_graph.h"
+#include "hddl2_remote_context.h"
 
-//------------------------------------------------------------------------------
-//      class HDDL2_Core_API_Tests Declaration
-//------------------------------------------------------------------------------
-class HDDL2_Core_API_Tests : public ::testing::Test,
-                             public IE_Core_Helper {
+namespace vpu {
+namespace HDDL2Plugin {
+
+class HddlUniteGraph {
 public:
-    InferenceEngine::CNNNetwork network;
-    InferenceEngine::ExecutableNetwork executableNetwork;
-    InferenceEngine::InferRequest inferRequest;
+    using Ptr = std::shared_ptr<HddlUniteGraph>;
+    explicit HddlUniteGraph(const HDDL2Graph::Ptr& graph, const HDDL2RemoteContext::Ptr& context = nullptr);
+    ~HddlUniteGraph();
+
+private:
+    HddlUnite::Inference::Graph::Ptr _graphPtr = nullptr;
+
+    /**
+     * @brief Smart pointer to remote context if we are working with remote memory
+     */
+    HDDL2RemoteContext::Ptr _contextPtr = nullptr;
 };
+
+}  // namespace HDDL2Plugin
+}  // namespace vpu

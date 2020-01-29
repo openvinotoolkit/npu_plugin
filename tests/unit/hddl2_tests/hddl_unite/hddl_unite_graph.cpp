@@ -14,34 +14,37 @@
 // stated in the License.
 //
 
-#pragma once
+#include <gtest/gtest.h>
 
-#include <ie_api.h>
-#include <ie_layouts.h>
-#include <ie_algorithm.hpp>
+#include "hddl_unite/hddl2_unite_graph.h"
+#include "helper_graph.h"
+#include "helper_remote_context.h"
 
+using namespace vpu::HDDL2Plugin;
 //------------------------------------------------------------------------------
-//      class TensorDescription_Helper
+//      class HddlUniteGraph_UnitTests Declaration
 //------------------------------------------------------------------------------
-class TensorDescription_Helper {
+class HddlUniteGraph_UnitTests : public ::testing::Test {
 public:
-    TensorDescription_Helper();
-
-    InferenceEngine::TensorDesc tensorDesc;
-    size_t tensorSize;
+    void SetUp() override;
+    HDDL2Graph::Ptr graph;
 
 protected:
-    // ResNet configuration
-    const InferenceEngine::Precision _precision = InferenceEngine::Precision::U8;
-    const InferenceEngine::SizeVector _sizeVector = {1, 3, 224, 224};
-    const InferenceEngine::Layout _layout = InferenceEngine::Layout::NCHW;
+    ImportedGraph_Helper _importedGraphHelper;
 };
 
+void HddlUniteGraph_UnitTests::SetUp() { graph = _importedGraphHelper.getGraph(); }
+
 //------------------------------------------------------------------------------
-//      class TensorDescription_Helper Implementation
+//      class HddlUniteGraph_UnitTests Initiation
 //------------------------------------------------------------------------------
-inline TensorDescription_Helper::TensorDescription_Helper() {
-    tensorDesc = InferenceEngine::TensorDesc(_precision, _sizeVector, _layout);
-    tensorSize = InferenceEngine::details::product(tensorDesc.getDims().begin(),
-                                                   tensorDesc.getDims().end());
+TEST_F(HddlUniteGraph_UnitTests, constructor_onlyGraph_NoThrow) {
+    ASSERT_NO_THROW(HddlUniteGraph hddlUniteGraph(graph));
+}
+
+TEST_F(HddlUniteGraph_UnitTests, constructor_withContext_NoThrow) {
+    RemoteContext_Helper contextHelper;
+    auto context = contextHelper.remoteContextPtr;
+
+    ASSERT_NO_THROW(HddlUniteGraph hddlUniteGraph(graph, context));
 }

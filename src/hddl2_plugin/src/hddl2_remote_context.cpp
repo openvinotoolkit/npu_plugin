@@ -69,9 +69,10 @@ IE::RemoteBlob::Ptr HDDL2RemoteContext::CreateBlob(
     }
     try {
         return std::make_shared<HDDL2RemoteBlob>(tensorDesc, shared_from_this(), params);
-    } catch (...) {
+    } catch (const std::exception& ex) {
         printf("Incorrect parameters for CreateBlob call.\n"
-               "Please make sure remote memory fd is correct.\n");
+               "Please make sure remote memory fd is correct.\nError: %s\n",
+            ex.what());
         return nullptr;
     }
 }
@@ -86,3 +87,5 @@ std::string HDDL2RemoteContext::getDeviceName() const noexcept {
 IE::ParamMap HDDL2RemoteContext::getParams() const { return _contextParams.getParamMap(); }
 
 HDDL2RemoteAllocator::Ptr HDDL2RemoteContext::getAllocator() { return _allocatorPtr; }
+
+HddlUnite::WorkloadContext::Ptr HDDL2RemoteContext::getHddlUniteWorkloadContext() const { return _workloadContext; }

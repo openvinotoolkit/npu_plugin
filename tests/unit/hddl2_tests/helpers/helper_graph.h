@@ -1,5 +1,5 @@
 //
-// Copyright 2019 Intel Corporation.
+// Copyright 2020 Intel Corporation.
 //
 // This software and the related documents are Intel copyrighted materials,
 // and your use of them is governed by the express license under which they
@@ -16,20 +16,29 @@
 
 #pragma once
 
-#include <Inference.h>
-#include <gtest/gtest.h>
-#include <ie_core.hpp>
-#include <test_model_path.hpp>
+#include <hddl2_helpers/models/precompiled_resnet.h>
+#include "hddl2_graph.h"
 
-#include "helper_ie_core.h"
+namespace vpu {
+namespace HDDL2Plugin {
 
-//------------------------------------------------------------------------------
-//      class HDDL2_Core_API_Tests Declaration
-//------------------------------------------------------------------------------
-class HDDL2_Core_API_Tests : public ::testing::Test,
-                             public IE_Core_Helper {
+class ImportedGraph_Helper {
 public:
-    InferenceEngine::CNNNetwork network;
-    InferenceEngine::ExecutableNetwork executableNetwork;
-    InferenceEngine::InferRequest inferRequest;
+    ImportedGraph_Helper();
+    HDDL2Graph::Ptr getGraph();
+
+protected:
+    const std::string _modelToImport = PrecompiledResNet_Helper::resnet.graphPath;
+    HDDL2Graph::Ptr _graphPtr = nullptr;
 };
+
+inline ImportedGraph_Helper::ImportedGraph_Helper() {
+    _graphPtr= std::make_shared<HDDL2ImportedGraph>(_modelToImport);
+}
+
+HDDL2Graph::Ptr ImportedGraph_Helper::getGraph() {
+    return _graphPtr;
+}
+
+}
+}

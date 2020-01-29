@@ -22,6 +22,7 @@ namespace vpu {
 namespace HDDL2Plugin {
 
 #define HDDLUNITE_ERROR_str std::string("[HDDLUNITE_ERROR] ")
+#define FILES_ERROR_str std::string("[FILES_ERROR] ")
 #define CONFIG_ERROR_str std::string("[INVALID CONFIG] ")
 #define CONTEXT_ERROR_str std::string("[INVALID REMOTE CONTEXT] ")
 

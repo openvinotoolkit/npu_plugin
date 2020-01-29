@@ -66,11 +66,6 @@ vpu::HDDL2Plugin::HDDL2InferRequest::HDDL2InferRequest(const InferenceEngine::In
         InferenceEngine::Precision precision = networkInput.second->getTensorDesc().getPrecision();
         InferenceEngine::Layout layout = networkInput.second->getTensorDesc().getLayout();
 
-        if (precision != InferenceEngine::Precision::U8) {
-            THROW_IE_EXCEPTION << PARAMETER_MISMATCH_str << "Unsupported input precision: " << precision
-                               << "! Supported precisions only U8";
-        }
-
         _inputs[networkInput.first] = make_blob_with_precision(InferenceEngine::TensorDesc(precision, dims, layout));
         if (_inputs[networkInput.first] == nullptr) THROW_IE_EXCEPTION << "InputBlob is nullptr.";
         _inputs[networkInput.first]->allocate();
@@ -139,6 +134,8 @@ void vpu::HDDL2Plugin::HDDL2InferRequest::InferSync() {
     }
     inputBlob->updateBlob(inputDesc);
 
-    HddlStatusCode syncCode = inferSync(*(_graph.get()), _inferData);
+    IE_ASSERT(_graph != nullptr);
+
+    HddlStatusCode syncCode = inferSync(*_graph, _inferData);
     if (syncCode != HddlStatusCode::HDDL_OK) THROW_IE_EXCEPTION << "InferSync FAILED! return code:" << syncCode;
 }

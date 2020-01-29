@@ -14,20 +14,16 @@
 // stated in the License.
 //
 
-#include <gtest/gtest-param-test.h>
-#include <gtest/gtest.h>
+#pragma once
 
-#include <fstream>
-#include <ie_core.hpp>
-
-namespace IE = InferenceEngine;
-
-class HDDL2_loadNetwork_Tests : public ::testing::Test {
+//------------------------------------------------------------------------------
+//      class ModelPooling_Helper Declaration
+//------------------------------------------------------------------------------
+class ModelPooling_Helper {
 public:
-    std::string device_name = "HDDL2";
-    InferenceEngine::Core ie;
-    InferenceEngine::ExecutableNetwork executableNetwork;
-    InferenceEngine::InferRequest inferRequest;
+    ModelPooling_Helper();
+    InferenceEngine::Blob::CPtr weights;
+    InferenceEngine::CNNNetwork network;
 
     const std::string model = R"V0G0N(
     <net batch="1" name="POOLING_TEST" version="2">
@@ -67,25 +63,12 @@ public:
     </edges>
     </net>
         )V0G0N";
-
-    InferenceEngine::Blob::CPtr weights;
-    InferenceEngine::CNNNetwork network = ie.ReadNetwork(model, weights);
 };
 
-TEST_F(HDDL2_loadNetwork_Tests, CanFindPlugin) { ASSERT_NO_THROW(ie.LoadNetwork(network, device_name)); }
-
-TEST_F(HDDL2_loadNetwork_Tests, CanCreateExecutableNetworkLoadNetwork) {
-    ASSERT_NO_THROW(executableNetwork = ie.LoadNetwork(network, device_name));
-}
-
-TEST_F(HDDL2_loadNetwork_Tests, CanCreateInferRequestAfterLoadNetwork) {
-    ASSERT_NO_THROW(executableNetwork = ie.LoadNetwork(network, device_name));
-    ASSERT_NO_THROW(inferRequest = executableNetwork.CreateInferRequest());
-}
-
-TEST_F(HDDL2_loadNetwork_Tests, CanCallInfer) {
-    ASSERT_NO_THROW(executableNetwork = ie.LoadNetwork(network, device_name));
-    ASSERT_NO_THROW(inferRequest = executableNetwork.CreateInferRequest());
-
-    ASSERT_NO_THROW(inferRequest.Infer());
+//------------------------------------------------------------------------------
+//      class ModelPooling_Helper Implementation
+//------------------------------------------------------------------------------
+inline ModelPooling_Helper::ModelPooling_Helper() {
+    InferenceEngine::Core ie;
+    network = ie.ReadNetwork(model, weights);
 }

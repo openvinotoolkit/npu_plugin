@@ -26,7 +26,7 @@ using namespace vpu::HDDL2Plugin;
 namespace IE = InferenceEngine;
 
 //------------------------------------------------------------------------------
-//      class  Implementation
+//      class HDDL2BlobParams Implementation
 //------------------------------------------------------------------------------
 HDDL2BlobParams::HDDL2BlobParams(const InferenceEngine::ParamMap& params) {
     if (params.empty()) {
@@ -40,7 +40,12 @@ HDDL2BlobParams::HDDL2BlobParams(const InferenceEngine::ParamMap& params) {
                            << "Param map does not contain remote memory file descriptor "
                               "information";
     }
-    _remoteMemoryFd = remote_memory_fd_iter->second.as<uint64_t>();
+    try {
+        _remoteMemoryFd = remote_memory_fd_iter->second.as<uint64_t>();
+    } catch (...) {
+        THROW_IE_EXCEPTION << CONFIG_ERROR_str << "Param have incorrect type information";
+    }
+
     _paramMap = params;
 }
 

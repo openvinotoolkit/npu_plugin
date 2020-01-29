@@ -18,12 +18,12 @@
 
 #include <gtest/gtest.h>
 
+#include "hddl2_helpers/helper_device_emulator.h"
 #include "hddl2_helpers/helper_remote_blob.h"
+#include "hddl2_helpers/helper_remote_memory.h"
 #include "hddl2_helpers/helper_tensor_description.h"
 #include "hddl2_params.hpp"
-#include "helper_device_emulator.h"
 #include "helper_remote_context.h"
-
 using namespace vpu::HDDL2Plugin;
 namespace IE = InferenceEngine;
 
@@ -82,7 +82,7 @@ TEST_F(HDDL2_RemoteBlob_UnitTests, constructor_FromEmptyParams_ThrowException) {
     ASSERT_ANY_THROW(HDDL2RemoteBlob blob(tensorDesc, remoteContextPtr, emptyParams));
 }
 
-// TODO HddlUnite doesn't is this a correct fd or not? Or it's just some memory offset...
+// TODO Not working - HddlUnite problem
 TEST_F(HDDL2_RemoteBlob_UnitTests, DISABLED_constructor_FromNotExistsBufFd_ThrowException) {
     InferenceEngine::ParamMap notExistsFd = {{IE::HDDL2_PARAM_KEY(REMOTE_MEMORY_FD), notExistsBufFd}};
 

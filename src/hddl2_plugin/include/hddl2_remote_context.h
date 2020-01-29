@@ -69,6 +69,7 @@ public:
 
     InferenceEngine::ParamMap getParams() const override;
     HDDL2RemoteAllocator::Ptr getAllocator();
+    HddlUnite::WorkloadContext::Ptr getHddlUniteWorkloadContext() const;
 
 protected:
     HDDL2ContextParams _contextParams;

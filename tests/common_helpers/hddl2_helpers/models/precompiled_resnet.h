@@ -16,32 +16,26 @@
 
 #pragma once
 
+#include <cpp/ie_cnn_net_reader.h>
 #include <ie_api.h>
-#include <ie_layouts.h>
-#include <ie_algorithm.hpp>
+#include "test_model_path.hpp"
 
 //------------------------------------------------------------------------------
-//      class TensorDescription_Helper
+//      PrecompiledResNet_Helper parameters
 //------------------------------------------------------------------------------
-class TensorDescription_Helper {
-public:
-    TensorDescription_Helper();
-
-    InferenceEngine::TensorDesc tensorDesc;
-    size_t tensorSize;
-
-protected:
-    // ResNet configuration
-    const InferenceEngine::Precision _precision = InferenceEngine::Precision::U8;
-    const InferenceEngine::SizeVector _sizeVector = {1, 3, 224, 224};
-    const InferenceEngine::Layout _layout = InferenceEngine::Layout::NCHW;
+struct modelBlobInfo {
+    std::string graphName, graphPath, inputPath, outputPath;
 };
 
 //------------------------------------------------------------------------------
-//      class TensorDescription_Helper Implementation
+//      PrecompiledResNet_Helper Declaration
 //------------------------------------------------------------------------------
-inline TensorDescription_Helper::TensorDescription_Helper() {
-    tensorDesc = InferenceEngine::TensorDesc(_precision, _sizeVector, _layout);
-    tensorSize = InferenceEngine::details::product(tensorDesc.getDims().begin(),
-                                                   tensorDesc.getDims().end());
-}
+namespace PrecompiledResNet_Helper {
+    static const modelBlobInfo resnet =
+            {
+                    .graphName = "resnet",
+                    .graphPath = ModelsPath() + "/KMB_models/BLOBS/resnet/resnet.blob",
+                    .inputPath = ModelsPath() + "/KMB_models/BLOBS/resnet/input.dat",
+                    .outputPath = ModelsPath() + "/KMB_models/BLOBS/resnet/output.dat",
+            };
+};

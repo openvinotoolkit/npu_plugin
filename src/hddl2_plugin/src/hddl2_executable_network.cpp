@@ -94,6 +94,7 @@ vpu::HDDL2Plugin::ExecutableNetwork::ExecutableNetwork(InferenceEngine::ICNNNetw
     network.getOutputsInfo(_networkOutputs);
 #else
     UNUSED(network);
+    THROW_IE_EXCEPTION << " MCM compiler is disabled!";
 #endif
 }
 
