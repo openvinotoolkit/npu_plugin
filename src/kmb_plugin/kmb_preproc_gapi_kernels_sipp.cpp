@@ -53,13 +53,27 @@ GAPI_SIPP_KERNEL(GSippResizeP, GResizeP) {
     }
 };
 
-// clang-format on
+// FIXME:
+// Rewrite using sipp_kernel_simple
+GAPI_SIPP_KERNEL(GSippMerge3p, GMerge3p) {
+    static cv::gimpl::GSIPPKernel::InitInfo Init(cv::GMatDesc) {
+        return {SVU_SYM(svuMerge3p), 0, 1, 1, 0, false};
+    }
+
+    static void Configure(cv::GMatDesc, const cv::GSippConfigUserContext&) {}
+};
 
 namespace sipp {
-cv::gapi::GKernelPackage kernels() {
-    static auto pkg = cv::gapi::kernels<GSippNV12toBGRp, GSippNV12toRGBp, GSippResizeP>();
-    return pkg;
-}
+    cv::gapi::GKernelPackage kernels() {
+        static auto pkg = cv::gapi::kernels
+            < GSippNV12toBGRp
+            , GSippNV12toRGBp
+            , GSippMerge3p
+            , GSippResizeP
+            >();
+        return pkg;
+    }
+// clang-format on
 }  // namespace sipp
 }  // namespace preproc
 }  // namespace gapi

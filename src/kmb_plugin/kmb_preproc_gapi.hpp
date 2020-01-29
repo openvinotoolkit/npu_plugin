@@ -9,6 +9,7 @@
 #include <ie_preprocess.hpp>
 #include <memory>
 
+// clang-format off
 namespace InferenceEngine {
 
 class SIPPPreprocEngine {
@@ -19,8 +20,9 @@ public:
     SIPPPreprocEngine(unsigned int shaveFirst, unsigned int shaveLast, unsigned int lpi);
     ~SIPPPreprocEngine();
 
-    void preprocWithSIPP(const Blob::Ptr& inBlob, Blob::Ptr& outBlob, const ResizeAlgorithm& algorithm,
-        ColorFormat in_fmt, bool omp_serial, int batch_size);
+    void preprocWithSIPP(const Blob::Ptr &inBlob, Blob::Ptr &outBlob,
+                         const ResizeAlgorithm& algorithm, ColorFormat in_fmt);
 };
 
 }  // namespace InferenceEngine
+// clang-format on

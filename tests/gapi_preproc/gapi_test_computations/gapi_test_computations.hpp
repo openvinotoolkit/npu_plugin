@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+// clang-format off
 #ifndef GAPI_TEST_COMPUTATIONS_HPP
 #define GAPI_TEST_COMPUTATIONS_HPP
 
@@ -67,4 +68,16 @@ public:
     NV12toRGBComputation(test::Mat inMat_y, test::Mat inMat_uv, test::Mat outMat);
 };
 
-#endif  // GAPI_TEST_COMPUTATIONS_HPP
+class GAPI_COMPUTATION_VISIBILITY MergeComputation : public ComputationBase
+{
+    struct MergePriv;
+    std::unique_ptr<MergePriv> m_mergePriv;
+public:
+    MergeComputation(test::Mat inMat, test::Mat outMat);
+    ~MergeComputation();
+    void warmUp();
+    void apply();
+};
+
+#endif // GAPI_TEST_COMPUTATIONS_HPP
+// clang-format on

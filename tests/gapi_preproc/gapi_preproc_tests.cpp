@@ -18,6 +18,7 @@
 #include "gapi_test_computations.hpp"
 #include "kmb_vpusmm_allocator.h"
 
+// clang-format off
 namespace {
 
 void toPlanar(const cv::Mat& in, cv::Mat& out) {
@@ -394,6 +395,52 @@ TEST_P(ResizePTestGAPI, AccuracyTest) {
 
 INSTANTIATE_TEST_CASE_P(ResizePTestSIPP, ResizePTestGAPI, Values(TEST_SIZES_PREPROC));
 
+
+struct Merge3PTestGAPI: public testing::TestWithParam<cv::Size> {};
+TEST_P(Merge3PTestGAPI, AccuracyTest)
+{
+    auto sz = GetParam();
+    cv::Size sz_in_p (sz.width, sz.height *3);
+
+    auto allocMat = [](cv::Size sz, int type, AllocHelper& allocator) {
+        return cv::Mat(sz, type, allocator.alloc(sz.width*sz.height*CV_ELEM_SIZE(type)));
+    };
+
+    AllocHelper allocator;
+
+    cv::Mat in_mat = allocMat(sz_in_p, CV_8UC1, allocator);
+    cv::randn(in_mat, cv::Scalar::all(127), cv::Scalar::all(40.f));
+
+    cv::Mat out_mat_gapi = allocMat(sz, CV_8UC3, allocator);
+    cv::Mat out_mat_ocv  = allocMat(sz, CV_8UC3, allocator);
+
+    // G-API code //////////////////////////////////////////////////////////////
+    MergeComputation mc(to_test(in_mat), to_test(out_mat_gapi));
+    mc.warmUp();
+
+    // OpenCV code /////////////////////////////////////////////////////////////
+    {
+        constexpr const int planeNum = 3;
+        std::array<cv::Mat, planeNum> ins;
+        for (int i = 0; i < planeNum; i++) {
+            ins[i] = in_mat(cv::Rect(0, i*sz.height, sz.width, sz.height));
+        }
+        cv::merge(ins, out_mat_ocv);
+    }
+    // Comparison //////////////////////////////////////////////////////////////
+    {
+        cv::Mat absDiff;
+        cv::absdiff(out_mat_gapi, out_mat_ocv, absDiff);
+        EXPECT_EQ(0, cv::countNonZero(absDiff > 1));
+    }
+
+    std::cout << in_mat << std::endl << std::endl;
+    std::cout << out_mat_ocv << std::endl;
+}
+
+INSTANTIATE_TEST_CASE_P(Merge3PTestSIPP, Merge3PTestGAPI,
+                        Values(cv::Size(32, 8)));
+
 using namespace testing;
 
 struct KmbSippPreprocEngineTest : public TestWithParam<std::pair<cv::Size, cv::Size>> {};
@@ -436,7 +483,7 @@ TEST_P(KmbSippPreprocEngineTest, TestNV12Resize) {
 
         auto in_blob = make_shared_blob<NV12Blob>(y_roi_blob, uv_roi_blob);
 
-        pe.preprocWithSIPP(in_blob, out_blob, interp, in_fmt, true, 1);
+        pe.preprocWithSIPP(in_blob, out_blob, interp, in_fmt);
 
         Blob2Img<prec>(out_blob, out_mat, out_layout);
 
@@ -454,8 +501,11 @@ TEST_P(KmbSippPreprocEngineTest, TestNV12Resize) {
 
 INSTANTIATE_TEST_CASE_P(Preproc, KmbSippPreprocEngineTest, Values(TEST_SIZES_PREPROC));
 
-struct KmbSippPreprocPoolTest : public TestWithParam<std::tuple<cv::Size, cv::Size, cv::Size>> {};
-TEST_P(KmbSippPreprocPoolTest, TestNV12Resize) {
+struct KmbSippPreprocPoolTest: public TestWithParam<std::tuple<
+    std::tuple<cv::Size, cv::Size, cv::Size>,
+    InferenceEngine::Layout>> {};
+TEST_P(KmbSippPreprocPoolTest, TestNV12Resize)
+{
     using namespace InferenceEngine;
 
     constexpr auto prec = Precision::U8;
@@ -463,7 +513,8 @@ TEST_P(KmbSippPreprocPoolTest, TestNV12Resize) {
     Layout in_layout = Layout::NCHW;
     Layout out_layout = in_layout;
     ColorFormat in_fmt = ColorFormat::NV12;
-    auto sizes = GetParam();
+    std::tuple<cv::Size,cv::Size,cv::Size> sizes;
+    std::tie(sizes, out_layout) = GetParam();
     cv::Size y_size, detect_size, classify_size;
     std::tie(y_size, detect_size, classify_size) = sizes;
 
@@ -576,5 +627,12 @@ TEST_P(KmbSippPreprocPoolTest, TestNV12Resize) {
     }
 }
 
+using testing::Combine;
 INSTANTIATE_TEST_CASE_P(Preproc, KmbSippPreprocPoolTest,
-    Values(std::make_tuple(cv::Size(1920, 1080), cv::Size(224, 224), cv::Size(416, 416))));
+                        Combine(Values(std::make_tuple(cv::Size(1920, 1080),
+                                                       cv::Size(224, 224),
+                                                       cv::Size(416, 416))),
+                                Values(InferenceEngine::Layout::NCHW,
+                                       InferenceEngine::Layout::NHWC)));
+
+// clang-format on

@@ -5,6 +5,7 @@
 #ifdef ENABLE_VPUAL
 #include "kmb_preproc_gapi_kernels.hpp"
 
+// clang-format off
 namespace InferenceEngine {
 namespace gapi {
 
@@ -16,6 +17,11 @@ cv::GMatP resizeP(const cv::GMatP& src, const cv::gapi::own::Size& dsize, int in
     return preproc::GResizeP::on(src, dsize, interpolation);
 }
 
+cv::GMat merge3p(const cv::GMatP& src) {
+    return preproc::GMerge3p::on(src);
+}
+
 }  // namespace gapi
 }  // namespace InferenceEngine
+// clang-format on
 #endif
