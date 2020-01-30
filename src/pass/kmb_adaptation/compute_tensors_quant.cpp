@@ -77,21 +77,23 @@ void updateOutputQuantParams(const mv::pass::PassEntry&, mv::ComputationModel& m
     std::vector <mv::Data::OpListIterator> convolutions = {};
     convolutions.reserve(operationsOfConvolution["Conv"].size() + operationsOfConvolution["Depthwise"].size() + operationsOfConvolution["ChannelMajorConvolution"].size());
     convolutions.insert(convolutions.end(), operationsOfConvolution["Conv"].begin(), operationsOfConvolution["Conv"].end());
+    double inf = std::numeric_limits<double>::infinity();
     for(auto& opIt : convolutions)
     {
         auto output = opIt->getOutputTensor(0);
         auto input = opIt->getInputTensor(0);
         auto outputChannels = output->getShape()[mv::IO_CHANNEL_DIMENSION];
 
-        double inf = std::numeric_limits<double>::infinity();
-        double outputMin = inf;
-        double outputMax = -inf;
-
-        std::vector<double> outMin(outputChannels, inf);
-        std::vector<double> outMax(outputChannels, -inf);
         if (!output->hasAttr("quantParams")
                 || isQuantizationParamNeutral(output->get<mv::QuantizationParams>("quantParams")))
         {
+
+            double outputMin = inf;
+            double outputMax = -inf;
+
+            std::vector<double> outMin(outputChannels, inf);
+            std::vector<double> outMax(outputChannels, -inf);
+
             auto& inputQuantization = input->get<mv::QuantizationParams>("quantParams");
             //Note: if input Tensor has min, max of infs...we need to compute them
             if (inputQuantization.infinitelimits())
@@ -105,8 +107,10 @@ void updateOutputQuantParams(const mv::pass::PassEntry&, mv::ComputationModel& m
                                                             inputQuantization.getScale(),{minimumFloat},{maximumFloat});
                 input->set<mv::QuantizationParams>("quantParams", newInputQuantization);
             }
+
             auto& newInputQuantization = input->get<mv::QuantizationParams>("quantParams");
             auto weights = opIt->getInputTensor("weights");
+            auto kernelShape = weights->getShape();
             auto& weightsQuantization = weights->get<mv::QuantizationParams>("quantParams");
             auto weights_scale = extendToK(outputChannels, weightsQuantization.getScale(), weights->getName());
             auto weights_zp = extendToK(outputChannels, weightsQuantization.getZeroPoint(), weights->getName());
@@ -114,31 +118,33 @@ void updateOutputQuantParams(const mv::pass::PassEntry&, mv::ComputationModel& m
             //input/output quantization are per tensor, weights, bias quantization are per channel
             std::vector<double> outScale(1);
             std::vector<int64_t> outZp(1);
-            auto fullkernelSize = weights->getShape().totalSize()/outputChannels;
             auto minIn = newInputQuantization.getMin();
             auto maxIn = newInputQuantization.getMax();
 
             bool hasBias = opIt->hasAttr("bias");
-            mv::QuantizationParams biasQuantization({},{},{},{});
             mv::Data::TensorIterator bias;
-            std::vector<double> biasScale;
-            std::vector<uint64_t> biasZp;
             if (hasBias)
             {
                 bias = dm.getTensor(opIt->get<std::string>("bias"));
-                biasQuantization = bias->get<mv::QuantizationParams>("quantParams");
             }
             double_t real_weight, real_bias;
-            for (size_t c = 0; c < outputChannels; c++)
+            for (size_t k = 0; k < kernelShape[mv::KERNEL_OUTPUT_CHANNELS]; k++)
             {
                 double sum_weight = 0;
                 double outputMinC = 0;
                 double outputMaxC = 0;
-                for (size_t index = 0; index < fullkernelSize; index++)
-                {
-                    real_weight = ((int64_t) weights->at(index + c*fullkernelSize) - weights_zp[c]) * weights_scale[c];
-                    sum_weight += real_weight;
-                }
+                double biasScale = weights_scale[k] * newInputQuantization.getScale()[0];
+
+                for (size_t c = 0; c < kernelShape[mv::KERNEL_INPUT_CHANNELS]; c++)
+                    for (size_t h = 0; h < kernelShape[mv::KERNEL_HEIGHT]; h++)
+                        for (size_t w = 0; w < kernelShape[mv::KERNEL_WIDTH]; w++)
+                        {
+                            auto currWeight = (int64_t)weights->at({w,h,c,k});
+                            real_weight = ((int64_t) currWeight - weights_zp[k]) * weights_scale[k];
+
+                            sum_weight += real_weight;
+                        }
+
                 outputMaxC = maxIn[0] * sum_weight;
                 outputMinC = minIn[0] * sum_weight;
                 if (outputMinC > outputMaxC)
@@ -150,19 +156,20 @@ void updateOutputQuantParams(const mv::pass::PassEntry&, mv::ComputationModel& m
                 }
                 if (hasBias)
                 {
-                    real_bias = ((int64_t) bias->at(c)) * biasQuantization.getScale()[0];
+                    real_bias = ((int64_t) bias->at(k)) * biasScale;
                     outputMinC += real_bias;
                     outputMaxC += real_bias;
                 }
-                outMax[c] = outputMaxC;
-                outMin[c] = outputMinC;
+                outMax[k] = outputMaxC;
+                outMin[k] = outputMinC;
             }
             outputMin = *std::min_element(outMin.begin(), outMin.end());
             outputMax = *std::max_element(outMax.begin(), outMax.end());
+
             outScale[0] = (outputMax - outputMin)/255;
-            if (outputMin > 0.0)
+            if (outputMin >= 0.0)
                 outZp[0] = 0;
-            else if (outputMax < 0.0)
+            else if (outputMax <= 0.0)
                 outZp[0] = 255;
             else if ((outputMin < 0.0) && (outputMax > 0.0))
             {
