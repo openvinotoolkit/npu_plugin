@@ -11,14 +11,16 @@
                 "Number_of_DPUs" : 20,
                 "Number_of_Clusters" : 4,
                 "UpaShaves": 1,
+                "WorkloadCost": 300,
                 "DDRScratch": 16777216,
                 "MemoryHack": false,
                 "cmx": 917504,
                 "enable_channel_major_conv": false,
+                "DPUTasksinFloat": false,
                 "split_strategy" :
                 [
                     {
-                        "name_filter" : "name",
+                        "name_filter" : "Example",
                         "cluster_filter" : 0,
                         "strategy" : "Example"
                     }
@@ -51,11 +53,11 @@
                 "streaming_strategy" :
                 [
                     {
-                        "name_filter" : "Example_do_not_remove",
+                        "name_filter" : "Example",
                         "splits" : [
-                            {"C" : 1},
-                            {"H" : 1},
                             {"W" : 1},
+                            {"H" : 1},
+                            {"C" : 1},
                             {"K" : 1}
                         ]
                     }
@@ -63,7 +65,7 @@
                 "sparsity_strategy" :
                 [
                     {
-                        "name_filter": "Example_do_not_remove",
+                        "name_filter": "Example",
                         "inputActivationSparsity": false,
                         "outputActivationSparsity": false,
                         "weightsSparsity": false
@@ -125,8 +127,8 @@
                         {
                             "name" : "DepthwiseConv",
                             "strategies": [
-                                {"name" : "streamingStrategies",  "value" : ["StreamOverH","StreamOverW"]},
-                                {"name" : "clusteringStrategies", "value" : ["SplitOverH","SplitOverK","Clustering"]},
+                                {"name" : "streamingStrategies",  "value" : ["StreamOverH","StreamOverC"]},
+                                {"name" : "clusteringStrategies", "value" : ["SplitOverH","Clustering"]},
                                 {"name" : "inputActivationSparsity",             "value" : false},
                                 {"name" : "outputActivationSparsity",             "value" : true},
                                 {"name" : "weightsSparsity",                      "value" : false}
@@ -216,7 +218,7 @@
             "LayerNumbering",
             {
                 "name": "HangingDmaControlFlows",
-                "weights_prefetch": 1
+                "weights_prefetch": 2
             },
             "TransitiveReduction",
             "LayerNumbering",
@@ -272,6 +274,7 @@
     },
     "serialize": {
         "Singular": [
+            "RemoveRedundantUpdateBarriers",
             {
                 "name": "GenerateBlobKmb",
                 "output": "output/mcm.blob"
@@ -286,7 +289,6 @@
     "root": {
         "Singular": [
             "initialize",
-            "validate",
             "adapt",
             "kmb_adapt",
             "dma",

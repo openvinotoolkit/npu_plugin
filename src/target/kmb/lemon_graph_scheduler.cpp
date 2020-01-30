@@ -41,7 +41,7 @@ void  mv::LemonGraphScheduler::convertMcMGraphToLemonGraph(const mv::pass::PassE
         bool nodeAdded = false;
         /*Check if node is a DMA task "CMX to DDR" (this is the sink node in Lemon graph and we need to keep track of it) */
         //if (opIt->hasAttr("lastDMAOp") && opIt->get<bool>("lastDMAOp"))
-        if (opIt->hasAttr("lastOpKoala") && opIt->get<bool>("lastOpKoala"))
+        if (opIt->hasAttr("MaxCutSinkNode") && opIt->get<bool>("MaxCutSinkNode"))
         {
             this->log(mv::Logger::MessageType::Debug, "Adding vertex to Lemon graph: " + opIt->getName());
 
@@ -87,7 +87,8 @@ void  mv::LemonGraphScheduler::convertMcMGraphToLemonGraph(const mv::pass::PassE
 
             auto sourceName = flowIt.source()->getName();
             auto sinkName  = flowIt.sink()->getName();
-            if (sinkName.substr(0,6) == "Output") continue;
+            if ((sinkName.substr(0,6) == "Output") && ( !flowIt.sink()->hasAttr("MaxCutSinkNode") )) 
+                continue;   // keep graphs small. Only add edge to "output" if its the MaxcutSinkNode
 
             /*If the control flow has a memoryRequirment attribute add it to edges*/
             uint64_t memReq = 0;
