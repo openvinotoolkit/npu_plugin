@@ -59,32 +59,31 @@ bool isRealQuantizeLayer(const InferenceEngine::CNNLayerPtr& layer) {
 }
 
 int64_t calculateZeroPoint(float high, float low, int levels, InferenceEngine::Precision precision) {
-    int64_t zepoPoint = 0;
+    int64_t zeroPoint = 0;
 
     // Typical condition for symmetric case is low < 0, high > 0
     if (precision == InferenceEngine::Precision::I8) {
         if ((low <= 0.f) && (high >= 0.f)) {
-            zepoPoint = 0;
-
+            float x = -(levels - 1) * ((high + low) * 0.5f) / (high - low);
+            zeroPoint = ceil(x);  // TODO Why not round?
         } else if (low > 0.f) {
-            zepoPoint = -128;
+            zeroPoint = 127 - (levels - 1);  // TODO Why not assert?
         } else if (high < 0.f) {
-            zepoPoint = 127;
+            zeroPoint = 127;  // TODO Why not assert?
         }
     } else if (precision == InferenceEngine::Precision::U8) {
         //  MCM team provide this formula, need check
-        if ((low < 0.f) && (high >= 0.f)) {
-            auto x = (high/(fabs(low) + high)) * 255;
-            zepoPoint = ceil(255 - x);
+        if ((low <= 0.f) && (high >= 0.f)) {
+            auto x = (high / (fabs(low) + high)) * (levels - 1);
+            zeroPoint = ceil(levels - 1 - x);  // TODO Why not round?
         } else if (low >= 0.f) {
-            zepoPoint = 0;
-        } else if (high < 0.f) {
-            zepoPoint = 256;
+            zeroPoint = 0;  // TODO Why not assert?
+        } else if (high <= 0.f) {
+            zeroPoint = (levels - 1);  // TODO Why not assert?
         }
     }
-    IE_ASSERT(zepoPoint >= 0);
-    IE_ASSERT(zepoPoint < 256);
-    return zepoPoint;
+
+    return zeroPoint;
 }
 
 void reCalculateQuantizationParamsOnActivation(
