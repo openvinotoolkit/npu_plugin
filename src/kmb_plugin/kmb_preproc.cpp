@@ -48,13 +48,12 @@ bool isApplicable(const InferenceEngine::BlobMap& inputs, const std::map<std::st
 }
 
 void execSIPPDataPreprocessing(InferenceEngine::BlobMap& inputs, std::map<std::string, PreProcessDataPtr>& preprocData,
-    InferenceEngine::InputsDataMap& networkInputs, int curBatch, bool /*serial*/, unsigned int numShaves,
+    InferenceEngine::InputsDataMap& networkInputs, InferenceEngine::ColorFormat out_format, unsigned int numShaves,
     unsigned int lpi) {
-    IE_ASSERT(curBatch == 1);
     IE_ASSERT(numShaves > 0 && numShaves <= 16)
         << "SippPreproc::execSIPPDataPreprocessing "
         << "attempt to set invalid number of shaves for SIPP: " << numShaves << ", valid numbers are from 1 to 16";
-    sippPreprocPool().execSIPPDataPreprocessing({inputs, preprocData, networkInputs}, numShaves, lpi);
+    sippPreprocPool().execSIPPDataPreprocessing({inputs, preprocData, networkInputs, out_format}, numShaves, lpi);
 }
 }  // namespace SippPreproc
 

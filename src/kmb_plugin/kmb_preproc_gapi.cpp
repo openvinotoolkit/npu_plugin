@@ -31,7 +31,8 @@ public:
         : _shaveFirst(shaveFirst), _shaveLast(shaveLast), _lpi(lpi) {}
 
     void preprocWithSIPP(const Blob::Ptr &inBlob, Blob::Ptr &outBlob,
-                         const ResizeAlgorithm& algorithm, ColorFormat in_fmt);
+                         const ResizeAlgorithm& algorithm,
+                         ColorFormat in_fmt, ColorFormat out_fmt);
 };
 
 namespace {
@@ -140,9 +141,10 @@ cv::gapi::own::Size getFullImageSize(const Blob::Ptr& blob) {
 }  // anonymous namespace
 
 void SIPPPreprocEngine::Priv::preprocWithSIPP(const Blob::Ptr &inBlob, Blob::Ptr &outBlob,
-                     const ResizeAlgorithm& algorithm, ColorFormat in_fmt) {
+                     const ResizeAlgorithm& algorithm, ColorFormat in_fmt, ColorFormat out_fmt) {
     IE_ASSERT(algorithm == RESIZE_BILINEAR);
     IE_ASSERT(in_fmt == NV12);
+    IE_ASSERT(out_fmt == ColorFormat::RGB || out_fmt == ColorFormat::BGR);
 
     using namespace cv;
     using namespace cv::gapi;
@@ -163,7 +165,8 @@ void SIPPPreprocEngine::Priv::preprocWithSIPP(const Blob::Ptr &inBlob, Blob::Ptr
         GMat in_y, in_uv, out;
         own::Size out_sz{output.cols, output.rows};
 
-        auto rgb = gapi::NV12toBGRp(in_y, in_uv);
+        auto rgb = out_fmt == ColorFormat::RGB ? gapi::NV12toRGBp(in_y, in_uv)
+                                               : gapi::NV12toBGRp(in_y, in_uv);
         if (outBlob->getTensorDesc().getLayout() == NCHW) {
             out_sz.height /= 3;
             out = gapi::resizeP(rgb, out_sz);
@@ -193,8 +196,9 @@ SIPPPreprocEngine::SIPPPreprocEngine(unsigned int shaveFirst, unsigned int shave
 SIPPPreprocEngine::~SIPPPreprocEngine() = default;
 
 void SIPPPreprocEngine::preprocWithSIPP(const Blob::Ptr &inBlob, Blob::Ptr &outBlob,
-                                        const ResizeAlgorithm& algorithm, ColorFormat in_fmt) {
-    return _priv->preprocWithSIPP(inBlob, outBlob, algorithm, in_fmt);
+                                        const ResizeAlgorithm& algorithm,
+                                        ColorFormat in_fmt, ColorFormat out_fmt) {
+    return _priv->preprocWithSIPP(inBlob, outBlob, algorithm, in_fmt, out_fmt);
 }
 
 }  // namespace InferenceEngine

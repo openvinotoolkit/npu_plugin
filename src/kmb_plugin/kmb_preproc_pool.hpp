@@ -21,6 +21,7 @@ struct PreprocTask {
     InferenceEngine::BlobMap& inputs;
     std::map<std::string, PreProcessDataPtr>& preprocData;
     InferenceEngine::InputsDataMap& networkInputs;
+    InferenceEngine::ColorFormat out_format;
 };
 
 class SIPPPreprocEngine;
