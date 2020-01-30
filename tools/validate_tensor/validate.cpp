@@ -211,10 +211,29 @@ int runEmulator(std::string pathXML, std::string pathImage, std::string& blobPat
         remove(fullBlobPath.c_str());
     } while (blobPath != "");
     
+    // check if we have 2 input xml models (CPU/KMB)
+    std::vector<std::string> pathXMLvector;
+    if ( pathXML.find(",") != std::string::npos)
+    {
+        // dual xml provided
+        std::stringstream sstream(pathXML);
+        while( sstream.good() )
+        {
+            std::string subStr;
+            std::getline( sstream, subStr, ',');
+            pathXMLvector.push_back( subStr );
+        }
+    }
+    else 
+    {   // single xml provided
+        pathXMLvector.push_back( pathXML );
+    }
+
+
     // execute the classification sample async (CPU-plugin)
     std::cout << "Generating reference results... " << std::endl;
     std::string commandline = std::string("cd ") + std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + "  && " + 
-        "./test_classification -m " + pathXML + " -d CPU";
+        "./test_classification -m " + pathXMLvector[0] + " -d CPU";
     if (! FLAGS_i.empty() )
         commandline += (" -i " + pathImage);
 
@@ -238,12 +257,12 @@ int runEmulator(std::string pathXML, std::string pathImage, std::string& blobPat
     // execute the classification sample async (KMB-plugin)
     std::cout << "Generating mcm blob through kmb-plugin... " << std::endl;
     commandline = std::string("cd ") + std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + " && " + 
-        "./test_classification -m " + pathXML + " -d KMB";
+        "./test_classification -m " + ((pathXMLvector.size() > 1) ? pathXMLvector[1] : pathXMLvector[0]) + " -d KMB";
     if (! FLAGS_i.empty() )
         commandline += (" -i " + pathImage);
 
     std::cout << commandline << std::endl;
-    std::system(commandline.c_str());
+    returnVal = std::system(commandline.c_str());
     if (returnVal != 0)
     {
         std::cout << std::endl << "Error occurred running the test_classification (KMB mode)!" << std::endl;
@@ -446,7 +465,7 @@ int convertImage(std::string imagePath, std::string blobPath)
     if (! ((inputShape[1] < 16) && (inputShape[2] == inputStrides[3]) ))
         sZMajor = " --zmajor";
 
-    if ((imagePath.find("bin") != std::string::npos))
+    if ((imagePath.find("bin") != std::string::npos) || (imagePath.find("dat") != std::string::npos))
     {
         std::string binFolder = std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER;
         if(sZMajor == " --zmajor")
