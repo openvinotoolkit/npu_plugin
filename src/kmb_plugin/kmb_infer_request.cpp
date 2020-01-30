@@ -230,8 +230,8 @@ void KmbInferRequest::InferAsync() {
                         InferenceEngine::make_shared_blob<InferenceEngine::NV12Blob>(kmbYBlob, kmbUVBlob);
                     preprocDataRealloc[preProcDataIter->first]->setRoiBlob(nv12Blob);
                 } else {
-                    Blob::Ptr kmbBlob = reallocateBlob(getKmbAllocator(), blobData);
-                    preprocDataRealloc[preProcDataIter->first]->setRoiBlob(blobData);
+                    // SippPreproc::isApplicable should not allow this to happen
+                    THROW_IE_EXCEPTION << "Unsupported input blob format. SIPP supports only NV12 images.";
                 }
             }
 
