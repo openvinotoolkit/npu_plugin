@@ -75,10 +75,8 @@ TEST_F(KmbClassifyNetworkTest, DISABLED_MobileNet_v2_onnx_int8_sparse_v2) {
 // scripts/post_training_quantization/README.md and
 // scripts/post_training_quantization/<corresponding network dir>/run.txt files
 
-// Fails on mcmCompiler compilation stage with message
-// C++ exception with description "Caught std::runtime_error during unit run:
-// quantParams - ArgumentError: channel 24 - Invalid index: channel is greater than zeroPoint vector
-TEST_F(KmbClassifyNetworkTest, DISABLED_mobilenet_v2_uint8_int8_weights_perchannel) {
+// Test fails on inference stage. [Track number: D#2203, S#26406]
+TEST_F(KmbClassifyNetworkTest, mobilenet_v2_uint8_int8_weights_perchannel) {
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/MobileNet_V2/mobilenet_v2_uint8_int8_weights_perchannel.xml")
             .setUserInputPresision("input", Precision::U8)
