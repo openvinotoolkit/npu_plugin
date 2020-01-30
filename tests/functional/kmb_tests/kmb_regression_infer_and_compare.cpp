@@ -147,14 +147,6 @@ std::vector<TestingNetworkParameters> vpuCompileTargetNetworksFail = {
         "/KMB_models/INT8/public/ssd_mobilenet_v1_coco/ssd_mobilenet_v1_coco_uint8_int8_weights_pertensor.bin",
         "/300x300/dog.bmp"},
     // post training models
-    // Test on inception_v3 fails on mcmCompiler compilation stage with message
-    // C++ exception with description "Caught std::runtime_error during unit run:
-    // Populated tensor with DType Int32 with out of bound value -9223372036854775808
-    TestingNetworkParameters {"inception_v3_tf_uint8_int8_weights_pertensor",
-        "/KMB_models/INT8/public/inception-v3_tf/inception-v3_tf_uint8_int8_weights_pertensor.xml",
-        "/KMB_models/INT8/public/inception-v3_tf/inception-v3_tf_uint8_int8_weights_pertensor.bin",
-        "/224x224/cat3.bmp"},
-    // post training models
     // Following test on road-segmentation-adas-0001 fails on IE to mcmCompiler parsing stage with following message
     // C++ exception with description "OpEntry:Eltwise - IndexError: index 1 -
     // Passed input index exceeds inputs count registered for the op type Eltwise
