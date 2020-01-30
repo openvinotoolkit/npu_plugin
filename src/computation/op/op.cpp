@@ -289,3 +289,16 @@ std::string mv::Op::getLogID() const
 {
     return "Op:" + name_;
 }
+
+bool mv::Op::isImplicit() const
+{
+    bool isImplicitOp = false;
+    std::vector<std::string> implicitTypes = {"ImplicitConcat", "Crop", "Slice", "Align"};
+    if (std::count(implicitTypes.begin(), implicitTypes.end(), getOpType()))
+    {
+        isImplicitOp = true;
+    }
+    else
+        isImplicitOp = false;
+    return isImplicitOp;
+}
