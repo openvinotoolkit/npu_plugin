@@ -26,7 +26,7 @@ namespace mv
 
         static std::string toString(const Attribute& a)
         {
-            return "OrderType::" + a.get<Order>().toString();
+            return "mv::Order(\"" + a.get<Order>().toString() + "\")";
         }
 
 
