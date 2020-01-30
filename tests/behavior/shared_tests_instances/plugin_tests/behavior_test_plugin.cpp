@@ -7,8 +7,11 @@
 #include "behavior_test_plugins.hpp"
 #include "vpu_test_data.hpp"
 
+// [Track number: S#xxxxx]
 INSTANTIATE_TEST_CASE_P(DISABLED_BehaviorTest, BehaviorPluginTest, ValuesIn(supportedValues), getTestCaseName);
+
+INSTANTIATE_TEST_CASE_P(BehaviorTest, BehaviorPluginTestInput, ValuesIn(allInputSupportedValues), getTestCaseName);
+
+//  Do not test anything
 INSTANTIATE_TEST_CASE_P(
-    DISABLED_BehaviorTest, BehaviorPluginTestInput, ValuesIn(allInputSupportedValues), getTestCaseName);
-INSTANTIATE_TEST_CASE_P(
-    DISABLED_BehaviorTest, BehaviorPluginTestOutput, ValuesIn(allOutputSupportedValues), getOutputTestCaseName);
+    BehaviorTest, BehaviorPluginTestOutput, ValuesIn(allOutputSupportedValues), getOutputTestCaseName);

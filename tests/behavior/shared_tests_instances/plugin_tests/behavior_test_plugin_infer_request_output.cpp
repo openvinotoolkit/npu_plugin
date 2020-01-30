@@ -6,5 +6,7 @@
 
 #include "vpu_test_data.hpp"
 
+// double free detected
+// [Track number: S#xxxxx]
 INSTANTIATE_TEST_CASE_P(DISABLED_BehaviorTest, BehaviorPluginTestInferRequestOutput, ValuesIn(allOutputSupportedValues),
     getOutputTestCaseName);

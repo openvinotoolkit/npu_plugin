@@ -9,6 +9,7 @@ pool_test_params roi_pool_test_cases[] = {
     pool_test_params("kmbPlugin", "FP16", pool_case),
 };
 
+// [Track number: S#xxxxx]
 INSTANTIATE_TEST_CASE_P(DISABLED_BehaviorTest, ROIPoolingLayerTest, ::testing::ValuesIn(roi_pool_test_cases),
     getTestName<pool_test_params>);
 
