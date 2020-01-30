@@ -50,32 +50,13 @@ public:
 
     Blob::Ptr getBlobByName(const std::string& blobName);
 
-    void runTest(
-            TestNetwork& testNet,
-            float tolerance, CompareMethod method = CompareMethod::Absolute);
-
 protected:
     void SetUp() override;
 
 protected:
-    void runTest(
-            TestNetwork& testNet,
-            const BlobMap& inputs,
-            float tolerance, CompareMethod method = CompareMethod::Absolute);
-
-protected:
-    BlobMap getInputs(TestNetwork& testNet);
-
     ExecutableNetwork getExecNetwork(
             const std::function<CNNNetwork()>& netCreator,
             const std::function<CompileConfig()>& configCreator);
-
-    ExecutableNetwork getExecNetwork(
-            TestNetwork& testNet);
-
-    BlobMap getRefOutputs(
-            TestNetwork& testNet,
-            const BlobMap& inputs);
 
     void compareWithReference(
             const BlobMap& actualOutputs,
@@ -97,7 +78,7 @@ protected:
 
     Blob::Ptr importBlob(const std::string& name, const TensorDesc& desc);
 
-    BlobMap runInfer(ExecutableNetwork& exeNet, const BlobMap& inputs);
+    BlobMap runInfer(ExecutableNetwork& exeNet, const BlobMap& inputs, bool printTime);
 
 protected:
     std::default_random_engine rd;
@@ -108,7 +89,30 @@ protected:
 };
 
 //
-// KmbNetworkTest
+// KmbLayerTestBase
+//
+
+class KmbLayerTestBase : public KmbTestBase {
+    using NetworkBuilder = std::function<void(TestNetwork& testNet)>;
+
+public:
+    void runTest(
+            const NetworkBuilder& builder,
+            float tolerance, CompareMethod method = CompareMethod::Absolute);
+
+protected:
+    BlobMap getInputs(TestNetwork& testNet);
+
+    ExecutableNetwork getExecNetwork(
+            TestNetwork& testNet);
+
+    BlobMap getRefOutputs(
+            TestNetwork& testNet,
+            const BlobMap& inputs);
+};
+
+//
+// TestNetworkDesc
 //
 
 class TestNetworkDesc final {
@@ -169,12 +173,38 @@ private:
     std::map<std::string, std::string> _compileConfig;
 };
 
+//
+// TestImageDesc
+//
+
+class TestImageDesc final {
+public:
+    TestImageDesc(const char* imageFileName, bool isBGR = true) : _imageFileName(imageFileName), _isBGR(isBGR) {}
+    TestImageDesc(std::string imageFileName, bool isBGR = true) : _imageFileName(std::move(imageFileName)), _isBGR(isBGR) {}
+
+    const std::string& imageFileName() const {
+        return _imageFileName;
+    }
+
+    bool isBGR() const {
+        return _isBGR;
+    }
+
+private:
+    std::string _imageFileName;
+    bool _isBGR = true;
+};
+
+//
+// KmbNetworkTestBase
+//
+
 class KmbNetworkTestBase : public KmbTestBase {
 protected:
     using CheckCallback = std::function<void(const Blob::Ptr& actualBlob, const Blob::Ptr& refBlob, const TensorDesc& inputDesc)>;
 
 protected:
-    static Blob::Ptr loadImage(const std::string& imageFilePath);
+    static Blob::Ptr loadImage(const TestImageDesc& image);
 
     CNNNetwork readNetwork(
             const TestNetworkDesc& netDesc,
@@ -189,26 +219,34 @@ protected:
 
     void runTest(
             const TestNetworkDesc& netDesc,
-            const std::string& inputFileName,
+            const TestImageDesc& image,
             const CheckCallback& checkCallback);
 };
+
+//
+// KmbClassifyNetworkTest
+//
 
 class KmbClassifyNetworkTest : public KmbNetworkTestBase {
 public:
     void runTest(
             const TestNetworkDesc& netDesc,
-            const std::string& inputFileName,
+            const TestImageDesc& image,
             size_t topK, float probTolerance);
 
 protected:
     static std::vector<std::pair<int, float>> parseOutput(const Blob::Ptr& blob);
 };
 
+//
+// KmbDetectionNetworkTest
+//
+
 class KmbDetectionNetworkTest : public KmbNetworkTestBase {
 public:
     void runTest(
             const TestNetworkDesc& netDesc,
-            const std::string& inputFileName,
+            const TestImageDesc& image,
             float confThresh,
             float boxTolerance, float probTolerance);
 

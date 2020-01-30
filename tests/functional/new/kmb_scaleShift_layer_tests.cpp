@@ -14,8 +14,6 @@
 // stated in the License.
 //
 
-#ifdef ENABLE_MCM_COMPILER
-
 #include "test_model/kmb_test_base.hpp"
 
 struct ScaleShiftTestParams final {
@@ -43,9 +41,9 @@ std::ostream& operator<<(std::ostream& os, const ScaleShiftTestParams& p) {
     return os;
 }
 
-class KmbScaleShiftLayerTests : public KmbTestBase, public testing::WithParamInterface<ScaleShiftTestParams> {};
+class KmbScaleShiftLayerTests : public KmbLayerTestBase, public testing::WithParamInterface<ScaleShiftTestParams> {};
 
-TEST_P(KmbScaleShiftLayerTests, DISABLED_SimpleScaleShift) {
+TEST_P(KmbScaleShiftLayerTests, SimpleScaleShift) {
     const auto& p = GetParam();
 
     const auto netPresicion = Precision::FP32;
@@ -80,20 +78,21 @@ TEST_P(KmbScaleShiftLayerTests, DISABLED_SimpleScaleShift) {
             }
     );
 
-    TestNetwork testNet;
-    testNet
+    const auto netBuidler = [&](TestNetwork& testNet) {
+        testNet
             .setUserInput("input", userInDesc.getPrecision(), userInDesc.getLayout())
             .addNetInput("input", userInDesc.getDims(), netPresicion)
             .addLayer<ScaleShiftLayerDef>("scaleShift")
-            .input("input")
-            .scale(getBlobByName("scales"))
-            .shift(getBlobByName("shift"))
-            .build()
+                .input("input")
+                .scale(getBlobByName("scales"))
+                .shift(getBlobByName("shift"))
+                .build()
             .addNetOutput(PortInfo("scaleShift"))
             .setUserOutput(PortInfo("scaleShift"), userOutDesc.getPrecision(), userOutDesc.getLayout())
             .finalize();
+    };
 
-    runTest(testNet, tolerance, CompareMethod::Absolute);
+    runTest(netBuidler, tolerance, CompareMethod::Absolute);
 }
 
 const std::vector<ScaleShiftTestParams> scaleShiftParams {
@@ -116,5 +115,3 @@ const std::vector<ScaleShiftTestParams> scaleShiftParams {
 };
 
 INSTANTIATE_TEST_CASE_P(SomeCase, KmbScaleShiftLayerTests, testing::ValuesIn(scaleShiftParams));
-
-#endif
