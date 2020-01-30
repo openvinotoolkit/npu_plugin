@@ -74,10 +74,10 @@ script `dldt/inference-engine/build-after-clone.sh` or see instructions in `dldt
 Cross build use Yocto SDK. You can install it with:
 
 ```bash
-wget -q http://nnt-srv01.inn.intel.com/dl_score_engine/thirdparty/linux/keembay/stable/ww28.5/oecore-x86_64-aarch64-toolchain-1.0.sh && \
-        chmod +x oecore-x86_64-aarch64-toolchain-1.0.sh && \
-        ./oecore-x86_64-aarch64-toolchain-1.0.sh -y -d /usr/local/oecore-x86_64 && \
-        rm oecore-x86_64-aarch64-toolchain-1.0.sh
+wget -q http://nnt-srv01.inn.intel.com/dl_score_engine/thirdparty/linux/keembay/development/20191011-1106/oecore-x86_64-aarch64-toolchain-1.0.sh && \
+    chmod +x oecore-x86_64-aarch64-toolchain-1.0.sh && \
+    ./oecore-x86_64-aarch64-toolchain-1.0.sh -y -d /usr/local/oecore-x86_64 && \
+    rm oecore-x86_64-aarch64-toolchain-1.0.sh
 ```
 
 1. Build mcmCompiler for **x86** (needed for cross-compilation).
