@@ -85,12 +85,19 @@ TEST_F(KmbClassifyNetworkTest, mobilenet_v2_uint8_int8_weights_perchannel) {
         "224x224/cat3.bmp",
         1, 0.05f);
 }
+// Bad inference results. [Track number: D#2474]
+TEST_F(KmbClassifyNetworkTest, inception_v3_tf_uint8_int8_weights_pertensor) {
+    runTest(
+        TestNetworkDesc("KMB_models/INT8/public/inception-v3_tf/inception-v3_tf_uint8_int8_weights_pertensor.xml")
+            .setUserInputPresision("input", Precision::U8)
+            .setUserInputLayout("input", Layout::NHWC)
+            .setUserOutputPresision("output", Precision::FP32),
+        "299x299/lassy_googlenet_big.bmp",
+        1, 0.05f);
+}
 
-// post training models
-// Test on inception_v1 fails on mcmCompiler compilation stage with message.
-// C++ exception with description "Caught std::runtime_error during unit run:
-// Populated tensor with DType Int32 with out of bound value -9223372036854775808
-TEST_F(KmbClassifyNetworkTest, DISABLED_inception_v1_tf_uint8_int8_weights_pertensor) {
+// Bad inference results. [Track number: D#2475]
+TEST_F(KmbClassifyNetworkTest, inception_v1_tf_uint8_int8_weights_pertensor) {
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/inception-v1_tf/inception-v1_tf_uint8_int8_weights_pertensor.xml")
             .setUserInputPresision("input", Precision::U8)
@@ -124,7 +131,6 @@ TEST_F(KmbClassifyNetworkTest, resnet50_uint8_int8_weights_pertensor) {
         "224x224/cat3.bmp",
         1, 0.7f);
 }
-
 TEST_F(KmbClassifyNetworkTest, DISABLED_GoogLeNet_v1_tf_int8_sparse) {
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/sparse/GoogLeNet-v1-tf/inceptionv1-int8-sparse-tf-0001.xml")
@@ -155,6 +161,7 @@ TEST_F(KmbClassifyNetworkTest, DISABLED_MobileNet_v2_tf_int8_sparse_v1) {  // 30
         1, 0.05f);
 }
 
+// Inference hangs.  [Track number: D#2476]
 TEST_F(KmbClassifyNetworkTest, DISABLED_squeezenet1_1_pytorch_uint8_int8_weights_pertensor) {
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/squeezenet1_1_pytorch/squeezenet1_1_pytorch_uint8_int8_weights_pertensor.xml")
