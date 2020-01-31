@@ -920,12 +920,6 @@ namespace mv
                    op.getInputTensor(1)->getShape()[mv::KERNEL_INPUT_CHANNELS] < 16)
                     return false;
 
-                // If Z-major Conv in Float precision then need to have weights Sparsity
-                if(op.getOpType() == "Conv" and
-                        op.getInputTensor(1)->getShape()[mv::KERNEL_INPUT_CHANNELS] >= 16 and
-                        op.get<mv::DType>("dType") == mv::DType("Float16"))
-                    return true;
-
                 //Size of weights, actual sparsity of tensor determine speedup
                 auto weightsSize = realTensorSize(op.getInputTensor(1), {1,1,1,1}, false);
 
@@ -996,6 +990,12 @@ namespace mv
                 bool weightsSparsity = false;
                 if(globalEnableWeightsSparsity)
                     weightsSparsity = decideWeightsSparsity(op);
+
+                // If Z-major Conv in Float precision then need to have weights Sparsity
+                if(op.getOpType() == "Conv" and
+                        op.getInputTensor(1)->getShape()[mv::KERNEL_INPUT_CHANNELS] >= 16 and
+                        op.get<mv::DType>("dType") == mv::DType("Float16"))
+                    weightsSparsity = true;
 
                 //TODO:: replace nested loops with clean cartesian product function
                 for( const auto spilling : spillingPool)
