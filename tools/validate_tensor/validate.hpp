@@ -61,7 +61,7 @@ DEFINE_string(e, "", e_tensor_message);
 DEFINE_bool(q, false, quantize_message);
 
 /// @brief Define tolerence message
-DEFINE_double(t, 1.0f, tolerence_message);
+DEFINE_double(t, 2.0f, tolerence_message);
 
 /// @brief Define parameter for set input xml <br>
 /// It is a required parameter

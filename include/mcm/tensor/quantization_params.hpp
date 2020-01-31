@@ -14,6 +14,7 @@ namespace mv
         QuantizationParams(const json::Value& content);
         QuantizationParams(const std::vector<int64_t>& zp, const std::vector<double>& scale, const std::vector<double>& min, const std::vector<double>& max);
         QuantizationParams(const std::vector<int64_t>& zp, const std::vector<double>& scale, const std::vector<double>& min, const std::vector<double>& max, const std::vector <unsigned>& shift, const std::vector<unsigned>& mult);
+//        QuantizationParams & operator=(const QuantizationParams& quantObject);
 
         inline std::vector<int64_t> getZeroPoint() const
         {
@@ -57,6 +58,7 @@ namespace mv
         virtual std::string toString() const override;
         virtual bool isEmpty() const;
         virtual bool isNeutral() const;
+        virtual bool infinitelimits() const;
     };
 
 }

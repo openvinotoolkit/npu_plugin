@@ -11,14 +11,16 @@
                 "Number_of_DPUs" : 20,
                 "Number_of_Clusters" : 4,
                 "UpaShaves": 1,
+                "WorkloadCost": 300,
                 "DDRScratch": 16777216,
                 "MemoryHack": false,
                 "cmx": 917504,
                 "enable_channel_major_conv": false,
+                "DPUTasksinFloat": false,
                 "split_strategy" :
                 [
                     {
-                        "name_filter" : "name",
+                        "name_filter" : "Example",
                         "cluster_filter" : 0,
                         "strategy" : "Example"
                     }
@@ -51,7 +53,7 @@
                 "streaming_strategy" :
                 [
                     {
-                        "name_filter" : "Example_do_not_remove",
+                        "name_filter" : "Example",
                         "splits" : [
                             {"W" : 1},
                             {"H" : 1},
@@ -63,7 +65,7 @@
                 "sparsity_strategy" :
                 [
                     {
-                        "name_filter": "Example_do_not_remove",
+                        "name_filter": "Example",
                         "inputActivationSparsity": false,
                         "outputActivationSparsity": false,
                         "weightsSparsity": false
@@ -88,6 +90,7 @@
             "TensorsToU8",
             "TensorsToFP16",
             "FusePostOps",
+            "PostTrainingQuantize",
             "EltwiseToSWEltwise",
             {
                 "name" : "GraphParameterOptimization",
@@ -125,8 +128,8 @@
                         {
                             "name" : "DepthwiseConv",
                             "strategies": [
-                                {"name" : "streamingStrategies",  "value" : ["StreamOverH","StreamOverW","StreamOverC"]},
-                                {"name" : "clusteringStrategies", "value" : ["SplitOverH","SplitOverK","Clustering"]},
+                                {"name" : "streamingStrategies",  "value" : ["StreamOverH","StreamOverC"]},
+                                {"name" : "clusteringStrategies", "value" : ["SplitOverH","Clustering"]},
                                 {"name" : "inputActivationSparsity",             "value" : false},
                                 {"name" : "outputActivationSparsity",             "value" : true},
                                 {"name" : "weightsSparsity",                      "value" : false}
@@ -272,6 +275,7 @@
     },
     "serialize": {
         "Singular": [
+            "RemoveRedundantUpdateBarriers",
             {
                 "name": "GenerateBlobKmb",
                 "output": "output/mcm.blob"
@@ -286,7 +290,6 @@
     "root": {
         "Singular": [
             "initialize",
-            "validate",
             "adapt",
             "kmb_adapt",
             "dma",

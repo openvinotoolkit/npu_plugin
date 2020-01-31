@@ -8,14 +8,14 @@
                 "verbose": "Error",
                 "weights_form": "None",
                 "barrier_index_assignment" : "Dynamic",
-                "Number_of_DPUs" : 5,
-                "Number_of_Clusters" : 1,
+                "Number_of_DPUs" : 20,
+                "Number_of_Clusters" : 4,
                 "UpaShaves": 1,
                 "WorkloadCost": 300,
                 "DDRScratch": 16777216,
                 "MemoryHack": false,
                 "cmx": 917504,
-                "enable_channel_major_conv": false,
+                "enable_channel_major_conv": true,
                 "DPUTasksinFloat": false,
                 "split_strategy" :
                 [
@@ -90,13 +90,12 @@
             "TensorsToU8",
             "TensorsToFP16",
             "FusePostOps",
-            "PostTrainingQuantize",
             "EltwiseToSWEltwise",
             {
                 "name" : "GraphParameterOptimization",
                 "graphOptimizerConfig" : {
                     "globalConfigs" : [
-                        {"name" : "totalClusters",  "value" : 1   },
+                        {"name" : "totalClusters",  "value" : 4   },
                         {"name" : "clusterMemory",  "value" : 896 },
                         {"name" : "dpuPerCluster",  "value" : 5   },
                         {"name" : "ddrBandwidth",   "value" : 128 },

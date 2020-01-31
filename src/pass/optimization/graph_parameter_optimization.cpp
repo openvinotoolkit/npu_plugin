@@ -611,7 +611,7 @@ namespace mv
                 if (op.getOpType() == "DepthwiseConv")
                 {
                     if ((op.getInputTensor(0)->getShape()[mv::IO_CHANNEL_DIMENSION] > 8192)
-                            && (streamShape["K"] == 1))
+                            && (streamShape["C"] == 1))
                         return 11;
                 }
 
@@ -1045,7 +1045,7 @@ namespace mv
 
                         vector<size_t> streamsOverC;
                         if (hasStreamOverC)
-                            streamsOverC = {1,2};
+                            streamsOverC = {1,2,3,4};
                         else
                             streamsOverC.push_back(1);
 
