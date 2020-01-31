@@ -123,12 +123,17 @@ void generateGraphFile(std::string pathBlob, MVCNN::GraphFileT& graphFile)
     graphPtr->UnPackTo(&graphFile);
 }
 
-bool compare(std::vector<float>& actualResults, std::vector<float>& expectedResults, float tolerance)
+bool compare(std::vector<float>& actualResults, std::vector<float>& expectedResults, float tolerance, float scale)
 {
+    float allowedDeviation = (tolerance*2.56) * scale; // Consider the tolerance a % of int range. TODO handle fp 16 from KMB as well
+    // float allowedDeviation = tolerance * scale; // Equivalent to saying can be off by tolerance/2 (as real value) in either direction in int8
+
     std::cout << "Comparing results ... " << std::endl;
     std::cout << "  Actual Results size: " << actualResults.size() << std::endl;
     std::cout << "  Expected Results size: " << expectedResults.size() << std::endl;
-    std::cout << "  Tolerence: " << tolerance << "%" << std::endl;
+    std::cout << "  Tolerance: " << tolerance << "%" << std::endl;
+    std::cout << "  Bucket size: " << scale << " " << std::endl;
+    std::cout << "  Allowed Deviation: " << allowedDeviation << " " << std::endl;
     if (actualResults.size() != expectedResults.size())
         std::cout << "  RESULTS SIZES DO NOT MATCH! Continuing..." << std::endl;
 
@@ -141,30 +146,32 @@ bool compare(std::vector<float>& actualResults, std::vector<float>& expectedResu
         float expected = expectedResults[idx];
 
         float abs_error = fabsf(actual - expected);
-        float relative_error = fabsf(abs_error / (1 + expected));
-        float abs_allowed_err = fabsf(expected * (tolerance/100.0f));
+        float no_zero_div = 0.0;
+        if(expected == 0) no_zero_div = 0.0000001;
+        float relative_error = fabsf(abs_error / (no_zero_div + expected));
+
         sumSquareDiffs += pow(abs_error, 2);
         sumDiff+=abs_error;
 
         std::string result = "\t\033[1;32mPass\033[0m";
-        if ((relative_error*100) > tolerance)
+        if ((relative_error) > allowedDeviation)
         {
             countErrs++;
-            if (relative_error > maxErr) maxErr = relative_error;
+            if(relative_error > maxErr) maxErr = relative_error;
             result = "\t\033[1;31mfail\033[0m";
         }
         if (idx < 50) // print first 50 rows
-            std::cout << std::setw(10) << expected << std::setw(12) << actual << std::setw(12) << relative_error << std::setw(12) << abs_allowed_err << std::setw(6) << result << std::endl;
+            std::cout << std::setw(10) << expected << std::setw(12) << actual << std::setw(12) << abs_error << std::setw(12) << relative_error << std::setw(18)  << result  << std::endl;
     };
 
-    std::cout << "Printing first 50 rows...\nExpected\tActual\tRelative Err Tolerence  Result" << std::endl;
+    std::cout << "Printing first 50 rows...\nExpected\tActual\tDifference  Relative Err\tResult" << std::endl;
     for (size_t n = 0; n < expectedResults.size(); ++n)
         absoluteErrorUpdater(n);
 
     // results
     float avgPixelAccuracy = (sumDiff/expectedResults.size())*100;
     float l2_err = sqrt(sumSquareDiffs) / expectedResults.size();
-    float countErrsPcent = (countErrs/actualResults.size()) * 100;;
+    float countErrsPcent = (countErrs/actualResults.size()) * 100;
     
     //print results report
     std::cout << "\nMetric\t\t\t  Actual  Threshold\tStatus" << std::endl << "----------------------    ------  ---------\t-------" << std::endl;   
@@ -173,7 +180,7 @@ bool compare(std::vector<float>& actualResults, std::vector<float>& expectedResu
     std::cout << "% of Wrong Values\t" << std::setw(7) << (int)(countErrsPcent * 10000.0) / 10000.0 << "%" << std::setw(10) << tolerance << "%" << ((countErrsPcent < tolerance) ? "\t\033[1;32mPass" : "\t\033[1;31mFail") << "\033[0m" << std::endl;
     std::cout << "Pixel-wise L2 Error\t" << std::setw(7) << (int)((l2_err * 100) * 10000.0)/10000.0 << "%" << std::setw(10) << tolerance << "%" << ((l2_err < tolerance) ? "\t\033[1;32mPass" : "\t\033[1;31mFail") << "\033[0m" << std::endl;
     std::cout << "Global Sum Difference\t" << std::setw(8) << sumDiff << std::setw(11) << "inf" << std::setw(8) << "\t\033[1;32mPass\033[0m" << std::endl << std::endl;
-
+    
     if (avgPixelAccuracy < tolerance) return true;
     else return false;
 }
@@ -376,6 +383,8 @@ int validate(std::string blobPath, std::string expectedPath, std::string actualP
     auto totalActual = file.tellg() / typesize;
     file.seekg(0, std::ios::beg);
 
+    float scale = 1.0;
+
     std::vector<float> outputFP32;
     if (dtype == MVCNN::DType::DType_U8)
     {
@@ -387,6 +396,8 @@ int validate(std::string blobPath, std::string expectedPath, std::string actualP
         std::cout << "  quant_zero: " << qZero << std::endl;
         std::cout << "  quant_scale: " << qScale << std::endl;
         std::cout << "  quant_shift: " << qShift << std::endl;
+
+        scale = qScale;
 
         // read size of output tensor
         int tSize = 1;
@@ -435,7 +446,7 @@ int validate(std::string blobPath, std::string expectedPath, std::string actualP
 
     // compare
     bool pass = false;
-    pass = compare(outputFP32, expectedFP32, FLAGS_t);
+    pass = compare(outputFP32, expectedFP32, FLAGS_t, scale);
     std::cout << "Validation status: " << ((pass) ? "\033[1;32mPass" : "\033[1;31mFail") << "\033[0m" << std::endl; 
     if (pass)
         return RESULT_SUCCESS;
