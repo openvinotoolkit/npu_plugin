@@ -35,6 +35,23 @@ void toPlanar(const cv::Mat& in, cv::Mat& out) {
     cv::split(in, outs);
 }
 
+inline uchar saturate(int v) { return (v > 255 ? 255 : v < 0 ? 0 : v); }
+
+inline uchar calcR(int y, int /*u*/, int v) {
+    int r = y + (int)(1.402f * v);
+    return saturate(r);
+}
+
+inline uchar calcG(int y, int u, int v) {
+    int g = y - (int)(0.344f * u + 0.714 * v);
+    return saturate(g);
+}
+
+inline uchar calcB(int y, int u, int /*v*/) {
+    int b = y + (int)(1.772f * u);
+    return saturate(b);
+}
+
 void own_NV12toBGR(const cv::Mat& inY, const cv::Mat& inUV, cv::Mat& out) {
     int i, j;
 
@@ -53,33 +70,24 @@ void own_NV12toBGR(const cv::Mat& inY, const cv::Mat& inUV, cv::Mat& out) {
         uvidx = 0;
 
         for (i = 0; i < inY.cols; i += 2) {
-            yy = y[yidx];
-            yidx++;
-
             u = uv[uvidx] - 128;
             v = uv[uvidx + 1] - 128;
             uvidx += 2;
-            b = yy + (int)(1.772f * u);
 
-            bgr[bgridx++] = (uchar)(b > 255 ? 255 : b < 0 ? 0 : b);
-            g = yy - (int)(0.344f * u + 0.714 * v);
+            yy = y[yidx];
+            yidx++;
 
-            bgr[bgridx++] = (uchar)(g > 255 ? 255 : g < 0 ? 0 : g);
-            r = yy + (int)(1.402f * v);
+            bgr[bgridx++] = calcB(yy, u, v);
+            bgr[bgridx++] = calcG(yy, u, v);
+            bgr[bgridx++] = calcR(yy, u, v);
 
-            bgr[bgridx++] = (uchar)(r > 255 ? 255 : r < 0 ? 0 : r);
             //----------------------------------------------
             yy = y[yidx];
             yidx++;
-            b = yy + (int)(1.772f * u);
 
-            bgr[bgridx++] = (uchar)(b > 255 ? 255 : b < 0 ? 0 : b);
-            g = yy - (int)(0.344f * u + 0.714 * v);
-
-            bgr[bgridx++] = (uchar)(g > 255 ? 255 : g < 0 ? 0 : g);
-            r = yy + (int)(1.402f * v);
-
-            bgr[bgridx++] = (uchar)(r > 255 ? 255 : r < 0 ? 0 : r);
+            bgr[bgridx++] = calcB(yy, u, v);
+            bgr[bgridx++] = calcG(yy, u, v);
+            bgr[bgridx++] = calcR(yy, u, v);
         }
     }
 }
@@ -101,33 +109,24 @@ void own_NV12toRGB(const cv::Mat& inY, const cv::Mat& inUV, cv::Mat& out) {
         uv = inUV.data + (j / 2) * inUV.step;
         uvidx = 0;
         for (i = 0; i < inY.cols; i += 2) {
-            yy = y[yidx];
-            yidx++;
-
             u = uv[uvidx] - 128;
             v = uv[uvidx + 1] - 128;
             uvidx += 2;
-            r = yy + (int)(1.772f * u);
 
-            rgb[rgbidx++] = (uchar)(r > 255 ? 255 : r < 0 ? 0 : r);
-            g = yy - (int)(0.344f * u + 0.714 * v);
+            yy = y[yidx];
+            yidx++;
 
-            rgb[rgbidx++] = (uchar)(g > 255 ? 255 : g < 0 ? 0 : g);
-            b = yy + (int)(1.402f * v);
+            rgb[rgbidx++] = calcR(yy, u, v);
+            rgb[rgbidx++] = calcG(yy, u, v);
+            rgb[rgbidx++] = calcB(yy, u, v);
 
-            rgb[rgbidx++] = (uchar)(b > 255 ? 255 : b < 0 ? 0 : b);
             //----------------------------------------------
             yy = y[yidx];
             yidx++;
-            r = yy + (int)(1.772f * u);
 
-            rgb[rgbidx++] = (uchar)(r > 255 ? 255 : r < 0 ? 0 : r);
-            g = yy - (int)(0.344f * u + 0.714 * v);
-
-            rgb[rgbidx++] = (uchar)(g > 255 ? 255 : g < 0 ? 0 : g);
-            b = yy + (int)(1.402f * v);
-
-            rgb[rgbidx++] = (uchar)(b > 255 ? 255 : b < 0 ? 0 : b);
+            rgb[rgbidx++] = calcR(yy, u, v);
+            rgb[rgbidx++] = calcG(yy, u, v);
+            rgb[rgbidx++] = calcB(yy, u, v);
         }
     }
 }
@@ -443,7 +442,9 @@ INSTANTIATE_TEST_CASE_P(Merge3PTestSIPP, Merge3PTestGAPI,
 
 using namespace testing;
 
-struct KmbSippPreprocEngineTest : public TestWithParam<std::pair<cv::Size, cv::Size>> {};
+struct KmbSippPreprocEngineTest : public TestWithParam<std::tuple<
+    std::pair<cv::Size, cv::Size>,
+    InferenceEngine::ColorFormat>> {};
 TEST_P(KmbSippPreprocEngineTest, TestNV12Resize) {
     using namespace InferenceEngine;
 
@@ -452,7 +453,9 @@ TEST_P(KmbSippPreprocEngineTest, TestNV12Resize) {
     Layout in_layout = Layout::NCHW;
     Layout out_layout = in_layout;
     ColorFormat in_fmt = ColorFormat::NV12;
-    auto sizes = GetParam();
+    ColorFormat out_fmt;
+    std::pair<cv::Size,cv::Size> sizes;
+    std::tie(sizes, out_fmt) = GetParam();
     cv::Size y_size, out_size;
     std::tie(y_size, out_size) = sizes;
     cv::Size uv_size {y_size.width / 2, y_size.height / 2};
@@ -461,7 +464,7 @@ TEST_P(KmbSippPreprocEngineTest, TestNV12Resize) {
     cv::Mat uv_mat(uv_size, CV_8UC2);
     cv::Mat out_mat(out_size, CV_8UC3);
     cv::randu(y_mat, cv::Scalar::all(0), cv::Scalar::all(255));
-    cv::randu(uv_mat, cv::Scalar::all(128), cv::Scalar::all(128));
+    cv::randu(uv_mat, cv::Scalar::all(0), cv::Scalar::all(255));
 
     AllocHelper allocator;
     auto y_blob = img2Blob<prec>(y_mat, Layout::NHWC, allocator);
@@ -473,7 +476,7 @@ TEST_P(KmbSippPreprocEngineTest, TestNV12Resize) {
     unsigned int lpi = 8;
     SIPPPreprocEngine pe(shaveFirst, shaveLast, lpi);
 
-    for (int i = 0; i < 100; i++) {
+    for (int i = 0; i < 10; i++) {
         auto y_roi = getRandomRoi(y_size);
 
         cv::Rect uv_roi {y_roi.x / 2, y_roi.y / 2, y_roi.width / 2, y_roi.height / 2};
@@ -483,38 +486,45 @@ TEST_P(KmbSippPreprocEngineTest, TestNV12Resize) {
 
         auto in_blob = make_shared_blob<NV12Blob>(y_roi_blob, uv_roi_blob);
 
-        pe.preprocWithSIPP(in_blob, out_blob, interp, in_fmt);
+        pe.preprocWithSIPP(in_blob, out_blob, interp, in_fmt, out_fmt);
 
         Blob2Img<prec>(out_blob, out_mat, out_layout);
 
         cv::Mat rgb_mat(cv::Size {y_roi.width, y_roi.height}, CV_8UC3);
         cv::Mat ocv_out_mat(out_size, CV_8UC3);
 
-        own_NV12toRGB(y_mat(y_roi), uv_mat(uv_roi), rgb_mat);
+        if (out_fmt == ColorFormat::RGB) {
+            own_NV12toRGB(y_mat(y_roi), uv_mat(uv_roi), rgb_mat);
+        } else {
+            own_NV12toBGR(y_mat(y_roi), uv_mat(uv_roi), rgb_mat);
+        }
         cv::resize(rgb_mat, ocv_out_mat, out_size, 0, 0, cv::INTER_LINEAR);
 
         cv::Mat absDiff;
         cv::absdiff(ocv_out_mat, out_mat, absDiff);
-        EXPECT_EQ(cv::countNonZero(absDiff > 1), 0);
+        EXPECT_EQ(cv::countNonZero(absDiff > 2), 0);
     }
 }
 
-INSTANTIATE_TEST_CASE_P(Preproc, KmbSippPreprocEngineTest, Values(TEST_SIZES_PREPROC));
+INSTANTIATE_TEST_CASE_P(Preproc, KmbSippPreprocEngineTest,
+                        Combine(Values(std::make_pair(cv::Size(1920, 1080), cv::Size(224, 224)),
+                                       std::make_pair(cv::Size(1920, 1080), cv::Size(416, 416))),
+                                Values(InferenceEngine::ColorFormat::BGR,
+                                       InferenceEngine::ColorFormat::RGB)));
 
 struct KmbSippPreprocPoolTest: public TestWithParam<std::tuple<
     std::tuple<cv::Size, cv::Size, cv::Size>,
-    InferenceEngine::Layout>> {};
+    InferenceEngine::Layout,
+    InferenceEngine::ColorFormat>> {};
 TEST_P(KmbSippPreprocPoolTest, TestNV12Resize)
 {
     using namespace InferenceEngine;
 
     constexpr auto prec = Precision::U8;
-    ResizeAlgorithm interp = RESIZE_BILINEAR;
-    Layout in_layout = Layout::NCHW;
-    Layout out_layout = in_layout;
-    ColorFormat in_fmt = ColorFormat::NV12;
+    Layout out_layout;
+    ColorFormat out_fmt;
     std::tuple<cv::Size,cv::Size,cv::Size> sizes;
-    std::tie(sizes, out_layout) = GetParam();
+    std::tie(sizes, out_layout, out_fmt) = GetParam();
     cv::Size y_size, detect_size, classify_size;
     std::tie(y_size, detect_size, classify_size) = sizes;
 
@@ -536,7 +546,7 @@ TEST_P(KmbSippPreprocPoolTest, TestNV12Resize)
         std::map<std::string, PreProcessDataPtr> preprocDatas;
         BlobMap netInputs;
 
-        void init(int idx, cv::Size y_size, cv::Size out_size, Layout output_layout, AllocHelper& allocator) {
+        void init(cv::Size y_size, cv::Size out_size, Layout output_layout, AllocHelper& allocator) {
             out_layout = output_layout;
             constexpr auto prec = Precision::U8;
             cv::Size uv_size {y_size.width / 2, y_size.height / 2};
@@ -566,15 +576,15 @@ TEST_P(KmbSippPreprocPoolTest, TestNV12Resize)
 
     TestContext detectContexts[numThreads];
     for (int i = 0; i < numThreads; i++) {
-        detectContexts[i].init(i, y_size, detect_size, out_layout, allocator);
+        detectContexts[i].init(y_size, detect_size, out_layout, allocator);
     }
 
     TestContext classifyContexts[numThreads];
     for (int i = 0; i < numThreads; i++) {
-        classifyContexts[i].init(i, y_size, classify_size, out_layout, allocator);
+        classifyContexts[i].init(y_size, classify_size, out_layout, allocator);
     }
 
-    auto threadFunc = [y_size, out_layout](TestContext& ctx, cv::Size out_size) {
+    auto threadFunc = [y_size, out_layout, out_fmt](TestContext& ctx, cv::Size out_size) {
         for (int i = 0; i < 100; i++) {
             auto y_roi = getRandomRoi(y_size);
 
@@ -591,7 +601,7 @@ TEST_P(KmbSippPreprocPoolTest, TestNV12Resize)
             unsigned int nShaves = 4;
             unsigned int lpi = 8;
             SippPreproc::execSIPPDataPreprocessing(
-                ctx.netInputs, ctx.preprocDatas, ctx.inputInfos, 1, true, nShaves, lpi);
+                ctx.netInputs, ctx.preprocDatas, ctx.inputInfos, out_fmt, nShaves, lpi);
         }
 
 #if 0
@@ -633,6 +643,8 @@ INSTANTIATE_TEST_CASE_P(Preproc, KmbSippPreprocPoolTest,
                                                        cv::Size(224, 224),
                                                        cv::Size(416, 416))),
                                 Values(InferenceEngine::Layout::NCHW,
-                                       InferenceEngine::Layout::NHWC)));
+                                       InferenceEngine::Layout::NHWC),
+                                Values(InferenceEngine::ColorFormat::BGR,
+                                       InferenceEngine::ColorFormat::RGB)));
 
 // clang-format on
