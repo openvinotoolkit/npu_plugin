@@ -193,6 +193,16 @@ static void kmbQuantizeConversionFcn(const mv::pass::PassEntry&, mv::Computation
     mv::OpModel om(model);
 
     auto dpuTasks = om.getOps("DPUTask");
+    std::vector<mv::Data::OpListIterator> dpuTasksFP16 = {};
+    for (auto& dpuTask : dpuTasks)
+    {
+        if (dpuTask->hasAttr("softwareExecuted") && dpuTask->get<bool>("softwareExecuted"))
+        {
+            dpuTasksFP16.push_back(dpuTask);
+            dpuTasks.erase(std::remove(dpuTasks.begin(), dpuTasks.end(), dpuTask), dpuTasks.end());
+        }
+    }
+
     auto upaTasks = om.getOps("UPATask");
 
     // NOTE: At this moment in the model, all the concats are implicit
@@ -209,6 +219,7 @@ static void kmbQuantizeConversionFcn(const mv::pass::PassEntry&, mv::Computation
     bool DPUTasksinSW = globalParams->hasAttr("DPUTasksinFloat") ? globalParams->get<bool>("DPUTasksinFloat") : false;
     if (!DPUTasksinSW)
     {
+        addQuantizationLayers(om, dpuTasksFP16, FP16);
         addQuantizationLayers(om, dpuTasks, U8);
         addSliceQuantizationLayer(om, slices, U8);
     }
