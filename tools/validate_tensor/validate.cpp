@@ -123,16 +123,12 @@ void generateGraphFile(std::string pathBlob, MVCNN::GraphFileT& graphFile)
     graphPtr->UnPackTo(&graphFile);
 }
 
-bool compare(std::vector<float>& actualResults, std::vector<float>& expectedResults, float tolerance, float scale)
+bool compare(std::vector<float>& actualResults, std::vector<float>& expectedResults, float tolerance, float allowedDeviation)
 {
-    float allowedDeviation = (tolerance*2.56) * scale; // Consider the tolerance a % of int range. TODO handle fp 16 from KMB as well
-    // float allowedDeviation = tolerance * scale; // Equivalent to saying can be off by tolerance/2 (as real value) in either direction in int8
-
     std::cout << "Comparing results ... " << std::endl;
     std::cout << "  Actual Results size: " << actualResults.size() << std::endl;
     std::cout << "  Expected Results size: " << expectedResults.size() << std::endl;
     std::cout << "  Tolerance: " << tolerance << "%" << std::endl;
-    std::cout << "  Bucket size: " << scale << " " << std::endl;
     std::cout << "  Allowed Deviation: " << allowedDeviation << " " << std::endl;
     if (actualResults.size() != expectedResults.size())
         std::cout << "  RESULTS SIZES DO NOT MATCH! Continuing..." << std::endl;
@@ -383,7 +379,7 @@ int validate(std::string blobPath, std::string expectedPath, std::string actualP
     auto totalActual = file.tellg() / typesize;
     file.seekg(0, std::ios::beg);
 
-    float scale = 1.0;
+    float allowedDeviation = 1.0;
 
     std::vector<float> outputFP32;
     if (dtype == MVCNN::DType::DType_U8)
@@ -397,7 +393,7 @@ int validate(std::string blobPath, std::string expectedPath, std::string actualP
         std::cout << "  quant_scale: " << qScale << std::endl;
         std::cout << "  quant_shift: " << qShift << std::endl;
 
-        scale = qScale;
+        float allowedDeviation = ( FLAGS_t * 2.56) * qScale; // Consider the tolerance a % of int range
 
         // read size of output tensor
         int tSize = 1;
@@ -431,6 +427,7 @@ int validate(std::string blobPath, std::string expectedPath, std::string actualP
             // float val = static_cast<uint16_t>(outputVector[i]);
             outputFP32.push_back(val);
         }
+        allowedDeviation = 1.0 * FLAGS_t;
     }
     writeToFile(outputFP32, "./output-kmb-dequantized.bin");
 
@@ -446,7 +443,7 @@ int validate(std::string blobPath, std::string expectedPath, std::string actualP
 
     // compare
     bool pass = false;
-    pass = compare(outputFP32, expectedFP32, FLAGS_t, scale);
+    pass = compare(outputFP32, expectedFP32, FLAGS_t, allowedDeviation);
     std::cout << "Validation status: " << ((pass) ? "\033[1;32mPass" : "\033[1;31mFail") << "\033[0m" << std::endl; 
     if (pass)
         return RESULT_SUCCESS;
