@@ -16,6 +16,7 @@ border-color: white;
 }
 td {
 background: #D8E6F3;
+vertical-align: top;
 }
 th:first-child, td:first-child {
 text-align: left;
