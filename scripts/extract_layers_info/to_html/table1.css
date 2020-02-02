@@ -31,6 +31,7 @@ td {
 padding: 2px 4px;
 background: #F8E391;
 font-size: larger;
+vertical-align: top;
 }
 tr:last-child td:first-child {
 border-radius: 0 0 0 5px;
