@@ -25,30 +25,25 @@
 #include <string>
 #include <vector>
 
+#include "hddl_unite/hddl2_infer_data.h"
+#include "hddl_unite/hddl2_unite_graph.h"
+
 namespace vpu {
 namespace HDDL2Plugin {
 
 class HDDL2InferRequest : public InferenceEngine::InferRequestInternal {
 public:
     HDDL2InferRequest(const InferenceEngine::InputsDataMap& networkInputs,
-        const InferenceEngine::OutputsDataMap& networkOutputs, HddlUnite::Inference::Graph::Ptr graph);
+        const InferenceEngine::OutputsDataMap& networkOutputs, const HddlUniteGraph::Ptr& loadedGraph,
+        const HDDL2RemoteContext::Ptr& context);
 
     void InferImpl() override;
     void GetPerformanceCounts(
         std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>& perfMap) const override;
 
-    void InferSync();
-    void Infer() override;
-
-private:
-    void GetResult();
-
-    HddlUnite::Inference::Graph::Ptr _graph;
-    std::vector<HddlUnite::Inference::AuxBlob::Type> types {HddlUnite::Inference::AuxBlob::Type::TimeTaken};
-    HddlUnite::Inference::InferData::Ptr _inferData;
-
-    size_t _inputSize;
-    size_t _outputSize;
+protected:
+    HddlUniteGraph::Ptr _loadedGraphPtr = nullptr;
+    HddlUniteInferData::Ptr _inferDataPtr = nullptr;
 };
 
 }  //  namespace HDDL2Plugin

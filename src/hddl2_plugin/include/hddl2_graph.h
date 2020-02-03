@@ -22,41 +22,41 @@
 
 #include "ie_core.hpp"
 #include "ie_icnn_network.hpp"
+#include "mcm_config.h"
 
 namespace vpu {
 namespace HDDL2Plugin {
 
-namespace IE = InferenceEngine;
-
-class HDDL2Graph {
+class Graph {
 public:
-    using Ptr = std::shared_ptr<HDDL2Graph>;
+    using Ptr = std::shared_ptr<Graph>;
 
-    virtual std::string getGraphName();
-    virtual InferenceEngine::InputsDataMap getInputsInfo() const noexcept;
-    virtual InferenceEngine::OutputsDataMap getOutputsInfo() const noexcept;
-    virtual const std::string& getGraphBlob() const;
+    std::string getGraphName() const { return _graphName; }
+    std::string getGraphBlob() const { return _blobContentString; }
+
+    InferenceEngine::InputsDataMap& getInputsInfo() noexcept { return _networkInputs; }
+    InferenceEngine::OutputsDataMap& getOutputsInfo() noexcept { return _networkOutputs; }
 
 protected:
     std::string _graphName;
     std::string _blobContentString;
+
+    InferenceEngine::InputsDataMap _networkInputs;
+    InferenceEngine::OutputsDataMap _networkOutputs;
 };
 
-class HDDL2CompiledGraph : public HDDL2Graph {
+class CompiledGraph : public Graph {
 public:
-    using Ptr = std::shared_ptr<HDDL2CompiledGraph>;
+    using Ptr = std::shared_ptr<CompiledGraph>;
 
-    explicit HDDL2CompiledGraph(const IE::ICNNNetwork& network);
+    explicit CompiledGraph(InferenceEngine::ICNNNetwork& network, const MCMConfig& config);
 };
 
-class HDDL2ImportedGraph : public HDDL2Graph {
+class ImportedGraph : public Graph {
 public:
-    using Ptr = std::shared_ptr<HDDL2ImportedGraph>;
+    using Ptr = std::shared_ptr<ImportedGraph>;
 
-    explicit HDDL2ImportedGraph(const std::string& blobFilename);
-
-protected:
-    std::string _blobFileName;
+    explicit ImportedGraph(const std::string& blobFilename, const MCMConfig& config);
 };
 
 }  // namespace HDDL2Plugin

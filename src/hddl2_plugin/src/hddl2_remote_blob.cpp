@@ -41,7 +41,7 @@ HDDL2BlobParams::HDDL2BlobParams(const InferenceEngine::ParamMap& params) {
                               "information";
     }
     try {
-        _remoteMemoryFd = remote_memory_fd_iter->second.as<uint64_t>();
+        _remoteMemoryFd = remote_memory_fd_iter->second.as<RemoteMemoryFD>();
     } catch (...) {
         THROW_IE_EXCEPTION << CONFIG_ERROR_str << "Param have incorrect type information";
     }
@@ -51,7 +51,7 @@ HDDL2BlobParams::HDDL2BlobParams(const InferenceEngine::ParamMap& params) {
 
 InferenceEngine::ParamMap HDDL2BlobParams::getParamMap() const { return _paramMap; }
 
-HDDL2BlobParams::RemoteMemoryFd HDDL2BlobParams::getRemoteMemoryFd() const { return _remoteMemoryFd; }
+RemoteMemoryFD HDDL2BlobParams::getRemoteMemoryFD() const { return _remoteMemoryFd; }
 
 //------------------------------------------------------------------------------
 //      class HDDL2RemoteBlob Implementation
@@ -69,7 +69,7 @@ HDDL2RemoteBlob::HDDL2RemoteBlob(const InferenceEngine::TensorDesc& tensorDesc,
     HDDL2RemoteAllocator::Ptr hddlAllocatorPtr = contextPtr->getAllocator();
     printf("%s: HDDL2RemoteBlob wrapping %d size\n", __FUNCTION__, static_cast<int>(this->size()));
 
-    _memoryHandle = hddlAllocatorPtr->wrapRemoteMemory(_params.getRemoteMemoryFd(), this->size());
+    _memoryHandle = hddlAllocatorPtr->wrapRemoteMemory(_params.getRemoteMemoryFD(), this->size());
     if (_memoryHandle == nullptr) {
         THROW_IE_EXCEPTION << NOT_ALLOCATED_str << "Allocation error";
     }
@@ -123,3 +123,5 @@ void* HDDL2RemoteBlob::getHandle() const noexcept { return _memoryHandle; }
 const std::shared_ptr<InferenceEngine::IAllocator>& HDDL2RemoteBlob::getAllocator() const noexcept {
     return _allocatorPtr;
 }
+
+RemoteMemoryFD HDDL2RemoteBlob::getRemoteMemoryFD() const { return _params.getRemoteMemoryFD(); }

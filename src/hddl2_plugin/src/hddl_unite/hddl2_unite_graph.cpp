@@ -1,5 +1,5 @@
 //
-// Copyright 2019 Intel Corporation.
+// Copyright 2020 Intel Corporation.
 //
 // This software and the related documents are Intel copyrighted materials,
 // and your use of them is governed by the express license under which they
@@ -14,6 +14,7 @@
 // stated in the License.
 //
 
+#include <Inference.h>
 #include <hddl2_exceptions.h>
 #include <hddl_unite/hddl2_unite_graph.h>
 
@@ -21,35 +22,46 @@
 
 using namespace vpu::HDDL2Plugin;
 
-HddlUniteGraph::HddlUniteGraph(const HDDL2Graph::Ptr& graph, const HDDL2RemoteContext::Ptr& context) {
+HddlUniteGraph::HddlUniteGraph(const Graph::Ptr& graphPtr, const HDDL2RemoteContext::Ptr& contextPtr) {
     HddlStatusCode statusCode;
 
-    const std::string graphName = graph->getGraphName();
-    const std::string graphData = graph->getGraphBlob();
+    const std::string graphName = graphPtr->getGraphName();
+    const std::string graphData = graphPtr->getGraphBlob();
 
-    if (context != nullptr) {
-        try {
-            _contextPtr = std::dynamic_pointer_cast<HDDL2RemoteContext>(context);
-        } catch (...) {
-            THROW_IE_EXCEPTION << "Invalid remote context pointer";
-        }
-        auto workloadContext = _contextPtr->getHddlUniteWorkloadContext();
+    if (contextPtr != nullptr) {
+        HddlUnite::WorkloadContext::Ptr workloadContext = contextPtr->getHddlUniteWorkloadContext();
+
         statusCode = HddlUnite::Inference::loadGraph(
-            _graphPtr, graphName, graphData.data(), graphData.size(), {*workloadContext});
+            _uniteGraphPtr, graphName, graphData.data(), graphData.size(), {*workloadContext});
     } else {
-        statusCode = HddlUnite::Inference::loadGraph(_graphPtr, graphName, graphData.data(), graphData.size());
+        statusCode = HddlUnite::Inference::loadGraph(_uniteGraphPtr, graphName, graphData.data(), graphData.size());
     }
 
     if (statusCode != HddlStatusCode::HDDL_OK) {
         THROW_IE_EXCEPTION << HDDLUNITE_ERROR_str << "Load graph error: " << statusCode;
     }
-    if (_graphPtr == nullptr) {
+    if (_uniteGraphPtr == nullptr) {
         THROW_IE_EXCEPTION << HDDLUNITE_ERROR_str << "Graph information is not provided";
     }
 }
 
 HddlUniteGraph::~HddlUniteGraph() {
-    if (_graphPtr != nullptr) {
-        HddlUnite::Inference::unloadGraph(_graphPtr);
+    if (_uniteGraphPtr != nullptr) {
+        HddlUnite::Inference::unloadGraph(_uniteGraphPtr);
+    }
+}
+
+void HddlUniteGraph::InferSync(const HddlUniteInferData::Ptr& data) {
+    if (data == nullptr) {
+        THROW_IE_EXCEPTION << "Data for inference is null!";
+    }
+    if (_uniteGraphPtr == nullptr) {
+        THROW_IE_EXCEPTION << "Graph is null!";
+    }
+
+    HddlStatusCode inferStatus = HddlUnite::Inference::inferSync(*_uniteGraphPtr, data->getHddlUniteInferData());
+
+    if (inferStatus != HddlStatusCode::HDDL_OK) {
+        THROW_IE_EXCEPTION << "InferSync FAILED! return code:" << inferStatus;
     }
 }

@@ -194,7 +194,7 @@ TEST_F(HDDL2_RemoteContext_CreateBlob_UnitTests, CreateBlob_InvalidParams_Return
     ASSERT_EQ(nullptr, blob);
 }
 
-// TODO Provide more information to user that this way should not be used
+// TODO Provide more information to user that this way should not be used (How?)
 TEST_F(HDDL2_RemoteContext_CreateBlob_UnitTests, CreatBlob_NotFromPointer_ReturnNull) {
     HDDL2RemoteContext context(params);
 

@@ -30,23 +30,24 @@ class Engine : public InferenceEngine::InferencePluginInternal {
 public:
     Engine();
 
-    InferenceEngine::ExecutableNetworkInternal::Ptr
+    ExecutableNetworkInternal::Ptr LoadExeNetworkImpl(
+        const ICore* core, ICNNNetwork& network, const std::map<std::string, std::string>& config) override;
 
-    LoadExeNetworkImpl(const InferenceEngine::ICore* core, InferenceEngine::ICNNNetwork& network,
-        const std::map<std::string, std::string>& config) override;
+    ExecutableNetworkInternal::Ptr LoadExeNetworkImpl(const ICore* core, ICNNNetwork& network, RemoteContext::Ptr ptr,
+        const std::map<std::string, std::string>& map) override;
 
-    void SetConfig(const std::map<std::string, std::string>& config) override;
-
-    void QueryNetwork(const InferenceEngine::ICNNNetwork& network, const std::map<std::string, std::string>& config,
-        InferenceEngine::QueryNetworkResult& res) const override;
-
-    InferenceEngine::IExecutableNetwork::Ptr ImportNetwork(
+    IExecutableNetwork::Ptr ImportNetwork(
         const std::string& modelFileName, const std::map<std::string, std::string>& config) override;
 
     InferenceEngine::ExecutableNetwork ImportNetwork(
         std::istream& /*networkModel*/, const std::map<std::string, std::string>& /*config*/) override {
         THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
     }
+
+    void SetConfig(const std::map<std::string, std::string>& config) override;
+
+    void QueryNetwork(const InferenceEngine::ICNNNetwork& network, const std::map<std::string, std::string>& config,
+        InferenceEngine::QueryNetworkResult& res) const override;
 
     /**
      * @brief Create context form param map. Will reuse already created workloadContext (workload

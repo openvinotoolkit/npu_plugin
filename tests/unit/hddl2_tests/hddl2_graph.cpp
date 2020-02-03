@@ -17,105 +17,86 @@
 #include "hddl2_graph.h"
 
 #include "gtest/gtest.h"
-#include "hddl2_helpers/models/model_loader.h"
+#include "hddl2_helpers/models/model_pooling.h"
 #include "hddl2_helpers/models/precompiled_resnet.h"
 #include "hddl2_plugin.h"
+#include "mcm_config.h"
 
 using namespace vpu::HDDL2Plugin;
 using namespace InferenceEngine;
 
 //------------------------------------------------------------------------------
-//     class HDDL2_Graph_UnitTests Params
+//     class Graph_Common_UnitTests Params
 //------------------------------------------------------------------------------
-enum typeOfGraph { ImportedGraph, CompiledGraph };
+enum typeOfGraph { fromImportedGraph, fromCompiledGraph };
 
 //------------------------------------------------------------------------------
-//     class HDDL2_Graph_UnitTests Declaration
+//     class Graph_Common_UnitTests Declaration
 //------------------------------------------------------------------------------
-class HDDL2_Graph_UnitTests : public ::testing::WithParamInterface<typeOfGraph>, public ::testing::Test {
+class Graph_Common_UnitTests : public ::testing::Test, public ::testing::WithParamInterface<typeOfGraph> {
 public:
     void SetUp() override;
 
-    HDDL2Graph::Ptr graphPtr;
+    Graph::Ptr graphPtr;
 
     struct PrintToStringParamName {
         std::string operator()(testing::TestParamInfo<typeOfGraph> const& info) const;
     };
 
 private:
-    const std::string _modelToImport = PrecompiledResNet_Helper::resnet.graphPath;
-    const std::string _modelToCompile = "googlenet/bvlc_googlenet_fp16";
+    const vpu::MCMConfig _defaultMCMConfig;
 };
 
-void HDDL2_Graph_UnitTests::SetUp() {
-    if (GetParam() == ImportedGraph) {
-        ASSERT_NO_THROW(graphPtr = std::make_shared<HDDL2ImportedGraph>(_modelToImport));
+void Graph_Common_UnitTests::SetUp() {
+    if (GetParam() == fromImportedGraph) {
+        const std::string _modelToImport = PrecompiledResNet_Helper::resnet.graphPath;
+        ASSERT_NO_THROW(graphPtr = std::make_shared<ImportedGraph>(_modelToImport, _defaultMCMConfig));
     } else {
-        CNNNetwork network;
-        ModelLoader_Helper::LoadModel(_modelToCompile, network);
-        ASSERT_NO_THROW(graphPtr = std::make_shared<HDDL2CompiledGraph>(network));
+        ModelPooling_Helper modelPoolingHelper;
+        CNNNetwork network = modelPoolingHelper.network;
+        ASSERT_NO_THROW(graphPtr = std::make_shared<CompiledGraph>(network, _defaultMCMConfig));
     }
 }
 
-std::string HDDL2_Graph_UnitTests::PrintToStringParamName::operator()(
+std::string Graph_Common_UnitTests::PrintToStringParamName::operator()(
     const testing::TestParamInfo<typeOfGraph>& info) const {
     auto createdFrom = info.param;
-    if (createdFrom == ImportedGraph) {
-        return "ImportedGraph";
-    } else if (createdFrom == CompiledGraph) {
-        return "CompiledGraph";
+    if (createdFrom == fromImportedGraph) {
+        return "fromImportedGraph";
+    } else if (createdFrom == fromCompiledGraph) {
+        return "fromCompiledGraph";
     } else {
         return "Unknown params";
     }
 }
 
 //------------------------------------------------------------------------------
-//     HDDL2_Graph_UnitTests Initiation
+//     Graph_Common_UnitTests Initiation
 //------------------------------------------------------------------------------
-TEST_P(HDDL2_Graph_UnitTests, getDeviceName_ReturnNotNull) {
+TEST_P(Graph_Common_UnitTests, getDeviceName_ReturnNotNull) {
     const std::string name = graphPtr->getGraphName();
     ASSERT_GT(name.size(), 0);
 }
 
-TEST_P(HDDL2_Graph_UnitTests, getInputsInfo_ReturnNotEmpty) {
+TEST_P(Graph_Common_UnitTests, getInputsInfo_ReturnNotEmpty) {
     auto inputsInfo = graphPtr->getInputsInfo();
     ASSERT_GT(inputsInfo.size(), 0);
 }
 
-TEST_P(HDDL2_Graph_UnitTests, getOutputsInfo_ReturnNotEmpty) {
+TEST_P(Graph_Common_UnitTests, getOutputsInfo_ReturnNotEmpty) {
     auto inputsInfo = graphPtr->getOutputsInfo();
     ASSERT_GT(inputsInfo.size(), 0);
+}
+
+TEST_P(Graph_Common_UnitTests, getGraphBlob_ReturnNotEmpty) {
+    auto graphBlob = graphPtr->getGraphBlob();
+    ASSERT_GT(graphBlob.size(), 0);
 }
 
 //------------------------------------------------------------------------------
 //      class HDDL2_Allocator_Manipulations_UnitTests Test case Initiations
 //------------------------------------------------------------------------------
-// TODO Enable CompiledGraph after implementing graph compilation (enable mcm compiler)
-const static std::vector<typeOfGraph> createdFrom = {ImportedGraph};
+const static std::vector<typeOfGraph> createdFrom = {fromImportedGraph, fromCompiledGraph};
 
-INSTANTIATE_TEST_CASE_P(GraphFrom, HDDL2_Graph_UnitTests, ::testing::ValuesIn(createdFrom),
-    HDDL2_Graph_UnitTests::PrintToStringParamName());
-
-//------------------------------------------------------------------------------
-//     class HDDL2_Graph_UnitTests Declaration
-//------------------------------------------------------------------------------
-class HDDL2_ImportedGraph_UnitTests : public ::testing::Test {
-public:
-    void SetUp() override;
-    HDDL2Graph::Ptr graphPtr;
-
-private:
-    const std::string _modelToImport = PrecompiledResNet_Helper::resnet.graphPath;
-};
-
-void HDDL2_ImportedGraph_UnitTests::SetUp() {
-    ASSERT_NO_THROW(graphPtr = std::make_shared<HDDL2ImportedGraph>(_modelToImport));
-}
-
-//------------------------------------------------------------------------------
-//     HDDL2_ImportedGraph_UnitTests Initiation
-//------------------------------------------------------------------------------
-TEST_F(HDDL2_ImportedGraph_UnitTests, getGraphBlob_NotEmptyBlob) {
-    auto graphContent = graphPtr->getGraphBlob();
-    ASSERT_GT(graphContent.size(), 0);
-}
+INSTANTIATE_TEST_CASE_P(GraphFrom, Graph_Common_UnitTests, ::testing::ValuesIn(createdFrom),
+    Graph_Common_UnitTests::PrintToStringParamName());

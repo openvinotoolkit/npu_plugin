@@ -48,7 +48,7 @@ protected:
 
     // LoadNetwork
     InferenceEngine::CNNNetwork _cnnNetwork;
-    ModelPooling_Helper modelPoolingHelper;
+    ModelPooling_Helper _modelPoolingHelper;
 };
 
 inline void Executable_Network_Parametric::SetUp() {
@@ -56,7 +56,7 @@ inline void Executable_Network_Parametric::SetUp() {
     if (createFrom == ImportNetwork) {
         executableNetwork = ie.ImportNetwork(_modelBlobInfo.graphPath, pluginName);
     } else {
-        _cnnNetwork = modelPoolingHelper.network;
+        _cnnNetwork = _modelPoolingHelper.network;
         executableNetwork = ie.LoadNetwork(_cnnNetwork, pluginName);
     }
 }

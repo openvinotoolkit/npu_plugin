@@ -40,8 +40,6 @@ public:
     bool isRemoteTheSame(const std::string &dataToCompare);
     void setRemoteMemory(const std::string& dataToSet);
 
-    RemoteMemoryFd getMemoryFd();
-
     virtual ~RemoteMemory_Helper();
 
 private:
@@ -78,6 +76,10 @@ RemoteMemory_Helper::allocateRemoteMemory(const WorkloadID &id, const size_t &si
     }
 
     _memory = HddlUnite::SMM::allocate(*context, size);
+    if (_memory == nullptr) {
+        return 0;
+    }
+
     _memoryFd = _memory->getDmaBufFd();
 
     printf("Memory fd: %lu\n", _memoryFd);
@@ -87,10 +89,6 @@ RemoteMemory_Helper::allocateRemoteMemory(const WorkloadID &id, const size_t &si
 inline void RemoteMemory_Helper::destroyRemoteMemory() {
     _memoryFd = 0;
     _memory = nullptr;
-}
-
-inline RemoteMemoryFd RemoteMemory_Helper::getMemoryFd() {
-    return _memoryFd;
 }
 
 inline std::string RemoteMemory_Helper::getRemoteMemory(const size_t &size) {

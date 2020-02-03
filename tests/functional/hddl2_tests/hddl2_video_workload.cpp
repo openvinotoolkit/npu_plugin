@@ -17,7 +17,7 @@
 #include "RemoteMemory.h"
 #include "gtest/gtest.h"
 #include "hddl2_helpers/helper_tensor_description.h"
-#include "hddl2_helpers/models/precompiled_resnet.h"
+#include "hddl2_helpers/models/model_pooling.h"
 #include "hddl2_params.hpp"
 #include "ie_core.hpp"
 
@@ -55,7 +55,7 @@ protected:
 //------------------------------------------------------------------------------
 bool VideoPipeline::createVideoPipeline(
     WorkloadID& workloadContextID, uint64_t& remoteMemoryFd, const std::string& data) {
-    auto context = HddlUnite::createWorkloadContext();
+    HddlUnite::WorkloadContext::Ptr context = HddlUnite::createWorkloadContext();
 
     auto ret = context->setContext(_workloadId);
     if (ret != HDDL_OK) {
@@ -112,9 +112,8 @@ TEST_F(HDDL2_VideoWorkload_Tests, CanGetInputFromCreatedVideoPipeline) {
     // ---- Create remote blob by using already exists fd
     IE::ParamMap blobParamMap = {{IE::HDDL2_PARAM_KEY(REMOTE_MEMORY_FD), remoteMemoryFd}};
 
-    // TODO This information should me granted from executable network
-    TensorDescription_Helper tensorDescriptionHelper;
-    auto tensorDesc = tensorDescriptionHelper.tensorDesc;
+    // For this test real network will not be allocated, so we will just create memory for string
+    IE::TensorDesc tensorDesc(IE::Precision::U8, {1, 1, 1, data_str.size()}, IE::NCHW);
     IE::RemoteBlob::Ptr remoteBlobPtr = contextPtr->CreateBlob(tensorDesc, blobParamMap);
     ASSERT_NE(nullptr, remoteBlobPtr);
 
@@ -122,11 +121,71 @@ TEST_F(HDDL2_VideoWorkload_Tests, CanGetInputFromCreatedVideoPipeline) {
     remoteBlobPtr->allocate();
 
     std::string first_output;
-    // TODO Any other way to unlock memory? (destructor of locked memory should be called)
     {
         auto lockedMemory = remoteBlobPtr->buffer();
         auto data = lockedMemory.as<char*>();
         first_output = std::string(data);
     }
     ASSERT_EQ(data_str, first_output);
+}
+
+/**
+ * 1. Create video pipeline
+ * 2. Create remote context from workload id
+ * 3. Create executable network using context
+ * 4. Create remote blob from remote memory fd and set it to infer request
+ * 5. Run Inference
+ * // TODO This part can note be checked correctly without device
+ * 6. Check output after inference
+ */
+
+TEST_F(HDDL2_VideoWorkload_Tests, DISABLED_SyncInferenceOnOneFrame) {
+    WorkloadID workloadContextID;
+    uint64_t remoteMemoryFd;
+    const std::string data_str = "Hello HDDL2 Plugin";
+
+    // ---- Create video pipeline mock
+    VideoPipeline videoPipeline;
+    ASSERT_TRUE(videoPipeline.createVideoPipeline(workloadContextID, remoteMemoryFd, data_str));
+
+    // ---- Load inference engine instance
+    InferenceEngine::Core ie;
+
+    // ---- Init context map and create context based on it
+    IE::ParamMap paramMap = {{IE::HDDL2_PARAM_KEY(WORKLOAD_CONTEXT_ID), workloadContextID}};
+    IE::RemoteContext::Ptr contextPtr = ie.CreateContext("HDDL2", paramMap);
+
+    // ---- Load network providing context as input and get input information
+    ModelPooling_Helper modelPoolingHelper;
+    IE::CNNNetwork network = modelPoolingHelper.network;
+    IE::ExecutableNetwork executableNetwork = ie.LoadNetwork(network, contextPtr);
+
+    const std::string inputName = executableNetwork.GetInputsInfo().begin()->first;
+    IE::InputInfo::CPtr inputInfoPtr = executableNetwork.GetInputsInfo().begin()->second;
+
+    // ---- Create infer request
+    InferenceEngine::InferRequest inferRequest;
+    ASSERT_NO_THROW(inferRequest = executableNetwork.CreateInferRequest());
+
+    // ---- Create remote blob by using already exists fd
+    IE::ParamMap blobParamMap = {{IE::HDDL2_PARAM_KEY(REMOTE_MEMORY_FD), remoteMemoryFd}};
+    IE::RemoteBlob::Ptr remoteBlobPtr = contextPtr->CreateBlob(inputInfoPtr->getTensorDesc(), blobParamMap);
+    ASSERT_NE(nullptr, remoteBlobPtr);
+
+    // ---- Set remote blob as input for infer request
+    inferRequest.SetBlob(inputName, remoteBlobPtr);
+
+    // ---- Run the request synchronously
+    ASSERT_NO_THROW(inferRequest.Infer());
+
+    // TODO Implement real output check for real device
+    // --- Get output
+    IE::ConstOutputsDataMap outputsInfo;
+    for (auto& item : outputsInfo) {
+        IE::Blob::Ptr outputBlob = inferRequest.GetBlob(item.first);
+        auto lockedMemory = outputBlob->buffer();
+        auto memory = lockedMemory.as<char*>();
+        std::string memoryBuffer(memory);
+        ASSERT_GT(memoryBuffer.size(), 0);
+    }
 }

@@ -25,18 +25,19 @@ namespace HDDL2Plugin {
 class ImportedGraph_Helper {
 public:
     ImportedGraph_Helper();
-    HDDL2Graph::Ptr getGraph();
+    Graph::Ptr getGraph();
 
 protected:
     const std::string _modelToImport = PrecompiledResNet_Helper::resnet.graphPath;
-    HDDL2Graph::Ptr _graphPtr = nullptr;
+    Graph::Ptr _graphPtr = nullptr;
 };
 
 inline ImportedGraph_Helper::ImportedGraph_Helper() {
-    _graphPtr= std::make_shared<HDDL2ImportedGraph>(_modelToImport);
+    MCMConfig defaultConfig;
+    _graphPtr= std::make_shared<ImportedGraph>(_modelToImport, defaultConfig);
 }
 
-HDDL2Graph::Ptr ImportedGraph_Helper::getGraph() {
+Graph::Ptr ImportedGraph_Helper::getGraph() {
     return _graphPtr;
 }
 

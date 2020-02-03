@@ -36,37 +36,27 @@ using namespace vpu::HDDL2Plugin;
 Engine::Engine() { _pluginName = "HDDL2"; }
 
 ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(
-    const ICore* /*core*/, ICNNNetwork& network, const std::map<std::string, std::string>& config) {
-    InputsDataMap networkInputs;
-    OutputsDataMap networkOutputs;
-
-    network.getInputsInfo(networkInputs);
-    network.getOutputsInfo(networkOutputs);
-
-    for (auto networkInput : networkInputs) {
-        auto input_precision = networkInput.second->getPrecision();
-
-        if (input_precision != Precision::FP16 && input_precision != Precision::FP32 &&
-            input_precision != Precision::U8) {
-            THROW_IE_EXCEPTION << "Input image format " << input_precision << " is not supported yet.\n"
-                               << "Supported formats:F16, FP32 and U8.";
-        }
-    }
+    const ICore* core, ICNNNetwork& network, const std::map<std::string, std::string>& config) {
+    UNUSED(core);
     auto parsedConfigCopy = _parsedConfig;
     parsedConfigCopy.update(config);
 
     return std::make_shared<HDDL2Plugin::ExecutableNetwork>(network, parsedConfigCopy);
 }
 
+ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(const ICore* core, ICNNNetwork& network,
+    RemoteContext::Ptr context, const std::map<std::string, std::string>& config) {
+    UNUSED(core);
+    auto parsedConfigCopy = _parsedConfig;
+    parsedConfigCopy.update(config);
+
+    return std::make_shared<HDDL2Plugin::ExecutableNetwork>(network, parsedConfigCopy, context);
+}
+
 IExecutableNetwork::Ptr Engine::ImportNetwork(
     const std::string& modelFileName, const std::map<std::string, std::string>& config) {
     auto parsedConfigCopy = _parsedConfig;
     parsedConfigCopy.update(config, ConfigMode::RunTime);
-
-    std::ifstream blobFile(modelFileName, std::ios::binary);
-    if (!blobFile.is_open()) {
-        THROW_IE_EXCEPTION << InferenceEngine::details::as_status << NETWORK_NOT_READ;
-    }
 
     const auto executableNetwork = std::make_shared<ExecutableNetwork>(modelFileName, parsedConfigCopy);
 
@@ -83,8 +73,10 @@ void Engine::SetConfig(const std::map<std::string, std::string>& config) {
 
 void Engine::QueryNetwork(const InferenceEngine::ICNNNetwork& network, const std::map<std::string, std::string>& config,
     InferenceEngine::QueryNetworkResult& res) const {
-    std::cout << "QueryNetwork call" << std::endl;
-    InferencePluginInternal::QueryNetwork(network, config, res);
+    UNUSED(network);
+    UNUSED(config);
+    UNUSED(res);
+    THROW_IE_EXCEPTION << NOT_IMPLEMENTED;
 }
 
 RemoteContext::Ptr Engine::CreateContext(const ParamMap& map) {
@@ -93,7 +85,6 @@ RemoteContext::Ptr Engine::CreateContext(const ParamMap& map) {
 
 IE_SUPPRESS_DEPRECATED_START
 
-// TODO If it's a deprecated way, how we should create plugin correctly?
 INFERENCE_PLUGIN_API(InferenceEngine::StatusCode)
 CreatePluginEngine(IInferencePlugin*& plugin, ResponseDesc* resp) noexcept {
     try {

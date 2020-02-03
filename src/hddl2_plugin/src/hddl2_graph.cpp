@@ -19,16 +19,53 @@
 #include <fstream>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "hddl2_exceptions.h"
 #include "hddl2_helpers.h"
+#include "mcm_adapter.hpp"
 
 using namespace vpu::HDDL2Plugin;
+namespace IE = InferenceEngine;
+
 //------------------------------------------------------------------------------
-//      class HDDL2Graph Implementation
+//      Helpers
 //------------------------------------------------------------------------------
-// TODO Hardcoded resnet until mcm will be supported
-InferenceEngine::InputsDataMap HDDL2Graph::getInputsInfo() const noexcept {
+static void loadFileToString(const std::string& filename, std::string& outputString) {
+    std::ifstream blobFile(filename, std::ios::binary);
+    if (!blobFile.is_open()) {
+        THROW_IE_EXCEPTION << FILES_ERROR_str << "Could not open file: " << filename;
+    }
+    outputString = std::string(std::istreambuf_iterator<char>(blobFile), std::istreambuf_iterator<char>());
+}
+
+//------------------------------------------------------------------------------
+//      class CompiledGraph Implementation
+//------------------------------------------------------------------------------
+CompiledGraph::CompiledGraph(IE::ICNNNetwork& network, const MCMConfig& config) {
+    _graphName = network.getName();
+
+    network.getInputsInfo(_networkInputs);
+    network.getOutputsInfo(_networkOutputs);
+
+    if (!MCMAdapter::isMCMCompilerAvailable()) {
+        THROW_IE_EXCEPTION << "MCM compiler is not available!";
+    }
+
+    std::vector<char> graphBlob;
+    try {
+        MCMAdapter::compileNetwork(network, config, graphBlob);
+    } catch (const std::exception& ex) {
+        THROW_IE_EXCEPTION << "Failed to compile network! Error: " << ex.what();
+    }
+    _blobContentString = std::string(graphBlob.begin(), graphBlob.end());
+}
+
+//------------------------------------------------------------------------------
+//      class ImportedGraph Implementation
+//------------------------------------------------------------------------------
+// TODO Hardcoded resnet until parsing imported blob will be supported #-25765
+static InferenceEngine::InputsDataMap hardcodedResNetInputs() {
     InferenceEngine::InputsDataMap m_networkInputs;
     InferenceEngine::SizeVector inputDims({1, 3, 224, 224});
     InferenceEngine::Layout inputLayout = InferenceEngine::Layout::NCHW;
@@ -42,11 +79,13 @@ InferenceEngine::InputsDataMap HDDL2Graph::getInputsInfo() const noexcept {
     return m_networkInputs;
 }
 
-// TODO Hardcoded resnet until mcm will be supported
-InferenceEngine::OutputsDataMap HDDL2Graph::getOutputsInfo() const noexcept {
+// TODO Hardcoded resnet until parsing imported blob will be supported #-25765
+static InferenceEngine::OutputsDataMap hardcodedResNetOutputs() {
     InferenceEngine::OutputsDataMap m_networkOutputs;
-    InferenceEngine::SizeVector outputDims({1, 1024, 1, 1});
+    // TODO Hack for output to align with emulator
+    InferenceEngine::SizeVector outputDims({1, 512, 1, 1});
     InferenceEngine::Layout outputLayout = InferenceEngine::Layout::NCHW;
+    // TODO Should it be FP32?
     InferenceEngine::Precision outputPrecision = InferenceEngine::Precision::U8;
     InferenceEngine::TensorDesc outputDesc(outputPrecision, outputDims, outputLayout);
 
@@ -55,32 +94,13 @@ InferenceEngine::OutputsDataMap HDDL2Graph::getOutputsInfo() const noexcept {
     return m_networkOutputs;
 }
 
-std::string HDDL2Graph::getGraphName() {
-    // TODO hardcoded for now
+ImportedGraph::ImportedGraph(const std::string& blobFilename, const MCMConfig& config) {
+    // TODO find usage for mcmConfig in case of imported network
+    UNUSED(config);
+
+    // TODO Hardcoded resnet until parsing imported blob will be supported #-25765
     _graphName = "resNet";
-    return _graphName;
-}
-
-const std::string& HDDL2Graph::getGraphBlob() const { return _blobContentString; }
-
-//------------------------------------------------------------------------------
-//      class HDDL2CompiledGraph Implementation
-//------------------------------------------------------------------------------
-HDDL2CompiledGraph::HDDL2CompiledGraph(const IE::ICNNNetwork& network) {
-    UNUSED(network);
-    THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
-}
-
-//------------------------------------------------------------------------------
-//      class HDDL2CompiledGraph Implementation
-//------------------------------------------------------------------------------
-HDDL2ImportedGraph::HDDL2ImportedGraph(const std::string& blobFilename): _blobFileName(blobFilename) {
-    std::ifstream blobFile(blobFilename, std::ios::binary);
-    if (!blobFile.is_open()) {
-        THROW_IE_EXCEPTION << FILES_ERROR_str << "Could not open file: " << blobFilename;
-    }
-    std::ostringstream blobContentStream;
-    blobContentStream << blobFile.rdbuf();
-
-    _blobContentString = blobContentStream.str();
+    _networkInputs = hardcodedResNetInputs();
+    _networkOutputs = hardcodedResNetOutputs();
+    loadFileToString(blobFilename, _blobContentString);
 }
