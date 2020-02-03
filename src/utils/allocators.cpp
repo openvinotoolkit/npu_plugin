@@ -44,14 +44,14 @@ static uint32_t calculateRequiredSize(uint32_t blobSize, int pageSize) {
 
 void* VPUSMMAllocator::allocate(size_t requestedSize) {
     const uint32_t requiredBlobSize = calculateRequiredSize(requestedSize, _pageSize);
-    int fileDesc = vpusmm_alloc_dmabuf(requiredBlobSize, VPUSMMTYPE_COHERENT);
+    int fileDesc = vpurm_alloc_dmabuf(requiredBlobSize, VPUSMMTYPE_COHERENT, 0);
     if (fileDesc < 0) {
-        throw std::runtime_error("VPUSMMAllocator::allocate: vpusmm_alloc_dmabuf failed");
+        throw std::runtime_error("VPUSMMAllocator::allocate: vpurm_alloc_dmabuf failed");
     }
 
-    unsigned long physAddr = vpusmm_import_dmabuf(fileDesc, VPU_DEFAULT);
+    unsigned long physAddr = vpurm_import_dmabuf(fileDesc, VPU_DEFAULT, 0);
     if (physAddr == 0) {
-        throw std::runtime_error("VPUSMMAllocator::allocate: vpusmm_import_dmabuf failed");
+        throw std::runtime_error("VPUSMMAllocator::allocate: vpurm_import_dmabuf failed");
     }
 
     void* virtAddr = mmap(0, requiredBlobSize, PROT_READ|PROT_WRITE, MAP_SHARED, fileDesc, 0);
@@ -75,7 +75,7 @@ VPUSMMAllocator::~VPUSMMAllocator() {
         int fileDesc = std::get<0>(chunk);
         void* virtAddr = std::get<1>(chunk);
         size_t allocatedSize = std::get<2>(chunk);
-        vpusmm_unimport_dmabuf(fileDesc);
+        vpurm_unimport_dmabuf(fileDesc, 0);
         munmap(virtAddr, allocatedSize);
         close(fileDesc);
     }
