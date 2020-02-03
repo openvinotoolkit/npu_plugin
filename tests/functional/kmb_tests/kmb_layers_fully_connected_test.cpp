@@ -169,14 +169,6 @@ static void fillFcIR(std::string& model, SizeVector input_dims, size_t weightsBu
 
 typedef kmbLayerTestBaseWithParam<fullyConnected_test_params> kmbLayersTestsFullyConnectedWithIR;
 
-Blob::Ptr getQuantizedBlob(Blob::Ptr blob, size_t blobSize, float min, float max) {
-    double inf = std::numeric_limits<double>::infinity();
-    double scales = (max - min) / 255;
-    int64_t zeroPoint = vpu::QuantizationHelpers::calculateZeroPoint(max, min, 256, Precision::U8);
-    return vpu::QuantizationHelpers::quantizeBlob(
-        blob, {1, blobSize, 1, 1}, {{zeroPoint}, {scales}, {-inf}, {inf}}, Precision::U8, " ");
-}
-
 TEST_P(kmbLayersTestsFullyConnectedWithIR, fc_only) {
     size_t weightsBufferOffset = 48;
     auto input_dims = GetParam().input_dim;
