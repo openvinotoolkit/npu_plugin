@@ -54,9 +54,9 @@ target_link_libraries(${TARGET_NAME}
         IE::vpu_common_lib
         frontend_mcm
         ${VPUAL_NN_LIBRARY}
-        ${GAPI_SIPP_LIBRARY}
         vpusmm
     PRIVATE
+        ${GAPI_SIPP_LIBRARY}
         kmb_utils)
 
 if(ENABLE_CLANG_FORMAT)
@@ -82,8 +82,8 @@ if(ENABLE_TESTS)
             IE::vpu_common_lib
             frontend_mcm
             ${VPUAL_NN_LIBRARY}
-            ${GAPI_SIPP_LIBRARY}
             vpusmm
         PRIVATE
+            ${GAPI_SIPP_LIBRARY}
             kmb_utils)
 endif()
