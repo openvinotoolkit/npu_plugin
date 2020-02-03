@@ -18,9 +18,7 @@
 
 #include "test_model/kmb_test_base.hpp"
 
-// Fails on IE to mcmCompiler parsing stage with message
-// C++ exception with description "quant_model/resnet_v1_50/block1/unit_3/bottleneck_v1/addQuantize Eltwise
-// should has FakeQuantize on inputs
+// Hangs on infer stage [Track number: D#2245]
 TEST_F(KmbClassifyNetworkTest, DISABLED_ResNet_50_v1_tf_int8_sparse_v2) {  // 60.4% sparsity
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/sparse/ResNet-50-tf/resnetv1-int8-sparse-v2-tf-0001.xml")
@@ -31,9 +29,7 @@ TEST_F(KmbClassifyNetworkTest, DISABLED_ResNet_50_v1_tf_int8_sparse_v2) {  // 60
         1, 0.05f);
 }
 
-// Fails on IE to mcmCompiler parsing stage with message
-// C++ exception with description "quant_model/resnet_v1_50/block1/unit_3/bottleneck_v1/addQuantize Eltwise
-// should has FakeQuantize on inputs
+// Hangs on infer stage [Track number: D#2245]
 TEST_F(KmbClassifyNetworkTest, DISABLED_ResNet_50_v1_tf_int8_sparse_v1) {  // 28.4% sparsity
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/sparse/ResNet-50-tf/resnetv1-int8-sparse-v1-tf-0001.xml")
@@ -44,10 +40,8 @@ TEST_F(KmbClassifyNetworkTest, DISABLED_ResNet_50_v1_tf_int8_sparse_v1) {  // 28
         1, 0.05f);
 }
 
-// Fails on mcmCompiler compilation stage with message
-// C++ exception with description "Caught std::runtime_error during unit run:
-// Populated tensor with DType Int32 with out of bound value -9223372036854775808
-TEST_F(KmbClassifyNetworkTest, DISABLED_ResNet_50_v1_onnx_int8_sparse_v2) {
+// Bad inference results. [Track number: D#2245]
+TEST_F(KmbClassifyNetworkTest, ResNet_50_v1_onnx_int8_sparse_v2) {
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/sparse/ResNet-50-onnx/resnet50-int8-sparse-v2.xml")
             .setUserInputPresision("input", Precision::U8)
@@ -57,10 +51,8 @@ TEST_F(KmbClassifyNetworkTest, DISABLED_ResNet_50_v1_onnx_int8_sparse_v2) {
         1, 0.05f);
 }
 
-// Fails on mcmCompiler compilation stage with message
-// C++ exception with description "Caught std::runtime_error during unit run:
-// Populated tensor with DType Int32 with out of bound value -4315556704
-TEST_F(KmbClassifyNetworkTest, DISABLED_MobileNet_v2_onnx_int8_sparse_v2) {
+// Bad inference results. [Track number: D#2246]
+TEST_F(KmbClassifyNetworkTest, MobileNet_v2_onnx_int8_sparse_v2) {
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/sparse/MoblieNet-v2-onnx/mobilenetv2-int8-sparse-v2.xml")
             .setUserInputPresision("input", Precision::U8)
@@ -70,12 +62,7 @@ TEST_F(KmbClassifyNetworkTest, DISABLED_MobileNet_v2_onnx_int8_sparse_v2) {
         1, 0.05f);
 }
 
-// post training models
-// To learn where the post training IRs from and how to update them (if necessary) see
-// scripts/post_training_quantization/README.md and
-// scripts/post_training_quantization/<corresponding network dir>/run.txt files
-
-// Test fails on inference stage. [Track number: D#2203, S#26406]
+// Bad inference results. [Track number: D#2473]
 TEST_F(KmbClassifyNetworkTest, mobilenet_v2_uint8_int8_weights_perchannel) {
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/MobileNet_V2/mobilenet_v2_uint8_int8_weights_perchannel.xml")
@@ -106,12 +93,24 @@ TEST_F(KmbClassifyNetworkTest, inception_v1_tf_uint8_int8_weights_pertensor) {
         "224x224/cat3.bmp",
         1, 0.05f);
 }
-
-// post training models
+// Test on caffe based inception_v1 fails on IE to mcmCompiler parsing stage
+// C++ exception with description "Op:pool5/7x7_s1 - OpError: Invalid input data (0) -
+// Filter kernel width (7) exceeds the padded input width (6)
+// [Track number: S#25483, D#2374]
+TEST_F(KmbClassifyNetworkTest, DISABLED_inception_v1_caffe_benchmark) {
+    runTest(
+        TestNetworkDesc("KMB_models/INT8/public/inception-v1_caffe/googlenet-v1.xml")
+            .setUserInputPresision("input", Precision::U8)
+            .setUserInputLayout("input", Layout::NHWC)
+            .setUserOutputPresision("output", Precision::FP32),
+        "224x224/cat3.bmp",
+        1, 0.05f);
+}
 // Following test on caffe based squeezenet1_1 fails on IE to mcmCompiler parsing stage
 // with message
 // C++ exception with description "Op:pool10 - OpError: Invalid input data (0) -
 // Filter kernel width (14) exceeds the padded input width (13)
+// [Track number: S#25483, D#2374]
 TEST_F(KmbClassifyNetworkTest, DISABLED_squeezenet1_1_caffe_benchmark) {
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/squeezenet1_1_caffe/squeezenet1.1.xml")
@@ -121,7 +120,6 @@ TEST_F(KmbClassifyNetworkTest, DISABLED_squeezenet1_1_caffe_benchmark) {
         "227x227/cat3.bmp",
         1, 0.05f);
 }
-
 TEST_F(KmbClassifyNetworkTest, resnet50_uint8_int8_weights_pertensor) {
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/ResNet-50/resnet50_uint8_int8_weights_pertensor.xml")
@@ -131,6 +129,7 @@ TEST_F(KmbClassifyNetworkTest, resnet50_uint8_int8_weights_pertensor) {
         "224x224/cat3.bmp",
         1, 0.7f);
 }
+// Hangs on infer stage [Track number: D#2293]
 TEST_F(KmbClassifyNetworkTest, DISABLED_GoogLeNet_v1_tf_int8_sparse) {
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/sparse/GoogLeNet-v1-tf/inceptionv1-int8-sparse-tf-0001.xml")
@@ -140,7 +139,7 @@ TEST_F(KmbClassifyNetworkTest, DISABLED_GoogLeNet_v1_tf_int8_sparse) {
         "224x224/cat3.bmp",
         1, 0.05f);
 }
-
+// Bad inference results. [Track number: D#2246] 
 TEST_F(KmbClassifyNetworkTest, DISABLED_MobileNet_v2_tf_int8_sparse_v2) {  // 59.3% sparsity
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/sparse/MoblieNet-v2-tf/mobilenetv2-int8-sparse-v2-tf-0001.xml")
@@ -150,8 +149,8 @@ TEST_F(KmbClassifyNetworkTest, DISABLED_MobileNet_v2_tf_int8_sparse_v2) {  // 59
         "224x224/cat3.bmp",
         1, 0.05f);
 }
-
-TEST_F(KmbClassifyNetworkTest, DISABLED_MobileNet_v2_tf_int8_sparse_v1) {  // 30.8% sparsity
+// Bad inference results. [Track number: D#2246] 
+TEST_F(KmbClassifyNetworkTest, MobileNet_v2_tf_int8_sparse_v1) {  // 30.8% sparsity
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/sparse/MoblieNet-v2-tf/mobilenetv2-int8-sparse-v1-tf-0001.xml")
             .setUserInputPresision("input", Precision::U8)
@@ -160,7 +159,6 @@ TEST_F(KmbClassifyNetworkTest, DISABLED_MobileNet_v2_tf_int8_sparse_v1) {  // 30
         "224x224/cat3.bmp",
         1, 0.05f);
 }
-
 // Inference hangs.  [Track number: D#2476]
 TEST_F(KmbClassifyNetworkTest, DISABLED_squeezenet1_1_pytorch_uint8_int8_weights_pertensor) {
     runTest(
@@ -171,7 +169,7 @@ TEST_F(KmbClassifyNetworkTest, DISABLED_squeezenet1_1_pytorch_uint8_int8_weights
         "224x224/cat3.bmp",
         1, 0.05f);
 }
-
+// Inference hangs.  [Track number: D#2476]
 TEST_F(KmbClassifyNetworkTest, DISABLED_SqueezeNetv1_1_onnx_int8_sparse) {
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/sparse/squeezenetv1.1-int8-onnx/squeezenetv1.1-int8-sparse-v2.xml")
