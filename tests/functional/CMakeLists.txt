@@ -52,13 +52,11 @@ target_include_directories(${TARGET_NAME}
         ${CMAKE_CURRENT_SOURCE_DIR}/common
         ${CMAKE_CURRENT_SOURCE_DIR}/regression_tests/helpers
         ${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/include
-        ${IE_MAIN_SOURCE_DIR}/src/vpu/graph_transformer/include
-    SYSTEM PRIVATE
-        ${MCM_COMPILER_INCLUDES})
+        ${IE_MAIN_SOURCE_DIR}/src/vpu/graph_transformer/include)
 
-    target_link_libraries(${TARGET_NAME}
-        PRIVATE
-            ${KMB_TEST_LIBRARIES})
+target_link_libraries(${TARGET_NAME}
+    PRIVATE
+        ${KMB_TEST_LIBRARIES})
 
 add_test(NAME ${TARGET_NAME} COMMAND ${TARGET_NAME})
 set_property(TEST ${TARGET_NAME} PROPERTY LABELS VPU KMB)

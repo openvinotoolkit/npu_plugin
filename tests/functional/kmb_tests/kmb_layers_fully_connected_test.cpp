@@ -19,7 +19,6 @@
 
 #include "kmb_layers_tests.hpp"
 #include "kmb_xml_tests.hpp"
-#include "quantization_helpers.hpp"
 #include "test_model/kmb_test_fake_quantize_def.hpp"
 
 // TODO https://jira.devtools.intel.com/browse/VPUNND-2304
