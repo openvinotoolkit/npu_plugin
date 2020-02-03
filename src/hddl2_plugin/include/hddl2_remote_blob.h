@@ -32,17 +32,15 @@ namespace HDDL2Plugin {
 //      class HDDL2BlobParams
 //------------------------------------------------------------------------------
 class HDDL2BlobParams {
-    using RemoteMemoryFd = uint64_t;
-
 public:
     explicit HDDL2BlobParams(const InferenceEngine::ParamMap& paramMap);
 
     InferenceEngine::ParamMap getParamMap() const;
-    RemoteMemoryFd getRemoteMemoryFd() const;
+    RemoteMemoryFD getRemoteMemoryFD() const;
 
 protected:
     InferenceEngine::ParamMap _paramMap;
-    RemoteMemoryFd _remoteMemoryFd;
+    RemoteMemoryFD _remoteMemoryFd;
 };
 
 //------------------------------------------------------------------------------
@@ -82,6 +80,8 @@ public:
     InferenceEngine::ParamMap getParams() const override;
 
     std::string getDeviceName() const noexcept override;
+
+    RemoteMemoryFD getRemoteMemoryFD() const;
 
 protected:
     HDDL2BlobParams _params;

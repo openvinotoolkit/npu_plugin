@@ -47,8 +47,7 @@ TEST_F(HDDL2_LoadNetwork_Tests, CanCreateExecutable) {
     ASSERT_NO_THROW(executableNetwork = ie.LoadNetwork(network, pluginName));
 }
 
-// TODO Create LoadNetwork with context implementation required
-TEST_F(HDDL2_LoadNetwork_Tests, DISABLED_CanCreateWithContext) {
+TEST_F(HDDL2_LoadNetwork_Tests, CanCreateWithContext) {
     Remote_Context_Helper contextHelper;
 
     auto contextParams = contextHelper.wrapWorkloadIdToMap(contextHelper.getWorkloadId());
@@ -69,7 +68,7 @@ TEST_F(HDDL2_LoadNetwork_Tests, CanCreateInferRequestAfterLoadNetwork) {
     ASSERT_NO_THROW(inferRequest = executableNetwork.CreateInferRequest());
 }
 
-// TODO SIGABRT on googlenet
+// TODO FAIL - SIGABRT on googlenet in mcm adapter
 TEST_F(HDDL2_LoadNetwork_Tests, DISABLED_CanCreateInferRequestAfterLoadNetwork_GoogleNet) {
     const std::string _modelName = "googlenet/bvlc_googlenet_fp16";
     ModelLoader_Helper::LoadModel(_modelName, network);

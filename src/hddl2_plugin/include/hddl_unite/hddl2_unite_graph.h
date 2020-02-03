@@ -20,6 +20,7 @@
 
 #include "InferGraph.h"
 #include "hddl2_graph.h"
+#include "hddl2_infer_data.h"
 #include "hddl2_remote_context.h"
 
 namespace vpu {
@@ -28,16 +29,13 @@ namespace HDDL2Plugin {
 class HddlUniteGraph {
 public:
     using Ptr = std::shared_ptr<HddlUniteGraph>;
-    explicit HddlUniteGraph(const HDDL2Graph::Ptr& graph, const HDDL2RemoteContext::Ptr& context = nullptr);
+
+    explicit HddlUniteGraph(const Graph::Ptr& graphPtr, const HDDL2RemoteContext::Ptr& context = nullptr);
     ~HddlUniteGraph();
+    void InferSync(const HddlUniteInferData::Ptr& data);
 
-private:
-    HddlUnite::Inference::Graph::Ptr _graphPtr = nullptr;
-
-    /**
-     * @brief Smart pointer to remote context if we are working with remote memory
-     */
-    HDDL2RemoteContext::Ptr _contextPtr = nullptr;
+protected:
+    HddlUnite::Inference::Graph::Ptr _uniteGraphPtr = nullptr;
 };
 
 }  // namespace HDDL2Plugin

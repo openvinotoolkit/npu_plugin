@@ -33,6 +33,8 @@ constexpr size_t MAX_ALLOC_SIZE = static_cast<size_t>(0x1u << 22u);
 namespace vpu {
 namespace HDDL2Plugin {
 
+using RemoteMemoryFD = uint64_t;
+
 //------------------------------------------------------------------------------
 //      struct HDDL2RemoteMemoryContainer
 //------------------------------------------------------------------------------
@@ -83,7 +85,7 @@ public:
      * @brief Wrap already allocated on device memory
      * @return Handle to allocated memory
      */
-    void* wrapRemoteMemory(const int& remoteMemoryFd, const size_t& size) noexcept;
+    void* wrapRemoteMemory(const RemoteMemoryFD& remoteMemoryFd, const size_t& size) noexcept;
 
     /**
      * @brief Free local memory and remote if we are owner

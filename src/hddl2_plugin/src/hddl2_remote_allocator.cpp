@@ -29,8 +29,8 @@ bool static isValidAllocateSize(size_t size) noexcept {
     return true;
 }
 
-bool static isValidRemoteMemoryFd(const int& remoteMemoryFd) {
-    if (remoteMemoryFd < 0) {
+bool static isValidRemoteMemoryFD(const RemoteMemoryFD& remoteMemoryFd) {
+    if (remoteMemoryFd == UINT64_MAX) {
         printf("%s: Incorrect memory fd!\n", __FUNCTION__);
         return false;
     }
@@ -67,21 +67,25 @@ void* HDDL2RemoteAllocator::alloc(size_t size) noexcept {
 
     try {
         HddlUnite::SMM::RemoteMemory::Ptr remoteMemoryPtr = HddlUnite::SMM::allocate(*_contextPtr, size);
+        if (remoteMemoryPtr == nullptr) {
+            THROW_IE_EXCEPTION << "Failed to allocate memory";
+        }
 
         HDDL2RemoteMemoryContainer memoryContainer(remoteMemoryPtr);
         _memoryStorage.emplace(static_cast<void*>(remoteMemoryPtr.get()), memoryContainer);
 
         printf("%s: Allocate memory of %d size\n", __FUNCTION__, static_cast<int>(size));
         return static_cast<void*>(remoteMemoryPtr.get());
-    } catch (...) {
+    } catch (const std::exception& ex) {
+        printf("%s: Failed to allocate memory. Error: %s\n", __FUNCTION__, ex.what());
         return nullptr;
     }
 }
 
-void* HDDL2RemoteAllocator::wrapRemoteMemory(const int& remoteMemoryFd, const size_t& size) noexcept {
+void* HDDL2RemoteAllocator::wrapRemoteMemory(const RemoteMemoryFD& remoteMemoryFd, const size_t& size) noexcept {
     std::lock_guard<std::mutex> lock(memStorageMutex);
 
-    if (!isValidAllocateSize(size) || !isValidRemoteMemoryFd(remoteMemoryFd)) {
+    if (!isValidAllocateSize(size) || !isValidRemoteMemoryFD(remoteMemoryFd)) {
         return nullptr;
     }
 
@@ -95,7 +99,8 @@ void* HDDL2RemoteAllocator::wrapRemoteMemory(const int& remoteMemoryFd, const si
 
         printf("%s: Wrapped memory of %d size\n", __FUNCTION__, static_cast<int>(size));
         return static_cast<void*>(remoteMemoryPtr.get());
-    } catch (...) {
+    } catch (const std::exception& ex) {
+        printf("%s: Failed to wrap memory. Error: %s\n", __FUNCTION__, ex.what());
         return nullptr;
     }
 }

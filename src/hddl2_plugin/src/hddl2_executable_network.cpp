@@ -17,87 +17,49 @@
 #include <hddl2_executable_network.h>
 #include <hddl2_helpers.h>
 #include <hddl2_infer_request.h>
-#include <net_pass.h>
 
 #include <algorithm>
 #include <fstream>
-#include <mcm_adapter.hpp>
 #include <memory>
 #include <string>
 #include <vector>
 
-// TODO: Get input/output info with custom parameters. HDDl cannot extract them.
-InferenceEngine::InputsDataMap getCustomInputInfo() {
-    InferenceEngine::InputsDataMap m_networkInputs;
-    InferenceEngine::SizeVector inputDims({1, 3, 224, 224});
-    InferenceEngine::Layout inputLayout = InferenceEngine::Layout::NCHW;
-    InferenceEngine::Precision inputPrecision = InferenceEngine::Precision::U8;
-    InferenceEngine::TensorDesc inputDesc(inputPrecision, inputDims, inputLayout);
-    InferenceEngine::Data inputData("input", inputDesc);
+using namespace vpu::HDDL2Plugin;
+namespace IE = InferenceEngine;
 
-    InferenceEngine::InputInfo inputInfo;
-    inputInfo.setInputData(std::make_shared<InferenceEngine::Data>(inputData));
-    m_networkInputs[inputInfo.name()] = std::make_shared<InferenceEngine::InputInfo>(inputInfo);
-    return m_networkInputs;
-}
+static HDDL2RemoteContext::Ptr castIEContextToHDDL2(const IE::RemoteContext::Ptr& ieContext) {
+    HDDL2RemoteContext::Ptr pluginContext = nullptr;
 
-InferenceEngine::OutputsDataMap getCustomOutputInfo() {
-    InferenceEngine::OutputsDataMap m_networkOutputs;
-    InferenceEngine::SizeVector outputDims({1, 1024, 1, 1});
-    InferenceEngine::Layout outputLayout = InferenceEngine::Layout::NCHW;
-    InferenceEngine::Precision outputPrecision = InferenceEngine::Precision::U8;
-    InferenceEngine::TensorDesc outputDesc(outputPrecision, outputDims, outputLayout);
-
-    InferenceEngine::Data outputData("output", outputDesc);
-    m_networkOutputs[outputData.getName()] = std::make_shared<InferenceEngine::Data>(outputData);
-    return m_networkOutputs;
-}
-
-InferenceEngine::InferRequestInternal::Ptr vpu::HDDL2Plugin::ExecutableNetwork::CreateInferRequestImpl(
-    InferenceEngine::InputsDataMap networkInputs, InferenceEngine::OutputsDataMap networkOutputs) {
-    return std::make_shared<HDDL2InferRequest>(networkInputs, networkOutputs, _graph);
-}
-
-vpu::HDDL2Plugin::ExecutableNetwork::ExecutableNetwork(const std::string& blobFilename, const HDDL2Config& config)
-    : _config(config) {
-    HddlStatusCode code = getAvailableDevices(_devices);
-    if (code != HddlStatusCode::HDDL_OK) {
-        THROW_IE_EXCEPTION << "getAvailableDevices != StatusCode::OK; " << code;
+    if (ieContext == nullptr) {
+        return pluginContext;
     }
 
-    HddlStatusCode status = loadGraph(_graph, "resnet", blobFilename, _devices);
-    if (status != HddlStatusCode::HDDL_OK) THROW_IE_EXCEPTION << "[ERROR] -load graph error: " << status;
-
-    std::ifstream blobFile(blobFilename, std::ios::binary);
-    if (!blobFile.is_open()) {
-        THROW_IE_EXCEPTION << "[ERROR] *Could not open file: " << blobFilename;
+    try {
+        pluginContext = std::dynamic_pointer_cast<HDDL2RemoteContext>(ieContext);
+    } catch (const std::exception& ex) {
+        THROW_IE_EXCEPTION << "Incorrect context for HDDL2 Plugin! Error: " << ex.what();
     }
-
-    std::ostringstream blobContentStream;
-    blobContentStream << blobFile.rdbuf();
-    const std::string& blobContentString = blobContentStream.str();
-    std::copy(blobContentString.begin(), blobContentString.end(), std::back_inserter(_graphBlob));
-
-    this->_networkInputs = getCustomInputInfo();
-    this->_networkOutputs = getCustomOutputInfo();
+    return pluginContext;
 }
 
-vpu::HDDL2Plugin::ExecutableNetwork::ExecutableNetwork(InferenceEngine::ICNNNetwork& network, const HDDL2Config& config)
-    : _config(config) {
-#ifdef ENABLE_MCM_COMPILER
-    vpu::MCMAdapter::compileNetwork(network, _config, _graphBlob);
+ExecutableNetwork::ExecutableNetwork(
+    const std::string& blobFilename, const HDDL2Config& config, const IE::RemoteContext::Ptr& ieContext) {
+    _graphPtr = std::make_shared<ImportedGraph>(blobFilename, config);
+    _context = castIEContextToHDDL2(ieContext);
+    _loadedGraph = std::make_shared<HddlUniteGraph>(_graphPtr, _context);
 
-    HddlStatusCode status = loadGraph(_graph, "resnet", _graphBlob.data(), _graphBlob.size(), _devices);
-    if (status != HddlStatusCode::HDDL_OK) THROW_IE_EXCEPTION << "[ERROR] -load graph error: " << status;
-
-    network.getInputsInfo(_networkInputs);
-    network.getOutputsInfo(_networkOutputs);
-#else
-    UNUSED(network);
-    THROW_IE_EXCEPTION << " MCM compiler is disabled!";
-#endif
+    this->_networkInputs = _graphPtr->getInputsInfo();
+    this->_networkOutputs = _graphPtr->getOutputsInfo();
 }
 
-vpu::HDDL2Plugin::ExecutableNetwork::~ExecutableNetwork() {
-    if (_graph != nullptr) unloadGraph(_graph, _devices);
+ExecutableNetwork::ExecutableNetwork(
+    IE::ICNNNetwork& network, const HDDL2Config& config, const IE::RemoteContext::Ptr& ieContext) {
+    _graphPtr = std::make_shared<CompiledGraph>(network, config);
+    _context = castIEContextToHDDL2(ieContext);
+    _loadedGraph = std::make_shared<HddlUniteGraph>(_graphPtr, _context);
+}
+
+IE::InferRequestInternal::Ptr vpu::HDDL2Plugin::ExecutableNetwork::CreateInferRequestImpl(
+    const IE::InputsDataMap networkInputs, const IE::OutputsDataMap networkOutputs) {
+    return std::make_shared<HDDL2InferRequest>(networkInputs, networkOutputs, _loadedGraph, _context);
 }

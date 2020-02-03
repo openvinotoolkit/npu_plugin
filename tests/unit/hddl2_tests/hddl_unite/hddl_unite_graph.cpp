@@ -27,7 +27,7 @@ using namespace vpu::HDDL2Plugin;
 class HddlUniteGraph_UnitTests : public ::testing::Test {
 public:
     void SetUp() override;
-    HDDL2Graph::Ptr graph;
+    Graph::Ptr graph;
 
 protected:
     ImportedGraph_Helper _importedGraphHelper;
@@ -47,4 +47,10 @@ TEST_F(HddlUniteGraph_UnitTests, constructor_withContext_NoThrow) {
     auto context = contextHelper.remoteContextPtr;
 
     ASSERT_NO_THROW(HddlUniteGraph hddlUniteGraph(graph, context));
+}
+
+TEST_F(HddlUniteGraph_UnitTests, InferSync_nullData_Throw) {
+    HddlUniteGraph hddlUniteGraph(graph);
+
+    ASSERT_ANY_THROW(hddlUniteGraph.InferSync(nullptr));
 }

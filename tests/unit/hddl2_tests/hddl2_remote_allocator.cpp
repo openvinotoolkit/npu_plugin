@@ -57,7 +57,7 @@ TEST_F(HDDL2_RemoteAllocator_UnitTests, constructor_NullContext_Throw) {
 //------------------------------------------------------------------------------
 //      class HDDL2_RemoteAllocator_UnitTests Initiations - wrapRemoteMemory
 //------------------------------------------------------------------------------
-// TODO Not working - HddlUnite problem
+// TODO FAIL - HddlUnite problem
 TEST_F(HDDL2_RemoteAllocator_UnitTests, DISABLED_wrapRemoteMemory_IncorrectMemoryFD_ReturnNull) {
     auto allocatorPtr = std::make_shared<HDDL2RemoteAllocator>(workloadContextPtr);
 

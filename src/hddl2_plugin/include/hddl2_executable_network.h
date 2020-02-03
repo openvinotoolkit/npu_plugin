@@ -24,6 +24,8 @@
 
 #include "cpp_interfaces/impl/ie_executable_network_thread_safe_default.hpp"
 #include "hddl2_config.h"
+#include "hddl2_graph.h"
+#include "hddl_unite/hddl2_unite_graph.h"
 
 namespace vpu {
 namespace HDDL2Plugin {
@@ -32,18 +34,20 @@ class ExecutableNetwork : public InferenceEngine::ExecutableNetworkThreadSafeDef
 public:
     using Ptr = std::shared_ptr<ExecutableNetwork>;
 
-    explicit ExecutableNetwork(InferenceEngine::ICNNNetwork& network, const HDDL2Config& config);
-    explicit ExecutableNetwork(const std::string& blobFilename, const HDDL2Config& config);
-    ~ExecutableNetwork() override;
+    explicit ExecutableNetwork(InferenceEngine::ICNNNetwork& network, const HDDL2Config& config,
+        const InferenceEngine::RemoteContext::Ptr& context = nullptr);
+    explicit ExecutableNetwork(const std::string& blobFilename, const HDDL2Config& config,
+        const InferenceEngine::RemoteContext::Ptr& context = nullptr);
+    ~ExecutableNetwork() override = default;
 
     InferenceEngine::InferRequestInternal::Ptr CreateInferRequestImpl(
-        InferenceEngine::InputsDataMap networkInputs, InferenceEngine::OutputsDataMap networkOutputs) override;
+        const InferenceEngine::InputsDataMap networkInputs,
+        const InferenceEngine::OutputsDataMap networkOutputs) override;
 
 private:
-    std::vector<char> _graphBlob;
-    HDDL2Config _config;
-    std::vector<HddlUnite::Device> _devices;
-    HddlUnite::Inference::Graph::Ptr _graph;
+    Graph::Ptr _graphPtr = nullptr;
+    HddlUniteGraph::Ptr _loadedGraph = nullptr;
+    HDDL2RemoteContext::Ptr _context = nullptr;
 };
 
 }  //  namespace HDDL2Plugin

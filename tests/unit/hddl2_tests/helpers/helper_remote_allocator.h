@@ -64,7 +64,7 @@ public:
 
 private:
     RemoteMemory_Helper _remoteMemoryHelper;
-    RemoteMemoryFd _memoryFd = -1;
+    RemoteMemoryFD _memoryFd = 0;
 };
 
 

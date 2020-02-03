@@ -44,10 +44,11 @@ TEST_P(HDDL2_InferRequest_Tests, CanCreateInferRequest) {
 //      class HDDL2_InferRequest_Tests Initiation - Infer
 //------------------------------------------------------------------------------
 TEST_P(HDDL2_InferRequest_Tests, CanCallInference) {
-    // TODO Enable after LoadNetwork implementation
+    // TODO Enable LoadNetwork after finding solution with fixed size of emulator output
     if (GetParam() == LoadNetwork) {
-        SKIP() << "LoadNetwork not fully implemented";
+        SKIP() << "Allocated output blob does not have the same size as data from unite";
     }
+
     inferRequest = executableNetwork.CreateInferRequest();
 
     ASSERT_NO_THROW(inferRequest.Infer());
@@ -57,11 +58,6 @@ TEST_P(HDDL2_InferRequest_Tests, CanCallInference) {
 //      class HDDL2_InferRequest_Tests Initiation - SetBlob
 //------------------------------------------------------------------------------
 TEST_P(HDDL2_InferRequest_Tests, CanSetInputBlob) {
-    // TODO Enable after LoadNetwork implementation
-    if (GetParam() == LoadNetwork) {
-        SKIP() << "Incorrect blob type. Doesn not have correct parsed parameters";
-    }
-
     inferRequest = executableNetwork.CreateInferRequest();
     const std::string inputName = executableNetwork.GetInputsInfo().begin()->first;
     IE::InputInfo::CPtr inputInfoPtr = executableNetwork.GetInputsInfo().begin()->second;
@@ -98,9 +94,9 @@ TEST_P(HDDL2_InferRequest_Tests, CanSetInputBlob_WithRemoteBlob) {
 //      class HDDL2_InferRequest_Tests Initiation - GetBlob
 //------------------------------------------------------------------------------
 TEST_P(HDDL2_InferRequest_Tests, CanGetOutputBlobAfterInference) {
-    // TODO Enable after LoadNetwork implementation
+    // TODO Enable LoadNetwork after finding solution with fixed size of emulator output
     if (GetParam() == LoadNetwork) {
-        SKIP() << "LoadNetwork not fully implemented";
+        SKIP() << "Allocated output blob does not have the same size as data from unite";
     }
 
     inferRequest = executableNetwork.CreateInferRequest();
@@ -131,7 +127,6 @@ TEST_P(HDDL2_InferRequest_Tests, GetBlobWillContainsSameDataAsSetBlob_WithRemote
     ASSERT_NE(nullptr, remoteBlobPtr);
 
     const std::string inputData = "Test data";
-    // TODO Any other way to unlock memory?
     {
         auto lockedMemory = remoteBlobPtr->buffer();
         auto rBlobData = lockedMemory.as<char*>();

@@ -82,7 +82,7 @@ TEST_F(HDDL2_RemoteBlob_UnitTests, constructor_FromEmptyParams_ThrowException) {
     ASSERT_ANY_THROW(HDDL2RemoteBlob blob(tensorDesc, remoteContextPtr, emptyParams));
 }
 
-// TODO Not working - HddlUnite problem
+// TODO FAIL - HddlUnite problem
 TEST_F(HDDL2_RemoteBlob_UnitTests, DISABLED_constructor_FromNotExistsBufFd_ThrowException) {
     InferenceEngine::ParamMap notExistsFd = {{IE::HDDL2_PARAM_KEY(REMOTE_MEMORY_FD), notExistsBufFd}};
 
@@ -346,7 +346,7 @@ TEST_F(HDDL2_RemoteBlob_UnitTests, wlock_ChangeAllocatedBlob_ShouldChangeRemote)
     }
 }
 
-// TODO Not working due to no write lock operation (IE side problem)
+// TODO FAIL - IE side problem - Not working due to no write lock operation
 TEST_F(HDDL2_RemoteBlob_UnitTests, DISABLED_wlock_OnLocking_WillNotSyncDataFromDevice) {
     remoteBlobPtr = std::make_shared<HDDL2RemoteBlob>(tensorDesc, remoteContextPtr, blobParamMap);
 
@@ -392,5 +392,5 @@ TEST_F(HDDL2_RemoteBlob_UnitTests, getParams_AllocatedDefaultBlob_SameAsInput) {
     ASSERT_EQ(blobParamMap, params);
 }
 
-// TODO We need tests, that on each inference call sync to device not happend. This require
+// TODO We need tests, that on each inference call sync to device not happen. This require
 //  mocking allocator.

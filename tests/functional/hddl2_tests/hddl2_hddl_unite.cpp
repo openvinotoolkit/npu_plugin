@@ -14,34 +14,45 @@
 // stated in the License.
 //
 
+#include <InferBlob.h>
+#include <InferData.h>
+#include <Inference.h>
+#include <hddl2_helpers/models/model_pooling.h>
+
+#include <ie_core.hpp>
+
 #include "RemoteMemory.h"
 #include "gtest/gtest.h"
+#include "hddl2_core_api.h"
 #include "hddl2_helpers/helper_device_emulator.h"
+#include "hddl2_helpers/helper_hddl_unite_graph.h"
+#include "hddl2_helpers/helper_remote_memory.h"
 #include "hddl2_helpers/helper_workload_context.h"
 
 using namespace HddlUnite;
+namespace IE = InferenceEngine;
 
 //------------------------------------------------------------------------------
-//      class HDDL2_Hddl_Unite_Tests
+//      class HDDL2_HddlUnite_Tests
 //------------------------------------------------------------------------------
-class HDDL2_Hddl_Unite_Tests : public ::testing::Test {
+class HDDL2_HddlUnite_Tests : public ::testing::Test {
 public:
     WorkloadContext_Helper workloadContextHelper;
 };
 
 //------------------------------------------------------------------------------
-//      class HDDL2_Hddl_Unite_Tests Initiation - construct
+//      class HDDL2_HddlUnite_Tests Initiation - construct
 //------------------------------------------------------------------------------
 
 // TODO FAIL - HddlUnite problem
-TEST_F(HDDL2_Hddl_Unite_Tests, DISABLED_WrapIncorrectFd_ThrowException) {
+TEST_F(HDDL2_HddlUnite_Tests, DISABLED_WrapIncorrectFd_ThrowException) {
     auto workloadContext = workloadContextHelper.getWorkloadContext();
     const size_t incorrectFd = INT32_MAX;
 
     ASSERT_ANY_THROW(SMM::RemoteMemory wrappedRemoteMemory(*workloadContext, incorrectFd, 1));
 }
 
-TEST_F(HDDL2_Hddl_Unite_Tests, WrapSameSize_NoException) {
+TEST_F(HDDL2_HddlUnite_Tests, WrapSameSize_NoException) {
     auto workloadContext = workloadContextHelper.getWorkloadContext();
     const size_t size = 100;
 
@@ -50,7 +61,7 @@ TEST_F(HDDL2_Hddl_Unite_Tests, WrapSameSize_NoException) {
     ASSERT_NO_THROW(SMM::RemoteMemory wrappedRemoteMemory(*workloadContext, remoteMemoryPtr->getDmaBufFd(), size));
 }
 
-TEST_F(HDDL2_Hddl_Unite_Tests, WrapSmallerSize_NoException) {
+TEST_F(HDDL2_HddlUnite_Tests, WrapSmallerSize_NoException) {
     auto workloadContext = workloadContextHelper.getWorkloadContext();
     const size_t size = 100;
     const size_t smallerSizeToWrap = 10;
@@ -62,7 +73,7 @@ TEST_F(HDDL2_Hddl_Unite_Tests, WrapSmallerSize_NoException) {
 }
 
 // TODO FAIL - HddlUnite problem
-TEST_F(HDDL2_Hddl_Unite_Tests, DISABLED_WrapBiggerSize_ThrowException) {
+TEST_F(HDDL2_HddlUnite_Tests, DISABLED_WrapBiggerSize_ThrowException) {
     auto workloadContext = workloadContextHelper.getWorkloadContext();
     const size_t size = 100;
     const size_t biggerSizeToWrap = size * 10;
@@ -74,16 +85,16 @@ TEST_F(HDDL2_Hddl_Unite_Tests, DISABLED_WrapBiggerSize_ThrowException) {
 }
 
 // TODO FAIL - HdllUnite problem
-TEST_F(HDDL2_Hddl_Unite_Tests, DISABLED_WrapNegativeFd_ThrowException) {
+TEST_F(HDDL2_HddlUnite_Tests, DISABLED_WrapNegativeFd_ThrowException) {
     auto workloadContext = workloadContextHelper.getWorkloadContext();
 
     ASSERT_ANY_THROW(SMM::RemoteMemory wrappedRemoteMemory(*workloadContext, -1, 1));
 }
 
 //------------------------------------------------------------------------------
-//      class HDDL2_Hddl_Unite_Tests Initiation - getters
+//      class HDDL2_HddlUnite_Tests Initiation - getters
 //------------------------------------------------------------------------------
-TEST_F(HDDL2_Hddl_Unite_Tests, CanGetAvailableDevices) {
+TEST_F(HDDL2_HddlUnite_Tests, CanGetAvailableDevices) {
     std::vector<HddlUnite::Device> devices;
 
     HddlStatusCode code = getAvailableDevices(devices);
@@ -93,9 +104,9 @@ TEST_F(HDDL2_Hddl_Unite_Tests, CanGetAvailableDevices) {
 }
 
 //------------------------------------------------------------------------------
-//      class HDDL2_Hddl_Unite_Tests Initiation - Change
+//      class HDDL2_HddlUnite_Tests Initiation - Change
 //------------------------------------------------------------------------------
-TEST_F(HDDL2_Hddl_Unite_Tests, CanCreateAndChangeRemoteMemory) {
+TEST_F(HDDL2_HddlUnite_Tests, CanCreateAndChangeRemoteMemory) {
     auto workloadContext = workloadContextHelper.getWorkloadContext();
     const std::string message = "Hello there\n";
 
@@ -113,7 +124,7 @@ TEST_F(HDDL2_Hddl_Unite_Tests, CanCreateAndChangeRemoteMemory) {
     ASSERT_EQ(resultData, message);
 }
 
-TEST_F(HDDL2_Hddl_Unite_Tests, WrappedMemoryWillHaveSameData) {
+TEST_F(HDDL2_HddlUnite_Tests, WrappedMemoryWillHaveSameData) {
     auto workloadContext = workloadContextHelper.getWorkloadContext();
     const std::string message = "Hello there\n";
 
@@ -132,7 +143,7 @@ TEST_F(HDDL2_Hddl_Unite_Tests, WrappedMemoryWillHaveSameData) {
     ASSERT_EQ(resultData, message);
 }
 
-TEST_F(HDDL2_Hddl_Unite_Tests, CanSetAndGetRemoteContextUsingId) {
+TEST_F(HDDL2_HddlUnite_Tests, CanSetAndGetRemoteContextUsingId) {
     auto workloadContext = workloadContextHelper.getWorkloadContext();
     WorkloadID workloadId = workloadContext->getWorkloadContextID();
 
@@ -149,12 +160,12 @@ TEST_F(HDDL2_Hddl_Unite_Tests, CanSetAndGetRemoteContextUsingId) {
     HddlUnite::unregisterWorkloadContext(workloadId);
 }
 
-TEST_F(HDDL2_Hddl_Unite_Tests, QueryIncorrectWorkloadIdReturnNull) {
+TEST_F(HDDL2_HddlUnite_Tests, QueryIncorrectWorkloadIdReturnNull) {
     auto workload_context = HddlUnite::queryWorkloadContext(INT32_MAX);
     ASSERT_EQ(workload_context, nullptr);
 }
 
-TEST_F(HDDL2_Hddl_Unite_Tests, CanCreateTwoDifferentContextOneAfterAnother) {
+TEST_F(HDDL2_HddlUnite_Tests, CanCreateTwoDifferentContextOneAfterAnother) {
     // Destory default remote context from SetUp
     workloadContextHelper.destroyHddlUniteContext(workloadContextHelper.getWorkloadId());
 
@@ -167,7 +178,7 @@ TEST_F(HDDL2_Hddl_Unite_Tests, CanCreateTwoDifferentContextOneAfterAnother) {
 }
 
 // TODO FAIL - HUNG - HddlUnite problem
-TEST_F(HDDL2_Hddl_Unite_Tests, DISABLED_CreatingTwoWorkloadContextForSameProcessWillReturnError) {
+TEST_F(HDDL2_HddlUnite_Tests, DISABLED_CreatingTwoWorkloadContextForSameProcessWillReturnError) {
     // First context
     WorkloadID firstWorkloadId = -1;
     auto firstContext = HddlUnite::createWorkloadContext();
@@ -190,4 +201,238 @@ TEST_F(HDDL2_Hddl_Unite_Tests, DISABLED_CreatingTwoWorkloadContextForSameProcess
 
     HddlUnite::unregisterWorkloadContext(firstWorkloadId);
     HddlUnite::unregisterWorkloadContext(secondWorkloadId);
+}
+
+//------------------------------------------------------------------------------
+//      class HDDL2_HddlUnite_BlobDescr_Tests
+//------------------------------------------------------------------------------
+class HDDL2_HddlUnite_BlobDescr_Tests : public HDDL2_HddlUnite_Tests {
+public:
+    void SetUp() override;
+    void callInferenceOnBlobs();
+
+    const size_t allocationSize = EMULATOR_MAX_ALLOC_SIZE;
+    const std::string inputName = "input";
+    const std::string outputName = "output";
+    const Inference::Precision precision = Inference::Precision::U8;
+
+    const size_t resNetInputSize = 150528;
+    // TODO HACK - Emulator (?) cannot work with not 512 output
+    const size_t resNetOutputSize = 512;
+
+    std::string simpleInputData;
+    std::string simpleOutputData;
+
+    HddlUnite::Inference::InferData::Ptr inferDataPtr = nullptr;
+    RemoteMemoryFd remoteMemoryFd = 0;
+
+    RemoteMemory_Helper remoteMemoryHelper;
+
+protected:
+    std::vector<HddlUnite::Inference::AuxBlob::Type> _auxBlob;
+
+    HddlUnite_Graph_Helper::Ptr _uniteGraphHelper = nullptr;
+};
+
+void HDDL2_HddlUnite_BlobDescr_Tests::SetUp() {
+    auto workloadContext = workloadContextHelper.getWorkloadContext();
+    inferDataPtr = HddlUnite::Inference::makeInferData(_auxBlob, workloadContext);
+
+    WorkloadID workloadId = workloadContext->getWorkloadContextID();
+    remoteMemoryFd = remoteMemoryHelper.allocateRemoteMemory(workloadId, allocationSize);
+
+    _uniteGraphHelper = std::make_shared<HddlUnite_Graph_Helper>(*workloadContext);
+
+    simpleInputData = std::string(resNetInputSize, '*');
+    simpleOutputData = std::string(resNetOutputSize, '*');
+}
+
+void HDDL2_HddlUnite_BlobDescr_Tests::callInferenceOnBlobs() {
+    auto inputBlob = inferDataPtr->getInputBlob(inputName);
+    if (inputBlob == nullptr) {
+        std::cout << "Input blob not found : creating default\n";
+        try {
+            const int isInput = true;
+
+            const bool isRemoteMem = false;
+            const bool needAllocate = true;
+
+            HddlUnite::Inference::BlobDesc blobDesc(precision, isRemoteMem, needAllocate, resNetInputSize);
+            blobDesc.m_srcPtr = (void*)simpleInputData.data();
+            inferDataPtr->createBlob(inputName, blobDesc, isInput);
+        } catch (const std::exception& ex) {
+            THROW_IE_EXCEPTION << "Failed to create default input blob: " << ex.what();
+        }
+    }
+
+    auto outputBlob = inferDataPtr->getOutputBlob(outputName);
+    if (outputBlob == nullptr) {
+        std::cout << "Output blob not found : creating default\n";
+        try {
+            const int isInput = false;
+
+            const bool isRemoteMem = false;
+            const bool needAllocate = false;
+
+            HddlUnite::Inference::BlobDesc blobDesc(precision, isRemoteMem, needAllocate, resNetOutputSize);
+            blobDesc.m_srcPtr = (void*)simpleOutputData.data();
+            inferDataPtr->createBlob(outputName, blobDesc, isInput);
+        } catch (const std::exception& ex) {
+            THROW_IE_EXCEPTION << "Failed to create default output blob: " << ex.what();
+        }
+    }
+
+    auto graph = _uniteGraphHelper->getGraph();
+    HddlStatusCode inferStatus = HddlUnite::Inference::inferSync(*graph, inferDataPtr);
+    if (inferStatus != HDDL_OK) {
+        THROW_IE_EXCEPTION << "Failed to infer";
+    }
+}
+
+//------------------------------------------------------------------------------
+//      class HDDL2_HddlUnite_BlobDescr_Tests Initiation - Input Blobs - Local mem
+//------------------------------------------------------------------------------
+TEST_F(HDDL2_HddlUnite_BlobDescr_Tests, CanNotCreateAndInfer_InputLocalBlobDesc_WithoutSrcPtr) {
+    const int isInput = true;
+
+    const bool isRemoteMem = false;
+    const bool needAllocate = true;
+
+    HddlUnite::Inference::BlobDesc blobDesc(precision, isRemoteMem, needAllocate, resNetInputSize);
+
+    ASSERT_NO_THROW(inferDataPtr->createBlob(inputName, blobDesc, isInput));
+    ASSERT_ANY_THROW(callInferenceOnBlobs());
+}
+
+TEST_F(HDDL2_HddlUnite_BlobDescr_Tests, CanCreateAndInfer_InputLocalBlobDesc_WithSrcPtr) {
+    const int isInput = true;
+
+    const bool isRemoteMem = false;
+    const bool needAllocate = false;
+
+    HddlUnite::Inference::BlobDesc blobDesc(precision, isRemoteMem, needAllocate, resNetInputSize);
+    blobDesc.m_srcPtr = (void*)simpleInputData.data();
+    blobDesc.m_dataSize = resNetInputSize;
+
+    ASSERT_NO_THROW(inferDataPtr->createBlob(inputName, blobDesc, isInput));
+    ASSERT_NO_THROW(callInferenceOnBlobs());
+}
+
+//------------------------------------------------------------------------------
+//      class HDDL2_HddlUnite_BlobDescr_Tests Initiation - Input Blobs - Remote mem
+//------------------------------------------------------------------------------
+// TODO Add same test with remote memory wrapping (needAllocate = false)
+// We want only to allocate remote memory without
+TEST_F(HDDL2_HddlUnite_BlobDescr_Tests, CanCreateAndInfer_InputRemoteBlobDesc_WithoutSrcPtr) {
+    const int isInput = true;
+
+    const bool isRemoteMem = true;
+    const bool needAllocate = true;
+
+    HddlUnite::Inference::BlobDesc blobDesc(precision, isRemoteMem, needAllocate, resNetInputSize);
+
+    ASSERT_NO_THROW(inferDataPtr->createBlob(inputName, blobDesc, isInput));
+    ASSERT_NO_THROW(callInferenceOnBlobs());
+}
+
+// If src ptr provided, data will be synced with remote memory
+TEST_F(HDDL2_HddlUnite_BlobDescr_Tests, CanCreateAndInfer_InputRemoteBlobDesc_WithSrcPtr) {
+    const int isInput = true;
+
+    const bool isRemoteMem = true;
+    const bool needAllocate = true;
+
+    HddlUnite::Inference::BlobDesc blobDesc(precision, isRemoteMem, needAllocate, resNetInputSize);
+    blobDesc.m_srcPtr = (void*)simpleInputData.data();
+
+    ASSERT_NO_THROW(inferDataPtr->createBlob(inputName, blobDesc, isInput));
+    ASSERT_NO_THROW(callInferenceOnBlobs());
+}
+
+//------------------------------------------------------------------------------
+//      class HDDL2_HddlUnite_BlobDescr_Tests Initiation - Output Blobs - Local mem
+//------------------------------------------------------------------------------
+// TODO Didn't found where the problem
+TEST_F(HDDL2_HddlUnite_BlobDescr_Tests, DISABLED_CanCreateAndInfer_OutputLocalBlobDesc_WithoutSrcPtr) {
+    const int isInput = false;
+
+    const bool isRemoteMem = false;
+    const bool needAllocate = true;
+
+    HddlUnite::Inference::BlobDesc blobDesc(precision, isRemoteMem, needAllocate, resNetOutputSize);
+
+    ASSERT_NO_THROW(inferDataPtr->createBlob(outputName, blobDesc, isInput));
+    ASSERT_ANY_THROW(callInferenceOnBlobs());
+}
+
+TEST_F(HDDL2_HddlUnite_BlobDescr_Tests, CanCreateAndInfer_OutputLocalBlobDesc_WithSrcPtr) {
+    const int isInput = false;
+
+    const bool isRemoteMem = false;
+    const bool needAllocate = false;
+
+    HddlUnite::Inference::BlobDesc blobDesc(precision, isRemoteMem, needAllocate, resNetOutputSize);
+    blobDesc.m_srcPtr = (void*)simpleOutputData.data();
+
+    ASSERT_NO_THROW(inferDataPtr->createBlob(outputName, blobDesc, isInput));
+    ASSERT_NO_THROW(callInferenceOnBlobs());
+}
+
+TEST_F(HDDL2_HddlUnite_BlobDescr_Tests, CreatedOutputBlobDesc_WillHaveSaveSizeAsProvided_SizeFromGraph) {
+    HddlUnite_Graph_Helper graphHelper;
+    const int isInput = false;
+
+    const bool isRemoteMem = false;
+    const bool needAllocate = true;
+
+    // Infer will be performed on precompiled ResNet
+    // TODO what kind of value is hiding behind getOutputSize()?
+    const size_t sizeToAllocate = graphHelper.getGraph()->getOutputSize();
+
+    HddlUnite::Inference::BlobDesc blobDesc(precision, isRemoteMem, needAllocate, sizeToAllocate);
+
+    ASSERT_NO_THROW(inferDataPtr->createBlob(outputName, blobDesc, isInput));
+    ASSERT_NO_THROW(callInferenceOnBlobs());
+
+    const auto actualData = inferDataPtr->getOutputBlob(outputName)->getData();
+    const size_t actualSize = actualData.size();
+    EXPECT_EQ(actualSize, sizeToAllocate);
+
+    const auto actualDescription = inferDataPtr->getOutputBlob(outputName)->getBlobDesc();
+    const size_t actualSizeInDesc = actualDescription.m_dataSize;
+    EXPECT_EQ(actualSizeInDesc, sizeToAllocate);
+
+    EXPECT_EQ(actualSize, actualSizeInDesc);
+}
+
+// TODO FAIL - HDDLUnite problem? - Data size is differ, but it can be problem because result data
+//  filled that way (fixed size) in emulator
+TEST_F(HDDL2_HddlUnite_BlobDescr_Tests, DISABLED_CreatedOutputBlobDesc_WillHaveSaveSizeAsProvided_CustomSize) {
+    HddlUnite_Graph_Helper graphHelper;
+    const int isInput = false;
+
+    const bool isRemoteMem = false;
+    const bool needAllocate = true;
+
+    const size_t sizeToAllocate = 1000;
+
+    HddlUnite::Inference::BlobDesc blobDesc(precision, isRemoteMem, needAllocate, sizeToAllocate);
+
+    ASSERT_NO_THROW(inferDataPtr->createBlob(outputName, blobDesc, isInput));
+    ASSERT_NO_THROW(callInferenceOnBlobs());
+
+    const auto actualData = inferDataPtr->getOutputBlob(outputName)->getData();
+    const size_t actualSize = actualData.size();
+    EXPECT_EQ(actualSize, sizeToAllocate);
+
+    const auto actualDescription = inferDataPtr->getOutputBlob(outputName)->getBlobDesc();
+    const size_t actualSizeInDesc = actualDescription.m_dataSize;
+    EXPECT_EQ(actualSizeInDesc, sizeToAllocate);
+
+    EXPECT_EQ(actualSize, actualSizeInDesc);
+}
+
+TEST_F(HDDL2_HddlUnite_BlobDescr_Tests, CanInferOnDefaultLocalBlobs) {
+    // Inference on default blobs, which will
+    ASSERT_NO_THROW(callInferenceOnBlobs());
 }
