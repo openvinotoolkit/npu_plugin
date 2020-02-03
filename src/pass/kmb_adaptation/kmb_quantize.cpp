@@ -50,18 +50,42 @@ void addQuantizationLayers(mv::OpModel om, std::vector<mv::Data::OpListIterator>
             // NOTE: Maybe here a check for mixed precision should be added
             if(!tensor->isPopulated() && tensorDType != dtypeNeededInInput)
             {
+                //if the previous Op is "Align" need to place it after the quantize
+                auto previousOpIt = om.getSourceOp(tensor);
+                bool alignCase = false;
+                if (previousOpIt->getOpType() == "Align")
+                {
+                    tensor = previousOpIt->getInputTensor()[0];
+                    alignCase = true;
+                }
                 auto quantize = om.uPATaskQuantize({tensor}, outputDType,
                             tensor->get<mv::QuantizationParams>("quantParams"), "Quantize" + task->getName() + std::to_string(id));
                 quantize->set<std::string>("splitStrategy",
                             tensor->get<std::string>("splitStrategy"));
                 auto quantizeOp = om.getSourceOp(quantize);
                 quantizeOp->set<unsigned>("opId", task->get<unsigned>("opId"));
-                auto backup = inputFlow;
-                auto slot = backup->get<size_t>("sinkInput");
-                ++inputFlow;
-                om.undefineFlow(backup);
-                task->setInputTensor(quantize, slot, false);
-                om.defineFlow(quantize, task, slot);
+
+                if (alignCase)
+                {
+                    auto backup = previousOpIt.leftmostInput();
+                    auto slot = backup->get<size_t>("sinkInput");
+                    ++inputFlow;
+                    om.undefineFlow(backup);
+                    previousOpIt->setInputTensor(quantize, slot, false);
+                    previousOpIt->getOutputTensor(0)->setDType(outputDType);
+                    om.defineFlow(quantize, previousOpIt, slot);
+                }
+                else
+                {
+                    auto backup = inputFlow;
+                    auto slot = backup->get<size_t>("sinkInput");
+                    ++inputFlow;
+                    om.undefineFlow(backup);
+                    task->setInputTensor(quantize, slot, false);
+                    om.defineFlow(quantize, task, slot);
+                }
+
+
                 id++;
             }
             else
@@ -169,6 +193,16 @@ static void kmbQuantizeConversionFcn(const mv::pass::PassEntry&, mv::Computation
     mv::OpModel om(model);
 
     auto dpuTasks = om.getOps("DPUTask");
+    std::vector<mv::Data::OpListIterator> dpuTasksFP16 = {};
+    for (auto& dpuTask : dpuTasks)
+    {
+        if (dpuTask->hasAttr("softwareExecuted") && dpuTask->get<bool>("softwareExecuted"))
+        {
+            dpuTasksFP16.push_back(dpuTask);
+            dpuTasks.erase(std::remove(dpuTasks.begin(), dpuTasks.end(), dpuTask), dpuTasks.end());
+        }
+    }
+
     auto upaTasks = om.getOps("UPATask");
 
     // NOTE: At this moment in the model, all the concats are implicit
@@ -185,6 +219,7 @@ static void kmbQuantizeConversionFcn(const mv::pass::PassEntry&, mv::Computation
     bool DPUTasksinSW = globalParams->hasAttr("DPUTasksinFloat") ? globalParams->get<bool>("DPUTasksinFloat") : false;
     if (!DPUTasksinSW)
     {
+        addQuantizationLayers(om, dpuTasksFP16, FP16);
         addQuantizationLayers(om, dpuTasks, U8);
         addSliceQuantizationLayer(om, slices, U8);
     }
@@ -220,12 +255,19 @@ static void configureOutputPrecisionFcn(const mv::pass::PassEntry&, mv::Computat
         auto wantedPrecision = outputOp[0]->get<mv::DType>("precision");
         if (inputTypeofOutput != wantedPrecision)
         {
-            outputOp[0]->getInputTensor(0)->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::DDR);
+            if (om.getSourceOp(outputOp[0]->getInputTensor(0))->isImplicit())
+            {
+                for (std::size_t i = 0; i < om.getSourceOp(outputOp[0]->getInputTensor(0))->getInputTensor().size(); i++)
+                    om.getSourceOp(outputOp[0]->getInputTensor(0))->getInputTensor(i)->set<mv::Tensor::MemoryLocation>("Location",mv::Tensor::MemoryLocation::DDR);
+            }
             auto quantize = om.uPATaskQuantize({outputOp[0]->getInputTensor(0)}, wantedPrecision,
-                        outputOp[0]->get<mv::QuantizationParams>("quantParams"), "Precision" + outputOp[0]->getName());
+                        om.getSourceOp(outputOp[0]->getInputTensor(0))->get<mv::QuantizationParams>("quantParams"), "Precision" + outputOp[0]->getName());
             quantize->set<std::string>("splitStrategy",
                         outputOp[0]->getInputTensor(0)->get<std::string>("splitStrategy"));
             quantize->set<mv::Tensor::MemoryLocation>("Location",mv::Tensor::MemoryLocation::OUTPUT);
+            outputOp[0]->getInputTensor(0)->set<mv::Tensor::MemoryLocation>("Location",mv::Tensor::MemoryLocation::DDR);
+            outputOp[0]->getInputTensor(0)->set<mv::QuantizationParams>("quantParams",
+                                om.getSourceOp(outputOp[0]->getInputTensor(0))->get<mv::QuantizationParams>("quantParams"));
             auto quantizeOp = om.getSourceOp(quantize);
             quantizeOp->set<unsigned>("opId", outputOp[0]->get<unsigned>("opId") - 1);
             om.undefineFlow(outputOp[0].leftmostInput());
