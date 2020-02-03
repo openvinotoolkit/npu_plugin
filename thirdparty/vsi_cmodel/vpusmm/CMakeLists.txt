@@ -17,7 +17,7 @@
 find_library(VPUSMM_LIBRARY
         NAMES vpusmm
         HINTS ${CMAKE_CURRENT_LIST_DIR}/${CMAKE_SYSTEM_PROCESSOR}
-        CMAKE_FIND_ROOT_PATH_BOTH)
+        NO_CMAKE_FIND_ROOT_PATH)
 
 if(NOT VPUSMM_LIBRARY)
     message(FATAL_ERROR "vpusmm was not found")
