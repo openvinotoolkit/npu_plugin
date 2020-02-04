@@ -57,7 +57,7 @@ MV_OPTIMIZER_LAYER_STRATEGY_REGISTRY()
 MV_OPTIMIZER_LAYER_STRATEGY_REGISTRY()
     .enter("MaxPool")
     .registerSet("streamingStrategies").insert(vector<string>{"StreamOverH","StreamOverW"})
-    .registerSet("clusteringStrategies").insert(vector<string>{"Clustering","SplitOverH","HKSwitch"})
+    .registerSet("clusteringStrategies").insert(vector<string>{"Clustering","HKSwitch"})
     .registerSet("inputActivationSparsity").insert(false)
     .registerSet("outputActivationSparsity").insert(true)
     .registerSet("weightsSparsity").insert(false);
