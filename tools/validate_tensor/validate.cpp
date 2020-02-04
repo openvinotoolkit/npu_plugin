@@ -123,6 +123,61 @@ void generateGraphFile(std::string pathBlob, MVCNN::GraphFileT& graphFile)
     graphPtr->UnPackTo(&graphFile);
 }
 
+// K-L Divergence, or relative entropy, is calculated as KL(P || Q) = sum x in X P(x) * log(P(x) / Q(x))
+// where P is the expected results, and Q is our observed result
+float klDivergence(std::vector<float>& P, std::vector<float>& Q)
+{
+	float sum = 0.0;
+	for(size_t i = 0; i < Q.size(); i++)
+	{
+		float p = P[i];
+		float q = Q[i];
+        if(p == 0) p = 0.0000001;
+		if(q == 0) q = 0.0000001;
+		float log = std::log2(p / q);
+		
+		sum += p * log;
+
+		// std::cout << "p " << p << ", q " << q<< ", log " << log << ", sum " << sum <<std::endl;
+	}
+	
+	return sum;
+}
+
+// JS Divergence, a normalized version of KL diverence for calculating differences in probability distrubution
+// JS(P || Q) = 1/2 * KL(P || M) + 1/2 * KL(Q || M), where M is M = 1/2 * (P + Q)
+float jsDivergence(std::vector<float>& P, std::vector<float>& Q)
+{
+	std::vector<float> M;
+	for(size_t i = 0; i < Q.size(); i++)
+	{
+		M.push_back(0.5 * (P[i]+Q[i]));
+	}
+	float PwrtM = klDivergence(P, M);
+	float QwrtM = klDivergence(Q, M);
+	return (0.5 * PwrtM) + (0.5 * QwrtM);
+}
+
+std::vector<float> normalizeResults(std::vector<float>& results, float min, float max)
+{
+    std::vector<float> normalized;
+    float sum = 0;
+
+    for(auto& i : results)
+    {
+        float val = (i+fabsf(min)) / max;
+        normalized.push_back(val);
+        sum += val;
+    }
+
+    for(size_t i = 0; i < normalized.size(); i++)
+    {
+        normalized[i] = normalized[i] / sum;
+    }
+
+    return normalized;
+}
+
 bool compare(std::vector<float>& actualResults, std::vector<float>& expectedResults, float tolerance, float allowedDeviation)
 {
     std::cout << "Comparing results ... " << std::endl;
@@ -150,17 +205,18 @@ bool compare(std::vector<float>& actualResults, std::vector<float>& expectedResu
         sumDiff+=abs_error;
 
         std::string result = "\t\033[1;32mPass\033[0m";
-        if ((relative_error) > allowedDeviation)
+        if ((relative_error) > allowedDeviation and abs_error > allowedDeviation)
         {
             countErrs++;
             if(relative_error > maxErr) maxErr = relative_error;
             result = "\t\033[1;31mfail\033[0m";
+            // std::cout << std::setw(6) << idx << std::setw(10) << expected << std::setw(12) << actual << std::setw(12) << abs_error << std::setw(12) << relative_error << std::setw(18)  << result  << std::endl;
         }
         if (idx < 50) // print first 50 rows
             std::cout << std::setw(10) << expected << std::setw(12) << actual << std::setw(12) << abs_error << std::setw(12) << relative_error << std::setw(18)  << result  << std::endl;
     };
 
-    std::cout << "Printing first 50 rows...\nExpected\tActual\tDifference  Relative Err\tResult" << std::endl;
+    std::cout << "Printing first 50 rows...\nID\tExpected\tActual\tDifference  Relative Err  Result" << std::endl;
     for (size_t n = 0; n < expectedResults.size(); ++n)
         absoluteErrorUpdater(n);
 
@@ -177,7 +233,22 @@ bool compare(std::vector<float>& actualResults, std::vector<float>& expectedResu
     std::cout << "Pixel-wise L2 Error\t" << std::setw(7) << (int)((l2_err * 100) * 10000.0)/10000.0 << "%" << std::setw(10) << tolerance << "%" << ((l2_err < tolerance) ? "\t\033[1;32mPass" : "\t\033[1;31mFail") << "\033[0m" << std::endl;
     std::cout << "Global Sum Difference\t" << std::setw(8) << sumDiff << std::setw(11) << "inf" << std::setw(8) << "\t\033[1;32mPass\033[0m" << std::endl << std::endl;
     
-    if (avgPixelAccuracy < tolerance) return true;
+
+    float min = *std::min_element(expectedResults.begin(), expectedResults.end());
+    if(*std::min_element(actualResults.begin(), actualResults.end()) < min)
+        min = *std::min_element(actualResults.begin(), actualResults.end());
+    float max = *std::max_element(expectedResults.begin(), expectedResults.end());
+    if(*std::max_element(actualResults.begin(), actualResults.end()) < max)
+        max = *std::max_element(actualResults.begin(), actualResults.end());
+    std::vector<float> P = normalizeResults(expectedResults, min, max);
+    std::vector<float> Q = normalizeResults(actualResults, min, max);
+
+    float jsDiv = jsDivergence(P, Q);
+	std::cout << "JS-Divergence is\t" << std::setw(7) << jsDiv << std::endl;
+    std::cout << "JS-Distance is\t" << std::setw(7) << sqrt(jsDiv) << std::endl;
+
+    // if (avgPixelAccuracy < tolerance) return true;
+    if (sqrt(jsDiv) < (allowedDeviation) ) return true;
     else return false;
 }
 
@@ -393,7 +464,9 @@ int validate(std::string blobPath, std::string expectedPath, std::string actualP
         std::cout << "  quant_scale: " << qScale << std::endl;
         std::cout << "  quant_shift: " << qShift << std::endl;
 
-        float allowedDeviation = ( FLAGS_t * 2.56) * qScale; // Consider the tolerance a % of int range
+        allowedDeviation = ( FLAGS_t * 2.56) * qScale; // Consider the tolerance a % of int range
+        allowedDeviation = allowedDeviation / 2.0; // Consider half the range above or below of a given result
+        if(allowedDeviation < qScale/2.0) allowedDeviation = qScale/2.0; // No better int can be found for this value
 
         // read size of output tensor
         int tSize = 1;
@@ -421,13 +494,18 @@ int validate(std::string blobPath, std::string expectedPath, std::string actualP
         std::vector<u_int16_t> outputVector(totalActual);
         file.read(reinterpret_cast<char *>(&outputVector[0]), totalActual * typesize);
         std::cout << totalActual << " elements" << std::endl;
+        float min, max;
         for (size_t i = 0; i < outputVector.size(); ++i)
         {
             float val = mv::fp16_to_fp32(outputVector[i]);
             // float val = static_cast<uint16_t>(outputVector[i]);
             outputFP32.push_back(val);
+            if(val > max) max = val;
+            if(val < min) min = val;
         }
-        allowedDeviation = 1.0 * FLAGS_t;
+        float range = max - min;
+        allowedDeviation = 1.0 * (FLAGS_t * range/100);
+        allowedDeviation = allowedDeviation / 2; // Consider half the range above or below of a given result
     }
     writeToFile(outputFP32, "./output-kmb-dequantized.bin");
 
