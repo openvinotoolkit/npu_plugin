@@ -208,7 +208,7 @@ bool compare(std::vector<float>& actualResults, std::vector<float>& expectedResu
         if ((relative_error) > allowedDeviation and abs_error > allowedDeviation)
         {
             countErrs++;
-            if(relative_error > maxErr) maxErr = relative_error;
+            if(abs_error > maxErr) maxErr = abs_error;
             result = "\t\033[1;31mfail\033[0m";
             // std::cout << std::setw(6) << idx << std::setw(10) << expected << std::setw(12) << actual << std::setw(12) << abs_error << std::setw(12) << relative_error << std::setw(18)  << result  << std::endl;
         }
@@ -227,11 +227,12 @@ bool compare(std::vector<float>& actualResults, std::vector<float>& expectedResu
     
     //print results report
     std::cout << "\nMetric\t\t\t  Actual  Threshold\tStatus" << std::endl << "----------------------    ------  ---------\t-------" << std::endl;   
-    std::cout << "Min Pixel Accuracy\t" << std::setw(7) << (int)(maxErr * 10000.0)/10000.0 << "%" << std::setw(10) << tolerance << "%" << std::setw(8) << ((maxErr < tolerance) ? "\t\033[1;32mPass" : "\t\033[1;31mFail") << "\033[0m" << std::endl;
+    // std::cout << "Min Pixel Accuracy\t" << std::setw(7) << (int)(maxErr * 10000.0)/10000.0 << "%" << std::setw(10) << tolerance << "%" << std::setw(8) << ((maxErr < tolerance) ? "\t\033[1;32mPass" : "\t\033[1;31mFail") << "\033[0m" << std::endl;
     std::cout << "Average Pixel Accuracy\t" << std::setw(7) << (int)(avgPixelAccuracy * 10000.0) / 10000.0 << "%" << std::setw(10) << tolerance << "%" << std::setw(8) << ((avgPixelAccuracy < tolerance) ? "\t\033[1;32mPass" : "\t\033[1;31mFail") << "\033[0m" << std::endl;
     std::cout << "% of Wrong Values\t" << std::setw(7) << (int)(countErrsPcent * 10000.0) / 10000.0 << "%" << std::setw(10) << tolerance << "%" << ((countErrsPcent < tolerance) ? "\t\033[1;32mPass" : "\t\033[1;31mFail") << "\033[0m" << std::endl;
     std::cout << "Pixel-wise L2 Error\t" << std::setw(7) << (int)((l2_err * 100) * 10000.0)/10000.0 << "%" << std::setw(10) << tolerance << "%" << ((l2_err < tolerance) ? "\t\033[1;32mPass" : "\t\033[1;31mFail") << "\033[0m" << std::endl;
-    std::cout << "Global Sum Difference\t" << std::setw(8) << sumDiff << std::setw(11) << "inf" << std::setw(8) << "\t\033[1;32mPass\033[0m" << std::endl << std::endl;
+    std::cout << "Global Sum Difference\t" << std::setw(8) << sumDiff << std::setw(11) << "inf" << std::setw(8) << "\t\033[1;32mPass\033[0m" << std::endl;
+    std::cout << "Max Absolute Error\t" << std::setw(8) << maxErr << std::setw(11) << "inf" << std::setw(8) << "\t\033[1;32mPass\033[0m" << std::endl << std::endl;
     
 
     float min = *std::min_element(expectedResults.begin(), expectedResults.end());
@@ -244,11 +245,11 @@ bool compare(std::vector<float>& actualResults, std::vector<float>& expectedResu
     std::vector<float> Q = normalizeResults(actualResults, min, max);
 
     float jsDiv = jsDivergence(P, Q);
-	std::cout << "JS-Divergence is\t" << std::setw(7) << jsDiv << std::endl;
-    std::cout << "JS-Distance is\t" << std::setw(7) << sqrt(jsDiv) << std::endl;
+	std::cout << "JS Divergence\t\t" << std::setw(10) << jsDiv << std::endl;
+    std::cout << "JS Distance\t\t" << std::setw(8) << sqrt(jsDiv)  << std::setw(8) << tolerance << "%" << std::setw(8) << ((sqrt(jsDiv) < (tolerance/100)) ? "\t\033[1;32mPass" : "\t\033[1;31mFail") << "\033[0m" << std::endl;
 
     // if (avgPixelAccuracy < tolerance) return true;
-    if (sqrt(jsDiv) < (allowedDeviation) ) return true;
+    if (sqrt(jsDiv) < (tolerance / 100) ) return true;
     else return false;
 }
 
@@ -336,7 +337,7 @@ int runEmulator(std::string pathXML, std::string pathImage, std::string& blobPat
         commandline += (" -i " + pathImage);
 
     std::cout << commandline << std::endl;
-    std::system(commandline.c_str());
+    returnVal = std::system(commandline.c_str());
     if (returnVal != 0)
     {
         std::cout << std::endl << "Error occurred running the test_classification (KMB mode)!" << std::endl;
@@ -494,7 +495,8 @@ int validate(std::string blobPath, std::string expectedPath, std::string actualP
         std::vector<u_int16_t> outputVector(totalActual);
         file.read(reinterpret_cast<char *>(&outputVector[0]), totalActual * typesize);
         std::cout << totalActual << " elements" << std::endl;
-        float min, max;
+        float min = mv::fp16_to_fp32(outputVector[0]);
+        float max = mv::fp16_to_fp32(outputVector[0]);
         for (size_t i = 0; i < outputVector.size(); ++i)
         {
             float val = mv::fp16_to_fp32(outputVector[i]);
