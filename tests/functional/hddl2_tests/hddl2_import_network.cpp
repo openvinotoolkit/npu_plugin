@@ -16,9 +16,13 @@
 
 #include <Inference.h>
 
+#include <fstream>
+
 #include "gtest/gtest.h"
 #include "hddl2_core_api.h"
+#include "hddl2_helpers/helper_workload_context.h"
 #include "hddl2_helpers/models/precompiled_resnet.h"
+#include "helper_remote_context.h"
 
 namespace IE = InferenceEngine;
 
@@ -28,7 +32,17 @@ namespace IE = InferenceEngine;
 class HDDL2_ImportNetwork_Tests : public HDDL2_Core_API_Tests {
 public:
     modelBlobInfo blobInfo = PrecompiledResNet_Helper::resnet;
+    void SetUp() override;
+    InferenceEngine::ParamMap params;
+
+private:
+    WorkloadContext_Helper workloadContextHelper;
 };
+
+void HDDL2_ImportNetwork_Tests::SetUp() {
+    WorkloadID workloadId = workloadContextHelper.getWorkloadId();
+    params = Remote_Context_Helper::wrapWorkloadIdToMap(workloadId);
+}
 
 //------------------------------------------------------------------------------
 //      class HDDL2_ImportNetwork_Tests Initiation - create
@@ -51,4 +65,20 @@ TEST_F(HDDL2_ImportNetwork_Tests, CanCreateInferRequest) {
     ASSERT_NO_THROW(executableNetwork = ie.ImportNetwork(blobInfo.graphPath, pluginName));
 
     ASSERT_NO_THROW(inferRequest = executableNetwork.CreateInferRequest());
+}
+
+TEST_F(HDDL2_ImportNetwork_Tests, CanCreateExecutableNetworkWithStream) {
+    const std::map<std::string, std::string> config = {};
+
+    std::filebuf blobFile;
+    if (!blobFile.open(blobInfo.graphPath, std::ios::in | std::ios::binary)) {
+        blobFile.close();
+        THROW_IE_EXCEPTION << "Could not open file: " << blobInfo.graphPath;
+    }
+    std::istream tmp_stream(&blobFile);
+
+    InferenceEngine::RemoteContext::Ptr remoteContextPtr = ie.CreateContext(pluginName, params);
+
+    ASSERT_NO_THROW(executableNetwork = ie.ImportNetwork(tmp_stream, remoteContextPtr, config));
+    blobFile.close();
 }

@@ -14,8 +14,9 @@
 // stated in the License.
 //
 
-#include <fstream>
 #include <hddl2_helpers/helper_device_name.h>
+
+#include <fstream>
 
 #include "gtest/gtest.h"
 

@@ -66,6 +66,34 @@ IExecutableNetwork::Ptr Engine::ImportNetwork(
         });
 }
 
+InferenceEngine::ExecutableNetwork Engine::ImportNetworkImpl(
+    std::istream& networkModel, const std::map<std::string, std::string>& config) {
+    auto parsedConfigCopy = _parsedConfig;
+    parsedConfigCopy.update(config, ConfigMode::RunTime);
+
+    const auto executableNetwork = std::make_shared<ExecutableNetwork>(networkModel, parsedConfigCopy);
+
+    return InferenceEngine::ExecutableNetwork {
+        IExecutableNetwork::Ptr(new ExecutableNetworkBase<ExecutableNetworkInternal>(executableNetwork),
+            [](InferenceEngine::details::IRelease* p) {
+                p->Release();
+            })};
+}
+
+InferenceEngine::ExecutableNetwork Engine::ImportNetworkImpl(
+    std::istream& networkModel, const RemoteContext::Ptr& context, const std::map<std::string, std::string>& config) {
+    auto parsedConfigCopy = _parsedConfig;
+    parsedConfigCopy.update(config, ConfigMode::RunTime);
+
+    const auto executableNetwork = std::make_shared<ExecutableNetwork>(networkModel, parsedConfigCopy, context);
+
+    return InferenceEngine::ExecutableNetwork {
+        IExecutableNetwork::Ptr(new ExecutableNetworkBase<ExecutableNetworkInternal>(executableNetwork),
+            [](InferenceEngine::details::IRelease* p) {
+                p->Release();
+            })};
+}
+
 void Engine::SetConfig(const std::map<std::string, std::string>& config) {
     std::cout << "SetConfig call" << std::endl;
     UNUSED(config);
