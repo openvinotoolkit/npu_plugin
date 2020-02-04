@@ -16,6 +16,8 @@ else()
     ie_option(ENABLE_HDDL2 "Enable HDDL2 Plugin" ON)
 endif()
 
+ie_option(ENABLE_HDDL2_UNIT_TESTS "Enable HDDL2 Plugin UnitTests" OFF)
+
 ie_option(ENABLE_VPUAL "Enable VPUAL" ON)
 
 ie_option(ENABLE_KMB_SAMPLES "Enable KMB samples" ON)
