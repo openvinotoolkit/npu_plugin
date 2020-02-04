@@ -18,3 +18,25 @@
 8. When the points above are resolved, you may merge the Merge Request, or
    if you do not have permission to do that, you may request the second reviewer
    to merge it for you.
+
+## How to run TeamCity Build All
+1. Go to the link provided in the MR template.
+2. Choose dldt branch to test (on the right side of `Build Keembay only` label)
+3. Press '...' button (on the right side of 'Run' button).
+4. Go to 'Parameters' tab and enter branch, you want to test, into 'reverse.dep.branch._KMB_plugin_branch'
+5. Press 'Run Build' button
+6. Attach a link to the job triggered in MR's description.
+
+## How to run IE-MDK job
+1. Go to the link provided in the MR template.
+2. Choose dldt and kmb-plugin branches, you want to test, by entering names of the branches into `dldt_branch` and  `kmb_plugin_branch` respectively.
+3. Select the following checkboxes:
+    * Platforms
+        * run_Ubuntu18
+        * run_Yocto_ARM
+    * Devices
+        * run_KMB
+        * run_HDDL2
+3. Press `Build` button.
+    * There will be a new job triggered. You can find the link to the job in `Build history`.
+4. Attach a link to the job in MR's description.
