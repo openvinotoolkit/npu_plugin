@@ -23,13 +23,11 @@ namespace vpu {
 namespace MCMAdapter {
 bool isMCMCompilerAvailable();
 
-#ifdef ENABLE_MCM_COMPILER
 void compileNetwork(InferenceEngine::ICNNNetwork &network,
                     const MCMConfig &config, std::vector<char> &blob);
 
 std::set<std::string> getSupportedLayers(InferenceEngine::ICNNNetwork &network,
                                          const MCMConfig &config);
-#endif
 
 }
 }  // namespace vpu

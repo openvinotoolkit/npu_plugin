@@ -197,13 +197,24 @@ std::set<std::string> MCMAdapter::getSupportedLayers(InferenceEngine::ICNNNetwor
 
     return frontEnd->checkSupportedLayers(network);
 }
-#endif  // ENABLE_MCM_COMPILER
 
 bool vpu::MCMAdapter::isMCMCompilerAvailable() {
-#ifdef ENABLE_MCM_COMPILER
     std::shared_ptr<mv::CompilationUnit> tmpCompiler = std::make_shared<mv::CompilationUnit>("testModel");
     return tmpCompiler != nullptr;
-#else
-    return false;
-#endif
 }
+
+#else
+
+void vpu::MCMAdapter::compileNetwork(
+    InferenceEngine::ICNNNetwork& network, const MCMConfig& config, std::vector<char>& blob) {
+    THROW_IE_EXCEPTION << "Compiler is disabled";
+}
+
+std::set<std::string> vpu::MCMAdapter::getSupportedLayers(
+    InferenceEngine::ICNNNetwork& network, const MCMConfig& config) {
+    THROW_IE_EXCEPTION << "Compiler is disabled";
+}
+
+bool vpu::MCMAdapter::isMCMCompilerAvailable() { return false; }
+
+#endif  // ENABLE_MCM_COMPILER
