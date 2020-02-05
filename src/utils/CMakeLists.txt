@@ -23,9 +23,12 @@ set(TARGET_NAME "kmb_utils")
 file(GLOB_RECURSE SOURCES *.cpp *.hpp *.h)
 
 add_library(${TARGET_NAME} STATIC ${SOURCES})
-target_link_libraries(${TARGET_NAME} PRIVATE vpusmm)
+target_link_libraries(${TARGET_NAME} PRIVATE vpusmm PUBLIC IE::inference_engine_lp_transformations)
 
 target_include_directories(${TARGET_NAME}
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}
-        $<TARGET_PROPERTY:IE::inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>)
+        "${CMAKE_CURRENT_SOURCE_DIR}/quantization"
+        $<TARGET_PROPERTY:IE::inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
+    SYSTEM PRIVATE
+        ${MCM_COMPILER_INCLUDES})

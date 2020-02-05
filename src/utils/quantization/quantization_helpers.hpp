@@ -18,11 +18,11 @@
 #include <ie_layers_internal.hpp>
 #include <low_precision_transformations/network_helper.hpp>
 #include <low_precision_transformations/quantization_details.hpp>
+#include <string>
 #include <vector>
 
 #ifdef ENABLE_MCM_COMPILER
-
-#include <include/mcm/op_model.hpp>
+#include <mcm/tensor/quantization_params.hpp>
 
 namespace vpu {
 
@@ -39,9 +39,6 @@ void calculateOutputScalesAndZeroPoint(const InferenceEngine::CNNLayerPtr& fakeQ
 void fillQuntizationActivationParams(
     const InferenceEngine::CNNLayerPtr& quantizedLayer, mv::QuantizationParams& outputQuantParams);
 
-InferenceEngine::Blob::Ptr calculateQuntizationWeights(
-    const InferenceEngine::CNNLayerPtr& quantizedLayer, mv::QuantizationParams& weightsQuantParams);
-
 // for symmetric case only, using mcm logic
 int64_t calculateZeroPoint(float high, float low, int levels, InferenceEngine::Precision precision);
 
@@ -57,6 +54,12 @@ mv::QuantizationParams fillQuantizeParamsForU8orI8weights(
 std::vector<int64_t> quantizeBiases(const std::vector<double>& activationScales,
     const std::vector<double>& weightsScales, const InferenceEngine::Blob::Ptr biasBlob,
     mv::QuantizationParams& outputQuantParam);
+
+InferenceEngine::Blob::Ptr quantizeBlob(InferenceEngine::Blob::Ptr weightsBlob, std::vector<size_t> dims,
+    mv::QuantizationParams weightsQuantParams, InferenceEngine::Precision precision, const std::string& fqName);
+
+InferenceEngine::Blob::Ptr quantizeConstLayer(const InferenceEngine::CNNLayerPtr& fakeQuantizeOnWeights,
+    InferenceEngine::Precision precision, mv::QuantizationParams& weightsQuantParams);
 
 }  // namespace QuantizationHelpers
 }  // namespace vpu

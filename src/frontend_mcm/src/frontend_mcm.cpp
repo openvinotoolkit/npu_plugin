@@ -26,6 +26,7 @@
 #include <low_precision_transformations/network_helper.hpp>
 #include <low_precision_transformations/transformer.hpp>
 #include <memory>
+#include <quantization/quantization_helpers.hpp>
 #include <set>
 #include <string>
 #include <unordered_map>
@@ -35,7 +36,6 @@
 #include <vpu/utils/error.hpp>
 
 #include "dims_parser.hpp"
-#include "quantization_helpers.hpp"
 
 #ifndef UNUSED
 #define UNUSED(var) (void)var
