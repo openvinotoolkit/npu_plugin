@@ -276,7 +276,7 @@ void compensateDepthWiseAfter(mv::OpModel om, mv::Data::OpListIterator nextOp, m
                         weightsQuantParams);
 
     auto compensateDepthWise = om.depthwiseConv(inputTensor, weights, {1,1}, {0, 0, 0, 0},
-                1, mv::DType("UInt8"), {{0},{masterScale},{},{}}, nextOp->getName() + "compensateDepthwise");
+                1, mv::DType("UInt8"), {{concat->getOutputTensor(0)->get<mv::QuantizationParams>("quantParams").getZeroPoint()[0]},{masterScale},{},{}}, nextOp->getName() + "compensateDepthwise");
     auto compensateDepthWiseOp = om.getSourceOp(compensateDepthWise);
     auto weightsOp = om.getSourceOp(weights);
     compensateDepthWiseOp->set<unsigned>("opId", nextOp->get<unsigned>("opId"));
