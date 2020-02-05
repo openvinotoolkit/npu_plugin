@@ -49,14 +49,15 @@ target_include_directories(${TARGET_NAME}
         ${CMAKE_CURRENT_SOURCE_DIR})
 
 target_link_libraries(${TARGET_NAME}
-    PRIVATE
+    PUBLIC
         IE::inference_engine
         IE::vpu_common_lib
+        frontend_mcm
         ${VPUAL_NN_LIBRARY}
-        ${GAPI_SIPP_LIBRARY}
         vpusmm
-        kmb_utils
-        frontend_mcm)
+    PRIVATE
+        ${GAPI_SIPP_LIBRARY}
+        kmb_utils)
 
 if(ENABLE_CLANG_FORMAT)
     add_clang_format_target(clang_format_${TARGET_NAME} FOR_TARGETS ${TARGET_NAME} ALL)
@@ -78,13 +79,11 @@ if(ENABLE_TESTS)
     target_link_libraries(${TARGET_NAME}_test_static
         PUBLIC
             IE::inference_engine
-            IE::inference_engine_lp_transformations
-            IE::inference_engine_plugin_api
+            IE::vpu_common_lib
+            frontend_mcm
+            ${VPUAL_NN_LIBRARY}
             vpusmm
         PRIVATE
-            IE::vpu_common_lib
-            ${VPUAL_NN_LIBRARY}
             ${GAPI_SIPP_LIBRARY}
-            kmb_utils
-            frontend_mcm)
+            kmb_utils)
 endif()
