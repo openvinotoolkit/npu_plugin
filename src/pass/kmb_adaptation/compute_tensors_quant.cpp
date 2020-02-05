@@ -45,7 +45,7 @@ void postTrainingQuantize(const mv::pass::PassEntry& pass, mv::ComputationModel&
     updateOutputQuantParams(pass, model, td, e0, e1);
 }
 
-void updateOutputQuantParams(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+void updateOutputQuantParams(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
     //NOTE: This pass will generate output Quantization Params when they are not defined...
     //Here we search for the minimum, maximum possible solution (better range) for the output Activation Tensor
@@ -86,7 +86,7 @@ void updateOutputQuantParams(const mv::pass::PassEntry&, mv::ComputationModel& m
             {
                 if (input->get<mv::QuantizationParams>("quantParams").isNeutral())
                 {
-                    std::cout << " INPUT TENSOR HAS NO QUANT " << std::endl;
+                    pass.log(mv::Logger::MessageType::Warning, " INPUT TENSOR HAS NO QUANT ");
                     continue;
                 }
             }
@@ -298,7 +298,7 @@ static std::vector<mv::Data::OpListIterator> findNextConcat(mv::DataModel &dataM
     return sinkOperations;
 }
 
-void alignConcatScales(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+void alignConcatScales(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);
@@ -364,11 +364,13 @@ void alignConcatScales(const mv::pass::PassEntry&, mv::ComputationModel& model, 
                 minInputFloats.push_back(minimumFloat);
                 maxInputFloats.push_back(maximumFloat);
             }
+
             for (std::size_t i = 0; i < concatIt->getInputTensor().size(); i++)
             {
-                std::cout << "Min is " << std::to_string(minInputFloats[i]) << std::endl;
-                std::cout << "Max is " << std::to_string(maxInputFloats[i]) << std::endl;
+                pass.log(mv::Logger::MessageType::Debug, "Min is " + std::to_string(minInputFloats[i]) );
+                pass.log(mv::Logger::MessageType::Debug, "Max is " + std::to_string(maxInputFloats[i]) );
             }
+
             double minConcatScale = *std::min_element(minInputFloats.begin(), minInputFloats.end());
             double maxConcatScale = *std::max_element(maxInputFloats.begin(), maxInputFloats.end());
             double masterScale = (maxConcatScale-minConcatScale)/255;
@@ -382,7 +384,7 @@ void alignConcatScales(const mv::pass::PassEntry&, mv::ComputationModel& model, 
                 auto max_diff = (maxConcatScale/(std::abs(minConcatScale) + maxConcatScale)) * 255;
                 zeroPoint = std::ceil(255 - max_diff);
             }
-            std::cout << "MASTER SCALE IS " << masterScale << std::endl;
+            pass.log(mv::Logger::MessageType::Debug, "MASTER SCALE IS " + std::to_string(masterScale));
             mv::QuantizationParams masterQuant = {{zeroPoint},{masterScale},{minConcatScale},{maxConcatScale}};
 
             for (std::size_t i = 0; i < concatIt->getInputTensor().size(); i++)
