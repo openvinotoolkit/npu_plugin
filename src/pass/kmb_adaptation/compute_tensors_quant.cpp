@@ -11,7 +11,7 @@ static void computeTensorsQuantParams(const mv::pass::PassEntry& pass, mv::Compu
 static void updateOutputQuantParams(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void postTrainingQuantize(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void alignConcatScales(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
-static void placeReQuantizeDepthwiseBefore(mv::OpModel om, mv::Data::OpListIterator concat, mv::Data::TensorIterator inputTensor, std::size_t index, double &weightScale, double &alignedScale);
+static void placeReQuantizeDepthwiseBefore(mv::OpModel om, mv::Data::OpListIterator concat, mv::Data::TensorIterator inputTensor, std::size_t index, double &weightScale, double &alignedScale, int64_t &alignedZeroPoint);
 static void compensateDepthWiseAfter(mv::OpModel om, mv::Data::OpListIterator nextOp, mv::Data::OpListIterator concat);
 static std::vector<mv::Data::OpListIterator> findNextConcat(mv::DataModel &dataModel, const mv::Data::TensorIterator &tensor);
 
@@ -204,7 +204,7 @@ void updateOutputQuantParams(const mv::pass::PassEntry&, mv::ComputationModel& m
     }
 }
 
-void placeReQuantizeDepthwiseBefore(mv::OpModel om, mv::Data::OpListIterator concat, mv::Data::TensorIterator inputTensor, std::size_t index, double &weightScale, double &alignedScale)
+void placeReQuantizeDepthwiseBefore(mv::OpModel om, mv::Data::OpListIterator concat, mv::Data::TensorIterator inputTensor, std::size_t index, double &weightScale, double &alignedScale, int64_t &alignedZeroPoint)
 {
     //FIND THE APPROPRIATE FLOW
     auto inputFlow = concat.leftmostInput();
@@ -232,7 +232,7 @@ void placeReQuantizeDepthwiseBefore(mv::OpModel om, mv::Data::OpListIterator con
                         mv::Order(mv::Order::getRowMajorID(4)),
                         weightsQuantParams);
     auto reQuantizeDepthwise = om.depthwiseConv(inputTensor, weights, {1,1}, {0, 0, 0, 0},
-                        1, mv::DType("UInt8"), {{0},{alignedScale},{},{}}, concat->getName() + "Depthwise" + std::to_string(index));
+                        1, mv::DType("UInt8"), {{alignedZeroPoint},{alignedScale},{},{}}, concat->getName() + "Depthwise" + std::to_string(index));
     reQuantizeDepthwise->set<double>("oldScale", inputTensor->get<double>("oldScale"));
     auto reQuantizeDepthwiseOp = om.getSourceOp(reQuantizeDepthwise);
     auto weightsOp = om.getSourceOp(weights);
@@ -388,7 +388,7 @@ void alignConcatScales(const mv::pass::PassEntry&, mv::ComputationModel& model, 
                 if (masterScale == concatIt->getInputTensor()[i]->get<mv::QuantizationParams>("quantParams").getScale()[0])
                     continue;
                 double weightScale = 1.0f;
-                placeReQuantizeDepthwiseBefore(om, concatIt, concatIt->getInputTensor(i), i, weightScale, masterScale);
+                placeReQuantizeDepthwiseBefore(om, concatIt, concatIt->getInputTensor(i), i, weightScale, masterScale, zeroPoint);
             }
             concatIt->getOutputTensor(0)->set<mv::QuantizationParams>("quantParams", masterQuant);
             concatIt->set<mv::QuantizationParams>("quantParams", masterQuant);
