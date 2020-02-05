@@ -721,7 +721,32 @@ void FrontEndMcm::parseOutputData() {
         IE_ASSERT(lastLayerOut != nullptr);
         auto name = lastLayerOut->getMcmNode()->getName();
 
-        auto mvOutput = _modelMcm.output(lastLayerOut->getMcmNode());
+        const auto outputPrecision = ieData->getTensorDesc().getPrecision();
+
+        // TODO: kmbPlugin already has a function convert_data_type() for matching IE precision to mcm, but
+        // in this case we can't use due to limitations on mcm level (not all precisions are supported).
+        // mcmCompiler right now support only 2 types of precisions for output: U8 and FP16
+        // for avoid this limitations plugin has a WA: translate FP32 output like a FP16 and convert output blob
+        // in getResult() function after the inference.
+        mv::DType outputType;
+        switch (outputPrecision) {
+        case ie::Precision::UNSPECIFIED:
+            outputType = mv::DType("Default");
+            break;
+        case ie::Precision::U8:
+            outputType = mv::DType("UInt8");
+            break;
+        case ie::Precision::FP16:
+            outputType = mv::DType("Float16");
+            break;
+        case ie::Precision::FP32:
+            outputType = mv::DType("Float16");
+            break;
+        default:
+            VPU_THROW_EXCEPTION << "Data type handling is not implemented" << outputPrecision.name();
+        }
+
+        auto mvOutput = _modelMcm.output(lastLayerOut->getMcmNode(), outputType, {{}, {}, {}, {}});
         _output = std::make_shared<McmNodeObject>(mvOutput, lastLayerOut->desc());
         _nodes.push_back(_output);
     }
