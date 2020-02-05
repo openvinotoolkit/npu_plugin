@@ -158,14 +158,16 @@ float jsDivergence(std::vector<float>& P, std::vector<float>& Q)
 	return (0.5 * PwrtM) + (0.5 * QwrtM);
 }
 
-std::vector<float> normalizeResults(std::vector<float>& results, float min, float max)
+// Do a softmax to turn classification results into probabilty function
+// Resulting vector will be in range [0, 1] with a sum of 1
+std::vector<float> softmaxResults(std::vector<float>& results)
 {
     std::vector<float> normalized;
     float sum = 0;
 
     for(auto& i : results)
     {
-        float val = (i+fabsf(min)) / max;
+        float val = exp(i);
         normalized.push_back(val);
         sum += val;
     }
@@ -175,7 +177,7 @@ std::vector<float> normalizeResults(std::vector<float>& results, float min, floa
         normalized[i] = normalized[i] / sum;
     }
 
-    return normalized;
+    return normalized;    
 }
 
 bool compare(std::vector<float>& actualResults, std::vector<float>& expectedResults, float tolerance, float allowedDeviation)
@@ -188,7 +190,8 @@ bool compare(std::vector<float>& actualResults, std::vector<float>& expectedResu
     if (actualResults.size() != expectedResults.size())
         std::cout << "  RESULTS SIZES DO NOT MATCH! Continuing..." << std::endl;
 
-    float maxErr = 0;
+    float maxRelErr = 0;
+    float maxAbsErr = 0;
     float countErrs = 0;
     float sumDiff = 0;
     float sumSquareDiffs = 0;
@@ -204,19 +207,20 @@ bool compare(std::vector<float>& actualResults, std::vector<float>& expectedResu
         sumSquareDiffs += pow(abs_error, 2);
         sumDiff+=abs_error;
 
+        if(abs_error > maxAbsErr) maxAbsErr = abs_error;
+        if(relative_error > maxRelErr) maxRelErr = relative_error;
+
         std::string result = "\t\033[1;32mPass\033[0m";
         if ((relative_error) > allowedDeviation and abs_error > allowedDeviation)
         {
             countErrs++;
-            if(abs_error > maxErr) maxErr = abs_error;
             result = "\t\033[1;31mfail\033[0m";
-            // std::cout << std::setw(6) << idx << std::setw(10) << expected << std::setw(12) << actual << std::setw(12) << abs_error << std::setw(12) << relative_error << std::setw(18)  << result  << std::endl;
         }
         if (idx < 50) // print first 50 rows
             std::cout << std::setw(10) << expected << std::setw(12) << actual << std::setw(12) << abs_error << std::setw(12) << relative_error << std::setw(18)  << result  << std::endl;
     };
 
-    std::cout << "Printing first 50 rows...\nID\tExpected\tActual\tDifference  Relative Err  Result" << std::endl;
+    std::cout << "Printing first 50 rows...\nExpected\tActual\tDifference  Relative Err\tResult" << std::endl;
     for (size_t n = 0; n < expectedResults.size(); ++n)
         absoluteErrorUpdater(n);
 
@@ -226,30 +230,25 @@ bool compare(std::vector<float>& actualResults, std::vector<float>& expectedResu
     float countErrsPcent = (countErrs/actualResults.size()) * 100;
     
     //print results report
+    std::cout.setf( std::ios::fixed );
     std::cout << "\nMetric\t\t\t  Actual  Threshold\tStatus" << std::endl << "----------------------    ------  ---------\t-------" << std::endl;   
-    // std::cout << "Min Pixel Accuracy\t" << std::setw(7) << (int)(maxErr * 10000.0)/10000.0 << "%" << std::setw(10) << tolerance << "%" << std::setw(8) << ((maxErr < tolerance) ? "\t\033[1;32mPass" : "\t\033[1;31mFail") << "\033[0m" << std::endl;
-    std::cout << "Average Pixel Accuracy\t" << std::setw(7) << (int)(avgPixelAccuracy * 10000.0) / 10000.0 << "%" << std::setw(10) << tolerance << "%" << std::setw(8) << ((avgPixelAccuracy < tolerance) ? "\t\033[1;32mPass" : "\t\033[1;31mFail") << "\033[0m" << std::endl;
-    std::cout << "% of Wrong Values\t" << std::setw(7) << (int)(countErrsPcent * 10000.0) / 10000.0 << "%" << std::setw(10) << tolerance << "%" << ((countErrsPcent < tolerance) ? "\t\033[1;32mPass" : "\t\033[1;31mFail") << "\033[0m" << std::endl;
-    std::cout << "Pixel-wise L2 Error\t" << std::setw(7) << (int)((l2_err * 100) * 10000.0)/10000.0 << "%" << std::setw(10) << tolerance << "%" << ((l2_err < tolerance) ? "\t\033[1;32mPass" : "\t\033[1;31mFail") << "\033[0m" << std::endl;
-    std::cout << "Global Sum Difference\t" << std::setw(8) << sumDiff << std::setw(11) << "inf" << std::setw(8) << "\t\033[1;32mPass\033[0m" << std::endl;
-    std::cout << "Max Absolute Error\t" << std::setw(8) << maxErr << std::setw(11) << "inf" << std::setw(8) << "\t\033[1;32mPass\033[0m" << std::endl << std::endl;
-    
+    std::cout << "Min Pixel Accuracy\t" << std::setw(7) << std::setprecision(3) << maxRelErr << "%" << std::setw(10)  << std::setprecision(0)  << tolerance << "%" << std::setw(8) << ((maxRelErr < tolerance) ? "\t\033[1;32mPass" : "\t\033[1;31mFail") << "\033[0m" << std::endl;
+    std::cout << "Average Pixel Accuracy\t" << std::setw(7) << std::setprecision(3) << avgPixelAccuracy << "%" << std::setw(10) << std::setprecision(0) << tolerance << "%" << std::setw(8) << ((avgPixelAccuracy < tolerance) ? "\t\033[1;32mPass" : "\t\033[1;31mFail") << "\033[0m" << std::endl;
+    std::cout << "% of Wrong Values\t" << std::setw(7) << std::setprecision(3) << countErrsPcent << "%" << std::setw(10) << std::setprecision(0) << tolerance << "%" << ((countErrsPcent < tolerance) ? "\t\033[1;32mPass" : "\t\033[1;31mFail") << "\033[0m" << std::endl;
+    std::cout << "Pixel-wise L2 Error\t" << std::setw(7) << std::setprecision(3) << (l2_err * 100) << "%" << std::setw(10) << std::setprecision(0) << tolerance << "%" << ((l2_err < tolerance) ? "\t\033[1;32mPass" : "\t\033[1;31mFail") << "\033[0m" << std::endl;
+    std::cout << "Global Sum Difference\t" << std::setw(8) << std::setprecision(3) << sumDiff << std::setw(11) << "inf" << std::setw(8) << "\t\033[1;32mPass\033[0m" << std::endl;
+    std::cout << "Max Absolute Error\t" << std::setw(8) << std::setprecision(3) << maxAbsErr << std::setw(11) << "inf" << std::setw(8) << "\t\033[1;32mPass\033[0m" << std::endl << std::endl;
 
-    float min = *std::min_element(expectedResults.begin(), expectedResults.end());
-    if(*std::min_element(actualResults.begin(), actualResults.end()) < min)
-        min = *std::min_element(actualResults.begin(), actualResults.end());
-    float max = *std::max_element(expectedResults.begin(), expectedResults.end());
-    if(*std::max_element(actualResults.begin(), actualResults.end()) < max)
-        max = *std::max_element(actualResults.begin(), actualResults.end());
-    std::vector<float> P = normalizeResults(expectedResults, min, max);
-    std::vector<float> Q = normalizeResults(actualResults, min, max);
-
+    std::cout << "Applying Softmax to results to create probability distribution..." << std::endl;
+    std::vector<float> P = softmaxResults(expectedResults);
+    std::vector<float> Q = softmaxResults(actualResults);
     float jsDiv = jsDivergence(P, Q);
-	std::cout << "JS Divergence\t\t" << std::setw(10) << jsDiv << std::endl;
-    std::cout << "JS Distance\t\t" << std::setw(8) << sqrt(jsDiv)  << std::setw(8) << tolerance << "%" << std::setw(8) << ((sqrt(jsDiv) < (tolerance/100)) ? "\t\033[1;32mPass" : "\t\033[1;31mFail") << "\033[0m" << std::endl;
+    float jsDistance = sqrt(jsDiv);
+	std::cout << "JS Divergence\t\t" << std::setw(10) << std::setprecision(8) << jsDiv << std::endl;
+    std::cout << "JS Distance\t\t" << std::setw(8) << std::setprecision(8) << jsDistance  << std::setw(8) << std::setprecision(0) << tolerance << "%" << std::setw(8) << (jsDistance < (tolerance/100) ? "\t\033[1;32mPass" : "\t\033[1;31mFail") << "\033[0m" << std::endl << std::endl;
 
     // if (avgPixelAccuracy < tolerance) return true;
-    if (sqrt(jsDiv) < (tolerance / 100) ) return true;
+    if ((countErrsPcent < tolerance)) return true;
     else return false;
 }
 
