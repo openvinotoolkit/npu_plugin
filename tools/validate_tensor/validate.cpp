@@ -125,9 +125,9 @@ void generateGraphFile(std::string pathBlob, MVCNN::GraphFileT& graphFile)
 
 // K-L Divergence, or relative entropy, is calculated as KL(P || Q) = sum x in X P(x) * log(P(x) / Q(x))
 // where P is the expected results, and Q is our observed result
-float klDivergence(std::vector<float>& P, std::vector<float>& Q)
+double klDivergence(std::vector<float>& P, std::vector<float>& Q)
 {
-	float sum = 0.0;
+	double sum = 0.0;
 	for(size_t i = 0; i < Q.size(); i++)
 	{
 		float p = P[i];
@@ -137,8 +137,6 @@ float klDivergence(std::vector<float>& P, std::vector<float>& Q)
 		float log = std::log2(p / q);
 		
 		sum += p * log;
-
-		// std::cout << "p " << p << ", q " << q<< ", log " << log << ", sum " << sum <<std::endl;
 	}
 	
 	return sum;
@@ -146,7 +144,7 @@ float klDivergence(std::vector<float>& P, std::vector<float>& Q)
 
 // JS Divergence, a normalized version of KL diverence for calculating differences in probability distrubution
 // JS(P || Q) = 1/2 * KL(P || M) + 1/2 * KL(Q || M), where M is M = 1/2 * (P + Q)
-float jsDivergence(std::vector<float>& P, std::vector<float>& Q)
+double jsDivergence(std::vector<float>& P, std::vector<float>& Q)
 {
 	std::vector<float> M;
 	for(size_t i = 0; i < Q.size(); i++)
@@ -175,6 +173,9 @@ std::vector<float> softmaxResults(std::vector<float>& results)
     for(size_t i = 0; i < normalized.size(); i++)
     {
         normalized[i] = normalized[i] / sum;
+        // If the division underflows the softmax, can't use 0 because we will take log later
+        if(isnan(normalized[i]))
+            normalized[i] = std::numeric_limits<float>::min();
     }
 
     return normalized;    
@@ -211,7 +212,7 @@ bool compare(std::vector<float>& actualResults, std::vector<float>& expectedResu
         if(relative_error > maxRelErr) maxRelErr = relative_error;
 
         std::string result = "\t\033[1;32mPass\033[0m";
-        if ((relative_error) > allowedDeviation and abs_error > allowedDeviation)
+        if ((abs_error > allowedDeviation))
         {
             countErrs++;
             result = "\t\033[1;31mfail\033[0m";
@@ -242,8 +243,8 @@ bool compare(std::vector<float>& actualResults, std::vector<float>& expectedResu
     std::cout << "Applying Softmax to results to create probability distribution..." << std::endl;
     std::vector<float> P = softmaxResults(expectedResults);
     std::vector<float> Q = softmaxResults(actualResults);
-    float jsDiv = jsDivergence(P, Q);
-    float jsDistance = sqrt(jsDiv);
+    double jsDiv = jsDivergence(P, Q);
+    double jsDistance = sqrt(jsDiv);
 	std::cout << "JS Divergence\t\t" << std::setw(10) << std::setprecision(8) << jsDiv << std::endl;
     std::cout << "JS Distance\t\t" << std::setw(8) << std::setprecision(8) << jsDistance  << std::setw(8) << std::setprecision(0) << tolerance << "%" << std::setw(8) << (jsDistance < (tolerance/100) ? "\t\033[1;32mPass" : "\t\033[1;31mFail") << "\033[0m" << std::endl << std::endl;
 
