@@ -309,8 +309,10 @@ void alignConcatScales(const mv::pass::PassEntry&, mv::ComputationModel& model, 
             {
 //                double weightScale = std::pow(masterScale[0]/concatIt->getInputTensor()[i]->get<mv::QuantizationParams>("quantParams").getScale()[0], 2);
                 double weightScale = 1.0f;
+                auto oldScale = concatIt->getInputTensor(i)->get<mv::QuantizationParams>("quantParams").getScale()[0];
                 placeReQuantizeDepthwiseBefore(om, concatIt, concatIt->getInputTensor(i), i, weightScale, masterScale[0]);
-                concatIt->getInputTensor(i)->set<double>("oldScale", concatIt->getInputTensor(i)->get<mv::QuantizationParams>("quantParams").getScale()[0]);
+
+                concatIt->getInputTensor(i)->set<double>("oldScale", oldScale);
                 concatIt->set<bool>("compensateNeed", true);
                 concatIt->getOutputTensor(0)->set<mv::QuantizationParams>("quantParams", masterQuant);
                 //NOTE: Concat outputs a unified tensor in scales with tensor quantized to S1
