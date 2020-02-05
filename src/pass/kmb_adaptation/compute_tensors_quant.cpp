@@ -303,8 +303,6 @@ void alignConcatScales(const mv::pass::PassEntry&, mv::ComputationModel& model, 
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);
     mv::DataModel dm(model);
-    std::vector<double> minInputFloats, maxInputFloats;
-    double minimumFloat, maximumFloat;
 
     auto concats = om.getOps("Concat");
     std::vector<std::string> dpuTypes = {"Conv", "MaxPool"};
@@ -343,10 +341,14 @@ void alignConcatScales(const mv::pass::PassEntry&, mv::ComputationModel& model, 
     {
         if (concatIt->get<bool>("compensateNeed"))
         {
+            std::vector<double> minInputFloats, maxInputFloats = {};
+            double minimumFloat, maximumFloat;
+
             //NOTE: Compute the min/max of every tensor that goes in the Concat
             for (std::size_t i = 0; i < concatIt->getInputTensor().size(); i++)
             {
                 auto& inputQuantization = concatIt->getInputTensor(i)->get<mv::QuantizationParams>("quantParams");
+                std::cout << inputQuantization.getScale()[0] << std::endl;
                 //Note: if input Tensor has min, max of infs...we need to compute them
                 if (inputQuantization.infinitelimits())
                 {
