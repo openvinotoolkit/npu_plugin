@@ -4,7 +4,7 @@
 
 add_subdirectory(unit)
 
-if(ENABLE_HDDL2 AND ENABLE_HDDL2_UNIT_TESTS)
+if(ENABLE_HDDL2)
     add_subdirectory(unit/hddl2_tests)
 endif()
 
