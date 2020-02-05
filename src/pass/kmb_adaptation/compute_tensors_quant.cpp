@@ -41,25 +41,8 @@ namespace mv
 void postTrainingQuantize(const mv::pass::PassEntry& pass, mv::ComputationModel& model,
                        mv::TargetDescriptor& td, mv::Element& e0, mv::Element& e1)
 {
-    updateOutputQuantParams(pass, model, td, e0, e1);
     alignConcatScales(pass, model, td, e0, e1);
-}
-
-bool isQuantizationParamNeutral(mv::QuantizationParams& quants)
-{
-    auto scale = quants.getScale();
-    for (size_t i = 0; i < scale.size(); i++)
-    {
-        if (scale[i] != 1.0)
-            return false;
-    }
-    auto zp = quants.getZeroPoint();
-    for (size_t i = 0; i < zp.size(); i++)
-    {
-        if (zp[i] != 0)
-            return false;
-    }
-    return true;
+    updateOutputQuantParams(pass, model, td, e0, e1);
 }
 
 void updateOutputQuantParams(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
@@ -90,6 +73,32 @@ void updateOutputQuantParams(const mv::pass::PassEntry&, mv::ComputationModel& m
     convolutions.reserve(operationsOfConvolution["Conv"].size() + operationsOfConvolution["Depthwise"].size() + operationsOfConvolution["ChannelMajorConvolution"].size());
     convolutions.insert(convolutions.end(), operationsOfConvolution["Conv"].begin(), operationsOfConvolution["Conv"].end());
     double inf = std::numeric_limits<double>::infinity();
+    auto maxPoolOps = om.getOps("MaxPool");
+    for(auto& opIt : maxPoolOps)
+    {
+        auto output = opIt->getOutputTensor(0);
+        auto input = opIt->getInputTensor(0);
+
+        if (!output->hasAttr("quantParams")
+                || output->get<mv::QuantizationParams>("quantParams").isNeutral())
+        {
+            if (!input->hasAttr("quantParams"))
+            {
+                if (input->get<mv::QuantizationParams>("quantParams").isNeutral())
+                {
+                    continue;
+                }
+            }
+            else
+            {
+                auto& inputQuantization = input->get<mv::QuantizationParams>("quantParams");
+
+                output->set<mv::QuantizationParams>("quantParams", inputQuantization);
+                opIt->set<mv::QuantizationParams>("quantParams", inputQuantization);
+            }
+        }
+
+    }
     for(auto& opIt : convolutions)
     {
         auto output = opIt->getOutputTensor(0);
@@ -97,9 +106,8 @@ void updateOutputQuantParams(const mv::pass::PassEntry&, mv::ComputationModel& m
         auto outputChannels = output->getShape()[mv::IO_CHANNEL_DIMENSION];
 
         if (!output->hasAttr("quantParams")
-                || isQuantizationParamNeutral(output->get<mv::QuantizationParams>("quantParams")))
+                || output->get<mv::QuantizationParams>("quantParams").isNeutral())
         {
-
             double outputMin = inf;
             double outputMax = -inf;
 
@@ -296,6 +304,15 @@ void alignConcatScales(const mv::pass::PassEntry&, mv::ComputationModel& model, 
 
     auto concats = om.getOps("Concat");
     std::vector<std::string> dpuTypes = {"Conv"};
+    //MaxPool does not need to compensate, I am doing that for case concat->Conv, MaxPool
+//    for(auto& concatIt : concats)
+//    {
+//        auto nextOpAfterConcat = findNextConcat(dm, concatIt->getOutputTensor()[0])[0];
+//        if (nextOpAfterConcat->getOpType() != "Conv")
+//        {
+//            concats.erase(std::remove(concats.begin(), concats.end(), concatIt), concats.end());
+//        }
+//    }
     for(auto& concatIt : concats)
     {
         auto masterQuant =  concatIt->getInputTensor(0)->get<mv::QuantizationParams>("quantParams");
@@ -304,11 +321,9 @@ void alignConcatScales(const mv::pass::PassEntry&, mv::ComputationModel& model, 
 
         for (std::size_t i = 1; i < concatIt->getInputTensor().size(); i++)
         {
-            //NOTE: Activation tensors need to support only one value
             if (std::abs(masterScale[0] - concatIt->getInputTensor(i)->get<mv::QuantizationParams>("quantParams").getScale()[0])/masterScale[0] >
                     0.01)
             {
-//                double weightScale = std::pow(masterScale[0]/concatIt->getInputTensor()[i]->get<mv::QuantizationParams>("quantParams").getScale()[0], 2);
                 double weightScale = 1.0f;
                 auto oldScale = concatIt->getInputTensor(i)->get<mv::QuantizationParams>("quantParams").getScale()[0];
                 placeReQuantizeDepthwiseBefore(om, concatIt, concatIt->getInputTensor(i), i, weightScale, masterScale[0]);
@@ -316,8 +331,7 @@ void alignConcatScales(const mv::pass::PassEntry&, mv::ComputationModel& model, 
                 concatIt->getInputTensor(i)->set<double>("oldScale", oldScale);
                 concatIt->set<bool>("compensateNeed", true);
                 concatIt->getOutputTensor(0)->set<mv::QuantizationParams>("quantParams", masterQuant);
-                //NOTE: Concat outputs a unified tensor in scales with tensor quantized to S1
-                //My tensor in the end needs to have values coming from Qv*(S1,...,S2...)
+                concatIt->set<mv::QuantizationParams>("quantParams", masterQuant);
             }
             else
                 continue;
