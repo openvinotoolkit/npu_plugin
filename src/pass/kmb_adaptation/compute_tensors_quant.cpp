@@ -297,6 +297,7 @@ void alignConcatScales(const mv::pass::PassEntry&, mv::ComputationModel& model, 
     std::vector<std::string> dpuTypes = {"Conv"};
     for(auto& concatIt : concats)
     {
+        auto masterQuant =  concatIt->getInputTensor(0)->get<mv::QuantizationParams>("quantParams");
         auto masterScale = concatIt->getInputTensor(0)->get<mv::QuantizationParams>("quantParams").getScale();
         concatIt->set<bool>("compensateNeed", false);
 
@@ -311,6 +312,7 @@ void alignConcatScales(const mv::pass::PassEntry&, mv::ComputationModel& model, 
                 placeReQuantizeDepthwiseBefore(om, concatIt, concatIt->getInputTensor(i), i, weightScale, masterScale[0]);
                 concatIt->getInputTensor(i)->set<double>("oldScale", concatIt->getInputTensor(i)->get<mv::QuantizationParams>("quantParams").getScale()[0]);
                 concatIt->set<bool>("compensateNeed", true);
+                concatIt->getOutputTensor(0)->set<mv::QuantizationParams>("quantParams", masterQuant);
                 //NOTE: Concat outputs a unified tensor in scales with tensor quantized to S1
                 //My tensor in the end needs to have values coming from Qv*(S1,...,S2...)
             }
