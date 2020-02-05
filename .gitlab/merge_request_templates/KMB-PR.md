@@ -24,6 +24,6 @@
 
 (Please replace the links below with your own)
 
-* [ ] [IE-MDK](https://dsp-ci-icv.inn.intel.com/job/IE-MDK/job/manual/job/RunFunctionalTests/build)
+* [ ] [IE-MDK](https://dsp-ci-icv.inn.intel.com/job/IE-MDK/job/manual/job/RunTests/build)
 * [ ] [TeamCity Build All](https://teamcity01-ir.devtools.intel.com/viewType.html?buildTypeId=DeepLearningSdk_DeepLearningSdk_InferenceEngineUnifiedRepo_BuildAllKeemBayOnly)
 * [ ] Manual run on KMB EVM
