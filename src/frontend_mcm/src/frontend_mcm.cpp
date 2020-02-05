@@ -1432,8 +1432,16 @@ void FrontEndMcm::parseReorgYolo(const ie::CNNLayerPtr& layer, const McmNodeVect
 
     auto stride = layer->GetParamAsUInt("stride");
 
+    mv::QuantizationParams outputQuantParams = initialQuantParams;
+    QuantizationHelpers::fillQuntizationActivationParams(layer, outputQuantParams);
+
+    if (isQuantizationParamsEqual(initialQuantParams, outputQuantParams)) {
+        auto inputQuantParams = inputs[0]->getMcmNode()->get<mv::QuantizationParams>("quantParams");
+        outputQuantParams = inputQuantParams;
+    }
+
     auto reorg =
-        _modelMcm.reorgYolo(inputs[0]->getMcmNode(), stride, mv::DType("Default"), initialQuantParams, layer->name);
+        _modelMcm.reorgYolo(inputs[0]->getMcmNode(), stride, mv::DType("Default"), outputQuantParams, layer->name);
     bindOutput(reorg, layer->outData[0]);
 
     _logger->debug(FINISH_PARSING_STR, reorg->getName());
