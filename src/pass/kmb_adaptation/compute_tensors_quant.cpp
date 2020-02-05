@@ -362,18 +362,36 @@ void alignConcatScales(const mv::pass::PassEntry&, mv::ComputationModel& model, 
                 minInputFloats.push_back(minimumFloat);
                 maxInputFloats.push_back(maximumFloat);
             }
+            for (std::size_t i = 0; i < concatIt->getInputTensor().size(); i++)
+            {
+                std::cout << "Min is " << std::to_string(minInputFloats[i]) << std::endl;
+                std::cout << "Max is " << std::to_string(maxInputFloats[i]) << std::endl;
+            }
             double minConcatScale = *std::min_element(minInputFloats.begin(), minInputFloats.end());
             double maxConcatScale = *std::max_element(maxInputFloats.begin(), maxInputFloats.end());
             double masterScale = (maxConcatScale-minConcatScale)/255;
-            mv::QuantizationParams masterQuant = {{0},{masterScale},{minConcatScale},{maxConcatScale}};
+            int64_t zeroPoint = 0;
+            if (maxConcatScale >= 0.0)
+                zeroPoint = 0;
+            else if (minConcatScale <= 0.0)
+                zeroPoint = 255;
+            else if ((minConcatScale < 0.0) && (maxConcatScale > 0.0))
+            {
+                auto max_diff = (maxConcatScale/(std::abs(minConcatScale) + maxConcatScale)) * 255;
+                zeroPoint = std::ceil(255 - max_diff);
+            }
+            std::cout << "MASTER SCALE IS " << masterScale << std::endl;
+            mv::QuantizationParams masterQuant = {{zeroPoint},{masterScale},{minConcatScale},{maxConcatScale}};
 
             for (std::size_t i = 0; i < concatIt->getInputTensor().size(); i++)
             {
+                if (masterScale == concatIt->getInputTensor()[i]->get<mv::QuantizationParams>("quantParams").getScale()[0])
+                    continue;
                 double weightScale = 1.0f;
                 placeReQuantizeDepthwiseBefore(om, concatIt, concatIt->getInputTensor(i), i, weightScale, masterScale);
-                concatIt->getOutputTensor(0)->set<mv::QuantizationParams>("quantParams", masterQuant);
-                concatIt->set<mv::QuantizationParams>("quantParams", masterQuant);
             }
+            concatIt->getOutputTensor(0)->set<mv::QuantizationParams>("quantParams", masterQuant);
+            concatIt->set<mv::QuantizationParams>("quantParams", masterQuant);
             auto nextOp = findNextConcat(dm, concatIt->getOutputTensor()[0])[0];
             if (std::find(dpuTypes.begin(), dpuTypes.end(), nextOp->getOpType()) != dpuTypes.end())
                 compensateDepthWiseAfter(om, nextOp, concatIt);
