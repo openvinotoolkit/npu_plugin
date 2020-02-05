@@ -336,7 +336,7 @@ int runEmulator(std::string pathXML, std::string pathImage, std::string& blobPat
         commandline += (" -i " + pathImage);
 
     std::cout << commandline << std::endl;
-    returnVal = std::system(commandline.c_str());
+    std::system(commandline.c_str());
     if (returnVal != 0)
     {
         std::cout << std::endl << "Error occurred running the test_classification (KMB mode)!" << std::endl;
