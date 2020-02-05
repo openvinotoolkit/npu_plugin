@@ -18,6 +18,7 @@ int main()
     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/release_kmb.json";
     unit.loadCompilationDescriptor(compDescPath);
     mv::CompilationDescriptor &compDesc = unit.compilationDescriptor();
+    unit.compilationDescriptor().remove("adapt", "PostTrainingQuantize");
 
     unit.loadTargetDescriptor(mv::Target::ma2490);
     unit.initialize();
