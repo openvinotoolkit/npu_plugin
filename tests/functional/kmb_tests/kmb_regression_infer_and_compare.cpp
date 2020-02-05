@@ -197,14 +197,6 @@ std::vector<TestingNetworkParameters> vpuCompileTargetNetworksFail = {
     TestingNetworkParameters {"ssd512_caffe_uint8_int8_weights_pertensor",
         "/KMB_models/INT8/public/ssd512/ssd512_caffe_uint8_int8_weights_pertensor.xml",
         "/KMB_models/INT8/public/ssd512/ssd512_caffe_uint8_int8_weights_pertensor.bin", "/512x512/dog_croped512.bmp"},
-    // post training models
-    // Test on caffe based inception_v1 fails on IE to mcmCompiler parsing stage
-    // C++ exception with description "Op:pool5/7x7_s1 - OpError: Invalid input data (0) -
-    // Filter kernel width (7) exceeds the padded input width (6)
-    TestingNetworkParameters {"inception_v1_caffe_benchmark",
-        "/KMB_models/INT8/public/inception-v1_caffe/googlenet-v1.xml",
-        "/KMB_models/INT8/public/inception-v1_caffe/googlenet-v1.bin", "/224x224/cat3.bmp"},
-
     // very long time compilation
     TestingNetworkParameters {"tiny_yolo_v1_uint8_int8_weights_pertensor",
         "/KMB_models/INT8/public/YoloTiny-v1-caffe/tiny_yolo_v1_caffe_uint8_int8_weights_per_tensor.xml",

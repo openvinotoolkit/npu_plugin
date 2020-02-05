@@ -13,11 +13,11 @@ endif()
 if(ARM OR AARCH64)
     ie_option(ENABLE_HDDL2 "Enable HDDL2 Plugin" OFF)
 else()
-    ie_option(ENABLE_HDDL2 "Enable HDDL2 Plugin" ON)
+    # TODO: enable by default when linker issues is fixed
+    ie_option(ENABLE_HDDL2 "Enable HDDL2 Plugin" OFF)
 endif()
 
-ie_option(ENABLE_HDDL2_UNIT_TESTS "Enable HDDL2 Plugin UnitTests" OFF)
-
 ie_option(ENABLE_VPUAL "Enable VPUAL" ON)
+ie_option(ENABLE_VPUAL_MODEL "Enable VPUAL model" OFF)
 
 ie_option(ENABLE_KMB_SAMPLES "Enable KMB samples" ON)
