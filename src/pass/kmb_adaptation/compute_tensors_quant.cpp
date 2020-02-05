@@ -237,7 +237,7 @@ void compensateDepthWiseAfter(mv::OpModel om, mv::Data::OpListIterator nextOp, m
 {
     auto inputFlow = nextOp.leftmostInput();
     mv::Data::TensorIterator weights;
-    std::vector<int64_t> zp = { 0 };
+    std::vector<int64_t> zp = { 0 }; // why always assume ZP 0?? it is in this case but doesnt have to be always
     std::vector<double> min = { 1 };
     std::vector<double> max = { 1 };
 
@@ -248,10 +248,11 @@ void compensateDepthWiseAfter(mv::OpModel om, mv::Data::OpListIterator nextOp, m
     std::size_t sumChannels = concat->getInputTensor(0)->getShape()[mv::IO_CHANNEL_DIMENSION];
     for (std::size_t i = 1; i < concat->getInputTensor().size(); i++)
     {
+        auto oldScale = concat->getInputTensor()[i]->get<double>("oldScale");
         for (std::size_t outputChannel = sumChannels;  outputChannel < sumChannels + concat->getInputTensor()[i]->getShape()[mv::IO_CHANNEL_DIMENSION];
              outputChannel++)
         {
-            scale[outputChannel] = masterScale/concat->getInputTensor()[i]->get<double>("oldScale");
+            scale[outputChannel] = masterScale/oldScale;
         }
         sumChannels +=concat->getInputTensor()[i]->getShape()[mv::IO_CHANNEL_DIMENSION];
     }
@@ -323,6 +324,8 @@ void alignConcatScales(const mv::pass::PassEntry&, mv::ComputationModel& model, 
         }
         if (concatIt->get("compensateNeed"))
         {
+
+            //TODO: might have more than one Op after ??
             auto nextOp = findNextConcat(dm, concatIt->getOutputTensor()[0])[0];
             if (std::find(dpuTypes.begin(), dpuTypes.end(), nextOp->getOpType()) != dpuTypes.end())
             {
