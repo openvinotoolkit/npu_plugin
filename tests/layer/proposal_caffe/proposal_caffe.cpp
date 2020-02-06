@@ -61,6 +61,7 @@ int main()
     om.output(proposal0);
     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/release_kmb_MC-Prefetch1.json";
     unit.loadCompilationDescriptor(compDescPath);
+    unit.compilationDescriptor().remove("adapt", "PostTrainingQuantize");
     unit.loadTargetDescriptor(mv::Target::ma2490);
     unit.initialize();
     unit.run();
