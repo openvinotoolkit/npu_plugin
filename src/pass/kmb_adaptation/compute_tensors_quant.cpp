@@ -12,8 +12,8 @@ static void updateOutputQuantParams(const mv::pass::PassEntry& pass, mv::Computa
 static void postTrainingQuantize(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void alignConcatScales(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void placeReQuantizeDepthwiseBefore(mv::OpModel om, mv::Data::OpListIterator concat, mv::Data::TensorIterator inputTensor, std::size_t index, double &weightScale, double &alignedScale, int64_t &alignedZeroPoint);
-static void compensateDepthWiseAfter(mv::OpModel om, mv::Data::OpListIterator nextOp, mv::Data::OpListIterator concat);
-static std::vector<mv::Data::OpListIterator> findNextConcat(mv::DataModel &dataModel, const mv::Data::TensorIterator &tensor);
+//static void compensateDepthWiseAfter(mv::OpModel om, mv::Data::OpListIterator nextOp, mv::Data::OpListIterator concat);
+//static std::vector<mv::Data::OpListIterator> findNextConcat(mv::DataModel &dataModel, const mv::Data::TensorIterator &tensor);
 
 template <class T>
 std::vector<T> extendToK(size_t size, std::vector<T> value, std::string tensorName);
@@ -85,10 +85,7 @@ void updateOutputQuantParams(const mv::pass::PassEntry& pass, mv::ComputationMod
             if (!input->hasAttr("quantParams"))
             {
                 if (input->get<mv::QuantizationParams>("quantParams").isNeutral())
-                {
-                    pass.log(mv::Logger::MessageType::Warning, " INPUT TENSOR HAS NO QUANT ");
                     continue;
-                }
             }
             else
             {
@@ -243,60 +240,60 @@ void placeReQuantizeDepthwiseBefore(mv::OpModel om, mv::Data::OpListIterator con
     om.defineFlow(reQuantizeDepthwise, concat, index);
 }
 
-void compensateDepthWiseAfter(mv::OpModel om, mv::Data::OpListIterator nextOp, mv::Data::OpListIterator concat)
-{
-    auto inputFlow = nextOp.leftmostInput();
-    mv::Data::TensorIterator weights;
-    std::vector<int64_t> zp = { 0 }; // why always assume ZP 0?? it is in this case but doesnt have to be always
-    std::vector<double> min = { 1 };
-    std::vector<double> max = { 1 };
+//void compensateDepthWiseAfter(mv::OpModel om, mv::Data::OpListIterator nextOp, mv::Data::OpListIterator concat)
+//{
+//    auto inputFlow = nextOp.leftmostInput();
+//    mv::Data::TensorIterator weights;
+//    std::vector<int64_t> zp = { 0 }; // why always assume ZP 0?? it is in this case but doesnt have to be always
+//    std::vector<double> min = { 1 };
+//    std::vector<double> max = { 1 };
 
-    std::vector<double> scale(concat->getOutputTensor()[0]->getShape()[mv::IO_CHANNEL_DIMENSION], 1 );
-    double masterScale = concat->getInputTensor()[0]->get<mv::QuantizationParams>("quantParams").getScale()[0];
-    int64_t weightsValue = 1;
-    std::vector<int64_t> weightsData(concat->getOutputTensor()[0]->getShape()[mv::IO_CHANNEL_DIMENSION], weightsValue);
-    std::size_t sumChannels = 0;
-    for (std::size_t i = 0; i < concat->getInputTensor().size(); i++)
-    {
-        auto oldScale = concat->getInputTensor()[i]->get<double>("oldScale");
-        for (std::size_t outputChannel = sumChannels;  outputChannel < sumChannels + concat->getInputTensor()[i]->getShape()[mv::IO_CHANNEL_DIMENSION];
-             outputChannel++)
-        {
-            scale[outputChannel] = oldScale/masterScale;
-        }
-        sumChannels +=concat->getInputTensor()[i]->getShape()[mv::IO_CHANNEL_DIMENSION];
-    }
+//    std::vector<double> scale(concat->getOutputTensor()[0]->getShape()[mv::IO_CHANNEL_DIMENSION], 1 );
+//    double masterScale = concat->getInputTensor()[0]->get<mv::QuantizationParams>("quantParams").getScale()[0];
+//    int64_t weightsValue = 1;
+//    std::vector<int64_t> weightsData(concat->getOutputTensor()[0]->getShape()[mv::IO_CHANNEL_DIMENSION], weightsValue);
+//    std::size_t sumChannels = 0;
+//    for (std::size_t i = 0; i < concat->getInputTensor().size(); i++)
+//    {
+//        auto oldScale = concat->getInputTensor()[i]->get<double>("oldScale");
+//        for (std::size_t outputChannel = sumChannels;  outputChannel < sumChannels + concat->getInputTensor()[i]->getShape()[mv::IO_CHANNEL_DIMENSION];
+//             outputChannel++)
+//        {
+//            scale[outputChannel] = oldScale/masterScale;
+//        }
+//        sumChannels +=concat->getInputTensor()[i]->getShape()[mv::IO_CHANNEL_DIMENSION];
+//    }
 
-    mv::QuantizationParams weightsQuantParams(zp, scale, min, max);
-    auto inputTensor = concat->getOutputTensor()[0];
-    weights = om.constantInt(weightsData,
-                        {1, 1, inputTensor->getShape()[mv::IO_CHANNEL_DIMENSION], 1},
-                        mv::DType("UInt8"),
-                        mv::Order(mv::Order::getRowMajorID(4)),
-                        weightsQuantParams);
+//    mv::QuantizationParams weightsQuantParams(zp, scale, min, max);
+//    auto inputTensor = concat->getOutputTensor()[0];
+//    weights = om.constantInt(weightsData,
+//                        {1, 1, inputTensor->getShape()[mv::IO_CHANNEL_DIMENSION], 1},
+//                        mv::DType("UInt8"),
+//                        mv::Order(mv::Order::getRowMajorID(4)),
+//                        weightsQuantParams);
 
-    auto compensateDepthWise = om.depthwiseConv(inputTensor, weights, {1,1}, {0, 0, 0, 0},
-                1, mv::DType("UInt8"), {{concat->getOutputTensor(0)->get<mv::QuantizationParams>("quantParams").getZeroPoint()[0]},{masterScale},{},{}}, nextOp->getName() + "compensateDepthwise");
-    auto compensateDepthWiseOp = om.getSourceOp(compensateDepthWise);
-    auto weightsOp = om.getSourceOp(weights);
-    compensateDepthWiseOp->set<unsigned>("opId", nextOp->get<unsigned>("opId"));
-    weightsOp->set<unsigned>("opId", nextOp->get<unsigned>("opId"));
-    om.undefineFlow(inputFlow);
-    nextOp->setInputTensor(compensateDepthWise, 0, false);
-    om.defineFlow(compensateDepthWise, nextOp, 0);
-}
+//    auto compensateDepthWise = om.depthwiseConv(inputTensor, weights, {1,1}, {0, 0, 0, 0},
+//                1, mv::DType("UInt8"), {{concat->getOutputTensor(0)->get<mv::QuantizationParams>("quantParams").getZeroPoint()[0]},{masterScale},{},{}}, nextOp->getName() + "compensateDepthwise");
+//    auto compensateDepthWiseOp = om.getSourceOp(compensateDepthWise);
+//    auto weightsOp = om.getSourceOp(weights);
+//    compensateDepthWiseOp->set<unsigned>("opId", nextOp->get<unsigned>("opId"));
+//    weightsOp->set<unsigned>("opId", nextOp->get<unsigned>("opId"));
+//    om.undefineFlow(inputFlow);
+//    nextOp->setInputTensor(compensateDepthWise, 0, false);
+//    om.defineFlow(compensateDepthWise, nextOp, 0);
+//}
 
-static std::vector<mv::Data::OpListIterator> findNextConcat(mv::DataModel &dataModel, const mv::Data::TensorIterator &tensor)
-{
-    std::vector<mv::Data::OpListIterator> sinkOperations;
-    auto flowsNames = (tensor)->get<std::set<std::string>>("flows");
-    for(auto flowName : flowsNames)
-    {
-        auto df = dataModel.getDataFlow(flowName);
-        sinkOperations.push_back(df.sink());
-    }
-    return sinkOperations;
-}
+//static std::vector<mv::Data::OpListIterator> findNextConcat(mv::DataModel &dataModel, const mv::Data::TensorIterator &tensor)
+//{
+//    std::vector<mv::Data::OpListIterator> sinkOperations;
+//    auto flowsNames = (tensor)->get<std::set<std::string>>("flows");
+//    for(auto flowName : flowsNames)
+//    {
+//        auto df = dataModel.getDataFlow(flowName);
+//        sinkOperations.push_back(df.sink());
+//    }
+//    return sinkOperations;
+//}
 
 void alignConcatScales(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
@@ -305,7 +302,7 @@ void alignConcatScales(const mv::pass::PassEntry& pass, mv::ComputationModel& mo
     mv::DataModel dm(model);
 
     auto concats = om.getOps("Concat");
-    std::vector<std::string> dpuTypes = {"Conv", "MaxPool"};
+//    std::vector<std::string> dpuTypes = {"Conv", "MaxPool"};
     //MaxPool does not need to compensate, I am doing that for case concat->Conv, MaxPool
 //    for(auto& concatIt : concats)
 //    {
@@ -348,7 +345,6 @@ void alignConcatScales(const mv::pass::PassEntry& pass, mv::ComputationModel& mo
             for (std::size_t i = 0; i < concatIt->getInputTensor().size(); i++)
             {
                 auto& inputQuantization = concatIt->getInputTensor(i)->get<mv::QuantizationParams>("quantParams");
-                std::cout << inputQuantization.getScale()[0] << std::endl;
                 //Note: if input Tensor has min, max of infs...we need to compute them
                 if (inputQuantization.infinitelimits())
                 {
@@ -365,12 +361,6 @@ void alignConcatScales(const mv::pass::PassEntry& pass, mv::ComputationModel& mo
                 maxInputFloats.push_back(maximumFloat);
             }
 
-            for (std::size_t i = 0; i < concatIt->getInputTensor().size(); i++)
-            {
-                pass.log(mv::Logger::MessageType::Debug, "Min is " + std::to_string(minInputFloats[i]) );
-                pass.log(mv::Logger::MessageType::Debug, "Max is " + std::to_string(maxInputFloats[i]) );
-            }
-
             double minConcatScale = *std::min_element(minInputFloats.begin(), minInputFloats.end());
             double maxConcatScale = *std::max_element(maxInputFloats.begin(), maxInputFloats.end());
             double masterScale = (maxConcatScale-minConcatScale)/255;
@@ -384,7 +374,7 @@ void alignConcatScales(const mv::pass::PassEntry& pass, mv::ComputationModel& mo
                 auto max_diff = (maxConcatScale/(std::abs(minConcatScale) + maxConcatScale)) * 255;
                 zeroPoint = std::ceil(255 - max_diff);
             }
-            pass.log(mv::Logger::MessageType::Debug, "MASTER SCALE IS " + std::to_string(masterScale));
+
             mv::QuantizationParams masterQuant = {{zeroPoint},{masterScale},{minConcatScale},{maxConcatScale}};
 
             for (std::size_t i = 0; i < concatIt->getInputTensor().size(); i++)
@@ -396,9 +386,10 @@ void alignConcatScales(const mv::pass::PassEntry& pass, mv::ComputationModel& mo
             }
             concatIt->getOutputTensor(0)->set<mv::QuantizationParams>("quantParams", masterQuant);
             concatIt->set<mv::QuantizationParams>("quantParams", masterQuant);
-            auto nextOp = findNextConcat(dm, concatIt->getOutputTensor()[0])[0];
-            if (std::find(dpuTypes.begin(), dpuTypes.end(), nextOp->getOpType()) != dpuTypes.end())
-                compensateDepthWiseAfter(om, nextOp, concatIt);
+            //NOTE: Unused code but leaving it here...can be useful for other approach of the problem...
+//            auto nextOp = findNextConcat(dm, concatIt->getOutputTensor()[0])[0];
+//            if (std::find(dpuTypes.begin(), dpuTypes.end(), nextOp->getOpType()) != dpuTypes.end())
+//                compensateDepthWiseAfter(om, nextOp, concatIt);
 
         }
     }
