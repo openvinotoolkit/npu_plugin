@@ -3,22 +3,24 @@
 //
 #pragma once
 
+#include <gtest/gtest.h>
 #include <ie_common.h>
 #include <ie_layers.h>
 #include <precision_utils.h>
 
-#include <common_layers_params.hpp>
 #include <ie_icnn_network_stats.hpp>
 #include <ie_util_internal.hpp>
 #include <vpu/kmb_plugin_config.hpp>
 
+#include "common_test_utils/common_layers_params.hpp"
 #include "conv_ref.hpp"
+#include "single_layer_common.hpp"
 
 using namespace InferenceEngine;
 
 struct convolution_test_desc {
     InferenceEngine::SizeVector input_dim;
-    conv_common_params conv_params;
+    CommonTestUtils::conv_common_params conv_params;
     std::string net_precision;
     std::string conv_precision;
     std::string weights_precision;
@@ -30,10 +32,10 @@ struct convolution_test_desc {
 
 // Wrappers are used because IE functions getConvWeightsSize and getConvBiasesByteSize
 // support only 'FP32', 'FP16' and 'U8' precisions
-size_t getConvWeightsByteSize(
-    const std::vector<size_t>& inShape, const conv_common_params& params, const std::string& precision);
+size_t getConvWeightsByteSize(const std::vector<size_t>& inShape, const CommonTestUtils::conv_common_params& params,
+    const std::string& precision);
 
-size_t getConvBiasesByteSize(const conv_common_params& params, const std::string& precision);
+size_t getConvBiasesByteSize(const CommonTestUtils::conv_common_params& params, const std::string& precision);
 
 std::string instantiateConvTestIR(const convolution_test_desc& convTestParam);
 
@@ -66,7 +68,7 @@ static void testOverflow(const Blob::Ptr& blob) {
 // ref_conv_common copy with explicit precision for source and destination
 template <typename wei_data_t, typename bias_data_t>
 void ref_conv_common_prec(const std::vector<InferenceEngine::Blob::Ptr> srcs, Blob& dst, const wei_data_t* weights_data,
-    size_t weights_size, const bias_data_t* bias_data, size_t bias_size, const conv_common_params& prm,
+    size_t weights_size, const bias_data_t* bias_data, size_t bias_size, const CommonTestUtils::conv_common_params& prm,
     Precision precision) {
     if (srcs[0]->getTensorDesc().getLayout() != Layout::NCHW && srcs[0]->getTensorDesc().getLayout() != Layout::NCDHW)
         THROW_IE_EXCEPTION << "Reference FP32 convolution supports NCHW and NCDHW layouts only";

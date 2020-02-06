@@ -8,17 +8,17 @@
 #include "behavior_test_plugin.h"
 
 // correct params
-#define BEH_KMB    \
-    BehTestParams( \
-        "KMB", convReluNormPoolFcModelFP16.model_xml_str, convReluNormPoolFcModelFP16.weights_blob, Precision::FP32)
-#define BEH_HETERO                                                                                               \
-    BehTestParams("HETERO", convReluNormPoolFcModelFP32.model_xml_str, convReluNormPoolFcModelFP32.weights_blob, \
-        Precision::FP32)
+#define BEH_KMB                                                                               \
+    BehTestParams("KMB", FuncTestUtils::TestModel::convReluNormPoolFcModelFP16.model_xml_str, \
+        FuncTestUtils::TestModel::convReluNormPoolFcModelFP16.weights_blob, Precision::FP32)
+#define BEH_HETERO                                                                               \
+    BehTestParams("HETERO", FuncTestUtils::TestModel::convReluNormPoolFcModelFP32.model_xml_str, \
+        FuncTestUtils::TestModel::convReluNormPoolFcModelFP32.weights_blob, Precision::FP32)
 
 // all parameters are unsupported - reversed
-#define BEH_US_ALL_KMB \
-    BehTestParams(     \
-        "KMB", convReluNormPoolFcModelQ78.model_xml_str, convReluNormPoolFcModelQ78.weights_blob, Precision::Q78)
+#define BEH_US_ALL_KMB                                                                       \
+    BehTestParams("KMB", FuncTestUtils::TestModel::convReluNormPoolFcModelQ78.model_xml_str, \
+        FuncTestUtils::TestModel::convReluNormPoolFcModelQ78.weights_blob, Precision::Q78)
 
 const BehTestParams supportedValues[] = {
     BEH_KMB,
