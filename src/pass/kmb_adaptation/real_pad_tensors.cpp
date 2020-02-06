@@ -67,6 +67,8 @@ void propagateShapeChange(mv::OpModel& om, const std::string& flowStr)
         auto outputTensor = sink->getOutputTensor(0);
         auto outputShape = outputTensor->getShape();
 
+        sink->set<bool>("alignment", true);
+
         // If for whatever reason we pass through this tensor more than once, we
         // don't want to overwrite the original dimensions
         if(!outputTensor->hasAttr("oldDimensions"))

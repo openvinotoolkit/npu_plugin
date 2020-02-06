@@ -42,6 +42,7 @@ int main()
     std::string path = std::getenv("MCM_HOME");
     std::string compDescPath = path + "/config/compilation/release_kmb.json";
     unit.loadCompilationDescriptor(compDescPath);
+    unit.compilationDescriptor().remove("adapt", "PostTrainingQuantize");
 
     unit.loadTargetDescriptor(mv::Target::ma2490);
     unit.initialize();
