@@ -365,9 +365,9 @@ void alignConcatScales(const mv::pass::PassEntry& pass, mv::ComputationModel& mo
             double maxConcatScale = *std::max_element(maxInputFloats.begin(), maxInputFloats.end());
             double masterScale = (maxConcatScale-minConcatScale)/255;
             int64_t zeroPoint = 0;
-            if (maxConcatScale >= 0.0)
+            if (minConcatScale >= 0.0)
                 zeroPoint = 0;
-            else if (minConcatScale <= 0.0)
+            else if (maxConcatScale <= 0.0)
                 zeroPoint = 255;
             else if ((minConcatScale < 0.0) && (maxConcatScale > 0.0))
             {
