@@ -45,7 +45,7 @@ void postTrainingQuantize(const mv::pass::PassEntry& pass, mv::ComputationModel&
     updateOutputQuantParams(pass, model, td, e0, e1);
 }
 
-void updateOutputQuantParams(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+void updateOutputQuantParams(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
     //NOTE: This pass will generate output Quantization Params when they are not defined...
     //Here we search for the minimum, maximum possible solution (better range) for the output Activation Tensor
@@ -392,7 +392,6 @@ void alignConcatScales(const mv::pass::PassEntry&, mv::ComputationModel& model, 
             {
                 if (std::abs(masterQuant.getScale()[0] - concatIt->getInputTensor(i)->get<mv::QuantizationParams>("quantParams").getScale()[0])/masterQuant.getScale()[0] <= 0.01)
                     continue;
-
                 double weightScale = 1.0f;
                 placeReQuantizeDepthwiseBefore(om, concatIt, concatIt->getInputTensor(i), i, weightScale, masterQuant.getScale()[0], masterQuant.getZeroPoint()[0]);
             }
