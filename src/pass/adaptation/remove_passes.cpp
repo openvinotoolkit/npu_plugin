@@ -6,6 +6,7 @@ void removeIdentityOps(const mv::pass::PassEntry& pass, mv::ComputationModel& mo
 void removeDropOut(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void removeInterpNoOpFcn(const mv::pass::PassEntry&, mv::ComputationModel& model);
 void removeReshapeNoOpFcn(const mv::pass::PassEntry&, mv::ComputationModel& model);
+void removePermuteNoOpFcn(const mv::pass::PassEntry&, mv::ComputationModel& model);
 void linkNewOperationsRemove(const mv::pass::PassEntry& pass, mv::ComputationModel& model,
                                     mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void removeOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
@@ -32,6 +33,7 @@ void removeOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model,
     removeDropOut(pass, model);
     removeInterpNoOpFcn(pass, model);
     removeReshapeNoOpFcn(pass, model);
+    removePermuteNoOpFcn(pass, model);
 }
 
 mv::Data::OpListIterator linkNewOperationsRemove(mv::Data::OpListIterator parentOpIt,
@@ -130,6 +132,27 @@ void removeReshapeNoOpFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
     mv::OpModel om(model);
     auto reshapeOps = om.getOps("Reshape");
     for (auto& opIt : reshapeOps)
+    {
+        auto inputShape = opIt->getInputTensor(0)->getShape();
+        auto outputShape = opIt->getOutputTensor(0)->getShape();
+        if (inputShape == outputShape)
+        {
+            auto parentOpIt = om.getSourceOp(opIt->getInputTensor(0));
+            auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
+            auto sourceTensor = parentOpIt->getOutputTensor(0);
+            opIt = linkNewOperationsRemove(parentOpIt, sourceTensor, om, opIt);
+            if (outputMemoryLocation.isForced())
+                opIt->getOutputTensor(0)->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
+        }
+    }
+}
+
+void removePermuteNoOpFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
+{
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
+    mv::OpModel om(model);
+    auto permuteOps = om.getOps("Permute");
+    for (auto& opIt : permuteOps)
     {
         auto inputShape = opIt->getInputTensor(0)->getShape();
         auto outputShape = opIt->getOutputTensor(0)->getShape();
